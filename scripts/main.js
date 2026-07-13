@@ -34,12 +34,13 @@
     "find-hero": "find", "find-crowd": "find", "find-count": "find", "dot-dot": "find", "rescue": "find",
     "find-twins": "find", "i-spy": "find", "big-red-one": "find",
     "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",
-    "solid-match": "science", "magnet-magic": "science",
+    "solid-match": "science", "magnet-magic": "science", "blue-planet": "science", "continent-match": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
     "grow": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
+    "team-sound-hunt": "friends", "memory-together": "friends",
   };
 
   document.addEventListener("DOMContentLoaded", () => {

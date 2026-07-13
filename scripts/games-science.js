@@ -61,6 +61,7 @@
   sorter({ id: "day-night", icon: "🌗", title: "Day or Night?", skill: "sort day/night [M]", sets: C.DAY_NIGHT_SETS, prompt: "Is it day or night?", icons: ["👀", "🌗", "👉"] });
   sorter({ id: "hot-cold", icon: "🌡️", title: "Hot or Cold?", skill: "sort hot/cold [M]", sets: C.HOT_COLD_SETS, prompt: "Is it hot or cold?", icons: ["👀", "🌡️", "👉"] });
   sorter({ id: "magnet-magic", icon: "🧲", title: "Will It Stick?", skill: "magnetic or not [M]", sets: C.MAGNET_SETS, prompt: "Will the magnet grab it?", icons: ["👀", "🧲", "👉"] });
+  sorter({ id: "blue-planet", icon: "🌊", title: "Land or Water?", skill: "land & water [M]", sets: C.BLUE_PLANET_SETS, prompt: "Is it land or water?", icons: ["👀", "🌊", "👉"] });
 
   // ---- Shape's Real Twin: match a 3D solid to a real object of that shape ----
   // Geometry solids are one of Josh's working edges — and this diversifies the
@@ -96,6 +97,56 @@
             else api.tryAgain(b);
           });
           choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Where Do They Live? (continents — his #1 geography working edge) ----
+  // A friendly Montessori-colored world map. Each animal sits on its home
+  // continent (self-checking); tap the chip whose color matches that continent.
+  F.register({
+    id: "continent-match",
+    icon: "🌍",
+    title: "Where Do They Live?",
+    skill: "continents / geography [W]",
+    start(api) {
+      const CONTS = C.CONTINENTS || [];
+      const ROUNDS = 6;
+      let round = 0;
+      const animalEl = api.el("div", { class: "geo__animal", aria: { hidden: "true" } });
+      const mapWrap = api.el("div", { class: "geo__map", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(animalEl, mapWrap, chips);
+
+      function drawMap(targetIndex) {
+        let blobs = "";
+        CONTS.forEach((k, i) => {
+          const hl = i === targetIndex;
+          blobs += '<ellipse cx="' + k.cx + '" cy="' + k.cy + '" rx="' + k.rx + '" ry="' + k.ry + '" fill="' + k.color + '"' +
+            (hl ? ' stroke="#1b2b44" stroke-width="3"' : ' opacity="0.9"') + "/>";
+          blobs += '<text x="' + k.cx + '" y="' + (k.cy + 3) + '" font-size="' + (hl ? 15 : 9) + '" text-anchor="middle">' + k.animal + "</text>";
+        });
+        mapWrap.innerHTML = '<svg viewBox="0 0 200 112"><rect x="0" y="0" width="200" height="112" rx="8" fill="#bfe9ff"/>' + blobs + "</svg>";
+      }
+      function newRound() {
+        const r = L.makeContinentMatch(CONTS);
+        drawMap(r.targetIndex);
+        animalEl.textContent = r.animal;
+        api.setPrompt("Where does it live? Tap its home!", ["👀", "🌍", "👆"]);
+        api.speak();
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice geo__chip tap", type: "button", style: { background: ch.color },
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { api.say(ch.name); round += 1; if (round >= ROUNDS) api.win({ say: "You know your continents!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          chips.appendChild(b);
         });
       }
       newRound();

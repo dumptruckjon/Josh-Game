@@ -363,6 +363,137 @@
     },
   });
 
+  // ---- Team Sound Hunt (2-player co-op: take turns finding a starting sound) ----
+  F.register({
+    id: "team-sound-hunt",
+    icon: "👂",
+    title: "Team Sound Hunt (2 players)",
+    skill: "co-op / beginning sounds [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const WORDS = api.C.FIRST_SOUND_WORDS || [];
+      const GOAL = 6;
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
+      let turn = 0, found = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const targetEl = api.el("div", { class: "find__target" });
+      const basket = api.el("div", { class: "tt2__chest" });
+      const field = api.el("div", { class: "find__field" });
+      api.stage.append(turnEl, targetEl, basket, field);
+      for (let i = 0; i < GOAL; i++) basket.appendChild(api.el("span", { class: "tt2__slot" }, ["▫️"]));
+
+      function place() {
+        const r = L.makeSoundHunt(WORDS, 6);
+        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!";
+        targetEl.innerHTML = "";
+        targetEl.append(
+          api.el("span", { class: "find__targetEmoji", text: r.letter }),
+          api.el("span", { class: "find__targetLabel", text: "find this sound" })
+        );
+        api.setPrompt("Find something that starts with " + r.letter + "!", ["👂", r.letter, "👆"]);
+        api.speak();
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "find__cell tap", type: "button", text: cell.emoji,
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.word },
+          });
+          b.addEventListener("click", () => {
+            if (!cell.correct) { api.tryAgain(b); return; }
+            found += 1;
+            if (basket.children[found - 1]) basket.children[found - 1].textContent = "⭐";
+            api.say(cell.word);
+            if (found >= GOAL) { field.innerHTML = ""; api.win({ say: "Great teamwork! You found them all!" }); return; }
+            turn = turn === 0 ? 1 : 0;
+            place();
+          });
+          field.appendChild(b);
+        });
+      }
+      api.setPrompt("Take turns! Find the starting sound together.", ["🕷️", "🔁", "👂"]);
+      api.speak();
+      place();
+    },
+  });
+
+  // ---- Memory Together (2-player co-op concentration — find pairs as a team) ----
+  F.register({
+    id: "memory-together",
+    icon: "🧠",
+    title: "Memory Together (2 players)",
+    skill: "co-op / memory [M]",
+    start(api) {
+      const L = window.JoshLogic;
+      const C = api.C;
+      const PAIRS = 4;
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
+      let turn = 0, first = null, lock = false, matched = 0, cards = [];
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const grid = api.el("div", { class: "memory-grid" });
+      api.stage.append(turnEl, grid);
+
+      function showTurn() { turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!"; }
+      function syncFlags() {
+        cards.forEach((c) => delete c.dataset.correct);
+        if (first) {
+          const m = cards.find((c) => c !== first && !c.dataset.matched && c.dataset.emoji === first.dataset.emoji);
+          if (m) m.dataset.correct = "1";
+        } else {
+          const rem = cards.filter((c) => !c.dataset.matched);
+          if (rem.length) {
+            const e = rem[0].dataset.emoji;
+            rem.filter((c) => c.dataset.emoji === e).forEach((c) => (c.dataset.correct = "1"));
+          }
+        }
+      }
+      function flip(card) {
+        if (lock || card.dataset.matched || card === first || card.classList.contains("flipped")) return;
+        card.classList.add("flipped");
+        card.textContent = card.dataset.emoji;
+        if (!first) { first = card; syncFlags(); return; }
+        if (card.dataset.emoji === first.dataset.emoji) {
+          card.dataset.matched = "1"; first.dataset.matched = "1";
+          card.classList.add("matched"); first.classList.add("matched");
+          first = null; matched += 1;
+          syncFlags();
+          api.roundWin();
+          if (matched === PAIRS) { api.win({ say: "You found them all — together!" }); return; }
+          turn = turn === 0 ? 1 : 0; showTurn(); // a match passes the turn too (fair, no-lose)
+        } else {
+          lock = true;
+          const a = first; first = null;
+          setTimeout(() => {
+            a.classList.remove("flipped"); a.textContent = "";
+            card.classList.remove("flipped"); card.textContent = "";
+            lock = false; turn = turn === 0 ? 1 : 0; showTurn(); syncFlags();
+          }, 700);
+        }
+      }
+      function build() {
+        const pool = L.shuffle(C.MEMORY_EMOJIS).slice(0, PAIRS);
+        const deck = L.shuffle([...pool, ...pool]);
+        cards = []; first = null; lock = false; matched = 0; turn = 0;
+        api.setPrompt("Take turns! Find the matching pairs together.", ["🕷️", "🔁", "🃏"]);
+        api.speak();
+        grid.innerHTML = "";
+        deck.forEach((em) => {
+          const card = api.el("button", { class: "memory-card tap", type: "button", dataset: { emoji: em }, aria: { label: "card" } }, [""]);
+          card.addEventListener("click", () => flip(card));
+          grid.appendChild(card); cards.push(card);
+        });
+        showTurn();
+        syncFlags();
+      }
+      build();
+    },
+  });
+
   // ---- Team Treasure Hunt (2-player co-op find — take turns, share the chest) ----
   F.register({
     id: "team-treasure",

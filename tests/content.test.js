@@ -161,6 +161,32 @@ test("deduction attributes are distinct so a color+item clue is unique", () => {
   for (const c of content.DEDUCE_COLORS) assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.key} needs a hex`);
 });
 
+// ---------- Blue Planet: land features vs water, verified ----------
+const LANDWATER_TRUTH = {
+  Land: ["🏔️", "🌋", "🏜️", "🌳", "🏕️", "🏙️"],
+  Water: ["🐟", "🐳", "⛵", "🏄", "💧", "🐠"],
+};
+test("blue-planet land/water sort matches verified truth", () => {
+  const set = content.BLUE_PLANET_SETS[0];
+  for (const bin of set.bins) {
+    assert.deepEqual([...bin.items].sort(), [...LANDWATER_TRUTH[bin.label]].sort(),
+      `land/water bin "${bin.label}" does not match the verified truth`);
+  }
+});
+
+// ---------- Continents: distinct colors + one signature animal each ----------
+test("continents have distinct colors and names and a signature animal", () => {
+  const conts = content.CONTINENTS;
+  assert.ok(conts.length >= 6, "need at least six continents");
+  assert.equal(new Set(conts.map((c) => c.name)).size, conts.length, "names distinct");
+  assert.equal(new Set(conts.map((c) => c.color)).size, conts.length, "colors distinct (so a color clue is unambiguous)");
+  assert.equal(new Set(conts.map((c) => c.animal)).size, conts.length, "each continent has its own animal");
+  for (const c of conts) {
+    assert.match(c.color, /^#[0-9a-f]{6}$/i, `${c.name} needs a hex color`);
+    assert.ok(typeof c.cx === "number" && typeof c.cy === "number" && c.rx > 0 && c.ry > 0, `${c.name} needs a map blob`);
+  }
+});
+
 // ---------- Finish the Word: every word truly begins with its digraph ----------
 test("digraph-finish words really start with their sh/ch/th", () => {
   const OK = new Set(["sh", "ch", "th"]);

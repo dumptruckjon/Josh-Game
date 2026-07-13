@@ -645,3 +645,35 @@ test("makeConjunctionHunt: EXACTLY one cell matches both color and shape", () =>
     }
   }
 });
+
+// ---------- Fourth batch: Continent match, Sound Hunt ----------
+
+test("makeContinentMatch: one correct chip = the animal's home continent", () => {
+  const rng = mulberry32(61);
+  const conts = content.CONTINENTS;
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeContinentMatch(conts, rng);
+    assert.ok(r.targetIndex >= 0 && r.targetIndex < conts.length, "valid target");
+    const target = conts[r.targetIndex];
+    assert.equal(r.animal, target.animal, "animal is the target's animal");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].name, target.name, "correct chip is the home continent");
+    assert.equal(correct[0].color, target.color, "correct chip carries the home color");
+    assert.equal(r.choices.length, 3, "three chips");
+    assert.equal(new Set(r.choices.map((c) => c.name)).size, 3, "distinct continents");
+  }
+});
+
+test("makeSoundHunt: the correct picture starts with the target letter; distractors don't", () => {
+  const rng = mulberry32(62);
+  const words = content.FIRST_SOUND_WORDS;
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeSoundHunt(words, 6, rng);
+    const correct = r.cells.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].word[0].toUpperCase(), r.letter, "correct picture starts with the letter");
+    r.cells.filter((c) => !c.correct).forEach((c) =>
+      assert.notEqual(c.word[0].toUpperCase(), r.letter, "a distractor never starts with the target letter"));
+  }
+});

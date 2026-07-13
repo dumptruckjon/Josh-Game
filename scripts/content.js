@@ -49,6 +49,9 @@
       { name: "Flower", rows: ["121", "111", "121", "232", "333"] },
       { name: "Tree", rows: ["232", "333", "232", "252", "252"] },
       { name: "House", rows: ["212", "111", "444", "454"] },
+      { name: "Rocket", rows: ["212", "111", "141", "414", "262"] },
+      { name: "Fish", rows: ["262", "666", "262"] },
+      { name: "Butterfly", rows: ["414", "141", "414"] },
     ],
 
     // Happy cheers (shown) and short spoken praise (spoken when sound is on).
@@ -222,6 +225,28 @@
     // ---- Find-it games (visual search) — big, varied, clearly-different set ----
     FIND_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
       "🐝", "🦋", "🐟", "🐢", "🐙", "🐧", "🦄", "⭐", "❤️", "🚗", "🚀", "🎈", "🍎", "🌈"],
+
+    // ---- Continents (Montessori colors + a signature animal that lives there) ----
+    // A friendly, stylized world map (not exact coastlines). The animal sits on
+    // its home continent so the picture is self-checking. Colors follow the
+    // Montessori continent-map convention. Blobs use a 0 0 200 110 viewBox.
+    CONTINENTS: [
+      { name: "North America", color: "#ff8c42", animal: "🦅", cx: 40, cy: 34, rx: 26, ry: 21 },
+      { name: "South America", color: "#ff6fa5", animal: "🦙", cx: 60, cy: 83, rx: 15, ry: 22 },
+      { name: "Europe", color: "#e0524f", animal: "🦌", cx: 104, cy: 30, rx: 13, ry: 11 },
+      { name: "Africa", color: "#4caf50", animal: "🦁", cx: 109, cy: 66, rx: 19, ry: 24 },
+      { name: "Asia", color: "#f4c430", animal: "🐼", cx: 151, cy: 36, rx: 31, ry: 21 },
+      { name: "Australia", color: "#a0693c", animal: "🦘", cx: 168, cy: 85, rx: 16, ry: 12 },
+      { name: "Antarctica", color: "#cdd8e3", animal: "🐧", cx: 100, cy: 105, rx: 64, ry: 8 },
+    ],
+
+    // ---- Blue Planet: Land or Water? (geography sort) ----
+    BLUE_PLANET_SETS: [
+      { name: "landwater", bins: [
+        { label: "Land", emoji: "🏝️", items: ["🏔️", "🌋", "🏜️", "🌳", "🏕️", "🏙️"] },
+        { label: "Water", emoji: "🌊", items: ["🐟", "🐳", "⛵", "🏄", "💧", "🐠"] },
+      ] },
+    ],
 
     // ---- Finish the Word (sh / ch / th) — each word starts with its digraph ----
     DIGRAPH_FINISH: [

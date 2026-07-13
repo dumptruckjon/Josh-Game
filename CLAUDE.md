@@ -185,7 +185,7 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~69 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**~73 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
@@ -208,12 +208,16 @@ category's games:
   (category hunt), **The Big One** (two-clue color+shape hunt) — his favorite,
   harder each round.
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
-  Hot or Cold?, Shape's Real Twin (3D solids), **Will It Stick?** (magnetic sort).
+  Hot or Cold?, Shape's Real Twin (3D solids), Will It Stick? (magnetic sort),
+  **Land or Water?** (globe), **Where Do They Live?** (continents — his top
+  geography edge, self-checking Montessori-colored map).
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
-  Music Pad (WebAudio, sound-on), Grow! (stack a Numberblock friend 1→10).
+  Music Pad (WebAudio, sound-on — resumes the iOS audio context before playing),
+  Grow! (stack a Numberblock friend 1→10).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, Team Tower, Team Count, Team Rocket, Team Bridge,
-  **Team Treasure** (co-op find), Tic-Tac-Toe (2-player co-op).
+  Team Treasure (co-op find), **Team Sound Hunt** (co-op beginning sounds),
+  **Memory Together** (co-op concentration), Tic-Tac-Toe (2-player co-op).
 
 Games personalize by rotating Josh's friends (**Raegar / River / Viraj**), Spidey
 heroes, and Paw-Patrol/Rubble homage names (**emoji + names only — not the

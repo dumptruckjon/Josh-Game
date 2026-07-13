@@ -554,6 +554,36 @@
     return { color, shape, cells };
   }
 
+  // --- Continent match (which continent does this animal live on?) --------
+  // The animal sits on its home continent in the map (control of error); the
+  // child taps the chip whose color matches that continent.
+  function makeContinentMatch(continents, rng = Math.random) {
+    if (!Array.isArray(continents) || continents.length < 3) throw new Error("makeContinentMatch needs >= 3 continents");
+    const targetIndex = randInt(0, continents.length - 1, rng);
+    const target = continents[targetIndex];
+    const others = shuffle(continents.filter((c) => c.name !== target.name), rng).slice(0, 2);
+    const choices = shuffle(
+      [{ name: target.name, color: target.color, correct: true },
+        ...others.map((c) => ({ name: c.name, color: c.color, correct: false }))],
+      rng
+    );
+    return { targetIndex, animal: target.animal, name: target.name, choices };
+  }
+
+  // --- Sound Hunt (find the picture that starts with the target sound) -----
+  function makeSoundHunt(words, size, rng = Math.random) {
+    if (!Array.isArray(words) || words.length < 3) throw new Error("makeSoundHunt needs >= 3 words");
+    size = size || 6;
+    const w = words[randInt(0, words.length - 1, rng)];
+    const distractors = shuffle(words.filter((x) => x.letter !== w.letter), rng).slice(0, size - 1);
+    const cells = shuffle(
+      [{ emoji: w.emoji, word: w.word, correct: true },
+        ...distractors.map((d) => ({ emoji: d.emoji, word: d.word, correct: false }))],
+      rng
+    );
+    return { letter: w.letter, word: w.word, emoji: w.emoji, cells };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -574,6 +604,7 @@
     makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
+    makeContinentMatch, makeSoundHunt,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;
