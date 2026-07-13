@@ -297,4 +297,45 @@
       newRound();
     },
   });
+
+  // ---- Read & Zap: read the printed word, tap its picture ([M] reading) ----
+  // The inverse of Build-a-Word: real whole-word reading, but control-of-error
+  // is a SELF-NAMING picture so a non-reader still self-checks (audio helps).
+  F.register({
+    id: "read-zap",
+    icon: "🕸️",
+    title: "Read & Zap",
+    skill: "read words / decode [M]",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0;
+      const word = api.el("div", { class: "readzap__word", aria: { label: "word" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(word, choices);
+
+      function newRound() {
+        const r = L.makeWordPicture(api.C.CVC_WORDS);
+        api.setPrompt("Read the word — tap its picture!", ["👀", "🔤", "👆"]);
+        api.speak();
+        api.say(r.word);
+        word.textContent = r.word;
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.emoji,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) {
+              b.classList.add("readzap__hit");
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You read it! Zap!" }); else { api.roundWin(); newRound(); }
+            } else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

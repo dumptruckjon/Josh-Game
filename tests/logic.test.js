@@ -411,3 +411,123 @@ test("tttWinner: detects rows, columns, diagonals; null otherwise", () => {
   assert.equal(L.tttWinner([X, O, X, O, O, X, X, X, O]), null, "full board, no line");
   assert.equal(L.tttWinner([_, _, _, _, _, _, _, _, _]), null, "empty");
 });
+
+// ---------- New games (batch): Make Ten, Big Add, Read & Zap, deduction, twins, category, solids ----------
+
+test("makeMakeTen: have+need is always exactly ten; one correct choice", () => {
+  const rng = mulberry32(31);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeMakeTen(rng);
+    assert.ok(r.have >= 1 && r.have <= 9, "have in 1..9");
+    assert.equal(r.have + r.need, 10, "have + need must equal ten");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].n, r.need, "correct choice is the need");
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, r.choices.length, "no duplicate choices");
+  }
+});
+
+test("makeBigAdd: two-digit, no regrouping, honest sum, one correct choice", () => {
+  const rng = mulberry32(32);
+  for (let i = 0; i < 4000; i++) {
+    const r = L.makeBigAdd(rng);
+    assert.equal(r.a, r.aTens * 10 + r.aOnes, "a split is consistent");
+    assert.equal(r.b, r.bTens * 10 + r.bOnes, "b split is consistent");
+    assert.ok(r.a >= 10 && r.b >= 10, "both are two-digit");
+    assert.ok(r.aOnes + r.bOnes <= 9, "ones never carry");
+    assert.ok(r.aTens + r.bTens <= 9, "tens never overflow past 90");
+    assert.equal(r.sum, r.a + r.b, "sum is truthful");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].n, r.sum, "correct choice is the sum");
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, r.choices.length, "no duplicate choices");
+  }
+});
+
+test("makeWordPicture: the correct picture belongs to the shown word", () => {
+  const rng = mulberry32(33);
+  const byWord = Object.fromEntries(content.CVC_WORDS.map((w) => [w.word, w.emoji]));
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeWordPicture(content.CVC_WORDS, rng);
+    assert.equal(r.answer, byWord[r.word], "answer emoji matches the word");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].emoji, r.answer, "the correct choice is the word's picture");
+    assert.equal(r.choices.length, 3, "three choices");
+    assert.equal(new Set(r.choices.map((c) => c.emoji)).size, 3, "distinct pictures");
+  }
+});
+
+test("makeDeduce: clues narrow to EXACTLY one character", () => {
+  const rng = mulberry32(34);
+  const colors = content.DEDUCE_COLORS.map((c) => c.key);
+  const items = content.DEDUCE_ITEMS.map((i) => i.key);
+  for (let i = 0; i < 4000; i++) {
+    const r = L.makeDeduce(colors, items, rng);
+    assert.equal(r.characters.length, colors.length * items.length, "all combos present");
+    // every combo is unique
+    const combos = new Set(r.characters.map((c) => c.color + "|" + c.item));
+    assert.equal(combos.size, r.characters.length, "no duplicate character");
+    // exactly one satisfies BOTH clues
+    const matches = r.characters.filter((c) => c.color === r.clueColor && c.item === r.clueItem);
+    assert.equal(matches.length, 1, "clue pair identifies exactly one");
+    assert.equal(r.answerIndex, r.characters.indexOf(matches[0]), "answerIndex points at it");
+    // every other character fails at least one clue
+    r.characters.forEach((c, idx) => {
+      if (idx === r.answerIndex) return;
+      assert.ok(c.color !== r.clueColor || c.item !== r.clueItem, "distractor fails a clue");
+    });
+  }
+});
+
+test("makeTwins: exactly ONE duplicated glyph (the twins), all else unique", () => {
+  const rng = mulberry32(35);
+  for (const size of [8, 10, 12, 16]) {
+    for (let i = 0; i < 800; i++) {
+      const r = L.makeTwins(content.FIND_POOL, size, rng);
+      assert.equal(r.cells.length, size, "field is the right size");
+      const counts = {};
+      r.cells.forEach((c) => { counts[c.emoji] = (counts[c.emoji] || 0) + 1; });
+      const dupes = Object.entries(counts).filter(([, n]) => n > 1);
+      assert.equal(dupes.length, 1, "exactly one glyph appears more than once");
+      assert.equal(dupes[0][1], 2, "and it appears exactly twice");
+      assert.equal(dupes[0][0], r.twin, "the duplicated glyph is the twin");
+      const correct = r.cells.filter((c) => c.correct);
+      assert.equal(correct.length, 2, "both twins are marked correct");
+      assert.ok(correct.every((c) => c.emoji === r.twin), "correct cells are the twin glyph");
+    }
+  }
+});
+
+test("makeCategoryHunt: every 'correct' cell is a real member; fillers never are", () => {
+  const rng = mulberry32(36);
+  const cats = content.FIND_CATEGORIES;
+  const memberOf = {};
+  cats.forEach((c) => c.items.forEach((e) => { memberOf[e] = c.id; }));
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeCategoryHunt(cats, 9, rng);
+    const members = r.cells.filter((c) => c.correct);
+    assert.ok(members.length >= 2, "at least two to find");
+    assert.equal(members.length, r.count, "count matches the correct cells");
+    members.forEach((c) => assert.equal(memberOf[c.emoji], r.catId, "member truly belongs to the category"));
+    r.cells.filter((c) => !c.correct).forEach((c) =>
+      assert.notEqual(memberOf[c.emoji], r.catId, "a filler is never a hidden member"));
+  }
+});
+
+test("makeSolidMatch: correct object belongs to the shown solid, distractors don't", () => {
+  const rng = mulberry32(37);
+  const sets = content.SOLID_SETS;
+  const solidOf = {};
+  sets.forEach((s) => s.objects.forEach((o) => { solidOf[o] = s.name; }));
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeSolidMatch(sets, rng);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].emoji, r.answer, "correct choice is the answer");
+    assert.equal(solidOf[r.answer], r.name, "answer object matches the solid");
+    r.choices.filter((c) => !c.correct).forEach((c) =>
+      assert.notEqual(solidOf[c.emoji], r.name, "distractor is a DIFFERENT solid's object"));
+    assert.equal(new Set(r.choices.map((c) => c.emoji)).size, 3, "distinct objects");
+  }
+});

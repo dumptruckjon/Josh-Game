@@ -185,27 +185,33 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~47 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**~59 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
-menu of **6 categories** (icons carry the meaning); tapping one opens that
+menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
 
 - **🔢 Numbers** — Count & Feed, Build a Number, Hop & Count (2s/5s/10s), How
   Many Are Left? (take-away), Which Has More?, Penny Shop (money), Add It Up,
   Find the Number, What Time?, Build the Number (place value), Ten & Some More
-  (teen), Set the Clock.
+  (teen), Set the Clock, **Make Ten** (number bonds), **Add Big Numbers**
+  (2-digit addition with bead-style rods+dots).
 - **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
-  Word (sight words), sh or ch? (digraphs), Big & Little Letters, Missing Letter.
+  Word (sight words), sh or ch? (digraphs), Big & Little Letters, Missing Letter,
+  **Read & Zap** (read a word → tap its picture).
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
-  Shadow (SVG shapes), Small to Big, Memory Match, Put in Order, What Changed?
+  Shadow (SVG shapes), Small to Big, Memory Match, Put in Order, What Changed?,
+  Color by Number, **Who Is It?** (2-clue deduction).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
-  Paw Patrol Rescue (his favorite — harder each round).
+  Paw Patrol Rescue, **Find the Twins** (one matching pair), **I Spy: Find Them
+  All** (tap every member of a category) — his favorite, harder each round.
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
-  Hot or Cold?.
+  Hot or Cold?, **Shape's Real Twin** (match a 3D solid to a real object).
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
-  Music Pad (WebAudio, sound-on).
+  Music Pad (WebAudio, sound-on), **Grow!** (stack a Numberblock friend 1→10).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
-  Path (lacing), **Team Hop**, **Team Tower**, **Tic-Tac-Toe** (2-player co-op).
+  Path (lacing), **Team Hop**, **Team Tower**, **Team Count**, **Team Rocket**,
+  **Team Bridge** (build one shared path & cross together), **Tic-Tac-Toe**
+  (2-player co-op).
 
 Games personalize by rotating Josh's friends (**Raegar / River / Viraj**), Spidey
 heroes, and Paw-Patrol/Rubble homage names (**emoji + names only — not the

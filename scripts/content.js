@@ -223,6 +223,42 @@
     FIND_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
       "🐝", "🦋", "🐟", "🐢", "🐙", "🐧", "🦄", "⭐", "❤️", "🚗", "🚀", "🎈", "🍎", "🌈"],
 
+    // ---- I Spy: Find Them All (category hunt) ----
+    // DISJOINT sets — every emoji belongs to exactly ONE category, so a filler
+    // from another category can never accidentally be a hidden member.
+    FIND_CATEGORIES: [
+      { id: "animals", icon: "🐾", items: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼"] },
+      { id: "vehicles", icon: "🚗", items: ["🚗", "🚌", "🚒", "🚜", "🚲", "✈️", "🚁", "🚚"] },
+      { id: "food", icon: "🍎", items: ["🍎", "🍌", "🍓", "🍇", "🍊", "🍪", "🍕", "🥕"] },
+      { id: "sky", icon: "⭐", items: ["⭐", "🌙", "☀️", "🌈", "☁️", "🌟"] },
+    ],
+
+    // ---- Shape's Real Twin (3D solids → a real-world object of that shape) ----
+    // Each solid has a friendly SVG and self-naming real objects. Disjoint sets.
+    SOLID_SETS: [
+      { name: "Ball", objects: ["⚽", "🏀", "🌍", "🍊"],
+        svg: '<circle cx="50" cy="55" r="34" fill="#5ec8ff" stroke="#2b6cff" stroke-width="2.5"/><ellipse cx="40" cy="44" rx="11" ry="7" fill="rgba(255,255,255,0.55)"/>' },
+      { name: "Box", objects: ["📦", "🎲", "🧊"],
+        svg: '<polygon points="30,38 60,38 72,26 42,26" fill="#ffe08a"/><rect x="30" y="38" width="30" height="36" fill="#ffb703"/><polygon points="60,38 72,26 72,62 60,74" fill="#e59400"/>' },
+      { name: "Cone", objects: ["🍦", "🥕"],
+        svg: '<polygon points="50,22 68,72 32,72" fill="#ff8fa3"/><ellipse cx="50" cy="72" rx="18" ry="6" fill="#e05e77"/>' },
+      { name: "Can", objects: ["🥫", "🥁", "🔋"],
+        svg: '<ellipse cx="50" cy="30" rx="20" ry="7" fill="#a0d468"/><rect x="30" y="30" width="40" height="42" fill="#7be08a"/><ellipse cx="50" cy="72" rx="20" ry="7" fill="#5cc46a"/>' },
+    ],
+
+    // ---- Who Is It? (multi-attribute deduction) ----
+    // Two positive attributes: a body color and a held item. All 6 combos are
+    // distinct, so a (color + item) clue pair always narrows to exactly one.
+    DEDUCE_COLORS: [
+      { key: "red", hex: "#e23636", dot: "🔴" },
+      { key: "blue", hex: "#2b6cff", dot: "🔵" },
+      { key: "green", hex: "#38b000", dot: "🟢" },
+    ],
+    DEDUCE_ITEMS: [
+      { key: "star", emoji: "⭐" },
+      { key: "ball", emoji: "🎈" },
+    ],
+
     // ---- Trace-the-Path (fine-motor / lacing) ----
     // Each path is dots as (x,y) percentages; tap green start -> red finish in
     // order. Positions are spaced so 76px dots never collide (verified by tests).

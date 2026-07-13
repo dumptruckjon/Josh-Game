@@ -340,4 +340,63 @@
       newRound();
     },
   });
+
+  // ---- Who Is It? (multi-attribute deduction / "Guess-Who") ----
+  // Six friendly heroes vary by COLOR and a held ITEM. Two positive clues
+  // (a color + an item) always narrow to exactly one — real deduction, and
+  // Josh loves a challenge. Round 1 auto-dims the ruled-out ones as a demo.
+  F.register({
+    id: "who-is-it",
+    icon: "🕵️",
+    title: "Who Is It?",
+    skill: "deduction / attributes [W]",
+    start(api) {
+      const C = api.C;
+      const COLORS = C.DEDUCE_COLORS || [{ key: "red", hex: "#e23636", dot: "🔴" }, { key: "blue", hex: "#2b6cff", dot: "🔵" }, { key: "green", hex: "#38b000", dot: "🟢" }];
+      const ITEMS = C.DEDUCE_ITEMS || [{ key: "star", emoji: "⭐" }, { key: "ball", emoji: "🎈" }];
+      const ROUNDS = 5;
+      let round = 0;
+      const clue = api.el("div", { class: "wi__clues", aria: { live: "polite" } });
+      const grid = api.el("div", { class: "wi__grid" });
+      api.stage.append(clue, grid);
+
+      function newRound() {
+        const r = L.makeDeduce(COLORS.map((c) => c.key), ITEMS.map((i) => i.key));
+        const colorOf = (k) => COLORS.find((c) => c.key === k);
+        const itemOf = (k) => ITEMS.find((i) => i.key === k);
+        api.setPrompt("Find the one that matches BOTH clues!", ["👀", "🔎", "🕵️"]);
+        api.speak();
+
+        clue.innerHTML = "";
+        clue.append(
+          api.el("span", { class: "wi__clue" }, [colorOf(r.clueColor).dot]),
+          api.el("span", { class: "wi__cluePlus" }, ["+"]),
+          api.el("span", { class: "wi__clue" }, [itemOf(r.clueItem).emoji])
+        );
+
+        grid.innerHTML = "";
+        r.characters.forEach((ch, idx) => {
+          const col = colorOf(ch.color), it = itemOf(ch.item);
+          const correct = idx === r.answerIndex;
+          const card = api.el("button", {
+            class: "wi__card tap", type: "button",
+            dataset: correct ? { correct: "1" } : {}, aria: { label: "character" },
+          }, [
+            api.el("span", { class: "wi__hero art-fill", aria: { hidden: "true" }, html: (window.JoshArt && window.JoshArt.hero) ? window.JoshArt.hero(col.hex) : "🦸" }),
+            api.el("span", { class: "wi__item", aria: { hidden: "true" } }, [it.emoji]),
+          ]);
+          // Round-1 demo: gently fade the ones ruled out by the clues.
+          if (round === 0 && !correct) card.classList.add("wi__card--dim");
+          card.addEventListener("click", () => {
+            if (correct) {
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You found the right one!" }); else { api.roundWin(); newRound(); }
+            } else api.tryAgain(card);
+          });
+          grid.appendChild(card);
+        });
+      }
+      newRound();
+    },
+  });
 })();

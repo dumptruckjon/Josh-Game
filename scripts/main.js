@@ -24,16 +24,21 @@
     "count-feed": "numbers", "number-builder": "numbers", "skip-hop": "numbers", "take-away": "numbers",
     "which-more": "numbers", "coin-shop": "numbers", "add-up": "numbers", "number-match": "numbers",
     "clock": "numbers", "place-value": "numbers", "ten-frame": "numbers", "set-clock": "numbers",
+    "make-ten": "numbers", "big-add": "numbers",
     "first-sound": "letters", "rhyme": "letters", "build-word": "letters", "sight-word": "letters",
-    "digraph": "letters", "letter-match": "letters", "missing-letter": "letters",
+    "digraph": "letters", "letter-match": "letters", "missing-letter": "letters", "read-zap": "letters",
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
     "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking", "color-number": "thinking",
+    "who-is-it": "thinking",
     "find-hero": "find", "find-crowd": "find", "find-count": "find", "dot-dot": "find", "rescue": "find",
+    "find-twins": "find", "i-spy": "find",
     "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",
+    "solid-match": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
+    "grow": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
-    "team-count": "friends", "team-rocket": "friends",
+    "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends",
   };
 
   document.addEventListener("DOMContentLoaded", () => {

@@ -540,6 +540,83 @@ body {
   100% { transform: translateX(-50%) scale(1); }
 }
 
+/* ---------- Make Ten (number bonds) ---------- */
+.maketen__grid { justify-content: center; margin: 6px auto 4px; }
+.maketen__cell--empty { border-style: dashed; border-color: #b7c6d6; background: #f5f8fc; }
+
+/* ---------- Big Add (two-digit addition with rods + dots) ---------- */
+.bigadd {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  flex-wrap: wrap; margin: 4px 0 10px;
+}
+.bigadd__num {
+  display: flex; align-items: flex-end; gap: 6px; padding: 8px 10px;
+  background: var(--card); border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  min-height: 70px;
+}
+.bigadd__rods { display: flex; gap: 3px; align-items: flex-end; }
+.bigadd__rod { width: 9px; height: 56px; border-radius: 3px; background: linear-gradient(180deg,#7fb2ff,#2b6cff); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35); }
+.bigadd__dots { display: grid; grid-template-columns: repeat(2, 12px); gap: 3px; align-content: flex-end; }
+.bigadd__dot { width: 12px; height: 12px; border-radius: 50%; background: #ffb703; }
+.bigadd__plus { font-size: 2rem; font-weight: 900; color: #6a4bd6; }
+
+/* ---------- Read & Zap (word -> picture) ---------- */
+.readzap__word {
+  font-size: clamp(2.4rem, 15vw, 4rem); font-weight: 900; letter-spacing: 2px;
+  color: #2b3a55; text-align: center; margin: 6px 0 12px; text-transform: lowercase;
+}
+.readzap__hit { background: #d7f8de; box-shadow: 0 0 0 4px #7be08a; }
+
+/* ---------- Who Is It? (deduction) ---------- */
+.wi__clues {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 2px 0 12px; padding: 8px 14px; background: var(--card); border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: fit-content; margin-left: auto; margin-right: auto;
+}
+.wi__clue { font-size: 2rem; line-height: 1; }
+.wi__cluePlus { font-size: 1.5rem; font-weight: 900; color: #6a4bd6; }
+.wi__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.wi__card {
+  position: relative; min-height: 92px; border-radius: 18px; background: var(--card);
+  box-shadow: 0 5px 14px rgba(0,0,0,0.12); padding: 6px; display: flex; align-items: center; justify-content: center;
+  transition: opacity 200ms ease;
+}
+.wi__card:active { transform: scale(0.97); }
+.wi__hero { display: block; width: 70%; height: 74px; }
+.wi__item { position: absolute; right: 6px; bottom: 4px; font-size: 1.5rem; line-height: 1; }
+.wi__card--dim { opacity: 0.32; }
+
+/* ---------- Shape's Real Twin (3D solids) ---------- */
+.solid__shape { width: 120px; height: 120px; margin: 4px auto 0; }
+.solid__shape svg { width: 100%; height: 100%; display: block; }
+.solid__label { text-align: center; font-size: 1.3rem; font-weight: 800; color: #33445a; margin-bottom: 10px; }
+
+/* ---------- Grow! (Numberblocks stack) ---------- */
+.grow__stage {
+  display: block; width: 200px; max-width: 72%; height: 240px; margin: 0 auto;
+  background: transparent; box-shadow: none; padding: 0;
+}
+.grow__stage svg { width: 100%; height: 100%; display: block; }
+.grow__num { text-align: center; font-size: 3rem; font-weight: 900; color: #6a4bd6; line-height: 1; margin-top: 4px; }
+@keyframes growPop { 0% { transform: scale(1); } 45% { transform: scale(1.07); } 100% { transform: scale(1); } }
+.grow--pop { animation: growPop 260ms ease-out; }
+
+/* ---------- Team Bridge (shared-path co-op) ---------- */
+.bridge {
+  position: relative; display: flex; align-items: center; gap: 4px;
+  background: linear-gradient(180deg,#bfe9ff,#7fc9f5); border-radius: 18px;
+  padding: 14px 6px; margin: 6px 0 12px; overflow: hidden;
+}
+.bridge__hero { font-size: 1.6rem; line-height: 1; flex: none; transition: transform 500ms ease; }
+.bridge__stones { display: flex; flex: 1; min-width: 0; justify-content: space-around; gap: 2px; }
+.bridge__slot {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; border: 3px dashed rgba(255,255,255,0.8);
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.bridge__slot--on { border-style: solid; border-color: #b98a5e; background: rgba(255,255,255,0.35); }
+.bridge--cross .bridge__hero--l { transform: translateX(30px); }
+.bridge--cross .bridge__hero--r { transform: translateX(-30px); }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
@@ -555,10 +632,10 @@ body {
     animation: none !important;
     transform: none !important;
   }
-  .breathe__star, .coop__token, .balloon, .bub { transition: none !important; }
+  .breathe__star, .coop__token, .balloon, .bub, .bridge__hero, .wi__card { transition: none !important; }
   .breathe--big, .balloon--float { transform: none !important; }
-  .win-hero { animation: none !important; }
+  .win-hero, .grow--pop { animation: none !important; }
   .rocket-art { transition: none !important; }
-  .rocket-art--launch { transform: none !important; }
+  .rocket-art--launch, .bridge--cross .bridge__hero--l, .bridge--cross .bridge__hero--r { transform: none !important; }
   body { background-attachment: scroll; }
 }

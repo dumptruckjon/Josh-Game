@@ -279,4 +279,99 @@
       newRound();
     },
   });
+
+  // ---- Find the Twins: everything is different except ONE matching pair ----
+  // A brand-new find mechanic (vs copies-of-a-target / one-odd-in-a-crowd). Tap
+  // one twin, then its match. The field grows each round (he loves it harder).
+  F.register({
+    id: "find-twins",
+    icon: "👯",
+    title: "Find the Twins",
+    skill: "visual matching",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0, firstPicked = null;
+      const field = api.el("div", { class: "find__field" });
+      api.stage.append(field);
+
+      function newRound() {
+        const size = 8 + round * 2; // 8 → 16
+        const r = L.makeTwins(C.FIND_POOL, size);
+        firstPicked = null;
+        api.setPrompt("Find the TWO that are the same!", ["👀", "👯", "👆"]);
+        api.speak();
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "find__cell tap", type: "button", text: cell.emoji,
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (!cell.correct) { api.tryAgain(b); return; }
+            if (b.dataset.done) return;
+            if (!firstPicked) {
+              // First twin chosen: lift it and wait for its partner. Remove its
+              // data-correct so the harness taps the OTHER twin next.
+              firstPicked = b;
+              b.dataset.done = "1"; delete b.dataset.correct;
+              b.classList.add("find__cell--found");
+              api.say("One!");
+            } else {
+              // Second twin: match! Ribbon snap, round advances.
+              b.classList.add("find__cell--found");
+              delete b.dataset.correct;
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You found the twins!" }); else { api.roundWin(); newRound(); }
+            }
+          });
+          field.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- I Spy: Find Them All — tap EVERY picture in the named category ----
+  F.register({
+    id: "i-spy",
+    icon: "🔦",
+    title: "I Spy: Find Them All",
+    skill: "sort in a scene / category",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0, need = 0, got = 0;
+      const target = api.el("div", { class: "find__target" });
+      const field = api.el("div", { class: "find__field" });
+      api.stage.append(target, field);
+
+      function newRound() {
+        const size = 9 + round * 2;
+        const r = L.makeCategoryHunt(C.FIND_CATEGORIES, size);
+        need = r.count; got = 0;
+        target.innerHTML = "";
+        target.append(
+          api.el("span", { class: "find__targetEmoji", text: r.catIcon }),
+          api.el("span", { class: "find__targetLabel", text: "Find them all!" })
+        );
+        api.setPrompt("Find all of these!", ["👀", r.catIcon, "👆"]);
+        api.speak();
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "find__cell tap", type: "button", text: cell.emoji,
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (cell.correct && !b.dataset.done) {
+              b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("find__cell--found");
+              got += 1; api.say(String(got));
+              if (got >= need) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }
+            } else if (!cell.correct) api.tryAgain(b);
+          });
+          field.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

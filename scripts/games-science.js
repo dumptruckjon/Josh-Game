@@ -60,4 +60,44 @@
   sorter({ id: "law-sort", icon: "🌍", title: "Land, Air, Water", skill: "sort L/A/W [M]", sets: C.LAW_SETS, threeBins: true, prompt: "Land, air, or water?", icons: ["👀", "🌍", "👉"] });
   sorter({ id: "day-night", icon: "🌗", title: "Day or Night?", skill: "sort day/night [M]", sets: C.DAY_NIGHT_SETS, prompt: "Is it day or night?", icons: ["👀", "🌗", "👉"] });
   sorter({ id: "hot-cold", icon: "🌡️", title: "Hot or Cold?", skill: "sort hot/cold [M]", sets: C.HOT_COLD_SETS, prompt: "Is it hot or cold?", icons: ["👀", "🌡️", "👉"] });
+
+  // ---- Shape's Real Twin: match a 3D solid to a real object of that shape ----
+  // Geometry solids are one of Josh's working edges — and this diversifies the
+  // science strand away from tap-a-bin sorters.
+  F.register({
+    id: "solid-match",
+    icon: "🔺",
+    title: "Shape's Real Twin",
+    skill: "3D solids [W]",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0;
+      const solid = api.el("div", { class: "solid__shape art-fill", aria: { hidden: "true" } });
+      const label = api.el("div", { class: "solid__label" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(solid, label, choices);
+
+      function newRound() {
+        const r = L.makeSolidMatch(C.SOLID_SETS);
+        solid.innerHTML = '<svg viewBox="0 0 100 100">' + r.svg + "</svg>";
+        label.textContent = r.name;
+        api.setPrompt("Which real thing is this shape?", ["👀", "🔺", "👆"]);
+        api.speak();
+        api.say(r.name);
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.emoji,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "object" },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "That's the shape!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

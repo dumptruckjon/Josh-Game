@@ -362,4 +362,69 @@
       update();
     },
   });
+
+  // ---- Stepping-Stone Bridge (2-player co-op: build ONE shared path) ----
+  // Unlike Team Hop's two parallel lanes, both kids build a SINGLE bridge across
+  // the river in order, then cross together — pure cooperation, nobody "ahead."
+  F.register({
+    id: "team-bridge",
+    icon: "🌉",
+    title: "Team Bridge (2 players)",
+    skill: "co-op / counting together [W]",
+    start(api) {
+      const GOAL = 6;
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
+      let turn = 0, placed = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const river = api.el("div", { class: "bridge" });
+      const heroL = api.el("span", { class: "bridge__hero bridge__hero--l" }, [players[0].emoji]);
+      const heroR = api.el("span", { class: "bridge__hero bridge__hero--r" }, [players[1].emoji]);
+      const stones = api.el("div", { class: "bridge__stones" });
+      const slots = [];
+      for (let i = 0; i < GOAL; i++) {
+        const s = api.el("span", { class: "bridge__slot" });
+        stones.appendChild(s); slots.push(s);
+      }
+      river.append(heroL, stones, heroR);
+
+      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " place a stone" } }, [players[0].emoji + " Stone"]);
+      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " place a stone" } }, [players[1].emoji + " Stone"]);
+      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      api.stage.append(turnEl, river, btns);
+      const laneBtns = [p0, p1];
+
+      function update() {
+        laneBtns.forEach((b, i) => {
+          const active = i === turn;
+          b.classList.toggle("coop__btn--active", active);
+          if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
+        });
+        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn — place a stone!";
+      }
+      function add(i) {
+        if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
+        // Stones fill strictly left→right so the bridge is always continuous.
+        slots[placed].classList.add("bridge__slot--on");
+        slots[placed].textContent = "🪨";
+        placed += 1;
+        api.say(String(placed));
+        if (placed >= GOAL) {
+          laneBtns.forEach((b) => delete b.dataset.correct);
+          river.classList.add("bridge--cross");
+          api.win({ say: "You built the bridge and crossed together! Yay!" });
+          return;
+        }
+        turn = turn === 0 ? 1 : 0;
+        update();
+      }
+      p0.addEventListener("click", () => add(0));
+      p1.addEventListener("click", () => add(1));
+      api.setPrompt("Take turns building one bridge, then cross together!", ["🕷️", "🔁", "🌉"]);
+      api.speak();
+      update();
+    },
+  });
 })();

@@ -118,6 +118,49 @@ test("skip-count steps and block colors are as intended", () => {
   assert.equal(content.BLOCK_COLORS.length, 10, "need 10 tower colors (1..10)");
 });
 
+// ---------- I Spy categories are DISJOINT (a filler can never be a hidden member) ----------
+test("find categories are disjoint and each item belongs to exactly one", () => {
+  const seen = new Map();
+  for (const cat of content.FIND_CATEGORIES) {
+    assert.ok(cat.items.length >= 4, `category ${cat.id} needs several items`);
+    for (const e of cat.items) {
+      assert.ok(!seen.has(e), `"${e}" is in both ${seen.get(e)} and ${cat.id} — categories must be disjoint`);
+      seen.set(e, cat.id);
+    }
+  }
+});
+
+// ---------- 3D solids: each real object is truly that solid's shape ----------
+// Independent ground truth: object -> the ONE solid whose shape it has.
+const SOLID_TRUTH = {
+  "⚽": "Ball", "🏀": "Ball", "🌍": "Ball", "🍊": "Ball",
+  "📦": "Box", "🎲": "Box", "🧊": "Box",
+  "🍦": "Cone", "🥕": "Cone",
+  "🥫": "Can", "🥁": "Can", "🔋": "Can",
+};
+test("every solid's objects really have that solid's 3D shape (and are disjoint)", () => {
+  const seen = new Map();
+  for (const solid of content.SOLID_SETS) {
+    assert.ok(solid.objects.length >= 2, `${solid.name} needs >= 2 objects`);
+    assert.ok(/^<.*>$/s.test(solid.svg.trim()), `${solid.name} needs an SVG body`);
+    for (const o of solid.objects) {
+      assert.equal(SOLID_TRUTH[o], solid.name, `${o} should be shaped like a ${solid.name}`);
+      assert.ok(!seen.has(o), `${o} is used by two solids`);
+      seen.set(o, solid.name);
+    }
+  }
+});
+
+// ---------- Who Is It? attributes make deduction solvable ----------
+test("deduction attributes are distinct so a color+item clue is unique", () => {
+  const colors = content.DEDUCE_COLORS.map((c) => c.key);
+  const items = content.DEDUCE_ITEMS.map((i) => i.key);
+  assert.equal(new Set(colors).size, colors.length, "colors must be distinct");
+  assert.equal(new Set(items).size, items.length, "items must be distinct");
+  assert.ok(colors.length >= 2 && items.length >= 2, "need >= 2 of each for 6 unique combos");
+  for (const c of content.DEDUCE_COLORS) assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.key} needs a hex`);
+});
+
 test("color-by-number pictures are valid (equal-width rows; known colors; <=3 wide)", () => {
   const keys = new Set(Object.keys(content.CBN_COLORS));
   for (const pic of content.CBN_PICTURES) {

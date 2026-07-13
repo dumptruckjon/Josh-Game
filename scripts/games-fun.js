@@ -157,6 +157,44 @@
     },
   });
 
+  // ---- Grow! (Numberblocks homage — tap to stack cubes 1→10) ----
+  // His #1 interest (number-friends) turns plain counting-to-ten into a
+  // satisfying morph-and-grow toy. Uses the original SVG numberFriend art.
+  F.register({
+    id: "grow",
+    icon: "🧱",
+    title: "Grow!",
+    skill: "counting 1→10 / number friends [M]",
+    start(api) {
+      const GOAL = 10;
+      const BLOCKS = C.BLOCK_COLORS || ["#ff5e5e", "#ff9f43", "#ffd24d", "#7be08a", "#3ec7c7", "#5ec8ff", "#8a7bff", "#c77dff", "#ff7ac0", "#a0d468"];
+      let n = 1;
+      const stage = api.el("button", {
+        class: "grow__stage tap art-fill", type: "button", dataset: { correct: "1" },
+        aria: { label: "grow the number" },
+      });
+      const num = api.el("div", { class: "grow__num", aria: { hidden: "true" } }, ["1"]);
+      api.stage.append(stage, num);
+      api.setPrompt("Tap to grow the number friend!", ["👆", "🧱", "🔟"]);
+      api.speak();
+
+      function draw() {
+        stage.innerHTML = (window.JoshArt && window.JoshArt.numberFriend) ? window.JoshArt.numberFriend(n, BLOCKS[(n - 1) % BLOCKS.length]) : "🧱";
+        num.textContent = String(n);
+      }
+      draw();
+
+      stage.addEventListener("click", () => {
+        if (n >= GOAL) return;
+        n += 1;
+        stage.classList.remove("grow--pop"); void stage.offsetWidth; stage.classList.add("grow--pop");
+        draw();
+        api.say(String(n));
+        if (n >= GOAL) { delete stage.dataset.correct; api.win({ say: "Ten! You made Ten!" }); }
+      });
+    },
+  });
+
   // ---- Color by Number (coarse pixel picture; pick a color, tap its numbers) ----
   F.register({
     id: "color-number",

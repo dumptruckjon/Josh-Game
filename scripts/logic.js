@@ -351,6 +351,105 @@
     return { target, tens: 1, ones: target - 10 };
   }
 
+  // --- Make Ten (number bonds to 10) --------------------------------------
+  // Show `have` filled on a ten-frame; the answer is how many MORE make ten.
+  function makeMakeTen(rng = Math.random) {
+    const have = randInt(1, 9, rng);
+    const need = 10 - have;
+    const pool = [need + 1, need - 1, need + 2, need - 2].filter((v) => v >= 0 && v <= 10 && v !== need);
+    const distractors = shuffle([...new Set(pool)], rng).slice(0, 2);
+    const choices = shuffle([{ n: need, correct: true }, ...distractors.map((n) => ({ n, correct: false }))], rng);
+    return { have, need, choices };
+  }
+
+  // --- Big Add (two-digit addition, NO regrouping) ------------------------
+  // a + b with ones(a)+ones(b) <= 9 and tens(a)+tens(b) <= 9, so the sum is
+  // honest and re-countable. Returns the tens/ones split for a block visual.
+  function makeBigAdd(rng = Math.random) {
+    const tensA = randInt(1, 2, rng), onesA = randInt(0, 4, rng);
+    const tensB = randInt(1, 2, rng), onesB = randInt(0, 4, rng);
+    const a = tensA * 10 + onesA, b = tensB * 10 + onesB;
+    const sum = a + b; // guaranteed no-carry: onesA+onesB<=8, tensA+tensB<=4
+    const pool = [sum + 1, sum - 1, sum + 10, sum - 10, sum + 2].filter((v) => v > 0 && v !== sum);
+    const distractors = shuffle([...new Set(pool)], rng).slice(0, 2);
+    const choices = shuffle([{ n: sum, correct: true }, ...distractors.map((n) => ({ n, correct: false }))], rng);
+    return { a, b, sum, aTens: tensA, aOnes: onesA, bTens: tensB, bOnes: onesB, choices };
+  }
+
+  // --- Read & Zap (decode a printed word, tap its picture) ----------------
+  function makeWordPicture(words, rng = Math.random) {
+    if (!Array.isArray(words) || words.length < 3) throw new Error("makeWordPicture needs >= 3 words");
+    const w = words[randInt(0, words.length - 1, rng)];
+    const others = shuffle(words.filter((x) => x.word !== w.word), rng).slice(0, 2);
+    const choices = shuffle(
+      [{ emoji: w.emoji, correct: true }, ...others.map((o) => ({ emoji: o.emoji, correct: false }))],
+      rng
+    );
+    return { word: w.word, answer: w.emoji, choices };
+  }
+
+  // --- Who Is It? (multi-attribute deduction / "Guess-Who") ---------------
+  // Build all color×item combos (each unique), then pick one color + one item
+  // clue. Because every combo is distinct, EXACTLY one character matches both.
+  function makeDeduce(colors, items, rng = Math.random) {
+    if (!Array.isArray(colors) || colors.length < 2 || !Array.isArray(items) || items.length < 2) {
+      throw new Error("makeDeduce needs >= 2 colors and >= 2 items");
+    }
+    const combos = [];
+    for (const color of colors) for (const item of items) combos.push({ color, item });
+    const characters = shuffle(combos, rng);
+    const clueColor = colors[randInt(0, colors.length - 1, rng)];
+    const clueItem = items[randInt(0, items.length - 1, rng)];
+    const answerIndex = characters.findIndex((c) => c.color === clueColor && c.item === clueItem);
+    return { characters, clueColor, clueItem, answerIndex };
+  }
+
+  // --- Find the Twins (one matching pair in an all-unique field) ----------
+  function makeTwins(pool, size, rng = Math.random) {
+    size = size || 8;
+    if (!Array.isArray(pool) || pool.length < size) throw new Error("makeTwins needs pool >= size");
+    const picks = sample(pool, size - 1, rng); // size-1 DISTINCT glyphs
+    const twin = picks[randInt(0, picks.length - 1, rng)];
+    const cells = [...picks, twin].map((emoji) => ({ emoji, correct: emoji === twin }));
+    return { twin, cells: shuffle(cells, rng) };
+  }
+
+  // --- I Spy: Find Them All (tap every member of a category) --------------
+  // cats: [{ id, icon, items:[emoji] }] with DISJOINT item sets (so a filler
+  // from another category can never be a hidden member).
+  function makeCategoryHunt(cats, size, rng = Math.random) {
+    if (!Array.isArray(cats) || cats.length < 2) throw new Error("makeCategoryHunt needs >= 2 categories");
+    size = size || 9;
+    const ci = randInt(0, cats.length - 1, rng);
+    const cat = cats[ci];
+    const K = Math.min(cat.items.length, randInt(2, 4, rng));
+    const members = sample(cat.items, K, rng);
+    const others = [];
+    cats.forEach((c, i) => { if (i !== ci) c.items.forEach((e) => others.push(e)); });
+    const fillers = sample(others, Math.max(0, size - K), rng);
+    const cells = shuffle(
+      [...members.map((emoji) => ({ emoji, correct: true })), ...fillers.map((emoji) => ({ emoji, correct: false }))],
+      rng
+    );
+    return { catId: cat.id, catIcon: cat.icon, count: K, cells };
+  }
+
+  // --- Shape's Real Twin (match a 3D solid to a real object) --------------
+  function makeSolidMatch(sets, rng = Math.random) {
+    if (!Array.isArray(sets) || sets.length < 3) throw new Error("makeSolidMatch needs >= 3 solids");
+    const si = randInt(0, sets.length - 1, rng);
+    const solid = sets[si];
+    const answer = solid.objects[randInt(0, solid.objects.length - 1, rng)];
+    const others = [];
+    sets.forEach((s, i) => { if (i !== si) s.objects.forEach((o) => others.push(o)); });
+    const distractors = sample(others, 2, rng);
+    const choices = shuffle(
+      [{ emoji: answer, correct: true }, ...distractors.map((emoji) => ({ emoji, correct: false }))],
+      rng
+    );
+    return { name: solid.name, svg: solid.svg, answer, choices };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -368,6 +467,7 @@
     makeAddition, makeNumberMatch, makeClock, tensOnes,
     makeLetterMatch, makeMissingLetter, makeSpotDifference,
     makeFindHero, makeCrowd, makeFindCount, tttWinner, TTT_LINES, makeTeen,
+    makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

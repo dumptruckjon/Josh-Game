@@ -596,4 +596,99 @@
       newRound();
     },
   });
+
+  // ---- Make Ten (number bonds to 10 — his foundation working edge, [W]) ----
+  // A ten-frame shows some filled; tap how many MORE make ten. Control-of-error
+  // is concrete: the empty cells ARE the answer, so a non-reader can self-check.
+  F.register({
+    id: "make-ten",
+    icon: "🔟",
+    title: "Make Ten",
+    skill: "number bonds to 10 [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0;
+      const frame = api.el("div", { class: "tenf__grid maketen__grid" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(frame, choices);
+
+      function newRound() {
+        const r = L.makeMakeTen();
+        api.setPrompt("How many MORE to make ten?", ["👀", "➕", "🔟"]);
+        api.speak();
+        frame.innerHTML = "";
+        for (let i = 0; i < 10; i++) {
+          const on = i < r.have;
+          frame.appendChild(api.el("span", { class: "tenf__cell" + (on ? " tenf__cell--on" : " maketen__cell--empty") }, [on ? "🔵" : ""]));
+        }
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button", text: String(ch.n),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You made ten!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Big Add (two-digit addition — his HEADLINE math working edge, [W]) ----
+  // a + b shown as golden-bead-style tens rods + ones dots (concrete), pick the
+  // sum. No regrouping, so the count is honest and re-countable.
+  F.register({
+    id: "big-add",
+    icon: "🧮",
+    title: "Add Big Numbers",
+    skill: "2-digit addition [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0;
+      const board = api.el("div", { class: "bigadd" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(board, choices);
+
+      function group(tens, ones) {
+        const g = api.el("div", { class: "bigadd__num" });
+        const rods = api.el("div", { class: "bigadd__rods" });
+        for (let i = 0; i < tens; i++) rods.appendChild(api.el("span", { class: "bigadd__rod", aria: { hidden: "true" } }));
+        const dots = api.el("div", { class: "bigadd__dots" });
+        for (let i = 0; i < ones; i++) dots.appendChild(api.el("span", { class: "bigadd__dot", aria: { hidden: "true" } }));
+        g.append(rods, dots);
+        return g;
+      }
+
+      function newRound() {
+        const r = L.makeBigAdd();
+        api.setPrompt("Put them together — how many all together?", ["👀", "➕", "🔢"]);
+        api.speak();
+        board.innerHTML = "";
+        board.append(
+          group(r.aTens, r.aOnes),
+          api.el("div", { class: "bigadd__plus", aria: { hidden: "true" } }, ["➕"]),
+          group(r.bTens, r.bOnes)
+        );
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button", text: String(ch.n),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You added big numbers!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();
