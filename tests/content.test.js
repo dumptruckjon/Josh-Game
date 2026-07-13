@@ -267,7 +267,7 @@ test("conjunction colors and shapes are distinct", () => {
 // ---------- Plane shapes: each object really has that shape ----------
 const PLANE_TRUTH = {
   "🍪": "Circle", "⚽": "Circle", "🕐": "Circle",
-  "🪟": "Square", "🧇": "Square", "🎁": "Square",
+  "🪟": "Square", "🧇": "Square",
   "🍕": "Triangle", "📐": "Triangle", "🔺": "Triangle",
   "⭐": "Star", "🌟": "Star", "✨": "Star",
   "❤️": "Heart", "💗": "Heart", "💖": "Heart",
