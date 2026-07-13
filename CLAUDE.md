@@ -148,9 +148,11 @@ tooling.
 │   ├── games-science.js        # Self-registering games: sorters (living/color/land-air-water/day-night/hot-cold)
 │   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, 2 co-op games
 │   ├── games-fun.js            # Self-registering games: bubbles, peekaboo, balloon, music pad
-│   └── main.js                 # Launcher (home grid, Surprise tile, ⭐ badges) + hash router + sound + SW
+│   ├── games-find.js           # Self-registering games: find-the-heroes, spot-the-one, count, dot-to-dot, rescue, tic-tac-toe
+│   └── main.js                 # Launcher (category menu + Surprise tile + ⭐ badges) + hash router + sound + SW
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
+│   ├── content.test.js         # CORRECTNESS: ground-truth restatement — answers can't silently go wrong
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
 │   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness that plays EVERY registered game
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
@@ -183,30 +185,39 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~39 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
-shared framework, all no-fail / no-timer / ≥75px targets:
+**~47 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
+menu of **6 categories** (icons carry the meaning); tapping one opens that
+category's games:
 
-- **Math** — Count & Feed, Build a Number, Hop & Count (2s/5s/10s), How Many Are
-  Left? (take-away), Which Has More?, Penny Shop (money), Add It Up, Find the
-  Number (quantify), What Time? (o'clock), Build the Number (place value).
-- **Literacy** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
+- **🔢 Numbers** — Count & Feed, Build a Number, Hop & Count (2s/5s/10s), How
+  Many Are Left? (take-away), Which Has More?, Penny Shop (money), Add It Up,
+  Find the Number, What Time?, Build the Number (place value), Ten & Some More
+  (teen), Set the Clock.
+- **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
   Word (sight words), sh or ch? (digraphs), Big & Little Letters, Missing Letter.
-- **Logic** — Which is Different? (odd-one-out), What Comes Next? (patterns),
-  Match the Shadow (distinct SVG shapes), Small to Big, Memory Match, Put in
-  Order (numbers), What Changed? (spot-the-difference).
-- **Science / sorting** — Alive or Not? (living/sink-float/plant-animal), Sort
-  the Colors, Land/Air/Water, Day or Night?, Hot or Cold?.
-- **Calm / SEL / co-op** — Breathing Star, I Did It! (certificate), Follow the
-  Path (lacing), **Team Hop** and **Team Tower** (2-player co-op — take turns,
-  nobody loses).
-- **Fun / cause→effect** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the
-  Balloon, Music Pad (WebAudio, sound-on).
+- **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
+  Shadow (SVG shapes), Small to Big, Memory Match, Put in Order, What Changed?
+- **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
+  Paw Patrol Rescue (his favorite — harder each round).
+- **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
+  Hot or Cold?.
+- **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
+  Music Pad (WebAudio, sound-on).
+- **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
+  Path (lacing), **Team Hop**, **Team Tower**, **Tic-Tac-Toe** (2-player co-op).
 
-Games personalize by rotating Josh's friends (**Raegar / River / Viraj**) and
-heroes; every win celebrates (confetti + spoken praise) and every wrong tap is a
-gentle bump with the target left in play (no score loss, no "you lose"). The
-launcher has a **🎲 Surprise!** tile (jump to a random game) and shows a **⭐
-badge** on every game Josh has beaten (`josh-won-<id>` in `localStorage`).
+Games personalize by rotating Josh's friends (**Raegar / River / Viraj**), Spidey
+heroes, and Paw-Patrol/Rubble homage names (**emoji + names only — not the
+copyrighted artwork**). Every win celebrates (confetti + spoken praise) and every
+wrong tap is a gentle bump with the target left in play (no score loss, no "you
+lose"). The launcher has a **🎲 Surprise!** tile and a **⭐ badge** on every game
+Josh has beaten (`josh-won-<id>` in `localStorage`).
+
+> **Correctness is a hard requirement** (teaching tool): `tests/content.test.js`
+> restates the ground truth (first sounds, rhymes-by-phonetic-key, CVC structure,
+> sight words, digraph prefixes, and exact truth tables for every sort) and fails
+> if any answer would become wrong. Update the truth there when you change a fact.
 
 **Installable PWA** — `manifest.webmanifest` + `sw.js` make it add-to-home-screen
 installable with a friendly star icon, and it **works offline** (great for car
