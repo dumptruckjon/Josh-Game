@@ -54,7 +54,9 @@ async function auditActiveScreen(p, label) {
   const tooSmall = await p.evaluate((min) => {
     const out = [];
     for (const el of document.querySelectorAll("button, a[href], [role='button']")) {
-      if (el.hidden || el.closest("[hidden]") || el.offsetParent === null) continue;
+      // [data-adult] controls (the grown-ups reset gate) are intentionally small
+      // so a preschooler ignores them — the ≥75px rule is a KID-tap requirement.
+      if (el.hidden || el.closest("[hidden]") || el.closest("[data-adult]") || el.offsetParent === null) continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 && r.height === 0) continue;
       if (r.width < min || r.height < min) out.push((el.id || el.className) + ":" + Math.round(r.width) + "x" + Math.round(r.height));
@@ -68,7 +70,9 @@ async function auditActiveScreen(p, label) {
     const els = scr ? scr.querySelectorAll("button, a[href], [role='button']") : [];
     const out = [];
     for (const el of els) {
-      if (el.hidden || el.closest("[hidden]") || el.offsetParent === null) continue;
+      // [data-adult] controls (the grown-ups reset gate) are intentionally small
+      // so a preschooler ignores them — the ≥75px rule is a KID-tap requirement.
+      if (el.hidden || el.closest("[hidden]") || el.closest("[data-adult]") || el.offsetParent === null) continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 && r.height === 0) continue;
       out.push({ x: r.x, y: r.y, r: r.right, b: r.bottom });

@@ -164,6 +164,36 @@ test("beating games marks them with a ⭐ on the launcher", async () => {
   assert.ok(badges >= 3, `expected several beaten-game star badges, got ${badges}`);
 });
 
+test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => {
+  // The previous test won games, so badges exist now. The gate must reject
+  // everything except the word "reset" (any case) and clear the badges + flags.
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  const before = await page.locator(".tile__badge").count();
+  assert.ok(before >= 1, `expected badges to reset, got ${before}`);
+
+  await page.locator("#reset-stars").click();
+  await page.locator(".gate").waitFor({ state: "visible" });
+
+  // A wrong word clears NOTHING and shows a gentle error.
+  await page.locator(".gate__input").fill("banana");
+  await page.locator(".gate__ok").click();
+  assert.equal(await page.locator(".tile__badge").count(), before, "a wrong word must not clear badges");
+  assert.ok(await page.locator(".gate__err").isVisible(), "wrong word shows the error");
+
+  // The correct word — case-insensitive — clears the badges and the won-flags.
+  await page.locator(".gate__input").fill("Reset");
+  await page.locator(".gate__ok").click();
+  await page.waitForFunction(() => document.querySelectorAll(".tile__badge").length === 0, null, { timeout: 4000 });
+  assert.equal(await page.locator(".tile__badge").count(), 0, "‘Reset’ clears every badge");
+  const flags = await page.evaluate(() => {
+    let n = 0;
+    for (let i = 0; i < localStorage.length; i++) if ((localStorage.key(i) || "").indexOf("josh-won-") === 0) n++;
+    return n;
+  });
+  assert.equal(flags, 0, "the josh-won-* flags are cleared too");
+});
+
 test("a wrong tap is forgiving — no score loss, target stays in play", async () => {
   // Drive Odd-One-Out: tap a NON-correct tile, assert it did not advance/win.
   await openGame("odd-one-out");

@@ -208,6 +208,14 @@ test("guardrail: the framework exposes the reactive mascot and wires its reactio
   assert.ok(/reactMascot\(["']wiggle["']\)/.test(fw), "tryAgain must wiggle the mascot");
 });
 
+test("guardrail: the grown-ups reset gate exists and only 'reset' clears stars", () => {
+  const m = read("scripts/main.js");
+  assert.ok(/reset-stars/.test(m), "needs a grown-ups reset button");
+  assert.ok(/dataset\.adult|data-adult/.test(m), "the gate must be marked adult-only (exempt from the kid ≥75px audit)");
+  assert.ok(/josh-won-/.test(m) && /removeItem/.test(m), "clearStars() must remove the josh-won-* flags");
+  assert.ok(/toLowerCase\(\)\s*===\s*["']reset["']/.test(m), "ONLY the word 'reset' (any case) may clear the stars");
+});
+
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);

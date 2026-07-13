@@ -45,7 +45,7 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => {
-    for (const init of [initSound, initLauncher]) {
+    for (const init of [initSound, initLauncher, initParentGate]) {
       try { init(); } catch (e) { console.error("Josh: init failed:", e); }
     }
   });
@@ -57,6 +57,87 @@
         console.warn("Josh: service worker registration failed:", e)
       );
     });
+  }
+
+  // ---- Grown-ups: reset the ⭐ badges (a text parent-gate) ----
+  // A small, discreet button (marked data-adult so it is exempt from the kid
+  // ≥75px audit — it is deliberately small so a preschooler ignores it). It pops
+  // a text box that ONLY accepts the word "reset" (any case); nothing else clears
+  // anything. Clearing removes every josh-won-* flag and its ⭐ badge.
+  function clearStars() {
+    let n = 0;
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf("josh-won-") === 0) keys.push(k);
+      }
+      keys.forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
+      n = keys.length;
+    } catch (e) { /* localStorage may be unavailable */ }
+    document.querySelectorAll(".tile__badge").forEach((b) => b.remove());
+    return n;
+  }
+
+  function initParentGate() {
+    const home = document.getElementById("screen-home");
+    if (!home) return;
+
+    const btn = document.createElement("button");
+    btn.id = "reset-stars";
+    btn.className = "reset-stars";
+    btn.type = "button";
+    btn.dataset.adult = "1"; // exempt from the kid tap-size audit (adult-only control)
+    btn.setAttribute("aria-label", "Grown-ups: reset stars");
+    btn.textContent = "⚙️ Grown-ups";
+    home.appendChild(btn);
+
+    const overlay = document.createElement("div");
+    overlay.className = "gate";
+    overlay.hidden = true;
+    overlay.dataset.adult = "1";
+    overlay.innerHTML =
+      '<div class="gate__box" role="dialog" aria-modal="true" aria-label="Reset stars">' +
+        '<p class="gate__msg">Grown-ups: type <b>reset</b> to clear all&nbsp;⭐</p>' +
+        '<input class="gate__input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type the word reset" />' +
+        '<p class="gate__err" hidden>That’s not the word. Type <b>reset</b>.</p>' +
+        '<div class="gate__row">' +
+          '<button class="gate__cancel" type="button" data-adult="1">Cancel</button>' +
+          '<button class="gate__ok" type="button" data-adult="1">OK</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector(".gate__input");
+    const err = overlay.querySelector(".gate__err");
+    const box = overlay.querySelector(".gate__box");
+
+    function open() { overlay.hidden = false; err.hidden = true; input.value = ""; setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 30); }
+    function close() { overlay.hidden = true; }
+    function toast(msg) {
+      const t = document.createElement("div");
+      t.className = "gate__done";
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 1600);
+    }
+    function submit() {
+      if (input.value.trim().toLowerCase() === "reset") {
+        const n = clearStars();
+        close();
+        toast(n ? "Stars cleared! ✨" : "No stars to clear.");
+      } else {
+        err.hidden = false;
+        box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
+        try { input.select(); } catch (e) { /* ignore */ }
+      }
+    }
+
+    btn.addEventListener("click", open);
+    overlay.querySelector(".gate__ok").addEventListener("click", submit);
+    overlay.querySelector(".gate__cancel").addEventListener("click", close);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); }); // tap the dim area to cancel
   }
 
   // ---- Big sound on/off toggle (off by default) ----
