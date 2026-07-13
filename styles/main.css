@@ -359,6 +359,8 @@ body {
   transition: transform 1.6s ease-in-out;
 }
 .breathe--big { transform: scale(1.35); }
+.breathe__star--art { background: none; box-shadow: none; }
+.breathe__star--art svg { width: 100%; height: 100%; }
 .breathe__label { font-size: 1.1rem; font-weight: 700; color: #4a8a6a; }
 
 /* ---------- "I Did It!" Certificate ---------- */
@@ -514,6 +516,15 @@ body {
 }
 .cbn__cell--done { border-style: solid; border-color: rgba(0, 0, 0, 0.08); color: transparent; }
 
+/* ---------- Team Count / Team Rocket (co-op) ---------- */
+.tc__count { font-size: 3rem; font-weight: 900; color: #5a3ec7; line-height: 1; }
+.tc__dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.tc__dot { width: 20px; height: 20px; border-radius: 50%; background: #dfe6ee; }
+.tc__dot--on { background: #7be08a; }
+.rocket-art { width: 110px; height: 130px; margin: 0 auto; transition: transform 0.8s ease-in; }
+.rocket-art svg { width: 100%; height: 100%; }
+.rocket-art--launch { transform: translateY(-220px); opacity: 0.3; }
+
 /* ---------- Original SVG art (JoshArt) ---------- */
 .win-hero {
   position: fixed; left: 50%; bottom: 14%; width: 120px; height: 120px;
@@ -547,5 +558,7 @@ body {
   .breathe__star, .coop__token, .balloon, .bub { transition: none !important; }
   .breathe--big, .balloon--float { transform: none !important; }
   .win-hero { animation: none !important; }
+  .rocket-art { transition: none !important; }
+  .rocket-art--launch { transform: none !important; }
   body { background-attachment: scroll; }
 }

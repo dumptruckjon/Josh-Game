@@ -16,7 +16,11 @@
     start(api) {
       const BREATHS = 4;
       let n = 0;
-      const star = api.el("button", { class: "breathe__star tap", type: "button", dataset: { correct: "1" }, aria: { label: "breathe" } }, ["⭐"]);
+      const star = api.el("button", {
+        class: "breathe__star breathe__star--art tap art-fill", type: "button",
+        dataset: { correct: "1" }, aria: { label: "breathe" },
+        html: (window.JoshArt && window.JoshArt.star) ? window.JoshArt.star("#ffd24d") : "⭐",
+      });
       const label = api.el("div", { class: "breathe__label" }, ["Tap the star and breathe"]);
       api.stage.append(star, label);
       api.setPrompt("Tap the star. Breathe in… and out…", ["🌬️", "⭐", "😌"]);
@@ -252,6 +256,108 @@
       p0.addEventListener("click", () => add(0));
       p1.addEventListener("click", () => add(1));
       api.setPrompt("Take turns adding blocks to your tower!", ["🕷️", "🔁", "🏗️"]);
+      api.speak();
+      update();
+    },
+  });
+
+  // ---- Team Count (2-player co-op: take turns counting to 10 together) ----
+  F.register({
+    id: "team-count",
+    icon: "🔟",
+    title: "Team Count (2 players)",
+    skill: "co-op / counting together",
+    start(api) {
+      const GOAL = 10;
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
+      let turn = 0, count = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const countEl = api.el("div", { class: "tc__count" }, ["0"]);
+      const dots = api.el("div", { class: "tc__dots" });
+      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add one" } }, [players[0].emoji + " +1"]);
+      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add one" } }, [players[1].emoji + " +1"]);
+      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      api.stage.append(turnEl, countEl, dots, btns);
+      const laneBtns = [p0, p1];
+      for (let i = 0; i < GOAL; i++) dots.appendChild(api.el("span", { class: "tc__dot" }));
+
+      function update() {
+        laneBtns.forEach((b, i) => {
+          const active = i === turn;
+          b.classList.toggle("coop__btn--active", active);
+          if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
+        });
+        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!";
+      }
+      function add(i) {
+        if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
+        count += 1;
+        countEl.textContent = String(count);
+        if (dots.children[count - 1]) dots.children[count - 1].classList.add("tc__dot--on");
+        api.say(String(count));
+        if (count >= GOAL) { laneBtns.forEach((b) => delete b.dataset.correct); api.win({ say: "You counted to ten together! Yay!" }); return; }
+        turn = turn === 0 ? 1 : 0;
+        update();
+      }
+      p0.addEventListener("click", () => add(0));
+      p1.addEventListener("click", () => add(1));
+      api.setPrompt("Take turns! Count to 10 together.", ["🕷️", "🔁", "🔟"]);
+      api.speak();
+      update();
+    },
+  });
+
+  // ---- Team Rocket (2-player co-op: take turns fueling, then blast off) ----
+  F.register({
+    id: "team-rocket",
+    icon: "🚀",
+    title: "Team Rocket (2 players)",
+    skill: "co-op / build together",
+    start(api) {
+      const GOAL = 8;
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
+      let turn = 0, fuel = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const rocketEl = api.el("div", { class: "rocket-art art-fill", aria: { hidden: "true" }, html: (window.JoshArt && window.JoshArt.rocket) ? window.JoshArt.rocket() : "🚀" });
+      const gauge = api.el("div", { class: "tc__dots" });
+      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add fuel" } }, [players[0].emoji + " Fuel"]);
+      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add fuel" } }, [players[1].emoji + " Fuel"]);
+      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      api.stage.append(turnEl, rocketEl, gauge, btns);
+      const laneBtns = [p0, p1];
+      for (let i = 0; i < GOAL; i++) gauge.appendChild(api.el("span", { class: "tc__dot" }));
+
+      function update() {
+        laneBtns.forEach((b, i) => {
+          const active = i === turn;
+          b.classList.toggle("coop__btn--active", active);
+          if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
+        });
+        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn — fuel up!";
+      }
+      function add(i) {
+        if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
+        fuel += 1;
+        if (gauge.children[fuel - 1]) gauge.children[fuel - 1].classList.add("tc__dot--on");
+        api.say("Fuel " + fuel);
+        if (fuel >= GOAL) {
+          rocketEl.classList.add("rocket-art--launch");
+          laneBtns.forEach((b) => delete b.dataset.correct);
+          api.win({ say: "Blast off! You did it together!" });
+          return;
+        }
+        turn = turn === 0 ? 1 : 0;
+        update();
+      }
+      p0.addEventListener("click", () => add(0));
+      p1.addEventListener("click", () => add(1));
+      api.setPrompt("Take turns adding fuel, then blast off!", ["🕷️", "🔁", "🚀"]);
       api.speak();
       update();
     },
