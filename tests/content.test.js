@@ -161,6 +161,61 @@ test("deduction attributes are distinct so a color+item clue is unique", () => {
   for (const c of content.DEDUCE_COLORS) assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.key} needs a hex`);
 });
 
+// ---------- Finish the Word: every word truly begins with its digraph ----------
+test("digraph-finish words really start with their sh/ch/th", () => {
+  const OK = new Set(["sh", "ch", "th"]);
+  const digs = new Set();
+  for (const w of content.DIGRAPH_FINISH) {
+    assert.ok(OK.has(w.digraph), `${w.word} has an unexpected digraph ${w.digraph}`);
+    assert.ok(w.word.startsWith(w.digraph), `${w.word} must start with ${w.digraph}`);
+    digs.add(w.digraph);
+  }
+  assert.equal(digs.size, 3, "need all three of sh, ch, th present for distractors");
+});
+
+// ---------- Story sequences are clean 3-picture, distinct-emoji sequences ----------
+test("story sequences are 3 distinct pictures each", () => {
+  assert.ok(content.STORY_SEQUENCES.length >= 3, "need several sequences");
+  for (const s of content.STORY_SEQUENCES) {
+    assert.ok(s.steps.length >= 3, `${s.name} needs >= 3 steps`);
+    assert.equal(new Set(s.steps).size, s.steps.length, `${s.name} steps must be distinct`);
+  }
+});
+
+// ---------- Letter-maker paths are simple, well-formed ----------
+test("letter paths have a guide letter and >= 3 ordered dots", () => {
+  for (const lp of content.LETTER_PATHS) {
+    assert.match(lp.letter, /^[A-Z]$/, `letter must be A-Z, got ${lp.letter}`);
+    assert.ok(lp.dots.length >= 3, `${lp.letter} needs >= 3 dots`);
+    for (const d of lp.dots) {
+      assert.ok(d.x >= 0 && d.x <= 100 && d.y >= 0 && d.y <= 100, `${lp.letter} dot out of bounds`);
+    }
+  }
+});
+
+// ---------- Magnet sort: only truly magnetic (ferrous/metal) items stick ----------
+const MAGNET_TRUTH = {
+  Sticks: ["🔑", "🪙", "🔩", "⚙️", "📎", "🥫"],
+  No: ["🪵", "🧸", "🍎", "📗", "🧦", "🎈"],
+};
+test("magnet sort matches verified magnetic truth", () => {
+  const set = content.MAGNET_SETS[0];
+  for (const bin of set.bins) {
+    assert.deepEqual([...bin.items].sort(), [...MAGNET_TRUTH[bin.label]].sort(),
+      `magnet bin "${bin.label}" does not match the verified truth`);
+  }
+});
+
+// ---------- Conjunction attributes are distinct (so a color+shape clue is unique) ----------
+test("conjunction colors and shapes are distinct", () => {
+  const colors = content.CONJ_COLORS.map((c) => c.name);
+  const shapes = content.CONJ_SHAPES.map((s) => s.name);
+  assert.equal(new Set(colors).size, colors.length, "distinct colors");
+  assert.equal(new Set(shapes).size, shapes.length, "distinct shapes");
+  assert.ok(colors.length >= 2 && shapes.length >= 2, "need >= 2 of each");
+  for (const c of content.CONJ_COLORS) assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.name} needs a hex`);
+});
+
 test("picture-square trios are exactly 3 distinct, self-naming pictures", () => {
   assert.ok(content.SQUARE_TRIOS.length >= 3, "need several trios to rotate");
   for (const trio of content.SQUARE_TRIOS) {

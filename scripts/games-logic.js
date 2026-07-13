@@ -400,6 +400,57 @@
     },
   });
 
+  // ---- Put the Story in Order (temporal sequencing) ----
+  // Tap the pictures in the order they happen: first → next → last.
+  F.register({
+    id: "story-order",
+    icon: "📖",
+    title: "Put in Order",
+    skill: "sequencing / what happens next [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, step = 0;
+      const track = api.el("div", { class: "story__track" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(track, choices);
+
+      function newRound() {
+        const r = L.makeStoryOrder(C.STORY_SEQUENCES);
+        step = 0;
+        api.setPrompt("What happens first, next, last?", ["1️⃣", "2️⃣", "3️⃣"]);
+        api.speak();
+        track.innerHTML = "";
+        for (let i = 0; i < r.order.length; i++) track.appendChild(api.el("span", { class: "story__slot", aria: { hidden: "true" } }, [String(i + 1)]));
+        choices.innerHTML = "";
+        r.tiles.forEach((tile) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: tile.emoji,
+            dataset: tile.rank === 0 ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (tile.rank === step) {
+              b.disabled = true; b.classList.add("choice--used"); delete b.dataset.correct;
+              track.children[step].textContent = tile.emoji;
+              step += 1;
+              if (step >= r.tiles.length) {
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You put the story in order!" }); else { api.roundWin(); newRound(); }
+              } else {
+                // promote the next-in-order tile to be the correct tap
+                [...choices.children].forEach((c, idx) => {
+                  if (!c.disabled && r.tiles[idx].rank === step) c.dataset.correct = "1"; else if (!c.disabled) delete c.dataset.correct;
+                });
+              }
+            } else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
   // ---- Picture Squares (mini picture-sudoku / Latin square) ----
   // Each of 3 pictures appears once per row AND once per column. One cell is
   // blank — deduce which picture belongs there (row/column elimination).

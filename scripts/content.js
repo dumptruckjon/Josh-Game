@@ -223,6 +223,61 @@
     FIND_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
       "🐝", "🦋", "🐟", "🐢", "🐙", "🐧", "🦄", "⭐", "❤️", "🚗", "🚀", "🎈", "🍎", "🌈"],
 
+    // ---- Finish the Word (sh / ch / th) — each word starts with its digraph ----
+    DIGRAPH_FINISH: [
+      { emoji: "🚢", word: "ship", digraph: "sh" },
+      { emoji: "🐚", word: "shell", digraph: "sh" },
+      { emoji: "👟", word: "shoe", digraph: "sh" },
+      { emoji: "🦈", word: "shark", digraph: "sh" },
+      { emoji: "🪑", word: "chair", digraph: "ch" },
+      { emoji: "🧀", word: "cheese", digraph: "ch" },
+      { emoji: "🍒", word: "cherry", digraph: "ch" },
+      { emoji: "🐤", word: "chick", digraph: "ch" },
+      { emoji: "👍", word: "thumb", digraph: "th" },
+      { emoji: "3️⃣", word: "three", digraph: "th" },
+      { emoji: "🌡️", word: "thermometer", digraph: "th" },
+    ],
+
+    // ---- Put the Story in Order — steps are in TRUE first→last order ----
+    STORY_SEQUENCES: [
+      { name: "Chicken", steps: ["🥚", "🐣", "🐔"] },   // egg → chick → hen
+      { name: "Butterfly", steps: ["🥚", "🐛", "🦋"] }, // egg → caterpillar → butterfly
+      { name: "Tree", steps: ["🌱", "🌿", "🌳"] },       // sprout → plant → tree
+      { name: "Grow up", steps: ["👶", "🧒", "🧓"] },     // baby → child → grown
+      { name: "Apple", steps: ["🌱", "🌸", "🍎"] },       // sprout → blossom → fruit
+    ],
+
+    // ---- Letter Maker (trace ordered dots over a faint guide letter) ----
+    // Dots are big tap targets, so each is well-spread; the faint glyph carries
+    // recognizability. Simple open letters only.
+    LETTER_PATHS: [
+      { letter: "L", dots: [{ x: 26, y: 12 }, { x: 26, y: 86 }, { x: 82, y: 86 }] },
+      { letter: "V", dots: [{ x: 16, y: 12 }, { x: 50, y: 86 }, { x: 84, y: 12 }] },
+      { letter: "O", dots: [{ x: 50, y: 8 }, { x: 86, y: 50 }, { x: 50, y: 90 }, { x: 14, y: 50 }] },
+      { letter: "C", dots: [{ x: 84, y: 16 }, { x: 24, y: 30 }, { x: 24, y: 72 }, { x: 84, y: 86 }] },
+      { letter: "U", dots: [{ x: 18, y: 12 }, { x: 30, y: 84 }, { x: 70, y: 84 }, { x: 82, y: 12 }] },
+    ],
+
+    // ---- The Big Red One (feature-conjunction: color × shape) ----
+    CONJ_COLORS: [
+      { name: "red", hex: "#e23636" }, { name: "blue", hex: "#2b6cff" },
+      { name: "green", hex: "#38b000" }, { name: "yellow", hex: "#f6bd16" },
+    ],
+    CONJ_SHAPES: [
+      { name: "circle", svg: '<circle cx="50" cy="50" r="40"/>' },
+      { name: "square", svg: '<rect x="14" y="14" width="72" height="72" rx="10"/>' },
+      { name: "star", svg: '<polygon points="50,8 61,38 94,38 67,58 78,90 50,70 22,90 33,58 6,38 39,38"/>' },
+      { name: "heart", svg: '<path d="M50 30 C36 10 8 16 8 40 C8 64 36 74 50 90 C64 74 92 64 92 40 C92 16 64 10 50 30 Z"/>' },
+    ],
+
+    // ---- Will It Stick? (magnetic vs not — a science sort) ----
+    MAGNET_SETS: [
+      { name: "magnet", bins: [
+        { label: "Sticks", emoji: "🧲", items: ["🔑", "🪙", "🔩", "⚙️", "📎", "🥫"] },
+        { label: "No", emoji: "🚫", items: ["🪵", "🧸", "🍎", "📗", "🧦", "🎈"] },
+      ] },
+    ],
+
     // ---- I Spy: Find Them All (category hunt) ----
     // DISJOINT sets — every emoji belongs to exactly ONE category, so a filler
     // from another category can never accidentally be a hidden member.

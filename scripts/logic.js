@@ -505,6 +505,55 @@
     return { target, count: K, cells };
   }
 
+  // --- Finish the Word (which digraph starts it: sh / ch / th) -------------
+  function makeDigraphFinish(words, rng = Math.random) {
+    if (!Array.isArray(words) || words.length < 3) throw new Error("makeDigraphFinish needs >= 3 words");
+    const w = words[randInt(0, words.length - 1, rng)];
+    const all = [...new Set(words.map((x) => x.digraph))];
+    const distractors = shuffle(all.filter((d) => d !== w.digraph), rng).slice(0, 2);
+    const choices = shuffle(
+      [{ digraph: w.digraph, correct: true }, ...distractors.map((d) => ({ digraph: d, correct: false }))],
+      rng
+    );
+    return { emoji: w.emoji, word: w.word, digraph: w.digraph, rest: w.word.slice(w.digraph.length), choices };
+  }
+
+  // --- Put the Story in Order (tap 3 pictures first -> next -> last) -------
+  // Each sequence is given in TRUE temporal order; we shuffle for display and
+  // tag every tile with its correct rank (0,1,2).
+  function makeStoryOrder(sequences, rng = Math.random) {
+    if (!Array.isArray(sequences) || !sequences.length) throw new Error("makeStoryOrder needs sequences");
+    const seq = sequences[randInt(0, sequences.length - 1, rng)];
+    const tiles = shuffle(seq.steps.map((emoji, rank) => ({ emoji, rank })), rng);
+    return { name: seq.name, order: seq.steps, tiles };
+  }
+
+  // --- The Big Red One (feature-conjunction search: match BOTH clues) ------
+  // A field of colored shapes; exactly ONE has BOTH the target color AND the
+  // target shape. Distractors may share one attribute, never both.
+  function makeConjunctionHunt(colors, shapes, size, rng = Math.random) {
+    if (!Array.isArray(colors) || colors.length < 2 || !Array.isArray(shapes) || shapes.length < 2) {
+      throw new Error("makeConjunctionHunt needs >= 2 colors and >= 2 shapes");
+    }
+    size = size || 9;
+    // Can't show more DISTINCT color×shape tiles than combos exist.
+    size = Math.min(size, colors.length * shapes.length);
+    const color = colors[randInt(0, colors.length - 1, rng)];
+    const shape = shapes[randInt(0, shapes.length - 1, rng)];
+    // All combos except the exact target are legal distractors.
+    const pool = [];
+    for (const c of colors) for (const s of shapes) {
+      if (c === color && s === shape) continue;
+      pool.push({ color: c, shape: s });
+    }
+    const distractors = sample(pool, Math.max(0, size - 1), rng);
+    const cells = shuffle(
+      [{ color, shape, correct: true }, ...distractors.map((d) => ({ ...d, correct: false }))],
+      rng
+    );
+    return { color, shape, cells };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -524,6 +573,7 @@
     makeFindHero, makeCrowd, makeFindCount, tttWinner, TTT_LINES, makeTeen,
     makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt,
+    makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

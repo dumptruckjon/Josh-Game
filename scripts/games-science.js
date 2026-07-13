@@ -60,6 +60,7 @@
   sorter({ id: "law-sort", icon: "🌍", title: "Land, Air, Water", skill: "sort L/A/W [M]", sets: C.LAW_SETS, threeBins: true, prompt: "Land, air, or water?", icons: ["👀", "🌍", "👉"] });
   sorter({ id: "day-night", icon: "🌗", title: "Day or Night?", skill: "sort day/night [M]", sets: C.DAY_NIGHT_SETS, prompt: "Is it day or night?", icons: ["👀", "🌗", "👉"] });
   sorter({ id: "hot-cold", icon: "🌡️", title: "Hot or Cold?", skill: "sort hot/cold [M]", sets: C.HOT_COLD_SETS, prompt: "Is it hot or cold?", icons: ["👀", "🌡️", "👉"] });
+  sorter({ id: "magnet-magic", icon: "🧲", title: "Will It Stick?", skill: "magnetic or not [M]", sets: C.MAGNET_SETS, prompt: "Will the magnet grab it?", icons: ["👀", "🧲", "👉"] });
 
   // ---- Shape's Real Twin: match a 3D solid to a real object of that shape ----
   // Geometry solids are one of Josh's working edges — and this diversifies the

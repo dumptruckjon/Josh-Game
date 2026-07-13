@@ -298,6 +298,113 @@
     },
   });
 
+  // ---- Finish the Word: which sound starts it — sh, ch, or th? ([W]) ----
+  F.register({
+    id: "digraph-finish",
+    icon: "🔡",
+    title: "sh, ch, or th?",
+    skill: "digraphs sh·ch·th [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 5;
+      let round = 0;
+      const pic = api.el("div", { class: "big-pic", aria: { hidden: "true" } });
+      const wordEl = api.el("div", { class: "digf__word", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pic, wordEl, choices);
+
+      function newRound() {
+        const r = L.makeDigraphFinish(C.DIGRAPH_FINISH);
+        api.setPrompt("Which sound starts the word?", ["👂", "🔡", "❓"]);
+        api.speak();
+        api.say(r.word);
+        pic.textContent = r.emoji;
+        wordEl.innerHTML = "";
+        wordEl.append(
+          api.el("span", { class: "digf__blank" }, ["_ _"]),
+          api.el("span", { class: "digf__rest" }, [r.rest])
+        );
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--letter tap", type: "button", text: ch.digraph,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.digraph },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) {
+              wordEl.querySelector(".digf__blank").textContent = r.digraph;
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You finished the word!" }); else { api.roundWin(); newRound(); }
+            } else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Letter Maker: trace the numbered dots over a faint letter ([W]) ----
+  // Reuses the lacing mechanic to teach letter FORMATION (his writing edge).
+  F.register({
+    id: "letter-maker",
+    icon: "✏️",
+    title: "Letter Maker",
+    skill: "letter formation / writing [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, step = 0, dots = [];
+      const stage = api.el("div", { class: "trace__stage" });
+      const guide = api.el("div", { class: "lm__guide", aria: { hidden: "true" } });
+      stage.appendChild(guide);
+      api.stage.append(stage);
+
+      function newRound() {
+        const lp = api.randItem(C.LETTER_PATHS);
+        step = 0; dots = [];
+        guide.textContent = lp.letter;
+        api.setPrompt("Trace the letter — tap the dots in order!", ["👆", "🔢", "✏️"]);
+        api.speak();
+        api.say("Trace the letter " + lp.letter);
+        [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "trace__line");
+        svg.setAttribute("viewBox", "0 0 100 100");
+        svg.setAttribute("preserveAspectRatio", "none");
+        const poly = document.createElementNS(svgNS, "polyline");
+        poly.setAttribute("points", lp.dots.map((p) => p.x + "," + p.y).join(" "));
+        poly.setAttribute("fill", "none"); poly.setAttribute("stroke", "#b7c6d6");
+        poly.setAttribute("stroke-width", "2.5"); poly.setAttribute("stroke-dasharray", "5 4"); poly.setAttribute("stroke-linecap", "round");
+        svg.appendChild(poly);
+        stage.appendChild(svg);
+
+        lp.dots.forEach((p, i) => {
+          const dot = api.el("button", {
+            class: "trace__dot tap" + (i === 0 ? " trace__dot--start" : ""),
+            type: "button", dataset: i === 0 ? { correct: "1" } : {}, aria: { label: "dot " + (i + 1) },
+          }, [String(i + 1)]);
+          dot.style.left = p.x + "%"; dot.style.top = p.y + "%";
+          dot.addEventListener("click", () => {
+            if (i === step) {
+              dot.classList.add("trace__dot--done");
+              delete dot.dataset.correct;
+              step += 1;
+              if (step >= lp.dots.length) {
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You wrote your letters!" }); else { api.roundWin(); newRound(); }
+              } else if (dots[step]) dots[step].dataset.correct = "1";
+            } else api.tryAgain(dot);
+          });
+          stage.appendChild(dot); dots.push(dot);
+        });
+      }
+      newRound();
+    },
+  });
+
   // ---- Rhyme Train: find EVERY picture that rhymes with the target ([W]) ----
   // Extends Which-Rhymes? (pick one) into a visual hunt (find them all), on his
   // live rhyming edge. Control-of-error stays the self-naming pictures + audio.

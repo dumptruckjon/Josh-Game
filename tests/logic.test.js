@@ -597,3 +597,51 @@ test("makeRhymeHunt: every 'correct' cell shares the target's rhyme group; fille
       assert.notEqual(groupOf[c.word], tGroup, `${c.word} must NOT rhyme with the target`));
   }
 });
+
+// ---------- Third batch: Finish the Word, Story Order, Conjunction Hunt ----------
+
+test("makeDigraphFinish: the correct choice is the word's real digraph", () => {
+  const rng = mulberry32(51);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeDigraphFinish(content.DIGRAPH_FINISH, rng);
+    assert.ok(r.word.startsWith(r.digraph), `${r.word} must start with ${r.digraph}`);
+    assert.equal(r.rest, r.word.slice(r.digraph.length), "rest is the tail after the digraph");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].digraph, r.digraph, "correct choice is the true digraph");
+    assert.equal(r.choices.length, 3, "three choices");
+    assert.equal(new Set(r.choices.map((c) => c.digraph)).size, 3, "distinct digraph choices");
+  }
+});
+
+test("makeStoryOrder: tiles are the sequence, tagged with true ranks 0..n", () => {
+  const rng = mulberry32(52);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeStoryOrder(content.STORY_SEQUENCES, rng);
+    assert.equal(r.tiles.length, r.order.length, "a tile per step");
+    // ranks are a full permutation of 0..n-1
+    assert.deepEqual([...r.tiles.map((t) => t.rank)].sort((a, b) => a - b), r.order.map((_, i) => i));
+    // each tile's emoji matches the correct-order emoji at its rank
+    for (const t of r.tiles) assert.equal(t.emoji, r.order[t.rank], "tile emoji matches its ranked position");
+  }
+});
+
+test("makeConjunctionHunt: EXACTLY one cell matches both color and shape", () => {
+  const rng = mulberry32(53);
+  const colors = content.CONJ_COLORS.map((c) => c.name);
+  const shapes = content.CONJ_SHAPES.map((s) => s.name);
+  const maxCombos = colors.length * shapes.length;
+  for (const size of [9, 13, 20]) {
+    for (let i = 0; i < 800; i++) {
+      const r = L.makeConjunctionHunt(colors, shapes, size, rng);
+      assert.equal(r.cells.length, Math.min(size, maxCombos), "field clamps to available combos");
+      const both = r.cells.filter((c) => c.color === r.color && c.shape === r.shape);
+      assert.equal(both.length, 1, "exactly one has BOTH target attributes");
+      assert.equal(both[0].correct, true, "and it is the correct one");
+      assert.equal(r.cells.filter((c) => c.correct).length, 1, "exactly one correct cell");
+      // every distractor differs in color OR shape
+      r.cells.filter((c) => !c.correct).forEach((c) =>
+        assert.ok(c.color !== r.color || c.shape !== r.shape, "distractor is not the full conjunction"));
+    }
+  }
+});

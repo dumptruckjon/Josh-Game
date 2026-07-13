@@ -280,6 +280,57 @@
     },
   });
 
+  // ---- The Big Red One: find the one matching BOTH clues (color + shape) ----
+  // Feature-conjunction search — genuinely harder (hold two attributes at once),
+  // which Josh loves. Exactly one cell has the target color AND shape.
+  F.register({
+    id: "big-red-one",
+    icon: "🎯",
+    title: "The Big One",
+    skill: "two-clue visual search [W]",
+    start(api) {
+      const COLORS = C.CONJ_COLORS || [{ name: "red", hex: "#e23636" }, { name: "blue", hex: "#2b6cff" }];
+      const SHAPES = C.CONJ_SHAPES || [{ name: "circle", svg: '<circle cx="50" cy="50" r="40"/>' }];
+      const ROUNDS = 5;
+      let round = 0;
+      const clue = api.el("div", { class: "conj__clue", aria: { live: "polite" } });
+      const field = api.el("div", { class: "find__field" });
+      api.stage.append(clue, field);
+
+      function tile(cell, correct) {
+        const shape = SHAPES.find((s) => s.name === cell.shape) || SHAPES[0];
+        const color = COLORS.find((c) => c.name === cell.color) || COLORS[0];
+        const b = api.el("button", {
+          class: "find__cell conj__cell tap", type: "button",
+          dataset: correct ? { correct: "1" } : {}, aria: { label: cell.color + " " + cell.shape },
+          html: '<svg viewBox="0 0 100 100" style="fill:' + color.hex + '">' + shape.svg + "</svg>",
+        });
+        b.addEventListener("click", () => {
+          if (correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You found it!" }); else { api.roundWin(); newRound(); } }
+          else api.tryAgain(b);
+        });
+        return b;
+      }
+      function newRound() {
+        const size = 9 + round * 2;
+        const r = L.makeConjunctionHunt(COLORS.map((c) => c.name), SHAPES.map((s) => s.name), size);
+        const color = COLORS.find((c) => c.name === r.color);
+        const shape = SHAPES.find((s) => s.name === r.shape);
+        clue.innerHTML = "";
+        clue.append(
+          api.el("span", { class: "conj__swatch", style: { background: color.hex }, aria: { hidden: "true" } }),
+          api.el("span", { class: "conj__plus" }, ["+"]),
+          api.el("span", { class: "conj__shapeIcon art-fill", aria: { hidden: "true" }, html: '<svg viewBox="0 0 100 100" style="fill:#33445a">' + shape.svg + "</svg>" })
+        );
+        api.setPrompt("Find the one that matches BOTH!", ["👀", "🎯", "👆"]);
+        api.speak();
+        field.innerHTML = "";
+        r.cells.forEach((cell) => field.appendChild(tile(cell, cell.correct)));
+      }
+      newRound();
+    },
+  });
+
   // ---- Find the Twins: everything is different except ONE matching pair ----
   // A brand-new find mechanic (vs copies-of-a-target / one-odd-in-a-crowd). Tap
   // one twin, then its match. The field grows each round (he loves it harder).

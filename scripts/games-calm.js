@@ -363,6 +363,57 @@
     },
   });
 
+  // ---- Team Treasure Hunt (2-player co-op find — take turns, share the chest) ----
+  F.register({
+    id: "team-treasure",
+    icon: "💎",
+    title: "Team Treasure (2 players)",
+    skill: "co-op / visual search [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const GOAL = 6;
+      const POOL = (api.C.FIND_POOL || ["🐶", "🐱", "⭐"]);
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
+      let turn = 0, found = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const chest = api.el("div", { class: "tt2__chest" });
+      const field = api.el("div", { class: "find__field" });
+      api.stage.append(turnEl, chest, field);
+      for (let i = 0; i < GOAL; i++) chest.appendChild(api.el("span", { class: "tt2__slot" }, ["▫️"]));
+
+      function place() {
+        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn — find the 💎!";
+        const size = 9;
+        // one treasure among distractors (distractors are never 💎)
+        const distract = L.sample(POOL.filter((e) => e !== "💎"), size - 1);
+        const cells = L.shuffle([{ emoji: "💎", correct: true }, ...distract.map((e) => ({ emoji: e, correct: false }))]);
+        field.innerHTML = "";
+        cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "find__cell tap", type: "button", text: cell.emoji,
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.correct ? "treasure" : "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (!cell.correct) { api.tryAgain(b); return; }
+            found += 1;
+            if (chest.children[found - 1]) chest.children[found - 1].textContent = "💎";
+            api.say("Treasure! " + found);
+            if (found >= GOAL) { field.innerHTML = ""; api.win({ say: "You filled the treasure chest together! Yay!" }); return; }
+            turn = turn === 0 ? 1 : 0;
+            place();
+          });
+          field.appendChild(b);
+        });
+      }
+      api.setPrompt("Take turns finding the treasure — fill the chest together!", ["🕷️", "🔁", "💎"]);
+      api.speak();
+      place();
+    },
+  });
+
   // ---- Stepping-Stone Bridge (2-player co-op: build ONE shared path) ----
   // Unlike Team Hop's two parallel lanes, both kids build a SINGLE bridge across
   // the river in order, then cross together — pure cooperation, nobody "ahead."
