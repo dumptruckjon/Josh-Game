@@ -756,3 +756,31 @@ test("makeNameSpell: tiles are a shuffled permutation of the name's letters", ()
     }
   }
 });
+
+test("article: picks a/an by sound so prompts never read 'a Island'", () => {
+  // The concrete bug this fixes: landform names spliced after "Make a ".
+  assert.equal(L.article("Island"), "an", "vowel start → an");
+  assert.equal(L.article("Lake"), "a", "consonant start → a");
+  assert.equal(L.article("Mountain"), "a");
+  // Case/whitespace tolerant.
+  assert.equal(L.article("  island  "), "an");
+  assert.equal(L.article("APPLE"), "an");
+  // Vowel letters generally take "an".
+  for (const w of ["apple", "elephant", "igloo", "octopus", "umbrella", "egg", "owl"]) {
+    assert.equal(L.article(w), "an", w + " → an");
+  }
+  // Consonant letters generally take "a".
+  for (const w of ["dog", "banana", "kite", "sun", "web", "zebra"]) {
+    assert.equal(L.article(w), "a", w + " → a");
+  }
+  // Sound-not-spelling exceptions a kid word set will actually hit.
+  assert.equal(L.article("unicorn"), "a", "a unicorn (consonant y-sound)");
+  assert.equal(L.article("uniform"), "a");
+  assert.equal(L.article("one"), "a", "a one");
+  assert.equal(L.article("hour"), "an", "an hour (silent h)");
+  assert.equal(L.article("honest"), "an");
+  // Degenerate input never throws.
+  assert.equal(L.article(""), "a");
+  assert.equal(L.article(null), "a");
+  assert.equal(L.article(undefined), "a");
+});

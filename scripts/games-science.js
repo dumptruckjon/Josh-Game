@@ -131,9 +131,10 @@
         current = LFS[round % LFS.length];
         const fillSet = new Set(current.fill);
         remaining = current.fill.length;
-        label.textContent = "Make a " + current.name + "!";
-        api.setPrompt("Make a " + current.name + "! Tap the middle.", ["👆", "🏝️", "😊"]);
-        api.speak(); api.say("Make a " + current.name);
+        const a = L.article(current.name); // "a Island" → "an Island"
+        label.textContent = "Make " + a + " " + current.name + "!";
+        api.setPrompt("Make " + a + " " + current.name + "! Tap the middle.", ["👆", "🏝️", "😊"]);
+        api.speak(); api.say("Make " + a + " " + current.name);
         grid.innerHTML = "";
         for (let i = 0; i < 9; i++) {
           const isTarget = fillSet.has(i);

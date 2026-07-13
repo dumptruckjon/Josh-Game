@@ -175,6 +175,19 @@ test("guardrail: the every-game harness drives the contract with a DOM click", (
     "the every-game loop must drive taps via a DOM el.click() (load-immune), not a coordinate click");
 });
 
+test("guardrail: no game splices a hard-coded 'a'/'an' before a dynamic word", () => {
+  // 'Make a " + name' rendered "Make a Island". The fix is L.article(word), which
+  // picks a/an by sound. Forbid the antipattern everywhere so it can't come back:
+  // a string literal ending in "a "/"an " immediately concatenated with a value.
+  const bad = /["'](?:a|an) ["']\s*\+/i;
+  for (const f of SCRIPTS) {
+    if (!/scripts\/games-.*\.js$/.test(f)) continue;
+    const src = read(f);
+    assert.ok(!bad.test(src),
+      `${f} concatenates a fixed article before a word (reads "a Island") — use JoshLogic.article(word) instead`);
+  }
+});
+
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);

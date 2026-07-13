@@ -655,6 +655,26 @@
     return { letters: arr, tiles };
   }
 
+  // --- "a" vs "an" for a following word (kid-content grammar helper) ------
+  // Any prompt that splices a word after "a"/"an" ("Make a " + name) must pick
+  // the article by the word's SOUND, not just spelling, or it reads "a Island".
+  // Vowel-letter start → "an"; consonant-letter start → "a"; plus the common
+  // kid-word exceptions where letter and sound disagree (a unicorn, an hour).
+  // Centralised here so every game (and every future game) stays grammatical.
+  const AN_EXCEPTIONS = { hour: 1, honest: 1, honor: 1, honour: 1, heir: 1 };
+  const A_EXCEPTIONS = {
+    unicorn: 1, uniform: 1, unit: 1, university: 1, universe: 1, union: 1,
+    use: 1, used: 1, useful: 1, user: 1, one: 1, once: 1, ukulele: 1,
+    ufo: 1, european: 1, ewe: 1,
+  };
+  function article(word) {
+    const w = String(word == null ? "" : word).trim().toLowerCase();
+    if (!w) return "a";
+    if (A_EXCEPTIONS[w]) return "a";
+    if (AN_EXCEPTIONS[w]) return "an";
+    return "aeiou".indexOf(w[0]) >= 0 ? "an" : "a";
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -676,6 +696,7 @@
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt, makeNumberSequence,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
     makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue, makeNameSpell,
+    article,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;
