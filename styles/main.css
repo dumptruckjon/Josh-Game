@@ -655,8 +655,18 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .solid__label { text-align: center; font-size: 1.3rem; font-weight: 800; color: #33445a; margin-bottom: 10px; }
 
 /* ---------- Grow! (Numberblocks stack) ---------- */
+.grow__wrap {
+  position: relative; width: 200px; max-width: 72%; height: 240px; margin: 0 auto;
+}
+/* a soft ground line so the friend stands on something, not in empty space */
+.grow__wrap::after {
+  content: ""; position: absolute; left: -8%; right: -8%; bottom: -6px; height: 10px;
+  border-radius: 50%; background: radial-gradient(closest-side, rgba(120,160,120,0.28), rgba(120,160,120,0));
+}
+.grow__ghost { position: absolute; inset: 0; opacity: 0.16; pointer-events: none; }
+.grow__ghost svg { width: 100%; height: 100%; display: block; }
 .grow__stage {
-  display: block; width: 200px; max-width: 72%; height: 240px; margin: 0 auto;
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%; margin: 0;
   background: transparent; box-shadow: none; padding: 0;
 }
 .grow__stage svg { width: 100%; height: 100%; display: block; }
@@ -796,7 +806,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .geo__map { width: 100%; max-width: 420px; margin: 0 auto 12px; }
 .geo__map svg { width: 100%; height: auto; display: block; border-radius: 10px; }
 .geo__chip { min-height: 88px; border: 4px solid rgba(0,0,0,0.12); }
-.geo__homeChip { min-height: 88px; padding: 6px; background: #eaf5ff; }
+.geo__homeChip { min-height: 108px; padding: 6px; background: #eaf5ff; }
 .geo__homeChip svg { width: 100%; height: auto; display: block; }
 
 /* ---------- Spell My Name ---------- */

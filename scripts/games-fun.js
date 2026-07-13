@@ -151,12 +151,20 @@
       const GOAL = 10;
       const BLOCKS = C.BLOCK_COLORS || ["#ff5e5e", "#ff9f43", "#ffd24d", "#7be08a", "#3ec7c7", "#5ec8ff", "#8a7bff", "#c77dff", "#ff7ac0", "#a0d468"];
       let n = 1;
+      // A faint ghost of the GOAL friend stands behind, so the little one has a
+      // buddy and a visible height to grow INTO (was: a tiny friend alone in space).
+      const wrap = api.el("div", { class: "grow__wrap" });
+      const ghost = api.el("div", {
+        class: "grow__ghost art-fill", aria: { hidden: "true" },
+        html: (window.JoshArt && window.JoshArt.numberFriend) ? window.JoshArt.numberFriend(GOAL, "#c9d3e0") : "",
+      });
       const stage = api.el("button", {
         class: "grow__stage tap art-fill", type: "button", dataset: { correct: "1" },
         aria: { label: "grow the number" },
       });
+      wrap.append(ghost, stage);
       const num = api.el("div", { class: "grow__num", aria: { hidden: "true" } }, ["1"]);
-      api.stage.append(stage, num);
+      api.stage.append(wrap, num);
       api.setPrompt("Tap to grow the number friend!", ["👆", "🧱", "🔟"]);
       api.speak();
 

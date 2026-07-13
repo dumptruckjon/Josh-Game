@@ -228,11 +228,19 @@
       api.stage.append(animalEl, chips);
 
       function miniMap(litIndex) {
-        let blobs = "";
+        // The target continent is drawn BIG, bold and in its own colour; the
+        // others recede to faint ghosts over a clear ocean — so the three choice
+        // chips look obviously different (was: identical grey maps, one tiny dot).
+        let blobs = '<rect x="0" y="0" width="200" height="112" rx="10" fill="#bfe4ff"/>';
         CONTS.forEach((k, i) => {
-          const on = i === litIndex;
-          blobs += '<ellipse cx="' + k.cx + '" cy="' + k.cy + '" rx="' + k.rx + '" ry="' + k.ry + '" fill="' + (on ? k.color : "#cfd8e3") + '"' + (on ? ' stroke="#1b2b44" stroke-width="4"' : "") + "/>";
+          if (i === litIndex) return; // faint ghosts first, lit one on top
+          blobs += '<ellipse cx="' + k.cx + '" cy="' + k.cy + '" rx="' + k.rx + '" ry="' + k.ry + '" fill="#d3ddea"/>';
         });
+        const k = CONTS[litIndex];
+        if (k) {
+          const rx = (k.rx * 1.2).toFixed(1), ry = (k.ry * 1.2).toFixed(1);
+          blobs += '<ellipse cx="' + k.cx + '" cy="' + k.cy + '" rx="' + rx + '" ry="' + ry + '" fill="' + k.color + '" stroke="#1b2b44" stroke-width="4"/>';
+        }
         return '<svg viewBox="0 0 200 112">' + blobs + "</svg>";
       }
       function newRound() {
