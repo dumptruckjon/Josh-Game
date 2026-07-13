@@ -82,7 +82,7 @@ test("digraph pictures really start with their sound (sh / ch)", () => {
 // Each entry is the verified, real-world-correct membership. Content must match
 // exactly; adding/moving an item requires updating this truth (a deliberate gate).
 const SORT_TRUTH = {
-  living: { Alive: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻"], "Not alive": ["🪨", "🚗", "⚽", "🥄", "📦", "🔑", "👟", "🪑", "🧱"] },
+  living: { Alive: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻", "🐛", "🌵", "🐌"], "Not alive": ["🪨", "🚗", "⚽", "🥄", "📦", "🔑", "👟", "🪑", "🧱", "🤖", "🕯️", "⌚"] },
   sinkfloat: { Sinks: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"], Floats: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
   plantanimal: { Plant: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"], Animal: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
   daynight: { Day: ["🌻", "🌈", "⛅", "🏖️", "🪁", "🌅"], Night: ["⭐", "🦉", "🌌", "🛌", "🕯️", "🦇"] },
@@ -313,15 +313,38 @@ test("picture-square trios are exactly 3 distinct, self-naming pictures", () => 
   }
 });
 
-test("color-by-number pictures are valid (equal-width rows; known colors; <=3 wide)", () => {
+test("color-by-number pictures are valid (equal-width rows; known colors; <=3 wide; reveal+name)", () => {
   const keys = new Set(Object.keys(content.CBN_COLORS));
+  assert.ok(keys.has("0"), "'0' must be a known color (the silhouette background)");
   for (const pic of content.CBN_PICTURES) {
     assert.ok(pic.rows.length >= 2, `${pic.name} needs rows`);
+    assert.ok(pic.name && pic.reveal, `${pic.name || "a picture"} must carry a name + reveal emoji (the payoff)`);
     const w = pic.rows[0].length;
     assert.ok(w <= 3, `${pic.name} must be <= 3 wide so cells stay >= 75px at 320px`);
+    // At least one non-background cell, or there's nothing to colour.
+    assert.ok(pic.rows.join("").split("").some((c) => c !== "0"), `${pic.name} must have colourable cells`);
     for (const row of pic.rows) {
       assert.equal(row.length, w, `${pic.name} rows must be equal width`);
       for (const ch of row) assert.ok(keys.has(ch), `${pic.name} uses undefined color number "${ch}"`);
+    }
+  }
+});
+
+test("odd-one-out FEATURE sets: base and odd differ (a real one-feature distinction)", () => {
+  assert.ok(Array.isArray(content.ODD_FEATURES) && content.ODD_FEATURES.length >= 4, "need several feature sets");
+  for (const s of content.ODD_FEATURES) {
+    assert.ok(s.base && s.odd, `feature set "${s.name}" needs base + odd`);
+    assert.notEqual(s.base, s.odd, `feature set "${s.name}" base and odd must differ`);
+  }
+});
+
+test("the narrated sorters carry a truthful 'why' on every bin", () => {
+  // B#1: a correct-by-guess tap still teaches, so the flagged sorters must speak.
+  const narrated = [...content.SORT_SETS, ...content.DAY_NIGHT_SETS, ...content.HOT_COLD_SETS];
+  for (const set of narrated) {
+    for (const bin of set.bins) {
+      assert.ok(typeof bin.why === "string" && bin.why.length > 0,
+        `sorter "${set.name}" bin "${bin.label}" needs a spoken why`);
     }
   }
 });

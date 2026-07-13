@@ -13,6 +13,33 @@ interesting to look at and interesting to think about?"** Snapshot: July 2026.*
 > (RULE 7): every fix below is proposed as a **shared framework upgrade + a
 > guardrail test**, so it lifts *all* existing games and every future one at once.
 
+> **✅ Plans A & B are now applied.**
+> - **A#1 (systemic):** while a game is open the screen fills the viewport and the
+>   stage **centres the play** (`safe center` — never clips tall games), with a soft
+>   meadow **floor** at the bottom. Kills the dead bottom half on ~every game at once.
+>   Locked by a guardrail so it can't silently regress.
+> - **A#2:** a reusable reactive buddy — `api.mascot()` — that **cheers on a right
+>   tap and wiggles on a miss**; wired into the flattest quizzes (all 7 sorters,
+>   odd-one-out, add-up, first-sound, rhyme, read-zap, number-match). Guardrail-locked.
+> - **A#3:** the flat white `.choice` cards are now **warmer (soft tint + friendly
+>   outline) and squish deeper on tap** — applies to ~30 games.
+> - **A#4 transformations:** *Add It Up*'s two groups now **slide together into one
+>   pile you tap to count**; *Make Ten* **fills the empty cells to ten** on the right
+>   answer; *Build the Number* **pops each new rod/bead** (it already built the
+>   concrete tens/ones — honest note: that wasn't missing, the earlier screenshot
+>   was its empty first frame).
+> - **A#5:** *Color by Number* pictures are now **silhouettes on a background** (a
+>   real Heart/Tree/House emerges) and each finish **reveals the thing you made** big.
+> - **B#1:** the 2-bin sorters gained **tricky-but-true edge cases** (a snail/cactus
+>   are alive; a robot/candle/watch are not) and **speak WHY** on every placement, so
+>   a lucky guess still teaches. Truth table extended in lockstep.
+> - **B#2:** *Which is Different?* now **escalates** — early rounds are a category
+>   outlier, later rounds differ by **one feature** (three arrows up, one down).
+> - **B#3:** the two-step "answer, then count it" beat is seeded on *Add It Up*.
+>
+> Everything is additive; the full unit + browser suite (Chromium + WebKit) stays
+> green. The original audit below is kept for the record.
+
 ---
 
 ## 1. Headline verdict

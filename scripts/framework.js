@@ -96,6 +96,18 @@
     let currentPrompt = "";
     function speak() { A.say(currentPrompt); }
 
+    // A#2: an optional reactive buddy. A game opts in with api.mascot() (idempotent
+    // — reuses the same character across rounds) and the shared win/roundWin/
+    // tryAgain hooks make it cheer or wiggle, so ~flat quiz games gain a friend
+    // that reacts to the child's taps. Non-mascot games are unaffected.
+    let mascotEl = null;
+    function reactMascot(kind) {
+      if (!mascotEl) return;
+      mascotEl.classList.remove("mascot--cheer", "mascot--wiggle");
+      void mascotEl.offsetWidth; // restart the animation
+      mascotEl.classList.add(kind === "wiggle" ? "mascot--wiggle" : "mascot--cheer");
+    }
+
     const api = {
       C, stage, el, shuffle, randItem, randInt, pickIndex,
       friend: nextFriend, hero: () => randItem(C.HEROES || [{ emoji: "⭐", name: "Star" }]),
@@ -108,9 +120,22 @@
       },
       say: (t) => A.say(t),
       speak,
+      // Opt-in reactive buddy. Call each round (after building the round's UI) so
+      // the friend sits at the bottom, "on the floor"; it persists across rounds.
+      mascot(opts) {
+        opts = opts || {};
+        if (!mascotEl) {
+          const ART = global.JoshArt;
+          const svg = (ART && ART.numberFriend) ? ART.numberFriend(1, opts.color || "#5aa9e6") : "🙂";
+          mascotEl = el("div", { class: "game__mascot art-fill", html: svg, aria: { hidden: "true" } });
+        }
+        stage.appendChild(mascotEl); // (re)attach after a stage rebuild
+        return mascotEl;
+      },
       // A correct round in a multi-round game (celebrate, keep going).
       roundWin(opts) {
         FX.confetti({ colors: C.CONFETTI_COLORS, count: 70 });
+        reactMascot("cheer");
         if (opts && opts.say) A.say(opts.say);
       },
       // The whole game is finished — celebrate, mark won, offer Again.
@@ -118,6 +143,7 @@
         screen.dataset.won = "1";
         screen.classList.add("is-won");
         FX.confetti({ colors: C.CONFETTI_COLORS });
+        reactMascot("cheer");
         if (FX.stars) FX.stars();
         A.say((opts && opts.say) || randItem(C.PRAISE_SPOKEN || ["Yay"]));
         againBtn.hidden = false;
@@ -142,6 +168,7 @@
           void node.offsetWidth;
           node.classList.add("bump");
         }
+        reactMascot("wiggle");
         A.say(randItem(C.TRYAGAIN_SPOKEN || ["Try again"]));
       },
       // For pure toys with no win state.

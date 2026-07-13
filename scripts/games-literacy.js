@@ -18,6 +18,7 @@
       const pic = api.el("div", { class: "big-pic", aria: { hidden: "true" } });
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(pic, choices);
+      api.mascot();
 
       function newRound() {
         const r = L.makeFirstSound(C.FIRST_SOUND_WORDS);
@@ -55,6 +56,7 @@
       const target = api.el("div", { class: "big-pic", aria: { hidden: "true" } });
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(target, choices);
+      api.mascot();
 
       function newRound() {
         const r = L.makeRhyme(C.RHYME_GROUPS);
@@ -527,6 +529,7 @@
       const word = api.el("div", { class: "readzap__word", aria: { label: "word" } });
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(word, choices);
+      api.mascot();
 
       function newRound() {
         const r = L.makeWordPicture(api.C.CVC_WORDS);

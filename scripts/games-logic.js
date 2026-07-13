@@ -19,13 +19,19 @@
 
       const grid = api.el("div", { class: "choices choices--4" });
       api.stage.appendChild(grid);
+      api.mascot();
 
       function newRound() {
-        const { tiles } = L.makeOddOneOut(C.ODD_GROUPS);
+        // B#2 escalation: the first rounds are a category outlier (a rabbit among
+        // bugs — easy). Later rounds keep the category constant and differ by ONE
+        // feature (three arrows up, one down; three red, one blue) — real visual
+        // discrimination instead of "spot the odd kind".
+        const feature = round >= 2 && Array.isArray(C.ODD_FEATURES) && C.ODD_FEATURES.length;
+        const r = feature ? L.makeOddFeature(C.ODD_FEATURES) : L.makeOddOneOut(C.ODD_GROUPS);
         api.setPrompt("Tap the one that is different.", ["👀", "👉", "❓"]);
         api.speak();
         grid.innerHTML = "";
-        tiles.forEach((t) => {
+        r.tiles.forEach((t) => {
           const b = api.el("button", {
             class: "choice tap", type: "button", text: t.emoji,
             dataset: t.correct ? { correct: "1" } : {}, aria: { label: "picture" },

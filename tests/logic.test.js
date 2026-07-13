@@ -784,3 +784,19 @@ test("article: picks a/an by sound so prompts never read 'a Island'", () => {
   assert.equal(L.article(null), "a");
   assert.equal(L.article(undefined), "a");
 });
+
+test("makeOddFeature: three identical + exactly one different (the odd)", () => {
+  const rng = mulberry32(41);
+  assert.ok(Array.isArray(content.ODD_FEATURES) && content.ODD_FEATURES.length, "need feature sets");
+  for (let i = 0; i < 500; i++) {
+    const r = L.makeOddFeature(content.ODD_FEATURES, rng);
+    assert.equal(r.tiles.length, 4, "four tiles");
+    const correct = r.tiles.filter((t) => t.correct);
+    assert.equal(correct.length, 1, "exactly one odd");
+    assert.equal(correct[0].emoji, r.odd, "the odd tile is the set's odd emoji");
+    const base = r.tiles.filter((t) => !t.correct);
+    assert.equal(base.length, 3, "three base tiles");
+    base.forEach((t) => assert.equal(t.emoji, r.base, "base tiles are identical"));
+    assert.notEqual(r.base, r.odd, "base and odd differ");
+  }
+});

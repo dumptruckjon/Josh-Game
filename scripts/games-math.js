@@ -354,9 +354,38 @@
         for (let i = 0; i < count; i++) g.appendChild(api.el("span", { class: "add__dot", text: obj }));
         return g;
       }
+      function advance() {
+        round += 1;
+        if (round >= ROUNDS) api.win();
+        else { api.roundWin(); setTimeout(newRound, 60); }
+      }
+      // A#4 + B#3: on the right answer the two groups slide together into ONE pile,
+      // then the child taps the pile to COUNT it (a second thought per round, and
+      // the transformation IS the concept: "add" = put them together and count).
+      function merge(sum, obj) {
+        choices.innerHTML = ""; // consume the choices
+        scene.classList.add("add__scene--merge");
+        api.say("Put them together");
+        setTimeout(() => {
+          scene.classList.remove("add__scene--merge");
+          scene.innerHTML = "";
+          const pile = api.el("button", { class: "add__pile tap", type: "button", dataset: { correct: "1" }, aria: { label: "count the pile" } });
+          for (let i = 0; i < sum; i++) pile.appendChild(api.el("span", { class: "add__dot", text: obj }));
+          scene.appendChild(pile);
+          api.setPrompt("Tap the pile to count them!", ["👆", "🔢", "😊"]);
+          api.speak();
+          pile.addEventListener("click", () => {
+            delete pile.dataset.correct;
+            pile.classList.remove("chomp"); void pile.offsetWidth; pile.classList.add("chomp");
+            api.say(String(sum));
+            advance();
+          });
+        }, 240);
+      }
       function newRound() {
         const r = L.makeAddition();
         const obj = api.randItem(C.COUNT_OBJECTS);
+        const sum = r.a + r.b;
         api.setPrompt("How many all together?", ["👀", "➕", "🔢"]);
         api.speak();
         scene.innerHTML = "";
@@ -364,9 +393,10 @@
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
-          b.addEventListener("click", () => { if (ch.correct) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } } else api.tryAgain(b); });
+          b.addEventListener("click", () => { if (ch.correct) merge(sum, obj); else api.tryAgain(b); });
           choices.appendChild(b);
         });
+        api.mascot();
       }
       newRound();
     },
@@ -386,6 +416,7 @@
       const numEl = api.el("div", { class: "nm__num", aria: { hidden: "true" } });
       const groups = api.el("div", { class: "choices choices--3" });
       api.stage.append(numEl, groups);
+      api.mascot();
 
       function newRound() {
         const r = L.makeNumberMatch();
@@ -476,6 +507,7 @@
         const t = L.tensOnes(total);
         for (let i = 0; i < t.tens; i++) built.appendChild(api.el("span", { class: "pv__ten", text: "🔟" }));
         for (let i = 0; i < t.ones; i++) built.appendChild(api.el("span", { class: "pv__one", text: "🟡" }));
+        if (total > 0 && built.lastChild) built.lastChild.classList.add("pop"); // A#4: the newest piece pops in
       }
       function check() {
         if (total === target) {
@@ -615,14 +647,35 @@
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(frame, choices);
 
+      let cells = [];
+      function advance() {
+        round += 1;
+        if (round >= ROUNDS) api.win({ say: "You made ten!" });
+        else { api.roundWin(); setTimeout(newRound, 80); }
+      }
+      // A#4: on the right answer, the empty cells actually FILL up to ten (a quick
+      // staggered pop), so the bond is something you SEE complete — not just a
+      // number that disappears.
+      function fillToTen(have) {
+        choices.innerHTML = "";
+        let i = have;
+        (function step() {
+          if (i >= 10) { setTimeout(advance, 140); return; }
+          const c = cells[i];
+          if (c) { c.classList.remove("maketen__cell--empty"); c.classList.add("tenf__cell--on", "pop"); c.textContent = "🔵"; }
+          i += 1;
+          setTimeout(step, 45);
+        })();
+      }
       function newRound() {
         const r = L.makeMakeTen();
         api.setPrompt("How many MORE to make ten?", ["👀", "➕", "🔟"]);
         api.speak();
-        frame.innerHTML = "";
+        frame.innerHTML = ""; cells = [];
         for (let i = 0; i < 10; i++) {
           const on = i < r.have;
-          frame.appendChild(api.el("span", { class: "tenf__cell" + (on ? " tenf__cell--on" : " maketen__cell--empty") }, [on ? "🔵" : ""]));
+          const c = api.el("span", { class: "tenf__cell" + (on ? " tenf__cell--on" : " maketen__cell--empty") }, [on ? "🔵" : ""]);
+          frame.appendChild(c); cells.push(c);
         }
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -631,7 +684,7 @@
             dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) },
           });
           b.addEventListener("click", () => {
-            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You made ten!" }); else { api.roundWin(); newRound(); } }
+            if (ch.correct) fillToTen(r.have);
             else api.tryAgain(b);
           });
           choices.appendChild(b);

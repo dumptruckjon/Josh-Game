@@ -97,7 +97,7 @@ body {
     calc(env(safe-area-inset-bottom, 0px) + var(--pad))
     calc(env(safe-area-inset-left, 0px) + var(--pad));
 }
-.screen[hidden] { display: none; }
+.screen[hidden] { display: none !important; } /* must always beat the game-screen flex rule below */
 
 /* ---------- Home launcher ---------- */
 .home__title {
@@ -175,6 +175,43 @@ body {
 }
 .game__foot { display: flex; justify-content: center; margin-top: 18px; }
 
+/* ---------- A#1: fill the screen while playing, center the play, add a floor ----------
+   Games were top-aligned, stranding the play in the top third with a dead
+   bottom half. While a game is open (body.in-game — set by the router) the body
+   becomes a flex column so the visible game screen fills the viewport and the
+   stage centres the play vertically. `safe center` centres SHORT content but
+   never clips TALL content — it falls back to start-alignment the moment the
+   content would overflow, so nothing is ever pushed off-screen (and the page
+   just scrolls, as before). Home & category screens are untouched. */
+body.in-game { display: flex; flex-direction: column; }
+body.in-game #screens { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+body.in-game .screen.game { flex: 1 1 auto; display: flex; flex-direction: column; }
+body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
+/* A soft meadow "floor" glow so the bottom reads as ground, not empty gradient. */
+.screen.game {
+  background:
+    radial-gradient(135% 130px at 50% 100%,
+      rgba(120, 214, 140, 0.20), rgba(120, 214, 140, 0) 72%)
+    no-repeat bottom center / 100% 150px;
+}
+
+/* A#2: the opt-in reactive buddy (api.mascot()) — a friendly face on the floor. */
+.game__mascot { width: 72px; margin-top: 2px; }
+.game__mascot svg { display: block; }
+@keyframes mascotCheer {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-14px) scale(1.06); }
+  60% { transform: translateY(0) scale(1); }
+  80% { transform: translateY(-6px); }
+}
+@keyframes mascotWiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-9deg); }
+  75% { transform: rotate(9deg); }
+}
+.mascot--cheer { animation: mascotCheer 700ms ease-out; }
+.mascot--wiggle { animation: mascotWiggle 400ms ease-in-out; transform-origin: 50% 90%; }
+
 /* ---------- Choice grids (used by many games) ---------- */
 .choices { display: grid; gap: var(--pad); width: 100%; }
 .choices--3 { grid-template-columns: repeat(3, 1fr); }
@@ -182,15 +219,19 @@ body {
 .choice {
   min-height: 96px;
   border-radius: 20px;
-  background: var(--card);
+  /* A#3: warmer than flat white — a soft top-lit tint + a friendly outline so a
+     row of choices reads as tappable cards, not blank paper. */
+  background: linear-gradient(180deg, #ffffff 0%, #eef4ff 100%);
+  border: 2px solid rgba(120, 170, 255, 0.22);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
   font-size: clamp(2.4rem, 12vw, 3.4rem);
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.08s ease, box-shadow 0.12s ease;
 }
-.choice:active { transform: scale(0.97); }
+.choice:active { transform: scale(0.94); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14); } /* deeper squish = better tap feedback */
 
 /* ---------- "Hi, Animals!" toy ---------- */
 .animal-card {
@@ -402,9 +443,19 @@ body {
 
 /* ---------- Add It Up ---------- */
 .add__scene { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
-.add__group { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 8px; background: rgba(255, 255, 255, 0.6); border-radius: 14px; max-width: 120px; justify-content: center; }
+.add__group { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 8px; background: rgba(255, 255, 255, 0.6); border-radius: 14px; max-width: 120px; justify-content: center; transition: transform 0.24s ease, opacity 0.24s ease; }
 .add__dot { font-size: 1.8rem; line-height: 1; }
-.add__plus { font-size: 2rem; }
+.add__plus { font-size: 2rem; transition: opacity 0.24s ease; }
+/* A#4: the two groups slide toward the middle, then become one countable pile. */
+.add__scene--merge .add__group:first-child { transform: translateX(38px); }
+.add__scene--merge .add__group:last-child { transform: translateX(-38px); }
+.add__scene--merge .add__plus { opacity: 0; }
+.add__pile {
+  display: inline-flex; flex-wrap: wrap; gap: 5px; justify-content: center; align-items: center;
+  min-height: var(--tap); max-width: 240px; padding: 12px 16px;
+  border-radius: 20px; background: linear-gradient(180deg, #ffffff, #eef4ff);
+  border: 2px solid rgba(120, 170, 255, 0.22); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
 
 /* ---------- Find the Number ---------- */
 .nm__num { font-size: 4rem; font-weight: 900; color: #5a3ec7; line-height: 1; }
@@ -522,6 +573,11 @@ body {
   background: #fff; border: 2px dashed #cdd6e0; font-size: 1.4rem; font-weight: 800; color: #8894a6;
 }
 .cbn__cell--done { border-style: solid; border-color: rgba(0, 0, 0, 0.08); color: transparent; }
+/* A#5: background cells (the "0"s) sit quietly so the coloured shape stands out. */
+.cbn__cell--bg { border: 2px solid rgba(0, 0, 0, 0.04); }
+.cbn__reveal { font-size: 0; line-height: 1; min-height: 0; }
+.cbn__reveal--on { font-size: clamp(3.4rem, 22vw, 6rem); animation: cbnReveal 500ms ease-out; }
+@keyframes cbnReveal { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 
 /* ---------- Team Count / Team Rocket (co-op) ---------- */
 .tc__count { font-size: 3rem; font-weight: 900; color: #5a3ec7; line-height: 1; }
@@ -767,11 +823,12 @@ body {
     animation: none !important;
     transform: none !important;
   }
-  .breathe__star, .coop__token, .balloon, .bub, .bridge__hero, .wi__card { transition: none !important; }
+  .breathe__star, .coop__token, .balloon, .bub, .bridge__hero, .wi__card, .add__group, .add__plus { transition: none !important; }
+  .add__scene--merge .add__group { transform: none !important; }
   .breathe--big, .balloon--float { transform: none !important; }
-  .win-hero, .grow--pop { animation: none !important; }
+  .win-hero, .grow--pop, .mascot--cheer, .mascot--wiggle { animation: none !important; transform: none !important; }
   /* reveals must still be VISIBLE without motion, not stuck invisible */
-  .dot__reveal--on, .lf__reveal--on { animation: none !important; opacity: 1 !important; }
+  .dot__reveal--on, .lf__reveal--on, .cbn__reveal--on { animation: none !important; opacity: 1 !important; }
   .rocket-art { transition: none !important; }
   .rocket-art--launch, .bridge--cross .bridge__hero--l, .bridge--cross .bridge__hero--r { transform: none !important; }
   body { background-attachment: scroll; }

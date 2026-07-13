@@ -139,7 +139,12 @@ note (silent otherwise) → centralized in `JoshAudio.tone` + guardrail; the
 every-game harness must drive taps with a DOM `el.click()` (a coordinate/force
 click misses under CPU load when a field reflows) → enforced by a guardrail;
 naming-task pictures must name themselves; sort/first-sound/rhyme/etc. truth is
-restated in `content.test.js`. When you fix the next thing, extend this list.
+restated in `content.test.js`; games must never concatenate a fixed article before
+a dynamic word (`"a " + name` → "a Island") — use `JoshLogic.article(word)` (picks
+a/an by sound) → generic guardrail; a game screen must **fill the viewport and
+centre its play** (no dead bottom half) and cards shouldn't be flat white →
+centralized in the shared stage CSS + `api.mascot()`, both guardrail-locked.
+When you fix the next thing, extend this list.
 
 ---
 
@@ -284,7 +289,11 @@ window.JoshFramework.register({
 ```
 
 The `api` gives you: `el`, `stage`, `setPrompt/speak/say`, `win/roundWin/tryAgain`,
-`friend()`/`hero()` (rotation), `shuffle/randItem/randInt/pickIndex`, `tickPlay`.
+`friend()`/`hero()` (rotation), `shuffle/randItem/randInt/pickIndex`, `tickPlay`,
+`mascot()` (opt-in reactive buddy — call it after building a round; it cheers on
+`win`/`roundWin` and wiggles on `tryAgain`, and fills the empty space in flat
+quizzes). The stage auto-centres the play and adds a floor, so a new game never
+strands its content in the top third.
 Adding a game this way is **automatically** exercised by `e2e.test.js` (played to
 a win) and audited by `mobile.test.js` (≥75px, no overflow) — plus add unit tests
 for any new `logic.js` function and a browser check if it needs special handling.

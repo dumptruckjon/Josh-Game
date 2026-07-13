@@ -655,6 +655,21 @@
     return { letters: arr, tiles };
   }
 
+  // --- Odd One Out by a single FEATURE (harder than a category outlier) ---
+  // Three identical tiles + one that differs by ONE feature (orientation, colour).
+  // Same family, so the child must actually discriminate, not just spot the kind.
+  function makeOddFeature(sets, rng = Math.random) {
+    if (!Array.isArray(sets) || !sets.length) throw new Error("makeOddFeature needs sets");
+    const set = sets[randInt(0, sets.length - 1, rng)];
+    const tiles = shuffle([
+      { emoji: set.base, correct: false },
+      { emoji: set.base, correct: false },
+      { emoji: set.base, correct: false },
+      { emoji: set.odd, correct: true },
+    ], rng);
+    return { tiles, base: set.base, odd: set.odd, feature: set.name };
+  }
+
   // --- "a" vs "an" for a following word (kid-content grammar helper) ------
   // Any prompt that splices a word after "a"/"an" ("Make a " + name) must pick
   // the article by the word's SOUND, not just spelling, or it reads "a Island".
@@ -696,7 +711,7 @@
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt, makeNumberSequence,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
     makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue, makeNameSpell,
-    article,
+    article, makeOddFeature,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

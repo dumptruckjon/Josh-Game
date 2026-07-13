@@ -42,16 +42,21 @@
 
     // ---- Color by Number (coarse, 3-wide pixel pictures) ----
     // Each digit is a color number; the picture emerges as you color the cells.
-    CBN_COLORS: { 1: "#ff5e5e", 2: "#bfe9ff", 3: "#7be08a", 4: "#ffd24d", 5: "#b98a5e", 6: "#ff9f43" },
+    // "0" is background (not colored by the child) so the picture reads as a real
+    // SHAPE emerging from the grid, not a solid rectangle of colour. Each picture
+    // carries a `reveal` emoji shown big when it's finished (the payoff).
+    CBN_COLORS: { 0: "#e9eef5", 1: "#ff5e5e", 2: "#bfe9ff", 3: "#7be08a", 4: "#ffd24d", 5: "#b98a5e", 6: "#ff9f43" },
     CBN_PICTURES: [
-      { name: "Heart", rows: ["121", "111", "212"] },
-      { name: "Sun", rows: ["242", "444", "242"] },
-      { name: "Flower", rows: ["121", "111", "121", "232", "333"] },
-      { name: "Tree", rows: ["232", "333", "232", "252", "252"] },
-      { name: "House", rows: ["212", "111", "444", "454"] },
-      { name: "Rocket", rows: ["212", "111", "141", "414", "262"] },
-      { name: "Fish", rows: ["262", "666", "262"] },
-      { name: "Butterfly", rows: ["414", "141", "414"] },
+      // Rounds use the first three — keep those multi-colour and recognisable.
+      { name: "House", reveal: "🏠", rows: ["010", "111", "222", "242"] },
+      { name: "Tree", reveal: "🌳", rows: ["030", "333", "030", "050"] },
+      { name: "Flower", reveal: "🌸", rows: ["101", "141", "101", "030"] },
+      { name: "Heart", reveal: "❤️", rows: ["101", "111", "010"] },
+      { name: "Sun", reveal: "☀️", rows: ["404", "444", "404"] },
+      { name: "Star", reveal: "⭐", rows: ["040", "444", "404"] },
+      { name: "Fish", reveal: "🐟", rows: ["060", "666", "060"] },
+      { name: "Apple", reveal: "🍎", rows: ["030", "111", "111", "010"] },
+      { name: "Butterfly", reveal: "🦋", rows: ["606", "666", "606"] },
     ],
 
     // Happy cheers (shown) and short spoken praise (spoken when sound is on).
@@ -97,6 +102,18 @@
       { name: "food", items: ["🍕", "🍔", "🌭", "🍟", "🍩", "🍪"] },
       { name: "shape", items: ["⭐", "❤️", "🔵", "🔺", "⬛", "🟢"] },
       { name: "bug", items: ["🐝", "🐛", "🦋", "🐞", "🐜", "🕷️"] },
+    ],
+    // Harder "which is different": three identical + one differing by ONE feature
+    // (orientation or colour) within the same family. Used in later rounds.
+    ODD_FEATURES: [
+      { name: "up/down", base: "⬆️", odd: "⬇️" },
+      { name: "left/right", base: "➡️", odd: "⬅️" },
+      { name: "point", base: "👉", odd: "👈" },
+      { name: "thumb", base: "👍", odd: "👎" },
+      { name: "moon", base: "🌑", odd: "🌕" },
+      { name: "heart colour", base: "❤️", odd: "💙" },
+      { name: "circle colour", base: "🔴", odd: "🔵" },
+      { name: "dot colour", base: "🟢", odd: "🟡" },
     ],
 
     // ---- What Comes Next (pattern logic) ----
@@ -169,17 +186,19 @@
     // ---- Science & sorting (each SET has 2-3 bins; the item's bin is correct) ----
     SORT_SETS: [
       { name: "living", bins: [
-        { label: "Alive", emoji: "🌱", items: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻"] },
-        { label: "Not alive", emoji: "🪨", items: ["🪨", "🚗", "⚽", "🥄", "📦", "🔑", "👟", "🪑", "🧱"] },
+        // Tricky-but-true edge cases (a snail/cactus ARE alive; a robot/candle/
+        // watch are NOT, though they move or flicker) so it stops being obvious.
+        { label: "Alive", emoji: "🌱", why: "It's alive — it grows and needs food.", items: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻", "🐛", "🌵", "🐌"] },
+        { label: "Not alive", emoji: "🪨", why: "It's not alive — it doesn't grow or eat.", items: ["🪨", "🚗", "⚽", "🥄", "📦", "🔑", "👟", "🪑", "🧱", "🤖", "🕯️", "⌚"] },
       ] },
       { name: "sinkfloat", bins: [
-        { label: "Sinks", emoji: "⬇️", items: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"] },
-        { label: "Floats", emoji: "⬆️", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
+        { label: "Sinks", emoji: "⬇️", why: "It sinks — it's heavy for its size.", items: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"] },
+        { label: "Floats", emoji: "⬆️", why: "It floats — it's light and traps air.", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
       ] },
       { name: "plantanimal", bins: [
         // Note: no fungi (🍄 is not a plant) — keep the two categories truthful.
-        { label: "Plant", emoji: "🌿", items: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"] },
-        { label: "Animal", emoji: "🐾", items: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
+        { label: "Plant", emoji: "🌿", why: "It's a plant — it grows in one spot.", items: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"] },
+        { label: "Animal", emoji: "🐾", why: "It's an animal — it moves and eats.", items: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
       ] },
     ],
     COLOR_SETS: [
@@ -201,14 +220,14 @@
     ],
     DAY_NIGHT_SETS: [
       { name: "daynight", bins: [
-        { label: "Day", emoji: "🌞", items: ["🌻", "🌈", "⛅", "🏖️", "🪁", "🌅"] },
-        { label: "Night", emoji: "🌙", items: ["⭐", "🦉", "🌌", "🛌", "🕯️", "🦇"] },
+        { label: "Day", emoji: "🌞", why: "We see it in the daytime.", items: ["🌻", "🌈", "⛅", "🏖️", "🪁", "🌅"] },
+        { label: "Night", emoji: "🌙", why: "We see it at night.", items: ["⭐", "🦉", "🌌", "🛌", "🕯️", "🦇"] },
       ] },
     ],
     HOT_COLD_SETS: [
       { name: "hotcold", bins: [
-        { label: "Hot", emoji: "🔥", items: ["☀️", "🌶️", "🍲", "☕", "🏜️", "🌋"] },
-        { label: "Cold", emoji: "❄️", items: ["🧊", "⛄", "🍦", "🐧", "🏔️", "🥶"] },
+        { label: "Hot", emoji: "🔥", why: "It's hot!", items: ["☀️", "🌶️", "🍲", "☕", "🏜️", "🌋"] },
+        { label: "Cold", emoji: "❄️", why: "It's cold!", items: ["🧊", "⛄", "🍦", "🐧", "🏔️", "🥶"] },
       ] },
     ],
 

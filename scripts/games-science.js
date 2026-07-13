@@ -20,6 +20,7 @@
         const itemEl = api.el("div", { class: "sort__item", aria: { hidden: "true" } });
         const bins = api.el("div", { class: "sort__bins" });
         api.stage.append(itemEl, bins);
+        api.mascot(); // a friendly buddy fills the space and reacts to each sort
 
         function newRound() {
           // Later rounds use a harder set if provided (e.g. a 3-bin variant), so
@@ -46,6 +47,10 @@
             btn.addEventListener("click", () => {
               if (i === r.correctIndex) {
                 btn.classList.add("sort__bin--hit");
+                // B#1: say WHY it belongs here, so a correct-by-guess tap still
+                // teaches (turns a 50/50 into a little lesson).
+                const why = set.bins[r.correctIndex] && set.bins[r.correctIndex].why;
+                if (why) api.say(why);
                 round += 1;
                 if (round >= ROUNDS) api.win();
                 else { api.roundWin(); newRound(); }

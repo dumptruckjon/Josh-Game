@@ -243,13 +243,14 @@
     skill: "color / number match",
     start(api) {
       const CC = C.CBN_COLORS || {};
-      const PICS = C.CBN_PICTURES || [{ name: "Heart", rows: ["121", "111", "212"] }];
+      const PICS = C.CBN_PICTURES || [{ name: "Heart", reveal: "❤️", rows: ["101", "111", "010"] }];
       const ROUNDS = Math.min(3, PICS.length);
-      let round = 0, cells = [], selected = null, remaining = {};
+      let round = 0, cells = [], selected = null, remaining = {}, currentPic = null;
 
       const legend = api.el("div", { class: "cbn__legend" });
       const grid = api.el("div", { class: "cbn__grid" });
-      api.stage.append(legend, grid);
+      const reveal = api.el("div", { class: "cbn__reveal", aria: { hidden: "true" } });
+      api.stage.append(legend, grid, reveal);
 
       function markPalette() {
         selected = null;
@@ -274,22 +275,37 @@
           cell.textContent = "";
           remaining[selected] -= 1;
           api.say("Color");
-          if (cells.every((c) => c.dataset.done)) {
-            round += 1;
-            if (round >= ROUNDS) api.win({ say: "Beautiful!" });
-            else { api.roundWin(); newRound(); }
-          } else if (remaining[selected] === 0) markPalette();
+          if (cells.every((c) => c.dataset.done)) finishPicture();
+          else if (remaining[selected] === 0) markPalette();
         } else api.tryAgain(cell);
+      }
+      // A#5: reveal the finished picture big (name + emoji) — the payoff that
+      // turns "colour a grid of numbers" into "look what you made!".
+      function finishPicture() {
+        const pic = currentPic || {};
+        reveal.textContent = pic.reveal || "🎉";
+        reveal.classList.remove("cbn__reveal--on"); void reveal.offsetWidth; reveal.classList.add("cbn__reveal--on");
+        api.say("You made a " + (pic.name || "picture") + "!");
+        round += 1;
+        if (round >= ROUNDS) { setTimeout(() => api.win({ say: "Beautiful!" }), 520); }
+        else { api.roundWin(); setTimeout(() => { reveal.classList.remove("cbn__reveal--on"); reveal.textContent = ""; newRound(); }, 660); }
       }
       function newRound() {
         const pic = PICS[round % PICS.length];
+        currentPic = pic;
         cells = []; selected = null; remaining = {};
+        reveal.classList.remove("cbn__reveal--on"); reveal.textContent = "";
         api.setPrompt("Pick a color, then tap its numbers!", ["🎨", "🔢", "👆"]);
         api.speak();
         grid.style.setProperty("--cbn-cols", String(pic.rows[0].length));
         grid.innerHTML = "";
         pic.rows.forEach((row) => {
           for (const ch of row) {
+            if (ch === "0") { // background — pre-filled, not a tap target, not counted
+              const bg = api.el("div", { class: "cbn__cell cbn__cell--bg", dataset: { done: "1", num: "0" }, aria: { hidden: "true" }, style: { background: CC["0"] || "#eef" } });
+              grid.appendChild(bg); cells.push(bg);
+              continue;
+            }
             remaining[ch] = (remaining[ch] || 0) + 1;
             const cell = api.el("button", { class: "cbn__cell tap", type: "button", dataset: { num: ch }, aria: { label: "number " + ch } }, [ch]);
             cell.addEventListener("click", () => onCell(cell));
@@ -297,7 +313,7 @@
           }
         });
         legend.innerHTML = "";
-        const nums = [...new Set(pic.rows.join("").split(""))].sort();
+        const nums = [...new Set(pic.rows.join("").split(""))].filter((n) => n !== "0").sort();
         nums.forEach((num) => {
           const btn = api.el("button", { class: "cbn__swatch tap", type: "button", dataset: { num: num }, style: { background: CC[num] || "#ccc" }, aria: { label: "color " + num } }, [num]);
           btn.addEventListener("click", () => selectColor(num, btn));

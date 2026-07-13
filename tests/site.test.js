@@ -188,6 +188,26 @@ test("guardrail: no game splices a hard-coded 'a'/'an' before a dynamic word", (
   }
 });
 
+test("guardrail: game screens fill the viewport and centre the play (no dead bottom half)", () => {
+  // A#1: the engagement fix — games were stranded in the top third. Lock the
+  // mechanism so a refactor can't silently bring back the empty bottom half.
+  const css = read("styles/main.css").replace(/\s+/g, " ");
+  assert.ok(/body\.in-game \{ display: flex/.test(css),
+    "body.in-game must become a flex column so the open game fills the viewport");
+  assert.ok(/justify-content: safe center/.test(css),
+    "the stage must centre its content with `safe center` (fills the dead space, never clips tall games)");
+  assert.ok(/\.screen\[hidden\] \{ display: none !important/.test(css),
+    "hidden screens must stay display:none !important so the game-screen flex rule can't reveal them");
+});
+
+test("guardrail: the framework exposes the reactive mascot and wires its reactions", () => {
+  // A#2: any game can opt into a buddy that reacts to taps. Keep the hook wired.
+  const fw = read("scripts/framework.js");
+  assert.ok(/mascot\s*\(/.test(fw), "framework must expose api.mascot()");
+  assert.ok(/reactMascot\(["']cheer["']\)/.test(fw), "win/roundWin must cheer the mascot");
+  assert.ok(/reactMascot\(["']wiggle["']\)/.test(fw), "tryAgain must wiggle the mascot");
+});
+
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);
