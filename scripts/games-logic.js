@@ -400,6 +400,73 @@
     },
   });
 
+  // ---- Bird's-Eye Blocks (top-down spatial reasoning) ----
+  // Look at the blocks from the side; pick the view from straight ABOVE (which
+  // cells are covered). Height is a friendly distractor. Fills a working edge no
+  // other game touches.
+  F.register({
+    id: "birds-eye",
+    icon: "🚁",
+    title: "Look From Above",
+    skill: "top-down / spatial [W]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0;
+      const scene = api.el("div", { class: "be__scene", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(scene, choices);
+
+      // One isometric cube with its top-center at (x,y).
+      function cube(x, y) {
+        const w = 16, h2 = 8, fh = 16;
+        const top = (x) + "," + (y) + " " + (x + w) + "," + (y + h2) + " " + x + "," + (y + 2 * h2) + " " + (x - w) + "," + (y + h2);
+        const left = (x - w) + "," + (y + h2) + " " + x + "," + (y + 2 * h2) + " " + x + "," + (y + 2 * h2 + fh) + " " + (x - w) + "," + (y + h2 + fh);
+        const right = (x + w) + "," + (y + h2) + " " + x + "," + (y + 2 * h2) + " " + x + "," + (y + 2 * h2 + fh) + " " + (x + w) + "," + (y + h2 + fh);
+        return '<polygon points="' + left + '" fill="#3f7fd6"/><polygon points="' + right + '" fill="#2b5fa8"/><polygon points="' + top + '" fill="#7db4ff"/>';
+      }
+      function drawScene(cells) {
+        const w = 16, h2 = 8, fh = 16;
+        // paint back cells (smaller r+c) first, bottom cube first
+        const sorted = cells.slice().sort((a, b) => (a.r + a.c) - (b.r + b.c));
+        let svg = "";
+        sorted.forEach((cell) => {
+          const bx = 60 + (cell.c - cell.r) * w;
+          const by = 34 + (cell.c + cell.r) * h2;
+          for (let i = 0; i < cell.h; i++) svg += cube(bx, by - i * fh);
+        });
+        scene.innerHTML = '<svg viewBox="0 0 120 120">' + svg + "</svg>";
+      }
+      function footprint(occ) {
+        let g = "";
+        for (let i = 0; i < 4; i++) {
+          const on = occ.includes(i);
+          g += '<span class="be__cell' + (on ? " be__cell--on" : "") + '"></span>';
+        }
+        return '<span class="be__grid">' + g + "</span>";
+      }
+      function newRound() {
+        const r = L.makeTopView();
+        drawScene(r.cells);
+        api.setPrompt("Which one is the view from above?", ["👀", "🚁", "⬇️"]);
+        api.speak();
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice be__choice tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "top view" },
+            html: footprint(ch.occ),
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You saw it from above!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
   // ---- Put the Story in Order (temporal sequencing) ----
   // Tap the pictures in the order they happen: first → next → last.
   F.register({

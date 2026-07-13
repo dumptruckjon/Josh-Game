@@ -584,6 +584,37 @@
     return { letter: w.letter, word: w.word, emoji: w.emoji, cells };
   }
 
+  // --- Bird's-Eye view (which top-down footprint matches the blocks) ------
+  // A 2×2 table of block stacks (heights 1-2). Seen from directly ABOVE you see
+  // only the FOOTPRINT — which of the 4 cells are occupied (height is a
+  // distractor). The answer is that occupancy pattern; distractors are other
+  // patterns.
+  function makeTopView(rng = Math.random) {
+    const k = randInt(2, 3, rng); // 2-3 occupied cells (never all 4 / never trivial 1)
+    const occ = sample([0, 1, 2, 3], k, rng).sort((a, b) => a - b);
+    const cells = occ.map((idx) => ({ r: idx >> 1, c: idx & 1, h: randInt(1, 2, rng) }));
+    const key = (arr) => [0, 1, 2, 3].map((i) => (arr.includes(i) ? "1" : "0")).join("");
+    const correctKey = key(occ);
+    // Enumerate all size-2..3 occupancy patterns, keep two distinct distractors.
+    const subsets = [];
+    for (let mask = 1; mask < 16; mask++) {
+      const s = [0, 1, 2, 3].filter((i) => mask & (1 << i));
+      if (s.length >= 2 && s.length <= 3) subsets.push(s);
+    }
+    const seen = new Set([correctKey]);
+    const distractors = [];
+    for (const s of shuffle(subsets, rng)) {
+      const kk = key(s);
+      if (!seen.has(kk)) { seen.add(kk); distractors.push(s); }
+      if (distractors.length >= 2) break;
+    }
+    const choices = shuffle(
+      [{ occ: occ.slice(), correct: true }, ...distractors.map((s) => ({ occ: s, correct: false }))],
+      rng
+    );
+    return { cells, occ, choices };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -604,7 +635,7 @@
     makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
-    makeContinentMatch, makeSoundHunt,
+    makeContinentMatch, makeSoundHunt, makeTopView,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

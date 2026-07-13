@@ -30,7 +30,7 @@
     "rhyme-train": "letters", "digraph-finish": "letters", "letter-maker": "letters",
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
     "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking", "color-number": "thinking",
-    "who-is-it": "thinking", "picture-squares": "thinking", "story-order": "thinking",
+    "who-is-it": "thinking", "picture-squares": "thinking", "story-order": "thinking", "birds-eye": "thinking",
     "find-hero": "find", "find-crowd": "find", "find-count": "find", "dot-dot": "find", "rescue": "find",
     "find-twins": "find", "i-spy": "find", "big-red-one": "find",
     "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",

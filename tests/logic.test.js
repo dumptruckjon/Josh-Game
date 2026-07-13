@@ -677,3 +677,22 @@ test("makeSoundHunt: the correct picture starts with the target letter; distract
       assert.notEqual(c.word[0].toUpperCase(), r.letter, "a distractor never starts with the target letter"));
   }
 });
+
+test("makeTopView: correct footprint = the true occupancy; distractors differ", () => {
+  const rng = mulberry32(63);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeTopView(rng);
+    const occSet = [...r.occ].sort().join(",");
+    // arrangement cells occupy exactly the occ indices
+    const cellIdx = r.cells.map((c) => c.r * 2 + c.c).sort((a, b) => a - b).join(",");
+    assert.equal(cellIdx, occSet, "the drawn cells match the occupancy");
+    r.cells.forEach((c) => assert.ok(c.h >= 1 && c.h <= 2, "stack height 1-2"));
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct footprint");
+    assert.equal([...correct[0].occ].sort().join(","), occSet, "correct choice is the true footprint");
+    // every choice is a distinct footprint, size 2-3
+    const keys = r.choices.map((c) => [...c.occ].sort().join(","));
+    assert.equal(new Set(keys).size, r.choices.length, "footprints are distinct");
+    r.choices.forEach((c) => assert.ok(c.occ.length >= 2 && c.occ.length <= 3, "2-3 cells"));
+  }
+});

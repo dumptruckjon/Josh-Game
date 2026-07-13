@@ -185,7 +185,7 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~73 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**~74 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
@@ -202,7 +202,8 @@ category's games:
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
   Shadow (SVG shapes), Small to Big, Memory Match, Put in Order (numbers), What
   Changed?, Color by Number, Who Is It? (2-clue deduction), Picture Squares
-  (mini sudoku), **Put in Order** (story sequencing).
+  (mini sudoku), Put in Order (story sequencing), **Look From Above**
+  (bird's-eye / top-down spatial).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
   Paw Patrol Rescue, Find the Twins (one matching pair), I Spy: Find Them All
   (category hunt), **The Big One** (two-clue color+shape hunt) — his favorite,
