@@ -121,30 +121,55 @@
       api.stage.append(pad);
       api.setPrompt("Tap the pads to make music!", ["👆", "🎵", "😊"]);
       api.speak();
+      const note = api.el("div", { class: "music__hint" }, ["🔈 Turn the volume up — and check the side switch isn't on silent!"]);
+      api.stage.append(note);
       // A music instrument the child deliberately opened should always make
-      // sound — WebAudio is gesture-triggered (iOS-safe) and independent of the
-      // voice-mute (which silences spoken prompts, not the instrument). The key
-      // fix: RESUME the context — browsers start it "suspended" and it stays
-      // silent otherwise.
+      // sound. WebAudio is independent of the voice-mute (which only silences
+      // spoken prompts). The iOS-critical part: the context starts "suspended",
+      // and resume() is ASYNC — so we must WAIT for it to resolve and only THEN
+      // schedule the note, a hair in the future so it's never played in the past.
+      // (The old code scheduled at currentTime while still suspended → silent on
+      // iPhone/iPad even though it worked on desktop.)
       let ctx = null;
+      function getCtx() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        if (!ctx) ctx = new AC();
+        return ctx;
+      }
+      function play(freq) {
+        const c = getCtx();
+        if (!c) return;
+        const o = c.createOscillator();
+        const g = c.createGain();
+        o.type = "triangle"; o.frequency.value = freq;
+        const t = c.currentTime + 0.02; // small look-ahead: never schedule in the past
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.32, t + 0.02); // soft attack
+        g.gain.exponentialRampToValueAtTime(0.0008, t + 0.55);
+        o.connect(g); g.connect(c.destination);
+        o.start(t);
+        o.stop(t + 0.6);
+      }
       function tone(freq) {
         try {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          if (!AC) return;
-          ctx = ctx || new AC();
-          if (ctx.state === "suspended" && ctx.resume) ctx.resume();
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = "triangle"; o.frequency.value = freq;
-          const t = ctx.currentTime;
-          g.gain.setValueAtTime(0.0001, t);
-          g.gain.exponentialRampToValueAtTime(0.28, t + 0.02); // soft attack
-          o.connect(g); g.connect(ctx.destination);
-          o.start(t);
-          g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-          o.stop(t + 0.65);
+          const c = getCtx();
+          if (!c) return;
+          if (c.state === "suspended" && c.resume) {
+            // Resume FIRST, play only once the context is actually running.
+            c.resume().then(() => play(freq)).catch(() => {});
+          } else {
+            play(freq);
+          }
         } catch (e) { /* ignore */ }
       }
+      // Warm the context up on the very first touch anywhere on the pad, so the
+      // first note isn't the one that "wastes" the resume.
+      pad.addEventListener("pointerdown", function warm() {
+        const c = getCtx();
+        if (c && c.state === "suspended" && c.resume) c.resume().catch(() => {});
+        pad.removeEventListener("pointerdown", warm);
+      }, { once: true });
       COLORS.forEach((c, i) => {
         const bar = api.el("button", { class: "choice music__pad tap", type: "button", dataset: { toy: "1" }, style: { background: c }, aria: { label: "note " + (i + 1) } }, ["🎵"]);
         bar.addEventListener("click", () => {

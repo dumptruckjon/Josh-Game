@@ -462,6 +462,7 @@ body {
 /* ---------- Music Pad ---------- */
 .music__pad { min-height: 110px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); font-size: 2rem; color: rgba(255, 255, 255, 0.9); }
 .music__hit { filter: brightness(1.15); transform: scale(0.96); }
+.music__hint { margin-top: 14px; text-align: center; font-size: 0.95rem; color: #5b6b7d; line-height: 1.35; }
 
 /* ---------- Find-it games ---------- */
 .find__target { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 4px; }

@@ -17,13 +17,28 @@ before(async () => {
   ({ server, baseURL } = await startServer());
   browser = await launchBrowser();
   context = await browser.newContext();
-  // Stub WebAudio so we can assert the Music Pad actually fires notes (and that
-  // a suspended context gets resumed) without needing a speaker.
+  // Stub WebAudio to model iOS Safari FAITHFULLY: the context starts "suspended",
+  // resume() is ASYNC, and currentTime only advances once running. This is what
+  // makes the real iPhone/iPad bug reproducible — a note scheduled before resume
+  // resolves is played in the past and is silent. We record any note that starts
+  // while still suspended so the test below can fail on that exact regression.
   await context.addInitScript(() => {
     window.__notes = 0;
-    function Stub() { this.state = "suspended"; this.currentTime = 0; this.destination = {}; }
-    Stub.prototype.resume = function () { this.state = "running"; return Promise.resolve(); };
-    Stub.prototype.createOscillator = function () { return { frequency: { value: 0 }, type: "", connect() {}, start() { window.__notes++; }, stop() {} }; };
+    window.__startedWhileSuspended = 0;
+    let now = 0;
+    function Stub() {
+      this.state = "suspended";
+      this.destination = {};
+      Object.defineProperty(this, "currentTime", { get: () => (this.state === "running" ? now : 0) });
+    }
+    Stub.prototype.resume = function () {
+      const self = this;
+      return new Promise((res) => setTimeout(() => { self.state = "running"; now = 5; res(); }, 5));
+    };
+    Stub.prototype.createOscillator = function () {
+      const self = this;
+      return { frequency: { value: 0 }, type: "", connect() {}, stop() {}, start() { if (self.state !== "running") window.__startedWhileSuspended++; window.__notes++; } };
+    };
     Stub.prototype.createGain = function () { return { gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; };
     window.AudioContext = Stub;
     window.webkitAudioContext = Stub;
@@ -150,14 +165,20 @@ test("a wrong tap is forgiving — no score loss, target stays in play", async (
   assert.ok((await screen.locator('[data-correct="1"]').count()) >= 1, "correct choice stays in play");
 });
 
-test("the Music Pad actually plays notes (audio fires, even when muted)", async () => {
-  await page.evaluate(() => { window.__notes = 0; });
+test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {
+  await page.evaluate(() => { window.__notes = 0; window.__startedWhileSuspended = 0; });
   await openGame("music-pad");
   const pads = page.locator("#screen-music-pad .music__pad");
   await pads.nth(0).click();
   await pads.nth(2).click();
+  await pads.nth(4).click();
+  // Notes fire only after the async resume() resolves — wait for them.
+  await page.waitForFunction(() => (window.__notes || 0) >= 2, null, { timeout: 4000 });
   const notes = await page.evaluate(() => window.__notes || 0);
+  const bad = await page.evaluate(() => window.__startedWhileSuspended || 0);
   assert.ok(notes >= 2, `tapping pads should start notes; got ${notes}`);
+  // The iOS regression: scheduling a note while suspended plays it in the past → silent.
+  assert.equal(bad, 0, `notes must never start while the context is suspended (got ${bad}; that is silent on iOS)`);
 });
 
 test("no uncaught page errors during the whole run", () => {
