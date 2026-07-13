@@ -192,10 +192,32 @@
     return { emoji: w.emoji, word: w.word, letters, buttons: shuffle(letters, rng) };
   }
 
+  // --- Shadow match: a picture + its silhouette among distractors ---------
+  function makeShadowMatch(pool, rng = Math.random) {
+    if (!Array.isArray(pool) || pool.length < 3) throw new Error("makeShadowMatch needs >= 3");
+    const target = pool[randInt(0, pool.length - 1, rng)];
+    const others = shuffle(pool.filter((e) => e !== target), rng).slice(0, 2);
+    const choices = shuffle(
+      [{ emoji: target, correct: true }, ...others.map((e) => ({ emoji: e, correct: false }))],
+      rng
+    );
+    return { target, choices };
+  }
+
+  // --- Order by size: one emoji at `count` distinct sizes (ranks 1..count) ---
+  function makeOrder(pool, count, rng = Math.random) {
+    if (!Array.isArray(pool) || !pool.length) throw new Error("makeOrder needs a pool");
+    count = count || 3;
+    const emoji = pool[randInt(0, pool.length - 1, rng)];
+    const ranks = shuffle(Array.from({ length: count }, (_, i) => i + 1), rng);
+    return { emoji, count, items: ranks.map((rank) => ({ rank })) };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
+    makeShadowMatch, makeOrder,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

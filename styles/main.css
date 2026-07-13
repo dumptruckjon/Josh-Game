@@ -310,6 +310,20 @@ body {
 }
 .word__slot.filled { border-color: #7be08a; }
 
+/* ---------- Logic & puzzles (shadow, order, memory) ---------- */
+.choice--shadow { filter: brightness(0); opacity: 0.82; }
+.order__item { line-height: 1; }
+.order__item--done { outline: 5px solid #7be08a; outline-offset: -2px; opacity: 0.75; }
+.memory-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--pad); width: 100%; }
+.memory-card {
+  min-height: 100px; border-radius: 18px;
+  background: linear-gradient(135deg, #8a7bff, #5ec8ff);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  font-size: 2.8rem; line-height: 1;
+}
+.memory-card.flipped { background: #fff; }
+.memory-card.matched { background: #d7f8de; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }

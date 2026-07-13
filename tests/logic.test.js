@@ -202,3 +202,28 @@ test("makeCVC: buttons are a permutation of the word's letters", () => {
     assert.equal(r.buttons.length, r.word.length, "one button per letter");
   }
 });
+
+test("makeShadowMatch: the correct shadow equals the target picture", () => {
+  const rng = mulberry32(14);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeShadowMatch(content.SHADOW_POOL, rng);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].emoji, r.target, "the correct shadow is the target");
+    assert.equal(new Set(r.choices.map((c) => c.emoji)).size, r.choices.length, "choices distinct");
+  }
+  assert.throws(() => L.makeShadowMatch(["🐶", "🐱"], rng), />= 3/);
+});
+
+test("makeOrder: ranks are a full 1..count permutation", () => {
+  const rng = mulberry32(15);
+  for (const count of [3, 4]) {
+    for (let i = 0; i < 1500; i++) {
+      const r = L.makeOrder(content.ORDER_POOL, count, rng);
+      assert.equal(r.items.length, count);
+      const ranks = r.items.map((it) => it.rank).sort((a, b) => a - b);
+      assert.deepEqual(ranks, Array.from({ length: count }, (_, k) => k + 1), "ranks are 1..count");
+      assert.ok(content.ORDER_POOL.includes(r.emoji));
+    }
+  }
+});

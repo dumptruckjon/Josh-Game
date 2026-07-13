@@ -116,6 +116,11 @@
       { emoji: "🐷", word: "pig" }, { emoji: "🚌", word: "bus" }, { emoji: "🎩", word: "hat" },
       { emoji: "🛏️", word: "bed" }, { emoji: "📦", word: "box" },
     ],
+
+    // ---- Logic & puzzles ----
+    MEMORY_EMOJIS: ["🐶", "🐱", "🦊", "🐼", "🐸", "🦄", "🐝", "🐢", "🍎", "⭐", "🚗", "🌈"],
+    SHADOW_POOL: ["🐶", "🐱", "🦋", "🚗", "⭐", "🌳", "🐟", "🎈", "🔑", "🍎", "🚀", "🐘"],
+    ORDER_POOL: ["🐟", "⭐", "🎈", "🍎", "🐛", "🚗", "❤️", "🌟", "🐰", "🍩"],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;
