@@ -236,7 +236,8 @@
       let round = 0;
 
       const row = api.el("div", { class: "more__row" });
-      api.stage.append(row);
+      const ask = api.el("div", { class: "choices choices--3 more__ask", hidden: "" });
+      api.stage.append(row, ask);
 
       function panel(n, obj, correct) {
         const p = api.el("button", {
@@ -247,20 +248,47 @@
         return p;
       }
 
+      function advance() {
+        round += 1;
+        if (round >= ROUNDS) api.win();
+        else { api.roundWin(); newRound(); }
+      }
+      // B#3 / depth: after finding the bigger side, count HOW MANY MORE — turns a
+      // simple "which is bigger?" ([P]) into real difference-counting ([W]).
+      function howMany(diff) {
+        api.setPrompt("How many MORE? Tap the number!", ["🔢", "👆", "😊"]);
+        api.speak();
+        const opts = new Set([diff]);
+        while (opts.size < 3) { const d = api.randInt(1, Math.max(diff + 2, 4)); if (d !== diff) opts.add(d); }
+        ask.innerHTML = "";
+        api.shuffle([...opts]).forEach((nOpt) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button", text: String(nOpt),
+            dataset: nOpt === diff ? { correct: "1" } : {}, aria: { label: String(nOpt) },
+          });
+          b.addEventListener("click", () => { if (nOpt === diff) { api.say(String(diff) + " more"); advance(); } else api.tryAgain(b); });
+          ask.appendChild(b);
+        });
+        ask.hidden = false;
+      }
       function newRound() {
         const r = L.makeCompare();
         const obj = api.randItem(C.COUNT_OBJECTS);
+        const diff = Math.abs(r.a - r.b);
+        let picked = false;
+        ask.hidden = true; ask.innerHTML = "";
         api.setPrompt("Tap the side with MORE.", ["👀", "👉", "🔢"]);
         api.speak();
         row.innerHTML = "";
         const left = panel(r.a, obj, r.moreLeft);
         const right = panel(r.b, obj, !r.moreLeft);
         [left, right].forEach((p) => p.addEventListener("click", () => {
+          if (picked) return;
           if (p.dataset.correct) {
+            picked = true;
             p.classList.add("more__win");
-            round += 1;
-            if (round >= ROUNDS) api.win();
-            else { api.roundWin(); newRound(); }
+            delete left.dataset.correct; delete right.dataset.correct;
+            howMany(diff);
           } else api.tryAgain(p);
         }));
         row.append(left, right);

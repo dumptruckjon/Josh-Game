@@ -810,6 +810,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .geo__homeChip svg { width: 100%; height: auto; display: block; }
 
 /* ---------- Spell My Name ---------- */
+.ns__face { width: 92px; margin: 0 auto 2px; }
+.ns__face svg { width: 100%; height: auto; display: block; }
 .ns__name { text-align: center; font-size: 1.4rem; font-weight: 800; color: #6a4bd6; margin-bottom: 4px; }
 .ns__slots { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .ns__slot {
@@ -817,6 +819,18 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   font-size: 2rem; font-weight: 900; color: #2b8a5b; text-transform: uppercase;
 }
 .ns__tile { text-transform: uppercase; }
+
+/* ---------- Friends Race (co-op) ---------- */
+.race__track { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.race__lane { display: flex; align-items: center; gap: 8px; }
+.race__rail {
+  position: relative; flex: 1; height: 48px; border-radius: 24px;
+  background: rgba(255, 255, 255, 0.55); border: 2px dashed rgba(120, 140, 170, 0.4);
+}
+.race__token { position: absolute; top: 3px; left: 4%; width: 40px; height: 40px; transition: left 0.3s ease; }
+.race__token svg, .race__mini svg { width: 100%; height: auto; display: block; }
+.race__flag { font-size: 1.8rem; line-height: 1; }
+.race__mini { display: inline-block; width: 30px; vertical-align: middle; }
 
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
@@ -833,7 +847,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
     animation: none !important;
     transform: none !important;
   }
-  .breathe__star, .coop__token, .balloon, .bub, .bridge__hero, .wi__card, .add__group, .add__plus { transition: none !important; }
+  .breathe__star, .coop__token, .balloon, .bub, .bridge__hero, .wi__card, .add__group, .add__plus, .race__token { transition: none !important; }
   .add__scene--merge .add__group { transform: none !important; }
   .breathe--big, .balloon--float { transform: none !important; }
   .win-hero, .grow--pop, .mascot--cheer, .mascot--wiggle { animation: none !important; transform: none !important; }

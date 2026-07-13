@@ -10,11 +10,14 @@
     TITLE: "Josh's Games",
 
     // ---- People Josh knows (rotate a different friend through each game) ----
+    // Each friend has an original portrait spec so they show up as clearly
+    // DIFFERENT kids (distinct skin + hair + shirt), gently reflecting each one.
+    // Raegar: Indian/Russian · River: Chinese · Viraj: Indian · Josh: white/Chinese.
     FRIENDS: [
-      { name: "Raegar", emoji: "🧑🏽" },
-      { name: "River", emoji: "🧒🏻" },
-      { name: "Viraj", emoji: "🧑🏾" },
-      { name: "Josh", emoji: "🧒" },
+      { name: "Raegar", emoji: "🧑🏽", art: { skin: "#d9a066", hair: "#3a2417", style: "wavy", shirt: "#4caf6d" } },
+      { name: "River", emoji: "🧒🏻", art: { skin: "#f3d0aa", hair: "#1b1b22", style: "bowl", shirt: "#2bb3c0" } },
+      { name: "Viraj", emoji: "🧑🏾", art: { skin: "#a9713f", hair: "#17110d", style: "curly", shirt: "#ff9f43" } },
+      { name: "Josh", emoji: "🧒", art: { skin: "#f1c9a5", hair: "#1a1a20", style: "fringe", shirt: "#e23636" } },
     ],
     // Josh's heroes (Spidey & His Amazing Friends), kept silly + friendly.
     // (Emoji + names only — original homage, not the copyrighted artwork.)

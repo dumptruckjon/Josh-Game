@@ -469,11 +469,13 @@
     start(api) {
       const NAMES = api.C.NAMES || [{ name: "Josh", letters: "JOSH" }];
       const ROUNDS = Math.min(3, NAMES.length);
+      const FRIENDS = api.C.FRIENDS || [];
       let round = 0, step = 0, letters = [];
+      const face = api.el("div", { class: "ns__face art-fill", aria: { hidden: "true" } });
       const nameLabel = api.el("div", { class: "ns__name" });
       const slots = api.el("div", { class: "ns__slots" });
       const tray = api.el("div", { class: "choices choices--4 ns__tray" });
-      api.stage.append(nameLabel, slots, tray);
+      api.stage.append(face, nameLabel, slots, tray);
 
       function flagNext() {
         [...tray.children].forEach((t) => {
@@ -485,6 +487,8 @@
         const entry = NAMES[round % NAMES.length];
         const r = L.makeNameSpell(entry.letters);
         letters = r.letters; step = 0;
+        const spec = (FRIENDS.find((f) => f.name === entry.name) || {}).art;
+        face.innerHTML = (spec && window.JoshArt && window.JoshArt.friend) ? window.JoshArt.friend(spec) : "";
         nameLabel.textContent = entry.name;
         api.setPrompt("Spell " + entry.name + "! Tap the letters in order.", ["👀", "🔤", "✍️"]);
         api.speak(); api.say("Spell " + entry.name);

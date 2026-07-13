@@ -249,9 +249,17 @@ category's games:
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team
   Bridge, Team Treasure (co-op find), Team Sound Hunt (co-op beginning sounds),
-  Memory Together (co-op concentration), Tic-Tac-Toe (2-player co-op). *(The
-  tap-to-fill co-ops now each carry a real skill — skip-count, countdown,
-  counting — not just turn-taking.)*
+  Memory Together (co-op concentration), Tic-Tac-Toe (2-player co-op), **Friends
+  Race** (take-turns skill race — answer *which rhymes?* to move your racer;
+  first to the flag, everyone celebrates). *(The tap-to-fill co-ops now each carry
+  a real skill — skip-count, countdown, counting — not just turn-taking.)*
+
+> **Friend & character art (`scripts/art.js`).** `JoshArt.friend({skin,hair,style,shirt})`
+> draws each kid as a clearly-different portrait (Josh, Raegar, River, Viraj — see
+> their heritage-informed specs in `content.js` `FRIENDS`). Faces show up in **Spell
+> My Name** and race in **Friends Race**; the Spidey-style `hero()` still pops on
+> every win. Keep the four visibly distinct (a `content.test.js` guardrail enforces
+> unique shirt + skin/hair/style).
 
 Games personalize by rotating Josh's friends (**Raegar / River / Viraj**), Spidey
 heroes, and Paw-Patrol/Rubble homage names (**emoji + names only — not the

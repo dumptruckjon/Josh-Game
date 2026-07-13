@@ -16,6 +16,7 @@ test("every character returns a well-formed 100x100 svg string", () => {
     balloon: ART.balloon(),
     home: ART.home(),
     kid: ART.kid("#e8b98c", "#7be08a"),
+    friend: ART.friend({ skin: "#f1c9a5", hair: "#1a1a20", style: "fringe", shirt: "#e23636" }),
   };
   for (const [name, s] of Object.entries(samples)) {
     assert.ok(typeof s === "string" && s.startsWith("<svg") && s.endsWith("</svg>"), `${name} should be an svg string`);

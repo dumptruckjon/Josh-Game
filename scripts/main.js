@@ -41,7 +41,7 @@
     "grow": "play", "thwip-web": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
-    "team-sound-hunt": "friends", "memory-together": "friends",
+    "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",
   };
 
   document.addEventListener("DOMContentLoaded", () => {

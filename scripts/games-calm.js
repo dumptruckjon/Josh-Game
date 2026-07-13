@@ -614,4 +614,84 @@
       update();
     },
   });
+
+  // ---- Friends Race (co-op skill race — take turns, everyone's a winner) ----
+  // Two friends race up the track by answering a real skill (which rhymes?),
+  // personalised with the friends' own PORTRAITS as the racers. No losing: when
+  // the first reaches the flag, both hop to the finish and celebrate together.
+  F.register({
+    id: "friend-race",
+    icon: "🏁",
+    title: "Friends Race (2 players)",
+    skill: "co-op + rhyming [W]",
+    start(api) {
+      const L = window.JoshLogic || {};
+      const ART = window.JoshArt;
+      const FRIENDS = C.FRIENDS || [];
+      const GOAL = 4;
+      const specOf = (nm) => (FRIENDS.find((f) => f.name === nm) || {}).art;
+      const face = (spec) => (ART && ART.friend) ? ART.friend(spec) : "";
+      let other = api.friend(); if (other.name === "Josh") other = api.friend();
+      const players = [
+        { name: "Josh", spec: specOf("Josh"), step: 0 },
+        { name: other.name, spec: specOf(other.name), step: 0 },
+      ];
+      let turn = 0, done = false;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const target = api.el("div", { class: "big-pic", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      const track = api.el("div", { class: "race__track" });
+      const tokens = players.map((p) => {
+        const rail = api.el("div", { class: "race__rail" });
+        const tok = api.el("div", { class: "race__token art-fill", aria: { hidden: "true" }, html: face(p.spec) });
+        rail.appendChild(tok);
+        track.appendChild(api.el("div", { class: "race__lane" }, [rail, api.el("span", { class: "race__flag" }, ["🏁"])]));
+        return tok;
+      });
+      api.stage.append(turnEl, target, choices, track);
+
+      function place() { players.forEach((p, i) => { tokens[i].style.left = (4 + (p.step / GOAL) * 76) + "%"; }); }
+      function showTurn() {
+        turnEl.innerHTML = "";
+        turnEl.append(
+          api.el("span", { class: "race__mini art-fill", aria: { hidden: "true" }, html: face(players[turn].spec) }),
+          document.createTextNode(" " + players[turn].name + "’s turn!")
+        );
+      }
+      function newRound() {
+        showTurn();
+        const r = L.makeRhyme(C.RHYME_GROUPS);
+        target.textContent = r.target.emoji;
+        api.setPrompt("Which one rhymes? " + players[turn].name + "’s turn!", ["👀", "👂", "🏁"]);
+        api.speak();
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.emoji,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word || "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (done) return;
+            if (!ch.correct) { api.tryAgain(b); return; }
+            players[turn].step += 1;
+            place();
+            if (players[turn].step >= GOAL) {
+              done = true;
+              players.forEach((p) => { p.step = GOAL; }); place();
+              delete b.dataset.correct;
+              api.win({ say: "You both raced to the finish! Hooray!" });
+              return;
+            }
+            turn = turn === 0 ? 1 : 0;
+            api.roundWin();
+            newRound();
+          });
+          choices.appendChild(b);
+        });
+      }
+      place();
+      newRound();
+    },
+  });
 })();

@@ -126,6 +126,41 @@
     );
   }
 
-  global.JoshArt = { hero, numberFriend, pup, truck, star, rocket, balloon, home, kid };
+  // A friendly kid PORTRAIT with hair, so Josh and each friend are clearly
+  // DIFFERENT people (distinct skin + hair style/colour + shirt). spec:
+  // { skin, hair, style: fringe|wavy|bowl|curly|short, shirt }. Original art —
+  // just a warm cartoon face, chosen to gently reflect each kid so the helpers
+  // "look like him and his friends" (JOSH_PROFILE).
+  function hairFor(style, hair) {
+    switch (style) {
+      case "fringe": // straight black fringe / bangs
+        return '<path d="M26 41 Q26 15 50 15 Q74 15 74 41 Q74 28 65 27 L58 33 L50 28 L42 33 L35 27 Q26 28 26 41 Z" fill="' + hair + '"/>';
+      case "wavy": // fuller wavy hair down the sides
+        return '<path d="M24 47 Q22 14 50 13 Q78 14 76 47 Q73 35 74 30 Q67 35 62 30 Q56 37 50 30 Q44 37 38 30 Q33 35 26 30 Q27 35 24 47 Z" fill="' + hair + '"/>';
+      case "bowl": // smooth rounded cut with a soft centre part
+        return '<path d="M26 39 Q26 15 50 15 Q74 15 74 39 Q68 30 50 30 Q32 30 26 39 Z" fill="' + hair + '"/><path d="M50 16 V29" stroke="rgba(255,255,255,0.18)" stroke-width="1.6"/>';
+      case "curly": // bumpy curls around the crown
+        return '<path d="M27 39 Q23 31 29 27 Q28 19 36 20 Q38 13 46 17 Q50 12 55 17 Q63 13 65 20 Q73 19 72 27 Q77 31 73 39 Q66 29 50 29 Q34 29 27 39 Z" fill="' + hair + '"/>';
+      default: // short neat cap
+        return '<path d="M28 37 Q28 16 50 16 Q72 16 72 37 Q65 27 50 27 Q35 27 28 37 Z" fill="' + hair + '"/>';
+    }
+  }
+  function friend(spec) {
+    spec = spec || {};
+    const skin = spec.skin || "#e8b98c";
+    const hair = spec.hair || "#241a14";
+    const shirt = spec.shirt || "#5ec8ff";
+    return wrap(
+      '<rect x="29" y="60" width="42" height="34" rx="13" fill="' + shirt + '"/>' +
+      '<circle cx="26" cy="42" r="4.5" fill="' + skin + '"/><circle cx="74" cy="42" r="4.5" fill="' + skin + '"/>' +
+      '<circle cx="50" cy="40" r="24" fill="' + skin + '"/>' +
+      hairFor(spec.style, hair) +
+      '<circle cx="42" cy="42" r="3" fill="#2a1a12"/><circle cx="58" cy="42" r="3" fill="#2a1a12"/>' +
+      '<circle cx="38" cy="49" r="3.4" fill="rgba(255,120,120,0.26)"/><circle cx="62" cy="49" r="3.4" fill="rgba(255,120,120,0.26)"/>' +
+      '<path d="M43 50 Q50 56 57 50" stroke="#2a1a12" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+    );
+  }
+
+  global.JoshArt = { hero, numberFriend, pup, truck, star, rocket, balloon, home, kid, friend };
   if (typeof module !== "undefined" && module.exports) module.exports = global.JoshArt;
 })(typeof window !== "undefined" ? window : globalThis);

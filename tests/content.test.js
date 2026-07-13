@@ -338,6 +338,24 @@ test("odd-one-out FEATURE sets: base and odd differ (a real one-feature distinct
   }
 });
 
+test("each friend has a portrait spec and the four are clearly differentiable", () => {
+  const friends = content.FRIENDS || [];
+  assert.ok(friends.length >= 4, "need Josh + friends");
+  const styles = ["fringe", "wavy", "bowl", "curly", "short"];
+  for (const f of friends) {
+    assert.ok(f.art, `${f.name} needs an art spec`);
+    for (const k of ["skin", "hair", "shirt", "style"]) assert.ok(f.art[k], `${f.name} art needs ${k}`);
+    assert.ok(styles.includes(f.art.style), `${f.name} uses a known hair style`);
+  }
+  // "clearly differentiable": no two friends share the same shirt colour, and the
+  // skin/hair/style combo is unique per friend (so Josh, Raegar, River, Viraj all
+  // look like different kids).
+  const shirts = friends.map((f) => f.art.shirt);
+  assert.equal(new Set(shirts).size, shirts.length, "every friend has a distinct shirt colour");
+  const combos = friends.map((f) => [f.art.skin, f.art.hair, f.art.style].join("|"));
+  assert.equal(new Set(combos).size, combos.length, "every friend has a distinct skin+hair+style");
+});
+
 test("the narrated sorters carry a truthful 'why' on every bin", () => {
   // B#1: a correct-by-guess tap still teaches, so the flagged sorters must speak.
   const narrated = [...content.SORT_SETS, ...content.DAY_NIGHT_SETS, ...content.HOT_COLD_SETS];
