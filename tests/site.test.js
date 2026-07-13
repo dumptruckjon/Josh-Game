@@ -13,7 +13,7 @@ const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const content = require("../scripts/content.js");
 
 const SCRIPTS = [
-  "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js",
+  "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js", "scripts/art.js",
   "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
   "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
   "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/main.js",
@@ -96,12 +96,16 @@ test("game data is well-formed (animals, eaters, snacks, odd groups, patterns)",
 });
 
 // ---------- Mobile / kid guardrails ----------
-test("background is static; only small-element animations exist", () => {
+test("background is static; nothing animates the full-page background", () => {
   const css = read("styles/main.css");
   assert.match(css, /linear-gradient\(/, "should have a gradient background");
-  const names = (css.match(/@keyframes\s+([A-Za-z0-9_-]+)/g) || []).map((s) => s.split(/\s+/)[1]);
-  const allowed = new Set(["pop", "bump", "chomp"]);
-  for (const n of names) assert.ok(allowed.has(n), `unexpected animation @keyframes ${n} (no animated backgrounds)`);
+  // No @keyframes may animate a background property (that's the iOS-repaint bug).
+  const kfBlocks = css.match(/@keyframes[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g) || [];
+  for (const b of kfBlocks) {
+    assert.ok(!/background/i.test(b), "a @keyframes animates 'background' — animated backgrounds are banned");
+  }
+  // The body itself must not be animated.
+  assert.ok(!/\bbody\s*\{[^}]*animation\s*:/.test(css.replace(/\s+/g, " ")), "body must not be animated");
 });
 
 test("mobile / iOS Safari optimizations are in place", () => {

@@ -121,6 +121,16 @@
         if (FX.stars) FX.stars();
         A.say((opts && opts.say) || randItem(C.PRAISE_SPOKEN || ["Yay"]));
         againBtn.hidden = false;
+        // A friendly homage hero pops in to celebrate (original SVG art).
+        try {
+          const ART = global.JoshArt;
+          if (ART && ART.hero) {
+            const colors = ["#e23636", "#ec4e9c", "#2b6cff"];
+            const cheer = el("div", { class: "win-hero", html: ART.hero(colors[Math.floor(Math.random() * colors.length)]), aria: { hidden: "true" } });
+            screen.appendChild(cheer);
+            setTimeout(() => cheer.remove(), 1700);
+          }
+        } catch (e) { /* ignore */ }
         // Remember this game was beaten so the launcher can show a ⭐ badge.
         try { localStorage.setItem("josh-won-" + def.id, "1"); } catch (e) { /* ignore */ }
         try { window.dispatchEvent(new CustomEvent("josh-won", { detail: { id: def.id } })); } catch (e) { /* ignore */ }

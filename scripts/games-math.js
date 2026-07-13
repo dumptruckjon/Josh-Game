@@ -106,7 +106,14 @@
         tower.insertBefore(block, tower.firstChild);
         api.say(String(count));
         if (count === target) {
-          tower.insertBefore(api.el("div", { class: "build__face pop" }, ["😄"]), tower.firstChild);
+          // The plain blocks morph into a friendly number-friend character.
+          tower.innerHTML = "";
+          tower.appendChild(api.el("div", {
+            class: "build__friend pop",
+            html: (window.JoshArt && window.JoshArt.numberFriend)
+              ? window.JoshArt.numberFriend(target, C.BLOCK_COLORS[(target - 1) % C.BLOCK_COLORS.length])
+              : "😄",
+          }));
           delete addBtn.dataset.correct;
           addBtn.hidden = true;
           round += 1;

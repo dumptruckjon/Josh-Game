@@ -14,6 +14,7 @@ const CORE = [
   "./scripts/logic.js",
   "./scripts/effects.js",
   "./scripts/audio.js",
+  "./scripts/art.js",
   "./scripts/framework.js",
   "./scripts/games-toys.js",
   "./scripts/games-math.js",
