@@ -146,14 +146,15 @@
         { label: "Floats", emoji: "⬆️", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
       ] },
       { name: "plantanimal", bins: [
-        { label: "Plant", emoji: "🌿", items: ["🌳", "🌻", "🌵", "🌷", "🍄", "🌴"] },
+        // Note: no fungi (🍄 is not a plant) — keep the two categories truthful.
+        { label: "Plant", emoji: "🌿", items: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"] },
         { label: "Animal", emoji: "🐾", items: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
       ] },
     ],
     COLOR_SETS: [
       { name: "redblue", bins: [
         { label: "Red", emoji: "🔴", items: ["🍎", "🍓", "🍅", "🌹", "❤️"] },
-        { label: "Blue", emoji: "🔵", items: ["🫐", "💙", "🌀", "🧊", "🐳"] },
+        { label: "Blue", emoji: "🔵", items: ["🫐", "💙", "🌀", "💧", "🐳"] },
       ] },
       { name: "yellowgreen", bins: [
         { label: "Yellow", emoji: "🟡", items: ["🍌", "🌟", "🌻", "🧀", "🐤"] },
@@ -164,7 +165,7 @@
       { name: "law", bins: [
         { label: "Land", emoji: "🚗", items: ["🚗", "🚙", "🚌", "🐘", "🦁", "🏠"] },
         { label: "Air", emoji: "✈️", items: ["✈️", "🚁", "🦅", "🎈", "🚀", "🦋"] },
-        { label: "Water", emoji: "🐟", items: ["🐟", "🐬", "🚤", "🦆", "🐙", "⛵"] },
+        { label: "Water", emoji: "🐟", items: ["🐟", "🐬", "🚤", "🐠", "🐙", "⛵"] },
       ] },
     ],
     DAY_NIGHT_SETS: [
