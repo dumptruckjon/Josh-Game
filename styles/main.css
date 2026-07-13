@@ -237,6 +237,60 @@ body {
 }
 .pattern__q { background: #fff3b0; }
 
+/* ---------- Numbers on choice tiles ---------- */
+.choice--num { font-weight: 900; color: #2b5; }
+
+/* ---------- Build a Number ---------- */
+.build__target { font-size: 3.4rem; font-weight: 900; color: #6a4bd6; line-height: 1; }
+.build__tower { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 48px; }
+.build__block {
+  width: 74px; height: 38px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; color: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+.build__face { font-size: 2.4rem; line-height: 1; }
+
+/* ---------- Skip-Count Hop ---------- */
+.hop__path { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.hop__stone {
+  min-width: 50px; height: 58px; padding: 0 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 800; color: #14506e;
+  background: #d6efff; border-radius: 16px;
+}
+.hop__stone--q { background: #fff3b0; }
+
+/* ---------- Take-Away ---------- */
+.take__scene { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: 2.2rem; }
+.take__obj { transition: opacity 0.25s; }
+.take__obj--gone { opacity: 0.16; filter: grayscale(1); }
+.take__eq { font-size: 1.1rem; font-weight: 700; color: #777; }
+
+/* ---------- Which Has More ---------- */
+.more__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--pad); width: 100%; }
+.more__panel {
+  min-height: 150px; border-radius: 22px; background: var(--card);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
+  gap: 4px; padding: 10px;
+}
+.more__dot { font-size: 1.7rem; line-height: 1; }
+.more__win { outline: 5px solid #7be08a; outline-offset: -2px; }
+
+/* ---------- Coin Shop ---------- */
+.coin__shop { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.coin__sticker { font-size: 3.6rem; line-height: 1; transition: opacity 0.25s, transform 0.25s; }
+.coin__sticker--ghost { opacity: 0.16; filter: grayscale(1); transform: scale(0.85); }
+.coin__price { font-size: 1.6rem; font-weight: 800; color: #b8860b; }
+.coin__jar { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: 1.9rem; min-height: 1.9rem; }
+.coin__slot { width: 1.9rem; text-align: center; }
+.coin__pile { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--pad); width: 100%; }
+.coin__penny {
+  min-height: var(--tap); border-radius: 18px; background: var(--card);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12); font-size: 2.2rem;
+}
+.coin__penny--used { opacity: 0.3; transform: scale(0.85); }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }

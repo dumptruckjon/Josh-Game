@@ -74,6 +74,16 @@
       ["🔴", "🔵"], ["⭐", "🌙"], ["🍎", "🍌"], ["🐶", "🐱"],
       ["🔺", "🟩"], ["🚗", "🚀"], ["❤️", "💛"], ["🌸", "🌻"],
     ],
+
+    // Countable objects reused by Take-Away and Which Has More.
+    COUNT_OBJECTS: ["🍎", "🐸", "⭐", "🚗", "🐟", "🌼", "🧸", "🍌", "🐤", "🎈"],
+    // Skip-count steps: 2s and 5s are his growth edges; 10s is confidence.
+    SKIP_STEPS: [2, 5, 10],
+    // Coin Shop rewards — a sticker to "buy" with pennies.
+    STICKERS: ["⭐", "🌈", "🚀", "🦄", "🍭", "🎈", "🐶", "🌸", "🦋", "🍩"],
+    // Numberblock-style tower block colors (1..10).
+    BLOCK_COLORS: ["#ff5e5e", "#ff9f43", "#ffd24d", "#7be08a", "#3ec7c7",
+      "#5ec8ff", "#8a7bff", "#c77dff", "#ff7ac0", "#a0d468"],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

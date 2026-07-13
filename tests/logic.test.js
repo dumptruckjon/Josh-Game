@@ -105,3 +105,48 @@ test("makePattern: choices hold exactly one correct = the true next token", () =
   }
   assert.throws(() => L.makePattern(["🔴"], allTokens, rng), /2-token/);
 });
+
+test("makeSkipCount: real skip sequence, hidden term, one correct choice", () => {
+  const rng = mulberry32(7);
+  for (const step of [2, 5, 10]) {
+    for (let i = 0; i < 1500; i++) {
+      const r = L.makeSkipCount(step, 5, rng);
+      assert.equal(r.sequence.length, 5);
+      r.sequence.forEach((v, k) => assert.equal(v, step * (k + 1), "sequence counts by step"));
+      assert.ok(r.hideIndex >= 1 && r.hideIndex <= 4, "hidden term is interior");
+      assert.equal(r.answer, r.sequence[r.hideIndex], "answer is the hidden term");
+      const correct = r.choices.filter((c) => c.correct);
+      assert.equal(correct.length, 1, "exactly one correct choice");
+      assert.equal(correct[0].n, r.answer);
+      assert.equal(new Set(r.choices.map((c) => c.n)).size, r.choices.length, "choices distinct");
+      r.choices.forEach((c) => assert.ok(c.n > 0, "no non-positive choices"));
+    }
+  }
+  assert.throws(() => L.makeSkipCount(0, 5, rng), /step > 0/);
+});
+
+test("makeTakeAway: answer = start - minus, one correct, valid choices", () => {
+  const rng = mulberry32(8);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeTakeAway(rng);
+    assert.ok(r.start >= 3 && r.start <= 9);
+    assert.ok(r.minus >= 1 && r.minus <= r.start - 1, "minus keeps answer >= 1");
+    assert.equal(r.answer, r.start - r.minus, "answer is the difference");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].n, r.answer);
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, r.choices.length, "choices distinct");
+    r.choices.forEach((c) => assert.ok(c.n >= 0));
+  }
+});
+
+test("makeCompare: two different quantities, correct side is the bigger one", () => {
+  const rng = mulberry32(9);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeCompare(rng);
+    assert.notEqual(r.a, r.b, "quantities differ");
+    assert.ok(r.a >= 1 && r.a <= 7 && r.b >= 1 && r.b <= 7);
+    assert.equal(r.moreLeft, r.a > r.b);
+    assert.equal(r.answer, r.a > r.b ? "left" : "right");
+  }
+});

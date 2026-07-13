@@ -94,7 +94,53 @@
     return { sequence, answer, choices, unit };
   }
 
-  const API = { randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS };
+  // --- Skip counting (count by 2s / 5s / 10s) ----------------------------
+  // Build step, 2*step, ... count terms, hide one interior term, ask for it.
+  function makeSkipCount(step, count, rng = Math.random) {
+    if (!(step > 0)) throw new Error("makeSkipCount needs step > 0");
+    count = count || 5;
+    const sequence = [];
+    for (let i = 1; i <= count; i++) sequence.push(step * i);
+    const hideIndex = randInt(1, count - 1, rng); // never hide the first (keep context)
+    const answer = sequence[hideIndex];
+    const pool = [answer + step, answer - step, answer + 2 * step, answer - 2 * step, answer + 1, answer - 1]
+      .filter((v) => v > 0 && v !== answer);
+    const distractors = shuffle([...new Set(pool)], rng).slice(0, 2);
+    const choices = shuffle(
+      [{ n: answer, correct: true }, ...distractors.map((n) => ({ n, correct: false }))],
+      rng
+    );
+    return { step, sequence, hideIndex, answer, choices };
+  }
+
+  // --- Take-away (simple subtraction) ------------------------------------
+  function makeTakeAway(rng = Math.random) {
+    const start = randInt(3, 9, rng);
+    const minus = randInt(1, start - 1, rng);
+    const answer = start - minus;
+    const pool = [answer + 1, answer - 1, answer + 2, answer - 2, start]
+      .filter((v) => v >= 0 && v !== answer);
+    const distractors = shuffle([...new Set(pool)], rng).slice(0, 2);
+    const choices = shuffle(
+      [{ n: answer, correct: true }, ...distractors.map((n) => ({ n, correct: false }))],
+      rng
+    );
+    return { start, minus, answer, choices };
+  }
+
+  // --- Compare quantities (which has more?) ------------------------------
+  function makeCompare(rng = Math.random) {
+    const a = randInt(1, 7, rng);
+    let b = randInt(1, 7, rng);
+    while (b === a) b = randInt(1, 7, rng);
+    const moreLeft = a > b;
+    return { a, b, moreLeft, answer: moreLeft ? "left" : "right" };
+  }
+
+  const API = {
+    randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
+    makeSkipCount, makeTakeAway, makeCompare,
+  };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);
