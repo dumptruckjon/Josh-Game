@@ -127,18 +127,23 @@ test("EVERY game plays end-to-end (win reached, or toy responds)", async () => {
     }
 
     // Win game: keep tapping the currently-correct target until the game is won.
-    // On the LIVE site (verify-live) a round rebuild can detach the element
-    // between the query and the click, and pages render slower under CDN load —
-    // so treat a detached/slow click as a retry (not a failure) and give a
-    // generous cap. A genuinely broken game still never wins and fails here.
+    // Drive the contract with a DOM-level el.click() rather than a coordinate
+    // (force) click: on a slow runner a growing/rebuilding field reflows or
+    // scrolls between box-computation and dispatch, so a coordinate click can
+    // repeatedly miss and the game gets "stuck" (observed on big-red-one's 16
+    // inline-SVG cells under CPU load). A DOM click always hits the intended
+    // element regardless of layout/scroll/overlay, so this exercises the state
+    // machine deterministically. Real touch realism (sizes, no overlap, tappable)
+    // is covered separately by mobile.test.js's actual .tap(). A genuinely broken
+    // game still never sets won and fails here.
     let won = false;
     for (let i = 0; i < 200 && !won; i++) {
       won = await screen.evaluate((el) => el.dataset.won === "1");
       if (won) break;
       const correct = screen.locator('[data-correct="1"]').first();
       if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
-      try { await correct.click({ force: true, timeout: 3000 }); }
-      catch (e) { await page.waitForTimeout(20); } // rebuild race on a slow live page — retry
+      try { await correct.evaluate((el) => el.click()); }
+      catch (e) { await page.waitForTimeout(20); } // element detached mid-rebuild — re-query next loop
     }
     won = await screen.evaluate((el) => el.dataset.won === "1");
     assert.ok(won, `game "${id}" never reached a win`);
