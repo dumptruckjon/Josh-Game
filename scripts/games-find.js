@@ -168,4 +168,115 @@
       update();
     },
   });
+
+  // ---- Dot to Dot: tap the numbers 1..N in order to reveal a picture ----
+  F.register({
+    id: "dot-dot",
+    icon: "✏️",
+    title: "Dot to Dot",
+    skill: "number order / reveal",
+    start(api) {
+      const ROUNDS = 3;
+      let round = 0, step = 0, dots = [];
+      const stage = api.el("div", { class: "trace__stage" });
+      const reveal = api.el("div", { class: "dot__reveal", aria: { hidden: "true" } });
+      stage.appendChild(reveal);
+      api.stage.append(stage);
+
+      function newRound() {
+        const path = api.randItem(api.C.PATHS);
+        const rv = api.randItem(api.C.REVEALS);
+        step = 0; dots = [];
+        reveal.textContent = ""; reveal.classList.remove("dot__reveal--on");
+        api.setPrompt("Tap the numbers in order: 1, 2, 3…", ["👆", "🔢", "✨"]);
+        api.speak();
+        [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "trace__line");
+        svg.setAttribute("viewBox", "0 0 100 100");
+        svg.setAttribute("preserveAspectRatio", "none");
+        const poly = document.createElementNS(svgNS, "polyline");
+        poly.setAttribute("points", path.map((p) => p.x + "," + p.y).join(" "));
+        poly.setAttribute("fill", "none"); poly.setAttribute("stroke", "#b7c6d6");
+        poly.setAttribute("stroke-width", "2.5"); poly.setAttribute("stroke-dasharray", "5 4"); poly.setAttribute("stroke-linecap", "round");
+        svg.appendChild(poly);
+        stage.appendChild(svg);
+
+        path.forEach((p, i) => {
+          const dot = api.el("button", {
+            class: "trace__dot tap", type: "button",
+            dataset: i === 0 ? { correct: "1" } : {}, aria: { label: "dot " + (i + 1) },
+          }, [String(i + 1)]);
+          dot.style.left = p.x + "%"; dot.style.top = p.y + "%";
+          dot.addEventListener("click", () => {
+            if (i === step) {
+              dot.classList.add("trace__dot--done");
+              delete dot.dataset.correct;
+              step += 1;
+              if (step >= path.length) {
+                reveal.textContent = rv; reveal.classList.add("dot__reveal--on");
+                round += 1;
+                if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); }
+              } else if (dots[step]) dots[step].dataset.correct = "1";
+            } else api.tryAgain(dot);
+          });
+          stage.appendChild(dot); dots.push(dot);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Paw Patrol Rescue: count how many of a pup you can find (homage) ----
+  F.register({
+    id: "rescue",
+    icon: "🚒",
+    title: "Paw Patrol Rescue",
+    skill: "count / find",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 5;
+      let round = 0;
+      const target = api.el("div", { class: "find__target" });
+      const field = api.el("div", { class: "find__field find__field--dense" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(target, field, choices);
+
+      function newRound() {
+        const pup = api.randItem(C.PUPS || [{ name: "Pup", emoji: "🐶", job: "🚒" }]);
+        const K = api.randInt(2, 5);
+        const others = (C.FIND_POOL || ["⭐"]).filter((e) => e !== pup.emoji);
+        const total = 12 + round * 2;
+        const cells = [];
+        for (let i = 0; i < K; i++) cells.push(pup.emoji);
+        for (let i = 0; i < total - K; i++) cells.push(api.randItem(others));
+        const scene = L.shuffle(cells);
+        const used = new Set([K]); const wrongs = [];
+        while (wrongs.length < 2) { const w = api.randInt(1, 9); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
+        const chs = L.shuffle([{ n: K, correct: true }, ...wrongs.map((n) => ({ n, correct: false }))]);
+
+        target.innerHTML = "";
+        target.append(api.el("span", { class: "find__targetEmoji", text: pup.emoji }), api.el("span", { class: "find__targetLabel", text: pup.name }));
+        api.setPrompt("How many " + pup.name + " pups can you find?", ["👀", "🐶", pup.job]);
+        api.speak();
+        field.innerHTML = "";
+        scene.forEach((e) => field.appendChild(api.el("span", { class: "find__dot", text: e })));
+        choices.innerHTML = "";
+        chs.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button", text: String(ch.n),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "Paw Patrol saved the day!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

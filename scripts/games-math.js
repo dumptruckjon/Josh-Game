@@ -491,4 +491,102 @@
       newRound();
     },
   });
+
+  // ---- Ten & Some More (teen numbers on a ten-frame, [M/W]) ----
+  F.register({
+    id: "ten-frame",
+    icon: "🔟",
+    title: "Ten & Some More",
+    skill: "teen numbers 11-19 [M/W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4;
+      let round = 0, target = 0, filled = 0, cells = [];
+      const targetEl = api.el("div", { class: "pv__target", aria: { hidden: "true" } });
+      const frame = api.el("div", { class: "tenf__grid" });
+      const extra = api.el("div", { class: "tenf__extra" });
+      const wrap = api.el("div", { class: "tenf" }, [frame, extra]);
+      const addBtn = api.el("button", { class: "btn-big", type: "button", dataset: { correct: "1" } }, ["➕ Add one"]);
+      const nextBtn = api.el("button", { class: "btn-big", type: "button", hidden: "" }, ["Next ▶"]);
+      api.stage.append(targetEl, wrap, addBtn, nextBtn);
+
+      function newRound() {
+        const t = L.makeTeen();
+        target = t.target; filled = 0;
+        targetEl.textContent = String(target);
+        addBtn.hidden = false; addBtn.dataset.correct = "1";
+        frame.innerHTML = ""; extra.innerHTML = ""; cells = [];
+        for (let i = 0; i < 10; i++) { const c = api.el("span", { class: "tenf__cell" }); frame.appendChild(c); cells.push(c); }
+        api.setPrompt("Fill ten, then some more — make " + target + "!", ["👀", "🔟", "➕"]);
+        api.speak();
+      }
+      addBtn.addEventListener("click", () => {
+        if (filled >= target) return;
+        filled += 1;
+        if (filled <= 10) { cells[filled - 1].classList.add("tenf__cell--on"); cells[filled - 1].textContent = "🔵"; }
+        else extra.appendChild(api.el("span", { class: "tenf__one pop" }, ["🟡"]));
+        api.say(String(filled));
+        if (filled === target) {
+          delete addBtn.dataset.correct; addBtn.hidden = true;
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "You made " + target + "!" });
+          else { api.roundWin(); nextBtn.hidden = false; nextBtn.dataset.correct = "1"; }
+        }
+      });
+      nextBtn.addEventListener("click", () => { nextBtn.hidden = true; delete nextBtn.dataset.correct; newRound(); });
+      newRound();
+    },
+  });
+
+  // ---- Set the Clock (move the hour hand to the target time, [P]) ----
+  F.register({
+    id: "set-clock",
+    icon: "🕓",
+    title: "Set the Clock",
+    skill: "clock / time [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0, target = 0, hand = 12;
+      const targetEl = api.el("div", { class: "setclock__target" });
+      const clock = api.el("div", { class: "clock", aria: { hidden: "true" } });
+      const advBtn = api.el("button", { class: "btn-big", type: "button" }, ["Next hour ➡️"]);
+      const setBtn = api.el("button", { class: "btn-big setclock__set", type: "button", hidden: "" }, ["Set it! ✓"]);
+      const row = api.el("div", { class: "setclock__row" }, [advBtn, setBtn]);
+      api.stage.append(targetEl, clock, row);
+
+      function draw() {
+        const rad = ((hand % 12) * 30 - 90) * Math.PI / 180;
+        const hx = 50 + 26 * Math.cos(rad), hy = 50 + 26 * Math.sin(rad);
+        let ticks = "";
+        for (let h = 1; h <= 12; h++) {
+          const a = (h * 30 - 90) * Math.PI / 180;
+          const x = 50 + 40 * Math.cos(a), y = 50 + 40 * Math.sin(a);
+          ticks += '<text x="' + x.toFixed(1) + '" y="' + (y + 4).toFixed(1) + '" font-size="9" text-anchor="middle" fill="#33445a">' + h + "</text>";
+        }
+        clock.innerHTML = '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" fill="#fff" stroke="#5ec8ff" stroke-width="3"/>' + ticks +
+          '<line x1="50" y1="50" x2="' + hx.toFixed(1) + '" y2="' + hy.toFixed(1) + '" stroke="#e23636" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="50" r="3.5" fill="#333"/></svg>';
+      }
+      function updateBtns() {
+        if (hand === target) { delete advBtn.dataset.correct; setBtn.hidden = false; setBtn.dataset.correct = "1"; }
+        else { advBtn.dataset.correct = "1"; setBtn.hidden = true; delete setBtn.dataset.correct; }
+      }
+      function newRound() {
+        target = L.randInt(1, 12);
+        hand = L.randInt(1, 12);
+        if (hand === target) hand = (hand % 12) + 1;
+        targetEl.textContent = "Make it " + target + " o'clock";
+        api.setPrompt("Make the clock say " + target + " o'clock!", ["👀", "🕓", "➡️"]);
+        api.speak();
+        draw(); updateBtns();
+      }
+      advBtn.addEventListener("click", () => { hand = (hand % 12) + 1; draw(); api.say(hand + " o'clock"); updateBtns(); });
+      setBtn.addEventListener("click", () => {
+        if (hand !== target) { api.tryAgain(setBtn); return; }
+        round += 1;
+        if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); }
+      });
+      newRound();
+    },
+  });
 })();

@@ -17,11 +17,28 @@
       { name: "Josh", emoji: "🧒" },
     ],
     // Josh's heroes (Spidey & His Amazing Friends), kept silly + friendly.
+    // (Emoji + names only — original homage, not the copyrighted artwork.)
     HEROES: [
       { name: "Spidey", emoji: "🕷️", color: "#e23636" },
       { name: "Ghost-Spider", emoji: "🕸️", color: "#ec4e9c" },
       { name: "Spin", emoji: "🕸️", color: "#2b6cff" },
     ],
+    // Rescue pups (Paw Patrol homage) — a name + pup emoji + a rescue vehicle.
+    PUPS: [
+      { name: "Chase", emoji: "🐕‍🦺", job: "🚓" },
+      { name: "Marshall", emoji: "🐶", job: "🚒" },
+      { name: "Skye", emoji: "🐩", job: "🚁" },
+      { name: "Rubble", emoji: "🐶", job: "🚜" },
+      { name: "Rocky", emoji: "🐶", job: "♻️" },
+      { name: "Zuma", emoji: "🐶", job: "🚤" },
+    ],
+    // Construction crew (Rubble & Crew homage).
+    CREW: [
+      { name: "Rubble", emoji: "🚧" }, { name: "Charger", emoji: "🏎️" },
+      { name: "Wheeler", emoji: "🚜" }, { name: "Mix", emoji: "🚛" },
+    ],
+    // Fun pictures a dot-to-dot can reveal at the end.
+    REVEALS: ["🕷️", "⭐", "❤️", "🚀", "🐶", "🦄", "🌈", "🎈", "🦋", "🚒"],
 
     // Happy cheers (shown) and short spoken praise (spoken when sound is on).
     CHEERS: [

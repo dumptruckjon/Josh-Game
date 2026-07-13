@@ -345,6 +345,12 @@
     return { target, count: K, cells: shuffle(cells, rng), choices };
   }
 
+  // --- Teen numbers (10 + some more) --------------------------------------
+  function makeTeen(rng = Math.random) {
+    const target = randInt(11, 19, rng);
+    return { target, tens: 1, ones: target - 10 };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -361,7 +367,7 @@
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,
     makeLetterMatch, makeMissingLetter, makeSpotDifference,
-    makeFindHero, makeCrowd, makeFindCount, tttWinner, TTT_LINES,
+    makeFindHero, makeCrowd, makeFindCount, tttWinner, TTT_LINES, makeTeen,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

@@ -390,6 +390,17 @@ test("makeFindCount: the count really equals the target's copies in the scene", 
   }
 });
 
+test("makeTeen: target 11-19 and it is truly ten plus some ones", () => {
+  const rng = mulberry32(26);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeTeen(rng);
+    assert.ok(r.target >= 11 && r.target <= 19);
+    assert.equal(r.tens, 1);
+    assert.equal(r.tens * 10 + r.ones, r.target, "ten and some more equals the teen");
+    assert.ok(r.ones >= 1 && r.ones <= 9);
+  }
+});
+
 test("tttWinner: detects rows, columns, diagonals; null otherwise", () => {
   const X = "X", O = "O", _ = "";
   assert.equal(L.tttWinner([X, X, X, _, _, _, _, _, _]), X, "top row");
