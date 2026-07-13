@@ -240,7 +240,8 @@ test("makeOrder: ranks are a full 1..count permutation", () => {
 
 test("makeSort: the item truly belongs to the correct bin", () => {
   const rng = mulberry32(16);
-  const allSets = [...content.SORT_SETS, ...content.COLOR_SETS, ...content.LAW_SETS];
+  const allSets = [...content.SORT_SETS, ...content.COLOR_SETS, ...content.LAW_SETS,
+    ...content.DAY_NIGHT_SETS, ...content.HOT_COLD_SETS, ...content.DIGRAPH_SETS];
   for (const set of allSets) {
     for (let i = 0; i < 800; i++) {
       const r = L.makeSort(set, rng);
@@ -253,7 +254,8 @@ test("makeSort: the item truly belongs to the correct bin", () => {
 });
 
 test("every sortable item lives in exactly one bin of its set (no ambiguity)", () => {
-  const allSets = [...content.SORT_SETS, ...content.COLOR_SETS, ...content.LAW_SETS];
+  const allSets = [...content.SORT_SETS, ...content.COLOR_SETS, ...content.LAW_SETS,
+    ...content.DAY_NIGHT_SETS, ...content.HOT_COLD_SETS, ...content.DIGRAPH_SETS];
   for (const set of allSets) {
     const seen = new Map();
     set.bins.forEach((b, bi) => b.items.forEach((it) => {

@@ -428,6 +428,29 @@ body {
 .spot__cell { display: flex; align-items: center; justify-content: center; font-size: 2.6rem; min-height: 70px; background: rgba(255, 255, 255, 0.5); border-radius: 16px; }
 .spot__label { font-size: 0.9rem; color: #888; text-align: center; }
 
+/* ---------- Pop the Bubbles ---------- */
+.bub__field { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.bub {
+  min-height: 96px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #dff6ff, #9fd8ff);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 2.4rem;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.bub--pop { opacity: 0.4; transform: scale(0.7); }
+
+/* ---------- Peekaboo ---------- */
+.peek__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.peek { min-height: 100px; border-radius: 18px; background: #ffe6a8; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 2.8rem; }
+.peek--open { background: #d7f8de; }
+
+/* ---------- Pump the Balloon ---------- */
+.balloon { font-size: 3rem; line-height: 1; transition: font-size 0.2s ease-out, transform 0.8s ease-in; }
+.balloon--float { transform: translateY(-140px); opacity: 0.35; }
+
+/* ---------- Music Pad ---------- */
+.music__pad { min-height: 110px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); font-size: 2rem; color: rgba(255, 255, 255, 0.9); }
+.music__hit { filter: brightness(1.15); transform: scale(0.96); }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
@@ -443,7 +466,7 @@ body {
     animation: none !important;
     transform: none !important;
   }
-  .breathe__star, .coop__token { transition: none !important; }
-  .breathe--big { transform: none !important; }
+  .breathe__star, .coop__token, .balloon, .bub { transition: none !important; }
+  .breathe--big, .balloon--float { transform: none !important; }
   body { background-attachment: scroll; }
 }

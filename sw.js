@@ -21,6 +21,7 @@ const CORE = [
   "./scripts/games-literacy.js",
   "./scripts/games-science.js",
   "./scripts/games-calm.js",
+  "./scripts/games-fun.js",
   "./scripts/main.js",
   "./manifest.webmanifest",
 ];

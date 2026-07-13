@@ -205,4 +205,55 @@
       updateTurn();
     },
   });
+
+  // ---- Team Tower (2-player co-op build) ----
+  // Take turns adding blocks to a SHARED tower; reach the goal together = win.
+  F.register({
+    id: "team-build",
+    icon: "🏗️",
+    title: "Team Tower (2 players)",
+    skill: "co-op / build together [W]",
+    start(api) {
+      const GOAL = 6;
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
+      let turn = 0, count = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const tower = api.el("div", { class: "build__tower" });
+      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add block" } }, [players[0].emoji + " Add block"]);
+      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add block" } }, [players[1].emoji + " Add block"]);
+      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      api.stage.append(turnEl, tower, btns);
+      const laneBtns = [p0, p1];
+
+      function update() {
+        laneBtns.forEach((b, i) => {
+          const active = i === turn;
+          b.classList.toggle("coop__btn--active", active);
+          if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
+        });
+        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!";
+      }
+      function add(i) {
+        if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
+        count += 1;
+        const block = api.el("div", {
+          class: "build__block pop",
+          style: { background: (api.C.BLOCK_COLORS || ["#5ec8ff"])[(count - 1) % (api.C.BLOCK_COLORS || ["#5ec8ff"]).length] },
+        }, [players[i].emoji]);
+        tower.insertBefore(block, tower.firstChild);
+        api.say("Block " + count);
+        if (count >= GOAL) { api.win({ say: "You built it together! Yay!" }); return; }
+        turn = turn === 0 ? 1 : 0;
+        update();
+      }
+      p0.addEventListener("click", () => add(0));
+      p1.addEventListener("click", () => add(1));
+      api.setPrompt("Take turns adding blocks to your tower!", ["🕷️", "🔁", "🏗️"]);
+      api.speak();
+      update();
+    },
+  });
 })();

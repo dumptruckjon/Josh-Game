@@ -167,6 +167,18 @@
         { label: "Water", emoji: "🐟", items: ["🐟", "🐬", "🚤", "🦆", "🐙", "⛵"] },
       ] },
     ],
+    DAY_NIGHT_SETS: [
+      { name: "daynight", bins: [
+        { label: "Day", emoji: "🌞", items: ["🌻", "🌈", "⛅", "🏖️", "🪁", "🌅"] },
+        { label: "Night", emoji: "🌙", items: ["⭐", "🦉", "🌌", "🛌", "🕯️", "🦇"] },
+      ] },
+    ],
+    HOT_COLD_SETS: [
+      { name: "hotcold", bins: [
+        { label: "Hot", emoji: "🔥", items: ["☀️", "🌶️", "🍲", "☕", "🏜️", "🌋"] },
+        { label: "Cold", emoji: "❄️", items: ["🧊", "⛄", "🍦", "🐧", "🏔️", "🥶"] },
+      ] },
+    ],
 
     // ---- Digraphs (sh / ch) — every picture names itself and starts with the sound ----
     DIGRAPH_SETS: [

@@ -58,4 +58,6 @@
   sorter({ id: "science-sort", icon: "🔬", title: "Alive or Not?", skill: "science sort [M]", sets: C.SORT_SETS, prompt: "Where does it go?", icons: ["👀", "🔬", "👉"] });
   sorter({ id: "color-sort", icon: "🎨", title: "Sort the Colors", skill: "sort by color [M]", sets: C.COLOR_SETS, prompt: "Which color bin?", icons: ["👀", "🎨", "👉"] });
   sorter({ id: "law-sort", icon: "🌍", title: "Land, Air, Water", skill: "sort L/A/W [M]", sets: C.LAW_SETS, threeBins: true, prompt: "Land, air, or water?", icons: ["👀", "🌍", "👉"] });
+  sorter({ id: "day-night", icon: "🌗", title: "Day or Night?", skill: "sort day/night [M]", sets: C.DAY_NIGHT_SETS, prompt: "Is it day or night?", icons: ["👀", "🌗", "👉"] });
+  sorter({ id: "hot-cold", icon: "🌡️", title: "Hot or Cold?", skill: "sort hot/cold [M]", sets: C.HOT_COLD_SETS, prompt: "Is it hot or cold?", icons: ["👀", "🌡️", "👉"] });
 })();
