@@ -1,0 +1,12 @@
+{
+  "name": "josh-games",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A big, friendly games site for Josh (age 4).",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
+  }
+}

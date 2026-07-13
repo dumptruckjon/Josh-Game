@@ -1,0 +1,161 @@
+/* Josh's Games — one screen, giant friendly targets, static cheerful backdrop.
+   Mobile-first and built for iOS Safari (Josh plays on a phone/tablet). */
+
+:root {
+  --ink: #2b2b3a;
+  --card: #ffffff;
+  --pad: 16px;
+  /* Every tappable thing is at least this big — much bigger than the 44px adult
+     minimum, because little fingers are imprecise. */
+  --tap: 76px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  min-height: 100dvh; /* dvh, never bare 100vh — avoids the iOS toolbar gap */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  /* A STATIC, cheerful gradient — intentionally not animated: iOS repaints the
+     whole page on scroll and an animated full-page gradient flashes/pulses. */
+  background: linear-gradient(160deg, #bfe9ff 0%, #eafff0 55%, #fff6d6 100%);
+  -webkit-tap-highlight-color: transparent; /* no grey flash on rapid taps */
+  -webkit-text-size-adjust: 100%;
+}
+
+.page {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad);
+  /* Respect the notch and home indicator on iPhones. */
+  padding:
+    calc(env(safe-area-inset-top, 0px) + var(--pad))
+    calc(env(safe-area-inset-right, 0px) + var(--pad))
+    calc(env(safe-area-inset-bottom, 0px) + var(--pad))
+    calc(env(safe-area-inset-left, 0px) + var(--pad));
+}
+
+/* ---------- Top bar (title + sound toggle) ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pad);
+}
+
+.title {
+  margin: 0;
+  min-width: 0; /* let the title shrink instead of overflowing the row */
+  font-size: clamp(1.35rem, 6.5vw, 2.2rem);
+  color: #12507a;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.6);
+}
+
+.sound-toggle {
+  flex: 0 0 auto;
+  width: var(--tap);
+  height: var(--tap);
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: none;
+  border-radius: 50%;
+  font-size: 2rem;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(6px); /* Safari needs the prefix */
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  touch-action: manipulation; /* no double-tap zoom */
+}
+
+/* ---------- The toy ---------- */
+.toy {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pad);
+  text-align: center;
+}
+
+.toy__label {
+  margin: 0;
+  font-size: clamp(1.1rem, 5vw, 1.6rem);
+  color: #b83b5e;
+}
+
+.animal-card {
+  width: min(80vw, 320px);
+  height: min(80vw, 320px);
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: none;
+  border-radius: 32px;
+  background: var(--card);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.animal-card:active { transform: scale(0.98); }
+
+.animal-card__emoji {
+  font-size: clamp(5rem, 34vw, 11rem);
+  line-height: 1;
+}
+
+.animal-card__name {
+  font-size: clamp(1.3rem, 6vw, 2rem);
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.toy__cheer {
+  margin: 0;
+  min-height: 1.6em; /* reserve space so nothing jumps when a cheer appears */
+  font-size: clamp(1.2rem, 6vw, 1.8rem);
+  font-weight: 800;
+  color: #e5551e;
+}
+
+.toy__count {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #2b6b4a;
+}
+
+.footer {
+  text-align: center;
+  font-size: 1.6rem;
+}
+
+/* ---------- The pop-in animation for each new animal ---------- */
+@keyframes pop {
+  0%   { transform: scale(0.7); }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.animal-card.pop { animation: pop 320ms ease-out; }
+
+/* Calm everything for anyone who prefers reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animal-card.pop,
+  .animal-card:active { animation: none; transform: none; }
+}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Josh's Games 🎈</title>
+  <meta name="description" content="Big, friendly, no-fail little games for Josh." />
+  <!-- PWA: installable to the home screen (hides the URL bar), works offline. -->
+  <link rel="manifest" href="manifest.webmanifest?v=__BUILD__" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Josh" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#5ec8ff" />
+  <link rel="stylesheet" href="styles/main.css?v=__BUILD__" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>" />
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <h1 class="title">Josh's Games</h1>
+      <!-- Big, obvious sound toggle. Starts OFF (shows 🔇). -->
+      <button id="sound-toggle" class="sound-toggle" type="button"
+              aria-label="Sound is off. Tap to turn sound on." aria-pressed="false">🔇</button>
+    </header>
+
+    <section class="toy" aria-labelledby="toy-h">
+      <h2 id="toy-h" class="toy__label">Say hi to the animals!</h2>
+
+      <!-- The whole card is one giant tap zone (fat-finger friendly). -->
+      <button id="animal-card" class="animal-card" type="button" aria-label="animal">
+        <span id="animal-emoji" class="animal-card__emoji" aria-hidden="true">🐶</span>
+        <span id="animal-name" class="animal-card__name">Dog</span>
+      </button>
+
+      <p class="toy__cheer" id="animal-cheer" aria-live="polite"></p>
+      <p class="toy__count">Friends met: <span id="friend-count">0</span> ⭐</p>
+    </section>
+
+    <footer class="footer" aria-hidden="true">🎈 🎨 🐾</footer>
+  </main>
+
+  <!-- __BUILD__ is rewritten to the commit SHA at deploy time for cache-busting. -->
+  <script src="scripts/content.js?v=__BUILD__" defer></script>
+  <script src="scripts/effects.js?v=__BUILD__" defer></script>
+  <script src="scripts/main.js?v=__BUILD__" defer></script>
+</body>
+</html>

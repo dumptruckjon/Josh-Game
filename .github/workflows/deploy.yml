@@ -1,0 +1,108 @@
+name: Deploy to GitHub Pages
+
+# Publishes the static site whenever main is updated.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent deployment; don't cancel an in-progress one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # Tests must pass before anything is published — no broken deploys.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install browsers (Chromium + WebKit/Safari engine)
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run tests (unit + browser e2e + mobile WebKit)
+        run: npm test
+
+  deploy:
+    needs: test
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache-bust assets with the commit SHA
+        # Rewrites the __BUILD__ token -> <sha> so browsers never serve stale
+        # JS/CSS, and the service worker's cache name changes each deploy.
+        run: sed -i "s/__BUILD__/${GITHUB_SHA::8}/g" index.html sw.js
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Validate the ACTUAL deployed site in real browsers — including WebKit
+  # (Safari's engine) — so we never declare something shipped that's broken.
+  verify-live:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install browsers (Chromium + WebKit/Safari engine)
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Wait for the live site to serve this commit
+        run: |
+          url="${{ needs.deploy.outputs.page_url }}"
+          if [ -z "$url" ]; then url="https://dumptruckjon.github.io/Josh-Game/"; fi
+          echo "JOSH_BASE_URL=$url" >> "$GITHUB_ENV"
+          sha="${GITHUB_SHA::8}"
+          echo "Polling $url for ?v=$sha ..."
+          for i in $(seq 1 30); do
+            if curl -fsSL "$url" | grep -q "v=$sha"; then
+              echo "Live site is serving $sha"; exit 0
+            fi
+            echo "attempt $i: not yet, waiting 10s"; sleep 10
+          done
+          echo "::error::Live site did not update to $sha within ~5 min"; exit 1
+
+      - name: Run browser tests against the LIVE site
+        run: npm test
