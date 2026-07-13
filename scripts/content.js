@@ -27,13 +27,15 @@
       { name: "Spin", emoji: "🕸️", color: "#2b6cff" },
     ],
     // Rescue pups (Paw Patrol homage) — a name + pup emoji + a rescue vehicle.
+    // collar = each pup's signature colour, so the rescue scene shows visibly
+    // DIFFERENT pups (not four identical 🐶) and you can count one kind.
     PUPS: [
-      { name: "Chase", emoji: "🐕‍🦺", job: "🚓" },
-      { name: "Marshall", emoji: "🐶", job: "🚒" },
-      { name: "Skye", emoji: "🐩", job: "🚁" },
-      { name: "Rubble", emoji: "🐶", job: "🚜" },
-      { name: "Rocky", emoji: "🐶", job: "♻️" },
-      { name: "Zuma", emoji: "🐶", job: "🚤" },
+      { name: "Chase", emoji: "🐕‍🦺", job: "🚓", collar: "#2b6cff" },
+      { name: "Marshall", emoji: "🐶", job: "🚒", collar: "#e23636" },
+      { name: "Skye", emoji: "🐩", job: "🚁", collar: "#ff7ac0" },
+      { name: "Rubble", emoji: "🐶", job: "🚜", collar: "#ffd24d" },
+      { name: "Rocky", emoji: "🐶", job: "♻️", collar: "#7be08a" },
+      { name: "Zuma", emoji: "🐶", job: "🚤", collar: "#ff9f43" },
     ],
     // Construction crew (Rubble & Crew homage).
     CREW: [

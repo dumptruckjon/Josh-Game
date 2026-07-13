@@ -259,9 +259,13 @@ category's games:
 > their heritage-informed specs in `content.js` `FRIENDS`). Faces show up in **Spell
 > My Name**, race in **Friends Race**, headline the **turn banner of every co-op
 > game** (`coopTurn()` in `games-calm.js` — "Josh's turn!" shows Josh's face), and
-> beam from the **I Did It! certificate**; the Spidey-style `hero()` still pops on
-> every win. Keep the four visibly distinct (a `content.test.js` guardrail enforces
-> unique shirt + skin/hair/style).
+> beam from the **I Did It! certificate**. The other art is now used widely too:
+> `numberFriend()` (Numberblocks-style) is the countable in **Add It Up** &
+> **Find the Number**; `hero()` fills **Find the Heroes** (a colour search) and pops
+> on every win; `pup()` (with per-pup collar colours in `PUPS`) fills **Paw Patrol
+> Rescue**; `balloon()` is **Pump the Balloon**; and **Peekaboo** hides friends,
+> heroes and animals. Keep the four friends visibly distinct and pup collars unique
+> (`content.test.js` guardrails enforce both).
 
 Games personalize by rotating Josh's friends (**Raegar / River / Viraj**), Spidey
 heroes, and Paw-Patrol/Rubble homage names (**emoji + names only — not the

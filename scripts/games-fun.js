@@ -41,22 +41,32 @@
     title: "Peekaboo!",
     skill: "cause→effect / object permanence",
     start(api) {
+      const ART = window.JoshArt;
       const grid = api.el("div", { class: "peek__grid" });
       api.stage.append(grid);
       api.setPrompt("Tap a door — who is hiding?", ["👆", "🚪", "🐰"]);
       api.speak();
+      // Behind the doors: Josh & his friends, the heroes, and some animals — so
+      // "who is hiding?" is often someone he knows.
+      const reveals = [];
+      (C.FRIENDS || []).forEach((f) => reveals.push({ art: (ART && ART.friend && f.art) ? ART.friend(f.art) : null, emoji: f.emoji, name: f.name }));
+      (C.HEROES || []).forEach((h) => reveals.push({ art: (ART && ART.hero) ? ART.hero(h.color) : null, emoji: h.emoji, name: h.name }));
+      (C.ANIMALS || [{ emoji: "🐰", name: "Bunny" }]).forEach((a) => reveals.push({ art: null, emoji: a.emoji, name: a.name }));
+      const pool = api.shuffle(reveals);
       for (let i = 0; i < 6; i++) {
-        const animal = api.randItem(C.ANIMALS || [{ emoji: "🐰", name: "Bunny" }]);
+        const who = pool[i % pool.length];
         let open = false;
         const cell = api.el("button", { class: "peek tap", type: "button", dataset: { toy: "1" }, aria: { label: "peek" } }, ["🚪"]);
         cell.addEventListener("click", () => {
           open = !open;
+          cell.innerHTML = "";
           if (open) {
-            cell.textContent = animal.emoji;
+            if (who.art) { const s = document.createElement("span"); s.className = "peek__art art-fill"; s.setAttribute("aria-hidden", "true"); s.innerHTML = who.art; cell.appendChild(s); }
+            else cell.textContent = who.emoji;
             cell.classList.add("peek--open");
             api.tickPlay();
             api.roundWin();
-            api.say(animal.name);
+            api.say(who.name);
           } else {
             cell.textContent = "🚪";
             cell.classList.remove("peek--open");
@@ -76,15 +86,19 @@
     start(api) {
       const ROUNDS = 3;
       const FULL = 5;
+      const COLORS = ["#ff5e7e", "#5ec8ff", "#7be08a", "#ffd24d", "#c77dff"];
       let round = 0, pumps = 0;
-      const bal = api.el("div", { class: "balloon", aria: { hidden: "true" } }, ["🎈"]);
+      const art = api.el("div", { class: "balloon__art art-fill", aria: { hidden: "true" } });
+      const bal = api.el("div", { class: "balloon" }, [art]);
       const pumpBtn = api.el("button", { class: "btn-big", type: "button", dataset: { correct: "1" } }, ["Pump! ⬆️"]);
       const nextBtn = api.el("button", { class: "btn-big", type: "button", hidden: "" }, ["Again 🎈"]);
       api.stage.append(bal, pumpBtn, nextBtn);
 
+      function draw() { art.style.width = (58 + pumps * 20) + "px"; }
       function newRound() {
         pumps = 0;
-        bal.style.fontSize = "3rem";
+        art.innerHTML = (window.JoshArt && window.JoshArt.balloon) ? window.JoshArt.balloon(api.randItem(COLORS)) : "🎈";
+        draw();
         bal.classList.remove("balloon--float");
         pumpBtn.hidden = false; pumpBtn.dataset.correct = "1";
         api.setPrompt("Pump the balloon BIG!", ["👆", "🎈", "⬆️"]);
@@ -93,7 +107,7 @@
       pumpBtn.addEventListener("click", () => {
         if (pumps >= FULL) return;
         pumps += 1;
-        bal.style.fontSize = (3 + pumps * 1.2) + "rem";
+        draw();
         api.say(String(pumps));
         if (pumps === FULL) {
           delete pumpBtn.dataset.correct; pumpBtn.hidden = true;

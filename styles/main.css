@@ -460,11 +460,18 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   border-radius: 20px; background: linear-gradient(180deg, #ffffff, #eef4ff);
   border: 2px solid rgba(120, 170, 255, 0.22); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
+/* Numberblocks-style friends as the addends / total */
+.add__group--friend { background: none; padding: 0; max-width: 96px; width: 84px; }
+.add__group--friend svg { width: 100%; height: auto; display: block; }
+.add__pile--friend { width: 110px; min-height: var(--tap); padding: 8px; }
+.add__pile--friend svg { width: 100%; height: auto; display: block; }
 
 /* ---------- Find the Number ---------- */
 .nm__num { font-size: 4rem; font-weight: 900; color: #5a3ec7; line-height: 1; }
 .nm__group { flex-wrap: wrap; gap: 3px; padding: 8px; }
 .nm__dot { font-size: 1.35rem; line-height: 1; }
+.nm__group--friend { padding: 8px; }
+.nm__group--friend svg { width: 74%; height: auto; display: block; }
 
 /* ---------- What Time? ---------- */
 .clock svg { width: min(64vw, 240px); height: min(64vw, 240px); }
@@ -509,10 +516,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .peek__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
 .peek { min-height: 100px; border-radius: 18px; background: #ffe6a8; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 2.8rem; }
 .peek--open { background: #d7f8de; }
+.peek__art { width: 58px; display: block; margin: 0 auto; }
+.peek__art svg { width: 100%; height: auto; display: block; }
 
 /* ---------- Pump the Balloon ---------- */
-.balloon { font-size: 3rem; line-height: 1; transition: font-size 0.2s ease-out, transform 0.8s ease-in; }
-.balloon--float { transform: translateY(-140px); opacity: 0.35; }
+.balloon { line-height: 1; transition: transform 0.8s ease-in; }
+.balloon__art { width: 58px; margin: 0 auto; transition: width 0.2s ease-out; }
+.balloon__art svg { width: 100%; height: auto; display: block; }
+.balloon--float { transform: translateY(-160px); opacity: 0.35; }
 
 /* ---------- Music Pad ---------- */
 .music__pad { min-height: 110px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); font-size: 2rem; color: rgba(255, 255, 255, 0.9); }
@@ -532,6 +543,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 /* Dense static scene (count-the-scene) — spans, not tap targets, so they can be small. */
 .find__field--dense { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 6px; }
 .find__dot { font-size: 1.9rem; line-height: 1; }
+/* SVG character art in the find games (heroes / pups) */
+.find__targetArt { width: 58px; }
+.find__targetArt svg { width: 100%; height: auto; display: block; }
+.find__cell--art { display: flex; align-items: center; justify-content: center; padding: 6px; }
+.find__cellArt { width: 78%; }
+.find__cellArt svg { width: 100%; height: auto; display: block; }
+.find__dot--art { width: 42px; }
+.find__dot--art svg { width: 100%; height: auto; display: block; }
 
 /* ---------- Tic-Tac-Toe ---------- */
 .ttt { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: min(90vw, 340px); margin: 0 auto; }

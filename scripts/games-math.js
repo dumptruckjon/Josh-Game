@@ -377,30 +377,32 @@
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(scene, choices);
 
-      function group(count, obj) {
-        const g = api.el("div", { class: "add__group" });
-        for (let i = 0; i < count; i++) g.appendChild(api.el("span", { class: "add__dot", text: obj }));
-        return g;
+      // Numberblocks-style: each addend is a number-FRIEND (a stack of n cubes
+      // with a face), so "3 + 2" is a 3-friend and a 2-friend that merge into a
+      // 5-friend you tap to count — his favourite characters ARE the maths.
+      const BC = C.BLOCK_COLORS || ["#5ec8ff", "#ff9f43", "#ffd24d", "#7be08a", "#3ec7c7", "#5ec8ff", "#8a7bff", "#c77dff", "#ff7ac0", "#a0d468"];
+      const nf = (n) => (window.JoshArt && window.JoshArt.numberFriend) ? window.JoshArt.numberFriend(n, BC[(n - 1) % BC.length]) : "🧱";
+      function group(count) {
+        return api.el("div", { class: "add__group add__group--friend art-fill", aria: { hidden: "true" }, html: nf(count) });
       }
       function advance() {
         round += 1;
         if (round >= ROUNDS) api.win();
         else { api.roundWin(); setTimeout(newRound, 60); }
       }
-      // A#4 + B#3: on the right answer the two groups slide together into ONE pile,
-      // then the child taps the pile to COUNT it (a second thought per round, and
+      // A#4 + B#3: on the right answer the two friends slide together into ONE
+      // friend, then the child taps it to COUNT (a second thought per round, and
       // the transformation IS the concept: "add" = put them together and count).
-      function merge(sum, obj) {
+      function merge(sum) {
         choices.innerHTML = ""; // consume the choices
         scene.classList.add("add__scene--merge");
         api.say("Put them together");
         setTimeout(() => {
           scene.classList.remove("add__scene--merge");
           scene.innerHTML = "";
-          const pile = api.el("button", { class: "add__pile tap", type: "button", dataset: { correct: "1" }, aria: { label: "count the pile" } });
-          for (let i = 0; i < sum; i++) pile.appendChild(api.el("span", { class: "add__dot", text: obj }));
+          const pile = api.el("button", { class: "add__pile add__pile--friend tap art-fill", type: "button", dataset: { correct: "1" }, aria: { label: "count the pile" }, html: nf(sum) });
           scene.appendChild(pile);
-          api.setPrompt("Tap the pile to count them!", ["👆", "🔢", "😊"]);
+          api.setPrompt("Tap the friend to count them!", ["👆", "🔢", "😊"]);
           api.speak();
           pile.addEventListener("click", () => {
             delete pile.dataset.correct;
@@ -412,16 +414,15 @@
       }
       function newRound() {
         const r = L.makeAddition();
-        const obj = api.randItem(C.COUNT_OBJECTS);
         const sum = r.a + r.b;
         api.setPrompt("How many all together?", ["👀", "➕", "🔢"]);
         api.speak();
         scene.innerHTML = "";
-        scene.append(group(r.a, obj), api.el("div", { class: "add__plus", text: "➕" }), group(r.b, obj));
+        scene.append(group(r.a), api.el("div", { class: "add__plus", text: "➕" }), group(r.b));
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
-          b.addEventListener("click", () => { if (ch.correct) merge(sum, obj); else api.tryAgain(b); });
+          b.addEventListener("click", () => { if (ch.correct) merge(sum); else api.tryAgain(b); });
           choices.appendChild(b);
         });
         api.mascot();
@@ -446,17 +447,19 @@
       api.stage.append(numEl, groups);
       api.mascot();
 
+      // Each group is a Numberblocks-style number-FRIEND of that many cubes, so
+      // "which has this many?" is matched by counting a friend's blocks.
+      const BC = C.BLOCK_COLORS || ["#5ec8ff", "#ff9f43", "#ffd24d", "#7be08a", "#3ec7c7", "#5ec8ff", "#8a7bff", "#c77dff", "#ff7ac0", "#a0d468"];
+      const nf = (n) => (window.JoshArt && window.JoshArt.numberFriend) ? window.JoshArt.numberFriend(n, BC[(n - 1) % BC.length]) : "🧱";
       function newRound() {
         const r = L.makeNumberMatch();
-        const obj = api.randItem(C.COUNT_OBJECTS);
         numEl.textContent = String(r.n);
-        api.setPrompt("Tap the group with this many.", ["👀", "🔢", "👉"]);
+        api.setPrompt("Tap the friend with this many blocks.", ["👀", "🔢", "👉"]);
         api.speak();
         api.say(String(r.n));
         groups.innerHTML = "";
         r.groups.forEach((g) => {
-          const b = api.el("button", { class: "choice nm__group tap", type: "button", dataset: g.correct ? { correct: "1" } : {}, aria: { label: g.count + " things" } });
-          for (let i = 0; i < g.count; i++) b.appendChild(api.el("span", { class: "nm__dot", text: obj }));
+          const b = api.el("button", { class: "choice nm__group nm__group--friend tap art-fill", type: "button", dataset: g.correct ? { correct: "1" } : {}, aria: { label: g.count + " blocks" }, html: nf(g.count) });
           b.addEventListener("click", () => { if (g.correct) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } } else api.tryAgain(b); });
           groups.appendChild(b);
         });

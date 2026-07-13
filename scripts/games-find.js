@@ -19,22 +19,28 @@
       const field = api.el("div", { class: "find__field" });
       api.stage.append(target, field);
 
+      // The heroes are drawn as original masked-hero art (red = Spidey, pink =
+      // Ghost-Spider, blue = Spin); "find all the red ones" is a colour search.
+      const HERO_COLORS = (C.HEROES || []).map((h) => h.color).filter(Boolean);
+      const POOL = HERO_COLORS.length >= 3 ? HERO_COLORS : ["#e23636", "#ec4e9c", "#2b6cff"];
+      const heroArt = (c) => (window.JoshArt && window.JoshArt.hero) ? window.JoshArt.hero(c) : "🕷️";
       function newRound() {
         const size = 9 + round * 2; // harder each round
-        const r = L.makeFindHero(C.FIND_POOL, size);
+        const r = L.makeFindHero(POOL, size);
         need = r.count; found = 0;
         target.innerHTML = "";
         target.append(
-          api.el("span", { class: "find__targetEmoji", text: r.target }),
+          api.el("span", { class: "find__targetArt art-fill", aria: { hidden: "true" }, html: heroArt(r.target) }),
           api.el("span", { class: "find__targetLabel", text: "Find " + r.count + "!" })
         );
-        api.setPrompt("Find all " + r.count + " of these!", ["👀", "🔎", "👆"]);
+        api.setPrompt("Find all " + r.count + " of these heroes!", ["👀", "🕷️", "👆"]);
         api.speak();
         field.innerHTML = "";
         r.cells.forEach((cell) => {
           const b = api.el("button", {
-            class: "find__cell tap", type: "button", text: cell.emoji,
-            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: "picture" },
+            class: "find__cell find__cell--art tap", type: "button",
+            html: '<span class="find__cellArt art-fill" aria-hidden="true">' + heroArt(cell.emoji) + "</span>",
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: "hero" },
           });
           b.addEventListener("click", () => {
             if (cell.correct && !b.dataset.done) {
@@ -246,25 +252,29 @@
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(target, field, choices);
 
+      // Pups are drawn as original rescue-pup art with each one's signature COLLAR
+      // colour, so the scene has visibly different pups to count (not identical 🐶).
+      const pupArt = (c) => (window.JoshArt && window.JoshArt.pup) ? window.JoshArt.pup(c) : "🐶";
       function newRound() {
-        const pup = api.randItem(C.PUPS || [{ name: "Pup", emoji: "🐶", job: "🚒" }]);
+        const PUPS = C.PUPS || [{ name: "Pup", job: "🚒", collar: "#e23636" }];
+        const pup = api.randItem(PUPS);
+        const others = PUPS.filter((p) => p.collar !== pup.collar);
         const K = api.randInt(2, 5);
-        const others = (C.FIND_POOL || ["⭐"]).filter((e) => e !== pup.emoji);
         const total = 12 + round * 2;
         const cells = [];
-        for (let i = 0; i < K; i++) cells.push(pup.emoji);
-        for (let i = 0; i < total - K; i++) cells.push(api.randItem(others));
+        for (let i = 0; i < K; i++) cells.push(pup.collar);
+        for (let i = 0; i < total - K; i++) cells.push((api.randItem(others) || pup).collar);
         const scene = L.shuffle(cells);
         const used = new Set([K]); const wrongs = [];
         while (wrongs.length < 2) { const w = api.randInt(1, 9); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
         const chs = L.shuffle([{ n: K, correct: true }, ...wrongs.map((n) => ({ n, correct: false }))]);
 
         target.innerHTML = "";
-        target.append(api.el("span", { class: "find__targetEmoji", text: pup.emoji }), api.el("span", { class: "find__targetLabel", text: pup.name }));
+        target.append(api.el("span", { class: "find__targetArt art-fill", aria: { hidden: "true" }, html: pupArt(pup.collar) }), api.el("span", { class: "find__targetLabel", text: pup.name }));
         api.setPrompt("How many " + pup.name + " pups can you find?", ["👀", "🐶", pup.job]);
         api.speak();
         field.innerHTML = "";
-        scene.forEach((e) => field.appendChild(api.el("span", { class: "find__dot", text: e })));
+        scene.forEach((c) => field.appendChild(api.el("span", { class: "find__dot find__dot--art art-fill", aria: { hidden: "true" }, html: pupArt(c) })));
         choices.innerHTML = "";
         chs.forEach((ch) => {
           const b = api.el("button", {

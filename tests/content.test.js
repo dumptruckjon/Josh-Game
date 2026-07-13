@@ -338,6 +338,14 @@ test("odd-one-out FEATURE sets: base and odd differ (a real one-feature distinct
   }
 });
 
+test("rescue pups have distinct collar colours (so counting one kind is unambiguous)", () => {
+  const pups = content.PUPS || [];
+  assert.ok(pups.length >= 3, "need several pups");
+  for (const p of pups) assert.match(p.collar || "", /^#[0-9a-f]{6}$/i, `${p.name} needs a collar colour`);
+  const collars = pups.map((p) => p.collar);
+  assert.equal(new Set(collars).size, collars.length, "every pup's collar colour is distinct");
+});
+
 test("each friend has a portrait spec and the four are clearly differentiable", () => {
   const friends = content.FRIENDS || [];
   assert.ok(friends.length >= 4, "need Josh + friends");
