@@ -246,6 +246,16 @@
         svg: '<ellipse cx="50" cy="30" rx="20" ry="7" fill="#a0d468"/><rect x="30" y="30" width="40" height="42" fill="#7be08a"/><ellipse cx="50" cy="72" rx="20" ry="7" fill="#5cc46a"/>' },
     ],
 
+    // ---- Picture Squares (mini picture-sudoku) — trios of distinct pictures ----
+    SQUARE_TRIOS: [
+      ["🍎", "🍌", "🍓"],
+      ["🐶", "🐱", "🐰"],
+      ["⭐", "❤️", "🔵"],
+      ["🚗", "🚀", "🚌"],
+      ["☀️", "🌙", "🌈"],
+      ["🐝", "🦋", "🐞"],
+    ],
+
     // ---- Who Is It? (multi-attribute deduction) ----
     // Two positive attributes: a body color and a held item. All 6 combos are
     // distinct, so a (color + item) clue pair always narrows to exactly one.

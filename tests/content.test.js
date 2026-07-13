@@ -161,6 +161,14 @@ test("deduction attributes are distinct so a color+item clue is unique", () => {
   for (const c of content.DEDUCE_COLORS) assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.key} needs a hex`);
 });
 
+test("picture-square trios are exactly 3 distinct, self-naming pictures", () => {
+  assert.ok(content.SQUARE_TRIOS.length >= 3, "need several trios to rotate");
+  for (const trio of content.SQUARE_TRIOS) {
+    assert.equal(trio.length, 3, `trio ${trio} must have 3 symbols`);
+    assert.equal(new Set(trio).size, 3, `trio ${trio} must be all distinct`);
+  }
+});
+
 test("color-by-number pictures are valid (equal-width rows; known colors; <=3 wide)", () => {
   const keys = new Set(Object.keys(content.CBN_COLORS));
   for (const pic of content.CBN_PICTURES) {

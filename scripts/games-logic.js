@@ -399,4 +399,51 @@
       newRound();
     },
   });
+
+  // ---- Picture Squares (mini picture-sudoku / Latin square) ----
+  // Each of 3 pictures appears once per row AND once per column. One cell is
+  // blank — deduce which picture belongs there (row/column elimination).
+  F.register({
+    id: "picture-squares",
+    icon: "🧩",
+    title: "Picture Squares",
+    skill: "deduction / sudoku [W]",
+    start(api) {
+      const C = api.C;
+      const TRIOS = C.SQUARE_TRIOS || [["🍎", "🍌", "🍓"]];
+      const ROUNDS = 4;
+      let round = 0;
+      const grid = api.el("div", { class: "sudoku__grid" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(grid, choices);
+
+      function newRound() {
+        const r = L.makeLatinSquare(api.randItem(TRIOS));
+        api.setPrompt("Which picture is missing?", ["👀", "🧩", "❓"]);
+        api.speak();
+        grid.innerHTML = "";
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 3; col++) {
+            const isBlank = row === r.blankR && col === r.blankC;
+            grid.appendChild(api.el("span", {
+              class: "sudoku__cell" + (isBlank ? " sudoku__cell--blank" : ""), aria: { hidden: "true" },
+            }, [isBlank ? "" : r.grid[row][col]]));
+          }
+        }
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.sym,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You solved it!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

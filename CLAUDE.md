@@ -185,7 +185,7 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~59 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**~63 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
@@ -194,13 +194,16 @@ category's games:
   Many Are Left? (take-away), Which Has More?, Penny Shop (money), Add It Up,
   Find the Number, What Time?, Build the Number (place value), Ten & Some More
   (teen), Set the Clock, **Make Ten** (number bonds), **Add Big Numbers**
-  (2-digit addition with bead-style rods+dots).
+  (2-digit addition with bead-style rods+dots), **Piggy Bank** (coin value —
+  penny/nickel), **Which Is Bigger?** (compare numerals).
 - **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
   Word (sight words), sh or ch? (digraphs), Big & Little Letters, Missing Letter,
-  **Read & Zap** (read a word → tap its picture).
+  **Read & Zap** (read a word → tap its picture), **Rhyme Train** (find every
+  picture that rhymes).
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
   Shadow (SVG shapes), Small to Big, Memory Match, Put in Order, What Changed?,
-  Color by Number, **Who Is It?** (2-clue deduction).
+  Color by Number, **Who Is It?** (2-clue deduction), **Picture Squares** (mini
+  picture-sudoku).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
   Paw Patrol Rescue, **Find the Twins** (one matching pair), **I Spy: Find Them
   All** (tap every member of a category) — his favorite, harder each round.

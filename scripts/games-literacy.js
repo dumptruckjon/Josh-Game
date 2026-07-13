@@ -298,6 +298,53 @@
     },
   });
 
+  // ---- Rhyme Train: find EVERY picture that rhymes with the target ([W]) ----
+  // Extends Which-Rhymes? (pick one) into a visual hunt (find them all), on his
+  // live rhyming edge. Control-of-error stays the self-naming pictures + audio.
+  F.register({
+    id: "rhyme-train",
+    icon: "🚂",
+    title: "Rhyme Train",
+    skill: "rhyming [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 5;
+      let round = 0, need = 0, got = 0;
+      const target = api.el("div", { class: "find__target" });
+      const field = api.el("div", { class: "find__field" });
+      api.stage.append(target, field);
+
+      function newRound() {
+        const r = L.makeRhymeHunt(C.RHYME_GROUPS, 6);
+        need = r.count; got = 0;
+        target.innerHTML = "";
+        target.append(
+          api.el("span", { class: "find__targetEmoji", text: r.target.emoji }),
+          api.el("span", { class: "find__targetLabel", text: "Rhymes with " + r.target.word })
+        );
+        api.setPrompt("Find all that rhyme!", ["👂", "🚂", "👆"]);
+        api.speak();
+        api.say("Rhymes with " + r.target.word);
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "find__cell tap", type: "button", text: cell.emoji,
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.word },
+          });
+          b.addEventListener("click", () => {
+            if (cell.correct && !b.dataset.done) {
+              b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("find__cell--found");
+              got += 1; api.say(cell.word);
+              if (got >= need) { round += 1; if (round >= ROUNDS) api.win({ say: "You found all the rhymes!" }); else { api.roundWin(); newRound(); } }
+            } else if (!cell.correct) api.tryAgain(b);
+          });
+          field.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
   // ---- Read & Zap: read the printed word, tap its picture ([M] reading) ----
   // The inverse of Build-a-Word: real whole-word reading, but control-of-error
   // is a SELF-NAMING picture so a non-reader still self-checks (audio helps).

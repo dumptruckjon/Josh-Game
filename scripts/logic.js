@@ -450,6 +450,61 @@
     return { name: solid.name, svg: solid.svg, answer, choices };
   }
 
+  // --- Piggy Bank (fill to an exact price with pennies/nickels) -----------
+  // Returns a small price plus one valid nickel/penny decomposition (display
+  // hint). A penny (1¢) is always addable while money is owed, so the game
+  // always lands EXACTLY on the price and can never overpay.
+  function makePiggyBank(rng = Math.random) {
+    const price = randInt(3, 10, rng);
+    const nickels = Math.floor(price / 5);
+    const pennies = price - nickels * 5;
+    return { price, nickels, pennies };
+  }
+
+  // --- Number Muncher (compare two written numerals) ----------------------
+  function makeNumberCompare(min, max, rng = Math.random) {
+    const a = randInt(min, max, rng);
+    let b = randInt(min, max, rng);
+    while (b === a) b = randInt(min, max, rng); // never a tie
+    return { a, b, bigger: Math.max(a, b), answer: a > b ? "a" : "b" };
+  }
+
+  // --- Picture Squares (a solved 3×3 Latin square, one cell blanked) ------
+  // Each of 3 symbols appears exactly once per row AND per column; blank one
+  // cell and the missing symbol for that row/column is the unique answer.
+  function makeLatinSquare(symbols, rng = Math.random) {
+    if (!Array.isArray(symbols) || symbols.length < 3) throw new Error("makeLatinSquare needs >= 3 symbols");
+    const s = sample(symbols, 3, rng); // 3 distinct symbols
+    const base = [[0, 1, 2], [1, 2, 0], [2, 0, 1]]; // a cyclic Latin square of indices
+    const rowOrder = shuffle([0, 1, 2], rng), colOrder = shuffle([0, 1, 2], rng);
+    const grid = rowOrder.map((r) => colOrder.map((c) => s[base[r][c]]));
+    const blankR = randInt(0, 2, rng), blankC = randInt(0, 2, rng);
+    const answer = grid[blankR][blankC];
+    const choices = shuffle(s.map((sym) => ({ sym, correct: sym === answer })), rng);
+    return { grid, blankR, blankC, answer, choices, symbols: s };
+  }
+
+  // --- Rhyme Train / Rhyme Hunt (find every picture that rhymes) ----------
+  function makeRhymeHunt(groups, size, rng = Math.random) {
+    if (!Array.isArray(groups) || groups.length < 2) throw new Error("makeRhymeHunt needs >= 2 groups");
+    size = size || 6;
+    const gi = randInt(0, groups.length - 1, rng);
+    const g = groups[gi];
+    const ti = randInt(0, g.length - 1, rng);
+    const target = g[ti];
+    const rhymers = g.filter((_, i) => i !== ti); // every one truly rhymes with target
+    const K = rhymers.length;
+    const others = [];
+    groups.forEach((grp, idx) => { if (idx !== gi) grp.forEach((it) => others.push(it)); });
+    const fillers = sample(others, Math.max(0, size - K), rng);
+    const cells = shuffle(
+      [...rhymers.map((it) => ({ emoji: it.emoji, word: it.word, correct: true })),
+        ...fillers.map((it) => ({ emoji: it.emoji, word: it.word, correct: false }))],
+      rng
+    );
+    return { target, count: K, cells };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -468,6 +523,7 @@
     makeLetterMatch, makeMissingLetter, makeSpotDifference,
     makeFindHero, makeCrowd, makeFindCount, tttWinner, TTT_LINES, makeTeen,
     makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
+    makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

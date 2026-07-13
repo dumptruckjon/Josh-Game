@@ -531,3 +531,69 @@ test("makeSolidMatch: correct object belongs to the shown solid, distractors don
     assert.equal(new Set(r.choices.map((c) => c.emoji)).size, 3, "distinct objects");
   }
 });
+
+// ---------- Second batch: Piggy Bank, Number Muncher, Picture Squares, Rhyme Train ----------
+
+test("makePiggyBank: a valid, small, exactly-payable price", () => {
+  const rng = mulberry32(41);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makePiggyBank(rng);
+    assert.ok(r.price >= 3 && r.price <= 10, "price is small");
+    assert.equal(r.nickels * 5 + r.pennies, r.price, "decomposition equals the price exactly");
+    assert.ok(r.pennies >= 0 && r.pennies < 5, "greedy pennies < 5");
+  }
+});
+
+test("makeNumberCompare: never a tie; the larger is always correct", () => {
+  const rng = mulberry32(42);
+  for (const max of [10, 19]) {
+    for (let i = 0; i < 3000; i++) {
+      const r = L.makeNumberCompare(1, max, rng);
+      assert.notEqual(r.a, r.b, "never equal");
+      assert.equal(r.bigger, Math.max(r.a, r.b), "bigger is the max");
+      const chosen = r.answer === "a" ? r.a : r.b;
+      assert.equal(chosen, r.bigger, "the correct side is the strictly larger number");
+    }
+  }
+});
+
+test("makeLatinSquare: valid 3x3 (each symbol once per row & column); unique answer", () => {
+  const rng = mulberry32(43);
+  for (const trio of content.SQUARE_TRIOS) {
+    for (let i = 0; i < 500; i++) {
+      const r = L.makeLatinSquare(trio, rng);
+      const set = new Set(r.symbols);
+      assert.equal(set.size, 3, "three distinct symbols");
+      for (let row = 0; row < 3; row++) {
+        assert.deepEqual([...r.grid[row]].sort(), [...r.symbols].sort(), `row ${row} has all three`);
+      }
+      for (let col = 0; col < 3; col++) {
+        const column = [r.grid[0][col], r.grid[1][col], r.grid[2][col]];
+        assert.deepEqual([...column].sort(), [...r.symbols].sort(), `col ${col} has all three`);
+      }
+      assert.equal(r.answer, r.grid[r.blankR][r.blankC], "answer is the blanked cell's symbol");
+      const correct = r.choices.filter((c) => c.correct);
+      assert.equal(correct.length, 1, "exactly one correct choice");
+      assert.equal(correct[0].sym, r.answer, "correct choice is the answer");
+    }
+  }
+});
+
+test("makeRhymeHunt: every 'correct' cell shares the target's rhyme group; fillers don't", () => {
+  const rng = mulberry32(44);
+  const groupOf = {};
+  content.RHYME_GROUPS.forEach((g, gi) => g.forEach((it) => { groupOf[it.word] = gi; }));
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeRhymeHunt(content.RHYME_GROUPS, 6, rng);
+    const tGroup = groupOf[r.target.word];
+    const correct = r.cells.filter((c) => c.correct);
+    assert.ok(correct.length >= 1, "at least one rhyme to find");
+    assert.equal(correct.length, r.count, "count matches correct cells");
+    correct.forEach((c) => {
+      assert.equal(groupOf[c.word], tGroup, `${c.word} must rhyme with ${r.target.word}`);
+      assert.notEqual(c.word, r.target.word, "target itself is not a choice");
+    });
+    r.cells.filter((c) => !c.correct).forEach((c) =>
+      assert.notEqual(groupOf[c.word], tGroup, `${c.word} must NOT rhyme with the target`));
+  }
+});

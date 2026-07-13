@@ -691,4 +691,103 @@
       newRound();
     },
   });
+
+  // ---- Piggy Bank (coin VALUE — the next step in money, [NEW]) ----
+  // Fill the piggy to an exact price. A penny is worth 1¢, a nickel 5¢ (drawn
+  // as labeled discs — never a bare ambiguous coin). Running WORTH is spoken.
+  F.register({
+    id: "piggy-bank",
+    icon: "🐷",
+    title: "Piggy Bank",
+    skill: "money / coin value [NEW]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4;
+      let round = 0, price = 0, worth = 0;
+      const tag = api.el("div", { class: "piggy__tag" });
+      const worthEl = api.el("div", { class: "piggy__worth", aria: { live: "polite" } });
+      const jar = api.el("div", { class: "piggy__jar" }, ["🐷"]);
+      const penny = api.el("button", { class: "coin coin--penny tap", type: "button", aria: { label: "one cent penny" } }, ["1¢"]);
+      const nickel = api.el("button", { class: "coin coin--nickel tap", type: "button", aria: { label: "five cent nickel" } }, ["5¢"]);
+      const nextBtn = api.el("button", { class: "btn-big", type: "button", hidden: "" }, ["Next ▶"]);
+      const coins = api.el("div", { class: "piggy__coins" }, [penny, nickel]);
+      api.stage.append(tag, worthEl, jar, coins, nextBtn);
+
+      function refresh() {
+        const left = price - worth;
+        worthEl.textContent = worth + "¢ / " + price + "¢";
+        // A coin is a correct next tap only if it won't overpay.
+        [[penny, 1], [nickel, 5]].forEach(([btn, val]) => {
+          if (val <= left) btn.dataset.correct = "1"; else delete btn.dataset.correct;
+          btn.classList.toggle("coin--off", val > left);
+        });
+      }
+      function drop(val) {
+        if (val > price - worth) { api.tryAgain(val === 1 ? penny : nickel); return; }
+        worth += val;
+        jar.appendChild(api.el("span", { class: "piggy__coin pop", aria: { hidden: "true" } }, [val === 5 ? "🪙" : "🟤"]));
+        api.say(String(worth));
+        if (worth >= price) {
+          delete penny.dataset.correct; delete nickel.dataset.correct;
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "The piggy is full! Yay!" });
+          else { api.roundWin(); nextBtn.hidden = false; nextBtn.dataset.correct = "1"; }
+        } else refresh();
+      }
+      function newRound() {
+        const r = L.makePiggyBank();
+        price = r.price; worth = 0;
+        jar.innerHTML = "🐷";
+        tag.textContent = "Fill to " + price + "¢";
+        api.setPrompt("Fill the piggy to " + price + " cents!", ["👀", "🪙", "🐷"]);
+        api.speak();
+        refresh();
+      }
+      penny.addEventListener("click", () => drop(1));
+      nickel.addEventListener("click", () => drop(5));
+      nextBtn.addEventListener("click", () => { nextBtn.hidden = true; delete nextBtn.dataset.correct; newRound(); });
+      newRound();
+    },
+  });
+
+  // ---- Number Muncher (which numeral is BIGGER — symbolic magnitude, [P→W]) ----
+  // Compares written numbers (a real step past which-more's dot groups). A tiny
+  // tower of that height under each numeral is the concrete non-reader check.
+  F.register({
+    id: "number-muncher",
+    icon: "🐊",
+    title: "Which Is Bigger?",
+    skill: "compare numerals [P→W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0;
+      const gator = api.el("div", { class: "muncher__gator", aria: { hidden: "true" } }, ["🐊"]);
+      const cards = api.el("div", { class: "muncher__cards" });
+      api.stage.append(gator, cards);
+
+      function card(n, correct) {
+        const dots = api.el("div", { class: "muncher__tower", aria: { hidden: "true" } });
+        for (let i = 0; i < n; i++) dots.appendChild(api.el("span", { class: "muncher__cube" }));
+        const b = api.el("button", {
+          class: "muncher__card tap", type: "button",
+          dataset: correct ? { correct: "1" } : {}, aria: { label: String(n) },
+        }, [api.el("span", { class: "muncher__num" }, [String(n)]), dots]);
+        b.addEventListener("click", () => {
+          if (correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You found the bigger number!" }); else { api.roundWin(); newRound(); } }
+          else api.tryAgain(b);
+        });
+        return b;
+      }
+      function newRound() {
+        const max = round < 3 ? 10 : 19; // ease into teens
+        const r = L.makeNumberCompare(1, max);
+        api.setPrompt("The muncher wants the BIGGER number!", ["👀", "🐊", "🔢"]);
+        api.speak();
+        cards.innerHTML = "";
+        cards.append(card(r.a, r.answer === "a"), card(r.b, r.answer === "b"));
+      }
+      newRound();
+    },
+  });
 })();
