@@ -103,6 +103,64 @@
     },
   });
 
+  // ---- Make an Island (landforms — a gentle [P] "build it, name it") ----
+  // Tap the middle cells to raise the land; the shape completes, a picture
+  // pops, and audio names the landform. Corners stay the base (water/land) so
+  // the island/lake contrast is visible. Wrong (corner) taps are a soft bump.
+  F.register({
+    id: "landform-maker",
+    icon: "🏝️",
+    title: "Make an Island",
+    skill: "landforms [P]",
+    start(api) {
+      const LFS = C.LANDFORMS || [];
+      const ROUNDS = Math.min(4, LFS.length * 2 || 4);
+      let round = 0, remaining = 0, current = null;
+      const label = api.el("div", { class: "lf__label" });
+      const wrap = api.el("div", { class: "lf__wrap" });
+      const grid = api.el("div", { class: "lf__grid" });
+      const reveal = api.el("div", { class: "lf__reveal", aria: { hidden: "true" } });
+      wrap.append(grid, reveal);
+      api.stage.append(label, wrap);
+
+      function newRound() {
+        current = LFS[round % LFS.length];
+        const fillSet = new Set(current.fill);
+        remaining = current.fill.length;
+        label.textContent = "Make a " + current.name + "!";
+        api.setPrompt("Make a " + current.name + "! Tap the middle.", ["👆", "🏝️", "😊"]);
+        api.speak(); api.say("Make a " + current.name);
+        grid.innerHTML = "";
+        for (let i = 0; i < 9; i++) {
+          const isTarget = fillSet.has(i);
+          const cell = api.el("button", {
+            class: "lf__cell tap", type: "button",
+            dataset: isTarget ? { correct: "1" } : {}, aria: { label: isTarget ? "middle" : "edge" },
+          }, [current.base]);
+          cell.addEventListener("click", () => {
+            if (!isTarget) { api.tryAgain(cell); return; }
+            if (cell.dataset.done) return;
+            cell.dataset.done = "1"; delete cell.dataset.correct;
+            cell.textContent = current.tile; cell.classList.remove("pop"); void cell.offsetWidth; cell.classList.add("pop");
+            remaining -= 1;
+            if (remaining <= 0) {
+              // Show the landform reveal and (re)start its fade — a fixed overlay
+              // that the next round's grid rebuild does NOT clear.
+              reveal.textContent = current.reveal;
+              reveal.classList.remove("lf__reveal--on"); void reveal.offsetWidth; reveal.classList.add("lf__reveal--on");
+              api.say(current.say);
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You made all the landforms!" });
+              else { api.roundWin(); newRound(); } // new grid ready instantly; reveal fades over it
+            }
+          });
+          grid.appendChild(cell);
+        }
+      }
+      newRound();
+    },
+  });
+
   // ---- Where Do They Live? (continents — his #1 geography working edge) ----
   // A friendly Montessori-colored world map. Each animal sits on its home
   // continent (self-checking); tap the chip whose color matches that continent.

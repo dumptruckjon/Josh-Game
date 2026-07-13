@@ -615,6 +615,21 @@
     return { cells, occ, choices };
   }
 
+  // --- Web Rescue Reveal (clear webs to find trapped friends) -------------
+  // A grid of web-covered cells; K hide a friend (correct), the rest are empty.
+  // Revealing an empty is never "wrong" (no-fail) — you just rescue the K.
+  function makeWebRescue(pool, size, rng = Math.random) {
+    if (!Array.isArray(pool) || !pool.length) throw new Error("makeWebRescue needs a pool");
+    size = size || 9;
+    const K = Math.min(size, randInt(2, 4, rng));
+    const friends = [];
+    for (let i = 0; i < K; i++) friends.push(pool[randInt(0, pool.length - 1, rng)]);
+    const cells = [];
+    for (const f of friends) cells.push({ friend: f, correct: true });
+    for (let i = 0; i < size - K; i++) cells.push({ friend: null, correct: false });
+    return { count: K, cells: shuffle(cells, rng) };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -635,7 +650,7 @@
     makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
-    makeContinentMatch, makeSoundHunt, makeTopView,
+    makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

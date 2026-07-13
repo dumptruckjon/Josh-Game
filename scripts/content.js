@@ -226,6 +226,18 @@
     FIND_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
       "🐝", "🦋", "🐟", "🐢", "🐙", "🐧", "🦄", "⭐", "❤️", "🚗", "🚀", "🎈", "🍎", "🌈"],
 
+    // ---- Web Rescue Reveal — friendly faces to free from the webs ----
+    RESCUE_POOL: ["🐶", "🐱", "🐰", "🐦", "🐹", "🐢", "🦋", "🐝", "🦸", "🕷️"],
+
+    // ---- Make an Island (landform maker) — build the shape, name it ----
+    // 3×3 grid: fill the plus (indices 1,3,4,5,7) with `tile`, corners stay the
+    // base. The reveal + spoken name teach the concept (gentle [P] exposure).
+    LANDFORMS: [
+      { name: "Island", base: "💧", fill: [1, 3, 4, 5, 7], tile: "🟩", reveal: "🌴", say: "That's an island — land with water all around!" },
+      { name: "Lake", base: "🟩", fill: [1, 3, 4, 5, 7], tile: "💧", reveal: "🦆", say: "That's a lake — water with land all around!" },
+      { name: "Mountain", base: "🟩", fill: [1, 3, 4, 5, 7], tile: "🟫", reveal: "⛰️", say: "That's a mountain — tall, high-up land!" },
+    ],
+
     // ---- Continents (Montessori colors + a signature animal that lives there) ----
     // A friendly, stylized world map (not exact coastlines). The animal sits on
     // its home continent so the picture is self-checking. Colors follow the

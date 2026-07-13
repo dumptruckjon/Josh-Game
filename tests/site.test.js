@@ -142,6 +142,39 @@ test("PWA: manifest, icons, and service worker are wired up", () => {
   for (const icon of manifest.icons) assert.ok(fs.existsSync(path.join(root, icon.src)), `missing icon ${icon.src}`);
 });
 
+// ---------- Self-healing guardrails (each hard-won fix, enforced forever) ----------
+// RULE 7: when a bug reveals a pattern, wire a guardrail so it can't come back in
+// ANY existing game or ANY future one. These are those guardrails.
+
+test("guardrail: games make sound only through the shared iOS-safe JoshAudio.tone", () => {
+  // The 'silent on iPad' bug came from a game constructing its own AudioContext
+  // and scheduling a note before the async resume() resolved. The fix lives in
+  // ONE place (audio.js JoshAudio.tone); no game may construct audio itself.
+  for (const f of SCRIPTS) {
+    if (!/scripts\/games-.*\.js$/.test(f)) continue;
+    const src = read(f);
+    assert.ok(!/new\s+[\w.]*AudioContext|webkitAudioContext/.test(src),
+      `${f} references an AudioContext constructor — route sound through JoshAudio.tone()/unlock() (iOS-safe) instead`);
+  }
+});
+
+test("guardrail: JoshAudio.tone resumes the context BEFORE scheduling (iOS-safe)", () => {
+  // Lock in the shape of the fix so a future refactor can't reintroduce
+  // schedule-then-resume (which is silent on iOS).
+  const a = read("scripts/audio.js");
+  assert.ok(/resume\(\)\s*\.then\(/.test(a), "tone() must resume().then(play) — resume BEFORE scheduling the note");
+  assert.ok(/currentTime\s*\+\s*0?\.0/.test(a), "the note must be scheduled slightly in the FUTURE (never at a past time)");
+  assert.ok(/JoshAudio\s*=\s*\{[^}]*\btone\b/.test(a.replace(/\s+/g, " ")), "JoshAudio must export tone()");
+});
+
+test("guardrail: the every-game harness drives the contract with a DOM click", () => {
+  // A coordinate (force) click misses under CPU load when a field reflows mid-tap
+  // (big-red-one got stuck). The contract test must dispatch a DOM el.click().
+  const e2e = read("tests/e2e.test.js");
+  assert.ok(/\.evaluate\(\s*\(el\)\s*=>\s*el\.click\(\)\s*\)/.test(e2e),
+    "the every-game loop must drive taps via a DOM el.click() (load-immune), not a coordinate click");
+});
+
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);

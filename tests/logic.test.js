@@ -696,3 +696,19 @@ test("makeTopView: correct footprint = the true occupancy; distractors differ", 
     r.choices.forEach((c) => assert.ok(c.occ.length >= 2 && c.occ.length <= 3, "2-3 cells"));
   }
 });
+
+test("makeWebRescue: exactly `count` cells hide a friend; the rest are empty", () => {
+  const rng = mulberry32(64);
+  const pool = content.RESCUE_POOL;
+  for (const size of [9, 11, 13]) {
+    for (let i = 0; i < 800; i++) {
+      const r = L.makeWebRescue(pool, size, rng);
+      assert.equal(r.cells.length, size, "field is the right size");
+      const friends = r.cells.filter((c) => c.correct);
+      assert.ok(friends.length >= 2 && friends.length <= 4, "2-4 to rescue");
+      assert.equal(friends.length, r.count, "count matches the friend cells");
+      friends.forEach((c) => assert.ok(pool.includes(c.friend), "a friend is a real pool member"));
+      r.cells.filter((c) => !c.correct).forEach((c) => assert.equal(c.friend, null, "empty cells hide nobody"));
+    }
+  }
+});

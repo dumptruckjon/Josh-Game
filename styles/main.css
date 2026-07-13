@@ -692,6 +692,35 @@ body {
 .tt2__chest { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; font-size: 1.8rem; margin: 4px 0 10px; }
 .tt2__slot { line-height: 1; }
 
+/* ---------- Thwip! Web Up (web-building) ---------- */
+.thwip { position: relative; width: 100%; padding-top: 6px; }
+.thwip__web { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.thwip__strand { stroke: #ffffff; stroke-width: 3; opacity: 0.85; stroke-linecap: round; }
+.thwip__hero { width: 96px; height: 96px; margin: 0 auto 12px; position: relative; z-index: 2; }
+.thwip__bugs { position: relative; z-index: 2; }
+.thwip__bug { background: #2b2f45; color: #fff; }
+.thwip__bug--webbed { background: #e8edf6; }
+
+/* ---------- Web Rescue Reveal (occlusion reveal) ---------- */
+.web__cell { background: #2b2f45; color: #cfd6e6; }
+.web__cell--open { background: #eef3fb; }
+
+/* ---------- Make an Island (landform maker) ---------- */
+.lf__label { text-align: center; font-size: 1.5rem; font-weight: 900; color: #2b6cff; margin-bottom: 8px; }
+.lf__wrap { position: relative; width: 100%; max-width: 300px; margin: 0 auto; }
+.lf__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); }
+.lf__cell {
+  aspect-ratio: 1 / 1; min-height: var(--tap); border-radius: 12px; font-size: clamp(1.6rem, 9vw, 2.4rem);
+  display: flex; align-items: center; justify-content: center; background: #dff1ff; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.06);
+}
+.lf__cell:active { transform: scale(0.96); }
+.lf__reveal {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 5rem; pointer-events: none; opacity: 0;
+}
+.lf__reveal--on { animation: lfReveal 1.4s ease-out; }
+@keyframes lfReveal { 0% { opacity: 0; transform: scale(0.4); } 30% { opacity: 1; transform: scale(1.1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+
 /* ---------- Bird's-Eye Blocks (top-down spatial) ---------- */
 .be__scene { width: 100%; max-width: 260px; margin: 0 auto 12px; }
 .be__scene svg { width: 100%; height: auto; display: block; }

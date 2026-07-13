@@ -280,6 +280,57 @@
     },
   });
 
+  // ---- Web Rescue Reveal: clear the webs to free the trapped friends ----
+  // A find game with occlusion: every cell is web-covered, some hide a friend.
+  // Tapping reveals what's underneath — an empty puff (no-fail) or a rescue.
+  F.register({
+    id: "web-reveal",
+    icon: "🕸️",
+    title: "Web Rescue",
+    skill: "visual search / reveal",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 5;
+      let round = 0, need = 0, freed = 0;
+      const target = api.el("div", { class: "find__target" });
+      const field = api.el("div", { class: "find__field" });
+      api.stage.append(target, field);
+
+      function newRound() {
+        const size = 9 + round; // 9 → 13
+        const r = L.makeWebRescue(C.RESCUE_POOL, size);
+        need = r.count; freed = 0;
+        target.innerHTML = "";
+        target.append(
+          api.el("span", { class: "find__targetEmoji", text: "🕸️" }),
+          api.el("span", { class: "find__targetLabel", text: "Free " + r.count + "!" })
+        );
+        api.setPrompt("Tap the webs to free your friends!", ["👆", "🕸️", "🐾"]);
+        api.speak();
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "find__cell web__cell tap", type: "button", text: "🕸️",
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: "web" },
+          });
+          b.addEventListener("click", () => {
+            if (b.dataset.done) return;
+            b.dataset.done = "1"; b.classList.add("web__cell--open");
+            if (cell.correct) {
+              delete b.dataset.correct; b.textContent = cell.friend;
+              freed += 1; api.say("Rescued!");
+              if (freed >= need) { round += 1; if (round >= ROUNDS) api.win({ say: "You freed all your friends! Hooray!" }); else { api.roundWin(); newRound(); } }
+            } else {
+              b.textContent = "✨"; // an empty web — no-fail, just a puff
+            }
+          });
+          field.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
   // ---- The Big Red One: find the one matching BOTH clues (color + shape) ----
   // Feature-conjunction search — genuinely harder (hold two attributes at once),
   // which Josh loves. Exactly one cell has the target color AND shape.

@@ -161,6 +161,27 @@ test("deduction attributes are distinct so a color+item clue is unique", () => {
   for (const c of content.DEDUCE_COLORS) assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.key} needs a hex`);
 });
 
+// ---------- Landforms build config is valid (3x3 plus-shape, known cells) ----------
+test("landforms fill valid middle cells and carry a reveal + spoken name", () => {
+  assert.ok(content.LANDFORMS.length >= 2, "need at least two landforms");
+  const CORNERS = new Set([0, 2, 6, 8]);
+  for (const lf of content.LANDFORMS) {
+    assert.ok(lf.name && lf.base && lf.tile && lf.reveal, `${lf.name} needs base/tile/reveal`);
+    assert.ok(lf.say && lf.say.length > 8, `${lf.name} needs a spoken description`);
+    assert.ok(lf.fill.length >= 3, `${lf.name} needs several middle cells to fill`);
+    for (const i of lf.fill) {
+      assert.ok(i >= 0 && i <= 8, `${lf.name} fill index out of range`);
+      assert.ok(!CORNERS.has(i), `${lf.name} should leave corners as the base (so the border shows)`);
+    }
+    assert.equal(new Set(lf.fill).size, lf.fill.length, `${lf.name} fill has no duplicates`);
+  }
+});
+
+test("rescue pool is several distinct friendly faces", () => {
+  assert.ok(content.RESCUE_POOL.length >= 4, "need a few faces to rescue");
+  assert.equal(new Set(content.RESCUE_POOL).size, content.RESCUE_POOL.length, "distinct faces");
+});
+
 // ---------- Blue Planet: land features vs water, verified ----------
 const LANDWATER_TRUTH = {
   Land: ["🏔️", "🌋", "🏜️", "🌳", "🏕️", "🏙️"],

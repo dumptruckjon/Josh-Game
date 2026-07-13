@@ -123,59 +123,16 @@
       api.speak();
       const note = api.el("div", { class: "music__hint" }, ["🔈 Turn the volume up — and check the side switch isn't on silent!"]);
       api.stage.append(note);
-      // A music instrument the child deliberately opened should always make
-      // sound. WebAudio is independent of the voice-mute (which only silences
-      // spoken prompts). The iOS-critical part: the context starts "suspended",
-      // and resume() is ASYNC — so we must WAIT for it to resolve and only THEN
-      // schedule the note, a hair in the future so it's never played in the past.
-      // (The old code scheduled at currentTime while still suspended → silent on
-      // iPhone/iPad even though it worked on desktop.)
-      let ctx = null;
-      function getCtx() {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        if (!ctx) ctx = new AC();
-        return ctx;
-      }
-      function play(freq) {
-        const c = getCtx();
-        if (!c) return;
-        const o = c.createOscillator();
-        const g = c.createGain();
-        o.type = "triangle"; o.frequency.value = freq;
-        const t = c.currentTime + 0.02; // small look-ahead: never schedule in the past
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(0.32, t + 0.02); // soft attack
-        g.gain.exponentialRampToValueAtTime(0.0008, t + 0.55);
-        o.connect(g); g.connect(c.destination);
-        o.start(t);
-        o.stop(t + 0.6);
-      }
-      function tone(freq) {
-        try {
-          const c = getCtx();
-          if (!c) return;
-          if (c.state === "suspended" && c.resume) {
-            // Resume FIRST, play only once the context is actually running.
-            c.resume().then(() => play(freq)).catch(() => {});
-          } else {
-            play(freq);
-          }
-        } catch (e) { /* ignore */ }
-      }
-      // Warm the context up on the very first touch anywhere on the pad, so the
-      // first note isn't the one that "wastes" the resume.
-      pad.addEventListener("pointerdown", function warm() {
-        const c = getCtx();
-        if (c && c.state === "suspended" && c.resume) c.resume().catch(() => {});
-        pad.removeEventListener("pointerdown", warm);
-      }, { once: true });
+      // Sound goes through the shared, iOS-safe JoshAudio.tone() — never a
+      // per-game AudioContext (a guardrail test enforces that, so the iOS
+      // resume-before-schedule fix can never regress in one game).
+      pad.addEventListener("pointerdown", function warm() { if (A && A.unlock) A.unlock(); pad.removeEventListener("pointerdown", warm); }, { once: true });
       COLORS.forEach((c, i) => {
         const bar = api.el("button", { class: "choice music__pad tap", type: "button", dataset: { toy: "1" }, style: { background: c }, aria: { label: "note " + (i + 1) } }, ["🎵"]);
         bar.addEventListener("click", () => {
           api.tickPlay();
           bar.classList.remove("music__hit"); void bar.offsetWidth; bar.classList.add("music__hit");
-          tone(NOTES[i]);
+          if (A && A.tone) A.tone(NOTES[i]);
         });
         pad.appendChild(bar);
       });
@@ -217,6 +174,64 @@
         api.say(String(n));
         if (n >= GOAL) { delete stage.dataset.correct; api.win({ say: "Ten! You made Ten!" }); }
       });
+    },
+  });
+
+  // ---- Thwip! Web Up (Spidey homage cause→effect: web up the bugs) ----
+  // Each tap shoots an SVG web strand from the hero to that bug and wraps it;
+  // when all are webbed a full web has visibly built up (transformation, not a
+  // bolted-on reward). Sound goes through the shared iOS-safe JoshAudio.tone.
+  F.register({
+    id: "thwip-web",
+    icon: "🕸️",
+    title: "Thwip! Web Up",
+    skill: "cause→effect / hero play",
+    start(api) {
+      const NEED = 6;
+      let webbed = 0;
+      const heroColor = (api.hero() || {}).color || "#e23636";
+      const stage = api.el("div", { class: "thwip" });
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("class", "thwip__web");
+      svg.setAttribute("preserveAspectRatio", "none");
+      const hero = api.el("div", { class: "thwip__hero art-fill", aria: { hidden: "true" }, html: (window.JoshArt && window.JoshArt.hero) ? window.JoshArt.hero(heroColor) : "🕷️" });
+      const grid = api.el("div", { class: "choices choices--3 thwip__bugs" });
+      stage.append(svg, hero, grid);
+      api.stage.append(stage);
+      api.setPrompt("Thwip! Web up all the bugs!", ["👆", "🕸️", "🐛"]);
+      api.speak();
+      grid.addEventListener("pointerdown", function warm() { if (A && A.unlock) A.unlock(); grid.removeEventListener("pointerdown", warm); }, { once: true });
+
+      function drawStrand(bug) {
+        try {
+          const s = stage.getBoundingClientRect();
+          const h = hero.getBoundingClientRect();
+          const r = bug.getBoundingClientRect();
+          if (!s.width || !s.height) return;
+          svg.setAttribute("viewBox", "0 0 " + s.width + " " + s.height);
+          const line = document.createElementNS(svgNS, "line");
+          line.setAttribute("x1", (h.left + h.width / 2 - s.left).toFixed(1));
+          line.setAttribute("y1", (h.top + h.height / 2 - s.top).toFixed(1));
+          line.setAttribute("x2", (r.left + r.width / 2 - s.left).toFixed(1));
+          line.setAttribute("y2", (r.top + r.height / 2 - s.top).toFixed(1));
+          line.setAttribute("class", "thwip__strand");
+          svg.appendChild(line);
+        } catch (e) { /* strand is decorative; never let it break play */ }
+      }
+      for (let i = 0; i < NEED; i++) {
+        const b = api.el("button", { class: "choice thwip__bug tap", type: "button", dataset: { correct: "1" }, aria: { label: "bug" } }, ["🐛"]);
+        b.addEventListener("click", () => {
+          if (b.dataset.done) return;
+          b.dataset.done = "1"; delete b.dataset.correct;
+          b.textContent = "🕸️"; b.classList.add("thwip__bug--webbed");
+          drawStrand(b);
+          if (A && A.tone) A.tone(520 + webbed * 45, { duration: 0.22, type: "square", gain: 0.18 });
+          webbed += 1; api.say("Thwip!");
+          if (webbed >= NEED) api.win({ say: "You webbed them all! Go, web-warrior!" });
+        });
+        grid.appendChild(b);
+      }
     },
   });
 

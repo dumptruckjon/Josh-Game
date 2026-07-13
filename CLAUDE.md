@@ -120,6 +120,27 @@ Tests passing on local files is NOT proof the deployed site works. A change is
 - **Isolate features.** Each feature init is wrapped in try/catch so one failure
   can't silently kill the rest of the page.
 
+### RULE 7 — Self-healing: every fix becomes a systemic guardrail
+This project must get **better and harder to break over time**. So whenever you
+find a bug, a footgun, or a new learning, you MUST wire it up so it applies to
+**every existing game AND every future one** — never a one-off patch:
+1. **Centralize the correct way.** If a game did something subtle wrong, move the
+   correct implementation into a shared place so no game re-implements it (e.g.
+   all WebAudio goes through `JoshAudio.tone()` — the ONE iOS-safe path — never a
+   per-game `AudioContext`).
+2. **Add a guardrail test that fails if the pattern ever returns** — ideally a
+   *generic* one that scans every game, not a single-case check. The self-healing
+   guardrails live at the end of `tests/site.test.js`; the generic contract is
+   enforced by `e2e.test.js` (plays every game) and `mobile.test.js` (audits
+   every screen). Adding a game auto-inherits all of them.
+3. **Write down the learning here** so the next author starts ahead.
+Known learnings already wired: iOS WebAudio must resume() **before** scheduling a
+note (silent otherwise) → centralized in `JoshAudio.tone` + guardrail; the
+every-game harness must drive taps with a DOM `el.click()` (a coordinate/force
+click misses under CPU load when a field reflows) → enforced by a guardrail;
+naming-task pictures must name themselves; sort/first-sound/rhyme/etc. truth is
+restated in `content.test.js`. When you fix the next thing, extend this list.
+
 ---
 
 ## Repository Structure
@@ -185,7 +206,7 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~74 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**~77 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
@@ -206,15 +227,17 @@ category's games:
   (bird's-eye / top-down spatial).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
   Paw Patrol Rescue, Find the Twins (one matching pair), I Spy: Find Them All
-  (category hunt), **The Big One** (two-clue color+shape hunt) — his favorite,
+  (category hunt), The Big One (two-clue color+shape hunt), **Web Rescue**
+  (clear webs to free trapped friends — occlusion reveal) — his favorite,
   harder each round.
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
   Hot or Cold?, Shape's Real Twin (3D solids), Will It Stick? (magnetic sort),
-  **Land or Water?** (globe), **Where Do They Live?** (continents — his top
-  geography edge, self-checking Montessori-colored map).
+  Land or Water? (globe), Where Do They Live? (continents — his top geography
+  edge, self-checking Montessori-colored map), **Make an Island** (build &
+  name landforms).
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
-  Music Pad (WebAudio, sound-on — resumes the iOS audio context before playing),
-  Grow! (stack a Numberblock friend 1→10).
+  Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
+  Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, Team Tower, Team Count, Team Rocket, Team Bridge,
   Team Treasure (co-op find), **Team Sound Hunt** (co-op beginning sounds),
