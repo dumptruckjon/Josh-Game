@@ -8,6 +8,30 @@
   const A = window.JoshAudio || { isMuted: () => true, toggle() {} };
   const F = window.JoshFramework;
 
+  // Top-level categories (the home menu). Icons carry the meaning for a non-reader.
+  const CATEGORIES = [
+    { id: "numbers", icon: "🔢", title: "Numbers", color: "#5ec8ff" },
+    { id: "letters", icon: "🔤", title: "Letters", color: "#ff7ac0" },
+    { id: "thinking", icon: "🧠", title: "Thinking", color: "#c77dff" },
+    { id: "science", icon: "🔬", title: "Science", color: "#7be08a" },
+    { id: "play", icon: "🎉", title: "Fun & Play", color: "#ffa64d" },
+    { id: "friends", icon: "🤝", title: "Calm & Friends", color: "#ff5e7e" },
+  ];
+  // Which category each game belongs to. Every registered game MUST appear here
+  // (a test fails otherwise, so a new game can't slip in uncategorized).
+  const CATEGORY_OF = {
+    "count-feed": "numbers", "number-builder": "numbers", "skip-hop": "numbers", "take-away": "numbers",
+    "which-more": "numbers", "coin-shop": "numbers", "add-up": "numbers", "number-match": "numbers",
+    "clock": "numbers", "place-value": "numbers",
+    "first-sound": "letters", "rhyme": "letters", "build-word": "letters", "sight-word": "letters",
+    "digraph": "letters", "letter-match": "letters", "missing-letter": "letters",
+    "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
+    "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking",
+    "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",
+    "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
+    "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
+  };
+
   document.addEventListener("DOMContentLoaded", () => {
     for (const init of [initSound, initLauncher]) {
       try { init(); } catch (e) { console.error("Josh: init failed:", e); }
@@ -37,65 +61,107 @@
     btn.addEventListener("click", () => { A.toggle(); upd(); });
   }
 
-  // ---- Launcher: build tiles + screens, then route by hash ----
+  // ---- Launcher: category tiles -> per-category game grids -> games ----
+  function wonAlready(id) {
+    try { return localStorage.getItem("josh-won-" + id) === "1"; } catch (e) { return false; }
+  }
+  function addBadge(tile) {
+    if (tile && !tile.querySelector(".tile__badge")) {
+      const s = document.createElement("span");
+      s.className = "tile__badge";
+      s.setAttribute("aria-hidden", "true");
+      s.textContent = "⭐";
+      tile.appendChild(s);
+    }
+  }
+  function markTileWon(id) { addBadge(document.querySelector('.tile[data-go="' + id + '"]')); }
+
+  function gameTile(def) {
+    const tile = document.createElement("button");
+    tile.className = "tile tap";
+    tile.type = "button";
+    tile.dataset.go = def.id;
+    tile.setAttribute("role", "listitem");
+    tile.setAttribute("aria-label", def.title);
+    tile.innerHTML = '<span class="tile__icon" aria-hidden="true"></span><span class="tile__label"></span>';
+    tile.querySelector(".tile__icon").textContent = def.icon;
+    tile.querySelector(".tile__label").textContent = def.title;
+    tile.addEventListener("click", () => { location.hash = "#" + def.id; });
+    if (wonAlready(def.id)) addBadge(tile);
+    return tile;
+  }
+
   function initLauncher() {
     const screens = document.getElementById("screens");
     const grid = document.getElementById("home-grid");
     if (!screens || !grid || !F) return;
-
     const games = window.JoshGames || [];
 
-    // A big "Surprise!" tile jumps to a random game (fun discovery).
-    if (games.length) {
-      const surprise = document.createElement("button");
-      surprise.className = "tile tile--surprise tap";
-      surprise.type = "button";
-      surprise.setAttribute("role", "listitem");
-      surprise.setAttribute("aria-label", "Surprise game");
-      surprise.innerHTML = '<span class="tile__icon" aria-hidden="true">🎲</span><span class="tile__label">Surprise!</span>';
-      surprise.addEventListener("click", () => {
-        const g = games[Math.floor(Math.random() * games.length)];
-        if (g) location.hash = "#" + g.id;
-      });
-      grid.appendChild(surprise);
-    }
-
-    function wonAlready(id) {
-      try { return localStorage.getItem("josh-won-" + id) === "1"; } catch (e) { return false; }
-    }
-    function markTileWon(id) {
-      const t = grid.querySelector('.tile[data-go="' + id + '"]');
-      if (t && !t.querySelector(".tile__badge")) {
-        const s = document.createElement("span");
-        s.className = "tile__badge";
-        s.setAttribute("aria-hidden", "true");
-        s.textContent = "⭐";
-        t.appendChild(s);
-      }
-    }
-
+    // Group games by category; record each game's category on its def so the
+    // in-game Home button can return to the right category screen.
+    const byCat = {};
     games.forEach((def) => {
-      const tile = document.createElement("button");
-      tile.className = "tile tap";
-      tile.type = "button";
-      tile.dataset.go = def.id;
-      tile.setAttribute("role", "listitem");
-      tile.setAttribute("aria-label", def.title);
-      const icon = document.createElement("span");
-      icon.className = "tile__icon";
-      icon.setAttribute("aria-hidden", "true");
-      icon.textContent = def.icon;
-      const label = document.createElement("span");
-      label.className = "tile__label";
-      label.textContent = def.title;
-      tile.append(icon, label);
-      tile.addEventListener("click", () => { location.hash = "#" + def.id; });
-      grid.appendChild(tile);
-      if (wonAlready(def.id)) markTileWon(def.id);
+      const cat = CATEGORY_OF[def.id] || "";
+      def.cat = cat;
+      if (cat) (byCat[cat] = byCat[cat] || []).push(def);
+    });
 
-      const screen = F.buildGameScreen(def);
+    // Home: a "Surprise!" tile + one big tile per category.
+    const surprise = document.createElement("button");
+    surprise.className = "tile tile--surprise tap";
+    surprise.type = "button";
+    surprise.setAttribute("role", "listitem");
+    surprise.setAttribute("aria-label", "Surprise game");
+    surprise.innerHTML = '<span class="tile__icon" aria-hidden="true">🎲</span><span class="tile__label">Surprise!</span>';
+    surprise.addEventListener("click", () => {
+      const g = games[Math.floor(Math.random() * games.length)];
+      if (g) location.hash = "#" + g.id;
+    });
+    grid.appendChild(surprise);
+
+    CATEGORIES.forEach((cat) => {
+      const list = byCat[cat.id] || [];
+      if (!list.length) return;
+
+      const tile = document.createElement("button");
+      tile.className = "tile tile--cat tap";
+      tile.type = "button";
+      tile.dataset.cat = cat.id;
+      tile.setAttribute("role", "listitem");
+      tile.setAttribute("aria-label", cat.title);
+      tile.style.setProperty("--cat-color", cat.color);
+      tile.innerHTML = '<span class="tile__icon" aria-hidden="true"></span><span class="tile__label"></span>';
+      tile.querySelector(".tile__icon").textContent = cat.icon;
+      tile.querySelector(".tile__label").textContent = cat.title;
+      tile.addEventListener("click", () => { location.hash = "#cat-" + cat.id; });
+      grid.appendChild(tile);
+
+      // A screen holding this category's games.
+      const screen = document.createElement("section");
+      screen.className = "screen category";
+      screen.id = "screen-cat-" + cat.id;
+      screen.hidden = true;
+      const bar = document.createElement("div");
+      bar.className = "game__bar";
+      const back = document.createElement("button");
+      back.className = "btn-round game__home";
+      back.type = "button";
+      back.setAttribute("aria-label", "Home");
+      back.textContent = "🏠";
+      back.addEventListener("click", () => { location.hash = ""; });
+      const title = document.createElement("h2");
+      title.className = "game__title";
+      title.textContent = cat.icon + " " + cat.title;
+      bar.append(back, title, document.createElement("span"));
+      const cgrid = document.createElement("div");
+      cgrid.className = "home-grid";
+      list.forEach((def) => cgrid.appendChild(gameTile(def)));
+      screen.append(bar, cgrid);
       screens.appendChild(screen);
     });
+
+    // Build the actual game screens.
+    games.forEach((def) => { screens.appendChild(F.buildGameScreen(def)); });
 
     // Live-badge a game the moment it's first beaten.
     window.addEventListener("josh-won", (e) => { if (e.detail && e.detail.id) markTileWon(e.detail.id); });
@@ -114,6 +180,11 @@
       document.body.classList.remove("in-game");
       window.scrollTo(0, 0);
       return;
+    }
+    // A category screen (#cat-<id>) stays "out of game".
+    if (id.indexOf("cat-") === 0) {
+      const cs = document.getElementById("screen-" + id);
+      if (cs) { cs.hidden = false; document.body.classList.remove("in-game"); window.scrollTo(0, 0); return; }
     }
     const target = document.getElementById("screen-" + id);
     if (target) {

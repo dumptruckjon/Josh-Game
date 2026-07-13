@@ -111,6 +111,18 @@ test("home launcher: no overflow + big well-spaced tiles at 390 and 320", async 
   }
 });
 
+test("EVERY category screen: no overflow + big well-spaced tiles at 320px", async () => {
+  const cats = await page.evaluate(() => [...document.querySelectorAll(".tile--cat")].map((t) => t.dataset.cat));
+  assert.ok(cats.length >= 3, "expected several categories");
+  await page.setViewportSize({ width: 320, height: 780 });
+  for (const c of cats) {
+    await page.evaluate((id) => { location.hash = "#cat-" + id; }, c);
+    await page.locator(`#screen-cat-${c}`).waitFor({ state: "visible", timeout: 4000 });
+    await noOverflow(page, "cat-" + c);
+    await auditActiveScreen(page, "cat-" + c);
+  }
+});
+
 test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", async () => {
   const ids = await gameIds();
   await page.setViewportSize({ width: 320, height: 780 });

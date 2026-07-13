@@ -138,13 +138,18 @@ body {
 .tile--surprise { background: linear-gradient(135deg, #ffe08a, #ff9f43); }
 .tile--surprise .tile__label { color: #7a4a10; }
 
+/* Big colorful category tiles on the home menu. */
+.tile--cat { min-height: 120px; background: linear-gradient(160deg, var(--cat-color, #5ec8ff), rgba(255, 255, 255, 0.35)); }
+.tile--cat .tile__icon { font-size: 3rem; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15)); }
+.tile--cat .tile__label { color: #fff; font-size: 0.95rem; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+
 /* ---------- Game screen chrome ---------- */
 .game__bar {
   display: grid;
   grid-template-columns: var(--tap) 1fr var(--tap);
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 18px;
 }
 .game__title {
   margin: 0;

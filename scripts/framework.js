@@ -68,7 +68,9 @@
 
     const homeBtn = el("button", {
       class: "btn-round game__home", type: "button", text: "🏠",
-      aria: { label: "Home" }, onclick: () => { location.hash = ""; },
+      aria: { label: "Back" },
+      // Return to this game's category screen (set by the launcher) if known.
+      onclick: () => { location.hash = def.cat ? "#cat-" + def.cat : ""; },
     });
     const hearBtn = el("button", {
       class: "btn-round game__hear", type: "button", text: "👂",

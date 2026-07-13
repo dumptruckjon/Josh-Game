@@ -44,19 +44,32 @@ test("the registry has several games and every one has a home tile", async () =>
   }
 });
 
-test("tapping a home tile opens its game screen", async () => {
-  const ids = await gameIds();
+test("home → category → game navigation works", async () => {
   await page.evaluate(() => { location.hash = ""; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
-  await page.locator(`.tile[data-go="${ids[0]}"]`).click();
-  await page.locator(`#screen-${ids[0]}`).waitFor({ state: "visible", timeout: 4000 });
-  assert.ok(await page.locator(`#screen-${ids[0]}`).isVisible());
+  const catTile = page.locator(".tile--cat").first();
+  const catId = await catTile.getAttribute("data-cat");
+  await catTile.click();
+  await page.locator(`#screen-cat-${catId}`).waitFor({ state: "visible", timeout: 4000 });
+  const tile = page.locator(`#screen-cat-${catId} .tile[data-go]`).first();
+  const gid = await tile.getAttribute("data-go");
+  await tile.click();
+  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 4000 });
+  assert.ok(await page.locator(`#screen-${gid}`).isVisible());
 });
 
-test("the Home button returns to the launcher", async () => {
+test("the in-game Home button returns to the game's category", async () => {
   const ids = await gameIds();
   await openGame(ids[0]);
   await page.locator(`#screen-${ids[0]} .game__home`).click();
+  await page.waitForFunction((id) => document.getElementById("screen-" + id).hidden, ids[0], { timeout: 4000 });
+  assert.ok((await page.locator(".screen.category:not([hidden])").count()) >= 1, "a category screen should show after Home");
+});
+
+test("the category back button returns to the home menu", async () => {
+  await page.evaluate(() => { location.hash = "#cat-numbers"; });
+  await page.locator("#screen-cat-numbers").waitFor({ state: "visible" });
+  await page.locator("#screen-cat-numbers .game__home").click();
   await page.locator("#screen-home").waitFor({ state: "visible", timeout: 4000 });
   assert.ok(await page.locator("#screen-home").isVisible());
 });
