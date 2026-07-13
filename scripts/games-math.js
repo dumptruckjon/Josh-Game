@@ -325,4 +325,170 @@
       newRound();
     },
   });
+
+  // ---- Add It Up (combine two groups, [W]) ----
+  F.register({
+    id: "add-up",
+    icon: "➕",
+    title: "Add It Up",
+    skill: "addition [W]",
+    start(api) {
+      const C = api.C;
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0;
+      const scene = api.el("div", { class: "add__scene" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(scene, choices);
+
+      function group(count, obj) {
+        const g = api.el("div", { class: "add__group" });
+        for (let i = 0; i < count; i++) g.appendChild(api.el("span", { class: "add__dot", text: obj }));
+        return g;
+      }
+      function newRound() {
+        const r = L.makeAddition();
+        const obj = api.randItem(C.COUNT_OBJECTS);
+        api.setPrompt("How many all together?", ["👀", "➕", "🔢"]);
+        api.speak();
+        scene.innerHTML = "";
+        scene.append(group(r.a, obj), api.el("div", { class: "add__plus", text: "➕" }), group(r.b, obj));
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
+          b.addEventListener("click", () => { if (ch.correct) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } } else api.tryAgain(b); });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Find the Number (numeral -> matching quantity, [M]) ----
+  F.register({
+    id: "number-match",
+    icon: "🔢",
+    title: "Find the Number",
+    skill: "quantify 1-10 [M]",
+    start(api) {
+      const C = api.C;
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0;
+      const numEl = api.el("div", { class: "nm__num", aria: { hidden: "true" } });
+      const groups = api.el("div", { class: "choices choices--3" });
+      api.stage.append(numEl, groups);
+
+      function newRound() {
+        const r = L.makeNumberMatch();
+        const obj = api.randItem(C.COUNT_OBJECTS);
+        numEl.textContent = String(r.n);
+        api.setPrompt("Tap the group with this many.", ["👀", "🔢", "👉"]);
+        api.speak();
+        api.say(String(r.n));
+        groups.innerHTML = "";
+        r.groups.forEach((g) => {
+          const b = api.el("button", { class: "choice nm__group tap", type: "button", dataset: g.correct ? { correct: "1" } : {}, aria: { label: g.count + " things" } });
+          for (let i = 0; i < g.count; i++) b.appendChild(api.el("span", { class: "nm__dot", text: obj }));
+          b.addEventListener("click", () => { if (g.correct) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } } else api.tryAgain(b); });
+          groups.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- What Time? (o'clock, [P]) ----
+  F.register({
+    id: "clock",
+    icon: "🕐",
+    title: "What Time?",
+    skill: "clock / time [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0;
+      const clock = api.el("div", { class: "clock", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(clock, choices);
+
+      function draw(hour) {
+        const rad = ((hour % 12) * 30 - 90) * Math.PI / 180;
+        const hx = 50 + 26 * Math.cos(rad), hy = 50 + 26 * Math.sin(rad);
+        let ticks = "";
+        for (let h = 1; h <= 12; h++) {
+          const a = (h * 30 - 90) * Math.PI / 180;
+          const x = 50 + 40 * Math.cos(a), y = 50 + 40 * Math.sin(a);
+          ticks += '<text x="' + x.toFixed(1) + '" y="' + (y + 4).toFixed(1) + '" font-size="9" text-anchor="middle" fill="#33445a">' + h + "</text>";
+        }
+        clock.innerHTML = '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" fill="#fff" stroke="#5ec8ff" stroke-width="3"/>' + ticks +
+          '<line x1="50" y1="50" x2="' + hx.toFixed(1) + '" y2="' + hy.toFixed(1) + '" stroke="#e23636" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="50" r="3.5" fill="#333"/></svg>';
+      }
+      function newRound() {
+        const r = L.makeClock();
+        draw(r.hour);
+        api.setPrompt("What time is it?", ["👀", "🕐", "🔢"]);
+        api.speak();
+        api.say(r.hour + " o'clock");
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice choice--time tap", type: "button", text: ch.label, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.label } });
+          b.addEventListener("click", () => { if (ch.correct) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } } else api.tryAgain(b); });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Build the Number (place value: tens + ones, [W]) ----
+  F.register({
+    id: "place-value",
+    icon: "🔟",
+    title: "Build the Number",
+    skill: "place value [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4;
+      let round = 0, target = 0, total = 0;
+      const targetEl = api.el("div", { class: "pv__target", aria: { hidden: "true" } });
+      const built = api.el("div", { class: "pv__built" });
+      const tensBtn = api.el("button", { class: "pv__pile tap", type: "button", aria: { label: "add ten" } }, ["🔟", api.el("span", { class: "pv__plus" }, ["+10"])]);
+      const onesBtn = api.el("button", { class: "pv__pile tap", type: "button", aria: { label: "add one" } }, ["🟡", api.el("span", { class: "pv__plus" }, ["+1"])]);
+      const piles = api.el("div", { class: "pv__piles" }, [tensBtn, onesBtn]);
+      const nextBtn = api.el("button", { class: "btn-big", type: "button", hidden: "" }, ["Next ▶"]);
+      api.stage.append(targetEl, built, piles, nextBtn);
+
+      function refresh() {
+        const remaining = target - total;
+        if (remaining >= 10) { tensBtn.dataset.correct = "1"; delete onesBtn.dataset.correct; }
+        else if (remaining > 0) { onesBtn.dataset.correct = "1"; delete tensBtn.dataset.correct; }
+        else { delete tensBtn.dataset.correct; delete onesBtn.dataset.correct; }
+        built.innerHTML = "";
+        const t = L.tensOnes(total);
+        for (let i = 0; i < t.tens; i++) built.appendChild(api.el("span", { class: "pv__ten", text: "🔟" }));
+        for (let i = 0; i < t.ones; i++) built.appendChild(api.el("span", { class: "pv__one", text: "🟡" }));
+      }
+      function check() {
+        if (total === target) {
+          delete tensBtn.dataset.correct; delete onesBtn.dataset.correct;
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "You built it!" });
+          else { api.roundWin(); nextBtn.hidden = false; nextBtn.dataset.correct = "1"; }
+        }
+      }
+      function newRound() {
+        target = api.randInt(11, 39);
+        total = 0;
+        targetEl.textContent = String(target);
+        api.setPrompt("Build the number " + target + "!", ["👀", "🔟", "🟡"]);
+        api.speak();
+        refresh();
+      }
+      tensBtn.addEventListener("click", () => { if (target - total >= 10) { total += 10; api.say(String(total)); refresh(); check(); } });
+      onesBtn.addEventListener("click", () => { if (target - total >= 1) { total += 1; api.say(String(total)); refresh(); check(); } });
+      nextBtn.addEventListener("click", () => { nextBtn.hidden = true; delete nextBtn.dataset.correct; newRound(); });
+      newRound();
+    },
+  });
 })();

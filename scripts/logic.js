@@ -225,11 +225,49 @@
     return { item, bins: bins.map((b) => ({ label: b.label, emoji: b.emoji })), correctIndex: bi, setName: set.name };
   }
 
+  // --- Addition (combine two small groups) --------------------------------
+  function makeAddition(rng = Math.random) {
+    const a = randInt(1, 5, rng);
+    const b = randInt(1, 5, rng);
+    const sum = a + b;
+    const pool = [sum + 1, sum - 1, sum + 2, sum - 2].filter((v) => v > 0 && v !== sum);
+    const distractors = shuffle([...new Set(pool)], rng).slice(0, 2);
+    const choices = shuffle([{ n: sum, correct: true }, ...distractors.map((n) => ({ n, correct: false }))], rng);
+    return { a, b, sum, choices };
+  }
+
+  // --- Number match (numeral -> the group with that many) -----------------
+  function makeNumberMatch(rng = Math.random) {
+    const n = randInt(1, 9, rng);
+    const used = new Set([n]);
+    const wrongs = [];
+    while (wrongs.length < 2) { const w = randInt(1, 9, rng); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
+    const groups = shuffle([{ count: n, correct: true }, ...wrongs.map((c) => ({ count: c, correct: false }))], rng);
+    return { n, groups };
+  }
+
+  // --- Clock (o'clock): the hour + digital-time choices -------------------
+  function makeClock(rng = Math.random) {
+    const hour = randInt(1, 12, rng);
+    const used = new Set([hour]);
+    const wrongs = [];
+    while (wrongs.length < 2) { const w = randInt(1, 12, rng); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
+    const choices = shuffle(
+      [{ hour, label: hour + ":00", correct: true }, ...wrongs.map((h) => ({ hour: h, label: h + ":00", correct: false }))],
+      rng
+    );
+    return { hour, choices };
+  }
+
+  // --- Place value: split a number into tens + ones -----------------------
+  function tensOnes(n) { return { tens: Math.floor(n / 10), ones: n % 10 }; }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
+    makeAddition, makeNumberMatch, makeClock, tensOnes,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

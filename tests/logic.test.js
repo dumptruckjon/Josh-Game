@@ -262,3 +262,50 @@ test("every sortable item lives in exactly one bin of its set (no ambiguity)", (
     }));
   }
 });
+
+test("makeAddition: sum = a + b, one correct, distinct positive choices", () => {
+  const rng = mulberry32(17);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeAddition(rng);
+    assert.equal(r.sum, r.a + r.b);
+    assert.ok(r.a >= 1 && r.b >= 1);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].n, r.sum);
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, r.choices.length);
+    r.choices.forEach((c) => assert.ok(c.n > 0));
+  }
+});
+
+test("makeNumberMatch: exactly one group has n items; counts distinct", () => {
+  const rng = mulberry32(18);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeNumberMatch(rng);
+    assert.ok(r.n >= 1 && r.n <= 9);
+    const correct = r.groups.filter((g) => g.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].count, r.n, "the correct group holds exactly n");
+    assert.equal(new Set(r.groups.map((g) => g.count)).size, r.groups.length, "group counts distinct");
+  }
+});
+
+test("makeClock: correct hour, label matches, hours distinct", () => {
+  const rng = mulberry32(19);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeClock(rng);
+    assert.ok(r.hour >= 1 && r.hour <= 12);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].hour, r.hour);
+    assert.equal(correct[0].label, r.hour + ":00");
+    assert.equal(new Set(r.choices.map((c) => c.hour)).size, r.choices.length, "hours distinct");
+  }
+});
+
+test("tensOnes: tens*10 + ones === n and ones < 10", () => {
+  for (let n = 0; n <= 99; n++) {
+    const { tens, ones } = L.tensOnes(n);
+    assert.equal(tens * 10 + ones, n);
+    assert.ok(ones >= 0 && ones < 10);
+  }
+});

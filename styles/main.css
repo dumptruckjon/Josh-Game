@@ -388,6 +388,29 @@ body {
 }
 .coop__btn--active { background: linear-gradient(180deg, #ffe08a, #ffd24d); outline: 4px solid #ffb703; }
 
+/* ---------- Add It Up ---------- */
+.add__scene { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
+.add__group { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 8px; background: rgba(255, 255, 255, 0.6); border-radius: 14px; max-width: 120px; justify-content: center; }
+.add__dot { font-size: 1.8rem; line-height: 1; }
+.add__plus { font-size: 2rem; }
+
+/* ---------- Find the Number ---------- */
+.nm__num { font-size: 4rem; font-weight: 900; color: #5a3ec7; line-height: 1; }
+.nm__group { flex-wrap: wrap; gap: 3px; padding: 8px; }
+.nm__dot { font-size: 1.35rem; line-height: 1; }
+
+/* ---------- What Time? ---------- */
+.clock svg { width: min(64vw, 240px); height: min(64vw, 240px); }
+/* Digital times must fit a narrow 320px column (e.g. "12:00" is 5 chars). */
+.choice--time { font-size: clamp(1.1rem, 5.5vw, 1.7rem); font-weight: 800; color: #333; }
+
+/* ---------- Build the Number (place value) ---------- */
+.pv__target { font-size: 3.4rem; font-weight: 900; color: #6a4bd6; line-height: 1; }
+.pv__built { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; min-height: 2.4rem; font-size: 1.8rem; }
+.pv__piles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--pad); width: 100%; }
+.pv__pile { min-height: var(--tap); border-radius: 18px; background: var(--card); box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12); font-size: 2rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pv__plus { font-size: 1.1rem; font-weight: 800; color: #667; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
