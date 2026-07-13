@@ -127,13 +127,18 @@ test("EVERY game plays end-to-end (win reached, or toy responds)", async () => {
     }
 
     // Win game: keep tapping the currently-correct target until the game is won.
+    // On the LIVE site (verify-live) a round rebuild can detach the element
+    // between the query and the click, and pages render slower under CDN load —
+    // so treat a detached/slow click as a retry (not a failure) and give a
+    // generous cap. A genuinely broken game still never wins and fails here.
     let won = false;
-    for (let i = 0; i < 120 && !won; i++) {
+    for (let i = 0; i < 200 && !won; i++) {
       won = await screen.evaluate((el) => el.dataset.won === "1");
       if (won) break;
       const correct = screen.locator('[data-correct="1"]').first();
       if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
-      await correct.click({ force: true });
+      try { await correct.click({ force: true, timeout: 3000 }); }
+      catch (e) { await page.waitForTimeout(20); } // rebuild race on a slow live page — retry
     }
     won = await screen.evaluate((el) => el.dataset.won === "1");
     assert.ok(won, `game "${id}" never reached a win`);
