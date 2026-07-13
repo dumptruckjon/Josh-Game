@@ -14,6 +14,14 @@ This project was bootstrapped from the learnings of the **Mo** site
 (`dumptruckjon/Mo`) — same plain-static-site + tests + CI recipe, retuned for a
 preschooler.
 
+> 📇 **Know your player — read [`JOSH_PROFILE.md`](JOSH_PROFILE.md) first.** Before designing or tweaking
+> any game, read **`JOSH_PROFILE.md`** (human brief) / **`josh-profile.json`** (same data, machine-readable).
+> It defines **who Josh is and what to build**: his real skill levels (Mastered / Working / Presented, from
+> his June 2026 Montessori assessment — so games land at the right difficulty), the non-reader design law,
+> his friends & interests to personalize with, a skill→game-mechanic menu, and what to avoid. Think of it as
+> the *"what to build & how hard"* companion to this file's *"how to build & ship."* Keep it PII-clean —
+> first names only (see the privacy note inside).
+
 ---
 
 ## ⚠️ PROJECT RULES — NON-NEGOTIABLE
@@ -141,6 +149,8 @@ tooling.
 ├── .gitignore                  # ignores node_modules etc.
 ├── .github/workflows/
 │   └── deploy.yml              # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
+├── JOSH_PROFILE.md             # WHO JOSH IS: skill levels, non-reader law, friends, interests, game-mechanic menu — READ before building
+├── josh-profile.json           # ^ same profile, machine-readable (for programmatic game generation)
 └── CLAUDE.md                   # This file
 ```
 
@@ -255,6 +265,9 @@ are green.
 
 ## Notes for AI Assistants
 
+- **Before building or changing a game, read [`JOSH_PROFILE.md`](JOSH_PROFILE.md).** It defines Josh's
+  current skill levels (what to challenge vs. reinforce), his friends/interests to personalize with, and a
+  skill→game-mechanic menu. This file is *how to build & ship*; that one is *what to build & how hard*.
 - Follow the six PROJECT RULES above on every task. They are the heart of this
   repo's workflow.
 - This is a personal, non-commercial, for-fun project — optimize for charm,
