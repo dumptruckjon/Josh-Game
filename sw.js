@@ -11,7 +11,13 @@ const CORE = [
   "./index.html",
   "./styles/main.css",
   "./scripts/content.js",
+  "./scripts/logic.js",
   "./scripts/effects.js",
+  "./scripts/audio.js",
+  "./scripts/framework.js",
+  "./scripts/games-toys.js",
+  "./scripts/games-math.js",
+  "./scripts/games-logic.js",
   "./scripts/main.js",
   "./manifest.webmanifest",
 ];

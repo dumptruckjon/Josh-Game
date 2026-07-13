@@ -1,50 +1,79 @@
-// ALL editable content for Josh's Games lives here — words, emoji, colors, and
-// config as plain data. This one file is the place a grown-up edits to change
-// anything, and it works BOTH in the browser (sets window.JoshContent) and in
-// Node tests (module.exports), so the tests assert the real content.
+// ALL editable content for Josh's Games — words, emoji, colors, and per-game
+// data as plain data. Edit here to personalize. Works BOTH in the browser
+// (sets window.JoshContent) and in Node tests (module.exports).
 //
-// Designed for a 4-year-old: emoji-first, zero reading required to play.
+// Built for Josh (age 4) — see JOSH_PROFILE.md. Emoji-first, zero reading
+// required to play; every picture "names itself" so naming tasks are fair.
 
 (function (global) {
   const CONTENT = {
-    // Shown on the home screen (for the grown-up — Josh can't read yet).
     TITLE: "Josh's Games",
 
-    // ---- "Say hi to the animals" toy ----
-    // A big friendly animal to tap. `name` is spoken aloud (when sound is on)
-    // and read by the grown-up; the emoji is what Josh sees.
-    ANIMALS: [
-      { emoji: "🐶", name: "Dog" },
-      { emoji: "🐱", name: "Cat" },
-      { emoji: "🐰", name: "Bunny" },
-      { emoji: "🐻", name: "Bear" },
-      { emoji: "🦁", name: "Lion" },
-      { emoji: "🐸", name: "Frog" },
-      { emoji: "🐷", name: "Pig" },
-      { emoji: "🐵", name: "Monkey" },
-      { emoji: "🐘", name: "Elephant" },
-      { emoji: "🦊", name: "Fox" },
-      { emoji: "🐧", name: "Penguin" },
-      { emoji: "🦄", name: "Unicorn" },
-      { emoji: "🐢", name: "Turtle" },
-      { emoji: "🐝", name: "Bee" },
+    // ---- People Josh knows (rotate a different friend through each game) ----
+    FRIENDS: [
+      { name: "Raegar", emoji: "🧑🏽" },
+      { name: "River", emoji: "🧒🏻" },
+      { name: "Viraj", emoji: "🧑🏾" },
+      { name: "Josh", emoji: "🧒" },
+    ],
+    // Josh's heroes (Spidey & His Amazing Friends), kept silly + friendly.
+    HEROES: [
+      { name: "Spidey", emoji: "🕷️", color: "#e23636" },
+      { name: "Ghost-Spider", emoji: "🕸️", color: "#ec4e9c" },
+      { name: "Spin", emoji: "🕸️", color: "#2b6cff" },
     ],
 
-    // Happy little cheers shown after every tap. There are NO wrong answers, so
-    // every one of these is encouraging — we celebrate everything.
+    // Happy cheers (shown) and short spoken praise (spoken when sound is on).
     CHEERS: [
-      "Yay! 🎉",
-      "Hooray! 🌟",
-      "Wheee! 🎈",
-      "So fun! 💫",
-      "Good job! 👏",
-      "Woohoo! 🎊",
-      "Amazing! 🌈",
-      "Yippee! ✨",
+      "Yay! 🎉", "Hooray! 🌟", "Wheee! 🎈", "So fun! 💫",
+      "Great job! 👏", "Woohoo! 🎊", "Amazing! 🌈", "You did it! ⭐",
+    ],
+    PRAISE_SPOKEN: [
+      "Yay! You did it!", "Great job!", "Hooray!", "Awesome!",
+      "You're amazing!", "Woohoo!", "Nice work!", "Super!",
+    ],
+    TRYAGAIN_SPOKEN: ["Try again!", "Almost! Try another.", "Oops, try again!", "So close! Try again."],
+
+    // Bright, high-contrast confetti colors.
+    CONFETTI_COLORS: ["#ff5e7e", "#ffd24d", "#5ec8ff", "#7be08a", "#c77dff", "#ffa64d"],
+
+    // ---- "Say hi to the animals" toy ----
+    ANIMALS: [
+      { emoji: "🐶", name: "Dog" }, { emoji: "🐱", name: "Cat" },
+      { emoji: "🐰", name: "Bunny" }, { emoji: "🐻", name: "Bear" },
+      { emoji: "🦁", name: "Lion" }, { emoji: "🐸", name: "Frog" },
+      { emoji: "🐷", name: "Pig" }, { emoji: "🐵", name: "Monkey" },
+      { emoji: "🐘", name: "Elephant" }, { emoji: "🦊", name: "Fox" },
+      { emoji: "🐧", name: "Penguin" }, { emoji: "🦄", name: "Unicorn" },
+      { emoji: "🐢", name: "Turtle" }, { emoji: "🐝", name: "Bee" },
     ],
 
-    // Bright, high-contrast confetti colors for celebrations.
-    CONFETTI_COLORS: ["#ff5e7e", "#ffd24d", "#5ec8ff", "#7be08a", "#c77dff", "#ffa64d"],
+    // ---- Count & Feed (math [M], counting 1-10) ----
+    // A hungry friend; tap snacks to feed exactly the target number.
+    EATERS: [
+      { emoji: "🦖", name: "Dino" }, { emoji: "🐵", name: "Monkey" },
+      { emoji: "🐳", name: "Whale" }, { emoji: "🐰", name: "Bunny" },
+      { emoji: "🐷", name: "Piggy" },
+    ],
+    SNACKS: ["🍎", "🍌", "🍓", "🍇", "🍪", "🧀", "🥕", "🍊"],
+
+    // ---- Odd One Out (logic) ----
+    // Each group is one "kind"; a round shows 3 from one group + 1 from another.
+    ODD_GROUPS: [
+      { name: "fruit", items: ["🍎", "🍌", "🍓", "🍇", "🍊", "🍉"] },
+      { name: "animal", items: ["🐶", "🐱", "🐰", "🐸", "🐵", "🦊"] },
+      { name: "vehicle", items: ["🚗", "🚌", "🚒", "🚜", "🚀", "🚲"] },
+      { name: "food", items: ["🍕", "🍔", "🌭", "🍟", "🍩", "🍪"] },
+      { name: "shape", items: ["⭐", "❤️", "🔵", "🔺", "⬛", "🟢"] },
+      { name: "bug", items: ["🐝", "🐛", "🦋", "🐞", "🐜", "🕷️"] },
+    ],
+
+    // ---- What Comes Next (pattern logic) ----
+    // Token sets used to build AB / ABC / AABB patterns.
+    PATTERN_SETS: [
+      ["🔴", "🔵"], ["⭐", "🌙"], ["🍎", "🍌"], ["🐶", "🐱"],
+      ["🔺", "🟩"], ["🚗", "🚀"], ["❤️", "💛"], ["🌸", "🌻"],
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

@@ -17,33 +17,30 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>" />
 </head>
 <body>
-  <main class="page">
-    <header class="topbar">
-      <h1 class="title">Josh's Games</h1>
-      <!-- Big, obvious sound toggle. Starts OFF (shows 🔇). -->
-      <button id="sound-toggle" class="sound-toggle" type="button"
-              aria-label="Sound is off. Tap to turn sound on." aria-pressed="false">🔇</button>
-    </header>
+  <header class="topbar">
+    <span class="brand">Josh's Games</span>
+    <button id="sound-toggle" class="btn-round" type="button"
+            aria-label="Sound is off. Tap to turn sound on." aria-pressed="false">🔇</button>
+  </header>
 
-    <section class="toy" aria-labelledby="toy-h">
-      <h2 id="toy-h" class="toy__label">Say hi to the animals!</h2>
-
-      <!-- The whole card is one giant tap zone (fat-finger friendly). -->
-      <button id="animal-card" class="animal-card" type="button" aria-label="animal">
-        <span id="animal-emoji" class="animal-card__emoji" aria-hidden="true">🐶</span>
-        <span id="animal-name" class="animal-card__name">Dog</span>
-      </button>
-
-      <p class="toy__cheer" id="animal-cheer" aria-live="polite"></p>
-      <p class="toy__count">Friends met: <span id="friend-count">0</span> ⭐</p>
+  <main id="screens">
+    <!-- Home launcher: a grid of big game tiles (icons carry the meaning). -->
+    <section id="screen-home" class="screen home">
+      <h1 class="home__title">Pick a game! 👇</h1>
+      <div id="home-grid" class="home-grid" role="list" aria-label="Games"></div>
     </section>
-
-    <footer class="footer" aria-hidden="true">🎈 🎨 🐾</footer>
+    <!-- Game screens are injected here by scripts/main.js from the registry. -->
   </main>
 
   <!-- __BUILD__ is rewritten to the commit SHA at deploy time for cache-busting. -->
   <script src="scripts/content.js?v=__BUILD__" defer></script>
+  <script src="scripts/logic.js?v=__BUILD__" defer></script>
   <script src="scripts/effects.js?v=__BUILD__" defer></script>
+  <script src="scripts/audio.js?v=__BUILD__" defer></script>
+  <script src="scripts/framework.js?v=__BUILD__" defer></script>
+  <script src="scripts/games-toys.js?v=__BUILD__" defer></script>
+  <script src="scripts/games-math.js?v=__BUILD__" defer></script>
+  <script src="scripts/games-logic.js?v=__BUILD__" defer></script>
   <script src="scripts/main.js?v=__BUILD__" defer></script>
 </body>
 </html>
