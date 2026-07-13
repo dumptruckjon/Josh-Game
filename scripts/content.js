@@ -191,6 +191,9 @@
     // ---- Spot-the-difference picture pool (distinct, self-naming) ----
     SPOT_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
       "🐝", "🦋", "🐟", "🐢", "⭐", "❤️", "🚗", "🎈", "🍎", "🌈"],
+    // ---- Find-it games (visual search) — big, varied, clearly-different set ----
+    FIND_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
+      "🐝", "🦋", "🐟", "🐢", "🐙", "🐧", "🦄", "⭐", "❤️", "🚗", "🚀", "🎈", "🍎", "🌈"],
 
     // ---- Trace-the-Path (fine-motor / lacing) ----
     // Each path is dots as (x,y) percentages; tap green start -> red finish in

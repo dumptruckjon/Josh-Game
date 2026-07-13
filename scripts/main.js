@@ -13,6 +13,7 @@
     { id: "numbers", icon: "🔢", title: "Numbers", color: "#5ec8ff" },
     { id: "letters", icon: "🔤", title: "Letters", color: "#ff7ac0" },
     { id: "thinking", icon: "🧠", title: "Thinking", color: "#c77dff" },
+    { id: "find", icon: "🔍", title: "Find It", color: "#3ec7c7" },
     { id: "science", icon: "🔬", title: "Science", color: "#7be08a" },
     { id: "play", icon: "🎉", title: "Fun & Play", color: "#ffa64d" },
     { id: "friends", icon: "🤝", title: "Calm & Friends", color: "#ff5e7e" },
@@ -27,7 +28,9 @@
     "digraph": "letters", "letter-match": "letters", "missing-letter": "letters",
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
     "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking",
+    "find-hero": "find", "find-crowd": "find", "find-count": "find",
     "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",
+    "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
   };

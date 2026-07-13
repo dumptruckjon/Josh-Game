@@ -300,6 +300,60 @@
     return { before, after, diffIndex, count };
   }
 
+  // --- Find games (visual search) -----------------------------------------
+  // A field with K copies of a target hidden among distractors.
+  function makeFindHero(pool, size, targets, rng = Math.random) {
+    if (!Array.isArray(pool) || pool.length < 3) throw new Error("makeFindHero needs >= 3");
+    size = size || 12;
+    const target = pool[randInt(0, pool.length - 1, rng)];
+    const K = Math.min(targets || randInt(2, 4, rng), size);
+    const distract = pool.filter((e) => e !== target);
+    const cells = [];
+    for (let i = 0; i < K; i++) cells.push({ emoji: target, correct: true });
+    for (let i = 0; i < size - K; i++) cells.push({ emoji: distract[randInt(0, distract.length - 1, rng)], correct: false });
+    return { target, count: K, cells: shuffle(cells, rng) };
+  }
+
+  // A crowd of one emoji with exactly ONE different (spot the odd one).
+  function makeCrowd(pool, size, rng = Math.random) {
+    if (!Array.isArray(pool) || pool.length < 2) throw new Error("makeCrowd needs >= 2");
+    size = size || 12;
+    const base = pool[randInt(0, pool.length - 1, rng)];
+    let odd = base;
+    while (odd === base) odd = pool[randInt(0, pool.length - 1, rng)];
+    const cells = [];
+    for (let i = 0; i < size; i++) cells.push({ emoji: base, correct: false });
+    const oddIndex = randInt(0, size - 1, rng);
+    cells[oddIndex] = { emoji: odd, correct: true };
+    return { base, odd, oddIndex, cells };
+  }
+
+  // A scene to count: K copies of the target among distractors; number choices.
+  function makeFindCount(pool, size, rng = Math.random) {
+    if (!Array.isArray(pool) || pool.length < 3) throw new Error("makeFindCount needs >= 3");
+    size = size || 10;
+    const target = pool[randInt(0, pool.length - 1, rng)];
+    const K = Math.min(randInt(2, 5, rng), size);
+    const distract = pool.filter((e) => e !== target);
+    const cells = [];
+    for (let i = 0; i < K; i++) cells.push(target);
+    for (let i = 0; i < size - K; i++) cells.push(distract[randInt(0, distract.length - 1, rng)]);
+    const used = new Set([K]);
+    const wrongs = [];
+    while (wrongs.length < 2) { const w = randInt(1, Math.min(size, 9), rng); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
+    const choices = shuffle([{ n: K, correct: true }, ...wrongs.map((n) => ({ n, correct: false }))], rng);
+    return { target, count: K, cells: shuffle(cells, rng), choices };
+  }
+
+  // --- Tic-Tac-Toe winner -------------------------------------------------
+  const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  function tttWinner(board) {
+    for (const [a, b, c] of TTT_LINES) {
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
+    }
+    return null;
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
@@ -307,6 +361,7 @@
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,
     makeLetterMatch, makeMissingLetter, makeSpotDifference,
+    makeFindHero, makeCrowd, makeFindCount, tttWinner, TTT_LINES,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

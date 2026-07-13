@@ -351,3 +351,52 @@ test("makeSpotDifference: exactly one position changes between the rows", () => 
   }
   assert.throws(() => L.makeSpotDifference(["🐶", "🐱"], 3, rng), /pool > count/);
 });
+
+test("makeFindHero: exactly K target copies, rest are distractors", () => {
+  const rng = mulberry32(23);
+  for (const size of [9, 13, 17]) {
+    for (let i = 0; i < 1000; i++) {
+      const r = L.makeFindHero(content.FIND_POOL, size, 0, rng);
+      assert.equal(r.cells.length, size);
+      const correct = r.cells.filter((c) => c.correct);
+      assert.equal(correct.length, r.count, "count matches the number of correct cells");
+      correct.forEach((c) => assert.equal(c.emoji, r.target, "every correct cell is the target"));
+      r.cells.filter((c) => !c.correct).forEach((c) => assert.notEqual(c.emoji, r.target, "distractors are not the target"));
+    }
+  }
+});
+
+test("makeCrowd: exactly one odd cell that differs from the base", () => {
+  const rng = mulberry32(24);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeCrowd(content.FIND_POOL, 12, rng);
+    const correct = r.cells.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(r.cells[r.oddIndex].emoji, r.odd);
+    assert.notEqual(r.odd, r.base);
+    r.cells.forEach((c, i) => { if (i !== r.oddIndex) assert.equal(c.emoji, r.base, "the crowd is all the base"); });
+  }
+});
+
+test("makeFindCount: the count really equals the target's copies in the scene", () => {
+  const rng = mulberry32(25);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeFindCount(content.FIND_POOL, 12, rng);
+    const actual = r.cells.filter((e) => e === r.target).length;
+    assert.equal(actual, r.count, "count equals real occurrences");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].n, r.count);
+  }
+});
+
+test("tttWinner: detects rows, columns, diagonals; null otherwise", () => {
+  const X = "X", O = "O", _ = "";
+  assert.equal(L.tttWinner([X, X, X, _, _, _, _, _, _]), X, "top row");
+  assert.equal(L.tttWinner([_, _, _, O, O, O, _, _, _]), O, "middle row");
+  assert.equal(L.tttWinner([X, _, _, X, _, _, X, _, _]), X, "left column");
+  assert.equal(L.tttWinner([X, _, _, _, X, _, _, _, X]), X, "diagonal");
+  assert.equal(L.tttWinner([O, _, X, _, X, _, X, _, O]), X, "anti-diagonal");
+  assert.equal(L.tttWinner([X, O, X, O, O, X, X, X, O]), null, "full board, no line");
+  assert.equal(L.tttWinner([_, _, _, _, _, _, _, _, _]), null, "empty");
+});
