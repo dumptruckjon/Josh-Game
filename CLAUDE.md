@@ -136,13 +136,23 @@ tooling.
 ├── styles/
 │   └── main.css                # All styling (safe-area, static bg, ≥75px tap targets)
 ├── scripts/
-│   ├── content.js              # ALL editable content (ANIMALS, CHEERS, CONFETTI_COLORS…). Edit here.
+│   ├── content.js              # ALL editable content/data (dual-export: window.JoshContent + module.exports). Edit here.
+│   ├── logic.js                # PURE, deterministic game logic (window.JoshLogic + module.exports) — unit-tested
 │   ├── effects.js              # Shared JoshEffects.confetti()/stars() (celebrations)
-│   └── main.js                 # Behavior: isolated init loop, sound toggle, animal toy. Reads window.JoshContent.
+│   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off by default)
+│   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT
+│   ├── games-toys.js           # Self-registering games: gentle cause→effect toys
+│   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
+│   ├── games-literacy.js       # Self-registering games: first sound, rhyme, build-a-word, sight word
+│   ├── games-logic.js          # Self-registering games: odd-one-out, patterns, shadow, order, memory
+│   ├── games-science.js        # Self-registering games: living/color/land-air-water sorters
+│   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, co-op
+│   └── main.js                 # Launcher (home grid) + hash router + sound toggle + SW registration
 ├── tests/
-│   ├── site.test.js            # node:test unit/structure/logic tests (no browser)
-│   ├── e2e.test.js             # Playwright (Chromium) — taps every interactive toy
-│   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — touch + responsive + tap-size audit
+│   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
+│   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
+│   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness that plays EVERY registered game
+│   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
@@ -162,34 +172,74 @@ Update this tree whenever files are added or moved.
 
 ## Current Site Behavior
 
-One cheerful screen (`index.html`) on a **static** sky→meadow→sun gradient:
+A **launcher home screen** (`#screen-home`) on a **static** sky→meadow→sun
+gradient: a big grid of friendly game **tiles** (icon carries the meaning; a
+short label is for the grown-up). Tapping a tile opens that game via the URL
+hash (`#game-id`) so the phone Back button works; a big **🏠 Home** button
+returns. A giant **sound toggle** 🔇/🔊 lives in the top bar — **sound is OFF by
+default** (remembered as `josh-muted` in `localStorage`; iOS blocks autoplay
+anyway). Sound is the *primary instruction channel* when on (spoken prompts +
+a 👂 "hear it again" button), but every game is fully playable with sound off
+(icon strip + worked example + self-naming pictures).
 
-- A big title (for the grown-up) and a giant **sound on/off toggle** 🔇/🔊 in the
-  top bar. **Sound starts OFF** and the choice is remembered
-  (`josh-muted` in `localStorage`); iOS blocks autoplay anyway.
-- **"Say hi to the animals"** — a huge tap card showing a friendly animal emoji.
-  Tapping it: fires **confetti**, shows a happy cheer, counts a new friend
-  (**"Friends met"**, saved in `localStorage` as `josh-friends`), and pops in a
-  brand-new animal (never the same one twice in a row). When sound is on, the
-  animal's name is spoken (`speechSynthesis`, guarded). There is **no wrong move
-  and no timer**.
-- **Installable PWA** — `manifest.webmanifest` + `sw.js` make it
-  add-to-home-screen installable with a 🎈 icon, and it **works offline** (great
-  for car rides). The service worker is network-first: fresh when online, cached
-  when offline.
+**~23 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+shared framework, all no-fail / no-timer / ≥75px targets:
 
-All wording, the animal list, cheers, and confetti colors live in
-`scripts/content.js` for easy personalization.
+- **Math** — Count & Feed, Build a Number, Hop & Count (2s/5s/10s), How Many Are
+  Left? (take-away), Which Has More?, Penny Shop (money, scaffolded from zero).
+- **Literacy** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
+  Word (sight words).
+- **Logic** — Which is Different? (odd-one-out), What Comes Next? (patterns),
+  Match the Shadow, Small to Big (ordering), Memory Match.
+- **Science / sorting** — Alive or Not? (living/sink-float/plant-animal), Sort
+  the Colors, Land/Air/Water.
+- **Calm / SEL / co-op** — Breathing Star, I Did It! (certificate), Follow the
+  Path (lacing), **Team Hop (2-player co-op — take turns, nobody loses)**.
+- **Toy** — Hi, Animals! (tap → confetti + new animal; a `josh-friends` counter).
+
+Games personalize by rotating Josh's friends (**Raegar / River / Viraj**) and
+heroes; every win celebrates (confetti + spoken praise) and every wrong tap is a
+gentle bump with the target left in play (no score loss, no "you lose").
+
+**Installable PWA** — `manifest.webmanifest` + `sw.js` make it add-to-home-screen
+installable with a friendly star icon, and it **works offline** (great for car
+rides). The service worker is network-first: fresh when online, cached offline.
+
+### Adding a game (the framework + test contract)
+Register a game into one of the `scripts/games-*.js` files (or a new one wired
+into `index.html`, `sw.js`, and `tests/site.test.js`'s `SCRIPTS` list):
+
+```js
+window.JoshFramework.register({
+  id: "my-game", icon: "🎯", title: "My Game", skill: "… [W]",
+  start(api) {
+    api.setPrompt("Tap the right one!", ["👀", "👉", "😊"]); // spoken + icon strip
+    // Build UI into api.stage. Put pure logic in scripts/logic.js and unit-test it.
+    // TEST CONTRACT (so the generic harness plays it automatically):
+    //  • mark the correct next tap(s) with data-correct="1"; remove once consumed
+    //  • call api.win() when finished (sets screen.dataset.won); api.roundWin() per round
+    //  • api.tryAgain(el) for a gentle no-fail wrong tap
+    //  • pure toys (no win): mark [data-toy] and call api.tickPlay() each interaction
+  },
+});
+```
+
+The `api` gives you: `el`, `stage`, `setPrompt/speak/say`, `win/roundWin/tryAgain`,
+`friend()`/`hero()` (rotation), `shuffle/randItem/randInt/pickIndex`, `tickPlay`.
+Adding a game this way is **automatically** exercised by `e2e.test.js` (played to
+a win) and audited by `mobile.test.js` (≥75px, no overflow) — plus add unit tests
+for any new `logic.js` function and a browser check if it needs special handling.
 
 ### Test/preview hooks
 - `JOSH_BASE_URL=<url>` — run the browser tests against a live URL instead of a
   local server (used by CI's `verify-live` job).
 - Sound is off by default; `localStorage["josh-muted"] = "0"` turns it on.
+- Navigate straight to a game with `#<game-id>` (e.g. `#team-hop`).
 
-> **Ideas for the next toys** (all fit the RULE 5 guardrails): tap-to-pop
-> bubbles, sort-shapes-by-color, find-the-animal, a simple xylophone (sound-on),
-> peekaboo, a draw-anywhere sparkle pad. Add each as its own `initX()` in the
-> isolated boot loop, with unit + e2e + mobile tests.
+> **Ideas for more games** (all fit the RULE 5 guardrails + JOSH_PROFILE.md):
+> ten-frame/teen build, set-the-clock, digraph (sh/ch/th) sort, dot-to-dot
+> reveal, color-by-number, a simple xylophone (sound-on), peekaboo, more co-op
+> modes layered onto existing games.
 
 ## Development Workflow
 
