@@ -219,6 +219,13 @@
         { label: "ch", emoji: "ch", items: ["🧀", "🍒", "🪑", "🐤", "🍫"] }, // cheese, cherry, chair, chick, chocolate
       ] },
     ],
+    // Spoken word for each digraph picture, so the sort game NAMES the picture
+    // aloud like every other literacy game (removes any self-naming ambiguity
+    // when sound is on — e.g. 🐑 is "sheep", not "lamb").
+    DIGRAPH_WORDS: {
+      "🚢": "ship", "🐑": "sheep", "👟": "shoe", "🐚": "shell", "🦈": "shark",
+      "🧀": "cheese", "🍒": "cherry", "🪑": "chair", "🐤": "chick", "🍫": "chocolate",
+    },
     // ---- Spot-the-difference picture pool (distinct, self-naming) ----
     SPOT_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
       "🐝", "🦋", "🐟", "🐢", "⭐", "❤️", "🚗", "🎈", "🍎", "🌈"],
@@ -361,7 +368,7 @@
     ],
     DEDUCE_ITEMS: [
       { key: "star", emoji: "⭐" },
-      { key: "ball", emoji: "🎈" },
+      { key: "balloon", emoji: "🎈" },
     ],
 
     // ---- Trace-the-Path (fine-motor / lacing) ----

@@ -149,7 +149,8 @@
 
       function newRound() {
         const step = api.randItem(C.SKIP_STEPS);
-        const r = L.makeSkipCount(step, 5);
+        const len = 5 + Math.min(round, 2); // longer runs to track as it goes (5 → 7)
+        const r = L.makeSkipCount(step, len);
         api.setPrompt("Count by " + step + "s. Which is missing?", ["👀", "🐸", "❓"]);
         api.speak();
 
@@ -485,7 +486,8 @@
         }
       }
       function newRound() {
-        target = api.randInt(11, 39);
+        // Climb toward 99 in later rounds (his ten-board-to-100 is mastered).
+        target = round < 2 ? api.randInt(11, 39) : api.randInt(41, 99);
         total = 0;
         targetEl.textContent = String(target);
         api.setPrompt("Build the number " + target + "!", ["👀", "🔟", "🟡"]);
@@ -666,7 +668,7 @@
       }
 
       function newRound() {
-        const r = L.makeBigAdd();
+        const r = L.makeBigAdd(undefined, round >= 2); // later rounds may carry past ten
         api.setPrompt("Put them together — how many all together?", ["👀", "➕", "🔢"]);
         api.speak();
         board.innerHTML = "";

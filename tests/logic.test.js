@@ -427,20 +427,51 @@ test("makeMakeTen: have+need is always exactly ten; one correct choice", () => {
   }
 });
 
-test("makeBigAdd: two-digit, no regrouping, honest sum, one correct choice", () => {
+test("makeBigAdd: honest two-digit sum; easy never carries, hard may carry", () => {
   const rng = mulberry32(32);
   for (let i = 0; i < 4000; i++) {
-    const r = L.makeBigAdd(rng);
-    assert.equal(r.a, r.aTens * 10 + r.aOnes, "a split is consistent");
-    assert.equal(r.b, r.bTens * 10 + r.bOnes, "b split is consistent");
-    assert.ok(r.a >= 10 && r.b >= 10, "both are two-digit");
-    assert.ok(r.aOnes + r.bOnes <= 9, "ones never carry");
-    assert.ok(r.aTens + r.bTens <= 9, "tens never overflow past 90");
-    assert.equal(r.sum, r.a + r.b, "sum is truthful");
-    const correct = r.choices.filter((c) => c.correct);
+    // easy (default) — the gentle no-carry first taste
+    const e = L.makeBigAdd(rng);
+    assert.equal(e.a, e.aTens * 10 + e.aOnes, "a split is consistent");
+    assert.equal(e.b, e.bTens * 10 + e.bOnes, "b split is consistent");
+    assert.ok(e.a >= 10 && e.b >= 10, "both are two-digit");
+    assert.ok(e.aOnes + e.bOnes <= 9, "easy never carries");
+    assert.equal(e.carry, false, "easy carry flag is false");
+    assert.equal(e.sum, e.a + e.b, "sum is truthful");
+    let correct = e.choices.filter((c) => c.correct);
     assert.equal(correct.length, 1, "exactly one correct");
-    assert.equal(correct[0].n, r.sum, "correct choice is the sum");
-    assert.equal(new Set(r.choices.map((c) => c.n)).size, r.choices.length, "no duplicate choices");
+    assert.equal(correct[0].n, e.sum, "correct choice is the sum");
+    assert.equal(new Set(e.choices.map((c) => c.n)).size, e.choices.length, "no duplicate choices");
+
+    // hard — bigger numbers that may regroup; sum stays truthful
+    const h = L.makeBigAdd(rng, true);
+    assert.ok(h.a >= 10 && h.b >= 10, "hard addends are two-digit");
+    assert.equal(h.sum, h.a + h.b, "hard sum is truthful");
+    assert.equal(h.carry, h.aOnes + h.bOnes >= 10, "carry flag matches the ones");
+    const hc = h.choices.filter((c) => c.correct);
+    assert.equal(hc.length, 1, "hard: exactly one correct");
+    assert.equal(hc[0].n, h.sum, "hard: correct choice is the sum");
+    assert.equal(new Set(h.choices.map((c) => c.n)).size, h.choices.length, "hard: distinct choices");
+  }
+});
+
+test("makeNumberSequence: a varied consecutive run, tagged with ascending order", () => {
+  const rng = mulberry32(72);
+  for (const [len, maxStart] of [[4, 6], [5, 15]]) {
+    const starts = new Set();
+    for (let i = 0; i < 2000; i++) {
+      const r = L.makeNumberSequence(len, maxStart, rng);
+      assert.equal(r.values.length, len, "run has the right length");
+      // consecutive
+      for (let k = 1; k < len; k++) assert.equal(r.values[k], r.values[k - 1] + 1, "values are consecutive");
+      assert.ok(r.start >= 1 && r.start <= maxStart, "start within range");
+      starts.add(r.start);
+      // items: each value tagged with its ascending index; orders are a full permutation
+      const orders = r.items.map((it) => it.order).sort((a, b) => a - b);
+      assert.deepEqual(orders, r.values.map((_, i) => i), "orders are 0..len-1");
+      for (const it of r.items) assert.equal(it.value, r.start + it.order, "value matches its ascending order");
+    }
+    assert.ok(starts.size > 1, "the run actually varies (not always the same numbers)");
   }
 });
 

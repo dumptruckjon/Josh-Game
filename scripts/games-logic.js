@@ -157,7 +157,9 @@
         });
       }
       function newRound() {
-        const r = L.makeOrder(C.ORDER_POOL, 3);
+        // Grade more items as the rounds go on (3 → 4 → 5).
+        const n = round < 2 ? 3 : (round < 4 ? 4 : 5);
+        const r = L.makeOrder(C.ORDER_POOL, n);
         count = r.count; need = 1;
         api.setPrompt("Tap them from small to big!", ["👀", "🔼", "😊"]);
         api.speak();
@@ -168,7 +170,8 @@
             dataset: it.rank === 1 ? { rank: String(it.rank), correct: "1" } : { rank: String(it.rank) },
             aria: { label: "size " + it.rank },
           });
-          b.style.fontSize = (1.3 + it.rank * 0.8) + "rem";
+          // Gentle size gradient that stays inside the button at any count.
+          b.style.fontSize = (1.1 + it.rank * (2.6 / count)) + "rem";
           b.addEventListener("click", () => {
             if (b.dataset.done) return;
             if (Number(b.dataset.rank) === need) {
@@ -264,35 +267,39 @@
     skill: "number sequence [M]",
     start(api) {
       const ROUNDS = 5;
-      let round = 0, need = 1, count = 4;
+      let round = 0, step = 0, count = 4;
       const tray = api.el("div", { class: "choices choices--4" });
       api.stage.append(tray);
 
       function flagNext() {
         tray.querySelectorAll(".order__item").forEach((x) => {
-          if (!x.dataset.done && Number(x.dataset.rank) === need) x.dataset.correct = "1";
+          if (!x.dataset.done && Number(x.dataset.order) === step) x.dataset.correct = "1";
           else if (!x.dataset.done) delete x.dataset.correct;
         });
       }
       function newRound() {
-        const r = L.makeOrder(["🔢"], 4);
-        count = r.count; need = 1;
-        api.setPrompt("Tap the numbers in order: 1, 2, 3…", ["👀", "🔢", "🔼"]);
+        // Scale up: longer runs, and later rounds start higher (into the teens),
+        // so it never plays the trivial always-"1-2-3-4" it used to.
+        const len = round < 2 ? 4 : 5;
+        const maxStart = round < 2 ? 6 : 15;
+        const r = L.makeNumberSequence(len, maxStart);
+        count = len; step = 0;
+        api.setPrompt("Tap the numbers in order, smallest first!", ["👀", "🔢", "🔼"]);
         api.speak();
         tray.innerHTML = "";
         r.items.forEach((it) => {
           const b = api.el("button", {
-            class: "choice choice--num order__item tap", type: "button", text: String(it.rank),
-            dataset: it.rank === 1 ? { rank: String(it.rank), correct: "1" } : { rank: String(it.rank) },
-            aria: { label: String(it.rank) },
+            class: "choice choice--num order__item tap", type: "button", text: String(it.value),
+            dataset: it.order === 0 ? { order: String(it.order), correct: "1" } : { order: String(it.order) },
+            aria: { label: String(it.value) },
           });
           b.addEventListener("click", () => {
             if (b.dataset.done) return;
-            if (Number(b.dataset.rank) === need) {
+            if (Number(b.dataset.order) === step) {
               b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("order__item--done");
-              api.say(String(need));
-              need += 1;
-              if (need > count) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }
+              api.say(String(it.value));
+              step += 1;
+              if (step >= count) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }
               else flagNext();
             } else api.tryAgain(b);
           });

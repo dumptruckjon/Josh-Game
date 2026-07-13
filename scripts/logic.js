@@ -362,18 +362,33 @@
     return { have, need, choices };
   }
 
-  // --- Big Add (two-digit addition, NO regrouping) ------------------------
-  // a + b with ones(a)+ones(b) <= 9 and tens(a)+tens(b) <= 9, so the sum is
-  // honest and re-countable. Returns the tens/ones split for a block visual.
-  function makeBigAdd(rng = Math.random) {
-    const tensA = randInt(1, 2, rng), onesA = randInt(0, 4, rng);
-    const tensB = randInt(1, 2, rng), onesB = randInt(0, 4, rng);
+  // --- Big Add (two-digit addition) — scales with `hard` --------------------
+  // Easy: no regrouping (ones sums <= 9), small tens — a gentle first taste.
+  // Hard (later rounds): bigger tens and ones that may CARRY past ten. The sum is
+  // always honest and the tens/ones split drives the block visual either way.
+  function makeBigAdd(rng = Math.random, hard = false) {
+    const maxTens = hard ? 3 : 2, maxOnes = hard ? 9 : 4;
+    const tensA = randInt(1, maxTens, rng), onesA = randInt(0, maxOnes, rng);
+    const tensB = randInt(1, maxTens, rng), onesB = randInt(0, maxOnes, rng);
     const a = tensA * 10 + onesA, b = tensB * 10 + onesB;
-    const sum = a + b; // guaranteed no-carry: onesA+onesB<=8, tensA+tensB<=4
+    const sum = a + b;
     const pool = [sum + 1, sum - 1, sum + 10, sum - 10, sum + 2].filter((v) => v > 0 && v !== sum);
     const distractors = shuffle([...new Set(pool)], rng).slice(0, 2);
     const choices = shuffle([{ n: sum, correct: true }, ...distractors.map((n) => ({ n, correct: false }))], rng);
-    return { a, b, sum, aTens: tensA, aOnes: onesA, bTens: tensB, bOnes: onesB, choices };
+    return { a, b, sum, aTens: tensA, aOnes: onesA, bTens: tensB, bOnes: onesB, carry: onesA + onesB >= 10, choices };
+  }
+
+  // --- Number sequence to put in order (a VARIED consecutive run) ----------
+  // Fixes the old "always 1-2-3-4": a random run of `len` consecutive numbers
+  // starting anywhere up to maxStart (so it can stretch into the teens). Each
+  // tile carries its ascending `order` (0-based) so the game marks the next.
+  function makeNumberSequence(len, maxStart, rng = Math.random) {
+    len = len || 4;
+    const start = randInt(1, Math.max(1, maxStart || 6), rng);
+    const values = [];
+    for (let i = 0; i < len; i++) values.push(start + i);
+    const items = shuffle(values.map((value, i) => ({ value, order: i })), rng);
+    return { start, len, values, items };
   }
 
   // --- Read & Zap (decode a printed word, tap its picture) ----------------
@@ -648,7 +663,7 @@
     makeLetterMatch, makeMissingLetter, makeSpotDifference,
     makeFindHero, makeCrowd, makeFindCount, tttWinner, TTT_LINES, makeTeen,
     makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
-    makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt,
+    makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt, makeNumberSequence,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
     makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue,
   };

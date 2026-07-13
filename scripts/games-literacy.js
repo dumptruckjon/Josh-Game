@@ -194,6 +194,7 @@
         const r = L.makeSort(C.DIGRAPH_SETS[0]);
         api.setPrompt("Does it start with sh or ch?", ["👀", "👂", "🔠"]);
         api.speak();
+        api.say((C.DIGRAPH_WORDS || {})[r.item] || ""); // name the picture aloud
         itemEl.textContent = r.item;
         itemEl.classList.remove("pop"); void itemEl.offsetWidth; itemEl.classList.add("pop");
         bins.innerHTML = "";
