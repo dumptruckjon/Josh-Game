@@ -155,10 +155,13 @@
 
       function newRound() {
         const r = L.makeSightWord(C.SIGHT_WORDS);
-        api.setPrompt("Find the same word!", ["👀", "🟰", "🔤"]);
+        api.setPrompt("Which word did you hear? Read and find it!", ["👂", "🔤", "👆"]);
         api.speak();
         api.say(r.target);
-        target.textContent = r.target;
+        // Show the target in UPPERCASE while the choices stay lowercase, so it
+        // can't be solved by pixel-matching identical shapes — the child must
+        // actually READ the word (audio-supported). His live sight-word edge.
+        target.textContent = r.target.toUpperCase();
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {
@@ -448,6 +451,63 @@
           });
           field.appendChild(b);
         });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Spell My Name: tap the scrambled letters in order ([W] writing name) ----
+  // His literal writing edge is his name; this personalizes hardest (his loves say
+  // personalization is the cheapest big lift) and rotates his friends' names too.
+  F.register({
+    id: "name-spell",
+    icon: "✍️",
+    title: "Spell My Name",
+    skill: "name / letters [W]",
+    start(api) {
+      const NAMES = api.C.NAMES || [{ name: "Josh", letters: "JOSH" }];
+      const ROUNDS = Math.min(3, NAMES.length);
+      let round = 0, step = 0, letters = [];
+      const nameLabel = api.el("div", { class: "ns__name" });
+      const slots = api.el("div", { class: "ns__slots" });
+      const tray = api.el("div", { class: "choices choices--4 ns__tray" });
+      api.stage.append(nameLabel, slots, tray);
+
+      function flagNext() {
+        [...tray.children].forEach((t) => {
+          if (!t.dataset.done && t.dataset.letter === letters[step]) t.dataset.correct = "1";
+          else if (!t.dataset.done) delete t.dataset.correct;
+        });
+      }
+      function newRound() {
+        const entry = NAMES[round % NAMES.length];
+        const r = L.makeNameSpell(entry.letters);
+        letters = r.letters; step = 0;
+        nameLabel.textContent = entry.name;
+        api.setPrompt("Spell " + entry.name + "! Tap the letters in order.", ["👀", "🔤", "✍️"]);
+        api.speak(); api.say("Spell " + entry.name);
+        slots.innerHTML = "";
+        letters.forEach(() => slots.appendChild(api.el("span", { class: "ns__slot" }, ["_"])));
+        tray.innerHTML = "";
+        r.tiles.forEach((t) => {
+          const b = api.el("button", {
+            class: "choice choice--letter ns__tile tap", type: "button", text: t.letter,
+            dataset: { letter: t.letter }, aria: { label: t.letter },
+          });
+          b.addEventListener("click", () => {
+            if (b.dataset.done) return;
+            if (b.dataset.letter === letters[step]) {
+              b.dataset.done = "1"; b.classList.add("choice--used"); delete b.dataset.correct;
+              slots.children[step].textContent = letters[step];
+              api.say(letters[step]);
+              step += 1;
+              if (step >= letters.length) { round += 1; if (round >= ROUNDS) api.win({ say: "You spelled the names! Amazing!" }); else { api.roundWin(); newRound(); } }
+              else flagNext();
+            } else api.tryAgain(b);
+          });
+          tray.appendChild(b);
+        });
+        flagNext();
       }
       newRound();
     },

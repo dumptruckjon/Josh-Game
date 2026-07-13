@@ -264,6 +264,47 @@ test("conjunction colors and shapes are distinct", () => {
   for (const c of content.CONJ_COLORS) assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.name} needs a hex`);
 });
 
+// ---------- Plane shapes: each object really has that shape ----------
+const PLANE_TRUTH = {
+  "🍪": "Circle", "⚽": "Circle", "🕐": "Circle",
+  "🪟": "Square", "🧇": "Square", "🎁": "Square",
+  "🍕": "Triangle", "📐": "Triangle", "🔺": "Triangle",
+  "⭐": "Star", "🌟": "Star", "✨": "Star",
+  "❤️": "Heart", "💗": "Heart", "💖": "Heart",
+};
+test("every plane-shape's objects really have that shape (and are disjoint)", () => {
+  const seen = new Map();
+  for (const shape of content.PLANE_SHAPES) {
+    assert.ok(shape.objects.length >= 2, `${shape.name} needs >= 2 objects`);
+    assert.ok(/^<.*>$/s.test(shape.svg.trim()), `${shape.name} needs an SVG body`);
+    for (const o of shape.objects) {
+      assert.equal(PLANE_TRUTH[o], shape.name, `${o} should be shaped like a ${shape.name}`);
+      assert.ok(!seen.has(o), `${o} is used by two shapes`);
+      seen.set(o, shape.name);
+    }
+  }
+});
+
+// ---------- 3-bin color sort matches the verified 2-bin color truth ----------
+test("the harder 3-bin color set is truthful (red/blue/yellow)", () => {
+  const truth = { Red: ["🍎", "🍓", "🍅", "🌹", "❤️"], Blue: ["🫐", "💙", "🌀", "💧", "🐳"], Yellow: ["🍌", "🌟", "🌻", "🧀", "🐤"] };
+  const set = content.COLOR_SETS_3[0];
+  assert.equal(set.bins.length, 3, "3-bin set has three colors");
+  for (const bin of set.bins) {
+    assert.deepEqual([...bin.items].sort(), [...truth[bin.label]].sort(), `color bin "${bin.label}" must match the verified truth`);
+  }
+});
+
+// ---------- Names are first-name-only (privacy) and letters match ----------
+test("names are first-name-only, uppercase A-Z, letters match the name", () => {
+  assert.ok(content.NAMES.some((n) => n.name === "Josh"), "Josh's name is present");
+  for (const n of content.NAMES) {
+    assert.ok(!/\s/.test(n.name), `${n.name} must be a single first name (privacy)`);
+    assert.match(n.letters, /^[A-Z]+$/, `${n.name} letters must be uppercase A-Z`);
+    assert.equal(n.letters, n.name.toUpperCase(), `${n.name} letters must spell the name`);
+  }
+});
+
 test("picture-square trios are exactly 3 distinct, self-naming pictures", () => {
   assert.ok(content.SQUARE_TRIOS.length >= 3, "need several trios to rotate");
   for (const trio of content.SQUARE_TRIOS) {

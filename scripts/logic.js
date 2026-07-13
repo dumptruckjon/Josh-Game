@@ -645,6 +645,16 @@
     return { count: K, cells: shuffle(cells, rng) };
   }
 
+  // --- Spell My Name (scrambled letters to place left-to-right) -----------
+  // Returns the name's letters plus a shuffled set of tiles. The game matches by
+  // LETTER at the current position, so repeated letters (RAEGAR) are handled:
+  // any not-yet-used tile of the needed letter is accepted.
+  function makeNameSpell(letters, rng = Math.random) {
+    const arr = String(letters).toUpperCase().split("");
+    const tiles = shuffle(arr.map((letter, id) => ({ letter, id })), rng);
+    return { letters: arr, tiles };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -665,7 +675,7 @@
     makeMakeTen, makeBigAdd, makeWordPicture, makeDeduce, makeTwins, makeCategoryHunt, makeSolidMatch,
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt, makeNumberSequence,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
-    makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue,
+    makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue, makeNameSpell,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

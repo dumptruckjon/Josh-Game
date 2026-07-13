@@ -206,7 +206,7 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~77 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**~80 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
@@ -219,7 +219,8 @@ category's games:
 - **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
   Word (sight words), sh or ch? (digraph sort), Big & Little Letters, Missing
   Letter, Read & Zap (read a word → tap its picture), Rhyme Train (find every
-  rhyme), **sh/ch/th?** (finish the word), **Letter Maker** (trace letters).
+  rhyme), sh/ch/th? (finish the word), Letter Maker (trace letters), **Spell My
+  Name** (tap J-O-S-H / friends' names in order).
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
   Shadow (SVG shapes), Small to Big, Memory Match, Put in Order (numbers), What
   Changed?, Color by Number, Who Is It? (2-clue deduction), Picture Squares
@@ -232,16 +233,20 @@ category's games:
   harder each round.
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
   Hot or Cold?, Shape's Real Twin (3D solids), Will It Stick? (magnetic sort),
-  Land or Water? (globe), Where Do They Live? (continents — his top geography
-  edge, self-checking Montessori-colored map), **Make an Island** (build &
-  name landforms).
+  Land or Water? (globe), Where Do They Live? (continents, self-checking map),
+  Make an Island (build & name landforms), **Find the Shape** (2D plane shapes),
+  **Animal Homes** (single-continent ID, no map giveaway). *Sort the Colors*
+  scales to a 3-color bin in later rounds.
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
   Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
   Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
-  Path (lacing), Team Hop, Team Tower, Team Count, Team Rocket, Team Bridge,
-  Team Treasure (co-op find), **Team Sound Hunt** (co-op beginning sounds),
-  **Memory Together** (co-op concentration), Tic-Tac-Toe (2-player co-op).
+  Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
+  Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team
+  Bridge, Team Treasure (co-op find), Team Sound Hunt (co-op beginning sounds),
+  Memory Together (co-op concentration), Tic-Tac-Toe (2-player co-op). *(The
+  tap-to-fill co-ops now each carry a real skill — skip-count, countdown,
+  counting — not just turn-taking.)*
 
 Games personalize by rotating Josh's friends (**Raegar / River / Viraj**), Spidey
 heroes, and Paw-Patrol/Rubble homage names (**emoji + names only — not the

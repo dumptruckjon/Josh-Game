@@ -233,6 +233,32 @@
     FIND_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
       "🐝", "🦋", "🐟", "🐢", "🐙", "🐧", "🦄", "⭐", "❤️", "🚗", "🚀", "🎈", "🍎", "🌈"],
 
+    // ---- Spell My Name (personalized letter-order) — FIRST NAMES ONLY (privacy) ----
+    NAMES: [
+      { name: "Josh", letters: "JOSH" },
+      { name: "Raegar", letters: "RAEGAR" },
+      { name: "River", letters: "RIVER" },
+      { name: "Viraj", letters: "VIRAJ" },
+    ],
+
+    // ---- Plane shapes (2D) → a real-world object of that shape ----
+    PLANE_SHAPES: [
+      { name: "Circle", svg: '<circle cx="50" cy="50" r="40"/>', objects: ["🍪", "⚽", "🕐"] },
+      { name: "Square", svg: '<rect x="14" y="14" width="72" height="72" rx="6"/>', objects: ["🪟", "🧇", "🎁"] },
+      { name: "Triangle", svg: '<polygon points="50,12 88,84 12,84"/>', objects: ["🍕", "📐", "🔺"] },
+      { name: "Star", svg: '<polygon points="50,8 61,38 94,38 67,58 78,90 50,70 22,90 33,58 6,38 39,38"/>', objects: ["⭐", "🌟", "✨"] },
+      { name: "Heart", svg: '<path d="M50 30 C36 10 8 16 8 40 C8 64 36 74 50 90 C64 74 92 64 92 40 C92 16 64 10 50 30 Z"/>', objects: ["❤️", "💗", "💖"] },
+    ],
+
+    // ---- Sort the Colors: a harder 3-bin (primary colors) set for later rounds ----
+    COLOR_SETS_3: [
+      { name: "rby", bins: [
+        { label: "Red", emoji: "🔴", items: ["🍎", "🍓", "🍅", "🌹", "❤️"] },
+        { label: "Blue", emoji: "🔵", items: ["🫐", "💙", "🌀", "💧", "🐳"] },
+        { label: "Yellow", emoji: "🟡", items: ["🍌", "🌟", "🌻", "🧀", "🐤"] },
+      ] },
+    ],
+
     // ---- Web Rescue Reveal — friendly faces to free from the webs ----
     RESCUE_POOL: ["🐶", "🐱", "🐰", "🐦", "🐹", "🐢", "🦋", "🐝", "🦸", "🕷️"],
 

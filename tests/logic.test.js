@@ -743,3 +743,16 @@ test("makeWebRescue: exactly `count` cells hide a friend; the rest are empty", (
     }
   }
 });
+
+test("makeNameSpell: tiles are a shuffled permutation of the name's letters", () => {
+  const rng = mulberry32(73);
+  for (const entry of content.NAMES) {
+    for (let i = 0; i < 400; i++) {
+      const r = L.makeNameSpell(entry.letters, rng);
+      assert.equal(r.letters.join(""), entry.letters.toUpperCase(), "letters are the name (uppercased)");
+      assert.equal(r.tiles.length, r.letters.length, "a tile per letter");
+      assert.deepEqual([...r.tiles.map((t) => t.letter)].sort(), [...r.letters].sort(), "tiles are a permutation of the letters");
+      r.tiles.forEach((t) => assert.match(t.letter, /^[A-Z]$/, "each tile letter is A-Z"));
+    }
+  }
+});

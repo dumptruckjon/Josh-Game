@@ -219,10 +219,10 @@
   F.register({
     id: "team-build",
     icon: "🏗️",
-    title: "Team Tower (2 players)",
-    skill: "co-op / build together [W]",
+    title: "Team Number Tower (2 players)",
+    skill: "co-op / count to 10 [M]",
     start(api) {
-      const GOAL = 6;
+      const GOAL = 10;
       let friend = api.friend();
       if (friend.name === "Josh") friend = api.friend();
       const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
@@ -250,10 +250,10 @@
         const block = api.el("div", {
           class: "build__block pop",
           style: { background: (api.C.BLOCK_COLORS || ["#5ec8ff"])[(count - 1) % (api.C.BLOCK_COLORS || ["#5ec8ff"]).length] },
-        }, [players[i].emoji]);
+        }, [String(count)]); // numbered like a Numberblock — count aloud as it grows
         tower.insertBefore(block, tower.firstChild);
-        api.say("Block " + count);
-        if (count >= GOAL) { api.win({ say: "You built it together! Yay!" }); return; }
+        api.say(String(count));
+        if (count >= GOAL) { api.win({ say: "You built a tower of ten together! Yay!" }); return; }
         turn = turn === 0 ? 1 : 0;
         update();
       }
@@ -269,8 +269,8 @@
   F.register({
     id: "team-count",
     icon: "🔟",
-    title: "Team Count (2 players)",
-    skill: "co-op / counting together",
+    title: "Team Count by 2s (2 players)",
+    skill: "co-op / count by 2s [W]",
     start(api) {
       const GOAL = 10;
       let friend = api.friend();
@@ -281,8 +281,8 @@
       const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
       const countEl = api.el("div", { class: "tc__count" }, ["0"]);
       const dots = api.el("div", { class: "tc__dots" });
-      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add one" } }, [players[0].emoji + " +1"]);
-      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add one" } }, [players[1].emoji + " +1"]);
+      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add two" } }, [players[0].emoji + " +2"]);
+      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add two" } }, [players[1].emoji + " +2"]);
       const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
       api.stage.append(turnEl, countEl, dots, btns);
       const laneBtns = [p0, p1];
@@ -298,17 +298,17 @@
       }
       function add(i) {
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
-        count += 1;
+        count += 2; // skip-count by 2s: 2, 4, 6, 8, 10
         countEl.textContent = String(count);
-        if (dots.children[count - 1]) dots.children[count - 1].classList.add("tc__dot--on");
+        for (let d = count - 2; d < count; d++) if (dots.children[d]) dots.children[d].classList.add("tc__dot--on");
         api.say(String(count));
-        if (count >= GOAL) { laneBtns.forEach((b) => delete b.dataset.correct); api.win({ say: "You counted to ten together! Yay!" }); return; }
+        if (count >= GOAL) { laneBtns.forEach((b) => delete b.dataset.correct); api.win({ say: "You counted by twos to ten! Yay!" }); return; }
         turn = turn === 0 ? 1 : 0;
         update();
       }
       p0.addEventListener("click", () => add(0));
       p1.addEventListener("click", () => add(1));
-      api.setPrompt("Take turns! Count to 10 together.", ["🕷️", "🔁", "🔟"]);
+      api.setPrompt("Take turns! Count by 2s to 10 together.", ["🕷️", "🔁", "🔢"]);
       api.speak();
       update();
     },
@@ -318,24 +318,25 @@
   F.register({
     id: "team-rocket",
     icon: "🚀",
-    title: "Team Rocket (2 players)",
-    skill: "co-op / build together",
+    title: "Team Countdown (2 players)",
+    skill: "co-op / count down [W]",
     start(api) {
-      const GOAL = 8;
+      const START = 5;
       let friend = api.friend();
       if (friend.name === "Josh") friend = api.friend();
       const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️" }];
-      let turn = 0, fuel = 0;
+      let turn = 0, remaining = START;
 
       const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
       const rocketEl = api.el("div", { class: "rocket-art art-fill", aria: { hidden: "true" }, html: (window.JoshArt && window.JoshArt.rocket) ? window.JoshArt.rocket() : "🚀" });
       const gauge = api.el("div", { class: "tc__dots" });
-      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add fuel" } }, [players[0].emoji + " Fuel"]);
-      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add fuel" } }, [players[1].emoji + " Fuel"]);
+      const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " count down" } }, [players[0].emoji + " Count down"]);
+      const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " count down" } }, [players[1].emoji + " Count down"]);
       const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
       api.stage.append(turnEl, rocketEl, gauge, btns);
       const laneBtns = [p0, p1];
-      for (let i = 0; i < GOAL; i++) gauge.appendChild(api.el("span", { class: "tc__dot" }));
+      // Start with all lights ON; each turn takes one away as we count down.
+      for (let i = 0; i < START; i++) gauge.appendChild(api.el("span", { class: "tc__dot tc__dot--on" }));
 
       function update() {
         laneBtns.forEach((b, i) => {
@@ -347,13 +348,13 @@
       }
       function add(i) {
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
-        fuel += 1;
-        if (gauge.children[fuel - 1]) gauge.children[fuel - 1].classList.add("tc__dot--on");
-        api.say("Fuel " + fuel);
-        if (fuel >= GOAL) {
+        remaining -= 1;
+        if (gauge.children[remaining]) gauge.children[remaining].classList.remove("tc__dot--on");
+        api.say(remaining > 0 ? String(remaining) : "Blast off!");
+        if (remaining <= 0) {
           rocketEl.classList.add("rocket-art--launch");
           laneBtns.forEach((b) => delete b.dataset.correct);
-          api.win({ say: "Blast off! You did it together!" });
+          api.win({ say: "Zero — blast off! You counted down together!" });
           return;
         }
         turn = turn === 0 ? 1 : 0;
@@ -361,7 +362,7 @@
       }
       p0.addEventListener("click", () => add(0));
       p1.addEventListener("click", () => add(1));
-      api.setPrompt("Take turns adding fuel, then blast off!", ["🕷️", "🔁", "🚀"]);
+      api.setPrompt("Take turns counting down: 5, 4, 3, 2, 1… blast off!", ["🕷️", "🔁", "🚀"]);
       api.speak();
       update();
     },

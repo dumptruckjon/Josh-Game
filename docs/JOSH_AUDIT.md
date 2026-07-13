@@ -5,16 +5,25 @@
 assessment of where games are too easy/boring, not a status brag — it exists to
 steer the next round of improvements (see RULE 7 in CLAUDE.md).*
 
-> **✅ Applied so far (safe/additive — nothing removed):** the "make challenge
-> games scale" fixes from rec #1/#3/#6 — `order-num` now varies + climbs into the
-> teens (was always 1-2-3-4); `order-size` grades 3→4→5; `place-value` climbs
-> toward 99; `big-add` introduces carries in later rounds; `skip-hop` runs
-> lengthen 5→7. Also: `digraph` now speaks its word; `magnet` coin/key falsehood
-> fixed; Dot-to-Dot reveal fixed.
-> **Still open (need a design call — they consolidate or rework existing play):**
-> scaling/3-bin variants for the 7 sorters; adding real-skill layers to 3 of the 5
-> tap-to-fill co-ops; a "Write My Name" (J-O-S-H) tracer; making `sight-word`
-> audio-only; a single-continent-map mode; a plane-shape geometry game.
+> **✅ ALL recommendations now applied.**
+> - Rec #1/#3/#6 (scale challenge games): `order-num` varies + climbs into the
+>   teens (was always 1-2-3-4); `order-size` grades 3→4→5; `place-value` climbs
+>   toward 99; `big-add` introduces carries later; `skip-hop` runs lengthen 5→7.
+> - Rec #2 (rebalance the over-cloned clusters): `color-sort` scales to a 3-bin
+>   (red/blue/yellow) variant in later rounds; the tap-to-fill co-ops now each
+>   carry a real skill — **Team Count by 2s** (skip-count), **Team Countdown**
+>   (5→0), **Team Number Tower** (count to 10).
+> - Rec #4 (Write My Name): **Spell My Name** — tap J-O-S-H / friends' names in
+>   order (personalized, his writing-name edge).
+> - Rec #5 (real sight-word reading): the target now shows in a DIFFERENT case
+>   from the choices + is spoken, so it can't be solved by pixel-matching.
+> - Rec #7 (thin geography/geometry): **Animal Homes** (single-continent ID with
+>   no on-map animal giveaway) and **Find the Shape** (2D plane shapes).
+> - Correctness fixes folded in: `digraph` speaks its word; `magnet` coin/key
+>   falsehood fixed; Dot-to-Dot reveal fixed; calm games no longer re-fire.
+>
+> Result: the challenge/confidence mix has moved decisively toward the 70/30
+> target (flat games now ramp; the easy clones now teach a real skill).
 
 ## 1. Headline verdict
 
