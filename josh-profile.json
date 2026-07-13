@@ -1,0 +1,163 @@
+{
+  "meta": {
+    "purpose": "Seed profile for generating personalized, age-appropriate games for Josh (age 4). Companion to JOSH_PROFILE.md.",
+    "privacy": "PUBLIC REPO — no PII beyond first names. No last name, address, phone, birth year, or school/teacher name. Any real personal details (address/phone for a safety-practice game) must be injected privately at runtime and never committed.",
+    "sourceOfTruth": "Montessori progress report, June 2026 (Primary / Level 2, age 4), plus a private worksheet-factory design spec.",
+    "assessmentDate": "2026-06",
+    "resyncWhen": "A newer school assessment arrives — re-bucket the `skills` section.",
+    "levelKey": {
+      "M": "Mastered — use for confidence/reward slice",
+      "W": "Working — the CHALLENGE sweet-spot; spend most games here",
+      "P": "Presented — brand-new, scaffold gently",
+      "NA": "Not assessed — treat as brand-new/optional"
+    }
+  },
+
+  "child": {
+    "name": "Josh",
+    "age": 4,
+    "birthdayTheme": "Feb 14 (Valentine's Day) — low-risk hook for birthday/themed games; no birth year on purpose",
+    "heritage": "half White / half Chinese — for inclusive character design only",
+    "schooling": "Montessori preschool (Primary / Level 2)",
+    "teacherNotes": [
+      "Very observant and curious; loves learning new topics.",
+      "Has made good friendships; enjoys working on puzzles WITH friends.",
+      "Comfortable in known environments; needs more adult guidance / gentle onboarding with unfamiliar things.",
+      "Confident and happy; interacts positively with peers and adults."
+    ]
+  },
+
+  "friends": [
+    { "name": "Raegar", "heritage": "Indian/Russian", "age": 4 },
+    { "name": "River",  "heritage": "Chinese",        "age": 4 },
+    { "name": "Viraj",  "heritage": "Indian",         "age": 4 }
+  ],
+  "friendUsage": "Rotate a DIFFERENT friend into each game/level's story, characters, and co-op 'other player'. Vary the content (scenes, counts, word lists) too, not just the name.",
+
+  "interests": {
+    "primary": ["Spidey & His Amazing Friends", "Numberblocks"],
+    "secondaryHooks": ["puzzles", "space/stars", "animals", "vehicles", "his Feb-14 birthday"],
+    "characterRoster": {
+      "spidey": ["Spidey (Peter)", "Ghost-Spider / Gwen", "Spin (Miles)"],
+      "spideyVillainsKeepSilly": ["Green Goblin", "Rhino", "Doc Ock"],
+      "numberblocks": "Number characters 1-10+ that literally grow/build as he counts or adds — perfect skin for math."
+    },
+    "tone": "bright, friendly, celebratory, silly-not-scary, lots of 'you did it!' energy"
+  },
+
+  "personalization": {
+    "safeToUseInThisPublicRepo": {
+      "firstName": "Josh",
+      "birthdayTheme": "Feb 14",
+      "friends": ["Raegar", "River", "Viraj"],
+      "interests": ["Spidey", "Numberblocks"]
+    },
+    "keepPrivateInjectAtRuntime": "Last name, home address, ZIP, phone numbers, school/teacher names. Learning to recite one's address & phone is a real safety skill, so a 'say my address/phone' practice game is welcome — but the parent supplies those values privately; never hard-code or commit them here."
+  },
+
+  "designLaws": {
+    "nonReaderFirst": "He can barely read. Instructions come from AUDIO narration + pictures + a demonstrated example. Games can use VOICE — make it the primary instruction channel. Any child-facing word must be short & phonetic (cat/dog/sun).",
+    "iconInstructionStrip": "Lead each task with 2-3 big action icons (e.g. look -> do -> smile); pictures carry the meaning.",
+    "showDontTell": "Pre-complete/animate the first item as a worked example so he copies the pattern.",
+    "shapeIsTheInstruction": "Dashed line = trace it; ghosted gray = complete/color it; green start -> red stop = path direction. Reuse the same visual language every time.",
+    "picturesNotWordProblems": "Show countable objects (red + blue = ?), never 'River had 1 block...'.",
+    "oneTaskPerScreen": "Never mix two activities that each need explaining.",
+    "pictureMustNameItself": "On naming tasks (first sound/rhyme), the picture's natural 4yo name must BE the answer. Avoid ambiguous icons (chicken!=hen, soccer-ball!=ball, thumbs-up!=thumb)."
+  },
+
+  "engagementPrinciples": [
+    "Transformation over decoration: build the reward INTO the task (the work completes a picture / suits up a hero / moves a friend home). Reward art must NOT carry the answer.",
+    "2-player / co-op whenever natural: take turns, race-or-build together, turn indicator so no adult referees. HIS TOP LEVER.",
+    "Personalize cheaply: Feb-14 birthday, friends, heroes.",
+    "Autonomy & identity: pick-your-hero, build-your-own, 'I did it' certificate, calm-down beat — pair with hard content.",
+    "Respect the ceiling: short 5-10 min sessions, big targets, forgiving input, no punishing time pressure."
+  ],
+
+  "difficultyTargets": {
+    "challengeShareW": 0.7,
+    "confidenceShareM": 0.3,
+    "sprinkle": "occasionally introduce one gently-scaffolded [P] new skill",
+    "rationale": "Most games sit on his [W] growth edges (the sweet spot); a [M] confidence/reward slice protects motivation; new [P] skills come one-at-a-time with a walkthrough."
+  },
+
+  "skills": {
+    "math": {
+      "mastered": ["1:1 correspondence", "rote count 1-10", "recognize numerals 1-10", "quantify 1-10", "number sequence 1-10", "write numbers independently", "teen board 11-19", "ten board 10-100", "count by 10s", "simple addition (bead stairs)", "intro golden beads / decimal cards"],
+      "working": ["count by 5s", "count by 2s", "2-digit addition", "golden-bead fetch (build 2-digit quantity)", "bird's-eye view (top-down/spatial)"],
+      "presented": ["simple subtraction (take-away)", "clock & time (o'clock / half-past)"],
+      "notAssessed": ["money / coin values — BRAND NEW; start from 'penny = 1 cent, count the pennies', then nickels, then compare amounts"]
+    },
+    "literacy": {
+      "mastered": ["common words", "letter sounds", "beginning sounds", "decode 3-letter phonetic words", "decode 4-letter phonetic words", "interprets pictures (his superpower)", "fill-in words / read familiar books from memory", "comprehends read-aloud text"],
+      "working": ["rhyming", "sight (non-phonetic) words", "phonograms / digraphs sh-ch-th", "reading simple sentences", "comprehension", "writing name / lowercase letters", "writing simple words & sentences"],
+      "note": "Keep connected text audio-supported. A single short phonetic word + picture is fair game."
+    },
+    "geographyScienceSensorial": {
+      "mastered": ["matching", "sorting", "grading sizes", "puzzles", "binomial cube", "days of week", "months", "seasons", "land/air/water", "continent globe", "continent map (whole)", "SCIENCE: living/non-living", "SCIENCE: plants/animals", "SCIENCE: magnetic/non-magnetic", "SCIENCE: sink/float"],
+      "working": ["North America map", "South America map", "Europe map", "Australia map", "USA map", "Asia map", "geometry solids", "geometry cabinets", "trinomial cube"],
+      "presented": ["landforms (island/lake/peninsula/gulf)", "oceans"],
+      "opportunity": "Science is all [M] and UNDER-USED — a fresh, confidence-building domain (sink/float, magnet, living/non-living sorters)."
+    },
+    "practicalMotorSEL": {
+      "mastered": ["scissors straight/curved", "glue", "dressing frames: buttons/snaps/zips/velcro", "pencil grip", "tracing", "coloring inside lines", "draw circle/line", "pegboard/pinning/lids/nuts&bolts", "all gross motor (hop/skip/gallop/walk-backwards/throw/balance)"],
+      "working": ["lacing (only fine-motor edge)", "write his name and personal details (address/phone — inject values privately, never commit)", "self-confidence", "handling frustration (deep breathing)", "conflict resolution", "group discussion / turn-taking"],
+      "implication": "Tracing/coloring/cutting are mastered -> use as calm/confidence fillers, not the main challenge. Frustration & confidence are working -> no-lose design + celebration + calm-down beats."
+    },
+    "logicReasoning": {
+      "status": "Recently introduced via worksheets and landed well; screen-native winners. Treat [P]->[W]: scaffold once, then favorites.",
+      "mechanics": ["odd-one-out", "picture-sudoku 4x4", "sequencing / put-in-order", "spot-the-difference", "shadow / silhouette match", "pattern what-comes-next", "dot-to-dot reveal", "color-by-code mystery picture"]
+    }
+  },
+
+  "gameMechanicMenu": [
+    { "skill": "counting [M]", "idea": "count-and-feed / count-and-tap N objects", "strong": true },
+    { "skill": "counting/addition [M/W]", "idea": "Numberblock builder — stack exactly N; character grows", "strong": true },
+    { "skill": "numeral writing [M]", "idea": "finger-trace the numeral, it animates to life" },
+    { "skill": "count by 2s/5s [W]", "idea": "skip-count hop along stones; fill missing numbers" },
+    { "skill": "2-digit / place value [W]", "idea": "golden-bead build: drag ten-bars + ones", "strong": true },
+    { "skill": "2-digit addition [W]", "idea": "combine two bead groups, count the total" },
+    { "skill": "subtraction [P]", "idea": "take-away animation; count what's left" },
+    { "skill": "clock/time [P]", "idea": "set-the-clock hand / order the daily routine" },
+    { "skill": "money [NA]", "idea": "coin shop — count pennies to buy a sticker; scaffold from zero", "strong": true },
+    { "skill": "teen/ten-frame [M/W]", "idea": "fill 10 + some more; name the teen" },
+    { "skill": "compare/measure [P]", "idea": "more/fewer, taller/shorter, heavier/lighter tap" },
+    { "skill": "beginning sounds [M]", "idea": "first-sound sort (audio names picture)", "strong": true },
+    { "skill": "CVC decode [M]", "idea": "build-a-word: tap 3 letter-sounds under a picture" },
+    { "skill": "rhyming [W]", "idea": "connect two rhyming pictures", "strong": true },
+    { "skill": "sight words [W]", "idea": "hear a word, tap the matching one of 3" },
+    { "skill": "phonograms [W]", "idea": "sort pictures by sh/ch/th sound" },
+    { "skill": "comprehension [W]", "idea": "listen-and-answer / picture-story sequence" },
+    { "skill": "continent maps [W]", "idea": "drag continent to globe; 'where do WE live?' star", "strong": true },
+    { "skill": "landforms/oceans [P]", "idea": "color/sort land vs water, island/lake" },
+    { "skill": "science [M]", "idea": "sorter: living/non-living, sink/float, magnetic, plant/animal", "strong": true },
+    { "skill": "calendar [M]", "idea": "days/months/seasons order & match" },
+    { "skill": "geometry solids [W]", "idea": "match 3D solid to its real-world object" },
+    { "skill": "puzzles [M]", "idea": "jigsaw, any theme" },
+    { "skill": "logic [P->W]", "idea": "odd-one-out / sudoku / sequence / spot-diff / shadow / pattern / dot-to-dot / color-by-number", "strong": true },
+    { "skill": "lacing/fine-motor [W]", "idea": "trace-the-path maze: green start -> red stop" },
+    { "skill": "SEL frustration [W]", "idea": "breathing star / calm corner — no wrong answer", "strong": true },
+    { "skill": "confidence [W]", "idea": "'I did it!' certificate — sign name, color badge, celebrate", "strong": true },
+    { "skill": "co-op (layer on anything)", "idea": "2-player take-turns race/build; turn indicator; no losing", "strong": true }
+  ],
+
+  "inputUX": {
+    "instruction": "voice-first; auto-play spoken prompt + persistent replay button; never gate on reading",
+    "targets": "big tap targets, forgiving hit-boxes",
+    "gestures": "tap and single-finger drag/trace only; NO multi-touch, pinch, precise timing, or reflex challenges",
+    "feedback": "immediate + celebratory on correct (happy sound + visible transformation); gentle 'try again' on wrong (soft bump, keep object in play, no score loss)",
+    "failure": "NO hard-fail / game-over / shame; friendly races still end in 'great try, play again!'",
+    "session": "short ~5-10 min; stop anytime with progress saved",
+    "onboarding": "guided worked walkthrough the FIRST time a mechanic is new (he needs easing into unfamiliar formats); familiar formats jump straight in"
+  },
+
+  "avoid": [
+    "text-dependent instructions (use audio + icons + demo)",
+    "ambiguous pictures on naming tasks (verify the picture names itself)",
+    "hard-fail / 'you lose' / shame feedback (harms frustration tolerance)",
+    "precise or fast input (pinch, tiny drag targets, reaction-time)",
+    "word problems / story math to be read (show countable pictures)",
+    "brand-new mechanic with no onboarding",
+    "assuming money/coin knowledge (it's brand new)",
+    "repetition across sessions (rotate friends, themes, scenes, number/word sets)"
+  ]
+}
