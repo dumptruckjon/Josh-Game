@@ -6,6 +6,20 @@
   const C = window.JoshContent || {};
   if (!F) return;
 
+  const FRIENDS = C.FRIENDS || [];
+  const artOf = (nm) => (FRIENDS.find((f) => f.name === nm) || {}).art;
+  // Co-op turn banner showing the current player's PORTRAIT — so "Josh's turn!"
+  // shows Josh's face and each friend shows theirs. Shared by every co-op game.
+  function coopTurn(turnEl, player, tail) {
+    turnEl.innerHTML = "";
+    const spec = player.art || artOf(player.name);
+    const face = document.createElement("span");
+    face.className = "coop__face art-fill";
+    face.setAttribute("aria-hidden", "true");
+    face.innerHTML = (window.JoshArt && window.JoshArt.friend && spec) ? window.JoshArt.friend(spec) : (player.emoji || "");
+    turnEl.append(face, document.createTextNode(" " + player.name + "’s turn" + (tail || "!")));
+  }
+
   // ---- Breathing Star (calm corner / SEL) ----
   // Tap the star to take slow breaths. No wrong answer — a reset for hard moments.
   F.register({
@@ -52,6 +66,10 @@
       let placed = 0;
       const cert = api.el("div", { class: "cert" }, [
         api.el("div", { class: "cert__title" }, ["🌟 Great job, Josh! 🌟"]),
+        api.el("div", {
+          class: "cert__face art-fill", aria: { hidden: "true" },
+          html: (window.JoshArt && window.JoshArt.friend && artOf("Josh")) ? window.JoshArt.friend(artOf("Josh")) : "",
+        }),
       ]);
       const stickers = api.el("div", { class: "cert__stickers" });
       cert.appendChild(stickers);
@@ -192,7 +210,7 @@
           laneEls[idx].btn.classList.toggle("coop__btn--active", active);
           if (active) laneEls[idx].btn.dataset.correct = "1"; else delete laneEls[idx].btn.dataset.correct;
         });
-        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!";
+        coopTurn(turnEl, players[turn]);
       }
 
       function hop(idx) {
@@ -242,7 +260,7 @@
           b.classList.toggle("coop__btn--active", active);
           if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
         });
-        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!";
+        coopTurn(turnEl, players[turn]);
       }
       function add(i) {
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
@@ -294,7 +312,7 @@
           b.classList.toggle("coop__btn--active", active);
           if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
         });
-        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!";
+        coopTurn(turnEl, players[turn]);
       }
       function add(i) {
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
@@ -344,7 +362,7 @@
           b.classList.toggle("coop__btn--active", active);
           if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
         });
-        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn — fuel up!";
+        coopTurn(turnEl, players[turn], " — fuel up!");
       }
       function add(i) {
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
@@ -392,7 +410,7 @@
 
       function place() {
         const r = L.makeSoundHunt(WORDS, 6);
-        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!";
+        coopTurn(turnEl, players[turn]);
         targetEl.innerHTML = "";
         targetEl.append(
           api.el("span", { class: "find__targetEmoji", text: r.letter }),
@@ -443,7 +461,7 @@
       const grid = api.el("div", { class: "memory-grid" });
       api.stage.append(turnEl, grid);
 
-      function showTurn() { turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn!"; }
+      function showTurn() { coopTurn(turnEl, players[turn]); }
       function syncFlags() {
         cards.forEach((c) => delete c.dataset.correct);
         if (first) {
@@ -521,7 +539,7 @@
       for (let i = 0; i < GOAL; i++) chest.appendChild(api.el("span", { class: "tt2__slot" }, ["▫️"]));
 
       function place() {
-        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn — find the 💎!";
+        coopTurn(turnEl, players[turn], " — find the 💎!");
         const size = 9;
         // one treasure among distractors (distractors are never 💎)
         const distract = L.sample(POOL.filter((e) => e !== "💎"), size - 1);
@@ -589,7 +607,7 @@
           b.classList.toggle("coop__btn--active", active);
           if (active) b.dataset.correct = "1"; else delete b.dataset.correct;
         });
-        turnEl.textContent = players[turn].emoji + " " + players[turn].name + "’s turn — place a stone!";
+        coopTurn(turnEl, players[turn], " — place a stone!");
       }
       function add(i) {
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }

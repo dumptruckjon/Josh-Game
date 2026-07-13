@@ -257,7 +257,9 @@ category's games:
 > **Friend & character art (`scripts/art.js`).** `JoshArt.friend({skin,hair,style,shirt})`
 > draws each kid as a clearly-different portrait (Josh, Raegar, River, Viraj — see
 > their heritage-informed specs in `content.js` `FRIENDS`). Faces show up in **Spell
-> My Name** and race in **Friends Race**; the Spidey-style `hero()` still pops on
+> My Name**, race in **Friends Race**, headline the **turn banner of every co-op
+> game** (`coopTurn()` in `games-calm.js` — "Josh's turn!" shows Josh's face), and
+> beam from the **I Did It! certificate**; the Spidey-style `hero()` still pops on
 > every win. Keep the four visibly distinct (a `content.test.js` guardrail enforces
 > unique shirt + skin/hair/style).
 

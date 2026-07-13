@@ -411,6 +411,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 .cert__title { font-size: 1.4rem; font-weight: 900; color: #c2185b; }
+.cert__face { width: 88px; margin: 6px auto 2px; }
+.cert__face svg { width: 100%; height: auto; display: block; }
 .cert__stickers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 3rem; margin-top: 10px; font-size: 2.4rem; }
 .cert__sticker { line-height: 1; }
 
@@ -431,6 +433,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 /* ---------- Team Hop (co-op) ---------- */
 .coop__lanes { display: flex; flex-direction: column; gap: 18px; width: 100%; }
 .coop__turn { font-size: 1.3rem; font-weight: 800; color: #2b8a5b; text-align: center; }
+.coop__face { display: inline-block; width: 36px; vertical-align: middle; }
+.coop__face svg { width: 100%; height: auto; display: block; }
 .coop__lane { display: flex; flex-direction: column; gap: 8px; }
 .coop__track { position: relative; height: 56px; background: rgba(255, 255, 255, 0.6); border-radius: 16px; }
 .coop__token { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); font-size: 2rem; transition: left 0.25s; margin-left: 20px; }
