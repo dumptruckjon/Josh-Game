@@ -411,6 +411,23 @@ body {
 .pv__pile { min-height: var(--tap); border-radius: 18px; background: var(--card); box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12); font-size: 2rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .pv__plus { font-size: 1.1rem; font-weight: 800; color: #667; }
 
+/* ---------- Big & Little Letters ---------- */
+.letter__big { font-size: clamp(4rem, 28vw, 7rem); font-weight: 900; color: #5a3ec7; line-height: 1; }
+.choice--lower { font-weight: 900; color: #2b8a5b; } /* keep lowercase (no transform) */
+
+/* ---------- Missing Letter ---------- */
+.ml__word { display: flex; gap: 8px; justify-content: center; }
+.ml__slot { min-width: 40px; font-size: 2rem; font-weight: 900; color: #333; border-bottom: 5px solid #c3c8d0; text-align: center; padding-bottom: 2px; }
+.ml__slot--blank { color: #e2571e; border-color: #ffb703; }
+
+/* ---------- Digraph bins ---------- */
+.sort__binLetters { font-size: 2.6rem; font-weight: 900; color: #33445a; }
+
+/* ---------- What Changed (spot the difference) ---------- */
+.spot__row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.spot__cell { display: flex; align-items: center; justify-content: center; font-size: 2.6rem; min-height: 70px; background: rgba(255, 255, 255, 0.5); border-radius: 16px; }
+.spot__label { font-size: 0.9rem; color: #888; text-align: center; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }

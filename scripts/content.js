@@ -168,6 +168,17 @@
       ] },
     ],
 
+    // ---- Digraphs (sh / ch) — every picture names itself and starts with the sound ----
+    DIGRAPH_SETS: [
+      { name: "shch", bins: [
+        { label: "sh", emoji: "sh", items: ["🚢", "🐑", "👟", "🐚", "🦈"] }, // ship, sheep, shoe, shell, shark
+        { label: "ch", emoji: "ch", items: ["🧀", "🍒", "🪑", "🐤", "🍫"] }, // cheese, cherry, chair, chick, chocolate
+      ] },
+    ],
+    // ---- Spot-the-difference picture pool (distinct, self-naming) ----
+    SPOT_POOL: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼",
+      "🐝", "🦋", "🐟", "🐢", "⭐", "❤️", "🚗", "🎈", "🍎", "🌈"],
+
     // ---- Trace-the-Path (fine-motor / lacing) ----
     // Each path is dots as (x,y) percentages; tap green start -> red finish in
     // order. Positions are spaced so 76px dots never collide (verified by tests).

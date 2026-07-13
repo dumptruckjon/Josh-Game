@@ -309,3 +309,43 @@ test("tensOnes: tens*10 + ones === n and ones < 10", () => {
     assert.ok(ones >= 0 && ones < 10);
   }
 });
+
+test("makeLetterMatch: correct lowercase is the uppercase lowercased; distinct", () => {
+  const rng = mulberry32(20);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeLetterMatch(rng);
+    assert.match(r.upper, /^[A-Z]$/);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].lower, r.upper.toLowerCase());
+    assert.equal(new Set(r.choices.map((c) => c.lower)).size, r.choices.length, "choices distinct");
+  }
+});
+
+test("makeMissingLetter: the answer is the letter at the blank; distinct choices", () => {
+  const rng = mulberry32(21);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeMissingLetter(content.CVC_WORDS, rng);
+    assert.equal(r.answer, r.word[r.blankIndex], "answer is the blanked letter");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].letter, r.answer);
+    assert.equal(new Set(r.choices.map((c) => c.letter)).size, r.choices.length, "choices distinct");
+  }
+});
+
+test("makeSpotDifference: exactly one position changes between the rows", () => {
+  const rng = mulberry32(22);
+  for (const count of [3, 4]) {
+    for (let i = 0; i < 1500; i++) {
+      const r = L.makeSpotDifference(content.SPOT_POOL, count, rng);
+      assert.equal(r.before.length, count);
+      assert.equal(r.after.length, count);
+      let diffs = 0;
+      for (let k = 0; k < count; k++) if (r.before[k] !== r.after[k]) diffs++;
+      assert.equal(diffs, 1, "exactly one item differs");
+      assert.notEqual(r.after[r.diffIndex], r.before[r.diffIndex], "the changed one is at diffIndex");
+    }
+  }
+  assert.throws(() => L.makeSpotDifference(["🐶", "🐱"], 3, rng), /pool > count/);
+});

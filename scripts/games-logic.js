@@ -255,4 +255,89 @@
       build();
     },
   });
+
+  // ---- Put in Order: tap the numbers 1, 2, 3… in order ([M]) ----
+  F.register({
+    id: "order-num",
+    icon: "🔢",
+    title: "Put in Order",
+    skill: "number sequence [M]",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0, need = 1, count = 4;
+      const tray = api.el("div", { class: "choices choices--4" });
+      api.stage.append(tray);
+
+      function flagNext() {
+        tray.querySelectorAll(".order__item").forEach((x) => {
+          if (!x.dataset.done && Number(x.dataset.rank) === need) x.dataset.correct = "1";
+          else if (!x.dataset.done) delete x.dataset.correct;
+        });
+      }
+      function newRound() {
+        const r = L.makeOrder(["🔢"], 4);
+        count = r.count; need = 1;
+        api.setPrompt("Tap the numbers in order: 1, 2, 3…", ["👀", "🔢", "🔼"]);
+        api.speak();
+        tray.innerHTML = "";
+        r.items.forEach((it) => {
+          const b = api.el("button", {
+            class: "choice choice--num order__item tap", type: "button", text: String(it.rank),
+            dataset: it.rank === 1 ? { rank: String(it.rank), correct: "1" } : { rank: String(it.rank) },
+            aria: { label: String(it.rank) },
+          });
+          b.addEventListener("click", () => {
+            if (b.dataset.done) return;
+            if (Number(b.dataset.rank) === need) {
+              b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("order__item--done");
+              api.say(String(need));
+              need += 1;
+              if (need > count) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }
+              else flagNext();
+            } else api.tryAgain(b);
+          });
+          tray.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- What Changed: compare two rows, tap the one that's different ----
+  F.register({
+    id: "spot-diff",
+    icon: "🔀",
+    title: "What Changed?",
+    skill: "logic (spot the difference)",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 5;
+      let round = 0;
+      const beforeRow = api.el("div", { class: "spot__row" });
+      const label = api.el("div", { class: "spot__label" }, ["⬆️ look   ⬇️ tap what changed"]);
+      const afterRow = api.el("div", { class: "choices choices--3" });
+      api.stage.append(beforeRow, label, afterRow);
+
+      function newRound() {
+        const r = L.makeSpotDifference(C.SPOT_POOL, 3);
+        api.setPrompt("One picture changed. Tap it!", ["👀", "🔀", "👉"]);
+        api.speak();
+        beforeRow.innerHTML = "";
+        r.before.forEach((e) => beforeRow.appendChild(api.el("span", { class: "spot__cell", text: e })));
+        afterRow.innerHTML = "";
+        r.after.forEach((e, i) => {
+          const b = api.el("button", {
+            class: "choice spot__pick tap", type: "button", text: e,
+            dataset: i === r.diffIndex ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (i === r.diffIndex) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          afterRow.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

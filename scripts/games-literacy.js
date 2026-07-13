@@ -175,4 +175,126 @@
       newRound();
     },
   });
+
+  // ---- Digraph Sort: does it start with "sh" or "ch"? ([W]) ----
+  F.register({
+    id: "digraph",
+    icon: "🔠",
+    title: "sh or ch?",
+    skill: "digraphs sh/ch [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 6;
+      let round = 0;
+      const itemEl = api.el("div", { class: "sort__item", aria: { hidden: "true" } });
+      const bins = api.el("div", { class: "sort__bins" });
+      api.stage.append(itemEl, bins);
+
+      function newRound() {
+        const r = L.makeSort(C.DIGRAPH_SETS[0]);
+        api.setPrompt("Does it start with sh or ch?", ["👀", "👂", "🔠"]);
+        api.speak();
+        itemEl.textContent = r.item;
+        itemEl.classList.remove("pop"); void itemEl.offsetWidth; itemEl.classList.add("pop");
+        bins.innerHTML = "";
+        r.bins.forEach((b, i) => {
+          const btn = api.el("button", {
+            class: "sort__bin tap", type: "button",
+            dataset: i === r.correctIndex ? { correct: "1" } : {}, aria: { label: b.label },
+          }, [api.el("span", { class: "sort__binLetters" }, [b.emoji])]);
+          btn.addEventListener("click", () => {
+            if (i === r.correctIndex) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(btn);
+          });
+          bins.appendChild(btn);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Big & Little Letters: tap the lowercase that matches the uppercase ([W]) ----
+  F.register({
+    id: "letter-match",
+    icon: "🔡",
+    title: "Big & Little Letters",
+    skill: "letters / matching [W]",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0;
+      const target = api.el("div", { class: "letter__big", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(target, choices);
+
+      function newRound() {
+        const r = L.makeLetterMatch();
+        api.setPrompt("Find the little letter that matches!", ["👀", "🔡", "👉"]);
+        api.speak();
+        api.say("Letter " + r.upper);
+        target.textContent = r.upper;
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--lower tap", type: "button", text: ch.lower,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.lower },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Missing Letter: which letter completes the word? ([M]) ----
+  F.register({
+    id: "missing-letter",
+    icon: "❓",
+    title: "Missing Letter",
+    skill: "CVC decode [M]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 5;
+      let round = 0;
+      const pic = api.el("div", { class: "big-pic", aria: { hidden: "true" } });
+      const wordEl = api.el("div", { class: "ml__word" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pic, wordEl, choices);
+
+      function newRound() {
+        const r = L.makeMissingLetter(C.CVC_WORDS);
+        api.setPrompt("Which letter is missing?", ["👀", "🔤", "❓"]);
+        api.speak();
+        api.say(r.word);
+        pic.textContent = r.emoji;
+        wordEl.innerHTML = "";
+        r.word.split("").forEach((ltr, i) => {
+          wordEl.appendChild(api.el("span", {
+            class: "ml__slot" + (i === r.blankIndex ? " ml__slot--blank" : ""),
+          }, [i === r.blankIndex ? "?" : ltr.toUpperCase()]));
+        });
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--letter tap", type: "button", text: ch.letter.toUpperCase(),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.letter },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) {
+              const slot = wordEl.children[r.blankIndex];
+              slot.textContent = ch.letter.toUpperCase();
+              slot.classList.remove("ml__slot--blank");
+              round += 1;
+              if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); }
+            } else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

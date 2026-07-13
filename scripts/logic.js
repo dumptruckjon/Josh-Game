@@ -262,12 +262,51 @@
   // --- Place value: split a number into tens + ones -----------------------
   function tensOnes(n) { return { tens: Math.floor(n / 10), ones: n % 10 }; }
 
+  // --- Letter match (uppercase -> its lowercase) --------------------------
+  const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  function makeLetterMatch(rng = Math.random) {
+    const i = randInt(0, 25, rng);
+    const upper = ALPHABET[i];
+    const used = new Set([i]);
+    const wrongs = [];
+    while (wrongs.length < 2) { const w = randInt(0, 25, rng); if (!used.has(w)) { used.add(w); wrongs.push(ALPHABET[w].toLowerCase()); } }
+    const choices = shuffle([{ lower: upper.toLowerCase(), correct: true }, ...wrongs.map((l) => ({ lower: l, correct: false }))], rng);
+    return { upper, answer: upper.toLowerCase(), choices };
+  }
+
+  // --- Missing letter in a known word -------------------------------------
+  function makeMissingLetter(words, rng = Math.random) {
+    if (!Array.isArray(words) || !words.length) throw new Error("makeMissingLetter needs words");
+    const w = words[randInt(0, words.length - 1, rng)];
+    const blankIndex = randInt(0, w.word.length - 1, rng);
+    const answer = w.word[blankIndex];
+    const az = "abcdefghijklmnopqrstuvwxyz";
+    const used = new Set([answer]);
+    const wrongs = [];
+    while (wrongs.length < 2) { const c = az[randInt(0, 25, rng)]; if (!used.has(c)) { used.add(c); wrongs.push(c); } }
+    const choices = shuffle([{ letter: answer, correct: true }, ...wrongs.map((l) => ({ letter: l, correct: false }))], rng);
+    return { emoji: w.emoji, word: w.word, blankIndex, answer, choices };
+  }
+
+  // --- Spot the difference: two rows, one item swapped --------------------
+  function makeSpotDifference(pool, count, rng = Math.random) {
+    count = count || 3;
+    if (!Array.isArray(pool) || pool.length < count + 1) throw new Error("makeSpotDifference needs pool > count");
+    const before = sample(pool, count, rng);
+    const diffIndex = randInt(0, count - 1, rng);
+    const replacement = shuffle(pool.filter((e) => !before.includes(e)), rng)[0];
+    const after = before.slice();
+    after[diffIndex] = replacement;
+    return { before, after, diffIndex, count };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,
+    makeLetterMatch, makeMissingLetter, makeSpotDifference,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;
