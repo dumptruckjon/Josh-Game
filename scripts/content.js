@@ -40,6 +40,17 @@
     // Fun pictures a dot-to-dot can reveal at the end.
     REVEALS: ["🕷️", "⭐", "❤️", "🚀", "🐶", "🦄", "🌈", "🎈", "🦋", "🚒"],
 
+    // ---- Color by Number (coarse, 3-wide pixel pictures) ----
+    // Each digit is a color number; the picture emerges as you color the cells.
+    CBN_COLORS: { 1: "#ff5e5e", 2: "#bfe9ff", 3: "#7be08a", 4: "#ffd24d", 5: "#b98a5e", 6: "#ff9f43" },
+    CBN_PICTURES: [
+      { name: "Heart", rows: ["121", "111", "212"] },
+      { name: "Sun", rows: ["242", "444", "242"] },
+      { name: "Flower", rows: ["121", "111", "121", "232", "333"] },
+      { name: "Tree", rows: ["232", "333", "232", "252", "252"] },
+      { name: "House", rows: ["212", "111", "444", "454"] },
+    ],
+
     // Happy cheers (shown) and short spoken praise (spoken when sound is on).
     CHEERS: [
       "Yay! 🎉", "Hooray! 🌟", "Wheee! 🎈", "So fun! 💫",

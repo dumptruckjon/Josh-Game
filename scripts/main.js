@@ -27,7 +27,7 @@
     "first-sound": "letters", "rhyme": "letters", "build-word": "letters", "sight-word": "letters",
     "digraph": "letters", "letter-match": "letters", "missing-letter": "letters",
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
-    "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking",
+    "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking", "color-number": "thinking",
     "find-hero": "find", "find-crowd": "find", "find-count": "find", "dot-dot": "find", "rescue": "find",
     "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",
     "tic-tac-toe": "friends",

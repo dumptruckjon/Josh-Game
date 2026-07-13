@@ -499,6 +499,21 @@ body {
 .dot__reveal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 5rem; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; z-index: 1; }
 .dot__reveal--on { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
 
+/* ---------- Color by Number ---------- */
+.cbn__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--pad); margin-bottom: 14px; }
+.cbn__swatch {
+  min-width: 76px; min-height: 76px; border-radius: 16px;
+  font-size: 1.7rem; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.cbn__swatch--sel { outline: 4px solid #333; outline-offset: 2px; }
+.cbn__grid { display: grid; grid-template-columns: repeat(var(--cbn-cols, 3), 1fr); gap: var(--pad); width: 100%; max-width: 300px; margin: 0 auto; }
+.cbn__cell {
+  aspect-ratio: 1 / 1; min-height: 76px; border-radius: 12px;
+  background: #fff; border: 2px dashed #cdd6e0; font-size: 1.4rem; font-weight: 800; color: #8894a6;
+}
+.cbn__cell--done { border-style: solid; border-color: rgba(0, 0, 0, 0.08); color: transparent; }
+
 /* ---------- Original SVG art (JoshArt) ---------- */
 .win-hero {
   position: fixed; left: 50%; bottom: 14%; width: 120px; height: 120px;

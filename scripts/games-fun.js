@@ -156,4 +156,78 @@
       });
     },
   });
+
+  // ---- Color by Number (coarse pixel picture; pick a color, tap its numbers) ----
+  F.register({
+    id: "color-number",
+    icon: "🎨",
+    title: "Color by Number",
+    skill: "color / number match",
+    start(api) {
+      const CC = C.CBN_COLORS || {};
+      const PICS = C.CBN_PICTURES || [{ name: "Heart", rows: ["121", "111", "212"] }];
+      const ROUNDS = Math.min(3, PICS.length);
+      let round = 0, cells = [], selected = null, remaining = {};
+
+      const legend = api.el("div", { class: "cbn__legend" });
+      const grid = api.el("div", { class: "cbn__grid" });
+      api.stage.append(legend, grid);
+
+      function markPalette() {
+        selected = null;
+        [...legend.children].forEach((b) => {
+          b.classList.remove("cbn__swatch--sel");
+          if (remaining[b.dataset.num] > 0) b.dataset.correct = "1"; else delete b.dataset.correct;
+        });
+        cells.forEach((c) => delete c.dataset.correct);
+      }
+      function selectColor(num, btn) {
+        selected = num;
+        [...legend.children].forEach((b) => { b.classList.remove("cbn__swatch--sel"); delete b.dataset.correct; });
+        btn.classList.add("cbn__swatch--sel");
+        cells.forEach((c) => { if (!c.dataset.done && c.dataset.num === num) c.dataset.correct = "1"; else delete c.dataset.correct; });
+      }
+      function onCell(cell) {
+        if (cell.dataset.done) return;
+        if (selected && cell.dataset.num === selected) {
+          cell.dataset.done = "1"; delete cell.dataset.correct;
+          cell.classList.add("cbn__cell--done");
+          cell.style.background = CC[selected] || "#ccc";
+          cell.textContent = "";
+          remaining[selected] -= 1;
+          api.say("Color");
+          if (cells.every((c) => c.dataset.done)) {
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Beautiful!" });
+            else { api.roundWin(); newRound(); }
+          } else if (remaining[selected] === 0) markPalette();
+        } else api.tryAgain(cell);
+      }
+      function newRound() {
+        const pic = PICS[round % PICS.length];
+        cells = []; selected = null; remaining = {};
+        api.setPrompt("Pick a color, then tap its numbers!", ["🎨", "🔢", "👆"]);
+        api.speak();
+        grid.style.setProperty("--cbn-cols", String(pic.rows[0].length));
+        grid.innerHTML = "";
+        pic.rows.forEach((row) => {
+          for (const ch of row) {
+            remaining[ch] = (remaining[ch] || 0) + 1;
+            const cell = api.el("button", { class: "cbn__cell tap", type: "button", dataset: { num: ch }, aria: { label: "number " + ch } }, [ch]);
+            cell.addEventListener("click", () => onCell(cell));
+            grid.appendChild(cell); cells.push(cell);
+          }
+        });
+        legend.innerHTML = "";
+        const nums = [...new Set(pic.rows.join("").split(""))].sort();
+        nums.forEach((num) => {
+          const btn = api.el("button", { class: "cbn__swatch tap", type: "button", dataset: { num: num }, style: { background: CC[num] || "#ccc" }, aria: { label: "color " + num } }, [num]);
+          btn.addEventListener("click", () => selectColor(num, btn));
+          legend.appendChild(btn);
+        });
+        markPalette();
+      }
+      newRound();
+    },
+  });
 })();

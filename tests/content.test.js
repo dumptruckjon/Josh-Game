@@ -117,3 +117,16 @@ test("skip-count steps and block colors are as intended", () => {
   assert.deepEqual(content.SKIP_STEPS, [2, 5, 10]);
   assert.equal(content.BLOCK_COLORS.length, 10, "need 10 tower colors (1..10)");
 });
+
+test("color-by-number pictures are valid (equal-width rows; known colors; <=3 wide)", () => {
+  const keys = new Set(Object.keys(content.CBN_COLORS));
+  for (const pic of content.CBN_PICTURES) {
+    assert.ok(pic.rows.length >= 2, `${pic.name} needs rows`);
+    const w = pic.rows[0].length;
+    assert.ok(w <= 3, `${pic.name} must be <= 3 wide so cells stay >= 75px at 320px`);
+    for (const row of pic.rows) {
+      assert.equal(row.length, w, `${pic.name} rows must be equal width`);
+      for (const ch of row) assert.ok(keys.has(ch), `${pic.name} uses undefined color number "${ch}"`);
+    }
+  }
+});
