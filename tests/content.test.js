@@ -241,8 +241,9 @@ test("letter paths have a guide letter and >= 3 ordered dots", () => {
 });
 
 // ---------- Magnet sort: only truly magnetic (ferrous/metal) items stick ----------
+// Only genuinely ferromagnetic (steel/iron) items stick. Coins/brass keys do NOT.
 const MAGNET_TRUTH = {
-  Sticks: ["🔑", "🪙", "🔩", "⚙️", "📎", "🥫"],
+  Sticks: ["🔩", "⚙️", "📎", "🥫", "🔧", "🧷"],
   No: ["🪵", "🧸", "🍎", "📗", "🧦", "🎈"],
 };
 test("magnet sort matches verified magnetic truth", () => {

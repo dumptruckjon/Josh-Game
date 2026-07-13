@@ -187,7 +187,8 @@
         const path = api.randItem(api.C.PATHS);
         const rv = api.randItem(api.C.REVEALS);
         step = 0; dots = [];
-        reveal.textContent = ""; reveal.classList.remove("dot__reveal--on");
+        // Do NOT clear the reveal here: the previous round set it and it fades on
+        // its own (CSS). Clearing synchronously would wipe it before it ever paints.
         api.setPrompt("Tap the numbers in order: 1, 2, 3…", ["👆", "🔢", "✨"]);
         api.speak();
         [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
@@ -216,7 +217,8 @@
               delete dot.dataset.correct;
               step += 1;
               if (step >= path.length) {
-                reveal.textContent = rv; reveal.classList.add("dot__reveal--on");
+                reveal.textContent = rv;
+                reveal.classList.remove("dot__reveal--on"); void reveal.offsetWidth; reveal.classList.add("dot__reveal--on");
                 round += 1;
                 if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); }
               } else if (dots[step]) dots[step].dataset.correct = "1";

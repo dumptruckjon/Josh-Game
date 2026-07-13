@@ -499,8 +499,14 @@ body {
 .setclock__set { background: linear-gradient(180deg, #7be08a, #4fca6a); box-shadow: 0 8px 20px rgba(80, 200, 120, 0.35); }
 
 /* ---------- Dot to Dot reveal ---------- */
-.dot__reveal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 5rem; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; z-index: 1; }
-.dot__reveal--on { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+.dot__reveal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 5rem; opacity: 0; pointer-events: none; z-index: 1; }
+.dot__reveal--on { opacity: 1; animation: dotReveal 1.4s ease-out forwards; }
+@keyframes dotReveal {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
 
 /* ---------- Color by Number ---------- */
 .cbn__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--pad); margin-bottom: 14px; }
@@ -753,6 +759,8 @@ body {
   .breathe__star, .coop__token, .balloon, .bub, .bridge__hero, .wi__card { transition: none !important; }
   .breathe--big, .balloon--float { transform: none !important; }
   .win-hero, .grow--pop { animation: none !important; }
+  /* reveals must still be VISIBLE without motion, not stuck invisible */
+  .dot__reveal--on, .lf__reveal--on { animation: none !important; opacity: 1 !important; }
   .rocket-art { transition: none !important; }
   .rocket-art--launch, .bridge--cross .bridge__hero--l, .bridge--cross .bridge__hero--r { transform: none !important; }
   body { background-attachment: scroll; }

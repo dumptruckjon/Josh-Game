@@ -308,9 +308,12 @@
     ],
 
     // ---- Will It Stick? (magnetic vs not — a science sort) ----
+    // NOTE ON TRUTH: only clearly ferromagnetic (steel/iron) items go in "Sticks".
+    // Coins (🪙) are NOT magnetic and keys (🔑) are usually brass — both removed to
+    // avoid teaching a falsehood a child would disprove with a real magnet.
     MAGNET_SETS: [
       { name: "magnet", bins: [
-        { label: "Sticks", emoji: "🧲", items: ["🔑", "🪙", "🔩", "⚙️", "📎", "🥫"] },
+        { label: "Sticks", emoji: "🧲", items: ["🔩", "⚙️", "📎", "🥫", "🔧", "🧷"] },
         { label: "No", emoji: "🚫", items: ["🪵", "🧸", "🍎", "📗", "🧦", "🎈"] },
       ] },
     ],

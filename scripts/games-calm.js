@@ -27,6 +27,7 @@
       api.speak();
 
       star.addEventListener("click", () => {
+        if (n >= BREATHS) return; // already calm & won — don't re-fire the celebration
         n += 1;
         star.classList.add("breathe--big");
         setTimeout(() => star.classList.remove("breathe--big"), 1600);
@@ -72,7 +73,10 @@
           finishBtn.dataset.correct = "1";
         }
       });
+      let finished = false;
       finishBtn.addEventListener("click", () => {
+        if (finished) return; // don't re-fire the celebration on extra taps
+        finished = true;
         delete finishBtn.dataset.correct;
         api.win({ say: "You did it, Josh! I'm so proud of you!" });
       });
