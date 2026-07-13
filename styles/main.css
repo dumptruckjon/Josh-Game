@@ -337,6 +337,55 @@ body {
 .sort__binLabel { font-size: 0.9rem; font-weight: 800; color: #667; text-align: center; }
 .sort__bin--hit { outline: 5px solid #7be08a; outline-offset: -2px; }
 
+/* ---------- Breathing Star (calm) ---------- */
+.breathe__star {
+  width: min(60vw, 240px); height: min(60vw, 240px);
+  min-width: var(--tap); min-height: var(--tap);
+  border-radius: 50%; background: radial-gradient(circle at 50% 40%, #fff3b0, #ffd24d);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  font-size: clamp(4rem, 26vw, 7rem); line-height: 1;
+  transition: transform 1.6s ease-in-out;
+}
+.breathe--big { transform: scale(1.35); }
+.breathe__label { font-size: 1.1rem; font-weight: 700; color: #4a8a6a; }
+
+/* ---------- "I Did It!" Certificate ---------- */
+.cert {
+  width: 100%; max-width: 420px; text-align: center;
+  background: #fff; border: 6px dashed #ffd24d; border-radius: 20px; padding: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+.cert__title { font-size: 1.4rem; font-weight: 900; color: #c2185b; }
+.cert__stickers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 3rem; margin-top: 10px; font-size: 2.4rem; }
+.cert__sticker { line-height: 1; }
+
+/* ---------- Trace-the-Path ---------- */
+.trace__stage { position: relative; width: 100%; max-width: 420px; height: 520px; margin: 0 auto; }
+.trace__line { position: absolute; inset: 0; width: 100%; height: 100%; }
+.trace__dot {
+  position: absolute; transform: translate(-50%, -50%);
+  width: var(--tap); height: var(--tap); border-radius: 50%;
+  background: #fff; box-shadow: 0 5px 14px rgba(0, 0, 0, 0.15);
+  font-size: 1.6rem; font-weight: 800; color: #456;
+  display: flex; align-items: center; justify-content: center;
+}
+.trace__dot--start { background: #c9f7d4; }
+.trace__dot--end { background: #ffd6d6; }
+.trace__dot--done { background: #7be08a; color: #fff; }
+
+/* ---------- Team Hop (co-op) ---------- */
+.coop__lanes { display: flex; flex-direction: column; gap: 18px; width: 100%; }
+.coop__turn { font-size: 1.3rem; font-weight: 800; color: #2b8a5b; text-align: center; }
+.coop__lane { display: flex; flex-direction: column; gap: 8px; }
+.coop__track { position: relative; height: 56px; background: rgba(255, 255, 255, 0.6); border-radius: 16px; }
+.coop__token { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); font-size: 2rem; transition: left 0.25s; margin-left: 20px; }
+.coop__home { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); font-size: 1.8rem; }
+.coop__btn {
+  min-height: var(--tap); border-radius: 18px; background: var(--card);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 1.4rem; font-weight: 800; color: #333;
+}
+.coop__btn--active { background: linear-gradient(180deg, #ffe08a, #ffd24d); outline: 4px solid #ffb703; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
@@ -352,5 +401,7 @@ body {
     animation: none !important;
     transform: none !important;
   }
+  .breathe__star, .coop__token { transition: none !important; }
+  .breathe--big { transform: none !important; }
   body { background-attachment: scroll; }
 }

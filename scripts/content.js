@@ -154,6 +154,15 @@
         { label: "Water", emoji: "🐟", items: ["🐟", "🐬", "🚤", "🦆", "🐙", "⛵"] },
       ] },
     ],
+
+    // ---- Trace-the-Path (fine-motor / lacing) ----
+    // Each path is dots as (x,y) percentages; tap green start -> red finish in
+    // order. Positions are spaced so 76px dots never collide (verified by tests).
+    PATHS: [
+      [{ x: 24, y: 6 }, { x: 70, y: 27 }, { x: 28, y: 50 }, { x: 72, y: 72 }, { x: 44, y: 93 }],
+      [{ x: 70, y: 6 }, { x: 26, y: 27 }, { x: 68, y: 50 }, { x: 30, y: 72 }, { x: 60, y: 93 }],
+      [{ x: 45, y: 6 }, { x: 72, y: 28 }, { x: 25, y: 50 }, { x: 66, y: 72 }, { x: 35, y: 93 }],
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

@@ -16,7 +16,7 @@ const SCRIPTS = [
   "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js",
   "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
   "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
-  "scripts/main.js",
+  "scripts/games-calm.js", "scripts/main.js",
 ];
 
 test("core files exist", () => {
@@ -45,7 +45,7 @@ test("service worker precaches every script + css + index", () => {
 });
 
 test("games self-register into the framework registry", () => {
-  for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js"]) {
+  for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js", "scripts/games-calm.js"]) {
     assert.match(read(f), /F\.register\(|JoshFramework\.register\(/, `${f} should register a game`);
   }
   assert.match(read("scripts/main.js"), /serviceWorker\.register/, "main.js should register the SW");
