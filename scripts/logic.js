@@ -137,9 +137,65 @@
     return { a, b, moreLeft, answer: moreLeft ? "left" : "right" };
   }
 
+  // --- Literacy -----------------------------------------------------------
+  // First sound: a picture + its beginning letter, with 2 distractor letters.
+  function makeFirstSound(words, rng = Math.random) {
+    if (!Array.isArray(words) || words.length < 3) throw new Error("makeFirstSound needs >= 3 words");
+    const w = words[randInt(0, words.length - 1, rng)];
+    const answer = w.letter;
+    const others = [...new Set(words.map((x) => x.letter).filter((l) => l !== answer))];
+    const distractors = shuffle(others, rng).slice(0, 2);
+    const choices = shuffle(
+      [{ letter: answer, correct: true }, ...distractors.map((l) => ({ letter: l, correct: false }))],
+      rng
+    );
+    return { emoji: w.emoji, word: w.word, answer, choices };
+  }
+
+  // Rhyme: a target picture + one that rhymes (same group) + 2 that don't.
+  function makeRhyme(groups, rng = Math.random) {
+    if (!Array.isArray(groups) || groups.length < 2) throw new Error("makeRhyme needs >= 2 groups");
+    const gi = randInt(0, groups.length - 1, rng);
+    const g = groups[gi];
+    if (g.length < 2) throw new Error("each rhyme group needs >= 2 members");
+    const ti = randInt(0, g.length - 1, rng);
+    const target = g[ti];
+    const correct = g[pickIndex(g.length, ti, rng)];
+    const otherItems = [];
+    groups.forEach((grp, idx) => { if (idx !== gi) grp.forEach((it) => otherItems.push(it)); });
+    const distractors = shuffle(otherItems, rng).slice(0, 2);
+    const choices = shuffle(
+      [{ emoji: correct.emoji, word: correct.word, correct: true },
+        ...distractors.map((it) => ({ emoji: it.emoji, word: it.word, correct: false }))],
+      rng
+    );
+    return { target, choices };
+  }
+
+  // Sight word: a target word + 2 distractor words (visual matching).
+  function makeSightWord(words, rng = Math.random) {
+    if (!Array.isArray(words) || words.length < 3) throw new Error("makeSightWord needs >= 3 words");
+    const target = words[randInt(0, words.length - 1, rng)];
+    const others = shuffle(words.filter((w) => w !== target), rng).slice(0, 2);
+    const choices = shuffle(
+      [{ word: target, correct: true }, ...others.map((w) => ({ word: w, correct: false }))],
+      rng
+    );
+    return { target, choices };
+  }
+
+  // CVC build: a picture + its letters, shuffled, to place in order.
+  function makeCVC(words, rng = Math.random) {
+    if (!Array.isArray(words) || !words.length) throw new Error("makeCVC needs words");
+    const w = words[randInt(0, words.length - 1, rng)];
+    const letters = w.word.split("");
+    return { emoji: w.emoji, word: w.word, letters, buttons: shuffle(letters, rng) };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
+    makeFirstSound, makeRhyme, makeSightWord, makeCVC,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

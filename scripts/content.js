@@ -84,6 +84,38 @@
     // Numberblock-style tower block colors (1..10).
     BLOCK_COLORS: ["#ff5e5e", "#ff9f43", "#ffd24d", "#7be08a", "#3ec7c7",
       "#5ec8ff", "#8a7bff", "#c77dff", "#ff7ac0", "#a0d468"],
+
+    // ---- Literacy ----
+    // First-sound: each picture NAMES ITSELF and its beginning letter is clear.
+    FIRST_SOUND_WORDS: [
+      { emoji: "🍎", word: "apple", letter: "A" },
+      { emoji: "🐝", word: "bee", letter: "B" },
+      { emoji: "🐱", word: "cat", letter: "C" },
+      { emoji: "🐶", word: "dog", letter: "D" },
+      { emoji: "🥚", word: "egg", letter: "E" },
+      { emoji: "🐟", word: "fish", letter: "F" },
+      { emoji: "🦁", word: "lion", letter: "L" },
+      { emoji: "🌙", word: "moon", letter: "M" },
+      { emoji: "☀️", word: "sun", letter: "S" },
+      { emoji: "🐢", word: "turtle", letter: "T" },
+    ],
+    // Rhyme groups — every member's picture names itself.
+    RHYME_GROUPS: [
+      [{ emoji: "🐱", word: "cat" }, { emoji: "🎩", word: "hat" }, { emoji: "🦇", word: "bat" }],
+      [{ emoji: "🐶", word: "dog" }, { emoji: "🐸", word: "frog" }, { emoji: "🪵", word: "log" }],
+      [{ emoji: "⭐", word: "star" }, { emoji: "🚗", word: "car" }, { emoji: "🫙", word: "jar" }],
+      [{ emoji: "🐝", word: "bee" }, { emoji: "🌳", word: "tree" }, { emoji: "🔑", word: "key" }],
+      [{ emoji: "🌙", word: "moon" }, { emoji: "🥄", word: "spoon" }],
+      [{ emoji: "🐌", word: "snail" }, { emoji: "🐋", word: "whale" }],
+    ],
+    // Sight (non-phonetic) words — visual matching, audio-reinforced.
+    SIGHT_WORDS: ["the", "you", "was", "are", "see", "my", "he", "she", "we", "and", "go", "like"],
+    // CVC words to build — clear, self-naming pictures.
+    CVC_WORDS: [
+      { emoji: "🐱", word: "cat" }, { emoji: "🐶", word: "dog" }, { emoji: "☀️", word: "sun" },
+      { emoji: "🐷", word: "pig" }, { emoji: "🚌", word: "bus" }, { emoji: "🎩", word: "hat" },
+      { emoji: "🛏️", word: "bed" }, { emoji: "📦", word: "box" },
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

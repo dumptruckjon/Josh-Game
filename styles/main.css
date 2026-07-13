@@ -291,6 +291,25 @@ body {
 }
 .coin__penny--used { opacity: 0.3; transform: scale(0.85); }
 
+/* ---------- Literacy (first sound, rhyme, build-a-word, sight word) ---------- */
+.big-pic { font-size: clamp(4.5rem, 30vw, 8rem); line-height: 1; }
+.choice--letter { font-weight: 900; color: #2b8a5b; text-transform: uppercase; }
+.choice--word { font-size: clamp(1.5rem, 9vw, 2.4rem); font-weight: 800; color: #333; }
+.choice--used { opacity: 0.3; }
+.sight__target {
+  font-size: clamp(2.6rem, 16vw, 4.2rem);
+  font-weight: 900; color: #333;
+  background: #fff; padding: 8px 22px; border-radius: 18px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+.word__slots { display: flex; gap: 10px; justify-content: center; }
+.word__slot {
+  width: 48px; height: 58px; border-bottom: 6px solid #c3c8d0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 900; color: #333;
+}
+.word__slot.filled { border-color: #7be08a; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }

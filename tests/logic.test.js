@@ -150,3 +150,55 @@ test("makeCompare: two different quantities, correct side is the bigger one", ()
     assert.equal(r.answer, r.a > r.b ? "left" : "right");
   }
 });
+
+test("makeFirstSound: correct letter is the picture's beginning letter", () => {
+  const rng = mulberry32(10);
+  const byWord = Object.fromEntries(content.FIRST_SOUND_WORDS.map((w) => [w.word, w.letter]));
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeFirstSound(content.FIRST_SOUND_WORDS, rng);
+    assert.equal(r.answer, byWord[r.word], "answer matches the word's letter");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].letter, r.answer);
+    assert.equal(new Set(r.choices.map((c) => c.letter)).size, r.choices.length, "letters distinct");
+  }
+  assert.throws(() => L.makeFirstSound([{ emoji: "🍎", word: "a", letter: "A" }], rng), />= 3/);
+});
+
+test("makeRhyme: the correct choice really rhymes (same group) and is unique", () => {
+  const rng = mulberry32(11);
+  // build a lookup: word -> group index
+  const groupOf = new Map();
+  content.RHYME_GROUPS.forEach((g, gi) => g.forEach((it) => groupOf.set(it.word, gi)));
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeRhyme(content.RHYME_GROUPS, rng);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one rhyming choice");
+    assert.equal(groupOf.get(correct[0].word), groupOf.get(r.target.word), "correct shares the target's rhyme group");
+    assert.notEqual(correct[0].word, r.target.word, "correct is a different word than the target");
+    // distractors are NOT in the target's group
+    r.choices.filter((c) => !c.correct).forEach((c) =>
+      assert.notEqual(groupOf.get(c.word), groupOf.get(r.target.word), "distractors do not rhyme"));
+  }
+});
+
+test("makeSightWord: one correct match, all choices distinct", () => {
+  const rng = mulberry32(12);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeSightWord(content.SIGHT_WORDS, rng);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].word, r.target);
+    assert.equal(new Set(r.choices.map((c) => c.word)).size, r.choices.length, "choices distinct");
+  }
+});
+
+test("makeCVC: buttons are a permutation of the word's letters", () => {
+  const rng = mulberry32(13);
+  for (let i = 0; i < 2000; i++) {
+    const r = L.makeCVC(content.CVC_WORDS, rng);
+    assert.deepEqual(r.buttons.slice().sort(), r.letters.slice().sort(), "buttons are a permutation of the letters");
+    assert.equal(r.letters.join(""), r.word, "letters spell the word");
+    assert.equal(r.buttons.length, r.word.length, "one button per letter");
+  }
+});
