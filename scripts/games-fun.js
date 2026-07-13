@@ -121,21 +121,28 @@
       api.stage.append(pad);
       api.setPrompt("Tap the pads to make music!", ["👆", "🎵", "😊"]);
       api.speak();
+      // A music instrument the child deliberately opened should always make
+      // sound — WebAudio is gesture-triggered (iOS-safe) and independent of the
+      // voice-mute (which silences spoken prompts, not the instrument). The key
+      // fix: RESUME the context — browsers start it "suspended" and it stays
+      // silent otherwise.
       let ctx = null;
       function tone(freq) {
-        if (A && A.isMuted && A.isMuted()) return; // sound off by default
         try {
           const AC = window.AudioContext || window.webkitAudioContext;
           if (!AC) return;
           ctx = ctx || new AC();
+          if (ctx.state === "suspended" && ctx.resume) ctx.resume();
           const o = ctx.createOscillator();
           const g = ctx.createGain();
-          o.type = "sine"; o.frequency.value = freq;
-          g.gain.value = 0.18;
+          o.type = "triangle"; o.frequency.value = freq;
+          const t = ctx.currentTime;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.28, t + 0.02); // soft attack
           o.connect(g); g.connect(ctx.destination);
-          o.start();
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-          o.stop(ctx.currentTime + 0.55);
+          o.start(t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+          o.stop(t + 0.65);
         } catch (e) { /* ignore */ }
       }
       COLORS.forEach((c, i) => {

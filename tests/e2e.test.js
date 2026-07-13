@@ -17,6 +17,17 @@ before(async () => {
   ({ server, baseURL } = await startServer());
   browser = await launchBrowser();
   context = await browser.newContext();
+  // Stub WebAudio so we can assert the Music Pad actually fires notes (and that
+  // a suspended context gets resumed) without needing a speaker.
+  await context.addInitScript(() => {
+    window.__notes = 0;
+    function Stub() { this.state = "suspended"; this.currentTime = 0; this.destination = {}; }
+    Stub.prototype.resume = function () { this.state = "running"; return Promise.resolve(); };
+    Stub.prototype.createOscillator = function () { return { frequency: { value: 0 }, type: "", connect() {}, start() { window.__notes++; }, stop() {} }; };
+    Stub.prototype.createGain = function () { return { gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; };
+    window.AudioContext = Stub;
+    window.webkitAudioContext = Stub;
+  });
   page = await context.newPage();
   page.on("pageerror", (e) => pageErrors.push(String(e)));
   await page.goto(baseURL, { waitUntil: "load" });
@@ -137,6 +148,16 @@ test("a wrong tap is forgiving — no score loss, target stays in play", async (
   assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a wrong tap must never win");
   // the correct tile is still present and playable
   assert.ok((await screen.locator('[data-correct="1"]').count()) >= 1, "correct choice stays in play");
+});
+
+test("the Music Pad actually plays notes (audio fires, even when muted)", async () => {
+  await page.evaluate(() => { window.__notes = 0; });
+  await openGame("music-pad");
+  const pads = page.locator("#screen-music-pad .music__pad");
+  await pads.nth(0).click();
+  await pads.nth(2).click();
+  const notes = await page.evaluate(() => window.__notes || 0);
+  assert.ok(notes >= 2, `tapping pads should start notes; got ${notes}`);
 });
 
 test("no uncaught page errors during the whole run", () => {
