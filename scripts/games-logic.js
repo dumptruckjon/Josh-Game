@@ -95,7 +95,9 @@
     },
   });
 
-  // ---- Shadow Match: tap the silhouette that matches the picture ----
+  // ---- Shadow Match: tap the black silhouette that matches the bright shape ----
+  // Uses distinct GEOMETRIC shapes (SVG) — a black star vs heart vs circle is
+  // unmistakable, unlike emoji silhouettes which all look like the same blob.
   F.register({
     id: "shadow-match",
     icon: "🌓",
@@ -105,20 +107,24 @@
       const C = api.C;
       const ROUNDS = 5;
       let round = 0;
-      const target = api.el("div", { class: "big-pic", aria: { hidden: "true" } });
+      const COLORS = C.CONFETTI_COLORS || ["#ff5e7e"];
+      const target = api.el("div", { class: "shape shape--target", aria: { hidden: "true" } });
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(target, choices);
 
+      function shapeSvg(shape, fill) {
+        return '<svg viewBox="0 0 100 100" style="fill:' + fill + '" aria-hidden="true">' + shape.svg + "</svg>";
+      }
       function newRound() {
-        const r = L.makeShadowMatch(C.SHADOW_POOL);
+        const r = L.makeShadowMatch(C.SHAPES);
         api.setPrompt("Which shadow matches?", ["👀", "⬛", "❓"]);
         api.speak();
-        target.textContent = r.target;
+        target.innerHTML = shapeSvg(r.target, api.randItem(COLORS));
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {
-            class: "choice choice--shadow tap", type: "button", text: ch.emoji,
-            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "shadow" },
+            class: "choice choice--shape tap", type: "button", html: shapeSvg(ch.emoji, "#232838"),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.emoji.name + " shadow" },
           });
           b.addEventListener("click", () => {
             if (ch.correct) { round += 1; if (round >= ROUNDS) api.win(); else { api.roundWin(); newRound(); } }

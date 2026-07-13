@@ -203,16 +203,26 @@ test("makeCVC: buttons are a permutation of the word's letters", () => {
   }
 });
 
-test("makeShadowMatch: the correct shadow equals the target picture", () => {
+test("makeShadowMatch: the correct shadow is the same shape as the target", () => {
   const rng = mulberry32(14);
   for (let i = 0; i < 3000; i++) {
-    const r = L.makeShadowMatch(content.SHADOW_POOL, rng);
+    const r = L.makeShadowMatch(content.SHAPES, rng);
     const correct = r.choices.filter((c) => c.correct);
     assert.equal(correct.length, 1);
-    assert.equal(correct[0].emoji, r.target, "the correct shadow is the target");
-    assert.equal(new Set(r.choices.map((c) => c.emoji)).size, r.choices.length, "choices distinct");
+    assert.equal(correct[0].emoji, r.target, "the correct shadow is the target shape");
+    assert.equal(new Set(r.choices.map((c) => c.emoji.name)).size, r.choices.length, "choices are distinct shapes");
   }
-  assert.throws(() => L.makeShadowMatch(["🐶", "🐱"], rng), />= 3/);
+  assert.throws(() => L.makeShadowMatch(content.SHAPES.slice(0, 2), rng), />= 3/);
+});
+
+test("SHAPES are distinct, well-formed inline SVG", () => {
+  assert.ok(content.SHAPES.length >= 6, "need several distinct shapes");
+  const names = content.SHAPES.map((s) => s.name);
+  assert.equal(new Set(names).size, names.length, "shape names unique");
+  content.SHAPES.forEach((s) => {
+    assert.ok(typeof s.name === "string" && s.name.length, "shape needs a name");
+    assert.match(s.svg, /^<(circle|rect|polygon|path)/, `shape ${s.name} needs SVG markup`);
+  });
 });
 
 test("makeOrder: ranks are a full 1..count permutation", () => {

@@ -119,7 +119,20 @@
 
     // ---- Logic & puzzles ----
     MEMORY_EMOJIS: ["🐶", "🐱", "🦊", "🐼", "🐸", "🦄", "🐝", "🐢", "🍎", "⭐", "🚗", "🌈"],
-    SHADOW_POOL: ["🐶", "🐱", "🦋", "🚗", "⭐", "🌳", "🐟", "🎈", "🔑", "🍎", "🚀", "🐘"],
+    // Shadow match uses distinct GEOMETRIC shapes (inline SVG) so silhouettes are
+    // clearly different even when solid black — emoji silhouettes look identical.
+    SHAPES: [
+      { name: "circle", svg: '<circle cx="50" cy="50" r="44"/>' },
+      { name: "square", svg: '<rect x="12" y="12" width="76" height="76" rx="10"/>' },
+      { name: "triangle", svg: '<polygon points="50,8 92,88 8,88"/>' },
+      { name: "star", svg: '<polygon points="50,5 61,38 96,38 68,59 79,92 50,71 21,92 32,59 4,38 39,38"/>' },
+      { name: "heart", svg: '<path d="M50 30 C35 8 5 14 5 40 C5 66 35 76 50 92 C65 76 95 66 95 40 C95 14 65 8 50 30 Z"/>' },
+      { name: "diamond", svg: '<polygon points="50,6 92,50 50,94 8,50"/>' },
+      { name: "moon", svg: '<path d="M66 10 A40 40 0 1 0 66 90 A32 32 0 1 1 66 10 Z"/>' },
+      { name: "hexagon", svg: '<polygon points="50,6 88,28 88,72 50,94 12,72 12,28"/>' },
+      { name: "arrow", svg: '<polygon points="8,38 58,38 58,18 94,50 58,82 58,62 8,62"/>' },
+      { name: "plus", svg: '<polygon points="38,8 62,8 62,38 92,38 92,62 62,62 62,92 38,92 38,62 8,62 8,38 38,38"/>' },
+    ],
     ORDER_POOL: ["🐟", "⭐", "🎈", "🍎", "🐛", "🚗", "❤️", "🌟", "🐰", "🍩"],
 
     // ---- Science & sorting (each SET has 2-3 bins; the item's bin is correct) ----

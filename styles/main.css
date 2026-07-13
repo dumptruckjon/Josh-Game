@@ -311,7 +311,9 @@ body {
 .word__slot.filled { border-color: #7be08a; }
 
 /* ---------- Logic & puzzles (shadow, order, memory) ---------- */
-.choice--shadow { filter: brightness(0); opacity: 0.82; }
+.shape--target { display: flex; justify-content: center; }
+.shape--target svg { width: clamp(96px, 32vw, 150px); height: clamp(96px, 32vw, 150px); }
+.choice--shape svg { width: 64px; height: 64px; display: block; }
 .order__item { line-height: 1; }
 .order__item--done { outline: 5px solid #7be08a; outline-offset: -2px; opacity: 0.75; }
 .memory-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--pad); width: 100%; }

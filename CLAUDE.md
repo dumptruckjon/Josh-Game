@@ -304,6 +304,11 @@ are green.
 
 ## Conventions
 
+- **Additions & improvements only — never a regression (STANDING RULE).** Every
+  change must *add* a game/feature or *improve* existing behavior. It must never
+  remove or break something that worked, shrink test coverage, or regress the
+  guardrails. Go deep, be comprehensive, and be honest about what was and wasn't
+  verified. If a change would trade away existing behavior, stop and flag it.
 - **Static and dependency-light.** Plain HTML/CSS/JS. Don't add a framework or a
   build step without checking with the user first.
 - **Kid-first & accessible.** Big targets, high contrast, alt text/aria labels,
