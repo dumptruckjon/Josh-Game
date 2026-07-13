@@ -44,6 +44,36 @@
     if (!screens || !grid || !F) return;
 
     const games = window.JoshGames || [];
+
+    // A big "Surprise!" tile jumps to a random game (fun discovery).
+    if (games.length) {
+      const surprise = document.createElement("button");
+      surprise.className = "tile tile--surprise tap";
+      surprise.type = "button";
+      surprise.setAttribute("role", "listitem");
+      surprise.setAttribute("aria-label", "Surprise game");
+      surprise.innerHTML = '<span class="tile__icon" aria-hidden="true">🎲</span><span class="tile__label">Surprise!</span>';
+      surprise.addEventListener("click", () => {
+        const g = games[Math.floor(Math.random() * games.length)];
+        if (g) location.hash = "#" + g.id;
+      });
+      grid.appendChild(surprise);
+    }
+
+    function wonAlready(id) {
+      try { return localStorage.getItem("josh-won-" + id) === "1"; } catch (e) { return false; }
+    }
+    function markTileWon(id) {
+      const t = grid.querySelector('.tile[data-go="' + id + '"]');
+      if (t && !t.querySelector(".tile__badge")) {
+        const s = document.createElement("span");
+        s.className = "tile__badge";
+        s.setAttribute("aria-hidden", "true");
+        s.textContent = "⭐";
+        t.appendChild(s);
+      }
+    }
+
     games.forEach((def) => {
       const tile = document.createElement("button");
       tile.className = "tile tap";
@@ -61,10 +91,14 @@
       tile.append(icon, label);
       tile.addEventListener("click", () => { location.hash = "#" + def.id; });
       grid.appendChild(tile);
+      if (wonAlready(def.id)) markTileWon(def.id);
 
       const screen = F.buildGameScreen(def);
       screens.appendChild(screen);
     });
+
+    // Live-badge a game the moment it's first beaten.
+    window.addEventListener("josh-won", (e) => { if (e.detail && e.detail.id) markTileWon(e.detail.id); });
 
     window.addEventListener("hashchange", route);
     route();

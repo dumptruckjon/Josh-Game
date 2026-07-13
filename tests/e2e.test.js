@@ -61,6 +61,14 @@ test("the Home button returns to the launcher", async () => {
   assert.ok(await page.locator("#screen-home").isVisible());
 });
 
+test("the Surprise tile jumps to a game", async () => {
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  await page.locator(".tile--surprise").click();
+  await page.waitForFunction(() => location.hash.length > 1, null, { timeout: 4000 });
+  assert.ok((await page.evaluate(() => location.hash)).length > 1, "should navigate to some game");
+});
+
 test("EVERY game plays end-to-end (win reached, or toy responds)", async () => {
   const ids = await gameIds();
   for (const id of ids) {
@@ -97,6 +105,14 @@ test("EVERY game plays end-to-end (win reached, or toy responds)", async () => {
     await again.click();
     assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", `Again should reset "${id}"`);
   }
+});
+
+test("beating games marks them with a ⭐ on the launcher", async () => {
+  // The previous test won every win-game; each should now carry a badge.
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  const badges = await page.locator(".tile__badge").count();
+  assert.ok(badges >= 3, `expected several beaten-game star badges, got ${badges}`);
 });
 
 test("a wrong tap is forgiving — no score loss, target stays in play", async () => {

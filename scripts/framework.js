@@ -119,6 +119,9 @@
         if (FX.stars) FX.stars();
         A.say((opts && opts.say) || randItem(C.PRAISE_SPOKEN || ["Yay"]));
         againBtn.hidden = false;
+        // Remember this game was beaten so the launcher can show a ⭐ badge.
+        try { localStorage.setItem("josh-won-" + def.id, "1"); } catch (e) { /* ignore */ }
+        try { window.dispatchEvent(new CustomEvent("josh-won", { detail: { id: def.id } })); } catch (e) { /* ignore */ }
       },
       // Gentle "try again": a soft bump, a kind word, nothing punishing.
       tryAgain(node) {

@@ -145,9 +145,10 @@ tooling.
 │   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
 │   ├── games-literacy.js       # Self-registering games: first sound, rhyme, build-a-word, sight word
 │   ├── games-logic.js          # Self-registering games: odd-one-out, patterns, shadow, order, memory
-│   ├── games-science.js        # Self-registering games: living/color/land-air-water sorters
-│   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, co-op
-│   └── main.js                 # Launcher (home grid) + hash router + sound toggle + SW registration
+│   ├── games-science.js        # Self-registering games: sorters (living/color/land-air-water/day-night/hot-cold)
+│   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, 2 co-op games
+│   ├── games-fun.js            # Self-registering games: bubbles, peekaboo, balloon, music pad
+│   └── main.js                 # Launcher (home grid, Surprise tile, ⭐ badges) + hash router + sound + SW
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
@@ -182,24 +183,30 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~23 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**~39 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets:
 
 - **Math** — Count & Feed, Build a Number, Hop & Count (2s/5s/10s), How Many Are
-  Left? (take-away), Which Has More?, Penny Shop (money, scaffolded from zero).
+  Left? (take-away), Which Has More?, Penny Shop (money), Add It Up, Find the
+  Number (quantify), What Time? (o'clock), Build the Number (place value).
 - **Literacy** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
-  Word (sight words).
+  Word (sight words), sh or ch? (digraphs), Big & Little Letters, Missing Letter.
 - **Logic** — Which is Different? (odd-one-out), What Comes Next? (patterns),
-  Match the Shadow, Small to Big (ordering), Memory Match.
+  Match the Shadow (distinct SVG shapes), Small to Big, Memory Match, Put in
+  Order (numbers), What Changed? (spot-the-difference).
 - **Science / sorting** — Alive or Not? (living/sink-float/plant-animal), Sort
-  the Colors, Land/Air/Water.
+  the Colors, Land/Air/Water, Day or Night?, Hot or Cold?.
 - **Calm / SEL / co-op** — Breathing Star, I Did It! (certificate), Follow the
-  Path (lacing), **Team Hop (2-player co-op — take turns, nobody loses)**.
-- **Toy** — Hi, Animals! (tap → confetti + new animal; a `josh-friends` counter).
+  Path (lacing), **Team Hop** and **Team Tower** (2-player co-op — take turns,
+  nobody loses).
+- **Fun / cause→effect** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the
+  Balloon, Music Pad (WebAudio, sound-on).
 
 Games personalize by rotating Josh's friends (**Raegar / River / Viraj**) and
 heroes; every win celebrates (confetti + spoken praise) and every wrong tap is a
-gentle bump with the target left in play (no score loss, no "you lose").
+gentle bump with the target left in play (no score loss, no "you lose"). The
+launcher has a **🎲 Surprise!** tile (jump to a random game) and shows a **⭐
+badge** on every game Josh has beaten (`josh-won-<id>` in `localStorage`).
 
 **Installable PWA** — `manifest.webmanifest` + `sw.js` make it add-to-home-screen
 installable with a friendly star icon, and it **works offline** (great for car

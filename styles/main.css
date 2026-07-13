@@ -112,6 +112,7 @@ body {
   gap: var(--pad);
 }
 .tile {
+  position: relative;
   min-height: 104px;
   border-radius: 24px;
   background: var(--card);
@@ -132,6 +133,10 @@ body {
   text-align: center;
   line-height: 1.1;
 }
+/* ⭐ badge on games Josh has beaten. */
+.tile__badge { position: absolute; top: 5px; right: 7px; font-size: 1.25rem; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
+.tile--surprise { background: linear-gradient(135deg, #ffe08a, #ff9f43); }
+.tile--surprise .tile__label { color: #7a4a10; }
 
 /* ---------- Game screen chrome ---------- */
 .game__bar {
