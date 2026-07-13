@@ -121,6 +121,39 @@
     MEMORY_EMOJIS: ["🐶", "🐱", "🦊", "🐼", "🐸", "🦄", "🐝", "🐢", "🍎", "⭐", "🚗", "🌈"],
     SHADOW_POOL: ["🐶", "🐱", "🦋", "🚗", "⭐", "🌳", "🐟", "🎈", "🔑", "🍎", "🚀", "🐘"],
     ORDER_POOL: ["🐟", "⭐", "🎈", "🍎", "🐛", "🚗", "❤️", "🌟", "🐰", "🍩"],
+
+    // ---- Science & sorting (each SET has 2-3 bins; the item's bin is correct) ----
+    SORT_SETS: [
+      { name: "living", bins: [
+        { label: "Alive", emoji: "🌱", items: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻"] },
+        { label: "Not alive", emoji: "🪨", items: ["🪨", "🚗", "⚽", "🥄", "📦", "🔑", "👟", "🪑", "🧱"] },
+      ] },
+      { name: "sinkfloat", bins: [
+        { label: "Sinks", emoji: "⬇️", items: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"] },
+        { label: "Floats", emoji: "⬆️", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
+      ] },
+      { name: "plantanimal", bins: [
+        { label: "Plant", emoji: "🌿", items: ["🌳", "🌻", "🌵", "🌷", "🍄", "🌴"] },
+        { label: "Animal", emoji: "🐾", items: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
+      ] },
+    ],
+    COLOR_SETS: [
+      { name: "redblue", bins: [
+        { label: "Red", emoji: "🔴", items: ["🍎", "🍓", "🍅", "🌹", "❤️"] },
+        { label: "Blue", emoji: "🔵", items: ["🫐", "💙", "🌀", "🧊", "🐳"] },
+      ] },
+      { name: "yellowgreen", bins: [
+        { label: "Yellow", emoji: "🟡", items: ["🍌", "🌟", "🌻", "🧀", "🐤"] },
+        { label: "Green", emoji: "🟢", items: ["🥦", "🐸", "🌲", "🥝", "🍀"] },
+      ] },
+    ],
+    LAW_SETS: [
+      { name: "law", bins: [
+        { label: "Land", emoji: "🚗", items: ["🚗", "🚙", "🚌", "🐘", "🦁", "🏠"] },
+        { label: "Air", emoji: "✈️", items: ["✈️", "🚁", "🦅", "🎈", "🚀", "🦋"] },
+        { label: "Water", emoji: "🐟", items: ["🐟", "🐬", "🚤", "🦆", "🐙", "⛵"] },
+      ] },
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

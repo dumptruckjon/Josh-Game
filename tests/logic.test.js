@@ -227,3 +227,28 @@ test("makeOrder: ranks are a full 1..count permutation", () => {
     }
   }
 });
+
+test("makeSort: the item truly belongs to the correct bin", () => {
+  const rng = mulberry32(16);
+  const allSets = [...content.SORT_SETS, ...content.COLOR_SETS, ...content.LAW_SETS];
+  for (const set of allSets) {
+    for (let i = 0; i < 800; i++) {
+      const r = L.makeSort(set, rng);
+      assert.ok(r.correctIndex >= 0 && r.correctIndex < set.bins.length, "valid bin index");
+      assert.ok(set.bins[r.correctIndex].items.includes(r.item), "item is in the correct bin");
+      assert.equal(r.bins.length, set.bins.length, "returns every bin as a choice");
+    }
+  }
+  assert.throws(() => L.makeSort({ bins: [{ label: "x", emoji: "x", items: ["a"] }] }, rng), />= 2 bins/);
+});
+
+test("every sortable item lives in exactly one bin of its set (no ambiguity)", () => {
+  const allSets = [...content.SORT_SETS, ...content.COLOR_SETS, ...content.LAW_SETS];
+  for (const set of allSets) {
+    const seen = new Map();
+    set.bins.forEach((b, bi) => b.items.forEach((it) => {
+      assert.ok(!seen.has(it), `item ${it} appears in two bins of set ${set.name}`);
+      seen.set(it, bi);
+    }));
+  }
+});

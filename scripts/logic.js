@@ -213,11 +213,23 @@
     return { emoji, count, items: ranks.map((rank) => ({ rank })) };
   }
 
+  // --- Sort into bins (science / color / land-air-water) ------------------
+  // A category set has bins, each with items. Pick a random item; the correct
+  // bin is the one it came from.
+  function makeSort(set, rng = Math.random) {
+    const bins = set && set.bins;
+    if (!Array.isArray(bins) || bins.length < 2) throw new Error("makeSort needs >= 2 bins");
+    const bi = randInt(0, bins.length - 1, rng);
+    const items = bins[bi].items;
+    const item = items[randInt(0, items.length - 1, rng)];
+    return { item, bins: bins.map((b) => ({ label: b.label, emoji: b.emoji })), correctIndex: bi, setName: set.name };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
-    makeShadowMatch, makeOrder,
+    makeShadowMatch, makeOrder, makeSort,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

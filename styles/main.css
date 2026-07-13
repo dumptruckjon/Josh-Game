@@ -324,6 +324,19 @@ body {
 .memory-card.flipped { background: #fff; }
 .memory-card.matched { background: #d7f8de; }
 
+/* ---------- Science & sorting ---------- */
+.sort__item { font-size: clamp(4rem, 26vw, 7rem); line-height: 1; }
+.sort__bins { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--pad); width: 100%; }
+.sort__bins--3 { grid-template-columns: repeat(3, 1fr); }
+.sort__bin {
+  min-height: 120px; border-radius: 22px; background: var(--card);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+}
+.sort__binIcon { font-size: 2.6rem; line-height: 1; }
+.sort__binLabel { font-size: 0.9rem; font-weight: 800; color: #667; text-align: center; }
+.sort__bin--hit { outline: 5px solid #7be08a; outline-offset: -2px; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
