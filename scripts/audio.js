@@ -78,5 +78,24 @@
     try { const c = audioCtx(); if (c && c.state === "suspended" && c.resume) c.resume().catch(() => {}); } catch (e) { /* ignore */ }
   }
 
-  global.JoshAudio = { isMuted, setMuted, toggle, say, tone, unlock, KEY };
+  // ---- Celebration cues: the game's SOUND feedback (win / correct / oops) ----
+  // Wired once into the framework so every game inherits them. Unlike a music
+  // instrument, these are gentle feedback the parent can silence: they respect
+  // the mute (sound is OFF by default), and route through the iOS-safe tone().
+  function cue(seq) {
+    if (muted) return; // celebration sound respects the mute (sound is OFF by default)
+    unlock();          // warm the context on this gesture so the first note isn't lost
+    for (const n of seq) {
+      if (!n.delay) tone(n.freq, n.opts);
+      else setTimeout(() => tone(n.freq, n.opts), n.delay);
+    }
+  }
+  // A rising 3-note "you did it!" jingle (C5–E5–G5).
+  function winCue() { cue([{ freq: 523.25 }, { freq: 659.25, delay: 120 }, { freq: 783.99, delay: 240, opts: { duration: 0.7 } }]); }
+  // A single bright confirming note for a correct round.
+  function goodCue() { cue([{ freq: 659.25, opts: { duration: 0.32, gain: 0.22 } }]); }
+  // A soft, low, NON-punishing "hmm, try another" note (never a harsh buzzer).
+  function bumpCue() { cue([{ freq: 246.94, opts: { type: "sine", duration: 0.22, gain: 0.16 } }]); }
+
+  global.JoshAudio = { isMuted, setMuted, toggle, say, tone, unlock, winCue, goodCue, bumpCue, KEY };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -44,6 +44,11 @@
     "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",
   };
 
+  // Set by initLauncher once the Sticker Book screen exists; re-syncs every slot
+  // + the star meter from JoshProgress. Held at module scope so the router and
+  // the grown-ups reset can refresh the book too.
+  let refreshStickers = null;
+
   document.addEventListener("DOMContentLoaded", () => {
     for (const init of [initSound, initLauncher, initParentGate]) {
       try { init(); } catch (e) { console.error("Josh: init failed:", e); }
@@ -66,16 +71,22 @@
   // anything. Clearing removes every josh-won-* flag and its ⭐ badge.
   function clearStars() {
     let n = 0;
-    try {
-      const keys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.indexOf("josh-won-") === 0) keys.push(k);
-      }
-      keys.forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
-      n = keys.length;
-    } catch (e) { /* localStorage may be unavailable */ }
+    if (window.JoshProgress && window.JoshProgress.clear) {
+      n = window.JoshProgress.clear();
+    } else {
+      try {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.indexOf("josh-won-") === 0) keys.push(k);
+        }
+        keys.forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
+        n = keys.length;
+      } catch (e) { /* localStorage may be unavailable */ }
+    }
     document.querySelectorAll(".tile__badge").forEach((b) => b.remove());
+    document.querySelectorAll(".sticker-slot.is-won").forEach((s) => s.classList.remove("is-won"));
+    if (typeof refreshStickers === "function") refreshStickers();
     return n;
   }
 
@@ -156,6 +167,7 @@
 
   // ---- Launcher: category tiles -> per-category game grids -> games ----
   function wonAlready(id) {
+    if (window.JoshProgress) return window.JoshProgress.isWon(id);
     try { return localStorage.getItem("josh-won-" + id) === "1"; } catch (e) { return false; }
   }
   function addBadge(tile) {
@@ -212,6 +224,16 @@
     });
     grid.appendChild(surprise);
 
+    // A Sticker Book tile: opens a scrapbook that fills as Josh wins games.
+    const stickersTile = document.createElement("button");
+    stickersTile.className = "tile tile--stickers tap";
+    stickersTile.type = "button";
+    stickersTile.setAttribute("role", "listitem");
+    stickersTile.setAttribute("aria-label", "Sticker book");
+    stickersTile.innerHTML = '<span class="tile__icon" aria-hidden="true">📖</span><span class="tile__label">Stickers</span>';
+    stickersTile.addEventListener("click", () => { location.hash = "#stickers"; });
+    grid.appendChild(stickersTile);
+
     CATEGORIES.forEach((cat) => {
       const list = byCat[cat.id] || [];
       if (!list.length) return;
@@ -256,11 +278,99 @@
     // Build the actual game screens.
     games.forEach((def) => { screens.appendChild(F.buildGameScreen(def)); });
 
-    // Live-badge a game the moment it's first beaten.
-    window.addEventListener("josh-won", (e) => { if (e.detail && e.detail.id) markTileWon(e.detail.id); });
+    // ---- Sticker Book: a scrapbook with one slot per game ----
+    // Every win "plops" that game's signature sticker (from JoshStickers) into
+    // its slot, and a star meter shows how full the book is — turning the
+    // invisible josh-won flags into something Josh can flip through.
+    buildStickerBook(screens, games);
+
+    // Live-badge a game the moment it's first beaten, and fill its sticker slot.
+    window.addEventListener("josh-won", (e) => {
+      if (!e.detail || !e.detail.id) return;
+      markTileWon(e.detail.id);
+      const slot = document.querySelector('.sticker-slot[data-sticker="' + e.detail.id + '"]');
+      if (slot && !slot.classList.contains("is-won")) {
+        slot.classList.add("is-won");
+        slot.classList.remove("plop"); void slot.offsetWidth; slot.classList.add("plop");
+      }
+      if (typeof refreshStickers === "function") refreshStickers();
+    });
 
     window.addEventListener("hashchange", route);
     route();
+  }
+
+  // Build the #screen-stickers scrapbook and wire refreshStickers().
+  function buildStickerBook(screens, games) {
+    const ST = window.JoshStickers;
+    const screen = document.createElement("section");
+    screen.className = "screen stickers";
+    screen.id = "screen-stickers";
+    screen.hidden = true;
+
+    const bar = document.createElement("div");
+    bar.className = "game__bar";
+    const back = document.createElement("button");
+    back.className = "btn-round game__home";
+    back.type = "button";
+    back.setAttribute("aria-label", "Home");
+    back.textContent = "🏠";
+    back.addEventListener("click", () => { location.hash = ""; });
+    const title = document.createElement("h2");
+    title.className = "game__title";
+    title.textContent = "📖 My Stickers";
+    bar.append(back, title, document.createElement("span"));
+
+    const meter = document.createElement("div");
+    meter.className = "sticker-meter";
+    meter.setAttribute("aria-hidden", "true");
+    const meterFill = document.createElement("div");
+    meterFill.className = "sticker-meter__fill";
+    const meterText = document.createElement("div");
+    meterText.className = "sticker-meter__text";
+    meter.append(meterFill, meterText);
+
+    const sgrid = document.createElement("div");
+    sgrid.className = "sticker-grid";
+    games.forEach((def) => {
+      const slot = document.createElement("button");
+      slot.className = "sticker-slot tap";
+      slot.type = "button";
+      slot.dataset.sticker = def.id;
+      slot.setAttribute("aria-label", def.title);
+      const seal = document.createElement("span");
+      seal.className = "sticker-slot__seal";
+      seal.setAttribute("aria-hidden", "true");
+      seal.textContent = "❓";
+      const art = document.createElement("span");
+      art.className = "sticker-slot__art art-fill";
+      art.setAttribute("aria-hidden", "true");
+      try { art.innerHTML = ST ? ST.artFor(def) : ""; } catch (e) { art.textContent = "⭐"; }
+      slot.append(seal, art);
+      slot.addEventListener("click", () => {
+        if (slot.classList.contains("is-won")) { location.hash = "#" + def.id; } // a won sticker replays its game
+        else { if (A.say) A.say("Play to win this one!"); slot.classList.remove("bump"); void slot.offsetWidth; slot.classList.add("bump"); }
+      });
+      sgrid.appendChild(slot);
+    });
+
+    screen.append(bar, meter, sgrid);
+    screens.appendChild(screen);
+
+    refreshStickers = function () {
+      const total = games.length;
+      let won = 0;
+      games.forEach((def) => {
+        const slot = sgrid.querySelector('.sticker-slot[data-sticker="' + def.id + '"]');
+        const isWon = wonAlready(def.id);
+        if (slot) slot.classList.toggle("is-won", isWon);
+        if (isWon) won += 1;
+      });
+      meterFill.style.width = total ? Math.round((won / total) * 100) + "%" : "0%";
+      meterText.textContent = "⭐ " + won + " / " + total;
+      screen.dataset.won = String(won);
+    };
+    refreshStickers();
   }
 
   function route() {
@@ -278,6 +388,17 @@
     if (id.indexOf("cat-") === 0) {
       const cs = document.getElementById("screen-" + id);
       if (cs) { cs.hidden = false; document.body.classList.remove("in-game"); window.scrollTo(0, 0); return; }
+    }
+    // The Sticker Book (#stickers) is an out-of-game screen; re-sync it on show.
+    if (id === "stickers") {
+      const ss = document.getElementById("screen-stickers");
+      if (ss) {
+        ss.hidden = false;
+        document.body.classList.remove("in-game");
+        if (typeof refreshStickers === "function") refreshStickers();
+        window.scrollTo(0, 0);
+        return;
+      }
     }
     const target = document.getElementById("screen-" + id);
     if (target) {

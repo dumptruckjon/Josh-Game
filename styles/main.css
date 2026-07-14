@@ -888,6 +888,54 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .race__flag { font-size: 1.8rem; line-height: 1; }
 .race__mini { display: inline-block; width: 30px; vertical-align: middle; }
 
+/* ---------- Sticker Book (the reward collection: one slot per game) ---------- */
+.tile--stickers { background: linear-gradient(135deg, #cdb4ff, #8a7bff); }
+.tile--stickers .tile__label { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+.sticker-meter {
+  position: relative; width: 100%; max-width: 420px; margin: 0 auto 16px;
+  height: 26px; border-radius: 999px; background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1); overflow: hidden;
+}
+.sticker-meter__fill {
+  position: absolute; inset: 0 auto 0 0; width: 0%;
+  background: linear-gradient(90deg, #ffd24d, #ffa64d);
+  border-radius: 999px; transition: width 0.4s ease;
+}
+.sticker-meter__text {
+  position: relative; z-index: 1; text-align: center; line-height: 26px;
+  font-size: 0.9rem; font-weight: 800; color: #7a4a10;
+}
+.sticker-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 16px; width: 100%;
+}
+.sticker-slot {
+  position: relative; min-height: 78px; aspect-ratio: 1 / 1;
+  border-radius: 20px; border: 3px dashed rgba(120, 150, 190, 0.35);
+  background: rgba(255, 255, 255, 0.45); box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex; align-items: center; justify-content: center; padding: 8px; overflow: hidden;
+}
+.sticker-slot:active { transform: scale(0.96); }
+.sticker-slot__seal { font-size: 2rem; opacity: 0.5; }
+.sticker-slot__art {
+  position: absolute; inset: 0; padding: 10px;
+  opacity: 0; transform: scale(0.5); transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.sticker-slot__art svg { width: 100%; height: 100%; display: block; }
+/* Earned: the sticker "sticks" in, the seal disappears, the card warms up. */
+.sticker-slot.is-won {
+  border-style: solid; border-color: rgba(255, 210, 77, 0.9);
+  background: linear-gradient(180deg, #ffffff, #fff6da);
+}
+.sticker-slot.is-won .sticker-slot__seal { display: none; }
+.sticker-slot.is-won .sticker-slot__art { opacity: 1; transform: scale(1); }
+@keyframes stickerPlop {
+  0% { transform: scale(0.3) rotate(-12deg); }
+  55% { transform: scale(1.18) rotate(6deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.sticker-slot.plop .sticker-slot__art { animation: stickerPlop 480ms cubic-bezier(0.2, 0.8, 0.3, 1); }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
@@ -909,6 +957,11 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   .win-hero, .grow--pop, .mascot--cheer, .mascot--wiggle { animation: none !important; transform: none !important; }
   /* reveals must still be VISIBLE without motion, not stuck invisible */
   .dot__reveal--on, .lf__reveal--on, .cbn__reveal--on { animation: none !important; opacity: 1 !important; }
+  .sticker-slot:active { transform: none !important; }
+  .sticker-slot.plop .sticker-slot__art { animation: none !important; }
+  .sticker-slot__art, .sticker-meter__fill { transition: none !important; }
+  /* an earned sticker must still SHOW without motion (not stuck scaled-to-zero) */
+  .sticker-slot.is-won .sticker-slot__art { opacity: 1 !important; transform: none !important; }
   .rocket-art { transition: none !important; }
   .rocket-art--launch, .bridge--cross .bridge__hero--l, .bridge--cross .bridge__hero--r { transform: none !important; }
   body { background-attachment: scroll; }

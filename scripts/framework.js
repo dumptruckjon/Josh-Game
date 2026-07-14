@@ -135,6 +135,7 @@
       // A correct round in a multi-round game (celebrate, keep going).
       roundWin(opts) {
         FX.confetti({ colors: C.CONFETTI_COLORS, count: 70 });
+        try { if (A.goodCue) A.goodCue(); } catch (e) { /* ignore */ }
         reactMascot("cheer");
         if (opts && opts.say) A.say(opts.say);
       },
@@ -143,6 +144,7 @@
         screen.dataset.won = "1";
         screen.classList.add("is-won");
         FX.confetti({ colors: C.CONFETTI_COLORS });
+        try { if (A.winCue) A.winCue(); } catch (e) { /* ignore */ } // the "you did it!" jingle
         reactMascot("cheer");
         if (FX.stars) FX.stars();
         A.say((opts && opts.say) || randItem(C.PRAISE_SPOKEN || ["Yay"]));
@@ -157,9 +159,14 @@
             setTimeout(() => cheer.remove(), 1700);
           }
         } catch (e) { /* ignore */ }
-        // Remember this game was beaten so the launcher can show a ⭐ badge.
-        try { localStorage.setItem("josh-won-" + def.id, "1"); } catch (e) { /* ignore */ }
-        try { window.dispatchEvent(new CustomEvent("josh-won", { detail: { id: def.id } })); } catch (e) { /* ignore */ }
+        // Record the win in ONE place (JoshProgress) so the ⭐ badge, the Sticker
+        // Book, and the launcher all read the same source of truth. Fallback keeps
+        // it working if the progress module ever fails to load.
+        if (global.JoshProgress) { global.JoshProgress.markWon(def.id); }
+        else {
+          try { localStorage.setItem("josh-won-" + def.id, "1"); } catch (e) { /* ignore */ }
+          try { window.dispatchEvent(new CustomEvent("josh-won", { detail: { id: def.id } })); } catch (e) { /* ignore */ }
+        }
       },
       // Gentle "try again": a soft bump, a kind word, nothing punishing.
       tryAgain(node) {
@@ -168,6 +175,7 @@
           void node.offsetWidth;
           node.classList.add("bump");
         }
+        try { if (A.bumpCue) A.bumpCue(); } catch (e) { /* ignore */ } // soft, non-punishing
         reactMascot("wiggle");
         A.say(randItem(C.TRYAGAIN_SPOKEN || ["Try again"]));
       },

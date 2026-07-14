@@ -14,7 +14,7 @@ const content = require("../scripts/content.js");
 
 const SCRIPTS = [
   "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js", "scripts/art.js",
-  "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
+  "scripts/stickers.js", "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
   "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
   "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/main.js",
 ];
@@ -206,6 +206,37 @@ test("guardrail: the framework exposes the reactive mascot and wires its reactio
   assert.ok(/mascot\s*\(/.test(fw), "framework must expose api.mascot()");
   assert.ok(/reactMascot\(["']cheer["']\)/.test(fw), "win/roundWin must cheer the mascot");
   assert.ok(/reactMascot\(["']wiggle["']\)/.test(fw), "tryAgain must wiggle the mascot");
+});
+
+test("guardrail: win/round/try-again play mute-gated audio cues (silent-play feedback)", () => {
+  // Wins were visually rich but SILENT. The confirming tone / win jingle / gentle
+  // bump are centralized in audio.js (mute-gated so 'sound off' truly silences
+  // them) and fired from the framework, so every game inherits sound feedback.
+  const a = read("scripts/audio.js");
+  assert.ok(/winCue/.test(a) && /goodCue/.test(a) && /bumpCue/.test(a), "audio.js must expose win/good/bump cues");
+  assert.ok(/if \(muted\) return/.test(a), "celebration cues must be mute-gated (sound is OFF by default)");
+  const fw = read("scripts/framework.js");
+  assert.ok(/winCue/.test(fw), "framework win() must fire the win jingle");
+  assert.ok(/goodCue/.test(fw), "framework roundWin() must fire a confirming cue");
+  assert.ok(/bumpCue/.test(fw), "framework tryAgain() must fire a gentle (non-punishing) bump cue");
+});
+
+test("guardrail: the Sticker Book exists and josh-won progress has ONE owner", () => {
+  // The reward layer + single-owner progress. josh-won-* state must live in
+  // JoshProgress (stickers.js) so the ⭐ badge, the Sticker Book, the framework
+  // win(), and the grown-ups reset can never drift apart.
+  const st = read("scripts/stickers.js");
+  assert.ok(/JoshProgress/.test(st) && /josh-won-/.test(st) && /removeItem/.test(st),
+    "stickers.js (JoshProgress) must own reading/writing/clearing the josh-won-* flags");
+  assert.ok(/JoshStickers/.test(st) && /artFor/.test(st),
+    "stickers.js must expose JoshStickers.artFor for a deterministic sticker per game");
+  const fw = read("scripts/framework.js");
+  assert.ok(/JoshProgress/.test(fw) && /markWon/.test(fw),
+    "framework win() must record the win via JoshProgress.markWon (single owner)");
+  const m = read("scripts/main.js");
+  assert.ok(/screen-stickers/.test(m) && /"stickers"/.test(m), "main.js must build + route the Sticker Book screen");
+  assert.ok(/tile--stickers/.test(m) && /📖/.test(m), "the home screen needs a Sticker Book tile");
+  assert.ok(/JoshProgress/.test(m), "main.js must read win-state through JoshProgress, not raw localStorage");
 });
 
 test("guardrail: the grown-ups reset gate exists and only 'reset' clears stars", () => {

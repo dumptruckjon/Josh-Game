@@ -143,7 +143,15 @@ restated in `content.test.js`; games must never concatenate a fixed article befo
 a dynamic word (`"a " + name` → "a Island") — use `JoshLogic.article(word)` (picks
 a/an by sound) → generic guardrail; a game screen must **fill the viewport and
 centre its play** (no dead bottom half) and cards shouldn't be flat white →
-centralized in the shared stage CSS + `api.mascot()`, both guardrail-locked.
+centralized in the shared stage CSS + `api.mascot()`, both guardrail-locked;
+**wins were silent** — sound feedback (a rising win jingle, a confirming
+round tone, a soft non-punishing try-again bump) is now centralized in
+`JoshAudio.winCue/goodCue/bumpCue` (mute-gated so "sound off" truly silences
+them, routed through the one iOS-safe `tone()`) and fired from the framework so
+every game inherits it → guardrail-locked; **the `josh-won-*` "beaten" flags had
+three writers** (framework win, launcher, reset gate) — they now have ONE owner,
+`JoshProgress` (in `stickers.js`), which the ⭐ badges, the 📖 Sticker Book, and
+the grown-ups reset all read/write through → guardrail-locked.
 When you fix the next thing, extend this list.
 
 ---
@@ -165,7 +173,9 @@ tooling.
 │   ├── content.js              # ALL editable content/data (dual-export: window.JoshContent + module.exports). Edit here.
 │   ├── logic.js                # PURE, deterministic game logic (window.JoshLogic + module.exports) — unit-tested
 │   ├── effects.js              # Shared JoshEffects.confetti()/stars() (celebrations)
-│   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off by default)
+│   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off) + iOS-safe tone() + win/good/bump CUES (mute-gated)
+│   ├── art.js                  # window.JoshArt — original homage SVG (hero/pup/numberFriend/friend/truck/rocket/…)
+│   ├── stickers.js             # window.JoshProgress (THE owner of josh-won-* flags) + window.JoshStickers.artFor (deterministic sticker per game)
 │   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT
 │   ├── games-toys.js           # Self-registering games: gentle cause→effect toys
 │   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
@@ -175,7 +185,7 @@ tooling.
 │   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, 2 co-op games
 │   ├── games-fun.js            # Self-registering games: bubbles, peekaboo, balloon, music pad
 │   ├── games-find.js           # Self-registering games: find-the-heroes, spot-the-one, count, dot-to-dot, rescue, tic-tac-toe
-│   └── main.js                 # Launcher (category menu + Surprise tile + ⭐ badges) + hash router + sound + SW
+│   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
 │   ├── content.test.js         # CORRECTNESS: ground-truth restatement — answers can't silently go wrong
@@ -272,7 +282,13 @@ heroes, and Paw-Patrol/Rubble homage names (**emoji + names only — not the
 copyrighted artwork**). Every win celebrates (confetti + spoken praise) and every
 wrong tap is a gentle bump with the target left in play (no score loss, no "you
 lose"). The launcher has a **🎲 Surprise!** tile and a **⭐ badge** on every game
-Josh has beaten (`josh-won-<id>` in `localStorage`).
+Josh has beaten (`josh-won-<id>` in `localStorage`, owned by `JoshProgress`). A
+**📖 Sticker Book** tile opens a scrapbook with one slot per game: beating a game
+"plops" its deterministic signature sticker (`JoshStickers.artFor`, drawn from
+`JoshArt`) into place, and a star meter shows how full the book is — a filled slot
+replays its game. When sound is on, every win rings a rising **jingle** (correct
+rounds a soft confirming tone, wrong taps a gentle non-punishing bump) via the
+centralized, mute-gated `JoshAudio` cues, so every game inherits sound feedback.
 
 > **Correctness is a hard requirement** (teaching tool): `tests/content.test.js`
 > restates the ground truth (first sounds, rhymes-by-phonetic-key, CVC structure,

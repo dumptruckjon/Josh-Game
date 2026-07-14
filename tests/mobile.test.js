@@ -138,6 +138,16 @@ test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", asy
   }
 });
 
+test("the Sticker Book: no overflow + >=75px well-spaced slots at 390 and 320", async () => {
+  for (const w of [390, 320]) {
+    await page.setViewportSize({ width: w, height: 780 });
+    await page.evaluate(() => { location.hash = "#stickers"; });
+    await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 4000 });
+    await noOverflow(page, `stickers@${w}`);
+    await auditActiveScreen(page, `stickers@${w}`);
+  }
+});
+
 test("a game is playable by touch (Odd-One-Out to a win)", async () => {
   await page.setViewportSize(IPHONE.viewport);
   await page.evaluate(() => { location.hash = "#odd-one-out"; });

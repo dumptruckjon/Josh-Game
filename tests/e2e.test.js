@@ -164,6 +164,35 @@ test("beating games marks them with a ⭐ on the launcher", async () => {
   assert.ok(badges >= 3, `expected several beaten-game star badges, got ${badges}`);
 });
 
+test("the Sticker Book has one slot per game and fills the ones Josh has won", async () => {
+  // The every-game test above won every win-game, so the book should be full.
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+
+  // artFor must be deterministic and produce a real <svg> sticker.
+  const det = await page.evaluate(() => {
+    const g = (window.JoshGames || [])[0];
+    const a = window.JoshStickers.artFor(g);
+    const b = window.JoshStickers.artFor(g);
+    return { same: a === b, svg: /^<svg/.test(a || "") };
+  });
+  assert.ok(det.same, "JoshStickers.artFor must be deterministic for a given game");
+  assert.ok(det.svg, "JoshStickers.artFor must return an <svg> sticker");
+
+  // A home tile opens the book.
+  await page.locator(".tile--stickers").click();
+  await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 4000 });
+
+  const slots = await page.locator("#screen-stickers .sticker-slot").count();
+  const games = await page.evaluate(() => (window.JoshGames || []).length);
+  assert.equal(slots, games, "the Sticker Book must have exactly one slot per registered game");
+
+  const filled = await page.locator("#screen-stickers .sticker-slot.is-won").count();
+  assert.ok(filled >= 3, `won games should fill sticker slots, got ${filled}`);
+  const meter = await page.locator("#screen-stickers .sticker-meter__text").textContent();
+  assert.match(meter || "", /\d+\s*\/\s*\d+/, "the star meter should show a filled / total count");
+});
+
 test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => {
   // The previous test won games, so badges exist now. The gate must reject
   // everything except the word "reset" (any case) and clear the badges + flags.
@@ -203,6 +232,36 @@ test("a wrong tap is forgiving — no score loss, target stays in play", async (
   assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a wrong tap must never win");
   // the correct tile is still present and playable
   assert.ok((await screen.locator('[data-correct="1"]').count()) >= 1, "correct choice stays in play");
+});
+
+test("with sound ON, winning a game plays a jingle (iOS-safe: never while suspended)", async () => {
+  // Wins are celebrated with a rising jingle via JoshAudio — but only when sound
+  // is on (off by default). Turn it on, win a game, and assert notes fired and
+  // none started while the context was still suspended (that is silent on iOS).
+  await page.evaluate(() => { try { localStorage.setItem("josh-muted", "0"); } catch (e) {} });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { window.__notes = 0; window.__startedWhileSuspended = 0; });
+
+  await page.evaluate(() => { location.hash = "#odd-one-out"; });
+  const screen = page.locator("#screen-odd-one-out");
+  await screen.waitFor({ state: "visible", timeout: 4000 });
+  let won = false;
+  for (let i = 0; i < 80 && !won; i++) {
+    won = await screen.evaluate((el) => el.dataset.won === "1");
+    if (won) break;
+    const correct = screen.locator('[data-correct="1"]').first();
+    if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
+    try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
+  }
+  assert.ok(won, "odd-one-out should reach a win");
+  await page.waitForFunction(() => (window.__notes || 0) >= 1, null, { timeout: 4000 });
+  const notes = await page.evaluate(() => window.__notes || 0);
+  const bad = await page.evaluate(() => window.__startedWhileSuspended || 0);
+  assert.ok(notes >= 1, `a win should play at least one jingle note; got ${notes}`);
+  assert.equal(bad, 0, `jingle notes must never start while suspended (got ${bad}; silent on iOS)`);
+
+  // Restore the default (muted) so later tests match the shipped default.
+  await page.evaluate(() => { try { localStorage.setItem("josh-muted", "1"); } catch (e) {} });
 });
 
 test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {
