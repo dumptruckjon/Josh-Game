@@ -247,6 +247,21 @@ test("guardrail: the grown-ups reset gate exists and only 'reset' clears stars",
   assert.ok(/toLowerCase\(\)\s*===\s*["']reset["']/.test(m), "ONLY the word 'reset' (any case) may clear the stars");
 });
 
+test("guardrail: Look From Above's top-down map stays aligned with the isometric scene", () => {
+  // The fix re-laid the footprint as a DIAMOND matching the scene. The map is
+  // only correct if occupancy index i lands in the same screen quadrant in BOTH
+  // the scene projection and the footprint — pin both so a reorder can't silently
+  // bring back the 45° misalignment (which a green suite wouldn't otherwise catch,
+  // since the e2e harness taps data-correct independent of visual layout).
+  const g = read("scripts/games-logic.js");
+  assert.ok(/cell\.c\s*-\s*cell\.r/.test(g), "the scene's x axis must be (c - r)");
+  assert.ok(/cell\.c\s*\+\s*cell\.r/.test(g), "the scene's depth axis must be (c + r)");
+  assert.ok(
+    /be__cell--n["']\s*,\s*["']be__cell--e["']\s*,\s*["']be__cell--w["']\s*,\s*["']be__cell--s/.test(g),
+    "footprint() must map occupancy index 0→N (back/top), 1→E (right), 2→W (left), 3→S (front/bottom)"
+  );
+});
+
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);

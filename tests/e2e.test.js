@@ -191,6 +191,13 @@ test("the Sticker Book has one slot per game and fills the ones Josh has won", a
   assert.ok(filled >= 3, `won games should fill sticker slots, got ${filled}`);
   const meter = await page.locator("#screen-stickers .sticker-meter__text").textContent();
   assert.match(meter || "", /\d+\s*\/\s*\d+/, "the star meter should show a filled / total count");
+
+  // Tapping a FILLED sticker replays that game (navigates to its screen).
+  const wonSlot = page.locator("#screen-stickers .sticker-slot.is-won").first();
+  const gid = await wonSlot.getAttribute("data-sticker");
+  await wonSlot.click();
+  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 4000 });
+  assert.ok(await page.locator(`#screen-${gid}`).isVisible(), "a won sticker should replay its game on tap");
 });
 
 test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => {
@@ -221,6 +228,18 @@ test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => 
     return n;
   });
   assert.equal(flags, 0, "the josh-won-* flags are cleared too");
+
+  // The reset must also EMPTY the Sticker Book (slots + star meter), not just tiles.
+  await page.evaluate(() => { location.hash = "#stickers"; });
+  await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 4000 });
+  assert.equal(await page.locator("#screen-stickers .sticker-slot.is-won").count(), 0, "reset must clear every filled sticker slot");
+  assert.equal(await page.locator("#screen-stickers").evaluate((el) => el.dataset.won || ""), "0", "reset resets the book's filled count to 0");
+
+  // With the book empty, tapping an UNWON slot must NOT navigate (it just nudges).
+  const emptySlot = page.locator("#screen-stickers .sticker-slot:not(.is-won)").first();
+  await emptySlot.click();
+  assert.equal(await page.evaluate(() => location.hash), "#stickers", "tapping an unwon sticker must not leave the book");
+  assert.ok(await emptySlot.evaluate((el) => el.classList.contains("bump")), "an unwon sticker tap gives a gentle bump");
 });
 
 test("a wrong tap is forgiving — no score loss, target stays in play", async () => {
@@ -232,6 +251,32 @@ test("a wrong tap is forgiving — no score loss, target stays in play", async (
   assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a wrong tap must never win");
   // the correct tile is still present and playable
   assert.ok((await screen.locator('[data-correct="1"]').count()) >= 1, "correct choice stays in play");
+});
+
+test("with sound OFF (the default), winning a game plays NO notes at all", async () => {
+  // The single most important audio property: sound is OFF by default, so the
+  // win jingle / round tone / try-again bump must be completely silent until a
+  // grown-up turns sound on. Guards against a cue escaping the mute gate.
+  await page.evaluate(() => { try { localStorage.setItem("josh-muted", "1"); } catch (e) {} });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { window.__notes = 0; window.__startedWhileSuspended = 0; });
+
+  await page.evaluate(() => { location.hash = "#odd-one-out"; });
+  const screen = page.locator("#screen-odd-one-out");
+  await screen.waitFor({ state: "visible", timeout: 4000 });
+  let won = false;
+  for (let i = 0; i < 80 && !won; i++) {
+    won = await screen.evaluate((el) => el.dataset.won === "1");
+    if (won) break;
+    const correct = screen.locator('[data-correct="1"]').first();
+    if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
+    try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
+  }
+  assert.ok(won, "odd-one-out should reach a win");
+  // Give any (buggy) async note a chance to fire, then assert total silence.
+  await page.waitForTimeout(150);
+  const notes = await page.evaluate(() => window.__notes || 0);
+  assert.equal(notes, 0, `with sound off, a win must play ZERO notes; got ${notes}`);
 });
 
 test("with sound ON, winning a game plays a jingle (iOS-safe: never while suspended)", async () => {
@@ -287,6 +332,27 @@ test("Piggy Bank: the worth display reaches the full price when a round is fille
     new RegExp("^\\s*" + price + "¢\\s*/\\s*" + price + "¢"),
     `filled piggy should read "${price}¢ / ${price}¢", got "${worthText}"`
   );
+  // Both coins dim once the piggy is full (no more coins are needed).
+  assert.ok(await screen.locator(".coin--penny").evaluate((el) => el.classList.contains("coin--off")), "the penny dims when the piggy is full");
+  assert.ok(await screen.locator(".coin--nickel").evaluate((el) => el.classList.contains("coin--off")), "the nickel dims when the piggy is full");
+});
+
+test("Look From Above: the answer map is a diamond whose N/E/W/S cells match the scene orientation", async () => {
+  // The fix re-laid the top-down map as a diamond matching the isometric scene
+  // (back block = top of the map). Pin the rendered geometry so a CSS swap can't
+  // silently reintroduce the 45° misalignment while the suite stays green.
+  await openGame("birds-eye");
+  const q = await page.evaluate(() => {
+    const grid = document.querySelector("#screen-birds-eye .be__grid");
+    if (!grid) return null;
+    const c = (sel) => { const el = grid.querySelector(sel); const b = el.getBoundingClientRect(); return { cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; };
+    return { n: c(".be__cell--n"), e: c(".be__cell--e"), w: c(".be__cell--w"), s: c(".be__cell--s") };
+  });
+  assert.ok(q, "birds-eye should render a diamond footprint map");
+  assert.ok(q.n.cy < q.e.cy && q.n.cy < q.w.cy, "N (the back block) must be the TOP map cell");
+  assert.ok(q.s.cy > q.e.cy && q.s.cy > q.w.cy, "S (the front block) must be the BOTTOM map cell");
+  assert.ok(q.w.cx < q.n.cx && q.w.cx < q.s.cx, "W must be the LEFT map cell");
+  assert.ok(q.e.cx > q.n.cx && q.e.cx > q.s.cx, "E must be the RIGHT map cell");
 });
 
 test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {
