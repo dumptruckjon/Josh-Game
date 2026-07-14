@@ -425,6 +425,21 @@
       ["🚗", "🚀", "🚌", "🚂"],
       ["☀️", "🌙", "🌈", "⚡"],
     ],
+    // ---- Read & Do: first decodable sentences (read → tap the matching picture) ----
+    // Each sentence is a few short, decodable/sight words ABOUT its `answer`
+    // picture; `pics` are the 3 choices (answer + 2 distractors). The spoken
+    // prompt reads the whole sentence (👂), so it's playable with sound off too.
+    // Ground truth (answer really matches the sentence) is locked in content.test.
+    SENTENCES: [
+      { text: "the dog can run", answer: "🐶", pics: ["🐶", "🐱", "🐰"] },
+      { text: "a cat is sad", answer: "🐱", pics: ["🐱", "🐶", "🐭"] },
+      { text: "the sun is hot", answer: "☀️", pics: ["☀️", "🌙", "⭐"] },
+      { text: "a big pig", answer: "🐷", pics: ["🐷", "🐔", "🐭"] },
+      { text: "the bug is red", answer: "🐞", pics: ["🐞", "🦋", "🐝"] },
+      { text: "a fish can swim", answer: "🐟", pics: ["🐟", "🐦", "🐸"] },
+      { text: "the frog can hop", answer: "🐸", pics: ["🐸", "🐢", "🐍"] },
+      { text: "a red bus", answer: "🚌", pics: ["🚌", "🚗", "🚂"] },
+    ],
 
     // ---- Who Is It? (multi-attribute deduction) ----
     // Two positive attributes: a body color and a held item. All 6 combos are

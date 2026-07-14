@@ -188,6 +188,19 @@ test("villains (Thwip the Villains) are several distinct silly baddies", () => {
   assert.equal(new Set(content.VILLAINS.map((v) => v.emoji)).size, content.VILLAINS.length, "villain emojis are distinct");
 });
 
+test("Read & Do sentences: short words, and the correct picture really is one of the 3 choices", () => {
+  assert.ok(Array.isArray(content.SENTENCES) && content.SENTENCES.length >= 4, "need several sentences");
+  for (const s of content.SENTENCES) {
+    assert.ok(typeof s.text === "string" && s.text.trim(), `sentence needs text`);
+    const words = s.text.trim().split(/\s+/);
+    assert.ok(words.length >= 2 && words.length <= 4, `"${s.text}" should be 2–4 short words`);
+    assert.equal(s.text, s.text.toLowerCase(), `"${s.text}" stays lowercase (early reading)`);
+    assert.ok(Array.isArray(s.pics) && s.pics.length === 3, `"${s.text}" needs exactly 3 picture choices`);
+    assert.equal(new Set(s.pics).size, 3, `"${s.text}" choices must be distinct`);
+    assert.ok(s.pics.includes(s.answer), `"${s.text}" answer must be one of its choices`);
+  }
+});
+
 // ---------- Blue Planet: land features vs water, verified ----------
 const LANDWATER_TRUTH = {
   Land: ["🏔️", "🌋", "🏜️", "🌳", "🏕️", "🏙️"],

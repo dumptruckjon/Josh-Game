@@ -686,6 +686,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 }
 .readzap__hit { background: #d7f8de; box-shadow: 0 0 0 4px #7be08a; }
 
+/* ---------- Read & Do (read a sentence -> tap the picture) ---------- */
+.sentence { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 6px 0 16px; }
+.sentence__word {
+  font-size: clamp(1.4rem, 7vw, 2rem); font-weight: 800; color: #2b3a55;
+  background: #fff; padding: 4px 14px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  text-transform: lowercase;
+}
+
 /* ---------- Who Is It? (deduction) ---------- */
 .wi__clues {
   display: flex; align-items: center; justify-content: center; gap: 10px;

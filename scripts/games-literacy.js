@@ -560,4 +560,45 @@
       newRound();
     },
   });
+
+  // ---- Read & Do (read a whole SENTENCE, tap the matching picture) ----
+  // The bridge from single-word decoding (read-zap) to reading a sentence. The
+  // 👂 reads the sentence aloud, and the picture choices are self-naming, so it
+  // stays playable with sound off (the non-reader law).
+  F.register({
+    id: "read-do",
+    icon: "📖",
+    title: "Read & Do",
+    skill: "read a sentence → picture [P→W]",
+    start(api) {
+      const SENTENCES = (api.C.SENTENCES && api.C.SENTENCES.length) ? api.C.SENTENCES : [{ text: "the dog", answer: "🐶", pics: ["🐶", "🐱", "🐰"] }];
+      const ROUNDS = 4;
+      let round = 0;
+      const sentence = api.el("div", { class: "sentence" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(sentence, choices);
+
+      function newRound() {
+        const s = api.randItem(SENTENCES);
+        api.setPrompt(s.text, ["👂", "📖", "👉"]); // the spoken prompt IS the sentence (👂 replays it)
+        api.speak();
+        sentence.innerHTML = "";
+        s.text.split(" ").forEach((w) => sentence.appendChild(api.el("span", { class: "sentence__word", text: w })));
+        choices.innerHTML = "";
+        api.shuffle(s.pics.slice()).forEach((p) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: p,
+            dataset: p === s.answer ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (p === s.answer) { round += 1; if (round >= ROUNDS) api.win({ say: "You read it!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+        api.mascot();
+      }
+      newRound();
+    },
+  });
 })();
