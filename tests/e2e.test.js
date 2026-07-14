@@ -355,6 +355,52 @@ test("Look From Above: the answer map is a diamond whose N/E/W/S cells match the
   assert.ok(q.e.cx > q.n.cx && q.e.cx > q.s.cx, "E must be the RIGHT map cell");
 });
 
+test("Buddy: pick a companion — it persists and stars in the win celebration", async () => {
+  // The roster is built from real content/art; every buddy makes a valid <svg>.
+  const roster = await page.evaluate(() =>
+    (window.JoshBuddy.list() || []).map((b) => ({ id: b.id, ok: /^<svg/.test((b.make && b.make()) || "") }))
+  );
+  assert.ok(roster.length >= 6, `expected several buddies, got ${roster.length}`);
+  assert.ok(roster.every((b) => b.id && b.ok), "every buddy must have an id + a valid <svg>");
+  const ids = roster.map((b) => b.id);
+  assert.equal(new Set(ids).size, ids.length, "buddy ids are unique");
+
+  // The home screen shows a companion; open the picker and choose a NON-default one.
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  await page.locator(".buddy__pick").click();
+  await page.locator(".buddyc").waitFor({ state: "visible" });
+  const pickId = ids[ids.length - 1]; // the Star — differs from the default (first)
+  await page.locator(`.buddyc__opt[data-buddy="${pickId}"]`).click();
+  await page.locator(".buddyc").waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => window.JoshBuddy.currentId()), pickId, "the chosen buddy persists");
+
+  // Winning a game must pop THAT buddy (not a random hero) as the celebration.
+  await page.evaluate(() => { location.hash = "#odd-one-out"; });
+  const screen = page.locator("#screen-odd-one-out");
+  await screen.waitFor({ state: "visible" });
+  const again = screen.locator(".game__again");
+  if (await again.isVisible().catch(() => false)) await again.click(); // reset for a FRESH win
+  let won = false;
+  for (let i = 0; i < 80 && !won; i++) {
+    won = await screen.evaluate((el) => el.dataset.won === "1");
+    if (won) break;
+    const correct = screen.locator('[data-correct="1"]').first();
+    if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
+    try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
+  }
+  assert.ok(won, "odd-one-out should reach a win");
+  const popsBuddy = await page.evaluate(() => {
+    const wh = document.querySelector("#screen-odd-one-out .win-hero");
+    if (!wh) return false;
+    // Normalise both through the DOM (innerHTML re-serialises SVG) before comparing.
+    const tmp = document.createElement("div");
+    tmp.innerHTML = window.JoshBuddy.art();
+    return wh.innerHTML === tmp.innerHTML;
+  });
+  assert.ok(popsBuddy, "the win celebration must pop the chosen buddy's art");
+});
+
 test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {
   await page.evaluate(() => { window.__notes = 0; window.__startedWhileSuspended = 0; });
   await openGame("music-pad");

@@ -14,7 +14,7 @@ const content = require("../scripts/content.js");
 
 const SCRIPTS = [
   "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js", "scripts/art.js",
-  "scripts/stickers.js", "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
+  "scripts/stickers.js", "scripts/buddy.js", "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
   "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
   "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/main.js",
 ];
@@ -245,6 +245,18 @@ test("guardrail: the grown-ups reset gate exists and only 'reset' clears stars",
   assert.ok(/dataset\.adult|data-adult/.test(m), "the gate must be marked adult-only (exempt from the kid ≥75px audit)");
   assert.ok(/josh-won-/.test(m) && /removeItem/.test(m), "clearStars() must remove the josh-won-* flags");
   assert.ok(/toLowerCase\(\)\s*===\s*["']reset["']/.test(m), "ONLY the word 'reset' (any case) may clear the stars");
+});
+
+test("guardrail: the Buddy pipeline is wired and owns the josh-buddy token", () => {
+  // Josh's ONE chosen buddy (josh-buddy) threads to the home companion AND every
+  // win celebration. Keep the single owner + the framework/home wiring in place.
+  const b = read("scripts/buddy.js");
+  assert.ok(/JoshBuddy/.test(b) && /josh-buddy/.test(b), "buddy.js must expose JoshBuddy + own the josh-buddy token");
+  assert.ok(/choose/.test(b) && /\bart\b/.test(b) && /mount/.test(b), "JoshBuddy must expose choose(), art(), mount()");
+  const fw = read("scripts/framework.js");
+  assert.ok(/JoshBuddy/.test(fw), "framework win() must pop the chosen buddy (with a hero fallback)");
+  const m = read("scripts/main.js");
+  assert.ok(/JoshBuddy\.mount/.test(m), "main.js must mount the buddy companion on the home screen");
 });
 
 test("guardrail: Look From Above's top-down map stays aligned with the isometric scene", () => {

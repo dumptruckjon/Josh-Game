@@ -50,10 +50,17 @@
   let refreshStickers = null;
 
   document.addEventListener("DOMContentLoaded", () => {
-    for (const init of [initSound, initLauncher, initParentGate]) {
+    for (const init of [initSound, initLauncher, initParentGate, initBuddy]) {
       try { init(); } catch (e) { console.error("Josh: init failed:", e); }
     }
   });
+
+  // Mount Josh's buddy companion on the home screen (above the game grid).
+  function initBuddy() {
+    const home = document.getElementById("screen-home");
+    const grid = document.getElementById("home-grid");
+    if (home && window.JoshBuddy && window.JoshBuddy.mount) window.JoshBuddy.mount(home, grid);
+  }
 
   // Register the service worker (PWA / offline). Best-effort; never blocks UI.
   if ("serviceWorker" in navigator) {

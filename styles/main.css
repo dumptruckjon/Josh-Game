@@ -900,6 +900,39 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .race__flag { font-size: 1.8rem; line-height: 1; }
 .race__mini { display: inline-block; width: 30px; vertical-align: middle; }
 
+/* ---------- Buddy (home companion + picker) ---------- */
+.buddy { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 2px 0 18px; }
+.buddy__pick {
+  width: 96px; height: 96px; min-width: var(--tap); min-height: var(--tap);
+  border-radius: 50%; background: radial-gradient(circle at 50% 35%, #ffffff, #eef4ff);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14); padding: 8px; display: block;
+}
+.buddy__pick:active { transform: scale(0.96); }
+.buddy__face { display: block; width: 100%; height: 100%; }
+.buddy__face svg { width: 100%; height: 100%; display: block; }
+.buddy__tag { font-size: 0.82rem; font-weight: 800; color: #6a4bd6; }
+.buddyc {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 30, 45, 0.42); padding: var(--pad);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
+}
+.buddyc[hidden] { display: none; }
+.buddyc__box {
+  width: min(94vw, 360px); max-height: 86dvh; overflow-y: auto;
+  background: #fff; border-radius: 22px; padding: 16px 14px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+}
+.buddyc__title { text-align: center; margin: 2px 0 12px; font-size: 1.2rem; font-weight: 800; color: #b83b5e; }
+.buddyc__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 16px; }
+.buddyc__opt {
+  min-height: 84px; aspect-ratio: 1 / 1; border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #eef4ff); border: 3px solid rgba(120, 170, 255, 0.22);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1); padding: 8px; display: flex; align-items: center; justify-content: center;
+}
+.buddyc__opt:active { transform: scale(0.95); }
+.buddyc__opt--sel { border-color: #ffd24d; box-shadow: 0 0 0 3px #ffd24d; }
+.buddyc__art { display: block; width: 100%; height: 100%; }
+.buddyc__art svg { width: 100%; height: 100%; display: block; }
+
 /* ---------- Sticker Book (the reward collection: one slot per game) ---------- */
 .tile--stickers { background: linear-gradient(135deg, #cdb4ff, #8a7bff); }
 .tile--stickers .tile__label { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
@@ -969,6 +1002,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   .win-hero, .grow--pop, .mascot--cheer, .mascot--wiggle { animation: none !important; transform: none !important; }
   /* reveals must still be VISIBLE without motion, not stuck invisible */
   .dot__reveal--on, .lf__reveal--on, .cbn__reveal--on { animation: none !important; opacity: 1 !important; }
+  .buddy__pick:active, .buddyc__opt:active { transform: none !important; }
   .sticker-slot:active { transform: none !important; }
   .sticker-slot.plop .sticker-slot__art { animation: none !important; }
   .sticker-slot__art, .sticker-meter__fill { transition: none !important; }

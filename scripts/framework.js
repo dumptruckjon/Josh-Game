@@ -149,12 +149,18 @@
         if (FX.stars) FX.stars();
         A.say((opts && opts.say) || randItem(C.PRAISE_SPOKEN || ["Yay"]));
         againBtn.hidden = false;
-        // A friendly homage hero pops in to celebrate (original SVG art).
+        // Josh's chosen buddy pops in to celebrate (his pick threads through every
+        // win). Falls back to a random homage hero if no buddy module/choice.
         try {
           const ART = global.JoshArt;
-          if (ART && ART.hero) {
+          let html = "";
+          try { if (global.JoshBuddy && global.JoshBuddy.art) html = global.JoshBuddy.art(); } catch (e) { /* ignore */ }
+          if (!html && ART && ART.hero) {
             const colors = ["#e23636", "#ec4e9c", "#2b6cff"];
-            const cheer = el("div", { class: "win-hero", html: ART.hero(colors[Math.floor(Math.random() * colors.length)]), aria: { hidden: "true" } });
+            html = ART.hero(colors[Math.floor(Math.random() * colors.length)]);
+          }
+          if (html) {
+            const cheer = el("div", { class: "win-hero", html: html, aria: { hidden: "true" } });
             screen.appendChild(cheer);
             setTimeout(() => cheer.remove(), 1700);
           }

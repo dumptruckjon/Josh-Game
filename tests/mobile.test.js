@@ -148,6 +148,19 @@ test("the Sticker Book: no overflow + >=75px well-spaced slots at 390 and 320", 
   }
 });
 
+test("the Buddy picker: no overflow + >=75px options at 390 and 320", async () => {
+  for (const w of [390, 320]) {
+    await page.setViewportSize({ width: w, height: 780 });
+    await page.evaluate(() => { location.hash = ""; });
+    await page.locator("#screen-home").waitFor({ state: "visible" });
+    await page.locator(".buddy__pick").click();
+    await page.locator(".buddyc").waitFor({ state: "visible" });
+    await noOverflow(page, `buddyc@${w}`);
+    await auditActiveScreen(page, `buddyc@${w}`); // the size audit covers the visible picker options
+    await page.locator(".buddyc").evaluate((el) => { el.hidden = true; }); // close before the next screen
+  }
+});
+
 test("a game is playable by touch (Odd-One-Out to a win)", async () => {
   await page.setViewportSize(IPHONE.viewport);
   await page.evaluate(() => { location.hash = "#odd-one-out"; });

@@ -162,7 +162,11 @@ the answer depends on (Look From Above's random block heights let a tall front
 block fully occlude the back cell in the isometric view, making the footprint
 indeterminable; fixed to uniform single-cube height, and the top-down map is now
 a diamond that matches the scene's orientation instead of a 45°-rotated grid) →
-logic guardrail asserting every block is height 1.
+logic guardrail asserting every block is height 1;
+**personalization has ONE owner** — `JoshBuddy` (in `buddy.js`) owns the
+`josh-buddy` token and is the single source for the home companion AND the win
+celebration art, so the "which character represents Josh" choice can never
+disagree between the two → guardrail-locked.
 When you fix the next thing, extend this list.
 
 ---
@@ -187,6 +191,7 @@ tooling.
 │   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off) + iOS-safe tone() + win/good/bump CUES (mute-gated)
 │   ├── art.js                  # window.JoshArt — original homage SVG (hero/pup/numberFriend/friend/truck/rocket/…)
 │   ├── stickers.js             # window.JoshProgress (THE owner of josh-won-* flags) + window.JoshStickers.artFor (deterministic sticker per game)
+│   ├── buddy.js                # window.JoshBuddy (THE owner of josh-buddy) — pick-a-companion roster + home companion + themed win art
 │   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT
 │   ├── games-toys.js           # Self-registering games: gentle cause→effect toys
 │   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
@@ -300,6 +305,11 @@ Josh has beaten (`josh-won-<id>` in `localStorage`, owned by `JoshProgress`). A
 replays its game. When sound is on, every win rings a rising **jingle** (correct
 rounds a soft confirming tone, wrong taps a gentle non-punishing bump) via the
 centralized, mute-gated `JoshAudio` cues, so every game inherits sound feedback.
+Josh picks a **buddy** once (a companion on the home screen); that single choice
+(`JoshBuddy`, `josh-buddy`) then stars in **every win celebration** — the pop is
+his chosen character, not a random hero. The buddy roster is built from the
+existing `HEROES`/`FRIENDS`/`PUPS` + `JoshArt`, so adding a friend/pup there
+offers a new buddy automatically.
 
 > **Correctness is a hard requirement** (teaching tool): `tests/content.test.js`
 > restates the ground truth (first sounds, rhymes-by-phonetic-key, CVC structure,
