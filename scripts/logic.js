@@ -706,6 +706,17 @@
     return "aeiou".indexOf(w[0]) >= 0 ? "an" : "a";
   }
 
+  // --- Listen & Answer (pick which character has the asked-for object) ----
+  // Picks a story + one of its (character, object) pairs to ask about; the answer
+  // is that pair's character, and the choices are all the story's characters.
+  function makeListen(stories, rng = Math.random) {
+    if (!Array.isArray(stories) || !stories.length) throw new Error("makeListen needs stories");
+    const st = stories[randInt(0, stories.length - 1, rng)];
+    const askPair = st.pairs[randInt(0, st.pairs.length - 1, rng)];
+    const choices = shuffle(st.pairs.map((p) => ({ c: p.c, correct: p.c === askPair.c })), rng);
+    return { pairs: st.pairs, ask: askPair, choices };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -727,7 +738,7 @@
     makePiggyBank, makeNumberCompare, makeLatinSquare, makeRhymeHunt, makeNumberSequence,
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
     makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue, makeNameSpell,
-    article, makeOddFeature,
+    article, makeOddFeature, makeListen,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

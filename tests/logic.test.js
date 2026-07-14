@@ -646,6 +646,18 @@ test("makeLatinSquare: valid 4x4 tier (each of 4 symbols once per row & column);
   }
 });
 
+test("makeListen: the asked object's owner is the one correct choice among all characters", () => {
+  const rng = mulberry32(77);
+  for (let i = 0; i < 3000; i++) {
+    const r = L.makeListen(content.LISTEN_STORIES, rng);
+    assert.ok(r.pairs.some((p) => p.o === r.ask.o && p.c === r.ask.c), "the asked pair is a real pair in the story");
+    assert.equal(r.choices.length, r.pairs.length, "one choice per character");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].c, r.ask.c, "the correct character is the one who has the asked object");
+  }
+});
+
 test("makeRhymeHunt: every 'correct' cell shares the target's rhyme group; fillers don't", () => {
   const rng = mulberry32(44);
   const groupOf = {};

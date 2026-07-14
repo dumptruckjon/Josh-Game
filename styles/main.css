@@ -694,6 +694,18 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   text-transform: lowercase;
 }
 
+/* ---------- Listen & Answer (hear a story -> tap who has the thing) ---------- */
+.listen__scene { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 4px 0 10px; }
+.listen__pair {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: rgba(255, 255, 255, 0.6); border-radius: 16px; padding: 8px 12px;
+}
+.listen__c { font-size: clamp(2.2rem, 12vw, 2.8rem); line-height: 1; }
+.listen__o { font-size: 1.6rem; line-height: 1; }
+.listen__q { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 2px 0 12px; }
+.listen__qobj { font-size: clamp(2.4rem, 14vw, 3rem); line-height: 1; }
+.listen__qmark { font-size: 2rem; font-weight: 900; color: #c2185b; }
+
 /* ---------- Who Is It? (deduction) ---------- */
 .wi__clues {
   display: flex; align-items: center; justify-content: center; gap: 10px;

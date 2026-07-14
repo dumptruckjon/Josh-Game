@@ -28,7 +28,7 @@
     "first-sound": "letters", "rhyme": "letters", "build-word": "letters", "sight-word": "letters",
     "digraph": "letters", "letter-match": "letters", "missing-letter": "letters", "read-zap": "letters",
     "rhyme-train": "letters", "digraph-finish": "letters", "letter-maker": "letters", "name-spell": "letters",
-    "read-do": "letters",
+    "read-do": "letters", "listen-answer": "letters",
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
     "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking", "color-number": "thinking",
     "who-is-it": "thinking", "picture-squares": "thinking", "story-order": "thinking", "birds-eye": "thinking",

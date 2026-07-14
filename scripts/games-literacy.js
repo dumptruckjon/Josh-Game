@@ -601,4 +601,57 @@
       newRound();
     },
   });
+
+  // ---- Listen & Answer (hear a tiny story, tap who has the thing) ----
+  // Oral comprehension: 👂 narrates "the dog has a bone…", then asks "who has the
+  // fish?" and Josh taps the character. The scene ALSO shows each pairing, so it's
+  // playable with sound off (look & answer). A friend stars in the last story.
+  F.register({
+    id: "listen-answer",
+    icon: "👂",
+    title: "Listen & Answer",
+    skill: "listening comprehension [P→W]",
+    start(api) {
+      const STORIES = (api.C.LISTEN_STORIES && api.C.LISTEN_STORIES.length) ? api.C.LISTEN_STORIES
+        : [{ pairs: [{ c: "🐶", cn: "dog", o: "🦴", on: "bone" }, { c: "🐱", cn: "cat", o: "🐟", on: "fish" }] }];
+      const ROUNDS = 4;
+      let round = 0;
+      const scene = api.el("div", { class: "listen__scene" });
+      const q = api.el("div", { class: "listen__q" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(scene, q, choices);
+
+      function newRound() {
+        const r = L.makeListen(STORIES);
+        scene.innerHTML = "";
+        r.pairs.forEach((p) => {
+          scene.appendChild(api.el("div", { class: "listen__pair", aria: { hidden: "true" } }, [
+            api.el("span", { class: "listen__c", text: p.c }),
+            api.el("span", { class: "listen__o", text: p.o }),
+          ]));
+        });
+        q.innerHTML = "";
+        q.append(
+          api.el("span", { class: "listen__qobj", aria: { hidden: "true" }, text: r.ask.o }),
+          api.el("span", { class: "listen__qmark", text: "❓" })
+        );
+        const story = r.pairs.map((p) => "The " + p.cn + " has the " + p.on + ".").join(" ");
+        api.setPrompt(story + " Who has the " + r.ask.on + "?", ["👂", "🐾", r.ask.o]);
+        api.speak();
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.c,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "character" },
+          });
+          b.addEventListener("click", () => {
+            if (ch.correct) { round += 1; if (round >= ROUNDS) api.win({ say: "You listened!" }); else { api.roundWin(); newRound(); } }
+            else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

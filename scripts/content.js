@@ -440,6 +440,17 @@
       { text: "the frog can hop", answer: "🐸", pics: ["🐸", "🐢", "🐍"] },
       { text: "a red bus", answer: "🚌", pics: ["🚌", "🚗", "🚂"] },
     ],
+    // ---- Listen & Answer: hear a tiny story, tap who has the thing ----
+    // Each story is 3 (character has object) pairs. The 👂 narrates it, but the
+    // scene also SHOWS each pairing, so it's playable with sound off (look &
+    // answer). Names (cn/on) drive the narration; the truth (who has what) is
+    // locked in content.test — a story can never point to the wrong answer.
+    LISTEN_STORIES: [
+      { pairs: [{ c: "🐶", cn: "dog", o: "🦴", on: "bone" }, { c: "🐱", cn: "cat", o: "🐟", on: "fish" }, { c: "🐰", cn: "bunny", o: "🥕", on: "carrot" }] },
+      { pairs: [{ c: "🐻", cn: "bear", o: "🍯", on: "honey" }, { c: "🐭", cn: "mouse", o: "🧀", on: "cheese" }, { c: "🐵", cn: "monkey", o: "🍌", on: "banana" }] },
+      { pairs: [{ c: "🐧", cn: "penguin", o: "🐟", on: "fish" }, { c: "🦁", cn: "lion", o: "🥩", on: "meat" }, { c: "🐴", cn: "horse", o: "🍎", on: "apple" }] },
+      { pairs: [{ c: "🧒", cn: "Josh", o: "⚽", on: "ball" }, { c: "👧", cn: "River", o: "🎈", on: "balloon" }, { c: "🧑", cn: "Viraj", o: "🚗", on: "car" }] },
+    ],
 
     // ---- Who Is It? (multi-attribute deduction) ----
     // Two positive attributes: a body color and a held item. All 6 combos are

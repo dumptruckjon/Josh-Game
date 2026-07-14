@@ -188,6 +188,19 @@ test("villains (Thwip the Villains) are several distinct silly baddies", () => {
   assert.equal(new Set(content.VILLAINS.map((v) => v.emoji)).size, content.VILLAINS.length, "villain emojis are distinct");
 });
 
+test("Listen & Answer stories: distinct characters + objects, each with a spoken name", () => {
+  assert.ok(Array.isArray(content.LISTEN_STORIES) && content.LISTEN_STORIES.length >= 3, "need several stories");
+  for (const s of content.LISTEN_STORIES) {
+    assert.ok(Array.isArray(s.pairs) && s.pairs.length >= 2 && s.pairs.length <= 3, "2–3 pairs per story");
+    const chars = s.pairs.map((p) => p.c), objs = s.pairs.map((p) => p.o);
+    assert.equal(new Set(chars).size, chars.length, "characters are distinct (so 'who has it' is unique)");
+    assert.equal(new Set(objs).size, objs.length, "objects are distinct (so the question has one answer)");
+    s.pairs.forEach((p) => {
+      assert.ok(p.c && p.o && p.cn && p.on, "each pair needs a character+object emoji and their spoken names");
+    });
+  }
+});
+
 test("Read & Do sentences: short words, and the correct picture really is one of the 3 choices", () => {
   assert.ok(Array.isArray(content.SENTENCES) && content.SENTENCES.length >= 4, "need several sentences");
   for (const s of content.SENTENCES) {
