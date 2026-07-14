@@ -151,7 +151,18 @@ them, routed through the one iOS-safe `tone()`) and fired from the framework so
 every game inherits it → guardrail-locked; **the `josh-won-*` "beaten" flags had
 three writers** (framework win, launcher, reset gate) — they now have ONE owner,
 `JoshProgress` (in `stickers.js`), which the ⭐ badges, the 📖 Sticker Book, and
-the grown-ups reset all read/write through → guardrail-locked.
+the grown-ups reset all read/write through → guardrail-locked;
+**a running total must update on the action that COMPLETES the task**, not only
+on the not-yet-finished branch (Piggy Bank's worth display refreshed only while
+the piggy wasn't full, so the coin that filled it left the total frozen one coin
+short, e.g. "4¢ / 5¢") → e2e regression test that fills a round and asserts the
+display reaches the full price; **a puzzle whose answer is read off a drawn scene
+must keep that scene UNAMBIGUOUS** — no foreground element may hide information
+the answer depends on (Look From Above's random block heights let a tall front
+block fully occlude the back cell in the isometric view, making the footprint
+indeterminable; fixed to uniform single-cube height, and the top-down map is now
+a diamond that matches the scene's orientation instead of a 45°-rotated grid) →
+logic guardrail asserting every block is height 1.
 When you fix the next thing, extend this list.
 
 ---

@@ -607,7 +607,12 @@
   function makeTopView(rng = Math.random) {
     const k = randInt(2, 3, rng); // 2-3 occupied cells (never all 4 / never trivial 1)
     const occ = sample([0, 1, 2, 3], k, rng).sort((a, b) => a - b);
-    const cells = occ.map((idx) => ({ r: idx >> 1, c: idx & 1, h: randInt(1, 2, rng) }));
+    // Every block is a SINGLE cube (height 1). Variable heights made the puzzle
+    // ambiguous: in the isometric view the back cell (0) and front cell (3) share
+    // a screen column, so a height-2 front block fully HID the back block — you
+    // couldn't tell if that cell was occupied. Uniform height keeps the footprint
+    // always fully visible, so every round is unambiguously solvable.
+    const cells = occ.map((idx) => ({ r: idx >> 1, c: idx & 1, h: 1 }));
     const key = (arr) => [0, 1, 2, 3].map((i) => (arr.includes(i) ? "1" : "0")).join("");
     const correctKey = key(occ);
     // Enumerate all size-2..3 occupancy patterns, keep two distinct distractors.

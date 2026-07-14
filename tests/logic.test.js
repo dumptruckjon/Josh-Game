@@ -717,7 +717,9 @@ test("makeTopView: correct footprint = the true occupancy; distractors differ", 
     // arrangement cells occupy exactly the occ indices
     const cellIdx = r.cells.map((c) => c.r * 2 + c.c).sort((a, b) => a - b).join(",");
     assert.equal(cellIdx, occSet, "the drawn cells match the occupancy");
-    r.cells.forEach((c) => assert.ok(c.h >= 1 && c.h <= 2, "stack height 1-2"));
+    // Uniform single-cube height: a taller front block must never be able to hide
+    // a back block (that made the footprint indeterminable — an unsolvable round).
+    r.cells.forEach((c) => assert.equal(c.h, 1, "every block is a single cube (no occlusion)"));
     const correct = r.choices.filter((c) => c.correct);
     assert.equal(correct.length, 1, "exactly one correct footprint");
     assert.equal([...correct[0].occ].sort().join(","), occSet, "correct choice is the true footprint");

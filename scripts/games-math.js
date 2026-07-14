@@ -811,10 +811,15 @@
       function drop(val) {
         if (val > price - worth) { api.tryAgain(val === 1 ? penny : nickel); return; }
         worth += val;
+        // Always reflect the new total — including the coin that FILLS the piggy.
+        // (Previously the display only updated in the not-yet-full branch, so a
+        // finished round was left showing one coin short, e.g. "4¢ / 5¢".)
+        worthEl.textContent = worth + "¢ / " + price + "¢";
         jar.appendChild(api.el("span", { class: "piggy__coin pop", aria: { hidden: "true" } }, [val === 5 ? "🪙" : "🟤"]));
         api.say(String(worth));
         if (worth >= price) {
           delete penny.dataset.correct; delete nickel.dataset.correct;
+          penny.classList.add("coin--off"); nickel.classList.add("coin--off"); // full — no more coins needed
           round += 1;
           if (round >= ROUNDS) api.win({ say: "The piggy is full! Yay!" });
           else { api.roundWin(); nextBtn.hidden = false; nextBtn.dataset.correct = "1"; }

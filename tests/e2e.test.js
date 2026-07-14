@@ -264,6 +264,31 @@ test("with sound ON, winning a game plays a jingle (iOS-safe: never while suspen
   await page.evaluate(() => { try { localStorage.setItem("josh-muted", "1"); } catch (e) {} });
 });
 
+test("Piggy Bank: the worth display reaches the full price when a round is filled (not stuck a coin short)", async () => {
+  // Regression: the total only refreshed while the piggy was NOT yet full, so the
+  // coin that filled it left the display one coin short (e.g. "4¢ / 5¢").
+  await openGame("piggy-bank");
+  const screen = page.locator("#screen-piggy-bank");
+  const price = await screen.evaluate(() => {
+    const t = (document.querySelector("#screen-piggy-bank .piggy__tag") || {}).textContent || "";
+    const m = t.match(/(\d+)/);
+    return m ? Number(m[1]) : 0;
+  });
+  assert.ok(price >= 3, `should have a target price, got ${price}`);
+  // Fill the piggy by tapping affordable coins (they carry data-correct until full).
+  for (let i = 0; i < 20; i++) {
+    const coin = screen.locator('.coin[data-correct="1"]').first();
+    if ((await coin.count()) === 0) break; // full → coins drop data-correct, Next appears
+    await coin.evaluate((el) => el.click());
+  }
+  const worthText = (await screen.locator(".piggy__worth").textContent()) || "";
+  assert.match(
+    worthText,
+    new RegExp("^\\s*" + price + "¢\\s*/\\s*" + price + "¢"),
+    `filled piggy should read "${price}¢ / ${price}¢", got "${worthText}"`
+  );
+});
+
 test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {
   await page.evaluate(() => { window.__notes = 0; window.__startedWhileSuspended = 0; });
   await openGame("music-pad");

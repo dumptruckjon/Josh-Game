@@ -450,10 +450,15 @@
         scene.innerHTML = '<svg viewBox="0 0 120 120">' + svg + "</svg>";
       }
       function footprint(occ) {
+        // Lay the 4 map cells out as a DIAMOND that matches the isometric scene's
+        // screen positions (cell 0 = back/top, 1 = right, 2 = left, 3 = front/bottom),
+        // so a block at the top of the scene lines up with the lit cell at the top
+        // of the map — no 45° mental rotation for a 4-year-old.
+        const pos = ["be__cell--n", "be__cell--e", "be__cell--w", "be__cell--s"];
         let g = "";
         for (let i = 0; i < 4; i++) {
           const on = occ.includes(i);
-          g += '<span class="be__cell' + (on ? " be__cell--on" : "") + '"></span>';
+          g += '<span class="be__cell ' + pos[i] + (on ? " be__cell--on" : "") + '"></span>';
         }
         return '<span class="be__grid">' + g + "</span>";
       }
