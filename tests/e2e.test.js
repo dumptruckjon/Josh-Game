@@ -401,24 +401,27 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   await screen.waitFor({ state: "visible" });
   const again = screen.locator(".game__again");
   if (await again.isVisible().catch(() => false)) await again.click(); // reset for a FRESH win
-  let won = false;
-  for (let i = 0; i < 80 && !won; i++) {
-    won = await screen.evaluate((el) => el.dataset.won === "1");
+  // The .win-hero pop is removed 1700ms after the win, so read the won flag AND
+  // capture the pop's HTML in the SAME evaluate — atomically, the instant the win
+  // is detected (the element was just appended synchronously) — never racing the
+  // removal timer under slow CI.
+  let won = false, popHtml = "";
+  for (let i = 0; i < 100 && !won; i++) {
+    const st = await screen.evaluate((el) => {
+      const wh = el.querySelector(".win-hero");
+      return { won: el.dataset.won === "1", pop: wh ? wh.innerHTML : "" };
+    });
+    won = st.won;
+    if (st.pop) popHtml = st.pop;
     if (won) break;
     const correct = screen.locator('[data-correct="1"]').first();
     if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
     try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
   }
   assert.ok(won, "odd-one-out should reach a win");
-  const popsBuddy = await page.evaluate(() => {
-    const wh = document.querySelector("#screen-odd-one-out .win-hero");
-    if (!wh) return false;
-    // Normalise both through the DOM (innerHTML re-serialises SVG) before comparing.
-    const tmp = document.createElement("div");
-    tmp.innerHTML = window.JoshBuddy.art();
-    return wh.innerHTML === tmp.innerHTML;
-  });
-  assert.ok(popsBuddy, "the win celebration must pop the chosen buddy's art");
+  // Normalise the expected buddy art through the DOM (innerHTML re-serialises SVG).
+  const expected = await page.evaluate(() => { const t = document.createElement("div"); t.innerHTML = window.JoshBuddy.art(); return t.innerHTML; });
+  assert.ok(popHtml && popHtml === expected, "the win celebration must pop the chosen buddy's art");
 });
 
 test("What Time? draws both clock hands (half-past tier ready)", async () => {
