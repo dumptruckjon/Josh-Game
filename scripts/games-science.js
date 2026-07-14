@@ -23,9 +23,10 @@
         api.mascot(); // a friendly buddy fills the space and reacts to each sort
 
         function newRound() {
-          // Later rounds use a harder set if provided (e.g. a 3-bin variant), so
-          // a 2-way sorter stops being a 50/50 guess as it goes.
-          const pool = (round >= 3 && cfg.hardSets) ? cfg.hardSets : cfg.sets;
+          // Adaptive: once Josh has mastered the easy sort (a clean streak), a
+          // harder set kicks in (e.g. a 3-bin variant), so it stops being a 50/50
+          // guess — and it eases back to the simple set the moment he stumbles.
+          const pool = (api.shouldRamp(2) && cfg.hardSets) ? cfg.hardSets : cfg.sets;
           const set = api.randItem(pool);
           const r = L.makeSort(set);
           api.setPrompt(cfg.prompt, cfg.icons);

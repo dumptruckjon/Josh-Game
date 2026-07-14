@@ -319,6 +319,14 @@ test("picture-square trios are exactly 3 distinct, self-naming pictures", () => 
   }
 });
 
+test("picture-square quads (the 4×4 tier) are exactly 4 distinct pictures", () => {
+  assert.ok(Array.isArray(content.SQUARE_QUADS) && content.SQUARE_QUADS.length >= 3, "need several quads");
+  for (const quad of content.SQUARE_QUADS) {
+    assert.equal(quad.length, 4, `quad ${quad} must have 4 symbols`);
+    assert.equal(new Set(quad).size, 4, `quad ${quad} must be all distinct`);
+  }
+});
+
 test("color-by-number pictures are valid (equal-width rows; known colors; <=3 wide; reveal+name)", () => {
   const keys = new Set(Object.keys(content.CBN_COLORS));
   assert.ok(keys.has("0"), "'0' must be a known color (the silhouette background)");

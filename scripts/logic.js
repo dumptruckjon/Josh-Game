@@ -487,16 +487,18 @@
   // --- Picture Squares (a solved 3×3 Latin square, one cell blanked) ------
   // Each of 3 symbols appears exactly once per row AND per column; blank one
   // cell and the missing symbol for that row/column is the unique answer.
-  function makeLatinSquare(symbols, rng = Math.random) {
-    if (!Array.isArray(symbols) || symbols.length < 3) throw new Error("makeLatinSquare needs >= 3 symbols");
-    const s = sample(symbols, 3, rng); // 3 distinct symbols
-    const base = [[0, 1, 2], [1, 2, 0], [2, 0, 1]]; // a cyclic Latin square of indices
-    const rowOrder = shuffle([0, 1, 2], rng), colOrder = shuffle([0, 1, 2], rng);
+  function makeLatinSquare(symbols, rng = Math.random, n = 3) {
+    n = (n === 4) ? 4 : 3; // 3×3 (default) or the harder 4×4 tier
+    if (!Array.isArray(symbols) || symbols.length < n) throw new Error("makeLatinSquare needs >= " + n + " symbols");
+    const s = sample(symbols, n, rng); // n distinct symbols
+    const idx = []; for (let i = 0; i < n; i++) idx.push(i);
+    const base = idx.map((r) => idx.map((c) => (r + c) % n)); // a cyclic Latin square of indices
+    const rowOrder = shuffle(idx.slice(), rng), colOrder = shuffle(idx.slice(), rng);
     const grid = rowOrder.map((r) => colOrder.map((c) => s[base[r][c]]));
-    const blankR = randInt(0, 2, rng), blankC = randInt(0, 2, rng);
+    const blankR = randInt(0, n - 1, rng), blankC = randInt(0, n - 1, rng);
     const answer = grid[blankR][blankC];
     const choices = shuffle(s.map((sym) => ({ sym, correct: sym === answer })), rng);
-    return { grid, blankR, blankC, answer, choices, symbols: s };
+    return { grid, blankR, blankC, answer, choices, symbols: s, n };
   }
 
   // --- Rhyme Train / Rhyme Hunt (find every picture that rhymes) ----------

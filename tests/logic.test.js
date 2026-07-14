@@ -610,6 +610,27 @@ test("makeLatinSquare: valid 3x3 (each symbol once per row & column); unique ans
   }
 });
 
+test("makeLatinSquare: valid 4x4 tier (each of 4 symbols once per row & column); unique answer", () => {
+  const rng = mulberry32(430);
+  for (const quad of content.SQUARE_QUADS) {
+    for (let i = 0; i < 500; i++) {
+      const r = L.makeLatinSquare(quad, rng, 4);
+      assert.equal(r.n, 4, "n is 4");
+      assert.equal(new Set(r.symbols).size, 4, "four distinct symbols");
+      const sorted = [...r.symbols].sort();
+      for (let row = 0; row < 4; row++) assert.deepEqual([...r.grid[row]].sort(), sorted, `row ${row} has all four`);
+      for (let col = 0; col < 4; col++) {
+        const column = [r.grid[0][col], r.grid[1][col], r.grid[2][col], r.grid[3][col]];
+        assert.deepEqual([...column].sort(), sorted, `col ${col} has all four`);
+      }
+      assert.equal(r.answer, r.grid[r.blankR][r.blankC], "answer is the blanked cell");
+      const correct = r.choices.filter((c) => c.correct);
+      assert.equal(correct.length, 1, "exactly one correct choice");
+      assert.equal(r.choices.length, 4, "four choices in the 4×4 tier");
+    }
+  }
+});
+
 test("makeRhymeHunt: every 'correct' cell shares the target's rhyme group; fillers don't", () => {
   const rng = mulberry32(44);
   const groupOf = {};

@@ -547,6 +547,7 @@
     start(api) {
       const C = api.C;
       const TRIOS = C.SQUARE_TRIOS || [["🍎", "🍌", "🍓"]];
+      const QUADS = C.SQUARE_QUADS || [["🍎", "🍌", "🍓", "🍇"]];
       const ROUNDS = 4;
       let round = 0;
       const grid = api.el("div", { class: "sudoku__grid" });
@@ -554,18 +555,22 @@
       api.stage.append(grid, choices);
 
       function newRound() {
-        const r = L.makeLatinSquare(api.randItem(TRIOS));
+        // Adaptive: ramp from a 3×3 to the harder 4×4 grid once Josh has it mastered.
+        const n = api.shouldRamp(2) ? 4 : 3;
+        const r = L.makeLatinSquare(api.randItem(n === 4 ? QUADS : TRIOS), undefined, n);
         api.setPrompt("Which picture is missing?", ["👀", "🧩", "❓"]);
         api.speak();
+        grid.classList.toggle("sudoku__grid--4", n === 4);
         grid.innerHTML = "";
-        for (let row = 0; row < 3; row++) {
-          for (let col = 0; col < 3; col++) {
+        for (let row = 0; row < n; row++) {
+          for (let col = 0; col < n; col++) {
             const isBlank = row === r.blankR && col === r.blankC;
             grid.appendChild(api.el("span", {
               class: "sudoku__cell" + (isBlank ? " sudoku__cell--blank" : ""), aria: { hidden: "true" },
             }, [isBlank ? "" : r.grid[row][col]]));
           }
         }
+        choices.className = "choices " + (n === 4 ? "choices--4" : "choices--3");
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {

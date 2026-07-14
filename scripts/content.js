@@ -417,6 +417,14 @@
       ["☀️", "🌙", "🌈"],
       ["🐝", "🦋", "🐞"],
     ],
+    // 4-picture sets for the harder 4×4 Picture Squares tier (mastery-gated).
+    SQUARE_QUADS: [
+      ["🍎", "🍌", "🍓", "🍇"],
+      ["🐶", "🐱", "🐰", "🐸"],
+      ["⭐", "❤️", "🔵", "🟢"],
+      ["🚗", "🚀", "🚌", "🚂"],
+      ["☀️", "🌙", "🌈", "⚡"],
+    ],
 
     // ---- Who Is It? (multi-attribute deduction) ----
     // Two positive attributes: a body color and a held item. All 6 combos are

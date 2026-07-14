@@ -421,6 +421,24 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   assert.ok(popsBuddy, "the win celebration must pop the chosen buddy's art");
 });
 
+test("Picture Squares ramps to a 4×4 grid after a clean streak (adaptive tier)", async () => {
+  await openGame("picture-squares");
+  const screen = page.locator("#screen-picture-squares");
+  const again = screen.locator(".game__again");
+  if (await again.isVisible().catch(() => false)) await again.click();
+  // Two clean wins → api.shouldRamp(2) engages → the next round is the 4×4 tier.
+  for (let r = 0; r < 2; r++) {
+    await screen.locator('.choice[data-correct="1"]').first().evaluate((el) => el.click());
+    await page.waitForTimeout(40);
+  }
+  await page.waitForFunction(
+    () => { const g = document.querySelector("#screen-picture-squares .sudoku__grid"); return g && g.classList.contains("sudoku__grid--4"); },
+    null, { timeout: 4000 }
+  );
+  assert.equal(await screen.locator(".sudoku__cell").count(), 16, "the 4×4 tier has 16 cells");
+  assert.equal(await screen.locator(".choices .choice").count(), 4, "the 4×4 tier offers 4 picture choices");
+});
+
 test("Thwip the Villains: tapping a baddie webs it (no-fail cause→effect toy)", async () => {
   await openGame("thwip-villains");
   const screen = page.locator("#screen-thwip-villains");
