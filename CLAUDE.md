@@ -340,6 +340,9 @@ window.JoshFramework.register({
 ```
 
 The `api` gives you: `el`, `stage`, `setPrompt/speak/say`, `win/roundWin/tryAgain`,
+`shouldRamp(n)`/`streak()` (invisible difficulty adaptivity — true once Josh has
+won `n` rounds in a row with no miss; resets when he stumbles; a game reads it to
+pick a harder/easier round, never showing a number or a fail),
 `friend()`/`hero()` (rotation), `shuffle/randItem/randInt/pickIndex`, `tickPlay`,
 `mascot()` (opt-in reactive buddy — call it after building a round; it cheers on
 `win`/`roundWin` and wiggles on `tryAgain`, and fills the empty space in flat

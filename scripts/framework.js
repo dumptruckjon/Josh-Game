@@ -108,6 +108,12 @@
       mascotEl.classList.add(kind === "wiggle" ? "mascot--wiggle" : "mascot--cheer");
     }
 
+    // Wave-3 adaptivity: a "clean first-try streak" — rounds won with NO miss
+    // since the last win. A game can read api.shouldRamp() to gently raise
+    // difficulty once Josh is clearly mastering it, and it drops back the moment
+    // he stumbles — always invisible (no number, no "level up", never a fail).
+    let firstTryStreak = 0, missedSinceWin = false;
+
     const api = {
       C, stage, el, shuffle, randItem, randInt, pickIndex,
       friend: nextFriend, hero: () => randItem(C.HEROES || [{ emoji: "⭐", name: "Star" }]),
@@ -137,6 +143,11 @@
         FX.confetti({ colors: C.CONFETTI_COLORS, count: 70 });
         try { if (A.goodCue) A.goodCue(); } catch (e) { /* ignore */ }
         reactMascot("cheer");
+        // Extend the clean streak only if this round had no miss; a stumbled round
+        // resets it. (Observable via screen.dataset.streak so it can be tested.)
+        firstTryStreak = missedSinceWin ? 0 : firstTryStreak + 1;
+        missedSinceWin = false;
+        screen.dataset.streak = String(firstTryStreak);
         if (opts && opts.say) A.say(opts.say);
       },
       // The whole game is finished — celebrate, mark won, offer Again.
@@ -183,8 +194,14 @@
         }
         try { if (A.bumpCue) A.bumpCue(); } catch (e) { /* ignore */ } // soft, non-punishing
         reactMascot("wiggle");
+        missedSinceWin = true; // this round is no longer a clean win → breaks the ramp streak
         A.say(randItem(C.TRYAGAIN_SPOKEN || ["Try again"]));
       },
+      // Adaptivity hooks (Wave 3): a game may gently ramp difficulty once Josh has
+      // won n rounds in a row with no miss, and ease back when he stumbles. Never
+      // shows a number or a fail — the game just quietly picks a harder/easier round.
+      shouldRamp(n) { return firstTryStreak >= (n == null ? 3 : n); },
+      streak() { return firstTryStreak; },
       // For pure toys with no win state.
       tickPlay() {
         screen.dataset.plays = String((Number(screen.dataset.plays) || 0) + 1);
@@ -194,6 +211,8 @@
     function start() {
       screen.classList.remove("is-won");
       delete screen.dataset.won;
+      firstTryStreak = 0; missedSinceWin = false; // fresh game → fresh difficulty
+      delete screen.dataset.streak;
       againBtn.hidden = true;
       stage.innerHTML = "";
       try { def.start(api); } catch (e) { console.error("Josh: game '" + def.id + "' failed:", e); }

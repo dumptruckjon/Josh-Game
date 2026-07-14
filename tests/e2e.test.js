@@ -355,6 +355,26 @@ test("Look From Above: the answer map is a diamond whose N/E/W/S cells match the
   assert.ok(q.e.cx > q.n.cx && q.e.cx > q.s.cx, "E must be the RIGHT map cell");
 });
 
+test("Adaptivity: a clean round grows the streak (api.shouldRamp); a miss resets it", async () => {
+  // The invisible difficulty engine. Drive Number Muncher: a clean win advances
+  // the streak; a wrong tap mid-round breaks it back to 0 (so difficulty eases).
+  await openGame("number-muncher");
+  const screen = page.locator("#screen-number-muncher");
+  const again = screen.locator(".game__again");
+  if (await again.isVisible().catch(() => false)) await again.click(); // fresh start
+
+  // Round A — win cleanly → streak becomes 1.
+  await screen.locator('.muncher__card[data-correct="1"]').first().evaluate((el) => el.click());
+  await page.waitForFunction(() => document.getElementById("screen-number-muncher").dataset.streak === "1", null, { timeout: 4000 });
+
+  // Round B — miss once (wrong card = a gentle try-again), THEN win → streak resets to 0.
+  await screen.locator('.muncher__card:not([data-correct="1"])').first().evaluate((el) => el.click());
+  assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a wrong tap must never win");
+  await screen.locator('.muncher__card[data-correct="1"]').first().evaluate((el) => el.click());
+  await page.waitForFunction(() => document.getElementById("screen-number-muncher").dataset.streak === "0", null, { timeout: 4000 });
+  assert.equal(await screen.evaluate((el) => el.dataset.streak), "0", "a miss during a round breaks the clean streak");
+});
+
 test("Buddy: pick a companion — it persists and stars in the win celebration", async () => {
   // The roster is built from real content/art; every buddy makes a valid <svg>.
   const roster = await page.evaluate(() =>

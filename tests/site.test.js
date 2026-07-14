@@ -247,6 +247,18 @@ test("guardrail: the grown-ups reset gate exists and only 'reset' clears stars",
   assert.ok(/toLowerCase\(\)\s*===\s*["']reset["']/.test(m), "ONLY the word 'reset' (any case) may clear the stars");
 });
 
+test("guardrail: the framework tracks a clean-win streak for gentle difficulty ramping", () => {
+  // Wave-3 adaptivity: a game can raise difficulty once Josh masters it and ease
+  // back when he stumbles — invisibly (no number, no fail). Keep the engine wired.
+  const fw = read("scripts/framework.js");
+  assert.ok(/shouldRamp/.test(fw), "framework api must expose shouldRamp() for adaptive difficulty");
+  assert.ok(/missedSinceWin/.test(fw), "a miss (tryAgain) must break the clean streak");
+  assert.ok(/firstTryStreak/.test(fw), "roundWin must grow the clean-first-try streak");
+  assert.ok(/dataset\.streak/.test(fw), "the streak must be observable via screen.dataset.streak (for tests)");
+  const gm = read("scripts/games-math.js");
+  assert.ok(/shouldRamp/.test(gm), "at least one game (Number Muncher) must ramp difficulty via api.shouldRamp");
+});
+
 test("guardrail: the Buddy pipeline is wired and owns the josh-buddy token", () => {
   // Josh's ONE chosen buddy (josh-buddy) threads to the home companion AND every
   // win celebration. Keep the single owner + the framework/home wiring in place.

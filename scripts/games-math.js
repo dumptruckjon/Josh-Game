@@ -871,7 +871,9 @@
         return b;
       }
       function newRound() {
-        const max = round < 3 ? 10 : 19; // ease into teens
+        // Adaptive: stay in 1–10 until Josh shows mastery (2 clean wins in a row),
+        // then ramp into the teens — and drop back to 1–10 if he stumbles.
+        const max = api.shouldRamp(2) ? 19 : 10;
         const r = L.makeNumberCompare(1, max);
         api.setPrompt("The muncher wants the BIGGER number!", ["👀", "🐊", "🔢"]);
         api.speak();
