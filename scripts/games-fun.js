@@ -248,7 +248,8 @@
           b.dataset.done = "1"; delete b.dataset.correct;
           b.textContent = "🕸️"; b.classList.add("thwip__bug--webbed");
           drawStrand(b);
-          if (A && A.tone) A.tone(520 + webbed * 45, { duration: 0.22, type: "square", gain: 0.18 });
+          // Sound is OFF by default — only thwip when the grown-up turned it on.
+          try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(520 + webbed * 45, { duration: 0.22, type: "square", gain: 0.18 }); } catch (e) { /* ignore */ }
           webbed += 1; api.say("Thwip!");
           if (webbed >= NEED) api.win({ say: "You webbed them all! Go, web-warrior!" });
         });

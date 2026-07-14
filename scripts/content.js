@@ -277,7 +277,7 @@
 
     // ---- Plane shapes (2D) → a real-world object of that shape ----
     PLANE_SHAPES: [
-      { name: "Circle", svg: '<circle cx="50" cy="50" r="40"/>', objects: ["🍪", "⚽", "🕐"] },
+      { name: "Circle", svg: '<circle cx="50" cy="50" r="40"/>', objects: ["🍪", "🕐"] }, // cookie, clock — genuinely FLAT circles (a ⚽ soccer ball is a 3D sphere, taught in Shape's Real Twin)
       { name: "Square", svg: '<rect x="14" y="14" width="72" height="72" rx="6"/>', objects: ["🪟", "🧇"] }, // window, waffle — both genuinely FLAT squares (a gift box is a 3D box, taught in Shape's Real Twin)
       { name: "Triangle", svg: '<polygon points="50,12 88,84 12,84"/>', objects: ["🍕", "📐", "🔺"] },
       { name: "Star", svg: '<polygon points="50,8 61,38 94,38 67,58 78,90 50,70 22,90 33,58 6,38 39,38"/>', objects: ["⭐", "🌟", "✨"] },

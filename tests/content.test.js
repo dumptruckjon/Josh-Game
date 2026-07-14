@@ -298,7 +298,7 @@ test("conjunction colors and shapes are distinct", () => {
 
 // ---------- Plane shapes: each object really has that shape ----------
 const PLANE_TRUTH = {
-  "🍪": "Circle", "⚽": "Circle", "🕐": "Circle",
+  "🍪": "Circle", "🕐": "Circle",
   "🪟": "Square", "🧇": "Square",
   "🍕": "Triangle", "📐": "Triangle", "🔺": "Triangle",
   "⭐": "Star", "🌟": "Star", "✨": "Star",
@@ -315,6 +315,16 @@ test("every plane-shape's objects really have that shape (and are disjoint)", ()
       seen.set(o, shape.name);
     }
   }
+});
+
+// Self-healing guardrail (RULE 7): the same emoji must NEVER be taught as both a
+// 2D plane shape AND a 3D solid — that contradicts itself for a 4-year-old (a ⚽
+// can't be both "a circle" and "a ball"). The two truth tables passed on their
+// own and never cross-checked, so a soccer ball slipped into Circle; lock it out.
+test("no object is classified as BOTH a plane shape (2D) and a solid (3D)", () => {
+  const plane = new Set(content.PLANE_SHAPES.flatMap((s) => s.objects));
+  const overlap = content.SOLID_SETS.flatMap((s) => s.objects).filter((o) => plane.has(o));
+  assert.deepEqual(overlap, [], `these emoji are taught as both a flat shape and a 3D solid: ${overlap.join(" ")}`);
 });
 
 // ---------- 3-bin color sort matches the verified 2-bin color truth ----------
