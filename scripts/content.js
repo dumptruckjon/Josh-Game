@@ -42,6 +42,16 @@
       { name: "Rubble", emoji: "🚧" }, { name: "Charger", emoji: "🏎️" },
       { name: "Wheeler", emoji: "🚜" }, { name: "Mix", emoji: "🚛" },
     ],
+    // Silly (never scary) baddies for the Spidey web-up toy — original homage
+    // names + friendly emoji only. They pop up and Josh webs them (no timer).
+    VILLAINS: [
+      { name: "Goblin", emoji: "👺" },
+      { name: "Rhino", emoji: "🦏" },
+      { name: "Doc Ock", emoji: "🐙" },
+      { name: "Sandy", emoji: "🏜️" },
+      { name: "Sparky", emoji: "⚡" },
+      { name: "Vulture", emoji: "🦅" },
+    ],
     // Fun pictures a dot-to-dot can reveal at the end.
     REVEALS: ["🕷️", "⭐", "❤️", "🚀", "🐶", "🦄", "🌈", "🎈", "🦋", "🚒"],
 

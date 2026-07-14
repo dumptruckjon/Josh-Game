@@ -182,6 +182,12 @@ test("rescue pool is several distinct friendly faces", () => {
   assert.equal(new Set(content.RESCUE_POOL).size, content.RESCUE_POOL.length, "distinct faces");
 });
 
+test("villains (Thwip the Villains) are several distinct silly baddies", () => {
+  assert.ok(Array.isArray(content.VILLAINS) && content.VILLAINS.length >= 4, "need a few baddies to web");
+  content.VILLAINS.forEach((v) => assert.ok(v.name && v.emoji, "a villain needs a name + emoji"));
+  assert.equal(new Set(content.VILLAINS.map((v) => v.emoji)).size, content.VILLAINS.length, "villain emojis are distinct");
+});
+
 // ---------- Blue Planet: land features vs water, verified ----------
 const LANDWATER_TRUTH = {
   Land: ["🏔️", "🌋", "🏜️", "🌳", "🏕️", "🏙️"],

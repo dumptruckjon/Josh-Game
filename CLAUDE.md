@@ -270,7 +270,8 @@ category's games:
   scales to a 3-color bin in later rounds.
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
   Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
-  Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey).
+  Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey), **Thwip
+  the Villains** (web up the silly baddies — no-fail cause→effect, uses `VILLAINS`).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team

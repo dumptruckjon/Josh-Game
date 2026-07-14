@@ -38,7 +38,7 @@
     "landform-maker": "science", "plane-shape": "science", "continent-home": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
-    "grow": "play", "thwip-web": "play",
+    "grow": "play", "thwip-web": "play", "thwip-villains": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
     "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",

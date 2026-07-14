@@ -421,6 +421,20 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   assert.ok(popsBuddy, "the win celebration must pop the chosen buddy's art");
 });
 
+test("Thwip the Villains: tapping a baddie webs it (no-fail cause→effect toy)", async () => {
+  await openGame("thwip-villains");
+  const screen = page.locator("#screen-thwip-villains");
+  const count = await screen.locator(".villain").count();
+  assert.ok(count >= 4, `expected a batch of baddies, got ${count}`);
+  const first = screen.locator(".villain").first();
+  assert.ok(!(await first.evaluate((el) => el.classList.contains("villain--webbed"))), "a baddie starts un-webbed");
+  await first.evaluate((el) => el.click());
+  assert.ok(await first.evaluate((el) => el.classList.contains("villain--webbed")), "tapping a baddie wraps it in a web");
+  // Webbing consumes it (no data-toy) so play moves on — and there is no fail state.
+  assert.equal(await first.evaluate((el) => el.dataset.toy || ""), "", "a webbed baddie is consumed");
+  assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a toy never sets a win/lose state");
+});
+
 test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {
   await page.evaluate(() => { window.__notes = 0; window.__startedWhileSuspended = 0; });
   await openGame("music-pad");

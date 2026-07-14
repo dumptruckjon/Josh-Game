@@ -346,4 +346,49 @@
       newRound();
     },
   });
+
+  // ---- Thwip the Villains (Spidey web-up cause->effect TOY) ----
+  // Silly baddies pop up and BOB in place (they never run off, no timer). Josh
+  // taps one → THWIP, it's wrapped in a web cocoon with a comic pop + sound. Web
+  // the whole batch → confetti → a fresh batch. Endless, missless, no reading.
+  F.register({
+    id: "thwip-villains",
+    icon: "🕸️",
+    title: "Thwip the Villains",
+    skill: "cause→effect / Spidey play [P]",
+    start(api) {
+      const villains = (C.VILLAINS && C.VILLAINS.length) ? C.VILLAINS : [{ name: "Baddie", emoji: "👾" }];
+      api.setPrompt("Web up the silly baddies!", ["🕸️", "👉", "😆"]);
+      const heroSvg = (window.JoshArt && window.JoshArt.hero) ? window.JoshArt.hero("#e23636") : "🕷️";
+      const hero = api.el("div", { class: "villains__hero art-fill", aria: { hidden: "true" }, html: heroSvg });
+      const field = api.el("div", { class: "villains" });
+      api.stage.append(hero, field);
+
+      let webbed = 0;
+      function thwip(btn) {
+        if (btn.classList.contains("villain--webbed")) return;
+        btn.classList.add("villain--webbed");
+        delete btn.dataset.toy; // consumed — the harness moves to the next baddie
+        api.tickPlay();
+        // A quick "thwip" — only when sound is on (off by default), iOS-safe path.
+        try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(760, { duration: 0.1, type: "sawtooth" }); } catch (e) { /* ignore */ }
+        webbed += 1;
+        if (webbed >= field.children.length) { api.roundWin(); webbed = 0; setTimeout(spawn, 700); }
+      }
+      function spawn() {
+        field.innerHTML = "";
+        webbed = 0;
+        for (let i = 0; i < 6; i++) {
+          const v = api.randItem(villains);
+          const btn = api.el("button", { class: "villain tap", type: "button", dataset: { toy: "1" }, aria: { label: v.name } }, [
+            api.el("span", { class: "villain__guy", aria: { hidden: "true" } }, [v.emoji]),
+            api.el("span", { class: "villain__web", aria: { hidden: "true" } }, ["🕸️"]),
+          ]);
+          btn.addEventListener("click", () => thwip(btn));
+          field.appendChild(btn);
+        }
+      }
+      spawn();
+    },
+  });
 })();
