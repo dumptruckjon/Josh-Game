@@ -247,16 +247,25 @@
   }
 
   // --- Clock (o'clock): the hour + digital-time choices -------------------
-  function makeClock(rng = Math.random) {
+  function makeClock(rng = Math.random, allowHalf = false) {
+    const lab = (h, m) => h + ":" + (m === 30 ? "30" : "00");
     const hour = randInt(1, 12, rng);
-    const used = new Set([hour]);
+    const min = (allowHalf && randInt(0, 1, rng) === 1) ? 30 : 0;
+    const correctLabel = lab(hour, min);
+    const used = new Set([correctLabel]);
     const wrongs = [];
-    while (wrongs.length < 2) { const w = randInt(1, 12, rng); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
+    let guard = 0;
+    while (wrongs.length < 2 && guard++ < 300) {
+      const h = randInt(1, 12, rng);
+      const m = (allowHalf && randInt(0, 1, rng) === 1) ? 30 : 0;
+      const l = lab(h, m);
+      if (!used.has(l)) { used.add(l); wrongs.push({ hour: h, min: m, label: l }); }
+    }
     const choices = shuffle(
-      [{ hour, label: hour + ":00", correct: true }, ...wrongs.map((h) => ({ hour: h, label: h + ":00", correct: false }))],
+      [{ hour, min, label: correctLabel, correct: true }, ...wrongs.map((w) => ({ hour: w.hour, min: w.min, label: w.label, correct: false }))],
       rng
     );
-    return { hour, choices };
+    return { hour, min, choices };
   }
 
   // --- Place value: split a number into tens + ones -----------------------

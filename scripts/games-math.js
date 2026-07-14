@@ -482,9 +482,14 @@
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(clock, choices);
 
-      function draw(hour) {
-        const rad = ((hour % 12) * 30 - 90) * Math.PI / 180;
-        const hx = 50 + 26 * Math.cos(rad), hy = 50 + 26 * Math.sin(rad);
+      function draw(hour, min) {
+        min = min || 0;
+        // Hour hand creeps toward the next number at half-past; minute hand points
+        // up (12) at o'clock and down (6) at half-past.
+        const hrad = (((hour % 12) + min / 60) * 30 - 90) * Math.PI / 180;
+        const hx = 50 + 24 * Math.cos(hrad), hy = 50 + 24 * Math.sin(hrad);
+        const mrad = (min * 6 - 90) * Math.PI / 180;
+        const mx = 50 + 34 * Math.cos(mrad), my = 50 + 34 * Math.sin(mrad);
         let ticks = "";
         for (let h = 1; h <= 12; h++) {
           const a = (h * 30 - 90) * Math.PI / 180;
@@ -492,14 +497,16 @@
           ticks += '<text x="' + x.toFixed(1) + '" y="' + (y + 4).toFixed(1) + '" font-size="9" text-anchor="middle" fill="#33445a">' + h + "</text>";
         }
         clock.innerHTML = '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" fill="#fff" stroke="#5ec8ff" stroke-width="3"/>' + ticks +
-          '<line x1="50" y1="50" x2="' + hx.toFixed(1) + '" y2="' + hy.toFixed(1) + '" stroke="#e23636" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="50" r="3.5" fill="#333"/></svg>';
+          '<line x1="50" y1="50" x2="' + mx.toFixed(1) + '" y2="' + my.toFixed(1) + '" stroke="#2b6cff" stroke-width="2.6" stroke-linecap="round"/>' +
+          '<line x1="50" y1="50" x2="' + hx.toFixed(1) + '" y2="' + hy.toFixed(1) + '" stroke="#e23636" stroke-width="4.4" stroke-linecap="round"/><circle cx="50" cy="50" r="3.5" fill="#333"/></svg>';
       }
       function newRound() {
-        const r = L.makeClock();
-        draw(r.hour);
+        // Adaptive: o'clock only until Josh masters it, then add half-past (:30).
+        const r = L.makeClock(undefined, api.shouldRamp(2));
+        draw(r.hour, r.min);
         api.setPrompt("What time is it?", ["👀", "🕐", "🔢"]);
         api.speak();
-        api.say(r.hour + " o'clock");
+        api.say(r.min === 30 ? ("half past " + r.hour) : (r.hour + " o'clock"));
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--time tap", type: "button", text: ch.label, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.label } });

@@ -421,6 +421,12 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   assert.ok(popsBuddy, "the win celebration must pop the chosen buddy's art");
 });
 
+test("What Time? draws both clock hands (half-past tier ready)", async () => {
+  await openGame("clock");
+  const lines = await page.locator("#screen-clock .clock svg line").count();
+  assert.ok(lines >= 2, `the clock must draw an hour AND a minute hand, got ${lines}`);
+});
+
 test("Picture Squares ramps to a 4×4 grid after a clean streak (adaptive tier)", async () => {
   await openGame("picture-squares");
   const screen = page.locator("#screen-picture-squares");

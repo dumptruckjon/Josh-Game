@@ -304,6 +304,21 @@ test("makeClock: correct hour, label matches, hours distinct", () => {
   }
 });
 
+test("makeClock half-past tier: min in {0,30}, correct label matches the time, labels distinct", () => {
+  const rng = mulberry32(191);
+  for (let i = 0; i < 4000; i++) {
+    const r = L.makeClock(rng, true);
+    assert.ok(r.hour >= 1 && r.hour <= 12);
+    assert.ok(r.min === 0 || r.min === 30, "minutes are o'clock (0) or half-past (30)");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].label, r.hour + ":" + (r.min === 30 ? "30" : "00"), "correct label matches the drawn time");
+    const labels = r.choices.map((c) => c.label);
+    assert.equal(new Set(labels).size, labels.length, "choice labels are distinct (never two identical times)");
+    r.choices.forEach((c) => assert.match(c.label, /^\d{1,2}:(00|30)$/, "every label is H:00 or H:30"));
+  }
+});
+
 test("tensOnes: tens*10 + ones === n and ones < 10", () => {
   for (let n = 0; n <= 99; n++) {
     const { tens, ones } = L.tensOnes(n);
