@@ -69,7 +69,8 @@
             cell.classList.add("peek--open");
             api.tickPlay();
             opens += 1;
-            if (opens === 6 && !won) { won = true; api.win({ say: "Peekaboo! You found everyone!" }); }
+            // A few peekaboos (not a timer) earns the sticker — kept low for short bursts.
+            if (opens === 4 && !won) { won = true; api.win({ say: "Peekaboo! You found everyone!" }); }
             else { api.roundWin(); api.say(who.name); }
           } else {
             cell.textContent = "🚪";
@@ -155,7 +156,8 @@
           bar.classList.remove("music__hit"); void bar.offsetWidth; bar.classList.add("music__hit");
           if (A && A.tone) A.tone(NOTES[i]);
           notes += 1;
-          if (notes === 8 && !won) { won = true; api.win({ say: "You made a song! Yay!" }); }
+          // A few notes (not a timer) earns the sticker — kept low for short bursts.
+          if (notes === 5 && !won) { won = true; api.win({ say: "You made a song! Yay!" }); }
         });
         pad.appendChild(bar);
       });

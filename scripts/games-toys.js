@@ -41,7 +41,9 @@
         void card.offsetWidth;
         card.classList.add("pop");
         hellos += 1;
-        if (hellos === 5 && !won) { won = true; api.win({ say: "You said hi to so many animals! Yay!" }); }
+        // A few taps (not a timer) earns the sticker — kept low because Josh plays
+        // these endless toys in short bursts, so the win must land fast.
+        if (hellos === 4 && !won) { won = true; api.win({ say: "You said hi to so many animals! Yay!" }); }
         else { api.roundWin(); api.say(C.ANIMALS[idx].name); }
       });
 
