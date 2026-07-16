@@ -78,3 +78,15 @@ listed as fixed above.
 - **Spell My Friends** — `name-spell` already rotates the friends' names
   (`content.js` `NAMES`), not just JOSH.
 - **Themed wins / "who's playing"** — delivered via the Buddy pipeline.
+- **THE BIG GAME — 🩺 Boo-Boo Clinic** (shipped July 2026). A second
+  multi-agent brainstorm (8 ideation lenses → 10 finalists → 6-judge weighted
+  panel) picked it over Snack Shack (8.15) and Big Build Town (7.92) at 8.31.
+  Endless no-fail vet clinic + persistent meadow; see CLAUDE.md for the full
+  design. **Clinic v1.1 candidates (cheap, contained):** remembered-favorite
+  thought bubbles (fed counts already persist — read-only UI), a JoshBuddy
+  nurse-hat assistant demo, more hatchling species/egg colors, seasonal
+  stickers (hearts for the Feb-14 week), pass-the-phone co-op "nurse turn" via
+  `coopTurn`. **Future big-game candidates from that panel:** Snack Shack
+  (serve silly meals to the whole character cast) and Big Build Town
+  (scoop-haul-dump a persistent town; feasibility-heavy — 4-6 days, needs new
+  vehicle art).

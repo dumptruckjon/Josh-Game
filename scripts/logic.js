@@ -717,6 +717,91 @@
     return { pairs: st.pairs, ask: askPair, choices };
   }
 
+  // --- 🩺 Boo-Boo Clinic: day math, world-save validation, round picker ----
+  // The local calendar date mapped through the UTC epoch: timezone- and
+  // DST-safe (two local midnights are always exactly N whole days apart) and
+  // monotonic. Used for the meadow egg's "hatches tomorrow" promise.
+  function dayIndex(now) {
+    return Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 864e5);
+  }
+  // The egg hatches on the child's FIRST visit of any LATER day — never the
+  // same day, and a clock jumped backwards simply keeps the egg cosy.
+  function eggHatches(laidOnDay, today) {
+    return Number.isFinite(laidOnDay) && Number.isFinite(today) && today > laidOnDay;
+  }
+  // Validate a parsed josh-clinic world save. ANY structural problem returns
+  // null (the caller falls back to a fresh empty world) — never throws, never
+  // half-repairs. This is the migration guard for a save that will live on a
+  // real device for years.
+  function validateClinicStore(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data) || data.v !== 1) return null;
+    if (!Array.isArray(data.healed)) return null;
+    const healed = [];
+    for (const h of data.healed) {
+      if (!h || typeof h !== "object") return null;
+      if (typeof h.sp !== "string" || !h.sp) return null;
+      if (typeof h.name !== "string" || !h.name) return null;
+      if (typeof h.sticker !== "string" || !h.sticker) return null;
+      const fed = {};
+      if (h.fed != null) {
+        if (typeof h.fed !== "object" || Array.isArray(h.fed)) return null;
+        for (const [k, v] of Object.entries(h.fed)) {
+          if (!Number.isFinite(v) || v < 0) return null;
+          fed[k] = v;
+        }
+      }
+      const rec = {
+        sp: h.sp, name: h.name,
+        kind: typeof h.kind === "string" ? h.kind : "emoji",
+        sticker: h.sticker, fed,
+      };
+      if (typeof h.c === "string" && h.c) rec.c = h.c; // pup collar / hero color, for redraw
+      healed.push(rec);
+    }
+    let egg = null;
+    if (data.egg != null) {
+      if (typeof data.egg !== "object" || !Number.isFinite(data.egg.laidOnDay)) return null;
+      egg = { laidOnDay: data.egg.laidOnDay };
+    }
+    const hatched = [];
+    if (data.hatched != null) {
+      if (!Array.isArray(data.hatched)) return null;
+      for (const c of data.hatched) {
+        if (!c || typeof c !== "object" || typeof c.sp !== "string" || !c.sp) return null;
+        hatched.push({ sp: c.sp, name: typeof c.name === "string" && c.name ? c.name : "Chick" });
+      }
+    }
+    return { v: 1, healed, egg, hatched };
+  }
+  // Pick the next clinic round: a patient + 1..3 silly ailments + a care-tap
+  // count. Honors the no-photocopy rule (never the same patient or opening
+  // ailment class back-to-back) and each patient's allowed classes.
+  function makeClinicRound(opts, rng) {
+    const rnd = rng || Math.random;
+    const patients = opts.patients || [];
+    const classes = opts.classes || [];
+    const wanted = opts.ailments === 3 ? 3 : opts.ailments === 2 ? 2 : 1;
+    let pool = patients.filter((p) => p.sp !== opts.lastPatient);
+    if (!pool.length) pool = patients.slice();
+    const patient = pool[Math.floor(rnd() * pool.length)];
+    const allowed = (patient.classes && patient.classes.length ? patient.classes : classes).slice();
+    let firstPool = allowed.filter((c) => c !== opts.lastClass);
+    if (!firstPool.length) firstPool = allowed.slice();
+    const ailments = [firstPool[Math.floor(rnd() * firstPool.length)]];
+    while (ailments.length < wanted) {
+      const rest = allowed.filter((c) => !ailments.includes(c));
+      if (!rest.length) break;
+      ailments.push(rest[Math.floor(rnd() * rest.length)]);
+    }
+    const maxCare = Math.max(4, opts.maxCare || 4);
+    return {
+      patient,
+      ailments,
+      variant: Math.floor(rnd() * 2),
+      careTaps: 4 + Math.floor(rnd() * (maxCare - 4 + 1)),
+    };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -739,6 +824,7 @@
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
     makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue, makeNameSpell,
     article, makeOddFeature, makeListen,
+    dayIndex, eggHatches, validateClinicStore, makeClinicRound,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

@@ -161,6 +161,29 @@ test("the Buddy picker: no overflow + >=75px options at 390 and 320", async () =
   }
 });
 
+test("Boo-Boo Clinic MEADOW room: no overflow + >=75px well-spaced targets at 390 and 320", async () => {
+  // The generic per-game audit only sees the clinic room (the meadow is built
+  // lazily on the door tap) — so audit the meadow explicitly, seeded with a
+  // full roster (6 friends + the pond + a hatchling + an egg + the treat tray).
+  await page.evaluate(() => {
+    const w = { v: 1, healed: [], egg: { laidOnDay: 1 }, hatched: [{ sp: "🐤", name: "Chick" }] };
+    const sp = ["🐰", "🐶", "🐱", "🦁", "🐸", "🐘"];
+    for (const s of sp) w.healed.push({ sp: s, name: "Friend", kind: "emoji", sticker: "⭐", fed: {} });
+    try { localStorage.setItem("josh-clinic-v1", JSON.stringify(w)); } catch (e) { /* ignore */ }
+  });
+  for (const w of [390, 320]) {
+    await page.setViewportSize({ width: w, height: 780 });
+    await page.reload({ waitUntil: "load" });
+    await page.evaluate(() => { location.hash = "#boo-boo-clinic"; });
+    const screen = page.locator("#screen-boo-boo-clinic");
+    await screen.waitFor({ state: "visible" });
+    await screen.locator(".clinic__door").evaluate((el) => el.click());
+    await noOverflow(page, `clinic meadow @${w}`);
+    await auditActiveScreen(page, `clinic meadow @${w}`);
+  }
+  await page.evaluate(() => { try { localStorage.removeItem("josh-clinic-v1"); } catch (e) { /* ignore */ } });
+});
+
 test("a game is playable by touch (Odd-One-Out to a win)", async () => {
   await page.setViewportSize(IPHONE.viewport);
   await page.evaluate(() => { location.hash = "#odd-one-out"; });

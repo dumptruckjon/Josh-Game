@@ -16,7 +16,7 @@ const SCRIPTS = [
   "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js", "scripts/art.js",
   "scripts/stickers.js", "scripts/buddy.js", "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
   "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
-  "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/main.js",
+  "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/games-clinic.js", "scripts/main.js",
 ];
 
 test("core files exist", () => {
@@ -45,7 +45,7 @@ test("service worker precaches every script + css + index", () => {
 });
 
 test("games self-register into the framework registry", () => {
-  for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js", "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js"]) {
+  for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js", "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/games-clinic.js"]) {
     assert.match(read(f), /F\.register\(|JoshFramework\.register\(/, `${f} should register a game`);
   }
   assert.match(read("scripts/main.js"), /serviceWorker\.register/, "main.js should register the SW");
@@ -284,6 +284,47 @@ test("guardrail: Look From Above's top-down map stays aligned with the isometric
     /be__cell--n["']\s*,\s*["']be__cell--e["']\s*,\s*["']be__cell--w["']\s*,\s*["']be__cell--s/.test(g),
     "footprint() must map occupancy index 0→N (back/top), 1→E (right), 2→W (left), 3→S (front/bottom)"
   );
+});
+
+test("guardrail: the hidden ATTRIBUTE always hides (global [hidden] rule)", () => {
+  // The hidden attribute silently loses to any author `display:` rule — a
+  // hidden tool tray with .choices' display:grid stayed fully visible (found
+  // via screenshots; the ≥75px audit skips [hidden] elements, so it was blind
+  // to it). main.css must honor [hidden] globally, forever.
+  const css = read("styles/main.css");
+  assert.match(css, /^\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/m,
+    "main.css needs a global [hidden] { display: none !important; } rule");
+});
+
+test("guardrail: Boo-Boo Clinic — one save owner, lazy meadow, and the tone law", () => {
+  const g = read("scripts/games-clinic.js");
+  // ONE owner of the world save (the JoshProgress/JoshBuddy pattern): only
+  // games-clinic.js may touch josh-clinic-v1 directly...
+  assert.ok(/JoshClinic/.test(g) && /josh-clinic-v1/.test(g), "games-clinic.js must define JoshClinic owning josh-clinic-v1");
+  for (const f of SCRIPTS) {
+    if (f === "scripts/games-clinic.js" || f === "scripts/main.js") continue;
+    assert.ok(!read(f).includes("josh-clinic-v1"), `${f} must not touch the clinic save directly (JoshClinic owns it)`);
+  }
+  // ...and main.js only via the reset gate (JoshClinic.clear + a guarded fallback).
+  const m = read("scripts/main.js");
+  assert.ok(/JoshClinic\.clear/.test(m), "the grown-ups reset must clear the clinic world via JoshClinic.clear()");
+  // Corrupt-save armor: the world must load through the pure validator so a
+  // bad/old/future save can never crash the game.
+  assert.ok(/validateClinicStore/.test(g), "JoshClinic.load must validate through JoshLogic.validateClinicStore");
+  // The harness must take the WIN path at open: the meadow (the only [data-toy]
+  // source) may only be built inside buildMeadow(), never at start.
+  const toyMarks = (g.match(/dataset:\s*\{\s*toy:/g) || []).length;
+  assert.ok(toyMarks >= 2, "meadow residents/treats/nest should be [data-toy] toys");
+  const beforeMeadow = g.slice(0, g.indexOf("function buildMeadow"));
+  assert.ok(!/dataset:\s*\{\s*toy:/.test(beforeMeadow), "no [data-toy] may exist before the lazy meadow build (the harness must see a win game at open)");
+  // NO-FAIL LAW (this game's whole point): tryAgain is never called — every
+  // non-remedy tap is a rewarded gag instead.
+  assert.ok(!/tryAgain/.test(g), "Boo-Boo Clinic must NEVER call tryAgain — non-remedy taps are gags, not misses");
+  // TONE LAW: silly, never sad. No sad/scary face may ever render, in code or content.
+  const sad = /😢|😭|☹|🙁|😞|😟|😿|💔|😦|😧|😨|😰|🤕/u;
+  assert.ok(!sad.test(g), "games-clinic.js must contain no sad/hurt faces (boo-boos are silly, patients always smile)");
+  assert.ok(!sad.test(read("scripts/content.js")), "clinic content must contain no sad/hurt faces");
+  assert.ok(!sad.test(read("scripts/art.js")), "clinic art must contain no sad/hurt faces");
 });
 
 // ---------- Syntax ----------

@@ -98,6 +98,11 @@ body {
     calc(env(safe-area-inset-left, 0px) + var(--pad));
 }
 .screen[hidden] { display: none !important; } /* must always beat the game-screen flex rule below */
+/* The hidden ATTRIBUTE silently loses to any author `display:` rule (UA sheet
+   only) — a hidden tray with .choices' display:grid stayed fully visible.
+   Honor it globally so hidden always means hidden, for every current and
+   future element (guardrail-locked in site.test.js). */
+[hidden] { display: none !important; }
 
 /* ---------- Home launcher ---------- */
 .home__title {
@@ -1023,6 +1028,92 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 }
 .sticker-slot.plop .sticker-slot__art { animation: stickerPlop 480ms cubic-bezier(0.2, 0.8, 0.3, 1); }
 
+/* ---------- 🩺 Boo-Boo Clinic (the big game) ---------- */
+.clinic__top { display: flex; justify-content: flex-end; width: 100%; }
+.clinic__door { font-size: 2rem; }
+@keyframes clinicDoorPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+.clinic__door--pulse { animation: clinicDoorPulse 1.1s ease-in-out infinite; }
+.clinic__room { position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
+@media (max-width: 360px) { .clinic__ambo { width: 64px; } .clinic__ambo-truck svg { width: 64px; height: 64px; } .clinic__ambo-friend { left: 38px; width: 28px; } .clinic__ambo-friend svg { width: 28px; height: 28px; } }
+
+.clinic__scene { position: relative; width: 100%; max-width: 430px; min-height: 208px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.clinic__ambo { position: absolute; left: 4px; bottom: 2px; width: 86px; pointer-events: none; }
+@keyframes clinicAmboIn { from { transform: translateX(-130%); } to { transform: translateX(0); } }
+.clinic__ambo { animation: clinicAmboIn 0.7s ease-out; }
+.clinic__ambo-truck svg { width: 86px; height: 86px; display: block; }
+.clinic__ambo-friend { position: absolute; left: 52px; top: -12px; width: 34px; }
+.clinic__ambo-friend svg { width: 34px; height: 34px; display: block; }
+
+.clinic__patient {
+  position: relative; min-width: 176px; min-height: 176px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 30px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.clinic__patient:active { transform: scale(0.96); }
+.clinic__face { font-size: 108px; line-height: 1; }
+.clinic__face--art svg { width: 138px; height: 138px; display: block; }
+.clinic__boo { position: absolute; inset: 0; pointer-events: none; }
+.clinic__boo svg { width: 100%; height: 100%; display: block; }
+@keyframes clinicBooPulse { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.12); } }
+.clinic__boo--pulse { animation: clinicBooPulse 700ms ease-in-out 2; }
+@keyframes clinicGiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+.clinic__patient--giggle { animation: clinicGiggle 360ms ease-in-out; }
+@keyframes clinicJoy { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-18px); } 70% { transform: translateY(-6px); } }
+.clinic__patient--joy { animation: clinicJoy 560ms ease-out; }
+@keyframes clinicExit { to { transform: translateX(150%); opacity: 0; } }
+.clinic__patient--exit { animation: clinicExit 0.85s ease-in forwards; }
+.clinic__gag { position: absolute; top: -10px; right: -6px; font-size: 46px; pointer-events: none; }
+@keyframes clinicGagPop { 0% { transform: scale(0.4) translateY(6px); opacity: 0; } 30% { transform: scale(1.2) translateY(-6px); opacity: 1; } 100% { transform: scale(1) translateY(-18px); opacity: 0; } }
+.clinic__gag { animation: clinicGagPop 1.35s ease-out forwards; }
+.clinic__gag--care { top: auto; bottom: -4px; right: 8px; font-size: 34px; }
+
+.clinic__steth { position: relative; font-size: 2.2rem; }
+.clinic__demo { position: absolute; right: -14px; top: -22px; font-size: 34px; pointer-events: none; }
+@keyframes clinicPoint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
+.clinic__demo { animation: clinicPoint 0.9s ease-in-out infinite; }
+
+.clinic__pile { display: flex; gap: 6px; min-height: 34px; align-items: center; justify-content: center; font-size: 26px; }
+.clinic__tray, .clinic__stickers, .clinic__treats { max-width: 430px; }
+.clinic__tool, .clinic__sticker, .clinic__treat { font-size: 2.4rem; }
+@keyframes clinicHint { 0%, 100% { box-shadow: 0 0 0 0 rgba(94, 200, 255, 0); } 50% { box-shadow: 0 0 0 9px rgba(94, 200, 255, 0.55); } }
+.clinic__tool--hint { animation: clinicHint 1.2s ease-in-out infinite; }
+.clinic__stick { position: absolute; top: -8px; right: -8px; font-size: 30px; pointer-events: none; }
+
+.clinic__props { display: flex; gap: 14px; align-items: center; justify-content: center; min-height: 56px; font-size: 40px; }
+.clinic__prop { display: inline-flex; }
+.clinic__pond svg { width: 96px; height: 56px; display: block; }
+.clinic__nest { width: 84px; height: 84px; border: none; background: none; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.clinic__nest svg { width: 100%; height: 100%; display: block; }
+@keyframes clinicWiggle { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-7deg); } 70% { transform: rotate(7deg); } }
+.clinic__nest--wiggle { animation: clinicWiggle 420ms ease-in-out; }
+.clinic__field { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; width: 100%; max-width: 430px; }
+.clinic__resident {
+  position: relative; width: 86px; height: 86px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 22px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.clinic__resident:active { transform: scale(0.94); }
+.clinic__face--emoji { font-size: 50px; line-height: 1; }
+.clinic__face--mini svg { width: 62px; height: 62px; display: block; }
+.clinic__stick--worn { font-size: 22px; top: -6px; right: -6px; }
+@keyframes clinicHop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-14px); } }
+.clinic__resident--hop { animation: clinicHop 420ms ease-out; }
+.clinic__yum { position: absolute; top: -18px; left: 50%; font-size: 26px; pointer-events: none; }
+@keyframes clinicYum { 0% { transform: translate(-50%, 6px) scale(0.6); opacity: 0; } 35% { transform: translate(-50%, -8px) scale(1.15); opacity: 1; } 100% { transform: translate(-50%, -22px) scale(1); opacity: 0; } }
+.clinic__yum { animation: clinicYum 1.15s ease-out forwards; }
+.clinic__treat--sel { outline: 5px solid #5ec8ff; outline-offset: 2px; }
+.clinic__empty { font-size: 34px; opacity: 0.8; padding: 18px 0; }
+.clinic__hatch { position: absolute; left: 50%; top: 34%; width: 120px; transform: translateX(-50%); pointer-events: none; }
+.clinic__hatch svg { width: 100%; height: 100%; }
+@keyframes clinicHatch { 0% { transform: translateX(-50%) scale(0.3); opacity: 0; } 35% { transform: translateX(-50%) scale(1.15); opacity: 1; } 80% { transform: translateX(-50%) scale(1); opacity: 1; } 100% { transform: translateX(-50%) scale(1); opacity: 0; } }
+.clinic__hatch { animation: clinicHatch 1.85s ease-out forwards; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
@@ -1055,5 +1146,12 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   .sticker-slot.is-won .sticker-slot__art { opacity: 1 !important; transform: none !important; }
   .rocket-art { transition: none !important; }
   .rocket-art--launch, .bridge--cross .bridge__hero--l, .bridge--cross .bridge__hero--r { transform: none !important; }
+  /* Boo-Boo Clinic: no motion, but nothing may get STUCK invisible or mid-flight */
+  .clinic__door--pulse, .clinic__ambo, .clinic__boo--pulse, .clinic__patient--giggle,
+  .clinic__patient--joy, .clinic__demo, .clinic__tool--hint, .clinic__nest--wiggle,
+  .clinic__resident--hop { animation: none !important; }
+  .clinic__patient--exit { animation: none !important; opacity: 0; }
+  .clinic__gag, .clinic__yum, .clinic__hatch { animation: none !important; opacity: 1 !important; }
+  .clinic__patient:active, .clinic__resident:active { transform: none !important; }
   body { background-attachment: scroll; }
 }

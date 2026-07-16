@@ -39,7 +39,7 @@
     "landform-maker": "science", "plane-shape": "science", "continent-home": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
-    "grow": "play", "thwip-web": "play", "thwip-villains": "play",
+    "grow": "play", "thwip-web": "play", "thwip-villains": "play", "boo-boo-clinic": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
     "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",
@@ -92,6 +92,11 @@
         n = keys.length;
       } catch (e) { /* localStorage may be unavailable */ }
     }
+    // The Boo-Boo Clinic world save is progress too — a full grown-ups reset
+    // starts the meadow fresh (JoshClinic owns the key; fall back to removing
+    // it directly if the module ever failed to load).
+    if (window.JoshClinic && window.JoshClinic.clear) window.JoshClinic.clear();
+    else { try { localStorage.removeItem("josh-clinic-v1"); } catch (e) { /* ignore */ } }
     document.querySelectorAll(".tile__badge").forEach((b) => b.remove());
     document.querySelectorAll(".sticker-slot.is-won").forEach((s) => s.classList.remove("is-won"));
     if (typeof refreshStickers === "function") refreshStickers();
