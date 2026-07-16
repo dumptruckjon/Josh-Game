@@ -53,6 +53,9 @@
       (C.HEROES || []).forEach((h) => reveals.push({ art: (ART && ART.hero) ? ART.hero(h.color) : null, emoji: h.emoji, name: h.name }));
       (C.ANIMALS || [{ emoji: "🐰", name: "Bunny" }]).forEach((a) => reveals.push({ art: null, emoji: a.emoji, name: a.name }));
       const pool = api.shuffle(reveals);
+      // Endless toy, but collectible: after a handful of peekaboos Josh earns this
+      // game's sticker ONCE (api.win), then keeps playing. Every tile fillable.
+      let opens = 0, won = false;
       for (let i = 0; i < 6; i++) {
         const who = pool[i % pool.length];
         let open = false;
@@ -65,8 +68,9 @@
             else cell.textContent = who.emoji;
             cell.classList.add("peek--open");
             api.tickPlay();
-            api.roundWin();
-            api.say(who.name);
+            opens += 1;
+            if (opens === 6 && !won) { won = true; api.win({ say: "Peekaboo! You found everyone!" }); }
+            else { api.roundWin(); api.say(who.name); }
           } else {
             cell.textContent = "🚪";
             cell.classList.remove("peek--open");
@@ -141,12 +145,17 @@
       // per-game AudioContext (a guardrail test enforces that, so the iOS
       // resume-before-schedule fix can never regress in one game).
       pad.addEventListener("pointerdown", function warm() { if (A && A.unlock) A.unlock(); pad.removeEventListener("pointerdown", warm); }, { once: true });
+      // Endless toy, but collectible: after playing a little tune Josh earns this
+      // game's sticker ONCE (api.win), then keeps making music. Every tile fillable.
+      let notes = 0, won = false;
       COLORS.forEach((c, i) => {
         const bar = api.el("button", { class: "choice music__pad tap", type: "button", dataset: { toy: "1" }, style: { background: c }, aria: { label: "note " + (i + 1) } }, ["🎵"]);
         bar.addEventListener("click", () => {
           api.tickPlay();
           bar.classList.remove("music__hit"); void bar.offsetWidth; bar.classList.add("music__hit");
           if (A && A.tone) A.tone(NOTES[i]);
+          notes += 1;
+          if (notes === 8 && !won) { won = true; api.win({ say: "You made a song! Yay!" }); }
         });
         pad.appendChild(bar);
       });
@@ -365,7 +374,7 @@
       const field = api.el("div", { class: "villains" });
       api.stage.append(hero, field);
 
-      let webbed = 0;
+      let webbed = 0, won = false;
       function thwip(btn) {
         if (btn.classList.contains("villain--webbed")) return;
         btn.classList.add("villain--webbed");
@@ -374,7 +383,13 @@
         // A quick "thwip" — only when sound is on (off by default), iOS-safe path.
         try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(760, { duration: 0.1, type: "sawtooth" }); } catch (e) { /* ignore */ }
         webbed += 1;
-        if (webbed >= field.children.length) { api.roundWin(); webbed = 0; setTimeout(spawn, 700); }
+        if (webbed >= field.children.length) {
+          // Clearing the whole batch earns this game's sticker ONCE (api.win), then
+          // a fresh batch keeps the endless play going. So the tile is collectible.
+          if (!won) { won = true; api.win({ say: "You webbed them all! Web-warrior!" }); }
+          else api.roundWin();
+          webbed = 0; setTimeout(spawn, 700);
+        }
       }
       function spawn() {
         field.innerHTML = "";

@@ -108,45 +108,40 @@ test("the Surprise tile jumps to a game", async () => {
   assert.ok((await page.evaluate(() => location.hash)).length > 1, "should navigate to some game");
 });
 
-test("EVERY game plays end-to-end (win reached, or toy responds)", async () => {
+test("EVERY game plays end-to-end to a WIN — every game is collectible", async () => {
+  // The systemic guardrail behind "every tile can earn its sticker": drive EVERY
+  // registered game to screen.dataset.won === "1". Win-games are tapped via their
+  // [data-correct] target; endless cause→effect toys (Hi Animals, Peekaboo, Music
+  // Pad, Thwip the Villains) are tapped via [data-toy] and MUST reach a gentle
+  // one-time win too, so the Sticker Book can hit 100% with no permanently-empty
+  // slot. A future game that can never be won fails here — forcing either a win
+  // state or a deliberate exclusion from the board.
   const ids = await gameIds();
   for (const id of ids) {
     await openGame(id);
     const screen = page.locator(`#screen-${id}`);
 
-    const isToy = (await screen.locator("[data-toy]").count()) > 0;
-    if (isToy) {
-      await screen.locator("[data-toy]").first().click();
-      await page.waitForFunction(
-        (i) => Number((document.getElementById("screen-" + i).dataset.plays) || 0) >= 1,
-        id, { timeout: 4000 }
-      );
-      // a couple more taps never error
-      await screen.locator("[data-toy]").first().click();
-      continue;
-    }
-
-    // Win game: keep tapping the currently-correct target until the game is won.
     // Drive the contract with a DOM-level el.click() rather than a coordinate
     // (force) click: on a slow runner a growing/rebuilding field reflows or
     // scrolls between box-computation and dispatch, so a coordinate click can
     // repeatedly miss and the game gets "stuck" (observed on big-red-one's 16
     // inline-SVG cells under CPU load). A DOM click always hits the intended
-    // element regardless of layout/scroll/overlay, so this exercises the state
-    // machine deterministically. Real touch realism (sizes, no overlap, tappable)
-    // is covered separately by mobile.test.js's actual .tap(). A genuinely broken
-    // game still never sets won and fails here.
+    // element regardless of layout/scroll/overlay. Real touch realism (sizes, no
+    // overlap, tappable) is covered separately by mobile.test.js's actual .tap().
+    // Each iteration: tap the currently-correct target if there is one, else tap a
+    // live toy control — so the SAME loop wins both win-games and endless toys.
     let won = false;
-    for (let i = 0; i < 200 && !won; i++) {
+    for (let i = 0; i < 260 && !won; i++) {
       won = await screen.evaluate((el) => el.dataset.won === "1");
       if (won) break;
-      const correct = screen.locator('[data-correct="1"]').first();
-      if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
-      try { await correct.evaluate((el) => el.click()); }
+      let target = screen.locator('[data-correct="1"]').first();
+      if ((await target.count()) === 0) target = screen.locator("[data-toy]").first();
+      if ((await target.count()) === 0) { await page.waitForTimeout(20); continue; }
+      try { await target.evaluate((el) => el.click()); }
       catch (e) { await page.waitForTimeout(20); } // element detached mid-rebuild — re-query next loop
     }
     won = await screen.evaluate((el) => el.dataset.won === "1");
-    assert.ok(won, `game "${id}" never reached a win`);
+    assert.ok(won, `game "${id}" never reached a win — every game must be collectible (winnable)`);
 
     // Winning reveals a working "Again" button that resets the won state.
     const again = screen.locator(".game__again");
@@ -459,7 +454,9 @@ test("Thwip the Villains: tapping a baddie webs it (no-fail cause→effect toy)"
   assert.ok(await first.evaluate((el) => el.classList.contains("villain--webbed")), "tapping a baddie wraps it in a web");
   // Webbing consumes it (no data-toy) so play moves on — and there is no fail state.
   assert.equal(await first.evaluate((el) => el.dataset.toy || ""), "", "a webbed baddie is consumed");
-  assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a toy never sets a win/lose state");
+  // A single web is NOT yet a win — only clearing the whole batch earns the sticker
+  // (so the endless toy is still collectible without a win firing on every tap).
+  assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "one web must not win — no fail/early-win state");
 });
 
 test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {
@@ -476,6 +473,33 @@ test("the Music Pad actually plays notes on iOS (audio fires only once the conte
   assert.ok(notes >= 2, `tapping pads should start notes; got ${notes}`);
   // The iOS regression: scheduling a note while suspended plays it in the past → silent.
   assert.equal(bad, 0, `notes must never start while the context is suspended (got ${bad}; that is silent on iOS)`);
+});
+
+test("the 4 endless toys are each collectible — they reach a gentle one-time win", async () => {
+  // Hi Animals, Peekaboo, Music Pad and Thwip the Villains have no quiz answer;
+  // each now earns its sticker after a little play (then keeps playing forever),
+  // so no Sticker Book slot is permanently empty and the star meter can reach 100%.
+  for (const id of ["animals", "peekaboo", "music-pad", "thwip-villains"]) {
+    await openGame(id);
+    const screen = page.locator(`#screen-${id}`);
+    const again = screen.locator(".game__again");
+    if (await again.isVisible().catch(() => false)) await again.click(); // fresh, un-won round
+    assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", `${id} should start un-won`);
+
+    let won = false;
+    for (let i = 0; i < 80 && !won; i++) {
+      won = await screen.evaluate((el) => el.dataset.won === "1");
+      if (won) break;
+      const toy = screen.locator("[data-toy]").first();
+      if ((await toy.count()) === 0) { await page.waitForTimeout(20); continue; }
+      try { await toy.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
+    }
+    assert.ok(won, `endless toy "${id}" must reach a gentle win so its sticker is earnable`);
+    // The win is recorded like every other game's (JoshProgress owns josh-won-<id>),
+    // which is exactly what fills the tile badge and the Sticker Book slot.
+    const flagged = await page.evaluate((i) => !!(window.JoshProgress && window.JoshProgress.isWon(i)), id);
+    assert.ok(flagged, `${id}'s win must record its josh-won flag (fills the Sticker Book slot)`);
+  }
 });
 
 test("no uncaught page errors during the whole run", () => {

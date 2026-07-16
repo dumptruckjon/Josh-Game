@@ -29,15 +29,20 @@
       }
       show(idx);
 
+      // Endless toy, but it's still collectible: after a few friendly hellos Josh
+      // earns this game's sticker ONCE (api.win), then keeps playing forever. So
+      // every tile in the Sticker Book can be filled — no permanently-empty slot.
+      let hellos = 0, won = false;
       card.addEventListener("click", () => {
         api.tickPlay();
-        api.roundWin();
         idx = api.pickIndex(C.ANIMALS.length, idx);
         show(idx);
-        api.say(C.ANIMALS[idx].name);
         card.classList.remove("pop");
         void card.offsetWidth;
         card.classList.add("pop");
+        hellos += 1;
+        if (hellos === 5 && !won) { won = true; api.win({ say: "You said hi to so many animals! Yay!" }); }
+        else { api.roundWin(); api.say(C.ANIMALS[idx].name); }
       });
 
       api.stage.appendChild(card);
