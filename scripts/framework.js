@@ -214,6 +214,11 @@
       firstTryStreak = 0; missedSinceWin = false; // fresh game → fresh difficulty
       delete screen.dataset.streak;
       againBtn.hidden = true;
+      // A win's celebration pop (.win-hero) self-removes after 1700ms; a quick
+      // "Again" (or a rapid re-win) could otherwise leave the PREVIOUS pop hovering
+      // over the fresh round. Clear any lingering pop on (re)start so a new round
+      // always starts clean (and querySelector(".win-hero") can't grab a stale one).
+      screen.querySelectorAll(".win-hero").forEach((n) => n.remove());
       stage.innerHTML = "";
       try { def.start(api); } catch (e) { console.error("Josh: game '" + def.id + "' failed:", e); }
     }

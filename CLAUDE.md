@@ -166,7 +166,20 @@ logic guardrail asserting every block is height 1;
 **personalization has ONE owner** — `JoshBuddy` (in `buddy.js`) owns the
 `josh-buddy` token and is the single source for the home companion AND the win
 celebration art, so the "which character represents Josh" choice can never
-disagree between the two → guardrail-locked.
+disagree between the two → guardrail-locked;
+**a win's celebration pop (`.win-hero`) outlives its round by 1700ms** — a quick
+"Again" (or a rapid re-win on the same screen) left the PREVIOUS pop hovering
+over the fresh round, and `querySelector(".win-hero")` grabbed the STALE one
+(a different buddy's art) — the root of a recurring buddy-test flake → the
+framework's `start()` now removes any lingering `.win-hero` on (re)start, and
+the buddy test reads the LAST pop atomically with the won flag;
+**every game must be winnable/collectible** — the 4 endless toys (Hi Animals,
+Peekaboo, Music Pad, Thwip the Villains) only ticked plays and never called
+`api.win()`, so their Sticker Book slots could never fill (star meter stuck
+below 100%); each now earns its sticker once after a few taps (click-count,
+never a timer) then keeps playing → the generic e2e harness now drives EVERY
+game to a win (tap `[data-correct]` if present, else a live `[data-toy]`), so a
+future un-winnable game fails the suite.
 When you fix the next thing, extend this list.
 
 ---

@@ -399,16 +399,18 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   // The .win-hero pop is removed 1700ms after the win, so read the won flag AND
   // capture the pop's HTML in the SAME evaluate — atomically, the instant the win
   // is detected (the element was just appended synchronously) — never racing the
-  // removal timer under slow CI.
+  // removal timer under slow CI. Read the LAST pop: a prior win on this screen can
+  // leave a stale pop (with the DEFAULT buddy) briefly present, and the fresh pop
+  // is appended after it — querySelector(first) could grab the stale one.
   let won = false, popHtml = "";
   for (let i = 0; i < 100 && !won; i++) {
     const st = await screen.evaluate((el) => {
-      const wh = el.querySelector(".win-hero");
+      const pops = el.querySelectorAll(".win-hero");
+      const wh = pops.length ? pops[pops.length - 1] : null;
       return { won: el.dataset.won === "1", pop: wh ? wh.innerHTML : "" };
     });
     won = st.won;
-    if (st.pop) popHtml = st.pop;
-    if (won) break;
+    if (won) { popHtml = st.pop; break; } // capture the pop atomically with the win
     const correct = screen.locator('[data-correct="1"]').first();
     if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
     try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
