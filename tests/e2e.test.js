@@ -405,16 +405,10 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   // capture the pop's HTML in the SAME evaluate — atomically, the instant the win
   // is detected (the element was just appended synchronously) — never racing the
   // removal timer under slow CI.
-  // Read the won flag AND the pop's HTML in the SAME evaluate — atomically, the
-  // instant the win is detected — never racing the pop's 1700ms removal timer.
-  // Read the LAST .win-hero: an earlier test's win on this same screen can leave
-  // a pop alive for up to 1700ms, and the framework appends the fresh one after
-  // it (start() also now clears stale pops — belt and braces).
   let won = false, popHtml = "";
   for (let i = 0; i < 100 && !won; i++) {
     const st = await screen.evaluate((el) => {
-      const pops = el.querySelectorAll(".win-hero");
-      const wh = pops.length ? pops[pops.length - 1] : null;
+      const wh = el.querySelector(".win-hero");
       return { won: el.dataset.won === "1", pop: wh ? wh.innerHTML : "" };
     });
     won = st.won;
@@ -427,8 +421,7 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   assert.ok(won, "odd-one-out should reach a win");
   // Normalise the expected buddy art through the DOM (innerHTML re-serialises SVG).
   const expected = await page.evaluate(() => { const t = document.createElement("div"); t.innerHTML = window.JoshBuddy.art(); return t.innerHTML; });
-  assert.ok(popHtml, "the win celebration must pop a .win-hero figure");
-  assert.equal(popHtml.slice(0, 120), expected.slice(0, 120), "the win celebration must pop the CHOSEN buddy's art (not a random hero)");
+  assert.ok(popHtml && popHtml === expected, "the win celebration must pop the chosen buddy's art");
 });
 
 test("What Time? draws both clock hands (half-past tier ready)", async () => {
@@ -467,205 +460,6 @@ test("Thwip the Villains: tapping a baddie webs it (no-fail cause→effect toy)"
   // Webbing consumes it (no data-toy) so play moves on — and there is no fail state.
   assert.equal(await first.evaluate((el) => el.dataset.toy || ""), "", "a webbed baddie is consumed");
   assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a toy never sets a win/lose state");
-});
-
-// ---------- 🩺 Boo-Boo Clinic: the deep play-through suite ----------
-
-test("Boo-Boo Clinic: exam → playful gags (never a fail) → counted care → sticker → the meadow", async () => {
-  // Deterministic fresh world.
-  await page.evaluate(() => { try { localStorage.removeItem("josh-clinic-v1"); localStorage.removeItem("josh-test-day-offset"); } catch (e) { /* ignore */ } });
-  await page.reload({ waitUntil: "load" });
-  await page.evaluate(() => { location.hash = "#boo-boo-clinic"; });
-  const screen = page.locator("#screen-boo-boo-clinic");
-  await screen.waitFor({ state: "visible" });
-
-  // The harness must see a WIN game at open: zero [data-toy] until the meadow is built.
-  assert.equal(await screen.locator("[data-toy]").count(), 0, "no [data-toy] may exist at open (lazy meadow)");
-
-  // 1) The stethoscope is the first correct step; listening consumes it.
-  const steth = screen.locator(".clinic__steth");
-  assert.equal(await steth.getAttribute("data-correct"), "1", "the stethoscope starts the chain");
-  await steth.evaluate((el) => el.click());
-  assert.equal(await steth.getAttribute("data-correct"), null, "listening consumes the stethoscope step");
-
-  // 2) Exactly one remedy is armed; every OTHER tool is a rewarded gag — never a fail.
-  const armed = screen.locator('.clinic__tool[data-correct="1"]');
-  assert.equal(await armed.count(), 1, "exactly one remedy is armed");
-  const remedyId = await armed.getAttribute("data-tool");
-  const streakBefore = await screen.evaluate((el) => el.dataset.streak || "");
-  const others = screen.locator(`.clinic__tool:not([data-tool="${remedyId}"])`);
-  const n = await others.count();
-  assert.equal(n, 5, "five playful non-remedy tools");
-  for (let i = 0; i < n; i++) await others.nth(i).evaluate((el) => el.click());
-  assert.equal(await screen.locator(".bump").count(), 0, "a playful tool tap is NEVER a bump");
-  assert.equal(await screen.evaluate((el) => el.dataset.streak || ""), streakBefore, "gags never break the clean streak");
-  assert.equal(await screen.locator(`.clinic__tool[data-tool="${remedyId}"]`).getAttribute("data-correct"), "1", "the remedy stays armed through every gag");
-  assert.ok(Number(await screen.evaluate((el) => el.dataset.plays || 0)) >= n, "every gag ticks a play (observably playful)");
-
-  // 3) The remedy moves the correct step onto the PATIENT for counted care taps.
-  await screen.locator(`.clinic__tool[data-tool="${remedyId}"]`).evaluate((el) => el.click());
-  const patient = screen.locator(".clinic__patient");
-  assert.equal(await patient.getAttribute("data-correct"), "1", "care taps happen on the patient itself");
-  const taps = Number(await patient.getAttribute("data-taps-left"));
-  assert.ok(taps >= 4 && taps <= 6, `care taps in [4,6], got ${taps}`);
-  assert.equal(await screen.locator(".clinic__pip").count(), taps, "the visible pile mirrors the taps left (sound-off counter)");
-  for (let i = 0; i < taps; i++) await patient.evaluate((el) => el.click());
-
-  // 4) The boo-boo dissolves; the sticker tray REPLACES the tools (computed
-  // visibility, not just the attribute — the [hidden] rule must really hide).
-  assert.equal(await screen.locator(".clinic__boo").count(), 0, "the boo-boo overlay dissolves on heal");
-  assert.equal(
-    await screen.locator(".clinic__tray").evaluate((el) => getComputedStyle(el).display),
-    "none", "the tool tray must actually disappear at sticker time (hidden must HIDE)"
-  );
-  const stickers = screen.locator('.clinic__sticker[data-correct="1"]');
-  assert.equal(await stickers.count(), 3, "every sticker is a right answer (the choice is Josh's)");
-  const chosen = (await stickers.first().textContent()).trim();
-  await stickers.first().evaluate((el) => el.click());
-  assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "1", "the first heal of a session wins (sticker-book slot)");
-
-  // 5) The meadow holds that friend forever, wearing the exact chosen sticker; an egg was laid.
-  await screen.locator(".clinic__door").evaluate((el) => el.click());
-  const rooms = await screen.locator(".clinic__room").evaluateAll((els) => els.map((el) => getComputedStyle(el).display));
-  assert.equal(rooms.filter((d) => d !== "none").length, 1, "exactly ONE room may be visible at a time (hidden must HIDE)");
-  assert.equal(await screen.locator(".clinic__resident").count(), 1, "the healed friend lives in the meadow");
-  assert.equal((await screen.locator(".clinic__stick--worn").textContent()).trim(), chosen, "the friend wears the exact sticker Josh chose");
-  let world = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-clinic-v1")));
-  assert.equal(world.healed.length, 1, "the world save records the heal");
-  assert.equal(world.healed[0].sticker, chosen, "the sticker choice is saved");
-  assert.ok(world.egg && Number.isFinite(world.egg.laidOnDay), "an egg was laid for a later day");
-
-  // 6) Treats: select one, feed the friend — a happy reaction, and the count persists.
-  const treat = screen.locator(".clinic__treat").first();
-  const treatEmoji = (await treat.textContent()).trim();
-  await treat.evaluate((el) => el.click());
-  await screen.locator(".clinic__resident").first().evaluate((el) => el.click());
-  world = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-clinic-v1")));
-  assert.equal(world.healed[0].fed[treatEmoji], 1, "feeding is remembered per friend per treat");
-  assert.ok(world.egg, "the egg never hatches on the same day it was laid");
-
-  // 7) Back to the clinic: the NEXT patient is already waiting (endless play).
-  await screen.locator(".clinic__door").evaluate((el) => el.click());
-  await page.waitForFunction(() => {
-    const s = document.querySelector("#screen-boo-boo-clinic .clinic__steth");
-    return s && s.dataset.correct === "1";
-  }, null, { timeout: 5000 });
-  assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "1", "the session stays won while play continues forever");
-});
-
-test("Boo-Boo Clinic: the meadow persists across a full page reload", async () => {
-  // The previous test healed one friend; a cold reload must bring them back.
-  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-clinic-v1")));
-  assert.ok(before && before.healed.length >= 1, "precondition: a healed friend exists");
-  await page.reload({ waitUntil: "load" });
-  await page.evaluate(() => { location.hash = "#boo-boo-clinic"; });
-  const screen = page.locator("#screen-boo-boo-clinic");
-  await screen.waitFor({ state: "visible" });
-  await screen.locator(".clinic__door").evaluate((el) => el.click());
-  assert.equal(await screen.locator(".clinic__resident").count(), before.healed.length, "every healed friend survives a reload");
-  assert.equal(
-    (await screen.locator(".clinic__stick--worn").first().textContent()).trim(),
-    before.healed[0].sticker,
-    "the chosen sticker survives a reload"
-  );
-});
-
-test("Boo-Boo Clinic: the egg hatches on the FIRST visit of a LATER day (test time-travel)", async () => {
-  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-clinic-v1")));
-  assert.ok(before.egg, "precondition: an egg is waiting");
-  await page.evaluate(() => { try { localStorage.setItem("josh-test-day-offset", "1"); } catch (e) { /* ignore */ } });
-  await page.reload({ waitUntil: "load" });
-  await page.evaluate(() => { location.hash = "#boo-boo-clinic"; });
-  const screen = page.locator("#screen-boo-boo-clinic");
-  await screen.waitFor({ state: "visible" });
-  await screen.locator(".clinic__door").evaluate((el) => el.click());
-  const world = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-clinic-v1")));
-  assert.equal(world.egg, null, "the egg is consumed by hatching");
-  assert.equal(world.hatched.length, 1, "a surprise critter hatched");
-  assert.equal(
-    await screen.locator(".clinic__resident").count(),
-    world.healed.length + 1,
-    "the hatchling lives in the meadow beside the healed friends"
-  );
-  await page.evaluate(() => { try { localStorage.removeItem("josh-test-day-offset"); } catch (e) { /* ignore */ } });
-});
-
-test("Boo-Boo Clinic: the 5th heal grows the pond in THAT same visit (no reload needed)", async () => {
-  // The Piggy-Bank lesson: the action that COMPLETES a milestone must update
-  // the world Josh sees, not the next session. Seed 4 heals, heal the 5th live.
-  await page.evaluate(() => {
-    const w = { v: 1, healed: [], egg: null, hatched: [] };
-    for (let i = 0; i < 4; i++) w.healed.push({ sp: "🐰", name: "Bunny", kind: "emoji", sticker: "⭐", fed: {} });
-    localStorage.setItem("josh-clinic-v1", JSON.stringify(w));
-    localStorage.removeItem("josh-test-day-offset");
-  });
-  await page.reload({ waitUntil: "load" });
-  await page.evaluate(() => { location.hash = "#boo-boo-clinic"; });
-  const screen = page.locator("#screen-boo-boo-clinic");
-  await screen.waitFor({ state: "visible" });
-  // Drive one full heal through the generic contract.
-  let won = false;
-  for (let i = 0; i < 100 && !won; i++) {
-    won = await screen.evaluate((el) => el.dataset.won === "1");
-    if (won) break;
-    const correct = screen.locator('[data-correct="1"]').first();
-    if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
-    try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
-  }
-  assert.ok(won, "the seeded 5th heal should complete");
-  await screen.locator(".clinic__door").evaluate((el) => el.click());
-  assert.equal(await screen.locator(".clinic__resident").count(), 5, "five friends now live in the meadow");
-  assert.equal(await screen.locator(".clinic__pond").count(), 1, "the pond appears the moment the 5th heal lands");
-});
-
-test("Boo-Boo Clinic: after 3 clean heals, patients bring TWO boo-boos (invisible ramp)", async () => {
-  await page.evaluate(() => { try { localStorage.removeItem("josh-clinic-v1"); localStorage.removeItem("josh-test-day-offset"); } catch (e) { /* ignore */ } });
-  await page.reload({ waitUntil: "load" });
-  await page.evaluate(() => { location.hash = "#boo-boo-clinic"; });
-  const screen = page.locator("#screen-boo-boo-clinic");
-  await screen.waitFor({ state: "visible" });
-  // Heal 3 patients through the generic contract (each is a clean roundWin →
-  // streak 3). A bigger budget than the harness: the 1s ambulance gap between
-  // patients idles ~50 iterations each.
-  for (let i = 0; i < 400; i++) {
-    const healed = await page.evaluate(() => {
-      try { return (JSON.parse(localStorage.getItem("josh-clinic-v1")) || { healed: [] }).healed.length; } catch (e) { return 0; }
-    });
-    if (healed >= 3) break;
-    const correct = screen.locator('[data-correct="1"]').first();
-    if ((await correct.count()) === 0) { await page.waitForTimeout(25); continue; }
-    try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(25); }
-  }
-  assert.equal(await screen.evaluate((el) => el.dataset.streak), "3", "three clean heals grow the streak to 3");
-  // The NEXT patient must arrive with two boo-boos — and both must be healable.
-  await page.waitForFunction(() => {
-    const s = document.querySelector("#screen-boo-boo-clinic .clinic__steth");
-    return s && s.dataset.correct === "1";
-  }, null, { timeout: 5000 });
-  assert.equal(await screen.locator(".clinic__boo").count(), 2, "a ramped patient brings TWO silly boo-boos");
-  let won4 = false;
-  for (let i = 0; i < 200 && !won4; i++) {
-    const healed = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-clinic-v1")).healed.length);
-    if (healed >= 4) { won4 = true; break; }
-    const correct = screen.locator('[data-correct="1"]').first();
-    if ((await correct.count()) === 0) { await page.waitForTimeout(25); continue; }
-    try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(25); }
-  }
-  assert.ok(won4, "a two-boo-boo patient is fully healable through the same chain");
-});
-
-test("Boo-Boo Clinic: a corrupt world save can never crash the game — it heals itself", async () => {
-  await page.evaluate(() => { localStorage.setItem("josh-clinic-v1", '{"v":1,"healed":[{"broken":tru'); });
-  await page.reload({ waitUntil: "load" });
-  await page.evaluate(() => { location.hash = "#boo-boo-clinic"; });
-  const screen = page.locator("#screen-boo-boo-clinic");
-  await screen.waitFor({ state: "visible" });
-  // The clinic must open playable (fresh world), not dead.
-  assert.equal(await screen.locator('.clinic__steth[data-correct="1"]').count(), 1, "a corrupt save starts a fresh, playable clinic");
-  await screen.locator(".clinic__door").evaluate((el) => el.click());
-  assert.equal(await screen.locator(".clinic__resident").count(), 0, "the fresh world has an empty meadow (not a crash)");
-  // Leave a clean world so later tests aren't affected.
-  await page.evaluate(() => { try { localStorage.removeItem("josh-clinic-v1"); } catch (e) { /* ignore */ } });
 });
 
 test("the Music Pad actually plays notes on iOS (audio fires only once the context is RUNNING)", async () => {

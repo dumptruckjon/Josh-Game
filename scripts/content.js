@@ -473,60 +473,6 @@
       [{ x: 70, y: 6 }, { x: 26, y: 27 }, { x: 68, y: 50 }, { x: 30, y: 72 }, { x: 60, y: 93 }],
       [{ x: 45, y: 6 }, { x: 72, y: 28 }, { x: 25, y: 50 }, { x: 66, y: 72 }, { x: 35, y: 93 }],
     ],
-
-    // ---- 🩺 Boo-Boo Clinic (the BIG entertainment game) ----
-    // TONE LAW: every boo-boo is SILLY, never sad — splotches, bubbles, stars,
-    // music notes. Patients smile at all times, including while "sick". A
-    // content guardrail test scans the clinic code for sad faces and fails if
-    // one could ever render.
-    CLINIC: {
-      // The 6 tools on the tray. `heals` names the ONE ailment class the tool
-      // fixes; every other tap is a funny class-based gag (never a fail). The
-      // feather heals nothing — it is ALWAYS pure comedy, on every patient.
-      // gagIcon pops over the patient on a playful non-remedy tap (always a
-      // HAPPY face/shape — tone law); careIcon/careSay drive the counted
-      // care taps once the matching remedy is found.
-      TOOLS: [
-        { id: "sponge", emoji: "🧼", name: "soapy sponge", heals: "dirty", gagIcon: "🫧", gagSay: "Bubble beard! Hee hee!", careIcon: "🫧", careSay: "Scrub, scrub!" },
-        { id: "brush", emoji: "🪥", name: "fluffy brush", heals: "tangled", gagIcon: "✨", gagSay: "Ooh! Fancy hair!", careIcon: "✨", careSay: "Brush, brush!" },
-        { id: "bandage", emoji: "🩹", name: "sticky bandage", heals: "ouchie", gagIcon: "🎀", gagSay: "Fancy! A bandage bow!", careIcon: "🩹", careSay: "Stick, stick!" },
-        { id: "spoon", emoji: "🥣", name: "yummy soup", heals: "rumbly", gagIcon: "😋", gagSay: "Num num! A soup mustache!", careIcon: "🥄", careSay: "Yummy soup!" },
-        { id: "boo", emoji: "🎉", name: "party popper", heals: "hiccups", gagIcon: "😆", gagSay: "Boo! Hee hee hee!", careIcon: "🎈", careSay: "Boo! Boo!" },
-        { id: "feather", emoji: "🪶", name: "tickle feather", heals: null, gagIcon: "🤭", gagSay: "Tickle tickle tickle!", careIcon: "🪶", careSay: "Tickle!" },
-      ],
-      // The 5 silly boo-boo classes. `say` is spoken after the stethoscope
-      // listen ("Bunny has ..."); the overlay art is JoshArt.booBoo(id, variant).
-      AILMENTS: [
-        { id: "dirty", say: "muddy splotches", icon: "🟤" },
-        { id: "tangled", say: "a tangly leaf", icon: "🍃" },
-        { id: "ouchie", say: "a little bonk", icon: "⭐" },
-        { id: "rumbly", say: "a rumbly tummy", icon: "🎵" },
-        { id: "hiccups", say: "the hiccups", icon: "🫧" },
-      ],
-      // Reward stickers (any tap is right; the choice is Josh's and it is
-      // remembered forever on that friend in the meadow).
-      STICKERS: ["❤️", "⭐", "🌈"],
-      // Meadow treat tray: feed any treat to any healed friend — every combo
-      // earns a happy class reaction (fed counts persist per friend).
-      TREATS: [
-        { emoji: "🥕", name: "carrot", say: "Crunch crunch crunch!" },
-        { emoji: "🍯", name: "honey", say: "Mmm! Sticky licky!" },
-        { emoji: "🧊", name: "ice cube", say: "Brrr! Hee hee!" },
-        { emoji: "🍌", name: "banana", say: "Yum yum yum!" },
-        { emoji: "🍪", name: "cookie", say: "Cookie crumbs everywhere!" },
-      ],
-      // Animal patients (each emoji must also live in ANIMALS so the picture
-      // names itself — a guardrail test enforces it). Pups, a little dump
-      // truck, and a hero cameo join the rotation in games-clinic.js.
-      PATIENT_ANIMALS: ["🐰", "🐶", "🐱", "🦁", "🐸", "🐘", "🐵", "🐷", "🐧", "🦊", "🐻", "🦄"],
-      // Surprise critters the meadow egg can hatch (one per later-day return).
-      HATCHLINGS: [
-        { emoji: "🐤", name: "Chick" },
-        { emoji: "🐥", name: "Duckling" },
-        { emoji: "🐢", name: "Baby Turtle" },
-        { emoji: "🦋", name: "Butterfly" },
-      ],
-    },
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

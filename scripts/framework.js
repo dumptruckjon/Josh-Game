@@ -214,10 +214,6 @@
       firstTryStreak = 0; missedSinceWin = false; // fresh game → fresh difficulty
       delete screen.dataset.streak;
       againBtn.hidden = true;
-      // A fresh round must never show the PREVIOUS win's celebration pop (it
-      // lives 1700ms — a quick "Again" tap would leave it hovering over the new
-      // round, and a stale pop can shadow the fresh one in tests).
-      screen.querySelectorAll(".win-hero").forEach((n) => n.remove());
       stage.innerHTML = "";
       try { def.start(api); } catch (e) { console.error("Josh: game '" + def.id + "' failed:", e); }
     }

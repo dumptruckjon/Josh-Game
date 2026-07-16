@@ -166,21 +166,7 @@ logic guardrail asserting every block is height 1;
 **personalization has ONE owner** — `JoshBuddy` (in `buddy.js`) owns the
 `josh-buddy` token and is the single source for the home companion AND the win
 celebration art, so the "which character represents Josh" choice can never
-disagree between the two → guardrail-locked;
-**the `hidden` ATTRIBUTE silently loses to any author `display:` rule** (only
-the UA sheet maps it to `display:none`, and author styles always beat the UA
-sheet) — a "hidden" tool tray carrying `.choices`' `display:grid` stayed fully
-visible while the sticker tray appeared under it, and BOTH clinic rooms
-rendered at once; worse, the ≥75px mobile audit *skips* `[hidden]` elements, so
-it was structurally blind to this (screenshots caught it) → global
-`[hidden] { display: none !important; }` in `main.css` + a guardrail asserting
-the rule exists + e2e asserts on COMPUTED display (not the attribute);
-**a win's celebration pop (`.win-hero`) outlives its round by 1700ms** — a
-quick "Again" (or a test winning the same game twice in quick succession) left
-the previous pop hovering over the fresh round, and `querySelector(".win-hero")`
-grabbed the STALE one (the source of a recurring buddy-test flake) → the
-framework's `start()` now removes lingering `.win-hero` nodes, and the buddy
-test reads the LAST pop atomically with the won flag.
+disagree between the two → guardrail-locked.
 When you fix the next thing, extend this list.
 
 ---
@@ -215,7 +201,6 @@ tooling.
 │   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, 2 co-op games
 │   ├── games-fun.js            # Self-registering games: bubbles, peekaboo, balloon, music pad
 │   ├── games-find.js           # Self-registering games: find-the-heroes, spot-the-one, count, dot-to-dot, rescue, tic-tac-toe
-│   ├── games-clinic.js         # 🩺 Boo-Boo Clinic — THE BIG GAME (endless no-fail vet clinic + persistent meadow; window.JoshClinic owns the josh-clinic-v1 world save)
 │   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
@@ -286,30 +271,7 @@ category's games:
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
   Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
   Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey), **Thwip
-  the Villains** (web up the silly baddies — no-fail cause→effect, uses `VILLAINS`),
-  **🩺 Boo-Boo Clinic** — THE BIG GAME (see below).
-
-> **🩺 Boo-Boo Clinic (`games-clinic.js`)** is the site's one *destination* game,
-> built for 30+ minute entertainment-first sessions (chosen by a multi-agent
-> brainstorm + judge panel). Doctor Josh runs an endless animal clinic: an
-> ambulance (driven by a rotating friend) brings a silly patient — animals,
-> rescue pups, and (deep in a session, via `shouldRamp(6)`) a Little Dump Truck
-> or a hero. Stethoscope → the boo-boo names itself → a 6-tool tray where EVERY
-> tool does something funny (a non-remedy tap is a rewarded gag, never a miss —
-> this game never calls the gentle-miss helper, by design + guardrail) → the
-> matching remedy starts 4–6 counted care-taps on the patient → the boo-boo
-> dissolves → Josh picks a sticker (all three are "right") → the healed friend
-> joy-dances into a **persistent meadow** (`josh-clinic-v1`, owned solely by
-> `window.JoshClinic`; validated on load by the pure
-> `JoshLogic.validateClinicStore` so a corrupt save just starts fresh; cleared
-> by the grown-ups reset). The meadow grows forever: every healed friend lives
-> there wearing the exact sticker Josh chose, a treat tray feeds them (fed
-> counts persist), milestones appear (pond at 5 heals, treehouse at 10, rainbow
-> at 20), and after a heal an egg is laid that **hatches a surprise critter on
-> the first visit of a LATER day** (`JoshLogic.dayIndex`/`eggHatches`; e2e
-> time-travels via the `josh-test-day-offset` hook). The meadow is built
-> LAZILY on the door tap so the harness sees a win game at open (zero
-> `[data-toy]`), and two/three-boo-boo patients arrive once Josh ramps.
+  the Villains** (web up the silly baddies — no-fail cause→effect, uses `VILLAINS`).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team
