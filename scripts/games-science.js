@@ -113,10 +113,18 @@
     },
   });
 
-  // ---- Make an Island (landforms — a gentle [P] "build it, name it") ----
-  // Tap the middle cells to raise the land; the shape completes, a picture
-  // pops, and audio names the landform. Corners stay the base (water/land) so
-  // the island/lake contrast is visible. Wrong (corner) taps are a soft bump.
+  // ---- Make an Island (landforms — a gentle [P] "place it, name it") ----
+  // A 3×3 top-down map that MATCHES the words: the whole grid starts as the
+  // surround (all ocean for an island, all field for a lake) and Josh taps the
+  // MIDDLE to place the feature — so the result is literally "land with water
+  // ALL AROUND" (island) / "water with land all around" (lake). The middle is
+  // the only correct tap ("Tap the middle" is now true); a tap on the water/
+  // land around is a soft nudge, never a fail. When the feature lands, the
+  // surround ripples ("…all around!"), a friendly picture pops ON the landform,
+  // and audio names it. The reveal celebrates the landform you just made and
+  // ONLY advances after it has played (so last round's picture never bleeds
+  // onto the next round's grid — the old duck-over-mountain bug).
+  const LF_CENTER = 4; // the middle of the 3×3 — the feature you place
   F.register({
     id: "landform-maker",
     icon: "🏝️",
@@ -124,8 +132,9 @@
     skill: "landforms [P]",
     start(api) {
       const LFS = C.LANDFORMS || [];
-      const ROUNDS = Math.min(4, LFS.length * 2 || 4);
-      let round = 0, remaining = 0, current = null;
+      if (!LFS.length) return;
+      const ROUNDS = 3; // island → lake → island (a short, gentle arc)
+      let round = 0, current = null, revealIdx = 0;
       const label = api.el("div", { class: "lf__label" });
       const wrap = api.el("div", { class: "lf__wrap" });
       const grid = api.el("div", { class: "lf__grid" });
@@ -135,35 +144,40 @@
 
       function newRound() {
         current = LFS[round % LFS.length];
-        const fillSet = new Set(current.fill);
-        remaining = current.fill.length;
         const a = L.article(current.name); // "a Island" → "an Island"
         label.textContent = "Make " + a + " " + current.name + "!";
         api.setPrompt("Make " + a + " " + current.name + "! Tap the middle.", ["👆", "🏝️", "😊"]);
-        api.speak(); api.say("Make " + a + " " + current.name);
+        api.speak(); api.say("Make " + a + " " + current.name + ". Tap the middle.");
         grid.innerHTML = "";
+        reveal.classList.remove("lf__reveal--on"); reveal.textContent = "";
         for (let i = 0; i < 9; i++) {
-          const isTarget = fillSet.has(i);
+          const isCenter = i === LF_CENTER;
           const cell = api.el("button", {
-            class: "lf__cell tap", type: "button",
-            dataset: isTarget ? { correct: "1" } : {}, aria: { label: isTarget ? "middle" : "edge" },
-          }, [current.base]);
+            class: "lf__cell tap" + (isCenter ? " lf__cell--target" : ""), type: "button",
+            dataset: isCenter ? { correct: "1" } : {},
+            aria: { label: isCenter ? "middle" : "around" },
+          }, [current.base]); // every cell starts as the surround (all around)
           cell.addEventListener("click", () => {
-            if (!isTarget) { api.tryAgain(cell); return; }
+            if (!isCenter) { api.tryAgain(cell); return; } // the water/land around: gentle nudge to the middle
             if (cell.dataset.done) return;
-            cell.dataset.done = "1"; delete cell.dataset.correct;
-            cell.textContent = current.tile; cell.classList.remove("pop"); void cell.offsetWidth; cell.classList.add("pop");
-            remaining -= 1;
-            if (remaining <= 0) {
-              // Show the landform reveal and (re)start its fade — a fixed overlay
-              // that the next round's grid rebuild does NOT clear.
-              reveal.textContent = current.reveal;
-              reveal.classList.remove("lf__reveal--on"); void reveal.offsetWidth; reveal.classList.add("lf__reveal--on");
-              api.say(current.say);
-              round += 1;
-              if (round >= ROUNDS) api.win({ say: "You made all the landforms!" });
-              else { api.roundWin(); newRound(); } // new grid ready instantly; reveal fades over it
-            }
+            cell.dataset.done = "1"; delete cell.dataset.correct; cell.classList.remove("lf__cell--target");
+            // Place the feature in the middle; the surround (already all around) ripples.
+            cell.textContent = current.feature;
+            cell.classList.remove("pop"); void cell.offsetWidth; cell.classList.add("pop");
+            grid.querySelectorAll(".lf__cell").forEach((c, ci) => {
+              if (ci === LF_CENTER) return;
+              c.classList.remove("lf__around--pulse"); void c.offsetWidth; c.classList.add("lf__around--pulse");
+            });
+            // A friendly picture pops ON the landform + the spoken definition.
+            reveal.textContent = current.reveals[revealIdx % current.reveals.length];
+            revealIdx += 1;
+            reveal.classList.remove("lf__reveal--on"); void reveal.offsetWidth; reveal.classList.add("lf__reveal--on");
+            api.say(current.say);
+            round += 1;
+            if (round >= ROUNDS) { api.win({ say: "You made all the landforms!" }); return; }
+            api.roundWin();
+            // Let the reveal celebrate THIS landform, THEN build the next round.
+            setTimeout(() => { if (grid.isConnected) newRound(); }, 1000);
           });
           grid.appendChild(cell);
         }

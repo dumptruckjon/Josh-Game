@@ -162,19 +162,26 @@ test("deduction attributes are distinct so a color+item clue is unique", () => {
 });
 
 // ---------- Landforms build config is valid (3x3 plus-shape, known cells) ----------
-test("landforms fill valid middle cells and carry a reveal + spoken name", () => {
+test("landforms match their definition: a center feature with the surround all around", () => {
   assert.ok(content.LANDFORMS.length >= 2, "need at least two landforms");
-  const CORNERS = new Set([0, 2, 6, 8]);
   for (const lf of content.LANDFORMS) {
-    assert.ok(lf.name && lf.base && lf.tile && lf.reveal, `${lf.name} needs base/tile/reveal`);
-    assert.ok(lf.say && lf.say.length > 8, `${lf.name} needs a spoken description`);
-    assert.ok(lf.fill.length >= 3, `${lf.name} needs several middle cells to fill`);
-    for (const i of lf.fill) {
-      assert.ok(i >= 0 && i <= 8, `${lf.name} fill index out of range`);
-      assert.ok(!CORNERS.has(i), `${lf.name} should leave corners as the base (so the border shows)`);
-    }
-    assert.equal(new Set(lf.fill).size, lf.fill.length, `${lf.name} fill has no duplicates`);
+    // The picture must be the INVERSE of the old plus-fill: a `feature` placed in
+    // the middle, surrounded on every side by a DIFFERENT `base` — so the grid
+    // literally reads "<feature> with <base> all around".
+    assert.ok(lf.name && lf.base && lf.feature, `${lf.name} needs a name, a base (surround) and a feature (middle)`);
+    assert.notEqual(lf.base, lf.feature, `${lf.name}: the middle feature must differ from the surround (or nothing shows)`);
+    assert.ok(Array.isArray(lf.reveals) && lf.reveals.length >= 1, `${lf.name} needs at least one reveal picture`);
+    assert.ok(lf.reveals.every((r) => typeof r === "string" && r.length), `${lf.name} reveals must be non-empty strings`);
+    assert.ok(lf.say && /all around/i.test(lf.say), `${lf.name}'s spoken line must teach the "all around" concept`);
   }
+  // Island = land in water; Lake = water in land (the two must be true inverses).
+  const island = content.LANDFORMS.find((l) => l.name === "Island");
+  const lake = content.LANDFORMS.find((l) => l.name === "Lake");
+  assert.ok(island && lake, "keep both Island and Lake");
+  assert.equal(island.base, lake.feature, "the island's water-surround is the lake's water-middle");
+  assert.equal(island.feature, lake.base, "the island's land-middle is the lake's land-surround");
+  // Mountain was intentionally dropped (height can't be shown top-down).
+  assert.ok(!content.LANDFORMS.some((l) => l.name === "Mountain"), "Mountain should be gone (not top-down representable)");
 });
 
 test("rescue pool is several distinct friendly faces", () => {

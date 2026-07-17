@@ -296,13 +296,17 @@
     // ---- Web Rescue Reveal — friendly faces to free from the webs ----
     RESCUE_POOL: ["🐶", "🐱", "🐰", "🐦", "🐹", "🐢", "🦋", "🐝", "🦸", "🕷️"],
 
-    // ---- Make an Island (landform maker) — build the shape, name it ----
-    // 3×3 grid: fill the plus (indices 1,3,4,5,7) with `tile`, corners stay the
-    // base. The reveal + spoken name teach the concept (gentle [P] exposure).
+    // ---- Make an Island (landform maker) — place the feature, name it ----
+    // A 3×3 top-down map that MATCHES the definition. The surround (`base`) fills
+    // the whole grid as context (all ocean / all field); Josh taps the MIDDLE to
+    // place the `feature`, so the result is literally "land with water all around"
+    // (island) or "water with land all around" (lake). A friendly `reveals` item
+    // then pops ON the landform and the spoken `say` names it (gentle [P]
+    // exposure). Mountain was dropped — height can't be shown on a flat top-down
+    // grid, so it never read as a mountain.
     LANDFORMS: [
-      { name: "Island", base: "💧", fill: [1, 3, 4, 5, 7], tile: "🟩", reveal: "🌴", say: "That's an island — land with water all around!" },
-      { name: "Lake", base: "🟩", fill: [1, 3, 4, 5, 7], tile: "💧", reveal: "🦆", say: "That's a lake — water with land all around!" },
-      { name: "Mountain", base: "🟩", fill: [1, 3, 4, 5, 7], tile: "🟫", reveal: "⛰️", say: "That's a mountain — tall, high-up land!" },
+      { name: "Island", base: "💧", feature: "🟩", reveals: ["🌴", "🏖️", "⛵"], say: "That's an island — land with water all around!" },
+      { name: "Lake", base: "🟩", feature: "💧", reveals: ["🦆", "🐟", "🛶"], say: "That's a lake — water with land all around!" },
     ],
 
     // ---- Continents (Montessori colors + a signature animal that lives there) ----

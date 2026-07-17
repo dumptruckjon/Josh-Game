@@ -504,6 +504,56 @@ test("the 4 endless toys are each collectible — they reach a gentle one-time w
   }
 });
 
+test("Make an Island: tap the MIDDLE to place the feature, surrounded on all sides", async () => {
+  await openGame("landform-maker");
+  const screen = page.locator("#screen-landform-maker");
+  const cells = screen.locator(".lf__cell");
+  await cells.first().waitFor({ state: "visible" });
+  assert.equal(await cells.count(), 9, "a 3×3 landform grid");
+
+  // The ONLY correct tap is the centre (index 4) — so "Tap the middle" is now true.
+  assert.equal(await screen.locator('.lf__cell[data-correct="1"]').count(), 1, "exactly one target");
+  const targetIndex = await screen.evaluate(() =>
+    [...document.querySelectorAll("#screen-landform-maker .lf__cell")].findIndex((c) => c.dataset.correct === "1")
+  );
+  assert.equal(targetIndex, 4, "the target is the CENTRE of the 3×3");
+
+  // The grid starts as one surround everywhere (all ocean / all field).
+  const before = await cells.evaluateAll((els) => els.map((e) => e.textContent));
+  const base = before[0];
+  assert.ok(before.every((t) => t === base), "the grid starts as a single surround (the water/land 'all around')");
+
+  // Tapping AROUND the middle is a gentle nudge — never a win, and it changes nothing.
+  await cells.nth(0).evaluate((el) => el.click());
+  assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "tapping the surround never wins");
+  assert.equal(await cells.nth(0).textContent(), base, "a surround tap leaves the surround unchanged");
+
+  // Tap the MIDDLE → it becomes the feature, with the base on ALL 8 sides. Snapshot
+  // atomically (the round auto-advances ~1s later) so we read THIS landform.
+  await cells.nth(4).evaluate((el) => el.click());
+  const snap = await screen.evaluate(() => {
+    const el = document.getElementById("screen-landform-maker");
+    const texts = [...el.querySelectorAll(".lf__cell")].map((c) => c.textContent);
+    const rev = el.querySelector(".lf__reveal");
+    return { texts, reveal: rev ? rev.textContent : "" };
+  });
+  assert.notEqual(snap.texts[4], base, "the middle becomes the landform feature");
+  assert.ok(snap.texts.filter((_, i) => i !== 4).every((t) => t === base),
+    "the feature is surrounded by the base on ALL sides (matches 'X with Y all around')");
+  assert.ok(snap.reveal.length > 0, "a reveal picture pops on the landform it celebrates");
+
+  // Finish the same way — tap the middle each round — to a win.
+  let won = false;
+  for (let i = 0; i < 160 && !won; i++) {
+    won = await screen.evaluate((el) => el.dataset.won === "1");
+    if (won) break;
+    const c = screen.locator('.lf__cell[data-correct="1"]').first();
+    if ((await c.count()) === 0) { await page.waitForTimeout(20); continue; }
+    try { await c.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
+  }
+  assert.ok(won, "Make an Island reaches a win by tapping the middle each round");
+});
+
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

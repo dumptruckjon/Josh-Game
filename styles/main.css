@@ -867,8 +867,16 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 5rem; pointer-events: none; opacity: 0;
 }
-.lf__reveal--on { animation: lfReveal 1.4s ease-out; }
+.lf__reveal--on { animation: lfReveal 0.9s ease-out; } /* completes before the 1s round advance */
 @keyframes lfReveal { 0% { opacity: 0; transform: scale(0.4); } 30% { opacity: 1; transform: scale(1.1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+/* The middle cell invites the tap ("Tap the middle"); the surround ripples when the feature lands ("…all around!"). */
+.lf__cell--target { animation: lfTarget 1.2s ease-in-out infinite; }
+@keyframes lfTarget {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(0,0,0,0.06), 0 0 0 0 rgba(43,108,255,0); }
+  50% { box-shadow: inset 0 0 0 3px rgba(43,108,255,0.5), 0 0 0 7px rgba(43,108,255,0.28); }
+}
+.lf__around--pulse { animation: lfAround 0.5s ease-out; }
+@keyframes lfAround { 0%, 100% { transform: scale(1); } 45% { transform: scale(0.86); } }
 
 /* ---------- Bird's-Eye Blocks (top-down spatial) ---------- */
 .be__scene { width: 100%; max-width: 260px; margin: 0 auto 12px; }
@@ -1044,6 +1052,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   .win-hero, .grow--pop, .mascot--cheer, .mascot--wiggle { animation: none !important; transform: none !important; }
   /* reveals must still be VISIBLE without motion, not stuck invisible */
   .dot__reveal--on, .lf__reveal--on, .cbn__reveal--on { animation: none !important; opacity: 1 !important; }
+  .lf__cell--target, .lf__around--pulse { animation: none !important; transform: none !important; }
   .buddy__pick:active, .buddyc__opt:active { transform: none !important; }
   .villain__guy { animation: none !important; }
   .villain:active { transform: none !important; }
