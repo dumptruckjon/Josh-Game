@@ -65,6 +65,33 @@ listed as fixed above.
   "BLOOP" (rising pitch) in counting games; a **Silly Sounds** toy; animal
   *sounds* in Hi Animals (it currently speaks the name but plays no animal sound).
 
+## 🎯 APPROVED DIRECTION — "Road to 100 stickers" slate (July 2026 brainstorm)
+
+Goal: 84 → **100 games**. 16 core ideas, all tap-only / no-fail / harness-ready,
+each filling a VERIFIED gap (grep-checked absent from the catalog):
+
+- **Science:** 🎨 Mix It! Paint Lab (color mixing, predict the result) ·
+  🛁 Sink or Float? (predict→test) · 🌱 Plant or Animal? (sorter engine) ·
+  🐣 Mama & Baby (match baby↔mama)
+- **Numbers:** 🍪 Fair Shares (deal cookies equally — early division + fairness) ·
+  👀 Quick Peek (subitizing behind a self-paced cloud, NO timer)
+- **Letters:** 🚂 Alphabet Train (letter ORDER: A B _ D) · 🔎 Letter Hunt
+  (pop every matching letter balloon — goes in Find It)
+- **Thinking:** 🧩 Which Piece Fits? (tap-only jigsaw / geometry cabinet) ·
+  ☁️ Who Hid? (what-disappeared working memory) · 🥁 Copy My Beat
+  (echo a 2–3 drum sequence — order only, never timing)
+- **Calm & Friends (his real SEL edges, currently 0 games):** 😊 How Do They
+  Feel? (feeling faces + a helping breath) · 🤝 Kind Helpers (tap the kind
+  choice) · 📅 Day Train (days of the week)
+- **Fun & Play:** 🌦️ Dress Me! (weather → the friend visibly gets dressed) ·
+  🌈 Season Windows (match scenes to seasons)
+
+Alternates: 📏 Longer or Shorter? (measurement) · 🥛 Where From? (food origins).
+Bar for every one: picture names itself, spoken+icon prompts, a visible
+transformation as the reward, one unit-tested logic.js function, and a
+content.test.js truth table (mix results / float facts / pairs / day order /
+feeling mappings) so no answer can silently go wrong.
+
 ## 🚫 Deliberately avoid
 
 - **Real Faces & Real Things** (parent-uploaded photos populating the games).
