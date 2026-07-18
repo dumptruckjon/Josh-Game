@@ -1020,4 +1020,54 @@
       newRound();
     },
   });
+
+  // ---- Number Line Hop (a frog sits on the missing number) [M/W] ----
+  F.register({
+    id: "line-hop",
+    icon: "🐸",
+    title: "Number Line Hop",
+    skill: "numbers on a line [M/W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4;
+      let round = 0, lastStart = -1, r = null;
+      const line = api.el("div", { class: "line__row", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(line, chips);
+      function newRound() {
+        const ramp = api.shouldRamp(2);
+        const lo = ramp ? 8 : 0, hi = ramp ? 20 : 10;
+        const list = []; for (let n = lo; n <= hi; n++) list.push(String(n));
+        r = L.makeOrderTrain(list, undefined, { window: 4, lastStart });
+        lastStart = r.start;
+        api.setPrompt("Which number is missing?", ["🐸", "🔢", "👉"]);
+        api.speak();
+        line.innerHTML = "";
+        r.items.forEach((v, i) => {
+          const cell = api.el("div", { class: "line__tile" + (i === r.blankIdx ? " line__tile--blank" : "") });
+          if (i === r.blankIdx) cell.innerHTML = '<span class="line__frog">🐸</span><span class="line__q">?</span>';
+          else cell.textContent = v;
+          line.appendChild(cell);
+        });
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.value },
+          }, [ch.value]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            const blank = line.querySelector(".line__tile--blank");
+            if (blank) { blank.textContent = r.answer; blank.classList.remove("line__tile--blank"); blank.classList.add("pop"); }
+            api.say(r.answer + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know the number line!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

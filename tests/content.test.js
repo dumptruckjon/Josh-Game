@@ -584,3 +584,46 @@ test("season items are truthful and belong to exactly one season", () => {
     }
   }
 });
+
+// ================= Road to 140 — Wave 1 truth tables =================
+test("W1 opposites: real opposite pairs; each concept in exactly one pair", () => {
+  const P = content.OPPOSITE_PAIRS;
+  assert.ok(P.length >= 6);
+  const words = [], emojis = [];
+  for (const p of P) {
+    assert.ok(p.a && p.b && p.ae && p.be, "each pair needs word+emoji on both sides");
+    assert.notEqual(p.a, p.b);
+    words.push(p.a, p.b); emojis.push(p.ae, p.be);
+  }
+  assert.equal(new Set(words).size, words.length, "every concept appears once (so no distractor is also a valid opposite)");
+  assert.equal(new Set(emojis).size, emojis.length, "every emoji distinct (a distractor never equals the prompt emoji)");
+});
+
+test("W1 tracks: each track type & each animal is unique (unambiguous inference)", () => {
+  const T = content.TRACKS;
+  assert.ok(T.length >= 4);
+  assert.equal(new Set(T.map((t) => t.track)).size, T.length, "track types unique — the drawn track identifies ONE animal");
+  assert.equal(new Set(T.map((t) => t.animal)).size, T.length, "animals unique");
+});
+
+test("W1 animal sounds: sounds unique, animals unique", () => {
+  const S = content.ANIMAL_SOUNDS;
+  assert.ok(S.length >= 5);
+  assert.equal(new Set(S.map((s) => s.sound)).size, S.length, "sounds unique");
+  assert.equal(new Set(S.map((s) => s.animal)).size, S.length, "animals unique");
+  for (const s of S) assert.ok(/^[A-Z]+$/.test(s.sound), `${s.sound} should be an all-caps decodable sound word`);
+});
+
+test("W1 night/day + fast/slow sorters: single-bin items + spoken whys", () => {
+  for (const setArr of [content.NIGHT_DAY_SETS, content.FAST_SLOW_SETS]) {
+    for (const set of setArr) {
+      const all = [];
+      for (const bin of set.bins) {
+        assert.ok(bin.why && bin.why.length > 0, `${set.name} ${bin.label} needs a spoken why`);
+        assert.ok(bin.items.length >= 2);
+        all.push(...bin.items);
+      }
+      assert.equal(new Set(all).size, all.length, `${set.name}: an item must sit in exactly ONE bin`);
+    }
+  }
+});

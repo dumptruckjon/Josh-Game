@@ -861,4 +861,90 @@
       newRound();
     },
   });
+
+  // ---- Team Story Time (2 players take turns ordering a story) [W] ----
+  F.register({
+    id: "team-story",
+    icon: "📖",
+    title: "Team Story Time (2 players)",
+    skill: "co-op / sequencing [W]",
+    start(api) {
+      const C = api.C;
+      const L = window.JoshLogic;
+      const ROUNDS = 2;
+      let round = 0, step = 0, turn = 0;
+      let friend = api.friend(); if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️", art: friend.art }];
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const track = api.el("div", { class: "story__track" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(turnEl, track, choices);
+      function newRound() {
+        const r = L.makeStoryOrder(C.STORY_SEQUENCES);
+        step = 0;
+        api.setPrompt("Take turns! What happens first, next, last?", ["1️⃣", "2️⃣", "3️⃣"]);
+        api.speak();
+        coopTurn(turnEl, players[turn], " — your turn!");
+        track.innerHTML = "";
+        for (let i = 0; i < r.order.length; i++) track.appendChild(api.el("span", { class: "story__slot", aria: { hidden: "true" } }, [String(i + 1)]));
+        choices.innerHTML = "";
+        r.tiles.forEach((tile, idx) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: tile.emoji,
+            dataset: tile.rank === 0 ? { correct: "1" } : {}, aria: { label: "picture" },
+          });
+          b.addEventListener("click", () => {
+            if (tile.rank !== step) { api.tryAgain(b); return; }
+            b.disabled = true; b.classList.add("choice--used"); delete b.dataset.correct;
+            track.children[step].textContent = tile.emoji;
+            step += 1;
+            turn = turn === 0 ? 1 : 0;
+            if (step >= r.tiles.length) {
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You told the whole story together!" });
+              else { api.roundWin(); newRound(); }
+            } else {
+              coopTurn(turnEl, players[turn], " — your turn!");
+              [...choices.children].forEach((c, i) => { if (!c.disabled && r.tiles[i].rank === step) c.dataset.correct = "1"; else if (!c.disabled) delete c.dataset.correct; });
+            }
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Quiet Garden (a calm cause→effect toy; buds bloom with a soft note) [M] ----
+  F.register({
+    id: "garden",
+    icon: "🌷",
+    title: "Quiet Garden",
+    skill: "calm / cause→effect [M]",
+    start(api) {
+      const A = window.JoshAudio || { tone() {}, unlock() {} };
+      const NOTES = [330, 392, 440, 494, 523];
+      const FLOWERS = ["🌷", "🌸", "🌼", "🌺", "🌻"];
+      const pad = api.el("div", { class: "choices choices--3 garden" });
+      api.stage.append(pad);
+      api.setPrompt("Tap a bud and watch it bloom.", ["🌱", "👆", "😌"]);
+      api.speak();
+      pad.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); pad.removeEventListener("pointerdown", warm); }, { once: true });
+      let bloomed = 0, won = false;
+      for (let i = 0; i < 5; i++) {
+        const bud = api.el("button", { class: "choice garden__bud tap", type: "button", dataset: { toy: "1" }, aria: { label: "flower bud" } }, ["🌱"]);
+        let open = false;
+        bud.addEventListener("click", () => {
+          api.tickPlay();
+          if (!open) {
+            open = true; bud.textContent = FLOWERS[i]; bud.classList.add("garden__bud--open");
+            if (A.tone) A.tone(NOTES[i], { duration: 0.5 });
+            bloomed += 1;
+            if (bloomed >= 5 && !won) { won = true; api.win({ say: "What a peaceful garden." }); }
+          } else { open = false; bud.textContent = "🌱"; bud.classList.remove("garden__bud--open"); }
+        });
+        pad.appendChild(bud);
+      }
+    },
+  });
 })();

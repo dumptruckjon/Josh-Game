@@ -77,6 +77,8 @@
   sorter({ id: "magnet-magic", icon: "🧲", title: "Will It Stick?", skill: "magnetic or not [M]", sets: C.MAGNET_SETS, prompt: "Will the magnet grab it?", icons: ["👀", "🧲", "👉"] });
   sorter({ id: "blue-planet", icon: "🌊", title: "Land or Water?", skill: "land & water [M]", sets: C.BLUE_PLANET_SETS, prompt: "Is it land or water?", icons: ["👀", "🌊", "👉"] });
   sorter({ id: "plant-animal", icon: "🌿", title: "Plant or Animal?", skill: "plant vs animal [M]", sets: C.PLANT_ANIMAL_SETS, prompt: "Is it a plant or an animal?", icons: ["👀", "🌿", "🐾"] });
+  sorter({ id: "night-friends", icon: "🦉", title: "Awake at Night?", skill: "day/night animals [M]", sets: C.NIGHT_DAY_SETS, prompt: "Awake at night, or in the day?", icons: ["👀", "🌙", "☀️"] });
+  sorter({ id: "fast-slow", icon: "🐆", title: "Fast or Slow?", skill: "speed sort [M]", sets: C.FAST_SLOW_SETS, prompt: "Is it fast or slow?", icons: ["👀", "🐆", "🐌"] });
 
   // ---- Shape's Real Twin: match a 3D solid to a real object of that shape ----
   // Geometry solids are one of Josh's working edges — and this diversifies the
@@ -505,6 +507,47 @@
             round += 1;
             if (round >= ROUNDS) api.win({ say: "Every baby found its mama!" });
             else { api.roundWin({ say: "The " + r.pair.babyName + "'s mama is the " + ch.name + "!" }); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Who Says Moo? (match the sound to its animal) [M] ----
+  // The sound word is one of the few CHILD-facing words in the app — deliberate,
+  // because he decodes 3-4 letter words. Sounds unique, animals unique.
+  F.register({
+    id: "animal-sounds",
+    icon: "🐮",
+    title: "Who Says Moo?",
+    skill: "animal sounds [M]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, lastIdx = -1, r = null;
+      const items = (C.ANIMAL_SOUNDS || []).map((s) => ({ q: s.sound, a: s.animal, name: s.name }));
+      const bubble = api.el("div", { class: "sound__bubble" });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(bubble, chips);
+      function newRound() {
+        r = L.makePairPick(items, undefined, lastIdx);
+        lastIdx = r.idx;
+        api.setPrompt("Who says " + r.item.q + "?", ["🔊", "🐾", "👉"]);
+        api.speak(); api.say("Who says " + r.item.q + "?");
+        bubble.textContent = r.item.q;
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "animal" },
+          }, [ch.a]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("The " + r.item.name + " says " + r.item.q + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know all the animal sounds!" });
+            else { api.roundWin(); newRound(); }
           });
           chips.appendChild(b);
         });

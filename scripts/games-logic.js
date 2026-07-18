@@ -774,4 +774,43 @@
       newRound();
     },
   });
+
+  // ---- Opposites! (tap the opposite concept) [W] ----
+  F.register({
+    id: "opposites",
+    icon: "↔️",
+    title: "Opposites!",
+    skill: "concept vocabulary [W]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, lastIdx = -1, r = null;
+      const items = (api.C.OPPOSITE_PAIRS || []).map((p) => ({ q: p.ae, a: p.be, word: p.a, aword: p.b }));
+      const promptEl = api.el("div", { class: "opp__prompt", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(promptEl, chips);
+      function newRound() {
+        r = L.makePairPick(items, undefined, lastIdx);
+        lastIdx = r.idx;
+        api.setPrompt("What's the opposite?", ["↔️", "🤔", "👉"]);
+        api.speak(); api.say("What is the opposite of " + r.item.word + "?");
+        promptEl.textContent = r.item.q;
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "opposite" },
+          }, [ch.a]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("The opposite of " + r.item.word + " is " + r.item.aword + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know your opposites!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

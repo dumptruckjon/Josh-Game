@@ -25,7 +25,7 @@
     "which-more": "numbers", "coin-shop": "numbers", "add-up": "numbers", "number-match": "numbers",
     "clock": "numbers", "place-value": "numbers", "ten-frame": "numbers", "set-clock": "numbers",
     "make-ten": "numbers", "big-add": "numbers", "piggy-bank": "numbers", "number-muncher": "numbers",
-    "fair-share": "numbers", "quick-peek": "numbers",
+    "fair-share": "numbers", "quick-peek": "numbers", "line-hop": "numbers",
     "first-sound": "letters", "rhyme": "letters", "build-word": "letters", "sight-word": "letters",
     "digraph": "letters", "letter-match": "letters", "missing-letter": "letters", "read-zap": "letters",
     "rhyme-train": "letters", "digraph-finish": "letters", "letter-maker": "letters", "name-spell": "letters",
@@ -33,13 +33,15 @@
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
     "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking", "color-number": "thinking",
     "who-is-it": "thinking", "picture-squares": "thinking", "story-order": "thinking", "birds-eye": "thinking",
-    "piece-fit": "thinking", "who-hid": "thinking", "copy-beat": "thinking",
+    "piece-fit": "thinking", "who-hid": "thinking", "copy-beat": "thinking", "opposites": "thinking",
     "find-hero": "find", "find-crowd": "find", "find-count": "find", "dot-dot": "find", "rescue": "find",
     "find-twins": "find", "i-spy": "find", "big-red-one": "find", "web-reveal": "find", "letter-hunt": "find",
+    "number-hunt": "find", "star-search": "find", "whose-tracks": "find",
     "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",
     "solid-match": "science", "magnet-magic": "science", "blue-planet": "science", "continent-match": "science",
     "landform-maker": "science", "plane-shape": "science", "continent-home": "science",
     "plant-animal": "science", "color-mix": "science", "sink-float": "science", "mama-baby": "science",
+    "animal-sounds": "science", "night-friends": "science", "fast-slow": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
     "grow": "play", "thwip-web": "play", "thwip-villains": "play", "dress-me": "play", "seasons": "play",
@@ -47,6 +49,7 @@
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
     "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",
     "feelings": "friends", "kind-helpers": "friends", "day-train": "friends",
+    "team-story": "friends", "garden": "friends",
   };
 
   // Set by initLauncher once the Sticker Book screen exists; re-syncs every slot

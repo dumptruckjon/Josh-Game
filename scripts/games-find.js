@@ -542,4 +542,149 @@
       newRound();
     },
   });
+
+  // ---- Number Hunt (letter-hunt's numeral sibling) [M→W] ----
+  F.register({
+    id: "number-hunt",
+    icon: "🎈",
+    title: "Number Hunt",
+    skill: "numeral recognition [M→W]",
+    start(api) {
+      const ROUNDS = 3;
+      let round = 0, lastTarget = null, need = 0;
+      const targetEl = api.el("div", { class: "lh__target" });
+      const field = api.el("div", { class: "lh__field" });
+      api.stage.append(targetEl, field);
+      function newRound() {
+        const ramp = api.shouldRamp(2);
+        const lo = ramp ? 7 : 1, hi = ramp ? 19 : 9;
+        const pool = []; for (let n = lo; n <= hi; n++) pool.push(String(n));
+        const r = L.makeLetterHunt(pool, undefined, { lastTarget, mixCase: false });
+        lastTarget = r.target; need = r.need;
+        api.setPrompt("Pop every " + r.target + " balloon!", ["🔎", "🎈", r.target]);
+        api.speak(); api.say("Pop every balloon with the number " + r.target + "!");
+        targetEl.textContent = r.target;
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "lh__balloon tap", type: "button",
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.ch },
+          }, [cell.ch]);
+          b.addEventListener("click", () => {
+            if (!cell.correct) { api.tryAgain(b); return; }
+            if (b.dataset.done) return;
+            b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("lh__balloon--pop");
+            api.say(r.target + "!");
+            need -= 1;
+            if (need <= 0) { round += 1; if (round >= ROUNDS) api.win({ say: "You found every number!" }); else { api.roundWin(); newRound(); } }
+          });
+          field.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Star Search (a cozy space hunt; found stars light a constellation) [M] ----
+  F.register({
+    id: "star-search",
+    icon: "🌟",
+    title: "Star Search",
+    skill: "visual search / space [M]",
+    start(api) {
+      const ROUNDS = 3;
+      let round = 0, need = 0;
+      const grid = api.el("div", { class: "star__field" });
+      api.stage.append(grid);
+      function newRound() {
+        const K = api.shouldRamp(2) ? 4 : 3;
+        const distract = (api.C.STAR_POOL || ["🌙", "🚀"]);
+        const cells = api.shuffle([
+          ...Array.from({ length: K }, () => ({ emoji: "⭐", correct: true })),
+          ...Array.from({ length: 9 - K }, () => ({ emoji: api.randItem(distract), correct: false })),
+        ]);
+        need = K;
+        api.setPrompt("Find and tap all the stars!", ["🌟", "👀", "👆"]);
+        api.speak();
+        grid.classList.remove("star__field--constellation");
+        grid.innerHTML = "";
+        cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "choice star__cell tap", type: "button",
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.correct ? "star" : "not a star" },
+          }, [cell.emoji]);
+          b.addEventListener("click", () => {
+            if (!cell.correct) { api.tryAgain(b); return; }
+            if (b.dataset.done) return;
+            b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("star__cell--lit");
+            api.say("Star!");
+            need -= 1;
+            if (need <= 0) {
+              grid.classList.add("star__field--constellation");
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You found every star! Look — a constellation!" });
+              else { api.roundWin(); setTimeout(() => { if (grid.isConnected) newRound(); }, 700); }
+            }
+          });
+          grid.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Whose Tracks? (infer the animal from its footprints) [W] ----
+  // Each track TYPE maps to ONE animal, so the drawn track uniquely identifies
+  // the answer among any three distinct-animal choices (no ambiguity).
+  function trackSVG(type) {
+    const stamp = {
+      paw: '<g><circle cx="0" cy="14" r="7"/><circle cx="-9" cy="2" r="3.2"/><circle cx="-3" cy="-3" r="3.2"/><circle cx="3" cy="-3" r="3.2"/><circle cx="9" cy="2" r="3.2"/></g>',
+      bird: '<path d="M-8 -8 L0 8 M0 8 L8 -8 M0 8 L0 -10" stroke="#3a2417" stroke-width="3" fill="none" stroke-linecap="round"/>',
+      snake: '<path d="M-14 0 Q-7 -12 0 0 T14 0" stroke="#3a2417" stroke-width="4" fill="none" stroke-linecap="round"/>',
+      hoof: '<g fill="none" stroke="#3a2417" stroke-width="4"><path d="M-9 -8 A8 10 0 0 0 -9 10"/><path d="M9 -8 A8 10 0 0 1 9 10"/></g>',
+      web: '<g stroke="#3a2417" stroke-width="3" fill="none" stroke-linecap="round"><path d="M0 10 L-10 -8"/><path d="M0 10 L0 -11"/><path d="M0 10 L10 -8"/></g>',
+      hop: '<g><circle cx="-6" cy="-6" r="5"/><circle cx="6" cy="-6" r="5"/><circle cx="-4" cy="9" r="3"/><circle cx="4" cy="9" r="3"/></g>',
+    };
+    const one = stamp[type] || stamp.paw;
+    let out = '<svg viewBox="0 0 300 90" role="img" aria-hidden="true" fill="#5a3a22">';
+    for (let i = 0; i < 3; i++) out += '<g transform="translate(' + (60 + i * 90) + ',' + (30 + i * 8) + ')">' + one + "</g>";
+    return out + "</svg>";
+  }
+  F.register({
+    id: "whose-tracks",
+    icon: "🐾",
+    title: "Whose Tracks?",
+    skill: "inference / animals [W]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, lastIdx = -1, r = null;
+      const items = (api.C.TRACKS || []).map((t) => ({ q: t.track, a: t.animal, name: t.name }));
+      const scene = api.el("div", { class: "tracks__scene art-fill", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(scene, chips);
+      function newRound() {
+        r = L.makePairPick(items, undefined, lastIdx);
+        lastIdx = r.idx;
+        api.setPrompt("Who made these tracks?", ["🐾", "🤔", "👉"]);
+        api.speak();
+        scene.innerHTML = trackSVG(r.item.q);
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "animal" },
+          }, [ch.a]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("The " + r.item.name + " made those tracks!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You're a great tracker!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

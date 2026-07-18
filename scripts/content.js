@@ -586,6 +586,57 @@
       [{ x: 70, y: 6 }, { x: 26, y: 27 }, { x: 68, y: 50 }, { x: 30, y: 72 }, { x: 60, y: 93 }],
       [{ x: 45, y: 6 }, { x: 72, y: 28 }, { x: 25, y: 50 }, { x: 66, y: 72 }, { x: 35, y: 93 }],
     ],
+
+    // ================= Road to 140 — Wave 1 content =================
+    // Opposites: ONE direction per pair (prompt = a-emoji, answer = b-emoji) so a
+    // distractor (another pair's b) can never be a valid opposite of the prompt
+    // AND never equals the prompt emoji. Each concept appears in exactly one pair.
+    OPPOSITE_PAIRS: [
+      { a: "hot", ae: "🔥", b: "cold", be: "🧊" },
+      { a: "big", ae: "🐘", b: "small", be: "🐭" },
+      { a: "day", ae: "☀️", b: "night", be: "🌙" },
+      { a: "up", ae: "⬆️", b: "down", be: "⬇️" },
+      { a: "happy", ae: "😊", b: "sad", be: "😢" },
+      { a: "open", ae: "📖", b: "closed", be: "📕" },
+      { a: "wet", ae: "💧", b: "dry", be: "🏜️" },
+      { a: "fast", ae: "🐆", b: "slow", be: "🐌" },
+    ],
+    // Tracks: each track TYPE appears once and each animal once, so the drawn
+    // track uniquely identifies the answer among any 3 distinct-animal choices.
+    TRACKS: [
+      { track: "paw", animal: "🐶", name: "dog" },
+      { track: "bird", animal: "🐦", name: "bird" },
+      { track: "snake", animal: "🐍", name: "snake" },
+      { track: "hoof", animal: "🐴", name: "horse" },
+      { track: "web", animal: "🦆", name: "duck" },
+      { track: "hop", animal: "🐰", name: "bunny" },
+    ],
+    // Animal sounds: sounds unique, animals unique (self-naming pictures). 🐑 is
+    // fine here — both "sheep" and "lamb" say BAA, so the answer is unambiguous.
+    ANIMAL_SOUNDS: [
+      { sound: "MOO", animal: "🐮", name: "cow" },
+      { sound: "WOOF", animal: "🐶", name: "dog" },
+      { sound: "MEOW", animal: "🐱", name: "cat" },
+      { sound: "QUACK", animal: "🦆", name: "duck" },
+      { sound: "BAA", animal: "🐑", name: "sheep" },
+      { sound: "OINK", animal: "🐷", name: "pig" },
+    ],
+    // Nocturnal sort (its own tile, distinct from the day/night SCENE sorter).
+    NIGHT_DAY_SETS: [
+      { name: "nightday", bins: [
+        { label: "Night", emoji: "🌙", why: "Owls wake up when the moon comes out!", items: ["🦉", "🦇", "🦝"] },
+        { label: "Day", emoji: "☀️", why: "These friends play when the sun is up!", items: ["🐓", "🐝", "🦋"] },
+      ] },
+    ],
+    // Speed sort.
+    FAST_SLOW_SETS: [
+      { name: "fastslow", bins: [
+        { label: "Fast", emoji: "💨", why: "A cheetah is the fastest runner of all!", items: ["🐆", "🚀", "🏎️", "⚡"] },
+        { label: "Slow", emoji: "🐌", why: "A snail creeps along ever so slowly.", items: ["🐌", "🐢", "🦥", "🚶"] },
+      ] },
+    ],
+    // Star Search distractor pool (space things that are NOT a star).
+    STAR_POOL: ["🌙", "☁️", "🚀", "🛸", "🪐"],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;
