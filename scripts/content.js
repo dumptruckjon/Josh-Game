@@ -637,6 +637,66 @@
     ],
     // Star Search distractor pool (space things that are NOT a star).
     STAR_POOL: ["🌙", "☁️", "🚀", "🛸", "🪐"],
+
+    // ================= Road to 140 — Wave 2 content =================
+    // Weight pairs (heavier listed FIRST). Kid-obvious only; no emoji in two pairs.
+    WEIGHT_PAIRS: [
+      { heavy: "🐘", heavyName: "elephant", light: "🐭", lightName: "mouse" },
+      { heavy: "🐻", heavyName: "bear", light: "🐰", lightName: "bunny" },
+      { heavy: "🚗", heavyName: "car", light: "🎈", lightName: "balloon" },
+      { heavy: "🐋", heavyName: "whale", light: "🐟", lightName: "fish" },
+      { heavy: "🪨", heavyName: "rock", light: "🍃", lightName: "leaf" },
+      { heavy: "🐴", heavyName: "horse", light: "🐤", lightName: "chick" },
+    ],
+    // Shapes for Count the Sides (circle = 0 straight sides).
+    SIDE_SHAPES: [
+      { name: "triangle", sides: 3, svg: '<polygon points="50,8 92,88 8,88"/>' },
+      { name: "square", sides: 4, svg: '<rect x="14" y="14" width="72" height="72"/>' },
+      { name: "rectangle", sides: 4, svg: '<rect x="8" y="26" width="84" height="48"/>' },
+      { name: "pentagon", sides: 5, svg: '<polygon points="50,6 92,38 76,90 24,90 8,38"/>' },
+      { name: "hexagon", sides: 6, svg: '<polygon points="50,6 88,28 88,72 50,94 12,72 12,28"/>' },
+      { name: "circle", sides: 0, svg: '<circle cx="50" cy="50" r="42"/>' },
+    ],
+    // Ending sounds: word's LAST letter, all final letters DISTINCT, self-naming.
+    END_WORDS: [
+      { emoji: "🚌", word: "bus", letter: "S" },
+      { emoji: "🐱", word: "cat", letter: "T" },
+      { emoji: "☀️", word: "sun", letter: "N" },
+      { emoji: "🥤", word: "cup", letter: "P" },
+      { emoji: "🐶", word: "dog", letter: "G" },
+      { emoji: "⭐", word: "star", letter: "R" },
+      { emoji: "🛏️", word: "bed", letter: "D" },
+      { emoji: "🦊", word: "fox", letter: "X" },
+    ],
+    // Missing middle vowel of a pictured CVC word (the picture is control-of-error).
+    VOWEL_WORDS: [
+      { emoji: "🐱", word: "cat", vowel: "a" },
+      { emoji: "🐶", word: "dog", vowel: "o" },
+      { emoji: "☀️", word: "sun", vowel: "u" },
+      { emoji: "🐷", word: "pig", vowel: "i" },
+      { emoji: "🛏️", word: "bed", vowel: "e" },
+      { emoji: "🎩", word: "hat", vowel: "a" },
+      { emoji: "🕸️", word: "web", vowel: "e" },
+      { emoji: "🐛", word: "bug", vowel: "u" },
+    ],
+    // Word families: 3 sets of two disjoint rimes; every picture self-names.
+    WORD_FAMILIES: [
+      { name: "at-og", bins: [
+        { label: "-at", words: [{ emoji: "🐱", word: "cat" }, { emoji: "🎩", word: "hat" }, { emoji: "🦇", word: "bat" }] },
+        { label: "-og", words: [{ emoji: "🐶", word: "dog" }, { emoji: "🪵", word: "log" }, { emoji: "🐸", word: "frog" }] },
+      ] },
+      { name: "en-ug", bins: [
+        { label: "-en", words: [{ emoji: "🐔", word: "hen" }, { emoji: "🖊️", word: "pen" }, { emoji: "🔟", word: "ten" }] },
+        { label: "-ug", words: [{ emoji: "🐛", word: "bug" }, { emoji: "☕", word: "mug" }] },
+      ] },
+      { name: "ed-un", bins: [
+        { label: "-ed", words: [{ emoji: "🛏️", word: "bed" }, { emoji: "🔴", word: "red" }, { emoji: "🛷", word: "sled" }] },
+        { label: "-un", words: [{ emoji: "☀️", word: "sun" }, { emoji: "🏃", word: "run" }] },
+      ] },
+    ],
+    // Big/little letter concentration — upper/lower differ visibly; NO I or L
+    // (their lowercase forms are the iOS confusable pair).
+    LETTER_PAIR_POOL: ["A", "B", "D", "E", "G", "M", "N", "Q", "R", "T"],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

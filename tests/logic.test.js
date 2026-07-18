@@ -1298,3 +1298,113 @@ test("makeMissingAddend: a + answer = sum with distinct positive choices", () =>
     }
   }
 });
+
+// ================= Road to 140 — Wave 2 logic =================
+test("makeCoinTrade: exactly one pile of 5, all counts distinct and 1..9", () => {
+  const rng = mulberry32(300);
+  for (let i = 0; i < 500; i++) {
+    const r = L.makeCoinTrade(rng);
+    assert.equal(r.value, 5);
+    assert.equal(r.piles.length, 3);
+    assert.equal(r.piles.filter((p) => p.correct).length, 1);
+    assert.ok(r.piles.find((p) => p.correct).count === 5);
+    assert.equal(new Set(r.piles.map((p) => p.count)).size, 3, "counts distinct");
+    for (const p of r.piles) assert.ok(p.count >= 1 && p.count <= 9);
+  }
+});
+test("makeDouble: sum is 2n; exactly one correct; distinct positive choices", () => {
+  const rng = mulberry32(301);
+  for (const max of [3, 5]) for (let i = 0; i < 400; i++) {
+    const r = L.makeDouble(rng, max);
+    assert.ok(r.n >= 1 && r.n <= max);
+    assert.equal(r.sum, 2 * r.n);
+    assert.equal(r.choices.length, 3);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.n === r.sum));
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, 3);
+    for (const c of r.choices) assert.ok(c.n >= 1);
+  }
+});
+test("makeLengthPick: one true max/min; three distinct lengths, gap >= 2", () => {
+  const rng = mulberry32(302);
+  let last = null;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeLengthPick(rng, last);
+    const lens = r.rows.map((x) => x.len).sort((a, b) => a - b);
+    assert.equal(new Set(lens).size, 3, "distinct");
+    assert.ok(lens[1] - lens[0] >= 2 && lens[2] - lens[1] >= 2, "pairwise gap >= 2");
+    assert.equal(r.rows.filter((x) => x.correct).length, 1);
+    const want = r.ask === "longest" ? Math.max.apply(null, lens) : Math.min.apply(null, lens);
+    assert.ok(r.rows.find((x) => x.correct).len === want, "correct is the true " + r.ask);
+    last = r.ask;
+  }
+});
+test("makeCountdown: order 0 is the LARGEST value; a permutation of len..1", () => {
+  const rng = mulberry32(303);
+  for (const len of [5, 10]) for (let i = 0; i < 200; i++) {
+    const r = L.makeCountdown(len, rng);
+    assert.equal(r.items.length, len);
+    const byOrder = [...r.items].sort((a, b) => a.order - b.order);
+    for (let k = 0; k < len; k++) assert.equal(byOrder[k].value, len - k, "descending: order k has value len-k");
+    assert.deepEqual([...r.items.map((x) => x.value)].sort((a, b) => a - b), Array.from({ length: len }, (_, k) => k + 1));
+  }
+});
+test("makeSeesaw: heavier side is DOWN; exactly one correct for the ask", () => {
+  const rng = mulberry32(304);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeSeesaw(content.WEIGHT_PAIRS, rng, last);
+    assert.equal(r.sides.length, 2);
+    assert.equal(r.sides.filter((s) => s.heavy).length, 1, "one heavy side");
+    const want = r.ask === "heavier" ? r.sides.findIndex((s) => s.heavy) : r.sides.findIndex((s) => !s.heavy);
+    assert.equal(r.correctIdx, want);
+    last = r.idx;
+  }
+});
+test("makeSideCount: correct = the shape's real side count; distinct choices", () => {
+  const rng = mulberry32(305);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeSideCount(content.SIDE_SHAPES, rng, last);
+    assert.equal(r.sides, r.shape.sides);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.n === r.sides));
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, 3);
+    for (const c of r.choices) assert.ok(c.n >= 0);
+    last = r.idx;
+  }
+});
+test("makeEndSound: correct is the word's real last letter; distractors differ", () => {
+  const rng = mulberry32(306);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeEndSound(content.END_WORDS, rng, last);
+    assert.equal(r.word.letter, r.word.word[r.word.word.length - 1].toUpperCase());
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    for (const c of r.choices) if (!c.correct) assert.notEqual(c.letter, r.word.letter);
+    last = r.idx;
+  }
+});
+test("makeVowelPick: blanks the middle letter; correct vowel; distractors are vowels", () => {
+  const rng = mulberry32(307);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeVowelPick(content.VOWEL_WORDS, rng, last);
+    assert.equal(r.vowelIdx, 1);
+    assert.equal(r.word.word[1], r.word.vowel, "vowel is the middle letter");
+    assert.equal(r.display[1], "▢");
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.v === r.word.vowel));
+    for (const c of r.choices) assert.ok("aeiou".includes(c.v));
+    last = r.idx;
+  }
+});
+test("makeFamilySort: item belongs to its flagged rime bin", () => {
+  const rng = mulberry32(308);
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeFamilySort(content.WORD_FAMILIES, rng);
+    assert.equal(r.bins.length, 2);
+    const rime = r.bins[r.correctIndex].label.replace("-", "");
+    assert.ok(r.item.word.endsWith(rime), r.item.word + " should end with " + rime);
+  }
+});

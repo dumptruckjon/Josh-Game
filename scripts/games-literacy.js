@@ -712,4 +712,159 @@
       newRound();
     },
   });
+
+  // ---- Ending Sound (beginning-sound's sibling: the LAST letter) [W] ----
+  F.register({
+    id: "end-sound", icon: "🔚", title: "Ending Sound", skill: "ending sounds [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4; let round = 0, last = -1, r = null;
+      const pic = api.el("div", { class: "fs__pic", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pic, chips);
+      function newRound() {
+        r = L.makeEndSound(C.END_WORDS, undefined, last); last = r.idx;
+        api.setPrompt("What sound does it END with?", ["👂", "🔚", "👉"]);
+        api.speak(); api.say("What sound does " + r.word.word + " end with?");
+        pic.textContent = r.word.emoji;
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--letter tap", type: "button", text: ch.letter,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.letter },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say(r.word.word + " ends with " + r.word.letter + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Great listening!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- The Missing Middle (pick the CVC vowel; the picture is control-of-error) [W] ----
+  F.register({
+    id: "vowel-pick", icon: "🅰️", title: "The Missing Middle", skill: "CVC vowels [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4; let round = 0, last = -1, r = null;
+      const pic = api.el("div", { class: "fs__pic", aria: { hidden: "true" } });
+      const wordEl = api.el("div", { class: "vowel__word" });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pic, wordEl, chips);
+      function newRound() {
+        r = L.makeVowelPick(C.VOWEL_WORDS, undefined, last); last = r.idx;
+        api.setPrompt("Which letter is missing?", ["🅰️", "🤔", "👉"]);
+        api.speak(); api.say("What sound is in the middle of " + r.word.word + "?");
+        pic.textContent = r.word.emoji;
+        wordEl.textContent = r.display;
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--letter choice--lower tap", type: "button", text: ch.v,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.v },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            wordEl.textContent = r.word.word;
+            wordEl.classList.remove("pop"); void wordEl.offsetWidth; wordEl.classList.add("pop");
+            api.say(r.word.word + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You spelled them all!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Word Family Houses (sort a pictured word to its rime) [W] ----
+  F.register({
+    id: "word-family", icon: "🏠", title: "Word Family Houses", skill: "rimes [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 6; let round = 0, r = null;
+      const card = api.el("div", { class: "wf__card" });
+      const bins = api.el("div", { class: "choices wf__houses" });
+      api.stage.append(card, bins);
+      function newRound() {
+        r = L.makeFamilySort(C.WORD_FAMILIES);
+        api.setPrompt("Which house does it live in?", ["🏠", "👂", "👉"]);
+        api.speak(); api.say(r.item.word + ". Which family?");
+        card.innerHTML = '<span class="wf__emoji">' + r.item.emoji + '</span><span class="wf__word">' + r.item.word + "</span>";
+        bins.innerHTML = "";
+        r.bins.forEach((bin, i) => {
+          const b = api.el("button", {
+            class: "choice wf__house tap", type: "button",
+            dataset: i === r.correctIndex ? { correct: "1" } : {}, aria: { label: bin.label },
+          }, ["🏠 " + bin.label]);
+          b.addEventListener("click", () => {
+            if (i !== r.correctIndex) { api.tryAgain(b); return; }
+            api.say(r.item.word + " is in the " + bin.label + " house!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You found every family!" });
+            else { api.roundWin(); newRound(); }
+          });
+          bins.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Letter Pairs (concentration: match a BIG letter to its little twin) [W] ----
+  // Only the currently-solvable pair carries data-correct (syncFlags) — mirrors
+  // Memory Match, so the generic harness always advances.
+  F.register({
+    id: "letter-pairs", icon: "🃏", title: "Letter Pairs", skill: "big & little letters [W]",
+    start(api) {
+      const C = api.C;
+      const PAIRS = 4;
+      const picks = api.shuffle((C.LETTER_PAIR_POOL || []).slice()).slice(0, PAIRS);
+      const deck = api.shuffle(picks.flatMap((k) => [{ key: k, face: k }, { key: k, face: k.toLowerCase() }]));
+      let first = null, lock = false, matched = 0;
+      const cards = [];
+      const grid = api.el("div", { class: "memory-grid" });
+      api.stage.append(grid);
+      api.setPrompt("Flip the big letter and its little twin!", ["🔤", "🧠", "✌️"]);
+      api.speak();
+      function syncFlags() {
+        cards.forEach((c) => delete c.dataset.correct);
+        if (first) {
+          const m = cards.find((c) => c !== first && !c.dataset.matched && c.dataset.key === first.dataset.key);
+          if (m) m.dataset.correct = "1";
+        } else {
+          const rem = cards.filter((c) => !c.dataset.matched);
+          if (rem.length) { const k = rem[0].dataset.key; rem.filter((c) => c.dataset.key === k).forEach((c) => (c.dataset.correct = "1")); }
+        }
+      }
+      function flip(card) {
+        if (lock || card.dataset.matched || card === first || card.classList.contains("flipped")) return;
+        card.classList.add("flipped"); card.textContent = card.__face;
+        if (!first) { first = card; syncFlags(); return; }
+        if (card.dataset.key === first.dataset.key) {
+          card.dataset.matched = "1"; first.dataset.matched = "1"; card.classList.add("matched"); first.classList.add("matched");
+          first = null; matched += 1; syncFlags(); api.roundWin();
+          if (matched === PAIRS) api.win({ say: "You matched every letter!" });
+        } else {
+          lock = true; const a = first; first = null;
+          setTimeout(() => { a.classList.remove("flipped"); a.textContent = ""; card.classList.remove("flipped"); card.textContent = ""; lock = false; syncFlags(); }, 700);
+        }
+      }
+      deck.forEach((cd) => {
+        const card = api.el("button", { class: "memory-card tap", type: "button", dataset: { key: cd.key }, aria: { label: "card" } }, [""]);
+        card.__face = cd.face;
+        card.addEventListener("click", () => flip(card));
+        grid.appendChild(card); cards.push(card);
+      });
+      syncFlags();
+    },
+  });
 })();

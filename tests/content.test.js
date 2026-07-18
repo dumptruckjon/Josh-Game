@@ -627,3 +627,52 @@ test("W1 night/day + fast/slow sorters: single-bin items + spoken whys", () => {
     }
   }
 });
+
+// ================= Road to 140 — Wave 2 truth tables =================
+test("W2 weight pairs: heavy != light; no emoji reused across pairs", () => {
+  const P = content.WEIGHT_PAIRS;
+  const seen = new Set();
+  for (const p of P) {
+    assert.notEqual(p.heavy, p.light);
+    for (const e of [p.heavy, p.light]) { assert.ok(!seen.has(e), e + " reused"); seen.add(e); }
+  }
+});
+test("W2 side shapes: side counts are the real geometric truth", () => {
+  const TRUTH = { triangle: 3, square: 4, rectangle: 4, pentagon: 5, hexagon: 6, circle: 0 };
+  for (const s of content.SIDE_SHAPES) {
+    assert.equal(s.sides, TRUTH[s.name], s.name + " must have " + TRUTH[s.name] + " sides");
+    assert.ok(/^<(polygon|rect|circle)/.test(s.svg.trim()), s.name + " needs an svg body");
+  }
+});
+test("W2 end sounds: word truly ends with letter; all final letters unique", () => {
+  const W = content.END_WORDS;
+  for (const w of W) assert.equal(w.letter, w.word[w.word.length - 1].toUpperCase(), w.word + " ends with " + w.letter);
+  assert.equal(new Set(W.map((w) => w.letter)).size, W.length, "final letters unique (a distractor can never also be right)");
+});
+test("W2 vowel words: keyed vowel is the middle letter of a CVC word", () => {
+  const CVC = /^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]$/;
+  for (const w of content.VOWEL_WORDS) {
+    assert.match(w.word, CVC, w.word + " must be CVC");
+    assert.equal(w.word[1], w.vowel, w.word + " middle vowel is " + w.vowel);
+  }
+});
+test("W2 word families: every word ends with its rime; no word in two families", () => {
+  const seen = new Set();
+  for (const set of content.WORD_FAMILIES) {
+    assert.equal(set.bins.length, 2, "two houses per round");
+    for (const bin of set.bins) {
+      const rime = bin.label.replace("-", "");
+      for (const it of bin.words) {
+        assert.ok(it.word.endsWith(rime), it.word + " must end with " + rime);
+        assert.ok(!seen.has(it.word), it.word + " appears in two families");
+        seen.add(it.word);
+      }
+    }
+  }
+});
+test("W2 letter-pair pool excludes the i/l confusable and is roomy", () => {
+  const P = content.LETTER_PAIR_POOL;
+  assert.ok(P.length >= 6);
+  assert.ok(!P.includes("I") && !P.includes("L"), "I and L are the iOS confusable pair — excluded");
+  assert.equal(new Set(P).size, P.length, "unique");
+});

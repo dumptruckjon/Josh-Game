@@ -1558,3 +1558,60 @@ body.hl-mode {
   .garden__bud--open { transform: none !important; }
   .star__field--constellation .star__cell--lit { animation: none !important; }
 }
+
+/* ============================================================
+   Road to 140 — Wave 2 game styles
+   ============================================================ */
+
+/* Nickel Trade — a big nickel over three penny piles. */
+.nickel__top { text-align: center; font-size: 3rem; margin-bottom: 6px; }
+.nickel__label { display: inline-block; margin-left: 6px; font-size: 1.6rem; font-weight: 900; color: #b8860b; vertical-align: middle; }
+.nickel__pile { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 2px; font-size: 1.4rem; padding: 6px; }
+.nickel__coin { font-size: 1.4rem; line-height: 1; }
+
+/* Double It! — a butterfly with mirrored wings. */
+.double__wings { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
+.double__wing { display: flex; flex-wrap: wrap; width: 34%; max-width: 130px; gap: 4px; justify-content: center; padding: 8px; background: rgba(255, 255, 255, 0.55); border-radius: 16px; }
+.double__wing:first-child { justify-content: flex-end; }
+.double__dot { font-size: 1.3rem; line-height: 1; }
+.double__body { font-size: 2.6rem; }
+
+/* Long or Short? — stacked caterpillar rows (whole-row buttons). */
+.cater { display: flex; flex-direction: column; gap: var(--pad); width: 100%; }
+.cater__row { min-height: 78px; justify-content: flex-start; padding: 8px 12px; flex-wrap: wrap; font-size: 1.6rem; gap: 2px; }
+.cater__head { font-size: 1.8rem; }
+.cater__seg { font-size: 1.5rem; line-height: 1; }
+
+/* Blast-Off Countdown. */
+.cd__rocket { width: 84px; margin: 0 auto; }
+.cd__rocket svg { width: 100%; height: auto; display: block; }
+.cd__num { text-align: center; font-size: 3rem; font-weight: 900; color: #e23636; line-height: 1; margin: 2px 0 8px; }
+@keyframes cdLaunch { to { transform: translateY(-40px); opacity: 0.5; } }
+.cd__rocket--launch { animation: cdLaunch 0.7s ease-in forwards; }
+
+/* Heavy or Light? — a tilting seesaw. */
+.seesaw { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 12px 0; font-size: 2.6rem; transition: transform 0.4s ease; }
+.seesaw__pan { width: 40%; text-align: center; }
+.seesaw__bar { flex: 1; height: 6px; background: #9c6b3f; border-radius: 3px; max-width: 40%; }
+.seesaw--left { transform: rotate(-8deg); }
+.seesaw--right { transform: rotate(8deg); }
+.seesaw__choices { grid-template-columns: repeat(2, 1fr); }
+
+/* Count the Sides. */
+.sides__shape { width: 130px; height: 130px; margin: 4px auto 10px; }
+.sides__shape svg { width: 100%; height: 100%; display: block; }
+
+/* Word Family Houses. */
+.wf__card { text-align: center; margin-bottom: 10px; }
+.wf__emoji { font-size: 3rem; display: block; }
+.wf__word { font-size: 1.6rem; font-weight: 800; color: #333; letter-spacing: 1px; }
+.wf__houses { grid-template-columns: repeat(2, 1fr); }
+.wf__house { font-size: 1.3rem; font-weight: 800; color: #2b8a5b; }
+
+/* The Missing Middle — the CVC word with a blanked vowel. */
+.vowel__word { text-align: center; font-size: clamp(2.2rem, 12vw, 3.2rem); font-weight: 900; letter-spacing: 6px; color: #2b8a5b; margin: 4px 0 10px; text-transform: lowercase; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cd__rocket--launch { animation: none !important; transform: none !important; }
+  .seesaw { transition: none !important; }
+}

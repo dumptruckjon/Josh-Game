@@ -1070,4 +1070,226 @@
       newRound();
     },
   });
+
+  // ---- Nickel Trade (a nickel is worth 5 pennies) [NA→P] ----
+  F.register({
+    id: "nickel-trade", icon: "🪙", title: "Nickel Trade", skill: "money / coins [NA→P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, r = null;
+      const nickel = api.el("div", { class: "nickel__top" }, ["🪙", api.el("span", { class: "nickel__label" }, ["5¢"])]);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(nickel, chips);
+      function newRound() {
+        r = L.makeCoinTrade();
+        api.setPrompt("A nickel is 5 pennies. Tap the pile of 5!", ["🪙", "👀", "👉"]);
+        api.speak();
+        chips.innerHTML = "";
+        r.piles.forEach((p) => {
+          const pile = api.el("button", {
+            class: "choice nickel__pile tap", type: "button",
+            dataset: p.correct ? { correct: "1" } : {}, aria: { label: p.count + " pennies" },
+          });
+          pile.innerHTML = Array.from({ length: p.count }, () => '<span class="nickel__coin">🪙</span>').join("");
+          pile.addEventListener("click", () => {
+            if (!p.correct) { api.tryAgain(pile); return; }
+            pile.classList.add("pop");
+            api.say("Five pennies make a nickel!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know your coins!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(pile);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Double It! (n + n; the mirrored wings are the control of error) [W] ----
+  F.register({
+    id: "double-up", icon: "🦋", title: "Double It!", skill: "doubles [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, r = null;
+      function dots(n) { return Array.from({ length: n }, () => '<span class="double__dot">🔴</span>').join(""); }
+      const wings = api.el("div", { class: "double__wings", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(wings, chips);
+      function newRound() {
+        r = L.makeDouble(undefined, api.shouldRamp(2) ? 5 : 3);
+        api.setPrompt(r.n + " and " + r.n + " — how many in all?", ["🦋", "➕", "🤔"]);
+        api.speak(); api.say(r.n + " dots and " + r.n + " dots. How many in all?");
+        wings.innerHTML = '<div class="double__wing">' + dots(r.n) + '</div><div class="double__body">🦋</div><div class="double__wing">' + dots(r.n) + "</div>";
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button", text: String(ch.n),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            wings.classList.remove("pop"); void wings.offsetWidth; wings.classList.add("pop");
+            api.say(r.n + " and " + r.n + " is " + r.sum + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Double trouble — you got them all!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Long or Short? (compare caterpillar lengths) [P] ----
+  F.register({
+    id: "long-short", icon: "📏", title: "Long or Short?", skill: "measurement [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, lastAsk = null, r = null;
+      const rows = api.el("div", { class: "cater" });
+      api.stage.append(rows);
+      function newRound() {
+        r = L.makeLengthPick(undefined, lastAsk); lastAsk = r.ask;
+        api.setPrompt(r.ask === "longest" ? "Tap the LONGEST!" : "Tap the SHORTEST!", ["📏", r.ask === "longest" ? "↔️" : "🤏", "👉"]);
+        api.speak();
+        rows.innerHTML = "";
+        r.rows.forEach((row) => {
+          const b = api.el("button", {
+            class: "choice cater__row tap", type: "button",
+            dataset: row.correct ? { correct: "1" } : {}, aria: { label: row.len + " long" },
+          });
+          b.innerHTML = '<span class="cater__head">🐛</span>' + Array.from({ length: row.len }, () => '<span class="cater__seg">🟢</span>').join("");
+          b.addEventListener("click", () => {
+            if (!row.correct) { api.tryAgain(b); return; }
+            api.say(r.ask === "longest" ? "That's the longest!" : "That's the shortest!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You measured them all!" });
+            else { api.roundWin(); newRound(); }
+          });
+          rows.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Blast-Off Countdown (tap numbers biggest → smallest) [W] ----
+  F.register({
+    id: "count-down", icon: "🚀", title: "Blast-Off Countdown", skill: "descending order [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 3; let round = 0, step = 0, r = null;
+      const rocketEl = api.el("div", { class: "cd__rocket art-fill", aria: { hidden: "true" }, html: (window.JoshArt && window.JoshArt.rocket) ? window.JoshArt.rocket() : "🚀" });
+      const numEl = api.el("div", { class: "cd__num", aria: { hidden: "true" } });
+      const tray = api.el("div", { class: "choices choices--3" });
+      api.stage.append(rocketEl, numEl, tray);
+      function flagNext() {
+        [...tray.children].forEach((c, i) => {
+          if (!c.dataset.done && r.items[i].order === step) c.dataset.correct = "1";
+          else if (!c.dataset.done) delete c.dataset.correct;
+        });
+      }
+      function newRound() {
+        r = L.makeCountdown(api.shouldRamp(2) ? 10 : 5);
+        step = 0;
+        api.setPrompt("Tap the numbers from BIGGEST to smallest — then blast off!", ["🚀", "🔢", "⬇️"]);
+        api.speak();
+        numEl.textContent = String(r.len);
+        rocketEl.classList.remove("cd__rocket--launch");
+        tray.innerHTML = "";
+        r.items.forEach((it) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button", text: String(it.value),
+            dataset: it.order === 0 ? { correct: "1" } : {}, aria: { label: String(it.value) },
+          });
+          b.addEventListener("click", () => {
+            if (b.dataset.done) return;
+            if (it.order !== step) { api.tryAgain(b); return; }
+            b.dataset.done = "1"; b.classList.add("choice--used"); delete b.dataset.correct;
+            step += 1;
+            if (step >= r.items.length) {
+              numEl.textContent = "🚀";
+              rocketEl.classList.add("cd__rocket--launch");
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "Blast off! You counted down!" });
+              else { api.roundWin(); newRound(); }
+            } else { numEl.textContent = String(it.value - 1); api.say(String(it.value - 1)); flagNext(); }
+          });
+          tray.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Heavy or Light? (the heavier side of the seesaw is DOWN) [P] ----
+  F.register({
+    id: "seesaw", icon: "⚖️", title: "Heavy or Light?", skill: "weight compare [P]",
+    start(api) {
+      const C = api.C; const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, lastIdx = -1, r = null;
+      const beam = api.el("div", { class: "seesaw", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices seesaw__choices" });
+      api.stage.append(beam, chips);
+      function newRound() {
+        r = L.makeSeesaw(C.WEIGHT_PAIRS, undefined, lastIdx); lastIdx = r.idx;
+        api.setPrompt(r.ask === "heavier" ? "Tap the HEAVIER one!" : "Tap the LIGHTER one!", ["⚖️", r.ask === "heavier" ? "⬇️" : "⬆️", "👉"]);
+        api.speak();
+        beam.className = "seesaw " + (r.heavyLeft ? "seesaw--left" : "seesaw--right");
+        beam.innerHTML = '<span class="seesaw__pan">' + r.sides[0].emoji + '</span><span class="seesaw__bar"></span><span class="seesaw__pan">' + r.sides[1].emoji + "</span>";
+        chips.innerHTML = "";
+        r.sides.forEach((s, i) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: s.emoji,
+            dataset: i === r.correctIdx ? { correct: "1" } : {}, aria: { label: s.name },
+          });
+          b.addEventListener("click", () => {
+            if (i !== r.correctIdx) { api.tryAgain(b); return; }
+            api.say("The " + s.name + " is " + r.ask + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know heavy and light!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Count the Sides (geometry × counting; circle = 0) [W] ----
+  F.register({
+    id: "side-count", icon: "🔺", title: "Count the Sides", skill: "geometry / counting [W]",
+    start(api) {
+      const C = api.C; const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, last = -1, r = null;
+      const shapeEl = api.el("div", { class: "sides__shape", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(shapeEl, chips);
+      function newRound() {
+        r = L.makeSideCount(C.SIDE_SHAPES, undefined, last); last = r.idx;
+        api.setPrompt("How many sides?", ["🔺", "🔢", "👉"]);
+        api.speak();
+        shapeEl.innerHTML = '<svg viewBox="0 0 100 100" fill="#5aa9e6" stroke="#2b6cff" stroke-width="3" role="img" aria-hidden="true">' + r.shape.svg + "</svg>";
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button", text: String(ch.n),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say(r.sides === 0 ? "A circle has no straight sides — zero!" : r.sides + " sides!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You counted every side!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

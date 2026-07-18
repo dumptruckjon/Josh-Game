@@ -1148,9 +1148,111 @@
     return null;
   }
 
+  // ================= Road to 140 — Wave 2 logic =================
+  // A nickel is worth 5 pennies: 3 piles, counts distinct, exactly one === 5.
+  function makeCoinTrade(rng = Math.random) {
+    const value = 5;
+    const used = new Set([value]);
+    const wrongs = [];
+    while (wrongs.length < 2) { const w = randInt(1, 9, rng); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
+    const piles = shuffle([{ count: value, correct: true }, ...wrongs.map((count) => ({ count, correct: false }))], rng);
+    return { value, piles };
+  }
+  // Doubles: n + n. Sum is always 2n; 3 distinct positive choices.
+  function makeDouble(rng = Math.random, max = 5) {
+    const n = randInt(1, Math.max(1, max), rng);
+    const sum = 2 * n;
+    const opt = new Set([sum]);
+    const deltas = [1, -1, 2, -2, 3];
+    let di = 0;
+    while (opt.size < 3 && di < 30) { const d = sum + deltas[di % deltas.length]; di++; if (d >= 1) opt.add(d); }
+    const choices = shuffle([...opt].map((v) => ({ n: v, correct: v === sum })), rng);
+    return { n, sum, choices };
+  }
+  // Three rows of distinct length (pairwise gap >= 2); ask longest/shortest.
+  function makeLengthPick(rng, last) {
+    const rnd = rng || Math.random;
+    const base = 2 + Math.floor(rnd() * 3);
+    const lens = shuffle([base, base + 2, base + 4], rng);
+    let ask = rnd() < 0.5 ? "longest" : "shortest";
+    if (ask === last) ask = ask === "longest" ? "shortest" : "longest";
+    const target = ask === "longest" ? Math.max.apply(null, lens) : Math.min.apply(null, lens);
+    let flagged = false;
+    const rows = lens.map((len) => { const c = !flagged && len === target; if (c) flagged = true; return { len, correct: c }; });
+    return { ask, rows };
+  }
+  // Descending order: order 0 is the LARGEST value (tap-first).
+  function makeCountdown(len, rng = Math.random) {
+    len = Math.max(3, Math.min(len || 5, 10));
+    const items = [];
+    for (let i = 0; i < len; i++) items.push({ value: len - i, order: i });
+    return { len, items: shuffle(items, rng) };
+  }
+  // Seesaw: the heavier side is DOWN. Ask heavier/lighter; exactly one correct.
+  function makeSeesaw(pairs, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * pairs.length);
+    if (pairs.length > 1 && idx === lastIdx) idx = (idx + 1) % pairs.length;
+    const pair = pairs[idx];
+    const ask = rnd() < 0.5 ? "heavier" : "lighter";
+    const heavyLeft = rnd() < 0.5;
+    const heavySide = { emoji: pair.heavy, name: pair.heavyName, heavy: true };
+    const lightSide = { emoji: pair.light, name: pair.lightName, heavy: false };
+    const sides = heavyLeft ? [heavySide, lightSide] : [lightSide, heavySide];
+    const correctIdx = sides.findIndex((s) => (ask === "heavier" ? s.heavy : !s.heavy));
+    return { idx, pair, ask, sides, heavyLeft, correctIdx };
+  }
+  // Count the sides of a shape (circle = 0). 3 distinct numeral choices.
+  function makeSideCount(shapes, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * shapes.length);
+    if (shapes.length > 1 && idx === last) idx = (idx + 1) % shapes.length;
+    const shape = shapes[idx];
+    const sides = shape.sides;
+    const opt = new Set([sides]);
+    const cand = [sides + 1, sides - 1, sides + 2, 3, 4, 0];
+    let ci = 0;
+    while (opt.size < 3 && ci < 40) { const d = cand[ci % cand.length]; ci++; if (d >= 0 && d !== sides) opt.add(d); }
+    const choices = shuffle([...opt].map((v) => ({ n: v, correct: v === sides })), rng);
+    return { idx, shape, sides, choices };
+  }
+  // Ending sound: mirror of makeFirstSound (the word's LAST letter).
+  function makeEndSound(words, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * words.length);
+    if (words.length > 1 && idx === last) idx = (idx + 1) % words.length;
+    const w = words[idx];
+    const others = shuffle([...new Set(words.filter((x, i) => i !== idx).map((x) => x.letter))].filter((l) => l !== w.letter), rng).slice(0, 2);
+    const choices = shuffle([{ letter: w.letter, correct: true }, ...others.map((letter) => ({ letter, correct: false }))], rng);
+    return { idx, word: w, choices };
+  }
+  // Missing middle vowel of a pictured CVC word.
+  function makeVowelPick(words, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * words.length);
+    if (words.length > 1 && idx === last) idx = (idx + 1) % words.length;
+    const w = words[idx];
+    const vowelIdx = 1; // CVC middle
+    const display = w.word.split("").map((ch, i) => (i === vowelIdx ? "▢" : ch)).join("");
+    const VOWELS = ["a", "e", "i", "o", "u"];
+    const others = shuffle(VOWELS.filter((v) => v !== w.vowel), rng).slice(0, 2);
+    const choices = shuffle([{ v: w.vowel, correct: true }, ...others.map((v) => ({ v, correct: false }))], rng);
+    return { idx, word: w, display, vowelIdx, choices };
+  }
+  // Word families: sort a pictured word to its rime house (2 bins per round).
+  function makeFamilySort(sets, rng = Math.random) {
+    const set = sets[randInt(0, sets.length - 1, rng)];
+    const bi = randInt(0, set.bins.length - 1, rng);
+    const items = set.bins[bi].words;
+    const item = items[randInt(0, items.length - 1, rng)];
+    return { item, bins: set.bins.map((b) => ({ label: b.label })), correctIndex: bi, setName: set.name };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
+    makeCoinTrade, makeDouble, makeLengthPick, makeCountdown, makeSeesaw,
+    makeSideCount, makeEndSound, makeVowelPick, makeFamilySort,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,
