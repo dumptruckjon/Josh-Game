@@ -336,6 +336,12 @@ test("makeLetterMatch: correct lowercase is the uppercase lowercased; distinct",
     assert.equal(correct.length, 1);
     assert.equal(correct[0].lower, r.upper.toLowerCase());
     assert.equal(new Set(r.choices.map((c) => c.lower)).size, r.choices.length, "choices distinct");
+    // Never offer both "i" and "l" together: on iOS the target "I" and the
+    // distractor "l" render as identical bare strokes, pulling a shape-matcher to
+    // the wrong tile. If the target is I, l must never be a choice (and v.v.).
+    const lowers = r.choices.map((c) => c.lower);
+    assert.ok(!(lowers.includes("i") && lowers.includes("l")),
+      `letter-match offered the i/l confusable pair together (target ${r.upper})`);
   }
 });
 
@@ -1140,8 +1146,29 @@ test("makeMeasureWord: one correct 量词, distractors are other nouns' words", 
     assert.equal(r.choices.filter((c) => c.correct).length, 1);
     assert.ok(r.choices.some((c) => c.correct && c.mw === r.pair.mw));
     assert.equal(new Set(r.choices.map((c) => c.mw)).size, r.choices.length, "no duplicate chips");
+    // A distractor must never be an ALSO-valid 量词 for the noun (e.g. 只 for 鞋):
+    // marking a grammatically-correct answer wrong would teach a falsehood.
+    (r.pair.alsoOk || []).forEach((ok) => {
+      assert.ok(!r.choices.some((c) => !c.correct && c.mw === ok),
+        `measure-word offered alsoOk "${ok}" as a wrong answer for ${r.pair.noun}`);
+    });
     last = r.idx;
   }
+});
+
+test("makeMeasureWord: the 鞋 alsoOk guard actually excludes 只 across many draws", () => {
+  const rng = mulberry32(741);
+  const shoeIdx = HL.MEASURE_WORDS.findIndex((p) => p.noun === "鞋");
+  assert.ok(shoeIdx >= 0 && (HL.MEASURE_WORDS[shoeIdx].alsoOk || []).includes("只"),
+    "鞋 must declare 只 as an also-valid 量词 so it's never a wrong distractor");
+  let sawShoe = 0;
+  for (let i = 0; i < 2000; i++) {
+    const r = L.makeMeasureWord(HL.MEASURE_WORDS, rng, -1);
+    if (r.pair.noun !== "鞋") continue;
+    sawShoe++;
+    assert.ok(!r.choices.some((c) => !c.correct && c.mw === "只"), "只 must never be a wrong choice for 鞋");
+  }
+  assert.ok(sawShoe > 50, "expected 鞋 to come up many times");
 });
 
 test("makePairPick: generic q→a pairing with deduped distractors (regional, antonyms)", () => {

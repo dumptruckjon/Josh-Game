@@ -273,13 +273,30 @@
 
   // --- Letter match (uppercase -> its lowercase) --------------------------
   const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  // Letters whose LOWERCASE forms are visually identical on iOS Safari (SF Pro):
+  // capital-i "I" and lowercase-L "l" both render as a bare vertical stroke, so
+  // if "I" is the target and "l" a distractor, the true answer "i" (with a dot)
+  // looks LESS like the target than the wrong "l" — a shape-matching non-reader
+  // is pulled to the wrong tile. Never let two members of a confusable group be
+  // the target + a distractor together. (Groups keyed by uppercase index.)
+  const LETTER_CONFUSABLES = [[8, 11]]; // I / L  (lowercase "i" vs "l")
+  function lettersConfusable(a, b) {
+    return LETTER_CONFUSABLES.some((g) => g.indexOf(a) !== -1 && g.indexOf(b) !== -1);
+  }
   function makeLetterMatch(rng = Math.random) {
     const i = randInt(0, 25, rng);
     const upper = ALPHABET[i];
     const used = new Set([i]);
-    const wrongs = [];
-    while (wrongs.length < 2) { const w = randInt(0, 25, rng); if (!used.has(w)) { used.add(w); wrongs.push(ALPHABET[w].toLowerCase()); } }
-    const choices = shuffle([{ lower: upper.toLowerCase(), correct: true }, ...wrongs.map((l) => ({ lower: l, correct: false }))], rng);
+    const wrongIdx = [];
+    while (wrongIdx.length < 2) {
+      const w = randInt(0, 25, rng);
+      if (used.has(w)) continue;
+      // No two of {target, distractor1, distractor2} may be a confusable pair —
+      // so "i" and "l" can never share a board, whichever slots they'd land in.
+      if (lettersConfusable(i, w) || wrongIdx.some((x) => lettersConfusable(x, w))) continue;
+      used.add(w); wrongIdx.push(w);
+    }
+    const choices = shuffle([{ lower: upper.toLowerCase(), correct: true }, ...wrongIdx.map((w) => ({ lower: ALPHABET[w].toLowerCase(), correct: false }))], rng);
     return { upper, answer: upper.toLowerCase(), choices };
   }
 
@@ -987,7 +1004,16 @@
     let idx = Math.floor(rnd() * pairs.length);
     if (pairs.length > 1 && idx === lastIdx) idx = (idx + 1) % pairs.length;
     const pair = pairs[idx];
-    const others = shuffle([...new Set(pairs.filter((p, i) => i !== idx).map((p) => p.mw))].filter((mw) => mw !== pair.mw), rng).slice(0, 2);
+    // A distractor measure word must be UNIQUELY wrong for this noun. Some nouns
+    // legitimately take more than one 量词 (e.g. 鞋 → 双 for a pair but 只 for a
+    // single shoe); pair.alsoOk lists those so they can never be offered as a
+    // "wrong" answer that is actually valid.
+    const alsoOk = pair.alsoOk || [];
+    const others = shuffle(
+      [...new Set(pairs.filter((p, i) => i !== idx).map((p) => p.mw))]
+        .filter((mw) => mw !== pair.mw && alsoOk.indexOf(mw) === -1),
+      rng
+    ).slice(0, 2);
     const choices = shuffle([{ mw: pair.mw, correct: true }, ...others.map((mw) => ({ mw, correct: false }))], rng);
     return { idx, pair, choices };
   }

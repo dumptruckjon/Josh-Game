@@ -782,6 +782,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .coin--penny { background: radial-gradient(circle at 40% 35%, #e6a06a, #b5702f); color: #4a2a10; }
 .coin--nickel { background: radial-gradient(circle at 40% 35%, #e8ecef, #a7b0b8); color: #33414d; }
 .coin--off { opacity: 0.4; }
+.pv__pile--off { opacity: 0.4; } /* a pile that would overshoot the target — clearly "not now" */
 
 /* ---------- Number Muncher (compare numerals) ---------- */
 .muncher__gator { text-align: center; font-size: 3.4rem; line-height: 1; }

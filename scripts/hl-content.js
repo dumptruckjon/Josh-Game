@@ -81,7 +81,10 @@
       { noun: "车", emoji: "🚗", mw: "辆" },
       { noun: "花", emoji: "🌸", mw: "朵" },
       { noun: "衣服", emoji: "👕", mw: "件" },
-      { noun: "鞋", emoji: "👟", mw: "双" },
+      // 鞋: 双 (a pair) is the taught answer — shown as a PAIR so it reads
+      // unambiguously; 只 (one shoe) is also valid Chinese, so it's marked alsoOk
+      // and never offered as a "wrong" distractor.
+      { noun: "鞋", emoji: "👟👟", mw: "双", alsoOk: ["只"] },
     ],
 
     // ---- 📜 Antonym pairs (反义词) ----
@@ -176,9 +179,14 @@
     ],
 
     // ---- 👁️ Eye games: pools ----
-    LANTERN_POOL: ["🏮", "🎈", "🪔"],
+    // Only 🏮 is a 灯笼; the distractors are clearly NOT lanterns (a balloon and
+    // a wind-chime — the old 🪔 oil-lamp read as lamp-like and could give pause).
+    LANTERN_POOL: ["🏮", "🎈", "🎐"],
+    // Each pond creature carries its correct 量词 so the count prompt stays on
+    // message (the site teaches 鱼→条 elsewhere): 金鱼→条, 鸭子/乌龟→只, 荷花→朵.
     KOI_POOL: [
-      { emoji: "🐟", name: "金鱼" }, { emoji: "🦆", name: "鸭子" }, { emoji: "🐢", name: "乌龟" }, { emoji: "🪷", name: "荷花" },
+      { emoji: "🐟", name: "金鱼", mw: "条" }, { emoji: "🦆", name: "鸭子", mw: "只" },
+      { emoji: "🐢", name: "乌龟", mw: "只" }, { emoji: "🪷", name: "荷花", mw: "朵" },
     ],
     SPOT_POOL: ["🍵", "🏮", "🥟", "🌸", "🐼", "🧧", "🍊", "🥮", "🪭", "🐉"],
     // Two-clue hunt (按提示找): color + shape lattice, in Chinese.

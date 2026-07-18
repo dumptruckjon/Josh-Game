@@ -471,6 +471,10 @@
       const ROUNDS = Math.min(3, NAMES.length);
       const FRIENDS = api.C.FRIENDS || [];
       let round = 0, step = 0, letters = [];
+      // Josh's own name always leads (it's "Spell My Name"), then the friends
+      // rotate in a shuffled order so every friend — Viraj included — gets spelled
+      // across sessions (a fixed round%N order used to skip the 4th name forever).
+      const order = NAMES.length > 1 ? [NAMES[0]].concat(api.shuffle(NAMES.slice(1))) : NAMES.slice();
       const face = api.el("div", { class: "ns__face art-fill", aria: { hidden: "true" } });
       const nameLabel = api.el("div", { class: "ns__name" });
       const slots = api.el("div", { class: "ns__slots" });
@@ -484,7 +488,7 @@
         });
       }
       function newRound() {
-        const entry = NAMES[round % NAMES.length];
+        const entry = order[round % order.length];
         const r = L.makeNameSpell(entry.letters);
         letters = r.letters; step = 0;
         const spec = (FRIENDS.find((f) => f.name === entry.name) || {}).art;
@@ -635,7 +639,9 @@
           api.el("span", { class: "listen__qobj", aria: { hidden: "true" }, text: r.ask.o }),
           api.el("span", { class: "listen__qmark", text: "❓" })
         );
-        const story = r.pairs.map((p) => "The " + p.cn + " has the " + p.on + ".").join(" ");
+        // No article before a proper name: "Josh has the ball", not "The Josh…".
+        // (Capitalised cn = a friend's name; lowercase = a common-noun animal.)
+        const story = r.pairs.map((p) => (/^[A-Z]/.test(p.cn) ? "" : "The ") + p.cn + " has the " + p.on + ".").join(" ");
         api.setPrompt(story + " Who has the " + r.ask.on + "?", ["👂", "🐾", r.ask.o]);
         api.speak();
         choices.innerHTML = "";

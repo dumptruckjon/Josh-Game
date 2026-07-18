@@ -416,10 +416,16 @@
     // A friendly, stylized world map (not exact coastlines). The animal sits on
     // its home continent so the picture is self-checking. Colors follow the
     // Montessori continent-map convention. Blobs use a 0 0 200 110 viewBox.
+    // Each continent's signature animal must be ICONIC to ONE continent for a
+    // preschooler, so "Animal Homes" (which shows the animal alone) never marks a
+    // genuinely-true home wrong. Bison→N.America and hedgehog→Europe replace the
+    // old eagle/deer, whose multi-continent ranges made a correct tap get bumped
+    // (eagles + deer live across several of these continents). Panda/kangaroo/
+    // llama/lion/penguin are each single-continent-iconic for a child.
     CONTINENTS: [
-      { name: "North America", color: "#ff8c42", animal: "🦅", cx: 40, cy: 34, rx: 26, ry: 21 },
+      { name: "North America", color: "#ff8c42", animal: "🦬", cx: 40, cy: 34, rx: 26, ry: 21 },
       { name: "South America", color: "#ff6fa5", animal: "🦙", cx: 60, cy: 83, rx: 15, ry: 22 },
-      { name: "Europe", color: "#e0524f", animal: "🦌", cx: 104, cy: 30, rx: 13, ry: 11 },
+      { name: "Europe", color: "#e0524f", animal: "🦔", cx: 104, cy: 30, rx: 13, ry: 11 },
       { name: "Africa", color: "#4caf50", animal: "🦁", cx: 109, cy: 66, rx: 19, ry: 24 },
       { name: "Asia", color: "#f4c430", animal: "🐼", cx: 151, cy: 36, rx: 31, ry: 21 },
       { name: "Australia", color: "#a0693c", animal: "🦘", cx: 168, cy: 85, rx: 16, ry: 12 },
@@ -556,7 +562,7 @@
       { pairs: [{ c: "🐶", cn: "dog", o: "🦴", on: "bone" }, { c: "🐱", cn: "cat", o: "🐟", on: "fish" }, { c: "🐰", cn: "bunny", o: "🥕", on: "carrot" }] },
       { pairs: [{ c: "🐻", cn: "bear", o: "🍯", on: "honey" }, { c: "🐭", cn: "mouse", o: "🧀", on: "cheese" }, { c: "🐵", cn: "monkey", o: "🍌", on: "banana" }] },
       { pairs: [{ c: "🐧", cn: "penguin", o: "🐟", on: "fish" }, { c: "🦁", cn: "lion", o: "🥩", on: "meat" }, { c: "🐴", cn: "horse", o: "🍎", on: "apple" }] },
-      { pairs: [{ c: "🧒", cn: "Josh", o: "⚽", on: "ball" }, { c: "👧", cn: "River", o: "🎈", on: "balloon" }, { c: "🧑", cn: "Viraj", o: "🚗", on: "car" }] },
+      { pairs: [{ c: "🧒", cn: "Josh", o: "⚽", on: "ball" }, { c: "👦", cn: "River", o: "🎈", on: "balloon" }, { c: "🧑", cn: "Viraj", o: "🚗", on: "car" }] },
     ],
 
     // ---- Who Is It? (multi-attribute deduction) ----

@@ -245,6 +245,19 @@ test("continents have distinct colors and names and a signature animal", () => {
     assert.match(c.color, /^#[0-9a-f]{6}$/i, `${c.name} needs a hex color`);
     assert.ok(typeof c.cx === "number" && typeof c.cy === "number" && c.rx > 0 && c.ry > 0, `${c.name} needs a map blob`);
   }
+  // "Animal Homes" shows the animal ALONE, so each signature animal MUST be
+  // single-continent-iconic for a preschooler — otherwise a genuinely-true home
+  // gets marked wrong. Eagle (🦅) and deer (🦌) were multi-continent and are
+  // banned here; bison→N.America and hedgehog→Europe replaced them.
+  const HOME = {};
+  conts.forEach((c) => { HOME[c.name] = c.animal; });
+  assert.equal(HOME["North America"], "🦬", "N.America's animal must be the (single-continent) bison, not a multi-continent eagle");
+  assert.equal(HOME["Europe"], "🦔", "Europe's animal must be the hedgehog, not a multi-continent deer");
+  const MULTI_CONTINENT = ["🦅", "🦌", "🐺", "🦊", "🐻", "🦉"]; // ranges span several of these continents
+  for (const c of conts) {
+    assert.ok(!MULTI_CONTINENT.includes(c.animal),
+      `${c.name}'s animal ${c.animal} has a multi-continent range — a lone-animal home quiz would mark a true tap wrong`);
+  }
 });
 
 // ---------- Finish the Word: every word truly begins with its digraph ----------

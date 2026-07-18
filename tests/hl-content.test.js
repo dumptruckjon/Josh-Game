@@ -97,6 +97,12 @@ test("MEASURE_WORDS restate the standard 量词 truth table", () => {
   }
   const nouns = HL.MEASURE_WORDS.map((m) => m.noun);
   assert.equal(new Set(nouns).size, nouns.length, "nouns unique");
+  // 鞋 legitimately takes 只 for a single shoe, so it must declare alsoOk:["只"]
+  // (the game filters alsoOk out of the distractors) AND show a PAIR so 双 reads
+  // right — otherwise "一只鞋" is a true answer the game would mark wrong.
+  const shoe = HL.MEASURE_WORDS.find((m) => m.noun === "鞋");
+  assert.ok((shoe.alsoOk || []).includes("只"), "鞋 must list 只 as an also-valid 量词");
+  assert.ok(shoe.emoji.length > 2, "鞋 should be shown as a pair of shoes so 双 is unambiguous");
 });
 
 // ---------- 📜 Antonyms ----------
@@ -214,9 +220,17 @@ test("RIDDLES: canonical folk answers; distractors never equal the answer", () =
 test("eye-game pools are unique and big enough for their logic functions", () => {
   assert.ok(HL.LANTERN_POOL.includes("🏮") && HL.LANTERN_POOL.length >= 3);
   assert.equal(new Set(HL.LANTERN_POOL).size, HL.LANTERN_POOL.length);
+  // Only 🏮 may be a real lantern — every other pool member is a wrong tap, so a
+  // lantern-like distractor (the old 🪔 oil lamp) would be unfair.
+  assert.deepEqual(HL.LANTERN_POOL.filter((e) => "🏮🪔🎏".includes(e)), ["🏮"],
+    "no lamp-like distractor may share the 灯笼 board with 🏮");
   const koi = HL.KOI_POOL.map((k) => k.emoji);
   assert.ok(koi.length >= 3, "makeFindCount needs >= 3");
   assert.equal(new Set(koi).size, koi.length);
+  // Each pond creature carries its correct 量词 (the count game speaks 几X…), and
+  // it must be the standard one — 金鱼→条 (never 个), consistent with 鱼→条 above.
+  const KOI_MW = { 金鱼: "条", 鸭子: "只", 乌龟: "只", 荷花: "朵" };
+  for (const k of HL.KOI_POOL) assert.equal(k.mw, KOI_MW[k.name], `${k.name} needs its standard 量词 一${KOI_MW[k.name]}`);
   for (const k of HL.KOI_POOL) assert.ok(isCJK(k.name));
   assert.ok(HL.SPOT_POOL.length >= 7, "makeSpotDifference(count 5) needs pool > count; makeTwins/FindHero need room");
   assert.equal(new Set(HL.SPOT_POOL).size, HL.SPOT_POOL.length);

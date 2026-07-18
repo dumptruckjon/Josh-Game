@@ -541,6 +541,10 @@
         if (remaining >= 10) { tensBtn.dataset.correct = "1"; delete onesBtn.dataset.correct; }
         else if (remaining > 0) { onesBtn.dataset.correct = "1"; delete tensBtn.dataset.correct; }
         else { delete tensBtn.dataset.correct; delete onesBtn.dataset.correct; }
+        // Dim a pile that would overshoot, so a non-reader sees which to tap next
+        // (a +10 tap with < 10 to go was a silent no-op). Mirrors piggy-bank coins.
+        tensBtn.classList.toggle("pv__pile--off", remaining < 10);
+        onesBtn.classList.toggle("pv__pile--off", remaining < 1);
         built.innerHTML = "";
         const t = L.tensOnes(total);
         for (let i = 0; i < t.tens; i++) built.appendChild(api.el("span", { class: "pv__ten", text: "🔟" }));

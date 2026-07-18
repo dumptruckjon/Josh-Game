@@ -514,14 +514,14 @@
     start(api) {
       const ROUNDS = 3;
       let round = 0, r = null;
-      const nameOf = {};
-      HL.KOI_POOL.forEach((k) => { nameOf[k.emoji] = k.name; });
+      const nameOf = {}, mwOf = {};
+      HL.KOI_POOL.forEach((k) => { nameOf[k.emoji] = k.name; mwOf[k.emoji] = k.mw || "个"; });
       const pond = api.el("div", { class: "hl-grid4 hl-pond", aria: { hidden: "true" } });
       const chips = api.el("div", { class: "choices choices--3 hl-choices" });
       api.stage.append(pond, chips);
       function newRound() {
         r = L.makeFindCount(HL.KOI_POOL.map((k) => k.emoji), 12, undefined);
-        api.setPrompt("池塘里有几个" + nameOf[r.target] + "？", ["🐟", "🧮", "🤔"]);
+        api.setPrompt("池塘里有几" + mwOf[r.target] + nameOf[r.target] + "？", ["🐟", "🧮", "🤔"]);
         api.speak();
         pond.innerHTML = "";
         r.cells.forEach((emoji) => {
@@ -537,7 +537,7 @@
             if (!ch.correct) { api.tryAgain(b); return; }
             pond.classList.add("hl-pond--glow");
             setTimeout(() => pond.classList.remove("hl-pond--glow"), 700);
-            api.say(r.count + "个" + nameOf[r.target] + "，数得真准！");
+            api.say(r.count + mwOf[r.target] + nameOf[r.target] + "，数得真准！");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "数得又准又快！" });
             else { api.roundWin(); newRound(); }
