@@ -1526,3 +1526,30 @@ test("alphaRun: consecutive letters of the requested length; whole alphabet reac
   }
   for (const ch of L.ALPHABET.split("")) assert.ok(seen.has(ch), ch + " reachable");
 });
+
+// ================= Road to 140 — Wave 4 logic =================
+test("makeWhoEats: correct is the food's answer; NO distractor eats the food", () => {
+  const rng = mulberry32(410);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeWhoEats(content.FOOD_EATERS, rng, last);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].animal, r.food.answer, "correct is the food's answer");
+    for (const c of r.choices) {
+      if (!c.correct) assert.ok(!r.food.eaters.includes(c.animal), c.animal + " must not eat " + r.food.say);
+    }
+    assert.equal(new Set(r.choices.map((c) => c.animal)).size, r.choices.length, "choices unique");
+    last = r.idx;
+  }
+});
+test("makePartPick: never repeats the last part; correctIdx points at the part", () => {
+  const rng = mulberry32(411);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makePartPick(content.BODY_PARTS, rng, last);
+    assert.equal(r.part, content.BODY_PARTS[r.correctIdx]);
+    if (content.BODY_PARTS.length > 1) assert.notEqual(r.correctIdx, last);
+    last = r.correctIdx;
+  }
+});

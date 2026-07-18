@@ -512,4 +512,162 @@
       newRound();
     },
   });
+
+  // ================= Road to 140 — Wave 4 =================
+
+  // ---- Fireworks Show (tap the sky → a burst; counts them) ----
+  F.register({
+    id: "fireworks",
+    icon: "🎆",
+    title: "Fireworks Show",
+    skill: "cause→effect / counting [P]",
+    start(api) {
+      api.setPrompt("Tap the sky for fireworks!", ["👆", "🎆", "✨"]);
+      const sky = api.el("button", { class: "fw__sky tap", type: "button", dataset: { toy: "1" }, aria: { label: "night sky" } });
+      api.stage.append(sky);
+      const COLORS = ["#ffd166", "#ef476f", "#06d6a0", "#4cc9f0", "#f78c6b", "#c77dff"];
+      let bursts = 0, won = false;
+      sky.addEventListener("click", () => {
+        const burst = api.el("span", { class: "fw__burst", aria: { hidden: "true" } });
+        burst.style.left = api.randInt(14, 86) + "%";
+        burst.style.top = api.randInt(10, 68) + "%";
+        burst.style.background = api.randItem(COLORS);
+        sky.appendChild(burst);
+        setTimeout(() => burst.remove(), 950);
+        api.tickPlay();
+        try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(api.randInt(420, 720), { duration: 0.12, type: "triangle" }); } catch (e) { /* ignore */ }
+        bursts += 1;
+        api.say(String(bursts));
+        if (bursts >= 6) {
+          if (!won) { won = true; api.win({ say: "What a show!" }); } else api.roundWin();
+        }
+      });
+    },
+  });
+
+  // ---- Silly Face Maker (cycle a hat / face / glasses — pure autonomy) ----
+  F.register({
+    id: "silly-face",
+    icon: "😜",
+    title: "Silly Face Maker",
+    skill: "cause→effect / autonomy [P]",
+    start(api) {
+      const LAYERS = [
+        { key: "hat", cls: "silly2__hat", label: "hat", opts: ["🎩", "👑", "🧢", "🎓", "⛑️"] },
+        { key: "face", cls: "silly2__face", label: "face", opts: ["😀", "😜", "🤪", "😎", "🥳", "😝"] },
+        { key: "spex", cls: "silly2__spex", label: "glasses", opts: ["🕶️", "👓", "🥽"] },
+      ];
+      api.setPrompt("Make a silly face!", ["🎩", "😜", "🕶️"]);
+      const face = api.el("div", { class: "silly2__stage", aria: { hidden: "true" } });
+      const spans = {};
+      LAYERS.forEach((ly) => { ly.idx = 0; const s = api.el("span", { class: ly.cls }, [ly.opts[0]]); spans[ly.key] = s; face.appendChild(s); });
+      const btns = api.el("div", { class: "choices choices--3" });
+      let taps = 0, won = false;
+      LAYERS.forEach((ly) => {
+        const b = api.el("button", { class: "choice silly2__btn tap", type: "button", dataset: { toy: "1" }, aria: { label: "change " + ly.label } }, [ly.opts[0]]);
+        b.addEventListener("click", () => {
+          ly.idx = (ly.idx + 1) % ly.opts.length;
+          spans[ly.key].textContent = ly.opts[ly.idx];
+          b.textContent = ly.opts[ly.idx];
+          api.tickPlay();
+          try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(500 + ly.idx * 40, { duration: 0.08 }); } catch (e) { /* ignore */ }
+          taps += 1;
+          if (taps >= 6) {
+            if (!won) { won = true; api.win({ say: "What a fantastic silly face!" }); } else api.roundWin();
+          }
+        });
+        btns.appendChild(b);
+      });
+      api.stage.append(face, btns);
+    },
+  });
+
+  // ---- Web Swing! (tap the numbered buildings in order; hero hops across) ----
+  F.register({
+    id: "web-swing",
+    icon: "🕸️",
+    title: "Web Swing!",
+    skill: "ordered taps / hero play [P]",
+    start(api) {
+      const N = 5, ROUNDS = 2;
+      let round = 0, step = 0, dir = 1;
+      const heroSvg = (window.JoshArt && window.JoshArt.hero) ? window.JoshArt.hero("#e23636") : "🕷️";
+      const city = api.el("div", { class: "swing__city" });
+      api.stage.append(city);
+      let buildings = [];
+      function newRound() {
+        step = 0; city.innerHTML = ""; buildings = [];
+        const seq = dir === 1 ? [0, 1, 2, 3, 4] : [4, 3, 2, 1, 0];
+        api.setPrompt("Swing across the city — tap 1, 2, 3…", ["👆", "🕸️", "🏙️"]);
+        api.speak();
+        for (let i = 0; i < N; i++) {
+          const rank = seq.indexOf(i);
+          const b = api.el("button", { class: "swing__bldg tap", type: "button", aria: { label: "building " + (rank + 1) } }, [
+            api.el("span", { class: "swing__num", aria: { hidden: "true" } }, [String(rank + 1)]),
+            api.el("span", { class: "swing__hero art-fill", aria: { hidden: "true" } }),
+          ]);
+          b.__rank = rank;
+          if (rank === 0) b.dataset.correct = "1";
+          b.addEventListener("click", () => {
+            if (b.__rank !== step) { api.tryAgain(b); return; }
+            [...city.querySelectorAll(".swing__hero")].forEach((h) => (h.innerHTML = ""));
+            b.querySelector(".swing__hero").innerHTML = heroSvg;
+            delete b.dataset.correct;
+            step += 1;
+            if (step >= N) {
+              round += 1; dir = -dir;
+              if (round >= ROUNDS) api.win({ say: "You swung across the whole city!" });
+              else { api.roundWin(); setTimeout(newRound, 350); }
+            } else {
+              const next = buildings.find((bb) => bb.__rank === step);
+              if (next) next.dataset.correct = "1";
+            }
+          });
+          buildings.push(b); city.appendChild(b);
+        }
+      }
+      newRound();
+    },
+  });
+
+  // ---- Birthday Cake (put 5 candles on, then blow them out) ----
+  F.register({
+    id: "birthday-cake",
+    icon: "🎂",
+    title: "Birthday Cake",
+    skill: "counting / celebrate [P]",
+    start(api) {
+      const NEED = 5;
+      let candles = 0, phase = "add";
+      const cake = api.el("button", { class: "cake__cake tap", type: "button", aria: { label: "the cake" } }, [
+        api.el("span", { class: "cake__flames", aria: { hidden: "true" } }),
+        api.el("span", { class: "cake__base", aria: { hidden: "true" } }, ["🎂"]),
+      ]);
+      const flames = cake.querySelector(".cake__flames");
+      const pile = api.el("button", { class: "choice cake__pile tap", type: "button", dataset: { correct: "1" }, aria: { label: "add a candle" } }, ["🕯️"]);
+      api.stage.append(cake, pile);
+      api.setPrompt("Josh is turning FIVE! Add 5 candles!", ["🎂", "🕯️", "5️⃣"]);
+      api.speak();
+      pile.addEventListener("click", () => {
+        if (phase !== "add") return;
+        candles += 1;
+        flames.appendChild(api.el("span", { class: "cake__candle", aria: { hidden: "true" } }, ["🕯️"]));
+        api.say(String(candles));
+        if (candles >= NEED) {
+          phase = "blow";
+          delete pile.dataset.correct; pile.disabled = true; pile.classList.add("choice--used");
+          cake.dataset.correct = "1";
+          api.setPrompt("Now blow them out!", ["🎂", "💨", "🎉"]);
+          api.speak(); api.say("Now blow them out!");
+        }
+      });
+      cake.addEventListener("click", () => {
+        if (phase !== "blow") return;
+        phase = "done";
+        delete cake.dataset.correct;
+        flames.innerHTML = "💨";
+        api.win({ say: "Happy birthday, Josh! Hooray!" });
+      });
+    },
+  });
 })();

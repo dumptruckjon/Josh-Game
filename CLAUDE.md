@@ -198,7 +198,21 @@ hunts 福 via `makeLetterHunt` `opts.target`); **a named mechanic must BE that
 mechanic** (四宫数独 was a Latin square → `makeSudoku4` enforces real 2×2 boxes,
 guardrail-tested, separate from `makeLatinSquare` so Josh's picture-squares is
 untouched); **a countdown/among-a-set answer should be visible, not audio-only**
-(Team Countdown now shows a live 5→4→3→2→1 numeral). When you fix the next
+(Team Countdown now shows a live 5→4→3→2→1 numeral).
+**A wrapped row of word/piece TILES must keep ≥16px between buttons** — Build the
+Sentence first shipped with a 10px tile gap and the 320px audit's ≥14px
+spacing rule failed it (only `button`/`a`/`[role=button]` are audited, so spans
+are exempt but real tile buttons are not); every flex/grid of tappable tiles now
+uses the shared 16px gap. **A named-place tap game (absolute-positioned zones on
+a figure) must prove its geometry, not eyeball it** — Simon Says: Touch! carries
+a `BODY_FIGURE_BOX` and a `content.test.js` geometry test that restates the
+mobile math (80px zones on a 240×400 box, every pair ≥14px apart, all inside the
+box), the FU_PATH precedent, so a future zone nudge can't silently collide.
+**A "who eats/uses this?" quiz must list EVERY plausible eater so no distractor
+is also-correct** — Who Eats This? uses mutually-exclusive kid-canon diets
+(rabbit-carrot, dog-bone, panda-bamboo, monkey-banana, squirrel-acorn,
+mouse-cheese) with a guardrail asserting no other food's answer is a valid eater
+of a given food (the generalized `alsoOk` discipline). When you fix the next
 thing, extend this list.
 
 ---
@@ -276,9 +290,9 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**100 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**140 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets — and every one
-winnable, so the 📖 Sticker Book tops out at a full ⭐ 100/100. The home screen is a
+winnable, so the 📖 Sticker Book tops out at a full ⭐ 140/140. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
 
@@ -288,42 +302,60 @@ category's games:
   (teen), Set the Clock, Make Ten (number bonds), Add Big Numbers (2-digit
   addition), Piggy Bank (coin value), Which Is Bigger? (compare numerals),
   **Fair Shares** (deal treats equally — early division), **Quick Peek**
-  (subitizing behind a self-paced cloud).
+  (subitizing behind a self-paced cloud), **Hop the Line** (number-line jumps),
+  **Nickel Trade** (5 pennies → a nickel), **Double It!** (doubles), **Longer or
+  Shorter?** (measurement), **Count Down** (10→0), **Balance It** (seesaw
+  compare), **Count the Sides** (shape sides).
 - **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
   Word (sight words), sh or ch? (digraph sort), Big & Little Letters, Missing
   Letter, Read & Zap (read a word → tap its picture), Rhyme Train (find every
   rhyme), sh/ch/th? (finish the word), Letter Maker (trace letters), **Spell My
   Name** (tap J-O-S-H / friends' names in order), **Alphabet Train** (the
-  missing letter in an A-B-?-D window).
+  missing letter in an A-B-?-D window), **Ending Sound**, **The Missing Middle**
+  (CVC vowels), **Word Family Houses** (rimes), **Letter Pairs** (big↔little
+  memory), **Build the Sentence** (word order), **Silly Stories** (listen for two
+  details), **ABC Dot-to-Dot** (connect A→B→C… to reveal a picture).
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
   Shadow (SVG shapes), Small to Big, Memory Match, Put in Order (numbers), What
   Changed?, Color by Number, Who Is It? (2-clue deduction), Picture Squares
   (mini sudoku), Put in Order (story sequencing), **Look From Above**
   (bird's-eye / top-down spatial), **Which Piece Fits?** (the tap-only jigsaw),
   **Who Hid?** (cloud-hides-one elimination memory), **Copy My Beat** (echo a
-  drum sequence — order only, never timing).
+  drum sequence — order only, never timing), **Which is Different?** (opposites),
+  **Fix the Pattern** (interpolate the missing middle), **Finish the Grid**
+  (2-attribute matrix), **Left or Right?** (side discrimination), **Count the
+  Blocks** (single-height iso), **Which One Turned?** (mental rotation).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
   Paw Patrol Rescue, Find the Twins (one matching pair), I Spy: Find Them All
   (category hunt), The Big One (two-clue color+shape hunt), **Web Rescue**
   (clear webs to free trapped friends — occlusion reveal) — his favorite,
   harder each round — and **Letter Hunt** (pop every balloon with the target
-  letter; lowercase twins sneak in once he ramps).
+  letter; lowercase twins sneak in once he ramps), **Number Hunt** (pop the
+  target numeral), **Star Search** (count-up hunt), **Whose Tracks?**
+  (inference), **More in the Pond** (count & compare in a scene), **Little
+  Detective** (two-clue deduction with self-checking fade).
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
   Hot or Cold?, Shape's Real Twin (3D solids), Will It Stick? (magnetic sort),
   Land or Water? (globe), Where Do They Live? (continents, self-checking map),
   Make an Island (build & name landforms), **Find the Shape** (2D plane shapes),
   **Animal Homes** (single-continent ID, no map giveaway), **Plant or Animal?**,
   **Mix It!** (pour two paints → the REAL mixed color), **Sink or Float?**
-  (predict, then the tub proves it), **Mama & Baby** (match baby↔mama). *Sort
-  the Colors* scales to a 3-color bin in later rounds; the sink/float and
-  plant/animal facts share ONE truth set with Alive-or-Not (single source,
-  guardrail-tested).
+  (predict, then the tub proves it), **Mama & Baby** (match baby↔mama), **Who
+  Says Moo?** (animal sounds), **Awake at Night?** (nocturnal sort), **Fast or
+  Slow?** (speed sort), **Who Eats This?** (animal diets — no distractor is also
+  an eater), **Simon Says: Touch!** (body parts on a figure — geometry-tested
+  zones). *Sort the Colors* scales to a 3-color bin in later rounds; the
+  sink/float and plant/animal facts share ONE truth set with Alive-or-Not (single
+  source, guardrail-tested).
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
   Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
   Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey), **Thwip
   the Villains** (web up the silly baddies — no-fail cause→effect, uses
   `VILLAINS`), **Dress Me!** (weather → the friend visibly gets dressed),
-  **Season Windows** (fly each item into its season).
+  **Season Windows** (fly each item into its season), **Fireworks Show** (tap the
+  sky → a burst; counts them), **Silly Face Maker** (cycle a hat / face /
+  glasses), **Web Swing!** (tap the numbered buildings in order — hero hops
+  across), **Birthday Cake** (add 5 candles, then blow them out — his Feb hook).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team
@@ -332,9 +364,14 @@ category's games:
   Race** (take-turns skill race — answer *which rhymes?* to move your racer;
   first to the flag, everyone celebrates), **How Do They Feel?** (name the
   feeling, then one helping breath — SEL), **Kind Helpers** (tap the kind thing
-  to do), **Day Train** (the week in rainbow order). *(The tap-to-fill co-ops
-  now each carry a real skill — skip-count, countdown, counting — not just
-  turn-taking.)*
+  to do), **Day Train** (the week in rainbow order), **Team Story Time** (co-op
+  sequencing), **Quiet Garden** (a calm bloom toy), **Team House Build** (co-op
+  construction), **Hello Around the World** (each friend greets in their heritage
+  language — River 你好, Viraj Namaste, Raegar Privet, Josh Hello), **Team Pizza
+  Party** (deal 6 slices → a fair 3-and-3), **Grandma's Visit** (find Grandma's 3
+  things among Josh's toys — a warm bridge to the hidden 华丽 world, closing on a
+  spoken 谢谢). *(The tap-to-fill co-ops now each carry a real skill — skip-count,
+  countdown, counting — not just turn-taking.)*
 
 ### 👵🏻 华丽的世界 — the hidden world for Josh's Chinese grandma
 
@@ -361,7 +398,7 @@ How it works (keep these invariants):
 - **Progress is shared machinery, separate worlds:** her wins are `josh-won-hl-*`
   (same `JoshProgress` owner), her ⭐ badges/sticker slots fill live off the same
   `josh-won` event — but Josh's grown-ups reset **preserves** her stars, his
-  Sticker Book counts only his 100, hers only her 40 (both guardrail-tested).
+  Sticker Book counts only his 140, hers only her 40 (both guardrail-tested).
 - **Correctness bar is identical:** `tests/hl-content.test.js` restates the
   cultural ground truth (the 5 Tang poems verbatim, real idioms + forged-idiom
   check on distractors, 生肖 order, standard 量词 pairs, festival↔custom bins

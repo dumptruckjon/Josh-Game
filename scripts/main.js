@@ -49,14 +49,17 @@
     "landform-maker": "science", "plane-shape": "science", "continent-home": "science",
     "plant-animal": "science", "color-mix": "science", "sink-float": "science", "mama-baby": "science",
     "animal-sounds": "science", "night-friends": "science", "fast-slow": "science",
+    "who-eats": "science", "body-parts": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
     "grow": "play", "thwip-web": "play", "thwip-villains": "play", "dress-me": "play", "seasons": "play",
+    "fireworks": "play", "silly-face": "play", "web-swing": "play", "birthday-cake": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
     "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",
     "feelings": "friends", "kind-helpers": "friends", "day-train": "friends",
     "team-story": "friends", "garden": "friends",
+    "team-house": "friends", "world-hello": "friends", "team-pizza": "friends", "grandma-helper": "friends",
   };
 
   // Set by initLauncher once the Sticker Book screen exists; re-syncs every slot

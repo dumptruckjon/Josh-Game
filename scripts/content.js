@@ -751,6 +751,60 @@
       [[0, 0], [1, 0], [0, 1]],
       [[0, 0], [1, 0], [2, 0], [3, 0], [0, 1]],
     ],
+
+    // ================= Road to 140 — Wave 4 content =================
+    // Who Eats This? — SIX iconic food↔animal pairs whose diets don't overlap in
+    // kid-canon (rabbit-carrot, dog-bone, panda-bamboo, monkey-banana,
+    // squirrel-acorn, mouse-cheese). `eaters` lists every plausible eater in the
+    // pool so no distractor is ever also-correct (the alsoOk discipline).
+    FOOD_EATERS: [
+      { food: "🥕", say: "the carrot", answer: "🐰", eaters: ["🐰"] },
+      { food: "🦴", say: "the bone", answer: "🐶", eaters: ["🐶"] },
+      { food: "🎋", say: "the bamboo", answer: "🐼", eaters: ["🐼"] },
+      { food: "🍌", say: "the banana", answer: "🐵", eaters: ["🐵"] },
+      { food: "🌰", say: "the acorn", answer: "🐿️", eaters: ["🐿️"] },
+      { food: "🧀", say: "the cheese", answer: "🐭", eaters: ["🐭"] },
+    ],
+    // Simon Says: Touch! — five zones on a JoshArt figure. x/y are CENTER
+    // percentages of a 240×400 box; 80px zone buttons. Positions are chosen so
+    // every pair is ≥14px apart at 320px (restated + checked in content.test.js).
+    // hand sits left / tummy right at the same height so the two mid-body zones
+    // never collide (a touch-the-part game — separation matters more than exact
+    // anatomy).
+    BODY_PARTS: [
+      { key: "head", label: "head", emoji: "😀", x: 50, y: 12 },
+      { key: "hand", label: "hand", emoji: "✋", x: 23, y: 38 },
+      { key: "tummy", label: "tummy", emoji: "🎽", x: 73, y: 38 },
+      { key: "knee", label: "knee", emoji: "🦵", x: 50, y: 66 },
+      { key: "foot", label: "foot", emoji: "👣", x: 50, y: 90 },
+    ],
+    BODY_FIGURE_BOX: { w: 240, h: 400, dot: 80, minGap: 14 },
+    // Team House Build — fixed 6-step build order, each with a spoken line.
+    HOUSE_STEPS: [
+      { emoji: "🟫", say: "the floor" },
+      { emoji: "🧱", say: "a wall" },
+      { emoji: "🪟", say: "a window" },
+      { emoji: "🚪", say: "the door" },
+      { emoji: "🔺", say: "the roof" },
+      { emoji: "🚩", say: "a flag on top" },
+    ],
+    // Hello Around the World — each friend greets in a language from their
+    // heritage (matches FRIENDS + the profile). The zh line uses the zh-CN voice.
+    GREETINGS: [
+      { name: "Josh", word: "Hello!", say: "Hello!" },
+      { name: "River", word: "你好!", say: "你好", lang: "zh-CN" },
+      { name: "Viraj", word: "Namaste!", say: "Namaste!" },
+      { name: "Raegar", word: "Privet!", say: "Privet!" },
+    ],
+    // Grandma's Visit — hunt grandma's 3 things among Josh's toys (disjoint sets).
+    GRANDMA_ITEMS: {
+      targets: [
+        { emoji: "🀄", say: "her mahjong tile" },
+        { emoji: "🏮", say: "her red lantern" },
+        { emoji: "🍵", say: "her cup of tea" },
+      ],
+      toys: ["🚗", "🧸", "⚽", "🎈", "🦖", "🚀"],
+    },
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

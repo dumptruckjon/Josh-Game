@@ -1367,6 +1367,32 @@
     const start = Math.floor(rnd() * (26 - len + 1));
     return ALPHABET.slice(start, start + len).split("");
   }
+  // ================= Road to 140 — Wave 4 logic =================
+  // Who Eats This? — pick the food's eater; distractors are animals NOT in the
+  // food's `eaters` list (the no-distractor-is-also-correct discipline).
+  function makeWhoEats(items, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * items.length);
+    if (items.length > 1 && idx === last) idx = (idx + 1) % items.length;
+    const food = items[idx];
+    // Every animal that appears anywhere, minus any that can eat THIS food.
+    const eaterSet = new Set(food.eaters);
+    const pool = [];
+    for (const it of items) for (const a of it.eaters) if (!eaterSet.has(a) && !pool.includes(a)) pool.push(a);
+    const distractors = shuffle(pool, rng).slice(0, 2);
+    const choices = shuffle([
+      { animal: food.answer, correct: true },
+      ...distractors.map((a) => ({ animal: a, correct: false })),
+    ], rng);
+    return { idx, food, choices };
+  }
+  // Simon-Says body part picker — a plain no-repeat picker over labelled zones.
+  function makePartPick(parts, rng, last) {
+    const rnd = rng || Math.random;
+    let correctIdx = Math.floor(rnd() * parts.length);
+    if (parts.length > 1 && correctIdx === last) correctIdx = (correctIdx + 1) % parts.length;
+    return { part: parts[correctIdx], correctIdx };
+  }
 
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
@@ -1375,6 +1401,7 @@
     makeSideCount, makeEndSound, makeVowelPick, makeFamilySort,
     makePatternFix, makeMatrix2, makeLeftRight, makeBlockCount, makeTurnMatch,
     makeSentence, makeSilly, makeSceneCompare, makeClueHunt, alphaRun,
+    makeWhoEats, makePartPick,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,

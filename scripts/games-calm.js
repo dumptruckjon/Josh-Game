@@ -947,4 +947,171 @@
       }
     },
   });
+
+  // ================= Road to 140 — Wave 4 =================
+
+  // ---- Team House Build (2 players — take turns placing pieces) ----
+  F.register({
+    id: "team-house",
+    icon: "🏘️",
+    title: "Team House Build (2 players)",
+    skill: "co-op / build [W]",
+    start(api) {
+      const steps = api.C.HOUSE_STEPS || [];
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🧒" }, { name: friend.name, emoji: friend.emoji }];
+      let turn = 0, step = 0;
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const house = api.el("div", { class: "house__build", aria: { hidden: "true" } });
+      const tray = api.el("div", { class: "choices choices--3" });
+      api.stage.append(turnEl, house, tray);
+      const trayBtns = steps.map((st, i) => {
+        const b = api.el("button", { class: "choice house__piece tap", type: "button", text: st.emoji, aria: { label: "build piece" } });
+        b.addEventListener("click", () => {
+          if (i !== step) { api.tryAgain(b); return; }
+          b.disabled = true; b.classList.add("choice--used"); delete b.dataset.correct;
+          house.appendChild(api.el("span", { class: "house__part pop", aria: { hidden: "true" } }, [st.emoji]));
+          api.say("We added " + st.say + "!");
+          step += 1;
+          if (step >= steps.length) { api.win({ say: "You built a house together! Home sweet home!" }); return; }
+          turn = turn === 0 ? 1 : 0;
+          update();
+        });
+        return b;
+      });
+      trayBtns.forEach((b) => tray.appendChild(b));
+      function update() {
+        trayBtns.forEach((b, i) => { if (i === step && !b.disabled) b.dataset.correct = "1"; else delete b.dataset.correct; });
+        coopTurn(turnEl, players[turn], " — add the next piece!");
+      }
+      api.setPrompt("Take turns building the house!", ["🔁", "🏗️", "🏠"]);
+      api.speak();
+      update();
+    },
+  });
+
+  // ---- Hello Around the World (greet each friend in their language) ----
+  F.register({
+    id: "world-hello",
+    icon: "👋",
+    title: "Hello Around the World",
+    skill: "hello / cultures [M]",
+    start(api) {
+      const A = window.JoshAudio;
+      const greetings = api.C.GREETINGS || [];
+      let greeted = 0;
+      const bubble = api.el("div", { class: "hello__bubble", aria: { live: "polite" } }, ["Tap a friend to say hello!"]);
+      const grid = api.el("div", { class: "choices choices--4 hello__grid" });
+      api.stage.append(bubble, grid);
+      greetings.forEach((g) => {
+        const spec = artOf(g.name);
+        const b = api.el("button", {
+          class: "choice hello__friend tap art-fill", type: "button",
+          dataset: { correct: "1" }, aria: { label: "say hello to " + g.name },
+          html: (window.JoshArt && window.JoshArt.friend && spec) ? window.JoshArt.friend(spec) : "🧒",
+        });
+        b.addEventListener("click", () => {
+          b.classList.remove("hello__friend--wave"); void b.offsetWidth; b.classList.add("hello__friend--wave");
+          bubble.textContent = g.name + ": " + g.word;
+          if (g.lang && A && A.say) A.say(g.say, { lang: g.lang }); else api.say(g.say);
+          if (b.dataset.correct) {
+            delete b.dataset.correct; greeted += 1;
+            if (greeted >= greetings.length) api.win({ say: "You said hello around the whole world!" });
+          }
+        });
+        grid.appendChild(b);
+      });
+      api.setPrompt("Say hello to each friend!", ["👋", "🌍", "😊"]);
+      api.speak();
+    },
+  });
+
+  // ---- Team Pizza Party (2 players — deal the slices fairly) ----
+  F.register({
+    id: "team-pizza",
+    icon: "🍕",
+    title: "Team Pizza Party (2 players)",
+    skill: "co-op / fair shares [W]",
+    start(api) {
+      let friend = api.friend();
+      if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🧒" }, { name: friend.name, emoji: friend.emoji }];
+      let turn = 0, left = 6;
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const plates = api.el("div", { class: "pizza__plates", aria: { hidden: "true" } });
+      const plate0 = api.el("div", { class: "pizza__plate" });
+      const plate1 = api.el("div", { class: "pizza__plate" });
+      plates.append(plate0, plate1);
+      const plateEls = [plate0, plate1];
+      const tray = api.el("div", { class: "choices choices--3 pizza__tray" });
+      api.stage.append(turnEl, plates, tray);
+      const slices = [];
+      for (let i = 0; i < 6; i++) {
+        const b = api.el("button", { class: "choice pizza__slice tap", type: "button", text: "🍕", aria: { label: "pizza slice" } });
+        b.addEventListener("click", () => {
+          if (b.disabled) return;
+          if (!b.dataset.correct) { api.tryAgain(b); return; }
+          b.disabled = true; b.classList.add("choice--used"); delete b.dataset.correct;
+          plateEls[turn].appendChild(api.el("span", { class: "pizza__got pop", aria: { hidden: "true" } }, ["🍕"]));
+          api.say(players[turn].name + " gets a slice!");
+          left -= 1;
+          if (left <= 0) { api.win({ say: "Three slices each — fair and square!" }); return; }
+          turn = turn === 0 ? 1 : 0;
+          update();
+        });
+        slices.push(b); tray.appendChild(b);
+      }
+      function update() {
+        const next = slices.find((s) => !s.disabled);
+        slices.forEach((s) => delete s.dataset.correct);
+        if (next) next.dataset.correct = "1";
+        coopTurn(turnEl, players[turn], " — take a slice!");
+      }
+      api.setPrompt("Take turns — one slice each!", ["🔁", "🍕", "😋"]);
+      api.speak();
+      update();
+    },
+  });
+
+  // ---- Grandma's Visit (find Grandma's 3 things — a warm cross-world moment) ----
+  F.register({
+    id: "grandma-helper",
+    icon: "👵🏻",
+    title: "Grandma's Visit",
+    skill: "find & help / warmth [M]",
+    start(api) {
+      const A = window.JoshAudio;
+      const data = api.C.GRANDMA_ITEMS || { targets: [], toys: [] };
+      const targets = data.targets || [], toys = data.toys || [];
+      let found = 0;
+      const grid = api.el("div", { class: "grandma__grid choices choices--3" });
+      api.stage.append(grid);
+      const cells = [];
+      targets.forEach((t) => cells.push({ emoji: t.emoji, say: t.say, target: true }));
+      api.shuffle(toys.slice()).slice(0, 9 - targets.length).forEach((e) => cells.push({ emoji: e, target: false }));
+      api.shuffle(cells);
+      cells.forEach((c) => {
+        const b = api.el("button", {
+          class: "choice grandma__cell tap", type: "button", text: c.emoji,
+          dataset: c.target ? { correct: "1" } : {}, aria: { label: "thing" },
+        });
+        b.addEventListener("click", () => {
+          if (!c.target) { api.tryAgain(b); return; }
+          if (!b.dataset.correct) return;
+          delete b.dataset.correct; b.classList.add("grandma__cell--found");
+          api.say("You found " + c.say + "!");
+          found += 1;
+          if (found >= targets.length) {
+            api.stage.appendChild(api.el("div", { class: "grandma__pop pop", aria: { hidden: "true" } }, ["👵🏻"]));
+            try { if (A && A.say) A.say("谢谢", { lang: "zh-CN" }); } catch (e) { /* ignore */ }
+            api.win({ say: "Thank you, Josh!" });
+          }
+        });
+        grid.appendChild(b);
+      });
+      api.setPrompt("Help Grandma find her things!", ["🀄", "🏮", "🍵"]);
+      api.speak();
+    },
+  });
 })();

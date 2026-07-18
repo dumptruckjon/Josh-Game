@@ -711,3 +711,68 @@ test("W3 block layouts: every layout is single-height (no repeated cell)", () =>
     assert.ok(layout.length >= 3);
   }
 });
+
+// ================= Road to 140 — Wave 4 truth tables =================
+test("W4 who-eats: each food's answer is in its eaters; foods & answers unique", () => {
+  const F = content.FOOD_EATERS;
+  const foods = F.map((f) => f.food);
+  assert.equal(new Set(foods).size, foods.length, "foods unique");
+  for (const f of F) {
+    assert.ok(Array.isArray(f.eaters) && f.eaters.length >= 1, f.say + " needs eaters");
+    assert.ok(f.eaters.includes(f.answer), f.say + "'s answer must be one of its eaters");
+    assert.ok(f.say && f.say.length > 0, "each food needs a spoken name");
+  }
+  // No animal's diet crosses foods in a way that would make a distractor also-correct:
+  // every (food, other-food.answer) pair must NOT be an eater of that food.
+  for (const a of F) for (const b of F) {
+    if (a === b) continue;
+    assert.ok(!a.eaters.includes(b.answer), b.answer + " must not be a valid eater of " + a.say);
+  }
+});
+test("W4 body-parts: 5 zones fit the box and every pair is >= minGap apart at 320px", () => {
+  const parts = content.BODY_PARTS, box = content.BODY_FIGURE_BOX;
+  assert.equal(parts.length, 5);
+  assert.equal(new Set(parts.map((p) => p.key)).size, 5, "part keys unique");
+  const r = box.dot / 2;
+  const centers = parts.map((p) => ({ x: (p.x / 100) * box.w, y: (p.y / 100) * box.h, label: p.label }));
+  // each zone stays inside the figure box
+  for (const c of centers) {
+    assert.ok(c.x - r >= -0.01 && c.x + r <= box.w + 0.01, c.label + " x within box");
+    assert.ok(c.y - r >= -0.01 && c.y + r <= box.h + 0.01, c.label + " y within box");
+  }
+  // no two zones overlap, and axis-adjacent zones keep >= minGap (mirrors mobile audit)
+  for (let i = 0; i < centers.length; i++) for (let j = i + 1; j < centers.length; j++) {
+    const a = centers[i], c = centers[j];
+    const dx = Math.abs(a.x - c.x), dy = Math.abs(a.y - c.y);
+    const overlapX = dx < box.dot, overlapY = dy < box.dot;
+    assert.ok(!(overlapX && overlapY), a.label + " overlaps " + c.label);
+    if (overlapX) assert.ok(dy - box.dot >= box.minGap, a.label + "/" + c.label + " vertical gap < minGap");
+    if (overlapY) assert.ok(dx - box.dot >= box.minGap, a.label + "/" + c.label + " horizontal gap < minGap");
+  }
+});
+test("W4 greetings: each friend exists in FRIENDS and has a greeting word", () => {
+  const names = content.FRIENDS.map((f) => f.name);
+  for (const g of content.GREETINGS) {
+    assert.ok(names.includes(g.name), g.name + " must be a real friend");
+    assert.ok(g.word && g.word.length > 0, g.name + " needs a greeting word");
+    assert.ok(g.say && g.say.length > 0, g.name + " needs a spoken form");
+  }
+  // Every friend gets exactly one greeting.
+  assert.equal(new Set(content.GREETINGS.map((g) => g.name)).size, content.GREETINGS.length, "one greeting per friend");
+});
+test("W4 house steps: 6 ordered pieces, each with an emoji + spoken line", () => {
+  assert.equal(content.HOUSE_STEPS.length, 6);
+  for (const s of content.HOUSE_STEPS) {
+    assert.ok(s.emoji && s.emoji.length > 0);
+    assert.ok(s.say && s.say.length > 0);
+  }
+});
+test("W4 grandma items: 3 targets, >=6 toys, and the two sets are disjoint", () => {
+  const g = content.GRANDMA_ITEMS;
+  assert.equal(g.targets.length, 3, "exactly 3 things to find");
+  assert.ok(g.toys.length >= 6, "at least 6 toy distractors for a 9-cell grid");
+  const targetEmoji = g.targets.map((t) => t.emoji);
+  for (const t of g.targets) assert.ok(t.say && t.say.length > 0, "each target needs a spoken name");
+  for (const toy of g.toys) assert.ok(!targetEmoji.includes(toy), toy + " is both a target and a toy");
+  assert.equal(new Set(targetEmoji).size, 3, "target emojis unique");
+});

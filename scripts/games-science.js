@@ -555,4 +555,95 @@
       newRound();
     },
   });
+
+  // ================= Road to 140 — Wave 4 =================
+
+  // ---- Who Eats This? (animal diets) ----
+  // Show a food; tap the animal that eats it. Distractors are animals that do
+  // NOT eat this food (the no-distractor-is-also-correct rule, generalized).
+  F.register({
+    id: "who-eats",
+    icon: "🍌",
+    title: "Who Eats This?",
+    skill: "animal diets [M]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const food = api.el("div", { class: "eats__food", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(food, chips);
+      function newRound() {
+        const r = L.makeWhoEats(C.FOOD_EATERS, undefined, last); last = r.idx;
+        food.textContent = r.food.food;
+        api.setPrompt("Who eats " + r.food.say + "?", ["🍽️", "🐾", "👉"]);
+        api.speak(); api.say("Who eats " + r.food.say + "?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.animal,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "animal" },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("Yes! " + r.food.say + " — yum!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know what everyone eats!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Simon Says: Touch! (body vocabulary) ----
+  // A friend figure with five big zone buttons. "Touch the KNEE!" — tap the
+  // right zone (each zone wears its emoji, so it works with sound off too).
+  F.register({
+    id: "body-parts",
+    icon: "🙋",
+    title: "Simon Says: Touch!",
+    skill: "body words [M]",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0, last = -1;
+      const parts = C.BODY_PARTS || [];
+      const wrap = api.el("div", { class: "body__wrap" });
+      const figSvg = (window.JoshArt && window.JoshArt.friend) ? window.JoshArt.friend((api.friend && api.friend().art) || {}) : "";
+      const fig = api.el("div", { class: "body__fig art-fill", aria: { hidden: "true" }, html: figSvg });
+      wrap.appendChild(fig);
+      api.stage.append(wrap);
+      const zones = parts.map((p) => {
+        const b = api.el("button", {
+          class: "body__zone tap", type: "button", text: p.emoji,
+          aria: { label: p.label },
+        });
+        b.style.left = p.x + "%"; b.style.top = p.y + "%";
+        b.__key = p.key;
+        wrap.appendChild(b);
+        return b;
+      });
+      function newRound() {
+        const r = L.makePartPick(parts, undefined, last); last = r.correctIdx;
+        api.setPrompt("Simon says: touch the " + r.part.label + "!", [r.part.emoji, "🙋", "👆"]);
+        api.speak(); api.say("Simon says, touch the " + r.part.label + "!");
+        zones.forEach((b) => {
+          b.classList.remove("body__zone--hit");
+          if (b.__key === r.part.key) b.dataset.correct = "1"; else delete b.dataset.correct;
+        });
+        zones.forEach((b) => {
+          b.onclick = () => {
+            if (b.__key !== r.part.key) { api.tryAgain(b); return; }
+            b.classList.add("body__zone--hit"); delete b.dataset.correct;
+            api.say("You found your " + r.part.label + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know all your body parts!" });
+            else { api.roundWin(); newRound(); }
+          };
+        });
+      }
+      newRound();
+    },
+  });
 })();
