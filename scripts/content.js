@@ -697,6 +697,60 @@
     // Big/little letter concentration — upper/lower differ visibly; NO I or L
     // (their lowercase forms are the iOS confusable pair).
     LETTER_PAIR_POOL: ["A", "B", "D", "E", "G", "M", "N", "Q", "R", "T"],
+
+    // ================= Road to 140 — Wave 3 content =================
+    // Silly Stories: absurd animal+item combos. Animals and items are DISJOINT
+    // sets (an item never doubles as an animal) so the composite card is clear.
+    SILLY_SCENES: [
+      { animal: "🐶", item: "🎩", say: "The dog wears a hat!" },
+      { animal: "🐱", item: "👑", say: "The cat wears a crown!" },
+      { animal: "🐸", item: "👟", say: "The frog wears a shoe!" },
+      { animal: "🐷", item: "🎈", say: "The pig holds a balloon!" },
+      { animal: "🐵", item: "🕶️", say: "The monkey wears sunglasses!" },
+      { animal: "🐰", item: "☂️", say: "The bunny holds an umbrella!" },
+    ],
+    // Build the Sentence: short, spoken-supported, decodable-leaning; <= 5 words.
+    BUILD_SENTENCES: [
+      { emoji: "🐶💤", words: ["The", "dog", "naps"] },
+      { emoji: "🐱🥛", words: ["The", "cat", "likes", "milk"] },
+      { emoji: "☀️🔆", words: ["The", "sun", "is", "hot"] },
+      { emoji: "🐸🦘", words: ["The", "frog", "can", "hop"] },
+      { emoji: "🐦🎵", words: ["The", "bird", "can", "sing"] },
+      { emoji: "🐟🌊", words: ["The", "fish", "can", "swim"] },
+    ],
+    // Mental rotation — ASYMMETRIC filled shapes only (a rotated symmetric shape
+    // would be indistinguishable). Curated to exactly these four.
+    SHAPES_ASYM: [
+      { name: "arrow", svg: '<polygon points="8,38 58,38 58,20 92,50 58,80 58,62 8,62"/>' },
+      { name: "flag", svg: '<polygon points="20,8 20,92 27,92 27,52 72,36 27,20 27,8"/>' },
+      { name: "boot", svg: '<polygon points="30,8 55,8 55,60 88,60 88,88 30,88"/>' },
+      { name: "bolt", svg: '<polygon points="56,6 24,52 46,52 36,94 80,40 56,40 70,6"/>' },
+    ],
+    // More-in-scene: two kinds counted against each other.
+    SCENE_KINDS: [
+      { a: "🐟", b: "🦆" }, { a: "⭐", b: "🌙" }, { a: "🚗", b: "🚌" }, { a: "🍎", b: "🍌" },
+    ],
+    // Little Detective: 6 UNIQUE kind×color cards, so a (kind + color) clue pair
+    // always narrows to exactly one. Each emoji truly is that kind and color.
+    CLUE_CARDS: [
+      { kind: "animal", color: "red", emoji: "🐞" },
+      { kind: "animal", color: "blue", emoji: "🐳" },
+      { kind: "animal", color: "green", emoji: "🐸" },
+      { kind: "vehicle", color: "red", emoji: "🚗" },
+      { kind: "vehicle", color: "blue", emoji: "🚙" },
+      { kind: "vehicle", color: "green", emoji: "🚜" },
+    ],
+    // Count the Blocks — single-height iso layouts (grid [col,row] cells).
+    BLOCK_LAYOUTS: [
+      [[0, 0], [1, 0], [2, 0]],
+      [[0, 0], [1, 0], [2, 0], [3, 0]],
+      [[0, 0], [1, 0], [0, 1], [1, 1]],
+      [[0, 0], [1, 0], [2, 0], [0, 1]],
+      [[0, 0], [0, 1], [0, 2]],
+      [[0, 0], [1, 0], [2, 0], [2, 1], [1, 1]],
+      [[0, 0], [1, 0], [0, 1]],
+      [[0, 0], [1, 0], [2, 0], [3, 0], [0, 1]],
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

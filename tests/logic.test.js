@@ -1408,3 +1408,121 @@ test("makeFamilySort: item belongs to its flagged rime bin", () => {
     assert.ok(r.item.word.endsWith(rime), r.item.word + " should end with " + rime);
   }
 });
+
+// ================= Road to 140 — Wave 3 logic =================
+test("makePatternFix: blank is interior; answer is the true unit value; one correct", () => {
+  const rng = mulberry32(400);
+  const allTokens = [].concat.apply([], content.PATTERN_SETS);
+  for (const pair of content.PATTERN_SETS) for (let i = 0; i < 300; i++) {
+    const r = L.makePatternFix(pair, allTokens, rng);
+    assert.ok(r.blankIdx >= 1 && r.blankIdx <= r.cells.length - 2, "blank is interior (context both sides)");
+    assert.equal(r.answer, r.cells[r.blankIdx]);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.token === r.answer));
+    assert.equal(new Set(r.choices.map((c) => c.token)).size, r.choices.length);
+  }
+});
+test("makeMatrix2: exactly one choice matches BOTH the missing size and color", () => {
+  const rng = mulberry32(401);
+  for (let i = 0; i < 500; i++) {
+    const r = L.makeMatrix2(rng);
+    assert.equal(r.cols.length, 2);
+    assert.equal(r.missing.size, "small");
+    const both = r.choices.filter((c) => c.size === r.missing.size && c.color.key === r.missing.color.key);
+    assert.equal(both.length, 1, "exactly one both-match");
+    assert.ok(both[0].correct);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.equal(r.choices.length, 3);
+  }
+});
+test("makeLeftRight: correctIdx matches the asked side; alternates from last", () => {
+  const rng = mulberry32(402);
+  let last = null;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeLeftRight(rng, last);
+    assert.equal(r.correctIdx, r.side === "left" ? 0 : 1);
+    assert.notEqual(r.side, last);
+    last = r.side;
+  }
+});
+test("makeBlockCount: n equals the layout's cell count; single-height only", () => {
+  const rng = mulberry32(403);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeBlockCount(content.BLOCK_LAYOUTS, rng, last);
+    assert.equal(r.n, r.cells.length);
+    // no two cells share a grid position (a stack would hide a top face)
+    const keys = r.cells.map((c) => c[0] + "," + c[1]);
+    assert.equal(new Set(keys).size, keys.length, "no stacked cubes — every top is visible");
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.n === r.n));
+    for (const c of r.choices) assert.ok(c.n >= 1);
+    last = r.idx;
+  }
+});
+test("makeTurnMatch: correct is the SAME shape rotated; distractors differ", () => {
+  const rng = mulberry32(404);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeTurnMatch(content.SHAPES_ASYM, rng, last);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].shape.name, r.target.name, "correct shares the target's shape");
+    for (const c of r.choices) if (!c.correct) assert.notEqual(c.shape.name, r.target.name, "a distractor is a DIFFERENT shape");
+    last = r.idx;
+  }
+});
+test("makeSentence: tiles are a permutation of the words with ranks 0..n-1", () => {
+  const rng = mulberry32(405);
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeSentence(content.BUILD_SENTENCES, rng, last);
+    assert.equal(r.tiles.length, r.words.length);
+    assert.deepEqual(r.tiles.map((t) => t.rank).sort((a, b) => a - b), r.words.map((_, k) => k));
+    for (const t of r.tiles) assert.equal(t.word, r.words[t.rank], "each tile's word matches its rank");
+    last = r.idx;
+  }
+});
+test("makeSilly: exactly one card matches BOTH animal and item", () => {
+  const rng = mulberry32(406);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeSilly(content.SILLY_SCENES, rng, last);
+    const both = r.choices.filter((c) => c.animal === r.scene.animal && c.item === r.scene.item);
+    assert.equal(both.length, 1);
+    assert.ok(both[0].correct);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    last = r.idx;
+  }
+});
+test("makeSceneCompare: distinct counts 2..5; answer is the bigger group", () => {
+  const rng = mulberry32(407);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeSceneCompare(content.SCENE_KINDS, rng, last);
+    assert.notEqual(r.a.n, r.b.n);
+    for (const n of [r.a.n, r.b.n]) assert.ok(n >= 2 && n <= 5);
+    assert.equal(r.answerIdx, r.a.n > r.b.n ? 0 : 1);
+    last = r.idx;
+  }
+});
+test("makeClueHunt: the (kind+color) clue pair selects exactly one card", () => {
+  const rng = mulberry32(408);
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeClueHunt(content.CLUE_CARDS, rng);
+    const match = r.cards.filter((c) => c.kind === r.clues[0].value && c.color === r.clues[1].value);
+    assert.equal(match.length, 1, "clues narrow to exactly one card");
+    assert.equal(r.cards[r.answerIdx], match[0]);
+  }
+});
+test("alphaRun: consecutive letters of the requested length; whole alphabet reachable", () => {
+  const rng = mulberry32(409);
+  const seen = new Set();
+  for (let i = 0; i < 2000; i++) {
+    const run = L.alphaRun(rng, 8);
+    assert.equal(run.length, 8);
+    assert.equal(L.ALPHABET.slice(L.ALPHABET.indexOf(run[0]), L.ALPHABET.indexOf(run[0]) + 8), run.join(""), "consecutive");
+    run.forEach((ch) => seen.add(ch));
+  }
+  for (const ch of L.ALPHABET.split("")) assert.ok(seen.has(ch), ch + " reachable");
+});

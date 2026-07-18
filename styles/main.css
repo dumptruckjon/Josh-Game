@@ -1615,3 +1615,89 @@ body.hl-mode {
   .cd__rocket--launch { animation: none !important; transform: none !important; }
   .seesaw { transition: none !important; }
 }
+
+/* ================= Road to 140 — Wave 3 ================= */
+/* Two-up choice grid (used by More in the Pond). */
+.choices--2 { grid-template-columns: repeat(2, 1fr); }
+
+/* Fix the Pattern — a running strip with one interior blank. */
+.pattern__row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0 14px; }
+.pattern__cell {
+  font-size: clamp(1.8rem, 9vw, 2.6rem); line-height: 1; width: 1.5em; height: 1.5em;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 16px; background: #fff8ec; border: 2px solid rgba(120, 170, 255, 0.22);
+}
+.pattern__cell--blank { background: #fff2c9; border-style: dashed; border-color: #f0b860; }
+
+/* Finish the Grid — 2×2 attribute matrix. */
+.mtx__grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  width: min(64vw, 240px); margin: 8px auto 14px;
+}
+.mtx__cell {
+  aspect-ratio: 1 / 1; border-radius: 18px; background: #ffffff;
+  border: 2px solid rgba(120, 170, 255, 0.22); display: flex; align-items: center; justify-content: center;
+  font-size: 2rem;
+}
+.mtx__cell--blank { background: #fff2c9; border-style: dashed; border-color: #f0b860; }
+.mtx__cell svg, .mtx__choice svg { width: 82%; height: 82%; display: block; }
+.mtx__choice { padding: 8px; }
+.mtx__choice svg { height: 68px; width: 100%; }
+
+/* Left or Right — two big side-by-side boxes. */
+.lr__boxes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; width: 100%; max-width: 360px; margin: 12px auto; }
+.lr__box { font-size: clamp(2.6rem, 16vw, 4rem); min-height: 120px; }
+
+/* Count the Blocks — isometric scene. */
+.blocks__scene { width: min(72vw, 300px); margin: 6px auto 12px; }
+.blocks__scene svg { width: 100%; height: auto; display: block; }
+
+/* Which One Turned — mental rotation. */
+.turn__target {
+  width: 96px; height: 96px; margin: 6px auto 12px; border-radius: 18px;
+  background: #fff8ec; border: 2px solid rgba(120, 170, 255, 0.22); padding: 8px;
+}
+.turn__target svg, .turn__choice svg { width: 100%; height: 100%; display: block; }
+.turn__choice { padding: 10px; }
+.turn__choice svg { height: 64px; }
+
+/* Build the Sentence — scene, growing line, word tiles. */
+.sb__scene { text-align: center; font-size: clamp(2.4rem, 14vw, 3.4rem); margin: 4px 0 6px; }
+.sb__line { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 1.6em; margin-bottom: 10px; }
+.sb__slot {
+  font-size: clamp(1.1rem, 5.5vw, 1.5rem); font-weight: 800; color: #b7c6d6;
+  padding: 4px 10px; border-radius: 12px; border: 2px dashed rgba(120, 170, 255, 0.3);
+}
+.sb__slot--filled { color: #2b6cff; border-style: solid; background: #eef4ff; }
+.sb__tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; width: 100%; }
+.sb__tile { min-width: 88px; flex: 0 1 auto; font-size: clamp(1.1rem, 5.5vw, 1.5rem); font-weight: 800; padding: 0 14px; }
+
+/* Silly Stories — a composite animal+item card. */
+.silly__card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1; }
+.silly__a { font-size: clamp(2rem, 11vw, 3rem); }
+.silly__i { font-size: clamp(1.4rem, 7vw, 2rem); }
+
+/* More in the Pond — a mixed scene + two kind choices. */
+.more__pond {
+  display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 6px;
+  min-height: 132px; width: min(88vw, 420px); margin: 6px auto 12px; padding: 12px;
+  border-radius: 22px; background: linear-gradient(180deg, #dff3ff 0%, #bfe6ff 100%);
+  border: 2px solid rgba(80, 150, 220, 0.25);
+}
+.more__item { font-size: clamp(1.6rem, 8vw, 2.2rem); line-height: 1; }
+.more__choice { font-size: clamp(2rem, 11vw, 2.8rem); }
+
+/* Little Detective — clue bar + card grid + self-checking fade. */
+.clue__bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 12px; }
+.clue__card {
+  font-size: clamp(1.8rem, 9vw, 2.6rem); width: 1.5em; height: 1.5em; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 16px; background: #fff8ec; border: 2px solid rgba(120, 170, 255, 0.3);
+}
+.clue__plus { font-size: clamp(1.4rem, 7vw, 2rem); font-weight: 900; color: #7a6a3a; }
+.clue__pick { font-size: clamp(2rem, 11vw, 2.8rem); transition: opacity 300ms ease, filter 300ms ease; }
+.clue__pick--dim { opacity: 0.28; filter: grayscale(0.6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .clue__pick { transition: none !important; }
+}

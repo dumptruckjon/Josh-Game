@@ -813,4 +813,239 @@
       newRound();
     },
   });
+
+  // ================= Road to 140 — Wave 3 =================
+
+  // ---- Fix the Pattern (interpolation: the gap is in the MIDDLE) ----
+  // A running A-B-A-B (or A-A-B) strip with one interior cell blanked out.
+  // Tap the piece that belongs — context on BOTH sides (harder than "next").
+  F.register({
+    id: "pattern-fix",
+    icon: "🩹",
+    title: "Fix the Pattern",
+    skill: "pattern repair / interpolation [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0;
+      const allTokens = [].concat.apply([], C.PATTERN_SETS);
+      const row = api.el("div", { class: "pattern__row" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(row, choices);
+      function newRound() {
+        const pair = api.randItem(C.PATTERN_SETS);
+        const r = L.makePatternFix(pair, allTokens);
+        api.setPrompt("What is missing in the middle?", ["🔁", "❓", "🧩"]);
+        api.speak();
+        row.innerHTML = "";
+        r.cells.forEach((tok, i) => {
+          if (i === r.blankIdx) row.appendChild(api.el("span", { class: "pattern__cell pattern__cell--blank", aria: { hidden: "true" } }, ["❓"]));
+          else row.appendChild(api.el("span", { class: "pattern__cell", aria: { hidden: "true" } }, [tok]));
+        });
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.token,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "piece" },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            row.children[r.blankIdx].textContent = ch.token;
+            row.children[r.blankIdx].classList.remove("pattern__cell--blank");
+            api.say("You fixed the pattern!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Pattern fixer!" }); else { api.roundWin(); newRound(); }
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Finish the Grid (2×2 attribute matrix) ----
+  // Rows change SIZE (big → small), columns change COLOR. Three cells are shown;
+  // deduce the bottom-right (small + the second color).
+  F.register({
+    id: "little-matrix",
+    icon: "🔲",
+    title: "Finish the Grid",
+    skill: "matrix reasoning / two attributes [P]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0;
+      const grid = api.el("div", { class: "mtx__grid" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(grid, choices);
+      function dot(cell) {
+        const r = cell.size === "big" ? 34 : 17;
+        return '<svg viewBox="0 0 80 80" width="100%" height="100%" aria-hidden="true"><circle cx="40" cy="40" r="' + r + '" fill="' + cell.color.hex + '"/></svg>';
+      }
+      function newRound() {
+        const r = L.makeMatrix2();
+        api.setPrompt("Which one finishes the grid?", ["🔲", "❓", "🧩"]);
+        api.speak();
+        grid.innerHTML = "";
+        [r.shown[0], r.shown[1], r.shown[2], null].forEach((c) => {
+          const box = api.el("div", { class: "mtx__cell", aria: { hidden: "true" } });
+          if (c) box.innerHTML = dot(c); else { box.classList.add("mtx__cell--blank"); box.textContent = "❓"; }
+          grid.appendChild(box);
+        });
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice mtx__choice tap", type: "button", html: dot(ch),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "piece" },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            grid.children[3].innerHTML = dot(r.missing); grid.children[3].classList.remove("mtx__cell--blank");
+            api.say("You finished the grid!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Grid genius!" }); else { api.roundWin(); newRound(); }
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Left or Right? (side discrimination) ----
+  // Two friendly boxes side by side. A spoken + arrow cue asks for one SIDE.
+  // A star sits on a random side as a decoy — the answer is the side, not the star.
+  F.register({
+    id: "left-right",
+    icon: "👈",
+    title: "Left or Right?",
+    skill: "left / right spatial [P]",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0, last = null;
+      const boxes = api.el("div", { class: "lr__boxes" });
+      api.stage.append(boxes);
+      function newRound() {
+        const r = L.makeLeftRight(undefined, last); last = r.side;
+        const arrow = r.side === "left" ? "👈" : "👉";
+        api.setPrompt(r.side === "left" ? "Tap the one on the LEFT!" : "Tap the one on the RIGHT!", [arrow, "🟦", arrow]);
+        api.speak();
+        boxes.innerHTML = "";
+        for (let i = 0; i < 2; i++) {
+          const isStar = (i === 0 ? "left" : "right") === r.starSide;
+          const b = api.el("button", {
+            class: "choice lr__box tap", type: "button", text: isStar ? "⭐" : "🟦",
+            dataset: i === r.correctIdx ? { correct: "1" } : {}, aria: { label: i === 0 ? "left one" : "right one" },
+          });
+          b.addEventListener("click", () => {
+            if (i !== r.correctIdx) { api.tryAgain(b); return; }
+            api.say(r.side === "left" ? "That's the left one!" : "That's the right one!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know left and right!" }); else { api.roundWin(); newRound(); }
+          });
+          boxes.appendChild(b);
+        }
+      }
+      newRound();
+    },
+  });
+
+  // ---- Count the Blocks (single-height iso, every top visible) ----
+  // A little tower/row of same-height cubes drawn in isometric. Count them and
+  // tap the number. Single height means no cube hides another (RULE 7 learning).
+  F.register({
+    id: "block-count",
+    icon: "🧱",
+    title: "Count the Blocks",
+    skill: "count 3-D objects [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const scene = api.el("div", { class: "blocks__scene", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(scene, choices);
+      // One isometric cube with its top-center at (x,y).
+      function cube(x, y) {
+        const w = 18, h2 = 9, fh = 18;
+        const top = x + "," + y + " " + (x + w) + "," + (y + h2) + " " + x + "," + (y + 2 * h2) + " " + (x - w) + "," + (y + h2);
+        const left = (x - w) + "," + (y + h2) + " " + x + "," + (y + 2 * h2) + " " + x + "," + (y + 2 * h2 + fh) + " " + (x - w) + "," + (y + h2 + fh);
+        const right = (x + w) + "," + (y + h2) + " " + x + "," + (y + 2 * h2) + " " + x + "," + (y + 2 * h2 + fh) + " " + (x + w) + "," + (y + h2 + fh);
+        return '<polygon points="' + left + '" fill="#c98a3a"/><polygon points="' + right + '" fill="#a86f28"/><polygon points="' + top + '" fill="#f0b860"/>';
+      }
+      function draw(cells) {
+        const w = 18, h2 = 9;
+        const sorted = cells.slice().sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+        let svg = "";
+        sorted.forEach((c) => {
+          const bx = 90 + (c[0] - c[1]) * w;
+          const by = 30 + (c[0] + c[1]) * h2;
+          svg += cube(bx, by);
+        });
+        scene.innerHTML = '<svg viewBox="0 0 180 130">' + svg + "</svg>";
+      }
+      function newRound() {
+        const r = L.makeBlockCount(C.BLOCK_LAYOUTS, undefined, last); last = r.idx;
+        draw(r.cells);
+        api.setPrompt("How many blocks?", ["🧱", "🔢", "👀"]);
+        api.speak();
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: String(ch.n),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.n + " blocks" },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say(r.n + " blocks!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You counted them all!" }); else { api.roundWin(); newRound(); }
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Which One Turned? (mental rotation) ----
+  // A target asymmetric shape up top; tap the choice that is the SAME shape,
+  // just rotated. Distractors are genuinely different shapes (never ambiguous).
+  F.register({
+    id: "turn-match",
+    icon: "🔄",
+    title: "Which One Turned?",
+    skill: "mental rotation [P]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const target = api.el("div", { class: "turn__target", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(target, choices);
+      function shapeSVG(shape, rot) {
+        return '<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><g transform="rotate(' + (rot || 0) + ' 50 50)" fill="#5a3fd6">' + shape.svg + "</g></svg>";
+      }
+      function newRound() {
+        const r = L.makeTurnMatch(C.SHAPES_ASYM, undefined, last); last = r.idx;
+        target.innerHTML = shapeSVG(r.target, 0);
+        api.setPrompt("Which one is the same, just turned?", ["🔄", "🧩", "👀"]);
+        api.speak();
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice turn__choice tap", type: "button", html: shapeSVG(ch.shape, ch.rot),
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "shape" },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("Same shape, turned around!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You turned it in your head!" }); else { api.roundWin(); newRound(); }
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

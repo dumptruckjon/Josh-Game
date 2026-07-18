@@ -687,4 +687,101 @@
       newRound();
     },
   });
+
+  // ================= Road to 140 — Wave 3 =================
+
+  // ---- Which Has More? (count two kinds in one scene) ----
+  // A pond mixes two kinds at different counts. Tap the KIND there are more of —
+  // counting-and-compare where both groups share the same space.
+  F.register({
+    id: "more-in-scene",
+    icon: "🦆",
+    title: "More in the Pond",
+    skill: "count & compare in a scene [W]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const pond = api.el("div", { class: "more__pond", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--2" });
+      api.stage.append(pond, choices);
+      function newRound() {
+        const r = L.makeSceneCompare(api.C.SCENE_KINDS, undefined, last); last = r.idx;
+        // Build a shuffled mix so neither kind is clustered (real counting).
+        const mix = [];
+        for (let i = 0; i < r.a.n; i++) mix.push(r.a.emoji);
+        for (let i = 0; i < r.b.n; i++) mix.push(r.b.emoji);
+        api.shuffle(mix);
+        pond.innerHTML = "";
+        mix.forEach((e) => pond.appendChild(api.el("span", { class: "more__item" }, [e])));
+        api.setPrompt("Which are there more of?", [r.a.emoji, "❓", r.b.emoji]);
+        api.speak();
+        choices.innerHTML = "";
+        [r.a, r.b].forEach((g, i) => {
+          const b = api.el("button", {
+            class: "choice more__choice tap", type: "button", text: g.emoji,
+            dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: "more of these" },
+          });
+          b.addEventListener("click", () => {
+            if (i !== r.answerIdx) { api.tryAgain(b); return; }
+            api.say("Yes! There are more of those!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Great counting!" }); else { api.roundWin(); newRound(); }
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Little Detective (two-clue deduction) ----
+  // Two clues — a KIND (🐾 animal / 🚦 goes) and a COLOR dot — narrow six unique
+  // cards to exactly one. The scene self-checks: non-matching cards fade, so the
+  // answer reveals itself even before Josh taps.
+  F.register({
+    id: "clue-hunt",
+    icon: "🕵️",
+    title: "Little Detective",
+    skill: "two-clue deduction [W]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0;
+      const KIND_ICON = { animal: "🐾", vehicle: "🚦" };
+      const KIND_WORD = { animal: "animal", vehicle: "one that goes vroom" };
+      const COLOR_DOT = { red: "🔴", blue: "🔵", green: "🟢" };
+      const bar = api.el("div", { class: "clue__bar", aria: { hidden: "true" } });
+      const grid = api.el("div", { class: "clue__grid choices choices--3" });
+      api.stage.append(bar, grid);
+      function newRound() {
+        const r = L.makeClueHunt(api.C.CLUE_CARDS);
+        const kind = r.clues[0].value, color = r.clues[1].value;
+        bar.innerHTML = "";
+        bar.appendChild(api.el("span", { class: "clue__card" }, [KIND_ICON[kind]]));
+        bar.appendChild(api.el("span", { class: "clue__plus" }, ["+"]));
+        bar.appendChild(api.el("span", { class: "clue__card" }, [COLOR_DOT[color]]));
+        api.setPrompt("Find the one that matches BOTH clues!", [KIND_ICON[kind], COLOR_DOT[color], "🔍"]);
+        api.speak();
+        api.say("Find the " + color + " " + KIND_WORD[kind] + "!");
+        grid.innerHTML = "";
+        const btns = r.cards.map((card, i) => {
+          const b = api.el("button", {
+            class: "choice clue__pick tap", type: "button", text: card.emoji,
+            dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: "clue card" },
+          });
+          b.addEventListener("click", () => {
+            if (i !== r.answerIdx) { api.tryAgain(b); return; }
+            api.say("Detective! You found it!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Super detective!" }); else { api.roundWin(); newRound(); }
+          });
+          return b;
+        });
+        btns.forEach((b) => grid.appendChild(b));
+        // Self-checking elimination (visual only; the answer never dims).
+        setTimeout(() => { r.cards.forEach((c, i) => { if (c.kind !== kind) btns[i].classList.add("clue__pick--dim"); }); }, 650);
+        setTimeout(() => { r.cards.forEach((c, i) => { if (c.color !== color) btns[i].classList.add("clue__pick--dim"); }); }, 1300);
+      }
+      newRound();
+    },
+  });
 })();

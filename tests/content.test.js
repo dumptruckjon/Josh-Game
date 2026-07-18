@@ -676,3 +676,38 @@ test("W2 letter-pair pool excludes the i/l confusable and is roomy", () => {
   assert.ok(!P.includes("I") && !P.includes("L"), "I and L are the iOS confusable pair — excluded");
   assert.equal(new Set(P).size, P.length, "unique");
 });
+
+// ================= Road to 140 — Wave 3 truth tables =================
+test("W3 silly scenes: animals & items unique, and the two sets are disjoint", () => {
+  const S = content.SILLY_SCENES;
+  const animals = S.map((s) => s.animal), items = S.map((s) => s.item);
+  assert.equal(new Set(animals).size, animals.length, "animals unique");
+  assert.equal(new Set(items).size, items.length, "items unique");
+  for (const a of animals) assert.ok(!items.includes(a), a + " is both an animal and an item");
+  for (const s of S) assert.ok(s.say && s.say.length > 0, "each scene needs a spoken line");
+});
+test("W3 sentences: 2..5 words, non-empty, with a scene emoji", () => {
+  for (const s of content.BUILD_SENTENCES) {
+    assert.ok(s.words.length >= 2 && s.words.length <= 5, "sentence length 2..5");
+    for (const w of s.words) assert.ok(w && w.length > 0);
+    assert.ok(s.emoji && s.emoji.length > 0);
+  }
+});
+test("W3 asymmetric shapes: exactly the curated four filled polygons", () => {
+  const names = content.SHAPES_ASYM.map((s) => s.name);
+  assert.deepEqual([...names].sort(), ["arrow", "bolt", "boot", "flag"], "curated asymmetric set only (no symmetric shapes)");
+  for (const s of content.SHAPES_ASYM) assert.ok(/^<polygon/.test(s.svg.trim()), s.name + " must be a filled polygon");
+});
+test("W3 clue cards: 6 UNIQUE kind×color combos", () => {
+  const combos = content.CLUE_CARDS.map((c) => c.kind + ":" + c.color);
+  assert.equal(content.CLUE_CARDS.length, 6);
+  assert.equal(new Set(combos).size, 6, "each kind×color combo appears once (a 2-clue pair narrows to one)");
+  assert.equal(new Set(content.CLUE_CARDS.map((c) => c.emoji)).size, 6, "emojis unique");
+});
+test("W3 block layouts: every layout is single-height (no repeated cell)", () => {
+  for (const layout of content.BLOCK_LAYOUTS) {
+    const keys = layout.map((c) => c[0] + "," + c[1]);
+    assert.equal(new Set(keys).size, keys.length, "no two cubes share a cell (single height, tops visible)");
+    assert.ok(layout.length >= 3);
+  }
+});

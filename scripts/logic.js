@@ -1248,11 +1248,133 @@
     return { item, bins: set.bins.map((b) => ({ label: b.label })), correctIndex: bi, setName: set.name };
   }
 
+  // ================= Road to 140 — Wave 3 logic =================
+  // Pattern interpolation: the blank is in the MIDDLE (context on both sides).
+  function makePatternFix(pair, allTokens, rng = Math.random) {
+    const unitIdx = PATTERN_UNITS[randInt(0, PATTERN_UNITS.length - 1, rng)];
+    const unit = unitIdx.map((i) => pair[i]);
+    const shownCount = 2 * unit.length + randInt(0, unit.length - 1, rng);
+    const cells = [];
+    for (let i = 0; i < shownCount; i++) cells.push(unit[i % unit.length]);
+    const blankIdx = 1 + randInt(0, cells.length - 3, rng); // never first or last
+    const answer = cells[blankIdx];
+    const tokens = new Set(pair);
+    if (Array.isArray(allTokens)) { const pool = allTokens.filter((t) => !tokens.has(t)); if (pool.length) tokens.add(pool[randInt(0, pool.length - 1, rng)]); }
+    const choices = shuffle([...tokens].map((t) => ({ token: t, correct: t === answer })), rng);
+    return { cells, blankIdx, answer, choices };
+  }
+  // 2×2 attribute matrix (rows = size, cols = color); complete the bottom-right.
+  function makeMatrix2(rng = Math.random, opts) {
+    opts = opts || {};
+    const colorsAll = opts.colors || [{ key: "red", hex: "#e23636" }, { key: "blue", hex: "#2b6cff" }, { key: "green", hex: "#38b000" }, { key: "yellow", hex: "#f4c430" }];
+    const cols = sample(colorsAll, 2, rng);
+    const sizes = ["big", "small"];
+    const shown = [
+      { size: "big", color: cols[0] }, { size: "big", color: cols[1] },
+      { size: "small", color: cols[0] },
+    ];
+    const missing = { size: "small", color: cols[1] };
+    const all = [];
+    for (const s of sizes) for (const c of cols) all.push({ size: s, color: c });
+    const distractors = shuffle(all.filter((x) => !(x.size === missing.size && x.color.key === missing.color.key)), rng).slice(0, 2);
+    const choices = shuffle([Object.assign({ correct: true }, missing), ...distractors.map((d) => Object.assign({ correct: false }, d))], rng);
+    return { cols, sizes, shown, missing, choices };
+  }
+  // Left or Right (the star may be a decoy — the question is about SIDES).
+  function makeLeftRight(rng, last) {
+    const rnd = rng || Math.random;
+    let side = rnd() < 0.5 ? "left" : "right";
+    if (side === last) side = side === "left" ? "right" : "left";
+    const starSide = rnd() < 0.5 ? "left" : "right";
+    return { side, starSide, correctIdx: side === "left" ? 0 : 1 };
+  }
+  // Count the blocks (single-height iso layouts, so every top face is visible).
+  function makeBlockCount(layouts, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * layouts.length);
+    if (layouts.length > 1 && idx === last) idx = (idx + 1) % layouts.length;
+    const cells = layouts[idx];
+    const n = cells.length;
+    const opt = new Set([n]);
+    const cand = [n + 1, n - 1, n + 2, n - 2];
+    let ci = 0;
+    while (opt.size < 3 && ci < 20) { const d = cand[ci % cand.length]; ci++; if (d >= 1 && d !== n) opt.add(d); }
+    const choices = shuffle([...opt].map((v) => ({ n: v, correct: v === n })), rng);
+    return { idx, cells, n, choices };
+  }
+  // Mental rotation: the correct choice is the SAME asymmetric shape, rotated.
+  function makeTurnMatch(shapes, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * shapes.length);
+    if (shapes.length > 1 && idx === last) idx = (idx + 1) % shapes.length;
+    const target = shapes[idx];
+    const rots = [90, 180, 270];
+    const others = shuffle(shapes.filter((s, i) => i !== idx), rng).slice(0, 2);
+    const choices = shuffle([
+      { shape: target, rot: rots[Math.floor(rnd() * rots.length)], correct: true },
+      ...others.map((s) => ({ shape: s, rot: rots[Math.floor(rnd() * rots.length)], correct: false })),
+    ], rng);
+    return { idx, target, choices };
+  }
+  // Build the sentence: word tiles shuffled with true ranks (dupes ok by rank).
+  function makeSentence(sentences, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * sentences.length);
+    if (sentences.length > 1 && idx === last) idx = (idx + 1) % sentences.length;
+    const s = sentences[idx];
+    const tiles = shuffle(s.words.map((word, rank) => ({ word, rank })), rng);
+    return { idx, words: s.words, emoji: s.emoji, tiles };
+  }
+  // Silly stories: exactly one card matches BOTH the animal and the item.
+  function makeSilly(scenes, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * scenes.length);
+    if (scenes.length > 1 && idx === last) idx = (idx + 1) % scenes.length;
+    const scene = scenes[idx];
+    const otherAnimals = scenes.filter((s) => s.animal !== scene.animal).map((s) => s.animal);
+    const otherItems = scenes.filter((s) => s.item !== scene.item).map((s) => s.item);
+    const dAnimal = otherAnimals[Math.floor(rnd() * otherAnimals.length)];
+    const dItem = otherItems[Math.floor(rnd() * otherItems.length)];
+    const choices = shuffle([
+      { animal: scene.animal, item: scene.item, correct: true },
+      { animal: dAnimal, item: scene.item, correct: false },
+      { animal: scene.animal, item: dItem, correct: false },
+    ], rng);
+    return { idx, scene, choices };
+  }
+  // More-in-scene: two kinds at distinct counts (2..5); answer is the bigger.
+  function makeSceneCompare(kinds, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * kinds.length);
+    if (kinds.length > 1 && idx === last) idx = (idx + 1) % kinds.length;
+    const kind = kinds[idx];
+    const na = 2 + Math.floor(rnd() * 4);
+    let nb = 2 + Math.floor(rnd() * 4);
+    while (nb === na) nb = 2 + Math.floor(rnd() * 4);
+    return { idx, a: { emoji: kind.a, n: na }, b: { emoji: kind.b, n: nb }, answerIdx: na > nb ? 0 : 1 };
+  }
+  // Two-clue deduction: a (kind + color) clue pair narrows 6 unique cards to one.
+  function makeClueHunt(cards, rng) {
+    const rnd = rng || Math.random;
+    const answerIdx = Math.floor(rnd() * cards.length);
+    const answer = cards[answerIdx];
+    return { cards, answerIdx, answer, clues: [{ type: "kind", value: answer.kind }, { type: "color", value: answer.color }] };
+  }
+  // Consecutive alphabet run of `len` letters (whole alphabet reachable).
+  function alphaRun(rng, len) {
+    const rnd = rng || Math.random;
+    len = Math.max(2, Math.min(len || 8, 26));
+    const start = Math.floor(rnd() * (26 - len + 1));
+    return ALPHABET.slice(start, start + len).split("");
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
     makeCoinTrade, makeDouble, makeLengthPick, makeCountdown, makeSeesaw,
     makeSideCount, makeEndSound, makeVowelPick, makeFamilySort,
+    makePatternFix, makeMatrix2, makeLeftRight, makeBlockCount, makeTurnMatch,
+    makeSentence, makeSilly, makeSceneCompare, makeClueHunt, alphaRun,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,

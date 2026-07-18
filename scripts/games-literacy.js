@@ -867,4 +867,165 @@
       syncFlags();
     },
   });
+
+  // ================= Road to 140 — Wave 3 =================
+
+  // ---- Build the Sentence (word order) ----
+  // A little scene emoji + spoken sentence; tap the word tiles in order to build
+  // it. Non-readers lean on the audio + the sentence growing left-to-right.
+  F.register({
+    id: "sentence-build",
+    icon: "🧱",
+    title: "Build the Sentence",
+    skill: "word order / sentence sense [P]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, step = 0, last = -1;
+      const scene = api.el("div", { class: "sb__scene", aria: { hidden: "true" } });
+      const line = api.el("div", { class: "sb__line", aria: { hidden: "true" } });
+      const tiles = api.el("div", { class: "sb__tiles" });
+      api.stage.append(scene, line, tiles);
+
+      function newRound() {
+        const r = L.makeSentence(C.BUILD_SENTENCES, undefined, last); last = r.idx;
+        step = 0;
+        scene.textContent = r.emoji;
+        line.innerHTML = "";
+        r.words.forEach(() => line.appendChild(api.el("span", { class: "sb__slot" }, ["·"])));
+        api.setPrompt("Build the sentence — tap the words in order!", ["📖", "👉", "😊"]);
+        api.speak();
+        api.say(r.words.join(" "));
+        tiles.innerHTML = "";
+        r.tiles.forEach((t) => {
+          const b = api.el("button", {
+            class: "choice sb__tile tap", type: "button", text: t.word,
+            dataset: t.rank === 0 ? { correct: "1" } : {}, aria: { label: t.word },
+          });
+          b.addEventListener("click", () => {
+            if (t.rank !== step) { api.tryAgain(b); return; }
+            b.disabled = true; b.classList.add("choice--used"); delete b.dataset.correct;
+            line.children[step].textContent = t.word;
+            line.children[step].classList.add("sb__slot--filled");
+            step += 1;
+            if (step >= r.tiles.length) {
+              api.say(r.words.join(" ") + "!");
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You are a sentence builder!" }); else { api.roundWin(); newRound(); }
+            } else {
+              [...tiles.children].forEach((c, i) => {
+                if (!c.disabled && r.tiles[i].rank === step) c.dataset.correct = "1"; else if (!c.disabled) delete c.dataset.correct;
+              });
+            }
+          });
+          tiles.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Silly Stories (match BOTH the animal and the thing) ----
+  // "The dog wears a hat!" — tap the ONE picture that shows that animal AND that
+  // item. Distractors get one half right, so the child must attend to both.
+  F.register({
+    id: "silly-match",
+    icon: "🤪",
+    title: "Silly Stories",
+    skill: "listen for two details [P]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(choices);
+      function newRound() {
+        const r = L.makeSilly(C.SILLY_SCENES, undefined, last); last = r.idx;
+        api.setPrompt(r.scene.say, [r.scene.animal, r.scene.item, "👀"]);
+        api.speak();
+        api.say(r.scene.say);
+        choices.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice silly__card tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "picture" },
+            html: '<span class="silly__a">' + ch.animal + '</span><span class="silly__i">' + ch.item + "</span>",
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("Yes! " + r.scene.say);
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "So silly! You did it!" }); else { api.roundWin(); newRound(); }
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Alphabet Dot-to-Dot (connect A→B→C… to reveal a picture) ----
+  // Same dot-to-dot joy, but the dots are consecutive LETTERS. Reinforces
+  // alphabet order (whole alphabet reachable via alphaRun).
+  F.register({
+    id: "abc-dots",
+    icon: "🔤",
+    title: "ABC Dot-to-Dot",
+    skill: "alphabet order / reveal [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 3;
+      let round = 0, step = 0, dots = [];
+      const stage = api.el("div", { class: "trace__stage" });
+      const reveal = api.el("div", { class: "dot__reveal", aria: { hidden: "true" } });
+      stage.appendChild(reveal);
+      api.stage.append(stage);
+
+      function newRound() {
+        const path = api.randItem(C.PATHS);
+        const letters = L.alphaRun(undefined, path.length);
+        const rv = api.randItem(C.REVEALS);
+        step = 0; dots = [];
+        api.setPrompt("Tap the letters in order: A, B, C…", ["👆", "🔤", "✨"]);
+        api.speak();
+        api.say(letters[0] + ", " + letters[1] + ", " + letters[2] + "…");
+        [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "trace__line");
+        svg.setAttribute("viewBox", "0 0 100 100");
+        svg.setAttribute("preserveAspectRatio", "none");
+        const poly = document.createElementNS(svgNS, "polyline");
+        poly.setAttribute("points", path.map((p) => p.x + "," + p.y).join(" "));
+        poly.setAttribute("fill", "none"); poly.setAttribute("stroke", "#b7c6d6");
+        poly.setAttribute("stroke-width", "2.5"); poly.setAttribute("stroke-dasharray", "5 4"); poly.setAttribute("stroke-linecap", "round");
+        svg.appendChild(poly);
+        stage.appendChild(svg);
+
+        path.forEach((p, i) => {
+          const dot = api.el("button", {
+            class: "trace__dot tap", type: "button",
+            dataset: i === 0 ? { correct: "1" } : {}, aria: { label: "letter " + letters[i] },
+          }, [letters[i]]);
+          dot.style.left = p.x + "%"; dot.style.top = p.y + "%";
+          dot.addEventListener("click", () => {
+            if (i === step) {
+              dot.classList.add("trace__dot--done");
+              delete dot.dataset.correct;
+              step += 1;
+              if (step >= path.length) {
+                reveal.textContent = rv;
+                reveal.classList.remove("dot__reveal--on"); void reveal.offsetWidth; reveal.classList.add("dot__reveal--on");
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You know your ABCs!" }); else { api.roundWin(); newRound(); }
+              } else if (dots[step]) dots[step].dataset.correct = "1";
+            } else api.tryAgain(dot);
+          });
+          stage.appendChild(dot); dots.push(dot);
+        });
+      }
+      newRound();
+    },
+  });
 })();
