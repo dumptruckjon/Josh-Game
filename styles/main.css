@@ -1031,6 +1031,96 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 }
 .sticker-slot.plop .sticker-slot__art { animation: stickerPlop 480ms cubic-bezier(0.2, 0.8, 0.3, 1); }
 
+/* ---------- 🎨 Mix It! Paint Lab ---------- */
+.mix__bench { display: flex; gap: 20px; justify-content: center; }
+.mix__pot {
+  width: 96px; height: 96px; border: none; border-radius: 16px 16px 22px 22px; cursor: pointer;
+  background: #f4f7fb; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.mix__pot:active { transform: scale(0.95); }
+.mix__paint { display: block; width: 56px; height: 56px; border-radius: 50%; box-shadow: inset 0 -6px 10px rgba(0, 0, 0, 0.18); }
+@keyframes mixPour { 0% { transform: rotate(0); } 50% { transform: rotate(-32deg) translateY(6px); } 100% { transform: rotate(0); opacity: 0.45; } }
+.mix__pot--poured { animation: mixPour 0.7s ease-in-out forwards; }
+.mix__bowl {
+  width: 132px; height: 92px; margin: 4px auto 0; border-radius: 0 0 66px 66px;
+  border: 4px solid #d7dfeb; border-top-width: 6px; transition: background 0.5s ease;
+}
+@keyframes mixSwirl { 0%, 100% { transform: rotate(0); } 33% { transform: rotate(-5deg); } 66% { transform: rotate(5deg); } }
+.mix__bowl--swirl { animation: mixSwirl 0.7s ease-in-out 2; }
+.mix__chip .mix__paint { width: 48px; height: 48px; }
+
+/* ---------- 🛁 Sink or Float? ---------- */
+.tub { position: relative; width: min(320px, 86vw); height: 190px; margin: 0 auto; border-radius: 18px; overflow: hidden; background: #eef6ff; box-shadow: inset 0 0 0 4px #d7e6f5; }
+.tub__water { position: absolute; left: 0; right: 0; bottom: 0; height: 55%; background: linear-gradient(180deg, rgba(94, 200, 255, 0.65), rgba(43, 108, 255, 0.5)); }
+.tub__item { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); font-size: 52px; z-index: 1; transition: top 0.9s ease-in; }
+.tub__item--sink { top: 128px; }   /* down to the bottom of the tub */
+.tub__item--float { top: 64px; }   /* bobs at the waterline */
+@keyframes tubBob { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
+.tub__item--float { animation: tubBob 1.6s ease-in-out 2 0.9s; }
+.tub__guess { font-size: 2.4rem; }
+
+/* ---------- 🐣 Mama & Baby ---------- */
+.mb__baby { font-size: clamp(64px, 22vw, 96px); line-height: 1; text-align: center; }
+.mb__mama { position: relative; font-size: 2.6rem; }
+@keyframes mbNuzzle { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-6deg) scale(1.06); } 70% { transform: rotate(6deg) scale(1.06); } }
+.mb__mama--nuzzle { animation: mbNuzzle 0.7s ease-in-out; }
+.mb__heart { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 30px; pointer-events: none; }
+@keyframes mbHeart { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 40% { opacity: 1; transform: translateX(-50%) scale(1.15) translateY(-8px); } 100% { opacity: 0; transform: translateX(-50%) translateY(-22px); } }
+.mb__heart { animation: mbHeart 1.05s ease-out forwards; }
+
+/* ---------- 🍪 Fair Shares ---------- */
+.fs__pile { min-height: 40px; font-size: 26px; text-align: center; letter-spacing: 2px; max-width: 340px; }
+.fs__row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.fs__plate {
+  min-width: 86px; min-height: 96px; border: none; border-radius: 18px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.6); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.fs__plate:active { transform: scale(0.95); }
+.fs__plate[data-correct="1"] { box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(94, 200, 255, 0.55); }
+.fs__face { width: 46px; }
+.fs__face svg { width: 46px; height: 46px; display: block; }
+.fs__count { min-height: 22px; font-size: 17px; letter-spacing: 1px; }
+
+/* ---------- 👀 Quick Peek ---------- */
+.qp__box { position: relative; width: min(250px, 74vw); height: 190px; margin: 0 auto; border-radius: 18px; background: rgba(255, 255, 255, 0.6); box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.05); }
+.qp__dots { position: absolute; inset: 0; opacity: 0; transition: opacity 0.25s ease; }
+.qp__box--open .qp__dots { opacity: 1; }
+.qp__dot { position: absolute; transform: translate(-50%, -50%); font-size: 34px; }
+.qp__cloud {
+  position: absolute; inset: 0; width: 100%; height: 100%; border: none; cursor: pointer;
+  background: none; font-size: 84px; display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: font-size 0.25s ease, opacity 0.25s ease;
+}
+.qp__box--open .qp__cloud { font-size: 44px; opacity: 0.65; align-items: flex-start; justify-content: flex-end; padding: 4px 10px; }
+
+/* ---------- 🚂 Alphabet Train ---------- */
+.at__train { display: flex; gap: 8px; align-items: center; justify-content: center; font-weight: 900; }
+.at__engine { font-size: 44px; }
+.at__car {
+  min-width: 58px; padding: 12px 8px; border-radius: 12px 12px 6px 6px; text-align: center;
+  background: #ffd24d; color: #4a3200; font-size: 1.9rem; box-shadow: 0 4px 0 #d9a93a;
+}
+.at__car--blank { background: #fff; color: #2b6cff; box-shadow: inset 0 0 0 3px #5ec8ff, 0 4px 0 #bcd8ea; }
+
+/* ---------- 🔎 Letter Hunt ---------- */
+.lh__target { font-size: 3rem; font-weight: 900; color: #e23636; text-align: center; line-height: 1; }
+.lh__field { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 340px; }
+.lh__balloon {
+  aspect-ratio: 1 / 1; min-height: var(--tap); border: none; border-radius: 50% 50% 46% 46%; cursor: pointer;
+  background: radial-gradient(circle at 35% 30%, #ffd9e6, #ff8fb3); color: #7c1436;
+  font-size: 2rem; font-weight: 900; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.lh__balloon:nth-child(3n) { background: radial-gradient(circle at 35% 30%, #d6f3ff, #6fc4ff); color: #123c6b; }
+.lh__balloon:nth-child(3n + 1) { background: radial-gradient(circle at 35% 30%, #fff3c9, #ffd24d); color: #5c4300; }
+.lh__balloon:active { transform: scale(0.94); }
+@keyframes lhPop { 0% { transform: scale(1); } 40% { transform: scale(1.25); opacity: 0.9; } 100% { transform: scale(0.6); opacity: 0.25; } }
+.lh__balloon--pop { animation: lhPop 0.45s ease-out forwards; pointer-events: none; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
@@ -1053,6 +1143,12 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   /* reveals must still be VISIBLE without motion, not stuck invisible */
   .dot__reveal--on, .lf__reveal--on, .cbn__reveal--on { animation: none !important; opacity: 1 !important; }
   .lf__cell--target, .lf__around--pulse { animation: none !important; transform: none !important; }
+  /* Ship-A games: no motion, but end-states must still SHOW */
+  .mix__bowl--swirl, .mb__mama--nuzzle, .mb__heart, .tub__item--float { animation: none !important; }
+  .mix__pot--poured { animation: none !important; opacity: 0.45; }
+  .tub__item { transition: none !important; }
+  .lh__balloon--pop { animation: none !important; opacity: 0.25; transform: scale(0.6); }
+  .mix__pot:active, .fs__plate:active, .lh__balloon:active { transform: none !important; }
   .buddy__pick:active, .buddyc__opt:active { transform: none !important; }
   .villain__guy { animation: none !important; }
   .villain:active { transform: none !important; }

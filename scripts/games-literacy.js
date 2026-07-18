@@ -654,4 +654,56 @@
       newRound();
     },
   });
+
+  // ---- 🚂 Alphabet Train (letter ORDER — which letter is missing?) ----
+  // Four letter-cars roll in with one missing (never the engine car, so an
+  // anchor always shows). Tap the right letter and it chugs into place; the
+  // whole train then chants its letters in order.
+  F.register({
+    id: "alpha-train",
+    icon: "🚂",
+    title: "Alphabet Train",
+    skill: "alphabet order [W]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, lastStart = -1, r = null;
+      const train = api.el("div", { class: "at__train", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(train, chips);
+      api.mascot();
+
+      function newRound() {
+        r = L.makeAlphaTrain(undefined, lastStart);
+        lastStart = r.start;
+        api.setPrompt("Which letter is missing?", ["🚂", "🔤", "🤔"]);
+        api.speak(); api.say("Which letter is missing from the train?");
+        train.innerHTML = "";
+        train.appendChild(api.el("span", { class: "at__engine", text: "🚂", aria: { hidden: "true" } }));
+        r.letters.forEach((ch, i) => {
+          train.appendChild(api.el("span", {
+            class: "at__car" + (i === r.blankIdx ? " at__car--blank" : ""),
+            text: i === r.blankIdx ? "?" : ch,
+          }));
+        });
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--letter tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.ch },
+          }, [ch.ch]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            const blank = train.querySelector(".at__car--blank");
+            if (blank) { blank.textContent = r.answer; blank.classList.remove("at__car--blank"); blank.classList.add("pop"); }
+            api.say(r.letters.join(", ") + "!"); // the completed train chants its letters
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know your alphabet order!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

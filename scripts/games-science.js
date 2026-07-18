@@ -72,6 +72,7 @@
   sorter({ id: "hot-cold", icon: "🌡️", title: "Hot or Cold?", skill: "sort hot/cold [M]", sets: C.HOT_COLD_SETS, prompt: "Is it hot or cold?", icons: ["👀", "🌡️", "👉"] });
   sorter({ id: "magnet-magic", icon: "🧲", title: "Will It Stick?", skill: "magnetic or not [M]", sets: C.MAGNET_SETS, prompt: "Will the magnet grab it?", icons: ["👀", "🧲", "👉"] });
   sorter({ id: "blue-planet", icon: "🌊", title: "Land or Water?", skill: "land & water [M]", sets: C.BLUE_PLANET_SETS, prompt: "Is it land or water?", icons: ["👀", "🌊", "👉"] });
+  sorter({ id: "plant-animal", icon: "🌿", title: "Plant or Animal?", skill: "plant vs animal [M]", sets: C.PLANT_ANIMAL_SETS, prompt: "Is it a plant or an animal?", icons: ["👀", "🌿", "🐾"] });
 
   // ---- Shape's Real Twin: match a 3D solid to a real object of that shape ----
   // Geometry solids are one of Josh's working edges — and this diversifies the
@@ -323,6 +324,183 @@
           b.addEventListener("click", () => {
             if (ch.correct) { api.say(ch.name); round += 1; if (round >= ROUNDS) api.win({ say: "You know your continents!" }); else { api.roundWin(); newRound(); } }
             else api.tryAgain(b);
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- 🎨 Mix It! Paint Lab (real color mixing — cause→effect magic) ----
+  // Pour pot A, pour pot B (the strict data-correct chain), the bowl swirls
+  // into the NEW color, then "What did we make?" — 3 color choices, each a
+  // real mixable color. Truth table lives in content.js MIXES.
+  F.register({
+    id: "color-mix",
+    icon: "🎨",
+    title: "Mix It!",
+    skill: "color mixing [P]",
+    start(api) {
+      const A = window.JoshAudio || { say() {}, isMuted: () => true };
+      const ROUNDS = 4;
+      let round = 0, lastIdx = -1, r = null, step = 0;
+      const bench = api.el("div", { class: "mix__bench" });
+      const bowl = api.el("div", { class: "mix__bowl", aria: { hidden: "true" } });
+      const choices = api.el("div", { class: "choices choices--3 mix__choices", hidden: "" });
+      api.stage.append(bench, bowl, choices);
+
+      const blip = (f, o) => { try { if (A.tone && A.isMuted && !A.isMuted()) A.tone(f, o); } catch (e) { /* ignore */ } };
+
+      function newRound() {
+        r = L.makeColorMix(C.MIXES, undefined, lastIdx);
+        lastIdx = r.idx;
+        step = 0;
+        api.setPrompt("Pour the paints — what will they make?", ["🎨", "🫗", "🌈"]);
+        api.speak(); api.say("Pour the " + r.mix.a.name + " paint!");
+        bowl.style.background = "#eceff4";
+        bowl.classList.remove("mix__bowl--swirl");
+        bowl.textContent = "";
+        choices.hidden = true;
+        bench.innerHTML = "";
+        // Either pot may be poured first (order can't be "wrong" — no-fail law);
+        // data-correct simply rides whichever pot hasn't been poured yet so the
+        // harness always has a valid next tap.
+        [r.mix.a, r.mix.b].forEach((pot, i) => {
+          const b = api.el("button", {
+            class: "mix__pot tap", type: "button",
+            dataset: i === 0 ? { correct: "1" } : {}, aria: { label: pot.name + " paint" },
+          }, [api.el("span", { class: "mix__paint", style: { background: pot.hex }, aria: { hidden: "true" } })]);
+          b.addEventListener("click", () => {
+            if (b.dataset.done || step >= 2) return;
+            b.dataset.done = "1"; delete b.dataset.correct;
+            b.classList.add("mix__pot--poured");
+            blip(i === 0 ? 392 : 494, { duration: 0.25, gain: 0.2 });
+            if (step === 0) {
+              step = 1;
+              bowl.style.background = pot.hex; // first color fills the bowl
+              const otherPot = [...bench.querySelectorAll(".mix__pot")].find((p) => !p.dataset.done);
+              if (otherPot) otherPot.dataset.correct = "1";
+              api.say("Now pour the " + (i === 0 ? r.mix.b.name : r.mix.a.name) + "!");
+            } else {
+              step = 2;
+              bowl.style.background = r.mix.out.hex; // the mix reveals itself
+              bowl.classList.add("mix__bowl--swirl");
+              api.say("Look! What color did we make?");
+              choices.hidden = false;
+              choices.innerHTML = "";
+              r.choices.forEach((ch) => {
+                const cb = api.el("button", {
+                  class: "choice mix__chip tap", type: "button",
+                  dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+                }, [api.el("span", { class: "mix__paint", style: { background: ch.hex }, aria: { hidden: "true" } })]);
+                cb.addEventListener("click", () => {
+                  if (!ch.correct) { api.tryAgain(cb); return; }
+                  cb.classList.add("pop");
+                  round += 1;
+                  if (round >= ROUNDS) api.win({ say: r.mix.a.name + " and " + r.mix.b.name + " make " + r.mix.out.name + "! You're a paint scientist!" });
+                  else { api.roundWin({ say: r.mix.a.name + " and " + r.mix.b.name + " make " + r.mix.out.name + "!" }); newRound(); }
+                });
+                choices.appendChild(cb);
+              });
+            }
+          });
+          bench.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- 🛁 Sink or Float? (predict → then SEE the answer — the science method) ----
+  // Josh predicts by tapping ⬇️ or ⬆️; the item then plops into the tub and
+  // sinks to the bottom or bobs on top — the water itself confirms the truth.
+  F.register({
+    id: "sink-float",
+    icon: "🛁",
+    title: "Sink or Float?",
+    skill: "sink vs float [M] — predict & test",
+    start(api) {
+      const ROUNDS = 5;
+      let round = 0, lastItem = null, r = null;
+      const tub = api.el("div", { class: "tub", aria: { hidden: "true" } });
+      const floater = api.el("span", { class: "tub__item" });
+      const water = api.el("div", { class: "tub__water" });
+      tub.append(floater, water);
+      const bins = api.el("div", { class: "choices choices--3 tub__choices" });
+      api.stage.append(tub, bins);
+
+      function newRound() {
+        r = L.makeSinkFloat(C.SINK_FLOAT_SET, undefined, lastItem);
+        lastItem = r.item;
+        api.setPrompt("Will it sink or float?", ["👀", "🛁", "🤔"]);
+        api.speak();
+        floater.textContent = r.item;
+        floater.className = "tub__item"; // reset position (above the water)
+        bins.innerHTML = "";
+        [{ key: "sink", label: "Sinks", emoji: "⬇️" }, { key: "float", label: "Floats", emoji: "⬆️" }].forEach((opt) => {
+          const b = api.el("button", {
+            class: "choice tub__guess tap", type: "button",
+            dataset: opt.key === r.answer ? { correct: "1" } : {}, aria: { label: opt.label },
+          }, [opt.emoji]);
+          b.addEventListener("click", () => {
+            if (opt.key !== r.answer) { api.tryAgain(b); return; }
+            if (bins.dataset.resolved) return; // this round's experiment already ran
+            bins.dataset.resolved = "1";
+            // Consume the answer so no stale correct-target lingers through the
+            // splash animation (the harness must wait for the next round).
+            for (const g of bins.querySelectorAll(".tub__guess")) g.removeAttribute("data-correct");
+            // The experiment: drop it in and let the water show the answer.
+            floater.classList.add(r.answer === "sink" ? "tub__item--sink" : "tub__item--float");
+            api.say(r.why);
+            round += 1;
+            if (round >= ROUNDS) setTimeout(() => api.win({ say: "You tested them all, scientist!" }), 650);
+            else { api.roundWin(); setTimeout(() => { delete bins.dataset.resolved; newRound(); }, 950); }
+          });
+          bins.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- 🐣 Mama & Baby (match each baby animal to its mama) ----
+  F.register({
+    id: "mama-baby",
+    icon: "🐣",
+    title: "Mama & Baby",
+    skill: "baby animals [M]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, lastIdx = -1, r = null;
+      const babyEl = api.el("div", { class: "mb__baby", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(babyEl, chips);
+      api.mascot();
+
+      function newRound() {
+        r = L.makeMamaBaby(C.MAMA_BABY, undefined, lastIdx);
+        lastIdx = r.idx;
+        api.setPrompt("Who is the mama?", ["🐣", "👀", "💞"]);
+        api.speak(); api.say("I'm a " + r.pair.babyName + "! Where's my mama?");
+        babyEl.textContent = r.pair.baby;
+        babyEl.classList.remove("pop"); void babyEl.offsetWidth; babyEl.classList.add("pop");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice mb__mama tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+          }, [ch.emoji]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            // The nuzzle: baby hops over to its mama + hearts.
+            b.classList.add("mb__mama--nuzzle");
+            const heart = api.el("span", { class: "mb__heart", text: "💞", aria: { hidden: "true" } });
+            b.appendChild(heart);
+            setTimeout(() => heart.remove(), 1100);
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Every baby found its mama!" });
+            else { api.roundWin({ say: "The " + r.pair.babyName + "'s mama is the " + ch.name + "!" }); newRound(); }
           });
           chips.appendChild(b);
         });

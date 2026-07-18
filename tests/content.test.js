@@ -431,3 +431,56 @@ test("the narrated sorters carry a truthful 'why' on every bin", () => {
     }
   }
 });
+
+// ---------- 🎨 Mix It!: real color theory, restated ----------
+test("color mixes match real color theory (and every choice color is real)", () => {
+  const TRUTH = { "red+yellow": "orange", "yellow+blue": "green", "blue+red": "purple", "red+white": "pink" };
+  assert.ok(content.MIXES.length >= 4, "need several mixes");
+  for (const m of content.MIXES) {
+    const key = m.a.name + "+" + m.b.name;
+    assert.equal(m.out.name, TRUTH[key], `${key} must make ${TRUTH[key]}, not ${m.out.name}`);
+    for (const c of [m.a, m.b, m.out]) {
+      assert.match(c.hex, /^#[0-9a-f]{6}$/i, `${c.name} needs a real hex color`);
+      assert.ok(c.name && c.name.length > 2, "every paint needs a spoken name");
+    }
+  }
+  assert.equal(new Set(content.MIXES.map((m) => m.out.name)).size, content.MIXES.length,
+    "each mix makes a DIFFERENT color (so answer choices can't collide)");
+});
+
+// ---------- 🛁 Sink or Float: shared truth set is wired to the tile ----------
+test("sink/float: the dedicated game shares ONE truth set with Alive-or-Not's rotation", () => {
+  assert.ok(content.SINK_FLOAT_SET, "SINK_FLOAT_SET must be exported for the tub game");
+  assert.ok(content.SORT_SETS.includes(content.SINK_FLOAT_SET), "the SAME object must live in SORT_SETS (one truth, never forked)");
+  // Restate the physical truth.
+  const sinks = content.SINK_FLOAT_SET.bins.find((b) => b.label === "Sinks").items;
+  const floats = content.SINK_FLOAT_SET.bins.find((b) => b.label === "Floats").items;
+  for (const heavy of ["🪨", "🔑", "⚓", "🪙"]) assert.ok(sinks.includes(heavy), `${heavy} sinks`);
+  for (const light of ["🦆", "🎈", "🪵", "🍎"]) assert.ok(floats.includes(light), `${light} floats (yes — apples float!)`);
+});
+
+test("plant/animal: the dedicated sorter shares ONE truth set with Alive-or-Not's rotation", () => {
+  assert.ok(Array.isArray(content.PLANT_ANIMAL_SETS) && content.PLANT_ANIMAL_SETS.length === 1);
+  assert.ok(content.SORT_SETS.includes(content.PLANT_ANIMAL_SETS[0]), "same object, one truth");
+});
+
+// ---------- 🐣 Mama & Baby: real pairs, restated ----------
+test("mama & baby pairs are true (and every glyph is distinct)", () => {
+  const TRUTH = { Chick: "Hen", Puppy: "Dog", Kitten: "Cat", Caterpillar: "Butterfly" };
+  assert.ok(content.MAMA_BABY.length >= 4, "need several pairs");
+  const glyphs = [];
+  for (const p of content.MAMA_BABY) {
+    assert.equal(p.mamaName, TRUTH[p.babyName], `${p.babyName}'s mama must be ${TRUTH[p.babyName]}`);
+    assert.notEqual(p.baby, p.mama, `${p.babyName}: baby and mama need different pictures`);
+    glyphs.push(p.baby, p.mama);
+  }
+  assert.equal(new Set(glyphs).size, glyphs.length, "no glyph may appear in two pairs (choices would collide)");
+});
+
+// ---------- 🔎 Letter Hunt: the letter pool is visually honest ----------
+test("letter-hunt pool: uppercase A-Z only, unique, no I/O lookalike traps", () => {
+  assert.ok(content.HUNT_LETTERS.length >= 10, "need a rich letter pool");
+  assert.equal(new Set(content.HUNT_LETTERS).size, content.HUNT_LETTERS.length, "letters unique");
+  for (const ch of content.HUNT_LETTERS) assert.match(ch, /^[A-Z]$/, `bad letter ${ch}`);
+  for (const trap of ["I", "O", "Q"]) assert.ok(!content.HUNT_LETTERS.includes(trap), `${trap} is a lookalike trap (l/0) — keep it out`);
+});

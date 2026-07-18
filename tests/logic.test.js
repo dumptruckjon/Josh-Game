@@ -850,3 +850,112 @@ test("makeOddFeature: three identical + exactly one different (the odd)", () => 
     assert.notEqual(r.base, r.odd, "base and odd differ");
   }
 });
+
+// ---------- Ship A: color-mix / sink-float / mama-baby / fair-share / quick-peek / alpha-train / letter-hunt ----------
+
+test("makeColorMix: one correct choice = the true mix result; never repeats the last mix", () => {
+  const rng = mulberry32(201);
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeColorMix(content.MIXES, rng, last);
+    assert.notEqual(r.idx, last, "never the same mix twice in a row");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct color");
+    assert.equal(correct[0].name, r.mix.out.name, "the correct choice IS the mix's result");
+    assert.equal(new Set(r.choices.map((c) => c.name)).size, 3, "three distinct color choices");
+    last = r.idx;
+  }
+});
+
+test("makeSinkFloat: the answer always matches the truth set; item never repeats", () => {
+  const rng = mulberry32(202);
+  const sinks = new Set(content.SINK_FLOAT_SET.bins.find((b) => b.label === "Sinks").items);
+  let last = null;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeSinkFloat(content.SINK_FLOAT_SET, rng, last);
+    assert.notEqual(r.item, last, "never the same item twice in a row");
+    assert.equal(r.answer, sinks.has(r.item) ? "sink" : "float", `${r.item} answer must match the truth set`);
+    assert.ok(r.why && r.why.length > 8, "carries the spoken why");
+    last = r.item;
+  }
+});
+
+test("makeMamaBaby: the correct mama belongs to the shown baby; 3 distinct mama choices", () => {
+  const rng = mulberry32(203);
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeMamaBaby(content.MAMA_BABY, rng, last);
+    assert.notEqual(r.idx, last, "never the same baby twice in a row");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].emoji, r.pair.mama, "the correct choice is THIS baby's mama");
+    assert.equal(new Set(r.choices.map((c) => c.emoji)).size, 3, "three distinct mamas");
+    last = r.idx;
+  }
+});
+
+test("makeFairShare: total always divides evenly among the friends", () => {
+  const rng = mulberry32(204);
+  for (let i = 0; i < 200; i++) {
+    for (const hard of [false, true]) {
+      const r = L.makeFairShare(rng, hard);
+      assert.equal(r.friends, hard ? 3 : 2);
+      assert.ok(r.per >= 2 && r.per <= 3, `per in [2,3], got ${r.per}`);
+      assert.equal(r.total, r.friends * r.per, "total = friends × per (always fair)");
+      assert.equal(r.total % r.friends, 0, "always divides evenly — fairness is guaranteed");
+    }
+  }
+});
+
+test("makeQuickPeek: n in range, canonical dice layout, one correct choice, no repeat", () => {
+  const rng = mulberry32(205);
+  let last = 0;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeQuickPeek(rng, 6, last);
+    assert.ok(r.n >= 2 && r.n <= 6, `n in [2,6], got ${r.n}`);
+    assert.notEqual(r.n, last, "never the same count twice in a row");
+    assert.equal(r.dots.length, r.n, "the layout shows exactly n dots");
+    assert.deepEqual(r.dots, L.PEEK_LAYOUTS[r.n], "dots use the canonical dice pattern (subitizing needs stable shapes)");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].n, r.n);
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, 3, "three distinct number choices");
+    last = r.n;
+  }
+});
+
+test("makeAlphaTrain: a real consecutive alphabet window; blank never the first car", () => {
+  const rng = mulberry32(206);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeAlphaTrain(rng, last);
+    assert.equal(r.letters.length, 4);
+    assert.equal(L.ALPHABET.slice(r.start, r.start + 4), r.letters.join(""), "letters are consecutive A-Z");
+    assert.ok(r.blankIdx >= 1 && r.blankIdx <= 3, "the engine-side anchor letter always shows");
+    assert.equal(r.answer, r.letters[r.blankIdx]);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].ch, r.answer);
+    assert.equal(new Set(r.choices.map((c) => c.ch)).size, 3, "three distinct letter choices");
+    last = r.start;
+  }
+});
+
+test("makeLetterHunt: exactly `need` targets (case-honest), the rest distractors", () => {
+  const rng = mulberry32(207);
+  let last = null;
+  for (let i = 0; i < 300; i++) {
+    const mixCase = i % 2 === 1;
+    const r = L.makeLetterHunt(content.HUNT_LETTERS, rng, { lastTarget: last, mixCase });
+    assert.notEqual(r.target, last, "never the same target twice in a row");
+    const targets = r.cells.filter((c) => c.correct);
+    assert.equal(targets.length, r.need, "exactly `need` target balloons");
+    for (const t of targets) assert.equal(t.ch.toUpperCase(), r.target, "every target IS the target letter (any case)");
+    if (!mixCase) for (const t of targets) assert.equal(t.ch, r.target, "un-ramped rounds are all-uppercase");
+    for (const d of r.cells.filter((c) => !c.correct)) {
+      assert.notEqual(d.ch.toUpperCase(), r.target, "a distractor may never BE the target letter");
+    }
+    assert.equal(r.cells.length, 9, "a full 3×3 balloon sky");
+    last = r.target;
+  }
+});

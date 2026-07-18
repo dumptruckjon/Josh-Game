@@ -717,6 +717,114 @@
     return { pairs: st.pairs, ask: askPair, choices };
   }
 
+  // --- 🎨 Mix It! Paint Lab ------------------------------------------------
+  // Pick a mix (never the same twice in a row) and 3 result choices: the true
+  // result + 2 other mixes' results — every choice is a REAL mixable color.
+  function makeColorMix(mixes, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * mixes.length);
+    if (mixes.length > 1 && idx === lastIdx) idx = (idx + 1) % mixes.length;
+    const mix = mixes[idx];
+    const others = shuffle(mixes.filter((m, i) => i !== idx).map((m) => m.out), rng).slice(0, 2);
+    const choices = shuffle([{ ...mix.out, correct: true }, ...others.map((o) => ({ ...o, correct: false }))], rng);
+    return { idx, mix, choices };
+  }
+
+  // --- 🛁 Sink or Float? ---------------------------------------------------
+  // Pick an item from the shared truth set (never repeating), with its answer.
+  function makeSinkFloat(set, rng, lastItem) {
+    const rnd = rng || Math.random;
+    const all = [];
+    for (const bin of set.bins) for (const item of bin.items) all.push({ item, answer: bin.label === "Sinks" ? "sink" : "float", why: bin.why });
+    let pool = all.filter((x) => x.item !== lastItem);
+    if (!pool.length) pool = all;
+    return pool[Math.floor(rnd() * pool.length)];
+  }
+
+  // --- 🐣 Mama & Baby ------------------------------------------------------
+  function makeMamaBaby(pairs, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * pairs.length);
+    if (pairs.length > 1 && idx === lastIdx) idx = (idx + 1) % pairs.length;
+    const pair = pairs[idx];
+    const others = shuffle(pairs.filter((p, i) => i !== idx), rng).slice(0, 2);
+    const choices = shuffle([{ emoji: pair.mama, name: pair.mamaName, correct: true },
+      ...others.map((p) => ({ emoji: p.mama, name: p.mamaName, correct: false }))], rng);
+    return { idx, pair, choices };
+  }
+
+  // --- 🍪 Fair Shares ------------------------------------------------------
+  // A dealable round: friends × per = total treats, dealt one each in rotation.
+  function makeFairShare(rng, hard) {
+    const rnd = rng || Math.random;
+    const friends = hard ? 3 : 2;
+    const per = 2 + Math.floor(rnd() * 2); // 2..3 each
+    return { friends, per, total: friends * per };
+  }
+
+  // --- 👀 Quick Peek (subitizing) -------------------------------------------
+  // Dice-style dot layouts (percent positions) so 1-6 always LOOK canonical —
+  // subitizing is pattern recognition, not counting.
+  const PEEK_LAYOUTS = {
+    1: [[50, 50]],
+    2: [[30, 30], [70, 70]],
+    3: [[28, 28], [50, 50], [72, 72]],
+    4: [[30, 30], [70, 30], [30, 70], [70, 70]],
+    5: [[28, 28], [72, 28], [50, 50], [28, 72], [72, 72]],
+    6: [[30, 24], [70, 24], [30, 50], [70, 50], [30, 76], [70, 76]],
+  };
+  function makeQuickPeek(rng, max, lastN) {
+    const rnd = rng || Math.random;
+    const lo = 2, hi = Math.min(Math.max(max || 5, lo + 1), 6);
+    let n = lo + Math.floor(rnd() * (hi - lo + 1));
+    if (n === lastN) n = lo + ((n - lo + 1) % (hi - lo + 1));
+    const opts = new Set([n]);
+    while (opts.size < 3) {
+      const d = Math.max(1, Math.min(6, n + (Math.floor(rnd() * 5) - 2)));
+      opts.add(d);
+    }
+    const choices = shuffle([...opts].map((v) => ({ n: v, correct: v === n })), rng);
+    return { n, dots: PEEK_LAYOUTS[n], choices };
+  }
+
+  // --- 🚂 Alphabet Train (reuses the shared ALPHABET const above) ----------
+  function makeAlphaTrain(rng, lastStart) {
+    const rnd = rng || Math.random;
+    let start = Math.floor(rnd() * (ALPHABET.length - 4)); // window of 4 letters
+    if (start === lastStart) start = (start + 3) % (ALPHABET.length - 4);
+    const letters = ALPHABET.slice(start, start + 4).split("");
+    const blankIdx = 1 + Math.floor(rnd() * 3); // never the first car (an anchor stays)
+    const answer = letters[blankIdx];
+    const opts = new Set([answer]);
+    while (opts.size < 3) {
+      const off = Math.floor(rnd() * 7) - 3;
+      const j = Math.min(ALPHABET.length - 1, Math.max(0, start + blankIdx + off));
+      opts.add(ALPHABET[j]);
+    }
+    const choices = shuffle([...opts].map((ch) => ({ ch, correct: ch === answer })), rng);
+    return { start, letters, blankIdx, answer, choices };
+  }
+
+  // --- 🔎 Letter Hunt ------------------------------------------------------
+  // A field of letter balloons: `need` copies of the target (lowercase mixed in
+  // once ramped), the rest clearly-different distractor letters.
+  function makeLetterHunt(letters, rng, opts) {
+    opts = opts || {};
+    const rnd = rng || Math.random;
+    let target = letters[Math.floor(rnd() * letters.length)];
+    if (target === opts.lastTarget) target = letters[(letters.indexOf(target) + 1) % letters.length];
+    const size = opts.size || 9;
+    const need = opts.need || 3;
+    const distractors = shuffle(letters.filter((l) => l !== target), rng);
+    const cells = [];
+    for (let i = 0; i < need; i++) {
+      const lower = opts.mixCase && i % 2 === 1; // ramped: every other target is lowercase
+      cells.push({ ch: lower ? target.toLowerCase() : target, correct: true });
+    }
+    for (let i = 0; cells.length < size; i++) cells.push({ ch: distractors[i % distractors.length], correct: false });
+    return { target, need, cells: shuffle(cells, rng) };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -739,6 +847,8 @@
     makeDigraphFinish, makeStoryOrder, makeConjunctionHunt,
     makeContinentMatch, makeSoundHunt, makeTopView, makeWebRescue, makeNameSpell,
     article, makeOddFeature, makeListen,
+    makeColorMix, makeSinkFloat, makeMamaBaby, makeFairShare, makeQuickPeek, PEEK_LAYOUTS,
+    makeAlphaTrain, ALPHABET, makeLetterHunt,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

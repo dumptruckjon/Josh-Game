@@ -6,6 +6,19 @@
 // required to play; every picture "names itself" so naming tasks are fair.
 
 (function (global) {
+  // Shared sort sets defined ONCE and referenced from both the Alive-or-Not
+  // rotation (SORT_SETS) and their own dedicated game tiles — a single source
+  // of truth, so the sink/float and plant/animal facts can never fork.
+  const SINK_FLOAT_SET = { name: "sinkfloat", bins: [
+    { label: "Sinks", emoji: "⬇️", why: "It sinks — it's heavy for its size.", items: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"] },
+    { label: "Floats", emoji: "⬆️", why: "It floats — it's light and traps air.", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
+  ] };
+  const PLANT_ANIMAL_SET = { name: "plantanimal", bins: [
+    // Note: no fungi (🍄 is not a plant) — keep the two categories truthful.
+    { label: "Plant", emoji: "🌿", why: "It's a plant — it grows in one spot.", items: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"] },
+    { label: "Animal", emoji: "🐾", why: "It's an animal — it moves and eats.", items: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
+  ] };
+
   const CONTENT = {
     TITLE: "Josh's Games",
 
@@ -206,16 +219,14 @@
         { label: "Alive", emoji: "🌱", why: "It's alive — it grows and needs food.", items: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻", "🐛", "🌵", "🐌"] },
         { label: "Not alive", emoji: "🪨", why: "It's not alive — it doesn't grow or eat.", items: ["🪨", "🚗", "⚽", "🥄", "📦", "🔑", "👟", "🪑", "🧱", "🤖", "🕯️", "⌚"] },
       ] },
-      { name: "sinkfloat", bins: [
-        { label: "Sinks", emoji: "⬇️", why: "It sinks — it's heavy for its size.", items: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"] },
-        { label: "Floats", emoji: "⬆️", why: "It floats — it's light and traps air.", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
-      ] },
-      { name: "plantanimal", bins: [
-        // Note: no fungi (🍄 is not a plant) — keep the two categories truthful.
-        { label: "Plant", emoji: "🌿", why: "It's a plant — it grows in one spot.", items: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"] },
-        { label: "Animal", emoji: "🐾", why: "It's an animal — it moves and eats.", items: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
-      ] },
+      SINK_FLOAT_SET,
+      PLANT_ANIMAL_SET,
     ],
+    // The same sets, surfaced for their DEDICATED game tiles (same objects —
+    // one truth). PLANT_ANIMAL_SETS feeds the sorter engine; SINK_FLOAT_SET
+    // feeds the predict-then-see tub game.
+    SINK_FLOAT_SET,
+    PLANT_ANIMAL_SETS: [PLANT_ANIMAL_SET],
     COLOR_SETS: [
       { name: "redblue", bins: [
         { label: "Red", emoji: "🔴", items: ["🍎", "🍓", "🍅", "🌹", "❤️"] },
@@ -308,6 +319,33 @@
       { name: "Island", base: "💧", feature: "🟩", reveals: ["🌴", "🏖️", "⛵"], say: "That's an island — land with water all around!" },
       { name: "Lake", base: "🟩", feature: "💧", reveals: ["🦆", "🐟", "🛶"], say: "That's a lake — water with land all around!" },
     ],
+
+    // ---- 🎨 Mix It! Paint Lab — real color theory, one mix per round ----
+    // Pour pot a + pot b → the bowl turns `out`. The truth table is restated in
+    // content.test.js so a mix can never silently go wrong.
+    MIXES: [
+      { a: { name: "red", hex: "#e23636" }, b: { name: "yellow", hex: "#ffd24d" }, out: { name: "orange", hex: "#ff9331" } },
+      { a: { name: "yellow", hex: "#ffd24d" }, b: { name: "blue", hex: "#2b6cff" }, out: { name: "green", hex: "#3fa34d" } },
+      { a: { name: "blue", hex: "#2b6cff" }, b: { name: "red", hex: "#e23636" }, out: { name: "purple", hex: "#8c4fd8" } },
+      { a: { name: "red", hex: "#e23636" }, b: { name: "white", hex: "#f6f7fb" }, out: { name: "pink", hex: "#ff9ec2" } },
+    ],
+
+    // ---- 🐣 Mama & Baby — each baby's real mama (self-naming pictures) ----
+    MAMA_BABY: [
+      { baby: "🐤", babyName: "Chick", mama: "🐔", mamaName: "Hen" },
+      { baby: "🐶", babyName: "Puppy", mama: "🐕", mamaName: "Dog" },
+      { baby: "🐱", babyName: "Kitten", mama: "🐈", mamaName: "Cat" },
+      { baby: "🐛", babyName: "Caterpillar", mama: "🦋", mamaName: "Butterfly" },
+    ],
+
+    // ---- 👀 Quick Peek (subitizing) — the countable that hides behind a cloud ----
+    PEEK_ITEMS: ["⭐", "🍓", "🐞", "🔵"],
+
+    // ---- 🍪 Fair Shares — treats to deal around the friends ----
+    SHARE_TREATS: ["🍪", "🍓", "🧁"],
+
+    // ---- 🔎 Letter Hunt — visually clear letters (no I/O lookalike traps) ----
+    HUNT_LETTERS: ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "R", "S", "T"],
 
     // ---- Continents (Montessori colors + a signature animal that lives there) ----
     // A friendly, stylized world map (not exact coastlines). The animal sits on

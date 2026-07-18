@@ -890,4 +890,130 @@
       newRound();
     },
   });
+
+  // ---- 🍪 Fair Shares (deal treats equally — early division + fairness) ----
+  // "One for you, one for you…": the NEXT friend to serve carries data-correct;
+  // tap their plate and a treat lands on it. When the plate stack is empty,
+  // every plate has the same count — the fairness is VISIBLE and spoken.
+  F.register({
+    id: "fair-share",
+    icon: "🍪",
+    title: "Fair Shares",
+    skill: "share equally [W] — early division",
+    start(api) {
+      const C = api.C;
+      const L = window.JoshLogic;
+      const ROUNDS = 3;
+      let round = 0, r = null, dealt = 0, treat = "🍪";
+      const pile = api.el("div", { class: "fs__pile", aria: { hidden: "true" } });
+      const row = api.el("div", { class: "fs__row" });
+      api.stage.append(pile, row);
+
+      function plates() { return [...row.querySelectorAll(".fs__plate")]; }
+
+      function newRound() {
+        r = L.makeFairShare(undefined, api.shouldRamp(2));
+        dealt = 0;
+        treat = api.randItem(C.SHARE_TREATS || ["🍪"]);
+        api.setPrompt("Share them out — one each!", ["🍪", "🤲", "😊"]);
+        api.speak(); api.say("Share the treats so everyone gets the same!");
+        pile.textContent = treat.repeat(r.total);
+        row.innerHTML = "";
+        for (let i = 0; i < r.friends; i++) {
+          const f = api.friend();
+          const face = api.el("span", { class: "fs__face art-fill", aria: { hidden: "true" } });
+          if (window.JoshArt && window.JoshArt.friend && f.art) face.innerHTML = window.JoshArt.friend(f.art);
+          else face.textContent = f.emoji;
+          const count = api.el("span", { class: "fs__count", aria: { hidden: "true" } });
+          const plate = api.el("button", {
+            class: "fs__plate tap", type: "button",
+            dataset: i === 0 ? { correct: "1" } : {}, aria: { label: f.name + "'s plate" },
+          }, [face, count]);
+          plate.__n = 0;
+          plate.__name = f.name;
+          plate.addEventListener("click", () => {
+            if (plate.dataset.correct !== "1") { api.tryAgain(plate); api.say(plate.__name + " has one — someone else's turn!"); return; }
+            plate.__n += 1;
+            dealt += 1;
+            count.textContent = treat.repeat(plate.__n);
+            plate.classList.remove("pop"); void plate.offsetWidth; plate.classList.add("pop");
+            pile.textContent = treat.repeat(r.total - dealt);
+            delete plate.dataset.correct;
+            if (dealt >= r.total) {
+              api.say("Look — everyone has " + r.per + "! That's fair!");
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You shared everything fairly! What a kind friend!" });
+              else { api.roundWin(); setTimeout(() => { if (row.isConnected) newRound(); }, 900); }
+            } else {
+              // The NEXT plate in the round-robin gets the turn.
+              const ps = plates();
+              const next = ps[dealt % ps.length];
+              next.dataset.correct = "1";
+              api.say(next.__name + "'s turn!");
+            }
+          });
+          row.appendChild(plate);
+        }
+      }
+      newRound();
+    },
+  });
+
+  // ---- 👀 Quick Peek (subitizing — see how many WITHOUT counting) ----
+  // The dots hide behind a friendly cloud. Josh taps the cloud to peek as many
+  // times as he likes (fully self-paced — never a timer), then answers.
+  F.register({
+    id: "quick-peek",
+    icon: "👀",
+    title: "Quick Peek",
+    skill: "subitizing 2-6 [W]",
+    start(api) {
+      const C = api.C;
+      const L = window.JoshLogic;
+      const ROUNDS = 4;
+      let round = 0, lastN = 0, r = null, shown = false;
+      const stagebox = api.el("div", { class: "qp__box" });
+      const dots = api.el("div", { class: "qp__dots", aria: { hidden: "true" } });
+      const cloud = api.el("button", { class: "qp__cloud tap", type: "button", text: "☁️", aria: { label: "peek" } });
+      stagebox.append(dots, cloud);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(stagebox, chips);
+
+      cloud.addEventListener("click", () => {
+        shown = !shown;
+        stagebox.classList.toggle("qp__box--open", shown);
+        if (shown) api.say("Peek!");
+      });
+
+      function newRound() {
+        r = L.makeQuickPeek(undefined, api.shouldRamp(2) ? 6 : 5, lastN);
+        lastN = r.n;
+        shown = false;
+        stagebox.classList.remove("qp__box--open");
+        api.setPrompt("Peek! How many do you see?", ["☁️", "👀", "🔢"]);
+        api.speak();
+        const item = api.randItem(C.PEEK_ITEMS || ["⭐"]);
+        dots.innerHTML = "";
+        r.dots.forEach(([x, y]) => {
+          dots.appendChild(api.el("span", { class: "qp__dot", text: item, style: { left: x + "%", top: y + "%" } }));
+        });
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice choice--num tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) },
+          }, [String(ch.n)]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            stagebox.classList.add("qp__box--open"); // show the dots as the proof
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: r.n + "! You saw it super fast!" });
+            else { api.roundWin({ say: r.n + "! Quick eyes!" }); setTimeout(() => { if (dots.isConnected) newRound(); }, 900); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

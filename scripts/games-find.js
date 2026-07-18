@@ -488,4 +488,53 @@
       newRound();
     },
   });
+
+  // ---- 🔎 Letter Hunt (pop every balloon with the target letter) ----
+  // Letter recognition as a hunt: a sky of letter balloons; pop each one that
+  // matches. Once Josh is ramping, lowercase twins sneak in (B and b are the
+  // same letter — the core case-pairing insight).
+  F.register({
+    id: "letter-hunt",
+    icon: "🎈",
+    title: "Letter Hunt",
+    skill: "letter recognition [M→W]",
+    start(api) {
+      const ROUNDS = 3;
+      let round = 0, lastTarget = null, need = 0;
+      const targetEl = api.el("div", { class: "lh__target" });
+      const field = api.el("div", { class: "lh__field" });
+      api.stage.append(targetEl, field);
+
+      function newRound() {
+        const r = L.makeLetterHunt(C.HUNT_LETTERS, undefined, { lastTarget, mixCase: api.shouldRamp(2) });
+        lastTarget = r.target;
+        need = r.need;
+        api.setPrompt("Pop every " + r.target + " balloon!", ["🔎", "🎈", r.target]);
+        api.speak(); api.say("Pop every balloon with " + r.target + "!");
+        targetEl.textContent = r.target;
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "lh__balloon tap", type: "button",
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.ch },
+          }, [cell.ch]);
+          b.addEventListener("click", () => {
+            if (!cell.correct) { api.tryAgain(b); return; }
+            if (b.dataset.done) return;
+            b.dataset.done = "1"; delete b.dataset.correct;
+            b.classList.add("lh__balloon--pop");
+            api.say(cell.ch === cell.ch.toLowerCase() ? "Little " + r.target + "!" : r.target + "!");
+            need -= 1;
+            if (need <= 0) {
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You found every letter!" });
+              else { api.roundWin(); newRound(); }
+            }
+          });
+          field.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();
