@@ -62,15 +62,21 @@
   // element with helpers attached (__start to (re)render, __onShow for the
   // router to auto-speak the prompt when the screen becomes visible).
   function buildGameScreen(def) {
+    // A def may opt into another language (def.lang = "zh" for 华丽's games):
+    // spoken lines switch to Mandarin via the shared voice, and the framework's
+    // own praise/try-again/Again strings come from HualiContent instead.
+    const zh = def.lang === "zh";
+    const HL = global.HualiContent || {};
+    const sayOpts = zh ? { lang: "zh-CN" } : undefined;
     const screen = el("section", {
-      class: "screen game", id: "screen-" + def.id, dataset: { id: def.id }, hidden: "",
+      class: "screen game" + (zh ? " game--hl" : ""), id: "screen-" + def.id, dataset: { id: def.id }, hidden: "",
     });
 
     const homeBtn = el("button", {
       class: "btn-round game__home", type: "button", text: "🏠",
       aria: { label: "Back" },
       // Return to this game's category screen (set by the launcher) if known.
-      onclick: () => { location.hash = def.cat ? "#cat-" + def.cat : ""; },
+      onclick: () => { location.hash = def.homeHash || (def.cat ? "#cat-" + def.cat : ""); },
     });
     const hearBtn = el("button", {
       class: "btn-round game__hear", type: "button", text: "👂",
@@ -88,13 +94,13 @@
     const againBtn = el("button", {
       class: "btn-big game__again", type: "button", hidden: "",
       onclick: () => start(),
-    }, ["Again 🔁"]);
+    }, [zh ? (HL.AGAIN_LABEL || "再来 🔁") : "Again 🔁"]);
     const foot = el("div", { class: "game__foot" }, [againBtn]);
 
     screen.append(bar, prompt, stage, foot);
 
     let currentPrompt = "";
-    function speak() { A.say(currentPrompt); }
+    function speak() { A.say(currentPrompt, sayOpts); }
 
     // A#2: an optional reactive buddy. A game opts in with api.mascot() (idempotent
     // — reuses the same character across rounds) and the shared win/roundWin/
@@ -124,7 +130,7 @@
         promptText.textContent = text || "";
         iconsEl.textContent = (icons || []).join(" ");
       },
-      say: (t) => A.say(t),
+      say: (t) => A.say(t, sayOpts),
       speak,
       // Opt-in reactive buddy. Call each round (after building the round's UI) so
       // the friend sits at the bottom, "on the floor"; it persists across rounds.
@@ -148,7 +154,7 @@
         firstTryStreak = missedSinceWin ? 0 : firstTryStreak + 1;
         missedSinceWin = false;
         screen.dataset.streak = String(firstTryStreak);
-        if (opts && opts.say) A.say(opts.say);
+        if (opts && opts.say) A.say(opts.say, sayOpts);
       },
       // The whole game is finished — celebrate, mark won, offer Again.
       win(opts) {
@@ -158,7 +164,7 @@
         try { if (A.winCue) A.winCue(); } catch (e) { /* ignore */ } // the "you did it!" jingle
         reactMascot("cheer");
         if (FX.stars) FX.stars();
-        A.say((opts && opts.say) || randItem(C.PRAISE_SPOKEN || ["Yay"]));
+        A.say((opts && opts.say) || randItem((zh ? HL.PRAISE : C.PRAISE_SPOKEN) || ["Yay"]), sayOpts);
         againBtn.hidden = false;
         // Josh's chosen buddy pops in to celebrate (his pick threads through every
         // win). Falls back to a random homage hero if no buddy module/choice.
@@ -195,7 +201,7 @@
         try { if (A.bumpCue) A.bumpCue(); } catch (e) { /* ignore */ } // soft, non-punishing
         reactMascot("wiggle");
         missedSinceWin = true; // this round is no longer a clean win → breaks the ramp streak
-        A.say(randItem(C.TRYAGAIN_SPOKEN || ["Try again"]));
+        A.say(randItem((zh ? HL.TRYAGAIN : C.TRYAGAIN_SPOKEN) || ["Try again"]), sayOpts);
       },
       // Adaptivity hooks (Wave 3): a game may gently ramp difficulty once Josh has
       // won n rounds in a row with no miss, and ease back when he stumbles. Never

@@ -19,13 +19,17 @@
     return muted;
   }
   // Speak a short phrase. Guarded so a missing/blocked speech API is harmless.
-  function say(text) {
+  // opts.lang switches the voice language (e.g. "zh-CN" for 华丽's games —
+  // Mandarin at a calmer rate/pitch); omitted = the device default (English).
+  function say(text, opts) {
     if (muted || !text) return;
     try {
       if (global.speechSynthesis && global.SpeechSynthesisUtterance) {
         const u = new global.SpeechSynthesisUtterance(String(text));
-        u.rate = 0.95;
-        u.pitch = 1.15;
+        const zh = !!(opts && opts.lang && String(opts.lang).indexOf("zh") === 0);
+        if (opts && opts.lang) u.lang = opts.lang;
+        u.rate = zh ? 0.85 : 0.95;
+        u.pitch = zh ? 1.0 : 1.15;
         global.speechSynthesis.cancel();
         global.speechSynthesis.speak(u);
       }

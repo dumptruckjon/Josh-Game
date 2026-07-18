@@ -927,6 +927,157 @@
     return pool[Math.floor(rnd() * pool.length)];
   }
 
+  // --- 华丽's games: generic + Chinese-content round makers -----------------
+
+  // A window of `win` consecutive items from an ordered list with ONE blank
+  // (never the first slot — an anchor always shows). Generic: mahjong runs,
+  // the zodiac train, moon phases… choices = the answer + near neighbours.
+  function makeOrderTrain(list, rng, opts) {
+    opts = opts || {};
+    const rnd = rng || Math.random;
+    const win = Math.max(3, Math.min(opts.window || 4, list.length));
+    let start = Math.floor(rnd() * (list.length - win + 1));
+    if (start === opts.lastStart && list.length - win > 0) start = (start + 1) % (list.length - win + 1);
+    const items = list.slice(start, start + win);
+    const blankIdx = 1 + Math.floor(rnd() * (win - 1));
+    const answerIdx = start + blankIdx;
+    const opt = new Set([answerIdx]);
+    while (opt.size < 3) {
+      const j = Math.min(list.length - 1, Math.max(0, answerIdx + (Math.floor(rnd() * 5) - 2)));
+      opt.add(j);
+    }
+    const choices = shuffle([...opt].map((j) => ({ value: list[j], correct: j === answerIdx })), rng);
+    return { start, items, blankIdx, answer: list[answerIdx], choices };
+  }
+
+  // 成语填空: blank one character of a real idiom; choices = the true character
+  // + the idiom's own curated wrong characters.
+  function makeIdiomFill(idioms, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * idioms.length);
+    if (idioms.length > 1 && idx === lastIdx) idx = (idx + 1) % idioms.length;
+    const idiom = idioms[idx];
+    const answer = idiom.text[idiom.blank];
+    const display = idiom.text.split("").map((ch, i) => (i === idiom.blank ? "▢" : ch)).join("");
+    const choices = shuffle([{ ch: answer, correct: true }, ...idiom.wrong.map((ch) => ({ ch, correct: false }))], rng);
+    return { idx, idiom, display, answer, choices };
+  }
+
+  // 唐诗接句: show one line, pick the TRUE next line among lines from other poems.
+  function makePoemNext(poems, rng, lastKey) {
+    const rnd = rng || Math.random;
+    const all = [];
+    poems.forEach((p, pi) => { for (let li = 0; li < p.lines.length - 1; li++) all.push({ pi, li }); });
+    let pool = all.filter(({ pi, li }) => pi + ":" + li !== lastKey);
+    if (!pool.length) pool = all;
+    const pick = pool[Math.floor(rnd() * pool.length)];
+    const poem = poems[pick.pi];
+    const prompt = poem.lines[pick.li];
+    const answer = poem.lines[pick.li + 1];
+    const others = shuffle(
+      poems.filter((p, pi) => pi !== pick.pi).flatMap((p) => p.lines), rng
+    ).slice(0, 2);
+    const choices = shuffle([{ line: answer, correct: true }, ...others.map((line) => ({ line, correct: false }))], rng);
+    return { key: pick.pi + ":" + pick.li, poem, prompt, answer, choices };
+  }
+
+  // 量词搭配: the noun's one true measure word + two other nouns' measure words.
+  function makeMeasureWord(pairs, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * pairs.length);
+    if (pairs.length > 1 && idx === lastIdx) idx = (idx + 1) % pairs.length;
+    const pair = pairs[idx];
+    const others = shuffle([...new Set(pairs.filter((p, i) => i !== idx).map((p) => p.mw))].filter((mw) => mw !== pair.mw), rng).slice(0, 2);
+    const choices = shuffle([{ mw: pair.mw, correct: true }, ...others.map((mw) => ({ mw, correct: false }))], rng);
+    return { idx, pair, choices };
+  }
+
+  // Generic "prompt → pick its partner" (antonyms 大↔小, dish → its city, …).
+  // Items are {q, a}; choices are three DISTINCT `a` values.
+  function makePairPick(items, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * items.length);
+    if (items.length > 1 && idx === lastIdx) idx = (idx + 1) % items.length;
+    const item = items[idx];
+    const others = shuffle([...new Set(items.filter((p, i) => i !== idx).map((p) => p.a))].filter((a) => a !== item.a), rng).slice(0, 2);
+    const choices = shuffle([{ a: item.a, correct: true }, ...others.map((a) => ({ a, correct: false }))], rng);
+    return { idx, item, choices };
+  }
+
+  // 记菜单: memorize k dishes, then find exactly those k among n cards.
+  function makeMenuMemory(dishes, rng, opts) {
+    opts = opts || {};
+    const rnd = rng || Math.random;
+    const n = Math.min(opts.n || 6, dishes.length);
+    const k = Math.min(opts.k || 3, n - 1);
+    const board = sample(dishes, n, rng);
+    const menu = sample(board, k, rng);
+    const wanted = new Set(menu);
+    return { menu, cells: shuffle(board.map((name) => ({ name, correct: wanted.has(name) })), rng), k, n };
+  }
+
+  // 买菜算账: two market items, add the prices.
+  function makeMarket(items, rng) {
+    const rnd = rng || Math.random;
+    const [a, b] = sample(items, 2, rng);
+    const total = a.price + b.price;
+    const opt = new Set([total]);
+    while (opt.size < 3) {
+      const d = Math.max(1, total + (Math.floor(rnd() * 5) - 2));
+      opt.add(d);
+    }
+    const choices = shuffle([...opt].map((n) => ({ n, correct: n === total })), rng);
+    return { a, b, total, choices };
+  }
+
+  // 找零钱: pay with a 10元 note, get the right change back.
+  function makeChange(rng, lastCost) {
+    const rnd = rng || Math.random;
+    let cost = 2 + Math.floor(rnd() * 8); // 2..9 元
+    if (cost === lastCost) cost = 2 + (cost - 1) % 8;
+    const change = 10 - cost;
+    const opt = new Set([change]);
+    while (opt.size < 3) {
+      const d = Math.max(1, Math.min(9, change + (Math.floor(rnd() * 5) - 2)));
+      opt.add(d);
+    }
+    const choices = shuffle([...opt].map((n) => ({ n, correct: n === change })), rng);
+    return { pay: 10, cost, change, choices };
+  }
+
+  // 找不同的字: a grid of one character with ONE lookalike hiding in it
+  // (我我我找我我 — the classic). Pairs are curated lookalikes; either member
+  // may play the crowd or the hider.
+  function makeCharCrowd(pairs, size, rng) {
+    const rnd = rng || Math.random;
+    size = size || 9;
+    const pair = pairs[Math.floor(rnd() * pairs.length)];
+    const flip = rnd() < 0.5;
+    const base = flip ? pair.a : pair.b;
+    const odd = flip ? pair.b : pair.a;
+    const oddIndex = Math.floor(rnd() * size);
+    const cells = [];
+    for (let i = 0; i < size; i++) cells.push({ ch: i === oddIndex ? odd : base, correct: i === oddIndex });
+    return { base, odd, cells, oddIndex };
+  }
+
+  // --- 该填几 (missing addend): a + ? = sum, mental-math style ------------
+  function makeMissingAddend(rng, opts) {
+    opts = opts || {};
+    const max = opts.max || 9;
+    const a = randInt(2, max, rng);
+    const answer = randInt(1, max, rng);
+    const sum = a + answer;
+    // Two near-miss distractors, always positive and distinct from the answer.
+    const w1 = answer + 1;
+    const w2 = answer > 1 ? answer - 1 : answer + 2;
+    const choices = shuffle(
+      [{ n: answer, correct: true }, { n: w1, correct: false }, { n: w2, correct: false }],
+      rng
+    );
+    return { a, sum, answer, choices };
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -952,6 +1103,8 @@
     makeColorMix, makeSinkFloat, makeMamaBaby, makeFairShare, makeQuickPeek, PEEK_LAYOUTS,
     makeAlphaTrain, ALPHABET, makeLetterHunt,
     makePieceFit, makeWhoHid, makeBeat, makeFeeling, makeKindness, makeDayTrain, makeWeather, makeSeasonItem,
+    makeOrderTrain, makeIdiomFill, makePoemNext, makeMeasureWord, makePairPick,
+    makeMenuMemory, makeMarket, makeChange, makeCharCrowd, makeMissingAddend,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

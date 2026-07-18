@@ -103,7 +103,8 @@ test("the category back button returns to the home menu", async () => {
 test("the Surprise tile jumps to a game", async () => {
   await page.evaluate(() => { location.hash = ""; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
-  await page.locator(".tile--surprise").click();
+  // (scoped to Josh's home — 华丽's hidden home has its own Surprise tile)
+  await page.locator("#screen-home .tile--surprise").click();
   await page.waitForFunction(() => location.hash.length > 1, null, { timeout: 4000 });
   assert.ok((await page.evaluate(() => location.hash)).length > 1, "should navigate to some game");
 });
@@ -130,11 +131,12 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
     // overlap, tappable) is covered separately by mobile.test.js's actual .tap().
     // Each iteration: tap the currently-correct target if there is one, else tap a
     // live toy control — so the SAME loop wins both win-games and endless toys.
-    // 480 iterations ≈ taps + up to ~9s of idle 20ms polls — headroom for games
-    // with presentation beats (a demo to watch, a cloud that drifts in, a splash
-    // between rounds). Fast games exit the loop the moment they win.
+    // 800 iterations ≈ taps + idle 20ms polls — headroom for games with
+    // presentation beats (a demo to watch, a cloud that drifts in, a splash
+    // between rounds; the echo games spend ~8s just demonstrating). Fast games
+    // exit the loop the moment they win, so the cap only bounds the SLOWEST game.
     let won = false;
-    for (let i = 0; i < 480 && !won; i++) {
+    for (let i = 0; i < 800 && !won; i++) {
       won = await screen.evaluate((el) => el.dataset.won === "1");
       if (won) break;
       let target = screen.locator('[data-correct="1"]').first();
@@ -177,13 +179,15 @@ test("the Sticker Book has one slot per game and fills the ones Josh has won", a
   assert.ok(det.same, "JoshStickers.artFor must be deterministic for a given game");
   assert.ok(det.svg, "JoshStickers.artFor must return an <svg> sticker");
 
-  // A home tile opens the book.
-  await page.locator(".tile--stickers").click();
+  // A home tile opens the book. (Scoped: 华丽's home has her own 🏮 tile.)
+  await page.locator("#screen-home .tile--stickers").click();
   await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 4000 });
 
+  // Josh's book holds one slot per JOSH game; 华丽's hidden games (def.hl)
+  // live in her own 🏮 book (tested separately) and must NOT leak into his.
   const slots = await page.locator("#screen-stickers .sticker-slot").count();
-  const games = await page.evaluate(() => (window.JoshGames || []).length);
-  assert.equal(slots, games, "the Sticker Book must have exactly one slot per registered game");
+  const games = await page.evaluate(() => (window.JoshGames || []).filter((g) => !g.hl).length);
+  assert.equal(slots, games, "the Sticker Book must have exactly one slot per Josh game");
 
   const filled = await page.locator("#screen-stickers .sticker-slot.is-won").count();
   assert.ok(filled >= 3, `won games should fill sticker slots, got ${filled}`);
@@ -215,17 +219,33 @@ test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => 
   assert.equal(await page.locator(".tile__badge").count(), before, "a wrong word must not clear badges");
   assert.ok(await page.locator(".gate__err").isVisible(), "wrong word shows the error");
 
-  // The correct word — case-insensitive — clears the badges and the won-flags.
+  // The correct word — case-insensitive — clears JOSH's badges and won-flags.
+  // 华丽's hidden world keeps hers: her stars are not part of Josh's reset.
   await page.locator(".gate__input").fill("Reset");
   await page.locator(".gate__ok").click();
-  await page.waitForFunction(() => document.querySelectorAll(".tile__badge").length === 0, null, { timeout: 4000 });
-  assert.equal(await page.locator(".tile__badge").count(), 0, "‘Reset’ clears every badge");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".screen:not(.hl-screen) .tile__badge, #home-grid .tile__badge").length === 0,
+    null, { timeout: 4000 }
+  );
+  assert.equal(
+    await page.locator(".screen:not(.hl-screen) .tile__badge, #home-grid .tile__badge").count(), 0,
+    "‘Reset’ clears every Josh badge"
+  );
   const flags = await page.evaluate(() => {
-    let n = 0;
-    for (let i = 0; i < localStorage.length; i++) if ((localStorage.key(i) || "").indexOf("josh-won-") === 0) n++;
-    return n;
+    let josh = 0, hl = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) || "";
+      if (k.indexOf("josh-won-hl-") === 0) hl++;
+      else if (k.indexOf("josh-won-") === 0) josh++;
+    }
+    return { josh, hl };
   });
-  assert.equal(flags, 0, "the josh-won-* flags are cleared too");
+  assert.equal(flags.josh, 0, "the josh-won-* flags are cleared too");
+  assert.ok(flags.hl >= 1, "华丽's josh-won-hl-* flags must SURVIVE Josh's reset");
+  assert.ok(
+    (await page.locator(".hl-screen .tile__badge").count()) >= 1,
+    "华丽's tile badges must survive Josh's reset"
+  );
 
   // The reset must also EMPTY the Sticker Book (slots + star meter), not just tiles.
   await page.evaluate(() => { location.hash = "#stickers"; });
@@ -555,6 +575,114 @@ test("Make an Island: tap the MIDDLE to place the feature, surrounded on all sid
     try { await c.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
   }
   assert.ok(won, "Make an Island reaches a win by tapping the middle each round");
+});
+
+// ================= 华丽的世界 (the hidden grandma world) =================
+
+test("华丽 door: the 👵🏻 button sits in the top bar and opens the Chinese name gate", async () => {
+  await page.evaluate(() => { location.hash = ""; sessionStorage.removeItem("hl-ok"); });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  const door = page.locator("#hl-door");
+  assert.ok(await door.isVisible(), "the 👵🏻 door must be visible in the top bar");
+  assert.ok(await page.locator(".topbar #hl-door").count() === 1, "the door lives in the top bar");
+  await door.click();
+  await page.locator(".hl-gate").waitFor({ state: "visible" });
+  const q = await page.locator(".hl-gate__msg").textContent();
+  assert.equal(q, "你叫什么名字？", "the gate asks her name in simplified Chinese");
+});
+
+test("华丽 gate: every wrong name is rejected; only 华丽 unlocks", async () => {
+  // (Continues with the gate open from the previous test.)
+  for (const wrong of ["Josh", "华华", "丽华", " 华丽x", "grandma"]) {
+    await page.locator(".hl-gate__input").fill(wrong);
+    await page.locator(".hl-gate__ok").click();
+    assert.ok(await page.locator(".hl-gate__err").isVisible(), `"${wrong}" must show the try-again error`);
+    assert.equal(await page.evaluate(() => sessionStorage.getItem("hl-ok")), null, `"${wrong}" must NOT unlock`);
+    assert.equal(await page.evaluate(() => location.hash), "", `"${wrong}" must not navigate`);
+  }
+  // The exact name (whitespace-trimmed) passes.
+  await page.locator(".hl-gate__input").fill(" 华丽 ");
+  await page.locator(".hl-gate__ok").click();
+  await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 4000 });
+  assert.equal(await page.evaluate(() => sessionStorage.getItem("hl-ok")), "1", "the right name unlocks the session");
+  assert.ok(await page.evaluate(() => document.body.classList.contains("hl-mode")), "her world turns on the red-gold theme");
+  const hello = await page.locator(".hl-hello").textContent();
+  assert.ok(hello.includes("华丽"), "the home screen greets her by name");
+});
+
+test("华丽 home: 7 categories + surprise + sticker tiles; a category lists her games", async () => {
+  const catTiles = await page.locator("#screen-hl-home .tile--cat").count();
+  assert.equal(catTiles, 7, "all 7 of her categories have tiles");
+  assert.equal(await page.locator("#screen-hl-home .tile--surprise").count(), 1);
+  assert.equal(await page.locator("#screen-hl-home .tile--stickers").count(), 1);
+
+  const firstCat = page.locator("#screen-hl-home .tile--cat").first();
+  const catId = await firstCat.getAttribute("data-cat");
+  await firstCat.click();
+  await page.locator(`#screen-hl-cat-${catId}`).waitFor({ state: "visible", timeout: 4000 });
+  const gameTiles = await page.locator(`#screen-hl-cat-${catId} .tile[data-go]`).count();
+  assert.ok(gameTiles >= 4, `her ${catId} category should list several games, got ${gameTiles}`);
+  // Every tile in her world routes to an hl- game.
+  const gos = await page.evaluate((id) =>
+    [...document.querySelectorAll(`#screen-hl-cat-${id} .tile[data-go]`)].map((t) => t.dataset.go), catId);
+  for (const g of gos) assert.match(g, /^hl-/, `tile ${g} in her category must be an hl- game`);
+});
+
+test("华丽 world spans 40 games across her 7 categories, all Chinese-titled", async () => {
+  const info = await page.evaluate(() => {
+    const hl = (window.JoshGames || []).filter((g) => g.hl);
+    const byCat = {};
+    hl.forEach((g) => { byCat[g.hlCat] = (byCat[g.hlCat] || 0) + 1; });
+    return {
+      count: hl.length,
+      byCat,
+      allZh: hl.every((g) => g.lang === "zh"),
+      allPrefixed: hl.every((g) => g.id.indexOf("hl-") === 0),
+      allTitled: hl.every((g) => /[一-鿿]/.test(g.title)),
+    };
+  });
+  assert.equal(info.count, 40, "her world must hold 40 games");
+  assert.ok(info.allZh, "every hl game speaks Chinese (lang zh)");
+  assert.ok(info.allPrefixed, "every hl game id is hl- prefixed");
+  assert.ok(info.allTitled, "every hl game title is Chinese");
+  for (const [cat, n] of Object.entries(info.byCat)) {
+    assert.ok(n >= 4, `category ${cat} should hold >= 4 games, got ${n}`);
+  }
+});
+
+test("华丽 game screens speak her language: zh chrome + Again label", async () => {
+  await page.evaluate(() => { location.hash = "#hl-anton"; });
+  const screen = page.locator("#screen-hl-anton");
+  await screen.waitFor({ state: "visible", timeout: 4000 });
+  assert.ok(await screen.evaluate((el) => el.classList.contains("game--hl")), "her screens carry the hl theme class");
+  const again = await screen.locator(".game__again").evaluate((el) => el.textContent);
+  assert.ok(again.includes("再来"), "the Again button reads 再来");
+});
+
+test("华丽 sticker book: one slot per hl game, filled by the wins, meter at 40", async () => {
+  // The every-game harness earlier won ALL games (hers included).
+  await page.evaluate(() => { location.hash = "#hl-stickers"; });
+  await page.locator("#screen-hl-stickers").waitFor({ state: "visible", timeout: 4000 });
+  const slots = await page.locator("#screen-hl-stickers .sticker-slot").count();
+  assert.equal(slots, 40, "her book must hold exactly one slot per hl game");
+  const won = await page.locator("#screen-hl-stickers .sticker-slot.is-won").count();
+  assert.equal(won, 40, "after winning every game her book is full");
+  const meter = await page.locator("#screen-hl-stickers .sticker-meter__text").textContent();
+  assert.match(meter || "", /40\s*\/\s*40/, "her star meter reads 40 / 40");
+  // A filled slot replays its game.
+  const slot = page.locator("#screen-hl-stickers .sticker-slot.is-won").first();
+  const gid = await slot.getAttribute("data-sticker");
+  await slot.click();
+  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 4000 });
+});
+
+test("华丽 nav guard: without the session flag, her home bounces back to Josh's", async () => {
+  await page.evaluate(() => { sessionStorage.removeItem("hl-ok"); location.hash = "#hl-home"; });
+  await page.waitForFunction(() => location.hash === "", null, { timeout: 4000 });
+  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 4000 });
+  assert.ok(await page.locator("#screen-home").isVisible(), "locked deep links land on Josh's home");
+  // Re-unlock for any later tests (session flag only — the gate itself is proven above).
+  await page.evaluate(() => { sessionStorage.setItem("hl-ok", "1"); });
 });
 
 test("no uncaught page errors during the whole run", () => {

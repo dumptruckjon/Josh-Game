@@ -82,22 +82,20 @@
   // a text box that ONLY accepts the word "reset" (any case); nothing else clears
   // anything. Clearing removes every josh-won-* flag and its ⭐ badge.
   function clearStars() {
+    // Clears JOSH's stars only. 华丽's progress (josh-won-hl-*) is deliberately
+    // preserved — her collection is hers, not part of Josh's reset.
     let n = 0;
-    if (window.JoshProgress && window.JoshProgress.clear) {
-      n = window.JoshProgress.clear();
-    } else {
-      try {
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.indexOf("josh-won-") === 0) keys.push(k);
-        }
-        keys.forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
-        n = keys.length;
-      } catch (e) { /* localStorage may be unavailable */ }
-    }
-    document.querySelectorAll(".tile__badge").forEach((b) => b.remove());
-    document.querySelectorAll(".sticker-slot.is-won").forEach((s) => s.classList.remove("is-won"));
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf("josh-won-") === 0 && k.indexOf("josh-won-hl-") !== 0) keys.push(k);
+      }
+      keys.forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
+      n = keys.length;
+    } catch (e) { /* localStorage may be unavailable */ }
+    document.querySelectorAll(".screen:not(.hl-screen) .tile__badge, #home-grid .tile__badge").forEach((b) => b.remove());
+    document.querySelectorAll("#screen-stickers .sticker-slot.is-won").forEach((s) => s.classList.remove("is-won"));
     if (typeof refreshStickers === "function") refreshStickers();
     return n;
   }
@@ -212,7 +210,11 @@
     const screens = document.getElementById("screens");
     const grid = document.getElementById("home-grid");
     if (!screens || !grid || !F) return;
-    const games = window.JoshGames || [];
+    // 华丽's hidden games (def.hl) share the registry + framework but NEVER
+    // appear in Josh's menus, Surprise pool, or Sticker Book — hl-main.js
+    // builds her own shell. Screens are still built for ALL games below.
+    const allGames = window.JoshGames || [];
+    const games = allGames.filter((g) => !g.hl);
 
     // Group games by category; record each game's category on its def so the
     // in-game Home button can return to the right category screen.
@@ -287,8 +289,9 @@
       screens.appendChild(screen);
     });
 
-    // Build the actual game screens.
-    games.forEach((def) => { screens.appendChild(F.buildGameScreen(def)); });
+    // Build the actual game screens — for EVERY registered game, Josh's and
+    // 华丽's alike (the framework owns all game screens; only tiles differ).
+    allGames.forEach((def) => { screens.appendChild(F.buildGameScreen(def)); });
 
     // ---- Sticker Book: a scrapbook with one slot per game ----
     // Every win "plops" that game's signature sticker (from JoshStickers) into

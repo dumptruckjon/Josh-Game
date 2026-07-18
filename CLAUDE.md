@@ -214,10 +214,15 @@ tooling.
 │   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, 2 co-op games
 │   ├── games-fun.js            # Self-registering games: bubbles, peekaboo, balloon, music pad
 │   ├── games-find.js           # Self-registering games: find-the-heroes, spot-the-one, count, dot-to-dot, rescue, tic-tac-toe
+│   ├── hl-content.js           # 华丽 (Grandma Huali) — ALL Chinese content/truth (dual-export: window.HualiContent + module.exports)
+│   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
+│   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
+│   ├── hl-main.js              # 华丽's shell: 👵🏻 top-bar door + Chinese name gate (只有「华丽」能进) + red-gold launcher + 🏮 sticker book
 │   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
 │   ├── content.test.js         # CORRECTNESS: ground-truth restatement — answers can't silently go wrong
+│   ├── hl-content.test.js      # 华丽 CORRECTNESS: poems/idioms/zodiac/量词/festivals/dishes/seasons truth tables + gate + FU_PATH tap geometry
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
 │   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness that plays EVERY registered game
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
@@ -309,6 +314,41 @@ category's games:
   to do), **Day Train** (the week in rainbow order). *(The tap-to-fill co-ops
   now each carry a real skill — skip-count, countdown, counting — not just
   turn-taking.)*
+
+### 👵🏻 华丽的世界 — the hidden world for Josh's Chinese grandma
+
+A **second, hidden mini-site for Grandma Huali (华丽)**, entered through the 👵🏻
+button beside the sound toggle: it pops a Chinese name gate (「你叫什么名字？」)
+and **only the exact answer 「华丽」** (trimmed + NFC-normalized, session-scoped
+in `sessionStorage["hl-ok"]`) opens `#hl-home` — every other input is gently
+rejected. Inside, the page turns **red-and-gold** (`body.hl-mode`) and ALL text
+is simplified Chinese, sized and paced for a 70-year-old: **40 games** in 7
+categories (🀄 麻将牌艺 6 · 📜 诗词成语 6 · 🧠 记忆锻炼 6 · 🧮 心算算术 6 ·
+🏮 民俗文化 6 · 👁️ 眼明手快 5 · 🍵 静心时光 5), her own 随便玩 (Surprise) tile
+and a 🏮 sticker book (40 slots, Chinese-motif stickers, meter to 40/40).
+
+How it works (keep these invariants):
+- Her games register through the **same framework** via each file's `reg(cat, def)`
+  helper, which stamps `def.hl = true` (never in Josh's menus/Surprise/book),
+  `def.lang = "zh"` (Mandarin voice via `A.say(t,{lang:"zh-CN"})` + praise/
+  try-again/Again strings from `HualiContent`), `def.hlCat` and `def.homeHash`
+  (Home returns to HER category). Ids are `hl-` prefixed. All of this is
+  guardrail-locked in `site.test.js`.
+- Because they're framework games, the **generic e2e harness plays all 40 to a
+  win** and `mobile.test.js` audits every screen (≥75px at 320px — so no button
+  grid may exceed 3 columns) with zero extra per-game test code.
+- **Progress is shared machinery, separate worlds:** her wins are `josh-won-hl-*`
+  (same `JoshProgress` owner), her ⭐ badges/sticker slots fill live off the same
+  `josh-won` event — but Josh's grown-ups reset **preserves** her stars, his
+  Sticker Book counts only his 100, hers only her 40 (both guardrail-tested).
+- **Correctness bar is identical:** `tests/hl-content.test.js` restates the
+  cultural ground truth (the 5 Tang poems verbatim, real idioms + forged-idiom
+  check on distractors, 生肖 order, standard 量词 pairs, festival↔custom bins
+  with no dual-membership, regional dish↔city, season membership, the waxing
+  moon, 宫商角徵羽 ascending) so no answer can silently go wrong.
+- Nav screens bounce to Josh's home without the session flag; game screens stay
+  deep-linkable (the harness needs them, and a non-reader can't type a hash).
+  Her name gate is `data-adult` (adult-sized controls, exempt from the kid audit).
 
 > **Friend & character art (`scripts/art.js`).** `JoshArt.friend({skin,hair,style,shirt})`
 > draws each kid as a clearly-different portrait (Josh, Raegar, River, Viraj — see

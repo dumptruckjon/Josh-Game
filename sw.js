@@ -26,6 +26,10 @@ const CORE = [
   "./scripts/games-calm.js",
   "./scripts/games-fun.js",
   "./scripts/games-find.js",
+  "./scripts/hl-content.js",
+  "./scripts/games-hl-a.js",
+  "./scripts/games-hl-b.js",
+  "./scripts/hl-main.js",
   "./scripts/main.js",
   "./manifest.webmanifest",
 ];

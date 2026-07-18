@@ -1071,3 +1071,166 @@ test("makeSeasonItem: the item's season index is truthful; item never repeats", 
     last = r.item;
   }
 });
+
+// ================= 华丽 (Huali) logic functions =================
+const HL = require("../scripts/hl-content.js");
+
+test("makeOrderTrain: a consecutive window, blank never first, honest choices", () => {
+  const rng = mulberry32(71);
+  const list = HL.TILE_NUMBERS.map((n) => n + "筒");
+  let lastStart = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeOrderTrain(list, rng, { window: 4, lastStart });
+    assert.equal(r.items.length, 4);
+    // the window really is consecutive slices of the source list
+    assert.deepEqual(r.items, list.slice(r.start, r.start + 4));
+    assert.ok(r.blankIdx >= 1 && r.blankIdx < 4, "blank never in the first slot");
+    assert.equal(r.answer, r.items[r.blankIdx], "answer is the blanked item");
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.value === r.answer));
+    assert.equal(new Set(r.choices.map((c) => c.value)).size, r.choices.length, "choices distinct");
+    assert.notEqual(r.start, lastStart === -1 ? NaN : lastStart, "start varies from lastStart");
+    lastStart = r.start;
+  }
+  // works on the 5-item moon list and the 12-item zodiac too
+  const m = L.makeOrderTrain(HL.MOON, rng, { window: 4 });
+  assert.deepEqual(m.items, HL.MOON.slice(m.start, m.start + 4));
+  const z = L.makeOrderTrain(HL.ZODIAC.map((x) => x.name), rng, { window: 4 });
+  assert.equal(z.items.length, 4);
+});
+
+test("makeIdiomFill: blanks the right character, wrong chars can't be right", () => {
+  const rng = mulberry32(72);
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeIdiomFill(HL.IDIOMS, rng, last);
+    assert.notEqual(r.idx, last, "no immediate repeat");
+    assert.equal(r.answer, r.idiom.text[r.idiom.blank]);
+    assert.equal(r.display.length, 4);
+    assert.equal(r.display[r.idiom.blank], "▢");
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    for (const c of r.choices) if (!c.correct) assert.notEqual(c.ch, r.answer);
+    last = r.idx;
+  }
+});
+
+test("makePoemNext: the answer is ALWAYS the poem's true next line; distractors from other poems", () => {
+  const rng = mulberry32(73);
+  let last = null;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makePoemNext(HL.POEMS, rng, last);
+    assert.notEqual(r.key, last, "no immediate repeat of the same prompt line");
+    const li = r.poem.lines.indexOf(r.prompt);
+    assert.ok(li >= 0 && li < r.poem.lines.length - 1, "prompt is a non-final line");
+    assert.equal(r.answer, r.poem.lines[li + 1], "answer is the real next line");
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    for (const c of r.choices) {
+      if (!c.correct) assert.ok(!r.poem.lines.includes(c.line), "a distractor must come from a DIFFERENT poem (never a plausible other line of this one)");
+    }
+    last = r.key;
+  }
+});
+
+test("makeMeasureWord: one correct 量词, distractors are other nouns' words", () => {
+  const rng = mulberry32(74);
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeMeasureWord(HL.MEASURE_WORDS, rng, last);
+    assert.notEqual(r.idx, last);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.mw === r.pair.mw));
+    assert.equal(new Set(r.choices.map((c) => c.mw)).size, r.choices.length, "no duplicate chips");
+    last = r.idx;
+  }
+});
+
+test("makePairPick: generic q→a pairing with deduped distractors (regional, antonyms)", () => {
+  const rng = mulberry32(75);
+  for (const items of [
+    HL.REGIONAL.map((p) => ({ q: p.dish, a: p.city })),
+    HL.ANTONYMS.map((p) => ({ q: p.a, a: p.b })),
+  ]) {
+    let last = -1;
+    for (let i = 0; i < 300; i++) {
+      const r = L.makePairPick(items, rng, last);
+      assert.notEqual(r.idx, last);
+      assert.equal(r.choices.filter((c) => c.correct).length, 1);
+      assert.ok(r.choices.some((c) => c.correct && c.a === r.item.a));
+      assert.equal(new Set(r.choices.map((c) => c.a)).size, r.choices.length, "a wrong chip can never read the same as the right one");
+      last = r.idx;
+    }
+  }
+});
+
+test("makeMenuMemory: k dishes to remember hide among n, flags exactly them", () => {
+  const rng = mulberry32(76);
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeMenuMemory(HL.DISHES, rng, { k: 3, n: 6 });
+    assert.equal(r.menu.length, 3);
+    assert.equal(r.cells.length, 6);
+    assert.equal(r.cells.filter((c) => c.correct).length, 3);
+    const menuSet = new Set(r.menu);
+    for (const c of r.cells) assert.equal(c.correct, menuSet.has(c.name), `${c.name} flag must match menu membership`);
+    assert.equal(new Set(r.cells.map((c) => c.name)).size, 6, "board dishes distinct");
+  }
+});
+
+test("makeMarket: total is the true sum of two distinct items", () => {
+  const rng = mulberry32(77);
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeMarket(HL.MARKET, rng);
+    assert.notEqual(r.a.name, r.b.name, "two different items");
+    assert.equal(r.total, r.a.price + r.b.price);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.n === r.total));
+    for (const c of r.choices) assert.ok(c.n >= 1);
+  }
+});
+
+test("makeChange: change from 10元 is always 10 - cost", () => {
+  const rng = mulberry32(78);
+  let last = 0;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeChange(rng, last);
+    assert.ok(r.cost >= 2 && r.cost <= 9);
+    assert.notEqual(r.cost, last, "no immediate repeat");
+    assert.equal(r.change, 10 - r.cost);
+    assert.equal(r.pay, 10);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.n === r.change));
+    last = r.cost;
+  }
+});
+
+test("makeCharCrowd: one lookalike hides in a field of the base character", () => {
+  const rng = mulberry32(79);
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeCharCrowd(HL.CHAR_PAIRS, 9, rng);
+    assert.equal(r.cells.length, 9);
+    assert.notEqual(r.base, r.odd);
+    assert.equal(r.cells.filter((c) => c.correct).length, 1, "exactly one odd cell");
+    r.cells.forEach((c, idx) => {
+      if (idx === r.oddIndex) { assert.equal(c.ch, r.odd); assert.ok(c.correct); }
+      else { assert.equal(c.ch, r.base); assert.ok(!c.correct); }
+    });
+    // base/odd really are a curated lookalike pair
+    assert.ok(HL.CHAR_PAIRS.some((p) => (p.a === r.base && p.b === r.odd) || (p.b === r.base && p.a === r.odd)));
+  }
+});
+
+test("makeMissingAddend: a + answer = sum with distinct positive choices", () => {
+  const rng = mulberry32(80);
+  for (const max of [9, 20]) {
+    for (let i = 0; i < 400; i++) {
+      const r = L.makeMissingAddend(rng, { max });
+      assert.ok(r.a >= 2 && r.a <= max);
+      assert.ok(r.answer >= 1 && r.answer <= max);
+      assert.equal(r.a + r.answer, r.sum, "the equation must be true");
+      assert.equal(r.choices.length, 3);
+      assert.equal(r.choices.filter((c) => c.correct).length, 1);
+      assert.ok(r.choices.some((c) => c.correct && c.n === r.answer));
+      assert.equal(new Set(r.choices.map((c) => c.n)).size, 3, "choices distinct");
+      for (const c of r.choices) assert.ok(c.n >= 1, "never a zero/negative chip");
+    }
+  }
+});

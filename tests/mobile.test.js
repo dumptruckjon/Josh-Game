@@ -116,7 +116,9 @@ test("home launcher: no overflow + big well-spaced tiles at 390 and 320", async 
 });
 
 test("EVERY category screen: no overflow + big well-spaced tiles at 320px", async () => {
-  const cats = await page.evaluate(() => [...document.querySelectorAll(".tile--cat")].map((t) => t.dataset.cat));
+  // Josh's categories route as #cat-<id>; 华丽's (#hl-cat-…) are audited in
+  // their own test below, so enumerate only the tiles on HIS home grid.
+  const cats = await page.evaluate(() => [...document.querySelectorAll("#screen-home .tile--cat")].map((t) => t.dataset.cat));
   assert.ok(cats.length >= 3, "expected several categories");
   await page.setViewportSize({ width: 320, height: 780 });
   for (const c of cats) {
@@ -158,6 +160,31 @@ test("the Buddy picker: no overflow + >=75px options at 390 and 320", async () =
     await noOverflow(page, `buddyc@${w}`);
     await auditActiveScreen(page, `buddyc@${w}`); // the size audit covers the visible picker options
     await page.locator(".buddyc").evaluate((el) => { el.hidden = true; }); // close before the next screen
+  }
+});
+
+test("华丽's screens: home, all 7 categories and her sticker book pass the audit at 390 & 320", async () => {
+  // Her nav shells are session-gated; set the flag the way the gate would.
+  await page.evaluate(() => { sessionStorage.setItem("hl-ok", "1"); });
+  const cats = await page.evaluate(() =>
+    (window.HualiContent ? window.HualiContent.CATEGORIES : []).map((c) => c.id));
+  assert.equal(cats.length, 7, "expected her 7 categories");
+  for (const w of [390, 320]) {
+    await page.setViewportSize({ width: w, height: 780 });
+    await page.evaluate(() => { location.hash = "#hl-home"; });
+    await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 4000 });
+    await noOverflow(page, `hl-home@${w}`);
+    await auditActiveScreen(page, `hl-home@${w}`);
+    for (const c of cats) {
+      await page.evaluate((id) => { location.hash = "#hl-cat-" + id; }, c);
+      await page.locator(`#screen-hl-cat-${c}`).waitFor({ state: "visible", timeout: 4000 });
+      await noOverflow(page, `hl-cat-${c}@${w}`);
+      await auditActiveScreen(page, `hl-cat-${c}@${w}`);
+    }
+    await page.evaluate(() => { location.hash = "#hl-stickers"; });
+    await page.locator("#screen-hl-stickers").waitFor({ state: "visible", timeout: 4000 });
+    await noOverflow(page, `hl-stickers@${w}`);
+    await auditActiveScreen(page, `hl-stickers@${w}`);
   }
 });
 

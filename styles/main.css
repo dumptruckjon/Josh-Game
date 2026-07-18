@@ -1236,3 +1236,255 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   .rocket-art--launch, .bridge--cross .bridge__hero--l, .bridge--cross .bridge__hero--r { transform: none !important; }
   body { background-attachment: scroll; }
 }
+
+/* ============================================================
+   华丽的世界 — Grandma Huali's hidden world (red & gold).
+   Entered through the 👵🏻 door; body.hl-mode themes the page,
+   .game--hl themes her game screens, .hl-screen her nav shells.
+   Same tap rules as everywhere else (>= var(--tap), 16px gaps).
+   ============================================================ */
+
+/* The whole page turns festive red-gold while inside her world.
+   Still a STATIC gradient (same iOS rule as Josh's backdrop). */
+body.hl-mode {
+  background: linear-gradient(165deg, #8e1414 0%, #b23a1a 52%, #e0a339 100%);
+  background-attachment: fixed;
+}
+
+/* The 👵🏻 door sits beside the sound toggle in the top bar. */
+.hl-door { font-size: 1.5rem; background: linear-gradient(180deg, #fff, #ffe9d2); }
+
+/* ---- The name gate (你叫什么名字？) — HER OWN classes, deliberately not
+   Josh's .gate/.gate__* (tests locate his reset gate by those). ---- */
+.hl-gate {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: rgba(70, 10, 10, 0.5); padding: var(--pad);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
+}
+.hl-gate[hidden] { display: none; }
+.hl-gate__box {
+  width: min(92vw, 340px); background: linear-gradient(180deg, #fff8ec, #ffefd9);
+  border: 3px solid #d4a437; border-radius: 22px; padding: 22px;
+  box-shadow: 0 24px 64px rgba(40, 0, 0, 0.4); text-align: center;
+}
+.hl-gate__msg { font-size: 1.35rem; font-weight: 800; color: #7c1f1f; margin: 0 0 14px; line-height: 1.35; }
+.hl-gate__input {
+  width: 100%; min-height: 52px; box-sizing: border-box; padding: 0 12px;
+  font-size: 1.4rem; text-align: center; color: #5a2a12; background: #fff;
+  border: 2px solid #d4a437; border-radius: 12px;
+}
+.hl-gate__input:focus { outline: none; border-color: #b23a1a; }
+.hl-gate__err { color: #b23a1a; font-size: 1rem; margin: 10px 0 0; font-weight: 700; }
+.hl-gate__row { display: flex; gap: 10px; margin-top: 16px; }
+.hl-gate__row button {
+  flex: 1; min-height: 52px; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 800;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.hl-gate__cancel { background: #f3e4cd; color: #7a5a3a; }
+.hl-gate__ok { background: linear-gradient(180deg, #d63b2a, #b71c1c); color: #fff; }
+
+/* ---- Her nav screens (home / categories / sticker book) ---- */
+.hl-screen .game__title { color: #fff; text-shadow: 0 1px 3px rgba(80, 0, 0, 0.45); }
+.hl-hello {
+  text-align: center; font-size: 1.2rem; font-weight: 800; color: #ffe9b0;
+  text-shadow: 0 1px 2px rgba(80, 0, 0, 0.4); margin: 2px 0 10px;
+}
+.hl-tile {
+  background: linear-gradient(180deg, #fff6e6 0%, #ffe3bd 100%);
+  border: 2px solid rgba(212, 164, 55, 0.65);
+}
+.hl-tile .tile__label { color: #7c1f1f; font-weight: 800; }
+.hl-screen .tile--cat { border: 2px solid rgba(255, 233, 176, 0.55); }
+.hl-screen .tile--surprise { background: linear-gradient(135deg, #ffd24d, #e0a339); }
+.hl-screen .tile--surprise .tile__label { color: #6b3a00; }
+.hl-screen .tile--stickers { background: linear-gradient(135deg, #d63b2a, #8e1414); }
+.hl-sticker { font-size: 2.5rem; }
+
+/* ---- Her game screens: warm paper on festive red ---- */
+.game--hl .game__prompt { background: rgba(255, 248, 236, 0.92); border: 2px solid rgba(212, 164, 55, 0.5); }
+.game--hl .game__promptText { color: #5a2a12; font-size: 1.15rem; }
+.game--hl .game__title { color: #fff; text-shadow: 0 1px 3px rgba(80, 0, 0, 0.45); }
+.game--hl .choice {
+  background: linear-gradient(180deg, #fffdf7 0%, #ffeed3 100%);
+  border: 2px solid rgba(212, 164, 55, 0.55); color: #5a2a12;
+}
+.game--hl .choice--num { color: #b23a1a; }
+.game--hl .music__hint { color: #ffe9b0; }
+
+/* ---- Shared hl grids: NEVER more than 3 button columns (the >=75px tap rule
+   must hold at 320px; 4 columns of buttons cannot). Spans may pack tighter. ---- */
+.hl-grid3, .hl-grid4, .hl-grid5 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.hl-choices { width: 100%; }
+
+/* ---- 🀄 Tiles: drawn as tall white mahjong-style tiles with red text ---- */
+.hl-tilebtn { min-height: 96px; padding: 6px 2px; }
+.hl-tileface {
+  display: block; font-size: 1.5rem; font-weight: 900; line-height: 1.15;
+  color: #b71c1c; text-align: center;
+}
+.hl-tilebtn--hit { background: linear-gradient(180deg, #fff3b0, #ffe27a); border-color: #d4a437; }
+
+/* Concentration cards: face hidden until .hl-card--open/--done. */
+.hl-card { position: relative; min-height: 96px; }
+.hl-card .hl-cardback { font-size: 2.2rem; }
+.hl-card .hl-tileface, .hl-card .hl-cardface { display: none; }
+.hl-card.hl-card--open .hl-tileface, .hl-card.hl-card--done .hl-tileface,
+.hl-card.hl-card--open .hl-cardface, .hl-card.hl-card--done .hl-cardface { display: block; }
+.hl-card.hl-card--open .hl-cardback, .hl-card.hl-card--done .hl-cardback { display: none; }
+.hl-cardface { font-size: 2.6rem; line-height: 1; }
+.hl-card--done { background: linear-gradient(180deg, #e8f8e0, #d7f8de); border-color: #7be08a; opacity: 0.9; }
+
+/* ---- Runs (缺哪张牌 / 生肖排队 / 月亮圆缺): display-only spans + choice chips ---- */
+.hl-run { display: flex; justify-content: center; gap: 10px; width: 100%; flex-wrap: wrap; }
+.hl-runtile {
+  min-width: 58px; min-height: 76px; padding: 6px 4px; border-radius: 12px;
+  background: #fffdf7; border: 2px solid rgba(212, 164, 55, 0.55);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 900; color: #b71c1c;
+}
+.hl-runtile--blank { background: #fff3c9; border-style: dashed; color: #b23a1a; font-size: 2rem; }
+.hl-zoemoji { font-size: 1.9rem; line-height: 1.1; }
+.hl-zoname { font-size: 1.05rem; line-height: 1.2; color: #5a2a12; font-weight: 800; }
+.hl-mooncell { font-size: 2.2rem; }
+.hl-moonchip { font-size: 2.6rem; background: linear-gradient(180deg, #1c2340, #2c3560); border-color: #4a5a9a; }
+
+/* ---- Big text lines (poems, idioms, math) ---- */
+.hl-bigline {
+  width: 100%; text-align: center; font-size: clamp(1.5rem, 7vw, 2.2rem); font-weight: 900;
+  color: #fff8ec; text-shadow: 0 2px 4px rgba(80, 0, 0, 0.45); line-height: 1.4; margin: 4px 0 8px;
+}
+.hl-idiom, .hl-mathline { letter-spacing: 4px; }
+.hl-byline { width: 100%; text-align: center; font-size: 1rem; font-weight: 700; color: #ffe9b0; margin-bottom: 10px; }
+.hl-bigchar {
+  width: 112px; height: 112px; margin: 0 auto 10px; border-radius: 18px;
+  background: #fffdf7; border: 3px solid #d4a437; color: #b71c1c;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3.4rem; font-weight: 900;
+}
+.hl-target { width: auto; min-width: 112px; padding: 0 16px; }
+.hl-spottarget { font-size: 2rem; }
+
+/* Poem answer lines: one full-width row per line (they are long). */
+.hl-lines { grid-template-columns: 1fr; }
+.hl-linechip { font-size: clamp(1.25rem, 6vw, 1.7rem); font-weight: 800; letter-spacing: 2px; min-height: 84px; }
+
+/* Character chips & cells (成语 / 找字). */
+.hl-charchip { font-size: clamp(1.9rem, 9vw, 2.6rem); font-weight: 900; }
+.hl-charcell--hit { background: linear-gradient(180deg, #ffe9b0, #ffd24d); border-color: #d4a437; }
+
+/* ---- 记忆 games ---- */
+.hl-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--pad); width: 100%; font-size: 2.4rem; }
+.hl-row--after { margin-top: 2px; }
+.hl-spot { font-size: 2.2rem; min-height: 84px; min-width: var(--tap); } /* flex rows must keep the tap floor */
+.hl-spot--lit { background: linear-gradient(180deg, #fff3b0, #ffcf5e); border-color: #d4a437; filter: drop-shadow(0 0 10px rgba(255, 210, 77, 0.8)); }
+.hl-menu {
+  width: 100%; text-align: center; font-size: clamp(1.3rem, 6vw, 1.7rem); font-weight: 900; line-height: 1.6;
+  color: #5a2a12; background: #fff8ec; border: 3px dashed #d4a437; border-radius: 16px; padding: 12px; margin-bottom: 4px;
+}
+.hl-menu--dim { opacity: 0.22; filter: blur(3px); }
+.hl-gobtn { margin: 8px auto; }
+.hl-dish { font-size: clamp(1.1rem, 5vw, 1.4rem); font-weight: 800; padding: 6px; }
+.hl-dish--hit { background: linear-gradient(180deg, #e8f8e0, #d7f8de); border-color: #7be08a; }
+.hl-steps { grid-template-columns: repeat(2, 1fr); }
+.hl-steps .hl-dish { min-height: 90px; }
+.hl-lineup { display: flex; justify-content: center; gap: 12px; font-size: 2.8rem; margin-bottom: 8px; width: 100%; }
+.hl-lineupcell { line-height: 1; }
+.hl-lineupcell--hid { filter: drop-shadow(0 3px 6px rgba(80, 0, 0, 0.3)); }
+.hl-zochip { font-size: clamp(1.3rem, 6vw, 1.7rem); font-weight: 800; }
+
+/* ---- 数独 (reuses Josh's .sudoku__grid) ---- */
+.hl-sudoku .sudoku__cell { background: #fffdf7; color: #b71c1c; }
+.hl-sudoku .sudoku__cell--blank { background: #fff3c9; box-shadow: inset 0 0 0 3px #d4a437; }
+.hl-numbig { font-size: clamp(2.6rem, 13vw, 3.6rem); min-height: 110px; }
+.hl-compare { grid-template-columns: repeat(2, 1fr); }
+
+/* ---- 数一数 field (display-only spans scattered in a box) ---- */
+.hl-countfield {
+  position: relative; width: min(280px, 82vw); height: 190px; margin: 0 auto 8px;
+  border-radius: 18px; background: rgba(255, 248, 236, 0.9); border: 2px solid rgba(212, 164, 55, 0.5);
+}
+.hl-countdot { position: absolute; transform: translate(-50%, -50%); font-size: 30px; line-height: 1; }
+.hl-peekbox { background: rgba(255, 248, 236, 0.92); }
+.hl-cloth { font-size: 72px; }
+
+/* ---- 民俗 ---- */
+.hl-festitem, .hl-clue {
+  background: #fff8ec; border: 3px solid #d4a437; border-radius: 16px; padding: 10px 14px;
+  color: #7c1f1f; text-shadow: none; width: fit-content; margin-left: auto; margin-right: auto;
+}
+.hl-festbin, .hl-citychip { font-size: clamp(1.15rem, 5.5vw, 1.5rem); font-weight: 800; padding: 6px; }
+.hl-seasonrow { grid-template-columns: repeat(2, 1fr); }
+.hl-seasonbin { font-size: clamp(1.2rem, 6vw, 1.6rem); font-weight: 800; color: #444; }
+.hl-maskbtn { min-height: 110px; padding: 10px 14px; }
+.hl-maskbtn svg { width: 100%; max-width: 76px; height: auto; display: block; margin: 0 auto; }
+.hl-maskbtn--hit { background: linear-gradient(180deg, #fff3b0, #ffe27a); border-color: #d4a437; }
+.hl-riddlecard {
+  width: 100%; background: #fff8ec; border: 3px solid #d4a437; border-radius: 18px;
+  padding: 16px; font-size: clamp(1.2rem, 5.5vw, 1.5rem); font-weight: 800; color: #5a2a12;
+  line-height: 1.7; text-align: center; margin-bottom: 6px;
+}
+
+/* ---- 眼明手快 ---- */
+.hl-pond { grid-template-columns: repeat(4, 1fr); gap: 8px; border-radius: 18px; background: linear-gradient(180deg, #bfe9ff, #8fd4f5); padding: 10px; }
+.hl-pondcell { font-size: 2rem; line-height: 1.4; text-align: center; }
+.hl-pond--glow .hl-pondcell--target { filter: drop-shadow(0 0 8px rgba(255, 210, 77, 0.95)); }
+.hl-shapebtn { min-height: 92px; }
+.hl-shape { width: 54px; height: 54px; display: block; }
+.hl-diffrow { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--pad); width: 100%; }
+.hl-diffcell {
+  width: 84px; height: 84px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  font-size: 2.2rem; line-height: 1;
+}
+.hl-diffrow--ref .hl-diffcell { background: rgba(255, 248, 236, 0.85); border: 2px dashed rgba(212, 164, 55, 0.6); }
+.hl-diffvs { width: 100%; text-align: center; font-size: 0.95rem; font-weight: 700; color: #ffe9b0; margin: 2px 0; }
+
+/* ---- 静心时光 ---- */
+.hl-lotus {
+  width: 170px; height: 170px; border-radius: 50%; font-size: 96px; line-height: 1;
+  background: radial-gradient(circle at 50% 38%, #fff8ec, #ffd9c4);
+  box-shadow: 0 10px 30px rgba(80, 0, 0, 0.3);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 1.5s ease-in-out;
+}
+.hl-calmlabel { color: #ffe9b0; }
+.hl-strings { grid-template-columns: 1fr; gap: var(--pad); width: 100%; max-width: 420px; }
+.hl-string {
+  min-height: 76px; font-size: 1.9rem; font-weight: 900; color: #7c4a00;
+  background: linear-gradient(180deg, #ffe9b0, #e0a339); border: 2px solid #b8860b;
+  position: relative;
+}
+.hl-string::after {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 3px;
+  background: rgba(124, 74, 0, 0.5); border-radius: 2px; pointer-events: none;
+}
+.hl-fubox {
+  position: relative; width: 100%; max-width: 420px; height: 430px; margin: 0 auto;
+  border-radius: 20px; background: #b71c1c; border: 4px solid #d4a437; overflow: hidden;
+}
+.hl-fumark {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 300px; line-height: 1; color: rgba(255, 233, 176, 0.22); font-weight: 900;
+  pointer-events: none; user-select: none;
+}
+.hl-fumark--done { color: rgba(255, 233, 176, 0.85); text-shadow: 0 4px 14px rgba(80, 0, 0, 0.5); }
+.hl-fudot {
+  position: absolute; transform: translate(-50%, -50%);
+  width: var(--tap); height: var(--tap); border-radius: 50%;
+  background: #fff8ec; border: 3px solid #d4a437;
+  font-size: 1.5rem; font-weight: 900; color: #b71c1c;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.hl-fudot--done { background: #ffd24d; color: #7c1f1f; }
+.hl-tearow { display: flex; justify-content: center; gap: 12px; font-size: 2.4rem; min-height: 3rem; width: 100%; }
+.hl-teatray { width: 100%; }
+.hl-teastep { font-size: clamp(1.15rem, 5.5vw, 1.5rem); font-weight: 800; min-height: 90px; }
+.hl-teastep--done { background: linear-gradient(180deg, #e8f8e0, #d7f8de); border-color: #7be08a; opacity: 0.85; }
+.hl-echopad { justify-content: center; }
+
+/* Reduced motion: her world adds no new keyframes; the shared .pop/.bump and
+   drum-hit rules above already freeze. The slow lotus breath becomes a fade. */
+@media (prefers-reduced-motion: reduce) {
+  .hl-lotus { transition: none !important; }
+  .hl-lotus.breathe--big { transform: none !important; opacity: 0.85; }
+}

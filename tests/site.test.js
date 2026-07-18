@@ -16,7 +16,9 @@ const SCRIPTS = [
   "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js", "scripts/art.js",
   "scripts/stickers.js", "scripts/buddy.js", "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
   "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
-  "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/main.js",
+  "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js",
+  "scripts/hl-content.js", "scripts/games-hl-a.js", "scripts/games-hl-b.js", "scripts/hl-main.js",
+  "scripts/main.js",
 ];
 
 test("core files exist", () => {
@@ -45,7 +47,7 @@ test("service worker precaches every script + css + index", () => {
 });
 
 test("games self-register into the framework registry", () => {
-  for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js", "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js"]) {
+  for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js", "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/games-hl-a.js", "scripts/games-hl-b.js"]) {
     assert.match(read(f), /F\.register\(|JoshFramework\.register\(/, `${f} should register a game`);
   }
   assert.match(read("scripts/main.js"), /serviceWorker\.register/, "main.js should register the SW");
@@ -284,6 +286,48 @@ test("guardrail: Look From Above's top-down map stays aligned with the isometric
     /be__cell--n["']\s*,\s*["']be__cell--e["']\s*,\s*["']be__cell--w["']\s*,\s*["']be__cell--s/.test(g),
     "footprint() must map occupancy index 0→N (back/top), 1→E (right), 2→W (left), 3→S (front/bottom)"
   );
+});
+
+// ---------- 华丽 (the hidden grandma world) guardrails ----------
+test("华丽: the gate accepts EXACTLY 华丽 (trimmed + NFC), session-scoped", () => {
+  const hm = read("scripts/hl-main.js");
+  assert.ok(/normalize\("NFC"\)/.test(hm), "the gate must NFC-normalize input (composed vs decomposed forms)");
+  assert.ok(/v === HL\.GATE\.answer/.test(hm), "the gate must compare EXACT equality against the one answer");
+  assert.ok(/sessionStorage/.test(hm), "the unlock flag must be session-scoped (a new visit asks again)");
+  assert.ok(/insertBefore\(door, sound\)/.test(hm), "the 👵🏻 door must sit BEFORE the sound toggle in the top bar");
+  assert.ok(/data-adult/.test(hm), "her name gate is adult-sized — it must be exempted from the kid tap audit");
+  const HLC = require("../scripts/hl-content.js");
+  assert.equal(HLC.GATE.answer, "华丽");
+});
+
+test("华丽: every hidden game registers through reg() with hl/zh flags and an hl- id", () => {
+  let total = 0;
+  for (const f of ["scripts/games-hl-a.js", "scripts/games-hl-b.js"]) {
+    const src = read(f);
+    assert.ok(/def\.hl = true/.test(src) && /def\.lang = "zh"/.test(src) && /def\.hlCat = cat/.test(src) && /def\.homeHash/.test(src),
+      f + " must funnel every def through reg() (hl + zh + her category + her Home)");
+    assert.ok(!/F\.register\(\{/.test(src),
+      f + " must never F.register({...}) directly — only reg(cat, def) applies the hl contract");
+    const ids = [...src.matchAll(/\bid: "([^"]+)"/g)].map((m) => m[1]);
+    for (const id of ids) assert.match(id, /^hl-/, f + ": game id " + id + " must be hl- prefixed (keeps Josh's world and hers apart)");
+    const titles = [...src.matchAll(/\btitle: "([^"]+)"/g)].map((m) => m[1]);
+    for (const t of titles) assert.ok(/[\u4e00-\u9fff]/.test(t), f + ': title "' + t + '" must be Chinese');
+    total += ids.length;
+  }
+  assert.equal(total, 40, "her world holds exactly 40 games (20 per file)");
+});
+
+test("华丽: the framework speaks her language and main.js keeps the worlds apart", () => {
+  const fw = read("scripts/framework.js");
+  assert.ok(/def\.lang === "zh"/.test(fw), "the framework must recognise zh game defs");
+  assert.ok(/zh-CN/.test(fw), "zh games must speak with the zh-CN voice");
+  assert.ok(/HL\.PRAISE/.test(fw) && /HL\.TRYAGAIN/.test(fw), "zh praise/try-again must come from HualiContent");
+  assert.ok(/def\.homeHash/.test(fw), "the in-game Home button must honour her homeHash");
+  const a = read("scripts/audio.js");
+  assert.ok(/opts\.lang/.test(a), "JoshAudio.say must accept a language override");
+  const m = read("scripts/main.js");
+  assert.ok(/!g\.hl/.test(m), "Josh's launcher/Surprise/book must filter out hl games");
+  assert.ok(/josh-won-hl-/.test(m), "Josh's star reset must PRESERVE her josh-won-hl-* progress");
 });
 
 // ---------- Syntax ----------
