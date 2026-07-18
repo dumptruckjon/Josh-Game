@@ -253,7 +253,8 @@ tooling.
 │   └── deploy.yml              # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
 ├── JOSH_PROFILE.md             # WHO JOSH IS: skill levels, non-reader law, friends, interests, game-mechanic menu — READ before building
 ├── josh-profile.json           # ^ same profile, machine-readable (for programmatic game generation)
-├── PLAN_ROAD_TO_140.md         # APPROVED build plan: the next 40 Josh games (specs, waves, risk rails) — execute when asked
+├── PLAN_ROAD_TO_140.md         # APPROVED build plan Set 1: the next 40 Josh games (specs, waves W1-W4, risk rails) — execute when asked
+├── PLAN_ROAD_TO_180.md         # APPROVED build plan Set 2: 40 MORE (new mechanics: pick-place, toggle-match, reveal, co-op echo) — build AFTER Set 1
 └── CLAUDE.md                   # This file
 ```
 

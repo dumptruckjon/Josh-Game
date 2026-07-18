@@ -13,6 +13,10 @@ edges), ~30% **[M]** confidence, a few gently-scaffolded **[P]/[NA]** — and co
 (his #1 lever), transformation-not-decoration, Spidey/Numberblocks/space/friends
 theming throughout.
 
+> **Sequel:** a second, mechanically-varied set of 40 (140 → 180) is planned in
+> [`PLAN_ROAD_TO_180.md`](PLAN_ROAD_TO_180.md) — build THIS set first; Set 2's
+> ids are pre-checked against Set 1's, and its §0 defers to this file's.
+
 ---
 
 ## 0) Non-negotiables (pre-flight checklist for the builder)
