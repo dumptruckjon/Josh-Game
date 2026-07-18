@@ -347,6 +347,71 @@
     // ---- 🔎 Letter Hunt — visually clear letters (no I/O lookalike traps) ----
     HUNT_LETTERS: ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "R", "S", "T"],
 
+    // ---- 😊 How Do They Feel? (SEL — name the feeling, then help) ----
+    // Four clear feeling faces. Every story's `feel` maps to one of them; a
+    // truth table in content.test.js keeps story→feeling honest. Naming a
+    // feeling is never "wrong to have" — the game only ever identifies.
+    FEELINGS: [
+      { id: "happy", face: "😊", name: "happy" },
+      { id: "sad", face: "😢", name: "sad" },
+      { id: "mad", face: "😠", name: "mad" },
+      { id: "surprised", face: "😲", name: "surprised" },
+    ],
+    FEELING_STORIES: [
+      { who: "Raegar", say: "Raegar's block tower fell down.", icons: ["🧱", "⬇️"], feel: "sad" },
+      { who: "River", say: "River got a puppy for his birthday!", icons: ["🎁", "🐶"], feel: "happy" },
+      { who: "Viraj", say: "Viraj's balloon popped. POP!", icons: ["🎈", "💥"], feel: "surprised" },
+      { who: "Josh", say: "Someone took Josh's truck without asking.", icons: ["🚚", "🙅"], feel: "mad" },
+      { who: "Raegar", say: "Raegar is going to the playground today!", icons: ["🛝", "🎉"], feel: "happy" },
+      { who: "River", say: "River dropped his ice cream on the ground.", icons: ["🍦", "⬇️"], feel: "sad" },
+      { who: "Josh", say: "Josh found a surprise present on his chair!", icons: ["🎁", "✨"], feel: "surprised" },
+    ],
+
+    // ---- 🤝 Kind Helpers (SEL — tap the kind thing to do) ----
+    // Exactly ONE kind option per scenario (truth-tabled); the others are
+    // silly-neutral, never mean, so a miss is a giggle and a redirect.
+    KINDNESS: [
+      { say: "River dropped all his crayons!", icons: ["🖍️", "⬇️"],
+        options: [{ emoji: "🤲", name: "help pick them up", kind: true }, { emoji: "🏃", name: "run away", kind: false }, { emoji: "😴", name: "take a nap", kind: false }] },
+      { say: "Raegar is feeling sad today.", icons: ["😢", "💭"],
+        options: [{ emoji: "🤗", name: "give him a hug", kind: true }, { emoji: "🙈", name: "hide", kind: false }, { emoji: "🍕", name: "eat pizza", kind: false }] },
+      { say: "There is one cookie left, and Viraj wants one too.", icons: ["🍪", "🤔"],
+        options: [{ emoji: "🤝", name: "share it", kind: true }, { emoji: "🏃", name: "run away with it", kind: false }, { emoji: "🙈", name: "hide it", kind: false }] },
+      { say: "Josh's friend's tower fell over.", icons: ["🧱", "💥"],
+        options: [{ emoji: "🤲", name: "help build it again", kind: true }, { emoji: "😴", name: "take a nap", kind: false }, { emoji: "🦖", name: "play dinosaurs alone", kind: false }] },
+      { say: "A new friend is standing all alone.", icons: ["🧍", "💭"],
+        options: [{ emoji: "👋", name: "say hi and play together", kind: true }, { emoji: "🙈", name: "hide", kind: false }, { emoji: "🍕", name: "eat pizza", kind: false }] },
+    ],
+
+    // ---- 📅 Day Train (days of the week, in rainbow order) ----
+    DAYS: [
+      { name: "Sunday", abbr: "Sun", color: "#e23636" },
+      { name: "Monday", abbr: "Mon", color: "#ff9f43" },
+      { name: "Tuesday", abbr: "Tue", color: "#ffd24d" },
+      { name: "Wednesday", abbr: "Wed", color: "#7be08a" },
+      { name: "Thursday", abbr: "Thu", color: "#5ec8ff" },
+      { name: "Friday", abbr: "Fri", color: "#7a5cd6" },
+      { name: "Saturday", abbr: "Sat", color: "#ec4e9c" },
+    ],
+
+    // ---- 🌦️ Dress Me! (weather → the right gear, worn ON the friend) ----
+    // `spot` places the gear on the portrait: hat = on the head, hand = beside
+    // the body (held), over = floating above (an umbrella).
+    WEATHERS: [
+      { sky: "🌧️", name: "raining", say: "It's raining!", gear: "☂️", gearName: "umbrella", spot: "over" },
+      { sky: "☀️", name: "sunny", say: "It's sunny!", gear: "🧢", gearName: "cap", spot: "hat" },
+      { sky: "❄️", name: "snowing", say: "It's snowing!", gear: "🧤", gearName: "mittens", spot: "hand" },
+    ],
+
+    // ---- 🌈 Season Windows (which season does it belong to?) ----
+    // Items are unique across seasons (truth-tabled) and name themselves.
+    SEASONS: [
+      { name: "Winter", icon: "❄️", tint: "#dff1ff", items: ["⛄", "🧣"] },
+      { name: "Spring", icon: "🌸", tint: "#e8f8e0", items: ["🌷", "🐣"] },
+      { name: "Summer", icon: "☀️", tint: "#fff3c9", items: ["🍉", "🍦"] },
+      { name: "Fall", icon: "🍂", tint: "#ffe1c4", items: ["🎃", "🍁"] },
+    ],
+
     // ---- Continents (Montessori colors + a signature animal that lives there) ----
     // A friendly, stylized world map (not exact coastlines). The animal sits on
     // its home continent so the picture is self-checking. Colors follow the

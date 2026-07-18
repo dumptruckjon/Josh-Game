@@ -250,8 +250,9 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**~80 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
-shared framework, all no-fail / no-timer / ≥75px targets. The home screen is a
+**100 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+shared framework, all no-fail / no-timer / ≥75px targets — and every one
+winnable, so the 📖 Sticker Book tops out at a full ⭐ 100/100. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
 category's games:
 
@@ -259,40 +260,55 @@ category's games:
   Many Are Left? (take-away), Which Has More?, Penny Shop (money), Add It Up,
   Find the Number, What Time?, Build the Number (place value), Ten & Some More
   (teen), Set the Clock, Make Ten (number bonds), Add Big Numbers (2-digit
-  addition), Piggy Bank (coin value), Which Is Bigger? (compare numerals).
+  addition), Piggy Bank (coin value), Which Is Bigger? (compare numerals),
+  **Fair Shares** (deal treats equally — early division), **Quick Peek**
+  (subitizing behind a self-paced cloud).
 - **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
   Word (sight words), sh or ch? (digraph sort), Big & Little Letters, Missing
   Letter, Read & Zap (read a word → tap its picture), Rhyme Train (find every
   rhyme), sh/ch/th? (finish the word), Letter Maker (trace letters), **Spell My
-  Name** (tap J-O-S-H / friends' names in order).
+  Name** (tap J-O-S-H / friends' names in order), **Alphabet Train** (the
+  missing letter in an A-B-?-D window).
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
   Shadow (SVG shapes), Small to Big, Memory Match, Put in Order (numbers), What
   Changed?, Color by Number, Who Is It? (2-clue deduction), Picture Squares
   (mini sudoku), Put in Order (story sequencing), **Look From Above**
-  (bird's-eye / top-down spatial).
+  (bird's-eye / top-down spatial), **Which Piece Fits?** (the tap-only jigsaw),
+  **Who Hid?** (cloud-hides-one elimination memory), **Copy My Beat** (echo a
+  drum sequence — order only, never timing).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
   Paw Patrol Rescue, Find the Twins (one matching pair), I Spy: Find Them All
   (category hunt), The Big One (two-clue color+shape hunt), **Web Rescue**
   (clear webs to free trapped friends — occlusion reveal) — his favorite,
-  harder each round.
+  harder each round — and **Letter Hunt** (pop every balloon with the target
+  letter; lowercase twins sneak in once he ramps).
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
   Hot or Cold?, Shape's Real Twin (3D solids), Will It Stick? (magnetic sort),
   Land or Water? (globe), Where Do They Live? (continents, self-checking map),
   Make an Island (build & name landforms), **Find the Shape** (2D plane shapes),
-  **Animal Homes** (single-continent ID, no map giveaway). *Sort the Colors*
-  scales to a 3-color bin in later rounds.
+  **Animal Homes** (single-continent ID, no map giveaway), **Plant or Animal?**,
+  **Mix It!** (pour two paints → the REAL mixed color), **Sink or Float?**
+  (predict, then the tub proves it), **Mama & Baby** (match baby↔mama). *Sort
+  the Colors* scales to a 3-color bin in later rounds; the sink/float and
+  plant/animal facts share ONE truth set with Alive-or-Not (single source,
+  guardrail-tested).
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
   Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
   Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey), **Thwip
-  the Villains** (web up the silly baddies — no-fail cause→effect, uses `VILLAINS`).
+  the Villains** (web up the silly baddies — no-fail cause→effect, uses
+  `VILLAINS`), **Dress Me!** (weather → the friend visibly gets dressed),
+  **Season Windows** (fly each item into its season).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team
   Bridge, Team Treasure (co-op find), Team Sound Hunt (co-op beginning sounds),
   Memory Together (co-op concentration), Tic-Tac-Toe (2-player co-op), **Friends
   Race** (take-turns skill race — answer *which rhymes?* to move your racer;
-  first to the flag, everyone celebrates). *(The tap-to-fill co-ops now each carry
-  a real skill — skip-count, countdown, counting — not just turn-taking.)*
+  first to the flag, everyone celebrates), **How Do They Feel?** (name the
+  feeling, then one helping breath — SEL), **Kind Helpers** (tap the kind thing
+  to do), **Day Train** (the week in rainbow order). *(The tap-to-fill co-ops
+  now each carry a real skill — skip-count, countdown, counting — not just
+  turn-taking.)*
 
 > **Friend & character art (`scripts/art.js`).** `JoshArt.friend({skin,hair,style,shirt})`
 > draws each kid as a clearly-different portrait (Josh, Raegar, River, Viraj — see

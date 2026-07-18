@@ -484,3 +484,79 @@ test("letter-hunt pool: uppercase A-Z only, unique, no I/O lookalike traps", () 
   for (const ch of content.HUNT_LETTERS) assert.match(ch, /^[A-Z]$/, `bad letter ${ch}`);
   for (const trap of ["I", "O", "Q"]) assert.ok(!content.HUNT_LETTERS.includes(trap), `${trap} is a lookalike trap (l/0) — keep it out`);
 });
+
+// ---------- 😊 Feelings: every story maps to a real feeling, sensibly ----------
+test("feeling stories: truthful story→feeling mapping, spoken + pictured", () => {
+  const TRUTH = {
+    "Raegar's block tower fell down.": "sad",
+    "River got a puppy for his birthday!": "happy",
+    "Viraj's balloon popped. POP!": "surprised",
+    "Someone took Josh's truck without asking.": "mad",
+    "Raegar is going to the playground today!": "happy",
+    "River dropped his ice cream on the ground.": "sad",
+    "Josh found a surprise present on his chair!": "surprised",
+  };
+  const ids = new Set(content.FEELINGS.map((f) => f.id));
+  assert.ok(ids.size >= 4, "need at least 4 distinct feelings");
+  assert.equal(new Set(content.FEELINGS.map((f) => f.face)).size, content.FEELINGS.length, "feeling faces distinct");
+  for (const s of content.FEELING_STORIES) {
+    assert.equal(s.feel, TRUTH[s.say], `"${s.say}" should feel ${TRUTH[s.say]}`);
+    assert.ok(ids.has(s.feel), `unknown feeling "${s.feel}"`);
+    assert.ok(s.icons && s.icons.length >= 2, "every story needs picture support (non-reader law)");
+    assert.ok(s.who && s.who.length, "every story names a friend");
+  }
+  // Every feeling is reachable (no dead choice face).
+  const used = new Set(content.FEELING_STORIES.map((s) => s.feel));
+  for (const id of ids) assert.ok(used.has(id), `feeling "${id}" is never the answer — add a story or drop the face`);
+});
+
+// ---------- 🤝 Kindness: exactly one kind option, others silly-neutral ----------
+test("kindness scenarios: exactly ONE kind option; the rest never mean", () => {
+  const MEAN = ["👊", "😡", "🤬", "💢", "😤"];
+  assert.ok(content.KINDNESS.length >= 4, "need several scenarios");
+  for (const sc of content.KINDNESS) {
+    const kind = sc.options.filter((o) => o.kind);
+    assert.equal(kind.length, 1, `"${sc.say}" needs exactly one kind option`);
+    assert.equal(sc.options.length, 3, "three options each");
+    assert.ok(sc.icons && sc.icons.length >= 2, "picture support required");
+    for (const o of sc.options) {
+      assert.ok(!MEAN.includes(o.emoji), `option ${o.emoji} reads mean — un-kind options must be silly-neutral`);
+      assert.ok(o.name && o.name.length > 2, "every option has a spoken name");
+    }
+  }
+});
+
+// ---------- 📅 Days: the real week, in order, with distinct rainbow colors ----------
+test("day train: the 7 real days in calendar order, distinct colors", () => {
+  const REAL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  assert.deepEqual(content.DAYS.map((d) => d.name), REAL, "days must be the real week, in order");
+  assert.equal(new Set(content.DAYS.map((d) => d.color)).size, 7, "each day needs its own color (sound-off solvability)");
+  for (const d of content.DAYS) assert.ok(d.abbr && d.abbr.length === 3, `${d.name} needs a 3-letter abbr`);
+});
+
+// ---------- 🌦️ Weather: truthful gear, one per weather ----------
+test("dress-me weather: the gear truly matches the weather", () => {
+  const TRUTH = { raining: "☂️", sunny: "🧢", snowing: "🧤" };
+  assert.ok(content.WEATHERS.length >= 3);
+  for (const w of content.WEATHERS) {
+    assert.equal(w.gear, TRUTH[w.name], `${w.name} gear should be ${TRUTH[w.name]}`);
+    assert.ok(["hat", "hand", "over"].includes(w.spot), `${w.name} needs a valid wear spot`);
+    assert.ok(w.say && w.sky, "every weather is spoken and pictured");
+  }
+  assert.equal(new Set(content.WEATHERS.map((w) => w.gear)).size, content.WEATHERS.length, "gear distinct (choices can't collide)");
+});
+
+// ---------- 🌈 Seasons: truthful membership, items unique across seasons ----------
+test("season items are truthful and belong to exactly one season", () => {
+  const TRUTH = { "⛄": "Winter", "🧣": "Winter", "🌷": "Spring", "🐣": "Spring", "🍉": "Summer", "🍦": "Summer", "🎃": "Fall", "🍁": "Fall" };
+  assert.equal(content.SEASONS.length, 4, "four seasons");
+  const seen = new Map();
+  for (const s of content.SEASONS) {
+    assert.ok(s.icon && s.tint, `${s.name} needs an icon + window tint`);
+    for (const item of s.items) {
+      assert.equal(TRUTH[item], s.name, `${item} belongs in ${TRUTH[item]}, not ${s.name}`);
+      assert.ok(!seen.has(item), `${item} appears in two seasons`);
+      seen.set(item, s.name);
+    }
+  }
+});

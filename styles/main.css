@@ -1121,6 +1121,77 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 @keyframes lhPop { 0% { transform: scale(1); } 40% { transform: scale(1.25); opacity: 0.9; } 100% { transform: scale(0.6); opacity: 0.25; } }
 .lh__balloon--pop { animation: lhPop 0.45s ease-out forwards; pointer-events: none; }
 
+/* ---------- 🧩 Which Piece Fits? ---------- */
+.pf__card { position: relative; width: min(250px, 74vw); height: 150px; margin: 0 auto; border-radius: 20px; background: #ffd24d; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14), inset 0 0 0 4px #f0b429; display: flex; align-items: center; justify-content: center; }
+.pf__hole { width: 96px; height: 96px; display: block; }
+.pf__hole svg { width: 100%; height: 100%; display: block; }
+.pf__holeShape { fill: #fdf8ea; stroke: #c98f1b; stroke-width: 3; stroke-dasharray: 7 6; }
+.pf__hole--filled .pf__holeShape { fill: #ff9f43; stroke: #d97706; stroke-dasharray: none; }
+.pf__mouse { position: absolute; right: 8px; bottom: 6px; font-size: 30px; }
+.pf__piece svg { width: 58px; height: 58px; display: block; }
+.pf__piece .pf__pieceShape, .pf__piece svg { fill: #ff9f43; }
+
+/* ---------- ☁️ Who Hid? ---------- */
+.wh__row { display: flex; gap: 14px; justify-content: center; font-size: clamp(44px, 14vw, 60px); min-height: 76px; }
+.wh__spot { display: inline-block; }
+@keyframes whCloud { 0% { transform: translateY(-14px) scale(0.7); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+.wh__spot--cloud { animation: whCloud 0.5s ease-out; }
+
+/* ---------- 🥁 Copy My Beat ---------- */
+.cb__hero { width: 72px; }
+.cb__hero svg { width: 72px; height: 72px; display: block; }
+.cb__pad { display: flex; gap: 16px; justify-content: center; }
+.cb__drum {
+  width: 92px; height: 92px; border: none; border-radius: 50%; cursor: pointer;
+  font-size: 2.2rem; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.cb__drum:active { transform: translateY(3px); }
+.cb__drum--wait { opacity: 0.75; }
+@keyframes cbHit { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.cb__drum--hit { animation: cbHit 0.3s ease-out; }
+.cb__replay { font-size: 1.6rem; }
+
+/* ---------- 😊 Feelings & 🤝 Kind Helpers ---------- */
+.fl__icons { font-size: clamp(44px, 16vw, 64px); text-align: center; min-height: 64px; }
+.fl__face, .kh__opt { position: relative; font-size: 2.8rem; }
+.kh__heart { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 30px; pointer-events: none; }
+@keyframes khHeart { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 40% { opacity: 1; transform: translateX(-50%) scale(1.2) translateY(-8px); } 100% { opacity: 0; transform: translateX(-50%) translateY(-24px); } }
+.kh__heart { animation: khHeart 1.05s ease-out forwards; }
+
+/* ---------- 📅 Day Train ---------- */
+.dt__train { display: flex; gap: 5px; justify-content: center; flex-wrap: nowrap; max-width: 100%; }
+.dt__car {
+  min-width: 36px; padding: 10px 3px; border-radius: 9px 9px 5px 5px; text-align: center;
+  color: #fff; font-size: 0.82rem; font-weight: 900; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.dt__car--blank { background: #fff; color: #2b6cff; box-shadow: inset 0 0 0 3px #5ec8ff; font-size: 1.05rem; }
+.dt__choice { color: #fff; font-weight: 900; font-size: 1.5rem; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+
+/* ---------- 🌦️ Dress Me! ---------- */
+.dm__scene { position: relative; display: flex; gap: 22px; align-items: center; justify-content: center; min-height: 150px; }
+.dm__window { font-size: 74px; padding: 8px 14px; border-radius: 14px; background: #eaf4ff; box-shadow: inset 0 0 0 5px #b9d7ef; }
+.dm__kid { width: 116px; position: relative; }
+.dm__kid svg { width: 116px; height: 116px; display: block; }
+.dm__gear { position: absolute; font-size: 40px; pointer-events: none; }
+.dm__gear--hat { right: 24px; top: -14px; }
+.dm__gear--over { right: 14px; top: -34px; font-size: 48px; }
+.dm__gear--hand { right: -6px; bottom: 8px; }
+.dm__chip { font-size: 2.6rem; }
+
+/* ---------- 🌈 Season Windows ---------- */
+.sw__item { font-size: clamp(48px, 16vw, 64px); text-align: center; line-height: 1; }
+.sw__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; width: 100%; max-width: 360px; }
+.sw__window {
+  min-height: 104px; border: none; border-radius: 18px; cursor: pointer; padding: 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.7), 0 4px 10px rgba(0, 0, 0, 0.1);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.sw__window:active { transform: scale(0.96); }
+.sw__icon { font-size: 34px; }
+.sw__collected { min-height: 26px; font-size: 21px; letter-spacing: 2px; }
+
 /* ---------- Animations (small elements only, never the background) ---------- */
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .pop { animation: pop 320ms ease-out; }
@@ -1149,6 +1220,9 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   .tub__item { transition: none !important; }
   .lh__balloon--pop { animation: none !important; opacity: 0.25; transform: scale(0.6); }
   .mix__pot:active, .fs__plate:active, .lh__balloon:active { transform: none !important; }
+  /* Ship-B games */
+  .wh__spot--cloud, .cb__drum--hit, .kh__heart { animation: none !important; }
+  .cb__drum:active, .sw__window:active { transform: none !important; }
   .buddy__pick:active, .buddyc__opt:active { transform: none !important; }
   .villain__guy { animation: none !important; }
   .villain:active { transform: none !important; }

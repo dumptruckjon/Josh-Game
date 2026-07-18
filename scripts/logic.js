@@ -825,6 +825,108 @@
     return { target, need, cells: shuffle(cells, rng) };
   }
 
+  // --- 🧩 Which Piece Fits? -------------------------------------------------
+  // A hole shaped like one of the SHAPES; 3 piece choices, one matching.
+  function makePieceFit(shapes, rng, lastName) {
+    const rnd = rng || Math.random;
+    let pool = shapes.filter((s) => s.name !== lastName);
+    if (!pool.length) pool = shapes.slice();
+    const shape = pool[Math.floor(rnd() * pool.length)];
+    const others = shuffle(shapes.filter((s) => s.name !== shape.name), rng).slice(0, 2);
+    const choices = shuffle([{ ...shape, correct: true }, ...others.map((s) => ({ ...s, correct: false }))], rng);
+    return { shape, choices };
+  }
+
+  // --- ☁️ Who Hid? ----------------------------------------------------------
+  // A lineup of 4 distinct characters; one hides behind a cloud. The choices
+  // are all FROM the lineup (the visible three eliminate themselves — the
+  // self-checking Montessori way).
+  function makeWhoHid(pool, rng) {
+    const lineup = sample(pool, 4, rng);
+    const hiddenIdx = Math.floor((rng || Math.random)() * 4);
+    const hidden = lineup[hiddenIdx];
+    const others = shuffle(lineup.filter((c, i) => i !== hiddenIdx), rng).slice(0, 2);
+    const choices = shuffle([{ ...hidden, correct: true }, ...others.map((c) => ({ ...c, correct: false }))], rng);
+    return { lineup, hiddenIdx, choices };
+  }
+
+  // --- 🥁 Copy My Beat ------------------------------------------------------
+  // A drum sequence over 3 drums, no two consecutive hits the same (clearer to
+  // echo). Order-only — timing is never part of the task.
+  function makeBeat(rng, len) {
+    const rnd = rng || Math.random;
+    const n = Math.max(2, Math.min(4, len || 2));
+    const seq = [];
+    for (let i = 0; i < n; i++) {
+      let d = Math.floor(rnd() * 3);
+      if (i > 0 && d === seq[i - 1]) d = (d + 1) % 3;
+      seq.push(d);
+    }
+    return { seq };
+  }
+
+  // --- 😊 How Do They Feel? -------------------------------------------------
+  function makeFeeling(feelings, stories, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * stories.length);
+    if (stories.length > 1 && idx === lastIdx) idx = (idx + 1) % stories.length;
+    const story = stories[idx];
+    const correct = feelings.find((f) => f.id === story.feel);
+    const others = shuffle(feelings.filter((f) => f.id !== story.feel), rng).slice(0, 2);
+    const choices = shuffle([{ ...correct, correct: true }, ...others.map((f) => ({ ...f, correct: false }))], rng);
+    return { idx, story, choices };
+  }
+
+  // --- 🤝 Kind Helpers ------------------------------------------------------
+  function makeKindness(scenarios, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * scenarios.length);
+    if (scenarios.length > 1 && idx === lastIdx) idx = (idx + 1) % scenarios.length;
+    const scenario = scenarios[idx];
+    return { idx, scenario, options: shuffle(scenario.options.slice(), rng) };
+  }
+
+  // --- 📅 Day Train ---------------------------------------------------------
+  // The week with one missing day (never the first car — Sunday anchors the
+  // sequence); choices are the answer + its two calendar neighbours.
+  function makeDayTrain(days, rng, lastBlank) {
+    const rnd = rng || Math.random;
+    let blankIdx = 1 + Math.floor(rnd() * (days.length - 1));
+    if (blankIdx === lastBlank) blankIdx = 1 + (blankIdx % (days.length - 1));
+    const answer = days[blankIdx];
+    const opts = new Set([blankIdx]);
+    while (opts.size < 3) {
+      const d = Math.min(days.length - 1, Math.max(0, blankIdx + (Math.floor(rnd() * 5) - 2)));
+      opts.add(d);
+    }
+    const choices = shuffle([...opts].map((i) => ({ ...days[i], correct: i === blankIdx })), rng);
+    return { blankIdx, answer, choices };
+  }
+
+  // --- 🌦️ Dress Me! ---------------------------------------------------------
+  // The right gear for this weather + the OTHER weathers' gear as (silly)
+  // distractors — mittens in the sunshine is a giggle, not a trap.
+  function makeWeather(weathers, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * weathers.length);
+    if (weathers.length > 1 && idx === lastIdx) idx = (idx + 1) % weathers.length;
+    const weather = weathers[idx];
+    const others = shuffle(weathers.filter((w, i) => i !== idx), rng).slice(0, 2);
+    const choices = shuffle([{ emoji: weather.gear, name: weather.gearName, correct: true },
+      ...others.map((w) => ({ emoji: w.gear, name: w.gearName, correct: false }))], rng);
+    return { idx, weather, choices };
+  }
+
+  // --- 🌈 Season Windows ----------------------------------------------------
+  function makeSeasonItem(seasons, rng, lastItem) {
+    const rnd = rng || Math.random;
+    const all = [];
+    seasons.forEach((s, si) => s.items.forEach((item) => all.push({ item, seasonIdx: si, seasonName: s.name })));
+    let pool = all.filter((x) => x.item !== lastItem);
+    if (!pool.length) pool = all;
+    return pool[Math.floor(rnd() * pool.length)];
+  }
+
   // --- Tic-Tac-Toe winner -------------------------------------------------
   const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
   function tttWinner(board) {
@@ -849,6 +951,7 @@
     article, makeOddFeature, makeListen,
     makeColorMix, makeSinkFloat, makeMamaBaby, makeFairShare, makeQuickPeek, PEEK_LAYOUTS,
     makeAlphaTrain, ALPHABET, makeLetterHunt,
+    makePieceFit, makeWhoHid, makeBeat, makeFeeling, makeKindness, makeDayTrain, makeWeather, makeSeasonItem,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

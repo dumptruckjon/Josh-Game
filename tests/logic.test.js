@@ -959,3 +959,115 @@ test("makeLetterHunt: exactly `need` targets (case-honest), the rest distractors
     last = r.target;
   }
 });
+
+// ---------- Ship B: piece-fit / who-hid / copy-beat / feelings / kindness / day-train / weather / seasons ----------
+
+test("makePieceFit: the correct piece IS the hole's shape; 3 distinct; no repeat", () => {
+  const rng = mulberry32(301);
+  let last = null;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makePieceFit(content.SHAPES, rng, last);
+    assert.notEqual(r.shape.name, last, "never the same hole twice in a row");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].name, r.shape.name, "the correct piece matches the hole");
+    assert.equal(new Set(r.choices.map((c) => c.name)).size, 3, "three distinct pieces");
+    last = r.shape.name;
+  }
+});
+
+test("makeWhoHid: 4 distinct characters; choices come FROM the lineup (self-checking)", () => {
+  const rng = mulberry32(302);
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeWhoHid(content.ANIMALS, rng);
+    assert.equal(r.lineup.length, 4);
+    assert.equal(new Set(r.lineup.map((c) => c.emoji)).size, 4, "lineup all distinct");
+    const lineupEmojis = new Set(r.lineup.map((c) => c.emoji));
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].emoji, r.lineup[r.hiddenIdx].emoji, "the answer IS the hidden one");
+    for (const c of r.choices) assert.ok(lineupEmojis.has(c.emoji), "every choice is from the lineup (elimination works)");
+    assert.equal(new Set(r.choices.map((c) => c.emoji)).size, 3, "three distinct choices");
+  }
+});
+
+test("makeBeat: length as asked (2-4), drums 0-2, never two identical hits in a row", () => {
+  const rng = mulberry32(303);
+  for (let i = 0; i < 400; i++) {
+    const len = 2 + (i % 3);
+    const r = L.makeBeat(rng, len);
+    assert.equal(r.seq.length, len);
+    for (const d of r.seq) assert.ok(d >= 0 && d <= 2, "drum index in range");
+    for (let k = 1; k < r.seq.length; k++) assert.notEqual(r.seq[k], r.seq[k - 1], "no doubled hit (clearer to echo)");
+  }
+});
+
+test("makeFeeling: the correct face matches the story's feeling; 3 distinct faces", () => {
+  const rng = mulberry32(304);
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeFeeling(content.FEELINGS, content.FEELING_STORIES, rng, last);
+    assert.notEqual(r.idx, last, "never the same story twice in a row");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].id, r.story.feel, "the correct face IS the story's feeling");
+    assert.equal(new Set(r.choices.map((c) => c.id)).size, 3, "three distinct feelings offered");
+    last = r.idx;
+  }
+});
+
+test("makeKindness: options preserved and shuffled; exactly one kind", () => {
+  const rng = mulberry32(305);
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeKindness(content.KINDNESS, rng, last);
+    assert.notEqual(r.idx, last, "never the same scenario twice in a row");
+    assert.equal(r.options.length, 3);
+    assert.equal(r.options.filter((o) => o.kind).length, 1, "exactly one kind option survives the shuffle");
+    last = r.idx;
+  }
+});
+
+test("makeDayTrain: the blank is a real day (never Sunday, the anchor); choices distinct", () => {
+  const rng = mulberry32(306);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeDayTrain(content.DAYS, rng, last);
+    assert.ok(r.blankIdx >= 1 && r.blankIdx <= 6, "Sunday anchors the train — never the blank");
+    assert.notEqual(r.blankIdx, last, "never the same blank twice in a row");
+    assert.equal(r.answer.name, content.DAYS[r.blankIdx].name);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].name, r.answer.name);
+    assert.equal(new Set(r.choices.map((c) => c.name)).size, 3, "three distinct day choices");
+    last = r.blankIdx;
+  }
+});
+
+test("makeWeather: correct gear = this weather's gear; distractors from OTHER weathers", () => {
+  const rng = mulberry32(307);
+  const gearOf = Object.fromEntries(content.WEATHERS.map((w) => [w.gear, w.name]));
+  let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeWeather(content.WEATHERS, rng, last);
+    assert.notEqual(r.idx, last, "never the same weather twice in a row");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].emoji, r.weather.gear);
+    for (const c of r.choices) assert.ok(gearOf[c.emoji], "every choice is a real weather's gear");
+    assert.equal(new Set(r.choices.map((c) => c.emoji)).size, 3, "three distinct gear choices");
+    last = r.idx;
+  }
+});
+
+test("makeSeasonItem: the item's season index is truthful; item never repeats", () => {
+  const rng = mulberry32(308);
+  let last = null;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeSeasonItem(content.SEASONS, rng, last);
+    assert.notEqual(r.item, last, "never the same item twice in a row");
+    assert.ok(content.SEASONS[r.seasonIdx].items.includes(r.item), "seasonIdx points at the item's real season");
+    assert.equal(r.seasonName, content.SEASONS[r.seasonIdx].name);
+    last = r.item;
+  }
+});

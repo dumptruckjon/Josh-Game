@@ -130,8 +130,11 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
     // overlap, tappable) is covered separately by mobile.test.js's actual .tap().
     // Each iteration: tap the currently-correct target if there is one, else tap a
     // live toy control — so the SAME loop wins both win-games and endless toys.
+    // 480 iterations ≈ taps + up to ~9s of idle 20ms polls — headroom for games
+    // with presentation beats (a demo to watch, a cloud that drifts in, a splash
+    // between rounds). Fast games exit the loop the moment they win.
     let won = false;
-    for (let i = 0; i < 260 && !won; i++) {
+    for (let i = 0; i < 480 && !won; i++) {
       won = await screen.evaluate((el) => el.dataset.won === "1");
       if (won) break;
       let target = screen.locator('[data-correct="1"]').first();

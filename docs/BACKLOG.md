@@ -65,10 +65,11 @@ listed as fixed above.
   "BLOOP" (rising pitch) in counting games; a **Silly Sounds** toy; animal
   *sounds* in Hi Animals (it currently speaks the name but plays no animal sound).
 
-## 🎯 APPROVED DIRECTION — "Road to 100 stickers" slate (July 2026 brainstorm)
+## ✅ SHIPPED — "Road to 100 stickers" slate (July 2026 brainstorm)
 
-Goal: 84 → **100 games**. 16 core ideas, all tap-only / no-fail / harness-ready,
-each filling a VERIFIED gap (grep-checked absent from the catalog):
+**All 16 core games built and live; the catalog is exactly 100 and the Sticker
+Book tops out at ⭐ 100/100.** The alternates below (📏 Longer or Shorter,
+🥛 Where From?) remain unbuilt — the future-ideas shelf. Original slate:
 
 - **Science:** 🎨 Mix It! Paint Lab (color mixing, predict the result) ·
   🛁 Sink or Float? (predict→test) · 🌱 Plant or Animal? (sorter engine) ·

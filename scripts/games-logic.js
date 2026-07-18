@@ -587,4 +587,191 @@
       newRound();
     },
   });
+
+  // ---- 🧩 Which Piece Fits? (the tap-only jigsaw — geometry cabinet) ----
+  // A cheese card with a shape-shaped hole nibbled out ("the mouse did it!");
+  // three chunky pieces below — only one matches the hole. Tapping it plugs
+  // the hole and the mouse squeaks a thank-you.
+  F.register({
+    id: "piece-fit",
+    icon: "🧩",
+    title: "Which Piece Fits?",
+    skill: "shape hole match [W] — geometry cabinet",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, lastName = null, r = null;
+      const card = api.el("div", { class: "pf__card", aria: { hidden: "true" } });
+      const hole = api.el("span", { class: "pf__hole" });
+      const mouse = api.el("span", { class: "pf__mouse", text: "🐭" });
+      card.append(hole, mouse);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(card, chips);
+
+      function shapeSvg(shape, cls) {
+        return '<svg viewBox="0 0 100 100" class="' + cls + '">' + shape.svg + "</svg>";
+      }
+
+      function newRound() {
+        r = L.makePieceFit(C.SHAPES, undefined, lastName);
+        lastName = r.shape.name;
+        api.setPrompt("Which piece fits the hole?", ["🧩", "👀", "👉"]);
+        api.speak(); api.say("The mouse nibbled a hole! Which piece fits?");
+        hole.innerHTML = shapeSvg(r.shape, "pf__holeShape");
+        hole.classList.remove("pf__hole--filled");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice pf__piece tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+          });
+          b.innerHTML = shapeSvg(ch, "pf__pieceShape");
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            hole.classList.add("pf__hole--filled"); // the piece plugs the hole
+            mouse.classList.remove("pop"); void mouse.offsetWidth; mouse.classList.add("pop");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Every piece fit! Squeak squeak — thank you!" });
+            else { api.roundWin({ say: "The " + r.shape.name + " fits!" }); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- ☁️ Who Hid? (what-disappeared working memory, the gentle way) ----
+  // Four friends line up and say hi; a little cloud drifts onto ONE of them.
+  // The other three stay visible, so Josh can solve it by looking — memory
+  // with a built-in self-check, never a gotcha.
+  F.register({
+    id: "who-hid",
+    icon: "☁️",
+    title: "Who Hid?",
+    skill: "visual memory / elimination [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, r = null;
+      const row = api.el("div", { class: "wh__row", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3", hidden: "" });
+      api.stage.append(row, chips);
+
+      function newRound() {
+        r = L.makeWhoHid(C.ANIMALS, undefined);
+        api.setPrompt("Who is hiding under the cloud?", ["👀", "☁️", "🤔"]);
+        api.speak(); api.say("Look who's here: " + r.lineup.map((c) => c.name).join(", ") + "!");
+        chips.hidden = true;
+        row.innerHTML = "";
+        r.lineup.forEach((c, i) => {
+          row.appendChild(api.el("span", { class: "wh__spot", text: c.emoji, dataset: { spot: String(i) } }));
+        });
+        // A beat later the cloud drifts onto one friend and the choices appear.
+        setTimeout(() => {
+          if (!row.isConnected) return;
+          const spot = row.querySelector('[data-spot="' + r.hiddenIdx + '"]');
+          if (spot) { spot.textContent = "☁️"; spot.classList.add("wh__spot--cloud"); }
+          api.say("Who is hiding?");
+          chips.hidden = false;
+          chips.innerHTML = "";
+          r.choices.forEach((ch) => {
+            const b = api.el("button", {
+              class: "choice tap", type: "button",
+              dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+            }, [ch.emoji]);
+            b.addEventListener("click", () => {
+              if (!ch.correct) { api.tryAgain(b); return; }
+              const s = row.querySelector('[data-spot="' + r.hiddenIdx + '"]');
+              if (s) { s.textContent = r.lineup[r.hiddenIdx].emoji; s.classList.remove("wh__spot--cloud"); s.classList.add("pop"); }
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You found everyone hiding!" });
+              else { api.roundWin({ say: "The " + ch.name + " was hiding!" }); setTimeout(() => { if (row.isConnected) newRound(); }, 900); }
+            });
+            chips.appendChild(b);
+          });
+        }, 1300);
+      }
+      newRound();
+    },
+  });
+
+  // ---- 🥁 Copy My Beat (echo the drum SEQUENCE — order only, never timing) ----
+  F.register({
+    id: "copy-beat",
+    icon: "🥁",
+    title: "Copy My Beat",
+    skill: "sequence memory / music [W]",
+    start(api) {
+      const A = window.JoshAudio || { say() {}, isMuted: () => true };
+      const DRUMS = [
+        { color: "#ff5e5e", note: 262 },
+        { color: "#ffd24d", note: 330 },
+        { color: "#5ec8ff", note: 392 },
+      ];
+      const ROUNDS = 3;
+      let round = 0, r = null, step = 0, demoing = false;
+      const heroEl = api.el("div", { class: "cb__hero art-fill", aria: { hidden: "true" } });
+      if (window.JoshArt && window.JoshArt.hero) heroEl.innerHTML = window.JoshArt.hero("#e23636");
+      const pad = api.el("div", { class: "cb__pad" });
+      const replay = api.el("button", { class: "btn-big cb__replay", type: "button", aria: { label: "Watch the beat again" } }, ["▶️ 👀"]);
+      api.stage.append(heroEl, pad, replay);
+
+      const drums = DRUMS.map((d, i) => {
+        const b = api.el("button", { class: "cb__drum tap", type: "button", style: { background: d.color }, aria: { label: "drum " + (i + 1) } }, ["🥁"]);
+        b.addEventListener("click", () => {
+          if (demoing) return;
+          // Drums are an instrument (like the Music Pad): they always sound.
+          try { if (A.tone) A.tone(d.note, { duration: 0.25 }); } catch (e) { /* ignore */ }
+          b.classList.remove("cb__drum--hit"); void b.offsetWidth; b.classList.add("cb__drum--hit");
+          if (i !== r.seq[step]) { api.tryAgain(b); step = 0; arm(); return; } // start the echo over, gently
+          delete b.dataset.correct;
+          step += 1;
+          if (step >= r.seq.length) {
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You copied every beat! You're a drummer!" });
+            else { api.roundWin({ say: "You got the beat!" }); newRound(); }
+          } else arm();
+        });
+        pad.appendChild(b);
+        return b;
+      });
+
+      function arm() {
+        drums.forEach((b) => b.removeAttribute("data-correct"));
+        if (r && step < r.seq.length) drums[r.seq[step]].dataset.correct = "1";
+      }
+
+      function playDemo() {
+        demoing = true;
+        drums.forEach((b) => b.classList.add("cb__drum--wait"));
+        r.seq.forEach((di, k) => {
+          setTimeout(() => {
+            if (!pad.isConnected) return;
+            const b = drums[di];
+            b.classList.remove("cb__drum--hit"); void b.offsetWidth; b.classList.add("cb__drum--hit");
+            try { if (A.tone && A.isMuted && !A.isMuted()) A.tone(DRUMS[di].note, { duration: 0.25 }); } catch (e) { /* ignore */ }
+          }, 500 + k * 650);
+        });
+        setTimeout(() => {
+          if (!pad.isConnected) return;
+          demoing = false;
+          drums.forEach((b) => b.classList.remove("cb__drum--wait"));
+          api.say("Your turn!");
+          arm();
+        }, 500 + r.seq.length * 650 + 250);
+      }
+
+      replay.addEventListener("click", () => { if (!demoing) { step = 0; playDemo(); } });
+
+      function newRound() {
+        r = L.makeBeat(undefined, api.shouldRamp(2) ? 3 : 2);
+        step = 0;
+        api.setPrompt("Watch the beat — then copy it!", ["👀", "🥁", "👉"]);
+        api.speak();
+        playDemo();
+      }
+      newRound();
+    },
+  });
 })();

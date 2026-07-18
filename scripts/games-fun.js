@@ -409,4 +409,107 @@
       spawn();
     },
   });
+
+  // ---- 🌦️ Dress Me! (weather → the right gear, worn ON the friend) ----
+  // Look out the window, pick the right gear, and the friend VISIBLY gets it:
+  // cap on the head, umbrella overhead, mittens in hand. Wrong-weather gear is
+  // a giggle (mittens in the sunshine!), redirected gently.
+  F.register({
+    id: "dress-me",
+    icon: "🌦️",
+    title: "Dress Me!",
+    skill: "weather & dressing [M→W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 3;
+      let round = 0, lastIdx = -1, r = null;
+      const scene = api.el("div", { class: "dm__scene", aria: { hidden: "true" } });
+      const windowEl = api.el("span", { class: "dm__window" });
+      const kid = api.el("span", { class: "dm__kid art-fill" });
+      const gearSpot = api.el("span", { class: "dm__gear" });
+      scene.append(windowEl, kid, gearSpot);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(scene, chips);
+
+      function newRound() {
+        r = L.makeWeather(C.WEATHERS, undefined, lastIdx);
+        lastIdx = r.idx;
+        const friend = api.friend();
+        if (window.JoshArt && window.JoshArt.friend && friend.art) kid.innerHTML = window.JoshArt.friend(friend.art);
+        else kid.textContent = friend.emoji;
+        api.setPrompt("What should " + friend.name + " wear?", ["👀", r.weather.sky, "🤔"]);
+        api.speak(); api.say(r.weather.say + " What should " + friend.name + " wear?");
+        windowEl.textContent = r.weather.sky;
+        gearSpot.textContent = "";
+        gearSpot.className = "dm__gear";
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice dm__chip tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+          }, [ch.emoji]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); api.say(L.article(ch.name) + " " + ch.name + "? Not today! Hee hee."); return; }
+            gearSpot.textContent = ch.emoji; // the friend actually GETS the gear
+            gearSpot.classList.add("dm__gear--" + r.weather.spot, "pop");
+            kid.classList.remove("pop"); void kid.offsetWidth; kid.classList.add("pop");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "All dressed for every weather!" });
+            else { api.roundWin({ say: L.article(ch.name) + " " + ch.name + " — perfect for " + r.weather.name + "!" }); setTimeout(() => { if (scene.isConnected) newRound(); }, 900); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- 🌈 Season Windows (which season does it belong to?) ----
+  // Four tinted season windows; each right answer flies the item INTO its
+  // window, so the seasons visibly fill with their own things.
+  F.register({
+    id: "seasons",
+    icon: "🌈",
+    title: "Season Windows",
+    skill: "seasons [M]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 5;
+      let round = 0, lastItem = null, r = null;
+      const itemEl = api.el("div", { class: "sw__item", aria: { hidden: "true" } });
+      const grid = api.el("div", { class: "sw__grid" });
+      api.stage.append(itemEl, grid);
+
+      const windows = C.SEASONS.map((s, i) => {
+        const inner = api.el("span", { class: "sw__collected", aria: { hidden: "true" } });
+        const b = api.el("button", {
+          class: "sw__window tap", type: "button",
+          style: { background: s.tint }, aria: { label: s.name },
+        }, [api.el("span", { class: "sw__icon", text: s.icon, aria: { hidden: "true" } }), inner]);
+        b.__inner = inner;
+        b.addEventListener("click", () => {
+          if (i !== r.seasonIdx) { api.tryAgain(b); return; }
+          b.__inner.textContent += r.item; // the item joins its season
+          b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
+          delete b.dataset.correct;
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "You know all the seasons!" });
+          else { api.roundWin({ say: r.item + " belongs in " + r.seasonName + "!" }); newRound(); }
+        });
+        grid.appendChild(b);
+        return b;
+      });
+
+      function newRound() {
+        r = L.makeSeasonItem(C.SEASONS, undefined, lastItem);
+        lastItem = r.item;
+        api.setPrompt("Which season does it belong to?", ["👀", "🌈", "👉"]);
+        api.speak(); api.say("Where does this belong? Which season?");
+        itemEl.textContent = r.item;
+        itemEl.classList.remove("pop"); void itemEl.offsetWidth; itemEl.classList.add("pop");
+        windows.forEach((w, i) => { if (i === r.seasonIdx) w.dataset.correct = "1"; else w.removeAttribute("data-correct"); });
+      }
+      newRound();
+    },
+  });
 })();

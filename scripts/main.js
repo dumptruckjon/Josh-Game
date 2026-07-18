@@ -33,6 +33,7 @@
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
     "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking", "color-number": "thinking",
     "who-is-it": "thinking", "picture-squares": "thinking", "story-order": "thinking", "birds-eye": "thinking",
+    "piece-fit": "thinking", "who-hid": "thinking", "copy-beat": "thinking",
     "find-hero": "find", "find-crowd": "find", "find-count": "find", "dot-dot": "find", "rescue": "find",
     "find-twins": "find", "i-spy": "find", "big-red-one": "find", "web-reveal": "find", "letter-hunt": "find",
     "science-sort": "science", "color-sort": "science", "law-sort": "science", "day-night": "science", "hot-cold": "science",
@@ -41,10 +42,11 @@
     "plant-animal": "science", "color-mix": "science", "sink-float": "science", "mama-baby": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
-    "grow": "play", "thwip-web": "play", "thwip-villains": "play",
+    "grow": "play", "thwip-web": "play", "thwip-villains": "play", "dress-me": "play", "seasons": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
     "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",
+    "feelings": "friends", "kind-helpers": "friends", "day-train": "friends",
   };
 
   // Set by initLauncher once the Sticker Book screen exists; re-syncs every slot

@@ -712,4 +712,149 @@
       newRound();
     },
   });
+
+  // ---- 😊 How Do They Feel? (SEL — name the feeling, then help with a breath) ----
+  // Identifying a feeling is NEVER judged — the game names it, then models the
+  // helping move (one big breath together). This is Josh's real growth edge.
+  F.register({
+    id: "feelings",
+    icon: "😊",
+    title: "How Do They Feel?",
+    skill: "feelings / empathy [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4;
+      let round = 0, lastIdx = -1, r = null;
+      const sceneIcons = api.el("div", { class: "fl__icons", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(sceneIcons, chips);
+      api.mascot();
+
+      function newRound() {
+        r = L.makeFeeling(C.FEELINGS, C.FEELING_STORIES, undefined, lastIdx);
+        lastIdx = r.idx;
+        api.setPrompt("How do they feel?", ["👂", "🤔", "💛"]);
+        api.speak(); api.say(r.story.say + " How does " + r.story.who + " feel?");
+        sceneIcons.textContent = r.story.icons.join(" ");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice fl__face tap", type: "button",
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+          }, [ch.face]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            b.classList.add("pop");
+            const helped = ch.id === "happy" || ch.id === "surprised"
+              ? "Yes — " + r.story.who + " feels " + ch.name + "!"
+              : "Yes — " + r.story.who + " feels " + ch.name + ". Let's take a big breath together. Breathe in... and out. That helps!";
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: helped + " You're so good at feelings!" });
+            else { api.roundWin({ say: helped }); setTimeout(() => { if (chips.isConnected) newRound(); }, 700); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- 🤝 Kind Helpers (SEL — tap the kind thing to do) ----
+  // The un-kind options are silly-neutral (nap, pizza, hide), never mean; a
+  // miss is a giggle and a gentle "what would HELP?" redirect.
+  F.register({
+    id: "kind-helpers",
+    icon: "🤝",
+    title: "Kind Helpers",
+    skill: "kindness / conflict resolution [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const A = window.JoshAudio || { say() {} };
+      const ROUNDS = 4;
+      let round = 0, lastIdx = -1, r = null;
+      const sceneIcons = api.el("div", { class: "fl__icons", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(sceneIcons, chips);
+      api.mascot();
+
+      function newRound() {
+        r = L.makeKindness(C.KINDNESS, undefined, lastIdx);
+        lastIdx = r.idx;
+        api.setPrompt("What's the KIND thing to do?", ["👂", "💛", "👉"]);
+        api.speak(); api.say(r.scenario.say + " What's the kind thing to do?");
+        sceneIcons.textContent = r.scenario.icons.join(" ");
+        chips.innerHTML = "";
+        r.options.forEach((opt) => {
+          const b = api.el("button", {
+            class: "choice kh__opt tap", type: "button",
+            dataset: opt.kind ? { correct: "1" } : {}, aria: { label: opt.name },
+          }, [opt.emoji]);
+          b.addEventListener("click", () => {
+            if (!opt.kind) { api.tryAgain(b); A.say("Hmm — what would HELP?"); return; }
+            const heart = api.el("span", { class: "kh__heart", text: "💞", aria: { hidden: "true" } });
+            b.appendChild(heart);
+            setTimeout(() => heart.remove(), 1100);
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: opt.name + " — that's so kind! You're a wonderful helper!" });
+            else { api.roundWin({ say: opt.name + " — that's so kind!" }); setTimeout(() => { if (chips.isConnected) newRound(); }, 700); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- 📅 Day Train (days of the week in rainbow order) ----
+  // The week rolls in with one missing day-car. Choices SPEAK their day on the
+  // correct tap, and the color rainbow keeps it solvable with sound off (the
+  // missing car's color matches its choice — position + color, not reading).
+  F.register({
+    id: "day-train",
+    icon: "📅",
+    title: "Day Train",
+    skill: "days of the week [M]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4;
+      let round = 0, lastBlank = -1, r = null;
+      const train = api.el("div", { class: "dt__train", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(train, chips);
+
+      function newRound() {
+        r = L.makeDayTrain(C.DAYS, undefined, lastBlank);
+        lastBlank = r.blankIdx;
+        api.setPrompt("Which day is missing?", ["📅", "🚂", "🤔"]);
+        api.speak(); api.say("Which day is missing? It comes after " + C.DAYS[r.blankIdx - 1].name + "!");
+        train.innerHTML = "";
+        C.DAYS.forEach((d, i) => {
+          train.appendChild(api.el("span", {
+            class: "dt__car" + (i === r.blankIdx ? " dt__car--blank" : ""),
+            style: i === r.blankIdx ? {} : { background: d.color },
+            text: i === r.blankIdx ? "?" : d.abbr,
+          }));
+        });
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice dt__choice tap", type: "button",
+            style: { background: ch.color },
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
+          }, [ch.abbr]);
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); api.say("That's " + ch.name + ". Which one is missing?"); return; }
+            const blank = train.querySelector(".dt__car--blank");
+            if (blank) { blank.textContent = ch.abbr; blank.style.background = ch.color; blank.classList.remove("dt__car--blank"); blank.classList.add("pop"); }
+            api.say(ch.name + "! " + C.DAYS.map((d) => d.name).join(", ") + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know the whole week!" });
+            else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();
