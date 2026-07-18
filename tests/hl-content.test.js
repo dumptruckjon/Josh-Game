@@ -70,7 +70,7 @@ test("POEMS restate the real Tang classics exactly", () => {
 // ---------- 📜 Idioms ----------
 test("IDIOMS are real 4-character idioms; distractor chars never fit", () => {
   // The canonical set (update deliberately if content changes).
-  const REAL = ["画蛇添足", "守株待兔", "井底之蛙", "亡羊补牢", "对牛弹琴", "马到成功", "一石二鸟", "拔苗助长", "半途而废", "雪中送炭"];
+  const REAL = ["画蛇添足", "守株待兔", "井底之蛙", "亡羊补牢", "对牛弹琴", "马到成功", "一箭双雕", "拔苗助长", "半途而废", "雪中送炭"];
   assert.deepEqual(HL.IDIOMS.map((i) => i.text), REAL);
   for (const i of HL.IDIOMS) {
     assert.equal(i.text.length, 4, `${i.text} must be 4 characters`);

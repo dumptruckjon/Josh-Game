@@ -180,7 +180,26 @@ below 100%); each now earns its sticker once after a few taps (click-count,
 never a timer) then keeps playing → the generic e2e harness now drives EVERY
 game to a win (tap `[data-correct]` if present, else a live `[data-toy]`), so a
 future un-winnable game fails the suite.
-When you fix the next thing, extend this list.
+**a quiz can "win" in the harness while marking a genuinely-CORRECT tap wrong** —
+the tap-harness trusts `data-correct`, so it can't catch a *true* answer being
+rejected. A deep 140-game audit found three: a lone-animal continent quiz whose
+signature animals (eagle/deer) had multi-continent ranges (→ single-continent-
+iconic bison/hedgehog + guardrail banning multi-continent animals); a letter
+match placing iOS-identical "I"/"l" together (→ `makeLetterMatch` never pairs a
+confusable group + guardrail); and a 量词 quiz offering 只 (valid for one shoe)
+as a "wrong" answer for 鞋 (→ `alsoOk` list excluded from distractors + a PAIR
+emoji + guardrail). Lesson: for any pick-the-answer game, prove NO distractor is
+also correct, restate the truth in `content.test.js`/`hl-content.test.js`, and
+remember visual/platform rendering (a dotless "i") is part of correctness.
+**a rotating multi-domain tile must name each round's question** (science-sort
+runs alive/sink-float/plant-animal under one prompt → each set now carries its
+own `prompt`+`icons`); **a tile title must match the round** (找福字 now always
+hunts 福 via `makeLetterHunt` `opts.target`); **a named mechanic must BE that
+mechanic** (四宫数独 was a Latin square → `makeSudoku4` enforces real 2×2 boxes,
+guardrail-tested, separate from `makeLatinSquare` so Josh's picture-squares is
+untouched); **a countdown/among-a-set answer should be visible, not audio-only**
+(Team Countdown now shows a live 5→4→3→2→1 numeral). When you fix the next
+thing, extend this list.
 
 ---
 

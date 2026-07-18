@@ -462,10 +462,15 @@
         const size = 9 + round * 2;
         const r = L.makeCategoryHunt(C.FIND_CATEGORIES, size);
         need = r.count; got = 0;
+        // Show a meta category icon PLUS three example members ("find things LIKE
+        // these"), so a non-reader reads it as a whole group, not one exact emoji.
+        const cat = (C.FIND_CATEGORIES || []).find((c) => c.id === r.catId);
+        const egs = cat ? cat.items.slice(0, 3) : [];
         target.innerHTML = "";
         target.append(
           api.el("span", { class: "find__targetEmoji", text: r.catIcon }),
-          api.el("span", { class: "find__targetLabel", text: "Find them all!" })
+          api.el("span", { class: "find__targetLabel", text: "Find them all!" }),
+          api.el("span", { class: "find__egs", aria: { hidden: "true" } }, egs.map((e) => api.el("span", { class: "find__eg", text: e })))
         );
         api.setPrompt("Find all of these!", ["👀", r.catIcon, "👆"]);
         api.speak();

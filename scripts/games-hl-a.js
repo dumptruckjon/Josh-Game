@@ -256,7 +256,7 @@
         lastN = r.n;
         shown = false;
         box.classList.remove("qp__box--open");
-        api.setPrompt("掀开红布看一眼——有几个？", ["🧧", "👀", "🔢"]);
+        api.setPrompt("掀开红包看一眼——有几个？", ["🧧", "👀", "🔢"]);
         api.speak();
         dots.innerHTML = "";
         r.dots.forEach(([x, y]) => {
@@ -442,13 +442,14 @@
     skill: "找字眼力",
     start(api) {
       const ROUNDS = 3;
-      let round = 0, lastTarget = null, need = 0;
+      let round = 0, need = 0;
       const targetEl = api.el("div", { class: "hl-bigchar hl-target" });
       const grid = api.el("div", { class: "hl-grid3" });
       api.stage.append(targetEl, grid);
       function newRound() {
-        const r = L.makeLetterHunt(HL.HUNT_CHARS, undefined, { lastTarget, mixCase: false });
-        lastTarget = r.target;
+        // Always hunt 福 (luck) so the 找福字 tile and the round agree; the
+        // distractors are the same-radical lookalikes 祝/礼/神/视/祖.
+        const r = L.makeLetterHunt(HL.HUNT_CHARS, undefined, { target: "福", mixCase: false });
         need = r.need;
         api.setPrompt("把每个「" + r.target + "」字都找出来！", ["🧧", "👀", "👉"]);
         api.speak();
@@ -789,8 +790,8 @@
       const chips = api.el("div", { class: "choices choices--4 hl-choices" });
       api.stage.append(grid, chips);
       function newRound() {
-        r = L.makeLatinSquare(["1", "2", "3", "4"], undefined, 4);
-        api.setPrompt("每行每列都不能重复——空格填几？", ["🔢", "🧩", "🤔"]);
+        r = L.makeSudoku4(["1", "2", "3", "4"], undefined);
+        api.setPrompt("每行、每列、每个小格都不能重复——空格填几？", ["🔢", "🧩", "🤔"]);
         api.speak();
         grid.innerHTML = "";
         r.grid.forEach((rowArr, ri) => {

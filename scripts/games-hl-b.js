@@ -88,9 +88,9 @@
       api.stage.append(pad, replay);
       const drums = INS.map((d, i) => {
         const b = api.el("button", {
-          class: "cb__drum tap", type: "button",
+          class: "cb__drum hl-echodrum tap", type: "button",
           style: { background: d.color }, aria: { label: d.name },
-        }, [d.emoji]);
+        }, [d.name]);
         b.addEventListener("click", () => {
           if (demoing) return;
           try { if (A.tone) A.tone(d.freq, { duration: 0.25 }); } catch (e) { /* ignore */ }

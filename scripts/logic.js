@@ -527,6 +527,34 @@
     return { grid, blankR, blankC, answer, choices, symbols: s, n };
   }
 
+  // --- A REAL 4×4 sudoku (rows, columns AND 2×2 boxes each hold all 4) --------
+  // makeLatinSquare only guarantees rows + columns, so a 2×2 box could repeat a
+  // digit — fine for Josh's picture-squares, but 华丽's tile is titled 四宫数独
+  // ("four-BOX sudoku"), so it needs the box constraint to be honest. Starts from
+  // one valid solution and applies only box-preserving symmetries (symbol relabel,
+  // row-swap within a band, col-swap within a stack, band/stack swap, transpose),
+  // every one of which keeps it a valid sudoku. One cell is blanked; its answer is
+  // the unique value that fits its row/column/box.
+  function makeSudoku4(symbols, rng = Math.random) {
+    if (!Array.isArray(symbols) || symbols.length < 4) throw new Error("makeSudoku4 needs >= 4 symbols");
+    const s = sample(symbols, 4, rng); // 4 distinct symbols for indices 0..3
+    let g = [[0, 1, 2, 3], [2, 3, 0, 1], [1, 0, 3, 2], [3, 2, 1, 0]]; // a valid 4×4 sudoku
+    const swapRows = (a, b) => { const t = g[a]; g[a] = g[b]; g[b] = t; };
+    const swapCols = (a, b) => g.forEach((row) => { const t = row[a]; row[a] = row[b]; row[b] = t; });
+    if (rng() < 0.5) swapRows(0, 1);
+    if (rng() < 0.5) swapRows(2, 3);
+    if (rng() < 0.5) swapCols(0, 1);
+    if (rng() < 0.5) swapCols(2, 3);
+    if (rng() < 0.5) { swapRows(0, 2); swapRows(1, 3); } // swap the two bands
+    if (rng() < 0.5) { swapCols(0, 2); swapCols(1, 3); } // swap the two stacks
+    if (rng() < 0.5) g = g[0].map((_, c) => g.map((row) => row[c])); // transpose (still a valid sudoku)
+    const grid = g.map((row) => row.map((v) => s[v]));
+    const blankR = randInt(0, 3, rng), blankC = randInt(0, 3, rng);
+    const answer = grid[blankR][blankC];
+    const choices = shuffle(s.map((sym) => ({ sym, correct: sym === answer })), rng);
+    return { grid, blankR, blankC, answer, choices, symbols: s, n: 4 };
+  }
+
   // --- Rhyme Train / Rhyme Hunt (find every picture that rhymes) ----------
   function makeRhymeHunt(groups, size, rng = Math.random) {
     if (!Array.isArray(groups) || groups.length < 2) throw new Error("makeRhymeHunt needs >= 2 groups");
@@ -807,8 +835,12 @@
   // --- 🚂 Alphabet Train (reuses the shared ALPHABET const above) ----------
   function makeAlphaTrain(rng, lastStart) {
     const rnd = rng || Math.random;
-    let start = Math.floor(rnd() * (ALPHABET.length - 4)); // window of 4 letters
-    if (start === lastStart) start = (start + 3) % (ALPHABET.length - 4);
+    // A 4-letter window can start anywhere from A..W so the last window is WXYZ —
+    // (length - 3) starts in all, which lets Z finally appear (it used to be
+    // unreachable because the range stopped one window short).
+    const windows = ALPHABET.length - 3;
+    let start = Math.floor(rnd() * windows);
+    if (start === lastStart) start = (start + 3) % windows;
     const letters = ALPHABET.slice(start, start + 4).split("");
     const blankIdx = 1 + Math.floor(rnd() * 3); // never the first car (an anchor stays)
     const answer = letters[blankIdx];
@@ -830,6 +862,9 @@
     const rnd = rng || Math.random;
     let target = letters[Math.floor(rnd() * letters.length)];
     if (target === opts.lastTarget) target = letters[(letters.indexOf(target) + 1) % letters.length];
+    // A game may pin the target (e.g. 找福字 always hunts 福) so the tile title
+    // and the round always agree; distractors are still the other letters.
+    if (opts.target && letters.indexOf(opts.target) !== -1) target = opts.target;
     const size = opts.size || 9;
     const need = opts.need || 3;
     const distractors = shuffle(letters.filter((l) => l !== target), rng);
@@ -1130,7 +1165,7 @@
     makeAlphaTrain, ALPHABET, makeLetterHunt,
     makePieceFit, makeWhoHid, makeBeat, makeFeeling, makeKindness, makeDayTrain, makeWeather, makeSeasonItem,
     makeOrderTrain, makeIdiomFill, makePoemNext, makeMeasureWord, makePairPick,
-    makeMenuMemory, makeMarket, makeChange, makeCharCrowd, makeMissingAddend,
+    makeMenuMemory, makeMarket, makeChange, makeCharCrowd, makeMissingAddend, makeSudoku4,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.JoshLogic = API;

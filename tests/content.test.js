@@ -64,7 +64,7 @@ test("sight words are real common words (Dolch/Fry)", () => {
 
 // ---------- Digraphs: every "sh" picture starts with sh, every "ch" with ch ----------
 const DIGRAPH_WORD = {
-  "🚢": "ship", "🐑": "sheep", "👟": "shoe", "🐚": "shell", "🦈": "shark",
+  "🚢": "ship", "🦐": "shrimp", "👟": "shoe", "🐚": "shell", "🦈": "shark",
   "🧀": "cheese", "🍒": "cherry", "🪑": "chair", "🐤": "chick", "🍫": "chocolate",
 };
 test("digraph pictures really start with their sound (sh / ch)", () => {
@@ -442,6 +442,17 @@ test("the narrated sorters carry a truthful 'why' on every bin", () => {
       assert.ok(typeof bin.why === "string" && bin.why.length > 0,
         `sorter "${set.name}" bin "${bin.label}" needs a spoken why`);
     }
+  }
+});
+
+test("science-sort's multi-domain rounds each name their own question", () => {
+  // The "Alive or Not?" tile rotates 3 different domains; each set must carry its
+  // OWN prompt + icons so a sound-off child knows which sort this round is.
+  for (const set of content.SORT_SETS) {
+    assert.ok(typeof set.prompt === "string" && set.prompt.length > 0,
+      `SORT_SETS "${set.name}" needs its own prompt (it shares the science-sort tile)`);
+    assert.ok(Array.isArray(set.icons) && set.icons.length >= 2,
+      `SORT_SETS "${set.name}" needs an icon strip`);
   }
 });
 

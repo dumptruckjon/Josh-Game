@@ -652,6 +652,26 @@ test("makeLatinSquare: valid 4x4 tier (each of 4 symbols once per row & column);
   }
 });
 
+test("makeSudoku4: a REAL 4×4 sudoku — rows, columns AND 2×2 boxes each hold all four", () => {
+  const rng = mulberry32(431);
+  for (let i = 0; i < 2000; i++) {
+    const r = L.makeSudoku4(["1", "2", "3", "4"], rng);
+    assert.equal(r.n, 4);
+    const sorted = ["1", "2", "3", "4"];
+    for (let row = 0; row < 4; row++) assert.deepEqual([...r.grid[row]].sort(), sorted, `row ${row}`);
+    for (let col = 0; col < 4; col++) {
+      assert.deepEqual([r.grid[0][col], r.grid[1][col], r.grid[2][col], r.grid[3][col]].sort(), sorted, `col ${col}`);
+    }
+    // The four 2×2 boxes — the constraint makeLatinSquare does NOT guarantee.
+    for (const [br, bc] of [[0, 0], [0, 2], [2, 0], [2, 2]]) {
+      const box = [r.grid[br][bc], r.grid[br][bc + 1], r.grid[br + 1][bc], r.grid[br + 1][bc + 1]];
+      assert.deepEqual([...box].sort(), sorted, `box ${br},${bc} must hold all four`);
+    }
+    assert.equal(r.answer, r.grid[r.blankR][r.blankC]);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+  }
+});
+
 test("makeListen: the asked object's owner is the one correct choice among all characters", () => {
   const rng = mulberry32(77);
   for (let i = 0; i < 3000; i++) {
@@ -947,6 +967,13 @@ test("makeAlphaTrain: a real consecutive alphabet window; blank never the first 
   }
 });
 
+test("makeAlphaTrain: the whole alphabet is reachable — Z can now appear", () => {
+  const rng = mulberry32(2061);
+  const seen = new Set();
+  for (let i = 0; i < 3000; i++) L.makeAlphaTrain(rng, -1).letters.forEach((ch) => seen.add(ch));
+  for (const ch of L.ALPHABET.split("")) assert.ok(seen.has(ch), `letter ${ch} should be reachable in a window`);
+});
+
 test("makeLetterHunt: exactly `need` targets (case-honest), the rest distractors", () => {
   const rng = mulberry32(207);
   let last = null;
@@ -963,6 +990,16 @@ test("makeLetterHunt: exactly `need` targets (case-honest), the rest distractors
     }
     assert.equal(r.cells.length, 9, "a full 3×3 balloon sky");
     last = r.target;
+  }
+});
+
+test("makeLetterHunt: opts.target pins the target (找福字 always hunts 福)", () => {
+  const rng = mulberry32(2071);
+  const chars = ["福", "祝", "礼", "神", "视", "祖"];
+  for (let i = 0; i < 500; i++) {
+    const r = L.makeLetterHunt(chars, rng, { target: "福", mixCase: false });
+    assert.equal(r.target, "福", "the pinned target must always be 福");
+    for (const d of r.cells.filter((c) => !c.correct)) assert.notEqual(d.ch, "福", "no distractor may be 福");
   }
 });
 

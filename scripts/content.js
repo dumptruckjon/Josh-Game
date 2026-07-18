@@ -9,11 +9,11 @@
   // Shared sort sets defined ONCE and referenced from both the Alive-or-Not
   // rotation (SORT_SETS) and their own dedicated game tiles — a single source
   // of truth, so the sink/float and plant/animal facts can never fork.
-  const SINK_FLOAT_SET = { name: "sinkfloat", bins: [
+  const SINK_FLOAT_SET = { name: "sinkfloat", prompt: "Will it sink or float?", icons: ["👀", "⬇️", "⬆️"], bins: [
     { label: "Sinks", emoji: "⬇️", why: "It sinks — it's heavy for its size.", items: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"] },
     { label: "Floats", emoji: "⬆️", why: "It floats — it's light and traps air.", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
   ] };
-  const PLANT_ANIMAL_SET = { name: "plantanimal", bins: [
+  const PLANT_ANIMAL_SET = { name: "plantanimal", prompt: "Is it a plant or an animal?", icons: ["👀", "🌿", "🐾"], bins: [
     // Note: no fungi (🍄 is not a plant) — keep the two categories truthful.
     { label: "Plant", emoji: "🌿", why: "It's a plant — it grows in one spot.", items: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"] },
     { label: "Animal", emoji: "🐾", why: "It's an animal — it moves and eats.", items: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
@@ -213,7 +213,7 @@
 
     // ---- Science & sorting (each SET has 2-3 bins; the item's bin is correct) ----
     SORT_SETS: [
-      { name: "living", bins: [
+      { name: "living", prompt: "Is it alive?", icons: ["👀", "🌱", "🪨"], bins: [
         // Tricky-but-true edge cases (a snail/cactus ARE alive; a robot/candle/
         // watch are NOT, though they move or flicker) so it stops being obvious.
         { label: "Alive", emoji: "🌱", why: "It's alive — it grows and needs food.", items: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻", "🐛", "🌵", "🐌"] },
@@ -260,15 +260,15 @@
     // ---- Digraphs (sh / ch) — every picture names itself and starts with the sound ----
     DIGRAPH_SETS: [
       { name: "shch", bins: [
-        { label: "sh", emoji: "sh", items: ["🚢", "🐑", "👟", "🐚", "🦈"] }, // ship, sheep, shoe, shell, shark
+        { label: "sh", emoji: "sh", items: ["🚢", "🦐", "👟", "🐚", "🦈"] }, // ship, shrimp, shoe, shell, shark
         { label: "ch", emoji: "ch", items: ["🧀", "🍒", "🪑", "🐤", "🍫"] }, // cheese, cherry, chair, chick, chocolate
       ] },
     ],
     // Spoken word for each digraph picture, so the sort game NAMES the picture
     // aloud like every other literacy game (removes any self-naming ambiguity
-    // when sound is on — e.g. 🐑 is "sheep", not "lamb").
+    // when sound is on — e.g. 🦐 is "shrimp", 🐤 is "chick").
     DIGRAPH_WORDS: {
-      "🚢": "ship", "🐑": "sheep", "👟": "shoe", "🐚": "shell", "🦈": "shark",
+      "🚢": "ship", "🦐": "shrimp", "👟": "shoe", "🐚": "shell", "🦈": "shark",
       "🧀": "cheese", "🍒": "cherry", "🪑": "chair", "🐤": "chick", "🍫": "chocolate",
     },
     // ---- Spot-the-difference picture pool (distinct, self-naming) ----
@@ -503,9 +503,9 @@
     // from another category can never accidentally be a hidden member.
     FIND_CATEGORIES: [
       { id: "animals", icon: "🐾", items: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼"] },
-      { id: "vehicles", icon: "🚗", items: ["🚗", "🚌", "🚒", "🚜", "🚲", "✈️", "🚁", "🚚"] },
-      { id: "food", icon: "🍎", items: ["🍎", "🍌", "🍓", "🍇", "🍊", "🍪", "🍕", "🥕"] },
-      { id: "sky", icon: "⭐", items: ["⭐", "🌙", "☀️", "🌈", "☁️", "🌟"] },
+      { id: "vehicles", icon: "🚦", items: ["🚗", "🚌", "🚒", "🚜", "🚲", "✈️", "🚁", "🚚"] },
+      { id: "food", icon: "🍽️", items: ["🍎", "🍌", "🍓", "🍇", "🍊", "🍪", "🍕", "🥕"] },
+      { id: "sky", icon: "🌌", items: ["⭐", "🌙", "☀️", "🌈", "☁️", "🌟"] },
     ],
 
     // ---- Shape's Real Twin (3D solids → a real-world object of that shape) ----

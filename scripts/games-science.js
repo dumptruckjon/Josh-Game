@@ -29,7 +29,11 @@
           const pool = (api.shouldRamp(2) && cfg.hardSets) ? cfg.hardSets : cfg.sets;
           const set = api.randItem(pool);
           const r = L.makeSort(set);
-          api.setPrompt(cfg.prompt, cfg.icons);
+          // A rotating multi-domain tile (science-sort runs alive/sink-float/
+          // plant-animal) names EACH round's question via the set's own prompt,
+          // so a sound-off child knows which sort this is; single-domain tiles
+          // just use the game's prompt.
+          api.setPrompt(set.prompt || cfg.prompt, set.icons || cfg.icons);
           api.speak();
           itemEl.textContent = r.item;
           itemEl.classList.remove("pop");

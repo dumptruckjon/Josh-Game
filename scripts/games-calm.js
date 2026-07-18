@@ -347,11 +347,14 @@
 
       const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
       const rocketEl = api.el("div", { class: "rocket-art art-fill", aria: { hidden: "true" }, html: (window.JoshArt && window.JoshArt.rocket) ? window.JoshArt.rocket() : "🚀" });
+      // A big live number so the countdown is VISIBLE (5→4→3→2→1→🚀), not only
+      // spoken — a non-reader can watch it drop.
+      const numEl = api.el("div", { class: "tc__num", aria: { hidden: "true" }, text: String(START) });
       const gauge = api.el("div", { class: "tc__dots" });
       const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " count down" } }, [players[0].emoji + " Count down"]);
       const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " count down" } }, [players[1].emoji + " Count down"]);
       const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
-      api.stage.append(turnEl, rocketEl, gauge, btns);
+      api.stage.append(turnEl, rocketEl, numEl, gauge, btns);
       const laneBtns = [p0, p1];
       // Start with all lights ON; each turn takes one away as we count down.
       for (let i = 0; i < START; i++) gauge.appendChild(api.el("span", { class: "tc__dot tc__dot--on" }));
@@ -368,6 +371,7 @@
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
         remaining -= 1;
         if (gauge.children[remaining]) gauge.children[remaining].classList.remove("tc__dot--on");
+        numEl.textContent = remaining > 0 ? String(remaining) : "🚀";
         api.say(remaining > 0 ? String(remaining) : "Blast off!");
         if (remaining <= 0) {
           rocketEl.classList.add("rocket-art--launch");

@@ -64,7 +64,7 @@
       { text: "亡羊补牢", blank: 3, wrong: ["门", "窗"] },
       { text: "对牛弹琴", blank: 3, wrong: ["鼓", "琵"] },
       { text: "马到成功", blank: 3, wrong: ["家", "名"] },
-      { text: "一石二鸟", blank: 3, wrong: ["兔", "鱼"] },
+      { text: "一箭双雕", blank: 3, wrong: ["鹰", "虎"] },
       { text: "拔苗助长", blank: 3, wrong: ["高", "大"] },
       { text: "半途而废", blank: 3, wrong: ["停", "退"] },
       { text: "雪中送炭", blank: 3, wrong: ["花", "衣"] },
@@ -116,10 +116,10 @@
     // ---- 🧮 Market items with honest prices (元) ----
     MARKET: [
       { name: "白菜", emoji: "🥬", price: 2 },
-      { name: "萝卜", emoji: "🥕", price: 3 },
+      { name: "胡萝卜", emoji: "🥕", price: 3 },
       { name: "苹果", emoji: "🍎", price: 5 },
       { name: "鸡蛋", emoji: "🥚", price: 4 },
-      { name: "馒头", emoji: "🥯", price: 1 },
+      { name: "玉米", emoji: "🌽", price: 1 },
       { name: "橘子", emoji: "🍊", price: 6 },
     ],
 
