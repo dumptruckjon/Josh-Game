@@ -909,6 +909,71 @@
       { hex: "#e23636", name: "red" }, { hex: "#2b6cff", name: "blue" }, { hex: "#38b000", name: "green" },
       { hex: "#f4c430", name: "yellow" }, { hex: "#c77dff", name: "purple" }, { hex: "#ff9f43", name: "orange" },
     ],
+
+    // ================= Road to 180 — Set 2, Wave 7 content =================
+    // Copy My Picture / Finish the Butterfly — 3×3 boolean patterns, 3-5 lit cells
+    // each, forming simple shapes (index 0..8 = row-major).
+    GRID_PATTERNS: [
+      [true, false, true, true, true, true, false, false, false],  // heart top (5)
+      [false, true, false, true, true, true, false, true, false],  // plus
+      [true, false, false, false, true, false, false, false, true], // back-slash
+      [true, false, true, false, false, false, true, false, true],  // 4 corners
+      [true, true, true, false, true, false, false, true, false],   // T
+      [false, false, true, false, true, false, true, false, false], // forward-slash
+    ],
+    // Little Letter Maker — LOWERCASE trace paths (c o s v w). Dot centres are %
+    // of the 292×430 trace box; geometry-tested (76px dots, no overlap, >=14px
+    // gaps) exactly like FU_PATH so a future nudge can't crowd two dots.
+    PATHS_LOWER: [
+      { letter: "c", dots: [{ x: 84, y: 16 }, { x: 24, y: 30 }, { x: 24, y: 72 }, { x: 84, y: 86 }] },
+      { letter: "o", dots: [{ x: 50, y: 8 }, { x: 86, y: 50 }, { x: 50, y: 90 }, { x: 14, y: 50 }] },
+      { letter: "s", dots: [{ x: 80, y: 14 }, { x: 34, y: 22 }, { x: 58, y: 50 }, { x: 30, y: 78 }, { x: 78, y: 86 }] },
+      { letter: "v", dots: [{ x: 16, y: 12 }, { x: 50, y: 86 }, { x: 84, y: 12 }] },
+      { letter: "w", dots: [{ x: 12, y: 14 }, { x: 32, y: 86 }, { x: 50, y: 42 }, { x: 68, y: 86 }, { x: 88, y: 14 }] },
+    ],
+    // Which Path Leads Home? — each trio is 3 polylines (hero left → house right);
+    // the generator picks the unbroken one, the game draws the others with a gap.
+    PATH_TRIOS: [
+      ["6,50 30,26 54,54 78,34 94,50", "6,50 34,64 58,44 82,64 94,50", "6,50 24,72 50,56 76,72 94,50"],
+      ["6,50 22,34 46,52 70,32 94,50", "6,50 30,66 54,48 78,66 94,50", "6,50 40,40 56,72 80,44 94,50"],
+    ],
+    // What Goes First? — ONLY physically-forced dressing orders (a truth test
+    // restates these). Judgment-call pairs (hat/scarf) are intentionally excluded.
+    DRESS_ORDER_PAIRS: [
+      { first: { emoji: "🧦", name: "sock" }, second: { emoji: "👟", name: "shoe" } },
+      { first: { emoji: "🩲", name: "underwear" }, second: { emoji: "👖", name: "pants" } },
+      { first: { emoji: "👕", name: "shirt" }, second: { emoji: "🧥", name: "coat" } },
+      { first: { emoji: "👖", name: "pants" }, second: { emoji: "🥾", name: "boots" } },
+    ],
+    // Who's Behind the Curtain? — each entry carries a SILHOUETTE class; the picker
+    // never shows two of the same class together (no look-alike ambiguity).
+    CURTAIN_POOL: [
+      { emoji: "🐶", name: "a puppy", silhouette: "quadruped" },
+      { emoji: "🐦", name: "a bird", silhouette: "flyer" },
+      { emoji: "🐟", name: "a fish", silhouette: "swimmer" },
+      { emoji: "🚗", name: "a car", silhouette: "vehicle" },
+      { emoji: "🌳", name: "a tree", silhouette: "plant" },
+      { emoji: "🧑", name: "a person", silhouette: "biped" },
+      { emoji: "🐢", name: "a turtle", silhouette: "quadruped" },
+      { emoji: "🦋", name: "a butterfly", silhouette: "flyer" },
+    ],
+    // Word Pairs (sight-word concentration) — visually DISTINCT words (a truth test
+    // asserts no two share their first two letters, so no near-form confusion).
+    WORD_PAIR_POOL: ["the", "you", "was", "are", "see", "and", "like"],
+    // Treasure Hunt — four scene spots + position words (each carries a direction
+    // icon). The named spot is the answer; the preposition is spoken flavor.
+    TREASURE_SPOTS: [
+      { emoji: "🌳", name: "the tree" },
+      { emoji: "🪨", name: "the rock" },
+      { emoji: "🪑", name: "the bench" },
+      { emoji: "🏠", name: "the little house" },
+    ],
+    PREPOSITIONS: [
+      { word: "under", icon: "⬇️" },
+      { word: "on top of", icon: "⬆️" },
+      { word: "behind", icon: "↩️" },
+      { word: "next to", icon: "↔️" },
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

@@ -1085,4 +1085,97 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 7 =================
+  // ---- Little Letter Maker (lowercase trace — letter-maker's sibling) ----
+  F.register({
+    id: "little-letters", icon: "✍️", title: "Little Letter Maker", skill: "lowercase writing [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, step = 0, dots = [];
+      const stage = api.el("div", { class: "trace__stage" });
+      const guide = api.el("div", { class: "lm__guide lm__guide--lower", aria: { hidden: "true" } });
+      stage.appendChild(guide);
+      api.stage.append(stage);
+      function newRound() {
+        const lp = api.randItem(C.PATHS_LOWER);
+        step = 0; dots = [];
+        guide.textContent = lp.letter;
+        api.setPrompt("Trace the little letter — tap the dots in order!", ["👆", "🔡", "✍️"]);
+        api.speak(); api.say("Trace little " + lp.letter);
+        [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "trace__line"); svg.setAttribute("viewBox", "0 0 100 100"); svg.setAttribute("preserveAspectRatio", "none");
+        const poly = document.createElementNS(svgNS, "polyline");
+        poly.setAttribute("points", lp.dots.map((p) => p.x + "," + p.y).join(" "));
+        poly.setAttribute("fill", "none"); poly.setAttribute("stroke", "#b7c6d6"); poly.setAttribute("stroke-width", "2.5"); poly.setAttribute("stroke-dasharray", "5 4"); poly.setAttribute("stroke-linecap", "round");
+        svg.appendChild(poly); stage.appendChild(svg);
+        lp.dots.forEach((p, i) => {
+          const dot = api.el("button", {
+            class: "trace__dot tap" + (i === 0 ? " trace__dot--start" : ""),
+            type: "button", dataset: i === 0 ? { correct: "1" } : {}, aria: { label: "dot " + (i + 1) },
+          }, [String(i + 1)]);
+          dot.style.left = p.x + "%"; dot.style.top = p.y + "%";
+          dot.addEventListener("click", () => {
+            if (i === step) {
+              dot.classList.add("trace__dot--done"); delete dot.dataset.correct; step += 1;
+              if (step >= lp.dots.length) { round += 1; if (round >= ROUNDS) api.win({ say: "You wrote your little letters!" }); else { api.roundWin(); newRound(); } }
+              else if (dots[step]) dots[step].dataset.correct = "1";
+            } else api.tryAgain(dot);
+          });
+          stage.appendChild(dot); dots.push(dot);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Word Pairs (sight-word concentration — trains visual word-form) ----
+  F.register({
+    id: "word-pairs", icon: "🎴", title: "Word Pairs", skill: "sight-word memory [W]",
+    start(api) {
+      const C = api.C;
+      const PAIRS = 4;
+      const picks = api.shuffle((C.WORD_PAIR_POOL || []).slice()).slice(0, PAIRS);
+      const deck = api.shuffle(picks.flatMap((w) => [{ key: w, face: w }, { key: w, face: w }]));
+      let first = null, lock = false, matched = 0;
+      const cards = [];
+      const grid = api.el("div", { class: "memory-grid" });
+      api.stage.append(grid);
+      api.setPrompt("Find the matching words!", ["🔤", "🧠", "✌️"]);
+      api.speak();
+      function syncFlags() {
+        cards.forEach((c) => delete c.dataset.correct);
+        if (first) {
+          const m = cards.find((c) => c !== first && !c.dataset.matched && c.dataset.key === first.dataset.key);
+          if (m) m.dataset.correct = "1";
+        } else {
+          const rem = cards.filter((c) => !c.dataset.matched);
+          if (rem.length) { const k = rem[0].dataset.key; rem.filter((c) => c.dataset.key === k).forEach((c) => (c.dataset.correct = "1")); }
+        }
+      }
+      function flip(card) {
+        if (lock || card.dataset.matched || card === first || card.classList.contains("flipped")) return;
+        card.classList.add("flipped"); card.textContent = card.__face; api.say(card.__face);
+        if (!first) { first = card; syncFlags(); return; }
+        if (card.dataset.key === first.dataset.key) {
+          card.dataset.matched = "1"; first.dataset.matched = "1"; card.classList.add("matched"); first.classList.add("matched");
+          first = null; matched += 1; syncFlags(); api.roundWin();
+          if (matched === PAIRS) api.win({ say: "You matched every word!" });
+        } else {
+          lock = true; const a = first; first = null;
+          setTimeout(() => { a.classList.remove("flipped"); a.textContent = ""; card.classList.remove("flipped"); card.textContent = ""; lock = false; syncFlags(); }, 700);
+        }
+      }
+      deck.forEach((cd) => {
+        const card = api.el("button", { class: "memory-card word-card tap", type: "button", dataset: { key: cd.key }, aria: { label: "word card" } }, [""]);
+        card.__face = cd.face;
+        card.addEventListener("click", () => flip(card));
+        grid.appendChild(card); cards.push(card);
+      });
+      syncFlags();
+    },
+  });
 })();

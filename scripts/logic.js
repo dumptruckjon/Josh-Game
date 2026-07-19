@@ -1491,6 +1491,97 @@
     const target = ask === "biggest" ? Math.max(...sizes) : Math.min(...sizes);
     return { sizes, ask, answerIdx: sizes.indexOf(target) };
   }
+  // ================= Road to 180 — Set 2, Wave 7 logic =================
+  // Copy My Picture — pick a target 3×3 pattern (bool[9]) to recreate (toggle B).
+  function makeCopyGrid(patterns, rng, last, cells) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * patterns.length);
+    if (patterns.length > 1 && idx === last) idx = (idx + 1) % patterns.length;
+    let model = patterns[idx].slice();
+    // peek-copy passes a cell budget (2|3): trim lit cells to the smallest few.
+    if (cells) {
+      const lit = model.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+      if (lit.length > cells) {
+        const keep = new Set(sample(lit, cells, rng));
+        model = model.map((v, i) => v && keep.has(i));
+      }
+    }
+    return { idx, model };
+  }
+  // Finish the Butterfly — the play half is the mirror of the shown half across
+  // an axis ("row" = the horizontal fold used by the vertical stack layout).
+  function makeMirrorHalf(patterns, rng, last, axis) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * patterns.length);
+    if (patterns.length > 1 && idx === last) idx = (idx + 1) % patterns.length;
+    const left = patterns[idx].slice();
+    const target = new Array(9);
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const sr = axis === "row" ? 2 - r : r;
+        const sc = axis === "col" ? 2 - c : c;
+        target[r * 3 + c] = left[sr * 3 + sc];
+      }
+    }
+    return { idx, left, target };
+  }
+  // Will It Fit? — exactly ONE item is smaller than the box; the other two are at
+  // least box×1.3 (never a judgment call).
+  function makeFitsInside(rng, last) {
+    const rnd = rng || Math.random;
+    const small = 0.5 + rnd() * 0.32; // 0.50 – 0.82  (< 1)
+    const big1 = 1.3 + rnd() * 0.35;  // 1.30 – 1.65  (>= box × 1.3)
+    const big2 = 1.3 + rnd() * 0.35;
+    const items = shuffle([
+      { scale: small, correct: true },
+      { scale: big1, correct: false },
+      { scale: big2, correct: false },
+    ], rng);
+    return { boxScale: 1, items };
+  }
+  // Which Path Leads Home? — a content-authored polyline trio; the generator only
+  // picks which slot is the unbroken one (the game draws the rest with a gap).
+  function makeWhichPath(trios, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * trios.length);
+    if (trios.length > 1 && idx === last) idx = (idx + 1) % trios.length;
+    return { idx, trio: trios[idx], answerIdx: Math.floor(rnd() * trios[idx].length) };
+  }
+  // Who's Behind the Curtain? — the answer + 2 distractors, each a DISTINCT
+  // silhouette class (never two look-alike shapes together — shadow-match lesson).
+  function makeCurtainPeek(pool, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * pool.length);
+    if (pool.length > 1 && idx === last) idx = (idx + 1) % pool.length;
+    const answer = pool[idx];
+    const used = new Set([answer.silhouette]);
+    const picked = [];
+    for (const o of shuffle(pool.filter((_, i) => i !== idx), rng)) {
+      if (!used.has(o.silhouette)) { picked.push(o); used.add(o.silhouette); }
+      if (picked.length >= 2) break;
+    }
+    const choices = shuffle([Object.assign({ correct: true }, answer), ...picked.map((p) => Object.assign({ correct: false }, p))], rng);
+    return { idx, answer, choices };
+  }
+  // What Goes First? — a physically-forced clothing order; items shown shuffled.
+  function makeDressOrder(pairs, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * pairs.length);
+    if (pairs.length > 1 && idx === last) idx = (idx + 1) % pairs.length;
+    const pair = pairs[idx];
+    const items = rnd() < 0.5 ? [pair.first, pair.second] : [pair.second, pair.first];
+    return { idx, pair, items, firstIdx: items.indexOf(pair.first) };
+  }
+  // Treasure Hunt — pick an as-yet-UNUSED spot for this clue (so a 3-clue arc
+  // never repeats a zone) plus a position word for flavor. The named spot is the
+  // answer regardless of the preposition.
+  function makeTreasureClue(spots, prepositions, rng, used) {
+    const rnd = rng || Math.random;
+    const avail = spots.map((_, i) => i).filter((i) => !used.includes(i));
+    const correctIdx = avail[Math.floor(rnd() * avail.length)];
+    const preposition = prepositions[Math.floor(rnd() * prepositions.length)];
+    return { spot: spots[correctIdx], preposition, correctIdx };
+  }
 
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
@@ -1502,6 +1593,8 @@
     makeWhoEats, makePartPick, makeHelperTool,
     makeCoinMix, makeOrdinal, makeAboutFive, makeGraphPick, makeGlassPick,
     makePartnerUp, makeCategoryCount, makeSizePick,
+    makeCopyGrid, makeMirrorHalf, makeFitsInside, makeWhichPath, makeCurtainPeek, makeDressOrder,
+    makeTreasureClue,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,

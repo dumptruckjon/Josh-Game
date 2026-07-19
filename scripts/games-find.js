@@ -948,4 +948,40 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 7 =================
+  // ---- Treasure Hunt! (position words — a 3-clue arc; mechanic F-ish) ----
+  F.register({
+    id: "treasure-map", icon: "🗺️", title: "Treasure Hunt!", skill: "position words + listening [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const SPOTS = api.C.TREASURE_SPOTS || [];
+      const PREP = api.C.PREPOSITIONS || [];
+      const chest = api.el("div", { class: "treasure__chest", aria: { hidden: "true" } }, ["🗺️"]);
+      const grid = api.el("div", { class: "choices choices--4 treasure__grid" });
+      api.stage.append(chest, grid);
+      let used = [], shards = 0, cur = null;
+      const btns = SPOTS.map((s, i) => {
+        const b = api.el("button", { class: "choice treasure__spot tap", type: "button", text: s.emoji, aria: { label: s.name } });
+        b.addEventListener("click", () => {
+          if (!cur || i !== cur.correctIdx || !b.dataset.correct) { api.tryAgain(b); return; }
+          delete b.dataset.correct; b.classList.add("treasure__spot--dug");
+          chest.appendChild(api.el("span", { class: "treasure__shard pop", aria: { hidden: "true" } }, ["🧩"]));
+          used.push(i); shards += 1;
+          api.say("You found a piece of the map!");
+          if (shards >= 3) { chest.textContent = "🧰"; chest.classList.add("pop"); api.win({ say: "X marks the spot — you found the treasure!" }); }
+          else nextClue();
+        });
+        return b;
+      });
+      btns.forEach((b) => grid.appendChild(b));
+      function nextClue() {
+        cur = L.makeTreasureClue(SPOTS, PREP, undefined, used);
+        btns.forEach((b, i) => { if (i === cur.correctIdx) b.dataset.correct = "1"; else delete b.dataset.correct; });
+        api.setPrompt("Look " + cur.preposition.word + " " + cur.spot.name + "!", [cur.preposition.icon, cur.spot.emoji, "🔍"]);
+        api.speak(); api.say("Look " + cur.preposition.word + " " + cur.spot.name + "!");
+      }
+      nextClue();
+    },
+  });
 })();

@@ -1048,4 +1048,233 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 7 =================
+  // Shared MECHANIC-B toggle-to-match engine (copy-grid, mirror-half, peek-copy).
+  // Render a 9-cell play grid; EVERY cell whose lit-state != the model is flagged
+  // data-correct (multi-flag is contract-legal — the harness taps the first). A
+  // tap on a differing cell lights it to match and unflags; a tap on an
+  // already-matching cell is a gentle no-op bump (progress can never be undone —
+  // no-fail). Zero flagged → onDone(). Cells only ever move TOWARD the model.
+  function toggleGrid(api, gridEl, model, onDone) {
+    gridEl.innerHTML = "";
+    let done = false;
+    const cells = model.map((want, i) => {
+      const b = api.el("button", { class: "choice tg__cell tap", type: "button", aria: { label: "square " + (i + 1) } });
+      b.__lit = false; b.__want = want;
+      b.addEventListener("click", () => {
+        if (b.__lit === b.__want) { api.tryAgain(b); return; } // already right — bump
+        b.__lit = b.__want; b.classList.toggle("tg__cell--on", b.__lit);
+        refresh();
+      });
+      gridEl.appendChild(b); return b;
+    });
+    function refresh() {
+      let anyDiff = false;
+      cells.forEach((b) => {
+        if (b.__lit !== b.__want) { b.dataset.correct = "1"; anyDiff = true; } else delete b.dataset.correct;
+      });
+      if (!anyDiff && !done) { done = true; onDone(); }
+    }
+    refresh();
+    return cells;
+  }
+  function drawPatternInto(api, el, m, cls) {
+    el.innerHTML = "";
+    m.forEach((v) => el.appendChild(api.el("span", { class: (cls || "cg__cell") + (v ? " " + (cls || "cg__cell") + "--on" : "") })));
+  }
+
+  // ---- Copy My Picture (toggle-to-match a model 3×3) ----
+  F.register({
+    id: "copy-grid", icon: "🖼️", title: "Copy My Picture", skill: "visual copying [W]",
+    start(api) {
+      const C = api.C; const ROUNDS = 3; let round = 0, last = -1;
+      const model = api.el("div", { class: "cg__model", aria: { hidden: "true" } });
+      const label = api.el("div", { class: "cg__label" }, ["Copy it below 👇"]);
+      const grid = api.el("div", { class: "cg__grid" });
+      api.stage.append(model, label, grid);
+      function newRound() {
+        const r = L.makeCopyGrid(C.GRID_PATTERNS, undefined, last); last = r.idx;
+        drawPatternInto(api, model, r.model);
+        api.setPrompt("Copy the picture — light up the same squares!", ["🖼️", "👆", "😊"]);
+        api.speak();
+        toggleGrid(api, grid, r.model, () => {
+          [...grid.children].forEach((b) => b.classList.add("cg__cell--win"));
+          api.say("You copied it!");
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "You're a great copier!" }); else { api.roundWin(); setTimeout(newRound, 550); }
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Finish the Butterfly (mirror-to-match — toggle B, horizontal fold) ----
+  F.register({
+    id: "mirror-half", icon: "🦋", title: "Finish the Butterfly", skill: "symmetry [P]",
+    start(api) {
+      const C = api.C; const ROUNDS = 3; let round = 0, last = -1;
+      const wing = api.el("div", { class: "cg__model", aria: { hidden: "true" } });
+      const fold = api.el("div", { class: "mh__fold", aria: { hidden: "true" } }, ["🦋"]);
+      const grid = api.el("div", { class: "cg__grid" });
+      api.stage.append(wing, fold, grid);
+      function newRound() {
+        const r = L.makeMirrorHalf(C.GRID_PATTERNS, undefined, last, "row"); last = r.idx;
+        drawPatternInto(api, wing, r.left);
+        api.setPrompt("Finish the butterfly — make the other half match!", ["🦋", "🪞", "👆"]);
+        api.speak();
+        toggleGrid(api, grid, r.target, () => {
+          [...grid.children].forEach((b) => b.classList.add("cg__cell--win"));
+          api.say("A whole butterfly!");
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "Beautiful butterflies!" }); else { api.roundWin(); setTimeout(newRound, 550); }
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Peek & Copy (reveal C + toggle B — self-paced memory) ----
+  F.register({
+    id: "peek-copy", icon: "👀", title: "Peek & Copy", skill: "visual memory [W]",
+    start(api) {
+      const C = api.C; const ROUNDS = 3; let round = 0, last = -1;
+      const model = api.el("div", { class: "cg__model pc__model pc__hidden", aria: { hidden: "true" } });
+      const cap = api.el("button", { class: "pc__cap tap", type: "button", aria: { label: "peek under the cap" } }, ["🧢 Peek"]);
+      const grid = api.el("div", { class: "cg__grid" });
+      api.stage.append(model, cap, grid);
+      function newRound() {
+        const cells = (api.shouldRamp && api.shouldRamp(2)) ? 3 : 2;
+        const r = L.makeCopyGrid(C.GRID_PATTERNS, undefined, last, cells); last = r.idx;
+        drawPatternInto(api, model, r.model);
+        model.classList.add("pc__hidden");
+        api.setPrompt("Peek at the picture, then copy it!", ["👀", "🧢", "👆"]);
+        api.speak();
+        cap.onclick = () => { model.classList.toggle("pc__hidden"); if (api.tickPlay) api.tickPlay(); };
+        toggleGrid(api, grid, r.model, () => {
+          [...grid.children].forEach((b) => b.classList.add("cg__cell--win"));
+          api.say("You remembered it!");
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "Great memory!" }); else { api.roundWin(); setTimeout(newRound, 550); }
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Will It Fit? (relational size — one item < box, two clearly bigger) ----
+  F.register({
+    id: "fits-inside", icon: "📦", title: "Will It Fit?", skill: "relational size [W]",
+    start(api) {
+      const ROUNDS = 4; let round = 0;
+      const TOYS = ["🧸", "⚽", "🚗", "🎈", "🪀", "🦖", "🚂"];
+      const box = api.el("div", { class: "fit__box", aria: { hidden: "true" } }, ["📦"]);
+      const row = api.el("div", { class: "choices choices--3" });
+      api.stage.append(box, row);
+      function newRound() {
+        const r = L.makeFitsInside();
+        const toy = api.randItem(TOYS);
+        api.setPrompt("Which toy fits INSIDE the box?", ["📦", "🤔", "👉"]);
+        api.speak();
+        row.innerHTML = "";
+        r.items.forEach((it) => {
+          const b = api.el("button", {
+            class: "choice fit__toy tap", type: "button",
+            dataset: it.correct ? { correct: "1" } : {}, aria: { label: "toy" },
+          }, [api.el("span", { class: "fit__glyph", style: { fontSize: (1.4 + it.scale * 1.7) + "rem" }, aria: { hidden: "true" } }, [toy])]);
+          b.addEventListener("click", () => {
+            if (!it.correct) { api.tryAgain(b); return; }
+            b.classList.add("fit__toy--in");
+            box.classList.remove("fit__box--open"); void box.offsetWidth; box.classList.add("fit__box--open");
+            api.say("It fits inside!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know what fits!" }); else { api.roundWin(); newRound(); }
+          });
+          row.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Which Path Leads Home? (visual continuity — mechanic F) ----
+  F.register({
+    id: "which-path", icon: "🛤️", title: "Which Path Leads Home?", skill: "visual continuity [W]",
+    start(api) {
+      const C = api.C; const ROUNDS = 3; let round = 0, last = -1;
+      const paths = api.el("div", { class: "wp__paths" });
+      api.stage.append(paths);
+      function pathSVG(points, broken) {
+        const pts = points.split(" ").map((p) => p.split(",").map(Number));
+        let svg = '<svg viewBox="0 0 100 60" preserveAspectRatio="none" class="wp__svg" aria-hidden="true">';
+        if (broken) {
+          const mid = Math.floor(pts.length / 2);
+          const a = pts.slice(0, mid).map((p) => p.join(",")).join(" ");
+          const b = pts.slice(mid + 1).map((p) => p.join(",")).join(" ");
+          svg += '<polyline points="' + a + '" fill="none" stroke="#a9773e" stroke-width="5" stroke-linecap="round"/>';
+          svg += '<polyline points="' + b + '" fill="none" stroke="#a9773e" stroke-width="5" stroke-linecap="round"/>';
+          const m = pts[mid]; svg += '<text x="' + (m[0] - 4) + '" y="' + (m[1] * 0.6 + 4) + '" font-size="11">🌊</text>';
+        } else {
+          svg += '<polyline points="' + points + '" fill="none" stroke="#a9773e" stroke-width="5" stroke-linecap="round"/>';
+        }
+        return svg + "</svg>";
+      }
+      function newRound() {
+        const r = L.makeWhichPath(C.PATH_TRIOS, undefined, last); last = r.idx;
+        api.setPrompt("Which path leads home with no river break?", ["🕷️", "🛤️", "🏠"]);
+        api.speak();
+        paths.innerHTML = "";
+        r.trio.forEach((pts, i) => {
+          const b = api.el("button", {
+            class: "choice wp__path tap", type: "button",
+            html: '<span class="wp__hero">🕷️</span>' + pathSVG(pts, i !== r.answerIdx) + '<span class="wp__home">🏠</span>',
+            dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: "path" },
+          });
+          b.addEventListener("click", () => {
+            if (i !== r.answerIdx) { api.tryAgain(b); api.say("Oh no, a river break!"); return; }
+            b.classList.add("wp__path--go");
+            api.say("That path leads all the way home!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You found the way home!" }); else { api.roundWin(); newRound(); }
+          });
+          paths.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Who's Behind the Curtain? (progressive reveal C, blind-solvable) ----
+  F.register({
+    id: "curtain-peek", icon: "🎭", title: "Who's Behind the Curtain?", skill: "partial-info inference [W]",
+    start(api) {
+      const C = api.C; const ROUNDS = 3; let round = 0, last = -1;
+      const theater = api.el("div", { class: "curtain__stage", aria: { hidden: "true" } });
+      const opener = api.el("button", { class: "curtain__open tap", type: "button", aria: { label: "open the curtain a little" } }, ["🎭 Open a little"]);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(theater, opener, chips);
+      function newRound() {
+        const r = L.makeCurtainPeek(C.CURTAIN_POOL, undefined, last); last = r.idx;
+        let step = 0;
+        theater.className = "curtain__stage curtain__stage--s0";
+        theater.innerHTML = '<span class="curtain__who" aria-hidden="true">' + r.answer.emoji + '</span>';
+        api.setPrompt("Who's behind the curtain? Peek and guess!", ["🎭", "👀", "🤔"]);
+        api.speak();
+        opener.onclick = () => { if (step < 3) { step += 1; theater.className = "curtain__stage curtain__stage--s" + step; if (api.tickPlay) api.tickPlay(); } };
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            theater.className = "curtain__stage curtain__stage--s3";
+            api.say((step <= 1 ? "You knew from just a peek! It's " : "Yes! It's ") + r.answer.name + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You're a great guesser!" }); else { api.roundWin(); setTimeout(newRound, 500); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

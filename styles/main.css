@@ -1910,3 +1910,67 @@ body.hl-mode {
   .ord__animal--hop, .splat__blob { animation: none !important; }
   .catcount__item { transition: none !important; }
 }
+
+/* ================= Road to 180 — Set 2, Wave 7 ================= */
+/* Toggle-to-match grids (Copy My Picture / Finish the Butterfly / Peek & Copy). */
+.cg__model { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 120px; margin: 8px auto 6px; }
+.cg__model .cg__cell { aspect-ratio: 1 / 1; border-radius: 8px; background: #eef2f7; border: 2px solid rgba(120,170,255,0.25); }
+.cg__model .cg__cell--on { background: #5a3fd6; border-color: #5a3fd6; }
+.cg__label { text-align: center; font-weight: 800; color: #5a3fd6; margin-bottom: 8px; }
+.cg__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 340px; margin: 0 auto; }
+.tg__cell { aspect-ratio: 1 / 1; min-height: 0; border-radius: 16px; }
+.tg__cell--on { background: linear-gradient(180deg, #7a5cd6, #5a3fd6) !important; border-color: #5a3fd6 !important; }
+.cg__cell--win { box-shadow: 0 0 0 3px #7be08a inset; }
+.mh__fold { text-align: center; font-size: 1.8rem; border-top: 3px dashed #c9a0e0; margin: 6px auto 8px; width: 60%; line-height: 0.1; }
+
+/* Peek & Copy — the model hides under a cap you tap to peek. */
+.pc__model { transition: opacity 0.2s; }
+.pc__hidden { opacity: 0; }
+.pc__cap { display: block; margin: 0 auto 10px; width: 170px; min-height: 78px; font-size: 1.2rem; font-weight: 800; border-radius: 18px; border: 2px solid rgba(120,170,255,0.3); background: linear-gradient(180deg,#fff,#eef4ff); }
+
+/* Will It Fit? — a fixed box + toys at clearly different sizes. */
+.fit__box { text-align: center; font-size: clamp(3.4rem, 20vw, 5rem); margin: 6px 0 10px; }
+.fit__box--open { animation: pop 400ms ease-out; }
+.fit__toy { display: flex; align-items: center; justify-content: center; min-height: 96px; }
+.fit__toy--in { opacity: 0.4; }
+.fit__glyph { line-height: 1; }
+
+/* Which Path Leads Home? — three full-width path rows. */
+.wp__paths { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 360px; margin: 6px auto; }
+.wp__path { display: flex; align-items: center; gap: 6px; min-height: 84px; padding: 6px 10px; }
+.wp__hero, .wp__home { font-size: 1.8rem; }
+.wp__svg { flex: 1 1 auto; height: 56px; }
+.wp__path--go { background: #eafbe8; border-color: #7be08a; }
+
+/* Who's Behind the Curtain? — progressive bottom-up reveal. */
+.curtain__stage { width: 150px; height: 190px; margin: 6px auto 10px; border-radius: 16px 16px 8px 8px; background: linear-gradient(180deg,#7a1f2b,#54121a); display: flex; align-items: flex-end; justify-content: center; overflow: hidden; box-shadow: inset 0 0 0 4px #b8860b; }
+.curtain__who { font-size: 6rem; line-height: 1; transition: clip-path 0.25s ease; }
+.curtain__stage--s0 .curtain__who { clip-path: inset(100% 0 0 0); }
+.curtain__stage--s1 .curtain__who { clip-path: inset(68% 0 0 0); }
+.curtain__stage--s2 .curtain__who { clip-path: inset(42% 0 0 0); }
+.curtain__stage--s3 .curtain__who { clip-path: inset(0 0 0 0); }
+.curtain__open { display: block; margin: 0 auto 10px; width: 190px; min-height: 78px; font-size: 1.2rem; font-weight: 800; border-radius: 18px; border: 2px solid rgba(120,170,255,0.3); background: linear-gradient(180deg,#fff,#f6eeff); }
+
+/* Little Letter Maker — a lowercase ghost guide. */
+.lm__guide--lower { text-transform: lowercase; }
+
+/* Word Pairs — sight-word cards (smaller type than single letters). */
+.word-card.flipped { font-size: clamp(1.1rem, 6vw, 1.6rem); font-weight: 800; letter-spacing: 0; }
+
+/* What Goes First? — a friend + two clothing choices. */
+.dress__friend { width: 120px; height: 120px; margin: 4px auto 8px; }
+.dress__friend svg { width: 100%; height: 100%; }
+.dress__item { font-size: clamp(2.4rem, 13vw, 3.2rem); }
+.dress__item--on { background: #eafbe8; border-color: #7be08a; }
+
+/* Treasure Hunt! — the map/chest + four scene spots. */
+.treasure__chest { text-align: center; font-size: clamp(2.6rem, 14vw, 3.6rem); min-height: 3rem; margin: 4px 0 10px; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.treasure__shard { font-size: 1.6rem; }
+.treasure__grid { max-width: 320px; margin: 0 auto; }
+.treasure__spot { font-size: clamp(2.2rem, 12vw, 3rem); }
+.treasure__spot--dug { background: #fff2c9; border-color: #f0b860; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fit__box--open { animation: none !important; }
+  .pc__model, .curtain__who { transition: none !important; }
+}

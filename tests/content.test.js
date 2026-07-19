@@ -860,3 +860,61 @@ test("W6 splat colors: each has a hex + a spoken color word; names unique", () =
   for (const c of content.SPLAT_COLORS) { assert.match(c.hex, /^#[0-9a-f]{6}$/i); assert.ok(c.name); }
   assert.equal(new Set(content.SPLAT_COLORS.map((c) => c.name)).size, content.SPLAT_COLORS.length, "color words unique");
 });
+
+// ================= Road to 180 — Set 2, Wave 7 truth tables =================
+test("W7 grid patterns: six 3×3 booleans, each with 3-5 lit cells", () => {
+  assert.equal(content.GRID_PATTERNS.length, 6);
+  for (const p of content.GRID_PATTERNS) {
+    assert.equal(p.length, 9);
+    const lit = p.filter((v) => v).length;
+    assert.ok(lit >= 3 && lit <= 5, "a simple shape uses 3-5 cells");
+  }
+});
+test("W7 lowercase paths (c o s v w): dots tappable — no overlap, >=14px gaps at 320px", () => {
+  const W = 292, H = 430, SIZE = 76, MIN_GAP = 14;
+  assert.deepEqual(content.PATHS_LOWER.map((p) => p.letter).sort(), ["c", "o", "s", "v", "w"]);
+  for (const p of content.PATHS_LOWER) {
+    const boxes = p.dots.map((d) => {
+      assert.ok(d.x >= 8 && d.x <= 92 && d.y >= 8 && d.y <= 92, p.letter + " dot centre inside the box");
+      const cx = (d.x / 100) * W, cy = (d.y / 100) * H;
+      return { x: cx - SIZE / 2, y: cy - SIZE / 2, r: cx + SIZE / 2, b: cy + SIZE / 2 };
+    });
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], c = boxes[j];
+      const ox = Math.min(a.r, c.r) - Math.max(a.x, c.x), oy = Math.min(a.b, c.b) - Math.max(a.y, c.y);
+      assert.ok(!(ox > 1 && oy > 1), p.letter + " dots " + (i + 1) + "/" + (j + 1) + " overlap");
+      if (ox > 4) assert.ok(Math.max(a.y, c.y) - Math.min(a.b, c.b) >= MIN_GAP, p.letter + " dots too close (v)");
+      else if (oy > 4) assert.ok(Math.max(a.x, c.x) - Math.min(a.r, c.r) >= MIN_GAP, p.letter + " dots too close (h)");
+    }
+  }
+});
+test("W7 path trios: each layout is 3 polyline strings of points", () => {
+  for (const trio of content.PATH_TRIOS) {
+    assert.equal(trio.length, 3);
+    for (const poly of trio) assert.ok(/^[\d., ]+$/.test(poly) && poly.split(" ").length >= 3, "a path is >=3 points");
+  }
+});
+test("W7 dress order: only physically-forced pairs, each with emoji+name", () => {
+  for (const p of content.DRESS_ORDER_PAIRS) {
+    for (const it of [p.first, p.second]) { assert.ok(it.emoji && it.name); }
+    assert.notEqual(p.first.name, p.second.name);
+  }
+});
+test("W7 curtain pool: >=3 distinct silhouettes; emojis unique", () => {
+  assert.ok(content.CURTAIN_POOL.length >= 6);
+  assert.ok(new Set(content.CURTAIN_POOL.map((c) => c.silhouette)).size >= 3, "need >=3 silhouette classes for 3 distinct choices");
+  assert.equal(new Set(content.CURTAIN_POOL.map((c) => c.emoji)).size, content.CURTAIN_POOL.length, "emojis unique");
+});
+test("W7 word pairs: real sight words; no two share their first TWO letters", () => {
+  const pool = content.WORD_PAIR_POOL;
+  assert.ok(pool.length >= 6);
+  for (const w of pool) assert.ok(content.SIGHT_WORDS.includes(w), w + " must be a real sight word");
+  const prefixes = pool.map((w) => w.slice(0, 2));
+  assert.equal(new Set(prefixes).size, prefixes.length, "no two words share their first two letters (no near-form confusion)");
+});
+test("W7 treasure: 4 spots + position words with direction icons", () => {
+  assert.equal(content.TREASURE_SPOTS.length, 4);
+  for (const s of content.TREASURE_SPOTS) assert.ok(s.emoji && s.name);
+  assert.ok(content.PREPOSITIONS.length >= 3);
+  for (const p of content.PREPOSITIONS) assert.ok(p.word && p.icon);
+});

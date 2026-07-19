@@ -1234,4 +1234,40 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 7 =================
+  // ---- What Goes First? (practical-life sequencing — physically-forced orders) ----
+  F.register({
+    id: "dress-order", icon: "🧦", title: "What Goes First?", skill: "getting-dressed order [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, last = -1;
+      const friendEl = api.el("div", { class: "dress__friend art-fill", aria: { hidden: "true" } });
+      const two = api.el("div", { class: "choices choices--2" });
+      api.stage.append(friendEl, two);
+      const spec = (api.friend() || {}).art;
+      friendEl.innerHTML = (spec && window.JoshArt && window.JoshArt.friend) ? window.JoshArt.friend(spec) : "🧑";
+      function newRound() {
+        const r = L.makeDressOrder(api.C.DRESS_ORDER_PAIRS, undefined, last); last = r.idx;
+        api.setPrompt("Which one goes on FIRST?", ["🧦", "1️⃣", "👉"]);
+        api.speak(); api.say("Which one goes on first?");
+        two.innerHTML = "";
+        r.items.forEach((it, i) => {
+          const b = api.el("button", {
+            class: "choice dress__item tap", type: "button", text: it.emoji,
+            dataset: i === r.firstIdx ? { correct: "1" } : {}, aria: { label: it.name },
+          });
+          b.addEventListener("click", () => {
+            if (i !== r.firstIdx) { api.tryAgain(b); api.say("The " + r.pair.first.name + " goes on first!"); return; }
+            b.classList.add("dress__item--on");
+            api.say(r.pair.first.name + " first, then " + r.pair.second.name + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know how to get dressed!" }); else { api.roundWin(); newRound(); }
+          });
+          two.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

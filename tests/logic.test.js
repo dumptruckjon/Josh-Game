@@ -1657,3 +1657,85 @@ test("makeSizePick: 7 distinct sizes; answer is biggest/tiniest as asked", () =>
     last = r.ask;
   }
 });
+
+// ================= Road to 180 — Set 2, Wave 7 logic =================
+test("makeCopyGrid: model is a bool[9] from the pool; cell budget trims lit count", () => {
+  const rng = mulberry32(430); let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeCopyGrid(content.GRID_PATTERNS, rng, last);
+    assert.equal(r.model.length, 9);
+    assert.ok(r.model.some((v) => v), "a model has at least one lit cell");
+    // budget: trim to <= cells
+    const r2 = L.makeCopyGrid(content.GRID_PATTERNS, rng, -1, 2);
+    assert.ok(r2.model.filter((v) => v).length <= 2, "cell budget caps lit cells");
+    last = r.idx;
+  }
+});
+test("makeMirrorHalf: target is the exact row-mirror (and col-mirror) of left", () => {
+  const rng = mulberry32(431);
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeMirrorHalf(content.GRID_PATTERNS, rng, -1, "row");
+    for (let rr = 0; rr < 3; rr++) for (let cc = 0; cc < 3; cc++) {
+      assert.equal(r.target[rr * 3 + cc], r.left[(2 - rr) * 3 + cc], "row-mirror math");
+    }
+    const rc = L.makeMirrorHalf(content.GRID_PATTERNS, rng, -1, "col");
+    for (let rr = 0; rr < 3; rr++) for (let cc = 0; cc < 3; cc++) {
+      assert.equal(rc.target[rr * 3 + cc], rc.left[rr * 3 + (2 - cc)], "col-mirror math");
+    }
+  }
+});
+test("makeFitsInside: exactly one item is < box; the others are >= box×1.3", () => {
+  const rng = mulberry32(432);
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeFitsInside(rng);
+    const correct = r.items.filter((it) => it.correct);
+    assert.equal(correct.length, 1);
+    assert.ok(correct[0].scale < r.boxScale, "the fitting toy is smaller than the box");
+    for (const it of r.items) if (!it.correct) assert.ok(it.scale >= r.boxScale * 1.3, "non-fitting toys are clearly bigger (no judgment call)");
+  }
+});
+test("makeWhichPath: answerIdx is a valid slot of the chosen trio", () => {
+  const rng = mulberry32(433); let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeWhichPath(content.PATH_TRIOS, rng, last);
+    assert.ok(r.answerIdx >= 0 && r.answerIdx < r.trio.length);
+    assert.ok(content.PATH_TRIOS.includes(r.trio));
+    last = r.idx;
+  }
+});
+test("makeCurtainPeek: 3 choices, all DISTINCT silhouettes, one correct = answer", () => {
+  const rng = mulberry32(434); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeCurtainPeek(content.CURTAIN_POOL, rng, last);
+    assert.equal(r.choices.length, 3);
+    assert.equal(new Set(r.choices.map((c) => c.silhouette)).size, 3, "no two look-alike silhouettes together");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].emoji, r.answer.emoji);
+    last = r.idx;
+  }
+});
+test("makeDressOrder: firstIdx points at the physically-first item", () => {
+  const rng = mulberry32(435); let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeDressOrder(content.DRESS_ORDER_PAIRS, rng, last);
+    assert.equal(r.items.length, 2);
+    assert.equal(r.items[r.firstIdx], r.pair.first, "firstIdx marks pair.first");
+    assert.ok(r.items.includes(r.pair.second));
+    last = r.idx;
+  }
+});
+test("makeTreasureClue: the answer zone is always one not yet used this arc", () => {
+  const rng = mulberry32(436);
+  for (let i = 0; i < 300; i++) {
+    const used = [];
+    for (let k = 0; k < 3; k++) {
+      const r = L.makeTreasureClue(content.TREASURE_SPOTS, content.PREPOSITIONS, rng, used);
+      assert.ok(!used.includes(r.correctIdx), "clue picks an unused zone");
+      assert.equal(content.TREASURE_SPOTS[r.correctIdx], r.spot);
+      assert.ok(r.preposition && r.preposition.word);
+      used.push(r.correctIdx);
+    }
+    assert.equal(new Set(used).size, 3, "a 3-clue arc uses 3 distinct zones");
+  }
+});
