@@ -11,7 +11,7 @@
   // of truth, so the sink/float and plant/animal facts can never fork.
   const SINK_FLOAT_SET = { name: "sinkfloat", prompt: "Will it sink or float?", icons: ["👀", "⬇️", "⬆️"], bins: [
     { label: "Sinks", emoji: "⬇️", why: "It sinks — it's heavy for its size.", items: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"] },
-    { label: "Floats", emoji: "⬆️", why: "It floats — it's light and traps air.", items: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
+    { label: "Floats", emoji: "⬆️", why: "It floats — it's light and traps air.", items: ["🍃", "🎈", "🦆", "🛶", "🪵", "🍎"] },
   ] };
   const PLANT_ANIMAL_SET = { name: "plantanimal", prompt: "Is it a plant or an animal?", icons: ["👀", "🌿", "🐾"], bins: [
     // Note: no fungi (🍄 is not a plant) — keep the two categories truthful.
@@ -179,7 +179,7 @@
     RHYME_GROUPS: [
       [{ emoji: "🐱", word: "cat" }, { emoji: "🎩", word: "hat" }, { emoji: "🦇", word: "bat" }],
       [{ emoji: "🐶", word: "dog" }, { emoji: "🐸", word: "frog" }, { emoji: "🪵", word: "log" }],
-      [{ emoji: "⭐", word: "star" }, { emoji: "🚗", word: "car" }, { emoji: "🫙", word: "jar" }],
+      [{ emoji: "⭐", word: "star" }, { emoji: "🚗", word: "car" }, { emoji: "🎸", word: "guitar" }],
       [{ emoji: "🐝", word: "bee" }, { emoji: "🌳", word: "tree" }, { emoji: "🔑", word: "key" }],
       [{ emoji: "🌙", word: "moon" }, { emoji: "🥄", word: "spoon" }],
       [{ emoji: "🐌", word: "snail" }, { emoji: "🐋", word: "whale" }],
@@ -362,7 +362,7 @@
       { who: "River", say: "River got a puppy for his birthday!", icons: ["🎁", "🐶"], feel: "happy" },
       { who: "Viraj", say: "Viraj's balloon popped. POP!", icons: ["🎈", "💥"], feel: "surprised" },
       { who: "Josh", say: "Someone took Josh's truck without asking.", icons: ["🚚", "🙅"], feel: "mad" },
-      { who: "Raegar", say: "Raegar is going to the playground today!", icons: ["🛝", "🎉"], feel: "happy" },
+      { who: "Raegar", say: "Raegar is going to the playground today!", icons: ["🎠", "🎉"], feel: "happy" },
       { who: "River", say: "River dropped his ice cream on the ground.", icons: ["🍦", "⬇️"], feel: "sad" },
       { who: "Josh", say: "Josh found a surprise present on his chair!", icons: ["🎁", "✨"], feel: "surprised" },
     ],
@@ -603,13 +603,16 @@
     ],
     // Tracks: each track TYPE appears once and each animal once, so the drawn
     // track uniquely identifies the answer among any 3 distinct-animal choices.
+    // A duck IS a bird, so a generic 🐦 can never coexist with 🦆 (its track would
+    // be a defensibly-correct distractor). The cloven print belongs to a 🦌 deer,
+    // not a single-hoofed 🐴 horse. Every animal is its own distinct category.
     TRACKS: [
       { track: "paw", animal: "🐶", name: "dog" },
-      { track: "bird", animal: "🐦", name: "bird" },
       { track: "snake", animal: "🐍", name: "snake" },
-      { track: "hoof", animal: "🐴", name: "horse" },
+      { track: "hoof", animal: "🦌", name: "deer" },
       { track: "web", animal: "🦆", name: "duck" },
       { track: "hop", animal: "🐰", name: "bunny" },
+      { track: "claw", animal: "🐻", name: "bear" },
     ],
     // Animal sounds: sounds unique, animals unique (self-naming pictures). 🐑 is
     // fine here — both "sheep" and "lamb" say BAA, so the answer is unambiguous.
@@ -666,7 +669,7 @@
       { emoji: "🐶", word: "dog", letter: "G" },
       { emoji: "⭐", word: "star", letter: "R" },
       { emoji: "🛏️", word: "bed", letter: "D" },
-      { emoji: "🦊", word: "fox", letter: "X" },
+      { emoji: "🧦", word: "sock", letter: "K" },
     ],
     // Missing middle vowel of a pictured CVC word (the picture is control-of-error).
     VOWEL_WORDS: [

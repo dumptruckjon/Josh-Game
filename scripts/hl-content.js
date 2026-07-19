@@ -40,7 +40,7 @@
     SURPRISE_TILE: "随便玩",
     HOME_LABEL: "回主页",
     // Deterministic sticker pool (Chinese motifs; picked by a stable hash).
-    STICKER_POOL: ["🏮", "🧧", "🐉", "🐼", "🍵", "🥟", "🥮", "🌸", "🪷", "🌕", "🐭", "🐮", "🐯", "🐰", "🐍", "🐴", "🐑", "🐵", "🐔", "🐶", "🐷", "🐲", "🦚", "🌺", "🍊"],
+    STICKER_POOL: ["🏮", "🧧", "🐉", "🐼", "🍵", "🥟", "🥮", "🌸", "💮", "🌕", "🐭", "🐮", "🐯", "🐰", "🐍", "🐴", "🐑", "🐵", "🐔", "🐶", "🐷", "🐲", "🦚", "🌺", "🍊"],
 
     // ---- 🀄 Tiles: suits + numbers (drawn as text tiles — no flaky glyphs) ----
     TILE_NUMBERS: ["一", "二", "三", "四", "五", "六", "七", "八", "九"],
@@ -175,7 +175,7 @@
       { q: "五个兄弟，住在一起，名字不同，高矮不齐。", a: "手指", emoji: "🖐️", wrong: ["筷子", "牙齿"] },
       { q: "有时落在山腰，有时挂在树梢，有时像面圆镜，有时像把镰刀。", a: "月亮", emoji: "🌙", wrong: ["太阳", "星星"] },
       { q: "身穿绿衣裳，肚里水汪汪，生的子儿多，个个黑脸膛。", a: "西瓜", emoji: "🍉", wrong: ["冬瓜", "葡萄"] },
-      { q: "一个小姑娘，坐在水中央，身穿粉红袄，坐在绿船上。", a: "荷花", emoji: "🪷", wrong: ["桃花", "菊花"] },
+      { q: "一个小姑娘，坐在水中央，身穿粉红袄，坐在绿船上。", a: "荷花", emoji: "💮", wrong: ["桃花", "菊花"] },
     ],
 
     // ---- 👁️ Eye games: pools ----
@@ -186,9 +186,9 @@
     // message (the site teaches 鱼→条 elsewhere): 金鱼→条, 鸭子/乌龟→只, 荷花→朵.
     KOI_POOL: [
       { emoji: "🐟", name: "金鱼", mw: "条" }, { emoji: "🦆", name: "鸭子", mw: "只" },
-      { emoji: "🐢", name: "乌龟", mw: "只" }, { emoji: "🪷", name: "荷花", mw: "朵" },
+      { emoji: "🐢", name: "乌龟", mw: "只" }, { emoji: "💮", name: "荷花", mw: "朵" },
     ],
-    SPOT_POOL: ["🍵", "🏮", "🥟", "🌸", "🐼", "🧧", "🍊", "🥮", "🪭", "🐉"],
+    SPOT_POOL: ["🍵", "🏮", "🥟", "🌸", "🐼", "🧧", "🍊", "🥮", "🎐", "🐉"],
     // Two-clue hunt (按提示找): color + shape lattice, in Chinese.
     HL_HUNT_COLORS: [
       { key: "红色", hex: "#c62828" }, { key: "金色", hex: "#f9a825" }, { key: "绿色", hex: "#2e7d32" },

@@ -639,11 +639,15 @@
   function trackSVG(type) {
     const stamp = {
       paw: '<g><circle cx="0" cy="14" r="7"/><circle cx="-9" cy="2" r="3.2"/><circle cx="-3" cy="-3" r="3.2"/><circle cx="3" cy="-3" r="3.2"/><circle cx="9" cy="2" r="3.2"/></g>',
-      bird: '<path d="M-8 -8 L0 8 M0 8 L8 -8 M0 8 L0 -10" stroke="#3a2417" stroke-width="3" fill="none" stroke-linecap="round"/>',
       snake: '<path d="M-14 0 Q-7 -12 0 0 T14 0" stroke="#3a2417" stroke-width="4" fill="none" stroke-linecap="round"/>',
+      // Deer: a CLOVEN print — two facing crescents (true to a deer, not a horse).
       hoof: '<g fill="none" stroke="#3a2417" stroke-width="4"><path d="M-9 -8 A8 10 0 0 0 -9 10"/><path d="M9 -8 A8 10 0 0 1 9 10"/></g>',
-      web: '<g stroke="#3a2417" stroke-width="3" fill="none" stroke-linecap="round"><path d="M0 10 L-10 -8"/><path d="M0 10 L0 -11"/><path d="M0 10 L10 -8"/></g>',
+      // Duck: a WEBBED foot — a filled membrane fans between three toes, so it can
+      // never read as a songbird's separate-toed track.
+      web: '<g stroke="#3a2417" stroke-width="3" stroke-linecap="round"><polygon points="0,10 -10,-8 0,-11 10,-8" fill="#3a2417" opacity="0.5" stroke="none"/><path d="M0 10 L-10 -8 M0 10 L0 -11 M0 10 L10 -8" fill="none"/></g>',
       hop: '<g><circle cx="-6" cy="-6" r="5"/><circle cx="6" cy="-6" r="5"/><circle cx="-4" cy="9" r="3"/><circle cx="4" cy="9" r="3"/></g>',
+      // Bear: a big pad with four long claw slashes above it.
+      claw: '<g><ellipse cx="0" cy="11" rx="9" ry="7" fill="#3a2417"/><path d="M-9 -1 l-2 -8 M-3 -5 l-1 -9 M3 -5 l1 -9 M9 -1 l2 -8" stroke="#3a2417" stroke-width="3" stroke-linecap="round" fill="none"/></g>',
     };
     const one = stamp[type] || stamp.paw;
     let out = '<svg viewBox="0 0 300 90" role="img" aria-hidden="true" fill="#5a3a22">';

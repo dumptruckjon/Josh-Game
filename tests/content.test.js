@@ -29,7 +29,7 @@ test("CVC words are exactly consonant-vowel-consonant", () => {
 const RHYME_KEY = {
   cat: "at", hat: "at", bat: "at",
   dog: "og", frog: "og", log: "og",
-  star: "ar", car: "ar", jar: "ar",
+  star: "ar", car: "ar", guitar: "ar",
   bee: "ee", tree: "ee", key: "ee",
   moon: "oon", spoon: "oon",
   snail: "ale", whale: "ale",
@@ -83,7 +83,7 @@ test("digraph pictures really start with their sound (sh / ch)", () => {
 // exactly; adding/moving an item requires updating this truth (a deliberate gate).
 const SORT_TRUTH = {
   living: { Alive: ["🐶", "🐱", "🌳", "🌷", "🐝", "🐟", "🦋", "🐢", "🌻", "🐛", "🌵", "🐌"], "Not alive": ["🪨", "🚗", "⚽", "🥄", "📦", "🔑", "👟", "🪑", "🧱", "🤖", "🕯️", "⌚"] },
-  sinkfloat: { Sinks: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"], Floats: ["🍃", "🎈", "🦆", "🛟", "🪵", "🍎"] },
+  sinkfloat: { Sinks: ["🪨", "🔑", "🥄", "🧱", "⚓", "🪙"], Floats: ["🍃", "🎈", "🦆", "🛶", "🪵", "🍎"] },
   plantanimal: { Plant: ["🌳", "🌻", "🌵", "🌷", "🌼", "🌴"], Animal: ["🐶", "🐱", "🐟", "🐘", "🦁", "🐸"] },
   daynight: { Day: ["🌻", "🌈", "⛅", "🏖️", "🪁", "🌅"], Night: ["⭐", "🦉", "🌌", "🛌", "🕯️", "🦇"] },
   hotcold: { Hot: ["☀️", "🌶️", "🍲", "☕", "🏜️", "🌋"], Cold: ["🧊", "⛄", "🍦", "🐧", "🏔️", "🥶"] },
@@ -604,6 +604,11 @@ test("W1 tracks: each track type & each animal is unique (unambiguous inference)
   assert.ok(T.length >= 4);
   assert.equal(new Set(T.map((t) => t.track)).size, T.length, "track types unique — the drawn track identifies ONE animal");
   assert.equal(new Set(T.map((t) => t.animal)).size, T.length, "animals unique");
+  // A duck IS a bird: never offer a generic 🐦 alongside 🦆 (its track would be a
+  // defensibly-correct distractor — the eagle/deer lesson, applied to tracks).
+  const animals = T.map((t) => t.animal);
+  assert.ok(!(animals.includes("🐦") && animals.includes("🦆")),
+    "a duck IS a bird — the generic bird and the duck can never both be track answers");
 });
 
 test("W1 animal sounds: sounds unique, animals unique", () => {

@@ -212,8 +212,25 @@ box), the FU_PATH precedent, so a future zone nudge can't silently collide.
 is also-correct** — Who Eats This? uses mutually-exclusive kid-canon diets
 (rabbit-carrot, dog-bone, panda-bamboo, monkey-banana, squirrel-acorn,
 mouse-cheese) with a guardrail asserting no other food's answer is a valid eater
-of a given food (the generalized `alsoOk` discipline). When you fix the next
-thing, extend this list.
+of a given food (the generalized `alsoOk` discipline).
+**An emoji newer than Emoji 13.0 is INVISIBLE on Josh's iPad** (iOS 14.2 floor)
+but renders fine in CI's desktop Chromium/WebKit — so tofu (□) ships green. A
+deep audit found 14 such emoji live (🫧 bubbles, 🛟 buoy, 🫙 jar, 🛝 slide, 🫗
+pour, 🪷 lotus ×7, 🪭 fan), several the *entire* tappable surface of a game. All
+replaced with ≤13.0 equivalents, and a GENERIC guardrail in `site.test.js` now
+scans every script for code points in the 13.1/14.0/15.x ranges and fails if any
+returns — so no future game (Set 2 included) can ship a blank picture. When you
+add an emoji, keep it Emoji ≤13.0.
+**A distractor drawn from a DIFFERENT taxonomic level is also-correct** — Whose
+Tracks? offered 🐦 (generic bird) as a distractor against 🦆 (duck), but a duck
+IS a bird, and the duck's "web" print was drawn as a plain three-toed fan
+identical to a songbird's; fixed by dropping the generic bird, drawing the duck's
+web with a real membrane, mapping the cloven print to a 🦌 deer (not a
+single-hoofed 🐴 horse), and a guardrail banning 🐦+🦆 as co-answers. Same lesson
+for phonics: **the ending LETTER is not always the ending SOUND** — "fox"/X was
+keyed as an ending sound but ends in /ks/ (so a defensible "S" tap was bumped);
+replaced with "sock"/K, where the letter genuinely spells the final sound. When
+you fix the next thing, extend this list.
 
 ---
 

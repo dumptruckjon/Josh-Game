@@ -362,7 +362,7 @@
         r = L.makeColorMix(C.MIXES, undefined, lastIdx);
         lastIdx = r.idx;
         step = 0;
-        api.setPrompt("Pour the paints — what will they make?", ["🎨", "🫗", "🌈"]);
+        api.setPrompt("Pour the paints — what will they make?", ["🎨", "💧", "🌈"]);
         api.speak(); api.say("Pour the " + r.mix.a.name + " paint!");
         bowl.style.background = "#eceff4";
         bowl.classList.remove("mix__bowl--swirl");

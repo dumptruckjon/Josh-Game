@@ -330,6 +330,43 @@ test("华丽: the framework speaks her language and main.js keeps the worlds apa
   assert.ok(/josh-won-hl-/.test(m), "Josh's star reset must PRESERVE her josh-won-hl-* progress");
 });
 
+// RULE 7 (self-healing): NO emoji newer than Unicode/Emoji 13.0 anywhere in the
+// scripts. Josh's device floor is iOS 14.2 (Emoji 13.0); a 13.1/14.0+ emoji
+// renders as a blank □ "tofu" box there — invisible to CI (desktop Chromium and
+// WebKit render new emoji fine) but a dead picture on his actual iPad. A deep
+// audit found 14 such emoji (🫧 bubbles, 🛟 buoy, 🫙 jar, 🛝 slide, 🫗 pour, 🪷
+// lotus ×7, 🪭 fan). This generic scan fails if ANY ever returns — in an existing
+// game OR a future one. Ranges are the 13.1/14.0/15.x code points not present in
+// Emoji 13.0. (Emoji 13.0 blocks — 🪨 1FAA8, 🪵 1FAB5, 🪙 1FA99, 🦬 1F9AC … — are
+// deliberately BELOW every blocked range and stay allowed.)
+const EMOJI_ABOVE_13 = [
+  [0x1F6DC, 0x1F6DF], // wireless, playground slide, wheel, ring buoy (14.0)
+  [0x1FA75, 0x1FA77], // light-blue/grey/pink hearts (15.0)
+  [0x1FA7B, 0x1FA7F], // x-ray, crutch (14.0) + later
+  [0x1FAA9, 0x1FAAF], // mirror ball, ID card, low battery, hamsa, folding fan, hair pick, khanda (14.0/15.0)
+  [0x1FAB7, 0x1FABF], // lotus, coral, empty nest, nest w/ eggs, hyacinth (14.0/15.0)
+  [0x1FAC3, 0x1FAC6], // pregnant man/person, person with crown (14.0/15.0)
+  [0x1FAD7, 0x1FADF], // pouring liquid, beans, jar (14.0) + later
+  [0x1FAE0, 0x1FAEF], // melting/saluting/… faces, bubbles (14.0) + later
+  [0x1FAF0, 0x1FAF8], // hand gestures — palm up, index pointing at viewer, etc. (14.0) + later
+  [0x1F972, 0x1F972], // smiling face with tear (13.1)
+  [0x1F978, 0x1F979], // disguised face (13.1), face holding back tears (14.0)
+  [0x1F9CC, 0x1F9CC], // troll (14.0)
+];
+test("guardrail: no emoji newer than Emoji 13.0 (iOS 14.2 floor — no tofu on Josh's iPad)", () => {
+  const blocked = (cp) => EMOJI_ABOVE_13.some(([a, b]) => cp >= a && cp <= b);
+  const offenders = [];
+  for (const f of SCRIPTS) {
+    read(f).split("\n").forEach((line, i) => {
+      for (const ch of line) {
+        const cp = ch.codePointAt(0);
+        if (blocked(cp)) offenders.push(`${f}:${i + 1} U+${cp.toString(16).toUpperCase()} ${ch}`);
+      }
+    });
+  }
+  assert.deepEqual(offenders, [], `emoji above the iOS 14.2 floor (render as tofu): ${offenders.join(", ")}`);
+});
+
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);

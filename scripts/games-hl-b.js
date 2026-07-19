@@ -671,18 +671,18 @@
 
   // 深呼吸 — the lotus grows as you breathe in, settles as you breathe out.
   reg("hlc-calm", {
-    id: "hl-breathe", icon: "🪷", title: "深呼吸",
+    id: "hl-breathe", icon: "💮", title: "深呼吸",
     skill: "静心放松",
     start(api) {
       const BREATHS = 4;
       let n = 0;
       const lotus = api.el("button", {
         class: "breathe__star hl-lotus tap", type: "button",
-        dataset: { correct: "1" }, aria: { label: "深呼吸" }, text: "🪷",
+        dataset: { correct: "1" }, aria: { label: "深呼吸" }, text: "💮",
       });
       const label = api.el("div", { class: "breathe__label hl-calmlabel" }, ["点一点荷花，跟着呼吸"]);
       api.stage.append(lotus, label);
-      api.setPrompt("点荷花，吸气……呼气……", ["🪷", "🌬️", "😌"]);
+      api.setPrompt("点荷花，吸气……呼气……", ["💮", "🌬️", "😌"]);
       api.speak();
       lotus.addEventListener("click", () => {
         if (n >= BREATHS) return;

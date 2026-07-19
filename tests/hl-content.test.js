@@ -205,7 +205,7 @@ test("HL_SEASONS: four seasons, each item belongs to exactly one", () => {
 
 // ---------- 🏮 Riddles ----------
 test("RIDDLES: canonical folk answers; distractors never equal the answer", () => {
-  const TRUTH = { 花生: "🥜", 雨: "🌧️", 手指: "🖐️", 月亮: "🌙", 西瓜: "🍉", 荷花: "🪷" };
+  const TRUTH = { 花生: "🥜", 雨: "🌧️", 手指: "🖐️", 月亮: "🌙", 西瓜: "🍉", 荷花: "💮" };
   assert.equal(HL.RIDDLES.length, Object.keys(TRUTH).length);
   for (const r of HL.RIDDLES) {
     assert.ok(TRUTH[r.a], `unexpected riddle answer ${r.a}`);

@@ -9,7 +9,7 @@
   // ---- Pop the Bubbles (pop them all) ----
   F.register({
     id: "bubbles",
-    icon: "🫧",
+    icon: "🔵",
     title: "Pop the Bubbles",
     skill: "cause→effect / counting",
     start(api) {
@@ -17,10 +17,10 @@
       let popped = 0;
       const field = api.el("div", { class: "bub__field" });
       api.stage.append(field);
-      api.setPrompt("Pop all the bubbles!", ["👆", "🫧", "🎉"]);
+      api.setPrompt("Pop all the bubbles!", ["👆", "🔵", "🎉"]);
       api.speak();
       for (let i = 0; i < N; i++) {
-        const b = api.el("button", { class: "bub tap", type: "button", dataset: { correct: "1" }, aria: { label: "bubble" } }, ["🫧"]);
+        const b = api.el("button", { class: "bub tap", type: "button", dataset: { correct: "1" }, aria: { label: "bubble" } }, ["🔵"]);
         b.addEventListener("click", () => {
           if (b.dataset.done) return;
           b.dataset.done = "1"; delete b.dataset.correct;
