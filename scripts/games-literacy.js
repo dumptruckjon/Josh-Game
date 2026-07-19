@@ -1282,6 +1282,116 @@
     },
   });
 
+  // ================= Road to 200 — Set 3, Wave 10 =================
+  // ---- Drum the Word (syllables — mechanic H, pulse-count) ----
+  // A ▶ drum plays the word in parts (pulse dots light + picture bounces); the
+  // dots stay lit so a sound-off child can COUNT them. The drum is UN-flagged
+  // (self-paced, reveal-C law); the answer chips are flagged from round start.
+  F.register({
+    id: "drum-parts", icon: "🥁", title: "Drum the Word", skill: "syllables [W]",
+    start(api) {
+      const C = api.C;
+      const A = window.JoshAudio || { tone() {}, unlock() {} };
+      const ROUNDS = 4;
+      let round = 0, last = -1, playing = false;
+      const pic = api.el("div", { class: "drum__pic", aria: { hidden: "true" } });
+      const dots = api.el("div", { class: "drum__dots", aria: { hidden: "true" } });
+      const drum = api.el("button", { class: "btn-big drum__play", type: "button" }, ["🥁 Drum it!"]);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pic, dots, drum, chips);
+      drum.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); drum.removeEventListener("pointerdown", warm); }, { once: true });
+      let cur = null;
+      function play() {
+        if (playing || !cur) return; playing = true;
+        [...dots.children].forEach((d) => d.classList.remove("drum__dot--on"));
+        for (let i = 0; i < cur.count; i++) {
+          setTimeout(() => {
+            if (!dots.isConnected) return;
+            if (dots.children[i]) dots.children[i].classList.add("drum__dot--on", "pop");
+            pic.classList.remove("pop"); void pic.offsetWidth; pic.classList.add("pop");
+            try { if (A.tone) A.tone(300, { duration: 0.12, type: "square" }); } catch (e) { /* ignore */ }
+            if (i === cur.count - 1) playing = false;
+          }, i * 430);
+        }
+      }
+      function newRound() {
+        const r = L.makePartsPick(C.SYLLABLE_WORDS, undefined, last); last = r.idx; cur = r;
+        pic.textContent = r.word.emoji;
+        dots.innerHTML = "";
+        for (let i = 0; i < r.count; i++) dots.appendChild(api.el("span", { class: "drum__dot" }));
+        api.setPrompt("How many parts? Drum the word to hear!", ["🥁", "👂", "🔢"]);
+        api.speak(); api.say("How many parts are in this word? Tap the drum to hear!");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            play();
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You heard every part!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Robot Talk (oral blending — mechanic I, stretch-and-blend) ----
+  // A robot says the word stretched (c...a...t) while the letter tiles light in
+  // order (the sound-off channel). Tap the matching picture. The ▶ robot is
+  // UN-flagged; the picture chips are flagged from round start (blind-solvable).
+  F.register({
+    id: "robot-talk", icon: "🤖", title: "Robot Talk", skill: "oral blending [W]",
+    start(api) {
+      const C = api.C;
+      const A = window.JoshAudio || { tone() {}, say() {}, unlock() {} };
+      const ROUNDS = 4;
+      let round = 0, last = -1, cur = null, playing = false;
+      const robot = api.el("div", { class: "robot__bot", aria: { hidden: "true" }, text: "🤖" });
+      const tiles = api.el("div", { class: "robot__tiles", aria: { hidden: "true" } });
+      const say = api.el("button", { class: "btn-big robot__play", type: "button" }, ["🤖 Say it!"]);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(robot, tiles, say, chips);
+      say.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); say.removeEventListener("pointerdown", warm); }, { once: true });
+      function play() {
+        if (playing || !cur) return; playing = true;
+        const letters = cur.word.word.split("");
+        [...tiles.children].forEach((t) => t.classList.remove("robot__tile--on"));
+        letters.forEach((ch, i) => {
+          setTimeout(() => {
+            if (!tiles.isConnected) return;
+            if (tiles.children[i]) tiles.children[i].classList.add("robot__tile--on", "pop");
+            robot.classList.remove("pop"); void robot.offsetWidth; robot.classList.add("pop");
+            try { if (A.tone) A.tone(360 + i * 60, { duration: 0.24, type: "sine" }); } catch (e) { /* ignore */ }
+            try { if (A.say) A.say(ch); } catch (e) { /* ignore */ }
+            if (i === letters.length - 1) { playing = false; setTimeout(() => { try { if (A.say) A.say(cur.word.word); } catch (e) { /* ignore */ } }, 260); }
+          }, i * 520);
+        });
+      }
+      function newRound() {
+        const r = L.makeBlendPick(C.CVC_WORDS, undefined, last); last = r.idx; cur = r;
+        tiles.innerHTML = "";
+        r.word.word.split("").forEach((ch) => tiles.appendChild(api.el("span", { class: "robot__tile", text: ch.toUpperCase() })));
+        api.setPrompt("What word is the robot saying? Tap the picture!", ["🤖", "👂", "👉"]);
+        api.speak(); api.say("Listen to the robot and tap the picture!");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            play();
+            api.say("Yes! " + cur.word.word + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You blended the sounds! You're reading!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
   // ================= Road to 200 — Set 3, Wave 9 =================
   // ---- Two Words Make One (compound words) ----
   // Two picture-halves slide together (sun + flower); tap the whole-word picture.

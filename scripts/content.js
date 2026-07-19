@@ -1107,6 +1107,64 @@
     ],
     // Dump Truck! — how many rocks to load each round before the DUMP.
     TRUCK_LOADS: [3, 4, 5],
+
+    // ================= Road to 200 — Set 3, Wave 10 content =================
+    // How Tall? — things to measure in unit blocks (self-naming pictures).
+    TALL_THINGS: [
+      { emoji: "🦒", name: "giraffe" }, { emoji: "🌳", name: "tree" },
+      { emoji: "🏠", name: "house" }, { emoji: "🚀", name: "rocket" },
+    ],
+    // Drum the Word — syllable counts are GROUND TRUTH (a truth test restates
+    // every count). Pictures self-name; counts mix 1/2/3 parts.
+    SYLLABLE_WORDS: [
+      { emoji: "🐶", word: "dog", parts: 1 }, { emoji: "⭐", word: "star", parts: 1 },
+      { emoji: "🐰", word: "rabbit", parts: 2 }, { emoji: "🍎", word: "apple", parts: 2 },
+      { emoji: "🤖", word: "robot", parts: 2 }, { emoji: "🦋", word: "butterfly", parts: 3 },
+      { emoji: "🍌", word: "banana", parts: 3 }, { emoji: "🐘", word: "elephant", parts: 3 },
+    ],
+    // What's Missing? — each scene's part KEYS match JoshArt.fixable's FIX_PARTS.
+    // Every part is DISTINCT and its chip emoji names it; distractors are drawn
+    // from the parts still PRESENT (a truth test asserts parts>=3 and key match).
+    FIXABLE_SCENES: [
+      { name: "face", label: "face", parts: [
+        { key: "eyes", emoji: "👀", label: "eyes" }, { key: "nose", emoji: "👃", label: "nose" }, { key: "mouth", emoji: "👄", label: "mouth" },
+      ] },
+      { name: "house", label: "house", parts: [
+        { key: "roof", emoji: "🔺", label: "roof" }, { key: "door", emoji: "🚪", label: "door" }, { key: "window", emoji: "🪟", label: "window" },
+      ] },
+      { name: "flower", label: "flower", parts: [
+        { key: "petals", emoji: "🌸", label: "petals" }, { key: "stem", emoji: "🌿", label: "stem" }, { key: "leaf", emoji: "🍃", label: "leaf" },
+      ] },
+      { name: "snowman", label: "snowman", parts: [
+        { key: "eyes", emoji: "👀", label: "eyes" }, { key: "nose", emoji: "🥕", label: "nose" }, { key: "hat", emoji: "🎩", label: "hat" },
+      ] },
+    ],
+    // Drive Home — what sits on a blocked fork branch (a river / a boulder).
+    FORK_BLOCKERS: ["🌊", "🪨"],
+    // Shape Spy — one scene of shape zones (geometry-tested: 80px zones on a
+    // 300×340 box, >=14px apart, all inside). Each shape kind appears 3× so every
+    // round has 3 targets. `shape` is the target key; the glyph is a picture.
+    SPY_SCENE: { box: { w: 280, h: 340, dot: 78, minGap: 14 }, zones: [
+      { shape: "circle", x: 15, y: 16, emoji: "🔴" }, { shape: "square", x: 50, y: 16, emoji: "🟦" }, { shape: "triangle", x: 85, y: 16, emoji: "🔺" },
+      { shape: "square", x: 15, y: 48, emoji: "🟩" }, { shape: "triangle", x: 50, y: 48, emoji: "🔻" }, { shape: "circle", x: 85, y: 48, emoji: "🟠" },
+      { shape: "triangle", x: 15, y: 84, emoji: "🔺" }, { shape: "circle", x: 50, y: 84, emoji: "🟢" }, { shape: "square", x: 85, y: 84, emoji: "🟪" },
+    ] },
+    SPY_SHAPE_NAMES: { circle: "circles", square: "squares", triangle: "triangles" },
+    // Hide & Seek! — 6 hiding spots (geometry-tested on a 300×300 box); each round
+    // 4 hide a friend (with a peek clue), 2 are empty decoys.
+    HIDE_SCENE: { box: { w: 280, h: 300, dot: 78, minGap: 14 }, spots: [
+      { x: 15, y: 25, peek: "👟" }, { x: 50, y: 25, peek: "🧢" }, { x: 85, y: 25, peek: "🐾" },
+      { x: 15, y: 75, peek: "🎀" }, { x: 50, y: 75, peek: "🧣" }, { x: 85, y: 75, peek: "👓" },
+    ] },
+    // Dino Dig — buried finds, each a DISTINCT silhouette (curtain-peek discipline);
+    // makeCurtainPeek picks 3 with distinct silhouette tags.
+    DIG_POOL: [
+      { emoji: "🦕", name: "a long-neck", silhouette: "longneck" },
+      { emoji: "🦖", name: "a T-Rex", silhouette: "biped" },
+      { emoji: "🦣", name: "a mammoth", silhouette: "tusked" },
+      { emoji: "🐢", name: "a turtle", silhouette: "shell" },
+      { emoji: "🦎", name: "a lizard", silhouette: "crawler" },
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

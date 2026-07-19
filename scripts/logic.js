@@ -1690,6 +1690,89 @@
     return { cards: shuffle(cards, rng), toys };
   }
 
+  // ================= Road to 200 — Set 3, Wave 10 =================
+  // How Tall? — measure a thing in unit blocks (height 3-6, no repeat).
+  function makeHowTall(things, rng, last) {
+    const rnd = rng || Math.random;
+    let h = 3 + Math.floor(rnd() * 4); // 3..6
+    if (h === last) h = h >= 6 ? 3 : h + 1;
+    const thing = things[Math.floor(rnd() * things.length)];
+    return { height: h, thing };
+  }
+
+  // Drum the Word — how many syllables (parts) in the pictured word. 3 numeral chips.
+  function makePartsPick(words, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * words.length);
+    if (words.length > 1 && idx === last) idx = (idx + 1) % words.length;
+    const w = words[idx];
+    return { idx, word: w, count: w.parts, choices: numChoices(w.parts, rng) };
+  }
+
+  // Robot Talk — hear a blended CVC word, tap its picture. The two distractor
+  // pictures have DIFFERENT beginning sounds (all 3 onsets distinct) so a child
+  // who catches only the first phoneme is never trapped between two candidates.
+  function makeBlendPick(words, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * words.length);
+    if (words.length > 1 && idx === last) idx = (idx + 1) % words.length;
+    const w = words[idx];
+    const onset = w.word[0];
+    const picked = [], usedOnsets = new Set([onset]);
+    for (const o of shuffle(words.filter((_, i) => i !== idx), rng)) {
+      if (!usedOnsets.has(o.word[0])) { picked.push(o); usedOnsets.add(o.word[0]); }
+      if (picked.length >= 2) break;
+    }
+    const choices = shuffle([{ emoji: w.emoji, word: w.word, correct: true }, ...picked.map((o) => ({ emoji: o.emoji, word: o.word, correct: false }))], rng);
+    return { idx, word: w, choices };
+  }
+
+  // What's Missing? — one part of a drawn scene is gone; the two distractor chips
+  // are parts that ARE present (so the control of error is lookable).
+  function makeMissingPart(scenes, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * scenes.length);
+    if (scenes.length > 1 && idx === last) idx = (idx + 1) % scenes.length;
+    const scene = scenes[idx];
+    const missing = scene.parts[Math.floor(rnd() * scene.parts.length)];
+    const present = shuffle(scene.parts.filter((p) => p.key !== missing.key), rng).slice(0, 2);
+    const choices = shuffle([{ ...missing, correct: true }, ...present.map((p) => ({ ...p, correct: false }))], rng);
+    return { idx, scene, missing, choices };
+  }
+
+  // Drive Home — a run of 3 independent forks; each has exactly ONE continuing
+  // branch (the other is blocked). The generator picks which side continues.
+  function makeForkRun(blockers, rng) {
+    const rnd = rng || Math.random;
+    const forks = [];
+    for (let i = 0; i < 3; i++) forks.push({ goodSide: rnd() < 0.5 ? "left" : "right", blocker: blockers[Math.floor(rnd() * blockers.length)] });
+    return { forks };
+  }
+
+  // Shape Spy — pick a target shape (rotating); the child taps every zone of that
+  // shape in the scene. `need` = how many of that shape are present.
+  function makeShapeSpy(scene, rng, lastShape) {
+    const rnd = rng || Math.random;
+    const shapes = [];
+    scene.zones.forEach((z) => { if (!shapes.includes(z.shape)) shapes.push(z.shape); });
+    let shape = shapes[Math.floor(rnd() * shapes.length)];
+    if (shapes.length > 1 && shape === lastShape) shape = shapes[(shapes.indexOf(shape) + 1) % shapes.length];
+    return { shape, zones: scene.zones, need: scene.zones.filter((z) => z.shape === shape).length };
+  }
+
+  // Hide & Seek! — 4 of the scene's spots hide a friend (with a peek clue), 2 are
+  // empty decoys. Returns the assignment for this round.
+  function makeHideSpots(spots, friends, rng) {
+    const order = shuffle(spots.map((_, i) => i), rng);
+    const hiding = new Set(order.slice(0, 4));
+    const fr = shuffle(friends.slice(), rng);
+    let fi = 0;
+    const assigned = spots.map((s, i) => hiding.has(i)
+      ? { x: s.x, y: s.y, peek: s.peek, hiding: true, friend: fr[fi++ % fr.length] }
+      : { x: s.x, y: s.y, peek: s.peek, hiding: false });
+    return { spots: assigned, need: 4 };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
@@ -1703,6 +1786,7 @@
     makeCopyGrid, makeMirrorHalf, makeFitsInside, makeWhichPath, makeCurtainPeek, makeDressOrder,
     makeTreasureClue, makeRhymePairsDeck, makeNameHunt, makeBalance,
     makeStoryAdd, makeCompound, makeAnalogy, makeHalvesDeck,
+    makeHowTall, makePartsPick, makeBlendPick, makeMissingPart, makeForkRun, makeShapeSpy, makeHideSpots,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,

@@ -283,7 +283,34 @@ pins it. **A pick-and-place game that DEFERS its next round must clear
 duck flagged through a 950ms `setTimeout(newRound)` gap, and the every-game harness
 spun on the disabled `[data-correct]`; `finish()` now clears all duck flags first
 (the sibling mechanic-A games avoided it only because they rebuild the round
-synchronously). When you fix the next thing, extend this list.
+synchronously).
+**A scene stage whose children are ALL `position:absolute` collapses to width 0
+inside a shrink-wrapping flex parent** — Set 3's scene-zone games (Shape Spy,
+Hide & Seek) place `≥75px` zone buttons at `left/top` percentages inside a
+`.scene__stage`; the launcher's game stage is `display:flex; align-items:center`,
+so a `.scene__stage { width: 100% }` resolved its `100%` against a parent that
+shrink-wrapped to the stage's own (zero, all-absolute) content → **every zone
+piled at x=0 and overlapped**. The unit geometry test (which checks the `x%·box.w`
+math) passed while the RENDER was broken — only the one-pass 320px auditor caught
+it. Fix: give a scene stage an EXPLICIT width (`width: 280px; max-width: 100%`),
+never a `%` that depends on a shrink-wrapping ancestor, and set the content box's
+`w` to that real render width so the geometry test matches reality. New RULE-7
+tooling: a one-pass auditor (`scratchpad/audit-all.js` pattern) that walks every
+screen and reports ALL 320px violations at once beats the suite's stop-at-first —
+run it after any layout change. **Set 3 added seven interaction shapes, each with
+ONE normative implementation** (RULE 7): acted-story math (Duck Pond — spoken +
+concretely countable, the profile-legal word problem), pulse-count (Drum the Word
+— a self-paced ▶ control stays UN-flagged, the answer chips flagged from start),
+stretch-and-blend (Robot Talk — dual channel: tones + letters lighting in order,
+so it's playable muted), multi-fork traversal (Drive Home), scene-zone tap
+(shared `sceneZones` helper + per-scene geometry truth tests — the BODY_FIGURE_BOX
+precedent generalized), excavate-then-identify (Dino Dig — every un-brushed patch
+stays flagged so the harness converges, then silhouette-distinct ID chips), and
+align-and-count measurement (How Tall — the flag clears on the completing unit,
+the piggy-bank law). **A "what's missing" picture proves its parts by DIFF** —
+`content.test.js` asserts `JoshArt.fixable(scene, partKey)` is shorter than the
+full drawing, so a renamed/removed SVG part can't silently make the answer
+un-drawable. When you fix the next thing, extend this list.
 
 ---
 
@@ -305,7 +332,7 @@ tooling.
 │   ├── logic.js                # PURE, deterministic game logic (window.JoshLogic + module.exports) — unit-tested
 │   ├── effects.js              # Shared JoshEffects.confetti()/stars() (celebrations)
 │   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off) + iOS-safe tone() + win/good/bump CUES (mute-gated)
-│   ├── art.js                  # window.JoshArt — original homage SVG (hero/pup/numberFriend/friend/truck/rocket/…)
+│   ├── art.js                  # window.JoshArt — original homage SVG (hero/pup/numberFriend/friend/truck/rocket/fixable-scenes/…)
 │   ├── stickers.js             # window.JoshProgress (THE owner of josh-won-* flags) + window.JoshStickers.artFor (deterministic sticker per game)
 │   ├── buddy.js                # window.JoshBuddy (THE owner of josh-buddy) — pick-a-companion roster + home companion + themed win art
 │   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT
@@ -339,7 +366,7 @@ tooling.
 ├── josh-profile.json           # ^ same profile, machine-readable (for programmatic game generation)
 ├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
-├── PLAN_ROAD_TO_200.md         # APPROVED build plan Set 3: 20 MORE gap-fillers (numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, dump truck, waves W9-W10 + audit) — execute when asked
+├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
 └── CLAUDE.md                   # This file
 ```
 
@@ -361,11 +388,13 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**180 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**200 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets — and every one
-winnable, so the 📖 Sticker Book tops out at a full ⭐ 180/180. The home screen is a
+winnable, so the 📖 Sticker Book tops out at a full ⭐ 200/200. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
-category's games. (Set 2 — the last 40 — added six NEW interaction shapes:
+category's games. (Set 3 added the last 20 — measurement, syllables, oral
+blending, compounds, analogies, life cycles, scene-zone hunts, and the namesake
+dump truck. Set 2 — the middle 40 — added six NEW interaction shapes:
 **pick-and-place** [`.held` hand-off, one flag at a time], **toggle-to-match**
 [light cells until a grid matches a model], **progressive reveal** [self-paced
 peek then answer], **path-choice** [tap a whole route], **pictograph/representation**
@@ -384,7 +413,9 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   nickel + pennies, then the nickel bursts into 5), **First, Second, Third!**
   (ordinal words), **More or Fewer than 5?** (number sense, never exactly 5),
   **The Fruit Graph** (read a pictograph — most/fewest), **Fullest Glass** (volume
-  compare), **Partner Up!** (pair the ducks → even or odd).
+  compare), **Partner Up!** (pair the ducks → even or odd). *Set 3:* **Number
+  Maker** (trace digits 1-5), **Duck Pond Stories** (acted-out spoken addition),
+  **How Tall?** (measure a thing in unit blocks).
 - **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
   Word (sight words), sh or ch? (digraph sort), Big & Little Letters, Missing
   Letter, Read & Zap (read a word → tap its picture), Rhyme Train (find every
@@ -398,7 +429,9 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   blend sort), **Little Letter Maker** (trace lowercase c·o·s·v·w), **Word Pairs**
   (sight-word concentration), **Rhyme Pairs** (memory where a pair is two pictures
   that rhyme), **Name Balloon Hunt** (pop the letters of J-O-S-H → the name
-  assembles).
+  assembles). *Set 3:* **Two Words Make One** (compound words — sun+flower),
+  **Drum the Word** (syllable count via a self-paced drum), **Robot Talk** (oral
+  blending — the robot says c-a-t, tap the cat).
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
   Shadow (SVG shapes), Small to Big, Memory Match, Put in Order (numbers), What
   Changed?, Color by Number, Who Is It? (2-clue deduction), Picture Squares
@@ -413,7 +446,9 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   Butterfly** (mirror-symmetry toggle), **Will It Fit?** (relational size),
   **Which Path Leads Home?** (unbroken-route choice), **Peek & Copy** (self-paced
   peek, then recreate), **Who's Behind the Curtain?** (partial-info inference —
-  distinct silhouettes only).
+  distinct silhouettes only). *Set 3:* **This Goes With That** (picture analogies
+  A:B::C:?), **What's Missing?** (visual closure — a drawn part is gone),
+  **Drive Home** (route planning across forks — pick the unblocked road).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
   Paw Patrol Rescue, Find the Twins (one matching pair), I Spy: Find Them All
   (category hunt), The Big One (two-clue color+shape hunt), **Web Rescue**
@@ -426,7 +461,10 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   Them All** (face-up pair-clearing — pick-and-place), **Find the Tiniest**
   (size-discrimination hunt), **Count the Animals** (categorize-then-count),
   **Sandwich Shop** (find the foods among silly non-foods), **Treasure Hunt!**
-  (position-word clues assemble a chest).
+  (position-word clues assemble a chest). *Set 3:* **Fix the Toys** (rejoin split
+  halves — part-whole), **Shape Spy** (find every circle/square/triangle in a
+  scene), **Hide & Seek!** (find friends by their peeking clues), **Dino Dig**
+  (brush away sand, then identify the buried find).
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
   Hot or Cold?, Shape's Real Twin (3D solids), Will It Stick? (magnetic sort),
   Land or Water? (globe), Where Do They Live? (continents, self-checking map),
@@ -443,6 +481,9 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   body part), **Who Uses This?** (community helpers' tools — exclusion-listed),
   **Grow a Flower** (plant needs — water-then-sun ritual), **What Made This?**
   (weather-cause inference), **Whose Home Is This?** (nest/web/hive → dweller).
+  *Set 3:* **Baby to Big!** (life cycles — egg→caterpillar→butterfly), **Fur,
+  Feathers, Scales** (animal coverings sort), **Where Does It Come From?** (food
+  origins — milk→cow).
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
   Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
   Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey), **Thwip
@@ -454,7 +495,9 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   across), **Birthday Cake** (add 5 candles, then blow them out — his Feb hook).
   *Set 2:* **Hatch the Egg!** (tap to crack → a surprise baby animal — toy),
   **Splat Studio** (paint blobs, name the color — toy), **The Car Wash** (soap →
-  scrub → rinse → dry, the car visibly cleans up).
+  scrub → rinse → dry, the car visibly cleans up). *Set 3:* **Dump Truck!** (the
+  namesake — load rocks, count, pull the DUMP lever), **Puppy Love** (nurture toy
+  — pat/brush/treat), **Boing! Boing!** (bounce Josh's chosen buddy ever higher).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team
@@ -476,7 +519,8 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   jigsaw), **Team Song** (2 players play Twinkle's notes in order), **Team
   Balance** (2 players level a scale — equality), **Copy Me!** (2-player
   leader/follower echo), **The Worry Box** (SEL — tuck each worry away), **Thank-You
-  Hearts** (gratitude — every choice is right).
+  Hearts** (gratitude — every choice is right). *Set 3:* **Tidy Up Time** (put
+  each toy in its home bin — practical life, pick-and-place).
 
 ### 👵🏻 华丽的世界 — the hidden world for Josh's Chinese grandma
 
@@ -503,7 +547,7 @@ How it works (keep these invariants):
 - **Progress is shared machinery, separate worlds:** her wins are `josh-won-hl-*`
   (same `JoshProgress` owner), her ⭐ badges/sticker slots fill live off the same
   `josh-won` event — but Josh's grown-ups reset **preserves** her stars, his
-  Sticker Book counts only his 180, hers only her 40 (both guardrail-tested).
+  Sticker Book counts only his 200, hers only her 40 (both guardrail-tested).
 - **Correctness bar is identical:** `tests/hl-content.test.js` restates the
   cultural ground truth (the 5 Tang poems verbatim, real idioms + forged-idiom
   check on distractors, 生肖 order, standard 量词 pairs, festival↔custom bins

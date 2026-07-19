@@ -1611,4 +1611,52 @@
       newRound();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 10 =================
+  // ---- How Tall? (measure a thing in unit blocks — mechanic M) ----
+  // Stack unit blocks up to the thing's head; the dashed alignment line shows
+  // when they're even. The flag clears on the COMPLETING block (piggy-bank law).
+  F.register({
+    id: "how-tall", icon: "📏", title: "How Tall?", skill: "measure with units [P→W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const THINGS = api.C.TALL_THINGS || [];
+      const ROUNDS = 3;
+      let round = 0, last = -1, n = 0, stacked = 0;
+      const measure = api.el("div", { class: "tall__measure" });
+      const col = api.el("div", { class: "tall__col" });
+      const thing = api.el("div", { class: "tall__thing", aria: { hidden: "true" } });
+      measure.append(col, thing);
+      const addBtn = api.el("button", { class: "btn-big tall__add", type: "button" }, ["➕ Add a block"]);
+      api.stage.append(measure, addBtn);
+      function newRound() {
+        const r = L.makeHowTall(THINGS, undefined, last); n = r.height; last = n; stacked = 0;
+        col.innerHTML = "";
+        // ghost slots show the target height (control of error is visual)
+        for (let i = 0; i < n; i++) col.appendChild(api.el("span", { class: "tall__slot" }));
+        thing.textContent = r.thing.emoji;
+        thing.style.fontSize = (34 + n * 8) + "px";
+        addBtn.dataset.correct = "1"; addBtn.disabled = false;
+        api.setPrompt("Stack blocks to measure the " + r.thing.name + "!", ["📏", "🧱", "👆"]);
+        api.speak(); api.say("How many blocks tall is the " + r.thing.name + "? Stack them up!");
+      }
+      addBtn.addEventListener("click", () => {
+        if (stacked >= n) return;
+        const slot = col.children[n - 1 - stacked];
+        if (slot) { slot.classList.add("tall__slot--on", "pop"); }
+        stacked += 1;
+        api.say(String(stacked));
+        if (stacked >= n) {
+          delete addBtn.dataset.correct; addBtn.disabled = true;
+          measure.classList.add("tall__measure--done");
+          api.say("The " + THINGS.find((t) => t.emoji === thing.textContent).name + " is " + stacked + " blocks tall!");
+          round += 1;
+          if (round >= ROUNDS) { setTimeout(() => api.win({ say: "You measured them all!" }), 300); return; }
+          api.roundWin();
+          setTimeout(() => { if (measure.isConnected) { measure.classList.remove("tall__measure--done"); newRound(); } }, 900);
+        }
+      });
+      newRound();
+    },
+  });
 })();

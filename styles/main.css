@@ -2111,3 +2111,83 @@ body.hl-mode {
 @media (prefers-reduced-motion: reduce) {
   .glue__parts, .gw__cell--filled, .fix__card--fixed, .truck__rig, .truck__rock--gone { transition: none !important; }
 }
+
+/* ================= Road to 200 — Set 3, Wave 10 ================= */
+/* How Tall? — a measuring column of unit blocks beside the thing. */
+.tall__measure { display: flex; align-items: flex-end; justify-content: center; gap: 16px; min-height: 180px; margin: 8px 0; }
+.tall__col { display: flex; flex-direction: column-reverse; gap: 3px; }
+.tall__slot { width: 40px; height: 26px; border-radius: 5px; background: rgba(255,255,255,0.4); border: 2px dashed rgba(120,170,255,0.4); }
+.tall__slot--on { background: linear-gradient(180deg, #7a5cd6, #5a3fd6); border-style: solid; border-color: #5a3fd6; }
+.tall__thing { line-height: 1; align-self: flex-end; }
+.tall__measure--done { filter: drop-shadow(0 0 6px rgba(120,220,140,0.6)); }
+.tall__add { display: block; margin: 4px auto 0; }
+
+/* Drum the Word — a picture, a row of pulse dots, a drum button. */
+.drum__pic { text-align: center; font-size: clamp(3rem, 18vw, 4.4rem); min-height: 4.4rem; margin: 6px 0; }
+.drum__dots { display: flex; justify-content: center; gap: 12px; min-height: 26px; margin-bottom: 10px; }
+.drum__dot { width: 22px; height: 22px; border-radius: 50%; background: rgba(122,92,214,0.18); }
+.drum__dot--on { background: #7a5cd6; }
+.drum__play { display: block; margin: 0 auto 12px; }
+
+/* Robot Talk — a robot, letter tiles that light in order, a say button. */
+.robot__bot { text-align: center; font-size: clamp(3rem, 18vw, 4.4rem); min-height: 4.4rem; margin: 4px 0; }
+.robot__tiles { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.robot__tile { width: 46px; height: 54px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; color: #7a5cd6; background: rgba(122,92,214,0.12); border-radius: 12px; }
+.robot__tile--on { color: #fff; background: #7a5cd6; }
+.robot__play { display: block; margin: 0 auto 12px; }
+
+/* What's Missing? — a big drawn picture. */
+.miss__pic { width: 200px; height: 200px; margin: 8px auto 14px; }
+.miss__pic svg { width: 100%; height: 100%; }
+
+/* Drive Home — a road with the car + house, two fork buttons. */
+.drive__road { position: relative; height: 70px; margin: 8px 0 12px; background: linear-gradient(180deg, #d7f0d7, #c2e6c2); border-radius: 16px; }
+.drive__car { position: absolute; bottom: 8px; left: 8%; font-size: 2.4rem; line-height: 1; transition: left 0.35s ease; }
+.drive__home { position: absolute; bottom: 8px; right: 4%; font-size: 2.4rem; line-height: 1; }
+.drive__forks { max-width: 320px; margin: 0 auto; }
+.drive__fork { font-size: clamp(1.8rem, 10vw, 2.6rem); }
+
+/* Shared scene-zone stage (Shape Spy, Hide & Seek) — absolutely-placed >=75px
+   zone buttons inside a stated content box. The stage takes an EXPLICIT block
+   width (a flex item would collapse to 0 since every child is absolute). */
+.scene__stage { position: relative; width: 280px; max-width: 100%; margin: 0 auto; }
+.scene__zone { position: absolute; width: 78px; height: 78px; transform: translate(-50%, -50%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: rgba(255,255,255,0.55); border: 2px solid rgba(120,170,255,0.3); line-height: 1; }
+.spy__wrap, .hide__wrap { margin: 8px 0; }
+.scene__zone--found { background: #eafbe8; border-color: #7be08a; box-shadow: 0 0 0 3px rgba(123,224,138,0.5); }
+.hide__wrap .scene__zone { background: linear-gradient(180deg, #dcefd6, #c7e6bf); }
+.hide__spot--found { background: #fff !important; }
+.hide__spot--found svg { width: 60px; height: 60px; }
+
+/* Dino Dig — a 3x3 sand grid to brush, then the reveal + id chips. */
+.dig__site { min-height: 120px; }
+.dig__found { text-align: center; font-size: clamp(3.4rem, 20vw, 5rem); min-height: 5rem; }
+.dig__found--up { animation: pop 500ms ease-out; }
+.dig__patches { max-width: 300px; margin: 4px auto; }
+.dig__patch { min-height: 84px; aspect-ratio: 1 / 1; border-radius: 12px; font-size: 2rem; background: #e6c88a; border: 2px solid #cba965; }
+.dig__patch--clear { opacity: 0; transform: scale(0.4); transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }
+.dig__chips { max-width: 320px; margin: 6px auto 0; }
+
+/* Puppy Love — a pup + care buttons. */
+.puppy__pup { position: relative; width: 150px; height: 150px; margin: 8px auto 12px; }
+.puppy__pup svg { width: 100%; height: 100%; }
+.puppy__pup--happy { animation: eggWobble 500ms ease-in-out; }
+.puppy__heart { position: absolute; top: 0; left: 50%; transform: translateX(-50%); font-size: 1.8rem; animation: heartFloat 1s ease-out forwards; }
+.puppy__cares { max-width: 300px; margin: 0 auto; }
+.puppy__care { font-size: clamp(2rem, 11vw, 2.8rem); }
+
+/* Boing! Boing! — the buddy on a trampoline + a height pole. */
+.bounce__stage { position: relative; display: flex; flex-direction: column; align-items: center; min-height: 240px; justify-content: flex-end; }
+.bounce__pole { position: absolute; left: 12%; bottom: 40px; display: flex; flex-direction: column-reverse; gap: 8px; }
+.bounce__notch { width: 20px; height: 20px; border-radius: 50%; background: rgba(122,92,214,0.16); }
+.bounce__notch--on { background: #ffd24d; box-shadow: 0 0 6px rgba(255,210,77,0.8); }
+.bounce__buddy { width: 104px; height: 116px; background: none; border: none; padding: 0; margin-bottom: 6px; }
+.bounce__buddy svg { width: 100%; height: 100%; }
+.bounce__buddy--boing { animation: boing 380ms ease-out; }
+@keyframes boing { 0% { transform: translateY(0); } 45% { transform: translateY(calc(-1 * var(--boing, 20px))); } 100% { transform: translateY(0); } }
+.bounce__buddy--flip { animation: pop 600ms ease-out; }
+.bounce__tramp { font-size: 3rem; line-height: 1; letter-spacing: -8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tall__slot--on, .drum__dot--on, .robot__tile--on, .drive__car, .dig__patch--clear,
+  .puppy__pup--happy, .puppy__heart, .bounce__buddy--boing, .bounce__buddy--flip, .dig__found--up { animation: none !important; transition: none !important; }
+}

@@ -161,6 +161,51 @@
     );
   }
 
-  global.JoshArt = { hero, numberFriend, pup, truck, star, rocket, balloon, home, kid, friend };
+  // "What's Missing?" scenes — each is a set of named parts drawn from basic
+  // shapes. fixable(name, without) draws the whole picture EXCEPT the `without`
+  // part, so the child spots (and taps) the one that's gone. The part KEYS live
+  // in content.js FIXABLE_SCENES (truth-tested); the drawings live here.
+  const FIX_PARTS = {
+    face: {
+      base: '<circle cx="50" cy="52" r="34" fill="#ffe0a3" stroke="#e6b25a" stroke-width="2.5"/>',
+      eyes: '<circle cx="39" cy="45" r="5" fill="#2a1a12"/><circle cx="61" cy="45" r="5" fill="#2a1a12"/>',
+      nose: '<path d="M50 50 L44 62 H56 Z" fill="#e6a54d"/>',
+      mouth: '<path d="M38 68 Q50 80 62 68" stroke="#c0392b" stroke-width="3.4" fill="none" stroke-linecap="round"/>',
+    },
+    house: {
+      base: '<rect x="24" y="46" width="52" height="42" fill="#ffd9a0" stroke="#d9a866" stroke-width="2"/>',
+      roof: '<path d="M18 46 L50 20 L82 46 Z" fill="#e0573c"/>',
+      door: '<rect x="44" y="64" width="14" height="24" rx="2" fill="#8a5a2b"/>',
+      window: '<rect x="30" y="54" width="12" height="12" fill="#bfe6ff" stroke="#6aa9d6" stroke-width="1.5"/>',
+    },
+    flower: {
+      base: '<circle cx="50" cy="40" r="11" fill="#ffd24d" stroke="#e0a800" stroke-width="1.5"/>',
+      petals: '<g fill="#ff8fc7">' + [0, 60, 120, 180, 240, 300].map((a) => {
+        const rad = a * Math.PI / 180, x = 50 + 20 * Math.cos(rad), y = 40 + 20 * Math.sin(rad);
+        return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="9"/>';
+      }).join("") + "</g>",
+      stem: '<rect x="47" y="51" width="6" height="36" fill="#5cbf6a"/>',
+      leaf: '<ellipse cx="63" cy="70" rx="12" ry="6" fill="#7be08a" transform="rotate(-24 63 70)"/>',
+    },
+    snowman: {
+      base: '<circle cx="50" cy="70" r="20" fill="#f4f9ff" stroke="#c3d4e6" stroke-width="2"/><circle cx="50" cy="40" r="14" fill="#f4f9ff" stroke="#c3d4e6" stroke-width="2"/>' +
+        '<path d="M31 66 L14 58 M69 66 L86 58" stroke="#8a5a2b" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<circle cx="50" cy="64" r="2.5" fill="#3a4a5a"/><circle cx="50" cy="74" r="2.5" fill="#3a4a5a"/>',
+      eyes: '<circle cx="45" cy="37" r="2.6" fill="#2a1a12"/><circle cx="55" cy="37" r="2.6" fill="#2a1a12"/>',
+      nose: '<path d="M50 41 L62 44 L50 47 Z" fill="#ff8c33"/>',
+      hat: '<rect x="38" y="20" width="24" height="7" rx="1" fill="#333"/><rect x="42" y="8" width="16" height="14" fill="#333"/>',
+    },
+  };
+  function fixable(name, without) {
+    const scene = FIX_PARTS[name];
+    if (!scene) return wrap("");
+    let inner = "";
+    // petals/base draw first (behind), then features
+    const order = ["stem", "leaf", "base", "petals", "roof", "hat", "window", "door", "eyes", "nose", "mouth"];
+    for (const key of order) if (scene[key] && key !== without) inner += scene[key];
+    return wrap(inner);
+  }
+
+  global.JoshArt = { hero, numberFriend, pup, truck, star, rocket, balloon, home, kid, friend, fixable };
   if (typeof module !== "undefined" && module.exports) module.exports = global.JoshArt;
 })(typeof window !== "undefined" ? window : globalThis);

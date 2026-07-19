@@ -1281,6 +1281,96 @@
     },
   });
 
+  // ================= Road to 200 — Set 3, Wave 10 =================
+  // ---- What's Missing? (visual closure) ----
+  // A drawn picture is missing ONE part. The two distractor chips are parts that
+  // ARE present (makeMissingPart enforces it), so the answer is lookable.
+  F.register({
+    id: "whats-missing", icon: "🧐", title: "What's Missing?", skill: "visual closure [W]",
+    start(api) {
+      const C = api.C;
+      const ART = window.JoshArt;
+      const ROUNDS = 4;
+      let round = 0, last = -1, cur = null;
+      const pic = api.el("div", { class: "miss__pic art-fill", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pic, chips);
+      function draw(without) { pic.innerHTML = (ART && ART.fixable) ? ART.fixable(cur.scene.name, without) : ""; }
+      function newRound() {
+        const r = L.makeMissingPart(C.FIXABLE_SCENES, undefined, last); last = r.idx; cur = r;
+        draw(r.missing.key);
+        api.setPrompt("Oh no — what's missing from the " + r.scene.label + "?", ["🧐", "🔍", "❓"]);
+        api.speak(); api.say("What is missing from the " + r.scene.label + "?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.label } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); api.say("The " + ch.label + " is right there! What's MISSING?"); return; }
+            draw(null); pic.classList.remove("pop"); void pic.offsetWidth; pic.classList.add("pop");
+            api.say("The " + r.missing.label + "! Now it's all better!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You have sharp eyes!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 850); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Drive Home (route planning across forks — mechanic J) ----
+  // A run of 3 forks; exactly ONE branch continues, the other is visibly blocked
+  // (a river/boulder in view BEFORE choosing). Tap the good branch; the car drives.
+  F.register({
+    id: "drive-home", icon: "🚗", title: "Drive Home", skill: "route planning [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 2;
+      let round = 0, forkI = 0, run = null, busy = false;
+      const road = api.el("div", { class: "drive__road", aria: { hidden: "true" } });
+      const car = api.el("div", { class: "drive__car", aria: { hidden: "true" }, text: "🚗" });
+      const home = api.el("div", { class: "drive__home", aria: { hidden: "true" }, text: "🏠" });
+      const forks = api.el("div", { class: "choices choices--2 drive__forks" });
+      road.append(car, home);
+      api.stage.append(road, forks);
+      function showFork() {
+        const f = run.forks[forkI];
+        car.style.left = (8 + forkI * 28) + "%";
+        forks.innerHTML = "";
+        ["left", "right"].forEach((side) => {
+          const good = side === f.goodSide;
+          const b = api.el("button", {
+            class: "choice drive__fork tap", type: "button",
+            dataset: good ? { correct: "1" } : {}, aria: { label: side + " path" },
+          }, [good ? "🛣️" : (f.blocker + "🛣️")]);
+          b.addEventListener("click", () => {
+            if (busy) return;
+            if (!good) { api.tryAgain(b); api.say("That way is blocked! Try the other road."); return; }
+            busy = true; delete b.dataset.correct;
+            forkI += 1;
+            car.classList.remove("pop"); void car.offsetWidth; car.classList.add("pop");
+            api.say("Good road!");
+            if (forkI >= run.forks.length) {
+              car.style.left = "82%"; home.classList.add("pop");
+              round += 1;
+              if (round >= ROUNDS) { setTimeout(() => api.win({ say: "You drove all the way home! Beep beep!" }), 300); return; }
+              api.roundWin();
+              setTimeout(() => { busy = false; newRound(); }, 900);
+            } else { setTimeout(() => { busy = false; showFork(); }, 350); }
+          });
+          forks.appendChild(b);
+        });
+      }
+      function newRound() {
+        run = L.makeForkRun(C.FORK_BLOCKERS, undefined); forkI = 0;
+        api.setPrompt("Which road leads home? Watch for blocks!", ["🚗", "🛣️", "🏠"]);
+        api.speak(); api.say("Drive the car home! Pick the road that isn't blocked.");
+        showFork();
+      }
+      newRound();
+    },
+  });
+
   // ================= Road to 200 — Set 3, Wave 9 =================
   // ---- This Goes With That (picture analogies A:B :: C:?) ----
   // The model pair is linked by a drawn band; the child applies the SAME relation

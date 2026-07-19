@@ -1850,3 +1850,90 @@ test("makeHalvesDeck: 6 cards = 3 toys x {L,R}; each toy's two halves match by k
     Object.values(byKey).forEach((halves) => assert.deepEqual(halves.sort(), ["L", "R"], "each toy has one L and one R half"));
   }
 });
+
+// ================= Road to 200 — Set 3, Wave 10 =================
+test("makeHowTall: height 3..6, never repeats last, valid thing", () => {
+  const rng = mulberry32(601); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeHowTall(content.TALL_THINGS, rng, last);
+    assert.ok(r.height >= 3 && r.height <= 6);
+    assert.notEqual(r.height, last);
+    assert.ok(r.thing && r.thing.emoji && r.thing.name);
+    last = r.height;
+  }
+});
+test("makePartsPick: count = word.parts; 3 distinct chips incl. count", () => {
+  const rng = mulberry32(602); let last = -1;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makePartsPick(content.SYLLABLE_WORDS, rng, last);
+    assert.equal(r.count, r.word.parts);
+    assert.equal(r.choices.length, 3);
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, 3);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].n, r.count);
+    last = r.idx;
+  }
+});
+test("makeBlendPick: correct=the word; all 3 picture onsets are DISTINCT", () => {
+  const rng = mulberry32(603); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeBlendPick(content.CVC_WORDS, rng, last);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].word, r.word.word);
+    const onsets = r.choices.map((c) => c.word[0]);
+    assert.equal(new Set(onsets).size, 3, "all 3 beginning sounds distinct (first-phoneme is never ambiguous)");
+    last = r.idx;
+  }
+});
+test("makeMissingPart: missing is a real part; both distractors are PRESENT parts", () => {
+  const rng = mulberry32(604); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeMissingPart(content.FIXABLE_SCENES, rng, last);
+    assert.ok(r.scene.parts.some((p) => p.key === r.missing.key));
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].key, r.missing.key);
+    r.choices.filter((c) => !c.correct).forEach((c) => {
+      assert.notEqual(c.key, r.missing.key, "distractor is a DIFFERENT (present) part");
+      assert.ok(r.scene.parts.some((p) => p.key === c.key));
+    });
+    last = r.idx;
+  }
+});
+test("makeForkRun: 3 forks, each with one good side + a blocker", () => {
+  const rng = mulberry32(605);
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeForkRun(content.FORK_BLOCKERS, rng);
+    assert.equal(r.forks.length, 3);
+    for (const f of r.forks) {
+      assert.ok(f.goodSide === "left" || f.goodSide === "right");
+      assert.ok(content.FORK_BLOCKERS.includes(f.blocker));
+    }
+  }
+});
+test("makeShapeSpy: target shape is in the scene, need = its count, no repeat", () => {
+  const rng = mulberry32(606); let last = null;
+  const scene = content.SPY_SCENE;
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeShapeSpy(scene, rng, last);
+    assert.ok(scene.zones.some((z) => z.shape === r.shape));
+    assert.equal(r.need, scene.zones.filter((z) => z.shape === r.shape).length);
+    assert.ok(r.need >= 1);
+    assert.notEqual(r.shape, last, "target shape rotates");
+    last = r.shape;
+  }
+});
+test("makeHideSpots: exactly 4 hiding (with a friend) + 2 empty decoys", () => {
+  const rng = mulberry32(607);
+  const friends = [{ a: 1 }, { a: 2 }, { a: 3 }, { a: 4 }];
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeHideSpots(content.HIDE_SCENE.spots, friends, rng);
+    assert.equal(r.need, 4);
+    const hiding = r.spots.filter((s) => s.hiding);
+    assert.equal(hiding.length, 4);
+    assert.equal(r.spots.filter((s) => !s.hiding).length, 2);
+    hiding.forEach((s) => assert.ok(s.friend, "a hiding spot has a friend"));
+  }
+});

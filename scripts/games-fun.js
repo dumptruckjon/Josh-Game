@@ -838,4 +838,74 @@
       newRound();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 10 =================
+  // ---- Puppy Love (nurture toy — pat, brush, treat) ----
+  F.register({
+    id: "puppy-love", icon: "🐶", title: "Puppy Love", skill: "nurture / warmth [M]",
+    start(api) {
+      const ART = window.JoshArt;
+      const NEED = 5;
+      let cared = 0, won = false;
+      const collars = (api.C.PUPS || [{ collar: "#e23636" }]);
+      const collar = api.randItem(collars).collar || "#e23636";
+      const pupEl = api.el("div", { class: "puppy__pup art-fill", aria: { hidden: "true" }, html: (ART && ART.pup) ? ART.pup(collar) : "🐶" });
+      const CARES = [
+        { emoji: "🖐️", name: "pat", say: "The puppy loves pats!" },
+        { emoji: "🧼", name: "brush", say: "So shiny and clean!" },
+        { emoji: "🦴", name: "treat", say: "Yum, a treat! Woof!" },
+      ];
+      const row = api.el("div", { class: "choices choices--3 puppy__cares" });
+      api.stage.append(pupEl, row);
+      CARES.forEach((c) => {
+        const b = api.el("button", { class: "choice puppy__care tap", type: "button", text: c.emoji, dataset: { toy: "1" }, aria: { label: c.name } });
+        b.addEventListener("click", () => {
+          api.tickPlay();
+          pupEl.classList.remove("puppy__pup--happy"); void pupEl.offsetWidth; pupEl.classList.add("puppy__pup--happy");
+          const heart = api.el("span", { class: "puppy__heart", aria: { hidden: "true" }, text: "💗" });
+          pupEl.appendChild(heart); setTimeout(() => heart.remove(), 1000);
+          api.say(c.say);
+          cared += 1;
+          if (cared >= NEED && !won) { won = true; api.win({ say: "The puppy loves you! Best friends!" }); }
+        });
+        row.appendChild(b);
+      });
+      api.setPrompt("Take care of the puppy!", ["🐶", "💗", "🦴"]);
+      api.speak();
+    },
+  });
+
+  // ---- Boing! Boing! (the buddy plays — cause→effect intensity) ----
+  // The FIRST game where Josh's CHOSEN buddy stars in play. Read-only JoshBuddy
+  // (single-owner law): render its art, never write josh-buddy.
+  F.register({
+    id: "buddy-bounce", icon: "⬆️", title: "Boing! Boing!", skill: "cause→effect / counting [M]",
+    start(api) {
+      const B = window.JoshBuddy;
+      const TOP = 5;
+      let height = 0, bounces = 0, won = false;
+      const pole = api.el("div", { class: "bounce__pole", aria: { hidden: "true" } });
+      for (let i = 0; i < TOP; i++) pole.appendChild(api.el("span", { class: "bounce__notch" }));
+      const buddy = api.el("button", { class: "bounce__buddy tap art-fill", type: "button", dataset: { toy: "1" }, aria: { label: "bounce the buddy" }, html: (B && B.art) ? B.art() : "⭐" });
+      const tramp = api.el("div", { class: "bounce__tramp", aria: { hidden: "true" }, text: "🟦" });
+      const stage = api.el("div", { class: "bounce__stage" }, [pole, buddy, tramp]);
+      api.stage.append(stage);
+      buddy.addEventListener("click", () => {
+        api.tickPlay();
+        height = height >= TOP ? 1 : height + 1;
+        bounces += 1;
+        [...pole.children].forEach((n, i) => n.classList.toggle("bounce__notch--on", i < height));
+        buddy.style.setProperty("--boing", (height * 18) + "px");
+        buddy.classList.remove("bounce__buddy--boing"); void buddy.offsetWidth; buddy.classList.add("bounce__buddy--boing");
+        api.say(String(bounces));
+        if (height >= TOP) {
+          buddy.classList.add("bounce__buddy--flip");
+          setTimeout(() => buddy.classList.remove("bounce__buddy--flip"), 600);
+          if (!won) { won = true; api.win({ say: "To the top! Boing boing boing!" }); }
+        }
+      });
+      api.setPrompt("Tap to bounce higher and higher!", ["⬆️", "😄", "🎉"]);
+      api.speak();
+    },
+  });
 })();

@@ -1055,3 +1055,64 @@ test("W9 truck loads: positive counts", () => {
   assert.ok(content.TRUCK_LOADS.length >= 1);
   for (const n of content.TRUCK_LOADS) assert.ok(Number.isInteger(n) && n >= 1);
 });
+
+// ================= Road to 200 — Set 3, Wave 10 content truth =================
+const JoshArt = require("../scripts/art.js");
+test("W10 tall things: each has an emoji + name", () => {
+  assert.ok(content.TALL_THINGS.length >= 2);
+  for (const t of content.TALL_THINGS) assert.ok(t.emoji && t.name);
+});
+test("W10 syllable counts are TRUE (independently restated)", () => {
+  const TRUTH = { dog: 1, star: 1, rabbit: 2, apple: 2, robot: 2, butterfly: 3, banana: 3, elephant: 3 };
+  for (const w of content.SYLLABLE_WORDS) {
+    assert.ok(TRUTH[w.word] !== undefined, "unexpected word " + w.word + " — add its true syllable count");
+    assert.equal(w.parts, TRUTH[w.word], w.word + " has " + TRUTH[w.word] + " syllables");
+    assert.ok(w.parts >= 1 && w.parts <= 4);
+  }
+});
+test("W10 fixable scenes: >=3 distinct parts, and each key really changes the drawing", () => {
+  for (const scene of content.FIXABLE_SCENES) {
+    assert.ok(scene.parts.length >= 3, scene.name + " needs >=3 parts (1 correct + 2 present distractors)");
+    assert.equal(new Set(scene.parts.map((p) => p.key)).size, scene.parts.length, "part keys distinct");
+    for (const p of scene.parts) {
+      assert.ok(p.emoji && p.label);
+      const withPart = JoshArt.fixable(scene.name, null);
+      const without = JoshArt.fixable(scene.name, p.key);
+      assert.ok(without.length < withPart.length, scene.name + " part '" + p.key + "' must exist in the drawing so removing it changes the SVG");
+    }
+  }
+});
+function zoneGeom(name, box, zones) {
+  const r = box.dot / 2;
+  const cs = zones.map((z) => ({ x: (z.x / 100) * box.w, y: (z.y / 100) * box.h, t: z.shape || z.peek || "z" }));
+  for (const c of cs) {
+    assert.ok(c.x - r >= -0.01 && c.x + r <= box.w + 0.01, name + " " + c.t + " x within box");
+    assert.ok(c.y - r >= -0.01 && c.y + r <= box.h + 0.01, name + " " + c.t + " y within box");
+  }
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
+    const a = cs[i], c = cs[j], dx = Math.abs(a.x - c.x), dy = Math.abs(a.y - c.y);
+    const oX = dx < box.dot, oY = dy < box.dot;
+    assert.ok(!(oX && oY), name + " zones overlap");
+    if (oX) assert.ok(dy - box.dot >= box.minGap, name + " vertical gap < minGap");
+    if (oY) assert.ok(dx - box.dot >= box.minGap, name + " horizontal gap < minGap");
+  }
+}
+test("W10 shape-spy scene: zone geometry clean; each shape appears >=2x, >=3 kinds", () => {
+  const s = content.SPY_SCENE;
+  zoneGeom("shape-spy", s.box, s.zones);
+  const byShape = {};
+  s.zones.forEach((z) => { byShape[z.shape] = (byShape[z.shape] || 0) + 1; });
+  assert.ok(Object.keys(byShape).length >= 3, ">=3 shape kinds");
+  for (const [sh, n] of Object.entries(byShape)) assert.ok(n >= 2, sh + " appears >=2x");
+});
+test("W10 hide-seek scene: >=6 spots, zone geometry clean, each has a peek clue", () => {
+  const s = content.HIDE_SCENE;
+  assert.ok(s.spots.length >= 6);
+  zoneGeom("hide-seek", s.box, s.spots);
+  for (const sp of s.spots) assert.ok(sp.peek, "every spot has a peek clue");
+});
+test("W10 dig pool: >=3 finds, all DISTINCT silhouettes (curtain-peek discipline)", () => {
+  assert.ok(content.DIG_POOL.length >= 3);
+  assert.equal(new Set(content.DIG_POOL.map((d) => d.silhouette)).size, content.DIG_POOL.length, "silhouettes distinct");
+  for (const d of content.DIG_POOL) assert.ok(d.emoji && d.name && d.silhouette);
+});

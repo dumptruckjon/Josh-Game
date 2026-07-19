@@ -6,6 +6,24 @@
   const C = window.JoshContent || {};
   if (!F || !L) return;
 
+  // Shared scene-region helper (mechanic K, the ONE normative implementation —
+  // RULE 7). Places ≥75px absolutely-positioned buttons at each zone's x%/y%
+  // inside a stated content box; the per-scene geometry is truth-tested in
+  // content.test.js (the BODY_FIGURE_BOX precedent). Used by shape-spy + hide-seek.
+  function sceneZones(api, box, zones, onTap) {
+    const stage = api.el("div", { class: "scene__stage" });
+    stage.style.maxWidth = box.w + "px";
+    stage.style.height = box.h + "px";
+    const btns = zones.map((z, i) => {
+      const b = api.el("button", { class: "scene__zone tap", type: "button", aria: { label: z.label || "spot" } });
+      b.style.left = z.x + "%"; b.style.top = z.y + "%";
+      b.addEventListener("click", () => onTap(z, b, i));
+      stage.appendChild(b);
+      return b;
+    });
+    return { stage, btns };
+  }
+
   // ---- Find the Heroes: tap every copy of the target hidden in the field ----
   F.register({
     id: "find-hero",
@@ -1042,6 +1060,132 @@
           }
         }
         reflag();
+      }
+      newRound();
+    },
+  });
+
+  // ================= Road to 200 — Set 3, Wave 10 =================
+  // ---- Shape Spy (find every shape of a kind IN a scene — mechanic K) ----
+  F.register({
+    id: "shape-spy", icon: "🔎", title: "Shape Spy", skill: "embedded shapes [W]",
+    start(api) {
+      const scene = api.C.SPY_SCENE, NAMES = api.C.SPY_SHAPE_NAMES || {};
+      const ROUNDS = 3;
+      let round = 0, lastShape = null, found = 0, need = 0;
+      const wrap = api.el("div", { class: "spy__wrap" });
+      api.stage.append(wrap);
+      function newRound() {
+        const r = L.makeShapeSpy(scene, undefined, lastShape); lastShape = r.shape; found = 0; need = r.need;
+        wrap.innerHTML = "";
+        const nm = NAMES[r.shape] || (r.shape + "s");
+        api.setPrompt("Find all the " + nm + "!", ["🔎", "👀", "👉"]);
+        api.speak(); api.say("Tap all the " + nm + "!");
+        const built = sceneZones(api, scene.box, r.zones, (z, b) => {
+          if (b.dataset.done) return;
+          if (z.shape !== r.shape) { api.tryAgain(b); return; }
+          b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("scene__zone--found");
+          found += 1;
+          if (found >= need) {
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You found every shape! Sharp eyes!" }); else { api.roundWin(); newRound(); }
+          }
+        });
+        built.btns.forEach((b, i) => { b.textContent = r.zones[i].emoji; if (r.zones[i].shape === r.shape) b.dataset.correct = "1"; });
+        wrap.appendChild(built.stage);
+      }
+      newRound();
+    },
+  });
+
+  // ---- Hide & Seek! (find friends by their peek clues — mechanic K) ----
+  F.register({
+    id: "hide-seek", icon: "🙈", title: "Hide & Seek!", skill: "visual inference hunt [M/W]",
+    start(api) {
+      const ART = window.JoshArt;
+      const FRIENDS = (api.C.FRIENDS || []).map((f) => f.art).filter(Boolean);
+      const scene = api.C.HIDE_SCENE;
+      const ROUNDS = 2;
+      let round = 0, found = 0, need = 0;
+      const wrap = api.el("div", { class: "hide__wrap" });
+      api.stage.append(wrap);
+      function newRound() {
+        const r = L.makeHideSpots(scene.spots, FRIENDS.length ? FRIENDS : [null], undefined); found = 0; need = r.need;
+        wrap.innerHTML = "";
+        api.setPrompt("Find all 4 hiding friends!", ["🙈", "👀", "🎉"]);
+        api.speak(); api.say("Someone is hiding at each peeking spot. Find all four friends!");
+        const built = sceneZones(api, scene.box, r.spots, (z, b) => {
+          if (b.dataset.done) return;
+          if (!z.hiding) { api.tryAgain(b); api.say("Nobody here! Look for a peeking clue."); return; }
+          b.dataset.done = "1"; delete b.dataset.correct;
+          b.classList.add("hide__spot--found", "art-fill");
+          b.innerHTML = (ART && ART.friend && z.friend) ? ART.friend(z.friend) : "🧒";
+          found += 1;
+          if (found >= need) {
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You found everybody! Hooray!" }); else { api.roundWin(); newRound(); }
+          }
+        });
+        built.btns.forEach((b, i) => {
+          const z = r.spots[i];
+          if (z.hiding) { b.dataset.correct = "1"; b.textContent = z.peek; b.classList.add("hide__spot--clue"); }
+          else { b.textContent = "🌿"; b.classList.add("hide__spot--empty"); }
+        });
+        wrap.appendChild(built.stage);
+      }
+      newRound();
+    },
+  });
+
+  // ---- Dino Dig (brush the sand, then identify — mechanic L) ----
+  // Brush every sand patch (each stays flagged so the harness converges), then
+  // the buried find is revealed and named among silhouette-distinct choices.
+  F.register({
+    id: "dino-dig", icon: "🦴", title: "Dino Dig", skill: "excavate & identify [W]",
+    start(api) {
+      const POOL = api.C.DIG_POOL || [];
+      const ROUNDS = 2;
+      let round = 0, last = -1;
+      const site = api.el("div", { class: "dig__site" });
+      const finder = api.el("div", { class: "dig__found", aria: { hidden: "true" } });
+      const grid = api.el("div", { class: "choices choices--3 dig__patches" });
+      const chips = api.el("div", { class: "choices choices--3 dig__chips" });
+      site.append(finder, grid);
+      api.stage.append(site, chips);
+      function newRound() {
+        const r = L.makeCurtainPeek(POOL, undefined, last); last = r.idx;
+        let brushed = 0;
+        finder.textContent = ""; finder.classList.remove("dig__found--up");
+        grid.innerHTML = ""; chips.innerHTML = ""; grid.hidden = false;
+        api.setPrompt("Brush away the sand to dig it up!", ["🖌️", "🏖️", "👀"]);
+        api.speak(); api.say("Brush away all the sand to see what's buried!");
+        for (let i = 0; i < 9; i++) {
+          const p = api.el("button", { class: "dig__patch tap", type: "button", dataset: { correct: "1" }, aria: { label: "sand" }, text: "🟫" });
+          p.addEventListener("click", () => {
+            if (p.dataset.done) return;
+            p.dataset.done = "1"; delete p.dataset.correct; p.classList.add("dig__patch--clear");
+            brushed += 1;
+            if (brushed >= 9) reveal(r);
+          });
+          grid.appendChild(p);
+        }
+      }
+      function reveal(r) {
+        grid.hidden = true;
+        finder.textContent = r.answer.emoji; finder.classList.add("dig__found--up", "pop");
+        api.setPrompt("Who did we dig up?", ["🦴", "🤔", "👉"]);
+        api.speak(); api.say("Who did we dig up?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("Yes! It's " + r.answer.name + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You're a great dino digger!" }); else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
       }
       newRound();
     },
