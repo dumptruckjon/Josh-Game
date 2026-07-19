@@ -1568,3 +1568,92 @@ test("makeHelperTool: correct is the tool's helper; NO distractor uses the tool"
     last = r.idx;
   }
 });
+
+// ================= Road to 180 — Set 2, Wave 6 logic =================
+test("makeCoinMix: total = 5 + pennies (6-9); exactly one correct chip", () => {
+  const rng = mulberry32(420); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeCoinMix(rng, last);
+    assert.ok(r.pennies >= 1 && r.pennies <= 4);
+    assert.equal(r.total, 5 + r.pennies);
+    assert.ok(r.total >= 6 && r.total <= 9);
+    assert.equal(r.choices.filter((c) => c.correct).length, 1);
+    assert.ok(r.choices.some((c) => c.correct && c.n === r.total));
+    for (const c of r.choices) assert.ok(c.n >= 1);
+    last = r.total;
+  }
+});
+test("makeOrdinal: ord in 1..len; correctIdx = ord-1; alternates from last", () => {
+  const rng = mulberry32(421); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeOrdinal(rng, { last });
+    assert.ok(r.len >= 4 && r.len <= 5);
+    assert.ok(r.ord >= 1 && r.ord <= r.len);
+    assert.equal(r.correctIdx, r.ord - 1);
+    assert.notEqual(r.ord, last);
+    last = r.ord;
+  }
+});
+test("makeAboutFive: n is NEVER 5; answer matches n<5 / n>5", () => {
+  const rng = mulberry32(422); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeAboutFive(rng, last);
+    assert.notEqual(r.n, 5, "n must never be exactly 5");
+    assert.equal(r.answerIdx, r.n < 5 ? 0 : 1);
+    last = r.n;
+  }
+});
+test("makeGraphPick: 3 distinct heights; answer is the most/least as asked", () => {
+  const rng = mulberry32(423); let last = null;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeGraphPick(content.GRAPH_FRUITS, rng, last);
+    assert.equal(r.cols.length, 3);
+    assert.equal(new Set(r.cols.map((c) => c.n)).size, 3, "distinct heights");
+    const ns = r.cols.map((c) => c.n);
+    assert.equal(r.cols[r.answerIdx].n, r.ask === "most" ? Math.max(...ns) : Math.min(...ns));
+    last = r.ask;
+  }
+});
+test("makeGlassPick: 3 distinct fills; answer is fullest/emptiest as asked", () => {
+  const rng = mulberry32(424); let last = null;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeGlassPick(rng, last);
+    assert.equal(new Set(r.fills).size, 3, "distinct fills");
+    assert.equal(r.fills[r.answerIdx], r.ask === "full" ? Math.max(...r.fills) : Math.min(...r.fills));
+    last = r.ask;
+  }
+});
+test("makePartnerUp: n in 3..6; parity matches n", () => {
+  const rng = mulberry32(425); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makePartnerUp(rng, last);
+    assert.ok(r.n >= 3 && r.n <= 6);
+    assert.equal(r.parity, r.n % 2 === 0 ? "even" : "odd");
+    last = r.n;
+  }
+});
+test("makeCategoryCount: k members (2-5) all in-category; NO filler is a member", () => {
+  const rng = mulberry32(426); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeCategoryCount(content.FIND_CATEGORIES, rng, last);
+    assert.ok(r.k >= 2 && r.k <= 5);
+    const members = r.cells.filter((c) => c.member);
+    assert.equal(members.length, r.k, "member count matches k");
+    for (const c of r.cells) {
+      if (c.member) assert.ok(r.cat.items.includes(c.e), c.e + " must be in the category");
+      else assert.ok(!r.cat.items.includes(c.e), c.e + " filler must NOT be in the category");
+    }
+    assert.ok(r.choices.some((c) => c.correct && c.n === r.k));
+    last = r.idx;
+  }
+});
+test("makeSizePick: 7 distinct sizes; answer is biggest/tiniest as asked", () => {
+  const rng = mulberry32(427); let last = null;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeSizePick(rng, last);
+    assert.equal(r.sizes.length, 7);
+    assert.equal(new Set(r.sizes).size, 7, "distinct sizes");
+    assert.equal(r.sizes[r.answerIdx], r.ask === "biggest" ? Math.max(...r.sizes) : Math.min(...r.sizes));
+    last = r.ask;
+  }
+});

@@ -842,3 +842,21 @@ test("W5 table & match pools: named table items; unique match pairs; egg babies"
   assert.equal(new Set(content.MATCH_PAIRS).size, content.MATCH_PAIRS.length, "match pool unique (twins made by duplication)");
   assert.ok(content.EGG_BABIES.length >= 2, "need a few surprise babies");
 });
+
+// ================= Road to 180 — Set 2, Wave 6 truth tables =================
+test("W6 graph fruits: several distinct self-naming fruits", () => {
+  assert.ok(content.GRAPH_FRUITS.length >= 4);
+  assert.equal(new Set(content.GRAPH_FRUITS).size, content.GRAPH_FRUITS.length, "fruits unique");
+});
+test("W6 meal sets: foods and sillies are DISJOINT within each set (never mislabel food)", () => {
+  for (const s of content.MEAL_SETS) {
+    assert.ok(s.foods.length >= 3, s.name + " needs several foods");
+    assert.ok(s.sillies.length >= 5, s.name + " needs enough silly non-foods for a 9-grid");
+    for (const f of s.foods) assert.ok(!s.sillies.includes(f), f + " is both a food and a silly in " + s.name);
+  }
+});
+test("W6 splat colors: each has a hex + a spoken color word; names unique", () => {
+  assert.ok(content.SPLAT_COLORS.length >= 4);
+  for (const c of content.SPLAT_COLORS) { assert.match(c.hex, /^#[0-9a-f]{6}$/i); assert.ok(c.name); }
+  assert.equal(new Set(content.SPLAT_COLORS.map((c) => c.name)).size, content.SPLAT_COLORS.length, "color words unique");
+});

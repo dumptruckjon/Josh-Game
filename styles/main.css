@@ -1849,3 +1849,64 @@ body.hl-mode {
   .egg--wobble, .egg--hatched { animation: none !important; }
   .held { transform: none !important; }
 }
+
+/* ================= Road to 180 — Set 2, Wave 6 ================= */
+/* Coin Mix-Up — a small pile of coins. */
+.coinmix__pile { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; min-height: 90px; margin: 8px 0 14px; }
+.coin { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.95rem; box-shadow: 0 3px 8px rgba(0,0,0,0.18); }
+.coin--penny { background: radial-gradient(circle at 38% 32%, #e6a06a, #b3703a); color: #5a2f12; }
+.coin--nickel { width: 62px; height: 62px; background: radial-gradient(circle at 38% 32%, #d9dde2, #9aa2ab); color: #333; font-size: 1.15rem; }
+
+/* First, Second, Third — a queue walking down to the ice-cream stand. */
+.ord__line { display: flex; flex-direction: column; align-items: stretch; gap: 16px; max-width: 340px; margin: 6px auto; }
+.ord__stand { text-align: center; font-size: 2.6rem; }
+.ord__animal { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 78px; }
+.ord__badge { font-weight: 900; font-size: 1.1rem; color: #7a5cd6; background: #efeaff; border-radius: 999px; padding: 4px 10px; }
+.ord__face { font-size: 2.2rem; }
+.ord__animal--hop { animation: pop 360ms ease-out; }
+
+/* More or Fewer than 5 — a scatter + two bins. */
+.af__scene { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 8px; min-height: 120px; margin: 6px 0 12px; }
+.af__item { font-size: clamp(1.6rem, 9vw, 2.4rem); }
+.af__bin { flex-direction: column; gap: 4px; }
+.af__binIcon { font-size: 2rem; }
+.af__binText { font-weight: 800; }
+
+/* The Fruit Graph — three columns you tap. */
+.graph { align-items: end; }
+.graph__col { display: flex; flex-direction: column-reverse; align-items: center; gap: 3px; padding: 8px 4px; min-height: 120px; justify-content: flex-start; }
+.graph__fruit { font-size: 1.7rem; line-height: 1; }
+
+/* Fullest Glass — three drawn glasses. */
+.glass__glass { padding: 6px; }
+.glass__glass svg { display: block; }
+
+/* Partner Up — ducks pairing off. */
+.partner__say { text-align: center; font-size: clamp(1.1rem, 5.5vw, 1.5rem); font-weight: 800; color: #2b6cff; margin: 4px 0 10px; min-height: 1.6em; }
+.partner__duck { font-size: clamp(2rem, 11vw, 2.8rem); }
+.partner__duck--paired { background: #eafbe8; border-color: #7be08a; }
+
+/* Count the Animals — a mixed scene + number chips. */
+.catcount__scene { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 6px; min-height: 130px; margin: 6px 0 12px; padding: 10px; border-radius: 20px; background: rgba(255,255,255,0.45); }
+.catcount__item { font-size: clamp(1.5rem, 8vw, 2.1rem); transition: transform 0.2s; }
+.catcount__item--hit { transform: scale(1.25); }
+
+/* Find the Tiniest — uniform hit boxes, varying star glyphs. */
+.sizehunt__sky { align-items: stretch; }
+.sizehunt__star { display: flex; align-items: center; justify-content: center; }
+.sizehunt__glyph { line-height: 1; }
+
+/* Sandwich Shop — the growing stack + the pantry grid. */
+.sandwich__tray { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; min-height: 2.6rem; font-size: 2rem; margin-bottom: 8px; }
+.sandwich__cell { font-size: clamp(2rem, 11vw, 2.8rem); }
+.sandwich__cell--got { background: #eafbe8; border-color: #7be08a; opacity: 0.7; }
+
+/* Splat Studio — a canvas that fills with color blobs + a wipe sponge. */
+.splat__canvas { width: 100%; min-height: 300px; flex: 1 1 auto; position: relative; overflow: hidden; border-radius: 22px; border: 3px solid rgba(120,170,255,0.3); background: #fffdf8; }
+.splat__blob { position: absolute; border-radius: 48% 52% 55% 45%; transform: translate(-50%, -50%); box-shadow: 0 3px 8px rgba(0,0,0,0.12); animation: pop 300ms ease-out; }
+.splat__sponge { display: block; margin: 12px auto 0; width: 120px; min-height: 78px; font-size: 2.2rem; border-radius: 18px; border: 2px solid rgba(120,170,255,0.3); background: linear-gradient(180deg,#ffffff,#eef4ff); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ord__animal--hop, .splat__blob { animation: none !important; }
+  .catcount__item { transition: none !important; }
+}

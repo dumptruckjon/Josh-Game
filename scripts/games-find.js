@@ -844,4 +844,108 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 6 =================
+  // ---- Count the Animals (categorize-then-count: filter, THEN count) ----
+  F.register({
+    id: "category-count", icon: "🐾", title: "Count the Animals", skill: "categorize then count [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, last = -1;
+      const CATNAME = { animals: "animals", vehicles: "cars and trucks", food: "foods", sky: "sky things" };
+      const scene = api.el("div", { class: "catcount__scene", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(scene, chips);
+      function newRound() {
+        const r = L.makeCategoryCount(api.C.FIND_CATEGORIES, undefined, last); last = r.idx;
+        const nm = CATNAME[r.cat.id] || r.cat.id;
+        scene.innerHTML = "";
+        r.cells.forEach((c) => scene.appendChild(api.el("span", { class: "catcount__item" }, [c.e])));
+        api.setPrompt("How many " + nm + "?", [r.cat.icon, "🔢", "👀"]);
+        api.speak(); api.say("How many " + nm + "?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            [...scene.children].forEach((el, i) => { if (r.cells[i] && r.cells[i].member) el.classList.add("catcount__item--hit"); });
+            api.say(r.k + " " + nm + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You counted them!" }); else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Find the Tiniest (size discrimination; uniform hit box, varying glyph) ----
+  F.register({
+    id: "smallest-hunt", icon: "🔎", title: "Find the Tiniest", skill: "size discrimination [M]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, lastAsk = null;
+      const sky = api.el("div", { class: "choices choices--3 sizehunt__sky" });
+      api.stage.append(sky);
+      function newRound() {
+        const r = L.makeSizePick(undefined, lastAsk); lastAsk = r.ask;
+        api.setPrompt(r.ask === "biggest" ? "Tap the BIGGEST star!" : "Tap the TINIEST star!", [r.ask === "biggest" ? "⭐" : "✨", "👀", "👉"]);
+        api.speak(); api.say(r.ask === "biggest" ? "Which star is the biggest?" : "Which star is the tiniest?");
+        sky.innerHTML = "";
+        r.sizes.forEach((sz, i) => {
+          const b = api.el("button", { class: "choice sizehunt__star tap", type: "button", dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: "star" } }, [
+            api.el("span", { class: "sizehunt__glyph", style: { fontSize: sz + "px" }, aria: { hidden: "true" } }, ["⭐"]),
+          ]);
+          b.addEventListener("click", () => {
+            if (i !== r.answerIdx) { api.tryAgain(b); return; }
+            api.say(r.ask === "biggest" ? "The biggest one!" : "The tiniest one!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You have sharp eyes!" }); else { api.roundWin(); newRound(); }
+          });
+          sky.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Sandwich Shop (functional category — foods go in, silly things don't) ----
+  F.register({
+    id: "sandwich-shop", icon: "🥪", title: "Sandwich Shop", skill: "functional category [M]",
+    start(api) {
+      const ROUNDS = 3; let round = 0, lastIdx = -1;
+      const tray = api.el("div", { class: "sandwich__tray", aria: { hidden: "true" } });
+      const grid = api.el("div", { class: "choices choices--3 sandwich__grid" });
+      api.stage.append(tray, grid);
+      function newRound() {
+        const sets = api.C.MEAL_SETS || [];
+        let idx = api.randInt(0, sets.length - 1);
+        if (sets.length > 1 && idx === lastIdx) idx = (idx + 1) % sets.length;
+        lastIdx = idx;
+        const set = sets[idx];
+        const foods = set.foods.slice();
+        const sillies = api.shuffle(set.sillies.slice()).slice(0, Math.max(0, 9 - foods.length));
+        const cells = api.shuffle(foods.map((e) => ({ e, food: true })).concat(sillies.map((e) => ({ e, food: false }))));
+        let found = 0;
+        tray.innerHTML = "";
+        api.setPrompt("Make " + set.name + " — find everything that goes in it!", ["🥪", "🔍", "😋"]);
+        api.speak(); api.say("Find everything that goes in " + set.name + "!");
+        grid.innerHTML = "";
+        cells.forEach((c) => {
+          const b = api.el("button", { class: "choice sandwich__cell tap", type: "button", text: c.e, dataset: c.food ? { correct: "1" } : {}, aria: { label: "food" } });
+          b.addEventListener("click", () => {
+            if (!c.food) { api.tryAgain(b); api.say("Silly! That doesn't go in " + set.name + "! Hee hee."); return; }
+            if (!b.dataset.correct) return;
+            delete b.dataset.correct; b.disabled = true; b.classList.add("sandwich__cell--got");
+            tray.appendChild(api.el("span", { class: "sandwich__layer pop", aria: { hidden: "true" } }, [c.e]));
+            found += 1;
+            if (found >= foods.length) { round += 1; if (round >= ROUNDS) api.win({ say: "Yum! You made it!" }); else { api.roundWin(); newRound(); } }
+          });
+          grid.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

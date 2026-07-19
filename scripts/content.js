@@ -894,6 +894,21 @@
     EGG_BABIES: ["🐣", "🐢", "🐍", "🦖", "🐊", "🦎"],
     // Match Them All — the pairs pool (identical-emoji twins).
     MATCH_PAIRS: ["🧤", "🧦", "🥤", "🎩", "👟", "🧩"],
+
+    // ================= Road to 180 — Set 2, Wave 6 content =================
+    // The Fruit Graph — the fruits a pictograph can be built from.
+    GRAPH_FRUITS: ["🍎", "🍌", "🍇", "🍓", "🍊", "🥝", "🍐", "🍒"],
+    // Sandwich Shop — each set's foods are truly edible, the sillies never are.
+    MEAL_SETS: [
+      { name: "a sandwich", foods: ["🍞", "🧀", "🍅", "🥬"], sillies: ["🧦", "🧸", "🖍️", "⚽", "🪥"] },
+      { name: "a fruit salad", foods: ["🍎", "🍌", "🍓", "🍇"], sillies: ["🔑", "🧦", "🚗", "🖍️", "🧱"] },
+      { name: "a pizza", foods: ["🍅", "🧀", "🍄", "🌶️"], sillies: ["🎈", "🧦", "🪀", "🔨", "🧸"] },
+    ],
+    // Splat Studio — the paint colors that splat (color WORD spoken for free).
+    SPLAT_COLORS: [
+      { hex: "#e23636", name: "red" }, { hex: "#2b6cff", name: "blue" }, { hex: "#38b000", name: "green" },
+      { hex: "#f4c430", name: "yellow" }, { hex: "#c77dff", name: "purple" }, { hex: "#ff9f43", name: "orange" },
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

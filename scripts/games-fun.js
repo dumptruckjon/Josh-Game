@@ -703,4 +703,34 @@
       });
     },
   });
+
+  // ---- Splat Studio (tap the canvas → a color splat; sponge wipes it clean) ----
+  F.register({
+    id: "paint-splat",
+    icon: "🎨",
+    title: "Splat Studio",
+    skill: "creative cause→effect [P]",
+    start(api) {
+      const COLORS = api.C.SPLAT_COLORS || [{ hex: "#e23636", name: "red" }];
+      api.setPrompt("Tap the canvas to splat paint!", ["👆", "🎨", "🌈"]);
+      const canvas = api.el("button", { class: "splat__canvas tap", type: "button", dataset: { toy: "1" }, aria: { label: "canvas" } });
+      const sponge = api.el("button", { class: "splat__sponge tap", type: "button", dataset: { toy: "1" }, aria: { label: "wipe clean" } }, ["🧽"]);
+      api.stage.append(canvas, sponge);
+      let splats = 0, won = false;
+      canvas.addEventListener("click", () => {
+        const c = api.randItem(COLORS);
+        const blob = api.el("span", { class: "splat__blob", aria: { hidden: "true" } });
+        blob.style.left = api.randInt(8, 88) + "%"; blob.style.top = api.randInt(8, 82) + "%";
+        blob.style.background = c.hex; blob.style.width = blob.style.height = api.randInt(38, 66) + "px";
+        canvas.appendChild(blob);
+        api.tickPlay(); api.say(c.name);
+        splats += 1;
+        if (splats >= 6) { if (!won) { won = true; api.win({ say: "A masterpiece!" }); } else api.roundWin(); }
+      });
+      sponge.addEventListener("click", () => {
+        [...canvas.querySelectorAll(".splat__blob")].forEach((b) => b.remove());
+        api.tickPlay(); api.say("All clean!");
+      });
+    },
+  });
 })();

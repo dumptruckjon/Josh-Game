@@ -1292,4 +1292,224 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 6 =================
+  // ---- Coin Mix-Up (a nickel + some pennies → the total) ----
+  F.register({
+    id: "coin-mix", icon: "💰", title: "Coin Mix-Up", skill: "money: nickel + pennies [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, last = -1;
+      const pile = api.el("div", { class: "coinmix__pile", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pile, chips);
+      function newRound() {
+        const r = L.makeCoinMix(undefined, last); last = r.total;
+        pile.innerHTML = "";
+        pile.appendChild(api.el("span", { class: "coin coin--nickel" }, ["5¢"]));
+        for (let i = 0; i < r.pennies; i++) pile.appendChild(api.el("span", { class: "coin coin--penny" }, ["1¢"]));
+        api.setPrompt("How many cents in all?", ["🪙", "➕", "🔢"]);
+        api.speak(); api.say("A nickel is 5 cents. How many cents in all?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice choice--num tap", type: "button", text: ch.n + "¢", dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.n + " cents" } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            const nk = pile.querySelector(".coin--nickel");
+            if (nk) { nk.classList.remove("coin--nickel"); nk.classList.add("coin--penny", "pop"); nk.textContent = "1¢"; for (let i = 0; i < 4; i++) pile.insertBefore(api.el("span", { class: "coin coin--penny pop" }, ["1¢"]), nk.nextSibling); }
+            api.say(r.total + " cents!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You counted the money!" }); else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- First, Second, Third! (ordinal position in a queue) ----
+  F.register({
+    id: "ordinal-line", icon: "🥇", title: "First, Second, Third!", skill: "ordinal words [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, last = -1;
+      const ORD = ["1st", "2nd", "3rd", "4th", "5th"];
+      const POOL = (api.C.ANIMALS || []).map((a) => a.emoji || a).filter((e) => typeof e === "string");
+      const line = api.el("div", { class: "ord__line" });
+      api.stage.append(line);
+      function newRound() {
+        const r = L.makeOrdinal(undefined, { last });
+        last = r.ord;
+        const animals = api.shuffle((POOL.length ? POOL : ["🐶", "🐱", "🐰", "🐸", "🐵"]).slice()).slice(0, r.len);
+        api.setPrompt("Tap the " + ORD[r.ord - 1] + " one in line!", ["🍦", "🔢", "👉"]);
+        api.speak(); api.say("Tap the " + ORD[r.ord - 1] + " one in line!");
+        line.innerHTML = "";
+        line.appendChild(api.el("div", { class: "ord__stand", aria: { hidden: "true" } }, ["🍦"]));
+        animals.forEach((em, i) => {
+          const b = api.el("button", {
+            class: "choice ord__animal tap", type: "button",
+            dataset: i === r.correctIdx ? { correct: "1" } : {}, aria: { label: ORD[i] + " in line" },
+          }, [
+            api.el("span", { class: "ord__badge", aria: { hidden: "true" } }, [ORD[i]]),
+            api.el("span", { class: "ord__face", aria: { hidden: "true" } }, [em]),
+          ]);
+          b.addEventListener("click", () => {
+            if (i !== r.correctIdx) { api.tryAgain(b); return; }
+            b.classList.add("ord__animal--hop"); api.say("The " + ORD[r.ord - 1] + " one!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know first, second, third!" }); else { api.roundWin(); newRound(); }
+          });
+          line.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- More or Fewer than 5? (number sense around a benchmark) ----
+  F.register({
+    id: "about-five", icon: "🖐️", title: "More or Fewer than 5?", skill: "number sense [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, last = -1;
+      const OBJ = api.C.COUNT_OBJECTS || ["⭐"];
+      const scene = api.el("div", { class: "af__scene", aria: { hidden: "true" } });
+      const bins = api.el("div", { class: "choices choices--2" });
+      api.stage.append(scene, bins);
+      function newRound() {
+        const r = L.makeAboutFive(undefined, last); last = r.n;
+        const em = api.randItem(OBJ);
+        scene.innerHTML = "";
+        for (let i = 0; i < r.n; i++) scene.appendChild(api.el("span", { class: "af__item" }, [em]));
+        api.setPrompt("Fewer than 5, or more than 5?", ["🖐️", "❓", "🔢"]);
+        api.speak();
+        bins.innerHTML = "";
+        [{ label: "Fewer than 5", emoji: "🤏" }, { label: "More than 5", emoji: "✋" }].forEach((bin, i) => {
+          const b = api.el("button", {
+            class: "choice af__bin tap", type: "button",
+            dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: bin.label },
+          }, [
+            api.el("span", { class: "af__binIcon", aria: { hidden: "true" } }, [bin.emoji]),
+            api.el("span", { class: "af__binText" }, [bin.label]),
+          ]);
+          b.addEventListener("click", () => {
+            if (i !== r.answerIdx) { api.tryAgain(b); return; }
+            api.say(r.n + "! That's " + (r.n < 5 ? "fewer" : "more") + " than 5.");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Great number sense!" }); else { api.roundWin(); newRound(); }
+          });
+          bins.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- The Fruit Graph (pictograph reading — most / fewest) ----
+  F.register({
+    id: "fruit-graph", icon: "📊", title: "The Fruit Graph", skill: "pictograph reading [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, lastAsk = null;
+      const graph = api.el("div", { class: "choices choices--3 graph" });
+      api.stage.append(graph);
+      function newRound() {
+        const r = L.makeGraphPick(api.C.GRAPH_FRUITS || ["🍎", "🍌", "🍇"], undefined, lastAsk); lastAsk = r.ask;
+        api.setPrompt(r.ask === "most" ? "Which fruit is there the MOST of?" : "Which fruit is there the FEWEST of?", [r.ask === "most" ? "⬆️" : "⬇️", "📊", "👉"]);
+        api.speak(); api.say(r.ask === "most" ? "Which has the most?" : "Which has the fewest?");
+        graph.innerHTML = "";
+        r.cols.forEach((c, i) => {
+          const stack = api.el("button", { class: "choice graph__col tap", type: "button", dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: c.n + " fruit" } });
+          for (let k = 0; k < c.n; k++) stack.appendChild(api.el("span", { class: "graph__fruit", aria: { hidden: "true" } }, [c.emoji]));
+          stack.addEventListener("click", () => {
+            if (i !== r.answerIdx) { api.tryAgain(stack); return; }
+            api.say(c.n + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You read the graph!" }); else { api.roundWin(); newRound(); }
+          });
+          graph.appendChild(stack);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Fullest Glass (volume compare) ----
+  F.register({
+    id: "full-glass", icon: "🥛", title: "Fullest Glass", skill: "volume compare [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, lastAsk = null;
+      const row = api.el("div", { class: "choices choices--3 glass__row" });
+      api.stage.append(row);
+      function glassSVG(fill) {
+        return '<svg viewBox="0 0 60 110" width="100%" height="118" aria-hidden="true"><rect x="10" y="4" width="40" height="100" rx="6" fill="none" stroke="#8fb7d6" stroke-width="3"/><rect x="13" y="' + (104 - fill) + '" width="34" height="' + fill + '" rx="3" fill="#5ec8ff" opacity="0.85"/></svg>';
+      }
+      function newRound() {
+        const r = L.makeGlassPick(undefined, lastAsk); lastAsk = r.ask;
+        api.setPrompt(r.ask === "full" ? "Tap the FULLEST glass!" : "Tap the EMPTIEST glass!", ["🥛", "👀", "👉"]);
+        api.speak(); api.say(r.ask === "full" ? "Which glass is the fullest?" : "Which glass is the emptiest?");
+        row.innerHTML = "";
+        r.fills.forEach((f, i) => {
+          const b = api.el("button", { class: "choice glass__glass tap", type: "button", html: glassSVG(f), dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: "glass" } });
+          b.addEventListener("click", () => {
+            if (i !== r.answerIdx) { api.tryAgain(b); return; }
+            api.say(r.ask === "full" ? "That one is the fullest!" : "That one is the emptiest!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You compared them all!" }); else { api.roundWin(); newRound(); }
+          });
+          row.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Partner Up! (parity through pairing — mechanic A-lite, toy contract) ----
+  F.register({
+    id: "partner-up", icon: "🦆", title: "Partner Up!", skill: "odd / even [P]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 4; let round = 0, last = -1;
+      const banner = api.el("div", { class: "partner__say", aria: { live: "polite" } }, ["Can every duck find a partner?"]);
+      const pond = api.el("div", { class: "choices choices--3 partner__pond" });
+      api.stage.append(banner, pond);
+      function newRound() {
+        const r = L.makePartnerUp(undefined, last); last = r.n;
+        let held = null, paired = 0;
+        banner.textContent = "Can every duck find a partner?";
+        api.setPrompt("Tap two ducks to pair them!", ["🦆", "🤝", "🦆"]);
+        api.speak();
+        pond.innerHTML = "";
+        const ducks = [];
+        function reflag() {
+          ducks.forEach((d) => delete d.dataset.correct);
+          ducks.forEach((d) => { if (!d.dataset.paired && d !== held) d.dataset.correct = "1"; });
+        }
+        function finish() {
+          const leftover = ducks.find((d) => !d.dataset.paired);
+          if (r.parity === "odd" && leftover) { leftover.textContent = "🦆☂️"; banner.textContent = "ODD — one duck is left over!"; api.say("Odd! One duck is left over."); }
+          else { banner.textContent = "EVEN — everyone has a partner!"; api.say("Even! Everyone has a partner!"); }
+          round += 1;
+          if (round >= ROUNDS) api.win({ say: "You know odd and even!" }); else { api.roundWin(); setTimeout(newRound, 950); }
+        }
+        for (let i = 0; i < r.n; i++) {
+          const b = api.el("button", { class: "choice partner__duck tap", type: "button", aria: { label: "duck" } }, ["🦆"]);
+          b.addEventListener("click", () => {
+            if (b.dataset.paired) return;
+            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (!held) { held = b; b.classList.add("held"); reflag(); return; }
+            [held, b].forEach((d) => { d.dataset.paired = "1"; d.classList.remove("held"); d.classList.add("partner__duck--paired"); d.disabled = true; });
+            held = null; paired += 2;
+            api.say("A pair!");
+            if (r.n - paired < 2) finish(); else reflag();
+          });
+          pond.appendChild(b); ducks.push(b);
+        }
+        reflag();
+      }
+      newRound();
+    },
+  });
 })();

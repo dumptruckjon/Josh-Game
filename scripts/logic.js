@@ -1411,6 +1411,86 @@
     ], rng);
     return { idx, item, choices };
   }
+  // Little helper: 3 number chips around a target (all >=1, distinct).
+  function numChoices(t, rng) {
+    const opt = new Set([t]);
+    const cand = [t + 1, t - 1, t + 2, t - 2];
+    let ci = 0;
+    while (opt.size < 3 && ci < 20) { const d = cand[ci % cand.length]; ci++; if (d >= 1 && d !== t) opt.add(d); }
+    return shuffle([...opt].map((v) => ({ n: v, correct: v === t })), rng);
+  }
+  // Coin Mix-Up — a nickel (5) plus 1-4 pennies; total 6-9.
+  function makeCoinMix(rng, last) {
+    const rnd = rng || Math.random;
+    let pennies = 1 + Math.floor(rnd() * 4);
+    if (5 + pennies === last) pennies = 1 + (pennies % 4);
+    const total = 5 + pennies;
+    return { pennies, total, choices: numChoices(total, rng) };
+  }
+  // Ordinal position — first..last, counted from the fixed front (index 0).
+  function makeOrdinal(rng, opts) {
+    opts = opts || {};
+    const rnd = rng || Math.random;
+    const len = opts.len || (4 + Math.floor(rnd() * 2));
+    let ord = 1 + Math.floor(rnd() * len);
+    if (ord === opts.last) ord = ord === len ? 1 : ord + 1;
+    return { len, ord, correctIdx: ord - 1 };
+  }
+  // More or Fewer than 5 — n is NEVER exactly 5.
+  function makeAboutFive(rng, last) {
+    const rnd = rng || Math.random;
+    const pool = [2, 3, 4, 6, 7, 8];
+    let n = pool[Math.floor(rnd() * pool.length)];
+    if (n === last) n = pool[(pool.indexOf(n) + 1) % pool.length];
+    return { n, answerIdx: n < 5 ? 0 : 1 };
+  }
+  // Pictograph — 3 columns of distinct heights (2-5); ask most/least (alternates).
+  function makeGraphPick(kinds, rng, last) {
+    const picks = sample(kinds, 3, rng);
+    const heights = shuffle([2, 3, 4, 5], rng).slice(0, 3);
+    const cols = picks.map((e, i) => ({ emoji: e, n: heights[i] }));
+    const ask = last === "most" ? "least" : "most";
+    let answerIdx = 0;
+    for (let i = 1; i < cols.length; i++) {
+      if (ask === "most" ? cols[i].n > cols[answerIdx].n : cols[i].n < cols[answerIdx].n) answerIdx = i;
+    }
+    return { cols, ask, answerIdx };
+  }
+  // Fullest / emptiest — 3 glasses at distinct fill levels (30% apart).
+  function makeGlassPick(rng, last) {
+    const fills = shuffle([20, 50, 80], rng);
+    const ask = last === "full" ? "empty" : "full";
+    const target = ask === "full" ? Math.max(...fills) : Math.min(...fills);
+    return { fills, ask, answerIdx: fills.indexOf(target) };
+  }
+  // Partner Up — n ducks (3-6); parity is the taught outcome.
+  function makePartnerUp(rng, last) {
+    const rnd = rng || Math.random;
+    let n = 3 + Math.floor(rnd() * 4);
+    if (n === last) n = n === 6 ? 3 : n + 1;
+    return { n, parity: n % 2 === 0 ? "even" : "odd" };
+  }
+  // Categorize-then-count — k members (2-5) of ONE category among fillers drawn
+  // ONLY from other (disjoint) categories, so a filler is never a member.
+  function makeCategoryCount(cats, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * cats.length);
+    if (cats.length > 1 && idx === last) idx = (idx + 1) % cats.length;
+    const cat = cats[idx];
+    const k = Math.min(2 + Math.floor(rnd() * 4), cat.items.length);
+    const members = sample(cat.items, k, rng);
+    const others = cats.filter((_, i) => i !== idx).reduce((a, c) => a.concat(c.items), []);
+    const fillers = sample(others, Math.min(3 + Math.floor(rnd() * 3), others.length), rng);
+    const cells = shuffle(members.map((e) => ({ e, member: true })).concat(fillers.map((e) => ({ e, member: false }))), rng);
+    return { idx, cat, k: members.length, cells, choices: numChoices(members.length, rng) };
+  }
+  // Size discrimination — 7 distinct glyph sizes; ask biggest/tiniest (alternates).
+  function makeSizePick(rng, last) {
+    const sizes = shuffle([20, 26, 32, 38, 44, 50, 56], rng);
+    const ask = last === "biggest" ? "tiniest" : "biggest";
+    const target = ask === "biggest" ? Math.max(...sizes) : Math.min(...sizes);
+    return { sizes, ask, answerIdx: sizes.indexOf(target) };
+  }
 
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
@@ -1420,6 +1500,8 @@
     makePatternFix, makeMatrix2, makeLeftRight, makeBlockCount, makeTurnMatch,
     makeSentence, makeSilly, makeSceneCompare, makeClueHunt, alphaRun,
     makeWhoEats, makePartPick, makeHelperTool,
+    makeCoinMix, makeOrdinal, makeAboutFive, makeGraphPick, makeGlassPick,
+    makePartnerUp, makeCategoryCount, makeSizePick,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,
