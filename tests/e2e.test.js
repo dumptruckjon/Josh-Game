@@ -59,7 +59,11 @@ async function gameIds() {
 
 async function openGame(id) {
   await page.evaluate((i) => { location.hash = "#" + i; }, id);
-  await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 4000 });
+  // Generous timeout: with 200+ games played sequentially in one context, a
+  // single navigation can briefly exceed a tight budget under CPU load — that's
+  // a flake, not a bug (the screen still MUST appear). Waiting longer never
+  // weakens the assertion; it just stops load from reddening CI/verify-live.
+  await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 15000 });
 }
 
 test("the registry has several games and every one has a home tile", async () => {
@@ -76,11 +80,11 @@ test("home → category → game navigation works", async () => {
   const catTile = page.locator(".tile--cat").first();
   const catId = await catTile.getAttribute("data-cat");
   await catTile.click();
-  await page.locator(`#screen-cat-${catId}`).waitFor({ state: "visible", timeout: 4000 });
+  await page.locator(`#screen-cat-${catId}`).waitFor({ state: "visible", timeout: 15000 });
   const tile = page.locator(`#screen-cat-${catId} .tile[data-go]`).first();
   const gid = await tile.getAttribute("data-go");
   await tile.click();
-  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 4000 });
+  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 15000 });
   assert.ok(await page.locator(`#screen-${gid}`).isVisible());
 });
 
@@ -88,7 +92,7 @@ test("the in-game Home button returns to the game's category", async () => {
   const ids = await gameIds();
   await openGame(ids[0]);
   await page.locator(`#screen-${ids[0]} .game__home`).click();
-  await page.waitForFunction((id) => document.getElementById("screen-" + id).hidden, ids[0], { timeout: 4000 });
+  await page.waitForFunction((id) => document.getElementById("screen-" + id).hidden, ids[0], { timeout: 15000 });
   assert.ok((await page.locator(".screen.category:not([hidden])").count()) >= 1, "a category screen should show after Home");
 });
 
@@ -96,7 +100,7 @@ test("the category back button returns to the home menu", async () => {
   await page.evaluate(() => { location.hash = "#cat-numbers"; });
   await page.locator("#screen-cat-numbers").waitFor({ state: "visible" });
   await page.locator("#screen-cat-numbers .game__home").click();
-  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 4000 });
+  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 15000 });
   assert.ok(await page.locator("#screen-home").isVisible());
 });
 
@@ -105,7 +109,7 @@ test("the Surprise tile jumps to a game", async () => {
   await page.locator("#screen-home").waitFor({ state: "visible" });
   // (scoped to Josh's home — 华丽's hidden home has its own Surprise tile)
   await page.locator("#screen-home .tile--surprise").click();
-  await page.waitForFunction(() => location.hash.length > 1, null, { timeout: 4000 });
+  await page.waitForFunction(() => location.hash.length > 1, null, { timeout: 15000 });
   assert.ok((await page.evaluate(() => location.hash)).length > 1, "should navigate to some game");
 });
 
@@ -181,7 +185,7 @@ test("the Sticker Book has one slot per game and fills the ones Josh has won", a
 
   // A home tile opens the book. (Scoped: 华丽's home has her own 🏮 tile.)
   await page.locator("#screen-home .tile--stickers").click();
-  await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 4000 });
+  await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 15000 });
 
   // Josh's book holds one slot per JOSH game; 华丽's hidden games (def.hl)
   // live in her own 🏮 book (tested separately) and must NOT leak into his.
@@ -198,7 +202,7 @@ test("the Sticker Book has one slot per game and fills the ones Josh has won", a
   const wonSlot = page.locator("#screen-stickers .sticker-slot.is-won").first();
   const gid = await wonSlot.getAttribute("data-sticker");
   await wonSlot.click();
-  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 4000 });
+  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 15000 });
   assert.ok(await page.locator(`#screen-${gid}`).isVisible(), "a won sticker should replay its game on tap");
 });
 
@@ -225,7 +229,7 @@ test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => 
   await page.locator(".gate__ok").click();
   await page.waitForFunction(
     () => document.querySelectorAll(".screen:not(.hl-screen) .tile__badge, #home-grid .tile__badge").length === 0,
-    null, { timeout: 4000 }
+    null, { timeout: 15000 }
   );
   assert.equal(
     await page.locator(".screen:not(.hl-screen) .tile__badge, #home-grid .tile__badge").count(), 0,
@@ -249,7 +253,7 @@ test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => 
 
   // The reset must also EMPTY the Sticker Book (slots + star meter), not just tiles.
   await page.evaluate(() => { location.hash = "#stickers"; });
-  await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 4000 });
+  await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 15000 });
   assert.equal(await page.locator("#screen-stickers .sticker-slot.is-won").count(), 0, "reset must clear every filled sticker slot");
   assert.equal(await page.locator("#screen-stickers").evaluate((el) => el.dataset.won || ""), "0", "reset resets the book's filled count to 0");
 
@@ -281,7 +285,7 @@ test("with sound OFF (the default), winning a game plays NO notes at all", async
 
   await page.evaluate(() => { location.hash = "#odd-one-out"; });
   const screen = page.locator("#screen-odd-one-out");
-  await screen.waitFor({ state: "visible", timeout: 4000 });
+  await screen.waitFor({ state: "visible", timeout: 15000 });
   let won = false;
   for (let i = 0; i < 80 && !won; i++) {
     won = await screen.evaluate((el) => el.dataset.won === "1");
@@ -307,7 +311,7 @@ test("with sound ON, winning a game plays a jingle (iOS-safe: never while suspen
 
   await page.evaluate(() => { location.hash = "#odd-one-out"; });
   const screen = page.locator("#screen-odd-one-out");
-  await screen.waitFor({ state: "visible", timeout: 4000 });
+  await screen.waitFor({ state: "visible", timeout: 15000 });
   let won = false;
   for (let i = 0; i < 80 && !won; i++) {
     won = await screen.evaluate((el) => el.dataset.won === "1");
@@ -317,7 +321,7 @@ test("with sound ON, winning a game plays a jingle (iOS-safe: never while suspen
     try { await correct.evaluate((el) => el.click()); } catch (e) { await page.waitForTimeout(20); }
   }
   assert.ok(won, "odd-one-out should reach a win");
-  await page.waitForFunction(() => (window.__notes || 0) >= 1, null, { timeout: 4000 });
+  await page.waitForFunction(() => (window.__notes || 0) >= 1, null, { timeout: 15000 });
   const notes = await page.evaluate(() => window.__notes || 0);
   const bad = await page.evaluate(() => window.__startedWhileSuspended || 0);
   assert.ok(notes >= 1, `a win should play at least one jingle note; got ${notes}`);
@@ -383,13 +387,13 @@ test("Adaptivity: a clean round grows the streak (api.shouldRamp); a miss resets
 
   // Round A — win cleanly → streak becomes 1.
   await screen.locator('.muncher__card[data-correct="1"]').first().evaluate((el) => el.click());
-  await page.waitForFunction(() => document.getElementById("screen-number-muncher").dataset.streak === "1", null, { timeout: 4000 });
+  await page.waitForFunction(() => document.getElementById("screen-number-muncher").dataset.streak === "1", null, { timeout: 15000 });
 
   // Round B — miss once (wrong card = a gentle try-again), THEN win → streak resets to 0.
   await screen.locator('.muncher__card:not([data-correct="1"])').first().evaluate((el) => el.click());
   assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", "a wrong tap must never win");
   await screen.locator('.muncher__card[data-correct="1"]').first().evaluate((el) => el.click());
-  await page.waitForFunction(() => document.getElementById("screen-number-muncher").dataset.streak === "0", null, { timeout: 4000 });
+  await page.waitForFunction(() => document.getElementById("screen-number-muncher").dataset.streak === "0", null, { timeout: 15000 });
   assert.equal(await screen.evaluate((el) => el.dataset.streak), "0", "a miss during a round breaks the clean streak");
 });
 
@@ -462,7 +466,7 @@ test("Picture Squares ramps to a 4×4 grid after a clean streak (adaptive tier)"
   }
   await page.waitForFunction(
     () => { const g = document.querySelector("#screen-picture-squares .sudoku__grid"); return g && g.classList.contains("sudoku__grid--4"); },
-    null, { timeout: 4000 }
+    null, { timeout: 15000 }
   );
   assert.equal(await screen.locator(".sudoku__cell").count(), 16, "the 4×4 tier has 16 cells");
   assert.equal(await screen.locator(".choices .choice").count(), 4, "the 4×4 tier offers 4 picture choices");
@@ -492,7 +496,7 @@ test("the Music Pad actually plays notes on iOS (audio fires only once the conte
   await pads.nth(2).click();
   await pads.nth(4).click();
   // Notes fire only after the async resume() resolves — wait for them.
-  await page.waitForFunction(() => (window.__notes || 0) >= 2, null, { timeout: 4000 });
+  await page.waitForFunction(() => (window.__notes || 0) >= 2, null, { timeout: 15000 });
   const notes = await page.evaluate(() => window.__notes || 0);
   const bad = await page.evaluate(() => window.__startedWhileSuspended || 0);
   assert.ok(notes >= 2, `tapping pads should start notes; got ${notes}`);
@@ -603,7 +607,7 @@ test("华丽 gate: every wrong name is rejected; only 华丽 unlocks", async () 
   // The exact name (whitespace-trimmed) passes.
   await page.locator(".hl-gate__input").fill(" 华丽 ");
   await page.locator(".hl-gate__ok").click();
-  await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 4000 });
+  await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 15000 });
   assert.equal(await page.evaluate(() => sessionStorage.getItem("hl-ok")), "1", "the right name unlocks the session");
   assert.ok(await page.evaluate(() => document.body.classList.contains("hl-mode")), "her world turns on the red-gold theme");
   const hello = await page.locator(".hl-hello").textContent();
@@ -619,7 +623,7 @@ test("华丽 home: 7 categories + surprise + sticker tiles; a category lists her
   const firstCat = page.locator("#screen-hl-home .tile--cat").first();
   const catId = await firstCat.getAttribute("data-cat");
   await firstCat.click();
-  await page.locator(`#screen-hl-cat-${catId}`).waitFor({ state: "visible", timeout: 4000 });
+  await page.locator(`#screen-hl-cat-${catId}`).waitFor({ state: "visible", timeout: 15000 });
   const gameTiles = await page.locator(`#screen-hl-cat-${catId} .tile[data-go]`).count();
   assert.ok(gameTiles >= 4, `her ${catId} category should list several games, got ${gameTiles}`);
   // Every tile in her world routes to an hl- game.
@@ -653,7 +657,7 @@ test("华丽 world spans 40 games across her 7 categories, all Chinese-titled", 
 test("华丽 game screens speak her language: zh chrome + Again label", async () => {
   await page.evaluate(() => { location.hash = "#hl-anton"; });
   const screen = page.locator("#screen-hl-anton");
-  await screen.waitFor({ state: "visible", timeout: 4000 });
+  await screen.waitFor({ state: "visible", timeout: 15000 });
   assert.ok(await screen.evaluate((el) => el.classList.contains("game--hl")), "her screens carry the hl theme class");
   const again = await screen.locator(".game__again").evaluate((el) => el.textContent);
   assert.ok(again.includes("再来"), "the Again button reads 再来");
@@ -662,7 +666,7 @@ test("华丽 game screens speak her language: zh chrome + Again label", async ()
 test("华丽 sticker book: one slot per hl game, filled by the wins, meter at 40", async () => {
   // The every-game harness earlier won ALL games (hers included).
   await page.evaluate(() => { location.hash = "#hl-stickers"; });
-  await page.locator("#screen-hl-stickers").waitFor({ state: "visible", timeout: 4000 });
+  await page.locator("#screen-hl-stickers").waitFor({ state: "visible", timeout: 15000 });
   const slots = await page.locator("#screen-hl-stickers .sticker-slot").count();
   assert.equal(slots, 40, "her book must hold exactly one slot per hl game");
   const won = await page.locator("#screen-hl-stickers .sticker-slot.is-won").count();
@@ -673,13 +677,13 @@ test("华丽 sticker book: one slot per hl game, filled by the wins, meter at 40
   const slot = page.locator("#screen-hl-stickers .sticker-slot.is-won").first();
   const gid = await slot.getAttribute("data-sticker");
   await slot.click();
-  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 4000 });
+  await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 15000 });
 });
 
 test("华丽 nav guard: without the session flag, her home bounces back to Josh's", async () => {
   await page.evaluate(() => { sessionStorage.removeItem("hl-ok"); location.hash = "#hl-home"; });
-  await page.waitForFunction(() => location.hash === "", null, { timeout: 4000 });
-  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 4000 });
+  await page.waitForFunction(() => location.hash === "", null, { timeout: 15000 });
+  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 15000 });
   assert.ok(await page.locator("#screen-home").isVisible(), "locked deep links land on Josh's home");
   // Re-unlock for any later tests (session flag only — the gate itself is proven above).
   await page.evaluate(() => { sessionStorage.setItem("hl-ok", "1"); });

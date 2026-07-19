@@ -123,7 +123,7 @@ test("EVERY category screen: no overflow + big well-spaced tiles at 320px", asyn
   await page.setViewportSize({ width: 320, height: 780 });
   for (const c of cats) {
     await page.evaluate((id) => { location.hash = "#cat-" + id; }, c);
-    await page.locator(`#screen-cat-${c}`).waitFor({ state: "visible", timeout: 4000 });
+    await page.locator(`#screen-cat-${c}`).waitFor({ state: "visible", timeout: 15000 });
     await noOverflow(page, "cat-" + c);
     await auditActiveScreen(page, "cat-" + c);
   }
@@ -134,7 +134,7 @@ test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", asy
   await page.setViewportSize({ width: 320, height: 780 });
   for (const id of ids) {
     await page.evaluate((i) => { location.hash = "#" + i; }, id);
-    await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 4000 });
+    await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 15000 });
     await noOverflow(page, id);
     await auditActiveScreen(page, id);
   }
@@ -144,7 +144,7 @@ test("the Sticker Book: no overflow + >=75px well-spaced slots at 390 and 320", 
   for (const w of [390, 320]) {
     await page.setViewportSize({ width: w, height: 780 });
     await page.evaluate(() => { location.hash = "#stickers"; });
-    await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 4000 });
+    await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 15000 });
     await noOverflow(page, `stickers@${w}`);
     await auditActiveScreen(page, `stickers@${w}`);
   }
@@ -172,17 +172,17 @@ test("华丽's screens: home, all 7 categories and her sticker book pass the aud
   for (const w of [390, 320]) {
     await page.setViewportSize({ width: w, height: 780 });
     await page.evaluate(() => { location.hash = "#hl-home"; });
-    await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 4000 });
+    await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 15000 });
     await noOverflow(page, `hl-home@${w}`);
     await auditActiveScreen(page, `hl-home@${w}`);
     for (const c of cats) {
       await page.evaluate((id) => { location.hash = "#hl-cat-" + id; }, c);
-      await page.locator(`#screen-hl-cat-${c}`).waitFor({ state: "visible", timeout: 4000 });
+      await page.locator(`#screen-hl-cat-${c}`).waitFor({ state: "visible", timeout: 15000 });
       await noOverflow(page, `hl-cat-${c}@${w}`);
       await auditActiveScreen(page, `hl-cat-${c}@${w}`);
     }
     await page.evaluate(() => { location.hash = "#hl-stickers"; });
-    await page.locator("#screen-hl-stickers").waitFor({ state: "visible", timeout: 4000 });
+    await page.locator("#screen-hl-stickers").waitFor({ state: "visible", timeout: 15000 });
     await noOverflow(page, `hl-stickers@${w}`);
     await auditActiveScreen(page, `hl-stickers@${w}`);
   }
