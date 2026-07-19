@@ -48,6 +48,22 @@ async function gameIds() {
   return page.evaluate(() => (window.JoshGames || []).map((g) => g.id));
 }
 
+// Navigate to a screen by hash, RESILIENT to a dropped hashchange event. Walking
+// ~200 screens in one long-lived WebKit context, the browser can coalesce/drop a
+// hashchange under load, so the router never switches and the target stays
+// `hidden` (observed as "N× resolved to hidden" until timeout — the screen is
+// fine, the event was lost). Re-firing the hash (dummy → target) forces a fresh
+// hashchange. This never weakens the audit — the screen still MUST become
+// visible; it just makes the trigger reliable so load can't redden CI.
+async function showScreen(p, hash, sel) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await p.evaluate((h) => { if (location.hash === h) location.hash = "#__renav"; location.hash = h; }, hash);
+    try { await p.locator(sel).waitFor({ state: "visible", timeout: 5000 }); return; }
+    catch (e) { /* dropped/slow under load — re-fire and retry */ }
+  }
+  await p.locator(sel).waitFor({ state: "visible", timeout: 8000 });
+}
+
 // Audit the currently-visible screen: size of ALL visible tap targets, and the
 // spacing/overlap of tap targets WITHIN the active play surface.
 async function auditActiveScreen(p, label) {
@@ -122,8 +138,7 @@ test("EVERY category screen: no overflow + big well-spaced tiles at 320px", asyn
   assert.ok(cats.length >= 3, "expected several categories");
   await page.setViewportSize({ width: 320, height: 780 });
   for (const c of cats) {
-    await page.evaluate((id) => { location.hash = "#cat-" + id; }, c);
-    await page.locator(`#screen-cat-${c}`).waitFor({ state: "visible", timeout: 15000 });
+    await showScreen(page, "#cat-" + c, `#screen-cat-${c}`);
     await noOverflow(page, "cat-" + c);
     await auditActiveScreen(page, "cat-" + c);
   }
@@ -133,8 +148,7 @@ test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", asy
   const ids = await gameIds();
   await page.setViewportSize({ width: 320, height: 780 });
   for (const id of ids) {
-    await page.evaluate((i) => { location.hash = "#" + i; }, id);
-    await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 15000 });
+    await showScreen(page, "#" + id, `#screen-${id}`);
     await noOverflow(page, id);
     await auditActiveScreen(page, id);
   }
@@ -143,8 +157,7 @@ test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", asy
 test("the Sticker Book: no overflow + >=75px well-spaced slots at 390 and 320", async () => {
   for (const w of [390, 320]) {
     await page.setViewportSize({ width: w, height: 780 });
-    await page.evaluate(() => { location.hash = "#stickers"; });
-    await page.locator("#screen-stickers").waitFor({ state: "visible", timeout: 15000 });
+    await showScreen(page, "#stickers", "#screen-stickers");
     await noOverflow(page, `stickers@${w}`);
     await auditActiveScreen(page, `stickers@${w}`);
   }
@@ -171,18 +184,15 @@ test("华丽's screens: home, all 7 categories and her sticker book pass the aud
   assert.equal(cats.length, 7, "expected her 7 categories");
   for (const w of [390, 320]) {
     await page.setViewportSize({ width: w, height: 780 });
-    await page.evaluate(() => { location.hash = "#hl-home"; });
-    await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 15000 });
+    await showScreen(page, "#hl-home", "#screen-hl-home");
     await noOverflow(page, `hl-home@${w}`);
     await auditActiveScreen(page, `hl-home@${w}`);
     for (const c of cats) {
-      await page.evaluate((id) => { location.hash = "#hl-cat-" + id; }, c);
-      await page.locator(`#screen-hl-cat-${c}`).waitFor({ state: "visible", timeout: 15000 });
+      await showScreen(page, "#hl-cat-" + c, `#screen-hl-cat-${c}`);
       await noOverflow(page, `hl-cat-${c}@${w}`);
       await auditActiveScreen(page, `hl-cat-${c}@${w}`);
     }
-    await page.evaluate(() => { location.hash = "#hl-stickers"; });
-    await page.locator("#screen-hl-stickers").waitFor({ state: "visible", timeout: 15000 });
+    await showScreen(page, "#hl-stickers", "#screen-hl-stickers");
     await noOverflow(page, `hl-stickers@${w}`);
     await auditActiveScreen(page, `hl-stickers@${w}`);
   }

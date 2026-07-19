@@ -58,12 +58,17 @@ async function gameIds() {
 }
 
 async function openGame(id) {
-  await page.evaluate((i) => { location.hash = "#" + i; }, id);
-  // Generous timeout: with 200+ games played sequentially in one context, a
-  // single navigation can briefly exceed a tight budget under CPU load — that's
-  // a flake, not a bug (the screen still MUST appear). Waiting longer never
-  // weakens the assertion; it just stops load from reddening CI/verify-live.
-  await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 15000 });
+  // RESILIENT to a dropped hashchange: walking 200+ games in one context, the
+  // browser can coalesce/drop a hashchange under load so the router never
+  // switches and the screen stays hidden. Re-firing the hash (dummy → target)
+  // forces a fresh event. Never weakens the assertion — the screen still MUST
+  // appear; this just makes the trigger reliable so load can't redden CI.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await page.evaluate((i) => { if (location.hash === "#" + i) location.hash = "#__renav"; location.hash = "#" + i; }, id);
+    try { await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 5000 }); return; }
+    catch (e) { /* dropped/slow under load — re-fire and retry */ }
+  }
+  await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 8000 });
 }
 
 test("the registry has several games and every one has a home tile", async () => {
