@@ -367,6 +367,32 @@ test("guardrail: no emoji newer than Emoji 13.0 (iOS 14.2 floor — no tofu on J
   assert.deepEqual(offenders, [], `emoji above the iOS 14.2 floor (render as tofu): ${offenders.join(", ")}`);
 });
 
+// RULE 7 (self-healing): a CONTENTLESS square that gets its height ONLY from
+// `aspect-ratio` collapses to a sliver on Josh's iOS 14.2 iPad — Safari 14 has
+// NO aspect-ratio support (added in Safari 15). CI's modern WebKit/Chromium
+// hides this, so every aspect-ratio cell MUST pair a real height fallback
+// (min-height/height > 0). copy-grid/mirror-half/peek-copy's `.tg__cell` shipped
+// with `min-height: 0` and rendered as invisible untappable strips on the real
+// device; this scans every CSS rule so no future cell can regress the same way.
+test("guardrail: every aspect-ratio cell has a real height fallback (iOS 14.2 has no aspect-ratio)", () => {
+  const css = read("styles/main.css");
+  const offenders = [];
+  // Split into rule blocks "selector { decls }".
+  const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
+  let m;
+  while ((m = ruleRe.exec(css)) !== null) {
+    const sel = m[1].trim(), decls = m[2];
+    if (!/aspect-ratio\s*:/.test(decls)) continue;
+    const minH = /min-height\s*:\s*([^;]+)/.exec(decls);
+    const h = /(?:^|;|\s)height\s*:\s*([^;]+)/.exec(decls);
+    const val = (x) => x && x[1].trim();
+    const isZero = (v) => v && /^0(\D|$)/.test(v); // "0", "0px", "0 !important"
+    const hasReal = (val(minH) && !isZero(val(minH))) || (val(h) && !isZero(val(h)) && val(h) !== "auto");
+    if (!hasReal) offenders.push(sel);
+  }
+  assert.deepEqual(offenders, [], `aspect-ratio cells with no height fallback (collapse on iOS 14.2): ${offenders.join(" | ")}`);
+});
+
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);

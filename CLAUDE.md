@@ -261,7 +261,29 @@ smallest-hunt lesson, now applied to fits-inside). **A "lit/selected" cue must n
 be a `transform: scale()` on a gapped grid** — scaling a pad up encroaches on the
 inter-tile gap and can drop it below the 14px audit floor (Copy Me!'s lit pad hit
 13.4px); use a `box-shadow` ring instead — it paints outside layout, so the
-measured gap is unchanged. When you fix the next thing, extend this list.
+measured gap is unchanged.
+**A contentless square sized ONLY by `aspect-ratio` collapses to a sliver on
+Josh's iOS 14.2 iPad** — Safari 14 has NO `aspect-ratio` (added in Safari 15),
+and CI's modern WebKit/Chromium hides it, so the toggle-grid cells (`.tg__cell`,
+shipped with `min-height: 0`) rendered as invisible untappable strips on the real
+device. A 6-lens adversarial audit of Set 2 caught it; the fix pairs every
+aspect-ratio cell with a real height fallback (`min-height: var(--tap)` / a value
+≤ the cell width so modern browsers keep the square), and a GENERIC `site.test.js`
+guardrail now scans every CSS rule and fails if an `aspect-ratio` cell has no
+`min-height`/`height` fallback — which immediately surfaced three MORE latent
+collapses (`.sudoku__cell`, `.story__slot`, `.mtx__cell`), all fixed. When you add
+a square cell, pair `aspect-ratio` with a min-height.
+**A category game must SPEAK an umbrella term true for EVERY member** — Count the
+Animals labeled the vehicles set "cars and trucks", but the pool holds a plane, a
+bike and a tractor, so it counted them as "cars and trucks" aloud (a lie to a
+non-reader whose audio is the instruction); the label moved into `content.js`
+(`FIND_CATEGORIES[].name = "things that go"`) and a `content.test.js` truth test
+pins it. **A pick-and-place game that DEFERS its next round must clear
+`data-correct` before the timer** — Partner Up! left the just-paired (disabled)
+duck flagged through a 950ms `setTimeout(newRound)` gap, and the every-game harness
+spun on the disabled `[data-correct]`; `finish()` now clears all duck flags first
+(the sibling mechanic-A games avoided it only because they rebuild the round
+synchronously). When you fix the next thing, extend this list.
 
 ---
 

@@ -130,6 +130,18 @@ test("find categories are disjoint and each item belongs to exactly one", () => 
   }
 });
 
+// Count the Animals SPEAKS each category's `name` as a truthful umbrella ("How
+// many things that go?"). It must be true for EVERY member — "cars and trucks"
+// was a lie over a plane/bike/tractor. Pin the truthful labels.
+test("find category names are truthful umbrellas for every member", () => {
+  const NAME = { animals: "animals", vehicles: "things that go", food: "foods", sky: "sky things" };
+  for (const cat of content.FIND_CATEGORIES) {
+    assert.equal(cat.name, NAME[cat.id], `category ${cat.id} must be spoken as "${NAME[cat.id]}"`);
+  }
+  const vehicles = content.FIND_CATEGORIES.find((c) => c.id === "vehicles");
+  assert.notEqual(vehicles.name, "cars and trucks", "vehicles holds planes/bikes/tractors — not a 'cars and trucks' claim");
+});
+
 // ---------- 3D solids: each real object is truly that solid's shape ----------
 // Independent ground truth: object -> the ONE solid whose shape it has.
 const SOLID_TRUTH = {

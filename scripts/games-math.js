@@ -1488,6 +1488,11 @@
           ducks.forEach((d) => { if (!d.dataset.paired && d !== held) d.dataset.correct = "1"; });
         }
         function finish() {
+          // Clear every flag BEFORE the deferred newRound — otherwise the just-
+          // paired (now disabled) duck keeps its data-correct through the 950ms
+          // gap, and the every-game harness spins on a disabled [data-correct]
+          // (the "disabled-but-still-tagged control strands the harness" footgun).
+          ducks.forEach((d) => delete d.dataset.correct);
           const leftover = ducks.find((d) => !d.dataset.paired);
           if (r.parity === "odd" && leftover) { leftover.textContent = "🦆☂️"; banner.textContent = "ODD — one duck is left over!"; api.say("Odd! One duck is left over."); }
           else { banner.textContent = "EVEN — everyone has a partner!"; api.say("Even! Everyone has a partner!"); }

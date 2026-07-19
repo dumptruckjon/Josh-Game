@@ -805,7 +805,9 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   margin: 4px auto 12px; background: #cddbe8; padding: 6px; border-radius: 14px;
 }
 .sudoku__cell {
-  aspect-ratio: 1 / 1; background: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  /* min-height is the iOS-14.2 (Safari 14, no aspect-ratio) fallback; <= the
+     4×4-tier cell width so modern browsers keep a true square. */
+  aspect-ratio: 1 / 1; min-height: 58px; background: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center;
   font-size: clamp(1.6rem, 9vw, 2.4rem);
 }
 .sudoku__cell--blank { background: #fff7cf; box-shadow: inset 0 0 0 3px #ffd24d; }
@@ -827,7 +829,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 /* ---------- Put the Story in Order ---------- */
 .story__track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin: 4px 0 12px; }
 .story__slot {
-  aspect-ratio: 1 / 1; background: var(--card); border: 3px dashed #cdd6e0; border-radius: 16px;
+  /* min-height = iOS-14.2 fallback (no aspect-ratio); < the ~90px slot width. */
+  aspect-ratio: 1 / 1; min-height: var(--tap); background: var(--card); border: 3px dashed #cdd6e0; border-radius: 16px;
   display: flex; align-items: center; justify-content: center; font-size: clamp(1.8rem, 10vw, 2.6rem); font-weight: 800; color: #9aa7b6;
 }
 
@@ -1635,7 +1638,8 @@ body.hl-mode {
   width: min(64vw, 240px); margin: 8px auto 14px;
 }
 .mtx__cell {
-  aspect-ratio: 1 / 1; border-radius: 18px; background: #ffffff;
+  /* min-height = iOS-14.2 fallback (no aspect-ratio); < the ~97px cell width. */
+  aspect-ratio: 1 / 1; min-height: var(--tap); border-radius: 18px; background: #ffffff;
   border: 2px solid rgba(120, 170, 255, 0.22); display: flex; align-items: center; justify-content: center;
   font-size: 2rem;
 }
@@ -1914,11 +1918,14 @@ body.hl-mode {
 /* ================= Road to 180 — Set 2, Wave 7 ================= */
 /* Toggle-to-match grids (Copy My Picture / Finish the Butterfly / Peek & Copy). */
 .cg__model { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 120px; margin: 8px auto 6px; }
-.cg__model .cg__cell { aspect-ratio: 1 / 1; border-radius: 8px; background: #eef2f7; border: 2px solid rgba(120,170,255,0.25); }
+/* min-height is the iOS-14.2 fallback: Safari 14 has NO aspect-ratio (added in
+   Safari 15), so a contentless aspect-ratio-only cell collapses to a sliver on
+   Josh's iPad. Every contentless square in this file pairs the two. */
+.cg__model .cg__cell { aspect-ratio: 1 / 1; min-height: 32px; border-radius: 8px; background: #eef2f7; border: 2px solid rgba(120,170,255,0.25); }
 .cg__model .cg__cell--on { background: #5a3fd6; border-color: #5a3fd6; }
 .cg__label { text-align: center; font-weight: 800; color: #5a3fd6; margin-bottom: 8px; }
 .cg__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 340px; margin: 0 auto; }
-.tg__cell { aspect-ratio: 1 / 1; min-height: 0; border-radius: 16px; }
+.tg__cell { aspect-ratio: 1 / 1; min-height: var(--tap); border-radius: 16px; }
 .tg__cell--on { background: linear-gradient(180deg, #7a5cd6, #5a3fd6) !important; border-color: #5a3fd6 !important; }
 .cg__cell--win { box-shadow: 0 0 0 3px #7be08a inset; }
 .mh__fold { text-align: center; font-size: 1.8rem; border-top: 3px dashed #c9a0e0; margin: 6px auto 8px; width: 60%; line-height: 0.1; }

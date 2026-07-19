@@ -852,13 +852,16 @@
     start(api) {
       const L = window.JoshLogic;
       const ROUNDS = 4; let round = 0, last = -1;
-      const CATNAME = { animals: "animals", vehicles: "cars and trucks", food: "foods", sky: "sky things" };
+      // The spoken umbrella term lives in content.js (FIND_CATEGORIES[].name) so a
+      // truth test can prove it fits every item (vehicles = "things that go", not
+      // "cars and trucks" — a plane/bike are neither). Fallback keeps old ids safe.
+      const CATNAME = { animals: "animals", vehicles: "things that go", food: "foods", sky: "sky things" };
       const scene = api.el("div", { class: "catcount__scene", aria: { hidden: "true" } });
       const chips = api.el("div", { class: "choices choices--3" });
       api.stage.append(scene, chips);
       function newRound() {
         const r = L.makeCategoryCount(api.C.FIND_CATEGORIES, undefined, last); last = r.idx;
-        const nm = CATNAME[r.cat.id] || r.cat.id;
+        const nm = r.cat.name || CATNAME[r.cat.id] || r.cat.id;
         scene.innerHTML = "";
         r.cells.forEach((c) => scene.appendChild(api.el("span", { class: "catcount__item" }, [c.e])));
         api.setPrompt("How many " + nm + "?", [r.cat.icon, "🔢", "👀"]);

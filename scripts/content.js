@@ -501,11 +501,15 @@
     // ---- I Spy: Find Them All (category hunt) ----
     // DISJOINT sets — every emoji belongs to exactly ONE category, so a filler
     // from another category can never accidentally be a hidden member.
+    // `name` is the SPOKEN umbrella term (Count the Animals reads it aloud). It
+    // MUST be true for EVERY item in the set — "things that go" covers a plane,
+    // a bike and a tractor, whereas "cars and trucks" would falsely name them
+    // (a correctness bug for a non-reader whose audio is the instruction).
     FIND_CATEGORIES: [
-      { id: "animals", icon: "🐾", items: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼"] },
-      { id: "vehicles", icon: "🚦", items: ["🚗", "🚌", "🚒", "🚜", "🚲", "✈️", "🚁", "🚚"] },
-      { id: "food", icon: "🍽️", items: ["🍎", "🍌", "🍓", "🍇", "🍊", "🍪", "🍕", "🥕"] },
-      { id: "sky", icon: "🌌", items: ["⭐", "🌙", "☀️", "🌈", "☁️", "🌟"] },
+      { id: "animals", icon: "🐾", name: "animals", items: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼"] },
+      { id: "vehicles", icon: "🚦", name: "things that go", items: ["🚗", "🚌", "🚒", "🚜", "🚲", "✈️", "🚁", "🚚"] },
+      { id: "food", icon: "🍽️", name: "foods", items: ["🍎", "🍌", "🍓", "🍇", "🍊", "🍪", "🍕", "🥕"] },
+      { id: "sky", icon: "🌌", name: "sky things", items: ["⭐", "🌙", "☀️", "🌈", "☁️", "🌟"] },
     ],
 
     // ---- Shape's Real Twin (3D solids → a real-world object of that shape) ----
