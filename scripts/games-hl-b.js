@@ -507,9 +507,11 @@
     },
   });
 
-  // 数金鱼 — how many of the target swim in the pond?
+  // 池塘数数 — how many of the (rotating) target creature are in the pond? The
+  // spoken/written prompt names the real target + its 量词, so the tile title is
+  // target-agnostic (not "数金鱼") — a tile title must match every round.
   reg("hlc-eyes", {
-    id: "hl-koi", icon: "🐟", title: "数金鱼",
+    id: "hl-koi", icon: "🐟", title: "池塘数数",
     skill: "数数眼力",
     start(api) {
       const ROUNDS = 3;

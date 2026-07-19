@@ -779,7 +779,7 @@
     },
   });
 
-  // 四宫数独 — a 4×4 Latin square with one blank.
+  // 四宫数独 — a REAL 4×4 sudoku (box-valid via makeSudoku4, not just a Latin square) with one blank.
   reg("hlc-math", {
     id: "hl-sudoku", icon: "🔢", title: "四宫数独",
     skill: "数独推理",
