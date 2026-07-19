@@ -1622,6 +1622,8 @@
             if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
             if (held) held.classList.remove("held");
             held = b; b.classList.add("held"); reflag();
+            // Speak the destination so a non-reader never has to read a bin label.
+            const dest = binByHome[it.home]; if (dest) api.say("The " + it.name + " goes in the " + dest.querySelector(".tidy__binLabel").textContent + "!");
           });
           toysRow.appendChild(b); return b;
         });

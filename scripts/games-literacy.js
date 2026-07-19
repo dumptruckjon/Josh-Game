@@ -1300,6 +1300,7 @@
       const chips = api.el("div", { class: "choices choices--3" });
       api.stage.append(pic, dots, drum, chips);
       drum.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); drum.removeEventListener("pointerdown", warm); }, { once: true });
+      drum.addEventListener("click", play); // the ▶ control replays the beats on demand (self-paced)
       let cur = null;
       function play() {
         if (playing || !cur) return; playing = true;
@@ -1354,6 +1355,7 @@
       const chips = api.el("div", { class: "choices choices--3" });
       api.stage.append(robot, tiles, say, chips);
       say.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); say.removeEventListener("pointerdown", warm); }, { once: true });
+      say.addEventListener("click", play); // the ▶ control replays the blend on demand (self-paced)
       function play() {
         if (playing || !cur) return; playing = true;
         const letters = cur.word.word.split("");

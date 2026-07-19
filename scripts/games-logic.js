@@ -1398,7 +1398,9 @@
         mA.textContent = r.a.emoji; mB.textContent = r.b.emoji; qC.textContent = r.c.emoji;
         qMark.textContent = "?"; qMark.classList.remove("gw__cell--filled");
         api.setPrompt(r.a.word + " goes with " + r.b.word + ". What goes with " + r.c.word + "?", ["👀", "🔗", "🤔"]);
-        api.speak(); api.say(r.a.word + " " + r.set.relation + " " + r.b.word + ". What " + r.set.relation + " " + r.c.word + "?");
+        // Keep C the SUBJECT of the relation ("monkey eats what?"), never the
+        // object ("what eats monkey?" would invert every directional relation).
+        api.speak(); api.say(r.a.word + " " + r.set.relation + " " + r.b.word + ". " + r.c.word + " " + r.set.relation + " what?");
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word } });

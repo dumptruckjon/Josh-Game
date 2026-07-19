@@ -1073,13 +1073,21 @@
       const scene = api.C.SPY_SCENE, NAMES = api.C.SPY_SHAPE_NAMES || {};
       const ROUNDS = 3;
       let round = 0, lastShape = null, found = 0, need = 0;
+      // A visible target swatch so a SOUND-OFF non-reader sees which shape to hunt.
+      const target = api.el("div", { class: "spy__target", aria: { hidden: "true" } });
       const wrap = api.el("div", { class: "spy__wrap" });
-      api.stage.append(wrap);
+      api.stage.append(target, wrap);
       function newRound() {
         const r = L.makeShapeSpy(scene, undefined, lastShape); lastShape = r.shape; found = 0; need = r.need;
         wrap.innerHTML = "";
         const nm = NAMES[r.shape] || (r.shape + "s");
-        api.setPrompt("Find all the " + nm + "!", ["🔎", "👀", "👉"]);
+        const exemplar = (r.zones.find((z) => z.shape === r.shape) || {}).emoji || "🔎";
+        target.innerHTML = "";
+        target.append(
+          api.el("span", { class: "spy__targetGlyph", text: exemplar }),
+          api.el("span", { class: "spy__targetLabel", text: "find these" })
+        );
+        api.setPrompt("Find all the " + nm + "!", ["🔎", exemplar, "👉"]);
         api.speak(); api.say("Tap all the " + nm + "!");
         const built = sceneZones(api, scene.box, r.zones, (z, b) => {
           if (b.dataset.done) return;

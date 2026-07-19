@@ -2191,3 +2191,8 @@ body.hl-mode {
   .tall__slot--on, .drum__dot--on, .robot__tile--on, .drive__car, .dig__patch--clear,
   .puppy__pup--happy, .puppy__heart, .bounce__buddy--boing, .bounce__buddy--flip, .dig__found--up { animation: none !important; transition: none !important; }
 }
+
+/* Shape Spy — the visible target swatch (sound-off channel). */
+.spy__target { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0 8px; }
+.spy__targetGlyph { font-size: 2.4rem; line-height: 1; }
+.spy__targetLabel { font-size: 0.8rem; color: #6b7a8d; font-weight: 700; }

@@ -1028,14 +1028,21 @@ test("W9 animal coats: 3 mutually-exclusive covering bins, no smooth-skinned fro
     assert.notEqual(a, "🐸", "frogs are smooth-skinned — excluded from fur/feathers/scales");
   }
 });
-test("W9 food origins: each food has ONE source; no source gives two of these foods", () => {
-  const sources = new Set();
+test("W9 food origins: a real milk animal (sheep) is never a WRONG milk distractor", () => {
+  const milk = content.FOOD_FROM.find((f) => f.toolName === "milk");
+  assert.ok(milk.users.includes("\ud83d\udc04"), "cow is a milk source");
+  const sheep = content.FOOD_FROM.find((f) => f.helper === "\ud83d\udc11");
+  if (sheep) assert.ok(milk.users.includes("\ud83d\udc11"), "sheep milk is real \u2014 sheep must be a valid milk source, never a wrong distractor");
+});
+test("W9 food origins: distinct PRIMARY sources; every food's primary is in its users list", () => {
+  const primaries = new Set();
   for (const f of content.FOOD_FROM) {
-    assert.equal(f.users.length, 1, f.toolName + " has exactly one canon source");
-    assert.equal(f.users[0], f.helper);
-    assert.ok(!sources.has(f.helper), f.helper + " listed as source of two foods — pick distinct sources so distractors stay wrong");
-    sources.add(f.helper);
+    assert.ok(f.users.includes(f.helper), f.toolName + "'s primary source must be in its users list");
+    assert.ok(!primaries.has(f.helper), f.helper + " is the primary source of two foods — primaries must be distinct so distractors stay wrong");
+    primaries.add(f.helper);
   }
+  // A food whose `users` names a SECOND animal (e.g. milk allows cow + sheep) means
+  // that animal is a real source and is correctly excluded from being a distractor.
 });
 test("W9 half-toys: distinct keys and distinct emojis (silhouettes don't collide)", () => {
   assert.ok(content.HALF_TOYS.length >= 4);

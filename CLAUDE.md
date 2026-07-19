@@ -310,7 +310,28 @@ align-and-count measurement (How Tall — the flag clears on the completing unit
 the piggy-bank law). **A "what's missing" picture proves its parts by DIFF** —
 `content.test.js` asserts `JoshArt.fixable(scene, partKey)` is shorter than the
 full drawing, so a renamed/removed SVG part can't silently make the answer
-un-drawable. When you fix the next thing, extend this list.
+un-drawable.
+**The Set-3 adversarial audit caught five real ship-blockers the suite passed
+over** (the harness taps flagged answers, so it can't feel a broken *reveal* or
+hear a wrong *sentence*): (1+2) **a self-paced ▶ reveal control must actually be
+wired to its `play()`** — Drum the Word and Robot Talk had only a `pointerdown`
+audio-unlock listener and NO `click` handler, so the pulse-dot / letter-lighting
+channel (the sanctioned sound-off path) was DEAD until after a correct guess;
+fixed with `el.addEventListener("click", play)`. (3) **a spoken analogy question
+must keep C the SUBJECT** — goes-with composed `"What " + relation + " " + c`
+("What eats monkey?"), inverting every directional relation against the correct
+answer, and since `JoshAudio.say` cancels the queued prompt, the inverted line
+was the ONLY thing voiced; now `"<c> <relation> what?"` ("monkey eats what?").
+(4) **a pick-and-place home must be picture-unambiguous AND spoken** — Tidy Up's
+generic 📦 box vs 🧺 basket made a ball↔box / block↔basket placement an
+also-valid coin-flip a non-reader couldn't read; fixed to non-overlapping homes
+(toys→box, books→shelf, art→cup, CLOTHES→laundry) and the game now SPEAKS the
+destination on pickup. (5) **a food-origin distractor that is a REAL source is
+also-correct** — 🐑 was offered as a wrong answer for 🥛 milk though sheep milk
+is real; 🐑 added to milk's `users` (never a distractor) + a guardrail. Lesson:
+after building an audio- or reveal-driven game, drive its ▶ control and *listen
+to the sentence* — the tap-harness proves winnability, not instruction sanity.
+When you fix the next thing, extend this list.
 
 ---
 

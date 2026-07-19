@@ -1073,7 +1073,7 @@
     // helper-tool exclusion shape: `users` is the ONLY valid source, so every
     // distractor is auto-excluded). Truth-tested.
     FOOD_FROM: [
-      { tool: "🥛", toolName: "milk", helper: "🐄", helperName: "a cow", users: ["🐄"] },
+      { tool: "🥛", toolName: "milk", helper: "🐄", helperName: "a cow", users: ["🐄", "🐑"] }, // sheep milk is real → 🐑 is never a WRONG milk distractor
       { tool: "🥚", toolName: "an egg", helper: "🐔", helperName: "a hen", users: ["🐔"] },
       { tool: "🍯", toolName: "honey", helper: "🐝", helperName: "a bee", users: ["🐝"] },
       { tool: "🍎", toolName: "an apple", helper: "🌳", helperName: "a tree", users: ["🌳"] },
@@ -1087,22 +1087,24 @@
       { key: "balloon", emoji: "🎈" }, { key: "drum", emoji: "🥁" }, { key: "train", emoji: "🚂" },
     ],
     // Tidy Up Time — pick-and-place (mechanic A): each toy has ONE home bin
-    // (matched by `home`). Two 4-item sets; a truth test asserts the 1:1 bijection
-    // (no toy plausibly belongs to two bins).
+    // (matched by `home`). Homes are PICTURE-OBVIOUS and non-overlapping — toys→box,
+    // books→shelf, art→cup, CLOTHES→laundry basket (a sock never goes in the toy
+    // box, so no bin is an also-valid home). The game also SPEAKS the destination
+    // when an item is picked up, so a non-reader never has to read the bin label.
     TIDY_SETS: [
       { items: [
         { emoji: "🧱", name: "block", home: "box" }, { emoji: "📕", name: "book", home: "shelf" },
-        { emoji: "🖍️", name: "crayon", home: "art" }, { emoji: "⚽", name: "ball", home: "basket" },
+        { emoji: "🖍️", name: "crayon", home: "art" }, { emoji: "🧦", name: "sock", home: "laundry" },
       ], bins: [
         { emoji: "📦", label: "Toy box", home: "box" }, { emoji: "📚", label: "Bookshelf", home: "shelf" },
-        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "🧺", label: "Toy basket", home: "basket" },
+        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "🧺", label: "Laundry basket", home: "laundry" },
       ] },
       { items: [
-        { emoji: "🧸", name: "teddy", home: "basket" }, { emoji: "🚗", name: "car", home: "box" },
-        { emoji: "🖌️", name: "paintbrush", home: "art" }, { emoji: "📗", name: "book", home: "shelf" },
+        { emoji: "🚗", name: "car", home: "box" }, { emoji: "📗", name: "book", home: "shelf" },
+        { emoji: "🖌️", name: "paintbrush", home: "art" }, { emoji: "👕", name: "shirt", home: "laundry" },
       ], bins: [
-        { emoji: "🧺", label: "Toy basket", home: "basket" }, { emoji: "📦", label: "Toy box", home: "box" },
-        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "📚", label: "Bookshelf", home: "shelf" },
+        { emoji: "📦", label: "Toy box", home: "box" }, { emoji: "📚", label: "Bookshelf", home: "shelf" },
+        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "🧺", label: "Laundry basket", home: "laundry" },
       ] },
     ],
     // Dump Truck! — how many rocks to load each round before the DUMP.
