@@ -79,6 +79,9 @@
   sorter({ id: "plant-animal", icon: "🌿", title: "Plant or Animal?", skill: "plant vs animal [M]", sets: C.PLANT_ANIMAL_SETS, prompt: "Is it a plant or an animal?", icons: ["👀", "🌿", "🐾"] });
   sorter({ id: "night-friends", icon: "🦉", title: "Awake at Night?", skill: "day/night animals [M]", sets: C.NIGHT_DAY_SETS, prompt: "Awake at night, or in the day?", icons: ["👀", "🌙", "☀️"] });
   sorter({ id: "fast-slow", icon: "🐆", title: "Fast or Slow?", skill: "speed sort [M]", sets: C.FAST_SLOW_SETS, prompt: "Is it fast or slow?", icons: ["👀", "🐆", "🐌"] });
+  // Two-Letter Teams (consonant blends st/sn/fr) — a Letters game built on the
+  // shared sorter; the bin "why" speaks the blend ("Star starts with s-t!").
+  sorter({ id: "blend-sort", icon: "🤝", title: "Two-Letter Teams", skill: "consonant blends [P]", sets: C.BLEND_SETS, threeBins: true, prompt: "Which team starts the word?", icons: ["👂", "🔤", "👉"] });
 
   // ---- Shape's Real Twin: match a 3D solid to a real object of that shape ----
   // Geometry solids are one of Josh's working edges — and this diversifies the
@@ -641,6 +644,115 @@
             if (round >= ROUNDS) api.win({ say: "You know all your body parts!" });
             else { api.roundWin(); newRound(); }
           };
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ================= Road to 180 — Set 2, Wave 5 =================
+  // A tiny shared builder for "show a big picture, tap the right one of 3 chips"
+  // pick games (five-senses, weather-clues, who-lives-here) — all makePairPick.
+  function pickGame(cfg) {
+    F.register({
+      id: cfg.id, icon: cfg.icon, title: cfg.title, skill: cfg.skill,
+      start(api) {
+        const ROUNDS = 4;
+        let round = 0, last = -1, r = null;
+        const big = api.el("div", { class: "pick__big", aria: { hidden: "true" } });
+        const chips = api.el("div", { class: "choices choices--3" });
+        api.stage.append(big, chips);
+        function newRound() {
+          r = L.makePairPick(cfg.items, undefined, last); last = r.idx;
+          big.textContent = cfg.big(r.item);
+          api.setPrompt(cfg.prompt(r.item), cfg.icons(r.item));
+          api.speak(); api.say(cfg.prompt(r.item));
+          chips.innerHTML = "";
+          r.choices.forEach((ch) => {
+            const b = api.el("button", {
+              class: "choice tap", type: "button", text: ch.a,
+              dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "answer" },
+            });
+            b.addEventListener("click", () => {
+              if (!ch.correct) { api.tryAgain(b); return; }
+              api.say(cfg.win(r.item));
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: cfg.done }); else { api.roundWin(); newRound(); }
+            });
+            chips.appendChild(b);
+          });
+        }
+        newRound();
+      },
+    });
+  }
+
+  // Five Senses — the SENSE is named, the BODY PART is the answer (1:1).
+  pickGame({
+    id: "five-senses", icon: "👂", title: "See, Hear, Smell!", skill: "the five senses [M]",
+    items: (C.SENSES || []),
+    big(item) {
+      const things = (C.SENSE_THINGS || []).filter((t) => t.sense === item.q);
+      return things.length ? things[0].thing : "🌟";
+    },
+    prompt: (item) => "Which part of you can " + item.q + "?",
+    icons: (item) => ["👀", item.a, "👉"],
+    win: (item) => "You " + item.q + " with your " + item.name + "!",
+    done: "You know your five senses!",
+  });
+
+  // What Made This? — effect → its single unambiguous cause.
+  pickGame({
+    id: "weather-clues", icon: "🌦️", title: "What Made This?", skill: "cause inference [W]",
+    items: (C.WEATHER_CLUES || []),
+    big: (item) => item.q,
+    prompt: (item) => "What made " + item.name + "?",
+    icons: (item) => [item.q, "❓", "🌦️"],
+    win: (item) => item.cause + " made " + item.name + "!",
+    done: "You're a weather detective!",
+  });
+
+  // Whose Home Is This? — structure → dweller.
+  pickGame({
+    id: "who-lives-here", icon: "🏠", title: "Whose Home Is This?", skill: "animal homes [M]",
+    items: (C.ANIMAL_HOMES2 || []),
+    big: (item) => item.q,
+    prompt: (item) => "Who lives in " + item.name + "?",
+    icons: (item) => [item.q, "🏠", "🐾"],
+    win: (item) => L.article(item.who) + " " + item.who + " lives in " + item.name + "!",
+    done: "You found everyone's home!",
+  });
+
+  // Who Uses This? — community helpers; no distractor also uses the tool.
+  F.register({
+    id: "helper-tools",
+    icon: "👩‍🚒",
+    title: "Who Uses This?",
+    skill: "community helpers [M]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const tool = api.el("div", { class: "pick__big", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(tool, chips);
+      function newRound() {
+        const r = L.makeHelperTool(C.HELPER_TOOLS, undefined, last); last = r.idx;
+        tool.textContent = r.item.tool;
+        api.setPrompt("Who uses " + r.item.toolName + " at work?", [r.item.tool, "🧑‍💼", "👉"]);
+        api.speak(); api.say("Who uses " + r.item.toolName + "?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: ch.helper,
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "helper" },
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say("The " + r.item.helperName + " uses " + r.item.toolName + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know your helpers!" }); else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
         });
       }
       newRound();

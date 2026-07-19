@@ -670,4 +670,37 @@
       });
     },
   });
+
+  // ---- Hatch the Egg! (tap to crack, the 4th tap hatches a surprise baby) ----
+  F.register({
+    id: "hatch-egg",
+    icon: "🥚",
+    title: "Hatch the Egg!",
+    skill: "cause→effect / surprise [P]",
+    start(api) {
+      const BABIES = api.C.EGG_BABIES || ["🐣"];
+      api.setPrompt("Tap the egg to hatch it!", ["👆", "🥚", "🐣"]);
+      const egg = api.el("button", { class: "egg tap", type: "button", dataset: { toy: "1" }, aria: { label: "egg" } }, ["🥚"]);
+      api.stage.append(egg);
+      let taps = 0, won = false;
+      egg.addEventListener("click", () => {
+        api.tickPlay();
+        taps += 1;
+        api.say(String(taps));
+        egg.classList.remove("egg--wobble"); void egg.offsetWidth; egg.classList.add("egg--wobble");
+        if (taps < 4) {
+          egg.classList.add("egg--crack" + taps);
+        } else {
+          egg.textContent = api.randItem(BABIES);
+          egg.classList.add("egg--hatched");
+          try { if (window.JoshEffects && window.JoshEffects.confetti) window.JoshEffects.confetti(); } catch (e) { /* ignore */ }
+          if (!won) { won = true; api.win({ say: "Hello, little one!" }); } else { api.roundWin(); api.say("Hello, little one!"); }
+          setTimeout(() => {
+            taps = 0; egg.textContent = "🥚";
+            egg.classList.remove("egg--crack1", "egg--crack2", "egg--crack3", "egg--hatched");
+          }, 950);
+        }
+      });
+    },
+  });
 })();

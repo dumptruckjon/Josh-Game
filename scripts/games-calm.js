@@ -1114,4 +1114,124 @@
       api.speak();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 5 =================
+  // ---- Month Train (Day Train's big sibling — the months in order) ----
+  F.register({
+    id: "month-train",
+    icon: "🚂",
+    title: "Month Train",
+    skill: "months of the year [M]",
+    start(api) {
+      const L = window.JoshLogic;
+      const MONTHS = api.C.MONTHS || [];
+      const ROUNDS = 4;
+      let round = 0, lastStart = -1, r = null;
+      const train = api.el("div", { class: "dt__train mt__train", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(train, chips);
+      function car(m) { return '<span class="mt__ico">' + m.icon + '</span><span class="mt__abbr">' + m.abbr + "</span>"; }
+      function newRound() {
+        r = L.makeOrderTrain(MONTHS, undefined, { window: 4, lastStart });
+        lastStart = r.start;
+        api.setPrompt("Which month is missing?", ["📅", "🚂", "🤔"]);
+        api.speak(); api.say("Which month is missing?");
+        train.innerHTML = "";
+        r.items.forEach((m, i) => {
+          const blank = i === r.blankIdx;
+          train.appendChild(api.el("span", {
+            class: "dt__car mt__car" + (blank ? " dt__car--blank" : ""),
+            style: blank ? {} : { background: m.tint },
+            html: blank ? "?" : car(m),
+          }));
+        });
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const m = ch.value;
+          const b = api.el("button", {
+            class: "choice dt__choice mt__choice tap", type: "button", style: { background: m.tint },
+            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: m.name }, html: car(m),
+          });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); api.say("That's " + m.name + "."); return; }
+            const blank = train.querySelector(".dt__car--blank");
+            if (blank) { blank.innerHTML = car(m); blank.style.background = m.tint; blank.classList.remove("dt__car--blank"); blank.classList.add("pop"); }
+            api.say(m.name + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know the months of the year!" }); else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Set the Table (mechanic A: pick-and-place) ----
+  // NORMATIVE mechanic-A wiring (every future pick-and-place game copies this):
+  // exactly ONE data-correct at a time — held=null flags every un-placed pick;
+  // once an item is held, the flag MOVES to its matching (still-empty) slot.
+  // A held item can be re-tapped to put it down. Wrong slot = gentle bump.
+  F.register({
+    id: "set-table",
+    icon: "🍽️",
+    title: "Set the Table",
+    skill: "practical life [M]",
+    start(api) {
+      const A = window.JoshAudio;
+      const ALL = api.C.TABLE_ITEMS || [];
+      const ROUNDS = 2;
+      let round = 0;
+      const outlines = api.el("div", { class: "table__outlines" });
+      const tray = api.el("div", { class: "choices choices--3 table__tray" });
+      api.stage.append(outlines, tray);
+
+      function newRound() {
+        const items = ALL.slice(0, round === 0 ? 3 : 5);
+        let held = null, placed = 0;
+        const slotByName = {};
+        outlines.innerHTML = ""; tray.innerHTML = "";
+        api.shuffle(items.slice()).forEach((it) => {
+          const slot = api.el("div", { class: "table__slot", dataset: { name: it.name, empty: "1" }, aria: { hidden: "true" }, text: it.emoji });
+          outlines.appendChild(slot); slotByName[it.name] = slot;
+        });
+        const trayBtns = api.shuffle(items.slice()).map((it) => {
+          const b = api.el("button", { class: "choice table__item tap", type: "button", dataset: { name: it.name }, aria: { label: it.name }, text: it.emoji });
+          b.addEventListener("click", () => {
+            if (b.dataset.placed) return;
+            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (held) held.classList.remove("held");
+            held = b; b.classList.add("held"); reflag();
+          });
+          tray.appendChild(b); return b;
+        });
+        function reflag() {
+          trayBtns.forEach((t) => delete t.dataset.correct);
+          Object.values(slotByName).forEach((s) => delete s.dataset.correct);
+          if (held) { const s = slotByName[held.dataset.name]; if (s && s.dataset.empty) s.dataset.correct = "1"; }
+          else trayBtns.forEach((t) => { if (!t.dataset.placed) t.dataset.correct = "1"; });
+        }
+        Object.values(slotByName).forEach((slot) => {
+          slot.addEventListener("click", () => {
+            if (!held) return;
+            if (slot.dataset.name === held.dataset.name && slot.dataset.empty) {
+              slot.classList.add("table__slot--set", "pop"); delete slot.dataset.empty;
+              held.dataset.placed = "1"; held.classList.remove("held"); held.classList.add("choice--used"); held.disabled = true;
+              held = null; placed += 1;
+              try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(660, { duration: 0.1 }); } catch (e) { /* ignore */ }
+              api.say("There!");
+              if (placed >= items.length) {
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "Dinner is ready! You set the whole table!" }); else { api.roundWin(); newRound(); }
+              } else reflag();
+            } else api.tryAgain(slot);
+          });
+        });
+        api.setPrompt("Set the table — tap a thing, then where it goes!", ["🍽️", "👆", "😊"]);
+        api.speak();
+        reflag();
+      }
+      newRound();
+    },
+  });
 })();

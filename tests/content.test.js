@@ -781,3 +781,64 @@ test("W4 grandma items: 3 targets, >=6 toys, and the two sets are disjoint", () 
   for (const toy of g.toys) assert.ok(!targetEmoji.includes(toy), toy + " is both a target and a toy");
   assert.equal(new Set(targetEmoji).size, 3, "target emojis unique");
 });
+
+// ================= Road to 180 — Set 2, Wave 5 truth tables =================
+test("W5 months: 12 canonical months in order; each has abbr+icon+tint; Feb=heart", () => {
+  const M = content.MONTHS;
+  const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  assert.deepEqual(M.map((m) => m.name), names, "months in canonical order");
+  for (const m of M) assert.ok(m.abbr && m.icon && m.tint, m.name + " needs abbr+icon+tint");
+  assert.equal(M[1].icon, "💘", "February carries the birthday heart (the profile's Valentine hook)");
+});
+test("W5 cvc4: 4-letter, no repeated letter, picture self-names", () => {
+  for (const w of content.CVC4_WORDS) {
+    assert.equal(w.word.length, 4, w.word + " must be 4 letters");
+    assert.equal(new Set(w.word.split("")).size, 4, w.word + " must have no repeated letters");
+    assert.ok(w.emoji, w.word + " needs a self-naming picture");
+  }
+});
+test("W5 senses: 5 sense->body-part pairs unique both ways; things tag a real sense", () => {
+  const S = content.SENSES;
+  assert.equal(S.length, 5);
+  assert.equal(new Set(S.map((s) => s.q)).size, 5, "senses unique");
+  assert.equal(new Set(S.map((s) => s.a)).size, 5, "body parts unique (1:1, no also-correct distractor)");
+  const senses = new Set(S.map((s) => s.q));
+  for (const t of content.SENSE_THINGS) assert.ok(senses.has(t.sense), t.thing + " must tag a real sense");
+});
+test("W5 weather clues: each effect has ONE cause; causes unique so distractors are safe", () => {
+  const W = content.WEATHER_CLUES;
+  assert.equal(new Set(W.map((w) => w.q)).size, W.length, "effects unique");
+  assert.equal(new Set(W.map((w) => w.a)).size, W.length, "causes unique — a distractor can never also be right");
+  for (const w of W) assert.ok(w.cause && w.name, "each clue needs a cause word + effect name");
+});
+test("W5 animal homes: homes unique, dwellers unique (each animal has one home)", () => {
+  const H = content.ANIMAL_HOMES2;
+  assert.equal(new Set(H.map((h) => h.q)).size, H.length, "homes unique");
+  assert.equal(new Set(H.map((h) => h.a)).size, H.length, "dwellers unique");
+});
+test("W5 helper tools: helper is in its users; tools & helpers unique; no cross-use", () => {
+  const T = content.HELPER_TOOLS;
+  assert.equal(new Set(T.map((t) => t.tool)).size, T.length, "tools unique");
+  assert.equal(new Set(T.map((t) => t.helper)).size, T.length, "helpers unique");
+  for (const t of T) assert.ok(t.users.includes(t.helper), t.helperName + " must use " + t.toolName);
+  for (const a of T) for (const b of T) if (a !== b) assert.ok(!a.users.includes(b.helper), b.helperName + " must not use " + a.toolName);
+});
+test("W5 blends: every picture's word starts with its blend; no picture in two bins", () => {
+  const set = content.BLEND_SETS[0];
+  const words = content.BLEND_WORDS;
+  const seen = new Set();
+  for (const bin of set.bins) {
+    for (const e of bin.items) {
+      assert.ok(!seen.has(e), e + " is in two blend bins"); seen.add(e);
+      assert.ok(words[e], "no spoken word for " + e);
+      assert.ok(words[e].startsWith(bin.label), words[e] + " (" + e + ") does not start with " + bin.label);
+    }
+  }
+});
+test("W5 table & match pools: named table items; unique match pairs; egg babies", () => {
+  assert.ok(content.TABLE_ITEMS.length >= 3);
+  for (const it of content.TABLE_ITEMS) assert.ok(it.emoji && it.name, "table item needs emoji+name");
+  assert.ok(content.MATCH_PAIRS.length >= 3);
+  assert.equal(new Set(content.MATCH_PAIRS).size, content.MATCH_PAIRS.length, "match pool unique (twins made by duplication)");
+  assert.ok(content.EGG_BABIES.length >= 2, "need a few surprise babies");
+});

@@ -808,6 +808,92 @@
       ],
       toys: ["🚗", "🧸", "⚽", "🎈", "🦖", "🚀"],
     },
+
+    // ================= Road to 180 — Set 2, Wave 5 content =================
+    // Month Train — canonical order; each car carries a season tint + icon. Feb
+    // gets the birthday 💘 (the profile's Valentine hook). All emoji ≤ Emoji 13.0.
+    MONTHS: [
+      { name: "January", abbr: "Jan", icon: "❄️", tint: "#5ec8ff" },
+      { name: "February", abbr: "Feb", icon: "💘", tint: "#ec4e9c" },
+      { name: "March", abbr: "Mar", icon: "🌱", tint: "#7be08a" },
+      { name: "April", abbr: "Apr", icon: "🌧️", tint: "#7be08a" },
+      { name: "May", abbr: "May", icon: "🌷", tint: "#7be08a" },
+      { name: "June", abbr: "Jun", icon: "☀️", tint: "#ffd24d" },
+      { name: "July", abbr: "Jul", icon: "🏖️", tint: "#ff9f43" },
+      { name: "August", abbr: "Aug", icon: "🌻", tint: "#ff9f43" },
+      { name: "September", abbr: "Sep", icon: "🍎", tint: "#ff9f43" },
+      { name: "October", abbr: "Oct", icon: "🎃", tint: "#ff7043" },
+      { name: "November", abbr: "Nov", icon: "🍂", tint: "#a1887f" },
+      { name: "December", abbr: "Dec", icon: "🎄", tint: "#5ec8ff" },
+    ],
+    // Spell the Big Word — 4-letter, NO repeated letters, picture self-names.
+    CVC4_WORDS: [
+      { emoji: "🐸", word: "frog" }, { emoji: "🐟", word: "fish" }, { emoji: "⭐", word: "star" },
+      { emoji: "🥁", word: "drum" }, { emoji: "✋", word: "hand" }, { emoji: "🥛", word: "milk" },
+    ],
+    // Five Senses — the SENSE is asked, the BODY PART is the answer (unique 1:1),
+    // so a thing that touches several senses can never make a distractor correct.
+    SENSES: [
+      { q: "see", a: "👁️", name: "eyes" },
+      { q: "hear", a: "👂", name: "ears" },
+      { q: "smell", a: "👃", name: "nose" },
+      { q: "taste", a: "👅", name: "tongue" },
+      { q: "touch", a: "✋", name: "hands" },
+    ],
+    SENSE_THINGS: [
+      { thing: "🌸", sense: "smell" }, { thing: "🎵", sense: "hear" }, { thing: "🌈", sense: "see" },
+      { thing: "🔔", sense: "hear" }, { thing: "🍋", sense: "taste" }, { thing: "🧸", sense: "touch" },
+    ],
+    // What Made This? — each effect has ONE unambiguous cause; causes are unique
+    // across the set, so any distractor is automatically also-wrong.
+    WEATHER_CLUES: [
+      { q: "⛄", name: "the snowman", a: "❄️", cause: "snow" },
+      { q: "🪁", name: "the flying kite", a: "💨", cause: "wind" },
+      { q: "🌻", name: "the open sunflower", a: "☀️", cause: "sunshine" },
+      { q: "🌂", name: "the umbrella", a: "🌧️", cause: "rain" },
+    ],
+    // Whose Home Is This? — structure → dweller. Homes unique, animals unique,
+    // and every animal lives in exactly ONE of these homes (no overlap).
+    ANIMAL_HOMES2: [
+      { q: "🕸️", name: "the web", a: "🕷️", who: "spider" },
+      { q: "🍯", name: "the hive", a: "🐝", who: "bee" },
+      { q: "🐚", name: "the shell", a: "🐌", who: "snail" },
+      { q: "🕳️", name: "the burrow", a: "🐰", who: "rabbit" },
+      { q: "🌊", name: "the sea", a: "🐠", who: "fish" },
+    ],
+    // Who Uses This? — community helpers. `users` lists EVERY plausible user of a
+    // tool (mutually-exclusive iconic tools here), so distractors are never right.
+    HELPER_TOOLS: [
+      { tool: "🧯", toolName: "the fire hose", helper: "👩‍🚒", helperName: "firefighter", users: ["👩‍🚒"] },
+      { tool: "🩺", toolName: "the stethoscope", helper: "🧑‍⚕️", helperName: "doctor", users: ["🧑‍⚕️"] },
+      { tool: "📚", toolName: "the school books", helper: "🧑‍🏫", helperName: "teacher", users: ["🧑‍🏫"] },
+      { tool: "🚜", toolName: "the tractor", helper: "🧑‍🌾", helperName: "farmer", users: ["🧑‍🌾"] },
+      { tool: "🍳", toolName: "the frying pan", helper: "👨‍🍳", helperName: "chef", users: ["👨‍🍳"] },
+      { tool: "🎨", toolName: "the paint palette", helper: "🧑‍🎨", helperName: "artist", users: ["🧑‍🎨"] },
+    ],
+    // Two-Letter Teams — consonant blends st / sn / fr. Every picture self-names
+    // with a word that starts with its blend (spoken via BLEND_WORDS).
+    BLEND_SETS: [{
+      name: "blends", prompt: "Which team starts the word?", icons: ["👂", "🔤", "👉"],
+      bins: [
+        { label: "st", emoji: "st", why: "Star starts with s-t!", items: ["⭐", "🛑"] },
+        { label: "sn", emoji: "sn", why: "Snail starts with s-n!", items: ["🐌", "❄️"] },
+        { label: "fr", emoji: "fr", why: "Frog starts with f-r!", items: ["🐸", "🍟"] },
+      ],
+    }],
+    BLEND_WORDS: { "⭐": "star", "🛑": "stop", "🐌": "snail", "❄️": "snow", "🐸": "frog", "🍟": "fries" },
+    // Set the Table — three items settle into their ghosted outlines (mechanic A).
+    TABLE_ITEMS: [
+      { emoji: "🍽️", name: "the plate" },
+      { emoji: "🥤", name: "the cup" },
+      { emoji: "🍴", name: "the fork" },
+      { emoji: "🥄", name: "the spoon" },
+      { emoji: "🧻", name: "the napkin" },
+    ],
+    // Hatch the Egg — the surprise babies that hatch out.
+    EGG_BABIES: ["🐣", "🐢", "🐍", "🦖", "🐊", "🦎"],
+    // Match Them All — the pairs pool (identical-emoji twins).
+    MATCH_PAIRS: ["🧤", "🧦", "🥤", "🎩", "👟", "🧩"],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

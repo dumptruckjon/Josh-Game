@@ -1393,6 +1393,24 @@
     if (parts.length > 1 && correctIdx === last) correctIdx = (correctIdx + 1) % parts.length;
     return { part: parts[correctIdx], correctIdx };
   }
+  // ================= Road to 180 — Set 2 logic =================
+  // Who Uses This? — pick the helper for a tool; distractors are helpers NOT in
+  // the tool's `users` list (the who-eats / no-also-correct discipline).
+  function makeHelperTool(items, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * items.length);
+    if (items.length > 1 && idx === last) idx = (idx + 1) % items.length;
+    const item = items[idx];
+    const userSet = new Set(item.users);
+    const pool = [];
+    for (const it of items) if (!userSet.has(it.helper) && !pool.includes(it.helper)) pool.push(it.helper);
+    const distractors = shuffle(pool, rng).slice(0, 2);
+    const choices = shuffle([
+      { helper: item.helper, name: item.helperName, correct: true },
+      ...distractors.map((h) => ({ helper: h, name: null, correct: false })),
+    ], rng);
+    return { idx, item, choices };
+  }
 
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
@@ -1401,7 +1419,7 @@
     makeSideCount, makeEndSound, makeVowelPick, makeFamilySort,
     makePatternFix, makeMatrix2, makeLeftRight, makeBlockCount, makeTurnMatch,
     makeSentence, makeSilly, makeSceneCompare, makeClueHunt, alphaRun,
-    makeWhoEats, makePartPick,
+    makeWhoEats, makePartPick, makeHelperTool,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,

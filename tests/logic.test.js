@@ -1553,3 +1553,18 @@ test("makePartPick: never repeats the last part; correctIdx points at the part",
     last = r.correctIdx;
   }
 });
+
+// ================= Road to 180 — Set 2 logic =================
+test("makeHelperTool: correct is the tool's helper; NO distractor uses the tool", () => {
+  const rng = mulberry32(412);
+  let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeHelperTool(content.HELPER_TOOLS, rng, last);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1, "exactly one correct");
+    assert.equal(correct[0].helper, r.item.helper, "correct is the tool's helper");
+    for (const c of r.choices) if (!c.correct) assert.ok(!r.item.users.includes(c.helper), c.helper + " must not use " + r.item.toolName);
+    assert.equal(new Set(r.choices.map((c) => c.helper)).size, r.choices.length, "helpers unique");
+    last = r.idx;
+  }
+});

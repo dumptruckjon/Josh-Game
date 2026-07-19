@@ -1028,4 +1028,61 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 5 =================
+  // ---- Spell the Big Word (4-letter decoding — build-word's older sibling) ----
+  F.register({
+    id: "build-word-4",
+    icon: "🐸",
+    title: "Spell the Big Word",
+    skill: "4-letter decoding [M]",
+    start(api) {
+      const C = api.C;
+      const WORDS = api.shuffle((C.CVC4_WORDS || []).slice());
+      const ROUNDS = Math.min(4, WORDS.length) || 1;
+      let round = 0, step = 0, letters = [];
+      const pic = api.el("div", { class: "bw4__pic", aria: { hidden: "true" } });
+      const slots = api.el("div", { class: "ns__slots" });
+      const tray = api.el("div", { class: "choices choices--4 ns__tray" });
+      api.stage.append(pic, slots, tray);
+      function flagNext() {
+        [...tray.children].forEach((t) => {
+          if (!t.dataset.done && t.dataset.letter === letters[step]) t.dataset.correct = "1";
+          else if (!t.dataset.done) delete t.dataset.correct;
+        });
+      }
+      function newRound() {
+        const entry = WORDS[round % WORDS.length];
+        const r = L.makeNameSpell(entry.word);
+        letters = r.letters; step = 0;
+        pic.textContent = entry.emoji;
+        api.setPrompt("Spell the word — tap the letters in order!", ["👀", "🔤", entry.emoji]);
+        api.speak(); api.say("Spell " + entry.word);
+        slots.innerHTML = "";
+        letters.forEach(() => slots.appendChild(api.el("span", { class: "ns__slot" }, ["_"])));
+        tray.innerHTML = "";
+        r.tiles.forEach((t) => {
+          const b = api.el("button", {
+            class: "choice choice--letter ns__tile tap", type: "button", text: t.letter,
+            dataset: { letter: t.letter }, aria: { label: t.letter },
+          });
+          b.addEventListener("click", () => {
+            if (b.dataset.done) return;
+            if (b.dataset.letter === letters[step]) {
+              b.dataset.done = "1"; b.classList.add("choice--used"); delete b.dataset.correct;
+              slots.children[step].textContent = letters[step]; api.say(letters[step]); step += 1;
+              if (step >= letters.length) {
+                api.say(entry.word + "!");
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You spelled the big words!" }); else { api.roundWin(); newRound(); }
+              } else flagNext();
+            } else api.tryAgain(b);
+          });
+          tray.appendChild(b);
+        });
+        flagNext();
+      }
+      newRound();
+    },
+  });
 })();

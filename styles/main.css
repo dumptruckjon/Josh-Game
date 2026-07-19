@@ -1800,3 +1800,52 @@ body.hl-mode {
   .hello__friend--wave { animation: none !important; }
   .body__zone--hit, .cake__candle, .grandma__cell--found { animation: none !important; }
 }
+
+/* ================= Road to 180 — Set 2, Wave 5 ================= */
+/* Shared "big picture up top, chips below" pick games. */
+.pick__big { text-align: center; font-size: clamp(3rem, 18vw, 4.6rem); margin: 10px 0 16px; line-height: 1; }
+.bw4__pic { text-align: center; font-size: clamp(3rem, 18vw, 4.4rem); margin: 6px 0 10px; }
+
+/* Month Train — taller cars carrying a season icon + abbreviation. */
+.mt__train { flex-wrap: nowrap; }
+.mt__car { min-width: 46px; height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 4px; gap: 2px; line-height: 1; }
+.mt__ico { font-size: 1.2rem; }
+.mt__abbr { font-size: 0.82rem; font-weight: 800; }
+.mt__choice { flex-direction: column; gap: 2px; }
+.mt__choice .mt__ico { font-size: 1.6rem; }
+.mt__choice .mt__abbr { font-size: 1rem; }
+
+/* Set the Table — ghosted outlines + a tray; the shared held state below. */
+.table__outlines { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin: 8px 0 16px; }
+.table__slot {
+  width: 88px; height: 88px; border-radius: 18px; display: flex; align-items: center; justify-content: center;
+  font-size: 2.4rem; background: rgba(255, 255, 255, 0.4); border: 3px dashed rgba(120, 170, 255, 0.5);
+  color: rgba(90, 110, 140, 0.35); filter: grayscale(1); cursor: pointer;
+}
+.table__slot--set { filter: none; color: inherit; background: #fff2c9; border-style: solid; border-color: #f0b860; }
+.table__tray { margin-top: 4px; }
+.table__item { font-size: clamp(2rem, 11vw, 2.8rem); }
+
+/* Shared mechanic-A HELD state (set-table, match-all, and every future
+   pick-and-place game) — a lift + glow so the picked item reads as "in hand". */
+.held { transform: translateY(-6px) scale(1.06); box-shadow: 0 10px 22px rgba(91, 63, 214, 0.4); outline: 3px solid #7a5cd6; z-index: 2; }
+
+/* Match Them All — a face-up grid; matched pairs fade away. */
+.match__grid { max-width: 340px; margin: 8px auto; }
+.match__card { font-size: clamp(2.2rem, 12vw, 3rem); }
+.match__card--gone { opacity: 0; transform: scale(0.6); transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: none; }
+
+/* Hatch the Egg — one giant egg that wobbles, cracks, then hatches a baby. */
+.egg { display: block; margin: 20px auto; width: 180px; height: 200px; border: none; background: transparent; font-size: 8rem; line-height: 1; }
+.egg--crack1 { transform: rotate(-4deg); }
+.egg--crack2 { transform: rotate(4deg); }
+.egg--crack3 { transform: rotate(-2deg) scale(1.04); }
+.egg--wobble { animation: eggWobble 400ms ease-in-out; }
+.egg--hatched { animation: pop 400ms ease-out; }
+@keyframes eggWobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .match__card--gone { transition: none !important; }
+  .egg--wobble, .egg--hatched { animation: none !important; }
+  .held { transform: none !important; }
+}

@@ -788,4 +788,60 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 5 =================
+  // ---- Match Them All (face-up pair clearing — mechanic A, no memory load) ----
+  // Same normative pick-and-place contract as set-table: held=null flags every
+  // un-matched card; once a card is held, ONLY its twin holds the flag.
+  F.register({
+    id: "match-all",
+    icon: "🧤",
+    title: "Match Them All",
+    skill: "matching pairs [M]",
+    start(api) {
+      const POOL = api.C.MATCH_PAIRS || ["🧤", "🧦", "🥤"];
+      const ROUNDS = 3;
+      let round = 0;
+      const grid = api.el("div", { class: "choices choices--3 match__grid" });
+      api.stage.append(grid);
+      function newRound() {
+        const picks = api.shuffle(POOL.slice()).slice(0, 3);
+        const deck = api.shuffle(picks.reduce((a, e) => a.concat([e, e]), []));
+        let held = null, matched = 0;
+        grid.innerHTML = "";
+        const cards = deck.map((e) => {
+          const b = api.el("button", { class: "choice match__card tap", type: "button", dataset: { face: e }, aria: { label: "card" }, text: e });
+          b.addEventListener("click", () => {
+            if (b.dataset.done) return;
+            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (!held) { held = b; b.classList.add("held"); reflag(); return; }
+            if (b.dataset.face === held.dataset.face) {
+              b.dataset.done = held.dataset.done = "1";
+              b.classList.add("match__card--gone"); held.classList.add("match__card--gone");
+              b.classList.remove("held"); held.classList.remove("held");
+              b.disabled = held.disabled = true;
+              held = null; matched += 1;
+              api.say("Match!");
+              if (matched >= picks.length) {
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You matched them all!" }); else { api.roundWin(); newRound(); }
+              } else reflag();
+            } else api.tryAgain(b);
+          });
+          grid.appendChild(b); return b;
+        });
+        function reflag() {
+          cards.forEach((c) => delete c.dataset.correct);
+          if (held) {
+            const twin = cards.find((c) => c !== held && !c.dataset.done && c.dataset.face === held.dataset.face);
+            if (twin) twin.dataset.correct = "1";
+          } else cards.forEach((c) => { if (!c.dataset.done) c.dataset.correct = "1"; });
+        }
+        api.setPrompt("Tap a card, then find its twin!", ["🧤", "🤝", "😊"]);
+        api.speak();
+        reflag();
+      }
+      newRound();
+    },
+  });
 })();
