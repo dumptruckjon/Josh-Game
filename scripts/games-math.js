@@ -1517,4 +1517,98 @@
       newRound();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // ---- Number Maker (trace digits 1-5 — the trace family's missing third) ----
+  // Reuses Letter Maker's dot-order machinery verbatim over PATHS_DIGITS.
+  F.register({
+    id: "number-maker", icon: "✍️", title: "Number Maker", skill: "numeral formation / writing [M]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, step = 0, dots = [];
+      const stage = api.el("div", { class: "trace__stage" });
+      const guide = api.el("div", { class: "lm__guide", aria: { hidden: "true" } });
+      stage.appendChild(guide);
+      api.stage.append(stage);
+      function newRound() {
+        const lp = api.randItem(C.PATHS_DIGITS);
+        step = 0; dots = [];
+        guide.textContent = lp.letter;
+        api.setPrompt("Trace the number — tap the dots in order!", ["👆", "🔢", "✍️"]);
+        api.speak(); api.say("Trace the number " + lp.letter);
+        [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "trace__line"); svg.setAttribute("viewBox", "0 0 100 100"); svg.setAttribute("preserveAspectRatio", "none");
+        const poly = document.createElementNS(svgNS, "polyline");
+        poly.setAttribute("points", lp.dots.map((p) => p.x + "," + p.y).join(" "));
+        poly.setAttribute("fill", "none"); poly.setAttribute("stroke", "#b7c6d6");
+        poly.setAttribute("stroke-width", "2.5"); poly.setAttribute("stroke-dasharray", "5 4"); poly.setAttribute("stroke-linecap", "round");
+        svg.appendChild(poly); stage.appendChild(svg);
+        lp.dots.forEach((p, i) => {
+          const dot = api.el("button", {
+            class: "trace__dot tap" + (i === 0 ? " trace__dot--start" : ""),
+            type: "button", dataset: i === 0 ? { correct: "1" } : {}, aria: { label: "dot " + (i + 1) },
+          }, [String(i + 1)]);
+          dot.style.left = p.x + "%"; dot.style.top = p.y + "%";
+          dot.addEventListener("click", () => {
+            if (i === step) {
+              dot.classList.add("trace__dot--done"); delete dot.dataset.correct; step += 1;
+              if (step >= lp.dots.length) {
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You wrote your numbers!" }); else { api.roundWin(); newRound(); }
+              } else if (dots[step]) dots[step].dataset.correct = "1";
+            } else api.tryAgain(dot);
+          });
+          stage.appendChild(dot); dots.push(dot);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Duck Pond Stories (acted-out spoken addition — mechanic G) ----
+  // The pond PERFORMS a spoken story (a ducks swim in, then b more); the answer
+  // is provable by re-counting what's on screen (the profile-legal word problem).
+  F.register({
+    id: "duck-add", icon: "🦆", title: "Duck Pond Stories", skill: "addition in a story [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const pond = api.el("div", { class: "pond__scene", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(pond, chips);
+      function newRound() {
+        const r = L.makeStoryAdd(C.STORY_ACTORS, undefined, last); last = r.total;
+        pond.innerHTML = "";
+        api.setPrompt("Listen to the story — how many " + r.actor.name + "?", ["👂", r.actor.emoji, "🔢"]);
+        api.speak();
+        api.say(numberWord(r.a) + " " + r.actor.name + " " + r.actor.verb + " in the pond. Then " + numberWord(r.b) + " more come! How many " + r.actor.name + " now?");
+        // Act it out: a ducks glide in, then b more (a beat later), each counting.
+        let shown = 0;
+        function addDuck(extra) {
+          const d = api.el("span", { class: "pond__actor pop" + (extra ? " pond__actor--extra" : ""), aria: { hidden: "true" }, text: r.actor.emoji });
+          pond.appendChild(d); shown += 1;
+        }
+        for (let i = 0; i < r.a; i++) addDuck(false);
+        setTimeout(() => { if (pond.isConnected) for (let i = 0; i < r.b; i++) addDuck(true); }, 650);
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            [...pond.children].forEach((el, i) => setTimeout(() => { if (el.isConnected) { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); api.say(String(i + 1)); } }, i * 200));
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "Yes! " + r.a + " and " + r.b + " make " + r.total + "!" }); else { api.roundWin({ say: r.a + " and " + r.b + " make " + r.total + "!" }); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      function numberWord(n) { return ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"][n] || String(n); }
+      newRound();
+    },
+  });
 })();

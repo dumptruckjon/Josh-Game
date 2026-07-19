@@ -1628,6 +1628,68 @@
     return { n };
   }
 
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // Duck Pond Stories — an acted-out spoken addition story: a ducks + b more,
+  // total <= 8, both addends >= 1. Choices are 3 distinct numerals incl. total.
+  function makeStoryAdd(actors, rng, last) {
+    const rnd = rng || Math.random;
+    let a, b, total, guard = 0;
+    do {
+      a = 1 + Math.floor(rnd() * 4); // 1..4
+      b = 1 + Math.floor(rnd() * 4); // 1..4
+      total = a + b;
+      guard += 1;
+    } while ((total > 8 || total === last) && guard < 60);
+    const actor = actors[Math.floor(rnd() * actors.length)];
+    return { a, b, total, actor, choices: numChoices(total, rng) };
+  }
+
+  // Two Words Make One — a transparent compound; distractors are OTHER compounds
+  // that share NO part word with the prompt pair (so no distractor is also-valid).
+  function makeCompound(compounds, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * compounds.length);
+    if (compounds.length > 1 && idx === last) idx = (idx + 1) % compounds.length;
+    const c = compounds[idx];
+    const pool = compounds.filter((o, i) => i !== idx && o.parts.every((p) => !c.parts.includes(p)));
+    const distractors = shuffle(pool, rng).slice(0, 2);
+    const choices = shuffle(
+      [{ result: c.result, word: c.word, correct: true },
+        ...distractors.map((o) => ({ result: o.result, word: o.word, correct: false }))],
+      rng
+    );
+    return { idx, a: c.a, b: c.b, result: c.result, word: c.word, choices };
+  }
+
+  // This Goes With That — a picture analogy A:B :: C:? Each set carries its own
+  // explicit, relation-NEUTRAL distractors (unrelated objects), so no distractor
+  // can satisfy the round's relation with C.
+  function makeAnalogy(sets, rng, last) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * sets.length);
+    if (sets.length > 1 && idx === last) idx = (idx + 1) % sets.length;
+    const s = sets[idx];
+    const distractors = shuffle(s.distractors.slice(), rng).slice(0, 2);
+    const choices = shuffle(
+      [{ emoji: s.d.emoji, word: s.d.word, correct: true },
+        ...distractors.map((o) => ({ emoji: o.emoji, word: o.word, correct: false }))],
+      rng
+    );
+    return { idx, set: s, a: s.a, b: s.b, c: s.c, d: s.d, choices };
+  }
+
+  // Fix the Toys — a 6-card deck: 3 toys each split into a left + right half
+  // (matched by toy key). Mechanic-A pair clearing joins the halves.
+  function makeHalvesDeck(pool, rng) {
+    const toys = sample(pool, 3, rng);
+    const cards = [];
+    toys.forEach((t) => {
+      cards.push({ key: t.key, half: "L", emoji: t.emoji });
+      cards.push({ key: t.key, half: "R", emoji: t.emoji });
+    });
+    return { cards: shuffle(cards, rng), toys };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
@@ -1640,6 +1702,7 @@
     makePartnerUp, makeCategoryCount, makeSizePick,
     makeCopyGrid, makeMirrorHalf, makeFitsInside, makeWhichPath, makeCurtainPeek, makeDressOrder,
     makeTreasureClue, makeRhymePairsDeck, makeNameHunt, makeBalance,
+    makeStoryAdd, makeCompound, makeAnalogy, makeHalvesDeck,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,

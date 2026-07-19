@@ -1281,4 +1281,44 @@
       newRound();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // ---- Two Words Make One (compound words) ----
+  // Two picture-halves slide together (sun + flower); tap the whole-word picture.
+  // Distractors share no part word with the prompt (makeCompound enforces it).
+  F.register({
+    id: "word-glue", icon: "🧩", title: "Two Words Make One", skill: "compound words [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const parts = api.el("div", { class: "glue__parts", aria: { hidden: "true" } });
+      const aEl = api.el("span", { class: "glue__word" });
+      const plus = api.el("span", { class: "glue__plus", text: "+" });
+      const bEl = api.el("span", { class: "glue__word" });
+      parts.append(aEl, plus, bEl);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(parts, chips);
+      function newRound() {
+        const r = L.makeCompound(C.COMPOUND_WORDS, undefined, last); last = r.idx;
+        aEl.textContent = r.a.emoji; bEl.textContent = r.b.emoji;
+        parts.classList.remove("glue__parts--join"); void parts.offsetWidth;
+        api.setPrompt(r.a.word + " and " + r.b.word + " — what word do they make?", ["👂", "🧩", "😊"]);
+        api.speak(); api.say(r.a.word + "... " + r.b.word + "... what word do they make?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice tap", type: "button", text: ch.result, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            parts.classList.add("glue__parts--join");
+            api.say(r.a.word + " and " + r.b.word + " make " + r.word + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You made big words!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 850); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

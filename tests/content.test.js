@@ -962,3 +962,96 @@ test("W8 thank-you extras: named grown-ups with an emoji (grandma cameo)", () =>
   for (const x of e) assert.ok(x.name && x.emoji);
   assert.ok(e.some((x) => x.name === "Grandma"), "grandma is a warm cross-world cameo");
 });
+
+// ================= Road to 200 — Set 3, Wave 9 content truth =================
+test("W9 digit trace paths: 1-5, geometry-clean at 320px (like PATHS_LOWER)", () => {
+  const W = 292, H = 430, SIZE = 76, MIN_GAP = 14;
+  assert.deepEqual(content.PATHS_DIGITS.map((p) => p.letter), ["1", "2", "3", "4", "5"]);
+  for (const p of content.PATHS_DIGITS) {
+    const boxes = p.dots.map((d) => {
+      assert.ok(d.x >= 8 && d.x <= 92 && d.y >= 8 && d.y <= 92, p.letter + " dot inside box");
+      const cx = (d.x / 100) * W, cy = (d.y / 100) * H;
+      return { x: cx - SIZE / 2, y: cy - SIZE / 2, r: cx + SIZE / 2, b: cy + SIZE / 2 };
+    });
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], c = boxes[j];
+      const ox = Math.min(a.r, c.r) - Math.max(a.x, c.x), oy = Math.min(a.b, c.b) - Math.max(a.y, c.y);
+      assert.ok(!(ox > 1 && oy > 1), p.letter + " dots " + (i + 1) + "/" + (j + 1) + " overlap");
+      if (ox > 4) assert.ok(Math.max(a.y, c.y) - Math.min(a.b, c.b) >= MIN_GAP, p.letter + " too close (v)");
+      else if (oy > 4) assert.ok(Math.max(a.x, c.x) - Math.min(a.r, c.r) >= MIN_GAP, p.letter + " too close (h)");
+    }
+  }
+});
+test("W9 story actors: each has an emoji, plural name, and a verb", () => {
+  assert.ok(content.STORY_ACTORS.length >= 3);
+  for (const a of content.STORY_ACTORS) assert.ok(a.emoji && a.name && a.verb);
+});
+test("W9 compounds: every part word is UNIQUE across the list (auto-safe distractors)", () => {
+  const seen = new Map();
+  for (const c of content.COMPOUND_WORDS) {
+    assert.equal(c.parts.length, 2);
+    for (const p of c.parts) {
+      assert.ok(!seen.has(p), '"' + p + '" appears in two compounds — breaks the no-shared-part distractor law');
+      seen.set(p, c.word);
+    }
+    assert.ok(c.a.emoji && c.b.emoji && c.result && c.word);
+  }
+});
+test("W9 analogies: a/b/c/d + >=2 relation-neutral distractors, D not among them", () => {
+  const RELS = { eats: 1, "lives in": 1, "grows into": 1, "goes with": 1 };
+  for (const s of content.ANALOGY_SETS) {
+    assert.ok(RELS[s.relation], "known relation: " + s.relation);
+    for (const t of [s.a, s.b, s.c, s.d]) assert.ok(t.emoji && t.word);
+    assert.ok(s.distractors.length >= 2);
+    for (const d of s.distractors) assert.notEqual(d.emoji, s.d.emoji, "distractor is not the answer");
+  }
+});
+test("W9 life cycles: canonical baby→big orders restated", () => {
+  const TRUTH = {
+    butterfly: ["🥚", "🐛", "🦋"],
+    chicken: ["🥚", "🐣", "🐔"],
+    tree: ["🌰", "🌱", "🌳"],
+  };
+  for (const cyc of content.LIFE_CYCLES) {
+    assert.deepEqual(cyc.steps, TRUTH[cyc.name], cyc.name + " must go baby→big in canonical order");
+  }
+  assert.deepEqual(content.LIFE_CYCLES.map((c) => c.name).sort(), Object.keys(TRUTH).sort());
+});
+test("W9 animal coats: 3 mutually-exclusive covering bins, no smooth-skinned frog", () => {
+  const set = content.COAT_SETS[0];
+  assert.equal(set.bins.length, 3);
+  assert.deepEqual(set.bins.map((b) => b.label), ["Fur", "Feathers", "Scales"]);
+  const seen = new Map();
+  for (const bin of set.bins) for (const a of bin.items) {
+    assert.ok(!seen.has(a), a + " in two covering bins — must be mutually exclusive");
+    seen.set(a, bin.label);
+    assert.notEqual(a, "🐸", "frogs are smooth-skinned — excluded from fur/feathers/scales");
+  }
+});
+test("W9 food origins: each food has ONE source; no source gives two of these foods", () => {
+  const sources = new Set();
+  for (const f of content.FOOD_FROM) {
+    assert.equal(f.users.length, 1, f.toolName + " has exactly one canon source");
+    assert.equal(f.users[0], f.helper);
+    assert.ok(!sources.has(f.helper), f.helper + " listed as source of two foods — pick distinct sources so distractors stay wrong");
+    sources.add(f.helper);
+  }
+});
+test("W9 half-toys: distinct keys and distinct emojis (silhouettes don't collide)", () => {
+  assert.ok(content.HALF_TOYS.length >= 4);
+  assert.equal(new Set(content.HALF_TOYS.map((t) => t.key)).size, content.HALF_TOYS.length);
+  assert.equal(new Set(content.HALF_TOYS.map((t) => t.emoji)).size, content.HALF_TOYS.length);
+});
+test("W9 tidy sets: each set is a 1:1 toy↔bin bijection by home", () => {
+  for (const set of content.TIDY_SETS) {
+    assert.equal(set.items.length, set.bins.length);
+    const itemHomes = set.items.map((i) => i.home).sort();
+    const binHomes = set.bins.map((b) => b.home).sort();
+    assert.deepEqual(itemHomes, binHomes, "every toy home has exactly one matching bin");
+    assert.equal(new Set(binHomes).size, binHomes.length, "bins are distinct homes (no two-valid-bin ambiguity)");
+  }
+});
+test("W9 truck loads: positive counts", () => {
+  assert.ok(content.TRUCK_LOADS.length >= 1);
+  for (const n of content.TRUCK_LOADS) assert.ok(Number.isInteger(n) && n >= 1);
+});

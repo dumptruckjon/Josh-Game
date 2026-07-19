@@ -783,4 +783,59 @@
       newRound();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // ---- Dump Truck! (load the rocks, count, then DUMP — the namesake game) ----
+  F.register({
+    id: "dump-truck", icon: "🚚", title: "Dump Truck!", skill: "load, count & dump [M]",
+    start(api) {
+      const LOADS = C.TRUCK_LOADS || [3, 4, 5];
+      let round = 0;
+      const truck = api.el("div", { class: "truck__rig", aria: { hidden: "true" } }, [
+        api.el("span", { class: "truck__bed" }),
+        api.el("span", { class: "truck__cab", text: "🚚" }),
+      ]);
+      const bed = truck.querySelector(".truck__bed");
+      const rocks = api.el("div", { class: "choices choices--3 truck__rocks" });
+      const lever = api.el("button", { class: "btn-big truck__lever", type: "button", hidden: "" }, ["⬇️ DUMP!"]);
+      api.stage.append(truck, rocks, lever);
+
+      function newRound() {
+        const n = LOADS[round % LOADS.length];
+        let loaded = 0;
+        truck.classList.remove("truck__rig--dump");
+        bed.innerHTML = "";
+        lever.hidden = true; delete lever.dataset.correct;
+        rocks.innerHTML = "";
+        api.setPrompt("Load the rocks, then pull the DUMP lever!", ["🪨", "🚚", "⬇️"]);
+        api.speak(); api.say("Load " + n + " rocks into the truck!");
+        for (let i = 0; i < n; i++) {
+          const r = api.el("button", { class: "choice truck__rock tap", type: "button", dataset: { correct: "1" }, aria: { label: "rock" }, text: "🪨" });
+          r.addEventListener("click", () => {
+            if (r.dataset.loaded) return;
+            r.dataset.loaded = "1"; delete r.dataset.correct;
+            r.classList.add("truck__rock--gone"); r.disabled = true;
+            bed.appendChild(api.el("span", { class: "truck__load pop", aria: { hidden: "true" }, text: "🪨" }));
+            loaded += 1;
+            try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(300 + loaded * 40, { duration: 0.1 }); } catch (e) { /* ignore */ }
+            api.say(String(loaded));
+            if (loaded >= n) { lever.hidden = false; lever.dataset.correct = "1"; api.say("Now pull the DUMP lever!"); }
+          });
+          rocks.appendChild(r);
+        }
+      }
+      lever.addEventListener("click", () => {
+        if (lever.hidden || lever.dataset.done) return;
+        lever.dataset.done = "1"; delete lever.dataset.correct;
+        truck.classList.add("truck__rig--dump");
+        api.say("Dump!");
+        setTimeout(() => {
+          round += 1;
+          if (round >= LOADS.length) api.win({ say: "You dumped them all! Beep beep!" });
+          else { api.roundWin(); delete lever.dataset.done; newRound(); }
+        }, 700);
+      });
+      newRound();
+    },
+  });
 })();

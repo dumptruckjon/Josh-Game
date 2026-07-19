@@ -1787,3 +1787,66 @@ test("makeBalance: n in 2..5 and never repeats the last", () => {
     last = r.n;
   }
 });
+
+// ================= Road to 200 — Set 3, Wave 9 =================
+test("makeStoryAdd: a,b in 1..4, total<=8, choices include total and are distinct", () => {
+  const rng = mulberry32(501); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeStoryAdd(content.STORY_ACTORS, rng, last);
+    assert.ok(r.a >= 1 && r.a <= 4 && r.b >= 1 && r.b <= 4);
+    assert.equal(r.total, r.a + r.b);
+    assert.ok(r.total <= 8);
+    assert.equal(r.choices.length, 3);
+    assert.equal(new Set(r.choices.map((c) => c.n)).size, 3, "3 distinct chips");
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].n, r.total);
+    r.choices.forEach((c) => assert.ok(c.n >= 1));
+    assert.ok(r.actor && r.actor.emoji);
+    last = r.total;
+  }
+});
+test("makeCompound: correct=the compound; NO distractor shares a part with the prompt", () => {
+  const rng = mulberry32(502); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeCompound(content.COMPOUND_WORDS, rng, last);
+    const src = content.COMPOUND_WORDS[r.idx];
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].word, src.word);
+    // every distractor is a real compound sharing no part with the prompt
+    r.choices.filter((c) => !c.correct).forEach((c) => {
+      const d = content.COMPOUND_WORDS.find((o) => o.word === c.word);
+      assert.ok(d, "distractor is a real compound");
+      assert.ok(d.parts.every((p) => !src.parts.includes(p)), "distractor shares no part with the prompt pair");
+    });
+    last = r.idx;
+  }
+});
+test("makeAnalogy: correct=D; distractors are the set's curated (never D)", () => {
+  const rng = mulberry32(503); let last = -1;
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeAnalogy(content.ANALOGY_SETS, rng, last);
+    const correct = r.choices.filter((c) => c.correct);
+    assert.equal(correct.length, 1);
+    assert.equal(correct[0].emoji, r.d.emoji);
+    const dEmojis = new Set(r.set.distractors.map((x) => x.emoji));
+    r.choices.filter((c) => !c.correct).forEach((c) => {
+      assert.ok(dEmojis.has(c.emoji), "distractor is a curated one");
+      assert.notEqual(c.emoji, r.d.emoji, "distractor never equals the answer");
+    });
+    last = r.idx;
+  }
+});
+test("makeHalvesDeck: 6 cards = 3 toys x {L,R}; each toy's two halves match by key", () => {
+  const rng = mulberry32(504);
+  for (let i = 0; i < 300; i++) {
+    const r = L.makeHalvesDeck(content.HALF_TOYS, rng);
+    assert.equal(r.cards.length, 6);
+    assert.equal(r.toys.length, 3);
+    const byKey = {};
+    r.cards.forEach((c) => { (byKey[c.key] = byKey[c.key] || []).push(c.half); });
+    assert.equal(Object.keys(byKey).length, 3, "3 distinct toys");
+    Object.values(byKey).forEach((halves) => assert.deepEqual(halves.sort(), ["L", "R"], "each toy has one L and one R half"));
+  }
+});

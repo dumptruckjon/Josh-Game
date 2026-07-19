@@ -1014,6 +1014,99 @@
       { name: "Grandma", emoji: "👵🏻" },
       { name: "Mom", emoji: "👩" },
     ],
+
+    // ================= Road to 200 — Set 3, Wave 9 content =================
+    // Number Maker — trace-dot paths for digits 1-5 (single-stroke friendly).
+    // GEOMETRY-TESTED like PATHS_LOWER/FU_PATH (76px dots on the 292×430 box, no
+    // both-axis overlap, >=14px axis gaps). `letter` reuses the trace machinery.
+    PATHS_DIGITS: [
+      { letter: "1", dots: [{ x: 50, y: 14 }, { x: 50, y: 50 }, { x: 50, y: 86 }] },
+      { letter: "2", dots: [{ x: 28, y: 26 }, { x: 72, y: 24 }, { x: 30, y: 74 }, { x: 76, y: 86 }] },
+      { letter: "3", dots: [{ x: 28, y: 22 }, { x: 72, y: 30 }, { x: 48, y: 52 }, { x: 72, y: 74 }, { x: 28, y: 82 }] },
+      { letter: "4", dots: [{ x: 66, y: 12 }, { x: 22, y: 58 }, { x: 82, y: 58 }, { x: 70, y: 90 }] },
+      { letter: "5", dots: [{ x: 74, y: 14 }, { x: 30, y: 16 }, { x: 32, y: 48 }, { x: 72, y: 62 }, { x: 30, y: 86 }] },
+    ],
+    // Duck Pond Stories — acted-out addition. Each actor self-names + has a verb.
+    STORY_ACTORS: [
+      { emoji: "🦆", name: "ducks", verb: "swim" },
+      { emoji: "🐸", name: "frogs", verb: "hop" },
+      { emoji: "🐝", name: "bees", verb: "buzz" },
+      { emoji: "🐟", name: "fish", verb: "swim" },
+    ],
+    // Two Words Make One — TRANSPARENT compounds; each part word is UNIQUE across
+    // the list (so the "no shared part" distractor law is auto-satisfied). a/b are
+    // the spoken/shown halves; result is the whole-word picture.
+    COMPOUND_WORDS: [
+      { a: { emoji: "☀️", word: "sun" }, b: { emoji: "🌸", word: "flower" }, result: "🌻", word: "sunflower", parts: ["sun", "flower"] },
+      { a: { emoji: "🌧️", word: "rain" }, b: { emoji: "🎀", word: "bow" }, result: "🌈", word: "rainbow", parts: ["rain", "bow"] },
+      { a: { emoji: "❄️", word: "snow" }, b: { emoji: "👨", word: "man" }, result: "⛄", word: "snowman", parts: ["snow", "man"] },
+      { a: { emoji: "🥤", word: "cup" }, b: { emoji: "🍰", word: "cake" }, result: "🧁", word: "cupcake", parts: ["cup", "cake"] },
+      { a: { emoji: "🧈", word: "butter" }, b: { emoji: "🪰", word: "fly" }, result: "🦋", word: "butterfly", parts: ["butter", "fly"] },
+      { a: { emoji: "🦷", word: "tooth" }, b: { emoji: "🖌️", word: "brush" }, result: "🪥", word: "toothbrush", parts: ["tooth", "brush"] },
+    ],
+    // This Goes With That — picture analogies A:B :: C:D. Distractors are curated
+    // UNRELATED objects (a truth test restates that none satisfies the relation
+    // with C), so no distractor is ever also-correct.
+    ANALOGY_SETS: [
+      { relation: "eats", a: { emoji: "🐰", word: "rabbit" }, b: { emoji: "🥕", word: "carrot" }, c: { emoji: "🐵", word: "monkey" }, d: { emoji: "🍌", word: "banana" }, distractors: [{ emoji: "🚗", word: "car" }, { emoji: "⭐", word: "star" }] },
+      { relation: "lives in", a: { emoji: "🐟", word: "fish" }, b: { emoji: "🌊", word: "the water" }, c: { emoji: "🐦", word: "bird" }, d: { emoji: "🌳", word: "a tree" }, distractors: [{ emoji: "🍕", word: "pizza" }, { emoji: "🎈", word: "balloon" }] },
+      { relation: "grows into", a: { emoji: "🌰", word: "acorn" }, b: { emoji: "🌳", word: "tree" }, c: { emoji: "🥚", word: "egg" }, d: { emoji: "🐣", word: "chick" }, distractors: [{ emoji: "🚗", word: "car" }, { emoji: "🧦", word: "sock" }] },
+      { relation: "goes with", a: { emoji: "🌧️", word: "rain" }, b: { emoji: "☂️", word: "umbrella" }, c: { emoji: "☀️", word: "sun" }, d: { emoji: "🕶️", word: "sunglasses" }, distractors: [{ emoji: "🍎", word: "apple" }, { emoji: "🐠", word: "fish" }] },
+    ],
+    // Baby to Big! — life cycles ordered egg/seed → middle → grown. Reuses the
+    // story-order machinery; a truth test restates every canonical order.
+    LIFE_CYCLES: [
+      { name: "butterfly", steps: ["🥚", "🐛", "🦋"] },
+      { name: "chicken", steps: ["🥚", "🐣", "🐔"] },
+      { name: "tree", steps: ["🌰", "🌱", "🌳"] },
+    ],
+    // Fur, Feathers, Scales — a 3-bin covering sort (mutually exclusive; frogs
+    // are EXCLUDED — a frog's skin is smooth, neither fur/feathers/scales).
+    COAT_SETS: [
+      { name: "coverings", prompt: "Fur, feathers, or scales?", icons: ["🐻", "🐦", "🐟"], bins: [
+        { label: "Fur", emoji: "🐻", why: "It has fur!", items: ["🐻", "🐰", "🐱", "🐶", "🦁", "🐭"] },
+        { label: "Feathers", emoji: "🐦", why: "It has feathers!", items: ["🐦", "🦆", "🐧", "🦉", "🐔", "🦜"] },
+        { label: "Scales", emoji: "🐟", why: "It has scales!", items: ["🐟", "🐍", "🦎", "🐊", "🐠", "🐡"] },
+      ] },
+    ],
+    // Where Does It Come From? — food → its single kid-canon source (reuses the
+    // helper-tool exclusion shape: `users` is the ONLY valid source, so every
+    // distractor is auto-excluded). Truth-tested.
+    FOOD_FROM: [
+      { tool: "🥛", toolName: "milk", helper: "🐄", helperName: "a cow", users: ["🐄"] },
+      { tool: "🥚", toolName: "an egg", helper: "🐔", helperName: "a hen", users: ["🐔"] },
+      { tool: "🍯", toolName: "honey", helper: "🐝", helperName: "a bee", users: ["🐝"] },
+      { tool: "🍎", toolName: "an apple", helper: "🌳", helperName: "a tree", users: ["🌳"] },
+      { tool: "🧶", toolName: "wool", helper: "🐑", helperName: "a sheep", users: ["🐑"] },
+      { tool: "🥕", toolName: "a carrot", helper: "🌱", helperName: "the garden", users: ["🌱"] },
+    ],
+    // Fix the Toys — each toy is shown split into a left + right CSS-clipped half;
+    // matching the two halves (by key) makes the toy whole. Distinct silhouettes.
+    HALF_TOYS: [
+      { key: "teddy", emoji: "🧸" }, { key: "car", emoji: "🚗" }, { key: "ball", emoji: "⚽" },
+      { key: "balloon", emoji: "🎈" }, { key: "drum", emoji: "🥁" }, { key: "train", emoji: "🚂" },
+    ],
+    // Tidy Up Time — pick-and-place (mechanic A): each toy has ONE home bin
+    // (matched by `home`). Two 4-item sets; a truth test asserts the 1:1 bijection
+    // (no toy plausibly belongs to two bins).
+    TIDY_SETS: [
+      { items: [
+        { emoji: "🧱", name: "block", home: "box" }, { emoji: "📕", name: "book", home: "shelf" },
+        { emoji: "🖍️", name: "crayon", home: "art" }, { emoji: "⚽", name: "ball", home: "basket" },
+      ], bins: [
+        { emoji: "📦", label: "Toy box", home: "box" }, { emoji: "📚", label: "Bookshelf", home: "shelf" },
+        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "🧺", label: "Toy basket", home: "basket" },
+      ] },
+      { items: [
+        { emoji: "🧸", name: "teddy", home: "basket" }, { emoji: "🚗", name: "car", home: "box" },
+        { emoji: "🖌️", name: "paintbrush", home: "art" }, { emoji: "📗", name: "book", home: "shelf" },
+      ], bins: [
+        { emoji: "🧺", label: "Toy basket", home: "basket" }, { emoji: "📦", label: "Toy box", home: "box" },
+        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "📚", label: "Bookshelf", home: "shelf" },
+      ] },
+    ],
+    // Dump Truck! — how many rocks to load each round before the DUMP.
+    TRUCK_LOADS: [3, 4, 5],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

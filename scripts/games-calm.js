@@ -1574,4 +1574,68 @@
       api.speak();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // ---- Tidy Up Time (practical life — put each toy in its bin, mechanic A) ----
+  // Normative mechanic-A wiring (set-table's machinery): exactly ONE data-correct
+  // at a time. held=null flags every un-placed toy; once held, the flag MOVES to
+  // its matching (still-empty) bin. Each toy has ONE home bin (1:1, truth-tested).
+  F.register({
+    id: "tidy-up", icon: "🧺", title: "Tidy Up Time", skill: "practical life / sorting [M/W]",
+    start(api) {
+      const A = window.JoshAudio;
+      const SETS = api.C.TIDY_SETS || [];
+      let round = 0;
+      const binsRow = api.el("div", { class: "choices choices--4 tidy__bins" });
+      const toysRow = api.el("div", { class: "choices choices--4 tidy__toys" });
+      api.stage.append(binsRow, toysRow);
+      function newRound() {
+        const set = SETS[round % SETS.length];
+        let held = null, placed = 0;
+        const binByHome = {};
+        binsRow.innerHTML = ""; toysRow.innerHTML = "";
+        set.bins.forEach((bin) => {
+          const el = api.el("button", { class: "choice tidy__bin tap", type: "button", dataset: { home: bin.home, empty: "1" }, aria: { label: bin.label } }, [
+            api.el("span", { class: "tidy__binIcon", aria: { hidden: "true" }, text: bin.emoji }),
+            api.el("span", { class: "tidy__binLabel", text: bin.label }),
+          ]);
+          binsRow.appendChild(el); binByHome[bin.home] = el;
+          el.addEventListener("click", () => {
+            if (!held) return;
+            if (el.dataset.home === held.dataset.home && el.dataset.empty) {
+              el.classList.add("tidy__bin--filled", "pop"); delete el.dataset.empty;
+              held.dataset.placed = "1"; held.classList.remove("held"); held.classList.add("choice--used"); held.disabled = true;
+              const goneName = held.dataset.name; held = null; placed += 1;
+              try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(660, { duration: 0.1 }); } catch (e) { /* ignore */ }
+              api.say("The " + goneName + " goes in the " + el.querySelector(".tidy__binLabel").textContent + "!");
+              if (placed >= set.items.length) {
+                round += 1;
+                if (round >= SETS.length) api.win({ say: "All tidy! Great cleaning up!" }); else { api.roundWin(); newRound(); }
+              } else reflag();
+            } else api.tryAgain(el);
+          });
+        });
+        const toyBtns = api.shuffle(set.items.slice()).map((it) => {
+          const b = api.el("button", { class: "choice tidy__toy tap", type: "button", dataset: { home: it.home, name: it.name }, aria: { label: it.name }, text: it.emoji });
+          b.addEventListener("click", () => {
+            if (b.dataset.placed) return;
+            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (held) held.classList.remove("held");
+            held = b; b.classList.add("held"); reflag();
+          });
+          toysRow.appendChild(b); return b;
+        });
+        function reflag() {
+          toyBtns.forEach((t) => delete t.dataset.correct);
+          Object.values(binByHome).forEach((s) => delete s.dataset.correct);
+          if (held) { const s = binByHome[held.dataset.home]; if (s && s.dataset.empty) s.dataset.correct = "1"; }
+          else toyBtns.forEach((t) => { if (!t.dataset.placed) t.dataset.correct = "1"; });
+        }
+        api.setPrompt("Tidy up — tap a toy, then where it goes!", ["🧺", "👆", "✨"]);
+        api.speak();
+        reflag();
+      }
+      newRound();
+    },
+  });
 })();

@@ -803,4 +803,79 @@
       flag();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // ---- Baby to Big! (life cycles — reuses the story-order machinery) ----
+  F.register({
+    id: "life-cycle", icon: "🐛", title: "Baby to Big!", skill: "life cycles [W]",
+    start(api) {
+      const ROUNDS = 3;
+      let round = 0, step = 0;
+      const track = api.el("div", { class: "story__track" });
+      const choices = api.el("div", { class: "choices choices--3" });
+      api.stage.append(track, choices);
+      function newRound() {
+        const r = L.makeStoryOrder(C.LIFE_CYCLES);
+        step = 0;
+        api.setPrompt("Put it in order — baby to big!", ["🥚", "➡️", "🦋"]);
+        api.speak(); api.say("Put the " + r.name + " in order, from baby to big!");
+        track.innerHTML = "";
+        for (let i = 0; i < r.order.length; i++) track.appendChild(api.el("span", { class: "story__slot", aria: { hidden: "true" } }, [String(i + 1)]));
+        choices.innerHTML = "";
+        r.tiles.forEach((tile) => {
+          const b = api.el("button", {
+            class: "choice tap", type: "button", text: tile.emoji,
+            dataset: tile.rank === 0 ? { correct: "1" } : {}, aria: { label: "stage" },
+          });
+          b.addEventListener("click", () => {
+            if (tile.rank === step) {
+              b.disabled = true; b.classList.add("choice--used"); delete b.dataset.correct;
+              track.children[step].textContent = tile.emoji; step += 1;
+              if (step >= r.tiles.length) {
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You know how things grow!" }); else { api.roundWin(); newRound(); }
+              } else {
+                [...choices.children].forEach((c, idx) => { if (!c.disabled && r.tiles[idx].rank === step) c.dataset.correct = "1"; else if (!c.disabled) delete c.dataset.correct; });
+              }
+            } else api.tryAgain(b);
+          });
+          choices.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
+
+  // ---- Fur, Feathers, Scales (animal-coverings sorter via the factory) ----
+  sorter({ id: "animal-coats", icon: "🪶", title: "Fur, Feathers, Scales", skill: "animal coverings [M]", sets: C.COAT_SETS, threeBins: true, prompt: "Fur, feathers, or scales?", icons: ["🐻", "🐦", "🐟"] });
+
+  // ---- Where Does It Come From? (food origins — reuses the helper-tool shape) ----
+  F.register({
+    id: "food-from", icon: "🥛", title: "Where Does It Come From?", skill: "food origins [M]",
+    start(api) {
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const foodEl = api.el("div", { class: "sort__item", aria: { hidden: "true" } });
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(foodEl, chips);
+      function newRound() {
+        const r = L.makeHelperTool(C.FOOD_FROM, undefined, last); last = r.idx;
+        foodEl.textContent = r.item.tool; foodEl.classList.remove("pop"); void foodEl.offsetWidth; foodEl.classList.add("pop");
+        api.setPrompt("Where does " + r.item.toolName + " come from?", ["🤔", r.item.tool, "👉"]);
+        api.speak(); api.say("Where does " + r.item.toolName + " come from?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice tap", type: "button", text: ch.helper, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "source" } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            api.say(r.item.toolName + " comes from " + r.item.helperName + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You know where food comes from!" }); else { api.roundWin(); newRound(); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

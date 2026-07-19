@@ -2059,3 +2059,55 @@ body.hl-mode {
   .cw__car, .bal__beam, .copy__pad, .worry__cloud { transition: none !important; }
   .thanks__heart { animation: none !important; opacity: 0; }
 }
+
+/* ================= Road to 200 — Set 3, Wave 9 ================= */
+/* Duck Pond Stories — an acted pond scene + numeral chips. */
+.pond__scene { min-height: 96px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 8px 0 12px; padding: 12px; background: linear-gradient(180deg, #d6f0ff, #bfe6ff); border-radius: 20px; }
+.pond__actor { font-size: clamp(2rem, 11vw, 2.8rem); line-height: 1; }
+
+/* Two Words Make One — two picture halves that slide together on a win. */
+.glue__parts { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0 14px; font-size: clamp(2.4rem, 13vw, 3.4rem); transition: gap 0.4s ease; }
+.glue__parts--join { gap: 0; }
+.glue__word { line-height: 1; }
+.glue__plus { font-size: 1.6rem; color: #7a5cd6; font-weight: 800; }
+.glue__parts--join .glue__plus { opacity: 0; }
+
+/* This Goes With That — a model pair row + the C→? row. */
+.gw__model, .gw__ask { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 4px 0; font-size: clamp(2rem, 11vw, 2.8rem); }
+.gw__model { opacity: 0.95; }
+.gw__cell { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.55); border-radius: 16px; line-height: 1; }
+.gw__cell--q { color: #b7a3ee; font-weight: 800; }
+.gw__cell--filled { color: inherit; background: #eafbe8; }
+.gw__link { color: #7a5cd6; font-weight: 800; font-size: 1.4rem; }
+
+/* Fix the Toys — each card shows a CSS-clipped HALF of the toy's picture. */
+.fix__grid { max-width: 340px; margin: 8px auto; }
+.fix__card { overflow: hidden; }
+.fix__glyph { font-size: clamp(2.4rem, 13vw, 3.4rem); line-height: 1; display: block; }
+.fix__card--l .fix__glyph { clip-path: inset(0 0 0 50%); transform: translateX(-25%); } /* show the toy's LEFT part */
+.fix__card--r .fix__glyph { clip-path: inset(0 50% 0 0); transform: translateX(25%); } /* show the toy's RIGHT part */
+.fix__card--fixed { opacity: 0; transform: scale(0.6); transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: none; }
+
+/* Tidy Up Time — a row of home bins + a row of toys (mechanic A, shared .held). */
+.tidy__bins { max-width: 340px; margin: 4px auto 10px; }
+.tidy__bin { flex-direction: column; gap: 2px; }
+.tidy__binIcon { font-size: clamp(1.8rem, 10vw, 2.6rem); line-height: 1; }
+.tidy__binLabel { font-size: 0.72rem; color: #6b7a8d; font-weight: 700; }
+.tidy__bin--filled { background: #eafbe8; border-color: #7be08a; }
+.tidy__toys { max-width: 340px; margin: 0 auto; }
+.tidy__toy { font-size: clamp(2rem, 11vw, 2.8rem); }
+
+/* Dump Truck! — a truck whose bed fills, then tilts to dump. */
+.truck__rig { display: flex; align-items: flex-end; justify-content: center; gap: 2px; min-height: 96px; margin: 8px 0 12px; transition: transform 0.5s ease; transform-origin: 60% bottom; }
+.truck__rig--dump { transform: rotate(-16deg); }
+.truck__bed { display: flex; flex-wrap: wrap-reverse; align-content: flex-end; justify-content: center; gap: 1px; width: 108px; min-height: 54px; padding: 4px; background: #d98c3a; border-radius: 8px 8px 4px 4px; }
+.truck__load { font-size: 1.2rem; line-height: 1; }
+.truck__cab { font-size: clamp(2.6rem, 15vw, 3.6rem); line-height: 1; }
+.truck__rocks { max-width: 320px; margin: 0 auto; }
+.truck__rock { font-size: clamp(2rem, 11vw, 2.8rem); }
+.truck__rock--gone { opacity: 0; transform: scale(0.4); transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }
+.truck__lever { margin: 8px auto 0; display: block; background: linear-gradient(180deg, #ffd24d, #ffb020); }
+
+@media (prefers-reduced-motion: reduce) {
+  .glue__parts, .gw__cell--filled, .fix__card--fixed, .truck__rig, .truck__rock--gone { transition: none !important; }
+}

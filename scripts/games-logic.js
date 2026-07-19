@@ -1280,4 +1280,49 @@
       newRound();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // ---- This Goes With That (picture analogies A:B :: C:?) ----
+  // The model pair is linked by a drawn band; the child applies the SAME relation
+  // to C. Distractors are curated unrelated objects (makeAnalogy enforces it).
+  F.register({
+    id: "goes-with", icon: "🔗", title: "This Goes With That", skill: "picture analogies [W]",
+    start(api) {
+      const C = api.C;
+      const ROUNDS = 4;
+      let round = 0, last = -1;
+      const model = api.el("div", { class: "gw__model", aria: { hidden: "true" } });
+      const mA = api.el("span", { class: "gw__cell" });
+      const mLink = api.el("span", { class: "gw__link", text: "→" });
+      const mB = api.el("span", { class: "gw__cell" });
+      model.append(mA, mLink, mB);
+      const ask = api.el("div", { class: "gw__ask", aria: { hidden: "true" } });
+      const qC = api.el("span", { class: "gw__cell" });
+      const qLink = api.el("span", { class: "gw__link", text: "→" });
+      const qMark = api.el("span", { class: "gw__cell gw__cell--q", text: "?" });
+      ask.append(qC, qLink, qMark);
+      const chips = api.el("div", { class: "choices choices--3" });
+      api.stage.append(model, ask, chips);
+      function newRound() {
+        const r = L.makeAnalogy(C.ANALOGY_SETS, undefined, last); last = r.idx;
+        mA.textContent = r.a.emoji; mB.textContent = r.b.emoji; qC.textContent = r.c.emoji;
+        qMark.textContent = "?"; qMark.classList.remove("gw__cell--filled");
+        api.setPrompt(r.a.word + " goes with " + r.b.word + ". What goes with " + r.c.word + "?", ["👀", "🔗", "🤔"]);
+        api.speak(); api.say(r.a.word + " " + r.set.relation + " " + r.b.word + ". What " + r.set.relation + " " + r.c.word + "?");
+        chips.innerHTML = "";
+        r.choices.forEach((ch) => {
+          const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word } });
+          b.addEventListener("click", () => {
+            if (!ch.correct) { api.tryAgain(b); return; }
+            qMark.textContent = ch.emoji; qMark.classList.add("gw__cell--filled", "pop");
+            api.say(r.c.word + " " + r.set.relation + " " + r.d.word + "!");
+            round += 1;
+            if (round >= ROUNDS) api.win({ say: "You're a matching star!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+          });
+          chips.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

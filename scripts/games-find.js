@@ -987,4 +987,63 @@
       nextClue();
     },
   });
+
+  // ================= Road to 200 — Set 3, Wave 9 =================
+  // ---- Fix the Toys (rejoin split halves — part-whole, mechanic A) ----
+  // Six cards = 3 toys, each shown as a CSS-clipped LEFT + RIGHT half. Pick a
+  // half (held) → its matching half flags → they snap the toy whole. Mirrors
+  // match-all's pair-clearing (the normative mechanic-A pair machinery).
+  F.register({
+    id: "fix-toys", icon: "🧸", title: "Fix the Toys", skill: "part & whole halves [M]",
+    start(api) {
+      const POOL = api.C.HALF_TOYS || [];
+      const ROUNDS = 2;
+      let round = 0;
+      const grid = api.el("div", { class: "choices choices--3 fix__grid" });
+      api.stage.append(grid);
+      function newRound() {
+        const r = L.makeHalvesDeck(POOL, undefined);
+        let held = null, joined = 0;
+        grid.innerHTML = "";
+        api.setPrompt("Find the two halves that make a toy!", ["🧩", "👆", "😊"]);
+        api.speak();
+        const cards = r.cards.map((cd) => {
+          const b = api.el("button", {
+            class: "choice fix__card fix__card--" + cd.half.toLowerCase() + " tap", type: "button",
+            dataset: { key: cd.key, half: cd.half }, aria: { label: "toy half" },
+          }, [api.el("span", { class: "fix__glyph", aria: { hidden: "true" }, text: cd.emoji })]);
+          b.addEventListener("click", () => {
+            if (b.dataset.done) return;
+            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (!held) { held = b; b.classList.add("held"); reflag(); return; }
+            if (b.dataset.key === held.dataset.key && b.dataset.half !== held.dataset.half) {
+              b.dataset.done = held.dataset.done = "1";
+              b.classList.add("fix__card--fixed"); held.classList.add("fix__card--fixed");
+              b.classList.remove("held"); held.classList.remove("held");
+              b.disabled = held.disabled = true;
+              held = null; joined += 1;
+              api.say("You fixed it!");
+              if (joined >= r.toys.length) {
+                round += 1;
+                if (round >= ROUNDS) api.win({ say: "You fixed all the toys!" }); else { api.roundWin(); newRound(); }
+              } else reflag();
+            } else api.tryAgain(b);
+          });
+          grid.appendChild(b); return b;
+        });
+        function reflag() {
+          cards.forEach((c) => delete c.dataset.correct);
+          if (held) {
+            const twin = cards.find((c) => c !== held && !c.dataset.done && c.dataset.key === held.dataset.key && c.dataset.half !== held.dataset.half);
+            if (twin) twin.dataset.correct = "1";
+          } else {
+            const rem = cards.filter((c) => !c.dataset.done);
+            if (rem.length) rem.forEach((c) => (c.dataset.correct = "1"));
+          }
+        }
+        reflag();
+      }
+      newRound();
+    },
+  });
 })();
