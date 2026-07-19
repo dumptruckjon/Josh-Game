@@ -339,6 +339,7 @@ tooling.
 ├── josh-profile.json           # ^ same profile, machine-readable (for programmatic game generation)
 ├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
+├── PLAN_ROAD_TO_200.md         # APPROVED build plan Set 3: 20 MORE gap-fillers (numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, dump truck, waves W9-W10 + audit) — execute when asked
 └── CLAUDE.md                   # This file
 ```
 
