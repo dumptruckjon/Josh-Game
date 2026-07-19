@@ -1178,4 +1178,107 @@
       syncFlags();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 8 =================
+  // ---- Rhyme Pairs (concentration where a "pair" = two pictures that RHYME) ----
+  // Rhyming × memory. The deck is 3 pairs from 3 DISTINCT rhyme groups, so no
+  // cross-group cards ever rhyme — the only valid pairing is the true rhyme.
+  F.register({
+    id: "rhyme-pairs", icon: "🧦", title: "Rhyme Pairs", skill: "rhyming + memory [W]",
+    start(api) {
+      const C = api.C;
+      const PAIRS = 3;
+      const r = L.makeRhymePairsDeck(C.RHYME_GROUPS || [], undefined);
+      let first = null, lock = false, matched = 0;
+      const cards = [];
+      const grid = api.el("div", { class: "memory-grid" });
+      api.stage.append(grid);
+      api.setPrompt("Find the two pictures that RHYME!", ["👂", "🃏", "🧦"]);
+      api.speak();
+      function syncFlags() {
+        cards.forEach((c) => delete c.dataset.correct);
+        if (first) {
+          const m = cards.find((c) => c !== first && !c.dataset.matched && c.dataset.group === first.dataset.group);
+          if (m) m.dataset.correct = "1";
+        } else {
+          const rem = cards.filter((c) => !c.dataset.matched);
+          if (rem.length) { const k = rem[0].dataset.group; rem.filter((c) => c.dataset.group === k).forEach((c) => (c.dataset.correct = "1")); }
+        }
+      }
+      function flip(card) {
+        if (lock || card.dataset.matched || card === first || card.classList.contains("flipped")) return;
+        card.classList.add("flipped"); card.textContent = card.__emoji; api.say(card.__word);
+        if (!first) { first = card; syncFlags(); return; }
+        if (card.dataset.group === first.dataset.group) {
+          card.dataset.matched = "1"; first.dataset.matched = "1"; card.classList.add("matched"); first.classList.add("matched");
+          api.say(first.__word + " and " + card.__word + " rhyme!");
+          first = null; matched += 1; syncFlags(); api.roundWin();
+          if (matched === PAIRS) api.win({ say: "You found every rhyme!" });
+        } else {
+          lock = true; const a = first; first = null;
+          setTimeout(() => { a.classList.remove("flipped"); a.textContent = ""; card.classList.remove("flipped"); card.textContent = ""; lock = false; syncFlags(); }, 750);
+        }
+      }
+      r.cards.forEach((cd) => {
+        const card = api.el("button", { class: "memory-card tap", type: "button", dataset: { group: String(cd.group) }, aria: { label: "rhyme card" } }, [""]);
+        card.__emoji = cd.emoji; card.__word = cd.word;
+        card.addEventListener("click", () => flip(card));
+        grid.appendChild(card); cards.push(card);
+      });
+      syncFlags();
+    },
+  });
+
+  // ---- Name Balloon Hunt (pop every letter of his name; the name assembles) ----
+  // His name's letters hide among distractor balloons (which never include a
+  // name letter). Each popped letter flies into its slot, spelling the name.
+  F.register({
+    id: "name-hunt", icon: "🎈", title: "Name Balloon Hunt", skill: "his name's letters [M/W]",
+    start(api) {
+      const NAMES = api.C.NAMES || [{ name: "Josh", letters: "JOSH" }];
+      const LETTERS = api.C.HUNT_LETTERS || [];
+      const ROUNDS = 3;
+      // Josh's own name leads; friends rotate in after.
+      const order = NAMES.length > 1 ? [NAMES[0]].concat(api.shuffle(NAMES.slice(1))) : NAMES.slice();
+      let round = 0, need = 0;
+      const nameLabel = api.el("div", { class: "ns__name nh__name" });
+      const slots = api.el("div", { class: "ns__slots nh__slots" });
+      const field = api.el("div", { class: "lh__field" });
+      api.stage.append(nameLabel, slots, field);
+
+      function newRound() {
+        const entry = order[round % order.length];
+        const r = L.makeNameHunt(entry.letters, LETTERS, undefined);
+        need = r.targets.length;
+        nameLabel.textContent = entry.name;
+        api.setPrompt("Pop the letters in " + entry.name + "!", ["🎈", "🔤", "🎉"]);
+        api.speak(); api.say("Pop every balloon in " + entry.name + "!");
+        slots.innerHTML = "";
+        r.targets.forEach(() => slots.appendChild(api.el("span", { class: "ns__slot" }, ["_"])));
+        field.innerHTML = "";
+        r.cells.forEach((cell) => {
+          const b = api.el("button", {
+            class: "lh__balloon tap", type: "button",
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.ch },
+          }, [cell.ch]);
+          b.addEventListener("click", () => {
+            if (!cell.correct) { api.tryAgain(b); return; }
+            if (b.dataset.done) return;
+            b.dataset.done = "1"; delete b.dataset.correct; b.classList.add("lh__balloon--pop");
+            if (slots.children[cell.slot]) { slots.children[cell.slot].textContent = cell.ch; slots.children[cell.slot].classList.add("pop"); }
+            api.say(cell.ch);
+            need -= 1;
+            if (need <= 0) {
+              api.say(entry.name + "!");
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "You spelled the names! Amazing!" });
+              else { api.roundWin(); newRound(); }
+            }
+          });
+          field.appendChild(b);
+        });
+      }
+      newRound();
+    },
+  });
 })();

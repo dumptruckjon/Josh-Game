@@ -1739,3 +1739,51 @@ test("makeTreasureClue: the answer zone is always one not yet used this arc", ()
     assert.equal(new Set(used).size, 3, "a 3-clue arc uses 3 distinct zones");
   }
 });
+
+// ================= Road to 180 — Set 2, Wave 8 =================
+test("makeRhymePairsDeck: 6 cards from 3 DISTINCT groups, 2 per group, no cross-group rhyme", () => {
+  const rng = mulberry32(437);
+  for (let i = 0; i < 400; i++) {
+    const r = L.makeRhymePairsDeck(content.RHYME_GROUPS, rng);
+    assert.equal(r.cards.length, 6);
+    assert.equal(r.groups.length, 3);
+    assert.equal(new Set(r.groups).size, 3, "3 DISTINCT groups (so cross-group cards never rhyme)");
+    const byGroup = {};
+    r.cards.forEach((c) => { (byGroup[c.group] = byGroup[c.group] || []).push(c); });
+    Object.values(byGroup).forEach((g) => {
+      assert.equal(g.length, 2, "exactly 2 cards per group = one rhyme pair");
+      assert.notEqual(g[0].word, g[1].word, "the pair is two DIFFERENT pictures");
+    });
+    // every card's group is one of the chosen three
+    r.cards.forEach((c) => assert.ok(r.groups.includes(c.group)));
+  }
+});
+test("makeNameHunt: every distractor balloon is OUTSIDE the name; targets fill every slot", () => {
+  const rng = mulberry32(438);
+  const NAMES = content.NAMES, LETTERS = content.HUNT_LETTERS;
+  for (const entry of NAMES) {
+    for (let i = 0; i < 60; i++) {
+      const r = L.makeNameHunt(entry.letters, LETTERS, rng);
+      const nameSet = new Set(entry.letters.toUpperCase().split(""));
+      assert.equal(r.targets.length, entry.letters.length);
+      const correct = r.cells.filter((c) => c.correct);
+      assert.equal(correct.length, entry.letters.length, "one target per name letter (repeats count separately)");
+      // slots cover 0..len-1 exactly (so the whole name assembles)
+      assert.deepEqual(correct.map((c) => c.slot).sort((a, b) => a - b), r.targets.map((_, k) => k));
+      r.cells.forEach((c) => {
+        if (c.correct) assert.ok(nameSet.has(c.ch.toUpperCase()));
+        else assert.ok(!nameSet.has(c.ch.toUpperCase()), "no distractor is secretly a name letter");
+      });
+      assert.ok(r.cells.length >= 9);
+    }
+  }
+});
+test("makeBalance: n in 2..5 and never repeats the last", () => {
+  const rng = mulberry32(439); let last = -1;
+  for (let i = 0; i < 500; i++) {
+    const r = L.makeBalance(rng, last);
+    assert.ok(r.n >= 2 && r.n <= 5);
+    assert.notEqual(r.n, last, "no back-to-back repeat");
+    last = r.n;
+  }
+});

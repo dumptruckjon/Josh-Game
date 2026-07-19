@@ -918,3 +918,35 @@ test("W7 treasure: 4 spots + position words with direction icons", () => {
   assert.ok(content.PREPOSITIONS.length >= 3);
   for (const p of content.PREPOSITIONS) assert.ok(p.word && p.icon);
 });
+
+// ================= Road to 180 — Set 2, Wave 8 content truth =================
+test("W8 team song: 5 notes spelling C-C-G-G-A, each a tone-safe freq + color", () => {
+  const s = content.TEAM_SONG;
+  assert.equal(s.length, 5);
+  assert.deepEqual(s.map((n) => n.name), ["C", "C", "G", "G", "A"], "Twinkle's opening");
+  for (const n of s) {
+    assert.ok(n.freq >= 200 && n.freq <= 1000, "freq inside the tone-safe range");
+    assert.ok(/^#[0-9a-f]{3,6}$/i.test(n.color));
+  }
+  // same note name → same pitch
+  assert.equal(s[0].freq, s[1].freq);
+  assert.equal(s[2].freq, s[3].freq);
+});
+test("W8 car wash: 4 stations in soap→scrub→rinse→dry order, each with a car class", () => {
+  const st = content.CAR_WASH_STATIONS;
+  assert.deepEqual(st.map((s) => s.name), ["soap", "scrub", "rinse", "dry"]);
+  for (const s of st) { assert.ok(s.emoji && s.say && s.cls); }
+  assert.ok(content.CAR_WASH_CARS.length >= 1);
+});
+test("W8 copy pads: 3 distinct color pads, each named", () => {
+  const p = content.COPY_PADS;
+  assert.equal(p.length, 3);
+  assert.equal(new Set(p.map((x) => x.color)).size, 3, "distinct colors");
+  for (const x of p) assert.ok(x.name && /^#[0-9a-f]{3,6}$/i.test(x.color));
+});
+test("W8 thank-you extras: named grown-ups with an emoji (grandma cameo)", () => {
+  const e = content.THANKYOU_EXTRA;
+  assert.ok(e.length >= 1);
+  for (const x of e) assert.ok(x.name && x.emoji);
+  assert.ok(e.some((x) => x.name === "Grandma"), "grandma is a warm cross-world cameo");
+});

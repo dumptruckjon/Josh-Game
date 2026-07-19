@@ -758,4 +758,49 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 8 =================
+  // ---- Grow a Flower (plant needs, ordered ritual) ----
+  // Each growth stage needs WATER then SUN (the flag alternates). Three full
+  // water→sun cycles carry the plant seed → sprout → bud → flower. Pure ritual +
+  // transformation teaches "plants need water and sunlight."
+  F.register({
+    id: "plant-care", icon: "🌱", title: "Grow a Flower", skill: "plant needs [M]",
+    start(api) {
+      const STAGES = ["🌱", "🌿", "🌷", "🌻"]; // seed → sprout → bud → flower
+      const SUPPLIES = [
+        { key: "water", emoji: "💧", say: "Water!" },
+        { key: "sun", emoji: "☀️", say: "Sunshine!" },
+      ];
+      let stage = 0, need = "water";
+      const pot = api.el("div", { class: "plant__pot", aria: { hidden: "true" } }, [STAGES[0]]);
+      const row = api.el("div", { class: "choices choices--2 plant__supplies" });
+      api.stage.append(pot, row);
+      const btns = SUPPLIES.map((s) => {
+        const b = api.el("button", { class: "choice plant__supply tap", type: "button", text: s.emoji, aria: { label: s.key }, dataset: { key: s.key } });
+        b.addEventListener("click", () => {
+          if (s.key !== need) { api.tryAgain(b); api.say("It needs " + need + " first!"); return; }
+          b.classList.remove("plant__supply--use"); void b.offsetWidth; b.classList.add("plant__supply--use");
+          api.say(s.say);
+          if (need === "water") { need = "sun"; flag(); return; }
+          // completed a water→sun cycle: the plant grows
+          stage += 1;
+          pot.textContent = STAGES[Math.min(stage, STAGES.length - 1)];
+          pot.classList.remove("pop"); void pot.offsetWidth; pot.classList.add("pop");
+          need = "water";
+          if (stage >= STAGES.length - 1) { flag(true); api.win({ say: "You grew a beautiful flower! Plants need water and sunshine." }); return; }
+          api.roundWin();
+          flag();
+        });
+        row.appendChild(b);
+        return b;
+      });
+      function flag(done) {
+        btns.forEach((b) => { if (!done && b.dataset.key === need) b.dataset.correct = "1"; else delete b.dataset.correct; });
+      }
+      api.setPrompt("Give the plant water, then sunshine!", ["💧", "☀️", "🌻"]);
+      api.speak();
+      flag();
+    },
+  });
 })();

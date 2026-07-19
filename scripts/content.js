@@ -974,6 +974,42 @@
       { word: "behind", icon: "↩️" },
       { word: "next to", icon: "↔️" },
     ],
+
+    // ================= Road to 180 — Set 2, Wave 8 content =================
+    // Team Song — the opening of "Twinkle Twinkle Little Star": C C G G A.
+    // Freqs are standard equal-temperament and inside the tone-safe range used
+    // elsewhere (Quiet Garden runs 330-523). A truth test asserts 5 notes and
+    // the C-C-G-G-A shape.
+    TEAM_SONG: [
+      { name: "C", freq: 262, color: "#ff6b6b" },
+      { name: "C", freq: 262, color: "#ff6b6b" },
+      { name: "G", freq: 392, color: "#4dabf7" },
+      { name: "G", freq: 392, color: "#4dabf7" },
+      { name: "A", freq: 440, color: "#ffd43b" },
+    ],
+    // The Car Wash — four stations in a FIXED order that visibly transform the
+    // car. NOTE: soap uses 🧼 (a bar), NOT the bubbles emoji U+1FAE7 (Emoji 14.0),
+    // which renders as tofu on iOS 14.2. Each station's `cls` toggles the car art.
+    CAR_WASH_STATIONS: [
+      { emoji: "🧼", name: "soap", say: "Soap!", cls: "cw--soap" },
+      { emoji: "🧽", name: "scrub", say: "Scrub scrub!", cls: "cw--scrub" },
+      { emoji: "💦", name: "rinse", say: "Rinse!", cls: "cw--rinse" },
+      { emoji: "💨", name: "dry", say: "Dry!", cls: "cw--dry" },
+    ],
+    CAR_WASH_CARS: ["🚗", "🚙"],
+    // Team Copy — three color pads; the leader lights one, the follower copies.
+    COPY_PADS: [
+      { name: "red", color: "#ff6b6b" },
+      { name: "blue", color: "#4dabf7" },
+      { name: "green", color: "#69db7c" },
+    ],
+    // Thank-You Hearts — every card is a valid choice (gratitude has no wrong
+    // answer); grandma 👵🏻 is a warm cross-world cameo. Names come from FRIENDS at
+    // runtime; this list is the extra grown-ups.
+    THANKYOU_EXTRA: [
+      { name: "Grandma", emoji: "👵🏻" },
+      { name: "Mom", emoji: "👩" },
+    ],
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

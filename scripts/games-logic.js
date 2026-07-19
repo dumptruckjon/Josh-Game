@@ -1169,7 +1169,10 @@
       const ROUNDS = 4; let round = 0;
       const TOYS = ["🧸", "⚽", "🚗", "🎈", "🪀", "🦖", "🚂"];
       const box = api.el("div", { class: "fit__box", aria: { hidden: "true" } }, ["📦"]);
-      const row = api.el("div", { class: "choices choices--3" });
+      // fit__row forces EQUAL columns (minmax(0,1fr)) so a big-glyph toy can't
+      // starve a small-glyph sibling's hit area below 75px — the size difference
+      // lives in the GLYPH, never the tappable box (the smallest-hunt lesson).
+      const row = api.el("div", { class: "choices choices--3 fit__row" });
       api.stage.append(box, row);
       function newRound() {
         const r = L.makeFitsInside();

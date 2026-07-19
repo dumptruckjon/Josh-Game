@@ -38,6 +38,7 @@
     "sentence-build": "letters", "silly-match": "letters", "abc-dots": "letters",
     "build-word-4": "letters", "blend-sort": "letters",
     "little-letters": "letters", "word-pairs": "letters",
+    "rhyme-pairs": "letters", "name-hunt": "letters",
     "odd-one-out": "thinking", "what-next": "thinking", "shadow-match": "thinking", "order-size": "thinking",
     "memory": "thinking", "order-num": "thinking", "spot-diff": "thinking", "color-number": "thinking",
     "who-is-it": "thinking", "picture-squares": "thinking", "story-order": "thinking", "birds-eye": "thinking",
@@ -59,11 +60,12 @@
     "animal-sounds": "science", "night-friends": "science", "fast-slow": "science",
     "who-eats": "science", "body-parts": "science",
     "five-senses": "science", "weather-clues": "science", "who-lives-here": "science", "helper-tools": "science",
+    "plant-care": "science",
     "tic-tac-toe": "friends",
     "animals": "play", "bubbles": "play", "peekaboo": "play", "balloon": "play", "music-pad": "play",
     "grow": "play", "thwip-web": "play", "thwip-villains": "play", "dress-me": "play", "seasons": "play",
     "fireworks": "play", "silly-face": "play", "web-swing": "play", "birthday-cake": "play",
-    "hatch-egg": "play", "paint-splat": "play",
+    "hatch-egg": "play", "paint-splat": "play", "car-wash": "play",
     "breathe": "friends", "certificate": "friends", "trace-path": "friends", "team-hop": "friends", "team-build": "friends",
     "team-count": "friends", "team-rocket": "friends", "team-bridge": "friends", "team-treasure": "friends",
     "team-sound-hunt": "friends", "memory-together": "friends", "friend-race": "friends",
@@ -72,6 +74,8 @@
     "team-house": "friends", "world-hello": "friends", "team-pizza": "friends", "grandma-helper": "friends",
     "month-train": "friends", "set-table": "friends", "match-all": "find",
     "dress-order": "friends",
+    "team-puzzle": "friends", "team-song": "friends", "team-balance": "friends",
+    "team-copy": "friends", "worry-box": "friends", "thank-you": "friends",
   };
 
   // Set by initLauncher once the Sticker Book screen exists; re-syncs every slot

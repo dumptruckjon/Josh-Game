@@ -733,4 +733,54 @@
       });
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 8 =================
+  // ---- The Car Wash (ordered stations transform a muddy car) ----
+  // Four stations carry the flag one at a time (soap → scrub → rinse → dry);
+  // each visibly changes the car. A sparkling car honks thanks → win. ROUNDS=2.
+  F.register({
+    id: "car-wash", icon: "🚗", title: "The Car Wash", skill: "ordered stations [M]",
+    start(api) {
+      const STATIONS = C.CAR_WASH_STATIONS || [];
+      const CARS = C.CAR_WASH_CARS || ["🚗"];
+      const ROUNDS = 2;
+      let round = 0;
+      const carEl = api.el("div", { class: "cw__car cw--muddy", aria: { hidden: "true" } }, [CARS[0]]);
+      const row = api.el("div", { class: "choices choices--4 cw__stations" });
+      api.stage.append(carEl, row);
+
+      function newRound() {
+        let step = 0;
+        carEl.className = "cw__car cw--muddy";
+        carEl.textContent = CARS[round % CARS.length];
+        row.innerHTML = "";
+        api.setPrompt("Wash the car! Soap, scrub, rinse, dry.", ["🧼", "🧽", "💨"]);
+        api.speak();
+        const btns = STATIONS.map((st, i) => {
+          const b = api.el("button", { class: "choice cw__station tap", type: "button", text: st.emoji, aria: { label: st.name } });
+          b.addEventListener("click", () => {
+            if (i !== step) { api.tryAgain(b); return; }
+            b.disabled = true; b.classList.add("choice--used"); delete b.dataset.correct;
+            carEl.classList.add(st.cls);
+            api.say(st.say);
+            step += 1;
+            if (step >= STATIONS.length) {
+              carEl.classList.add("cw--clean"); carEl.classList.remove("cw--muddy");
+              try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(520, { duration: 0.14, type: "square" }); } catch (e) { /* ignore */ }
+              round += 1;
+              if (round >= ROUNDS) api.win({ say: "Sparkly clean! Beep beep — thank you!" });
+              else { api.roundWin({ say: "All clean! Here comes another one." }); setTimeout(() => { if (row.isConnected) newRound(); }, 700); }
+              return;
+            }
+            flag();
+          });
+          row.appendChild(b);
+          return b;
+        });
+        function flag() { btns.forEach((b, i) => { if (i === step && !b.disabled) b.dataset.correct = "1"; else delete b.dataset.correct; }); }
+        flag();
+      }
+      newRound();
+    },
+  });
 })();

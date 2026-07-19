@@ -231,6 +231,37 @@ for phonics: **the ending LETTER is not always the ending SOUND** — "fox"/X wa
 keyed as an ending sound but ends in /ks/ (so a defensible "S" tap was bumped);
 replaced with "sock"/K, where the letter genuinely spells the final sound. When
 you fix the next thing, extend this list.
+**Set 2 added six new interaction shapes — each got ONE normative implementation
+so no game re-invents it** (RULE 7): **pick-and-place** (mechanic A) has a single
+`.held` machinery — exactly ONE `data-correct` at a time (held=null flags every
+un-placed pick; once held, the flag MOVES to the matching empty slot), debuted in
+Set the Table and copied verbatim by Match Them All / Team Puzzle; **toggle-to-match**
+(mechanic B) shares one `toggleGrid()` engine where cells only ever move TOWARD
+the model (matching cells never toggle away, so progress can't be broken and the
+harness always converges); **progressive reveal** (mechanic C) keeps the peek
+control UN-flagged and the answer chips flagged from round start (self-paced, no
+timer); **co-op echo** (mechanic D) and **path-choice** (mechanic F) likewise
+route through shared helpers. **A toy that DISABLES a consumed control must also
+drop its `[data-toy]`** — the every-game harness taps the FIRST `[data-toy]` and
+`el.click()` on a disabled button silently no-ops, so a disabled-but-still-tagged
+toy strands the harness forever (the Worry Box hit this; fixed by `delete
+b.dataset.toy` on tuck — the "webbed baddie is consumed" pattern). **An
+all-answers-valid game must be a TOY, never a flagged quiz** — Thank-You Hearts /
+Partner Up have no wrong answer, so they use the `[data-toy]` + win-at-N contract
+(mixing flagged-wrong chips into an all-valid game would be a lie). **A note
+played with a scheduled offset needs a real scheduler** — `JoshAudio.tone()` only
+plays at `currentTime`, so Team Song's playback staggers notes with `setTimeout`,
+not a non-existent `when` option (celebration only — never gate gameplay on a
+timer). **A row of buttons whose GLYPHS differ in size must force equal columns**
+— `repeat(3, 1fr)` is `minmax(auto,1fr)`, so a big-glyph button steals track width
+and starves a small-glyph sibling below 75px (Will It Fit?'s size-comparison row
+dropped the tiniest toy to 74.7px); the size difference must live in the GLYPH,
+never the tappable box, so its row uses `repeat(3, minmax(0,1fr))` (the
+smallest-hunt lesson, now applied to fits-inside). **A "lit/selected" cue must not
+be a `transform: scale()` on a gapped grid** — scaling a pad up encroaches on the
+inter-tile gap and can drop it below the 14px audit floor (Copy Me!'s lit pad hit
+13.4px); use a `box-shadow` ring instead — it paints outside layout, so the
+measured gap is unchanged. When you fix the next thing, extend this list.
 
 ---
 
@@ -284,8 +315,8 @@ tooling.
 │   └── deploy.yml              # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
 ├── JOSH_PROFILE.md             # WHO JOSH IS: skill levels, non-reader law, friends, interests, game-mechanic menu — READ before building
 ├── josh-profile.json           # ^ same profile, machine-readable (for programmatic game generation)
-├── PLAN_ROAD_TO_140.md         # APPROVED build plan Set 1: the next 40 Josh games (specs, waves W1-W4, risk rails) — execute when asked
-├── PLAN_ROAD_TO_180.md         # APPROVED build plan Set 2: 40 MORE (new mechanics: pick-place, toggle-match, reveal, co-op echo) — build AFTER Set 1
+├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)
+├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 └── CLAUDE.md                   # This file
 ```
 
@@ -307,11 +338,15 @@ anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
 (icon strip + worked example + self-naming pictures).
 
-**140 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
+**180 games** across Josh's skill map (see `JOSH_PROFILE.md`), each on the
 shared framework, all no-fail / no-timer / ≥75px targets — and every one
-winnable, so the 📖 Sticker Book tops out at a full ⭐ 140/140. The home screen is a
+winnable, so the 📖 Sticker Book tops out at a full ⭐ 180/180. The home screen is a
 menu of **7 categories** (icons carry the meaning); tapping one opens that
-category's games:
+category's games. (Set 2 — the last 40 — added six NEW interaction shapes:
+**pick-and-place** [`.held` hand-off, one flag at a time], **toggle-to-match**
+[light cells until a grid matches a model], **progressive reveal** [self-paced
+peek then answer], **path-choice** [tap a whole route], **pictograph/representation**
+[read a graph or coin pile], and **co-op echo** [leader shows, follower copies]):
 
 - **🔢 Numbers** — Count & Feed, Build a Number, Hop & Count (2s/5s/10s), How
   Many Are Left? (take-away), Which Has More?, Penny Shop (money), Add It Up,
@@ -322,7 +357,11 @@ category's games:
   (subitizing behind a self-paced cloud), **Hop the Line** (number-line jumps),
   **Nickel Trade** (5 pennies → a nickel), **Double It!** (doubles), **Longer or
   Shorter?** (measurement), **Count Down** (10→0), **Balance It** (seesaw
-  compare), **Count the Sides** (shape sides).
+  compare), **Count the Sides** (shape sides). *Set 2:* **Coin Mix-Up** (count a
+  nickel + pennies, then the nickel bursts into 5), **First, Second, Third!**
+  (ordinal words), **More or Fewer than 5?** (number sense, never exactly 5),
+  **The Fruit Graph** (read a pictograph — most/fewest), **Fullest Glass** (volume
+  compare), **Partner Up!** (pair the ducks → even or odd).
 - **🔤 Letters** — Beginning Sound, Which Rhymes?, Spell the Word (CVC), Find the
   Word (sight words), sh or ch? (digraph sort), Big & Little Letters, Missing
   Letter, Read & Zap (read a word → tap its picture), Rhyme Train (find every
@@ -331,7 +370,12 @@ category's games:
   missing letter in an A-B-?-D window), **Ending Sound**, **The Missing Middle**
   (CVC vowels), **Word Family Houses** (rimes), **Letter Pairs** (big↔little
   memory), **Build the Sentence** (word order), **Silly Stories** (listen for two
-  details), **ABC Dot-to-Dot** (connect A→B→C… to reveal a picture).
+  details), **ABC Dot-to-Dot** (connect A→B→C… to reveal a picture). *Set 2:*
+  **Spell the Big Word** (4-letter CVC decoding), **Two-Letter Teams** (st/sn/fr
+  blend sort), **Little Letter Maker** (trace lowercase c·o·s·v·w), **Word Pairs**
+  (sight-word concentration), **Rhyme Pairs** (memory where a pair is two pictures
+  that rhyme), **Name Balloon Hunt** (pop the letters of J-O-S-H → the name
+  assembles).
 - **🧠 Thinking** — Which is Different?, What Comes Next? (patterns), Match the
   Shadow (SVG shapes), Small to Big, Memory Match, Put in Order (numbers), What
   Changed?, Color by Number, Who Is It? (2-clue deduction), Picture Squares
@@ -341,7 +385,12 @@ category's games:
   drum sequence — order only, never timing), **Which is Different?** (opposites),
   **Fix the Pattern** (interpolate the missing middle), **Finish the Grid**
   (2-attribute matrix), **Left or Right?** (side discrimination), **Count the
-  Blocks** (single-height iso), **Which One Turned?** (mental rotation).
+  Blocks** (single-height iso), **Which One Turned?** (mental rotation). *Set 2:*
+  **Copy My Picture** (toggle a 3×3 grid to match a model), **Finish the
+  Butterfly** (mirror-symmetry toggle), **Will It Fit?** (relational size),
+  **Which Path Leads Home?** (unbroken-route choice), **Peek & Copy** (self-paced
+  peek, then recreate), **Who's Behind the Curtain?** (partial-info inference —
+  distinct silhouettes only).
 - **🔍 Find It** — Find the Heroes, Spot the One, Count Them All, Dot to Dot,
   Paw Patrol Rescue, Find the Twins (one matching pair), I Spy: Find Them All
   (category hunt), The Big One (two-clue color+shape hunt), **Web Rescue**
@@ -350,7 +399,11 @@ category's games:
   letter; lowercase twins sneak in once he ramps), **Number Hunt** (pop the
   target numeral), **Star Search** (count-up hunt), **Whose Tracks?**
   (inference), **More in the Pond** (count & compare in a scene), **Little
-  Detective** (two-clue deduction with self-checking fade).
+  Detective** (two-clue deduction with self-checking fade). *Set 2:* **Match
+  Them All** (face-up pair-clearing — pick-and-place), **Find the Tiniest**
+  (size-discrimination hunt), **Count the Animals** (categorize-then-count),
+  **Sandwich Shop** (find the foods among silly non-foods), **Treasure Hunt!**
+  (position-word clues assemble a chest).
 - **🔬 Science** — Alive or Not?, Sort the Colors, Land/Air/Water, Day or Night?,
   Hot or Cold?, Shape's Real Twin (3D solids), Will It Stick? (magnetic sort),
   Land or Water? (globe), Where Do They Live? (continents, self-checking map),
@@ -363,7 +416,10 @@ category's games:
   an eater), **Simon Says: Touch!** (body parts on a figure — geometry-tested
   zones). *Sort the Colors* scales to a 3-color bin in later rounds; the
   sink/float and plant/animal facts share ONE truth set with Alive-or-Not (single
-  source, guardrail-tested).
+  source, guardrail-tested). *Set 2:* **See, Hear, Smell!** (the five senses →
+  body part), **Who Uses This?** (community helpers' tools — exclusion-listed),
+  **Grow a Flower** (plant needs — water-then-sun ritual), **What Made This?**
+  (weather-cause inference), **Whose Home Is This?** (nest/web/hive → dweller).
 - **🎉 Fun & Play** — Hi Animals!, Pop the Bubbles, Peekaboo!, Pump the Balloon,
   Music Pad (sound via shared iOS-safe JoshAudio.tone), Grow! (stack a
   Numberblock friend 1→10), **Thwip! Web Up** (web up the bugs — Spidey), **Thwip
@@ -373,6 +429,9 @@ category's games:
   sky → a burst; counts them), **Silly Face Maker** (cycle a hat / face /
   glasses), **Web Swing!** (tap the numbered buildings in order — hero hops
   across), **Birthday Cake** (add 5 candles, then blow them out — his Feb hook).
+  *Set 2:* **Hatch the Egg!** (tap to crack → a surprise baby animal — toy),
+  **Splat Studio** (paint blobs, name the color — toy), **The Car Wash** (soap →
+  scrub → rinse → dry, the car visibly cleans up).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team
@@ -388,7 +447,13 @@ category's games:
   Party** (deal 6 slices → a fair 3-and-3), **Grandma's Visit** (find Grandma's 3
   things among Josh's toys — a warm bridge to the hidden 华丽 world, closing on a
   spoken 谢谢). *(The tap-to-fill co-ops now each carry a real skill — skip-count,
-  countdown, counting — not just turn-taking.)*
+  countdown, counting — not just turn-taking.)* *Set 2:* **Month Train** (the
+  months in order), **Set the Table** (pick-and-place practical life), **What
+  Goes First?** (getting-dressed order), **Team Puzzle** (2-player pick-and-place
+  jigsaw), **Team Song** (2 players play Twinkle's notes in order), **Team
+  Balance** (2 players level a scale — equality), **Copy Me!** (2-player
+  leader/follower echo), **The Worry Box** (SEL — tuck each worry away), **Thank-You
+  Hearts** (gratitude — every choice is right).
 
 ### 👵🏻 华丽的世界 — the hidden world for Josh's Chinese grandma
 
@@ -415,7 +480,7 @@ How it works (keep these invariants):
 - **Progress is shared machinery, separate worlds:** her wins are `josh-won-hl-*`
   (same `JoshProgress` owner), her ⭐ badges/sticker slots fill live off the same
   `josh-won` event — but Josh's grown-ups reset **preserves** her stars, his
-  Sticker Book counts only his 140, hers only her 40 (both guardrail-tested).
+  Sticker Book counts only his 180, hers only her 40 (both guardrail-tested).
 - **Correctness bar is identical:** `tests/hl-content.test.js` restates the
   cultural ground truth (the 5 Tang poems verbatim, real idioms + forged-idiom
   check on distractors, 生肖 order, standard 量词 pairs, festival↔custom bins

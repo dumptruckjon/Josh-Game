@@ -1583,6 +1583,51 @@
     return { spot: spots[correctIdx], preposition, correctIdx };
   }
 
+  // ================= Road to 180 — Set 2, Wave 8 =================
+  // Rhyme Pairs deck — a concentration deck where a "pair" is two DIFFERENT
+  // pictures that RHYME. Draw 3 pairs from 3 DISTINCT rhyme groups, so no
+  // cross-group card can accidentally rhyme (RHYME_GROUPS are pairwise
+  // non-rhyming). The `group` index is the match key.
+  function makeRhymePairsDeck(groups, rng) {
+    const rnd = rng || Math.random;
+    if (!Array.isArray(groups) || groups.length < 3) throw new Error("makeRhymePairsDeck needs >= 3 groups");
+    const gis = shuffle(groups.map((_, i) => i), rng).slice(0, 3); // 3 DISTINCT groups
+    const cards = [];
+    gis.forEach((gi) => {
+      const g = groups[gi];
+      if (g.length < 2) throw new Error("rhyme group needs >= 2 members");
+      const two = sample(g, 2, rng); // two DIFFERENT rhyming members
+      two.forEach((m) => cards.push({ emoji: m.emoji, word: m.word, group: gi }));
+    });
+    return { cards: shuffle(cards, rng), groups: gis };
+  }
+
+  // Name Balloon Hunt — pop every balloon holding a letter of `name`. Each
+  // occurrence of a letter is its own target with its own `slot` (so RAEGAR's
+  // two R's / two A's each fill a distinct slot and spell the name). Distractor
+  // balloons EXCLUDE every letter of the name (case-insensitive) so no wrong
+  // balloon is ever secretly a name letter.
+  function makeNameHunt(name, letters, rng) {
+    const rnd = rng || Math.random;
+    const chars = String(name).toUpperCase().split("");
+    const nameSet = new Set(chars);
+    const distractors = shuffle(letters.filter((l) => !nameSet.has(String(l).toUpperCase())), rng);
+    if (!distractors.length) throw new Error("makeNameHunt needs distractor letters outside the name");
+    const size = Math.max(9, chars.length + 4);
+    const cells = chars.map((ch, i) => ({ ch, correct: true, slot: i }));
+    for (let i = 0; cells.length < size; i++) cells.push({ ch: distractors[i % distractors.length], correct: false });
+    return { name: chars.join(""), targets: chars, cells: shuffle(cells, rng) };
+  }
+
+  // Team Balance — deal n blocks (2-5) into the left pan; the shared job is to
+  // add n to the right pan to level the scale. Trivial, no-repeat.
+  function makeBalance(rng, last) {
+    const rnd = rng || Math.random;
+    let n = 2 + Math.floor(rnd() * 4); // 2..5
+    if (n === last) n = n >= 5 ? 2 : n + 1;
+    return { n };
+  }
+
   const API = {
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
@@ -1594,7 +1639,7 @@
     makeCoinMix, makeOrdinal, makeAboutFive, makeGraphPick, makeGlassPick,
     makePartnerUp, makeCategoryCount, makeSizePick,
     makeCopyGrid, makeMirrorHalf, makeFitsInside, makeWhichPath, makeCurtainPeek, makeDressOrder,
-    makeTreasureClue,
+    makeTreasureClue, makeRhymePairsDeck, makeNameHunt, makeBalance,
     makeFirstSound, makeRhyme, makeSightWord, makeCVC,
     makeShadowMatch, makeOrder, makeSort,
     makeAddition, makeNumberMatch, makeClock, tensOnes,

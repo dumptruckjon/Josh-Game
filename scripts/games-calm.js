@@ -1270,4 +1270,308 @@
       newRound();
     },
   });
+
+  // ================= Road to 180 — Set 2, Wave 8 (co-op finale + SEL) =========
+  // ---- Team Puzzle (2 players — alternate placing pieces, mechanic A) ----
+  // A 2×2 picture jigsaw. Players alternate picking a tray piece (held) and
+  // dropping it on its matching board slot (pick-and-place per mechanic A).
+  F.register({
+    id: "team-puzzle", icon: "🧩", title: "Team Puzzle (2 players)", skill: "co-op / puzzle [M]",
+    start(api) {
+      // A simple 4-quadrant scene (sky, tree, house, dog) — the jigsaw feel with
+      // self-naming pieces so a non-reader always knows where each goes.
+      const QUADS = [
+        { key: "0", emoji: "🌤️" }, { key: "1", emoji: "🌳" },
+        { key: "2", emoji: "🏠" }, { key: "3", emoji: "🐶" },
+      ];
+      let friend = api.friend(); if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️", art: friend.art }];
+      let turn = 0, held = null, placed = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const board = api.el("div", { class: "tp__board", aria: { hidden: "true" } });
+      const tray = api.el("div", { class: "choices choices--4 tp__tray" });
+      api.stage.append(turnEl, board, tray);
+
+      const slotByKey = {};
+      QUADS.forEach((q) => {
+        const slot = api.el("div", { class: "tp__slot", dataset: { key: q.key, empty: "1" }, aria: { hidden: "true" } }, [q.emoji]);
+        board.appendChild(slot); slotByKey[q.key] = slot;
+        slot.addEventListener("click", () => {
+          if (!held) return;
+          if (slot.dataset.key === held.dataset.key && slot.dataset.empty) {
+            slot.classList.add("tp__slot--set", "pop"); slot.textContent = held.dataset.emoji; delete slot.dataset.empty;
+            held.dataset.placed = "1"; held.classList.add("choice--used"); held.classList.remove("held"); held.disabled = true;
+            held = null; placed += 1;
+            api.say("There!");
+            if (placed >= QUADS.length) {
+              board.classList.add("tp__board--done");
+              api.win({ say: "You finished the puzzle together! It's alive!" });
+              return;
+            }
+            turn = turn === 0 ? 1 : 0;
+            reflag();
+          } else api.tryAgain(slot);
+        });
+      });
+      const trayBtns = api.shuffle(QUADS.slice()).map((q) => {
+        const b = api.el("button", { class: "choice tp__piece tap", type: "button", dataset: { key: q.key, emoji: q.emoji }, aria: { label: "puzzle piece" }, text: q.emoji });
+        b.addEventListener("click", () => {
+          if (b.dataset.placed) return;
+          if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+          if (held) held.classList.remove("held");
+          held = b; b.classList.add("held"); reflag();
+        });
+        tray.appendChild(b); return b;
+      });
+      function reflag() {
+        trayBtns.forEach((t) => delete t.dataset.correct);
+        Object.values(slotByKey).forEach((s) => delete s.dataset.correct);
+        if (held) { const s = slotByKey[held.dataset.key]; if (s && s.dataset.empty) s.dataset.correct = "1"; }
+        else trayBtns.forEach((t) => { if (!t.dataset.placed) t.dataset.correct = "1"; });
+        coopTurn(turnEl, players[turn], " — place a piece!");
+      }
+      api.setPrompt("Take turns! Tap a piece, then where it goes.", ["🧩", "🔁", "😊"]);
+      api.speak();
+      reflag();
+    },
+  });
+
+  // ---- Team Song (2 players — tap the notes in order to play a tune) ----
+  // A 5-note path (Twinkle's opening) demos itself, then players alternate
+  // tapping the NEXT note. Each tap sounds its pitch; finishing plays it back.
+  F.register({
+    id: "team-song", icon: "🎶", title: "Team Song (2 players)", skill: "co-op / music [W]",
+    start(api) {
+      const A = window.JoshAudio || { tone() {}, unlock() {} };
+      const NOTES = api.C.TEAM_SONG || [];
+      let friend = api.friend(); if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️", art: friend.art }];
+      let turn = 0, step = 0;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const staff = api.el("div", { class: "choices choices--3 song__staff" });
+      api.stage.append(turnEl, staff);
+      staff.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); staff.removeEventListener("pointerdown", warm); }, { once: true });
+
+      const pads = NOTES.map((note, i) => {
+        const b = api.el("button", {
+          class: "choice song__note tap", type: "button", style: { background: note.color },
+          aria: { label: "note " + (i + 1) }, text: String(i + 1),
+        });
+        b.addEventListener("click", () => {
+          if (i !== step) { api.tryAgain(b); return; }
+          try { if (A.tone) A.tone(note.freq, { duration: 0.4 }); } catch (e) { /* ignore */ }
+          b.classList.remove("song__note--play"); void b.offsetWidth; b.classList.add("song__note--play");
+          delete b.dataset.correct;
+          step += 1;
+          if (step >= NOTES.length) {
+            // play the whole tune back — staggered so the notes sound in sequence
+            NOTES.forEach((n, k) => { setTimeout(() => { try { if (A.tone) A.tone(n.freq, { duration: 0.3 }); } catch (e) { /* ignore */ } }, k * 340); });
+            api.win({ say: "You played the whole song together! Twinkle twinkle!" });
+            return;
+          }
+          turn = turn === 0 ? 1 : 0;
+          flag();
+        });
+        staff.appendChild(b); return b;
+      });
+      function flag() {
+        pads.forEach((b, i) => { if (i === step) b.dataset.correct = "1"; else delete b.dataset.correct; });
+        coopTurn(turnEl, players[turn], " — play the next note!");
+      }
+      api.setPrompt("Take turns! Play the notes in order.", ["🎶", "🔁", "🎹"]);
+      api.speak();
+      flag();
+    },
+  });
+
+  // ---- Team Balance (2 players — add blocks until the scale is level) ----
+  // The left pan holds n blocks; players alternate adding to the right pan one
+  // at a time. It BALANCES exactly at n (overshoot impossible — the flag clears
+  // on the completing tap, the piggy-bank law). ROUNDS=3.
+  F.register({
+    id: "team-balance", icon: "⚖️", title: "Team Balance (2 players)", skill: "co-op / equal [W]",
+    start(api) {
+      const L = window.JoshLogic;
+      const ROUNDS = 3;
+      let friend = api.friend(); if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️" }, { name: friend.name, emoji: "🕸️", art: friend.art }];
+      let round = 0, turn = 0, n = 0, right = 0, last = -1;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const scale = api.el("div", { class: "bal__scale" });
+      const leftPan = api.el("div", { class: "bal__pan bal__pan--l", aria: { hidden: "true" } });
+      const rightPan = api.el("div", { class: "bal__pan bal__pan--r", aria: { hidden: "true" } });
+      const beam = api.el("div", { class: "bal__beam" }, [leftPan, rightPan]);
+      scale.append(beam);
+      const addBtn = api.el("button", { class: "coop__btn tap bal__add", type: "button", aria: { label: "add a block" } }, ["➕ Add a block"]);
+      api.stage.append(turnEl, scale, addBtn);
+
+      function tilt() {
+        // negative = left-heavy (right needs more); 0 = balanced
+        const diff = right - n;
+        beam.style.transform = "rotate(" + (diff * -6) + "deg)";
+        beam.classList.toggle("bal__beam--level", diff === 0);
+      }
+      function newRound() {
+        const r = L.makeBalance(undefined, last); n = r.n; last = n; right = 0;
+        leftPan.innerHTML = ""; rightPan.innerHTML = "";
+        for (let i = 0; i < n; i++) leftPan.appendChild(api.el("span", { class: "bal__block" }, ["🟦"]));
+        api.setPrompt("Take turns! Add blocks until the scale is even.", ["⚖️", "🔁", "🟦"]);
+        api.speak(); api.say("The left side has " + n + ". Make them match!");
+        addBtn.dataset.correct = "1";
+        tilt();
+        coopTurn(turnEl, players[turn], " — add a block!");
+      }
+      addBtn.addEventListener("click", () => {
+        if (right >= n) return;
+        right += 1;
+        rightPan.appendChild(api.el("span", { class: "bal__block pop" }, ["🟦"]));
+        api.say(String(right));
+        tilt();
+        if (right >= n) {
+          delete addBtn.dataset.correct;
+          api.say(n + " and " + n + " — balanced!");
+          round += 1;
+          if (round >= ROUNDS) { api.win({ say: "You balanced the scale together! Even and fair!" }); return; }
+          api.roundWin();
+          turn = turn === 0 ? 1 : 0;
+          setTimeout(() => { if (scale.isConnected) newRound(); }, 700);
+          return;
+        }
+        turn = turn === 0 ? 1 : 0;
+        coopTurn(turnEl, players[turn], " — add a block!");
+      });
+      newRound();
+    },
+  });
+
+  // ---- Copy Me! (2 players — leader lights a pad, follower copies, roles swap) ----
+  // One-item echo (mechanic D): the game auto-shows a pad, the follower taps the
+  // SAME one. Roles swap each round — pure turn ritual, zero memory strain.
+  F.register({
+    id: "team-copy", icon: "🪞", title: "Copy Me! (2 players)", skill: "co-op / leader-follower [W]",
+    start(api) {
+      const PADS = api.C.COPY_PADS || [];
+      const ROUNDS = 4;
+      let friend = api.friend(); if (friend.name === "Josh") friend = api.friend();
+      const players = [{ name: "Josh", emoji: "🕷️", art: (FRIENDS.find((f) => f.name === "Josh") || {}).art }, { name: friend.name, emoji: "🕸️", art: friend.art }];
+      let round = 0, leader = 0, target = -1, lastTarget = -1;
+
+      const turnEl = api.el("div", { class: "coop__turn", aria: { live: "polite" } });
+      const padRow = api.el("div", { class: "choices choices--3 copy__pads" });
+      api.stage.append(turnEl, padRow);
+
+      const pads = PADS.map((p, i) => {
+        const b = api.el("button", { class: "choice copy__pad tap", type: "button", style: { background: p.color }, aria: { label: p.name }, text: "" });
+        b.addEventListener("click", () => {
+          if (i !== target) { api.tryAgain(b); return; }
+          b.classList.remove("copy__pad--lit");
+          delete b.dataset.correct;
+          api.say(PADS[i].name + "!");
+          round += 1;
+          if (round >= ROUNDS) { api.win({ say: "Great copying, team! You did it together!" }); return; }
+          leader = leader === 0 ? 1 : 0;
+          setTimeout(() => { if (padRow.isConnected) newRound(); }, 500);
+        });
+        padRow.appendChild(b); return b;
+      });
+      function newRound() {
+        target = api.randInt(0, PADS.length - 1);
+        if (target === lastTarget) target = (target + 1) % PADS.length;
+        lastTarget = target;
+        const follower = leader === 0 ? 1 : 0;
+        pads.forEach((b, i) => {
+          b.classList.toggle("copy__pad--lit", i === target);
+          if (i === target) b.dataset.correct = "1"; else delete b.dataset.correct;
+        });
+        turnEl.innerHTML = "";
+        turnEl.append(document.createTextNode(players[leader].name + " shows — " + players[follower].name + " copies!"));
+        api.setPrompt(players[leader].name + " shows, " + players[follower].name + " copies!", ["🪞", "👀", "👆"]);
+        api.speak(); api.say(PADS[target].name);
+      }
+      newRound();
+    },
+  });
+
+  // ---- The Worry Box (SEL — tuck each worry-cloud safely away) ----
+  // A calm ritual toy: tap a worry-cloud and it floats into the box. Names the
+  // move ("It can wait there."). All 4 tucked → a long exhale + win, then new
+  // clouds drift in for endless practice. Pairs with Breathing Star.
+  F.register({
+    id: "worry-box", icon: "📦", title: "The Worry Box", skill: "calm / SEL [W]",
+    start(api) {
+      const A = window.JoshAudio || { tone() {}, unlock() {} };
+      const NEED = 4;
+      let tucked = 0, won = false;
+      const box = api.el("div", { class: "worry__box", aria: { hidden: "true" } }, ["📦"]);
+      const clouds = api.el("div", { class: "choices choices--2 worry__clouds" });
+      api.stage.append(box, clouds);
+      clouds.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); clouds.removeEventListener("pointerdown", warm); }, { once: true });
+
+      function spawn() {
+        clouds.innerHTML = ""; tucked = 0;
+        for (let i = 0; i < NEED; i++) {
+          const b = api.el("button", { class: "choice worry__cloud tap", type: "button", dataset: { toy: "1" }, aria: { label: "worry cloud" } }, ["☁️"]);
+          b.addEventListener("click", () => {
+            if (b.dataset.tucked) return;
+            // Consume the cloud: drop data-toy so the every-game harness (which taps
+            // the FIRST [data-toy]) moves on to a still-live cloud instead of a
+            // disabled one — the "webbed baddie is consumed" pattern.
+            b.dataset.tucked = "1"; delete b.dataset.toy; b.classList.add("worry__cloud--gone"); b.disabled = true;
+            api.tickPlay();
+            try { if (A.tone) A.tone(300, { duration: 0.35, type: "sine" }); } catch (e) { /* ignore */ }
+            box.classList.remove("worry__box--tip"); void box.offsetWidth; box.classList.add("worry__box--tip");
+            api.say("Put the worry in the box. It can wait there.");
+            tucked += 1;
+            if (tucked >= NEED) {
+              if (!won) { won = true; api.win({ say: "All packed away. Breathe out. You're safe and calm." }); }
+              setTimeout(() => { if (clouds.isConnected) spawn(); }, 900);
+            }
+          });
+          clouds.appendChild(b);
+        }
+      }
+      api.setPrompt("Tap a worry and tuck it in the box.", ["☁️", "📦", "😌"]);
+      api.speak();
+      spawn();
+    },
+  });
+
+  // ---- Thank-You Hearts (SEL — send a heart to anyone who helped) ----
+  // Gratitude has NO wrong answer: every card is valid (a toy). Each tap sends a
+  // heart that lands on that person. Win at 4 hearts, then keep giving. Grandma
+  // 👵🏻 is a warm cross-world cameo.
+  F.register({
+    id: "thank-you", icon: "💌", title: "Thank-You Hearts", skill: "gratitude / SEL [M/W]",
+    start(api) {
+      const NEED = 4;
+      const cards = [];
+      FRIENDS.forEach((f) => cards.push({ name: f.name, art: f.art }));
+      (api.C.THANKYOU_EXTRA || []).slice(0, 1).forEach((e) => cards.push({ name: e.name, emoji: e.emoji }));
+      let given = 0, won = false;
+      const grid = api.el("div", { class: "choices choices--3 thanks__grid" });
+      api.stage.append(grid);
+      cards.forEach((c) => {
+        const b = api.el("button", {
+          class: "choice thanks__card tap" + (c.art ? " art-fill" : ""), type: "button", dataset: { toy: "1" }, aria: { label: "thank " + c.name },
+          html: (c.art && window.JoshArt && window.JoshArt.friend) ? window.JoshArt.friend(c.art) : (c.emoji || "🧑"),
+        });
+        b.addEventListener("click", () => {
+          api.tickPlay();
+          const heart = api.el("span", { class: "thanks__heart", aria: { hidden: "true" }, text: "💗" });
+          b.appendChild(heart);
+          setTimeout(() => heart.remove(), 1100);
+          b.classList.remove("thanks__card--glow"); void b.offsetWidth; b.classList.add("thanks__card--glow");
+          api.say("Thank you, " + c.name + "!");
+          given += 1;
+          if (given >= NEED && !won) { won = true; api.win({ say: "So many thank-yous — that feels good!" }); }
+        });
+        grid.appendChild(b);
+      });
+      api.setPrompt("Who helped you? Send a thank-you heart!", ["💌", "💗", "😊"]);
+      api.speak();
+    },
+  });
 })();
