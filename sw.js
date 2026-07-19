@@ -64,7 +64,19 @@ self.addEventListener("fetch", (event) => {
         return res;
       })
       .catch(() =>
-        caches.match(req).then((cached) => cached || caches.match("./index.html"))
+        // Offline fallback. Try an EXACT cache hit first (a runtime-cached
+        // response, version query and all). If that misses, retry ignoring the
+        // ?v=<sha> cache-bust query so the UNVERSIONED precache (CORE lists
+        // "./scripts/main.js" while the page requests "…?v=<sha>") still
+        // satisfies the request — otherwise every script 404s to the HTML
+        // fallback offline and the app boots as a dead shell ("Unexpected token
+        // '<'"). Safe because ?v= only busts the cache; the file at a given path
+        // is identical across versions, and network-first keeps things fresh
+        // whenever the device IS online. Navigations fall back to index.html.
+        caches.match(req).then((cached) =>
+          cached ||
+          caches.match(req, { ignoreSearch: true }).then((loose) => loose || caches.match("./index.html"))
+        )
       )
   );
 });

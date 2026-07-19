@@ -332,6 +332,25 @@ is real; 🐑 added to milk's `users` (never a distractor) + a guardrail. Lesson
 after building an audio- or reveal-driven game, drive its ▶ control and *listen
 to the sentence* — the tap-harness proves winnability, not instruction sanity.
 When you fix the next thing, extend this list.
+**The offline PWA booted as a DEAD SHELL** — the service worker precaches the
+UNVERSIONED asset paths (CORE lists `./scripts/main.js`) but `index.html` requests
+every asset with the `?v=<sha>` cache-bust query, and `caches.match` is
+query-sensitive by default, so offline the versioned script requests MISSED the
+precache and fell through to the `index.html` fallback → the browser parsed HTML
+as JavaScript (`Unexpected token '<'`) and the home painted with **zero scripts
+running** (empty `window.JoshGames`). A first-offline-open (exactly how a
+home-screen PWA is used on a car ride) was broken, and the whole test suite was
+green because **nothing tested offline**. Fix: the SW offline fallback now retries
+`caches.match(req, { ignoreSearch: true })` before the HTML fallback, so an
+unversioned precache entry satisfies a versioned request (safe — `?v=` only busts
+the cache; the file at a path is identical across versions, and network-first
+keeps things fresh whenever online). Guardrails: a generic `site.test.js` check
+fails if the SW fallback loses `ignoreSearch`, and a new `tests/offline.test.js`
+drops the network in a real browser and asserts the app FULLY boots from cache
+(home visible **and** `JoshGames` present **and** no `'<'` SyntaxError), including
+a precache-only path. Lesson: an asset that is cache-busted with a query in the
+page MUST be resolvable without that query in the offline cache — and "works
+offline" is only true once a test actually pulls the plug.
 
 ---
 
@@ -377,8 +396,9 @@ tooling.
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
 │   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness that plays EVERY registered game
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
+│   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell)
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)
-├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile)
+├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
 ├── .gitignore                  # ignores node_modules etc.
 ├── .github/workflows/

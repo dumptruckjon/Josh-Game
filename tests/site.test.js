@@ -46,6 +46,19 @@ test("service worker precaches every script + css + index", () => {
   assert.match(sw, /addEventListener\(\s*["']install["']/, "SW needs an install handler");
 });
 
+test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch)", () => {
+  // Self-healing (RULE 7). The page loads every asset with a ?v=<sha> cache-bust
+  // query, but the SW precaches the UNVERSIONED paths (CORE lists
+  // "./scripts/main.js"). A query-sensitive caches.match therefore MISSES offline
+  // and the script requests fall through to the index.html fallback — the browser
+  // then parses HTML as JS ("Unexpected token '<'") and the app boots as a dead
+  // shell. The offline fallback MUST retry with { ignoreSearch: true } so the
+  // precache still satisfies a versioned request. offline.test.js proves the real
+  // boot; this locks the mechanism so it can't silently regress in a refactor.
+  const sw = read("sw.js");
+  assert.match(sw, /ignoreSearch\s*:\s*true/, "SW offline fallback must retry cache with { ignoreSearch: true } so ?v= assets still resolve offline");
+});
+
 test("games self-register into the framework registry", () => {
   for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js", "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/games-hl-a.js", "scripts/games-hl-b.js"]) {
     assert.match(read(f), /F\.register\(|JoshFramework\.register\(/, `${f} should register a game`);
