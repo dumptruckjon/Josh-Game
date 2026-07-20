@@ -82,7 +82,7 @@
     start(api) {
       const INS = HL.ECHO_INSTRUMENTS;
       const ROUNDS = 3;
-      let round = 0, r = null, step = 0, demoing = false;
+      let round = 0, r = null, step = 0, demoing = false, lastGood = -1, lastGoodAt = 0;
       const pad = api.el("div", { class: "cb__pad hl-echopad" });
       const replay = api.el("button", { class: "btn-big cb__replay", type: "button", aria: { label: "再看一遍" } }, ["▶️ 再看一遍"]);
       api.stage.append(pad, replay);
@@ -95,7 +95,13 @@
           if (demoing) return;
           try { if (A.tone) A.tone(d.freq, { duration: 0.25 }); } catch (e) { /* ignore */ }
           b.classList.remove("cb__drum--hit"); void b.offsetWidth; b.classList.add("cb__drum--hit");
-          if (i !== r.seq[step]) { api.tryAgain(b); step = 0; arm(); return; }
+          if (i !== r.seq[step]) {
+            // 双击宽容：孩子/长辈快速连敲刚敲对的鼓，不该把整段节奏清零。
+            // （序列里真正的重复音在上面已判定为正确，这里只吃掉误连击。）
+            if (i === lastGood && Date.now() - lastGoodAt < 350) return;
+            api.tryAgain(b); step = 0; arm(); return;
+          }
+          lastGood = i; lastGoodAt = Date.now();
           delete b.dataset.correct;
           step += 1;
           if (step >= r.seq.length) {

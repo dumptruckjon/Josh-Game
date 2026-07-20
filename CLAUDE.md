@@ -351,6 +351,30 @@ drops the network in a real browser and asserts the app FULLY boots from cache
 a precache-only path. Lesson: an asset that is cache-busted with a query in the
 page MUST be resolvable without that query in the offline cache — and "works
 offline" is only true once a test actually pulls the plug.
+**A toddler double-taps EVERYTHING — and the whole suite drove every game with
+single, polite clicks**, so three real hammer-tap bug classes shipped green: (1)
+`api.win()` had no idempotence guard and most game handlers judge CLOSURE state,
+not the DOM, so a doubled final tap ran the whole win path twice (two buddy pops,
+double jingle) in ~51 games — guarded once in `framework.js` so every game
+inherits; (2) all six pick-and-place games' `.held` machinery TOGGLED the held
+item back out on a second tap (pick→unpick = net nothing; a hammer-tapping kid
+gets a dead-feeling hand) — now a double-tap keeps holding (switching = tap a
+different item, unchanged); (3) three interaction-specific traps: `set-clock`'s
+mover advanced 2 hours per doubled gesture and an odd distance NEVER lands (wrap
+preserves parity) → the mover disables once aligned; the echo games judged the
+doubled re-hit of the just-correct drum as WRONG and wiped the whole echo → a
+same-drum re-hit within 350ms is forgiven (a true in-sequence repeat is judged
+correct first, so forgiveness only eats the hammer-tap); `team-bridge`/
+`pattern-fix` double-advanced into `slots[GOAL]`/a rebuilt row → TypeError →
+guarded. Guardrail: an e2e "toddler chaos" test drives all 12 affected games to
+a win DOUBLE-clicking every target and asserts exactly one celebration pop. The
+same audit proved the good news systemically: 240/240 abandoned-mid-round games
+leave ZERO unearned stickers (stale timers can't corrupt the Sticker Book),
+every game wins a SECOND time after Again (no stale state), storage-BLOCKED
+Safari (private mode) still boots and plays, junk hashes and phone back/forward
+are safe, and landscape has no overflow. Lesson: drive games the way a
+4-year-old actually taps — doubled, abandoned, replayed — not just the way the
+contract expects; closure-state handlers + rebuilt DOM is where those bugs hide.
 
 ---
 
@@ -394,7 +418,7 @@ tooling.
 │   ├── content.test.js         # CORRECTNESS: ground-truth restatement — answers can't silently go wrong
 │   ├── hl-content.test.js      # 华丽 CORRECTNESS: poems/idioms/zodiac/量词/festivals/dishes/seasons truth tables + gate + FU_PATH tap geometry
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
-│   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness that plays EVERY registered game
+│   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness plays EVERY game + toddler-chaos double-tap guardrail
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell)
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)

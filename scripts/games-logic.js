@@ -710,7 +710,7 @@
         { color: "#5ec8ff", note: 392 },
       ];
       const ROUNDS = 3;
-      let round = 0, r = null, step = 0, demoing = false;
+      let round = 0, r = null, step = 0, demoing = false, lastGood = -1, lastGoodAt = 0;
       const heroEl = api.el("div", { class: "cb__hero art-fill", aria: { hidden: "true" } });
       if (window.JoshArt && window.JoshArt.hero) heroEl.innerHTML = window.JoshArt.hero("#e23636");
       const pad = api.el("div", { class: "cb__pad" });
@@ -724,7 +724,14 @@
           // Drums are an instrument (like the Music Pad): they always sound.
           try { if (A.tone) A.tone(d.note, { duration: 0.25 }); } catch (e) { /* ignore */ }
           b.classList.remove("cb__drum--hit"); void b.offsetWidth; b.classList.add("cb__drum--hit");
-          if (i !== r.seq[step]) { api.tryAgain(b); step = 0; arm(); return; } // start the echo over, gently
+          if (i !== r.seq[step]) {
+            // Echo-forgiveness: a toddler double-tap re-hits the JUST-correct drum a
+            // beat later — that must not wipe the whole echo. (A genuine repeat in the
+            // sequence is judged correct above, so this only eats the hammer-tap.)
+            if (i === lastGood && Date.now() - lastGoodAt < 350) return;
+            api.tryAgain(b); step = 0; arm(); return; // a real wrong drum starts the echo over, gently
+          }
+          lastGood = i; lastGoodAt = Date.now();
           delete b.dataset.correct;
           step += 1;
           if (step >= r.seq.length) {
@@ -850,6 +857,8 @@
           });
           b.addEventListener("click", () => {
             if (!ch.correct) { api.tryAgain(b); return; }
+            if (b.dataset.used) return; // a doubled tap re-runs this handler against the NEXT round's rebuilt row
+            b.dataset.used = "1";
             row.children[r.blankIdx].textContent = ch.token;
             row.children[r.blankIdx].classList.remove("pattern__cell--blank");
             api.say("You fixed the pattern!");

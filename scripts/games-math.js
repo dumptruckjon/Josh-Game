@@ -651,8 +651,12 @@
           '<line x1="50" y1="50" x2="' + hx.toFixed(1) + '" y2="' + hy.toFixed(1) + '" stroke="#e23636" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="50" r="3.5" fill="#333"/></svg>';
       }
       function updateBtns() {
-        if (hand === target) { delete advBtn.dataset.correct; setBtn.hidden = false; setBtn.dataset.correct = "1"; }
-        else { advBtn.dataset.correct = "1"; setBtn.hidden = true; delete setBtn.dataset.correct; }
+        // Disable the mover once aligned: a hammer double-tap otherwise advances
+        // TWO hours per gesture, and with an odd distance to the target the wrap
+        // keeps parity — the hand would skip the target forever (a real trap for
+        // a rapid-tapping kid). Disabled, the doubled second tap dies harmlessly.
+        if (hand === target) { advBtn.disabled = true; delete advBtn.dataset.correct; setBtn.hidden = false; setBtn.dataset.correct = "1"; }
+        else { advBtn.disabled = false; advBtn.dataset.correct = "1"; setBtn.hidden = true; delete setBtn.dataset.correct; }
       }
       function newRound() {
         target = L.randInt(1, 12);
@@ -1503,7 +1507,7 @@
           const b = api.el("button", { class: "choice partner__duck tap", type: "button", aria: { label: "duck" } }, ["🦆"]);
           b.addEventListener("click", () => {
             if (b.dataset.paired) return;
-            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (held === b) return; // a double-tap keeps holding — never toggles the pick away (hammer-tap safe)
             if (!held) { held = b; b.classList.add("held"); reflag(); return; }
             [held, b].forEach((d) => { d.dataset.paired = "1"; d.classList.remove("held"); d.classList.add("partner__duck--paired"); d.disabled = true; });
             held = null; paired += 2;

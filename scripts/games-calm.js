@@ -614,6 +614,7 @@
         coopTurn(turnEl, players[turn], " — place a stone!");
       }
       function add(i) {
+        if (placed >= GOAL) return; // bridge done — a doubled final tap must not index past the stones
         if (i !== turn) { api.tryAgain(laneBtns[i]); return; }
         // Stones fill strictly left→right so the bridge is always continuous.
         slots[placed].classList.add("bridge__slot--on");
@@ -1199,7 +1200,7 @@
           const b = api.el("button", { class: "choice table__item tap", type: "button", dataset: { name: it.name }, aria: { label: it.name }, text: it.emoji });
           b.addEventListener("click", () => {
             if (b.dataset.placed) return;
-            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (held === b) return; // a double-tap keeps holding — never toggles the pick away (hammer-tap safe)
             if (held) held.classList.remove("held");
             held = b; b.classList.add("held"); reflag();
           });
@@ -1318,7 +1319,7 @@
         const b = api.el("button", { class: "choice tp__piece tap", type: "button", dataset: { key: q.key, emoji: q.emoji }, aria: { label: "puzzle piece" }, text: q.emoji });
         b.addEventListener("click", () => {
           if (b.dataset.placed) return;
-          if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+          if (held === b) return; // a double-tap keeps holding — never toggles the pick away (hammer-tap safe)
           if (held) held.classList.remove("held");
           held = b; b.classList.add("held"); reflag();
         });
@@ -1619,7 +1620,7 @@
           const b = api.el("button", { class: "choice tidy__toy tap", type: "button", dataset: { home: it.home, name: it.name }, aria: { label: it.name }, text: it.emoji });
           b.addEventListener("click", () => {
             if (b.dataset.placed) return;
-            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (held === b) return; // a double-tap keeps holding — never toggles the pick away (hammer-tap safe)
             if (held) held.classList.remove("held");
             held = b; b.classList.add("held"); reflag();
             // Speak the destination so a non-reader never has to read a bin label.

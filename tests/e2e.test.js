@@ -586,6 +586,44 @@ test("Make an Island: tap the MIDDLE to place the feature, surrounded on all sid
   assert.ok(won, "Make an Island reaches a win by tapping the middle each round");
 });
 
+test("toddler chaos guardrail: hammer double-taps can't double-celebrate, soft-lock, or crash", async () => {
+  // The chaos audit found three real bug classes under DOUBLE-clicked taps (a
+  // 4-year-old hammer-taps everything): (1) framework win() ran twice off the
+  // doubled final tap (two buddy pops) — now guarded in ONE place; (2) the
+  // pick-and-place games toggled the held item back OUT on the second tap
+  // (pick→unpick = net nothing, soft-lock); (3) set-clock's mover advanced 2
+  // hours per gesture (odd distance + wrap = never lands), the echo games wiped
+  // the whole echo on the doubled re-hit, and team-bridge/pattern-fix indexed
+  // past their arrays (TypeError). Drive each representative to a win clicking
+  // EVERY target twice; assert it wins, with at most ONE celebration pop.
+  const CHAOS_IDS = [
+    "odd-one-out",                                            // win()-guard representative
+    "set-table", "team-puzzle", "tidy-up", "match-all", "fix-toys", "partner-up", // pick-and-place
+    "set-clock", "copy-beat", "hl-echo",                      // parity trap + echo forgiveness
+    "team-bridge", "pattern-fix",                             // double-advance crashes
+  ];
+  for (const id of CHAOS_IDS) {
+    await openGame(id);
+    const screen = page.locator(`#screen-${id}`);
+    const again = screen.locator(".game__again");
+    if (await again.isVisible().catch(() => false)) await again.click(); // fresh run
+    let won = false, pops = 0;
+    for (let i = 0; i < 800 && !won; i++) {
+      const st = await screen.evaluate((el) => ({
+        won: el.dataset.won === "1", pops: el.querySelectorAll(".win-hero").length,
+      }));
+      if (st.won) { won = true; pops = st.pops; break; } // pops read atomically with the win
+      let target = screen.locator('[data-correct="1"]').first();
+      if ((await target.count()) === 0) target = screen.locator("[data-toy]").first();
+      if ((await target.count()) === 0) { await page.waitForTimeout(20); continue; }
+      try { await target.evaluate((el) => { el.click(); el.click(); }); } // the toddler hammer-tap
+      catch (e) { await page.waitForTimeout(20); }
+    }
+    assert.ok(won, `game "${id}" must still be winnable when every tap is a double-tap`);
+    assert.ok(pops <= 1, `game "${id}" must celebrate ONCE on a doubled final tap, got ${pops} pops`);
+  }
+});
+
 // ================= 华丽的世界 (the hidden grandma world) =================
 
 test("华丽 door: the 👵🏻 button sits in the top bar and opens the Chinese name gate", async () => {

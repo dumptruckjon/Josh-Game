@@ -831,7 +831,7 @@
           const b = api.el("button", { class: "choice match__card tap", type: "button", dataset: { face: e }, aria: { label: "card" }, text: e });
           b.addEventListener("click", () => {
             if (b.dataset.done) return;
-            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (held === b) return; // a double-tap keeps holding — never toggles the pick away (hammer-tap safe)
             if (!held) { held = b; b.classList.add("held"); reflag(); return; }
             if (b.dataset.face === held.dataset.face) {
               b.dataset.done = held.dataset.done = "1";
@@ -1032,7 +1032,7 @@
           }, [api.el("span", { class: "fix__glyph", aria: { hidden: "true" }, text: cd.emoji })]);
           b.addEventListener("click", () => {
             if (b.dataset.done) return;
-            if (held === b) { held = null; b.classList.remove("held"); reflag(); return; }
+            if (held === b) return; // a double-tap keeps holding — never toggles the pick away (hammer-tap safe)
             if (!held) { held = b; b.classList.add("held"); reflag(); return; }
             if (b.dataset.key === held.dataset.key && b.dataset.half !== held.dataset.half) {
               b.dataset.done = held.dataset.done = "1";

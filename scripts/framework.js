@@ -158,6 +158,11 @@
       },
       // The whole game is finished — celebrate, mark won, offer Again.
       win(opts) {
+        // Idempotent: a toddler double-tap on the final correct target makes most
+        // game handlers run their win path twice (they check closure state, not
+        // the DOM), which double-fired the celebration — two buddy pops, double
+        // jingle, double confetti. Guard once HERE so every game inherits it.
+        if (screen.dataset.won === "1") return;
         screen.dataset.won = "1";
         screen.classList.add("is-won");
         FX.confetti({ colors: C.CONFETTI_COLORS });
