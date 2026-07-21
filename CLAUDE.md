@@ -432,6 +432,7 @@ tooling.
 ├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
+├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — JON's hidden adult world (exact-name gate "Jon"): full TD design (engine/towers/enemies/12 levels/bosses/meta/tests, phases TD-1..TD-6) — 📋 PLANNED, not yet built
 └── CLAUDE.md                   # This file
 ```
 
