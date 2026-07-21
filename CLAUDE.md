@@ -412,7 +412,12 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: 👵🏻 top-bar door + Chinese name gate (只有「华丽」能进) + red-gold launcher + 🏮 sticker book
-│   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/enemies/waves/levels
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims)
+│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks)
+│   ├── td-ui.js                # 🏰 door/gate/screens/HUD/overlays (gate = data-adult; ONLY the exact name "Jon" unlocks)
+│   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save + rAF loop + input + sfx + window.__TD test hooks
+│   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW; routes td-* through guarded JonTD
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
 │   ├── content.test.js         # CORRECTNESS: ground-truth restatement — answers can't silently go wrong
@@ -421,6 +426,8 @@ tooling.
 │   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness plays EVERY game + toddler-chaos double-tap guardrail
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell)
+│   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
+│   ├── td.test.js              # 🏰 Playwright: Jon gate, route guards, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
@@ -432,7 +439,7 @@ tooling.
 ├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
-├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — JON's hidden adult world (exact-name gate "Jon"): full TD design (engine/towers/enemies/12 levels/bosses/meta/tests, phases TD-1..TD-6) — 📋 PLANNED, not yet built
+├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — JON's hidden adult world (exact-name gate "Jon"): full TD design (engine/towers/enemies/12 levels/bosses/meta/tests) — TD-1 ✅ BUILT (shell+engine+L1), TD-2..TD-6 pending
 └── CLAUDE.md                   # This file
 ```
 
@@ -622,6 +629,35 @@ How it works (keep these invariants):
 - Nav screens bounce to Josh's home without the session flag; game screens stay
   deep-linkable (the harness needs them, and a non-reader can't type a hash).
   Her name gate is `data-adult` (adult-sized controls, exempt from the kid audit).
+
+### 🏰 Fort Josh: Toybox Defense — the hidden world for JON (dad)
+
+A **third, gated world**: a real tower-defense game behind the 🏰 top-bar door.
+The name gate accepts **only the exact input `Jon`** (trim+NFC, case-sensitive;
+`sessionStorage["td-ok"]`, session-scoped). This is an **adult space**: real
+difficulty, real defeat screens, real timers — RULE 5's kid laws deliberately do
+not apply inside (the gate is what keeps it from Josh; precedent: 华丽's
+`data-adult`). Status: **TD-1 shipped** (shell + deterministic engine + Level 1
+"Under the Bed" with the Dart Blaster line and Sock/Marble waves); phases
+TD-2..TD-6 (all towers/branches, 14 enemies + 3 bosses, 12 levels, difficulties,
+meta star tree, endless) are specified in `PLAN_TOWER_DEFENSE.md`.
+
+Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
+- **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
+  invisible to the every-game harness and the kid mobile audit. Josh's book
+  stays exactly 200, 华丽's 40.
+- **Storage is `jon-td-*` only** (`jon-td-save-v1`); never touches the kid star
+  flags, and Josh's grown-ups reset never touches the fort.
+- **Audio only via `JoshAudio.tone`** (the ONE iOS-safe path) + the global 🔇.
+- **The engine is deterministic**: 30Hz fixed timestep, seeded RNG only (the
+  `Math.random`-free rule is guardrail-scanned), plain-JSON state. That's the
+  test strategy: node sims play whole levels headless (winnable by the scripted
+  build, losable by neglect, wave tables audited against the budget curve), and
+  the shipped `window.__TD` hooks (newGame/script/untilPhase/winL1) are the
+  browser-test contract — the real-time analog of `data-correct`.
+- Every `td-*` hash is **guarded** — locked visitors bounce to Josh's home;
+  `main.js` wraps the fort in try/catch so a fort failure can never break
+  Josh's site.
 
 > **Friend & character art (`scripts/art.js`).** `JoshArt.friend({skin,hair,style,shirt})`
 > draws each kid as a clearly-different portrait (Josh, Raegar, River, Viraj — see

@@ -429,6 +429,18 @@
     const home = document.getElementById("screen-home");
     document.querySelectorAll(".screen").forEach((s) => { s.hidden = true; });
 
+    // 🏰 Jon's fort (hidden adult world). Every td-* route is guarded inside
+    // JonTD.route (session flag) — locked or unknown falls through to Josh's
+    // home. Leaving the fort pauses its game loop and drops the theme.
+    if (id.indexOf("td-") === 0) {
+      try {
+        if (window.JonTD && window.JonTD.route && window.JonTD.route(id)) return;
+      } catch (e) { /* fort failure must never break Josh's site */ }
+      location.hash = "";
+      return;
+    }
+    try { if (window.JonTD && window.JonTD.onLeave) window.JonTD.onLeave(); } catch (e) { /* ignore */ }
+
     if (!id || id === "home") {
       if (home) home.hidden = false;
       document.body.classList.remove("in-game");

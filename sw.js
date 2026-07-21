@@ -30,6 +30,12 @@ const CORE = [
   "./scripts/games-hl-a.js",
   "./scripts/games-hl-b.js",
   "./scripts/hl-main.js",
+  "./scripts/td-data.js",
+  "./scripts/td-logic.js",
+  "./scripts/td-render.js",
+  "./scripts/td-ui.js",
+  "./scripts/td-main.js",
+  "./styles/td.css",
   "./scripts/main.js",
   "./manifest.webmanifest",
 ];

@@ -18,11 +18,12 @@ const SCRIPTS = [
   "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
   "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js",
   "scripts/hl-content.js", "scripts/games-hl-a.js", "scripts/games-hl-b.js", "scripts/hl-main.js",
+  "scripts/td-data.js", "scripts/td-logic.js", "scripts/td-render.js", "scripts/td-ui.js", "scripts/td-main.js",
   "scripts/main.js",
 ];
 
 test("core files exist", () => {
-  for (const f of ["index.html", "styles/main.css", "sw.js", "manifest.webmanifest", ...SCRIPTS]) {
+  for (const f of ["index.html", "styles/main.css", "styles/td.css", "sw.js", "manifest.webmanifest", ...SCRIPTS]) {
     assert.ok(fs.existsSync(path.join(root, f)), `missing ${f}`);
   }
 });
@@ -30,6 +31,7 @@ test("core files exist", () => {
 test("index.html loads every script + css, all cache-busted", () => {
   const html = read("index.html");
   assert.match(html, /styles\/main\.css\?v=/, "css not cache-busted");
+  assert.match(html, /styles\/td\.css\?v=/, "td css not cache-busted");
   assert.match(html, /manifest\.webmanifest\?v=/, "manifest not cache-busted");
   for (const s of SCRIPTS) {
     const rx = new RegExp(s.replace(/[.\/]/g, "\\$&") + "\\?v=");
@@ -39,11 +41,42 @@ test("index.html loads every script + css, all cache-busted", () => {
 
 test("service worker precaches every script + css + index", () => {
   const sw = read("sw.js");
-  for (const s of [...SCRIPTS, "styles/main.css", "index.html"]) {
+  for (const s of [...SCRIPTS, "styles/main.css", "styles/td.css", "index.html"]) {
     assert.ok(sw.includes(s.replace(/^scripts\//, "scripts/")), `SW missing ${s}`);
   }
   assert.match(sw, /addEventListener\(\s*["']fetch["']/, "SW needs a fetch handler");
   assert.match(sw, /addEventListener\(\s*["']install["']/, "SW needs an install handler");
+});
+
+test("guardrail: Fort Josh (TD) is wired in AND fully isolated from the kid worlds", () => {
+  // Jon's gated tower-defense world (PLAN_TOWER_DEFENSE.md). The isolation
+  // invariants are load-bearing: the fort must never leak into Josh's or 华丽's
+  // spaces — no registry entry (so the every-game harness, launcher, Surprise,
+  // Sticker Book and kid audits never see it), its own storage namespace, and
+  // audio only through the ONE iOS-safe JoshAudio path.
+  const tdFiles = SCRIPTS.filter((s) => /scripts\/td-/.test(s));
+  assert.equal(tdFiles.length, 5, "the five td-*.js files are in the SCRIPTS wiring list");
+  for (const f of tdFiles) {
+    const src = read(f);
+    assert.ok(!/JoshFramework\s*\.\s*register|JoshGames\s*\.\s*push/.test(src),
+      f + " must NEVER register into the kid game registry");
+    assert.ok(!/new\s+(webkit)?AudioContext/.test(src),
+      f + " must route audio through JoshAudio.tone (the ONE iOS-safe path)");
+    assert.ok(!/josh-won-/.test(src), f + " must never touch josh-won-* flags");
+    const stores = src.match(/localStorage\.(setItem|getItem|removeItem)\(\s*["'][^"']+/g) || [];
+    for (const call of stores) {
+      assert.ok(/["']jon-td-/.test(call), f + " localStorage keys must be jon-td-* namespaced, got: " + call);
+    }
+  }
+  const ui = read("scripts/td-ui.js");
+  assert.ok(/td-door/.test(ui) && /\.topbar/.test(ui), "the 🏰 door injects into the top bar");
+  assert.match(ui, /td-gate__box[^>]*data-adult/, "the name gate is an adult space (data-adult, kid-audit exempt)");
+  assert.match(ui, /=== "Jon"/, "ONLY the exact name Jon unlocks the fort");
+  const logic = read("scripts/td-logic.js");
+  assert.match(logic, /module\.exports/, "td-logic dual-exports for node sims");
+  assert.ok(!/Math\.random/.test(logic), "the ENGINE must be seeded-RNG only (determinism law)");
+  assert.match(read("scripts/td-data.js"), /module\.exports/, "td-data dual-exports for node truth tests");
+  assert.match(read("scripts/main.js"), /td-/, "main.js routes td-* hashes through the guarded JonTD.route");
 });
 
 test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch)", () => {
