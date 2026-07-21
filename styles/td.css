@@ -105,6 +105,7 @@ body.td-mode .brand { color: #cfe2ff; }
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 .td-bubble[hidden] { display: none; }
+.td-bubble--below { transform: translate(-50%, 30%); } /* flipped under the pad when the top would clip */
 .td-bubble--no { animation: td-shake 0.3s; border-color: #ff9d9d; }
 @keyframes td-shake {
   0%, 100% { margin-left: 0; }

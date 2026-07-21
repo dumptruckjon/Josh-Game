@@ -80,15 +80,73 @@ test("play flow: enter L1, tap a pad, build a Dart with a real tap", async () =>
   // deterministic session for the tap test
   await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
   const goldBefore = await page.evaluate(() => window.__TD.state().gold);
-  // tap pad p3 (cell 9,5 → its centre) via real click coordinates
+  // tap pad p3 (world cell 9,5) through the ONE world→screen mapping, so this
+  // test is orientation-proof (portrait draws the world rotated 90°).
   const rect = await canvas.boundingBox();
-  const cellW = rect.width / 24;
-  await page.mouse.click(rect.x + cellW * 9.5, rect.y + cellW * 5.5);
+  const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
   await page.locator(".td-bubble .td-buy").waitFor({ state: "visible", timeout: 5000 });
   await page.locator(".td-bubble .td-buy").click();
   const st = await page.evaluate(() => window.__TD.state());
   assert.equal(st.towers.length, 1, "the dart was placed by real taps");
   assert.equal(st.gold, goldBefore - 70, "gold paid");
+});
+
+test("orientation: portrait FILLS the screen (rotated world) and landscape stays native", async () => {
+  // Real-device feedback: portrait left most of the page empty. The renderer
+  // now draws the 24×14 world rotated 90° in portrait — the battlefield must
+  // occupy the tall screen, and taps must keep landing (proven above via w2s).
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+  assert.ok(await page.evaluate(() => window.__TD.isRotated()), "390×844 portrait uses the rotated world");
+  let cbox = await page.locator(".td-canvas").boundingBox();
+  assert.ok(cbox.height >= 844 * 0.55, `portrait canvas must fill ≥55% of the screen height, got ${Math.round(cbox.height)}px`);
+  assert.ok(cbox.height > cbox.width, "portrait canvas is taller than wide");
+  // landscape: unrotated, still fits entirely on screen
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(250);
+  assert.ok(!(await page.evaluate(() => window.__TD.isRotated())), "landscape draws unrotated");
+  cbox = await page.locator(".td-canvas").boundingBox();
+  assert.ok(cbox.width > cbox.height, "landscape canvas is wider than tall");
+  assert.ok(cbox.height <= 390, "landscape canvas fits the short screen");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(250);
+});
+
+test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on screen (every pad, 390+320)", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+
+  // outside-tap dismiss: open on p3, then tap the HUD area (not the dialog)
+  let rect = await page.locator(".td-canvas").boundingBox();
+  let sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-bubble").waitFor({ state: "visible" });
+  await page.locator("#screen-td-play .td-hud").click();
+  assert.ok(await page.locator(".td-bubble").isHidden(), "an outside tap dismisses the dialog");
+
+  // fit-on-screen: open the dialog on EVERY pad at both widths; the bubble's
+  // box must sit fully inside the viewport (edge pads used to hang half off).
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.waitForTimeout(250);
+    const pads = await page.evaluate(() => window.__TD.engine().levelDef.pads.map((p) => ({ id: p.id, cx: p.cx, cy: p.cy })));
+    for (const pad of pads) {
+      rect = await page.locator(".td-canvas").boundingBox();
+      sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+      await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+      await page.locator(".td-bubble").waitFor({ state: "visible", timeout: 4000 });
+      const b = await page.locator(".td-bubble").boundingBox();
+      assert.ok(b.x >= 0 && b.x + b.width <= width + 1,
+        `pad ${pad.id} dialog must fit horizontally at ${width}w (x=${Math.round(b.x)} w=${Math.round(b.width)})`);
+      assert.ok(b.y >= 0, `pad ${pad.id} dialog must not poke above the screen (y=${Math.round(b.y)})`);
+      await page.locator("#screen-td-play .td-hud").click(); // dismiss for the next pad
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(250);
 });
 
 test("scripted victory via the shipped __TD hooks: the CI plan wins in-browser too", async () => {

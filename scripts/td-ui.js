@@ -174,9 +174,29 @@
     const b = UI.bubble;
     if (!b) return;
     b.innerHTML = html;
+    b.classList.remove("td-bubble--below");
     b.hidden = false;
     b.style.left = Math.round(xPx) + "px";
     b.style.top = Math.round(yPx) + "px";
+    // A dialog must ALWAYS fit on screen — never half off the page. Measure the
+    // rendered bubble and (a) flip below the anchor if it pokes above the
+    // viewport, (b) clamp horizontally to an 8px margin.
+    const fit = () => {
+      const r = b.getBoundingClientRect();
+      if (r.top < 8) {
+        b.classList.add("td-bubble--below");
+      }
+      const r2 = b.getBoundingClientRect();
+      const vw = doc.documentElement.clientWidth;
+      let shift = 0;
+      if (r2.left < 8) shift = 8 - r2.left;
+      else if (r2.right > vw - 8) shift = (vw - 8) - r2.right;
+      if (shift) b.style.left = Math.round(xPx + shift) + "px";
+      const r3 = b.getBoundingClientRect();
+      const vh = doc.documentElement.clientHeight;
+      if (r3.bottom > vh - 8) b.classList.remove("td-bubble--below");
+    };
+    fit();
   };
   UI.hideBubble = function () { if (UI.bubble) UI.bubble.hidden = true; };
 

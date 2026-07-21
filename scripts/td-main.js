@@ -134,9 +134,10 @@
   function fieldTap(ev) {
     if (!cur) return;
     const rect = UI.canvas.getBoundingClientRect();
-    const cell = cur.render.cellSize();
-    const gx = (ev.clientX - rect.left) / cell;
-    const gy = (ev.clientY - rect.top) / cell;
+    // ONE mapping shared with the renderer — taps stay correct in the rotated
+    // (portrait-filling) orientation exactly as in landscape.
+    const w = cur.render.screenToWorld(ev.clientX - rect.left, ev.clientY - rect.top);
+    const gx = w.x, gy = w.y;
     // nearest pad within 0.9 cells
     let pad = null, best = 0.9 * 0.9;
     for (const p of cur.engine.levelDef.pads) {
@@ -149,7 +150,8 @@
     if (!pad) { UI.hud(cur.engine.state); return; }
 
     const tower = cur.engine.state.towers.find((t) => t.padId === pad.id);
-    const bx = (pad.cx + 0.5) * cell, by = (pad.cy + 0.5) * cell;
+    const sp = cur.render.worldToScreen(pad.cx + 0.5, pad.cy + 0.5);
+    const bx = UI.canvas.offsetLeft + sp.x, by = UI.canvas.offsetTop + sp.y;
     if (!tower) {
       cur.selPadId = pad.id;
       const t1 = DATA.TOWERS.dart.tiers[0];
@@ -225,6 +227,10 @@
         if (s) s.hidden = false;
         if (!cur) startLevel(1, {}); // deep entry → default to L1
         else { cur.paused = false; }
+        // startLevel may have run while the screen was still hidden (hash
+        // routing is async) — the canvas would have sized against a 0-width
+        // parent. Re-measure now that the screen is visible.
+        if (cur) { cur.render.resize(); cur.render.draw(0); }
         global.scrollTo(0, 0);
         return true;
       }
@@ -270,12 +276,25 @@
   });
   doc.addEventListener("visibilitychange", () => { if (doc.hidden && cur) cur.paused = true; });
   global.addEventListener("resize", () => { if (cur) { cur.render.resize(); cur.render.draw(0); } });
+  // Tapping anywhere OUTSIDE the bubble/panel (and off the canvas — canvas taps
+  // re-evaluate in fieldTap) dismisses it, like every native dialog should.
+  doc.addEventListener("pointerdown", (ev) => {
+    const b = UI.bubble;
+    if (!b || b.hidden) return;
+    const t = ev.target;
+    if (b.contains(t) || t === UI.canvas) return;
+    UI.hideBubble();
+    if (cur) { cur.render.setSelection(null); cur.selPadId = null; cur.selTowerId = null; }
+  }, true);
 
   // ---- __TD: the debug/test hooks (PLAN §9.4) — deterministic, renderer-free ----
   global.__TD = {
     engine: () => (cur ? cur.engine : null),
     state: () => (cur ? cur.engine.state : null),
     hash: () => (cur ? TD.hashState(cur.engine.state) : 0),
+    // Orientation contract for tests: the ONE world↔screen mapping + mode.
+    w2s: (x, y) => (cur ? cur.render.worldToScreen(x, y) : { x: 0, y: 0 }),
+    isRotated: () => (cur ? cur.render.isRotated() : false),
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
     // Synchronous command script: [["place","dart","p3"],["upgrade",0],["call"],
