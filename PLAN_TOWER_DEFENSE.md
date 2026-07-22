@@ -332,9 +332,14 @@ Josh might watch over a shoulder).
 > (The Static 8000, Vacuum King 5200), and L12 is proven winnable on **Heroic**.
 > The ±25% budget audit (boss waves exempt) + the best-of-two auto-solver
 > winnability test (all 12 levels × 3 seeds, ≥5 lives, losable by neglect) govern
-> the shipped set. **DEFERRED (a later pass):** the design's dual/merge/fork
-> multi-path layouts + the L10 lever — TD-4 ships each level as a distinct RICH
-> SINGLE path instead (all sim-verifiable); true multi-path is its own subsystem.
+> the shipped set. ~~DEFERRED~~ **✅ SHIPPED (TD-7):** the design's multi-path
+> layouts + the L10 lever. The engine is lane-aware (`paths[]` + per-enemy
+> `pathIdx`; single-path levels stay byte-identical), and **L10 "The Train Set"**
+> is now a real fork: a SHORT default track + a LONG loop that rejoins it, with a
+> 🔀 track-switch **lever** (`pullLever`, 8s cooldown) that sends the incoming
+> train the long way (same tail towers, far more exposure). Winnable on the hard
+> default route by the auto-solver, and a thin build that loses on short WINS with
+> the lever — both sim-proven.
 
 Format per level: world/name, path shape (waypoints authored in `td-data.js`,
 fine-tuned with the debug overlay §9.4), pad count, start gold, waves, base
@@ -539,6 +544,7 @@ Always present (harmless without calls): `__TD.engine` (live engine),
 | **TD-4 Worlds 2-3 ✅ SHIPPED** | ghosts/bots/moles/hawks, conveyors, night, mole-tunnel, L5-L12 (all 12), both bosses (Vacuum King/The Static), world tints + difficulty badges + boss crowns. *Deferred: dual/merge/fork paths + L10 lever → single rich paths ship now.* | 12 sims (Normal) all winnable/losable + L12 Heroic sim green ✓ |
 | **TD-5 Meta ✅ SHIPPED** | 10-node star tree + free respec (pure input at createEngine), 12 achievements (jon-td-ach, toast), endless ×3 per world (deterministic generator, 3⭐-unlock, best-score save), resume/midRun (wave-boundary checkpoint, cold-restore) | engine sims (meta applies, endless escalates/deterministic/losable) + browser tests (buy/respec/persist, badges grid, endless start, resume restore) green |
 | **TD-6 Polish ✅ SHIPPED** | full audio set (distinct mortar/dart/crit cues + optional looping music toggle), fx juice (≤4px screen-shake gated by prefers-reduced-motion + opt-in damage numbers, pause-menu toggles), perf verified (sub-ms ticks on a maxed board), docs + learnings finalized | engine test (events carry tower/dmg) + browser tests (shake fires/gated, toggles persist) + full suite + verify-live green |
+| **TD-7 Multi-path ✅ SHIPPED** | lane-aware engine (`paths[]` + per-enemy `pathIdx`, backward-compatible), the `pullLever` mechanic (was `notYet`), L10 rebuilt as a fork+lever "Train Set" (short default + long loop, 8s track-switch), renderer draws every lane + the lever button, real-tap wiring | 3 engine sims (fork prefix-share/divergence, lever reroute+cooldown, lever turns a thin-build loss→win) + L10 still auto-solver-winnable/neglect-losable + a browser real-tap lever test + a screenshot + full suite + verify-live green |
 
 Est. ~130KB of new code across 6 shippable phases. Docs: CLAUDE.md gets a
 "🏰 Jon's Fort" section (mirroring 华丽's) updated in TD-1 and finalized TD-6.

@@ -108,6 +108,21 @@ test("guardrail: deep-audit fixes stay wired (hidden-immune AoE, per-toast timer
   assert.equal((main.match(/leavingPlay\(\);/g) || []).length >= 2, true, "leavingPlay is called from both the fort-home route and onLeave");
 });
 
+test("guardrail: TD-7 multi-path lanes + the L10 track-switch lever stay wired", () => {
+  // The deferred subsystem, now shipped: an enemy travels its own lane, the lever
+  // is a real mechanic (not the old notYet stub), and the renderer/UI honor lanes.
+  const logic = read("scripts/td-logic.js");
+  assert.ok(!/pullLever:\s*notYet/.test(logic), "the lever is IMPLEMENTED, not the old notYet stub");
+  assert.match(logic, /function pullLever\(\)/, "the engine implements pullLever()");
+  assert.match(logic, /posOn:\s*\(pathIdx/, "the engine exposes posOn(pathIdx,dist) so each enemy renders on its own lane");
+  assert.match(logic, /const epos = \(e\) => posAt\(epath\(e\)/, "enemies move/target on their OWN lane (epath/epos), not always lane 0");
+  const render = read("scripts/td-render.js");
+  assert.match(render, /engine\.posOn\(e\.pathIdx/, "the renderer positions every enemy on its own lane");
+  assert.match(render, /engine\.levelDef\.lever/, "the renderer draws the lever control");
+  const main = read("scripts/td-main.js");
+  assert.match(main, /engine\.pullLever\(\)/, "a field tap on the lever throws it");
+});
+
 test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch)", () => {
   // Self-healing (RULE 7). The page loads every asset with a ?v=<sha> cache-bust
   // query, but the SW precaches the UNVERSIONED paths (CORE lists

@@ -634,6 +634,32 @@ checkpoint's fidelity) and a UI's *robustness* (a corrupt save, a landscape
 dialog, a DOM leak) live exactly where a "does it win?" harness can't see — a
 multi-dimension adversarial audit that drives the engine headless AND reasons about
 save/resume/leave edges is what catches them.
+**Fort Josh TD-7 (multi-path + the L10 lever) taught how to add a load-bearing
+engine capability WITHOUT destabilizing a tuned game.** (1) **Make the new axis a
+default-noop so every existing level is byte-identical** — lanes are
+`paths=[levelDef.path]` and every enemy `pathIdx` defaults 0, so `epath(e)`/`epos(e)`
+resolve to exactly the old single path; all 12 shipped levels keep their
+determinism hashes and winnability with zero changes. The refactor is "grep every
+`posAt(path, X.dist)` and route it through the enemy's OWN lane" — the same
+discipline as the isHidden sweep, applied to positioning. (2) **A fork's two lanes
+must SHARE an identical waypoint prefix so rerouting is seamless** — because
+`posAt(short,d) === posAt(long,d)` for `d ≤ fork.at`, throwing the lever can
+reassign `pathIdx` on every pre-fork enemy with NO teleport; it just diverges when
+it reaches the split. The invariant is guardrail-tested (lanes coincide up to
+`fork.at`, diverge after). (3) **Tune the new level so the EXISTING auto-solver
+still proves it** — L10 is winnable on the hard DEFAULT (short) route by the
+fill-and-upgrade solver (≥5 lives, 3 seeds) and losable by neglect, so it stays in
+the "every level winnable" sim untouched; the lever is then proven SEPARATELY as a
+real edge (a deliberately thin build LOSES on short but WINS once the lever routes
+the train the long way — the same tail towers get far more exposure). Decoupling
+"is it winnable" from "does the new mechanic help" keeps both honest. (4) **A
+mechanic a number-sim can't feel needs a screenshot AND a real-tap browser test**
+— the renderer had to draw a second ribbon and position each enemy on its lane
+(`posOn(pathIdx,dist)`, not always lane 0) or long-lane enemies would render on the
+wrong track; a headless screenshot caught that the lanes + lever button actually
+paint, and a Playwright test taps the lever at its world position (via the shared
+`w2s` map) and asserts the track switches. When a data field replaces a stub
+(`pullLever: notYet` → real), grep every test that pinned the stub and re-point it.
 
 ---
 
@@ -671,9 +697,9 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: 👵🏻 top-bar door + Chinese name gate (只有「华丽」能进) + red-gold launcher + 🏮 sticker book
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds)/gimmicks + TD-5 meta (10-node star tree, 12 achievements, endless arenas)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims)
-│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds; L10 = TD-7 fork+lever)/gimmicks + TD-5 meta (10-node star tree, 12 achievements, endless arenas)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever)
+│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button
 │   ├── td-ui.js                # 🏰 door/gate/screens/HUD/overlays (gate = data-adult; ONLY the exact name "Jon" unlocks) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW; routes td-* through guarded JonTD
@@ -940,10 +966,18 @@ lullaby-march behind its own toggle; **fx juice** — a ≤4px screen-shake on
 boss/Bertha/splash impacts that's fully DISABLED under `prefers-reduced-motion`,
 plus opt-in floating damage numbers (pause-menu toggles for both, off by default);
 and a perf check (the engine ticks sub-millisecond even on a maxed 14-tower
-board). **Deferred, on purpose (not part of TD-6):** true multi-path (dual/merge/
-fork) layouts + the L10 lever — each level ships as a distinct rich SINGLE path
-instead; both are a self-contained future subsystem noted in
-`PLAN_TOWER_DEFENSE.md`. The fort is otherwise feature-complete.
+board). **TD-7 MULTI-PATH** (the last deferred subsystem, now shipped): the
+engine is lane-aware — a level may define multiple `paths[]` and each enemy
+carries a `pathIdx`, positioned/targeted/leaked on its OWN lane (single-path
+levels stay byte-identical: `paths=[path]`, every `pathIdx` 0). **L10 "The Train
+Set"** is now a real fork+lever: two lanes share a prefix then split at the fork
+into a SHORT default track and a LONG loop that rejoins the short tail; throwing
+the 🔀 **track-switch lever** (`pullLever`, 8s cooldown) sends the incoming train
+the long way — the same tail towers hit it far longer (a thin build that LOSES on
+short WINS with the lever). The renderer draws every lane (the switch-track in
+cool steel-blue beneath the warm default) + the lever button (ready/cooldown +
+which way it's thrown); a real field tap throws it. The fort is now
+feature-complete with no deferrals.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

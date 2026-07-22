@@ -36,8 +36,9 @@
       if (mag >= shakeMag * (shakeTtl > 0 ? shakeTtl / 10 : 0)) { shakeMag = mag; shakeTtl = 10; }
     }
     const nightMul = NIGHT ? global.TDData.RULES.nightRangeMult : 1;
-    // static Manhattan length of the lane — the mole's "underground" middle third.
-    const pathTotal = (() => { const wp = engine.levelDef.path; let t = 0; for (let i = 1; i < wp.length; i++) t += Math.abs(wp[i][0] - wp[i - 1][0]) + Math.abs(wp[i][1] - wp[i - 1][1]); return t; })();
+    // TD-7: a level can have multiple lanes; the engine built them all.
+    const lanes = engine.levelDef.paths || [engine.levelDef.path];
+    const pathTotal = engine.paths[0].total; // primary lane length (decor + fallback)
     function tangentAt(dist) { const a = engine.posAt(Math.max(0, dist - 0.35)), b = engine.posAt(Math.min(pathTotal, dist + 0.35)); let tx = b.x - a.x, ty = b.y - a.y; const m = Math.hypot(tx, ty) || 1; return { x: tx / m, y: ty / m }; }
 
     function resize() {
@@ -110,8 +111,8 @@
       for (let x = 0; x < GRID.w; x += 1) { b.beginPath(); b.moveTo(x * cell, 0); b.lineTo(x * cell, H); b.stroke(); }
 
       b.lineCap = "round"; b.lineJoin = "round";
-      const path = engine.levelDef.path;
-      const ribbon = (width, color, dash) => {
+      const primaryPath = lanes[0];
+      const ribbon = (path, width, color, dash) => {
         b.strokeStyle = color; b.lineWidth = width;
         if (dash) b.setLineDash(dash); else b.setLineDash([]);
         b.beginPath();
@@ -119,16 +120,23 @@
         for (const [x, y] of path.slice(1)) b.lineTo((x + 0.5) * cell, (y + 0.5) * cell);
         b.stroke();
       };
-      // a warm wooden toy-road: dark edge, sandy fill, dashed centre line
-      ribbon(cell * 1.16, "#3c2f22");
-      ribbon(cell * 1.0, "#caa268");
-      ribbon(cell * 0.86, "#e0bd83");
-      ribbon(Math.max(2, cell * 0.09), "rgba(255,255,255,0.55)", [cell * 0.34, cell * 0.34]);
+      // TD-7: secondary lanes (the lever's "switch track") beneath, in a cooler
+      // steel-blue so the alternate route reads as a toy train siding.
+      for (let i = lanes.length - 1; i >= 1; i--) {
+        ribbon(lanes[i], cell * 1.12, "#243244");
+        ribbon(lanes[i], cell * 0.9, "#4d6b86");
+        ribbon(lanes[i], Math.max(2, cell * 0.08), "rgba(180,220,255,0.5)", [cell * 0.28, cell * 0.28]);
+      }
+      // the primary (default) lane on top: a warm wooden toy-road
+      ribbon(primaryPath, cell * 1.16, "#3c2f22");
+      ribbon(primaryPath, cell * 1.0, "#caa268");
+      ribbon(primaryPath, cell * 0.86, "#e0bd83");
+      ribbon(primaryPath, Math.max(2, cell * 0.09), "rgba(255,255,255,0.55)", [cell * 0.34, cell * 0.34]);
       b.setLineDash([]);
-      // spawn/exit endcaps tinted so the route reads at a glance
+      // spawn/exit endcaps tinted so the route reads at a glance (lanes share both)
       const cap = (pt, color) => { b.fillStyle = color; b.beginPath(); b.arc((pt[0] + 0.5) * cell, (pt[1] + 0.5) * cell, cell * 0.6, 0, 7); b.fill(); };
-      cap(path[0], "rgba(120,170,255,0.25)");
-      cap(path[path.length - 1], "rgba(120,255,170,0.25)");
+      cap(primaryPath[0], "rgba(120,170,255,0.25)");
+      cap(primaryPath[primaryPath.length - 1], "rgba(120,255,170,0.25)");
 
       // build pads: bolted steel sockets that clearly say "build here"
       for (const p of engine.levelDef.pads) {
@@ -333,7 +341,8 @@
       } else if (e.type === "mole") {
         // Digger Mole: above ground a brown mole; in the middle third it BURROWS —
         // shown as a scrolling dirt mound (matches the engine's untargetable zone).
-        const under = e.dist > pathTotal / 3 && e.dist < (pathTotal * 2) / 3;
+        const laneTot = engine.paths[e.pathIdx || 0].total; // its own lane's middle third
+        const under = e.dist > laneTot / 3 && e.dist < (laneTot * 2) / 3;
         if (under) {
           ctx.fillStyle = "#6e4d29"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.2, r * 0.95, r * 0.5, 0, Math.PI, 0); ctx.fill();
           ctx.fillStyle = "#5a3e20"; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(sx + k * r * 0.4, sy + r * 0.18, r * 0.14, 0, 7); ctx.fill(); }
@@ -736,7 +745,7 @@
       const lerped = [];
       for (const e of st.enemies) {
         if (!e.alive) continue;
-        const curP = engine.posAt(e.dist);
+        const curP = engine.posOn(e.pathIdx, e.dist);
         const prev = prevPos.get(e.id) || curP;
         const wx = prev.x + (curP.x - prev.x) * alpha + 0.5;
         const wy = prev.y + (curP.y - prev.y) * alpha + 0.5;
@@ -765,7 +774,30 @@
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText(ch, p.x, p.y);
       };
-      const s0 = engine.levelDef.path[0], s1 = engine.levelDef.path[engine.levelDef.path.length - 1];
+      // TD-7: the track-switch lever — a tappable round button on the fork. Red
+      // when ready, steel + a sweeping ring while cooling down; a little arm shows
+      // which way the track is currently thrown (route 0 = short, 1 = long).
+      if (engine.levelDef.lever) {
+        const lv = engine.levelDef.lever;
+        const lp = worldToScreen(lv.cx + 0.5, lv.cy + 0.5);
+        const cdLeft = st.leverCd - st.tick, cool = Math.max(0, cdLeft) / (8 * global.TDData.TICK_RATE);
+        const rad = cell * 0.46;
+        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(lp.x, lp.y + cell * 0.14, rad * 0.95, rad * 0.45, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = cool > 0 ? "#54627a" : "#c8382a";
+        ctx.beginPath(); ctx.arc(lp.x, lp.y, rad, 0, 7); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = Math.max(2, cell * 0.06);
+        ctx.beginPath(); ctx.arc(lp.x, lp.y, rad, 0, 7); ctx.stroke();
+        if (cool > 0) { // shrinking arc shows the cooldown draining
+          ctx.strokeStyle = "rgba(255,225,120,0.95)"; ctx.lineWidth = Math.max(2, cell * 0.1);
+          ctx.beginPath(); ctx.arc(lp.x, lp.y, rad * 0.72, -Math.PI / 2, -Math.PI / 2 + (1 - cool) * 2 * Math.PI); ctx.stroke();
+        }
+        // the thrown-arm indicator (points toward the active branch direction)
+        const dir = st.leverRoute ? -1 : 1;
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(2, cell * 0.09); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(lp.x, lp.y + cell * 0.1); ctx.lineTo(lp.x + dir * cell * 0.24, lp.y - cell * 0.24); ctx.stroke();
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(lp.x + dir * cell * 0.24, lp.y - cell * 0.24, cell * 0.08, 0, 7); ctx.fill();
+      }
+      const prim = lanes[0]; const s0 = prim[0], s1 = prim[prim.length - 1]; // lanes share spawn+exit
       const spawnGlyph = engine.levelDef.world === "backyard" ? "🌳" : engine.levelDef.world === "toystore" ? "🧸" : "🛏";
       glyph(s0[0], s0[1], spawnGlyph);
       glyph(s1[0], s1[1], "🚪");
@@ -787,7 +819,7 @@
 
     function afterTick() {
       prevPos.clear();
-      for (const e of engine.state.enemies) if (e.alive) prevPos.set(e.id, engine.posAt(e.dist));
+      for (const e of engine.state.enemies) if (e.alive) prevPos.set(e.id, engine.posOn(e.pathIdx, e.dist));
     }
 
     resize();

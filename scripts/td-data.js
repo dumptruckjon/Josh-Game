@@ -28,6 +28,7 @@
     brittleBonus: 1.2,   // brittle enemies take +20% of ALL damage
     soldierWalkSpeed: 2, // cells/sec to the rally point
     nightRangeMult: 0.85, // TD-4 night levels: −15% tower reach (Fan exempt)
+    leverCooldown: 8, // TD-7: seconds between L10 track-switch pulls
   };
 
   // ---- Towers (§4): 4 lines × tiers 1-3 + two exclusive tier-4 branches ----
@@ -383,27 +384,38 @@
       name: "The Train Set",
       world: "toystore",
       badge: 3,
-      startGold: 380,
+      startGold: 420,
       budgetBase: 560,
-      path: [ [0, 6], [6, 6], [6, 2], [17, 2], [17, 11], [7, 11], [7, 8], [23, 8] ],
+      // TD-7 — the fork+lever level. Two lanes share [0,7]→[10,7] then diverge at
+      // the fork [10,7]: the SHORT track (lane 0, the default) goes up and across;
+      // the LONG track (lane 1) drops into a loop before rejoining the short tail
+      // at [10,2]. Throwing the 🔀 lever (8s cooldown) sends the incoming train
+      // the LONG way — the same tail towers hit it for far longer. Winnable on the
+      // hard default route by a sensible build; the lever is the active-play edge.
+      paths: [
+        [ [0, 7], [10, 7], [10, 2], [21, 2], [21, 12], [13, 12], [13, 7], [23, 7] ],
+        [ [0, 7], [10, 7], [10, 12], [4, 12], [4, 2], [10, 2], [21, 2], [21, 12], [13, 12], [13, 7], [23, 7] ],
+      ],
+      fork: { at: 10 },       // length of the shared prefix — where the tracks split
+      lever: { cx: 10, cy: 7 }, // the tappable switch, sitting on the fork
       pads: [
-        { id: "p1", cx: 2, cy: 8 }, { id: "p2", cx: 5, cy: 4 }, { id: "p3", cx: 8, cy: 4 }, { id: "p4", cx: 7, cy: 0 }, { id: "p5", cx: 11, cy: 4 }, { id: "p6", cx: 14, cy: 0 }, { id: "p7", cx: 15, cy: 3 }, { id: "p8", cx: 19, cy: 6 }, { id: "p9", cx: 15, cy: 9 }, { id: "p10", cx: 16, cy: 13 }, { id: "p11", cx: 13, cy: 9 }, { id: "p12", cx: 9, cy: 13 },
+        { id: "p1", cx: 8, cy: 5 }, { id: "p2", cx: 13, cy: 0 }, { id: "p3", cx: 17, cy: 0 }, { id: "p4", cx: 19, cy: 4 }, { id: "p5", cx: 19, cy: 8 }, { id: "p6", cx: 23, cy: 5 }, { id: "p7", cx: 15, cy: 9 }, { id: "p8", cx: 11, cy: 9 }, { id: "p9", cx: 16, cy: 13 }, { id: "p10", cx: 20, cy: 11 }, { id: "p11", cx: 6, cy: 4 }, { id: "p12", cx: 2, cy: 5 }, { id: "p13", cx: 6, cy: 10 }, { id: "p14", cx: 2, cy: 9 },
       ],
       waves: [
         { groups: [ { type: "sock", count: 12, gap: 0.85, delay: 0 }, { type: "knight", count: 3, gap: 1, delay: 3 } ] },
-        { groups: [ { type: "mole", count: 8, gap: 0.9, delay: 0 }, { type: "marble", count: 12, gap: 0.55, delay: 3 } ] },
-        { groups: [ { type: "mole", count: 7, gap: 0.9, delay: 0 }, { type: "knight", count: 5, gap: 1, delay: 3 } ] },
-        { groups: [ { type: "blob", count: 10, gap: 0.85, delay: 0 }, { type: "mole", count: 7, gap: 0.9, delay: 3 } ] },
-        { groups: [ { type: "knight", count: 8, gap: 1, delay: 0 }, { type: "mole", count: 7, gap: 0.9, delay: 3 }, { type: "battery", count: 2, gap: 0.9, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 10, gap: 1, delay: 0 }, { type: "mole", count: 8, gap: 0.9, delay: 3 }, { type: "marble", count: 6, gap: 0.55, delay: 4 } ] },
-        { groups: [ { type: "blob", count: 16, gap: 0.85, delay: 0 }, { type: "mole", count: 9, gap: 0.9, delay: 3 }, { type: "ghost", count: 4, gap: 0.9, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 13, gap: 1, delay: 0 }, { type: "mole", count: 10, gap: 0.9, delay: 3 }, { type: "battery", count: 6, gap: 0.9, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 16, gap: 1, delay: 0 }, { type: "mole", count: 10, gap: 0.9, delay: 3 }, { type: "blob", count: 8, gap: 0.85, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 18, gap: 1, delay: 0 }, { type: "mole", count: 12, gap: 0.9, delay: 3 }, { type: "ghost", count: 8, gap: 0.9, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 22, gap: 1, delay: 0 }, { type: "mole", count: 12, gap: 0.9, delay: 3 }, { type: "blob", count: 12, gap: 0.85, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 26, gap: 1, delay: 0 }, { type: "mole", count: 14, gap: 0.9, delay: 3 }, { type: "battery", count: 12, gap: 0.9, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 30, gap: 1, delay: 0 }, { type: "mole", count: 16, gap: 0.9, delay: 3 }, { type: "blob", count: 14, gap: 0.85, delay: 4 }, { type: "ghost", count: 6, gap: 0.9, delay: 5 } ] },
-        { groups: [ { type: "knight", count: 36, gap: 1, delay: 0 }, { type: "mole", count: 18, gap: 0.9, delay: 3 }, { type: "blob", count: 16, gap: 0.85, delay: 4 }, { type: "battery", count: 8, gap: 0.9, delay: 5 } ] },
+        { groups: [ { type: "mole", count: 7, gap: 0.9, delay: 0 }, { type: "marble", count: 10, gap: 0.55, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 6, gap: 0.9, delay: 0 }, { type: "knight", count: 5, gap: 1, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 9, gap: 0.85, delay: 0 }, { type: "mole", count: 6, gap: 0.9, delay: 3 } ] },
+        { groups: [ { type: "knight", count: 8, gap: 1, delay: 0 }, { type: "mole", count: 6, gap: 0.9, delay: 3 }, { type: "battery", count: 2, gap: 0.9, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 10, gap: 1, delay: 0 }, { type: "mole", count: 7, gap: 0.9, delay: 3 }, { type: "marble", count: 6, gap: 0.55, delay: 4 } ] },
+        { groups: [ { type: "blob", count: 14, gap: 0.85, delay: 0 }, { type: "mole", count: 8, gap: 0.9, delay: 3 }, { type: "ghost", count: 4, gap: 0.9, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 12, gap: 1, delay: 0 }, { type: "mole", count: 9, gap: 0.9, delay: 3 }, { type: "battery", count: 5, gap: 0.9, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 15, gap: 1, delay: 0 }, { type: "mole", count: 9, gap: 0.9, delay: 3 }, { type: "blob", count: 7, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 17, gap: 1, delay: 0 }, { type: "mole", count: 11, gap: 0.9, delay: 3 }, { type: "ghost", count: 7, gap: 0.9, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 21, gap: 1, delay: 0 }, { type: "mole", count: 11, gap: 0.9, delay: 3 }, { type: "blob", count: 11, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 25, gap: 1, delay: 0 }, { type: "mole", count: 13, gap: 0.9, delay: 3 }, { type: "battery", count: 11, gap: 0.9, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 29, gap: 1, delay: 0 }, { type: "mole", count: 15, gap: 0.9, delay: 3 }, { type: "blob", count: 13, gap: 0.85, delay: 4 }, { type: "ghost", count: 6, gap: 0.9, delay: 5 } ] },
+        { groups: [ { type: "knight", count: 34, gap: 1, delay: 0 }, { type: "mole", count: 17, gap: 0.9, delay: 3 }, { type: "blob", count: 15, gap: 0.85, delay: 4 }, { type: "battery", count: 8, gap: 0.9, delay: 5 } ] },
       ],
     },
     {

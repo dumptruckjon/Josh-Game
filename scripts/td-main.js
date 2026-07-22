@@ -80,6 +80,8 @@
       else if (kind === "leak") { A.tone(330, { duration: 0.12, gain: 0.1, type: "sine" }); setTimeout(() => A.tone(262, { duration: 0.16, gain: 0.1, type: "sine" }), 110); }
       else if (kind === "wave") { [440, 440, 440, 587].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.07, gain: 0.1 }), i * 90)); }
       else if (kind === "boss") { [220, 175, 220, 175].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.22, gain: 0.16, type: "square" }), i * 240)); } // klaxon
+      else if (kind === "lever") { [523, 784].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.09, gain: 0.12, type: "square" }), i * 80)); } // a ka-CHUNK track switch
+      else if (kind === "deny") A.tone(196, { duration: 0.12, gain: 0.08, type: "sine" }); // lever on cooldown — a soft low bump
       else if (kind === "won") { if (A.winCue) A.winCue(); }
       else if (kind === "lost") { [392, 330, 262].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.18, gain: 0.1, type: "sine" }), i * 160)); }
     } catch (e) { /* audio must never break play */ }
@@ -383,6 +385,16 @@
       UI.hideBubble();
       cur.render.setSelection(r.ok ? { tower: armed } : null);
       if (r.ok) sfx("build");
+      return;
+    }
+    // TD-7: tap the track-switch lever to send the train the long way
+    const lever = cur.engine.levelDef.lever;
+    if (lever && (lever.cx + 0.5 - gx) ** 2 + (lever.cy + 0.5 - gy) ** 2 <= 0.95 * 0.95) {
+      const r = cur.engine.pullLever();
+      UI.hideBubble(); cur.render.setSelection(null);
+      cur.selPadId = null; cur.selTowerId = null;
+      if (r.ok) sfx("lever");
+      else if (r.reason === "cooldown") sfx("deny");
       return;
     }
     // nearest pad within 0.9 cells

@@ -100,8 +100,10 @@ test("TD wave-budget audit: every authored wave sits within ±25% of the level c
     for (const p of level.pads) {
       assert.ok(p.cx >= 0 && p.cx < DATA.GRID.w && p.cy >= 0 && p.cy < DATA.GRID.h, `pad ${p.id} on grid`);
     }
-    for (const [x, y] of level.path) {
-      assert.ok(x >= 0 && x <= DATA.GRID.w - 1 && y >= 0 && y <= DATA.GRID.h - 1, "waypoint on grid");
+    for (const lane of (level.paths || [level.path])) { // TD-7: a level may carry multiple lanes
+      for (const [x, y] of lane) {
+        assert.ok(x >= 0 && x <= DATA.GRID.w - 1 && y >= 0 && y <= DATA.GRID.h - 1, "waypoint on grid");
+      }
     }
   }
 });
@@ -159,7 +161,7 @@ test("TD targeting modes are accepted and reset the lock; phase-gated APIs answe
   assert.equal(e.setTargeting(t.id, "cheapest").reason, "bad-mode");
   assert.equal(e.branch(t.id, "a").reason, "not-tier3", "branching is tier-3-gated");
   assert.equal(e.rally(t.id, 2, 2).reason, "bad-id", "only camps rally");
-  assert.equal(e.pullLever("l1").reason, "not-built-yet", "levers arrive with L10 (TD-4)");
+  assert.equal(e.pullLever().reason, "no-lever", "a level without a lever rejects a pull (L1 has none)");
 });
 
 test("TD2 selling a camp mid-melee frees its blocked enemies and dismisses the squad", () => {
@@ -1054,4 +1056,64 @@ test("AUDIT: chain-lightning must NOT arc onto a phased (hidden) ghost", () => {
   assert.ok(sawHidden && sawVisible, "the ghost cycled through both phased and visible during the sample");
   assert.ok(hitWhileVisible, "the chain DOES reach the ghost when it is visible (the jump path is exercised)");
   assert.ok(!hitWhileHidden, "the chain NEVER damages the ghost while it is phased out (hidden)");
+});
+
+// ===================== TD-7: multi-path lanes + the L10 lever =====================
+
+test("TD7 L10 fork: lanes share the prefix (seamless reroute) then diverge into a longer loop", () => {
+  const L10 = DATA.LEVELS.find((l) => l.id === 10);
+  assert.ok(L10.paths && L10.paths.length === 2, "L10 ships two lanes");
+  assert.ok(L10.lever && L10.fork, "L10 has a lever control + a fork point");
+  const e = TD.createEngine(L10, { seed: 1 });
+  // the shared prefix: world position is IDENTICAL on both lanes up to fork.at,
+  // so rerouting a pre-fork enemy never teleports it.
+  for (let d = 0; d <= L10.fork.at; d += 0.5) {
+    const a = e.posOn(0, d), b = e.posOn(1, d);
+    assert.ok(Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.y - b.y) < 1e-9, `lanes coincide at d=${d}`);
+  }
+  // just past the fork they genuinely diverge, and the long lane is strictly longer
+  const af = e.posOn(0, L10.fork.at + 1), bf = e.posOn(1, L10.fork.at + 1);
+  assert.ok(Math.abs(af.x - bf.x) + Math.abs(af.y - bf.y) > 0.5, "the lanes split at the fork");
+  assert.ok(e.paths[1].total > e.paths[0].total, `long lane (${e.paths[1].total}) is longer than short (${e.paths[0].total})`);
+});
+
+test("TD7 lever: a pull reroutes pre-fork enemies to the long lane, gated by an 8s cooldown", () => {
+  const L10 = DATA.LEVELS.find((l) => l.id === 10);
+  const e = TD.createEngine(L10, { seed: 7 });
+  e.callWave();
+  for (let i = 0; i < 30; i++) e.tick(); // let a few enemies march in on the default short lane
+  assert.ok(e.state.enemies.some((x) => x.alive && x.pathIdx === 0), "enemies default to the short lane (route 0)");
+  const before = e.state.leverRoute;
+  const r = e.pullLever();
+  assert.ok(r.ok && e.state.leverRoute === 1 && before === 0, "the lever throws and switches the track to the long lane");
+  assert.equal(e.pullLever().reason, "cooldown", "an immediate second pull is refused (8s cooldown)");
+  const pre = e.state.enemies.filter((x) => x.alive && x.dist < L10.fork.at);
+  assert.ok(pre.length > 0 && pre.every((x) => x.pathIdx === 1), "every enemy still on the shared prefix is rerouted long");
+  // the cooldown eventually lifts (8s = 240 ticks) and it can be thrown back
+  for (let i = 0; i < 245; i++) e.tick();
+  assert.ok(e.pullLever().ok, "after the cooldown the track can be switched back");
+});
+
+test("TD7 lever advantage: sending the train the LONG way (more coverage) saves lives", () => {
+  const L10 = DATA.LEVELS.find((l) => l.id === 10);
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function play(pull) {
+    const e = TD.createEngine(L10, { seed: 7 });
+    const thin = L10.pads.slice(0, 5).map((p) => p.id); // a deliberately thin build → not trivially won
+    let g = 0, everLong = false;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 400000) {
+      if (e.state.phase === "build") {
+        for (const pid of thin) if (!e.state.towers.find((t) => t.padId === pid) && e.state.gold >= cost("dart", 0)) e.place("dart", pid);
+        for (const t of e.state.towers) if (t.tier < 3 && e.state.gold >= cost("dart", t.tier)) e.upgrade(t.id);
+        e.callWave();
+      }
+      if (pull && e.state.phase === "wave") e.pullLever(); // throw it whenever able (cooldown-gated internally)
+      e.tick();
+      if (e.state.enemies.some((x) => x.alive && x.pathIdx === 1)) everLong = true;
+    }
+    return { phase: e.state.phase, lives: e.state.lives, everLong };
+  }
+  const shortRun = play(false), longRun = play(true);
+  assert.ok(longRun.everLong, "pulling actually routed enemies down the long lane");
+  assert.ok(longRun.lives > shortRun.lives, `the long route saves lives (short-only ${shortRun.lives} → with-lever ${longRun.lives})`);
 });

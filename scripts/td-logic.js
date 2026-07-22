@@ -142,8 +142,15 @@
     const diff = DATA.DIFFICULTIES[difficulty] || DATA.DIFFICULTIES.normal;
     const seed = hashSeed(levelDef.id, difficulty, opts.seed == null ? 1 : opts.seed);
     const rng = mulberry32(seed);
-    const path = buildPath(levelDef.path);
+    // TD-7: a level may define multiple lanes (`paths[]`) — a fork/merge or a
+    // lever-switched track. Single-path levels are exactly `[levelDef.path]`, so
+    // every enemy stays `pathIdx` 0 and behaviour is byte-identical to before.
+    const paths = (levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path]).map(buildPath);
+    const path = paths[0]; // primary lane: rendering default + single-path reference
+    const epath = (e) => paths[e.pathIdx || 0]; // the lane an enemy is travelling
+    const epos = (e) => posAt(epath(e), e.dist); // its world position on that lane
     let nextId = 1;
+    let spawnLane = 0; // round-robin lane cursor for non-lever multi-lane levels
     // Level gimmicks (TD-4): night dims every tower's reach EXCEPT the Fan (it
     // "feels" the cold, not sees), and conveyor strips speed enemies over a
     // stretch of the lane. Both are pure data read in the hot loops.
@@ -175,6 +182,8 @@
       stars: 0,
       cheated: false,
       endless: !!endlessWorld,
+      leverRoute: 0, // TD-7: which lane new / pre-fork enemies take (lever levels)
+      leverCd: 0,    // tick until the lever can be thrown again
       enemies: [],
       towers: [],
       soldiers: [],
@@ -213,10 +222,17 @@
       emit({ type: "wave", n: state.waveIdx + 1 });
     }
 
-    function spawnEnemy(type, dist) {
+    function spawnEnemy(type, dist, pathIdx) {
       const def = DATA.ENEMIES[type];
+      // lane: split/summon children inherit their parent's (passed in); a lever
+      // level sends fresh spawns down the currently-thrown route; a plain
+      // multi-lane level round-robins; a single-path level is always lane 0.
+      const lane = pathIdx != null ? pathIdx
+        : levelDef.lever ? state.leverRoute
+        : paths.length > 1 ? (spawnLane++ % paths.length)
+        : 0;
       state.enemies.push({
-        id: nextId++, type,
+        id: nextId++, type, pathIdx: lane,
         dist: dist || 0,
         hp: Math.round(def.hp * diff.hp),
         maxHp: Math.round(def.hp * diff.hp),
@@ -258,10 +274,10 @@
         if (!h.alive) continue;
         const def = enemyDef(h);
         if (!def.heal) continue;
-        const hp = posAt(path, h.dist), r2 = def.heal.radius * def.heal.radius;
+        const hp = epos(h), r2 = def.heal.radius * def.heal.radius;
         for (const e of state.enemies) {
           if (!e.alive || e === h || e.hp >= e.maxHp) continue;
-          const p = posAt(path, e.dist);
+          const p = epos(e);
           if ((p.x - hp.x) ** 2 + (p.y - hp.y) ** 2 <= r2) e.hp = Math.min(e.maxHp, e.hp + def.heal.hps * DT);
         }
       }
@@ -285,7 +301,7 @@
         if (b.stompCd === 0) { b.stompCd = state.tick + Math.round(def.stomp.seconds * DATA.TICK_RATE); continue; }
         if (state.tick < b.stompCd) continue;
         b.stompCd = state.tick + Math.round(def.stomp.seconds * DATA.TICK_RATE);
-        const bp = posAt(path, b.dist), r2 = def.stomp.radius * def.stomp.radius;
+        const bp = epos(b), r2 = def.stomp.radius * def.stomp.radius;
         for (const s of state.soldiers) {
           if (!s.alive) continue;
           if ((s.x - bp.x) ** 2 + (s.y - bp.y) ** 2 <= r2) {
@@ -312,7 +328,7 @@
         if (!e.alive) continue;
         const def = enemyDef(e);
         if (!def.boss) continue;
-        const bp = posAt(path, e.dist);
+        const bp = epos(e);
         // Vacuum King: suck the nearest living soldier (instant KO) on a timer.
         if (def.suck) {
           if (e.suckCd === 0) e.suckCd = state.tick + Math.round(def.suck.every * DATA.TICK_RATE);
@@ -347,7 +363,7 @@
           if (e.minionCd === 0) e.minionCd = state.tick + Math.round(ph.spawn.every * DATA.TICK_RATE);
           else if (state.tick >= e.minionCd) {
             e.minionCd = state.tick + Math.round(ph.spawn.every * DATA.TICK_RATE);
-            for (let i = 0; i < ph.spawn.count; i++) pendingSpawns.push({ type: ph.spawn.type, dist: Math.max(0, e.dist - 0.5 - i * 0.4) });
+            for (let i = 0; i < ph.spawn.count; i++) pendingSpawns.push({ type: ph.spawn.type, dist: Math.max(0, e.dist - 0.5 - i * 0.4), pathIdx: e.pathIdx || 0 });
             emit({ type: "summon", x: bp.x, y: bp.y });
           }
         }
@@ -363,8 +379,8 @@
       state.gold += bounty + (def.goldBurst || 0); // Piñata candy-burst
       // Splitters (Mud Blob) spawn children at the death spot — BUFFERED so we
       // never mutate state.enemies mid-iteration; flushed after the combat pass.
-      if (def.split) for (let i = 0; i < def.split.count; i++) pendingSpawns.push({ type: def.split.into, dist: e.dist });
-      const p = posAt(path, e.dist);
+      if (def.split) for (let i = 0; i < def.split.count; i++) pendingSpawns.push({ type: def.split.into, dist: e.dist, pathIdx: e.pathIdx || 0 });
+      const p = epos(e);
       emit({ type: "die", x: p.x, y: p.y, bounty, enemy: e.type, how });
     }
 
@@ -419,7 +435,7 @@
         else if (mode === "strong" && (e.hp > best.hp || (e.hp === best.hp && e.dist > best.dist))) best = e;
         else if (mode === "cheap" && (e.hp < best.hp || (e.hp === best.hp && e.dist > best.dist))) best = e; // TD-5 "Weakest": finish the almost-dead
         else if (mode === "close") {
-          const pb = posAt(path, best.dist), pe = posAt(path, e.dist);
+          const pb = epos(best), pe = epos(e);
           if ((pe.x - t.cx) ** 2 + (pe.y - t.cy) ** 2 < (pb.x - t.cx) ** 2 + (pb.y - t.cy) ** 2) best = e;
         }
       }
@@ -430,7 +446,7 @@
     function isHidden(e) {
       const def = enemyDef(e);
       if (def.phase && e.phaseHidden) return true;
-      if (def.tunnel && e.dist > path.total / 3 && e.dist < (path.total * 2) / 3) return true;
+      if (def.tunnel) { const tot = epath(e).total; if (e.dist > tot / 3 && e.dist < (tot * 2) / 3) return true; }
       return false;
     }
     function candidates(t, minR, maxR, fliersOk) {
@@ -438,7 +454,7 @@
       for (const e of state.enemies) {
         if (!e.alive || isHidden(e)) continue;
         if (!fliersOk && enemyDef(e).flier) continue;
-        const p = posAt(path, e.dist);
+        const p = epos(e);
         const d2 = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2;
         if (d2 <= maxR * maxR && d2 >= minR * minR) out.push(e);
       }
@@ -451,14 +467,16 @@
     // blockade, instead of scattering to the side of it. Deterministic (fixed
     // sampling, no RNG).
     function pathTangentAt(px, py) {
-      let bestD = Infinity, bestDist = 0;
-      for (let d = 0; d <= path.total; d += 0.2) {
-        const p = posAt(path, d);
-        const dd = (p.x - px) ** 2 + (p.y - py) ** 2;
-        if (dd < bestD) { bestD = dd; bestDist = d; }
+      let bestD = Infinity, bestDist = 0, bestPath = path;
+      for (const pth of paths) { // TD-7: nearest point across every lane
+        for (let d = 0; d <= pth.total; d += 0.2) {
+          const p = posAt(pth, d);
+          const dd = (p.x - px) ** 2 + (p.y - py) ** 2;
+          if (dd < bestD) { bestD = dd; bestDist = d; bestPath = pth; }
+        }
       }
-      const a = posAt(path, Math.max(0, bestDist - 0.35));
-      const b = posAt(path, Math.min(path.total, bestDist + 0.35));
+      const a = posAt(bestPath, Math.max(0, bestDist - 0.35));
+      const b = posAt(bestPath, Math.min(bestPath.total, bestDist + 0.35));
       let tx = b.x - a.x, ty = b.y - a.y;
       const m = Math.hypot(tx, ty) || 1;
       return { x: tx / m, y: ty / m };
@@ -492,10 +510,12 @@
     function defaultRally(pad) {
       // nearest point on the path within rally range of the pad (sampled)
       let best = null, bestD = Infinity;
-      for (let d = 0; d <= path.total; d += 0.25) {
-        const p = posAt(path, d);
-        const dd = (p.x - (pad.cx + 0.5)) ** 2 + (p.y - (pad.cy + 0.5)) ** 2;
-        if (dd < bestD) { bestD = dd; best = p; }
+      for (const pth of paths) { // TD-7: rally to the nearest point on ANY lane
+        for (let d = 0; d <= pth.total; d += 0.25) {
+          const p = posAt(pth, d);
+          const dd = (p.x - (pad.cx + 0.5)) ** 2 + (p.y - (pad.cy + 0.5)) ** 2;
+          if (dd < bestD) { bestD = dd; best = p; }
+        }
       }
       return best || { x: pad.cx + 0.5, y: pad.cy + 0.5 };
     }
@@ -521,7 +541,7 @@
           if (!e.alive || e.blockedBy) continue;
           const ed = enemyDef(e);
           if (ed.flier || ed.boss || isHidden(e)) continue;
-          const p = posAt(path, e.dist);
+          const p = epos(e);
           if ((p.x - sol.x) ** 2 + (p.y - sol.y) ** 2 <= 0.55 * 0.55) {
             e.blockedBy = sol.id;
             if (!sol.engagedId) sol.engagedId = e.id;
@@ -607,7 +627,7 @@
           const dartRange = s.range * rangeMul; // night dims the dart's reach
           let keep = false;
           if (cur && t.targeting === "first" && !isHidden(cur)) { // drop a target that phased/tunnelled away
-            const p = posAt(path, cur.dist);
+            const p = epos(cur);
             keep = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2 <= dartRange * dartRange;
           }
           const prevTarget = t.targetId;
@@ -636,9 +656,9 @@
           const target = targetId ? enemyById(targetId) : null;
           if (target && t.cooldown <= 0) {
             t.cooldown = Math.round(s.rate * DATA.TICK_RATE);
-            const p = posAt(path, target.dist);
+            const p = epos(target);
             const flight = Math.sqrt((p.x - t.cx) ** 2 + (p.y - t.cy) ** 2) / def.shellSpeed;
-            const lead = posAt(path, target.dist + effSpeed(target) * flight);
+            const lead = posAt(epath(target), target.dist + effSpeed(target) * flight);
             state.shells.push({
               id: nextId++, sx: t.cx, sy: t.cy, x: t.cx, y: t.cy,
               tx: lead.x, ty: lead.y, t: 0, T: Math.max(1, Math.round(flight * DATA.TICK_RATE)),
@@ -664,7 +684,7 @@
                 const points = [{ x: t.cx, y: t.cy }];
                 while (cur2 && hitIds.length < s.chain.targets) {
                   hitIds.push(cur2.id);
-                  const p = posAt(path, cur2.dist);
+                  const p = epos(cur2);
                   points.push({ x: p.x, y: p.y });
                   const hit = computeHit(Math.round(dmg), "zap", cur2);
                   dealDamage(cur2, hit.hpDmg, hit.shieldDmg, "zap");
@@ -673,7 +693,7 @@
                   let next = null, bestD = s.chain.jump * s.chain.jump;
                   for (const e of state.enemies) {
                     if (!e.alive || isHidden(e) || hitIds.indexOf(e.id) >= 0) continue; // chain can't arc onto a hidden (phased/tunnelling) enemy
-                    const q = posAt(path, e.dist);
+                    const q = epos(e);
                     const dd = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
                     if (dd <= bestD) { bestD = dd; next = e; }
                   }
@@ -711,7 +731,7 @@
           emit({ type: "splash", x: sh.tx, y: sh.ty, r: sh.splash });
           for (const e of state.enemies) {
             if (!e.alive || enemyDef(e).flier || isHidden(e)) continue; // hidden (phased ghost / tunnelling mole) is untargetable, incl. by AoE
-            const p = posAt(path, e.dist);
+            const p = epos(e);
             const d = Math.sqrt((p.x - sh.tx) ** 2 + (p.y - sh.ty) ** 2);
             if (d <= sh.splash) {
               const factor = d <= 0.5 ? 1 : Math.max(0.25, 1 - ((d - 0.5) / (sh.splash - 0.5)) * 0.75);
@@ -761,7 +781,7 @@
         }
         if (state.tick < e.stunnedUntil) continue;
         e.dist += effSpeed(e) * DT;
-        if (e.dist >= path.total) leakEnemy(e);
+        if (e.dist >= epath(e).total) leakEnemy(e);
       }
       if (state.phase === "lost") return;
 
@@ -776,7 +796,7 @@
       for (const pr of state.projectiles) {
         const target = enemyById(pr.targetId);
         if (!target) { pr.dead = true; continue; }
-        const tp = posAt(path, target.dist);
+        const tp = epos(target);
         const dx = tp.x - pr.x, dy = tp.y - pr.y;
         const d = Math.sqrt(dx * dx + dy * dy);
         const step = pr.speed * DT;
@@ -793,7 +813,7 @@
       state.projectiles = state.projectiles.filter((p) => !p.dead);
       shellTick();
       // flush split-children (Mud Blob) now that the combat pass is done
-      while (pendingSpawns.length) { const s = pendingSpawns.shift(); spawnEnemy(s.type, s.dist); }
+      while (pendingSpawns.length) { const s = pendingSpawns.shift(); spawnEnemy(s.type, s.dist, s.pathIdx); }
       state.enemies = state.enemies.filter((e) => e.alive || state.phase !== "wave");
 
       finishIfWaveDone();
@@ -911,12 +931,27 @@
       startWave();
       return { ok: true, bonus };
     }
-    const notYet = () => ({ ok: false, reason: "not-built-yet" }); // TD-4 (levers)
+    // TD-7: throw the track-switch lever (L10). Toggles which lane fresh spawns
+    // take AND reroutes every enemy still on the shared prefix (dist < fork.at) —
+    // which is seamless because both lanes share identical geometry up to the
+    // fork, so the enemy's world position is unchanged; it just diverges when it
+    // reaches the split. An 8s cooldown keeps it a deliberate, active-play tool.
+    function pullLever() {
+      if (!levelDef.lever) return { ok: false, reason: "no-lever" };
+      if (state.phase !== "wave" && state.phase !== "build") return { ok: false, reason: "over" };
+      if (state.tick < state.leverCd) return { ok: false, reason: "cooldown" };
+      state.leverRoute = state.leverRoute ? 0 : 1;
+      state.leverCd = state.tick + Math.round((R.leverCooldown || 8) * DATA.TICK_RATE);
+      const forkAt = levelDef.fork ? levelDef.fork.at : 0;
+      for (const e of state.enemies) if (e.alive && e.dist < forkAt) e.pathIdx = state.leverRoute;
+      emit({ type: "lever", route: state.leverRoute });
+      return { ok: true, route: state.leverRoute };
+    }
 
     return {
       state, events, tick, place, upgrade, branch, sell, setTargeting, rally, callWave,
-      pullLever: notYet,
-      path, posAt: (dist) => posAt(path, dist),
+      pullLever,
+      paths, path, posAt: (dist) => posAt(path, dist), posOn: (pathIdx, dist) => posAt(paths[pathIdx || 0], dist),
       isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
       levelDef,
     };
