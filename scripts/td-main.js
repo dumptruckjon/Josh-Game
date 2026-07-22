@@ -30,6 +30,8 @@
   let save = load();
   if (!save.difficulty || !DATA.DIFFICULTIES[save.difficulty]) save.difficulty = "normal";
   if (!save.settings) save.settings = { sfx: true };
+  if (typeof save.settings.dmgNumbers !== "boolean") save.settings.dmgNumbers = false; // TD-6 opt-in
+  if (typeof save.settings.music !== "boolean") save.settings.music = false;            // TD-6 opt-in, off by default
   if (!Array.isArray(save.meta)) save.meta = [];   // TD-5 star-tree nodes owned
   if (!Array.isArray(save.ach)) save.ach = [];     // TD-5 achievement ids earned
   if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
@@ -53,7 +55,7 @@
 
   // ---- SFX (through the ONE iOS-safe JoshAudio.tone; global 🔇 + fort toggle) ----
   let lastShotCue = 0;
-  function sfx(kind) {
+  function sfx(kind, arg) {
     if (!save.settings.sfx) return;
     try {
       if (A.isMuted && A.isMuted()) return; // fort sounds respect the global 🔇 too
@@ -62,8 +64,15 @@
       else if (kind === "sell") A.tone(280, { duration: 0.12, gain: 0.1, type: "sine" });
       else if (kind === "shoot") {
         const now = Date.now();
-        if (now - lastShotCue > 120) { lastShotCue = now; A.tone(1500, { duration: 0.03, gain: 0.05, type: "square" }); }
+        if (now - lastShotCue > 110) {
+          lastShotCue = now;
+          // a mortar THUMPs, a dart TICKs — distinct so the ear reads the mix
+          if (arg === "mortar") A.tone(180, { duration: 0.07, gain: 0.09, type: "sine" });
+          else if (arg === "fan") A.tone(880, { duration: 0.05, gain: 0.05, type: "sine" });
+          else A.tone(1500, { duration: 0.03, gain: 0.05, type: "square" });
+        }
       }
+      else if (kind === "crit") A.tone(2100, { duration: 0.05, gain: 0.08, type: "square" }); // a sharp sparkle on a Sniper crit
       else if (kind === "die") A.tone(980, { duration: 0.06, gain: 0.07 });
       else if (kind === "chain") A.tone(1200, { duration: 0.08, gain: 0.08, type: "square" });
       else if (kind === "splash") A.tone(110, { duration: 0.18, gain: 0.14, type: "sine" });
@@ -75,10 +84,31 @@
     } catch (e) { /* audio must never break play */ }
   }
 
+  // ---- TD-6 optional music: a gentle looping lullaby-march via scheduled tones
+  //      (the Team-Song setTimeout-composer precedent). OFF by default, behind its
+  //      own toggle, mute-gated — never gates gameplay on a timer. ----
+  let musicTimer = 0;
+  const MELODY = [392, 440, 494, 523, 494, 440, 392, 330]; // G A B C B A G E
+  function stopMusic() { if (musicTimer) { clearTimeout(musicTimer); musicTimer = 0; } }
+  function startMusic() {
+    stopMusic();
+    if (!save.settings.music || !save.settings.sfx) return;
+    let i = 0;
+    const step = () => {
+      try {
+        if (!save.settings.music || !save.settings.sfx || (A.isMuted && A.isMuted())) { musicTimer = 0; return; }
+        A.tone(MELODY[i % MELODY.length], { duration: 0.28, gain: 0.045, type: "sine" });
+        i += 1;
+        musicTimer = setTimeout(step, 430);
+      } catch (e) { musicTimer = 0; }
+    };
+    musicTimer = setTimeout(step, 300);
+  }
+
   // ---- The running session ----
   let cur = null; // { engine, render, raf, acc, lastT, speed, paused, selPadId, selTowerId }
 
-  function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } }
+  function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } stopMusic(); }
 
   // TD-5: award every achievement this outcome earns (skipped on a cheated run).
   function awardWinAchievements(st) {
@@ -143,7 +173,8 @@
     const evs = cur.engine.events;
     for (const e of evs) {
       cur.render.pushFx(e);
-      if (e.type === "shoot") sfx("shoot");
+      if (e.type === "shoot") sfx("shoot", e.tower);
+      else if (e.type === "hit" && e.crit) sfx("crit");
       else if (e.type === "die") { sfx("die"); if (!cur.sawKill && !cur.engine.state.cheated) { cur.sawKill = true; earnAch("firstblood"); } }
       else if (e.type === "leak") { sfx("leak"); cur.leaked = true; }
       else if (e.type === "soldier-down") cur.soldiersLost += 1; // TD-5 Dyson Denied tracking
@@ -205,8 +236,10 @@
     const meta = opts.meta || save.meta || [];
     const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta });
     const render = R.create(UI.canvas, engine);
+    if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
       lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1 }; // TD-5 achievement context
+    startMusic(); // TD-6 optional looping march (no-op unless the toggle is on)
     UI.closeOverlay();
     UI.hideBubble();
     if (UI.hideBanner) UI.hideBanner(); // never inherit the previous level's boss klaxon
@@ -497,12 +530,15 @@
       if (!cur) return;
       if (cur.paused) { cur.paused = false; UI.closeOverlay(); return; }
       cur.paused = true;
-      UI.showPause({
+      const openPause = () => UI.showPause({
         resume: () => { cur.paused = false; UI.closeOverlay(); },
-        restart: () => { UI.closeOverlay(); startLevel(cur.engine.state.levelId, {}); },
-        sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); cur.paused = false; UI.closeOverlay(); },
+        restart: () => { UI.closeOverlay(); startLevel(cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId, cur.engine.state.endless ? { levelDef: cur.levelDef } : {}); },
+        sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); if (!save.settings.sfx) stopMusic(); else startMusic(); openPause(); },
+        music: () => { save.settings.music = !save.settings.music; persist(save); if (save.settings.music) startMusic(); else stopMusic(); openPause(); },
+        dmg: () => { save.settings.dmgNumbers = !save.settings.dmgNumbers; persist(save); if (cur.render.setDamageNumbers) cur.render.setDamageNumbers(save.settings.dmgNumbers); openPause(); },
         quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },
       }, save.settings);
+      openPause();
     },
     toggleSpeed: () => {
       if (!cur) return;
@@ -533,6 +569,7 @@
   // ---- __TD: the debug/test hooks (PLAN §9.4) — deterministic, renderer-free ----
   global.__TD = {
     engine: () => (cur ? cur.engine : null),
+    render: () => (cur ? cur.render : null), // TD-6: shakeInfo/setDamageNumbers for tests
     state: () => (cur ? cur.engine.state : null),
     hash: () => (cur ? TD.hashState(cur.engine.state) : 0),
     // Orientation contract for tests: the ONE world↔screen mapping + mode.

@@ -605,6 +605,51 @@ test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores th
   await page.evaluate(() => { window.__TD.resetSave(); }); // clean up for later tests
 });
 
+test("TD6 fx juice: a Mortar splash shakes the screen, and prefers-reduced-motion disables it", async () => {
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  // motion ALLOWED → a splash triggers a (small, ≤4px) shake at some point
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(1, { seed: 7 }); window.__TD.grantGold(9000); });
+  const maxShake = await page.evaluate(() => {
+    window.__TD.script([["place", "mortar", "p3"], ["upgrade", 0], ["call"]]);
+    let mx = 0;
+    for (let s = 0; s < 40; s++) { window.__TD.script([["tick", 12]]); const info = window.__TD.render().shakeInfo(); mx = Math.max(mx, info.ttl); }
+    return mx;
+  });
+  assert.ok(maxShake > 0, "a Mortar splash triggers a screen-shake when motion is allowed");
+  // motion REDUCED → the renderer reports reduced and never shakes
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const reduced = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 }); window.__TD.grantGold(9000);
+    window.__TD.script([["place", "mortar", "p3"], ["upgrade", 0], ["call"]]);
+    let mx = 0, info = window.__TD.render().shakeInfo();
+    for (let s = 0; s < 40; s++) { window.__TD.script([["tick", 12]]); info = window.__TD.render().shakeInfo(); mx = Math.max(mx, info.ttl); }
+    return { reducedFlag: info.reduced, mx };
+  });
+  assert.equal(reduced.reducedFlag, true, "the renderer honors prefers-reduced-motion");
+  assert.equal(reduced.mx, 0, "reduced-motion means NO screen-shake ever");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+});
+
+test("TD6 pause options: Music and Damage-number toggles flip + persist", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(1, { seed: 7 }); });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  // newGame leaves the run PAUSED (test hook) — the first tap unpauses; the second opens the menu.
+  await page.locator("#screen-td-play .td-pause").click();
+  await page.locator("#screen-td-play .td-pause").click();
+  await page.locator('.td-overlay--pause').waitFor({ state: "visible" });
+  // toggle music ON
+  await page.locator('.td-overlay--pause [data-act="music"]').click();
+  let music = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).settings.music);
+  assert.equal(music, true, "Music toggle persists");
+  // toggle damage numbers ON (the menu re-renders each toggle, stays open)
+  await page.locator('.td-overlay--pause [data-act="dmg"]').click();
+  const dmg = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).settings.dmgNumbers);
+  assert.equal(dmg, true, "Damage-number toggle persists");
+  await page.locator('.td-overlay--pause [data-act="resume"]').click();
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

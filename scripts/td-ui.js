@@ -443,6 +443,8 @@
       '<button class="td-btn" data-act="resume" type="button">▶ Resume</button>' +
       '<button class="td-btn" data-act="restart" type="button">🔁 Restart level</button>' +
       '<button class="td-btn" data-act="sfx" type="button">' + (settings.sfx ? "🔔 Sounds on" : "🔕 Sounds off") + "</button>" +
+      '<button class="td-btn" data-act="music" type="button">' + (settings.music ? "🎵 Music on" : "🎵 Music off") + "</button>" +
+      '<button class="td-btn" data-act="dmg" type="button">' + (settings.dmgNumbers ? "🔢 Damage numbers on" : "🔢 Damage numbers off") + "</button>" +
       '<button class="td-btn" data-act="quit" type="button">🏰 Back to the fort</button>');
     el.addEventListener("click", (ev) => {
       const act = ev.target && ev.target.dataset && ev.target.dataset.act;

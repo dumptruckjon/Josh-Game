@@ -781,7 +781,7 @@
         const step = pr.speed * DT;
         if (d <= Math.max(0.18, step)) {
           const hit = computeHit(pr.dmg, pr.dmgType, target);
-          emit({ type: "hit", x: tp.x, y: tp.y, crit: pr.crit || false });
+          emit({ type: "hit", x: tp.x, y: tp.y, crit: pr.crit || false, dmg: hit.hpDmg + hit.shieldDmg }); // dmg for the opt-in damage-number fx
           dealDamage(target, hit.hpDmg, hit.shieldDmg, "dart");
           pr.dead = true;
         } else {

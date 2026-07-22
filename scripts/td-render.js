@@ -24,6 +24,17 @@
     let bg = null;
     const NIGHT = !!engine.levelDef.night;
     const ZONES = engine.levelDef.zones || null;
+    // TD-6 fx juice: a tiny screen-shake on heavy impacts (boss/Bertha/stomp),
+    // capped ≤4px and DISABLED under prefers-reduced-motion. Deterministic decay
+    // (tick-driven, no Math.random). Damage numbers are opt-in (settings toggle).
+    const reduceMotion = !!(global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    let shakeTtl = 0, shakeMag = 0;
+    let showDmg = false; // set via api.setDamageNumbers
+    function triggerShake(mag) {
+      if (reduceMotion) return;
+      mag = Math.min(4, mag);
+      if (mag >= shakeMag * (shakeTtl > 0 ? shakeTtl / 10 : 0)) { shakeMag = mag; shakeTtl = 10; }
+    }
     const nightMul = NIGHT ? global.TDData.RULES.nightRangeMult : 1;
     // static Manhattan length of the lane — the mole's "underground" middle third.
     const pathTotal = (() => { const wp = engine.levelDef.path; let t = 0; for (let i = 1; i < wp.length; i++) t += Math.abs(wp[i][0] - wp[i - 1][0]) + Math.abs(wp[i][1] - wp[i - 1][1]); return t; })();
@@ -564,7 +575,14 @@
     }
 
     function pushFx(e) {
-      if (e.type === "hit") fx.push({ kind: "poof", x: e.x, y: e.y, ttl: 8, max: 8 });
+      if (e.type === "hit") {
+        fx.push({ kind: "poof", x: e.x, y: e.y, ttl: 8, max: 8 });
+        if (e.crit) triggerShake(2);
+        if (showDmg && e.dmg) fx.push({ kind: "dmgnum", x: e.x, y: e.y, ttl: 22, max: 22, text: (e.crit ? "" : "") + e.dmg, crit: !!e.crit });
+      }
+      else if (e.type === "splash") { fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 12, max: 12 }); triggerShake(1.5); }
+      else if (e.type === "stomp") { fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 14, max: 14 }); triggerShake(3.5); } // boss shockwave
+      else if (e.type === "boss") triggerShake(3);
       else if (e.type === "die") {
         fx.push({ kind: "stars", x: e.x, y: e.y, ttl: 16, max: 16 });
         fx.push({ kind: "gold", x: e.x, y: e.y, ttl: 26, max: 26, text: "+" + e.bounty });
@@ -574,9 +592,7 @@
         if (cur) cur.ttl = cur.max; else fx.push({ kind: "leak", x: 0, y: 0, ttl: 10, max: 10 });
       }
       else if (e.type === "chain") fx.push({ kind: "chain", points: e.points, ttl: 7, max: 7 });
-      else if (e.type === "splash") fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 12, max: 12 });
       else if (e.type === "stun") fx.push({ kind: "stars", x: e.x, y: e.y, ttl: 10, max: 10 });
-      else if (e.type === "stomp") fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 14, max: 14 }); // boss shockwave
       else if (e.type === "rally") fx.push({ kind: "ring", x: e.x, y: e.y, ttl: 10, max: 10 });
       else if (e.type === "suck") fx.push({ kind: "suck", x: e.x, y: e.y, sx: e.sx, sy: e.sy, ttl: 14, max: 14 }); // Vacuum King inhale
       else if (e.type === "disable") fx.push({ kind: "spark", x: e.x + 0.5, y: e.y + 0.5, ttl: 16, max: 16 }); // The Static jam
@@ -654,6 +670,12 @@
           ctx.font = "bold " + Math.round(cell * 0.55) + "px sans-serif";
           ctx.textAlign = "center";
           ctx.fillText(f.text, p.x, p.y - (1 - a) * cell);
+        } else if (f.kind === "dmgnum") { // TD-6 opt-in damage numbers
+          const p = worldToScreen(f.x, f.y);
+          ctx.fillStyle = (f.crit ? "rgba(255,180,90," : "rgba(255,255,255,") + a + ")";
+          ctx.font = "bold " + Math.round(cell * (f.crit ? 0.6 : 0.44)) + "px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(f.text, p.x, p.y - cell * 0.5 - (1 - a) * cell * 0.8);
         } else if (f.kind === "leak") {
           ctx.fillStyle = "rgba(255,90,90," + (0.25 * a) + ")";
           ctx.fillRect(0, 0, cssW, cssH);
@@ -665,7 +687,15 @@
 
     function draw(alpha) {
       if (!bg) bakeBg();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cssW, cssH);
+      // TD-6 screen-shake: offset the whole frame a few px on heavy impacts,
+      // decaying deterministically. enterWorld()/character pass inherit it.
+      if (shakeTtl > 0) {
+        const m = shakeMag * (shakeTtl / 10);
+        ctx.setTransform(dpr, 0, 0, dpr, Math.sin(shakeTtl * 1.9) * m * dpr, Math.cos(shakeTtl * 2.7) * m * dpr);
+        shakeTtl -= 1;
+      }
       const st = engine.state;
 
       // ---------- FLOOR pass (rotation-transformed) ----------
@@ -764,6 +794,8 @@
     return {
       draw, resize, pushFx, afterTick,
       setSelection: (s) => { selection = s; },
+      setDamageNumbers: (on) => { showDmg = !!on; }, // TD-6 opt-in
+      shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
       cellSize: () => cell,
       isRotated: () => rotated,
       worldToScreen, screenToWorld,

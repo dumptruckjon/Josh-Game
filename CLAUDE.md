@@ -559,6 +559,30 @@ next wave from `waveIdx`. Checkpoint granularity is the wave boundary (mid-wave
 enemy positions are never saved — honest), the restore is marked `cheated:false`
 (earned, not cheated), and `cur.lastBuildWave` is pre-set so the restore doesn't
 immediately re-checkpoint itself.
+**Fort Josh TD-6 (the polish pass) taught that "feel" polish is where the
+untestable-by-tap bugs hide — so each juice feature shipped WITH the seam that
+makes it verifiable.** (1) **A screen-shake must be OFF under
+`prefers-reduced-motion`, and that has to be a real, tested gate — not a hopeful
+CSS media query** — the shake lives in the canvas transform (JS), so the renderer
+reads `matchMedia("(prefers-reduced-motion: reduce)")` ONCE at create and a
+browser test drives it BOTH ways (`page.emulateMedia`) asserting the shake fires
+when motion is allowed and NEVER when reduced. A juice effect a screenshot can't
+freeze still gets a deterministic test via a `shakeInfo()` hook. (2) **An fx the
+player can toggle needs the value THREADED, not just a flag** — damage numbers
+read their amount off the `hit` event, so the engine now carries `dmg` (and
+`tower`) on the event; the render metadata belongs on the event, computed once at
+the damage site, so sfx (mortar-thump vs dart-tick) and the number fx both read it
+without recomputing. (3) **Perf worry is often unfounded — MEASURE before
+optimizing** — the fear was thousands of endless enemies dropping frames, but a
+headless timing showed sub-millisecond ticks even on a maxed 14-tower board (a
+competent build keeps the on-screen count low, and the frame loop already caps at
+6 ticks/frame), so TD-6 added no speculative perf code. (4) **Looping music is the
+setTimeout-composer precedent, mute-gated and OFF by default** — it schedules
+gentle tones on a timer (never gating gameplay), stops on `stopLoop`, and re-checks
+the mute + its own toggle every note so a mid-song mute silences it. Lesson: polish
+is real work, and the discipline that made the tap-harness honest — a hook per
+effect, the datum on the event, a measurement before a "fix" — is exactly what
+keeps the FEEL layer honest too.
 
 ---
 
@@ -598,7 +622,7 @@ tooling.
 │   ├── hl-main.js              # 华丽's shell: 👵🏻 top-bar door + Chinese name gate (只有「华丽」能进) + red-gold launcher + 🏮 sticker book
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds)/gimmicks + TD-5 meta (10-node star tree, 12 achievements, endless arenas)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims)
-│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks)
+│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers
 │   ├── td-ui.js                # 🏰 door/gate/screens/HUD/overlays (gate = data-adult; ONLY the exact name "Jon" unlocks) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW; routes td-* through guarded JonTD
@@ -821,7 +845,7 @@ The name gate accepts **only the exact input `Jon`** (trim+NFC, case-sensitive;
 `sessionStorage["td-ok"]`, session-scoped). This is an **adult space**: real
 difficulty, real defeat screens, real timers — RULE 5's kid laws deliberately do
 not apply inside (the gate is what keeps it from Josh; precedent: 华丽's
-`data-adult`). Status: **TD-1 + TD-2 + TD-3 + TD-4 + TD-5 shipped** — shell +
+`data-adult`). Status: **COMPLETE (TD-1 … TD-6 all shipped)** — shell +
 deterministic engine + **all 12 Levels across 3 worlds** (Bedroom L1-4, Backyard
 L5-8, Toy Store L9-12; distinct path/pad layouts, a rising difficulty curve, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
@@ -858,9 +882,17 @@ Leaks/Pea Purist/Ice Age/Star Collector/Full Fort/Marathoner/Heroic Heart);
 budget `300·1.16^n`, a mini-boss every 5th wave — unlocked once a world's 4
 levels are 3⭐, best score saved per world); and **resume mid-run** (a
 wave-boundary checkpoint in `save.midRun` → a Resume banner on the fort home that
-cold-restores the build). **Deferred to a later pass:** true multi-path (dual/
-merge/fork) layouts + the L10 lever (single rich paths ship now instead); the
-audio/fx/perf polish pass (TD-6) is specified in `PLAN_TOWER_DEFENSE.md`.
+cold-restores the build). **TD-6 POLISH** finishes it: a full audio-cue set
+through `JoshAudio.tone` (a distinct mortar THUMP vs dart TICK vs a crit sparkle,
+plus build/upgrade/sell/zap/leak/wave/boss/win/defeat) with an optional looping
+lullaby-march behind its own toggle; **fx juice** — a ≤4px screen-shake on
+boss/Bertha/splash impacts that's fully DISABLED under `prefers-reduced-motion`,
+plus opt-in floating damage numbers (pause-menu toggles for both, off by default);
+and a perf check (the engine ticks sub-millisecond even on a maxed 14-tower
+board). **Deferred, on purpose (not part of TD-6):** true multi-path (dual/merge/
+fork) layouts + the L10 lever — each level ships as a distinct rich SINGLE path
+instead; both are a self-contained future subsystem noted in
+`PLAN_TOWER_DEFENSE.md`. The fort is otherwise feature-complete.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

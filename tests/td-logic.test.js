@@ -959,6 +959,23 @@ test("TD5 endless: escalating generated waves, deterministic per seed, scored by
   assert.ok(e.state.waveIdx >= neglectScore + 8, `a real build lasts many waves past neglect (built reached ${e.state.waveIdx} vs neglect ${neglectScore})`);
 });
 
+test("TD6 events carry render metadata: shoot→tower (distinct sfx), hit→dmg/crit (damage numbers)", () => {
+  const lvl = { id: 82, name: "m", world: "test", startGold: 9000, budgetBase: 100, path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 3 }], waves: [{ groups: [{ type: "sock", count: 3, gap: 0.4, delay: 0 }] }] };
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.place("dart", "m"); e.callWave();
+  let sawShootTower = false, sawHitDmg = false;
+  for (let i = 0; i < 300 && e.state.phase === "wave"; i++) {
+    e.tick();
+    for (const ev of e.events) {
+      if (ev.type === "shoot" && ev.tower === "dart") sawShootTower = true;
+      if (ev.type === "hit" && typeof ev.dmg === "number" && ev.dmg > 0) sawHitDmg = true;
+    }
+    e.events.length = 0;
+  }
+  assert.ok(sawShootTower, "a shoot event names its tower line (so mortar/dart/fan get distinct cues)");
+  assert.ok(sawHitDmg, "a hit event carries its damage (for the opt-in damage-number fx)");
+});
+
 test("TD5 achievements data-shape: 12 unique ids with names + descriptions, icons ≤ Emoji 13.0", () => {
   assert.equal(DATA.ACHIEVEMENTS.length, 12, "12 achievements");
   const ids = new Set(DATA.ACHIEVEMENTS.map((a) => a.id));
