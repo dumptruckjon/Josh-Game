@@ -360,17 +360,24 @@
         if (t.cooldown > 0) t.cooldown -= 1;
 
         if (def.kind === "dart") {
+          // "first" stays STICKY (no thrash — hold the leader until it dies or
+          // leaves range). strong/last/close must RE-EVALUATE every tick — the
+          // old sticky-keep honored the mode only at acquisition, so a stronger
+          // (or newly-most-progressed / closer) enemy entering range was ignored
+          // and the mode read as inert. fan/mortar already re-pick each tick.
           const cur = enemyById(t.targetId);
           let keep = false;
-          if (cur) {
+          if (cur && t.targeting === "first") {
             const p = posAt(path, cur.dist);
             keep = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2 <= s.range * s.range;
           }
-          if (!keep) {
-            t.targetId = pickByMode(candidates(t, 0, s.range, def.hitsFliers), t.targeting, t);
-            if (s.spinUp) t.heat = s.heatFloor; // retarget resets the spin-up
-          } else if (s.spinUp) {
-            t.heat = Math.min(1, (t.heat || s.heatFloor) + DT / s.spinUp);
+          const prevTarget = t.targetId;
+          if (!keep) t.targetId = pickByMode(candidates(t, 0, s.range, def.hitsFliers), t.targeting, t);
+          if (s.spinUp) {
+            // Minigun spin-up ramps only while locked on the SAME target; a real
+            // retarget resets it (a same-tick re-pick of the same enemy does not).
+            if (t.targetId && t.targetId === prevTarget) t.heat = Math.min(1, (t.heat || s.heatFloor) + DT / s.spinUp);
+            else t.heat = s.heatFloor;
           }
           if (t.targetId && t.cooldown <= 0) {
             t.cooldown = Math.round(s.rate * DATA.TICK_RATE);
@@ -634,7 +641,11 @@
       t.rallyX = x; t.rallyY = y;
       const slots = rallySlots(t);
       for (const sol of state.soldiers) {
-        if (sol.campId === t.id && sol.alive && !sol.engagedId) {
+        // Update EVERY living soldier's post — including one mid-melee. An
+        // engaged soldier keeps fighting (soldierTick's engaged branch runs and
+        // `continue`s before the walk step); it marches to the NEW post only
+        // once it disengages, so a rally issued during combat is honored.
+        if (sol.campId === t.id && sol.alive) {
           sol.tx = slots[sol.slot % slots.length].x;
           sol.ty = slots[sol.slot % slots.length].y;
         }

@@ -141,8 +141,37 @@ body.td-mode #screens { padding: 0; }
 .td-target { background: #2fa562; color: #08331c; }
 .td-branch { background: #7a5cd6; color: #f2edff; font-size: 0.88rem; max-width: 40vw; }
 .td-rally { background: #e2626b; color: #fff1f1; }
-.td-panel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 70vw; }
+/* Build-menu buttons stack icon · ROLE · price so a player knows the job. */
+.td-buy {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; line-height: 1.05; min-height: 62px;
+}
+.td-buy__icon { font-size: 1.3rem; }
+.td-buy__role { font-size: 0.6rem; font-weight: 700; opacity: 0.78; text-transform: uppercase; letter-spacing: 0.02em; }
+.td-buy__cost { font-size: 0.92rem; }
+.td-panel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 74vw; }
 .td-panel__name { font-weight: 800; color: #ffe27a; padding: 0 4px; white-space: nowrap; }
+.td-panel__stats { width: 100%; font-size: 0.72rem; color: #9db4dd; padding: 0 4px 2px; white-space: nowrap; }
+
+/* difficulty selector (fort home) */
+.td-diff { display: flex; gap: 8px; justify-content: center; margin: 0 0 14px; }
+.td-diffbtn {
+  flex: 1; max-width: 130px; min-height: 46px; padding: 8px 6px;
+  border-radius: 12px; border: 2px solid #3a548a; background: #182a4a;
+  color: #cfe2ff; font-weight: 800; font-size: 0.95rem;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.td-diffbtn--on { background: #ffd94a; color: #3a2c00; border-color: #ffd94a; }
+
+/* next-wave preview strip (floats at the top of the field during build) */
+.td-nextwave {
+  position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
+  z-index: 6; padding: 4px 12px; border-radius: 999px;
+  background: rgba(11, 21, 38, 0.82); color: #e8eefc;
+  font-weight: 800; font-size: 0.9rem; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.td-nextwave[hidden] { display: none; }
 
 /* ---- overlays ---- */
 .td-overlay {

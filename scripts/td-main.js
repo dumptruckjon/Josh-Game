@@ -28,6 +28,8 @@
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
   }
   let save = load();
+  if (!save.difficulty || !DATA.DIFFICULTIES[save.difficulty]) save.difficulty = "normal";
+  if (!save.settings) save.settings = { sfx: true };
 
   // ---- SFX (through the ONE iOS-safe JoshAudio.tone; global 🔇 + fort toggle) ----
   let lastShotCue = 0;
@@ -121,7 +123,11 @@
     const levelDef = DATA.LEVELS.find((l) => l.id === levelId);
     if (!levelDef) { location.hash = "#td-home"; return; }
     stopLoop();
-    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty: "normal" });
+    // Difficulty flows from the fort-home selector (persisted in save); a test
+    // hook may override per-call. The engine fully supports casual/normal/heroic
+    // (hp/speed/bounty/start-gold multipliers) — casual eases, heroic bites hard.
+    const difficulty = opts.difficulty || save.difficulty || "normal";
+    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty });
     const render = R.create(UI.canvas, engine);
     cur = { engine, render, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null };
     UI.closeOverlay();
@@ -132,6 +138,27 @@
     render.resize();
     render.draw(0);
     cur.raf = requestAnimationFrame(frame);
+  }
+
+  // A compact stat line for the tower panel — so the player can read what a
+  // tower actually does at its current tier (premium-TD table stakes).
+  function statLine(t) {
+    const def = DATA.TOWERS[t.lineId];
+    const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
+    if (t.lineId === "fan") {
+      let str = "❄ " + Math.round(s.slow * 100) + "% slow · " + s.auraRange + " aura";
+      if (s.chain) str += " · chain"; else if (s.zapDps) str += " · " + s.zapDps + " zap";
+      return str;
+    }
+    if (t.lineId === "camp") {
+      const dps = s.soldiers * s.dmg / s.rate;
+      return "🪖 " + s.soldiers + "×" + s.hp + "hp · " + dps.toFixed(0) + " dps";
+    }
+    const dps = s.dmg / s.rate; // dart / mortar
+    let str = dps.toFixed(0) + " dps · " + s.range + " rng";
+    if (s.splash) str += " · 💥" + s.splash;
+    if (s.crit) str += " · crit";
+    return str;
   }
 
   // ---- Field input: tap pads to build, towers to manage ----
@@ -177,8 +204,13 @@
         lines.map((id) => {
           const d = DATA.TOWERS[id];
           const cost = d.tiers[0].cost;
+          // icon + ROLE (single-shot / splash / slows / blocks path) + price, so
+          // a player knows what each toy DOES, not just what it costs.
           return '<button class="td-buy" data-line="' + id + '" type="button"' + (gold < cost ? " disabled" : "") + ">" +
-            d.icon + " " + cost + "🪙</button>";
+            '<span class="td-buy__icon">' + d.icon + "</span>" +
+            '<span class="td-buy__role">' + d.role + "</span>" +
+            '<span class="td-buy__cost">' + cost + "🪙</span>" +
+            "</button>";
         }).join("") +
         "</div>",
         bx, by
@@ -216,6 +248,7 @@
       UI.showBubble(
         '<div class="td-panel">' +
           '<span class="td-panel__name">' + s.name + "</span>" +
+          '<span class="td-panel__stats">' + statLine(tower) + "</span>" +
           middle + control +
           '<button class="td-sell" type="button">💰 sell ' + refund + "</button>" +
         "</div>",
@@ -269,7 +302,11 @@
       if (id === "td-home") {
         doc.body.classList.add("td-mode");
         doc.body.classList.remove("in-game");
-        UI.renderLevelGrid(save, (n) => { location.hash = "#td-play"; startLevel(n, {}); });
+        UI.renderLevelGrid(
+          save,
+          (n) => { location.hash = "#td-play"; startLevel(n, {}); },
+          (d) => { if (DATA.DIFFICULTIES[d]) { save.difficulty = d; persist(save); } } // sticks for the next level start
+        );
         const s = doc.getElementById("screen-td-home");
         if (s) s.hidden = false;
         if (cur) { cur.paused = true; }

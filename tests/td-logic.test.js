@@ -419,3 +419,84 @@ test("TD2 mixed arsenal: deterministic replay AND an all-four-lines L1 build win
   assert.equal(final.phase, "won", "the all-lines L1 build wins");
   assert.ok(final.lives >= 8, `all-lines build keeps ≥8 lives, got ${final.lives}`);
 });
+
+// ================= Audit fixes (targeting, balance, difficulty, rally) =================
+
+test("AUDIT: dart 'strong' targeting re-evaluates every tick (not sticky-locked on the first-acquired)", () => {
+  // The sticky-keep bug made strong/last/close inert — a stronger enemy entering
+  // range was ignored. Fix: non-'first' modes re-pick each tick. Over a whole
+  // wave, the dart set to 'strong' must almost never sit locked on a strictly-
+  // weaker enemy while a UNIQUE strongest is in range (residual = HP-tie / same-
+  // tick-death timing only). Baseline (buggy) was ~60% of sampled ticks.
+  const e = TD.createEngine(L1, { seed: 7 });
+  e.place("dart", "p3"); const t = e.state.towers[0];
+  e.setTargeting(t.id, "strong");
+  e.callWave();
+  const R = DATA.TOWERS.dart.tiers[0].range;
+  let sampled = 0, violations = 0;
+  for (let i = 0; i < 1500 && e.state.phase === "wave"; i++) {
+    e.tick();
+    const inRange = e.state.enemies.filter((en) => {
+      if (!en.alive) return false; const p = e.posAt(en.dist);
+      return (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2 <= R * R;
+    });
+    if (inRange.length < 2) continue;
+    const maxHp = Math.max.apply(null, inRange.map((x) => x.hp));
+    const topCount = inRange.filter((x) => x.hp === maxHp).length;
+    if (topCount !== 1) continue; // skip HP ties (tiebreak is by distance, legitimately)
+    sampled++;
+    const locked = e.state.enemies.find((en) => en.id === t.targetId);
+    if (locked && locked.hp < maxHp) violations++;
+  }
+  assert.ok(sampled > 30, "the wave produced enough 2+-in-range samples, got " + sampled);
+  assert.ok(violations / sampled < 0.15, `dart 'strong' must track the strongest (violation rate ${(violations / sampled * 100).toFixed(1)}% of ${sampled}; buggy baseline was ~60%)`);
+});
+
+test("AUDIT: no DAMAGE-role tier-4 branch is a straight DPS downgrade from the tier-3 it replaces", () => {
+  // The two audit defects: Sticky Bomb (dmg 46→60) and RC Racers (dmg 7→9) each
+  // read as a stat-regression on the tooltip. The damage-role branches must now
+  // match or beat their tier-3 baseline. Deliberate SIDEGRADES are exempt and
+  // listed here so the exemption is explicit, not accidental:
+  //   • camp 'a' Dino Squad — trades squad DPS for tank HP + double-block
+  //   • fan  'a'/'b' Blizzard/Static — trade slow/zap for brittle/chain utility
+  const dpsBranch = [["dart", "a"], ["dart", "b"], ["mortar", "a"], ["mortar", "b"], ["camp", "b"]];
+  for (const [line, key] of dpsBranch) {
+    const def = DATA.TOWERS[line], t3 = def.tiers[2], b = def.branches[key];
+    const bd = def.kind === "camp" ? b.soldiers * b.dmg / b.rate : b.dmg / b.rate;
+    const td = def.kind === "camp" ? t3.soldiers * t3.dmg / t3.rate : t3.dmg / t3.rate;
+    assert.ok(bd >= td - 1e-9, `${line} ${key} (${b.name}) output ${bd.toFixed(1)} must be >= tier-3 ${t3.name} ${td.toFixed(1)}`);
+  }
+  // The two specific fixes, pinned by name so a future re-tune can't silently undo them.
+  assert.ok(DATA.TOWERS.mortar.branches.b.dmg >= DATA.TOWERS.mortar.tiers[2].dmg, "Sticky Bomb dmg >= Crate Cannon dmg");
+  const rc = DATA.TOWERS.camp.branches.b, elite = DATA.TOWERS.camp.tiers[2];
+  assert.ok((rc.soldiers * rc.dmg / rc.rate) >= (elite.soldiers * elite.dmg / elite.rate), "RC Racers squad DPS >= Elite Platoon (faster rate compensates fewer/weaker bodies)");
+});
+
+test("AUDIT: difficulty multipliers actually bite (heroic enemies are tougher; a fixed build keeps fewer lives)", () => {
+  // heroic hp 1.25 vs casual 0.8 → the same enemy is meaningfully tougher.
+  const mk = (d) => { const e = TD.createEngine(L1, { seed: 7, difficulty: d }); e.callWave(); for (let i = 0; i < 60; i++) e.tick(); return e.state.enemies.find((x) => x.type === "sock"); };
+  const cas = mk("casual"), her = mk("heroic");
+  assert.ok(cas && her, "a sock spawned on both difficulties");
+  assert.ok(her.maxHp > cas.maxHp, `heroic sock hp ${her.maxHp} must exceed casual ${cas.maxHp}`);
+  // same build, casual must keep >= heroic lives (difficulty changes the outcome)
+  const play = (d) => { const e = TD.createEngine(L1, { seed: 7, difficulty: d }); let g = 0, built = false;
+    while (e.state.phase !== "won" && e.state.phase !== "lost") { if (e.state.phase === "build") { if (!built) { e.place("dart", "p3"); e.place("dart", "p2"); e.place("dart", "p4"); built = true; } e.callWave(); } e.tick(); if (++g > 400000) break; }
+    return e.state.phase === "won" ? e.state.lives : -1; };
+  assert.ok(play("casual") >= play("heroic"), "the same 3-dart build keeps at least as many lives on casual as heroic");
+});
+
+test("AUDIT: a rally issued mid-combat updates an ENGAGED soldier's post (honored once it disengages)", () => {
+  const lvl = { id: 97, name: "micro-rally", world: "test", startGold: 5000, budgetBase: 100,
+    path: [[0, 2], [23, 2]], pads: [{ id: "m1", cx: 5, cy: 3 }],
+    waves: [{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }] };
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.place("camp", "m1"); const c = e.state.towers[0];
+  e.callWave();
+  let eng = null;
+  for (let i = 0; i < 4000 && e.state.phase === "wave"; i++) { e.tick(); eng = e.state.soldiers.find((s) => s.alive && s.engagedId); if (eng) break; }
+  assert.ok(eng, "a soldier engaged the sock");
+  const beforeTx = eng.tx, beforeTy = eng.ty;
+  const r = e.rally(c.id, c.cx + 1.2, c.cy - 0.4);
+  assert.ok(r.ok, "rally within range succeeds");
+  assert.ok(eng.tx !== beforeTx || eng.ty !== beforeTy, `the engaged soldier's post updated (was ${beforeTx.toFixed(2)},${beforeTy.toFixed(2)}, now ${eng.tx.toFixed(2)},${eng.ty.toFixed(2)})`);
+});

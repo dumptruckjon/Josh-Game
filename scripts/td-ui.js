@@ -79,8 +79,9 @@
         '<span class="td-bar__pad" aria-hidden="true"></span>' +
       "</div>" +
       '<p class="td-sub">Toybox Defense</p>' +
+      '<div class="td-diff" role="group" aria-label="Difficulty"></div>' +
       '<div class="td-levels" role="list"></div>' +
-      '<p class="td-note">TD-1 preview: Level 1 is live. Levels 2-12, more toys and the bosses arrive in the next phases.</p>';
+      '<p class="td-note">Level 1 &amp; the full toybox arsenal are live — 4 tower lines, upgrades and exclusive branches. More levels, enemies &amp; bosses are on the way.</p>';
     screens.appendChild(home);
     home.querySelector(".td-exit").addEventListener("click", hooks.exitFort);
 
@@ -104,6 +105,7 @@
       "</div>" +
       '<div class="td-canvas-wrap">' +
         '<canvas class="td-canvas" aria-label="Toybox Defense battlefield"></canvas>' +
+        '<div class="td-nextwave" aria-live="polite" hidden></div>' +
         '<button class="td-btn td-btn--call td-call" type="button" aria-label="Call the next wave">▶ CALL</button>' +
       "</div>";
     screens.appendChild(play);
@@ -124,7 +126,28 @@
     play.querySelector(".td-canvas").addEventListener("click", (ev) => hooks.fieldTap(ev));
   };
 
-  UI.renderLevelGrid = function (save, onPick) {
+  UI.renderLevelGrid = function (save, onPick, onSetDifficulty) {
+    // Difficulty selector — the engine fully supports casual/normal/heroic; the
+    // choice sticks (persisted) and applies to the next level you start.
+    const diffWrap = doc.querySelector("#screen-td-home .td-diff");
+    if (diffWrap) {
+      const DIFFS = [["casual", "😌 Easy"], ["normal", "⚔️ Normal"], ["heroic", "💀 Hard"]];
+      const cur = (save.difficulty && global.TDData.DIFFICULTIES[save.difficulty]) ? save.difficulty : "normal";
+      diffWrap.innerHTML = "";
+      DIFFS.forEach(function (d) {
+        const b = doc.createElement("button");
+        b.type = "button";
+        b.className = "td-diffbtn" + (d[0] === cur ? " td-diffbtn--on" : "");
+        b.dataset.diff = d[0];
+        b.textContent = d[1];
+        b.setAttribute("aria-pressed", d[0] === cur ? "true" : "false");
+        b.addEventListener("click", function () {
+          if (onSetDifficulty) onSetDifficulty(d[0]);
+          UI.renderLevelGrid(save, onPick, onSetDifficulty); // re-highlight
+        });
+        diffWrap.appendChild(b);
+      });
+    }
     const grid = doc.querySelector("#screen-td-home .td-levels");
     if (!grid) return;
     grid.innerHTML = "";
@@ -156,10 +179,12 @@
     const lives = q(".td-hud__lives"), gold = q(".td-hud__gold"), wave = q(".td-hud__wave");
     if (lives) lives.textContent = "❤ " + state.lives;
     if (gold) gold.textContent = "🪙 " + state.gold;
+    const level = global.TDData.LEVELS.find((l) => l.id === state.levelId);
+    const total = level.waves.length;
     if (wave) {
-      const total = global.TDData.LEVELS.find((l) => l.id === state.levelId).waves.length;
-      const shown = Math.min(state.phase === "build" ? state.waveIdx : state.waveIdx + (state.phase === "wave" ? 1 : 0), total);
-      wave.textContent = "wave " + shown + "/" + total;
+      // The wave you're facing or about to face (1-based) — never the old "0/6".
+      const n = Math.min(state.waveIdx + 1, total);
+      wave.textContent = "wave " + n + "/" + total;
     }
     const call = q(".td-call");
     if (call) {
@@ -169,6 +194,22 @@
         call.hidden = false;
         call.textContent = "▶ CALL +" + bonus + "🪙 (" + secs + "s)";
       } else call.hidden = true;
+    }
+    // Next-wave preview: during the build phase, show WHAT is coming (enemy icons
+    // + counts) so the player can plan their build — a premium-TD staple.
+    const nw = q(".td-nextwave");
+    if (nw) {
+      if (state.phase === "build" && state.waveIdx < total) {
+        const groups = level.waves[state.waveIdx].groups;
+        const counts = {};
+        groups.forEach((g) => { counts[g.type] = (counts[g.type] || 0) + g.count; });
+        const parts = Object.keys(counts).map((type) => {
+          const def = global.TDData.ENEMIES[type];
+          return (def && def.icon ? def.icon : "•") + counts[type];
+        });
+        nw.textContent = "Next: " + parts.join("  ");
+        nw.hidden = false;
+      } else nw.hidden = true;
     }
   };
 

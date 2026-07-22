@@ -214,15 +214,15 @@ utility (slow/block) is priced on effect, branches ≈ sidegrade power spikes.
 | 2 Brick Basher | 175 (285) | 34 | 3.0s | 1.5–3.8 | 1.5 | |
 | 3 Crate Cannon | 240 (525) | 58 | 2.8s | 1.5–4.0 | 1.6 | |
 | 4a **Big Bertha** | 320 (845) | 105 | 4.0s | 1.5–4.4 | 2.2 | screen-shake juice; wrecks squads |
-| 4b **Sticky Bomb** | 300 (825) | 46 | 2.8s | 1.5–4.0 | 1.7 | + goo: 40% slow 2.5s in splash (stacks-not: strongest slow wins) |
+| 4b **Sticky Bomb** | 300 (825) | 60 | 2.8s | 1.5–4.0 | 1.7 | dmg 46→60 (audit: was below Crate Cannon's 58 — a tier-3→4 downgrade); + goo: 40% slow 2.5s in splash (stacks-not: strongest slow wins) |
 
 ### 4.3 🧊 Freeze-Pop Fan (Zap + slow aura; the anti-armor/anti-shield answer)
 | tier | cost (total) | aura slow (radius) | zap dps (range) | notes |
 |---|---|---|---|---|
-| 1 Cool Breeze | 100 (100) | 30% (1.8) | 4 (2.2) | aura ticks continuously; fliers take half slow |
-| 2 Frost Fan | 160 (260) | 40% (2.1) | 8 (2.4) | |
-| 3 Freezer Blast | 220 (480) | 50% (2.4) | 12 (2.6) | |
-| 4a **Blizzard Cone** | 300 (780) | 60% (2.6) | 12 (2.6) | + **brittle**: enemies in aura take +20% ALL damage (3s linger) |
+| 1 Cool Breeze | 100 (100) | 30% (1.8) | 6 (2.2) | aura ticks continuously; fliers take half slow |
+| 2 Frost Fan | 160 (260) | 40% (2.1) | 11 (2.4) | |
+| 3 Freezer Blast | 220 (480) | 50% (2.4) | 14 (2.6) | zap dps 4/8/12 → 6/11/14 (audit: the "anti-armor answer" zap was too weak to matter) |
+| 4a **Blizzard Cone** | 300 (780) | 60% (2.6) | 16 (2.6) | zap 12→16 (stays above tier-3 after the re-tune); + **brittle**: enemies in aura take +20% ALL damage (3s linger) |
 | 4b **Static Zap** | 320 (800) | 40% (2.4) | chain 30×4 / 1.1s | chain: 4 targets, −25% per jump, 1.5c jump range |
 
 ### 4.4 🪖 Army Guys Camp (path blockers; the tactical anchor)
@@ -235,11 +235,14 @@ A soldier engages 1 ground enemy (both stop; they trade melee); fliers and
 | 2 Sarge Squad | 150 (240) | 3 | 85 | 8 / 0.9s | 25% armor |
 | 3 Elite Platoon | 210 (450) | 3 | 120 | 13 / 0.85s | 25% armor |
 | 4a **Dino Squad** | 300 (750) | 2 | 260 | 22 / 1.0s | big; each blocks 2 enemies |
-| 4b **RC Racers** | 280 (730) | 4 | 70 | 7 / 0.7s | respawn 4s; 0.5s stun on first engage |
+| 4b **RC Racers** | 280 (730) | 4 | 70 | 9 / 0.7s | dmg 7→9 (audit: squad DPS 40→51.4 now beats Elite Platoon's 45.88 — was a hold downgrade); respawn 4s; 0.5s stun on first engage |
 
 **Targeting default:** First (most-progressed). Mortars default Strong.
-Retarget only when target dies/leaves range (no thrash). Projectiles lead
-their target's predicted position (dist + speed×flightTime).
+`First` stays STICKY — hold the leader until it dies or leaves range (no
+thrash). `Strong`/`Last`/`Close` RE-EVALUATE every tick, so a stronger (or
+newly-most-progressed / closer) enemy entering range is picked up immediately
+(audit: the old code kept ALL modes sticky, which left strong/last/close inert).
+Projectiles lead their target's predicted position (dist + speed×flightTime).
 
 ---
 

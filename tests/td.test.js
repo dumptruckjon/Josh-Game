@@ -346,6 +346,55 @@ test("fort daily-drive guardrails: topbar restore, pause-while-away, chaos taps,
   assert.equal(starsAfter, starsBefore, "jon-td-save-v1 survives a reload intact");
 });
 
+test("AUDIT UI: difficulty selection wires to the engine; panel stats, build roles & wave preview render", async () => {
+  // Difficulty selector on the fort home — the engine supports casual/normal/
+  // heroic; the choice must actually reach createEngine.
+  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#__renav"; });
+  await page.waitForTimeout(80);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".td-diff .td-diffbtn").count(), 3, "three difficulty chips");
+  assert.equal(await page.locator(".td-diff .td-diffbtn--on").count(), 1, "exactly one chip is active");
+  // pick Hard, start L1, assert the engine got heroic
+  await page.locator('.td-diffbtn[data-diff="heroic"]').click();
+  assert.equal(await page.locator('.td-diffbtn[data-diff="heroic"]').getAttribute("aria-pressed"), "true", "Hard is now selected");
+  await page.locator(".td-level").first().click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  assert.equal(await page.evaluate(() => window.__TD.state().difficulty), "heroic", "starting a level uses the chosen difficulty");
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).difficulty), "heroic", "difficulty persisted to the save");
+
+  // Premium-feel UI on a fresh normal game: build-menu roles, panel stats, wave preview.
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42, difficulty: "normal" }); });
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-buildmenu").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".td-buildmenu .td-buy__role").count(), 4, "each build option shows a ROLE label");
+  const dartRole = await page.locator('.td-buy[data-line="dart"] .td-buy__role').textContent();
+  assert.ok(dartRole && dartRole.trim().length > 0, "the dart role label has text (got '" + dartRole + "')");
+  // buy a dart, open its panel, assert a stats line renders
+  await page.locator('.td-buildmenu .td-buy[data-line="dart"]').click();
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-panel").waitFor({ state: "visible" });
+  const stats = await page.locator(".td-panel__stats").textContent();
+  assert.ok(stats && /dps/.test(stats), "the tower panel shows a stats line with dps (got '" + stats + "')");
+  await page.locator("#screen-td-play .td-hud").click(); // dismiss
+
+  // next-wave preview visible during the build phase, with an enemy count
+  const nw = page.locator(".td-nextwave");
+  assert.ok(await nw.isVisible(), "the next-wave preview shows during build");
+  const nwText = await nw.textContent();
+  assert.ok(/\d/.test(nwText || ""), "the preview lists an enemy count (got '" + nwText + "')");
+
+  // reset difficulty back to Normal so later runs use the shipped default
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(60);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator('.td-diffbtn[data-diff="normal"]').click();
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).difficulty), "normal", "difficulty reset to normal");
+});
+
 test("kid-world isolation: the registry, home grid and 华丽 are untouched by the fort", async () => {
   const reg = await page.evaluate(() => ({
     total: (window.JoshGames || []).length,

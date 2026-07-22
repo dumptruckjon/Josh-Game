@@ -375,6 +375,40 @@ Safari (private mode) still boots and plays, junk hashes and phone back/forward
 are safe, and landscape has no overflow. Lesson: drive games the way a
 4-year-old actually taps — doubled, abandoned, replayed — not just the way the
 contract expects; closure-state handlers + rebuilt DOM is where those bugs hide.
+**Fort Josh's first deep audit found two DEAD engine features and two tier-4
+tooltips that read as downgrades — all green, because a real-time TD's *feel*
+isn't a `data-correct` tap.** (1) **A non-default targeting mode must actually
+re-evaluate** — the dart's strong/last/close modes were honored ONLY at the
+instant of target acquisition, then sticky-kept, so a stronger/closer enemy
+entering range was ignored and the mode sat inert (~60% of sampled ticks locked
+on a strictly-weaker enemy); only `first` stays sticky by design (no thrash), the
+rest now re-pick every tick like fan/mortar already did → guardrail samples a
+whole wave and fails if dart-on-`strong` sits on a weaker enemy while a UNIQUE
+strongest is in range. (2) **A rally issued mid-combat must update an ENGAGED
+soldier's post** — the old `&& !sol.engagedId` guard skipped exactly the soldiers
+you're repositioning (the ones fighting), so a wall couldn't be re-formed under
+pressure; now every living soldier's post updates and it marches there once it
+disengages (the engaged branch still `continue`s, so it keeps fighting first) →
+guardrail rallies an engaged soldier and asserts its post moved. (3) **A tier-4
+branch must never read as a straight DPS downgrade from the tier-3 it replaces**
+— Sticky Bomb (46 dmg vs Crate Cannon's 58) and RC Racers (squad DPS 40 vs Elite
+Platoon's 45.88) each looked like a nerf on the tooltip; bumped to match-or-beat
+(Sticky 60; RC 9 → squad DPS 51.4) → guardrail over a NAMED damage-role branch
+list, with the deliberate tank/utility sidegrades (Dino Squad's HP+double-block,
+Blizzard/Static's brittle/chain) explicitly exempted so the exemption is
+intentional, not an accidental hole. (4) **A difficulty the engine fully supports
+but nothing can select is a dead feature** — casual/normal/heroic
+(hp/speed/bounty/start-gold multipliers) shipped working in the engine but
+`startLevel` hardcoded `"normal"`, so heroic was unreachable; wired to a persisted
+fort-home selector (😌 Easy / ⚔️ Normal / 💀 Hard) → browser guardrail picks Hard
+and asserts `createEngine` receives `"heroic"` and it persists to the save. Same
+audit added premium-TD readability the tap-harness never needed: build-menu ROLE
+labels (single-shot / splash / slows / blocks path), a tower-panel stat line
+(dps · range · splash · crit, or slow%/aura, or bodies×hp · dps), and a
+next-wave enemy preview during build. Lesson: for a real-time game the
+tap-harness proves it RUNS, not that every stat lever and targeting mode is LIVE
+— audit a deterministic engine by driving it headless and reading the numbers,
+then pin each fix with a node-sim or `__TD` guardrail.
 
 ---
 
