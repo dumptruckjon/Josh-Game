@@ -158,6 +158,32 @@ test("TD targeting modes are accepted and reset the lock; phase-gated APIs answe
   assert.equal(e.pullLever("l1").reason, "not-built-yet", "levers arrive with L10 (TD-4)");
 });
 
+test("TD2 selling a camp mid-melee frees its blocked enemies and dismisses the squad", () => {
+  // Found worth pinning by the real-tap audit: an enemy held by a soldier whose
+  // camp is SOLD must resume walking — a frozen unfought enemy would stall the
+  // wave forever (the unwinnable-game class, fort edition).
+  const lvl = {
+    id: 98, name: "micro-sell", world: "test", startGold: 5000, budgetBase: 100,
+    path: [[0, 2], [23, 2]],
+    pads: [{ id: "m1", cx: 5, cy: 3 }],
+    waves: [{ groups: [{ type: "sock", count: 2, gap: 0.4, delay: 0 }] }],
+  };
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.place("camp", "m1");
+  const campId = e.state.towers[0].id;
+  e.callWave();
+  let guard = 0;
+  while (!e.state.enemies.some((x) => x.alive && x.blockedBy) && guard++ < 20000) e.tick();
+  assert.ok(guard < 20000, "a sock gets blocked in melee first");
+  const blockedDist = e.state.enemies.find((x) => x.alive && x.blockedBy).dist;
+  e.sell(campId);
+  for (let i = 0; i < 60; i++) e.tick();
+  assert.equal(e.state.soldiers.filter((s) => s.alive).length, 0, "sold camp dismisses its soldiers");
+  assert.equal(e.state.enemies.filter((x) => x.alive && x.blockedBy).length, 0, "nobody stays frozen");
+  const resumed = e.state.enemies.find((x) => x.alive);
+  assert.ok(!resumed || resumed.dist > blockedDist + 0.5, "the freed sock resumes walking");
+});
+
 test("TD save-shape: engine state is plain JSON (serializable round-trip, hash-stable)", () => {
   const e = TD.createEngine(L1, { seed: 5 });
   e.place("dart", "p3");

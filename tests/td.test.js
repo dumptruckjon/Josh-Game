@@ -297,6 +297,55 @@ test("TD2 rally flow: 🚩 Rally arms the next field tap and moves the flag", as
   assert.ok(after2.x !== before.x || after2.y !== before.y, "the rally point actually changed");
 });
 
+test("fort daily-drive guardrails: topbar restore, pause-while-away, chaos taps, save-reload", async () => {
+  // Promoted from the real-tap full audit — the regressions a daily player
+  // would actually hit.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 9 }); window.__TD.script([["call"], ["tick", 100]]); });
+  const midTick = await page.evaluate(() => window.__TD.state().tick);
+
+  // leaving the fort restores Josh's topbar and pauses the battle
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  assert.ok(await page.locator(".topbar").isVisible(), "Josh's topbar returns when the fort is left");
+  assert.ok(await page.evaluate(() => !document.body.classList.contains("td-mode")), "td-mode clears on exit");
+  await page.waitForTimeout(350);
+  const away = await page.evaluate(() => window.__TD.state().tick);
+  assert.ok(away - midTick <= 2, `the battle pauses while away (tick ${midTick} → ${away})`);
+
+  // returning resumes the same battle, topbar hides again
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.waitForFunction((t) => window.__TD.state().tick > t, away, { timeout: 5000 });
+  assert.ok(await page.locator(".topbar").isHidden(), "topbar hidden inside the fort");
+
+  // toddler chaos on Jon's controls: doubled CALL = ONE bonus; doubled buy = ONE charge
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 77 }); });
+  const g0 = await page.evaluate(() => window.__TD.state().gold);
+  await page.locator(".td-call").click();
+  await page.locator(".td-call").click({ force: true }).catch(() => {});
+  let s = await page.evaluate(() => window.__TD.state());
+  assert.ok(s.phase === "wave" && s.gold - g0 <= 135, `doubled CALL grants one bonus (+${s.gold - g0})`);
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const sp = await page.evaluate(() => window.__TD.w2s(5.5, 6.5));
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator('.td-buildmenu .td-buy[data-line="dart"]').waitFor({ state: "visible" });
+  const g1 = s.gold;
+  await page.locator('.td-buildmenu .td-buy[data-line="dart"]').evaluate((el) => { el.click(); el.click(); });
+  s = await page.evaluate(() => window.__TD.state());
+  assert.equal(s.towers.filter((t) => t.lineId === "dart").length, 1, "doubled buy places ONE dart");
+  assert.equal(g1 - s.gold, 70, "doubled buy charges ONCE");
+
+  // the save survives a full reload
+  const starsBefore = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {})["1"] || 0);
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+  const starsAfter = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {})["1"] || 0);
+  assert.equal(starsAfter, starsBefore, "jon-td-save-v1 survives a reload intact");
+});
+
 test("kid-world isolation: the registry, home grid and 华丽 are untouched by the fort", async () => {
   const reg = await page.evaluate(() => ({
     total: (window.JoshGames || []).length,
@@ -309,7 +358,7 @@ test("kid-world isolation: the registry, home grid and 华丽 are untouched by t
   assert.ok(!(await page.evaluate(() => document.body.classList.contains("td-mode"))), "Josh's home is never fort-themed");
 });
 
-test("mobile sanity: fort screens have no horizontal overflow at 390 and 320", async () => {
+test("mobile sanity: fort screens fit EVERY device — no horizontal overflow, no vertical scroll on the field", async () => {
   await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); });
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
@@ -319,6 +368,16 @@ test("mobile sanity: fort screens have no horizontal overflow at 390 and 320", a
       const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       assert.ok(over <= 1, `${hash} overflows by ${over}px at ${width}w`);
     }
+  }
+  // the play field must fit WITHOUT vertical scrolling on real device sizes
+  // (SE, iPhone, Pro Max, landscape) — the whole game on one screen.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  for (const vp of [[375, 667], [390, 844], [430, 932], [844, 390]]) {
+    await page.setViewportSize({ width: vp[0], height: vp[1] });
+    await page.waitForTimeout(300);
+    const vScroll = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+    assert.ok(vScroll <= 1, `#td-play scrolls vertically by ${vScroll}px at ${vp[0]}×${vp[1]}`);
   }
   await page.setViewportSize({ width: 390, height: 844 });
 });
