@@ -985,3 +985,73 @@ test("TD5 achievements data-shape: 12 unique ids with names + descriptions, icon
   const has = (id) => ids.has(id);
   assert.ok(has("bossbonker") && has("dysondenied") && has("unplugged"), "one achievement per boss");
 });
+
+// ===== Deep-audit guardrails (RULE 7): "hidden" is untargetable by EVERY damage
+// path, not just direct acquisition. The project's own lesson — grep every place
+// a target is chosen OR kept — extends to AoE (mortar splash) and chain jumps. =====
+
+test("AUDIT: mortar splash must NOT damage a tunnelling (hidden) mole", () => {
+  // A shell aimed at a visible enemy lands on top of a mole that's underground in
+  // the middle third — the mole is untargetable and must take ZERO splash.
+  const e = TD.createEngine(laneDart("mole", 1), { seed: 1 });
+  e.callWave();
+  let mole = null;
+  for (let i = 0; i < 900 && e.state.phase === "wave"; i++) {
+    e.tick();
+    mole = e.state.enemies.find((x) => x.type === "mole" && x.alive);
+    if (mole && e.isHidden(mole)) break;
+  }
+  assert.ok(mole && e.isHidden(mole), "the mole is tunnelling under the middle third (hidden)");
+  const hpBefore = mole.hp;
+  const p = e.posAt(mole.dist);
+  // inject a fat shell detonating on the mole's own ground square this tick
+  e.state.shells.push({ t: 0, T: 1, sx: p.x, sy: p.y - 3, tx: p.x, ty: p.y, x: p.x, y: p.y, splash: 2.5, dmg: 9999, goo: null });
+  e.tick();
+  const after = e.state.enemies.find((x) => x.type === "mole");
+  assert.ok(after && after.alive, "the hidden mole survives a shell that landed on it");
+  assert.equal(after.hp, hpBefore, "mortar splash deals NO damage to a tunnelling mole");
+});
+
+test("AUDIT: chain-lightning must NOT arc onto a phased (hidden) ghost", () => {
+  // A Battery Bot (its shield eats the Zap → a persistent visible first-target)
+  // sits at the tower with a ghost pinned right beside it, inside the chain's
+  // jump range. The tower is force-fired every tick and the two enemies are
+  // held in place with full hp, so across the ghost's deterministic phase cycle
+  // we sample BOTH states: while visible the chain jump reaches the ghost
+  // (proving the path fires); while phased out it must be skipped.
+  const lvl = Object.assign(laneDart("battery", 1), {
+    pads: [{ id: "m", cx: 11, cy: 3 }],
+    waves: [{ groups: [
+      { type: "battery", count: 1, gap: 0.5, delay: 0 },
+      { type: "ghost", count: 1, gap: 0.5, delay: 0.3 },
+    ] }],
+  });
+  const e = TD.createEngine(lvl, { seed: 1 });
+  assert.ok(e.place("fan", "m").ok, "place a fan");
+  const t = e.state.towers[0];
+  assert.ok(e.upgrade(t.id).ok && e.upgrade(t.id).ok, "fan → tier 3");
+  assert.ok(e.branch(t.id, "b").ok && t.branch === "b", "branch → Static chain (tier 4)");
+  e.callWave();
+  for (let i = 0; i < 300 && !(e.state.enemies.some((x) => x.type === "battery" && x.alive) && e.state.enemies.some((x) => x.type === "ghost" && x.alive)); i++) e.tick();
+  const GHP = DATA.ENEMIES.ghost.hp;
+  let hitWhileVisible = false, hitWhileHidden = false, sawHidden = false, sawVisible = false;
+  for (let i = 0; i < 400; i++) {
+    const bat = e.state.enemies.find((x) => x.type === "battery" && x.alive);
+    const g = e.state.enemies.find((x) => x.type === "ghost" && x.alive);
+    if (!bat || !g) break;
+    // pin the geometry so the jump-onto-ghost path is always available, and keep
+    // both alive at full hp so the sample spans the whole phase cycle
+    bat.dist = 11; bat.hp = DATA.ENEMIES.battery.hp; bat.shield = DATA.ENEMIES.battery.shield;
+    g.dist = 10.7; g.hp = GHP;
+    t.cooldown = 0; // force the chain to fire this tick
+    e.tick();
+    const g2 = e.state.enemies.find((x) => x.type === "ghost" && x.alive);
+    if (!g2) break;
+    const hidden = e.isHidden(g2);
+    if (hidden) sawHidden = true; else sawVisible = true;
+    if (g2.hp < GHP - 1e-9) { if (hidden) hitWhileHidden = true; else hitWhileVisible = true; }
+  }
+  assert.ok(sawHidden && sawVisible, "the ghost cycled through both phased and visible during the sample");
+  assert.ok(hitWhileVisible, "the chain DOES reach the ghost when it is visible (the jump path is exercised)");
+  assert.ok(!hitWhileHidden, "the chain NEVER damages the ghost while it is phased out (hidden)");
+});

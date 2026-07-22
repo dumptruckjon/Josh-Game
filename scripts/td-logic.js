@@ -548,6 +548,7 @@
         if (sol.engagedId) {
           const foe = enemyById(sol.engagedId);
           if (!foe) { sol.engagedId = 0; continue; }
+          if (isHidden(foe)) { sol.engagedId = 0; continue; } // foe phased/tunnelled → disengage, don't swing at a hidden enemy
           // melee trade — soldier swings
           if (sol.meleeCd > 0) sol.meleeCd -= 1;
           if (sol.meleeCd <= 0) {
@@ -671,7 +672,7 @@
                   // jump: nearest alive enemy within jump range of the last hit
                   let next = null, bestD = s.chain.jump * s.chain.jump;
                   for (const e of state.enemies) {
-                    if (!e.alive || hitIds.indexOf(e.id) >= 0) continue;
+                    if (!e.alive || isHidden(e) || hitIds.indexOf(e.id) >= 0) continue; // chain can't arc onto a hidden (phased/tunnelling) enemy
                     const q = posAt(path, e.dist);
                     const dd = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
                     if (dd <= bestD) { bestD = dd; next = e; }
@@ -709,7 +710,7 @@
           sh.dead = true;
           emit({ type: "splash", x: sh.tx, y: sh.ty, r: sh.splash });
           for (const e of state.enemies) {
-            if (!e.alive || enemyDef(e).flier) continue;
+            if (!e.alive || enemyDef(e).flier || isHidden(e)) continue; // hidden (phased ghost / tunnelling mole) is untargetable, incl. by AoE
             const p = posAt(path, e.dist);
             const d = Math.sqrt((p.x - sh.tx) ** 2 + (p.y - sh.ty) ** 2);
             if (d <= sh.splash) {
@@ -916,6 +917,7 @@
       state, events, tick, place, upgrade, branch, sell, setTargeting, rally, callWave,
       pullLever: notYet,
       path, posAt: (dist) => posAt(path, dist),
+      isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
       levelDef,
     };
   }

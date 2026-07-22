@@ -28,6 +28,7 @@
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
   }
   let save = load();
+  if (!save.stars || typeof save.stars !== "object") save.stars = {}; // legacy/corrupt/hand-edited save: never let a win crash on save.stars[key]
   if (!save.difficulty || !DATA.DIFFICULTIES[save.difficulty]) save.difficulty = "normal";
   if (!save.settings) save.settings = { sfx: true };
   if (typeof save.settings.dmgNumbers !== "boolean") save.settings.dmgNumbers = false; // TD-6 opt-in
@@ -267,11 +268,32 @@
       levelId: st.levelId, endless: st.endless, world: cur.levelDef.world,
       difficulty: st.difficulty, seed: st.seed, waveIdx: st.waveIdx,
       gold: st.gold, lives: st.lives, meta: (save.meta || []).slice(),
+      // achievement context so a resumed win is judged against the WHOLE run,
+      // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
+      leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
       towers: st.towers.map((t) => ({ lineId: t.lineId, tier: t.tier, branch: t.branch, padId: t.padId, targeting: t.targeting, rallyX: t.rallyX, rallyY: t.rallyY })),
     };
     persist(save);
   }
   function clearMidRun() { if (save.midRun) { save.midRun = null; persist(save); } }
+
+  // Called whenever we navigate AWAY from a live battle (to the fort or out of
+  // the fort). (1) An endless run that's quit — not lost — still earned its
+  // wave: record the best score + Marathoner here, since phaseWatch only fires
+  // those on defeat. (2) Clear transient field-interaction state so a
+  // half-armed camp rally (or a stale selection) can't eat the first pad tap
+  // on the next visit.
+  function leavingPlay() {
+    if (!cur) return;
+    const st = cur.engine && cur.engine.state;
+    if (st && st.endless && !st.cheated && st.phase !== "won" && st.phase !== "lost") {
+      const world = cur.levelDef.world, score = st.waveIdx;
+      if (score > (save.endlessBest[world] || 0)) { save.endlessBest[world] = score; persist(save); }
+      if (score >= 20) earnAch("marathoner"); // earnAch de-dupes + persists
+    }
+    cur.rallyArmId = 0; cur.selPadId = null; cur.selTowerId = null;
+    if (cur.render) cur.render.setSelection(null);
+  }
 
   function resumeMidRun() {
     const mr = save.midRun;
@@ -280,6 +302,11 @@
     if (!levelDef) { clearMidRun(); location.hash = "#td-home"; return; }
     location.hash = "#td-play";
     startLevel(mr.levelId, { levelDef, seed: mr.seed, difficulty: mr.difficulty, meta: mr.meta });
+    // Carry the pre-checkpoint achievement context across the resume so the win
+    // is judged honestly against the whole run (startLevel reset these to fresh).
+    cur.leaked = !!mr.leaked;
+    cur.soldiersLost = mr.soldiersLost || 0;
+    cur.sawKill = !!mr.sawKill;
     // Cold restore: set the checkpoint directly (no leaky fast-forward). The
     // engine schedules the correct next wave from state.waveIdx on the next CALL.
     const e = cur.engine;
@@ -287,6 +314,7 @@
     for (const t of mr.towers) {
       bumpGold();
       if (!e.place(t.lineId, t.padId).ok) continue;
+      cur.lines[t.lineId] = true; // rebuilt via engine.place(), not the UI handler → track the line for Pea Purist
       const nt = e.state.towers[e.state.towers.length - 1];
       if (t.tier >= 2) { bumpGold(); e.upgrade(nt.id); }
       if (t.tier >= 3) { bumpGold(); e.upgrade(nt.id); }
@@ -478,6 +506,7 @@
     route(id) {
       if (!unlocked()) return false; // main.js bounces to Josh's home
       if (id === "td-home") {
+        leavingPlay(); // record any endless milestone + clear armed-rally/selection before parking the run
         doc.body.classList.add("td-mode");
         doc.body.classList.remove("in-game");
         UI.renderLevelGrid(
@@ -509,6 +538,7 @@
       return false;
     },
     onLeave() {
+      leavingPlay(); // leaving the fort entirely: same milestone-record + transient-state clear
       doc.body.classList.remove("td-mode");
       if (cur) cur.paused = true;
       UI.hideBubble();
@@ -578,6 +608,15 @@
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
     resetSave: () => { save = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null }; persist(save); return true; },
+    // read-only test hooks (audit guardrails): the resume checkpoint, the live
+    // achievement context, the earned-badge list, and a trigger for resume.
+    midRun: () => (save.midRun ? JSON.parse(JSON.stringify(save.midRun)) : null),
+    ctx: () => (cur ? { leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, lines: Object.keys(cur.lines || {}) } : null),
+    ach: () => (save.ach || []).slice(),
+    endlessBest: () => Object.assign({}, save.endlessBest),
+    resume: () => { resumeMidRun(); return cur ? cur.engine.state.phase : null; },
+    startEndless: (world) => { startEndless(world); if (cur) cur.paused = true; return true; },
+    leaveToHome: () => { JonTD.route("td-home"); return true; }, // exercises the real leave chokepoint
     // Synchronous command script: [["place","dart","p3"],["upgrade",0],["call"],
     // ["tick",30],["untilPhase","build",50000]] — runs with the renderer paused.
     script: (cmds) => {

@@ -583,6 +583,57 @@ the mute + its own toggle every note so a mid-song mute silences it. Lesson: pol
 is real work, and the discipline that made the tap-harness honest — a hook per
 effect, the datum on the event, a measurement before a "fix" — is exactly what
 keeps the FEEL layer honest too.
+**Fort Josh's deep adversarial audit (12 dimensions, every finding independently
+reproduced) surfaced 10 real defects the tap/number harness sailed past — each is
+now guardrail-locked, and each generalized into a rule.** (1) **"Untargetable"
+must be enforced at EVERY damage path, INCLUDING indirect ones** — a phased
+Glitter Ghost / tunnelling Digger Mole was correctly excluded from every
+*acquisition* path (candidates, dart sticky-keep, soldier-engage), but the mortar
+**splash** detonation loop and the Static **chain-lightning** jump each re-scanned
+`state.enemies` and skipped only fliers, so a shell landing near a hidden enemy —
+or a chain arcing off a visible one — killed the enemy the design says you can't
+touch (8 ghosts ship on L12's boss wave). The "grep every place a target is chosen
+OR kept" lesson now explicitly extends to AoE and chain/beam jumps; all damage
+paths route through one `isHidden(e)` gate, the engine exposes `isHidden` for tests,
+and two node guardrails drive a mortar onto a hidden mole and a chain past a phased
+ghost (both proven to FAIL on the pre-fix code). (2) **A save-field-coverage gap
+crashes the first win on a legacy/corrupt save** — the boot defaults coerced
+`difficulty/settings/meta/ach/endlessBest/midRun` but not `stars`, so a stored
+`{v:1}` with no `stars` threw `undefined['1']` in phaseWatch on the first victory
+(after `stopLoop()`, before `persist()`) — the win silently lost, the frame dead.
+Exactly the class CLAUDE.md already documented for `save.ach`, still open for
+`stars`; now coerced (`typeof save.stars !== "object" → {}`) with a browser
+guardrail that wins on a stars-less save. **When you add a persisted field, patch
+the loader defaults, resetSave, AND every reset path — all three.** (3) **Session-
+only achievement context must ride the resume checkpoint, or a resumed win is
+judged dishonestly** — `cur.leaked / soldiersLost / lines` live on the per-run
+session object and were rebuilt fresh on resume, so a run that leaked lives before
+quitting earned a FALSE "No Leaks", and a dart-only run that resumed could never
+earn "Pea Purist" (`cur.lines` stayed `{}` because the resume rebuilds towers via
+`engine.place()`, bypassing the UI handler that records the line). `writeMidRun`
+now snapshots the achievement context and `resumeMidRun` restores it (and
+repopulates `cur.lines` from the rebuilt towers). **A checkpoint must carry
+everything the win-time judgement reads, not just towers/gold/lives.** (4) **A
+meta-milestone recorded only on defeat is lost on a quit** — endless best-score +
+"Marathoner" fired only in phaseWatch's `lost` branch, so quitting a high endless
+run (or an unbeatable build that never dies) discarded it; a shared `leavingPlay()`
+now records the milestone at BOTH leave chokepoints (the `td-home` route and
+`onLeave`). (5) **Transient field state must be cleared when you leave the play
+screen** — a half-armed camp Rally (`cur.rallyArmId`) survived navigation and ate
+the first pad tap on return; `leavingPlay()` clears it (+ selection) too. (6) **A
+per-outcome UI element needs its OWN teardown timer** — the achievement toast kept
+a single shared `setTimeout` handle, so a win earning several badges at once
+orphaned every toast but the last (a DOM leak); each toast now owns its removal
+timer and cascades up the screen. (7) **A dialog that fits in portrait can still
+clip in short landscape** — the pause menu (6 buttons) overflowed a 390-tall
+landscape viewport with no scroll (title clipped above, quit button below); the
+base `.td-overlay__box` now carries the same `max-height: calc(100dvh - 24px);
+overflow-y: auto` the `--wide` victory/defeat variant already had. Meta-lesson: a
+deterministic engine's *correctness* (a stat lever, an untargetable flag, a
+checkpoint's fidelity) and a UI's *robustness* (a corrupt save, a landscape
+dialog, a DOM leak) live exactly where a "does it win?" harness can't see — a
+multi-dimension adversarial audit that drives the engine headless AND reasons about
+save/resume/leave edges is what catches them.
 
 ---
 

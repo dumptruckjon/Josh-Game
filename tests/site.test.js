@@ -79,6 +79,35 @@ test("guardrail: Fort Josh (TD) is wired in AND fully isolated from the kid worl
   assert.match(read("scripts/main.js"), /td-/, "main.js routes td-* hashes through the guarded JonTD.route");
 });
 
+test("guardrail: deep-audit fixes stay wired (hidden-immune AoE, per-toast timer, leave-play cleanup)", () => {
+  // RULE 7: each fix from the deep adversarial audit gets a source-level lock so
+  // it can't silently regress (these complement the behavioral node/browser tests).
+  const logic = read("scripts/td-logic.js");
+  // (0/3) hidden (phased ghost / tunnelling mole) is untargetable by EVERY damage
+  // path — the mortar splash loop and the chain-jump both skip isHidden(e).
+  assert.match(logic, /flier \|\| isHidden\(e\)\) continue;/, "mortar splash skips hidden enemies");
+  assert.match(logic, /isHidden\(e\) \|\| hitIds\.indexOf/, "chain-lightning jump skips hidden enemies");
+  assert.match(logic, /isHidden:\s*\(e\)\s*=>\s*isHidden\(e\)/, "the engine exposes isHidden for guardrails");
+
+  const ui = read("scripts/td-ui.js");
+  // (9) each achievement toast owns its OWN removal timer — a shared handle used
+  // to orphan every toast but the last (a DOM leak on multi-badge wins).
+  assert.ok(!/UI\._toastT/.test(ui), "toast must NOT use a single shared removal timer (orphans earlier nodes)");
+  assert.match(ui, /setTimeout\(\s*\(\)\s*=>\s*\{?\s*el\.remove\(\)/, "each toast schedules its own removal");
+
+  const main = read("scripts/td-main.js");
+  // (1) a stars-less/corrupt save is coerced at boot so the first win can't crash.
+  assert.match(main, /typeof save\.stars !== "object"\)\s*save\.stars = \{\}/, "boot coerces a missing/corrupt stars field");
+  // (2/4/5) the resume checkpoint carries the achievement context.
+  assert.match(main, /leaked:\s*!!cur\.leaked/, "writeMidRun snapshots the leak flag");
+  assert.match(main, /cur\.lines\[t\.lineId\] = true/, "resumeMidRun repopulates tower lines (Pea Purist)");
+  // (6/8) leaving a live battle records the endless milestone AND clears transient
+  //       field state (armed rally / selection), wired into BOTH leave chokepoints.
+  assert.match(main, /function leavingPlay\(\)/, "a single leave-play helper exists");
+  assert.match(main, /cur\.rallyArmId = 0;/, "leavingPlay clears a half-armed camp rally");
+  assert.equal((main.match(/leavingPlay\(\);/g) || []).length >= 2, true, "leavingPlay is called from both the fort-home route and onLeave");
+});
+
 test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch)", () => {
   // Self-healing (RULE 7). The page loads every asset with a ?v=<sha> cache-bust
   // query, but the SW precaches the UNVERSIONED paths (CORE lists

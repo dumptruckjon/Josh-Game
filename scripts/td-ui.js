@@ -308,12 +308,16 @@
   UI.toast = function (icon, name) {
     let host = doc.querySelector("#screen-td-play") || doc.getElementById("screen-td-home");
     if (!host) return;
+    // A single win can earn several badges at once — cascade them up the screen
+    // and give EACH its own removal timer, so an earlier toast is never orphaned
+    // (a shared timer would only ever remove the newest, leaking the rest).
+    const stackIdx = host.querySelectorAll(".td-toast").length;
     const el = doc.createElement("div");
     el.className = "td-toast";
+    if (stackIdx) el.style.bottom = "calc(24px + env(safe-area-inset-bottom) + " + (stackIdx * 64) + "px)";
     el.innerHTML = '<span class="td-toast__icon">' + icon + '</span><span class="td-toast__txt"><b>Badge earned!</b><br>' + name + "</span>";
     host.appendChild(el);
-    if (UI._toastT) clearTimeout(UI._toastT);
-    UI._toastT = setTimeout(() => { el.remove(); }, 2800);
+    setTimeout(() => { el.remove(); }, 2800);
   };
 
   // ---- HUD + bubbles ----

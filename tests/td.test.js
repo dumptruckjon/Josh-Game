@@ -650,6 +650,106 @@ test("TD6 pause options: Music and Damage-number toggles flip + persist", async 
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+// ===================== Deep-audit browser guardrails (RULE 7) =====================
+
+test("AUDIT: a legacy/corrupt save with no `stars` field survives the first win (no crash, star saved)", async () => {
+  // A stored v:1 save missing `stars` used to throw `undefined['1']` in phaseWatch
+  // on the first victory — the win was lost and the frame died. Boot now coerces it.
+  await page.evaluate(() => {
+    sessionStorage.setItem("td-ok", "1");
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1, settings: { sfx: true } })); // NO stars key
+  });
+  await page.reload({ waitUntil: "load" });                 // force td-main to re-read the bad save
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  const errsBefore = pageErrors.length;
+  const phase = await page.evaluate(() => { location.hash = "#td-play"; return window.__TD.winL1(7); });
+  assert.equal(phase, "won", "the level still wins on a stars-less save");
+  const stars = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars);
+  assert.ok(stars && stars["1"] >= 1, "the earned star was persisted (the crash used to drop it)");
+  assert.equal(pageErrors.length, errsBefore, "no page error was thrown during the win");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("AUDIT: resume carries the achievement context (no false No Leaks; Pea Purist lines restored)", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  // Flow A: a leaked run, checkpointed at the wave-2 boundary, then resumed.
+  const a = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.newGame(1, { seed: 7 });                    // no towers → wave-1 socks leak
+    window.__TD.script([["call"], ["untilPhase", "build", 200000]]);
+    const mr = window.__TD.midRun();
+    window.__TD.resume();
+    return { mrLeaked: mr && mr.leaked, ctxLeaked: window.__TD.ctx().leaked };
+  });
+  assert.equal(a.mrLeaked, true, "the checkpoint records the pre-quit leak");
+  assert.equal(a.ctxLeaked, true, "resume restores the leak flag → No Leaks can't false-fire on a resumed win");
+  // Flow B: a dart-only run — the resume must repopulate cur.lines from the rebuilt towers.
+  const b = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.newGame(1, { seed: 7 });
+    window.__TD.script([["place", "dart", "p3"], ["call"], ["untilPhase", "build", 200000]]);
+    const mr = window.__TD.midRun();
+    window.__TD.resume();
+    return { towers: mr ? mr.towers.map((t) => t.lineId) : [], lines: window.__TD.ctx().lines };
+  });
+  assert.deepEqual(b.towers, ["dart"], "the dart tower is in the checkpoint");
+  assert.deepEqual(b.lines.slice().sort(), ["dart"], "resume repopulates tower lines → Pea Purist is judged against the real field");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("AUDIT: quitting an endless run records its best score (not only on defeat)", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const best = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.startEndless("bedroom");
+    // a 4-dart build clears endless wave 1 → reach the wave-2 build phase alive
+    window.__TD.script([["place", "dart", "p1"], ["place", "dart", "p2"], ["place", "dart", "p3"], ["place", "dart", "p4"], ["call"], ["untilPhase", "build", 200000]]);
+    const wave = window.__TD.state().waveIdx;
+    window.__TD.leaveToHome();                              // QUIT (not a defeat)
+    return { wave, best: window.__TD.endlessBest().bedroom || 0, cheated: window.__TD.state() ? window.__TD.state().cheated : true };
+  });
+  assert.ok(best.wave >= 1, "the endless run cleared at least one wave before quitting");
+  assert.ok(!best.cheated, "the run was legit (no grantGold)");
+  assert.ok(best.best >= best.wave, `quitting recorded the endless best (best ${best.best} ≥ reached ${best.wave})`);
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("AUDIT: the pause menu scrolls (never clips) in short landscape viewports", async () => {
+  // route through the real fort home first so the subsequent #td-play ALWAYS
+  // fires a hashchange (a prior test may have left the hash at #td-play)
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(1, { seed: 7 }); });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(200);
+  // open the pause menu robustly: depending on route timing the run may be paused
+  // or running, so click once, and if the overlay didn't open, click once more.
+  const boxSel = ".td-overlay--pause .td-overlay__box";
+  const pauseBtn = page.locator("#screen-td-play .td-pause");
+  await pauseBtn.click();
+  if (!(await page.locator(boxSel).isVisible().catch(() => false))) await pauseBtn.click();
+  await page.locator(boxSel).waitFor({ state: "visible" });
+  const fit = await page.evaluate((sel) => {
+    const box = document.querySelector(sel);
+    const r = box.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, vh: window.innerHeight, scrollable: box.scrollHeight > box.clientHeight + 1, canScroll: getComputedStyle(box).overflowY };
+  }, boxSel);
+  // the box itself must sit within the viewport (title not clipped above, base not lost below)…
+  assert.ok(fit.top >= -1, `pause box top must not be clipped above the viewport (top ${Math.round(fit.top)})`);
+  assert.ok(fit.bottom <= fit.vh + 1, `pause box bottom must not spill below the viewport (bottom ${Math.round(fit.bottom)}, vh ${fit.vh})`);
+  // …and when its content is taller than the viewport, it must be scrollable to reach every control
+  assert.ok(fit.canScroll === "auto" || fit.canScroll === "scroll", "the box allows scrolling when content overflows");
+  // every pause button is reachable (each within, or scrollable into, the box)
+  const quit = await page.locator('.td-overlay--pause [data-act="quit"]').boundingBox();
+  assert.ok(quit && quit.height >= 24, "the last button (Back to the fort) exists and is a real control");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(150);
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
