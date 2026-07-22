@@ -85,8 +85,8 @@ test("play flow: enter L1, tap a pad, build a Dart with a real tap", async () =>
   const rect = await canvas.boundingBox();
   const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
   await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
-  await page.locator(".td-bubble .td-buy").waitFor({ state: "visible", timeout: 5000 });
-  await page.locator(".td-bubble .td-buy").click();
+  await page.locator('.td-bubble .td-buy[data-line="dart"]').waitFor({ state: "visible", timeout: 5000 });
+  await page.locator('.td-bubble .td-buy[data-line="dart"]').click();
   const st = await page.evaluate(() => window.__TD.state());
   assert.equal(st.towers.length, 1, "the dart was placed by real taps");
   assert.equal(st.gold, goldBefore - 70, "gold paid");
@@ -213,6 +213,79 @@ test("pause freezes the sim; the speed toggle doubles it", async () => {
   assert.equal(await speedBtn.textContent(), "2×", "speed toggles to 2×");
   await speedBtn.click();
   assert.equal(await speedBtn.textContent(), "1×");
+});
+
+test("TD2 build menu: all four toy lines offered with prices; unaffordable options dim", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-buildmenu").waitFor({ state: "visible" });
+  const opts = await page.locator(".td-buildmenu .td-buy").count();
+  assert.equal(opts, 4, "dart + mortar + fan + camp are all offered");
+  const disabled = await page.locator('.td-buildmenu .td-buy[disabled]').count();
+  assert.equal(disabled, 0, "everything is affordable at 220 start gold");
+  // buy the camp — soldiers deploy
+  await page.locator('.td-buildmenu .td-buy[data-line="camp"]').click();
+  const st = await page.evaluate(() => window.__TD.state());
+  assert.equal(st.towers[0].lineId, "camp", "the camp was placed from the menu");
+  assert.equal(st.soldiers.filter((s) => s.alive).length, 3, "3 army guys deployed");
+});
+
+test("TD2 tower panel: upgrades lead to two branch cards; picking one becomes tier 4", async () => {
+  await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 42 });
+    window.__TD.script([["place", "dart", "p3"]]);
+    window.__TD.grantGold(2000); // UI test: cheated-flag path is fine here
+  });
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+  const openPanel = async () => {
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.locator(".td-panel").waitFor({ state: "visible" });
+  };
+  await openPanel();
+  await page.locator(".td-up").click();      // t2
+  await openPanel();
+  await page.locator(".td-up").click();      // t3
+  await openPanel();
+  assert.equal(await page.locator(".td-branch").count(), 2, "tier 3 offers BOTH branch cards");
+  await page.locator('.td-branch[data-b="a"]').click(); // Sniper Scope
+  const t = await page.evaluate(() => window.__TD.state().towers[0]);
+  assert.equal(t.tier, 4, "branched to tier 4");
+  assert.equal(t.branch, "a");
+  assert.equal(t.targeting, "strong", "the Sniper switches itself to Strong");
+  await openPanel();
+  const name = await page.locator(".td-panel__name").textContent();
+  assert.ok(name.indexOf("Sniper") >= 0, "the panel shows the branch identity");
+});
+
+test("TD2 rally flow: 🚩 Rally arms the next field tap and moves the flag", async () => {
+  await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 42 });
+    window.__TD.script([["place", "camp", "p3"]]);
+  });
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-rally").waitFor({ state: "visible" });
+  await page.locator(".td-rally").click();
+  const before = await page.evaluate(() => {
+    const t = window.__TD.state().towers[0];
+    return { x: t.rallyX, y: t.rallyY };
+  });
+  // plant the flag ~1.5 cells away (inside the 2.5 rally range)
+  const target = await page.evaluate(() => window.__TD.w2s(8, 4.2));
+  await page.mouse.click(rect.x + target.x, rect.y + target.y);
+  const after2 = await page.evaluate(() => {
+    const t = window.__TD.state().towers[0];
+    return { x: t.rallyX, y: t.rallyY };
+  });
+  assert.ok(Math.abs(after2.x - 8) < 0.3 && Math.abs(after2.y - 4.2) < 0.3,
+    `the flag moved to the tapped spot (got ${after2.x.toFixed(2)},${after2.y.toFixed(2)})`);
+  assert.ok(after2.x !== before.x || after2.y !== before.y, "the rally point actually changed");
 });
 
 test("kid-world isolation: the registry, home grid and 华丽 are untouched by the fort", async () => {

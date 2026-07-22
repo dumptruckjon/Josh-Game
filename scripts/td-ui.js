@@ -174,7 +174,7 @@
     const b = UI.bubble;
     if (!b) return;
     b.innerHTML = html;
-    b.classList.remove("td-bubble--below");
+    b.classList.remove("td-bubble--below", "td-bubble--hint");
     b.hidden = false;
     b.style.left = Math.round(xPx) + "px";
     b.style.top = Math.round(yPx) + "px";
@@ -182,19 +182,22 @@
     // rendered bubble and (a) flip below the anchor if it pokes above the
     // viewport, (b) clamp horizontally to an 8px margin.
     const fit = () => {
+      // Bound the dialog inside the FIELD (the canvas wrap), not just the
+      // viewport — a bubble poking above the field would cover the HUD and
+      // swallow taps meant for it (found by the every-pad dialog audit).
+      const wrapR = b.parentElement.getBoundingClientRect();
       const r = b.getBoundingClientRect();
-      if (r.top < 8) {
-        b.classList.add("td-bubble--below");
-      }
+      if (r.top < wrapR.top + 4) b.classList.add("td-bubble--below");
       const r2 = b.getBoundingClientRect();
+      if (b.classList.contains("td-bubble--below") && r2.bottom > wrapR.bottom + 40) {
+        b.classList.remove("td-bubble--below"); // taller-than-field edge: prefer above
+      }
       const vw = doc.documentElement.clientWidth;
-      let shift = 0;
-      if (r2.left < 8) shift = 8 - r2.left;
-      else if (r2.right > vw - 8) shift = (vw - 8) - r2.right;
-      if (shift) b.style.left = Math.round(xPx + shift) + "px";
       const r3 = b.getBoundingClientRect();
-      const vh = doc.documentElement.clientHeight;
-      if (r3.bottom > vh - 8) b.classList.remove("td-bubble--below");
+      let shift = 0;
+      if (r3.left < 8) shift = 8 - r3.left;
+      else if (r3.right > vw - 8) shift = (vw - 8) - r3.right;
+      if (shift) b.style.left = Math.round(xPx + shift) + "px";
     };
     fit();
   };

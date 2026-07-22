@@ -502,7 +502,7 @@ Always present (harmless without calls): `__TD.engine` (live engine),
 | phase | scope | exit gate |
 |---|---|---|
 | **TD-1 Shell+Engine ✅ BUILT** | door, gate, guards, td-mode theme, file/SW/site.test wiring, engine core (ticks, paths, spawn, Dart line, Sock/Marble, gold/lives/waves, win/lose), L1 rough, debug hooks, determinism+losability tests | ✅ L1 winnable by script in CI (16-17/20 lives across seeds); gate guardrails green |
-| **TD-2 Towers** | all 4 lines, tiers, branches, targeting, soldiers/blocking/rally, sell/refund, build UX (radial, panels, ghosts) | tower unit truths + L1 by hand feels right on phone |
+| **TD-2 Towers ✅ BUILT** | all 4 lines, tiers, branches, targeting, soldiers/blocking/rally, sell/refund, build UX (menu, panels, ghosts) | ✅ mechanic micro-sims green (slows/splash/chain/blocking/crits/spin-up), L1 all-lines sim wins, branch/rally UI browser-tested |
 | **TD-3 Enemies+World 1** | full W1 roster (blob/knight/balloon/bull/healer/piñata/legion), L1-L4 authored, Bed Monster, wave-budget audit test, tutorial | 4 winnability sims green |
 | **TD-4 Worlds 2-3** | ghosts/bots/moles/hawks, conveyors, night, levers, dual paths, L5-L12, both bosses, difficulties, stars/badges | 12 sims (Normal) + L12 Heroic sim green |
 | **TD-5 Meta** | fort home (map, stars), star tree + respec, achievements, endless ×3, resume/midRun, settings, TD reset gate | save round-trip + endless-20 sim green |

@@ -106,12 +106,19 @@ body.td-mode .brand { color: #cfe2ff; }
 }
 .td-bubble[hidden] { display: none; }
 .td-bubble--below { transform: translate(-50%, 30%); } /* flipped under the pad when the top would clip */
+.td-bubble--hint { pointer-events: none; } /* a pure hint never swallows the field tap it asks for */
 .td-bubble--no { animation: td-shake 0.3s; border-color: #ff9d9d; }
 @keyframes td-shake {
   0%, 100% { margin-left: 0; }
   25% { margin-left: -5px; }
   75% { margin-left: 5px; }
 }
+.td-buildmenu {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px; max-width: 66vw;
+}
+.td-buy[disabled] { opacity: 0.4; }
+.td-branch, .td-rally,
 .td-buy, .td-up, .td-sell, .td-target {
   min-height: 48px; min-width: 72px; padding: 8px 12px;
   border-radius: 10px; border: 0; font-weight: 800; font-size: 0.98rem;
@@ -120,6 +127,8 @@ body.td-mode .brand { color: #cfe2ff; }
 .td-buy, .td-up { background: #ffd94a; color: #3a2c00; }
 .td-sell { background: #26334f; color: #cfe2ff; }
 .td-target { background: #2fa562; color: #08331c; }
+.td-branch { background: #7a5cd6; color: #f2edff; font-size: 0.88rem; max-width: 40vw; }
+.td-rally { background: #e2626b; color: #fff1f1; }
 .td-panel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 70vw; }
 .td-panel__name { font-weight: 800; color: #ffe27a; padding: 0 4px; white-space: nowrap; }
 

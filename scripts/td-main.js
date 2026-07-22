@@ -43,6 +43,8 @@
         if (now - lastShotCue > 120) { lastShotCue = now; A.tone(1500, { duration: 0.03, gain: 0.05, type: "square" }); }
       }
       else if (kind === "die") A.tone(980, { duration: 0.06, gain: 0.07 });
+      else if (kind === "chain") A.tone(1200, { duration: 0.08, gain: 0.08, type: "square" });
+      else if (kind === "splash") A.tone(110, { duration: 0.18, gain: 0.14, type: "sine" });
       else if (kind === "leak") { A.tone(330, { duration: 0.12, gain: 0.1, type: "sine" }); setTimeout(() => A.tone(262, { duration: 0.16, gain: 0.1, type: "sine" }), 110); }
       else if (kind === "wave") { [440, 440, 440, 587].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.07, gain: 0.1 }), i * 90)); }
       else if (kind === "won") { if (A.winCue) A.winCue(); }
@@ -86,6 +88,8 @@
       else if (e.type === "die") sfx("die");
       else if (e.type === "leak") sfx("leak");
       else if (e.type === "wave") sfx("wave");
+      else if (e.type === "chain") sfx("chain");
+      else if (e.type === "splash") sfx("splash");
     }
     evs.length = 0;
   }
@@ -138,6 +142,16 @@
     // (portrait-filling) orientation exactly as in landscape.
     const w = cur.render.screenToWorld(ev.clientX - rect.left, ev.clientY - rect.top);
     const gx = w.x, gy = w.y;
+    // rally mode: this tap plants the camp's flag instead of selecting
+    if (cur.rallyArmId) {
+      const armed = cur.rallyArmId;
+      cur.rallyArmId = 0;
+      const r = cur.engine.rally(armed, gx, gy);
+      UI.hideBubble();
+      cur.render.setSelection(r.ok ? { tower: armed } : null);
+      if (r.ok) sfx("build");
+      return;
+    }
     // nearest pad within 0.9 cells
     let pad = null, best = 0.9 * 0.9;
     for (const p of cur.engine.levelDef.pads) {
@@ -153,34 +167,56 @@
     const sp = cur.render.worldToScreen(pad.cx + 0.5, pad.cy + 0.5);
     const bx = UI.canvas.offsetLeft + sp.x, by = UI.canvas.offsetTop + sp.y;
     if (!tower) {
+      // ---- build menu: all four toy lines, priced; unaffordable ones dim ----
       cur.selPadId = pad.id;
-      const t1 = DATA.TOWERS.dart.tiers[0];
-      cur.render.setSelection({ pad, ghostRange: t1.range });
+      cur.render.setSelection({ pad, ghostRange: DATA.TOWERS.dart.tiers[0].range });
+      const gold = cur.engine.state.gold;
+      const lines = ["dart", "mortar", "fan", "camp"];
       UI.showBubble(
-        '<button class="td-buy" data-line="dart" type="button">🎯 ' + t1.cost + "🪙</button>",
+        '<div class="td-buildmenu">' +
+        lines.map((id) => {
+          const d = DATA.TOWERS[id];
+          const cost = d.tiers[0].cost;
+          return '<button class="td-buy" data-line="' + id + '" type="button"' + (gold < cost ? " disabled" : "") + ">" +
+            d.icon + " " + cost + "🪙</button>";
+        }).join("") +
+        "</div>",
         bx, by
       );
-      UI.bubble.querySelector(".td-buy").addEventListener("click", (e2) => {
-        e2.stopPropagation();
-        const r = cur.engine.place("dart", pad.id);
-        if (r.ok) { sfx("build"); UI.hideBubble(); cur.render.setSelection(null); }
-        else {
-          UI.bubble.classList.add("td-bubble--no");
-          setTimeout(() => UI.bubble.classList.remove("td-bubble--no"), 300);
-        }
-        UI.hud(cur.engine.state);
+      UI.bubble.querySelectorAll(".td-buy").forEach((btn) => {
+        btn.addEventListener("click", (e2) => {
+          e2.stopPropagation();
+          const r = cur.engine.place(btn.dataset.line, pad.id);
+          if (r.ok) { sfx("build"); UI.hideBubble(); cur.render.setSelection(null); }
+          else {
+            UI.bubble.classList.add("td-bubble--no");
+            setTimeout(() => UI.bubble.classList.remove("td-bubble--no"), 300);
+          }
+          UI.hud(cur.engine.state);
+        });
       });
     } else {
+      // ---- tower panel: upgrade | branch cards at tier 3 | targeting/rally | sell ----
       cur.selTowerId = tower.id;
       cur.render.setSelection({ tower: tower.id });
       const def = DATA.TOWERS[tower.lineId];
-      const next = def.tiers[tower.tier];
+      const s = (tower.tier === 4 && tower.branch) ? def.branches[tower.branch] : def.tiers[tower.tier - 1];
       const refund = Math.floor(tower.spent * DATA.RULES.sellRefund);
+      let middle = "";
+      if (tower.tier < 3) {
+        middle = '<button class="td-up" type="button">⬆ ' + def.tiers[tower.tier].cost + "🪙</button>";
+      } else if (tower.tier === 3) {
+        middle =
+          '<button class="td-branch" data-b="a" type="button">' + def.branches.a.name + " " + def.branches.a.cost + "🪙</button>" +
+          '<button class="td-branch" data-b="b" type="button">' + def.branches.b.name + " " + def.branches.b.cost + "🪙</button>";
+      }
+      const control = tower.lineId === "camp"
+        ? '<button class="td-rally" type="button">🚩 Rally</button>'
+        : '<button class="td-target" type="button">🎯 ' + tower.targeting + "</button>";
       UI.showBubble(
         '<div class="td-panel">' +
-          '<span class="td-panel__name">' + def.tiers[tower.tier - 1].name + "</span>" +
-          (next ? '<button class="td-up" type="button">⬆ ' + next.cost + "🪙</button>" : "") +
-          '<button class="td-target" type="button">🎯 ' + tower.targeting + "</button>" +
+          '<span class="td-panel__name">' + s.name + "</span>" +
+          middle + control +
           '<button class="td-sell" type="button">💰 sell ' + refund + "</button>" +
         "</div>",
         bx, by
@@ -191,12 +227,32 @@
         if (cur.engine.upgrade(tower.id).ok) sfx("upgrade");
         UI.hideBubble(); cur.render.setSelection(null); UI.hud(cur.engine.state);
       });
+      UI.bubble.querySelectorAll(".td-branch").forEach((btn) => {
+        btn.addEventListener("click", (e2) => {
+          e2.stopPropagation();
+          if (cur.engine.branch(tower.id, btn.dataset.b).ok) sfx("upgrade");
+          else {
+            UI.bubble.classList.add("td-bubble--no");
+            setTimeout(() => UI.bubble.classList.remove("td-bubble--no"), 300);
+            return;
+          }
+          UI.hideBubble(); cur.render.setSelection(null); UI.hud(cur.engine.state);
+        });
+      });
+      const rallyBtn = UI.bubble.querySelector(".td-rally");
+      if (rallyBtn) rallyBtn.addEventListener("click", (e2) => {
+        e2.stopPropagation();
+        cur.rallyArmId = tower.id; // next field tap plants the flag
+        UI.showBubble('<div class="td-panel"><span class="td-panel__name">🚩 tap the field</span></div>', bx, by);
+        UI.bubble.classList.add("td-bubble--hint"); // click-transparent — the field tap must pass through
+      });
       UI.bubble.querySelector(".td-sell").addEventListener("click", (e2) => {
         e2.stopPropagation();
         if (cur.engine.sell(tower.id).ok) sfx("sell");
         UI.hideBubble(); cur.render.setSelection(null); UI.hud(cur.engine.state);
       });
-      UI.bubble.querySelector(".td-target").addEventListener("click", (e2) => {
+      const targetBtn = UI.bubble.querySelector(".td-target");
+      if (targetBtn) targetBtn.addEventListener("click", (e2) => {
         e2.stopPropagation();
         const modes = ["first", "last", "strong", "close"];
         const nextMode = modes[(modes.indexOf(tower.targeting) + 1) % modes.length];

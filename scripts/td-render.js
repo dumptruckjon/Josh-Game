@@ -115,21 +115,78 @@
 
     function drawTower(t) {
       const x = (t.cx + 0.5) * cell, y = (t.cy + 0.5) * cell;
-      ctx.fillStyle = "#2fa562";
-      ctx.beginPath(); ctx.arc(x, y, cell * 0.30, 0, 7); ctx.fill();
-      ctx.fillStyle = "#57c98a";
-      ctx.beginPath(); ctx.arc(x, y, cell * 0.22, 0, 7); ctx.fill();
-      ctx.strokeStyle = "#1c5c3a"; ctx.lineWidth = Math.max(2, cell * 0.09); ctx.lineCap = "round";
-      const barrels = Math.min(t.tier, 3);
-      for (let i = 0; i < barrels; i++) {
-        const a = -Math.PI / 2 + (i - (barrels - 1) / 2) * 0.5;
-        ctx.beginPath(); ctx.moveTo(x, y);
-        ctx.lineTo(x + Math.cos(a) * cell * 0.42, y + Math.sin(a) * cell * 0.42);
-        ctx.stroke();
+      if (t.lineId === "dart") {
+        ctx.fillStyle = "#2fa562";
+        ctx.beginPath(); ctx.arc(x, y, cell * 0.30, 0, 7); ctx.fill();
+        ctx.fillStyle = "#57c98a";
+        ctx.beginPath(); ctx.arc(x, y, cell * 0.22, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#1c5c3a"; ctx.lineWidth = Math.max(2, cell * 0.09); ctx.lineCap = "round";
+        const barrels = Math.min(t.tier, 3);
+        for (let i = 0; i < barrels; i++) {
+          const a = -Math.PI / 2 + (i - (barrels - 1) / 2) * 0.5;
+          ctx.beginPath(); ctx.moveTo(x, y);
+          ctx.lineTo(x + Math.cos(a) * cell * 0.42, y + Math.sin(a) * cell * 0.42);
+          ctx.stroke();
+        }
+      } else if (t.lineId === "mortar") {
+        ctx.fillStyle = "#7a5230";
+        ctx.beginPath(); ctx.arc(x, y, cell * 0.32, 0, 7); ctx.fill();
+        ctx.fillStyle = "#9c6b3f";
+        ctx.beginPath(); ctx.arc(x, y, cell * 0.24, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#4a3118"; ctx.lineWidth = Math.max(3, cell * 0.16); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(x, y + cell * 0.06);
+        ctx.lineTo(x + cell * 0.22, y - cell * 0.34); ctx.stroke(); // the lobber tube
+      } else if (t.lineId === "fan") {
+        ctx.fillStyle = "#1f6e8c";
+        ctx.beginPath(); ctx.arc(x, y, cell * 0.30, 0, 7); ctx.fill();
+        ctx.fillStyle = "#7edcff";
+        const spin = engine.state.tick * 0.12 + t.id;
+        for (let i = 0; i < 3; i++) { // spinning blades
+          const a = spin + (i * Math.PI * 2) / 3;
+          ctx.beginPath();
+          ctx.ellipse(x + Math.cos(a) * cell * 0.14, y + Math.sin(a) * cell * 0.14, cell * 0.13, cell * 0.06, a, 0, 7);
+          ctx.fill();
+        }
+        ctx.fillStyle = "#e8f7ff";
+        ctx.beginPath(); ctx.arc(x, y, cell * 0.06, 0, 7); ctx.fill();
+      } else if (t.lineId === "camp") {
+        ctx.fillStyle = "#3c7a45"; // tent
+        ctx.beginPath();
+        ctx.moveTo(x - cell * 0.34, y + cell * 0.26);
+        ctx.lineTo(x, y - cell * 0.3);
+        ctx.lineTo(x + cell * 0.34, y + cell * 0.26);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#245230";
+        ctx.beginPath();
+        ctx.moveTo(x - cell * 0.1, y + cell * 0.26);
+        ctx.lineTo(x, y - cell * 0.02);
+        ctx.lineTo(x + cell * 0.1, y + cell * 0.26);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#e2626b"; ctx.lineWidth = 2; // flag
+        ctx.beginPath(); ctx.moveTo(x, y - cell * 0.3); ctx.lineTo(x, y - cell * 0.5); ctx.stroke();
+        ctx.fillStyle = "#e2626b";
+        ctx.beginPath();
+        ctx.moveTo(x, y - cell * 0.5); ctx.lineTo(x + cell * 0.16, y - cell * 0.44); ctx.lineTo(x, y - cell * 0.38);
+        ctx.closePath(); ctx.fill();
       }
-      ctx.fillStyle = "#ffe27a";
+      ctx.fillStyle = "#ffe27a"; // tier pips (all lines)
       for (let i = 0; i < t.tier; i++) {
-        ctx.beginPath(); ctx.arc(x - cell * 0.2 + i * cell * 0.14, y + cell * 0.34, cell * 0.045, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x - cell * 0.2 + i * cell * 0.14, y + cell * 0.38, cell * 0.045, 0, 7); ctx.fill();
+      }
+    }
+
+    function drawSoldier(s) {
+      const x = s.x * cell, y = s.y * cell;
+      ctx.fillStyle = "#4c9a55"; // body
+      ctx.beginPath(); ctx.ellipse(x, y + cell * 0.06, cell * 0.11, cell * 0.15, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = "#6fbf78"; // helmet head
+      ctx.beginPath(); ctx.arc(x, y - cell * 0.14, cell * 0.09, 0, 7); ctx.fill();
+      if (s.hp < s.maxHp) {
+        const w = cell * 0.4, frac = Math.max(0, s.hp / s.maxHp);
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fillRect(x - w / 2, y - cell * 0.35, w, 2.5);
+        ctx.fillStyle = frac > 0.5 ? "#69d06a" : "#f0b040";
+        ctx.fillRect(x - w / 2, y - cell * 0.35, w * frac, 2.5);
       }
     }
 
@@ -148,6 +205,10 @@
         fx.push({ kind: "gold", x: e.x, y: e.y, ttl: 26, max: 26, text: "+" + e.bounty });
       } else if (e.type === "build" || e.type === "upgrade") fx.push({ kind: "ring", x: e.x + 0.5, y: e.y + 0.5, ttl: 12, max: 12 });
       else if (e.type === "leak") fx.push({ kind: "leak", x: 0, y: 0, ttl: 10, max: 10 });
+      else if (e.type === "chain") fx.push({ kind: "chain", points: e.points, ttl: 7, max: 7 });
+      else if (e.type === "splash") fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 12, max: 12 });
+      else if (e.type === "stun") fx.push({ kind: "stars", x: e.x, y: e.y, ttl: 10, max: 10 });
+      else if (e.type === "rally") fx.push({ kind: "ring", x: e.x, y: e.y, ttl: 10, max: 10 });
     }
 
     function drawWorldFx() {
@@ -166,6 +227,15 @@
         } else if (f.kind === "ring") {
           ctx.strokeStyle = "rgba(126,220,255," + a + ")"; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(f.x * cell, f.y * cell, cell * (1.2 - a * 0.6), 0, 7); ctx.stroke();
+        } else if (f.kind === "chain") {
+          ctx.strokeStyle = "rgba(160,240,255," + a + ")"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo((f.points[0].x + 0.5) * cell, (f.points[0].y + 0.5) * cell);
+          for (const p of f.points.slice(1)) ctx.lineTo((p.x + 0.5) * cell, (p.y + 0.5) * cell);
+          ctx.stroke();
+        } else if (f.kind === "boom") {
+          ctx.strokeStyle = "rgba(255,180,90," + a + ")"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(f.x * cell, f.y * cell, f.r * cell * (1.15 - a * 0.35), 0, 7); ctx.stroke();
         }
       }
     }
@@ -201,10 +271,22 @@
         const t = st.towers.find((x) => x.id === selection.tower);
         if (t) {
           const def = global.TDData.TOWERS[t.lineId];
-          drawRange(t.cx, t.cy, def.tiers[t.tier - 1].range, true);
+          const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
+          const ring = t.lineId === "fan" ? s.auraRange
+            : t.lineId === "camp" ? global.TDData.TOWERS.camp.rallyRange
+            : s.range;
+          drawRange(t.cx, t.cy, ring, true);
         }
       }
       for (const t of st.towers) drawTower(t);
+      for (const s of st.soldiers) if (s.alive) drawSoldier(s);
+      // mortar shells arc between launch and impact
+      for (const sh of st.shells) {
+        const f = Math.min(1, sh.t / sh.T);
+        const arc = Math.sin(Math.PI * f) * cell * 0.9;
+        ctx.fillStyle = "#c9803a";
+        ctx.beginPath(); ctx.arc((sh.x + 0.5) * cell, (sh.y + 0.5) * cell - arc, cell * 0.13, 0, 7); ctx.fill();
+      }
       const lerped = [];
       for (const e of st.enemies) {
         if (!e.alive) continue;
@@ -232,6 +314,10 @@
       const s0 = engine.levelDef.path[0], s1 = engine.levelDef.path[engine.levelDef.path.length - 1];
       glyph(s0[0], s0[1], "🛏");
       glyph(s1[0], s1[1], "🚪");
+      if (selection && selection.tower) {
+        const selT = st.towers.find((x) => x.id === selection.tower);
+        if (selT && selT.lineId === "camp") glyph(selT.rallyX - 0.5, selT.rallyY - 0.5, "🚩");
+      }
       for (const { e, x, y } of lerped) {
         if (e.hp >= e.maxHp) continue;
         const p = worldToScreen(x, y);
