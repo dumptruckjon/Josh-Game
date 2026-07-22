@@ -675,3 +675,203 @@ test("TD3 Bed Monster boss: unblockable by soldiers, stomps them, and headlines 
   const finale = l4.waves[l4.waves.length - 1];
   assert.ok(finale.boss && finale.groups.some((g) => g.type === "bedmonster"), "L4's last wave is the Bed Monster boss");
 });
+
+// ================= TD-4: Worlds 2-3 roster, bosses, gimmicks =================
+// A dart sitting right on the lane so its target is always geometrically in range —
+// isolates "is it TARGETABLE?" (isHidden) from "is it in range?".
+function laneDart(type, count, extra) {
+  return Object.assign({ id: 93, name: "micro", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 3 }],
+    waves: [{ groups: [{ type, count: count || 1, gap: 0.5, delay: 0 }] }] }, extra || {});
+}
+
+test("TD4 Glitter Ghost: untargetable mid-phase — a dart drops it while hidden, re-locks when it shimmers back", () => {
+  const e = TD.createEngine(laneDart("ghost", 1), { seed: 2 });
+  e.place("dart", "m"); const t = e.state.towers[0];
+  e.callWave();
+  let hiddenNoLock = false, visibleLock = false, sawHidden = false, sawVisible = false;
+  for (let i = 0; i < 300 && e.state.phase === "wave"; i++) {
+    e.tick();
+    const g = e.state.enemies.find((x) => x.type === "ghost" && x.alive);
+    if (!g) break;
+    if (g.phaseHidden) { sawHidden = true; if (t.targetId !== g.id) hiddenNoLock = true; }
+    else { sawVisible = true; if (t.targetId === g.id) visibleLock = true; }
+  }
+  assert.ok(sawHidden && sawVisible, "the ghost phased both ways during the run");
+  assert.ok(hiddenNoLock, "a dart must NOT hold a lock on a ghost while it is phased out");
+  assert.ok(visibleLock, "a dart re-acquires the ghost once it is visible again");
+  assert.deepEqual(DATA.ENEMIES.ghost.phase, { every: 4, on: 1.5 }, "ghost phase cadence truth");
+});
+
+test("TD4 Battery Bot: the shield absorbs Zap (Fan) but Bonk (Dart) ignores it — and it regenerates", () => {
+  // combat-math truth: zap eaten by shield, bonk straight to hp regardless of shield
+  const bot = { armor: 0, shield: 40, brittle: false };
+  assert.equal(TD.computeHit(30, "zap", bot).shieldDmg, 30, "zap hits the shield first");
+  assert.equal(TD.computeHit(30, "zap", bot).hpDmg, 0, "a full shield eats the whole zap");
+  assert.equal(TD.computeHit(30, "bonk", { armor: 0, shield: 40, brittle: false }).hpDmg, 30, "bonk ignores the shield entirely");
+  // regen: a drained shield refills over time
+  const e = TD.createEngine(laneDart("battery", 1), { seed: 1 });
+  e.callWave(); for (let i = 0; i < 8; i++) e.tick();
+  const b = e.state.enemies.find((x) => x.type === "battery");
+  b.shield = 5; const before = b.shield;
+  for (let i = 0; i < 40; i++) e.tick();
+  assert.ok(b.shield > before && b.shield <= DATA.ENEMIES.battery.shield, `battery shield regenerates (${before} → ${b.shield.toFixed(1)}, cap ${DATA.ENEMIES.battery.shield})`);
+});
+
+test("TD4 Digger Mole: untargetable AND unblockable under the middle third, hittable at the ends", () => {
+  const e = TD.createEngine(laneDart("mole", 1), { seed: 1 });
+  // dart at the far end so the mole is only in range as it surfaces near the exit
+  const e2 = TD.createEngine(Object.assign(laneDart("mole", 1), { pads: [{ id: "m", cx: 20, cy: 3 }] }), { seed: 1 });
+  e2.place("dart", "m"); const t = e2.state.towers[0];
+  e2.callWave();
+  let lockedInMiddle = false, lockedAtEnd = false;
+  const tot = e2.path.total;
+  for (let i = 0; i < 800 && e2.state.phase === "wave"; i++) {
+    e2.tick();
+    const m = e2.state.enemies.find((x) => x.type === "mole" && x.alive);
+    if (!m) break;
+    const inMid = m.dist > tot / 3 && m.dist < (tot * 2) / 3;
+    if (inMid && t.targetId === m.id) lockedInMiddle = true;
+    if (!inMid && m.dist > (tot * 2) / 3 && t.targetId === m.id) lockedAtEnd = true;
+  }
+  assert.ok(!lockedInMiddle, "no tower may target a mole tunnelling under the middle third");
+  assert.ok(lockedAtEnd, "the mole is targetable again once it surfaces past the middle");
+  // unblockable underground: a camp mid-lane can't hold it while it's under
+  const ce = TD.createEngine(Object.assign(laneDart("mole", 1), { pads: [{ id: "m", cx: 11, cy: 3 }] }), { seed: 1 });
+  ce.place("camp", "m"); ce.callWave();
+  let blockedInMiddle = false;
+  for (let i = 0; i < 900 && ce.state.phase === "wave"; i++) {
+    ce.tick();
+    const m = ce.state.enemies.find((x) => x.type === "mole" && x.alive);
+    if (m && m.blockedBy && m.dist > ce.path.total / 3 && m.dist < (ce.path.total * 2) / 3) blockedInMiddle = true;
+  }
+  assert.ok(!blockedInMiddle, "a tunnelling mole cannot be blocked by soldiers");
+});
+
+test("TD4 Kite Hawk: a fast flier — only Dart/Fan touch it, the ground-only Mortar never fires at it", () => {
+  assert.equal(DATA.ENEMIES.hawk.flier, true, "hawk is a flier");
+  assert.ok(DATA.ENEMIES.hawk.speed >= 2, "hawk is fast (≥2 cells/s)");
+  const e = TD.createEngine(laneDart("hawk", 2), { seed: 2 });
+  e.place("mortar", "m"); e.callWave();
+  let shellFired = false, sawHawk = false;
+  for (let i = 0; i < 400 && e.state.phase === "wave"; i++) { e.tick(); if (e.state.enemies.some((x) => x.type === "hawk" && x.alive)) sawHawk = true; if (e.state.shells.length) shellFired = true; }
+  assert.ok(sawHawk, "hawks actually spawned");
+  assert.ok(!shellFired, "a ground-only Mortar must never lob at a flying hawk");
+  // a Dart clears them
+  const de = TD.createEngine(laneDart("hawk", 2), { seed: 2 });
+  de.place("dart", "m"); const dt = de.state.towers[0]; de.state.gold = 9000; de.upgrade(dt.id); de.upgrade(dt.id);
+  de.callWave();
+  let g = 0; while (de.state.phase === "wave" && g++ < 3000) de.tick();
+  assert.equal(de.state.phase, "won", "a Dart shoots the fliers down");
+});
+
+test("TD4 Vacuum King boss: inhales the nearest soldier (instant KO) on its timer + enrages under half hp", () => {
+  const e = TD.createEngine(laneDart("vacuumking", 1, { pads: [{ id: "m", cx: 4, cy: 4 }] }), { seed: 1 });
+  e.place("camp", "m"); e.callWave();
+  let sucks = 0, downs = 0;
+  for (let i = 0; i < 500 && e.state.phase === "wave"; i++) {
+    e.tick();
+    sucks += e.events.filter((v) => v.type === "suck").length;
+    downs += e.events.filter((v) => v.type === "soldier-down").length;
+    e.events.length = 0;
+  }
+  assert.ok(sucks > 0 && downs > 0, `the Vacuum King sucked soldiers (sucks ${sucks}, downs ${downs})`);
+  assert.deepEqual(DATA.ENEMIES.vacuumking.enrage, { hpPct: 0.5, mult: 1.2 }, "enrage truth");
+  assert.ok(DATA.ENEMIES.vacuumking.shield > 0 && DATA.ENEMIES.vacuumking.shieldRegen > 0, "the king carries a regenerating shield");
+  // finale of L8
+  const l8 = DATA.LEVELS.find((l) => l.id === 8);
+  const fin = l8.waves[l8.waves.length - 1];
+  assert.ok(fin.boss && fin.groups.some((g) => g.type === "vacuumking"), "L8's last wave is the Vacuum King");
+});
+
+test("TD4 The Static boss: P2 jams a random gun, P3 summons Battery Bots and dashes", () => {
+  const lvl = { id: 92, name: "m", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 1 }, { id: "m2", cx: 9, cy: 1 }, { id: "m3", cx: 13, cy: 1 }],
+    waves: [{ groups: [{ type: "thestatic", count: 1, gap: 1, delay: 0 }] }] };
+  const e = TD.createEngine(lvl, { seed: 1 });
+  ["m", "m2", "m3"].forEach((p) => e.place("dart", p));
+  e.callWave(); for (let i = 0; i < 20; i++) e.tick();
+  const boss = e.state.enemies.find((x) => x.type === "thestatic");
+  // P2: force into the 66% band → a tower gets jammed
+  boss.hp = boss.maxHp * 0.6;
+  let disabled = 0;
+  for (let i = 0; i < 400 && boss.alive; i++) { e.tick(); disabled += e.events.filter((v) => v.type === "disable").length; e.events.length = 0; }
+  assert.ok(disabled > 0, "P2 jams a random gun");
+  assert.ok(e.state.towers.some((t) => t.disabledUntil > 0), "a tower carries a disabled window");
+  // P3: force into the 33% band → summons batteries + speeds up
+  boss.hp = boss.maxHp * 0.25;
+  let summons = 0;
+  for (let i = 0; i < 400 && boss.alive; i++) { e.tick(); summons += e.events.filter((v) => v.type === "summon").length; e.events.length = 0; }
+  assert.ok(summons > 0, "P3 summons reinforcements");
+  assert.ok(e.state.enemies.some((x) => x.type === "battery"), "the summoned reinforcements are Battery Bots");
+  assert.ok(boss.speedMult > 1, "P3 gives the boss a speed dash");
+  const l12 = DATA.LEVELS.find((l) => l.id === 12);
+  const fin = l12.waves[l12.waves.length - 1];
+  assert.ok(fin.boss && fin.groups.some((g) => g.type === "thestatic"), "L12's last wave is The Static");
+});
+
+test("TD4 gimmick — night dims Dart/Mortar reach (Fan exempt); conveyor strips speed enemies", () => {
+  // night: the same dart on a night level acquires from a shorter distance.
+  const mk = (night) => ({ id: 91, name: "m", world: "test", night, startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 6, cy: 3 }],
+    waves: [{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }] });
+  const acquireDist = (night) => {
+    const e = TD.createEngine(mk(night), { seed: 5 });
+    e.place("dart", "m"); const t = e.state.towers[0];
+    e.callWave();
+    for (let i = 0; i < 400 && e.state.phase === "wave"; i++) { e.tick(); if (t.targetId) return e.state.enemies.find((x) => x.id === t.targetId).dist; }
+    return null;
+  };
+  const day = acquireDist(false), nite = acquireDist(true);
+  assert.ok(day != null && nite != null, "the dart acquired the sock on both");
+  assert.ok(nite > day + 0.2, `night shrinks the reach, so the dart locks LATER (day dist ${day.toFixed(2)} < night ${nite.toFixed(2)})`);
+  assert.equal(DATA.RULES.nightRangeMult, 0.85, "night range multiplier truth (−15%)");
+
+  // conveyor: an enemy crossing a speed zone is farther along than one on a plain lane.
+  const plain = { id: 90, name: "m", world: "test", startGold: 100, budgetBase: 100, path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 9 }], waves: [{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }] };
+  const belt = Object.assign({}, plain, { zones: [{ from: 3, to: 15, mult: 1.6 }] });
+  const runDist = (lvl) => { const e = TD.createEngine(lvl, { seed: 5 }); e.callWave(); for (let i = 0; i < 300; i++) e.tick(); const s = e.state.enemies.find((x) => x.alive); return s ? s.dist : 999; };
+  assert.ok(runDist(belt) > runDist(plain) + 1, `a conveyor strip shoves the enemy farther along (belt ${runDist(belt).toFixed(1)} > plain ${runDist(plain).toFixed(1)})`);
+});
+
+test("TD4 structure: 12 contiguous levels across 3 worlds, bosses at L4/L8/L12, difficulty badges present", () => {
+  assert.equal(DATA.LEVELS.length, 12, "the fort ships all 12 levels");
+  DATA.LEVELS.forEach((l, i) => assert.equal(l.id, i + 1, "ids contiguous 1..12"));
+  const bossLevels = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss)).map((l) => l.id);
+  assert.deepEqual(bossLevels, [4, 8, 12], "bosses headline L4, L8, L12");
+  const worlds = [...new Set(DATA.LEVELS.map((l) => l.world))];
+  assert.deepEqual(worlds, ["bedroom", "backyard", "toystore"], "three worlds in order");
+  for (const l of DATA.LEVELS) assert.ok(l.badge >= 1 && l.badge <= 3, `L${l.id} carries a difficulty badge`);
+  // every enemy referenced by a wave exists (typo guard, incl. the new roster)
+  const known = new Set(Object.keys(DATA.ENEMIES));
+  for (const l of DATA.LEVELS) for (const w of l.waves) for (const g of w.groups) assert.ok(known.has(g.type), `L${l.id} references known enemy ${g.type}`);
+});
+
+test("TD4 L12 heroic is winnable by a sensible maxed build (the hardest sanctioned run)", () => {
+  const L12 = DATA.LEVELS.find((l) => l.id === 12);
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function playWith(level, seed, plan) {
+    const e = TD.createEngine(level, { seed, difficulty: "heroic" });
+    const padIds = level.pads.map((p) => p.id); let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 900000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) { if (!e.state.towers.find((t) => t.padId === pid)) { const line = plan[idx % plan.length]; if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } } break; } }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state;
+  }
+  const MIXED = ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"];
+  const a = playWith(L12, 7, ["dart"]);
+  const b = playWith(L12, 7, MIXED);
+  const won = a.phase === "won" || b.phase === "won";
+  assert.ok(won, `L12 must be beatable on HEROIC by a sensible maxed build (dart:${a.phase}/${a.lives} mixed:${b.phase}/${b.lives})`);
+});

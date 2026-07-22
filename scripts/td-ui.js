@@ -81,7 +81,7 @@
       '<p class="td-sub">Toybox Defense</p>' +
       '<div class="td-diff" role="group" aria-label="Difficulty"></div>' +
       '<div class="td-levels" role="list"></div>' +
-      '<p class="td-note">5 levels live — beat one to unlock the next. The full toybox arsenal (4 tower lines, upgrades &amp; exclusive branches) is yours. More levels, enemies &amp; bosses are on the way.</p>';
+      '<p class="td-note">12 levels across 3 worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers) and three bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>';
     screens.appendChild(home);
     home.querySelector(".td-exit").addEventListener("click", hooks.exitFort);
 
@@ -165,11 +165,17 @@
       const card = doc.createElement("button");
       card.type = "button";
       card.className = "td-level" + (playable ? "" : " td-level--locked");
+      if (def && def.world) card.dataset.world = def.world; // wood / grass / neon tint
       if (playable) {
         const stars = starsOf(n);
+        const badge = Math.max(1, Math.min(3, def.badge || 1)); // difficulty 1-3
+        const isBoss = def.waves.some((w) => w.boss);
+        const pips = '<span class="td-level__badge td-badge--' + badge + '">' +
+          "●".repeat(badge) + '<span class="td-level__dim">' + "●".repeat(3 - badge) + "</span></span>";
         card.innerHTML =
-          '<span class="td-level__n">' + n + "</span>" +
+          '<span class="td-level__n">' + n + (isBoss ? " 👑" : "") + "</span>" +
           '<span class="td-level__name">' + def.name + "</span>" +
+          pips +
           '<span class="td-level__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(Math.max(0, 3 - stars)) + "</span></span>";
         card.addEventListener("click", () => onPick(n));
       } else if (def && !unlocked) {
@@ -285,6 +291,13 @@
     el.classList.remove("td-banner--in"); void el.offsetWidth; el.classList.add("td-banner--in");
     if (UI._bannerT) clearTimeout(UI._bannerT);
     UI._bannerT = setTimeout(() => { el.hidden = true; }, 2600);
+  };
+  // Clear any lingering banner (e.g. a boss klaxon) so a fresh level never
+  // inherits the PREVIOUS level's banner text.
+  UI.hideBanner = function () {
+    if (UI._bannerT) { clearTimeout(UI._bannerT); UI._bannerT = null; }
+    const el = doc.querySelector("#screen-td-play .td-banner");
+    if (el) { el.hidden = true; el.classList.remove("td-banner--in"); }
   };
 
   // ---- Overlays (pause / victory / defeat) ----

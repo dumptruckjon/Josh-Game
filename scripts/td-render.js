@@ -22,6 +22,12 @@
     const fx = [];        // {kind, x, y, ttl, max, text?} (world coords)
     const prevPos = new Map();
     let bg = null;
+    const NIGHT = !!engine.levelDef.night;
+    const ZONES = engine.levelDef.zones || null;
+    const nightMul = NIGHT ? global.TDData.RULES.nightRangeMult : 1;
+    // static Manhattan length of the lane — the mole's "underground" middle third.
+    const pathTotal = (() => { const wp = engine.levelDef.path; let t = 0; for (let i = 1; i < wp.length; i++) t += Math.abs(wp[i][0] - wp[i - 1][0]) + Math.abs(wp[i][1] - wp[i - 1][1]); return t; })();
+    function tangentAt(dist) { const a = engine.posAt(Math.max(0, dist - 0.35)), b = engine.posAt(Math.min(pathTotal, dist + 0.35)); let tx = b.x - a.x, ty = b.y - a.y; const m = Math.hypot(tx, ty) || 1; return { x: tx / m, y: ty / m }; }
 
     function resize() {
       const parent = canvas.parentElement;
@@ -72,8 +78,17 @@
       const b = bg.getContext("2d");
       b.setTransform(dpr, 0, 0, dpr, 0, 0);
       const g = b.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, "#12213c"); g.addColorStop(1, "#1c2c49");
+      if (NIGHT) { g.addColorStop(0, "#070d1c"); g.addColorStop(1, "#0c1526"); } // firefly-night: darker floor
+      else { g.addColorStop(0, "#12213c"); g.addColorStop(1, "#1c2c49"); }
       b.fillStyle = g; b.fillRect(0, 0, W, H);
+      if (NIGHT) { // scattered firefly glows (baked, deterministic positions)
+        for (let i = 0; i < 14; i++) {
+          const fx0 = ((i * 137) % (GRID.w * 10)) / 10, fy0 = ((i * 71) % (GRID.h * 10)) / 10;
+          const gl = b.createRadialGradient(fx0 * cell, fy0 * cell, 0, fx0 * cell, fy0 * cell, cell * 0.7);
+          gl.addColorStop(0, "rgba(200,255,150,0.20)"); gl.addColorStop(1, "rgba(200,255,150,0)");
+          b.fillStyle = gl; b.beginPath(); b.arc(fx0 * cell, fy0 * cell, cell * 0.7, 0, 7); b.fill();
+        }
+      }
       // soft vignette so the field feels like a lit playmat
       const vig = b.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.62);
       vig.addColorStop(0, "rgba(255,255,255,0.05)"); vig.addColorStop(1, "rgba(0,0,0,0.18)");
@@ -272,6 +287,104 @@
         ctx.fillStyle = "#2a1030"; ctx.beginPath(); ctx.arc(sx - R * 0.24, sy + R * 0.05, R * 0.08, 0, 7); ctx.arc(sx + R * 0.09, sy + R * 0.05, R * 0.08, 0, 7); ctx.fill();
         ctx.fillStyle = "#7a2030"; ctx.beginPath(); ctx.moveTo(sx - R * 0.35, sy + R * 0.26); ctx.quadraticCurveTo(sx, sy + R * 0.5, sx + R * 0.35, sy + R * 0.26); ctx.closePath(); ctx.fill(); // grin
         ctx.fillStyle = "#fff"; for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(sx + k * R * 0.13, sy + R * 0.27); ctx.lineTo(sx + k * R * 0.13 + R * 0.06, sy + R * 0.27); ctx.lineTo(sx + k * R * 0.13 + R * 0.03, sy + R * 0.37); ctx.closePath(); ctx.fill(); } // teeth
+      } else if (e.type === "ghost") {
+        // Glitter Ghost: a translucent sheet ghost; fades right out mid-phase so
+        // the player SEES why it can't be targeted, then shimmers back.
+        ctx.save();
+        ctx.globalAlpha = e.phaseHidden ? 0.22 : 0.9;
+        const rr = r * 0.95, w = Math.sin(engine.state.tick / 6 + e.id) * rr * 0.06;
+        const gg = ctx.createLinearGradient(sx, sy - rr, sx, sy + rr);
+        gg.addColorStop(0, "#eaf2ff"); gg.addColorStop(1, "#b9caf0");
+        ctx.fillStyle = gg;
+        ctx.beginPath();
+        ctx.arc(sx, sy - rr * 0.15, rr * 0.8, Math.PI, 0);
+        ctx.lineTo(sx + rr * 0.8, sy + rr * 0.7 + w);
+        for (let k = 2; k >= -2; k--) { const bx = sx + k * rr * 0.32; ctx.quadraticCurveTo(bx + rr * 0.16, sy + rr * (k % 2 ? 0.5 : 0.85), bx, sy + rr * 0.7 - w * (k % 2)); }
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#38507a";
+        ctx.beginPath(); ctx.arc(sx - rr * 0.26, sy - rr * 0.12, rr * 0.14, 0, 7); ctx.arc(sx + rr * 0.26, sy - rr * 0.12, rr * 0.14, 0, 7); ctx.fill();
+        if (e.phaseHidden) { ctx.strokeStyle = "rgba(180,210,255,0.5)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, rr * 1.1, 0, 7); ctx.stroke(); }
+        ctx.restore();
+      } else if (e.type === "battery") {
+        // Battery Bot: a boxy tin robot; a blue shield bubble shows while charged
+        shadow(sx, sy + r * 0.5, r * 0.6, r * 0.2);
+        ctx.strokeStyle = "#9aa7b8"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.beginPath(); ctx.moveTo(sx - r * 0.2, sy - r * 0.62); ctx.lineTo(sx - r * 0.2, sy - r * 0.9); ctx.moveTo(sx + r * 0.2, sy - r * 0.62); ctx.lineTo(sx + r * 0.2, sy - r * 0.9); ctx.stroke();
+        ctx.fillStyle = "#cdd7e6"; ctx.beginPath(); ctx.arc(sx - r * 0.2, sy - r * 0.94, r * 0.08, 0, 7); ctx.arc(sx + r * 0.2, sy - r * 0.94, r * 0.08, 0, 7); ctx.fill();
+        const gbt = ctx.createLinearGradient(sx, sy - r * 0.6, sx, sy + r * 0.6);
+        gbt.addColorStop(0, "#c3ccd8"); gbt.addColorStop(1, "#7d8a9c");
+        ctx.fillStyle = gbt; ctx.beginPath(); ctx.rect(sx - r * 0.6, sy - r * 0.6, r * 1.2, r * 1.2); ctx.fill();
+        ctx.strokeStyle = "#59677a"; ctx.lineWidth = Math.max(1, cell * 0.03); ctx.strokeRect(sx - r * 0.6, sy - r * 0.6, r * 1.2, r * 1.2);
+        ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - r * 0.22, sy - r * 0.16, r * 0.11, 0, 7); ctx.arc(sx + r * 0.22, sy - r * 0.16, r * 0.11, 0, 7); ctx.fill();
+        // battery gauge (green bars)
+        ctx.fillStyle = "#69d06a"; for (let k = 0; k < 3; k++) { ctx.fillRect(sx - r * 0.34 + k * r * 0.26, sy + r * 0.18, r * 0.16, r * 0.18); }
+        if (e.shield > 0) { const sh = 0.4 + 0.3 * Math.sin(engine.state.tick / 5 + e.id); ctx.strokeStyle = "rgba(120,190,255," + sh.toFixed(2) + ")"; ctx.lineWidth = Math.max(2, cell * 0.06); ctx.beginPath(); ctx.arc(sx, sy, r * 1.05, 0, 7); ctx.stroke(); }
+      } else if (e.type === "mole") {
+        // Digger Mole: above ground a brown mole; in the middle third it BURROWS —
+        // shown as a scrolling dirt mound (matches the engine's untargetable zone).
+        const under = e.dist > pathTotal / 3 && e.dist < (pathTotal * 2) / 3;
+        if (under) {
+          ctx.fillStyle = "#6e4d29"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.2, r * 0.95, r * 0.5, 0, Math.PI, 0); ctx.fill();
+          ctx.fillStyle = "#5a3e20"; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(sx + k * r * 0.4, sy + r * 0.18, r * 0.14, 0, 7); ctx.fill(); }
+          ctx.fillStyle = "rgba(120,90,55,0.6)"; ctx.beginPath(); ctx.moveTo(sx - r * 0.2, sy - r * 0.1); ctx.lineTo(sx, sy - r * 0.4); ctx.lineTo(sx + r * 0.2, sy - r * 0.1); ctx.closePath(); ctx.fill();
+        } else {
+          shadow(sx, sy + r * 0.5, r * 0.55, r * 0.18);
+          const gml = ctx.createRadialGradient(sx - r * 0.2, sy - r * 0.2, r * 0.1, sx, sy, r * 0.9);
+          gml.addColorStop(0, "#8a6a44"); gml.addColorStop(1, "#5c4023");
+          ctx.fillStyle = gml; ctx.beginPath(); ctx.ellipse(sx, sy, r * 0.75, r * 0.68, 0, 0, 7); ctx.fill();
+          ctx.fillStyle = "#f0c9a0"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.28, r * 0.28, r * 0.2, 0, 0, 7); ctx.fill(); // snout
+          ctx.fillStyle = "#3a2a18"; ctx.beginPath(); ctx.arc(sx, sy + r * 0.3, r * 0.08, 0, 7); ctx.fill();
+          ctx.fillStyle = "#2a1c10"; ctx.beginPath(); ctx.arc(sx - r * 0.2, sy - r * 0.02, r * 0.07, 0, 7); ctx.arc(sx + r * 0.2, sy - r * 0.02, r * 0.07, 0, 7); ctx.fill();
+          ctx.strokeStyle = "#e9dccb"; ctx.lineWidth = Math.max(1.5, cell * 0.05); ctx.lineCap = "round"; // claws
+          ctx.beginPath(); ctx.moveTo(sx - r * 0.5, sy + r * 0.5); ctx.lineTo(sx - r * 0.66, sy + r * 0.62); ctx.moveTo(sx - r * 0.36, sy + r * 0.56); ctx.lineTo(sx - r * 0.48, sy + r * 0.72); ctx.stroke();
+        }
+      } else if (e.type === "hawk") {
+        // Kite Hawk: a fast diamond kite with a bow tail — a flier, so it hovers
+        shadow(sx, sy + cell * 0.5, r * 0.5, r * 0.18);
+        const by = sy - cell * 0.05;
+        const gh = ctx.createLinearGradient(sx, by - r * 0.7, sx, by + r * 0.7);
+        gh.addColorStop(0, "#ff8f5a"); gh.addColorStop(1, "#e0552f");
+        ctx.fillStyle = gh;
+        ctx.beginPath(); ctx.moveTo(sx, by - r * 0.75); ctx.lineTo(sx + r * 0.55, by); ctx.lineTo(sx, by + r * 0.75); ctx.lineTo(sx - r * 0.55, by); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = Math.max(1, cell * 0.025);
+        ctx.beginPath(); ctx.moveTo(sx, by - r * 0.75); ctx.lineTo(sx, by + r * 0.75); ctx.moveTo(sx - r * 0.55, by); ctx.lineTo(sx + r * 0.55, by); ctx.stroke();
+        // bow tail (flutters)
+        const fl = Math.sin(engine.state.tick / 3 + e.id) * r * 0.2;
+        ctx.strokeStyle = "#ffd94a"; ctx.lineWidth = Math.max(1.5, cell * 0.04);
+        ctx.beginPath(); ctx.moveTo(sx, by + r * 0.75); ctx.quadraticCurveTo(sx + fl, by + r * 1.1, sx - fl, by + r * 1.4); ctx.stroke();
+        ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - r * 0.12, by, r * 0.08, 0, 7); ctx.arc(sx + r * 0.12, by, r * 0.08, 0, 7); ctx.fill();
+      } else if (e.type === "vacuumking") {
+        // Vacuum King boss: a swirling tornado with a little gold crown
+        const R = r * 1.8, spin = engine.state.tick * 0.2;
+        shadow(sx, sy + R * 0.55, R * 0.7, R * 0.2);
+        const gv = ctx.createLinearGradient(sx, sy - R * 0.8, sx, sy + R * 0.7);
+        gv.addColorStop(0, "#8fa6c8"); gv.addColorStop(1, "#4c5e80");
+        ctx.fillStyle = gv;
+        ctx.beginPath();
+        ctx.moveTo(sx - R * 0.7, sy - R * 0.75); ctx.quadraticCurveTo(sx, sy - R, sx + R * 0.7, sy - R * 0.75);
+        ctx.quadraticCurveTo(sx + R * 0.2, sy - R * 0.1, sx + R * 0.28, sy + R * 0.5);
+        ctx.quadraticCurveTo(sx, sy + R * 0.72, sx - R * 0.28, sy + R * 0.5);
+        ctx.quadraticCurveTo(sx - R * 0.2, sy - R * 0.1, sx - R * 0.7, sy - R * 0.75); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = Math.max(2, cell * 0.06);
+        for (let k = 0; k < 4; k++) { const yy = sy - R * 0.6 + k * R * 0.35, ph = spin + k; ctx.beginPath(); ctx.ellipse(sx + Math.sin(ph) * R * 0.12, yy, R * (0.62 - k * 0.12), R * 0.1, 0, 0, 7); ctx.stroke(); }
+        ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - R * 0.16, sy - R * 0.35, R * 0.1, 0, 7); ctx.arc(sx + R * 0.16, sy - R * 0.35, R * 0.1, 0, 7); ctx.fill();
+        ctx.fillStyle = "#ffd94a"; // crown
+        ctx.beginPath(); ctx.moveTo(sx - R * 0.4, sy - R * 0.78); ctx.lineTo(sx - R * 0.4, sy - R * 1.02); ctx.lineTo(sx - R * 0.2, sy - R * 0.86); ctx.lineTo(sx, sy - R * 1.08); ctx.lineTo(sx + R * 0.2, sy - R * 0.86); ctx.lineTo(sx + R * 0.4, sy - R * 1.02); ctx.lineTo(sx + R * 0.4, sy - R * 0.78); ctx.closePath(); ctx.fill();
+      } else if (e.type === "thestatic") {
+        // The Static boss: a crackling electric cloud; brighter as it escalates
+        const R = r * 1.85, frac = e.hp / e.maxHp;
+        const hot = frac <= 0.33 ? 1 : frac <= 0.66 ? 0.6 : 0.3;
+        shadow(sx, sy + R * 0.5, R * 0.75, R * 0.22);
+        const gc = ctx.createRadialGradient(sx, sy, R * 0.2, sx, sy, R);
+        gc.addColorStop(0, "#5a6b8f"); gc.addColorStop(1, "#2e3a55");
+        ctx.fillStyle = gc;
+        ctx.beginPath();
+        for (let k = 0; k < 9; k++) { const a = (k / 9) * Math.PI * 2, rr = R * (0.7 + 0.18 * Math.sin(k * 2 + engine.state.tick / 8)); const px = sx + Math.cos(a) * rr, py = sy + Math.sin(a) * rr * 0.8; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(180,220,255," + (0.5 + 0.5 * hot) + ")"; ctx.lineWidth = Math.max(1.5, cell * 0.05); ctx.lineCap = "round";
+        for (let k = 0; k < 3; k++) { const a = engine.state.tick * 0.3 + k * 2.1; ctx.beginPath(); ctx.moveTo(sx, sy); let bx = sx, by = sy; for (let j = 0; j < 3; j++) { bx += Math.cos(a + j) * R * 0.3; by += Math.sin(a + j) * R * 0.3; ctx.lineTo(bx + (j % 2 ? R * 0.12 : -R * 0.12), by); } ctx.stroke(); }
+        ctx.fillStyle = "#fff2a0"; ctx.beginPath(); ctx.arc(sx - R * 0.2, sy - R * 0.12, R * 0.12, 0, 7); ctx.arc(sx + R * 0.2, sy - R * 0.12, R * 0.12, 0, 7); ctx.fill();
+        ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - R * 0.2, sy - R * 0.12, R * 0.05, 0, 7); ctx.arc(sx + R * 0.2, sy - R * 0.12, R * 0.05, 0, 7); ctx.fill();
       } else {
         // Sock Goblin: a cream sock with a folded cuff, a toe, and a cheeky face
         shadow(sx, sy + cell * 0.34, r * 0.72, r * 0.24);
@@ -399,6 +512,14 @@
       for (let i = 0; i < t.tier; i++) {
         ctx.beginPath(); ctx.arc(x - u * 0.2 + i * u * 0.14, y + u * 0.42, u * 0.045, 0, 7); ctx.fill();
       }
+      // jammed by The Static: a pulsing red crackle so the player sees the gun is down
+      if (t.disabledUntil && engine.state.tick < t.disabledUntil) {
+        const pu = 0.5 + 0.5 * Math.sin(engine.state.tick / 3);
+        ctx.strokeStyle = "rgba(255,110,110," + (0.5 + 0.4 * pu).toFixed(2) + ")"; ctx.lineWidth = Math.max(2, u * 0.07);
+        ctx.beginPath(); ctx.arc(x, y, u * 0.44, 0, 7); ctx.stroke();
+        ctx.strokeStyle = "rgba(255,220,120,0.9)"; ctx.lineWidth = Math.max(1.5, u * 0.045); ctx.lineCap = "round";
+        for (let k = 0; k < 3; k++) { const a = engine.state.tick * 0.4 + k * 2.1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * u * 0.42, y + Math.sin(a) * u * 0.42 - u * 0.1); ctx.stroke(); }
+      }
     }
 
     // ---------- soldiers (upright, screen space) ----------
@@ -457,6 +578,32 @@
       else if (e.type === "stun") fx.push({ kind: "stars", x: e.x, y: e.y, ttl: 10, max: 10 });
       else if (e.type === "stomp") fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 14, max: 14 }); // boss shockwave
       else if (e.type === "rally") fx.push({ kind: "ring", x: e.x, y: e.y, ttl: 10, max: 10 });
+      else if (e.type === "suck") fx.push({ kind: "suck", x: e.x, y: e.y, sx: e.sx, sy: e.sy, ttl: 14, max: 14 }); // Vacuum King inhale
+      else if (e.type === "disable") fx.push({ kind: "spark", x: e.x + 0.5, y: e.y + 0.5, ttl: 16, max: 16 }); // The Static jam
+      else if (e.type === "summon") fx.push({ kind: "ring", x: e.x, y: e.y, ttl: 12, max: 12 }); // minion pop
+    }
+
+    // Conveyor strips (Slip'n'Slide): scrolling forward chevrons over each speed
+    // zone so the player SEES where enemies get a shove. Floor pass (cell coords).
+    function drawConveyors() {
+      if (!ZONES) return;
+      const scroll = (engine.state.tick * 0.08) % 1;
+      for (const z of ZONES) {
+        const span = z.to - z.from, n = Math.max(2, Math.round(span / 0.6));
+        for (let i = 0; i <= n; i++) {
+          const d = z.from + ((i + scroll) / n) * span;
+          if (d < z.from || d > z.to) continue;
+          const p = engine.posAt(d), tan = tangentAt(d);
+          const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
+          const nx = -tan.y, ny = tan.x, s = cell * 0.28;
+          ctx.strokeStyle = "rgba(120,230,255,0.55)"; ctx.lineWidth = Math.max(2, cell * 0.06); ctx.lineCap = "round"; ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(cx - tan.x * s + nx * s, cy - tan.y * s + ny * s);
+          ctx.lineTo(cx + tan.x * s, cy + tan.y * s);
+          ctx.lineTo(cx - tan.x * s - nx * s, cy - tan.y * s - ny * s);
+          ctx.stroke();
+        }
+      }
     }
 
     // world-space particle fx (circles/lines — rotation-safe, drawn in FLOOR pass)
@@ -485,6 +632,15 @@
         } else if (f.kind === "boom") {
           ctx.strokeStyle = "rgba(255,180,90," + a + ")"; ctx.lineWidth = 3;
           ctx.beginPath(); ctx.arc(f.x * cell, f.y * cell, f.r * cell * (1.15 - a * 0.35), 0, 7); ctx.stroke();
+        } else if (f.kind === "suck") { // Vacuum King inhale: a line + a shrinking ring at the boss
+          const bx = (f.x + 0.5) * cell, by = (f.y + 0.5) * cell, sxp = f.sx * cell, syp = f.sy * cell;
+          ctx.strokeStyle = "rgba(180,205,240," + (0.7 * a) + ")"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(sxp, syp); ctx.lineTo(bx, by); ctx.stroke();
+          ctx.strokeStyle = "rgba(150,185,230," + a + ")"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(bx, by, cell * 0.7 * a, 0, 7); ctx.stroke();
+        } else if (f.kind === "spark") { // The Static jam burst on a tower
+          ctx.strokeStyle = "rgba(255,220,120," + a + ")"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+          for (let i = 0; i < 6; i++) { const ang = (i / 6) * Math.PI * 2 + f.ttl * 0.2, rr = cell * 0.5 * (1.2 - a); ctx.beginPath(); ctx.moveTo(f.x * cell, f.y * cell); ctx.lineTo(f.x * cell + Math.cos(ang) * rr, f.y * cell + Math.sin(ang) * rr); ctx.stroke(); }
         }
       }
     }
@@ -515,15 +671,17 @@
       // ---------- FLOOR pass (rotation-transformed) ----------
       enterWorld();
       ctx.drawImage(bg, 0, 0, cell * GRID.w, cell * GRID.h);
-      if (selection && selection.pad) drawRange(selection.pad.cx, selection.pad.cy, selection.ghostRange || 2.6, true);
+      drawConveyors();
+      if (selection && selection.pad) drawRange(selection.pad.cx, selection.pad.cy, (selection.ghostRange || 2.6) * nightMul, true);
       if (selection && selection.tower) {
         const t = st.towers.find((x) => x.id === selection.tower);
         if (t) {
           const def = global.TDData.TOWERS[t.lineId];
           const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
+          // night dims dart/mortar reach — show the TRUE (reduced) ring, Fan exempt
           const ring = t.lineId === "fan" ? s.auraRange
             : t.lineId === "camp" ? global.TDData.TOWERS.camp.rallyRange
-            : s.range;
+            : s.range * nightMul;
           drawRange(t.cx, t.cy, ring, true);
         }
       }
@@ -578,7 +736,8 @@
         ctx.fillText(ch, p.x, p.y);
       };
       const s0 = engine.levelDef.path[0], s1 = engine.levelDef.path[engine.levelDef.path.length - 1];
-      glyph(s0[0], s0[1], "🛏");
+      const spawnGlyph = engine.levelDef.world === "backyard" ? "🌳" : engine.levelDef.world === "toystore" ? "🧸" : "🛏";
+      glyph(s0[0], s0[1], spawnGlyph);
       glyph(s1[0], s1[1], "🚪");
       if (selection && selection.tower) {
         const selT = st.towers.find((x) => x.id === selection.tower);

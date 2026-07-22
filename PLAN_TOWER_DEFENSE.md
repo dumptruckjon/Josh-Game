@@ -316,16 +316,25 @@ Josh might watch over a shoulder).
 
 ## 7. The 12 levels (3 worlds × 4) + Endless
 
-> **Status:** Levels **1-5 SHIPPED**, distinct paths/pads, a sim-verified rising
-> difficulty curve, progressive unlock (beat N → N+1), Next-level button. **TD-3
-> DONE:** L1-L4 now teach the full **World-1 roster** — Mud Blob (splits→Mudlet),
-> Plastic Knight (armor → Fan zap), Wind-up Bull (charges when hit), Junk Healer
-> (mends allies), Piñata (gold-burst), Brick squads — and L4 ends with the **Bed
-> Monster boss** (unblockable, stomps soldiers, klaxon banner). Boss HP tuned to
-> L4's 10-pad geometry (2400, not the doc's 3200). L5 stays a sock/marble/balloon
-> gauntlet for now. Remaining enemies + gimmicks + L6-12 + 2 bosses are TD-4.
+> **Status:** ALL **12 levels across 3 worlds SHIPPED** (TD-4 done). Distinct
+> paths/pads, a sim-verified rising curve, progressive unlock (beat N → N+1),
+> Next-level button, and a fort-home level map with world tints + difficulty pips
+> + a 👑 on each boss finale. **Full enemy roster:** World-1 (Mud Blob splits→
+> Mudlet, Plastic Knight armor→Fan-zap, Wind-up Bull charges-on-hit, Junk Healer,
+> Piñata gold-burst, Brick squads) **+ World-2/3 (Glitter Ghost phases
+> untargetable, Battery Bot regenerating shield eats Zap, Digger Mole tunnels the
+> middle third, Kite Hawk fast flier)**. **Three bosses:** Bed Monster (L4,
+> unblockable stomp), Vacuum King (L8, sucks the nearest soldier + enrages under
+> half hp), The Static (L12, hp-gated phases: 50% armor → jams a random gun →
+> summons Battery Bots + dashes). **Three gimmicks:** night (−15% Dart/Mortar
+> reach, Fan exempt; dark firefly floor), conveyor speed-strips (scrolling
+> chevrons), mole tunnel. Every boss HP is sim-tuned to its level's pad geometry
+> (The Static 8000, Vacuum King 5200), and L12 is proven winnable on **Heroic**.
 > The ±25% budget audit (boss waves exempt) + the best-of-two auto-solver
-> winnability test govern the shipped set.
+> winnability test (all 12 levels × 3 seeds, ≥5 lives, losable by neglect) govern
+> the shipped set. **DEFERRED (a later pass):** the design's dual/merge/fork
+> multi-path layouts + the L10 lever — TD-4 ships each level as a distinct RICH
+> SINGLE path instead (all sim-verifiable); true multi-path is its own subsystem.
 
 Format per level: world/name, path shape (waypoints authored in `td-data.js`,
 fine-tuned with the debug overlay §9.4), pad count, start gold, waves, base
@@ -518,7 +527,7 @@ Always present (harmless without calls): `__TD.engine` (live engine),
 | **TD-1 Shell+Engine ✅ BUILT** | door, gate, guards, td-mode theme, file/SW/site.test wiring, engine core (ticks, paths, spawn, Dart line, Sock/Marble, gold/lives/waves, win/lose), L1 rough, debug hooks, determinism+losability tests | ✅ L1 winnable by script in CI (16-17/20 lives across seeds); gate guardrails green |
 | **TD-2 Towers ✅ BUILT** | all 4 lines, tiers, branches, targeting, soldiers/blocking/rally, sell/refund, build UX (menu, panels, ghosts) | ✅ mechanic micro-sims green (slows/splash/chain/blocking/crits/spin-up), L1 all-lines sim wins, branch/rally UI browser-tested |
 | **TD-3 Enemies+World 1** | full W1 roster (blob/knight/balloon/bull/healer/piñata/legion), L1-L4 authored, Bed Monster, wave-budget audit test, tutorial | 4 winnability sims green |
-| **TD-4 Worlds 2-3** | ghosts/bots/moles/hawks, conveyors, night, levers, dual paths, L5-L12, both bosses, difficulties, stars/badges | 12 sims (Normal) + L12 Heroic sim green |
+| **TD-4 Worlds 2-3 ✅ SHIPPED** | ghosts/bots/moles/hawks, conveyors, night, mole-tunnel, L5-L12 (all 12), both bosses (Vacuum King/The Static), world tints + difficulty badges + boss crowns. *Deferred: dual/merge/fork paths + L10 lever → single rich paths ship now.* | 12 sims (Normal) all winnable/losable + L12 Heroic sim green ✓ |
 | **TD-5 Meta** | fort home (map, stars), star tree + respec, achievements, endless ×3, resume/midRun, settings, TD reset gate | save round-trip + endless-20 sim green |
 | **TD-6 Polish (honest tuning pass)** | audio set, fx juice, perf audit on-device profile, difficulty re-tuning from batch sims (auto-play sweeps), CLAUDE.md docs + learnings | full suite + verify-live green; Jon plays L1-L12 on the real phone |
 

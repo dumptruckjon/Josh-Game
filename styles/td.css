@@ -76,6 +76,14 @@ body.td-mode #screens { padding: 0; }
 .td-level__stars { font-size: 0.85rem; }
 .td-level__need { font-size: 0.72rem; color: #9db4dd; font-weight: 700; }
 .td-level__dim { opacity: 0.25; }
+/* difficulty pips (1-3), colored by tier */
+.td-level__badge { font-size: 0.62rem; letter-spacing: 1px; line-height: 1; }
+.td-badge--1 { color: #6fd08a; }
+.td-badge--2 { color: #f0b24a; }
+.td-badge--3 { color: #ff7a7a; }
+/* world tints: World 1 bedroom (default navy), 2 backyard (grass), 3 toystore (neon) */
+.td-level[data-world="backyard"] { border-color: #3c6a44; background: #1a3324; }
+.td-level[data-world="toystore"] { border-color: #6a3c7a; background: #2a1a33; }
 .td-note { margin-top: 14px; color: #8ba2cc; font-size: 0.9rem; }
 
 /* ---- play screen: one slim bar, the field owns the rest ---- */

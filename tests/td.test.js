@@ -515,6 +515,24 @@ test("mobile sanity: fort screens fit EVERY device — no horizontal overflow, n
   await page.setViewportSize({ width: 390, height: 844 });
 });
 
+test("a fresh level never inherits the previous level's boss banner", async () => {
+  // Found by a screenshot: switching from a boss level (banner up) to a new
+  // level left the stale klaxon showing. startLevel() must clear it.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.newGame(8, { seed: 7 });
+    const el = document.querySelector("#screen-td-play .td-banner");
+    el.hidden = false; el.textContent = "⚠ Vacuum King incoming!"; // simulate a live boss klaxon
+  });
+  await page.evaluate(() => { window.__TD.newGame(6, { seed: 7 }); }); // start a DIFFERENT level
+  const cleared = await page.evaluate(() => {
+    const el = document.querySelector("#screen-td-play .td-banner");
+    return el.hidden === true;
+  });
+  assert.ok(cleared, "starting a fresh level must hide any lingering boss banner");
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

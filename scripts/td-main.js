@@ -140,6 +140,7 @@
     cur = { engine, render, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null };
     UI.closeOverlay();
     UI.hideBubble();
+    if (UI.hideBanner) UI.hideBanner(); // never inherit the previous level's boss klaxon
     UI.hud(engine.state);
     const speedBtn = doc.querySelector("#screen-td-play .td-speed");
     if (speedBtn) speedBtn.textContent = "1×";

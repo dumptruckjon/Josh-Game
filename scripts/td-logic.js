@@ -99,6 +99,11 @@
     const rng = mulberry32(seed);
     const path = buildPath(levelDef.path);
     let nextId = 1;
+    // Level gimmicks (TD-4): night dims every tower's reach EXCEPT the Fan (it
+    // "feels" the cold, not sees), and conveyor strips speed enemies over a
+    // stretch of the lane. Both are pure data read in the hot loops.
+    const rangeMul = levelDef.night ? R.nightRangeMult : 1;
+    const zones = levelDef.zones && levelDef.zones.length ? levelDef.zones : null;
 
     const state = {
       levelId: levelDef.id,
@@ -163,6 +168,7 @@
         brittle: false, brittleUntil: 0,
         blockedBy: 0, stunnedUntil: 0, meleeCd: 0, stunApplied: false,
         chargeUntil: 0, chargeCd: 0, stompCd: 0, phaseHidden: false,
+        suckCd: 0, disableCd: 0, minionCd: 0, speedMult: 0, // TD-4 boss timers
         alive: true,
       });
       if (def.boss) emit({ type: "boss", name: def.name });
@@ -178,7 +184,13 @@
       const slow = state.tick < e.slowUntil ? e.slowPct : 0;
       const def = enemyDef(e);
       // Wind-up Bull: while charging, run at its charge speed (slow still bites).
-      const base = (def.charge && state.tick < e.chargeUntil) ? def.charge.speed * diff.speed : e.speed;
+      let base = (def.charge && state.tick < e.chargeUntil) ? def.charge.speed * diff.speed : e.speed;
+      // Vacuum King enrage: a brief hustle once it drops below its hp threshold.
+      if (def.enrage && e.hp <= e.maxHp * def.enrage.hpPct) base *= def.enrage.mult;
+      // The Static P3 (or any boss phase) can set a live speed multiplier.
+      if (e.speedMult) base *= e.speedMult;
+      // Conveyor strip (Slip'n'Slide): faster while inside a speed zone.
+      if (zones) for (const z of zones) { if (e.dist >= z.from && e.dist <= z.to) { base *= z.mult; break; } }
       return base * (1 - slow);
     }
 
@@ -197,6 +209,15 @@
       }
     }
 
+    // KO a soldier (stomp/suck): send it to respawn, free whatever it held.
+    function downSoldier(s) {
+      const camp = towerById(s.campId);
+      const cs = camp ? statsOf(DATA.TOWERS.camp, camp) : { respawn: 8 };
+      s.alive = false; s.respawnAt = state.tick + Math.round(cs.respawn * DATA.TICK_RATE);
+      if (s.engagedId) { const foe = enemyById(s.engagedId); if (foe) foe.blockedBy = 0; s.engagedId = 0; }
+      emit({ type: "soldier-down", x: s.x, y: s.y });
+    }
+
     // Boss stomp (Bed Monster): periodic AoE that damages soldiers near the boss.
     function stompTick() {
       for (const b of state.enemies) {
@@ -211,16 +232,67 @@
           if (!s.alive) continue;
           if ((s.x - bp.x) ** 2 + (s.y - bp.y) ** 2 <= r2) {
             s.hp -= def.stomp.dmg;
-            if (s.hp <= 0) {
-              const camp = towerById(s.campId);
-              const cs = camp ? statsOf(DATA.TOWERS.camp, camp) : { respawn: 8 };
-              s.alive = false; s.respawnAt = state.tick + Math.round(cs.respawn * DATA.TICK_RATE);
-              if (s.engagedId) { const foe = enemyById(s.engagedId); if (foe) foe.blockedBy = 0; s.engagedId = 0; }
-              emit({ type: "soldier-down", x: s.x, y: s.y });
-            }
+            if (s.hp <= 0) downSoldier(s);
           }
         }
         emit({ type: "stomp", x: bp.x, y: bp.y, r: def.stomp.radius });
+      }
+    }
+
+    // Boss ability engine (TD-4): Vacuum King inhales the nearest soldier on a
+    // cadence (+ enrages via effSpeed); The Static escalates by hp% — jams a
+    // random gun, then summons Battery Bots. Deterministic (seeded rng only).
+    function activePhase(e, def) {
+      if (!def.phases) return null;
+      const frac = e.hp / e.maxHp;
+      let ph = null;
+      for (const p of def.phases) if (frac <= p.upTo) ph = p; // phases ordered by descending upTo
+      return ph;
+    }
+    function bossTick() {
+      for (const e of state.enemies) {
+        if (!e.alive) continue;
+        const def = enemyDef(e);
+        if (!def.boss) continue;
+        const bp = posAt(path, e.dist);
+        // Vacuum King: suck the nearest living soldier (instant KO) on a timer.
+        if (def.suck) {
+          if (e.suckCd === 0) e.suckCd = state.tick + Math.round(def.suck.every * DATA.TICK_RATE);
+          else if (state.tick >= e.suckCd) {
+            e.suckCd = state.tick + Math.round(def.suck.every * DATA.TICK_RATE);
+            let best = null, bestD = Infinity;
+            for (const s of state.soldiers) {
+              if (!s.alive) continue;
+              const dd = (s.x - bp.x) ** 2 + (s.y - bp.y) ** 2;
+              if (dd < bestD) { bestD = dd; best = s; }
+            }
+            if (best) { emit({ type: "suck", x: bp.x, y: bp.y, sx: best.x, sy: best.y }); downSoldier(best); }
+          }
+        }
+        // The Static: hp%-gated escalation.
+        const ph = activePhase(e, def);
+        e.speedMult = ph && ph.speedMult ? ph.speedMult : 0;
+        if (ph && ph.disable) {
+          if (e.disableCd === 0) e.disableCd = state.tick + Math.round(ph.disable.every * DATA.TICK_RATE);
+          else if (state.tick >= e.disableCd) {
+            e.disableCd = state.tick + Math.round(ph.disable.every * DATA.TICK_RATE);
+            // jam a random SHOOTING tower (camps are bodies, not electronics)
+            const live = state.towers.filter((t) => t.lineId !== "camp" && !(t.disabledUntil && state.tick < t.disabledUntil));
+            if (live.length) {
+              const victim = live[Math.floor(rng() * live.length)];
+              victim.disabledUntil = state.tick + Math.round(ph.disable.seconds * DATA.TICK_RATE);
+              emit({ type: "disable", x: victim.cx, y: victim.cy, seconds: ph.disable.seconds });
+            }
+          }
+        }
+        if (ph && ph.spawn) {
+          if (e.minionCd === 0) e.minionCd = state.tick + Math.round(ph.spawn.every * DATA.TICK_RATE);
+          else if (state.tick >= e.minionCd) {
+            e.minionCd = state.tick + Math.round(ph.spawn.every * DATA.TICK_RATE);
+            for (let i = 0; i < ph.spawn.count; i++) pendingSpawns.push({ type: ph.spawn.type, dist: Math.max(0, e.dist - 0.5 - i * 0.4) });
+            emit({ type: "summon", x: bp.x, y: bp.y });
+          }
+        }
       }
     }
 
@@ -288,10 +360,18 @@
       }
       return best.id;
     }
+    // Untargetable/unblockable right now: a Glitter Ghost mid-phase or a Digger
+    // Mole tunnelling under the middle third of the lane. (TD-4)
+    function isHidden(e) {
+      const def = enemyDef(e);
+      if (def.phase && e.phaseHidden) return true;
+      if (def.tunnel && e.dist > path.total / 3 && e.dist < (path.total * 2) / 3) return true;
+      return false;
+    }
     function candidates(t, minR, maxR, fliersOk) {
       const out = [];
       for (const e of state.enemies) {
-        if (!e.alive) continue;
+        if (!e.alive || isHidden(e)) continue;
         if (!fliersOk && enemyDef(e).flier) continue;
         const p = posAt(path, e.dist);
         const d2 = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2;
@@ -375,7 +455,7 @@
         for (const e of state.enemies) {
           if (!e.alive || e.blockedBy) continue;
           const ed = enemyDef(e);
-          if (ed.flier || ed.boss) continue;
+          if (ed.flier || ed.boss || isHidden(e)) continue;
           const p = posAt(path, e.dist);
           if ((p.x - sol.x) ** 2 + (p.y - sol.y) ** 2 <= 0.55 * 0.55) {
             e.blockedBy = sol.id;
@@ -448,6 +528,7 @@
       for (const t of state.towers) {
         const def = DATA.TOWERS[t.lineId];
         const s = statsOf(def, t);
+        if (t.disabledUntil && state.tick < t.disabledUntil) continue; // The Static jammed this gun
         if (t.cooldown > 0) t.cooldown -= 1;
 
         if (def.kind === "dart") {
@@ -457,13 +538,14 @@
           // (or newly-most-progressed / closer) enemy entering range was ignored
           // and the mode read as inert. fan/mortar already re-pick each tick.
           const cur = enemyById(t.targetId);
+          const dartRange = s.range * rangeMul; // night dims the dart's reach
           let keep = false;
-          if (cur && t.targeting === "first") {
+          if (cur && t.targeting === "first" && !isHidden(cur)) { // drop a target that phased/tunnelled away
             const p = posAt(path, cur.dist);
-            keep = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2 <= s.range * s.range;
+            keep = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2 <= dartRange * dartRange;
           }
           const prevTarget = t.targetId;
-          if (!keep) t.targetId = pickByMode(candidates(t, 0, s.range, def.hitsFliers), t.targeting, t);
+          if (!keep) t.targetId = pickByMode(candidates(t, 0, dartRange, def.hitsFliers), t.targeting, t);
           if (s.spinUp) {
             // Minigun spin-up ramps only while locked on the SAME target; a real
             // retarget resets it (a same-tick re-pick of the same enemy does not).
@@ -483,7 +565,7 @@
             emit({ type: "shoot", x: t.cx, y: t.cy, tower: t.lineId });
           }
         } else if (def.kind === "mortar") {
-          const cands = candidates(t, s.rangeMin, s.range, false);
+          const cands = candidates(t, s.rangeMin, s.range * rangeMul, false);
           const targetId = pickByMode(cands, t.targeting, t);
           const target = targetId ? enemyById(targetId) : null;
           if (target && t.cooldown <= 0) {
@@ -596,6 +678,16 @@
       for (const e of state.enemies) {
         if (!e.alive) continue;
         e.brittle = state.tick < e.brittleUntil;
+        const def0 = enemyDef(e);
+        // Glitter Ghost: phase in/out on a fixed cadence (deterministic).
+        if (def0.phase) {
+          const period = Math.round(def0.phase.every * DATA.TICK_RATE);
+          e.phaseHidden = (state.tick % period) < Math.round(def0.phase.on * DATA.TICK_RATE);
+        }
+        // Battery Bot / Vacuum King: regenerate the Zap-absorbing shield.
+        if (def0.shieldRegen && e.shield < def0.shield) e.shield = Math.min(def0.shield, e.shield + def0.shieldRegen * DT);
+        // A ghost mid-phase / a mole underground can't be held by a blocker.
+        if (e.blockedBy && isHidden(e)) { const s = soldierById(e.blockedBy); if (s) s.engagedId = 0; e.blockedBy = 0; }
         if (e.blockedBy) {
           const s = soldierById(e.blockedBy);
           if (!s) e.blockedBy = 0; // blocker died/despawned → resume next tick
@@ -609,6 +701,7 @@
 
       soldierTick();
       if (state.phase === "lost") return;
+      bossTick();  // Vacuum King sucks soldiers / The Static jams+summons
       stompTick(); // bosses stomp soldiers
       healTick();  // healers mend allies (before towers fire, so it's felt)
       fireTowers();
@@ -654,7 +747,7 @@
         id: nextId++, lineId, tier: 1, branch: "", padId,
         cx: pad.cx, cy: pad.cy, cooldown: 0, targetId: 0, zapAcc: 0, heat: 0,
         targeting: def.defaultTargeting || "first", spent: cost,
-        rallyX: 0, rallyY: 0,
+        rallyX: 0, rallyY: 0, disabledUntil: 0, // TD-4: The Static can jam a gun
       };
       if (lineId === "camp") {
         const r = defaultRally(pad);

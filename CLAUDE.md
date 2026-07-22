@@ -490,6 +490,39 @@ Monster barely died even to a maxed build on L4's 10-pad map, so it came down to
 kills the boss" + "every level winnable across seeds" sim. Lesson: adding content
 to a tuned real-time game is a re-tuning job — the auto-solver sim is what keeps
 it honest, and it has to be allowed to play smart.
+**Fort Josh TD-4 finished the world — 4 more enemies, 2 more bosses, all 12
+levels, 3 gimmicks — and the lessons were about UNTARGETABILITY, HP-GATED BOSSES,
+and SCOPING HONESTLY.** (1) **An "untargetable" state must be enforced at EVERY
+acquisition path, not just the shared one** — `candidates()` (mortar/fan/dart
+re-pick) already excluded a hidden Glitter Ghost / tunnelling Mole via one
+`isHidden(e)`, but the Dart's `first`-mode STICKY-keep branch didn't, so a dart
+locked before the phase-out kept firing THROUGH it. A guardrail now drives a dart
+at a lone ghost and asserts the lock DROPS while `phaseHidden` and re-acquires
+when it shimmers back. When you add a "can't be hit right now" flag, grep every
+place a target is chosen OR kept. (2) **A boss whose kit escalates by hp% needs a
+dedicated `bossTick` + a test that FORCES each phase** — the tap-harness (and even
+a full auto-solver) may never drop The Static below its 66%/33% thresholds, so the
+disable/summon/dash code can ship dead-untested; the guardrail sets `boss.hp` to
+each band and asserts a gun gets jammed, Battery Bots spawn, and `speedMult>1`.
+The Vacuum King's soldier-suck is invisible to a tower-only solver (no soldiers to
+eat) — so a camp-using guardrail proves the suck KOs a soldier. Drive the ability,
+don't assume the win-sim exercised it. (3) **Scope a big content phase to what you
+can SIM-verify, and label the cut loudly** — the plan's dual/merge/fork paths +
+the L10 lever are a real multi-path subsystem; cramming them in beside 8 levels +
+2 bosses risked the "green tests, broken game" trap, so TD-4 ships all 12 levels
+as distinct RICH SINGLE paths + 3 fully-headless-testable gimmicks (night range,
+conveyor speed-zone, mole tunnel) and DEFERS true multi-path/lever with an explicit
+note (not a silent omission). (4) **A transient banner is per-SESSION UI, not
+per-level — reset it on level start** — a boss klaxon shown on L8 bled over onto a
+freshly-started L12 (its 2.6s auto-hide loses to a quick quit-restart); `startLevel`
+now calls `UI.hideBanner()`, pinned by a browser test that shows a banner then
+starts a different level and asserts it's cleared. This one was caught by a
+SCREENSHOT, not a number test — for a real-time game, eyeball both orientations and
+the level-to-level transitions, because stale-DOM/feel bugs live where the
+tap/number harness can't see. And the authoring win: hand-writing ~100 waves to a
+±25% budget curve is error-prone, so a scratch generator emitted the level literals
+(programmatic pads that hug the whole lane for end-coverage) and a validator flagged
+every out-of-band wave BEFORE the data file was touched.
 
 ---
 
@@ -527,7 +560,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: 👵🏻 top-bar door + Chinese name gate (只有「华丽」能进) + red-gold launcher + 🏮 sticker book
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/enemies/waves/levels
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds)/gimmicks
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks)
 │   ├── td-ui.js                # 🏰 door/gate/screens/HUD/overlays (gate = data-adult; ONLY the exact name "Jon" unlocks)
@@ -752,27 +785,36 @@ The name gate accepts **only the exact input `Jon`** (trim+NFC, case-sensitive;
 `sessionStorage["td-ok"]`, session-scoped). This is an **adult space**: real
 difficulty, real defeat screens, real timers — RULE 5's kid laws deliberately do
 not apply inside (the gate is what keeps it from Josh; precedent: 华丽's
-`data-adult`). Status: **TD-1 + TD-2 + TD-3 shipped** — shell + deterministic
-engine + **Levels 1-5** (distinct path/pad layouts, a rising difficulty curve,
-each proven winnable by a headless auto-solver + losable by neglect; beat level N
-to unlock N+1, ▶ Next-level on the victory screen), the full **World-1 enemy
-roster** (Sock/Marble/Balloon + Mud Blob [splits→Mudlets], Plastic Knight [armor
-→ Fan zap], Wind-up Bull [charges when hit], Junk Healer [mends allies], Piñata
-[gold-burst], Brick squads) mixed into L1-L4 to teach each counter, and the
-**Bed Monster boss** finale on L4 (unblockable, stomps soldiers, klaxon banner).
-Every ability is a data field the engine reads through ONE `dealDamage`/
-`killEnemy` path (split/charge/heal/goldBurst/stomp), guardrail-tested. And the
-FULL arsenal: 4 tower lines
-(Dart/Mortar/Fan/Army-Guys Camp) × tiers 1-3 + all six exclusive tier-4 branches
-(Sniper/Minigun, Bertha/Sticky, Blizzard/Static-chain, Dino/RC), slows
-(strongest-wins, fliers half), brittle, splash with falloff + min-range, chain
-lightning, seeded crits, spin-up, and path-blocking soldiers with rally flags.
-The renderer draws the FLOOR rotated 90° in portrait so the battlefield fills the
-phone while CHARACTERS stay upright (one worldToScreen mapping shared by
-drawing/taps/dialogs). L1-L4 teach the World-1 roster + the Bed Monster boss; L5
-is a sock/marble/balloon gauntlet. The remaining 7 levels + the rest of the
-14-enemy roster + 2 more bosses + meta tree + endless (TD-4..TD-6) are specified
-in `PLAN_TOWER_DEFENSE.md`.
+`data-adult`). Status: **TD-1 + TD-2 + TD-3 + TD-4 shipped** — shell +
+deterministic engine + **all 12 Levels across 3 worlds** (Bedroom L1-4, Backyard
+L5-8, Toy Store L9-12; distinct path/pad layouts, a rising difficulty curve, each
+proven winnable by a headless best-of-two auto-solver + losable by neglect, and
+L12 winnable on Heroic; beat level N to unlock N+1, ▶ Next-level on the victory
+screen; the fort home shows world tints, difficulty pips, and a 👑 on each boss
+finale), the FULL enemy roster — World-1 (Sock/Marble/Balloon + Mud Blob
+[splits→Mudlets], Plastic Knight [armor → Fan zap], Wind-up Bull [charges when
+hit], Junk Healer [mends allies], Piñata [gold-burst], Brick squads) **plus
+World-2/3 (Glitter Ghost [phases untargetable], Battery Bot [regenerating shield
+eats Zap], Digger Mole [tunnels the middle third — untargetable/unblockable],
+Kite Hawk [fast flier])** — and **three bosses**: Bed Monster (L4, unblockable
+stomp), **Vacuum King (L8, inhales the nearest soldier + enrages under half hp)**,
+and **The Static (L12, hp-gated phases: 50% armor → jams a random gun → summons
+Battery Bots + dashes)**. Every ability is a data field the engine reads through
+ONE `dealDamage`/`killEnemy` path (split/charge/heal/goldBurst/stomp) + a
+`bossTick` (suck/disable/summon) + `isHidden` (phase/tunnel), all guardrail-tested.
+Three level gimmicks land too: **night** (−15% Dart/Mortar reach, Fan exempt, with
+a dark firefly floor), **conveyor strips** (a speed zone shoves enemies along,
+drawn as scrolling chevrons), and the mole **tunnel**. And the FULL arsenal: 4
+tower lines (Dart/Mortar/Fan/Army-Guys Camp) × tiers 1-3 + all six exclusive
+tier-4 branches (Sniper/Minigun, Bertha/Sticky, Blizzard/Static-chain, Dino/RC),
+slows (strongest-wins, fliers half), brittle, splash with falloff + min-range,
+chain lightning, seeded crits, spin-up, and path-blocking soldiers with rally
+flags. The renderer draws the FLOOR rotated 90° in portrait so the battlefield
+fills the phone while CHARACTERS stay upright (one worldToScreen mapping shared by
+drawing/taps/dialogs). **Deferred to a later pass:** true multi-path (dual/merge/
+fork) layouts + the L10 lever (single rich paths ship now instead); the meta tree
++ achievements + endless (TD-5) and the audio/polish pass (TD-6) are specified in
+`PLAN_TOWER_DEFENSE.md`.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
