@@ -316,13 +316,16 @@ Josh might watch over a shoulder).
 
 ## 7. The 12 levels (3 worlds × 4) + Endless
 
-> **Status:** Levels **1-5 SHIPPED** as a sock/marble/balloon slice (the enemies
-> the engine implements today) — distinct paths/pads, a sim-verified rising
-> difficulty curve, progressive unlock (beat N → N+1), and a Next-level button.
-> Shipped names differ from the originals below (L4 "Sock Drawer", L5 "Under the
-> Rug") because the boss/gimmick enemies aren't built yet. The wave tables here
-> remain the TD-3 target for when the full 14-enemy roster + bosses land; the
-> ±25% budget audit + the auto-solver winnability test govern the shipped set.
+> **Status:** Levels **1-5 SHIPPED**, distinct paths/pads, a sim-verified rising
+> difficulty curve, progressive unlock (beat N → N+1), Next-level button. **TD-3
+> DONE:** L1-L4 now teach the full **World-1 roster** — Mud Blob (splits→Mudlet),
+> Plastic Knight (armor → Fan zap), Wind-up Bull (charges when hit), Junk Healer
+> (mends allies), Piñata (gold-burst), Brick squads — and L4 ends with the **Bed
+> Monster boss** (unblockable, stomps soldiers, klaxon banner). Boss HP tuned to
+> L4's 10-pad geometry (2400, not the doc's 3200). L5 stays a sock/marble/balloon
+> gauntlet for now. Remaining enemies + gimmicks + L6-12 + 2 bosses are TD-4.
+> The ±25% budget audit (boss waves exempt) + the best-of-two auto-solver
+> winnability test govern the shipped set.
 
 Format per level: world/name, path shape (waypoints authored in `td-data.js`,
 fine-tuned with the debug overlay §9.4), pad count, start gold, waves, base

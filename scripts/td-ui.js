@@ -106,6 +106,7 @@
       '<div class="td-canvas-wrap">' +
         '<canvas class="td-canvas" aria-label="Toybox Defense battlefield"></canvas>' +
         '<div class="td-nextwave" aria-live="polite" hidden></div>' +
+        '<div class="td-banner" aria-live="assertive" hidden></div>' +
         '<button class="td-btn td-btn--call td-call" type="button" aria-label="Call the next wave">▶ CALL</button>' +
       "</div>";
     screens.appendChild(play);
@@ -274,6 +275,17 @@
     return el;
   };
   UI.hideBubble = function () { if (UI.bubble) UI.bubble.hidden = true; };
+
+  // A big transient banner over the field — the boss klaxon/name reveal.
+  UI.showBanner = function (text) {
+    const el = doc.querySelector("#screen-td-play .td-banner");
+    if (!el) return;
+    el.textContent = text;
+    el.hidden = false;
+    el.classList.remove("td-banner--in"); void el.offsetWidth; el.classList.add("td-banner--in");
+    if (UI._bannerT) clearTimeout(UI._bannerT);
+    UI._bannerT = setTimeout(() => { el.hidden = true; }, 2600);
+  };
 
   // ---- Overlays (pause / victory / defeat) ----
   function overlay(cls, html) {

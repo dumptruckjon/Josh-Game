@@ -181,6 +181,19 @@ body.td-mode #screens { padding: 0; }
 }
 .td-nextwave[hidden] { display: none; }
 
+/* boss klaxon banner — a big transient reveal across the field */
+.td-banner {
+  position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%);
+  z-index: 8; padding: 10px 20px; border-radius: 14px; max-width: calc(100% - 24px);
+  background: rgba(122, 22, 30, 0.92); color: #ffe0b0; border: 2px solid #ffab6b;
+  font-weight: 900; font-size: 1.25rem; text-align: center; white-space: normal;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); pointer-events: none;
+}
+.td-banner[hidden] { display: none; }
+.td-banner--in { animation: td-bannerpop 0.5s ease-out; }
+@keyframes td-bannerpop { 0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; } 60% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .td-banner--in { animation: none; } }
+
 /* ---- overlays ---- */
 .td-overlay {
   position: absolute; inset: 0; z-index: 20;

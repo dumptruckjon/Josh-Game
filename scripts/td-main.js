@@ -49,6 +49,7 @@
       else if (kind === "splash") A.tone(110, { duration: 0.18, gain: 0.14, type: "sine" });
       else if (kind === "leak") { A.tone(330, { duration: 0.12, gain: 0.1, type: "sine" }); setTimeout(() => A.tone(262, { duration: 0.16, gain: 0.1, type: "sine" }), 110); }
       else if (kind === "wave") { [440, 440, 440, 587].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.07, gain: 0.1 }), i * 90)); }
+      else if (kind === "boss") { [220, 175, 220, 175].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.22, gain: 0.16, type: "square" }), i * 240)); } // klaxon
       else if (kind === "won") { if (A.winCue) A.winCue(); }
       else if (kind === "lost") { [392, 330, 262].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.18, gain: 0.1, type: "sine" }), i * 160)); }
     } catch (e) { /* audio must never break play */ }
@@ -98,6 +99,7 @@
       else if (e.type === "wave") sfx("wave");
       else if (e.type === "chain") sfx("chain");
       else if (e.type === "splash") sfx("splash");
+      else if (e.type === "boss") { UI.showBanner("⚠ " + e.name + " incoming!"); sfx("boss"); }
     }
     evs.length = 0;
   }

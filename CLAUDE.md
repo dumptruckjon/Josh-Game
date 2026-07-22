@@ -466,6 +466,30 @@ never say "fixed" for a device-specific bug on Chromium evidence alone.** Verify
 by driving the deterministic engine headless (numbers), screenshot at the real
 device size, reason explicitly about the iOS-vs-Chromium delta, and lean on CI's
 WebKit `verify-live` + a real-device check for the final word.
+**Fort Josh TD-3 added a 7-enemy roster + a boss, and the two lessons were about
+CENTRALIZING and RE-BALANCING.** (1) **Every new on-death / on-hit ability must
+route through ONE damage path, or it fires from some towers and not others** —
+the engine had FIVE places that did `e.hp -= dmg; if (e.hp<=0) killEnemy()`
+(dart, splash, chain, zap-beam, soldier-melee). A splitter/gold-burst/charge
+bolted onto one of them would be invisible to the other four. Fix: one
+`dealDamage(e, hpDmg, shieldDmg, how)` (charge-on-hit + death) and one idempotent
+`killEnemy` (bounty + gold-burst + buffered split-spawn), and route all five
+sites through them — so Mud Blob splits whether a dart, a mortar, or a soldier
+lands the kill. Split-children are BUFFERED and flushed after the combat pass
+(never mutate `state.enemies` mid-iteration). (2) **A new roster re-balances the
+whole game — re-verify by SIM, and make the winnability oracle as smart as a real
+player.** Armor (Plastic Knight halves Bonk) means a dart-only auto-solver now
+*understates* winnability, so it would flag a fair level as unbeatable; the
+PLAYABILITY test now tries BOTH a dart-swarm AND a Fan/Mortar mix and passes if
+EITHER wins (a competent player picks the tool). A boss wave is deliberately far
+off the ±25% budget curve → the wave-budget audit EXEMPTS `boss:true` waves (but
+asserts they actually contain a boss). And a boss's HP must be tuned to ITS
+level's pad geometry, not copied from the design doc: the plan's 3200-HP Bed
+Monster barely died even to a maxed build on L4's 10-pad map, so it came down to
+2400 (a wave-9 build kills it with a tense margin) — pin it with a "max build
+kills the boss" + "every level winnable across seeds" sim. Lesson: adding content
+to a tuned real-time game is a re-tuning job — the auto-solver sim is what keeps
+it honest, and it has to be allowed to play smart.
 
 ---
 
@@ -728,20 +752,27 @@ The name gate accepts **only the exact input `Jon`** (trim+NFC, case-sensitive;
 `sessionStorage["td-ok"]`, session-scoped). This is an **adult space**: real
 difficulty, real defeat screens, real timers — RULE 5's kid laws deliberately do
 not apply inside (the gate is what keeps it from Josh; precedent: 华丽's
-`data-adult`). Status: **TD-1 + TD-2 shipped, plus 5 playable levels with
-progression** — shell + deterministic engine + **Levels 1-5** (each a distinct
-path/pad layout with a rising difficulty curve, every one proven winnable by a
-headless auto-solver and losable by neglect; beat level N to unlock N+1, and the
-victory screen offers a ▶ Next-level button), and the FULL arsenal: 4 tower lines
+`data-adult`). Status: **TD-1 + TD-2 + TD-3 shipped** — shell + deterministic
+engine + **Levels 1-5** (distinct path/pad layouts, a rising difficulty curve,
+each proven winnable by a headless auto-solver + losable by neglect; beat level N
+to unlock N+1, ▶ Next-level on the victory screen), the full **World-1 enemy
+roster** (Sock/Marble/Balloon + Mud Blob [splits→Mudlets], Plastic Knight [armor
+→ Fan zap], Wind-up Bull [charges when hit], Junk Healer [mends allies], Piñata
+[gold-burst], Brick squads) mixed into L1-L4 to teach each counter, and the
+**Bed Monster boss** finale on L4 (unblockable, stomps soldiers, klaxon banner).
+Every ability is a data field the engine reads through ONE `dealDamage`/
+`killEnemy` path (split/charge/heal/goldBurst/stomp), guardrail-tested. And the
+FULL arsenal: 4 tower lines
 (Dart/Mortar/Fan/Army-Guys Camp) × tiers 1-3 + all six exclusive tier-4 branches
 (Sniper/Minigun, Bertha/Sticky, Blizzard/Static-chain, Dino/RC), slows
 (strongest-wins, fliers half), brittle, splash with falloff + min-range, chain
 lightning, seeded crits, spin-up, and path-blocking soldiers with rally flags.
 The renderer draws the FLOOR rotated 90° in portrait so the battlefield fills the
 phone while CHARACTERS stay upright (one worldToScreen mapping shared by
-drawing/taps/dialogs). L1-L5 use the sock/marble/balloon slice; the remaining 7
-levels + the 14-enemy roster + 3 bosses + meta tree + endless (TD-3..TD-6) are
-specified in `PLAN_TOWER_DEFENSE.md`.
+drawing/taps/dialogs). L1-L4 teach the World-1 roster + the Bed Monster boss; L5
+is a sock/marble/balloon gauntlet. The remaining 7 levels + the rest of the
+14-enemy roster + 2 more bosses + meta tree + endless (TD-4..TD-6) are specified
+in `PLAN_TOWER_DEFENSE.md`.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

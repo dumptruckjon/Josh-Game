@@ -85,12 +85,25 @@
     },
   };
 
-  // ---- Enemies (TD-2 slice: walkers with melee + the first flier for tests;
-  //      the full roster including armor/shield/split/heal arrives in TD-3) ----
+  // ---- Enemies. TD-2 slice (sock/marble/balloon) + TD-3 World-1 roster: a
+  //      splitter (blob→mudlet), an armored knight (Fan/Zap answer), a charging
+  //      bull, a healer, a gold-burst piñata, a squad brick, and the Bed Monster
+  //      boss (unblockable, stomps soldiers). Each ability is a data field the
+  //      engine reads (split/charge/heal/goldBurst/stomp/boss) + guardrail-tested. ----
   const ENEMIES = {
     sock: { name: "Sock Goblin", icon: "🧦", hp: 34, speed: 0.8, armor: 0, shield: 0, shieldRegen: 0, bounty: 5, lives: 1, flier: false, meleeDmg: 5, meleeRate: 0.9 },
     marble: { name: "Speedy Marble", icon: "🔵", hp: 16, speed: 1.7, armor: 0, shield: 0, shieldRegen: 0, bounty: 4, lives: 1, flier: false, meleeDmg: 3, meleeRate: 0.8 },
     balloon: { name: "Balloon Bug", icon: "🎈", hp: 40, speed: 1.1, armor: 0, shield: 0, shieldRegen: 0, bounty: 8, lives: 1, flier: true, meleeDmg: 0, meleeRate: 1 },
+    // ---- TD-3: World-1 roster ----
+    blob: { name: "Mud Blob", icon: "🟤", hp: 60, speed: 0.7, armor: 0, shield: 0, shieldRegen: 0, bounty: 8, lives: 1, flier: false, meleeDmg: 4, meleeRate: 1.0, split: { into: "mudlet", count: 2 } },
+    mudlet: { name: "Mudlet", icon: "🟤", hp: 22, speed: 0.9, armor: 0, shield: 0, shieldRegen: 0, bounty: 3, lives: 1, flier: false, meleeDmg: 2, meleeRate: 0.9 },
+    knight: { name: "Plastic Knight", icon: "🛡", hp: 90, speed: 0.6, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 12, lives: 1, flier: false, meleeDmg: 6, meleeRate: 0.9 }, // 50% armor → Fan zap (armor-ignoring) is the answer
+    bull: { name: "Wind-up Bull", icon: "🐂", hp: 120, speed: 0.55, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 14, lives: 1, flier: false, meleeDmg: 7, meleeRate: 0.9, charge: { speed: 1.6, seconds: 1.5, cooldown: 5 } }, // gets hit → charges
+    healer: { name: "Junk Healer", icon: "🔧", hp: 85, speed: 0.65, armor: 0, shield: 0, shieldRegen: 0, bounty: 15, lives: 1, flier: false, meleeDmg: 4, meleeRate: 1.0, heal: { hps: 15, radius: 1.2 } }, // mends nearby allies — kill it first
+    pinata: { name: "Piñata", icon: "🪅", hp: 400, speed: 0.45, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 60, lives: 2, flier: false, meleeDmg: 8, meleeRate: 1.0, goldBurst: 20 }, // the economy release valve
+    brick: { name: "Brick", icon: "🧱", hp: 28, speed: 0.9, armor: 0, shield: 0, shieldRegen: 0, bounty: 4, lives: 1, flier: false, meleeDmg: 3, meleeRate: 0.9 }, // authored in tight 8-squads → splash bait
+    // ---- TD-3: World-1 boss ----
+    bedmonster: { name: "Bed Monster", icon: "🛏", hp: 2400, speed: 0.28, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 200, lives: 5, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, stomp: { dmg: 60, radius: 1.5, seconds: 6 } }, // hp 3200→2400: tuned to THIS L4's 10-pad geometry (plan's 3200 assumed its own boss arena) so a wave-9 build kills it with margin; unblockable; stomps soldiers
   };
 
   // ---- Levels 1-5: a sock/marble/balloon slice with real progression (beat N →
@@ -117,32 +130,20 @@
         { id: "p8", cx: 20, cy: 2 },
       ],
       waves: [
-        { groups: [{ type: "sock", count: 6, gap: 1.2, delay: 0 }] },
-        { groups: [{ type: "sock", count: 7, gap: 1.0, delay: 0 }] },
-        { groups: [
-          { type: "sock", count: 6, gap: 1.0, delay: 0 },
-          { type: "marble", count: 4, gap: 0.8, delay: 3 },
-        ] },
-        { groups: [
-          { type: "sock", count: 8, gap: 0.9, delay: 0 },
-          { type: "marble", count: 5, gap: 0.7, delay: 2 },
-        ] },
-        { groups: [
-          { type: "sock", count: 9, gap: 0.9, delay: 0 },
-          { type: "marble", count: 8, gap: 0.6, delay: 4 },
-        ] },
-        { groups: [
-          { type: "sock", count: 12, gap: 0.8, delay: 0 },
-          { type: "marble", count: 10, gap: 0.55, delay: 3 },
-        ] },
+        { groups: [ { type: "sock", count: 6, gap: 0.85, delay: 0 } ] },
+        { groups: [ { type: "sock", count: 7, gap: 0.85, delay: 0 } ] },
+        { groups: [ { type: "marble", count: 6, gap: 0.55, delay: 0 }, { type: "sock", count: 5, gap: 0.85, delay: 3 } ] },
+        { groups: [ { type: "marble", count: 7, gap: 0.55, delay: 0 }, { type: "sock", count: 6, gap: 0.85, delay: 3 } ] },
+        { groups: [ { type: "knight", count: 1, gap: 1, delay: 0 }, { type: "marble", count: 7, gap: 0.55, delay: 3 }, { type: "sock", count: 5, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 1, gap: 1, delay: 0 }, { type: "marble", count: 9, gap: 0.55, delay: 3 }, { type: "sock", count: 7, gap: 0.85, delay: 4 } ] },
       ],
     },
     {
       id: 2,
       name: "Closet Door",
       world: "bedroom",
-      startGold: 250,
-      budgetBase: 230,
+      startGold: 300,
+      budgetBase: 260,
       path: [ [0, 2], [19, 2], [19, 11], [4, 11], [4, 7], [23, 7] ],
       pads: [
         { id: "p1", cx: 3, cy: 4 },
@@ -157,21 +158,21 @@
         { id: "p10", cx: 6, cy: 9 },
       ],
       waves: [
-        { groups: [ { type: "sock", count: 7, gap: 1.12, delay: 0 } ] },
-        { groups: [ { type: "sock", count: 9, gap: 1.09, delay: 0 } ] },
-        { groups: [ { type: "sock", count: 7, gap: 1.06, delay: 0 }, { type: "marble", count: 7, gap: 0.65, delay: 2.5 } ] },
-        { groups: [ { type: "sock", count: 8, gap: 1.03, delay: 0 }, { type: "marble", count: 8, gap: 0.65, delay: 2.5 } ] },
-        { groups: [ { type: "sock", count: 9, gap: 1.00, delay: 0 }, { type: "marble", count: 9, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 1, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 11, gap: 0.97, delay: 0 }, { type: "marble", count: 11, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 2, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 13, gap: 0.94, delay: 0 }, { type: "marble", count: 13, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 3, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 15, gap: 0.91, delay: 0 }, { type: "marble", count: 15, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 4, gap: 1.2, delay: 5 } ] },
+        { groups: [ { type: "sock", count: 9, gap: 0.85, delay: 0 } ] },
+        { groups: [ { type: "sock", count: 11, gap: 0.85, delay: 0 } ] },
+        { groups: [ { type: "blob", count: 3, gap: 0.85, delay: 0 }, { type: "marble", count: 8, gap: 0.55, delay: 3 }, { type: "sock", count: 4, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "blob", count: 3, gap: 0.85, delay: 0 }, { type: "marble", count: 9, gap: 0.55, delay: 3 }, { type: "sock", count: 5, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "brick", count: 11, gap: 0.55, delay: 0 }, { type: "blob", count: 3, gap: 0.85, delay: 3 }, { type: "sock", count: 3, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "brick", count: 13, gap: 0.55, delay: 0 }, { type: "blob", count: 4, gap: 0.85, delay: 3 }, { type: "sock", count: 3, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 2, gap: 1, delay: 0 }, { type: "blob", count: 4, gap: 0.85, delay: 3 }, { type: "marble", count: 16, gap: 0.55, delay: 4 }, { type: "sock", count: 4, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "knight", count: 3, gap: 1, delay: 0 }, { type: "blob", count: 5, gap: 0.85, delay: 3 }, { type: "marble", count: 18, gap: 0.55, delay: 4 }, { type: "sock", count: 4, gap: 0.85, delay: 5 } ] },
       ],
     },
     {
       id: 3,
       name: "Toy Shelf Run",
       world: "bedroom",
-      startGold: 240,
+      startGold: 330,
       budgetBase: 330,
       path: [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 3], [23, 3] ],
       pads: [
@@ -187,23 +188,23 @@
         { id: "p10", cx: 13, cy: 5 },
       ],
       waves: [
-        { groups: [ { type: "sock", count: 10, gap: 1.12, delay: 0 } ] },
-        { groups: [ { type: "sock", count: 12, gap: 1.09, delay: 0 } ] },
-        { groups: [ { type: "sock", count: 10, gap: 1.06, delay: 0 }, { type: "marble", count: 9, gap: 0.65, delay: 2.5 } ] },
-        { groups: [ { type: "sock", count: 11, gap: 1.03, delay: 0 }, { type: "marble", count: 11, gap: 0.65, delay: 2.5 } ] },
-        { groups: [ { type: "sock", count: 13, gap: 1.00, delay: 0 }, { type: "marble", count: 13, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 1, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 16, gap: 0.97, delay: 0 }, { type: "marble", count: 16, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 2, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 19, gap: 0.94, delay: 0 }, { type: "marble", count: 18, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 3, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 22, gap: 0.91, delay: 0 }, { type: "marble", count: 22, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 4, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 26, gap: 0.88, delay: 0 }, { type: "marble", count: 26, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 4, gap: 1.2, delay: 5 } ] },
+        { groups: [ { type: "sock", count: 11, gap: 0.85, delay: 0 } ] },
+        { groups: [ { type: "bull", count: 1, gap: 1.4, delay: 0 }, { type: "marble", count: 11, gap: 0.55, delay: 3 }, { type: "sock", count: 5, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "bull", count: 2, gap: 1.4, delay: 0 }, { type: "marble", count: 14, gap: 0.55, delay: 3 }, { type: "sock", count: 2, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "balloon", count: 5, gap: 1.1, delay: 0 }, { type: "knight", count: 2, gap: 1, delay: 3 }, { type: "sock", count: 8, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "balloon", count: 6, gap: 1.1, delay: 0 }, { type: "knight", count: 2, gap: 1, delay: 3 }, { type: "sock", count: 10, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "bull", count: 2, gap: 1.4, delay: 0 }, { type: "blob", count: 4, gap: 0.85, delay: 3 }, { type: "balloon", count: 4, gap: 1.1, delay: 4 }, { type: "sock", count: 7, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "bull", count: 2, gap: 1.4, delay: 0 }, { type: "blob", count: 5, gap: 0.85, delay: 3 }, { type: "balloon", count: 5, gap: 1.1, delay: 4 }, { type: "sock", count: 9, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "bull", count: 3, gap: 1.4, delay: 0 }, { type: "blob", count: 6, gap: 0.85, delay: 3 }, { type: "balloon", count: 6, gap: 1.1, delay: 4 }, { type: "sock", count: 8, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "bull", count: 3, gap: 1.4, delay: 0 }, { type: "blob", count: 7, gap: 0.85, delay: 3 }, { type: "balloon", count: 7, gap: 1.1, delay: 4 }, { type: "sock", count: 12, gap: 0.85, delay: 5 } ] },
       ],
     },
     {
       id: 4,
-      name: "Sock Drawer",
+      name: "Bed Monster",
       world: "bedroom",
-      startGold: 250,
-      budgetBase: 380,
+      startGold: 520,
+      budgetBase: 240,
       path: [ [0, 4], [20, 4], [20, 10], [6, 10], [6, 7], [14, 7] ],
       pads: [
         { id: "p1", cx: 2, cy: 6 },
@@ -218,15 +219,15 @@
         { id: "p10", cx: 22, cy: 8 },
       ],
       waves: [
-        { groups: [ { type: "sock", count: 12, gap: 1.12, delay: 0 } ] },
-        { groups: [ { type: "sock", count: 14, gap: 1.09, delay: 0 } ] },
-        { groups: [ { type: "sock", count: 11, gap: 1.06, delay: 0 }, { type: "marble", count: 11, gap: 0.65, delay: 2.5 } ] },
-        { groups: [ { type: "sock", count: 13, gap: 1.03, delay: 0 }, { type: "marble", count: 13, gap: 0.65, delay: 2.5 } ] },
-        { groups: [ { type: "sock", count: 15, gap: 1.00, delay: 0 }, { type: "marble", count: 15, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 1, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 18, gap: 0.97, delay: 0 }, { type: "marble", count: 18, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 2, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 21, gap: 0.94, delay: 0 }, { type: "marble", count: 21, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 3, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 25, gap: 0.91, delay: 0 }, { type: "marble", count: 25, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 4, gap: 1.2, delay: 5 } ] },
-        { groups: [ { type: "sock", count: 30, gap: 0.88, delay: 0 }, { type: "marble", count: 29, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 4, gap: 1.2, delay: 5 } ] },
+        { groups: [ { type: "sock", count: 8, gap: 0.85, delay: 0 } ] },
+        { groups: [ { type: "knight", count: 1, gap: 1, delay: 0 }, { type: "blob", count: 2, gap: 0.85, delay: 3 }, { type: "sock", count: 4, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "knight", count: 1, gap: 1, delay: 0 }, { type: "blob", count: 2, gap: 0.85, delay: 3 }, { type: "sock", count: 5, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "bull", count: 1, gap: 1.4, delay: 0 }, { type: "balloon", count: 3, gap: 1.1, delay: 3 }, { type: "marble", count: 9, gap: 0.55, delay: 4 }, { type: "sock", count: 2, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "bull", count: 1, gap: 1.4, delay: 0 }, { type: "balloon", count: 3, gap: 1.1, delay: 3 }, { type: "marble", count: 10, gap: 0.55, delay: 4 }, { type: "sock", count: 4, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "healer", count: 2, gap: 0.85, delay: 0 }, { type: "knight", count: 2, gap: 1, delay: 3 }, { type: "bull", count: 1, gap: 1.4, delay: 4 }, { type: "sock", count: 5, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "healer", count: 2, gap: 0.85, delay: 0 }, { type: "knight", count: 3, gap: 1, delay: 3 }, { type: "bull", count: 2, gap: 1.4, delay: 4 }, { type: "sock", count: 2, gap: 0.85, delay: 5 } ] },
+        { groups: [ { type: "healer", count: 2, gap: 0.85, delay: 0 }, { type: "knight", count: 3, gap: 1, delay: 3 }, { type: "bull", count: 2, gap: 1.4, delay: 4 }, { type: "sock", count: 7, gap: 0.85, delay: 5 } ] },
+        { boss: true, groups: [ { type: "bedmonster", count: 1, gap: 1, delay: 0 }, { type: "knight", count: 2, gap: 1.5, delay: 10 }, { type: "sock", count: 6, gap: 0.8, delay: 18 } ] },
       ],
     },
     {
@@ -252,7 +253,7 @@
         { groups: [ { type: "sock", count: 18, gap: 1.09, delay: 0 } ] },
         { groups: [ { type: "sock", count: 14, gap: 1.06, delay: 0 }, { type: "marble", count: 14, gap: 0.65, delay: 2.5 } ] },
         { groups: [ { type: "sock", count: 17, gap: 1.03, delay: 0 }, { type: "marble", count: 17, gap: 0.65, delay: 2.5 } ] },
-        { groups: [ { type: "sock", count: 20, gap: 1.00, delay: 0 }, { type: "marble", count: 20, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 1, gap: 1.2, delay: 5 } ] },
+        { groups: [ { type: "sock", count: 20, gap: 1, delay: 0 }, { type: "marble", count: 20, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 1, gap: 1.2, delay: 5 } ] },
         { groups: [ { type: "sock", count: 24, gap: 0.97, delay: 0 }, { type: "marble", count: 24, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 2, gap: 1.2, delay: 5 } ] },
         { groups: [ { type: "sock", count: 28, gap: 0.94, delay: 0 }, { type: "marble", count: 28, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 3, gap: 1.2, delay: 5 } ] },
         { groups: [ { type: "sock", count: 33, gap: 0.91, delay: 0 }, { type: "marble", count: 33, gap: 0.65, delay: 2.5 }, { type: "balloon", count: 4, gap: 1.2, delay: 5 } ] },

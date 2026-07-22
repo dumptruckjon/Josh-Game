@@ -119,6 +119,7 @@
       shells: [],
     };
     let spawnQueue = [];
+    let pendingSpawns = []; // split-children buffered mid-tick, flushed after combat
 
     const events = [];
     const emit = (e) => { events.push(e); if (events.length > 400) events.splice(0, events.length - 400); };
@@ -149,11 +150,11 @@
       emit({ type: "wave", n: state.waveIdx + 1 });
     }
 
-    function spawnEnemy(type) {
+    function spawnEnemy(type, dist) {
       const def = DATA.ENEMIES[type];
       state.enemies.push({
         id: nextId++, type,
-        dist: 0,
+        dist: dist || 0,
         hp: Math.round(def.hp * diff.hp),
         maxHp: Math.round(def.hp * diff.hp),
         shield: def.shield, armor: def.armor,
@@ -161,8 +162,10 @@
         slowPct: 0, slowUntil: 0,
         brittle: false, brittleUntil: 0,
         blockedBy: 0, stunnedUntil: 0, meleeCd: 0, stunApplied: false,
+        chargeUntil: 0, chargeCd: 0, stompCd: 0, phaseHidden: false,
         alive: true,
       });
+      if (def.boss) emit({ type: "boss", name: def.name });
     }
 
     function applySlow(e, pct, seconds) {
@@ -173,16 +176,80 @@
     }
     function effSpeed(e) {
       const slow = state.tick < e.slowUntil ? e.slowPct : 0;
-      return e.speed * (1 - slow);
+      const def = enemyDef(e);
+      // Wind-up Bull: while charging, run at its charge speed (slow still bites).
+      const base = (def.charge && state.tick < e.chargeUntil) ? def.charge.speed * diff.speed : e.speed;
+      return base * (1 - slow);
+    }
+
+    // Junk Healer: mend nearby wounded allies (never itself) each tick.
+    function healTick() {
+      for (const h of state.enemies) {
+        if (!h.alive) continue;
+        const def = enemyDef(h);
+        if (!def.heal) continue;
+        const hp = posAt(path, h.dist), r2 = def.heal.radius * def.heal.radius;
+        for (const e of state.enemies) {
+          if (!e.alive || e === h || e.hp >= e.maxHp) continue;
+          const p = posAt(path, e.dist);
+          if ((p.x - hp.x) ** 2 + (p.y - hp.y) ** 2 <= r2) e.hp = Math.min(e.maxHp, e.hp + def.heal.hps * DT);
+        }
+      }
+    }
+
+    // Boss stomp (Bed Monster): periodic AoE that damages soldiers near the boss.
+    function stompTick() {
+      for (const b of state.enemies) {
+        if (!b.alive) continue;
+        const def = enemyDef(b);
+        if (!def.stomp) continue;
+        if (b.stompCd === 0) { b.stompCd = state.tick + Math.round(def.stomp.seconds * DATA.TICK_RATE); continue; }
+        if (state.tick < b.stompCd) continue;
+        b.stompCd = state.tick + Math.round(def.stomp.seconds * DATA.TICK_RATE);
+        const bp = posAt(path, b.dist), r2 = def.stomp.radius * def.stomp.radius;
+        for (const s of state.soldiers) {
+          if (!s.alive) continue;
+          if ((s.x - bp.x) ** 2 + (s.y - bp.y) ** 2 <= r2) {
+            s.hp -= def.stomp.dmg;
+            if (s.hp <= 0) {
+              const camp = towerById(s.campId);
+              const cs = camp ? statsOf(DATA.TOWERS.camp, camp) : { respawn: 8 };
+              s.alive = false; s.respawnAt = state.tick + Math.round(cs.respawn * DATA.TICK_RATE);
+              if (s.engagedId) { const foe = enemyById(s.engagedId); if (foe) foe.blockedBy = 0; s.engagedId = 0; }
+              emit({ type: "soldier-down", x: s.x, y: s.y });
+            }
+          }
+        }
+        emit({ type: "stomp", x: bp.x, y: bp.y, r: def.stomp.radius });
+      }
     }
 
     function killEnemy(e, how) {
+      if (!e.alive) return; // idempotent — a split/gold-burst must never double-fire
       e.alive = false;
       if (e.blockedBy) { const s = soldierById(e.blockedBy); if (s) s.engagedId = 0; e.blockedBy = 0; }
-      const bounty = Math.round(enemyDef(e).bounty * diff.bounty);
-      state.gold += bounty;
+      const def = enemyDef(e);
+      const bounty = Math.round(def.bounty * diff.bounty);
+      state.gold += bounty + (def.goldBurst || 0); // Piñata candy-burst
+      // Splitters (Mud Blob) spawn children at the death spot — BUFFERED so we
+      // never mutate state.enemies mid-iteration; flushed after the combat pass.
+      if (def.split) for (let i = 0; i < def.split.count; i++) pendingSpawns.push({ type: def.split.into, dist: e.dist });
       const p = posAt(path, e.dist);
       emit({ type: "die", x: p.x, y: p.y, bounty, enemy: e.type, how });
+    }
+
+    // ONE damage path so every ability (armor/shield via computeHit, Bull charge
+    // on hit, split/gold on death) fires no matter which tower dealt the blow.
+    function triggerCharge(e) {
+      const def = enemyDef(e);
+      if (!def.charge || state.tick < e.chargeCd) return;
+      e.chargeUntil = state.tick + Math.round(def.charge.seconds * DATA.TICK_RATE);
+      e.chargeCd = state.tick + Math.round(def.charge.cooldown * DATA.TICK_RATE);
+    }
+    function dealDamage(e, hpDmg, shieldDmg, how) {
+      if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
+      if (hpDmg > 0) { e.hp -= hpDmg; triggerCharge(e); }
+      if (e.hp <= 0) killEnemy(e, how);
     }
     function leakEnemy(e) {
       e.alive = false;
@@ -341,8 +408,8 @@
           if (sol.meleeCd <= 0) {
             sol.meleeCd = Math.round(cs.rate * DATA.TICK_RATE);
             const hit = computeHit(cs.dmg, "bonk", foe);
-            foe.hp -= hit.hpDmg;
-            if (foe.hp <= 0) { killEnemy(foe, "melee"); sol.engagedId = 0; continue; }
+            dealDamage(foe, hit.hpDmg, 0, "melee");
+            if (!foe.alive) { sol.engagedId = 0; continue; }
           }
           // foe swings back (unless stunned)
           const fd = enemyDef(foe);
@@ -452,9 +519,7 @@
                   const p = posAt(path, cur2.dist);
                   points.push({ x: p.x, y: p.y });
                   const hit = computeHit(Math.round(dmg), "zap", cur2);
-                  cur2.hp -= hit.hpDmg;
-                  if (cur2.shield) cur2.shield = Math.max(0, cur2.shield - hit.shieldDmg);
-                  if (cur2.hp <= 0) killEnemy(cur2, "zap");
+                  dealDamage(cur2, hit.hpDmg, hit.shieldDmg, "zap");
                   dmg *= s.chain.decay;
                   // jump: nearest alive enemy within jump range of the last hit
                   let next = null, bestD = s.chain.jump * s.chain.jump;
@@ -478,9 +543,7 @@
                 const whole = Math.floor(t.zapAcc);
                 t.zapAcc -= whole;
                 const hit = computeHit(whole, "zap", beamTarget);
-                beamTarget.hp -= hit.hpDmg;
-                if (beamTarget.shield) beamTarget.shield = Math.max(0, beamTarget.shield - hit.shieldDmg);
-                if (beamTarget.hp <= 0) killEnemy(beamTarget, "zap");
+                dealDamage(beamTarget, hit.hpDmg, hit.shieldDmg, "zap");
               }
             }
           }
@@ -505,9 +568,8 @@
             if (d <= sh.splash) {
               const factor = d <= 0.5 ? 1 : Math.max(0.25, 1 - ((d - 0.5) / (sh.splash - 0.5)) * 0.75);
               const hit = computeHit(sh.dmg * factor, "bonk", e);
-              e.hp -= hit.hpDmg;
               if (sh.goo) applySlow(e, sh.goo.slow, sh.goo.seconds);
-              if (e.hp <= 0) killEnemy(e, "splash");
+              dealDamage(e, hit.hpDmg, hit.shieldDmg, "splash");
             }
           }
         }
@@ -547,6 +609,8 @@
 
       soldierTick();
       if (state.phase === "lost") return;
+      stompTick(); // bosses stomp soldiers
+      healTick();  // healers mend allies (before towers fire, so it's felt)
       fireTowers();
 
       // dart projectiles home
@@ -559,10 +623,8 @@
         const step = pr.speed * DT;
         if (d <= Math.max(0.18, step)) {
           const hit = computeHit(pr.dmg, pr.dmgType, target);
-          target.hp -= hit.hpDmg;
-          if (target.shield) target.shield = Math.max(0, target.shield - hit.shieldDmg);
           emit({ type: "hit", x: tp.x, y: tp.y, crit: pr.crit || false });
-          if (target.hp <= 0) killEnemy(target, "dart");
+          dealDamage(target, hit.hpDmg, hit.shieldDmg, "dart");
           pr.dead = true;
         } else {
           pr.x += (dx / d) * step;
@@ -571,6 +633,8 @@
       }
       state.projectiles = state.projectiles.filter((p) => !p.dead);
       shellTick();
+      // flush split-children (Mud Blob) now that the combat pass is done
+      while (pendingSpawns.length) { const s = pendingSpawns.shift(); spawnEnemy(s.type, s.dist); }
       state.enemies = state.enemies.filter((e) => e.alive || state.phase !== "wave");
 
       finishIfWaveDone();

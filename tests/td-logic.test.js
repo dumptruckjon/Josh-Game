@@ -89,6 +89,10 @@ test("TD wave-budget audit: every authored wave sits within ±25% of the level c
         assert.ok(def, `level ${level.id} wave ${n} references unknown enemy "${g.type}"`);
         hp += def.hp * g.count;
       }
+      if (wave.boss) { // a boss finale is DELIBERATELY off the curve — just prove it holds a boss
+        assert.ok(wave.groups.some((g) => DATA.ENEMIES[g.type].boss), `level ${level.id} wave ${n} is flagged boss but has no boss enemy`);
+        return;
+      }
       const target = level.budgetBase * Math.pow(1.18, n);
       assert.ok(hp >= target * 0.75 && hp <= target * 1.25,
         `level ${level.id} wave ${n}: ${hp} effective HP is outside ±25% of curve ${Math.round(target)}`);
@@ -529,30 +533,49 @@ test("AUDIT: camp soldiers rally ON the path (posts sit on the lane, not scatter
 });
 
 test("PLAYABILITY: EVERY shipped level is winnable by a sensible build AND losable by neglect", () => {
-  // The honest e2e contract for a real-time game: a fill-the-pads-and-upgrade
-  // build (darts only — the simplest sane strategy, no fan/mortar/camp synergy)
-  // must WIN every level with a fair margin, and doing NOTHING must LOSE. This is
-  // the guardrail that would have screamed if a level were missing or unbeatable.
-  const dartCost = DATA.TOWERS.dart.tiers[0].cost;
-  function autoPlay(level, seed, difficulty) {
+  // The honest e2e contract for a real-time game: a sensible MIXED build (Fan for
+  // armor/slow, Mortar for groups/splitters, Dart for fliers/general — the tools a
+  // competent player reaches for) must WIN every level with a fair margin, and
+  // doing NOTHING must LOSE. This is the guardrail that would have screamed if a
+  // level were missing or unbeatable — and, since the roster now has armor
+  // (Knight) that shrugs off Bonk, a dart-only solver would understate winnability.
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function playWith(level, seed, plan, difficulty) {
     const e = TD.createEngine(level, { seed, difficulty });
     const padIds = level.pads.map((p) => p.id);
-    let guard = 0;
-    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+    let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 600000) {
       if (e.state.phase === "build") {
         let spent = true;
         while (spent) {
           spent = false;
-          for (const pid of padIds) { if (!e.state.towers.find((t) => t.padId === pid) && e.state.gold >= dartCost) { if (e.place("dart", pid).ok) spent = true; break; } }
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
           if (spent) continue;
           const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
-          for (const t of ups) { const c = DATA.TOWERS[t.lineId].tiers[t.tier].cost; if (e.state.gold >= c) { if (e.upgrade(t.id).ok) spent = true; break; } }
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
         }
         e.callWave();
       }
       e.tick();
     }
     return e.state;
+  }
+  // A competent player picks the right tools for the level: a cheap dart-swarm
+  // where there's no armor, a Fan/Mortar mix where there is. The level is
+  // "winnable" if EITHER sensible build clears it — take the better outcome.
+  const DART_PLAN = ["dart"];
+  const MIXED_PLAN = ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"];
+  function autoPlay(level, seed, difficulty) {
+    const a = playWith(level, seed, DART_PLAN, difficulty);
+    const b = playWith(level, seed, MIXED_PLAN, difficulty);
+    if (a.phase === "won" && b.phase === "won") return a.lives >= b.lives ? a : b;
+    return a.phase === "won" ? a : b;
   }
   function neglect(level, seed) {
     const e = TD.createEngine(level, { seed });
@@ -575,4 +598,80 @@ test("PLAYABILITY: EVERY shipped level is winnable by a sensible build AND losab
   const easy = autoPlay(DATA.LEVELS[0], 7, "normal").lives;
   const hard = autoPlay(DATA.LEVELS[DATA.LEVELS.length - 1], 7, "normal").lives;
   assert.ok(hard < easy, `the final level should be harder than the first (L1 kept ${easy}, L${DATA.LEVELS.length} kept ${hard})`);
+});
+
+// ================= TD-3: World-1 roster + boss mechanics =================
+function microLevel(type, count, pad, startGold) {
+  return { id: 94, name: "micro", world: "test", startGold: startGold || 5000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [pad || { id: "m", cx: 5, cy: 2 }],
+    waves: [{ groups: [{ type, count: count || 1, gap: 0.5, delay: 0 }] }] };
+}
+
+test("TD3 Mud Blob splits into two Mudlets when killed (and split is idempotent)", () => {
+  const e = TD.createEngine(microLevel("blob", 1), { seed: 2 });
+  e.place("mortar", "m"); e.callWave();
+  let maxMudlets = 0;
+  for (let i = 0; i < 500 && e.state.phase === "wave"; i++) { e.tick(); maxMudlets = Math.max(maxMudlets, e.state.enemies.filter((x) => x.type === "mudlet").length); }
+  assert.equal(maxMudlets, 2, `a Mud Blob must spawn exactly 2 Mudlets on death (saw ${maxMudlets})`);
+  assert.deepEqual(DATA.ENEMIES.blob.split, { into: "mudlet", count: 2 }, "blob split truth");
+});
+
+test("TD3 Plastic Knight's 50% armor halves Bonk but Fan Zap ignores it", () => {
+  const knight = { type: "knight", hp: 100, maxHp: 100, shield: 0, armor: DATA.ENEMIES.knight.armor, brittle: false };
+  assert.equal(TD.computeHit(40, "bonk", knight).hpDmg, 20, "bonk halved by 50% armor");
+  assert.equal(TD.computeHit(40, "zap", knight).hpDmg, 40, "zap ignores armor (the Fan is the answer)");
+});
+
+test("TD3 Wind-up Bull charges (speeds up) after it takes a hit", () => {
+  const e = TD.createEngine(microLevel("bull", 1), { seed: 9 });
+  e.place("dart", "m"); e.callWave();
+  let charged = false;
+  for (let i = 0; i < 300 && e.state.phase === "wave"; i++) { e.tick(); const b = e.state.enemies.find((x) => x.type === "bull" && x.alive); if (b && b.chargeUntil > e.state.tick) charged = true; }
+  assert.ok(charged, "a Bull must enter a charge window after being hit");
+});
+
+test("TD3 Junk Healer mends a wounded ally (not itself)", () => {
+  const lvl = { id: 95, name: "heal", world: "test", startGold: 5000, budgetBase: 100, path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 2 }],
+    waves: [{ groups: [{ type: "healer", count: 1, gap: 0.1, delay: 0 }, { type: "sock", count: 1, gap: 0.1, delay: 0 }] }] };
+  const e = TD.createEngine(lvl, { seed: 4 }); e.callWave();
+  for (let i = 0; i < 15; i++) e.tick();
+  const sock = e.state.enemies.find((x) => x.type === "sock" && x.alive);
+  assert.ok(sock, "sock present next to the healer");
+  sock.hp = 5; const before = sock.hp;
+  for (let i = 0; i < 20; i++) e.tick();
+  assert.ok(sock.alive && sock.hp > before, `the Healer must heal a wounded ally (${before} → ${sock.hp.toFixed(1)})`);
+});
+
+test("TD3 Piñata bursts bonus gold and takes 2 lives if it leaks", () => {
+  assert.equal(DATA.ENEMIES.pinata.goldBurst, 20, "piñata gold-burst truth");
+  assert.equal(DATA.ENEMIES.pinata.lives, 2, "piñata costs 2 lives on leak");
+  // heavy setup (2 tier-3 mortars) so the 400hp piñata actually dies, then check the payout
+  const lvl = { id: 96, name: "pin", world: "test", startGold: 5000, budgetBase: 100, path: [[0, 3], [23, 3]],
+    pads: [{ id: "a", cx: 6, cy: 5 }, { id: "b", cx: 12, cy: 5 }], waves: [{ groups: [{ type: "pinata", count: 1, gap: 1, delay: 0 }] }] };
+  const e = TD.createEngine(lvl, { seed: 1 });
+  ["a", "b"].forEach((p) => { e.place("mortar", p); const t = e.state.towers.find((x) => x.padId === p); e.upgrade(t.id); e.upgrade(t.id); });
+  e.callWave();
+  const goldBefore = e.state.gold;
+  for (let i = 0; i < 2500 && e.state.phase === "wave"; i++) e.tick();
+  assert.ok(!e.state.enemies.some((x) => x.type === "pinata" && x.alive), "the piñata was killed");
+  assert.ok(e.state.gold - goldBefore >= 60 + 20, `killing the piñata pays bounty(60) + a gold burst(20) (got +${e.state.gold - goldBefore})`);
+});
+
+test("TD3 Bed Monster boss: unblockable by soldiers, stomps them, and headlines L4's finale", () => {
+  const e = TD.createEngine(microLevel("bedmonster", 1, { id: "m", cx: 4, cy: 4 }), { seed: 5 });
+  e.place("camp", "m"); e.callWave();
+  let everBlocked = false, minSolHp = 999, downs = 0;
+  for (let i = 0; i < 2600 && e.state.phase === "wave"; i++) { // a boss crossing takes ~2500 ticks at speed 0.28
+    e.tick();
+    const boss = e.state.enemies.find((x) => x.type === "bedmonster");
+    if (boss && boss.blockedBy) everBlocked = true;
+    for (const s of e.state.soldiers) minSolHp = Math.min(minSolHp, s.hp); // ALL soldiers — a stomped one dies (hp<0) and leaves the alive set
+    downs += e.events.filter((ev) => ev.type === "soldier-down").length; e.events.length = 0;
+  }
+  assert.ok(!everBlocked, "a boss can NEVER be blocked by soldiers (it's unblockable)");
+  assert.ok(minSolHp < DATA.TOWERS.camp.tiers[0].hp && downs > 0, `the boss stomp damaged/downed the soldiers (minHp ${minSolHp}, downs ${downs})`);
+  // it is the finale of L4
+  const l4 = DATA.LEVELS.find((l) => l.id === 4);
+  const finale = l4.waves[l4.waves.length - 1];
+  assert.ok(finale.boss && finale.groups.some((g) => g.type === "bedmonster"), "L4's last wave is the Bed Monster boss");
 });
