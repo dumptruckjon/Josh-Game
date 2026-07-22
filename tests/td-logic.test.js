@@ -500,3 +500,30 @@ test("AUDIT: a rally issued mid-combat updates an ENGAGED soldier's post (honore
   assert.ok(r.ok, "rally within range succeeds");
   assert.ok(eng.tx !== beforeTx || eng.ty !== beforeTy, `the engaged soldier's post updated (was ${beforeTx.toFixed(2)},${beforeTy.toFixed(2)}, now ${eng.tx.toFixed(2)},${eng.ty.toFixed(2)})`);
 });
+
+test("AUDIT: camp soldiers rally ON the path (posts sit on the lane, not scattered beside it)", () => {
+  // The block soldiers used to spread with fixed 2D offsets that pushed some off
+  // the ribbon; now they line up ALONG the path tangent. Every soldier's post
+  // must sit within half a cell of the path centre-line, for EVERY camp-able pad.
+  const distToPath = (e, x, y) => {
+    let best = Infinity;
+    for (let d = 0; d <= e.path.total; d += 0.1) {
+      const p = e.posAt(d);
+      const dd = (p.x - x) ** 2 + (p.y - y) ** 2;
+      if (dd < best) best = dd;
+    }
+    return Math.sqrt(best);
+  };
+  for (const pad of L1.pads) {
+    const e = TD.createEngine(L1, { seed: 5 });
+    if (!e.place("camp", pad.id).ok) continue; // startGold covers one camp
+    const cam = e.state.towers[e.state.towers.length - 1];
+    for (let i = 0; i < 120; i++) e.tick(); // let them deploy
+    const mine = e.state.soldiers.filter((s) => s.campId === cam.id);
+    assert.ok(mine.length >= 2, `camp on ${pad.id} fielded a squad`);
+    for (const s of mine) {
+      const dPost = distToPath(e, s.tx, s.ty);
+      assert.ok(dPost <= 0.5, `camp ${pad.id}: a soldier post must sit ON the path (dist ${dPost.toFixed(2)} ≤ 0.5)`);
+    }
+  }
+});

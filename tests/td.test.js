@@ -138,6 +138,14 @@ test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on scre
 
   // fit-on-screen: open the dialog on EVERY pad at both widths; the bubble's
   // box must sit fully inside the viewport (edge pads used to hang half off).
+  // We check the WIDEST rendered edge — the box AND any child — so an iOS-wide
+  // emoji in the stats line can't spill past the right even if the box "fits".
+  const widestEdges = () => page.evaluate(() => {
+    const b = window.TDUI.bubble; const r = b.getBoundingClientRect();
+    let left = r.left, right = r.right;
+    b.querySelectorAll("*").forEach((el) => { const c = el.getBoundingClientRect(); if (c.width && c.height) { if (c.left < left) left = c.left; if (c.right > right) right = c.right; } });
+    return { left, right };
+  });
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await page.waitForTimeout(250);
@@ -147,11 +155,27 @@ test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on scre
       sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
       await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
       await page.locator(".td-bubble").waitFor({ state: "visible", timeout: 4000 });
-      const b = await page.locator(".td-bubble").boundingBox();
-      assert.ok(b.x >= 0 && b.x + b.width <= width + 1,
-        `pad ${pad.id} dialog must fit horizontally at ${width}w (x=${Math.round(b.x)} w=${Math.round(b.width)})`);
-      assert.ok(b.y >= 0, `pad ${pad.id} dialog must not poke above the screen (y=${Math.round(b.y)})`);
+      const e = await widestEdges();
+      assert.ok(e.left >= -1 && e.right <= width + 1,
+        `pad ${pad.id} BUILD dialog must fit at ${width}w (left=${Math.round(e.left)} right=${Math.round(e.right)})`);
       await page.locator("#screen-td-play .td-hud").click(); // dismiss for the next pad
+    }
+    // The WIDEST dialog is a tier-3 tower PANEL (branch cards + a stats line).
+    // Build one on each edge pad and prove it (box AND ink) stays on screen —
+    // this is the real portrait "off the right side" case.
+    for (const line of ["fan", "mortar", "camp"]) {
+      for (const padId of ["p1", "p8"]) { // top-right & right pads
+        await page.evaluate((a) => { window.__TD.newGame(1, { seed: 7 }); window.__TD.grantGold(5000); window.__TD.script([["place", a.line, a.padId], ["upgrade", 0], ["upgrade", 0]]); }, { line, padId });
+        const pad = pads.find((p) => p.id === padId);
+        rect = await page.locator(".td-canvas").boundingBox();
+        sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+        await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+        await page.locator(".td-panel").waitFor({ state: "visible", timeout: 4000 });
+        const e = await widestEdges();
+        assert.ok(e.left >= -1 && e.right <= width + 1,
+          `${line} tier-3 PANEL on ${padId} must fit at ${width}w (left=${Math.round(e.left)} right=${Math.round(e.right)})`);
+        await page.locator("#screen-td-play .td-hud").click();
+      }
     }
   }
   await page.setViewportSize({ width: 390, height: 844 });
@@ -393,6 +417,29 @@ test("AUDIT UI: difficulty selection wires to the engine; panel stats, build rol
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.locator('.td-diffbtn[data-diff="normal"]').click();
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).difficulty), "normal", "difficulty reset to normal");
+});
+
+test("AUDIT UX: 🏠 mid-level asks before leaving — Keep playing stays, Leave quits (no lost progress by accident)", async () => {
+  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 7 }); window.__TD.script([["call"]]); }); // into a live wave
+  await page.waitForTimeout(60);
+  // tap Home → a confirm appears (no immediate navigation)
+  await page.locator(".td-quit").click();
+  await page.locator(".td-overlay--confirm").waitFor({ state: "visible", timeout: 4000 });
+  assert.equal(await page.evaluate(() => location.hash), "#td-play", "tapping 🏠 does NOT leave immediately");
+  assert.ok(await page.evaluate(() => window.__TD.state() && window.__TD.state().phase === "wave"), "the level is still live behind the confirm");
+  // Keep playing → dismiss, stay on the level
+  await page.locator('.td-overlay--confirm [data-act="no"]').click();
+  await page.waitForTimeout(60);
+  assert.equal(await page.locator(".td-overlay--confirm").count(), 0, "Keep playing closes the confirm");
+  assert.equal(await page.evaluate(() => location.hash), "#td-play", "Keep playing keeps you in the level");
+  // tap Home again → Leave → now it navigates to the fort
+  await page.locator(".td-quit").click();
+  await page.locator(".td-overlay--confirm").waitFor({ state: "visible", timeout: 4000 });
+  await page.locator('.td-overlay--confirm [data-act="yes"]').click();
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 4000 });
+  assert.equal(await page.evaluate(() => location.hash), "#td-home", "Leave returns to the fort");
 });
 
 test("kid-world isolation: the registry, home grid and 华丽 are untouched by the fort", async () => {

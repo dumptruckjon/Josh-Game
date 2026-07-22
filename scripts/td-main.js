@@ -161,6 +161,24 @@
     return str;
   }
 
+  // Is a real level running (something to lose)? build/wave only — not won/lost.
+  function inLevel() {
+    return !!(cur && cur.engine && (cur.engine.state.phase === "build" || cur.engine.state.phase === "wave"));
+  }
+  // Guard any exit that abandons the level: confirm first, pausing the battle
+  // while the player decides so nothing leaks. "Keep playing" resumes.
+  function promptLeave(onLeave) {
+    if (!inLevel()) { onLeave(); return; }
+    cur.paused = true;
+    UI.confirm({
+      title: "Leave the battle?",
+      msg: "You'll lose your progress on this level.",
+      yes: "🏰 Leave", no: "↩ Keep playing",
+      onYes: () => { UI.closeOverlay(); onLeave(); },
+      onNo: () => { UI.closeOverlay(); if (cur) cur.paused = false; },
+    });
+  }
+
   // ---- Field input: tap pads to build, towers to manage ----
   function fieldTap(ev) {
     if (!cur) return;
@@ -346,7 +364,7 @@
   UI.injectDoor(() => JonTD.openGate());
   UI.buildScreens({
     exitFort: () => { location.hash = ""; },
-    quitToFort: () => { location.hash = "#td-home"; },
+    quitToFort: () => { promptLeave(() => { location.hash = "#td-home"; }); },
     togglePause: () => {
       if (!cur) return;
       if (cur.paused) { cur.paused = false; UI.closeOverlay(); return; }
@@ -355,7 +373,7 @@
         resume: () => { cur.paused = false; UI.closeOverlay(); },
         restart: () => { UI.closeOverlay(); startLevel(cur.engine.state.levelId, {}); },
         sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); cur.paused = false; UI.closeOverlay(); },
-        quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
+        quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },
       }, save.settings);
     },
     toggleSpeed: () => {

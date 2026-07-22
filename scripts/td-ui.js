@@ -221,13 +221,12 @@
     b.hidden = false;
     b.style.left = Math.round(xPx) + "px";
     b.style.top = Math.round(yPx) + "px";
-    // A dialog must ALWAYS fit on screen — never half off the page. Measure the
-    // rendered bubble and (a) flip below the anchor if it pokes above the
-    // viewport, (b) clamp horizontally to an 8px margin.
+    // A dialog must ALWAYS fit on screen — never half off the page. The CSS caps
+    // its width at (100vw − 16px), so here we only (a) flip below the anchor if
+    // it pokes above the field, and (b) clamp horizontally to an 8px margin —
+    // measuring the WIDEST rendered edge (box OR any child), so even iOS-wide
+    // emoji in a wrapped line can't spill off the right.
     const fit = () => {
-      // Bound the dialog inside the FIELD (the canvas wrap), not just the
-      // viewport — a bubble poking above the field would cover the HUD and
-      // swallow taps meant for it (found by the every-pad dialog audit).
       const wrapR = b.parentElement.getBoundingClientRect();
       const r = b.getBoundingClientRect();
       if (r.top < wrapR.top + 4) b.classList.add("td-bubble--below");
@@ -237,12 +236,37 @@
       }
       const vw = doc.documentElement.clientWidth;
       const r3 = b.getBoundingClientRect();
+      let left = r3.left, right = r3.right;
+      b.querySelectorAll("*").forEach((el) => {
+        const cr = el.getBoundingClientRect();
+        if (cr.width && cr.height) { if (cr.left < left) left = cr.left; if (cr.right > right) right = cr.right; }
+      });
       let shift = 0;
-      if (r3.left < 8) shift = 8 - r3.left;
-      else if (r3.right > vw - 8) shift = (vw - 8) - r3.right;
-      if (shift) b.style.left = Math.round(xPx + shift) + "px";
+      if (left < 8) shift = 8 - left;
+      else if (right > vw - 8) shift = (vw - 8) - right;
+      if (shift) b.style.left = Math.round(parseFloat(b.style.left) + shift) + "px";
     };
     fit();
+    // Re-clamp next frame: on a real device layout/emoji metrics can settle a
+    // tick late, so a single synchronous measure can under-correct.
+    if (global.requestAnimationFrame) global.requestAnimationFrame(() => { if (!b.hidden) fit(); });
+  };
+
+  // A yes/no confirm overlay (adult space — text is fine). Pauses nothing itself;
+  // the caller decides. Reused for "leave the level?" so progress is never lost
+  // to an accidental tap on 🏠.
+  UI.confirm = function (opts) {
+    const el = overlay("td-overlay--confirm",
+      "<h3>" + (opts.title || "Are you sure?") + "</h3>" +
+      (opts.msg ? '<p class="td-overlay__warn">' + opts.msg + "</p>" : "") +
+      '<button class="td-btn td-btn--call" data-act="no" type="button">' + (opts.no || "↩ Keep playing") + "</button>" +
+      '<button class="td-btn td-btn--danger" data-act="yes" type="button">' + (opts.yes || "Leave") + "</button>");
+    el.addEventListener("click", (ev) => {
+      const act = ev.target && ev.target.dataset && ev.target.dataset.act;
+      if (act === "yes") { if (opts.onYes) opts.onYes(); }
+      else if (act === "no") { if (opts.onNo) opts.onNo(); }
+    });
+    return el;
   };
   UI.hideBubble = function () { if (UI.bubble) UI.bubble.hidden = true; };
 

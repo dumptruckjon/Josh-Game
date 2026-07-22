@@ -234,11 +234,35 @@
     }
 
     // ---- Soldiers ----
+    // Unit tangent of the path at its nearest point to (px,py) — so a camp's
+    // soldiers line up ALONG the lane, standing ON the path ribbon as a visible
+    // blockade, instead of scattering to the side of it. Deterministic (fixed
+    // sampling, no RNG).
+    function pathTangentAt(px, py) {
+      let bestD = Infinity, bestDist = 0;
+      for (let d = 0; d <= path.total; d += 0.2) {
+        const p = posAt(path, d);
+        const dd = (p.x - px) ** 2 + (p.y - py) ** 2;
+        if (dd < bestD) { bestD = dd; bestDist = d; }
+      }
+      const a = posAt(path, Math.max(0, bestDist - 0.35));
+      const b = posAt(path, Math.min(path.total, bestDist + 0.35));
+      let tx = b.x - a.x, ty = b.y - a.y;
+      const m = Math.hypot(tx, ty) || 1;
+      return { x: tx / m, y: ty / m };
+    }
     function rallySlots(t) {
       const s = statsOf(DATA.TOWERS.camp, t);
-      const offs = [[0, -0.3], [-0.4, 0.25], [0.4, 0.25], [0, 0.7]];
+      const tan = pathTangentAt(t.rallyX, t.rallyY);
+      const nx = -tan.y, ny = tan.x; // in-ribbon perpendicular
       const out = [];
-      for (let i = 0; i < s.soldiers; i++) out.push({ x: t.rallyX + offs[i % offs.length][0], y: t.rallyY + offs[i % offs.length][1] });
+      // spread soldiers along the lane (centred on the rally point), with a tiny
+      // stagger kept well inside the ribbon so every guy stands on the path
+      for (let i = 0; i < s.soldiers; i++) {
+        const along = (i - (s.soldiers - 1) / 2) * 0.52;
+        const perp = (i % 2 === 0 ? -0.1 : 0.1);
+        out.push({ x: t.rallyX + tan.x * along + nx * perp, y: t.rallyY + tan.y * along + ny * perp });
+      }
       return out;
     }
     function spawnSoldiers(t) {

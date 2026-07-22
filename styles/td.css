@@ -101,6 +101,8 @@ body.td-mode #screens { padding: 0; }
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .td-btn--call { background: #ffd94a; color: #3a2c00; }
+.td-btn--danger { background: #7a2b33; color: #ffdede; }
+.td-overlay__box p.td-overlay__warn { color: #ffbf8f; font-weight: 700; }
 /* CALL floats OVER the field (bottom-left is empty in every current map) —
    it costs zero layout height, so the whole game fits one screen. */
 .td-call {
@@ -115,6 +117,9 @@ body.td-mode #screens { padding: 0; }
   background: #16233d; border: 2px solid #3a548a; border-radius: 14px;
   padding: 8px; display: flex; gap: 8px; z-index: 5;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  /* A dialog can NEVER be wider than the screen — the JS clamp then only has to
+     position it, so it always fits (portrait build/panel overflow fix). */
+  box-sizing: border-box; max-width: calc(100vw - 16px);
 }
 .td-bubble[hidden] { display: none; }
 .td-bubble--below { transform: translate(-50%, 30%); } /* flipped under the pad when the top would clip */
@@ -151,7 +156,9 @@ body.td-mode #screens { padding: 0; }
 .td-buy__cost { font-size: 0.92rem; }
 .td-panel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 74vw; }
 .td-panel__name { font-weight: 800; color: #ffe27a; padding: 0 4px; white-space: nowrap; }
-.td-panel__stats { width: 100%; font-size: 0.72rem; color: #9db4dd; padding: 0 4px 2px; white-space: nowrap; }
+/* stats may WRAP — iOS emoji (🪖 ❄ 💥) are wider than desktop, and a nowrap line
+   would spill past the panel's right edge on the real device. */
+.td-panel__stats { width: 100%; font-size: 0.72rem; color: #9db4dd; padding: 0 4px 2px; white-space: normal; }
 
 /* difficulty selector (fort home) */
 .td-diff { display: flex; gap: 8px; justify-content: center; margin: 0 0 14px; }

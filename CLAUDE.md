@@ -409,6 +409,37 @@ next-wave enemy preview during build. Lesson: for a real-time game the
 tap-harness proves it RUNS, not that every stat lever and targeting mode is LIVE
 — audit a deterministic engine by driving it headless and reading the numbers,
 then pin each fix with a node-sim or `__TD` guardrail.
+**Fort Josh's UX/art pass fixed four "feel" defects the numbers-only tests
+couldn't see — each turned into a systemic rule.** (1) **A progress-losing exit
+must confirm first** — the in-game 🏠 (and the pause menu's "Back to the fort")
+dumped you to the fort mid-battle with one tap; both now route through a shared
+`UI.confirm` ("Leave the battle?") whenever a level is LIVE (build/wave phase),
+with "↩ Keep playing" as the prominent default and the battle paused while you
+decide → browser guardrail taps 🏠 mid-wave and asserts Keep-playing stays on
+`#td-play` while Leave navigates to `#td-home`. (2) **A dialog must fit even with
+iOS-wide emoji** — the tower panel's stats line was `white-space: nowrap`, and
+iOS renders 🪖/❄/💥 WIDER than desktop Chromium, so the line spilled off the
+right on the real device while every headless measure "fit". Fix is belt-and-
+suspenders: CSS caps the bubble at `calc(100vw − 16px)`, the stats line WRAPS,
+and the JS clamp now measures the widest CHILD edge (not just the box) and
+re-clamps on the next frame (real-device layout settles a tick late) → the
+dialog-fit guardrail now also opens a tier-3 PANEL on edge pads and checks the
+widest ink edge, at 320 AND 390. (3) **The renderer draws CHARACTERS upright in
+screen space** — only the FLOOR (bg/path/pads) rotates 90° to fill portrait;
+towers/enemies/soldiers/projectiles are drawn via `worldToScreen` in an
+unrotated context, so a sock's face and a turret's barrels are never sideways
+(they were, in portrait). Any future entity art inherits upright orientation for
+free. (4) **Block soldiers line up ALONG the path** — rally slots used fixed 2D
+offsets that scattered soldiers off the ribbon; they now spread along the path
+TANGENT (computed from `posAt`), so the squad stands ON the lane as a visible
+wall → engine guardrail asserts every soldier post sits within 0.5 cell of the
+path centre-line for every camp-able pad. Plus a render fix the neglect-sim
+surfaced: **a full-screen flash fx must REFRESH, not stack** — a burst of leaks
+piled translucent rects into an opaque red wall; one leak flash now refreshes its
+ttl instead of pushing another. Lesson: a real-time game's *feel* (an accidental
+exit, a dialog that spills only on iOS's wider emoji, art that's sideways in one
+orientation) lives outside the tap/number tests — screenshot BOTH orientations,
+reason about device-vs-headless emoji metrics, and drive the neglect path.
 
 ---
 
