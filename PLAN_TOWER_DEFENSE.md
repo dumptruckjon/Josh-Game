@@ -316,6 +316,14 @@ Josh might watch over a shoulder).
 
 ## 7. The 12 levels (3 worlds × 4) + Endless
 
+> **Status:** Levels **1-5 SHIPPED** as a sock/marble/balloon slice (the enemies
+> the engine implements today) — distinct paths/pads, a sim-verified rising
+> difficulty curve, progressive unlock (beat N → N+1), and a Next-level button.
+> Shipped names differ from the originals below (L4 "Sock Drawer", L5 "Under the
+> Rug") because the boss/gimmick enemies aren't built yet. The wave tables here
+> remain the TD-3 target for when the full 14-enemy roster + bosses land; the
+> ±25% budget audit + the auto-solver winnability test govern the shipped set.
+
 Format per level: world/name, path shape (waypoints authored in `td-data.js`,
 fine-tuned with the debug overlay §9.4), pad count, start gold, waves, base
 budget B (§5.3), **signature gimmick**, and unlock. L1-L3 get fully explicit

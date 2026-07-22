@@ -48,11 +48,19 @@ test("the gate rejects every name except exactly 'Jon' (trimmed)", async () => {
   assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "fort theme on");
 });
 
-test("fort home shows L1 playable and the 11 future levels locked", async () => {
+test("fort home shows L1 open and every later level locked on a fresh save", async () => {
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#__renav"; });
+  await page.waitForTimeout(50);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
   assert.equal(await page.locator(".td-level").count(), 12, "12 level cards");
-  assert.equal(await page.locator(".td-level--locked").count(), 11, "11 locked in TD-1");
-  const l1 = page.locator(".td-level").first();
-  const box = await l1.boundingBox();
+  // fresh save: only L1 is playable; L2..L12 all locked (progression gate)
+  assert.equal(await page.locator(".td-level--locked").count(), 11, "11 locked on a fresh save");
+  assert.ok(!(await page.evaluate(() => document.querySelectorAll(".td-level")[0].classList.contains("td-level--locked"))), "L1 is open");
+  // L2 EXISTS in data but is locked pending an L1 win — it shows a 'win 1 ⭐' hint
+  assert.ok(await page.evaluate(() => document.querySelectorAll(".td-level")[1].classList.contains("td-level--locked")), "L2 starts locked");
+  assert.ok(await page.evaluate(() => !!document.querySelector(".td-level__need")), "a locked-but-built level explains how to unlock it");
+  const box = await page.locator(".td-level").first().boundingBox();
   assert.ok(box && box.height >= 56, "level card is adult-tappable");
 });
 
@@ -440,6 +448,35 @@ test("AUDIT UX: 🏠 mid-level asks before leaving — Keep playing stays, Leave
   await page.locator('.td-overlay--confirm [data-act="yes"]').click();
   await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 4000 });
   assert.equal(await page.evaluate(() => location.hash), "#td-home", "Leave returns to the fort");
+});
+
+test("AUDIT progression: beating a level UNLOCKS the next (the 'level 2 never unlocked' bug)", async () => {
+  // fresh fort → L2 locked and NOT tappable
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#__renav"; });
+  await page.waitForTimeout(50);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  assert.ok(await page.evaluate(() => document.querySelectorAll(".td-level")[1].classList.contains("td-level--locked")), "L2 locked before L1 is beaten");
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".td-level")[1].disabled), true, "L2 not tappable yet");
+
+  // beat L1 with the shipped, un-cheated winning plan
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const res = await page.evaluate(() => window.__TD.winL1(7));
+  assert.equal(res, "won", "the CI plan beats L1");
+  await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 4000 });
+  assert.equal(await page.locator('.td-overlay--win [data-act="next"]').count(), 1, "victory offers a Next-level button");
+  assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars["1"] >= 1), "the L1 star persisted (real, not cheated)");
+
+  // back to the fort → L2 is now unlocked AND tappable, and starts level 2
+  await page.locator('.td-overlay--win [data-act="continue"]').click();
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  assert.ok(!(await page.evaluate(() => document.querySelectorAll(".td-level")[1].classList.contains("td-level--locked"))), "beating L1 UNLOCKS L2");
+  await page.locator(".td-level").nth(1).click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  assert.equal(await page.evaluate(() => window.__TD.state().levelId), 2, "tapping the unlocked L2 starts level 2");
+  // tidy: reset so later tests start clean
+  await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
 test("kid-world isolation: the registry, home grid and 华丽 are untouched by the fort", async () => {

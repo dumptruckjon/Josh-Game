@@ -81,7 +81,7 @@
       '<p class="td-sub">Toybox Defense</p>' +
       '<div class="td-diff" role="group" aria-label="Difficulty"></div>' +
       '<div class="td-levels" role="list"></div>' +
-      '<p class="td-note">Level 1 &amp; the full toybox arsenal are live — 4 tower lines, upgrades and exclusive branches. More levels, enemies &amp; bosses are on the way.</p>';
+      '<p class="td-note">5 levels live — beat one to unlock the next. The full toybox arsenal (4 tower lines, upgrades &amp; exclusive branches) is yours. More levels, enemies &amp; bosses are on the way.</p>';
     screens.appendChild(home);
     home.querySelector(".td-exit").addEventListener("click", hooks.exitFort);
 
@@ -153,18 +153,30 @@
     grid.innerHTML = "";
     const LEVELS = global.TDData.LEVELS;
     const TOTAL_PLANNED = 12;
+    const starsOf = (k) => (save.stars && save.stars[String(k)]) || 0;
     for (let n = 1; n <= TOTAL_PLANNED; n++) {
       const def = LEVELS.find((l) => l.id === n);
+      // Progression: L1 is always open; every later level unlocks once the
+      // PREVIOUS one is beaten (any-difficulty win = ≥1 star) — so beating L1
+      // opens L2, and so on (PLAN §7 unlock rule).
+      const unlocked = n === 1 || starsOf(n - 1) >= 1;
+      const playable = !!def && unlocked;
       const card = doc.createElement("button");
       card.type = "button";
-      card.className = "td-level" + (def ? "" : " td-level--locked");
-      if (def) {
-        const stars = (save.stars && save.stars[String(n)]) || 0;
+      card.className = "td-level" + (playable ? "" : " td-level--locked");
+      if (playable) {
+        const stars = starsOf(n);
         card.innerHTML =
           '<span class="td-level__n">' + n + "</span>" +
           '<span class="td-level__name">' + def.name + "</span>" +
           '<span class="td-level__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(Math.max(0, 3 - stars)) + "</span></span>";
         card.addEventListener("click", () => onPick(n));
+      } else if (def && !unlocked) {
+        // built, but still locked behind the previous level — tell the player why
+        card.disabled = true;
+        card.innerHTML = '<span class="td-level__n">' + n + "</span>" +
+          '<span class="td-level__name">🔒</span>' +
+          '<span class="td-level__stars td-level__need">win ' + (n - 1) + " ⭐</span>";
       } else {
         card.disabled = true;
         card.innerHTML = '<span class="td-level__n">' + n + '</span><span class="td-level__name">🔒</span>';
@@ -219,37 +231,30 @@
     b.innerHTML = html;
     b.classList.remove("td-bubble--below", "td-bubble--hint");
     b.hidden = false;
-    b.style.left = Math.round(xPx) + "px";
-    b.style.top = Math.round(yPx) + "px";
-    // A dialog must ALWAYS fit on screen — never half off the page. The CSS caps
-    // its width at (100vw − 16px), so here we only (a) flip below the anchor if
-    // it pokes above the field, and (b) clamp horizontally to an 8px margin —
-    // measuring the WIDEST rendered edge (box OR any child), so even iOS-wide
-    // emoji in a wrapped line can't spill off the right.
-    const fit = () => {
-      const wrapR = b.parentElement.getBoundingClientRect();
-      const r = b.getBoundingClientRect();
-      if (r.top < wrapR.top + 4) b.classList.add("td-bubble--below");
-      const r2 = b.getBoundingClientRect();
-      if (b.classList.contains("td-bubble--below") && r2.bottom > wrapR.bottom + 40) {
-        b.classList.remove("td-bubble--below"); // taller-than-field edge: prefer above
-      }
-      const vw = doc.documentElement.clientWidth;
-      const r3 = b.getBoundingClientRect();
-      let left = r3.left, right = r3.right;
-      b.querySelectorAll("*").forEach((el) => {
-        const cr = el.getBoundingClientRect();
-        if (cr.width && cr.height) { if (cr.left < left) left = cr.left; if (cr.right > right) right = cr.right; }
-      });
-      let shift = 0;
-      if (left < 8) shift = 8 - left;
-      else if (right > vw - 8) shift = (vw - 8) - right;
-      if (shift) b.style.left = Math.round(parseFloat(b.style.left) + shift) + "px";
+    // Position + clamp ENTIRELY in the FIELD's own offset coordinates (real px
+    // via clientWidth/offsetWidth), NOT the viewport. The old clamp trusted
+    // documentElement.clientWidth + `vw`, which iOS Safari can report wider than
+    // the visible viewport (any page overflow, the URL-bar, zoom) — so a dialog
+    // that "fit" in headless Chromium still ran off the right on the real phone.
+    // The field is a controlled element; clamping to it can't be fooled.
+    b.style.transform = "none"; // we place by top-left, no translate to reason about
+    const place = () => {
+      const wrap = b.parentElement;
+      const wrapW = wrap.clientWidth, wrapH = wrap.clientHeight;
+      // The dialog can never be wider than the field itself.
+      b.style.maxWidth = Math.max(140, wrapW - 16) + "px";
+      const dw = b.offsetWidth, dh = b.offsetHeight;
+      let left = xPx - dw / 2;                               // centred on the pad…
+      left = Math.max(8, Math.min(left, wrapW - dw - 8));    // …then clamped inside the field
+      let top = yPx - dh - 14;                               // above the pad…
+      if (top < 8) top = yPx + 22;                           // …or below if it would clip the top
+      top = Math.max(8, Math.min(top, wrapH - dh - 8));
+      b.style.left = Math.round(left) + "px";
+      b.style.top = Math.round(top) + "px";
     };
-    fit();
-    // Re-clamp next frame: on a real device layout/emoji metrics can settle a
-    // tick late, so a single synchronous measure can under-correct.
-    if (global.requestAnimationFrame) global.requestAnimationFrame(() => { if (!b.hidden) fit(); });
+    place();
+    // Re-place next frame in case emoji/layout metrics settle a tick late.
+    if (global.requestAnimationFrame) global.requestAnimationFrame(() => { if (!b.hidden) place(); });
   };
 
   // A yes/no confirm overlay (adult space — text is fine). Pauses nothing itself;
@@ -296,13 +301,18 @@
   };
 
   UI.showVictory = function (stars, lives, hooks) {
+    const hasNext = !!hooks.nextLevel;
     const el = overlay("td-overlay--win",
       '<h3>Fort defended! 🎉</h3>' +
       '<p class="td-overlay__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(3 - stars) + "</span></p>" +
       "<p>" + lives + " of 20 stickers kept safe</p>" +
-      '<button class="td-btn td-btn--call" data-act="continue" type="button">Continue</button>');
+      (hasNext ? '<p class="td-overlay__warn">🔓 Level ' + hooks.nextLevel + ' unlocked!</p>' : "") +
+      (hasNext ? '<button class="td-btn td-btn--call" data-act="next" type="button">▶ Next level</button>' : "") +
+      '<button class="td-btn" data-act="continue" type="button">' + (hasNext ? "🏰 Back to the fort" : "Continue") + "</button>");
     el.addEventListener("click", (ev) => {
-      if (ev.target && ev.target.dataset && ev.target.dataset.act === "continue") hooks.continueOn();
+      const act = ev.target && ev.target.dataset && ev.target.dataset.act;
+      if (act === "continue") hooks.continueOn();
+      else if (act === "next" && hooks.onNext) hooks.onNext();
     });
   };
 

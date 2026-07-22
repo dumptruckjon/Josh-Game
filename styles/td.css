@@ -74,6 +74,7 @@ body.td-mode #screens { padding: 0; }
 .td-level__n { color: #9db4dd; font-size: 0.85rem; }
 .td-level__name { text-align: center; padding: 0 4px; }
 .td-level__stars { font-size: 0.85rem; }
+.td-level__need { font-size: 0.72rem; color: #9db4dd; font-weight: 700; }
 .td-level__dim { opacity: 0.25; }
 .td-note { margin-top: 14px; color: #8ba2cc; font-size: 0.9rem; }
 
@@ -132,7 +133,7 @@ body.td-mode #screens { padding: 0; }
 }
 .td-buildmenu {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px; max-width: 66vw;
+  gap: 8px; max-width: 300px; /* px, not vw — the JS caps to the real field width */
 }
 .td-buy[disabled] { opacity: 0.4; }
 .td-branch, .td-rally,
@@ -154,7 +155,7 @@ body.td-mode #screens { padding: 0; }
 .td-buy__icon { font-size: 1.3rem; }
 .td-buy__role { font-size: 0.6rem; font-weight: 700; opacity: 0.78; text-transform: uppercase; letter-spacing: 0.02em; }
 .td-buy__cost { font-size: 0.92rem; }
-.td-panel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 74vw; }
+.td-panel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 320px; }
 .td-panel__name { font-weight: 800; color: #ffe27a; padding: 0 4px; white-space: nowrap; }
 /* stats may WRAP — iOS emoji (🪖 ❄ 💥) are wider than desktop, and a nowrap line
    would spill past the panel's right edge on the real device. */

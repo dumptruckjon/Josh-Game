@@ -527,3 +527,52 @@ test("AUDIT: camp soldiers rally ON the path (posts sit on the lane, not scatter
     }
   }
 });
+
+test("PLAYABILITY: EVERY shipped level is winnable by a sensible build AND losable by neglect", () => {
+  // The honest e2e contract for a real-time game: a fill-the-pads-and-upgrade
+  // build (darts only — the simplest sane strategy, no fan/mortar/camp synergy)
+  // must WIN every level with a fair margin, and doing NOTHING must LOSE. This is
+  // the guardrail that would have screamed if a level were missing or unbeatable.
+  const dartCost = DATA.TOWERS.dart.tiers[0].cost;
+  function autoPlay(level, seed, difficulty) {
+    const e = TD.createEngine(level, { seed, difficulty });
+    const padIds = level.pads.map((p) => p.id);
+    let guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) { if (!e.state.towers.find((t) => t.padId === pid) && e.state.gold >= dartCost) { if (e.place("dart", pid).ok) spent = true; break; } }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { const c = DATA.TOWERS[t.lineId].tiers[t.tier].cost; if (e.state.gold >= c) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state;
+  }
+  function neglect(level, seed) {
+    const e = TD.createEngine(level, { seed });
+    let g = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 400000) { if (e.state.phase === "build") e.callWave(); e.tick(); }
+    return e.state;
+  }
+  assert.ok(DATA.LEVELS.length >= 5, `the fort ships real progression, not one level (got ${DATA.LEVELS.length})`);
+  // levels are contiguous 1..N so progression can actually chain
+  DATA.LEVELS.forEach((l, i) => assert.equal(l.id, i + 1, "level ids are contiguous from 1"));
+  for (const lvl of DATA.LEVELS) {
+    for (const seed of [7, 23, 99]) {
+      const w = autoPlay(lvl, seed, "normal");
+      assert.equal(w.phase, "won", `L${lvl.id} "${lvl.name}" must be winnable by fill-and-upgrade (seed ${seed})`);
+      assert.ok(w.lives >= 5, `L${lvl.id} keeps a fair margin (≥5 lives, got ${w.lives} @seed ${seed})`);
+    }
+    assert.equal(neglect(lvl, 7).phase, "lost", `L${lvl.id} must be LOSABLE by neglect (real stakes, not no-fail)`);
+  }
+  // difficulty should broadly rise: the LAST level is harder than the FIRST
+  const easy = autoPlay(DATA.LEVELS[0], 7, "normal").lives;
+  const hard = autoPlay(DATA.LEVELS[DATA.LEVELS.length - 1], 7, "normal").lives;
+  assert.ok(hard < easy, `the final level should be harder than the first (L1 kept ${easy}, L${DATA.LEVELS.length} kept ${hard})`);
+});

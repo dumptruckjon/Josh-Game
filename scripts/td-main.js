@@ -70,7 +70,13 @@
         persist(save);
       }
       sfx("won");
-      UI.showVictory(st.stars, st.lives, { continueOn: () => { UI.closeOverlay(); location.hash = "#td-home"; } });
+      const nextId = st.levelId + 1;
+      const nextExists = !!DATA.LEVELS.find((l) => l.id === nextId);
+      UI.showVictory(st.stars, st.lives, {
+        continueOn: () => { UI.closeOverlay(); location.hash = "#td-home"; },
+        nextLevel: nextExists ? nextId : null,
+        onNext: nextExists ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, {}); } : null,
+      });
     } else if (st.phase === "lost") {
       stopLoop();
       sfx("lost");
@@ -408,6 +414,7 @@
     isRotated: () => (cur ? cur.render.isRotated() : false),
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
+    resetSave: () => { save = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal" }; persist(save); return true; },
     // Synchronous command script: [["place","dart","p3"],["upgrade",0],["call"],
     // ["tick",30],["untilPhase","build",50000]] — runs with the renderer paused.
     script: (cmds) => {

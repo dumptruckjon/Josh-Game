@@ -440,6 +440,32 @@ ttl instead of pushing another. Lesson: a real-time game's *feel* (an accidental
 exit, a dialog that spills only on iOS's wider emoji, art that's sideways in one
 orientation) lives outside the tap/number tests — screenshot BOTH orientations,
 reason about device-vs-headless emoji metrics, and drive the neglect path.
+**Fort Josh shipped with ONE level and a dialog that still ran off the right on a
+real iPhone — two "done" claims that weren't.** Lessons, each now a rule: (1) **A
+level-select that shows locked slots must actually HAVE levels behind them** —
+the fort rendered 12 cards but only Level 1 existed in the data, so "beat L1 →
+L2 unlocks" was impossible (L2 wasn't there). Fix: 5 real levels (distinct
+paths/pads, a rising difficulty curve), progressive unlock (beat N ⭐ → N+1
+opens), and a ▶ Next-level button on the victory screen. The guardrail is the
+honest one a real-time game needs: a headless **auto-solver** (fill pads with
+darts + upgrade greedily) must WIN every shipped level with a fair margin across
+seeds AND doing nothing must LOSE — so a missing or unbeatable level fails the
+suite loudly. (2) **A longer path makes a level EASIER, not harder** — more
+coverage time = more tower DPS on each enemy; the first cut of L4/L5 (long paths)
+was easier than L1, difficulty inverted. Tune the curve by SIM, not by eye:
+shorten late paths + raise budget + cut gold until `autoPlay(Ln).lives` descends
+L1→L5 (a `hard < easy` assertion pins it). (3) **A dialog clamp must never trust
+`documentElement.clientWidth` or `vw`** — iOS Safari can report those wider than
+the visible viewport (page overflow, URL bar, zoom), so a build menu that "fit"
+in headless Chromium still spilled off the right on the real phone. The fix
+positions and clamps ENTIRELY in the FIELD's own offset coordinates
+(`wrap.clientWidth`/`offsetWidth`, capped to the field width) — engine-agnostic
+real pixels that can't be fooled. And the meta-lesson the user had to repeat:
+**WebKit isn't installed in the dev sandbox, so headless Chromium ≠ iOS Safari —
+never say "fixed" for a device-specific bug on Chromium evidence alone.** Verify
+by driving the deterministic engine headless (numbers), screenshot at the real
+device size, reason explicitly about the iOS-vs-Chromium delta, and lean on CI's
+WebKit `verify-live` + a real-device check for the final word.
 
 ---
 
@@ -702,16 +728,20 @@ The name gate accepts **only the exact input `Jon`** (trim+NFC, case-sensitive;
 `sessionStorage["td-ok"]`, session-scoped). This is an **adult space**: real
 difficulty, real defeat screens, real timers — RULE 5's kid laws deliberately do
 not apply inside (the gate is what keeps it from Josh; precedent: 华丽's
-`data-adult`). Status: **TD-1 + TD-2 shipped** — shell + deterministic engine +
-Level 1, and the FULL arsenal: 4 tower lines (Dart/Mortar/Fan/Army-Guys Camp) ×
-tiers 1-3 + all six exclusive tier-4 branches (Sniper/Minigun, Bertha/Sticky,
-Blizzard/Static-chain, Dino/RC), slows (strongest-wins, fliers half), brittle,
-splash with falloff + min-range, chain lightning, seeded crits, spin-up, and
-path-blocking soldiers with rally flags. The renderer draws the world ROTATED
-90° in portrait so the battlefield fills the phone (one worldToScreen mapping
-shared by drawing/taps/dialogs). Phases TD-3..TD-6 (14 enemies + 3 bosses, 12
-levels, difficulties, meta star tree, endless) are specified in
-`PLAN_TOWER_DEFENSE.md`.
+`data-adult`). Status: **TD-1 + TD-2 shipped, plus 5 playable levels with
+progression** — shell + deterministic engine + **Levels 1-5** (each a distinct
+path/pad layout with a rising difficulty curve, every one proven winnable by a
+headless auto-solver and losable by neglect; beat level N to unlock N+1, and the
+victory screen offers a ▶ Next-level button), and the FULL arsenal: 4 tower lines
+(Dart/Mortar/Fan/Army-Guys Camp) × tiers 1-3 + all six exclusive tier-4 branches
+(Sniper/Minigun, Bertha/Sticky, Blizzard/Static-chain, Dino/RC), slows
+(strongest-wins, fliers half), brittle, splash with falloff + min-range, chain
+lightning, seeded crits, spin-up, and path-blocking soldiers with rally flags.
+The renderer draws the FLOOR rotated 90° in portrait so the battlefield fills the
+phone while CHARACTERS stay upright (one worldToScreen mapping shared by
+drawing/taps/dialogs). L1-L5 use the sock/marble/balloon slice; the remaining 7
+levels + the 14-enemy roster + 3 bosses + meta tree + endless (TD-3..TD-6) are
+specified in `PLAN_TOWER_DEFENSE.md`.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
