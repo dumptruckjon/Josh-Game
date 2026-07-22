@@ -30,6 +30,26 @@
   let save = load();
   if (!save.difficulty || !DATA.DIFFICULTIES[save.difficulty]) save.difficulty = "normal";
   if (!save.settings) save.settings = { sfx: true };
+  if (!Array.isArray(save.meta)) save.meta = [];   // TD-5 star-tree nodes owned
+  if (!Array.isArray(save.ach)) save.ach = [];     // TD-5 achievement ids earned
+  if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
+  if (!("midRun" in save)) save.midRun = null;     // TD-5 resume checkpoint
+
+  // ---- TD-5 achievements: earn once, toast, persist (never on a cheated run) ----
+  function earnAch(id) {
+    if (!Array.isArray(save.ach)) save.ach = [];
+    if (save.ach.indexOf(id) >= 0) return;
+    const def = DATA.ACHIEVEMENTS.find((a) => a.id === id);
+    if (!def) return;
+    save.ach.push(id); persist(save);
+    UI.toast(def.icon, def.name); sfx("upgrade");
+  }
+  function totalStars() { let s = 0; for (const k in (save.stars || {})) s += save.stars[k]; return s; }
+  function checkStarAchievements() {
+    const t = totalStars();
+    if (t >= 18) earnAch("starcollector");
+    if (t >= 36) earnAch("fullfort");
+  }
 
   // ---- SFX (through the ONE iOS-safe JoshAudio.tone; global 🔇 + fort toggle) ----
   let lastShotCue = 0;
@@ -60,9 +80,25 @@
 
   function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } }
 
+  // TD-5: award every achievement this outcome earns (skipped on a cheated run).
+  function awardWinAchievements(st) {
+    if (st.cheated) return;
+    if (st.levelId === 1) earnAch("doorman");
+    if (st.levelId === 4) earnAch("bossbonker");
+    if (st.levelId === 8 && cur.soldiersLost <= 3) earnAch("dysondenied");
+    if (st.levelId === 12) earnAch("unplugged");
+    if (!cur.leaked) earnAch("noleaks");                    // all 20 stickers kept safe
+    if (st.difficulty === "heroic") earnAch("heroicheart");
+    const linesUsed = Object.keys(cur.lines);
+    if (st.levelId === 2 && linesUsed.length === 1 && linesUsed[0] === "dart") earnAch("peapurist");
+    checkStarAchievements();
+  }
+
   function phaseWatch(prevPhase) {
     const st = cur.engine.state;
     if (st.phase === prevPhase) return;
+    // a fresh build phase (a wave boundary) is the mid-run checkpoint (§9.3)
+    if (st.phase === "build" && st.waveIdx !== cur.lastBuildWave) { cur.lastBuildWave = st.waveIdx; writeMidRun(); }
     if (st.phase === "won") {
       stopLoop();
       if (!st.cheated) {
@@ -70,6 +106,8 @@
         save.stars[key] = Math.max(save.stars[key] || 0, st.stars);
         persist(save);
       }
+      clearMidRun();
+      awardWinAchievements(st);
       sfx("won");
       const nextId = st.levelId + 1;
       const nextExists = !!DATA.LEVELS.find((l) => l.id === nextId);
@@ -80,12 +118,24 @@
       });
     } else if (st.phase === "lost") {
       stopLoop();
+      clearMidRun();
       sfx("lost");
-      UI.showDefeat({
-        retry: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: st.seed }); },
-        retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: (Date.now() % 100000) }); },
-        quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
-      });
+      if (st.endless) {
+        const world = cur.levelDef.world, score = st.waveIdx;
+        const best = (save.endlessBest[world] || 0);
+        if (!st.cheated && score > best) { save.endlessBest[world] = score; persist(save); }
+        if (!st.cheated && score >= 20) earnAch("marathoner");
+        UI.showDefeat({
+          retry: () => { UI.closeOverlay(); startEndless(world); },
+          quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
+        }, { score, best: Math.max(best, score) });
+      } else {
+        UI.showDefeat({
+          retry: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: st.seed }); },
+          retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: (Date.now() % 100000) }); },
+          quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
+        });
+      }
     }
   }
 
@@ -94,8 +144,9 @@
     for (const e of evs) {
       cur.render.pushFx(e);
       if (e.type === "shoot") sfx("shoot");
-      else if (e.type === "die") sfx("die");
-      else if (e.type === "leak") sfx("leak");
+      else if (e.type === "die") { sfx("die"); if (!cur.sawKill && !cur.engine.state.cheated) { cur.sawKill = true; earnAch("firstblood"); } }
+      else if (e.type === "leak") { sfx("leak"); cur.leaked = true; }
+      else if (e.type === "soldier-down") cur.soldiersLost += 1; // TD-5 Dyson Denied tracking
       else if (e.type === "wave") sfx("wave");
       else if (e.type === "chain") sfx("chain");
       else if (e.type === "splash") sfx("splash");
@@ -121,23 +172,41 @@
       ticks += 1;
     }
     drainEvents();
+    // TD-5 Ice Age: 20 enemies slowed at once (checked cheaply a few times/sec)
+    if (!cur.sawIce && !cur.engine.state.cheated && (cur.engine.state.tick & 7) === 0) {
+      const st = cur.engine.state, tk = st.tick;
+      let slowed = 0; for (const e of st.enemies) if (e.alive && tk < e.slowUntil) slowed++;
+      if (slowed >= 20) { cur.sawIce = true; earnAch("iceage"); }
+    }
     phaseWatch(prevPhase);
     cur.render.draw(Math.max(0, Math.min(1, cur.acc / DT_MS)));
     if ((cur.engine.state.tick & 7) === 0) UI.hud(cur.engine.state); // ~4Hz
   }
 
+  // Build an on-the-fly endless "level" from a world's arena (§7.5). Not in
+  // DATA.LEVELS, so it never touches the campaign audits.
+  function endlessLevelDef(world) {
+    const a = DATA.ENDLESS.arenas[world] || DATA.ENDLESS.arenas.bedroom;
+    return { id: "endless-" + world, name: "Endless " + world, world, endless: { world }, startGold: a.startGold, budgetBase: DATA.ENDLESS.base, path: a.path, pads: a.pads };
+  }
+
   function startLevel(levelId, opts) {
     opts = opts || {};
-    const levelDef = DATA.LEVELS.find((l) => l.id === levelId);
+    // opts.levelDef lets an endless run pass its generated arena directly.
+    const levelDef = opts.levelDef || DATA.LEVELS.find((l) => l.id === levelId);
     if (!levelDef) { location.hash = "#td-home"; return; }
     stopLoop();
     // Difficulty flows from the fort-home selector (persisted in save); a test
     // hook may override per-call. The engine fully supports casual/normal/heroic
     // (hp/speed/bounty/start-gold multipliers) — casual eases, heroic bites hard.
     const difficulty = opts.difficulty || save.difficulty || "normal";
-    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty });
+    // TD-5: the owned star-tree nodes flow in as pure engine input; a test hook
+    // may override per-call (opts.meta).
+    const meta = opts.meta || save.meta || [];
+    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta });
     const render = R.create(UI.canvas, engine);
-    cur = { engine, render, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null };
+    cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
+      lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1 }; // TD-5 achievement context
     UI.closeOverlay();
     UI.hideBubble();
     if (UI.hideBanner) UI.hideBanner(); // never inherit the previous level's boss klaxon
@@ -147,6 +216,55 @@
     render.resize();
     render.draw(0);
     cur.raf = requestAnimationFrame(frame);
+  }
+
+  function startEndless(world) {
+    location.hash = "#td-play";
+    startLevel(null, { levelDef: endlessLevelDef(world) });
+  }
+
+  // ---- TD-5 mid-run checkpoint (§9.3): snapshot at each wave boundary, restore
+  //      on Resume, clear on win/loss/quit. Only towers + scalars — honest
+  //      wave-granularity (mid-wave enemy positions are NOT saved). ----
+  function writeMidRun() {
+    if (!cur || cur.engine.state.cheated) return;
+    const st = cur.engine.state;
+    if (st.phase !== "build") return;
+    save.midRun = {
+      levelId: st.levelId, endless: st.endless, world: cur.levelDef.world,
+      difficulty: st.difficulty, seed: st.seed, waveIdx: st.waveIdx,
+      gold: st.gold, lives: st.lives, meta: (save.meta || []).slice(),
+      towers: st.towers.map((t) => ({ lineId: t.lineId, tier: t.tier, branch: t.branch, padId: t.padId, targeting: t.targeting, rallyX: t.rallyX, rallyY: t.rallyY })),
+    };
+    persist(save);
+  }
+  function clearMidRun() { if (save.midRun) { save.midRun = null; persist(save); } }
+
+  function resumeMidRun() {
+    const mr = save.midRun;
+    if (!mr) { location.hash = "#td-home"; return; }
+    const levelDef = mr.endless ? endlessLevelDef(mr.world) : DATA.LEVELS.find((l) => l.id === mr.levelId);
+    if (!levelDef) { clearMidRun(); location.hash = "#td-home"; return; }
+    location.hash = "#td-play";
+    startLevel(mr.levelId, { levelDef, seed: mr.seed, difficulty: mr.difficulty, meta: mr.meta });
+    // Cold restore: set the checkpoint directly (no leaky fast-forward). The
+    // engine schedules the correct next wave from state.waveIdx on the next CALL.
+    const e = cur.engine;
+    const bumpGold = () => { e.state.gold = 9e9; }; // rebuild is already "paid" in mr.gold
+    for (const t of mr.towers) {
+      bumpGold();
+      if (!e.place(t.lineId, t.padId).ok) continue;
+      const nt = e.state.towers[e.state.towers.length - 1];
+      if (t.tier >= 2) { bumpGold(); e.upgrade(nt.id); }
+      if (t.tier >= 3) { bumpGold(); e.upgrade(nt.id); }
+      if (t.tier >= 4 && t.branch) { bumpGold(); e.branch(nt.id, t.branch); }
+      if (t.targeting) e.setTargeting(nt.id, t.targeting);
+      if (t.lineId === "camp") e.rally(nt.id, t.rallyX, t.rallyY);
+    }
+    e.state.waveIdx = mr.waveIdx; e.state.gold = mr.gold; e.state.lives = mr.lives;
+    e.state.phase = "build"; e.state.cheated = false; // restored progress is honest
+    cur.lastBuildWave = mr.waveIdx; // don't immediately re-checkpoint the restore
+    cur.render.afterTick(); cur.render.resize(); cur.render.draw(0); UI.hud(e.state);
   }
 
   // A compact stat line for the tower panel — so the player can read what a
@@ -246,7 +364,7 @@
         btn.addEventListener("click", (e2) => {
           e2.stopPropagation();
           const r = cur.engine.place(btn.dataset.line, pad.id);
-          if (r.ok) { sfx("build"); UI.hideBubble(); cur.render.setSelection(null); }
+          if (r.ok) { sfx("build"); if (cur.lines) cur.lines[btn.dataset.line] = true; UI.hideBubble(); cur.render.setSelection(null); }
           else {
             UI.bubble.classList.add("td-bubble--no");
             setTimeout(() => UI.bubble.classList.remove("td-bubble--no"), 300);
@@ -334,6 +452,7 @@
           (n) => { location.hash = "#td-play"; startLevel(n, {}); },
           (d) => { if (DATA.DIFFICULTIES[d]) { save.difficulty = d; persist(save); } } // sticks for the next level start
         );
+        UI.renderResume(save, resumeMidRun, () => { clearMidRun(); JonTD.route("td-home"); }); // TD-5 resume banner
         const s = doc.getElementById("screen-td-home");
         if (s) s.hidden = false;
         if (cur) { cur.paused = true; }
@@ -393,6 +512,10 @@
     },
     callWave: () => { if (cur) { cur.engine.callWave(); UI.hud(cur.engine.state); } },
     fieldTap,
+    // TD-5 meta screens (opened from the fort home)
+    openTree: () => UI.showStarTree(save, (newMeta) => { save.meta = newMeta; persist(save); }),
+    openAchievements: () => UI.showAchievements(save),
+    openEndless: () => UI.showEndless(save, (world) => startEndless(world)),
   });
   doc.addEventListener("visibilitychange", () => { if (doc.hidden && cur) cur.paused = true; });
   global.addEventListener("resize", () => { if (cur) { cur.render.resize(); cur.render.draw(0); } });
@@ -417,7 +540,7 @@
     isRotated: () => (cur ? cur.render.isRotated() : false),
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
-    resetSave: () => { save = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal" }; persist(save); return true; },
+    resetSave: () => { save = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null }; persist(save); return true; },
     // Synchronous command script: [["place","dart","p3"],["upgrade",0],["call"],
     // ["tick",30],["untilPhase","build",50000]] — runs with the renderer paused.
     script: (cmds) => {

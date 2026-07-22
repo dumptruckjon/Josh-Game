@@ -222,3 +222,82 @@ body.td-mode #screens { padding: 0; }
 @media (prefers-reduced-motion: reduce) {
   .td-bubble--no { animation: none; }
 }
+
+/* ===== TD-5 META: resume banner, meta row, star tree, badges, endless, toast ===== */
+.td-resume {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
+  padding: 10px 12px; border-radius: 14px; background: #1c3a2a; border: 2px solid #3c8a5a;
+}
+.td-resume[hidden] { display: none; }
+.td-resume__txt { flex: 1; color: #cfeede; font-weight: 800; min-width: 0; }
+.td-resume__go { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 12px; background: #ffd94a; color: #3a2c00; font-weight: 800; touch-action: manipulation; }
+.td-resume__x { min-height: 44px; min-width: 44px; border: 0; border-radius: 12px; background: #26334f; color: #cfe2ff; font-weight: 800; touch-action: manipulation; }
+
+.td-meta { display: flex; gap: 8px; justify-content: center; margin: 0 0 14px; }
+.td-metabtn {
+  flex: 1; max-width: 150px; min-height: 48px; padding: 8px 6px;
+  border-radius: 12px; border: 2px solid #3a548a; background: #182a4a;
+  color: #cfe2ff; font-weight: 800; font-size: 0.95rem;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+
+/* wide overlay box for the tree/badges/endless lists (scrolls if tall) */
+.td-overlay__box--wide { width: min(360px, 92vw); max-height: 86dvh; overflow-y: auto; }
+.td-overlay__row { display: flex; gap: 10px; }
+.td-overlay__row .td-btn { flex: 1; }
+.td-overlay__sub { color: #9db4dd; margin: 0; font-size: 0.92rem; }
+.td-tree__avail { color: #ffe27a; }
+
+/* star tree nodes */
+.td-nodes { display: flex; flex-direction: column; gap: 8px; }
+.td-node {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  min-height: 56px; padding: 8px 10px; border-radius: 12px;
+  border: 2px solid #3a548a; background: #16233d; color: #e8eefc;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.td-node--on { border-color: #ffd94a; background: #2a2a12; }
+.td-node[disabled] { opacity: 0.45; }
+.td-node__icon { font-size: 1.5rem; width: 32px; text-align: center; }
+.td-node__body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.td-node__name { font-weight: 800; }
+.td-node__desc { font-size: 0.78rem; color: #9db4dd; }
+.td-node__cost { font-weight: 800; color: #ffe27a; white-space: nowrap; }
+.td-node--on .td-node__cost { color: #7ed957; }
+
+/* badges grid */
+.td-achs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.td-ach {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 6px; border-radius: 12px; border: 2px solid #2c3f5c; background: #16233d;
+  text-align: center;
+}
+.td-ach--on { border-color: #ffd94a; background: #22301c; }
+.td-ach__icon { font-size: 1.6rem; }
+.td-ach__name { font-weight: 800; font-size: 0.82rem; color: #e8eefc; }
+.td-ach__desc { font-size: 0.68rem; color: #9db4dd; line-height: 1.15; }
+
+/* endless picker */
+.td-endlessrows { display: flex; flex-direction: column; gap: 10px; }
+.td-endless {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 60px; padding: 10px 14px; border-radius: 14px;
+  border: 2px solid #6a3c7a; background: #2a1a33; color: #f2e6ff; font-weight: 800; font-size: 1.05rem;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.td-endless--locked { opacity: 0.5; border-color: #3a548a; background: #182a4a; }
+.td-endless__best { font-size: 0.78rem; color: #ffe27a; font-weight: 700; }
+
+/* achievement toast */
+.td-toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  z-index: 40; display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 14px; background: #16233d; border: 2px solid #ffd94a;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); animation: td-toastpop 0.4s ease-out;
+  max-width: calc(100vw - 24px);
+}
+.td-toast__icon { font-size: 1.8rem; }
+.td-toast__txt { color: #e8eefc; font-size: 0.9rem; line-height: 1.2; }
+.td-toast__txt b { color: #ffe27a; }
+@keyframes td-toastpop { 0% { transform: translate(-50%, 20px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .td-toast { animation: none; } }

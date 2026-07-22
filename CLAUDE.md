@@ -523,6 +523,42 @@ tap/number harness can't see. And the authoring win: hand-writing ~100 waves to 
 ±25% budget curve is error-prone, so a scratch generator emitted the level literals
 (programmatic pads that hug the whole lane for end-coverage) and a validator flagged
 every out-of-band wave BEFORE the data file was touched.
+**Fort Josh TD-5 added the between-runs META layer — and every lesson was about a
+NEW SHAPE breaking an old assumption that had held for 12 hand-authored levels.**
+(1) **A generated level isn't in `DATA.LEVELS` — so anything that looked a level
+up by id crashes on it.** `UI.hud` did `DATA.LEVELS.find(l=>l.id===state.levelId)
+.waves.length` for the next-wave preview; an Endless run's id is `"endless-
+bedroom"` (a STRING, not in the campaign), so `level` was undefined and the HUD
+threw `reading 'waves'` every frame — a page-error the tap-harness would have
+missed because Endless is never entered by the campaign tests. Fix: the engine
+flags `state.endless`, and the HUD (and anything else) treats a not-found level as
+Endless (show `wave N ♾️`, skip the fixed-total preview). Lesson: when you add a
+run that ISN'T a catalog entry, grep every `LEVELS.find(...levelId)` and give it an
+endless branch. (2) **A test-only save reset must reset the FULL save shape.**
+`__TD.resetSave()` rebuilt the old `{v,stars,settings,difficulty}` literal, so
+after a reset `save.ach` was `undefined` and the first kill's `earnAch` crashed on
+`save.ach.indexOf` — a regression the moment a new persisted field lands. Fix:
+resetSave now writes every field (`meta/ach/endlessBest/midRun`) AND `earnAch`
+coerces defensively; when you add a save field, update BOTH the loader defaults and
+every reset path. (3) **Star-tree buffs are the honest test surface only because
+they're PURE INPUT.** Every node applies at `createEngine(levelDef,{meta})` and
+NOWHERE else, so a node-set metaMods is deterministic and a sim can prove "+40
+gold / +2 lives / faster kill / cheaper branch" without a browser. Resist the urge
+to sprinkle a buff at its use-site — one `metaMods(opts.meta)` computed once,
+referenced everywhere. (4) **Endless is unbounded, so "it always ends" is true but
+NOT cheaply sim-provable** — the `1.16^n` budget guarantees any fixed build is
+eventually overwhelmed, but a maxed 14-pad build survives past 400k ticks (high
+waves spawn thousands), so the test asserts the MEANINGFUL properties instead:
+neglect loses fast (real stakes), a real build lasts many waves past neglect (real
+depth), same seed → identical run (determinism). Don't write a test whose honest
+form takes hours to run; assert the property, not the extreme. (5) **Resume is a
+COLD STATE-SET, not a replay** — fast-forwarding the engine through the saved waves
+with no towers just leaks all your lives; instead rebuild the towers (gold-bumped),
+then set `waveIdx/gold/lives/phase` directly and let the engine schedule the right
+next wave from `waveIdx`. Checkpoint granularity is the wave boundary (mid-wave
+enemy positions are never saved — honest), the restore is marked `cheated:false`
+(earned, not cheated), and `cur.lastBuildWave` is pre-set so the restore doesn't
+immediately re-checkpoint itself.
 
 ---
 
@@ -560,11 +596,11 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: 👵🏻 top-bar door + Chinese name gate (只有「华丽」能进) + red-gold launcher + 🏮 sticker book
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds)/gimmicks
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds)/gimmicks + TD-5 meta (10-node star tree, 12 achievements, endless arenas)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks)
-│   ├── td-ui.js                # 🏰 door/gate/screens/HUD/overlays (gate = data-adult; ONLY the exact name "Jon" unlocks)
-│   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save + rAF loop + input + sfx + window.__TD test hooks
+│   ├── td-ui.js                # 🏰 door/gate/screens/HUD/overlays (gate = data-adult; ONLY the exact name "Jon" unlocks) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast
+│   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW; routes td-* through guarded JonTD
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
@@ -785,7 +821,7 @@ The name gate accepts **only the exact input `Jon`** (trim+NFC, case-sensitive;
 `sessionStorage["td-ok"]`, session-scoped). This is an **adult space**: real
 difficulty, real defeat screens, real timers — RULE 5's kid laws deliberately do
 not apply inside (the gate is what keeps it from Josh; precedent: 华丽's
-`data-adult`). Status: **TD-1 + TD-2 + TD-3 + TD-4 shipped** — shell +
+`data-adult`). Status: **TD-1 + TD-2 + TD-3 + TD-4 + TD-5 shipped** — shell +
 deterministic engine + **all 12 Levels across 3 worlds** (Bedroom L1-4, Backyard
 L5-8, Toy Store L9-12; distinct path/pad layouts, a rising difficulty curve, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
@@ -811,10 +847,20 @@ slows (strongest-wins, fliers half), brittle, splash with falloff + min-range,
 chain lightning, seeded crits, spin-up, and path-blocking soldiers with rally
 flags. The renderer draws the FLOOR rotated 90° in portrait so the battlefield
 fills the phone while CHARACTERS stay upright (one worldToScreen mapping shared by
-drawing/taps/dialogs). **Deferred to a later pass:** true multi-path (dual/merge/
-fork) layouts + the L10 lever (single rich paths ship now instead); the meta tree
-+ achievements + endless (TD-5) and the audio/polish pass (TD-6) are specified in
-`PLAN_TOWER_DEFENSE.md`.
+drawing/taps/dialogs). **TD-5 META** adds the between-runs layer: a **10-node
+star tree** (spend earned ⭐ on permanent buffs — start gold, Dart/Mortar/Fan/
+soldier buffs, +2 lives, ×1.5 early-call, 90% refund, a "Weakest" targeting
+unlock, −10% branch cost — with a **free respec**), threaded through
+`createEngine` as PURE INPUT (`opts.meta`) so a sim covers any loadout; **12
+achievements** (`jon-td-ach`, toast on unlock, one per boss + First Blood/No
+Leaks/Pea Purist/Ice Age/Star Collector/Full Fort/Marathoner/Heroic Heart);
+**Endless mode ×3** (a per-world arena with a deterministic wave generator —
+budget `300·1.16^n`, a mini-boss every 5th wave — unlocked once a world's 4
+levels are 3⭐, best score saved per world); and **resume mid-run** (a
+wave-boundary checkpoint in `save.midRun` → a Resume banner on the fort home that
+cold-restores the build). **Deferred to a later pass:** true multi-path (dual/
+merge/fork) layouts + the L10 lever (single rich paths ship now instead); the
+audio/fx/perf polish pass (TD-6) is specified in `PLAN_TOWER_DEFENSE.md`.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

@@ -533,6 +533,78 @@ test("a fresh level never inherits the previous level's boss banner", async () =
   assert.ok(cleared, "starting a fresh level must hide any lingering boss banner");
 });
 
+test("TD5 star tree: buying a node persists to save.meta and feeds the next run; respec clears it", async () => {
+  // grant plenty of stars so nodes are affordable, then open the tree from home
+  await page.evaluate(() => {
+    window.__TD.resetSave();
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.stars = {}; for (let i = 1; i <= 12; i++) raw.stars[i] = 3; // 36 ⭐
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    location.hash = "#__renav";
+  });
+  await page.waitForTimeout(50);
+  await page.reload({ waitUntil: "load" }); // reload so the fort re-reads the seeded save
+  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator(".td-tree-open").click();
+  await page.locator(".td-tree").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".td-node").count(), 10, "10 star-tree nodes");
+  // buy the first node (startgold) → it persists to save.meta
+  await page.locator('.td-node[data-node="startgold"]').click();
+  let meta = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).meta);
+  assert.ok(meta.indexOf("startgold") >= 0, "buying a node writes it to save.meta");
+  // that node now flows into a fresh run as +40 start gold
+  const gold = await page.evaluate(() => { window.__TD.newGame(1, { seed: 7 }); return window.__TD.state().gold; });
+  assert.equal(gold, 260, "Piggy Bank gives L1 220+40 start gold");
+  // respec clears the whole tree
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator(".td-tree-open").click();
+  await page.locator(".td-tree-respec").click();
+  meta = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).meta);
+  assert.equal(meta.length, 0, "respec refunds every node (free)");
+  await page.locator(".td-tree-done").click();
+});
+
+test("TD5 badges + endless: the grid shows 12, and a 3⭐-world unlocks its endless run", async () => {
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator(".td-ach-open").click();
+  await page.locator(".td-achgrid").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".td-ach").count(), 12, "12 badge cells");
+  await page.locator(".td-ach-done").click();
+  // endless: with all levels 3⭐ (seeded above), every world is unlocked
+  await page.locator(".td-endless-open").click();
+  await page.locator(".td-endlesspick").waitFor({ state: "visible" });
+  const openCount = await page.locator(".td-endless:not(.td-endless--locked)").count();
+  assert.ok(openCount >= 1, "at least one endless world is unlocked at 3⭐");
+  await page.locator('.td-endless[data-world="bedroom"]').click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const st = await page.evaluate(() => window.__TD.state());
+  assert.ok(st.endless === true, "an endless run is live");
+});
+
+test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores the build", async () => {
+  // craft a mid-run save directly, then confirm the home shows a Resume banner
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {} };
+    raw.midRun = { levelId: 3, endless: false, world: "bedroom", difficulty: "normal", seed: 7, waveIdx: 2, gold: 500, lives: 18, meta: [], towers: [{ lineId: "dart", tier: 2, branch: "", padId: "p1", targeting: "first", rallyX: 0, rallyY: 0 }] };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "load" }); // reload so the fort re-reads the seeded midRun
+  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  assert.ok(await page.locator(".td-resume:not([hidden])").count() === 1, "the resume banner shows when a checkpoint exists");
+  await page.locator(".td-resume__go").click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const st = await page.evaluate(() => window.__TD.state());
+  assert.equal(st.levelId, 3, "resumed the checkpointed level");
+  assert.equal(st.waveIdx, 2, "resumed at the saved wave boundary");
+  assert.ok(st.towers.length === 1 && st.towers[0].tier === 2, "the saved tower was rebuilt at its tier");
+  assert.equal(st.gold, 500, "the saved economy was restored (not a cheated bump)");
+  assert.ok(!st.cheated, "a restored run is honest (earns stars/badges)");
+  await page.evaluate(() => { window.__TD.resetSave(); }); // clean up for later tests
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

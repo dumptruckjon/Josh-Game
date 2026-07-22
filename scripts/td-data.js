@@ -465,7 +465,64 @@
     },
   ];
 
-  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, TOWERS, ENEMIES, LEVELS };
+  // ---- TD-5 META (§8.1): star tree. Spend earned ⭐ on permanent buffs; free
+  //      respec. Every effect is applied at createEngine as PURE INPUT (opts.meta
+  //      = array of node ids), so a sim can drive any loadout. Costs from the
+  //      plan; total 28 of a possible 36⭐ (3⭐ × 12 levels) — the tree is
+  //      fully affordable once the campaign is mastered. ----
+  const META_NODES = [
+    { id: "startgold",    icon: "💰", name: "Piggy Bank",  desc: "+40 starting gold",     cost: 2 },
+    { id: "dartdmg",      icon: "🎯", name: "Sharp Darts",  desc: "Dart +10% damage",       cost: 3 },
+    { id: "mortarsplash", icon: "🧱", name: "Big Booms",    desc: "Mortar +10% splash",     cost: 3 },
+    { id: "fanrange",     icon: "🧊", name: "Cold Front",   desc: "Fan aura +0.3 range",    cost: 3 },
+    { id: "soldierhp",    icon: "🪖", name: "Tough Troops", desc: "Soldiers +15% HP",       cost: 3 },
+    { id: "lives",        icon: "❤️", name: "Extra Hearts", desc: "+2 starting lives",      cost: 4 },
+    { id: "earlycall",    icon: "⏩", name: "Early Bird",   desc: "Early-call bonus ×1.5",  cost: 2 },
+    { id: "sellrefund",   icon: "♻️", name: "Trade-In",     desc: "Sell refund 90%",        cost: 2 },
+    { id: "cheaptarget",  icon: "🔻", name: "Weak Spot",    desc: "Unlock “Weakest” aim",   cost: 2 },
+    { id: "branchcost",   icon: "🏷️", name: "Bulk Deal",    desc: "Branch prices −10%",     cost: 4 },
+  ];
+
+  // ---- TD-5 ACHIEVEMENTS (§8.2): unlocked from real play, toast on earn,
+  //      stored in the save's `ach` array. Icons ≤ Emoji 13.0. ----
+  const ACHIEVEMENTS = [
+    { id: "firstblood",    icon: "⚔️", name: "First Blood",   desc: "Pop your first toy" },
+    { id: "doorman",       icon: "🚪", name: "Doorman",       desc: "Win Level 1" },
+    { id: "noleaks",       icon: "🛡️", name: "No Leaks",      desc: "Win a level with all 20 lives" },
+    { id: "peapurist",     icon: "🎯", name: "Pea Purist",    desc: "Win Level 2 with only Darts" },
+    { id: "iceage",        icon: "🧊", name: "Ice Age",       desc: "Slow 20 enemies at once" },
+    { id: "bossbonker",    icon: "🛏", name: "Boss Bonker",   desc: "Beat the Bed Monster" },
+    { id: "dysondenied",   icon: "🌪", name: "Dyson Denied",  desc: "Beat the Vacuum King" },
+    { id: "unplugged",     icon: "⚡", name: "Unplugged",     desc: "Beat The Static" },
+    { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn 18 stars" },
+    { id: "fullfort",      icon: "👑", name: "Full Fort",     desc: "Earn all 36 stars" },
+    { id: "marathoner",    icon: "🏃", name: "Marathoner",    desc: "Reach Endless wave 20" },
+    { id: "heroicheart",   icon: "💀", name: "Heroic Heart",  desc: "Win any level on Hard" },
+  ];
+
+  // ---- TD-5 ENDLESS (§7.5): infinite generated waves per world, unlocked once
+  //      all 4 of a world's levels are 3-starred. wave N budget = base·growth^N;
+  //      every 5th wave is a mini-boss. The engine plays these through the SAME
+  //      loop (the level just carries an `endless` generator instead of `waves`). ----
+  const ENDLESS = {
+    base: 300, growth: 1.16, miniBossEvery: 5,
+    worlds: {
+      bedroom:  { pool: ["sock", "marble", "blob", "knight", "balloon", "bull", "brick"], miniBoss: "pinata" },
+      backyard: { pool: ["sock", "marble", "knight", "ghost", "mole", "battery", "hawk", "blob"], miniBoss: "pinata" },
+      toystore: { pool: ["knight", "ghost", "mole", "battery", "blob", "hawk", "bull"], miniBoss: "pinata" },
+    },
+    // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
+    arenas: {
+      bedroom:  { path: [ [0, 2], [21, 2], [21, 7], [3, 7], [3, 12], [23, 12] ], startGold: 320,
+        pads: [ { id: "p1", cx: 2, cy: 0 }, { id: "p2", cx: 6, cy: 4 }, { id: "p3", cx: 10, cy: 0 }, { id: "p4", cx: 14, cy: 4 }, { id: "p5", cx: 18, cy: 0 }, { id: "p6", cx: 19, cy: 4 }, { id: "p7", cx: 20, cy: 9 }, { id: "p8", cx: 16, cy: 5 }, { id: "p9", cx: 12, cy: 9 }, { id: "p10", cx: 8, cy: 5 }, { id: "p11", cx: 4, cy: 9 }, { id: "p12", cx: 1, cy: 10 }, { id: "p13", cx: 5, cy: 10 }, { id: "p14", cx: 9, cy: 13 } ] },
+      backyard: { path: [ [0, 12], [21, 12], [21, 7], [3, 7], [3, 2], [23, 2] ], startGold: 360,
+        pads: [ { id: "p1", cx: 2, cy: 10 }, { id: "p2", cx: 6, cy: 13 }, { id: "p3", cx: 10, cy: 10 }, { id: "p4", cx: 14, cy: 13 }, { id: "p5", cx: 18, cy: 10 }, { id: "p6", cx: 23, cy: 10 }, { id: "p7", cx: 20, cy: 9 }, { id: "p8", cx: 16, cy: 5 }, { id: "p9", cx: 12, cy: 9 }, { id: "p10", cx: 8, cy: 5 }, { id: "p11", cx: 4, cy: 9 }, { id: "p12", cx: 5, cy: 4 }, { id: "p13", cx: 5, cy: 0 }, { id: "p14", cx: 9, cy: 4 } ] },
+      toystore: { path: [ [0, 7], [21, 7], [21, 2], [3, 2], [3, 12], [23, 12] ], startGold: 400,
+        pads: [ { id: "p1", cx: 2, cy: 5 }, { id: "p2", cx: 7, cy: 9 }, { id: "p3", cx: 11, cy: 5 }, { id: "p4", cx: 15, cy: 9 }, { id: "p5", cx: 20, cy: 5 }, { id: "p6", cx: 23, cy: 4 }, { id: "p7", cx: 18, cy: 4 }, { id: "p8", cx: 14, cy: 0 }, { id: "p9", cx: 10, cy: 4 }, { id: "p10", cx: 5, cy: 0 }, { id: "p11", cx: 5, cy: 4 }, { id: "p12", cx: 1, cy: 9 }, { id: "p13", cx: 4, cy: 10 }, { id: "p14", cx: 8, cy: 13 } ] },
+    },
+  };
+
+  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, TOWERS, ENEMIES, LEVELS, META_NODES, ACHIEVEMENTS, ENDLESS };
 
   if (typeof module !== "undefined" && module.exports) module.exports = DATA;
   if (global && typeof global === "object") global.TDData = DATA;

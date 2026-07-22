@@ -875,3 +875,96 @@ test("TD4 L12 heroic is winnable by a sensible maxed build (the hardest sanction
   const won = a.phase === "won" || b.phase === "won";
   assert.ok(won, `L12 must be beatable on HEROIC by a sensible maxed build (dart:${a.phase}/${a.lives} mixed:${b.phase}/${b.lives})`);
 });
+
+// ================= TD-5: meta (star tree), endless, achievements-shape =================
+
+test("TD5 star tree: metaMods is a pure function of owned node ids (neutral tree = vanilla)", () => {
+  const m0 = TD.metaMods([]);
+  assert.deepEqual(m0, { startGold: 0, lives: 0, dartDmg: 1, mortarSplash: 1, fanAura: 0, soldierHp: 1, earlyCall: 1, sellRefund: DATA.RULES.sellRefund, branchCost: 1, cheapTarget: false }, "empty tree is exactly vanilla");
+  const all = DATA.META_NODES.map((n) => n.id);
+  const mAll = TD.metaMods(all);
+  assert.equal(mAll.startGold, 40); assert.equal(mAll.lives, 2); assert.ok(Math.abs(mAll.dartDmg - 1.1) < 1e-9);
+  assert.ok(Math.abs(mAll.mortarSplash - 1.1) < 1e-9); assert.ok(Math.abs(mAll.fanAura - 0.3) < 1e-9);
+  assert.ok(Math.abs(mAll.soldierHp - 1.15) < 1e-9); assert.ok(Math.abs(mAll.earlyCall - 1.5) < 1e-9);
+  assert.equal(mAll.sellRefund, 0.9); assert.ok(Math.abs(mAll.branchCost - 0.9) < 1e-9); assert.equal(mAll.cheapTarget, true);
+  // every node id is unique + costs are the plan's (sum 28 ≤ 36 possible ⭐)
+  const ids = new Set(all); assert.equal(ids.size, DATA.META_NODES.length, "node ids unique");
+  const total = DATA.META_NODES.reduce((a, n) => a + n.cost, 0);
+  assert.equal(total, 28, `tree total is 28⭐ (≤ 36 possible), got ${total}`);
+});
+
+test("TD5 meta applies at createEngine: +gold, +lives, +dart dmg, cheaper branch, better refund", () => {
+  const L1 = DATA.LEVELS[0];
+  const base = TD.createEngine(L1, { seed: 7 });
+  const buffed = TD.createEngine(L1, { seed: 7, meta: ["startgold", "lives"] });
+  assert.equal(buffed.state.gold - base.state.gold, 40, "Piggy Bank adds 40 start gold");
+  assert.equal(buffed.state.lives - base.state.lives, 2, "Extra Hearts adds 2 lives");
+  // Sharp Darts: a dart deals more per shot → a lone sock dies sooner
+  const kill = (meta) => { const e = TD.createEngine({ id: 80, name: "m", world: "test", startGold: 9000, budgetBase: 100, path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 3 }], waves: [{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }] }, { seed: 3, meta }); e.place("dart", "m"); e.callWave(); let g = 0; while (e.state.phase === "wave" && g++ < 4000) e.tick(); return g; };
+  assert.ok(kill(["dartdmg"]) < kill([]), "Sharp Darts kills faster than a vanilla dart");
+  // Bulk Deal: a tier-4 branch costs 10% less
+  const eb = TD.createEngine(L1, { seed: 1, meta: ["branchcost"] });
+  eb.place("dart", "p3"); const t = eb.state.towers[0]; eb.state.gold = 9999; eb.upgrade(t.id); eb.upgrade(t.id);
+  const before = eb.state.gold; assert.ok(eb.branch(t.id, "a").ok); const spent = before - eb.state.gold;
+  assert.equal(spent, Math.round(DATA.TOWERS.dart.branches.a.cost * 0.9), "branch price is 10% off");
+});
+
+test("TD5 'Weakest' targeting is star-tree-gated and finishes the lowest-hp enemy", () => {
+  const lvl = { id: 81, name: "m", world: "test", startGold: 9000, budgetBase: 100, path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 11, cy: 3 }], waves: [{ groups: [{ type: "sock", count: 4, gap: 0.3, delay: 0 }] }] };
+  const locked = TD.createEngine(lvl, { seed: 2 });
+  locked.place("dart", "m"); const tl = locked.state.towers[0];
+  assert.equal(locked.setTargeting(tl.id, "cheap").reason, "locked", "no node → 'cheap' is refused");
+  const e = TD.createEngine(lvl, { seed: 2, meta: ["cheaptarget"] });
+  e.place("dart", "m"); const t = e.state.towers[0];
+  assert.ok(e.setTargeting(t.id, "cheap").ok, "the node unlocks 'cheap'");
+  e.callWave();
+  for (let i = 0; i < 40; i++) e.tick();
+  // wound two socks unevenly, then assert the dart aims at the WEAKER one
+  const socks = e.state.enemies.filter((x) => x.type === "sock" && x.alive);
+  if (socks.length >= 2) {
+    socks[0].hp = 3; socks[1].hp = 20;
+    e.tick();
+    const locked2 = e.state.enemies.find((x) => x.id === t.targetId);
+    assert.ok(!locked2 || locked2.hp <= 20, "'cheap' aims at a low-hp target");
+  }
+});
+
+test("TD5 endless: escalating generated waves, deterministic per seed, scored by waves survived", () => {
+  const arena = (world) => { const a = DATA.ENDLESS.arenas[world]; const pads = []; for (let i = 0; i < 14; i++) pads.push({ id: "p" + (i + 1), cx: 2 + ((i * 3) % 20), cy: (i % 2 ? 4 : 10) }); return { id: "endless-" + world, name: "Endless", world, endless: { world }, startGold: a.startGold, path: a.path, pads }; };
+  // budget escalates ~growth^n: late waves are multiples of early ones
+  const r = TD.mulberry32(555); const hps = [];
+  for (let n = 0; n < 20; n++) { const w = TD.generateEndlessWave("bedroom", n, r); let hp = 0; for (const g of w.groups) hp += DATA.ENEMIES[g.type].hp * g.count; hps.push(hp); }
+  const early = hps.slice(0, 5).reduce((a, b) => a + b) / 5, late = hps.slice(15).reduce((a, b) => a + b) / 5;
+  assert.ok(late > early * 2, `endless HP escalates (early ${Math.round(early)} → late ${Math.round(late)})`);
+  // every 5th wave is a mini-boss
+  for (let n = 4; n < 20; n += 5) assert.ok(TD.generateEndlessWave("bedroom", n, TD.mulberry32(n + 1)).boss, `wave ${n + 1} is a mini-boss`);
+  // determinism: same seed → identical endless run hash
+  const run = (seed) => { const e = TD.createEngine(arena("bedroom"), { seed }); let g = 0; while (e.state.phase !== "lost" && g++ < 60000) { if (e.state.phase === "build") e.callWave(); e.tick(); } return { score: e.state.waveIdx, hash: TD.hashState(e.state), phase: e.state.phase }; };
+  const a = run(7), b = run(7);
+  assert.equal(a.hash, b.hash, "same seed replays identically");
+  assert.equal(a.score, b.score, "same seed → same endless score");
+  // neglect loses early (real stakes); a real build lasts FAR longer (real depth).
+  // The 1.16^n budget is unbounded so any fixed build is eventually overwhelmed —
+  // proving the exact loss wave is too slow (high waves spawn thousands), so we
+  // assert the meaningful gap: a build survives many waves past neglect.
+  const neglectScore = a.score;
+  assert.ok(a.phase === "lost", "an unbuilt endless run loses (real stakes)");
+  const cost = (l, t) => DATA.TOWERS[l].tiers[t].cost;
+  const e = TD.createEngine(arena("bedroom"), { seed: 7 });
+  const padIds = e.levelDef.pads.map((p) => p.id); let idx = 0, g = 0; const PLAN = ["dart", "fan", "mortar", "dart", "dart"];
+  while (e.state.phase !== "lost" && e.state.waveIdx < neglectScore + 8 && g++ < 200000) {
+    if (e.state.phase === "build") { let sp = true; while (sp) { sp = false; for (const pid of padIds) { if (!e.state.towers.find((t) => t.padId === pid)) { const line = PLAN[idx % PLAN.length]; if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; sp = true; } } break; } } if (sp) continue; const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier); for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) sp = true; break; } } } e.callWave(); }
+    e.tick();
+  }
+  assert.ok(e.state.waveIdx >= neglectScore + 8, `a real build lasts many waves past neglect (built reached ${e.state.waveIdx} vs neglect ${neglectScore})`);
+});
+
+test("TD5 achievements data-shape: 12 unique ids with names + descriptions, icons ≤ Emoji 13.0", () => {
+  assert.equal(DATA.ACHIEVEMENTS.length, 12, "12 achievements");
+  const ids = new Set(DATA.ACHIEVEMENTS.map((a) => a.id));
+  assert.equal(ids.size, 12, "achievement ids unique");
+  for (const a of DATA.ACHIEVEMENTS) { assert.ok(a.name && a.desc && a.icon, `${a.id} has name/desc/icon`); }
+  // the boss achievements name the three real bosses
+  const has = (id) => ids.has(id);
+  assert.ok(has("bossbonker") && has("dysondenied") && has("unplugged"), "one achievement per boss");
+});

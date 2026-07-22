@@ -91,6 +91,51 @@
     return def.tiers[t.tier - 1];
   }
 
+  // TD-5 star-tree modifiers (§8.1) — pure function of the owned node ids, so a
+  // sim can drive ANY loadout. Neutral defaults = an empty tree = vanilla play.
+  function metaMods(meta) {
+    const s = new Set(meta || []);
+    return {
+      startGold: s.has("startgold") ? 40 : 0,
+      lives: s.has("lives") ? 2 : 0,
+      dartDmg: s.has("dartdmg") ? 1.1 : 1,
+      mortarSplash: s.has("mortarsplash") ? 1.1 : 1,
+      fanAura: s.has("fanrange") ? 0.3 : 0,
+      soldierHp: s.has("soldierhp") ? 1.15 : 1,
+      earlyCall: s.has("earlycall") ? 1.5 : 1,
+      sellRefund: s.has("sellrefund") ? 0.9 : R.sellRefund,
+      branchCost: s.has("branchcost") ? 0.9 : 1,
+      cheapTarget: s.has("cheaptarget"),
+    };
+  }
+
+  // Deterministic endless wave generator (§7.5): budget grows base·growth^n; a
+  // separate seeded stream keeps composition reproducible regardless of combat
+  // rng draws. Every miniBossEvery-th wave adds a mini-boss (flagged boss so the
+  // budget audit and finale logic treat it right).
+  function generateEndlessWave(world, n, rng) {
+    const cfg = DATA.ENDLESS;
+    const w = cfg.worlds[world] || cfg.worlds.bedroom;
+    const budget = cfg.base * Math.pow(cfg.growth, n);
+    const groups = [];
+    let remaining = budget;
+    const nGroups = 2 + Math.floor(rng() * 2); // 2-3 groups
+    for (let g = 0; g < nGroups; g++) {
+      const type = w.pool[Math.floor(rng() * w.pool.length)];
+      const hp = DATA.ENEMIES[type].hp;
+      const share = g === nGroups - 1 ? remaining : remaining * (0.4 + rng() * 0.3);
+      const count = Math.max(1, Math.round(share / hp));
+      remaining -= count * hp;
+      groups.push({ type, count, gap: 0.55 + rng() * 0.4, delay: g === 0 ? 0 : 2 + g });
+    }
+    const wave = { groups };
+    if ((n + 1) % cfg.miniBossEvery === 0) { // a mini-boss punctuates every 5th wave
+      wave.boss = true;
+      wave.groups.unshift({ type: w.miniBoss, count: 1 + Math.floor(n / 10), gap: 1.5, delay: 0 });
+    }
+    return wave;
+  }
+
   function createEngine(levelDef, opts) {
     opts = opts || {};
     const difficulty = opts.difficulty || "normal";
@@ -104,6 +149,18 @@
     // stretch of the lane. Both are pure data read in the hot loops.
     const rangeMul = levelDef.night ? R.nightRangeMult : 1;
     const zones = levelDef.zones && levelDef.zones.length ? levelDef.zones : null;
+    // TD-5: star-tree modifiers (pure input) + endless setup (a separate seeded
+    // stream generates each wave, so composition is reproducible per seed).
+    const mods = metaMods(opts.meta);
+    const endlessWorld = levelDef.endless ? levelDef.endless.world : null;
+    const genRng = endlessWorld ? mulberry32((seed ^ 0x9e3779b9) >>> 0) : null;
+    // waves may grow (endless) — keep a mutable local list, never touch levelDef.
+    const waves = (levelDef.waves || []).slice();
+    function waveAt(idx) {
+      if (waves[idx]) return waves[idx];
+      if (endlessWorld) { waves[idx] = generateEndlessWave(endlessWorld, idx, genRng); return waves[idx]; }
+      return null;
+    }
 
     const state = {
       levelId: levelDef.id,
@@ -113,10 +170,11 @@
       phase: "build",
       countdown: R.buildCountdownFirst * DATA.TICK_RATE,
       waveIdx: 0,
-      gold: levelDef.startGold + diff.startGold,
-      lives: R.lives,
+      gold: levelDef.startGold + diff.startGold + mods.startGold,
+      lives: R.lives + mods.lives,
       stars: 0,
       cheated: false,
+      endless: !!endlessWorld,
       enemies: [],
       towers: [],
       soldiers: [],
@@ -137,7 +195,7 @@
     const enemyDef = (e) => DATA.ENEMIES[e.type];
 
     function scheduleWave(idx) {
-      const wave = levelDef.waves[idx];
+      const wave = waveAt(idx);
       spawnQueue = [];
       for (const g of wave.groups) {
         for (let i = 0; i < g.count; i++) {
@@ -335,7 +393,13 @@
       if (spawnQueue.length || state.enemies.some((e) => e.alive)) return;
       state.enemies.length = 0;
       state.waveIdx += 1;
-      if (state.waveIdx >= levelDef.waves.length) {
+      // Endless never "wins" — it just keeps generating harder waves; the score
+      // is waveIdx (waves survived), read off the state when the run finally leaks.
+      if (endlessWorld) {
+        emit({ type: "endless-wave", n: state.waveIdx });
+        state.phase = "build";
+        state.countdown = R.buildCountdown * DATA.TICK_RATE;
+      } else if (state.waveIdx >= waves.length) {
         state.phase = "won";
         for (const [need, stars] of R.stars) { if (state.lives >= need) { state.stars = stars; break; } }
         emit({ type: "won", stars: state.stars, lives: state.lives });
@@ -353,6 +417,7 @@
         if (mode === "first" && e.dist > best.dist) best = e;
         else if (mode === "last" && e.dist < best.dist) best = e;
         else if (mode === "strong" && (e.hp > best.hp || (e.hp === best.hp && e.dist > best.dist))) best = e;
+        else if (mode === "cheap" && (e.hp < best.hp || (e.hp === best.hp && e.dist > best.dist))) best = e; // TD-5 "Weakest": finish the almost-dead
         else if (mode === "close") {
           const pb = posAt(path, best.dist), pe = posAt(path, e.dist);
           if ((pe.x - t.cx) ** 2 + (pe.y - t.cy) ** 2 < (pb.x - t.cx) ** 2 + (pb.y - t.cy) ** 2) best = e;
@@ -418,7 +483,7 @@
       for (let i = 0; i < s.soldiers; i++) {
         state.soldiers.push({
           id: nextId++, campId: t.id, slot: i,
-          hp: s.hp, maxHp: s.hp,
+          hp: Math.round(s.hp * mods.soldierHp), maxHp: Math.round(s.hp * mods.soldierHp), // TD-5 Tough Troops
           x: t.cx, y: t.cy, tx: slots[i].x, ty: slots[i].y,
           engagedId: 0, meleeCd: 0, respawnAt: 0, alive: true,
         });
@@ -443,7 +508,7 @@
         // respawns
         for (const sol of mine) {
           if (!sol.alive && sol.respawnAt && state.tick >= sol.respawnAt) {
-            sol.alive = true; sol.hp = s.hp; sol.maxHp = s.hp;
+            sol.alive = true; sol.hp = Math.round(s.hp * mods.soldierHp); sol.maxHp = sol.hp;
             sol.x = t.cx; sol.y = t.cy; sol.engagedId = 0; sol.respawnAt = 0;
             const slots = rallySlots(t);
             sol.tx = slots[sol.slot % slots.length].x; sol.ty = slots[sol.slot % slots.length].y;
@@ -554,8 +619,8 @@
           }
           if (t.targetId && t.cooldown <= 0) {
             t.cooldown = Math.round(s.rate * DATA.TICK_RATE);
-            let dmg = s.dmg;
-            if (s.spinUp) dmg = Math.max(1, Math.round(s.dmg * (t.heat || s.heatFloor)));
+            let dmg = s.dmg * mods.dartDmg; // TD-5 Sharp Darts
+            if (s.spinUp) dmg = Math.max(1, Math.round(s.dmg * mods.dartDmg * (t.heat || s.heatFloor)));
             let crit = false;
             if (s.crit && rng() < s.crit) { dmg = Math.round(dmg * s.critMult); crit = true; }
             state.projectiles.push({
@@ -576,13 +641,13 @@
             state.shells.push({
               id: nextId++, sx: t.cx, sy: t.cy, x: t.cx, y: t.cy,
               tx: lead.x, ty: lead.y, t: 0, T: Math.max(1, Math.round(flight * DATA.TICK_RATE)),
-              dmg: s.dmg, splash: s.splash, goo: s.goo || null,
+              dmg: s.dmg, splash: s.splash * mods.mortarSplash, goo: s.goo || null, // TD-5 Big Booms
             });
             emit({ type: "shoot", x: t.cx, y: t.cy, tower: t.lineId });
           }
         } else if (def.kind === "fan") {
           // aura: slow (and Blizzard brittle) everything in range, fliers half
-          const aura = candidates(t, 0, s.auraRange, true);
+          const aura = candidates(t, 0, s.auraRange + mods.fanAura, true); // TD-5 Cold Front
           for (const e of aura) {
             applySlow(e, s.slow, 0.5);
             if (s.brittle) e.brittleUntil = state.tick + Math.round(s.brittle * DATA.TICK_RATE);
@@ -768,7 +833,7 @@
       state.gold -= cost; t.tier += 1; t.spent += cost;
       if (t.lineId === "camp") { // squad refits: heal to the new tier's hp
         const s = statsOf(def, t);
-        for (const sol of state.soldiers) if (sol.campId === t.id && sol.alive) { sol.hp = s.hp; sol.maxHp = s.hp; }
+        for (const sol of state.soldiers) if (sol.campId === t.id && sol.alive) { sol.hp = Math.round(s.hp * mods.soldierHp); sol.maxHp = sol.hp; }
       }
       emit({ type: "upgrade", x: t.cx, y: t.cy });
       return { ok: true };
@@ -780,8 +845,9 @@
       const def = DATA.TOWERS[t.lineId];
       const b = def.branches && def.branches[choice];
       if (!b) return { ok: false, reason: "bad-branch" };
-      if (state.gold < b.cost) return { ok: false, reason: "gold" };
-      state.gold -= b.cost; t.tier = 4; t.branch = choice; t.spent += b.cost;
+      const bCost = Math.round(b.cost * mods.branchCost); // TD-5 Bulk Deal
+      if (state.gold < bCost) return { ok: false, reason: "gold" };
+      state.gold -= bCost; t.tier = 4; t.branch = choice; t.spent += bCost;
       if (b.defaultTargeting) t.targeting = b.defaultTargeting;
       if (t.lineId === "camp") {
         // rebuild the squad to the branch's roster
@@ -795,7 +861,7 @@
       const i = state.towers.findIndex((t) => t.id === towerId);
       if (i < 0) return { ok: false, reason: "bad-id" };
       const t = state.towers[i];
-      const refund = Math.floor(t.spent * R.sellRefund);
+      const refund = Math.floor(t.spent * mods.sellRefund); // TD-5 Trade-In (else R.sellRefund)
       state.gold += refund;
       for (const sol of state.soldiers) {
         if (sol.campId === t.id) {
@@ -810,7 +876,8 @@
     function setTargeting(towerId, mode) {
       const t = towerById(towerId);
       if (!t) return { ok: false, reason: "bad-id" };
-      if (["first", "last", "strong", "close"].indexOf(mode) < 0) return { ok: false, reason: "bad-mode" };
+      if (["first", "last", "strong", "close", "cheap"].indexOf(mode) < 0) return { ok: false, reason: "bad-mode" };
+      if (mode === "cheap" && !mods.cheapTarget) return { ok: false, reason: "locked" }; // needs the star-tree node
       t.targeting = mode; t.targetId = 0;
       return { ok: true };
     }
@@ -837,7 +904,7 @@
     function callWave() {
       if (state.phase !== "build") return { ok: false, reason: "not-build" };
       const secondsLeft = state.countdown / DATA.TICK_RATE;
-      const bonus = Math.ceil(secondsLeft * R.earlyCallRate);
+      const bonus = Math.ceil(secondsLeft * R.earlyCallRate * mods.earlyCall); // TD-5 Early Bird
       state.gold += bonus;
       state.countdown = 0;
       startWave();
@@ -853,7 +920,7 @@
     };
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, DT };
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

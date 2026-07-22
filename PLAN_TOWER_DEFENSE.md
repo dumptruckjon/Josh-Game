@@ -426,8 +426,17 @@ only the wave-source differs (generator instead of table).
 
 ## 8. Meta-progression & achievements
 
+> **Status: ✅ SHIPPED (TD-5).** All four systems live from the fort home's meta
+> row (⭐ Star Tree · 🏅 Badges · ♾️ Endless) + a Resume banner. Star-tree buffs
+> apply as pure `createEngine(opts.meta)` input; achievements toast + persist to
+> `save.ach`; endless is a deterministic per-world generator (budget `300·1.16^n`,
+> mini-boss every 5th, 3⭐-to-unlock, best-score saved); resume cold-restores a
+> wave-boundary checkpoint. Node costs sum to **28⭐** of 36 possible (the doc's
+> "30" was an arithmetic slip — the shipped tree uses the exact per-node costs
+> below and pins the total in a guardrail).
+
 ### 8.1 Star tree (spend ⭐ in the fort; respec-able for free — friendly)
-10 nodes, costs 2-4⭐ (total 30 of 36 possible):
+10 nodes, costs 2-4⭐ (total 28 of 36 possible):
 `+40 start gold (2)` · `Dart +10% dmg (3)` · `Mortar +10% splash radius (3)` ·
 `Fan aura +0.3 range (3)` · `Soldiers +15% hp (3)` · `+2 lives (4)` ·
 `early-call bonus ×1.5 (2)` · `sell refund 90% (2)` · `+1 targeting option:
@@ -528,7 +537,7 @@ Always present (harmless without calls): `__TD.engine` (live engine),
 | **TD-2 Towers ✅ BUILT** | all 4 lines, tiers, branches, targeting, soldiers/blocking/rally, sell/refund, build UX (menu, panels, ghosts) | ✅ mechanic micro-sims green (slows/splash/chain/blocking/crits/spin-up), L1 all-lines sim wins, branch/rally UI browser-tested |
 | **TD-3 Enemies+World 1** | full W1 roster (blob/knight/balloon/bull/healer/piñata/legion), L1-L4 authored, Bed Monster, wave-budget audit test, tutorial | 4 winnability sims green |
 | **TD-4 Worlds 2-3 ✅ SHIPPED** | ghosts/bots/moles/hawks, conveyors, night, mole-tunnel, L5-L12 (all 12), both bosses (Vacuum King/The Static), world tints + difficulty badges + boss crowns. *Deferred: dual/merge/fork paths + L10 lever → single rich paths ship now.* | 12 sims (Normal) all winnable/losable + L12 Heroic sim green ✓ |
-| **TD-5 Meta** | fort home (map, stars), star tree + respec, achievements, endless ×3, resume/midRun, settings, TD reset gate | save round-trip + endless-20 sim green |
+| **TD-5 Meta ✅ SHIPPED** | 10-node star tree + free respec (pure input at createEngine), 12 achievements (jon-td-ach, toast), endless ×3 per world (deterministic generator, 3⭐-unlock, best-score save), resume/midRun (wave-boundary checkpoint, cold-restore) | engine sims (meta applies, endless escalates/deterministic/losable) + browser tests (buy/respec/persist, badges grid, endless start, resume restore) green |
 | **TD-6 Polish (honest tuning pass)** | audio set, fx juice, perf audit on-device profile, difficulty re-tuning from batch sims (auto-play sweeps), CLAUDE.md docs + learnings | full suite + verify-live green; Jon plays L1-L12 on the real phone |
 
 Est. ~130KB of new code across 6 shippable phases. Docs: CLAUDE.md gets a
