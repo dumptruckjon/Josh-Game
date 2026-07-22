@@ -6,12 +6,17 @@
 body.td-mode {
   background: linear-gradient(180deg, #0b1526 0%, #142440 55%, #1b2c4d 100%);
 }
-body.td-mode .topbar { background: rgba(10, 20, 38, 0.85); }
-body.td-mode .brand { color: #cfe2ff; }
+/* Inside the fort the site topbar is dead weight — hide it so the battlefield
+   gets the whole phone. The fort's own 🏠 exits (and restores the topbar). */
+body.td-mode .topbar { display: none; }
+/* The site-wide #screens container pads every kid screen; inside the fort that
+   padding both overflowed 100dvh (32px of phantom scroll) and shrank the field.
+   The td screens carry their own safe-area padding instead. */
+body.td-mode #screens { padding: 0; }
 
 .td-screen {
   min-height: 100dvh;
-  padding: 10px 12px calc(16px + env(safe-area-inset-bottom));
+  padding: calc(8px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
   color: #e8eefc;
 }
 
@@ -72,21 +77,22 @@ body.td-mode .brand { color: #cfe2ff; }
 .td-level__dim { opacity: 0.25; }
 .td-note { margin-top: 14px; color: #8ba2cc; font-size: 0.9rem; }
 
-/* ---- play screen ---- */
+/* ---- play screen: one slim bar, the field owns the rest ---- */
+.td-bar--play { padding: 0 0 6px; gap: 8px; }
+.td-mini {
+  width: 54px; height: 54px; min-width: 54px; min-height: 54px;
+  font-size: 1.35rem; /* adult-sized (≥44) — the fort is Jon's space */
+}
 .td-hud {
-  display: flex; gap: 14px; align-items: center;
-  font-weight: 800; font-size: 1.05rem; color: #e8eefc;
-  flex: 1; justify-content: center; flex-wrap: wrap;
+  display: flex; gap: 10px; align-items: center;
+  font-weight: 800; font-size: 1rem; color: #e8eefc;
+  flex: 1; justify-content: center; flex-wrap: wrap; min-width: 0;
 }
 .td-canvas-wrap { position: relative; width: 100%; }
 .td-canvas {
   display: block; margin: 0 auto; border-radius: 14px;
   touch-action: none; /* the ONE element that owns its gestures */
   max-width: 100%;
-}
-.td-controls {
-  display: flex; gap: 12px; justify-content: center; align-items: center;
-  padding-top: 12px; flex-wrap: wrap;
 }
 .td-btn {
   min-height: 56px; min-width: 92px; padding: 12px 18px;
@@ -95,6 +101,12 @@ body.td-mode .brand { color: #cfe2ff; }
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .td-btn--call { background: #ffd94a; color: #3a2c00; }
+/* CALL floats OVER the field (bottom-left is empty in every current map) —
+   it costs zero layout height, so the whole game fits one screen. */
+.td-call {
+  position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 6; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
 .td-call[hidden] { display: none; }
 
 /* in-field bubble / tower panel */

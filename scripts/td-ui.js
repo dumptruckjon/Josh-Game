@@ -89,19 +89,21 @@
     play.id = "screen-td-play";
     play.className = "screen td-screen";
     play.hidden = true;
+    // ONE slim bar (everything in a row) + the CALL button FLOATING over the
+    // field — nothing below the canvas, so portrait needs zero scrolling.
     play.innerHTML =
-      '<div class="td-bar">' +
-        '<button class="btn-round td-quit" type="button" aria-label="Back to the fort">🏠</button>' +
+      '<div class="td-bar td-bar--play">' +
+        '<button class="btn-round td-mini td-quit" type="button" aria-label="Back to the fort">🏠</button>' +
         '<div class="td-hud">' +
           '<span class="td-hud__lives">❤ 20</span>' +
           '<span class="td-hud__gold">🪙 0</span>' +
           '<span class="td-hud__wave">wave 0/0</span>' +
         "</div>" +
-        '<button class="btn-round td-pause" type="button" aria-label="Pause">⏸</button>' +
+        '<button class="btn-round td-mini td-speed" type="button" aria-label="Game speed">1×</button>' +
+        '<button class="btn-round td-mini td-pause" type="button" aria-label="Pause">⏸</button>' +
       "</div>" +
-      '<div class="td-canvas-wrap"><canvas class="td-canvas" aria-label="Toybox Defense battlefield"></canvas></div>' +
-      '<div class="td-controls">' +
-        '<button class="td-btn td-speed" type="button" aria-label="Game speed">1×</button>' +
+      '<div class="td-canvas-wrap">' +
+        '<canvas class="td-canvas" aria-label="Toybox Defense battlefield"></canvas>' +
         '<button class="td-btn td-btn--call td-call" type="button" aria-label="Call the next wave">▶ CALL</button>' +
       "</div>";
     screens.appendChild(play);

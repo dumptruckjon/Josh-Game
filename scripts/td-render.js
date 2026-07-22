@@ -24,8 +24,15 @@
     function resize() {
       const parent = canvas.parentElement;
       const vw = parent ? parent.clientWidth : 360;
-      // vertical budget: viewport minus the fort chrome (bar+HUD+controls)
-      const vh = Math.max(240, (global.innerHeight || 700) - 250);
+      // vertical budget: MEASURED — everything from the wrap's top edge down to
+      // the bottom of the viewport is field (the CALL button floats over it, and
+      // the site topbar is hidden inside the fort), minus a small safe margin.
+      let chromeTop = 250;
+      if (parent && parent.getBoundingClientRect) {
+        const top = parent.getBoundingClientRect().top;
+        if (top > 0) chromeTop = top;
+      }
+      const vh = Math.max(240, (global.innerHeight || 700) - chromeTop - 18);
       rotated = (global.innerHeight || 700) > (global.innerWidth || 360);
       if (rotated) cell = Math.max(10, Math.min(Math.floor(vw / GRID.h), Math.floor(vh / GRID.w)));
       else cell = Math.max(10, Math.min(Math.floor(vw / GRID.w), Math.floor(vh / GRID.h)));

@@ -103,6 +103,15 @@ test("orientation: portrait FILLS the screen (rotated world) and landscape stays
   let cbox = await page.locator(".td-canvas").boundingBox();
   assert.ok(cbox.height >= 844 * 0.55, `portrait canvas must fill ≥55% of the screen height, got ${Math.round(cbox.height)}px`);
   assert.ok(cbox.height > cbox.width, "portrait canvas is taller than wide");
+  // EVERYTHING fits one screen — no scrolling to see gold or call a wave
+  // (real-device feedback): the page must not scroll vertically, and the gold
+  // HUD + the floating CALL button must BOTH sit inside the viewport at once.
+  const scroll = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+  assert.ok(scroll <= 1, `#td-play must not scroll vertically in portrait (overflows by ${scroll}px)`);
+  const gold = await page.locator("#screen-td-play .td-hud__gold").boundingBox();
+  const call = await page.locator("#screen-td-play .td-call").boundingBox();
+  assert.ok(gold && gold.y >= 0 && gold.y + gold.height <= 844, "the gold HUD is on-screen");
+  assert.ok(call && call.y >= 0 && call.y + call.height <= 844, "the CALL button is on-screen (floats over the field)");
   // landscape: unrotated, still fits entirely on screen
   await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForTimeout(250);
