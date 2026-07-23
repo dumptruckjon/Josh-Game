@@ -290,3 +290,30 @@ test("FU_PATH dots stay tappable: no overlap and >=14px gaps at 320px-wide layou
     }
   }
 });
+
+// ===== Deep-audit truth pins (审计) =====
+
+test("AUDIT 节日: no bin's item is ALSO a valid custom of a co-present festival", () => {
+  // 汤圆 is genuinely eaten at 春节 in the south; 花灯 hang at 春节 too; 鞭炮 fire at
+  // 元宵. A festival set must never co-present two festivals that share a custom.
+  const ALSO_PLAUSIBLE = { "汤圆": ["春节"], "花灯": ["春节"], "鞭炮": ["元宵节"], "拜年": ["元宵节"] };
+  for (const set of HL.FESTIVAL_SETS) {
+    const labels = set.bins.map((b) => b.label);
+    for (const bin of set.bins) {
+      for (const item of bin.items) {
+        for (const other of (ALSO_PLAUSIBLE[item] || [])) {
+          assert.ok(!labels.includes(other) || other === bin.label,
+            `${set.name}: "${item}" (in ${bin.label}) is also a real ${other} custom — ${other} cannot be a co-present bin`);
+        }
+      }
+    }
+  }
+  // the fix itself: set 2 pairs 元宵节/重阳节 with 七夕节 (zero custom overlap), not 春节
+  const set2 = HL.FESTIVAL_SETS[1];
+  assert.ok(set2.bins.some((b) => b.label === "七夕节"), "festivals2 uses 七夕节 (no overlap), not 春节");
+});
+
+test("AUDIT 量词: 花 lists 把 as also-valid (一把花 is real) and it is never offered as wrong", () => {
+  const hua = HL.MEASURE_WORDS.find((m) => m.noun === "花");
+  assert.ok((hua.alsoOk || []).includes("把"), "花 must list 把 in alsoOk — 一把花 is standard Chinese");
+});

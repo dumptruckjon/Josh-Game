@@ -38,6 +38,10 @@ const CORE = [
   "./styles/td.css",
   "./scripts/main.js",
   "./manifest.webmanifest",
+  "./assets/apple-touch-icon.png",
+  "./assets/icon-192.png",
+  "./assets/icon-512.png",
+  "./assets/icon-maskable-512.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -65,8 +69,17 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(fetchReq)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+        // Only runtime-cache TRUSTWORTHY responses (audit: cache poisoning).
+        // res.ok stops a 404/500 body from shadowing the healthy precache; the
+        // content-type check stops a captive portal that answers 200 text/html
+        // for every URL from poisoning script/style entries — offline, the
+        // poisoned exact match would beat the precache fallback and the app
+        // would parse HTML as JS ("Unexpected token '<'", the dead shell).
+        const ct = res.headers.get("content-type") || "";
+        if (res.ok && (isNav || !/text\/html/i.test(ct))) {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() =>
@@ -81,7 +94,9 @@ self.addEventListener("fetch", (event) => {
         // whenever the device IS online. Navigations fall back to index.html.
         caches.match(req).then((cached) =>
           cached ||
-          caches.match(req, { ignoreSearch: true }).then((loose) => loose || caches.match("./index.html"))
+          // index.html is the fallback ONLY for navigations — serving HTML for a
+          // missed script/image request corrupts it (audit: icons got HTML).
+          caches.match(req, { ignoreSearch: true }).then((loose) => loose || (isNav ? caches.match("./index.html") : undefined))
         )
       )
   );

@@ -206,9 +206,29 @@ test("mobile / iOS Safari optimizations are in place", () => {
   assert.match(html, /apple-mobile-web-app-capable/, "iOS web-app meta missing");
 
   const css = read("styles/main.css");
-  const cssValues = css.replace(/\/\*[\s\S]*?\*\//g, ""); // ignore "100vh" mentioned in comments
-  assert.match(cssValues, /100dvh/, "use dvh, not bare 100vh");
-  assert.ok(!cssValues.includes("100vh"), "use 100dvh, never bare 100vh");
+  const cssValues = css.replace(/\/\*[\s\S]*?\*\//g, ""); // ignore units mentioned in comments
+  assert.match(cssValues, /100dvh/, "use dvh (with a vh fallback), not bare 100vh");
+  // iOS-floor law (deep-audit): Safari 14.0 (Josh's iOS 14.2 iPad) has NO dvh —
+  // the declaration is silently dropped. Every dvh use must therefore be paired
+  // with a same-property PLAIN-vh fallback earlier in the SAME rule body.
+  for (const file of ["styles/main.css", "styles/td.css"]) {
+    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const rule of body.split("}")) {
+      const decls = rule.split("{").pop() || "";
+      const dvhDecls = decls.match(/[-a-z]+\s*:[^;]*dvh[^;]*/g) || [];
+      for (const d of dvhDecls) {
+        const prop = d.match(/^([-a-z]+)\s*:/)[1];
+        const fallback = new RegExp(prop + "\\s*:[^;]*\\d(vh)\\b[^;]*;[\\s\\S]*" + prop + "\\s*:[^;]*dvh");
+        assert.ok(fallback.test(decls),
+          `${file}: "${d.trim()}" needs a same-property vh fallback declared before it in the same rule (Safari 14 drops dvh)`);
+      }
+    }
+  }
+  // Safari 14.0 also lacks the `inset:` shorthand (14.1) — longhands only.
+  for (const file of ["styles/main.css", "styles/td.css"]) {
+    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.ok(!/[^-a-z]inset\s*:/.test(body), `${file}: use top/right/bottom/left longhands, never the inset: shorthand (dropped on iOS 14.2)`);
+  }
   assert.match(css, /env\(safe-area-inset/, "respect the notch");
   assert.match(css, /-webkit-backdrop-filter/, "Safari needs -webkit-backdrop-filter");
   assert.match(css, /touch-action:\s*manipulation/, "prevent double-tap zoom");
@@ -486,4 +506,145 @@ test("guardrail: every aspect-ratio cell has a real height fallback (iOS 14.2 ha
 // ---------- Syntax ----------
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);
+});
+
+test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has no flex-gap)", () => {
+  // Deep-audit law: Safari 14.0 (Josh's iPad) drops gap in FLEX layout (grid gap
+  // works). Every container that spaces tappable children now uses grid or
+  // margins. The flex+gap rules below are the audited DECORATIVE survivors
+  // (emoji piles, scenes, non-tap art). Adding a new flex+gap rule fails this
+  // test: use display:grid (grid-auto-flow: column for a row) or child margins
+  // if the children are tappable, else add the selector here with care.
+  const ALLOWED = new Set([
+    ".add__group",
+    ".add__pile",
+    ".add__scene",
+    ".af__scene",
+    ".animal-card",
+    ".at__train",
+    ".bal__beam",
+    ".bal__pan",
+    ".bigadd",
+    ".bigadd__num",
+    ".bigadd__rods",
+    ".bounce__pole",
+    ".bridge",
+    ".bridge__stones",
+    ".buddy",
+    ".build__tower",
+    ".cake__flames",
+    ".catcount__scene",
+    ".cert__stickers",
+    ".clue__bar",
+    ".coin__jar",
+    ".coin__shop",
+    ".coinmix__pile",
+    ".conj__clue",
+    ".dm__scene",
+    ".double__wing",
+    ".double__wings",
+    ".drum__dots",
+    ".dt__train",
+    ".find__egs",
+    ".find__field--dense",
+    ".find__target",
+    ".fs__plate",
+    ".game__prompt",
+    ".glue__parts",
+    ".graph__col",
+    ".gw__model, .gw__ask",
+    ".hl-lineup",
+    ".hl-run",
+    ".hl-tearow",
+    ".hop__path",
+    ".house__build",
+    ".line__row",
+    ".listen__pair",
+    ".listen__q",
+    ".listen__scene",
+    ".ml__word",
+    ".more__panel",
+    ".more__pond",
+    ".mt__car",
+    ".muncher__card",
+    ".muncher__tower",
+    ".nh__slots",
+    ".nickel__pile",
+    ".ns__slots",
+    ".pattern__row",
+    ".pattern__seq",
+    ".piggy__jar",
+    ".pizza__plate",
+    ".pizza__plates",
+    ".pond__scene",
+    ".pv__built",
+    ".pv__pile",
+    ".race__lane",
+    ".race__track",
+    ".sandwich__tray",
+    ".sb__line",
+    ".seesaw",
+    ".sentence",
+    ".setclock__row",
+    ".silly__card",
+    ".sort__bin",
+    ".spy__target",
+    ".sw__window",
+    ".table__outlines",
+    ".take__scene",
+    ".tall__col",
+    ".tall__measure",
+    ".tc__dots",
+    ".tenf",
+    ".tenf__extra",
+    ".tile",
+    ".treasure__chest",
+    ".truck__bed",
+    ".truck__rig",
+    ".tt2__chest",
+    ".wh__row",
+    ".wi__clues",
+    ".word__slots",
+    ".wp__path"
+  ]);
+  const css = read("styles/main.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = css.match(/[^{}]+\{[^{}]*\}/g) || [];
+  for (const rule of rules) {
+    const sel = rule.slice(0, rule.indexOf("{")).trim().replace(/\s+/g, " ");
+    const body = rule.slice(rule.indexOf("{"));
+    if (/display:\s*(inline-)?flex/.test(body) && /[^-a-z]gap:/.test(body)) {
+      assert.ok(ALLOWED.has(sel),
+        `new flex+gap rule "${sel}" — flex-gap is DROPPED on iOS 14.2; use grid (gap works) or child margins for tappable children, or allowlist it if purely decorative`);
+    }
+  }
+});
+
+test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap, SW hygiene, fort merge)", () => {
+  // RULE 7 source-locks for the 27-defect app-wide audit (behavioral tests live
+  // in e2e/td/offline suites; these keep the load-bearing lines from vanishing).
+  const fw = read("scripts/framework.js");
+  assert.match(fw, /const sayLive = \(t\) => \{ if \(!screen\.hidden\)/, "framework speech is gated on screen visibility");
+  assert.match(fw, /later\(fn, ms\)/, "api.later exists (auto-cleared timers)");
+  assert.match(fw, /screen\.__onHide = \(\) => \{ clearTimers\(\); \}/, "screens clear their timers on hide");
+  const mainjs = read("scripts/main.js");
+  assert.match(mainjs, /s\.__onHide\) \{ try \{ s\.__onHide\(\); \}/, "route() fires __onHide on the screens it hides");
+  assert.match(mainjs, /speechSynthesis\.cancel\(\)/, "route() cancels in-flight speech");
+  assert.match(mainjs, /if \(id\) \{ location\.hash = ""; return; \}/, "junk hashes clear the hash (hl theme re-syncs)");
+  const fx = read("scripts/effects.js");
+  assert.match(fx, /MAX_PIECES/, "confetti pool is capped");
+  assert.ok(!/cssText = "position:fixed;inset:0/.test(fx), "no inset: shorthand in JS-injected styles either");
+  const sw = read("sw.js");
+  assert.match(sw, /res\.ok && \(isNav \|\| !\/text\\\/html\/i\.test\(ct\)\)/, "SW only runtime-caches trustworthy responses (poisoning fix)");
+  assert.match(sw, /isNav \? caches\.match\("\.\/index\.html"\) : undefined/, "index.html falls back for NAVIGATIONS only");
+  for (const icon of ["./assets/apple-touch-icon.png", "./assets/icon-192.png", "./assets/icon-512.png", "./assets/icon-maskable-512.png"]) {
+    assert.ok(sw.includes(icon), `PWA icon ${icon} precached`);
+  }
+  const tdm = read("scripts/td-main.js");
+  assert.match(tdm, /leverRoute: st\.leverRoute \|\| 0/, "the thrown lever rides the midRun checkpoint");
+  assert.match(tdm, /e\.state\.leverRoute = mr\.leverRoute \|\| 0/, "resume restores the thrown lever");
+  assert.match(tdm, /opts && opts\.force/, "persist() merges monotonic fields unless a deliberate reset forces");
+  const hlm = read("scripts/hl-main.js");
+  assert.match(hlm, /getElementById\("screen-" \+ h\)/, "hl theme only paints for REAL hl screens");
+  const tdr = read("scripts/td-render.js");
+  assert.match(tdr, /RULES\.leverCooldown \|\| 8/, "the lever cooldown ring reads the ONE RULES constant");
 });

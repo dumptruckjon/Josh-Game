@@ -427,6 +427,14 @@
   function route() {
     const id = (location.hash || "").replace(/^#/, "");
     const home = document.getElementById("screen-home");
+    // AUDIT: leaving a screen must actually STOP it — clear its api.later timers
+    // (via __onHide) and cancel any in-flight utterance, or the hidden game keeps
+    // narrating over the new one (screens are hidden, never detached, so
+    // isConnected guards can't help).
+    document.querySelectorAll(".screen").forEach((s) => {
+      if (!s.hidden && s.__onHide) { try { s.__onHide(); } catch (e) { /* ignore */ } }
+    });
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
     document.querySelectorAll(".screen").forEach((s) => { s.hidden = true; });
 
     // 🏰 Jon's fort (hidden adult world). Every td-* route is guarded inside
@@ -473,6 +481,11 @@
     } else if (home) {
       home.hidden = false;
       document.body.classList.remove("in-game");
+      // AUDIT: a junk hash (e.g. #hl-nonexistent) lands here, but hl-main's
+      // hashchange theme-sync saw "hl-" and painted Josh's home red-gold without
+      // the gate. Clearing the hash fires hashchange, which re-syncs the theme
+      // (replaceState alone would NOT — no event fires).
+      if (id) { location.hash = ""; return; }
     }
   }
 })();

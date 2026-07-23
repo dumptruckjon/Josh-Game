@@ -8,26 +8,75 @@
     return global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
+  // ONE canvas + ONE rAF loop + ONE shared pieces pool, no matter how many
+  // bursts fire (audit: a hammer-tapping toddler piled up 66 concurrent
+  // full-screen canvases and dropped the frame rate 59→14fps). Every burst
+  // feeds the shared pool (capped — oldest pieces drop first); the loop tears
+  // the canvas down when the pool empties. Visually identical for single wins.
+  const MAX_PIECES = 400;
+  let canvas = null, ctx = null, pieces = [], running = false;
+
+  function ensureCanvas() {
+    if (canvas) return true;
+    canvas = document.createElement("canvas");
+    // longhands, not the inset: shorthand — dropped on iOS 14.2 (audit)
+    canvas.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;pointer-events:none;z-index:60";
+    canvas.setAttribute("aria-hidden", "true");
+    document.body.appendChild(canvas);
+    ctx = canvas.getContext("2d");
+    if (!ctx) { canvas.remove(); canvas = null; return false; }
+    canvas.width = global.innerWidth;
+    canvas.height = global.innerHeight;
+    return true;
+  }
+
+  function loop() {
+    if (!canvas) { running = false; return; }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const gone = [];
+    for (const p of pieces) {
+      p.vy += p.gravity;
+      p.vx *= 0.99;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.life -= 0.006;
+      if (p.life > 0 && p.y < canvas.height + 30) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(p.life, 0);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        if (p.char) {
+          ctx.font = p.size * 2.4 + "px serif";
+          ctx.textAlign = "center";
+          ctx.fillText(p.char, 0, 0);
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        }
+        ctx.restore();
+      } else {
+        gone.push(p);
+      }
+    }
+    if (gone.length) pieces = pieces.filter((p) => !gone.includes(p));
+    if (pieces.length) {
+      requestAnimationFrame(loop);
+    } else {
+      canvas.remove(); canvas = null; ctx = null; running = false;
+    }
+  }
+
   function burst(opts) {
     opts = opts || {};
     if (reduceMotion()) return;
     if (!global.document || !global.requestAnimationFrame) return;
+    if (!ensureCanvas()) return;
     const emoji = opts.emoji || null; // if set, draw emoji instead of rects
     const colors = opts.colors || ["#ff5e7e", "#ffd24d", "#5ec8ff", "#7be08a", "#c77dff", "#ffa64d"];
     const count = opts.count || 130;
     const gravity = opts.gravity != null ? opts.gravity : 0.25;
-
-    const canvas = document.createElement("canvas");
-    canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60";
-    canvas.setAttribute("aria-hidden", "true");
-    document.body.appendChild(canvas);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) { canvas.remove(); return; }
-    canvas.width = global.innerWidth;
-    canvas.height = global.innerHeight;
-
     const originY = opts.fromTop ? -20 : canvas.height / 3;
-    const pieces = [];
     for (let i = 0; i < count; i++) {
       pieces.push({
         x: canvas.width / 2 + (Math.random() - 0.5) * (opts.fromTop ? canvas.width : 120),
@@ -40,42 +89,11 @@
         rot: Math.random() * Math.PI,
         vr: (Math.random() - 0.5) * 0.3,
         life: 1,
+        gravity,
       });
     }
-
-    let frames = 0;
-    function tick() {
-      frames += 1;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      let alive = false;
-      for (const p of pieces) {
-        p.vy += gravity;
-        p.vx *= 0.99;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.rot += p.vr;
-        p.life -= 0.006;
-        if (p.life > 0 && p.y < canvas.height + 30) {
-          alive = true;
-          ctx.save();
-          ctx.globalAlpha = Math.max(p.life, 0);
-          ctx.translate(p.x, p.y);
-          ctx.rotate(p.rot);
-          if (p.char) {
-            ctx.font = p.size * 2.4 + "px serif";
-            ctx.textAlign = "center";
-            ctx.fillText(p.char, 0, 0);
-          } else {
-            ctx.fillStyle = p.color;
-            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
-          }
-          ctx.restore();
-        }
-      }
-      if (alive && frames < 480) requestAnimationFrame(tick);
-      else canvas.remove();
-    }
-    requestAnimationFrame(tick);
+    if (pieces.length > MAX_PIECES) pieces.splice(0, pieces.length - MAX_PIECES);
+    if (!running) { running = true; requestAnimationFrame(loop); }
   }
 
   global.JoshEffects = {

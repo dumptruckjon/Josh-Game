@@ -298,7 +298,9 @@
   function initThemeSync() {
     const sync = () => {
       const h = (location.hash || "").slice(1);
-      document.body.classList.toggle("hl-mode", h.indexOf("hl-") === 0);
+      // belt-and-suspenders (audit): only a REAL hl screen turns the theme on —
+      // a junk #hl-* hash must never paint Josh's home red-gold.
+      document.body.classList.toggle("hl-mode", h.indexOf("hl-") === 0 && !!document.getElementById("screen-" + h));
     };
     window.addEventListener("hashchange", sync);
     sync();

@@ -509,7 +509,7 @@
       { id: "animals", icon: "🐾", name: "animals", items: ["🐶", "🐱", "🐰", "🦊", "🐸", "🐵", "🐷", "🐻", "🦁", "🐼"] },
       { id: "vehicles", icon: "🚦", name: "things that go", items: ["🚗", "🚌", "🚒", "🚜", "🚲", "✈️", "🚁", "🚚"] },
       { id: "food", icon: "🍽️", name: "foods", items: ["🍎", "🍌", "🍓", "🍇", "🍊", "🍪", "🍕", "🥕"] },
-      { id: "sky", icon: "🌌", name: "sky things", items: ["⭐", "🌙", "☀️", "🌈", "☁️", "🌟"] },
+      { id: "sky", icon: "🌌", name: "sky things", items: ["⭐", "🌙", "☀️", "🌈", "☁️", "🌟"], excludeFillers: ["✈️", "🚁"] }, // a plane IS a defensible sky thing — never a "wrong" filler (audit)
     ],
 
     // ---- Shape's Real Twin (3D solids → a real-world object of that shape) ----
@@ -597,7 +597,7 @@
     // AND never equals the prompt emoji. Each concept appears in exactly one pair.
     OPPOSITE_PAIRS: [
       { a: "hot", ae: "🔥", b: "cold", be: "🧊" },
-      { a: "big", ae: "🐘", b: "small", be: "🐭" },
+      { a: "big", ae: "🐘", b: "small", be: "🐭", avoid: ["🐌"] }, // a snail reads as "small" too — never its distractor (audit)
       { a: "day", ae: "☀️", b: "night", be: "🌙" },
       { a: "up", ae: "⬆️", b: "down", be: "⬇️" },
       { a: "happy", ae: "😊", b: "sad", be: "😢" },
@@ -745,7 +745,7 @@
       { kind: "animal", color: "green", emoji: "🐸" },
       { kind: "vehicle", color: "red", emoji: "🚗" },
       { kind: "vehicle", color: "blue", emoji: "🚙" },
-      { kind: "vehicle", color: "green", emoji: "🚜" },
+      { kind: "vehicle", color: "yellow", emoji: "🚕" }, // 🚜 renders RED on Apple emoji (audit) — 🚕 is yellow on every vendor
     ],
     // Count the Blocks — single-height iso layouts (grid [col,row] cells).
     BLOCK_LAYOUTS: [
@@ -853,7 +853,7 @@
     WEATHER_CLUES: [
       { q: "⛄", name: "the snowman", a: "❄️", cause: "snow" },
       { q: "🪁", name: "the flying kite", a: "💨", cause: "wind" },
-      { q: "🌻", name: "the open sunflower", a: "☀️", cause: "sunshine" },
+      { q: "🌻", name: "the open sunflower", a: "☀️", cause: "sunshine", avoid: ["🌧️"] }, // rain ALSO makes flowers grow — never its distractor (audit)
       { q: "🌂", name: "the umbrella", a: "🌧️", cause: "rain" },
     ],
     // Whose Home Is This? — structure → dweller. Homes unique, animals unique,
@@ -868,7 +868,7 @@
     // Who Uses This? — community helpers. `users` lists EVERY plausible user of a
     // tool (mutually-exclusive iconic tools here), so distractors are never right.
     HELPER_TOOLS: [
-      { tool: "🧯", toolName: "the fire hose", helper: "👩‍🚒", helperName: "firefighter", users: ["👩‍🚒"] },
+      { tool: "🧯", toolName: "the fire extinguisher", helper: "👩‍🚒", helperName: "firefighter", users: ["👩‍🚒"] }, // 🧯 IS an extinguisher — speak its true name (audit)
       { tool: "🩺", toolName: "the stethoscope", helper: "🧑‍⚕️", helperName: "doctor", users: ["🧑‍⚕️"] },
       { tool: "📚", toolName: "the school books", helper: "🧑‍🏫", helperName: "teacher", users: ["🧑‍🏫"] },
       { tool: "🚜", toolName: "the tractor", helper: "🧑‍🌾", helperName: "farmer", users: ["🧑‍🌾"] },
@@ -1028,10 +1028,12 @@
     ],
     // Duck Pond Stories — acted-out addition. Each actor self-names + has a verb.
     STORY_ACTORS: [
-      { emoji: "🦆", name: "ducks", verb: "swim" },
-      { emoji: "🐸", name: "frogs", verb: "hop" },
-      { emoji: "🐝", name: "bees", verb: "buzz" },
-      { emoji: "🐟", name: "fish", verb: "swim" },
+      // one/verbOne: the SINGULAR forms so a spoken story never says "one ducks
+      // swim" (audit — the audio IS the instruction for a non-reader).
+      { emoji: "🦆", name: "ducks", verb: "swim", one: "duck", verbOne: "swims" },
+      { emoji: "🐸", name: "frogs", verb: "hop", one: "frog", verbOne: "hops" },
+      { emoji: "🐝", name: "bees", verb: "buzz", one: "bee", verbOne: "buzzes" },
+      { emoji: "🐟", name: "fish", verb: "swim", one: "fish", verbOne: "swims" },
     ],
     // Two Words Make One — TRANSPARENT compounds; each part word is UNIQUE across
     // the list (so the "no shared part" distractor law is auto-satisfied). a/b are

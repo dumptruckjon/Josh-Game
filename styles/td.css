@@ -15,6 +15,7 @@ body.td-mode .topbar { display: none; }
 body.td-mode #screens { padding: 0; }
 
 .td-screen {
+  min-height: 100vh; /* Safari 14 fallback */
   min-height: 100dvh;
   padding: calc(8px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
   color: #e8eefc;
@@ -30,7 +31,7 @@ body.td-mode #screens { padding: 0; }
 
 /* ---- gate ---- */
 .td-gate {
-  position: fixed; inset: 0; z-index: 60;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60;
   background: rgba(8, 14, 26, 0.72);
   display: flex; align-items: center; justify-content: center;
 }
@@ -204,7 +205,7 @@ body.td-mode #screens { padding: 0; }
 
 /* ---- overlays ---- */
 .td-overlay {
-  position: absolute; inset: 0; z-index: 20;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20;
   background: rgba(8, 14, 26, 0.7);
   display: flex; align-items: center; justify-content: center;
 }
@@ -214,6 +215,7 @@ body.td-mode #screens { padding: 0; }
   padding: 22px; width: min(320px, 86vw);
   display: flex; flex-direction: column; gap: 12px; text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  max-height: calc(100vh - 24px); /* Safari 14 fallback */
   max-height: calc(100dvh - 24px); overflow-y: auto; /* the tall pause menu must scroll, not clip, in short landscape viewports */
 }
 .td-overlay__box h3 { margin: 0; color: #ffe27a; font-size: 1.3rem; }
@@ -243,7 +245,7 @@ body.td-mode #screens { padding: 0; }
 }
 
 /* wide overlay box for the tree/badges/endless lists (scrolls if tall) */
-.td-overlay__box--wide { width: min(360px, 92vw); max-height: 86dvh; overflow-y: auto; }
+.td-overlay__box--wide { width: min(360px, 92vw); max-height: 86vh; max-height: 86dvh; overflow-y: auto; } /* vh first: Safari 14 fallback */
 .td-overlay__row { display: flex; gap: 10px; }
 .td-overlay__row .td-btn { flex: 1; }
 .td-overlay__sub { color: #9db4dd; margin: 0; font-size: 0.92rem; }
@@ -292,7 +294,10 @@ body.td-mode #screens { padding: 0; }
 /* achievement toast */
 .td-toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-  z-index: 40; display: flex; align-items: center; gap: 10px;
+  /* informational only: never swallow taps, and paint UNDER the victory/defeat
+     overlay (z 20) so a landscape toast can't cover its buttons (audit) */
+  pointer-events: none;
+  z-index: 15; display: flex; align-items: center; gap: 10px;
   padding: 10px 16px; border-radius: 14px; background: #16233d; border: 2px solid #ffd94a;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); animation: td-toastpop 0.4s ease-out;
   max-width: calc(100vw - 24px);

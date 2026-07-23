@@ -773,6 +773,44 @@ test("TD7 L10 lever: the fork level renders, and a real tap on the lever throws 
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+
+test("AUDIT: the thrown L10 lever survives a quit + resume (leverRoute rides the checkpoint)", async () => {
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const st = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.newGame(10, { seed: 7 });
+    window.__TD.engine().pullLever(); // send the train the LONG way
+    // reach the next wave-boundary checkpoint with a real (thin) build
+    window.__TD.script([["place", "dart", "p1"], ["place", "dart", "p5"], ["call"], ["untilPhase", "build", 300000]]);
+    const mr = window.__TD.midRun();
+    window.__TD.leaveToHome();
+    const resumedPhase = window.__TD.resume();
+    return { saved: mr ? mr.leverRoute : -1, resumed: window.__TD.state().leverRoute, phase: resumedPhase };
+  });
+  assert.equal(st.saved, 1, "the checkpoint records the thrown lever (leverRoute 1)");
+  assert.equal(st.resumed, 1, "resume restores the LONG route — the player's thrown track is not silently reset");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("AUDIT: a second fort tab can no longer clobber stars/achievements (monotonic merge on persist)", async () => {
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const merged = await page.evaluate(() => {
+    window.__TD.resetSave();
+    // simulate ANOTHER TAB having won L2 and earned a badge AFTER this tab loaded
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1, stars: { "2": 3 }, settings: { sfx: true }, difficulty: "normal", meta: [], ach: ["bossbonker"], endlessBest: { backyard: 9 }, midRun: null }));
+    // this tab now wins L1 → its persist() must FOLD the other tab's stars in
+    window.__TD.winL1(7);
+    return JSON.parse(localStorage.getItem("jon-td-save-v1"));
+  });
+  assert.ok(merged.stars["1"] >= 1, "this tab's L1 win is stored");
+  assert.equal(merged.stars["2"], 3, "the other tab's L2 stars survive the persist (no clobber)");
+  assert.ok(merged.ach.includes("bossbonker"), "the other tab's achievement survives");
+  assert.equal(merged.endlessBest.backyard, 9, "the other tab's endless best survives");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

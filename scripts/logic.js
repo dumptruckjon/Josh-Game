@@ -466,7 +466,8 @@
     const K = Math.min(cat.items.length, randInt(2, 4, rng));
     const members = sample(cat.items, K, rng);
     const others = [];
-    cats.forEach((c, i) => { if (i !== ci) c.items.forEach((e) => others.push(e)); });
+    const banned = new Set(cat.excludeFillers || []); // audit: a filler that is ALSO a member (✈️ in the sky) is never offered
+    cats.forEach((c, i) => { if (i !== ci) c.items.forEach((e) => { if (!banned.has(e)) others.push(e); }); });
     const fillers = sample(others, Math.max(0, size - K), rng);
     const cells = shuffle(
       [...members.map((emoji) => ({ emoji, correct: true })), ...fillers.map((emoji) => ({ emoji, correct: false }))],
@@ -1060,7 +1061,10 @@
     let idx = Math.floor(rnd() * items.length);
     if (items.length > 1 && idx === lastIdx) idx = (idx + 1) % items.length;
     const item = items[idx];
-    const others = shuffle([...new Set(items.filter((p, i) => i !== idx).map((p) => p.a))].filter((a) => a !== item.a), rng).slice(0, 2);
+    // `avoid` (audit): an item may list answers that are ALSO defensible for its
+    // prompt (Opposites' big vs a small-looking 🐌; rain also opens sunflowers) —
+    // those can never be offered as its distractors.
+    const others = shuffle([...new Set(items.filter((p, i) => i !== idx).map((p) => p.a))].filter((a) => a !== item.a && !(item.avoid || []).includes(a)), rng).slice(0, 2);
     const choices = shuffle([{ a: item.a, correct: true }, ...others.map((a) => ({ a, correct: false }))], rng);
     return { idx, item, choices };
   }
@@ -1479,7 +1483,8 @@
     const cat = cats[idx];
     const k = Math.min(2 + Math.floor(rnd() * 4), cat.items.length);
     const members = sample(cat.items, k, rng);
-    const others = cats.filter((_, i) => i !== idx).reduce((a, c) => a.concat(c.items), []);
+    const banned2 = new Set(cat.excludeFillers || []); // audit: same filler exclusion as makeCategoryHunt
+    const others = cats.filter((_, i) => i !== idx).reduce((a, c) => a.concat(c.items), []).filter((e) => !banned2.has(e));
     const fillers = sample(others, Math.min(3 + Math.floor(rnd() * 3), others.length), rng);
     const cells = shuffle(members.map((e) => ({ e, member: true })).concat(fillers.map((e) => ({ e, member: false }))), rng);
     return { idx, cat, k: members.length, cells, choices: numChoices(members.length, rng) };

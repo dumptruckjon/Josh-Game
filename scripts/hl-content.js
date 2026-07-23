@@ -79,7 +79,7 @@
       { noun: "书", emoji: "📖", mw: "本" },
       { noun: "伞", emoji: "☂️", mw: "把" },
       { noun: "车", emoji: "🚗", mw: "辆" },
-      { noun: "花", emoji: "🌸", mw: "朵" },
+      { noun: "花", emoji: "🌸", mw: "朵", alsoOk: ["把"] }, // 一把花 is valid too — never a "wrong" choice (审计)
       { noun: "衣服", emoji: "👕", mw: "件" },
       // 鞋: 双 (a pair) is the taught answer — shown as a PAIR so it reads
       // unambiguously; 只 (one shoe) is also valid Chinese, so it's marked alsoOk
@@ -141,7 +141,7 @@
       { name: "festivals2", bins: [
         { label: "元宵节", emoji: "🏮", why: "元宵节吃汤圆、看花灯。", items: ["汤圆", "花灯", "猜灯谜"] },
         { label: "重阳节", emoji: "⛰️", why: "重阳节登高、赏菊花。", items: ["登高", "菊花", "敬老"] },
-        { label: "春节", emoji: "🧧", why: "春节放鞭炮、拜年。", items: ["鞭炮", "拜年", "年夜饭"] },
+        { label: "七夕节", emoji: "🌌", why: "七夕节看鹊桥、讲牛郎织女。", items: ["鹊桥", "牛郎织女", "乞巧"] }, // 春节 shared 汤圆/花灯-adjacent customs with 元宵节 (审计) — 七夕 has zero overlap
       ] },
     ],
 

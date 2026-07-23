@@ -54,7 +54,19 @@ async function startServer(root = ROOT) {
   if (process.env.JOSH_BASE_URL) {
     return { server: null, baseURL: process.env.JOSH_BASE_URL };
   }
+  // Optional per-test request hijack (e.g. simulate a captive portal answering
+  // 200 text/html for a script URL). setHijack(fn) — fn(req) returns
+  // {status, type, body} to override, or falsy to serve normally.
+  let hijack = null;
   const server = http.createServer((req, res) => {
+    if (hijack) {
+      const h = hijack(req);
+      if (h) {
+        res.statusCode = h.status || 200;
+        res.setHeader("Content-Type", h.type || "text/html");
+        return res.end(h.body || "");
+      }
+    }
     let urlPath = decodeURIComponent(req.url.split("?")[0]);
     if (urlPath === "/") urlPath = "/index.html";
     const file = path.join(root, urlPath);
@@ -66,7 +78,18 @@ async function startServer(root = ROOT) {
     fs.createReadStream(file).pipe(res);
   });
   await new Promise((r) => server.listen(0, r));
-  return { server, baseURL: `http://localhost:${server.address().port}/` };
+  const port = server.address().port;
+  // HARD-offline support (audit: Playwright's setOffline does NOT gate
+  // service-worker fetches — 25 SW requests reached this server during an
+  // "offline" reload, so an offline test could pass while offline was broken).
+  // pause() closes the listener AND destroys live sockets so every request —
+  // including the SW's — really fails; resume() re-listens on the same port.
+  const sockets = new Set();
+  server.on("connection", (s) => { sockets.add(s); s.on("close", () => sockets.delete(s)); });
+  const pause = () => new Promise((r) => { server.close(() => r()); for (const s of sockets) s.destroy(); });
+  const resume = () => new Promise((r) => server.listen(port, r));
+  const setHijack = (fn) => { hijack = fn; };
+  return { server, baseURL: `http://localhost:${port}/`, pause, resume, setHijack };
 }
 
 async function launchBrowser() {

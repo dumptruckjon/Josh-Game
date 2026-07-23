@@ -770,7 +770,7 @@
       let round = 0;
       const KIND_ICON = { animal: "🐾", vehicle: "🚦" };
       const KIND_WORD = { animal: "animal", vehicle: "one that goes vroom" };
-      const COLOR_DOT = { red: "🔴", blue: "🔵", green: "🟢" };
+      const COLOR_DOT = { red: "🔴", blue: "🔵", green: "🟢", yellow: "🟡" };
       const bar = api.el("div", { class: "clue__bar", aria: { hidden: "true" } });
       const grid = api.el("div", { class: "clue__grid choices choices--3" });
       api.stage.append(bar, grid);

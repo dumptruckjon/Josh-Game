@@ -791,7 +791,7 @@
     start(api) {
       const ROUNDS = 4;
       let round = 0, lastIdx = -1, r = null;
-      const items = (api.C.OPPOSITE_PAIRS || []).map((p) => ({ q: p.ae, a: p.be, word: p.a, aword: p.b }));
+      const items = (api.C.OPPOSITE_PAIRS || []).map((p) => ({ q: p.ae, a: p.be, word: p.a, aword: p.b, avoid: p.avoid }));
       const promptEl = api.el("div", { class: "opp__prompt", aria: { hidden: "true" } });
       const chips = api.el("div", { class: "choices choices--3" });
       api.stage.append(promptEl, chips);

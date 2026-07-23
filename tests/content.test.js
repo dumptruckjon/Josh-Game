@@ -1123,3 +1123,85 @@ test("W10 dig pool: >=3 finds, all DISTINCT silhouettes (curtain-peek discipline
   assert.equal(new Set(content.DIG_POOL.map((d) => d.silhouette)).size, content.DIG_POOL.length, "silhouettes distinct");
   for (const d of content.DIG_POOL) assert.ok(d.emoji && d.name && d.silhouette);
 });
+
+// ===== Deep-audit truth pins (each verified defect stays fixed forever) =====
+
+const LOGIC = require("../scripts/logic.js");
+
+test("AUDIT Opposites: the big pair bans the small-looking snail, and makePairPick honors avoid", () => {
+  const big = content.OPPOSITE_PAIRS.find((p) => p.a === "big");
+  assert.ok((big.avoid || []).includes("🐌"), "big must list 🐌 in avoid — a snail is a defensible 'small'");
+  const items = content.OPPOSITE_PAIRS.map((p) => ({ q: p.ae, a: p.be, word: p.a, avoid: p.avoid }));
+  const rng = LOGIC.mulberry32 ? LOGIC.mulberry32(7) : Math.random;
+  for (let i = 0; i < 800; i++) {
+    const r = LOGIC.makePairPick(items, rng);
+    for (const c of r.choices) {
+      if (!c.correct) assert.ok(!(r.item.avoid || []).includes(c.a), `avoided answer ${c.a} offered as a distractor for ${r.item.word}`);
+    }
+  }
+});
+
+test("AUDIT What Made This?: rain is also-valid for the sunflower and never its distractor", () => {
+  const sun = content.WEATHER_CLUES.find((w) => w.q === "🌻");
+  assert.ok((sun.avoid || []).includes("🌧️"), "the sunflower must list 🌧️ in avoid — rain also makes flowers grow");
+  const rng = LOGIC.mulberry32 ? LOGIC.mulberry32(11) : Math.random;
+  for (let i = 0; i < 600; i++) {
+    const r = LOGIC.makePairPick(content.WEATHER_CLUES, rng);
+    if (r.item.q === "🌻") for (const c of r.choices) if (!c.correct) assert.notEqual(c.a, "🌧️", "🌧️ offered as a wrong cause for the sunflower");
+  }
+});
+
+test("AUDIT Duck Pond: every actor has singular forms and no story can say 'one ducks swim'", () => {
+  for (const a of content.STORY_ACTORS) {
+    assert.ok(a.one && a.verbOne, `${a.name} needs one/verbOne singular forms`);
+  }
+  // mirror the game's sentence builder across every actor and both singular branches
+  const numberWord = (n) => ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"][n] || String(n);
+  for (const actor of content.STORY_ACTORS) {
+    for (const [a, b] of [[1, 3], [3, 1], [1, 1], [2, 2]]) {
+      const aPart = a === 1 ? "one " + (actor.one || actor.name) + " " + (actor.verbOne || actor.verb) : numberWord(a) + " " + actor.name + " " + actor.verb;
+      const bPart = b === 1 ? "Then one more comes!" : "Then " + numberWord(b) + " more come!";
+      const sentence = aPart + " in the pond. " + bPart;
+      assert.ok(!new RegExp("one " + actor.name + " ").test(sentence) || actor.one === actor.name, `ungrammatical: "${sentence}"`);
+      assert.ok(!sentence.includes("one more come!"), `ungrammatical: "${sentence}"`);
+    }
+  }
+});
+
+test("AUDIT Little Detective: clue cards are kind×color unique and every color is emoji-TRUE on Apple", () => {
+  const seen = new Set();
+  for (const c of content.CLUE_CARDS) {
+    const key = c.kind + "|" + c.color;
+    assert.ok(!seen.has(key), `duplicate clue combo ${key}`);
+    seen.add(key);
+  }
+  // Apple renders 🚜 with a RED body — it can never be the "green vehicle" card.
+  assert.ok(!content.CLUE_CARDS.some((c) => c.emoji === "🚜"), "🚜 is red on Apple emoji — banned from color clues");
+  const yellowVehicle = content.CLUE_CARDS.find((c) => c.kind === "vehicle" && c.color === "yellow");
+  assert.ok(yellowVehicle && yellowVehicle.emoji === "🚕", "the yellow vehicle is 🚕 (yellow on every vendor)");
+});
+
+test("AUDIT I Spy sky: airborne emoji from other categories are excluded fillers (never 'wrong')", () => {
+  const sky = content.FIND_CATEGORIES.find((c) => c.id === "sky");
+  const airborne = [];
+  for (const c of content.FIND_CATEGORIES) {
+    if (c.id === "sky") continue;
+    for (const e of c.items) if (["✈️", "🚁", "🚀", "🛸", "🎈", "🪁", "🦅", "🐦"].includes(e)) airborne.push(e);
+  }
+  for (const e of airborne) assert.ok((sky.excludeFillers || []).includes(e), `${e} flies — it must be in sky.excludeFillers`);
+  const rng = LOGIC.mulberry32 ? LOGIC.mulberry32(3) : Math.random;
+  for (let i = 0; i < 500; i++) {
+    const h = LOGIC.makeCategoryHunt(content.FIND_CATEGORIES, 9, rng);
+    if (h.catId === "sky") for (const cell of h.cells) if (!cell.correct) assert.ok(!(sky.excludeFillers || []).includes(cell.emoji), `excluded filler ${cell.emoji} appeared in a sky hunt`);
+    const k = LOGIC.makeCategoryCount(content.FIND_CATEGORIES, rng);
+    if (k.cat.id === "sky") for (const cell of k.cells) if (!cell.member) assert.ok(!(sky.excludeFillers || []).includes(cell.e), `excluded filler ${cell.e} appeared in a sky count`);
+  }
+});
+
+test("AUDIT Who Uses This?: every tool's spoken name matches its picture", () => {
+  const TRUTH = { "🧯": "extinguisher", "🩺": "stethoscope", "🚜": "tractor", "🍳": "pan", "🎨": "palette", "📚": "book" };
+  for (const t of content.HELPER_TOOLS) {
+    const want = TRUTH[t.tool];
+    if (want) assert.ok(t.toolName.includes(want), `${t.tool} is spoken as "${t.toolName}" — must name the real thing (${want})`);
+  }
+});

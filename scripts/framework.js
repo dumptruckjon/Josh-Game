@@ -100,7 +100,14 @@
     screen.append(bar, prompt, stage, foot);
 
     let currentPrompt = "";
-    function speak() { A.say(currentPrompt, sayOpts); }
+    // AUDIT: route() only HIDES screens, so a navigated-away game's timers kept
+    // speaking over the new screen (isConnected guards never fire — the DOM
+    // stays attached). Gate ALL framework speech/cues on the screen being
+    // visible, and give games api.later() — timers that die on hide/restart.
+    const sayLive = (t) => { if (!screen.hidden) A.say(t, sayOpts); };
+    function speak() { sayLive(currentPrompt); }
+    const timers = new Set();
+    function clearTimers() { for (const id of timers) clearTimeout(id); timers.clear(); }
 
     // A#2: an optional reactive buddy. A game opts in with api.mascot() (idempotent
     // — reuses the same character across rounds) and the shared win/roundWin/
@@ -130,8 +137,12 @@
         promptText.textContent = text || "";
         iconsEl.textContent = (icons || []).join(" ");
       },
-      say: (t) => A.say(t, sayOpts),
+      say: (t) => sayLive(t),
       speak,
+      // a setTimeout that is auto-cleared when the screen hides or restarts —
+      // use for round-advance/stagger timers so a hidden game can never mutate
+      // or voice itself (audit).
+      later(fn, ms) { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; },
       // Opt-in reactive buddy. Call each round (after building the round's UI) so
       // the friend sits at the bottom, "on the floor"; it persists across rounds.
       mascot(opts) {
@@ -147,14 +158,14 @@
       // A correct round in a multi-round game (celebrate, keep going).
       roundWin(opts) {
         FX.confetti({ colors: C.CONFETTI_COLORS, count: 70 });
-        try { if (A.goodCue) A.goodCue(); } catch (e) { /* ignore */ }
+        try { if (A.goodCue && !screen.hidden) A.goodCue(); } catch (e) { /* ignore */ }
         reactMascot("cheer");
         // Extend the clean streak only if this round had no miss; a stumbled round
         // resets it. (Observable via screen.dataset.streak so it can be tested.)
         firstTryStreak = missedSinceWin ? 0 : firstTryStreak + 1;
         missedSinceWin = false;
         screen.dataset.streak = String(firstTryStreak);
-        if (opts && opts.say) A.say(opts.say, sayOpts);
+        if (opts && opts.say) sayLive(opts.say);
       },
       // The whole game is finished — celebrate, mark won, offer Again.
       win(opts) {
@@ -166,10 +177,10 @@
         screen.dataset.won = "1";
         screen.classList.add("is-won");
         FX.confetti({ colors: C.CONFETTI_COLORS });
-        try { if (A.winCue) A.winCue(); } catch (e) { /* ignore */ } // the "you did it!" jingle
+        try { if (A.winCue && !screen.hidden) A.winCue(); } catch (e) { /* ignore */ } // the "you did it!" jingle
         reactMascot("cheer");
         if (FX.stars) FX.stars();
-        A.say((opts && opts.say) || randItem((zh ? HL.PRAISE : C.PRAISE_SPOKEN) || ["Yay"]), sayOpts);
+        sayLive((opts && opts.say) || randItem((zh ? HL.PRAISE : C.PRAISE_SPOKEN) || ["Yay"]));
         againBtn.hidden = false;
         // Josh's chosen buddy pops in to celebrate (his pick threads through every
         // win). Falls back to a random homage hero if no buddy module/choice.
@@ -203,10 +214,10 @@
           void node.offsetWidth;
           node.classList.add("bump");
         }
-        try { if (A.bumpCue) A.bumpCue(); } catch (e) { /* ignore */ } // soft, non-punishing
+        try { if (A.bumpCue && !screen.hidden) A.bumpCue(); } catch (e) { /* ignore */ } // soft, non-punishing
         reactMascot("wiggle");
         missedSinceWin = true; // this round is no longer a clean win → breaks the ramp streak
-        A.say(randItem((zh ? HL.TRYAGAIN : C.TRYAGAIN_SPOKEN) || ["Try again"]), sayOpts);
+        sayLive(randItem((zh ? HL.TRYAGAIN : C.TRYAGAIN_SPOKEN) || ["Try again"]));
       },
       // Adaptivity hooks (Wave 3): a game may gently ramp difficulty once Josh has
       // won n rounds in a row with no miss, and ease back when he stumbles. Never
@@ -220,6 +231,7 @@
     };
 
     function start() {
+      clearTimers(); // stale api.later timers from the previous run die here
       screen.classList.remove("is-won");
       delete screen.dataset.won;
       firstTryStreak = 0; missedSinceWin = false; // fresh game → fresh difficulty
@@ -237,6 +249,7 @@
     screen.__start = start;
     screen.__started = false;
     screen.__onShow = () => { speak(); };
+    screen.__onHide = () => { clearTimers(); }; // navigation kills the game's pending timers (audit)
     return screen;
   }
 

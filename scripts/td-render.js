@@ -780,7 +780,7 @@
       if (engine.levelDef.lever) {
         const lv = engine.levelDef.lever;
         const lp = worldToScreen(lv.cx + 0.5, lv.cy + 0.5);
-        const cdLeft = st.leverCd - st.tick, cool = Math.max(0, cdLeft) / (8 * global.TDData.TICK_RATE);
+        const cdLeft = st.leverCd - st.tick, cool = Math.max(0, cdLeft) / ((global.TDData.RULES.leverCooldown || 8) * global.TDData.TICK_RATE);
         const rad = cell * 0.46;
         ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(lp.x, lp.y + cell * 0.14, rad * 0.95, rad * 0.45, 0, 0, 7); ctx.fill();
         ctx.fillStyle = cool > 0 ? "#54627a" : "#c8382a";

@@ -14,12 +14,12 @@ const { startServer, launchBrowser } = require("./helpers");
 
 const LIVE = !!process.env.JOSH_BASE_URL;
 
-let server, browser, context, page, baseURL;
+let server, browser, context, page, baseURL, pause, resume, setHijack;
 const pageErrors = [];
 
 before(async () => {
   if (LIVE) return;
-  ({ server, baseURL } = await startServer());
+  ({ server, baseURL, pause, resume, setHijack } = await startServer());
   browser = await launchBrowser();
   context = await browser.newContext();
   page = await context.newPage();
@@ -40,7 +40,13 @@ after(async () => {
 
 async function reloadOfflineAndAssertBoot(label) {
   pageErrors.length = 0;
+  // HARD offline (audit): context.setOffline() does NOT gate service-worker
+  // fetches — the SW happily reached the local server during an "offline"
+  // reload, so this guardrail could pass while offline was actually broken.
+  // Pausing the server (close + destroy sockets) makes SW fetches really fail;
+  // setOffline stays on as belt-and-suspenders for the navigation request.
   await context.setOffline(true);
+  await pause();
   try {
     await page.reload({ waitUntil: "load", timeout: 20000 });
     const visible = await page.locator("#screen-home").waitFor({ state: "visible", timeout: 10000 }).then(() => true).catch(() => false);
@@ -50,6 +56,7 @@ async function reloadOfflineAndAssertBoot(label) {
     assert.ok(booted, `${label}: the game registry (window.JoshGames) must load offline — a broken shell means scripts 404'd to the HTML fallback`);
     assert.equal(syntax.length, 0, `${label}: no script may parse as HTML offline (got: ${syntax.join("; ")})`);
   } finally {
+    await resume();
     await context.setOffline(false);
   }
 }
@@ -74,4 +81,21 @@ test("offline: boots even PRECACHE-ONLY — the ?v= versioned requests resolve v
   // that only unversioned precache remains, which is the exact scenario we harden.)
   assert.ok(deleted >= 0);
   await reloadOfflineAndAssertBoot("precache-only");
+});
+
+test("offline: a captive portal cannot poison the runtime cache (audit guardrail)", async () => {
+  if (LIVE) return;
+  // A hotel/plane captive portal answers 200 text/html for EVERY URL. Without
+  // the res.ok/content-type gate in sw.js, that HTML body would be runtime-cached
+  // over a script entry and — offline — the exact-match poisoned entry beats the
+  // healthy precache: the app boots as a dead shell ("Unexpected token '<'").
+  const PORTAL = "<html><body>Please sign in to Sky-Fi</body></html>";
+  setHijack((req) => (/scripts\/effects\.js/.test(req.url) ? { status: 200, type: "text/html", body: PORTAL } : null));
+  await page.reload({ waitUntil: "load", timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(400); // let the SW's runtime cache.put settle
+  setHijack(null);
+  pageErrors.length = 0;
+  await reloadOfflineAndAssertBoot("post-portal");
+  const effectsAlive = await page.evaluate(() => !!(window.JoshEffects && window.JoshEffects.confetti)).catch(() => false);
+  assert.ok(effectsAlive, "post-portal: effects.js must load from the healthy cache, not the portal HTML");
 });

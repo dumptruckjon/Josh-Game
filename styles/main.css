@@ -14,7 +14,8 @@
 html, body { margin: 0; padding: 0; }
 
 body {
-  min-height: 100dvh; /* dvh, never bare 100vh — avoids the iOS toolbar gap */
+  min-height: 100vh;  /* Safari 14 fallback (no dvh until 15.4) — Josh's iOS 14.2 iPad */
+  min-height: 100dvh; /* modern browsers cascade to dvh — avoids the iOS toolbar gap */
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
   /* STATIC cheerful gradient — not animated (iOS repaints on scroll and an
@@ -56,8 +57,8 @@ body {
   font-size: 1.5rem;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(180deg, #ff7aa0, #ff5e7e);
-  box-shadow: 0 8px 20px rgba(255, 94, 126, 0.35);
+  background: linear-gradient(180deg, #f4507a, #d92752); /* AA ≥3:1 for the white label across the gradient (audit) */
+  box-shadow: 0 8px 20px rgba(217, 39, 82, 0.35);
 }
 .btn-big:active, .btn-round:active { transform: scale(0.96); }
 
@@ -66,7 +67,8 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  display: flex;
+  display: grid; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
+  grid-auto-flow: column;
   align-items: center;
   justify-content: space-between;
   gap: var(--pad);
@@ -143,12 +145,12 @@ body {
 .reset-stars {
   display: block; margin: 26px auto 6px; padding: 7px 16px;
   border: none; border-radius: 999px; background: rgba(255, 255, 255, 0.5);
-  color: #7a879a; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  color: #5c6a7d; font-size: 0.82rem; font-weight: 700; cursor: pointer; /* AA vs the 50%-white pill (audit) */
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 .reset-stars:active { transform: scale(0.97); }
 .gate {
-  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
   background: rgba(20, 30, 45, 0.42); padding: var(--pad);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
 }
@@ -161,7 +163,7 @@ body {
 }
 .gate__input:focus { outline: none; border-color: #5ec8ff; }
 .gate__err { color: #c2185b; font-size: 0.92rem; margin: 10px 0 0; font-weight: 600; }
-.gate__row { display: flex; gap: 10px; margin-top: 16px; }
+.gate__row { display: grid; grid-auto-flow: column; gap: 10px; margin-top: 16px; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .gate__row button { flex: 1; min-height: 50px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; touch-action: manipulation; }
 .gate__cancel { background: #eef2f7; color: #5a6b80; }
 .gate__ok { background: linear-gradient(180deg, #ff7aa0, #ff5e7e); color: #fff; }
@@ -174,7 +176,7 @@ body {
 /* Big colorful category tiles on the home menu. */
 .tile--cat { min-height: 120px; background: linear-gradient(160deg, var(--cat-color, #5ec8ff), rgba(255, 255, 255, 0.35)); }
 .tile--cat .tile__icon { font-size: 3rem; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15)); }
-.tile--cat .tile__label { color: #fff; font-size: 0.95rem; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+.tile--cat .tile__label { color: #fff; font-size: 0.95rem; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); background: rgba(0, 0, 0, 0.55); border-radius: 999px; padding: 2px 10px; } /* pill keeps AA on the light gradient end (audit) */
 
 /* ---------- Game screen chrome ---------- */
 .game__bar {
@@ -201,9 +203,9 @@ body {
 .game__icons { font-size: 1.8rem; letter-spacing: 6px; }
 .game__promptText { font-size: 1.05rem; color: #555; font-weight: 600; }
 .game__stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
+  grid-template-columns: minmax(0, 100%); /* one full-width track (width:100% children resolve against the stage) whose 0-min lets wide children shrink instead of blowing the grid out */
+  justify-items: center;
   gap: var(--pad);
 }
 .game__foot { display: flex; justify-content: center; margin-top: 18px; }
@@ -247,8 +249,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Choice grids (used by many games) ---------- */
 .choices { display: grid; gap: var(--pad); width: 100%; }
-.choices--3 { grid-template-columns: repeat(3, 1fr); }
-.choices--4 { grid-template-columns: repeat(2, 1fr); }
+.choices--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.choices--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .choice {
   min-height: 96px;
   border-radius: 20px;
@@ -400,7 +402,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .choice--shape svg { width: 64px; height: 64px; display: block; }
 .order__item { line-height: 1; }
 .order__item--done { outline: 5px solid #7be08a; outline-offset: -2px; opacity: 0.75; }
-.memory-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--pad); width: 100%; }
+.memory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .memory-card {
   min-height: 100px; border-radius: 18px;
   background: linear-gradient(135deg, #8a7bff, #5ec8ff);
@@ -412,8 +414,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Science & sorting ---------- */
 .sort__item { font-size: clamp(4rem, 26vw, 7rem); line-height: 1; }
-.sort__bins { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--pad); width: 100%; }
-.sort__bins--3 { grid-template-columns: repeat(3, 1fr); }
+.sort__bins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
+.sort__bins--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .sort__bin {
   min-height: 120px; border-radius: 22px; background: var(--card);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
@@ -451,7 +453,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Trace-the-Path ---------- */
 .trace__stage { position: relative; width: 100%; max-width: 420px; height: 520px; margin: 0 auto; }
-.trace__line { position: absolute; inset: 0; width: 100%; height: 100%; }
+.trace__line { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }
 .trace__dot {
   position: absolute; transform: translate(-50%, -50%);
   width: var(--tap); height: var(--tap); border-radius: 50%;
@@ -464,11 +466,11 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .trace__dot--done { background: #7be08a; color: #fff; }
 
 /* ---------- Team Hop (co-op) ---------- */
-.coop__lanes { display: flex; flex-direction: column; gap: 18px; width: 100%; }
+.coop__lanes { display: grid; gap: 18px; width: 100%; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .coop__turn { font-size: 1.3rem; font-weight: 800; color: #2b8a5b; text-align: center; }
 .coop__face { display: inline-block; width: 36px; vertical-align: middle; }
 .coop__face svg { width: 100%; height: auto; display: block; }
-.coop__lane { display: flex; flex-direction: column; gap: 8px; }
+.coop__lane { display: grid; gap: 8px; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .coop__track { position: relative; height: 56px; background: rgba(255, 255, 255, 0.6); border-radius: 16px; }
 .coop__token { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); font-size: 2rem; transition: left 0.25s; margin-left: 20px; }
 .coop__home { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); font-size: 1.8rem; }
@@ -531,12 +533,12 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .sort__binLetters { font-size: 2.6rem; font-weight: 900; color: #33445a; }
 
 /* ---------- What Changed (spot the difference) ---------- */
-.spot__row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.spot__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .spot__cell { display: flex; align-items: center; justify-content: center; font-size: 2.6rem; min-height: 70px; background: rgba(255, 255, 255, 0.5); border-radius: 16px; }
 .spot__label { font-size: 0.9rem; color: #888; text-align: center; }
 
 /* ---------- Pop the Bubbles ---------- */
-.bub__field { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.bub__field { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .bub {
   min-height: 96px; border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #dff6ff, #9fd8ff);
@@ -546,7 +548,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .bub--pop { opacity: 0.4; transform: scale(0.7); }
 
 /* ---------- Peekaboo ---------- */
-.peek__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.peek__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .peek { min-height: 100px; border-radius: 18px; background: #ffe6a8; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 2.8rem; }
 .peek--open { background: #d7f8de; }
 .peek__art { width: 58px; display: block; margin: 0 auto; }
@@ -569,7 +571,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .find__targetLabel { font-size: 1.2rem; font-weight: 800; color: #c2185b; }
 .find__egs { display: inline-flex; gap: 6px; align-items: center; } /* "…like these" category examples */
 .find__eg { font-size: 1.6rem; line-height: 1; }
-.find__field { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.find__field { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .find__cell {
   min-height: 80px; border-radius: 16px; background: var(--card);
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1); font-size: 2.2rem;
@@ -588,7 +590,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .find__dot--art svg { width: 100%; height: auto; display: block; }
 
 /* ---------- Tic-Tac-Toe ---------- */
-.ttt { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: min(90vw, 340px); margin: 0 auto; }
+.ttt { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: min(90vw, 340px); margin: 0 auto; }
 .ttt__cell {
   aspect-ratio: 1 / 1; min-height: 84px; border-radius: 16px; background: var(--card);
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12); font-size: 2.6rem; line-height: 1;
@@ -597,7 +599,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Ten & Some More (ten-frame) ---------- */
 .tenf { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.tenf__grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.tenf__grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
 .tenf__cell { width: 44px; height: 44px; border: 2px solid #cdd6e0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
 .tenf__cell--on { border-color: #5ec8ff; }
 .tenf__extra { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; min-height: 1.6rem; font-size: 1.4rem; }
@@ -618,14 +620,15 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 }
 
 /* ---------- Color by Number ---------- */
-.cbn__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--pad); margin-bottom: 14px; }
+.cbn__legend { display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 14px; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
+.cbn__legend > * { margin: calc(var(--pad) / 2); }
 .cbn__swatch {
   min-width: 76px; min-height: 76px; border-radius: 16px;
   font-size: 1.7rem; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 .cbn__swatch--sel { outline: 4px solid #333; outline-offset: 2px; }
-.cbn__grid { display: grid; grid-template-columns: repeat(var(--cbn-cols, 3), 1fr); gap: var(--pad); width: 100%; max-width: 300px; margin: 0 auto; }
+.cbn__grid { display: grid; grid-template-columns: repeat(var(--cbn-cols, 3), minmax(0, 1fr)); gap: var(--pad); width: 100%; max-width: 300px; margin: 0 auto; }
 .cbn__cell {
   aspect-ratio: 1 / 1; min-height: 76px; border-radius: 12px;
   background: #fff; border: 2px dashed #cdd6e0; font-size: 1.4rem; font-weight: 800; color: #8894a6;
@@ -717,7 +720,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 }
 .wi__clue { font-size: 2rem; line-height: 1; }
 .wi__cluePlus { font-size: 1.5rem; font-weight: 900; color: #6a4bd6; }
-.wi__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.wi__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .wi__card {
   position: relative; min-height: 92px; border-radius: 18px; background: var(--card);
   box-shadow: 0 5px 14px rgba(0,0,0,0.12); padding: 6px; display: flex; align-items: center; justify-content: center;
@@ -742,10 +745,10 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   content: ""; position: absolute; left: -8%; right: -8%; bottom: -6px; height: 10px;
   border-radius: 50%; background: radial-gradient(closest-side, rgba(120,160,120,0.28), rgba(120,160,120,0));
 }
-.grow__ghost { position: absolute; inset: 0; opacity: 0.16; pointer-events: none; }
+.grow__ghost { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: 0.16; pointer-events: none; }
 .grow__ghost svg { width: 100%; height: 100%; display: block; }
 .grow__stage {
-  position: absolute; inset: 0; display: block; width: 100%; height: 100%; margin: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: block; width: 100%; height: 100%; margin: 0;
   background: transparent; box-shadow: none; padding: 0;
 }
 .grow__stage svg { width: 100%; height: 100%; display: block; }
@@ -777,7 +780,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; font-size: 2.6rem; padding: 8px; margin-bottom: 10px;
 }
 .piggy__coin { font-size: 1.4rem; }
-.piggy__coins { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--pad); width: 100%; }
+.piggy__coins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .coin {
   width: 100%; min-width: var(--tap); min-height: var(--tap); border-radius: 20px; font-size: 1.7rem; font-weight: 900;
   box-shadow: 0 5px 14px rgba(0,0,0,0.18); border: 3px solid rgba(0,0,0,0.12);
@@ -789,7 +792,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Number Muncher (compare numerals) ---------- */
 .muncher__gator { text-align: center; font-size: 3.4rem; line-height: 1; }
-.muncher__cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--pad); margin-top: 6px; width: 100%; }
+.muncher__cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 6px; width: 100%; }
 .muncher__card {
   width: 100%; min-height: 150px; border-radius: 20px; background: var(--card); box-shadow: 0 6px 16px rgba(0,0,0,0.12);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px;
@@ -801,7 +804,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Picture Squares (mini sudoku) ---------- */
 .sudoku__grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; max-width: 300px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; max-width: 300px;
   margin: 4px auto 12px; background: #cddbe8; padding: 6px; border-radius: 14px;
 }
 .sudoku__cell {
@@ -811,7 +814,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   font-size: clamp(1.6rem, 9vw, 2.4rem);
 }
 .sudoku__cell--blank { background: #fff7cf; box-shadow: inset 0 0 0 3px #ffd24d; }
-.sudoku__grid--4 { grid-template-columns: repeat(4, 1fr); } /* the harder 4×4 tier */
+.sudoku__grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* the harder 4×4 tier */
 
 /* ---------- Finish the Word (digraphs) ---------- */
 .digf__word { text-align: center; font-size: clamp(2rem, 11vw, 3rem); font-weight: 900; color: #2b3a55; margin: 6px 0 10px; letter-spacing: 1px; }
@@ -820,14 +823,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Letter Maker (trace over a faint guide letter) ---------- */
 .lm__guide {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
   font-size: clamp(9rem, 55vw, 18rem); font-weight: 900; color: rgba(94, 130, 200, 0.16);
   line-height: 1; pointer-events: none; z-index: 0;
 }
 .trace__stage .trace__dot { z-index: 2; }
 
 /* ---------- Put the Story in Order ---------- */
-.story__track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin: 4px 0 12px; }
+.story__track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; margin: 4px 0 12px; } /* minmax(0,1fr): the aspect-ratio slot's auto-min must never inflate the tracks (Will-It-Fit lesson) */
 .story__slot {
   /* min-height = iOS-14.2 fallback (no aspect-ratio); < the ~90px slot width. */
   aspect-ratio: 1 / 1; min-height: var(--tap); background: var(--card); border: 3px dashed #cdd6e0; border-radius: 16px;
@@ -850,7 +853,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Thwip! Web Up (web-building) ---------- */
 .thwip { position: relative; width: 100%; padding-top: 6px; }
-.thwip__web { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.thwip__web { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 .thwip__strand { stroke: #ffffff; stroke-width: 3; opacity: 0.85; stroke-linecap: round; }
 .thwip__hero { width: 96px; height: 96px; margin: 0 auto 12px; position: relative; z-index: 2; }
 .thwip__bugs { position: relative; z-index: 2; }
@@ -864,14 +867,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 /* ---------- Make an Island (landform maker) ---------- */
 .lf__label { text-align: center; font-size: 1.5rem; font-weight: 900; color: #2b6cff; margin-bottom: 8px; }
 .lf__wrap { position: relative; width: 100%; max-width: 300px; margin: 0 auto; }
-.lf__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); }
+.lf__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); }
 .lf__cell {
   aspect-ratio: 1 / 1; min-height: var(--tap); border-radius: 12px; font-size: clamp(1.6rem, 9vw, 2.4rem);
   display: flex; align-items: center; justify-content: center; background: #dff1ff; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.06);
 }
 .lf__cell:active { transform: scale(0.96); }
 .lf__reveal {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
   font-size: 5rem; pointer-events: none; opacity: 0;
 }
 .lf__reveal--on { animation: lfReveal 0.9s ease-out; } /* completes before the 1s round advance */
@@ -939,7 +942,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 /* ---------- Thwip the Villains (Spidey web-up toy) ---------- */
 .villains__hero { width: 92px; margin: 0 auto 10px; }
 .villains__hero svg { width: 100%; height: 100%; display: block; }
-.villains { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.villains { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .villain {
   position: relative; min-height: 96px; border-radius: 20px; overflow: hidden;
   background: linear-gradient(180deg, #eef4ff, #d8e6ff); border: 2px solid rgba(120, 170, 255, 0.22);
@@ -949,7 +952,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .villain__guy { display: inline-block; animation: villainBob 1.6s ease-in-out infinite; }
 @keyframes villainBob { 0%, 100% { transform: translateY(4px); } 50% { transform: translateY(-6px); } }
 .villain__web {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
   font-size: 3.4rem; opacity: 0; pointer-events: none;
 }
 .villain--webbed { background: #e8edf6; }
@@ -969,13 +972,13 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .buddy__face svg { width: 100%; height: 100%; display: block; }
 .buddy__tag { font-size: 0.82rem; font-weight: 800; color: #6a4bd6; }
 .buddyc {
-  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
   background: rgba(20, 30, 45, 0.42); padding: var(--pad);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
 }
 .buddyc[hidden] { display: none; }
 .buddyc__box {
-  width: min(94vw, 360px); max-height: 86dvh; overflow-y: auto;
+  width: min(94vw, 360px); max-height: 86vh; max-height: 86dvh; overflow-y: auto; /* vh first: Safari 14 fallback */
   background: #fff; border-radius: 22px; padding: 16px 14px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
 }
 .buddyc__title { text-align: center; margin: 2px 0 12px; font-size: 1.2rem; font-weight: 800; color: #b83b5e; }
@@ -992,14 +995,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Sticker Book (the reward collection: one slot per game) ---------- */
 .tile--stickers { background: linear-gradient(135deg, #cdb4ff, #8a7bff); }
-.tile--stickers .tile__label { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+.tile--stickers .tile__label { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); background: rgba(0, 0, 0, 0.55); border-radius: 999px; padding: 2px 10px; }
 .sticker-meter {
   position: relative; width: 100%; max-width: 420px; margin: 0 auto 16px;
   height: 26px; border-radius: 999px; background: rgba(255, 255, 255, 0.6);
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1); overflow: hidden;
 }
 .sticker-meter__fill {
-  position: absolute; inset: 0 auto 0 0; width: 0%;
+  position: absolute; top: 0; right: auto; bottom: 0; left: 0; width: 0%;
   background: linear-gradient(90deg, #ffd24d, #ffa64d);
   border-radius: 999px; transition: width 0.4s ease;
 }
@@ -1020,7 +1023,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .sticker-slot:active { transform: scale(0.96); }
 .sticker-slot__seal { font-size: 2rem; opacity: 0.5; }
 .sticker-slot__art {
-  position: absolute; inset: 0; padding: 10px;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 10px;
   opacity: 0; transform: scale(0.5); transition: opacity 0.3s ease, transform 0.3s ease;
 }
 .sticker-slot__art svg { width: 100%; height: 100%; display: block; }
@@ -1039,7 +1042,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .sticker-slot.plop .sticker-slot__art { animation: stickerPlop 480ms cubic-bezier(0.2, 0.8, 0.3, 1); }
 
 /* ---------- 🎨 Mix It! Paint Lab ---------- */
-.mix__bench { display: flex; gap: 20px; justify-content: center; }
+.mix__bench { display: grid; grid-auto-flow: column; gap: 20px; justify-content: center; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */ }
 .mix__pot {
   width: 96px; height: 96px; border: none; border-radius: 16px 16px 22px 22px; cursor: pointer;
   background: #f4f7fb; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
@@ -1079,7 +1082,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- 🍪 Fair Shares ---------- */
 .fs__pile { min-height: 40px; font-size: 26px; text-align: center; letter-spacing: 2px; max-width: 340px; }
-.fs__row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.fs__row { display: flex; justify-content: center; flex-wrap: wrap; /* margins, not flex-gap: dropped on iOS 14.2 (audit) */ }
+.fs__row > * { margin: 8px; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
 .fs__plate {
   min-width: 86px; min-height: 96px; border: none; border-radius: 18px; cursor: pointer;
   background: rgba(255, 255, 255, 0.6); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
@@ -1094,11 +1098,11 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- 👀 Quick Peek ---------- */
 .qp__box { position: relative; width: min(250px, 74vw); height: 190px; margin: 0 auto; border-radius: 18px; background: rgba(255, 255, 255, 0.6); box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.05); }
-.qp__dots { position: absolute; inset: 0; opacity: 0; transition: opacity 0.25s ease; }
+.qp__dots { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: 0; transition: opacity 0.25s ease; }
 .qp__box--open .qp__dots { opacity: 1; }
 .qp__dot { position: absolute; transform: translate(-50%, -50%); font-size: 34px; }
 .qp__cloud {
-  position: absolute; inset: 0; width: 100%; height: 100%; border: none; cursor: pointer;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; border: none; cursor: pointer;
   background: none; font-size: 84px; display: flex; align-items: center; justify-content: center;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: font-size 0.25s ease, opacity 0.25s ease;
 }
@@ -1115,7 +1119,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- 🔎 Letter Hunt ---------- */
 .lh__target { font-size: 3rem; font-weight: 900; color: #e23636; text-align: center; line-height: 1; }
-.lh__field { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 340px; }
+.lh__field { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 340px; }
 .lh__balloon {
   aspect-ratio: 1 / 1; min-height: var(--tap); border: none; border-radius: 50% 50% 46% 46%; cursor: pointer;
   background: radial-gradient(circle at 35% 30%, #ffd9e6, #ff8fb3); color: #7c1436;
@@ -1147,7 +1151,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 /* ---------- 🥁 Copy My Beat ---------- */
 .cb__hero { width: 72px; }
 .cb__hero svg { width: 72px; height: 72px; display: block; }
-.cb__pad { display: flex; gap: 16px; justify-content: center; }
+.cb__pad { display: grid; grid-auto-flow: column; gap: 16px; justify-content: center; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */ }
 .cb__drum {
   width: 92px; height: 92px; border: none; border-radius: 50%; cursor: pointer;
   font-size: 2.2rem; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
@@ -1188,7 +1192,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- 🌈 Season Windows ---------- */
 .sw__item { font-size: clamp(48px, 16vw, 64px); text-align: center; line-height: 1; }
-.sw__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; width: 100%; max-width: 360px; }
+.sw__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 360px; }
 .sw__window {
   min-height: 104px; border: none; border-radius: 18px; cursor: pointer; padding: 8px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -1264,7 +1268,7 @@ body.hl-mode {
 /* ---- The name gate (你叫什么名字？) — HER OWN classes, deliberately not
    Josh's .gate/.gate__* (tests locate his reset gate by those). ---- */
 .hl-gate {
-  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
   background: rgba(70, 10, 10, 0.5); padding: var(--pad);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
 }
@@ -1282,7 +1286,7 @@ body.hl-mode {
 }
 .hl-gate__input:focus { outline: none; border-color: #b23a1a; }
 .hl-gate__err { color: #b23a1a; font-size: 1rem; margin: 10px 0 0; font-weight: 700; }
-.hl-gate__row { display: flex; gap: 10px; margin-top: 16px; }
+.hl-gate__row { display: grid; grid-auto-flow: column; gap: 10px; margin-top: 16px; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .hl-gate__row button {
   flex: 1; min-height: 52px; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 800;
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -1305,6 +1309,7 @@ body.hl-mode {
 .hl-screen .tile--surprise { background: linear-gradient(135deg, #ffd24d, #e0a339); }
 .hl-screen .tile--surprise .tile__label { color: #6b3a00; }
 .hl-screen .tile--stickers { background: linear-gradient(135deg, #d63b2a, #8e1414); }
+.hl-screen .tile--stickers .tile__label { color: #fff; } /* beats .hl-tile's dark-red ink on her dark-red tile (audit: was 1.09:1) */
 .hl-sticker { font-size: 2.5rem; }
 
 /* ---- Her game screens: warm paper on festive red ---- */
@@ -1320,7 +1325,7 @@ body.hl-mode {
 
 /* ---- Shared hl grids: NEVER more than 3 button columns (the >=75px tap rule
    must hold at 320px; 4 columns of buttons cannot). Spans may pack tighter. ---- */
-.hl-grid3, .hl-grid4, .hl-grid5 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%; }
+.hl-grid3, .hl-grid4, .hl-grid5 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .hl-choices { width: 100%; }
 
 /* ---- 🀄 Tiles: drawn as tall white mahjong-style tiles with red text ---- */
@@ -1380,7 +1385,8 @@ body.hl-mode {
 .hl-charcell--hit { background: linear-gradient(180deg, #ffe9b0, #ffd24d); border-color: #d4a437; }
 
 /* ---- 记忆 games ---- */
-.hl-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--pad); width: 100%; font-size: 2.4rem; }
+.hl-row { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; font-size: 2.4rem; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
+.hl-row > * { margin: calc(var(--pad) / 2); }
 .hl-row--after { margin-top: 2px; }
 .hl-spot { font-size: 2.2rem; min-height: 84px; min-width: var(--tap); } /* flex rows must keep the tap floor */
 .hl-spot--lit { background: linear-gradient(180deg, #fff3b0, #ffcf5e); border-color: #d4a437; filter: drop-shadow(0 0 10px rgba(255, 210, 77, 0.8)); }
@@ -1392,7 +1398,7 @@ body.hl-mode {
 .hl-gobtn { margin: 8px auto; }
 .hl-dish { font-size: clamp(1.1rem, 5vw, 1.4rem); font-weight: 800; padding: 6px; }
 .hl-dish--hit { background: linear-gradient(180deg, #e8f8e0, #d7f8de); border-color: #7be08a; }
-.hl-steps { grid-template-columns: repeat(2, 1fr); }
+.hl-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .hl-steps .hl-dish { min-height: 90px; }
 .hl-lineup { display: flex; justify-content: center; gap: 12px; font-size: 2.8rem; margin-bottom: 8px; width: 100%; }
 .hl-lineupcell { line-height: 1; }
@@ -1410,7 +1416,7 @@ body.hl-mode {
 /* Echo pads show the instrument's Chinese name (鼓/锣/木鱼), not an emoji. */
 .hl-echodrum { font-size: 1.4rem; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 .hl-numbig { font-size: clamp(2.6rem, 13vw, 3.6rem); min-height: 110px; }
-.hl-compare { grid-template-columns: repeat(2, 1fr); }
+.hl-compare { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* ---- 数一数 field (display-only spans scattered in a box) ---- */
 .hl-countfield {
@@ -1427,7 +1433,7 @@ body.hl-mode {
   color: #7c1f1f; text-shadow: none; width: fit-content; margin-left: auto; margin-right: auto;
 }
 .hl-festbin, .hl-citychip { font-size: clamp(1.15rem, 5.5vw, 1.5rem); font-weight: 800; padding: 6px; }
-.hl-seasonrow { grid-template-columns: repeat(2, 1fr); }
+.hl-seasonrow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .hl-seasonbin { font-size: clamp(1.2rem, 6vw, 1.6rem); font-weight: 800; color: #444; }
 .hl-maskbtn { min-height: 110px; padding: 10px 14px; }
 .hl-maskbtn svg { width: 100%; max-width: 76px; height: auto; display: block; margin: 0 auto; }
@@ -1439,12 +1445,13 @@ body.hl-mode {
 }
 
 /* ---- 眼明手快 ---- */
-.hl-pond { grid-template-columns: repeat(4, 1fr); gap: 8px; border-radius: 18px; background: linear-gradient(180deg, #bfe9ff, #8fd4f5); padding: 10px; }
+.hl-pond { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; border-radius: 18px; background: linear-gradient(180deg, #bfe9ff, #8fd4f5); padding: 10px; }
 .hl-pondcell { font-size: 2rem; line-height: 1.4; text-align: center; }
 .hl-pond--glow .hl-pondcell--target { filter: drop-shadow(0 0 8px rgba(255, 210, 77, 0.95)); }
 .hl-shapebtn { min-height: 92px; }
 .hl-shape { width: 54px; height: 54px; display: block; }
-.hl-diffrow { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--pad); width: 100%; }
+.hl-diffrow { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
+.hl-diffrow > * { margin: calc(var(--pad) / 2); }
 .hl-diffcell {
   width: 84px; height: 84px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
   font-size: 2.2rem; line-height: 1;
@@ -1476,7 +1483,7 @@ body.hl-mode {
   border-radius: 20px; background: #b71c1c; border: 4px solid #d4a437; overflow: hidden;
 }
 .hl-fumark {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
   font-size: 300px; line-height: 1; color: rgba(255, 233, 176, 0.22); font-weight: 900;
   pointer-events: none; user-select: none;
 }
@@ -1521,7 +1528,7 @@ body.hl-mode {
 
 /* Star Search — a dark night field; found stars glow. */
 .star__field {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--pad); width: 100%;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%;
   padding: 10px; border-radius: 20px;
   background: radial-gradient(circle at 30% 20%, #26325e, #101833);
 }
@@ -1580,7 +1587,7 @@ body.hl-mode {
 .double__body { font-size: 2.6rem; }
 
 /* Long or Short? — stacked caterpillar rows (whole-row buttons). */
-.cater { display: flex; flex-direction: column; gap: var(--pad); width: 100%; }
+.cater { display: grid; gap: var(--pad); width: 100%; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .cater__row { min-height: 78px; justify-content: flex-start; padding: 8px 12px; flex-wrap: wrap; font-size: 1.6rem; gap: 2px; }
 .cater__head { font-size: 1.8rem; }
 .cater__seg { font-size: 1.5rem; line-height: 1; }
@@ -1598,7 +1605,7 @@ body.hl-mode {
 .seesaw__bar { flex: 1; height: 6px; background: #9c6b3f; border-radius: 3px; max-width: 40%; }
 .seesaw--left { transform: rotate(-8deg); }
 .seesaw--right { transform: rotate(8deg); }
-.seesaw__choices { grid-template-columns: repeat(2, 1fr); }
+.seesaw__choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* Count the Sides. */
 .sides__shape { width: 130px; height: 130px; margin: 4px auto 10px; }
@@ -1608,7 +1615,7 @@ body.hl-mode {
 .wf__card { text-align: center; margin-bottom: 10px; }
 .wf__emoji { font-size: 3rem; display: block; }
 .wf__word { font-size: 1.6rem; font-weight: 800; color: #333; letter-spacing: 1px; }
-.wf__houses { grid-template-columns: repeat(2, 1fr); }
+.wf__houses { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .wf__house { font-size: 1.3rem; font-weight: 800; color: #2b8a5b; }
 
 /* The Missing Middle — the CVC word with a blanked vowel. */
@@ -1621,7 +1628,7 @@ body.hl-mode {
 
 /* ================= Road to 140 — Wave 3 ================= */
 /* Two-up choice grid (used by More in the Pond). */
-.choices--2 { grid-template-columns: repeat(2, 1fr); }
+.choices--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* Fix the Pattern — a running strip with one interior blank. */
 .pattern__row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0 14px; }
@@ -1634,7 +1641,7 @@ body.hl-mode {
 
 /* Finish the Grid — 2×2 attribute matrix. */
 .mtx__grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
   width: min(64vw, 240px); margin: 8px auto 14px;
 }
 .mtx__cell {
@@ -1649,7 +1656,7 @@ body.hl-mode {
 .mtx__choice svg { height: 68px; width: 100%; }
 
 /* Left or Right — two big side-by-side boxes. */
-.lr__boxes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; width: 100%; max-width: 360px; margin: 12px auto; }
+.lr__boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 360px; margin: 12px auto; }
 .lr__box { font-size: clamp(2.6rem, 16vw, 4rem); min-height: 120px; }
 
 /* Count the Blocks — isometric scene. */
@@ -1673,7 +1680,8 @@ body.hl-mode {
   padding: 4px 10px; border-radius: 12px; border: 2px dashed rgba(120, 170, 255, 0.3);
 }
 .sb__slot--filled { color: #2b6cff; border-style: solid; background: #eef4ff; }
-.sb__tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; width: 100%; }
+.sb__tiles { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
+.sb__tiles > * { margin: 8px; }
 .sb__tile { min-width: 88px; flex: 0 1 auto; font-size: clamp(1.1rem, 5.5vw, 1.5rem); font-weight: 800; padding: 0 14px; }
 
 /* Silly Stories — a composite animal+item card. */
@@ -1712,7 +1720,7 @@ body.hl-mode {
 
 /* Simon Says: Touch! — a figure with five big zone buttons (geometry-tested). */
 .body__wrap { position: relative; width: 240px; height: 400px; margin: 6px auto 10px; }
-.body__fig { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.body__fig { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; }
 .body__fig svg { width: 100%; height: 100%; }
 .body__zone {
   position: absolute; width: 80px; height: 80px; transform: translate(-50%, -50%);
@@ -1745,7 +1753,7 @@ body.hl-mode {
 .silly2__btn { font-size: clamp(1.8rem, 9vw, 2.6rem); }
 
 /* Web Swing! — a numbered skyline; the hero hops building to building. */
-.swing__city { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; }
+.swing__city { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; }
 .swing__bldg {
   position: relative; min-height: 120px; border-radius: 14px 14px 6px 6px;
   background: linear-gradient(180deg, #5b6b8c 0%, #3c4a68 100%); border: 2px solid rgba(255, 255, 255, 0.18);
@@ -1862,9 +1870,9 @@ body.hl-mode {
 .coin--nickel { width: 62px; height: 62px; background: radial-gradient(circle at 38% 32%, #d9dde2, #9aa2ab); color: #333; font-size: 1.15rem; }
 
 /* First, Second, Third — a queue walking down to the ice-cream stand. */
-.ord__line { display: flex; flex-direction: column; align-items: stretch; gap: 16px; max-width: 340px; margin: 6px auto; }
+.ord__line { display: grid; gap: 16px; max-width: 340px; margin: 6px auto; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .ord__stand { text-align: center; font-size: 2.6rem; }
-.ord__animal { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 78px; }
+.ord__animal { display: grid; grid-auto-flow: column; align-items: center; justify-content: center; gap: 14px; min-height: 78px; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */ }
 .ord__badge { font-weight: 900; font-size: 1.1rem; color: #7a5cd6; background: #efeaff; border-radius: 999px; padding: 4px 10px; }
 .ord__face { font-size: 2.2rem; }
 .ord__animal--hop { animation: pop 360ms ease-out; }
@@ -1917,14 +1925,14 @@ body.hl-mode {
 
 /* ================= Road to 180 — Set 2, Wave 7 ================= */
 /* Toggle-to-match grids (Copy My Picture / Finish the Butterfly / Peek & Copy). */
-.cg__model { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 120px; margin: 8px auto 6px; }
+.cg__model { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: 120px; margin: 8px auto 6px; }
 /* min-height is the iOS-14.2 fallback: Safari 14 has NO aspect-ratio (added in
    Safari 15), so a contentless aspect-ratio-only cell collapses to a sliver on
    Josh's iPad. Every contentless square in this file pairs the two. */
 .cg__model .cg__cell { aspect-ratio: 1 / 1; min-height: 32px; border-radius: 8px; background: #eef2f7; border: 2px solid rgba(120,170,255,0.25); }
 .cg__model .cg__cell--on { background: #5a3fd6; border-color: #5a3fd6; }
 .cg__label { text-align: center; font-weight: 800; color: #5a3fd6; margin-bottom: 8px; }
-.cg__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 340px; margin: 0 auto; }
+.cg__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 340px; margin: 0 auto; }
 .tg__cell { aspect-ratio: 1 / 1; min-height: var(--tap); border-radius: 16px; }
 .tg__cell--on { background: linear-gradient(180deg, #7a5cd6, #5a3fd6) !important; border-color: #5a3fd6 !important; }
 .cg__cell--win { box-shadow: 0 0 0 3px #7be08a inset; }
@@ -1945,7 +1953,7 @@ body.hl-mode {
 .fit__glyph { line-height: 1; }
 
 /* Which Path Leads Home? — three full-width path rows. */
-.wp__paths { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 360px; margin: 6px auto; }
+.wp__paths { display: grid; gap: 14px; width: 100%; max-width: 360px; margin: 6px auto; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .wp__path { display: flex; align-items: center; gap: 6px; min-height: 84px; padding: 6px 10px; }
 .wp__hero, .wp__home { font-size: 1.8rem; }
 .wp__svg { flex: 1 1 auto; height: 56px; }
@@ -2131,7 +2139,7 @@ body.hl-mode {
 
 /* Robot Talk — a robot, letter tiles that light in order, a say button. */
 .robot__bot { text-align: center; font-size: clamp(3rem, 18vw, 4.4rem); min-height: 4.4rem; margin: 4px 0; }
-.robot__tiles { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.robot__tiles { display: grid; grid-auto-flow: column; justify-content: center; gap: 10px; margin-bottom: 10px; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .robot__tile { width: 46px; height: 54px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; color: #7a5cd6; background: rgba(122,92,214,0.12); border-radius: 12px; }
 .robot__tile--on { color: #fff; background: #7a5cd6; }
 .robot__play { display: block; margin: 0 auto 12px; }

@@ -732,6 +732,44 @@ test("华丽 nav guard: without the session flag, her home bounces back to Josh'
   await page.evaluate(() => { sessionStorage.setItem("hl-ok", "1"); });
 });
 
+
+test("AUDIT: hammer-tapping a toy never stacks confetti canvases (ONE shared canvas, capped pool)", async () => {
+  // A toddler taps 40 times in a burst; each old burst() made a NEW full-screen
+  // canvas + rAF loop (66 concurrent canvases, 59→14fps). The singleton keeps it
+  // to at most one canvas total.
+  await page.evaluate(() => { location.hash = "#bubbles"; });
+  await page.locator("#screen-bubbles").waitFor({ state: "visible", timeout: 15000 });
+  await page.waitForTimeout(300);
+  const counts = await page.evaluate(async () => {
+    let maxCanvases = 0;
+    for (let i = 0; i < 40; i++) {
+      window.JoshEffects.confetti({ count: 30 });
+      if (i % 5 === 0) await new Promise((r) => setTimeout(r, 16));
+      maxCanvases = Math.max(maxCanvases, document.querySelectorAll("body > canvas").length);
+    }
+    return maxCanvases;
+  });
+  assert.ok(counts <= 1, `at most ONE shared confetti canvas may exist (saw ${counts})`);
+});
+
+test("AUDIT: a navigated-away game falls SILENT and stops advancing (api.later + speech gate)", async () => {
+  // duck-add defers its next round ~900ms after a correct answer. Hop away
+  // inside that window: the hidden screen's timer must be cleared (prompt does
+  // not change) and no utterance may be in flight after the route's cancel.
+  await page.evaluate(() => { location.hash = "#duck-add"; });
+  await page.locator("#screen-duck-add").waitFor({ state: "visible", timeout: 15000 });
+  await page.waitForTimeout(400);
+  const before = await page.evaluate(() => document.querySelector("#screen-duck-add .game__prompt-text, #screen-duck-add .game__prompt")?.textContent || "");
+  await page.locator('#screen-duck-add [data-correct]').first().click();
+  await page.evaluate(() => { location.hash = ""; }); // hop home mid-defer
+  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 15000 });
+  await page.waitForTimeout(1300); // past the 900ms deferred newRound
+  const after = await page.evaluate(() => document.querySelector("#screen-duck-add .game__prompt-text, #screen-duck-add .game__prompt")?.textContent || "");
+  assert.equal(after, before, "the hidden game must not advance its round after navigation (timer cleared)");
+  const speaking = await page.evaluate(() => !!(window.speechSynthesis && window.speechSynthesis.speaking));
+  assert.ok(!speaking, "no utterance may still be speaking after the route cancelled speech");
+});
+
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

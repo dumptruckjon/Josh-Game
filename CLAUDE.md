@@ -660,6 +660,67 @@ wrong track; a headless screenshot caught that the lanes + lever button actually
 paint, and a Playwright test taps the lever at its world position (via the shared
 `w2s` map) and asserts the track switches. When a data field replaces a stub
 (`pullLever: notYet` → real), grep every test that pinned the stub and re-point it.
+**The APP-WIDE deep audit (11 dimensions, 42 agents, every finding independently
+re-verified) confirmed 27 defects — and the headline lesson is the iOS-14.2
+PLATFORM FLOOR: CI's modern browsers silently pass CSS/JS the real iPad DROPS.**
+(1) **Safari 14.0 has no flex-gap, no `inset:` shorthand, no `dvh`** — the topbar
+doors and ~20 game tap-rows collapsed to 0px (the ≥16px law silently void on
+device), every fixed-position modal (grown-ups gate, buddy chooser, 华丽/fort
+gates) fell below the fold as a shrink-wrapped box, and `min-height:100dvh` /
+dialog clamps were dropped declarations. Fixes are LAWS now, guardrail-locked in
+`site.test.js`: tappable spacing never relies on flex-gap (grid `gap` works on
+14.0 — single-row stacks became `grid-auto-flow` grids; wrapping tile rows use
+child margins; every remaining flex+gap rule sits on an explicit DECORATIVE
+allowlist that any new rule must consciously join); `inset:` is banned repo-wide
+(longhands only — including JS-injected cssText); every `dvh` declaration must be
+immediately preceded by a same-property `vh` fallback (the old "never bare 100vh"
+guardrail now enforces the PAIR instead). Corollary laws from the conversions: a
+grid stage needs `grid-template-columns: minmax(0, 100%)` (a bare auto track
+makes `width:100%` children collapse to content — add-up's 65px buttons — and a
+rigid `100%` track lets a wide child blow the grid out); and `repeat(N, 1fr)` is
+`minmax(auto,1fr)` — the Will-It-Fit lesson is now applied to EVERY grid in
+main.css (`repeat(N, minmax(0,1fr))`), because an `aspect-ratio` cell's
+transferred minimum can inflate tracks (story-order overflowed by exactly its
+slot's min). (2) **route() only HIDES screens, so `isConnected` timer guards are
+dead** — a navigated-away game kept narrating and advancing over the new screen.
+Centralized: ALL framework speech/cues gate on `!screen.hidden` (`sayLive`),
+`api.later()` gives games auto-cleared timers (cleared by `__onHide` on
+navigation and on restart), and route() fires `__onHide` + one
+`speechSynthesis.cancel()` per hash change. (3) **Confetti was one full-screen
+canvas + rAF loop PER burst** — toddler hammer-taps piled 66 canvases (59→14fps);
+now ONE shared canvas/loop/pool capped at 400 pieces (e2e hammer guardrail: ≤1
+canvas after 40 bursts). (4) **The SW runtime-cached ANY response** — a captive
+portal's 200-text/html sign-in page could poison a script entry and the offline
+fallback preferred the poisoned exact match over the healthy precache (dead
+shell); now only `res.ok` non-HTML (or navigation) responses are cached,
+index.html falls back for NAVIGATIONS only, the PWA icons joined CORE — and the
+offline test itself was dishonest: Playwright's `setOffline` does NOT gate SW
+fetches (25 reached the server "offline"), so `startServer` grew `pause()/
+resume()` (close + destroy sockets) for real hard-offline, plus a captive-portal
+guardrail. (5) **Content truths**: a distractor that is ALSO defensible is the
+recurring class — `makePairPick` now honors a per-item `avoid` list (Opposites'
+big banned the small-looking 🐌; rain also opens sunflowers), category hunts
+honor `excludeFillers` (✈️/🚁 are defensible "sky things"), Duck Pond gained
+singular forms (`one/verbOne` — "one ducks swim" was spoken in 44% of rounds),
+Little Detective's "green vehicle" 🚜 became yellow 🚕 (Apple renders the tractor
+RED — emoji COLOR is vendor art, part of correctness like the dotless-i lesson),
+🧯 is spoken as "the fire extinguisher", 华丽's festival set 2 swapped 春节 for
+七夕节 (汤圆 IS a southern New-Year food — bins must never co-present festivals
+sharing a custom), and 花 lists 把 in `alsoOk` (一把花 is standard). (6)
+**Contrast is measurable, not eyeballable** — five AA failures (the shared
+"Again" button at 2.46:1, category/sticker tile labels on light gradient ends,
+华丽's dark-red-on-dark-red book label at 1.09:1, the grown-ups button) fixed
+with verifier-verified colors/pills. (7) **Fort**: the thrown L10 lever now rides
+the midRun checkpoint (restored on resume; `leverCd` deliberately NOT saved — an
+absolute tick from the old run would wrongly lock a fresh engine); two fort tabs
+no longer clobber each other (persist() folds MONOTONIC fields — stars/ach/
+endlessBest max/union — while meta stays last-writer-wins because a respec
+legitimately REMOVES nodes, and deliberate resets pass `{force:true}`); a junk
+`#hl-*` hash no longer paints Josh's home red-gold (the unknown-hash fallback
+clears the hash so hl-main's hashchange sync re-runs; belt: the theme only paints
+for REAL hl screens). Meta-lesson: when the merge-on-persist fix landed, the
+respec/reset tests went red — a "monotonic" merge is only correct for fields
+that truly never decrease; enumerate which fields those ARE before merging.
 
 ---
 

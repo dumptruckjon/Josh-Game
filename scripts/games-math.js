@@ -1590,7 +1590,9 @@
         pond.innerHTML = "";
         api.setPrompt("Listen to the story — how many " + r.actor.name + "?", ["👂", r.actor.emoji, "🔢"]);
         api.speak();
-        api.say(numberWord(r.a) + " " + r.actor.name + " " + r.actor.verb + " in the pond. Then " + numberWord(r.b) + " more come! How many " + r.actor.name + " now?");
+        const aPart = r.a === 1 ? "one " + (r.actor.one || r.actor.name) + " " + (r.actor.verbOne || r.actor.verb) : numberWord(r.a) + " " + r.actor.name + " " + r.actor.verb;
+        const bPart = r.b === 1 ? "Then one more comes!" : "Then " + numberWord(r.b) + " more come!";
+        api.say(aPart + " in the pond. " + bPart + " How many " + r.actor.name + " now?");
         // Act it out: a ducks glide in, then b more (a beat later), each counting.
         let shown = 0;
         function addDuck(extra) {
@@ -1598,15 +1600,15 @@
           pond.appendChild(d); shown += 1;
         }
         for (let i = 0; i < r.a; i++) addDuck(false);
-        setTimeout(() => { if (pond.isConnected) for (let i = 0; i < r.b; i++) addDuck(true); }, 650);
+        api.later(() => { for (let i = 0; i < r.b; i++) addDuck(true); }, 650);
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
           b.addEventListener("click", () => {
             if (!ch.correct) { api.tryAgain(b); return; }
-            [...pond.children].forEach((el, i) => setTimeout(() => { if (el.isConnected) { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); api.say(String(i + 1)); } }, i * 200));
+            [...pond.children].forEach((el, i) => api.later(() => { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); api.say(String(i + 1)); }, i * 200));
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "Yes! " + r.a + " and " + r.b + " make " + r.total + "!" }); else { api.roundWin({ say: r.a + " and " + r.b + " make " + r.total + "!" }); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+            if (round >= ROUNDS) api.win({ say: "Yes! " + r.a + " and " + r.b + " make " + r.total + "!" }); else { api.roundWin({ say: r.a + " and " + r.b + " make " + r.total + "!" }); api.later(() => newRound(), 900); }
           });
           chips.appendChild(b);
         });

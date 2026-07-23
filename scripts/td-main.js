@@ -24,7 +24,32 @@
     } catch (e) { /* private mode → session-only play */ }
     return { v: 1, stars: {}, settings: { sfx: true } };
   }
-  function persist(save) {
+  function persist(save, opts) {
+    try {
+      // AUDIT: two fort tabs used whole-blob last-writer-wins, silently wiping
+      // stars/achievements earned in the other tab. Fold the stored copy's
+      // MONOTONIC fields in before writing: stars/endlessBest per-key max, ach
+      // union. meta is NOT merged (a respec legitimately REMOVES nodes) and
+      // settings/difficulty/midRun stay last-writer-wins. A deliberate reset
+      // passes {force:true} to skip the merge — otherwise it could never clear.
+      if (!(opts && opts.force)) {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (raw) {
+          const other = JSON.parse(raw);
+          if (other && other.v === 1) {
+            if (other.stars && typeof other.stars === "object") {
+              save.stars = save.stars || {};
+              for (const k in other.stars) save.stars[k] = Math.max(save.stars[k] || 0, other.stars[k] || 0);
+            }
+            if (Array.isArray(other.ach)) save.ach = [...new Set([...(save.ach || []), ...other.ach])];
+            if (other.endlessBest && typeof other.endlessBest === "object") {
+              save.endlessBest = save.endlessBest || {};
+              for (const w in other.endlessBest) save.endlessBest[w] = Math.max(save.endlessBest[w] || 0, other.endlessBest[w] || 0);
+            }
+          }
+        }
+      }
+    } catch (e) { /* merge is best-effort; the write below is what matters */ }
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
   }
   let save = load();
@@ -273,6 +298,7 @@
       // achievement context so a resumed win is judged against the WHOLE run,
       // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
+      leverRoute: st.leverRoute || 0, // TD-7 audit: the thrown track survives a resume (leverCd deliberately NOT saved — an old absolute tick would wrongly lock a fresh engine)
       towers: st.towers.map((t) => ({ lineId: t.lineId, tier: t.tier, branch: t.branch, padId: t.padId, targeting: t.targeting, rallyX: t.rallyX, rallyY: t.rallyY })),
     };
     persist(save);
@@ -325,6 +351,7 @@
       if (t.lineId === "camp") e.rally(nt.id, t.rallyX, t.rallyY);
     }
     e.state.waveIdx = mr.waveIdx; e.state.gold = mr.gold; e.state.lives = mr.lives;
+    e.state.leverRoute = mr.leverRoute || 0; // legacy midRun saves lack the field → default short (the save-field-coverage lesson)
     e.state.phase = "build"; e.state.cheated = false; // restored progress is honest
     cur.lastBuildWave = mr.waveIdx; // don't immediately re-checkpoint the restore
     cur.render.afterTick(); cur.render.resize(); cur.render.draw(0); UI.hud(e.state);
@@ -619,7 +646,7 @@
     isRotated: () => (cur ? cur.render.isRotated() : false),
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
-    resetSave: () => { save = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null }; persist(save); return true; },
+    resetSave: () => { save = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null }; persist(save, { force: true }); return true; },
     // read-only test hooks (audit guardrails): the resume checkpoint, the live
     // achievement context, the earned-badge list, and a trigger for resume.
     midRun: () => (save.midRun ? JSON.parse(JSON.stringify(save.midRun)) : null),
