@@ -983,6 +983,11 @@ test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTH
     endlessBest: { bedroom: 12 },
     midRun: { levelId: 2, waveIdx: 3, endless: false, gold: 100, lives: 18, towers: [], difficulty: "normal" },
   };
+  // Seed Josh's + 华丽's progress too: the fort reset must be INDEPENDENT and
+  // leave the kid worlds completely alone (mirror of the assertion in
+  // e2e.test.js that Josh's ⭐ reset leaves the fort save untouched).
+  const KID_KEYS = { "josh-won-count-feed": "1", "josh-won-bubbles": "1", "josh-won-hl-mahjong-pair": "1", "josh-buddy": "hero-spidey", "josh-muted": "0" };
+  await page.evaluate((k) => { for (const key in k) localStorage.setItem(key, k[key]); }, KID_KEYS);
   await page.evaluate((s) => { localStorage.setItem("jon-td-save-v1", JSON.stringify(s)); }, SEEDED);
   // A real RELOAD — goto(url + "#hash") is a same-document navigation, so the
   // fort module would never re-read storage and the seed would be invisible.
@@ -1050,6 +1055,16 @@ test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTH
   for (const k of ["v", "stars", "settings", "difficulty", "meta", "ach", "endlessBest", "midRun"]) {
     assert.ok(k in after, `the reset save keeps the full shape (missing ${k})`);
   }
+  // …and it touched NOTHING outside jon-td-*: Josh's ⭐, 华丽's ⭐, his buddy and
+  // his sound setting are all exactly as they were. Resetting the fort to replay
+  // it must never cost Josh a single sticker.
+  const kidAfter = await page.evaluate((k) => {
+    const out = {};
+    for (const key in k) out[key] = localStorage.getItem(key);
+    return out;
+  }, KID_KEYS);
+  assert.deepEqual(kidAfter, KID_KEYS, "the fort reset must leave every josh-* key untouched (independent worlds)");
+  await page.evaluate((k) => { for (const key in k) localStorage.removeItem(key); }, KID_KEYS);
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 

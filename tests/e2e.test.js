@@ -246,6 +246,15 @@ test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => 
   await page.locator("#screen-home").waitFor({ state: "visible" });
   const before = await page.locator(".tile__badge").count();
   assert.ok(before >= 1, `expected badges to reset, got ${before}`);
+  // The two worlds' resets are INDEPENDENT: seed a fort save and prove Josh's
+  // reset leaves it byte-identical (the fort's own ⚙️ reset is the only thing
+  // that clears it — see the mirror assertion in tests/td.test.js).
+  const FORT_SAVE = JSON.stringify({
+    v: 1, stars: { casual: {}, normal: { 1: 3, 2: 2 }, heroic: {} },
+    settings: { sfx: true, music: false, dmgNumbers: false }, difficulty: "normal",
+    meta: ["dartdmg"], ach: ["firstblood"], endlessBest: { bedroom: 9 }, midRun: null,
+  });
+  await page.evaluate((s) => { localStorage.setItem("jon-td-save-v1", s); }, FORT_SAVE);
 
   await page.locator("#reset-stars").click();
   await page.locator(".gate").waitFor({ state: "visible" });
@@ -282,6 +291,10 @@ test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => 
   assert.ok(
     (await page.locator(".hl-screen .tile__badge").count()) >= 1,
     "华丽's tile badges must survive Josh's reset"
+  );
+  assert.equal(
+    await page.evaluate(() => localStorage.getItem("jon-td-save-v1")), FORT_SAVE,
+    "🏰 Fort Josh's save must survive Josh's reset UNTOUCHED — the two resets are independent"
   );
 
   // The reset must also EMPTY the Sticker Book (slots + star meter), not just tiles.
