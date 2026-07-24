@@ -87,23 +87,26 @@
   };
 
   UI.renderLevelGrid = function (save, onPick, onSetDifficulty) {
+    // The selected difficulty is the LADDER the grid shows (each difficulty is
+    // an independent progression — user request 2026-07).
+    const selDiff = (save.difficulty && global.TDData.DIFFICULTIES[save.difficulty]) ? save.difficulty : "normal";
     // Difficulty selector — the engine fully supports casual/normal/heroic; the
-    // choice sticks (persisted) and applies to the next level you start.
+    // choice sticks (persisted), applies to the next level you start, and picks
+    // which ladder's stars/locks the grid below displays.
     const diffWrap = doc.querySelector("#screen-td-home .td-diff");
     if (diffWrap) {
       const DIFFS = [["casual", "😌 Easy"], ["normal", "⚔️ Normal"], ["heroic", "💀 Hard"]];
-      const cur = (save.difficulty && global.TDData.DIFFICULTIES[save.difficulty]) ? save.difficulty : "normal";
       diffWrap.innerHTML = "";
       DIFFS.forEach(function (d) {
         const b = doc.createElement("button");
         b.type = "button";
-        b.className = "td-diffbtn" + (d[0] === cur ? " td-diffbtn--on" : "");
+        b.className = "td-diffbtn" + (d[0] === selDiff ? " td-diffbtn--on" : "");
         b.dataset.diff = d[0];
         b.textContent = d[1];
-        b.setAttribute("aria-pressed", d[0] === cur ? "true" : "false");
+        b.setAttribute("aria-pressed", d[0] === selDiff ? "true" : "false");
         b.addEventListener("click", function () {
           if (onSetDifficulty) onSetDifficulty(d[0]);
-          UI.renderLevelGrid(save, onPick, onSetDifficulty); // re-highlight
+          UI.renderLevelGrid(save, onPick, onSetDifficulty); // re-highlight + re-ladder the grid
         });
         diffWrap.appendChild(b);
       });
@@ -113,12 +116,15 @@
     grid.innerHTML = "";
     const LEVELS = global.TDData.LEVELS;
     const TOTAL_PLANNED = 12;
-    const starsOf = (k) => (save.stars && save.stars[String(k)]) || 0;
+    // Stars + locks are PER-DIFFICULTY: the grid shows the SELECTED ladder's
+    // stars, and level N+1 unlocks by beating level N on THAT difficulty.
+    const dstars = (save.stars && save.stars[selDiff]) || {};
+    const starsOf = (k) => dstars[String(k)] | 0;
     for (let n = 1; n <= TOTAL_PLANNED; n++) {
       const def = LEVELS.find((l) => l.id === n);
       // Progression: L1 is always open; every later level unlocks once the
-      // PREVIOUS one is beaten (any-difficulty win = ≥1 star) — so beating L1
-      // opens L2, and so on (PLAN §7 unlock rule).
+      // PREVIOUS one is beaten ON THIS DIFFICULTY (≥1 star on this ladder) —
+      // so beating L1 opens L2, and so on, per ladder (PLAN §7 unlock rule).
       const unlocked = n === 1 || starsOf(n - 1) >= 1;
       const playable = !!def && unlocked;
       const card = doc.createElement("button");
@@ -154,14 +160,22 @@
   // ---- TD-5 META: star accounting, resume banner, star tree, badges, endless ----
   const NODES = () => global.TDData.META_NODES;
   const ACHS = () => global.TDData.ACHIEVEMENTS;
+  // Best stars per level across the three difficulty ladders — the star-tree /
+  // endless economy is deliberately difficulty-AGNOSTIC (ceiling stays 36), so
+  // the per-difficulty ladder split inflates nothing and loses nothing.
+  function bestStarsOf(save, k) {
+    let m = 0;
+    for (const d of ["casual", "normal", "heroic"]) { const o = save.stars && save.stars[d]; if (o && (o[k] | 0) > m) m = o[k] | 0; }
+    return m;
+  }
   function starTotals(save) {
-    let earned = 0; for (const k in (save.stars || {})) earned += save.stars[k];
+    let earned = 0; for (const l of global.TDData.LEVELS) earned += bestStarsOf(save, String(l.id));
     let spent = 0; const owned = new Set(save.meta || []);
     for (const n of NODES()) if (owned.has(n.id)) spent += n.cost;
     return { earned, spent, avail: earned - spent };
   }
   const worldLevels = (world) => global.TDData.LEVELS.filter((l) => l.world === world).map((l) => l.id);
-  UI.endlessUnlocked = function (save, world) { return worldLevels(world).every((id) => ((save.stars || {})[id] || 0) >= 3); };
+  UI.endlessUnlocked = function (save, world) { return worldLevels(world).every((id) => bestStarsOf(save, String(id)) >= 3); };
 
   // Resume banner on the fort home (present only when a mid-run checkpoint exists).
   UI.renderResume = function (save, onResume, onDiscard) {

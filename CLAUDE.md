@@ -733,6 +733,14 @@ orientations asserting no pad centre falls under the CALL rect. Lesson: authored
 coordinates need the same programmatic truth-check as authored waves — "the
 solver wins" never notices a pad the PLAYER can't tap or a tower standing in
 the road.
+**A persisted field that changes SHAPE needs migration at BOOT and at the
+two-tab MERGE, plus resetSave** — an old-version tab keeps writing the old
+shape, so the merge must fold it too (the per-difficulty stars split folds a
+legacy flat `{lvl:⭐}` map into the `normal` ladder at both sites). And when a
+field splits into slices, decide EXPLICITLY which aggregates stay cross-slice:
+the star tree / endless / star achievements read best-per-level across ladders
+(ceiling unchanged at 36⭐), while the grid and unlocks are per-ladder — an
+implicit "sum everything" would have tripled the meta economy.
 
 ---
 
@@ -1011,7 +1019,13 @@ L5-8, Toy Store L9-12; distinct path/pad layouts, a rising difficulty curve, eac
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
 L12 winnable on Heroic; beat level N to unlock N+1, ▶ Next-level on the victory
 screen; the fort home shows world tints, difficulty pips, and a 👑 on each boss
-finale), the FULL enemy roster — World-1 (Sock/Marble/Balloon + Mud Blob
+finale. **Stars/progression are PER-DIFFICULTY ladders** (user request 2026-07):
+`save.stars = {casual:{},normal:{},heroic:{}}` — the grid shows the SELECTED
+chip's stars/locks, a win lands on the RUN's difficulty (`st.difficulty`, not
+the chip at win time — a resumed run may differ), a legacy flat map migrates to
+`normal` at boot AND in the two-tab merge, while the star-tree budget,
+Star-Collector/Full-Fort and the endless unlock read BEST-per-level across
+ladders so the 36⭐ economy is unchanged and no old save loses anything), the FULL enemy roster — World-1 (Sock/Marble/Balloon + Mud Blob
 [splits→Mudlets], Plastic Knight [armor → Fan zap], Wind-up Bull [charges when
 hit], Junk Healer [mends allies], Piñata [gold-burst], Brick squads) **plus
 World-2/3 (Glitter Ghost [phases untargetable], Battery Bot [regenerating shield

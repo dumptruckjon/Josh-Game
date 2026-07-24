@@ -196,7 +196,7 @@ test("scripted victory via the shipped __TD hooks: the CI plan wins in-browser t
   const starsText = await page.locator(".td-overlay__stars").textContent();
   assert.ok((starsText.match(/⭐/g) || []).length >= 1, "stars shown");
   const save = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1") || "null"));
-  assert.ok(save && save.stars && save.stars["1"] >= 1, "the win persisted to jon-td-save-v1");
+  assert.ok(save && save.stars && save.stars.normal && save.stars.normal["1"] >= 1, "the win persisted to the run's difficulty ladder (normal)");
   const after2 = await page.evaluate(() => {
     let josh = 0;
     for (let i = 0; i < localStorage.length; i++) if ((localStorage.key(i) || "").indexOf("josh-won-") === 0) josh++;
@@ -364,11 +364,11 @@ test("fort daily-drive guardrails: topbar restore, pause-while-away, chaos taps,
   assert.equal(g1 - s.gold, 70, "doubled buy charges ONCE");
 
   // the save survives a full reload
-  const starsBefore = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {})["1"] || 0);
+  const starsBefore = await page.evaluate(() => ((JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {}).normal || {})["1"] || 0);
   await page.reload({ waitUntil: "load" });
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
-  const starsAfter = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {})["1"] || 0);
+  const starsAfter = await page.evaluate(() => ((JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {}).normal || {})["1"] || 0);
   assert.equal(starsAfter, starsBefore, "jon-td-save-v1 survives a reload intact");
 });
 
@@ -460,7 +460,7 @@ test("AUDIT progression: beating a level UNLOCKS the next (the 'level 2 never un
   assert.equal(res, "won", "the CI plan beats L1");
   await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 4000 });
   assert.equal(await page.locator('.td-overlay--win [data-act="next"]').count(), 1, "victory offers a Next-level button");
-  assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars["1"] >= 1), "the L1 star persisted (real, not cheated)");
+  assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars.normal["1"] >= 1), "the L1 star persisted (real, not cheated)");
 
   // back to the fort → L2 is now unlocked AND tappable, and starts level 2
   await page.locator('.td-overlay--win [data-act="continue"]').click();
@@ -531,7 +531,9 @@ test("TD5 star tree: buying a node persists to save.meta and feeds the next run;
   await page.evaluate(() => {
     window.__TD.resetSave();
     const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
-    raw.stars = {}; for (let i = 1; i <= 12; i++) raw.stars[i] = 3; // 36 ⭐
+    // seed a LEGACY flat map on purpose — the reload below must migrate it into
+    // the normal ladder (36 ⭐ best-across), proving the boot migration path
+    raw.stars = {}; for (let i = 1; i <= 12; i++) raw.stars[i] = 3;
     localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
     location.hash = "#__renav";
   });
@@ -657,7 +659,7 @@ test("AUDIT: a legacy/corrupt save with no `stars` field survives the first win 
   const phase = await page.evaluate(() => { location.hash = "#td-play"; return window.__TD.winL1(7); });
   assert.equal(phase, "won", "the level still wins on a stars-less save");
   const stars = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars);
-  assert.ok(stars && stars["1"] >= 1, "the earned star was persisted (the crash used to drop it)");
+  assert.ok(stars && stars.normal && stars.normal["1"] >= 1, "the earned star was persisted (the crash used to drop it)");
   assert.equal(pageErrors.length, errsBefore, "no page error was thrown during the win");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
@@ -804,10 +806,54 @@ test("AUDIT: a second fort tab can no longer clobber stars/achievements (monoton
     window.__TD.winL1(7);
     return JSON.parse(localStorage.getItem("jon-td-save-v1"));
   });
-  assert.ok(merged.stars["1"] >= 1, "this tab's L1 win is stored");
-  assert.equal(merged.stars["2"], 3, "the other tab's L2 stars survive the persist (no clobber)");
+  assert.ok(merged.stars.normal["1"] >= 1, "this tab's L1 win is stored on its ladder");
+  assert.equal(merged.stars.normal["2"], 3, "the other (legacy-flat) tab's L2 stars fold into the normal ladder (no clobber)");
   assert.ok(merged.ach.includes("bossbonker"), "the other tab's achievement survives");
   assert.equal(merged.endlessBest.backyard, 9, "the other tab's endless best survives");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("stars are PER-DIFFICULTY: a normal win never lights the other ladders (independent progressions)", async () => {
+  // User request 2026-07: stars earned on one difficulty show only for that
+  // difficulty — each chip is its own ladder (stars AND unlocks).
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const shape = await page.evaluate(() => {
+    window.__TD.resetSave(); // fresh save, difficulty = normal
+    location.hash = "#td-play";
+    window.__TD.winL1(7); // a real (uncheated) scripted win on NORMAL
+    return JSON.parse(localStorage.getItem("jon-td-save-v1")).stars;
+  });
+  assert.ok(shape.normal && shape.normal["1"] >= 1, "the win lands on the normal ladder");
+  assert.equal(Object.keys(shape.heroic || {}).length, 0, "the heroic ladder stays empty");
+  assert.equal(Object.keys(shape.casual || {}).length, 0, "the casual ladder stays empty");
+
+  // the fort home on the NORMAL chip shows the star and L2 open…
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(60);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const litStars = () => page.evaluate(() => {
+    const el = document.querySelectorAll(".td-level")[0].querySelector(".td-level__stars");
+    const total = (el.textContent.match(/⭐/g) || []).length;
+    const dimEl = el.querySelector(".td-level__dim");
+    return total - (dimEl ? (dimEl.textContent.match(/⭐/g) || []).length : 0);
+  });
+  const l2Locked = () => page.evaluate(() => document.querySelectorAll(".td-level")[1].classList.contains("td-level--locked"));
+  assert.ok((await litStars()) >= 1, "the normal ladder shows the earned L1 star");
+  assert.equal(await l2Locked(), false, "L2 is open on the normal ladder");
+
+  // …switching the chip to Hard shows an UNTOUCHED ladder: no stars, L2 locked…
+  await page.locator('.td-diffbtn[data-diff="heroic"]').click();
+  await page.waitForTimeout(30);
+  assert.equal(await litStars(), 0, "the heroic ladder shows NO stars for the normal win");
+  assert.equal(await l2Locked(), true, "L2 stays locked on the heroic ladder");
+
+  // …and switching back restores the normal ladder intact.
+  await page.locator('.td-diffbtn[data-diff="normal"]').click();
+  await page.waitForTimeout(30);
+  assert.ok((await litStars()) >= 1, "switching back restores the normal ladder's star");
+  assert.equal(await l2Locked(), false, "L2 is open again on the normal ladder");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 

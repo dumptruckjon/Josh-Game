@@ -102,6 +102,15 @@ test("guardrail: deep-audit fixes stay wired (hidden-immune AoE, per-toast timer
   const main = read("scripts/td-main.js");
   // (1) a stars-less/corrupt save is coerced at boot so the first win can't crash.
   assert.match(main, /typeof save\.stars !== "object"\)\s*save\.stars = \{\}/, "boot coerces a missing/corrupt stars field");
+  // Per-difficulty ladders (user request 2026-07): a legacy flat map migrates to
+  // normal, a win lands on the RUN's difficulty, the grid shows the SELECTED
+  // ladder, and the tree/endless economy reads BEST-across (ceiling stays 36).
+  assert.match(main, /save\.stars\.normal\[k\] = Math\.min\(3, v\)/, "a legacy flat stars map migrates into the normal ladder at boot");
+  assert.match(main, /save\.stars\[st\.difficulty\]/, "a win writes the star to the RUN's difficulty ladder");
+  assert.match(main, /function bestStarsOf\(/, "meta aggregates read best-per-level across ladders");
+  const tdui2 = read("scripts/td-ui.js");
+  assert.match(tdui2, /save\.stars && save\.stars\[selDiff\]/, "the level grid shows the SELECTED difficulty's ladder");
+  assert.match(tdui2, /bestStarsOf\(save, String\(id\)\) >= 3/, "endless unlock reads best-across stars");
   // (2/4/5) the resume checkpoint carries the achievement context.
   assert.match(main, /leaked:\s*!!cur\.leaked/, "writeMidRun snapshots the leak flag");
   assert.match(main, /cur\.lines\[t\.lineId\] = true/, "resumeMidRun repopulates tower lines (Pea Purist)");

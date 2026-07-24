@@ -34,8 +34,20 @@
           const other = JSON.parse(raw);
           if (other && other.v === 1) {
             if (other.stars && typeof other.stars === "object") {
-              save.stars = save.stars || {};
-              for (const k in other.stars) save.stars[k] = Math.max(save.stars[k] || 0, other.stars[k] || 0);
+              // per-difficulty per-level max; a legacy FLAT map written by an
+              // old-version tab folds into the normal ladder (the boot rule)
+              if (!save.stars || typeof save.stars !== "object") save.stars = {};
+              for (const d of ["casual", "normal", "heroic"]) {
+                const theirs = other.stars[d];
+                if (!theirs || typeof theirs !== "object") continue;
+                const mine = save.stars[d] = (save.stars[d] && typeof save.stars[d] === "object") ? save.stars[d] : {};
+                for (const k in theirs) mine[k] = Math.max(mine[k] | 0, theirs[k] | 0);
+              }
+              for (const k in other.stars) {
+                if (!/^\d+$/.test(k)) continue;
+                const mine = save.stars.normal = save.stars.normal || {};
+                mine[k] = Math.max(mine[k] | 0, other.stars[k] | 0);
+              }
             }
             if (Array.isArray(other.ach)) save.ach = [...new Set([...(save.ach || []), ...other.ach])];
             if (other.endlessBest && typeof other.endlessBest === "object") {
@@ -49,7 +61,18 @@
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
   }
   let save = load();
-  if (!save.stars || typeof save.stars !== "object") save.stars = {}; // legacy/corrupt/hand-edited save: never let a win crash on save.stars[key]
+  // Stars are PER-DIFFICULTY ladders (user request 2026-07): each difficulty is
+  // its own independent progression. Shape: { casual: {lvl:⭐}, normal: {…},
+  // heroic: {…} }. A legacy flat {lvl:⭐} map (pre-split saves) migrates into
+  // "normal" (the shipped default), losing nothing; corrupt values reset.
+  if (!save.stars || typeof save.stars !== "object") save.stars = {}; // never let a win crash on save.stars[key]
+  if (!save.stars.casual && !save.stars.normal && !save.stars.heroic) {
+    const legacy = save.stars;
+    save.stars = { casual: {}, normal: {}, heroic: {} };
+    for (const k in legacy) { const v = legacy[k] | 0; if (v > 0 && /^\d+$/.test(k)) save.stars.normal[k] = Math.min(3, v); }
+  } else {
+    for (const d of ["casual", "normal", "heroic"]) if (!save.stars[d] || typeof save.stars[d] !== "object") save.stars[d] = {};
+  }
   if (!save.difficulty || !DATA.DIFFICULTIES[save.difficulty]) save.difficulty = "normal";
   if (!save.settings) save.settings = { sfx: true };
   if (typeof save.settings.dmgNumbers !== "boolean") save.settings.dmgNumbers = false; // TD-6 opt-in
@@ -68,7 +91,15 @@
     save.ach.push(id); persist(save);
     UI.toast(def.icon, def.name); sfx("upgrade");
   }
-  function totalStars() { let s = 0; for (const k in (save.stars || {})) s += save.stars[k]; return s; }
+  // The shared meta economy (star tree, Star Collector / Full Fort) counts each
+  // level's BEST stars across the three ladders — the ceiling stays 36, so the
+  // per-difficulty split inflates nothing and no existing save loses anything.
+  function bestStarsOf(levelId) {
+    const k = String(levelId); let m = 0;
+    for (const d of ["casual", "normal", "heroic"]) { const o = save.stars && save.stars[d]; if (o && (o[k] | 0) > m) m = o[k] | 0; }
+    return m;
+  }
+  function totalStars() { let s = 0; for (const l of DATA.LEVELS) s += bestStarsOf(l.id); return s; }
   function checkStarAchievements() {
     const t = totalStars();
     if (t >= 18) earnAch("starcollector");
@@ -156,8 +187,12 @@
     if (st.phase === "won") {
       stopLoop();
       if (!st.cheated) {
+        // the star lands on the RUN's difficulty ladder (a resumed run can
+        // differ from the currently-selected chip — the run's own difficulty
+        // is the truth)
         const key = String(st.levelId);
-        save.stars[key] = Math.max(save.stars[key] || 0, st.stars);
+        const lad = save.stars[st.difficulty] || (save.stars[st.difficulty] = {});
+        lad[key] = Math.max(lad[key] | 0, st.stars);
         persist(save);
       }
       clearMidRun();
@@ -638,7 +673,7 @@
     isRotated: () => (cur ? cur.render.isRotated() : false),
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
-    resetSave: () => { save = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null }; persist(save, { force: true }); return true; },
+    resetSave: () => { save = { v: 1, stars: { casual: {}, normal: {}, heroic: {} }, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null }; persist(save, { force: true }); return true; },
     // read-only test hooks (audit guardrails): the resume checkpoint, the live
     // achievement context, the earned-badge list, and a trigger for resume.
     midRun: () => (save.midRun ? JSON.parse(JSON.stringify(save.midRun)) : null),
