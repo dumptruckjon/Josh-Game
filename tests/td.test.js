@@ -757,10 +757,18 @@ test("TD7 L10 lever: the fork level renders, and a real tap on the lever throws 
   const canvas = page.locator("#screen-td-play .td-canvas");
   const rect = await canvas.boundingBox();
   const sp = await page.evaluate(() => { const lv = window.__TD.engine().levelDef.lever; return window.__TD.w2s(lv.cx + 0.5, lv.cy + 0.5); });
+  // Before the throw, a draw must light the SHORT (default) route on the field.
+  const litBefore = await page.evaluate(() => { const r = window.__TD.render(); r.draw(0); return r.leverInfo(); });
+  assert.ok(litBefore.hasSeg, "the lever level precomputes its divergent branch segments");
+  assert.equal(litBefore.lit, 0, "the route overlay lights the SHORT lane before the throw");
   await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
   const after = await page.evaluate(() => ({ route: window.__TD.state().leverRoute, long: window.__TD.state().enemies.some((e) => e.alive && e.pathIdx === 1) }));
   assert.equal(after.route, 1, "the tap threw the lever to the long lane");
   assert.ok(after.long, "enemies on the shared prefix were rerouted the long way");
+  // The field overlay must follow the throw: the LONG route lights up now
+  // (the persistent-toggle state is readable on the TRACK, not just the button).
+  const litAfter = await page.evaluate(() => { const r = window.__TD.render(); r.draw(0); return r.leverInfo().lit; });
+  assert.equal(litAfter, 1, "the route overlay lights the LONG lane after the throw");
   assert.equal(pageErrors.length, errsBefore, "the fork level + lever produced no page error");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });

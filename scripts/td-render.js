@@ -39,6 +39,24 @@
     // TD-7: a level can have multiple lanes; the engine built them all.
     const lanes = engine.levelDef.paths || [engine.levelDef.path];
     const pathTotal = engine.paths[0].total; // primary lane length (decor + fallback)
+    // Lever levels: precompute each lane's DIVERGENT middle (the waypoints that
+    // are not part of the shared prefix/tail) so the live route overlay can veil
+    // exactly the branch the train will NOT take — never the shared segments,
+    // which belong to BOTH routes. Padded one shared point each side so the
+    // veil stroke visually meets the fork/rejoin.
+    let leverSeg = null;
+    if (engine.levelDef.lever && lanes.length > 1) {
+      const a = lanes[0], b = lanes[1];
+      let pre = 0;
+      while (pre < a.length && pre < b.length && a[pre][0] === b[pre][0] && a[pre][1] === b[pre][1]) pre += 1;
+      let suf = 0;
+      while (suf < a.length - pre && suf < b.length - pre &&
+             a[a.length - 1 - suf][0] === b[b.length - 1 - suf][0] &&
+             a[a.length - 1 - suf][1] === b[b.length - 1 - suf][1]) suf += 1;
+      const mid = (arr) => arr.slice(Math.max(0, pre - 1), arr.length - suf + 1);
+      leverSeg = { mids: [mid(a), mid(b)] };
+    }
+    let lastLitLane = -1; // leverInfo() test hook: which lane the overlay lit last draw
     function tangentAt(dist) { const a = engine.posAt(Math.max(0, dist - 0.35)), b = engine.posAt(Math.min(pathTotal, dist + 0.35)); let tx = b.x - a.x, ty = b.y - a.y; const m = Math.hypot(tx, ty) || 1; return { x: tx / m, y: ty / m }; }
 
     function resize() {
@@ -631,6 +649,42 @@
       }
     }
 
+    // TD-7 lever readability: the switch is a PERSISTENT toggle, so the field
+    // itself must show which way the next train goes — running golden lights
+    // along the whole ACTIVE route, and a dark veil over the branch the train
+    // will NOT take (only its divergent middle — the shared prefix/tail belong
+    // to both routes and stay lit). Drawn live in the FLOOR pass (the baked bg
+    // never changes), animated off state.tick (frozen while paused; static, not
+    // scrolling, under prefers-reduced-motion).
+    function drawLeverRoute(st) {
+      if (!leverSeg) return;
+      const route = st.leverRoute ? 1 : 0;
+      const polyline = (pts) => {
+        ctx.beginPath();
+        ctx.moveTo((pts[0][0] + 0.5) * cell, (pts[0][1] + 0.5) * cell);
+        for (const [x, y] of pts.slice(1)) ctx.lineTo((x + 0.5) * cell, (y + 0.5) * cell);
+        ctx.stroke();
+      };
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      // veil the closed branch
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "rgba(10, 14, 22, 0.42)";
+      ctx.lineWidth = cell * 1.05;
+      polyline(leverSeg.mids[route ? 0 : 1]);
+      // soft under-glow + running lights along the whole active route
+      const active = lanes[route];
+      ctx.strokeStyle = "rgba(255, 214, 90, 0.18)";
+      ctx.lineWidth = cell * 0.5;
+      polyline(active);
+      ctx.strokeStyle = "rgba(255, 224, 120, 0.9)";
+      ctx.lineWidth = Math.max(2, cell * 0.14);
+      ctx.setLineDash([cell * 0.3, cell * 0.55]);
+      ctx.lineDashOffset = reduceMotion ? 0 : -((st.tick * cell * 0.055) % (cell * 0.85));
+      polyline(active);
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      lastLitLane = route;
+    }
+
     // world-space particle fx (circles/lines — rotation-safe, drawn in FLOOR pass)
     function drawWorldFx() {
       for (const f of fx) {
@@ -711,6 +765,7 @@
       enterWorld();
       ctx.drawImage(bg, 0, 0, cell * GRID.w, cell * GRID.h);
       drawConveyors();
+      drawLeverRoute(st);
       if (selection && selection.pad) drawRange(selection.pad.cx, selection.pad.cy, (selection.ghostRange || 2.6) * nightMul, true);
       if (selection && selection.tower) {
         const t = st.towers.find((x) => x.id === selection.tower);
@@ -796,6 +851,16 @@
         ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(2, cell * 0.09); ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(lp.x, lp.y + cell * 0.1); ctx.lineTo(lp.x + dir * cell * 0.24, lp.y - cell * 0.24); ctx.stroke();
         ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(lp.x + dir * cell * 0.24, lp.y - cell * 0.24, cell * 0.08, 0, 7); ctx.fill();
+        // the state tag: name the CURRENT route so "pull again to switch back"
+        // is obvious (the switch is a persistent toggle, not a one-shot)
+        const tag = st.leverRoute ? "LONG WAY" : "SHORT WAY";
+        ctx.font = "700 " + Math.max(9, Math.round(cell * 0.3)) + "px sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        const ty = lp.y + rad + cell * 0.16;
+        ctx.lineWidth = Math.max(2, cell * 0.12); ctx.strokeStyle = "rgba(8, 12, 20, 0.85)"; ctx.lineJoin = "round";
+        ctx.strokeText(tag, lp.x, ty);
+        ctx.fillStyle = st.leverRoute ? "#9fd2ff" : "#ffd9a0";
+        ctx.fillText(tag, lp.x, ty);
       }
       const prim = lanes[0]; const s0 = prim[0], s1 = prim[prim.length - 1]; // lanes share spawn+exit
       const spawnGlyph = engine.levelDef.world === "backyard" ? "🌳" : engine.levelDef.world === "toystore" ? "🧸" : "🛏";
@@ -828,6 +893,7 @@
       setSelection: (s) => { selection = s; },
       setDamageNumbers: (on) => { showDmg = !!on; }, // TD-6 opt-in
       shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
+      leverInfo: () => ({ hasSeg: !!leverSeg, lit: lastLitLane }), // test hook: which lane the route overlay lit last draw
       cellSize: () => cell,
       isRotated: () => rotated,
       worldToScreen, screenToWorld,

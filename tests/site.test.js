@@ -123,6 +123,14 @@ test("guardrail: TD-7 multi-path lanes + the L10 track-switch lever stay wired",
   const render = read("scripts/td-render.js");
   assert.match(render, /engine\.posOn\(e\.pathIdx/, "the renderer positions every enemy on its own lane");
   assert.match(render, /engine\.levelDef\.lever/, "the renderer draws the lever control");
+  // Lever readability (user feedback 2026-07): the switch is a persistent
+  // TOGGLE, so its state must be readable on the FIELD — running lights along
+  // the active route, a veil on the closed branch, and a SHORT/LONG state tag
+  // on the button. leverInfo() is the render hook the browser test drives.
+  assert.match(render, /function drawLeverRoute\(/, "the active-route overlay exists");
+  assert.match(render, /lineDashOffset/, "the active route is lit with running dashes");
+  assert.match(render, /"LONG WAY" : "SHORT WAY"/, "the lever names its current route");
+  assert.match(render, /leverInfo:/, "the renderer exposes the leverInfo test hook");
   const main = read("scripts/td-main.js");
   assert.match(main, /engine\.pullLever\(\)/, "a field tap on the lever throws it");
 });

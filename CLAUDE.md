@@ -1059,7 +1059,18 @@ the 🔀 **track-switch lever** (`pullLever`, 8s cooldown) sends the incoming tr
 the long way — the same tail towers hit it far longer (a thin build that LOSES on
 short WINS with the lever). The renderer draws every lane (the switch-track in
 cool steel-blue beneath the warm default) + the lever button (ready/cooldown +
-which way it's thrown); a real field tap throws it. The fort is now
+which way it's thrown); a real field tap throws it. **Lever readability (user
+feedback 2026-07): a persistent TOGGLE's state must be readable on the FIELD,
+not only on its control** — the lever is deliberately a railway switch (pull →
+the route sticks until pulled again after the 8s cooldown; committed routing is
+the level's strategy and its sims assume it), but the only indicator was a tiny
+thrown-arm on the button, so a thrown lever read as "stuck on long". Now
+`drawLeverRoute` lights the whole ACTIVE route with running golden dashes
+(static under `prefers-reduced-motion`, frozen while paused — animated off
+`state.tick`), veils exactly the CLOSED branch's divergent middle (never the
+shared prefix/tail, which belong to both routes), and the button names its
+state ("SHORT WAY"/"LONG WAY"); `render.leverInfo()` is the hook the browser
+test drives both ways (the shakeInfo precedent). The fort is now
 feature-complete with no deferrals.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
