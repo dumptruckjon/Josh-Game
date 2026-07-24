@@ -329,6 +329,7 @@
       // achievement context so a resumed win is judged against the WHOLE run,
       // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
+      shieldUsed: !!st.shieldUsed, // TD-8: a spent 🌟 Sticker Shield stays spent across a resume (else the free leak re-grants per segment)
       leverRoute: st.leverRoute || 0, // TD-7 audit: the thrown track survives a resume (leverCd deliberately NOT saved — an old absolute tick would wrongly lock a fresh engine)
       towers: st.towers.map((t) => ({ lineId: t.lineId, tier: t.tier, branch: t.branch, padId: t.padId, targeting: t.targeting, rallyX: t.rallyX, rallyY: t.rallyY })),
     };
@@ -382,6 +383,7 @@
       if (t.lineId === "camp") e.rally(nt.id, t.rallyX, t.rallyY);
     }
     e.state.waveIdx = mr.waveIdx; e.state.gold = mr.gold; e.state.lives = mr.lives;
+    e.state.shieldUsed = !!mr.shieldUsed; // TD-8: restore a spent Sticker Shield (legacy midRun lacks it → false, matching a fresh run)
     e.state.leverRoute = mr.leverRoute || 0; // legacy midRun saves lack the field → default short (the save-field-coverage lesson)
     e.state.phase = "build"; e.state.cheated = false; // restored progress is honest
     cur.lastBuildWave = mr.waveIdx; // don't immediately re-checkpoint the restore

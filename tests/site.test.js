@@ -155,7 +155,15 @@ test("guardrail: the TD-8 deep star tree stays wired (branches, ranks, one site 
   assert.match(logic, /const respawnTicks = /, "Guard Dog scales BOTH soldier-KO paths through one helper");
   assert.match(logic, /mods\.nightOwl \? 1 - \(1 - nightBase\) \/ 2/, "Night Owl halves the night penalty");
   assert.match(read("scripts/td-render.js"), /engine\.rangeMul/, "the range preview reads the ENGINE's night multiplier (Night Owl included)");
-  assert.match(read("scripts/td-ui.js"), /function cascadeConsistent\(/, "refunds cascade so owned nodes stay self-consistent");
+  const tui = read("scripts/td-ui.js");
+  assert.match(tui, /function cascadeConsistent\(/, "refunds cascade so owned nodes stay self-consistent");
+  // TD-8 audit fixes: the tree overlay preserves scroll across a buy/refund
+  // rebuild (else a tall 23-node tree jumps to top every tap on a phone), and a
+  // spent Sticker Shield rides the resume checkpoint (else the free leak re-grants).
+  assert.match(tui, /keepScroll|box\.scrollTop/, "the star-tree rebuild preserves scroll position");
+  const tmain = read("scripts/td-main.js");
+  assert.match(tmain, /shieldUsed: !!st\.shieldUsed/, "writeMidRun checkpoints a spent Sticker Shield");
+  assert.match(tmain, /e\.state\.shieldUsed = !!mr\.shieldUsed/, "resumeMidRun restores the spent Sticker Shield");
 });
 
 test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch)", () => {

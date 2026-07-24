@@ -579,12 +579,19 @@ test("PLAYABILITY: EVERY shipped level is winnable by a sensible build AND losab
     if (a.phase === "won" && b.phase === "won") return a.lives >= b.lives ? a : b;
     return a.phase === "won" ? a : b;
   }
-  function neglect(level, seed) {
-    const e = TD.createEngine(level, { seed });
+  function neglect(level, seed, meta) {
+    const e = TD.createEngine(level, { seed, meta });
     let g = 0;
     while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 400000) { if (e.state.phase === "build") e.callWave(); e.tick(); }
     return e.state;
   }
+  // TD-8 audit: the losable-by-neglect contract must hold even with the ENTIRE
+  // star tree owned — a future ability that let a do-nothing build survive
+  // (an over-strong Patch Kit heal, an early-wave shield, etc.) would otherwise
+  // ship green. The maxed loadout still loses because Patch Kit only heals every
+  // 5th CLEARED wave (neglect dies first), Allowance needs towers to matter, and
+  // Sticker Shield absorbs a single leak.
+  const ALL_META = DATA.META_NODES.map((n) => n.id);
   assert.ok(DATA.LEVELS.length >= 5, `the fort ships real progression, not one level (got ${DATA.LEVELS.length})`);
   // levels are contiguous 1..N so progression can actually chain
   DATA.LEVELS.forEach((l, i) => assert.equal(l.id, i + 1, "level ids are contiguous from 1"));
@@ -595,6 +602,7 @@ test("PLAYABILITY: EVERY shipped level is winnable by a sensible build AND losab
       assert.ok(w.lives >= 5, `L${lvl.id} keeps a fair margin (≥5 lives, got ${w.lives} @seed ${seed})`);
     }
     assert.equal(neglect(lvl, 7).phase, "lost", `L${lvl.id} must be LOSABLE by neglect (real stakes, not no-fail)`);
+    assert.equal(neglect(lvl, 7, ALL_META).phase, "lost", `L${lvl.id} must be LOSABLE by neglect even with the FULL star tree owned (meta can't rescue a do-nothing build)`);
   }
   // difficulty should broadly rise: the LAST level is harder than the FIRST
   const easy = autoPlay(DATA.LEVELS[0], 7, "normal").lives;
@@ -1260,6 +1268,39 @@ test("TD8 👊 Boss Bonker: the boss has LESS hp after the same window (one dama
   const bonked = bossHpAfter(["bossdmg"]);
   assert.ok(plain > 0 && bonked > 0, "the boss survives the window in both runs");
   assert.ok(bonked < plain, "Boss Bonker melts the boss faster (" + bonked + " < " + plain + ")");
+});
+
+test("TD8 👊 Boss Bonker ALSO multiplies the SHIELD path (a shielded boss, the untested line)", () => {
+  // Audit coverage gap: the Bed Monster has shield 0, so the bossHp test above
+  // never exercises dealDamage's `shieldDmg = round(shieldDmg * bossDmg)`. Drive
+  // a lone shielded boss (Vacuum King, shield 60) with a zap source and read the
+  // FIRST shield hit both ways — proving the shield multiply is real + reachable.
+  const lvl = microTd8({
+    startGold: 99999,
+    waves: [{ boss: true, groups: [{ type: "vacuumking", count: 1, gap: 1, delay: 0 }] }],
+  });
+  const firstShieldDrop = (meta) => {
+    const e = TD.createEngine(lvl, { seed: 4, meta });
+    // a tier-3 Fan branched to Static-Zap (armor-ignoring chain) chews the shield
+    e.place("fan", "p1");
+    const f = e.state.towers[0];
+    e.upgrade(f.id); e.upgrade(f.id); e.branch(f.id, "b");
+    e.callWave();
+    let guard = 0, prev = null;
+    while (guard++ < 40000) {
+      const b = e.state.enemies.find((x) => x.type === "vacuumking");
+      if (b) {
+        if (prev !== null && b.shield < prev) return prev - b.shield; // first shield decrement
+        prev = b.shield;
+      }
+      e.tick();
+    }
+    throw new Error("the boss's shield was never touched");
+  };
+  const plain = firstShieldDrop([]);
+  const bonked = firstShieldDrop(["bossdmg"]);
+  assert.ok(plain > 0, "the zap source dents the shield");
+  assert.equal(bonked, Math.round(plain * 1.15), "Boss Bonker multiplies the SHIELD damage by 1.15 too (" + plain + "→" + bonked + ")");
 });
 
 test("TD8 🌟 Sticker Shield: the FIRST leak costs no lives, the second does — and both leaks still count", () => {

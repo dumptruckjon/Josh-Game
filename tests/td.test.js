@@ -619,6 +619,66 @@ test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores th
   await page.evaluate(() => { window.__TD.resetSave(); }); // clean up for later tests
 });
 
+test("TD8 audit: a SPENT Sticker Shield stays spent across a resume (no re-granted free leak)", async () => {
+  // The checkpoint-fidelity class: writeMidRun must carry state.shieldUsed, or a
+  // Sticker-Shield owner who spent the free leak, quit, and resumed would get it
+  // AGAIN (one free leak per resume segment instead of per run).
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {} };
+    raw.meta = ["stickershield"];
+    raw.midRun = { levelId: 3, endless: false, world: "bedroom", difficulty: "normal", seed: 7, waveIdx: 2, gold: 500, lives: 18, meta: ["stickershield"], shieldUsed: true, towers: [{ lineId: "dart", tier: 2, branch: "", padId: "p1", targeting: "first", rallyX: 0, rallyY: 0 }] };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator(".td-resume__go").click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const shieldUsed = await page.evaluate(() => window.__TD.state().shieldUsed);
+  assert.equal(shieldUsed, true, "the spent shield is restored as spent — the free leak is NOT re-granted on resume");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("TD8 audit: the 23-node star tree is fully reachable + scroll-stable on a SHORT viewport", async () => {
+  // The tree grew from 10 to 23 nodes across 3 branches — much taller than its
+  // 86dvh box. On a short viewport the whole tree + the Done button must stay
+  // reachable (the box scrolls), and buying a node must NOT reset scroll to top.
+  await page.evaluate(() => {
+    const raw = { v: 1, stars: {}, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null };
+    for (let i = 1; i <= 12; i++) raw.stars[i] = 3; // 36⭐ to spend (legacy flat → migrates to normal)
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "load" });
+  for (const vp of [{ width: 320, height: 480 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(vp);
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible" });
+    await page.locator(".td-tree-open").click();
+    await page.locator(".td-tree").waitFor({ state: "visible" });
+    // no horizontal overflow of the overlay box
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.ok(over <= 1, `[${vp.width}x${vp.height}] star tree overflows horizontally by ${over}px`);
+    // the LAST node (Sticker Shield, bottom of Fortification) and the Done button
+    // must be reachable — scroll the box and confirm both can be clicked
+    const box = page.locator("#screen-td-home .td-overlay__box");
+    await box.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    const done = page.locator(".td-tree-done");
+    assert.ok(await done.isVisible(), `[${vp.width}x${vp.height}] Done button is reachable after scrolling`);
+    // scroll stability: buy a Fortification node near the bottom, assert scroll didn't jump to 0
+    await page.locator('.td-node[data-node="lives"]').scrollIntoViewIfNeeded();
+    const before = await box.evaluate((el) => el.scrollTop);
+    assert.ok(before > 0, `[${vp.width}x${vp.height}] the tree is actually scrolled before the buy`);
+    await page.locator('.td-node[data-node="lives"]').click();
+    const after = await box.evaluate((el) => el.scrollTop);
+    assert.ok(after > 0 && Math.abs(after - before) < 60, `[${vp.width}x${vp.height}] buying keeps scroll position (was ${before}, now ${after}) — no jump to top`);
+    await page.locator(".td-tree-done").click();
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("TD6 fx juice: a Mortar splash shakes the screen, and prefers-reduced-motion disables it", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); });
   // motion ALLOWED → a splash triggers a (small, ≤4px) shake at some point

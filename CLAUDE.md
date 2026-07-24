@@ -752,6 +752,34 @@ their exact hashes (the determinism suite is the proof); (2) **gated purchases
 need a CASCADE on refund** — dropping rank I must drop rank II and any capstone
 whose in-branch spend fell below its requirement, or `save.meta` goes
 inconsistent (owned-but-unearnable), locked by a browser test.
+**A post-ship adversarial audit of TD-8 (6 dimensions, 12 agents driving the
+engine headless, every finding independently reproduced) confirmed the feature
+CORRECT — every ability fires once at the right site, balance holds (losable by
+neglect on every level even fully maxed), determinism intact — and surfaced two
+MINOR real defects the green suite missed, both now fixed + guarded.** (1) **A
+new per-run flag must ride the resume checkpoint** — `state.shieldUsed` (🌟
+Sticker Shield's one-free-leak) was absent from `writeMidRun`, so a resumed run
+re-granted the free leak (one per segment, not per run); added to the checkpoint
++ restored in `resumeMidRun` (legacy midRun lacks it → false, matching a fresh
+run) — the same checkpoint-fidelity class already documented for
+leaked/soldiersLost/lines/leverRoute. (2) **An overlay rebuilt on every
+interaction must preserve scrollTop** — the tree went 10→23 nodes (far taller
+than its 86dvh box), and each buy/refund calls `metaOverlay` which removes +
+re-appends the element, resetting scroll to 0; on a real phone a tap on a
+bottom (Fortification) node jumped you back to the top every time (invisible at
+the 390×844 test size — only a SHORT-viewport test catches it). Fix threads the
+box's scrollTop through the re-render. Coverage the audit added (RULE 7): a
+bossDmg-vs-SHIELDED-boss engine test (the Bed Monster's shield 0 left the
+shield-multiply line unexercised — a mutation would've stayed green), a
+neglect-with-FULL-tree guardrail on every level (a future survival-inflating
+ability can't ship green), and short-viewport tree reachability + scroll-stability
+browser tests. One finding left AS-DESIGNED: the two-tab `persist` meta
+last-writer-wins (a concurrent purchase in a second fort tab is lost) — unioning
+meta would resurrect refunded nodes as free power, and it's self-recoverable
+(earned ⭐ are preserved by the monotonic merge, respec is free). Lesson: "green
++ committed" ≠ "correct"; a deterministic engine earns a headless adversarial
+audit that drives every lever and reasons about resume/scroll/merge edges the
+tap-harness can't see.
 
 ---
 

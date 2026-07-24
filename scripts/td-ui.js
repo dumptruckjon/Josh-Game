@@ -234,7 +234,7 @@
       }
     }
   }
-  UI.showStarTree = function (save, onChange) {
+  UI.showStarTree = function (save, onChange, keepScroll) {
     const t = starTotals(save);
     const owned = new Set(save.meta || []);
     const branches = (global.TDData.META_BRANCHES || []).map((br) => {
@@ -258,6 +258,14 @@
       branches +
       '<div class="td-overlay__row"><button class="td-btn td-tree-respec" type="button">↺ Refund all</button>' +
       '<button class="td-btn td-btn--call td-tree-done" type="button">Done</button></div>');
+    // Buying/refunding rebuilds the whole overlay (metaOverlay removes + re-appends),
+    // which would reset scrollTop to 0 — on a real phone the 23-node tree is far
+    // taller than its 86dvh box, so a tap near the bottom (Fortification branch)
+    // would jump you back to the top every time. Preserve the box's scroll across
+    // the re-render. (390×844 in tests hides this; a real device shows it.)
+    const box = el.querySelector(".td-overlay__box");
+    if (box && keepScroll) box.scrollTop = keepScroll;
+    const rerender = (meta) => { const top = box ? box.scrollTop : 0; onChange(meta); UI.showStarTree(save, onChange, top); };
     el.querySelectorAll(".td-node").forEach((b) => b.addEventListener("click", () => {
       const id = b.dataset.node; const set = new Set(save.meta || []);
       const node = NODES().find((n) => n.id === id);
@@ -267,9 +275,9 @@
         if (treeLockReason(set, node) || starTotals(save).avail < node.cost) return;
         set.add(id);
       }
-      onChange([...set]); UI.showStarTree(save, onChange); // re-render with new state
+      rerender([...set]); // re-render with new state, keeping scroll position
     }));
-    el.querySelector(".td-tree-respec").addEventListener("click", () => { onChange([]); UI.showStarTree(save, onChange); });
+    el.querySelector(".td-tree-respec").addEventListener("click", () => rerender([]));
     el.querySelector(".td-tree-done").addEventListener("click", UI.closeOverlay);
   };
 
