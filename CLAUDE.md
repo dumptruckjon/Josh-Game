@@ -780,6 +780,37 @@ meta would resurrect refunded nodes as free power, and it's self-recoverable
 + committed" ≠ "correct"; a deterministic engine earns a headless adversarial
 audit that drives every lever and reasons about resume/scroll/merge edges the
 tap-harness can't see.
+**A PLAYABILITY/DIFFICULTY audit (headless sims of every level × difficulty ×
+build) found the authored ramp was INVERTED in play, and taught that this engine
+is THRESHOLD-dominated.** Measured on the shipped build: **76% of all damage
+landed in waves 1-3** (116 lives vs 37 across every later wave), 9/12 levels
+finished flawless despite late waves being 5-10× bigger on paper (L12 ramps
+8→95 budget), and **patient play lost 6/12 levels** — the early-call bonus
+(135g ≈ 2 extra opening towers) wasn't a greed option, it was mandatory. Root
+cause: the opening build, decided by startGold, faces the same wave-1 threat
+regardless of skill, then upgrade DPS outscales the wave curve forever after.
+Two things were fixed: (1) **the four wave-1 GOTCHA levels** (L3/L6/L7/L9 lost
+4-11 lives before a real board could exist) got startGold raised (330→400,
+320→380, 380→450, 440→520) — front-loading dropped 76%→53% and those levels
+became fair; (2) **the Vacuum King (L8) had NO tower-facing threat** — its whole
+kit (`suck` = inhale a SOLDIER) was invisible to a tower-only board, so the
+World-2 finale cost ZERO lives (19/20, easier than L3). It now also jams a gun
+under half hp, reusing the Static's already-tested `phases`/`disable` path (no
+new engine code), + hp 5200→8000: L8 is now a real fight (19.0→15.3 lives). The
+NEGATIVE result is just as important and is why no global re-tune shipped: a
+maxed board either holds a wave completely or collapses, so scaling late waves
+produces NO chip damage — it flips a level straight from flawless to a loss
+(L4 died at late×1.8). A parametric sweep (start-gold × bounty × curve-base ×
+growth-exponent, ~40 configurations) never converged on a descending curve;
+raising gold alone just trivializes everything (avg 19.6/20). Lesson: in a
+threshold-dominated TD, difficulty must come from THREAT SHAPE (fast fliers /
+untargetable / disruption that partially bypasses a build) rather than bigger
+HP piles — and the honest deliverable was the two verified fixes plus
+guardrails, not a sweeping re-balance the data didn't support. Guardrails:
+`td-logic.test.js` now fails if any level loses >5 lives in waves 1-3 (the
+gotcha class) or if a boss finale lets a sensible build finish above 17/20 (the
+formality class); the Bed Monster is explicitly exempted from the tower-facing
+rule because it earns its finale as a raw DPS check, which the sim proves.
 
 ---
 

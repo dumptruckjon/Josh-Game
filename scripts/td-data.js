@@ -113,7 +113,14 @@
     mole: { name: "Digger Mole", icon: "🦫", hp: 65, speed: 0.8, armor: 0, shield: 0, shieldRegen: 0, bounty: 12, lives: 1, flier: false, meleeDmg: 5, meleeRate: 0.9, tunnel: true }, // untargetable + unblockable under the middle third — guard the ends
     hawk: { name: "Kite Hawk", icon: "🪁", hp: 30, speed: 2.0, armor: 0, shield: 0, shieldRegen: 0, bounty: 7, lives: 1, flier: true, meleeDmg: 0, meleeRate: 1 }, // fast flier — Dart/Fan only
     // ---- TD-4: World-2 & finale bosses ----
-    vacuumking: { name: "Vacuum King", icon: "🌪", hp: 5200, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 5, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 } }, // inhales the nearest soldier every 8s (instant KO); brief 1.2× hustle under half hp
+    // AUDIT (2026-07): its whole kit (suck = inhale a SOLDIER) only threatened
+    // camp builds, so a tower-only board was immune and the World-2 finale cost
+    // ZERO lives (19/20 — easier than L3). It now also jams a gun under half hp
+    // (a vacuum inhales a turret's crew — the Static's tested `phases`/`disable`
+    // path, no new engine code) and hits harder, so it's a real DPS+disruption
+    // check like L4/L12. Sim: L8 19.0 → 15.3 lives, boss reaches the exit on a
+    // naive build. hp tuned to THIS level's 13-pad geometry.
+    vacuumking: { name: "Vacuum King", icon: "🌪", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 5, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
     thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 5, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
 
@@ -186,7 +193,7 @@
       name: "Toy Shelf Run",
       badge: 2,
       world: "bedroom",
-      startGold: 330,
+      startGold: 400,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 4-8 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
       budgetBase: 330,
       path: [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 3], [23, 3] ],
       pads: [
@@ -276,7 +283,7 @@
       world: "backyard",
       badge: 2,
       night: true,
-      startGold: 320,
+      startGold: 380,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 4-5 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
       budgetBase: 340,
       path: [ [0, 2], [15, 2], [15, 6], [5, 6], [5, 10], [21, 10] ],
       pads: [
@@ -302,7 +309,7 @@
       name: "The Slip'n'Slide",
       world: "backyard",
       badge: 3,
-      startGold: 380,
+      startGold: 450,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 7-8 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
       budgetBase: 390,
       zones: [ { from: 8, to: 13, mult: 1.6 }, { from: 20, to: 25, mult: 1.6 }, { from: 33, to: 38, mult: 1.6 } ],
       path: [ [0, 11], [6, 11], [6, 4], [14, 4], [14, 11], [20, 11], [20, 3], [23, 3] ],
@@ -357,7 +364,7 @@
       name: "Aisle Nine",
       world: "toystore",
       badge: 3,
-      startGold: 440,
+      startGold: 520,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 5-11 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
       budgetBase: 500,
       path: [ [0, 3], [16, 3], [16, 8], [6, 8], [6, 12], [22, 12] ],
       pads: [

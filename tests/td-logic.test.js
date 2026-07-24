@@ -1405,3 +1405,106 @@ test("TD8 full tree: owning EVERY node at once stays deterministic and still win
   assert.equal(a.phase, "won", "a maxed tree still wins the L1 script");
   assert.equal(TD.hashState(a), TD.hashState(b), "maxed-tree runs replay identically (rng discipline holds)");
 });
+
+// ============ Difficulty-shape guardrails (playability audit 2026-07) ============
+// The audit found the authored ramp was INVERTED in play: 76% of all damage
+// landed in waves 1-3 (before a real board could exist) while the big late waves
+// cost nothing, and the World-2 boss cost ZERO lives. These lock the shape.
+
+test("AUDIT difficulty shape: no level may be a wave-1 GOTCHA (opening damage stays bounded)", () => {
+  // Losing a pile of lives in the first three waves isn't difficulty — it's an
+  // unfair opening, because starting gold (not skill) decides it. Cap it.
+  const MAX_OPENING_DAMAGE = 5;
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function run(level, plan) {
+    const e = TD.createEngine(level, { seed: 7, difficulty: "normal" });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0, last = e.state.lives, per = [];
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        if (e.state.waveIdx > 0) { per.push(last - e.state.lives); last = e.state.lives; }
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    if (e.state.waveIdx > 0) per.push(last - e.state.lives);
+    return { phase: e.state.phase, lives: e.state.lives, per };
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  for (const lvl of DATA.LEVELS) {
+    const rs = PLANS.map((p) => run(lvl, p));
+    const wins = rs.filter((r) => r.phase === "won");
+    assert.ok(wins.length, `L${lvl.id} must stay winnable by a sensible build`);
+    // the friendlier of the two sensible builds defines the opening experience
+    const opening = Math.min(...wins.map((r) => r.per.slice(0, 3).reduce((a, b) => a + b, 0)));
+    assert.ok(opening <= MAX_OPENING_DAMAGE,
+      `L${lvl.id} "${lvl.name}" loses ${opening} lives in waves 1-3 — that's a starting-gold gotcha, not difficulty (max ${MAX_OPENING_DAMAGE}). Raise its startGold or soften the opening waves.`);
+  }
+});
+
+test("AUDIT boss tension: every boss FINALE must actually cost something", () => {
+  // The Vacuum King's whole kit (suck = inhale a SOLDIER) only threatened camp
+  // builds, so a tower-only board walked through the World-2 finale at 19/20
+  // lives — easier than L3. A boss finale must extract a real price from a
+  // sensible (non-optimal) build.
+  const MAX_BOSS_LEVEL_FINISH = 17;
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function run(level, plan) {
+    const e = TD.createEngine(level, { seed: 7, difficulty: "normal" });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state;
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  for (const lvl of DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss))) {
+    const rs = PLANS.map((p) => run(lvl, p));
+    const wins = rs.filter((r) => r.phase === "won");
+    assert.ok(wins.length, `boss level L${lvl.id} must stay winnable`);
+    const bestLives = Math.max(...wins.map((r) => r.lives));
+    assert.ok(bestLives <= MAX_BOSS_LEVEL_FINISH,
+      `L${lvl.id} "${lvl.name}" finishes at ${bestLives}/20 lives — its boss finale is a formality (expect ≤${MAX_BOSS_LEVEL_FINISH}).`);
+  }
+  // Lock the specific root cause that was fixed: the Vacuum King's only ability
+  // (suck = inhale a SOLDIER) made it invisible to a tower-only build. It now
+  // also jams a gun under half hp. NOTE: the Bed Monster is deliberately allowed
+  // a soldier-only kit — it earns its finale as a raw DPS check (it reaches the
+  // exit against a naive build), which the simulation above is what proves. The
+  // sim, not a data shape, is the real guardrail here.
+  const vk = DATA.ENEMIES.vacuumking;
+  assert.ok(vk.phases && vk.phases.some((p) => p.disable),
+    "the Vacuum King must keep a tower-facing threat (a jam phase) — without it a tower-only build is immune to its whole kit and the World-2 finale costs nothing");
+});
