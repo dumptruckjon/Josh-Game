@@ -701,3 +701,44 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
   const tdr = read("scripts/td-render.js");
   assert.match(tdr, /RULES\.leverCooldown \|\| 8/, "the lever cooldown ring reads the ONE RULES constant");
 });
+
+// RULE 7 — the fort reset has ONE owner. This closes the save-field-coverage
+// bug class documented twice already (`save.ach`, then `save.stars`): a reset
+// path that misses a newly-persisted field leaves it `undefined` and the next
+// win crashes on it. The grown-ups ⚙️ button and the __TD test hook must both
+// build the fresh save in the SAME place, and it must cover every field the
+// loader coerces at boot.
+test("guardrail: the fort reset has one owner, forces past the merge, and covers every persisted field", () => {
+  const tdm = read("scripts/td-main.js");
+  assert.match(tdm, /function freshSave\(/, "a single freshSave() factory builds the reset save");
+  assert.match(tdm, /function resetProgress\(/, "a single resetProgress() owns the wipe");
+  assert.match(tdm, /resetSave: \(\) => resetProgress\(\)/,
+    "the __TD test hook routes through the ONE owner (never its own literal, which would drift)");
+  assert.match(tdm, /resetFort: \(\) => \{/, "the fort home's grown-ups reset is wired to a hook");
+  assert.match(tdm, /resetProgress\(\{ keepPrefs: true, dropRun: true \}\)/,
+    "the grown-ups reset keeps preferences and drops any parked run");
+  // The reset MUST force: persist() otherwise folds the stored copy's monotonic
+  // fields (stars / ach / endlessBest) straight back in and the wipe is a no-op.
+  const body = tdm.slice(tdm.indexOf("function resetProgress("), tdm.indexOf("function resetProgress(") + 600);
+  assert.match(body, /persist\(save, \{ force: true \}\)/, "a deliberate reset skips the two-tab monotonic merge");
+  // Every field the boot loader coerces must appear in freshSave.
+  const fresh = tdm.slice(tdm.indexOf("function freshSave("), tdm.indexOf("function resetProgress("));
+  for (const field of ["stars", "settings", "difficulty", "meta", "ach", "endlessBest", "midRun"]) {
+    assert.ok(new RegExp("\\b" + field + ":").test(fresh), `freshSave() must reset save.${field}`);
+  }
+  for (const d of ["casual", "normal", "heroic"]) {
+    assert.ok(new RegExp(d + ": \\{\\}").test(fresh), `freshSave() must clear the ${d} star ladder`);
+  }
+  // The gate itself: only the exact word clears anything, and the dialog never
+  // touches storage — it calls the owner.
+  const tdu = read("scripts/td-ui.js");
+  assert.match(tdu, /UI\.showResetGate = function/, "the fort ships a type-the-word reset gate");
+  assert.match(tdu, /=== "reset"/, "only the exact word 'reset' confirms");
+  assert.ok(!/showResetGate[\s\S]{0,1200}localStorage/.test(tdu), "the reset dialog never writes storage itself");
+  assert.match(tdu, /class="td-reset-open" type="button" data-adult="1"/,
+    "the reset control is data-adult (small on purpose — the word gate is the lock, not the size)");
+  // ONE toast implementation, and it mounts on the screen that is actually visible.
+  assert.match(tdu, /UI\.notice = function/, "there is one toast implementation");
+  assert.match(tdu, /UI\.toast = function \(icon, name\) \{ return UI\.notice\(/, "the badge toast delegates to it");
+  assert.match(tdu, /\(play && !play\.hidden\) \? play :/, "a toast mounts on the VISIBLE screen (a fort-home toast must be seen)");
+});

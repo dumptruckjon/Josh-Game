@@ -58,6 +58,30 @@ body.td-mode #screens { padding: 0; }
 .td-level[data-world="toystore"] { border-color: #6a3c7a; background: #2a1a33; }
 .td-note { margin-top: 14px; color: #8ba2cc; font-size: 0.9rem; }
 
+/* ---- grown-ups: reset the fort (quiet, adult-only; the text gate is the lock) ---- */
+.td-reset-open {
+  display: block; margin: 18px auto 8px; padding: 8px 16px;
+  border: 1px solid #33456d; border-radius: 999px; background: #14203a;
+  color: #90a6cc; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.td-reset-open:active { transform: scale(0.97); }
+.td-reset__input {
+  width: 100%; min-height: 52px; box-sizing: border-box; padding: 0 12px;
+  font-size: 1.25rem; text-align: center; color: #eaf2ff; background: #0e1830;
+  border: 2px solid #3a548a; border-radius: 12px;
+}
+.td-reset__input:focus { outline: none; border-color: #7fb2ff; }
+.td-reset__err { color: #ff9db4; font-size: 0.92rem; font-weight: 700; }
+.td-reset__err[hidden] { display: none; }
+.td-bump { animation: td-bump 0.28s ease; }
+@keyframes td-bump {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-7px); }
+  75% { transform: translateX(7px); }
+}
+@media (prefers-reduced-motion: reduce) { .td-bump { animation: none; } }
+
 /* ---- play screen: one slim bar, the field owns the rest ---- */
 .td-bar--play { padding: 0 0 6px; gap: 8px; }
 .td-mini {

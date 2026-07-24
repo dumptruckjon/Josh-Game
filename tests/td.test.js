@@ -970,6 +970,89 @@ test("AUDIT: no pad hides under the floating CALL button (every map, both orient
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTHING else does", async () => {
+  // Seed a fully-populated save, then boot the fort from it, so the test proves
+  // the PERSISTED state is really cleared (not just the in-memory copy).
+  const SEEDED = {
+    v: 1,
+    stars: { casual: { 1: 3 }, normal: { 1: 3, 2: 3, 3: 2 }, heroic: { 1: 1 } },
+    settings: { sfx: false, music: true, dmgNumbers: true },
+    difficulty: "heroic",
+    meta: ["dartdmg"],
+    ach: ["firstblood"],
+    endlessBest: { bedroom: 12 },
+    midRun: { levelId: 2, waveIdx: 3, endless: false, gold: 100, lives: 18, towers: [], difficulty: "normal" },
+  };
+  await page.evaluate((s) => { localStorage.setItem("jon-td-save-v1", JSON.stringify(s)); }, SEEDED);
+  // A real RELOAD — goto(url + "#hash") is a same-document navigation, so the
+  // fort module would never re-read storage and the seed would be invisible.
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  // sanity: the seeded save really is in effect (unlocks + the Resume banner)
+  assert.ok(await page.locator(".td-resume").isVisible(), "the seeded mid-run shows a Resume banner");
+  const lockedBefore = await page.locator(".td-level--locked").count();
+  assert.ok(lockedBefore < 11, `seeded save unlocks levels (locked ${lockedBefore})`);
+
+  const btn = page.locator(".td-reset-open");
+  assert.equal(await btn.count(), 1, "the fort home carries a grown-ups reset control");
+  assert.ok(await page.evaluate(() => document.querySelector(".td-reset-open").dataset.adult === "1"),
+    "the reset control is data-adult (deliberately small — exempt from the kid ≥75px audit, gated by the word)");
+  await btn.click();
+  await page.locator(".td-overlay--reset").waitFor({ state: "visible" });
+
+  // The dialog must FIT at the narrowest device width (the documented class:
+  // a box that fits in headless Chromium still spilled on a real narrow phone).
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.waitForTimeout(60);
+  const fit = await page.evaluate(() => {
+    const b = document.querySelector(".td-overlay--reset .td-overlay__box").getBoundingClientRect();
+    let right = b.right, left = b.left;
+    for (const c of document.querySelectorAll(".td-overlay--reset .td-overlay__box *")) {
+      const r = c.getBoundingClientRect();
+      if (r.width) { right = Math.max(right, r.right); left = Math.min(left, r.left); }
+    }
+    return { left, right, w: window.innerWidth };
+  });
+  assert.ok(fit.left >= -1 && fit.right <= fit.w + 1, `reset dialog spills at 320px: ${fit.left}..${fit.right} of ${fit.w}`);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+
+  // A WRONG word must clear nothing and keep the dialog open.
+  await page.locator(".td-reset__input").fill("yes");
+  await page.locator(".td-reset-ok").click();
+  assert.equal(await page.locator(".td-overlay--reset").count(), 1, "a wrong word leaves the dialog open");
+  assert.ok(await page.locator(".td-reset__err").isVisible(), "a wrong word explains itself");
+  assert.deepEqual(
+    await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars),
+    SEEDED.stars, "a wrong word clears NOTHING");
+
+  // The exact word wipes progress but KEEPS preferences.
+  await page.locator(".td-reset__input").fill("Reset"); // case-insensitive, like Josh's gate
+  await page.locator(".td-reset-ok").click();
+  await page.waitForTimeout(80);
+  assert.equal(await page.locator(".td-overlay--reset").count(), 0, "the dialog closes on a real reset");
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")));
+  assert.deepEqual(after.stars, { casual: {}, normal: {}, heroic: {} }, "every difficulty ladder is cleared");
+  assert.deepEqual(after.meta, [], "the star tree is refunded to nothing");
+  assert.deepEqual(after.ach, [], "badges are cleared");
+  assert.deepEqual(after.endlessBest, {}, "endless bests are cleared");
+  assert.equal(after.midRun, null, "the saved run is discarded");
+  // preferences are NOT progress — they survive (the Josh-reset-keeps-mute rule)
+  assert.deepEqual(after.settings, SEEDED.settings, "sound/graphics settings survive the reset");
+  assert.equal(after.difficulty, "heroic", "the chosen difficulty chip survives the reset");
+  // …and the home re-renders immediately: re-locked grid, no Resume banner.
+  assert.equal(await page.locator(".td-level--locked").count(), 11, "the level grid re-locks at once");
+  assert.ok(!(await page.locator(".td-resume").isVisible()), "the Resume banner is gone at once");
+  // a reset save must be COMPLETE — the next win reads these and must not crash
+  for (const k of ["v", "stars", "settings", "difficulty", "meta", "ach", "endlessBest", "midRun"]) {
+    assert.ok(k in after, `the reset save keeps the full shape (missing ${k})`);
+  }
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

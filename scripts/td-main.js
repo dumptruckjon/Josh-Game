@@ -82,6 +82,43 @@
   if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
   if (!("midRun" in save)) save.midRun = null;     // TD-5 resume checkpoint
 
+  // ---- THE one owner of "wipe the fort" (RULE 7) ----
+  // Both the grown-ups ⚙️ Reset button and the __TD.resetSave test hook build the
+  // fresh save HERE, so a newly persisted field can never be cleared by one path
+  // and missed by the other (the documented save-field-coverage bug class: a
+  // reset that leaves a field `undefined` crashes the next win). `keepPrefs`
+  // preserves the player's SETTINGS + difficulty chip — those are preferences,
+  // not progress, exactly like Josh's reset preserving the mute toggle.
+  function freshSave(keepPrefs) {
+    const s = {
+      v: 1,
+      stars: { casual: {}, normal: {}, heroic: {} },
+      settings: { sfx: true, music: false, dmgNumbers: false },
+      difficulty: "normal",
+      meta: [],
+      ach: [],
+      endlessBest: {},
+      midRun: null,
+    };
+    if (keepPrefs) {
+      if (save && save.settings) s.settings = JSON.parse(JSON.stringify(save.settings));
+      if (save && save.difficulty && DATA.DIFFICULTIES[save.difficulty]) s.difficulty = save.difficulty;
+    }
+    return s;
+  }
+  // opts.keepPrefs — keep settings + difficulty chip (the grown-ups reset does).
+  // opts.dropRun   — also tear down a parked board (the grown-ups reset does, so
+  //                  a wiped fort can't be resumed into a stale run).
+  function resetProgress(opts) {
+    const o = opts || {};
+    save = freshSave(o.keepPrefs);
+    // force: a deliberate reset MUST skip the two-tab monotonic merge, or the
+    // stored copy's stars/badges/endless bests would fold straight back in.
+    persist(save, { force: true });
+    if (o.dropRun) { stopLoop(); cur = null; }
+    return true;
+  }
+
   // ---- TD-5 achievements: earn once, toast, persist (never on a cheated run) ----
   function earnAch(id) {
     if (!Array.isArray(save.ach)) save.ach = [];
@@ -650,6 +687,14 @@
     openTree: () => UI.showStarTree(save, (newMeta) => { save.meta = newMeta; persist(save); }),
     openAchievements: () => UI.showAchievements(save),
     openEndless: () => UI.showEndless(save, (world) => startEndless(world)),
+    // Grown-ups reset: wipe progress (keeping sound/graphics prefs + the
+    // difficulty chip), drop any parked run, then re-render the fort home so the
+    // grid re-locks, the star tree empties and the Resume banner disappears.
+    resetFort: () => {
+      resetProgress({ keepPrefs: true, dropRun: true });
+      JonTD.route("td-home");
+      UI.notice("⚙️", "<b>Fort reset</b><br>Everything starts over.");
+    },
   });
   doc.addEventListener("visibilitychange", () => { if (doc.hidden && cur) cur.paused = true; });
   global.addEventListener("resize", () => { if (cur) { cur.render.resize(); cur.render.draw(0); } });
@@ -675,7 +720,7 @@
     isRotated: () => (cur ? cur.render.isRotated() : false),
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
-    resetSave: () => { save = { v: 1, stars: { casual: {}, normal: {}, heroic: {} }, settings: { sfx: true }, difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null }; persist(save, { force: true }); return true; },
+    resetSave: () => resetProgress(), // the ONE owner — a new save field is covered here automatically
     // read-only test hooks (audit guardrails): the resume checkpoint, the live
     // achievement context, the earned-badge list, and a trigger for resume.
     midRun: () => (save.midRun ? JSON.parse(JSON.stringify(save.midRun)) : null),

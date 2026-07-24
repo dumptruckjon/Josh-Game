@@ -37,12 +37,18 @@
         '<button class="td-metabtn td-endless-open" type="button">♾️ Endless</button>' +
       "</div>" +
       '<div class="td-levels" role="list"></div>' +
-      '<p class="td-note">12 levels across 3 worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers) and three bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>';
+      '<p class="td-note">12 levels across 3 worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers) and three bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>' +
+      // Start-over control. Deliberately small and quiet (data-adult exempts it
+      // from the kid ≥75px audit) and behind a type-the-word gate, exactly like
+      // Josh's ⚙️ Grown-ups star reset — Josh reaches the fort from the front
+      // door, so an accidental wipe has to be impossible for little hands.
+      '<button class="td-reset-open" type="button" data-adult="1" aria-label="Reset all fort progress">⚙️ Reset fort</button>';
     screens.appendChild(home);
     home.querySelector(".td-exit").addEventListener("click", hooks.exitFort);
     home.querySelector(".td-tree-open").addEventListener("click", hooks.openTree);
     home.querySelector(".td-ach-open").addEventListener("click", hooks.openAchievements);
     home.querySelector(".td-endless-open").addEventListener("click", hooks.openEndless);
+    home.querySelector(".td-reset-open").addEventListener("click", () => UI.showResetGate(hooks.resetFort));
 
     // Play screen
     const play = doc.createElement("section");
@@ -193,6 +199,41 @@
     el.querySelector(".td-resume__x").addEventListener("click", onDiscard);
   };
 
+  // ---- Grown-ups: wipe the fort (a type-the-word gate, like Josh's ⭐ reset) ----
+  // Nothing but the exact word "reset" clears anything. onConfirm() is the ONE
+  // owner in td-main (resetProgress) — this dialog never touches storage itself.
+  UI.showResetGate = function (onConfirm) {
+    const el = metaOverlay("td-overlay--reset",
+      "<h3>⚙️ Start the fort over?</h3>" +
+      '<p class="td-overlay__sub">Clears <b>all</b> fort progress: level stars on every difficulty, the star tree, badges, endless bests and any saved run. Your sound &amp; graphics settings stay.</p>' +
+      '<p class="td-overlay__warn">Type <b>reset</b> to confirm.</p>' +
+      '<input class="td-reset__input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type the word reset" />' +
+      '<p class="td-reset__err" hidden>That’s not the word. Type <b>reset</b>.</p>' +
+      '<div class="td-overlay__row">' +
+        '<button class="td-btn td-reset-cancel" type="button">↩ Cancel</button>' +
+        '<button class="td-btn td-btn--danger td-reset-ok" type="button">Reset</button>' +
+      "</div>");
+    const input = el.querySelector(".td-reset__input");
+    const err = el.querySelector(".td-reset__err");
+    const box = el.querySelector(".td-overlay__box");
+    setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 30);
+    function submit() {
+      if (input.value.trim().toLowerCase() === "reset") {
+        UI.closeOverlay();
+        if (onConfirm) onConfirm();
+      } else {
+        err.hidden = false;
+        box.classList.remove("td-bump"); void box.offsetWidth; box.classList.add("td-bump");
+        try { input.select(); } catch (e) { /* ignore */ }
+      }
+    }
+    el.querySelector(".td-reset-ok").addEventListener("click", submit);
+    el.querySelector(".td-reset-cancel").addEventListener("click", UI.closeOverlay);
+    input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submit(); } });
+    el.addEventListener("click", (ev) => { if (ev.target === el) UI.closeOverlay(); }); // tap the dim area to cancel
+    return el;
+  };
+
   function metaOverlay(cls, html) {
     let el = doc.querySelector(".td-overlay");
     if (el) el.remove();
@@ -317,9 +358,13 @@
   };
 
   // Achievement toast — a brief celebratory slide-in (auto-dismiss).
-  UI.toast = function (icon, name) {
-    let host = doc.querySelector("#screen-td-play") || doc.getElementById("screen-td-home");
-    if (!host) return;
+  // ONE toast implementation. It mounts on the screen that is actually VISIBLE —
+  // a fort-home toast (e.g. the grown-ups reset) would be invisible if it always
+  // went to the hidden play screen.
+  UI.notice = function (icon, html) {
+    const play = doc.getElementById("screen-td-play"), fort = doc.getElementById("screen-td-home");
+    const host = (play && !play.hidden) ? play : ((fort && !fort.hidden) ? fort : (play || fort));
+    if (!host) return null;
     // A single win can earn several badges at once — cascade them up the screen
     // and give EACH its own removal timer, so an earlier toast is never orphaned
     // (a shared timer would only ever remove the newest, leaking the rest).
@@ -327,10 +372,12 @@
     const el = doc.createElement("div");
     el.className = "td-toast";
     if (stackIdx) el.style.bottom = "calc(24px + env(safe-area-inset-bottom) + " + (stackIdx * 64) + "px)";
-    el.innerHTML = '<span class="td-toast__icon">' + icon + '</span><span class="td-toast__txt"><b>Badge earned!</b><br>' + name + "</span>";
+    el.innerHTML = '<span class="td-toast__icon">' + icon + '</span><span class="td-toast__txt">' + html + "</span>";
     host.appendChild(el);
     setTimeout(() => { el.remove(); }, 2800);
+    return el;
   };
+  UI.toast = function (icon, name) { return UI.notice(icon, "<b>Badge earned!</b><br>" + name); };
 
   // ---- HUD + bubbles ----
   UI.hud = function (state) {

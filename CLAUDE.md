@@ -843,6 +843,25 @@ simply a different (valid) choice. Guardrails: `AUDIT threat shape` fails if a
 World-2/3 late wave loses its air pressure or if World 1 grows hawks, and
 `AUDIT heroic is a SLOPE` pins `speed === 1.0`, `startGold >= 0`,
 `hp > 1.2 && bounty < 1`, and every level winnable on heroic.
+**The fort's ⚙️ reset had to become the THIRD instance of the same law, so it
+shipped as a single owner from the start** — CLAUDE.md already documents two
+save-field-coverage crashes (`save.ach`, then `save.stars`) caused by a reset
+path that missed a newly-persisted field and left it `undefined`. Rather than
+add a second literal beside `__TD.resetSave`'s, the wipe is now ONE
+`freshSave()`/`resetProgress()` in `td-main.js` that the grown-ups button and
+the test hook both call, guardrail-locked by a `site.test.js` check that (a) the
+hook is literally `resetSave: () => resetProgress()`, (b) the reset passes
+`{force:true}` (without it `persist`'s monotonic merge folds the wiped
+stars/badges/endless-bests straight back in and the reset is a silent no-op),
+and (c) `freshSave()` mentions every field the boot loader coerces. Two smaller
+generalizations came with it: **a toast must mount on the screen that is
+actually VISIBLE** (`UI.toast` hard-coded `#screen-td-play`, so a fort-home
+toast would have been invisible — now one `UI.notice` picks the unhidden screen
+and the badge toast delegates to it); and the testing footgun that cost the
+first red run — **`page.goto(url + "#hash")` is a SAME-DOCUMENT navigation**, so
+a test that seeds `localStorage` and then "reloads" via a hash URL never
+re-runs module init and silently asserts against the OLD in-memory state (it
+looked like the seed was ignored). Seed → `page.reload()` → hop the hash.
 
 ---
 
@@ -858,7 +877,8 @@ tooling.
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
 ├── styles/
-│   └── main.css                # All styling (safe-area, static bg, ≥75px tap targets)
+│   ├── main.css                # Josh's + 华丽's styling (safe-area, static bg, ≥75px tap targets)
+│   └── td.css                  # 🏰 Fort Josh styling (adult-sized controls, canvas field, overlays)
 ├── scripts/
 │   ├── content.js              # ALL editable content/data (dual-export: window.JoshContent + module.exports). Edit here.
 │   ├── logic.js                # PURE, deterministic game logic (window.JoshLogic + module.exports) — unit-tested
@@ -1210,7 +1230,17 @@ Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
   invisible to the every-game harness and the kid mobile audit. Josh's book
   stays exactly 200, 华丽's 40.
 - **Storage is `jon-td-*` only** (`jon-td-save-v1`); never touches the kid star
-  flags, and Josh's grown-ups reset never touches the fort.
+  flags, and Josh's grown-ups reset never touches the fort. The fort has its OWN
+  **⚙️ Reset fort** on the fort home (a quiet `data-adult` button behind the same
+  type-the-word-`reset` gate as Josh's ⭐ reset, since Josh can reach the fort
+  from the front door). It wipes progress — all three star ladders, the star
+  tree, badges, endless bests and any saved run — and KEEPS preferences (sound /
+  music / damage numbers and the difficulty chip), mirroring Josh's reset
+  preserving the mute toggle. **`resetProgress()`/`freshSave()` in `td-main.js`
+  is the ONE owner**: the button and the `__TD.resetSave()` test hook both go
+  through it (a new persisted field can't be covered by one path and missed by
+  the other), and it passes `{force:true}` so the two-tab monotonic merge can't
+  fold the wiped stars/badges straight back in.
 - **Audio only via `JoshAudio.tone`** (the ONE iOS-safe path) + the global 🔇.
 - **The engine is deterministic**: 30Hz fixed timestep, seeded RNG only (the
   `Math.random`-free rule is guardrail-scanned), plain-JSON state. That's the
