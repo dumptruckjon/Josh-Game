@@ -811,6 +811,40 @@ test("AUDIT: a second fort tab can no longer clobber stars/achievements (monoton
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+
+test("AUDIT: no pad hides under the floating CALL button (every map, both orientations)", async () => {
+  // The CALL button floats over the field; an HTML button eats the tap, so a pad
+  // whose centre sits under it is UNBUILDABLE (L4's two end pads + endless
+  // backyard's corner pad were, in portrait; L7's corner pad in landscape).
+  for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(vp);
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.waitForTimeout(150);
+    const maps = [...Array.from({ length: 12 }, (_, i) => ({ id: i + 1 })), { endless: "bedroom" }, { endless: "backyard" }, { endless: "toystore" }];
+    for (const m of maps) {
+      const overlaps = await page.evaluate((mm) => {
+        if (mm.endless) window.__TD.startEndless(mm.endless); else window.__TD.newGame(mm.id, { seed: 7 });
+        const r = window.__TD.render(); r.resize(); r.draw(0);
+        const canvas = document.querySelector("#screen-td-play .td-canvas").getBoundingClientRect();
+        const call = document.querySelector("#screen-td-play .td-call");
+        if (!call || call.hidden) return [];
+        const b = call.getBoundingClientRect();
+        const out = [];
+        for (const p of window.__TD.engine().levelDef.pads) {
+          const sp = window.__TD.w2s(p.cx + 0.5, p.cy + 0.5);
+          const x = canvas.x + sp.x, y = canvas.y + sp.y;
+          if (x >= b.x - 4 && x <= b.x + b.width + 4 && y >= b.y - 4 && y <= b.y + b.height + 4) out.push(window.__TD.engine().levelDef.name + " " + p.id);
+        }
+        return out;
+      }, m);
+      assert.deepEqual(overlaps, [], `${vp.width}x${vp.height}: pads under the CALL button: ${overlaps.join(", ")}`);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

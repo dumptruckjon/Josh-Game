@@ -721,6 +721,18 @@ clears the hash so hl-main's hashchange sync re-runs; belt: the theme only paint
 for REAL hl screens). Meta-lesson: when the merge-on-persist fix landed, the
 respec/reset tests went red — a "monotonic" merge is only correct for fields
 that truly never decrease; enumerate which fields those ARE before merging.
+**A pad-placement audit of all 15 fort maps found two pads sitting ON the path
+(L5/L8 — enemies marched through the tower), five pairs in ADJACENT cells
+(sockets touching, 0.9-radius tap zones contending), and four pads whose screen
+position hid UNDER the floating CALL button** (an HTML button eats the tap, so
+those pads were unbuildable — two on L4 in portrait, one each on endless-backyard
+/L7). All eleven moved to clean cells (winnability re-simmed). Guardrails: a
+td-logic geometry test (every pad ≥0.99 cells from every lane centre, pairwise
+≥1.4, ≥1.9 from a lever) and a td browser test that walks all 15 maps × both
+orientations asserting no pad centre falls under the CALL rect. Lesson: authored
+coordinates need the same programmatic truth-check as authored waves — "the
+solver wins" never notices a pad the PLAYER can't tap or a tower standing in
+the road.
 
 ---
 

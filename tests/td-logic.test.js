@@ -1117,3 +1117,40 @@ test("TD7 lever advantage: sending the train the LONG way (more coverage) saves 
   assert.ok(longRun.everLong, "pulling actually routed enemies down the long lane");
   assert.ok(longRun.lives > shortRun.lives, `the long route saves lives (short-only ${shortRun.lives} → with-lever ${longRun.lives})`);
 });
+
+test("AUDIT pad geometry: no pad sits ON a lane, none crowd each other (every level + arena)", () => {
+  // Playability audit: L5 p10 and L8 p12 shipped sitting exactly ON the path
+  // (enemies marched through the tower) and five pad pairs sat in adjacent
+  // cells (sockets touching, 0.9-radius tap zones contending). Locked here:
+  // every pad keeps >= 0.99 cells from every lane centre (1.0 is the classic
+  // road-hugging placement) and >= 1.4 from every sibling pad.
+  function segDist(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+  }
+  function distToLane(px, py, lane) {
+    let best = Infinity;
+    for (let i = 1; i < lane.length; i++) best = Math.min(best, segDist(px, py, lane[i - 1][0] + 0.5, lane[i - 1][1] + 0.5, lane[i][0] + 0.5, lane[i][1] + 0.5));
+    return best;
+  }
+  const maps = DATA.LEVELS.map((l) => ({ name: "L" + l.id, lanes: l.paths || [l.path], pads: l.pads, lever: l.lever }));
+  for (const w in DATA.ENDLESS.arenas) maps.push({ name: "endless-" + w, lanes: [DATA.ENDLESS.arenas[w].path], pads: DATA.ENDLESS.arenas[w].pads });
+  for (const m of maps) {
+    for (const p of m.pads) {
+      const d = Math.min(...m.lanes.map((l) => distToLane(p.cx + 0.5, p.cy + 0.5, l)));
+      assert.ok(d >= 0.99, `${m.name} ${p.id}(${p.cx},${p.cy}) is ${d.toFixed(2)} from a lane centre — a pad must never sit on the road`);
+      if (m.lever) {
+        const dl = Math.hypot(p.cx - m.lever.cx, p.cy - m.lever.cy);
+        assert.ok(dl >= 1.9, `${m.name} ${p.id} is ${dl.toFixed(2)} from the lever — their tap zones (0.95 + 0.9) would contend`);
+      }
+    }
+    for (let i = 0; i < m.pads.length; i++) {
+      for (let j = i + 1; j < m.pads.length; j++) {
+        const a = m.pads[i], b = m.pads[j], d = Math.hypot(a.cx - b.cx, a.cy - b.cy);
+        assert.ok(d >= 1.4, `${m.name} ${a.id}(${a.cx},${a.cy}) & ${b.id}(${b.cx},${b.cy}) are ${d.toFixed(2)} apart — sockets touch and taps contend`);
+      }
+    }
+  }
+});
