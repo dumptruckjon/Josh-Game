@@ -1,66 +1,16 @@
 // Fort Josh: Toybox Defense — UI shell (TD-1).
-// Injects the 🏰 top-bar door, the "Jon" name gate (adult space, data-adult),
-// and builds the two fort screens (#screen-td-home, #screen-td-play) into the
-// page — the same dynamic-injection pattern as 华丽's world. All interaction
-// wiring lives here; the loop/save/routing glue lives in td-main.js (JonTD).
+// Builds the two fort screens (#screen-td-home, #screen-td-play) into the
+// page — the same dynamic-injection pattern as 华丽's world. The fort opens
+// from the front door's 🏰 tile (the old "Jon" name gate was removed by
+// request 2026-07); it remains an ADULT-designed space (data-adult controls,
+// real difficulty). All interaction wiring lives here; the loop/save/routing
+// glue lives in td-main.js (JonTD).
 
 (function (global) {
   const doc = global.document;
   if (!doc) return;
 
   const UI = {};
-
-  // ---- The 🏰 door (top bar, beside 👵🏻 and the sound toggle) ----
-  UI.injectDoor = function (onTap) {
-    const bar = doc.querySelector(".topbar");
-    if (!bar || doc.getElementById("td-door")) return;
-    const btn = doc.createElement("button");
-    btn.id = "td-door";
-    btn.className = "btn-round";
-    btn.type = "button";
-    btn.setAttribute("aria-label", "Fort");
-    btn.textContent = "🏰";
-    btn.addEventListener("click", onTap);
-    const sound = doc.getElementById("sound-toggle");
-    bar.insertBefore(btn, sound || null);
-  };
-
-  // ---- The name gate: ONLY the exact input "Jon" (trim + NFC) unlocks ----
-  UI.openGate = function (onUnlock) {
-    let overlay = doc.querySelector(".td-gate");
-    if (!overlay) {
-      overlay = doc.createElement("div");
-      overlay.className = "td-gate";
-      overlay.innerHTML =
-        '<div class="td-gate__box" role="dialog" aria-modal="true" data-adult="1" aria-label="Who goes there?">' +
-          '<p class="td-gate__msg">Who goes there? 🏰</p>' +
-          '<input class="td-gate__input" type="text" inputmode="text" autocomplete="off" ' +
-            'autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Who goes there?" />' +
-          '<p class="td-gate__err" hidden>The fort stays closed.</p>' +
-          '<div class="td-gate__row">' +
-            '<button class="td-gate__cancel" type="button">Back</button>' +
-            '<button class="td-gate__ok" type="button">Knock</button>' +
-          "</div>" +
-        "</div>";
-      doc.body.appendChild(overlay);
-      const input = overlay.querySelector(".td-gate__input");
-      const err = overlay.querySelector(".td-gate__err");
-      const tryOpen = () => {
-        const name = String(input.value || "").trim().normalize("NFC");
-        if (name === "Jon") { overlay.hidden = true; err.hidden = true; input.value = ""; overlay.__unlock(); }
-        else { err.hidden = false; input.select && input.select(); }
-      };
-      overlay.querySelector(".td-gate__ok").addEventListener("click", tryOpen);
-      input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") tryOpen(); });
-      overlay.querySelector(".td-gate__cancel").addEventListener("click", () => { overlay.hidden = true; });
-      overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.hidden = true; });
-    }
-    overlay.__unlock = onUnlock;
-    overlay.hidden = false;
-    overlay.querySelector(".td-gate__err").hidden = true;
-    overlay.querySelector(".td-gate__input").value = "";
-    setTimeout(() => { try { overlay.querySelector(".td-gate__input").focus(); } catch (e) { /* ignore */ } }, 30);
-  };
 
   // ---- Screens ----
   UI.buildScreens = function (hooks) {
@@ -74,7 +24,7 @@
     home.hidden = true;
     home.innerHTML =
       '<div class="td-bar">' +
-        '<button class="btn-round td-exit" type="button" aria-label="Back to Josh">🏠</button>' +
+        '<button class="btn-round td-exit" type="button" aria-label="Back to the front door">🏠</button>' +
         '<h2 class="td-title">🏰 Fort Josh</h2>' +
         '<span class="td-bar__pad" aria-hidden="true"></span>' +
       "</div>" +

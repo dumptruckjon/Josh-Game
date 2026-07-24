@@ -1,4 +1,5 @@
-// 华丽的游戏 — ALL editable content for Grandma Huali's hidden world. Every
+// 华丽的游戏 — ALL editable content for Grandma Huali's world (entered from
+// the front door's 👵🏻 tile — the old name gate was removed by request). Every
 // visible string is simplified Chinese (she reads fluently — text is first-class
 // here, the opposite of Josh's non-reader law). Cultural facts (poems, idioms,
 // zodiac order, festivals, measure words…) are restated as ground truth in
@@ -9,16 +10,6 @@
   const CONTENT = {
     TITLE: "华丽的游戏",
     GREETING: "华丽，你好！欢迎回来！",
-
-    // ---- The name gate (the door into her world) ----
-    GATE: {
-      question: "你叫什么名字？",
-      placeholder: "请输入名字",
-      answer: "华丽",
-      wrong: "不对哦，再试一次。",
-      ok: "确定",
-      cancel: "取消",
-    },
 
     // ---- Framework voice lines for zh games (mirrors PRAISE/TRYAGAIN) ----
     PRAISE: ["太棒了！", "真厉害！", "好极了！", "答对了！", "您真棒！"],

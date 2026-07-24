@@ -121,11 +121,20 @@ test("the viewport meta opts into safe areas", async () => {
   assert.match(content, /viewport-fit=cover/);
 });
 
+test("the front door: no overflow + three giant well-spaced world tiles at 390 and 320", async () => {
+  for (const w of [390, 320]) {
+    await page.setViewportSize({ width: w, height: 780 });
+    await showScreen(page, "#start", "#screen-start");
+    assert.equal(await page.locator(".start-tile").count(), 3, "three world tiles");
+    await noOverflow(page, `start@${w}`);
+    await auditActiveScreen(page, `start@${w}`);
+  }
+});
+
 test("home launcher: no overflow + big well-spaced tiles at 390 and 320", async () => {
   for (const w of [390, 320]) {
     await page.setViewportSize({ width: w, height: 780 });
-    await page.evaluate(() => { location.hash = ""; });
-    await page.locator("#screen-home").waitFor({ state: "visible" });
+    await showScreen(page, "#home", "#screen-home");
     await noOverflow(page, `home@${w}`);
     await auditActiveScreen(page, `home@${w}`);
   }
@@ -166,8 +175,7 @@ test("the Sticker Book: no overflow + >=75px well-spaced slots at 390 and 320", 
 test("the Buddy picker: no overflow + >=75px options at 390 and 320", async () => {
   for (const w of [390, 320]) {
     await page.setViewportSize({ width: w, height: 780 });
-    await page.evaluate(() => { location.hash = ""; });
-    await page.locator("#screen-home").waitFor({ state: "visible" });
+    await showScreen(page, "#home", "#screen-home");
     await page.locator(".buddy__pick").click();
     await page.locator(".buddyc").waitFor({ state: "visible" });
     await noOverflow(page, `buddyc@${w}`);
@@ -177,8 +185,7 @@ test("the Buddy picker: no overflow + >=75px options at 390 and 320", async () =
 });
 
 test("华丽's screens: home, all 7 categories and her sticker book pass the audit at 390 & 320", async () => {
-  // Her nav shells are session-gated; set the flag the way the gate would.
-  await page.evaluate(() => { sessionStorage.setItem("hl-ok", "1"); });
+  // Her nav shells open directly now (the name gate was removed by request).
   const cats = await page.evaluate(() =>
     (window.HualiContent ? window.HualiContent.CATEGORIES : []).map((c) => c.id));
   assert.equal(cats.length, 7, "expected her 7 categories");

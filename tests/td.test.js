@@ -1,7 +1,8 @@
-// Fort Josh TD — browser tests (Chromium): the gate, the guards, real build
-// taps, a scripted victory via the shipped __TD hooks (the real-time test
-// contract), defeat, pause/speed, kid-world isolation, and mobile-size sanity.
-// Works against JOSH_BASE_URL too (verify-live) — it sets its own td-ok flag.
+// Fort Josh TD — browser tests (Chromium): the front-door entry (no gate —
+// removed by request 2026-07), real build taps, a scripted victory via the
+// shipped __TD hooks (the real-time test contract), defeat, pause/speed,
+// kid-world isolation, and mobile-size sanity. Works against JOSH_BASE_URL
+// too (verify-live).
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
@@ -24,27 +25,17 @@ after(async () => {
   if (server) await new Promise((r) => server.close(r));
 });
 
-test("the 🏰 door exists in the top bar beside the other doors", async () => {
-  assert.equal(await page.locator(".topbar #td-door").count(), 1, "td-door in the topbar");
-  assert.equal(await page.locator(".topbar #hl-door").count(), 1, "华丽's door still there");
-  const box = await page.locator("#td-door").boundingBox();
-  assert.ok(box && box.width >= 44 && box.height >= 44, "door is comfortably tappable");
-});
-
-test("the gate rejects every name except exactly 'Jon' (trimmed)", async () => {
-  await page.locator("#td-door").click();
-  await page.locator(".td-gate").waitFor({ state: "visible" });
-  assert.ok(await page.locator('.td-gate__box[data-adult]').count() === 1, "the gate is an adult space");
-  for (const wrong of ["Josh", "jon", "JON", "Jon!", "华丽", "dad"]) {
-    await page.locator(".td-gate__input").fill(wrong);
-    await page.locator(".td-gate__ok").click();
-    assert.ok(await page.locator(".td-gate__err").isVisible(), `"${wrong}" must be rejected`);
-    assert.equal(await page.evaluate(() => sessionStorage.getItem("td-ok")), null, `"${wrong}" must NOT unlock`);
-  }
-  await page.locator(".td-gate__input").fill("  Jon  "); // whitespace is forgiven; the name is exact
-  await page.locator(".td-gate__ok").click();
+test("the front door's 🏰 tile opens the fort DIRECTLY (the name gate is gone)", async () => {
+  // By request (2026-07): no more "Jon" gate — the start page's castle tile
+  // navigates straight to the fort home.
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  const tile = page.locator("#start-td");
+  const box = await tile.boundingBox();
+  assert.ok(box && box.width >= 75 && box.height >= 75, "the castle tile is a giant tap target");
+  await tile.click();
   await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
-  assert.equal(await page.evaluate(() => sessionStorage.getItem("td-ok")), "1", "Jon unlocks");
+  assert.equal(await page.locator(".td-gate").count(), 0, "no name gate exists any more");
   assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "fort theme on");
 });
 
@@ -64,16 +55,19 @@ test("fort home shows L1 open and every later level locked on a fresh save", asy
   assert.ok(box && box.height >= 56, "level card is adult-tappable");
 });
 
-test("guards: without the session flag every td-* route bounces to Josh's home", async () => {
+test("routes: #td-home deep-links directly; an unknown td-* hash falls back to the front door", async () => {
   // (hash-hop: we're already ON #td-home, and re-setting the same hash fires no
-  // hashchange — the openGame-renav lesson. Leave, drop the flag, come back.)
+  // hashchange — the openGame-renav lesson. Leave, then deep-link back.)
   await page.evaluate(() => { location.hash = "#__renav"; });
   await page.waitForTimeout(100);
-  await page.evaluate(() => { sessionStorage.removeItem("td-ok"); location.hash = "#td-home"; });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "a plain deep link opens the fort");
+  // An unknown td-* hash must clear to the front door with the theme dropped.
+  await page.evaluate(() => { location.hash = "#td-nonsense"; });
   await page.waitForFunction(() => location.hash === "", null, { timeout: 8000 });
-  await page.locator("#screen-home").waitFor({ state: "visible" });
-  assert.ok(!(await page.evaluate(() => document.body.classList.contains("td-mode"))), "theme off when locked out");
-  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); }); // re-unlock for the rest
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  assert.ok(!(await page.evaluate(() => document.body.classList.contains("td-mode"))), "theme off on the front door");
 });
 
 test("play flow: enter L1, tap a pad, build a Dart with a real tap", async () => {
@@ -337,10 +331,10 @@ test("fort daily-drive guardrails: topbar restore, pause-while-away, chaos taps,
   await page.evaluate(() => { window.__TD.newGame(1, { seed: 9 }); window.__TD.script([["call"], ["tick", 100]]); });
   const midTick = await page.evaluate(() => window.__TD.state().tick);
 
-  // leaving the fort restores Josh's topbar and pauses the battle
+  // leaving the fort restores the kid topbar and pauses the battle
   await page.evaluate(() => { location.hash = ""; });
-  await page.locator("#screen-home").waitFor({ state: "visible" });
-  assert.ok(await page.locator(".topbar").isVisible(), "Josh's topbar returns when the fort is left");
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  assert.ok(await page.locator(".topbar").isVisible(), "the kid topbar returns when the fort is left");
   assert.ok(await page.evaluate(() => !document.body.classList.contains("td-mode")), "td-mode clears on exit");
   await page.waitForTimeout(350);
   const away = await page.evaluate(() => window.__TD.state().tick);
@@ -372,7 +366,7 @@ test("fort daily-drive guardrails: topbar restore, pause-while-away, chaos taps,
   // the save survives a full reload
   const starsBefore = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {})["1"] || 0);
   await page.reload({ waitUntil: "load" });
-  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-home"; });
+  await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
   const starsAfter = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").stars || {})["1"] || 0);
   assert.equal(starsAfter, starsBefore, "jon-td-save-v1 survives a reload intact");
@@ -381,7 +375,7 @@ test("fort daily-drive guardrails: topbar restore, pause-while-away, chaos taps,
 test("AUDIT UI: difficulty selection wires to the engine; panel stats, build roles & wave preview render", async () => {
   // Difficulty selector on the fort home — the engine supports casual/normal/
   // heroic; the choice must actually reach createEngine.
-  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#__renav"; });
+  await page.evaluate(() => { location.hash = "#__renav"; });
   await page.waitForTimeout(80);
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
@@ -428,7 +422,7 @@ test("AUDIT UI: difficulty selection wires to the engine; panel stats, build rol
 });
 
 test("AUDIT UX: 🏠 mid-level asks before leaving — Keep playing stays, Leave quits (no lost progress by accident)", async () => {
-  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-play"; });
+  await page.evaluate(() => { location.hash = "#td-play"; });
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
   await page.evaluate(() => { window.__TD.newGame(1, { seed: 7 }); window.__TD.script([["call"]]); }); // into a live wave
   await page.waitForTimeout(60);
@@ -486,13 +480,12 @@ test("kid-world isolation: the registry, home grid and 华丽 are untouched by t
   }));
   assert.equal(reg.total, 240, "registry still exactly 240 (200 Josh + 40 华丽)");
   assert.equal(reg.tdLeaks, 0, "no fort entries leak into the kid registry");
-  await page.evaluate(() => { location.hash = ""; });
+  await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
   assert.ok(!(await page.evaluate(() => document.body.classList.contains("td-mode"))), "Josh's home is never fort-themed");
 });
 
 test("mobile sanity: fort screens fit EVERY device — no horizontal overflow, no vertical scroll on the field", async () => {
-  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); });
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     for (const hash of ["#td-home", "#td-play"]) {
@@ -544,7 +537,7 @@ test("TD5 star tree: buying a node persists to save.meta and feeds the next run;
   });
   await page.waitForTimeout(50);
   await page.reload({ waitUntil: "load" }); // reload so the fort re-reads the seeded save
-  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-home"; });
+  await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.locator(".td-tree-open").click();
   await page.locator(".td-tree").waitFor({ state: "visible" });
@@ -591,7 +584,7 @@ test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores th
     localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
   });
   await page.reload({ waitUntil: "load" }); // reload so the fort re-reads the seeded midRun
-  await page.evaluate(() => { sessionStorage.setItem("td-ok", "1"); location.hash = "#td-home"; });
+  await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   assert.ok(await page.locator(".td-resume:not([hidden])").count() === 1, "the resume banner shows when a checkpoint exists");
   await page.locator(".td-resume__go").click();
@@ -656,7 +649,6 @@ test("AUDIT: a legacy/corrupt save with no `stars` field survives the first win 
   // A stored v:1 save missing `stars` used to throw `undefined['1']` in phaseWatch
   // on the first victory — the win was lost and the frame died. Boot now coerces it.
   await page.evaluate(() => {
-    sessionStorage.setItem("td-ok", "1");
     localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1, settings: { sfx: true } })); // NO stars key
   });
   await page.reload({ waitUntil: "load" });                 // force td-main to re-read the bad save

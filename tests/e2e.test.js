@@ -71,6 +71,34 @@ async function openGame(id) {
   await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 8000 });
 }
 
+test("the front door: boot lands on 3 world tiles; each opens its world DIRECTLY (no gates)", async () => {
+  // By request (2026-07): the app opens on a start page — Josh's portrait tile,
+  // 华丽's 👵🏻 tile, and the 🏰 fort tile — and the old name gates are GONE.
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  assert.equal(await page.locator("#start-josh .start-tile__art svg").count(), 1, "the Josh tile wears his JoshArt portrait");
+  assert.equal(await page.locator(".hl-gate, .td-gate").count(), 0, "no name-gate overlay exists anywhere");
+  // 👵🏻 → her world directly (red-gold theme on), and her 🏠 returns to the door.
+  await page.locator("#start-hl").click();
+  await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 15000 });
+  assert.ok(await page.evaluate(() => document.body.classList.contains("hl-mode")), "her world turns red-gold");
+  await page.locator("#screen-hl-home .game__home").click();
+  await page.locator("#screen-start").waitFor({ state: "visible", timeout: 15000 });
+  assert.ok(!(await page.evaluate(() => document.body.classList.contains("hl-mode"))), "leaving her world drops the theme");
+  // 🏰 → the fort directly, and the fort's exit returns to the door.
+  await page.locator("#start-td").click();
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 15000 });
+  assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "the fort theme turns on");
+  await page.locator("#screen-td-home .td-exit").click();
+  await page.locator("#screen-start").waitFor({ state: "visible", timeout: 15000 });
+  assert.ok(!(await page.evaluate(() => document.body.classList.contains("td-mode"))), "leaving the fort drops the theme");
+  // Josh's portrait → his launcher, and his 🚪 returns to the door.
+  await page.locator("#start-josh").click();
+  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 15000 });
+  await page.locator("#home-door").click();
+  await page.locator("#screen-start").waitFor({ state: "visible", timeout: 15000 });
+});
+
 test("the registry has several games and every one has a home tile", async () => {
   const ids = await gameIds();
   assert.ok(ids.length >= 4, `expected several games, got ${ids.length}`);
@@ -80,7 +108,7 @@ test("the registry has several games and every one has a home tile", async () =>
 });
 
 test("home → category → game navigation works", async () => {
-  await page.evaluate(() => { location.hash = ""; });
+  await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
   const catTile = page.locator(".tile--cat").first();
   const catId = await catTile.getAttribute("data-cat");
@@ -110,7 +138,7 @@ test("the category back button returns to the home menu", async () => {
 });
 
 test("the Surprise tile jumps to a game", async () => {
-  await page.evaluate(() => { location.hash = ""; });
+  await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
   // (scoped to Josh's home — 华丽's hidden home has its own Surprise tile)
   await page.locator("#screen-home .tile--surprise").click();
@@ -167,7 +195,7 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
 
 test("beating games marks them with a ⭐ on the launcher", async () => {
   // The previous test won every win-game; each should now carry a badge.
-  await page.evaluate(() => { location.hash = ""; });
+  await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
   const badges = await page.locator(".tile__badge").count();
   assert.ok(badges >= 3, `expected several beaten-game star badges, got ${badges}`);
@@ -175,7 +203,7 @@ test("beating games marks them with a ⭐ on the launcher", async () => {
 
 test("the Sticker Book has one slot per game and fills the ones Josh has won", async () => {
   // The every-game test above won every win-game, so the book should be full.
-  await page.evaluate(() => { location.hash = ""; });
+  await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
 
   // artFor must be deterministic and produce a real <svg> sticker.
@@ -214,7 +242,7 @@ test("the Sticker Book has one slot per game and fills the ones Josh has won", a
 test("grown-ups gate: only the word 'reset' clears the ⭐ badges", async () => {
   // The previous test won games, so badges exist now. The gate must reject
   // everything except the word "reset" (any case) and clear the badges + flags.
-  await page.evaluate(() => { location.hash = ""; });
+  await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
   const before = await page.locator(".tile__badge").count();
   assert.ok(before >= 1, `expected badges to reset, got ${before}`);
@@ -413,7 +441,7 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   assert.equal(new Set(ids).size, ids.length, "buddy ids are unique");
 
   // The home screen shows a companion; open the picker and choose a NON-default one.
-  await page.evaluate(() => { location.hash = ""; });
+  await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
   await page.locator(".buddy__pick").click();
   await page.locator(".buddyc").waitFor({ state: "visible" });
@@ -624,34 +652,16 @@ test("toddler chaos guardrail: hammer double-taps can't double-celebrate, soft-l
   }
 });
 
-// ================= 华丽的世界 (the hidden grandma world) =================
+// ================= 华丽的世界 (grandma's world) =================
 
-test("华丽 door: the 👵🏻 button sits in the top bar and opens the Chinese name gate", async () => {
-  await page.evaluate(() => { location.hash = ""; sessionStorage.removeItem("hl-ok"); });
-  await page.locator("#screen-home").waitFor({ state: "visible" });
-  const door = page.locator("#hl-door");
-  assert.ok(await door.isVisible(), "the 👵🏻 door must be visible in the top bar");
-  assert.ok(await page.locator(".topbar #hl-door").count() === 1, "the door lives in the top bar");
-  await door.click();
-  await page.locator(".hl-gate").waitFor({ state: "visible" });
-  const q = await page.locator(".hl-gate__msg").textContent();
-  assert.equal(q, "你叫什么名字？", "the gate asks her name in simplified Chinese");
-});
-
-test("华丽 gate: every wrong name is rejected; only 华丽 unlocks", async () => {
-  // (Continues with the gate open from the previous test.)
-  for (const wrong of ["Josh", "华华", "丽华", " 华丽x", "grandma"]) {
-    await page.locator(".hl-gate__input").fill(wrong);
-    await page.locator(".hl-gate__ok").click();
-    assert.ok(await page.locator(".hl-gate__err").isVisible(), `"${wrong}" must show the try-again error`);
-    assert.equal(await page.evaluate(() => sessionStorage.getItem("hl-ok")), null, `"${wrong}" must NOT unlock`);
-    assert.equal(await page.evaluate(() => location.hash), "", `"${wrong}" must not navigate`);
-  }
-  // The exact name (whitespace-trimmed) passes.
-  await page.locator(".hl-gate__input").fill(" 华丽 ");
-  await page.locator(".hl-gate__ok").click();
+test("华丽 entry: her world opens directly from the front door — no gate, greeted by name", async () => {
+  // The old Chinese name gate was removed by request (2026-07): the 👵🏻 tile
+  // (and a plain #hl-home deep link) opens her red-gold world immediately.
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  await page.locator("#start-hl").click();
   await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 15000 });
-  assert.equal(await page.evaluate(() => sessionStorage.getItem("hl-ok")), "1", "the right name unlocks the session");
+  assert.equal(await page.locator(".hl-gate").count(), 0, "no name gate exists any more");
   assert.ok(await page.evaluate(() => document.body.classList.contains("hl-mode")), "her world turns on the red-gold theme");
   const hello = await page.locator(".hl-hello").textContent();
   assert.ok(hello.includes("华丽"), "the home screen greets her by name");
@@ -723,13 +733,19 @@ test("华丽 sticker book: one slot per hl game, filled by the wins, meter at 40
   await page.locator(`#screen-${gid}`).waitFor({ state: "visible", timeout: 15000 });
 });
 
-test("华丽 nav guard: without the session flag, her home bounces back to Josh's", async () => {
-  await page.evaluate(() => { sessionStorage.removeItem("hl-ok"); location.hash = "#hl-home"; });
+test("华丽 nav: her home is openly deep-linkable, and a junk hash lands on the front door", async () => {
+  // No gate: a plain #hl-home deep link opens her world (grandma can bookmark
+  // it). A junk #hl-* hash must still clear to the front door WITHOUT painting
+  // the red-gold theme over it (the junk-hash theme lesson).
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(50);
+  await page.evaluate(() => { location.hash = "#hl-home"; });
+  await page.locator("#screen-hl-home").waitFor({ state: "visible", timeout: 15000 });
+  assert.ok(await page.evaluate(() => document.body.classList.contains("hl-mode")), "deep-linked hl-home paints her theme");
+  await page.evaluate(() => { location.hash = "#hl-nonexistent"; });
   await page.waitForFunction(() => location.hash === "", null, { timeout: 15000 });
-  await page.locator("#screen-home").waitFor({ state: "visible", timeout: 15000 });
-  assert.ok(await page.locator("#screen-home").isVisible(), "locked deep links land on Josh's home");
-  // Re-unlock for any later tests (session flag only — the gate itself is proven above).
-  await page.evaluate(() => { sessionStorage.setItem("hl-ok", "1"); });
+  await page.locator("#screen-start").waitFor({ state: "visible", timeout: 15000 });
+  assert.ok(!(await page.evaluate(() => document.body.classList.contains("hl-mode"))), "a junk hl-* hash never leaves the theme painted");
 });
 
 
@@ -761,7 +777,7 @@ test("AUDIT: a navigated-away game falls SILENT and stops advancing (api.later +
   await page.waitForTimeout(400);
   const before = await page.evaluate(() => document.querySelector("#screen-duck-add .game__prompt-text, #screen-duck-add .game__prompt")?.textContent || "");
   await page.locator('#screen-duck-add [data-correct]').first().click();
-  await page.evaluate(() => { location.hash = ""; }); // hop home mid-defer
+  await page.evaluate(() => { location.hash = "#home"; }); // hop home mid-defer
   await page.locator("#screen-home").waitFor({ state: "visible", timeout: 15000 });
   await page.waitForTimeout(1300); // past the 900ms deferred newRound
   const after = await page.evaluate(() => document.querySelector("#screen-duck-add .game__prompt-text, #screen-duck-add .game__prompt")?.textContent || "");

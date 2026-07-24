@@ -25,9 +25,32 @@
   </header>
 
   <main id="screens">
-    <!-- Home launcher: a grid of big game tiles (icons carry the meaning). -->
-    <section id="screen-home" class="screen home">
-      <h1 class="home__title">Pick a game! 👇</h1>
+    <!-- The front door: the app opens here — three big tiles, one per world.
+         No name gates: each tile navigates straight to its world. -->
+    <section id="screen-start" class="screen start">
+      <h1 class="start__title">Who's playing? 👇</h1>
+      <div class="start-grid" role="list" aria-label="Choose your world">
+        <button id="start-josh" class="start-tile start-tile--josh tap" type="button" role="listitem" aria-label="Josh's games">
+          <span class="start-tile__art art-fill" aria-hidden="true"></span>
+          <span class="start-tile__label">Josh's Games</span>
+        </button>
+        <button id="start-hl" class="start-tile start-tile--hl tap" type="button" role="listitem" aria-label="华丽的游戏">
+          <span class="start-tile__icon" aria-hidden="true">👵🏻</span>
+          <span class="start-tile__label">华丽的游戏</span>
+        </button>
+        <button id="start-td" class="start-tile start-tile--td tap" type="button" role="listitem" aria-label="Fort Josh: Toybox Defense">
+          <span class="start-tile__icon" aria-hidden="true">🏰</span>
+          <span class="start-tile__label">Fort Josh</span>
+        </button>
+      </div>
+    </section>
+    <!-- Josh's launcher: a grid of big game tiles (icons carry the meaning). -->
+    <section id="screen-home" class="screen home" hidden>
+      <div class="game__bar">
+        <button id="home-door" class="btn-round game__home" type="button" aria-label="Back to the front door">🚪</button>
+        <h1 class="game__title home__title">Pick a game! 👇</h1>
+        <span aria-hidden="true"></span>
+      </div>
       <div id="home-grid" class="home-grid" role="list" aria-label="Games"></div>
     </section>
     <!-- Game screens are injected here by scripts/main.js from the registry. -->

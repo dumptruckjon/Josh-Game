@@ -49,7 +49,7 @@ test("service worker precaches every script + css + index", () => {
 });
 
 test("guardrail: Fort Josh (TD) is wired in AND fully isolated from the kid worlds", () => {
-  // Jon's gated tower-defense world (PLAN_TOWER_DEFENSE.md). The isolation
+  // Jon's tower-defense world (PLAN_TOWER_DEFENSE.md). The isolation
   // invariants are load-bearing: the fort must never leak into Josh's or 华丽's
   // spaces — no registry entry (so the every-game harness, launcher, Surprise,
   // Sticker Book and kid audits never see it), its own storage namespace, and
@@ -68,15 +68,19 @@ test("guardrail: Fort Josh (TD) is wired in AND fully isolated from the kid worl
       assert.ok(/["']jon-td-/.test(call), f + " localStorage keys must be jon-td-* namespaced, got: " + call);
     }
   }
+  // The old "Jon" name gate is GONE by request (2026-07): the fort opens
+  // directly from the front door's 🏰 tile. Lock the removal so the gate (and
+  // its dead session flag) can't quietly return.
   const ui = read("scripts/td-ui.js");
-  assert.ok(/td-door/.test(ui) && /\.topbar/.test(ui), "the 🏰 door injects into the top bar");
-  assert.match(ui, /td-gate__box[^>]*data-adult/, "the name gate is an adult space (data-adult, kid-audit exempt)");
-  assert.match(ui, /=== "Jon"/, "ONLY the exact name Jon unlocks the fort");
+  assert.ok(!/td-gate/.test(ui), "the fort name gate is removed — the 🏰 start tile opens the fort directly");
+  assert.ok(!/injectDoor/.test(ui), "the old top-bar 🏰 door is removed (the front door replaced it)");
+  const tdmSrc = read("scripts/td-main.js");
+  assert.ok(!/td-ok/.test(tdmSrc), "no td-ok session flag remains anywhere in the fort glue");
   const logic = read("scripts/td-logic.js");
   assert.match(logic, /module\.exports/, "td-logic dual-exports for node sims");
   assert.ok(!/Math\.random/.test(logic), "the ENGINE must be seeded-RNG only (determinism law)");
   assert.match(read("scripts/td-data.js"), /module\.exports/, "td-data dual-exports for node truth tests");
-  assert.match(read("scripts/main.js"), /td-/, "main.js routes td-* hashes through the guarded JonTD.route");
+  assert.match(read("scripts/main.js"), /td-/, "main.js routes td-* hashes through JonTD.route (try/catch-isolated)");
 });
 
 test("guardrail: deep-audit fixes stay wired (hidden-immune AoE, per-toast timer, leave-play cleanup)", () => {
@@ -399,15 +403,25 @@ test("guardrail: Look From Above's top-down map stays aligned with the isometric
 });
 
 // ---------- 华丽 (the hidden grandma world) guardrails ----------
-test("华丽: the gate accepts EXACTLY 华丽 (trimmed + NFC), session-scoped", () => {
+test("the front door: three world tiles open Josh's / 华丽's / the fort DIRECTLY (no gates)", () => {
+  // By request (2026-07) the name gates are gone: the app opens on a start page
+  // whose three tiles navigate straight to each world. Lock both halves — the
+  // start page exists AND no gate machinery remains to re-lock a world.
+  const html = read("index.html");
+  assert.match(html, /id="screen-start"/, "index.html carries the front-door screen");
+  for (const tile of ["start-josh", "start-hl", "start-td"]) {
+    assert.ok(html.includes('id="' + tile + '"'), "the front door has the " + tile + " tile");
+  }
+  assert.match(html, /id="home-door"/, "Josh's home carries the 🚪 back-to-front-door button");
+  const mainjs = read("scripts/main.js");
+  assert.match(mainjs, /wire\("start-josh", "#home"\)/, "the Josh tile opens his launcher");
+  assert.match(mainjs, /wire\("start-hl", "#hl-home"\)/, "the 👵🏻 tile opens her world directly");
+  assert.match(mainjs, /wire\("start-td", "#td-home"\)/, "the 🏰 tile opens the fort directly");
   const hm = read("scripts/hl-main.js");
-  assert.ok(/normalize\("NFC"\)/.test(hm), "the gate must NFC-normalize input (composed vs decomposed forms)");
-  assert.ok(/v === HL\.GATE\.answer/.test(hm), "the gate must compare EXACT equality against the one answer");
-  assert.ok(/sessionStorage/.test(hm), "the unlock flag must be session-scoped (a new visit asks again)");
-  assert.ok(/insertBefore\(door, sound\)/.test(hm), "the 👵🏻 door must sit BEFORE the sound toggle in the top bar");
-  assert.ok(/data-adult/.test(hm), "her name gate is adult-sized — it must be exempted from the kid tap audit");
+  assert.ok(!/hl-ok/.test(hm) && !/sessionStorage/.test(hm), "no hl-ok session flag / gate remains in her shell");
+  assert.ok(!/hl-gate/.test(hm) && !/hl-door/.test(hm), "her name gate + top-bar door are removed");
   const HLC = require("../scripts/hl-content.js");
-  assert.equal(HLC.GATE.answer, "华丽");
+  assert.equal(HLC.GATE, undefined, "the gate strings are gone from her content");
 });
 
 test("华丽: every hidden game registers through reg() with hl/zh flags and an hl- id", () => {

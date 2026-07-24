@@ -91,10 +91,34 @@
   let refreshStickers = null;
 
   document.addEventListener("DOMContentLoaded", () => {
-    for (const init of [initSound, initLauncher, initParentGate, initBuddy]) {
+    for (const init of [initSound, initStart, initLauncher, initParentGate, initBuddy]) {
       try { init(); } catch (e) { console.error("Josh: init failed:", e); }
     }
   });
+
+  // ---- The front door (#screen-start): three tiles, one per world ----
+  // The app opens here. Each tile navigates DIRECTLY to its world — no name
+  // gates (removed by request 2026-07): Josh's 200 games, 华丽's 40, the fort.
+  function initStart() {
+    const screen = document.getElementById("screen-start");
+    if (!screen) return;
+    // Josh's tile wears his real portrait — the same JoshArt.friend the games use.
+    const face = screen.querySelector("#start-josh .start-tile__art");
+    if (face) {
+      const josh = (C.FRIENDS || []).find((f) => f.name === "Josh") || {};
+      let art = "";
+      try { art = window.JoshArt && window.JoshArt.friend ? window.JoshArt.friend(josh.art || {}) : ""; } catch (e) { art = ""; }
+      if (art) face.innerHTML = art; else face.textContent = josh.emoji || "🧒";
+    }
+    const wire = (id, hash) => {
+      const b = document.getElementById(id);
+      if (b) b.addEventListener("click", () => { location.hash = hash; });
+    };
+    wire("start-josh", "#home");
+    wire("start-hl", "#hl-home");
+    wire("start-td", "#td-home");
+    wire("home-door", ""); // 🚪 on Josh's home returns to the front door
+  }
 
   // Mount Josh's buddy companion on the home screen (above the game grid).
   function initBuddy() {
@@ -313,7 +337,7 @@
       back.type = "button";
       back.setAttribute("aria-label", "Home");
       back.textContent = "🏠";
-      back.addEventListener("click", () => { location.hash = ""; });
+      back.addEventListener("click", () => { location.hash = "#home"; });
       const title = document.createElement("h2");
       title.className = "game__title";
       title.textContent = cat.icon + " " + cat.title;
@@ -366,7 +390,7 @@
     back.type = "button";
     back.setAttribute("aria-label", "Home");
     back.textContent = "🏠";
-    back.addEventListener("click", () => { location.hash = ""; });
+    back.addEventListener("click", () => { location.hash = "#home"; });
     const title = document.createElement("h2");
     title.className = "game__title";
     title.textContent = "📖 My Stickers";
@@ -437,9 +461,11 @@
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
     document.querySelectorAll(".screen").forEach((s) => { s.hidden = true; });
 
-    // 🏰 Jon's fort (hidden adult world). Every td-* route is guarded inside
-    // JonTD.route (session flag) — locked or unknown falls through to Josh's
-    // home. Leaving the fort pauses its game loop and drops the theme.
+    // 🏰 the fort (Dad's TD world, opened from the front door — no gate).
+    // JonTD.route handles every known td-* hash; an unknown one falls through
+    // to the front door. Leaving the fort pauses its game loop and drops the
+    // theme. The try/catch isolation stays: a fort failure can never break
+    // Josh's site.
     if (id.indexOf("td-") === 0) {
       try {
         if (window.JonTD && window.JonTD.route && window.JonTD.route(id)) return;
@@ -449,6 +475,14 @@
     }
     try { if (window.JonTD && window.JonTD.onLeave) window.JonTD.onLeave(); } catch (e) { /* ignore */ }
 
+    // The front door: no hash (or #start) shows the three world tiles.
+    const startScreen = document.getElementById("screen-start");
+    if ((!id || id === "start") && startScreen) {
+      startScreen.hidden = false;
+      document.body.classList.remove("in-game");
+      window.scrollTo(0, 0);
+      return;
+    }
     if (!id || id === "home") {
       if (home) home.hidden = false;
       document.body.classList.remove("in-game");
@@ -478,13 +512,14 @@
       if (!target.__started) { target.__start(); target.__started = true; }
       if (target.__onShow) target.__onShow();
       window.scrollTo(0, 0);
-    } else if (home) {
-      home.hidden = false;
+    } else {
+      const fallback = startScreen || home;
+      if (fallback) fallback.hidden = false;
       document.body.classList.remove("in-game");
       // AUDIT: a junk hash (e.g. #hl-nonexistent) lands here, but hl-main's
-      // hashchange theme-sync saw "hl-" and painted Josh's home red-gold without
-      // the gate. Clearing the hash fires hashchange, which re-syncs the theme
-      // (replaceState alone would NOT — no event fires).
+      // hashchange theme-sync saw "hl-" and painted the page red-gold for a
+      // screen that doesn't exist. Clearing the hash fires hashchange, which
+      // re-syncs the theme (replaceState alone would NOT — no event fires).
       if (id) { location.hash = ""; return; }
     }
   }

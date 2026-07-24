@@ -1,8 +1,8 @@
 // PWA offline guardrail (Chromium): the site advertises "works offline (great
 // for car rides)", so prove it — load once online, drop the network, and assert
-// the FULL app boots from the service-worker cache (home visible AND the game
-// registry present AND no "Unexpected token '<'" from a script that fell back to
-// index.html). Locks the fix for the ?v=<sha> version-query cache miss: the SW
+// the FULL app boots from the service-worker cache (the front door visible, the
+// game registry present, in-world navigation working, AND no "Unexpected token
+// '<'" from a script that fell back to index.html). Locks the fix for the ?v=<sha> version-query cache miss: the SW
 // precaches unversioned paths while the page requests versioned ones, so the
 // offline fallback must be { ignoreSearch: true } (see sw.js + site.test.js).
 //
@@ -49,12 +49,18 @@ async function reloadOfflineAndAssertBoot(label) {
   await pause();
   try {
     await page.reload({ waitUntil: "load", timeout: 20000 });
-    const visible = await page.locator("#screen-home").waitFor({ state: "visible", timeout: 10000 }).then(() => true).catch(() => false);
+    const visible = await page.locator("#screen-start").waitFor({ state: "visible", timeout: 10000 }).then(() => true).catch(() => false);
     const booted = await page.evaluate(() => Array.isArray(window.JoshGames) && window.JoshGames.length > 0).catch(() => false);
     const syntax = pageErrors.filter((e) => /Unexpected token '<'|SyntaxError/.test(e));
-    assert.ok(visible, `${label}: the home screen must be visible offline`);
+    assert.ok(visible, `${label}: the front-door screen must be visible offline`);
     assert.ok(booted, `${label}: the game registry (window.JoshGames) must load offline — a broken shell means scripts 404'd to the HTML fallback`);
     assert.equal(syntax.length, 0, `${label}: no script may parse as HTML offline (got: ${syntax.join("; ")})`);
+    // In-world navigation must work offline too (a car ride is exactly when
+    // Josh taps his tile) — hop through the door to his launcher and back.
+    await page.evaluate(() => { location.hash = "#home"; });
+    const homeVisible = await page.locator("#screen-home").waitFor({ state: "visible", timeout: 5000 }).then(() => true).catch(() => false);
+    assert.ok(homeVisible, `${label}: Josh's launcher must open from the front door offline`);
+    await page.evaluate(() => { location.hash = ""; });
   } finally {
     await resume();
     await context.setOffline(false);

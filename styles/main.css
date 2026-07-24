@@ -101,6 +101,46 @@ body {
 }
 .screen[hidden] { display: none !important; } /* must always beat the game-screen flex rule below */
 
+/* ---------- The front door (#screen-start): three big world tiles ----------
+   The app opens here. One tile per world — Josh's games, 华丽's games, the
+   fort — each a giant kid-proof button that navigates directly (no gates). */
+.start__title {
+  margin: 10px 0 var(--pad);
+  text-align: center;
+  font-size: clamp(1.3rem, 6vw, 2rem);
+  color: #b83b5e;
+}
+.start-grid {
+  display: grid; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
+  grid-template-columns: minmax(0, 100%);
+  gap: var(--pad);
+}
+.start-tile {
+  position: relative;
+  min-height: 150px;
+  border: none;
+  border-radius: 28px;
+  background: var(--card);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+  display: grid; /* grid gap works on iOS 14.0; flex gap does not */
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+}
+.start-tile:active { transform: scale(0.97); }
+.start-tile__icon { font-size: 4rem; line-height: 1; }
+.start-tile__art { display: block; width: 96px; height: 96px; }
+.start-tile__art svg { width: 100%; height: 100%; display: block; }
+.start-tile__label { font-size: 1.15rem; font-weight: 800; color: #4a5568; text-align: center; }
+.start-tile--josh { background: linear-gradient(135deg, #d9f3ff, #9fdcff); }
+.start-tile--josh .start-tile__label { color: #12507a; }
+.start-tile--hl { background: linear-gradient(135deg, #ffe9c9, #ffcf9e); }
+.start-tile--hl .start-tile__label { color: #7c1f1f; }
+.start-tile--td { background: linear-gradient(135deg, #dfe7ff, #bccdf7); }
+.start-tile--td .start-tile__label { color: #2c3e6b; }
+
 /* ---------- Home launcher ---------- */
 .home__title {
   margin: 6px 0 var(--pad);
@@ -108,6 +148,8 @@ body {
   font-size: clamp(1.3rem, 6vw, 2rem);
   color: #b83b5e;
 }
+/* Josh's home carries a game__bar (🚪 back to the front door + title). */
+#screen-home .game__bar .home__title { margin: 0; font-size: clamp(1.15rem, 5vw, 1.5rem); }
 .home-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
@@ -1250,7 +1292,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ============================================================
    华丽的世界 — Grandma Huali's hidden world (red & gold).
-   Entered through the 👵🏻 door; body.hl-mode themes the page,
+   Entered from the front door's 👵🏻 tile; body.hl-mode themes the page,
    .game--hl themes her game screens, .hl-screen her nav shells.
    Same tap rules as everywhere else (>= var(--tap), 16px gaps).
    ============================================================ */
@@ -1261,38 +1303,6 @@ body.hl-mode {
   background: linear-gradient(165deg, #8e1414 0%, #b23a1a 52%, #e0a339 100%);
   background-attachment: fixed;
 }
-
-/* The 👵🏻 door sits beside the sound toggle in the top bar. */
-.hl-door { font-size: 1.5rem; background: linear-gradient(180deg, #fff, #ffe9d2); }
-
-/* ---- The name gate (你叫什么名字？) — HER OWN classes, deliberately not
-   Josh's .gate/.gate__* (tests locate his reset gate by those). ---- */
-.hl-gate {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
-  background: rgba(70, 10, 10, 0.5); padding: var(--pad);
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
-}
-.hl-gate[hidden] { display: none; }
-.hl-gate__box {
-  width: min(92vw, 340px); background: linear-gradient(180deg, #fff8ec, #ffefd9);
-  border: 3px solid #d4a437; border-radius: 22px; padding: 22px;
-  box-shadow: 0 24px 64px rgba(40, 0, 0, 0.4); text-align: center;
-}
-.hl-gate__msg { font-size: 1.35rem; font-weight: 800; color: #7c1f1f; margin: 0 0 14px; line-height: 1.35; }
-.hl-gate__input {
-  width: 100%; min-height: 52px; box-sizing: border-box; padding: 0 12px;
-  font-size: 1.4rem; text-align: center; color: #5a2a12; background: #fff;
-  border: 2px solid #d4a437; border-radius: 12px;
-}
-.hl-gate__input:focus { outline: none; border-color: #b23a1a; }
-.hl-gate__err { color: #b23a1a; font-size: 1rem; margin: 10px 0 0; font-weight: 700; }
-.hl-gate__row { display: grid; grid-auto-flow: column; gap: 10px; margin-top: 16px; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
-.hl-gate__row button {
-  flex: 1; min-height: 52px; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 800;
-  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-}
-.hl-gate__cancel { background: #f3e4cd; color: #7a5a3a; }
-.hl-gate__ok { background: linear-gradient(180deg, #d63b2a, #b71c1c); color: #fff; }
 
 /* ---- Her nav screens (home / categories / sticker book) ---- */
 .hl-screen .game__title { color: #fff; text-shadow: 0 1px 3px rgba(80, 0, 0, 0.45); }

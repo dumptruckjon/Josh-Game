@@ -29,35 +29,6 @@ body.td-mode #screens { padding: 0; }
 .td-title { margin: 0; font-size: 1.4rem; color: #ffe27a; }
 .td-bar__pad { width: 56px; }
 
-/* ---- gate ---- */
-.td-gate {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60;
-  background: rgba(8, 14, 26, 0.72);
-  display: flex; align-items: center; justify-content: center;
-}
-.td-gate[hidden] { display: none; }
-.td-gate__box {
-  background: #16233d; border: 2px solid #3a548a; border-radius: 18px;
-  padding: 20px; width: min(320px, 88vw);
-  display: flex; flex-direction: column; gap: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-}
-.td-gate__msg { margin: 0; font-size: 1.15rem; font-weight: 700; color: #e8eefc; }
-.td-gate__input {
-  font-size: 1.1rem; padding: 12px; border-radius: 12px;
-  border: 2px solid #3a548a; background: #0f1a30; color: #e8eefc;
-  min-height: 48px;
-}
-.td-gate__err { margin: 0; color: #ff9d9d; font-size: 0.95rem; }
-.td-gate__row { display: flex; gap: 10px; justify-content: flex-end; }
-.td-gate__cancel, .td-gate__ok {
-  min-height: 48px; min-width: 96px; padding: 10px 16px;
-  border-radius: 12px; border: 0; font-size: 1rem; font-weight: 700;
-  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-}
-.td-gate__cancel { background: #26334f; color: #cfe2ff; }
-.td-gate__ok { background: #ffd94a; color: #3a2c00; }
-
 /* ---- fort home ---- */
 .td-sub { margin: 0 0 12px; color: #9db4dd; }
 .td-levels {

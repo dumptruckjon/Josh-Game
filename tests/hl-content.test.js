@@ -10,13 +10,14 @@ const HL = require("../scripts/hl-content.js");
 
 const isCJK = (s) => /[一-鿿]/.test(s);
 
-// ---------- The gate ----------
-test("gate: only the exact name 华丽 is the answer, all strings Chinese", () => {
-  assert.equal(HL.GATE.answer, "华丽");
-  for (const k of ["question", "placeholder", "wrong", "ok", "cancel"]) {
-    assert.ok(HL.GATE[k] && isCJK(HL.GATE[k]), `GATE.${k} must be Chinese text`);
+// ---------- The (removed) gate + her shell strings ----------
+test("her world opens directly: no gate strings remain; shell strings stay Chinese", () => {
+  // The name gate was removed by request (2026-07): the 👵🏻 front-door tile
+  // opens #hl-home directly. Her chrome strings must remain Chinese.
+  assert.equal(HL.GATE, undefined, "GATE strings are gone with the gate");
+  for (const k of ["TITLE", "GREETING", "HOME_LABEL", "STICKERS_TITLE", "SURPRISE_TILE"]) {
+    assert.ok(HL[k] && isCJK(HL[k]), `${k} must be Chinese text`);
   }
-  assert.equal(HL.GATE.question, "你叫什么名字？");
 });
 
 test("framework voice lines are Chinese and non-empty", () => {

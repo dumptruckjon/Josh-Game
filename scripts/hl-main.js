@@ -1,6 +1,7 @@
-// 华丽的世界 — the hidden second site for Josh's grandma Huali (华丽):
-// a 👵🏻 door in the top bar, a Chinese name-gate (only 华丽 passes), and a
-// red-and-gold launcher with 7 categories + her own 🏮 sticker collection.
+// 华丽的世界 — the second site for Josh's grandma Huali (华丽): entered from
+// the front door's 👵🏻 tile (the old name gate was removed by request 2026-07 —
+// her world opens directly), a red-and-gold launcher with 7 categories + her
+// own 🏮 sticker collection.
 // Her games register through the SAME framework (ids prefixed "hl-",
 // def.hl = true, def.lang = "zh") so they inherit the whole test contract;
 // this file only builds her navigation shell. Josh's launcher never shows
@@ -12,10 +13,6 @@
   const F = window.JoshFramework;
   const A = window.JoshAudio || { say() {} };
   if (!HL || !F) return;
-
-  const OK_FLAG = "hl-ok"; // session flag: the name gate was passed this visit
-  function unlocked() { try { return sessionStorage.getItem(OK_FLAG) === "1"; } catch (e) { return false; } }
-  function unlock() { try { sessionStorage.setItem(OK_FLAG, "1"); } catch (e) { /* ignore */ } }
 
   const sayZh = (t) => A.say(t, { lang: "zh-CN" });
   function wonAlready(id) {
@@ -32,76 +29,10 @@
   let refreshHlStickers = null;
 
   document.addEventListener("DOMContentLoaded", () => {
-    for (const init of [initDoor, initWorld, initThemeSync]) {
+    for (const init of [initWorld, initThemeSync]) {
       try { init(); } catch (e) { console.error("Huali: init failed:", e); }
     }
   });
-
-  // ---- The 👵🏻 door + the Chinese name gate --------------------------------
-  function initDoor() {
-    const sound = document.getElementById("sound-toggle");
-    if (!sound || !sound.parentNode) return;
-
-    const door = document.createElement("button");
-    door.id = "hl-door";
-    door.className = "btn-round hl-door";
-    door.type = "button";
-    door.setAttribute("aria-label", "华丽的游戏");
-    door.textContent = "👵🏻";
-    sound.parentNode.insertBefore(door, sound);
-
-    // NOTE: deliberately NOT the shared .gate/.gate__* classes — Josh's reset
-    // gate is located by tests as ".gate", and a second .gate overlay would
-    // trip Playwright's strict-mode locators. Her gate is styled on its own.
-    const overlay = document.createElement("div");
-    overlay.className = "hl-gate";
-    overlay.hidden = true;
-    overlay.innerHTML =
-      // data-adult: the gate is for the grown-up entering her name, so its
-      // buttons are adult-sized and exempt from the kid >=75px tap audit.
-      '<div class="hl-gate__box" role="dialog" aria-modal="true" data-adult="1" aria-label="' + HL.GATE.question + '">' +
-        '<p class="hl-gate__msg">' + HL.GATE.question + "</p>" +
-        '<input class="hl-gate__input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="' + HL.GATE.placeholder + '" aria-label="' + HL.GATE.question + '" />' +
-        '<p class="hl-gate__err" hidden>' + HL.GATE.wrong + "</p>" +
-        '<div class="hl-gate__row">' +
-          '<button class="hl-gate__cancel" type="button">' + HL.GATE.cancel + "</button>" +
-          '<button class="hl-gate__ok" type="button">' + HL.GATE.ok + "</button>" +
-        "</div>" +
-      "</div>";
-    document.body.appendChild(overlay);
-
-    const input = overlay.querySelector(".hl-gate__input");
-    const err = overlay.querySelector(".hl-gate__err");
-    const box = overlay.querySelector(".hl-gate__box");
-
-    function open() {
-      overlay.hidden = false; err.hidden = true; input.value = "";
-      sayZh(HL.GATE.question);
-      setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 30);
-    }
-    function close() { overlay.hidden = true; }
-    function submit() {
-      // Exact name only (trimmed + NFC-normalised); EVERYTHING else is rejected.
-      let v = String(input.value || "").trim();
-      try { v = v.normalize("NFC"); } catch (e) { /* older engines: compare raw */ }
-      if (v === HL.GATE.answer) {
-        unlock();
-        close();
-        sayZh(HL.GREETING);
-        location.hash = "#hl-home";
-      } else {
-        err.hidden = false;
-        box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
-        try { input.select(); } catch (e) { /* ignore */ }
-      }
-    }
-
-    door.addEventListener("click", open);
-    overlay.querySelector(".hl-gate__ok").addEventListener("click", submit);
-    overlay.querySelector(".hl-gate__cancel").addEventListener("click", close);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } });
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-  }
 
   // ---- Her world: home + 7 categories + the 🏮 sticker book ----------------
   function hlTile(def) {
@@ -125,15 +56,12 @@
     return tile;
   }
 
-  // Nav screens are static shells: no game to start, and showing one first
-  // checks the gate flag (a deep link without the name bounces home).
-  function guardScreen(s, onShow) {
+  // Nav screens are static shells: no game to start. (They used to bounce
+  // without the gate's session flag; the gate is gone — they open directly.)
+  function navScreen(s, onShow) {
     s.__start = function () {};
     s.__started = true;
-    s.__onShow = function () {
-      if (!unlocked()) { location.hash = ""; return; }
-      if (onShow) onShow();
-    };
+    s.__onShow = function () { if (onShow) onShow(); };
   }
 
   function bar(titleText, backHash) {
@@ -227,11 +155,12 @@
       cgrid.className = "home-grid";
       list.forEach((def) => cgrid.appendChild(hlTile(def)));
       screen.appendChild(cgrid);
-      guardScreen(screen);
+      navScreen(screen);
       screens.appendChild(screen);
     });
 
-    guardScreen(home);
+    // Greet her when her home opens (the gate used to do this on unlock).
+    navScreen(home, () => { sayZh(HL.GREETING); });
     screens.appendChild(home);
 
     // -- 🏮 sticker book (same slot classes as Josh's, so the shared
@@ -289,7 +218,7 @@
       meterText.textContent = "🏮 " + won + " / " + games.length;
       book.dataset.won = String(won);
     };
-    guardScreen(book, refreshHlStickers);
+    navScreen(book, refreshHlStickers);
     refreshHlStickers();
     screens.appendChild(book);
   }

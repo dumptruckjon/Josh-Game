@@ -75,8 +75,9 @@
     const homeBtn = el("button", {
       class: "btn-round game__home", type: "button", text: "🏠",
       aria: { label: "Back" },
-      // Return to this game's category screen (set by the launcher) if known.
-      onclick: () => { location.hash = def.homeHash || (def.cat ? "#cat-" + def.cat : ""); },
+      // Return to this game's category screen (set by the launcher) if known;
+      // otherwise Josh's home (#home — "" is the front door, not his launcher).
+      onclick: () => { location.hash = def.homeHash || (def.cat ? "#cat-" + def.cat : "#home"); },
     });
     const hearBtn = el("button", {
       class: "btn-round game__hear", type: "button", text: "👂",

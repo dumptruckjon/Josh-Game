@@ -9,12 +9,8 @@
   if (!DATA || !TD || !UI || !R) return;
   const A = global.JoshAudio || { tone() {}, isMuted: () => true, winCue() {} };
 
-  const OK_FLAG = "td-ok";
   const SAVE_KEY = "jon-td-save-v1";
   const DT_MS = 1000 / DATA.TICK_RATE;
-
-  function unlocked() { try { return sessionStorage.getItem(OK_FLAG) === "1"; } catch (e) { return false; } }
-  function unlock() { try { sessionStorage.setItem(OK_FLAG, "1"); } catch (e) { /* ignore */ } }
 
   // ---- Save (jon-td-* namespace ONLY — never the kid star flags; survives Josh's reset) ----
   function load() {
@@ -541,9 +537,10 @@
   }
 
   // ---- Screen/routing hooks (main.js delegates all td-* hashes here) ----
+  // No gate: the fort opens directly from the front door's 🏰 tile. An unknown
+  // td-* hash still returns false so main.js falls back to the front door.
   const JonTD = {
     route(id) {
-      if (!unlocked()) return false; // main.js bounces to Josh's home
       if (id === "td-home") {
         leavingPlay(); // record any endless milestone + clear armed-rally/selection before parking the run
         doc.body.classList.add("td-mode");
@@ -583,15 +580,10 @@
       UI.hideBubble();
       UI.closeOverlay();
     },
-    openGate() {
-      if (unlocked()) { location.hash = "#td-home"; return; }
-      UI.openGate(() => { unlock(); location.hash = "#td-home"; });
-    },
   };
   global.JonTD = JonTD;
 
   // ---- Wire the shell once the DOM exists (scripts are deferred → DOM ready) ----
-  UI.injectDoor(() => JonTD.openGate());
   UI.buildScreens({
     exitFort: () => { location.hash = ""; },
     quitToFort: () => { promptLeave(() => { location.hash = "#td-home"; }); },

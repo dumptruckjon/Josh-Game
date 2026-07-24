@@ -743,7 +743,7 @@ tooling.
 
 ```
 .
-├── index.html                  # The whole site: one screen, giant friendly toy(s)
+├── index.html                  # The whole site: front door (#screen-start, 3 world tiles) + Josh's launcher shell; all other screens injected
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
@@ -769,23 +769,23 @@ tooling.
 │   ├── hl-content.js           # 华丽 (Grandma Huali) — ALL Chinese content/truth (dual-export: window.HualiContent + module.exports)
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
-│   ├── hl-main.js              # 华丽's shell: 👵🏻 top-bar door + Chinese name gate (只有「华丽」能进) + red-gold launcher + 🏮 sticker book
+│   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds; L10 = TD-7 fork+lever)/gimmicks + TD-5 meta (10-node star tree, 12 achievements, endless arenas)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button
-│   ├── td-ui.js                # 🏰 door/gate/screens/HUD/overlays (gate = data-adult; ONLY the exact name "Jon" unlocks) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast
+│   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
-│   └── main.js                 # Launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router + sound + SW; routes td-* through guarded JonTD
+│   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
 │   ├── content.test.js         # CORRECTNESS: ground-truth restatement — answers can't silently go wrong
-│   ├── hl-content.test.js      # 华丽 CORRECTNESS: poems/idioms/zodiac/量词/festivals/dishes/seasons truth tables + gate + FU_PATH tap geometry
+│   ├── hl-content.test.js      # 华丽 CORRECTNESS: poems/idioms/zodiac/量词/festivals/dishes/seasons truth tables + no-gate lock + FU_PATH tap geometry
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
 │   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness plays EVERY game + toddler-chaos double-tap guardrail
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell)
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
-│   ├── td.test.js              # 🏰 Playwright: Jon gate, route guards, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
+│   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
@@ -797,7 +797,7 @@ tooling.
 ├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
-├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — JON's hidden adult world (exact-name gate "Jon"): full TD design (engine/towers/enemies/12 levels/bosses/meta/tests) — TD-1 ✅ BUILT (shell+engine+L1), TD-2..TD-6 pending
+├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
 └── CLAUDE.md                   # This file
 ```
 
@@ -809,11 +809,19 @@ Update this tree whenever files are added or moved.
 
 ## Current Site Behavior
 
-A **launcher home screen** (`#screen-home`) on a **static** sky→meadow→sun
-gradient: a big grid of friendly game **tiles** (icon carries the meaning; a
-short label is for the grown-up). Tapping a tile opens that game via the URL
-hash (`#game-id`) so the phone Back button works; a big **🏠 Home** button
-returns. A giant **sound toggle** 🔇/🔊 lives in the top bar — **sound is OFF by
+The app opens on **the front door** (`#screen-start`, the empty-hash route): a
+start page with **three giant world tiles** — Josh's `JoshArt.friend` portrait →
+his 200 games (`#home`), 👵🏻 → 华丽's 40 Chinese games (`#hl-home`), and 🏰 →
+Fort Josh (`#td-home`). **Each tile navigates directly — the old name gates
+(华丽 / "Jon") were REMOVED by request (2026-07)**; the worlds are open, and
+each world's home has a way back to the front door (Josh's 🚪, her 🏠, the
+fort's exit). A junk/unknown hash clears to the front door.
+
+Inside Josh's world: a **launcher home screen** (`#screen-home`) on a
+**static** sky→meadow→sun gradient: a big grid of friendly game **tiles** (icon
+carries the meaning; a short label is for the grown-up). Tapping a tile opens
+that game via the URL hash (`#game-id`) so the phone Back button works; a big
+**🏠 Home** button returns. A giant **sound toggle** 🔇/🔊 lives in the top bar — **sound is OFF by
 default** (remembered as `josh-muted` in `localStorage`; iOS blocks autoplay
 anyway). Sound is the *primary instruction channel* when on (spoken prompts +
 a 👂 "hear it again" button), but every game is fully playable with sound off
@@ -942,7 +950,7 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   construction), **Hello Around the World** (each friend greets in their heritage
   language — River 你好, Viraj Namaste, Raegar Privet, Josh Hello), **Team Pizza
   Party** (deal 6 slices → a fair 3-and-3), **Grandma's Visit** (find Grandma's 3
-  things among Josh's toys — a warm bridge to the hidden 华丽 world, closing on a
+  things among Josh's toys — a warm bridge to 华丽's world, closing on a
   spoken 谢谢). *(The tap-to-fill co-ops now each carry a real skill — skip-count,
   countdown, counting — not just turn-taking.)* *Set 2:* **Month Train** (the
   months in order), **Set the Table** (pick-and-place practical life), **What
@@ -953,13 +961,13 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   Hearts** (gratitude — every choice is right). *Set 3:* **Tidy Up Time** (put
   each toy in its home bin — practical life, pick-and-place).
 
-### 👵🏻 华丽的世界 — the hidden world for Josh's Chinese grandma
+### 👵🏻 华丽的世界 — the world for Josh's Chinese grandma
 
-A **second, hidden mini-site for Grandma Huali (华丽)**, entered through the 👵🏻
-button beside the sound toggle: it pops a Chinese name gate (「你叫什么名字？」)
-and **only the exact answer 「华丽」** (trimmed + NFC-normalized, session-scoped
-in `sessionStorage["hl-ok"]`) opens `#hl-home` — every other input is gently
-rejected. Inside, the page turns **red-and-gold** (`body.hl-mode`) and ALL text
+A **second mini-site for Grandma Huali (华丽)**, entered through the front
+door's 👵🏻 tile, which opens `#hl-home` **directly** (the old Chinese name gate
+was removed by request 2026-07 — `hl-ok` and the gate strings are gone, and a
+`site.test.js` lock keeps them gone). Inside, the page turns
+**red-and-gold** (`body.hl-mode`) and ALL text
 is simplified Chinese, sized and paced for a 70-year-old: **40 games** in 7
 categories (🀄 麻将牌艺 6 · 📜 诗词成语 6 · 🧠 记忆锻炼 6 · 🧮 心算算术 6 ·
 🏮 民俗文化 6 · 👁️ 眼明手快 5 · 🍵 静心时光 5), her own 随便玩 (Surprise) tile
@@ -984,18 +992,20 @@ How it works (keep these invariants):
   check on distractors, 生肖 order, standard 量词 pairs, festival↔custom bins
   with no dual-membership, regional dish↔city, season membership, the waxing
   moon, 宫商角徵羽 ascending) so no answer can silently go wrong.
-- Nav screens bounce to Josh's home without the session flag; game screens stay
-  deep-linkable (the harness needs them, and a non-reader can't type a hash).
-  Her name gate is `data-adult` (adult-sized controls, exempt from the kid audit).
+- Every screen (nav + game) is openly deep-linkable — her home 🏠 returns to
+  the front door, and a junk `#hl-*` hash clears to the front door without
+  leaving her red-gold theme painted.
 
-### 🏰 Fort Josh: Toybox Defense — the hidden world for JON (dad)
+### 🏰 Fort Josh: Toybox Defense — the world for JON (dad)
 
-A **third, gated world**: a real tower-defense game behind the 🏰 top-bar door.
-The name gate accepts **only the exact input `Jon`** (trim+NFC, case-sensitive;
-`sessionStorage["td-ok"]`, session-scoped). This is an **adult space**: real
-difficulty, real defeat screens, real timers — RULE 5's kid laws deliberately do
-not apply inside (the gate is what keeps it from Josh; precedent: 华丽's
-`data-adult`). Status: **COMPLETE (TD-1 … TD-6 all shipped)** — shell +
+A **third world**: a real tower-defense game entered through the front door's
+🏰 tile, which opens `#td-home` **directly** (the old "Jon" name gate was
+removed by request 2026-07 — `td-ok` and the gate UI are gone, with a
+`site.test.js` lock keeping them gone). This is still an **adult-DESIGNED
+space**: real difficulty, real defeat screens, real timers — RULE 5's kid tap
+laws deliberately do not apply inside (its controls are adult-sized
+`data-adult`; the front-door tile itself is kid-sized). Status: **COMPLETE
+(TD-1 … TD-6 all shipped)** — shell +
 deterministic engine + **all 12 Levels across 3 worlds** (Bedroom L1-4, Backyard
 L5-8, Toy Store L9-12; distinct path/pad layouts, a rising difficulty curve, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
@@ -1065,9 +1075,9 @@ Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
   build, losable by neglect, wave tables audited against the budget curve), and
   the shipped `window.__TD` hooks (newGame/script/untilPhase/winL1) are the
   browser-test contract — the real-time analog of `data-correct`.
-- Every `td-*` hash is **guarded** — locked visitors bounce to Josh's home;
-  `main.js` wraps the fort in try/catch so a fort failure can never break
-  Josh's site.
+- Every known `td-*` hash opens **directly** (no gate); an unknown one falls
+  back to the front door. `main.js` still wraps the fort in try/catch so a
+  fort failure can never break Josh's site.
 
 > **Friend & character art (`scripts/art.js`).** `JoshArt.friend({skin,hair,style,shirt})`
 > draws each kid as a clearly-different portrait (Josh, Raegar, River, Viraj — see
