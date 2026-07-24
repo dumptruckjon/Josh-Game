@@ -543,12 +543,31 @@ test("TD5 star tree: buying a node persists to save.meta and feeds the next run;
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.locator(".td-tree-open").click();
   await page.locator(".td-tree").waitFor({ state: "visible" });
-  assert.equal(await page.locator(".td-node").count(), 10, "10 star-tree nodes");
-  // buy the first node (startgold) → it persists to save.meta
-  await page.locator('.td-node[data-node="startgold"]').click();
+  // TD-8: 23 nodes across 3 labeled branches
+  assert.equal(await page.locator(".td-node").count(), 23, "23 star-tree nodes");
+  assert.equal(await page.locator(".td-tree__branch").count(), 3, "3 branch headers");
+  // rank gating: Sharp Darts II is locked until Sharp Darts I is owned
+  assert.ok(await page.locator('.td-node[data-node="dartdmg2"]').isDisabled(), "rank II starts locked");
+  await page.locator('.td-node[data-node="dartdmg"]').click();
+  assert.ok(!(await page.locator('.td-node[data-node="dartdmg2"]').isDisabled()), "owning rank I unlocks rank II");
+  await page.locator('.td-node[data-node="dartdmg2"]').click();
+  // capstone gating: Boss Bonker needs ⭐8 spent INSIDE Firepower (6 so far)
+  assert.ok(await page.locator('.td-node[data-node="bossdmg"]').isDisabled(), "capstone locked below ⭐8 branch spend");
+  await page.locator('.td-node[data-node="mortarsplash"]').click(); // fire spend 9 ≥ 8
+  assert.ok(!(await page.locator('.td-node[data-node="bossdmg"]').isDisabled()), "capstone opens at ⭐8 branch spend");
+  await page.locator('.td-node[data-node="bossdmg"]').click();
   let meta = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).meta);
+  assert.ok(meta.includes("bossdmg"), "the capstone persisted to save.meta");
+  // cascade refund: refunding rank I also drops rank II AND the capstone whose
+  // branch spend fell below its requirement
+  await page.locator('.td-node[data-node="dartdmg"]').click();
+  meta = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).meta);
+  assert.ok(!meta.includes("dartdmg") && !meta.includes("dartdmg2"), "refunding rank I cascades to rank II");
+  assert.ok(!meta.includes("bossdmg"), "the capstone falls with its branch spend");
+  // buy Piggy Bank → it flows into a fresh run as +40 start gold
+  await page.locator('.td-node[data-node="startgold"]').click();
+  meta = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).meta);
   assert.ok(meta.indexOf("startgold") >= 0, "buying a node writes it to save.meta");
-  // that node now flows into a fresh run as +40 start gold
   const gold = await page.evaluate(() => { window.__TD.newGame(1, { seed: 7 }); return window.__TD.state().gold; });
   assert.equal(gold, 260, "Piggy Bank gives L1 220+40 start gold");
   // respec clears the whole tree

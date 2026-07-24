@@ -203,30 +203,70 @@
     return el;
   }
 
-  // Star tree: spend earned ⭐ on permanent buffs; tap an owned node to refund it
-  // (free respec). onChange(newMeta) persists + is followed by a re-render.
+  // TD-8 star tree: 3 themed branches × ranked skills + a 👑 capstone each.
+  // Tap to buy; tap an owned node to refund it (free respec). Rank II needs its
+  // rank I; a capstone needs reqSpend ⭐ spent inside its branch. Refunding
+  // CASCADES so the owned set always stays self-consistent (removing rank I
+  // also drops rank II; dropping branch spend below a capstone's requirement
+  // drops the capstone). onChange(newMeta) persists + is followed by a re-render.
+  function branchSpend(owned, branch, exceptId) {
+    let sp = 0;
+    for (const n of NODES()) if (n.branch === branch && n.id !== exceptId && owned.has(n.id)) sp += n.cost;
+    return sp;
+  }
+  function treeLockReason(owned, n) {
+    if (n.req && !owned.has(n.req)) {
+      const r = NODES().find((x) => x.id === n.req);
+      return "needs " + (r ? r.name : n.req);
+    }
+    if (n.reqSpend && branchSpend(owned, n.branch, n.id) < n.reqSpend) return "spend ⭐" + n.reqSpend + " in this branch";
+    return null;
+  }
+  function cascadeConsistent(set) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const n of NODES()) {
+        if (!set.has(n.id)) continue;
+        if ((n.req && !set.has(n.req)) || (n.reqSpend && branchSpend(set, n.branch, n.id) < n.reqSpend)) {
+          set.delete(n.id); changed = true;
+        }
+      }
+    }
+  }
   UI.showStarTree = function (save, onChange) {
     const t = starTotals(save);
     const owned = new Set(save.meta || []);
-    const rows = NODES().map((n) => {
-      const has = owned.has(n.id);
-      const affordable = has || t.avail >= n.cost;
-      return '<button class="td-node' + (has ? " td-node--on" : "") + '"' + (affordable ? "" : " disabled") +
-        ' data-node="' + n.id + '">' +
-        '<span class="td-node__icon">' + n.icon + "</span>" +
-        '<span class="td-node__body"><span class="td-node__name">' + n.name + "</span>" +
-        '<span class="td-node__desc">' + n.desc + "</span></span>" +
-        '<span class="td-node__cost">' + (has ? "✓" : "⭐" + n.cost) + "</span></button>";
+    const branches = (global.TDData.META_BRANCHES || []).map((br) => {
+      const rows = NODES().filter((n) => n.branch === br.id).map((n) => {
+        const has = owned.has(n.id);
+        const locked = has ? null : treeLockReason(owned, n);
+        const buyable = has || (!locked && t.avail >= n.cost);
+        return '<button class="td-node' + (has ? " td-node--on" : "") + (locked ? " td-node--locked" : "") + '"' + (buyable ? "" : " disabled") +
+          ' data-node="' + n.id + '">' +
+          '<span class="td-node__icon">' + n.icon + "</span>" +
+          '<span class="td-node__body"><span class="td-node__name">' + n.name + (n.reqSpend ? " 👑" : "") + "</span>" +
+          '<span class="td-node__desc">' + (locked ? "🔒 " + locked : n.desc) + "</span></span>" +
+          '<span class="td-node__cost">' + (has ? "✓" : "⭐" + n.cost) + "</span></button>";
+      }).join("");
+      return '<p class="td-tree__branch">' + br.icon + " " + br.name +
+        ' <span class="td-tree__spent">⭐' + branchSpend(owned, br.id, null) + " spent</span></p>" +
+        '<div class="td-nodes">' + rows + "</div>";
     }).join("");
     const el = metaOverlay("td-tree", '<h3>⭐ Star Tree</h3>' +
       '<p class="td-overlay__stars td-tree__avail">⭐ ' + t.avail + " to spend · " + t.spent + " used</p>" +
-      '<div class="td-nodes">' + rows + "</div>" +
+      branches +
       '<div class="td-overlay__row"><button class="td-btn td-tree-respec" type="button">↺ Refund all</button>' +
       '<button class="td-btn td-btn--call td-tree-done" type="button">Done</button></div>');
     el.querySelectorAll(".td-node").forEach((b) => b.addEventListener("click", () => {
       const id = b.dataset.node; const set = new Set(save.meta || []);
-      if (set.has(id)) set.delete(id);
-      else { const node = NODES().find((n) => n.id === id); if (starTotals(save).avail >= node.cost) set.add(id); else return; }
+      const node = NODES().find((n) => n.id === id);
+      if (!node) return;
+      if (set.has(id)) { set.delete(id); cascadeConsistent(set); }
+      else {
+        if (treeLockReason(set, node) || starTotals(save).avail < node.cost) return;
+        set.add(id);
+      }
       onChange([...set]); UI.showStarTree(save, onChange); // re-render with new state
     }));
     el.querySelector(".td-tree-respec").addEventListener("click", () => { onChange([]); UI.showStarTree(save, onChange); });

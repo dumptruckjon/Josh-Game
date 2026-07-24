@@ -96,16 +96,27 @@
   function metaMods(meta) {
     const s = new Set(meta || []);
     return {
-      startGold: s.has("startgold") ? 40 : 0,
-      lives: s.has("lives") ? 2 : 0,
-      dartDmg: s.has("dartdmg") ? 1.1 : 1,
-      mortarSplash: s.has("mortarsplash") ? 1.1 : 1,
+      // ranked skills: the highest owned rank wins (rank II requires rank I in
+      // the tree UI, but the engine tolerates any set — pure input)
+      startGold: s.has("startgold2") ? 80 : s.has("startgold") ? 40 : 0,
+      lives: s.has("lives2") ? 4 : s.has("lives") ? 2 : 0,
+      dartDmg: s.has("dartdmg2") ? 1.2 : s.has("dartdmg") ? 1.1 : 1,
+      mortarSplash: s.has("mortarsplash2") ? 1.2 : s.has("mortarsplash") ? 1.1 : 1,
       fanAura: s.has("fanrange") ? 0.3 : 0,
-      soldierHp: s.has("soldierhp") ? 1.15 : 1,
+      soldierHp: s.has("soldierhp2") ? 1.3 : s.has("soldierhp") ? 1.15 : 1,
       earlyCall: s.has("earlycall") ? 1.5 : 1,
       sellRefund: s.has("sellrefund") ? 0.9 : R.sellRefund,
       branchCost: s.has("branchcost") ? 0.9 : 1,
       cheapTarget: s.has("cheaptarget"),
+      // TD-8 abilities + capstones (each consumed at exactly ONE engine site)
+      bounty: s.has("bounty") ? 1.08 : 1,
+      critBonus: s.has("critchance") ? 0.03 : 0,
+      nightOwl: s.has("nightowl"),
+      guardDog: s.has("guarddog") ? 0.75 : 1,
+      patchKit: s.has("patchkit"),
+      bossDmg: s.has("bossdmg") ? 1.15 : 1,
+      allowance: s.has("allowance") ? 12 : 0,
+      stickerShield: s.has("stickershield"),
     };
   }
 
@@ -154,11 +165,13 @@
     // Level gimmicks (TD-4): night dims every tower's reach EXCEPT the Fan (it
     // "feels" the cold, not sees), and conveyor strips speed enemies over a
     // stretch of the lane. Both are pure data read in the hot loops.
-    const rangeMul = levelDef.night ? R.nightRangeMult : 1;
-    const zones = levelDef.zones && levelDef.zones.length ? levelDef.zones : null;
     // TD-5: star-tree modifiers (pure input) + endless setup (a separate seeded
     // stream generates each wave, so composition is reproducible per seed).
+    // (mods computed FIRST — the night range multiplier below reads Night Owl.)
     const mods = metaMods(opts.meta);
+    const nightBase = levelDef.night ? R.nightRangeMult : 1;
+    const rangeMul = mods.nightOwl ? 1 - (1 - nightBase) / 2 : nightBase; // 🦉 halves the dimming
+    const zones = levelDef.zones && levelDef.zones.length ? levelDef.zones : null;
     const endlessWorld = levelDef.endless ? levelDef.endless.world : null;
     const genRng = endlessWorld ? mulberry32((seed ^ 0x9e3779b9) >>> 0) : null;
     // waves may grow (endless) — keep a mutable local list, never touch levelDef.
@@ -181,6 +194,7 @@
       lives: R.lives + mods.lives,
       stars: 0,
       cheated: false,
+      shieldUsed: false, // 🌟 Sticker Shield: has the one free leak been spent?
       endless: !!endlessWorld,
       leverRoute: 0, // TD-7: which lane new / pre-fork enemies take (lever levels)
       leverCd: 0,    // tick until the lever can be thrown again
@@ -283,11 +297,14 @@
       }
     }
 
+    // 🐕 Guard Dog trains downed soldiers back 25% faster — ONE helper so every
+    // KO path (stomp/suck here, melee death below) uses the same clock.
+    const respawnTicks = (cs) => Math.round(cs.respawn * DATA.TICK_RATE * mods.guardDog);
     // KO a soldier (stomp/suck): send it to respawn, free whatever it held.
     function downSoldier(s) {
       const camp = towerById(s.campId);
       const cs = camp ? statsOf(DATA.TOWERS.camp, camp) : { respawn: 8 };
-      s.alive = false; s.respawnAt = state.tick + Math.round(cs.respawn * DATA.TICK_RATE);
+      s.alive = false; s.respawnAt = state.tick + respawnTicks(cs);
       if (s.engagedId) { const foe = enemyById(s.engagedId); if (foe) foe.blockedBy = 0; s.engagedId = 0; }
       emit({ type: "soldier-down", x: s.x, y: s.y });
     }
@@ -375,7 +392,7 @@
       e.alive = false;
       if (e.blockedBy) { const s = soldierById(e.blockedBy); if (s) s.engagedId = 0; e.blockedBy = 0; }
       const def = enemyDef(e);
-      const bounty = Math.round(def.bounty * diff.bounty);
+      const bounty = Math.round(def.bounty * diff.bounty * mods.bounty); // 🪙 Bounty Hunter
       state.gold += bounty + (def.goldBurst || 0); // Piñata candy-burst
       // Splitters (Mud Blob) spawn children at the death spot — BUFFERED so we
       // never mutate state.enemies mid-iteration; flushed after the combat pass.
@@ -393,6 +410,12 @@
       e.chargeCd = state.tick + Math.round(def.charge.cooldown * DATA.TICK_RATE);
     }
     function dealDamage(e, hpDmg, shieldDmg, how) {
+      // 👊 Boss Bonker: bosses take +15% of EVERYTHING (hp + shield), applied in
+      // the ONE damage path so every tower/soldier hit benefits alike.
+      if (mods.bossDmg > 1 && enemyDef(e).boss) {
+        hpDmg = Math.round(hpDmg * mods.bossDmg);
+        shieldDmg = Math.round(shieldDmg * mods.bossDmg);
+      }
       if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
       if (hpDmg > 0) { e.hp -= hpDmg; triggerCharge(e); }
       if (e.hp <= 0) killEnemy(e, how);
@@ -400,6 +423,14 @@
     function leakEnemy(e) {
       e.alive = false;
       if (e.blockedBy) { const s = soldierById(e.blockedBy); if (s) s.engagedId = 0; e.blockedBy = 0; }
+      // 🌟 Sticker Shield: the FIRST leak each run costs no lives. The leak
+      // still HAPPENED (event fires, so the "No Leaks" badge stays honest) —
+      // only the life cost is absorbed, once.
+      if (mods.stickerShield && !state.shieldUsed) {
+        state.shieldUsed = true;
+        emit({ type: "leak", enemy: e.type, shielded: true });
+        return;
+      }
       state.lives -= enemyDef(e).lives;
       emit({ type: "leak", enemy: e.type });
       if (state.lives <= 0) { state.lives = 0; state.phase = "lost"; emit({ type: "lost" }); }
@@ -409,6 +440,15 @@
       if (spawnQueue.length || state.enemies.some((e) => e.alive)) return;
       state.enemies.length = 0;
       state.waveIdx += 1;
+      // TD-8 capstone/ability payouts on a CLEARED wave (skipped when this wave
+      // just won the level — the run is over, and Patch Kit must never inflate
+      // the lives-based star count at the finish line). Patch Kit never heals
+      // above the run's starting lives.
+      const levelWon = !endlessWorld && state.waveIdx >= waves.length;
+      if (!levelWon) {
+        if (mods.allowance) state.gold += mods.allowance; // 💵 Allowance
+        if (mods.patchKit && state.waveIdx % 5 === 0) state.lives = Math.min(R.lives + mods.lives, state.lives + 1); // 🩹 Patch Kit
+      }
       // Endless never "wins" — it just keeps generating harder waves; the score
       // is waveIdx (waves survived), read off the state when the run finally leaks.
       if (endlessWorld) {
@@ -586,7 +626,7 @@
               sol.hp -= Math.round(fd.meleeDmg * (1 - (cs.armor || 0)));
               if (sol.hp <= 0) {
                 sol.alive = false;
-                sol.respawnAt = state.tick + Math.round(cs.respawn * DATA.TICK_RATE);
+                sol.respawnAt = state.tick + respawnTicks(cs);
                 foe.blockedBy = 0; sol.engagedId = 0;
                 emit({ type: "soldier-down", x: sol.x, y: sol.y });
               }
@@ -643,7 +683,11 @@
             let dmg = s.dmg * mods.dartDmg; // TD-5 Sharp Darts
             if (s.spinUp) dmg = Math.max(1, Math.round(s.dmg * mods.dartDmg * (t.heat || s.heatFloor)));
             let crit = false;
-            if (s.crit && rng() < s.crit) { dmg = Math.round(dmg * s.critMult); crit = true; }
+            // 🍀 Lucky Darts adds flat crit chance to the whole dart line. The
+            // rng draw only happens when a chance EXISTS, so meta-less runs
+            // keep their exact historical rng stream (determinism hashes hold).
+            const critChance = (s.crit || 0) + mods.critBonus;
+            if (critChance > 0 && rng() < critChance) { dmg = Math.round(dmg * (s.critMult || 1.5)); crit = true; }
             state.projectiles.push({
               id: nextId++, x: t.cx, y: t.cy, targetId: t.targetId,
               dmg, dmgType: s.dmgType, speed: def.projectileSpeed, crit,
@@ -953,6 +997,7 @@
       pullLever,
       paths, path, posAt: (dist) => posAt(path, dist), posOn: (pathIdx, dist) => posAt(paths[pathIdx || 0], dist),
       isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
+      rangeMul, // effective night range multiplier (Night Owl included) — the renderer's preview must match the engine
       levelDef,
     };
   }

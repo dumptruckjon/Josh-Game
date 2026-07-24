@@ -144,6 +144,20 @@ test("guardrail: TD-7 multi-path lanes + the L10 track-switch lever stay wired",
   assert.match(main, /engine\.pullLever\(\)/, "a field tap on the lever throws it");
 });
 
+test("guardrail: the TD-8 deep star tree stays wired (branches, ranks, one site per ability)", () => {
+  const data = require("../scripts/td-data.js");
+  assert.equal((data.META_BRANCHES || []).length, 3, "3 tree branches");
+  assert.ok(data.META_NODES.length >= 23, "the deep tree keeps its 23+ nodes");
+  const logic = read("scripts/td-logic.js");
+  assert.match(logic, /diff\.bounty \* mods\.bounty/, "Bounty Hunter multiplies at the ONE killEnemy site");
+  assert.match(logic, /mods\.bossDmg > 1 && enemyDef\(e\)\.boss/, "Boss Bonker applies in the ONE dealDamage path");
+  assert.match(logic, /mods\.stickerShield && !state\.shieldUsed/, "Sticker Shield absorbs exactly one leak");
+  assert.match(logic, /const respawnTicks = /, "Guard Dog scales BOTH soldier-KO paths through one helper");
+  assert.match(logic, /mods\.nightOwl \? 1 - \(1 - nightBase\) \/ 2/, "Night Owl halves the night penalty");
+  assert.match(read("scripts/td-render.js"), /engine\.rangeMul/, "the range preview reads the ENGINE's night multiplier (Night Owl included)");
+  assert.match(read("scripts/td-ui.js"), /function cascadeConsistent\(/, "refunds cascade so owned nodes stay self-consistent");
+});
+
 test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch)", () => {
   // Self-healing (RULE 7). The page loads every asset with a ?v=<sha> cache-bust
   // query, but the SW precaches the UNVERSIONED paths (CORE lists

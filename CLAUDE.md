@@ -741,6 +741,17 @@ field splits into slices, decide EXPLICITLY which aggregates stay cross-slice:
 the star tree / endless / star achievements read best-per-level across ladders
 (ceiling unchanged at 36⭐), while the grid and unlocks are per-ladder — an
 implicit "sum everything" would have tripled the meta economy.
+**A meta shop must COST more than the currency ceiling, or it stops being a
+choice** — the original 10-node tree cost 28⭐ vs 36 earnable, so a completionist
+bought everything and had 8 dead stars (the user felt it: "to really utilize
+stars well"); TD-8's 23-node tree costs 77⭐ and a guardrail asserts total>36
+forever. Two implementation laws from the build: (1) **adding an rng draw where
+none happened changes every historical replay** — Lucky Darts' crit roll fires
+only when a chance EXISTS (`(s.crit||0)+bonus > 0`), so meta-less streams keep
+their exact hashes (the determinism suite is the proof); (2) **gated purchases
+need a CASCADE on refund** — dropping rank I must drop rank II and any capstone
+whose in-branch spend fell below its requirement, or `save.meta` goes
+inconsistent (owned-but-unearnable), locked by a browser test.
 
 ---
 
@@ -778,7 +789,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds; L10 = TD-7 fork+lever)/gimmicks + TD-5 meta (10-node star tree, 12 achievements, endless arenas)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds; L10 = TD-7 fork+lever)/gimmicks + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 12 achievements, endless arenas)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast
@@ -1045,10 +1056,26 @@ slows (strongest-wins, fliers half), brittle, splash with falloff + min-range,
 chain lightning, seeded crits, spin-up, and path-blocking soldiers with rally
 flags. The renderer draws the FLOOR rotated 90° in portrait so the battlefield
 fills the phone while CHARACTERS stay upright (one worldToScreen mapping shared by
-drawing/taps/dialogs). **TD-5 META** adds the between-runs layer: a **10-node
-star tree** (spend earned ⭐ on permanent buffs — start gold, Dart/Mortar/Fan/
-soldier buffs, +2 lives, ×1.5 early-call, 90% refund, a "Weakest" targeting
-unlock, −10% branch cost — with a **free respec**), threaded through
+drawing/taps/dialogs). **TD-5 META** adds the between-runs layer: a **star
+tree** — grown by **TD-8** into a DEEP tree: **3 themed branches (🎯 Firepower /
+💰 Economy / 🏰 Fortification) × 23 nodes costing 77⭐ total vs the 36⭐
+ceiling**, so allocation is a permanent real choice (guardrail: total must
+exceed 36 — the original 10-node tree cost 28 and went fully-bought with dead
+stars). Ranked skills (Sharp Darts/Piggy Bank/Extra Hearts/Big Booms/Tough
+Troops II — rank II requires rank I, highest rank wins in `metaMods`), 5 new
+abilities (🪙 +8% bounty at the ONE killEnemy site; 🍀 dart-line +3% crit — the
+rng draw only happens when a chance exists, so meta-less streams keep their
+historical hashes; 🦉 night penalty halved via the engine-exposed `rangeMul`
+the renderer's preview reads; 🐕 respawn ×0.75 through one `respawnTicks`
+helper covering BOTH KO paths; 🩹 +1 life every 5th cleared wave, never above
+start, skipped on the winning wave so stars can't inflate), and a 👑 capstone
+per branch behind ⭐8 in-branch spend (👊 bosses +15% in the ONE dealDamage
+path; 💵 +12 gold after every cleared wave; 🌟 the first leak each run costs 0
+lives — the leak still emits, so "No Leaks" stays honest). Refunds CASCADE
+(dropping rank I drops rank II and any capstone whose branch spend fell) so
+`save.meta` never goes inconsistent; the original 10 node ids/costs are
+UNCHANGED so old saves keep exactly what they owned; still a **free respec**,
+threaded through
 `createEngine` as PURE INPUT (`opts.meta`) so a sim covers any loadout; **12
 achievements** (`jon-td-ach`, toast on unlock, one per boss + First Blood/No
 Leaks/Pea Purist/Ice Age/Star Collector/Full Fort/Marathoner/Heroic Heart);

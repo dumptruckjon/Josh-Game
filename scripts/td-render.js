@@ -35,7 +35,10 @@
       mag = Math.min(4, mag);
       if (mag >= shakeMag * (shakeTtl > 0 ? shakeTtl / 10 : 0)) { shakeMag = mag; shakeTtl = 10; }
     }
-    const nightMul = NIGHT ? global.TDData.RULES.nightRangeMult : 1;
+    // The range-preview multiplier comes from the ENGINE (it folds in the Night
+    // Owl star-tree node) — recomputing it here from RULES would lie once the
+    // node is owned.
+    const nightMul = engine.rangeMul || 1;
     // TD-7: a level can have multiple lanes; the engine built them all.
     const lanes = engine.levelDef.paths || [engine.levelDef.path];
     const pathTotal = engine.paths[0].total; // primary lane length (decor + fallback)

@@ -882,17 +882,25 @@ test("TD4 L12 heroic is winnable by a sensible maxed build (the hardest sanction
 
 test("TD5 star tree: metaMods is a pure function of owned node ids (neutral tree = vanilla)", () => {
   const m0 = TD.metaMods([]);
-  assert.deepEqual(m0, { startGold: 0, lives: 0, dartDmg: 1, mortarSplash: 1, fanAura: 0, soldierHp: 1, earlyCall: 1, sellRefund: DATA.RULES.sellRefund, branchCost: 1, cheapTarget: false }, "empty tree is exactly vanilla");
+  assert.deepEqual(m0, {
+    startGold: 0, lives: 0, dartDmg: 1, mortarSplash: 1, fanAura: 0, soldierHp: 1,
+    earlyCall: 1, sellRefund: DATA.RULES.sellRefund, branchCost: 1, cheapTarget: false,
+    // TD-8 abilities all default OFF
+    bounty: 1, critBonus: 0, nightOwl: false, guardDog: 1, patchKit: false,
+    bossDmg: 1, allowance: 0, stickerShield: false,
+  }, "empty tree is exactly vanilla");
   const all = DATA.META_NODES.map((n) => n.id);
   const mAll = TD.metaMods(all);
-  assert.equal(mAll.startGold, 40); assert.equal(mAll.lives, 2); assert.ok(Math.abs(mAll.dartDmg - 1.1) < 1e-9);
-  assert.ok(Math.abs(mAll.mortarSplash - 1.1) < 1e-9); assert.ok(Math.abs(mAll.fanAura - 0.3) < 1e-9);
-  assert.ok(Math.abs(mAll.soldierHp - 1.15) < 1e-9); assert.ok(Math.abs(mAll.earlyCall - 1.5) < 1e-9);
+  // with EVERY node owned the rank-II values win (TD-8)
+  assert.equal(mAll.startGold, 80); assert.equal(mAll.lives, 4); assert.ok(Math.abs(mAll.dartDmg - 1.2) < 1e-9);
+  assert.ok(Math.abs(mAll.mortarSplash - 1.2) < 1e-9); assert.ok(Math.abs(mAll.fanAura - 0.3) < 1e-9);
+  assert.ok(Math.abs(mAll.soldierHp - 1.3) < 1e-9); assert.ok(Math.abs(mAll.earlyCall - 1.5) < 1e-9);
   assert.equal(mAll.sellRefund, 0.9); assert.ok(Math.abs(mAll.branchCost - 0.9) < 1e-9); assert.equal(mAll.cheapTarget, true);
-  // every node id is unique + costs are the plan's (sum 28 ≤ 36 possible ⭐)
+  assert.ok(Math.abs(mAll.bounty - 1.08) < 1e-9); assert.ok(Math.abs(mAll.critBonus - 0.03) < 1e-9);
+  assert.equal(mAll.allowance, 12); assert.ok(mAll.nightOwl && mAll.patchKit && mAll.stickerShield);
   const ids = new Set(all); assert.equal(ids.size, DATA.META_NODES.length, "node ids unique");
   const total = DATA.META_NODES.reduce((a, n) => a + n.cost, 0);
-  assert.equal(total, 28, `tree total is 28⭐ (≤ 36 possible), got ${total}`);
+  assert.ok(total > 36, `TD-8 tree total must exceed the 36⭐ ceiling (got ${total})`);
 });
 
 test("TD5 meta applies at createEngine: +gold, +lives, +dart dmg, cheaper branch, better refund", () => {
@@ -1153,4 +1161,206 @@ test("AUDIT pad geometry: no pad sits ON a lane, none crowd each other (every le
       }
     }
   }
+});
+
+// ===================== TD-8: the deep star tree =====================
+// The tree grew from 10 flat nodes (28⭐ — fully buyable, 8 dead stars) to 3
+// branches × ranked skills + capstones. Every node stays PURE INPUT at
+// createEngine; each new ability is proven at its ONE engine site below.
+
+test("TD8 tree data: 3 branches, consistent ranks/capstones, total cost EXCEEDS the 36⭐ ceiling", () => {
+  const nodes = DATA.META_NODES;
+  const branchIds = new Set(DATA.META_BRANCHES.map((b) => b.id));
+  assert.equal(branchIds.size, 3, "three branches");
+  const ids = new Set();
+  let total = 0;
+  for (const n of nodes) {
+    assert.ok(!ids.has(n.id), "duplicate node id " + n.id); ids.add(n.id);
+    assert.ok(branchIds.has(n.branch), n.id + " must belong to a real branch");
+    assert.ok(n.cost > 0 && n.icon && n.name && n.desc, n.id + " must be a full card");
+    total += n.cost;
+    if (n.req) {
+      const r = nodes.find((x) => x.id === n.req);
+      assert.ok(r, n.id + "'s req must exist");
+      assert.equal(r.branch, n.branch, n.id + "'s rank chain must stay inside one branch");
+    }
+    if (n.reqSpend) {
+      const others = nodes.filter((x) => x.branch === n.branch && x.id !== n.id).reduce((s, x) => s + x.cost, 0);
+      assert.ok(others >= n.reqSpend, n.id + "'s spend requirement must be reachable inside its branch");
+    }
+  }
+  // The dead-stars law: a tree that costs less than the earnable ceiling gets
+  // fully bought and stops being a choice. Lock it out forever.
+  assert.ok(total > 36, "tree total (" + total + "⭐) must exceed the 36⭐ earnable ceiling");
+  for (const b of branchIds) {
+    assert.equal(nodes.filter((n) => n.branch === b && n.reqSpend).length, 1, "exactly one 👑 capstone in " + b);
+  }
+  // Save-compat: the original 10 ids survive with their original costs, so an
+  // existing save.meta keeps exactly what it owned.
+  const legacy = { startgold: 2, dartdmg: 3, mortarsplash: 3, fanrange: 3, soldierhp: 3, lives: 4, earlycall: 2, sellrefund: 2, cheaptarget: 2, branchcost: 4 };
+  for (const id in legacy) {
+    const n = nodes.find((x) => x.id === id);
+    assert.ok(n, "legacy node " + id + " must still exist");
+    assert.equal(n.cost, legacy[id], "legacy node " + id + " must keep its cost");
+  }
+});
+
+test("TD8 metaMods: rank II overrides rank I; every new ability defaults OFF", () => {
+  const base = TD.metaMods([]);
+  assert.equal(base.dartDmg, 1); assert.equal(base.bounty, 1); assert.equal(base.critBonus, 0);
+  assert.equal(base.guardDog, 1); assert.equal(base.bossDmg, 1); assert.equal(base.allowance, 0);
+  assert.ok(!base.nightOwl && !base.patchKit && !base.stickerShield);
+  const r1 = TD.metaMods(["dartdmg", "startgold", "lives", "soldierhp", "mortarsplash"]);
+  assert.equal(r1.dartDmg, 1.1); assert.equal(r1.startGold, 40); assert.equal(r1.lives, 2);
+  assert.equal(r1.soldierHp, 1.15); assert.equal(r1.mortarSplash, 1.1);
+  const r2 = TD.metaMods(["dartdmg", "dartdmg2", "startgold", "startgold2", "lives", "lives2", "soldierhp", "soldierhp2", "mortarsplash", "mortarsplash2"]);
+  assert.equal(r2.dartDmg, 1.2); assert.equal(r2.startGold, 80); assert.equal(r2.lives, 4);
+  assert.equal(r2.soldierHp, 1.3); assert.equal(r2.mortarSplash, 1.2);
+});
+
+// A tiny straight-lane level for the ability sims.
+const microTd8 = (over) => Object.assign({
+  id: 990, name: "micro-td8", world: "test", startGold: 5000, budgetBase: 100,
+  path: [[0, 2], [23, 2]],
+  pads: [{ id: "p1", cx: 4, cy: 3 }, { id: "p2", cx: 8, cy: 3 }, { id: "p3", cx: 12, cy: 3 }],
+  waves: [{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }],
+}, over || {});
+
+test("TD8 🪙 Bounty Hunter: a kill pays the rounded +8%, through the ONE killEnemy path", () => {
+  // read the die event's bounty (the pure kill payout) — the raw gold delta
+  // would also include the early-call bonus and muddy the arithmetic
+  const lvl = microTd8({ waves: [{ groups: [{ type: "balloon", count: 1, gap: 1, delay: 0 }] }] });
+  const bountyOfKill = (meta) => {
+    const e = TD.createEngine(lvl, { seed: 3, meta });
+    e.place("dart", "p1"); e.place("dart", "p2");
+    e.callWave();
+    let guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 30000) {
+      e.tick();
+      for (const ev of e.events.splice(0)) if (ev.type === "die") return ev.bounty;
+    }
+    throw new Error("the balloon never died");
+  };
+  assert.equal(bountyOfKill([]), 8, "balloon bounty is 8");
+  assert.equal(bountyOfKill(["bounty"]), Math.round(8 * 1.08), "Bounty Hunter pays the rounded +8%");
+});
+
+test("TD8 👊 Boss Bonker: the boss has LESS hp after the same window (one damage path)", () => {
+  const lvl = microTd8({ waves: [{ boss: true, groups: [{ type: "bedmonster", count: 1, gap: 1, delay: 0 }] }] });
+  const bossHpAfter = (meta) => {
+    const e = TD.createEngine(lvl, { seed: 4, meta });
+    e.place("dart", "p1"); e.place("dart", "p2");
+    e.callWave();
+    for (let i = 0; i < 2400; i++) e.tick(); // a fixed 80s window
+    const b = e.state.enemies.find((x) => x.type === "bedmonster");
+    assert.ok(b, "the boss is still on the field in the window");
+    return b.hp;
+  };
+  const plain = bossHpAfter([]);
+  const bonked = bossHpAfter(["bossdmg"]);
+  assert.ok(plain > 0 && bonked > 0, "the boss survives the window in both runs");
+  assert.ok(bonked < plain, "Boss Bonker melts the boss faster (" + bonked + " < " + plain + ")");
+});
+
+test("TD8 🌟 Sticker Shield: the FIRST leak costs no lives, the second does — and both leaks still count", () => {
+  const lvl = microTd8({ waves: [{ groups: [{ type: "sock", count: 2, gap: 3, delay: 0 }] }] });
+  const e = TD.createEngine(lvl, { seed: 5, meta: ["stickershield"] }); // no towers → both socks leak
+  const lives0 = e.state.lives;
+  e.callWave();
+  const leaks = [];
+  let guard = 0;
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 60000) {
+    e.tick();
+    for (const ev of e.events.splice(0)) if (ev.type === "leak") leaks.push(ev);
+  }
+  assert.equal(e.state.lives, lives0 - 1, "exactly ONE life was spent for two leaks");
+  assert.equal(leaks.length, 2, "BOTH leaks still emitted (the No Leaks badge stays honest)");
+  assert.equal(leaks.filter((v) => v.shielded).length, 1, "exactly one leak was absorbed by the shield");
+  assert.ok(e.state.shieldUsed, "the shield is spent for the rest of the run");
+});
+
+test("TD8 💵 Allowance + 🩹 Patch Kit: paid after cleared waves; heal on the 5th, never above start", () => {
+  const lvl = microTd8({
+    waves: [1, 2, 3, 4, 5, 6].map(() => ({ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] })),
+  });
+  const untilBuild = (e, w, cap) => { let g = 0; while (!(e.state.phase === "build" && e.state.waveIdx === w) && g++ < (cap || 60000)) e.tick(); assert.ok(g < (cap || 60000), "reached build " + w); };
+  // 💵 Allowance: +12 exactly, visible once wave 1 clears.
+  const goldAfterWave1 = (meta) => {
+    const e = TD.createEngine(lvl, { seed: 6, meta });
+    e.place("dart", "p1"); e.place("dart", "p2");
+    const g0 = e.state.gold;
+    e.callWave();
+    untilBuild(e, 1);
+    return e.state.gold - g0;
+  };
+  assert.equal(goldAfterWave1(["allowance"]) - goldAfterWave1([]), 12, "Allowance adds exactly +12 after a cleared wave");
+  // 🩹 Patch Kit: leak one life on wave 1 (no towers yet), then clear 2-5 — the
+  // 5th cleared wave heals it back; the heal can never exceed the run's start.
+  const e = TD.createEngine(lvl, { seed: 7, meta: ["patchkit"] });
+  const lives0 = e.state.lives;
+  e.callWave();
+  untilBuild(e, 1);
+  assert.equal(e.state.lives, lives0 - 1, "wave 1 leaked one life");
+  e.place("dart", "p1"); e.place("dart", "p2"); e.place("dart", "p3");
+  e.callWave(); untilBuild(e, 2);
+  e.callWave(); untilBuild(e, 3);
+  e.callWave(); untilBuild(e, 4);
+  assert.equal(e.state.lives, lives0 - 1, "no heal before the 5th cleared wave");
+  e.callWave(); untilBuild(e, 5);
+  assert.equal(e.state.lives, lives0, "Patch Kit heals +1 on the 5th cleared wave — and caps at the starting lives");
+});
+
+test("TD8 🐕 Guard Dog: a fallen soldier returns ~25% sooner (both KO paths share one clock)", () => {
+  const lvl = microTd8({ waves: [{ groups: [{ type: "bull", count: 1, gap: 1, delay: 0 }] }] });
+  const respawnDelta = (meta) => {
+    const e = TD.createEngine(lvl, { seed: 8, meta });
+    e.place("camp", "p1");
+    e.callWave();
+    let guard = 0;
+    while (guard++ < 60000) {
+      e.tick();
+      const dead = e.state.soldiers.find((s) => !s.alive && s.respawnAt);
+      if (dead) return dead.respawnAt - e.state.tick;
+    }
+    throw new Error("no soldier fell to the bull");
+  };
+  const norm = respawnDelta([]);
+  const fast = respawnDelta(["guarddog"]);
+  assert.ok(fast < norm, "Guard Dog respawn is sooner (" + fast + " < " + norm + ")");
+  assert.ok(Math.abs(fast / norm - 0.75) < 0.05, "≈25% faster (ratio " + (fast / norm).toFixed(3) + ")");
+});
+
+test("TD8 🍀 Lucky Darts: a base dart can crit ONLY with the node; meta-less rng stream untouched", () => {
+  // a long 30-sock volley (~77 shots on this seed) — the run may leak out, but
+  // either terminal phase ends the count; the point is the crit stream
+  const lvl = microTd8({ waves: [{ groups: [{ type: "sock", count: 30, gap: 0.5, delay: 0 }] }] });
+  const critCount = (meta) => {
+    const e = TD.createEngine(lvl, { seed: 9, meta });
+    e.place("dart", "p1"); e.place("dart", "p2"); e.place("dart", "p3");
+    e.callWave();
+    let guard = 0, crits = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 90000) {
+      e.tick();
+      for (const ev of e.events.splice(0)) if (ev.type === "hit" && ev.crit) crits++;
+    }
+    return crits;
+  };
+  assert.equal(critCount([]), 0, "a base (non-sniper) dart never crits without the node");
+  assert.ok(critCount(["critchance"]) >= 1, "Lucky Darts lands at least one crit across the volley (seeded)");
+});
+
+test("TD8 🦉 Night Owl: the engine's rangeMul halves the night penalty; non-night untouched", () => {
+  const night = microTd8({ night: true });
+  assert.equal(TD.createEngine(night, { seed: 1 }).rangeMul, DATA.RULES.nightRangeMult, "night dims by the rule");
+  const owl = TD.createEngine(night, { seed: 1, meta: ["nightowl"] }).rangeMul;
+  assert.ok(Math.abs(owl - (1 - (1 - DATA.RULES.nightRangeMult) / 2)) < 1e-9, "Night Owl halves the dimming");
+  assert.equal(TD.createEngine(microTd8(), { seed: 1, meta: ["nightowl"] }).rangeMul, 1, "no effect outside night levels");
+});
+
+test("TD8 full tree: owning EVERY node at once stays deterministic and still wins the L1 script", () => {
+  const ALL = DATA.META_NODES.map((n) => n.id);
+  const a = run(TD.createEngine(L1, { seed: 42, meta: ALL }), l1Plan());
+  const b = run(TD.createEngine(L1, { seed: 42, meta: ALL }), l1Plan());
+  assert.equal(a.phase, "won", "a maxed tree still wins the L1 script");
+  assert.equal(TD.hashState(a), TD.hashState(b), "maxed-tree runs replay identically (rng discipline holds)");
 });

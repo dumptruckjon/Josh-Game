@@ -223,6 +223,9 @@ body.td-mode #screens { padding: 0; }
 .td-tree__avail { color: #ffe27a; }
 
 /* star tree nodes */
+.td-tree__branch { margin: 14px 0 6px; font-weight: 800; color: #ffe27a; text-align: left; }
+.td-tree__spent { color: #9db4dd; font-weight: 400; font-size: 0.85em; }
+.td-node--locked .td-node__desc { color: #7286a8; }
 .td-nodes { display: flex; flex-direction: column; gap: 8px; }
 .td-node {
   display: flex; align-items: center; gap: 10px; text-align: left;

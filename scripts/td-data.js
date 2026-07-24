@@ -482,17 +482,44 @@
   //      = array of node ids), so a sim can drive any loadout. Costs from the
   //      plan; total 28 of a possible 36⭐ (3⭐ × 12 levels) — the tree is
   //      fully affordable once the campaign is mastered. ----
+  // TD-8 star tree: 3 themed branches × ranked skills + a 👑 capstone each.
+  // Deliberately costs MORE than the 36⭐ ceiling (guardrail-tested) so
+  // allocation is a real choice forever — the free respec keeps it forgiving.
+  // Rank II needs its rank I (req); a capstone needs reqSpend ⭐ already spent
+  // INSIDE its own branch. The original 10 node ids/costs/effects are UNCHANGED
+  // (an existing save.meta keeps exactly what it owned).
+  const META_BRANCHES = [
+    { id: "fire", icon: "🎯", name: "Firepower" },
+    { id: "econ", icon: "💰", name: "Economy" },
+    { id: "fort", icon: "🏰", name: "Fortification" },
+  ];
   const META_NODES = [
-    { id: "startgold",    icon: "💰", name: "Piggy Bank",  desc: "+40 starting gold",     cost: 2 },
-    { id: "dartdmg",      icon: "🎯", name: "Sharp Darts",  desc: "Dart +10% damage",       cost: 3 },
-    { id: "mortarsplash", icon: "🧱", name: "Big Booms",    desc: "Mortar +10% splash",     cost: 3 },
-    { id: "fanrange",     icon: "🧊", name: "Cold Front",   desc: "Fan aura +0.3 range",    cost: 3 },
-    { id: "soldierhp",    icon: "🪖", name: "Tough Troops", desc: "Soldiers +15% HP",       cost: 3 },
-    { id: "lives",        icon: "❤️", name: "Extra Hearts", desc: "+2 starting lives",      cost: 4 },
-    { id: "earlycall",    icon: "⏩", name: "Early Bird",   desc: "Early-call bonus ×1.5",  cost: 2 },
-    { id: "sellrefund",   icon: "♻️", name: "Trade-In",     desc: "Sell refund 90%",        cost: 2 },
-    { id: "cheaptarget",  icon: "🔻", name: "Weak Spot",    desc: "Unlock “Weakest” aim",   cost: 2 },
-    { id: "branchcost",   icon: "🏷️", name: "Bulk Deal",    desc: "Branch prices −10%",     cost: 4 },
+    // 🎯 Firepower
+    { id: "dartdmg",       branch: "fire", icon: "🎯", name: "Sharp Darts",     desc: "Dart +10% damage",             cost: 3 },
+    { id: "dartdmg2",      branch: "fire", icon: "🎯", name: "Sharp Darts II",  desc: "Dart +20% damage",             cost: 3, req: "dartdmg" },
+    { id: "mortarsplash",  branch: "fire", icon: "🧱", name: "Big Booms",       desc: "Mortar +10% splash",           cost: 3 },
+    { id: "mortarsplash2", branch: "fire", icon: "🧱", name: "Big Booms II",    desc: "Mortar +20% splash",           cost: 3, req: "mortarsplash" },
+    { id: "fanrange",      branch: "fire", icon: "🧊", name: "Cold Front",      desc: "Fan aura +0.3 range",          cost: 3 },
+    { id: "critchance",    branch: "fire", icon: "🍀", name: "Lucky Darts",     desc: "Dart-line shots +3% crit",     cost: 3 },
+    { id: "cheaptarget",   branch: "fire", icon: "🔻", name: "Weak Spot",       desc: "Unlock “Weakest” aim",         cost: 2 },
+    { id: "bossdmg",       branch: "fire", icon: "👊", name: "Boss Bonker",     desc: "Bosses take +15% damage",      cost: 6, reqSpend: 8 },
+    // 💰 Economy
+    { id: "startgold",     branch: "econ", icon: "💰", name: "Piggy Bank",      desc: "+40 starting gold",            cost: 2 },
+    { id: "startgold2",    branch: "econ", icon: "💰", name: "Piggy Bank II",   desc: "+80 starting gold",            cost: 3, req: "startgold" },
+    { id: "earlycall",     branch: "econ", icon: "⏩", name: "Early Bird",      desc: "Early-call bonus ×1.5",        cost: 2 },
+    { id: "sellrefund",    branch: "econ", icon: "♻️", name: "Trade-In",        desc: "Sell refund 90%",              cost: 2 },
+    { id: "branchcost",    branch: "econ", icon: "🏷️", name: "Bulk Deal",       desc: "Branch prices −10%",           cost: 4 },
+    { id: "bounty",        branch: "econ", icon: "🪙", name: "Bounty Hunter",   desc: "Popped toys drop +8% gold",    cost: 3 },
+    { id: "allowance",     branch: "econ", icon: "💵", name: "Allowance",       desc: "+12 gold after every wave",    cost: 6, reqSpend: 8 },
+    // 🏰 Fortification
+    { id: "lives",         branch: "fort", icon: "❤️", name: "Extra Hearts",    desc: "+2 starting lives",            cost: 4 },
+    { id: "lives2",        branch: "fort", icon: "❤️", name: "Extra Hearts II", desc: "+4 starting lives",            cost: 4, req: "lives" },
+    { id: "soldierhp",     branch: "fort", icon: "🪖", name: "Tough Troops",    desc: "Soldiers +15% HP",             cost: 3 },
+    { id: "soldierhp2",    branch: "fort", icon: "🪖", name: "Tough Troops II", desc: "Soldiers +30% HP",             cost: 3, req: "soldierhp" },
+    { id: "guarddog",      branch: "fort", icon: "🐕", name: "Guard Dog",       desc: "Soldiers respawn 25% faster",  cost: 3 },
+    { id: "nightowl",      branch: "fort", icon: "🦉", name: "Night Owl",       desc: "Night range penalty halved",   cost: 2 },
+    { id: "patchkit",      branch: "fort", icon: "🩹", name: "Patch Kit",       desc: "+1 life every 5th wave",       cost: 4 },
+    { id: "stickershield", branch: "fort", icon: "🌟", name: "Sticker Shield",  desc: "First leak each run costs 0 lives", cost: 6, reqSpend: 8 },
   ];
 
   // ---- TD-5 ACHIEVEMENTS (§8.2): unlocked from real play, toast on earn,
@@ -534,7 +561,7 @@
     },
   };
 
-  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, TOWERS, ENEMIES, LEVELS, META_NODES, ACHIEVEMENTS, ENDLESS };
+  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, TOWERS, ENEMIES, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
 
   if (typeof module !== "undefined" && module.exports) module.exports = DATA;
   if (global && typeof global === "object") global.TDData = DATA;
