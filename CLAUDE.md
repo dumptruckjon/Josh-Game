@@ -811,6 +811,38 @@ guardrails, not a sweeping re-balance the data didn't support. Guardrails:
 gotcha class) or if a boss finale lets a sensible build finish above 17/20 (the
 formality class); the Bed Monster is explicitly exempted from the tower-facing
 rule because it earns its finale as a raw DPS check, which the sim proves.
+**The follow-up pass acted on that audit's own prediction — and proved THREAT
+SHAPE is the knob HP never was.** The audit said difficulty must come from what
+a build has to COUNTER, not from bigger HP piles; measuring the roster showed
+**all four World-3 levels shipped with ZERO fliers in any wave** (6 of the 8
+World-2/3 levels had none at all — L7 was carrying the entire air game). Only
+dart and fan can hit air, so a mortar-only board flew through the endgame
+untouched: mortar solo-carried **8/12** levels. Fix: 40 late waves across the backyard + toy-store worlds now
+convert **20% of their HP into Kite Hawk flights** (30% on L11), **preserving
+total wave HP** so the ±25% budget contract is untouched — World 1 stays the
+flier-free tutorial. Result: mortar-mono **8/12 → 1/12**, front-loading
+**76% → 54%**, every level still winnable and still losable by neglect. The
+method generalizes: **an HP-preserving threat SWAP is the safe way to re-tune a
+budget-contracted wave table** — it changes what the wave demands without
+touching the number the audit checks. Heroic was the other real fix: it was
+winnable on only **6/12** levels, and the toxic knob was **`speed`, not `hp`** —
+a 1.08 speed multiplier compounds with conveyor zones and already-fast fliers and
+steals tower UPTIME, which gold cannot buy back, while a NEGATIVE start-gold on
+top made the opening unrecoverable. Re-shaped to a pure hp/economy challenge
+(`hp 1.30, speed 1.0, bounty 0.9, startGold +40`) → **12/12 winnable** and still
+clearly harder than normal. Two items were closed WITHOUT a change, which is the
+honest outcome: **L11 cannot be made to end harder than L10 inside the budget
+contract** — pushing its late waves to the very top of the band produced
+literally zero movement (`late x1.2 | wins 3/3 | lives 17.3 (need < 15.0) |
+late-dmg 0.0 | band true`), the same threshold ceiling the first audit found; and
+**tier-4 branches are a STRATEGY axis, not gated content** — a TALL build (cap
+~5 towers, pour everything into upgrades + branches) reaches tier-4 by wave 7-11
+on six levels, while cutting branch costs to 0.7× still leaves the WIDE
+fill-every-pad build at only 2/12, so the branch isn't priced out, breadth is
+simply a different (valid) choice. Guardrails: `AUDIT threat shape` fails if a
+World-2/3 late wave loses its air pressure or if World 1 grows hawks, and
+`AUDIT heroic is a SLOPE` pins `speed === 1.0`, `startGold >= 0`,
+`hp > 1.2 && bounty < 1`, and every level winnable on heroic.
 
 ---
 

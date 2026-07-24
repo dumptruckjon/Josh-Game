@@ -1508,3 +1508,66 @@ test("AUDIT boss tension: every boss FINALE must actually cost something", () =>
   assert.ok(vk.phases && vk.phases.some((p) => p.disable),
     "the Vacuum King must keep a tower-facing threat (a jam phase) — without it a tower-only build is immune to its whole kit and the World-2 finale costs nothing");
 });
+
+test("AUDIT threat shape: World 2-3 late waves keep ANTI-AIR pressure (mono-build counter)", () => {
+  // Backlog item 5: mortar and camp CANNOT hit fliers (only dart/fan can), so a
+  // flier presence in the late game is what stops a single line from carrying
+  // every level. Before this, World 3 had ZERO fliers and a mortar-only board
+  // solo-carried 8/12 levels; with Kite Hawk flights it carries 1/12.
+  for (const lvl of DATA.LEVELS.filter((l) => l.world !== "bedroom")) {
+    const from = Math.ceil(lvl.waves.length * 0.55);
+    const lateFliers = lvl.waves.slice(from).some((w) => w.groups.some((g) => DATA.ENEMIES[g.type] && DATA.ENEMIES[g.type].flier));
+    assert.ok(lateFliers,
+      `L${lvl.id} "${lvl.name}" has no fliers in its late waves — a mortar/camp board would face no anti-air check and could solo-carry it`);
+  }
+  // World 1 stays the gentle tutorial world (no air threat to learn around).
+  for (const lvl of DATA.LEVELS.filter((l) => l.world === "bedroom")) {
+    assert.ok(lvl.waves.every((w) => w.groups.every((g) => g.type !== "hawk")),
+      `L${lvl.id} is a World-1 tutorial level and should not carry fast fliers`);
+  }
+});
+
+test("AUDIT heroic is a SLOPE, not a cliff: every level stays winnable on heroic", () => {
+  // Heroic used to be scattered — L7/L9/L10 unwinnable by a competent build
+  // while L8 was comfortable — because `speed` compounded with conveyors/fliers
+  // and the gold penalty amplified the decisive opening. Heroic is now a pure
+  // hp/economy challenge, so difficulty tracks level order.
+  assert.equal(DATA.DIFFICULTIES.heroic.speed, 1.0,
+    "heroic must not multiply enemy SPEED — it compounds with conveyor zones and fast fliers and steals tower uptime, which gold cannot buy back");
+  assert.ok(DATA.DIFFICULTIES.heroic.startGold >= 0,
+    "heroic must not start you POORER — the opening is already the most decisive moment (the front-loading finding)");
+  assert.ok(DATA.DIFFICULTIES.heroic.hp > 1.2 && DATA.DIFFICULTIES.heroic.bounty < 1,
+    "heroic must still be genuinely harder: tougher enemies that pay less");
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function run(level, plan) {
+    const e = TD.createEngine(level, { seed: 7, difficulty: "heroic" });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state;
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  for (const lvl of DATA.LEVELS) {
+    const won = PLANS.some((p) => run(lvl, p).phase === "won");
+    assert.ok(won, `L${lvl.id} "${lvl.name}" is not winnable on HEROIC by either sensible build — heroic must stay a hard slope, not a wall`);
+  }
+});
