@@ -1616,6 +1616,43 @@ test("ART: every tower TIER draws differently, and each tier-4 branch is its own
     assert.notEqual(s(3), s("b"), `${line}: the B branch must look different from tier 3`);
     assert.notEqual(s("a"), s("b"), `${line}: the two tier-4 branches must not look alike`);
   }
+
+  // …and the SQUAD a camp fields must show its rank too: every soldier drew as
+  // the same tier-1 grunt, so upgrading a camp — and especially taking Dino
+  // Squad or RC Racers — changed nothing you could see on the field.
+  const sol = await page.evaluate(() => {
+    const st = window.__TD.state(), r = window.__TD.render();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const ctx = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const out = {};
+    for (const v of [1, 2, 3, "a", "b"]) {
+      st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
+      st.towers.push({
+        id: 7, lineId: "camp", tier: typeof v === "number" ? v : 4,
+        branch: typeof v === "number" ? "" : v, padId: "art", cx: 2, cy: 2,
+        cooldown: 0, targetId: 0, zapAcc: 0, heat: 0, targeting: "first",
+        spent: 0, rallyX: 0, rallyY: 0, disabledUntil: 0,
+      });
+      st.soldiers.push({ id: 1, campId: 7, alive: true, hp: 100, maxHp: 100, x: 9, y: 9, postX: 9, postY: 9, engagedId: 0, respawnAt: 0 });
+      r.draw(0);
+      const p = window.__TD.w2s(9, 9);
+      const half = 26;
+      const d = ctx.getImageData(
+        Math.max(0, Math.round((p.x - half) * dpr)), Math.max(0, Math.round((p.y - half) * dpr)),
+        Math.round(half * 2 * dpr), Math.round(half * 2 * dpr)
+      ).data;
+      let h = 5381;
+      for (let i = 0; i < d.length; i += 4) h = ((h * 33) ^ (d[i] + d[i + 1] * 3 + d[i + 2] * 7 + d[i + 3] * 11)) >>> 0;
+      out[v] = h;
+    }
+    st.towers.length = 0; st.soldiers.length = 0;
+    return out;
+  });
+  const seen = {};
+  for (const v of Object.keys(sol)) (seen[sol[v]] = seen[sol[v]] || []).push(v);
+  const same = Object.keys(seen).filter((h) => seen[h].length > 1).map((h) => seen[h].join(" = "));
+  assert.deepEqual(same, [], `camp tiers whose SOLDIERS draw identically: ${same.join("; ")}`);
 });
 
 test("ART: every enemy draws as ITSELF — none falls through to the Sock Goblin", async () => {

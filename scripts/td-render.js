@@ -892,28 +892,100 @@
     function drawSoldier(s) {
       const p = worldToScreen(s.x, s.y);
       const x = p.x, y = p.y, u = cell;
+      // A squad must SHOW its camp's rank: every soldier used to draw as the same
+      // tier-1 grunt, so upgrading a camp — and especially taking Dino Squad or
+      // RC Racers — changed nothing you could see on the field.
+      const camp = engine.state.towers.find((t) => t.id === s.campId);
+      const tier = camp ? camp.tier : 1, br = camp && camp.tier >= 4 ? camp.branch : "";
       shadow(x, y + u * 0.24, u * 0.2, u * 0.09);
-      // little green army guy on a base
-      ctx.fillStyle = "#2f6a38";
-      ctx.beginPath(); ctx.ellipse(x, y + u * 0.22, u * 0.16, u * 0.06, 0, 0, 7); ctx.fill(); // base
-      ctx.fillStyle = "#4c9a55"; // body
-      ctx.beginPath();
-      ctx.moveTo(x - u * 0.12, y + u * 0.2);
-      ctx.quadraticCurveTo(x - u * 0.14, y - u * 0.06, x - u * 0.08, y - u * 0.1);
-      ctx.lineTo(x + u * 0.08, y - u * 0.1);
-      ctx.quadraticCurveTo(x + u * 0.14, y - u * 0.06, x + u * 0.12, y + u * 0.2);
-      ctx.closePath(); ctx.fill();
-      // rifle
-      ctx.strokeStyle = "#274a2c"; ctx.lineWidth = Math.max(1.5, u * 0.05); ctx.lineCap = "round";
-      ctx.beginPath(); ctx.moveTo(x + u * 0.02, y + u * 0.04); ctx.lineTo(x + u * 0.22, y - u * 0.12); ctx.stroke();
-      // head + helmet
-      ctx.fillStyle = "#e9c39a";
-      ctx.beginPath(); ctx.arc(x, y - u * 0.16, u * 0.085, 0, 7); ctx.fill();
-      ctx.fillStyle = "#3f8248";
-      ctx.beginPath(); ctx.arc(x, y - u * 0.19, u * 0.1, Math.PI, 0); ctx.fill();
-      ctx.fillRect(x - u * 0.12, y - u * 0.2, u * 0.24, u * 0.03);
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.beginPath(); ctx.arc(x - u * 0.04, y - u * 0.22, u * 0.03, 0, 7); ctx.fill();
+      if (br === "a") { // Dino Squad: a stout little dinosaur with a spine ridge
+        ctx.fillStyle = "#2f6a38";
+        ctx.beginPath(); ctx.ellipse(x, y + u * 0.22, u * 0.18, u * 0.06, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#6cc24a";
+        ctx.beginPath(); ctx.ellipse(x - u * 0.02, y + u * 0.04, u * 0.17, u * 0.14, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); // tail
+        ctx.moveTo(x - u * 0.14, y + u * 0.06); ctx.quadraticCurveTo(x - u * 0.32, y + u * 0.02, x - u * 0.3, y + u * 0.18);
+        ctx.quadraticCurveTo(x - u * 0.2, y + u * 0.12, x - u * 0.12, y + u * 0.14); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + u * 0.13, y - u * 0.11, u * 0.11, 0, 7); ctx.fill(); // head
+        ctx.fillStyle = "#4e9c33"; // legs
+        ctx.beginPath(); ctx.rect(x - u * 0.09, y + u * 0.13, u * 0.07, u * 0.1); ctx.fill();
+        ctx.beginPath(); ctx.rect(x + u * 0.04, y + u * 0.13, u * 0.07, u * 0.1); ctx.fill();
+        ctx.fillStyle = "#c9f06a"; // spines
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath();
+          ctx.moveTo(x - u * (0.06 - k * 0.06), y - u * 0.06);
+          ctx.lineTo(x - u * (0.02 - k * 0.06), y - u * 0.18);
+          ctx.lineTo(x + u * (0.02 + k * 0.06), y - u * 0.06);
+          ctx.closePath(); ctx.fill();
+        }
+        ctx.fillStyle = "#22304a";
+        ctx.beginPath(); ctx.arc(x + u * 0.17, y - u * 0.14, u * 0.028, 0, 7); ctx.fill();
+        ctx.fillStyle = "#fff"; // teeth
+        ctx.beginPath(); ctx.moveTo(x + u * 0.2, y - u * 0.05); ctx.lineTo(x + u * 0.23, y - u * 0.005); ctx.lineTo(x + u * 0.16, y - u * 0.03); ctx.closePath(); ctx.fill();
+      } else if (br === "b") { // RC Racers: a tiny radio-controlled car
+        ctx.fillStyle = "#22304a";
+        ctx.beginPath(); ctx.ellipse(x, y + u * 0.2, u * 0.18, u * 0.05, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#e2626b";
+        ctx.beginPath(); ctx.rect(x - u * 0.19, y + u * 0.02, u * 0.38, u * 0.13); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x - u * 0.1, y + u * 0.02); ctx.lineTo(x - u * 0.05, y - u * 0.1);
+        ctx.lineTo(x + u * 0.08, y - u * 0.1); ctx.lineTo(x + u * 0.13, y + u * 0.02);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#7fe3ff";
+        ctx.beginPath(); ctx.rect(x - u * 0.05, y - u * 0.08, u * 0.11, u * 0.07); ctx.fill();
+        ctx.fillStyle = "#12203a"; // wheels
+        ctx.beginPath(); ctx.arc(x - u * 0.13, y + u * 0.17, u * 0.075, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + u * 0.13, y + u * 0.17, u * 0.075, 0, 7); ctx.fill();
+        ctx.fillStyle = "#8fa6d0";
+        ctx.beginPath(); ctx.arc(x - u * 0.13, y + u * 0.17, u * 0.03, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + u * 0.13, y + u * 0.17, u * 0.03, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#cfe2ff"; ctx.lineWidth = Math.max(1, u * 0.025); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(x + u * 0.16, y - u * 0.02); ctx.lineTo(x + u * 0.22, y - u * 0.26); ctx.stroke();
+        ctx.fillStyle = "#ffd94a";
+        ctx.beginPath(); ctx.arc(x + u * 0.22, y - u * 0.28, u * 0.035, 0, 7); ctx.fill();
+      } else {
+        // Army guy — darker fatigues and better kit as the camp ranks up.
+        const body = tier >= 3 ? "#3f7a46" : tier === 2 ? "#458c4e" : "#4c9a55";
+        const hat = tier >= 3 ? "#2c5c33" : tier === 2 ? "#356b3c" : "#3f8248";
+        ctx.fillStyle = "#2f6a38";
+        ctx.beginPath(); ctx.ellipse(x, y + u * 0.22, u * 0.16, u * 0.06, 0, 0, 7); ctx.fill(); // base
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.moveTo(x - u * 0.12, y + u * 0.2);
+        ctx.quadraticCurveTo(x - u * 0.14, y - u * 0.06, x - u * 0.08, y - u * 0.1);
+        ctx.lineTo(x + u * 0.08, y - u * 0.1);
+        ctx.quadraticCurveTo(x + u * 0.14, y - u * 0.06, x + u * 0.12, y + u * 0.2);
+        ctx.closePath(); ctx.fill();
+        if (tier >= 3) { // flak vest + shoulder pads
+          ctx.fillStyle = "#6d7c58";
+          ctx.beginPath(); ctx.rect(x - u * 0.1, y - u * 0.06, u * 0.2, u * 0.14); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(x - u * 0.12, y - u * 0.06, u * 0.05, u * 0.035, 0, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(x + u * 0.12, y - u * 0.06, u * 0.05, u * 0.035, 0, 0, 7); ctx.fill();
+        }
+        // rifle — longer and heavier with rank
+        ctx.strokeStyle = "#274a2c"; ctx.lineWidth = Math.max(1.5, u * (0.04 + tier * 0.012)); ctx.lineCap = "round";
+        const gunReach = 0.18 + tier * 0.025;
+        ctx.beginPath(); ctx.moveTo(x + u * 0.02, y + u * 0.04); ctx.lineTo(x + u * gunReach, y - u * 0.12); ctx.stroke();
+        // head + helmet
+        ctx.fillStyle = "#e9c39a";
+        ctx.beginPath(); ctx.arc(x, y - u * 0.16, u * 0.085, 0, 7); ctx.fill();
+        ctx.fillStyle = hat;
+        ctx.beginPath(); ctx.arc(x, y - u * 0.19, u * 0.1, Math.PI, 0); ctx.fill();
+        ctx.fillRect(x - u * 0.12, y - u * 0.2, u * 0.24, u * 0.03);
+        if (tier >= 2) { // rank chevrons on the chest
+          ctx.fillStyle = "#ffd94a";
+          for (let k = 0; k < tier - 1; k++) {
+            ctx.beginPath();
+            ctx.moveTo(x - u * 0.06, y + u * 0.04 + k * u * 0.05);
+            ctx.lineTo(x, y + u * 0.01 + k * u * 0.05);
+            ctx.lineTo(x + u * 0.06, y + u * 0.04 + k * u * 0.05);
+            ctx.lineTo(x, y + u * 0.03 + k * u * 0.05);
+            ctx.closePath(); ctx.fill();
+          }
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.beginPath(); ctx.arc(x - u * 0.04, y - u * 0.22, u * 0.03, 0, 7); ctx.fill();
+      }
       if (s.hp < s.maxHp) {
         const w = u * 0.42, frac = Math.max(0, s.hp / s.maxHp);
         ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(x - w / 2, y - u * 0.38, w, 3);

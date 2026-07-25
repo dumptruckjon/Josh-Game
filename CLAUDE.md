@@ -1415,7 +1415,11 @@ an RC pit lane with a checkered flag), with a crown replacing the fourth pip. Th
 guardrail is generic and pixel-based: it renders each variant alone, hashes the
 canvas around it, and fails if any tier matches the tier below or either branch
 matches tier 3 or its sibling — so a future tower line cannot ship without tier
-art.
+art. The same audit caught the squad: **every soldier drew as the same tier-1
+grunt**, so ranking a camp up — and especially taking Dino Squad or RC Racers —
+changed nothing on the field. Army guys now darken and gain a flak vest, a
+longer rifle and rank chevrons with tier, Dino Squad fields a spined little
+dinosaur and RC Racers a tiny antenna'd car, guardrailed by the same hash.
 **The World-4 + Kid-Fort adversarial pass found FOUR shipped defects, and every
 one of them was invisible to a green suite because the suite never LOOKED.** They
 sort into two kinds. *Content that exists but cannot be reached:* the fort home's
