@@ -20,6 +20,11 @@
     // tougher enemies that pay less, with a fair opening. Sim: every level
     // winnable (12/12, was 6/12) at avg 11.6 lives vs ~17 on normal.
     heroic: { hp: 1.30, speed: 1.0, bounty: 0.9, startGold: 40 },
+    // 🧸 KID: Josh's mode. Not a difficulty tier — a different contract. RULE 5
+    // forbids failure states for him, so `noLose` is honoured by the engine: a
+    // leak still costs a sticker, but the fort door never actually falls. Weak
+    // toys and heaps of gold mean building anything at all works.
+    kid: { hp: 0.35, speed: 0.8, bounty: 2.5, startGold: 900, noLose: true },
   };
 
   // ---- Global rules ----

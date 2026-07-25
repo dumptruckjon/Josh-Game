@@ -260,9 +260,14 @@ body.td-mode #screens { padding: 0; }
 .td-resume__go { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 12px; background: #ffd94a; color: #3a2c00; font-weight: 800; touch-action: manipulation; }
 .td-resume__x { min-height: 44px; min-width: 44px; border: 0; border-radius: 12px; background: #26334f; color: #cfe2ff; font-weight: 800; touch-action: manipulation; }
 
-.td-meta { display: flex; gap: 8px; justify-content: center; margin: 0 0 14px; }
+/* A wrapping GRID, not a flex row: the row grew to 5 buttons and overflowed
+   320px, and grid gap (unlike flex gap) survives iOS 14.2. */
+.td-meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px; justify-content: center; margin: 0 0 14px;
+}
 .td-metabtn {
-  flex: 1; max-width: 150px; min-height: 48px; padding: 8px 6px;
+  max-width: 100%; min-height: 48px; padding: 8px 6px;
   border-radius: 12px; border: 2px solid #3a548a; background: #182a4a;
   color: #cfe2ff; font-weight: 800; font-size: 0.95rem;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -419,3 +424,17 @@ body.td-mode #screens { padding: 0; }
 
 /* World 4 tint: the attic — warm dusty amber, distinct from the other three. */
 .td-level[data-world="attic"] { border-color: #7a5a34; background: #33260f; }
+
+/* ---- 🧸 Kid Fort: RULE 5 applies INSIDE this mode ----
+   Josh's laws (≥75px targets, generous spacing) are deliberately off in the
+   adult fort — but the moment the fort is HIS, they are back on. Nothing here
+   changes the adult skin; it is scoped entirely to body.td-kid. */
+body.td-kid .td-mini { width: 76px; height: 76px; min-width: 76px; min-height: 76px; font-size: 1.7rem; }
+body.td-kid .td-btn { min-height: 76px; min-width: 110px; font-size: 1.2rem; }
+body.td-kid .td-abil { width: 78px; height: 82px; min-width: 78px; min-height: 78px; }
+body.td-kid .td-abils { gap: 16px; }
+body.td-kid .td-abil__icon { font-size: 1.7rem; }
+body.td-kid .td-buy, body.td-kid .td-up, body.td-kid .td-sell,
+body.td-kid .td-target, body.td-kid .td-branch, body.td-kid .td-rally { min-height: 76px; min-width: 92px; font-size: 1.05rem; }
+body.td-kid .td-buildmenu { gap: 16px; }
+body.td-kid .td-hud { font-size: 1.2rem; }

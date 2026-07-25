@@ -425,6 +425,10 @@
     // may override per-call (opts.meta).
     const meta = opts.meta || save.meta || [];
     const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta });
+    // 🧸 Kid mode is a PLAY mode, not progression: mark the run cheated so it can
+    // never write a star or earn a badge, and paint the kid-sized control skin.
+    if (difficulty === "kid") { engine.state.cheated = true; doc.body.classList.add("td-kid"); }
+    else doc.body.classList.remove("td-kid");
     const render = R.create(UI.canvas, engine);
     if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
@@ -856,6 +860,8 @@
     openTree: () => UI.showStarTree(save, (newMeta) => { save.meta = newMeta; persist(save); }),
     openAchievements: () => UI.showAchievements(save),
     openEndless: () => UI.showEndless(save, (world) => startEndless(world)),
+    // 🧸 Kid Fort: the first level, kid difficulty, kid-sized buttons, no losing.
+    kidFort: () => { location.hash = "#td-play"; startLevel(1, { difficulty: "kid" }); },
     // Grown-ups reset: wipe progress (keeping sound/graphics prefs + the
     // difficulty chip), drop any parked run, then re-render the fort home so the
     // grid re-locks, the star tree empties and the Resume banner disappears.

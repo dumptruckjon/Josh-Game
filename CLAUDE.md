@@ -1330,6 +1330,33 @@ a good save, then reloads so every field goes through the normal boot coercion
 rather than trusting the pasted shape. NOT included, and worth naming: a 4th
 world and a kid-mode fort were listed under this category and are **not built** —
 both are content projects on the scale of TD-4, not comfort polish.
+**WORLD 4 (the Attic, L13-L16) + 🧸 KID FORT shipped on the second attempt — the
+first was REVERTED, and the revert is the lesson.** Attempt one passed my own
+local sim but failed two shipped guardrails, so it was pulled rather than
+shipped: never tune against a solver stronger than the one in the suite (mine
+bought tier-4 branches; `PLAYABILITY`'s deliberately does not, so levels that
+looked comfortable locally still failed). What finally closed it: (1) **a boss is
+its own difficulty axis** — L16's margin was eaten by the Tickmaster, not by its
+waves, proven because HALVING the wave budget made the margin WORSE (3 → 2
+lives); 4200hp/12-lives → 3200/8 landed the finale inside the 5-17 window that
+`PLAYABILITY` and `AUDIT boss tension` jointly demand. (2) **Composition beats
+budget** — drawing freely from the special roster produced waves of shielded +
+splash-resistant + self-healing enemies with no answer, unwinnable at EVERY base
+and gold; a VANILLA backbone with at most one special shape per wave (≤25% HP)
+took the world from 2/4 to 4/4. (3) **Short paths are HARDER** (less tower
+exposure — the TD-4 law), so L14/L15's lanes were lengthened. (4) `night` is
+untunable for a new world's mid level: −15% reach held L14 at heroic 0/3 across a
+600→1500 gold sweep, so it was dropped. Two systemic changes came with the world:
+the star economy now DERIVES from `DATA.LEVELS.length * 3` (a literal 36 would
+fire Full Fort a whole world early — the ceiling is 48 now), and the fort-home
+meta row became a wrapping GRID because a 5th button overflowed 320px (grid gap
+also survives iOS 14.2, unlike flex gap). **🧸 Kid Fort is a different CONTRACT,
+not another difficulty tier**: RULE 5 forbids failure states for Josh, so the
+`kid` difficulty carries `noLose` — read at the ONE place a run can be lost, so
+casual/normal/heroic stay genuinely losable (guardrail-tested both ways) — and a
+kid run is marked `cheated` so it can never write a star or earn a badge. Inside
+`body.td-kid` the kid laws switch back ON (every restyled control ≥75px,
+guardrail-scanned), while the adult fort's skin is untouched.
 **The abilities' first REAL-PLAY report ("it's not clear what the powers do and
 some of them don't even seem to work at all") found two defects the whole test
 suite had sailed past, because every test drove `useAbility` directly and never

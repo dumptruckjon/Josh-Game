@@ -2022,3 +2022,33 @@ test("Rally Horn: works whenever the squad is HURT, not only when someone is dow
   bare.state.gold = 5000;
   assert.equal(bare.useAbility("horn", {}).reason, "no-soldiers", "no camp → the build-a-camp message");
 });
+
+// ---- 🧸 Kid Fort: a different CONTRACT, not another difficulty tier ----
+test("kid mode has NO failure state — the fort never falls, however badly it goes", () => {
+  // RULE 5 forbids failure states for Josh. Every other difficulty must still
+  // be losable, so this is one flag read at the ONE place a run can be lost.
+  for (const l of [DATA.LEVELS[0], DATA.LEVELS[7], DATA.LEVELS[15]]) {
+    const e = TD.createEngine(l, { seed: 7, difficulty: "kid" });
+    let g = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 900000) {
+      if (e.state.phase === "build") e.callWave();
+      e.tick();
+    }
+    assert.equal(e.state.phase, "won", `L${l.id}: kid mode must never lose, even building NOTHING`);
+    assert.ok(e.state.lives >= 1, "…and the sticker count never hits zero");
+  }
+  // every OTHER difficulty is still genuinely losable by neglect
+  for (const d of ["casual", "normal", "heroic"]) {
+    const e = TD.createEngine(DATA.LEVELS[0], { seed: 7, difficulty: d });
+    let g = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 900000) {
+      if (e.state.phase === "build") e.callWave();
+      e.tick();
+    }
+    assert.equal(e.state.phase, "lost", `${d} must still be losable — noLose is kid-only`);
+  }
+  assert.equal(DATA.DIFFICULTIES.kid.noLose, true, "kid carries the no-lose flag");
+  for (const d of ["casual", "normal", "heroic"]) {
+    assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must NOT carry it`);
+  }
+});

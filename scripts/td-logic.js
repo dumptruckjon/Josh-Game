@@ -490,7 +490,13 @@
       }
       state.lives -= enemyDef(e).lives;
       emit({ type: "leak", enemy: e.type });
-      if (state.lives <= 0) { state.lives = 0; state.phase = "lost"; emit({ type: "lost" }); }
+      // 🧸 Kid mode has NO failure state (RULE 5): the stickers can run low and
+      // the leak still happens, but the fort never falls over. One flag, read at
+      // the ONE place a run can be lost.
+      if (state.lives <= 0) {
+        state.lives = diff.noLose ? 1 : 0;
+        if (!diff.noLose) { state.phase = "lost"; emit({ type: "lost" }); }
+      }
     }
 
     function finishIfWaveDone() {

@@ -36,9 +36,10 @@
         '<button class="td-metabtn td-ach-open" type="button">🏅 Badges</button>' +
         '<button class="td-metabtn td-endless-open" type="button">♾️ Endless</button>' +
         '<button class="td-metabtn td-guide-open" type="button">📖 Guide</button>' +
+        '<button class="td-metabtn td-kid-open" type="button">🧸 Kid Fort</button>' +
       "</div>" +
       '<div class="td-levels" role="list"></div>' +
-      '<p class="td-note">12 levels across 3 worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers) and three bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>' +
+      '<p class="td-note">16 levels across 4 worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers, soakers, jammers) and four bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale. 🧸 Kid Fort is Josh&#39;s no-lose mode.</p>' +
       // Start-over control. Deliberately small and quiet (data-adult exempts it
       // from the kid ≥75px audit) and behind a type-the-word gate, exactly like
       // Josh's ⚙️ Grown-ups star reset — Josh reaches the fort from the front
@@ -53,6 +54,7 @@
     home.querySelector(".td-ach-open").addEventListener("click", hooks.openAchievements);
     home.querySelector(".td-endless-open").addEventListener("click", hooks.openEndless);
     home.querySelector(".td-guide-open").addEventListener("click", () => UI.showGuide());
+    home.querySelector(".td-kid-open").addEventListener("click", hooks.kidFort);
     home.querySelector(".td-reset-open").addEventListener("click", () => UI.showResetGate(hooks.resetFort));
     home.querySelector(".td-backup-open").addEventListener("click", () => UI.showBackup(hooks.exportSave, hooks.importSave));
 
