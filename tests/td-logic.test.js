@@ -2604,3 +2604,32 @@ test("AUDIT targeting: every shipped mode really re-picks (close was never drive
     if (mode === "close") assert.ok(sampled > 0, "the close-mode check really had a crowded moment to judge");
   }
 });
+
+test("AUDIT heroic: the air-pressure level is winnable on EVERY seed, not most", () => {
+  // "Every level winnable on heroic" is a shipped contract, and the suite's
+  // seed set hid a level that broke it: L7 — the one level carrying the whole
+  // air game — sat at its heroic ceiling and the same best-of-two oracle the
+  // PLAYABILITY test uses LOST it on 3 of 12 seeds. A level that is unwinnable
+  // a quarter of the time is not hard, it is a coin flip.
+  const L7 = DATA.LEVELS.find((l) => l.id === 7);
+  const solve = (seed, mix) => {
+    const e = TD.createEngine(L7, { difficulty: "heroic", seed });
+    let g = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 400000) {
+      if (e.state.phase === "build") {
+        L7.pads.forEach((p, i) => e.place(mix ? ["dart", "fan", "mortar", "dart"][i % 4] : "dart", p.id));
+        for (const t of e.state.towers) { e.upgrade(t.id); e.upgrade(t.id); }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state.phase === "won" ? e.state.lives : -1;
+  };
+  const lives = [];
+  for (let s = 1; s <= 6; s++) lives.push(Math.max(solve(s, false), solve(s, true)));
+  const lost = lives.filter((x) => x < 0);
+  assert.equal(lost.length, 0, `L7 heroic must be winnable on every seed (lives per seed: ${lives.join(", ")})`);
+  // …and still a fight: this is heroic, not a stroll
+  const avg = lives.reduce((a, b) => a + b, 0) / lives.length;
+  assert.ok(avg < 15, `…and still tense on heroic (avg ${avg.toFixed(1)} lives — above 15 means it stopped being hard)`);
+});

@@ -382,7 +382,15 @@
       name: "The Slip'n'Slide",
       world: "backyard",
       badge: 3,
-      startGold: 450,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 7-8 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
+      // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 7-8
+      // lives in waves 1-3 before a real board existed (the front-loaded-
+      // difficulty fix). Raised again 450→490: the air-pressure level sat at
+      // its heroic ceiling and the shipped best-of-two oracle LOST it on 3 of
+      // 12 seeds, breaking the "every level winnable on heroic" contract.
+      // Measured over 8 seeds: 450 → 1 loss, avg 2.6 lives; 490 → 0 losses,
+      // avg 6.3 (a real but tense margin); 530 → avg 12.3, too comfortable.
+      // Normal barely moves (19.3 → 20.0 — it was already a formality there).
+      startGold: 490,
       budgetBase: 390,
       zones: [ { from: 8, to: 13, mult: 1.6 }, { from: 20, to: 25, mult: 1.6 }, { from: 33, to: 38, mult: 1.6 } ],
       // TD-11: a mid-game use of the lever. This is the air-pressure level, so
