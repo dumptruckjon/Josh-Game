@@ -876,11 +876,20 @@ test("guardrail: haptics and wake lock are feature-checked, never assumed", () =
   const wakeCalls = (m.match(/(?<!function )\b(keepAwake|letSleep)\(\)/g) || []);
   const strayWake = wakeCalls.filter((c) => c === "keepAwake()").length;
   assert.equal(strayWake, 1, `keepAwake() must be called ONLY from syncWake (found ${strayWake})`);
-  // every condition that flips wakeWanted must re-sync
-  for (const site of [/paused = true;\n      syncWake\(\)/, /paused = false; UI\.closeOverlay\(\); syncWake\(\)/,
-                      /if \(cur\) \{ cur\.paused = true; \}\n        syncWake\(\)/]) {
-    assert.match(m, site, `a wake-lock condition change must call syncWake (${site})`);
+  // Every place that flips `cur.paused` must re-sync the lock within a few lines.
+  // Matching the exact surrounding text is brittle (and was: an unrelated edit to
+  // the same line broke it) — assert the PROPERTY instead.
+  const pausedWrites = [...m.matchAll(/cur\.paused = (?:true|false)/g)];
+  assert.ok(pausedWrites.length >= 4, `the pause flag is written in several places (${pausedWrites.length})`);
+  for (const w of pausedWrites) {
+    const after = m.slice(w.index, w.index + 320);
+    assert.match(after, /syncWake\(\)/,
+      `every write to cur.paused must re-sync the wake lock — none found after "${m.slice(w.index, w.index + 60).split("\n")[0]}"`);
   }
+  // …and the lock's own visibilitychange listener must be the syncWake one (a
+  // bare /visibilitychange/ match is satisfied by the unrelated auto-pause listener).
+  assert.match(m, /addEventListener\("visibilitychange", syncWake\)/,
+    "the wake lock's visibilitychange listener is syncWake itself, not an unrelated one");
   // Every new cue is real: it must exist in sfx() AND be fired from somewhere.
   for (const k of ["ability", "arm", "cleared", "phase", "lowlives", "tier"]) {
     assert.ok(m.includes('kind === "' + k + '"'), `sfx() defines the "${k}" cue`);

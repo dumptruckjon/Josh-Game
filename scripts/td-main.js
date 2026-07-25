@@ -290,6 +290,28 @@
     doc.addEventListener("visibilitychange", syncWake);
   }
 
+  // The pause menu, hoisted out of togglePause: returning from the background
+  // has to be able to re-open it (the battle was auto-paused and nothing said so).
+  function showPauseMenu() {
+    if (!cur) return;
+    const openPause = () => UI.showPause({
+      resume: () => { cur.paused = false; cur.autoPaused = false; UI.closeOverlay(); syncWake(); },
+      restart: () => {
+        // Carry the RUN's difficulty. Dropping it silently converted a Kid Fort
+        // run into an adult one (RULE 5 controls gone, defeat reachable).
+        const d = cur.engine.state.difficulty;
+        UI.closeOverlay();
+        startLevel(cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId,
+          cur.engine.state.endless ? { levelDef: cur.levelDef, difficulty: d } : { difficulty: d });
+      },
+      sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); if (!save.settings.sfx) stopMusic(); else startMusic(); openPause(); },
+      music: () => { save.settings.music = !save.settings.music; persist(save); if (save.settings.music) startMusic(); else stopMusic(); openPause(); },
+      dmg: () => { save.settings.dmgNumbers = !save.settings.dmgNumbers; persist(save); if (cur.render.setDamageNumbers) cur.render.setDamageNumbers(save.settings.dmgNumbers); openPause(); },
+      quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },
+    }, save.settings);
+    openPause();
+  }
+
   function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } stopMusic(); letSleep(); }
 
   // TD-5: award every achievement this outcome earns (skipped on a cheated run).
@@ -330,7 +352,7 @@
         lad[key] = Math.max(lad[key] | 0, st.stars);
         persist(save);
       }
-      clearMidRun();
+      if (!st.cheated) clearMidRun(); // a kid win must not delete the grown-up's saved run
       awardWinAchievements(st);
       sfx("won");
       const nextId = st.levelId + 1;
@@ -346,8 +368,12 @@
       }
       UI.showVictory(st.stars, st.lives, {
         continueOn: () => { UI.closeOverlay(); location.hash = "#td-home"; },
-        nextLevel: nextExists ? nextId : null,
-        onNext: nextExists ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, {}); } : null,
+        // A cheated (kid) win unlocks nothing, so it must not offer ▶ Next level —
+        // it escaped kid mode into an adult run and promised a lock it never opened.
+        nextLevel: nextExists && !st.cheated ? nextId : null,
+        onNext: nextExists && !st.cheated
+          ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, { difficulty: st.difficulty }); }
+          : null,
       }, runSummary(pb));
     } else if (st.phase === "lost") {
       stopLoop();
@@ -649,13 +675,13 @@
   // while the player decides so nothing leaks. "Keep playing" resumes.
   function promptLeave(onLeave) {
     if (!inLevel()) { onLeave(); return; }
-    cur.paused = true;
+    cur.paused = true; syncWake(); // a battle paused behind a confirm must not hold the screen awake
     UI.confirm({
       title: "Leave the battle?",
       msg: "You'll lose your progress on this level.",
       yes: "🏰 Leave", no: "↩ Keep playing",
       onYes: () => { UI.closeOverlay(); onLeave(); },
-      onNo: () => { UI.closeOverlay(); if (cur) cur.paused = false; },
+      onNo: () => { UI.closeOverlay(); if (cur) { cur.paused = false; syncWake(); } }, // keep-playing resumes the battle — take the lock back
     });
   }
 
@@ -860,7 +886,7 @@
       // which pushed the field's top past the viewport and rebuilt the canvas at
       // its minimum cell. Park the sibling here so every caller is equivalent.
       const park = (other) => { const o = doc.getElementById(other); if (o) o.hidden = true; };
-      if (id === "td-home") park("screen-td-play");
+      if (id === "td-home") { park("screen-td-play"); UI.closeOverlay(); } // never leave a modal mounted over a live battle
       if (id === "td-play") park("screen-td-home");
       if (id === "td-home") {
         leavingPlay(); // record any endless milestone + clear armed-rally/selection before parking the run
@@ -874,8 +900,7 @@
         UI.renderResume(save, resumeMidRun, () => { clearMidRun(); JonTD.route("td-home"); }); // TD-5 resume banner
         const s = doc.getElementById("screen-td-home");
         if (s) s.hidden = false;
-        if (cur) { cur.paused = true; }
-        syncWake(); // browsing the fort must not hold the screen awake
+        if (cur) { cur.paused = true; syncWake(); } // browsing the fort must not hold the screen awake
         global.scrollTo(0, 0);
         return true;
       }
@@ -884,6 +909,10 @@
         doc.body.classList.add("in-game");
         const s = doc.getElementById("screen-td-play");
         if (s) s.hidden = false;
+        // Deep entry with no live run. If a checkpoint exists, send the player to
+        // the fort so the Resume banner can offer it — starting a fresh L1 here
+        // DESTROYED the saved run on any reload from this hash.
+        if (!cur && save.midRun) { location.hash = "#td-home"; return true; }
         if (!cur) startLevel(1, {}); // deep entry → default to L1
         else { cur.paused = false; syncWake(); }
         // startLevel may have run while the screen was still hidden (hash
@@ -898,7 +927,7 @@
     onLeave() {
       leavingPlay(); // leaving the fort entirely: same milestone-record + transient-state clear
       doc.body.classList.remove("td-mode");
-      if (cur) cur.paused = true;
+      if (cur) { cur.paused = true; syncWake(); }
       UI.hideBubble();
       UI.closeOverlay();
     },
@@ -943,18 +972,14 @@
     },
     togglePause: () => {
       if (!cur) return;
-      if (cur.paused) { cur.paused = false; UI.closeOverlay(); syncWake(); return; }
+      // A finished run has no pause state — tapping ⏸ on the victory/defeat
+      // screen used to swap the results away for a Paused menu you could not
+      // get back from (losing ▶ Next level / 🔁 Try again / the run summary).
+      if (!inLevel()) return;
+      if (cur.paused) { cur.paused = false; cur.autoPaused = false; UI.closeOverlay(); syncWake(); return; }
       cur.paused = true;
       syncWake(); // a paused battle must NOT hold the screen awake
-      const openPause = () => UI.showPause({
-        resume: () => { cur.paused = false; UI.closeOverlay(); syncWake(); },
-        restart: () => { UI.closeOverlay(); startLevel(cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId, cur.engine.state.endless ? { levelDef: cur.levelDef } : {}); },
-        sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); if (!save.settings.sfx) stopMusic(); else startMusic(); openPause(); },
-        music: () => { save.settings.music = !save.settings.music; persist(save); if (save.settings.music) startMusic(); else stopMusic(); openPause(); },
-        dmg: () => { save.settings.dmgNumbers = !save.settings.dmgNumbers; persist(save); if (cur.render.setDamageNumbers) cur.render.setDamageNumbers(save.settings.dmgNumbers); openPause(); },
-        quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },
-      }, save.settings);
-      openPause();
+      showPauseMenu();
     },
     toggleSpeed: () => {
       if (!cur) return;
@@ -1015,7 +1040,15 @@
       UI.notice("⚙️", "<b>Fort reset</b><br>Everything starts over.");
     },
   });
-  doc.addEventListener("visibilitychange", () => { if (doc.hidden && cur) cur.paused = true; });
+  doc.addEventListener("visibilitychange", () => {
+    if (!cur) return;
+    if (doc.hidden) { cur.paused = true; cur.autoPaused = true; syncWake(); return; } // the browser drops the lock anyway; keep our own state honest
+    // Coming BACK has to be escapable. Without this the battle stayed paused for
+    // ever with nothing on screen saying so, and ⏸ (a toggle) then resumed
+    // instead of pausing — the control lied about its own state.
+    if (cur.autoPaused && cur.paused && inLevel()) { cur.autoPaused = false; showPauseMenu(); }
+    else cur.autoPaused = false;
+  });
   global.addEventListener("resize", () => { if (cur) { cur.render.resize(); cur.render.draw(0); } });
   // Tapping anywhere OUTSIDE the bubble/panel (and off the canvas — canvas taps
   // re-evaluate in fieldTap) dismisses it, like every native dialog should.
@@ -1037,7 +1070,7 @@
     // Orientation contract for tests: the ONE world↔screen mapping + mode.
     w2s: (x, y) => (cur ? cur.render.worldToScreen(x, y) : { x: 0, y: 0 }),
     isRotated: () => (cur ? cur.render.isRotated() : false),
-    newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) cur.paused = true; return true; },
+    newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) { cur.paused = true; syncWake(); } return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
     resetSave: () => resetProgress(), // the ONE owner — a new save field is covered here automatically
     // read-only test hooks (audit guardrails): the resume checkpoint, the live
@@ -1047,7 +1080,7 @@
     ach: () => (save.ach || []).slice(),
     endlessBest: () => Object.assign({}, save.endlessBest),
     resume: () => { resumeMidRun(); return cur ? cur.engine.state.phase : null; },
-    startEndless: (world) => { startEndless(world); if (cur) cur.paused = true; return true; },
+    startEndless: (world) => { startEndless(world); if (cur) { cur.paused = true; syncWake(); } return true; },
     // Exercises the real leave chokepoint — including the hash, so the router
     // and the screens agree afterwards exactly as they do when the player taps
     // 🏠 (the app always leaves via the hash; a route() call alone left the hash
