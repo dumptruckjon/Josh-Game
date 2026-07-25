@@ -1543,8 +1543,8 @@ test("AUDIT boss tension: every boss FINALE must actually cost something", () =>
   // sensible (non-optimal) build.
   const MAX_BOSS_LEVEL_FINISH = 17;
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
-  function run(level, plan) {
-    const e = TD.createEngine(level, { seed: 7, difficulty: "normal" });
+  function run(level, plan, seed) {
+    const e = TD.createEngine(level, { seed: seed == null ? 7 : seed, difficulty: "normal" });
     const padIds = level.pads.map((p) => p.id);
     let idx = 0, guard = 0;
     while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
@@ -1570,13 +1570,24 @@ test("AUDIT boss tension: every boss FINALE must actually cost something", () =>
     return e.state;
   }
   const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  // ACROSS SEEDS, not on one. Judged on seed 7 alone this passed while L16 —
+  // the game's LAST boss — finished flawless at 20/20 on 2 of 8 seeds, because
+  // its outcome is decided by whether the Tickmaster dies in the last few cells
+  // (waves 1-14 leak nothing at all, on any seed or build). The rule is the
+  // MEDIAN so one lucky seed can't excuse a formality and one unlucky seed
+  // can't condemn a fair fight.
+  const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
   for (const lvl of DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss))) {
-    const rs = PLANS.map((p) => run(lvl, p));
-    const wins = rs.filter((r) => r.phase === "won");
-    assert.ok(wins.length, `boss level L${lvl.id} must stay winnable`);
-    const bestLives = Math.max(...wins.map((r) => r.lives));
-    assert.ok(bestLives <= MAX_BOSS_LEVEL_FINISH,
-      `L${lvl.id} "${lvl.name}" finishes at ${bestLives}/20 lives — its boss finale is a formality (expect ≤${MAX_BOSS_LEVEL_FINISH}).`);
+    const perSeed = SEEDS.map((seed) => {
+      const wins = PLANS.map((p) => run(lvl, p, seed)).filter((r) => r.phase === "won");
+      return wins.length ? Math.max(...wins.map((r) => r.lives)) : -1;
+    });
+    assert.ok(perSeed.filter((l) => l >= 0).length >= SEEDS.length - 1,
+      `boss level L${lvl.id} must stay winnable on essentially every seed (${perSeed.join(", ")})`);
+    const sorted = perSeed.filter((l) => l >= 0).slice().sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    assert.ok(median <= MAX_BOSS_LEVEL_FINISH,
+      `L${lvl.id} "${lvl.name}" finishes at a median ${median}/20 lives across ${SEEDS.length} seeds (${perSeed.join(", ")}) — its boss finale is a formality (expect ≤${MAX_BOSS_LEVEL_FINISH}).`);
   }
   // Lock the specific root cause that was fixed: the Vacuum King's only ability
   // (suck = inhale a SOLDIER) made it invisible to a tower-only build. It now

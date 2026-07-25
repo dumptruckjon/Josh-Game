@@ -1042,7 +1042,7 @@
         if (cost > 1 && !e.shielded) {
           // the toll, floated at the door so you SEE what it cost
           const end = engine.posOn(0, 1e9);
-          fx.push(fxAt({ kind: "toll", ttl: 34, max: 34, text: "−" + cost + " ❤" }, end.x, end.y));
+          fx.push(fxAt({ kind: "toll", ttl: 34, max: 34, text: "−" + cost + " ❤️" }, end.x, end.y));
           if (e.boss) triggerShake(5);
         }
       }
@@ -1337,7 +1337,7 @@
         ctx.fillText(tag, lp.x, ty);
       }
       const prim = lanes[0]; const s0 = prim[0], s1 = prim[prim.length - 1]; // lanes share spawn+exit
-      const spawnGlyph = engine.levelDef.world === "backyard" ? "🌳" : engine.levelDef.world === "toystore" ? "🧸" : "🛏";
+      const spawnGlyph = engine.levelDef.world === "backyard" ? "🌳" : engine.levelDef.world === "toystore" ? "🧸" : "🛏️";
       glyph(s0[0], s0[1], spawnGlyph);
       glyph(s1[0], s1[1], "🚪");
       if (selection && selection.tower) {

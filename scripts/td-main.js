@@ -420,7 +420,7 @@
     // would have credited splash/zap/melee to nobody.
     const dmg = st.dmgBy || {};
     const total = Object.keys(dmg).reduce((a, k) => a + dmg[k], 0);
-    const NAME = { dart: "🎯 Dart", mortar: "💥 Mortar", fan: "❄ Fan", camp: "🪖 Camp", ability: "🧨 Abilities" };
+    const NAME = { dart: "🎯 Dart", mortar: "💥 Mortar", fan: "❄️ Fan", camp: "🪖 Camp", ability: "🧨 Abilities" };
     const rows = Object.keys(dmg).sort((a, b) => dmg[b] - dmg[a]).map((k) => ({
       line: k, label: NAME[k] || k, dmg: Math.round(dmg[k]),
       pct: total ? Math.round((dmg[k] / total) * 100) : 0,
@@ -487,8 +487,8 @@
       else if (e.type === "ability") sfx("ability"); // a power actually landed
       else if (e.type === "chain") sfx("chain");
       else if (e.type === "splash") sfx("splash");
-      else if (e.type === "boss") { UI.showBanner("⚠ " + e.name + " incoming!"); sfx("boss"); }
-      else if (e.type === "phase") { UI.showBanner("⚠ " + e.name + " is getting angrier!"); sfx("phase"); }
+      else if (e.type === "boss") { UI.showBanner("⚠️ " + e.name + " incoming!"); sfx("boss"); }
+      else if (e.type === "phase") { UI.showBanner("⚠️ " + e.name + " is getting angrier!"); sfx("phase"); }
     }
     evs.length = 0;
   }
@@ -681,7 +681,7 @@
     const def = DATA.TOWERS[t.lineId];
     const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
     if (t.lineId === "fan") {
-      let str = "❄ " + Math.round(s.slow * 100) + "% slow · " + s.auraRange + " aura";
+      let str = "❄️ " + Math.round(s.slow * 100) + "% slow · " + s.auraRange + " aura";
       if (s.chain) str += " · chain"; else if (s.zapDps) str += " · " + s.zapDps + " zap";
       return str;
     }

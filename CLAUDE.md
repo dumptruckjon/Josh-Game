@@ -1675,6 +1675,34 @@ landscape) was a dead letter and the tiles were 60px everywhere. When an
 override "isn't applying", grep for a second declaration before doubting
 specificity.
 
+**The post-portrait audit (every fort surface screenshotted, every world re-simmed)
+found two more, and one honest negative.** (1) **A picture emoji whose DEFAULT
+presentation is TEXT renders as a thin monochrome glyph** — nine shipped that
+way: the Plastic Knight's 🛡, the Bed Monster's 🛏 (also the bedroom's spawn
+marker painted ON the battlefield), the Couch Cushion's 🛋, the Vacuum King's
+🌪, the Attic's 🕯 (a bare sliver), the HUD's ❤, the Fan's ❄, the run summary's
+🏗 and the boss klaxon's ⚠ — while the SAME heart and shield were written
+correctly (❤️ 🛡️) a few lines away, which is what marks it as an accident. All
+now carry U+FE0F (the Attic took 🧳 instead — a candle is thin even in colour),
+and a generic `site.test.js` scan fails on any text-default emoji without VS16,
+with an explicit allowlist for the six control glyphs (▶ ⏸ ↩ ↔ ⬆ ⏱) that are
+deliberately monochrome on a coloured button. Same family as the ≤13.0 scan:
+how a glyph actually RENDERS is part of correctness. (2) **The boss-tension
+guardrail judged one seed**, and on that seed L16 passed — while the game's LAST
+boss finished FLAWLESS at 20/20 on 2 of 8 seeds. The diagnosis is sharper than
+the symptom: **waves 1-14 of L16 leak nothing at all, on any seed or build**, so
+the whole level is decided by whether the Tickmaster dies in the last few cells.
+It now judges the MEDIAN across 8 seeds (one lucky seed can't excuse a formality,
+one unlucky seed can't condemn a fair fight), and the Tickmaster's leak toll came
+down 10 → 8, in line with the other two big bosses: ten lives out of twenty
+QUANTIZED the finale so it could only end at 20, 10 or dead. (3) **The negative
+result: the boss's hp cannot grade that finale.** Swept 3200→3500, the mixed
+board goes 6-20 → 3-19 → 3-8 → and at 3400 it LOSES outright on a seed. That is
+the documented threshold-domination of this engine showing up on the last level —
+a board holds a wave completely or collapses — so no hp value buys a graded
+ending, and the honest deliverable was the toll fix plus a guardrail that can see
+the problem, not a re-tune the data refuses to support.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book

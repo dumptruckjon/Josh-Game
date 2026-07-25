@@ -139,13 +139,13 @@
     // ---- TD-3: World-1 roster ----
     blob: { name: "Mud Blob", icon: "🟤", hp: 60, speed: 0.7, armor: 0, shield: 0, shieldRegen: 0, bounty: 8, lives: 1, flier: false, meleeDmg: 4, meleeRate: 1.0, split: { into: "mudlet", count: 2 } },
     mudlet: { name: "Mudlet", icon: "🟤", hp: 22, speed: 0.9, armor: 0, shield: 0, shieldRegen: 0, bounty: 3, lives: 1, flier: false, meleeDmg: 2, meleeRate: 0.9 },
-    knight: { name: "Plastic Knight", icon: "🛡", hp: 90, speed: 0.6, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 12, lives: 1, flier: false, meleeDmg: 6, meleeRate: 0.9 }, // 50% armor → Fan zap (armor-ignoring) is the answer
+    knight: { name: "Plastic Knight", icon: "🛡️", hp: 90, speed: 0.6, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 12, lives: 1, flier: false, meleeDmg: 6, meleeRate: 0.9 }, // 50% armor → Fan zap (armor-ignoring) is the answer
     bull: { name: "Wind-up Bull", icon: "🐂", hp: 120, speed: 0.55, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 14, lives: 1, flier: false, meleeDmg: 7, meleeRate: 0.9, charge: { speed: 1.6, seconds: 1.5, cooldown: 5 } }, // gets hit → charges
     healer: { name: "Junk Healer", icon: "🔧", hp: 85, speed: 0.65, armor: 0, shield: 0, shieldRegen: 0, bounty: 15, lives: 1, flier: false, meleeDmg: 4, meleeRate: 1.0, heal: { hps: 15, radius: 1.2 } }, // mends nearby allies — kill it first
     pinata: { name: "Piñata", icon: "🪅", hp: 400, speed: 0.45, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 60, lives: 2, flier: false, meleeDmg: 8, meleeRate: 1.0, goldBurst: 20 }, // the economy release valve
     brick: { name: "Brick", icon: "🧱", hp: 28, speed: 0.9, armor: 0, shield: 0, shieldRegen: 0, bounty: 4, lives: 1, flier: false, meleeDmg: 3, meleeRate: 0.9 }, // authored in tight 8-squads → splash bait
     // ---- TD-3: World-1 boss ----
-    bedmonster: { name: "Bed Monster", icon: "🛏", hp: 2400, speed: 0.28, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 200, lives: 6, size: 3.0, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, stomp: { dmg: 60, radius: 1.5, seconds: 6 } }, // hp 3200→2400: tuned to THIS L4's 10-pad geometry (plan's 3200 assumed its own boss arena) so a wave-9 build kills it with margin; unblockable; stomps soldiers
+    bedmonster: { name: "Bed Monster", icon: "🛏️", hp: 2400, speed: 0.28, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 200, lives: 6, size: 3.0, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, stomp: { dmg: 60, radius: 1.5, seconds: 6 } }, // hp 3200→2400: tuned to THIS L4's 10-pad geometry (plan's 3200 assumed its own boss arena) so a wave-9 build kills it with margin; unblockable; stomps soldiers
     // ---- TD-4: Worlds 2-3 roster. Each ability is a data field the engine reads
     //      (phase/tunnel via isHidden, shieldRegen, flier) + guardrail-tested. ----
     ghost: { name: "Glitter Ghost", icon: "👻", hp: 55, speed: 0.9, armor: 0, shield: 0, shieldRegen: 0, bounty: 11, lives: 1, flier: false, meleeDmg: 4, meleeRate: 1.0, phase: { every: 4, on: 1.5 } }, // untargetable 1.5s every 4s (keeps walking) — burst it in the gaps
@@ -156,7 +156,13 @@
     // Its whole kit is DATA the engine already reads (phases -> speedMult /
     // disable / spawn), so it needed no new engine code (the TD-4 boss lesson).
     tickmaster: { name: "The Tickmaster", icon: "\u23f0", hp: 3200, speed: 0.45, armor: 0.2, shield: 0, shieldRegen: 0,
-      bounty: 220, lives: 10, size: 3.0, flier: false, meleeDmg: 0, meleeRate: 1, boss: true,
+      // toll 10 → 8, in line with the other two big bosses (Vacuum King and The
+      // Static are both 8). Ten lives out of twenty QUANTIZED the whole finale:
+      // waves 1-14 of L16 leak nothing on any seed or build, so the level was
+      // decided by a single boss leak and could only end at 20, 10 or dead.
+      // Measured over 8 seeds, this moves a dart-only finish from 1-2 lives to
+      // 3-4 and drops the median from 17 to 16 without flipping any outcome.
+      bounty: 220, lives: 8, size: 3.0, flier: false, meleeDmg: 0, meleeRate: 1, boss: true,
       phases: [
         { upTo: 1.0 },
         { upTo: 0.66, speedMult: 1.35 },
@@ -167,7 +173,7 @@
     // ---- TD-10: threat shapes that punish a MONO build ----
     // The flier lesson generalized. Fliers already broke mortar-only boards; each
     // of these breaks a different one-line build, so no single tower carries.
-    cushion: { name: "Couch Cushion", icon: "🛋", hp: 150, speed: 0.55, armor: 0, shield: 0, shieldRegen: 0, bounty: 16, lives: 1, flier: false, meleeDmg: 5, meleeRate: 1, splashResist: 0.6 }, // soaks AoE — splash lands at 40%; answer it with single-target
+    cushion: { name: "Couch Cushion", icon: "🛋️", hp: 150, speed: 0.55, armor: 0, shield: 0, shieldRegen: 0, bounty: 16, lives: 1, flier: false, meleeDmg: 5, meleeRate: 1, splashResist: 0.6 }, // soaks AoE — splash lands at 40%; answer it with single-target
     screw: { name: "Loose Screw", icon: "🔩", hp: 95, speed: 0.8, armor: 0, shield: 0, shieldRegen: 0, bounty: 18, lives: 1, flier: false, meleeDmg: 5, meleeRate: 0.9, sap: { every: 7, seconds: 2.5, radius: 3.5 } }, // jams the NEAREST gun in reach — a real mid-wave emergency
     slime: { name: "Drip Slime", icon: "💧", hp: 110, speed: 0.7, armor: 0, shield: 0, shieldRegen: 0, bounty: 14, lives: 1, flier: false, meleeDmg: 4, meleeRate: 1, slowHeal: { hps: 9 } }, // regrows WHILE slowed — a slow-only board feeds it
     // The anti-DART shape. Measured BEFORE TD-10: a dart-only board won 12/12 —
@@ -185,7 +191,7 @@
     // path, no new engine code) and hits harder, so it's a real DPS+disruption
     // check like L4/L12. Sim: L8 19.0 → 15.3 lives, boss reaches the exit on a
     // naive build. hp tuned to THIS level's 13-pad geometry.
-    vacuumking: { name: "Vacuum King", icon: "🌪", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
+    vacuumking: { name: "Vacuum King", icon: "🌪️", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
     thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
 
@@ -732,8 +738,8 @@
     { id: "noleaks",       icon: "🛡️", name: "No Leaks",      desc: "Win a level with all 20 lives" },
     { id: "peapurist",     icon: "🎯", name: "Pea Purist",    desc: "Win Level 2 with only Darts" },
     { id: "iceage",        icon: "🧊", name: "Ice Age",       desc: "Slow 20 enemies at once" },
-    { id: "bossbonker",    icon: "🛏", name: "Boss Bonker",   desc: "Beat the Bed Monster" },
-    { id: "dysondenied",   icon: "🌪", name: "Dyson Denied",  desc: "Beat the Vacuum King" },
+    { id: "bossbonker",    icon: "🛏️", name: "Boss Bonker",   desc: "Beat the Bed Monster" },
+    { id: "dysondenied",   icon: "🌪️", name: "Dyson Denied",  desc: "Beat the Vacuum King" },
     { id: "unplugged",     icon: "⚡", name: "Unplugged",     desc: "Beat The Static" },
     // desc is DERIVED at read time (see td-ui) — a literal here went stale the
     // moment World 4 raised the ceiling from 36 to 48.
@@ -750,7 +756,7 @@
   const ENDLESS = {
     base: 300, growth: 1.16, miniBossEvery: 5,
     worlds: {
-      bedroom:  { label: "🛏 Bedroom", pool: ["sock", "marble", "blob", "knight", "balloon", "bull", "brick"], miniBoss: "pinata" },
+      bedroom:  { label: "🛏️ Bedroom", pool: ["sock", "marble", "blob", "knight", "balloon", "bull", "brick"], miniBoss: "pinata" },
       backyard: { label: "🌳 Backyard", pool: ["sock", "marble", "knight", "ghost", "mole", "battery", "hawk", "blob"], miniBoss: "pinata" },
       toystore: { label: "🧸 Toy Store", pool: ["knight", "ghost", "mole", "battery", "blob", "hawk", "bull"], miniBoss: "pinata" },
       // miniBoss is the PIÑATA in every world, including this one. The attic
@@ -759,7 +765,7 @@
       // possibly kill it lost half its lives on the spot and the run ended at
       // wave 5 against 28-46 elsewhere. A mini-boss is a spike, not a wall; the
       // attic earns its difficulty from an all-specials pool instead.
-      attic: { label: "🕯 Attic", pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "pinata" },
+      attic: { label: "🧳 Attic", pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "pinata" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
     arenas: {

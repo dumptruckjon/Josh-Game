@@ -69,7 +69,7 @@
       '<div class="td-bar td-bar--play">' +
         '<button class="btn-round td-mini td-quit" type="button" aria-label="Back to the fort">🏠</button>' +
         '<div class="td-hud">' +
-          '<span class="td-hud__lives">❤ 20</span>' +
+          '<span class="td-hud__lives">❤️ 20</span>' +
           '<span class="td-hud__gold">🪙 0</span>' +
           '<span class="td-hud__wave">wave 0/0</span>' +
         "</div>" +
@@ -319,7 +319,7 @@
   // the guide can never drift from the engine.
   UI.showGuide = function (focusType) {
     const L = global.TDLogic, E = global.TDData.ENEMIES, T = global.TDData.TOWERS;
-    const LINE = { dart: "🎯", mortar: "💥", fan: "❄", camp: "🪖" };
+    const LINE = { dart: "🎯", mortar: "💥", fan: "❄️", camp: "🪖" };
     const order = Object.keys(E);
     const card = (type) => {
       const d = E[type];
@@ -329,7 +329,7 @@
       return '<div class="td-guide__card' + (focusType === type ? " td-guide__card--focus" : "") + '" data-enemy="' + type + '">' +
         '<div class="td-guide__head"><span class="td-guide__icon">' + d.icon + "</span>" +
           '<span class="td-guide__name">' + d.name + "</span></div>" +
-        '<p class="td-guide__stats">❤ ' + d.hp + " · 🏃 " + d.speed + (d.armor ? " · 🛡 " + Math.round(d.armor * 100) + "%" : "") + (d.shield ? " · 🔋 " + d.shield : "") + " · 🪙 " + d.bounty + "</p>" +
+        '<p class="td-guide__stats">❤️ ' + d.hp + " · 🏃 " + d.speed + (d.armor ? " · 🛡️ " + Math.round(d.armor * 100) + "%" : "") + (d.shield ? " · 🔋 " + d.shield : "") + " · 🪙 " + d.bounty + "</p>" +
         '<p class="td-guide__reach">Can be hit by: ' + reach + "</p>" +
         "<ul class=\"td-guide__traits\">" + traits + "</ul></div>";
     };
@@ -532,7 +532,7 @@
   UI.hud = function (state) {
     const q = (s) => doc.querySelector("#screen-td-play " + s);
     const lives = q(".td-hud__lives"), gold = q(".td-hud__gold"), wave = q(".td-hud__wave");
-    if (lives) lives.textContent = "❤ " + state.lives;
+    if (lives) lives.textContent = "❤️ " + state.lives;
     if (gold) gold.textContent = "🪙 " + state.gold;
     const level = global.TDData.LEVELS.find((l) => l.id === state.levelId);
     const endless = state.endless || !level; // endless runs aren't in DATA.LEVELS
@@ -770,7 +770,7 @@
         '<li><span class="td-sum__label">' + r.label + "</span>" +
         '<span class="td-sum__bar"><i style="width:' + r.pct + '%"></i></span>' +
         '<span class="td-sum__pct">' + r.pct + "%</span></li>").join("") + "</ul>" +
-      '<p class="td-sum__line">💀 ' + rs.kills + " defeated · 🪙 " + rs.gold + " earned · 🏗 " + rs.towers + " towers (" + rs.spent + "🪙)</p>" +
+      '<p class="td-sum__line">💀 ' + rs.kills + " defeated · 🪙 " + rs.gold + " earned · 🏗️ " + rs.towers + " towers (" + rs.spent + "🪙)</p>" +
       (rs.personalBest ? '<p class="td-sum__pb">🏆 New personal best!</p>'
         : (rs.best != null ? '<p class="td-sum__line">Best here: ' + rs.best + " stickers kept</p>" : "")) +
       "</div>";
