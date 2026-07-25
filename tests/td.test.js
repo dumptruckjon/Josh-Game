@@ -1489,8 +1489,26 @@ test("🧸 Kid Fort: the button really opens a kid run — big controls, no losi
   });
   assert.deepEqual(small, [], `kid fort controls under 75px: ${small.join(", ")}`);
 
+  // Mid-WAVE controls must be kid-sized too — the ⏩ RUSH button only exists
+  // once a wave is walking, so the build-phase sweep above never sees it.
+  await page.evaluate(() => { window.__TD.script([["call"], ["tick", 90]]); window.TDUI.hud(window.__TD.state()); });
+  const smallInWave = await page.evaluate(() => {
+    const bad = [];
+    for (const el of document.querySelectorAll("#screen-td-play button")) {
+      if (el.hidden || el.offsetParent === null) continue;
+      const b = el.getBoundingClientRect();
+      if (!b.width || !b.height) continue;
+      if (b.width < 75 || b.height < 75) bad.push((el.className || "") + " " + Math.round(b.width) + "×" + Math.round(b.height));
+      if (b.left < -1 || b.right > window.innerWidth + 1) bad.push((el.className || "") + " off screen");
+    }
+    return bad;
+  });
+  assert.deepEqual(smallInWave, [], `kid fort MID-WAVE controls under 75px or off screen: ${smallInWave.join(", ")}`);
+  assert.match(await page.locator("#screen-td-play .td-call").textContent(), /RUSH/,
+    "…and the wave button really is offering a RUSH by then");
+
   // Leak the whole wave past an empty board: Josh must NEVER see a defeat.
-  await page.evaluate(() => { window.__TD.script([["call"], ["tick", 6000]]); });
+  await page.evaluate(() => { window.__TD.script([["tick", 6000]]); });
   const after = await page.evaluate(() => ({ phase: window.__TD.state().phase, lives: window.__TD.state().lives }));
   assert.notEqual(after.phase, "lost", "kid fort never loses, however much gets through");
   assert.ok(after.lives >= 1, `…and hearts never hit zero (${after.lives})`);
