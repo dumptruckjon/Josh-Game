@@ -825,3 +825,31 @@ test("guardrail: kid mode cannot earn stars or badges, and wears kid-sized contr
   const tdl = read("scripts/td-logic.js");
   assert.match(tdl, /diff\.noLose/, "the engine reads the no-lose flag at the one lose site");
 });
+
+// Haptics + wake lock are BOTH platform-gated. The point of these guardrails is
+// that neither may silently pretend to work on a device that doesn't support it.
+test("guardrail: haptics and wake lock are feature-checked, never assumed", () => {
+  const m = read("scripts/td-main.js");
+  // Vibration: Safari on iOS has never shipped navigator.vibrate, so this MUST be
+  // a real capability check, not a call that quietly no-ops (or throws).
+  assert.match(m, /typeof global\.navigator\.vibrate !== "function"\) return false/,
+    "haptics check for real support (iOS Safari has none)");
+  assert.match(m, /prefers-reduced-motion[\s\S]{0,24}return false/,
+    "a buzz is motion — respect prefers-reduced-motion");
+  assert.match(m, /if \(!CAN_BUZZ \|\| !save\.settings\.sfx\) return;/,
+    "haptics obey the same toggle as sound");
+  assert.match(m, /function sfx\(kind, arg\) \{\n    buzz\(kind\);/,
+    "haptics ride the SAME call site as audio, so a new cue gets both for free");
+  // Wake lock: needs Safari 16.4+, so it must degrade silently on the iOS 14.2 floor.
+  assert.match(m, /if \(!global\.navigator \|\| !global\.navigator\.wakeLock \|\| wakeLock\) return;/,
+    "wake lock is feature-checked");
+  assert.match(m, /doc\.addEventListener\("visibilitychange"/,
+    "the lock is re-acquired when the tab returns — the browser drops it on background");
+  assert.match(m, /function letSleep\(\)/, "…and released when the battle stops");
+  assert.match(m, /function stopLoop\(\)[\s\S]{0,160}letSleep\(\);/, "stopping the loop releases the lock");
+  // Every new cue is real: it must exist in sfx() AND be fired from somewhere.
+  for (const k of ["ability", "arm", "cleared", "phase", "lowlives", "tier"]) {
+    assert.ok(m.includes('kind === "' + k + '"'), `sfx() defines the "${k}" cue`);
+    assert.ok(m.includes('sfx("' + k + '")'), `…and something actually fires "${k}" (a cue nothing plays is dead)`);
+  }
+});

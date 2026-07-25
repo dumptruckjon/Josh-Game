@@ -159,7 +159,32 @@
 
   // ---- SFX (through the ONE iOS-safe JoshAudio.tone; global 🔇 + fort toggle) ----
   let lastShotCue = 0;
+  // ---- Haptics ----
+  // navigator.vibrate is NOT supported by Safari on iOS (iPhone or iPad), so this
+  // is a real no-op there — feature-checked rather than pretending. It fires on
+  // Android/Chrome, is gated by the same 🔔 setting as sound, and respects
+  // prefers-reduced-motion (a buzz is motion for anyone sensitive to it).
+  const CAN_BUZZ = (() => {
+    try {
+      if (!global.navigator || typeof global.navigator.vibrate !== "function") return false;
+      if (global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+      return true;
+    } catch (e) { return false; }
+  })();
+  const BUZZ = {
+    build: 12, upgrade: [10, 40, 18], sell: 10, crit: [8, 30, 8],
+    splash: 26, leak: [40, 60, 40], wave: 18, boss: [60, 90, 60, 90, 120],
+    lever: [14, 40, 14], deny: [8, 50, 8], won: [30, 60, 30, 60, 90], lost: [90, 120, 90],
+    ability: 20, phase: [50, 70, 50], lowlives: [70, 80, 70], cleared: [16, 30, 16],
+  };
+  function buzz(kind) {
+    if (!CAN_BUZZ || !save.settings.sfx) return;
+    const pat = BUZZ[kind];
+    if (!pat) return;
+    try { global.navigator.vibrate(pat); } catch (e) { /* never break play */ }
+  }
   function sfx(kind, arg) {
+    buzz(kind); // haptics ride the SAME call site as audio, so a new cue gets both
     if (!save.settings.sfx) return;
     try {
       if (A.isMuted && A.isMuted()) return; // fort sounds respect the global 🔇 too
@@ -187,6 +212,13 @@
       else if (kind === "deny") A.tone(196, { duration: 0.12, gain: 0.08, type: "sine" }); // lever on cooldown — a soft low bump
       else if (kind === "won") { if (A.winCue) A.winCue(); }
       else if (kind === "lost") { [392, 330, 262].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.18, gain: 0.1, type: "sine" }), i * 160)); }
+      // ---- added cues: the fort had no sound for several real moments ----
+      else if (kind === "ability") { [740, 988].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.07, gain: 0.11, type: "square" }), i * 60)); } // a power lands
+      else if (kind === "arm") A.tone(1046, { duration: 0.05, gain: 0.07, type: "square" }); // a power is armed, waiting for your tap
+      else if (kind === "cleared") { [659, 880].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.1, gain: 0.11 }), i * 110)); } // wave survived
+      else if (kind === "phase") { [147, 196, 147].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.16, gain: 0.15, type: "square" }), i * 150)); } // a boss escalates
+      else if (kind === "lowlives") { [330, 294].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.2, gain: 0.13, type: "sine" }), i * 200)); } // the door is nearly down
+      else if (kind === "tier") { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.08, gain: 0.12 }), i * 65)); } // tier-4 branch taken
     } catch (e) { /* audio must never break play */ }
   }
 
@@ -214,7 +246,35 @@
   // ---- The running session ----
   let cur = null; // { engine, render, raf, acc, lastT, speed, paused, selPadId, selTowerId }
 
-  function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } stopMusic(); }
+  // ---- Screen wake lock ----
+  // Watching a wave resolve is exactly when a phone decides you have gone away.
+  // navigator.wakeLock needs Safari 16.4+/iOS 16.4+, so it works on a modern
+  // phone and is a clean no-op on Josh's iOS 14.2 iPad (the platform floor) —
+  // feature-checked, never thrown. The lock is dropped by the browser whenever
+  // the tab backgrounds, so it must be RE-acquired on visibilitychange.
+  let wakeLock = null;
+  function keepAwake() {
+    try {
+      if (!global.navigator || !global.navigator.wakeLock || wakeLock) return;
+      global.navigator.wakeLock.request("screen").then((wl) => {
+        wakeLock = wl;
+        wl.addEventListener("release", () => { wakeLock = null; });
+      }).catch(() => { wakeLock = null; });
+    } catch (e) { wakeLock = null; }
+  }
+  function letSleep() {
+    try { if (wakeLock) { wakeLock.release(); } } catch (e) { /* ignore */ }
+    wakeLock = null;
+  }
+  if (doc.addEventListener) {
+    doc.addEventListener("visibilitychange", () => {
+      // re-acquire when we come back, but ONLY if a battle is actually live
+      if (!doc.hidden && cur && !cur.paused) keepAwake();
+      else if (doc.hidden) wakeLock = null; // the browser already dropped it
+    });
+  }
+
+  function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } stopMusic(); letSleep(); }
 
   // TD-5: award every achievement this outcome earns (skipped on a cheated run).
   function awardWinAchievements(st) {
@@ -234,7 +294,11 @@
     const st = cur.engine.state;
     if (st.phase === prevPhase) return;
     // a fresh build phase (a wave boundary) is the mid-run checkpoint (§9.3)
-    if (st.phase === "build" && st.waveIdx !== cur.lastBuildWave) { cur.lastBuildWave = st.waveIdx; writeMidRun(); }
+    if (st.phase === "build" && st.waveIdx !== cur.lastBuildWave) {
+      cur.lastBuildWave = st.waveIdx; writeMidRun();
+      if (st.waveIdx > 0) sfx("cleared");                       // you survived one
+      if (st.lives <= 5 && !cur.warned) { cur.warned = true; sfx("lowlives"); } // the door is nearly down
+    }
     if (st.phase === "won") {
       stopLoop();
       if (!st.cheated) {
@@ -369,9 +433,11 @@
       }
       else if (e.type === "soldier-down") cur.soldiersLost += 1; // TD-5 Dyson Denied tracking
       else if (e.type === "wave") sfx("wave");
+      else if (e.type === "ability") sfx("ability"); // a power actually landed
       else if (e.type === "chain") sfx("chain");
       else if (e.type === "splash") sfx("splash");
       else if (e.type === "boss") { UI.showBanner("⚠ " + e.name + " incoming!"); sfx("boss"); }
+      else if (e.type === "phase") { UI.showBanner("⚠ " + e.name + " is getting angrier!"); sfx("phase"); }
     }
     evs.length = 0;
   }
@@ -435,6 +501,7 @@
       lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1, // TD-5 achievement context
       leaks: {}, leakWave: 0 }; // TD-12 post-mortem context (the tallies live in engine state)
     startMusic(); // TD-6 optional looping march (no-op unless the toggle is on)
+    keepAwake();  // don't let the phone doze while a wave plays out
     UI.closeOverlay();
     UI.hideBubble();
     if (UI.hideBanner) UI.hideBanner(); // never inherit the previous level's boss klaxon
@@ -718,7 +785,7 @@
       UI.bubble.querySelectorAll(".td-branch").forEach((btn) => {
         btn.addEventListener("click", (e2) => {
           e2.stopPropagation();
-          if (cur.engine.branch(tower.id, btn.dataset.b).ok) sfx("upgrade");
+          if (cur.engine.branch(tower.id, btn.dataset.b).ok) sfx("tier");
           else {
             UI.bubble.classList.add("td-bubble--no");
             setTimeout(() => UI.bubble.classList.remove("td-bubble--no"), 300);
@@ -829,6 +896,7 @@
       cur.abilArmId = id;
       cur.rallyArmId = 0; // the two arm-modes are mutually exclusive
       UI.hideBubble(); cur.render.setSelection(null);
+      sfx("arm");
       UI.abilityHint(def.kind === "tower" ? "⚡ Tap one of your towers" : def.icon + " Tap the field — " + def.role);
       UI.abilities(cur.engine.state, id);
     },

@@ -267,7 +267,7 @@
         blockedBy: 0, stunnedUntil: 0, meleeCd: 0, stunApplied: false,
         chargeUntil: 0, chargeCd: 0, stompCd: 0, phaseHidden: false,
         suckCd: 0, disableCd: 0, minionCd: 0, speedMult: 0, // TD-4 boss timers
-        sapCd: 0, // TD-10 Loose Screw jam timer
+        sapCd: 0, lastPhase: -1, // TD-10 sap timer; boss phase-crossing tracker
         alive: true,
       });
       if (def.boss) emit({ type: "boss", name: def.name });
@@ -403,6 +403,10 @@
         }
         // The Static: hp%-gated escalation.
         const ph = activePhase(e, def);
+        // Emit once per phase crossing so the UI can sound/shake the escalation —
+        // a boss getting scarier was previously silent.
+        const phIdx = def.phases ? def.phases.indexOf(ph) : -1;
+        if (phIdx >= 0 && e.lastPhase !== phIdx) { e.lastPhase = phIdx; if (phIdx > 0) emit({ type: "phase", name: def.name, phase: phIdx }); }
         e.speedMult = ph && ph.speedMult ? ph.speedMult : 0;
         if (ph && ph.disable) {
           if (e.disableCd === 0) e.disableCd = state.tick + Math.round(ph.disable.every * DATA.TICK_RATE);
