@@ -1501,6 +1501,55 @@ test("🧸 Kid Fort: the button really opens a kid run — big controls, no losi
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () => {
+  // The scrim was `position: absolute`, so it centred the dialog in its HOST
+  // SCREEN — and the fort home is as tall as its level grid. Four worlds of
+  // cards made the home ~1250px, so tapping ⭐ Star Tree from the top opened the
+  // dialog hundreds of pixels below the fold: it looked like the button was
+  // dead. One-pass: every dialog, every viewport, at once.
+  await page.evaluate(() => {
+    const all = {}; for (const l of window.TDData.LEVELS) all[l.id] = 3;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1, difficulty: "normal",
+      stars: { casual: {}, normal: all, heroic: {} }, ach: ["firstblood"], endlessBest: { bedroom: 12 } }));
+  });
+  await page.reload({ waitUntil: "load" });
+  const OPENERS = {
+    "star tree": ".td-tree-open", badges: ".td-ach-open", endless: ".td-endless-open",
+    guide: ".td-guide-open", backup: ".td-backup-open", "reset gate": ".td-reset-open",
+  };
+  const bad = [];
+  for (const vp of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(vp);
+    for (const name of Object.keys(OPENERS)) {
+      await page.evaluate(() => { location.hash = "#__renav"; });
+      await page.waitForTimeout(30);
+      await page.evaluate(() => { location.hash = "#td-home"; });
+      await page.locator("#screen-td-home").waitFor({ state: "visible" });
+      await page.waitForTimeout(60);
+      await page.evaluate((sel) => { const b = document.querySelector(sel); if (b) b.click(); }, OPENERS[name]);
+      await page.waitForTimeout(120);
+      const r = await page.evaluate(() => {
+        const box = document.querySelector(".td-overlay__box");
+        if (!box) return null;
+        const b = box.getBoundingClientRect();
+        return { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right),
+          vw: window.innerWidth, vh: window.innerHeight,
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+      });
+      const tag = `${vp.width}x${vp.height} ${name}`;
+      if (!r) { bad.push(`${tag}: no overlay opened`); continue; }
+      if (r.top < -1) bad.push(`${tag}: top ${r.top} above the viewport`);
+      if (r.bottom > r.vh + 1) bad.push(`${tag}: bottom ${r.bottom} below the ${r.vh}px viewport`);
+      if (r.left < -1 || r.right > r.vw + 1) bad.push(`${tag}: ${r.left}..${r.right} outside the ${r.vw}px viewport`);
+      if (r.overflow) bad.push(`${tag}: the page overflows horizontally`);
+      await page.evaluate(() => { const c = document.querySelector(".td-overlay"); if (c) c.click(); });
+    }
+  }
+  assert.deepEqual(bad, [], `overlays off screen:\n${bad.join("\n")}`);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("a resize while the field is HIDDEN must not collapse the battlefield", async () => {
   // A hidden screen measures 0 wide, and resize() clamped the cell to its
   // minimum — so any code path that starts a level while the play screen is

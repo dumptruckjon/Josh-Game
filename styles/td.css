@@ -249,8 +249,15 @@ body.td-mode #screens { padding: 0; }
 @media (prefers-reduced-motion: reduce) { .td-banner--in { animation: none; } }
 
 /* ---- overlays ---- */
+/* FIXED, not absolute — the overlay must centre on the VIEWPORT, never on its
+   host screen. The fort home is as tall as its level grid (four worlds of cards,
+   well over 1200px), so an absolutely-positioned scrim centred the dialog in the
+   middle of the PAGE: tapping ⭐ Star Tree from the top of the fort opened a
+   dialog hundreds of pixels below the fold, and it looked like nothing happened.
+   Longhands, never the `inset:` shorthand — Safari 14 drops that and the box
+   would shrink-wrap into a corner (the documented iOS-14.2 modal law). */
 .td-overlay {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 20;
   background: rgba(8, 14, 26, 0.7);
   display: flex; align-items: center; justify-content: center;
 }

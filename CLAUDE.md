@@ -1451,9 +1451,22 @@ genuinely losable, the 🧸 button is actually pressed in a browser (kid skin on
 run marked cheated, every visible control ≥75px, a fully-leaked wave that never
 loses), and an attic level is opened, tapped and built in a real browser. Every
 new guardrail was mutation-checked — each one was proven to FAIL on the pre-fix
-code before being kept. Meta-lesson: a feature that only ever ran through node
-sims is untested as a FEATURE; press its button, look at its screen, and derive
-every count from the data instead of writing the number you happen to ship with.
+code before being kept. A follow-up **one-pass overlay auditor** (every fort
+dialog × 320/390/844 viewports, reporting ALL violations at once) then caught a
+fifth, and a nastier one: **`.td-overlay` was `position: absolute`, so the scrim
+centred its dialog in the HOST SCREEN rather than the viewport** — and the fort
+home is as tall as its level grid. Making World 4 reachable took that grid from
+12 cards to 16 (~1250px), which pushed EVERY fort-home dialog (star tree, badges,
+endless, guide, backup, reset gate) hundreds of pixels below the fold: you tapped
+⭐ Star Tree and nothing appeared. Fixed with `position: fixed` + longhand offsets
+(never the `inset:` shorthand — Safari 14 drops it and the box shrink-wraps, the
+documented iOS-14.2 modal law), and locked by promoting that auditor into the
+suite. Note the shape of it: adding CONTENT broke a LAYOUT assumption three files
+away, and only a viewport-relative measurement could see it. Meta-lesson: a
+feature that only ever ran through node sims is untested as a FEATURE; press its
+button, look at its screen, derive every count from the data instead of writing
+the number you happen to ship with — and after adding content, re-measure the
+screens that content makes taller.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
