@@ -155,7 +155,13 @@
     if (!grid) return;
     grid.innerHTML = "";
     const LEVELS = global.TDData.LEVELS;
-    const TOTAL_PLANNED = 12;
+    // DERIVED from the shipped data, never a literal. This was hard-coded to 12
+    // from when World 4 was still a plan, so when the attic actually SHIPPED its
+    // four levels (and the Tickmaster) had no slot on the grid and were
+    // unreachable — the mirror image of the documented "a level-select that shows
+    // locked slots must actually HAVE levels behind them". Same law as the star
+    // ceiling: count what exists.
+    const TOTAL_PLANNED = LEVELS.length;
     // Stars + locks are PER-DIFFICULTY: the grid shows the SELECTED ladder's
     // stars, and level N+1 unlocks by beating level N on THAT difficulty.
     const dstars = (save.stars && save.stars[selDiff]) || {};

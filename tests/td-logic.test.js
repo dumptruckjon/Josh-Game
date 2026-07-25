@@ -820,6 +820,69 @@ test("TD4 The Static boss: P2 jams a random gun, P3 summons Battery Bots and das
   assert.ok(fin.boss && fin.groups.some((g) => g.type === "thestatic"), "L12's last wave is The Static");
 });
 
+test("W4 The Tickmaster boss: P2 dashes, P3 jams a gun AND summons Loose Screws", () => {
+  // The third boss shipped with the world but nothing ever drove its bands — an
+  // auto-solver kills it straight through, and the tap-harness never enters the
+  // attic at all, so the whole hp-gated kit could have been dead code. Same
+  // lesson as The Static: FORCE each phase and assert the ability fires.
+  const lvl = { id: 93, name: "m", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 1 }, { id: "m2", cx: 9, cy: 1 }, { id: "m3", cx: 13, cy: 1 }],
+    waves: [{ groups: [{ type: "tickmaster", count: 1, gap: 1, delay: 0 }] }] };
+  const e = TD.createEngine(lvl, { seed: 2 });
+  ["m", "m2", "m3"].forEach((p) => e.place("dart", p));
+  e.callWave(); for (let i = 0; i < 20; i++) e.tick();
+  const boss = e.state.enemies.find((x) => x.type === "tickmaster");
+  assert.ok(boss, "the Tickmaster is on the field");
+  assert.ok(!(boss.speedMult > 1), "…and it starts at its base pace");
+
+  boss.hp = boss.maxHp * 0.5; // P2 band
+  for (let i = 0; i < 60 && boss.alive; i++) { boss.hp = boss.maxHp * 0.5; e.tick(); }
+  assert.ok(boss.speedMult > 1, "P2 winds the clock up — the boss dashes");
+
+  boss.hp = boss.maxHp * 0.2; // P3 band
+  let disabled = 0, summons = 0;
+  for (let i = 0; i < 500 && boss.alive; i++) {
+    boss.hp = boss.maxHp * 0.2; // hold it in-band while the timers come round
+    e.tick();
+    disabled += e.events.filter((v) => v.type === "disable").length;
+    summons += e.events.filter((v) => v.type === "summon").length;
+    e.events.length = 0;
+  }
+  assert.ok(disabled > 0, "P3 jams a gun");
+  assert.ok(e.state.towers.some((t) => t.disabledUntil > 0), "…and a real tower carries the jam");
+  assert.ok(summons > 0, "P3 summons reinforcements");
+  assert.ok(e.state.enemies.some((x) => x.type === "screw"), "…and they are Loose Screws");
+  const l16 = DATA.LEVELS.find((l) => l.id === 16);
+  const fin = l16.waves[l16.waves.length - 1];
+  assert.ok(fin.boss && fin.groups.some((g) => g.type === "tickmaster"), "L16's last wave is the Tickmaster");
+});
+
+test("🧸 Kid Fort: `noLose` is read at the ONE losing site — and ONLY for kid", () => {
+  // RULE 5 forbids failure states for Josh, so the kid difficulty carries
+  // noLose. The risk is a gate that leaks: if it were read anywhere else, or
+  // mis-scoped, the adult ladders would quietly become unlosable too.
+  const lvl = { id: 94, name: "m", world: "test", startGold: 0, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 9 }],
+    waves: [{ groups: [{ type: "sock", count: 40, gap: 0.4, delay: 0 }] }] };
+  const leakAll = (difficulty) => {
+    const e = TD.createEngine(lvl, { seed: 3, difficulty });
+    e.callWave();
+    for (let i = 0; i < 6000 && e.state.phase === "wave"; i++) e.tick();
+    return { phase: e.state.phase, lives: e.state.lives };
+  };
+  for (const d of ["casual", "normal", "heroic"]) {
+    const r = leakAll(d);
+    assert.equal(r.phase, "lost", `${d} is genuinely losable — 40 socks past an empty board ends the run`);
+  }
+  const kid = leakAll("kid");
+  assert.notEqual(kid.phase, "lost", "kid NEVER loses, however many leak");
+  assert.ok(kid.lives >= 1, `…and the heart meter never empties (${kid.lives})`);
+  assert.equal(DATA.DIFFICULTIES.kid.noLose, true, "kid is the only difficulty with noLose");
+  for (const d of ["casual", "normal", "heroic"]) {
+    assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must stay losable`);
+  }
+});
+
 test("TD4 gimmick — night dims Dart/Mortar reach (Fan exempt); conveyor strips speed enemies", () => {
   // night: the same dart on a night level acquires from a shorter distance.
   const mk = (night) => ({ id: 91, name: "m", world: "test", night, startGold: 9000, budgetBase: 100,

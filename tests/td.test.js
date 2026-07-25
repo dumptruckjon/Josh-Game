@@ -44,9 +44,12 @@ test("fort home shows L1 open and every later level locked on a fresh save", asy
   await page.waitForTimeout(50);
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
-  assert.equal(await page.locator(".td-level").count(), 12, "12 level cards");
-  // fresh save: only L1 is playable; L2..L12 all locked (progression gate)
-  assert.equal(await page.locator(".td-level--locked").count(), 11, "11 locked on a fresh save");
+  // DERIVED, never a literal — a hard-coded 12 here is what let the fort ship
+  // World 4 with no cards for it (the grid itself was capped at 12).
+  const shippedLevels = await page.evaluate(() => window.TDData.LEVELS.length);
+  assert.equal(await page.locator(".td-level").count(), shippedLevels, `${shippedLevels} level cards`);
+  // fresh save: only L1 is playable; every later level is locked (progression gate)
+  assert.equal(await page.locator(".td-level--locked").count(), shippedLevels - 1, "all but L1 locked on a fresh save");
   assert.ok(!(await page.evaluate(() => document.querySelectorAll(".td-level")[0].classList.contains("td-level--locked"))), "L1 is open");
   // L2 EXISTS in data but is locked pending an L1 win — it shows a 'win 1 ⭐' hint
   assert.ok(await page.evaluate(() => document.querySelectorAll(".td-level")[1].classList.contains("td-level--locked")), "L2 starts locked");
@@ -1350,7 +1353,8 @@ test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTH
   // sanity: the seeded save really is in effect (unlocks + the Resume banner)
   assert.ok(await page.locator(".td-resume").isVisible(), "the seeded mid-run shows a Resume banner");
   const lockedBefore = await page.locator(".td-level--locked").count();
-  assert.ok(lockedBefore < 11, `seeded save unlocks levels (locked ${lockedBefore})`);
+  const shipped = await page.evaluate(() => window.TDData.LEVELS.length);
+  assert.ok(lockedBefore < shipped - 1, `seeded save unlocks levels (locked ${lockedBefore} of ${shipped})`);
 
   const btn = page.locator(".td-reset-open");
   assert.equal(await btn.count(), 1, "the fort home carries a grown-ups reset control");
@@ -1400,7 +1404,7 @@ test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTH
   assert.deepEqual(after.settings, SEEDED.settings, "sound/graphics settings survive the reset");
   assert.equal(after.difficulty, "heroic", "the chosen difficulty chip survives the reset");
   // …and the home re-renders immediately: re-locked grid, no Resume banner.
-  assert.equal(await page.locator(".td-level--locked").count(), 11, "the level grid re-locks at once");
+  assert.equal(await page.locator(".td-level--locked").count(), shipped - 1, "the level grid re-locks at once");
   assert.ok(!(await page.locator(".td-resume").isVisible()), "the Resume banner is gone at once");
   // a reset save must be COMPLETE — the next win reads these and must not crash
   for (const k of ["v", "stars", "settings", "difficulty", "meta", "ach", "endlessBest", "midRun"]) {
@@ -1416,6 +1420,147 @@ test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTH
   }, KID_KEYS);
   assert.deepEqual(kidAfter, KID_KEYS, "the fort reset must leave every josh-* key untouched (independent worlds)");
   await page.evaluate((k) => { for (const key in k) localStorage.removeItem(key); }, KID_KEYS);
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("the fort home shows a card for EVERY shipped level — World 4 was unreachable", async () => {
+  // `TOTAL_PLANNED = 12` was hard-coded back when World 4 was still a plan, so
+  // when the attic actually shipped, L13-L16 (and the Tickmaster) had no slot on
+  // the grid at all — built, tested, and completely unreachable by the player.
+  // The mirror of the documented "locked slots must have levels behind them".
+  await page.evaluate(() => {
+    const all = {};
+    for (const l of window.TDData.LEVELS) all[l.id] = 3;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1, difficulty: "normal", stars: { casual: {}, normal: all, heroic: {} } }));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.waitForTimeout(120);
+  const shipped = await page.evaluate(() => window.TDData.LEVELS.length);
+  const cards = await page.locator("#screen-td-home .td-level").count();
+  assert.equal(cards, shipped, `the grid must have one card per shipped level (${cards} cards vs ${shipped} levels)`);
+  const locked = await page.locator("#screen-td-home .td-level--locked").count();
+  assert.equal(locked, 0, "with every level 3⭐ on this ladder, nothing is locked");
+  const names = await page.locator("#screen-td-home .td-level__name").allTextContents();
+  for (const l of await page.evaluate(() => window.TDData.LEVELS.filter((x) => x.world === "attic").map((x) => x.name))) {
+    assert.ok(names.some((n) => n.indexOf(l.split(" ")[0]) >= 0), `World 4's "${l}" has a card`);
+  }
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("🧸 Kid Fort: the button really opens a kid run — big controls, no losing, no stars", async () => {
+  // World 4 and Kid Fort shipped with engine coverage only; the BUTTON had never
+  // been pressed in a browser. The "a feature whose tests all call the API
+  // directly is untested as a FEATURE" lesson, applied to the fort's kid mode.
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const kidBtn = page.locator(".td-kid-open");
+  assert.equal(await kidBtn.count(), 1, "the fort home carries a 🧸 Kid Fort button");
+  await kidBtn.click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(150);
+  const st = await page.evaluate(() => ({
+    difficulty: window.__TD.state().difficulty,
+    cheated: !!window.__TD.state().cheated,
+    body: document.body.classList.contains("td-kid"),
+    level: window.__TD.state().levelId,
+  }));
+  assert.equal(st.difficulty, "kid", "the run really is on the kid ladder");
+  assert.equal(st.body, true, "…and the kid control skin is painted");
+  assert.equal(st.cheated, true, "…and it is marked cheated, so it can never write a star");
+  assert.equal(st.level, 1, "…and it opens the first level");
+
+  // RULE 5 is back ON inside body.td-kid: every VISIBLE control is ≥75px.
+  const small = await page.evaluate(() => {
+    const bad = [];
+    for (const el of document.querySelectorAll("#screen-td-play button")) {
+      if (el.hidden || el.offsetParent === null) continue;
+      const b = el.getBoundingClientRect();
+      if (!b.width || !b.height) continue;
+      if (b.width < 75 || b.height < 75) bad.push((el.className || "") + " " + Math.round(b.width) + "×" + Math.round(b.height));
+    }
+    return bad;
+  });
+  assert.deepEqual(small, [], `kid fort controls under 75px: ${small.join(", ")}`);
+
+  // Leak the whole wave past an empty board: Josh must NEVER see a defeat.
+  await page.evaluate(() => { window.__TD.script([["call"], ["tick", 6000]]); });
+  const after = await page.evaluate(() => ({ phase: window.__TD.state().phase, lives: window.__TD.state().lives }));
+  assert.notEqual(after.phase, "lost", "kid fort never loses, however much gets through");
+  assert.ok(after.lives >= 1, `…and hearts never hit zero (${after.lives})`);
+  assert.equal(await page.locator(".td-overlay").count(), 0, "no defeat overlay ever appears");
+
+  // …and back out cleanly, with the kid skin removed for the adult fort.
+  await page.evaluate(() => { window.__TD.leaveToHome(); });
+  await page.waitForTimeout(80);
+  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(1, { seed: 1 }); });
+  await page.waitForTimeout(80);
+  assert.equal(await page.evaluate(() => document.body.classList.contains("td-kid")), false,
+    "starting an adult run takes the kid skin back off");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("a resize while the field is HIDDEN must not collapse the battlefield", async () => {
+  // A hidden screen measures 0 wide, and resize() clamped the cell to its
+  // minimum — so any code path that starts a level while the play screen is
+  // hidden (or an iOS resize event during a tab switch) rebuilt the field at
+  // 10px cells and left it that way until something resized again. Found by the
+  // World-4 tap test failing only when it ran AFTER the Kid Fort test.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 6 }); });
+  await page.waitForTimeout(120);
+  const good = await page.evaluate(() => {
+    const c = document.querySelector("#screen-td-play .td-canvas");
+    return { w: c.clientWidth, h: c.clientHeight };
+  });
+  assert.ok(good.w > 200, `the visible field is a real size (${good.w}×${good.h})`);
+  await page.evaluate(() => {
+    document.querySelector("#screen-td-play").hidden = true;
+    window.__TD.render().resize();          // the dangerous call
+    document.querySelector("#screen-td-play").hidden = false;
+  });
+  const after = await page.evaluate(() => {
+    const c = document.querySelector("#screen-td-play .td-canvas");
+    return { w: c.clientWidth, h: c.clientHeight };
+  });
+  assert.deepEqual(after, good, "resizing while hidden keeps the last good field size");
+});
+
+test("World 4: an attic level opens, builds, and plays in a real browser", async () => {
+  // No browser test had ever entered World 4 — the whole attic was engine-only.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const attic = await page.evaluate(() => window.TDData.LEVELS.filter((l) => l.world === "attic").map((l) => l.id));
+  assert.equal(attic.length, 4, "World 4 ships four levels");
+  for (const id of attic) {
+    const ok = await page.evaluate((lid) => {
+      window.__TD.newGame(lid, { seed: 11 });
+      const r = window.__TD.render(); r.resize(); r.draw(0);
+      const st = window.__TD.state();
+      window.__TD.script([["place", "dart", window.__TD.engine().levelDef.pads[0].id]]);
+      window.__TD.script([["call"], ["tick", 200]]);
+      return { built: st.towers.length, phase: st.phase, seen: st.enemies.length, world: window.__TD.engine().levelDef.world };
+    }, id);
+    assert.equal(ok.world, "attic", `L${id} is an attic level`);
+    assert.equal(ok.built, 1, `L${id}: a real tower was placed`);
+    assert.ok(ok.seen > 0 || ok.phase !== "wave", `L${id}: the wave actually ran`);
+  }
+
+  // …and a real field TAP builds on an attic pad (not just the scripted API).
+  await page.evaluate((lid) => { window.__TD.newGame(lid, { seed: 4 }); }, attic[0]);
+  await page.waitForTimeout(150);
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const pad = await page.evaluate(() => {
+    const p = window.__TD.engine().levelDef.pads[0];
+    return window.__TD.w2s(p.cx + 0.5, p.cy + 0.5);
+  });
+  await page.mouse.click(rect.x + pad.x, rect.y + pad.y);
+  await page.locator('.td-bubble .td-buy[data-line="dart"]').waitFor({ state: "visible", timeout: 5000 });
+  await page.locator('.td-bubble .td-buy[data-line="dart"]').click();
+  assert.equal(await page.evaluate(() => window.__TD.state().towers.length), 1,
+    "tapping an attic pad opens the build menu and really places the tower");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
@@ -1471,6 +1616,58 @@ test("ART: every tower TIER draws differently, and each tier-4 branch is its own
     assert.notEqual(s(3), s("b"), `${line}: the B branch must look different from tier 3`);
     assert.notEqual(s("a"), s("b"), `${line}: the two tier-4 branches must not look alike`);
   }
+});
+
+test("ART: every enemy draws as ITSELF — none falls through to the Sock Goblin", async () => {
+  // The enemy draw is a long if/else chain ending in a default sock. Two shipped
+  // enemies never got a branch: the Tin Plane, and — worse — **the Tickmaster**,
+  // the entire World-4 finale, which marched in as a 3200hp sock. Nothing caught
+  // it because a sock renders perfectly well. Same pixel-hash technique as the
+  // tower-tier guardrail: every type must be visually distinct from every other.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 8 }); });
+  await page.waitForTimeout(120);
+  const sigs = await page.evaluate(() => {
+    const st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const ctx = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const path = window.__TD.engine().levelDef.path;
+    const out = {};
+    for (const type of Object.keys(window.TDData.ENEMIES)) {
+      const def = window.TDData.ENEMIES[type];
+      st.towers.length = 0; st.soldiers.length = 0;
+      st.enemies.length = 0;
+      st.enemies.push({
+        id: 1, type, alive: true, hp: def.hp, maxHp: def.hp, shield: def.shield || 0,
+        dist: 3, pathIdx: 0, slowUntil: 0, slowAmt: 0, speedMult: 1, flier: !!def.flier,
+        engagedBy: 0, lastPhase: 0, charge: 0, brittleUntil: 0,
+      });
+      r.draw(0);
+      const w = window.__TD.engine().posOn(0, 3);
+      const p = window.__TD.w2s(w.x, w.y);
+      const half = 40;
+      const d = ctx.getImageData(
+        Math.max(0, Math.round((p.x - half) * dpr)), Math.max(0, Math.round((p.y - half) * dpr)),
+        Math.round(half * 2 * dpr), Math.round(half * 2 * dpr)
+      ).data;
+      let h = 5381;
+      for (let i = 0; i < d.length; i += 4) h = ((h * 33) ^ (d[i] + d[i + 1] * 3 + d[i + 2] * 7 + d[i + 3] * 11)) >>> 0;
+      out[type] = h;
+    }
+    st.enemies.length = 0;
+    void path;
+    return out;
+  });
+  const byHash = {};
+  for (const type of Object.keys(sigs)) {
+    const h = sigs[type];
+    (byHash[h] = byHash[h] || []).push(type);
+  }
+  const clashes = Object.keys(byHash).filter((h) => byHash[h].length > 1).map((h) => byHash[h].join(" = "));
+  assert.deepEqual(clashes, [], `enemies that draw identically (a missing art branch): ${clashes.join("; ")}`);
 });
 
 test("no uncaught page errors in the fort run", () => {

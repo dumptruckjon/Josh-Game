@@ -902,8 +902,8 @@ tooling.
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds; L10 = TD-7 fork+lever)/gimmicks + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 12 achievements, endless arenas)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever)
-│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button
-│   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast
+│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
+│   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
 ├── tests/
@@ -1416,6 +1416,40 @@ guardrail is generic and pixel-based: it renders each variant alone, hashes the
 canvas around it, and fails if any tier matches the tier below or either branch
 matches tier 3 or its sibling — so a future tower line cannot ship without tier
 art.
+**The World-4 + Kid-Fort adversarial pass found FOUR shipped defects, and every
+one of them was invisible to a green suite because the suite never LOOKED.** They
+sort into two kinds. *Content that exists but cannot be reached:* the fort home's
+level grid was `TOTAL_PLANNED = 12`, a literal left over from when World 4 was
+still a plan — so when the attic actually shipped, **L13-L16 and the Tickmaster
+had no card at all and were unreachable by the player**, the exact mirror of the
+documented "a level-select that shows locked slots must actually HAVE levels
+behind them". Worse, two existing tests asserted `12 level cards` / `11 locked`,
+so the suite was *pinning* the bug; both now derive from `DATA.LEVELS.length`,
+like the star ceiling. *Art that silently falls through:* the enemy draw is a long
+if/else ending in a default Sock Goblin, and two shipped enemies never got a
+branch — the Tin Plane, and **the Tickmaster, the entire World-4 finale, which
+marched in as a 3200hp sock**. Both now have real art (a riveted banking tin
+aeroplane; a crowned wind-up alarm clock whose hands spin faster as its hp-gated
+phases escalate, so the phase is readable on the boss itself), and a generic
+pixel-hash guardrail fails if any two enemy types render identically — which is
+precisely how a missing branch shows up. The other two were engine/UI edges:
+`resize()` measured a HIDDEN screen as 0 wide and `Math.max(10, …)` rebuilt the
+whole battlefield at its minimum cell, leaving a collapsed field until something
+resized again (now it keeps the last good size); and `JonTD.route()` only ever
+un-hid its destination, so the callers that invoke it DIRECTLY (the reset button,
+the resume-dismiss, the leave hook) could leave BOTH fort screens in flow — the
+play screen stacked under a ~900px home, which pushed the field's top past the
+viewport and triggered exactly that collapse. Coverage added to match: the
+Tickmaster's phases are now FORCED band-by-band (a solver kills it straight
+through, so the whole kit could have been dead code — the Static precedent), the
+kid `noLose` gate is proven to hold for kid AND to leave casual/normal/heroic
+genuinely losable, the 🧸 button is actually pressed in a browser (kid skin on,
+run marked cheated, every visible control ≥75px, a fully-leaked wave that never
+loses), and an attic level is opened, tapped and built in a real browser. Every
+new guardrail was mutation-checked — each one was proven to FAIL on the pre-fix
+code before being kept. Meta-lesson: a feature that only ever ran through node
+sims is untested as a FEATURE; press its button, look at its screen, and derive
+every count from the data instead of writing the number you happen to ship with.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

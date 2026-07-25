@@ -826,6 +826,15 @@
   // td-* hash still returns false so main.js falls back to the front door.
   const JonTD = {
     route(id) {
+      // main.js hides every screen before delegating, but route() is also called
+      // DIRECTLY (the reset button, the resume-dismiss, the leave hook). Those
+      // callers only ever un-hid the destination, so a direct call could leave
+      // BOTH fort screens in flow — the play screen stacked under a ~900px home,
+      // which pushed the field's top past the viewport and rebuilt the canvas at
+      // its minimum cell. Park the sibling here so every caller is equivalent.
+      const park = (other) => { const o = doc.getElementById(other); if (o) o.hidden = true; };
+      if (id === "td-home") park("screen-td-play");
+      if (id === "td-play") park("screen-td-home");
       if (id === "td-home") {
         leavingPlay(); // record any endless milestone + clear armed-rally/selection before parking the run
         doc.body.classList.add("td-mode");
@@ -991,7 +1000,11 @@
     endlessBest: () => Object.assign({}, save.endlessBest),
     resume: () => { resumeMidRun(); return cur ? cur.engine.state.phase : null; },
     startEndless: (world) => { startEndless(world); if (cur) cur.paused = true; return true; },
-    leaveToHome: () => { JonTD.route("td-home"); return true; }, // exercises the real leave chokepoint
+    // Exercises the real leave chokepoint — including the hash, so the router
+    // and the screens agree afterwards exactly as they do when the player taps
+    // 🏠 (the app always leaves via the hash; a route() call alone left the hash
+    // pointing at a screen that was no longer showing).
+    leaveToHome: () => { location.hash = "#td-home"; JonTD.route("td-home"); return true; },
     // Synchronous command script: [["place","dart","p3"],["upgrade",0],["call"],
     // ["tick",30],["untilPhase","build",50000]] — runs with the renderer paused.
     script: (cmds) => {

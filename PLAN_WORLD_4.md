@@ -41,73 +41,73 @@ the next session starts ahead instead of repeating the search.
    WORSE (3 → 2 lives), which proves the wave table was never the bottleneck —
    the Tickmaster was. The Bed Monster precedent (3200 → 2400) applies.
 
-## Where it stands
+## Where it stands — SHIPPED
 
-At revert time: all 4 levels winnable on casual/normal/heroic by the LOCAL
-solver, band ok, neglect losing everywhere, front-loading 9%, no mono-carry —
-but `PLAYABILITY` (L16 margin < 5 lives) and `AUDIT heroic` (one attic level)
-still failed against the suite's weaker solver, and softening the boss then
-tripped `AUDIT boss tension`. That three-way squeeze is the remaining work: the
-Tickmaster must be beatable by a branch-free build with ≥5 lives of margin while
-still costing a sensible build more than 3 lives.
+The three-way squeeze was solved on the second attempt: the Tickmaster came down
+to 3200hp / 8 lives, which lands L16 inside the 5-17 window `PLAYABILITY` and
+`AUDIT boss tension` jointly demand; the waves took a VANILLA backbone with at
+most one special shape per wave (≤25% HP); L14/L15's lanes were lengthened (short
+paths are harder — less tower exposure); and `night` was dropped from L14, being
+untunable for a new world's mid level. All 16 levels are winnable on all three
+adult ladders and losable by neglect, and the star ceiling now DERIVES from
+`DATA.LEVELS.length * 3` (48, not a literal 36).
 
-## Kid-mode fort — NOT STARTED
+## Kid-mode fort — BUILT
 
-Scoped but not built. Design notes: it must satisfy RULE 5 (≥75px targets, no
-fail state, no timers), which the fort deliberately violates as an adult space.
-The likely shape is a separate mode flag — 3 short levels, auto-called waves,
-lives that cannot reach zero, and kid-sized controls — not a difficulty tier.
+Shipped as a `kid` difficulty carrying `noLose`, read at the ONE place a run can
+be lost, so casual/normal/heroic stay genuinely losable (guardrail-tested both
+ways). A kid run is marked `cheated`, so it can never write a star or earn a
+badge. Inside `body.td-kid` the RULE 5 laws switch back on (every restyled
+control ≥75px, now asserted in a browser on the real screen). The adult skin is
+untouched.
 
 ---
 
-# Open backlog (requested 2026-07, not yet built)
+# Backlog status (all items requested 2026-07 — now CLOSED)
 
-## 1. CALL vs the power strip — a REAL bug, reverted after 3 failed fixes
-Both float in the field's bottom-left corner, so CALL ends up behind the powers.
-Three attempts each traded one problem for another: moving the strip right made it
-block pad taps (build menus stopped opening); making the container tap-transparent
-and 2-wide still covered pads and broke two more tests. The reason it is hard is
-structural — **CALL, the power strip and 20 maps of pad placement are ONE coupled
-constraint**. Every pad is already ≥0.99 cells off its lane, ≥1.4 from neighbours
-and clear of CALL; a second floating control means re-solving that for every map.
-Do it with the pad-relocation search already written (see `scratch-gen-w4.js`'s
-`placePads`), and extend the audit to EVERY floating control, not just CALL —
-that generalisation is written and was reverted with the rest; it is worth
-redoing, since deriving the map list from DATA already caught L15's buried pad.
+## 1. CALL vs the power strip — FIXED
+Three earlier attempts moved CALL and failed. The real answer was that no
+floating position works: measured across all 20 maps × both orientations, every
+one of 24 anchor × layout combinations for a 4-button strip buries at least 12
+pad centres (the shipped left column buried 27), because pads hug the lanes
+across the whole board and building is legal mid-wave. So the strip left the
+battlefield: a real layout row under the field in portrait (which is
+width-limited, so the ~150px below the canvas was dead space — the field does not
+shrink at all) and an absolutely-positioned column in the landscape side gutter.
+`resize()` now subtracts any in-flow sibling below the field generically. During
+build the strip is inert rather than hidden, so the field never resizes at a
+phase boundary. Kid Fort keeps a floating 2×2 block (its ≥75px buttons would eat
+a third of Josh's field, and `noLose` makes a covered pad harmless). The audit
+generalisation was redone and immediately earned its keep, catching L5's p11.
 
-## 2. World 4 + Kid Fort adversarial pass — NOT DONE
-Both shipped sim-verified but under-tested at the UI layer:
-- **Kid Fort has no browser test at all.** The 🧸 button has never been clicked in
-  a browser. This is exactly the class that produced the "powers don't work" and
-  "Rally Horn says no camp" reports — API-level tests passing while the hand-feel
-  is broken.
-- No browser test plays an attic level.
-- **The Tickmaster's phase abilities are undriven**: nothing forces it to 66% or
-  33% hp, so the speed-up, the gun-jam and the screw-summons are untested — the
-  documented gap for the Static and the Vacuum King, repeated.
-- No screenshots of World 4 or kid mode in either orientation.
+## 2. World 4 + Kid Fort adversarial pass — DONE, four real defects found
+- The fort home grid was `TOTAL_PLANNED = 12`, so **L13-L16 had no card and were
+  unreachable**. Two existing tests asserted `12 level cards` / `11 locked`, so
+  the suite was pinning the bug; all three now derive from `DATA.LEVELS.length`.
+- **The Tickmaster had no art** and rendered as a Sock Goblin (so did the Tin
+  Plane). Both drawn properly; a generic pixel-hash guardrail now fails if any
+  two enemy types render identically, which is how a missing branch shows up.
+- `resize()` measured a hidden screen as 0 wide and rebuilt the field at its
+  minimum cell, leaving it collapsed.
+- `JonTD.route()` only un-hid its destination, so direct callers could leave both
+  fort screens in flow — which triggered exactly that collapse.
+Coverage added: the Tickmaster's phases forced band-by-band, the kid `noLose`
+gate proven in both directions, the 🧸 button actually pressed in a browser, an
+attic level opened/tapped/built for real, and screenshots in both orientations.
+Every new guardrail was mutation-checked against the pre-fix code.
 
-## 3. Haptics — BLOCKED on iOS, and this matters before building it
-`navigator.vibrate` is **not supported by Safari on iOS at all** — not the iPad,
-not the iPhone. Building "more vibrations" would produce code that silently does
-nothing on the devices this project actually targets, which is precisely the
-failure mode this repo keeps catching (a control that looks live and is dead).
-Options, in order of honesty:
-  a. Ship it Android-only behind a real capability check, and SAY so.
-  b. Skip haptics; spend the effort on sound and visual punch instead.
-  c. Only a native/PWA-wrapper route gives iOS haptics, which is out of scope.
-Decide (a) or (b) before any code is written.
+## 3. Haptics — SHIPPED as option (a), Android-only behind a capability check
+`navigator.vibrate` is unsupported by Safari on iOS, so the code feature-checks
+it, shares the 🔔 toggle, is gated by `prefers-reduced-motion`, and rides the same
+`sfx()` call site as audio. On Josh's iPad it is a no-op by design, not by
+accident.
 
-## 4. More sound effects — straightforward, do it properly
-The fort already routes every cue through the ONE iOS-safe `JoshAudio.tone`.
-Candidates with no existing cue: tower SELL vs BUILD distinction per line, an
-upgrade-tier-up flourish, ability arm/refuse (currently reuses build/deny), boss
-phase transitions, wave-cleared, a low-lives warning, and per-enemy death timbre.
-Keep every one mute-gated and behind the existing toggle.
+## 4. More sound effects — SHIPPED
+Six new cues (`ability`, `arm`, `cleared`, `phase`, `lowlives`, `tier`), all
+mute-gated and routed through the one iOS-safe `JoshAudio.tone`. The boss `phase`
+cue needed a new engine event — a boss escalating was previously silent.
 
-## 5. Screen wake lock — partially possible, version-gated
-`navigator.wakeLock` needs **Safari 16.4+ / iOS 16.4+**. It will work on a modern
-phone and will NOT work on Josh's iOS 14.2 iPad (the documented platform floor).
-Implement with a feature check, re-acquire on `visibilitychange` (the lock drops
-when the tab backgrounds), release it on leaving the play screen, and never let a
-missing API throw. Watching a wave play out is exactly when it earns its keep.
+## 5. Screen wake lock — SHIPPED, version-gated
+Feature-checked (Safari 16.4+), re-acquired on `visibilitychange` only while a
+battle is live, released in `stopLoop()`. A no-op on the iOS 14.2 floor, as
+documented.

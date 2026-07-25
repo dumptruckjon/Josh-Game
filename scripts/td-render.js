@@ -65,6 +65,11 @@
     function resize() {
       const parent = canvas.parentElement;
       const vw = parent ? parent.clientWidth : 360;
+      // A hidden screen measures 0 wide, and `Math.max(10, …)` would silently
+      // rebuild the whole field at the MINIMUM cell — a collapsed battlefield
+      // that survives until something resizes again. Keep the last good size
+      // instead; the screen resizes for real when it is shown.
+      if (parent && vw <= 0 && cssW) return;
       // vertical budget: MEASURED — everything from the wrap's top edge down to
       // the bottom of the viewport is field (the CALL button floats over it, and
       // the site topbar is hidden inside the fort), minus a small safe margin.
@@ -504,6 +509,70 @@
         ctx.fillStyle = "#fff";
         ctx.beginPath(); ctx.arc(sx - r * 0.27, sy + r * 0.14, r * 0.035, 0, 7); ctx.fill();
         ctx.beginPath(); ctx.arc(sx + r * 0.21, sy + r * 0.14, r * 0.035, 0, 7); ctx.fill();
+      } else if (e.type === "tinplane") {
+        // Tin Plane: a little riveted tin aeroplane — ARMOURED and it flies, so
+        // it reads metal (plates + rivets) rather than soft, and it banks.
+        const bank = Math.sin(engine.state.tick / 9 + e.id) * 0.16;
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(bank);
+        const g = ctx.createLinearGradient(0, -r, 0, r);
+        g.addColorStop(0, "#d7dfeb"); g.addColorStop(1, "#8b97ab");
+        ctx.fillStyle = g; // wings
+        ctx.beginPath();
+        ctx.moveTo(-r * 1.15, r * 0.06); ctx.lineTo(-r * 0.2, -r * 0.2);
+        ctx.lineTo(r * 0.2, -r * 0.2); ctx.lineTo(r * 1.15, r * 0.06);
+        ctx.lineTo(r * 0.2, r * 0.3); ctx.lineTo(-r * 0.2, r * 0.3);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#aab6c8"; // fuselage
+        ctx.beginPath(); ctx.ellipse(0, 0, r * 0.34, r * 0.9, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#6f7c92"; // tail fin
+        ctx.beginPath(); ctx.moveTo(0, r * 0.62); ctx.lineTo(-r * 0.42, r * 1.02); ctx.lineTo(r * 0.42, r * 1.02); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#5e6a7e"; // rivets down the plates
+        for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.arc(0, k * r * 0.3, r * 0.055, 0, 7); ctx.fill(); }
+        ctx.fillStyle = "#7fe3ff"; // canopy
+        ctx.beginPath(); ctx.ellipse(0, -r * 0.42, r * 0.2, r * 0.28, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = Math.max(1.5, cell * 0.05); // prop blur
+        ctx.beginPath(); ctx.ellipse(0, -r * 0.95, r * 0.5, r * 0.1, 0, 0, 7); ctx.stroke();
+        ctx.restore();
+      } else if (e.type === "tickmaster") {
+        // The Tickmaster (World-4 boss): a battered wind-up alarm clock. Its HANDS
+        // spin faster as it escalates, so the hp-gated phases are readable on the
+        // enemy itself, not only in the banner.
+        const R = r * 1.8, frac = e.hp / (e.maxHp || 1);
+        const rage = frac <= 0.33 ? 3.2 : frac <= 0.66 ? 1.8 : 1;
+        shadow(sx, sy + R * 0.55, R * 0.72, R * 0.2);
+        ctx.fillStyle = "#8d99ad"; // bells
+        ctx.beginPath(); ctx.arc(sx - R * 0.66, sy - R * 0.66, R * 0.26, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + R * 0.66, sy - R * 0.66, R * 0.26, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#6d788c"; ctx.lineWidth = Math.max(2, cell * 0.07); // feet
+        ctx.beginPath(); ctx.moveTo(sx - R * 0.4, sy + R * 0.78); ctx.lineTo(sx - R * 0.6, sy + R * 1.0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx + R * 0.4, sy + R * 0.78); ctx.lineTo(sx + R * 0.6, sy + R * 1.0); ctx.stroke();
+        const gk = ctx.createRadialGradient(sx - R * 0.25, sy - R * 0.25, R * 0.15, sx, sy, R);
+        gk.addColorStop(0, "#e3e9f4"); gk.addColorStop(1, "#96a2b6");
+        ctx.fillStyle = gk; ctx.beginPath(); ctx.arc(sx, sy, R * 0.86, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#59647a"; ctx.lineWidth = Math.max(2, cell * 0.08); ctx.stroke();
+        ctx.fillStyle = "#fdf6e6"; ctx.beginPath(); ctx.arc(sx, sy, R * 0.68, 0, 7); ctx.fill();
+        ctx.fillStyle = "#59647a"; // hour ticks
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * Math.PI * 2;
+          ctx.beginPath(); ctx.arc(sx + Math.cos(a) * R * 0.56, sy + Math.sin(a) * R * 0.56, R * 0.045, 0, 7); ctx.fill();
+        }
+        const spin = engine.state.tick * 0.05 * rage;
+        ctx.strokeStyle = "#22304a"; ctx.lineCap = "round";
+        ctx.lineWidth = Math.max(2, cell * 0.09);
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(spin - 1.57) * R * 0.34, sy + Math.sin(spin - 1.57) * R * 0.34); ctx.stroke();
+        ctx.lineWidth = Math.max(1.5, cell * 0.06);
+        ctx.strokeStyle = frac <= 0.33 ? "#ff6f6f" : "#22304a";
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(spin * 6 - 1.57) * R * 0.54, sy + Math.sin(spin * 6 - 1.57) * R * 0.54); ctx.stroke();
+        ctx.fillStyle = "#ffd94a"; ctx.beginPath(); ctx.arc(sx, sy, R * 0.09, 0, 7); ctx.fill();
+        ctx.fillStyle = "#22304a"; // eyes on the rim, above the dial
+        ctx.beginPath(); ctx.arc(sx - R * 0.26, sy - R * 0.4, R * 0.09, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + R * 0.26, sy - R * 0.4, R * 0.09, 0, 7); ctx.fill();
+        ctx.fillStyle = "#ffd94a"; // crown — it is a boss
+        ctx.beginPath();
+        ctx.moveTo(sx - R * 0.4, sy - R * 0.9); ctx.lineTo(sx - R * 0.4, sy - R * 1.16);
+        ctx.lineTo(sx - R * 0.2, sy - R * 1.0); ctx.lineTo(sx, sy - R * 1.22);
+        ctx.lineTo(sx + R * 0.2, sy - R * 1.0); ctx.lineTo(sx + R * 0.4, sy - R * 1.16);
+        ctx.lineTo(sx + R * 0.4, sy - R * 0.9); ctx.closePath(); ctx.fill();
       } else {
         // Sock Goblin: a cream sock with a folded cuff, a toe, and a cheeky face
         shadow(sx, sy + cell * 0.34, r * 0.72, r * 0.24);
