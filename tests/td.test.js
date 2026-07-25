@@ -1010,6 +1010,37 @@ test("TD-14 backup: the fort save exports as text and a BAD paste changes nothin
   await page.evaluate(() => { window.TDUI.closeOverlay(); window.__TD.resetSave(); });
 });
 
+test("prices go RED→GREEN live as gold arrives, without reopening the dialog", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  // Open a build menu while too poor for everything.
+  const pad = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 42 });
+    window.__TD.state().gold = 0;
+    return window.__TD.engine().levelDef.pads[0];
+  });
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-buildmenu").waitFor({ state: "visible" });
+  const poor = await page.evaluate(() => Array.from(document.querySelectorAll(".td-buy")).map((b) => b.className));
+  assert.ok(poor.every((c) => c.includes("td-afford--no")), `broke → every price reads unaffordable: ${poor.join(" | ")}`);
+
+  // Gold arrives while the dialog STAYS OPEN — it must recolour itself.
+  await page.evaluate(() => { window.__TD.grantGold(5000); window.TDUI.hud(window.__TD.state()); });
+  await page.waitForTimeout(50);
+  const rich = await page.evaluate(() => ({
+    open: !document.querySelector(".td-bubble").hidden,
+    cls: Array.from(document.querySelectorAll(".td-buy")).map((b) => b.className),
+    enabled: Array.from(document.querySelectorAll(".td-buy")).every((b) => !b.disabled),
+  }));
+  assert.ok(rich.open, "the dialog was never closed and reopened");
+  assert.ok(rich.cls.every((c) => c.includes("td-afford") && !c.includes("td-afford--no")),
+    `gold arrived → prices flip to affordable in place: ${rich.cls.join(" | ")}`);
+  assert.ok(rich.enabled, "…and the buttons become usable");
+  await page.evaluate(() => window.TDUI.hideBubble());
+});
+
 test("TD-14 speed: the field speed cycles 1× → 2× → 3× → 1×", async () => {
   await page.evaluate(() => { location.hash = "#td-play"; });
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
@@ -1174,6 +1205,7 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
   assert.ok(hornState.cd <= hornState.tick, "the horn did NOT start a cooldown when it could do nothing");
   assert.equal(hornState.gold, goldBeforeHorn, "…and did NOT take gold for nothing");
   assert.match(hornState.hint, /No soldiers to rally/, "…and says why, in plain English");
+  assert.doesNotMatch(hornState.hint, /already up/, "with no camp it must not say the squad is fine");
 
   // A live Sticky Floor puddle paints on the field and expires on its own.
   await page.evaluate(() => { window.__TD.grantGold(2000); window.TDUI.abilities(window.__TD.state(), null); });

@@ -567,6 +567,7 @@
     if (reason === "cooldown") return "⏱ " + name + " is still recharging";
     if (reason === "no-targets") return "🎯 Nothing in the blast — tap closer to the toys";
     if (reason === "no-soldiers") return "🪖 No soldiers to rally — build an Army Guys camp first";
+    if (reason === "all-healthy") return "🪖 Your squad is already up and at full health";
     if (reason === "no-tower") return "⚡ Tap one of your towers to overclock it";
     return name + " can't be used right now";
   }
@@ -649,7 +650,10 @@
           const cost = d.tiers[0].cost;
           // icon + ROLE (single-shot / splash / slows / blocks path) + price, so
           // a player knows what each toy DOES, not just what it costs.
-          return '<button class="td-buy" data-line="' + id + '" type="button"' + (gold < cost ? " disabled" : "") + ">" +
+          // data-cost lets UI.prices() re-colour this LIVE as gold comes in —
+          // red while you can't afford it, green the moment you can, without
+          // closing and reopening the dialog.
+          return '<button class="td-buy" data-line="' + id + '" data-cost="' + cost + '" type="button">' +
             '<span class="td-buy__icon">' + d.icon + "</span>" +
             '<span class="td-buy__role">' + d.role + "</span>" +
             '<span class="td-buy__cost">' + cost + "🪙</span>" +
@@ -658,6 +662,7 @@
         "</div>",
         bx, by
       );
+      UI.prices(cur.engine.state.gold);
       UI.bubble.querySelectorAll(".td-buy").forEach((btn) => {
         btn.addEventListener("click", (e2) => {
           e2.stopPropagation();
@@ -679,11 +684,11 @@
       const refund = Math.floor(tower.spent * DATA.RULES.sellRefund);
       let middle = "";
       if (tower.tier < 3) {
-        middle = '<button class="td-up" type="button">⬆ ' + def.tiers[tower.tier].cost + "🪙</button>";
+        middle = '<button class="td-up" data-cost="' + def.tiers[tower.tier].cost + '" type="button">⬆ ' + def.tiers[tower.tier].cost + "🪙</button>";
       } else if (tower.tier === 3) {
         middle =
-          '<button class="td-branch" data-b="a" type="button">' + def.branches.a.name + " " + def.branches.a.cost + "🪙</button>" +
-          '<button class="td-branch" data-b="b" type="button">' + def.branches.b.name + " " + def.branches.b.cost + "🪙</button>";
+          '<button class="td-branch" data-b="a" data-cost="' + def.branches.a.cost + '" type="button">' + def.branches.a.name + " " + def.branches.a.cost + "🪙</button>" +
+          '<button class="td-branch" data-b="b" data-cost="' + def.branches.b.cost + '" type="button">' + def.branches.b.name + " " + def.branches.b.cost + "🪙</button>";
       }
       const control = tower.lineId === "camp"
         ? '<button class="td-rally" type="button">🚩 Rally</button>'

@@ -1081,7 +1081,10 @@
     // never charge gold or start a cooldown — that reads exactly like a broken
     // button (reported: "some of them don't even seem to work at all").
     function abilityWouldDo(def, o) {
-      if (def.kind === "instant") return state.soldiers.some((s) => !s.alive);   // someone to rally
+      // The horn revives the downed AND heals the hurt, so it is useful whenever
+      // any soldier is less than fully fit — not only when one is flat on its
+      // back. (Reported: it refused while a camp was on the board.)
+      if (def.kind === "instant") return state.soldiers.some((s) => !s.alive || s.hp < s.maxHp);
       if (def.kind === "tower") return !!towerById(o.towerId);
       if (def.dmg) {                                                             // something in the blast
         const r2 = def.radius * def.radius;
@@ -1099,7 +1102,12 @@
       const def = chk.def, o = opts || {};
       if (def.kind === "point" && (typeof o.x !== "number" || typeof o.y !== "number")) return { ok: false, reason: "needs-point" };
       if (!abilityWouldDo(def, o)) {
-        return { ok: false, reason: def.kind === "instant" ? "no-soldiers" : def.kind === "tower" ? "no-tower" : "no-targets" };
+        // Distinguish "you have no camp" from "your squad is already fine" —
+        // telling someone to build a camp they already own is worse than silence.
+        const why = def.kind === "instant"
+          ? (state.soldiers.length ? "all-healthy" : "no-soldiers")
+          : def.kind === "tower" ? "no-tower" : "no-targets";
+        return { ok: false, reason: why };
       }
       let hits = 0;
       if (def.kind === "point") {
@@ -1131,8 +1139,10 @@
           const s = statsOf(DATA.TOWERS.camp, t);
           for (const sol of state.soldiers) {
             if (sol.campId !== t.id) continue;
+            const wasHurt = !sol.alive || sol.hp < sol.maxHp;
             sol.hp = Math.round(s.hp * mods.soldierHp); sol.maxHp = sol.hp;
-            if (!sol.alive) { sol.alive = true; sol.respawnAt = 0; sol.engagedId = 0; sol.x = t.cx; sol.y = t.cy; hits++; }
+            if (!sol.alive) { sol.alive = true; sol.respawnAt = 0; sol.engagedId = 0; sol.x = t.cx; sol.y = t.cy; }
+            if (wasHurt) hits++; // a heal counts too — the horn did something
           }
         }
       }

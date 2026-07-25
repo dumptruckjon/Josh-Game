@@ -1986,3 +1986,39 @@ test("TD-9 abilities: a no-op use is REFUSED, and costs neither gold nor cooldow
   assert.ok(good.ok && good.hits > 0, "a real use lands");
   assert.ok(e.state.gold < 5000, "…and is paid for");
 });
+
+test("Rally Horn: works whenever the squad is HURT, not only when someone is down", () => {
+  // Reported from real play: it said "build an Army Guys camp first" while a
+  // camp was already on the board. Two bugs — it only counted DOWNED soldiers,
+  // and the refusal named the wrong cause.
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const e = TD.createEngine(lvl, { seed: 4 });
+  e.state.gold = 99999;
+  assert.ok(e.place("camp", lvl.pads[0].id).ok);
+  e.callWave();
+  for (let i = 0; i < 150; i++) e.tick();
+  assert.ok(e.state.soldiers.length > 0, "the camp deployed a squad");
+
+  // Everyone fit → refused, but with the RIGHT reason (not "build a camp").
+  e.state.soldiers.forEach((s) => { s.hp = s.maxHp; s.alive = true; });
+  e.state.gold = 5000;
+  const fit = e.useAbility("horn", {});
+  assert.equal(fit.ok, false, "a fully fit squad needs no horn");
+  assert.equal(fit.reason, "all-healthy", "…and it must NOT claim you have no camp");
+  assert.equal(e.state.gold, 5000, "…and costs nothing");
+
+  // A WOUNDED but standing soldier is a valid use — this is the reported case.
+  e.state.soldiers[0].hp = 1;
+  const hurt = e.useAbility("horn", {});
+  assert.ok(hurt.ok, "a hurt squad CAN be rallied even with nobody down");
+  assert.ok(hurt.hits >= 1, "the heal counts as doing something");
+  assert.equal(e.state.soldiers[0].hp, e.state.soldiers[0].maxHp, "…and it really healed");
+  assert.ok(e.state.gold < 5000, "…and it charged, because it worked");
+
+  // With no camp at all the message is the other one.
+  const bare = TD.createEngine(lvl, { seed: 4 });
+  bare.callWave();
+  for (let i = 0; i < 60; i++) bare.tick();
+  bare.state.gold = 5000;
+  assert.equal(bare.useAbility("horn", {}).reason, "no-soldiers", "no camp → the build-a-camp message");
+});

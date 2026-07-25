@@ -534,6 +534,7 @@
       } else nw.hidden = true;
     }
     UI.abilities(state);
+    UI.prices(state.gold); // an open build/upgrade dialog re-colours as gold arrives
   };
 
   // TD-9: refresh the ability strip — affordable / on-cooldown / armed. Reads
@@ -624,6 +625,21 @@
     });
     return el;
   };
+  // Live affordability. Every price in the field bubble carries data-cost, so
+  // this can re-colour them as gold comes in — RED while you can't afford it,
+  // GREEN the moment you can — WITHOUT closing and reopening the dialog. Called
+  // from UI.hud(), i.e. every frame the HUD updates.
+  UI.prices = function (gold) {
+    if (!UI.bubble || UI.bubble.hidden) return;
+    for (const el of UI.bubble.querySelectorAll("[data-cost]")) {
+      const cost = +el.dataset.cost;
+      const can = gold >= cost;
+      el.classList.toggle("td-afford", can);
+      el.classList.toggle("td-afford--no", !can);
+      el.disabled = !can;
+    }
+  };
+
   UI.hideBubble = function () { if (UI.bubble) UI.bubble.hidden = true; };
 
   // A big transient banner over the field — the boss klaxon/name reveal.
