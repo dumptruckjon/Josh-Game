@@ -80,14 +80,23 @@
         '<canvas class="td-canvas" aria-label="Toybox Defense battlefield"></canvas>' +
         '<div class="td-nextwave" aria-live="polite" hidden></div>' +
         '<div class="td-banner" aria-live="assertive" hidden></div>' +
-        '<button class="td-btn td-btn--call td-call" type="button" aria-label="Call the next wave">▶ CALL</button>' +
       "</div>" +
-      // TD-9: the in-WAVE control strip. It lives OUTSIDE the canvas wrap — a
-      // real layout row under the field in portrait (where there is dead space,
-      // because portrait is width-limited) and a column in the side gutter in
-      // landscape. A control that floats over the battlefield eats field taps
-      // (pads, the lever) and hides the exit corridor where leaks happen.
-      '<div class="td-abils" role="group" aria-label="Abilities"></div>';
+      // ALL controls live OUTSIDE the canvas wrap — a real layout block under
+      // the field in portrait (where there is dead space, because portrait is
+      // width-limited) and a column in a RESERVED side gutter in landscape. A
+      // control that floats over the battlefield eats field taps (pads, the
+      // lever) and hides the exit corridor where leaks happen. CALL floated
+      // until now and looked safe, because the audit only measured 390×844 and
+      // 844×390 — the two sizes where it happens to miss everything. On every
+      // other phone it buried pads DURING BUILD, which makes them permanently
+      // unbuildable: 3 at 375×667, 12 at 320×568, 36 (and a LEVER) at 320×480.
+      '<div class="td-controls">' +
+        '<button class="td-call" type="button" aria-label="Call the next wave">' +
+          '<span class="td-call__label">▶ CALL</span>' +
+          '<span class="td-call__meta"></span>' +
+        "</button>" +
+        '<div class="td-abils" role="group" aria-label="Abilities"></div>' +
+      "</div>";
     screens.appendChild(play);
     play.querySelector(".td-quit").addEventListener("click", hooks.quitToFort);
     play.querySelector(".td-pause").addEventListener("click", hooks.togglePause);
@@ -542,17 +551,30 @@
       // there is genuinely nothing to send — the cap is reached, or the last
       // wave is out — so it is never a dead control.
       const info = UI._callInfo ? UI._callInfo() : null;
+      const label = call.querySelector(".td-call__label");
+      const meta = call.querySelector(".td-call__meta");
+      const over = state.phase === "won" || state.phase === "lost";
+      // The button is now IN THE LAYOUT, so hiding it would resize the field
+      // under the player's thumb at every phase boundary. When it can't be used
+      // it goes INERT and says why — the same treatment the powers already get,
+      // and better than a control that silently vanishes.
+      call.hidden = over;
+      const ok = !info || info.ok;
+      call.disabled = !ok;
+      call.classList.toggle("td-call--off", !ok);
+      call.classList.toggle("td-call--rush", state.phase !== "build");
       if (state.phase === "build") {
         const secs = Math.ceil(state.countdown / global.TDData.TICK_RATE);
         const bonus = info ? info.bonus : Math.ceil((state.countdown / global.TDData.TICK_RATE) * global.TDData.RULES.earlyCallRate);
-        call.hidden = false;
-        call.classList.remove("td-call--rush");
-        call.textContent = "▶ CALL +" + bonus + "🪙 (" + secs + "s)";
-      } else if (state.phase === "wave" && info && info.ok) {
-        call.hidden = false;
-        call.classList.add("td-call--rush");
-        call.textContent = "⏩ RUSH +" + info.bonus + "🪙";
-      } else call.hidden = true;
+        label.textContent = "▶ CALL";
+        meta.textContent = ok ? "+" + bonus + "🪙 · " + secs + "s" : "";
+      } else if (!over) {
+        label.textContent = "⏩ RUSH";
+        meta.textContent = ok ? "+" + info.bonus + "🪙"
+          : info.reason === "too-soon" ? "steady…"
+            : info.reason === "too-many-waves" ? info.max + " waves out"
+              : "last wave";
+      }
     }
     // Next-wave preview: during the build phase, show WHAT is coming (enemy icons
     // + counts) so the player can plan their build — a premium-TD staple.

@@ -953,8 +953,18 @@ test("AUDIT: no pad hides under ANY floating field control (every map, both orie
   // legal during a wave (`place` only refuses when the run is over) — so the
   // wave-phase POWER STRIP can bury a pad exactly the same way. Each control is
   // measured in the phase where it is actually on screen.
+  // EVERY control is off the field now, so the answer is ZERO at every size —
+  // which means the viewport list is the whole test. It used to be just
+  // 390×844 and 844×390: the only two sizes where the FLOATING CALL button
+  // happened to miss everything. One size down and it buried pads during
+  // BUILD (3 at 375×667, 12 at 320×568, 36 and a LEVER at 320×480, 14 at
+  // 667×375) — permanently unbuildable, and the suite was green throughout.
   const waveBuried = [];
-  for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+  for (const vp of [
+    { width: 390, height: 844 }, { width: 375, height: 667 }, { width: 360, height: 640 },
+    { width: 320, height: 568 }, { width: 320, height: 480 },
+    { width: 844, height: 390 }, { width: 667, height: 375 }, { width: 1024, height: 768 },
+  ]) {
     await page.setViewportSize(vp);
     await page.evaluate(() => { location.hash = "#td-play"; });
     await page.locator("#screen-td-play").waitFor({ state: "visible" });
@@ -992,10 +1002,12 @@ test("AUDIT: no pad hides under ANY floating field control (every map, both orie
           }
           return out;
         };
-        const build = hits("a BUILD-phase control");    // build phase: CALL is up, the strip is not
-        window.__TD.script([["call"], ["tick", 20]]);   // wave phase: the strip is up, CALL is not
+        const build = hits("a BUILD-phase control");
+        // Mid-wave, with the powers live AND the wave button offering a RUSH —
+        // both are on screen at once now, so both get measured.
+        window.__TD.script([["call"], ["tick", 90]]);
         window.TDUI.hud(window.__TD.state());
-        return { build, wave: hits("a power button") };
+        return { build, wave: hits("a WAVE-phase control") };
       }, m);
       // HARD LAW: nothing may hide a pad (or the lever) during BUILD. That is the
       // phase towers are placed in, so a pad buried here is permanently
@@ -1007,15 +1019,12 @@ test("AUDIT: no pad hides under ANY floating field control (every map, both orie
       waveBuried.push(...res.wave);
     }
   }
-  // REGRESSION FENCE, stated honestly: building is legal mid-wave, and pads hug
-  // the lanes across the whole board, so NO anchor × layout for a 4-button strip
-  // buries zero pads (searched all 24 combinations: the best, this bottom-right
-  // row, buries 12; the old left column buried 27). Every one of these pads is
-  // still fully buildable during the build phase — the loss is only that this
-  // handful can't be tapped WHILE the strip is up. The fence stops that number
-  // creeping back up.
-  assert.ok(waveBuried.length <= 12,
-    `the power strip buries ${waveBuried.length} pad centres mid-wave (budget 12): ${waveBuried.join(", ")}`);
+  // No budget any more. The old fence allowed 12 buried-mid-wave pads because
+  // the strip floated and no anchor could reach zero; every control is off the
+  // battlefield now, in BOTH phases, so the honest number is 0 — and building
+  // is legal mid-wave, so anything above 0 is a tap the player can't make.
+  assert.deepEqual(waveBuried, [],
+    `nothing may bury a pad mid-wave either: ${waveBuried.join(", ")}`);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
@@ -1780,11 +1789,17 @@ test("⏩ RUSH: the CALL button really sends a second wave onto a live field", a
   assert.match(await call.textContent(), /CALL/, "build phase: the button offers a CALL");
   await call.click();
   await page.waitForTimeout(60);
-  // Inside the settle window a RUSH is refused, so the button hides — a fumbled
-  // double-tap has nothing to hit.
+  // Inside the settle window a RUSH is refused, so the button goes INERT — a
+  // fumbled double-tap has nothing to hit. It stays laid out (it is part of the
+  // page now, and vanishing would resize the field under the player's thumb)
+  // and says why, rather than silently disappearing.
   assert.equal(await page.evaluate(() => window.__TD.engine().callInfo().reason), "too-soon",
     "immediately after a CALL, a RUSH is refused");
-  assert.ok(await call.isHidden(), "…and the button is not offering one");
+  assert.ok(await page.evaluate(() => {
+    const b = document.querySelector("#screen-td-play .td-call");
+    return !b.hidden && b.disabled && b.classList.contains("td-call--off");
+  }), "…and the button is inert, not offering one");
+  assert.match(await call.textContent(), /steady/, "…and says why it can't be used yet");
 
   // Let the wave settle and walk, then RUSH the next one on top of it.
   await page.evaluate(() => { window.__TD.script([["tick", 90]]); window.TDUI.hud(window.__TD.state()); });
@@ -1807,7 +1822,11 @@ test("⏩ RUSH: the CALL button really sends a second wave onto a live field", a
   assert.ok(after.gold > before.gold, "…and paid the early-call bonus");
   assert.ok(after.alive > before.alive, "…and there are visibly more bad guys");
   assert.match(after.hud, /wave 1-2\//, "the HUD names BOTH waves that are walking");
-  assert.ok(await call.isHidden(), "at the cap the button stops offering (never a dead control)");
+  assert.ok(await page.evaluate(() => {
+    const b = document.querySelector("#screen-td-play .td-call");
+    return !b.hidden && b.disabled && b.classList.contains("td-call--off");
+  }), "at the cap the button stops offering (inert, never a live dead control)");
+  assert.match(await call.textContent(), /2 waves out/, "…and names the cap it has hit");
 
   // Clear the field: both waves count, so the run does not replay wave 2.
   await page.evaluate(() => { window.__TD.script([["untilPhase", "build", 200000]]); window.TDUI.hud(window.__TD.state()); });

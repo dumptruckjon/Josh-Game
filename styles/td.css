@@ -108,16 +108,27 @@ body.td-mode #screens { padding: 0; }
 .td-btn--call { background: #ffd94a; color: #3a2c00; }
 .td-btn--danger { background: #7a2b33; color: #ffdede; }
 .td-overlay__box p.td-overlay__warn { color: #ffbf8f; font-weight: 700; }
-/* CALL floats OVER the field (bottom-left is empty in every current map) —
-   it costs zero layout height, so the whole game fits one screen. */
+/* CALL used to FLOAT over the field. It cost no layout height, but an HTML
+   button over the canvas eats the tap underneath — so any pad (or lever) whose
+   centre fell inside it was unbuildable. It lives in the control block now. */
 .td-call {
-  position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
-  z-index: 6; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  display: grid; align-content: center; justify-items: center;
+  width: 100%; min-height: 48px; padding: 6px 10px; box-sizing: border-box;
+  border-radius: 14px; border: 0;
+  background: #ffd94a; color: #3a2c00; font-weight: 900;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 .td-call[hidden] { display: none; }
+.td-call__label { font-size: 1.05rem; line-height: 1.15; }
+.td-call__meta { font-size: 0.72rem; font-weight: 800; opacity: 0.8; }
+.td-call__meta:empty { display: none; }
 /* RUSH: the same button mid-wave, sending the NEXT wave on top of this one.
    Deliberately hotter than the yellow CALL — it is the risky one. */
 .td-call--rush { background: #ff8a3d; color: #3a1600; }
+/* Nothing to send (settling after a call, the cap reached, the last wave out):
+   dimmed and untappable, but still laid out and still SAYING why. */
+.td-call--off { opacity: 0.42; pointer-events: none; }
 
 /* in-field bubble / tower panel */
 .td-bubble {
@@ -198,9 +209,14 @@ body.td-mode #screens { padding: 0; }
    real layout ROW under the field: portrait is WIDTH-limited (the canvas leaves
    ~150px of dead space below it), so this costs no field size at all.
    Landscape is height-limited but has wide side gutters — see the media query. */
+/* The whole off-field control block: the wave button on top, the powers under
+   it. One grid column, so CALL stretches to exactly the strip's width. */
+.td-controls {
+  display: grid; gap: 8px; justify-content: center; margin: 8px auto 0;
+}
 .td-abils {
   display: grid; grid-auto-flow: column; gap: 8px;
-  justify-content: center; margin: 8px auto 0;
+  justify-content: center; margin: 0;
 }
 /* Powers are wave-only, so during BUILD they go inert — dimmed and untappable,
    but STILL LAID OUT, so the field never resizes at a phase boundary. */
@@ -226,16 +242,40 @@ body.td-mode #screens { padding: 0; }
 .td-abil--armed { border-color: #ffd94a; box-shadow: 0 0 0 3px rgba(255, 217, 74, 0.45); }
 .td-abil:active { transform: scale(0.96); }
 
+/* Portrait, when the phone is wide enough: ONE row — CALL beside the powers,
+   so the block is exactly as tall as the old strip and the battlefield is
+   unchanged from before CALL came off the field. Under ~360px it falls back to
+   two rows and the field pays ~15%, which is the right trade against pads that
+   could not be tapped at all. */
+@media (orientation: portrait) and (min-width: 360px) {
+  .td-controls { grid-auto-flow: column; align-items: center; }
+  .td-call { width: auto; min-width: 92px; min-height: 52px; }
+}
+
 /* Landscape: the field is HEIGHT-limited, so a row under it would shrink the
    battlefield. It has wide empty side gutters instead (a 24×14 board is far
-   wider than tall), so the strip becomes a column parked in the right gutter —
-   absolutely positioned, costing zero layout height. */
+   wider than tall), so the block becomes a column parked in the right gutter —
+   absolutely positioned, costing zero layout height.
+   The gutter is RESERVED, not assumed: a wide landscape window (an iPad at
+   1024×768) makes the field width-limited, and it would otherwise grow right
+   under the column. Narrowing the wrap keeps the column beside the field at
+   every size instead of on top of it. */
 @media (orientation: landscape) {
-  .td-abils {
-    position: absolute; right: 8px; top: 50%;
-    -webkit-transform: translateY(-50%); transform: translateY(-50%);
-    grid-auto-flow: row; margin: 0; z-index: 7;
+  .td-canvas-wrap { width: calc(100% - 92px); }
+  /* Spans the band BELOW the top bar and centres its content there — a
+     translateY(-50%) column centred on the whole screen is tall enough to
+     reach up and cover the ⏸ pause button on a 390-tall landscape phone.
+     top+bottom longhands, never the `inset` shorthand (Safari 14 drops it). */
+  .td-controls {
+    position: absolute; right: 8px; top: 72px; bottom: 8px;
+    align-content: center; margin: 0; z-index: 7; width: 76px;
   }
+  .td-abils { grid-auto-flow: row; justify-content: center; }
+  /* 48px keeps the 5-tile column inside a short landscape viewport and is
+     still comfortably above the adult 44px floor. */
+  .td-abil { width: 48px; height: 48px; min-width: 48px; min-height: 48px; }
+  .td-call { min-height: 48px; }
+  .td-call__label { font-size: 0.9rem; }
 }
 
 /* boss klaxon banner — a big transient reveal across the field */
@@ -469,11 +509,23 @@ body.td-kid .td-abil { width: 78px; height: 82px; min-width: 78px; min-height: 7
    an in-flow 180px-tall block would shrink Josh's battlefield by a third. That
    is a safe trade only here — the kid difficulty carries `noLose`, so a pad
    under a button can never cost him anything. */
-body.td-kid .td-abils {
-  gap: 16px; grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr));
-  position: absolute; right: 14px; bottom: 18px; top: auto; margin: 0; z-index: 7;
+body.td-kid .td-controls {
+  position: absolute; right: 14px; bottom: 18px; top: auto; left: auto;
+  width: auto; margin: 0; z-index: 7; gap: 16px;
+  /* stacked, never side-by-side: a 172px-wide column over the corner of the
+     field, not a 272px bar across most of its width */
+  grid-auto-flow: row; align-content: end;
   -webkit-transform: none; transform: none;
 }
+body.td-kid .td-abils {
+  gap: 16px; grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+body.td-kid .td-call { min-height: 76px; font-size: 1.2rem; }
+body.td-kid .td-call__label { font-size: 1.2rem; }
+/* the kid block floats, so its landscape gutter is not needed — give the
+   battlefield the full width back */
+body.td-kid .td-canvas-wrap { width: 100%; }
 body.td-kid .td-abil__icon { font-size: 1.7rem; }
 body.td-kid .td-buy, body.td-kid .td-up, body.td-kid .td-sell,
 body.td-kid .td-target, body.td-kid .td-branch, body.td-kid .td-rally { min-height: 76px; min-width: 92px; font-size: 1.05rem; }
