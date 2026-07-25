@@ -679,15 +679,43 @@ test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has 
     ".word__slots",
     ".wp__path"
   ]);
-  const css = read("styles/main.css").replace(/\/\*[\s\S]*?\*\//g, "");
-  const rules = css.match(/[^{}]+\{[^{}]*\}/g) || [];
-  for (const rule of rules) {
+  // The FORT's stylesheet was never scanned — the guardrail read main.css only,
+  // so all 16 of td.css's flex+gap rules shipped unaudited, and on Josh's iPad
+  // the top bar's buttons, the tower panel, the difficulty chips and every
+  // dialog's button row (Leave / Keep playing) sat flush against each other.
+  // Its survivors are card/HUD internals: one tappable card's own contents, or
+  // text that is never tapped at all.
+  const ALLOWED_TD = new Set([
+    ".td-ach",       // badge card internals (icon / name / desc)
+    ".td-buy",       // inside ONE build button (icon / role / price)
+    ".td-hud",       // ❤ 🪙 wave readouts — not tappable
+    ".td-level",     // inside ONE level card (number / name / stars)
+    ".td-node",      // inside ONE star-tree button (icon / body / cost)
+    ".td-toast",     // pointer-events: none by design
+  ]);
+  for (const [file, allow] of [["styles/main.css", ALLOWED], ["styles/td.css", ALLOWED_TD]]) {
+    const css = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    const rules = css.match(/[^{}]+\{[^{}]*\}/g) || [];
+    for (const rule of rules) {
+      const sel = rule.slice(0, rule.indexOf("{")).trim().replace(/\s+/g, " ");
+      const body = rule.slice(rule.indexOf("{"));
+      if (/display:\s*(inline-)?flex/.test(body) && /[^-a-z]gap:/.test(body)) {
+        assert.ok(allow.has(sel),
+          `new flex+gap rule "${sel}" in ${file} — flex-gap is DROPPED on iOS 14.2; use grid (gap works) or child margins for tappable children, or allowlist it if purely decorative`);
+      }
+    }
+  }
+  // …and a `gap` on a selector that INHERITS display:flex is the same bug with
+  // no `display` to spot it. td.css's `.td-bar--play` carried one: 8px that a
+  // modern browser ADDED to the child margins and iOS 14.2 dropped entirely.
+  const tdRaw = read("styles/td.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const rule of tdRaw.match(/[^{}]+\{[^{}]*\}/g) || []) {
     const sel = rule.slice(0, rule.indexOf("{")).trim().replace(/\s+/g, " ");
     const body = rule.slice(rule.indexOf("{"));
-    if (/display:\s*(inline-)?flex/.test(body) && /[^-a-z]gap:/.test(body)) {
-      assert.ok(ALLOWED.has(sel),
-        `new flex+gap rule "${sel}" — flex-gap is DROPPED on iOS 14.2; use grid (gap works) or child margins for tappable children, or allowlist it if purely decorative`);
-    }
+    if (!/[^-a-z]gap:/.test(body) || /display:\s*(grid|inline-grid)/.test(body)) continue;
+    if (/display:\s*(inline-)?flex/.test(body)) continue; // handled above
+    assert.ok(!/^\.td-bar/.test(sel),
+      `"${sel}" sets gap but inherits display:flex — iOS 14.2 drops it; use child margins`);
   }
 });
 

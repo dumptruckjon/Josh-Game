@@ -2396,3 +2396,54 @@ test("kid mode has NO failure state — the fort never falls, however badly it g
     assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must NOT carry it`);
   }
 });
+
+test("AUDIT stats: damage is credited for what LANDED, never for overkill", () => {
+  // TD-13's run summary tallies damage by line, but it counted the SWING, not
+  // the work: a 300-damage Toy Box Drop on a 6hp Sock Goblin scored 300. That
+  // made the biggest gun look like the best gun (a sampled run reported the
+  // dart at 76% of total damage against 58% real).
+  const e = TD.createEngine(L1, { seed: 5 });
+  e.callWave();
+  while (!e.state.enemies.some((x) => x.alive)) e.tick();
+  for (let i = 0; i < 30; i++) e.tick(); // let a few walk on
+  const alive = e.state.enemies.filter((x) => x.alive);
+  const hpPool = alive.reduce((n, x) => n + x.hp + (x.shield || 0), 0);
+  const drop = DATA.ABILITIES.find((a) => a.id === "drop");
+  assert.ok(drop.dmg > hpPool, `the blast (${drop.dmg}) really does overkill this group (${hpPool}hp)`);
+  const at = e.posOn(alive[0].pathIdx || 0, alive[0].dist);
+  e.state.gold = 9e9; // the ability's cost is not what's under test
+  const before = e.state.dmgBy.ability || 0;
+  const r = e.useAbility("drop", { x: at.x, y: at.y });
+  assert.ok(r.ok, "the blast landed");
+  const dealt = (e.state.dmgBy.ability || 0) - before;
+  assert.ok(dealt > 0, "…and something was credited");
+  assert.ok(dealt <= hpPool,
+    `credit (${dealt}) never exceeds the health that was actually there (${hpPool})`);
+});
+
+test("AUDIT combat: the Fan's beam keeps its multipliers (rounding used to eat them)", () => {
+  // The beam accumulates 6-14 dps into ONE point of damage per firing, and both
+  // computeHit and dealDamage round — so brittle (+20%) and Boss Bonker (+15%)
+  // rounded 1 straight back to 1 and did nothing at all on a Fan. Two identical
+  // sims, one with the target made brittle every tick, must now differ.
+  const beam = (brittle) => {
+    const e = TD.createEngine(L1, { seed: 11 });
+    e.state.gold = 9e9;
+    // a Fan on the pad nearest the lane start, so the beam has something to hold
+    const pad = L1.pads[0];
+    assert.ok(e.place("fan", pad.id).ok, "fan built");
+    e.callWave();
+    let dealt = 0;
+    for (let i = 0; i < 900; i++) {
+      // `brittle` is DERIVED from brittleUntil every tick, so seed the timer
+      if (brittle) for (const en of e.state.enemies) if (en.alive) en.brittleUntil = e.state.tick + 100;
+      e.tick();
+    }
+    dealt = e.state.dmgBy.fan || 0;
+    return dealt;
+  };
+  const plain = beam(false), brittle = beam(true);
+  assert.ok(plain > 0, `the beam does damage at all (${plain})`);
+  assert.ok(brittle > plain,
+    `brittle must make the beam hit harder (plain ${plain} vs brittle ${brittle}) — equal means the multiplier was rounded away`);
+});

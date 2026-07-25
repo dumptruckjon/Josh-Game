@@ -583,6 +583,15 @@
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
       shieldUsed: !!st.shieldUsed, // TD-8: a spent 🌟 Sticker Shield stays spent across a resume (else the free leak re-grants per segment)
       leverRoute: st.leverRoute || 0, // TD-7 audit: the thrown track survives a resume (leverCd deliberately NOT saved — an old absolute tick would wrongly lock a fresh engine)
+      // The build COUNTDOWN, or a resume hands back a full build phase every
+      // time — and the early-call bonus is computed from it, so quitting at 1
+      // second left and resuming turned "gold traded for build time" into free
+      // gold, once per wave, for as many waves as you cared to cycle.
+      countdown: st.countdown,
+      // The run tallies the summary screen reports. Rebuilding towers through
+      // engine.place() re-earns nothing, so without these a resumed run showed
+      // only its post-resume damage and called it the whole run.
+      dmgBy: Object.assign({}, st.dmgBy), kills: st.kills, goldEarned: st.goldEarned,
       towers: st.towers.map((t) => ({ lineId: t.lineId, tier: t.tier, branch: t.branch, padId: t.padId, targeting: t.targeting, rallyX: t.rallyX, rallyY: t.rallyY })),
     };
     persist(save);
@@ -598,6 +607,12 @@
   function leavingPlay() {
     if (!cur) return;
     const st = cur.engine && cur.engine.state;
+    // Refresh the checkpoint with the state you are actually LEAVING. It used
+    // to hold the wave boundary only, so towers bought during this build phase
+    // were silently lost on resume — and the stale countdown was the free-gold
+    // hole above. Wave-boundary granularity is unchanged: quitting mid-WAVE
+    // still keeps the last build checkpoint (writeMidRun refuses otherwise).
+    if (st && st.phase === "build") writeMidRun();
     if (st && st.endless && !st.cheated && st.phase !== "won" && st.phase !== "lost") {
       const world = cur.levelDef.world, score = st.waveIdx;
       if (score > (save.endlessBest[world] || 0)) { save.endlessBest[world] = score; persist(save); }
@@ -623,7 +638,10 @@
     // engine schedules the correct next wave from state.waveIdx on the next CALL.
     const e = cur.engine;
     const bumpGold = () => { e.state.gold = 9e9; }; // rebuild is already "paid" in mr.gold
-    for (const t of mr.towers) {
+    // A restored BACKUP can carry anything — a midRun whose `towers` is not an
+    // array threw "mr.towers is not iterable" and killed the whole resume.
+    for (const t of (Array.isArray(mr.towers) ? mr.towers : [])) {
+      if (!t || typeof t !== "object") continue;
       bumpGold();
       if (!e.place(t.lineId, t.padId).ok) continue;
       cur.lines[t.lineId] = true; // rebuilt via engine.place(), not the UI handler → track the line for Pea Purist
@@ -641,6 +659,12 @@
     e.state.gold = mr.gold; e.state.lives = mr.lives;
     e.state.shieldUsed = !!mr.shieldUsed; // TD-8: restore a spent Sticker Shield (legacy midRun lacks it → false, matching a fresh run)
     e.state.leverRoute = mr.leverRoute || 0; // legacy midRun saves lack the field → default short (the save-field-coverage lesson)
+    // legacy midRun saves lack these → keep the fresh values (a full countdown,
+    // a zeroed tally), which is exactly what a pre-fix resume already did
+    if (typeof mr.countdown === "number") e.state.countdown = mr.countdown;
+    if (mr.dmgBy) e.state.dmgBy = Object.assign({}, mr.dmgBy);
+    if (typeof mr.kills === "number") e.state.kills = mr.kills;
+    if (typeof mr.goldEarned === "number") e.state.goldEarned = mr.goldEarned;
     e.state.phase = "build"; e.state.cheated = false; // restored progress is honest
     cur.lastBuildWave = mr.waveIdx; // don't immediately re-checkpoint the restore
     cur.render.afterTick(); cur.render.resize(); cur.render.draw(0); UI.hud(e.state);

@@ -22,10 +22,15 @@ body.td-mode #screens { padding: 0; }
 }
 
 /* ---- shared bar ---- */
+/* Child margins, not flex `gap` — Safari 14.0 (Josh's iPad, and the floor this
+   whole app targets) DROPS gap in flex layout, so a bar that relies on it has
+   its buttons touching on the real device. Grid gap works, but this bar's two
+   layouts have different child counts, so margins are the honest fix. */
 .td-bar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; padding: 4px 0 8px;
+  padding: 4px 0 8px;
 }
+.td-bar > * + * { margin-left: 10px; }
 .td-title { margin: 0; font-size: 1.4rem; color: #ffe27a; }
 .td-bar__pad { width: 56px; }
 
@@ -83,7 +88,10 @@ body.td-mode #screens { padding: 0; }
 @media (prefers-reduced-motion: reduce) { .td-bump { animation: none; } }
 
 /* ---- play screen: one slim bar, the field owns the rest ---- */
-.td-bar--play { padding: 0 0 6px; gap: 8px; }
+/* A `gap` here would ADD to .td-bar's child margin on a modern browser and be
+   dropped entirely on iOS 14.2 — two different bars. Override the margin. */
+.td-bar--play { padding: 0 0 6px; }
+.td-bar--play > * + * { margin-left: 8px; }
 .td-mini {
   width: 54px; height: 54px; min-width: 54px; min-height: 54px;
   font-size: 1.35rem; /* adult-sized (≥44) — the fort is Jon's space */
@@ -134,12 +142,13 @@ body.td-mode #screens { padding: 0; }
 .td-bubble {
   position: absolute; transform: translate(-50%, -120%);
   background: #16233d; border: 2px solid #3a548a; border-radius: 14px;
-  padding: 8px; display: flex; gap: 8px; z-index: 5;
+  padding: 8px; display: flex; z-index: 5;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   /* A dialog can NEVER be wider than the screen — the JS clamp then only has to
      position it, so it always fits (portrait build/panel overflow fix). */
   box-sizing: border-box; max-width: calc(100vw - 16px);
 }
+.td-bubble > * + * { margin-left: 8px; } /* flex-gap is dropped on iOS 14.2 */
 .td-bubble[hidden] { display: none; }
 .td-bubble--below { transform: translate(-50%, 30%); } /* flipped under the pad when the top would clip */
 .td-bubble--hint { pointer-events: none; } /* a pure hint never swallows the field tap it asks for */
@@ -173,14 +182,16 @@ body.td-mode #screens { padding: 0; }
 .td-buy__icon { font-size: 1.3rem; }
 .td-buy__role { font-size: 0.6rem; font-weight: 700; opacity: 0.78; text-transform: uppercase; letter-spacing: 0.02em; }
 .td-buy__cost { font-size: 0.92rem; }
-.td-panel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 320px; }
+.td-panel { display: flex; align-items: center; flex-wrap: wrap; max-width: 320px; }
+.td-panel > * { margin: 0 8px 8px 0; } /* flex-gap is dropped on iOS 14.2 */
 .td-panel__name { font-weight: 800; color: #ffe27a; padding: 0 4px; white-space: nowrap; }
 /* stats may WRAP — iOS emoji (🪖 ❄ 💥) are wider than desktop, and a nowrap line
    would spill past the panel's right edge on the real device. */
 .td-panel__stats { width: 100%; font-size: 0.72rem; color: #9db4dd; padding: 0 4px 2px; white-space: normal; }
 
 /* difficulty selector (fort home) */
-.td-diff { display: flex; gap: 8px; justify-content: center; margin: 0 0 14px; }
+.td-diff { display: flex; justify-content: center; margin: 0 0 14px; }
+.td-diff > * + * { margin-left: 8px; } /* flex-gap is dropped on iOS 14.2 */
 .td-diffbtn {
   flex: 1; max-width: 130px; min-height: 46px; padding: 8px 6px;
   border-radius: 12px; border: 2px solid #3a548a; background: #182a4a;
@@ -309,11 +320,12 @@ body.td-mode #screens { padding: 0; }
 .td-overlay__box {
   background: #16233d; border: 2px solid #3a548a; border-radius: 18px;
   padding: 22px; width: min(320px, 86vw);
-  display: flex; flex-direction: column; gap: 12px; text-align: center;
+  display: flex; flex-direction: column; text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   max-height: calc(100vh - 24px); /* Safari 14 fallback */
   max-height: calc(100dvh - 24px); overflow-y: auto; /* the tall pause menu must scroll, not clip, in short landscape viewports */
 }
+.td-overlay__box > * + * { margin-top: 12px; } /* flex-gap is dropped on iOS 14.2 */
 .td-overlay__box h3 { margin: 0; color: #ffe27a; font-size: 1.3rem; }
 .td-overlay__box p { margin: 0; color: #cfe2ff; }
 .td-overlay__stars { font-size: 1.8rem; }
@@ -324,9 +336,10 @@ body.td-mode #screens { padding: 0; }
 
 /* ===== TD-5 META: resume banner, meta row, star tree, badges, endless, toast ===== */
 .td-resume {
-  display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
+  display: flex; align-items: center; margin: 0 0 12px;
   padding: 10px 12px; border-radius: 14px; background: #1c3a2a; border: 2px solid #3c8a5a;
 }
+.td-resume > * + * { margin-left: 10px; } /* flex-gap is dropped on iOS 14.2 */
 .td-resume[hidden] { display: none; }
 .td-resume__txt { flex: 1; color: #cfeede; font-weight: 800; min-width: 0; }
 .td-resume__go { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 12px; background: #ffd94a; color: #3a2c00; font-weight: 800; touch-action: manipulation; }
@@ -347,7 +360,8 @@ body.td-mode #screens { padding: 0; }
 
 /* wide overlay box for the tree/badges/endless lists (scrolls if tall) */
 .td-overlay__box--wide { width: min(360px, 92vw); max-height: 86vh; max-height: 86dvh; overflow-y: auto; } /* vh first: Safari 14 fallback */
-.td-overlay__row { display: flex; gap: 10px; }
+.td-overlay__row { display: flex; }
+.td-overlay__row > * + * { margin-left: 10px; } /* flex-gap is dropped on iOS 14.2 */
 .td-overlay__row .td-btn { flex: 1; }
 .td-overlay__sub { color: #9db4dd; margin: 0; font-size: 0.92rem; }
 .td-tree__avail { color: #ffe27a; }
@@ -356,7 +370,8 @@ body.td-mode #screens { padding: 0; }
 .td-tree__branch { margin: 14px 0 6px; font-weight: 800; color: #ffe27a; text-align: left; }
 .td-tree__spent { color: #9db4dd; font-weight: 400; font-size: 0.85em; }
 .td-node--locked .td-node__desc { color: #7286a8; }
-.td-nodes { display: flex; flex-direction: column; gap: 8px; }
+.td-nodes { display: flex; flex-direction: column; }
+.td-nodes > * + * { margin-top: 8px; } /* flex-gap is dropped on iOS 14.2 */
 .td-node {
   display: flex; align-items: center; gap: 10px; text-align: left;
   min-height: 56px; padding: 8px 10px; border-radius: 12px;
@@ -385,13 +400,15 @@ body.td-mode #screens { padding: 0; }
 .td-ach__desc { font-size: 0.68rem; color: #9db4dd; line-height: 1.15; }
 
 /* endless picker */
-.td-endlessrows { display: flex; flex-direction: column; gap: 10px; }
+.td-endlessrows { display: flex; flex-direction: column; }
+.td-endlessrows > * + * { margin-top: 10px; } /* flex-gap is dropped on iOS 14.2 */
 .td-endless {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between;
   min-height: 60px; padding: 10px 14px; border-radius: 14px;
   border: 2px solid #6a3c7a; background: #2a1a33; color: #f2e6ff; font-weight: 800; font-size: 1.05rem;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
+.td-endless > * + * { margin-left: 8px; } /* flex-gap is dropped on iOS 14.2 */
 .td-endless--locked { opacity: 0.5; border-color: #3a548a; background: #182a4a; }
 .td-endless__best { font-size: 0.78rem; color: #ffe27a; font-weight: 700; }
 

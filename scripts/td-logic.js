@@ -468,10 +468,13 @@
       e.chargeUntil = state.tick + Math.round(def.charge.seconds * DATA.TICK_RATE);
       e.chargeCd = state.tick + Math.round(def.charge.cooldown * DATA.TICK_RATE);
     }
-    function dealDamage(e, hpDmg, shieldDmg, how) {
+    // `preScaled` = the caller already applied the damage multipliers (the Fan's
+    // beam has to, because it delivers 1 damage per tick and rounding here would
+    // erase every percentage). Everything else passes it undefined.
+    function dealDamage(e, hpDmg, shieldDmg, how, preScaled) {
       // 👊 Boss Bonker: bosses take +15% of EVERYTHING (hp + shield), applied in
       // the ONE damage path so every tower/soldier hit benefits alike.
-      if (mods.bossDmg > 1 && enemyDef(e).boss) {
+      if (!preScaled && mods.bossDmg > 1 && enemyDef(e).boss) {
         hpDmg = Math.round(hpDmg * mods.bossDmg);
         shieldDmg = Math.round(shieldDmg * mods.bossDmg);
       }
@@ -483,14 +486,22 @@
         hpDmg = Math.round(hpDmg * (1 - sr));
         shieldDmg = Math.round(shieldDmg * (1 - sr));
       }
+      const hpBefore = e.hp, shieldBefore = e.shield || 0;
       if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
       if (hpDmg > 0) { e.hp -= hpDmg; triggerCharge(e); }
       // Damage BY LINE, tallied in the ONE damage path — `how` already names the
       // source at every call site (dart / splash=mortar / zap=fan / melee=camp /
       // ability), so no call site had to change and a future line gets counted
       // the moment it routes through here.
+      // It credits what LANDED, not what was swung: a 300-damage Toy Box Drop on
+      // a 6hp sock did 6 points of work, and counting the swing made the biggest
+      // gun look like the best gun (the dart read 76% of a run against 58% real).
       const src = HOW_LINE[how];
-      if (src) state.dmgBy[src] = (state.dmgBy[src] || 0) + Math.max(0, hpDmg) + Math.max(0, shieldDmg);
+      if (src) {
+        const eff = Math.min(Math.max(0, hpDmg), Math.max(0, hpBefore))
+          + Math.min(Math.max(0, shieldDmg), shieldBefore);
+        state.dmgBy[src] = (state.dmgBy[src] || 0) + eff;
+      }
       if (e.hp <= 0) killEnemy(e, how);
     }
     function leakEnemy(e) {
@@ -838,12 +849,23 @@
             if (beamTarget) {
               // ⚡ Overclock: the Fan has no cooldown to divide, so the boost has
               // to scale the beam's accumulation or the ability is a paid no-op.
-              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT * boostOf(t);
+              // Multipliers must scale the BEAM, not the single point of damage
+              // it delivers per tick. computeHit and dealDamage both ROUND, and
+              // a 6-14 dps beam accumulates to exactly 1 — so brittle (+20%)
+              // and Boss Bonker (+15%) rounded straight back to 1 and did
+              // literally nothing on a Fan. Applied to the accumulator instead,
+              // and dealDamage is told not to re-apply them. (Armor never
+              // touches zap, and splashResist is keyed on splash/ability, so
+              // the beam loses nothing by taking this path.)
+              const zapBoss = (mods.bossDmg > 1 && enemyDef(beamTarget).boss) ? mods.bossDmg : 1;
+              const zapBrittle = beamTarget.brittle ? R.brittleBonus : 1;
+              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT * boostOf(t) * zapBoss * zapBrittle;
               if (t.zapAcc >= 1) {
                 const whole = Math.floor(t.zapAcc);
                 t.zapAcc -= whole;
-                const hit = computeHit(whole, "zap", beamTarget);
-                dealDamage(beamTarget, hit.hpDmg, hit.shieldDmg, "zap");
+                // a shield soaks zap first — the same split computeHit does
+                const sh = Math.min(whole, beamTarget.shield || 0);
+                dealDamage(beamTarget, whole - sh, sh, "zap", true);
               }
             }
           }

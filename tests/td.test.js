@@ -627,6 +627,84 @@ test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores th
   await page.evaluate(() => { window.__TD.resetSave(); }); // clean up for later tests
 });
 
+test("AUDIT resume: the checkpoint carries the countdown, the tally, and survives junk", async () => {
+  // Three checkpoint-fidelity defects in one place.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); window.__TD.newGame(1, { seed: 4 }); });
+  await page.waitForTimeout(80);
+
+  // (1) A build phase you have SPENT most of must not come back full. The
+  // early-call bonus is computed from the countdown, so quitting with a second
+  // left and resuming turned "gold traded for build time" into free gold —
+  // repeatable once per wave, for as many waves as you cared to cycle.
+  // Two script() calls on purpose: the __TD harness runs phaseWatch after each
+  // one, so the FIRST lays the wave-boundary checkpoint and the second (same
+  // wave) lays none. That leaves a genuinely stale checkpoint to leave on —
+  // one script() call would write a fresh one and mask the whole defect.
+  const stale = await page.evaluate(() => {
+    window.__TD.script([["tick", 600]]);
+    const m = window.__TD.midRun();
+    return { countdown: m && m.countdown, towers: m && m.towers.length };
+  });
+  const left = await page.evaluate(() => {
+    // burn more of the build phase, buy a tower, then leave through the real
+    // chokepoint (the same one the 🏠 button uses)
+    window.__TD.script([["tick", 300], ["place", "dart", "p3"]]);
+    const st = window.__TD.state();
+    const out = { countdown: st.countdown, towers: st.towers.length, gold: st.gold };
+    window.__TD.leaveToHome();
+    return out;
+  });
+  assert.ok(left.countdown < 30 * 40, `the build phase really was spent (${left.countdown} ticks left)`);
+  assert.ok(stale.countdown > left.countdown && stale.towers < left.towers,
+    `the wave-boundary checkpoint really is stale by the time you leave (${JSON.stringify(stale)} vs ${JSON.stringify(left)})`);
+  const mr = await page.evaluate(() => window.__TD.midRun());
+  assert.ok(mr, "leaving during build wrote a checkpoint");
+  assert.equal(mr.countdown, left.countdown, "the checkpoint holds the countdown you left on");
+  assert.equal(mr.towers.length, left.towers,
+    "…and the tower bought during that build phase (the checkpoint used to hold only the wave boundary)");
+  const resumed = await page.evaluate(() => { window.__TD.resume(); const st = window.__TD.state(); return { countdown: st.countdown, towers: st.towers.length }; });
+  assert.equal(resumed.countdown, left.countdown, "resume gives back the countdown you left, not a fresh one");
+  assert.equal(resumed.towers, left.towers, "…and the build you left");
+
+  // (2) The run tally must survive too, or a resumed run reports only its
+  // post-resume damage and calls it the whole run (the towers are rebuilt via
+  // engine.place(), which re-earns nothing).
+  await page.evaluate(() => {
+    window.__TD.script([["call"], ["untilPhase", "build", 200000]]);
+    window.__TD.leaveToHome();
+  });
+  const tally = await page.evaluate(() => window.__TD.midRun());
+  assert.ok(tally && tally.kills > 0, `the checkpoint carries the kill count (${tally && tally.kills})`);
+  assert.ok(Object.keys(tally.dmgBy || {}).length > 0, "…and the damage-by-line tally");
+  const back = await page.evaluate(() => { window.__TD.resume(); const st = window.__TD.state(); return { kills: st.kills, dmgBy: st.dmgBy }; });
+  assert.equal(back.kills, tally.kills, "a resumed run keeps the kills it already earned");
+  assert.deepEqual(back.dmgBy, tally.dmgBy, "…and the damage each line already did");
+
+  // (3) A restored BACKUP can carry anything. A midRun whose `towers` is not an
+  // array threw "mr.towers is not iterable" and killed the resume outright.
+  const survived = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    // an OBJECT, not an array: `for (const t of ...)` throws outright on it
+    // (a string would have quietly iterated its characters)
+    raw.midRun = { levelId: 1, endless: false, world: "bedroom", difficulty: "normal", seed: 7, waveIdx: 1, gold: 300, lives: 15, meta: [], towers: { p1: "dart" } };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    return true;
+  });
+  assert.ok(survived);
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator(".td-resume__go").click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const junk = await page.evaluate(() => { const st = window.__TD.state(); return { phase: st.phase, waveIdx: st.waveIdx, towers: st.towers.length }; });
+  assert.equal(junk.phase, "build", "a malformed checkpoint still resumes into a playable build phase");
+  assert.equal(junk.waveIdx, 1, "…at the saved wave");
+  assert.equal(junk.towers, 0, "…with no towers, rather than an exception");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("TD8 audit: a SPENT Sticker Shield stays spent across a resume (no re-granted free leak)", async () => {
   // The checkpoint-fidelity class: writeMidRun must carry state.shieldUsed, or a
   // Sticker-Shield owner who spent the free leak, quit, and resumed would get it
