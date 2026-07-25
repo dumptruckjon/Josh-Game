@@ -97,12 +97,35 @@ jobs:
           sha="${GITHUB_SHA::8}"
           echo "Polling $url for ?v=$sha ..."
           for i in $(seq 1 30); do
-            if curl -fsSL "$url" | grep -q "v=$sha"; then
-              echo "Live site is serving $sha"; exit 0
+            html="$(curl -fsSL "$url" || true)"
+            if printf '%s' "$html" | grep -q "v=$sha"; then
+              # The HTML being new is NOT enough. Every asset is requested with
+              # ?v=<sha>, and a CDN edge can serve the new index.html while a
+              # versioned script is not yet reachable there — the page then
+              # boots with that script missing. That really happened: a deploy
+              # went red on "the Josh tile wears his JoshArt portrait" and
+              # "artFor must return an <svg>", both meaning art.js never ran,
+              # on a commit that touched neither. So prove EVERY versioned
+              # asset is served from this edge before trusting the site.
+              missing=""
+              for a in $(printf '%s' "$html" | grep -oE '(src|href)="[^"]*\?v=[^"]*"' | sed -E 's/^(src|href)="//; s/"$//'); do
+                case "$a" in
+                  http*) full="$a" ;;
+                  /*) full="${url%/}$a" ;;
+                  *) full="${url%/}/$a" ;;
+                esac
+                curl -fsS -o /dev/null "$full" || missing="$missing $a"
+              done
+              if [ -z "$missing" ]; then
+                echo "Live site is serving $sha (index.html + every versioned asset)"; exit 0
+              fi
+              echo "attempt $i: html is $sha but these are not served yet:$missing"
+            else
+              echo "attempt $i: html is not $sha yet"
             fi
-            echo "attempt $i: not yet, waiting 10s"; sleep 10
+            sleep 10
           done
-          echo "::error::Live site did not update to $sha within ~5 min"; exit 1
+          echo "::error::Live site did not fully update to $sha within ~5 min"; exit 1
 
       - name: Run browser tests against the LIVE site
         run: npm test
