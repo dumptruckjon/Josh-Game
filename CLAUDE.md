@@ -1300,6 +1300,25 @@ must never overwrite a heroic best) and is the THIRD instance of the
 persisted-field law, so it was covered at all three sites (loader defaults,
 `freshSave`, the two-tab merge, where a best folds as a MAX like stars) with a
 guardrail pinning each.
+**TD-11 MULTI-PATH EVERYWHERE** takes the TD-7 lane subsystem from 1 of 12 levels
+to 3: **L3** introduces the lever deep in World 1 (so L10's train set is no longer
+the first one you meet) and **L7** gets a mid-game use. The retrofit is safe
+because it is a **default-noop**: lane 0 is byte-identical to each level's
+original `path`, so every winnability sim — none of which pulls the lever — is
+untouched, and a guardrail asserts `paths[0] === path` so that stays true. The
+method matters: existing maps' pads were placed tightly around their single lane
+by an earlier audit, so a fork must be SEARCHED for, not eyeballed — a scratch
+generator enumerated axis-aligned detours per level and kept only those that
+preserved the shared prefix, stayed in bounds, actually diverged, gained ≥20%
+length, and left every pad ≥0.99 cells clear of BOTH lanes. **Only 3 of the 12
+maps admit a fork at all without moving pads** (L1, L3, L7) — recorded rather
+than forced, since relocating pads would re-open each level's tuning. The new
+guardrail immediately paid for itself by catching a PRE-EXISTING bug: the
+original pad-geometry audit only ever checked the DEFAULT lane, so **L10's pad
+p10 sat 0.50 cells from its long lane** — throwing the lever ran the train
+straight through a tower. Moved to (19,10). Lesson: when a level gains a second
+lane, every per-lane law (pad clearance, the CALL-button overlap check, soldier
+posts) must be re-run against EVERY lane, not just lane 0.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

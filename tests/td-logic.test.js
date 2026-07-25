@@ -1874,3 +1874,60 @@ test("TD-13 tallies: they survive a wave WITHOUT draining events (the 400-cap tr
   assert.ok(e.state.kills > dieLeft,
     `the tally counts the WHOLE run (${e.state.kills} kills) while the capped buffer retains only ${dieLeft} die events — event accounting would have lost the rest`);
 });
+
+// ---- TD-11: the fork subsystem now ships on more than one level ----
+test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a DEFAULT-NOOP", () => {
+  const forked = DATA.LEVELS.filter((l) => l.paths && l.paths.length > 1);
+  assert.ok(forked.length >= 3, `the lane subsystem ships on several levels, not just one (${forked.length})`);
+  for (const l of forked) {
+    assert.ok(l.fork && typeof l.fork.at === "number", `L${l.id} declares its fork distance`);
+    assert.ok(l.lever && typeof l.lever.cx === "number", `L${l.id} has a lever to throw`);
+    const a = TD.buildPath(l.paths[0]), b = TD.buildPath(l.paths[1]);
+    // Identical geometry up to the fork — this is what makes rerouting seamless:
+    // a pre-fork enemy can switch lanes with NO teleport.
+    for (let d = 0; d <= l.fork.at; d += 0.25) {
+      const x = TD.posAt(a, d), y = TD.posAt(b, d);
+      assert.ok(Math.abs(x.x - y.x) < 1e-9 && Math.abs(x.y - y.y) < 1e-9,
+        `L${l.id} lanes must coincide up to the fork (diverged at ${d})`);
+    }
+    const A = TD.posAt(a, l.fork.at + 1), B = TD.posAt(b, l.fork.at + 1);
+    assert.ok(Math.hypot(A.x - B.x, A.y - B.y) > 0.5, `L${l.id} lanes must actually diverge after the fork`);
+    assert.ok(b.total > a.total * 1.15, `L${l.id}'s long route must be meaningfully longer (${(b.total / a.total).toFixed(2)}×)`);
+    // DEFAULT-NOOP: lane 0 is exactly the level's original single path, so every
+    // winnability sim (which never pulls the lever) is untouched by the retrofit.
+    if (l.path) assert.deepEqual(l.paths[0], l.path, `L${l.id}'s default lane must BE the original path`);
+    // …and no pad may sit on EITHER lane (the shipped pad-geometry law).
+    for (const pad of l.pads) {
+      for (const lane of l.paths) {
+        let m = Infinity;
+        for (let i = 1; i < lane.length; i++) {
+          const [ax, ay] = lane[i - 1], [bx, by] = lane[i];
+          const vx = bx - ax, vy = by - ay, wx = pad.cx + 0.5 - ax, wy = pad.cy + 0.5 - ay;
+          const L2 = vx * vx + vy * vy;
+          let t = L2 ? (wx * vx + wy * vy) / L2 : 0;
+          t = Math.max(0, Math.min(1, t));
+          m = Math.min(m, Math.hypot(pad.cx + 0.5 - (ax + vx * t), pad.cy + 0.5 - (ay + vy * t)));
+        }
+        assert.ok(m >= 0.99, `L${l.id} pad ${pad.id} sits on a lane (${m.toFixed(2)} cells) — a tower must never stand in the road`);
+      }
+    }
+  }
+});
+
+test("TD-11 forks: throwing the lever reroutes without teleporting anyone", () => {
+  for (const l of DATA.LEVELS.filter((x) => x.paths && x.paths.length > 1)) {
+    const e = TD.createEngine(l, { seed: 7 });
+    e.callWave();
+    for (let i = 0; i < 120; i++) e.tick();
+    const pre = e.state.enemies.filter((x) => x.alive && x.dist < l.fork.at);
+    const before = pre.map((x) => e.posOn(x.pathIdx, x.dist));
+    const r = e.pullLever();
+    assert.ok(r.ok, `L${l.id}'s lever throws`);
+    pre.forEach((x, i) => {
+      const now = e.posOn(x.pathIdx, x.dist);
+      assert.ok(Math.hypot(now.x - before[i].x, now.y - before[i].y) < 1e-9,
+        `L${l.id}: a pre-fork enemy must not jump when the lane changes`);
+    });
+    assert.equal(e.pullLever().reason, "cooldown", `L${l.id}'s lever respects its cooldown`);
+  }
+});

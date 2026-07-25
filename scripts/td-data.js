@@ -237,6 +237,14 @@
       world: "bedroom",
       startGold: 400,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 4-8 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
       budgetBase: 330,
+      // TD-11: the lever is INTRODUCED here, deep in World 1, so L10's train
+      // set isn't the first time you meet one. Default (short) route unchanged.
+      paths: [
+        [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 3], [23, 3] ],
+        [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 9], [10, 9], [10, 3], [18, 3], [23, 3] ],
+      ],
+      fork: { at: 35 },   // shared-prefix length — where the tracks split
+      lever: { cx: 18, cy: 9 }, // tap it to send the traffic the long way
       path: [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 3], [23, 3] ],
       pads: [
         { id: "p1", cx: 2, cy: 10 },
@@ -354,6 +362,14 @@
       startGold: 450,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 7-8 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
       budgetBase: 390,
       zones: [ { from: 8, to: 13, mult: 1.6 }, { from: 20, to: 25, mult: 1.6 }, { from: 33, to: 38, mult: 1.6 } ],
+      // TD-11: a mid-game use of the lever. This is the air-pressure level, so
+      // routing the ground traffic the long way buys your anti-air real time.
+      paths: [
+        [ [0, 11], [6, 11], [6, 4], [14, 4], [14, 11], [20, 11], [20, 3], [23, 3] ],
+        [ [0, 11], [6, 11], [6, 8], [0, 8], [0, 4], [6, 4], [14, 4], [14, 11], [20, 11], [20, 3], [23, 3] ],
+      ],
+      fork: { at: 9 },   // shared-prefix length — where the tracks split
+      lever: { cx: 6, cy: 8 }, // tap it to send the traffic the long way
       path: [ [0, 11], [6, 11], [6, 4], [14, 4], [14, 11], [20, 11], [20, 3], [23, 3] ],
       pads: [
         { id: "p1", cx: 1, cy: 9 }, { id: "p2", cx: 4, cy: 9 }, { id: "p3", cx: 8, cy: 11 }, { id: "p4", cx: 4, cy: 6 }, { id: "p5", cx: 8, cy: 6 }, { id: "p6", cx: 7, cy: 2 }, { id: "p7", cx: 10, cy: 6 }, { id: "p8", cx: 12, cy: 2 }, { id: "p9", cx: 12, cy: 5 }, { id: "p10", cx: 16, cy: 7 }, { id: "p11", cx: 12, cy: 9 }, { id: "p12", cx: 15, cy: 9 },
@@ -448,7 +464,7 @@
       fork: { at: 10 },       // length of the shared prefix — where the tracks split
       lever: { cx: 10, cy: 7 }, // the tappable switch, sitting on the fork
       pads: [
-        { id: "p1", cx: 8, cy: 5 }, { id: "p2", cx: 13, cy: 0 }, { id: "p3", cx: 17, cy: 0 }, { id: "p4", cx: 19, cy: 4 }, { id: "p5", cx: 19, cy: 8 }, { id: "p6", cx: 23, cy: 5 }, { id: "p7", cx: 15, cy: 9 }, { id: "p8", cx: 11, cy: 9 }, { id: "p9", cx: 16, cy: 13 }, { id: "p10", cx: 20, cy: 11 }, { id: "p11", cx: 6, cy: 4 }, { id: "p12", cx: 2, cy: 5 }, { id: "p13", cx: 6, cy: 10 }, { id: "p14", cx: 2, cy: 9 },
+        { id: "p1", cx: 8, cy: 5 }, { id: "p2", cx: 13, cy: 0 }, { id: "p3", cx: 17, cy: 0 }, { id: "p4", cx: 19, cy: 4 }, { id: "p5", cx: 19, cy: 8 }, { id: "p6", cx: 23, cy: 5 }, { id: "p7", cx: 15, cy: 9 }, { id: "p8", cx: 11, cy: 9 }, { id: "p9", cx: 16, cy: 13 }, { id: "p10", cx: 19, cy: 10 }, { id: "p11", cx: 6, cy: 4 }, { id: "p12", cx: 2, cy: 5 }, { id: "p13", cx: 6, cy: 10 }, { id: "p14", cx: 2, cy: 9 },
       ],
       waves: [
         { groups: [ { type: "sock", count: 12, gap: 0.85, delay: 0 }, { type: "knight", count: 3, gap: 1, delay: 3 } ] },
