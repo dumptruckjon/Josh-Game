@@ -900,7 +900,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds; L10 = TD-7 fork+lever)/gimmicks + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 12 achievements, endless arenas)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/16 levels (4 worlds; L3/L7/L10 = TD-7/TD-11 fork+lever)/gimmicks + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 12 achievements, one endless arena PER WORLD — the attic's was missing)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -1546,6 +1546,87 @@ the API surface — standalone mode runs the same WebKit, and WebKit on iOS has
 never implemented the Vibration API. The shipped feature-checked path stays as
 it is: real on Android, an honest no-op on Josh's iPad. Do not add an iOS
 haptics "trick"; the only real path is native.
+**The follow-up audit round found that several shipped guardrails were checking
+the wrong SCOPE, and that is the theme tying every one of its findings together.**
+(1) **The fort has TWO coordinate spaces one `+ 0.5` apart** — the engine stores
+CELL INDICES (path points, pads, soldier posts, puddles) and the canvas paints at
+the cell's MIDDLE — so anything that forgets the shift lands 0.707 cells up-left
+of what it belongs to. Four places had: a point ability was handed the tap in
+world units while the engine measured in cell-index space (an enemy visibly
+inside the amber Sticky Floor was NOT slowed), the rally flag's `- 0.5` cancelled
+`glyph()`'s own centring, the puddle painted at raw engine coords so the drawn
+circle and the slow zone were different circles, and the squad drew off its lane.
+Invisible to every "does it win?" test, because the engine was right and only the
+PICTURE was wrong — so the guardrail measures actual INK against actual state
+(frame-diff the squad, round-trip a tap to the puddle within 2px, compare the
+flag's ink to both candidate anchors), all mutation-proven at the predicted 18px.
+Writing it surfaced a fifth: **`glyph()` never set `fillStyle`, so a monochrome
+emoji fallback inherited whatever colour the previous draw call left behind.**
+(2) **A viewport list IS the test.** The "no pad hides under a floating control"
+audit ran at 390×844 and 844×390 — the only two sizes where the floating CALL
+button happens to miss everything. One size down it buried pads DURING BUILD,
+which makes them permanently unbuildable: 3 at 375×667, 10 at 360×640, 12 at
+320×568, **36 and a LEVER at 320×480**, 14 at 667×375. Every control now lives in
+one off-field block (a row beside the powers when the phone is ≥360px wide, so
+the field is unchanged at every size Jon plays; a column in a RESERVED landscape
+gutter — reserved, not assumed, or a wide window grows the field straight under
+it), the audit runs eight viewports, and its old "budget 12 buried mid-wave"
+fence is gone because the honest number is now 0. Corollary: a control that is
+IN the layout must never hide, or the field resizes under the player's thumb —
+CALL goes INERT and says why ("steady…", "2 waves out", "last wave").
+(3) **A stylesheet-scoped guardrail only guards that stylesheet.** The
+flex-gap law (Safari 14.0 DROPS `gap` in flex) was enforced against `main.css`
+only, so all 16 of `td.css`'s flex+gap rules shipped unaudited and on the real
+iPad the top bar, the tower panel, the difficulty chips and every dialog's
+button row sat flush together. Also: a bare `gap` on a selector that INHERITS
+`display:flex` is the same bug with no `display` to spot it (`.td-bar--play`
+added 8px on a modern browser and nothing on iOS).
+(4) **A checkpoint must hold what you are LEAVING, not the last wave boundary.**
+The build countdown was never saved, so every resume handed back a full build
+phase — and the early-call bonus is computed from it, so quitting with a second
+left turned "gold traded for build time" into free gold, once per wave, forever;
+towers bought during the quit-from phase were silently lost; the run tallies were
+not carried, so a resumed run reported only its post-resume damage as the whole
+run; and a malformed `midRun` from a restored backup threw `mr.towers is not
+iterable` and killed the resume outright. **Testing footgun worth knowing:**
+`__TD.script()` calls `phaseWatch("(scripted)")` after every batch, so it writes
+a checkpoint the real rAF loop would not — a test that scripts and then inspects
+a checkpoint is testing the harness unless it splits the batches.
+(5) **Two shipped stat lines were lying.** Damage-by-line credited the SWING, not
+the work (a 300-damage Toy Box Drop on a 6hp sock scored 300 — the dart read 76%
+of a run against 58% real), and the Fan's beam accumulates 6-14 dps into ONE
+point of damage per firing while `computeHit` and `dealDamage` both round, so
+brittle (+20%) and Boss Bonker (+15%) rounded 1 straight back to 1 and did
+literally nothing on a Fan. Multipliers now scale the accumulator, with
+`dealDamage(..., preScaled)` so they are not applied twice.
+(6) **Endless: the Attic had a pool, no arena, no row, and a campaign boss.**
+`endlessLevelDef` fell back to `arenas.bedroom`; the picker named three worlds by
+hand (the "grid says 12" literal again — rows derive from the data now); and its
+every-5th-wave mini-boss was the **Tickmaster**, the 3200hp/10-life World-4 boss,
+against the 400hp Piñata everywhere else, so the run ended at wave 5-9 against
+28-46 elsewhere under EVERY build. Measured negative result: the all-specials
+pool was not the problem — adding a vanilla backbone or dropping the Slime, the
+Screw or the Cushion each moved it by one wave; only the mini-boss mattered.
+(7) **⏩ RUSH clears two waves at one boundary**, so the single payout paid the
+💵 Allowance once for two waves and could step straight over a 🩹 Patch Kit heal
+(waveIdx 4 → 6 never sees `% 5 === 0`). Payouts iterate the waves actually
+cleared — exactly once without a rush, so every historical run is byte-identical.
+(8) Smaller, same shape: **`stableStringify` flattened NaN/±Infinity to "null"**
+(JSON does), so the determinism hash — this engine's entire test strategy — was
+blind to exactly the corruption it exists to catch; **a boss draws at its `size`
+scale, so an hp bar pinned 0.6 cells above the centre painted INSIDE the body of
+every boss**; `close` targeting was a selectable mode no test ever drove; and a
+boss's size and a multi-life leak's heavier flash were data fields no render test
+read. **Recorded, not forced:** `defaultRally()` measures a path point (cell
+index) against the pad's WORLD centre, disagreeing with `rally()`'s own range
+check — removing the bias is cosmetically correct and moves 237 of 247 pads'
+rally points by up to 6 cells, re-posturing every camp on tuned levels and taking
+soldier posts >0.5 cells off a lane from 1 to 4. Not worth the trade; fix it
+alongside a camp re-tune. Finally, **the live-verify guard had the same
+scope bug as everything else**: it polled only `index.html` for `?v=<sha>`, so a
+CDN edge serving the new HTML with a not-yet-propagated `art.js` failed two
+tests on a commit that touched neither — it now requires every versioned asset
+to return 200 from that edge first.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
