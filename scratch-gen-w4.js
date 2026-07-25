@@ -99,7 +99,7 @@ function waves(id, base, n) {
 }
 const waveHp = (w) => w.groups.reduce((a, g) => a + (DATA.ENEMIES[g.type] ? DATA.ENEMIES[g.type].hp * g.count : 0), 0);
 
-const SPEC = { 13: { base: 700, gold: 950, n: 14 }, 14: { base: 560, gold: 1100, n: 14 }, 15: { base: 660, gold: 950, n: 15 }, 16: { base: 600, gold: 1200, n: 15 } };
+const SPEC = { 13: { base: 700, gold: 950, n: 14 }, 14: { base: 460, gold: 1100, n: 14 }, 15: { base: 520, gold: 1000, n: 15 }, 16: { base: 600, gold: 1200, n: 15 } };
 const levels = [];
 for (const id of [13, 14, 15, 16]) {
   const sp = SPEC[id];

@@ -844,13 +844,13 @@ test("TD4 gimmick — night dims Dart/Mortar reach (Fan exempt); conveyor strips
   assert.ok(runDist(belt) > runDist(plain) + 1, `a conveyor strip shoves the enemy farther along (belt ${runDist(belt).toFixed(1)} > plain ${runDist(plain).toFixed(1)})`);
 });
 
-test("TD4 structure: 12 contiguous levels across 3 worlds, bosses at L4/L8/L12, difficulty badges present", () => {
-  assert.equal(DATA.LEVELS.length, 12, "the fort ships all 12 levels");
+test("TD structure: contiguous levels across 4 worlds, a boss finale per world, difficulty badges present", () => {
+  assert.equal(DATA.LEVELS.length, 16, "the fort ships all 16 levels (World 4 added L13-L16)");
   DATA.LEVELS.forEach((l, i) => assert.equal(l.id, i + 1, "ids contiguous 1..12"));
   const bossLevels = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss)).map((l) => l.id);
-  assert.deepEqual(bossLevels, [4, 8, 12], "bosses headline L4, L8, L12");
+  assert.deepEqual(bossLevels, [4, 8, 12, 16], "a boss headlines each world finale");
   const worlds = [...new Set(DATA.LEVELS.map((l) => l.world))];
-  assert.deepEqual(worlds, ["bedroom", "backyard", "toystore"], "three worlds in order");
+  assert.deepEqual(worlds, ["bedroom", "backyard", "toystore", "attic"], "four worlds in order");
   for (const l of DATA.LEVELS) assert.ok(l.badge >= 1 && l.badge <= 3, `L${l.id} carries a difficulty badge`);
   // every enemy referenced by a wave exists (typo guard, incl. the new roster)
   const known = new Set(Object.keys(DATA.ENEMIES));

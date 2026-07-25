@@ -148,10 +148,13 @@
     return m;
   }
   function totalStars() { let s = 0; for (const l of DATA.LEVELS) s += bestStarsOf(l.id); return s; }
+  // Derived from the shipped level count, never a literal 36 — World 4 took the
+  // ceiling to 48, and a literal would fire "Full Fort" a whole world early.
+  const STAR_CEILING = () => DATA.LEVELS.length * 3;
   function checkStarAchievements() {
-    const t = totalStars();
-    if (t >= 18) earnAch("starcollector");
-    if (t >= 36) earnAch("fullfort");
+    const t = totalStars(), cap = STAR_CEILING();
+    if (t >= Math.round(cap / 2)) earnAch("starcollector");
+    if (t >= cap) earnAch("fullfort");
   }
 
   // ---- SFX (through the ONE iOS-safe JoshAudio.tone; global 🔇 + fort toggle) ----

@@ -416,3 +416,6 @@ body.td-mode #screens { padding: 0; }
 .td-buy.td-afford--no .td-buy__cost, .td-up.td-afford--no, .td-branch.td-afford--no { color: #ff9db4; }
 .td-buy.td-afford .td-buy__cost { color: #eaffef; }
 .td-buy[disabled], .td-up[disabled], .td-branch[disabled] { opacity: 0.72; }
+
+/* World 4 tint: the attic — warm dusty amber, distinct from the other three. */
+.td-level[data-world="attic"] { border-color: #7a5a34; background: #33260f; }
