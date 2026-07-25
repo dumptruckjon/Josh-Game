@@ -186,7 +186,7 @@
     // check like L4/L12. Sim: L8 19.0 → 15.3 lives, boss reaches the exit on a
     // naive build. hp tuned to THIS level's 13-pad geometry.
     vacuumking: { name: "Vacuum King", icon: "🌪", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
-    thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 10, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
+    thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
 
   // ---- Levels 1-5: a sock/marble/balloon slice with real progression (beat N →
@@ -727,8 +727,10 @@
     { id: "bossbonker",    icon: "🛏", name: "Boss Bonker",   desc: "Beat the Bed Monster" },
     { id: "dysondenied",   icon: "🌪", name: "Dyson Denied",  desc: "Beat the Vacuum King" },
     { id: "unplugged",     icon: "⚡", name: "Unplugged",     desc: "Beat The Static" },
-    { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn 18 stars" },
-    { id: "fullfort",      icon: "👑", name: "Full Fort",     desc: "Earn all 36 stars" },
+    // desc is DERIVED at read time (see td-ui) — a literal here went stale the
+    // moment World 4 raised the ceiling from 36 to 48.
+    { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn half the stars" },
+    { id: "fullfort",      icon: "👑", name: "Full Fort",     desc: "Earn every star" },
     { id: "marathoner",    icon: "🏃", name: "Marathoner",    desc: "Reach Endless wave 20" },
     { id: "heroicheart",   icon: "💀", name: "Heroic Heart",  desc: "Win any level on Hard" },
   ];

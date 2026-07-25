@@ -836,7 +836,11 @@
       const targetBtn = UI.bubble.querySelector(".td-target");
       if (targetBtn) targetBtn.addEventListener("click", (e2) => {
         e2.stopPropagation();
+        // "cheap" (weakest-first) is gated behind the 🔻 Weak Spot star node —
+        // the engine refuses it without the node, and the cycle used to be a
+        // hard-coded 4-mode list, so the 2⭐ purchase bought nothing selectable.
         const modes = ["first", "last", "strong", "close"];
+        if ((save.meta || []).indexOf("cheaptarget") >= 0) modes.push("cheap");
         const nextMode = modes[(modes.indexOf(tower.targeting) + 1) % modes.length];
         cur.engine.setTargeting(tower.id, nextMode);
         e2.target.textContent = "🎯 " + nextMode;

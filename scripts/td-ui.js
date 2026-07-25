@@ -457,12 +457,17 @@
   // Badges: the 12-achievement grid, earned lit + named, locked dimmed.
   UI.showAchievements = function (save) {
     const got = new Set(save.ach || []);
+    // The star thresholds are DERIVED from the shipped level count, exactly like
+    // the code that awards them — a literal "18" / "36" in the data went stale
+    // the moment World 4 raised the ceiling to 48.
+    const cap = global.TDData.LEVELS.length * 3;
+    const starDesc = { starcollector: "Earn " + Math.round(cap / 2) + " stars", fullfort: "Earn all " + cap + " stars" };
     const cells = ACHS().map((a) => {
       const has = got.has(a.id);
       return '<div class="td-ach' + (has ? " td-ach--on" : "") + '">' +
         '<span class="td-ach__icon">' + (has ? a.icon : "🔒") + "</span>" +
         '<span class="td-ach__name">' + a.name + "</span>" +
-        '<span class="td-ach__desc">' + a.desc + "</span></div>";
+        '<span class="td-ach__desc">' + (starDesc[a.id] || a.desc) + "</span></div>";
     }).join("");
     const el = metaOverlay("td-achgrid", '<h3>🏅 Badges</h3>' +
       '<p class="td-overlay__stars">' + got.size + " / " + ACHS().length + "</p>" +

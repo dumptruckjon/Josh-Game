@@ -283,7 +283,11 @@
 
     // TD-9 Overclock: ONE fire-rate multiplier read at every cooldown-set site,
     // so any future tower line inherits the ability without new code.
-    function boostOf(t) { return (t.boostUntil && state.tick < t.boostUntil) ? (t.boostMult || 2) : 1; }
+    function boostOf(t) { return (t && t.boostUntil && state.tick < t.boostUntil) ? (t.boostMult || 2) : 1; }
+    // A soldier whose camp has been SOLD is an orphan: it is about to pack up, so
+    // the Rally Horn must not count it as somebody to rally (it charged 80 gold
+    // and a 30s cooldown to revive nobody).
+    function livingCamp(s) { return !!towerById(s.campId); }
     function applySlow(e, pct, seconds) {
       let p = pct * (enemyDef(e).flier ? R.flierSlowFactor : 1);
       p = Math.min(p, R.slowCap);
@@ -692,7 +696,9 @@
           // melee trade — soldier swings
           if (sol.meleeCd > 0) sol.meleeCd -= 1;
           if (sol.meleeCd <= 0) {
-            sol.meleeCd = Math.round(cs.rate * DATA.TICK_RATE);
+            // ⚡ Overclock on a camp speeds up its SQUAD (the camp itself never
+            // shoots, so the three cooldown sites never reached it).
+            sol.meleeCd = Math.round(cs.rate * DATA.TICK_RATE / boostOf(camp));
             const hit = computeHit(cs.dmg, "bonk", foe);
             dealDamage(foe, hit.hpDmg, 0, "melee");
             if (!foe.alive) { sol.engagedId = 0; continue; }
@@ -830,7 +836,9 @@
             const beamId = pickByMode(candidates(t, 0, s.zapRange, true), t.targeting, t);
             const beamTarget = beamId ? enemyById(beamId) : null;
             if (beamTarget) {
-              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT;
+              // ⚡ Overclock: the Fan has no cooldown to divide, so the boost has
+              // to scale the beam's accumulation or the ability is a paid no-op.
+              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT * boostOf(t);
               if (t.zapAcc >= 1) {
                 const whole = Math.floor(t.zapAcc);
                 t.zapAcc -= whole;
@@ -932,6 +940,10 @@
       for (const pr of state.projectiles) {
         const target = enemyById(pr.targetId);
         if (!target) { pr.dead = true; continue; }
+        // The LAST damage path without an isHidden gate: acquisition, splash and
+        // the chain jump all check it, but a dart already in the air landed on a
+        // phased Glitter Ghost / tunnelling Digger Mole anyway. The shot fizzles.
+        if (isHidden(target)) { pr.dead = true; continue; }
         const tp = epos(target);
         const dx = tp.x - pr.x, dy = tp.y - pr.y;
         const d = Math.sqrt(dx * dx + dy * dy);
@@ -1128,7 +1140,7 @@
       // The horn revives the downed AND heals the hurt, so it is useful whenever
       // any soldier is less than fully fit — not only when one is flat on its
       // back. (Reported: it refused while a camp was on the board.)
-      if (def.kind === "instant") return state.soldiers.some((s) => !s.alive || s.hp < s.maxHp);
+      if (def.kind === "instant") return state.soldiers.some((s) => livingCamp(s) && (!s.alive || s.hp < s.maxHp));
       if (def.kind === "tower") return !!towerById(o.towerId);
       if (def.dmg) {                                                             // something in the blast
         const r2 = def.radius * def.radius;
@@ -1205,6 +1217,7 @@
         for (const e of state.enemies) {
           if (!e.alive) continue;
           const p = epos(e);
+          if (isHidden(e)) continue; // untargetable means untouchable — the Fan's aura already skips these
           if ((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= r2) applySlow(e, z.slow, 0.25);
         }
       }
@@ -1254,6 +1267,9 @@
   function reachedBy(def) {
     const all = ["dart", "mortar", "fan", "camp"];
     if (def && def.flier) return ["dart", "fan"]; // mortar is ground-only, camps are bodies
+    // Soldiers never engage a BOSS (tryEngage skips ed.boss), so listing the camp
+    // on a boss card was the guide teaching something the engine forbids.
+    if (def && def.boss) return ["dart", "mortar", "fan"];
     return all;
   }
 

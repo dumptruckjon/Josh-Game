@@ -1687,6 +1687,108 @@ test("BOSS: a boss that reaches the door costs MULTIPLE stickers, and says so", 
   }
 });
 
+test("AUDIT the guide tells the TRUTH about what can reach a boss, and the ceiling is derived", () => {
+  // reachedBy() listed the Army Guys Camp on every non-flier card, but
+  // tryEngage refuses `ed.boss` outright — so the guide promised a camp could
+  // hold a boss the engine never lets it touch.
+  for (const k of Object.keys(DATA.ENEMIES)) {
+    const def = DATA.ENEMIES[k];
+    const reach = TD.reachedBy(def);
+    if (def.boss || def.flier) {
+      assert.ok(reach.indexOf("camp") < 0, `${k}: soldiers can never engage it, so the guide must not list the camp`);
+    } else {
+      assert.ok(reach.indexOf("camp") >= 0, `${k}: a plain ground enemy CAN be blocked`);
+    }
+    if (def.flier) assert.deepEqual(reach.sort(), ["dart", "fan"], `${k}: only dart and fan reach air`);
+  }
+  // Star-badge thresholds must never be hard-coded: World 4 moved the ceiling
+  // from 36 to 48 and the badge text still said "Earn all 36 stars".
+  const ui = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "scripts/td-ui.js"), "utf8");
+  assert.match(ui, /const cap = global\.TDData\.LEVELS\.length \* 3;/, "the badge screen derives the star ceiling");
+  for (const a of DATA.ACHIEVEMENTS) {
+    assert.ok(!/\b(18|36)\b/.test(a.desc), `achievement "${a.id}" must not hard-code a star count (got "${a.desc}")`);
+  }
+});
+
+test("AUDIT untargetable: NO damage path touches a hidden enemy — including a dart in flight", () => {
+  // CLAUDE.md already documents the isHidden sweep across acquisition, mortar
+  // splash and the chain jump. The audit found the one that was missed: a dart
+  // ALREADY IN THE AIR resolved on arrival with no gate, so it killed phased
+  // Glitter Ghosts and tunnelling Digger Moles outright. Sticky Floor puddles
+  // had the same hole for slows.
+  for (const type of ["ghost", "mole"]) {
+    const lvl = { id: 95, name: "m", world: "test", startGold: 9000, budgetBase: 100,
+      path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 1 }],
+      waves: [{ groups: [{ type, count: 1, gap: 1, delay: 0 }] }] };
+    const e = TD.createEngine(lvl, { seed: 5 });
+    e.place("dart", "m");
+    e.callWave();
+    let sawHiddenHit = false, sawHiddenSlow = false, ticks = 0;
+    while (e.state.phase === "wave" && ticks++ < 40000) {
+      const before = e.state.enemies.map((x) => ({ id: x.id, hp: x.hp, until: x.slowUntil }));
+      e.tick();
+      for (const x of e.state.enemies) {
+        if (!x.alive || !e.isHidden(x)) continue;
+        const b = before.find((o) => o.id === x.id);
+        if (!b) continue;
+        if (x.hp < b.hp) sawHiddenHit = true;
+        if (x.slowUntil > b.until) sawHiddenSlow = true;
+      }
+    }
+    assert.equal(sawHiddenHit, false, `a ${type} must take ZERO damage while it is untargetable (a dart in flight must fizzle)`);
+    assert.equal(sawHiddenSlow, false, `…and take no fresh slow while untargetable`);
+  }
+});
+
+test("⚡ Overclock speeds up EVERY tower line — it was a paid no-op on 9 of 20 variants", () => {
+  // It was read only at the three cooldown-set sites, so the Fan (no cooldown —
+  // its beam accumulates) and the whole Camp line (soldiers swing on their own
+  // timer) took 100 gold and gave nothing back.
+  const mk = (line, pad) => ({ id: 98, name: "m", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: pad, cx: 5, cy: 3.0001 }],
+    waves: [{ groups: [{ type: "brick", count: 6, gap: 0.4, delay: 0 }] }] });
+  // measure damage dealt over a fixed window, with and without the boost
+  const dealt = (line, boost) => {
+    const lvl = mk(line, "m");
+    lvl.pads = [{ id: "m", cx: 5, cy: line === "camp" ? 3 : 2 }];
+    const e = TD.createEngine(lvl, { seed: 4 });
+    e.place(line, "m");
+    e.callWave();
+    for (let i = 0; i < 60; i++) e.tick();
+    if (boost) { const t = e.state.towers[0]; t.boostUntil = e.state.tick + 99999; t.boostMult = 2; }
+    const before = e.state.enemies.reduce((n, x) => n + (x.alive ? x.hp : 0), 0);
+    for (let i = 0; i < 240; i++) e.tick();
+    const after = e.state.enemies.reduce((n, x) => n + (x.alive ? x.hp : 0), 0);
+    return Math.max(0, before - after) + (e.state.kills || 0);
+  };
+  for (const line of ["dart", "mortar", "fan", "camp"]) {
+    const plain = dealt(line, false), boosted = dealt(line, true);
+    assert.ok(boosted > plain,
+      `⚡ Overclock must actually speed the ${line} line up (plain ${plain} vs boosted ${boosted}) — it costs real gold`);
+  }
+});
+
+test("📣 Rally Horn must not charge for ORPHANED soldiers whose camp was sold", () => {
+  const lvl = { id: 99, name: "m", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 3 }],
+    waves: [{ groups: [{ type: "sock", count: 4, gap: 1, delay: 0 }] }] };
+  const e = TD.createEngine(lvl, { seed: 6 });
+  e.place("camp", "m");
+  e.callWave();
+  for (let i = 0; i < 120; i++) e.tick();
+  const camp = e.state.towers[0];
+  // knock a soldier down so the horn has a real job, then SELL the camp
+  const sol = e.state.soldiers.find((s) => s.campId === camp.id);
+  assert.ok(sol, "the camp fielded a squad");
+  sol.alive = false; sol.respawnAt = e.state.tick + 9999;
+  e.sell(camp.id);
+  const gold = e.state.gold, cd = (e.state.abilityCd || {}).horn || 0;
+  const r = e.useAbility("horn", {});
+  assert.equal(r.ok, false, "the horn refuses when the only soldiers are orphans of a sold camp");
+  assert.equal(e.state.gold, gold, "…and takes no gold");
+  assert.equal((e.state.abilityCd || {}).horn || 0, cd, "…and starts no cooldown");
+});
+
 test("AUDIT counter matrix: the structural facts the Toybox Guide teaches are TRUE", () => {
   // The guide derives every card from these fields, so if one drifts the guide
   // starts teaching a lie. They are also the reason a mono board has holes.
@@ -2066,6 +2168,9 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
   for (const [k, def] of Object.entries(DATA.ENEMIES)) {
     const reach = TD.reachedBy(def);
     if (def.flier) assert.deepEqual(reach.sort(), ["dart", "fan"], `${k} flies — only dart and fan can reach it`);
+    // A BOSS is unblockable: tryEngage skips `ed.boss`, so soldiers can never
+    // hold one and the guide must not offer the camp as an answer to it.
+    else if (def.boss) assert.deepEqual(reach.sort(), ["dart", "fan", "mortar"], `${k} is a boss — guns only, no camp`);
     else assert.deepEqual(reach.sort(), ["camp", "dart", "fan", "mortar"], `${k} is ground — everything can reach it`);
     assert.ok(TD.enemyTraits(def).length >= 1, `${k} always explains itself (even "no tricks")`);
   }
