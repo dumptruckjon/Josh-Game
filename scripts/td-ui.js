@@ -487,7 +487,11 @@
 
   // Endless picker: one button per world, unlocked once its 4 levels are 3⭐.
   UI.showEndless = function (save, onPick) {
-    const worlds = [["bedroom", "🛏 Bedroom"], ["backyard", "🌳 Backyard"], ["toystore", "🧸 Toy Store"]];
+    // DERIVED from the data, never a literal list — World 4's attic arena
+    // existed in ENDLESS.worlds and could not be reached because this line
+    // named three worlds (the "level grid says 12" lesson, again).
+    const W = global.TDData.ENDLESS.worlds;
+    const worlds = Object.keys(W).map((w) => [w, W[w].label || w]);
     const best = save.endlessBest || {};
     const rows = worlds.map(([w, label]) => {
       const open = UI.endlessUnlocked(save, w);

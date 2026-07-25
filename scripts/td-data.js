@@ -742,10 +742,16 @@
   const ENDLESS = {
     base: 300, growth: 1.16, miniBossEvery: 5,
     worlds: {
-      bedroom:  { pool: ["sock", "marble", "blob", "knight", "balloon", "bull", "brick"], miniBoss: "pinata" },
-      backyard: { pool: ["sock", "marble", "knight", "ghost", "mole", "battery", "hawk", "blob"], miniBoss: "pinata" },
-      toystore: { pool: ["knight", "ghost", "mole", "battery", "blob", "hawk", "bull"], miniBoss: "pinata" },
-      attic: { pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "tickmaster" },
+      bedroom:  { label: "🛏 Bedroom", pool: ["sock", "marble", "blob", "knight", "balloon", "bull", "brick"], miniBoss: "pinata" },
+      backyard: { label: "🌳 Backyard", pool: ["sock", "marble", "knight", "ghost", "mole", "battery", "hawk", "blob"], miniBoss: "pinata" },
+      toystore: { label: "🧸 Toy Store", pool: ["knight", "ghost", "mole", "battery", "blob", "hawk", "bull"], miniBoss: "pinata" },
+      // miniBoss is the PIÑATA in every world, including this one. The attic
+      // shipped with "tickmaster" — the 3200hp, 10-life World-4 campaign boss —
+      // as its every-5th-wave punctuation, so a wave-5 board that cannot
+      // possibly kill it lost half its lives on the spot and the run ended at
+      // wave 5 against 28-46 elsewhere. A mini-boss is a spike, not a wall; the
+      // attic earns its difficulty from an all-specials pool instead.
+      attic: { label: "🕯 Attic", pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "pinata" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
     arenas: {
@@ -755,6 +761,13 @@
         pads: [ { id: "p1", cx: 2, cy: 10 }, { id: "p2", cx: 6, cy: 13 }, { id: "p3", cx: 10, cy: 10 }, { id: "p4", cx: 14, cy: 13 }, { id: "p5", cx: 18, cy: 10 }, { id: "p6", cx: 19, cy: 5 }, { id: "p7", cx: 20, cy: 9 }, { id: "p8", cx: 16, cy: 5 }, { id: "p9", cx: 12, cy: 9 }, { id: "p10", cx: 8, cy: 5 }, { id: "p11", cx: 4, cy: 9 }, { id: "p12", cx: 5, cy: 4 }, { id: "p13", cx: 5, cy: 0 }, { id: "p14", cx: 9, cy: 4 } ] },
       toystore: { path: [ [0, 7], [21, 7], [21, 2], [3, 2], [3, 12], [23, 12] ], startGold: 400,
         pads: [ { id: "p1", cx: 2, cy: 5 }, { id: "p2", cx: 7, cy: 9 }, { id: "p3", cx: 11, cy: 5 }, { id: "p4", cx: 15, cy: 9 }, { id: "p5", cx: 20, cy: 5 }, { id: "p6", cx: 23, cy: 4 }, { id: "p7", cx: 18, cy: 4 }, { id: "p8", cx: 14, cy: 0 }, { id: "p9", cx: 10, cy: 4 }, { id: "p10", cx: 5, cy: 0 }, { id: "p11", cx: 5, cy: 4 }, { id: "p12", cx: 1, cy: 9 }, { id: "p13", cx: 4, cy: 10 }, { id: "p14", cx: 8, cy: 13 } ] },
+      // World 4 shipped an attic POOL with no arena, so the run silently fell
+      // back to the bedroom map — and the picker hard-coded three worlds, so it
+      // was unreachable anyway. Same class as the level grid that said 12 when
+      // 16 levels shipped: a literal that content outgrew. Its lane climbs the
+      // rafters bottom-to-top (the other three all descend).
+      attic: { path: [ [0, 11], [19, 11], [19, 6], [2, 6], [2, 1], [23, 1] ], startGold: 440,
+        pads: [ { id: "p1", cx: 2, cy: 13 }, { id: "p2", cx: 6, cy: 13 }, { id: "p3", cx: 10, cy: 13 }, { id: "p4", cx: 14, cy: 13 }, { id: "p5", cx: 18, cy: 13 }, { id: "p6", cx: 5, cy: 8 }, { id: "p7", cx: 9, cy: 8 }, { id: "p8", cx: 13, cy: 8 }, { id: "p9", cx: 17, cy: 9 }, { id: "p10", cx: 5, cy: 3 }, { id: "p11", cx: 9, cy: 3 }, { id: "p12", cx: 13, cy: 3 }, { id: "p13", cx: 17, cy: 3 }, { id: "p14", cx: 21, cy: 4 } ] },
     },
   };
 

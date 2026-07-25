@@ -2447,3 +2447,54 @@ test("AUDIT combat: the Fan's beam keeps its multipliers (rounding used to eat t
   assert.ok(brittle > plain,
     `brittle must make the beam hit harder (plain ${plain} vs brittle ${brittle}) — equal means the multiplier was rounded away`);
 });
+
+test("AUDIT endless: EVERY world has a real arena, and no mini-boss is a campaign boss", () => {
+  // World 4 shipped an attic POOL with no arena entry, so an attic run silently
+  // fell back to the bedroom map — and it named the Tickmaster (the 3200hp,
+  // 10-life World-4 boss) as its every-5th-wave mini-boss, so a wave-5 board
+  // that cannot possibly kill it lost half its lives on the spot. Both are
+  // "content outgrew a literal" defects, and both are structural to check.
+  const worlds = Object.keys(DATA.ENDLESS.worlds);
+  assert.ok(worlds.length >= 4, `every shipped world has an endless entry (${worlds.length})`);
+  for (const w of worlds) {
+    const arena = DATA.ENDLESS.arenas[w];
+    assert.ok(arena, `${w} has its OWN arena (never a silent fallback to another world's map)`);
+    assert.ok(arena.path.length >= 2 && arena.pads.length >= 8, `${w}'s arena is a real map`);
+    assert.ok(DATA.ENDLESS.worlds[w].label, `${w} carries its own picker label (the UI derives its rows)`);
+    const mb = DATA.ENEMIES[DATA.ENDLESS.worlds[w].miniBoss];
+    assert.ok(mb, `${w}'s mini-boss exists`);
+    assert.ok(!mb.boss,
+      `${w}'s mini-boss must not be a campaign BOSS (${DATA.ENDLESS.worlds[w].miniBoss}, ${mb.hp}hp, costs ${mb.lives || 1} lives) — a mini-boss punctuates a wave, it doesn't end the run`);
+    // …and each world's levels must exist, or "3⭐ all 4 to unlock" is a lie
+    const lv = DATA.LEVELS.filter((l) => l.world === w);
+    assert.ok(lv.length >= 4, `${w} really has the levels its unlock asks you to 3-star (${lv.length})`);
+  }
+});
+
+test("AUDIT endless: every arena is losable by neglect and lasts with a real build", () => {
+  const arenaDef = (w) => {
+    const a = DATA.ENDLESS.arenas[w];
+    return { id: "endless-" + w, name: "Endless " + w, world: w, endless: { world: w }, startGold: a.startGold, budgetBase: DATA.ENDLESS.base, path: a.path, pads: a.pads };
+  };
+  const survive = (w, plan, seed) => {
+    const d = arenaDef(w), e = TD.createEngine(d, { seed });
+    let g = 0;
+    while (e.state.phase !== "lost" && g++ < 500000) {
+      if (e.state.phase === "build") {
+        if (plan) { d.pads.forEach((p, i) => e.place(plan(i), p.id)); for (const t of e.state.towers) { e.upgrade(t.id); e.upgrade(t.id); } }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state.waveIdx;
+  };
+  for (const w of Object.keys(DATA.ENDLESS.worlds)) {
+    const neglect = survive(w, null, 1);
+    assert.ok(neglect <= 6, `${w}: doing nothing loses fast — real stakes (lasted ${neglect} waves)`);
+    // best of two sensible builds: a competent player picks the right tool, so
+    // the oracle is allowed to as well (the PLAYABILITY precedent)
+    const best = Math.max(survive(w, () => "dart", 1), survive(w, (i) => ["dart", "dart", "fan", "mortar"][i % 4], 1));
+    assert.ok(best >= 8, `${w}: a real build lasts (best ${best} waves — under 8 means the arena is a wall, not a run)`);
+    assert.ok(best >= neglect * 2, `${w}: building matters (${best} waves built vs ${neglect} neglected)`);
+  }
+});

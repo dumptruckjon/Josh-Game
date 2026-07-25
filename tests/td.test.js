@@ -587,22 +587,48 @@ test("TD5 star tree: buying a node persists to save.meta and feeds the next run;
   await page.locator(".td-tree-done").click();
 });
 
-test("TD5 badges + endless: the grid shows 12, and a 3⭐-world unlocks its endless run", async () => {
+test("TD5 badges + endless: every badge, and every WORLD gets an endless row", async () => {
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.locator(".td-ach-open").click();
   await page.locator(".td-achgrid").waitFor({ state: "visible" });
   assert.equal(await page.locator(".td-ach").count(), 12, "12 badge cells");
   await page.locator(".td-ach-done").click();
-  // endless: with all levels 3⭐ (seeded above), every world is unlocked
+  // Seed 3⭐ on EVERY shipped level so every world's row is unlocked — the
+  // point of this half is that each world has a row and each row runs its own
+  // map, which needs the newest world open too.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1 };
+    raw.stars = raw.stars || {};
+    const ladder = raw.stars.normal = raw.stars.normal || {};
+    window.TDData.LEVELS.forEach((l) => { ladder[l.id] = 3; });
+    raw.difficulty = "normal";
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.locator(".td-endless-open").click();
   await page.locator(".td-endlesspick").waitFor({ state: "visible" });
   const openCount = await page.locator(".td-endless:not(.td-endless--locked)").count();
   assert.ok(openCount >= 1, "at least one endless world is unlocked at 3⭐");
-  await page.locator('.td-endless[data-world="bedroom"]').click();
+  // DERIVED, not a literal: the attic arena existed in the data and was
+  // unreachable because this picker named three worlds by hand.
+  const worlds = await page.evaluate(() => Object.keys(window.TDData.ENDLESS.worlds));
+  assert.equal(await page.locator(".td-endless").count(), worlds.length,
+    `one row per endless world (${worlds.join(", ")})`);
+  for (const w of worlds) {
+    assert.equal(await page.locator(`.td-endless[data-world="${w}"]`).count(), 1, `${w} has a row`);
+  }
+  // and the newest one really runs, on ITS OWN map (it used to silently fall
+  // back to the bedroom arena, which has a different lane)
+  const last = worlds[worlds.length - 1];
+  await page.locator(`.td-endless[data-world="${last}"]`).click();
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
-  const st = await page.evaluate(() => window.__TD.state());
+  const st = await page.evaluate(() => ({ endless: window.__TD.state().endless, path: window.__TD.engine().levelDef.path }));
   assert.ok(st.endless === true, "an endless run is live");
+  const want = await page.evaluate((w) => window.TDData.ENDLESS.arenas[w].path, last);
+  assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
 });
 
 test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores the build", async () => {
