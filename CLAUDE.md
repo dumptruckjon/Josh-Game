@@ -1259,8 +1259,25 @@ before and after**, and `dart+1fan` is strictly *worse* (10/12, 11.4 lives vs
 costs more than the zap gains. Recorded rather than papered over — note the
 defect classes differ: mortar-mono winning was a CONTRADICTION (a board that
 cannot hit air beat air waves), dart-mono winning is just the generalist being
-viable. Nerfing it means re-tuning the dart line across all 12 levels, which is
-its own project.
+viable. **A later full sweep CLOSED this item, and the answer was that the
+question had been asked at the wrong difficulty.** Measured over all 16 levels ×
+3 seeds: on NORMAL, dart-mono clears 16/16 (avg 14.9 lives) against the mixed
+plan's 16/16 (15.2), while camp-mono manages 3/16, mortar-mono 2/16 and fan-mono
+0/16. But on HEROIC the matrix BINDS — dart-mono clears only **10/16** and the
+fixed mixed plan **13/16**, and each wins levels the other loses (L4/L7/L14 need
+the dart swarm; L3/L5/L9/L10/L12/L15 need the mix), so **no single plan is
+universal**, and their union is exactly what keeps `PLAYABILITY` honest. The Dart
+being a forgiving generalist is therefore a property of *normal* — which is what
+normal is for — not a balance defect needing a 16-level re-tune. The other lesson
+came from trying to guardrail it: **a test that cannot fail is worse than no
+test.** The first attempt asserted "mortar/fan/camp-only must lose a late level",
+and it survived even a mortar mutated to 4× damage AND able to hit air — because
+mortar-mono loses STRUCTURALLY (its 1.5-cell minimum range leaves a dead zone
+under the tube, so a mortar-only lane leaks at any damage). It was replaced by
+the two things that ARE falsifiable, both mutation-proven: a truth-table test of
+the fields the Toybox Guide derives from (exactly two lines reach air; only the
+Mortar has a minimum range, at every tier; the Fan deals no bonk, which is why
+its zap ignores armor), and a two-level heroic sim pinning the split.
 **TD-12 ONBOARDING** makes the counter matrix visible for the first time. The
 heart of the game — only Dart and Fan reach air, armor halves a dart's bonk, a
 shield eats the Fan's zap, a Cushion soaks splash, a Slime regrows while slowed —

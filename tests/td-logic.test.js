@@ -1577,6 +1577,72 @@ test("AUDIT boss tension: every boss FINALE must actually cost something", () =>
     "the Vacuum King must keep a tower-facing threat (a jam phase) — without it a tower-only build is immune to its whole kit and the World-2 finale costs nothing");
 });
 
+test("AUDIT counter matrix: the structural facts the Toybox Guide teaches are TRUE", () => {
+  // The guide derives every card from these fields, so if one drifts the guide
+  // starts teaching a lie. They are also the reason a mono board has holes.
+  const air = Object.keys(DATA.TOWERS).filter((k) => DATA.TOWERS[k].hitsFliers);
+  assert.deepEqual(air.sort(), ["dart", "fan"],
+    "EXACTLY two lines may reach air — that single fact is what makes fliers a build check");
+  for (const k of Object.keys(DATA.TOWERS)) {
+    const mins = DATA.TOWERS[k].tiers.map((t) => t.rangeMin || 0);
+    if (k === "mortar") assert.ok(mins.every((m) => m > 0),
+      "the Mortar keeps a minimum range at EVERY tier — the dead zone under the tube is why a mortar-only board can never cover a lane");
+    else assert.ok(mins.every((m) => !m), `${k} must have no minimum range`);
+  }
+  // Armor is keyed on "bonk", so a Fan zap cuts through it while dart/mortar
+  // shots do not — the guide's "the Fan's zap ignores armor" line.
+  const armored = Object.keys(DATA.ENEMIES).filter((t) => DATA.ENEMIES[t].armor > 0);
+  assert.ok(armored.length >= 2, `armor must actually be on the roster (${armored.join(", ")})`);
+  for (const tier of DATA.TOWERS.dart.tiers) assert.equal(tier.dmgType, "bonk", "dart shots are bonk (armor bites)");
+  for (const tier of DATA.TOWERS.fan.tiers) assert.ok(!tier.dmgType, "the Fan deals no bonk — its zap is what beats armor");
+});
+
+test("AUDIT mono builds: on HEROIC no single plan clears the campaign — you must choose", () => {
+  // Measured this pass, all 16 levels × 3 seeds. On NORMAL the Dart is a viable
+  // generalist (dart-mono 16/16, avg 14.9 lives; mixed 16/16, 15.2; camp-mono
+  // 3/16; mortar-mono 2/16; fan-mono 0/16) — forgiving, which is what normal is
+  // for. On HEROIC the matrix BINDS: dart-mono clears 10/16 and the fixed mixed
+  // plan 13/16, and each wins levels the other loses, so no one build is
+  // universal. (mortar/fan/camp mono losing is STRUCTURAL, not balance — the
+  // mortar's 1.5-cell dead zone alone makes a mortar-only lane leaky at any
+  // damage — so it is asserted as data fields above, never by an unfalsifiable
+  // sim.) This pins the falsifiable half: two levels that split the two plans.
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function playWith(level, seed, plan, difficulty) {
+    const e = TD.createEngine(level, { seed, difficulty });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 600000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state;
+  }
+  const MIXED = ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"];
+  const won = (id, plan) => playWith(DATA.LEVELS.find((l) => l.id === id), 7, plan, "heroic").phase === "won";
+  // L5 punishes a dart-only board; L4's boss punishes the fixed mixed plan.
+  assert.ok(!won(5, ["dart"]), "heroic L5 must defeat a dart-ONLY board");
+  assert.ok(won(5, MIXED), "…and reward a mixed one");
+  assert.ok(!won(4, MIXED), "heroic L4 must defeat the fixed mixed plan");
+  assert.ok(won(4, ["dart"]), "…and reward the dart swarm — so neither plan is universal");
+});
+
 test("AUDIT threat shape: World 2-3 late waves keep ANTI-AIR pressure (mono-build counter)", () => {
   // Backlog item 5: mortar and camp CANNOT hit fliers (only dart/fan can), so a
   // flier presence in the late game is what stops a single line from carrying
