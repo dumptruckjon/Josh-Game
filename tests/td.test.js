@@ -1524,6 +1524,75 @@ test("🧸 Kid Fort: the button really opens a kid run — big controls, no losi
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("screen wake lock: held only while a battle is LIVE, visible and unpaused", async () => {
+  // The first cut acquired the lock in startLevel and released it only in
+  // stopLoop, so pausing — or quitting to the fort mid-run — left the screen
+  // pinned awake indefinitely while you browsed the star tree. The engine's own
+  // visibilitychange handler already tested `!cur.paused`, so the code
+  // disagreed with itself. Now ONE predicate owns it; this drives the real API
+  // through a spy, because a lock you never observe is a lock you never tested.
+  await page.evaluate(() => {
+    window.__wl = { requests: 0, releases: 0, held: 0 };
+    Object.defineProperty(navigator, "wakeLock", {
+      configurable: true,
+      value: {
+        request: () => {
+          window.__wl.requests++;
+          const listeners = [];
+          const sentinel = {
+            addEventListener: (t, fn) => { if (t === "release") listeners.push(fn); },
+            release: () => { window.__wl.releases++; window.__wl.held--; listeners.forEach((f) => f()); return Promise.resolve(); },
+          };
+          window.__wl.held++;
+          return Promise.resolve(sentinel);
+        },
+      },
+    });
+  });
+  const held = () => page.evaluate(() => window.__wl.held);
+
+  const pause = page.locator("#screen-td-play .td-pause");
+  await page.evaluate(() => { if (window.TDUI.closeOverlay) window.TDUI.closeOverlay(); location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  // __TD.newGame deliberately leaves the run PAUSED for scripted tests — which
+  // is itself a state that must not hold the lock.
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 9 }); });
+  await page.waitForTimeout(80);
+  assert.equal(await held(), 0, "a paused run does not hold the screen awake");
+
+  await pause.click(); // resume → a LIVE battle
+  await page.waitForTimeout(60);
+  assert.equal(await held(), 1, "a live battle holds the screen awake");
+
+  await pause.click(); // ⏸ → released (and the pause MENU now covers the field)
+  await page.waitForTimeout(60);
+  assert.equal(await held(), 0, "a PAUSED battle must not hold the screen awake");
+  await page.locator('.td-overlay--pause [data-act="resume"]').click();
+  await page.waitForTimeout(60);
+  assert.equal(await held(), 1, "…and ▶ Resume takes it back");
+
+  // quitting to the fort mid-run → released (this was the leak).
+  await page.evaluate(() => { window.__TD.leaveToHome(); });
+  await page.waitForTimeout(80);
+  assert.equal(await held(), 0, "browsing the fort must not hold the screen awake");
+
+  // a finished run → released.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 9 }); });
+  await page.waitForTimeout(60);
+  await pause.click();
+  await page.waitForTimeout(60);
+  assert.equal(await held(), 1, "a fresh battle holds it again");
+  await page.evaluate(() => { window.__TD.winL1(9); });
+  await page.waitForTimeout(80);
+  assert.equal(await held(), 0, "a won run releases the lock");
+  await page.evaluate(() => { window.TDUI.closeOverlay(); });
+  assert.ok(await page.evaluate(() => window.__wl.requests >= 3), "the real API was actually exercised");
+
+  await page.evaluate(() => { delete navigator.wakeLock; window.__TD.resetSave(); });
+});
+
 test("the play screen never makes the PAGE scroll (the in-flow power strip)", async () => {
   // The strip moved OFF the canvas into the layout, which buys a clean field but
   // risks the opposite bug: field + strip + topbar taller than the viewport, so

@@ -1518,7 +1518,28 @@ viewport, so the PAGE scrolls and the battlefield shifts under your thumb on iOS
 measured clean at 18 size × mode combinations and now guardrailed. And the
 concurrency cap is genuinely ONE number: setting `maxWavesInFlight` to 4 really
 does stack four waves (3 → 8 → 16 → 27 enemies alive, the fifth refused), so
-raising it is a data change, not a project. (3) **Haptics on iOS: still no, and
+raising it is a data change, not a project.
+**The wake lock had the classic half-a-feature bug, found by being asked "did you
+prevent screen sleep too?" and actually reading it.** It was acquired in
+`startLevel` and released only in `stopLoop`, which fires on win/defeat/restart —
+so **pausing, or quitting to the fort mid-run, left the screen pinned awake
+indefinitely** while you browsed the star tree (the rAF loop keeps running when
+`cur.paused`; nothing released it). The tell was that the code disagreed with
+itself: the `visibilitychange` handler already tested `!cur.paused` before
+re-acquiring, so one path believed a paused battle shouldn't hold the lock and
+the other never enforced it. Fixed the RULE-7 way — ONE predicate
+(`wakeWanted()`: a battle exists, is visible, is unpaused, and hasn't ended) and
+ONE owner (`syncWake()`), called from every site that can flip those conditions
+(start, pause, resume, route to/from the fort, visibilitychange). `keepAwake`
+also gained a `wakePending` flag, because `request()` is async and the player can
+pause while it is in flight — the resolved sentinel is released immediately if
+the conditions changed. Guardrails: a `site.test.js` structural check that
+`keepAwake()` is reachable from exactly ONE place, and a browser test that stubs
+`navigator.wakeLock` with a spy and drives start → pause → resume → quit → win,
+asserting the held count at each step (both halves mutation-proven). Lesson: a
+HELD resource needs one predicate and one owner, or the acquire and release paths
+drift apart — and the drift hides in the states nobody drives.
+(3) **Haptics on iOS: still no, and
 the PWA does not change it.** Adding the site
 to the home screen changes the CHROME (no URL bar, its own switcher card), not
 the API surface — standalone mode runs the same WebKit, and WebKit on iOS has

@@ -860,12 +860,27 @@ test("guardrail: haptics and wake lock are feature-checked, never assumed", () =
   assert.match(m, /function sfx\(kind, arg\) \{\n    buzz\(kind\);/,
     "haptics ride the SAME call site as audio, so a new cue gets both for free");
   // Wake lock: needs Safari 16.4+, so it must degrade silently on the iOS 14.2 floor.
-  assert.match(m, /if \(!global\.navigator \|\| !global\.navigator\.wakeLock \|\| wakeLock\) return;/,
-    "wake lock is feature-checked");
+  assert.match(m, /if \(!global\.navigator \|\| !global\.navigator\.wakeLock\b/,
+    "wake lock is feature-checked (a clean no-op below iOS 16.4)");
   assert.match(m, /doc\.addEventListener\("visibilitychange"/,
     "the lock is re-acquired when the tab returns — the browser drops it on background");
   assert.match(m, /function letSleep\(\)/, "…and released when the battle stops");
   assert.match(m, /function stopLoop\(\)[\s\S]{0,160}letSleep\(\);/, "stopping the loop releases the lock");
+  // ONE owner. The first cut acquired in startLevel and released only in
+  // stopLoop, so pausing or quitting to the fort mid-run held the lock for ever
+  // while you browsed the star tree. keepAwake/letSleep must therefore be
+  // reachable ONLY through syncWake(), which reads one predicate.
+  assert.match(m, /function wakeWanted\(\)/, "the wake lock has ONE predicate");
+  assert.match(m, /function syncWake\(\) \{ if \(wakeWanted\(\)\) keepAwake\(\); else letSleep\(\); \}/,
+    "…and ONE owner that applies it");
+  const wakeCalls = (m.match(/(?<!function )\b(keepAwake|letSleep)\(\)/g) || []);
+  const strayWake = wakeCalls.filter((c) => c === "keepAwake()").length;
+  assert.equal(strayWake, 1, `keepAwake() must be called ONLY from syncWake (found ${strayWake})`);
+  // every condition that flips wakeWanted must re-sync
+  for (const site of [/paused = true;\n      syncWake\(\)/, /paused = false; UI\.closeOverlay\(\); syncWake\(\)/,
+                      /if \(cur\) \{ cur\.paused = true; \}\n        syncWake\(\)/]) {
+    assert.match(m, site, `a wake-lock condition change must call syncWake (${site})`);
+  }
   // Every new cue is real: it must exist in sfx() AND be fired from somewhere.
   for (const k of ["ability", "arm", "cleared", "phase", "lowlives", "tier"]) {
     assert.ok(m.includes('kind === "' + k + '"'), `sfx() defines the "${k}" cue`);

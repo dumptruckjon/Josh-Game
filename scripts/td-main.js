@@ -252,26 +252,42 @@
   // phone and is a clean no-op on Josh's iOS 14.2 iPad (the platform floor) —
   // feature-checked, never thrown. The lock is dropped by the browser whenever
   // the tab backgrounds, so it must be RE-acquired on visibilitychange.
-  let wakeLock = null;
+  let wakeLock = null, wakePending = false;
+  // THE predicate: the screen is held awake exactly while a battle is LIVE,
+  // visible and unpaused. Having one predicate matters — the first cut acquired
+  // in startLevel and released only in stopLoop, so pausing or quitting to the
+  // fort mid-run left the lock held indefinitely while you browsed the star
+  // tree. (The visibilitychange handler already tested `!cur.paused`, so the
+  // code disagreed with itself about whether a paused battle should hold it.)
+  function wakeWanted() {
+    if (!cur || doc.hidden || cur.paused) return false;
+    const ph = cur.engine.state.phase;
+    return ph !== "won" && ph !== "lost";
+  }
   function keepAwake() {
     try {
-      if (!global.navigator || !global.navigator.wakeLock || wakeLock) return;
+      if (!global.navigator || !global.navigator.wakeLock || wakeLock || wakePending) return;
+      wakePending = true;
       global.navigator.wakeLock.request("screen").then((wl) => {
+        wakePending = false;
+        // the request is async — the player may have paused or quit meanwhile
+        if (!wakeWanted()) { try { wl.release(); } catch (e) { /* ignore */ } return; }
         wakeLock = wl;
         wl.addEventListener("release", () => { wakeLock = null; });
-      }).catch(() => { wakeLock = null; });
-    } catch (e) { wakeLock = null; }
+      }).catch(() => { wakePending = false; wakeLock = null; });
+    } catch (e) { wakePending = false; wakeLock = null; }
   }
   function letSleep() {
     try { if (wakeLock) { wakeLock.release(); } } catch (e) { /* ignore */ }
     wakeLock = null;
   }
+  // The ONE owner. Every place that can change those conditions calls this, so
+  // a future state (a new overlay, a new phase) cannot forget one half.
+  function syncWake() { if (wakeWanted()) keepAwake(); else letSleep(); }
   if (doc.addEventListener) {
-    doc.addEventListener("visibilitychange", () => {
-      // re-acquire when we come back, but ONLY if a battle is actually live
-      if (!doc.hidden && cur && !cur.paused) keepAwake();
-      else if (doc.hidden) wakeLock = null; // the browser already dropped it
-    });
+    // The browser drops the lock whenever the tab backgrounds, so coming back
+    // has to re-acquire — and going away must forget the stale handle.
+    doc.addEventListener("visibilitychange", syncWake);
   }
 
   function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } stopMusic(); letSleep(); }
@@ -508,7 +524,7 @@
     // can never promise gold the engine would refuse (the dead-control lesson).
     UI._callInfo = () => (cur ? cur.engine.callInfo() : null);
     startMusic(); // TD-6 optional looping march (no-op unless the toggle is on)
-    keepAwake();  // don't let the phone doze while a wave plays out
+    syncWake();   // don't let the phone doze while a wave plays out
     UI.closeOverlay();
     UI.hideBubble();
     if (UI.hideBanner) UI.hideBanner(); // never inherit the previous level's boss klaxon
@@ -855,6 +871,7 @@
         const s = doc.getElementById("screen-td-home");
         if (s) s.hidden = false;
         if (cur) { cur.paused = true; }
+        syncWake(); // browsing the fort must not hold the screen awake
         global.scrollTo(0, 0);
         return true;
       }
@@ -864,7 +881,7 @@
         const s = doc.getElementById("screen-td-play");
         if (s) s.hidden = false;
         if (!cur) startLevel(1, {}); // deep entry → default to L1
-        else { cur.paused = false; }
+        else { cur.paused = false; syncWake(); }
         // startLevel may have run while the screen was still hidden (hash
         // routing is async) — the canvas would have sized against a 0-width
         // parent. Re-measure now that the screen is visible.
@@ -922,10 +939,11 @@
     },
     togglePause: () => {
       if (!cur) return;
-      if (cur.paused) { cur.paused = false; UI.closeOverlay(); return; }
+      if (cur.paused) { cur.paused = false; UI.closeOverlay(); syncWake(); return; }
       cur.paused = true;
+      syncWake(); // a paused battle must NOT hold the screen awake
       const openPause = () => UI.showPause({
-        resume: () => { cur.paused = false; UI.closeOverlay(); },
+        resume: () => { cur.paused = false; UI.closeOverlay(); syncWake(); },
         restart: () => { UI.closeOverlay(); startLevel(cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId, cur.engine.state.endless ? { levelDef: cur.levelDef } : {}); },
         sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); if (!save.settings.sfx) stopMusic(); else startMusic(); openPause(); },
         music: () => { save.settings.music = !save.settings.music; persist(save); if (save.settings.music) startMusic(); else stopMusic(); openPause(); },
