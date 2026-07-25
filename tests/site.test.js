@@ -272,6 +272,25 @@ test("mobile / iOS Safari optimizations are in place", () => {
     const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
     assert.ok(!/[^-a-z]inset\s*:/.test(body), `${file}: use top/right/bottom/left longhands, never the inset: shorthand (dropped on iOS 14.2)`);
   }
+  // A full-screen MODAL SCRIM must be `position: fixed`, never `absolute`.
+  // Absolute positions it against its host, and a host screen is as tall as its
+  // content — the fort home grew to ~1250px when World 4 became reachable, which
+  // centred every fort dialog hundreds of pixels below the fold. The signature of
+  // a scrim is: all four offsets zeroed, flex-centred, and a modal z-index — an
+  // in-stage game overlay never sets one that high, so it stays exempt.
+  for (const file of ["styles/main.css", "styles/td.css"]) {
+    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const chunk of body.split("}")) {
+      const sel = (chunk.split("{")[0] || "").trim();
+      const decls = chunk.split("{").pop() || "";
+      if (!/top:\s*0/.test(decls) || !/right:\s*0/.test(decls) || !/bottom:\s*0/.test(decls) || !/left:\s*0/.test(decls)) continue;
+      if (!/display:\s*flex/.test(decls) || !/align-items:\s*center/.test(decls)) continue;
+      const z = (decls.match(/z-index:\s*(\d+)/) || [])[1];
+      if (!z || Number(z) < 20) continue;
+      assert.match(decls, /position:\s*fixed/,
+        `${file}: "${sel}" is a full-screen modal scrim (z-index ${z}) — it must be position: fixed, or it centres on its host screen instead of the viewport`);
+    }
+  }
   assert.match(css, /env\(safe-area-inset/, "respect the notch");
   assert.match(css, /-webkit-backdrop-filter/, "Safari needs -webkit-backdrop-filter");
   assert.match(css, /touch-action:\s*manipulation/, "prevent double-tap zoom");
