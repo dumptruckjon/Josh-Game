@@ -1348,14 +1348,19 @@
         // cell up-left of the soldiers actually standing on it.
         if (selT && selT.lineId === "camp") glyph(selT.rallyX, selT.rallyY, "🚩", 0.8);
       }
-      // enemy hp bars (upright)
+      // enemy hp bars (upright). A boss draws at its `size` scale, so a bar
+      // pinned 0.6 cells above the CENTRE was painted inside the body of every
+      // boss in the game — exactly the enemy whose health you most need to read.
+      // It rides the sprite's real half-height, and grows with it.
       for (const { e, x, y } of lerped) {
         if (e.hp >= e.maxHp) continue;
-        const w = cell * 0.6, frac = Math.max(0, e.hp / e.maxHp);
+        const sc = bossScale(e, 1);
+        const w = cell * 0.6 * Math.min(2, sc), frac = Math.max(0, e.hp / e.maxHp);
+        const top = y - cell * (0.5 * sc + 0.16), h = Math.max(3, Math.round(3 * Math.min(2, sc)));
         ctx.fillStyle = "rgba(0,0,0,0.45)";
-        ctx.fillRect(x - w / 2, y - cell * 0.6, w, 3);
+        ctx.fillRect(x - w / 2, top, w, h);
         ctx.fillStyle = frac > 0.5 ? "#69d06a" : "#f0b040";
-        ctx.fillRect(x - w / 2, y - cell * 0.6, w * frac, 3);
+        ctx.fillRect(x - w / 2, top, w * frac, h);
       }
       drawScreenFx();
     }

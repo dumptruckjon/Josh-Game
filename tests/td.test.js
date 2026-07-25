@@ -2196,3 +2196,95 @@ test("ART: every enemy draws as ITSELF — none falls through to the Sock Goblin
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
+
+test("ART: a boss really is BIGGER, and its leak flashes deeper than a sock's", async () => {
+  // TD-15 made both of these DATA fields (`size`, `lives`) read by one helper
+  // each, and neither was ever rendered in a test — a boss could have shipped
+  // at sock scale, or a 10-life leak could have blinked like a 1-life one, and
+  // every number test would still have passed.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 8 }); });
+  await page.waitForTimeout(120);
+
+  // 1. INK AREA: paint one enemy at a time and count the pixels it covers.
+  const ink = await page.evaluate(() => {
+    const st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const ctx = cv.getContext("2d");
+    const dpr = cv.width / cv.clientWidth;
+    const out = {};
+    const measure = (type) => {
+      const def = window.TDData.ENEMIES[type];
+      st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
+      st.enemies.push({ id: 1, type, alive: true, hp: def.hp, maxHp: def.hp, shield: def.shield || 0,
+        dist: 3, pathIdx: 0, slowUntil: 0, slowAmt: 0, speedMult: 1, flier: !!def.flier,
+        engagedBy: 0, lastPhase: 0, charge: 0, brittleUntil: 0 });
+      r.draw(0);
+      const w = window.__TD.engine().posOn(0, 3);
+      const p = window.__TD.w2s(w.x + 0.5, w.y + 0.5);
+      const half = 90;
+      const x0 = Math.max(0, Math.round((p.x - half) * dpr)), y0 = Math.max(0, Math.round((p.y - half) * dpr));
+      const w0 = Math.min(cv.width - x0, Math.round(half * 2 * dpr)), h0 = Math.min(cv.height - y0, Math.round(half * 2 * dpr));
+      const a = ctx.getImageData(x0, y0, w0, h0).data;
+      st.enemies.length = 0; r.draw(0);
+      const b = ctx.getImageData(x0, y0, w0, h0).data;
+      let n = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 30) n++;
+      }
+      return n;
+    };
+    for (const type of Object.keys(window.TDData.ENEMIES)) out[type] = measure(type);
+    return out;
+  });
+  const sizes = await page.evaluate(() => {
+    const o = {};
+    for (const [k, d] of Object.entries(window.TDData.ENEMIES)) o[k] = { boss: !!d.boss, size: d.size || 1, lives: d.lives || 1 };
+    return o;
+  });
+  const bosses = Object.keys(sizes).filter((k) => sizes[k].boss);
+  const grunts = Object.keys(sizes).filter((k) => !sizes[k].boss);
+  assert.ok(bosses.length >= 3, `there are bosses to check (${bosses.join(", ")})`);
+  const biggestGrunt = Math.max(...grunts.map((k) => ink[k]));
+  for (const b of bosses) {
+    assert.ok(sizes[b].size > 1, `${b} declares a boss size (${sizes[b].size})`);
+    assert.ok(ink[b] > biggestGrunt * 1.5,
+      `${b} really PAINTS bigger than any ordinary toy (${ink[b]}px vs the biggest grunt's ${biggestGrunt}px)`);
+  }
+
+  // 2. The leak flash: a multi-life leak must read heavier than a 1-life one.
+  const flash = await page.evaluate(() => {
+    const r = window.__TD.render();
+    const read = (ev) => {
+      r.pushFx(ev);
+      const f = (r.fxInfo ? r.fxInfo() : null) || null;
+      return f;
+    };
+    // no fxInfo hook: measure the PAINT instead, on a cleared field
+    const st = window.__TD.state();
+    st.enemies.length = 0; st.towers.length = 0; st.soldiers.length = 0;
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const ctx = cv.getContext("2d");
+    const sample = (ev) => {
+      r.draw(0);
+      const base = ctx.getImageData(0, 0, cv.width, cv.height).data;
+      r.pushFx(ev);
+      r.draw(0);
+      const lit = ctx.getImageData(0, 0, cv.width, cv.height).data;
+      let diff = 0;
+      for (let i = 0; i < base.length; i += 4) diff += Math.abs(lit[i] - base[i]);
+      // drain the fx so the next sample starts clean
+      for (let i = 0; i < 60; i++) r.draw(0);
+      return diff;
+    };
+    const sock = sample({ type: "leak", enemy: "sock", lives: 1, boss: false });
+    for (let i = 0; i < 60; i++) r.draw(0);
+    const boss = sample({ type: "leak", enemy: "bedmonster", lives: 6, boss: true });
+    return { sock, boss };
+  });
+  assert.ok(flash.sock > 0, `an ordinary leak flashes at all (${flash.sock})`);
+  assert.ok(flash.boss > flash.sock * 1.4,
+    `a boss leak flashes deeper than a sock's (${flash.boss} vs ${flash.sock}) — a 6-sticker hit must not blink like a 1`);
+});

@@ -74,6 +74,10 @@
   }
 
   function stableStringify(v) {
+    // JSON.stringify turns NaN and +/-Infinity into "null", so a state that had
+    // gone numerically bad hashed IDENTICALLY to a healthy one — the hash was
+    // blind to precisely the corruption it exists to catch. Name them instead.
+    if (typeof v === "number" && !isFinite(v)) return '"#' + String(v) + '"';
     if (v === null || typeof v !== "object") return JSON.stringify(v);
     if (Array.isArray(v)) return "[" + v.map(stableStringify).join(",") + "]";
     return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + stableStringify(v[k])).join(",") + "}";
@@ -479,8 +483,12 @@
         shieldDmg = Math.round(shieldDmg * mods.bossDmg);
       }
       // TD-10 Couch Cushion: soaks AREA damage. Applied in the ONE damage path
-      // and keyed on `how`, so mortar splash, a chain jump's blast and the Toy
-      // Box Drop all honour it — and a future AoE inherits it for free.
+      // and keyed on `how`, so mortar splash and the Toy Box Drop both honour
+      // it — and a future AoE inherits it for free. A chain-lightning jump is
+      // deliberately NOT area damage: it arcs to one enemy at a time (`how` is
+      // "zap"), which is exactly the "use single-target" answer the Cushion's
+      // own guide line tells you to reach for. An older comment here claimed
+      // chain was included; it never was, and it should not be.
       const sr = enemyDef(e).splashResist;
       if (sr && (how === "splash" || how === "ability")) {
         hpDmg = Math.round(hpDmg * (1 - sr));
@@ -534,15 +542,23 @@
       state.enemies.length = 0;
       // Every wave that was SENT is now cleared — including any the player
       // rushed on top, so the two counters re-converge at the build boundary.
+      const clearedFrom = state.waveIdx;
       state.waveIdx = state.sentIdx;
       // TD-8 capstone/ability payouts on a CLEARED wave (skipped when this wave
       // just won the level — the run is over, and Patch Kit must never inflate
       // the lives-based star count at the finish line). Patch Kit never heals
       // above the run's starting lives.
+      // PER WAVE CLEARED, not per clearing: a RUSH overlaps two waves and they
+      // finish together, so a single payout gave the Allowance once for two
+      // waves and could skip a Patch Kit heal entirely by stepping over the 5th
+      // (waveIdx 4 → 6). Without a rush this loop runs exactly once, so every
+      // historical run is byte-identical.
       const levelWon = !endlessWorld && state.waveIdx >= waves.length;
       if (!levelWon) {
-        if (mods.allowance) state.gold += mods.allowance; // 💵 Allowance
-        if (mods.patchKit && state.waveIdx % 5 === 0) state.lives = Math.min(R.lives + mods.lives, state.lives + 1); // 🩹 Patch Kit
+        for (let n = clearedFrom + 1; n <= state.waveIdx; n++) {
+          if (mods.allowance) state.gold += mods.allowance; // 💵 Allowance
+          if (mods.patchKit && n % 5 === 0) state.lives = Math.min(R.lives + mods.lives, state.lives + 1); // 🩹 Patch Kit
+        }
       }
       // Endless never "wins" — it just keeps generating harder waves; the score
       // is waveIdx (waves survived), read off the state when the run finally leaks.
@@ -643,7 +659,18 @@
       }
     }
     function defaultRally(pad) {
-      // nearest point on the path within rally range of the pad (sampled)
+      // nearest point on the path within rally range of the pad (sampled).
+      // KNOWN, MEASURED, DELIBERATELY UNCHANGED: the comparison below mixes
+      // spaces — a path point is a cell index, `pad.cx + 0.5` is a world
+      // centre — so the default rally point is biased half a cell down-right,
+      // and rally()'s own range check (which measures from t.cx) disagrees with
+      // it by that much. Removing the bias is cosmetically correct and moves
+      // 237 of the 247 shipped pads' default rally points, by up to 6 cells
+      // where two lanes are near-equidistant, changing every camp's opening
+      // posture on levels that were tuned with it — and it takes the count of
+      // soldier posts sitting >0.5 cells off a lane from 1 to 4. The old point
+      // is a real point ON the lane and the player can re-rally anywhere, so
+      // the trade is not worth it. Fix it only alongside a camp re-tune.
       let best = null, bestD = Infinity;
       for (const pth of paths) { // TD-7: rally to the nearest point on ANY lane
         for (let d = 0; d <= pth.total; d += 0.25) {

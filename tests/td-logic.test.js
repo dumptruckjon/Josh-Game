@@ -2184,6 +2184,10 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
       if (def[field]) assert.ok(keys.includes(trait), `${k} has .${field} but the guide never mentions it — a mechanic nothing explains is invisible`);
     }
     if (def.armor > 0) assert.ok(keys.includes("armor"), `${k} is armored but the guide never says so`);
+    // TD-15 made the leak toll a data field. Every enemy carries `lives`, so it
+    // is only SPECIAL above 1 — and then it must be said, or "this one costs 8
+    // stickers" is a rule the player can only learn by losing.
+    if (def.lives > 1) assert.ok(keys.includes("toll"), `${k} costs ${def.lives} lives but the guide never says so`);
   }
 });
 
@@ -2496,5 +2500,107 @@ test("AUDIT endless: every arena is losable by neglect and lasts with a real bui
     const best = Math.max(survive(w, () => "dart", 1), survive(w, (i) => ["dart", "dart", "fan", "mortar"][i % 4], 1));
     assert.ok(best >= 8, `${w}: a real build lasts (best ${best} waves — under 8 means the arena is a wall, not a run)`);
     assert.ok(best >= neglect * 2, `${w}: building matters (${best} waves built vs ${neglect} neglected)`);
+  }
+});
+
+test("AUDIT rush: wave-clear payouts are per WAVE, not per clearing", () => {
+  // ⏩ RUSH overlaps two waves and they finish together, so the single payout
+  // at that boundary paid the 💵 Allowance once for two waves — and could step
+  // straight over a 🩹 Patch Kit heal (waveIdx 4 → 6 never sees `% 5 === 0`).
+  const meta = ["allowance", "patchkit"];
+  const clearOne = (rush) => {
+    const e = TD.createEngine(L1, { seed: 3, meta });
+    // fill the board so both waves actually die
+    for (const p of L1.pads) e.state.gold += 9e5, e.place("dart", p.id);
+    for (const t of e.state.towers) { e.state.gold += 9e5; e.upgrade(t.id); e.upgrade(t.id); }
+    e.state.gold = 0; // measure the payout, not the bank
+    e.callWave();
+    if (rush) {
+      for (let i = 0; i < 90; i++) e.tick();       // past the rush settle
+      assert.ok(e.callWave().ok, "the RUSH really went out");
+    }
+    let g = 0;
+    while (e.state.phase !== "build" && e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 100000) e.tick();
+    return { gold: e.state.gold, waveIdx: e.state.waveIdx };
+  };
+  const one = clearOne(false), two = clearOne(true);
+  assert.equal(one.waveIdx, 1, "the plain clear finished one wave");
+  assert.equal(two.waveIdx, 2, "the rushed clear finished TWO waves at once");
+  assert.ok(two.gold >= one.gold + 12,
+    `two cleared waves pay the Allowance twice (one wave ${one.gold}g, two waves ${two.gold}g)`);
+
+  // …and the 5th wave's heal is never stepped over by a rush that spans it.
+  // Measured against the SAME rushed run without the node, because a doubled
+  // wave leaks more and the raw life count moves for reasons of its own.
+  // A level with room past wave 5: on L1 (6 waves) the rush IS the winning
+  // clear, and the payout is deliberately skipped at the finish line so Patch
+  // Kit can never inflate the lives-based star count.
+  const LONG = DATA.LEVELS.find((l) => l.waves.length >= 9);
+  const rushPast5 = (kit) => {
+    const e = TD.createEngine(LONG, { seed: 3, meta: kit ? ["patchkit"] : [] });
+    for (const p of LONG.pads) e.state.gold += 9e5, e.place("dart", p.id);
+    for (const t of e.state.towers) { e.state.gold += 9e5; e.upgrade(t.id); e.upgrade(t.id); }
+    let g = 0;
+    while (e.state.waveIdx < 4 && e.state.phase !== "lost" && g++ < 200000) {
+      if (e.state.phase === "build") e.callWave();
+      e.tick();
+    }
+    e.state.lives = 5; // room to heal, identical in both runs
+    e.callWave();
+    for (let i = 0; i < 90; i++) e.tick();
+    e.callWave(); // ⏩ RUSH wave 6 on top of wave 5
+    g = 0;
+    while (e.state.phase === "wave" && g++ < 200000) e.tick();
+    return { lives: e.state.lives, waveIdx: e.state.waveIdx };
+  };
+  const noKit = rushPast5(false), withKit = rushPast5(true);
+  assert.ok(withKit.waveIdx >= 6, `the rush really stepped past wave 5 (${withKit.waveIdx})`);
+  assert.equal(noKit.waveIdx, withKit.waveIdx, "both runs cleared the same waves");
+  assert.equal(withKit.lives, noKit.lives + 1,
+    `wave 5's Patch Kit heal survives a rush that spans it (${noKit.lives} without the node vs ${withKit.lives} with)`);
+});
+
+test("AUDIT determinism: the state hash SEES a NaN (JSON flattens it to null)", () => {
+  // The determinism hash is the whole test strategy for this engine, and it was
+  // blind to exactly the corruption it exists to catch: JSON.stringify turns
+  // NaN and +/-Infinity into "null", so a state that had gone numerically bad
+  // hashed IDENTICALLY to a healthy one.
+  const clean = { gold: 100, lives: 20, enemies: [{ hp: 5 }] };
+  const nan = { gold: 100, lives: 20, enemies: [{ hp: NaN }] };
+  const inf = { gold: 100, lives: 20, enemies: [{ hp: Infinity }] };
+  const nul = { gold: 100, lives: 20, enemies: [{ hp: null }] };
+  assert.notEqual(TD.hashState(clean), TD.hashState(nan), "a NaN changes the hash");
+  assert.notEqual(TD.hashState(nul), TD.hashState(nan), "…and a NaN is not the same as a null");
+  assert.notEqual(TD.hashState(nan), TD.hashState(inf), "…nor the same as an Infinity");
+});
+
+test("AUDIT targeting: every shipped mode really re-picks (close was never driven)", () => {
+  // `close` shipped as a selectable dart mode that no test ever executed. The
+  // sticky-keep audit proved first/strong/last; this drives the last one.
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const modes = ["first", "last", "strong", "close"];
+  for (const mode of modes) {
+    const e = TD.createEngine(lvl, { seed: 6 });
+    e.state.gold = 99999;
+    assert.ok(e.place("dart", lvl.pads[0].id).ok, "dart built");
+    const t = e.state.towers[0];
+    assert.ok(e.setTargeting(t.id, mode).ok, `${mode} is a settable mode`);
+    e.callWave();
+    let acquired = 0, sampled = 0;
+    for (let i = 0; i < 2000; i++) {
+      e.tick();
+      if (t.targetId) acquired++;
+      if (mode === "close" && t.targetId) {
+        // whatever it holds must be the NEAREST live enemy in range, re-picked
+        const held = e.state.enemies.find((x) => x.id === t.targetId);
+        if (held && held.alive && !e.isHidden(held)) {
+          const d = (x) => { const p = e.posOn(x.pathIdx || 0, x.dist); return (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2; };
+          const near = e.state.enemies.filter((x) => x.alive && !e.isHidden(x) && d(x) <= 3.0 * 3.0);
+          if (near.length > 1) { sampled++; assert.ok(d(held) <= Math.min(...near.map(d)) + 1e-6, "close holds the NEAREST target"); }
+        }
+      }
+    }
+    assert.ok(acquired > 0, `${mode}: the tower actually acquired and fired`);
+    if (mode === "close") assert.ok(sampled > 0, "the close-mode check really had a crowded moment to judge");
   }
 });
