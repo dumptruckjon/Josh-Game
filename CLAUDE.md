@@ -1512,7 +1512,14 @@ the field, and floats a `−8 ❤` at the door, and the Toybox Guide gives any
 multi-life enemy a "costs N stickers" trait line automatically. Size became a
 data field too (`size`, read by one `bossScale()` helper) rather than four
 hand-tuned constants in the renderer, so a boss is big by declaring it.
-(3) **Haptics on iOS: still no, and the PWA does not change it.** Adding the site
+Two follow-ups worth recording: moving the strip in-flow bought a
+clean field but risked the opposite bug — field + strip + topbar taller than the
+viewport, so the PAGE scrolls and the battlefield shifts under your thumb on iOS;
+measured clean at 18 size × mode combinations and now guardrailed. And the
+concurrency cap is genuinely ONE number: setting `maxWavesInFlight` to 4 really
+does stack four waves (3 → 8 → 16 → 27 enemies alive, the fifth refused), so
+raising it is a data change, not a project. (3) **Haptics on iOS: still no, and
+the PWA does not change it.** Adding the site
 to the home screen changes the CHROME (no URL bar, its own switcher card), not
 the API surface — standalone mode runs the same WebKit, and WebKit on iOS has
 never implemented the Vibration API. The shipped feature-checked path stays as

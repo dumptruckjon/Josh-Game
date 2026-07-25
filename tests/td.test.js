@@ -1524,6 +1524,44 @@ test("🧸 Kid Fort: the button really opens a kid run — big controls, no losi
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("the play screen never makes the PAGE scroll (the in-flow power strip)", async () => {
+  // The strip moved OFF the canvas into the layout, which buys a clean field but
+  // risks the opposite bug: field + strip + topbar taller than the viewport, so
+  // the page scrolls. On iOS that shifts the battlefield under your thumb.
+  const bad = [];
+  for (const kid of [false, true]) {
+    for (const vp of [{ width: 320, height: 480 }, { width: 320, height: 568 },
+                      { width: 390, height: 844 }, { width: 810, height: 1080 },
+                      { width: 844, height: 390 }]) {
+      await page.setViewportSize(vp);
+      await page.evaluate(() => { location.hash = "#td-play"; });
+      await page.locator("#screen-td-play").waitFor({ state: "visible" });
+      await page.evaluate((k) => { window.__TD.newGame(1, { seed: 2, difficulty: k ? "kid" : "normal" }); }, kid);
+      await page.waitForTimeout(90);
+      await page.evaluate(() => {
+        window.__TD.script([["call"], ["tick", 90]]);
+        window.TDUI.hud(window.__TD.state());
+        const r = window.__TD.render(); r.resize(); r.draw(0);
+      });
+      const m = await page.evaluate(() => ({
+        sh: document.documentElement.scrollHeight, ch: document.documentElement.clientHeight,
+        sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
+        w: Math.round(document.querySelector("#screen-td-play .td-canvas").getBoundingClientRect().width),
+        stripBottom: (() => { const s = document.querySelector("#screen-td-play .td-abils");
+          return s && !s.hidden ? Math.round(s.getBoundingClientRect().bottom) : null; })(),
+      }));
+      const tag = `${kid ? "kid " : ""}${vp.width}x${vp.height}`;
+      if (m.sh > m.ch + 1) bad.push(`${tag}: page scrolls vertically (${m.sh} > ${m.ch})`);
+      if (m.sw > m.cw + 1) bad.push(`${tag}: page scrolls horizontally (${m.sw} > ${m.cw})`);
+      if (m.stripBottom != null && m.stripBottom > vp.height + 1) bad.push(`${tag}: the strip hangs below the viewport (${m.stripBottom})`);
+      if (m.w < 140) bad.push(`${tag}: the field collapsed to ${m.w}px wide`);
+    }
+  }
+  assert.deepEqual(bad, [], `play-screen layout problems:\n${bad.join("\n")}`);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("⏩ RUSH: the CALL button really sends a second wave onto a live field", async () => {
   // Requested: summon a wave while the previous one is still on screen. Driven
   // through the BUTTON, not the API — a feature whose tests all call the engine
