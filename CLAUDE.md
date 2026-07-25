@@ -1627,6 +1627,25 @@ scope bug as everything else**: it polled only `index.html` for `?v=<sha>`, so a
 CDN edge serving the new HTML with a not-yet-propagated `art.js` failed two
 tests on a commit that touched neither — it now requires every versioned asset
 to return 200 from that edge first.
+**Three more from the same round, same shape.** (1) **A seed set can hide a
+broken contract**: "every level winnable on heroic" is shipped truth, and L7 —
+the air-pressure level, already documented as sitting at its heroic ceiling —
+LOST on 3 of 12 seeds under the same best-of-two oracle `PLAYABILITY` uses,
+winning the rest with 1-6 lives. A level that is unwinnable a quarter of the
+time is not hard, it is a coin flip. `startGold` 450→490, chosen by sweep (450
+→ 1 loss, avg 2.6; 490 → 0 losses, avg 6.3; 530 → avg 12.3, a stroll); normal
+barely moves (19.3 → 20.0, it was already a formality there) and neglect still
+loses on all three difficulties. (2) **`kid` is a per-RUN mode, not a saved
+chip** — the 🧸 button passes it to `startLevel` and the home only ever offers
+casual/normal/heroic, but it IS a real difficulty, so a restored backup
+carrying `difficulty:"kid"` passed the boot coercion and stuck: every level off
+the grid became an unlosable run that could never score a star, with no control
+to switch back. (3) **"Gold earned" counted bounties only** — the early-call
+bonus (60-135 a wave, paid again on a RUSH) and the 💵 Allowance are real
+income, so the summary understated a third of what a call-early run made. That
+is now three lying stat lines found in one pass (overkill damage, the Fan's
+rounded-away multipliers, and this): whenever a number is SHOWN to the player,
+find every site that should feed it, not just the obvious one.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
