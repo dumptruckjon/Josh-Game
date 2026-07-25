@@ -1827,3 +1827,50 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
     if (def.armor > 0) assert.ok(keys.includes("armor"), `${k} is armored but the guide never says so`);
   }
 });
+
+// ---- TD-13: run tallies live in STATE (exact, cap-proof, sim-readable) ----
+test("TD-13 tallies: damage is attributed to the LINE that dealt it, in the one damage path", () => {
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 3);
+  const e = TD.createEngine(lvl, { seed: 7 });
+  e.state.gold = 99999;
+  assert.ok(e.place("dart", lvl.pads[0].id).ok);
+  assert.ok(e.place("mortar", lvl.pads[1].id).ok);
+  e.callWave();
+  for (let i = 0; i < 1500; i++) e.tick();
+  const by = e.state.dmgBy;
+  assert.ok(by.dart > 0, "the dart's damage is credited to the dart line");
+  assert.ok(by.mortar > 0, "the mortar's SPLASH is credited too — only the dart ever emitted a hit event, so event accounting would have credited nobody");
+  assert.ok(!by.fan && !by.camp, "lines that were never built dealt nothing");
+  assert.ok(e.state.kills > 0 && e.state.goldEarned > 0, "kills and gold earned are tallied");
+  // An ability's damage is attributed to itself, not to a tower.
+  const before = Object.assign({}, e.state.dmgBy);
+  e.state.gold = 9999;
+  const live = e.state.enemies.find((x) => x.alive);
+  if (live) {
+    const p = e.posOn(live.pathIdx, live.dist);
+    e.useAbility("drop", { x: p.x, y: p.y });
+    assert.ok((e.state.dmgBy.ability || 0) > 0, "ability damage is its own row");
+    assert.equal(e.state.dmgBy.dart, before.dart, "…and is never credited to a tower line");
+  }
+});
+
+test("TD-13 tallies: they survive a wave WITHOUT draining events (the 400-cap trap)", () => {
+  // The event buffer is capped at 400. A scripted or headless run simulates a
+  // whole wave before draining, so anything counted from events would be lost.
+  const lvl = DATA.LEVELS.find((l) => l.id === 12); // the longest run — enough kills to overflow the buffer
+  const e = TD.createEngine(lvl, { seed: 7 });
+  lvl.pads.forEach((p) => { e.state.gold = 99999; e.place("dart", p.id); });
+  let guard = 0;
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+    if (e.state.phase === "build") {
+      e.state.gold = 99999;
+      for (const t of e.state.towers) if (t.tier < 3) e.upgrade(t.id);
+      e.callWave();
+    }
+    e.tick();
+  }
+  assert.equal(e.events.length, 400, "the event buffer really is capped at 400");
+  const dieLeft = e.events.filter((x) => x.type === "die").length;
+  assert.ok(e.state.kills > dieLeft,
+    `the tally counts the WHOLE run (${e.state.kills} kills) while the capped buffer retains only ${dieLeft} die events — event accounting would have lost the rest`);
+});

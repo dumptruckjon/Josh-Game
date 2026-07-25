@@ -970,6 +970,31 @@ test("AUDIT: no pad hides under the floating CALL button (every map, both orient
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("TD-13 run summary: a win shows damage BY LINE and records a personal best", async () => {
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  // The shipped scripted-victory hook — the same recipe the CI plan uses, so the
+  // board is real and the damage is genuinely attributed to the line that dealt it.
+  const phase = await page.evaluate(() => window.__TD.winL1(7));
+  assert.equal(phase, "won", "the scripted L1 plan wins");
+  await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 10000 });
+  const sum = page.locator(".td-sum");
+  assert.equal(await sum.count(), 1, "the victory screen carries a run summary");
+  const txt = await sum.textContent();
+  assert.match(txt, /Dart/, "damage is attributed to the line that dealt it");
+  assert.match(txt, /defeated/, "kills are counted");
+  assert.match(txt, /earned/, "gold earned is counted");
+  const pcts = await page.evaluate(() => Array.from(document.querySelectorAll(".td-sum__pct")).map((e) => parseInt(e.textContent, 10)));
+  assert.ok(pcts.length >= 1 && pcts.every((p) => p >= 0 && p <= 100), `share percentages are sane: ${pcts.join(",")}`);
+  // The best is persisted PER LEVEL + DIFFICULTY (independent ladders).
+  const best = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).bests);
+  assert.ok(best && best["1:normal"], "a best is stored under level:difficulty");
+  assert.ok(best["1:normal"].lives > 0, "…with the lives kept");
+  assert.ok(!best["1:heroic"], "a normal win must NOT write the heroic ladder's best");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("TD-12 guide: 📖 opens a card for every enemy, naming what can hit it", async () => {
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });

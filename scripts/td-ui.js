@@ -607,12 +607,30 @@
     });
   };
 
-  UI.showVictory = function (stars, lives, hooks) {
+  // TD-13: the run summary — damage BY LINE (which towers actually carried),
+  // kills, gold, and your personal best for this level+difficulty. One renderer,
+  // shown on victory AND defeat, so a loss teaches as much as a win.
+  function summaryHtml(rs) {
+    if (!rs || !rs.rows.length) return "";
+    return '<div class="td-sum">' +
+      '<p class="td-sum__head">Your board</p>' +
+      '<ul class="td-sum__bars">' + rs.rows.map((r) =>
+        '<li><span class="td-sum__label">' + r.label + "</span>" +
+        '<span class="td-sum__bar"><i style="width:' + r.pct + '%"></i></span>' +
+        '<span class="td-sum__pct">' + r.pct + "%</span></li>").join("") + "</ul>" +
+      '<p class="td-sum__line">💀 ' + rs.kills + " defeated · 🪙 " + rs.gold + " earned · 🏗 " + rs.towers + " towers (" + rs.spent + "🪙)</p>" +
+      (rs.personalBest ? '<p class="td-sum__pb">🏆 New personal best!</p>'
+        : (rs.best != null ? '<p class="td-sum__line">Best here: ' + rs.best + " stickers kept</p>" : "")) +
+      "</div>";
+  }
+
+  UI.showVictory = function (stars, lives, hooks, rs) {
     const hasNext = !!hooks.nextLevel;
     const el = overlay("td-overlay--win",
       '<h3>Fort defended! 🎉</h3>' +
       '<p class="td-overlay__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(3 - stars) + "</span></p>" +
       "<p>" + lives + " of 20 stickers kept safe</p>" +
+      summaryHtml(rs) +
       (hasNext ? '<p class="td-overlay__warn">🔓 Level ' + hooks.nextLevel + ' unlocked!</p>' : "") +
       (hasNext ? '<button class="td-btn td-btn--call" data-act="next" type="button">▶ Next level</button>' : "") +
       '<button class="td-btn" data-act="continue" type="button">' + (hasNext ? "🏰 Back to the fort" : "Continue") + "</button>");
@@ -623,7 +641,7 @@
     });
   };
 
-  UI.showDefeat = function (hooks, endless, pm) {
+  UI.showDefeat = function (hooks, endless, pm, rs) {
     // endless: { score, best } — an endless run ends only in defeat, so its
     // "score" (waves survived) is the headline, not a failure.
     const head = endless ? '<h3>♾️ Run over!</h3>' +
@@ -640,7 +658,7 @@
             '<li><span class="td-pm__ico">' + r.icon + "</span>" + r.name + '<span class="td-pm__n">×' + r.n + "</span></li>").join("") + "</ul>" +
           (pm.advice ? '<p class="td-pm__advice">' + pm.advice + "</p>" : "") +
           '<button class="td-btn td-pm__guide" type="button" data-act="guide">📖 See the guide</button>' +
-        "</div>" : "");
+        "</div>" : "") + summaryHtml(rs);
     const el = overlay("td-overlay--lose",
       head +
       '<button class="td-btn" data-act="retry" type="button">🔁 ' + (endless ? "Again" : "Try again") + "</button>" +

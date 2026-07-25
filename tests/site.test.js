@@ -766,3 +766,21 @@ test("guardrail: every fort overlay mounts on the VISIBLE screen, via one choose
   const tdl = read("scripts/td-logic.js");
   assert.match(tdl, /enemyTraits, reachedBy/, "both are exported for the guide AND the tests");
 });
+
+// RULE 7 — a new PERSISTED field must be covered at all three sites (loader
+// defaults, freshSave, and the two-tab merge). save.ach and save.stars each
+// crashed a win by missing one; save.bests is the third instance.
+test("guardrail: TD-13 per-level bests are covered by loader, reset and merge", () => {
+  const tdm = read("scripts/td-main.js");
+  assert.match(tdm, /if \(!save\.bests \|\| typeof save\.bests !== "object"\) save\.bests = \{\};/, "the boot loader coerces save.bests");
+  assert.match(tdm, /bests: \{\},/, "freshSave() clears save.bests");
+  assert.match(tdm, /if \(other\.bests && typeof other\.bests === "object"\)/, "the two-tab merge folds save.bests");
+  assert.match(tdm, /st\.levelId \+ ":" \+ st\.difficulty/, "a best is keyed by level AND difficulty — the ladders are independent");
+  // The run tallies live in ENGINE STATE, not the capped event stream.
+  const tdl = read("scripts/td-logic.js");
+  assert.match(tdl, /dmgBy: \{\}, kills: 0, goldEarned: 0,/, "the run tallies live in state");
+  assert.match(tdl, /const HOW_LINE = \{ dart: "dart", splash: "mortar", zap: "fan", melee: "camp"/,
+    "one table maps the damage source to its tower line");
+  assert.match(tdl, /state\.dmgBy\[src\] = \(state\.dmgBy\[src\] \|\| 0\)/, "attribution happens in the ONE damage path");
+  assert.ok(!/cur\.stats\.dmg/.test(tdm), "no parallel event-based damage accounting (only the dart ever emitted a hit event)");
+});

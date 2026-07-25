@@ -50,6 +50,15 @@
               }
             }
             if (Array.isArray(other.ach)) save.ach = [...new Set([...(save.ach || []), ...other.ach])];
+            if (other.bests && typeof other.bests === "object") {
+              // a personal best only ever goes UP, so it folds like stars
+              save.bests = save.bests || {};
+              for (const k in other.bests) {
+                const mine = save.bests[k], theirs = other.bests[k];
+                if (!theirs) continue;
+                if (!mine || (theirs.lives | 0) > (mine.lives | 0)) save.bests[k] = theirs;
+              }
+            }
             if (other.endlessBest && typeof other.endlessBest === "object") {
               save.endlessBest = save.endlessBest || {};
               for (const w in other.endlessBest) save.endlessBest[w] = Math.max(save.endlessBest[w] || 0, other.endlessBest[w] || 0);
@@ -81,6 +90,7 @@
   if (!Array.isArray(save.ach)) save.ach = [];     // TD-5 achievement ids earned
   if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
   if (!("midRun" in save)) save.midRun = null;     // TD-5 resume checkpoint
+  if (!save.bests || typeof save.bests !== "object") save.bests = {}; // TD-13 best run per level+difficulty
 
   // ---- THE one owner of "wipe the fort" (RULE 7) ----
   // Both the grown-ups ⚙️ Reset button and the __TD.resetSave test hook build the
@@ -99,6 +109,7 @@
       ach: [],
       endlessBest: {},
       midRun: null,
+      bests: {},
     };
     if (keepPrefs) {
       if (save && save.settings) s.settings = JSON.parse(JSON.stringify(save.settings));
@@ -237,11 +248,20 @@
       sfx("won");
       const nextId = st.levelId + 1;
       const nextExists = !!DATA.LEVELS.find((l) => l.id === nextId);
+      // TD-13: a personal best per level PER DIFFICULTY (they are independent
+      // ladders, so a casual clear must never overwrite a heroic one).
+      let pb = false;
+      if (!st.cheated && !st.endless) {
+        const bk = st.levelId + ":" + st.difficulty;
+        const prev = save.bests[bk];
+        if (!prev || st.lives > (prev.lives | 0)) { save.bests[bk] = { lives: st.lives, stars: st.stars }; pb = !!prev; }
+        persist(save);
+      }
       UI.showVictory(st.stars, st.lives, {
         continueOn: () => { UI.closeOverlay(); location.hash = "#td-home"; },
         nextLevel: nextExists ? nextId : null,
         onNext: nextExists ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, {}); } : null,
-      });
+      }, runSummary(pb));
     } else if (st.phase === "lost") {
       stopLoop();
       clearMidRun();
@@ -261,7 +281,7 @@
           retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: (Date.now() % 100000) }); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
           guide: (type) => { UI.closeOverlay(); UI.showGuide(type); },
-        }, null, postMortem());
+        }, null, postMortem(), runSummary(false));
       }
     }
   }
@@ -270,6 +290,34 @@
   // events drained, plus the lines actually on the board — so it can name the
   // real problem ("14 fliers got through and you had nothing that reaches air")
   // instead of the old flavour-only "the toys got sleepy".
+  // TD-13: what your board actually DID this run. Every number is accumulated
+  // from events the engine already emits, so nothing here can disagree with the
+  // simulation — and damage-by-line is the number that makes "which towers are
+  // carrying?" answerable for the first time.
+  function runSummary(isPersonalBest) {
+    if (!cur) return null;
+    const st = cur.engine.state;
+    // Read straight off engine STATE (exact, cap-proof) rather than the event
+    // stream — only the dart ever emitted a "hit" event, so event accounting
+    // would have credited splash/zap/melee to nobody.
+    const dmg = st.dmgBy || {};
+    const total = Object.keys(dmg).reduce((a, k) => a + dmg[k], 0);
+    const NAME = { dart: "🎯 Dart", mortar: "💥 Mortar", fan: "❄ Fan", camp: "🪖 Camp", ability: "🧨 Abilities" };
+    const rows = Object.keys(dmg).sort((a, b) => dmg[b] - dmg[a]).map((k) => ({
+      line: k, label: NAME[k] || k, dmg: Math.round(dmg[k]),
+      pct: total ? Math.round((dmg[k] / total) * 100) : 0,
+    }));
+    const spent = st.towers.reduce((a, t) => a + (t.spent || 0), 0);
+    const bk = st.levelId + ":" + st.difficulty;
+    const best = save.bests[bk];
+    return {
+      rows, kills: st.kills || 0, gold: st.goldEarned || 0, spent,
+      towers: st.towers.length,
+      best: best ? best.lives : null,
+      personalBest: !!isPersonalBest,
+    };
+  }
+
   function postMortem() {
     if (!cur) return null;
     const leaks = cur.leaks || {};
@@ -377,7 +425,8 @@
     const render = R.create(UI.canvas, engine);
     if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
-      lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1 }; // TD-5 achievement context
+      lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1, // TD-5 achievement context
+      leaks: {}, leakWave: 0 }; // TD-12 post-mortem context (the tallies live in engine state)
     startMusic(); // TD-6 optional looping march (no-op unless the toggle is on)
     UI.closeOverlay();
     UI.hideBubble();

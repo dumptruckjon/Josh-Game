@@ -362,3 +362,15 @@ body.td-mode #screens { padding: 0; }
 .td-pm__ico { margin-right: 6px; }
 .td-pm__n { color: #ff9db4; font-weight: 800; margin-left: 6px; }
 .td-pm__advice { color: #ffe27a; font-size: 0.92rem; margin: 8px 0 0; line-height: 1.35; }
+
+/* ---- TD-13 run summary (victory + defeat) ---- */
+.td-sum { margin-top: 8px; text-align: left; }
+.td-sum__head { color: #9db4dd; font-size: 0.85rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.td-sum__bars { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: row; gap: 5px; }
+.td-sum__bars li { display: grid; grid-template-columns: 5.2em minmax(0, 1fr) 2.6em; gap: 6px; align-items: center; }
+.td-sum__label { color: #cfe2ff; font-size: 0.82rem; white-space: nowrap; }
+.td-sum__bar { display: block; height: 10px; border-radius: 999px; background: #21304d; overflow: hidden; }
+.td-sum__bar i { display: block; height: 100%; background: linear-gradient(90deg, #ffd94a, #ff9d5c); }
+.td-sum__pct { color: #9db4dd; font-size: 0.8rem; text-align: right; }
+.td-sum__line { color: #9db4dd; font-size: 0.85rem; margin: 8px 0 0; }
+.td-sum__pb { color: #ffe27a; font-weight: 800; margin: 8px 0 0; }

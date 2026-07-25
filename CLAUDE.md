@@ -1281,6 +1281,25 @@ factories AND the toast now go through ONE `hostScreen()` that picks the
 unhidden screen, both screens are positioning contexts, and a `site.test.js`
 guardrail bans hard-coding either host again. Caught by a browser test; invisible
 to reading the code.
+**TD-13 RUN STATS** answers "which towers actually carried?" for the first time —
+a summary on BOTH outcome screens showing damage **by line** as bars, kills, gold
+earned, towers built/spent, and your personal best. The implementation lesson is
+the important one: **a run tally must live in engine STATE, not in the event
+stream.** The obvious build (accumulate as events drain) is wrong twice over —
+only the DART ever emits a `hit` event, so splash/zap/melee damage would be
+credited to nobody; and `emit` caps the buffer at 400, so a scripted or headless
+run that simulates a whole wave before draining silently loses most of it (L12:
+634 kills, but the capped buffer retains **zero** die events at the end). So
+`state.dmgBy / kills / goldEarned` are tallied in the ONE `dealDamage`/
+`killEnemy` path, attributed through one `HOW_LINE` table (`how` already names
+the source at every call site: dart / splash=mortar / zap=fan / melee=camp /
+ability), which means no call site changed and a future tower line is counted the
+moment it routes through there — and a node sim can assert the numbers directly.
+`save.bests` is keyed `level:difficulty` (independent ladders — a casual clear
+must never overwrite a heroic best) and is the THIRD instance of the
+persisted-field law, so it was covered at all three sites (loader defaults,
+`freshSave`, the two-tab merge, where a best folds as a MAX like stars) with a
+guardrail pinning each.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

@@ -147,6 +147,9 @@
     return wave;
   }
 
+  // `how` → the tower line that dealt it. One table, used by the run summary.
+  const HOW_LINE = { dart: "dart", splash: "mortar", zap: "fan", melee: "camp", ability: "ability" };
+
   function createEngine(levelDef, opts) {
     opts = opts || {};
     const difficulty = opts.difficulty || "normal";
@@ -200,6 +203,11 @@
       leverCd: 0,    // tick until the lever can be thrown again
       abilityCd: {}, // TD-9: ability id → tick it becomes usable again
       puddles: [],   // TD-9: live Sticky Floor zones { x, y, r, slow, until }
+      // TD-13 run tallies. These live in STATE, not in the event stream: the
+      // event buffer is capped at 400, so a scripted/headless run that
+      // simulates a whole wave before draining would silently lose most of it.
+      // In state they are exact, deterministic, and readable by a node sim.
+      dmgBy: {}, kills: 0, goldEarned: 0,
       enemies: [],
       towers: [],
       soldiers: [],
@@ -427,6 +435,8 @@
       const def = enemyDef(e);
       const bounty = Math.round(def.bounty * diff.bounty * mods.bounty); // 🪙 Bounty Hunter
       state.gold += bounty + (def.goldBurst || 0); // Piñata candy-burst
+      state.kills += 1;
+      state.goldEarned += bounty + (def.goldBurst || 0);
       // Splitters (Mud Blob) spawn children at the death spot — BUFFERED so we
       // never mutate state.enemies mid-iteration; flushed after the combat pass.
       if (def.split) for (let i = 0; i < def.split.count; i++) pendingSpawns.push({ type: def.split.into, dist: e.dist, pathIdx: e.pathIdx || 0 });
@@ -459,6 +469,12 @@
       }
       if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
       if (hpDmg > 0) { e.hp -= hpDmg; triggerCharge(e); }
+      // Damage BY LINE, tallied in the ONE damage path — `how` already names the
+      // source at every call site (dart / splash=mortar / zap=fan / melee=camp /
+      // ability), so no call site had to change and a future line gets counted
+      // the moment it routes through here.
+      const src = HOW_LINE[how];
+      if (src) state.dmgBy[src] = (state.dmgBy[src] || 0) + Math.max(0, hpDmg) + Math.max(0, shieldDmg);
       if (e.hp <= 0) killEnemy(e, how);
     }
     function leakEnemy(e) {
