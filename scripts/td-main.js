@@ -722,7 +722,12 @@
         }
         r = t ? cur.engine.useAbility(id, { towerId: t.id }) : { ok: false, reason: "no-tower" };
       } else {
-        r = cur.engine.useAbility(id, { x: gx, y: gy });
+        // screenToWorld gives WORLD units (the centre of cell 10,5 is 10.5,5.5);
+        // the engine measures everything — enemy positions, pads, puddles — in
+        // CELL-INDEX space. The tower pick above already converts (`cx + 0.5`);
+        // a point ability must too, or the blast lands 0.7 cells down-right of
+        // the finger and an enemy visibly inside the puddle isn't slowed.
+        r = cur.engine.useAbility(id, { x: gx - 0.5, y: gy - 0.5 });
       }
       UI.hideBubble(); cur.render.setSelection(null);
       if (r.ok) { sfx(id === "drop" ? "splash" : "build"); UI.hud(cur.engine.state); UI.abilityHint(""); }

@@ -1291,7 +1291,9 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
     "re-tapping an armed ability disarms it");
   await page.locator('.td-abil[data-abil="drop"]').click();
   const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
-  const sp = await page.evaluate((a) => window.__TD.w2s(a.x, a.y), aim);
+  // +0.5 = the enemy's DRAWN centre. posOn returns cell-index space; every
+  // sprite is painted at the cell's middle, so that is where a finger goes.
+  const sp = await page.evaluate((a) => window.__TD.w2s(a.x + 0.5, a.y + 0.5), aim);
   await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
   await page.waitForTimeout(60);
   assert.ok(await page.evaluate(() => (window.__TD.state().abilityCd || {}).drop > window.__TD.state().tick),
@@ -1327,6 +1329,141 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
   assert.equal(await page.evaluate(() => window.__TD.state().puddles.length), 1, "the puddle is live in state");
   await page.evaluate(() => { window.__TD.script([["tick", 300]]); });
   assert.equal(await page.evaluate(() => window.__TD.state().puddles.length), 0, "and it expires by itself");
+});
+
+// The fort has TWO coordinate spaces and they are one `+ 0.5` apart:
+//   • CELL-INDEX space — what the engine stores (path points, pads, enemies,
+//     soldier posts, puddles). Cell (10,5) is the integer pair (10,5).
+//   • WORLD space — what screenToWorld returns and what the canvas paints in.
+//     The MIDDLE of cell (10,5) is (10.5, 5.5).
+// Every sprite is drawn at `worldToScreen(coord + 0.5)`, so a coordinate that
+// forgets the shift lands 0.707 cells up-left of the thing it belongs to. This
+// is not visible to any "does it win?" test — the engine is right, the picture
+// is wrong — so it gets a test that measures actual INK against actual state.
+test("GEOMETRY: the engine's coordinates and the picture agree (no half-cell drift)", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 9 }); });
+  await page.waitForTimeout(80);
+
+  const cell = await page.evaluate(() => {
+    const a = window.__TD.w2s(0, 0), b = window.__TD.w2s(1, 0);
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  });
+  assert.ok(cell > 4, "the field really has a cell size to measure against");
+
+  // ---- 1. A tap round-trips. Where the finger lands is where the power goes.
+  // Pre-fix the tap was handed to the engine in WORLD units while the engine
+  // measured in cell-index space, so the puddle sat 0.7 cells down-right of
+  // the tap: an enemy visibly inside the amber circle was not slowed.
+  await page.evaluate(() => {
+    window.__TD.script([["call"], ["tick", 150]]);
+    window.__TD.grantGold(2000);
+    window.TDUI.hud(window.__TD.state());
+    window.TDUI.abilities(window.__TD.state(), null);
+  });
+  const enemyAt = await page.evaluate(() => {
+    const st = window.__TD.state();
+    const en = st.enemies.find((x) => x.alive);
+    return en ? window.__TD.engine().posOn(en.pathIdx || 0, en.dist) : null;
+  });
+  assert.ok(enemyAt, "an enemy is walking, to aim at");
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const tap = await page.evaluate((a) => window.__TD.w2s(a.x + 0.5, a.y + 0.5), enemyAt);
+  await page.locator('.td-abil[data-abil="sticky"]').click();
+  await page.mouse.click(rect.x + tap.x, rect.y + tap.y);
+  await page.waitForTimeout(60);
+  const puddle = await page.evaluate(() => {
+    const z = window.__TD.state().puddles[0];
+    return z ? { z, at: window.__TD.w2s(z.x + 0.5, z.y + 0.5) } : null;
+  });
+  assert.ok(puddle, "the tap really laid a puddle");
+  const drift = Math.hypot(puddle.at.x - tap.x, puddle.at.y - tap.y);
+  assert.ok(drift <= 2, `the puddle lands where the finger did (drifted ${drift.toFixed(1)}px, tolerance 2)`);
+  // …and the enemy you were aiming at is genuinely inside it, not just visually.
+  const inside = await page.evaluate((e) => {
+    const z = window.__TD.state().puddles[0];
+    return (e.x - z.x) ** 2 + (e.y - z.y) ** 2 <= z.r * z.r;
+  }, enemyAt);
+  assert.ok(inside, "the enemy under the finger is actually in the slow zone");
+
+  // ---- 2. Soldier INK sits on the soldier's coordinates.
+  // Frame-diff: draw with the squad, draw without it, and the pixels that
+  // changed ARE the squad. Their centroid must match where the engine says
+  // they stand. Pre-fix they drew a half-cell diagonal off the lane.
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 9 }); window.__TD.grantGold(3000); });
+  await page.waitForTimeout(60);
+  const squad = await page.evaluate(() => {
+    const e = window.__TD.engine(), st = window.__TD.state();
+    const pad = e.levelDef.pads[0];
+    e.place("camp", pad.id);
+    for (let i = 0; i < 120; i++) e.tick(); // let them march to their posts
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const r = window.__TD.render(), c = cv.getContext("2d");
+    const snap = () => { r.draw(1); return c.getImageData(0, 0, cv.width, cv.height).data; };
+    const withThem = snap();
+    const kept = st.soldiers.splice(0, st.soldiers.length);
+    const without = snap();
+    kept.forEach((s) => st.soldiers.push(s));
+    r.draw(1);
+    const dpr = window.devicePixelRatio || 1;
+    let sx = 0, sy = 0, n = 0;
+    for (let i = 0; i < withThem.length; i += 4) {
+      const d = Math.abs(withThem[i] - without[i]) + Math.abs(withThem[i + 1] - without[i + 1]) + Math.abs(withThem[i + 2] - without[i + 2]);
+      if (d < 40) continue;
+      const px = (i / 4) % cv.width, py = Math.floor((i / 4) / cv.width);
+      sx += px; sy += py; n++;
+    }
+    if (!n) return { n: 0 };
+    const live = kept.filter((s) => s.alive);
+    let ex = 0, ey = 0;
+    for (const s of live) { const p = window.__TD.w2s(s.x + 0.5, s.y + 0.5); ex += p.x; ey += p.y; }
+    return { n, soldiers: live.length, ink: { x: sx / n / dpr, y: sy / n / dpr }, expect: { x: ex / live.length, y: ey / live.length } };
+  });
+  assert.ok(squad.n > 50, `the squad actually paints something (${squad.n} changed px)`);
+  assert.ok(squad.soldiers >= 1, "the camp fielded soldiers");
+  const soldierDrift = Math.hypot(squad.ink.x - squad.expect.x, squad.ink.y - squad.expect.y);
+  assert.ok(soldierDrift < cell * 0.35,
+    `soldier ink is centred on the soldier (${soldierDrift.toFixed(1)}px off, cell=${cell.toFixed(1)}, a half-cell miss would be ${(cell * 0.707).toFixed(1)})`);
+
+  // ---- 3. The rally FLAG marks the spot the squad actually rallies to.
+  // Same frame-diff, but only the rally point moves between the two frames —
+  // the tower, its range ring and the squad are identical in both, so the
+  // changed pixels near the rally point are the flag and nothing else.
+  const flag = await page.evaluate(() => {
+    const st = window.__TD.state(), r = window.__TD.render();
+    const t = st.towers.find((x) => x.lineId === "camp");
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const c = cv.getContext("2d");
+    r.setSelection({ tower: t.id });
+    const home = { x: t.rallyX, y: t.rallyY };
+    const snap = () => { r.draw(1); return c.getImageData(0, 0, cv.width, cv.height).data; };
+    const here = snap();
+    t.rallyX = 1; t.rallyY = 1; // park the flag far away — everything else identical
+    const away = snap();
+    t.rallyX = home.x; t.rallyY = home.y;
+    r.setSelection(null); r.draw(1);
+    const dpr = window.devicePixelRatio || 1;
+    const centred = window.__TD.w2s(home.x + 0.5, home.y + 0.5);
+    const shifted = window.__TD.w2s(home.x, home.y);      // the old, wrong anchor
+    const mid = { x: (centred.x + shifted.x) / 2, y: (centred.y + shifted.y) / 2 };
+    const a0 = window.__TD.w2s(0, 0), b0 = window.__TD.w2s(1, 0);
+    const cellPx = Math.hypot(b0.x - a0.x, b0.y - a0.y);
+    let sx = 0, sy = 0, n = 0;
+    for (let i = 0; i < here.length; i += 4) {
+      const d = Math.abs(here[i] - away[i]) + Math.abs(here[i + 1] - away[i + 1]) + Math.abs(here[i + 2] - away[i + 2]);
+      if (d < 40) continue;
+      const px = (i / 4) % cv.width / dpr, py = Math.floor((i / 4) / cv.width) / dpr;
+      if (Math.hypot(px - mid.x, py - mid.y) > cellPx * 1.5) continue; // ignore the far-away frame's flag
+      sx += px; sy += py; n++;
+    }
+    return n ? { n, ink: { x: sx / n, y: sy / n }, centred, shifted } : { n: 0 };
+  });
+  assert.ok(flag.n > 20, `the rally flag paints (${flag.n} px near the rally point)`);
+  const dCentred = Math.hypot(flag.ink.x - flag.centred.x, flag.ink.y - flag.centred.y);
+  const dShifted = Math.hypot(flag.ink.x - flag.shifted.x, flag.ink.y - flag.shifted.y);
+  assert.ok(dCentred < dShifted,
+    `the flag is planted on the rally point, not a half-cell up-left of it (centred ${dCentred.toFixed(1)}px vs shifted ${dShifted.toFixed(1)}px)`);
 });
 
 test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTHING else does", async () => {

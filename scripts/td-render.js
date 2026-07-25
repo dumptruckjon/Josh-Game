@@ -896,7 +896,10 @@
 
     // ---------- soldiers (upright, screen space) ----------
     function drawSoldier(s) {
-      const p = worldToScreen(s.x, s.y);
+      // Soldier posts come from posAt(), the same corner-based space as enemies —
+      // which the enemy pass shifts by +0.5. Without it the squad drew half a
+      // cell off the lane, so the "visible wall" never stood on the road.
+      const p = worldToScreen(s.x + 0.5, s.y + 0.5);
       const x = p.x, y = p.y, u = cell;
       // A squad must SHOW its camp's rank: every soldier used to draw as the same
       // tier-1 grunt, so upgrading a camp — and especially taking Dino Squad or
@@ -1007,19 +1010,27 @@
       ctx.fill(); ctx.stroke();
     }
 
+    // EVERY fx coordinate is stored in SPRITE space (cell centres), because that
+    // is what drawWorldFx/drawScreenFx paint in. Engine coordinates — both grid
+    // cells and path positions — are corner-based, so they need exactly one
+    // +0.5. Only the grid-sourced pushes used to do it, so every fx sourced from
+    // an ENEMY (poof, damage number, splash, stomp, death stars, +gold, stun,
+    // rally ring, the suck beam, the leak toll) painted half a cell up-left of
+    // the thing it belonged to. One helper now applies the shift once.
+    const fxAt = (o, x, y) => { o.x = x + 0.5; o.y = y + 0.5; return o; };
     function pushFx(e) {
       if (e.type === "hit") {
-        fx.push({ kind: "poof", x: e.x, y: e.y, ttl: 8, max: 8 });
+        fx.push(fxAt({ kind: "poof", ttl: 8, max: 8 }, e.x, e.y));
         if (e.crit) triggerShake(2);
-        if (showDmg && e.dmg) fx.push({ kind: "dmgnum", x: e.x, y: e.y, ttl: 22, max: 22, text: (e.crit ? "" : "") + e.dmg, crit: !!e.crit });
+        if (showDmg && e.dmg) fx.push(fxAt({ kind: "dmgnum", ttl: 22, max: 22, text: (e.crit ? "" : "") + e.dmg, crit: !!e.crit }, e.x, e.y));
       }
-      else if (e.type === "splash") { fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 12, max: 12 }); triggerShake(1.5); }
-      else if (e.type === "stomp") { fx.push({ kind: "boom", x: e.x, y: e.y, r: e.r, ttl: 14, max: 14 }); triggerShake(3.5); } // boss shockwave
+      else if (e.type === "splash") { fx.push(fxAt({ kind: "boom", r: e.r, ttl: 12, max: 12 }, e.x, e.y)); triggerShake(1.5); }
+      else if (e.type === "stomp") { fx.push(fxAt({ kind: "boom", r: e.r, ttl: 14, max: 14 }, e.x, e.y)); triggerShake(3.5); } // boss shockwave
       else if (e.type === "boss") triggerShake(3);
       else if (e.type === "die") {
-        fx.push({ kind: "stars", x: e.x, y: e.y, ttl: 16, max: 16 });
-        fx.push({ kind: "gold", x: e.x, y: e.y, ttl: 26, max: 26, text: "+" + e.bounty });
-      } else if (e.type === "build" || e.type === "upgrade") fx.push({ kind: "ring", x: e.x + 0.5, y: e.y + 0.5, ttl: 12, max: 12 });
+        fx.push(fxAt({ kind: "stars", ttl: 16, max: 16 }, e.x, e.y));
+        fx.push(fxAt({ kind: "gold", ttl: 26, max: 26, text: "+" + e.bounty }, e.x, e.y));
+      } else if (e.type === "build" || e.type === "upgrade") fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y));
       else if (e.type === "leak") { // a burst of leaks REFRESHES one flash — never stacks to an opaque wall
         const cost = e.lives || 1;
         const cur = fx.find((f) => f.kind === "leak");
@@ -1031,16 +1042,24 @@
         if (cost > 1 && !e.shielded) {
           // the toll, floated at the door so you SEE what it cost
           const end = engine.posOn(0, 1e9);
-          fx.push({ kind: "toll", x: end.x, y: end.y, ttl: 34, max: 34, text: "−" + cost + " ❤" });
+          fx.push(fxAt({ kind: "toll", ttl: 34, max: 34, text: "−" + cost + " ❤" }, end.x, end.y));
           if (e.boss) triggerShake(5);
         }
       }
-      else if (e.type === "chain") fx.push({ kind: "chain", points: e.points, ttl: 7, max: 7 });
-      else if (e.type === "stun") fx.push({ kind: "stars", x: e.x, y: e.y, ttl: 10, max: 10 });
-      else if (e.type === "rally") fx.push({ kind: "ring", x: e.x, y: e.y, ttl: 10, max: 10 });
-      else if (e.type === "suck") fx.push({ kind: "suck", x: e.x, y: e.y, sx: e.sx, sy: e.sy, ttl: 14, max: 14 }); // Vacuum King inhale
-      else if (e.type === "disable") fx.push({ kind: "spark", x: e.x + 0.5, y: e.y + 0.5, ttl: 16, max: 16 }); // The Static jam
-      else if (e.type === "summon") fx.push({ kind: "ring", x: e.x, y: e.y, ttl: 12, max: 12 }); // minion pop
+      else if (e.type === "chain") fx.push({ kind: "chain", points: (e.points || []).map((q) => ({ x: q.x + 0.5, y: q.y + 0.5 })), ttl: 7, max: 7 });
+      else if (e.type === "stun") fx.push(fxAt({ kind: "stars", ttl: 10, max: 10 }, e.x, e.y));
+      else if (e.type === "rally") fx.push(fxAt({ kind: "ring", ttl: 10, max: 10 }, e.x, e.y));
+      else if (e.type === "suck") fx.push(fxAt({ kind: "suck", sx: e.sx + 0.5, sy: e.sy + 0.5, ttl: 14, max: 14 }, e.x, e.y)); // Vacuum King inhale
+      else if (e.type === "disable") fx.push(fxAt({ kind: "spark", ttl: 16, max: 16 }, e.x, e.y)); // The Static jam
+      else if (e.type === "summon") fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y)); // minion pop
+      // TD-9 powers had SOUND but no picture: a 130-gold Toy Box Drop damaged
+      // enemies with nothing on screen to show where it landed (the "some of
+      // them don't even seem to work" report). A point power now blooms at its
+      // real radius, so you can see what it covered — and whether you aimed it.
+      else if (e.type === "ability" && e.radius) {
+        fx.push(fxAt({ kind: "boom", r: e.radius, ttl: 16, max: 16 }, e.x, e.y));
+        if (e.id === "drop") triggerShake(2.5);
+      }
     }
 
     // Conveyor strips (Slip'n'Slide): scrolling forward chevrons over each speed
@@ -1189,7 +1208,7 @@
         const a = Math.max(0.12, Math.min(0.42, left));
         ctx.fillStyle = "rgba(255, 196, 74, " + a.toFixed(3) + ")";
         ctx.beginPath();
-        ctx.arc(z.x * cell, z.y * cell, z.r * cell, 0, Math.PI * 2);
+        ctx.arc((z.x + 0.5) * cell, (z.y + 0.5) * cell, z.r * cell, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = "rgba(255, 226, 122, " + Math.min(0.8, a + 0.25).toFixed(3) + ")";
         ctx.lineWidth = Math.max(1.5, cell * 0.05);
@@ -1277,6 +1296,11 @@
         const p = worldToScreen(wx + 0.5, wy + 0.5);
         ctx.font = Math.round(cell * (sz || 0.9)) + "px sans-serif";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        // A COLOUR emoji ignores fillStyle, but a monochrome fallback glyph does
+        // not — and this helper used to inherit whatever fill the previous draw
+        // call happened to leave, so the bed/door/flag changed colour depending
+        // on what was on the field. Always state it.
+        ctx.fillStyle = "#eef3ff";
         ctx.fillText(ch, p.x, p.y);
       };
       // TD-7: the track-switch lever — a tappable round button on the fork. Red
@@ -1318,7 +1342,11 @@
       glyph(s1[0], s1[1], "🚪");
       if (selection && selection.tower) {
         const selT = st.towers.find((x) => x.id === selection.tower);
-        if (selT && selT.lineId === "camp") glyph(selT.rallyX - 0.5, selT.rallyY - 0.5, "🚩", 0.8);
+        // rallyX/rallyY are path points — cell-index space, exactly like an
+        // enemy's position — so the flag centres like every other sprite. The
+        // old `- 0.5` cancelled glyph()'s centring and planted the flag half a
+        // cell up-left of the soldiers actually standing on it.
+        if (selT && selT.lineId === "camp") glyph(selT.rallyX, selT.rallyY, "🚩", 0.8);
       }
       // enemy hp bars (upright)
       for (const { e, x, y } of lerped) {
