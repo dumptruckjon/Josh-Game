@@ -70,7 +70,16 @@ without exception.
 
 ### RULE 5 — Built for a 4-year-old on a touch screen, always
 Josh plays on a phone/tablet, so the site MUST look and work great in **iOS
-Safari** and be forgiving of little hands on every change:
+Safari** and be forgiving of little hands on every change.
+**PORTRAIT IS THE MODE (owner directive, 2026-07): every world here is played in
+portrait, so optimize fully for portrait, always.** Landscape must keep WORKING
+— it is still tested, and a rotation must never break or overflow anything — but
+it is not a design target: when the two trade off, portrait wins every time, and
+a layout must not pay portrait pixels to make landscape nicer. The fort's own
+portrait law (full-bleed field, one control row) is guardrail-locked in
+`tests/td.test.js`.
+
+The touch laws:
 - **Tap targets ≥ 75px**, generous spacing (≥ 16px); whole-card tap zones, not
   small buttons. (Adults get 44px; a preschooler needs much bigger.)
 - **Zero reading required.** Icons, emoji, color, and (gesture-gated) audio
@@ -1646,6 +1655,25 @@ income, so the summary understated a third of what a call-early run made. That
 is now three lying stat lines found in one pass (overkill damage, the Fan's
 rounded-away multipliers, and this): whenever a number is SHOWN to the player,
 find every site that should feed it, not just the obvious one.
+**Optimizing fully for portrait (the owner's directive) paid immediately, and
+the win came from two DIFFERENT causes because the board is WIDTH-limited on a
+modern phone and HEIGHT-limited on a small one.** The screen's 12px side padding
+was taxing the battlefield (it belongs to text and dialogs, not the field), and
+the control block fell to two rows below 360px. Fixing both, measured in canvas
+pixels: 414×896 gained 15%, 390×844 8%, and a 320-wide phone — where every
+control pixel comes straight out of the field — gained **71-96%**. Three
+implementation notes worth keeping: (1) **negative margins do NOT widen a box
+that has `width: 100%`** — they only shift it, so the first attempt gained
+exactly nothing and looked like the CSS wasn't applying; `width: auto` is what
+lets the box grow. (2) **Fit a control row BY CONSTRUCTION, not by breakpoint** —
+the breakpoint version had a cliff at exactly 360px where the full-size row was
+4px too wide and spilled off both edges; a `minmax(76px, 92px) minmax(0, 1fr)`
+grid with per-tile min/max clamps cannot have a cliff. (3) **A size declared
+twice has no owner** — `.td-abil` was set to 52px in its base rule and again,
+unscoped, 250 lines below at 60px, so every media-query override (portrait AND
+landscape) was a dead letter and the tiles were 60px everywhere. When an
+override "isn't applying", grep for a second declaration before doubting
+specificity.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
