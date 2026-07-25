@@ -1873,6 +1873,59 @@ test("screen wake lock: held only while a battle is LIVE, visible and unpaused",
   await page.evaluate(() => { delete navigator.wakeLock; window.__TD.resetSave(); });
 });
 
+test("PORTRAIT: the battlefield gets every pixel — full-bleed width, ONE control row", async () => {
+  // Portrait is the only mode this game is played in (owner, 2026-07), so the
+  // field is optimised for it and the two things that were costing it are
+  // pinned here. Landscape still works and is still tested; it is just no
+  // longer a design target.
+  //   1. The screen's 12px side padding is for text and dialogs — the field
+  //      spans the whole viewport. That was 24-36px of lost width on a
+  //      width-limited phone (+8-15% field area at 390-430).
+  //   2. ONE control row at EVERY width. A 320-wide phone is HEIGHT-limited,
+  //      so the two-row block was costing it a third of the battlefield.
+  const sizes = [
+    { width: 430, height: 932 }, { width: 414, height: 896 }, { width: 390, height: 844 },
+    { width: 375, height: 667 }, { width: 360, height: 640 },
+    { width: 320, height: 568 }, { width: 320, height: 480 },
+  ];
+  const bad = [];
+  for (const vp of sizes) {
+    await page.setViewportSize(vp);
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.evaluate(() => { window.__TD.newGame(1, {}); });
+    await page.waitForTimeout(140);
+    const g = await page.evaluate(() => {
+      const q = (s) => document.querySelector("#screen-td-play " + s);
+      const wrap = q(".td-canvas-wrap"), cv = q(".td-canvas"), ctl = q(".td-controls");
+      const small = [];
+      document.querySelectorAll("#screen-td-play .td-controls button, #screen-td-play .td-bar--play button").forEach((el) => {
+        const b = el.getBoundingClientRect();
+        if (b.width && (b.width < 44 || b.height < 44)) small.push(el.className.split(" ")[0] + " " + Math.round(b.width) + "x" + Math.round(b.height));
+      });
+      return {
+        wrapW: Math.round(wrap.getBoundingClientRect().width),
+        canvasW: Math.round(cv.getBoundingClientRect().width),
+        ctlH: Math.round(ctl.getBoundingClientRect().height),
+        scrollW: document.documentElement.scrollWidth,
+        scrollH: document.documentElement.scrollHeight,
+        small,
+      };
+    });
+    const tag = `${vp.width}x${vp.height}`;
+    // the field's box spans the screen — not the padded content box
+    if (g.wrapW < vp.width - 1) bad.push(`${tag}: the field box is ${g.wrapW}px inside a ${vp.width}px screen (side padding is taxing the battlefield)`);
+    // ONE row of controls, never two (a second row comes straight off the field)
+    if (g.ctlH > 70) bad.push(`${tag}: the control block is ${g.ctlH}px — that is two rows`);
+    // …and none of that may cost a scroll or an undersized adult control
+    if (g.scrollW > vp.width) bad.push(`${tag}: page scrolls horizontally (${g.scrollW} > ${vp.width})`);
+    if (g.scrollH > vp.height + 1) bad.push(`${tag}: page scrolls vertically (${g.scrollH} > ${vp.height})`);
+    if (g.small.length) bad.push(`${tag}: controls under the adult 44px floor: ${g.small.join(", ")}`);
+  }
+  assert.deepEqual(bad, [], "portrait layout problems:\n" + bad.join("\n"));
+  await page.setViewportSize({ width: 390, height: 844 });
+});
+
 test("the play screen never makes the PAGE scroll (the in-flow power strip)", async () => {
   // The strip moved OFF the canvas into the layout, which buys a clean field but
   // risks the opposite bug: field + strip + topbar taller than the viewport, so

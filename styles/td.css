@@ -233,8 +233,12 @@ body.td-mode #screens { padding: 0; }
    but STILL LAID OUT, so the field never resizes at a phase boundary. */
 .td-abils--idle { opacity: 0.32; pointer-events: none; }
 .td-abils[hidden] { display: none; }
+/* THE one place an ability tile's size is set. It used to be declared here at
+   52px and AGAIN, unscoped, 250 lines below at 60px — so both the portrait and
+   the landscape overrides were dead letters and every tile was 60px wide
+   wherever it appeared. A size with two owners has no owner. */
 .td-abil {
-  position: relative; width: 52px; height: 52px; min-width: 52px; min-height: 52px;
+  position: relative; width: 60px; height: 62px; min-width: 60px; min-height: 62px;
   border-radius: 14px; border: 2px solid #3a548a; background: rgba(15, 26, 47, 0.92);
   color: #e8eefc; padding: 0; cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -253,14 +257,48 @@ body.td-mode #screens { padding: 0; }
 .td-abil--armed { border-color: #ffd94a; box-shadow: 0 0 0 3px rgba(255, 217, 74, 0.45); }
 .td-abil:active { transform: scale(0.96); }
 
-/* Portrait, when the phone is wide enough: ONE row — CALL beside the powers,
-   so the block is exactly as tall as the old strip and the battlefield is
-   unchanged from before CALL came off the field. Under ~360px it falls back to
-   two rows and the field pays ~15%, which is the right trade against pads that
-   could not be tapped at all. */
-@media (orientation: portrait) and (min-width: 360px) {
-  .td-controls { grid-auto-flow: column; align-items: center; }
-  .td-call { width: auto; min-width: 92px; min-height: 52px; }
+/* ===== PORTRAIT IS THE MODE THIS GAME IS PLAYED IN (owner, 2026-07) =====
+   Landscape still works and stays tested, but it is no longer a design target:
+   portrait gets every pixel it can be given. Two different losses, because the
+   board is WIDTH-limited on a modern phone and HEIGHT-limited on a small one.
+
+   1. The screen's 12px side padding is there for text and dialogs, not for the
+      battlefield — the field spans the full width instead (+8-15% field area at
+      390-430px, where 24-36px was going to padding and rounding).
+   2. ONE control row at EVERY width, so the block costs ~62px instead of 118.
+      A 320-wide phone is height-limited, so that is a straight +71% field.
+
+   The row FITS BY CONSTRUCTION rather than by breakpoint: the wave button takes
+   a 76-92px track and the four powers share the rest as equal fractions, each
+   clamped to the adult 44px floor and a 60px ceiling. A breakpoint version of
+   this shipped for ten minutes and had a cliff at exactly 360px, where the
+   full-size row was 4px too wide and spilled off both edges. */
+@media (orientation: portrait) {
+  /* `width: auto` matters: with the base `width: 100%` the negative margins
+     only SHIFT the box, they do not widen it — the field stayed exactly the
+     same size and the whole point was lost. */
+  .td-canvas-wrap { width: auto; margin-left: -12px; margin-right: -12px; }
+  .td-controls {
+    grid-auto-flow: column;
+    grid-template-columns: minmax(76px, 92px) minmax(0, 1fr);
+    align-items: center;
+  }
+  .td-call { width: 100%; min-width: 0; min-height: 52px; }
+  .td-abils { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .td-abil { width: auto; min-width: 44px; max-width: 60px; justify-self: center; }
+}
+/* Small portrait phones: keep the top bar on ONE line too (it wrapped to two at
+   320px, costing another 23px of battlefield). Still above the adult 44px
+   floor — this is Jon's space, not Josh's. */
+@media (orientation: portrait) and (max-width: 359px) {
+  .td-abil { height: 56px; min-height: 56px; }
+  .td-abil__icon { font-size: 1rem; margin-top: 2px; }
+  .td-abil__name { font-size: 0.5rem; }
+  .td-abil__cost { font-size: 0.55rem; }
+  .td-call__label { font-size: 0.92rem; }
+  .td-call__meta { font-size: 0.62rem; }
+  .td-mini { width: 46px; height: 46px; min-width: 46px; min-height: 46px; font-size: 1.15rem; }
+  .td-hud { font-size: 0.86rem; }
 }
 
 /* Landscape: the field is HEIGHT-limited, so a row under it would shrink the
@@ -487,8 +525,8 @@ body.td-mode #screens { padding: 0; }
 .td-backup__msg--ok { color: #8fe3ad; }
 .td-backup__msg--bad { color: #ff9db4; }
 
-/* ability buttons name themselves; the hint explains an armed/refused tap */
-.td-abil { width: 60px; height: 62px; min-width: 60px; min-height: 62px; }
+/* ability buttons name themselves; the hint explains an armed/refused tap.
+   (The size lives in the base .td-abil rule — never re-declare it here.) */
 .td-abil__icon { font-size: 1.2rem; margin-top: 3px; }
 .td-abil__name { display: block; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.02em; color: #cfe2ff; }
 .td-abil__cost { display: block; font-size: 0.62rem; font-weight: 800; color: #ffd94a; }
@@ -541,8 +579,9 @@ body.td-kid .td-abils {
 body.td-kid .td-call { min-height: 76px; font-size: 1.2rem; }
 body.td-kid .td-call__label { font-size: 1.2rem; }
 /* the kid block floats, so its landscape gutter is not needed — give the
-   battlefield the full width back */
-body.td-kid .td-canvas-wrap { width: 100%; }
+   battlefield the full width back (auto, not 100%, so portrait's full-bleed
+   negative margins still widen it) */
+body.td-kid .td-canvas-wrap { width: auto; }
 body.td-kid .td-abil__icon { font-size: 1.7rem; }
 body.td-kid .td-buy, body.td-kid .td-up, body.td-kid .td-sell,
 body.td-kid .td-target, body.td-kid .td-branch, body.td-kid .td-rally { min-height: 76px; min-width: 92px; font-size: 1.05rem; }
