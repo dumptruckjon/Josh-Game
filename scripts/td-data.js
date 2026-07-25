@@ -617,7 +617,7 @@
       startGold: 1000,
       budgetBase: 520,
       path: [ [0, 11], [4, 11], [4, 2], [10, 2], [10, 9], [16, 9], [16, 2], [21, 2], [21, 12], [23, 12] ],
-      pads: [ { id: "p1", cx: 0, cy: 8 }, { id: "p2", cx: 5, cy: 11 }, { id: "p3", cx: 2, cy: 6 }, { id: "p4", cx: 5, cy: 3 }, { id: "p5", cx: 8, cy: 0 }, { id: "p6", cx: 7, cy: 5 }, { id: "p7", cx: 7, cy: 9 }, { id: "p8", cx: 13, cy: 11 }, { id: "p9", cx: 14, cy: 6 }, { id: "p10", cx: 17, cy: 3 }, { id: "p11", cx: 20, cy: 0 }, { id: "p12", cx: 23, cy: 5 }, { id: "p13", cx: 18, cy: 10 } ],
+      pads: [ { id: "p1", cx: 0, cy: 8 }, { id: "p2", cx: 5, cy: 9 }, { id: "p3", cx: 2, cy: 6 }, { id: "p4", cx: 5, cy: 3 }, { id: "p5", cx: 8, cy: 0 }, { id: "p6", cx: 7, cy: 5 }, { id: "p7", cx: 7, cy: 9 }, { id: "p8", cx: 13, cy: 11 }, { id: "p9", cx: 14, cy: 6 }, { id: "p10", cx: 17, cy: 3 }, { id: "p11", cx: 20, cy: 0 }, { id: "p12", cx: 23, cy: 5 }, { id: "p13", cx: 18, cy: 10 } ],
       waves: [
         { groups: [ { type: "sock", count: 10, gap: 0.6, delay: 0 }, { type: "knight", count: 3, gap: 0.75, delay: 3 } ] },
         { groups: [ { type: "marble", count: 25, gap: 0.6, delay: 0 }, { type: "blob", count: 5, gap: 0.75, delay: 3 } ] },

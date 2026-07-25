@@ -948,7 +948,13 @@ test("AUDIT: no pad hides under the floating CALL button (every map, both orient
     await page.evaluate(() => { location.hash = "#td-play"; });
     await page.locator("#screen-td-play").waitFor({ state: "visible" });
     await page.waitForTimeout(150);
-    const maps = [...Array.from({ length: 12 }, (_, i) => ({ id: i + 1 })), { endless: "bedroom" }, { endless: "backyard" }, { endless: "toystore" }];
+    // DERIVED from the shipped data, never a hard-coded 12 + 3 — World 4's maps
+    // were silently skipped by the literal, which is exactly the "re-run every
+    // per-map law when you add content" lesson.
+    const maps = await page.evaluate(() => [
+      ...window.TDData.LEVELS.map((l) => ({ id: l.id })),
+      ...Object.keys(window.TDData.ENDLESS.worlds).map((w) => ({ endless: w })),
+    ]);
     for (const m of maps) {
       const overlaps = await page.evaluate((mm) => {
         if (mm.endless) window.__TD.startEndless(mm.endless); else window.__TD.newGame(mm.id, { seed: 7 });
