@@ -73,7 +73,18 @@
         const top = parent.getBoundingClientRect().top;
         if (top > 0) chromeTop = top;
       }
-      const vh = Math.max(240, (global.innerHeight || 700) - chromeTop - 18);
+      // …minus anything laid out BELOW the field (the power strip in portrait).
+      // Measured generically — an absolutely-positioned control costs nothing, so
+      // a future floating widget needs no change here, and an in-flow one is
+      // accounted for automatically instead of silently pushing the page taller.
+      let below = 0;
+      for (let n = parent && parent.nextElementSibling; n; n = n.nextElementSibling) {
+        if (n.hidden) continue;
+        const cs = global.getComputedStyle ? global.getComputedStyle(n) : null;
+        if (cs && (cs.position === "absolute" || cs.position === "fixed")) continue;
+        if (n.offsetHeight) below += n.offsetHeight + 8;
+      }
+      const vh = Math.max(240, (global.innerHeight || 700) - chromeTop - 18 - below);
       rotated = (global.innerHeight || 700) > (global.innerWidth || 360);
       if (rotated) cell = Math.max(10, Math.min(Math.floor(vw / GRID.h), Math.floor(vh / GRID.w)));
       else cell = Math.max(10, Math.min(Math.floor(vw / GRID.w), Math.floor(vh / GRID.h)));
@@ -535,90 +546,268 @@
     }
 
     // ---------- towers (upright, screen space) ----------
+    // Every LINE reads at a glance, and so does every TIER: a tier-2 gun must be
+    // visibly a different object from the tier-1 it replaced, not the same
+    // sprite with an extra dot. Each line grows along its own axis (barrels /
+    // tube length + iron / blades + cage / camp size), gains a plinth at T2 and
+    // an armour skirt at T3, and each of the six tier-4 BRANCHES is its own
+    // silhouette so the endgame board reads as a fort of unique machines.
+    function towerPlinth(x, y, u, tier) {
+      if (tier < 2) return;
+      ctx.fillStyle = tier >= 4 ? "#4a3f14" : "#26334f";
+      ctx.beginPath(); ctx.ellipse(x, y + u * 0.3, u * (tier >= 3 ? 0.44 : 0.38), u * (tier >= 3 ? 0.17 : 0.14), 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = tier >= 4 ? "#ffd94a" : "#4a628f"; ctx.lineWidth = Math.max(1, u * 0.035); ctx.stroke();
+      if (tier >= 3) { // bolt heads around the skirt
+        ctx.fillStyle = tier >= 4 ? "#ffe9a3" : "#8fa6d0";
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          ctx.beginPath(); ctx.arc(x + Math.cos(a) * u * 0.4, y + u * 0.3 + Math.sin(a) * u * 0.14, u * 0.028, 0, 7); ctx.fill();
+        }
+      }
+    }
     function drawTower(t) {
       const p = worldToScreen(t.cx + 0.5, t.cy + 0.5);
       const x = p.x, y = p.y, u = cell;
+      const tier = t.tier, br = tier >= 4 ? t.branch : "";
       shadow(x, y + u * 0.36, u * 0.4, u * 0.16);
+      towerPlinth(x, y, u, tier);
       if (t.lineId === "dart") {
-        // green blaster: base ring, dome, 1-3 barrels up, muzzle tips
-        const barrels = Math.min(t.tier, 3);
-        ctx.strokeStyle = "#1c5c3a"; ctx.lineWidth = Math.max(3, u * 0.13); ctx.lineCap = "round";
-        for (let i = 0; i < barrels; i++) {
-          const a = -Math.PI / 2 + (i - (barrels - 1) / 2) * 0.42;
-          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * u * 0.46, y + Math.sin(a) * u * 0.46); ctx.stroke();
-        }
-        ctx.fillStyle = "#2f7d3f";
-        for (let i = 0; i < barrels; i++) {
-          const a = -Math.PI / 2 + (i - (barrels - 1) / 2) * 0.42;
-          ctx.beginPath(); ctx.arc(x + Math.cos(a) * u * 0.46, y + Math.sin(a) * u * 0.46, u * 0.07, 0, 7); ctx.fill();
+        // Pea Shooter → Double Dart → Triple Threat → Sniper Scope / Minigun.
+        // Growth axis: barrel COUNT, then a scope, then the branch silhouette.
+        const domeR = br === "a" ? 0.3 : br === "b" ? 0.33 : 0.25 + tier * 0.026;
+        if (br === "a") {
+          // Sniper: ONE long heavy barrel, bipod legs, a big scope on top.
+          ctx.strokeStyle = "#14452c"; ctx.lineWidth = Math.max(2, u * 0.07); ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x - u * 0.16, y + u * 0.1); ctx.lineTo(x - u * 0.3, y + u * 0.3); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + u * 0.16, y + u * 0.1); ctx.lineTo(x + u * 0.3, y + u * 0.3); ctx.stroke();
+          ctx.strokeStyle = "#123c26"; ctx.lineWidth = Math.max(4, u * 0.17);
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - u * 0.72); ctx.stroke();
+          ctx.strokeStyle = "#2f7d3f"; ctx.lineWidth = Math.max(2, u * 0.09);
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - u * 0.7); ctx.stroke();
+          ctx.fillStyle = "#ffd94a"; // muzzle brake
+          ctx.beginPath(); ctx.rect(x - u * 0.11, y - u * 0.78, u * 0.22, u * 0.1); ctx.fill();
+        } else if (br === "b") {
+          // Minigun: a spinning 5-barrel cluster + an ammo drum.
+          const spin = engine.state.tick * 0.35 + t.id;
+          ctx.fillStyle = "#1c5c3a";
+          ctx.beginPath(); ctx.ellipse(x + u * 0.3, y + u * 0.06, u * 0.16, u * 0.2, 0, 0, 7); ctx.fill();
+          ctx.strokeStyle = "#123c26"; ctx.lineWidth = Math.max(2, u * 0.08); ctx.lineCap = "round";
+          for (let i = 0; i < 5; i++) {
+            const off = Math.cos(spin + (i * Math.PI * 2) / 5) * u * 0.13;
+            ctx.beginPath(); ctx.moveTo(x + off, y - u * 0.1); ctx.lineTo(x + off, y - u * 0.56); ctx.stroke();
+          }
+          ctx.fillStyle = "#ffd94a";
+          ctx.beginPath(); ctx.arc(x, y - u * 0.58, u * 0.09, 0, 7); ctx.fill();
+        } else {
+          const barrels = tier;
+          ctx.strokeStyle = "#1c5c3a"; ctx.lineWidth = Math.max(3, u * (0.1 + tier * 0.015)); ctx.lineCap = "round";
+          const reach = 0.4 + tier * 0.045;
+          for (let i = 0; i < barrels; i++) {
+            const a = -Math.PI / 2 + (i - (barrels - 1) / 2) * 0.42;
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * u * reach, y + Math.sin(a) * u * reach); ctx.stroke();
+          }
+          ctx.fillStyle = tier >= 3 ? "#ffd94a" : "#2f7d3f";
+          for (let i = 0; i < barrels; i++) {
+            const a = -Math.PI / 2 + (i - (barrels - 1) / 2) * 0.42;
+            ctx.beginPath(); ctx.arc(x + Math.cos(a) * u * reach, y + Math.sin(a) * u * reach, u * 0.07, 0, 7); ctx.fill();
+          }
         }
         const gd = ctx.createRadialGradient(x - u * 0.12, y - u * 0.12, u * 0.05, x, y, u * 0.32);
-        gd.addColorStop(0, "#63d38f"); gd.addColorStop(1, "#2fa562");
-        ctx.fillStyle = gd; ctx.beginPath(); ctx.arc(x, y, u * 0.3, 0, 7); ctx.fill();
+        gd.addColorStop(0, br ? "#8ff0b4" : "#63d38f"); gd.addColorStop(1, br ? "#1f8f52" : "#2fa562");
+        ctx.fillStyle = gd; ctx.beginPath(); ctx.arc(x, y, u * domeR, 0, 7); ctx.fill();
         ctx.strokeStyle = "#1c5c3a"; ctx.lineWidth = Math.max(1.5, u * 0.05); ctx.stroke();
+        if (tier >= 3) { // armour collar bolted round the dome
+          ctx.strokeStyle = "#8fa6d0"; ctx.lineWidth = Math.max(1.5, u * 0.045);
+          ctx.beginPath(); ctx.arc(x, y, u * (domeR + 0.06), 0.15, Math.PI - 0.15); ctx.stroke();
+        }
+        if (tier >= 3 || br) { // scope
+          ctx.fillStyle = "#12203a";
+          ctx.beginPath(); ctx.rect(x - u * (br === "a" ? 0.2 : 0.14), y - u * 0.34, u * (br === "a" ? 0.4 : 0.28), u * 0.12); ctx.fill();
+          ctx.fillStyle = "#7fe3ff";
+          ctx.beginPath(); ctx.arc(x + u * (br === "a" ? 0.16 : 0.11), y - u * 0.28, u * 0.045, 0, 7); ctx.fill();
+        }
         ctx.fillStyle = "rgba(255,255,255,0.55)";
         ctx.beginPath(); ctx.arc(x - u * 0.1, y - u * 0.1, u * 0.07, 0, 7); ctx.fill();
       } else if (t.lineId === "mortar") {
-        // stubby wooden mortar with a fat tube up-right
-        ctx.strokeStyle = "#4a3118"; ctx.lineWidth = Math.max(4, u * 0.2); ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(x - u * 0.06, y + u * 0.06); ctx.lineTo(x + u * 0.22, y - u * 0.34); ctx.stroke();
-        ctx.strokeStyle = "#5f4022"; ctx.lineWidth = Math.max(2, u * 0.12);
-        ctx.beginPath(); ctx.moveTo(x - u * 0.06, y + u * 0.06); ctx.lineTo(x + u * 0.22, y - u * 0.34); ctx.stroke();
+        // Block Lobber → Brick Cannon → Crate Cannon → Big Bertha / Sticky Bomb.
+        // Growth axis: tube LENGTH + calibre, iron bands, then the branch.
+        const len = br ? 0.62 : 0.3 + tier * 0.06;
+        const bore = br === "a" ? 0.3 : br === "b" ? 0.26 : 0.14 + tier * 0.03;
+        const ang = -Math.PI / 3; // up-right
+        const mx = x + Math.cos(ang) * u * len, my = y + Math.sin(ang) * u * len;
+        ctx.strokeStyle = br === "b" ? "#7a5a12" : "#4a3118";
+        ctx.lineWidth = Math.max(4, u * (bore + 0.06)); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(x - u * 0.06, y + u * 0.06); ctx.lineTo(mx, my); ctx.stroke();
+        ctx.strokeStyle = br === "b" ? "#d69a2a" : br === "a" ? "#8c7a5e" : "#5f4022";
+        ctx.lineWidth = Math.max(2, u * bore);
+        ctx.beginPath(); ctx.moveTo(x - u * 0.06, y + u * 0.06); ctx.lineTo(mx, my); ctx.stroke();
+        if (tier >= 2) { // iron bands along the tube
+          ctx.strokeStyle = "#9aa6bd"; ctx.lineWidth = Math.max(1.5, u * 0.045);
+          for (let i = 1; i <= (tier >= 3 ? 3 : 2); i++) {
+            const f = i / ((tier >= 3 ? 3 : 2) + 1);
+            const bx = x - u * 0.06 + (mx - (x - u * 0.06)) * f, by = y + u * 0.06 + (my - (y + u * 0.06)) * f;
+            ctx.beginPath(); ctx.arc(bx, by, u * (bore * 0.6 + 0.03), 0, 7); ctx.stroke();
+          }
+        }
         ctx.fillStyle = "#2b1c0e";
-        ctx.beginPath(); ctx.arc(x + u * 0.22, y - u * 0.34, u * 0.1, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(mx, my, u * (bore * 0.7 + 0.04), 0, 7); ctx.fill();
+        if (br === "a") { // Bertha: a vented muzzle brake + gold trim
+          ctx.strokeStyle = "#ffd94a"; ctx.lineWidth = Math.max(2, u * 0.06);
+          ctx.beginPath(); ctx.arc(mx, my, u * 0.22, 0, 7); ctx.stroke();
+          ctx.strokeStyle = "#12203a"; ctx.lineWidth = Math.max(1.5, u * 0.05);
+          for (let k = -1; k <= 1; k += 2) {
+            ctx.beginPath(); ctx.moveTo(mx + k * u * 0.16, my - u * 0.1); ctx.lineTo(mx + k * u * 0.24, my - u * 0.02); ctx.stroke();
+          }
+        }
+        if (br === "b") { // Sticky: honey drips off the muzzle
+          ctx.fillStyle = "#ffcf4d";
+          for (let k = 0; k < 3; k++) {
+            const dy = ((engine.state.tick * 0.6 + k * 9) % 18) / 18;
+            ctx.beginPath(); ctx.ellipse(mx - u * 0.05 + k * u * 0.06, my + u * (0.1 + dy * 0.3), u * 0.045, u * 0.06, 0, 0, 7); ctx.fill();
+          }
+        }
         const gm = ctx.createRadialGradient(x - u * 0.12, y - u * 0.1, u * 0.06, x, y, u * 0.34);
-        gm.addColorStop(0, "#b07c48"); gm.addColorStop(1, "#7a5230");
-        ctx.fillStyle = gm; ctx.beginPath(); ctx.arc(x, y, u * 0.32, 0, 7); ctx.fill();
+        if (br === "b") { gm.addColorStop(0, "#ffd76a"); gm.addColorStop(1, "#b8801c"); }
+        else { gm.addColorStop(0, br === "a" ? "#c9c1b0" : "#b07c48"); gm.addColorStop(1, br === "a" ? "#6d6455" : "#7a5230"); }
+        ctx.fillStyle = gm; ctx.beginPath(); ctx.arc(x, y, u * (0.28 + tier * 0.014), 0, 7); ctx.fill();
         ctx.strokeStyle = "#4a3118"; ctx.lineWidth = Math.max(1.5, u * 0.05); ctx.stroke();
+        if (tier >= 3) { // ammo crate beside the breech
+          ctx.fillStyle = "#8a5f32";
+          ctx.beginPath(); ctx.rect(x - u * 0.42, y + u * 0.06, u * 0.2, u * 0.18); ctx.fill();
+          ctx.strokeStyle = "#5f4022"; ctx.lineWidth = Math.max(1, u * 0.03); ctx.stroke();
+        }
         ctx.fillStyle = "rgba(255,255,255,0.35)";
         ctx.beginPath(); ctx.arc(x - u * 0.1, y - u * 0.08, u * 0.07, 0, 7); ctx.fill();
       } else if (t.lineId === "fan") {
-        // frosty hub + translucent spinning blades
+        // Cool Breeze → Chill Wind → Freezer Blast → Blizzard Cone / Static Zap.
+        // Growth axis: blade COUNT + a guard cage, then the branch.
         const gf = ctx.createRadialGradient(x, y, u * 0.05, x, y, u * 0.34);
-        gf.addColorStop(0, "#2a8fb0"); gf.addColorStop(1, "#1f6e8c");
-        ctx.fillStyle = gf; ctx.beginPath(); ctx.arc(x, y, u * 0.3, 0, 7); ctx.fill();
-        const spin = engine.state.tick * 0.14 + t.id;
-        for (let i = 0; i < 3; i++) {
-          const a = spin + (i * Math.PI * 2) / 3;
-          ctx.save(); ctx.translate(x, y); ctx.rotate(a);
-          const gb = ctx.createLinearGradient(0, 0, u * 0.3, 0);
-          gb.addColorStop(0, "rgba(232,247,255,0.95)"); gb.addColorStop(1, "rgba(126,220,255,0.35)");
-          ctx.fillStyle = gb;
-          ctx.beginPath(); ctx.moveTo(0, 0);
-          ctx.quadraticCurveTo(u * 0.28, -u * 0.14, u * 0.34, u * 0.02);
-          ctx.quadraticCurveTo(u * 0.26, u * 0.08, 0, 0); ctx.fill();
-          ctx.restore();
+        gf.addColorStop(0, br === "b" ? "#8c6ad6" : "#2a8fb0"); gf.addColorStop(1, br === "b" ? "#5b3fa0" : "#1f6e8c");
+        ctx.fillStyle = gf; ctx.beginPath(); ctx.arc(x, y, u * (0.26 + tier * 0.014), 0, 7); ctx.fill();
+        if (br === "b") {
+          // Static Zap: a tesla coil — copper windings and live arcs, no blades.
+          ctx.strokeStyle = "#d98b4a"; ctx.lineWidth = Math.max(1.5, u * 0.05);
+          for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(x, y - u * (0.12 + i * 0.1), u * (0.2 - i * 0.03), u * 0.05, 0, 0, 7); ctx.stroke(); }
+          ctx.fillStyle = "#e9dcff"; ctx.beginPath(); ctx.arc(x, y - u * 0.52, u * 0.11, 0, 7); ctx.fill();
+          ctx.strokeStyle = "rgba(200,170,255,0.95)"; ctx.lineWidth = Math.max(1, u * 0.035); ctx.lineCap = "round";
+          for (let k = 0; k < 3; k++) {
+            const a = engine.state.tick * 0.5 + k * 2.1;
+            ctx.beginPath(); ctx.moveTo(x, y - u * 0.52);
+            ctx.lineTo(x + Math.cos(a) * u * 0.2, y - u * 0.52 + Math.sin(a) * u * 0.2);
+            ctx.stroke();
+          }
+        } else {
+          const blades = br === "a" ? 6 : 2 + tier;
+          const spin = engine.state.tick * (br ? 0.24 : 0.14) + t.id;
+          const reach = br === "a" ? 0.42 : 0.3 + tier * 0.014;
+          for (let i = 0; i < blades; i++) {
+            const a = spin + (i * Math.PI * 2) / blades;
+            ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+            const gb = ctx.createLinearGradient(0, 0, u * reach, 0);
+            gb.addColorStop(0, "rgba(232,247,255,0.95)"); gb.addColorStop(1, "rgba(126,220,255,0.35)");
+            ctx.fillStyle = gb;
+            ctx.beginPath(); ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(u * reach * 0.82, -u * 0.14, u * (reach + 0.04), u * 0.02);
+            ctx.quadraticCurveTo(u * reach * 0.76, u * 0.08, 0, 0); ctx.fill();
+            ctx.restore();
+          }
+          if (tier >= 2) { // guard cage
+            ctx.strokeStyle = "rgba(180,225,245,0.7)"; ctx.lineWidth = Math.max(1, u * 0.03);
+            ctx.beginPath(); ctx.arc(x, y, u * (reach + 0.06), 0, 7); ctx.stroke();
+          }
+          if (tier >= 3) { // frost crystals at the compass points
+            ctx.fillStyle = "#dff4ff";
+            for (let i = 0; i < 4; i++) {
+              const a = (i / 4) * Math.PI * 2 + 0.4;
+              ctx.beginPath();
+              ctx.arc(x + Math.cos(a) * u * (reach + 0.06), y + Math.sin(a) * u * (reach + 0.06), u * 0.05, 0, 7);
+              ctx.fill();
+            }
+          }
+          if (br === "a") { // Blizzard: a swirling snow ring
+            ctx.fillStyle = "rgba(230,248,255,0.85)";
+            for (let k = 0; k < 6; k++) {
+              const a = -spin * 0.6 + (k / 6) * Math.PI * 2;
+              ctx.beginPath(); ctx.arc(x + Math.cos(a) * u * 0.56, y + Math.sin(a) * u * 0.56, u * 0.05, 0, 7); ctx.fill();
+            }
+          }
         }
         ctx.fillStyle = "#eaf8ff"; ctx.beginPath(); ctx.arc(x, y, u * 0.08, 0, 7); ctx.fill();
-        ctx.fillStyle = "#1f6e8c"; ctx.beginPath(); ctx.arc(x, y, u * 0.04, 0, 7); ctx.fill();
+        ctx.fillStyle = br === "b" ? "#5b3fa0" : "#1f6e8c"; ctx.beginPath(); ctx.arc(x, y, u * 0.04, 0, 7); ctx.fill();
       } else if (t.lineId === "camp") {
-        // canvas tent with a flag + sandbags
+        // Squad Tent → Barracks → Elite Platoon → Dino Squad / RC Racers.
+        // Growth axis: camp SIZE + defences, then the branch's own outpost.
+        const w = 0.3 + tier * 0.03, h = 0.28 + tier * 0.03;
         ctx.fillStyle = "rgba(0,0,0,0.18)";
         ctx.beginPath(); ctx.ellipse(x, y + u * 0.3, u * 0.42, u * 0.14, 0, 0, 7); ctx.fill();
-        ctx.fillStyle = "#3c7a45";
+        const roof = br === "a" ? "#4f8b3a" : br === "b" ? "#3f5f8b" : "#3c7a45";
+        const roofDk = br === "a" ? "#3d6f2c" : br === "b" ? "#2f4a70" : "#2f6438";
+        ctx.fillStyle = roof;
         ctx.beginPath();
-        ctx.moveTo(x - u * 0.38, y + u * 0.28); ctx.lineTo(x, y - u * 0.34); ctx.lineTo(x + u * 0.38, y + u * 0.28);
+        ctx.moveTo(x - u * w, y + u * 0.28); ctx.lineTo(x, y - u * h); ctx.lineTo(x + u * w, y + u * 0.28);
         ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#2f6438";
+        ctx.fillStyle = roofDk;
         ctx.beginPath();
-        ctx.moveTo(x, y - u * 0.34); ctx.lineTo(x + u * 0.38, y + u * 0.28); ctx.lineTo(x + u * 0.08, y + u * 0.28);
+        ctx.moveTo(x, y - u * h); ctx.lineTo(x + u * w, y + u * 0.28); ctx.lineTo(x + u * 0.08, y + u * 0.28);
         ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#23502e"; // door flap
+        ctx.fillStyle = "#23502e";
         ctx.beginPath();
         ctx.moveTo(x - u * 0.12, y + u * 0.28); ctx.lineTo(x, y - u * 0.02); ctx.lineTo(x + u * 0.12, y + u * 0.28);
         ctx.closePath(); ctx.fill();
+        if (br === "a") { // Dino Squad: scale ridge along the roof + a bone banner
+          ctx.fillStyle = "#c9f06a";
+          for (let i = 0; i < 4; i++) {
+            const f = 0.15 + i * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(x - u * w * (1 - f), y + u * 0.28 - u * (h + 0.28) * f);
+            ctx.lineTo(x - u * w * (1 - f) - u * 0.09, y + u * 0.28 - u * (h + 0.28) * f - u * 0.05);
+            ctx.lineTo(x - u * w * (1 - f), y + u * 0.28 - u * (h + 0.28) * f - u * 0.12);
+            ctx.closePath(); ctx.fill();
+          }
+        }
+        if (br === "b") { // RC Racers: an antenna + a tiny car in the pit lane
+          ctx.strokeStyle = "#cfe2ff"; ctx.lineWidth = Math.max(1, u * 0.03); ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x + u * 0.22, y - u * 0.1); ctx.lineTo(x + u * 0.34, y - u * 0.52); ctx.stroke();
+          ctx.fillStyle = "#ff6f6f"; ctx.beginPath(); ctx.arc(x + u * 0.34, y - u * 0.54, u * 0.05, 0, 7); ctx.fill();
+          ctx.fillStyle = "#e2626b";
+          ctx.beginPath(); ctx.rect(x - u * 0.4, y + u * 0.14, u * 0.2, u * 0.1); ctx.fill();
+          ctx.fillStyle = "#22304a";
+          ctx.beginPath(); ctx.arc(x - u * 0.35, y + u * 0.25, u * 0.05, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(x - u * 0.24, y + u * 0.25, u * 0.05, 0, 7); ctx.fill();
+        }
         ctx.strokeStyle = "#caa268"; ctx.lineWidth = Math.max(1.5, u * 0.05); // pole
-        ctx.beginPath(); ctx.moveTo(x, y - u * 0.34); ctx.lineTo(x, y - u * 0.56); ctx.stroke();
-        ctx.fillStyle = "#e2626b"; // flag
-        ctx.beginPath(); ctx.moveTo(x, y - u * 0.56); ctx.lineTo(x + u * 0.2, y - u * 0.5); ctx.lineTo(x, y - u * 0.42); ctx.closePath(); ctx.fill();
-        // sandbags
+        ctx.beginPath(); ctx.moveTo(x, y - u * h); ctx.lineTo(x, y - u * (h + 0.22)); ctx.stroke();
+        ctx.fillStyle = br === "a" ? "#c9f06a" : br === "b" ? "#eaf2ff" : "#e2626b"; // flag (checkered for RC)
+        ctx.beginPath(); ctx.moveTo(x, y - u * (h + 0.22)); ctx.lineTo(x + u * 0.2, y - u * (h + 0.16)); ctx.lineTo(x, y - u * (h + 0.08)); ctx.closePath(); ctx.fill();
+        if (br === "b") { ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.rect(x + u * 0.05, y - u * (h + 0.2), u * 0.06, u * 0.06); ctx.fill(); }
+        // sandbags: more of them as the camp grows
         ctx.fillStyle = "#9c7a52";
-        for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.ellipse(x + i * u * 0.2, y + u * 0.28, u * 0.11, u * 0.07, 0, 0, 7); ctx.fill(); }
+        const bags = 1 + tier;
+        for (let i = 0; i < bags; i++) {
+          const off = (i - (bags - 1) / 2) * u * 0.19;
+          ctx.beginPath(); ctx.ellipse(x + off, y + u * 0.28, u * 0.11, u * 0.07, 0, 0, 7); ctx.fill();
+        }
+        if (tier >= 3) { // a lookout post on the left
+          ctx.fillStyle = "#6b4f2c";
+          ctx.beginPath(); ctx.rect(x - u * 0.46, y - u * 0.16, u * 0.12, u * 0.44); ctx.fill();
+          ctx.fillStyle = "#8a6a3c";
+          ctx.beginPath(); ctx.rect(x - u * 0.52, y - u * 0.28, u * 0.24, u * 0.14); ctx.fill();
+        }
       }
-      // tier pips
-      ctx.fillStyle = "#ffe27a";
-      for (let i = 0; i < t.tier; i++) {
-        ctx.beginPath(); ctx.arc(x - u * 0.2 + i * u * 0.14, y + u * 0.42, u * 0.045, 0, 7); ctx.fill();
+      // tier pips — a tier-4 branch gets a crown instead of a fourth dot
+      if (tier >= 4) {
+        ctx.fillStyle = "#ffd94a";
+        ctx.beginPath();
+        ctx.moveTo(x - u * 0.16, y + u * 0.46); ctx.lineTo(x - u * 0.16, y + u * 0.38);
+        ctx.lineTo(x - u * 0.06, y + u * 0.44); ctx.lineTo(x, y + u * 0.34);
+        ctx.lineTo(x + u * 0.06, y + u * 0.44); ctx.lineTo(x + u * 0.16, y + u * 0.38);
+        ctx.lineTo(x + u * 0.16, y + u * 0.46);
+        ctx.closePath(); ctx.fill();
+      } else {
+        ctx.fillStyle = "#ffe27a";
+        for (let i = 0; i < tier; i++) {
+          ctx.beginPath(); ctx.arc(x - u * 0.2 + i * u * 0.14, y + u * 0.42, u * 0.045, 0, 7); ctx.fill();
+        }
       }
       // jammed by The Static: a pulsing red crackle so the player sees the gun is down
       if (t.disabledUntil && engine.state.tick < t.disabledUntil) {

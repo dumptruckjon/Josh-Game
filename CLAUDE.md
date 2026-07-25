@@ -1377,6 +1377,45 @@ power is waiting for ("⚡ Tap one of your towers") or why a tap was refused ("�
 No soldiers to rally — build an Army Guys camp first"). Lesson: a feature whose
 tests all call the API directly is untested as a FEATURE — drive it through the
 button, and ask what the screen actually tells the player.
+**A control that FLOATS over the playfield is a tap thief — and a per-tier
+upgrade that doesn't change the sprite is an invisible purchase.** Two user
+reports, one root cause each. (1) "The summon next wave yellow button is now
+placed poorly behind the power up buttons": CALL (z-index 6) and the TD-9 power
+strip (z-index 7) both floated bottom-left, so the strip sat ON the button. The
+first fix — make them mutually exclusive in time (powers are wave-only, CALL is
+build-only) — was right but incomplete, because generalising the shipped
+"no pad hides under CALL" audit from CALL to EVERY floating control immediately
+found **8 more maps with a pad buried under the power strip** (building is legal
+mid-wave, so that tap is genuinely eaten). A search over 24 anchor × layout
+combinations proved **no floating position buries zero pads** — pads hug the
+lanes across the whole board — so the strip left the battlefield entirely: it is
+now a real layout ROW under the field in portrait (which is WIDTH-limited, so
+~150px below the canvas was dead space and the field does not shrink at all) and
+an absolutely-positioned COLUMN in the landscape side gutter (landscape is
+HEIGHT-limited but the 24×14 board leaves wide gutters). `resize()` now
+subtracts any IN-FLOW sibling below the field generically (an absolutely
+positioned one costs nothing), so a future in-flow control is accounted for
+instead of silently pushing the page taller. During build the strip goes INERT
+(dimmed + `pointer-events: none`) rather than hidden, so the field never resizes
+at a phase boundary — and a power armed mid-wave is disarmed when the wave ends
+(the stale-rally-arm class). Kid Fort is the one documented exception: its ≥75px
+buttons are a 172×180 block that would eat a third of Josh's field, so it keeps
+floating — safe only because the `kid` difficulty is `noLose`. The audit is now
+three laws: nothing may bury a pad or the lever during BUILD (a pad buried there
+is permanently unbuildable), the lever must be clear mid-wave too, and a fenced
+count for the residual. (2) "I want towers to look visibly different each level
+up they get": only the Dart changed at all (barrel count); mortar, fan and camp
+drew the IDENTICAL sprite at tiers 1-3, and a 300-gold tier-4 branch looked
+exactly like the tier-3 it replaced. Each line now grows along its own axis
+(barrels → tube length + iron bands → blade count + guard cage → camp size +
+lookout), gains a plinth at T2 and a bolted skirt at T3, and all six branches are
+their own silhouette (sniper bipod, spinning minigun, Bertha's muzzle brake,
+dripping honey pot, six-blade blizzard, a purple tesla coil, a scaled dino ridge,
+an RC pit lane with a checkered flag), with a crown replacing the fourth pip. The
+guardrail is generic and pixel-based: it renders each variant alone, hashes the
+canvas around it, and fails if any tier matches the tier below or either branch
+matches tier 3 or its sibling — so a future tower line cannot ship without tier
+art.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

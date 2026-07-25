@@ -188,10 +188,20 @@ body.td-mode #screens { padding: 0; }
 /* TD-9 ability strip — the in-WAVE controls, floating up the left of the field.
    Grid (not flex) for the gap: flex-gap is DROPPED on iOS 14.2 (Safari 14.0),
    which would collapse the spacing on Josh's actual device. */
+/* OFF the battlefield, by law. A control floating over the canvas eats field
+   taps — measured across all 20 maps × both orientations, NO anchor × layout for
+   a 4-button strip buries zero pads (best was 12, the old left column 27), and a
+   bottom row also hid the exit corridor where leaks happen. So the strip is a
+   real layout ROW under the field: portrait is WIDTH-limited (the canvas leaves
+   ~150px of dead space below it), so this costs no field size at all.
+   Landscape is height-limited but has wide side gutters — see the media query. */
 .td-abils {
-  position: absolute; left: 6px; bottom: 6px; z-index: 7;
-  display: grid; grid-auto-flow: row; gap: 8px;
+  display: grid; grid-auto-flow: column; gap: 8px;
+  justify-content: center; margin: 8px auto 0;
 }
+/* Powers are wave-only, so during BUILD they go inert — dimmed and untappable,
+   but STILL LAID OUT, so the field never resizes at a phase boundary. */
+.td-abils--idle { opacity: 0.32; pointer-events: none; }
 .td-abils[hidden] { display: none; }
 .td-abil {
   position: relative; width: 52px; height: 52px; min-width: 52px; min-height: 52px;
@@ -212,6 +222,18 @@ body.td-mode #screens { padding: 0; }
 .td-abil--poor { opacity: 0.55; }
 .td-abil--armed { border-color: #ffd94a; box-shadow: 0 0 0 3px rgba(255, 217, 74, 0.45); }
 .td-abil:active { transform: scale(0.96); }
+
+/* Landscape: the field is HEIGHT-limited, so a row under it would shrink the
+   battlefield. It has wide empty side gutters instead (a 24×14 board is far
+   wider than tall), so the strip becomes a column parked in the right gutter —
+   absolutely positioned, costing zero layout height. */
+@media (orientation: landscape) {
+  .td-abils {
+    position: absolute; right: 8px; top: 50%;
+    -webkit-transform: translateY(-50%); transform: translateY(-50%);
+    grid-auto-flow: row; margin: 0; z-index: 7;
+  }
+}
 
 /* boss klaxon banner — a big transient reveal across the field */
 .td-banner {
@@ -432,7 +454,16 @@ body.td-mode #screens { padding: 0; }
 body.td-kid .td-mini { width: 76px; height: 76px; min-width: 76px; min-height: 76px; font-size: 1.7rem; }
 body.td-kid .td-btn { min-height: 76px; min-width: 110px; font-size: 1.2rem; }
 body.td-kid .td-abil { width: 78px; height: 82px; min-width: 78px; min-height: 78px; }
-body.td-kid .td-abils { gap: 16px; }
+/* Kid buttons are ≥75px (RULE 5), so a 4-wide row is 360px — wider than a 320px
+   phone. It wraps to 2×2, and unlike the adult strip it FLOATS over the field:
+   an in-flow 180px-tall block would shrink Josh's battlefield by a third. That
+   is a safe trade only here — the kid difficulty carries `noLose`, so a pad
+   under a button can never cost him anything. */
+body.td-kid .td-abils {
+  gap: 16px; grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr));
+  position: absolute; right: 14px; bottom: 18px; top: auto; margin: 0; z-index: 7;
+  -webkit-transform: none; transform: none;
+}
 body.td-kid .td-abil__icon { font-size: 1.7rem; }
 body.td-kid .td-buy, body.td-kid .td-up, body.td-kid .td-sell,
 body.td-kid .td-target, body.td-kid .td-branch, body.td-kid .td-rally { min-height: 76px; min-width: 92px; font-size: 1.05rem; }

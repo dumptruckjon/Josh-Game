@@ -939,10 +939,15 @@ test("stars are PER-DIFFICULTY: a normal win never lights the other ladders (ind
 });
 
 
-test("AUDIT: no pad hides under the floating CALL button (every map, both orientations)", async () => {
-  // The CALL button floats over the field; an HTML button eats the tap, so a pad
-  // whose centre sits under it is UNBUILDABLE (L4's two end pads + endless
-  // backyard's corner pad were, in portrait; L7's corner pad in landscape).
+test("AUDIT: no pad hides under ANY floating field control (every map, both orientations)", async () => {
+  // An HTML button floating over the canvas EATS the tap, so a pad whose centre
+  // sits under it is UNBUILDABLE (L4's two end pads + endless backyard's corner
+  // pad were, in portrait; L7's corner pad in landscape; L15's p2 in landscape).
+  // Generalised from CALL alone to EVERY floating control, because building is
+  // legal during a wave (`place` only refuses when the run is over) — so the
+  // wave-phase POWER STRIP can bury a pad exactly the same way. Each control is
+  // measured in the phase where it is actually on screen.
+  const waveBuried = [];
   for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
     await page.setViewportSize(vp);
     await page.evaluate(() => { location.hash = "#td-play"; });
@@ -956,26 +961,115 @@ test("AUDIT: no pad hides under the floating CALL button (every map, both orient
       ...Object.keys(window.TDData.ENDLESS.worlds).map((w) => ({ endless: w })),
     ]);
     for (const m of maps) {
-      const overlaps = await page.evaluate((mm) => {
+      const res = await page.evaluate((mm) => {
         if (mm.endless) window.__TD.startEndless(mm.endless); else window.__TD.newGame(mm.id, { seed: 7 });
         const r = window.__TD.render(); r.resize(); r.draw(0);
-        const canvas = document.querySelector("#screen-td-play .td-canvas").getBoundingClientRect();
-        const call = document.querySelector("#screen-td-play .td-call");
-        if (!call || call.hidden) return [];
-        const b = call.getBoundingClientRect();
-        const out = [];
-        for (const p of window.__TD.engine().levelDef.pads) {
-          const sp = window.__TD.w2s(p.cx + 0.5, p.cy + 0.5);
-          const x = canvas.x + sp.x, y = canvas.y + sp.y;
-          if (x >= b.x - 4 && x <= b.x + b.width + 4 && y >= b.y - 4 && y <= b.y + b.height + 4) out.push(window.__TD.engine().levelDef.name + " " + p.id);
-        }
-        return out;
+        const name = window.__TD.engine().levelDef.name;
+        const hits = (label) => {
+          const out = [];
+          const canvas = document.querySelector("#screen-td-play .td-canvas").getBoundingClientRect();
+          const ctrls = document.querySelectorAll("#screen-td-play .td-call, #screen-td-play .td-abil");
+          const targets = window.__TD.engine().levelDef.pads.map((p) => ({ id: p.id, cx: p.cx, cy: p.cy }));
+          const lv = window.__TD.engine().levelDef.lever;
+          if (lv) targets.push({ id: "the LEVER", cx: lv.cx, cy: lv.cy });
+          for (const c of ctrls) {
+            if (c.hidden || c.offsetParent === null) continue;
+            const b = c.getBoundingClientRect();
+            if (!b.width || !b.height) continue;
+            for (const p of targets) {
+              const sp = window.__TD.w2s(p.cx + 0.5, p.cy + 0.5);
+              const x = canvas.x + sp.x, y = canvas.y + sp.y;
+              if (x >= b.x - 4 && x <= b.x + b.width + 4 && y >= b.y - 4 && y <= b.y + b.height + 4) {
+                out.push(name + " " + p.id + " under " + label);
+              }
+            }
+          }
+          return out;
+        };
+        const build = hits("a BUILD-phase control");    // build phase: CALL is up, the strip is not
+        window.__TD.script([["call"], ["tick", 20]]);   // wave phase: the strip is up, CALL is not
+        window.TDUI.hud(window.__TD.state());
+        return { build, wave: hits("a power button") };
       }, m);
-      assert.deepEqual(overlaps, [], `${vp.width}x${vp.height}: pads under the CALL button: ${overlaps.join(", ")}`);
+      // HARD LAW: nothing may hide a pad (or the lever) during BUILD. That is the
+      // phase towers are placed in, so a pad buried here is permanently
+      // unbuildable — the original defect class.
+      assert.deepEqual(res.build, [], `${vp.width}x${vp.height}: buried during BUILD: ${res.build.join(", ")}`);
+      // The lever is thrown mid-WAVE, so it must be clear in that phase too.
+      const lever = res.wave.filter((s) => s.indexOf("the LEVER") >= 0);
+      assert.deepEqual(lever, [], `${vp.width}x${vp.height}: the lever is buried mid-wave: ${lever.join(", ")}`);
+      waveBuried.push(...res.wave);
     }
   }
+  // REGRESSION FENCE, stated honestly: building is legal mid-wave, and pads hug
+  // the lanes across the whole board, so NO anchor × layout for a 4-button strip
+  // buries zero pads (searched all 24 combinations: the best, this bottom-right
+  // row, buries 12; the old left column buried 27). Every one of these pads is
+  // still fully buildable during the build phase — the loss is only that this
+  // handful can't be tapped WHILE the strip is up. The fence stops that number
+  // creeping back up.
+  assert.ok(waveBuried.length <= 12,
+    `the power strip buries ${waveBuried.length} pad centres mid-wave (budget 12): ${waveBuried.join(", ")}`);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("the POWER strip lives OFF the battlefield, and never fights the CALL button", async () => {
+  // "The summon next wave yellow button is now placed poorly behind the power up
+  // buttons" — both floated bottom-left, and the strip (z-index 7) sat on top of
+  // CALL (z-index 6). The strip is now a layout row under the field (a column in
+  // the landscape gutter), so it cannot overlap CALL — or anything on the field.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 3 }); });
+  await page.waitForTimeout(80);
+  const geom = () => page.evaluate(() => {
+    const r = (s) => { const el = document.querySelector("#screen-td-play " + s); if (!el || el.hidden) return null; const b = el.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+    return {
+      phase: window.__TD.state().phase,
+      call: r(".td-call"), abils: r(".td-abils"), canvas: r(".td-canvas"),
+      idle: document.querySelector("#screen-td-play .td-abils").classList.contains("td-abils--idle"),
+    };
+  });
+  const hit = (a, b) => !!a && !!b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 320, height: 700 }]) {
+    await page.setViewportSize(vp);
+    await page.evaluate(() => { const r = window.__TD.render(); r.resize(); r.draw(0); });
+    await page.waitForTimeout(60);
+    const g = await geom();
+    assert.ok(!hit(g.abils, g.canvas), `${vp.width}x${vp.height}: the power strip never overlaps the battlefield`);
+    assert.ok(!hit(g.abils, g.call), `${vp.width}x${vp.height}: …and never overlaps the CALL button`);
+    assert.ok(g.abils.x >= -1 && g.abils.x + g.abils.w <= vp.width + 1, `${vp.width}x${vp.height}: the strip is fully on screen`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { const r = window.__TD.render(); r.resize(); r.draw(0); });
+  // Build phase: powers are INERT (dimmed, untappable) — not hidden, so the
+  // field cannot resize at a phase boundary.
+  const build = await geom();
+  assert.equal(build.phase, "build");
+  assert.ok(build.idle, "build phase: the power strip is inert");
+  assert.ok(build.call, "…and CALL is up");
+  const fieldInBuild = build.canvas.h;
+  await page.evaluate(() => { window.__TD.script([["call"], ["tick", 20]]); window.TDUI.hud(window.__TD.state()); });
+  const wave = await geom();
+  assert.equal(wave.phase, "wave");
+  assert.ok(!wave.idle, "wave phase: the power strip is live");
+  assert.equal(wave.call, null, "…and CALL is gone");
+  assert.equal(wave.canvas.h, fieldInBuild, "the battlefield does NOT resize when the strip wakes up");
+
+  // …and a power armed mid-wave must DISARM when the wave ends, or it eats the
+  // first pad tap of the next build phase (the stale-rally-arm class).
+  await page.evaluate(() => {
+    window.__TD.grantGold(3000);
+    window.TDUI.hud(window.__TD.state());
+  });
+  await page.locator('.td-abil[data-abil="sticky"]').click();
+  assert.ok(await page.evaluate(() => document.querySelector('.td-abil[data-abil="sticky"]').classList.contains("td-abil--armed")),
+    "the power really is armed");
+  await page.evaluate(() => { window.__TD.script([["untilPhase", "build", 200000]]); window.TDUI.hud(window.__TD.state()); });
+  await page.waitForTimeout(60);
+  assert.ok(await page.evaluate(() => !document.querySelector('.td-abil[data-abil="sticky"]').classList.contains("td-abil--armed")),
+    "the wave ending disarmed it");
 });
 
 test("TD-14 backup: the fort save exports as text and a BAD paste changes nothing", async () => {
@@ -1149,6 +1243,11 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
   const strip = page.locator("#screen-td-play .td-abils .td-abil");
   const n = await page.evaluate(() => window.TDData.ABILITIES.length);
   assert.equal(await strip.count(), n, `the field carries all ${n} ability buttons`);
+
+  // Powers are wave-only, so the strip only exists once the wave is walking —
+  // in build phase the corner belongs to CALL.
+  await page.evaluate(() => { window.__TD.script([["call"], ["tick", 150]]); window.TDUI.hud(window.__TD.state()); });
+
   // Adult-sized (the fort is Jon's space) and inside the field, not off-screen.
   const box = await strip.first().boundingBox();
   const cbox = await page.locator("#screen-td-play .td-canvas").boundingBox();
@@ -1166,7 +1265,6 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
   // Rich, in a REAL wave with enemies on the field (a blast that would hit
   // nothing is now refused outright rather than quietly charging you).
   await page.evaluate(() => {
-    window.__TD.script([["call"], ["tick", 150]]);
     window.__TD.grantGold(2000);
     window.TDUI.abilities(window.__TD.state(), null);
   });
@@ -1319,6 +1417,60 @@ test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTH
   assert.deepEqual(kidAfter, KID_KEYS, "the fort reset must leave every josh-* key untouched (independent worlds)");
   await page.evaluate((k) => { for (const key in k) localStorage.removeItem(key); }, KID_KEYS);
   await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("ART: every tower TIER draws differently, and each tier-4 branch is its own machine", async () => {
+  // "I want towers to look visibly different each level up they get." Before this
+  // pass only the Dart changed at all (barrel count); mortar/fan/camp drew the
+  // IDENTICAL sprite at every tier, and a tier-4 branch was indistinguishable
+  // from the tier-3 it cost 300 gold to become. This is the generic guardrail: it
+  // renders each variant alone on the field and hashes the pixels around it, so
+  // any line that ships without per-tier art fails — including future ones.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 5 }); });
+  await page.waitForTimeout(80);
+  const sigs = await page.evaluate(() => {
+    const st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const ctx = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const out = {};
+    for (const line of Object.keys(window.TDData.TOWERS)) {
+      for (const v of [1, 2, 3, "a", "b"]) {
+        st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
+        st.towers.push({
+          id: 1, lineId: line, tier: typeof v === "number" ? v : 4,
+          branch: typeof v === "number" ? "" : v, padId: "art", cx: 6, cy: 6,
+          cooldown: 0, targetId: 0, zapAcc: 0, heat: 0, targeting: "first",
+          spent: 0, rallyX: 0, rallyY: 0, disabledUntil: 0,
+        });
+        r.draw(0); // tick is frozen (the run is paused), so spinning art is stable
+        const p = window.__TD.w2s(6.5, 6.5);
+        const half = 44;
+        const d = ctx.getImageData(
+          Math.max(0, Math.round((p.x - half) * dpr)), Math.max(0, Math.round((p.y - half) * dpr)),
+          Math.round(half * 2 * dpr), Math.round(half * 2 * dpr)
+        ).data;
+        let h = 5381;
+        for (let i = 0; i < d.length; i += 4) h = ((h * 33) ^ (d[i] + d[i + 1] * 3 + d[i + 2] * 7 + d[i + 3] * 11)) >>> 0;
+        out[line + ":" + v] = h;
+      }
+    }
+    st.towers.length = 0;
+    return out;
+  });
+  const lines = await page.evaluate(() => Object.keys(window.TDData.TOWERS));
+  for (const line of lines) {
+    const s = (v) => sigs[line + ":" + v];
+    assert.notEqual(s(1), s(2), `${line}: tier 2 must look different from tier 1`);
+    assert.notEqual(s(2), s(3), `${line}: tier 3 must look different from tier 2`);
+    assert.notEqual(s(1), s(3), `${line}: tier 3 must look different from tier 1`);
+    assert.notEqual(s(3), s("a"), `${line}: the A branch must look different from tier 3`);
+    assert.notEqual(s(3), s("b"), `${line}: the B branch must look different from tier 3`);
+    assert.notEqual(s("a"), s("b"), `${line}: the two tier-4 branches must not look alike`);
+  }
 });
 
 test("no uncaught page errors in the fort run", () => {

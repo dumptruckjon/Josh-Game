@@ -299,6 +299,10 @@
       if (st.waveIdx > 0) sfx("cleared");                       // you survived one
       if (st.lives <= 5 && !cur.warned) { cur.warned = true; sfx("lowlives"); } // the door is nearly down
     }
+    // The power strip is wave-only, so a wave ending must DISARM — otherwise a
+    // half-armed power survives into the build phase (where its strip is hidden)
+    // and silently eats the first pad tap. Same class as the stale rally arm.
+    if (st.phase !== "wave" && cur.abilArmId) { cur.abilArmId = null; UI.abilityHint(""); }
     if (st.phase === "won") {
       stopLoop();
       if (!st.cheated) {

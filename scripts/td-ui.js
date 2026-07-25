@@ -81,10 +81,13 @@
         '<div class="td-nextwave" aria-live="polite" hidden></div>' +
         '<div class="td-banner" aria-live="assertive" hidden></div>' +
         '<button class="td-btn td-btn--call td-call" type="button" aria-label="Call the next wave">▶ CALL</button>' +
-        // TD-9: the in-WAVE control strip. Adult-sized, floats over the field so
-        // portrait still needs zero scrolling.
-        '<div class="td-abils" role="group" aria-label="Abilities"></div>' +
-      "</div>";
+      "</div>" +
+      // TD-9: the in-WAVE control strip. It lives OUTSIDE the canvas wrap — a
+      // real layout row under the field in portrait (where there is dead space,
+      // because portrait is width-limited) and a column in the side gutter in
+      // landscape. A control that floats over the battlefield eats field taps
+      // (pads, the lever) and hides the exit corridor where leaks happen.
+      '<div class="td-abils" role="group" aria-label="Abilities"></div>';
     screens.appendChild(play);
     play.querySelector(".td-quit").addEventListener("click", hooks.quitToFort);
     play.querySelector(".td-pause").addEventListener("click", hooks.togglePause);
@@ -566,6 +569,11 @@
     if (!wrap) return;
     const over = state.phase === "won" || state.phase === "lost";
     wrap.hidden = over;
+    // Powers are WAVE-only (the engine refuses `not-in-wave`). During build they
+    // go INERT rather than hidden: dimmed and untappable, so a build-phase tap
+    // can never be a mystery refusal — but still laid out, so the field does not
+    // resize at every phase boundary.
+    wrap.classList.toggle("td-abils--idle", state.phase !== "wave");
     for (const b of wrap.querySelectorAll(".td-abil")) {
       const def = (global.TDData.ABILITIES || []).find((a) => a.id === b.dataset.abil);
       if (!def) continue;
