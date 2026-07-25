@@ -556,7 +556,7 @@
       const levelWon = !endlessWorld && state.waveIdx >= waves.length;
       if (!levelWon) {
         for (let n = clearedFrom + 1; n <= state.waveIdx; n++) {
-          if (mods.allowance) state.gold += mods.allowance; // 💵 Allowance
+          if (mods.allowance) { state.gold += mods.allowance; state.goldEarned += mods.allowance; } // 💵 Allowance
           if (mods.patchKit && n % 5 === 0) state.lives = Math.min(R.lives + mods.lives, state.lives + 1); // 🩹 Patch Kit
         }
       }
@@ -1144,6 +1144,10 @@
       const info = callInfo();
       if (!info.ok) return { ok: false, reason: info.reason };
       state.gold += info.bonus;
+      // The run summary reports "gold earned", and this is real income — on a
+      // run that always calls early it is hundreds of gold. It used to count
+      // bounties only, so the line understated a third of what you made.
+      state.goldEarned += info.bonus;
       state.countdown = 0;
       state.lastCallTick = state.tick;
       startWave();

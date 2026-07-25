@@ -2633,3 +2633,24 @@ test("AUDIT heroic: the air-pressure level is winnable on EVERY seed, not most",
   const avg = lives.reduce((a, b) => a + b, 0) / lives.length;
   assert.ok(avg < 15, `…and still tense on heroic (avg ${avg.toFixed(1)} lives — above 15 means it stopped being hard)`);
 });
+
+test("AUDIT stats: 'gold earned' counts every source, not just bounties", () => {
+  // The summary's gold line tallied kills only, so the early-call bonus and the
+  // 💵 Allowance — hundreds of gold on a run that always calls early — were
+  // missing from a number the player reads as their income for the run.
+  const e = TD.createEngine(L1, { seed: 5, meta: ["allowance"] });
+  const before = e.state.goldEarned;
+  const info = e.callInfo();
+  assert.ok(info.bonus > 0, `calling early really pays a bonus (${info.bonus})`);
+  assert.ok(e.callWave().ok, "the wave went out");
+  assert.equal(e.state.goldEarned - before, info.bonus, "the early-call bonus is counted as earned");
+  // …and the Allowance on a cleared wave
+  e.state.gold = 9e5;
+  for (const p of L1.pads) e.place("dart", p.id);
+  let g = 0;
+  const atWave = e.state.goldEarned;
+  while (e.state.phase === "wave" && g++ < 100000) e.tick();
+  assert.equal(e.state.waveIdx, 1, "wave 1 cleared");
+  const gained = e.state.goldEarned - atWave;
+  assert.ok(gained >= 12, `the wave's bounties AND the 12g Allowance are counted (${gained})`);
+});
