@@ -260,9 +260,44 @@
           retry: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: st.seed }); },
           retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: (Date.now() % 100000) }); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
-        });
+          guide: (type) => { UI.closeOverlay(); UI.showGuide(type); },
+        }, null, postMortem());
       }
     }
+  }
+
+  // TD-12: what actually killed this run. Built from the leaks we recorded as
+  // events drained, plus the lines actually on the board — so it can name the
+  // real problem ("14 fliers got through and you had nothing that reaches air")
+  // instead of the old flavour-only "the toys got sleepy".
+  function postMortem() {
+    if (!cur) return null;
+    const leaks = cur.leaks || {};
+    const types = Object.keys(leaks).sort((a, b) => leaks[b] - leaks[a]);
+    if (!types.length) return null;
+    const lines = {};
+    for (const t of cur.engine.state.towers) lines[t.lineId] = true;
+    const built = Object.keys(lines);
+    let advice = null, focus = types[0];
+    // The counter matrix, read the same way the guide reads it.
+    for (const t of types) {
+      const def = DATA.ENEMIES[t];
+      if (!def) continue;
+      const reach = TD.reachedBy(def);
+      if (built.length && !reach.some((r) => lines[r])) {
+        advice = "Nothing you built could even reach the " + def.name + ". Try: " + reach.join(" or ") + ".";
+        focus = t; break;
+      }
+      if (def.splashResist && built.length === 1 && built[0] === "mortar") { advice = "The " + def.name + " soaks splash — bring single-target damage."; focus = t; break; }
+      if (def.slowHeal && built.length === 1 && built[0] === "fan") { advice = "The " + def.name + " regrows while slowed — slows alone can't kill it."; focus = t; break; }
+      if (def.armor >= 0.5 && built.length === 1 && built[0] === "dart") { advice = "The " + def.name + " is armored — a dart's bonk lands at half. The Fan's zap ignores armor."; focus = t; break; }
+    }
+    return {
+      wave: cur.leakWave || cur.engine.state.waveIdx + 1,
+      rows: types.slice(0, 4).map((t) => ({ type: t, icon: (DATA.ENEMIES[t] || {}).icon || "•", name: (DATA.ENEMIES[t] || {}).name || t, n: leaks[t] })),
+      total: types.reduce((a, t) => a + leaks[t], 0),
+      advice, focus,
+    };
   }
 
   function drainEvents() {
@@ -272,7 +307,15 @@
       if (e.type === "shoot") sfx("shoot", e.tower);
       else if (e.type === "hit" && e.crit) sfx("crit");
       else if (e.type === "die") { sfx("die"); if (!cur.sawKill && !cur.engine.state.cheated) { cur.sawKill = true; earnAch("firstblood"); } }
-      else if (e.type === "leak") { sfx("leak"); cur.leaked = true; }
+      else if (e.type === "leak") {
+        sfx("leak"); cur.leaked = true;
+        // TD-12 post-mortem: WHICH toy got through, and on which wave. The
+        // defeat screen used to say only "the toys got sleepy" — no diagnosis
+        // at all — even though the engine already emits everything needed.
+        cur.leaks = cur.leaks || {};
+        cur.leaks[e.enemy] = (cur.leaks[e.enemy] || 0) + 1;
+        cur.leakWave = cur.engine.state.waveIdx + 1;
+      }
       else if (e.type === "soldier-down") cur.soldiersLost += 1; // TD-5 Dyson Denied tracking
       else if (e.type === "wave") sfx("wave");
       else if (e.type === "chain") sfx("chain");

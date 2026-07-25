@@ -740,5 +740,29 @@ test("guardrail: the fort reset has one owner, forces past the merge, and covers
   // ONE toast implementation, and it mounts on the screen that is actually visible.
   assert.match(tdu, /UI\.notice = function/, "there is one toast implementation");
   assert.match(tdu, /UI\.toast = function \(icon, name\) \{ return UI\.notice\(/, "the badge toast delegates to it");
-  assert.match(tdu, /\(play && !play\.hidden\) \? play :/, "a toast mounts on the VISIBLE screen (a fort-home toast must be seen)");
+  // The visible-screen rule now lives in ONE chooser shared by the toast AND
+  // every overlay (see the hostScreen guardrail below) — the toast just uses it.
+  assert.match(tdu, /const host = hostScreen\(\);/, "a toast mounts on the VISIBLE screen (a fort-home toast must be seen)");
+});
+
+// RULE 7 — an overlay parked on a HIDDEN screen is itself hidden. The guide,
+// opened from the defeat overlay on the play screen, rendered as nothing until
+// every overlay host went through one visible-screen chooser (the same class as
+// the toast that hard-coded #screen-td-play).
+test("guardrail: every fort overlay mounts on the VISIBLE screen, via one chooser", () => {
+  const tdu = read("scripts/td-ui.js");
+  assert.match(tdu, /function hostScreen\(\)/, "there is ONE host chooser");
+  assert.match(tdu, /if \(play && !play\.hidden\) return play;/, "it prefers the play screen only when it is visible");
+  assert.ok(!/doc\.getElementById\("screen-td-play"\)\.appendChild\(el\)/.test(tdu),
+    "no overlay may hard-code the play screen as its host");
+  assert.ok(!/doc\.getElementById\("screen-td-home"\)\.appendChild\(el\)/.test(tdu),
+    "no overlay may hard-code the home screen as its host");
+  const css = read("styles/td.css");
+  assert.match(css, /#screen-td-play, #screen-td-home \{ position: relative; \}/,
+    "both hosts are positioning contexts, or an absolutely-positioned overlay escapes them");
+  // The guide is DERIVED from engine data, never a hand-written table that could drift.
+  assert.match(tdu, /L\.reachedBy\(d\)/, "the guide reads reachedBy from the engine");
+  assert.match(tdu, /L\.enemyTraits\(d\)/, "…and enemyTraits, so a new enemy explains itself");
+  const tdl = read("scripts/td-logic.js");
+  assert.match(tdl, /enemyTraits, reachedBy/, "both are exported for the guide AND the tests");
 });

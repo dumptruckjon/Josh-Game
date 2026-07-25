@@ -35,6 +35,7 @@
         '<button class="td-metabtn td-tree-open" type="button">⭐ Star Tree</button>' +
         '<button class="td-metabtn td-ach-open" type="button">🏅 Badges</button>' +
         '<button class="td-metabtn td-endless-open" type="button">♾️ Endless</button>' +
+        '<button class="td-metabtn td-guide-open" type="button">📖 Guide</button>' +
       "</div>" +
       '<div class="td-levels" role="list"></div>' +
       '<p class="td-note">12 levels across 3 worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers) and three bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>' +
@@ -48,6 +49,7 @@
     home.querySelector(".td-tree-open").addEventListener("click", hooks.openTree);
     home.querySelector(".td-ach-open").addEventListener("click", hooks.openAchievements);
     home.querySelector(".td-endless-open").addEventListener("click", hooks.openEndless);
+    home.querySelector(".td-guide-open").addEventListener("click", () => UI.showGuide());
     home.querySelector(".td-reset-open").addEventListener("click", () => UI.showResetGate(hooks.resetFort));
 
     // Play screen
@@ -254,13 +256,61 @@
     return el;
   };
 
+  // ---- TD-12 Toybox Guide: the counter matrix, finally visible ----
+  // Every enemy card is BUILT from TDLogic.enemyTraits/reachedBy, which read the
+  // enemy's own data fields — so a new enemy or a new trait explains itself and
+  // the guide can never drift from the engine.
+  UI.showGuide = function (focusType) {
+    const L = global.TDLogic, E = global.TDData.ENEMIES, T = global.TDData.TOWERS;
+    const LINE = { dart: "🎯", mortar: "💥", fan: "❄", camp: "🪖" };
+    const order = Object.keys(E);
+    const card = (type) => {
+      const d = E[type];
+      if (!d) return "";
+      const reach = L.reachedBy(d).map((k) => LINE[k] || k).join(" ");
+      const traits = L.enemyTraits(d).map((t) => '<li><span class="td-guide__tico">' + t.icon + "</span>" + t.text + "</li>").join("");
+      return '<div class="td-guide__card' + (focusType === type ? " td-guide__card--focus" : "") + '" data-enemy="' + type + '">' +
+        '<div class="td-guide__head"><span class="td-guide__icon">' + d.icon + "</span>" +
+          '<span class="td-guide__name">' + d.name + "</span></div>" +
+        '<p class="td-guide__stats">❤ ' + d.hp + " · 🏃 " + d.speed + (d.armor ? " · 🛡 " + Math.round(d.armor * 100) + "%" : "") + (d.shield ? " · 🔋 " + d.shield : "") + " · 🪙 " + d.bounty + "</p>" +
+        '<p class="td-guide__reach">Can be hit by: ' + reach + "</p>" +
+        "<ul class=\"td-guide__traits\">" + traits + "</ul></div>";
+    };
+    const towerRow = Object.keys(T).map((k) =>
+      '<li><span class="td-guide__tico">' + (LINE[k] || "•") + "</span><b>" + T[k].name + "</b> — " + (T[k].role || "") +
+      (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") + "</li>").join("");
+    const el = metaOverlay("td-overlay--guide",
+      "<h3>📖 Toybox Guide</h3>" +
+      '<p class="td-overlay__sub">What each toy does — and what can actually hit it.</p>' +
+      '<ul class="td-guide__towers">' + towerRow + "</ul>" +
+      '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
+      '<button class="td-btn td-guide-done" type="button">Done</button>');
+    el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);
+    if (focusType) {
+      const f = el.querySelector('.td-guide__card[data-enemy="' + focusType + '"]');
+      if (f && f.scrollIntoView) f.scrollIntoView({ block: "center" });
+    }
+    return el;
+  };
+
+  // THE host for anything that floats over the fort: the screen that is actually
+  // VISIBLE. An overlay parked on a hidden screen is itself hidden — that is how
+  // the guide, opened from the defeat overlay on the PLAY screen, rendered as
+  // nothing (caught by a browser test, invisible to reading the code).
+  function hostScreen() {
+    const play = doc.getElementById("screen-td-play"), fort = doc.getElementById("screen-td-home");
+    if (play && !play.hidden) return play;
+    if (fort && !fort.hidden) return fort;
+    return play || fort;
+  }
   function metaOverlay(cls, html) {
     let el = doc.querySelector(".td-overlay");
     if (el) el.remove();
     el = doc.createElement("div");
     el.className = "td-overlay " + cls;
     el.innerHTML = '<div class="td-overlay__box td-overlay__box--wide">' + html + "</div>";
-    doc.getElementById("screen-td-home").appendChild(el);
+    const host = hostScreen();
+    if (host) host.appendChild(el);
     return el;
   }
 
@@ -382,8 +432,7 @@
   // a fort-home toast (e.g. the grown-ups reset) would be invisible if it always
   // went to the hidden play screen.
   UI.notice = function (icon, html) {
-    const play = doc.getElementById("screen-td-play"), fort = doc.getElementById("screen-td-home");
-    const host = (play && !play.hidden) ? play : ((fort && !fort.hidden) ? fort : (play || fort));
+    const host = hostScreen();
     if (!host) return null;
     // A single win can earn several badges at once — cascade them up the screen
     // and give EACH its own removal timer, so an earlier toast is never orphaned
@@ -537,7 +586,8 @@
     el = doc.createElement("div");
     el.className = "td-overlay " + cls;
     el.innerHTML = '<div class="td-overlay__box">' + html + "</div>";
-    doc.getElementById("screen-td-play").appendChild(el);
+    const host = hostScreen();
+    if (host) host.appendChild(el);
     return el;
   }
   UI.closeOverlay = function () { const el = doc.querySelector(".td-overlay"); if (el) el.remove(); };
@@ -573,13 +623,24 @@
     });
   };
 
-  UI.showDefeat = function (hooks, endless) {
+  UI.showDefeat = function (hooks, endless, pm) {
     // endless: { score, best } — an endless run ends only in defeat, so its
     // "score" (waves survived) is the headline, not a failure.
     const head = endless ? '<h3>♾️ Run over!</h3>' +
         '<p class="td-overlay__stars">🏁 wave ' + endless.score + "</p>" +
         "<p>" + (endless.score >= endless.best ? "🏆 New best!" : "Best: wave " + endless.best) + "</p>"
-      : '<h3>The toys got sleepy… 😴</h3><p>The fort door ran out of stickers this time.</p>';
+      : '<h3>The toys got sleepy… 😴</h3><p>The fort door ran out of stickers this time.</p>' +
+        // TD-12 post-mortem: the defeat screen used to be flavour ONLY — no
+        // diagnosis at all, even though the engine emits every leak. Now it
+        // names the wave, what got through, and (when the board had a real
+        // blind spot) what to bring instead.
+        (pm ? '<div class="td-pm">' +
+          '<p class="td-pm__wave">Wave ' + pm.wave + " · " + pm.total + " got past you</p>" +
+          '<ul class="td-pm__list">' + pm.rows.map((r) =>
+            '<li><span class="td-pm__ico">' + r.icon + "</span>" + r.name + '<span class="td-pm__n">×' + r.n + "</span></li>").join("") + "</ul>" +
+          (pm.advice ? '<p class="td-pm__advice">' + pm.advice + "</p>" : "") +
+          '<button class="td-btn td-pm__guide" type="button" data-act="guide">📖 See the guide</button>' +
+        "</div>" : "");
     const el = overlay("td-overlay--lose",
       head +
       '<button class="td-btn" data-act="retry" type="button">🔁 ' + (endless ? "Again" : "Try again") + "</button>" +
@@ -587,7 +648,11 @@
       '<button class="td-btn" data-act="quit" type="button">🏰 Back to the fort</button>');
     el.addEventListener("click", (ev) => {
       const act = ev.target && ev.target.dataset && ev.target.dataset.act;
-      if (act) hooks[act]();
+      if (!act || !hooks[act]) return;
+      // "guide" carries the enemy the post-mortem blamed, so the guide opens
+      // scrolled to the thing that actually beat you.
+      if (act === "guide") hooks.guide(pm && pm.focus);
+      else hooks[act]();
     });
   };
 

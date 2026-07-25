@@ -232,7 +232,8 @@ body.td-mode #screens { padding: 0; }
   background: rgba(8, 14, 26, 0.7);
   display: flex; align-items: center; justify-content: center;
 }
-#screen-td-play { position: relative; }
+/* every screen that can HOST an overlay must be a positioning context */
+#screen-td-play, #screen-td-home { position: relative; }
 .td-overlay__box {
   background: #16233d; border: 2px solid #3a548a; border-radius: 18px;
   padding: 22px; width: min(320px, 86vw);
@@ -333,3 +334,31 @@ body.td-mode #screens { padding: 0; }
 .td-toast__txt b { color: #ffe27a; }
 @keyframes td-toastpop { 0% { transform: translate(-50%, 20px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .td-toast { animation: none; } }
+
+/* ---- TD-12 Toybox Guide + defeat post-mortem ---- */
+/* Grid gap, never flex gap: Safari 14.0 (Josh's iPad floor) drops flex gap. */
+.td-guide__towers { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: row; gap: 6px; text-align: left; }
+.td-guide__towers li { color: #cfe2ff; font-size: 0.92rem; }
+.td-guide__towers b { color: #ffe27a; }
+.td-guide__list { display: grid; grid-auto-flow: row; gap: 10px; }
+.td-guide__card {
+  border: 2px solid #33456d; border-radius: 14px; background: #101c33;
+  padding: 10px 12px; text-align: left;
+}
+.td-guide__card--focus { border-color: #ffd94a; box-shadow: 0 0 0 2px rgba(255, 217, 74, 0.35); }
+.td-guide__head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.td-guide__icon { font-size: 1.5rem; }
+.td-guide__name { color: #ffe27a; font-weight: 800; }
+.td-guide__stats { color: #9db4dd; font-size: 0.85rem; margin: 4px 0 0; }
+.td-guide__reach { color: #cfe2ff; font-size: 0.9rem; margin: 2px 0 0; }
+.td-guide__traits { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-auto-flow: row; gap: 4px; }
+.td-guide__traits li { color: #cfe2ff; font-size: 0.86rem; line-height: 1.35; }
+.td-guide__tico { margin-right: 6px; }
+
+.td-pm { margin-top: 6px; text-align: left; }
+.td-pm__wave { color: #ffbf8f; font-weight: 800; margin: 0 0 6px; }
+.td-pm__list { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: row; gap: 4px; }
+.td-pm__list li { color: #cfe2ff; font-size: 0.92rem; }
+.td-pm__ico { margin-right: 6px; }
+.td-pm__n { color: #ff9db4; font-weight: 800; margin-left: 6px; }
+.td-pm__advice { color: #ffe27a; font-size: 0.92rem; margin: 8px 0 0; line-height: 1.35; }

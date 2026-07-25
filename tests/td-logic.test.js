@@ -1805,3 +1805,25 @@ test("AUDIT TD-10: the new shapes ship in Worlds 2-3, and World 1 stays the tuto
   const l7 = DATA.LEVELS.find((l) => l.id === 7);
   for (const t of NEW) assert.ok(!has(l7, t), `L7 is the exempt air-pressure level (no heroic headroom) and must not carry ${t}`);
 });
+
+// ---- TD-12: the counter matrix is DERIVED, so the guide can never drift ----
+test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own data", () => {
+  // Fliers: mortar is ground-only and camps are bodies, so ONLY dart+fan reach.
+  for (const [k, def] of Object.entries(DATA.ENEMIES)) {
+    const reach = TD.reachedBy(def);
+    if (def.flier) assert.deepEqual(reach.sort(), ["dart", "fan"], `${k} flies — only dart and fan can reach it`);
+    else assert.deepEqual(reach.sort(), ["camp", "dart", "fan", "mortar"], `${k} is ground — everything can reach it`);
+    assert.ok(TD.enemyTraits(def).length >= 1, `${k} always explains itself (even "no tricks")`);
+  }
+  // Every special FIELD an enemy carries must produce a trait line — otherwise a
+  // new mechanic ships invisible to the player, which is the bug this fixes.
+  const FIELD_TRAIT = { flier: "flier", shield: "shield", splashResist: "splash", slowHeal: "slowheal",
+    sap: "sap", phase: "phase", tunnel: "tunnel", split: "split", heal: "heal", charge: "charge", goldBurst: "gold", boss: "boss" };
+  for (const [k, def] of Object.entries(DATA.ENEMIES)) {
+    const keys = TD.enemyTraits(def).map((t) => t.key);
+    for (const [field, trait] of Object.entries(FIELD_TRAIT)) {
+      if (def[field]) assert.ok(keys.includes(trait), `${k} has .${field} but the guide never mentions it — a mechanic nothing explains is invisible`);
+    }
+    if (def.armor > 0) assert.ok(keys.includes("armor"), `${k} is armored but the guide never says so`);
+  }
+});

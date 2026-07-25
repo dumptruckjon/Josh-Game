@@ -1129,7 +1129,40 @@
     };
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, DT };
+  // ---- TD-12: the counter matrix, derived from the DATA (never hand-written) ----
+  // The heart of this game was invisible: nothing told you that only Dart and Fan
+  // hit air, that armor halves a dart's bonk, or that a shield eats the Fan's
+  // zap. `enemyTraits` reads each enemy's own fields, so the guide can never
+  // drift from the engine — add a field, the guide explains it.
+  function enemyTraits(def) {
+    if (!def) return [];
+    const out = [];
+    if (def.flier) out.push({ key: "flier", icon: "🪁", text: "Flies — only Dart and Fan can reach it" });
+    if (def.armor >= 0.5) out.push({ key: "armor", icon: "🛡", text: "Armored — bonk damage halved; the Fan's zap ignores armor" });
+    else if (def.armor > 0) out.push({ key: "armor", icon: "🛡", text: "Lightly armored — bonk damage reduced" });
+    if (def.shield > 0) out.push({ key: "shield", icon: "🔋", text: "Shielded — the shield soaks zap first, and regrows" });
+    if (def.splashResist) out.push({ key: "splash", icon: "🛋", text: "Soaks blasts — splash lands at " + Math.round((1 - def.splashResist) * 100) + "%; use single-target" });
+    if (def.slowHeal) out.push({ key: "slowheal", icon: "💧", text: "Regrows while SLOWED — slows alone will never kill it" });
+    if (def.sap) out.push({ key: "sap", icon: "🔩", text: "Jams the nearest gun — camps are immune" });
+    if (def.phase) out.push({ key: "phase", icon: "👻", text: "Phases out — untargetable in bursts" });
+    if (def.tunnel) out.push({ key: "tunnel", icon: "🦫", text: "Tunnels the middle — untargetable and unblockable there" });
+    if (def.split) out.push({ key: "split", icon: "🟤", text: "Splits into " + def.split.count + " when it dies" });
+    if (def.heal) out.push({ key: "heal", icon: "🔧", text: "Mends nearby allies — kill it first" });
+    if (def.charge) out.push({ key: "charge", icon: "🐂", text: "Charges when hit" });
+    if (def.goldBurst) out.push({ key: "gold", icon: "🪅", text: "Bursts +" + def.goldBurst + " gold when popped" });
+    if (def.boss) out.push({ key: "boss", icon: "👑", text: "Boss — its kit escalates as its health drops" });
+    if (!out.length) out.push({ key: "plain", icon: "•", text: "No tricks — anything can hit it" });
+    return out;
+  }
+  // Which tower lines can even REACH this enemy. The one place that answers
+  // "why is nothing shooting it?" — the question the game never answered.
+  function reachedBy(def) {
+    const all = ["dart", "mortar", "fan", "camp"];
+    if (def && def.flier) return ["dart", "fan"]; // mortar is ground-only, camps are bodies
+    return all;
+  }
+
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

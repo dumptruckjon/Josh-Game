@@ -1261,6 +1261,26 @@ defect classes differ: mortar-mono winning was a CONTRADICTION (a board that
 cannot hit air beat air waves), dart-mono winning is just the generalist being
 viable. Nerfing it means re-tuning the dart line across all 12 levels, which is
 its own project.
+**TD-12 ONBOARDING** makes the counter matrix visible for the first time. The
+heart of the game — only Dart and Fan reach air, armor halves a dart's bonk, a
+shield eats the Fan's zap, a Cushion soaks splash, a Slime regrows while slowed —
+was never stated anywhere. Two surfaces now say it, and both are DERIVED from
+the enemy's own data fields via `TDLogic.enemyTraits(def)` / `reachedBy(def)`, so
+a new enemy or a new trait explains itself and the guide can never drift from the
+engine (guardrail: every special field an enemy carries MUST produce a trait
+line, or a mechanic ships invisible). **📖 Toybox Guide** on the fort home gives
+every enemy a card (stats · what can hit it · its tricks); the **defeat screen**
+— previously flavour ONLY, no diagnosis at all, despite the engine emitting every
+leak — now names the wave, lists what got past you, and when your board had a
+real blind spot says so ("Nothing you built could even reach the Kite Hawk"),
+with a 📖 link that opens the guide scrolled to the thing that beat you.
+Systemic fix that came out of it: **an overlay parked on a HIDDEN screen is
+itself hidden** — the guide opened from the defeat overlay (play screen) rendered
+as nothing, because `metaOverlay` hard-coded `#screen-td-home`. Both overlay
+factories AND the toast now go through ONE `hostScreen()` that picks the
+unhidden screen, both screens are positioning contexts, and a `site.test.js`
+guardrail bans hard-coding either host again. Caught by a browser test; invisible
+to reading the code.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

@@ -970,6 +970,64 @@ test("AUDIT: no pad hides under the floating CALL button (every map, both orient
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("TD-12 guide: 📖 opens a card for every enemy, naming what can hit it", async () => {
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator(".td-guide-open").click();
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+  const cards = await page.locator(".td-guide__card").count();
+  const enemies = await page.evaluate(() => Object.keys(window.TDData.ENEMIES).length);
+  assert.equal(cards, enemies, `every enemy has a guide card (${cards}/${enemies})`);
+  // The counter matrix — the thing the game never told you — is on screen.
+  const hawk = await page.evaluate(() => {
+    const c = document.querySelector('.td-guide__card[data-enemy="hawk"]');
+    return c ? c.textContent : "";
+  });
+  assert.match(hawk, /Flies/, "a flier says it flies");
+  assert.match(hawk, /Dart and Fan/, "…and names the only two lines that can reach it");
+  const plane = await page.evaluate(() => document.querySelector('.td-guide__card[data-enemy="tinplane"]').textContent);
+  assert.match(plane, /Armored/, "the Tin Plane's armor is explained");
+  assert.match(plane, /zap ignores armor/, "…including the counter-play that answers it");
+  // It must fit the narrowest device, and scroll rather than clip.
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.waitForTimeout(60);
+  const fit = await page.evaluate(() => {
+    const b = document.querySelector(".td-overlay--guide .td-overlay__box");
+    const r = b.getBoundingClientRect();
+    return { left: r.left, right: r.right, w: window.innerWidth, scrolls: b.scrollHeight > b.clientHeight, oy: getComputedStyle(b).overflowY };
+  });
+  assert.ok(fit.left >= -1 && fit.right <= fit.w + 1, `the guide fits at 320px (${fit.left}..${fit.right} of ${fit.w})`);
+  assert.ok(!fit.scrolls || fit.oy === "auto" || fit.oy === "scroll", "a tall guide scrolls instead of clipping");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".td-guide-done").click();
+  assert.equal(await page.locator(".td-overlay--guide").count(), 0, "Done closes it");
+});
+
+test("TD-12 post-mortem: losing tells you WHAT got through, and links to the guide", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  // Neglect a level to a real defeat — no towers, just call every wave.
+  await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 5 });
+    for (let i = 0; i < 40 && window.__TD.state().phase !== "lost"; i++) {
+      window.__TD.script([["call"], ["untilPhase", "build", 60000]]);
+    }
+  });
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 10000 });
+  const pm = page.locator(".td-pm");
+  assert.equal(await pm.count(), 1, "the defeat screen carries a post-mortem, not just flavour text");
+  const txt = await pm.textContent();
+  assert.match(txt, /Wave \d+/, "it names the wave you died on");
+  assert.match(txt, /got past you/, "it counts what got through");
+  assert.ok((await page.locator(".td-pm__list li").count()) >= 1, "it lists the toys that leaked, by name");
+  // The 📖 link opens the guide focused on the enemy it blamed.
+  await page.locator(".td-pm__guide").click();
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await page.locator(".td-guide__card--focus").count(), 1,
+    "the guide opens focused on the enemy the post-mortem blamed");
+  await page.locator(".td-guide-done").click();
+});
+
 test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires it", async () => {
   await page.evaluate(() => { location.hash = "#td-play"; });
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
