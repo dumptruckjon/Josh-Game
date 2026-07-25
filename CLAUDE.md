@@ -1239,6 +1239,28 @@ cooldown, so an ability is a real trade against a tower rather than free power
 winnability sim stays conservative and needed no re-tune); and all four are
 **pure deterministic** (tick-stamped cooldowns, zero rng), so a headless sim
 drives each one and an ability-using run still replays byte-identically.
+**TD-10 THREAT SHAPES** generalizes the flier lesson with four enemies that each
+break a different one-line board — 🛋 **Couch Cushion** (`splashResist` applied in
+the ONE `dealDamage` keyed on `how`, so mortar splash AND the Toy Box Drop both
+land at 40%), 🔩 **Loose Screw** (jams the NEAREST shooting gun in reach — nearest
+not random, so it's a readable emergency and costs no rng draw; camps are bodies,
+not electronics, and are immune), 💧 **Drip Slime** (`slowHeal` — it regrows WHILE
+slowed, so a fan-only board holds it still for ever and never kills it) and
+✈️ **Tin Plane** (flies AND is armored). Swapped in HP-preservingly, so the ±25%
+budget contract is untouched, and every level stays winnable on all three
+difficulties and losable by neglect. Two honest results came out of it, both
+guardrail-locked: **L7 is DELIBERATELY exempt** — it is the air-pressure level and
+the sim showed it already sat at its heroic ceiling (8.7 lives), so *every* new
+shape flipped it to unwinnable on heroic; and the **Tin Plane did NOT fix
+dart-mono**. It was built to (armor halves bonk; the Fan's zap is not bonk, so
+zap cuts through), but the measurement refused the theory: dart-only won **12/12
+before and after**, and `dart+1fan` is strictly *worse* (10/12, 11.4 lives vs
+15.3) because massed dart DPS beats the armor penalty and a pad spent on a Fan
+costs more than the zap gains. Recorded rather than papered over — note the
+defect classes differ: mortar-mono winning was a CONTRADICTION (a board that
+cannot hit air beat air waves), dart-mono winning is just the generalist being
+viable. Nerfing it means re-tuning the dart line across all 12 levels, which is
+its own project.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

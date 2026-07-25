@@ -426,6 +426,73 @@
         for (let k = 0; k < 3; k++) { const a = engine.state.tick * 0.3 + k * 2.1; ctx.beginPath(); ctx.moveTo(sx, sy); let bx = sx, by = sy; for (let j = 0; j < 3; j++) { bx += Math.cos(a + j) * R * 0.3; by += Math.sin(a + j) * R * 0.3; ctx.lineTo(bx + (j % 2 ? R * 0.12 : -R * 0.12), by); } ctx.stroke(); }
         ctx.fillStyle = "#fff2a0"; ctx.beginPath(); ctx.arc(sx - R * 0.2, sy - R * 0.12, R * 0.12, 0, 7); ctx.arc(sx + R * 0.2, sy - R * 0.12, R * 0.12, 0, 7); ctx.fill();
         ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - R * 0.2, sy - R * 0.12, R * 0.05, 0, 7); ctx.arc(sx + R * 0.2, sy - R * 0.12, R * 0.05, 0, 7); ctx.fill();
+      } else if (e.type === "cushion") {
+        // Couch Cushion: a plump square pillow, corner tassels, a sleepy face.
+        // Reads SOFT on purpose — it soaks blasts, so it should look like it would.
+        shadow(sx, sy + cell * 0.36, r * 0.9, r * 0.26);
+        const g = ctx.createLinearGradient(sx - r, sy - r, sx + r, sy + r);
+        g.addColorStop(0, "#c98a6a"); g.addColorStop(1, "#9c5f45");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(sx - r * 0.9, sy - r * 0.62);
+        ctx.quadraticCurveTo(sx, sy - r * 0.95, sx + r * 0.9, sy - r * 0.62);
+        ctx.quadraticCurveTo(sx + r * 1.16, sy, sx + r * 0.9, sy + r * 0.62);
+        ctx.quadraticCurveTo(sx, sy + r * 0.95, sx - r * 0.9, sy + r * 0.62);
+        ctx.quadraticCurveTo(sx - r * 1.16, sy, sx - r * 0.9, sy - r * 0.62);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "rgba(255,235,215,0.28)";
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.3, sy - r * 0.32, r * 0.32, r * 0.16, -0.4, 0, 7); ctx.fill();
+        ctx.fillStyle = "#7a4630"; // button dimple in the middle
+        ctx.beginPath(); ctx.arc(sx, sy, r * 0.13, 0, 7); ctx.fill();
+        ctx.fillStyle = "#22304a";
+        ctx.beginPath(); ctx.arc(sx - r * 0.34, sy - r * 0.06, r * 0.09, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + r * 0.34, sy - r * 0.06, r * 0.09, 0, 7); ctx.fill();
+      } else if (e.type === "screw") {
+        // Loose Screw: a slotted head that keeps turning — it jams your guns.
+        shadow(sx, sy + cell * 0.34, r * 0.6, r * 0.2);
+        const g = ctx.createLinearGradient(sx - r * 0.6, sy - r, sx + r * 0.6, sy + r);
+        g.addColorStop(0, "#d7dde8"); g.addColorStop(1, "#8b96a8");
+        ctx.fillStyle = g;
+        ctx.beginPath(); // tapered shank
+        ctx.moveTo(sx - r * 0.32, sy - r * 0.2);
+        ctx.lineTo(sx + r * 0.32, sy - r * 0.2);
+        ctx.lineTo(sx + r * 0.12, sy + r * 1.0);
+        ctx.lineTo(sx - r * 0.12, sy + r * 1.0);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(60,72,92,0.55)"; ctx.lineWidth = Math.max(1, cell * 0.022);
+        for (let k = 0; k < 3; k++) { const yy = sy + r * (0.05 + k * 0.3); ctx.beginPath(); ctx.moveTo(sx - r * 0.28 + k * r * 0.05, yy); ctx.lineTo(sx + r * 0.28 - k * r * 0.05, yy + r * 0.1); ctx.stroke(); }
+        ctx.fillStyle = g; // round head
+        ctx.beginPath(); ctx.ellipse(sx, sy - r * 0.42, r * 0.66, r * 0.44, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#4d5870"; ctx.lineWidth = Math.max(1.5, cell * 0.045); ctx.lineCap = "round";
+        const a = engine.state.tick * 0.16; // the slot spins — it is working loose
+        ctx.beginPath();
+        ctx.moveTo(sx - Math.cos(a) * r * 0.42, sy - r * 0.42 - Math.sin(a) * r * 0.26);
+        ctx.lineTo(sx + Math.cos(a) * r * 0.42, sy - r * 0.42 + Math.sin(a) * r * 0.26);
+        ctx.stroke();
+        ctx.fillStyle = "#22304a";
+        ctx.beginPath(); ctx.arc(sx - r * 0.22, sy - r * 0.5, r * 0.07, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + r * 0.22, sy - r * 0.5, r * 0.07, 0, 7); ctx.fill();
+      } else if (e.type === "slime") {
+        // Drip Slime: a wobbling droplet that GROWS while it is slowed.
+        shadow(sx, sy + cell * 0.34, r * 0.7, r * 0.22);
+        const wob = Math.sin(engine.state.tick / 7) * r * 0.08;
+        const g = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.3, r * 0.1, sx, sy, r * 1.1);
+        g.addColorStop(0, "#9df3b8"); g.addColorStop(1, "#2f9c5c");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - r * 1.0 - wob);
+        ctx.quadraticCurveTo(sx + r * 0.95, sy + r * 0.1, sx + r * 0.5, sy + r * 0.7);
+        ctx.quadraticCurveTo(sx, sy + r * 1.12, sx - r * 0.5, sy + r * 0.7);
+        ctx.quadraticCurveTo(sx - r * 0.95, sy + r * 0.1, sx, sy - r * 1.0 - wob);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.28, sy - r * 0.1, r * 0.16, r * 0.26, -0.4, 0, 7); ctx.fill();
+        ctx.fillStyle = "#12432a";
+        ctx.beginPath(); ctx.arc(sx - r * 0.24, sy + r * 0.18, r * 0.1, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + r * 0.24, sy + r * 0.18, r * 0.1, 0, 7); ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(sx - r * 0.27, sy + r * 0.14, r * 0.035, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + r * 0.21, sy + r * 0.14, r * 0.035, 0, 7); ctx.fill();
       } else {
         // Sock Goblin: a cream sock with a folded cuff, a toe, and a cheeky face
         shadow(sx, sy + cell * 0.34, r * 0.72, r * 0.24);

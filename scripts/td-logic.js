@@ -259,6 +259,7 @@
         blockedBy: 0, stunnedUntil: 0, meleeCd: 0, stunApplied: false,
         chargeUntil: 0, chargeCd: 0, stompCd: 0, phaseHidden: false,
         suckCd: 0, disableCd: 0, minionCd: 0, speedMult: 0, // TD-4 boss timers
+        sapCd: 0, // TD-10 Loose Screw jam timer
         alive: true,
       });
       if (def.boss) emit({ type: "boss", name: def.name });
@@ -285,6 +286,33 @@
       // Conveyor strip (Slip'n'Slide): faster while inside a speed zone.
       if (zones) for (const z of zones) { if (e.dist >= z.from && e.dist <= z.to) { base *= z.mult; break; } }
       return base * (1 - slow);
+    }
+
+    // TD-10 Loose Screw: jams the NEAREST shooting tower within reach. Nearest
+    // (not random) on purpose — you can SEE which gun is about to go quiet, so
+    // it's a readable emergency rather than a dice roll, and it costs no rng
+    // draw, which keeps every historical replay stream byte-identical.
+    function sapTick() {
+      for (const e of state.enemies) {
+        if (!e.alive) continue;
+        const def = enemyDef(e);
+        if (!def.sap || isHidden(e)) continue;
+        if (e.sapCd === 0) { e.sapCd = state.tick + Math.round(def.sap.every * DATA.TICK_RATE); continue; }
+        if (state.tick < e.sapCd) continue;
+        e.sapCd = state.tick + Math.round(def.sap.every * DATA.TICK_RATE);
+        const p = epos(e);
+        let victim = null, best = def.sap.radius * def.sap.radius;
+        for (const t of state.towers) {
+          if (t.lineId === "camp") continue; // camps are bodies, not electronics
+          if (t.disabledUntil && state.tick < t.disabledUntil) continue;
+          const d = (t.cx + 0.5 - p.x) ** 2 + (t.cy + 0.5 - p.y) ** 2;
+          if (d < best) { best = d; victim = t; }
+        }
+        if (victim) {
+          victim.disabledUntil = state.tick + Math.round(def.sap.seconds * DATA.TICK_RATE);
+          emit({ type: "disable", x: victim.cx, y: victim.cy, seconds: def.sap.seconds });
+        }
+      }
     }
 
     // Junk Healer: mend nearby wounded allies (never itself) each tick.
@@ -420,6 +448,14 @@
       if (mods.bossDmg > 1 && enemyDef(e).boss) {
         hpDmg = Math.round(hpDmg * mods.bossDmg);
         shieldDmg = Math.round(shieldDmg * mods.bossDmg);
+      }
+      // TD-10 Couch Cushion: soaks AREA damage. Applied in the ONE damage path
+      // and keyed on `how`, so mortar splash, a chain jump's blast and the Toy
+      // Box Drop all honour it — and a future AoE inherits it for free.
+      const sr = enemyDef(e).splashResist;
+      if (sr && (how === "splash" || how === "ability")) {
+        hpDmg = Math.round(hpDmg * (1 - sr));
+        shieldDmg = Math.round(shieldDmg * (1 - sr));
       }
       if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
       if (hpDmg > 0) { e.hp -= hpDmg; triggerCharge(e); }
@@ -817,6 +853,12 @@
       for (const e of state.enemies) {
         if (!e.alive) continue;
         e.brittle = state.tick < e.brittleUntil;
+        // TD-10 Drip Slime: a slow FEEDS it. A fan-only board can hold it still
+        // for ever and never kill it — bring damage, not just crowd control.
+        const shDef = enemyDef(e);
+        if (shDef.slowHeal && state.tick < e.slowUntil && e.slowPct > 0) {
+          e.hp = Math.min(e.maxHp, e.hp + shDef.slowHeal.hps * DT);
+        }
         const def0 = enemyDef(e);
         // Glitter Ghost: phase in/out on a fixed cadence (deterministic).
         if (def0.phase) {
@@ -843,6 +885,7 @@
       bossTick();  // Vacuum King sucks soldiers / The Static jams+summons
       stompTick(); // bosses stomp soldiers
       healTick();  // healers mend allies (before towers fire, so it's felt)
+      sapTick();   // Loose Screws jam a nearby gun
       puddleTick(); // TD-9 Sticky Floor zones re-slow whatever is standing in them
       fireTowers();
 

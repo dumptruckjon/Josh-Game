@@ -1115,7 +1115,12 @@ test("TD7 lever advantage: sending the train the LONG way (more coverage) saves 
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
   function play(pull) {
     const e = TD.createEngine(L10, { seed: 7 });
-    const thin = L10.pads.slice(0, 5).map((p) => p.id); // a deliberately thin build → not trivially won
+    // A constrained build: dart-only, no tier-4 branches. Recalibrated for TD-10
+    // — L10 now carries Drip Slimes and Loose Screws, so a 5-pad board loses
+    // BOTH ways and the lever's advantage is unmeasurable at that size. Nine
+    // dart pads is the smallest board that survives the level at all, which is
+    // where "did the long route help?" becomes a real question again.
+    const thin = L10.pads.slice(0, 9).map((p) => p.id);
     let g = 0, everLong = false;
     while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 400000) {
       if (e.state.phase === "build") {
@@ -1708,4 +1713,95 @@ test("TD-9 abilities: a puddle laid in the BUILD phase still burns down", () => 
   const def = DATA.ABILITIES.find((a) => a.id === "sticky");
   for (let i = 0; i < def.seconds * DATA.TICK_RATE + 5; i++) { if (e.state.phase !== "build") break; e.tick(); }
   assert.equal(e.state.puddles.length, 0, "the puddle expired during the build phase too");
+});
+
+// ---- TD-10: threat shapes that punish a mono build ----
+test("TD-10 Couch Cushion: soaks AREA damage but takes a direct hit in full", () => {
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 2 });
+  const mk = (type) => ({ id: 900, type, alive: true, hp: 1000, maxHp: 1000, dist: 3, pathIdx: 0,
+    armor: DATA.ENEMIES[type].armor || 0, shield: 0, speed: 1, slowPct: 0, slowUntil: 0 });
+  const cushion = mk("cushion"), sock = mk("sock");
+  e.state.enemies.push(cushion, sock);
+  const p = e.posOn(0, 3);
+  e.state.gold = 9999;
+  e.useAbility("drop", { x: p.x, y: p.y }); // area damage hits both
+  const cushionLost = 1000 - cushion.hp, sockLost = 1000 - sock.hp;
+  assert.ok(cushionLost > 0 && sockLost > 0, "both were in the blast");
+  const resist = DATA.ENEMIES.cushion.splashResist;
+  assert.ok(cushionLost < sockLost * (1 - resist) + 2 && cushionLost > sockLost * (1 - resist) - 2,
+    `the cushion took ~${Math.round((1 - resist) * 100)}% of the area damage (${cushionLost} vs ${sockLost})`);
+});
+
+test("TD-10 Loose Screw: jams the NEAREST gun, never a camp, and the jam expires", () => {
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 3);
+  const e = TD.createEngine(lvl, { seed: 6 });
+  e.state.gold = 99999;
+  const near = e.place("dart", lvl.pads[0].id), camp = e.place("camp", lvl.pads[1].id);
+  assert.ok(near.ok && camp.ok);
+  const dart = e.state.towers.find((t) => t.lineId === "dart");
+  const def = DATA.ENEMIES.screw;
+  // park a screw right on top of the dart so "nearest" is unambiguous
+  e.state.enemies.push({ id: 901, type: "screw", alive: true, hp: 500, maxHp: 500, dist: 0, pathIdx: 0,
+    armor: 0, shield: 0, speed: 0, slowPct: 0, slowUntil: 0, sapCd: 0 });
+  const scr = e.state.enemies[e.state.enemies.length - 1];
+  Object.defineProperty(scr, "dist", { value: 0, writable: true });
+  e.state.phase = "wave";
+  // teleport the dart onto the lane start so the screw is inside its sap radius
+  const p0 = e.posOn(0, 0);
+  dart.cx = Math.round(p0.x - 0.5); dart.cy = Math.round(p0.y - 0.5);
+  let jammed = false;
+  for (let i = 0; i < def.sap.every * DATA.TICK_RATE * 2 + 10 && !jammed; i++) { e.tick(); jammed = !!(dart.disabledUntil && e.state.tick < dart.disabledUntil); }
+  assert.ok(jammed, "the Loose Screw jammed the gun standing next to it");
+  const campTower = e.state.towers.find((t) => t.lineId === "camp");
+  assert.ok(!(campTower.disabledUntil && e.state.tick < campTower.disabledUntil),
+    "a camp is bodies, not electronics — it can never be jammed");
+  for (let i = 0; i < def.sap.seconds * DATA.TICK_RATE + 5; i++) e.tick();
+  assert.ok(!(dart.disabledUntil && e.state.tick < dart.disabledUntil), "the jam wears off");
+});
+
+test("TD-10 Drip Slime: regrows WHILE slowed, and only while slowed", () => {
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 9 });
+  const mk = () => { e.state.enemies.push({ id: 902, type: "slime", alive: true, hp: 40, maxHp: 110, dist: 2, pathIdx: 0,
+    armor: 0, shield: 0, speed: 0.7, slowPct: 0, slowUntil: 0, brittleUntil: 0 }); return e.state.enemies[e.state.enemies.length - 1]; };
+  e.state.phase = "wave";
+  const a = mk();
+  const before = a.hp;
+  for (let i = 0; i < 60; i++) e.tick();
+  assert.equal(a.hp, before, "an UNSLOWED slime does not regrow");
+  a.slowPct = 0.4; a.slowUntil = e.state.tick + 300;
+  for (let i = 0; i < 60; i++) e.tick();
+  assert.ok(a.hp > before, `a SLOWED slime regrows (${before} → ${a.hp}) — a slow-only board feeds it`);
+  assert.ok(a.hp <= a.maxHp, "…but never past full health");
+});
+
+test("TD-10 Tin Plane: flies (mortar can't touch it) and armor halves a dart's bonk", () => {
+  const plane = DATA.ENEMIES.tinplane;
+  assert.equal(plane.flier, true, "it flies — mortar and camp are blind to it");
+  assert.ok(plane.armor >= 0.5, "it is armored — bonk damage is halved");
+  // computeHit is the pure truth: bonk is reduced by armor, zap is NOT.
+  const asEnemy = { armor: plane.armor, shield: 0, brittle: false };
+  const bonk = TD.computeHit ? TD.computeHit(100, "bonk", asEnemy) : null;
+  if (bonk) {
+    assert.equal(bonk.hpDmg, 50, "a 100-damage dart bonk lands for 50 on the Tin Plane");
+  }
+  // and it really is in the shipped waves
+  const carried = DATA.LEVELS.filter((l) => l.waves.some((w) => w.groups.some((g) => g.type === "tinplane")));
+  assert.ok(carried.length >= 4, `Tin Planes actually ship in the wave tables (${carried.length} levels)`);
+});
+
+test("AUDIT TD-10: the new shapes ship in Worlds 2-3, and World 1 stays the tutorial", () => {
+  const NEW = ["cushion", "screw", "slime", "tinplane"];
+  const has = (l, t) => l.waves.some((w) => w.groups.some((g) => g.type === t));
+  for (const l of DATA.LEVELS.filter((x) => x.world === "bedroom")) {
+    for (const t of NEW) assert.ok(!has(l, t), `L${l.id} is a World-1 tutorial level and must not carry ${t}`);
+  }
+  const later = DATA.LEVELS.filter((l) => l.world !== "bedroom");
+  for (const t of NEW) {
+    assert.ok(later.some((l) => has(l, t)), `${t} must actually appear in Worlds 2-3 — an enemy nothing spawns is dead content`);
+  }
+  // L7 is DELIBERATELY exempt: it is the air-pressure level and the measurement
+  // showed it sits at its heroic ceiling (8.7 lives) with no headroom — every
+  // new shape flipped it to unwinnable on heroic. Documented, not accidental.
+  const l7 = DATA.LEVELS.find((l) => l.id === 7);
+  for (const t of NEW) assert.ok(!has(l7, t), `L7 is the exempt air-pressure level (no heroic headroom) and must not carry ${t}`);
 });
