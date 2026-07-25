@@ -1593,6 +1593,7 @@ test("TD-9 abilities: Toy Box Drop damages every enemy in its radius (and respec
   const p = e.posOn(target.pathIdx, target.dist);
   const before = live.map((x) => x.hp);
   e.state.gold = 999;
+  assert.equal(e.state.phase, "wave", "abilities are in-WAVE tools");
   const r = e.useAbility("drop", { x: p.x, y: p.y });
   assert.ok(r.ok, "the drop fires when affordable and off cooldown");
   assert.ok(r.hits >= 1, "it hit at least the enemy it was aimed at");
@@ -1602,14 +1603,22 @@ test("TD-9 abilities: Toy Box Drop damages every enemy in its radius (and respec
 });
 
 test("TD-9 abilities: gold and cooldown really gate a use", () => {
-  const e = TD.createEngine(DATA.LEVELS[0], { seed: 3 });
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.state.gold = 99999;
+  e.place("camp", lvl.pads[0].id);      // the horn needs someone to rally
+  e.callWave();
+  for (let i = 0; i < 150; i++) e.tick();
+  e.state.soldiers.forEach((s2) => { s2.alive = false; s2.respawnAt = e.state.tick + 99999; });
   e.state.gold = 0;
   assert.equal(e.useAbility("horn", {}).reason, "gold", "no gold → refused");
   e.state.gold = 9999;
   assert.ok(e.useAbility("horn", {}).ok, "affordable → allowed");
+  e.state.soldiers.forEach((s2) => { s2.alive = false; s2.respawnAt = e.state.tick + 99999; });
   assert.equal(e.useAbility("horn", {}).reason, "cooldown", "a second use inside the cooldown is refused");
   const def = DATA.ABILITIES.find((a) => a.id === "horn");
   for (let i = 0; i < def.cooldown * DATA.TICK_RATE + 2; i++) e.tick();
+  e.state.soldiers.forEach((s2) => { s2.alive = false; s2.respawnAt = e.state.tick + 99999; });
   assert.ok(e.useAbility("horn", {}).ok, "…and allowed again once the cooldown elapses");
   assert.equal(e.useAbility("nope", {}).reason, "bad-ability", "an unknown ability id is refused");
   assert.equal(e.useAbility("drop", {}).reason, "needs-point", "a point ability without a point is refused");
@@ -1660,6 +1669,7 @@ test("TD-9 abilities: Rally Horn puts every downed soldier straight back up", ()
   e.state.gold = 9999;
   const t = e.place("camp", lvl.pads[0].id);
   assert.ok(t.ok, "a camp went up");
+  e.callWave(); // abilities are in-WAVE tools
   for (let i = 0; i < 120; i++) e.tick();
   const mine = e.state.soldiers.filter((s) => s.campId === e.state.towers[0].id);
   assert.ok(mine.length >= 1, "the camp deployed soldiers");
@@ -1702,17 +1712,21 @@ test("TD-9 abilities: adding them cost no determinism (same seed → identical r
   assert.notEqual(play(true), play(false), "…and using them actually changes the run");
 });
 
-test("TD-9 abilities: a puddle laid in the BUILD phase still burns down", () => {
+test("TD-9 abilities: a puddle still burns down across the build phase", () => {
   // The build branch of tick() returns early — a regression here would leave a
   // pre-wave Sticky Floor alive for ever. Found in-browser, pinned here.
   const e = TD.createEngine(DATA.LEVELS[0], { seed: 8 });
-  assert.equal(e.state.phase, "build");
+  e.callWave();
+  for (let i = 0; i < 30; i++) e.tick();
   e.state.gold = 999;
   assert.ok(e.useAbility("sticky", { x: 5, y: 5 }).ok);
   assert.equal(e.state.puddles.length, 1);
   const def = DATA.ABILITIES.find((a) => a.id === "sticky");
-  for (let i = 0; i < def.seconds * DATA.TICK_RATE + 5; i++) { if (e.state.phase !== "build") break; e.tick(); }
-  assert.equal(e.state.puddles.length, 0, "the puddle expired during the build phase too");
+  // Tick through the wave→build boundary: tick()'s build branch returns EARLY,
+  // so without its own puddleTick a puddle that outlives its wave would never
+  // expire (found in-browser, pinned here).
+  for (let i = 0; i < def.seconds * DATA.TICK_RATE + 5; i++) e.tick();
+  assert.equal(e.state.puddles.length, 0, "the puddle expires even across the build phase");
 });
 
 // ---- TD-10: threat shapes that punish a mono build ----
@@ -1721,6 +1735,7 @@ test("TD-10 Couch Cushion: soaks AREA damage but takes a direct hit in full", ()
   const mk = (type) => ({ id: 900, type, alive: true, hp: 1000, maxHp: 1000, dist: 3, pathIdx: 0,
     armor: DATA.ENEMIES[type].armor || 0, shield: 0, speed: 1, slowPct: 0, slowUntil: 0 });
   const cushion = mk("cushion"), sock = mk("sock");
+  e.callWave(); // abilities are in-WAVE tools
   e.state.enemies.push(cushion, sock);
   const p = e.posOn(0, 3);
   e.state.gold = 9999;
@@ -1930,4 +1945,44 @@ test("TD-11 forks: throwing the lever reroutes without teleporting anyone", () =
     });
     assert.equal(e.pullLever().reason, "cooldown", `L${l.id}'s lever respects its cooldown`);
   }
+});
+
+// ---- A power that changes NOTHING must never charge you ----
+// Reported from real play: "some of them don't even seem to work at all". They
+// worked as coded, but Rally Horn with no camps returned ok, did nothing, and
+// still took 80 gold — indistinguishable from broken.
+test("TD-9 abilities: a no-op use is REFUSED, and costs neither gold nor cooldown", () => {
+  const lvl = DATA.LEVELS[0];
+  const e = TD.createEngine(lvl, { seed: 7 });
+  e.state.gold = 5000;
+  // 1. outside a wave there is nothing to hit and a puddle would expire first
+  for (const a of DATA.ABILITIES) {
+    const r = a.kind === "instant" ? e.useAbility(a.id, {}) : e.useAbility(a.id, { x: 3, y: 3 });
+    assert.equal(r.ok, false, `${a.id} must refuse outside a wave`);
+    assert.equal(r.reason, "not-in-wave", `${a.id} says why`);
+  }
+  assert.equal(e.state.gold, 5000, "…and nothing was charged");
+  assert.deepEqual(e.state.abilityCd, {}, "…and no cooldown started");
+
+  e.callWave();
+  for (let i = 0; i < 120; i++) e.tick();
+  e.state.gold = 5000;
+  // 2. a blast that would hit nobody
+  const far = e.useAbility("drop", { x: 0.5, y: DATA.GRID.h - 0.5 });
+  assert.equal(far.reason, "no-targets", "a blast with nothing in it is refused");
+  // 3. a horn with no soldiers at all (the reported case)
+  assert.equal(e.state.towers.filter((t) => t.lineId === "camp").length, 0, "no camps on this board");
+  assert.equal(e.useAbility("horn", {}).reason, "no-soldiers", "the horn refuses when there is nobody to rally");
+  // 4. overclock with no tower under the tap
+  assert.equal(e.useAbility("overclock", { towerId: 99999 }).reason, "no-tower", "overclock needs a real tower");
+  assert.equal(e.state.gold, 5000, "not one coin was taken for any of them");
+  assert.deepEqual(e.state.abilityCd, {}, "and not one cooldown was started");
+
+  // …while a use that DOES something still works and still charges.
+  const live = e.state.enemies.find((x) => x.alive);
+  assert.ok(live, "enemies are on the field");
+  const p = e.posOn(live.pathIdx, live.dist);
+  const good = e.useAbility("drop", { x: p.x, y: p.y });
+  assert.ok(good.ok && good.hits > 0, "a real use lands");
+  assert.ok(e.state.gold < 5000, "…and is paid for");
 });

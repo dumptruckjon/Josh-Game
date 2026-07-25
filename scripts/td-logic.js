@@ -1069,18 +1069,40 @@
     function abilityReady(id) {
       const def = abilityDef(id);
       if (!def) return { ok: false, reason: "bad-ability" };
-      if (state.phase !== "wave" && state.phase !== "build") return { ok: false, reason: "over" };
+      // These are IN-WAVE abilities. Outside a wave there is nothing to hit and
+      // a puddle would expire before the first enemy arrived, so spending gold
+      // then is pure loss — refuse it rather than quietly take the money.
+      if (state.phase !== "wave") return { ok: false, reason: "not-in-wave" };
       if (state.tick < (state.abilityCd[id] || 0)) return { ok: false, reason: "cooldown" };
       if (state.gold < def.gold) return { ok: false, reason: "gold" };
       return { ok: true, def };
+    }
+    // Would this use actually DO anything? An ability that changes nothing must
+    // never charge gold or start a cooldown — that reads exactly like a broken
+    // button (reported: "some of them don't even seem to work at all").
+    function abilityWouldDo(def, o) {
+      if (def.kind === "instant") return state.soldiers.some((s) => !s.alive);   // someone to rally
+      if (def.kind === "tower") return !!towerById(o.towerId);
+      if (def.dmg) {                                                             // something in the blast
+        const r2 = def.radius * def.radius;
+        return state.enemies.some((e) => {
+          if (!e.alive || isHidden(e)) return false;
+          const p = epos(e);
+          return (p.x - o.x) ** 2 + (p.y - o.y) ** 2 <= r2;
+        });
+      }
+      return true; // a zone is placed AHEAD of enemies on purpose — always valid
     }
     function useAbility(id, opts) {
       const chk = abilityReady(id);
       if (!chk.ok) return chk;
       const def = chk.def, o = opts || {};
+      if (def.kind === "point" && (typeof o.x !== "number" || typeof o.y !== "number")) return { ok: false, reason: "needs-point" };
+      if (!abilityWouldDo(def, o)) {
+        return { ok: false, reason: def.kind === "instant" ? "no-soldiers" : def.kind === "tower" ? "no-tower" : "no-targets" };
+      }
       let hits = 0;
       if (def.kind === "point") {
-        if (typeof o.x !== "number" || typeof o.y !== "number") return { ok: false, reason: "needs-point" };
         const r2 = def.radius * def.radius;
         for (const e of state.enemies) {
           if (!e.alive || isHidden(e)) continue; // an untargetable enemy is untargetable by EVERY damage path
@@ -1100,7 +1122,6 @@
         }
       } else if (def.kind === "tower") {
         const t = towerById(o.towerId);
-        if (!t) return { ok: false, reason: "no-tower" };
         t.boostUntil = state.tick + Math.round(def.seconds * DATA.TICK_RATE);
         t.boostMult = def.mult;
         hits = 1;

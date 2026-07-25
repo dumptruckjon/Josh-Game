@@ -1126,8 +1126,19 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
   assert.ok(!(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--armed"))),
     "tapping an unaffordable ability must NOT arm it");
 
-  // Rich → arm it, then resolve with a real field tap on the world position.
-  await page.evaluate(() => { window.__TD.grantGold(2000); window.__TD.state().phase = "wave"; window.TDUI.abilities(window.__TD.state(), null); });
+  // Rich, in a REAL wave with enemies on the field (a blast that would hit
+  // nothing is now refused outright rather than quietly charging you).
+  await page.evaluate(() => {
+    window.__TD.script([["call"], ["tick", 150]]);
+    window.__TD.grantGold(2000);
+    window.TDUI.abilities(window.__TD.state(), null);
+  });
+  const aim = await page.evaluate(() => {
+    const st = window.__TD.state();
+    const en = st.enemies.find((x) => x.alive);
+    return en ? window.__TD.engine().posOn(en.pathIdx || 0, en.dist) : null;
+  });
+  assert.ok(aim, "enemies really are on the field to aim at");
   await page.locator('.td-abil[data-abil="drop"]').click();
   assert.ok(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--armed")),
     "a point ability ARMS and waits for the field tap (the rally-flag precedent)");
@@ -1137,7 +1148,7 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
     "re-tapping an armed ability disarms it");
   await page.locator('.td-abil[data-abil="drop"]').click();
   const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
-  const sp = await page.evaluate(() => window.__TD.w2s(6.5, 5.5));
+  const sp = await page.evaluate((a) => window.__TD.w2s(a.x, a.y), aim);
   await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
   await page.waitForTimeout(60);
   assert.ok(await page.evaluate(() => (window.__TD.state().abilityCd || {}).drop > window.__TD.state().tick),
@@ -1146,11 +1157,23 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
     "…and the button shows the cooldown");
 
   // An "instant" ability needs no field tap at all.
+  // An "instant" ability needs no field tap — but the Rally Horn now REFUSES
+  // when there is nobody to rally (it used to take 80 gold and do nothing).
   await page.evaluate(() => { window.__TD.grantGold(2000); window.TDUI.abilities(window.__TD.state(), null); });
+  const goldBeforeHorn = await page.evaluate(() => window.__TD.state().gold);
   await page.locator('.td-abil[data-abil="horn"]').click();
   await page.waitForTimeout(40);
-  assert.ok(await page.evaluate(() => (window.__TD.state().abilityCd || {}).horn > window.__TD.state().tick),
-    "an instant ability fires on its own tap — no arming, no field tap");
+  const hornState = await page.evaluate(() => ({
+    camps: window.__TD.state().towers.filter((t) => t.lineId === "camp").length,
+    cd: (window.__TD.state().abilityCd || {}).horn || 0,
+    tick: window.__TD.state().tick,
+    gold: window.__TD.state().gold,
+    hint: (document.querySelector(".td-abilhint") || {}).textContent || "",
+  }));
+  assert.equal(hornState.camps, 0, "this board has no camps");
+  assert.ok(hornState.cd <= hornState.tick, "the horn did NOT start a cooldown when it could do nothing");
+  assert.equal(hornState.gold, goldBeforeHorn, "…and did NOT take gold for nothing");
+  assert.match(hornState.hint, /No soldiers to rally/, "…and says why, in plain English");
 
   // A live Sticky Floor puddle paints on the field and expires on its own.
   await page.evaluate(() => { window.__TD.grantGold(2000); window.TDUI.abilities(window.__TD.state(), null); });

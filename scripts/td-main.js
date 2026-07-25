@@ -558,6 +558,19 @@
     });
   }
 
+  // Plain-English refusals. A power that silently declines reads as broken —
+  // and one that charges you for nothing reads worse.
+  function abilityWhy(reason, def) {
+    const name = def ? def.name : "That";
+    if (reason === "not-in-wave") return "⏳ " + name + " only works during a wave";
+    if (reason === "gold") return "🪙 Not enough gold for " + name + " (" + (def ? def.gold : "?") + ")";
+    if (reason === "cooldown") return "⏱ " + name + " is still recharging";
+    if (reason === "no-targets") return "🎯 Nothing in the blast — tap closer to the toys";
+    if (reason === "no-soldiers") return "🪖 No soldiers to rally — build an Army Guys camp first";
+    if (reason === "no-tower") return "⚡ Tap one of your towers to overclock it";
+    return name + " can't be used right now";
+  }
+
   // ---- Field input: tap pads to build, towers to manage ----
   function fieldTap(ev) {
     if (!cur) return;
@@ -584,8 +597,8 @@
         r = cur.engine.useAbility(id, { x: gx, y: gy });
       }
       UI.hideBubble(); cur.render.setSelection(null);
-      if (r.ok) { sfx(id === "drop" ? "splash" : "build"); UI.hud(cur.engine.state); }
-      else sfx("deny");
+      if (r.ok) { sfx(id === "drop" ? "splash" : "build"); UI.hud(cur.engine.state); UI.abilityHint(""); }
+      else { sfx("deny"); UI.abilityHint(abilityWhy(r.reason, def)); }
       UI.abilities(cur.engine.state, null);
       return;
     }
@@ -786,16 +799,25 @@
       if (!def) return;
       if (cur.abilArmId === id) { cur.abilArmId = null; UI.abilities(cur.engine.state, null); return; }
       const ready = cur.engine.abilityReady(id);
-      if (!ready.ok) { sfx("deny"); UI.abilities(cur.engine.state, cur.abilArmId); return; }
+      if (!ready.ok) {
+        sfx("deny");
+        UI.abilityHint(abilityWhy(ready.reason, def));
+        UI.abilities(cur.engine.state, cur.abilArmId);
+        return;
+      }
       if (def.kind === "instant") {
+        // The no-op refusal happens INSIDE useAbility (abilityReady only checks
+        // phase/gold/cooldown), so this branch needs its own explanation.
         const r = cur.engine.useAbility(id, {});
-        if (r.ok) { sfx("build"); UI.hud(cur.engine.state); } else sfx("deny");
+        if (r.ok) { sfx("build"); UI.hud(cur.engine.state); UI.abilityHint(""); }
+        else { sfx("deny"); UI.abilityHint(abilityWhy(r.reason, def)); }
         UI.abilities(cur.engine.state, null);
         return;
       }
       cur.abilArmId = id;
       cur.rallyArmId = 0; // the two arm-modes are mutually exclusive
       UI.hideBubble(); cur.render.setSelection(null);
+      UI.abilityHint(def.kind === "tower" ? "⚡ Tap one of your towers" : def.icon + " Tap the field — " + def.role);
       UI.abilities(cur.engine.state, id);
     },
     togglePause: () => {

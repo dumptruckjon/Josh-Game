@@ -1330,6 +1330,26 @@ a good save, then reloads so every field goes through the normal boot coercion
 rather than trusting the pasted shape. NOT included, and worth naming: a 4th
 world and a kid-mode fort were listed under this category and are **not built** —
 both are content projects on the scale of TD-4, not comfort polish.
+**The abilities' first REAL-PLAY report ("it's not clear what the powers do and
+some of them don't even seem to work at all") found two defects the whole test
+suite had sailed past, because every test drove `useAbility` directly and never
+looked at the button.** (1) **A power that changes nothing must never charge
+you** — Rally Horn with no camps returned `ok`, did nothing, and still took 80
+gold and started a cooldown; Toy Box Drop on empty ground took 130 for zero
+hits; and both worked in the BUILD phase, where a puddle expires before the
+first enemy arrives. All three read exactly like a broken button. Now
+`abilityWouldDo()` runs BEFORE any gold or cooldown is spent (someone to rally /
+a real tower / something inside the blast), and abilities are wave-only —
+`not-in-wave` / `no-targets` / `no-soldiers` / `no-tower` are refusals, not
+silent charges. (2) **The name existed only in `aria-label`** — a sighted player
+saw `🧨 130` and nothing else, and the Toybox Guide (built for exactly this
+problem one phase earlier) covered enemies and towers but NOT abilities. Each
+ability now carries a `short` button label, the guide has a Powers section
+(cost · cooldown · how to aim), and a hint line over the field says what an armed
+power is waiting for ("⚡ Tap one of your towers") or why a tap was refused ("🪖
+No soldiers to rally — build an Army Guys camp first"). Lesson: a feature whose
+tests all call the API directly is untested as a FEATURE — drive it through the
+button, and ask what the screen actually tells the player.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

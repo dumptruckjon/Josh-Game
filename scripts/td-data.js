@@ -50,13 +50,13 @@
   //   2. They are fully deterministic: tick-stamped cooldowns, zero rng, so a
   //      headless sim can drive and prove every one of them.
   const ABILITIES = [
-    { id: "drop", icon: "🧨", name: "Toy Box Drop", role: "big splash where you tap",
+    { id: "drop", short: "Blast", icon: "🧨", name: "Toy Box Drop", role: "big splash where you tap",
       gold: 130, cooldown: 25, kind: "point", radius: 2.4, dmg: 300, dmgType: "bonk" },
-    { id: "sticky", icon: "🍯", name: "Sticky Floor", role: "slows everything in the puddle",
+    { id: "sticky", short: "Sticky", icon: "🍯", name: "Sticky Floor", role: "slows everything in the puddle",
       gold: 90, cooldown: 20, kind: "point", radius: 2.0, slow: 0.5, seconds: 8 },
-    { id: "overclock", icon: "⚡", name: "Overclock", role: "one tower fires twice as fast",
+    { id: "overclock", short: "Boost", icon: "⚡", name: "Overclock", role: "one tower fires twice as fast",
       gold: 100, cooldown: 22, kind: "tower", mult: 2, seconds: 8 },
-    { id: "horn", icon: "📣", name: "Rally Horn", role: "every soldier back on their feet",
+    { id: "horn", short: "Rally", icon: "📣", name: "Rally Horn", role: "every soldier back on their feet",
       gold: 80, cooldown: 30, kind: "instant" },
   ];
 

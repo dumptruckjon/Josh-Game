@@ -784,3 +784,24 @@ test("guardrail: TD-13 per-level bests are covered by loader, reset and merge", 
   assert.match(tdl, /state\.dmgBy\[src\] = \(state\.dmgBy\[src\] \|\| 0\)/, "attribution happens in the ONE damage path");
   assert.ok(!/cur\.stats\.dmg/.test(tdm), "no parallel event-based damage accounting (only the dart ever emitted a hit event)");
 });
+
+// A power the player can't read is a power that doesn't exist. Reported from
+// real play: "it's not clear what the powers do".
+test("guardrail: every ability names itself on its button and in the guide", () => {
+  const data = require("../scripts/td-data.js");
+  for (const a of data.ABILITIES) {
+    assert.ok(a.short && a.short.length <= 8, `${a.id} needs a SHORT button label (got ${a.short})`);
+    assert.ok(a.name && a.role, `${a.id} needs a full name and a role for the guide`);
+  }
+  const tdu = read("scripts/td-ui.js");
+  assert.match(tdu, /td-abil__name">' \+ \(a\.short \|\| a\.name\)/, "the button shows the name, not just an icon and a price");
+  assert.match(tdu, /Powers — usable during a wave only/, "the guide has an abilities section");
+  assert.match(tdu, /UI\.abilityHint = function/, "there is a hint line for armed/refused taps");
+  const tdm = read("scripts/td-main.js");
+  assert.match(tdm, /function abilityWhy\(/, "a refusal is explained in plain English");
+  for (const reason of ["not-in-wave", "no-targets", "no-soldiers", "no-tower", "cooldown", "gold"]) {
+    assert.ok(tdm.includes('"' + reason + '"'), `the refusal "${reason}" has a message`);
+  }
+  const tdl = read("scripts/td-logic.js");
+  assert.match(tdl, /function abilityWouldDo\(/, "a no-op use is detected BEFORE gold or cooldown is spent");
+});

@@ -99,8 +99,11 @@
       b.dataset.abil = a.id;
       b.dataset.adult = "1"; // the fort is Jon's space — adult-sized, not kid-sized
       b.setAttribute("aria-label", a.name + " — " + a.role + ", costs " + a.gold + " gold");
+      // The NAME is on the button, not just in the aria-label — a sighted player
+      // was shown "🧨 130" and nothing else, so no power explained itself.
       b.innerHTML = '<span class="td-abil__icon">' + a.icon + "</span>" +
-        '<span class="td-abil__cost">' + a.gold + "</span>" +
+        '<span class="td-abil__name">' + (a.short || a.name) + "</span>" +
+        '<span class="td-abil__cost">' + a.gold + "🪙</span>" +
         '<span class="td-abil__cd" hidden></span>';
       b.addEventListener("click", (ev) => { ev.stopPropagation(); hooks.useAbility(a.id); });
       abilWrap.appendChild(b);
@@ -313,10 +316,19 @@
     const towerRow = Object.keys(T).map((k) =>
       '<li><span class="td-guide__tico">' + (LINE[k] || "•") + "</span><b>" + T[k].name + "</b> — " + (T[k].role || "") +
       (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") + "</li>").join("");
+    // Abilities were explained NOWHERE — the button showed only an icon and a
+    // price. They belong in the guide beside the towers.
+    const abilRow = (global.TDData.ABILITIES || []).map((a) =>
+      '<li><span class="td-guide__tico">' + a.icon + "</span><b>" + a.name + "</b> — " + a.role +
+      ' <i>(' + a.gold + "🪙 · " + a.cooldown + "s · " +
+      (a.kind === "tower" ? "tap a tower" : a.kind === "point" ? "tap the field" : "instant") +
+      ")</i></li>").join("");
     const el = metaOverlay("td-overlay--guide",
       "<h3>📖 Toybox Guide</h3>" +
       '<p class="td-overlay__sub">What each toy does — and what can actually hit it.</p>' +
       '<ul class="td-guide__towers">' + towerRow + "</ul>" +
+      '<p class="td-overlay__sub">Powers — usable during a wave only.</p>' +
+      '<ul class="td-guide__towers td-guide__abils">' + abilRow + "</ul>" +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
     el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);
@@ -527,6 +539,25 @@
   // TD-9: refresh the ability strip — affordable / on-cooldown / armed. Reads
   // ONLY the engine state, so the button can never disagree with what a tap will
   // actually do (the "dead feature" lesson: the control must reflect the engine).
+  // A one-line hint over the field: what an armed ability is waiting for, or why
+  // the last tap was refused. Without this a refusal was a silent blip.
+  UI.abilityHint = function (text) {
+    let el = doc.querySelector("#screen-td-play .td-abilhint");
+    if (!el) {
+      const wrap = doc.querySelector("#screen-td-play .td-canvas-wrap");
+      if (!wrap) return;
+      el = doc.createElement("div");
+      el.className = "td-abilhint";
+      el.setAttribute("aria-live", "polite");
+      wrap.appendChild(el);
+    }
+    if (!text) { el.hidden = true; el.textContent = ""; return; }
+    el.hidden = false;
+    el.textContent = text;
+    if (UI._hintT) clearTimeout(UI._hintT);
+    UI._hintT = setTimeout(() => { el.hidden = true; }, 2200);
+  };
+
   UI.abilities = function (state, armedId) {
     const wrap = doc.querySelector("#screen-td-play .td-abils");
     if (!wrap) return;

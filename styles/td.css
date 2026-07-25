@@ -392,3 +392,17 @@ body.td-mode #screens { padding: 0; }
 .td-backup__msg[hidden] { display: none; }
 .td-backup__msg--ok { color: #8fe3ad; }
 .td-backup__msg--bad { color: #ff9db4; }
+
+/* ability buttons name themselves; the hint explains an armed/refused tap */
+.td-abil { width: 60px; height: 62px; min-width: 60px; min-height: 62px; }
+.td-abil__icon { font-size: 1.2rem; margin-top: 3px; }
+.td-abil__name { display: block; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.02em; color: #cfe2ff; }
+.td-abil__cost { display: block; font-size: 0.62rem; font-weight: 800; color: #ffd94a; }
+.td-abilhint {
+  position: absolute; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 8; max-width: calc(100% - 20px);
+  padding: 7px 14px; border-radius: 999px; background: rgba(11, 21, 38, 0.94);
+  color: #ffe27a; font-weight: 800; font-size: 0.85rem; text-align: center;
+  pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.td-abilhint[hidden] { display: none; }
