@@ -1571,3 +1571,141 @@ test("AUDIT heroic is a SLOPE, not a cliff: every level stays winnable on heroic
     assert.ok(won, `L${lvl.id} "${lvl.name}" is not winnable on HEROIC by either sensible build — heroic must stay a hard slope, not a wall`);
   }
 });
+
+// ---- TD-9: in-wave active abilities ----
+// The engine had NO player action during a wave — every decision lived in the
+// build phase, which is also why difficulty could only be tuned at the opening.
+// These prove each ability actually does its thing, that gold+cooldown really
+// gate it, and that adding them didn't cost determinism.
+test("TD-9 abilities: Toy Box Drop damages every enemy in its radius (and respects armor)", () => {
+  const lvl = DATA.LEVELS[0];
+  const e = TD.createEngine(lvl, { seed: 7 });
+  e.callWave();
+  for (let i = 0; i < 150; i++) e.tick();
+  const live = e.state.enemies.filter((x) => x.alive);
+  assert.ok(live.length >= 2, "need a few enemies on the field to blast");
+  const target = live[0];
+  const p = e.posOn(target.pathIdx, target.dist);
+  const before = live.map((x) => x.hp);
+  e.state.gold = 999;
+  const r = e.useAbility("drop", { x: p.x, y: p.y });
+  assert.ok(r.ok, "the drop fires when affordable and off cooldown");
+  assert.ok(r.hits >= 1, "it hit at least the enemy it was aimed at");
+  const hurt = e.state.enemies.filter((x, i) => before[i] != null && x.hp < before[i]).length;
+  assert.ok(hurt >= 1, "enemies inside the blast actually lost hp");
+  assert.ok(e.state.gold < 999, "the ability COSTS gold — it is a trade, not free power");
+});
+
+test("TD-9 abilities: gold and cooldown really gate a use", () => {
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 3 });
+  e.state.gold = 0;
+  assert.equal(e.useAbility("horn", {}).reason, "gold", "no gold → refused");
+  e.state.gold = 9999;
+  assert.ok(e.useAbility("horn", {}).ok, "affordable → allowed");
+  assert.equal(e.useAbility("horn", {}).reason, "cooldown", "a second use inside the cooldown is refused");
+  const def = DATA.ABILITIES.find((a) => a.id === "horn");
+  for (let i = 0; i < def.cooldown * DATA.TICK_RATE + 2; i++) e.tick();
+  assert.ok(e.useAbility("horn", {}).ok, "…and allowed again once the cooldown elapses");
+  assert.equal(e.useAbility("nope", {}).reason, "bad-ability", "an unknown ability id is refused");
+  assert.equal(e.useAbility("drop", {}).reason, "needs-point", "a point ability without a point is refused");
+});
+
+test("TD-9 abilities: Sticky Floor is a LIVE zone — it slows what walks in later", () => {
+  const lvl = DATA.LEVELS[0];
+  const e = TD.createEngine(lvl, { seed: 11 });
+  e.callWave();
+  for (let i = 0; i < 60; i++) e.tick();
+  const en = e.state.enemies.find((x) => x.alive);
+  assert.ok(en, "an enemy is walking");
+  // drop the puddle well AHEAD of it, so the slow can only come from walking in
+  const ahead = e.posOn(en.pathIdx, en.dist + 3);
+  e.state.gold = 999;
+  assert.ok(e.useAbility("sticky", { x: ahead.x, y: ahead.y }).ok);
+  assert.equal(e.state.puddles.length, 1, "the puddle is live on the field");
+  let slowedTick = -1;
+  for (let i = 0; i < 200 && slowedTick < 0; i++) { e.tick(); if (en.alive && e.state.tick < en.slowUntil && en.slowPct > 0) slowedTick = i; }
+  assert.ok(slowedTick > 0, "an enemy that WALKS INTO the puddle gets slowed");
+  const def = DATA.ABILITIES.find((a) => a.id === "sticky");
+  for (let i = 0; i < def.seconds * DATA.TICK_RATE + 5; i++) e.tick();
+  assert.equal(e.state.puddles.length, 0, "the puddle expires on its own tick");
+});
+
+test("TD-9 abilities: Overclock really doubles a tower's fire rate, then wears off", () => {
+  const lvl = DATA.LEVELS[0];
+  const shots = (useOverclock) => {
+    const e = TD.createEngine(lvl, { seed: 5 });
+    const t = e.place("dart", lvl.pads[0].id);
+    assert.ok(t.ok, "a dart went up");
+    e.callWave();
+    for (let i = 0; i < 90; i++) e.tick(); // let enemies reach it
+    if (useOverclock) { e.state.gold = 999; assert.ok(e.useAbility("overclock", { towerId: e.state.towers[0].id }).ok); }
+    let n = 0;
+    const before = e.events.length;
+    for (let i = 0; i < 8 * DATA.TICK_RATE; i++) { e.tick(); }
+    for (let i = before; i < e.events.length; i++) if (e.events[i].type === "shoot") n++;
+    return n;
+  };
+  const plain = shots(false), boosted = shots(true);
+  assert.ok(boosted > plain, `Overclock must fire MORE shots (plain ${plain} vs boosted ${boosted})`);
+});
+
+test("TD-9 abilities: Rally Horn puts every downed soldier straight back up", () => {
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const e = TD.createEngine(lvl, { seed: 4 });
+  e.state.gold = 9999;
+  const t = e.place("camp", lvl.pads[0].id);
+  assert.ok(t.ok, "a camp went up");
+  for (let i = 0; i < 120; i++) e.tick();
+  const mine = e.state.soldiers.filter((s) => s.campId === e.state.towers[0].id);
+  assert.ok(mine.length >= 1, "the camp deployed soldiers");
+  mine.forEach((s) => { s.alive = false; s.respawnAt = e.state.tick + 99999; }); // KO'd, a long way from respawning
+  const r = e.useAbility("horn", {});
+  assert.ok(r.ok && r.hits === mine.length, `the horn revived every downed soldier (${r.hits}/${mine.length})`);
+  assert.ok(mine.every((s) => s.alive && s.respawnAt === 0), "each is alive with its respawn timer cleared");
+});
+
+test("TD-9 abilities: an untargetable enemy is untargetable by the DROP too", () => {
+  // The documented law: every damage path — including AoE — honours isHidden.
+  const lvl = DATA.LEVELS.find((l) => l.waves.some((w) => w.groups.some((g) => g.type === "ghost")));
+  assert.ok(lvl, "a ghost level exists");
+  const e = TD.createEngine(lvl, { seed: 7 });
+  e.state.enemies.push({ id: 9001, type: "ghost", alive: true, hp: 500, maxHp: 500, dist: 4, pathIdx: 0,
+    armor: 0, shield: 0, speed: 1, slowPct: 0, slowUntil: 0, phaseHidden: true });
+  const g = e.state.enemies[e.state.enemies.length - 1];
+  const p = e.posOn(0, g.dist);
+  e.state.gold = 999;
+  const hpBefore = g.hp;
+  e.useAbility("drop", { x: p.x, y: p.y });
+  assert.equal(g.hp, hpBefore, "a phased ghost takes ZERO damage from the Toy Box Drop");
+});
+
+test("TD-9 abilities: adding them cost no determinism (same seed → identical run)", () => {
+  const play = (useAbil) => {
+    const lvl = DATA.LEVELS[0];
+    const e = TD.createEngine(lvl, { seed: 21 });
+    e.place("dart", lvl.pads[0].id);
+    let guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 60000) {
+      if (e.state.phase === "build") e.callWave();
+      if (useAbil && e.state.tick % 400 === 0) { const p = e.posOn(0, 5); e.useAbility("drop", { x: p.x, y: p.y }); }
+      e.tick();
+    }
+    return TD.hashState(e.state);
+  };
+  assert.equal(play(false), play(false), "an ability-free run still replays identically");
+  assert.equal(play(true), play(true), "an ability-USING run replays identically too");
+  assert.notEqual(play(true), play(false), "…and using them actually changes the run");
+});
+
+test("TD-9 abilities: a puddle laid in the BUILD phase still burns down", () => {
+  // The build branch of tick() returns early — a regression here would leave a
+  // pre-wave Sticky Floor alive for ever. Found in-browser, pinned here.
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 8 });
+  assert.equal(e.state.phase, "build");
+  e.state.gold = 999;
+  assert.ok(e.useAbility("sticky", { x: 5, y: 5 }).ok);
+  assert.equal(e.state.puddles.length, 1);
+  const def = DATA.ABILITIES.find((a) => a.id === "sticky");
+  for (let i = 0; i < def.seconds * DATA.TICK_RATE + 5; i++) { if (e.state.phase !== "build") break; e.tick(); }
+  assert.equal(e.state.puddles.length, 0, "the puddle expired during the build phase too");
+});

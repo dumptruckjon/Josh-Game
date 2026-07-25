@@ -970,6 +970,65 @@ test("AUDIT: no pad hides under the floating CALL button (every map, both orient
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires it", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+  await page.waitForTimeout(80);
+
+  const strip = page.locator("#screen-td-play .td-abils .td-abil");
+  const n = await page.evaluate(() => window.TDData.ABILITIES.length);
+  assert.equal(await strip.count(), n, `the field carries all ${n} ability buttons`);
+  // Adult-sized (the fort is Jon's space) and inside the field, not off-screen.
+  const box = await strip.first().boundingBox();
+  const cbox = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  assert.ok(box.width >= 44 && box.height >= 44, `ability buttons are adult-tappable (${box.width}×${box.height})`);
+  assert.ok(box.x >= cbox.x - 2 && box.x + box.width <= cbox.x + cbox.width + 2, "the strip sits inside the field");
+
+  // Broke → the button reads unaffordable and a tap is refused (no arming).
+  await page.evaluate(() => { window.__TD.state().gold = 0; window.TDUI.abilities(window.__TD.state(), null); });
+  assert.ok(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--poor")),
+    "an unaffordable ability reads as unaffordable");
+  await page.locator('.td-abil[data-abil="drop"]').click();
+  assert.ok(!(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--armed"))),
+    "tapping an unaffordable ability must NOT arm it");
+
+  // Rich → arm it, then resolve with a real field tap on the world position.
+  await page.evaluate(() => { window.__TD.grantGold(2000); window.__TD.state().phase = "wave"; window.TDUI.abilities(window.__TD.state(), null); });
+  await page.locator('.td-abil[data-abil="drop"]').click();
+  assert.ok(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--armed")),
+    "a point ability ARMS and waits for the field tap (the rally-flag precedent)");
+  // re-tapping disarms (toddler-proof toggle), then arm again for real
+  await page.locator('.td-abil[data-abil="drop"]').click();
+  assert.ok(!(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--armed"))),
+    "re-tapping an armed ability disarms it");
+  await page.locator('.td-abil[data-abil="drop"]').click();
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const sp = await page.evaluate(() => window.__TD.w2s(6.5, 5.5));
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.waitForTimeout(60);
+  assert.ok(await page.evaluate(() => (window.__TD.state().abilityCd || {}).drop > window.__TD.state().tick),
+    "the field tap actually SPENT the ability (its cooldown is now running)");
+  assert.ok(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--cool")),
+    "…and the button shows the cooldown");
+
+  // An "instant" ability needs no field tap at all.
+  await page.evaluate(() => { window.__TD.grantGold(2000); window.TDUI.abilities(window.__TD.state(), null); });
+  await page.locator('.td-abil[data-abil="horn"]').click();
+  await page.waitForTimeout(40);
+  assert.ok(await page.evaluate(() => (window.__TD.state().abilityCd || {}).horn > window.__TD.state().tick),
+    "an instant ability fires on its own tap — no arming, no field tap");
+
+  // A live Sticky Floor puddle paints on the field and expires on its own.
+  await page.evaluate(() => { window.__TD.grantGold(2000); window.TDUI.abilities(window.__TD.state(), null); });
+  await page.locator('.td-abil[data-abil="sticky"]').click();
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.waitForTimeout(60);
+  assert.equal(await page.evaluate(() => window.__TD.state().puddles.length), 1, "the puddle is live in state");
+  await page.evaluate(() => { window.__TD.script([["tick", 300]]); });
+  assert.equal(await page.evaluate(() => window.__TD.state().puddles.length), 0, "and it expires by itself");
+});
+
 test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTHING else does", async () => {
   // Seed a fully-populated save, then boot the fort from it, so the test proves
   // the PERSISTED state is really cleared (not just the in-memory copy).

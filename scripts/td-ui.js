@@ -73,12 +73,32 @@
         '<div class="td-nextwave" aria-live="polite" hidden></div>' +
         '<div class="td-banner" aria-live="assertive" hidden></div>' +
         '<button class="td-btn td-btn--call td-call" type="button" aria-label="Call the next wave">▶ CALL</button>' +
+        // TD-9: the in-WAVE control strip. Adult-sized, floats over the field so
+        // portrait still needs zero scrolling.
+        '<div class="td-abils" role="group" aria-label="Abilities"></div>' +
       "</div>";
     screens.appendChild(play);
     play.querySelector(".td-quit").addEventListener("click", hooks.quitToFort);
     play.querySelector(".td-pause").addEventListener("click", hooks.togglePause);
     play.querySelector(".td-speed").addEventListener("click", hooks.toggleSpeed);
     play.querySelector(".td-call").addEventListener("click", hooks.callWave);
+
+    // TD-9 ability bar: one button per ability, built once. A "point"/"tower"
+    // ability ARMS (the next field tap resolves it); an "instant" one fires now.
+    const abilWrap = play.querySelector(".td-abils");
+    for (const a of (global.TDData.ABILITIES || [])) {
+      const b = doc.createElement("button");
+      b.className = "td-abil";
+      b.type = "button";
+      b.dataset.abil = a.id;
+      b.dataset.adult = "1"; // the fort is Jon's space — adult-sized, not kid-sized
+      b.setAttribute("aria-label", a.name + " — " + a.role + ", costs " + a.gold + " gold");
+      b.innerHTML = '<span class="td-abil__icon">' + a.icon + "</span>" +
+        '<span class="td-abil__cost">' + a.gold + "</span>" +
+        '<span class="td-abil__cd" hidden></span>';
+      b.addEventListener("click", (ev) => { ev.stopPropagation(); hooks.useAbility(a.id); });
+      abilWrap.appendChild(b);
+    }
 
     // In-field build bubble + tower panel (positioned over the canvas)
     const wrap = play.querySelector(".td-canvas-wrap");
@@ -417,6 +437,28 @@
         nw.textContent = "Next: " + parts.join("  ");
         nw.hidden = false;
       } else nw.hidden = true;
+    }
+    UI.abilities(state);
+  };
+
+  // TD-9: refresh the ability strip — affordable / on-cooldown / armed. Reads
+  // ONLY the engine state, so the button can never disagree with what a tap will
+  // actually do (the "dead feature" lesson: the control must reflect the engine).
+  UI.abilities = function (state, armedId) {
+    const wrap = doc.querySelector("#screen-td-play .td-abils");
+    if (!wrap) return;
+    const over = state.phase === "won" || state.phase === "lost";
+    wrap.hidden = over;
+    for (const b of wrap.querySelectorAll(".td-abil")) {
+      const def = (global.TDData.ABILITIES || []).find((a) => a.id === b.dataset.abil);
+      if (!def) continue;
+      const left = Math.max(0, ((state.abilityCd || {})[def.id] || 0) - state.tick) / global.TDData.TICK_RATE;
+      const poor = state.gold < def.gold;
+      b.classList.toggle("td-abil--cool", left > 0);
+      b.classList.toggle("td-abil--poor", !left && poor);
+      b.classList.toggle("td-abil--armed", armedId === def.id);
+      const cd = b.querySelector(".td-abil__cd");
+      if (cd) { cd.hidden = left <= 0; cd.textContent = left > 0 ? Math.ceil(left) + "s" : ""; }
     }
   };
 

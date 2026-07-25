@@ -38,6 +38,28 @@
     leverCooldown: 8, // TD-7: seconds between L10 track-switch pulls
   };
 
+  // ---- TD-9 ACTIVE ABILITIES: the in-WAVE layer ----
+  // Every other decision in this game happens in the BUILD phase — once you hit
+  // CALL you were a spectator, which is also why difficulty could only ever be
+  // tuned at the opening (the front-loading finding). These are the mid-fight
+  // lever. Two deliberate design rules:
+  //   1. They cost GOLD, not just a cooldown. That makes an ability a real
+  //      trade against a tower/upgrade rather than free power, so they can't
+  //      quietly inflate the whole difficulty curve — and it lands the agency
+  //      where the game had none (late waves, when gold is plentiful).
+  //   2. They are fully deterministic: tick-stamped cooldowns, zero rng, so a
+  //      headless sim can drive and prove every one of them.
+  const ABILITIES = [
+    { id: "drop", icon: "🧨", name: "Toy Box Drop", role: "big splash where you tap",
+      gold: 130, cooldown: 25, kind: "point", radius: 2.4, dmg: 300, dmgType: "bonk" },
+    { id: "sticky", icon: "🍯", name: "Sticky Floor", role: "slows everything in the puddle",
+      gold: 90, cooldown: 20, kind: "point", radius: 2.0, slow: 0.5, seconds: 8 },
+    { id: "overclock", icon: "⚡", name: "Overclock", role: "one tower fires twice as fast",
+      gold: 100, cooldown: 22, kind: "tower", mult: 2, seconds: 8 },
+    { id: "horn", icon: "📣", name: "Rally Horn", role: "every soldier back on their feet",
+      gold: 80, cooldown: 30, kind: "instant" },
+  ];
+
   // ---- Towers (§4): 4 lines × tiers 1-3 + two exclusive tier-4 branches ----
   // dmgType "bonk" is reduced by armor; "zap" ignores armor, shields absorb it.
   const TOWERS = {
@@ -575,7 +597,7 @@
     },
   };
 
-  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, TOWERS, ENEMIES, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
+  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, TOWERS, ENEMIES, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
 
   if (typeof module !== "undefined" && module.exports) module.exports = DATA;
   if (global && typeof global === "object") global.TDData = DATA;

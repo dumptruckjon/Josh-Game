@@ -751,6 +751,25 @@
       for (let i = fx.length - 1; i >= 0; i--) if (fx[i].ttl <= 0) fx.splice(i, 1);
     }
 
+    // TD-9 Sticky Floor: an amber puddle on the FLOOR (drawn in the rotated world
+    // pass with the path and conveyors — it is terrain, not a character), fading
+    // out over its last second so its expiry is readable without a timer.
+    function drawPuddles(st) {
+      const list = st.puddles || [];
+      if (!list.length) return;
+      for (const z of list) {
+        const left = (z.until - st.tick) / global.TDData.TICK_RATE;
+        const a = Math.max(0.12, Math.min(0.42, left));
+        ctx.fillStyle = "rgba(255, 196, 74, " + a.toFixed(3) + ")";
+        ctx.beginPath();
+        ctx.arc(z.x * cell, z.y * cell, z.r * cell, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 226, 122, " + Math.min(0.8, a + 0.25).toFixed(3) + ")";
+        ctx.lineWidth = Math.max(1.5, cell * 0.05);
+        ctx.stroke();
+      }
+    }
+
     function draw(alpha) {
       if (!bg) bakeBg();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -769,6 +788,7 @@
       ctx.drawImage(bg, 0, 0, cell * GRID.w, cell * GRID.h);
       drawConveyors();
       drawLeverRoute(st);
+      drawPuddles(st);
       if (selection && selection.pad) drawRange(selection.pad.cx, selection.pad.cy, (selection.ghostRange || 2.6) * nightMul, true);
       if (selection && selection.tower) {
         const t = st.towers.find((x) => x.id === selection.tower);

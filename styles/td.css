@@ -185,6 +185,34 @@ body.td-mode #screens { padding: 0; }
 }
 .td-nextwave[hidden] { display: none; }
 
+/* TD-9 ability strip — the in-WAVE controls, floating up the left of the field.
+   Grid (not flex) for the gap: flex-gap is DROPPED on iOS 14.2 (Safari 14.0),
+   which would collapse the spacing on Josh's actual device. */
+.td-abils {
+  position: absolute; left: 6px; bottom: 6px; z-index: 7;
+  display: grid; grid-auto-flow: row; gap: 8px;
+}
+.td-abils[hidden] { display: none; }
+.td-abil {
+  position: relative; width: 52px; height: 52px; min-width: 52px; min-height: 52px;
+  border-radius: 14px; border: 2px solid #3a548a; background: rgba(15, 26, 47, 0.92);
+  color: #e8eefc; padding: 0; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.td-abil__icon { display: block; font-size: 1.4rem; line-height: 1.1; margin-top: 4px; }
+.td-abil__cost { display: block; font-size: 0.7rem; font-weight: 800; color: #ffd94a; }
+.td-abil__cd {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; background: rgba(8, 14, 26, 0.78);
+  font-weight: 800; font-size: 0.95rem; color: #9db4dd;
+}
+.td-abil__cd[hidden] { display: none; }
+.td-abil--poor { opacity: 0.55; }
+.td-abil--armed { border-color: #ffd94a; box-shadow: 0 0 0 3px rgba(255, 217, 74, 0.45); }
+.td-abil:active { transform: scale(0.96); }
+
 /* boss klaxon banner — a big transient reveal across the field */
 .td-banner {
   position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%);

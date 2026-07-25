@@ -388,7 +388,7 @@
       if (score > (save.endlessBest[world] || 0)) { save.endlessBest[world] = score; persist(save); }
       if (score >= 20) earnAch("marathoner"); // earnAch de-dupes + persists
     }
-    cur.rallyArmId = 0; cur.selPadId = null; cur.selTowerId = null;
+    cur.rallyArmId = 0; cur.abilArmId = null; cur.selPadId = null; cur.selTowerId = null;
     if (cur.render) cur.render.setSelection(null);
   }
 
@@ -474,6 +474,29 @@
     // (portrait-filling) orientation exactly as in landscape.
     const w = cur.render.screenToWorld(ev.clientX - rect.left, ev.clientY - rect.top);
     const gx = w.x, gy = w.y;
+    // TD-9 ability mode: this tap RESOLVES an armed ability (a point on the
+    // field, or the tower under the tap) instead of selecting anything.
+    if (cur.abilArmId) {
+      const id = cur.abilArmId;
+      cur.abilArmId = null;
+      const def = (DATA.ABILITIES || []).find((a) => a.id === id);
+      let r;
+      if (def && def.kind === "tower") {
+        let t = null, bestT = 0.9 * 0.9;
+        for (const tw of cur.engine.state.towers) {
+          const d = (tw.cx + 0.5 - gx) ** 2 + (tw.cy + 0.5 - gy) ** 2;
+          if (d < bestT) { bestT = d; t = tw; }
+        }
+        r = t ? cur.engine.useAbility(id, { towerId: t.id }) : { ok: false, reason: "no-tower" };
+      } else {
+        r = cur.engine.useAbility(id, { x: gx, y: gy });
+      }
+      UI.hideBubble(); cur.render.setSelection(null);
+      if (r.ok) { sfx(id === "drop" ? "splash" : "build"); UI.hud(cur.engine.state); }
+      else sfx("deny");
+      UI.abilities(cur.engine.state, null);
+      return;
+    }
     // rally mode: this tap plants the camp's flag instead of selecting
     if (cur.rallyArmId) {
       const armed = cur.rallyArmId;
@@ -661,6 +684,28 @@
   UI.buildScreens({
     exitFort: () => { location.hash = ""; },
     quitToFort: () => { promptLeave(() => { location.hash = "#td-home"; }); },
+    // TD-9: tapping an ability button. An "instant" one fires immediately; a
+    // point/tower one ARMS and the next field tap resolves it (the rally-flag
+    // precedent). Re-tapping an armed ability disarms it — a toddler-proof
+    // toggle, and the same double-tap forgiveness the kid games learned.
+    useAbility: (id) => {
+      if (!cur) return;
+      const def = (DATA.ABILITIES || []).find((a) => a.id === id);
+      if (!def) return;
+      if (cur.abilArmId === id) { cur.abilArmId = null; UI.abilities(cur.engine.state, null); return; }
+      const ready = cur.engine.abilityReady(id);
+      if (!ready.ok) { sfx("deny"); UI.abilities(cur.engine.state, cur.abilArmId); return; }
+      if (def.kind === "instant") {
+        const r = cur.engine.useAbility(id, {});
+        if (r.ok) { sfx("build"); UI.hud(cur.engine.state); } else sfx("deny");
+        UI.abilities(cur.engine.state, null);
+        return;
+      }
+      cur.abilArmId = id;
+      cur.rallyArmId = 0; // the two arm-modes are mutually exclusive
+      UI.hideBubble(); cur.render.setSelection(null);
+      UI.abilities(cur.engine.state, id);
+    },
     togglePause: () => {
       if (!cur) return;
       if (cur.paused) { cur.paused = false; UI.closeOverlay(); return; }

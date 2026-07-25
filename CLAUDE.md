@@ -1223,7 +1223,22 @@ thrown-arm on the button, so a thrown lever read as "stuck on long". Now
 shared prefix/tail, which belong to both routes), and the button names its
 state ("SHORT WAY"/"LONG WAY"); `render.leverInfo()` is the hook the browser
 test drives both ways (the shakeInfo precedent). The fort is now
-feature-complete with no deferrals.
+feature-complete with no deferrals. **TD-9 IN-WAVE ABILITIES** adds the one
+missing pillar: until now EVERY decision lived in the build phase, so once you
+hit CALL you were a spectator — which is also why the difficulty audit could
+only ever move the opening. Four abilities (`DATA.ABILITIES`, driven by
+`engine.useAbility(id, {x,y}|{towerId})`) now give the player a mid-fight lever:
+🧨 **Toy Box Drop** (splash where you tap — honours `isHidden`, so a phased ghost
+is still untouchable), 🍯 **Sticky Floor** (a LIVE zone in `state.puddles` that
+re-slows whatever walks in, through the one `applySlow`), ⚡ **Overclock** (a
+tower fires 2× for 8s via ONE `boostOf(t)` read at every cooldown-set site, so a
+future tower line inherits it free) and 📣 **Rally Horn** (every downed soldier
+straight back up). Two deliberate design laws: each costs **gold** as well as a
+cooldown, so an ability is a real trade against a tower rather than free power
+(it can't silently inflate the curve — the auto-solver never uses them, so every
+winnability sim stays conservative and needed no re-tune); and all four are
+**pure deterministic** (tick-stamped cooldowns, zero rng), so a headless sim
+drives each one and an ability-using run still replays byte-identically.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

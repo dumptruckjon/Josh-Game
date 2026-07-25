@@ -198,6 +198,8 @@
       endless: !!endlessWorld,
       leverRoute: 0, // TD-7: which lane new / pre-fork enemies take (lever levels)
       leverCd: 0,    // tick until the lever can be thrown again
+      abilityCd: {}, // TD-9: ability id → tick it becomes usable again
+      puddles: [],   // TD-9: live Sticky Floor zones { x, y, r, slow, until }
       enemies: [],
       towers: [],
       soldiers: [],
@@ -262,6 +264,9 @@
       if (def.boss) emit({ type: "boss", name: def.name });
     }
 
+    // TD-9 Overclock: ONE fire-rate multiplier read at every cooldown-set site,
+    // so any future tower line inherits the ability without new code.
+    function boostOf(t) { return (t.boostUntil && state.tick < t.boostUntil) ? (t.boostMult || 2) : 1; }
     function applySlow(e, pct, seconds) {
       let p = pct * (enemyDef(e).flier ? R.flierSlowFactor : 1);
       p = Math.min(p, R.slowCap);
@@ -679,7 +684,7 @@
             else t.heat = s.heatFloor;
           }
           if (t.targetId && t.cooldown <= 0) {
-            t.cooldown = Math.round(s.rate * DATA.TICK_RATE);
+            t.cooldown = Math.round(s.rate * DATA.TICK_RATE / boostOf(t));
             let dmg = s.dmg * mods.dartDmg; // TD-5 Sharp Darts
             if (s.spinUp) dmg = Math.max(1, Math.round(s.dmg * mods.dartDmg * (t.heat || s.heatFloor)));
             let crit = false;
@@ -699,7 +704,7 @@
           const targetId = pickByMode(cands, t.targeting, t);
           const target = targetId ? enemyById(targetId) : null;
           if (target && t.cooldown <= 0) {
-            t.cooldown = Math.round(s.rate * DATA.TICK_RATE);
+            t.cooldown = Math.round(s.rate * DATA.TICK_RATE / boostOf(t));
             const p = epos(target);
             const flight = Math.sqrt((p.x - t.cx) ** 2 + (p.y - t.cy) ** 2) / def.shellSpeed;
             const lead = posAt(epath(target), target.dist + effSpeed(target) * flight);
@@ -721,7 +726,7 @@
             if (t.cooldown <= 0) {
               const first = pickByMode(candidates(t, 0, s.zapRange, true), t.targeting, t);
               if (first) {
-                t.cooldown = Math.round(s.chain.rate * DATA.TICK_RATE);
+                t.cooldown = Math.round(s.chain.rate * DATA.TICK_RATE / boostOf(t));
                 const hitIds = [];
                 let cur2 = enemyById(first);
                 let dmg = s.chain.dmg;
@@ -796,6 +801,10 @@
       if (state.phase === "build") {
         state.countdown -= 1;
         soldierTick(); // army guys deploy/walk to their rally posts between waves
+        // A puddle laid down BEFORE the wave must still burn down — this branch
+        // returns early, so without this a pre-placed Sticky Floor would live
+        // for ever (caught by the browser test, not by reading the code).
+        puddleTick();
         if (state.countdown <= 0) startWave();
         return;
       }
@@ -834,6 +843,7 @@
       bossTick();  // Vacuum King sucks soldiers / The Static jams+summons
       stompTick(); // bosses stomp soldiers
       healTick();  // healers mend allies (before towers fire, so it's felt)
+      puddleTick(); // TD-9 Sticky Floor zones re-slow whatever is standing in them
       fireTowers();
 
       // dart projectiles home
@@ -992,9 +1002,83 @@
       return { ok: true, route: state.leverRoute };
     }
 
+    // ---- TD-9 active abilities: the in-WAVE decision layer ----
+    // Each costs gold AND sits on a tick-stamped cooldown, so an ability is a
+    // real trade against a tower rather than free power. Zero rng: a headless
+    // sim can drive every one of them and a replay stays byte-identical.
+    const abilityDef = (id) => (DATA.ABILITIES || []).find((a) => a.id === id) || null;
+    function abilityReady(id) {
+      const def = abilityDef(id);
+      if (!def) return { ok: false, reason: "bad-ability" };
+      if (state.phase !== "wave" && state.phase !== "build") return { ok: false, reason: "over" };
+      if (state.tick < (state.abilityCd[id] || 0)) return { ok: false, reason: "cooldown" };
+      if (state.gold < def.gold) return { ok: false, reason: "gold" };
+      return { ok: true, def };
+    }
+    function useAbility(id, opts) {
+      const chk = abilityReady(id);
+      if (!chk.ok) return chk;
+      const def = chk.def, o = opts || {};
+      let hits = 0;
+      if (def.kind === "point") {
+        if (typeof o.x !== "number" || typeof o.y !== "number") return { ok: false, reason: "needs-point" };
+        const r2 = def.radius * def.radius;
+        for (const e of state.enemies) {
+          if (!e.alive || isHidden(e)) continue; // an untargetable enemy is untargetable by EVERY damage path
+          const p = epos(e);
+          if ((p.x - o.x) ** 2 + (p.y - o.y) ** 2 > r2) continue;
+          hits++;
+          if (def.dmg) {
+            const hit = computeHit(def.dmg, def.dmgType || "bonk", e);
+            dealDamage(e, hit.hpDmg, hit.shieldDmg, "ability");
+          }
+        }
+        if (def.slow) {
+          // A LIVE zone, not a one-shot: enemies that walk in later are slowed
+          // too. Refreshed each tick through the ONE applySlow (flier factor,
+          // cap and strongest-wins all inherited).
+          state.puddles.push({ x: o.x, y: o.y, r: def.radius, slow: def.slow, until: state.tick + Math.round(def.seconds * DATA.TICK_RATE) });
+        }
+      } else if (def.kind === "tower") {
+        const t = towerById(o.towerId);
+        if (!t) return { ok: false, reason: "no-tower" };
+        t.boostUntil = state.tick + Math.round(def.seconds * DATA.TICK_RATE);
+        t.boostMult = def.mult;
+        hits = 1;
+      } else { // instant — Rally Horn: every downed soldier back up NOW
+        for (const t of state.towers) {
+          if (t.lineId !== "camp") continue;
+          const s = statsOf(DATA.TOWERS.camp, t);
+          for (const sol of state.soldiers) {
+            if (sol.campId !== t.id) continue;
+            sol.hp = Math.round(s.hp * mods.soldierHp); sol.maxHp = sol.hp;
+            if (!sol.alive) { sol.alive = true; sol.respawnAt = 0; sol.engagedId = 0; sol.x = t.cx; sol.y = t.cy; hits++; }
+          }
+        }
+      }
+      state.gold -= def.gold;
+      state.abilityCd[id] = state.tick + Math.round(def.cooldown * DATA.TICK_RATE);
+      emit({ type: "ability", id, x: o.x, y: o.y, radius: def.radius || 0, hits });
+      return { ok: true, hits };
+    }
+    // Live Sticky Floor zones re-apply their slow every tick (a short refresh so
+    // leaving the puddle wears off quickly), and expire on their own tick.
+    function puddleTick() {
+      if (!state.puddles.length) return;
+      for (let i = state.puddles.length - 1; i >= 0; i--) if (state.tick >= state.puddles[i].until) state.puddles.splice(i, 1);
+      for (const z of state.puddles) {
+        const r2 = z.r * z.r;
+        for (const e of state.enemies) {
+          if (!e.alive) continue;
+          const p = epos(e);
+          if ((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= r2) applySlow(e, z.slow, 0.25);
+        }
+      }
+    }
+
     return {
       state, events, tick, place, upgrade, branch, sell, setTargeting, rally, callWave,
-      pullLever,
+      pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       paths, path, posAt: (dist) => posAt(path, dist), posOn: (pathIdx, dist) => posAt(paths[pathIdx || 0], dist),
       isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
       rangeMul, // effective night range multiplier (Night Owl included) — the renderer's preview must match the engine
