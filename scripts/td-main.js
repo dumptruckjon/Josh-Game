@@ -504,6 +504,9 @@
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
       lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1, // TD-5 achievement context
       leaks: {}, leakWave: 0 }; // TD-12 post-mortem context (the tallies live in engine state)
+    // The HUD reads the CALL/RUSH offer straight off the engine, so the button
+    // can never promise gold the engine would refuse (the dead-control lesson).
+    UI._callInfo = () => (cur ? cur.engine.callInfo() : null);
     startMusic(); // TD-6 optional looping march (no-op unless the toggle is on)
     keepAwake();  // don't let the phone doze while a wave plays out
     UI.closeOverlay();
@@ -589,7 +592,11 @@
       if (t.targeting) e.setTargeting(nt.id, t.targeting);
       if (t.lineId === "camp") e.rally(nt.id, t.rallyX, t.rallyY);
     }
-    e.state.waveIdx = mr.waveIdx; e.state.gold = mr.gold; e.state.lives = mr.lives;
+    // A checkpoint is always taken at a BUILD boundary, where sent === cleared —
+    // so one saved number restores both counters (a rushed overlap can never be
+    // mid-flight in a checkpoint).
+    e.state.waveIdx = mr.waveIdx; e.state.sentIdx = mr.waveIdx;
+    e.state.gold = mr.gold; e.state.lives = mr.lives;
     e.state.shieldUsed = !!mr.shieldUsed; // TD-8: restore a spent Sticker Shield (legacy midRun lacks it → false, matching a fresh run)
     e.state.leverRoute = mr.leverRoute || 0; // legacy midRun saves lack the field → default short (the save-field-coverage lesson)
     e.state.phase = "build"; e.state.cheated = false; // restored progress is honest
@@ -935,7 +942,26 @@
       const b = doc.querySelector("#screen-td-play .td-speed");
       if (b) b.textContent = cur.speed + "×";
     },
-    callWave: () => { if (cur) { cur.engine.callWave(); UI.hud(cur.engine.state); } },
+    // CALL in build starts the wave early; CALL during a wave RUSHES the next
+    // one on top of it (up to RULES.maxWavesInFlight). A refusal is explained
+    // rather than silent — the ability lesson, applied to the wave button.
+    callWave: () => {
+      if (!cur) return;
+      const r = cur.engine.callWave();
+      if (r.ok) {
+        sfx(cur.engine.state.sentIdx - cur.engine.state.waveIdx > 1 ? "boss" : "wave");
+        if (cur.engine.state.sentIdx - cur.engine.state.waveIdx > 1) {
+          UI.abilityHint("⏩ Two waves at once — hold the line!");
+        }
+      } else if (r.reason === "too-many-waves") {
+        sfx("deny");
+        UI.abilityHint("⏩ Already two waves out — clear one first");
+      } else if (r.reason === "no-more-waves") {
+        sfx("deny");
+        UI.abilityHint("⏩ That was the last wave");
+      }
+      UI.hud(cur.engine.state);
+    },
     fieldTap,
     // TD-5 meta screens (opened from the fort home)
     openTree: () => UI.showStarTree(save, (newMeta) => { save.meta = newMeta; persist(save); }),

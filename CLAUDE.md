@@ -901,7 +901,7 @@ tooling.
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/12 levels (3 worlds; L10 = TD-7 fork+lever)/gimmicks + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 12 achievements, endless arenas)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
@@ -1484,6 +1484,40 @@ feature that only ever ran through node sims is untested as a FEATURE; press its
 button, look at its screen, derive every count from the data instead of writing
 the number you happen to ship with — and after adding content, re-measure the
 screens that content makes taller.
+
+**TD-15 gave the player a THIRD lever — sending waves — and made a boss leak
+hurt.** (1) **Overlapping waves.** CALL was build-phase only; it now works
+mid-wave too, as ⏩ RUSH, dropping the next wave on top of the one already
+walking for the same early-call gold. The implementation is one idea: split the
+single `waveIdx` into **`waveIdx` (cleared) and `sentIdx` (sent)**. They are
+equal at every build boundary — which is why a mid-run checkpoint needed no new
+field, one saved number restores both — and diverge only while an overlap is in
+flight. `scheduleWave` now APPENDS to the spawn queue instead of replacing it,
+which is a default-noop (at a normal wave start the queue is empty, so every
+historical stream stays byte-identical and the determinism suite is the proof),
+and `finishIfWaveDone` sets `waveIdx = sentIdx` so BOTH cleared waves count and
+the run never replays one. Two design guards, each guardrail-locked: a cap of
+`RULES.maxWavesInFlight` (2) so a player can't dump a boss finale onto wave 1,
+and `RULES.rushSettle` (2s) so a **fumbled double-tap can't rush** — the button
+relabels itself from ▶ CALL to ⏩ RUSH the instant the wave starts, and without
+the settle window the second tap of a doubled press would send a wave you had
+not seen yet. That one was caught by the existing toddler-chaos guardrail going
+red, which is exactly what it is for. (2) **Bosses are consequential.** The leak
+toll was already a data field (`lives`) read at the ONE leak site, so making a
+boss cost more was a data change (5-8 → 6-10 against a 20-sticker door) — every
+playability sim still passes untouched, which is the whole point of keeping the
+toll in data. What was missing was that you could not SEE it: the toll now rides
+the leak event, so a boss leak flashes deeper and longer than a sock's, shakes
+the field, and floats a `−8 ❤` at the door, and the Toybox Guide gives any
+multi-life enemy a "costs N stickers" trait line automatically. Size became a
+data field too (`size`, read by one `bossScale()` helper) rather than four
+hand-tuned constants in the renderer, so a boss is big by declaring it.
+(3) **Haptics on iOS: still no, and the PWA does not change it.** Adding the site
+to the home screen changes the CHROME (no URL bar, its own switcher card), not
+the API surface — standalone mode runs the same WebKit, and WebKit on iOS has
+never implemented the Vibration API. The shipped feature-checked path stays as
+it is: real on Android, an honest no-op on Josh's iPad. Do not add an iOS
+haptics "trick"; the only real path is native.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

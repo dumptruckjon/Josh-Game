@@ -192,7 +192,12 @@
       tick: 0,
       phase: "build",
       countdown: R.buildCountdownFirst * DATA.TICK_RATE,
+      // waveIdx = waves CLEARED. sentIdx = waves SENT. They are equal at every
+      // build boundary (so a mid-run checkpoint stays compatible) and diverge
+      // only while an early-rushed wave overlaps the one already walking.
       waveIdx: 0,
+      sentIdx: 0,
+      lastCallTick: -9999, // a RUSH must be deliberate — see callInfo's `too-soon`
       gold: levelDef.startGold + diff.startGold + mods.startGold,
       lives: R.lives + mods.lives,
       stars: 0,
@@ -227,9 +232,11 @@
     const soldierById = (id) => state.soldiers.find((s) => s.id === id && s.alive) || null;
     const enemyDef = (e) => DATA.ENEMIES[e.type];
 
+    // APPENDS, never replaces — a rushed wave has to join the queue of the one
+    // already walking. (At a normal wave start the queue is empty, so every
+    // historical stream is byte-identical.)
     function scheduleWave(idx) {
       const wave = waveAt(idx);
-      spawnQueue = [];
       for (const g of wave.groups) {
         for (let i = 0; i < g.count; i++) {
           const jitter = (rng() - 0.5) * 0.3;
@@ -242,8 +249,9 @@
 
     function startWave() {
       state.phase = "wave";
-      scheduleWave(state.waveIdx);
-      emit({ type: "wave", n: state.waveIdx + 1 });
+      scheduleWave(state.sentIdx);
+      state.sentIdx += 1;
+      emit({ type: "wave", n: state.sentIdx, inFlight: state.sentIdx - state.waveIdx });
     }
 
     function spawnEnemy(type, dist, pathIdx) {
@@ -492,8 +500,11 @@
         emit({ type: "leak", enemy: e.type, shielded: true });
         return;
       }
-      state.lives -= enemyDef(e).lives;
-      emit({ type: "leak", enemy: e.type });
+      const toll = enemyDef(e).lives;
+      state.lives -= toll;
+      // The COST rides the event: a boss eating 8 stickers at once has to read
+      // as a catastrophe on the field, not as the same red flash a sock makes.
+      emit({ type: "leak", enemy: e.type, lives: toll, boss: !!enemyDef(e).boss });
       // 🧸 Kid mode has NO failure state (RULE 5): the stickers can run low and
       // the leak still happens, but the fort never falls over. One flag, read at
       // the ONE place a run can be lost.
@@ -506,7 +517,9 @@
     function finishIfWaveDone() {
       if (spawnQueue.length || state.enemies.some((e) => e.alive)) return;
       state.enemies.length = 0;
-      state.waveIdx += 1;
+      // Every wave that was SENT is now cleared — including any the player
+      // rushed on top, so the two counters re-converge at the build boundary.
+      state.waveIdx = state.sentIdx;
       // TD-8 capstone/ability payouts on a CLEARED wave (skipped when this wave
       // just won the level — the run is over, and Patch Kit must never inflate
       // the lives-based star count at the finish line). Patch Kit never heals
@@ -1045,14 +1058,35 @@
       emit({ type: "rally", x, y });
       return { ok: true };
     }
-    function callWave() {
-      if (state.phase !== "build") return { ok: false, reason: "not-build" };
-      const secondsLeft = state.countdown / DATA.TICK_RATE;
+    // How much gold calling right now would pay, and whether it is allowed.
+    // Mid-wave the whole upcoming build phase is being skipped, so it pays the
+    // full-countdown rate — the same formula, at its maximum.
+    function callInfo() {
+      const over = state.phase === "won" || state.phase === "lost";
+      const secondsLeft = state.phase === "build" ? state.countdown / DATA.TICK_RATE : R.buildCountdown;
       const bonus = Math.ceil(secondsLeft * R.earlyCallRate * mods.earlyCall); // TD-5 Early Bird
-      state.gold += bonus;
+      const inFlight = state.sentIdx - state.waveIdx;
+      const more = endlessWorld || state.sentIdx < waves.length;
+      // A RUSH must be a DELIBERATE act. Without this, a fumbled double-tap on
+      // CALL — the button relabels itself from ▶ CALL to ⏩ RUSH the instant the
+      // wave starts — would dump a second wave on you before you saw the first.
+      // (The toddler-chaos guardrail caught exactly that.)
+      const settle = Math.round((R.rushSettle || 2) * DATA.TICK_RATE);
+      let reason = "";
+      if (over) reason = "over";
+      else if (!more) reason = "no-more-waves";
+      else if (state.phase === "wave" && inFlight >= (R.maxWavesInFlight || 2)) reason = "too-many-waves";
+      else if (state.phase === "wave" && state.tick - state.lastCallTick < settle) reason = "too-soon";
+      return { ok: !reason, reason, bonus, inFlight, max: R.maxWavesInFlight || 2 };
+    }
+    function callWave() {
+      const info = callInfo();
+      if (!info.ok) return { ok: false, reason: info.reason };
+      state.gold += info.bonus;
       state.countdown = 0;
+      state.lastCallTick = state.tick;
       startWave();
-      return { ok: true, bonus };
+      return { ok: true, bonus: info.bonus };
     }
     // TD-7: throw the track-switch lever (L10). Toggles which lane fresh spawns
     // take AND reroutes every enemy still on the shared prefix (dist < fork.at) —
@@ -1178,6 +1212,7 @@
 
     return {
       state, events, tick, place, upgrade, branch, sell, setTargeting, rally, callWave,
+      callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       paths, path, posAt: (dist) => posAt(path, dist), posOn: (pathIdx, dist) => posAt(paths[pathIdx || 0], dist),
       isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
@@ -1208,6 +1243,9 @@
     if (def.charge) out.push({ key: "charge", icon: "🐂", text: "Charges when hit" });
     if (def.goldBurst) out.push({ key: "gold", icon: "🪅", text: "Bursts +" + def.goldBurst + " gold when popped" });
     if (def.boss) out.push({ key: "boss", icon: "👑", text: "Boss — its kit escalates as its health drops" });
+    // The toll is the single most consequential number on the card: letting one
+    // of these reach the door is not the same as letting a sock through.
+    if (def.lives > 1) out.push({ key: "toll", icon: "💔", text: "Costs " + def.lives + " stickers if it reaches the door" });
     if (!out.length) out.push({ key: "plain", icon: "•", text: "No tricks — anything can hit it" });
     return out;
   }

@@ -150,7 +150,19 @@ test("TD economy rules: place/upgrade validation, 80% sell refund, early-call bo
   assert.ok(called.ok);
   assert.equal(called.bonus, 135, "45s remaining × 3 = 135");
   assert.equal(e.state.gold, bonusGold + 135);
-  assert.equal(e.callWave().reason, "not-build", "no double-call mid-wave");
+  // An IMMEDIATE second press is a fumbled double-tap, not a decision: the
+  // button relabels to ⏩ RUSH the instant the wave starts, so the engine holds
+  // it off for RULES.rushSettle seconds.
+  assert.equal(e.callWave().reason, "too-soon", "a doubled press cannot rush a wave you haven't seen");
+  for (let i = 0; i < DATA.RULES.rushSettle * DATA.TICK_RATE + 1; i++) e.tick();
+  // After that, a mid-wave CALL is the RUSH: it sends the next wave on top of
+  // this one, and pays the FULL build-countdown rate (20s × 3 = 60) because you
+  // are skipping that whole build phase. A third is refused — two is the cap.
+  const rushed = e.callWave();
+  assert.ok(rushed.ok, "a mid-wave CALL rushes the next wave");
+  assert.equal(rushed.bonus, 60, "rushing pays the full build countdown (20s × 3)");
+  assert.equal(e.state.sentIdx - e.state.waveIdx, 2, "two waves are now in flight");
+  assert.equal(e.callWave().reason, "too-many-waves", "…but only two at a time");
 });
 
 test("TD targeting modes are accepted and reset the lock; phase-gated APIs answer honestly", () => {
@@ -1575,6 +1587,104 @@ test("AUDIT boss tension: every boss FINALE must actually cost something", () =>
   const vk = DATA.ENEMIES.vacuumking;
   assert.ok(vk.phases && vk.phases.some((p) => p.disable),
     "the Vacuum King must keep a tower-facing threat (a jam phase) — without it a tower-only build is immune to its whole kit and the World-2 finale costs nothing");
+});
+
+test("RUSH: a mid-wave call puts TWO waves on the field, and both must be cleared", () => {
+  // Requested: "the ability to summon waves even when the previous wave is still
+  // on screen. In which case you'd have multiple waves of bad guys at once!"
+  // The two counters are the whole mechanic: waveIdx = cleared, sentIdx = sent.
+  const lvl = DATA.LEVELS.find((l) => l.id === 1);
+  const e = TD.createEngine(lvl, { seed: 5 });
+  assert.equal(e.state.sentIdx, 0, "nothing sent yet");
+  e.callWave();
+  for (let i = 0; i < DATA.RULES.rushSettle * DATA.TICK_RATE + 20; i++) e.tick();
+  const solo = e.state.enemies.filter((x) => x.alive).length;
+  assert.ok(solo > 0, "wave 1 is walking");
+  assert.equal(e.state.waveIdx, 0, "…and nothing has been CLEARED yet");
+
+  const g0 = e.state.gold;
+  const r = e.callWave();
+  assert.ok(r.ok, "a second wave can be rushed while the first is live");
+  assert.ok(!e.callWave().ok, "…and an immediate re-press is refused (at the cap, the cap is the honest reason)");
+  assert.ok(r.bonus > 0 && e.state.gold === g0 + r.bonus, "…and it pays the early-call bonus");
+  for (let i = 0; i < 40; i++) e.tick();
+  assert.ok(e.state.enemies.filter((x) => x.alive).length > solo,
+    "the rushed wave really is spawning ON TOP of the first (more enemies on the field)");
+  assert.equal(e.state.sentIdx - e.state.waveIdx, 2, "two waves in flight");
+  assert.equal(e.callWave().reason, "too-many-waves", "the cap holds at RULES.maxWavesInFlight");
+
+  let guard = 0;
+  while (e.state.phase === "wave" && guard++ < 200000) e.tick();
+  assert.equal(e.state.phase, "build", "the field clears back to a build phase");
+  assert.equal(e.state.waveIdx, 2, "BOTH sent waves count as cleared — the run doesn't replay wave 2");
+  assert.equal(e.state.sentIdx, e.state.waveIdx, "the counters re-converge at every build boundary");
+
+  // …and rushing the LAST wave of a level still wins it (no off-by-one).
+  const tiny = { id: 97, name: "m", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 9 }, { id: "m2", cx: 9, cy: 9 }],
+    waves: [{ groups: [{ type: "sock", count: 2, gap: 0.5, delay: 0 }] },
+            { groups: [{ type: "sock", count: 2, gap: 0.5, delay: 0 }] }] };
+  const e2 = TD.createEngine(tiny, { seed: 2 });
+  e2.place("dart", "m"); e2.place("dart", "m2");
+  e2.callWave();
+  for (let i = 0; i < DATA.RULES.rushSettle * DATA.TICK_RATE + 10; i++) e2.tick();
+  assert.ok(e2.callWave().ok, "the final wave can be rushed too");
+  assert.equal(e2.callInfo().reason, "no-more-waves", "…and then there is nothing left to send");
+  let g2 = 0;
+  while (e2.state.phase === "wave" && g2++ < 200000) e2.tick();
+  assert.equal(e2.state.phase, "won", "clearing both rushed waves WINS the level");
+});
+
+test("RUSH must not change a run that never rushes (determinism holds)", () => {
+  // scheduleWave now APPENDS instead of replacing. At a normal wave start the
+  // queue is empty, so every historical stream must be byte-identical.
+  const lvl = DATA.LEVELS.find((l) => l.id === 3);
+  const play = () => {
+    const e = TD.createEngine(lvl, { seed: 11 });
+    e.place("dart", lvl.pads[0].id); e.place("mortar", lvl.pads[1].id);
+    let g = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 300000) {
+      if (e.state.phase === "build") e.callWave();
+      e.tick();
+    }
+    return TD.hashState(e.state);
+  };
+  assert.equal(play(), play(), "same inputs → identical state hash");
+});
+
+test("BOSS: a boss that reaches the door costs MULTIPLE stickers, and says so", () => {
+  // Requested: a boss should be more consequential — bigger, and it takes
+  // multiple lives if it reaches the door. The toll is a data field read at the
+  // ONE leak site, and it rides the event so the field can show what it cost.
+  const bosses = Object.keys(DATA.ENEMIES).filter((k) => DATA.ENEMIES[k].boss);
+  assert.ok(bosses.length >= 4, `every boss is covered (${bosses.join(", ")})`);
+  for (const b of bosses) {
+    const def = DATA.ENEMIES[b];
+    assert.ok(def.lives >= 5, `${b} must cost several stickers at the door (got ${def.lives})`);
+    assert.ok(def.size >= 2, `${b} must DRAW bigger than a regular enemy (size ${def.size})`);
+  }
+  const worst = Math.max(...Object.keys(DATA.ENEMIES).filter((k) => !DATA.ENEMIES[k].boss).map((k) => DATA.ENEMIES[k].lives));
+  assert.ok(Math.min(...bosses.map((b) => DATA.ENEMIES[b].lives)) > worst,
+    `the gentlest boss must still hurt more than the worst regular leaker (${worst})`);
+
+  // Drive it: let a boss walk an empty lane and check the real deduction.
+  for (const b of bosses) {
+    const def = DATA.ENEMIES[b];
+    const lvl = { id: 96, name: "m", world: "test", startGold: 0, budgetBase: 100,
+      path: [[0, 3], [8, 3]], pads: [{ id: "m", cx: 5, cy: 9 }],
+      waves: [{ groups: [{ type: b, count: 1, gap: 1, delay: 0 }] }] };
+    const e = TD.createEngine(lvl, { seed: 4 });
+    const before = e.state.lives;
+    e.callWave();
+    let g = 0;
+    while (e.state.phase === "wave" && g++ < 200000) e.tick();
+    const leak = e.events.filter((v) => v.type === "leak").pop();
+    assert.ok(leak, `${b} reached the door`);
+    assert.equal(leak.lives, def.lives, `${b}'s leak event carries its toll (${def.lives})`);
+    assert.equal(leak.boss, true, `${b}'s leak event is flagged as a boss leak`);
+    const lost = before - (e.state.phase === "lost" ? 0 : e.state.lives);
+    assert.ok(lost >= Math.min(def.lives, before), `${b} really took ${def.lives} stickers (lost ${lost})`);
+  }
 });
 
 test("AUDIT counter matrix: the structural facts the Toybox Guide teaches are TRUE", () => {

@@ -115,6 +115,9 @@ body.td-mode #screens { padding: 0; }
   z-index: 6; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 .td-call[hidden] { display: none; }
+/* RUSH: the same button mid-wave, sending the NEXT wave on top of this one.
+   Deliberately hotter than the yellow CALL — it is the risky one. */
+.td-call--rush { background: #ff8a3d; color: #3a1600; }
 
 /* in-field bubble / tower panel */
 .td-bubble {

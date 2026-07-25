@@ -33,6 +33,12 @@
     buildCountdownFirst: 45,
     buildCountdown: 20,
     earlyCallRate: 3,
+    // How many waves may be walking at once. A CALL during a wave RUSHES the
+    // next one on top of it — full early-call gold for real danger. Capped at 2
+    // so it stays a tactical choice rather than a way to dump the whole level
+    // (including a boss finale) onto wave 1.
+    maxWavesInFlight: 2,
+    rushSettle: 2,       // seconds a wave must be walking before it can be rushed (anti-fumble)
     sellRefund: 0.8,
     stars: [[18, 3], [10, 2], [1, 1]],
     slowCap: 0.6,        // slows never stack — strongest wins, capped (§5.1)
@@ -139,7 +145,7 @@
     pinata: { name: "Piñata", icon: "🪅", hp: 400, speed: 0.45, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 60, lives: 2, flier: false, meleeDmg: 8, meleeRate: 1.0, goldBurst: 20 }, // the economy release valve
     brick: { name: "Brick", icon: "🧱", hp: 28, speed: 0.9, armor: 0, shield: 0, shieldRegen: 0, bounty: 4, lives: 1, flier: false, meleeDmg: 3, meleeRate: 0.9 }, // authored in tight 8-squads → splash bait
     // ---- TD-3: World-1 boss ----
-    bedmonster: { name: "Bed Monster", icon: "🛏", hp: 2400, speed: 0.28, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 200, lives: 5, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, stomp: { dmg: 60, radius: 1.5, seconds: 6 } }, // hp 3200→2400: tuned to THIS L4's 10-pad geometry (plan's 3200 assumed its own boss arena) so a wave-9 build kills it with margin; unblockable; stomps soldiers
+    bedmonster: { name: "Bed Monster", icon: "🛏", hp: 2400, speed: 0.28, armor: 0.25, shield: 0, shieldRegen: 0, bounty: 200, lives: 6, size: 3.0, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, stomp: { dmg: 60, radius: 1.5, seconds: 6 } }, // hp 3200→2400: tuned to THIS L4's 10-pad geometry (plan's 3200 assumed its own boss arena) so a wave-9 build kills it with margin; unblockable; stomps soldiers
     // ---- TD-4: Worlds 2-3 roster. Each ability is a data field the engine reads
     //      (phase/tunnel via isHidden, shieldRegen, flier) + guardrail-tested. ----
     ghost: { name: "Glitter Ghost", icon: "👻", hp: 55, speed: 0.9, armor: 0, shield: 0, shieldRegen: 0, bounty: 11, lives: 1, flier: false, meleeDmg: 4, meleeRate: 1.0, phase: { every: 4, on: 1.5 } }, // untargetable 1.5s every 4s (keeps walking) — burst it in the gaps
@@ -150,7 +156,7 @@
     // Its whole kit is DATA the engine already reads (phases -> speedMult /
     // disable / spawn), so it needed no new engine code (the TD-4 boss lesson).
     tickmaster: { name: "The Tickmaster", icon: "\u23f0", hp: 3200, speed: 0.45, armor: 0.2, shield: 0, shieldRegen: 0,
-      bounty: 220, lives: 8, flier: false, meleeDmg: 0, meleeRate: 1, boss: true,
+      bounty: 220, lives: 10, size: 3.0, flier: false, meleeDmg: 0, meleeRate: 1, boss: true,
       phases: [
         { upTo: 1.0 },
         { upTo: 0.66, speedMult: 1.35 },
@@ -179,8 +185,8 @@
     // path, no new engine code) and hits harder, so it's a real DPS+disruption
     // check like L4/L12. Sim: L8 19.0 → 15.3 lives, boss reaches the exit on a
     // naive build. hp tuned to THIS level's 13-pad geometry.
-    vacuumking: { name: "Vacuum King", icon: "🌪", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 5, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
-    thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 5, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
+    vacuumking: { name: "Vacuum King", icon: "🌪", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
+    thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 10, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
 
   // ---- Levels 1-5: a sock/marble/balloon slice with real progression (beat N →

@@ -340,6 +340,11 @@
       '<ul class="td-guide__towers">' + towerRow + "</ul>" +
       '<p class="td-overlay__sub">Powers — usable during a wave only.</p>' +
       '<ul class="td-guide__towers td-guide__abils">' + abilRow + "</ul>" +
+      // The wave button does two different jobs; say so, or ⏩ RUSH is a mystery.
+      '<p class="td-overlay__sub">The wave button</p>' +
+      '<ul class="td-guide__towers"><li><b>▶ CALL</b> — start the next wave early. The sooner you call, the more gold.</li>' +
+      "<li><b>⏩ RUSH</b> — send the NEXT wave on top of the one already walking, for the same bonus. Up to " +
+      (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk.</li></ul>" +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
     el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);
@@ -516,24 +521,43 @@
     const total = level ? level.waves.length : 0;
     if (wave) {
       // The wave you're facing or about to face (1-based) — never the old "0/6".
-      if (endless) wave.textContent = "wave " + (state.waveIdx + 1) + " ♾️";
-      else wave.textContent = "wave " + Math.min(state.waveIdx + 1, total) + "/" + total;
+      // With a RUSHED wave, TWO are walking at once, so name both: "wave 3-4/12".
+      const sent = state.sentIdx == null ? state.waveIdx : state.sentIdx;
+      const first = Math.min(state.waveIdx + 1, endless ? Infinity : total);
+      const last = Math.min(Math.max(sent, state.waveIdx + 1), endless ? Infinity : total);
+      const span = last > first ? first + "-" + last : String(first);
+      if (endless) wave.textContent = "wave " + span + " ♾️";
+      else wave.textContent = "wave " + span + "/" + total;
     }
     const call = q(".td-call");
     if (call) {
+      // The CALL button lives in BOTH phases now: during build it starts the
+      // wave early for gold; during a wave it RUSHES the next one on top of the
+      // one already walking (same gold, real danger). It only disappears when
+      // there is genuinely nothing to send — the cap is reached, or the last
+      // wave is out — so it is never a dead control.
+      const info = UI._callInfo ? UI._callInfo() : null;
       if (state.phase === "build") {
         const secs = Math.ceil(state.countdown / global.TDData.TICK_RATE);
-        const bonus = Math.ceil((state.countdown / global.TDData.TICK_RATE) * global.TDData.RULES.earlyCallRate);
+        const bonus = info ? info.bonus : Math.ceil((state.countdown / global.TDData.TICK_RATE) * global.TDData.RULES.earlyCallRate);
         call.hidden = false;
+        call.classList.remove("td-call--rush");
         call.textContent = "▶ CALL +" + bonus + "🪙 (" + secs + "s)";
+      } else if (state.phase === "wave" && info && info.ok) {
+        call.hidden = false;
+        call.classList.add("td-call--rush");
+        call.textContent = "⏩ RUSH +" + info.bonus + "🪙";
       } else call.hidden = true;
     }
     // Next-wave preview: during the build phase, show WHAT is coming (enemy icons
     // + counts) so the player can plan their build — a premium-TD staple.
     const nw = q(".td-nextwave");
     if (nw) {
-      if (!endless && state.phase === "build" && state.waveIdx < total) {
-        const groups = level.waves[state.waveIdx].groups;
+      // What's coming is the next UNSENT wave (sentIdx), which equals waveIdx at
+      // every build boundary but not while a rushed wave is still walking.
+      const nextIdx = state.sentIdx == null ? state.waveIdx : state.sentIdx;
+      if (!endless && state.phase === "build" && nextIdx < total) {
+        const groups = level.waves[nextIdx].groups;
         const counts = {};
         groups.forEach((g) => { counts[g.type] = (counts[g.type] || 0) + g.count; });
         const parts = Object.keys(counts).map((type) => {

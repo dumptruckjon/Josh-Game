@@ -207,6 +207,12 @@
     }
 
     // ---------- enemies (upright, screen space) ----------
+    // A boss must LOOK like one. The scale is a data field (`size`), so a new
+    // boss is big by declaring it, not by hand-tuning a constant in here.
+    function bossScale(e, fallback) {
+      const def = global.TDData.ENEMIES[e.type];
+      return (def && def.size) || fallback;
+    }
     function drawEnemy(e, sx, sy) {
       const r = cell * 0.34;
       if (e.type === "balloon") {
@@ -331,7 +337,7 @@
         ctx.beginPath(); ctx.moveTo(sx - r * 0.7, sy); ctx.lineTo(sx + r * 0.7, sy); ctx.moveTo(sx, sy - r * 0.42); ctx.lineTo(sx, sy); ctx.moveTo(sx - r * 0.35, sy); ctx.lineTo(sx - r * 0.35, sy + r * 0.42); ctx.moveTo(sx + r * 0.35, sy); ctx.lineTo(sx + r * 0.35, sy + r * 0.42); ctx.stroke();
       } else if (e.type === "bedmonster") {
         // Bed Monster boss: a big scary-cute bed with eyes + a toothy grin
-        const R = r * 1.9;
+        const R = r * bossScale(e, 1.9);
         shadow(sx, sy + R * 0.55, R * 0.8, R * 0.24);
         ctx.fillStyle = "#6a4a8a"; ctx.beginPath(); ctx.moveTo(sx - R * 0.7, sy - R * 0.2); ctx.lineTo(sx - R * 0.7, sy - R * 0.62); ctx.arcTo(sx - R * 0.7, sy - R * 0.78, sx - R * 0.5, sy - R * 0.78, R * 0.16); ctx.lineTo(sx + R * 0.5, sy - R * 0.78); ctx.arcTo(sx + R * 0.7, sy - R * 0.78, sx + R * 0.7, sy - R * 0.62, R * 0.16); ctx.lineTo(sx + R * 0.7, sy - R * 0.2); ctx.closePath(); ctx.fill(); // headboard
         const gm = ctx.createLinearGradient(sx, sy - R * 0.3, sx, sy + R * 0.5);
@@ -412,7 +418,7 @@
         ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - r * 0.12, by, r * 0.08, 0, 7); ctx.arc(sx + r * 0.12, by, r * 0.08, 0, 7); ctx.fill();
       } else if (e.type === "vacuumking") {
         // Vacuum King boss: a swirling tornado with a little gold crown
-        const R = r * 1.8, spin = engine.state.tick * 0.2;
+        const R = r * bossScale(e, 1.8), spin = engine.state.tick * 0.2;
         shadow(sx, sy + R * 0.55, R * 0.7, R * 0.2);
         const gv = ctx.createLinearGradient(sx, sy - R * 0.8, sx, sy + R * 0.7);
         gv.addColorStop(0, "#8fa6c8"); gv.addColorStop(1, "#4c5e80");
@@ -429,7 +435,7 @@
         ctx.beginPath(); ctx.moveTo(sx - R * 0.4, sy - R * 0.78); ctx.lineTo(sx - R * 0.4, sy - R * 1.02); ctx.lineTo(sx - R * 0.2, sy - R * 0.86); ctx.lineTo(sx, sy - R * 1.08); ctx.lineTo(sx + R * 0.2, sy - R * 0.86); ctx.lineTo(sx + R * 0.4, sy - R * 1.02); ctx.lineTo(sx + R * 0.4, sy - R * 0.78); ctx.closePath(); ctx.fill();
       } else if (e.type === "thestatic") {
         // The Static boss: a crackling electric cloud; brighter as it escalates
-        const R = r * 1.85, frac = e.hp / e.maxHp;
+        const R = r * bossScale(e, 1.85), frac = e.hp / e.maxHp;
         const hot = frac <= 0.33 ? 1 : frac <= 0.66 ? 0.6 : 0.3;
         shadow(sx, sy + R * 0.5, R * 0.75, R * 0.22);
         const gc = ctx.createRadialGradient(sx, sy, R * 0.2, sx, sy, R);
@@ -537,7 +543,7 @@
         // The Tickmaster (World-4 boss): a battered wind-up alarm clock. Its HANDS
         // spin faster as it escalates, so the hp-gated phases are readable on the
         // enemy itself, not only in the banner.
-        const R = r * 1.8, frac = e.hp / (e.maxHp || 1);
+        const R = r * bossScale(e, 1.8), frac = e.hp / (e.maxHp || 1);
         const rage = frac <= 0.33 ? 3.2 : frac <= 0.66 ? 1.8 : 1;
         shadow(sx, sy + R * 0.55, R * 0.72, R * 0.2);
         ctx.fillStyle = "#8d99ad"; // bells
@@ -1015,8 +1021,19 @@
         fx.push({ kind: "gold", x: e.x, y: e.y, ttl: 26, max: 26, text: "+" + e.bounty });
       } else if (e.type === "build" || e.type === "upgrade") fx.push({ kind: "ring", x: e.x + 0.5, y: e.y + 0.5, ttl: 12, max: 12 });
       else if (e.type === "leak") { // a burst of leaks REFRESHES one flash — never stacks to an opaque wall
+        const cost = e.lives || 1;
         const cur = fx.find((f) => f.kind === "leak");
-        if (cur) cur.ttl = cur.max; else fx.push({ kind: "leak", x: 0, y: 0, ttl: 10, max: 10 });
+        // A boss eating 8 stickers at once must not read as the same blink a
+        // sock makes: it flashes deeper and for longer, and shakes the field.
+        const ttl = e.boss ? 26 : 10, deep = e.boss ? 0.5 : 0.25;
+        if (cur) { cur.ttl = Math.max(cur.ttl, ttl); cur.max = Math.max(cur.max, ttl); cur.deep = Math.max(cur.deep || 0.25, deep); }
+        else fx.push({ kind: "leak", x: 0, y: 0, ttl, max: ttl, deep });
+        if (cost > 1 && !e.shielded) {
+          // the toll, floated at the door so you SEE what it cost
+          const end = engine.posOn(0, 1e9);
+          fx.push({ kind: "toll", x: end.x, y: end.y, ttl: 34, max: 34, text: "−" + cost + " ❤" });
+          if (e.boss) triggerShake(5);
+        }
       }
       else if (e.type === "chain") fx.push({ kind: "chain", points: e.points, ttl: 7, max: 7 });
       else if (e.type === "stun") fx.push({ kind: "stars", x: e.x, y: e.y, ttl: 10, max: 10 });
@@ -1140,8 +1157,21 @@
           ctx.textAlign = "center";
           ctx.fillText(f.text, p.x, p.y - cell * 0.5 - (1 - a) * cell * 0.8);
         } else if (f.kind === "leak") {
-          ctx.fillStyle = "rgba(255,90,90," + (0.25 * a) + ")";
+          ctx.fillStyle = "rgba(255,90,90," + ((f.deep || 0.25) * a) + ")";
           ctx.fillRect(0, 0, cssW, cssH);
+        } else if (f.kind === "toll") { // what a multi-life leak actually cost
+          const p = worldToScreen(f.x, f.y);
+          const ty = p.y - (1 - a) * cell * 2;
+          ctx.font = "bold " + Math.round(cell * 0.85) + "px sans-serif";
+          ctx.textAlign = "center";
+          // WHITE on a dark outline: this floats over the leak's red wash, so
+          // red text would be invisible exactly when it matters most.
+          ctx.lineWidth = Math.max(3, cell * 0.12);
+          ctx.strokeStyle = "rgba(20,10,14," + a + ")";
+          ctx.lineJoin = "round";
+          ctx.strokeText(f.text, p.x, ty);
+          ctx.fillStyle = "rgba(255,255,255," + a + ")";
+          ctx.fillText(f.text, p.x, ty);
         }
         f.ttl -= 1;
       }

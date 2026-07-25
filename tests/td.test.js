@@ -351,13 +351,16 @@ test("fort daily-drive guardrails: topbar restore, pause-while-away, chaos taps,
   await page.waitForFunction((t) => window.__TD.state().tick > t, away, { timeout: 5000 });
   assert.ok(await page.locator(".topbar").isHidden(), "topbar hidden inside the fort");
 
-  // toddler chaos on Jon's controls: doubled CALL = ONE bonus; doubled buy = ONE charge
+  // toddler chaos on Jon's controls: doubled CALL = ONE bonus; doubled buy = ONE charge.
+  // CALL relabels itself to ⏩ RUSH the instant the wave starts, so a fumbled
+  // double-tap MUST NOT dump a second wave — the engine's rushSettle window.
   await page.evaluate(() => { window.__TD.newGame(1, { seed: 77 }); });
   const g0 = await page.evaluate(() => window.__TD.state().gold);
   await page.locator(".td-call").click();
   await page.locator(".td-call").click({ force: true }).catch(() => {});
   let s = await page.evaluate(() => window.__TD.state());
   assert.ok(s.phase === "wave" && s.gold - g0 <= 135, `doubled CALL grants one bonus (+${s.gold - g0})`);
+  assert.equal(s.sentIdx - s.waveIdx, 1, "a fumbled double-tap must NOT rush a second wave onto the field");
   const rect = await page.locator(".td-canvas").boundingBox();
   const sp = await page.evaluate(() => window.__TD.w2s(5.5, 6.5));
   await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
@@ -1057,7 +1060,9 @@ test("the POWER strip lives OFF the battlefield, and never fights the CALL butto
   const wave = await geom();
   assert.equal(wave.phase, "wave");
   assert.ok(!wave.idle, "wave phase: the power strip is live");
-  assert.equal(wave.call, null, "…and CALL is gone");
+  // CALL does not vanish mid-wave any more — it becomes ⏩ RUSH once the wave
+  // has settled. It still cannot overlap the strip, which is off the field.
+  assert.ok(!hit(wave.abils, wave.call), "…and RUSH still never overlaps the strip");
   assert.equal(wave.canvas.h, fieldInBuild, "the battlefield does NOT resize when the strip wakes up");
 
   // …and a power armed mid-wave must DISARM when the wave ends, or it eats the
@@ -1499,6 +1504,53 @@ test("🧸 Kid Fort: the button really opens a kid run — big controls, no losi
   assert.equal(await page.evaluate(() => document.body.classList.contains("td-kid")), false,
     "starting an adult run takes the kid skin back off");
   await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("⏩ RUSH: the CALL button really sends a second wave onto a live field", async () => {
+  // Requested: summon a wave while the previous one is still on screen. Driven
+  // through the BUTTON, not the API — a feature whose tests all call the engine
+  // directly is untested as a feature.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 21 }); });
+  await page.waitForTimeout(100);
+  const call = page.locator("#screen-td-play .td-call");
+  assert.match(await call.textContent(), /CALL/, "build phase: the button offers a CALL");
+  await call.click();
+  await page.waitForTimeout(60);
+  // Inside the settle window a RUSH is refused, so the button hides — a fumbled
+  // double-tap has nothing to hit.
+  assert.equal(await page.evaluate(() => window.__TD.engine().callInfo().reason), "too-soon",
+    "immediately after a CALL, a RUSH is refused");
+  assert.ok(await call.isHidden(), "…and the button is not offering one");
+
+  // Let the wave settle and walk, then RUSH the next one on top of it.
+  await page.evaluate(() => { window.__TD.script([["tick", 90]]); window.TDUI.hud(window.__TD.state()); });
+  const before = await page.evaluate(() => ({
+    alive: window.__TD.state().enemies.filter((e) => e.alive).length,
+    gold: window.__TD.state().gold,
+    inFlight: window.__TD.state().sentIdx - window.__TD.state().waveIdx,
+  }));
+  assert.equal(before.inFlight, 1, "one wave is walking");
+  assert.match(await call.textContent(), /RUSH/, "mid-wave the button becomes ⏩ RUSH");
+  await call.click();
+  await page.evaluate(() => { window.__TD.script([["tick", 60]]); window.TDUI.hud(window.__TD.state()); });
+  const after = await page.evaluate(() => ({
+    alive: window.__TD.state().enemies.filter((e) => e.alive).length,
+    gold: window.__TD.state().gold,
+    inFlight: window.__TD.state().sentIdx - window.__TD.state().waveIdx,
+    hud: document.querySelector("#screen-td-play .td-hud__wave").textContent,
+  }));
+  assert.equal(after.inFlight, 2, "the RUSH put a SECOND wave on the field");
+  assert.ok(after.gold > before.gold, "…and paid the early-call bonus");
+  assert.ok(after.alive > before.alive, "…and there are visibly more bad guys");
+  assert.match(after.hud, /wave 1-2\//, "the HUD names BOTH waves that are walking");
+  assert.ok(await call.isHidden(), "at the cap the button stops offering (never a dead control)");
+
+  // Clear the field: both waves count, so the run does not replay wave 2.
+  await page.evaluate(() => { window.__TD.script([["untilPhase", "build", 200000]]); window.TDUI.hud(window.__TD.state()); });
+  assert.equal(await page.evaluate(() => window.__TD.state().waveIdx), 2,
+    "clearing an overlapped field advances by BOTH waves");
 });
 
 test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () => {
