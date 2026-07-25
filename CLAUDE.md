@@ -1319,6 +1319,17 @@ p10 sat 0.50 cells from its long lane** — throwing the lever ran the train
 straight through a tower. Moved to (19,10). Lesson: when a level gains a second
 lane, every per-lane law (pad clearance, the CALL-button overlap check, soldier
 posts) must be re-run against EVERY lane, not just lane 0.
+**TD-14 COMFORT** adds the two quality-of-life pieces the fort was missing: field
+speed now steps **1× → 2× → 3×** (90 ticks/sec; the frame loop's 6-ticks-per-frame
+cap already prevents a spiral), and **💾 Backup** on the fort home hands you the
+save as text and takes it back. Backup matters because `localStorage` is the ONLY
+store — a cleared browser or a private-mode session takes the whole fort with no
+warning. The restore **validates before it writes** (must parse, must be an
+object, must be `v === 1` with a `stars` object) so a bad paste can never destroy
+a good save, then reloads so every field goes through the normal boot coercion
+rather than trusting the pasted shape. NOT included, and worth naming: a 4th
+world and a kid-mode fort were listed under this category and are **not built** —
+both are content projects on the scale of TD-4, not comfort polish.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

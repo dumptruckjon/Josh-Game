@@ -245,9 +245,11 @@ test("pause freezes the sim; the speed toggle doubles it", async () => {
   await page.waitForFunction((t) => window.__TD.state().tick > t, t2, { timeout: 5000 });
   const speedBtn = page.locator("#screen-td-play .td-speed");
   await speedBtn.click();
-  assert.equal(await speedBtn.textContent(), "2×", "speed toggles to 2×");
+  assert.equal(await speedBtn.textContent(), "2×", "speed steps to 2×");
   await speedBtn.click();
-  assert.equal(await speedBtn.textContent(), "1×");
+  assert.equal(await speedBtn.textContent(), "3×", "…and to 3× (TD-14 added the third step)");
+  await speedBtn.click();
+  assert.equal(await speedBtn.textContent(), "1×", "…then wraps back to 1×");
 });
 
 test("TD2 build menu: all four toy lines offered with prices; unaffordable options dim", async () => {
@@ -968,6 +970,54 @@ test("AUDIT: no pad hides under the floating CALL button (every map, both orient
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("TD-14 backup: the fort save exports as text and a BAD paste changes nothing", async () => {
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  // Seed something worth losing, then reload so the fort boots from it.
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    s.v = 1; s.stars = { casual: {}, normal: { 1: 3, 2: 2 }, heroic: {} }; s.ach = ["firstblood"];
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(s));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+
+  await page.locator(".td-backup-open").click();
+  await page.locator(".td-overlay--backup").waitFor({ state: "visible" });
+  const exported = await page.locator(".td-backup__box").inputValue();
+  const parsed = JSON.parse(exported);
+  assert.equal(parsed.stars.normal["1"], 3, "the export carries the real progress");
+
+  // A bad paste must be REFUSED — never destroy a good save.
+  await page.locator(".td-backup__box").fill("not a save at all");
+  await page.locator(".td-backup-load").click();
+  await page.waitForTimeout(60);
+  assert.ok(await page.locator(".td-backup__msg--bad").isVisible(), "a bad paste is refused, out loud");
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars.normal["1"]), 3,
+    "…and the stored save is untouched");
+  // Wrong-shape JSON is refused too (parses fine, but is not a fort save).
+  await page.locator(".td-backup__box").fill('{"hello":true}');
+  await page.locator(".td-backup-load").click();
+  await page.waitForTimeout(60);
+  assert.ok(await page.locator(".td-backup__msg--bad").isVisible(), "valid JSON of the wrong shape is refused too");
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).stars.normal["1"]), 3,
+    "…still untouched");
+  await page.evaluate(() => { window.TDUI.closeOverlay(); window.__TD.resetSave(); });
+});
+
+test("TD-14 speed: the field speed cycles 1× → 2× → 3× → 1×", async () => {
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 7 }); });
+  const btn = page.locator("#screen-td-play .td-speed");
+  const seen = [];
+  for (let i = 0; i < 4; i++) { seen.push((await btn.textContent()).trim()); await btn.click(); }
+  assert.deepEqual(seen, ["1×", "2×", "3×", "1×"], `speed cycles through three steps, got ${seen.join(" ")}`);
 });
 
 test("TD-13 run summary: a win shows damage BY LINE and records a personal best", async () => {

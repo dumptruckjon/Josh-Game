@@ -814,7 +814,9 @@
     },
     toggleSpeed: () => {
       if (!cur) return;
-      cur.speed = cur.speed === 1 ? 2 : 1;
+      // 1× → 2× → 3× → 1×. 3× is 90 ticks/sec; the frame loop already caps at
+      // 6 ticks per frame, so a slow frame can never spiral.
+      cur.speed = cur.speed >= 3 ? 1 : cur.speed + 1;
       const b = doc.querySelector("#screen-td-play .td-speed");
       if (b) b.textContent = cur.speed + "×";
     },
@@ -827,6 +829,21 @@
     // Grown-ups reset: wipe progress (keeping sound/graphics prefs + the
     // difficulty chip), drop any parked run, then re-render the fort home so the
     // grid re-locks, the star tree empties and the Resume banner disappears.
+    // TD-14 backup: the save as text, and a VALIDATING restore. A bad paste must
+    // never destroy a good save, so nothing is written until it parses AND looks
+    // like a fort save; the restored blob then goes through the same boot
+    // coercion as a normal load (via reload) so a stale shape can't crash a win.
+    exportSave: () => JSON.stringify(save),
+    importSave: (text) => {
+      let incoming = null;
+      try { incoming = JSON.parse(String(text || "").trim()); } catch (e) { return { ok: false, reason: "parse" }; }
+      if (!incoming || typeof incoming !== "object" || incoming.v !== 1) return { ok: false, reason: "shape" };
+      if (typeof incoming.stars !== "object" || incoming.stars === null) return { ok: false, reason: "shape" };
+      save = incoming;
+      persist(save, { force: true }); // a deliberate restore, like a reset
+      global.location.reload();       // re-boot so every field gets its coercion
+      return { ok: true };
+    },
     resetFort: () => {
       resetProgress({ keepPrefs: true, dropRun: true });
       JonTD.route("td-home");

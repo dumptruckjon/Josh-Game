@@ -374,3 +374,21 @@ body.td-mode #screens { padding: 0; }
 .td-sum__pct { color: #9db4dd; font-size: 0.8rem; text-align: right; }
 .td-sum__line { color: #9db4dd; font-size: 0.85rem; margin: 8px 0 0; }
 .td-sum__pb { color: #ffe27a; font-weight: 800; margin: 8px 0 0; }
+
+/* ---- TD-14 backup + admin row ---- */
+.td-adminrow { display: grid; grid-auto-flow: column; gap: 10px; justify-content: center; margin: 18px 0 8px; }
+.td-backup-open {
+  padding: 8px 16px; border: 1px solid #33456d; border-radius: 999px; background: #14203a;
+  color: #90a6cc; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.td-backup-open:active { transform: scale(0.97); }
+.td-backup__box {
+  width: 100%; box-sizing: border-box; padding: 8px; resize: vertical;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.75rem;
+  color: #eaf2ff; background: #0e1830; border: 2px solid #3a548a; border-radius: 12px;
+}
+.td-backup__msg { font-size: 0.9rem; font-weight: 700; margin: 0; }
+.td-backup__msg[hidden] { display: none; }
+.td-backup__msg--ok { color: #8fe3ad; }
+.td-backup__msg--bad { color: #ff9db4; }

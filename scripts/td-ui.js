@@ -43,7 +43,10 @@
       // from the kid ≥75px audit) and behind a type-the-word gate, exactly like
       // Josh's ⚙️ Grown-ups star reset — Josh reaches the fort from the front
       // door, so an accidental wipe has to be impossible for little hands.
-      '<button class="td-reset-open" type="button" data-adult="1" aria-label="Reset all fort progress">⚙️ Reset fort</button>';
+      '<div class="td-adminrow">' +
+        '<button class="td-backup-open" type="button" data-adult="1" aria-label="Back up or restore fort progress">💾 Backup</button>' +
+        '<button class="td-reset-open" type="button" data-adult="1" aria-label="Reset all fort progress">⚙️ Reset fort</button>' +
+      "</div>";
     screens.appendChild(home);
     home.querySelector(".td-exit").addEventListener("click", hooks.exitFort);
     home.querySelector(".td-tree-open").addEventListener("click", hooks.openTree);
@@ -51,6 +54,7 @@
     home.querySelector(".td-endless-open").addEventListener("click", hooks.openEndless);
     home.querySelector(".td-guide-open").addEventListener("click", () => UI.showGuide());
     home.querySelector(".td-reset-open").addEventListener("click", () => UI.showResetGate(hooks.resetFort));
+    home.querySelector(".td-backup-open").addEventListener("click", () => UI.showBackup(hooks.exportSave, hooks.importSave));
 
     // Play screen
     const play = doc.createElement("section");
@@ -219,6 +223,36 @@
       '<button class="td-resume__x" type="button" aria-label="Discard">✕</button>';
     el.querySelector(".td-resume__go").addEventListener("click", onResume);
     el.querySelector(".td-resume__x").addEventListener("click", onDiscard);
+  };
+
+  // ---- TD-14 Backup: fort progress survives a cleared browser ----
+  // localStorage is the ONLY store, and a browser wipe / private-mode session
+  // takes it with no warning. This hands you the save as text to keep, and takes
+  // it back. Import validates before replacing anything — a bad paste must never
+  // destroy a good save.
+  UI.showBackup = function (onExport, onImport) {
+    const el = metaOverlay("td-overlay--backup",
+      "<h3>💾 Fort backup</h3>" +
+      '<p class="td-overlay__sub">Copy this text somewhere safe. Paste it back here to restore your fort on any device.</p>' +
+      '<textarea class="td-backup__box" rows="4" spellcheck="false" aria-label="Fort save data"></textarea>' +
+      '<p class="td-backup__msg" hidden></p>' +
+      '<div class="td-overlay__row">' +
+        '<button class="td-btn td-backup-load" type="button">📥 Restore</button>' +
+        '<button class="td-btn td-backup-done" type="button">Done</button>' +
+      "</div>");
+    const box = el.querySelector(".td-backup__box");
+    const msg = el.querySelector(".td-backup__msg");
+    box.value = onExport ? onExport() : "";
+    box.addEventListener("focus", () => { try { box.select(); } catch (e) { /* ignore */ } });
+    el.querySelector(".td-backup-load").addEventListener("click", () => {
+      const r = onImport ? onImport(box.value) : { ok: false, reason: "unavailable" };
+      msg.hidden = false;
+      msg.textContent = r.ok ? "✅ Restored — your fort is back." : "⚠️ That doesn't look like a fort save. Nothing was changed.";
+      msg.className = "td-backup__msg " + (r.ok ? "td-backup__msg--ok" : "td-backup__msg--bad");
+    });
+    el.querySelector(".td-backup-done").addEventListener("click", UI.closeOverlay);
+    el.addEventListener("click", (ev) => { if (ev.target === el) UI.closeOverlay(); });
+    return el;
   };
 
   // ---- Grown-ups: wipe the fort (a type-the-word gate, like Josh's ⭐ reset) ----
