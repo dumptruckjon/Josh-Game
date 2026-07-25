@@ -653,6 +653,36 @@ test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores th
   await page.evaluate(() => { window.__TD.resetSave(); }); // clean up for later tests
 });
 
+test("AUDIT: a restored save can't leave the fort stuck in kid mode", async () => {
+  // `kid` is a per-RUN mode (the 🧸 button passes it to startLevel), never a
+  // saved chip — the home offers only casual/normal/heroic. A backup carrying
+  // difficulty:"kid" passed the boot check, because it IS a real difficulty,
+  // and stuck: every level launched from the grid became an unlosable run that
+  // could never score a star, with no control to switch back.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1, stars: {} };
+    raw.difficulty = "kid";
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).difficulty), "normal",
+    "a saved kid chip is coerced back to a real difficulty at boot");
+  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(1, {}); });
+  await page.waitForTimeout(80);
+  const st = await page.evaluate(() => ({ diff: window.__TD.state().difficulty, cheated: window.__TD.state().cheated, kidSkin: document.body.classList.contains("td-kid") }));
+  assert.notEqual(st.diff, "kid", "a level started from the grid is a real run");
+  assert.ok(!st.cheated, "…which can actually earn its star");
+  assert.ok(!st.kidSkin, "…and is not wearing the kid skin");
+  // the 🧸 button still works — kid mode is per-run, passed at start
+  await page.evaluate(() => { window.__TD.newGame(1, { difficulty: "kid" }); });
+  await page.waitForTimeout(60);
+  assert.ok(await page.evaluate(() => window.__TD.state().cheated && document.body.classList.contains("td-kid")),
+    "…and the 🧸 route into kid mode is untouched");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("AUDIT resume: the checkpoint carries the countdown, the tally, and survives junk", async () => {
   // Three checkpoint-fidelity defects in one place.
   await page.evaluate(() => { location.hash = "#td-play"; });

@@ -82,7 +82,12 @@
   } else {
     for (const d of ["casual", "normal", "heroic"]) if (!save.stars[d] || typeof save.stars[d] !== "object") save.stars[d] = {};
   }
-  if (!save.difficulty || !DATA.DIFFICULTIES[save.difficulty]) save.difficulty = "normal";
+  // `kid` is a per-RUN mode the 🧸 button passes to startLevel, never a saved
+  // chip — the fort home offers only casual/normal/heroic. A hand-edited or
+  // restored backup carrying difficulty:"kid" passed this check (it IS a real
+  // difficulty) and stuck, so every level launched from the grid became an
+  // unlosable run that could never score a star, with no chip to switch back.
+  if (!save.difficulty || !DATA.DIFFICULTIES[save.difficulty] || save.difficulty === "kid") save.difficulty = "normal";
   if (!save.settings) save.settings = { sfx: true };
   if (typeof save.settings.dmgNumbers !== "boolean") save.settings.dmgNumbers = false; // TD-6 opt-in
   if (typeof save.settings.music !== "boolean") save.settings.music = false;            // TD-6 opt-in, off by default
@@ -113,7 +118,7 @@
     };
     if (keepPrefs) {
       if (save && save.settings) s.settings = JSON.parse(JSON.stringify(save.settings));
-      if (save && save.difficulty && DATA.DIFFICULTIES[save.difficulty]) s.difficulty = save.difficulty;
+      if (save && save.difficulty && DATA.DIFFICULTIES[save.difficulty] && save.difficulty !== "kid") s.difficulty = save.difficulty;
     }
     return s;
   }
