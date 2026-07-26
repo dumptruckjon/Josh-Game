@@ -568,8 +568,12 @@ body.td-kid .td-controls {
   position: absolute; right: 14px; bottom: 18px; top: auto; left: auto;
   width: auto; margin: 0; z-index: 7; gap: 16px;
   /* stacked, never side-by-side: a 172px-wide column over the corner of the
-     field, not a 272px bar across most of its width */
+     field, not a 272px bar across most of its width. The column template must
+     be overridden too — portrait's `minmax(76px,92px) minmax(0,1fr)` gives two
+     tracks, and row-flow then fills them ACROSS, which is exactly the 272px bar
+     this comment says it isn't. */
   grid-auto-flow: row; align-content: end;
+  grid-template-columns: minmax(0, 1fr);
   -webkit-transform: none; transform: none;
 }
 body.td-kid .td-abils {
