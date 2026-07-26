@@ -268,7 +268,7 @@
         : paths.length > 1 ? (spawnLane++ % paths.length)
         : 0;
       state.enemies.push({
-        id: nextId++, type, pathIdx: lane,
+        id: nextId++, type, pathIdx: lane, spawnCd: 0,
         dist: dist || 0,
         hp: Math.round(def.hp * diff.hp),
         maxHp: Math.round(def.hp * diff.hp),
@@ -293,6 +293,11 @@
     // and a 30s cooldown to revive nobody).
     function livingCamp(s) { return !!towerById(s.campId); }
     function applySlow(e, pct, seconds) {
+      // W5 Grease Racer: greased wheels — slows simply do not stick. Guarded in
+      // the ONE slow path, so the Fan's aura, a Blizzard's cone and the Sticky
+      // Floor puddle all honour it without their own check. It is the first
+      // enemy that hard-counters the Fan, which is otherwise universal.
+      if (enemyDef(e).slowImmune) return;
       let p = pct * (enemyDef(e).flier ? R.flierSlowFactor : 1);
       p = Math.min(p, R.slowCap);
       const active = state.tick < e.slowUntil ? e.slowPct : 0;
@@ -534,6 +539,32 @@
       if (state.lives <= 0) {
         state.lives = diff.noLose ? 1 : 0;
         if (!diff.noLose) { state.phase = "lost"; emit({ type: "lost" }); }
+      }
+    }
+
+    // W5 Bolt Bucket: drips minions while ALIVE (the Mud Blob splits once, on
+    // death — this is the opposite). Buffered like every other mid-tick spawn,
+    // and it stops the moment the carrier dies, so killing the source early and
+    // far from the door is the whole answer to it.
+    function spawnerTick() {
+      for (const e of state.enemies) {
+        if (!e.alive) continue;
+        const sp = enemyDef(e).spawner;
+        if (!sp) continue;
+        if (state.tick < (e.spawnCd || 0)) continue;
+        // A LOAD, not a fountain. Unbounded drip is unbudgetable: 10 buckets on
+        // a late wave out-lived their own HP by 7× and dropped ~18k of free HP
+        // onto an 11k wave, wiping a flawless board in one go. `max` bounds the
+        // load so the wave-budget audit's number stays the honest one.
+        const cap = sp.max || Infinity;
+        if ((e.spawned || 0) >= cap) continue;
+        e.spawnCd = state.tick + Math.round(sp.every * DATA.TICK_RATE);
+        const n = Math.min(sp.count, cap - (e.spawned || 0));
+        e.spawned = (e.spawned || 0) + n;
+        for (let i = 0; i < n; i++) {
+          pendingSpawns.push({ type: sp.type, dist: Math.max(0, e.dist - 0.3 - i * 0.35), pathIdx: e.pathIdx || 0 });
+        }
+        emit({ type: "summon", x: epos(e).x, y: epos(e).y });
       }
     }
 
@@ -1009,6 +1040,7 @@
       }
       state.projectiles = state.projectiles.filter((p) => !p.dead);
       shellTick();
+      spawnerTick();
       // flush split-children (Mud Blob) now that the combat pass is done
       while (pendingSpawns.length) { const s = pendingSpawns.shift(); spawnEnemy(s.type, s.dist, s.pathIdx); }
       state.enemies = state.enemies.filter((e) => e.alive || state.phase !== "wave");
@@ -1301,6 +1333,8 @@
     if (def.shield > 0) out.push({ key: "shield", icon: "🔋", text: "Shielded — the shield soaks zap first, and regrows" });
     if (def.splashResist) out.push({ key: "splash", icon: "🛋", text: "Soaks blasts — splash lands at " + Math.round((1 - def.splashResist) * 100) + "%; use single-target" });
     if (def.slowHeal) out.push({ key: "slowheal", icon: "💧", text: "Regrows while SLOWED — slows alone will never kill it" });
+    if (def.slowImmune) out.push({ key: "slowimmune", icon: "🛹", text: "Greased — slows do NOTHING to it; you need damage or a body in the way" });
+    if (def.spawner) out.push({ key: "spawner", icon: "🪣", text: "Drips out " + def.spawner.count + " × " + (DATA.ENEMIES[def.spawner.type] || { name: def.spawner.type }).name + " every " + def.spawner.every + "s while alive" + (def.spawner.max ? " (up to " + def.spawner.max + ")" : "") + " — kill it early and far from the door" });
     if (def.sap) out.push({ key: "sap", icon: "🔩", text: "Jams the nearest gun — camps are immune" });
     if (def.phase) out.push({ key: "phase", icon: "👻", text: "Phases out — untargetable in bursts" });
     if (def.tunnel) out.push({ key: "tunnel", icon: "🦫", text: "Tunnels the middle — untargetable and unblockable there" });

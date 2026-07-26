@@ -919,13 +919,22 @@ test("TD4 gimmick — night dims Dart/Mortar reach (Fan exempt); conveyor strips
   assert.ok(runDist(belt) > runDist(plain) + 1, `a conveyor strip shoves the enemy farther along (belt ${runDist(belt).toFixed(1)} > plain ${runDist(plain).toFixed(1)})`);
 });
 
-test("TD structure: contiguous levels across 4 worlds, a boss finale per world, difficulty badges present", () => {
-  assert.equal(DATA.LEVELS.length, 16, "the fort ships all 16 levels (World 4 added L13-L16)");
-  DATA.LEVELS.forEach((l, i) => assert.equal(l.id, i + 1, "ids contiguous 1..12"));
-  const bossLevels = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss)).map((l) => l.id);
-  assert.deepEqual(bossLevels, [4, 8, 12, 16], "a boss headlines each world finale");
+test("TD structure: contiguous levels, four-level worlds, a boss finale per world, difficulty badges present", () => {
+  // DERIVED, not literal. "16 levels" and the four-name world list were exactly
+  // the shape that hid the whole attic when it shipped (TOTAL_PLANNED = 12), so
+  // this now asserts the CONTRACT — worlds of four, ending on a boss — which is
+  // what every other system (the unlock ladder, the endless gate, the 3⭐ × N
+  // star ceiling) actually depends on.
   const worlds = [...new Set(DATA.LEVELS.map((l) => l.world))];
-  assert.deepEqual(worlds, ["bedroom", "backyard", "toystore", "attic"], "four worlds in order");
+  assert.ok(worlds.length >= 4, `the fort ships at least four worlds (${worlds.join(", ")})`);
+  assert.equal(DATA.LEVELS.length, worlds.length * 4, "every world is exactly four levels — the unlock ladder, the endless gate and the star ceiling all assume it");
+  DATA.LEVELS.forEach((l, i) => assert.equal(l.id, i + 1, "ids contiguous from 1"));
+  const bossLevels = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss)).map((l) => l.id);
+  assert.deepEqual(bossLevels, worlds.map((w, i) => (i + 1) * 4), "a boss headlines each world finale");
+  // levels are grouped: a world's four levels are contiguous, in world order
+  worlds.forEach((w, i) => assert.deepEqual(DATA.LEVELS.filter((l) => l.world === w).map((l) => l.id),
+    [1, 2, 3, 4].map((n) => i * 4 + n), `world "${w}" holds four contiguous levels`));
+  for (const w of worlds) assert.ok(DATA.WORLDS[w], `world "${w}" has presentation data (label + spawn glyph)`);
   for (const l of DATA.LEVELS) assert.ok(l.badge >= 1 && l.badge <= 3, `L${l.id} carries a difficulty badge`);
   // every enemy referenced by a wave exists (typo guard, incl. the new roster)
   const known = new Set(Object.keys(DATA.ENEMIES));
@@ -1069,14 +1078,25 @@ test("TD6 events carry render metadata: shoot→tower (distinct sfx), hit→dmg/
   assert.ok(sawHitDmg, "a hit event carries its damage (for the opt-in damage-number fx)");
 });
 
-test("TD5 achievements data-shape: 12 unique ids with names + descriptions, icons ≤ Emoji 13.0", () => {
-  assert.equal(DATA.ACHIEVEMENTS.length, 12, "12 achievements");
+test("TD5 achievements data-shape: unique ids with names + descriptions, icons ≤ Emoji 13.0, one badge per boss", () => {
+  assert.ok(DATA.ACHIEVEMENTS.length >= 12, `at least the shipped badges exist (${DATA.ACHIEVEMENTS.length})`);
+  // EVERY boss must have a badge. World 4's Tickmaster shipped without one, and
+  // a hard-coded count of 12 is exactly what hid it.
+  for (const [k, e] of Object.entries(DATA.ENEMIES)) {
+    if (!e.boss) continue;
+    const hit = DATA.ACHIEVEMENTS.some((a) => (a.desc || "").toLowerCase().includes(e.name.toLowerCase()));
+    assert.ok(hit, `boss "${e.name}" has no achievement badge — every other boss does`);
+  }
   const ids = new Set(DATA.ACHIEVEMENTS.map((a) => a.id));
-  assert.equal(ids.size, 12, "achievement ids unique");
+  assert.equal(ids.size, DATA.ACHIEVEMENTS.length, "achievement ids unique");
   for (const a of DATA.ACHIEVEMENTS) { assert.ok(a.name && a.desc && a.icon, `${a.id} has name/desc/icon`); }
   // the boss achievements name the three real bosses
   const has = (id) => ids.has(id);
   assert.ok(has("bossbonker") && has("dysondenied") && has("unplugged"), "one achievement per boss");
+  // and the count keeps up with the roster — a badge per boss plus the ten
+  // cross-cutting ones. A frozen 12 is what hid the Tickmaster's missing badge.
+  const bosses = Object.values(DATA.ENEMIES).filter((e) => e.boss).length;
+  assert.equal(DATA.ACHIEVEMENTS.length, bosses + 9, `badges = one per boss (${bosses}) + the 9 cross-cutting ones, got ${DATA.ACHIEVEMENTS.length}`);
 });
 
 // ===== Deep-audit guardrails (RULE 7): "hidden" is untargetable by EVERY damage
@@ -2271,16 +2291,24 @@ test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a D
     // winnability sim (which never pulls the lever) is untouched by the retrofit.
     if (l.path) assert.deepEqual(l.paths[0], l.path, `L${l.id}'s default lane must BE the original path`);
     // …and no pad may sit on EITHER lane (the shipped pad-geometry law).
+    // MEASURED IN CELL-INDEX SPACE, like `AUDIT pad geometry` and like the
+    // engine itself: a tower stores `cx: pad.cx` and targets against posAt's
+    // cell-index position (`(p.x - t.cx)**2 + …`), so index space IS the
+    // engine's truth. This check used to add +0.5 to the PAD only and not to
+    // the lane, biasing every distance by up to a half-cell DIAGONAL (0.707) —
+    // the "two coordinate spaces one +0.5 apart" trap again, this time in a
+    // test. It rejected correctly-placed World-5 pads while its own sibling
+    // audit passed them. Every shipped fork level passes either way.
     for (const pad of l.pads) {
       for (const lane of l.paths) {
         let m = Infinity;
         for (let i = 1; i < lane.length; i++) {
           const [ax, ay] = lane[i - 1], [bx, by] = lane[i];
-          const vx = bx - ax, vy = by - ay, wx = pad.cx + 0.5 - ax, wy = pad.cy + 0.5 - ay;
+          const vx = bx - ax, vy = by - ay, wx = pad.cx - ax, wy = pad.cy - ay;
           const L2 = vx * vx + vy * vy;
           let t = L2 ? (wx * vx + wy * vy) / L2 : 0;
           t = Math.max(0, Math.min(1, t));
-          m = Math.min(m, Math.hypot(pad.cx + 0.5 - (ax + vx * t), pad.cy + 0.5 - (ay + vy * t)));
+          m = Math.min(m, Math.hypot(pad.cx - (ax + vx * t), pad.cy - (ay + vy * t)));
         }
         assert.ok(m >= 0.99, `L${l.id} pad ${pad.id} sits on a lane (${m.toFixed(2)} cells) — a tower must never stand in the road`);
       }
@@ -2664,4 +2692,199 @@ test("AUDIT stats: 'gold earned' counts every source, not just bounties", () => 
   assert.equal(e.state.waveIdx, 1, "wave 1 cleared");
   const gained = e.state.goldEarned - atWave;
   assert.ok(gained >= 12, `the wave's bounties AND the 12g Allowance are counted (${gained})`);
+});
+
+// ================= World 5 (Garage): the two new threat shapes =================
+// A full enemy record, matching spawnEnemy's shape. A partial one silently
+// disables the very branches under test (an undefined disableCd never fires).
+function mkEnemy(type, dist, pathIdx) {
+  const def = DATA.ENEMIES[type];
+  return {
+    id: 90000 + Math.round(dist * 1000) + type.length, type, pathIdx: pathIdx || 0,
+    dist, hp: def.hp, maxHp: def.hp, shield: def.shield || 0, speed: def.speed,
+    slowUntil: 0, slowPct: 0, brittle: false, brittleUntil: 0,
+    blockedBy: 0, stunnedUntil: 0, meleeCd: 0, stunApplied: false,
+    chargeUntil: 0, chargeCd: 0, stompCd: 0, phaseHidden: false,
+    suckCd: 0, disableCd: 0, minionCd: 0, speedMult: 0, spawnCd: 0,
+    sapCd: 0, lastPhase: -1, engagedBy: 0, alive: true,
+  };
+}
+// the path distance that passes closest to a tower — so an injected enemy is
+// actually inside the thing being tested
+function distNear(engine, t) {
+  let best = 0, bd = Infinity;
+  for (let d = 0; d < 200; d += 0.2) {
+    const p = engine.posOn(0, d);
+    const q = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2;
+    if (q < bd) { bd = q; best = d; }
+  }
+  return best;
+}
+
+test("W5 Grease Racer: slows do NOTHING to it (the first hard counter to the Fan)", () => {
+  // Every other enemy can be slowed; the Fan is otherwise universal. Guarded in
+  // the ONE applySlow path, so the aura AND the Sticky Floor puddle honour it.
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const e = TD.createEngine(lvl, { seed: 5 });
+  e.state.gold = 99999;
+  // the pad closest to the lane, and a tier-3 Fan — the aura is only 1.8 cells
+  // at tier 1, and pads sit at least 0.99 cells off the path by law
+  let bestPad = lvl.pads[0], bd = Infinity;
+  for (const pd of lvl.pads) {
+    for (let d0 = 0; d0 < 200; d0 += 0.5) {
+      const q = e.posOn(0, d0);
+      const dd = (q.x - pd.cx) ** 2 + (q.y - pd.cy) ** 2;
+      if (dd < bd) { bd = dd; bestPad = pd; }
+    }
+  }
+  assert.ok(e.place("fan", bestPad.id).ok, "a Fan is on the board");
+  const fan = e.state.towers[0];
+  e.upgrade(fan.id); e.upgrade(fan.id);
+  const d = distNear(e, fan);
+  e.callWave();
+  for (let i = 0; i < 10; i++) e.tick();
+  e.state.enemies.length = 0;
+  e.state.enemies.push(mkEnemy("sock", d), mkEnemy("racer", d));
+  const [sock, racer] = e.state.enemies;
+  sock.hp = sock.maxHp = 99999; racer.hp = racer.maxHp = 99999; // measure slow, not death
+  for (let i = 0; i < 60; i++) e.tick();
+  assert.ok(sock.slowUntil > 0, "the control enemy really is being slowed by the Fan");
+  assert.equal(racer.slowUntil, 0, "the Grease Racer was never slowed by the aura");
+  // …and the Sticky Floor puddle, which is a different call site
+  e.state.gold = 99999;
+  const at = e.posOn(0, racer.dist);
+  assert.ok(e.useAbility("sticky", { x: at.x, y: at.y }).ok, "the puddle went down on it");
+  for (let i = 0; i < 30; i++) e.tick();
+  assert.equal(racer.slowUntil, 0, "…and the puddle did not slow it either");
+});
+
+test("W5 Bolt Bucket: drips minions while alive, and stops the moment it dies", () => {
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const e = TD.createEngine(lvl, { seed: 6 });
+  e.callWave();
+  for (let i = 0; i < 30; i++) e.tick();
+  e.state.enemies.length = 0;
+  e.state.enemies.push(mkEnemy("bucket", 1));
+  const bucket = e.state.enemies[0];
+  const spec = DATA.ENEMIES.bucket.spawner;
+  for (let i = 0; i < Math.round(spec.every * DATA.TICK_RATE) * 3 + 5; i++) e.tick();
+  const kids = e.state.enemies.filter((x) => x.type === spec.type).length;
+  assert.ok(kids >= spec.count * 2, `it dripped its minions while alive (${kids} after 3 cycles)`);
+  bucket.alive = false;
+  const before = e.state.enemies.filter((x) => x.type === spec.type).length;
+  for (let i = 0; i < Math.round(spec.every * DATA.TICK_RATE) * 3; i++) e.tick();
+  const after = e.state.enemies.filter((x) => x.type === spec.type).length;
+  assert.ok(after <= before, `killing the source stops the drip (${before} → ${after})`);
+});
+
+test("W5 Bolt Bucket: its load is CAPPED — an unbounded drip is unbudgetable", () => {
+  // A fountain cannot be priced. Uncapped, ten buckets on a late wave outlived
+  // their own HP by ~7× and delivered ~18k of free HP onto an 11k wave, wiping
+  // a board that had been flawless for fifteen waves. The wave-budget audit sums
+  // def.hp × count and cannot see a single spawned child, so the enemy itself
+  // has to be finite for that number to mean anything.
+  const spec = DATA.ENEMIES.bucket.spawner;
+  assert.ok(spec.max >= 1, "the Bolt Bucket carries a LOAD (spawner.max), not a fountain");
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const e = TD.createEngine(lvl, { seed: 11 });
+  e.callWave();
+  for (let i = 0; i < 30; i++) e.tick();
+  e.state.enemies.length = 0;
+  const bk = mkEnemy("bucket", 1);
+  bk.hp = bk.maxHp = 9e6;                       // immortal, so only the CAP can stop it
+  e.state.enemies.push(bk);
+  // Count what it has DROPPED, not what is still on the field — children walk
+  // off and leak, so surviving-brick counting under-reports (and would let an
+  // uncapped fountain pass). `spawned` is the engine's own tally.
+  for (let i = 0; i < Math.round(spec.every * DATA.TICK_RATE) * (spec.max + 8); i++) e.tick();
+  assert.equal(bk.spawned, spec.max, `an immortal bucket drips exactly its load and no more (dropped ${bk.spawned}, cap ${spec.max})`);
+  // …and the cap is what makes the budget honest: its whole load must stay
+  // under its own HP-equivalent share, or a wave carrying one is silently
+  // heavier than the curve the audit checks.
+  const load = spec.max * DATA.ENEMIES[spec.type].hp;
+  assert.ok(load <= DATA.ENEMIES.bucket.hp, `the load (${load}) must not exceed the source's own HP (${DATA.ENEMIES.bucket.hp}) — the budget audit cannot see spawned children`);
+});
+
+test("W5 the Garage keeps its two teaching shapes, and its conveyor stays gentle", () => {
+  // A re-tune must not quietly delete the reason a world exists. L17 teaches the
+  // slow-immune runner and L18 the spawner; if a later balance pass drops them,
+  // the Toybox Guide still promises them and the counter matrix loses two rows.
+  const garage = DATA.LEVELS.filter((l) => l.world === "garage");
+  assert.equal(garage.length, 4, "the Garage is a four-level world");
+  const carries = (lvl, type) => lvl.waves.some((w) => w.groups.some((g) => g.type === type));
+  assert.ok(carries(garage[0], "racer"), "L17 must present the Grease Racer — it is the level that teaches it");
+  assert.ok(carries(garage[1], "bucket"), "L18 must present the Bolt Bucket — it is the level that teaches it");
+  assert.ok(garage.filter((l) => carries(l, "racer")).length >= 3, "the runner recurs across the world, not once");
+  assert.ok(garage.filter((l) => carries(l, "bucket")).length >= 3, "the spawner recurs across the world, not once");
+  // The conveyor is the `night` class of knob: it steals tower UPTIME, which
+  // gold cannot buy back, and it compounds with a slow-immune runner. At 1.45
+  // across three strips L17 held normal comfortably and was unwinnable on
+  // heroic on EVERY seed. Cap it.
+  // L7 is the ONE explicit exemption, and it is a conscious one: it predates
+  // this finding, it is the documented air-pressure level already sitting at its
+  // heroic ceiling, and it IS winnable there (the heroic-slope audit proves it
+  // every run). Re-tuning it would re-open a level the difficulty audit settled.
+  // A NEW level must consciously join this list, exactly like the flex-gap
+  // allowlist — that is what stops the exemption becoming an accidental hole.
+  const CONVEYOR_EXEMPT = new Set([7]);
+  for (const l of DATA.LEVELS) for (const z of (l.zones || [])) {
+    if (CONVEYOR_EXEMPT.has(l.id)) continue;
+    assert.ok(z.mult <= 1.35, `L${l.id} conveyor ×${z.mult} — a speed zone above 1.35 steals uptime gold cannot replace (at ×1.45 L17 held normal comfortably and was heroic-unwinnable on every seed)`);
+  }
+  assert.ok(DATA.LEVELS.filter((l) => l.zones).length > CONVEYOR_EXEMPT.size,
+    "the exemption list must not be the whole population — if every conveyor level is exempt this check is inert");
+});
+
+test("W5 wave composition: a vanilla backbone, at most ONE disruptive special per wave", () => {
+  // The World-4 scar, now mechanical. Drawing freely from the special roster
+  // produced waves of shielded + splash-resistant + self-healing enemies with no
+  // answer, unwinnable at every base and start-gold. The Garage's waves were
+  // EMITTED against this rule; this is what stops a hand-edit undoing it.
+  const BACKBONE = new Set(["sock", "marble", "blob", "knight", "brick", "hawk"]);
+  const VALVE = new Set(["pinata"]);
+  for (const lvl of DATA.LEVELS.filter((l) => l.world === "garage")) {
+    lvl.waves.forEach((w, i) => {
+      if (w.boss) return;                       // a finale is its own difficulty axis
+      const hp = (g) => DATA.ENEMIES[g.type].hp * g.count;
+      const total = w.groups.reduce((s, g) => s + hp(g), 0);
+      const valve = w.groups.filter((g) => VALVE.has(g.type)).reduce((s, g) => s + hp(g), 0);
+      const back = w.groups.filter((g) => BACKBONE.has(g.type)).reduce((s, g) => s + hp(g), 0);
+      const specials = w.groups.filter((g) => !BACKBONE.has(g.type) && !VALVE.has(g.type));
+      assert.ok(specials.length <= 1,
+        `L${lvl.id} wave ${i + 1} stacks ${specials.length} disruptive shapes (${specials.map((g) => g.type).join("+")}) — one per wave, so every wave has an answer`);
+      assert.ok(back / (total - valve) >= 0.7,
+        `L${lvl.id} wave ${i + 1}: backbone is only ${Math.round(back / (total - valve) * 100)}% of its threat HP (need ≥70%)`);
+      for (const g of specials) assert.ok(hp(g) / total <= 0.25,
+        `L${lvl.id} wave ${i + 1}: ${g.type} is ${Math.round(hp(g) / total * 100)}% of the wave (cap 25%)`);
+      assert.ok(valve / total <= 0.12,
+        `L${lvl.id} wave ${i + 1}: the piñata is ${Math.round(valve / total * 100)}% of the wave — an economy valve, not a gold shower`);
+      if (i < 3) assert.equal(specials.length, 0,
+        `L${lvl.id} wave ${i + 1} is an opening wave and must be plain — a wave-1 gotcha costs lives before a board can exist`);
+    });
+  }
+});
+
+test("W5 Toolbox Titan: every hp-gated phase actually fires (forced, band by band)", () => {
+  // A solver may never drop a boss into its low bands, so the whole kit can
+  // ship dead-untested — the Static/Tickmaster precedent. Force each band.
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 3);
+  const e = TD.createEngine(lvl, { seed: 9 });
+  e.state.gold = 99999;
+  assert.ok(e.place("dart", lvl.pads[0].id).ok);
+  assert.ok(e.place("dart", lvl.pads[1].id).ok);
+  e.callWave();
+  for (let i = 0; i < 20; i++) e.tick();
+  e.state.enemies.length = 0;
+  const def = DATA.ENEMIES.titan;
+  e.state.enemies.push(mkEnemy("titan", 2));
+  const boss = e.state.enemies[0];
+  boss.hp = Math.round(def.hp * 0.6); // band 2: it jams a gun
+  let jammed = false;
+  for (let i = 0; i < 600 && !jammed; i++) { e.tick(); jammed = e.state.towers.some((t) => t.disabledUntil > e.state.tick); }
+  assert.ok(jammed, "under 66% the Titan jams a gun (tower-facing, not just a soldier-eater)");
+  boss.hp = Math.round(def.hp * 0.25); // band 3: it also summons
+  const summonType = def.phases[2].spawn.type;
+  let summoned = false;
+  for (let i = 0; i < 700 && !summoned; i++) { e.tick(); summoned = e.state.enemies.some((x) => x.type === summonType && x.alive); }
+  assert.ok(summoned, `under 33% it summons ${summonType}s`);
 });

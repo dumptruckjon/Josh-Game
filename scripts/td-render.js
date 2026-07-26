@@ -579,6 +579,97 @@
         ctx.lineTo(sx - R * 0.2, sy - R * 1.0); ctx.lineTo(sx, sy - R * 1.22);
         ctx.lineTo(sx + R * 0.2, sy - R * 1.0); ctx.lineTo(sx + R * 0.4, sy - R * 1.16);
         ctx.lineTo(sx + R * 0.4, sy - R * 0.9); ctx.closePath(); ctx.fill();
+      } else if (e.type === "racer") {
+        // Grease Racer: a skateboard with a grease-slick trail. Low, wide and
+        // leaning forward — it should READ as fast, because "slows do nothing"
+        // is only fair if you can see which one is the runner.
+        shadow(sx, sy + r * 0.5, r * 0.9, r * 0.22);
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(-0.12);
+        ctx.strokeStyle = "rgba(120,200,255,0.5)"; ctx.lineWidth = Math.max(1.5, cell * 0.05); // speed lines
+        for (let k = -1; k <= 1; k++) {
+          ctx.beginPath(); ctx.moveTo(-r * 1.5, k * r * 0.34); ctx.lineTo(-r * 0.85, k * r * 0.34); ctx.stroke();
+        }
+        ctx.fillStyle = "#39424f"; // wheels
+        ctx.beginPath(); ctx.arc(-r * 0.5, r * 0.42, r * 0.2, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(r * 0.5, r * 0.42, r * 0.2, 0, 7); ctx.fill();
+        const gd = ctx.createLinearGradient(0, -r * 0.4, 0, r * 0.2);
+        gd.addColorStop(0, "#ff9f45"); gd.addColorStop(1, "#c2661d");
+        ctx.fillStyle = gd; // deck
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.95, r * 0.02); ctx.quadraticCurveTo(-r * 1.12, -r * 0.36, -r * 0.62, -r * 0.3);
+        ctx.lineTo(r * 0.62, -r * 0.3); ctx.quadraticCurveTo(r * 1.12, -r * 0.36, r * 0.95, r * 0.02);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#2a3140"; // grip tape
+        ctx.fillRect(-r * 0.58, -r * 0.3, r * 1.16, r * 0.1);
+        ctx.fillStyle = "#ffe9a8"; // a determined little face on the nose
+        ctx.beginPath(); ctx.arc(r * 0.72, -r * 0.52, r * 0.3, 0, 7); ctx.fill();
+        ctx.fillStyle = "#2a3140";
+        ctx.beginPath(); ctx.arc(r * 0.8, -r * 0.58, r * 0.07, 0, 7); ctx.fill();
+        ctx.restore();
+      } else if (e.type === "bucket") {
+        // Bolt Bucket: a galvanised pail brimming with bolts, one spilling over
+        // the rim — the drip is the whole mechanic, so it shows on the sprite.
+        shadow(sx, sy + r * 0.6, r * 0.7, r * 0.2);
+        const gb = ctx.createLinearGradient(sx - r * 0.6, 0, sx + r * 0.6, 0);
+        gb.addColorStop(0, "#9aa7b8"); gb.addColorStop(0.45, "#dfe6f0"); gb.addColorStop(1, "#7f8b9c");
+        ctx.fillStyle = gb;
+        ctx.beginPath();
+        ctx.moveTo(sx - r * 0.62, sy - r * 0.42); ctx.lineTo(sx + r * 0.62, sy - r * 0.42);
+        ctx.lineTo(sx + r * 0.44, sy + r * 0.62); ctx.lineTo(sx - r * 0.44, sy + r * 0.62);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#5c6779"; ctx.lineWidth = Math.max(1.5, cell * 0.05); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx - r * 0.55, sy + r * 0.12); ctx.lineTo(sx + r * 0.55, sy + r * 0.12); ctx.stroke(); // rib
+        ctx.strokeStyle = "#6d788c"; ctx.lineWidth = Math.max(2, cell * 0.06); // handle
+        ctx.beginPath(); ctx.arc(sx, sy - r * 0.44, r * 0.6, Math.PI, 0); ctx.stroke();
+        ctx.fillStyle = "#b9762f"; // bolts heaped above the rim
+        for (const [bx, by] of [[-0.34, -0.56], [0, -0.66], [0.34, -0.54], [-0.14, -0.44], [0.18, -0.42]]) {
+          ctx.beginPath(); ctx.arc(sx + r * bx, sy + r * by, r * 0.15, 0, 7); ctx.fill();
+        }
+        ctx.fillStyle = "#8f5620"; // one spilling out of the side
+        ctx.beginPath(); ctx.arc(sx + r * 0.74, sy + r * 0.3, r * 0.14, 0, 7); ctx.fill();
+        ctx.fillStyle = "#2a3140";
+        ctx.beginPath(); ctx.arc(sx - r * 0.18, sy + r * 0.3, r * 0.07, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + r * 0.18, sy + r * 0.3, r * 0.07, 0, 7); ctx.fill();
+      } else if (e.type === "titan") {
+        // The Toolbox Titan (World-5 boss): a red steel toolbox stomping on two
+        // stubby legs, its tray-lid cracked open. The lid gapes wider as its
+        // hp-gated phases escalate, so the phase reads on the boss itself — the
+        // Tickmaster's spinning hands, applied to a different silhouette.
+        const R = r * bossScale(e, 1.8), frac = e.hp / (e.maxHp || 1);
+        const gape = frac <= 0.33 ? 0.62 : frac <= 0.66 ? 0.34 : 0.12;
+        shadow(sx, sy + R * 0.62, R * 0.8, R * 0.2);
+        ctx.strokeStyle = "#4a5462"; ctx.lineWidth = Math.max(2, cell * 0.09); // legs
+        ctx.beginPath(); ctx.moveTo(sx - R * 0.42, sy + R * 0.5); ctx.lineTo(sx - R * 0.5, sy + R * 0.92); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx + R * 0.42, sy + R * 0.5); ctx.lineTo(sx + R * 0.5, sy + R * 0.92); ctx.stroke();
+        ctx.save(); // the cracked-open lid, hinged at the back
+        ctx.translate(sx - R * 0.72, sy - R * 0.34); ctx.rotate(-gape);
+        ctx.fillStyle = "#8e2f2a";
+        ctx.fillRect(0, -R * 0.2, R * 1.44, R * 0.22);
+        ctx.strokeStyle = "#5d1c19"; ctx.lineWidth = Math.max(1.5, cell * 0.05);
+        ctx.strokeRect(0, -R * 0.2, R * 1.44, R * 0.22);
+        ctx.restore();
+        const gt = ctx.createLinearGradient(sx, sy - R * 0.4, sx, sy + R * 0.5);
+        gt.addColorStop(0, "#d6453c"); gt.addColorStop(1, "#8e2f2a");
+        ctx.fillStyle = gt; // body
+        ctx.beginPath();
+        ctx.moveTo(sx - R * 0.72, sy - R * 0.3); ctx.lineTo(sx + R * 0.72, sy - R * 0.3);
+        ctx.lineTo(sx + R * 0.62, sy + R * 0.52); ctx.lineTo(sx - R * 0.62, sy + R * 0.52);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#5d1c19"; ctx.lineWidth = Math.max(2, cell * 0.07); ctx.stroke();
+        ctx.fillStyle = "#c8cfdb"; // latch + drawer pull
+        ctx.fillRect(sx - R * 0.1, sy - R * 0.08, R * 0.2, R * 0.16);
+        ctx.fillRect(sx - R * 0.4, sy + R * 0.24, R * 0.8, R * 0.08);
+        ctx.strokeStyle = "#c8cfdb"; ctx.lineWidth = Math.max(2, cell * 0.06); // carry handle
+        ctx.beginPath(); ctx.arc(sx, sy - R * 0.46, R * 0.34, Math.PI, 0); ctx.stroke();
+        ctx.fillStyle = frac <= 0.33 ? "#ffd0d0" : "#ffe9a8"; // eyes, glaring when enraged
+        ctx.beginPath(); ctx.arc(sx - R * 0.26, sy + R * 0.06, R * 0.11, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + R * 0.26, sy + R * 0.06, R * 0.11, 0, 7); ctx.fill();
+        ctx.fillStyle = "#ffd94a"; // crown — it is a boss
+        ctx.beginPath();
+        ctx.moveTo(sx - R * 0.34, sy - R * 0.78); ctx.lineTo(sx - R * 0.34, sy - R * 1.02);
+        ctx.lineTo(sx - R * 0.17, sy - R * 0.88); ctx.lineTo(sx, sy - R * 1.08);
+        ctx.lineTo(sx + R * 0.17, sy - R * 0.88); ctx.lineTo(sx + R * 0.34, sy - R * 1.02);
+        ctx.lineTo(sx + R * 0.34, sy - R * 0.78); ctx.closePath(); ctx.fill();
       } else {
         // Sock Goblin: a cream sock with a folded cuff, a toe, and a cheeky face
         shadow(sx, sy + cell * 0.34, r * 0.72, r * 0.24);
@@ -1337,7 +1428,11 @@
         ctx.fillText(tag, lp.x, ty);
       }
       const prim = lanes[0]; const s0 = prim[0], s1 = prim[prim.length - 1]; // lanes share spawn+exit
-      const spawnGlyph = engine.levelDef.world === "backyard" ? "🌳" : engine.levelDef.world === "toystore" ? "🧸" : "🛏️";
+      // The spawn marker is a DATA field on the world, not an if/else chain —
+      // the chain silently fell through to the bedroom's 🛏️ for the whole attic
+      // (the same class as the enemy draw that marched the Tickmaster in as a
+      // sock), so a 5th world would have inherited a bed too.
+      const spawnGlyph = (global.TDData.WORLDS[engine.levelDef.world] || {}).spawnGlyph || "🛏️";
       glyph(s0[0], s0[1], spawnGlyph);
       glyph(s1[0], s1[1], "🚪");
       if (selection && selection.tower) {

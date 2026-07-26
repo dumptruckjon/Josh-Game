@@ -551,6 +551,8 @@ body.td-mode #screens { padding: 0; }
 
 /* World 4 tint: the attic — warm dusty amber, distinct from the other three. */
 .td-level[data-world="attic"] { border-color: #7a5a34; background: #33260f; }
+/* World 5 tint: the garage — cold oiled steel, the coldest of the five. */
+.td-level[data-world="garage"] { border-color: #4a6572; background: #14242b; }
 
 /* ---- 🧸 Kid Fort: RULE 5 applies INSIDE this mode ----
    Josh's laws (≥75px targets, generous spacing) are deliberately off in the

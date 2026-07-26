@@ -326,6 +326,8 @@
     if (st.levelId === 4) earnAch("bossbonker");
     if (st.levelId === 8 && cur.soldiersLost <= 3) earnAch("dysondenied");
     if (st.levelId === 12) earnAch("unplugged");
+    if (st.levelId === 16) earnAch("windeddown");
+    if (st.levelId === 20) earnAch("toolsdown");
     if (!cur.leaked) earnAch("noleaks");                    // all 20 stickers kept safe
     if (st.difficulty === "heroic") earnAch("heroicheart");
     const linesUsed = Object.keys(cur.lines);

@@ -284,3 +284,74 @@ New guardrails this world owes:
 6. **Tune** — sims across 3 difficulties × ≥6 seeds until every gate is green.
 7. **Wire the world** — tint, glyph, endless arena, the derived strings.
 8. **Full suite + push + watch `verify-live`**, then update `CLAUDE.md`.
+
+---
+
+## 11. BUILT — what shipped, and what the measurements actually said
+
+Status: **✅ SHIPPED.** 20 levels · 5 worlds · 5 bosses · 19 enemies · 60⭐ ceiling.
+Every gate in §8 is green. Below is the honest record, including the parts of
+this plan the data refused.
+
+### 11.1 What was measured
+
+Roughly **180 configurations** were simulated with the *shipped* best-of-two
+oracle (never a stronger local solver — rule 1), sweeping start-gold, budget
+base, pad count, wave count, lane shape, conveyor strength, boss hp, boss leak
+toll, flier share and bypass shapes. The result is one flat finding:
+
+> **There is no configuration in which a Garage level finishes NORMAL below ~18
+> lives while staying winnable on HEROIC.** Normal difficulty and heroic
+> winnability are separated by a step, not a slope.
+
+That is exactly the threshold domination CLAUDE.md already documents ("a board
+holds a wave completely or collapses"), now quantified for a fresh world. So
+World 5 ships per the §9 exit: **a firm world that is not harder than World 3 on
+normal**, whose real test is its finale.
+
+Shipped margins (best-of-two, median across 6 seeds):
+
+| | normal | heroic | neglect | waves 1-3 |
+|---|---|---|---|---|
+| L17 Oil Slick | 19 | 10 | loses | −1 |
+| L18 The Workbench | 20 | 10 | loses | 0 |
+| L19 Two-Car Garage | 20 | 14 | loses | 0 |
+| L20 The Toolbox Titan | **9** (8 seeds, range 7-11) | 14 | loses | 0 |
+
+L20's finale is the **tensest in the game** — L16's median is 16, L20's is 9,
+graded rather than quantized, with no seed lost.
+
+### 11.2 Negative results (recorded, not forced)
+
+- **A bypass shape does NOT produce chip damage.** Making the tunnelling Digger
+  Mole (untargetable *and* unblockable through the middle third) a recurring late
+  special moved normal by **zero** lives on both probed levels. A full board
+  still kills it at the ends.
+- **Air pressure grades one map and breaks another.** At 1.8× the flier share,
+  L18 dropped to a median 16 on normal — and lost on *every* heroic seed. L19 did
+  not move at all. The lever that fixed mortar-mono is map-specific.
+- **The conveyor is the `night` class of knob.** At ×1.45 over three strips L17
+  held normal comfortably and was heroic-unwinnable on every seed. Shipped at
+  ×1.30 over two strips, and capped by guardrail at 1.35.
+- **Boss hp above ~5800 QUANTIZES the finale** (every seed lands on exactly one
+  boss leak: 12 or 14). 4600 hp with a 6-life toll is the only band that is both
+  graded and safe.
+- **The plan's "L20 must lose ≥3 lives before its boss wave" was not achieved.**
+  Waves 1-14 leak nothing on any tested seed or build — the same shape as L16.
+  It is not fixable inside the budget contract for the reason above. The finale
+  itself carries the level instead, and *that* is now graded.
+
+### 11.3 Where the plan changed during the build
+
+- **Wave counts 15-16 → 14-15.** Each wave is 1.18× the last, so the final wave
+  is most of a level's difficulty; a 16th wave put it beyond any board.
+- **L19 has 13 pads, not 15**, and every one was searched against the **default**
+  lane. The first cut spread them across both lanes, so a third of the board only
+  covered the loop nobody was walking — it lost 11 lives in a single wave. The
+  lever's payoff is the tail towers getting longer on target, exactly as L10's is.
+- **L18's lane was re-shaped.** Its first cut ran four rows 3-4 cells apart and a
+  tier-3 dart reaches ~4, so one tower covered two runs and the level was flawless
+  at 10 pads on heroic. Rows are 6 apart now.
+- **The Bolt Bucket gained a capped load** (`spawner.max: 8`). Uncapped, ten of
+  them on a late wave outlived their own HP by ~7× and dropped ~18k of free HP
+  onto an 11k wave. A fountain cannot be budgeted.

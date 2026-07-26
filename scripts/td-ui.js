@@ -39,7 +39,14 @@
         '<button class="td-metabtn td-kid-open" type="button">🧸 Kid Fort</button>' +
       "</div>" +
       '<div class="td-levels" role="list"></div>' +
-      '<p class="td-note">16 levels across 4 worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers, soakers, jammers) and four bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale. 🧸 Kid Fort is Josh&#39;s no-lose mode.</p>' +
+      // COUNTS ARE DERIVED. "16 levels across 4 worlds" was a literal, and its
+      // sibling (`TOTAL_PLANNED = 12`) is why the whole attic shipped with no
+      // card on the grid — the levels existed and no one could reach them.
+      '<p class="td-note">' + global.TDData.LEVELS.length + ' levels across ' +
+        new Set(global.TDData.LEVELS.map(function (l) { return l.world; })).size +
+        ' worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers, soakers, jammers, greased runners, spawners) and ' +
+        global.TDData.LEVELS.filter(function (l) { return l.waves.some(function (w) { return w.boss; }); }).length +
+        ' bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale. 🧸 Kid Fort is Josh&#39;s no-lose mode.</p>' +
       // Start-over control. Deliberately small and quiet (data-adult exempts it
       // from the kid ≥75px audit) and behind a type-the-word gate, exactly like
       // Josh's ⚙️ Grown-ups star reset — Josh reaches the fort from the front
@@ -496,8 +503,11 @@
     const rows = worlds.map(([w, label]) => {
       const open = UI.endlessUnlocked(save, w);
       const b = best[w] ? (" · best wave " + best[w]) : "";
+      // the lock hint counts the world's ACTUAL levels — "the 4 levels" was a
+      // literal that happened to be right for four worlds of four
+      const n = worldLevels(w).length;
       return '<button class="td-endless' + (open ? "" : " td-endless--locked") + '"' + (open ? "" : " disabled") +
-        ' data-world="' + w + '">' + label + (open ? '<span class="td-endless__best">' + (best[w] ? "🏆 " + best[w] : "new!") + "</span>" : '<span class="td-endless__best">🔒 3⭐ the 4 levels</span>') + "</button>";
+        ' data-world="' + w + '">' + label + (open ? '<span class="td-endless__best">' + (best[w] ? "🏆 " + best[w] : "new!") + "</span>" : '<span class="td-endless__best">🔒 3⭐ the ' + n + ' levels</span>') + "</button>";
     }).join("");
     const el = metaOverlay("td-endlesspick", '<h3>♾️ Endless</h3>' +
       '<p class="td-overlay__sub">Survive as long as you can — the toys never stop coming.</p>' +

@@ -592,7 +592,8 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.locator(".td-ach-open").click();
   await page.locator(".td-achgrid").waitFor({ state: "visible" });
-  assert.equal(await page.locator(".td-ach").count(), 12, "12 badge cells");
+  const badgeCount = await page.evaluate(() => window.TDData.ACHIEVEMENTS.length);
+  assert.equal(await page.locator(".td-ach").count(), badgeCount, `one cell per shipped badge (${badgeCount})`);
   await page.locator(".td-ach-done").click();
   // Seed 3⭐ on EVERY shipped level so every world's row is unlocked — the
   // point of this half is that each world has a row and each row runs its own
@@ -1728,8 +1729,16 @@ test("the fort home shows a card for EVERY shipped level — World 4 was unreach
   const locked = await page.locator("#screen-td-home .td-level--locked").count();
   assert.equal(locked, 0, "with every level 3⭐ on this ladder, nothing is locked");
   const names = await page.locator("#screen-td-home .td-level__name").allTextContents();
-  for (const l of await page.evaluate(() => window.TDData.LEVELS.filter((x) => x.world === "attic").map((x) => x.name))) {
-    assert.ok(names.some((n) => n.indexOf(l.split(" ")[0]) >= 0), `World 4's "${l}" has a card`);
+  // EVERY world's levels, not just the attic's — naming one world is how the
+  // attic got missed in the first place, and a sixth world would repeat it.
+  for (const l of await page.evaluate(() => window.TDData.LEVELS.map((x) => ({ n: x.name, w: x.world })))) {
+    assert.ok(names.some((n) => n.indexOf(l.n.split(" ")[0]) >= 0), `${l.w}'s "${l.n}" has a card`);
+  }
+  // and every world is visually distinguishable on the grid (its own tint hook)
+  const worlds = await page.evaluate(() => [...new Set(window.TDData.LEVELS.map((l) => l.world))]);
+  for (const w of worlds) {
+    assert.ok(await page.locator(`#screen-td-home .td-level[data-world="${w}"]`).count() > 0,
+      `world "${w}" tags its cards with data-world so its tint applies`);
   }
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
@@ -2097,12 +2106,20 @@ test("a resize while the field is HIDDEN must not collapse the battlefield", asy
   assert.deepEqual(after, good, "resizing while hidden keeps the last good field size");
 });
 
-test("World 4: an attic level opens, builds, and plays in a real browser", async () => {
-  // No browser test had ever entered World 4 — the whole attic was engine-only.
+test("the NEWEST world opens, builds, and plays in a real browser", async () => {
+  // No browser test had ever entered World 4 — the whole attic was engine-only,
+  // and that is how it shipped with the bedroom's spawn marker and a boss that
+  // rendered as a sock. Pinned to the LAST world in the data so the newest one
+  // is always the one under test, instead of naming a world that stops being new.
   await page.evaluate(() => { location.hash = "#td-play"; });
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
-  const attic = await page.evaluate(() => window.TDData.LEVELS.filter((l) => l.world === "attic").map((l) => l.id));
-  assert.equal(attic.length, 4, "World 4 ships four levels");
+  const world = await page.evaluate(() => window.TDData.LEVELS[window.TDData.LEVELS.length - 1].world);
+  const attic = await page.evaluate((w) => window.TDData.LEVELS.filter((l) => l.world === w).map((l) => l.id), world);
+  assert.equal(attic.length, 4, `the newest world ("${world}") ships four levels`);
+  // it must also carry its own presentation data — the attic fell through the
+  // renderer's if/else chain and painted a 🛏️ at its spawn for a whole release
+  const wd = await page.evaluate((w) => window.TDData.WORLDS[w], world);
+  assert.ok(wd && wd.spawnGlyph && wd.label, `world "${world}" has its own label + spawn glyph`);
   for (const id of attic) {
     const ok = await page.evaluate((lid) => {
       window.__TD.newGame(lid, { seed: 11 });
@@ -2112,7 +2129,7 @@ test("World 4: an attic level opens, builds, and plays in a real browser", async
       window.__TD.script([["call"], ["tick", 200]]);
       return { built: st.towers.length, phase: st.phase, seen: st.enemies.length, world: window.__TD.engine().levelDef.world };
     }, id);
-    assert.equal(ok.world, "attic", `L${id} is an attic level`);
+    assert.equal(ok.world, world, `L${id} belongs to the newest world`);
     assert.equal(ok.built, 1, `L${id}: a real tower was placed`);
     assert.ok(ok.seen > 0 || ok.phase !== "wave", `L${id}: the wave actually ran`);
   }
@@ -2129,7 +2146,7 @@ test("World 4: an attic level opens, builds, and plays in a real browser", async
   await page.locator('.td-bubble .td-buy[data-line="dart"]').waitFor({ state: "visible", timeout: 5000 });
   await page.locator('.td-bubble .td-buy[data-line="dart"]').click();
   assert.equal(await page.evaluate(() => window.__TD.state().towers.length), 1,
-    "tapping an attic pad opens the build menu and really places the tower");
+    "tapping a pad in the newest world opens the build menu and really places the tower");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 

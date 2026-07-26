@@ -909,7 +909,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/16-enemy roster/3 bosses/16 levels (4 worlds; L3/L7/L10 = TD-7/TD-11 fork+lever)/gimmicks + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 12 achievements, one endless arena PER WORLD — the attic's was missing)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/19-enemy roster/5 bosses/20 levels (5 worlds; L3/L7/L10/L19 = fork+lever)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 14 achievements, one endless arena PER WORLD)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -937,7 +937,7 @@ tooling.
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
-├── PLAN_WORLD_5.md             # 🔧 PROPOSED (not built): World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune runner, live spawner), the Toolbox Titan boss, a 5th endless arena. Carries the World-4 revert's lessons as hard rules + the literal-derivation checklist a 5th world breaks.
+├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
 ```
 
@@ -1146,8 +1146,8 @@ space**: real difficulty, real defeat screens, real timers — RULE 5's kid tap
 laws deliberately do not apply inside (its controls are adult-sized
 `data-adult`; the front-door tile itself is kid-sized). Status: **COMPLETE
 (TD-1 … TD-6 all shipped)** — shell +
-deterministic engine + **all 16 Levels across 4 worlds** (Bedroom L1-4, Backyard
-L5-8, Toy Store L9-12, Attic L13-16; distinct path/pad layouts, each
+deterministic engine + **all 20 Levels across 5 worlds** (Bedroom L1-4, Backyard
+L5-8, Toy Store L9-12, Attic L13-16, Garage L17-20; distinct path/pad layouts, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
 L12 winnable on Heroic; beat level N to unlock N+1, ▶ Next-level on the victory
 screen; the fort home shows world tints, difficulty pips, and a 👑 on each boss
@@ -1707,6 +1707,71 @@ a board holds a wave completely or collapses — so no hp value buys a graded
 ending, and the honest deliverable was the toll fix plus a guardrail that can see
 the problem, not a re-tune the data refuses to support.
 
+**WORLD 5 (the Garage, L17-L20) shipped — and its headline is a MEASUREMENT, not
+a feature: in this engine, normal difficulty and heroic winnability are separated
+by a STEP, not a slope.** Roughly 180 configurations were simulated with the
+shipped best-of-two oracle (never a stronger local solver — the World-4 revert),
+sweeping start-gold, budget base, pad count, wave count, lane shape, conveyor
+strength, boss hp, boss leak toll, flier share and bypass shapes. Every setting
+where heroic was robustly winnable finished normal at 18-20 lives; every setting
+that bit on normal (≤15) made heroic unwinnable on every seed. There is no middle.
+That is the threshold domination already documented ("a board holds a wave
+completely or collapses"), now quantified on a fresh world — so the Garage ships
+per its plan's own exit as a firm world that is **not harder than World 3 on
+normal**, whose real test is its finale: **the Toolbox Titan finishes at a median
+9/20 across 8 seeds (range 7-11, no seed lost), against L16's median 16 — the
+tensest ending in the game.** Four negative results are worth as much as the
+world itself, because each closes a lever a future author would otherwise retry:
+(1) **a BYPASS shape does not produce chip damage** — making the tunnelling mole
+(untargetable AND unblockable through the middle third) a recurring late special
+moved normal by exactly ZERO lives on both probed levels, because a full board
+still kills it at the ends; (2) **air pressure is map-specific** — at 1.8× the
+flier share L18 dropped to a median 16 on normal and lost on every heroic seed,
+while L19 did not move at all, so the lever that fixed mortar-mono does not
+generalise; (3) **a conveyor is the `night` class of knob** — at ×1.45 over three
+strips L17 held normal comfortably and was heroic-unwinnable on every seed, so it
+ships at ×1.30 and is guardrail-capped at 1.35 (L7 is the one conscious
+exemption, and the list is asserted not to be the whole population); (4) **boss hp
+above ~5800 QUANTIZES a finale** — every seed lands on exactly one boss leak (12
+or 14 lives), the flat ending the Tickmaster's 10-of-20 toll produced, so 4600hp
+with a 6-life toll is the only band that is both graded and safe. The plan's
+"L20 must lose ≥3 lives before its boss wave" was **not achieved and is recorded
+as such** — waves 1-14 leak nothing on any tested seed or build, the same shape
+as L16, and it is not fixable inside the budget contract for the reason above.
+Five build lessons generalised beyond this world: **a wave count is a difficulty
+knob, because each wave is 1.18× the last** (16 waves put the last one beyond any
+board — the world runs 14-15); **a forked level's pads must be searched against
+the DEFAULT lane** (the first cut spread L19's over both, so a third of the board
+only covered the loop nobody was walking, and it lost 11 lives in one wave — the
+lever's payoff is the tail towers getting longer on target, exactly as L10's is);
+**lane rows must sit farther apart than a tower's reach** (L18's first cut ran
+four rows 3-4 cells apart against a ~4-cell tier-3 dart, so ONE tower covered two
+runs and the level was flawless at 10 pads on heroic; rows are 6 apart now);
+**a spawner needs a capped LOAD, not a fountain** (uncapped, ten Bolt Buckets on
+a late wave outlived their own HP by ~7× and dropped ~18k of free HP onto an 11k
+wave, wiping a board flawless for fifteen waves — and the wave-budget audit sums
+`def.hp × count` and cannot see a single spawned child, so the enemy itself has
+to be finite for that number to mean anything); and **an even wave's primary
+backbone slot decides how many BODIES a wave has** (marbles are 16hp at speed
+1.7, so leading with them made an even wave a 200-strong sprint that outran every
+board — the beefy slow Blob leads, marbles garnish). Two shipped defects fell out
+of the build, both the documented "wrong scope" shape: the renderer's spawn-marker
+if/else chain silently fell through to the bedroom's 🛏️ for the whole attic (it
+is a `DATA.WORLDS[world].spawnGlyph` field now, so a world cannot ship without
+one), and **the TD-11 fork test measured a pad's WORLD CENTRE against a RAW lane**
+— +0.5 on one side only, biasing every distance by up to a half-cell diagonal.
+It rejected correctly-placed pads that its own sibling `AUDIT pad geometry` (which
+adds +0.5 to both, so the offsets cancel) passed. The engine is the tiebreaker: a
+tower stores `cx: pad.cx` and targets against `posAt`'s cell indices, so index
+space is the truth. The "two coordinate spaces one +0.5 apart" trap, this time
+inside a test. Finally, the counting law claimed two more literals: the structure
+test's "16 levels"/four-name world list and the badge count now DERIVE (worlds of
+four, a boss per finale, one badge per boss + 9 cross-cutting), the fort-home
+blurb derives its "20 levels across 5 worlds … 5 bosses", the endless lock hint
+counts its world's actual levels, and the "newest world opens and plays" browser
+test is pinned to the LAST world in the data rather than naming one that stops
+being new.
+
 **The difficulty curve peaks at World 3, and that is ACCEPTED (owner, 2026-07) —
 do not "fix" it.** Measured with the shipped best-of-plans solver, average lives
 on normal: bedroom 15.5 dart / 15.8 mixed, backyard 17.1 / 15.0, **toystore 9.8 /
@@ -1834,14 +1899,15 @@ for any new `logic.js` function and a browser check if it needs special handling
 > `JOSH_PROFILE.md`, not a backlog.
 >
 > **What IS open (opportunities, not obligations), measured 2026-07:**
-> - **Forks/levers exist on only 3 of 16 fort maps** (L3, L7, L10). The World-4
->   maps were authored after TD-11's fork search ran, so the attic was never
->   swept — re-run the generator (it keeps only detours that preserve the shared
->   prefix, stay in bounds, gain ≥20% length and leave every pad ≥0.99 cells
->   clear of BOTH lanes) to see whether any admit one without moving pads.
-> - **Level gimmicks are thin**: `night` on L6 and `conveyor` on L7, and that is
->   all across 16 levels. The engine supports both anywhere, and the mole tunnel
->   is a third.
+> - **Forks/levers exist on only 4 of 20 fort maps** (L3, L7, L10, and the
+>   Garage's L19, which was DESIGNED around one). The World-4 attic maps were
+>   authored after TD-11's fork search ran and were never swept — re-run the
+>   generator (it keeps only detours that preserve the shared prefix, stay in
+>   bounds, gain ≥20% length and leave every pad ≥0.99 cells clear of BOTH lanes,
+>   measured in CELL-INDEX space) to see whether any admit one without moving pads.
+> - **Level gimmicks stay thin**: `night` on L6, `conveyor` on L7 and L17, the
+>   mole tunnel, and that is all across 20 levels.
+
 > - **华丽's world has had one adversarial pass** (the app-wide audit, which
 >   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but
 >   nothing like the fort's repeated ones. The iOS-14.2 and emoji classes are now
