@@ -1145,8 +1145,8 @@ space**: real difficulty, real defeat screens, real timers — RULE 5's kid tap
 laws deliberately do not apply inside (its controls are adult-sized
 `data-adult`; the front-door tile itself is kid-sized). Status: **COMPLETE
 (TD-1 … TD-6 all shipped)** — shell +
-deterministic engine + **all 12 Levels across 3 worlds** (Bedroom L1-4, Backyard
-L5-8, Toy Store L9-12; distinct path/pad layouts, a rising difficulty curve, each
+deterministic engine + **all 16 Levels across 4 worlds** (Bedroom L1-4, Backyard
+L5-8, Toy Store L9-12, Attic L13-16; distinct path/pad layouts, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
 L12 winnable on Heroic; beat level N to unlock N+1, ▶ Next-level on the victory
 screen; the fort home shows world tints, difficulty pips, and a 👑 on each boss
@@ -1673,7 +1673,10 @@ twice has no owner** — `.td-abil` was set to 52px in its base rule and again,
 unscoped, 250 lines below at 60px, so every media-query override (portrait AND
 landscape) was a dead letter and the tiles were 60px everywhere. When an
 override "isn't applying", grep for a second declaration before doubting
-specificity.
+specificity. A sibling trap from the same pass: **overriding `grid-auto-flow`
+without also overriding `grid-template-columns` does nothing** — portrait gives
+the control block two explicit tracks, so Kid Fort's `grid-auto-flow: row` filled
+them ACROSS and produced the 272px bar its own comment said it wasn't.
 
 **The post-portrait audit (every fort surface screenshotted, every world re-simmed)
 found two more, and one honest negative.** (1) **A picture emoji whose DEFAULT
@@ -1702,6 +1705,18 @@ the documented threshold-domination of this engine showing up on the last level 
 a board holds a wave completely or collapses — so no hp value buys a graded
 ending, and the honest deliverable was the toll fix plus a guardrail that can see
 the problem, not a re-tune the data refuses to support.
+
+**The difficulty curve peaks at World 3, and that is ACCEPTED (owner, 2026-07) —
+do not "fix" it.** Measured with the shipped best-of-plans solver, average lives
+on normal: bedroom 15.5 dart / 15.8 mixed, backyard 17.1 / 15.0, **toystore 9.8 /
+12.8**, attic 13.0 / 15.5. So World 3 is the hardest world under BOTH builds and
+World 4 relaxes slightly — every attic level is winnable, losable and star-able,
+the finale has a seed-robust guardrail, so nothing is broken; the curve simply
+peaks one world early. It was raised with the owner and explicitly accepted. If a
+future audit re-measures this and wants to act, the ONLY lever this engine
+responds to is THREAT SHAPE (an hp-preserving swap in the attic's late waves) —
+bigger hp piles are proven not to work, and that is a deliberate content pass to
+be commissioned, not a defect to fix on sight.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
