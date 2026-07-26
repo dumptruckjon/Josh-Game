@@ -937,6 +937,7 @@ tooling.
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
+├── PLAN_WORLD_5.md             # 🔧 PROPOSED (not built): World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune runner, live spawner), the Toolbox Titan boss, a 5th endless arena. Carries the World-4 revert's lessons as hard rules + the literal-derivation checklist a 5th world breaks.
 └── CLAUDE.md                   # This file
 ```
 
