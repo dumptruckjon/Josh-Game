@@ -1,0 +1,90 @@
+#!/usr/bin/env node
+// Fort Josh balance harness — measure any level with the SHIPPED oracle.
+//
+//   node tools/td-sim.js                 # every level, normal + heroic
+//   node tools/td-sim.js 13,17           # just those levels
+//   SEEDS=1,2,3,4,5,6 node tools/td-sim.js 20
+//   DIFFS=normal,heroic,casual node tools/td-sim.js
+//
+// WHY THIS FILE IS IN THE REPO. Every balance claim in CLAUDE.md and the
+// PLAN_*.md files was produced by a harness exactly like this one, and the
+// single most expensive mistake this project made was tuning against a solver
+// STRONGER than the one in the test suite (World 4 was built, passed a local
+// sim, failed `PLAYABILITY`, and had to be reverted). So the oracle below is
+// copied verbatim from `tests/td-logic.test.js` — fill pads in array order as
+// gold allows, upgrade cheapest-tier-first, never buy a tier-4 branch, take the
+// better of a dart-swarm and a fixed mixed plan. If you change one, change both.
+//
+// Node-only. Nothing here is loaded by the site.
+const path = require("path");
+const ROOT = path.join(__dirname, "..");
+const TD = require(path.join(ROOT, "scripts/td-logic.js"));
+const DATA = require(path.join(ROOT, "scripts/td-data.js"));
+
+const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+
+function playWith(level, seed, plan, difficulty) {
+  const e = TD.createEngine(level, { seed, difficulty });
+  const padIds = level.pads.map((p) => p.id);
+  let idx = 0, guard = 0;
+  const livesAtWave = [];
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 900000) {
+    if (e.state.phase === "build") {
+      let spent = true;
+      while (spent) {
+        spent = false;
+        for (const pid of padIds) {
+          if (!e.state.towers.find((t) => t.padId === pid)) {
+            const line = plan[idx % plan.length];
+            if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+            break;
+          }
+        }
+        if (spent) continue;
+        const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+        for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+      }
+      livesAtWave.push(e.state.lives);
+      e.callWave();
+    }
+    e.tick();
+  }
+  return { phase: e.state.phase, lives: e.state.lives, livesAtWave };
+}
+
+const DART = ["dart"];
+const MIXED = ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"];
+
+// "Winnable" means EITHER sensible build clears it — a competent player picks
+// the tool for the level, and the roster deliberately splits the two plans.
+function best(level, seed, difficulty) {
+  const a = playWith(level, seed, DART, difficulty), b = playWith(level, seed, MIXED, difficulty);
+  if (a.phase === "won" && b.phase === "won") return a.lives >= b.lives ? a : b;
+  return a.phase === "won" ? a : b.phase === "won" ? b : a;
+}
+function neglect(level, seed, meta) {
+  const e = TD.createEngine(level, { seed, meta });
+  let g = 0;
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 400000) { if (e.state.phase === "build") e.callWave(); e.tick(); }
+  return e.state.phase;
+}
+const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
+
+const SEEDS = (process.env.SEEDS || "7,23,99,404").split(",").map(Number);
+const DIFFS = (process.env.DIFFS || "normal,heroic").split(",");
+const only = process.argv[2] ? process.argv[2].split(",").map(Number) : null;
+const ALL_META = DATA.META_NODES.map((n) => n.id);
+
+for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
+  const cols = [];
+  for (const d of DIFFS) {
+    const r = SEEDS.map((s) => best(lvl, s, d));
+    const lives = r.filter((x) => x.phase === "won").map((x) => x.lives);
+    const lost = SEEDS.filter((s, i) => r[i].phase !== "won");
+    cols.push(`${d} ${lost.length ? "LOST@" + lost.join("/") : lives.join(",") + " med " + median(lives)}`);
+  }
+  // "losable by neglect" is checked with the FULL star tree owned too — a
+  // future ability that let a do-nothing build survive would otherwise ship.
+  const n = `${neglect(lvl, SEEDS[0])}/${neglect(lvl, SEEDS[0], ALL_META)}`;
+  console.log(`L${String(lvl.id).padStart(2)} ${lvl.name.padEnd(20)} ${cols.join(" | ")} | neglect ${n}`);
+}

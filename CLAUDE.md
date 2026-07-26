@@ -926,6 +926,11 @@ tooling.
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)
+├── tools/                      # NODE-ONLY dev tools (not loaded by the site) — the
+│   │                           #   balance work in CLAUDE.md was produced by these,
+│   │                           #   so they live in the repo instead of a scratchpad
+│   ├── td-sim.js               # 🏰 measure any level with the SHIPPED oracle (normal/heroic/casual × seeds, + losable-by-neglect incl. the full star tree). `node tools/td-sim.js 13,17`. NEVER tune against a stronger solver — that is what got World 4 reverted.
+│   └── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
 ├── .gitignore                  # ignores node_modules etc.
