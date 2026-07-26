@@ -245,6 +245,11 @@
       startGold: 220,
       budgetBase: 170,
       path: [ [0, 3], [7, 3], [7, 10], [16, 10], [16, 4], [23, 4] ],
+      // TD-16 🕳️ Mud Patch: the conveyor's data field, mirrored — a stretch
+      // where they CRAWL, anchored under p2 so a board that covers it is
+      // rewarded. The conveyor is a stretch you wish you could cover; this is
+      // one you want to build around.
+      zones: [ { from: 7, to: 13, mult: 0.75 } ],
       pads: [
         { id: "p1", cx: 5, cy: 1 },
         { id: "p2", cx: 5, cy: 6 },
@@ -290,7 +295,7 @@
         { groups: [ { type: "blob", count: 3, gap: 0.85, delay: 0 }, { type: "marble", count: 8, gap: 0.55, delay: 3 }, { type: "sock", count: 4, gap: 0.85, delay: 4 } ] },
         { groups: [ { type: "blob", count: 3, gap: 0.85, delay: 0 }, { type: "marble", count: 9, gap: 0.55, delay: 3 }, { type: "sock", count: 5, gap: 0.85, delay: 4 } ] },
         { groups: [ { type: "brick", count: 11, gap: 0.55, delay: 0 }, { type: "blob", count: 3, gap: 0.85, delay: 3 }, { type: "sock", count: 3, gap: 0.85, delay: 4 } ] },
-        { groups: [ { type: "brick", count: 13, gap: 0.55, delay: 0 }, { type: "blob", count: 4, gap: 0.85, delay: 3 }, { type: "sock", count: 3, gap: 0.85, delay: 4 } ] },
+        { groups: [ { type: "brick", count: 13, gap: 0.55, delay: 0 }, { type: "blob", count: 4, gap: 0.85, delay: 3 }, { type: "sock", count: 3, gap: 0.85, delay: 4, at: 33 } ] },
         { groups: [ { type: "knight", count: 2, gap: 1, delay: 0 }, { type: "blob", count: 4, gap: 0.85, delay: 3 }, { type: "marble", count: 16, gap: 0.55, delay: 4 }, { type: "sock", count: 4, gap: 0.85, delay: 5 } ] },
         { groups: [ { type: "knight", count: 3, gap: 1, delay: 0 }, { type: "blob", count: 5, gap: 0.85, delay: 3 }, { type: "marble", count: 18, gap: 0.55, delay: 4 }, { type: "sock", count: 4, gap: 0.85, delay: 5 } ] },
       ],
@@ -317,7 +322,7 @@
         { id: "p3", cx: 6, cy: 9 },
         { id: "p4", cx: 2, cy: 7 },
         { id: "p5", cx: 6, cy: 5 },
-        { id: "p6", cx: 4, cy: 1 },
+        { id: "p6", cx: 4, cy: 1 , boost: { range: 1.18, rate: 1.15 } },
         { id: "p7", cx: 6, cy: 1 },
         { id: "p8", cx: 9, cy: 1 },
         { id: "p9", cx: 11, cy: 1 },
@@ -384,10 +389,10 @@
         { groups: [ { type: "mole", count: 3, gap: 0.9, delay: 0 }, { type: "sock", count: 6, gap: 0.85, delay: 3 }, { type: "marble", count: 6, gap: 0.55, delay: 4 } ] },
         { groups: [ { type: "mole", count: 4, gap: 0.9, delay: 0 }, { type: "sock", count: 6, gap: 0.85, delay: 3 }, { type: "marble", count: 7, gap: 0.55, delay: 4 } ] },
         { groups: [ { type: "knight", count: 3, gap: 1, delay: 0 }, { type: "mole", count: 3, gap: 0.9, delay: 3 }, { type: "sock", count: 6, gap: 0.85, delay: 4 } ] },
-        { groups: [ { type: "knight", count: 3, gap: 1, delay: 0 }, { type: "mole", count: 3, gap: 0.9, delay: 3 }, { type: "marble", count: 10, gap: 0.55, delay: 4 }, { type: "slime", count: 1, gap: 0.9, delay: 3 } ] },
+        { groups: [ { type: "knight", count: 3, gap: 1, delay: 0 }, { type: "mole", count: 3, gap: 0.9, delay: 3 }, { type: "marble", count: 10, gap: 0.55, delay: 4 }, { type: "slime", count: 1, gap: 0.9, delay: 3, at: 22 } ] },
         { groups: [ { type: "blob", count: 5, gap: 0.85, delay: 0 }, { type: "mole", count: 4, gap: 0.9, delay: 3 }, { type: "sock", count: 7, gap: 0.85, delay: 4 }, { type: "slime", count: 1, gap: 0.9, delay: 3 } ] },
         { groups: [ { type: "knight", count: 4, gap: 1, delay: 0 }, { type: "mole", count: 3, gap: 0.9, delay: 3 }, { type: "marble", count: 11, gap: 0.55, delay: 4 }, { type: "hawk", count: 3, gap: 0.3, delay: 2 }, { type: "slime", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 } ] },
-        { groups: [ { type: "blob", count: 5, gap: 0.85, delay: 0 }, { type: "knight", count: 3, gap: 1, delay: 3 }, { type: "mole", count: 4, gap: 0.9, delay: 4 }, { type: "hawk", count: 4, gap: 0.3, delay: 2 }, { type: "slime", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 } ] },
+        { groups: [ { type: "blob", count: 5, gap: 0.85, delay: 0 }, { type: "knight", count: 3, gap: 1, delay: 3 }, { type: "mole", count: 4, gap: 0.9, delay: 4 }, { type: "hawk", count: 4, gap: 0.3, delay: 2 }, { type: "slime", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5, at: 22 } ] },
         { groups: [ { type: "knight", count: 5, gap: 1, delay: 0 }, { type: "mole", count: 4, gap: 0.9, delay: 3 }, { type: "blob", count: 5, gap: 0.85, delay: 4 }, { type: "hawk", count: 5, gap: 0.3, delay: 2 }, { type: "slime", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 } ] },
         { groups: [ { type: "knight", count: 6, gap: 1, delay: 0 }, { type: "blob", count: 6, gap: 0.85, delay: 3 }, { type: "mole", count: 5, gap: 0.9, delay: 4 }, { type: "sock", count: 2, gap: 0.85, delay: 5 }, { type: "hawk", count: 5, gap: 0.3, delay: 2 }, { type: "slime", count: 3, gap: 0.9, delay: 3 }, { type: "tinplane", count: 3, gap: 0.45, delay: 5 } ] },
       ],
@@ -434,7 +439,7 @@
       // Normal barely moves (19.3 → 20.0 — it was already a formality there).
       startGold: 490,
       budgetBase: 390,
-      zones: [ { from: 8, to: 13, mult: 1.6 }, { from: 20, to: 25, mult: 1.6 }, { from: 33, to: 38, mult: 1.6 } ],
+      zones: [ { from: 26, to: 32, mult: 0.75 }, { from: 8, to: 13, mult: 1.6 }, { from: 20, to: 25, mult: 1.6 }, { from: 33, to: 38, mult: 1.6 } ],
       // TD-11: a mid-game use of the lever. This is the air-pressure level, so
       // routing the ground traffic the long way buys your anti-air real time.
       paths: [
@@ -499,7 +504,7 @@
       budgetBase: 500,
       path: [ [0, 3], [16, 3], [16, 8], [6, 8], [6, 12], [22, 12] ],
       pads: [
-        { id: "p1", cx: 1, cy: 5 }, { id: "p2", cx: 4, cy: 1 }, { id: "p3", cx: 7, cy: 5 }, { id: "p4", cx: 9, cy: 1 }, { id: "p5", cx: 12, cy: 5 }, { id: "p6", cx: 14, cy: 1 }, { id: "p7", cx: 14, cy: 4 }, { id: "p8", cx: 18, cy: 7 }, { id: "p9", cx: 15, cy: 6 }, { id: "p10", cx: 12, cy: 10 }, { id: "p11", cx: 10, cy: 6 }, { id: "p12", cx: 7, cy: 10 }, { id: "p13", cx: 4, cy: 10 },
+        { id: "p1", cx: 1, cy: 5 }, { id: "p2", cx: 4, cy: 1 }, { id: "p3", cx: 7, cy: 5 }, { id: "p4", cx: 9, cy: 1 , boost: { range: 1.18, rate: 1.15 } }, { id: "p5", cx: 12, cy: 5 }, { id: "p6", cx: 14, cy: 1 }, { id: "p7", cx: 14, cy: 4 }, { id: "p8", cx: 18, cy: 7 }, { id: "p9", cx: 15, cy: 6 }, { id: "p10", cx: 12, cy: 10 }, { id: "p11", cx: 10, cy: 6 }, { id: "p12", cx: 7, cy: 10 }, { id: "p13", cx: 4, cy: 10 },
       ],
       waves: [
         { groups: [ { type: "sock", count: 10, gap: 0.85, delay: 0 }, { type: "knight", count: 3, gap: 1, delay: 3 } ] },
@@ -582,7 +587,7 @@
         { groups: [ { type: "knight", count: 17, gap: 1, delay: 0 }, { type: "mole", count: 9, gap: 0.9, delay: 3 }, { type: "blob", count: 9, gap: 0.85, delay: 4 }, { type: "hawk", count: 20, gap: 0.3, delay: 2 }, { type: "cushion", count: 2, gap: 0.9, delay: 3 }, { type: "screw", count: 3, gap: 0.9, delay: 4 }, { type: "tinplane", count: 9, gap: 0.45, delay: 5 } ] },
         { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "knight", count: 14, gap: 1, delay: 3 }, { type: "battery", count: 9, gap: 0.9, delay: 4 }, { type: "hawk", count: 20, gap: 0.3, delay: 2 }, { type: "cushion", count: 2, gap: 0.9, delay: 3 }, { type: "screw", count: 3, gap: 0.9, delay: 4 }, { type: "tinplane", count: 9, gap: 0.45, delay: 5 } ] },
         { groups: [ { type: "knight", count: 23, gap: 1, delay: 0 }, { type: "mole", count: 11, gap: 0.9, delay: 3 }, { type: "blob", count: 9, gap: 0.85, delay: 4 }, { type: "ghost", count: 5, gap: 0.9, delay: 5 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "cushion", count: 3, gap: 0.9, delay: 3 }, { type: "screw", count: 5, gap: 0.9, delay: 4 }, { type: "tinplane", count: 13, gap: 0.45, delay: 5 } ] },
-        { groups: [ { type: "knight", count: 26, gap: 1, delay: 0 }, { type: "mole", count: 13, gap: 0.9, delay: 3 }, { type: "blob", count: 11, gap: 0.85, delay: 4 }, { type: "battery", count: 7, gap: 0.9, delay: 5 }, { type: "hawk", count: 34, gap: 0.3, delay: 2 }, { type: "cushion", count: 4, gap: 0.9, delay: 3 }, { type: "screw", count: 6, gap: 0.9, delay: 4 }, { type: "tinplane", count: 15, gap: 0.45, delay: 5 } ] },
+        { groups: [ { type: "knight", count: 26, gap: 1, delay: 0 }, { type: "mole", count: 13, gap: 0.9, delay: 3 }, { type: "blob", count: 11, gap: 0.85, delay: 4 }, { type: "battery", count: 7, gap: 0.9, delay: 5 }, { type: "hawk", count: 34, gap: 0.3, delay: 2 }, { type: "cushion", count: 4, gap: 0.9, delay: 3 }, { type: "screw", count: 6, gap: 0.9, delay: 4 }, { type: "tinplane", count: 15, gap: 0.45, delay: 5, at: 42 } ] },
       ],
     },
     {
@@ -593,6 +598,11 @@
       startGold: 760,
       budgetBase: 700,
       path: [ [0, 7], [7, 7], [7, 3], [15, 3], [15, 11], [20, 11], [20, 5], [23, 5] ],
+      // TD-16 🕳️ Mud Patch: the conveyor's data field, mirrored — a stretch
+      // where they CRAWL, anchored under p12 so a board that covers it is
+      // rewarded. The conveyor is a stretch you wish you could cover; this is
+      // one you want to build around.
+      zones: [ { from: 26, to: 32, mult: 0.75 } ],
       pads: [
         { id: "p1", cx: 1, cy: 9 }, { id: "p2", cx: 3, cy: 5 }, { id: "p3", cx: 5, cy: 9 }, { id: "p4", cx: 6, cy: 6 }, { id: "p5", cx: 9, cy: 5 }, { id: "p6", cx: 5, cy: 3 }, { id: "p7", cx: 11, cy: 1 }, { id: "p8", cx: 13, cy: 5 }, { id: "p9", cx: 15, cy: 1 }, { id: "p10", cx: 17, cy: 6 }, { id: "p11", cx: 13, cy: 8 }, { id: "p12", cx: 17, cy: 10 }, { id: "p13", cx: 16, cy: 13 }, { id: "p14", cx: 18, cy: 9 },
       ],
@@ -631,10 +641,10 @@
         { groups: [ { type: "marble", count: 53, gap: 0.6, delay: 0 }, { type: "blob", count: 12, gap: 0.75, delay: 3 }, { type: "mole", count: 5, gap: 0.9, delay: 4 } ] },
         { groups: [ { type: "knight", count: 8, gap: 0.6, delay: 0 }, { type: "sock", count: 19, gap: 0.75, delay: 3 }, { type: "ghost", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 15, gap: 0.35, delay: 2 } ] },
         { groups: [ { type: "blob", count: 15, gap: 0.6, delay: 0 }, { type: "marble", count: 46, gap: 0.75, delay: 3 }, { type: "battery", count: 7, gap: 0.9, delay: 4 }, { type: "tinplane", count: 10, gap: 0.35, delay: 2 } ] },
-        { groups: [ { type: "sock", count: 28, gap: 0.6, delay: 0 }, { type: "knight", count: 8, gap: 0.75, delay: 3 }, { type: "cushion", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 21, gap: 0.35, delay: 2 } ] },
+        { groups: [ { type: "sock", count: 28, gap: 0.6, delay: 0 }, { type: "knight", count: 8, gap: 0.75, delay: 3 }, { type: "cushion", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 21, gap: 0.35, delay: 2, at: 30 } ] },
         { groups: [ { type: "marble", count: 69, gap: 0.6, delay: 0 }, { type: "blob", count: 15, gap: 0.75, delay: 3 }, { type: "slime", count: 8, gap: 0.9, delay: 4 }, { type: "tinplane", count: 13, gap: 0.35, delay: 2 } ] },
         { groups: [ { type: "knight", count: 15, gap: 0.6, delay: 0 }, { type: "sock", count: 30, gap: 0.75, delay: 3 }, { type: "screw", count: 11, gap: 0.9, delay: 4 }, { type: "hawk", count: 29, gap: 0.35, delay: 2 } ] },
-        { groups: [ { type: "blob", count: 26, gap: 0.6, delay: 0 }, { type: "marble", count: 78, gap: 0.75, delay: 3 }, { type: "mole", count: 20, gap: 0.9, delay: 4 }, { type: "tinplane", count: 19, gap: 0.35, delay: 2 } ] },
+        { groups: [ { type: "blob", count: 26, gap: 0.6, delay: 0 }, { type: "marble", count: 78, gap: 0.75, delay: 3 }, { type: "mole", count: 20, gap: 0.9, delay: 4 }, { type: "tinplane", count: 19, gap: 0.35, delay: 2, at: 30 } ] },
         { groups: [ { type: "sock", count: 54, gap: 0.6, delay: 0 }, { type: "knight", count: 16, gap: 0.75, delay: 3 }, { type: "ghost", count: 27, gap: 0.9, delay: 4 }, { type: "hawk", count: 40, gap: 0.35, delay: 2 } ] },
         { groups: [ { type: "marble", count: 134, gap: 0.6, delay: 0 }, { type: "blob", count: 29, gap: 0.75, delay: 3 }, { type: "battery", count: 25, gap: 0.9, delay: 4 }, { type: "tinplane", count: 26, gap: 0.35, delay: 2 } ] },
       ],
@@ -673,7 +683,7 @@
       startGold: 1000,
       budgetBase: 520,
       path: [ [0, 11], [4, 11], [4, 2], [10, 2], [10, 9], [16, 9], [16, 2], [21, 2], [21, 12], [23, 12] ],
-      pads: [ { id: "p1", cx: 0, cy: 8 }, { id: "p2", cx: 5, cy: 9 }, { id: "p3", cx: 2, cy: 6 }, { id: "p4", cx: 5, cy: 3 }, { id: "p5", cx: 8, cy: 0 }, { id: "p6", cx: 7, cy: 5 }, { id: "p7", cx: 7, cy: 9 }, { id: "p8", cx: 13, cy: 11 }, { id: "p9", cx: 14, cy: 6 }, { id: "p10", cx: 17, cy: 3 }, { id: "p11", cx: 20, cy: 0 }, { id: "p12", cx: 23, cy: 5 }, { id: "p13", cx: 18, cy: 10 } ],
+      pads: [ { id: "p1", cx: 0, cy: 8 }, { id: "p2", cx: 5, cy: 9 }, { id: "p3", cx: 2, cy: 6 }, { id: "p4", cx: 5, cy: 3 }, { id: "p5", cx: 8, cy: 0 }, { id: "p6", cx: 7, cy: 5 }, { id: "p7", cx: 7, cy: 9 }, { id: "p8", cx: 13, cy: 11 }, { id: "p9", cx: 14, cy: 6 , boost: { range: 1.18, rate: 1.15 } }, { id: "p10", cx: 17, cy: 3 }, { id: "p11", cx: 20, cy: 0 }, { id: "p12", cx: 23, cy: 5 }, { id: "p13", cx: 18, cy: 10 } ],
       waves: [
         { groups: [ { type: "sock", count: 10, gap: 0.6, delay: 0 }, { type: "knight", count: 3, gap: 0.75, delay: 3 } ] },
         { groups: [ { type: "marble", count: 25, gap: 0.6, delay: 0 }, { type: "blob", count: 5, gap: 0.75, delay: 3 } ] },
@@ -777,20 +787,20 @@
       // rows 3-4 apart and a tier-3 dart reaches ~4, so ONE tower covered two
       // runs and the level was flawless at 10 pads on heroic.
       path: [[0, 12], [17, 12], [17, 6], [4, 6], [4, 0], [23, 0]],
-      pads: [ { id: "p1", cx: 3, cy: 7 }, { id: "p2", cx: 23, cy: 2 }, { id: "p3", cx: 18, cy: 13 }, { id: "p4", cx: 12, cy: 2 }, { id: "p5", cx: 10, cy: 10 }, { id: "p6", cx: 18, cy: 5 }, { id: "p7", cx: 2, cy: 0 }, { id: "p8", cx: 6, cy: 3 }, { id: "p9", cx: 15, cy: 9 }, { id: "p10", cx: 0, cy: 10 }, { id: "p11", cx: 6, cy: 10 }, { id: "p12", cx: 19, cy: 9 } ],
+      pads: [ { id: "p1", cx: 3, cy: 7 }, { id: "p2", cx: 23, cy: 2 }, { id: "p3", cx: 18, cy: 13 }, { id: "p4", cx: 12, cy: 2 }, { id: "p5", cx: 10, cy: 10 }, { id: "p6", cx: 18, cy: 5 }, { id: "p7", cx: 2, cy: 0 , boost: { range: 1.18, rate: 1.15 } }, { id: "p8", cx: 6, cy: 3 }, { id: "p9", cx: 15, cy: 9 }, { id: "p10", cx: 0, cy: 10 }, { id: "p11", cx: 6, cy: 10 }, { id: "p12", cx: 19, cy: 9 } ],
       waves: [
         { groups: [ { type: "sock", count: 16, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "blob", count: 11, gap: 0.65, delay: 0 }, { type: "marble", count: 26, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "sock", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "screw", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "marble", count: 32, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "ghost", count: 4, gap: 0.9, delay: 4 }, { type: "sock", count: 26, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "bucket", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "marble", count: 45, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "marble", count: 45, gap: 0.8, delay: 3, at: 31 } ] },
         { groups: [ { type: "battery", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 9, gap: 0.3, delay: 2 }, { type: "sock", count: 32, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "cushion", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 11, gap: 0.3, delay: 2 }, { type: "blob", count: 21, gap: 0.65, delay: 0 }, { type: "marble", count: 52, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "mole", count: 9, gap: 0.9, delay: 4 }, { type: "hawk", count: 15, gap: 0.3, delay: 2 }, { type: "sock", count: 42, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 9, gap: 0.9, delay: 4 }, { type: "hawk", count: 15, gap: 0.3, delay: 2 }, { type: "sock", count: 42, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3, at: 31 } ] },
         { groups: [ { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "hawk", count: 19, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "marble", count: 72, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "racer", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 23, gap: 0.3, delay: 2 }, { type: "sock", count: 54, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "slime", count: 11, gap: 0.9, delay: 4 }, { type: "hawk", count: 30, gap: 0.3, delay: 2 }, { type: "blob", count: 34, gap: 0.65, delay: 0 }, { type: "marble", count: 86, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 11, gap: 0.9, delay: 4 }, { type: "hawk", count: 30, gap: 0.3, delay: 2 }, { type: "blob", count: 34, gap: 0.65, delay: 0 }, { type: "marble", count: 86, gap: 0.8, delay: 3, at: 31 } ] },
         { groups: [ { type: "tinplane", count: 27, gap: 0.9, delay: 4 }, { type: "hawk", count: 37, gap: 0.3, delay: 2 }, { type: "sock", count: 68, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bucket", count: 4, gap: 0.9, delay: 4 }, { type: "hawk", count: 46, gap: 0.3, delay: 2 }, { type: "blob", count: 49, gap: 0.65, delay: 0 }, { type: "marble", count: 122, gap: 0.8, delay: 3 } ] },
       ],
@@ -844,6 +854,11 @@
       budgetBase: 700,
       // Everything at once, then the boss.
       path: [[0, 1], [15, 1], [15, 6], [4, 6], [4, 10], [19, 10], [19, 13], [23, 13]],
+      // TD-16 🕳️ Mud Patch: the conveyor's data field, mirrored. A stretch
+      // where they CRAWL, anchored under p1 so a board that covers it is
+      // rewarded — the conveyor is a stretch you wish you could cover, this
+      // is one you want to build around.
+      zones: [ { from: 28, to: 34, mult: 0.75 } ],
       pads: [ { id: "p1", cx: 3, cy: 5 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 16, cy: 0 }, { id: "p4", cx: 12, cy: 12 }, { id: "p5", cx: 16, cy: 7 }, { id: "p6", cx: 3, cy: 11 }, { id: "p7", cx: 10, cy: 3 }, { id: "p8", cx: 8, cy: 8 }, { id: "p9", cx: 20, cy: 9 }, { id: "p10", cx: 17, cy: 13 }, { id: "p11", cx: 7, cy: 12 }, { id: "p12", cx: 12, cy: 8 }, { id: "p13", cx: 0, cy: 3 }, { id: "p14", cx: 6, cy: 3 } ],
       waves: [
         { groups: [ { type: "sock", count: 14, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },

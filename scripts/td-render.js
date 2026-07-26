@@ -197,6 +197,26 @@
           const a = Math.PI / 4 + k * Math.PI / 2;
           b.beginPath(); b.arc(px + Math.cos(a) * cell * 0.34, py + Math.sin(a) * cell * 0.34, cell * 0.045, 0, 7); b.fill();
         }
+        // TD-16 ⚡ POWER PAD: a live socket. Whatever is built here is
+        // permanently buffed, so it has to look different from twenty feet away
+        // — an amber ring, a spark, and a wired lead running off the plate.
+        if (p.boost) {
+          b.strokeStyle = "rgba(255,196,84,0.95)"; b.lineWidth = Math.max(2, cell * 0.08);
+          b.beginPath(); b.arc(px, py, cell * 0.44, 0, 7); b.stroke();
+          b.strokeStyle = "rgba(255,196,84,0.35)"; b.lineWidth = Math.max(1.5, cell * 0.05);
+          b.beginPath(); b.arc(px, py, cell * 0.55, 0, 7); b.stroke();
+          b.fillStyle = "#ffd35c";                       // the spark in the socket
+          b.beginPath();
+          b.moveTo(px - cell * 0.07, py - cell * 0.16); b.lineTo(px + cell * 0.05, py - cell * 0.03);
+          b.lineTo(px - cell * 0.01, py - cell * 0.01); b.lineTo(px + cell * 0.07, py + cell * 0.16);
+          b.lineTo(px - cell * 0.05, py + cell * 0.02); b.lineTo(px + cell * 0.01, py + cell * 0.0);
+          b.closePath(); b.fill();
+          b.strokeStyle = "rgba(255,196,84,0.6)"; b.lineWidth = Math.max(1.5, cell * 0.045); // the lead
+          b.beginPath();
+          b.moveTo(px + cell * 0.42, py + cell * 0.16);
+          b.quadraticCurveTo(px + cell * 0.72, py + cell * 0.34, px + cell * 0.62, py + cell * 0.6);
+          b.stroke();
+        }
       }
     }
 
@@ -1153,19 +1173,33 @@
       }
     }
 
-    // Conveyor strips (Slip'n'Slide): scrolling forward chevrons over each speed
-    // zone so the player SEES where enemies get a shove. Floor pass (cell coords).
+    // Speed zones. A conveyor (mult > 1) is scrolling forward chevrons; a TD-16
+    // MUD PATCH (mult < 1) is the mirror image and must NOT look like one — it
+    // is a stretch you WANT them walking through, so it draws as sticky ground
+    // with rising bubbles and no direction at all. Same data field, opposite
+    // meaning, so the picture has to carry the difference.
     function drawConveyors() {
       if (!ZONES) return;
       const scroll = (engine.state.tick * 0.08) % 1;
       for (const z of ZONES) {
         const span = z.to - z.from, n = Math.max(2, Math.round(span / 0.6));
+        const slow = z.mult < 1;
         for (let i = 0; i <= n; i++) {
-          const d = z.from + ((i + scroll) / n) * span;
+          const d = z.from + ((i + (slow ? 0 : scroll)) / n) * span;
           if (d < z.from || d > z.to) continue;
           const p = engine.posAt(d), tan = tangentAt(d);
           const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
           const nx = -tan.y, ny = tan.x, s = cell * 0.28;
+          if (slow) {
+            // a gloopy blot across the lane…
+            ctx.fillStyle = "rgba(96,74,44,0.55)";
+            ctx.beginPath(); ctx.ellipse(cx, cy, cell * 0.42, cell * 0.34, Math.atan2(tan.y, tan.x), 0, 7); ctx.fill();
+            // …with one slow bubble rising, so it reads as WET, not as a hole
+            const ph = ((engine.state.tick * 0.03) + i * 0.37) % 1;
+            ctx.fillStyle = "rgba(206,180,132," + (0.5 * (1 - ph)).toFixed(3) + ")";
+            ctx.beginPath(); ctx.arc(cx + nx * cell * 0.1, cy + ny * cell * 0.1 - ph * cell * 0.22, cell * 0.07 * (1 - ph * 0.5), 0, 7); ctx.fill();
+            continue;
+          }
           ctx.strokeStyle = "rgba(120,230,255,0.55)"; ctx.lineWidth = Math.max(2, cell * 0.06); ctx.lineCap = "round"; ctx.lineJoin = "round";
           ctx.beginPath();
           ctx.moveTo(cx - tan.x * s + nx * s, cy - tan.y * s + ny * s);
@@ -1173,6 +1207,34 @@
           ctx.lineTo(cx - tan.x * s - nx * s, cy - tan.y * s - ny * s);
           ctx.stroke();
         }
+      }
+    }
+
+    // TD-16 🚪 Side Door: a wave group can walk in PARTWAY down the lane, so the
+    // player has to be able to see where before they commit gold. Drawn during
+    // BUILD only (once the wave is walking the enemies themselves say it), and
+    // only for doors the NEXT wave actually uses — a permanent marker on a lane
+    // that is not being used this wave is a lie.
+    // ONE owner — the floor pass draws the line and the UPRIGHT pass draws the
+    // 🚪 (characters never rotate), so both must agree on which doors are live.
+    function nextDoors() {
+      if (engine.state.phase !== "build") return [];
+      const wave = (engine.levelDef.waves || [])[engine.state.sentIdx];
+      if (!wave) return [];
+      return [...new Set(wave.groups.filter((g) => g.at > 0).map((g) => g.at))];
+    }
+    function drawSideDoors() {
+      for (const at of nextDoors()) {
+        const p = engine.posAt(at), tan = tangentAt(at);
+        const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
+        const nx = -tan.y, ny = tan.x;
+        const pulse = 0.55 + 0.25 * Math.sin(engine.state.tick * 0.12);
+        ctx.strokeStyle = "rgba(255,190,90," + pulse.toFixed(3) + ")";
+        ctx.lineWidth = Math.max(2, cell * 0.08); ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(cx + nx * cell * 0.5, cy + ny * cell * 0.5);
+        ctx.lineTo(cx - nx * cell * 0.5, cy - ny * cell * 0.5);
+        ctx.stroke();
       }
     }
 
@@ -1324,6 +1386,7 @@
       enterWorld();
       ctx.drawImage(bg, 0, 0, cell * GRID.w, cell * GRID.h);
       drawConveyors();
+      drawSideDoors();
       drawLeverRoute(st);
       drawPuddles(st);
       if (selection && selection.pad) drawRange(selection.pad.cx, selection.pad.cy, (selection.ghostRange || 2.6) * nightMul, true);
@@ -1434,6 +1497,12 @@
       // sock), so a 5th world would have inherited a bed too.
       const spawnGlyph = (global.TDData.WORLDS[engine.levelDef.world] || {}).spawnGlyph || "🛏️";
       glyph(s0[0], s0[1], spawnGlyph);
+      // TD-16 side doors: one 🚪 per live door, upright like every other
+      // character, so the player sees where the flank comes in BEFORE spending.
+      // ON the crossbar, not offset from it: the FLOOR rotates 90° in portrait
+      // while characters stay upright, so a world-y offset here would come out
+      // as a screen-x offset and the door would sit beside its own marker.
+      for (const at of nextDoors()) { const dp = engine.posAt(at); glyph(dp.x, dp.y, "🚪", 0.7); }
       glyph(s1[0], s1[1], "🚪");
       if (selection && selection.tower) {
         const selT = st.towers.find((x) => x.id === selection.tower);

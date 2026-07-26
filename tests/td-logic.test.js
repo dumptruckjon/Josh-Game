@@ -2828,8 +2828,12 @@ test("W5 the Garage keeps its two teaching shapes, and its conveyor stays gentle
   // allowlist — that is what stops the exemption becoming an accidental hole.
   const CONVEYOR_EXEMPT = new Set([7]);
   for (const l of DATA.LEVELS) for (const z of (l.zones || [])) {
-    if (CONVEYOR_EXEMPT.has(l.id)) continue;
+    if (z.mult > 1 && CONVEYOR_EXEMPT.has(l.id)) continue;
     assert.ok(z.mult <= 1.35, `L${l.id} conveyor ×${z.mult} — a speed zone above 1.35 steals uptime gold cannot replace (at ×1.45 L17 held normal comfortably and was heroic-unwinnable on every seed)`);
+    // TD-16: the bound is TWO-SIDED now. A mud patch is the same data field
+    // mirrored, and a strong enough slow is as much a free win as a strong
+    // conveyor is a free loss — L7's first mud placement handed heroic +10.
+    assert.ok(z.mult >= 0.6, `L${l.id} mud patch ×${z.mult} — a slow below 0.6 is a free win, the mirror of the conveyor cap`);
   }
   assert.ok(DATA.LEVELS.filter((l) => l.zones).length > CONVEYOR_EXEMPT.size,
     "the exemption list must not be the whole population — if every conveyor level is exempt this check is inert");
@@ -2887,4 +2891,124 @@ test("W5 Toolbox Titan: every hp-gated phase actually fires (forced, band by ban
   let summoned = false;
   for (let i = 0; i < 700 && !summoned; i++) { e.tick(); summoned = e.state.enemies.some((x) => x.type === summonType && x.alive); }
   assert.ok(summoned, `under 33% it summons ${summonType}s`);
+});
+
+
+// ===== TD-16 LEVEL GIMMICKS: three data fields, each read at ONE place. =====
+
+test("TD-16 zones must never OVERLAP — the engine breaks on the first match", () => {
+  // `for (const z of zones) { if (in range) { base *= z.mult; break; } }` — so
+  // where two zones overlap, ARRAY ORDER silently decides which multiplier
+  // applies. L7's first mud placement (16-22) overlapped its conveyor (20-25)
+  // and, being first in the array, quietly cancelled two cells of the strip:
+  // heroic went from 8 to 18 lives with no other change. A zone table has to be
+  // disjoint or it does not mean what it says.
+  for (const l of DATA.LEVELS) {
+    const zs = (l.zones || []).slice().sort((a, b) => a.from - b.from);
+    for (const z of zs) assert.ok(z.to > z.from, `L${l.id} zone ${z.from}-${z.to} is empty or inverted`);
+    for (let i = 1; i < zs.length; i++) {
+      assert.ok(zs[i].from >= zs[i - 1].to,
+        `L${l.id} zones overlap (${zs[i - 1].from}-${zs[i - 1].to} and ${zs[i].from}-${zs[i].to}) — the engine breaks on the FIRST match, so their order silently decides which multiplier wins`);
+    }
+  }
+});
+
+test("TD-16 ⚡ Power Pad: a boosted tower fires faster AND reaches further", () => {
+  // The buff lives on the PAD, so it must survive a sell-and-rebuild and apply
+  // to whatever line is standing there. Range had to reach all FIVE range reads
+  // (dart acquire, dart sticky-keep, mortar, fan aura, fan zap) — the "grep
+  // every place a target is chosen OR kept" discipline applied to distance.
+  // EACH HALF IS TESTED ALONE. The first cut passed a `{range, rate}` boost to
+  // both assertions, and a range buff by itself raises the shot count (the
+  // tower acquires sooner and holds longer) — so the "fires faster" half could
+  // not fail, which is worse than not testing it. Rate is measured with a
+  // rate-ONLY pad; reach with a range-ONLY pad.
+  function mk(boost, dy) {
+    return { id: 93, name: "gimmick-probe", world: "test", startGold: 99999, budgetBase: 100,
+      path: [[0, 7], [23, 7]],
+      pads: [Object.assign({ id: "m", cx: 5, cy: 7 - (dy == null ? 4 : dy) }, boost ? { boost } : {})],
+      waves: [{ groups: [{ type: "sock", count: 60, gap: 0.35, delay: 0 }] }] };
+  }
+  // Rate is measured against a target PINNED right beside the tower: with one
+  // enemy that never leaves reach, range cannot influence the count, so the
+  // number is the fire rate and nothing else. (Counting shots at an advancing
+  // wave is range-sensitive — more reach means more of the lane covered, which
+  // is exactly what made the first version of this check unfalsifiable.)
+  function shots(boost, tier) {
+    const e = TD.createEngine(mk(boost, 1), { seed: 4 });
+    e.place("dart", "m");
+    for (let i = 1; i < (tier || 1); i++) e.upgrade(e.state.towers[0].id);
+    e.callWave();
+    for (let i = 0; i < 20; i++) e.tick();
+    let n = 0;
+    for (let i = 0; i < 600; i++) {
+      const t = e.state.enemies[0];
+      if (t) { t.dist = 5; t.hp = t.maxHp = 9e6; }        // pinned and immortal
+      e.state.enemies.length = Math.min(e.state.enemies.length, 1);
+      e.tick();
+      n += e.events.filter((ev) => ev.type === "shoot").length; e.events.length = 0;
+    }
+    return n;
+  }
+  const RATE_ONLY = { rate: 1.15 }, RANGE_ONLY = { range: 1.18 };
+  assert.ok(shots(RATE_ONLY, 1) > shots(null, 1), "a tier-1 dart on a power pad fires more often (rate half)");
+  assert.ok(shots(RATE_ONLY, 3) > shots(null, 3), "…and so does a tier-3 one (the buff is not tier-gated)");
+  assert.equal(shots(RANGE_ONLY, 1), shots(null, 1), "a range-only socket must not change the FIRE RATE — that would make the rate check unfalsifiable");
+  // reach: find a standoff distance only the boosted tower can cover
+  function reaches(boost, dy) {
+    const e = TD.createEngine(mk(boost, dy), { seed: 4 });
+    e.place("dart", "m");
+    e.callWave();
+    for (let i = 0; i < 1400; i++) { e.tick(); if (e.events.some((ev) => ev.type === "shoot")) return true; e.events.length = 0; }
+    return false;
+  }
+  let found = false;
+  for (let dy = 2; dy <= 6 && !found; dy++) found = !reaches(null, dy) && reaches(RANGE_ONLY, dy);
+  assert.ok(found, "there must be a standoff only the boosted tower can reach — otherwise the range half of the socket does nothing");
+  // the buff belongs to the PAD, not the tower it happened to be bought with
+  const e = TD.createEngine(mk({ range: 1.18, rate: 1.15 }, 2), { seed: 4 });
+  e.place("dart", "m"); e.sell(e.state.towers[0].id); e.place("mortar", "m");
+  assert.equal(e.state.towers.length, 1, "rebuilt on the same socket");
+  assert.ok(DATA.LEVELS.some((l) => l.pads.some((p) => p.boost)), "at least one shipped level actually carries a power pad");
+});
+
+test("TD-16 🚪 Side Door: a flagged group walks in PAST the entrance", () => {
+  const lvl = { id: 92, name: "gimmick-probe", world: "test", startGold: 0, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 1 }],
+    waves: [{ groups: [{ type: "sock", count: 2, gap: 0.4, delay: 0 }, { type: "marble", count: 2, gap: 0.4, delay: 0, at: 12 }] }] };
+  const e = TD.createEngine(lvl, { seed: 4 });
+  e.callWave();
+  for (let i = 0; i < 4; i++) e.tick();
+  const front = e.state.enemies.filter((x) => x.type === "sock");
+  const flank = e.state.enemies.filter((x) => x.type === "marble");
+  assert.ok(front.length && flank.length, "both groups spawned");
+  for (const f of front) assert.ok(f.dist < 3, `the un-flagged group starts at the entrance (got ${f.dist})`);
+  for (const f of flank) assert.ok(f.dist >= 11, `the side-door group enters at its door, not the entrance (got ${f.dist})`);
+  // …and a door only ever moves an enemy FORWARD — never past the exit
+  const total = e.paths[0].total;
+  for (const l of DATA.LEVELS) for (const w of l.waves) for (const g of w.groups) {
+    if (!g.at) continue;
+    const t = TD.buildPath((l.paths || [l.path])[0]).total;
+    assert.ok(g.at > 0 && g.at < t * 0.8,
+      `L${l.id} side door at ${g.at} must sit inside the lane (0 < at < 80% of ${t.toFixed(0)}) — past that it is a free leak, not a flank`);
+  }
+  assert.ok(total > 0);
+});
+
+test("TD-16 gimmick coverage: every world has one, and no mechanic is stuck in one world", () => {
+  // The point of the phase. Before it, three of twenty levels had a gimmick
+  // (night on L6, conveyors on L7/L17) and two whole worlds had none at all.
+  const has = (l) => !!(l.night || l.lever || (l.zones && l.zones.length) ||
+    l.pads.some((p) => p.boost) || l.waves.some((w) => w.groups.some((g) => g.at)));
+  const worlds = [...new Set(DATA.LEVELS.map((l) => l.world))];
+  for (const w of worlds) {
+    assert.ok(DATA.LEVELS.filter((l) => l.world === w).some(has),
+      `world "${w}" has no level gimmick at all — every world gets at least one`);
+  }
+  assert.ok(DATA.LEVELS.filter(has).length >= worlds.length * 2,
+    `gimmicks must be spread, not token: ${DATA.LEVELS.filter(has).length} of ${DATA.LEVELS.length} levels carry one`);
+  const spread = (pick) => new Set(DATA.LEVELS.filter(pick).map((l) => l.world)).size;
+  assert.ok(spread((l) => l.zones && l.zones.some((z) => z.mult < 1)) >= 3, "mud patches appear in at least three worlds");
+  assert.ok(spread((l) => l.pads.some((p) => p.boost)) >= 3, "power pads appear in at least three worlds");
+  assert.ok(spread((l) => l.waves.some((w) => w.groups.some((g) => g.at))) >= 3, "side doors appear in at least three worlds");
 });

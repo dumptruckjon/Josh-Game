@@ -245,7 +245,11 @@
         for (let i = 0; i < g.count; i++) {
           const jitter = (rng() - 0.5) * 0.3;
           const at = Math.max(0, g.delay + i * g.gap + jitter);
-          spawnQueue.push({ tick: state.tick + Math.round(at * DATA.TICK_RATE), type: g.type });
+          // TD-16 🚪 Side Door: `g.at` is a path DISTANCE — the group walks in
+          // partway down the lane instead of at the entrance, so a board packed
+          // around the door does nothing about them. spawnEnemy already took a
+          // dist (split children, boss summons), so this is one carried field.
+          spawnQueue.push({ tick: state.tick + Math.round(at * DATA.TICK_RATE), type: g.type, dist: g.at || 0 });
         }
       }
       spawnQueue.sort((a, b) => a.tick - b.tick || (a.type < b.type ? -1 : 1));
@@ -287,7 +291,22 @@
 
     // TD-9 Overclock: ONE fire-rate multiplier read at every cooldown-set site,
     // so any future tower line inherits the ability without new code.
-    function boostOf(t) { return (t && t.boostUntil && state.tick < t.boostUntil) ? (t.boostMult || 2) : 1; }
+    // TD-16 ⚡ Power Pad: a pad may carry a permanent `boost`, and it rides the
+    // SAME multiplier — so the socket buffs a Dart, a Mortar, a tier-4 Minigun
+    // and any line added later without one extra call site. The two stack
+    // (an Overclocked tower on a power pad really is both).
+    function padOf(t) { return t ? padById(t.padId) : null; }
+    function padBoost(t) { const p = padOf(t); return (p && p.boost) || null; }
+    function boostOf(t) {
+      const over = (t && t.boostUntil && state.tick < t.boostUntil) ? (t.boostMult || 2) : 1;
+      const pb = padBoost(t);
+      return over * ((pb && pb.rate) || 1);
+    }
+    // …and the matching REACH wrapper. A range buff has to reach every site a
+    // range is read at — dart acquire, dart sticky-KEEP, mortar, fan aura, fan
+    // zap — which is the documented "grep every place a target is chosen OR
+    // kept" discipline, applied to distance instead of eligibility.
+    function reachOf(t, r) { const pb = padBoost(t); return pb && pb.range ? r * pb.range : r; }
     // A soldier whose camp has been SOLD is an orphan: it is about to pack up, so
     // the Rally Horn must not count it as somebody to rally (it charged 80 gold
     // and a 30s cooldown to revive nobody).
@@ -819,7 +838,7 @@
           // (or newly-most-progressed / closer) enemy entering range was ignored
           // and the mode read as inert. fan/mortar already re-pick each tick.
           const cur = enemyById(t.targetId);
-          const dartRange = s.range * rangeMul; // night dims the dart's reach
+          const dartRange = reachOf(t, s.range * rangeMul); // night dims the dart's reach; ⚡ a power pad extends it
           let keep = false;
           if (cur && t.targeting === "first" && !isHidden(cur)) { // drop a target that phased/tunnelled away
             const p = epos(cur);
@@ -850,7 +869,7 @@
             emit({ type: "shoot", x: t.cx, y: t.cy, tower: t.lineId });
           }
         } else if (def.kind === "mortar") {
-          const cands = candidates(t, s.rangeMin, s.range * rangeMul, false);
+          const cands = candidates(t, s.rangeMin, reachOf(t, s.range * rangeMul), false);
           const targetId = pickByMode(cands, t.targeting, t);
           const target = targetId ? enemyById(targetId) : null;
           if (target && t.cooldown <= 0) {
@@ -867,14 +886,14 @@
           }
         } else if (def.kind === "fan") {
           // aura: slow (and Blizzard brittle) everything in range, fliers half
-          const aura = candidates(t, 0, s.auraRange + mods.fanAura, true); // TD-5 Cold Front
+          const aura = candidates(t, 0, reachOf(t, s.auraRange + mods.fanAura), true); // TD-5 Cold Front
           for (const e of aura) {
             applySlow(e, s.slow, 0.5);
             if (s.brittle) e.brittleUntil = state.tick + Math.round(s.brittle * DATA.TICK_RATE);
           }
           if (s.chain) {
             if (t.cooldown <= 0) {
-              const first = pickByMode(candidates(t, 0, s.zapRange, true), t.targeting, t);
+              const first = pickByMode(candidates(t, 0, reachOf(t, s.zapRange), true), t.targeting, t);
               if (first) {
                 t.cooldown = Math.round(s.chain.rate * DATA.TICK_RATE / boostOf(t));
                 const hitIds = [];
@@ -902,7 +921,7 @@
               }
             }
           } else if (s.zapDps) {
-            const beamId = pickByMode(candidates(t, 0, s.zapRange, true), t.targeting, t);
+            const beamId = pickByMode(candidates(t, 0, reachOf(t, s.zapRange), true), t.targeting, t);
             const beamTarget = beamId ? enemyById(beamId) : null;
             if (beamTarget) {
               // ⚡ Overclock: the Fan has no cooldown to divide, so the boost has
@@ -973,7 +992,8 @@
       }
 
       while (spawnQueue.length && spawnQueue[0].tick <= state.tick) {
-        spawnEnemy(spawnQueue.shift().type);
+        const q = spawnQueue.shift();
+        spawnEnemy(q.type, q.dist || 0);
       }
 
       // status upkeep + movement

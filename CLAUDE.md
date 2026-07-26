@@ -937,6 +937,7 @@ tooling.
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
+├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
 ```
@@ -1772,6 +1773,46 @@ counts its world's actual levels, and the "newest world opens and plays" browser
 test is pinned to the LAST world in the data rather than naming one that stops
 being new.
 
+**TD-16 (level gimmicks) took gimmick coverage from 3 of 20 levels to 14, and
+its lessons are about how much a mechanic is WORTH — measured, not assumed.**
+Three new shapes, each a data field read at ONE place: 🕳️ **Mud Patch** is the
+conveyor's own `zones[].mult` mirrored below 1.0 (**zero new engine code** — the
+speed zone never cared which side of 1 the multiplier sat on), ⚡ **Power Pad**
+is a `pads[].boost` that folds its fire-rate half into the existing `boostOf(t)`
+and its range half into a new `reachOf(t, r)`, and 🚪 **Side Door** is a
+`groups[].at` carried through the spawn queue into the `dist` argument
+`spawnEnemy` already took. Findings: (1) **zones must never OVERLAP** — the zone
+loop `break`s on the first match, so where two overlap the ARRAY ORDER silently
+decides which multiplier applies; L7's first mud placement (16-22) overlapped its
+conveyor (20-25), cancelled two cells of the strip, and moved heroic from 8 to 18
+lives with nothing else changed → a guardrail now asserts every level's zone
+table is disjoint, and the strength bound became TWO-SIDED (`0.6 ≤ mult ≤ 1.35`,
+because a strong slow is as much a free win as a strong conveyor is a free loss).
+(2) **A slow zone disproportionately rewards a DART SWARM** — L5's mud flipped
+the shipped "no single plan clears heroic" property (dart-only went from losing
+L5 to winning with 12-14 lives) while the side door alone left it exactly
+intact, because more time in range compounds across many small guns. The mud
+came back off L5 rather than re-pointing the guardrail at a different level —
+when a change breaks a property test, the change is usually what is wrong.
+(3) **The same mechanic can be a rounding error on one map and a re-tune on
+another**: a side door was worth −1 life on L2 and −5 on L13, scaling with lane
+length and pad count, so it has to be dosed per level by measurement. (4) **A
+range buff must reach all FIVE range reads** (dart acquire, dart sticky-KEEP,
+mortar, fan aura, fan zap) — the "grep every place a target is chosen OR kept"
+discipline, applied to distance. And the testing lesson, which is the old one
+again: the first Power Pad guardrail passed a `{range, rate}` boost to BOTH
+halves of its assertion, and a range buff by itself raises the shot count (the
+tower acquires sooner and holds longer) — so **the "fires faster" half could not
+fail**, and a mutation removing the rate buff entirely stayed green. Rate is now
+measured against a target PINNED beside the tower, where range cannot influence
+the count. A test that cannot fail is worse than no test, and the way to find
+out is to mutate the thing it claims to check. One deliberate exception is on
+the record: **L13 moved −5 normal, outside this phase's own ±2 design rule, and
+was kept** because it was the only level in the game finishing 20/20/20/20 on
+normal — a formality — and it loses none of 12 heroic seeds at its new margin.
+L11 was the counter-case and was NOT kept (it was already a real level, so a
+door there was drift); it was softened to a single late wave.
+
 **A post-World-5 spot check found the VS16 emoji guardrail had the same wrong
 SCOPE its own docs warn about — a hand-written file list.** The scan's `files`
 array named nine sources and simply omitted `scripts/td-logic.js`, where the
@@ -1917,8 +1958,12 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   generator (it keeps only detours that preserve the shared prefix, stay in
 >   bounds, gain ≥20% length and leave every pad ≥0.99 cells clear of BOTH lanes,
 >   measured in CELL-INDEX space) to see whether any admit one without moving pads.
-> - **Level gimmicks stay thin**: `night` on L6, `conveyor` on L7 and L17, the
->   mole tunnel, and that is all across 20 levels.
+> - **Level gimmicks**: CLOSED by TD-16 — 14 of 20 levels now carry one
+>   (`night`, conveyor, 🕳️ mud, ⚡ power pad, 🚪 side door, fork+lever), all five
+>   worlds represented. What is still open there is a FOURTH mechanic, not more
+>   placements: the three shipped shapes cover slow / buff / flank, and a
+>   destructible obstacle or timed gate would each need a second engine read
+>   site (see PLAN_GIMMICKS §6.4).
 
 > - **华丽's world has had one adversarial pass** (the app-wide audit, which
 >   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but
