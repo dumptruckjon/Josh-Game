@@ -909,7 +909,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/19-enemy roster/5 bosses/20 levels (5 worlds; L3/L7/L10/L19 = fork+lever)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 14 achievements, one endless arena PER WORLD)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/20-enemy roster + 5 bosses/20 levels (5 worlds; L3/L7/L10/L19 = fork+lever)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 14 achievements, one endless arena PER WORLD)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -1771,6 +1771,18 @@ blurb derives its "20 levels across 5 worlds … 5 bosses", the endless lock hin
 counts its world's actual levels, and the "newest world opens and plays" browser
 test is pinned to the LAST world in the data rather than naming one that stops
 being new.
+
+**A post-World-5 spot check found the VS16 emoji guardrail had the same wrong
+SCOPE its own docs warn about — a hand-written file list.** The scan's `files`
+array named nine sources and simply omitted `scripts/td-logic.js`, where the
+Toybox Guide's trait lines live, so the Plastic Knight's 🛡 and the Couch
+Cushion's 🛋 were re-introduced there without U+FE0F and shipped past a green
+run — the same two glyphs the original audit had already fixed elsewhere. It now
+derives from the same `SCRIPTS` list the ≤13.0 scan uses (`["index.html",
+...SCRIPTS]`), so a new script file is covered the moment it is added. **A scan's
+FILE LIST is part of the scan** — this is the third instance of the class (the
+flex-gap law guarded only `main.css`; the live-verify guard probed only
+`index.html`), and the fix is always to derive the list rather than maintain it.
 
 **The difficulty curve peaks at World 3, and that is ACCEPTED (owner, 2026-07) —
 do not "fix" it.** Measured with the shipped best-of-plans solver, average lives

@@ -1328,10 +1328,10 @@
     if (!def) return [];
     const out = [];
     if (def.flier) out.push({ key: "flier", icon: "🪁", text: "Flies — only Dart and Fan can reach it" });
-    if (def.armor >= 0.5) out.push({ key: "armor", icon: "🛡", text: "Armored — bonk damage halved; the Fan's zap ignores armor" });
-    else if (def.armor > 0) out.push({ key: "armor", icon: "🛡", text: "Lightly armored — bonk damage reduced" });
+    if (def.armor >= 0.5) out.push({ key: "armor", icon: "🛡️", text: "Armored — bonk damage halved; the Fan's zap ignores armor" });
+    else if (def.armor > 0) out.push({ key: "armor", icon: "🛡️", text: "Lightly armored — bonk damage reduced" });
     if (def.shield > 0) out.push({ key: "shield", icon: "🔋", text: "Shielded — the shield soaks zap first, and regrows" });
-    if (def.splashResist) out.push({ key: "splash", icon: "🛋", text: "Soaks blasts — splash lands at " + Math.round((1 - def.splashResist) * 100) + "%; use single-target" });
+    if (def.splashResist) out.push({ key: "splash", icon: "🛋️", text: "Soaks blasts — splash lands at " + Math.round((1 - def.splashResist) * 100) + "%; use single-target" });
     if (def.slowHeal) out.push({ key: "slowheal", icon: "💧", text: "Regrows while SLOWED — slows alone will never kill it" });
     if (def.slowImmune) out.push({ key: "slowimmune", icon: "🛹", text: "Greased — slows do NOTHING to it; you need damage or a body in the way" });
     if (def.spawner) out.push({ key: "spawner", icon: "🪣", text: "Drips out " + def.spawner.count + " × " + (DATA.ENEMIES[def.spawner.type] || { name: def.spawner.type }).name + " every " + def.spawner.every + "s while alive" + (def.spawner.max ? " (up to " + def.spawner.max + ")" : "") + " — kill it early and far from the door" });

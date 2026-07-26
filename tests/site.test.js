@@ -756,8 +756,13 @@ test("guardrail: a PICTURE emoji must carry VS16 (text-default ones render monoc
   // picture and must be explicit about wanting colour.
   const UI_GLYPHS = new Set([0x25B6, 0x23F8, 0x21A9, 0x2194, 0x2B06, 0x23F1]);
   const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-  const files = ["index.html", "scripts/content.js", "scripts/hl-content.js", "scripts/td-data.js",
-    "scripts/td-render.js", "scripts/td-ui.js", "scripts/td-main.js", "scripts/framework.js", "scripts/main.js"];
+  // EVERY shipped script, derived from the same SCRIPTS list the ≤13.0 scan
+  // uses — not a hand-written subset. The subset omitted `td-logic.js`, and the
+  // Toybox Guide's trait lines live there: the Plastic Knight's 🛡 and the Couch
+  // Cushion's 🛋 were re-introduced without VS16 and shipped past a green scan.
+  // Exactly the "a stylesheet-scoped guardrail only guards that stylesheet"
+  // lesson, one directory over. A scan's FILE LIST is part of the scan.
+  const files = ["index.html", ...SCRIPTS];
   const bad = [];
   for (const f of files) {
     const cps = Array.from(strip(read(f)));

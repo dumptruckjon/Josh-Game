@@ -23,7 +23,7 @@ four levels with a boss finale:
 3 levels would leave a world without a finale; 5-6 would either break the
 "4 levels" contract or half-build a sixth world. **4 is the only clean number.**
 
-Resulting totals: **20 levels · 5 worlds · 5 bosses · 24 enemies · 60⭐ ceiling**
+Resulting totals: **20 levels · 5 worlds · 5 bosses · 25 enemy types · 60⭐ ceiling**
 (the 77⭐ star tree still costs more than the ceiling, so allocation stays a real
 choice — the guardrail that pins this keeps passing).
 
@@ -289,7 +289,7 @@ New guardrails this world owes:
 
 ## 11. BUILT — what shipped, and what the measurements actually said
 
-Status: **✅ SHIPPED.** 20 levels · 5 worlds · 5 bosses · 19 enemies · 60⭐ ceiling.
+Status: **✅ SHIPPED.** 20 levels · 5 worlds · 5 bosses · 20 non-boss enemy types · 60⭐ ceiling.
 Every gate in §8 is green. Below is the honest record, including the parts of
 this plan the data refused.
 
