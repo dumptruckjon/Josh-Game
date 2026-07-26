@@ -1823,10 +1823,29 @@ for any new `logic.js` function and a browser check if it needs special handling
 - Sound is off by default; `localStorage["josh-muted"] = "0"` turns it on.
 - Navigate straight to a game with `#<game-id>` (e.g. `#team-hop`).
 
-> **Ideas for more games** (all fit the RULE 5 guardrails + JOSH_PROFILE.md):
-> ten-frame/teen build, set-the-clock, digraph (sh/ch/th) sort, dot-to-dot
-> reveal, color-by-number, a simple xylophone (sound-on), peekaboo, more co-op
-> modes layered onto existing games.
+> **Ideas for more games.** The old list here (ten-frame, set-the-clock, digraph
+> sort, dot-to-dot, color-by-number, xylophone, peekaboo, more co-op) is now
+> ENTIRELY SHIPPED — every one of them is a registered game (`ten-frame`,
+> `set-clock`, `digraph`, `dot-dot`/`abc-dots`, `color-number`, `music-pad`,
+> `peekaboo`, the `team-*` family). Checked 2026-07; a list that outlives its
+> contents sends the next author to build what already exists. Josh is at his
+> planned 200 and 华丽 at 40, so new games are a fresh design decision against
+> `JOSH_PROFILE.md`, not a backlog.
+>
+> **What IS open (opportunities, not obligations), measured 2026-07:**
+> - **Forks/levers exist on only 3 of 16 fort maps** (L3, L7, L10). The World-4
+>   maps were authored after TD-11's fork search ran, so the attic was never
+>   swept — re-run the generator (it keeps only detours that preserve the shared
+>   prefix, stay in bounds, gain ≥20% length and leave every pad ≥0.99 cells
+>   clear of BOTH lanes) to see whether any admit one without moving pads.
+> - **Level gimmicks are thin**: `night` on L6 and `conveyor` on L7, and that is
+>   all across 16 levels. The engine supports both anywhere, and the mole tunnel
+>   is a third.
+> - **华丽's world has had one adversarial pass** (the app-wide audit, which
+>   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but
+>   nothing like the fort's repeated ones. The iOS-14.2 and emoji classes are now
+>   guardrailed app-wide, so a pass there would be about BEHAVIOUR: drive each
+>   game, listen to the spoken sentence, prove no distractor is also correct.
 
 ## Development Workflow
 
