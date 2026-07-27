@@ -132,13 +132,17 @@ test("guardrail: TD-7 multi-path lanes + the L10 track-switch lever stay wired",
   const render = read("scripts/td-render.js");
   assert.match(render, /engine\.posOn\(e\.pathIdx/, "the renderer positions every enemy on its own lane");
   assert.match(render, /engine\.levelDef\.lever/, "the renderer draws the lever control");
-  // Lever readability (user feedback 2026-07): the switch is a persistent
-  // TOGGLE, so its state must be readable on the FIELD — running lights along
-  // the active route, a veil on the closed branch, and a SHORT/LONG state tag
-  // on the button. leverInfo() is the render hook the browser test drives.
+  // Lever readability (user feedback 2026-07): its state must be readable on the
+  // FIELD — running lights along the active route, a veil on the closed branch,
+  // and a state tag on the button. leverInfo() is the render hook the browser
+  // test drives. TD-17: the switch became a TIMED diversion, so the button is
+  // also a clock — it names all three states and paints the seconds remaining.
   assert.match(render, /function drawLeverRoute\(/, "the active-route overlay exists");
   assert.match(render, /lineDashOffset/, "the active route is lit with running dashes");
-  assert.match(render, /"LONG WAY" : "SHORT WAY"/, "the lever names its current route");
+  assert.match(render, /"LONG WAY"/, "the lever names the diverted route");
+  assert.match(render, /"TAP: LONG WAY"/, "…and says so when it is ARMED, or it reads as fire-and-forget");
+  assert.match(render, /engine\.leverState\(\)/, "the button reads the engine's lever clock, never its own copy");
+  assert.match(render, /Math\.ceil\(ls\.secs\)/, "the seconds remaining are DRAWN on the switch (the user asked for a visible timer)");
   assert.match(render, /leverInfo:/, "the renderer exposes the leverInfo test hook");
   const main = read("scripts/td-main.js");
   assert.match(main, /engine\.pullLever\(\)/, "a field tap on the lever throws it");
@@ -798,13 +802,21 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
     assert.ok(sw.includes(icon), `PWA icon ${icon} precached`);
   }
   const tdm = read("scripts/td-main.js");
-  assert.match(tdm, /leverRoute: st\.leverRoute \|\| 0/, "the thrown lever rides the midRun checkpoint");
-  assert.match(tdm, /e\.state\.leverRoute = mr\.leverRoute \|\| 0/, "resume restores the thrown lever");
+  // TD-17: the diversion is TIMED, so it deliberately does NOT ride the
+  // checkpoint — saving the route without its expiry tick would restore a
+  // diversion that never ends (the free-upgrade this phase removed).
+  assert.ok(!/leverRoute: st\.leverRoute/.test(tdm), "a TIMED diversion must not be written into the checkpoint");
+  assert.match(tdm, /e\.state\.leverRoute = 0;\s*e\.state\.leverUntil = 0;\s*e\.state\.leverCd = 0;/,
+    "a resumed run comes back on the short route with the lever armed");
   assert.match(tdm, /opts && opts\.force/, "persist() merges monotonic fields unless a deliberate reset forces");
   const hlm = read("scripts/hl-main.js");
   assert.match(hlm, /getElementById\("screen-" \+ h\)/, "hl theme only paints for REAL hl screens");
   const tdr = read("scripts/td-render.js");
-  assert.match(tdr, /RULES\.leverCooldown \|\| 8/, "the lever cooldown ring reads the ONE RULES constant");
+  // TD-17: the ring now spans EITHER the hold or the cooldown depending on the
+  // phase, and both come from RULES — never a literal duplicated in the renderer.
+  assert.match(tdr, /RU = global\.TDData\.RULES/, "the lever ring reads RULES, never its own copy of the timings");
+  assert.match(tdr, /RU\.leverHold \|\| 10/, "the diversion ring spans the ONE hold constant");
+  assert.match(tdr, /RU\.leverCooldown \|\| 10/, "the re-arm ring spans the ONE cooldown constant");
 });
 
 // RULE 7 — the fort reset has ONE owner. This closes the save-field-coverage

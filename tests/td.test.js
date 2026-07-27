@@ -998,24 +998,38 @@ test("TD7 L10 lever: the fork level renders, and a real tap on the lever throws 
 });
 
 
-test("AUDIT: the thrown L10 lever survives a quit + resume (leverRoute rides the checkpoint)", async () => {
+test("TD17 AUDIT: a TIMED diversion is deliberately NOT checkpointed", async () => {
+  // This replaces "the thrown lever survives a resume", which was correct while
+  // the switch was a permanent toggle and is now wrong. Persisting leverRoute:1
+  // without its expiry tick would restore a diversion that never ends —
+  // reintroducing the exact free-upgrade this phase removed — and an absolute
+  // expiry from the old run is meaningless in a fresh engine (the same reason
+  // leverCd was already excluded). A checkpoint is a wave boundary and the
+  // diversion lasts seconds, so coming back armed on the short route is the
+  // honest restore, not a silent loss.
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   const st = await page.evaluate(() => {
     window.__TD.resetSave();
     window.__TD.newGame(10, { seed: 7 });
-    window.__TD.engine().pullLever(); // send the train the LONG way
-    // reach the next wave-boundary checkpoint with a real (thin) build
-    window.__TD.script([["place", "dart", "p1"], ["place", "dart", "p5"], ["call"], ["untilPhase", "build", 300000]]);
+    window.__TD.script([["place", "dart", "p1"], ["place", "dart", "p5"], ["call"]]);
+    window.__TD.engine().pullLever();            // wave-only, so throw it after the call
+    const during = window.__TD.state().leverRoute;
+    window.__TD.script([["untilPhase", "build", 300000]]);
     const mr = window.__TD.midRun();
     window.__TD.leaveToHome();
-    const resumedPhase = window.__TD.resume();
-    return { saved: mr ? mr.leverRoute : -1, resumed: window.__TD.state().leverRoute, phase: resumedPhase };
+    const phase = window.__TD.resume();
+    const e = window.__TD.engine();
+    return { during: during, saved: mr ? (mr.leverRoute === undefined ? "absent" : mr.leverRoute) : -1,
+             route: e.state.leverRoute, lever: e.leverState(), phase: phase };
   });
-  assert.equal(st.saved, 1, "the checkpoint records the thrown lever (leverRoute 1)");
-  assert.equal(st.resumed, 1, "resume restores the LONG route — the player's thrown track is not silently reset");
+  assert.equal(st.during, 1, "the lever really was thrown mid-wave");
+  assert.equal(st.saved, "absent", "the checkpoint does NOT carry the diversion — a timed effect cannot be frozen into a save");
+  assert.equal(st.route, 0, "a resumed run comes back on the short route");
+  assert.equal(st.lever.phase, "ready", "…with the lever armed, so nothing is owed to the player");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
+
 
 test("AUDIT: a second fort tab can no longer clobber stars/achievements (monotonic merge on persist)", async () => {
   await page.evaluate(() => { location.hash = "#td-home"; });
@@ -2484,5 +2498,70 @@ test("GIMMICK 🚪 side door: visible, distinct from the exit, and announced BEF
   });
   assert.equal(plain.doors, 0, "a level with no side door marks none");
   assert.doesNotMatch(plain.preview, /🚪/, "…and its preview must not cry door");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("TD17 lever: the diversion is TIMED, and the countdown is VISIBLE on the switch", async () => {
+  // Reported: "nobody would ever NOT choose the long path and just leave it… it
+  // should only last for temporary then auto switch back… make timer visible on
+  // the path switch." The engine side (snap-back, cooldown, game-time ticks) is
+  // pinned in td-logic.test.js; this asserts the PLAYER can see the clock, which
+  // no number test can — the lever is painted on the canvas, not in the DOM.
+  //
+  // It reads the actual fillText calls rather than hashing pixels. Two mutation
+  // rounds killed the pixel version: a sample wide enough to include the
+  // draining ARC changed even with the numeral deleted, and the lever sits ON
+  // the lane, so marching enemies changed the pixels under it regardless. Text
+  // calls are unconfounded — this proves the RIGHT NUMBER is drawn AT the lever.
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  const drawAndRead = () => page.evaluate(() => {
+    const proto = CanvasRenderingContext2D.prototype;
+    const real = proto.fillText;
+    const calls = [];
+    proto.fillText = function (t, x, y) { calls.push({ t: String(t), x: x, y: y }); return real.apply(this, arguments); };
+    try { window.__TD.render().draw(0); } finally { proto.fillText = real; }
+    const lv = window.__TD.engine().levelDef.lever;
+    const p = window.__TD.w2s(lv.cx + 0.5, lv.cy + 0.5);
+    const near = calls.filter((c) => Math.hypot(c.x - p.x, c.y - p.y) < 22).map((c) => c.t);
+    return { near: near, state: window.__TD.engine().leverState() };
+  });
+
+  await page.evaluate(() => {
+    window.__TD.newGame(10, { seed: 7 });
+    const e = window.__TD.engine();
+    e.callWave(); for (let i = 0; i < 60; i++) e.tick();
+  });
+  const ready = await drawAndRead();
+  assert.equal(ready.state.phase, "ready", "the lever starts armed");
+  assert.ok(ready.near.includes("TAP: LONG WAY"), `an armed lever INVITES the tap (drew ${JSON.stringify(ready.near)})`);
+
+  const started = await page.evaluate(() => { const e = window.__TD.engine(); return { r: e.pullLever(), s: e.leverState() }; });
+  assert.ok(started.r.ok && started.s.phase === "running", "tapping it starts a timed diversion");
+  const runA = await drawAndRead();
+  assert.ok(runA.near.includes("LONG WAY"), "the field says the long route is live");
+  assert.ok(runA.near.includes(String(Math.ceil(runA.state.secs))),
+    `the SECONDS REMAINING are drawn on the switch (expected "${Math.ceil(runA.state.secs)}", drew ${JSON.stringify(runA.near)})`);
+
+  // …and the clock actually moves: 4 seconds later a different number is drawn.
+  await page.evaluate(() => { const e = window.__TD.engine(); for (let i = 0; i < 4 * 30; i++) e.tick(); });
+  const runB = await drawAndRead();
+  assert.ok(runB.state.secs < runA.state.secs - 3, `the countdown is running (${runA.state.secs}s → ${runB.state.secs}s)`);
+  assert.ok(runB.near.includes(String(Math.ceil(runB.state.secs))), "…and the drawn number FOLLOWS it down");
+  assert.ok(!runB.near.includes(String(Math.ceil(runA.state.secs))), "a stale number is not left on screen");
+
+  // it ends by itself, which is the whole point of the change
+  const done = await page.evaluate(() => {
+    const e = window.__TD.engine();
+    for (let i = 0; i < 8 * 30; i++) e.tick();
+    return { route: e.state.leverRoute, s: e.leverState(), refuse: e.pullLever().reason };
+  });
+  assert.equal(done.route, 0, "the diversion snaps back to the short route with no input");
+  assert.equal(done.s.phase, "cooldown", "…and goes on cooldown rather than re-arming instantly");
+  assert.equal(done.refuse, "cooldown", "it cannot be re-thrown during the cooldown — otherwise it is permanent again");
+  const cool = await drawAndRead();
+  assert.ok(cool.near.includes("SHORT WAY"), "the field shows the short route again");
+  assert.ok(cool.near.includes(String(Math.ceil(cool.state.secs))), "the re-arm countdown is drawn too, so you can time the next one");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });

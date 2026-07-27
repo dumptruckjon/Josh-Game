@@ -590,7 +590,13 @@
       // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
       shieldUsed: !!st.shieldUsed, // TD-8: a spent 🌟 Sticker Shield stays spent across a resume (else the free leak re-grants per segment)
-      leverRoute: st.leverRoute || 0, // TD-7 audit: the thrown track survives a resume (leverCd deliberately NOT saved — an old absolute tick would wrongly lock a fresh engine)
+      // TD-17: the diversion is TIMED, so it deliberately does NOT ride the
+      // checkpoint. Saving leverRoute:1 without its expiry tick would restore a
+      // PERMANENT diversion — reintroducing exactly the free-upgrade this phase
+      // removed — and an absolute expiry from an old run is meaningless in a
+      // fresh engine (the same reasoning that already kept leverCd out). A
+      // checkpoint is a wave boundary and the diversion lasts seconds, so a
+      // resumed run correctly comes back on the short route with the lever armed.
       // The build COUNTDOWN, or a resume hands back a full build phase every
       // time — and the early-call bonus is computed from it, so quitting at 1
       // second left and resuming turned "gold traded for build time" into free
@@ -683,7 +689,7 @@
     e.state.waveIdx = mr.waveIdx; e.state.sentIdx = mr.waveIdx;
     e.state.gold = mr.gold; e.state.lives = mr.lives;
     e.state.shieldUsed = !!mr.shieldUsed; // TD-8: restore a spent Sticker Shield (legacy midRun lacks it → false, matching a fresh run)
-    e.state.leverRoute = mr.leverRoute || 0; // legacy midRun saves lack the field → default short (the save-field-coverage lesson)
+    e.state.leverRoute = 0; e.state.leverUntil = 0; e.state.leverCd = 0; // TD-17: resume on the short route, lever armed (a timed diversion cannot be checkpointed — see writeMidRun)
     // legacy midRun saves lack these → keep the fresh values (a full countdown,
     // a zeroed tally), which is exactly what a pre-fix resume already did
     if (typeof mr.countdown === "number") e.state.countdown = mr.countdown;
@@ -800,8 +806,19 @@
       const r = cur.engine.pullLever();
       UI.hideBubble(); cur.render.setSelection(null);
       cur.selPadId = null; cur.selTowerId = null;
-      if (r.ok) sfx("lever");
-      else if (r.reason === "cooldown") sfx("deny");
+      // TD-17: say WHY a refused tap did nothing. The lever now has three
+      // refusals (mid-diversion, cooling down, not in a wave) where it used to
+      // have one, and a silent blip is the exact defect the abilities' hint line
+      // was added to fix — so it reuses that line rather than growing its own.
+      if (r.ok) { sfx("lever"); UI.abilityHint(""); }
+      else {
+        sfx("deny");
+        UI.abilityHint(
+          r.reason === "running" ? "🔀 Already running — it snaps back on its own"
+          : r.reason === "cooldown" ? "⏳ The switch is resetting"
+          : r.reason === "not-in-wave" ? "⏳ The switch only works during a wave"
+          : "");
+      }
       return;
     }
     // nearest pad within 0.9 cells

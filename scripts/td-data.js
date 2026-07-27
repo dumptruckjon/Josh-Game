@@ -46,7 +46,29 @@
     brittleBonus: 1.2,   // brittle enemies take +20% of ALL damage
     soldierWalkSpeed: 2, // cells/sec to the rally point
     nightRangeMult: 0.85, // TD-4 night levels: −15% tower reach (Fan exempt)
-    leverCooldown: 8, // TD-7: seconds between L10 track-switch pulls
+    // TD-17: the track switch is a TIMED DIVERSION, not a permanent toggle.
+    // Reported: "nobody would ever NOT choose the long path and just leave it" —
+    // and that was true, because the long route is strictly better for the player
+    // (more time under your guns) with no cost. Thrown once on wave 1, it was a
+    // free upgrade you never touched again, which is the opposite of the active
+    // decision the mechanic exists to create.
+    //
+    // Now: it holds the traffic long for `leverHold` seconds, snaps back to the
+    // short route on its own, and only re-arms `leverCooldown` seconds after
+    // that. Uptime is hold/(hold+cooldown), so the question stops being "is the
+    // long way better?" (always yes) and becomes "WHICH part of this wave do I
+    // spend it on?" — the fliers, the boss, or the cluster you can't otherwise
+    // hold. Both are in GAME-TIME ticks, so 2×/3× fast-forward drains the timer
+    // and marches the enemies at exactly the same rate (guardrail-tested).
+    leverHold: 10,    // seconds the long route stays thrown before it snaps back
+    leverCooldown: 10, // seconds AFTER it snaps back before it can be thrown again
+    // 10/10 = 50% uptime, chosen by sweeping the thin-build sim on L23 (the
+    // level whose whole strategy is the routing puzzle): a 9-pad board goes
+    // 0/4 seeds without the lever to 4/4 with it, an 8-pad board to 3/4, and a
+    // 7-pad board still loses. So the diversion is decisively worth using but no
+    // longer SUBSTITUTES for building — at 63% uptime it was still near-free,
+    // and at 42% the payoff got noisy. The campaign needs no re-tune: the
+    // winnability oracle never pulls the lever, so every shipped number stands.
   };
 
   // ---- TD-9 ACTIVE ABILITIES: the in-WAVE layer ----

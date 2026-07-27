@@ -2022,6 +2022,45 @@ tests fail if a pool picture has no name. Lesson: when a fix is recorded as a
 one-off ("we named this one emoji"), ask what SCANS for the rest of them — and a
 capture-what-it-says harness is cheap once the every-game driver already exists.
 
+**TD-17: a toggle with no downside is not a decision — the track switch is now a
+TIMED diversion.** Reported from real play: *"nobody would ever NOT choose the
+long path and just leave it."* Exactly right, and it was a design hole rather
+than a bug: the long route is strictly better for the player (more time under
+your guns) and cost nothing, so the correct play was to throw it once on wave 1
+and never touch it again. A permanent free upgrade dressed up as an active
+control. It now runs for `RULES.leverHold` seconds, **snaps back on its own**,
+and re-arms `RULES.leverCooldown` seconds after that — so the question stops
+being "is the long way better?" (always yes) and becomes "WHICH part of this wave
+do I spend it on?". Five things worth keeping: (1) **the numbers came from a
+sweep, not a guess** — at 63% uptime it was still near-free, at 42% the payoff
+went noisy, and **10s on / 10s off (50%)** lands the gradient the mechanic wants:
+on L23 a 9-pad board goes 0/4 seeds → 4/4 with the diversion, an 8-pad board
+3/4, and a 7-pad board still loses, so it is decisively worth using but no longer
+SUBSTITUTES for building. (2) **The campaign needed no re-tune** — the
+winnability oracle never pulls the lever, so all six fork levels re-simmed
+byte-identical. (3) **Fast-forward is inherently correct because the timer is in
+TICKS** — the frame loop is `acc += elapsed * speed`, i.e. speed buys ticks, so
+at 3× the clock drains 3× faster in wall-clock AND the wave marches 3× further:
+the same diversion either way. Pinned by feeding identical tick counts in
+different batch sizes and asserting identical lever state *and* identical enemy
+progress. (4) **A timed effect must not be checkpointed** — `leverRoute: 1` rode
+the midRun save, and persisting that without its expiry tick would restore a
+diversion that never ends, reintroducing the very thing being removed (the same
+reasoning that already excluded `leverCd`); a resumed run now comes back armed on
+the short route, and the old "the thrown lever survives a resume" test was
+re-pointed rather than deleted. (5) The lever is **wave-only** now, like every
+other timed effect (a build-phase pull would burn the whole diversion on an empty
+lane), and its three refusals speak through the abilities' existing hint line
+instead of a silent blip. **The testing lesson is the sharpest one:** the "the
+countdown is VISIBLE" guardrail was written as a pixel hash and survived TWO
+mutations — deleting the numeral still changed those pixels, because the draining
+ARC moved, and then because the lever sits ON the lane and marching enemies
+repainted the sample. Both times the test passed for a reason it did not claim.
+It now wraps `fillText` and asserts the exact expected integer is drawn AT the
+lever, which fails on all three mutations (no numeral / frozen numeral / no
+auto-revert). When a visual assertion is confounded, stop widening the tolerance
+and go read what was actually drawn.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book

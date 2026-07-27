@@ -1575,25 +1575,46 @@
       if (engine.levelDef.lever) {
         const lv = engine.levelDef.lever;
         const lp = worldToScreen(lv.cx + 0.5, lv.cy + 0.5);
-        const cdLeft = st.leverCd - st.tick, cool = Math.max(0, cdLeft) / ((global.TDData.RULES.leverCooldown || 8) * global.TDData.TICK_RATE);
+        // TD-17: the diversion is TIMED, so the button is a clock. Three states,
+        // read straight off the engine (never recomputed here — leverState() is
+        // the one owner): RUNNING counts the diversion down, COOLDOWN counts to
+        // re-arm, READY is tappable. The arc drains in both timed states, so
+        // "how long have I got?" is answerable at a glance without reading text.
+        const RU = global.TDData.RULES;
+        const ls = engine.leverState() || { phase: "ready", secs: 0 };
+        const span = ls.phase === "running" ? (RU.leverHold || 10) : (RU.leverCooldown || 10);
+        const frac = ls.phase === "ready" ? 0 : Math.max(0, Math.min(1, ls.secs / span));
         const rad = cell * 0.46;
         ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(lp.x, lp.y + cell * 0.14, rad * 0.95, rad * 0.45, 0, 0, 7); ctx.fill();
-        ctx.fillStyle = cool > 0 ? "#54627a" : "#c8382a";
+        // running = live blue (it is DOING something), cooling = dead steel, ready = red
+        ctx.fillStyle = ls.phase === "running" ? "#1f6fb2" : ls.phase === "cooldown" ? "#54627a" : "#c8382a";
         ctx.beginPath(); ctx.arc(lp.x, lp.y, rad, 0, 7); ctx.fill();
         ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = Math.max(2, cell * 0.06);
         ctx.beginPath(); ctx.arc(lp.x, lp.y, rad, 0, 7); ctx.stroke();
-        if (cool > 0) { // shrinking arc shows the cooldown draining
-          ctx.strokeStyle = "rgba(255,225,120,0.95)"; ctx.lineWidth = Math.max(2, cell * 0.1);
-          ctx.beginPath(); ctx.arc(lp.x, lp.y, rad * 0.72, -Math.PI / 2, -Math.PI / 2 + (1 - cool) * 2 * Math.PI); ctx.stroke();
+        if (frac > 0) { // arc DRAINS clockwise as the timer runs out
+          ctx.strokeStyle = ls.phase === "running" ? "rgba(160,225,255,0.98)" : "rgba(255,225,120,0.95)";
+          ctx.lineWidth = Math.max(2, cell * 0.1);
+          ctx.beginPath(); ctx.arc(lp.x, lp.y, rad * 0.72, -Math.PI / 2, -Math.PI / 2 + frac * 2 * Math.PI); ctx.stroke();
+        }
+        // …and the number itself, because an arc says "some" and a player
+        // deciding whether to spend a wave on it needs "3".
+        if (ls.phase !== "ready") {
+          ctx.font = "800 " + Math.max(10, Math.round(cell * 0.42)) + "px sans-serif";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          const secs = String(Math.ceil(ls.secs));
+          ctx.lineWidth = Math.max(2, cell * 0.14); ctx.strokeStyle = "rgba(8,12,20,0.85)"; ctx.lineJoin = "round";
+          ctx.strokeText(secs, lp.x, lp.y);
+          ctx.fillStyle = "#fff"; ctx.fillText(secs, lp.x, lp.y);
         }
         // the thrown-arm indicator (points toward the active branch direction)
         const dir = st.leverRoute ? -1 : 1;
         ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(2, cell * 0.09); ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(lp.x, lp.y + cell * 0.1); ctx.lineTo(lp.x + dir * cell * 0.24, lp.y - cell * 0.24); ctx.stroke();
         ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(lp.x + dir * cell * 0.24, lp.y - cell * 0.24, cell * 0.08, 0, 7); ctx.fill();
-        // the state tag: name the CURRENT route so "pull again to switch back"
-        // is obvious (the switch is a persistent toggle, not a one-shot)
-        const tag = st.leverRoute ? "LONG WAY" : "SHORT WAY";
+        // The tag names the CURRENT route, and when the lever is armed it says so
+        // — "SHORT WAY" alone never told you the button was waiting for a tap,
+        // which is half of why the old toggle read as fire-and-forget.
+        const tag = ls.phase === "running" ? "LONG WAY" : ls.phase === "cooldown" ? "SHORT WAY" : "TAP: LONG WAY";
         ctx.font = "700 " + Math.max(9, Math.round(cell * 0.3)) + "px sans-serif";
         ctx.textAlign = "center"; ctx.textBaseline = "top";
         const ty = lp.y + rad + cell * 0.16;

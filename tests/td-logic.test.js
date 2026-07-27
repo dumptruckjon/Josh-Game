@@ -1188,21 +1188,62 @@ test("TD7 L10 fork: lanes share the prefix (seamless reroute) then diverge into 
   assert.ok(e.paths[1].total > e.paths[0].total, `long lane (${e.paths[1].total}) is longer than short (${e.paths[0].total})`);
 });
 
-test("TD7 lever: a pull reroutes pre-fork enemies to the long lane, gated by an 8s cooldown", () => {
+test("TD17 lever: a TIMED diversion — reroutes, snaps back on its own, then re-arms", () => {
+  // Reported: "nobody would ever NOT choose the long path and just leave it."
+  // True — the long route is strictly better for the player, so as a permanent
+  // toggle it was a free upgrade thrown once on wave 1 and never touched again.
+  // It is now a timed diversion: hold → automatic snap-back → cooldown → ready.
   const L10 = DATA.LEVELS.find((l) => l.id === 10);
+  const R = DATA.RULES, RATE = DATA.TICK_RATE;
   const e = TD.createEngine(L10, { seed: 7 });
   e.callWave();
   for (let i = 0; i < 30; i++) e.tick(); // let a few enemies march in on the default short lane
   assert.ok(e.state.enemies.some((x) => x.alive && x.pathIdx === 0), "enemies default to the short lane (route 0)");
-  const before = e.state.leverRoute;
-  const r = e.pullLever();
-  assert.ok(r.ok && e.state.leverRoute === 1 && before === 0, "the lever throws and switches the track to the long lane");
-  assert.equal(e.pullLever().reason, "cooldown", "an immediate second pull is refused (8s cooldown)");
+  assert.equal(e.leverState().phase, "ready", "it starts armed");
+
+  assert.ok(e.pullLever().ok && e.state.leverRoute === 1, "the lever throws and diverts the track long");
   const pre = e.state.enemies.filter((x) => x.alive && x.dist < L10.fork.at);
   assert.ok(pre.length > 0 && pre.every((x) => x.pathIdx === 1), "every enemy still on the shared prefix is rerouted long");
-  // the cooldown eventually lifts (8s = 240 ticks) and it can be thrown back
-  for (let i = 0; i < 245; i++) e.tick();
-  assert.ok(e.pullLever().ok, "after the cooldown the track can be switched back");
+  assert.equal(e.pullLever().reason, "running", "it is INERT while running — ending it early is never a play, so it is not offered");
+
+  // it expires WITHOUT being touched — that is the whole point of the change
+  for (let i = 0; i < R.leverHold * RATE + 2; i++) e.tick();
+  assert.equal(e.state.leverRoute, 0, "the diversion snaps back to the short route on its own");
+  assert.equal(e.leverState().phase, "cooldown", "…and only THEN does the cooldown start");
+  assert.ok(e.state.enemies.filter((x) => x.alive && x.dist < L10.fork.at).every((x) => x.pathIdx === 0),
+    "the snap-back reroutes pre-fork enemies too — the same seamless swap, both directions");
+  assert.equal(e.pullLever().reason, "cooldown", "it cannot be re-thrown immediately, or it would be permanent again");
+
+  for (let i = 0; i < R.leverCooldown * RATE + 2; i++) e.tick();
+  assert.equal(e.leverState().phase, "ready", "after the cooldown it re-arms");
+  assert.ok(e.pullLever().ok, "…and can be thrown again");
+});
+
+test("TD17 lever timer is GAME-TIME, so fast-forward cannot cheat it", () => {
+  // The frame loop does `acc += elapsed * speed`, i.e. speed buys TICKS. A
+  // tick-based timer therefore drains at exactly the rate the enemies march at
+  // any speed — 2x/3x makes the diversion end sooner in wall-clock AND moves the
+  // wave proportionally further, so it covers the same amount of marching.
+  // Asserted by construction: the same tick count always yields the same state,
+  // whatever wall-clock rate those ticks were fed at.
+  const L10 = DATA.LEVELS.find((l) => l.id === 10);
+  const R = DATA.RULES, RATE = DATA.TICK_RATE;
+  const run = (batch) => {
+    const e = TD.createEngine(L10, { seed: 7 });
+    e.callWave();
+    e.pullLever();
+    let n = 0;
+    const target = R.leverHold * RATE - 5;      // stop just BEFORE it expires
+    while (n < target) { const step = Math.min(batch, target - n); for (let i = 0; i < step; i++) e.tick(); n += step; }
+    const mid = { route: e.state.leverRoute, secs: Math.round(e.leverState().secs * 100) };
+    for (let i = 0; i < 10; i++) e.tick();      // …and just past it
+    return { mid, after: e.state.leverRoute, dist: Math.round(e.state.enemies.reduce((a, x) => a + x.dist, 0) * 100) };
+  };
+  const oneX = run(1), threeX = run(6);          // 6 ticks/frame is the loop's cap
+  assert.equal(oneX.mid.route, 1, "still diverted just before expiry");
+  assert.equal(oneX.after, 0, "expired just after");
+  assert.deepEqual(threeX, oneX,
+    "feeding the SAME ticks in bigger batches (what 2x/3x does) gives an identical lever state AND identical enemy progress");
 });
 
 test("TD7 lever advantage: sending the train the LONG way (more coverage) saves lives", () => {
@@ -2350,7 +2391,19 @@ test("TD-11 forks: throwing the lever reroutes without teleporting anyone", () =
       assert.ok(Math.hypot(now.x - before[i].x, now.y - before[i].y) < 1e-9,
         `L${l.id}: a pre-fork enemy must not jump when the lane changes`);
     });
-    assert.equal(e.pullLever().reason, "cooldown", `L${l.id}'s lever respects its cooldown`);
+    assert.equal(e.pullLever().reason, "running", `L${l.id}'s lever is inert while its diversion runs`);
+    // TD-17: and the snap-back is seamless in the OTHER direction too — the
+    // lanes share geometry up to the fork, so returning to short must not
+    // teleport anyone either. Only the outbound swap used to be checked.
+    const back = pre.map((x) => e.posOn(x.pathIdx, x.dist));
+    for (let i = 0; i < DATA.RULES.leverHold * DATA.TICK_RATE + 2; i++) e.tick();
+    assert.equal(e.state.leverRoute, 0, `L${l.id}'s diversion expires on its own`);
+    pre.filter((x) => x.alive && x.dist < l.fork.at).forEach((x) => {
+      const now = e.posOn(x.pathIdx, x.dist);
+      const was = back[pre.indexOf(x)];
+      assert.ok(Math.abs(now.x - was.x) < 60 && Math.abs(now.y - was.y) < 60,
+        `L${l.id}: the snap-back must not teleport a pre-fork enemy`);
+    });
   }
 });
 

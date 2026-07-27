@@ -209,7 +209,8 @@
       shieldUsed: false, // 🌟 Sticker Shield: has the one free leak been spent?
       endless: !!endlessWorld,
       leverRoute: 0, // TD-7: which lane new / pre-fork enemies take (lever levels)
-      leverCd: 0,    // tick until the lever can be thrown again
+      leverCd: 0,    // tick the lever re-arms (starts when the diversion ENDS, not when it is thrown)
+      leverUntil: 0, // TD-17: tick the timed diversion expires and the track snaps back to short
       abilityCd: {}, // TD-9: ability id → tick it becomes usable again
       puddles: [],   // TD-9: live Sticky Floor zones { x, y, r, slow, until }
       // TD-13 run tallies. These live in STATE, not in the event stream: the
@@ -1099,6 +1100,7 @@
       state.projectiles = state.projectiles.filter((p) => !p.dead);
       shellTick();
       hurryTick();
+      leverTick(); // TD-17: the timed track diversion expires on its own
       spawnerTick();
       // flush split-children (Mud Blob) now that the combat pass is done
       while (pendingSpawns.length) { const s = pendingSpawns.shift(); spawnEnemy(s.type, s.dist, s.pathIdx); }
@@ -1249,16 +1251,43 @@
     // which is seamless because both lanes share identical geometry up to the
     // fork, so the enemy's world position is unchanged; it just diverges when it
     // reaches the split. An 8s cooldown keeps it a deliberate, active-play tool.
+    // ONE owner for changing which lane traffic takes, so the manual throw and
+    // the automatic snap-back can never drift (the wake-lock lesson). Rerouting
+    // pre-fork enemies is seamless BOTH ways: the lanes share identical geometry
+    // up to the fork, so an enemy's world position is unchanged either direction
+    // — it just diverges (or stops diverging) when it reaches the split.
+    function setRoute(r) {
+      state.leverRoute = r;
+      const forkAt = levelDef.fork ? levelDef.fork.at : 0;
+      for (const e of state.enemies) if (e.alive && e.dist < forkAt) e.pathIdx = r;
+      emit({ type: "lever", route: r });
+    }
+    // TD-17: throw the track-switch lever. It is a TIMED DIVERSION — see
+    // RULES.leverHold. While the diversion is running the lever is INERT rather
+    // than a toggle: the long route is strictly better for the player, so an
+    // "end it early" button is a trap, never a play.
     function pullLever() {
       if (!levelDef.lever) return { ok: false, reason: "no-lever" };
-      if (state.phase !== "wave" && state.phase !== "build") return { ok: false, reason: "over" };
+      // WAVE-ONLY, like every other timed effect (TD-9 abilities refuse with
+      // not-in-wave for the same reason): there is nothing to divert during
+      // build, so a pull there would burn the whole diversion and its cooldown
+      // on an empty lane. A refusal, never a silent waste.
+      if (state.phase !== "wave") return { ok: false, reason: "not-in-wave" };
+      if (state.leverRoute) return { ok: false, reason: "running" };  // already diverted
       if (state.tick < state.leverCd) return { ok: false, reason: "cooldown" };
-      state.leverRoute = state.leverRoute ? 0 : 1;
-      state.leverCd = state.tick + Math.round((R.leverCooldown || 8) * DATA.TICK_RATE);
-      const forkAt = levelDef.fork ? levelDef.fork.at : 0;
-      for (const e of state.enemies) if (e.alive && e.dist < forkAt) e.pathIdx = state.leverRoute;
-      emit({ type: "lever", route: state.leverRoute });
-      return { ok: true, route: state.leverRoute };
+      state.leverUntil = state.tick + Math.round((R.leverHold || 10) * DATA.TICK_RATE);
+      setRoute(1);
+      return { ok: true, route: 1, until: state.leverUntil };
+    }
+    // Called every tick: the diversion expires on its own and the cooldown only
+    // starts THEN, so the cycle a player sees is hold → snap back → wait → ready.
+    // Tick-based, therefore game-time: at 3× speed the timer drains 3× faster in
+    // wall-clock and the enemies march 3× further, which is the same diversion.
+    function leverTick() {
+      if (!levelDef.lever || !state.leverRoute) return;
+      if (state.tick < state.leverUntil) return;
+      setRoute(0);
+      state.leverCd = state.tick + Math.round((R.leverCooldown || 14) * DATA.TICK_RATE);
     }
 
     // ---- TD-9 active abilities: the in-WAVE decision layer ----
@@ -1371,6 +1400,17 @@
       state, events, tick, place, upgrade, branch, sell, setTargeting, rally, callWave,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
+      // TD-17 the ONE place the lever's timing is described, so the button, the
+      // field overlay and the tests can never disagree about what it is doing.
+      // NOTE: distinct from render.leverInfo(), which reports what the last DRAW
+      // lit — this is engine truth and needs no draw first.
+      leverState: () => {
+        if (!levelDef.lever) return null;
+        const rate = DATA.TICK_RATE;
+        if (state.leverRoute) return { phase: "running", secs: Math.max(0, (state.leverUntil - state.tick) / rate), route: 1 };
+        if (state.tick < state.leverCd) return { phase: "cooldown", secs: Math.max(0, (state.leverCd - state.tick) / rate), route: 0 };
+        return { phase: "ready", secs: 0, route: 0 };
+      },
       paths, path, posAt: (dist) => posAt(path, dist), posOn: (pathIdx, dist) => posAt(paths[pathIdx || 0], dist),
       isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
       // Guardrail seam, the isHidden precedent: the ONE damage path, so a test
@@ -1455,7 +1495,10 @@
     if ((def.waves || []).some((w) => (w.groups || []).some((g) => g.at > 0))) out.push({ key: "door", icon: "🚪", name: "Side Door",
       text: "Part of a wave walks in PARTWAY down the lane instead of at the start — behind anything you built up front. The door is marked on the field, and the next-wave line says how many are coming through it." });
     if (def.fork && def.lever) out.push({ key: "lever", icon: "🔀", name: "Track Switch",
-      text: "A lever on the field. Tap it to send the traffic the long way round; the live route lights up and the button says which way it is thrown. The long way is slower for them and longer under your guns." });
+      // numbers quoted from RULES, never re-typed — the guide must not drift
+      text: "A lever on the field. Tap it to divert the traffic the long way for " + (DATA.RULES.leverHold || 10) +
+        "s — the live route lights up and the button counts down. It snaps back on its own and re-arms " +
+        (DATA.RULES.leverCooldown || 10) + "s later, so the question is not whether to use it but WHICH part of a wave to spend it on." });
     return out;
   }
 
