@@ -1958,6 +1958,62 @@ shipped and tested. The suite's own test calls `r.draw(0)` immediately before
 reading, and doing the same showed every level correct. When a hook reports
 "what happened last", you must MAKE it happen before you read it.
 
+**A gimmick can pass every engine measurement and still be UNPLAYABLE, because
+"does it work?" and "can the player see it?" are different questions — reported
+from real play as "the door gimmick is malfunctioning as user cannot see the door
+or anticipate it happening."** The gimmick audit had driven every 🚪 side door
+headless and proved enemies enter at the marker; it never asked whether a human
+could tell. Three defects sat behind that one sentence. (1) **The marker wore the
+EXIT's own 🚪** — the same picture for "enemies come IN here" and "enemies escape
+here and cost you lives". That is exactly the class the enemy-art pixel hash
+exists to catch (no two enemies may render identically), never applied to FIELD
+MARKERS; a side door IS a second spawn, so it now wears the world's `spawnGlyph`
+(a data field, so a new world inherits it). (2) **It was drawn during BUILD only.**
+The code's own comment claimed "once the wave is walking the enemies themselves
+say it" — but they walk in BEHIND your guns, so the marker that would explain
+them vanished exactly when it was needed. It now stays lit while any wave using
+it is in flight (a RANGE `waveIdx..sentIdx-1`, since TD-15 lets waves overlap).
+(3) **The next-wave preview never mentioned it**, so gold was committed blind; it
+now shows `🚪<count>`. The general rule: **a mechanic needs a marker that is
+DISTINCT, PERSISTENT while it matters, and ANNOUNCED before the player commits
+resources** — and the way to check is to screenshot it, not to re-read the sim.
+Two smaller lessons came with it. Writing fix (3) nearly shipped a second bug:
+spelling it out as "🚪45 side door" measured **310px of a 320px screen** in
+headless Chromium, and `.td-nextwave` was `white-space: nowrap` — the documented
+iOS-renders-emoji-WIDER trap that already spilled the tower panel once. Icon+count
+(160px) plus a `max-width` and wrapping. And a testing trap worth remembering:
+**`render.leverInfo()` (and now `doorInfo()`) report what the LAST DRAW did**, so
+probing them after a `waitForTimeout` reads a stale frame — it showed lane 0 still
+lit on all six fork levels including L10, whose readability fix is shipped and
+tested, and looked exactly like a real bug. The suite's own test calls `r.draw(0)`
+immediately before reading. When a hook reports "what happened last", MAKE it
+happen before you read it. The other five gimmicks were screenshotted in the same
+pass and are genuinely unambiguous (conveyor = cyan directional chevrons, mud =
+brown gloop with no direction, night = dark floor + fireflies, power pad = amber
+socket ring, lever = lit route + SHORT/LONG WAY label). **Still open:** no gimmick
+is documented ANYWHERE — the Toybox Guide covers enemies, towers and powers, so
+nothing tells you night cuts Dart/Mortar reach 15% or that mud slows. A
+derived-from-data gimmick section is the natural next step.
+
+**华丽's world had never had a BEHAVIOURAL pass, and the first one found the
+app-wide "never SPEAK a picture" defect.** The tap-harness proves a game is
+winnable, not that its instruction makes sense, so the method was to drive all 40
+of her games and capture what `JoshAudio.say` was actually handed. Two games
+(什么变了 / 两幅找不同) said `"对！" + emoji + "变成了" + emoji + "！"` — which a
+Chinese TTS voice reads as **"对！变成了！"**: the entire sentence was two
+pictures, on the channel that carries her instructions. 找一找 had the same root
+cause, saying "find IT" and only ever SHOWING the target. Running the identical
+capture across all 240 games found one more, in Josh's world — Season Windows
+saying "🌷 belongs in Spring!" → " belongs in Spring!" to a non-reader. The fix is
+one name table per world (`SPOT_NAMES`, `SEASON_ITEM_NAMES`) as the single owner,
+which also repaired the aria-labels (they were bare emoji too). This is the 🧯 →
+"the fire extinguisher" lesson, which had been recorded but never applied
+SYSTEMICALLY — so the guardrail is now generic: the every-game e2e harness wraps
+`JoshAudio.say` and fails any game that speaks an emoji, and the content truth
+tests fail if a pool picture has no name. Lesson: when a fix is recorded as a
+one-off ("we named this one emoji"), ask what SCANS for the rest of them — and a
+capture-what-it-says harness is cheap once the every-game driver already exists.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
