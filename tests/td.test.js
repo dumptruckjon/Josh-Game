@@ -2388,3 +2388,47 @@ test("ART: a boss really is BIGGER, and its leak flashes deeper than a sock's", 
   assert.ok(flash.boss > flash.sock * 1.4,
     `a boss leak flashes deeper than a sock's (${flash.boss} vs ${flash.sock}) — a 6-sticker hit must not blink like a 1`);
 });
+
+test("the Resume banner's ✕ dismisses a run that is STILL LIVE", async () => {
+  // Reported from real play: "I couldn't dismiss the resume button at top of
+  // home page for a game in progress I wanted to hit x on."
+  //
+  // The ✕ cleared the checkpoint and then re-routed to the fort — and
+  // route("td-home") opens with leavingPlay(), which re-checkpoints a live run
+  // parked in its BUILD phase. So the clear was undone within the same call and
+  // the banner never went away. It only misbehaved for a game IN PROGRESS
+  // (quitting mid-WAVE writes no checkpoint, so the ✕ looked fine), which is
+  // what made it read as intermittent rather than broken.
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.newGame(2, { seed: 5 });
+    const lvl = window.__TD.engine().levelDef;
+    window.__TD.script([["place", "dart", lvl.pads[0].id]]);   // stay in BUILD
+  });
+  assert.equal(await page.evaluate(() => window.__TD.state().phase), "build",
+    "the run is parked in the build phase — the state that reproduced it");
+  await page.evaluate(() => { window.__TD.leaveToHome(); });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.waitForTimeout(150);
+  assert.ok(await page.locator("#screen-td-home .td-resume").isVisible(),
+    "leaving a live build-phase run offers to resume it");
+  await page.locator("#screen-td-home .td-resume__x").click();
+  await page.waitForTimeout(250);
+  assert.ok(!(await page.locator("#screen-td-home .td-resume").isVisible()),
+    "✕ really dismisses the banner");
+  const saved = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    return { midRun: !!raw.midRun };
+  });
+  assert.equal(saved.midRun, false, "…and the checkpoint is gone from storage, not just from the DOM");
+  // …and it STAYS gone: re-entering the fort must not resurrect it, which is
+  // the half the original bug actually failed.
+  await page.evaluate(() => { window.JonTD.route("td-home"); });
+  await page.waitForTimeout(200);
+  assert.ok(!(await page.locator("#screen-td-home .td-resume").isVisible()),
+    "re-routing to the fort does not bring the discarded run back");
+  assert.equal(await page.evaluate(() => !!JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}").midRun),
+    false, "…and nothing re-checkpointed it");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});

@@ -131,7 +131,7 @@
     // force: a deliberate reset MUST skip the two-tab monotonic merge, or the
     // stored copy's stars/badges/endless bests would fold straight back in.
     persist(save, { force: true });
-    if (o.dropRun) { stopLoop(); cur = null; }
+    if (o.dropRun) abandonRun();
     return true;
   }
 
@@ -606,6 +606,23 @@
   }
   function clearMidRun() { if (save.midRun) { save.midRun = null; persist(save); } }
 
+  // DISCARD the saved run — the ✕ on the fort's Resume banner. This has to be
+  // ONE owner, because clearing the checkpoint alone does not hold: if a run is
+  // still LIVE and parked in its build phase, the very next `route("td-home")`
+  // calls leavingPlay() → writeMidRun() and puts the checkpoint straight back,
+  // so the banner never went away and the button read as broken. (It only
+  // misbehaved for a game IN PROGRESS — quitting mid-WAVE writes no checkpoint,
+  // so the ✕ appeared to work, which is what made it look intermittent.)
+  //
+  // "There is no saved run" and "a live run is about to check-point itself" are
+  // contradictory states, so discarding must ABANDON the run as well as erase
+  // the checkpoint: stop the loop, drop `cur`, then clear. Anything that wants
+  // to throw a run away goes through here — the reset button used to keep its
+  // own copy of `stopLoop(); cur = null;`, and two copies of a teardown is
+  // exactly how the wake lock's acquire and release paths drifted apart.
+  function abandonRun() { stopLoop(); cur = null; }
+  function discardRun() { abandonRun(); clearMidRun(); }
+
   // Called whenever we navigate AWAY from a live battle (to the fort or out of
   // the fort). (1) An endless run that's quit — not lost — still earned its
   // wave: record the best score + Marathoner here, since phaseWatch only fires
@@ -934,7 +951,7 @@
           (n) => { location.hash = "#td-play"; startLevel(n, {}); },
           (d) => { if (DATA.DIFFICULTIES[d]) { save.difficulty = d; persist(save); } } // sticks for the next level start
         );
-        UI.renderResume(save, resumeMidRun, () => { clearMidRun(); JonTD.route("td-home"); }); // TD-5 resume banner
+        UI.renderResume(save, resumeMidRun, () => { discardRun(); JonTD.route("td-home"); }); // TD-5 resume banner
         const s = doc.getElementById("screen-td-home");
         if (s) s.hidden = false;
         if (cur) { cur.paused = true; syncWake(); } // browsing the fort must not hold the screen awake

@@ -1879,6 +1879,43 @@ responds to is THREAT SHAPE (an hp-preserving swap in the attic's late waves) �
 bigger hp piles are proven not to work, and that is a deliberate content pass to
 be commissioned, not a defect to fix on sight.
 
+**A "discard" that leaves the discarded thing ALIVE does not hold — reported from
+real play as "I couldn't dismiss the resume button".** The Resume banner's ✕ ran
+`clearMidRun(); route("td-home")`, and `route("td-home")` opens with
+`leavingPlay()` → `writeMidRun()`, which re-checkpoints a run that is still live
+and parked in its BUILD phase — so the erase was undone inside the same call and
+the banner came straight back. It read as *intermittent* for the reason that
+identifies the class: quitting mid-WAVE writes no checkpoint, so the ✕ appeared to
+work in exactly the case where there was nothing to discard. "There is no saved
+run" and "a live run is about to check-point itself" are contradictory states, so
+the fix is ONE owner (`discardRun` = `abandonRun` + `clearMidRun`) that stops the
+loop and drops `cur` as well as erasing the checkpoint — and `resetProgress`'s own
+copy of `stopLoop(); cur = null;` now goes through the same `abandonRun()`, since
+two copies of a teardown is precisely how the wake lock's acquire and release
+paths drifted apart. The guardrail is the state nobody was driving: leave a
+build-phase run, press ✕, then **re-route to the fort and assert it did not come
+back** (mutation-proven — it fails on the pre-fix code). Lesson: when an undo
+looks flaky, check whether something downstream in the same call re-creates what
+you just deleted, and prefer one teardown owner over a clear at each call site.
+
+**Every gimmick on every level was driven headless and read off the engine's own
+numbers — all 17 placements behave as specified.** The audit measured, per level:
+mud slows (L1 566 vs 491 ticks; L7 1135 vs 1059), conveyors speed up (L7 418 vs
+488), each side door enters at its marker skipping ~half the lane, all four levers
+coincide before the fork / diverge after / are ≥1.15× longer / actually reroute
+enemies already walking (lanes `000 → 111`), night dims reach ×0.85, and every
+power pad out-shoots or matches a median plain pad. Two methodology traps are
+worth more than the result, because both produced a FALSE fail first: (1) a
+control that removes ALL zones to measure one mud patch is measuring the
+CONVEYORS too — hold every other zone constant and vary only the one under test;
+(2) a fixed tick window is not a control when the thing under test sits at a
+different point on the lane — L22's socket is 92% along a 64-cell lane, so a
+1500-tick sample showed "0 shots" for a pad that is simply reached late. Run a
+whole wave instead. That second one is also the audit's one honest caveat: socket
+placement ranges from 18% of the lane (L9) to 92% (L22), and while L22 passes its
+gate (33 shots vs a median plain pad's 25), it is the weakest of the five and is a
+placement judgment, not a defect.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
