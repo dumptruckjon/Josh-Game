@@ -180,6 +180,18 @@
       { emoji: "🐢", name: "乌龟", mw: "只" }, { emoji: "💮", name: "荷花", mw: "朵" },
     ],
     SPOT_POOL: ["🍵", "🏮", "🥟", "🌸", "🐼", "🧧", "🍊", "🥮", "🎐", "🐉"],
+    // What each of those is CALLED. Sound is her primary instruction channel, so
+    // anything spoken has to be a WORD — 什么变了 and 两幅找不同 used to say
+    // `"对！" + emoji + "变成了" + emoji + "！"`, which a Chinese TTS voice reads
+    // as "对！变成了！" (nothing at all for the pictures). Same defect Josh's
+    // world already fixed by speaking "the fire extinguisher" instead of 🧯.
+    // ONE owner, so all three SPOT_POOL games (什么变了 / 两幅找不同 / 找一找)
+    // agree — and it doubles as the aria-label, which was also a bare emoji.
+    // hl-content.test.js fails if a pool emoji has no name here.
+    SPOT_NAMES: {
+      "🍵": "茶杯", "🏮": "灯笼", "🥟": "饺子", "🌸": "樱花", "🐼": "熊猫",
+      "🧧": "红包", "🍊": "橘子", "🥮": "月饼", "🎐": "风铃", "🐉": "龙",
+    },
     // Two-clue hunt (按提示找): color + shape lattice, in Chinese.
     HL_HUNT_COLORS: [
       { key: "红色", hex: "#c62828" }, { key: "金色", hex: "#f9a825" }, { key: "绿色", hex: "#2e7d32" },

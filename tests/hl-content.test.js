@@ -235,6 +235,16 @@ test("eye-game pools are unique and big enough for their logic functions", () =>
   for (const k of HL.KOI_POOL) assert.ok(isCJK(k.name));
   assert.ok(HL.SPOT_POOL.length >= 7, "makeSpotDifference(count 5) needs pool > count; makeTwins/FindHero need room");
   assert.equal(new Set(HL.SPOT_POOL).size, HL.SPOT_POOL.length);
+  // Every SPOT_POOL picture must have a WORD. 什么变了 / 两幅找不同 / 找一找 all
+  // speak these, and an all-emoji sentence is read aloud as "对！变成了！" —
+  // silence, on the channel that carries her instructions. Generic on purpose:
+  // add an emoji to the pool without naming it and this fails.
+  for (const e of HL.SPOT_POOL) {
+    const n = HL.SPOT_NAMES[e];
+    assert.ok(n && isCJK(n), `SPOT_POOL ${e} has no Chinese name in SPOT_NAMES — it would be SPOKEN as an emoji`);
+  }
+  assert.equal(new Set(Object.values(HL.SPOT_NAMES)).size, HL.SPOT_POOL.length,
+    "two pool pictures sharing a name would make 「A变成了B」 say the same word twice");
   assert.equal(HL.HL_HUNT_COLORS.length, 3);
   assert.equal(new Set(HL.HL_HUNT_COLORS.map((c) => c.key)).size, 3);
   for (const c of HL.HL_HUNT_COLORS) assert.match(c.hex, /^#[0-9a-fA-F]{6}$/);

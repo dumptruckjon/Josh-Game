@@ -411,6 +411,15 @@
       { name: "Summer", icon: "☀️", tint: "#fff3c9", items: ["🍉", "🍦"] },
       { name: "Fall", icon: "🍂", tint: "#ffe1c4", items: ["🎃", "🍁"] },
     ],
+    // …and they must name themselves ALOUD too. The round's confirmation was
+    // `item + " belongs in " + season`, which a speech voice reads as
+    // " belongs in Spring!" — a picture is silence on the channel that carries
+    // the instruction for a non-reader. Same fix as 🧯 → "the fire
+    // extinguisher"; content.test.js pins one name per SEASONS item.
+    SEASON_ITEM_NAMES: {
+      "⛄": "the snowman", "🧣": "the scarf", "🌷": "the tulip", "🐣": "the baby chick",
+      "🍉": "the watermelon", "🍦": "the ice cream", "🎃": "the pumpkin", "🍁": "the leaf",
+    },
 
     // ---- Continents (Montessori colors + a signature animal that lives there) ----
     // A friendly, stylized world map (not exact coastlines). The animal sits on

@@ -568,6 +568,10 @@
     },
   });
 
+  // The ONE owner of "what is this SPOT_POOL picture called" (hl-content.js), so
+  // every game that speaks or labels one says the same word.
+  const name = (e) => (HL.SPOT_NAMES && HL.SPOT_NAMES[e]) || e;
+
   // 什么变了 — one thing in the row quietly changed.
   reg("hlc-memory", {
     id: "hl-changed", icon: "🔄", title: "什么变了",
@@ -588,12 +592,14 @@
         r.after.forEach((emoji, i) => {
           const b = api.el("button", {
             class: "choice hl-spot tap", type: "button",
-            dataset: i === r.diffIndex ? { correct: "1" } : {}, aria: { label: emoji },
+            dataset: i === r.diffIndex ? { correct: "1" } : {}, aria: { label: name(emoji) },
           }, [emoji]);
           b.addEventListener("click", () => {
             if (i !== r.diffIndex) { api.tryAgain(b); return; }
             b.classList.add("pop");
-            api.say("对！" + r.before[r.diffIndex] + "变成了" + emoji + "！");
+            // NAME them — a spoken sentence made of emoji is silence to a TTS
+            // voice ("对！变成了！"), and sound is her instruction channel.
+            api.say("对！" + name(r.before[r.diffIndex]) + "变成了" + name(emoji) + "！");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "什么都瞒不过您！" });
             else { api.roundWin(); newRound(); }

@@ -593,6 +593,12 @@ test("season items are truthful and belong to exactly one season", () => {
       assert.equal(TRUTH[item], s.name, `${item} belongs in ${TRUTH[item]}, not ${s.name}`);
       assert.ok(!seen.has(item), `${item} appears in two seasons`);
       seen.set(item, s.name);
+      // …and it must have a SPOKEN name. The win line is `<item> belongs in
+      // <season>`, so a nameless picture is read aloud as " belongs in Spring!"
+      // — nothing, on a non-reader's instruction channel.
+      const spoken = content.SEASON_ITEM_NAMES[item];
+      assert.ok(spoken && /^[a-z ]+$/.test(spoken),
+        `${item} has no spoken name in SEASON_ITEM_NAMES — the round would SAY an emoji`);
     }
   }
 });

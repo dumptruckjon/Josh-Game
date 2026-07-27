@@ -494,7 +494,8 @@
           delete b.dataset.correct;
           round += 1;
           if (round >= ROUNDS) api.win({ say: "You know all the seasons!" });
-          else { api.roundWin({ say: r.item + " belongs in " + r.seasonName + "!" }); newRound(); }
+          // NAME it — a spoken picture is silence (" belongs in Spring!").
+          else { api.roundWin({ say: (C.SEASON_ITEM_NAMES[r.item] || r.item) + " belongs in " + r.seasonName + "!" }); newRound(); }
         });
         grid.appendChild(b);
         return b;

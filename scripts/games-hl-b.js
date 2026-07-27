@@ -8,6 +8,10 @@
   const A = window.JoshAudio || { say() {}, tone() {}, unlock() {}, isMuted: () => true };
   if (!F || !L || !HL) return;
 
+  // The ONE owner of "what is this SPOT_POOL picture called" (hl-content.js), so
+  // every game that speaks or labels one says the same word.
+  const spotName = (e) => (HL.SPOT_NAMES && HL.SPOT_NAMES[e]) || e;
+
   function reg(cat, def) {
     def.hl = true;
     def.lang = "zh";
@@ -569,19 +573,22 @@
       api.stage.append(targetEl, grid);
       function newRound() {
         r = L.makeFindHero(HL.SPOT_POOL, 12, 1, undefined);
-        api.setPrompt("在人群里找到它！", ["👀", "🔍", "☝️"]);
+        // NAME the quarry. It used to say "find IT" and show the target only as
+        // a picture, so with sound on — her instruction channel — the round
+        // never said what to look for.
+        api.setPrompt("在人群里找到" + spotName(r.target) + "！", ["👀", "🔍", "☝️"]);
         api.speak();
         targetEl.textContent = "找：" + r.target;
         grid.innerHTML = "";
         r.cells.forEach((cell) => {
           const b = api.el("button", {
             class: "choice hl-spot tap", type: "button",
-            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: cell.correct ? "目标" : "路人" },
+            dataset: cell.correct ? { correct: "1" } : {}, aria: { label: spotName(cell.emoji) },
           }, [cell.emoji]);
           b.addEventListener("click", () => {
             if (!cell.correct) { api.tryAgain(b); return; }
             b.classList.add("pop");
-            api.say("找到了！");
+            api.say("找到了！是" + spotName(r.target) + "！");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "藏得再深也逃不过您！" });
             else { api.roundWin(); newRound(); }
@@ -658,12 +665,14 @@
         r.after.forEach((emoji, i) => {
           const b = api.el("button", {
             class: "choice hl-diffcell hl-diffbtn tap", type: "button",
-            dataset: i === r.diffIndex ? { correct: "1" } : {}, aria: { label: emoji },
+            dataset: i === r.diffIndex ? { correct: "1" } : {}, aria: { label: spotName(emoji) },
           }, [emoji]);
           b.addEventListener("click", () => {
             if (i !== r.diffIndex) { api.tryAgain(b); return; }
             b.classList.add("pop");
-            api.say("对！" + r.before[r.diffIndex] + "变成了" + r.after[r.diffIndex] + "！");
+            // NAME them — see hl-content.js SPOT_NAMES: an all-emoji sentence is
+            // read aloud as "对！变成了！", i.e. nothing.
+            api.say("对！" + spotName(r.before[r.diffIndex]) + "变成了" + spotName(r.after[r.diffIndex]) + "！");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "火眼金睛，名不虚传！" });
             else { api.roundWin(); newRound(); }

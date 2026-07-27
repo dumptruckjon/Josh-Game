@@ -154,8 +154,24 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
   // one-time win too, so the Sticker Book can hit 100% with no permanently-empty
   // slot. A future game that can never be won fails here — forcing either a win
   // state or a deliberate exclusion from the board.
+  // …and while we are driving all of them, listen. Sound is the PRIMARY
+  // instruction channel (a non-reader for Josh, a 70-year-old for 华丽), so a
+  // spoken line built out of emoji is silence: "🌷 belongs in Spring!" is read
+  // aloud as " belongs in Spring!", and 华丽's spot-the-difference games said
+  // "对！变成了！" — the whole sentence was two pictures. Wrapping JoshAudio.say
+  // catches the STRINGS whatever the mute state (the framework calls say()
+  // unconditionally; say() itself no-ops when muted). Generic on purpose: this
+  // found one game in each world, and it is how the class stops coming back.
+  const SPOKEN_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/u;
+  await page.evaluate(() => {
+    const A = window.JoshAudio, real = A.say.bind(A);
+    window.__SAID = [];
+    A.say = (t, o) => { window.__SAID.push(String(t)); return real(t, o); };
+  });
+
   const ids = await gameIds();
   for (const id of ids) {
+    await page.evaluate(() => { window.__SAID = []; });
     await openGame(id);
     const screen = page.locator(`#screen-${id}`);
 
@@ -184,6 +200,12 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
     }
     won = await screen.evaluate((el) => el.dataset.won === "1");
     assert.ok(won, `game "${id}" never reached a win — every game must be collectible (winnable)`);
+
+    // Nothing this game SAID may be a picture (see the note above the loop).
+    const said = await page.evaluate(() => window.__SAID);
+    const mute = said.filter((line) => SPOKEN_EMOJI.test(line));
+    assert.deepEqual(mute, [],
+      `game "${id}" SPEAKS an emoji — a picture is silence on the audio channel. Give it a name (SEASON_ITEM_NAMES / SPOT_NAMES are the precedent): ${mute.join(" | ")}`);
 
     // Winning reveals a working "Again" button that resets the won state.
     const again = screen.locator(".game__again");
