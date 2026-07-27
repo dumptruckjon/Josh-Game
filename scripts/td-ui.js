@@ -605,7 +605,16 @@
           const def = global.TDData.ENEMIES[type];
           return (def && def.icon ? def.icon : "•") + counts[type];
         });
-        nw.textContent = "Next: " + parts.join("  ");
+        // A flank has to be ANTICIPATED, not discovered. The preview named the
+        // enemies but never said any of them skip most of the lane, so the first
+        // you knew of a side door was 45 marbles appearing behind your guns
+        // (reported from real play). Count what comes through and say so.
+        // Kept to an ICON + count, not "45 side door": this pill is nowrap-ish and
+        // iOS renders emoji WIDER than headless Chromium, so a long line measures
+        // fine here and spills off a real 320px phone (the tower-panel lesson).
+        // The field marker says WHERE; this says a flank is coming at all.
+        const flank = groups.filter((g) => g.at > 0).reduce((n, g) => n + g.count, 0);
+        nw.textContent = "Next: " + parts.join("  ") + (flank ? "   🚪" + flank : "");
         nw.hidden = false;
       } else nw.hidden = true;
     }

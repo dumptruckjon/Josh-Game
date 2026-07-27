@@ -2432,3 +2432,57 @@ test("the Resume banner's ✕ dismisses a run that is STILL LIVE", async () => {
     false, "…and nothing re-checkpointed it");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
+
+test("GIMMICK 🚪 side door: visible, distinct from the exit, and announced BEFORE you spend", async () => {
+  // Reported from real play: "the gimmick where they spawn part way down path
+  // (door) is malfunctioning as user cannot see the door or anticipate it."
+  // Three defects, all invisible to the engine sims (the enemies DID enter at
+  // the marker — the audit measured that; what it never checked was whether a
+  // player could SEE or ANTICIPATE it):
+  //   1. the marker wore 🚪 — the EXIT's own glyph, so "they come in here" and
+  //      "they escape here and cost you lives" were the same picture
+  //   2. it was drawn during BUILD only, so it vanished exactly when the flank
+  //      arrived (and they arrive BEHIND your guns)
+  //   3. the next-wave preview never mentioned it, so gold was committed blind
+  const DOOR_LEVEL = 18, DOOR_WAVE = 5; // L18 w6 sends 45 marbles in at dist 31
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  const build = await page.evaluate(({ n, w }) => {
+    window.__TD.newGame(n, { seed: 7 });
+    const st = window.__TD.state();
+    st.waveIdx = w; st.sentIdx = w; st.phase = "build";
+    window.TDUI.hud(st);
+    const r = window.__TD.render(); r.resize(); r.draw(0);
+    return { info: r.doorInfo(), preview: document.querySelector("#screen-td-play .td-nextwave").textContent };
+  }, { n: DOOR_LEVEL, w: DOOR_WAVE });
+
+  assert.ok(build.info.doors.length >= 1, "the door is marked on the field during build — you must see it before you commit gold");
+  assert.notEqual(build.info.glyph, build.info.exitGlyph,
+    "the side door must NOT wear the exit's glyph — one is where enemies come IN, the other is where they escape");
+  assert.match(build.preview, /🚪\d+/,
+    "the next-wave preview must say a flank is coming (count + 🚪), or the door can only be DISCOVERED, never anticipated");
+
+  // …and it must SURVIVE into the wave: the flank walks in behind your towers,
+  // so a marker that disappears on CALL is gone exactly when it is needed.
+  const during = await page.evaluate(() => {
+    const st = window.__TD.state();
+    st.phase = "wave"; st.sentIdx = st.waveIdx + 1;
+    const r = window.__TD.render(); r.draw(0);
+    return r.doorInfo().doors.length;
+  });
+  assert.ok(during >= 1, "the door stays marked while a wave using it is in flight");
+
+  // A level with no door on the next wave must show NO marker and NO warning —
+  // a permanent marker on an unused lane would be a lie.
+  const plain = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });          // L1 has no side door at all
+    const st = window.__TD.state();
+    window.TDUI.hud(st);
+    const r = window.__TD.render(); r.resize(); r.draw(0);
+    return { doors: r.doorInfo().doors.length, preview: document.querySelector("#screen-td-play .td-nextwave").textContent };
+  });
+  assert.equal(plain.doors, 0, "a level with no side door marks none");
+  assert.doesNotMatch(plain.preview, /🚪/, "…and its preview must not cry door");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});

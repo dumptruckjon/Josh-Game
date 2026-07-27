@@ -1306,11 +1306,23 @@
     // that is not being used this wave is a lie.
     // ONE owner — the floor pass draws the line and the UPRIGHT pass draws the
     // 🚪 (characters never rotate), so both must agree on which doors are live.
+    // REPORTED FROM REAL PLAY: "cannot see the door or anticipate it happening."
+    // Two causes, both fixed here. (1) It vanished the instant the wave started —
+    // the old comment claimed "the enemies themselves say it", but they walk in
+    // BEHIND your guns, so by the time you see them the marker that would have
+    // explained them is gone. A door now stays lit for as long as a wave using it
+    // is in flight (waveIdx..sentIdx-1 — waves can OVERLAP since TD-15, so it is
+    // a range, not one index). (2) It wore the EXIT's 🚪 — see the upright pass.
     function nextDoors() {
-      if (engine.state.phase !== "build") return [];
-      const wave = (engine.levelDef.waves || [])[engine.state.sentIdx];
-      if (!wave) return [];
-      return [...new Set(wave.groups.filter((g) => g.at > 0).map((g) => g.at))];
+      const st = engine.state, waves = engine.levelDef.waves || [];
+      const idxs = st.phase === "build" ? [st.sentIdx] : [];
+      for (let i = st.waveIdx; i < st.sentIdx; i++) idxs.push(i); // in flight (empty during build)
+      const out = new Set();
+      for (const i of idxs) {
+        const w = waves[i];
+        if (w) w.groups.forEach((g) => { if (g.at > 0) out.add(g.at); });
+      }
+      return [...out];
     }
     function drawSideDoors() {
       for (const at of nextDoors()) {
@@ -1320,10 +1332,21 @@
         const pulse = 0.55 + 0.25 * Math.sin(engine.state.tick * 0.12);
         ctx.strokeStyle = "rgba(255,190,90," + pulse.toFixed(3) + ")";
         ctx.lineWidth = Math.max(2, cell * 0.08); ctx.lineCap = "round";
+        // the gate itself, across the lane
         ctx.beginPath();
-        ctx.moveTo(cx + nx * cell * 0.5, cy + ny * cell * 0.5);
-        ctx.lineTo(cx - nx * cell * 0.5, cy - ny * cell * 0.5);
+        ctx.moveTo(cx + nx * cell * 0.62, cy + ny * cell * 0.62);
+        ctx.lineTo(cx - nx * cell * 0.62, cy - ny * cell * 0.62);
         ctx.stroke();
+        // …and a chevron pointing DOWN-lane, so the marker says "they come in
+        // here and walk THAT way" rather than just "something is here". Without
+        // a direction a bare tick reads as a decoration.
+        const hx = tan.x * cell * 0.55, hy = tan.y * cell * 0.55;
+        for (const side of [1, -1]) {
+          ctx.beginPath();
+          ctx.moveTo(cx + nx * cell * 0.34 * side, cy + ny * cell * 0.34 * side);
+          ctx.lineTo(cx + hx, cy + hy);
+          ctx.stroke();
+        }
       }
     }
 
@@ -1586,12 +1609,19 @@
       // sock), so a 5th world would have inherited a bed too.
       const spawnGlyph = (global.TDData.WORLDS[engine.levelDef.world] || {}).spawnGlyph || "🛏️";
       glyph(s0[0], s0[1], spawnGlyph);
-      // TD-16 side doors: one 🚪 per live door, upright like every other
-      // character, so the player sees where the flank comes in BEFORE spending.
-      // ON the crossbar, not offset from it: the FLOOR rotates 90° in portrait
-      // while characters stay upright, so a world-y offset here would come out
-      // as a screen-x offset and the door would sit beside its own marker.
-      for (const at of nextDoors()) { const dp = engine.posAt(at); glyph(dp.x, dp.y, "🚪", 0.7); }
+      // TD-16 side doors, upright like every other character. ON the crossbar,
+      // not offset from it: the FLOOR rotates 90° in portrait while characters
+      // stay upright, so a world-y offset here would come out as a screen-x
+      // offset and the door would sit beside its own marker.
+      //
+      // It used to draw 🚪 — the EXIT's own glyph (below). Identical pictures for
+      // "enemies come IN here" and "enemies escape here, costing you lives" is
+      // exactly the defect the enemy-art pixel hash exists to catch, applied to
+      // field markers instead of sprites. A side door IS a second spawn, so it
+      // wears the WORLD's spawn glyph (a data field, so a new world inherits it)
+      // at 0.72 — same picture as where they already come from, smaller so the
+      // primary spawn still reads as primary.
+      for (const at of nextDoors()) { const dp = engine.posAt(at); glyph(dp.x, dp.y, spawnGlyph, 0.72); }
       glyph(s1[0], s1[1], "🚪");
       if (selection && selection.tower) {
         const selT = st.towers.find((x) => x.id === selection.tower);
@@ -1630,6 +1660,15 @@
       setDamageNumbers: (on) => { showDmg = !!on; }, // TD-6 opt-in
       shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
       leverInfo: () => ({ hasSeg: !!leverSeg, lit: lastLitLane }), // test hook: which lane the route overlay lit last draw
+      // test hook (the leverInfo precedent): which side doors are lit right now
+      // and what picture marks them. Reported from real play as invisible —
+      // it wore the EXIT's 🚪 and vanished the moment the wave started — so the
+      // guardrail asserts a DISTINCT glyph and that it survives into the wave.
+      doorInfo: () => ({
+        doors: nextDoors(),
+        glyph: (global.TDData.WORLDS[engine.levelDef.world] || {}).spawnGlyph || "🛏️",
+        exitGlyph: "🚪",
+      }),
       cellSize: () => cell,
       isRotated: () => rotated,
       worldToScreen, screenToWorld,

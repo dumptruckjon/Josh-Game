@@ -205,7 +205,13 @@ body.td-mode #screens { padding: 0; }
   position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
   z-index: 6; padding: 4px 12px; border-radius: 999px;
   background: rgba(11, 21, 38, 0.82); color: #e8eefc;
-  font-weight: 800; font-size: 0.9rem; white-space: nowrap; pointer-events: none;
+  font-weight: 800; font-size: 0.9rem; pointer-events: none;
+  /* Belt-and-suspenders against the documented iOS-wider-emoji spill: this pill
+     grew a side-door warning, and a nowrap line that measures 310px of a 320px
+     screen in headless Chromium is NOT safe on device. Cap it and let it wrap
+     downward — it is an overlay with pointer-events:none, so a second line costs
+     nothing, whereas spilling off the right is a shipped layout bug. */
+  max-width: calc(100% - 16px); white-space: normal; text-align: center;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 .td-nextwave[hidden] { display: none; }
