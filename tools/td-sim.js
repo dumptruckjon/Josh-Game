@@ -75,6 +75,65 @@ const DIFFS = (process.env.DIFFS || "normal,heroic").split(",");
 const only = process.argv[2] ? process.argv[2].split(",").map(Number) : null;
 const ALL_META = DATA.META_NODES.map((n) => n.id);
 
+// ---- --lever: what is a fork's lever actually WORTH? ----
+//
+//   node tools/td-sim.js 15,23 --lever
+//
+// A full board kills everything on either route, so the lever is unmeasurable at
+// full strength — its value shows up on a THIN build, exactly as the shipped
+// `TD7 lever advantage` guardrail defines it: a build that LOSES on the short
+// route and WINS with the lever thrown. That is the knife edge, and it is the
+// right way to CHOOSE between fork candidates: L23's longest candidate (1.46x)
+// left a thin build losing on both routes, while the shorter one (1.42x) rescued
+// a 7-, 8- OR 9-pad build on every seed. Longest != best.
+//
+// Pair it with tools/td-fork-search.js, which finds candidates that need no pad
+// moved; this says which of them is worth shipping.
+function playCapped(level, seed, plan, pull, cap) {
+  const e = TD.createEngine(level, { seed, difficulty: "normal" });
+  const padIds = level.pads.map((p) => p.id).slice(0, cap);
+  let idx = 0, guard = 0;
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 900000) {
+    if (e.state.phase === "build") {
+      let spent = true;
+      while (spent) {
+        spent = false;
+        for (const pid of padIds) {
+          if (!e.state.towers.find((t) => t.padId === pid)) {
+            const line = plan[idx % plan.length];
+            if (e.state.gold >= cost(line, 0) && e.place(line, pid).ok) { idx++; spent = true; }
+            break;
+          }
+        }
+        if (spent) continue;
+        const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+        for (const t of ups) if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; }
+      }
+      e.callWave();
+    }
+    // keep the long route thrown — pullLever has a cooldown, so just retry
+    if (pull && e.state.leverRoute !== 1) e.pullLever();
+    e.tick();
+  }
+  return e.state.phase === "won" ? e.state.lives : null;
+}
+if (process.argv.includes("--lever")) {
+  for (const lvl of DATA.LEVELS.filter((l) => l.fork && (!only || only.includes(l.id)))) {
+    console.log(`\nL${lvl.id} ${lvl.name}  (${lvl.pads.length} pads)`);
+    for (const cap of [6, 7, 8, 9, 10, 11]) {
+      const row = [];
+      for (const [name, plan] of [["dart", DART], ["mixed", MIXED]]) {
+        const off = SEEDS.map((s) => playCapped(lvl, s, plan, false, cap));
+        const on = SEEDS.map((s) => playCapped(lvl, s, plan, true, cap));
+        const w = (r) => r.filter((x) => x !== null).length;
+        row.push(`${name} short ${w(off)}/${SEEDS.length} → LONG ${w(on)}/${SEEDS.length}`);
+      }
+      console.log(`   cap ${String(cap).padStart(2)}  ${row.join("   |   ")}`);
+    }
+  }
+  process.exit(0);
+}
+
 for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
   const cols = [];
   for (const d of DIFFS) {
