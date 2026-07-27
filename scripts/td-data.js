@@ -707,6 +707,20 @@
       badge: 3,
       startGold: 1000,
       budgetBase: 520,
+      // The ATTIC's lever, on slot 3 of 4 — the rhythm World 1 (L3), World 2
+      // (L7) and the Garage (L19) already keep. The attic and Moving Day were
+      // authored AFTER TD-11's fork search ran and were never swept; re-running
+      // it (tools/td-fork-search.js, now in the repo) found both admit one with
+      // no pad moved. Default lane 0 is byte-identical to the original `path`,
+      // so every winnability sim is untouched — the retrofit is a NOOP until the
+      // lever is thrown. Measured payoff: a 9-pad dart build LOSES on the short
+      // route on all 4 seeds and WINS on all 4 with the lever thrown.
+      paths: [
+        [ [0, 11], [4, 11], [4, 2], [10, 2], [10, 9], [16, 9], [16, 2], [21, 2], [21, 12], [23, 12] ],
+        [ [0, 11], [4, 11], [4, 2], [10, 2], [10, 9], [12, 9], [12, 0], [15, 0], [15, 9], [16, 9], [16, 2], [21, 2], [21, 12], [23, 12] ],
+      ],
+      fork: { at: 28 },        // shared-prefix length — where the tracks split
+      lever: { cx: 12, cy: 9 }, // send them up and over the trunk instead
       path: [ [0, 11], [4, 11], [4, 2], [10, 2], [10, 9], [16, 9], [16, 2], [21, 2], [21, 12], [23, 12] ],
       pads: [ { id: "p1", cx: 0, cy: 8 }, { id: "p2", cx: 5, cy: 9 }, { id: "p3", cx: 2, cy: 6 }, { id: "p4", cx: 5, cy: 3 }, { id: "p5", cx: 8, cy: 0 }, { id: "p6", cx: 7, cy: 5 }, { id: "p7", cx: 7, cy: 9 }, { id: "p8", cx: 13, cy: 11 }, { id: "p9", cx: 14, cy: 6 , boost: { range: 1.18, rate: 1.15 } }, { id: "p10", cx: 17, cy: 3 }, { id: "p11", cx: 20, cy: 0 }, { id: "p12", cx: 23, cy: 5 }, { id: "p13", cx: 18, cy: 10 } ],
       waves: [
@@ -973,6 +987,21 @@
       // threshold behaviour). Lengthened to 58: short paths are HARDER because
       // exposure is the resource, and padding a dart is bad at needs time to
       // chew through.
+      // MOVING DAY's lever, on slot 3 of 4 (the L3/L7/L19 rhythm). This level is
+      // also the one §9.1 of PLAN_WORLD_6 records as pinned at 20/20 on normal —
+      // it refused every difficulty lever tried, so it is the level in the game
+      // that most needed a DECISION rather than a bigger number, and a routing
+      // puzzle is exactly that. The detour loops through the empty right-hand
+      // quarter. Lane 0 is byte-identical, so the retrofit is a NOOP until the
+      // lever is thrown; measured payoff is the widest of any candidate found —
+      // a 7-, 8- OR 9-pad build LOSES on the short route on all 4 seeds and WINS
+      // on all 4 with the lever thrown.
+      paths: [
+        [[0, 4], [12, 4], [12, 10], [3, 10], [3, 1], [19, 1]],
+        [[0, 4], [12, 4], [12, 5], [23, 5], [23, 9], [12, 9], [12, 10], [3, 10], [3, 1], [19, 1]],
+      ],
+      fork: { at: 13 },        // shared-prefix length — where the tracks split
+      lever: { cx: 12, cy: 5 }, // route them the long way round the boxes
       path: [[0, 4], [12, 4], [12, 10], [3, 10], [3, 1], [19, 1]],
       pads: [ { id: "p1", cx: 2, cy: 0 }, { id: "p2", cx: 20, cy: 2 }, { id: "p3", cx: 10, cy: 12 }, { id: "p4", cx: 2, cy: 11 }, { id: "p5", cx: 13, cy: 3 }, { id: "p6", cx: 7, cy: 6 }, { id: "p7", cx: 0, cy: 6 }, { id: "p8", cx: 14, cy: 8 }, { id: "p9", cx: 13, cy: 11 }, { id: "p10", cx: 6, cy: 12 }, { id: "p11", cx: 20, cy: 0 }, { id: "p12", cx: 10, cy: 8 } ],
       waves: [

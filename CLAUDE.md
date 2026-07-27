@@ -909,7 +909,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/22-enemy roster + 6 bosses/24 levels (6 worlds; L3/L7/L10/L19 = fork+lever)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 15 achievements, one endless arena PER WORLD)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/22-enemy roster + 6 bosses/24 levels (6 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 15 achievements, one endless arena PER WORLD)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -931,7 +931,8 @@ tooling.
 │   │                           #   so they live in the repo instead of a scratchpad
 │   ├── td-sim.js               # 🏰 measure any level with the SHIPPED oracle (normal/heroic/casual × seeds, + losable-by-neglect incl. the full star tree). `node tools/td-sim.js 13,17`. NEVER tune against a stronger solver — that is what got World 4 reverted.
 │   ├── td-wave-gen.js          # 🏰 emit + validate wave tables against BOTH contracts (±25% budget curve; ≥70% backbone / ≤1 special ≤25% / valve ≤12% / plain openers). `--check` audits every shipped level against the contracts it was AUTHORED under. The data file is written LAST.
-│   └── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
+│   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
+│   └── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
 ├── .gitignore                  # ignores node_modules etc.
@@ -1222,8 +1223,10 @@ and a perf check (the engine ticks sub-millisecond even on a maxed 14-tower
 board). **TD-7 MULTI-PATH** (the last deferred subsystem, now shipped): the
 engine is lane-aware — a level may define multiple `paths[]` and each enemy
 carries a `pathIdx`, positioned/targeted/leaked on its OWN lane (single-path
-levels stay byte-identical: `paths=[path]`, every `pathIdx` 0). **L10 "The Train
-Set"** is now a real fork+lever: two lanes share a prefix then split at the fork
+levels stay byte-identical: `paths=[path]`, every `pathIdx` 0). The lever now
+ships on **exactly one level in each of the 6 worlds** (L3, L7, L10, L15, L19,
+L23 — guardrail-locked, so a 7th world cannot ship without one). **L10 "The Train
+Set"** is the set piece: two lanes share a prefix then split at the fork
 into a SHORT default track and a LONG loop that rejoins the short tail; throwing
 the 🔀 **track-switch lever** (`pullLever`, 8s cooldown) sends the incoming train
 the long way — the same tail towers hit it far longer (a thin build that LOSES on
@@ -1916,6 +1919,45 @@ placement ranges from 18% of the lane (L9) to 92% (L22), and while L22 passes it
 gate (33 shots vs a median plain pad's 25), it is the weakest of the five and is a
 placement judgment, not a defect.
 
+**The fork sweep is CLOSED, and the reason it stayed open for two whole worlds is
+the lesson: an open item nothing can FAIL is a wish, not a task.** CLAUDE.md
+carried "re-run the generator over the maps authored since TD-11" across two
+releases, and it was unactionable because the generator was a scratch script that
+had been thrown away — so the attic and Moving Day both shipped with no lever at
+all and nothing went red. Re-running it (now `tools/td-fork-search.js`, in the
+repo beside td-sim/td-map-search for exactly this reason) found **18 of the 20
+un-forked maps admit a fork with no pad moved** — the TD-11 finding of "only 3 of
+12" was a property of those early maps' tightly-packed pads, not a general limit.
+Scope was chosen by RHYTHM rather than by taking all 18: a lever is a set piece,
+so exactly one per world (**L15** the attic, **L23** Moving Day, joining L3/L7/
+L10/L19), locked by a guardrail that derives the world list from the data and
+fails if any world lacks one — or carries two. Three things worth keeping: (1) a
+fork retrofit is safe *because* it is a **default-noop** — lane 0 stays
+byte-identical, so both levels re-simmed to their exact pre-change numbers
+(L15 19,18,19,19; L23 20,20,20,20) and needed no re-tune; (2) **pick the fork by
+MEASURING the lever, not by max length** — L23's late tail loop was the longest
+candidate (1.46×) but a thin build lost on both routes, while the shorter early
+loop (1.42×) turns a 7-, 8- OR 9-pad build from losing on all 4 seeds to winning
+on all 4, which is what the shipped `TD7 lever advantage` guardrail actually
+means by value; and L23 is the level PLAN_WORLD_6 §9.1 records as pinned at 20/20
+and unmovable by any difficulty knob, so a DECISION was the only thing left to
+give it; (3) a candidate generator needs SHAPE rules, not just legality — the
+first cut happily emitted 1-cell hairpins whose return leg lay exactly on the
+default lane's final segment, because the clearance check compared the two lanes
+at equal DISTANCE, which stops corresponding the moment they diverge. Compare the
+detour's own legs against the default polyline instead. **Two negative results
+recorded rather than acted on:** L22's power socket sits 92% along its lane (the
+others run 18-69%), and it is *right where it is* — moving it to a mid-lane pad
+either changes nothing (p8 48%, p10 55%) or makes the level clearly easier
+(p1 64%: heroic 12→19), and it already out-shoots a median plain pad, so the 92%
+is a descriptive statistic, not a defect. And a TESTING trap that cost an hour
+and looked exactly like a shipped bug: `render.leverInfo()` reports the **last
+draw**, so probing it after a `waitForTimeout` reads a STALE frame — it showed
+lane 0 still lit on all six fork levels including L10, whose readability fix is
+shipped and tested. The suite's own test calls `r.draw(0)` immediately before
+reading, and doing the same showed every level correct. When a hook reports
+"what happened last", you must MAKE it happen before you read it.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
@@ -2031,14 +2073,11 @@ for any new `logic.js` function and a browser check if it needs special handling
 > `JOSH_PROFILE.md`, not a backlog.
 >
 > **What IS open (opportunities, not obligations), measured 2026-07:**
-> - **Forks/levers exist on only 4 of 20 fort maps** (L3, L7, L10, and the
->   Garage's L19, which was DESIGNED around one). The World-4 attic maps were
->   authored after TD-11's fork search ran and were never swept — re-run the
->   generator (it keeps only detours that preserve the shared prefix, stay in
->   bounds, gain ≥20% length and leave every pad ≥0.99 cells clear of BOTH lanes,
->   measured in CELL-INDEX space) to see whether any admit one without moving pads.
-> - **Level gimmicks**: CLOSED by TD-16 — 14 of 20 levels now carry one
->   (`night`, conveyor, 🕳️ mud, ⚡ power pad, 🚪 side door, fork+lever), all five
+> - **Forks/levers**: CLOSED — **every one of the 6 worlds now has exactly one**
+>   (L3, L7, L10, L15, L19, L23), and `tools/td-fork-search.js` is in the repo so
+>   the sweep is repeatable instead of a scratch script that gets thrown away.
+> - **Level gimmicks**: CLOSED by TD-16 — 17 of 24 levels now carry one
+>   (`night`, conveyor, 🕳️ mud, ⚡ power pad, 🚪 side door, fork+lever), all six
 >   worlds represented. What is still open there is a FOURTH mechanic, not more
 >   placements: the three shipped shapes cover slow / buff / flank, and a
 >   destructible obstacle or timed gate would each need a second engine read

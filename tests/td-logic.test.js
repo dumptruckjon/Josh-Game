@@ -2316,6 +2316,26 @@ test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a D
   }
 });
 
+// Every world must OFFER the lever, or the subsystem quietly stops being part of
+// the game as the campaign grows. This is not hypothetical: World 4 (attic) and
+// World 6 (moving day) were both authored after TD-11's fork search ran, both
+// shipped with no lever at all, and CLAUDE.md carried "re-run the generator over
+// the maps authored since" as an open item across two releases — because nothing
+// failed. Deriving from the data (never a hard-coded world list, the counting
+// law) means a seventh world inherits the check for free.
+test("TD-11 forks: EVERY world offers the lever subsystem", () => {
+  const worlds = [...new Set(DATA.LEVELS.map((l) => l.world))];
+  const without = worlds.filter((w) => !DATA.LEVELS.some((l) => l.world === w && l.fork));
+  assert.deepEqual(without, [],
+    `these worlds have no fork+lever level: ${without.join(", ")} — run tools/td-fork-search.js, which finds the candidates that need no pad moved`);
+  // …and a lever is a set piece, not wallpaper: at most one per world keeps it
+  // special (and keeps the "which route is live?" readout meaningful).
+  for (const w of worlds) {
+    const n = DATA.LEVELS.filter((l) => l.world === w && l.fork).length;
+    assert.equal(n, 1, `world "${w}" has ${n} lever levels — exactly one is the shipped rhythm`);
+  }
+});
+
 test("TD-11 forks: throwing the lever reroutes without teleporting anyone", () => {
   for (const l of DATA.LEVELS.filter((x) => x.paths && x.paths.length > 1)) {
     const e = TD.createEngine(l, { seed: 7 });
