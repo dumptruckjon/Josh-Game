@@ -44,7 +44,7 @@
       // card on the grid — the levels existed and no one could reach them.
       '<p class="td-note">' + global.TDData.LEVELS.length + ' levels across ' +
         new Set(global.TDData.LEVELS.map(function (l) { return l.world; })).size +
-        ' worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers, soakers, jammers, greased runners, spawners) and ' +
+        ' worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers, soakers, jammers, greased runners, spawners, padding, blaring stereos) and ' +
         global.TDData.LEVELS.filter(function (l) { return l.waves.some(function (w) { return w.boss; }); }).length +
         ' bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale. 🧸 Kid Fort is Josh&#39;s no-lose mode.</p>' +
       // Start-over control. Deliberately small and quiet (data-adult exempts it

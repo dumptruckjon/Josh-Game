@@ -3012,3 +3012,107 @@ test("TD-16 gimmick coverage: every world has one, and no mechanic is stuck in o
   assert.ok(spread((l) => l.pads.some((p) => p.boost)) >= 3, "power pads appear in at least three worlds");
   assert.ok(spread((l) => l.waves.some((w) => w.groups.some((g) => g.at))) >= 3, "side doors appear in at least three worlds");
 });
+
+
+// ===== WORLD 6 (Moving Day): two shapes that close the counter matrix. =====
+
+test("W6 Bubble Wrap: single hits land SOFT, splash and zap cut through", () => {
+  // The Couch Cushion's mirror, and the first enemy that directly answers the
+  // DART — the generalist CLAUDE.md records as clearing 16/16 on normal. It is
+  // keyed on `how` in the ONE dealDamage, beside its mirror, so a future damage
+  // source is covered by naming its own `how` and nothing else.
+  const def = DATA.ENEMIES.bubblewrap;
+  assert.ok(def.bonkResist > 0 && def.bonkResist < 1, "it resists bonk, it is not immune");
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  function landed(how) {
+    const e = TD.createEngine(lvl, { seed: 5 });
+    e.callWave();
+    for (let i = 0; i < 20; i++) e.tick();
+    e.state.enemies.length = 0;
+    const v = mkEnemy("bubblewrap", 2);
+    v.hp = v.maxHp = 100000;
+    e.state.enemies.push(v);
+    e.dealDamage(v, 1000, 0, how);
+    return 100000 - v.hp;
+  }
+  const soft = landed("dart"), melee = landed("melee");
+  const hard = landed("splash"), zap = landed("zap");
+  assert.ok(soft < hard, `a dart lands softer than splash (${soft} vs ${hard})`);
+  assert.ok(melee < hard, `a soldier's swing lands softer than splash (${melee} vs ${hard})`);
+  assert.equal(zap, hard, "zap is not bonk — the Fan cuts straight through, like splash");
+  assert.equal(soft, Math.round(1000 * (1 - def.bonkResist)), "the reduction is exactly its bonkResist");
+  // …and it must be the MIRROR of the Cushion, not a duplicate of it
+  assert.ok(!def.splashResist, "Bubble Wrap must not ALSO resist splash — then nothing would answer it");
+  assert.ok(!DATA.ENEMIES.cushion.bonkResist, "and the Cushion must not resist bonk — the two are opposites by design");
+});
+
+test("W6 Boom Box: it hurries its NEIGHBOURS and never itself", () => {
+  // The threat is the aura, not the body — so the test measures a bystander's
+  // speed, which is the only thing that actually matters.
+  const def = DATA.ENEMIES.boombox;
+  assert.ok(def.hurry && def.hurry.mult > 1 && def.hurry.radius > 0, "it carries a hurry aura");
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  function walk(withBox) {
+    const e = TD.createEngine(lvl, { seed: 5 });
+    e.callWave();
+    for (let i = 0; i < 20; i++) e.tick();
+    e.state.enemies.length = 0;
+    const sock = mkEnemy("sock", 4);
+    sock.hp = sock.maxHp = 1e6;
+    e.state.enemies.push(sock);
+    if (withBox) {
+      const box = mkEnemy("boombox", 4);
+      box.hp = box.maxHp = 1e6;
+      e.state.enemies.push(box);
+    }
+    const from = sock.dist;
+    for (let i = 0; i < 120; i++) e.tick();
+    return sock.dist - from;
+  }
+  const alone = walk(false), withMusic = walk(true);
+  assert.ok(withMusic > alone * 1.1,
+    `a sock beside a Boom Box covers more ground (${withMusic.toFixed(2)} vs ${alone.toFixed(2)})`);
+  assert.ok(withMusic <= alone * def.hurry.mult * 1.05, "…but only by its own multiplier, not compounding");
+  // out of earshot it does nothing
+  const e = TD.createEngine(lvl, { seed: 5 });
+  e.callWave();
+  for (let i = 0; i < 20; i++) e.tick();
+  e.state.enemies.length = 0;
+  const far = mkEnemy("sock", 4); far.hp = far.maxHp = 1e6;
+  const box = mkEnemy("boombox", 4 + def.hurry.radius + 3); box.hp = box.maxHp = 1e6;
+  e.state.enemies.push(far, box);
+  const f0 = far.dist;
+  for (let i = 0; i < 120; i++) e.tick();
+  assert.ok(far.dist - f0 <= alone * 1.02, "out of radius, the music does nothing");
+});
+
+test("W6 The Moving Van: every hp-gated phase fires, and it unloads as it drives", () => {
+  // A solver may never drop a boss into its low bands, so the whole kit can ship
+  // dead-untested — the Static/Tickmaster/Titan precedent. Force each band.
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 3);
+  const e = TD.createEngine(lvl, { seed: 9 });
+  e.state.gold = 99999;
+  assert.ok(e.place("dart", lvl.pads[0].id).ok);
+  assert.ok(e.place("dart", lvl.pads[1].id).ok);
+  e.callWave();
+  for (let i = 0; i < 20; i++) e.tick();
+  e.state.enemies.length = 0;
+  const def = DATA.ENEMIES.movingvan;
+  const boss = mkEnemy("movingvan", 2);
+  e.state.enemies.push(boss);
+  // it unloads from the start — the Bolt Bucket's capped spawner, on a boss
+  const kid = def.spawner.type;
+  let unloaded = false;
+  for (let i = 0; i < 400 && !unloaded; i++) { e.tick(); unloaded = e.state.enemies.some((x) => x.type === kid && x.alive); }
+  assert.ok(unloaded, `the van unloads ${kid} as it drives`);
+  assert.ok(def.spawner.max >= 1, "and its load is CAPPED — an unbounded drip is unbudgetable");
+  boss.hp = Math.round(def.hp * 0.6);                       // band 2: jams a gun
+  let jammed = false;
+  for (let i = 0; i < 700 && !jammed; i++) { e.tick(); jammed = e.state.towers.some((t) => t.disabledUntil > e.state.tick); }
+  assert.ok(jammed, "under 66% the van jams a gun (tower-facing, not a soldier-only kit)");
+  boss.hp = Math.round(def.hp * 0.25);                      // band 3: calls the music
+  const summon = def.phases[2].spawn.type;
+  let called = false;
+  for (let i = 0; i < 800 && !called; i++) { e.tick(); called = e.state.enemies.some((x) => x.type === summon && x.alive); }
+  assert.ok(called, `under 33% it summons ${summon}s`);
+});

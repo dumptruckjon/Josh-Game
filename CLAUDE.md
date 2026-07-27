@@ -909,7 +909,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/20-enemy roster + 5 bosses/20 levels (5 worlds; L3/L7/L10/L19 = fork+lever)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 14 achievements, one endless arena PER WORLD)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/22-enemy roster + 6 bosses/24 levels (6 worlds; L3/L7/L10/L19 = fork+lever)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 15 achievements, one endless arena PER WORLD)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -943,6 +943,7 @@ tooling.
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
+├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
@@ -1153,8 +1154,8 @@ space**: real difficulty, real defeat screens, real timers — RULE 5's kid tap
 laws deliberately do not apply inside (its controls are adult-sized
 `data-adult`; the front-door tile itself is kid-sized). Status: **COMPLETE
 (TD-1 … TD-6 all shipped)** — shell +
-deterministic engine + **all 20 Levels across 5 worlds** (Bedroom L1-4, Backyard
-L5-8, Toy Store L9-12, Attic L13-16, Garage L17-20; distinct path/pad layouts, each
+deterministic engine + **all 24 Levels across 6 worlds** (Bedroom L1-4, Backyard
+L5-8, Toy Store L9-12, Attic L13-16, Garage L17-20, Moving Day L21-24; distinct path/pad layouts, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
 L12 winnable on Heroic; beat level N to unlock N+1, ▶ Next-level on the victory
 screen; the fort home shows world tints, difficulty pips, and a 👑 on each boss
@@ -1778,6 +1779,41 @@ blurb derives its "20 levels across 5 worlds … 5 bosses", the endless lock hin
 counts its world's actual levels, and the "newest world opens and plays" browser
 test is pinned to the LAST world in the data rather than naming one that stops
 being new.
+
+**WORLD 6 (Moving Day, L21-L24) shipped, and it reproduced the step function a
+THIRD time — this time in seven measurements on one level.** L23 was designed to
+finish around 17 and refused on every lever: at a 41-cell lane it finished normal
+14 but lost heroic on 3 of 4 seeds, and gold could not buy it out (1300 → 1450 →
+1600 moved normal not at all and still lost 2 seeds); lengthening the lane to 52
+fixed heroic (9,15,17,9 — no losses) and pinned normal at **20**, where it stayed
+through 58; raising budgetBase 700 → 800 → 880 swung heroic from comfortable to
+losing 3 seeds while normal *never moved off 20*. So the boundary World 5
+measured across ~180 configurations is not a property of that world's maps: in
+this engine **normal difficulty and heroic winnability are separated by a step,
+not a slope**, and a level that lands on the wrong side of it cannot be nudged.
+L23 ships where every gate passes and the ~17 target is recorded as unreachable
+rather than faked. The finale is where the tension lives, and it landed: **The
+Moving Van finishes at a median 14/20 across 8 seeds (range 12-14, no losses)**.
+Two enemies close the counter matrix: **🧻 Bubble Wrap** (`bonkResist`) is the
+Couch Cushion's exact mirror — bonk (dart, soldier melee) lands at 40% while
+splash, zap and abilities cut through — and it is the first enemy that directly
+answers the **Dart**, the generalist CLAUDE.md records as clearing 16/16 on
+normal; a guardrail asserts the two are opposites (neither may carry the other's
+resist, or nothing would answer it). **📻 Boom Box** (`hurry`) is a threat damage
+does not answer: it makes the wave ARRIVE FASTER, via a write pass (the Junk
+Healer's shape) and ONE read in `effSpeed`, already the single place a speed is
+decided — so zones, enrage, boss phases and the music compose instead of each
+growing their own speed computation. The boss's whole kit is paths the engine
+already ran (the Bolt Bucket's capped `spawner`, on a boss for the first time —
+a van that unloads as it drives — plus `disable`/`spawn` phases). Two process
+notes: the guardrail needed the ONE damage path, so `dealDamage` is now exposed
+on the engine exactly as `isHidden` is — proving a resistance is keyed on the
+right `how` beats inferring it from a time-to-kill with confounds; and the apply
+script appended level objects HIGH-TO-LOW, leaving ids `…20,24,23,22,21`, which
+the contiguity assertion caught instantly. **Warning for a seventh world:** the
+star ceiling derives as `LEVELS.length × 3` and is now 72 against a 77⭐ tree —
+at 28 levels it becomes 84 and the "the tree must cost more than you can earn"
+guardrail fails. The tree has to grow with the campaign.
 
 **TD-16 (level gimmicks) took gimmick coverage from 3 of 20 levels to 14, and
 its lessons are about how much a mechanic is WORTH — measured, not assumed.**

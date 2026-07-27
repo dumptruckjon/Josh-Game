@@ -272,7 +272,7 @@
         : paths.length > 1 ? (spawnLane++ % paths.length)
         : 0;
       state.enemies.push({
-        id: nextId++, type, pathIdx: lane, spawnCd: 0,
+        id: nextId++, type, pathIdx: lane, spawnCd: 0, hurriedUntil: 0, hurriedMult: 1,
         dist: dist || 0,
         hp: Math.round(def.hp * diff.hp),
         maxHp: Math.round(def.hp * diff.hp),
@@ -333,6 +333,12 @@
       if (e.speedMult) base *= e.speedMult;
       // Conveyor strip (Slip'n'Slide): faster while inside a speed zone.
       if (zones) for (const z of zones) { if (e.dist >= z.from && e.dist <= z.to) { base *= z.mult; break; } }
+      // W6 Boom Box: an ally is blaring a beat nearby, so this one hustles. The
+      // FLAG is written by hurryTick (one pass, the Junk Healer's shape) and
+      // only READ here — effSpeed is already the single place a speed is
+      // decided, so zones, enrage, boss phases and this all compose instead of
+      // each growing their own speed computation.
+      if (e.hurriedUntil && state.tick < e.hurriedUntil) base *= e.hurriedMult || 1;
       return base * (1 - slow);
     }
 
@@ -374,6 +380,27 @@
           if (!e.alive || e === h || e.hp >= e.maxHp) continue;
           const p = epos(e);
           if ((p.x - hp.x) ** 2 + (p.y - hp.y) ** 2 <= r2) e.hp = Math.min(e.maxHp, e.hp + def.heal.hps * DT);
+        }
+      }
+    }
+
+    // W6 Boom Box: hurry every ally in earshot. A write pass, not a per-enemy
+    // scan inside effSpeed — the same reason healTick exists. A hurrier does not
+    // hurry ITSELF (it is already the thing you should be shooting), and a
+    // hidden one is inaudible, matching every other aura in the game.
+    function hurryTick() {
+      for (const h of state.enemies) {
+        if (!h.alive) continue;
+        const def = enemyDef(h);
+        if (!def.hurry || isHidden(h)) continue;
+        const hp2 = epos(h), r2 = def.hurry.radius * def.hurry.radius;
+        for (const e of state.enemies) {
+          if (!e.alive || e === h) continue;
+          const p = epos(e);
+          if ((p.x - hp2.x) ** 2 + (p.y - hp2.y) ** 2 <= r2) {
+            e.hurriedUntil = state.tick + 2;      // refreshed every tick it is in range
+            e.hurriedMult = def.hurry.mult;
+          }
         }
       }
     }
@@ -517,6 +544,17 @@
       if (sr && (how === "splash" || how === "ability")) {
         hpDmg = Math.round(hpDmg * (1 - sr));
         shieldDmg = Math.round(shieldDmg * (1 - sr));
+      }
+      // W6 Bubble Wrap: the Cushion's MIRROR. A single hit only pops one bubble,
+      // so the BONK family (a dart's pellet, a soldier's swing) lands soft while
+      // splash, zap and abilities tear straight through. It is the first enemy
+      // that directly answers the Dart — the generalist that clears 16/16 on
+      // normal — and it sits here, beside its mirror, in the one damage path, so
+      // every future source is keyed by its own `how` with no new call site.
+      const br = enemyDef(e).bonkResist;
+      if (br && (how === "dart" || how === "melee")) {
+        hpDmg = Math.round(hpDmg * (1 - br));
+        shieldDmg = Math.round(shieldDmg * (1 - br));
       }
       const hpBefore = e.hp, shieldBefore = e.shield || 0;
       if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
@@ -1060,6 +1098,7 @@
       }
       state.projectiles = state.projectiles.filter((p) => !p.dead);
       shellTick();
+      hurryTick();
       spawnerTick();
       // flush split-children (Mud Blob) now that the combat pass is done
       while (pendingSpawns.length) { const s = pendingSpawns.shift(); spawnEnemy(s.type, s.dist, s.pathIdx); }
@@ -1334,6 +1373,10 @@
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       paths, path, posAt: (dist) => posAt(path, dist), posOn: (pathIdx, dist) => posAt(paths[pathIdx || 0], dist),
       isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
+      // Guardrail seam, the isHidden precedent: the ONE damage path, so a test
+      // can prove a resistance is keyed on the right `how` without reaching
+      // into internals or inferring it from a time-to-kill with confounds.
+      dealDamage: (e, hpDmg, shieldDmg, how) => dealDamage(e, hpDmg, shieldDmg, how),
       rangeMul, // effective night range multiplier (Night Owl included) — the renderer's preview must match the engine
       levelDef,
     };
@@ -1353,6 +1396,8 @@
     if (def.shield > 0) out.push({ key: "shield", icon: "🔋", text: "Shielded — the shield soaks zap first, and regrows" });
     if (def.splashResist) out.push({ key: "splash", icon: "🛋️", text: "Soaks blasts — splash lands at " + Math.round((1 - def.splashResist) * 100) + "%; use single-target" });
     if (def.slowHeal) out.push({ key: "slowheal", icon: "💧", text: "Regrows while SLOWED — slows alone will never kill it" });
+    if (def.bonkResist) out.push({ key: "bonkresist", icon: "🧻", text: "Padded — single hits (dart, soldier) land at " + Math.round((1 - def.bonkResist) * 100) + "%; answer it with splash or zap" });
+    if (def.hurry) out.push({ key: "hurry", icon: "📻", text: "Blares a beat — everything near it moves " + Math.round((def.hurry.mult - 1) * 100) + "% faster. Shoot the music, not the dancers" });
     if (def.slowImmune) out.push({ key: "slowimmune", icon: "🛹", text: "Greased — slows do NOTHING to it; you need damage or a body in the way" });
     if (def.spawner) out.push({ key: "spawner", icon: "🪣", text: "Drips out " + def.spawner.count + " × " + (DATA.ENEMIES[def.spawner.type] || { name: def.spawner.type }).name + " every " + def.spawner.every + "s while alive" + (def.spawner.max ? " (up to " + def.spawner.max + ")" : "") + " — kill it early and far from the door" });
     if (def.sap) out.push({ key: "sap", icon: "🔩", text: "Jams the nearest gun — camps are immune" });

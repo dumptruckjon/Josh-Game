@@ -599,6 +599,95 @@
         ctx.lineTo(sx - R * 0.2, sy - R * 1.0); ctx.lineTo(sx, sy - R * 1.22);
         ctx.lineTo(sx + R * 0.2, sy - R * 1.0); ctx.lineTo(sx + R * 0.4, sy - R * 1.16);
         ctx.lineTo(sx + R * 0.4, sy - R * 0.9); ctx.closePath(); ctx.fill();
+      } else if (e.type === "bubblewrap") {
+        // Bubble Wrap: a fat roll of wrap, its bubbles visibly intact. Single
+        // hits pop one at a time, so the picture has to look like MANY small
+        // cushions rather than one body — that IS the mechanic.
+        shadow(sx, sy + r * 0.55, r * 0.72, r * 0.2);
+        const gw = ctx.createLinearGradient(sx - r * 0.6, 0, sx + r * 0.6, 0);
+        gw.addColorStop(0, "#9fd8e8"); gw.addColorStop(0.45, "#e6f7ff"); gw.addColorStop(1, "#84bccd");
+        ctx.fillStyle = gw;
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(sx - r * 0.62, sy - r * 0.5, r * 1.24, r * 1.0, r * 0.26)
+                                       : ctx.rect(sx - r * 0.62, sy - r * 0.5, r * 1.24, r * 1.0);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(90,150,170,0.8)"; ctx.lineWidth = Math.max(1.5, cell * 0.045); ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.75)";                 // the bubbles
+        for (let ry = -1; ry <= 1; ry++) for (let rx = -1; rx <= 1; rx++) {
+          ctx.beginPath(); ctx.arc(sx + rx * r * 0.34, sy + ry * r * 0.3, r * 0.11, 0, 7); ctx.fill();
+        }
+        ctx.fillStyle = "#2a3140";
+        ctx.beginPath(); ctx.arc(sx - r * 0.2, sy + r * 0.62, r * 0.07, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + r * 0.2, sy + r * 0.62, r * 0.07, 0, 7); ctx.fill();
+      } else if (e.type === "boombox") {
+        // Boom Box: a chunky stereo with two speakers and sound rings pulsing
+        // out of it — the rings are the tell, because the threat is the AURA,
+        // not the body. They pulse off state.tick, so they freeze when paused.
+        shadow(sx, sy + r * 0.5, r * 0.7, r * 0.18);
+        const ph = (engine.state.tick * 0.06) % 1;
+        ctx.strokeStyle = "rgba(255,180,90," + (0.45 * (1 - ph)).toFixed(3) + ")";
+        ctx.lineWidth = Math.max(1.5, cell * 0.05);
+        ctx.beginPath(); ctx.arc(sx, sy, r * (0.7 + ph * 0.7), 0, 7); ctx.stroke();
+        ctx.fillStyle = "#3b4453";
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(sx - r * 0.66, sy - r * 0.36, r * 1.32, r * 0.78, r * 0.12)
+                                       : ctx.rect(sx - r * 0.66, sy - r * 0.36, r * 1.32, r * 0.78);
+        ctx.fill();
+        ctx.strokeStyle = "#20262f"; ctx.lineWidth = Math.max(1.5, cell * 0.04); ctx.stroke();
+        ctx.strokeStyle = "#8d99ad"; ctx.lineWidth = Math.max(2, cell * 0.05);   // handle
+        ctx.beginPath(); ctx.arc(sx, sy - r * 0.36, r * 0.36, Math.PI, 0); ctx.stroke();
+        for (const dx of [-0.34, 0.34]) {                                        // speakers
+          ctx.fillStyle = "#1b2029";
+          ctx.beginPath(); ctx.arc(sx + r * dx, sy + r * 0.04, r * 0.22, 0, 7); ctx.fill();
+          ctx.fillStyle = "#5a677d";
+          ctx.beginPath(); ctx.arc(sx + r * dx, sy + r * 0.04, r * 0.09, 0, 7); ctx.fill();
+        }
+        ctx.fillStyle = "#ffd35c";                                               // the dial
+        ctx.fillRect(sx - r * 0.1, sy - r * 0.24, r * 0.2, r * 0.08);
+      } else if (e.type === "movingvan") {
+        // The Moving Van (World-6 boss): a box truck with its roller door up,
+        // stacked with boxes it keeps unloading. The door RISES as its hp-gated
+        // phases escalate, so the phase reads on the boss itself — the
+        // Tickmaster's spinning hands and the Titan's gaping lid, again.
+        const R = r * bossScale(e, 1.8), frac = e.hp / (e.maxHp || 1);
+        const open = frac <= 0.33 ? 0.66 : frac <= 0.66 ? 0.4 : 0.16;
+        shadow(sx, sy + R * 0.66, R * 0.9, R * 0.2);
+        ctx.fillStyle = "#2a3140";                                               // wheels
+        for (const dx of [-0.52, 0.42]) { ctx.beginPath(); ctx.arc(sx + R * dx, sy + R * 0.58, R * 0.17, 0, 7); ctx.fill(); }
+        const gv = ctx.createLinearGradient(sx, sy - R * 0.5, sx, sy + R * 0.5);
+        gv.addColorStop(0, "#eef2f8"); gv.addColorStop(1, "#b9c3d2");
+        ctx.fillStyle = gv;                                                      // the box body
+        ctx.beginPath();
+        ctx.moveTo(sx - R * 0.78, sy - R * 0.46); ctx.lineTo(sx + R * 0.34, sy - R * 0.46);
+        ctx.lineTo(sx + R * 0.34, sy + R * 0.5); ctx.lineTo(sx - R * 0.78, sy + R * 0.5);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#6b7688"; ctx.lineWidth = Math.max(2, cell * 0.06); ctx.stroke();
+        ctx.fillStyle = "#8d99ad";                                               // cab
+        ctx.beginPath();
+        ctx.moveTo(sx + R * 0.34, sy - R * 0.1); ctx.lineTo(sx + R * 0.62, sy - R * 0.1);
+        ctx.lineTo(sx + R * 0.78, sy + R * 0.18); ctx.lineTo(sx + R * 0.78, sy + R * 0.5);
+        ctx.lineTo(sx + R * 0.34, sy + R * 0.5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#cfe3f5";
+        ctx.fillRect(sx + R * 0.42, sy + R * 0.02, R * 0.26, R * 0.2);           // windscreen
+        ctx.fillStyle = "#4a5462";                                               // the dark hold
+        ctx.fillRect(sx - R * 0.7, sy - R * 0.38, R * 0.96, R * 0.8);
+        ctx.fillStyle = "#c08a48";                                               // boxes inside
+        for (const [bx, by] of [[-0.5, 0.18], [-0.16, 0.18], [-0.34, -0.12]]) {
+          ctx.fillRect(sx + R * bx, sy + R * by, R * 0.28, R * 0.24);
+          ctx.strokeStyle = "#8a5f2c"; ctx.lineWidth = Math.max(1, cell * 0.03);
+          ctx.strokeRect(sx + R * bx, sy + R * by, R * 0.28, R * 0.24);
+        }
+        ctx.fillStyle = "#dfe6f0";                                               // the roller door, riding up
+        ctx.fillRect(sx - R * 0.72, sy - R * 0.42, R * 1.0, R * 0.84 * (1 - open));
+        ctx.strokeStyle = "#98a3b4"; ctx.lineWidth = Math.max(1, cell * 0.025);
+        for (let k = 1; k < 5; k++) {
+          const yy = sy - R * 0.42 + (R * 0.84 * (1 - open)) * (k / 5);
+          ctx.beginPath(); ctx.moveTo(sx - R * 0.72, yy); ctx.lineTo(sx + R * 0.28, yy); ctx.stroke();
+        }
+        ctx.fillStyle = "#ffd94a";                                               // crown — it is a boss
+        ctx.beginPath();
+        ctx.moveTo(sx - R * 0.34, sy - R * 0.86); ctx.lineTo(sx - R * 0.34, sy - R * 1.1);
+        ctx.lineTo(sx - R * 0.17, sy - R * 0.96); ctx.lineTo(sx, sy - R * 1.16);
+        ctx.lineTo(sx + R * 0.17, sy - R * 0.96); ctx.lineTo(sx + R * 0.34, sy - R * 1.1);
+        ctx.lineTo(sx + R * 0.34, sy - R * 0.86); ctx.closePath(); ctx.fill();
       } else if (e.type === "racer") {
         // Grease Racer: a skateboard with a grease-slick trail. Low, wide and
         // leaning forward — it should READ as fast, because "slows do nothing"

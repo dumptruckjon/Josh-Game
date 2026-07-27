@@ -133,7 +133,7 @@ const emit = (waves) => waves.map((w) =>
     `{ type: "${g.type}", count: ${g.count}, gap: ${g.gap}, delay: ${g.delay}${g.at ? ", at: " + g.at : ""} }`).join(", ")} ] },`).join("\n");
 
 // ---- --check: validate what is actually SHIPPED ----
-if (process.argv.includes("--check")) {
+if (require.main === module && process.argv.includes("--check")) {
   // The composition rule arrived with World 5 (it is what the World-4 revert
   // taught), so it is applied to the world that was authored under it. The
   // older worlds are held to the budget contract they were built against —
@@ -162,7 +162,9 @@ const EXAMPLE = {
                 10: "bucket", 11: "racer", 12: "slime", 13: "tinplane", 14: "bucket" })[n],
     flier: n >= 7 ? "hawk" : null, valve: n === 10 || n === 14 ? "pinata" : null }) },
 };
-for (const id of Object.keys(EXAMPLE)) {
+// Only when RUN, never when required — a module that prints on import makes
+// its own output impossible to distinguish from its caller's.
+if (require.main === module) for (const id of Object.keys(EXAMPLE)) {
   const spec = EXAMPLE[id];
   const waves = makeWaves(spec.base, spec.count, spec.schedule);
   if (validate(`L${id} (regenerated)`, spec.base, waves) && process.argv.includes("--emit")) {

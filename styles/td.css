@@ -553,6 +553,8 @@ body.td-mode #screens { padding: 0; }
 .td-level[data-world="attic"] { border-color: #7a5a34; background: #33260f; }
 /* World 5 tint: the garage — cold oiled steel, the coldest of the five. */
 .td-level[data-world="garage"] { border-color: #4a6572; background: #14242b; }
+/* World 6 tint: moving day — cardboard brown, the warmest and the last. */
+.td-level[data-world="moving"] { border-color: #7d6242; background: #2b2013; }
 
 /* ---- 🧸 Kid Fort: RULE 5 applies INSIDE this mode ----
    Josh's laws (≥75px targets, generous spacing) are deliberately off in the

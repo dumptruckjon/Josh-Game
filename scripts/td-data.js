@@ -216,6 +216,30 @@
     titan: { name: "Toolbox Titan", icon: "🧰", hp: 4600, speed: 0.34, armor: 0.3, shield: 80, shieldRegen: 8,
       bounty: 320, lives: 6, size: 3.1, flier: false, boss: true, meleeDmg: 0, meleeRate: 1,
       phases: [{ upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } }, { upTo: 0.33, disable: { every: 4, seconds: 3 }, spawn: { type: "screw", count: 2, every: 6 } }] },
+    // ---- World 6 (Moving Day): the last two shapes the roster was missing ----
+    // 🧻 Bubble Wrap — the Couch Cushion's MIRROR, and the first enemy that
+    // directly answers the DART. Single hits pop one bubble at a time (dart and
+    // soldier melee land at 40%); splash, zap and abilities cut straight
+    // through. The Cushion says "stop leaning on AoE"; this says "stop leaning
+    // on single-target", so together they close the counter matrix.
+    bubblewrap: { name: "Bubble Wrap", icon: "🧻", hp: 130, speed: 0.6, armor: 0, shield: 0, shieldRegen: 0, bounty: 15, lives: 1, flier: false, bonkResist: 0.6, meleeDmg: 5, meleeRate: 1 },
+    // 📻 Boom Box — it does not fight. It makes the wave arrive FASTER than
+    // your board expects, which is a threat no amount of damage answers; the
+    // answer is to shoot the support first (the Junk Healer's lesson, applied
+    // to time instead of hp). Fragile on purpose.
+    boombox: { name: "Boom Box", icon: "📻", hp: 90, speed: 0.7, armor: 0, shield: 0, shieldRegen: 0, bounty: 16, lives: 1, flier: false, hurry: { mult: 1.35, radius: 2.2 }, meleeDmg: 3, meleeRate: 1 },
+    // 🚚 The Moving Van (L24) — World 6's finale, and the end of the arc: the
+    // toys' last stand against the van at the curb. Its kit is entirely paths
+    // the engine already runs (the TD-4 boss lesson): it UNLOADS as it drives
+    // via the Bolt Bucket's capped `spawner` — used on a boss for the first
+    // time and thematically exact — then jams a gun at 66% and calls in the
+    // music at 33%. hp/toll sit in the band World 5 proved is graded rather
+    // than quantized (above ~5800 every seed lands on exactly one boss leak).
+    movingvan: { name: "The Moving Van", icon: "🚚", hp: 5200, speed: 0.3, armor: 0.3, shield: 100, shieldRegen: 10,
+      bounty: 340, lives: 6, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1,
+      spawner: { type: "bubblewrap", every: 4, count: 2, max: 12 },
+      phases: [{ upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } },
+               { upTo: 0.33, speedMult: 1.3, disable: { every: 4, seconds: 3 }, spawn: { type: "boombox", count: 2, every: 7 } }] },
     vacuumking: { name: "Vacuum King", icon: "🌪️", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
     thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
@@ -234,6 +258,7 @@
     toystore: { label: "🧸 Toy Store", spawnGlyph: "🧸" },
     attic:    { label: "🧳 Attic",    spawnGlyph: "🧳" },
     garage:   { label: "🔧 Garage",   spawnGlyph: "🔧" },
+    moving:   { label: "📦 Moving Day", spawnGlyph: "📦" },
   };
 
   const LEVELS = [
@@ -878,6 +903,124 @@
         { boss: true, groups: [ { type: "titan", count: 1, gap: 2, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 5 }, { type: "racer", count: 12, gap: 0.5, delay: 9 }, { type: "hawk", count: 16, gap: 0.35, delay: 14 } ] },
       ],
     },
+    {
+      id: 21,
+      name: "Boxes by the Door",
+      world: "moving",
+      badge: 3,
+      startGold: 1200,
+      budgetBase: 720,
+      // The world opens gently: a long lane with rows 6 apart, so exposure comes
+      // from the walk rather than from one tower covering two runs.
+      path: [[0, 1], [18, 1], [18, 7], [4, 7], [4, 13], [23, 13]],
+      pads: [ { id: "p1", cx: 3, cy: 6 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 19, cy: 0 }, { id: "p4", cx: 12, cy: 11 }, { id: "p5", cx: 11, cy: 3 }, { id: "p6", cx: 2, cy: 13 }, { id: "p7", cx: 19, cy: 8 }, { id: "p8", cx: 6, cy: 10 }, { id: "p9", cx: 16, cy: 4 }, { id: "p10", cx: 0, cy: 3 }, { id: "p11", cx: 6, cy: 3 }, { id: "p12", cx: 16, cy: 11 } ],
+      waves: [
+        { groups: [ { type: "sock", count: 14, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 10, gap: 0.65, delay: 0 }, { type: "marble", count: 25, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "sock", count: 22, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "marble", count: 32, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 2, gap: 0.9, delay: 4 }, { type: "sock", count: 27, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 3, gap: 0.9, delay: 4 }, { type: "blob", count: 17, gap: 0.65, delay: 0 }, { type: "marble", count: 42, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 8, gap: 0.3, delay: 2 }, { type: "sock", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 11, gap: 0.3, delay: 2 }, { type: "blob", count: 19, gap: 0.65, delay: 0 }, { type: "marble", count: 48, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 6, gap: 0.9, delay: 4 }, { type: "hawk", count: 14, gap: 0.3, delay: 2 }, { type: "sock", count: 39, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 18, gap: 0.3, delay: 2 }, { type: "blob", count: 25, gap: 0.65, delay: 0 }, { type: "marble", count: 63, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 22, gap: 0.3, delay: 2 }, { type: "sock", count: 50, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 10, gap: 0.9, delay: 4 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "blob", count: 33, gap: 0.65, delay: 0 }, { type: "marble", count: 83, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 16, gap: 0.9, delay: 4 }, { type: "hawk", count: 35, gap: 0.3, delay: 2 }, { type: "sock", count: 67, gap: 0.65, delay: 0 }, { type: "knight", count: 16, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bubblewrap", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 44, gap: 0.3, delay: 2 }, { type: "blob", count: 39, gap: 0.65, delay: 0 }, { type: "marble", count: 97, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 22,
+      name: "Turn It Down",
+      world: "moving",
+      badge: 3,
+      startGold: 1250,
+      budgetBase: 740,
+      // Teaches the 📻 Boom Box: it never fights, it just makes the wave arrive
+      // faster than your board expects. A clean lane so the mechanic reads,
+      // and a ⚡ power pad so "which gun answers the music" is a real question.
+      path: [[0, 13], [16, 13], [16, 7], [3, 7], [3, 1], [21, 1], [21, 4], [23, 4]],
+      pads: [ { id: "p1", cx: 2, cy: 0 }, { id: "p2", cx: 23, cy: 6 }, { id: "p3", cx: 10, cy: 11 }, { id: "p4", cx: 0, cy: 11 }, { id: "p5", cx: 14, cy: 3 }, { id: "p6", cx: 18, cy: 13 }, { id: "p7", cx: 22, cy: 0, boost: { range: 1.18, rate: 1.15 } }, { id: "p8", cx: 7, cy: 5 }, { id: "p9", cx: 17, cy: 6 }, { id: "p10", cx: 2, cy: 8 }, { id: "p11", cx: 20, cy: 5 }, { id: "p12", cx: 5, cy: 11 }, { id: "p13", cx: 14, cy: 9 } ],
+      waves: [
+        { groups: [ { type: "sock", count: 15, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 10, gap: 0.65, delay: 0 }, { type: "marble", count: 26, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "sock", count: 23, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "marble", count: 31, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 4, gap: 0.9, delay: 4 }, { type: "sock", count: 25, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 3, gap: 0.9, delay: 4 }, { type: "blob", count: 17, gap: 0.65, delay: 0 }, { type: "marble", count: 43, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 9, gap: 0.3, delay: 2 }, { type: "sock", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 11, gap: 0.3, delay: 2 }, { type: "blob", count: 20, gap: 0.65, delay: 0 }, { type: "marble", count: 52, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 6, gap: 0.9, delay: 4 }, { type: "hawk", count: 14, gap: 0.3, delay: 2 }, { type: "sock", count: 42, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 11, gap: 0.9, delay: 4 }, { type: "hawk", count: 18, gap: 0.3, delay: 2 }, { type: "blob", count: 26, gap: 0.65, delay: 0 }, { type: "marble", count: 65, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 23, gap: 0.3, delay: 2 }, { type: "sock", count: 53, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 29, gap: 0.3, delay: 2 }, { type: "blob", count: 33, gap: 0.65, delay: 0 }, { type: "marble", count: 84, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 26, gap: 0.9, delay: 4 }, { type: "hawk", count: 36, gap: 0.3, delay: 2 }, { type: "sock", count: 68, gap: 0.65, delay: 0 }, { type: "knight", count: 17, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "boombox", count: 20, gap: 0.9, delay: 4 }, { type: "hawk", count: 45, gap: 0.3, delay: 2 }, { type: "blob", count: 40, gap: 0.65, delay: 0 }, { type: "marble", count: 99, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 23,
+      name: "Wrapped Tight",
+      world: "moving",
+      badge: 3,
+      startGold: 1300,
+      budgetBase: 700,
+      // Teaches the 🧻 Bubble Wrap. The first cut ran a 41-cell lane — by far
+      // the shortest in the game — and heroic lost on 3 of 4 seeds and refused
+      // to be bought out of it (1300 -> 1600 gold moved nothing, the documented
+      // threshold behaviour). Lengthened to 58: short paths are HARDER because
+      // exposure is the resource, and padding a dart is bad at needs time to
+      // chew through.
+      path: [[0, 4], [12, 4], [12, 10], [3, 10], [3, 1], [19, 1]],
+      pads: [ { id: "p1", cx: 2, cy: 0 }, { id: "p2", cx: 20, cy: 2 }, { id: "p3", cx: 10, cy: 12 }, { id: "p4", cx: 2, cy: 11 }, { id: "p5", cx: 13, cy: 3 }, { id: "p6", cx: 7, cy: 6 }, { id: "p7", cx: 0, cy: 6 }, { id: "p8", cx: 14, cy: 8 }, { id: "p9", cx: 13, cy: 11 }, { id: "p10", cx: 6, cy: 12 }, { id: "p11", cx: 20, cy: 0 }, { id: "p12", cx: 10, cy: 8 } ],
+      waves: [
+        { groups: [ { type: "sock", count: 14, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 10, gap: 0.65, delay: 0 }, { type: "marble", count: 24, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "sock", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 12, gap: 0.65, delay: 0 }, { type: "marble", count: 31, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 2, gap: 0.9, delay: 4 }, { type: "sock", count: 26, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 2, gap: 0.9, delay: 4 }, { type: "hawk", count: 6, gap: 0.3, delay: 2 }, { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "marble", count: 36, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 1, gap: 0.9, delay: 4 }, { type: "hawk", count: 8, gap: 0.3, delay: 2 }, { type: "sock", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 10, gap: 0.3, delay: 2 }, { type: "blob", count: 19, gap: 0.65, delay: 0 }, { type: "marble", count: 49, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 13, gap: 0.3, delay: 2 }, { type: "sock", count: 39, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 17, gap: 0.3, delay: 2 }, { type: "blob", count: 25, gap: 0.65, delay: 0 }, { type: "marble", count: 63, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 9, gap: 0.9, delay: 4 }, { type: "hawk", count: 21, gap: 0.3, delay: 2 }, { type: "sock", count: 50, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 8, gap: 0.9, delay: 4 }, { type: "hawk", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 33, gap: 0.65, delay: 0 }, { type: "marble", count: 82, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "slime", count: 12, gap: 0.9, delay: 4 }, { type: "hawk", count: 33, gap: 0.3, delay: 2 }, { type: "sock", count: 58, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 12, gap: 0.9, delay: 4 }, { type: "hawk", count: 41, gap: 0.3, delay: 2 }, { type: "blob", count: 43, gap: 0.65, delay: 0 }, { type: "marble", count: 108, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 37, gap: 0.9, delay: 4 }, { type: "hawk", count: 50, gap: 0.3, delay: 2 }, { type: "sock", count: 84, gap: 0.65, delay: 0 }, { type: "knight", count: 22, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 24,
+      name: "The Moving Van",
+      world: "moving",
+      badge: 3,
+      startGold: 1350,
+      budgetBase: 760,
+      // Everything at once, then the van.
+      path: [[0, 2], [14, 2], [14, 8], [3, 8], [3, 13], [20, 13], [20, 9], [23, 9]],
+      pads: [ { id: "p1", cx: 2, cy: 7 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 15, cy: 1 }, { id: "p4", cx: 12, cy: 11 }, { id: "p5", cx: 6, cy: 0 }, { id: "p6", cx: 19, cy: 8 }, { id: "p7", cx: 1, cy: 13 }, { id: "p8", cx: 8, cy: 6 }, { id: "p9", cx: 0, cy: 0 }, { id: "p10", cx: 6, cy: 11 }, { id: "p11", cx: 15, cy: 9 }, { id: "p12", cx: 12, cy: 4 }, { id: "p13", cx: 11, cy: 0 }, { id: "p14", cx: 16, cy: 5 } ],
+      waves: [
+        { groups: [ { type: "sock", count: 16, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 11, gap: 0.65, delay: 0 }, { type: "marble", count: 26, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "sock", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "marble", count: 34, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 2, gap: 0.9, delay: 4 }, { type: "sock", count: 27, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 7, gap: 0.3, delay: 2 }, { type: "blob", count: 16, gap: 0.65, delay: 0 }, { type: "marble", count: 39, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 1, gap: 0.9, delay: 4 }, { type: "hawk", count: 9, gap: 0.3, delay: 2 }, { type: "sock", count: 34, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 11, gap: 0.3, delay: 2 }, { type: "blob", count: 21, gap: 0.65, delay: 0 }, { type: "marble", count: 52, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 6, gap: 0.9, delay: 4 }, { type: "hawk", count: 14, gap: 0.3, delay: 2 }, { type: "sock", count: 42, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 10, gap: 0.9, delay: 4 }, { type: "hawk", count: 18, gap: 0.3, delay: 2 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "marble", count: 68, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 23, gap: 0.3, delay: 2 }, { type: "sock", count: 54, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 10, gap: 0.9, delay: 4 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "blob", count: 36, gap: 0.65, delay: 0 }, { type: "marble", count: 90, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "boombox", count: 16, gap: 0.9, delay: 4 }, { type: "hawk", count: 35, gap: 0.3, delay: 2 }, { type: "sock", count: 65, gap: 0.65, delay: 0 }, { type: "knight", count: 16, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 32, gap: 0.9, delay: 4 }, { type: "hawk", count: 44, gap: 0.3, delay: 2 }, { type: "blob", count: 46, gap: 0.65, delay: 0 }, { type: "marble", count: 116, gap: 0.8, delay: 3 } ] },
+        { boss: true, groups: [ { type: "movingvan", count: 1, gap: 2, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 5 }, { type: "bubblewrap", count: 10, gap: 0.6, delay: 9 }, { type: "hawk", count: 16, gap: 0.35, delay: 14 } ] },
+      ],
+    },
   ];
 
   // ---- TD-5 META (§8.1): star tree. Spend earned ⭐ on permanent buffs; free
@@ -942,6 +1085,7 @@
     // class, for the fourth time).
     { id: "windeddown",    icon: "⏰", name: "Wound Down",    desc: "Beat the Tickmaster" },
     { id: "toolsdown",     icon: "🧰", name: "Tools Down",     desc: "Beat the Toolbox Titan" },
+    { id: "notleaving",    icon: "🚚", name: "Not Leaving",    desc: "Beat The Moving Van" },
     // desc is DERIVED at read time (see td-ui) — a literal here went stale the
     // moment World 4 raised the ceiling from 36 to 48.
     { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn half the stars" },
@@ -969,6 +1113,9 @@
       attic: { label: "🧳 Attic", pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "pinata" },
       // World 5: a vanilla backbone plus BOTH garage shapes, so an endless run
       // has to answer the slow-immune runner and the spawner it just learned.
+      // World 6: the two Moving Day shapes plus a vanilla backbone, so an
+      // endless run has to answer both the padding and the music.
+      moving: { label: "📦 Moving Day", pool: ["sock", "knight", "blob", "bubblewrap", "boombox", "hawk", "racer", "cushion"], miniBoss: "pinata" },
       garage: { label: "🔧 Garage", pool: ["sock", "knight", "blob", "racer", "bucket", "hawk", "cushion", "tinplane"], miniBoss: "pinata" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
@@ -991,6 +1138,8 @@
       // The first cut spread them 3 cells out and the run died at wave 2: an
       // arena starts you poor, so a tier-1 dart's short reach has to touch the
       // lane immediately or nothing you can afford does anything.
+      moving: { path: [ [0, 10], [21, 10], [21, 5], [3, 5], [3, 1], [23, 1] ], startGold: 500,
+        pads: [ { id: "p1", cx: 0, cy: 12 }, { id: "p2", cx: 4, cy: 12 }, { id: "p3", cx: 8, cy: 12 }, { id: "p4", cx: 12, cy: 12 }, { id: "p5", cx: 16, cy: 12 }, { id: "p6", cx: 20, cy: 12 }, { id: "p7", cx: 23, cy: 8 }, { id: "p8", cx: 19, cy: 7 }, { id: "p9", cx: 15, cy: 7 }, { id: "p10", cx: 11, cy: 7 }, { id: "p11", cx: 7, cy: 7 }, { id: "p12", cx: 1, cy: 7 }, { id: "p13", cx: 6, cy: 3 }, { id: "p14", cx: 14, cy: 3 } ] },
       garage: { path: [ [0, 3], [21, 3], [21, 8], [3, 8], [3, 13], [23, 13] ], startGold: 480,
         pads: [ { id: "p1", cx: 0, cy: 1 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 9, cy: 11 }, { id: "p4", cx: 16, cy: 1 }, { id: "p5", cx: 1, cy: 9 }, { id: "p6", cx: 8, cy: 1 }, { id: "p7", cx: 16, cy: 9 }, { id: "p8", cx: 22, cy: 4 }, { id: "p9", cx: 6, cy: 6 }, { id: "p10", cx: 11, cy: 6 }, { id: "p11", cx: 4, cy: 1 }, { id: "p12", cx: 5, cy: 11 }, { id: "p13", cx: 12, cy: 1 }, { id: "p14", cx: 1, cy: 13 } ] },
     },
