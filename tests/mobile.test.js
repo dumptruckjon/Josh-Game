@@ -221,6 +221,50 @@ test("a game is playable by touch (Odd-One-Out to a win)", async () => {
   assert.ok(won, "should be winnable by touch");
 });
 
+test("iOS touch hygiene: no accidental double-tap zoom, no long-press text selection", async () => {
+  // Reported from real play: "sometimes when double tapping the screen will zoom
+  // in and it's often hard to zoom back out", and "touch and hold will highlight
+  // element as if it were text". Both came from the same gap — touch-action and
+  // user-select were set on TAPPABLE elements only, so every gap between tiles,
+  // every label and all the screen padding kept the iOS defaults, and that is
+  // exactly where a stray double-tap lands.
+  await page.goto(baseURL, { waitUntil: "load" });
+  await page.waitForTimeout(200);
+  const root = await page.evaluate(() => {
+    const cs = (s) => { const e = document.querySelector(s); return e ? getComputedStyle(e) : null; };
+    const b = cs("body"), h = cs("html");
+    return { bodyTouch: b.touchAction, htmlTouch: h.touchAction, bodySel: b.webkitUserSelect || b.userSelect };
+  });
+  assert.equal(root.bodyTouch, "manipulation", "body must disable double-tap zoom page-wide");
+  assert.equal(root.htmlTouch, "manipulation", "…and html, so the ancestor intersection cannot leave a gap");
+  assert.equal(root.bodySel, "none", "a long-press on the page must not start a text selection");
+
+  // The exemptions are the RISKY half of this fix: kill selection everywhere and
+  // you silently break the only two flows that need a caret and the iOS paste
+  // menu — the fort's 💾 Backup box (copy a save out, paste one back) and the
+  // type-the-word "reset" gates. Losing paste there is worse than the bug fixed.
+  const gate = await page.evaluate(() => {
+    const el = document.createElement("input"); document.body.appendChild(el);
+    const t = document.createElement("textarea"); document.body.appendChild(t);
+    const r = { input: getComputedStyle(el).webkitUserSelect || getComputedStyle(el).userSelect,
+                textarea: getComputedStyle(t).webkitUserSelect || getComputedStyle(t).userSelect };
+    el.remove(); t.remove(); return r;
+  });
+  assert.equal(gate.input, "text", "text inputs keep selection — the reset gates must stay typeable");
+  assert.equal(gate.textarea, "text", "textareas keep selection — the fort's Backup box must stay copy/pasteable");
+
+  // …and the fort's canvas must KEEP the stricter value: it owns its own
+  // gestures, and `none ∩ manipulation` is still `none`. A blanket `*` rule
+  // would have loosened it, which is why this fix is scoped, not universal.
+  await page.goto(baseURL + "#td-play", { waitUntil: "load" });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { window.__TD.resetSave(); window.__TD.newGame(1, { seed: 7 }); });
+  await page.waitForTimeout(200);
+  const canvas = await page.evaluate(() => getComputedStyle(document.querySelector(".td-canvas")).touchAction);
+  assert.equal(canvas, "none", "the battlefield canvas still owns its gestures");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("no uncaught page errors on mobile", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

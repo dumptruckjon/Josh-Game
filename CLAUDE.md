@@ -2061,6 +2061,37 @@ lever, which fails on all three mutations (no numeral / frozen numeral / no
 auto-revert). When a visual assertion is confounded, stop widening the tolerance
 and go read what was actually drawn.
 
+**A touch law applied to TAPPABLES only is a law with holes in it.** Reported from
+real play: *"sometimes when double tapping the screen will zoom in and it's often
+hard to zoom back out"*, and *"touch and hold will highlight element as if it were
+text"*. Both were real, and both came from the same gap — `touch-action:
+manipulation` and `user-select: none` were on `.tap/.tile/.choice/.btn-*` only, so
+every gap between tiles, every prompt line, every HUD label and all the screen
+padding still carried the iOS defaults. A stray double-tap that misses a button by
+a few pixels lands on that background and zooms; a long-press on any label selects
+it and raises the callout bubble. The fix is page-wide (`html, body` plus the
+screen containers) because **`touch-action` resolves by INTERSECTING down the
+ancestor chain** — so one declaration kills double-tap zoom everywhere, while
+still permitting panning AND pinch-zoom, which means deliberate zoom (the
+accessibility case) is untouched. Three things worth keeping: (1) **it cannot
+loosen anything** — the fort canvas declares the stricter `touch-action: none` and
+`none ∩ manipulation` is still `none`, so it keeps owning its gestures; a blanket
+`*` rule would have been the wrong shape, and the guardrail asserts the canvas
+value precisely so that stays true. (2) **The EXEMPTIONS are the risky half** —
+killing selection everywhere silently breaks the only two flows that need a caret
+and the iOS paste menu (the fort's 💾 Backup box, which copies a save out and
+takes one back and even calls `.select()` on focus, and the two type-the-word
+`reset` gates), so `input, textarea, [contenteditable]` opt back in to
+`user-select: text` + `-webkit-touch-callout: default`, and that is guardrailed
+too — losing paste there would be a worse bug than the one being fixed. (3) **The
+obvious fix is the wrong one**: `user-scalable=no` / `maximum-scale=1` in the
+viewport would also stop the zoom, but iOS has ignored it since iOS 10 (so it
+would not even work) and it removes pinch-zoom for low-vision users. Stop the
+ACCIDENTAL zoom; never ban zooming. All four claims mutation-proven, including
+one mutation that correctly did NOT fail (a blanket `*` rule leaves the canvas
+alone, because `*` loses on specificity) — which is worth noting because it means
+the canvas assertion guards a different regression than the one first guessed.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book

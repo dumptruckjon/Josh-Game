@@ -13,6 +13,51 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 
+/* ---------- iOS touch hygiene, PAGE-WIDE (reported from real play) ----------
+   "Sometimes when double tapping the screen will zoom in and it's often hard to
+   zoom back out", and "touch and hold will highlight element as if it were text".
+
+   Both were real, and both came from the same gap: `touch-action` and
+   `user-select` were set on TAPPABLE elements only (.tap/.tile/.choice/…), so
+   every gap between tiles, every prompt line, every HUD label and all the screen
+   padding still had the iOS defaults. A stray double-tap that misses a button by
+   a few pixels lands on that background — and zooms. A long-press on any label
+   selects it and raises the callout bubble.
+
+   `touch-action` is resolved by INTERSECTING the value down the ancestor chain,
+   so setting `manipulation` here disables double-tap-zoom everywhere at once —
+   while still allowing panning AND pinch-zoom, so deliberate zoom (the
+   accessibility case) is untouched. It also cannot loosen anything: the fort's
+   canvas declares the stricter `touch-action: none` and `none ∩ manipulation`
+   is still `none`, so it keeps owning its own gestures.
+
+   NOT DONE, deliberately: `user-scalable=no` / `maximum-scale=1` in the viewport
+   would also stop the zoom, but iOS has ignored it since iOS 10 (so it wouldn't
+   even work) and it removes pinch-zoom for low-vision users. The root fix is to
+   stop the ACCIDENTAL zoom, not to ban zooming. */
+html, body,
+/* …and belt-and-suspenders on the screen containers. The ancestor-intersection
+   above should be enough, but this is a device-only bug (WebKit is not installed
+   in the dev sandbox, so Chromium cannot prove the iOS behaviour) and these
+   rules cannot conflict with anything: the canvas's `none` still wins the
+   intersection. */
+#screens, .screen, .td-screen {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* no long-press callout bubble on labels/art */
+}
+/* …but real text fields keep every default. These are the ONLY places the app
+   wants a caret, a selection and the iOS paste menu: the fort's 💾 Backup box
+   (you copy a save out of it and paste one back in — it even calls .select() on
+   focus) and the two type-the-word "reset" gates. Losing paste there would be a
+   far worse bug than the one being fixed. */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 body {
   min-height: 100vh;  /* Safari 14 fallback (no dvh until 15.4) — Josh's iOS 14.2 iPad */
   min-height: 100dvh; /* modern browsers cascade to dvh — avoids the iOS toolbar gap */
