@@ -910,7 +910,7 @@ tooling.
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/22-enemy roster + 6 bosses/24 levels (6 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 15 achievements, one endless arena PER WORLD)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks — a new enemy or gimmick documents itself or the coverage guardrail fails)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
@@ -1990,10 +1990,18 @@ immediately before reading. When a hook reports "what happened last", MAKE it
 happen before you read it. The other five gimmicks were screenshotted in the same
 pass and are genuinely unambiguous (conveyor = cyan directional chevrons, mud =
 brown gloop with no direction, night = dark floor + fireflies, power pad = amber
-socket ring, lever = lit route + SHORT/LONG WAY label). **Still open:** no gimmick
-is documented ANYWHERE — the Toybox Guide covers enemies, towers and powers, so
-nothing tells you night cuts Dart/Mortar reach 15% or that mud slows. A
-derived-from-data gimmick section is the natural next step.
+socket ring, lever = lit route + SHORT/LONG WAY label). The follow-up closed the
+last gap that pass found: **TD-16 shipped five gimmicks and documented NONE of
+them**, so `TDLogic.levelGimmicks(levelDef)` now DERIVES a guide entry from the
+level's own fields exactly as `enemyTraits` does for the roster — a "Level tricks"
+section in the Toybox Guide names each mechanic, says what it does, and lists the
+levels it appears on. Its numbers are quoted from the engine (`RULES
+.nightRangeMult`, the zone `mult`, the pad `boost`), never re-typed, and the
+coverage guardrail walks every gimmick-bearing FIELD an author can set and fails
+if it produces no entry — so a sixth mechanic cannot ship invisible, which is the
+condition that produced the original complaint. Both halves mutation-proven
+(delete the door branch → "L2 carries groups[].at but the guide says nothing about
+it"; hard-code the night number → "must state the engine's actual nightRangeMult").
 
 **华丽's world had never had a BEHAVIOURAL pass, and the first one found the
 app-wide "never SPEAK a picture" defect.** The tap-harness proves a game is
@@ -2132,10 +2140,12 @@ for any new `logic.js` function and a browser check if it needs special handling
 > - **Forks/levers**: CLOSED — **every one of the 6 worlds now has exactly one**
 >   (L3, L7, L10, L15, L19, L23), and `tools/td-fork-search.js` is in the repo so
 >   the sweep is repeatable instead of a scratch script that gets thrown away.
-> - **Level gimmicks**: CLOSED by TD-16 — 17 of 24 levels now carry one
->   (`night`, conveyor, 🕳️ mud, ⚡ power pad, 🚪 side door, fork+lever), all six
->   worlds represented. What is still open there is a FOURTH mechanic, not more
->   placements: the three shipped shapes cover slow / buff / flank, and a
+> - **Level gimmicks**: CLOSED — 17 of 24 levels carry one (`night`, conveyor,
+>   🕳️ mud, ⚡ power pad, 🚪 side door, fork+lever), all six worlds represented,
+>   and every one now DOCUMENTS itself in the Toybox Guide via
+>   `TDLogic.levelGimmicks` (guardrailed, so a new mechanic cannot ship
+>   invisible). What is still open is a FOURTH mechanic, not more placements:
+>   the shipped shapes cover slow / speed / buff / flank / reroute, and a
 >   destructible obstacle or timed gate would each need a second engine read
 >   site (see PLAN_GIMMICKS §6.4).
 

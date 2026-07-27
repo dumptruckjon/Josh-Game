@@ -350,6 +350,22 @@
       ' <i>(' + a.gold + "🪙 · " + a.cooldown + "s · " +
       (a.kind === "tower" ? "tap a tower" : a.kind === "point" ? "tap the field" : "instant") +
       ")</i></li>").join("");
+    // TD-16 shipped five level gimmicks and documented NONE of them — nothing
+    // anywhere said night cuts your reach, or that a brown patch slows while a
+    // chevron strip speeds up. Derived from the level data via
+    // TDLogic.levelGimmicks (the enemyTraits discipline), and each entry names
+    // which levels use it, so a new gimmick documents itself.
+    const gseen = new Map();
+    for (const lv of global.TDData.LEVELS) {
+      for (const g of L.levelGimmicks(lv)) {
+        if (!gseen.has(g.key)) gseen.set(g.key, { g: g, on: [] });
+        gseen.get(g.key).on.push(lv.id);
+      }
+    }
+    const gimRow = [...gseen.values()].map((v) =>
+      '<li><span class="td-guide__tico">' + v.g.icon + "</span><b>" + v.g.name + "</b> — " + v.g.text +
+      ' <i>(levels ' + v.on.join(", ") + ")</i></li>").join("");
+
     const el = metaOverlay("td-overlay--guide",
       "<h3>📖 Toybox Guide</h3>" +
       '<p class="td-overlay__sub">What each toy does — and what can actually hit it.</p>' +
@@ -361,6 +377,8 @@
       '<ul class="td-guide__towers"><li><b>▶ CALL</b> — start the next wave early. The sooner you call, the more gold.</li>' +
       "<li><b>⏩ RUSH</b> — send the NEXT wave on top of the one already walking, for the same bonus. Up to " +
       (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk.</li></ul>" +
+      '<p class="td-overlay__sub">Level tricks — the board itself fights back.</p>' +
+      '<ul class="td-guide__towers td-guide__gimmicks">' + gimRow + "</ul>" +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
     el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);

@@ -1425,7 +1425,41 @@
     return all;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, DT };
+  // The same problem `enemyTraits` solved for the roster, now for the BOARD.
+  // TD-16 shipped five level gimmicks and documented exactly none of them: the
+  // Toybox Guide covered enemies, towers and powers, so nothing anywhere told you
+  // that night cuts Dart/Mortar reach, or that a brown patch slows and a chevron
+  // strip speeds up. A player who cannot name a mechanic cannot plan around it —
+  // which is precisely how the 🚪 side door came back as "it's malfunctioning".
+  //
+  // DERIVED from the level's own fields, like enemyTraits, so a new gimmick
+  // explains itself and the guide can never drift from the data. A coverage
+  // guardrail asserts every gimmick-bearing field produces an entry.
+  function levelGimmicks(def) {
+    if (!def) return [];
+    const out = [];
+    const zones = def.zones || [];
+    const slow = zones.filter((z) => z.mult < 1), fast = zones.filter((z) => z.mult > 1);
+    if (slow.length) out.push({ key: "mud", icon: "🕳️", name: "Mud Patch",
+      text: "A gloopy brown stretch of lane. Anything crossing it walks at " + Math.round(slow[0].mult * 100) + "% speed — free extra seconds for whatever covers it." });
+    if (fast.length) out.push({ key: "conveyor", icon: "➡️", name: "Conveyor",
+      text: "A strip of scrolling arrows. It shoves everything along at " + Math.round(fast[0].mult * 100) + "% speed, so guns covering it get LESS time. Don't spend your board here." });
+    if (def.night) out.push({ key: "night", icon: "🌙", name: "Lights Out",
+      // read off RULES, never a literal — the guide must quote the engine's number
+      text: "The room is dark: Dart and Mortar reach " + Math.round(DATA.RULES.nightRangeMult * 100) + "% as far. The Fan is unaffected — its aura doesn't need to see. A selected tower's ring always shows its TRUE reach." });
+    if ((def.pads || []).some((p) => p.boost)) {
+      const b = (def.pads.find((p) => p.boost) || {}).boost || {};
+      out.push({ key: "power", icon: "⚡", name: "Power Pad",
+        text: "A socket ringed in amber. Whatever you build on it fires " + Math.round(((b.rate || 1) - 1) * 100) + "% faster and reaches " + Math.round(((b.range || 1) - 1) * 100) + "% further. Put your best gun here." });
+    }
+    if ((def.waves || []).some((w) => (w.groups || []).some((g) => g.at > 0))) out.push({ key: "door", icon: "🚪", name: "Side Door",
+      text: "Part of a wave walks in PARTWAY down the lane instead of at the start — behind anything you built up front. The door is marked on the field, and the next-wave line says how many are coming through it." });
+    if (def.fork && def.lever) out.push({ key: "lever", icon: "🔀", name: "Track Switch",
+      text: "A lever on the field. Tap it to send the traffic the long way round; the live route lights up and the button says which way it is thrown. The long way is slower for them and longer under your guns." });
+    return out;
+  }
+
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

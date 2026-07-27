@@ -3136,3 +3136,48 @@ test("W6 The Moving Van: every hp-gated phase fires, and it unloads as it drives
   for (let i = 0; i < 800 && !called; i++) { e.tick(); called = e.state.enemies.some((x) => x.type === summon && x.alive); }
   assert.ok(called, `under 33% it summons ${summon}s`);
 });
+
+// The enemyTraits coverage contract, applied to the BOARD. TD-16 shipped five
+// level gimmicks and documented none of them — the Toybox Guide covered enemies,
+// towers and powers, so nothing anywhere told a player that night cuts reach or
+// that a brown patch slows. A player who cannot NAME a mechanic cannot plan
+// around it, which is how the 🚪 side door came back as "it's malfunctioning".
+test("TD-16 guide truth: every level gimmick explains ITSELF, from the level's own data", () => {
+  // Each gimmick-bearing FIELD an author can set must produce an entry. Add a
+  // sixth mechanic without a levelGimmicks branch and this fails — the mechanic
+  // cannot ship invisible.
+  const FIELD_TO_KEY = [
+    ["zones-slow", (l) => (l.zones || []).some((z) => z.mult < 1), "mud"],
+    ["zones-fast", (l) => (l.zones || []).some((z) => z.mult > 1), "conveyor"],
+    ["night", (l) => !!l.night, "night"],
+    ["pads[].boost", (l) => (l.pads || []).some((p) => p.boost), "power"],
+    ["groups[].at", (l) => (l.waves || []).some((w) => (w.groups || []).some((g) => g.at > 0)), "door"],
+    ["fork+lever", (l) => !!(l.fork && l.lever), "lever"],
+  ];
+  const kinds = new Set();
+  for (const lvl of DATA.LEVELS) {
+    const keys = TD.levelGimmicks(lvl).map((g) => g.key);
+    for (const [field, present, key] of FIELD_TO_KEY) {
+      if (present(lvl)) {
+        assert.ok(keys.includes(key),
+          `L${lvl.id} carries ${field} but the guide says nothing about it — a mechanic must not ship undocumented`);
+        kinds.add(key);
+      } else {
+        assert.ok(!keys.includes(key), `L${lvl.id} advertises "${key}" it does not have — the guide must not lie`);
+      }
+    }
+    for (const g of TD.levelGimmicks(lvl)) {
+      assert.ok(g.icon && g.name && g.text && g.text.length > 30,
+        `L${lvl.id} gimmick "${g.key}" needs an icon, a name and a real explanation`);
+    }
+  }
+  // Every shipped mechanic is represented — this is what makes the check above
+  // meaningful rather than vacuously true on a campaign with no gimmicks.
+  assert.equal(kinds.size, FIELD_TO_KEY.length,
+    `every shipped gimmick kind must appear somewhere in the campaign (saw ${[...kinds].join(", ")})`);
+  // The night line must QUOTE the engine's number, never a literal that can drift.
+  const nightLevel = DATA.LEVELS.find((l) => l.night);
+  const nightText = TD.levelGimmicks(nightLevel).find((g) => g.key === "night").text;
+  assert.match(nightText, new RegExp(String(Math.round(DATA.RULES.nightRangeMult * 100)) + "%"),
+    "the night entry must state the engine's actual nightRangeMult");
+});
