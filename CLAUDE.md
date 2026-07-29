@@ -871,6 +871,55 @@ first red run — **`page.goto(url + "#hash")` is a SAME-DOCUMENT navigation**, 
 a test that seeds `localStorage` and then "reloads" via a hash URL never
 re-runs module init and silently asserts against the OLD in-memory state (it
 looked like the seed was ignored). Seed → `page.reload()` → hop the hash.
+**The level-expansion programme (PLAN_EXPANSION.md phases 1-4) produced four
+measurements that overturn things this file previously asserted, and each one is
+worth more than the feature it shipped with.** (1) **An enemy's ID was
+load-bearing on the tick stream.** The spawn queue tiebreaks same-tick spawns
+alphabetically by type id, so RENAMING an enemy re-orders spawns: cloning the
+four backbone types under new ids left every one of 384 runs' phase/lives/gold/
+kills identical but moved `tick` on 22. An id is a name; the ORDER is the
+behaviour — the tiebreak now runs through a stable `sortKey` a skin inherits
+from its ancestor, as a default-noop. Making the tiebreak id-INDEPENDENT instead
+(relying on Array.sort's stability) was measured and rejected: it moves 4 of 576
+outcomes. That let ten per-world backbone SKINS ship for free, which was the
+single biggest differentiation available anywhere — the four ground backbone
+types were 84-88% of every body worlds 4-6 spawn, and the Garage and Moving Day
+scored a cosine similarity of **0.997** on their body-count vectors (worst pair
+is 0.691 now). The two duplicated `BACKBONE` literals (the generator's and the
+test's) were the mechanical cause and now derive from `WORLDS[w].backbone`.
+(2) **HP-preservation is not balance-preservation.** The plan asserted an
+HP-preserving special swap was free; permuting the attic's specials at constant
+wave HP took L13 and L14 to LOST on every heroic seed. Worse, one move is a
+cliff across a whole world: putting the Digger Mole on wave 11 instead of 12
+loses heroic outright on L13 and L14 and takes L16's finale from 7 lives to 3.
+Measure every candidate; ship only the subset that measures flat. (3) **Lives
+REMAINING is the wrong metric the moment the meta can change the starting
+total.** `AUDIT boss tension` judges a 5-17 band out of 20, but Extra Hearts
+starts you at 24 — so a lives-boosting loadout scores as "softer" for free.
+Re-measured in lives LOST, the full star tree is far less catastrophic than
+"all six finales erased", and the real culprit is not loadout SIZE at all:
+blaming all 23 nodes individually, **three single nodes each take L16 from 10
+lives lost to 0** (Sharp Darts, Sharp Darts II, Boss Bonker) and Sticker Shield
+takes L24 from 7 to 1, while all seven Economy nodes and six of eight
+Fortification nodes are worth ≤2 lives. L8 and L16 are the boss-QUANTIZED levels
+(L16's waves 1-14 leak nothing on any seed), so one boss leak is worth 8 lives
+and any damage increase flips them from one leak to none. A per-run slot cap
+(`RULES.metaSlots`, `save.loadout`) still ships and is real — it stops "own
+everything, bring everything" — but it is recorded that it does NOT de-quantize
+those two finales. (4) **Gold had stopped being a cost for the powers**: a
+fully-built board holds 0-145 gold through wave 10 and then 351 → 1115 → 2375 →
+3533 → **5393** on L24, i.e. 67 free uses of the cheapest power on the last wave.
+A per-KILL grant provably cannot fix it (supply scales with wave size, 1.18^n;
+cooldown-limited demand scales only with wave duration), so ⚙️ Toy Energy is a
+flat per-wave budget — and the flatness assertion is what a per-kill version
+fails. It took ability-spam on L16 from a flawless 20/20 to 8 and on L20 from
+20/20 to 9. Two smaller laws from the same programme: **a scan's file list, a
+guardrail's viewport list and a metric's denominator are all part of the test** —
+the ability-abuse and ALL_META instruments only existed because Phase 1 built
+them, and both immediately found real erosion nothing else could see; and **a
+guardrail that only inspects the artefact misses the live path** — the loadout
+test passed while `startLevel` still handed a run everything owned, because it
+only read the checkpoint, so the engine now records its own `state.meta`.
 
 ---
 
@@ -909,8 +958,8 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/22-enemy roster + 6 bosses/24 levels (6 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23)/gimmicks + WORLDS presentation map + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐, 15 achievements, one endless arena PER WORLD)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks — a new enemy or gimmick documents itself or the coverage guardrail fails)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/32-enemy roster (22 + 10 per-world backbone SKINS) + 6 bosses/24 levels (6 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐ against a 6-slot per-run `metaSlots` loadout, 15 achievements, one endless arena PER WORLD) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
@@ -946,7 +995,7 @@ tooling.
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
 ├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
-├── PLAN_EXPANSION.md           # 📈 PLAN (not built): level expansion + level-DISTINCTNESS + the meta-economy blocker. Built from a 49-agent audit; §0 is the star-ceiling finding (the guardrail is a stale literal and the dead-stars property is ALREADY broken), §1 the phase order. Read §0 before adding any world.
+├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-4 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots). Phases 5-6 (Worlds 7-8, new content) NOT built. §0 is the star-ceiling finding — read it before adding any world; several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
 ```
@@ -2219,6 +2268,22 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   the shipped shapes cover slow / speed / buff / flank / reroute, and a
 >   destructible obstacle or timed gate would each need a second engine read
 >   site (see PLAN_GIMMICKS §6.4).
+> - **Level DISTINCTNESS**: CLOSED for the 24 shipped levels. Every world has its
+>   own backbone crowd (worst pairwise body-count similarity 0.691, was 0.997),
+>   no two levels run the same special SCHEDULE (worst 60%, was five pairs at
+>   100%), each finale's escort asks a different question, and every level has a
+>   hook or a boss. All four are guardrail-locked, so a new level inherits them.
+> - **The meta economy**: PARTLY closed. A run equips ≤ `RULES.metaSlots` (6) of
+>   what it owns, so allocation is a per-run decision — but the measured NEGATIVE
+>   result stands: L8 and L16 are boss-quantized, and three individual Firepower
+>   nodes each erase L16 on their own, which no slot cap can fix. De-quantizing
+>   those two finales (a leak-toll re-tune) is the open item, and it is a
+>   deliberate balance pass to be commissioned, not a defect to fix on sight.
+> - **The star ceiling** is the hard blocker on an 8-world campaign: it derives
+>   as `LEVELS.length * 3` and is 72 today against a 77⭐ tree. At 32 levels it
+>   becomes 96 and the "the tree must cost more than you can earn" guardrail
+>   fails. Grow the tree by BREADTH (new kinds with real read sites) before
+>   adding a seventh world — never by adding ranks, which are raw power.
 
 > - **华丽's world has had one adversarial pass** (the app-wide audit, which
 >   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but
