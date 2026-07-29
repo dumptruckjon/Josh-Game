@@ -212,7 +212,9 @@
       leverCd: 0,    // tick the lever re-arms (starts when the diversion ENDS, not when it is thrown)
       leverUntil: 0, // TD-17: tick the timed diversion expires and the track snaps back to short
       abilityCd: {}, // TD-9: ability id → tick it becomes usable again
+      charge: 0,     // ⚙️ Toy Energy: +chargePerWave on each wave SENT, capped at chargeMax
       puddles: [],   // TD-9: live Sticky Floor zones { x, y, r, slow, until }
+      reveals: [],   // 🧨's reveal rider: { x, y, r, until } — read by the ONE isHidden gate
       // TD-13 run tallies. These live in STATE, not in the event stream: the
       // event buffer is capped at 400, so a scripted/headless run that
       // simulates a whole wave before draining would silently lose most of it.
@@ -269,9 +271,21 @@
     }
 
     function startWave() {
+      const wasBuild = state.phase !== "wave";
       state.phase = "wave";
+      if (wasBuild) thawBoosts();     // a ⏩ RUSH is mid-wave; nothing was frozen
       scheduleWave(state.sentIdx);
       state.sentIdx += 1;
+      // ⚙️ Toy Energy. Gold stopped being a cost for the powers: a fully-built
+      // board holds 0-145 gold through wave 10 and then 351 → 1115 → 2375 →
+      // 3533 → 5393 on L24, i.e. 67 free uses of the cheapest power on the last
+      // wave alone. A per-KILL grant cannot fix that — supply scales with wave
+      // size, which grows 1.18^n, while cooldown-limited demand grows only with
+      // wave duration, so uses/wave rises at every rate. A flat per-WAVE grant
+      // is constant by construction, and tightens exactly where the problem is.
+      // Granted per wave SENT, so a ⏩ RUSH pays for the wave it sends and not
+      // for the one it happens to clear alongside it.
+      state.charge = Math.min(R.chargeMax, (state.charge || 0) + R.chargePerWave);
       emit({ type: "wave", n: state.sentIdx, inFlight: state.sentIdx - state.waveIdx });
     }
 
@@ -311,7 +325,12 @@
     function padOf(t) { return t ? padById(t.padId) : null; }
     function padBoost(t) { const p = padOf(t); return (p && p.boost) || null; }
     function boostOf(t) {
-      const over = (t && t.boostUntil && state.tick < t.boostUntil) ? (t.boostMult || 2) : 1;
+      // ⚡ Overclock is a burst FOLLOWED BY A CRASH — one expression here, so all
+      // five cooldown-set sites (soldier melee, dart, mortar, fan chain, fan zap
+      // accumulator) inherit both halves and a future tower line does too.
+      let over = 1;
+      if (t && t.boostUntil && state.tick < t.boostUntil) over = t.boostMult || 2;
+      else if (t && t.crashUntil && state.tick < t.crashUntil) over = t.crashMult || 1;
       const pb = padBoost(t);
       return over * ((pb && pb.rate) || 1);
     }
@@ -666,6 +685,7 @@
       if (endlessWorld) {
         emit({ type: "endless-wave", n: state.waveIdx });
         state.phase = "build";
+        freezeBoosts();
         state.countdown = R.buildCountdown * DATA.TICK_RATE;
       } else if (state.waveIdx >= waves.length) {
         state.phase = "won";
@@ -673,7 +693,27 @@
         emit({ type: "won", stars: state.stars, lives: state.lives });
       } else {
         state.phase = "build";
+        freezeBoosts();
         state.countdown = R.buildCountdown * DATA.TICK_RATE;
+      }
+    }
+
+    // ⚡ Overclock's CRASH must not be dodgeable. The build countdown is 20s and
+    // the crash is 12s, so an unclamped one is skipped entirely by casting on a
+    // wave's last straggler — an opt-out downside is just a buff. So a live
+    // boost or crash is FROZEN at the wave boundary (remaining ticks banked) and
+    // re-anchored when the next wave goes out. Nothing is fired between waves,
+    // so freezing costs the player nothing they would have used.
+    function freezeBoosts() {
+      for (const t of state.towers) {
+        if (t.boostUntil > state.tick) { t.boostRemain = t.boostUntil - state.tick; t.boostUntil = 0; }
+        if (t.crashUntil > state.tick) { t.crashRemain = t.crashUntil - state.tick; t.crashUntil = 0; }
+      }
+    }
+    function thawBoosts() {
+      for (const t of state.towers) {
+        if (t.boostRemain) { t.boostUntil = state.tick + t.boostRemain; t.boostRemain = 0; }
+        if (t.crashRemain) { t.crashUntil = state.tick + t.crashRemain; t.crashRemain = 0; }
       }
     }
 
@@ -697,8 +737,23 @@
     // Mole tunnelling under the middle third of the lane. (TD-4)
     function isHidden(e) {
       const def = enemyDef(e);
+      if (!def.phase && !def.tunnel) return false;      // nothing else can hide
+      // 🧨's reveal rider. ONE clause at the top of the ONE gate, so it covers
+      // every read site at once — acquisition, the dart's sticky KEEP, mortar
+      // splash, chain jumps, soldier engage and the puddle — rather than being
+      // bolted onto whichever path someone remembered.
+      if (revealedAt(e)) return false;
       if (def.phase && e.phaseHidden) return true;
       if (def.tunnel) { const tot = epath(e).total; if (e.dist > tot / 3 && e.dist < (tot * 2) / 3) return true; }
+      return false;
+    }
+    function revealedAt(e) {
+      if (!state.reveals.length) return false;
+      const p = epos(e);
+      for (const z of state.reveals) {
+        if (state.tick >= z.until) continue;
+        if ((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= z.r * z.r) return true;
+      }
       return false;
     }
     function candidates(t, minR, maxR, fliersOk) {
@@ -1326,8 +1381,13 @@
       // then is pure loss — refuse it rather than quietly take the money.
       if (state.phase !== "wave") return { ok: false, reason: "not-in-wave" };
       if (state.tick < (state.abilityCd[id] || 0)) return { ok: false, reason: "cooldown" };
+      // ⚙️ Toy Energy is the scarce resource late; gold is the scarce one early.
+      // Checked BEFORE gold so a broke early board still reads "you can't afford
+      // it" rather than the newer, less obvious reason.
+      const need = def.charges === undefined ? 1 : def.charges;
       if (state.gold < def.gold) return { ok: false, reason: "gold" };
-      return { ok: true, def };
+      if ((state.charge || 0) < need) return { ok: false, reason: "charge" };
+      return { ok: true, def, need };
     }
     // Would this use actually DO anything? An ability that changes nothing must
     // never charge gold or start a cooldown — that reads exactly like a broken
@@ -1339,9 +1399,13 @@
       if (def.kind === "instant") return state.soldiers.some((s) => livingCamp(s) && (!s.alive || s.hp < s.maxHp));
       if (def.kind === "tower") return !!towerById(o.towerId);
       if (def.dmg) {                                                             // something in the blast
+        // A REVEALING blast counts hidden enemies as targets — it is what
+        // un-hides them. Without this, tapping 🧨 into a crater full of phased
+        // ghosts (L12's boss wave ships eight) refused with "nothing in the
+        // blast", so the ability read as broken exactly where it is needed.
         const r2 = def.radius * def.radius;
         return state.enemies.some((e) => {
-          if (!e.alive || isHidden(e)) return false;
+          if (!e.alive || (!def.reveal && isHidden(e))) return false;
           const p = epos(e);
           return (p.x - o.x) ** 2 + (p.y - o.y) ** 2 <= r2;
         });
@@ -1349,10 +1413,14 @@
       return true; // a zone is placed AHEAD of enemies on purpose — always valid
     }
     function useAbility(id, opts) {
+      // A malformed call is a CALLER bug, not a resource state, so it is
+      // reported before gold / energy / cooldown — otherwise "you're out of
+      // energy" masks "you forgot to pass a point".
+      const early = abilityDef(id), o = opts || {};
+      if (early && early.kind === "point" && (typeof o.x !== "number" || typeof o.y !== "number")) return { ok: false, reason: "needs-point" };
       const chk = abilityReady(id);
       if (!chk.ok) return chk;
-      const def = chk.def, o = opts || {};
-      if (def.kind === "point" && (typeof o.x !== "number" || typeof o.y !== "number")) return { ok: false, reason: "needs-point" };
+      const def = chk.def;
       if (!abilityWouldDo(def, o)) {
         // Distinguish "you have no camp" from "your squad is already fine" —
         // telling someone to build a camp they already own is worse than silence.
@@ -1363,6 +1431,10 @@
       }
       let hits = 0;
       if (def.kind === "point") {
+        // The reveal is pushed BEFORE the damage loop, so the same tap that
+        // flushes a phased ghost out also hits it — otherwise the rider would
+        // only ever help the shot after.
+        if (def.reveal) state.reveals.push({ x: o.x, y: o.y, r: def.reveal.radius, until: state.tick + Math.round(def.reveal.seconds * DATA.TICK_RATE) });
         const r2 = def.radius * def.radius;
         for (const e of state.enemies) {
           if (!e.alive || isHidden(e)) continue; // an untargetable enemy is untargetable by EVERY damage path
@@ -1384,6 +1456,10 @@
         const t = towerById(o.towerId);
         t.boostUntil = state.tick + Math.round(def.seconds * DATA.TICK_RATE);
         t.boostMult = def.mult;
+        if (def.crashSeconds) {
+          t.crashUntil = t.boostUntil + Math.round(def.crashSeconds * DATA.TICK_RATE);
+          t.crashMult = def.crashMult || 1;
+        }
         hits = 1;
       } else { // instant — Rally Horn: every downed soldier back up NOW
         for (const t of state.towers) {
@@ -1399,13 +1475,17 @@
         }
       }
       state.gold -= def.gold;
+      state.charge -= chk.need;
       state.abilityCd[id] = state.tick + Math.round(def.cooldown * DATA.TICK_RATE);
-      emit({ type: "ability", id, x: o.x, y: o.y, radius: def.radius || 0, hits });
-      return { ok: true, hits };
+      emit({ type: "ability", id, x: o.x, y: o.y, radius: def.radius || 0, hits, charge: state.charge });
+      return { ok: true, hits, charge: state.charge };
     }
     // Live Sticky Floor zones re-apply their slow every tick (a short refresh so
     // leaving the puddle wears off quickly), and expire on their own tick.
     function puddleTick() {
+      // reveal zones expire on the same beat (cheap, and keeps `state` small so
+      // the plain-JSON determinism hash stays honest)
+      for (let i = state.reveals.length - 1; i >= 0; i--) if (state.tick >= state.reveals[i].until) state.reveals.splice(i, 1);
       if (!state.puddles.length) return;
       for (let i = state.puddles.length - 1; i >= 0; i--) if (state.tick >= state.puddles[i].until) state.puddles.splice(i, 1);
       for (const z of state.puddles) {
@@ -1423,6 +1503,9 @@
       state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
+      // the renderer paints a revealed hider differently, and the guardrails
+      // drive this rather than inferring it from a time-to-kill
+      isRevealed: (e) => revealedAt(e),
       // TD-17 the ONE place the lever's timing is described, so the button, the
       // field overlay and the tests can never disagree about what it is doing.
       // NOTE: distinct from render.leverInfo(), which reports what the last DRAW

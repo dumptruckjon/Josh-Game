@@ -233,8 +233,17 @@
       const def = global.TDData.ENEMIES[e.type];
       return (def && def.size) || fallback;
     }
+    // 🧨's reveal rider: a flushed-out hider must LOOK catchable, or the player
+    // has no way to know the blast did anything (the picture is the mechanic —
+    // the same lesson the side-door marker taught).
+    function revealed(e) { return !!(engine.isRevealed && engine.isRevealed(e)); }
     function drawEnemy(e, sx, sy) {
       const r = cell * 0.34;
+      if (revealed(e)) {
+        const pulse = 0.25 + 0.15 * Math.sin(engine.state.tick / 4 + e.id);
+        ctx.fillStyle = "rgba(255,214,120," + pulse.toFixed(2) + ")";
+        ctx.beginPath(); ctx.arc(sx, sy, r * 1.5, 0, 7); ctx.fill();
+      }
       if (e.type === "balloon") {
         // a floating balloon-bug: small ground shadow (it hovers), body, knot, string
         shadow(sx, sy + cell * 0.5, r * 0.6, r * 0.22);
@@ -572,7 +581,7 @@
         // Glitter Ghost: a translucent sheet ghost; fades right out mid-phase so
         // the player SEES why it can't be targeted, then shimmers back.
         ctx.save();
-        ctx.globalAlpha = e.phaseHidden ? 0.22 : 0.9;
+        ctx.globalAlpha = (e.phaseHidden && !revealed(e)) ? 0.22 : 0.9;
         const rr = r * 0.95, w = Math.sin(engine.state.tick / 6 + e.id) * rr * 0.06;
         const gg = ctx.createLinearGradient(sx, sy - rr, sx, sy + rr);
         gg.addColorStop(0, "#eaf2ff"); gg.addColorStop(1, "#b9caf0");
@@ -604,7 +613,7 @@
         // Digger Mole: above ground a brown mole; in the middle third it BURROWS —
         // shown as a scrolling dirt mound (matches the engine's untargetable zone).
         const laneTot = engine.paths[e.pathIdx || 0].total; // its own lane's middle third
-        const under = e.dist > laneTot / 3 && e.dist < (laneTot * 2) / 3;
+        const under = e.dist > laneTot / 3 && e.dist < (laneTot * 2) / 3 && !revealed(e);
         if (under) {
           ctx.fillStyle = "#6e4d29"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.2, r * 0.95, r * 0.5, 0, Math.PI, 0); ctx.fill();
           ctx.fillStyle = "#5a3e20"; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(sx + k * r * 0.4, sy + r * 0.18, r * 0.14, 0, 7); ctx.fill(); }
@@ -1043,6 +1052,22 @@
       const p = worldToScreen(t.cx + 0.5, t.cy + 0.5);
       const x = p.x, y = p.y, u = cell;
       const tier = t.tier, br = tier >= 4 ? t.branch : "";
+      // ⚡ Overclock reads on the TOWER's own ring — hot while boosted, cold
+      // while it is paying the crash back. Deliberately not a full-field tint:
+      // stacking translucent overlays is a defect this project already shipped
+      // once (a burst of leak flashes piled into an opaque red wall).
+      const tick = engine.state.tick;
+      if (t.boostUntil && tick < t.boostUntil) {
+        const g = 0.35 + 0.2 * Math.sin(tick / 3 + t.id);
+        ctx.strokeStyle = "rgba(255,214,80," + g.toFixed(2) + ")"; ctx.lineWidth = Math.max(2, u * 0.07);
+        ctx.beginPath(); ctx.arc(x, y, u * 0.46, 0, 7); ctx.stroke();
+      } else if (t.crashUntil && tick < t.crashUntil) {
+        ctx.strokeStyle = "rgba(120,150,190,0.5)"; ctx.lineWidth = Math.max(2, u * 0.05);
+        ctx.beginPath(); ctx.arc(x, y, u * 0.44, 0, 7); ctx.stroke();
+        // a small drooping arc so "resting" reads even in a still frame
+        ctx.strokeStyle = "rgba(150,175,205,0.75)"; ctx.lineWidth = Math.max(1, u * 0.045);
+        ctx.beginPath(); ctx.arc(x, y - u * 0.02, u * 0.28, 0.5, Math.PI - 0.5); ctx.stroke();
+      }
       shadow(x, y + u * 0.36, u * 0.4, u * 0.16);
       towerPlinth(x, y, u, tier);
       if (t.lineId === "dart") {

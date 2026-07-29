@@ -78,6 +78,7 @@
         '<div class="td-hud">' +
           '<span class="td-hud__lives">❤️ 20</span>' +
           '<span class="td-hud__gold">🪙 0</span>' +
+          '<span class="td-hud__charge">⚙️ 0</span>' +
           '<span class="td-hud__wave">wave 0/0</span>' +
         "</div>" +
         '<button class="btn-round td-mini td-speed" type="button" aria-label="Game speed">1×</button>' +
@@ -124,7 +125,7 @@
       // was shown "🧨 130" and nothing else, so no power explained itself.
       b.innerHTML = '<span class="td-abil__icon">' + a.icon + "</span>" +
         '<span class="td-abil__name">' + (a.short || a.name) + "</span>" +
-        '<span class="td-abil__cost">' + a.gold + "🪙</span>" +
+        '<span class="td-abil__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️</span>" +
         '<span class="td-abil__cd" hidden></span>';
       b.addEventListener("click", (ev) => { ev.stopPropagation(); hooks.useAbility(a.id); });
       abilWrap.appendChild(b);
@@ -347,7 +348,7 @@
     // price. They belong in the guide beside the towers.
     const abilRow = (global.TDData.ABILITIES || []).map((a) =>
       '<li><span class="td-guide__tico">' + a.icon + "</span><b>" + a.name + "</b> — " + a.role +
-      ' <i>(' + a.gold + "🪙 · " + a.cooldown + "s · " +
+      ' <i>(' + a.gold + "🪙 · " + (a.charges === undefined ? 1 : a.charges) + "⚙️ · " + a.cooldown + "s · " +
       (a.kind === "tower" ? "tap a tower" : a.kind === "point" ? "tap the field" : "instant") +
       ")</i></li>").join("");
     // TD-16 shipped five level gimmicks and documented NONE of them — nothing
@@ -562,6 +563,10 @@
     const lives = q(".td-hud__lives"), gold = q(".td-hud__gold"), wave = q(".td-hud__wave");
     if (lives) lives.textContent = "❤️ " + state.lives;
     if (gold) gold.textContent = "🪙 " + state.gold;
+    // ⚙️ Toy Energy is the powers' real cost late, so it belongs beside gold —
+    // a resource you can't see is a resource you can't plan around.
+    const charge = q(".td-hud__charge");
+    if (charge) charge.textContent = "⚙️ " + (state.charge || 0);
     const level = global.TDData.LEVELS.find((l) => l.id === state.levelId);
     const endless = state.endless || !level; // endless runs aren't in DATA.LEVELS
     const total = level ? level.waves.length : 0;

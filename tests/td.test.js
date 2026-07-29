@@ -2620,3 +2620,54 @@ test("TD9 control strip: adjacent power tiles must never OVERLAP (the strip is f
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
+
+test("P3 energy: the ⚙️ budget is on the HUD, spends on use, and rides the checkpoint", async () => {
+  // The plan's own warning, and a defect this project shipped once already
+  // (🌟 Sticker Shield was absent from writeMidRun): a per-RUN resource that is
+  // not checkpointed is re-granted on every resume. And a resource the player
+  // cannot SEE is a resource they cannot plan around — the whole point of
+  // replacing "gold you have thousands of" with a small visible budget.
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    // NOT grantGold: it marks the run `cheated`, and a cheated run is never
+    // checkpointed — which is exactly what this test is here to check.
+    window.__TD.newGame(1, { seed: 7 });
+    window.__TD.script([["place", "dart", "p1"], ["call"], ["tick", 120]]);
+  });
+  await page.waitForTimeout(120);
+  const shown = await page.evaluate(() => {
+    const el = document.querySelector("#screen-td-play .td-hud__charge");
+    return { text: el && el.textContent, state: window.__TD.state().charge };
+  });
+  assert.ok(shown.state > 0, `a wave granted energy (${shown.state})`);
+  assert.equal(shown.text, "⚙️ " + shown.state, "…and the HUD shows exactly what the engine holds");
+
+  // spending one decrements BOTH
+  const after = await page.evaluate(() => {
+    const st = window.__TD.state();
+    const live = st.enemies.filter((e) => e.alive)[0];
+    const p = window.__TD.engine().posOn(live.pathIdx || 0, live.dist);
+    const r = window.__TD.engine().useAbility("drop", { x: p.x, y: p.y });
+    window.__TD.script([["tick", 1]]);
+    return { ok: r.ok, state: window.__TD.state().charge, text: document.querySelector("#screen-td-play .td-hud__charge").textContent };
+  });
+  assert.equal(after.ok, true, "the power fired");
+  assert.equal(after.state, shown.state - 1, "…and it cost exactly one charge");
+  assert.equal(after.text, "⚙️ " + after.state, "…and the HUD followed");
+
+  // …and the remaining energy survives a quit-and-resume. Quitting mid-WAVE
+  // writes no checkpoint by design, so run out to the build boundary first.
+  const resumed = await page.evaluate(async () => {
+    window.__TD.script([["untilPhase", "build", 400000]]);
+    const before = window.__TD.state().charge;
+    location.hash = "#td-home";
+    await new Promise((r) => setTimeout(r, 60));
+    const saved = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    return { before, saved: saved.midRun ? saved.midRun.charge : null, has: !!saved.midRun };
+  });
+  assert.ok(resumed.has, "a checkpoint was written at the build boundary");
+  assert.equal(resumed.saved, resumed.before,
+    "the checkpoint carries the run's remaining energy — otherwise every resume re-grants it");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});

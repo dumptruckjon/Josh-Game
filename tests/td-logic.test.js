@@ -1630,7 +1630,12 @@ test("AUDIT difficulty shape: no level may be a wave-1 GOTCHA (opening damage st
 // stamp. It is also the test any NEW power must pass before it ships.
 test("AUDIT ability abuse: spamming the shipped powers must not erase a finale", () => {
   const MAX_BOSS_LEVEL_FINISH = 17;
-  const BASELINE = { 8: 18, 16: 20, 20: 20 }; // measured 2026-07; Phase 3 should shrink this
+  // Measured 2026-07, then RE-measured after Phase 3 gave the powers a flat
+  // per-wave energy budget: L16 went 20 → 8 and L20 20 → 9, both back inside the
+  // real 17-life bar, so both left this list. L8 is the residual — its boss wave
+  // runs long enough that the 20-30s cooldowns, not the energy, are the binding
+  // constraint, so it still finishes at 18 under full spam.
+  const BASELINE = { 8: 18 };
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
   function run(level, plan, seed) {
     const e = TD.createEngine(level, { seed, difficulty: "normal" });
@@ -2208,6 +2213,7 @@ test("TD-9 abilities: gold and cooldown really gate a use", () => {
   e.callWave();
   for (let i = 0; i < 150; i++) e.tick();
   e.state.soldiers.forEach((s2) => { s2.alive = false; s2.respawnAt = e.state.tick + 99999; });
+  e.state.charge = 99;   // ⚙️ energy is gated separately (P3); this test is about gold + cooldown
   e.state.gold = 0;
   assert.equal(e.useAbility("horn", {}).reason, "gold", "no gold → refused");
   e.state.gold = 9999;
@@ -2593,6 +2599,229 @@ test("TD-11 forks: throwing the lever reroutes without teleporting anyone", () =
 });
 
 // ---- A power that changes NOTHING must never charge you ----
+// ================= Phase 3: the powers become decisions =================
+
+test("P3 energy: the power budget is FLAT per wave, which is what gold stopped being", () => {
+  // The measurement this replaces: a fully-built board holds 0-145 gold through
+  // wave 10 and then 351, 1115, 2375, 3533, 5393 on L24 — 67 free uses of the
+  // cheapest power on the last wave alone. A per-KILL grant cannot fix that
+  // (supply scales with wave size, 1.18^n; cooldown-limited demand scales only
+  // with wave duration), so this is the assertion that a per-kill version fails.
+  const lvl = DATA.LEVELS.find((l) => l.id === 20);
+  const e = TD.createEngine(lvl, { seed: 7 });
+  e.state.gold = 9e6;
+  for (const p of lvl.pads) e.place("dart", p.id);
+  const perWave = [];
+  let uses = 0, guard = 0;
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 200000) {
+    if (e.state.phase === "build") { perWave.push(uses); uses = 0; e.callWave(); }
+    e.state.gold = 9e6;                                   // gold is deliberately NOT the constraint here
+    for (const ab of DATA.ABILITIES) {
+      const o = ab.kind === "point" ? { x: lvl.pads[0].cx, y: lvl.pads[0].cy }
+        : ab.kind === "tower" ? { towerId: e.state.towers[0].id } : {};
+      if (e.useAbility(ab.id, o).ok) uses++;
+    }
+    e.tick();
+  }
+  perWave.push(uses);
+  const live = perWave.slice(1, -1);                       // drop the pre-wave 0 and the truncated last
+  assert.ok(live.length >= 4, `enough waves to see the shape (${perWave.join(",")})`);
+  assert.ok(Math.max(...live) <= DATA.RULES.chargePerWave,
+    `an unlimited-gold spam bot may never exceed ${DATA.RULES.chargePerWave} uses in a wave (${perWave.join(", ")})`);
+  assert.ok(Math.max(...live) - Math.min(...live) <= 1,
+    `and the budget must be FLAT, not growing with wave size (${perWave.join(", ")}) — a per-kill grant fails exactly here`);
+});
+
+test("P3 energy: a charge-less use is REFUSED — no gold, no cooldown", () => {
+  const lvl = DATA.LEVELS[0];
+  const e = TD.createEngine(lvl, { seed: 7 });
+  e.callWave();
+  for (let i = 0; i < 120; i++) e.tick();
+  assert.equal(e.state.charge, DATA.RULES.chargePerWave, "one wave sent grants exactly one wave's energy");
+  e.state.gold = 9e6;
+  e.state.charge = 0;
+  const live = e.state.enemies.find((x) => x.alive);
+  const p = e.posOn(live.pathIdx, live.dist);
+  const r = e.useAbility("drop", { x: p.x, y: p.y });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, "charge", "…and it says WHY, so the button never reads broken");
+  assert.equal(e.state.gold, 9e6, "no gold taken");
+  assert.deepEqual(e.state.abilityCd, {}, "no cooldown started");
+  // …and the same use lands the moment there is energy for it
+  e.state.charge = 1;
+  assert.equal(e.useAbility("drop", { x: p.x, y: p.y }).ok, true);
+  assert.equal(e.state.charge, 0, "and it SPENT the charge");
+});
+
+test("P3 energy: the cap holds, and a ⏩ RUSH pays for the wave it sends", () => {
+  const lvl = DATA.LEVELS.find((l) => l.waves.length >= 6);
+  const e = TD.createEngine(lvl, { seed: 3 });
+  const R = DATA.RULES;
+  // bank across quiet waves, but never past the cap
+  for (let w = 0; w < 5; w++) {
+    e.callWave();
+    let g = 0;
+    while (e.state.phase === "wave" && g++ < 200000) e.tick();
+    assert.ok(e.state.charge <= R.chargeMax, `energy is capped at ${R.chargeMax} (saw ${e.state.charge} after wave ${w + 1})`);
+  }
+  assert.equal(e.state.charge, R.chargeMax, "…and a player who spends nothing does reach the cap");
+  // a RUSH sends a wave, so it grants for that wave — once
+  const e2 = TD.createEngine(lvl, { seed: 3 });
+  e2.callWave();
+  for (let i = 0; i < R.rushSettle * DATA.TICK_RATE + 5; i++) e2.tick();
+  const before = e2.state.charge;
+  const rush = e2.callWave();
+  assert.equal(rush.ok, true, "the rush went out");
+  assert.equal(e2.state.charge, Math.min(R.chargeMax, before + R.chargePerWave),
+    "a rushed wave grants exactly one wave's energy, not two and not none");
+});
+
+test("P3 reveal: 🧨 flushes a hider out — through the ONE isHidden gate", () => {
+  // Untargetability is enforced at every read site by a single gate, so the
+  // reveal is one clause at the top of it rather than a rider bolted onto
+  // whichever path someone remembered. This drives the gate directly AND the
+  // paths that consume it.
+  const lvl = DATA.LEVELS.find((l) => l.waves.some((w) => (w.groups || []).some((g) => g.type === "ghost"))) || DATA.LEVELS[0];
+  const e = TD.createEngine(lvl, { seed: 5 });
+  e.state.gold = 9e6; e.state.charge = 9;
+  e.callWave();
+  for (let i = 0; i < 20; i++) e.tick();
+  // a phased ghost, placed by hand so the test never depends on wave rng
+  e.state.enemies.length = 0;
+  // mkEnemy, not a hand-rolled literal: a PARTIAL enemy record silently breaks
+  // the very branches under test (a missing field NaNs `dist` on the first tick)
+  const ghost = mkEnemy("ghost", 6, 0);
+  ghost.phaseHidden = true;
+  e.state.enemies.push(ghost);
+  assert.equal(e.isHidden(ghost), true, "a phased ghost starts untargetable");
+  const p = e.posOn(0, ghost.dist);
+  // …and the blast is OFFERED rather than refused: a revealing blast counts
+  // hidden enemies as targets, because it is what un-hides them. Before this
+  // fix, L12's boss wave (eight phased ghosts) refused with "nothing in the
+  // blast" — the shipped defect this repairs.
+  const hpBefore = ghost.hp;
+  const r = e.useAbility("drop", { x: p.x, y: p.y });
+  assert.equal(r.ok, true, "a blast into a crater of phased ghosts is allowed, not refused");
+  assert.equal(e.isHidden(ghost), false, "…and the ghost is revealed by it");
+  assert.ok(ghost.hp < hpBefore, "…and the SAME tap damages it — the reveal is pushed before the damage loop");
+  // it expires
+  const secs = DATA.ABILITIES.find((a) => a.id === "drop").reveal.seconds;
+  for (let i = 0; i < secs * DATA.TICK_RATE + 2; i++) e.tick();
+  ghost.phaseHidden = true; ghost.dist = 6;
+  assert.equal(e.isHidden(ghost), true, "and it wears off — this is a window, not a permanent counter");
+});
+
+test("P3 reveal: a tunnelling mole inside a blast is hittable by the INDIRECT paths too", () => {
+  // The documented class: "untargetable" has to be enforced at every damage
+  // path including splash and chain — so lifting it has to lift at every one.
+  const lvl = DATA.LEVELS[0];
+  const e = TD.createEngine(lvl, { seed: 5 });
+  e.state.gold = 9e6; e.state.charge = 9;
+  e.callWave();
+  for (let i = 0; i < 20; i++) e.tick();
+  e.state.enemies.length = 0;
+  const total = e.paths[0].total;
+  const def = DATA.ENEMIES.mole;
+  // hp far above the blast's 300, so the mole SURVIVES to be slowed — at its
+  // real 65hp the drop simply kills it and the puddle has nothing to act on
+  const mole = mkEnemy("mole", total / 2, 0);
+  mole.hp = mole.maxHp = 5000;
+  void def;
+  e.state.enemies.push(mole);
+  assert.equal(e.isHidden(mole), true, "mid-lane, the mole is tunnelling");
+  const p = e.posOn(0, mole.dist);
+  assert.equal(e.useAbility("drop", { x: p.x, y: p.y }).ok, true);
+  assert.equal(e.isHidden(mole), false, "the blast opens the tunnel up");
+  // a puddle now slows it — one of the indirect paths that consults isHidden
+  e.state.charge = 9;
+  assert.equal(e.useAbility("sticky", { x: p.x, y: p.y }).ok, true);
+  e.tick();
+  assert.ok(mole.slowUntil > 0, "a revealed mole can be slowed — the gate lifted for the puddle too");
+});
+
+test("P3 overclock: the CRASH is real, and cannot be dodged across a build phase", () => {
+  const lvl = DATA.LEVELS[0];
+  const ab = DATA.ABILITIES.find((a) => a.id === "overclock");
+  assert.ok(ab.crashSeconds > 0 && ab.crashMult < 1, "the power ships with a downside at all");
+  // near-neutral by construction: boost shot-seconds + crash shot-seconds ≈ the
+  // untouched window, so the value is in WHEN you spend it, not in total output.
+  const window = ab.seconds + ab.crashSeconds;
+  const output = ab.seconds * ab.mult + ab.crashSeconds * ab.crashMult;
+  assert.ok(Math.abs(output - window) / window <= 0.25,
+    `the burst and the crash roughly cancel (${output} shot-seconds over ${window}s) — otherwise it is a straight buff or a trap`);
+
+  const e = TD.createEngine(lvl, { seed: 7 });
+  e.state.gold = 9e6;
+  e.place("dart", lvl.pads[0].id);
+  const t = e.state.towers[0];
+  e.callWave();
+  e.state.charge = 9;
+  assert.equal(e.useAbility("overclock", { towerId: t.id }).ok, true);
+  assert.ok(t.crashUntil > t.boostUntil, "the crash is queued behind the burst");
+  // run the burst out, then let the WAVE end while the crash is still owed
+  while (e.state.tick < t.boostUntil) e.tick();
+  assert.ok(t.crashUntil > e.state.tick, "the crash is still owed when the burst ends");
+  e.state.enemies.length = 0;                     // finish the wave immediately
+  let g = 0;
+  while (e.state.phase === "wave" && g++ < 200000) e.tick();
+  assert.equal(e.state.phase, "build", "we are between waves");
+  const owed = t.crashRemain;                     // banked AT the boundary, not before it
+  assert.ok(owed > 0, "the remaining crash was banked when the wave ended");
+  assert.equal(t.crashUntil, 0, "…and stops counting down while nothing is being shot at");
+  // …the build countdown is 20s and the crash is 12s, so an UNCLAMPED crash
+  // would be entirely dodged here. It is frozen instead.
+  // stop SHORT of the countdown — letting it expire auto-starts the wave, which
+  // thaws, and then the explicit call below would be a RUSH instead
+  for (let i = 0; i < DATA.RULES.buildCountdown * DATA.TICK_RATE - 30; i++) e.tick();
+  assert.equal(e.state.phase, "build", "still between waves");
+  e.callWave();
+  assert.ok(t.crashUntil > e.state.tick,
+    "the tower is still paying the crash back on the next wave's first shots — an opt-out downside is just a buff");
+  assert.equal(t.crashUntil - e.state.tick, owed, "and it owes exactly what it owed, not more and not less");
+});
+
+test("P3 overclock: the burst really fires FASTER and the crash really fires SLOWER", () => {
+  // The timing test above pins the WINDOWS; this pins the RATE. Without it,
+  // deleting the crash branch from boostOf leaves everything green — a test
+  // that cannot fail is worse than no test. Measured as damage dealt over a
+  // fixed window against an enemy PINNED beside the tower, so range and
+  // targeting cannot influence the count.
+  const lvl = DATA.LEVELS[0];
+  const ab = DATA.ABILITIES.find((a) => a.id === "overclock");
+  const WINDOW = ab.seconds * DATA.TICK_RATE;   // measure the same span each time
+  function measure(mode) {
+    const e = TD.createEngine(lvl, { seed: 11 });
+    e.state.gold = 9e6;
+    e.place("dart", lvl.pads[0].id);
+    const t = e.state.towers[0];
+    e.callWave();
+    e.state.charge = 9;
+    const pin = () => {
+      e.state.enemies.length = 0;
+      const x = mkEnemy("sock", distNear(e, t), 0);
+      x.hp = x.maxHp = 9e6;                     // never dies, never leaks the count
+      e.state.enemies.push(x);
+    };
+    pin();
+    for (let i = 0; i < 30; i++) { e.tick(); pin(); }   // let the tower settle
+    if (mode !== "base") assert.equal(e.useAbility("overclock", { towerId: t.id }).ok, true);
+    if (mode === "crash") { while (e.state.tick < t.boostUntil) { e.tick(); pin(); } }
+    const before = e.state.dmgBy.dart || 0;
+    for (let i = 0; i < WINDOW; i++) { e.tick(); pin(); }
+    return (e.state.dmgBy.dart || 0) - before;
+  }
+  const base = measure("base"), boost = measure("boost"), crash = measure("crash");
+  assert.ok(base > 0, `the baseline tower actually shoots (${base})`);
+  // discrete lines are asserted as RANGES: t.cooldown is sampled at fire time,
+  // so a window's boundary shot carries the previous multiplier.
+  assert.ok(boost / base >= ab.mult * 0.7 && boost / base <= ab.mult * 1.3,
+    `the burst fires about ${ab.mult}x (measured ${(boost / base).toFixed(2)}x — ${base} → ${boost})`);
+  assert.ok(crash / base <= ab.crashMult * 1.3,
+    `the crash fires about ${ab.crashMult}x (measured ${(crash / base).toFixed(2)}x — ${base} → ${crash}); ` +
+    "deleting the crash branch from boostOf must fail HERE");
+  assert.ok(crash < base, "and a crashing tower is strictly worse than an untouched one");
+});
+
 // Reported from real play: "some of them don't even seem to work at all". They
 // worked as coded, but Rally Horn with no camps returned ok, did nothing, and
 // still took 80 gold — indistinguishable from broken.

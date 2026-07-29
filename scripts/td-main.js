@@ -590,6 +590,7 @@
       // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
       shieldUsed: !!st.shieldUsed, // TD-8: a spent 🌟 Sticker Shield stays spent across a resume (else the free leak re-grants per segment)
+      charge: st.charge || 0,     // ⚙️ Toy Energy is per-RUN, so it rides the checkpoint (the shieldUsed precedent — that one shipped missing once)
       // TD-17: the diversion is TIMED, so it deliberately does NOT ride the
       // checkpoint. Saving leverRoute:1 without its expiry tick would restore a
       // PERMANENT diversion — reintroducing exactly the free-upgrade this phase
@@ -689,6 +690,9 @@
     e.state.waveIdx = mr.waveIdx; e.state.sentIdx = mr.waveIdx;
     e.state.gold = mr.gold; e.state.lives = mr.lives;
     e.state.shieldUsed = !!mr.shieldUsed; // TD-8: restore a spent Sticker Shield (legacy midRun lacks it → false, matching a fresh run)
+    // A legacy checkpoint has no charge; give it a wave's worth rather than
+    // zero, so an old saved run is never resumed into a dead power strip.
+    e.state.charge = mr.charge === undefined ? global.TDData.RULES.chargePerWave : mr.charge;
     e.state.leverRoute = 0; e.state.leverUntil = 0; e.state.leverCd = 0; // TD-17: resume on the short route, lever armed (a timed diversion cannot be checkpointed — see writeMidRun)
     // legacy midRun saves lack these → keep the fresh values (a full countdown,
     // a zeroed tally), which is exactly what a pre-fix resume already did
@@ -747,6 +751,7 @@
     if (reason === "not-in-wave") return "⏳ " + name + " only works during a wave";
     if (reason === "gold") return "🪙 Not enough gold for " + name + " (" + (def ? def.gold : "?") + ")";
     if (reason === "cooldown") return "⏱ " + name + " is still recharging";
+    if (reason === "charge") return "⚙️ Out of toy energy — you get " + global.TDData.RULES.chargePerWave + " more each wave";
     if (reason === "no-targets") return "🎯 Nothing in the blast — tap closer to the toys";
     if (reason === "no-soldiers") return "🪖 No soldiers to rally — build an Army Guys camp first";
     if (reason === "all-healthy") return "🪖 Your squad is already up and at full health";

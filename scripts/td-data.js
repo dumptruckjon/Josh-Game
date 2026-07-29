@@ -39,6 +39,12 @@
     // (including a boss finale) onto wave 1.
     maxWavesInFlight: 2,
     rushSettle: 2,       // seconds a wave must be walking before it can be rushed (anti-fumble)
+    // ⚙️ Toy Energy — the powers' real cost. A flat per-wave grant, because a
+    // per-kill one cannot work: supply would scale with wave size (1.18^n) while
+    // cooldown-limited demand scales only with wave duration, so uses/wave rises
+    // monotonically at every rate. Flat is constant by construction.
+    chargePerWave: 2,
+    chargeMax: 3,        // a small bank, so skipping a wave's powers is worth something
     sellRefund: 0.8,
     stars: [[18, 3], [10, 2], [1, 1]],
     slowCap: 0.6,        // slows never stack — strongest wins, capped (§5.1)
@@ -82,13 +88,25 @@
   //      where the game had none (late waves, when gold is plentiful).
   //   2. They are fully deterministic: tick-stamped cooldowns, zero rng, so a
   //      headless sim can drive and prove every one of them.
+  // Every power costs ⚙️ Toy Energy as well as gold. Gold prices stay where they
+  // are on purpose: cutting them would be a 4-5x buff in the wrong direction and
+  // would delete the last gold sink. Energy is what bites late, gold early.
   const ABILITIES = [
-    { id: "drop", short: "Blast", icon: "🧨", name: "Toy Box Drop", role: "big splash where you tap",
-      gold: 130, cooldown: 25, kind: "point", radius: 2.4, dmg: 300, dmgType: "bonk" },
+    // 🧨 also REVEALS: untargetability is the one thing a big blast has no answer
+    // to, and a standalone 🔦 button would be dead on most levels (there is no
+    // ability loadout, and the strip is full at four). As a rider it inherits a
+    // real point-aim decision and needs no new UI.
+    { id: "drop", short: "Blast", icon: "🧨", name: "Toy Box Drop", role: "big splash where you tap — and it flushes out hiders",
+      gold: 130, cooldown: 25, kind: "point", radius: 2.4, dmg: 300, dmgType: "bonk",
+      reveal: { radius: 2.4, seconds: 4 } },
     { id: "sticky", short: "Sticky", icon: "🍯", name: "Sticky Floor", role: "slows everything in the puddle",
       gold: 90, cooldown: 20, kind: "point", radius: 2.0, slow: 0.5, seconds: 8 },
-    { id: "overclock", short: "Boost", icon: "⚡", name: "Overclock", role: "one tower fires twice as fast",
-      gold: 100, cooldown: 22, kind: "tower", mult: 2, seconds: 8 },
+    // ⚡ now has a CRASH. It was 100g for a straight ×2 with no downside, which
+    // makes "use it whenever it is off cooldown" the only play. 6s x2.5 then 12s
+    // x0.5 is 21 shot-seconds over an 18s window whose baseline is 18 — near
+    // neutral in total, so all of the value is in WHEN you spend it.
+    { id: "overclock", short: "Boost", icon: "⚡", name: "Overclock", role: "one tower fires 2.5x — then needs a rest",
+      gold: 110, cooldown: 24, kind: "tower", mult: 2.5, seconds: 6, crashMult: 0.5, crashSeconds: 12 },
     { id: "horn", short: "Rally", icon: "📣", name: "Rally Horn", role: "every soldier back on their feet",
       gold: 80, cooldown: 30, kind: "instant" },
   ];
