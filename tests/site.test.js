@@ -271,6 +271,36 @@ test("mobile / iOS Safari optimizations are in place", () => {
       }
     }
   }
+  // A CSS `filter` must never land on a selector the page renders BY THE HUNDRED.
+  // The Sticker Book holds 200 `.sticker-slot__art` SVGs, and desaturating the
+  // unearned ones with `grayscale(1)` forced each subtree into its own
+  // rasterization pass — a known WebKit compositing cliff. CI's real-WebKit run
+  // stalled for over an hour on it while the local suite passed in 17 seconds,
+  // because WebKit is not installed in the dev sandbox and mobile.test.js falls
+  // back to Chromium. That is precisely the documented reason never to trust a
+  // Chromium-only measurement for an iOS surface — so the law is mechanical now.
+  // If a bulk-rendered element genuinely needs one, it joins this list knowingly.
+  // Scoped to the case that actually bit: a filter on a container of DRAWN ART
+  // (an inline SVG), rendered by the hundred. A `drop-shadow` on a small glyph is
+  // a different animal — `.tile__badge` puts one on a 1.25rem ⭐ and has been
+  // green in CI for dozens of runs — and a checker that flags proven-fine design
+  // is one nobody reads, so it is allowlisted with that reason rather than the
+  // law being watered down.
+  const ART_BULK = ["sticker-slot__art", "find__dot--art", "art-fill", "choice__art", "tile__art"];
+  const FILTER_OK = ["tile__badge"];   // small text glyph, not an SVG subtree
+  for (const file of ["styles/main.css", "styles/td.css"]) {
+    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const rule of body.split("}")) {
+      const parts = rule.split("{");
+      if (parts.length < 2) continue;
+      const sel = parts[0], decls = parts[1] || "";
+      if (!/(^|[^-a-z])(-webkit-)?filter\s*:\s*(?!none)/.test(decls)) continue;
+      if (FILTER_OK.some((ok) => sel.indexOf(ok) >= 0)) continue;
+      const hit = ART_BULK.find((b) => sel.indexOf(b) >= 0);
+      assert.ok(!hit,
+        `${file}: "${sel.trim()}" wraps drawn SVG art rendered in bulk and declares a filter — 200 filtered subtrees is a WebKit rasterization cliff a Chromium-only local run cannot see (it stalled CI for an hour while passing locally in 17s). Use opacity/colour instead.`);
+    }
+  }
   // Safari 14.0 also lacks the `inset:` shorthand (14.1) — longhands only.
   for (const file of ["styles/main.css", "styles/td.css"]) {
     const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");

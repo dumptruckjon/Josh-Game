@@ -2280,6 +2280,26 @@ and **bedroom, toystore and garage shipped literally the same road** because thr
 worlds had no `road` field and fell through to a shared default. The floor
 guardrail now takes a SECOND hash over the lane corridor only — the whole-canvas
 hash would happily pass two identical roads on the carpet-vs-tile difference alone.
+**And the sticker-ghost fix immediately re-taught this project's oldest lesson the
+hard way: a CSS `filter` on an element rendered BY THE HUNDRED is a WebKit
+rasterization cliff, and the dev sandbox cannot see it.** The ghost was
+desaturated with `grayscale(1)`, which forced each of the Sticker Book's 200 SVG
+subtrees into its own rasterization pass. Locally `mobile.test.js` passed in **17
+seconds** and the whole suite went 583/583 — because WebKit is not installed here
+and the mobile suite falls back to Chromium. CI, which runs REAL WebKit, **stalled
+in its test step for over an hour** (against an 18-33 minute historical norm).
+Diagnosis by elimination, not guesswork: the engine suite was timed at 13s for the
+new lever guardrail, `mobile.test.js` at 17s on Chromium, so the only genuinely
+new *compositing* cost on a screen the mobile audit walks was those 200 filters.
+The fix loses nothing — 22% opacity alone already reads as a ghost, because the
+silhouette is legible and the colour washes out against the card. The guardrail is
+scoped to what actually bit (a filter on a container of DRAWN ART rendered in
+bulk) with `.tile__badge`'s `drop-shadow` on a 1.25rem ⭐ explicitly allowlisted,
+since it has been green in CI for dozens of runs and a checker that flags
+proven-fine design is one nobody reads. Meta-lesson, now twice-learned: **"the
+full suite is green locally" is not evidence about iOS** — and a WebKit-only
+regression can present as a HANG rather than a failure, which looks nothing like
+a test going red.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
