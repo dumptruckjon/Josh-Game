@@ -36,7 +36,10 @@ const ROOT = path.join(__dirname, "..");
 const DATA = require(path.join(ROOT, "scripts/td-data.js"));
 const E = DATA.ENEMIES;
 
-const BACKBONE = new Set(["sock", "marble", "blob", "knight", "brick", "hawk"]);
+// DERIVED from the worlds' own backbone declarations. This used to be a literal
+// here AND a second copy in tests/td-logic.test.js, which is the mechanical
+// reason all 24 levels shared ~85% of their bodies.
+const BACKBONE = new Set(DATA.BACKBONE_TYPES);
 const VALVE = new Set(["pinata"]);
 const ehp = (t) => E[t].hp + (E[t].spawner ? (E[t].spawner.max || 0) * E[E[t].spawner.type].hp : 0);
 const hp = (g) => E[g.type].hp * g.count;
@@ -69,17 +72,24 @@ function buildWave(target, o) {
   return { groups };
 }
 
-const G_ODD = ["sock", "knight"], G_EVEN = ["blob", "marble"];
+// The two ground slots per parity, PER WORLD. This was one hard-coded pair for
+// all 24 levels — the single mechanical cause of the sameness the audit
+// measured — so it now reads the world's own `backbone.ground`, laid out as
+// [odd primary, odd secondary, even primary, even secondary].
+function groundSlots(world, n) {
+  const g = (DATA.WORLDS[world] || DATA.WORLDS.bedroom).backbone.ground;
+  return n % 2 ? [g[0], g[1]] : [g[2], g[3]];
+}
 const sPct = (n, t) => 0.10 + 0.14 * ((n - 4) / Math.max(1, t - 4));   // 10% → 24%, never the 25% cap
 const fPct = (n, t) => 0.10 + 0.08 * ((n - 6) / Math.max(1, t - 6));
 
-function makeWaves(base, count, schedule) {
+function makeWaves(base, count, schedule, world) {
   const out = [];
   for (let n = 1; n <= count; n++) {
     const s = schedule(n) || {};
     if (s.boss) { out.push(s.boss); continue; }
     out.push(buildWave(base * Math.pow(1.18, n), {
-      ground: n % 2 ? G_ODD : G_EVEN,
+      ground: groundSlots(world || "bedroom", n),
       special: s.special || null, specialPct: s.special ? sPct(n, count) : 0,
       flier: s.flier || null, flierPct: s.flier ? fPct(n, count) : 0,
       valve: s.valve || null,
@@ -166,7 +176,8 @@ const EXAMPLE = {
 // its own output impossible to distinguish from its caller's.
 if (require.main === module) for (const id of Object.keys(EXAMPLE)) {
   const spec = EXAMPLE[id];
-  const waves = makeWaves(spec.base, spec.count, spec.schedule);
+  const world = (DATA.LEVELS.find((l) => String(l.id) === String(id)) || {}).world;
+  const waves = makeWaves(spec.base, spec.count, spec.schedule, world);
   if (validate(`L${id} (regenerated)`, spec.base, waves) && process.argv.includes("--emit")) {
     console.log(`\n      waves: [\n${emit(waves)}\n      ],\n`);
   }

@@ -3102,7 +3102,9 @@ test("W5 wave composition: a vanilla backbone, at most ONE disruptive special pe
   // produced waves of shielded + splash-resistant + self-healing enemies with no
   // answer, unwinnable at every base and start-gold. The Garage's waves were
   // EMITTED against this rule; this is what stops a hand-edit undoing it.
-  const BACKBONE = new Set(["sock", "marble", "blob", "knight", "brick", "hawk"]);
+  // DERIVED (Phase 2). This was a second copy of the generator's literal, and a
+  // per-world backbone would silently have been read as five disruptive shapes.
+  const BACKBONE = new Set(DATA.BACKBONE_TYPES);
   const VALVE = new Set(["pinata"]);
   for (const lvl of DATA.LEVELS.filter((l) => l.world === "garage")) {
     lvl.waves.forEach((w, i) => {
@@ -3124,6 +3126,135 @@ test("W5 wave composition: a vanilla backbone, at most ONE disruptive special pe
         `L${lvl.id} wave ${i + 1} is an opening wave and must be plain — a wave-1 gotcha costs lives before a board can exist`);
     });
   }
+});
+
+// ================= Phase 2: the worlds stop sharing their bodies =================
+// Measured before the change: the four ground backbone types were 84-88% of every
+// body in worlds 4-6, and the generator hard-coded ONE pair of ground slots for
+// all 24 levels. The Garage and Moving Day were the same wave table wearing
+// different names — their body-count vectors scored a cosine similarity of ~1.0.
+
+test("P2 identity: every world's backbone has a shape no other world uses", () => {
+  const worlds = Object.keys(DATA.WORLDS);
+  for (const w of worlds) {
+    const mine = new Set(DATA.WORLDS[w].backbone.ground);
+    const theirs = new Set();
+    for (const o of worlds) if (o !== w) DATA.WORLDS[o].backbone.ground.forEach((t) => theirs.add(t));
+    const exclusive = [...mine].filter((t) => !theirs.has(t));
+    // ≥1 EXCLUSIVE, not "no two worlds share a trio": a naive overlap test stays
+    // green when two worlds share 2 of 3, which is exactly the near-duplicate
+    // shape this exists to catch.
+    assert.ok(exclusive.length >= 1,
+      `world "${w}" has no backbone shape of its own (${[...mine].join(", ")}) — it is another world's wave table in a different name`);
+  }
+  // …and exactly one air shape each, so `AUDIT threat shape` can never be starved
+  for (const w of worlds) {
+    const f = DATA.WORLDS[w].backbone.flier;
+    assert.ok(DATA.ENEMIES[f] && DATA.ENEMIES[f].flier, `world "${w}" backbone flier "${f}" must be a real flier`);
+    const groundFliers = DATA.WORLDS[w].backbone.ground.filter((t) => DATA.ENEMIES[t].flier);
+    assert.deepEqual(groundFliers, [], `world "${w}" lists a flier in its GROUND slots (${groundFliers.join(", ")})`);
+  }
+  // every declared backbone type must exist, and BACKBONE_TYPES must cover them
+  for (const w of worlds) for (const t of DATA.WORLDS[w].backbone.ground.concat([DATA.WORLDS[w].backbone.flier])) {
+    assert.ok(DATA.ENEMIES[t], `world "${w}" names a backbone type "${t}" that is not in the roster`);
+    assert.ok(DATA.BACKBONE_TYPES.indexOf(t) >= 0, `BACKBONE_TYPES must contain "${t}"`);
+  }
+  // …and the guide SAYS where you meet each world's regulars — otherwise ten
+  // stat-identical "no tricks" cards read as ten copies of the same enemy.
+  // Derived from WORLDS, so a new world's crowd documents itself.
+  const owner = {};
+  for (const w of worlds) for (const t of DATA.WORLDS[w].backbone.ground.concat([DATA.WORLDS[w].backbone.flier])) {
+    owner[t] = owner[t] === undefined ? w : "";      // "" = shared, deliberately unlabelled
+  }
+  for (const [t, w] of Object.entries(owner)) {
+    const keys = TD.enemyTraits(DATA.ENEMIES[t]).map((x) => x.key);
+    if (w) assert.ok(keys.includes("home"),
+      `"${t}" is the ${w}'s exclusive regular but the guide never says where you meet it`);
+    else assert.ok(!keys.includes("home"),
+      `"${t}" turns up in several worlds, so naming one home would be a lie`);
+  }
+});
+
+test("P2 identity: no two worlds ship the same wave SHAPE (body-count cosine < 0.9)", () => {
+  // The measurement that actually caught it. Two worlds can each hold an
+  // exclusive type and still be near-identical if that type is 2% of the bodies,
+  // so the ratchet is on the whole body-count vector. On HEAD garage vs moving
+  // scored ~1.00; after the reskin they are orthogonal on their two biggest
+  // components.
+  const vec = {};
+  for (const l of DATA.LEVELS) {
+    const v = (vec[l.world] = vec[l.world] || {});
+    for (const w of l.waves) for (const g of (w.groups || [])) {
+      if (DATA.ENEMIES[g.type].boss) continue;         // one boss each — not a shape
+      v[g.type] = (v[g.type] || 0) + g.count;
+    }
+  }
+  const worlds = Object.keys(vec);
+  const cos = (a, b) => {
+    const keys = new Set(Object.keys(a).concat(Object.keys(b)));
+    let dot = 0, na = 0, nb = 0;
+    for (const k of keys) { const x = a[k] || 0, y = b[k] || 0; dot += x * y; na += x * x; nb += y * y; }
+    return dot / Math.sqrt(na * nb || 1);
+  };
+  const worst = [];
+  for (let i = 0; i < worlds.length; i++) for (let j = i + 1; j < worlds.length; j++) {
+    const c = cos(vec[worlds[i]], vec[worlds[j]]);
+    if (c >= 0.9) worst.push(`${worlds[i]} vs ${worlds[j]} = ${c.toFixed(3)}`);
+  }
+  assert.deepEqual(worst, [],
+    `worlds whose waves are the same shape in different names: ${worst.join("; ")}`);
+});
+
+test("P2 skins: a skin is its ancestor's BODY — identical stats, only the costume differs", () => {
+  // The stats are copied by Object.assign, so this cannot fail today; it exists
+  // to stop a later hand-edit turning a free reskin into a silent balance change
+  // (the class the whole phase was designed to avoid).
+  const COSMETIC = new Set(["name", "icon", "sortKey", "skinOf"]);
+  const skins = Object.keys(DATA.ENEMIES).filter((k) => DATA.ENEMIES[k].skinOf);
+  assert.ok(skins.length >= 8, `the reskin shipped (${skins.length} skins)`);
+  for (const id of skins) {
+    const skin = DATA.ENEMIES[id], src = DATA.ENEMIES[skin.skinOf];
+    assert.ok(src, `skin "${id}" names an ancestor "${skin.skinOf}" that does not exist`);
+    const keys = new Set(Object.keys(skin).concat(Object.keys(src)));
+    for (const k of keys) {
+      if (COSMETIC.has(k)) continue;
+      assert.deepEqual(skin[k], src[k],
+        `skin "${id}" differs from its ancestor "${skin.skinOf}" on "${k}" (${JSON.stringify(skin[k])} vs ${JSON.stringify(src[k])}) — a skin is a costume, not a balance change`);
+    }
+    assert.notEqual(skin.name, src.name, `skin "${id}" must have its own name`);
+    assert.notEqual(skin.icon, src.icon, `skin "${id}" must have its own icon`);
+    // …and the spawn-queue key stays the ancestor's, which is what makes the
+    // reskin replay byte-identically instead of merely equivalently.
+    assert.equal(skin.sortKey, skin.skinOf, `skin "${id}" must inherit its ancestor's spawn-order key`);
+  }
+});
+
+test("P2 skins: an enemy's ID is a NAME — the spawn order rides sortKey, not the id", () => {
+  // Same-tick spawns are tiebroken on a stable key. It used to be the raw type
+  // id, so RENAMING an enemy moved the tick stream (measured: 22 of 384 runs).
+  // Default-noop: an enemy with no sortKey still sorts on its own id.
+  for (const id of Object.keys(DATA.ENEMIES)) {
+    const d = DATA.ENEMIES[id];
+    if (!d.skinOf) assert.equal(d.sortKey, undefined, `"${id}" is not a skin and must not override the spawn-order key`);
+  }
+  // Drive it: a wave of two groups that spawn on the SAME tick must produce the
+  // same arrival order whether the second group is the ancestor or its skin.
+  const skin = Object.keys(DATA.ENEMIES).find((k) => DATA.ENEMIES[k].skinOf === "marble");
+  assert.ok(skin, "a marble skin exists to test with");
+  const base = DATA.LEVELS[0];
+  const mk = (second) => {
+    const lvl = JSON.parse(JSON.stringify(base));
+    lvl.waves = [{ groups: [
+      { type: "knight", count: 3, gap: 0, delay: 0 },
+      { type: second, count: 3, gap: 0, delay: 0 },
+    ] }];
+    const e = TD.createEngine(lvl, { seed: 4 });
+    e.callWave();
+    for (let i = 0; i < 30; i++) e.tick();
+    return e.state.enemies.map((x) => (DATA.ENEMIES[x.type].skinOf || x.type)).join(",");
+  };
+  assert.equal(mk(skin), mk("marble"),
+    "a skin must arrive in exactly its ancestor's spawn order — otherwise a rename is a balance change");
 });
 
 test("W5 Toolbox Titan: every hp-gated phase actually fires (forced, band by band)", () => {

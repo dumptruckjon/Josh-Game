@@ -271,6 +271,205 @@
         ctx.beginPath(); ctx.ellipse(sx + rr * 0.1, sy, rr * 0.34, rr * 0.13, 0.5, 0, 7); ctx.fill();
         ctx.fillStyle = "rgba(255,255,255,0.95)"; // specular
         ctx.beginPath(); ctx.arc(sx - rr * 0.38, sy - rr * 0.4, rr * 0.2, 0, 7); ctx.fill();
+      // ---- Phase 2: the per-world backbone SKINS ----
+      // Same body as the Sock Goblin (34hp trooper) or the Speedy Marble (16hp
+      // sprinter), a different costume per world — so the Garage and Moving Day
+      // stop being the same wave table in different level names. Each needs a
+      // real branch: the chain ends in a default sock, and the ART guardrail
+      // fails if any two enemy types hash the same, which is how a missing
+      // branch announces itself.
+      } else if (e.type === "acorn") {
+        // 🌰 Acorn Trooper — a nut in a cap, marching with a stubby stem
+        shadow(sx, sy + r * 0.55, r * 0.6, r * 0.18);
+        const ga = ctx.createLinearGradient(sx, sy - r * 0.2, sx, sy + r * 0.6);
+        ga.addColorStop(0, "#e6b678"); ga.addColorStop(1, "#b57a3c");
+        ctx.fillStyle = ga;
+        ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.16, r * 0.6, r * 0.62, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#6b4423"; // cap
+        ctx.beginPath(); ctx.ellipse(sx, sy - r * 0.3, r * 0.68, r * 0.36, 0, Math.PI, 0); ctx.fill();
+        ctx.fillRect(sx - r * 0.68, sy - r * 0.32, r * 1.36, r * 0.12);
+        ctx.strokeStyle = "#4d3018"; ctx.lineWidth = Math.max(1, cell * 0.035);
+        ctx.beginPath(); ctx.moveTo(sx, sy - r * 0.6); ctx.lineTo(sx + r * 0.1, sy - r * 0.92); ctx.stroke(); // stem
+        ctx.fillStyle = "#3a2412";
+        ctx.beginPath(); ctx.arc(sx - r * 0.2, sy + r * 0.1, r * 0.09, 0, 7); ctx.arc(sx + r * 0.2, sy + r * 0.1, r * 0.09, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#3a2412"; ctx.lineWidth = Math.max(1, cell * 0.025);
+        ctx.beginPath(); ctx.arc(sx, sy + r * 0.3, r * 0.18, 0.25, Math.PI - 0.25); ctx.stroke();
+      } else if (e.type === "ant") {
+        // 🐜 Ant Scout — three beads and skittering legs, so speed READS
+        shadow(sx, sy + r * 0.4, r * 0.6, r * 0.14);
+        const sk = Math.sin(engine.state.tick / 2 + e.id) * r * 0.12;
+        ctx.strokeStyle = "#2b1b10"; ctx.lineWidth = Math.max(1, cell * 0.028);
+        for (let k = -1; k <= 1; k++) {
+          ctx.beginPath(); ctx.moveTo(sx + k * r * 0.22, sy); ctx.lineTo(sx + k * r * 0.22 - r * 0.3, sy + r * 0.42 + (k ? sk : -sk)); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(sx + k * r * 0.22, sy); ctx.lineTo(sx + k * r * 0.22 + r * 0.3, sy + r * 0.42 - (k ? sk : -sk)); ctx.stroke();
+        }
+        ctx.fillStyle = "#54331c";
+        ctx.beginPath(); ctx.ellipse(sx + r * 0.42, sy, r * 0.34, r * 0.3, 0, 0, 7); ctx.fill(); // abdomen
+        ctx.fillStyle = "#7a4a26";
+        ctx.beginPath(); ctx.ellipse(sx, sy, r * 0.24, r * 0.22, 0, 0, 7); ctx.fill(); // thorax
+        ctx.fillStyle = "#3d2413";
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.42, sy - r * 0.04, r * 0.28, r * 0.26, 0, 0, 7); ctx.fill(); // head
+        ctx.strokeStyle = "#3d2413"; ctx.lineWidth = Math.max(1, cell * 0.022);
+        ctx.beginPath(); ctx.moveTo(sx - r * 0.6, sy - r * 0.15); ctx.lineTo(sx - r * 0.85, sy - r * 0.5); ctx.moveTo(sx - r * 0.55, sy - r * 0.2); ctx.lineTo(sx - r * 0.68, sy - r * 0.58); ctx.stroke();
+        ctx.fillStyle = "#ffe9c4";
+        ctx.beginPath(); ctx.arc(sx - r * 0.5, sy - r * 0.06, r * 0.07, 0, 7); ctx.fill();
+      } else if (e.type === "yoyo") {
+        // 🪀 Yo-Yo Bandit — two discs on an axle, hanging off its own string
+        ctx.strokeStyle = "rgba(240,240,250,0.75)"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.beginPath(); ctx.moveTo(sx, sy - r * 1.05); ctx.lineTo(sx, sy - r * 0.15); ctx.stroke();
+        shadow(sx, sy + r * 0.7, r * 0.6, r * 0.18);
+        const spin = (engine.state.tick / 4 + e.id) % 6.283;
+        const gy = ctx.createRadialGradient(sx - r * 0.25, sy - r * 0.2, r * 0.1, sx, sy + r * 0.1, r * 0.8);
+        gy.addColorStop(0, "#ff9e6b"); gy.addColorStop(1, "#c8412a");
+        ctx.fillStyle = gy;
+        ctx.beginPath(); ctx.arc(sx, sy + r * 0.1, r * 0.7, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#7d2415"; ctx.lineWidth = Math.max(1, cell * 0.04);
+        ctx.beginPath(); ctx.arc(sx, sy + r * 0.1, r * 0.7, 0, 7); ctx.stroke();
+        ctx.strokeStyle = "rgba(255,240,220,0.85)"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        for (let k = 0; k < 3; k++) { // spokes make the spin visible
+          const a = spin + k * 2.094;
+          ctx.beginPath(); ctx.moveTo(sx, sy + r * 0.1); ctx.lineTo(sx + Math.cos(a) * r * 0.55, sy + r * 0.1 + Math.sin(a) * r * 0.55); ctx.stroke();
+        }
+        ctx.fillStyle = "#ffe6c8";
+        ctx.beginPath(); ctx.arc(sx, sy + r * 0.1, r * 0.16, 0, 7); ctx.fill();
+      } else if (e.type === "die") {
+        // 🎲 Runaway Die — a tumbling white cube; the pip face rolls as it moves
+        shadow(sx, sy + r * 0.55, r * 0.6, r * 0.16);
+        const face = 1 + (Math.floor(e.dist * 1.5) % 6);
+        ctx.save();
+        ctx.translate(sx, sy); ctx.rotate(Math.sin(e.dist * 0.9 + e.id) * 0.35);
+        const gd = ctx.createLinearGradient(0, -r * 0.6, 0, r * 0.6);
+        gd.addColorStop(0, "#ffffff"); gd.addColorStop(1, "#cfd6e2");
+        ctx.fillStyle = gd; ctx.beginPath(); ctx.rect(-r * 0.58, -r * 0.58, r * 1.16, r * 1.16); ctx.fill();
+        ctx.strokeStyle = "#8d97a8"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.strokeRect(-r * 0.58, -r * 0.58, r * 1.16, r * 1.16);
+        ctx.fillStyle = "#28303f";
+        const pip = (px, py) => { ctx.beginPath(); ctx.arc(px * r * 0.32, py * r * 0.32, r * 0.11, 0, 7); ctx.fill(); };
+        if (face % 2) pip(0, 0);
+        if (face > 1) { pip(-1, -1); pip(1, 1); }
+        if (face > 3) { pip(-1, 1); pip(1, -1); }
+        if (face === 6) { pip(-1, 0); pip(1, 0); }
+        ctx.restore();
+      } else if (e.type === "mitten") {
+        // 🧤 Lost Mitten — a knitted mitten with a cuff and a dangling thread
+        shadow(sx, sy + r * 0.6, r * 0.55, r * 0.16);
+        const gmi = ctx.createLinearGradient(sx, sy - r * 0.6, sx, sy + r * 0.6);
+        gmi.addColorStop(0, "#e0567a"); gmi.addColorStop(1, "#9c2f4d");
+        ctx.fillStyle = gmi;
+        ctx.beginPath();
+        ctx.moveTo(sx - r * 0.42, sy + r * 0.55); ctx.lineTo(sx - r * 0.42, sy - r * 0.2);
+        ctx.quadraticCurveTo(sx - r * 0.42, sy - r * 0.72, sx + r * 0.06, sy - r * 0.72);
+        ctx.quadraticCurveTo(sx + r * 0.5, sy - r * 0.72, sx + r * 0.5, sy - r * 0.2);
+        ctx.lineTo(sx + r * 0.5, sy + r * 0.55); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#c14264"; // thumb
+        ctx.beginPath(); ctx.ellipse(sx + r * 0.6, sy - r * 0.02, r * 0.18, r * 0.3, -0.3, 0, 7); ctx.fill();
+        ctx.fillStyle = "#f4e3d0"; // cuff
+        ctx.beginPath(); ctx.rect(sx - r * 0.5, sy + r * 0.4, r * 1.1, r * 0.28); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = Math.max(1, cell * 0.022);
+        for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(sx + k * r * 0.24, sy - r * 0.6); ctx.lineTo(sx + k * r * 0.24, sy + r * 0.36); ctx.stroke(); }
+        ctx.strokeStyle = "#f4e3d0"; ctx.lineWidth = Math.max(1, cell * 0.02); // loose thread
+        ctx.beginPath(); ctx.moveTo(sx - r * 0.5, sy + r * 0.54);
+        ctx.quadraticCurveTo(sx - r * 0.9, sy + r * 0.4, sx - r * 0.8, sy + r * 0.75); ctx.stroke();
+        ctx.fillStyle = "#3a2030";
+        ctx.beginPath(); ctx.arc(sx - r * 0.12, sy - r * 0.16, r * 0.08, 0, 7); ctx.arc(sx + r * 0.2, sy - r * 0.16, r * 0.08, 0, 7); ctx.fill();
+      } else if (e.type === "yarn") {
+        // 🧶 Yarn Ball — a wound ball trailing its own strand, rolling
+        shadow(sx, sy + r * 0.4, r * 0.62, r * 0.2);
+        const rr = r * 0.72, roll = e.dist * 1.4 + e.id;
+        const gyn = ctx.createRadialGradient(sx - rr * 0.35, sy - rr * 0.4, rr * 0.12, sx, sy, rr);
+        gyn.addColorStop(0, "#b9e6c8"); gyn.addColorStop(1, "#3f8f66");
+        ctx.fillStyle = gyn; ctx.beginPath(); ctx.arc(sx, sy, rr, 0, 7); ctx.fill();
+        ctx.save();
+        ctx.beginPath(); ctx.arc(sx, sy, rr, 0, 7); ctx.clip();
+        ctx.strokeStyle = "rgba(20,70,50,0.5)"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        for (let k = -2; k <= 2; k++) {
+          ctx.beginPath();
+          ctx.ellipse(sx, sy, rr * 0.95, rr * 0.34, roll * 0.3 + k * 0.6, 0, 7);
+          ctx.stroke();
+        }
+        ctx.restore();
+        ctx.strokeStyle = "#3f8f66"; ctx.lineWidth = Math.max(1, cell * 0.028); // trailing strand
+        ctx.beginPath(); ctx.moveTo(sx - rr * 0.9, sy + rr * 0.3);
+        ctx.quadraticCurveTo(sx - rr * 1.6, sy + rr * 0.1, sx - rr * 1.5, sy + rr * 0.8); ctx.stroke();
+      } else if (e.type === "rag") {
+        // 🧽 Grease Rag — a slumped oily cloth with drips
+        shadow(sx, sy + r * 0.5, r * 0.7, r * 0.18);
+        const gg2 = ctx.createLinearGradient(sx, sy - r * 0.5, sx, sy + r * 0.5);
+        gg2.addColorStop(0, "#7f8896"); gg2.addColorStop(1, "#454d59");
+        ctx.fillStyle = gg2;
+        ctx.beginPath();
+        ctx.moveTo(sx - r * 0.75, sy + r * 0.4);
+        ctx.quadraticCurveTo(sx - r * 0.85, sy - r * 0.35, sx - r * 0.25, sy - r * 0.5);
+        ctx.quadraticCurveTo(sx + r * 0.3, sy - r * 0.68, sx + r * 0.7, sy - r * 0.25);
+        ctx.quadraticCurveTo(sx + r * 0.92, sy + r * 0.2, sx + r * 0.5, sy + r * 0.44);
+        ctx.quadraticCurveTo(sx, sy + r * 0.24, sx - r * 0.75, sy + r * 0.4);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "rgba(24,22,18,0.65)"; // grease patches
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.2, sy - r * 0.05, r * 0.26, r * 0.17, 0.4, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(sx + r * 0.36, sy + r * 0.1, r * 0.16, r * 0.11, -0.3, 0, 7); ctx.fill();
+        ctx.fillStyle = "#1b1a16"; // a drip below
+        ctx.beginPath(); ctx.ellipse(sx + r * 0.1, sy + r * 0.62, r * 0.08, r * 0.14, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#f0f3f8";
+        ctx.beginPath(); ctx.arc(sx - r * 0.22, sy - r * 0.22, r * 0.1, 0, 7); ctx.arc(sx + r * 0.16, sy - r * 0.26, r * 0.1, 0, 7); ctx.fill();
+        ctx.fillStyle = "#20242c";
+        ctx.beginPath(); ctx.arc(sx - r * 0.2, sy - r * 0.2, r * 0.05, 0, 7); ctx.arc(sx + r * 0.18, sy - r * 0.24, r * 0.05, 0, 7); ctx.fill();
+      } else if (e.type === "cog") {
+        // ⚙️ Rogue Cog — a toothed steel gear that spins as it rolls
+        shadow(sx, sy + r * 0.45, r * 0.6, r * 0.16);
+        const rr2 = r * 0.66, spin2 = e.dist * 1.1 + e.id;
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(spin2);
+        const gc = ctx.createRadialGradient(-rr2 * 0.3, -rr2 * 0.3, rr2 * 0.1, 0, 0, rr2);
+        gc.addColorStop(0, "#dfe6f0"); gc.addColorStop(1, "#7c879a");
+        ctx.fillStyle = gc;
+        ctx.beginPath();
+        for (let k = 0; k < 8; k++) {
+          const a0 = (k / 8) * 6.283, a1 = a0 + 0.28, a2 = a0 + 0.505;
+          ctx.lineTo(Math.cos(a0) * rr2, Math.sin(a0) * rr2);
+          ctx.lineTo(Math.cos(a0 + 0.14) * rr2 * 1.32, Math.sin(a0 + 0.14) * rr2 * 1.32);
+          ctx.lineTo(Math.cos(a1) * rr2 * 1.32, Math.sin(a1) * rr2 * 1.32);
+          ctx.lineTo(Math.cos(a2) * rr2, Math.sin(a2) * rr2);
+        }
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#4d5765"; ctx.lineWidth = Math.max(1, cell * 0.03); ctx.stroke();
+        ctx.fillStyle = "#2f3743"; ctx.beginPath(); ctx.arc(0, 0, rr2 * 0.34, 0, 7); ctx.fill();
+        ctx.restore();
+      } else if (e.type === "wad") {
+        // 🗞️ Packing Wad — a crumpled ball of newsprint with creases + print
+        shadow(sx, sy + r * 0.5, r * 0.6, r * 0.17);
+        ctx.fillStyle = "#eee7d6";
+        ctx.beginPath();
+        const lobes = 9;
+        for (let k = 0; k <= lobes; k++) {
+          const a = (k / lobes) * 6.283;
+          const rad = r * (0.62 + 0.16 * Math.sin(k * 2.3 + e.id));
+          ctx.lineTo(sx + Math.cos(a) * rad, sy + Math.sin(a) * rad);
+        }
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#b9ad93"; ctx.lineWidth = Math.max(1, cell * 0.025);
+        ctx.beginPath();
+        ctx.moveTo(sx - r * 0.5, sy - r * 0.2); ctx.lineTo(sx - r * 0.05, sy + r * 0.06); ctx.lineTo(sx + r * 0.45, sy - r * 0.3);
+        ctx.moveTo(sx - r * 0.25, sy + r * 0.45); ctx.lineTo(sx + r * 0.05, sy + r * 0.05); ctx.lineTo(sx + r * 0.4, sy + r * 0.4);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(90,84,72,0.55)"; // scraps of print
+        for (let k = 0; k < 3; k++) ctx.fillRect(sx - r * 0.34 + k * r * 0.06, sy - r * 0.46 + k * r * 0.3, r * 0.4, r * 0.06);
+        ctx.fillStyle = "#4a4438";
+        ctx.beginPath(); ctx.arc(sx - r * 0.18, sy - r * 0.06, r * 0.07, 0, 7); ctx.arc(sx + r * 0.18, sy - r * 0.06, r * 0.07, 0, 7); ctx.fill();
+      } else if (e.type === "peanut") {
+        // 🥜 Packing Peanut — a pale foam S-curve, bouncing along
+        const bob = Math.sin(engine.state.tick / 4 + e.id) * r * 0.12;
+        shadow(sx, sy + r * 0.5, r * 0.45, r * 0.13);
+        ctx.save(); ctx.translate(sx, sy + bob); ctx.rotate(-0.5);
+        const gp = ctx.createLinearGradient(-r * 0.4, -r * 0.4, r * 0.4, r * 0.4);
+        gp.addColorStop(0, "#fdfaf0"); gp.addColorStop(1, "#ddd4bd");
+        ctx.fillStyle = gp;
+        ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.22, r * 0.3, r * 0.26, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(r * 0.3, r * 0.22, r * 0.3, r * 0.26, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.rect(-r * 0.3, -r * 0.24, r * 0.6, r * 0.48); ctx.fill();
+        ctx.strokeStyle = "rgba(160,150,125,0.7)"; ctx.lineWidth = Math.max(1, cell * 0.022);
+        ctx.beginPath(); ctx.moveTo(-r * 0.42, -r * 0.02); ctx.lineTo(r * 0.42, -r * 0.02); ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = "#6a6252";
+        ctx.beginPath(); ctx.arc(sx - r * 0.16, sy + bob - r * 0.08, r * 0.06, 0, 7); ctx.arc(sx + r * 0.06, sy + bob - r * 0.2, r * 0.06, 0, 7); ctx.fill();
       } else if (e.type === "blob" || e.type === "mudlet") {
         // Mud Blob / Mudlet: a gloopy brown blob with a wobble and a grumpy face
         const rr = (e.type === "blob" ? r * 1.0 : r * 0.62), w = Math.sin(engine.state.tick / 5 + e.id) * rr * 0.08;

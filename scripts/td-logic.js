@@ -253,7 +253,19 @@
           spawnQueue.push({ tick: state.tick + Math.round(at * DATA.TICK_RATE), type: g.type, dist: g.at || 0 });
         }
       }
-      spawnQueue.sort((a, b) => a.tick - b.tick || (a.type < b.type ? -1 : 1));
+      spawnQueue.sort((a, b) => a.tick - b.tick || (sortKey(a.type) < sortKey(b.type) ? -1 : 1));
+    }
+    // Same-tick spawns need a deterministic order, and this tiebreak used to be
+    // the raw type id — so an enemy's NAME was load-bearing on the tick stream.
+    // Measured: cloning the four backbone types under new ids left every one of
+    // 384 runs' phase/lives/gold/kills identical but moved `tick` on 22 of them,
+    // purely from the re-sort. An id is a name; the ORDER is the behaviour. A
+    // reskin therefore declares its ancestor's key and replays byte-identically.
+    // Default-noop: with no `sortKey` an enemy sorts on its own id exactly as
+    // before, which is what keeps every shipped level's stream unchanged.
+    function sortKey(type) {
+      const d = DATA.ENEMIES[type];
+      return (d && d.sortKey) || type;
     }
 
     function startWave() {
@@ -1463,7 +1475,26 @@
     // of these reach the door is not the same as letting a sock through.
     if (def.lives > 1) out.push({ key: "toll", icon: "💔", text: "Costs " + def.lives + " stickers if it reaches the door" });
     if (!out.length) out.push({ key: "plain", icon: "•", text: "No tricks — anything can hit it" });
+    // Phase 2: a world's EXCLUSIVE backbone shapes are its regulars, and the
+    // guide never said where you meet anything. Derived by matching the def
+    // against WORLDS[].backbone, so a new world's crowd documents itself and
+    // ten "no tricks" cards stop reading as ten copies of the same enemy.
+    const home = homeWorld(def);
+    if (home) out.push({ key: "home", icon: "🏠", text: "The regular crowd in the " + DATA.WORLDS[home].label });
     return out;
+  }
+  // The one world whose backbone holds this enemy, or "" when it is shared (the
+  // Plastic Knight and the Kite Hawk turn up nearly everywhere, so naming a
+  // home for them would be noise rather than information).
+  function homeWorld(def) {
+    let found = "";
+    for (const [key, w] of Object.entries(DATA.WORLDS)) {
+      const mine = w.backbone.ground.concat([w.backbone.flier]).some((t) => DATA.ENEMIES[t] === def);
+      if (!mine) continue;
+      if (found) return "";      // shared across worlds — not anybody's regular
+      found = key;
+    }
+    return found;
   }
   // Which tower lines can even REACH this enemy. The one place that answers
   // "why is nothing shooting it?" — the question the game never answered.
