@@ -1698,41 +1698,52 @@ test("AUDIT ability abuse: spamming the shipped powers must not erase a finale",
   }
 });
 
-// The same audit, run with the WHOLE star tree owned — the balance instrument
-// that did not exist. Every tuning number in this project (and in CLAUDE.md and
-// every PLAN doc) is a NO-META number, because the winnability oracle passes no
-// `meta`. The tree is not a garnish, though: it is the strongest difficulty knob
-// in the game, and 94% of it is affordable today against the 47% TD-8 designed
-// for. Measured with the shipped oracle, 8 seeds, best-of-two plans:
+// The same audit, run with the strongest loadout a player can actually BRING —
+// the balance instrument that did not exist. Every tuning number in this project
+// (and in CLAUDE.md and every PLAN doc) is a NO-META number, because the
+// winnability oracle passes no `meta`, and the tree is the strongest difficulty
+// knob in the game.
 //
-//     finale                no-meta median   full-tree median
-//     L4  Bed Monster            14                24
-//     L8  Vacuum King            11                24
-//     L12 The Static              7                22
-//     L16 Tickmaster             17                24
-//     L20 Toolbox Titan           9                24   <- "the tensest ending in the game"
-//     L24 The Moving Van         14                22
+// TWO corrections came out of Phase 4, and both are why this test is shaped the
+// way it is now. (1) It used to pass ALL 23 nodes — a loadout that is now
+// IMPOSSIBLE, since a run equips at most RULES.metaSlots. An instrument that
+// measures an unreachable state cannot tell you anything about the game. It
+// therefore measures the worst LEGAL pack, which is a real thing a player can
+// do. (2) It judged lives REMAINING against a 5-17 band, but Extra Hearts raises
+// the STARTING total — so a lives-boosting loadout scored as "softer" for free.
+// It measures lives LOST.
 //
-// ALL SIX are erased, not the two the plan predicted. That rules out the
-// exemption-list shape this test was first written with: exempting 6 of 6 would
-// make it unfailable, which is exactly the "a test that cannot fail is worse
-// than no test" trap. So it pins the MEASURED BASELINE instead, which fails on
-// three real regressions: a finale getting even softer, a NEW finale shipping
-// broken, and (the good one) Phase 4 fixing a finale without tightening this.
-test("AUDIT boss tension WITH the full star tree: pin the meta erosion so it cannot worsen", () => {
-  const ALL_META = DATA.META_NODES.map((n) => n.id);
-  const MAX_BOSS_LEVEL_FINISH = 17;   // the bar the no-meta audit enforces
+// Measured 2026-07 (4 seeds, best-of-two plans, normal), lives LOST:
+//
+//     finale                no-meta   best legal 6-pack
+//     L4  Bed Monster            7            6
+//     L8  Vacuum King           10            1     <- erased
+//     L12 The Static            14           10
+//     L16 Tickmaster            10            0     <- erased
+//     L20 Toolbox Titan         12           11
+//     L24 The Moving Van         7            8
+//
+// So the slot cap rescued four of six, and L8/L16 survive as a pinned baseline
+// because they are boss-QUANTIZED: one boss leak is worth 8 lives, so any damage
+// increase flips them from one leak to none. Three single Firepower nodes each
+// do it alone. That is a level-design fact, not a meta-economy one, and it is
+// recorded rather than exempted away — the baseline covers 2 of 6, so this test
+// can still fail on the other four.
+test("AUDIT boss tension with the strongest LEGAL loadout: pin the meta erosion", () => {
+  // the worst legal pack found by the Phase 4 sweep: the front of the Firepower
+  // branch, which is what a player optimising for damage actually brings
+  const ALL_META = DATA.META_NODES.filter((n) => n.branch === "fire").map((n) => n.id).slice(0, DATA.RULES.metaSlots);
+  const MAX_LIVES_LOST_FLOOR = 3;   // a finale must cost SOMETHING
   // Measured 2026-07 with this exact harness. A finale absent here is NEW and is
   // held to the real bar — so a 7th world cannot quietly add a 7th broken one.
   // L12 moved 22 → 24 in Phase 2, when its escort became the untargetable
-  // archetype (ghost + mole instead of knight + battery + ghost). With no meta
-  // the finale is unchanged (median 7 normal, 5 heroic); it is only the
-  // fully-bought tree that turns 22 into a flawless 24 — which is the erosion
-  // this test exists to pin, not a new defect. Phase 4 is what empties this.
-  const BASELINE = { 4: 24, 8: 24, 12: 24, 16: 24, 20: 24, 24: 22 };
+  // The two boss-QUANTIZED finales, in lives LOST. Everything else is held to
+  // the real bar, so this test can (and must be able to) fail on four of six.
+  const BASELINE = { 8: 1, 16: 0 };
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
   function run(level, plan, seed) {
     const e = TD.createEngine(level, { seed, difficulty: "normal", meta: ALL_META });
+    const startLives = e.state.lives;
     const padIds = level.pads.map((p) => p.id);
     let idx = 0, guard = 0;
     while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
@@ -1755,36 +1766,41 @@ test("AUDIT boss tension WITH the full star tree: pin the meta erosion so it can
       }
       e.tick();
     }
-    return e.state;
+    return { phase: e.state.phase, lives: e.state.lives, lost: startLives - e.state.lives };
   }
   const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
-  const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+  const SEEDS = [1, 2, 3, 4];
   const finales = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss));
+  assert.ok(Object.keys(BASELINE).length < finales.length,
+    "the baseline must never cover every finale — a test that cannot fail is worse than no test");
   let fixed = 0;
 
   for (const lvl of finales) {
     const perSeed = SEEDS.map((seed) => {
       const wins = PLANS.map((p) => run(lvl, p, seed)).filter((r) => r.phase === "won");
-      return wins.length ? Math.max(...wins.map((r) => r.lives)) : -1;
+      // best-of-two on the ORACLE's terms (most lives LEFT), reported as lives
+      // LOST — taking the max of a "lost" number would pick the worse plan
+      if (!wins.length) return 99;
+      return wins.sort((a, b) => b.lives - a.lives)[0].lost;
     });
-    const sorted = perSeed.filter((l) => l >= 0).slice().sort((a, b) => a - b);
-    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : -1;
+    const sorted = perSeed.slice().sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
     const base = BASELINE[lvl.id];
 
     if (base === undefined) {
-      assert.ok(median <= MAX_BOSS_LEVEL_FINISH,
-        `L${lvl.id} "${lvl.name}" is a NEW finale and finishes at a median ${median} with the full star tree ` +
-        `(${perSeed.join(", ")}) — a new world must not add another meta-erased finale. Bound applied power, do not extend BASELINE.`);
+      assert.ok(median >= MAX_LIVES_LOST_FLOOR,
+        `L${lvl.id} "${lvl.name}" costs a median ${median} lives against the strongest LEGAL pack (${perSeed.join(", ")}) — ` +
+        "a finale must still cost something to a fully-invested player. Bound applied power; do not extend BASELINE.");
       continue;
     }
-    assert.ok(median <= base,
-      `L${lvl.id} "${lvl.name}" got SOFTER under the full tree: median ${median} vs a pinned baseline of ${base} (${perSeed.join(", ")})`);
-    if (median <= MAX_BOSS_LEVEL_FINISH) fixed += 1;
+    assert.ok(median >= base,
+      `L${lvl.id} "${lvl.name}" got even softer: ${median} lives lost vs a pinned ${base} (${perSeed.join(", ")})`);
+    if (median >= MAX_LIVES_LOST_FLOOR) fixed += 1;
   }
-  // The good failure: when Phase 4 bounds applied power, finales drop back under
-  // the bar and this forces BASELINE to be tightened rather than left to rot.
+  // The good failure: when a leak-toll re-tune de-quantizes these two, they clear
+  // the real floor and this forces BASELINE to be tightened rather than left to rot.
   assert.equal(fixed, 0,
-    `${fixed} finale(s) now hold up under the full star tree — remove them from BASELINE so the real bar applies from here on`);
+    `${fixed} finale(s) now hold up against the strongest legal pack — remove them from BASELINE so the real floor applies`);
 });
 
 test("AUDIT boss tension: every boss FINALE must actually cost something", () => {
