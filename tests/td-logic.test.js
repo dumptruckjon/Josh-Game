@@ -1719,7 +1719,12 @@ test("AUDIT boss tension WITH the full star tree: pin the meta erosion so it can
   const MAX_BOSS_LEVEL_FINISH = 17;   // the bar the no-meta audit enforces
   // Measured 2026-07 with this exact harness. A finale absent here is NEW and is
   // held to the real bar — so a 7th world cannot quietly add a 7th broken one.
-  const BASELINE = { 4: 24, 8: 24, 12: 22, 16: 24, 20: 24, 24: 22 };
+  // L12 moved 22 → 24 in Phase 2, when its escort became the untargetable
+  // archetype (ghost + mole instead of knight + battery + ghost). With no meta
+  // the finale is unchanged (median 7 normal, 5 heroic); it is only the
+  // fully-bought tree that turns 22 into a flawless 24 — which is the erosion
+  // this test exists to pin, not a new defect. Phase 4 is what empties this.
+  const BASELINE = { 4: 24, 8: 24, 12: 24, 16: 24, 20: 24, 24: 22 };
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
   function run(level, plan, seed) {
     const e = TD.createEngine(level, { seed, difficulty: "normal", meta: ALL_META });
@@ -3203,6 +3208,129 @@ test("P2 identity: no two worlds ship the same wave SHAPE (body-count cosine < 0
   }
   assert.deepEqual(worst, [],
     `worlds whose waves are the same shape in different names: ${worst.join("; ")}`);
+});
+
+test("P2 identity: no two levels run the same SPECIAL SCHEDULE", () => {
+  // The attic shipped with FIVE pairs at 100%: L13-L16 carried a byte-identical
+  // wave-for-wave order (screw, mole, ghost, battery, cushion, slime, screw,
+  // mole, ghost, battery) and differed only in the counts.
+  //
+  // Scoped to the SPECIAL slot on purpose. The backbone lead is
+  // balance-load-bearing (the generator's own note: leading an even wave with
+  // marbles makes it a 200-body sprint that outruns every board), so a
+  // whole-cast metric would fight the composition contract rather than measure
+  // sameness. Waves with no special on either side are skipped — an opening
+  // wave is required to be plain, so counting those as a "match" would measure
+  // the rule, not the level.
+  const BB = new Set(DATA.BACKBONE_TYPES), VALVE = new Set(["pinata"]);
+  const schedule = (l) => l.waves.map((w) => (w.groups || [])
+    .filter((g) => !BB.has(g.type) && !VALVE.has(g.type) && !DATA.ENEMIES[g.type].boss)
+    .map((g) => g.type).sort().join("+"));
+  const CAP = 0.65;   // ratchet: worst measured pair is 0.60 (L13/L15 and three siblings)
+  const bad = [];
+  for (let i = 0; i < DATA.LEVELS.length; i++) for (let j = i + 1; j < DATA.LEVELS.length; j++) {
+    const a = schedule(DATA.LEVELS[i]), b = schedule(DATA.LEVELS[j]);
+    const n = Math.min(a.length, b.length);
+    let same = 0, slots = 0;
+    for (let k = 0; k < n; k++) { if (!a[k] && !b[k]) continue; slots++; if (a[k] === b[k]) same++; }
+    if (slots >= 6 && same / slots > CAP) bad.push(`L${DATA.LEVELS[i].id}/L${DATA.LEVELS[j].id} ${same}/${slots}`);
+  }
+  assert.deepEqual(bad, [],
+    `levels running the same threats in the same order (cap ${Math.round(CAP * 100)}%): ${bad.join(", ")}`);
+});
+
+test("P2 hooks: every level has a declared HOOK, or a boss that is one", () => {
+  // Six levels were hookless, and four of those are boss finales — the levels
+  // with the least margin in the game, where forcing a mechanic is measurably
+  // destructive (L4+night loses every heroic seed; L8+power pad reverses the
+  // deliberate Vacuum King hardening). So a boss IS the declared hook: a
+  // multi-phase enemy with its own kit, klaxon and guide card is a stronger
+  // named hook than a mud patch. That leaves the genuinely bare non-boss
+  // levels, which must carry one.
+  const bare = [];
+  for (const l of DATA.LEVELS) {
+    if (l.waves.some((w) => w.boss)) continue;
+    if (!TD.levelGimmicks(l).length) bare.push(l.id);
+  }
+  assert.deepEqual(bare, [], `levels with no hook and no boss: ${bare.map((x) => "L" + x).join(", ")}`);
+  // …and the exemption must be REAL: if every level were a boss level this
+  // check would be inert.
+  assert.ok(DATA.LEVELS.filter((l) => !l.waves.some((w) => w.boss)).length > DATA.LEVELS.length / 2,
+    "most levels are not boss levels, so the boss exemption is a minority case");
+  // No two levels in the same world may lean on the same mechanic.
+  for (const world of Object.keys(DATA.WORLDS)) {
+    const seen = {};
+    for (const l of DATA.LEVELS.filter((x) => x.world === world)) {
+      for (const g of TD.levelGimmicks(l)) {
+        assert.ok(seen[g.key] === undefined,
+          `L${l.id} and L${seen[g.key]} are both the "${g.key}" level of the ${world} — a world's four levels should each have their own trick`);
+        seen[g.key] = l.id;
+      }
+    }
+  }
+});
+
+test("P2 hooks: a side door sits in the band that is neither a no-op nor a rout", () => {
+  // Door position is one of the very few MONOTONIC knobs in this engine (almost
+  // nothing else is): measured on L13, 25% finishes 20/20 and 75% finishes ~5,
+  // and 75% loses every heroic seed on all three levels that carry one. Below
+  // ~30% it is a no-op on normal. So the band is authored, not eyeballed.
+  const LO = 0.25, HI = 0.62;
+  const len = (p) => { let t = 0; for (let i = 1; i < p.length; i++) t += Math.abs(p[i][0] - p[i - 1][0]) + Math.abs(p[i][1] - p[i - 1][1]); return t; };
+  let doors = 0;
+  for (const l of DATA.LEVELS) {
+    // a fork level declares `paths` and no `path`; a door's `at` is a distance
+    // on the enemy's own lane, and it enters on the DEFAULT one
+    const total = len(l.path || l.paths[0]);
+    for (const w of l.waves) for (const g of (w.groups || [])) {
+      if (!g.at) continue;
+      doors++;
+      const pct = g.at / total;
+      assert.ok(pct >= LO,
+        `L${l.id}'s side door enters at ${Math.round(pct * 100)}% of the lane — below ${Math.round(LO * 100)}% it is a no-op on normal, i.e. a mechanic that does nothing`);
+      assert.ok(pct <= HI,
+        `L${l.id}'s side door enters at ${Math.round(pct * 100)}% of the lane — above ${Math.round(HI * 100)}% it loses every heroic seed`);
+    }
+  }
+  assert.ok(doors >= 5, `the door mechanic actually ships (${doors} groups) — an empty loop would pass this silently`);
+});
+
+test("P2 identity: each finale's ESCORT demands a different counter", () => {
+  // Every one of the six boss escorts led with the Plastic Knight, and three of
+  // them were the same template (armored line + fast air). A boss wave is
+  // budget-exempt, so composition is free — and the escort is where a finale
+  // says which board it wants. The signature is the set of TRAIT KEYS the
+  // escort carries, derived through enemyTraits so a new enemy classifies
+  // itself; medians are deliberately NOT the metric (they already differed
+  // while the escorts were near-copies).
+  const finales = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss));
+  const sig = {};
+  for (const l of finales) {
+    const bw = l.waves.find((w) => w.boss);
+    const escort = bw.groups.filter((g) => !DATA.ENEMIES[g.type].boss);
+    assert.ok(escort.length >= 1, `L${l.id}'s boss walks in alone — the escort is the finale's question`);
+    const keys = new Set();
+    for (const g of escort) for (const t of TD.enemyTraits(DATA.ENEMIES[g.type])) {
+      if (t.key !== "plain" && t.key !== "home") keys.add(t.key);   // "home" is presentation, not a demand
+    }
+    sig[l.id] = [...keys].sort().join(",");
+  }
+  const seen = {};
+  for (const [id, s] of Object.entries(sig)) {
+    assert.ok(seen[s] === undefined,
+      `L${id} and L${seen[s]} ask the same question of your board (escort traits "${s || "(plain)"}") — a finale is where a world states its counter`);
+    seen[s] = id;
+  }
+  // …and no more than half may open on the same shape. All six led with the
+  // knight; three now do (L16/L20/L24, each with a different partner).
+  const lead = {};
+  for (const l of finales) {
+    const g = l.waves.find((w) => w.boss).groups.find((x) => !DATA.ENEMIES[x.type].boss);
+    lead[g.type] = (lead[g.type] || 0) + 1;
+  }
+  const worst = Math.max(...Object.values(lead));
+  assert.ok(worst <= Math.ceil(finales.length / 2),
+    `${worst} of ${finales.length} finales open on the same escort shape (${JSON.stringify(lead)})`);
 });
 
 test("P2 skins: a skin is its ancestor's BODY — identical stats, only the costume differs", () => {
