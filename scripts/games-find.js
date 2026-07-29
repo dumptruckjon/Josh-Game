@@ -270,9 +270,13 @@
       const choices = api.el("div", { class: "choices choices--3" });
       api.stage.append(target, field, choices);
 
-      // Pups are drawn as original rescue-pup art with each one's signature COLLAR
-      // colour, so the scene has visibly different pups to count (not identical 🐶).
-      const pupArt = (c) => (window.JoshArt && window.JoshArt.pup) ? window.JoshArt.pup(c) : "🐶";
+      // Pups are drawn as original rescue-pup art. This used to thread only the
+      // COLLAR colour through the scene, which made the whole "which dog is this"
+      // question a 16.8 x 3.4 px colour tick on 12-22 otherwise-identical dogs —
+      // in a COUNTING game whose right answer depends on telling them apart. The
+      // whole pup now goes through, so each one's coat, ears, patches and cap
+      // (content.js PUPS[].art) actually reach the field.
+      const pupArt = (p) => (window.JoshArt && window.JoshArt.pup) ? window.JoshArt.pup(p.collar, p.art) : "🐶";
       function newRound() {
         const PUPS = C.PUPS || [{ name: "Pup", job: "🚒", collar: "#e23636" }];
         const pup = api.randItem(PUPS);
@@ -280,19 +284,19 @@
         const K = api.randInt(2, 5);
         const total = 12 + round * 2;
         const cells = [];
-        for (let i = 0; i < K; i++) cells.push(pup.collar);
-        for (let i = 0; i < total - K; i++) cells.push((api.randItem(others) || pup).collar);
+        for (let i = 0; i < K; i++) cells.push(pup);
+        for (let i = 0; i < total - K; i++) cells.push(api.randItem(others) || pup);
         const scene = L.shuffle(cells);
         const used = new Set([K]); const wrongs = [];
         while (wrongs.length < 2) { const w = api.randInt(1, 9); if (!used.has(w)) { used.add(w); wrongs.push(w); } }
         const chs = L.shuffle([{ n: K, correct: true }, ...wrongs.map((n) => ({ n, correct: false }))]);
 
         target.innerHTML = "";
-        target.append(api.el("span", { class: "find__targetArt art-fill", aria: { hidden: "true" }, html: pupArt(pup.collar) }), api.el("span", { class: "find__targetLabel", text: pup.name }));
+        target.append(api.el("span", { class: "find__targetArt art-fill", aria: { hidden: "true" }, html: pupArt(pup) }), api.el("span", { class: "find__targetLabel", text: pup.name }));
         api.setPrompt("How many " + pup.name + " pups can you find?", ["👀", "🐶", pup.job]);
         api.speak();
         field.innerHTML = "";
-        scene.forEach((c) => field.appendChild(api.el("span", { class: "find__dot find__dot--art art-fill", aria: { hidden: "true" }, html: pupArt(c) })));
+        scene.forEach((p) => field.appendChild(api.el("span", { class: "find__dot find__dot--art art-fill", aria: { hidden: "true" }, html: pupArt(p) })));
         choices.innerHTML = "";
         chs.forEach((ch) => {
           const b = api.el("button", {

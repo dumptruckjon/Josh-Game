@@ -149,8 +149,18 @@
       mascot(opts) {
         opts = opts || {};
         if (!mascotEl) {
-          const ART = global.JoshArt;
-          const svg = (ART && ART.numberFriend) ? ART.numberFriend(1, opts.color || "#5aa9e6") : "🙂";
+          // It drew `numberFriend(1)` — ONE cube, whose ink occupies y 72..88 of a
+          // 0-100 viewBox, i.e. a 31.7 x 11.5 px pill with 8.6px of empty box
+          // under it inside a 72px slot. And it was a generic blue block in all 22
+          // games that call it, while `JoshBuddy` already owns the answer to
+          // "which character represents Josh" for the home screen and for every
+          // win celebration. Three owners of one idea is the bug this project
+          // keeps fixing, so the mascot now reads the SAME buddy: pick a friend
+          // once and they turn up beside you while you play, not just when you win.
+          const B = global.JoshBuddy, ART = global.JoshArt;
+          let svg = "";
+          try { svg = B && B.art ? B.art() : ""; } catch (e) { svg = ""; }
+          if (!svg) svg = (ART && ART.numberFriend) ? ART.numberFriend(1, opts.color || "#5aa9e6") : "🙂";
           mascotEl = el("div", { class: "game__mascot art-fill", html: svg, aria: { hidden: "true" } });
         }
         stage.appendChild(mascotEl); // (re)attach after a stage rebuild

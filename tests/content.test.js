@@ -426,6 +426,24 @@ test("rescue pups have distinct collar colours (so counting one kind is unambigu
   for (const p of pups) assert.match(p.collar || "", /^#[0-9a-f]{6}$/i, `${p.name} needs a collar colour`);
   const collars = pups.map((p) => p.collar);
   assert.equal(new Set(collars).size, collars.length, "every pup's collar colour is distinct");
+  // …and a distinct COLLAR is not enough, which is the defect this law exists to
+  // stop coming back. Every pup was the identical beige dog whose only mark was a
+  // `<rect width="40" height="8">` — 16.8 x 3.4 CSS px at the rescue game's dot
+  // size, repeated across 12-22 dogs, in a COUNTING game whose right answer
+  // depends on telling them apart. So each one must differ in SILHOUETTE too:
+  // coat, ear shape, patches, cap. Mirrors the FRIENDS distinctness law below.
+  const EARS = ["floppy", "pointy", "round"];
+  const sigs = [];
+  for (const p of pups) {
+    assert.ok(p.art && typeof p.art === "object", `${p.name} needs an art spec — a collar alone is a 3-pixel difference`);
+    assert.match(p.art.coat || "", /^#[0-9a-f]{6}$/i, `${p.name} needs a coat colour`);
+    assert.ok(EARS.indexOf(p.art.ears) >= 0, `${p.name}'s ears must be one of ${EARS.join("/")} (got ${p.art.ears})`);
+    if (p.art.patch) assert.match(p.art.patch, /^#[0-9a-f]{6}$/i, `${p.name}'s patches need a colour`);
+    if (p.art.cap) assert.match(p.art.cap, /^#[0-9a-f]{6}$/i, `${p.name}'s cap needs a colour`);
+    sigs.push([p.art.coat, p.art.ears, p.art.patch || "", p.art.cap || ""].join("|"));
+  }
+  assert.equal(new Set(sigs).size, sigs.length,
+    "no two pups may share a coat+ears+patch+cap silhouette — otherwise they differ only by collar again, which is the ambiguity this fixed");
 });
 
 test("each friend has a portrait spec and the four are clearly differentiable", () => {

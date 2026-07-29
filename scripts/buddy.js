@@ -16,7 +16,7 @@
     (C.HEROES || []).forEach((h) => R.push({ id: "hero-" + String(h.name).toLowerCase(), label: h.name, make: () => (ART.hero ? ART.hero(h.color) : "") }));
     (C.FRIENDS || []).forEach((f) => R.push({ id: "friend-" + String(f.name).toLowerCase(), label: f.name, make: () => (ART.friend ? ART.friend(f.art || {}) : "") }));
     [[3, "#e23636"], [5, "#7be08a"], [7, "#c77dff"]].forEach((p) => R.push({ id: "num-" + p[0], label: "Number " + p[0], make: () => (ART.numberFriend ? ART.numberFriend(p[0], p[1]) : "") }));
-    (C.PUPS || []).slice(0, 3).forEach((p) => R.push({ id: "pup-" + String(p.name).toLowerCase(), label: p.name, make: () => (ART.pup ? ART.pup(p.collar) : "") }));
+    (C.PUPS || []).slice(0, 3).forEach((p) => R.push({ id: "pup-" + String(p.name).toLowerCase(), label: p.name, make: () => (ART.pup ? ART.pup(p.collar, p.art) : "") }));
     R.push({ id: "star", label: "Star", make: () => (ART.star ? ART.star() : "") });
     return R.filter((b) => b && typeof b.make === "function");
   }

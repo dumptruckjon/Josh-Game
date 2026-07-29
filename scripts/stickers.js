@@ -72,23 +72,110 @@
     return h >>> 0;
   }
 
+  // A real sticker is a picture ON a shaped, coloured badge — and that BACKING is
+  // what took the book from 73 unique pictures across 200 slots (with one group of
+  // 25 byte-identical rockets) to 200 unique stickers. The old key was two axes,
+  // kind x colour, so 8 x 12 = 96 combinations had to cover 200 games and 160 of
+  // them collided. Each axis below reads a DISJOINT bit-field of the same hash, so
+  // adding one multiplies the space instead of re-shuffling it, and every sticker
+  // stays a pure deterministic function of the game id.
+  const BACKINGS = ["disc", "rosette", "burst", "squircle", "shield"];
+  const SKINS = ["#f1c9a5", "#e0ac7e", "#c68642", "#8d5524", "#fadcbc"];
+  const HAIRS = ["#2a1a12", "#1a1a20", "#6b4423", "#3b2f2f", "#0f0f14"];
+
+  // The badge behind the picture. Drawn here rather than in JoshArt because it is
+  // a sticker-book concept, not a character.
+  function backing(shape, fill, edge) {
+    const g = '<defs><radialGradient id="bg" cx="0.35" cy="0.3" r="0.85">' +
+      '<stop offset="0" stop-color="' + edge + '"/><stop offset="1" stop-color="' + fill + '"/></radialGradient></defs>';
+    let body;
+    if (shape === "rosette") {
+      let pts = "";
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2, rad = i % 2 ? 40 : 49;
+        pts += (i ? " " : "") + (50 + Math.cos(a) * rad).toFixed(1) + "," + (50 + Math.sin(a) * rad).toFixed(1);
+      }
+      body = '<polygon points="' + pts + '" fill="url(#bg)" stroke="' + edge + '" stroke-width="2"/>';
+    } else if (shape === "burst") {
+      let pts = "";
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * Math.PI * 2 - Math.PI / 2, rad = i % 2 ? 33 : 50;
+        pts += (i ? " " : "") + (50 + Math.cos(a) * rad).toFixed(1) + "," + (50 + Math.sin(a) * rad).toFixed(1);
+      }
+      body = '<polygon points="' + pts + '" fill="url(#bg)" stroke="' + edge + '" stroke-width="2"/>';
+    } else if (shape === "squircle") {
+      body = '<rect x="4" y="4" width="92" height="92" rx="26" fill="url(#bg)" stroke="' + edge + '" stroke-width="2.5"/>';
+    } else if (shape === "shield") {
+      body = '<path d="M50 3 L94 17 V52 Q94 82 50 97 Q6 82 6 52 V17 Z" fill="url(#bg)" stroke="' + edge + '" stroke-width="2.5"/>';
+    } else {
+      body = '<circle cx="50" cy="50" r="47" fill="url(#bg)" stroke="' + edge + '" stroke-width="2.5"/>';
+    }
+    return g + body;
+  }
+
+  // Two more axes, because the badge alone left 5 colliding pairs out of 200 —
+  // exactly the birthday count for the space it created (the six single-colour
+  // kinds only had 12 x 5 x 12 x 3 = 2160 combinations to spread ~150 games
+  // across). Sparkles and the rim multiply it by 8 and take the shipped set to
+  // 200 unique. Both are deterministic and drawn OVER the badge, under the art.
+  function sparkles(n, fill) {
+    let out = "";
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (i / Math.max(1, n)) * Math.PI * 2 + 0.5;
+      const x = 50 + Math.cos(a) * 41, y = 50 + Math.sin(a) * 41;
+      out += '<path d="M' + x.toFixed(1) + " " + (y - 5).toFixed(1) + " L" + (x + 1.6).toFixed(1) + " " + (y - 1.6).toFixed(1) +
+        " L" + (x + 5).toFixed(1) + " " + y.toFixed(1) + " L" + (x + 1.6).toFixed(1) + " " + (y + 1.6).toFixed(1) +
+        " L" + x.toFixed(1) + " " + (y + 5).toFixed(1) + " L" + (x - 1.6).toFixed(1) + " " + (y + 1.6).toFixed(1) +
+        " L" + (x - 5).toFixed(1) + " " + y.toFixed(1) + " L" + (x - 1.6).toFixed(1) + " " + (y - 1.6).toFixed(1) +
+        ' Z" fill="' + fill + '" opacity="0.85"/>';
+    }
+    return out;
+  }
+
   function artFor(def) {
     const ART = global.JoshArt;
     const id = (def && def.id) || String(def || "");
     const h = hashStr(id);
-    const color = PALETTE[h % PALETTE.length];
+    // A SECOND, differently-seeded hash for the badge axes. Slicing one hash into
+    // bit-fields correlates the axes through the modulo (12 and 5 do not divide a
+    // power of two), and that left 5 colliding pairs out of 200; two independent
+    // streams left none. The picture axes keep reading `h`, so no sticker that was
+    // already unique changes its character — only its badge.
+    const h2 = hashStr("badge:" + id);
     if (!ART) return "";
-    const kind = KINDS[Math.floor(h / 7) % KINDS.length];
-    switch (kind) {
-      case "hero": return ART.hero(color);
-      case "numberFriend": return ART.numberFriend((h % 9) + 1, color);
-      case "pup": return ART.pup(color);
-      case "balloon": return ART.balloon(color);
-      case "friend": return ART.friend({ skin: "#f1c9a5", hair: "#2a1a12", style: HAIR[Math.floor(h / 13) % HAIR.length], shirt: color });
-      case "rocket": return ART.rocket();
-      case "truck": return ART.truck(color);
-      default: return ART.star(color);
-    }
+    const color = PALETTE[h % PALETTE.length];
+    const kind = KINDS[(h >>> 4) % KINDS.length];
+    const shape = BACKINGS[h2 % BACKINGS.length];
+    // The badge colour must not be the picture's own colour, or the sticker
+    // reads as a monochrome blob.
+    let badge = PALETTE[(h2 >>> 5) % PALETTE.length];
+    if (badge === color) badge = PALETTE[((h2 >>> 5) + 5) % PALETTE.length];
+    const pose = (h2 >>> 11) % 3;                             // a slight tilt
+    const spark = (h2 >>> 14) % 4;                            // 0-3 sparkles
+    const rim = (h2 >>> 17) % 2;                              // a second inner ring
+    const inner = (function () {
+      switch (kind) {
+        case "hero": return ART.hero(color);
+        case "numberFriend": return ART.numberFriend((h % 9) + 1, color);
+        case "pup": return ART.pup(color);
+        case "balloon": return ART.balloon(color);
+        case "friend": return ART.friend({
+          skin: SKINS[(h >>> 20) % SKINS.length], hair: HAIRS[(h >>> 23) % HAIRS.length],
+          style: HAIR[(h >>> 26) % HAIR.length], shirt: color,
+        });
+        case "rocket": return ART.rocket(color);
+        case "truck": return ART.truck(color);
+        default: return ART.star(color);
+      }
+    })();
+    // Nest the character's own 0-100 svg inside the badge at 72% scale, so every
+    // art function keeps its viewBox contract (a shipped art test asserts it).
+    const tilt = [-7, 0, 7][pose];
+    const body = String(inner).replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
+    const edge = ART.shade ? ART.shade(badge, -0.3) : badge;
+    const ring = rim ? '<circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-dasharray="5 4"/>' : "";
+    return '<svg viewBox="0 0 100 100">' + backing(shape, badge, edge) + ring + sparkles(spark, "rgba(255,255,255,0.9)") +
+      '<g transform="translate(50 50) rotate(' + tilt + ') scale(0.72) translate(-50 -50)">' + body + "</g></svg>";
   }
 
   global.JoshStickers = { artFor };

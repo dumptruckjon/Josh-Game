@@ -10,16 +10,59 @@
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
   const wrap = (inner, extra) => '<svg viewBox="0 0 100 100" ' + (extra || "") + ">" + inner + "</svg>";
 
+  // Darken (amt < 0) or lighten (amt > 0) a #rrggbb by a fraction. PURE, and
+  // exported so a unit test can pin it — every character that wants a shaded
+  // edge or a highlight goes through here instead of hand-picking a second hex,
+  // so a new colour in `HEROES`/`PUPS` gets a matching shade for free.
+  function shade(hex, amt) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+    if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) =>
+      Math.round(amt < 0 ? c * (1 + amt) : c + (255 - c) * amt));
+    return "#" + ch.map((c) => clamp(c, 0, 255).toString(16).padStart(2, "0")).join("");
+  }
+
   // A friendly masked spider-hero (red = Spidey, pink = Ghost-Spider, blue = Spin).
+  //
+  // REDRAWN 2026-07, and it is the highest-reach asset in the app: `buddy.js`
+  // builds its roster HEROES-first and falls back to `ROSTER[0]`, so this IS the
+  // default buddy — the home-screen companion and the celebration pop on all 200
+  // wins — for any child who never opens the picker. It is also the art of
+  // find-hero, thwip-web, thwip-villains, web-swing, peekaboo, who-is-it,
+  // copy-beat, 24 Sticker Book slots and 3 chooser tiles.
+  //
+  // The old drawing was four shapes: a body ellipse and a head circle in the SAME
+  // colour, tangent, so they fused into a figure-8; web lines at 0.16 alpha that
+  // were invisible AND crossed the eyes; and no arms, legs, hands or emblem.
+  // Screenshotted at 120px it read as a red peanut with eyes. Now there is a
+  // posed figure — legs, boots, torso, a thwip arm with a web, a chest emblem,
+  // real mask webbing on the head only, eyes drawn LAST so nothing crosses them.
+  // Still an original homage, never the copyrighted artwork. Keep it a PURE
+  // function of `color` (the e2e buddy test compares innerHTML byte-for-byte),
+  // and keep most of the ink in `color` so find-hero stays a colour search.
   function hero(color) {
     color = color || "#e23636";
+    const dk = shade(color, -0.34), lt = shade(color, 0.2);
     return wrap(
-      '<ellipse cx="50" cy="80" rx="24" ry="18" fill="' + color + '"/>' +
-      '<circle cx="50" cy="42" r="30" fill="' + color + '"/>' +
-      '<path d="M50 12 V72 M20 42 H80 M28 22 L72 62 M72 22 L28 62" stroke="rgba(0,0,0,0.16)" stroke-width="1.1" fill="none"/>' +
-      '<path d="M30 40 Q34 28 46 34 Q44 47 32 46 Z" fill="#fff" stroke="#111" stroke-width="1.6"/>' +
-      '<path d="M70 40 Q66 28 54 34 Q56 47 68 46 Z" fill="#fff" stroke="#111" stroke-width="1.6"/>' +
-      '<path d="M40 56 Q50 64 60 56" stroke="#111" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
+      '<ellipse cx="50" cy="96" rx="20" ry="3.5" fill="rgba(0,0,0,0.12)"/>' +
+      '<rect x="37" y="70" width="10" height="21" rx="5" fill="' + dk + '"/>' +
+      '<rect x="53" y="70" width="10" height="21" rx="5" fill="' + dk + '"/>' +
+      '<rect x="32" y="86" width="17" height="9" rx="4.5" fill="#1b1f2e"/>' +
+      '<rect x="51" y="86" width="17" height="9" rx="4.5" fill="#1b1f2e"/>' +
+      '<path d="M34 49 Q50 43 66 49 L63 75 Q50 80 37 75 Z" fill="' + color + '"/>' +
+      '<path d="M37 54 L19 40" stroke="' + color + '" stroke-width="9" stroke-linecap="round" fill="none"/>' +
+      '<path d="M63 54 L79 66" stroke="' + color + '" stroke-width="9" stroke-linecap="round" fill="none"/>' +
+      '<circle cx="18" cy="38" r="6.5" fill="' + lt + '"/>' +
+      '<circle cx="81" cy="68" r="6.5" fill="' + lt + '"/>' +
+      '<path d="M18 38 L5 23 M18 38 L11 21 M18 38 L3 30" stroke="rgba(255,255,255,0.85)" stroke-width="2" stroke-linecap="round" fill="none"/>' +
+      '<ellipse cx="50" cy="57" rx="3" ry="4" fill="' + dk + '"/>' +
+      '<path d="M47 55 L41 51 M53 55 L59 51 M47 59 L41 63 M53 59 L59 63" stroke="' + dk + '" stroke-width="1.5" stroke-linecap="round" fill="none"/>' +
+      '<circle cx="50" cy="30" r="21" fill="' + color + '"/>' +
+      '<path d="M50 9 V51 M29 30 H71 M35 15 L65 45 M65 15 L35 45" stroke="' + dk + '" stroke-width="1.4" fill="none" opacity="0.6"/>' +
+      '<path d="M50 18 Q38 23 33 32 M50 18 Q62 23 67 32" stroke="' + dk + '" stroke-width="1.2" fill="none" opacity="0.5"/>' +
+      '<path d="M31 30 Q36 19 47 25 Q45 38 33 37 Z" fill="#fff" stroke="#1b1f2e" stroke-width="2"/>' +
+      '<path d="M69 30 Q64 19 53 25 Q55 38 67 37 Z" fill="#fff" stroke="#1b1f2e" stroke-width="2"/>'
     );
   }
 
@@ -48,16 +91,43 @@
   }
 
   // A friendly rescue pup with a colored collar + badge (Paw Patrol homage).
-  function pup(collar) {
+  // AMBIGUITY FIX 2026-07. Every pup was the IDENTICAL beige dog and the only
+  // per-pup mark was a `<rect width="40" height="8">` collar — which at the
+  // rescue game's 42px dot size is **16.8 × 3.4 CSS px**, repeated across 12-22
+  // near-identical dogs. Rescue is a COUNTING game whose right answer depends on
+  // telling six dogs apart, so it was asking a 4-year-old to do 3-pixel colour
+  // matching (and the palette put #ffd24d beside #ff9f43, #e23636 beside
+  // #ff7ac0). Exactly the documented law that a puzzle read off a drawn scene
+  // must keep that scene UNAMBIGUOUS. Each pup now differs in COAT, EAR SHAPE,
+  // PATCHES and CAP — silhouette first, so it survives at thumbnail size — and
+  // the spec lives in `content.js` `PUPS[].art` so it is truth-tested like the
+  // friends' distinctness. The collar stays; it is just no longer the only cue.
+  function pup(collar, spec) {
     collar = collar || "#e23636";
+    spec = spec || {};
+    const coat = spec.coat || "#e3b781";
+    const ear = shade(coat, -0.22);
+    const ears = spec.ears === "pointy"
+      ? '<path d="M18 48 L25 12 L41 33 Z" fill="' + ear + '"/><path d="M82 48 L75 12 L59 33 Z" fill="' + ear + '"/>'
+      : spec.ears === "round"
+        ? '<circle cx="22" cy="28" r="13" fill="' + ear + '"/><circle cx="78" cy="28" r="13" fill="' + ear + '"/>'
+        : '<ellipse cx="24" cy="40" rx="12" ry="20" fill="' + ear + '"/><ellipse cx="76" cy="40" rx="12" ry="20" fill="' + ear + '"/>';
+    const patch = spec.patch
+      ? '<circle cx="62" cy="38" r="11" fill="' + spec.patch + '"/><circle cx="33" cy="55" r="6" fill="' + spec.patch + '"/>'
+      : "";
+    const cap = spec.cap
+      ? '<path d="M25 30 Q50 10 75 30 Q50 24 25 30 Z" fill="' + spec.cap + '"/>' +
+        '<rect x="60" y="27" width="24" height="5" rx="2.5" fill="' + shade(spec.cap, -0.2) + '"/>'
+      : "";
     return wrap(
-      '<ellipse cx="24" cy="40" rx="12" ry="20" fill="#b98a5e"/>' +
-      '<ellipse cx="76" cy="40" rx="12" ry="20" fill="#b98a5e"/>' +
-      '<circle cx="50" cy="46" r="30" fill="#e3b781"/>' +
+      ears +
+      '<circle cx="50" cy="46" r="30" fill="' + coat + '"/>' +
+      patch +
       '<circle cx="40" cy="42" r="4" fill="#3a2a15"/><circle cx="60" cy="42" r="4" fill="#3a2a15"/>' +
-      '<ellipse cx="50" cy="58" rx="14" ry="10" fill="#f4e2c8"/>' +
+      '<ellipse cx="50" cy="58" rx="14" ry="10" fill="' + shade(coat, 0.3) + '"/>' +
       '<ellipse cx="50" cy="53" rx="4.5" ry="3.2" fill="#3a2a15"/>' +
       '<path d="M46 62 Q50 71 54 62 Z" fill="#ff8fa3"/>' +
+      cap +
       '<rect x="30" y="72" width="40" height="8" rx="4" fill="' + collar + '"/>' +
       '<circle cx="50" cy="76" r="6" fill="#ffd24d" stroke="' + collar + '" stroke-width="1.5"/>'
     );
@@ -86,11 +156,19 @@
     );
   }
 
-  function rocket() {
+  // The one art kind that IGNORED its colour argument — which is why 25 Sticker
+  // Book slots held a byte-identical rocket. The hull stays a pale spacecraft
+  // white (a rocket is not a coloured blob) and the colour lands on the fins and
+  // the nose band, so the callers' palette actually reaches it.
+  function rocket(color) {
+    color = color || "#e23636";
+    const dk = shade(color, -0.28);
     return wrap(
       '<path d="M50 8 C64 22 66 44 60 62 H40 C34 44 36 22 50 8 Z" fill="#eceff4" stroke="#c7ced9" stroke-width="1.5"/>' +
+      '<path d="M43 18 Q50 12 57 18 Q50 22 43 18 Z" fill="' + color + '"/>' +
       '<circle cx="50" cy="34" r="8" fill="#5ec8ff" stroke="#2b6cff" stroke-width="2"/>' +
-      '<polygon points="40,54 26,68 40,64" fill="#e23636"/><polygon points="60,54 74,68 60,64" fill="#e23636"/>' +
+      '<polygon points="40,54 26,68 40,64" fill="' + color + '"/><polygon points="60,54 74,68 60,64" fill="' + color + '"/>' +
+      '<rect x="40" y="56" width="20" height="4" rx="2" fill="' + dk + '"/>' +
       '<path d="M44 62 H56 L52 84 Q50 90 48 84 Z" fill="#ffa64d"/>'
     );
   }
@@ -206,6 +284,6 @@
     return wrap(inner);
   }
 
-  global.JoshArt = { hero, numberFriend, pup, truck, star, rocket, balloon, home, kid, friend, fixable };
+  global.JoshArt = { hero, numberFriend, pup, truck, star, rocket, balloon, home, kid, friend, fixable, shade };
   if (typeof module !== "undefined" && module.exports) module.exports = global.JoshArt;
 })(typeof window !== "undefined" ? window : globalThis);

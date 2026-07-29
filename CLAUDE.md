@@ -958,7 +958,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/32-enemy roster (22 + 10 per-world backbone SKINS) + 6 bosses/24 levels (6 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 23 nodes/77⭐ against a 6-slot per-run `metaSlots` loadout, 15 achievements, one endless arena PER WORLD) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/45-enemy roster (30 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -995,7 +995,7 @@ tooling.
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
 ├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
-├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-4 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots). Phases 5-6 (Worlds 7-8, new content) NOT built. §0 is the star-ceiling finding — read it before adding any world; several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
+├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) NOT built. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
 ```
@@ -1205,8 +1205,13 @@ space**: real difficulty, real defeat screens, real timers — RULE 5's kid tap
 laws deliberately do not apply inside (its controls are adult-sized
 `data-adult`; the front-door tile itself is kid-sized). Status: **COMPLETE
 (TD-1 … TD-6 all shipped)** — shell +
-deterministic engine + **all 24 Levels across 6 worlds** (Bedroom L1-4, Backyard
-L5-8, Toy Store L9-12, Attic L13-16, Garage L17-20, Moving Day L21-24; distinct path/pad layouts, each
+deterministic engine + **all 32 Levels across 8 worlds** (Bedroom L1-4, Backyard
+L5-8, Toy Store L9-12, Attic L13-16, Garage L17-20, Moving Day L21-24, **🏠 The New
+House L25-28** (the reprise world — 🪑 Flat-Pack Chair and 🔑 Spare Key skins on a
+pale drop-cloth floor, The Housedog boss) and **♻️ The Sort Line L29-32** (the step
+AFTER being kept — 🧃 Juice Carton, 📎 Runaway Clip and the campaign's first
+EXCLUSIVE flier 📄 Loose Leaf, on steel grating with a dark rubber-belt lane; The
+Big Magnet closes the campaign); distinct path/pad layouts, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
 L12 winnable on Heroic; beat level N to unlock N+1, ▶ Next-level on the victory
 screen; the fort home shows world tints, difficulty pips, and a 👑 on each boss
@@ -1274,8 +1279,8 @@ board). **TD-7 MULTI-PATH** (the last deferred subsystem, now shipped): the
 engine is lane-aware — a level may define multiple `paths[]` and each enemy
 carries a `pathIdx`, positioned/targeted/leaked on its OWN lane (single-path
 levels stay byte-identical: `paths=[path]`, every `pathIdx` 0). The lever now
-ships on **exactly one level in each of the 6 worlds** (L3, L7, L10, L15, L19,
-L23 — guardrail-locked, so a 7th world cannot ship without one). **L10 "The Train
+ships on **exactly one level in each of the 8 worlds** (L3, L7, L10, L15, L19,
+L23, L27, L31 — guardrail-locked, so a 9th world cannot ship without one). **L10 "The Train
 Set"** is the set piece: two lanes share a prefix then split at the fork
 into a SHORT default track and a LONG loop that rejoins the short tail; throwing
 the 🔀 **track-switch lever** (`pullLever`, 8s cooldown) sends the incoming train
@@ -1866,7 +1871,8 @@ script appended level objects HIGH-TO-LOW, leaving ids `…20,24,23,22,21`, whic
 the contiguity assertion caught instantly. **Warning for a seventh world:** the
 star ceiling derives as `LEVELS.length × 3` and is now 72 against a 77⭐ tree —
 at 28 levels it becomes 84 and the "the tree must cost more than you can earn"
-guardrail fails. The tree has to grow with the campaign.
+guardrail fails. The tree has to grow with the campaign. (It did: Worlds 7-8
+shipped alongside a 105⭐ / 30-node tree against a 96⭐ ceiling.)
 
 **TD-16 (level gimmicks) took gimmick coverage from 3 of 20 levels to 14, and
 its lessons are about how much a mechanic is WORTH — measured, not assumed.**
@@ -2141,6 +2147,139 @@ ACCIDENTAL zoom; never ban zooming. All four claims mutation-proven, including
 one mutation that correctly did NOT fail (a blanket `*` rule leaves the canvas
 alone, because `*` loses on specificity) — which is worth noting because it means
 the canvas assertion guards a different regression than the one first guessed.
+**Worlds 7-8 took the campaign to 32 levels, and every real defect they surfaced
+was a guardrail whose SCOPE was a hand-written list.** Four instances in one pass,
+all now derived: (1) the `FIELD_TRAIT` table that enforces "every special field an
+enemy carries must produce a Toybox Guide line" hand-listed the twelve fields it
+checked, so it had eight holes — and **four were live: `stomp`, `phases`, `suck`
+and `enrage` were SHIPPED boss mechanics with no card line at all** (the Bed
+Monster's unblockable stomp, the Static's hp-gated kit, the Vacuum King's
+soldier-suck and its enrage). The very guardrail written to stop a mechanic
+shipping invisible could only catch you after you remembered to edit it. The field
+list now derives from the union of keys across `DATA.ENEMIES`, and a field must
+either name its trait or join an explicit `NOT_A_TRAIT` set with a reason. (2)
+`W5 wave composition` read `l.world === "garage"` and stayed that way through
+three more worlds, so moving/newhouse/sortline were *emitted* against the ≥70%
+backbone contract and then never *checked* against it; measured before widening —
+those four pass, the four older worlds genuinely fail (L10 w2 is 74% mole), so the
+ruled set is `["garage","moving","newhouse","sortline"]` in both the test and
+`tools/td-wave-gen.js`. (3) `TD7 lever advantage` was hard-pinned to `l.id === 10`
+while the lever spread to eight worlds — and **L3's lever was worth exactly 0.0
+lives at every board size from 4 to 9 pads**, because its detour branched 76% of
+the way down a 46-cell lane and there was no board left downstream to exploit.
+Legality had been checked; VALUE never had. Re-searched (`RESEARCH=1
+tools/td-fork-search.js`, a new flag — a fork can be legal and worthless) to a
+split at 30% for +2.0 lives at the thinnest board, and the guardrail now walks
+every fork with a measured thin-board cap plus a POPULATION floor (≥4 of 8 must be
+outright decisive), since L3 and L10 are winnable at every board size and cannot
+produce a phase flip. (4) The `--check` tool's own ruled set had the same gap.
+**The balance lesson is that an 8-seed sweep is the minimum honest sample:** the
+shipped `AUDIT heroic is a SLOPE` drives seed 7 only, and **L30 LOST on heroic
+seed 5** while passing green (fixed by sweeping startGold 1450→2050; 1600/1750/
+1900 all still lose that seed). Two NEGATIVE results, recorded rather than forced:
+L29 measured heroic min 2 and raising its gold to 1450 fixes the floor but pins
+normal at a flat 20/20 on all 8 seeds — a worse trade, so it ships at 1350 with a
+tense heroic; and **L30/L31 finish 20/20 on normal and no side-door dose fixes it**
+— normal stays pinned at 20 at every dose while the doses big enough to matter
+make L31 lose 3 of 8 heroic seeds. That is the threshold domination this file
+documents, reproduced on a fourth and fifth level. Also recorded loudly per the
+TD-4 law: **World 8's `plated` coverage-gap exploiter and its Sealed Tin enemy
+were CUT**, because at every budget-legal dose four independent arms returned
+byte-identical results — worth zero lives on a full board — for the cost of a new
+engine field, two read sites and the documented Fan-zap rounding trap. A world
+with no new mechanic is a legitimate outcome; an unrecorded one is the defect.
+**The first art audit of the whole app found that the fort's enemies were
+STRUCTURALLY invisible and Josh's default buddy was a peanut — and the fixes are
+both centralized, so a 46th enemy and a 201st game inherit them.** (1) **THE
+SILHOUETTE LAW.** Measured WCAG contrast of each enemy's dominant body colour
+against the lane it actually walks on: acorn **1.05:1**, housekey 1.06, yoyo 1.14,
+chair 1.27, marble 1.43, sock 1.58. Every lane in every world is a light tan
+(luminance 0.387 attic → 0.661 New House), so a pale body is not one bad colour
+choice, it is the whole roster against the whole road — and two sprites already
+carried a hand-added rim precisely because their swarms had vanished. Rather than
+bolt a `rim()` call onto each of the 45 draw branches (which a 46th would not
+inherit — the failure mode this project keeps re-learning), the ink line
+INTERCEPTS the enemy pass: inside `withInk()` every `fill()` is followed by a
+stroke of the same path in near-black, with `noInk()` opting out shadows, reveal
+glows and hp bars. Four things the measurement taught that guessing would not:
+**fill-then-stroke, not stroke-then-fill** (stroking first puts half the pen under
+the body, so at dpr 1 only ~0.7px of a 1.35px line survived and 35 of 45 types
+stayed pale); **a stroke-only sprite needs the ink too** (the Runaway Clip is a
+hollow wire with no fill anywhere and the Battery Bot's shell likewise — they
+measured 186 and 191 against a rimmed roster at 24-68, so a fill-only
+interception would have shipped exactly two invisible enemies and called the law
+satisfied); **`strokeRect` bypasses the path**, so the die's own `#8d97a8` outline
+painted a PALE line straight over the ink and left it the one sprite with no
+contour; and the guardrail's metric had to be the **darkest luma in each boundary
+pixel's 3×3 neighbourhood**, because the raw boundary pixel is antialiased against
+the lane and reads bright even on a properly rimmed sprite. Cost measured, not
+guessed (the TD-6 rule): 2.15 → 3.51 ms per draw at L24's 125-enemy peak against a
+16.7 ms budget, now pinned by a perf guardrail. (2) **Three of the four Fan
+variants fired with NO visual at all** — `emit` is called at the dart and mortar
+sites and zero times in the `zapDps` branch, so tiers 1-3 and the Blizzard branch
+changed nothing you could see for 300 gold. The beam target was computed and
+thrown away; it is now recorded on the SAME `t.targetId` the Dart already uses
+("what this tower is engaging") rather than a second parallel field, and drawn as
+a crackling arc. An event would have been the wrong shape: the beam is a STATE,
+and one event per tick per fan would blow the 400-cap buffer that already ate this
+project's damage tallies once. (3) **Projectiles were drawn un-lerped** while
+every enemy lerped — a dart travels 0.30 cells/tick, an 8.1px teleport at cell 27,
+so the one fast-moving thing on the field was the one thing that stuttered. (4)
+**The exact-hash distinctness test only ever caught a MISSING branch**, so two
+enemies could be 98% alike and pass (four pairs measured a dominant-body RGB
+distance of exactly 0); a near-twin check now compares a coarse signature over a
+TIGHT box around the sprite — over the full sample box, 96 of 100 grid cells are
+identical background and diluted every real difference by ~25×. (5) On Josh's
+side: **the default buddy read as a red peanut.** `buddy.js` builds its roster
+HEROES-first and falls back to `ROSTER[0]`, so `hero()` IS the companion on the
+home screen and the celebration pop on all 200 wins for any child who never opens
+the picker — and it was four shapes, with a body ellipse and a head circle in the
+same colour and tangent, fusing into a figure-8, no arms, legs or hands, and web
+lines at 0.16 alpha that were invisible AND crossed the eyes. Redrawn as a posed
+figure; the guardrail counts drawing ELEMENTS and ink extent, so "is a valid
+balanced svg" is no longer the whole bar. (6) **The Sticker Book had 73 unique
+pictures for 200 slots** — 160 of 200 games shared a prize and the largest group
+was **25 games holding a byte-identical rocket**, because `rocket()` was the one
+art kind that discarded its colour argument and the key had only two axes (8 kinds
+× 12 colours = 96 combinations for 200 games). Each sticker is now a picture on a
+shaped BADGE, and the implementation lesson is precise: **slicing one hash into
+bit-fields correlates the axes through the modulo** (12 and 5 do not divide a
+power of two) and left exactly the 5 colliding pairs the birthday bound predicts —
+a second, independently-seeded hash plus two more axes took it to **200/200
+unique**. (7) 170 of 200 slots were the identical ❓; an unearned slot is now a
+faint grey GHOST of the sticker you will win, so the book reads as a collection to
+fill. (8) `api.mascot()` drew `numberFriend(1)` — one cube, a 31.7 × 11.5 px pill
+inside a 72px box — and it was a generic blue block in all 22 games that call it
+while `JoshBuddy` already owned "which character represents Josh"; it reads the
+same buddy now, so the friend you pick turns up beside you while you PLAY, not
+only when you win. (9) **Every pup was the IDENTICAL beige dog**, and the only
+per-pup mark was a `<rect width="40" height="8">` collar — **16.8 × 3.4 CSS px** at
+the rescue game's dot size, repeated across 12-22 dogs, with `#ffd24d` beside
+`#ff9f43` and `#e23636` beside `#ff7ac0`. Paw Patrol Rescue is a COUNTING game
+whose right answer depends on telling six dogs apart, so it was asking a
+four-year-old to do 3-pixel colour matching — the documented "a puzzle read off a
+drawn scene must keep that scene UNAMBIGUOUS" law, and the one item in the audit
+that was a DEFECT rather than polish. Each pup now differs in coat, ear shape,
+patches and cap; the spec lives in `content.js` `PUPS[].art` so it is truth-tested
+exactly like the friends' distinctness, and the whole pup is threaded through the
+scene (it used to pass only the collar, so a silhouette would never have reached
+the field). Worse, `.find__field--dense` separated them with **flex `gap`**, which
+Safari 14.0 drops — on Josh's actual iPad the dogs TOUCHED while every headless
+browser showed 6px; it uses child margins now and its entry came OFF the flex-gap
+allowlist, since the point of that list is that joining it is a conscious act.
+(10) Two more fort surfaces: **night REPLACED the world's floor** with a flat
+blue-black, throwing away the one surface that says which room you are in (it dims
+the real floor now, so the backyard's grass is still grass after dark), and **the
+exit — the only way you lose a sticker — was a faint green dot the same size as
+the spawn**, indistinguishable from it on a board whose entire point is stopping
+things reaching it; it is a striped hazard threshold with a warning glow now.
+Each world also declares its own **road style** (`ties`/`stones`/`tape` walked
+along the lane's arc length, plus a real lit cross-section via an offset ribbon):
+the lane is 19.4% of the canvas and the surface the eye tracks for a whole run,
+and **bedroom, toystore and garage shipped literally the same road** because three
+worlds had no `road` field and fell through to a shared default. The floor
+guardrail now takes a SECOND hash over the lane corridor only — the whole-canvas
+hash would happily pass two identical roads on the carpet-vs-tile difference alone.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
@@ -2257,10 +2396,11 @@ for any new `logic.js` function and a browser check if it needs special handling
 > `JOSH_PROFILE.md`, not a backlog.
 >
 > **What IS open (opportunities, not obligations), measured 2026-07:**
-> - **Forks/levers**: CLOSED — **every one of the 6 worlds now has exactly one**
->   (L3, L7, L10, L15, L19, L23), and `tools/td-fork-search.js` is in the repo so
->   the sweep is repeatable instead of a scratch script that gets thrown away.
-> - **Level gimmicks**: CLOSED — 17 of 24 levels carry one (`night`, conveyor,
+> - **Forks/levers**: CLOSED — **every one of the 8 worlds now has exactly one**
+>   (L3, L7, L10, L15, L19, L23, L27, L31), and `tools/td-fork-search.js` is in the
+>   repo (with a `RESEARCH=1` flag) so the sweep is repeatable instead of a scratch
+>   script that gets thrown away. Each one's VALUE is measured, not assumed.
+> - **Level gimmicks**: CLOSED — 26 of 32 levels carry one (`night`, conveyor,
 >   🕳️ mud, ⚡ power pad, 🚪 side door, fork+lever), all six worlds represented,
 >   and every one now DOCUMENTS itself in the Toybox Guide via
 >   `TDLogic.levelGimmicks` (guardrailed, so a new mechanic cannot ship
@@ -2280,10 +2420,12 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   those two finales (a leak-toll re-tune) is the open item, and it is a
 >   deliberate balance pass to be commissioned, not a defect to fix on sight.
 > - **The star ceiling** is the hard blocker on an 8-world campaign: it derives
->   as `LEVELS.length * 3` and is 72 today against a 77⭐ tree. At 32 levels it
->   becomes 96 and the "the tree must cost more than you can earn" guardrail
->   fails. Grow the tree by BREADTH (new kinds with real read sites) before
->   adding a seventh world — never by adding ranks, which are raw power.
+>   as `LEVELS.length * 3`. Worlds 7-8 shipped and the tree grew with them: the
+>   ceiling is **96** against a **105⭐ / 30-node** tree, margin 9. **A NINTH world
+>   breaks it** — 36 levels is a 108⭐ ceiling and the "the tree must cost more
+>   than you can earn" guardrail goes red. Grow the tree by BREADTH (new kinds
+>   with real read sites) BEFORE adding one — never by adding ranks, which are
+>   raw power. The seven nodes added for Worlds 7-8 were all breadth.
 
 > - **华丽's world has had one adversarial pass** (the app-wide audit, which
 >   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but

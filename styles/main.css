@@ -318,8 +318,12 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 }
 
 /* A#2: the opt-in reactive buddy (api.mascot()) — a friendly face on the floor. */
-.game__mascot { width: 72px; margin-top: 2px; }
-.game__mascot svg { display: block; }
+/* 88px, not 72: the mascot is now Josh's chosen buddy (a full figure) rather than
+   a single number-cube that only inked 16% of its box, so the extra width is
+   actual character rather than empty viewBox. Non-tappable, so the >=75px law
+   does not apply — but it IS audited for overflow at 320px. */
+.game__mascot { width: 88px; max-width: 26vw; margin-top: 2px; }
+.game__mascot svg { display: block; width: 100%; height: auto; }
 @keyframes mascotCheer {
   0%, 100% { transform: translateY(0) scale(1); }
   30% { transform: translateY(-14px) scale(1.06); }
@@ -665,8 +669,12 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 }
 .find__cell--found { background: #d7f8de; opacity: 0.75; }
 /* Dense static scene (count-the-scene) — spans, not tap targets, so they can be small. */
-.find__field--dense { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 6px; }
-.find__dot { font-size: 1.9rem; line-height: 1; }
+/* Child MARGINS, not flex `gap`: Safari 14.0 (Josh's iPad floor) DROPS gap in a
+   flex container, so on the real device 12-22 rescue pups sat flush against each
+   other with zero separation — while every headless browser showed 6px. The
+   documented iOS-14.2-safe pattern for a wrapping row. */
+.find__field--dense { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; }
+.find__dot { font-size: 1.9rem; line-height: 1; margin: 4px; }
 /* SVG character art in the find games (heroes / pups) */
 .find__targetArt { width: 58px; }
 .find__targetArt svg { width: 100%; height: auto; display: block; }
@@ -1108,10 +1116,18 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   display: flex; align-items: center; justify-content: center; padding: 8px; overflow: hidden;
 }
 .sticker-slot:active { transform: scale(0.96); }
-.sticker-slot__seal { font-size: 2rem; opacity: 0.5; }
+/* An unearned slot used to be `opacity: 0` art behind a 2rem ❓ — so 170 of the
+   200 slots looked EXACTLY alike and the book showed a wall of question marks
+   instead of a collection to fill. The art is now a faint GHOST of the sticker
+   you will win: the shape and its silhouette are legible, the colour is not, so
+   the page reads as 200 different prizes waiting. Earned still snaps to full
+   opacity and colour, so "I got that one" stays unmistakable. */
+.sticker-slot__seal { font-size: 1.35rem; opacity: 0.28; }
 .sticker-slot__art {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 10px;
-  opacity: 0; transform: scale(0.5); transition: opacity 0.3s ease, transform 0.3s ease;
+  opacity: 0.22; transform: scale(0.82);
+  -webkit-filter: grayscale(1); filter: grayscale(1);
+  transition: opacity 0.3s ease, transform 0.3s ease, -webkit-filter 0.3s ease, filter 0.3s ease;
 }
 .sticker-slot__art svg { width: 100%; height: 100%; display: block; }
 /* Earned: the sticker "sticks" in, the seal disappears, the card warms up. */
@@ -1120,7 +1136,10 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   background: linear-gradient(180deg, #ffffff, #fff6da);
 }
 .sticker-slot.is-won .sticker-slot__seal { display: none; }
-.sticker-slot.is-won .sticker-slot__art { opacity: 1; transform: scale(1); }
+.sticker-slot.is-won .sticker-slot__art {
+  opacity: 1; transform: scale(1);
+  -webkit-filter: none; filter: none;
+}
 @keyframes stickerPlop {
   0% { transform: scale(0.3) rotate(-12deg); }
   55% { transform: scale(1.18) rotate(6deg); }

@@ -42,13 +42,24 @@
     // Rescue pups (Paw Patrol homage) — a name + pup emoji + a rescue vehicle.
     // collar = each pup's signature colour, so the rescue scene shows visibly
     // DIFFERENT pups (not four identical 🐶) and you can count one kind.
+    // `art` is what makes each pup a DIFFERENT DOG rather than the same beige
+    // dog with a 3px collar tick — coat, ear shape, patches and cap, so they are
+    // told apart by SILHOUETTE at thumbnail size. Rescue is a counting game whose
+    // right answer depends on telling them apart, so this is correctness, not
+    // decoration; `content.test.js` asserts the whole tuple is unique per pup.
     PUPS: [
-      { name: "Chase", emoji: "🐕‍🦺", job: "🚓", collar: "#2b6cff" },
-      { name: "Marshall", emoji: "🐶", job: "🚒", collar: "#e23636" },
-      { name: "Skye", emoji: "🐩", job: "🚁", collar: "#ff7ac0" },
-      { name: "Rubble", emoji: "🐶", job: "🚜", collar: "#ffd24d" },
-      { name: "Rocky", emoji: "🐶", job: "♻️", collar: "#7be08a" },
-      { name: "Zuma", emoji: "🐶", job: "🚤", collar: "#ff9f43" },
+      { name: "Chase", emoji: "🐕‍🦺", job: "🚓", collar: "#2b6cff",
+        art: { coat: "#d8a86b", ears: "floppy", cap: "#2b6cff" } },
+      { name: "Marshall", emoji: "🐶", job: "🚒", collar: "#e23636",
+        art: { coat: "#f4ece0", ears: "floppy", patch: "#4a4038", cap: "#e23636" } },
+      { name: "Skye", emoji: "🐩", job: "🚁", collar: "#ff7ac0",
+        art: { coat: "#f6c9dd", ears: "round" } },
+      { name: "Rubble", emoji: "🐶", job: "🚜", collar: "#ffd24d",
+        art: { coat: "#c99a52", ears: "pointy", cap: "#ffd24d" } },
+      { name: "Rocky", emoji: "🐶", job: "♻️", collar: "#7be08a",
+        art: { coat: "#9db98d", ears: "pointy" } },
+      { name: "Zuma", emoji: "🐶", job: "🚤", collar: "#ff9f43",
+        art: { coat: "#e9a35f", ears: "round", patch: "#a86a2e" } },
     ],
     // Construction crew (Rubble & Crew homage).
     CREW: [

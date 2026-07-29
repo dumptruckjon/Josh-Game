@@ -849,8 +849,11 @@
       const NEED = 5;
       let cared = 0, won = false;
       const collars = (api.C.PUPS || [{ collar: "#e23636" }]);
-      const collar = api.randItem(collars).collar || "#e23636";
-      const pupEl = api.el("div", { class: "puppy__pup art-fill", aria: { hidden: "true" }, html: (ART && ART.pup) ? ART.pup(collar) : "🐶" });
+      const thePup = api.randItem(collars) || { collar: "#e23636" };
+      const collar = thePup.collar || "#e23636";
+      // The whole pup, not just its collar — otherwise every round's puppy is the
+      // same beige dog and the six PUPS[].art specs never reach the screen.
+      const pupEl = api.el("div", { class: "puppy__pup art-fill", aria: { hidden: "true" }, html: (ART && ART.pup) ? ART.pup(collar, thePup.art) : "🐶" });
       const CARES = [
         { emoji: "🖐️", name: "pat", say: "The puppy loves pats!" },
         { emoji: "🧼", name: "brush", say: "So shiny and clean!" },
