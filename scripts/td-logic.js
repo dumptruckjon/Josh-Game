@@ -133,7 +133,11 @@
       jamMul: s.has("fieldrepair") ? 0.5 : 1,     // a jammed gun returns sooner
       chainPlus: s.has("ricochet") ? 1 : 0,       // the Fan's chain jumps once more
       marchMul: s.has("quickmarch") ? 1.6 : 1,    // soldiers reach their post sooner
-      scout: s.has("scoutreport"),                // UI-only: see two waves ahead
+      // NOTE: 🧭 Scout Report is deliberately absent here. It is the tree's one
+      // pure-INFORMATION node and the wave preview reads it from the run's own
+      // `state.meta`, so a metaMods key for it would be dead code — and a dead
+      // key made the "every node changes something" guardrail pass for the wrong
+      // reason. UI-only nodes are named in that test instead.
     };
   }
 
@@ -300,7 +304,9 @@
       // is constant by construction, and tightens exactly where the problem is.
       // Granted per wave SENT, so a ⏩ RUSH pays for the wave it sends and not
       // for the one it happens to clear alongside it.
-      state.charge = Math.min(R.chargeMax + mods.charge, (state.charge || 0) + R.chargePerWave + mods.charge);
+      // 🔋 Spare Battery raises BOTH the per-wave grant and the bank, read once
+      const extraCharge = mods.charge;
+      state.charge = Math.min(R.chargeMax + extraCharge, (state.charge || 0) + R.chargePerWave + extraCharge);
       emit({ type: "wave", n: state.sentIdx, inFlight: state.sentIdx - state.waveIdx });
     }
 
@@ -1417,7 +1423,11 @@
     // button (reported: "some of them don't even seem to work at all").
     // 💣 Wider Blast, read ONCE per ability so the blast, the reveal, the puddle
     // and the ring the player sees are all the same circle.
-    function abilityRadius(def) { return (def.radius || 0) * mods.abilityRadius; }
+    // The ONE place mods.abilityRadius is read. It takes a RAW radius, not a def,
+    // because 🧨 also carries a `reveal.radius` — the first cut scaled that
+    // inline and quietly gave the node a second read site.
+    function scaleRadius(r) { return (r || 0) * mods.abilityRadius; }
+    function abilityRadius(def) { return scaleRadius(def.radius); }
     function abilityWouldDo(def, o) {
       // The horn revives the downed AND heals the hurt, so it is useful whenever
       // any soldier is less than fully fit — not only when one is flat on its
@@ -1461,7 +1471,7 @@
         // flushes a phased ghost out also hits it — otherwise the rider would
         // only ever help the shot after.
         const rad = abilityRadius(def);
-        if (def.reveal) state.reveals.push({ x: o.x, y: o.y, r: def.reveal.radius * mods.abilityRadius, until: state.tick + Math.round(def.reveal.seconds * DATA.TICK_RATE) });
+        if (def.reveal) state.reveals.push({ x: o.x, y: o.y, r: scaleRadius(def.reveal.radius), until: state.tick + Math.round(def.reveal.seconds * DATA.TICK_RATE) });
         const r2 = rad * rad;
         for (const e of state.enemies) {
           if (!e.alive || isHidden(e)) continue; // an untargetable enemy is untargetable by EVERY damage path

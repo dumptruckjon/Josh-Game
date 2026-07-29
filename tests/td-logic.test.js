@@ -981,7 +981,7 @@ test("TD5 star tree: metaMods is a pure function of owned node ids (neutral tree
     bounty: 1, critBonus: 0, nightOwl: false, guardDog: 1, patchKit: false,
     bossDmg: 1, allowance: 0, stickerShield: false,
     // P4.3 breadth: seven new KINDS, all default-noop
-    charge: 0, slowSeconds: 1, abilityRadius: 1, jamMul: 1, chainPlus: 0, marchMul: 1, scout: false,
+    charge: 0, slowSeconds: 1, abilityRadius: 1, jamMul: 1, chainPlus: 0, marchMul: 1,
   }, "empty tree is exactly vanilla");
   const all = DATA.META_NODES.map((n) => n.id);
   const mAll = TD.metaMods(all);
@@ -4085,14 +4085,30 @@ test("P4.3 tree: every node CHANGES something — no node is decoration", () => 
   // A node that produces no engine difference is a star you spent on nothing.
   // metaMods is pure, so this is exact: flip one node on and require the mods
   // object to differ. The one deliberate exception is documented inline.
-  const UI_ONLY = new Set(["scoutreport"]); // pure information: read by the wave preview, never by the engine
+  // pure INFORMATION: read by the wave preview, never by the engine. The first
+  // cut of this test wrote `void UI_ONLY` and asserted every node changes
+  // metaMods — which passed only because a DEAD `scout` key existed. A key no
+  // engine site reads is not "pure input", it is decoration with extra steps.
+  const UI_ONLY = new Set(["scoutreport"]);
   const base = JSON.stringify(TD.metaMods([]));
+  const engineSrc = require("fs").readFileSync("scripts/td-logic.js", "utf8");
+  const inEngine = engineSrc.slice(engineSrc.indexOf("function createEngine"));
   for (const n of DATA.META_NODES) {
     const withIt = JSON.stringify(TD.metaMods([n.id]));
+    if (UI_ONLY.has(n.id)) {
+      assert.equal(withIt, base,
+        `"${n.id}" is declared UI-only, so it must NOT add a metaMods key — an unread key is dead code`);
+      continue;
+    }
     assert.notEqual(withIt, base, `node "${n.id}" changes nothing in metaMods — it is a star spent on decoration`);
-    void UI_ONLY;
   }
-  // …and the UI-only node must be readable from the RUN's loadout, not save.meta
+  // …and every metaMods key must actually be CONSUMED inside createEngine.
+  // Reproduced by the review that prompted this: `scout` was the one key no
+  // engine site ever read.
+  const dead = Object.keys(TD.metaMods(DATA.META_NODES.map((n) => n.id)))
+    .filter((k) => !inEngine.includes("mods." + k));
+  assert.deepEqual(dead, [], `metaMods keys nothing in the engine reads: ${dead.join(", ")}`);
+  // …and a UI-only node must be read from the RUN's loadout, not save.meta
   const ui = require("fs").readFileSync("scripts/td-ui.js", "utf8");
   for (const id of UI_ONLY) {
     assert.ok(ui.includes(id), `the UI-only node "${id}" must actually be read somewhere in the UI`);
@@ -4146,4 +4162,19 @@ test("P4.3 breadth: each new KIND is felt at its own engine site", () => {
   // 🪃 Ricochet + 🥾 Quick March — read at their own single sites
   assert.match(src, /s\.chain\.targets \+ mods\.chainPlus/, "Ricochet is read at the chain's target count");
   assert.match(src, /R\.soldierWalkSpeed \* mods\.marchMul/, "Quick March is read at the soldier walk step");
+
+  // …and "ONE read site" is an ASSERTION for these keys, not a claim. It was
+  // rhetorical at first, and a review pointed out that mods.abilityRadius had
+  // quietly acquired two (the helper plus an inline scale on 🧨's reveal zone).
+  // Scoped honestly to the P4.3 keys: several OLDER keys legitimately read at
+  // more than one place (soldierHp at five, bossDmg at five), and retrofitting
+  // them is a refactor this does not license.
+  // COMMENTS STRIPPED FIRST: a comment that merely names a key is prose, not a
+  // read site, and counting it turns this into a comment-linter (it failed on
+  // its own explanatory comment the first time).
+  const code = src.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+  for (const key of ["charge", "slowSeconds", "abilityRadius", "jamMul", "chainPlus", "marchMul"]) {
+    const n = (code.match(new RegExp("mods\\." + key + "\\b", "g")) || []).length;
+    assert.equal(n, 1, `mods.${key} must be read at exactly ONE site (found ${n}) — a second site is how a buff applies to one path and not the other`);
+  }
 });

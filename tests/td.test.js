@@ -784,7 +784,7 @@ test("TD8 audit: a SPENT Sticker Shield stays spent across a resume (no re-grant
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
-test("TD8 audit: the 23-node star tree is fully reachable + scroll-stable on a SHORT viewport", async () => {
+test("TD8 audit: EVERY star-tree node is reachable + scroll-stable on a SHORT viewport", async () => {
   // The tree grew from 10 to 23 nodes across 3 branches — much taller than its
   // 86dvh box. On a short viewport the whole tree + the Done button must stay
   // reachable (the box scrolls), and buying a node must NOT reset scroll to top.
