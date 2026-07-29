@@ -2299,7 +2299,26 @@ since it has been green in CI for dozens of runs and a checker that flags
 proven-fine design is one nobody reads. Meta-lesson, now twice-learned: **"the
 full suite is green locally" is not evidence about iOS** — and a WebKit-only
 regression can present as a HANG rather than a failure, which looks nothing like
-a test going red.
+a test going red. **And the filter turned out to be only the FIRST of three
+Chromium-invisible costs in the same change — finding the others took timing every
+suite in isolation, which is the only honest way.** Per-file: `site` fast,
+`td-logic` ~14 min CPU (the 32-level sims — inherent), `e2e` 593s, `td` **69s**,
+`mobile` **17s**, `offline` 6s. That cleared every file I had touched and left the
+one CI-only variable: real WebKit. Two further costs were cut on that reasoning,
+and both matter on Josh's actual iPad too. (a) **The ink line stroked after EVERY
+fill** — ~8 per enemy, ~800 extra round-joined strokes per frame at the 125-enemy
+peak. It measured 2.15 → 3.51 ms of a 16.7 ms budget… on GPU-accelerated
+Chromium, while WebKit rasterizes in software where wide round-joined strokes cost
+far more. It now spends a per-sprite BUDGET (`INK_PER_SPRITE = 4`), halving the
+work and capping it so a future detail-heavy sprite cannot inflate it.
+One-per-sprite was tried first and measured too FEW — 7 enemies (bull, healer,
+battery, screw, tinplane, racer, housekey) draw their body after their first fill,
+and the silhouette guardrail caught exactly that. (b) **The sticker badges used a
+24-point rosette and a 20-point burst, ×200 on one page** — every shape is ≤8
+points now and the sparkles are circles rather than 8-point stars (13 polygon
+points, ~1KB per sticker), with all five uniqueness axes intact at 200/200. The
+generalizable rule: **when you add art to a surface rendered by the hundred, count
+the path points — and never conclude its cost from a Chromium measurement.**
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

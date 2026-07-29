@@ -102,6 +102,14 @@ test("the Sticker Book gives every one of Josh's 200 games its OWN sticker", () 
     assert.ok(svg.startsWith('<svg viewBox="0 0 100 100"') && svg.endsWith("</svg>"), `${id}'s sticker is a valid 100x100 svg`);
     assert.equal((svg.match(/</g) || []).length, (svg.match(/>/g) || []).length, `${id}'s sticker has balanced tags`);
     assert.equal(svg, S.artFor({ id }), `${id}'s sticker is deterministic — the same game always shows the same prize`);
+    // An SVG fragment id resolves DOCUMENT-WIDE, and the Sticker Book paints all
+    // 200 of these into one page — so a `<defs><radialGradient id="bg">` per badge
+    // means every `url(#bg)` resolves to the FIRST one and 200 varied badge
+    // colours collapse into a single gradient. The uniqueness check below cannot
+    // see it (the strings all differ); only this can.
+    assert.ok(svg.indexOf("id=") < 0,
+      `${id}'s sticker declares an id — 200 stickers share one document, so a duplicate id silently repoints every other sticker's fill at the first one`);
+    assert.ok(svg.indexOf("url(#") < 0, `${id}'s sticker references a fragment id, which collides across the 200-slot book`);
     const dup = seen.get(svg);
     assert.ok(!dup, `${id} and ${dup} draw the IDENTICAL sticker — every game needs its own prize`);
     seen.set(svg, id);

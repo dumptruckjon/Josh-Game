@@ -2523,9 +2523,13 @@ test("ART: the frame still fits its budget at the crowded-board peak", async () 
     for (const p of eng.levelDef.pads) eng.place("dart", p.id);
     st.waveIdx = eng.levelDef.waves.length - 2; st.sentIdx = st.waveIdx;
     eng.callWave();
-    for (let i = 0; i < 2600; i++) eng.tick();
+    // Sized to be MEANINGFUL but not a CI tax: enough ticks to crowd the board,
+    // enough draws to average out noise. The first cut ran 2600 ticks and 160
+    // draws, which is real work in a software-rasterized CI browser for a test
+    // whose only job is catching a MULTIPLE-cost regression.
+    for (let i = 0; i < 900; i++) eng.tick();
     const alive = st.enemies.filter((e) => e.alive).length;
-    const N = 160, t0 = performance.now();
+    const N = 50, t0 = performance.now();
     for (let i = 0; i < N; i++) r.draw(i / N);
     return { alive, ms: (performance.now() - t0) / N };
   });

@@ -449,7 +449,8 @@
     // outline and hue are the ONLY channels that still resolve — eye dots are
     // 1.3px. So this is the one art change that survives at phone scale.
     const RIM = "rgba(26,18,10,0.92)";
-    let inkDepth = 0, inkOff = 0;
+    const INK_PER_SPRITE = Number(global.__INK_BUDGET || 4);
+    let inkDepth = 0, inkOff = 0, inkBudget = 0;
     const canInk = (function () {
       // Feature-checked: shadow the accessor on the instance so the art's 254
       // colour assignments need no edits. Safari 14.0 has these as prototype
@@ -474,7 +475,22 @@
         // so at dpr 1 only ~0.7px of a 1.35px line survived and the measured
         // boundary stayed as bright as the body: the guardrail caught that on its
         // first run, with 35 of 45 types still pale.
-        if (inkDepth > 0 && !inkOff && !busy) pen(Math.max(1.5, cell * 0.07));
+        //
+        // ONE stroke per sprite, not one per fill. The first cut inked EVERY fill,
+        // which is ~8 per enemy and ~800 extra round-joined strokes per frame at
+        // the 125-enemy peak. It measured fine (2.15 → 3.51 ms of a 16.7 ms budget)
+        // — but on CHROMIUM, which is GPU-accelerated, while Josh's iPad and CI's
+        // real-WebKit run rasterize in software where wide round-joined strokes are
+        // far dearer. That is exactly the trap this repo documents: never conclude
+        // an iOS cost from a Chromium measurement. `inkArmed` is set once per
+        // sprite and consumed by its first real fill (shadows and reveal glows go
+        // through noInk, so they cannot eat it), which is the primary body — so the
+        // cost is ONE extra stroke per enemy, ~45/frame, and the guardrail still
+        // proves every type's contour is dark.
+        if (inkDepth > 0 && !inkOff && !busy && inkBudget > 0) {
+          inkBudget--;
+          pen(Math.max(1.5, cell * 0.07));
+        }
         return out;
       };
       // A STROKE-ONLY sprite needs the ink too, and there are two: the Runaway
@@ -486,12 +502,15 @@
       // colour and gains a contour. Hairlines are skipped: inking a 1px detail
       // line just turns it to mud.
       ctx.stroke = function () {
-        if (inkDepth > 0 && !inkOff && !busy && ctx.lineWidth >= cell * 0.04) pen(ctx.lineWidth + Math.max(1.6, cell * 0.06));
+        if (inkDepth > 0 && !inkOff && !busy && inkBudget > 0 && ctx.lineWidth >= cell * 0.04) {
+          inkBudget--;
+          pen(ctx.lineWidth + Math.max(1.6, cell * 0.06));
+        }
         return realStroke();
       };
       return true;
     })();
-    function withInk(fn) { if (!canInk) return fn(); inkDepth++; try { return fn(); } finally { inkDepth--; } }
+    function withInk(fn) { if (!canInk) return fn(); inkDepth++; inkBudget = INK_PER_SPRITE; try { return fn(); } finally { inkDepth--; inkBudget = 0; } }
     function noInk(fn) { if (!canInk) return fn(); inkOff++; try { return fn(); } finally { inkOff--; } }
 
     // ---------- enemies (upright, screen space) ----------

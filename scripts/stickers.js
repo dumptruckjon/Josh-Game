@@ -79,38 +79,48 @@
   // them collided. Each axis below reads a DISJOINT bit-field of the same hash, so
   // adding one multiplies the space instead of re-shuffling it, and every sticker
   // stays a pure deterministic function of the game id.
-  const BACKINGS = ["disc", "rosette", "burst", "squircle", "shield"];
+  const BACKINGS = ["disc", "ring", "burst", "squircle", "shield"];
   const SKINS = ["#f1c9a5", "#e0ac7e", "#c68642", "#8d5524", "#fadcbc"];
   const HAIRS = ["#2a1a12", "#1a1a20", "#6b4423", "#3b2f2f", "#0f0f14"];
 
   // The badge behind the picture. Drawn here rather than in JoshArt because it is
   // a sticker-book concept, not a character.
+  // NO <radialGradient> here, and that is the point. The first cut gave every
+  // badge `<defs><radialGradient id="bg">` — but SVG fragment identifiers resolve
+  // DOCUMENT-WIDE, and the Sticker Book paints all 200 stickers into one page, so
+  // every `url(#bg)` would have resolved to the FIRST sticker's gradient and
+  // collapsed 200 carefully-varied badge colours into one. The uniqueness test
+  // could never catch it: the STRINGS all differ, only the rendering collapses.
+  // A flat fill plus a lighter top arc gives the same domed look, needs no id at
+  // all (so it cannot collide), and skips 200 gradient objects on a page that a
+  // WebKit device has to composite.
   function backing(shape, fill, edge) {
-    const g = '<defs><radialGradient id="bg" cx="0.35" cy="0.3" r="0.85">' +
-      '<stop offset="0" stop-color="' + edge + '"/><stop offset="1" stop-color="' + fill + '"/></radialGradient></defs>';
+    // CHEAP shapes, deliberately. The first cut drew a 24-point rosette and a
+    // 20-point burst, and the Sticker Book paints 200 of these at once — on
+    // WebKit's software rasterizer (Josh's iPad, and CI) that many path points is
+    // real cost for a page whose job is to look like a scrapbook. Every shape here
+    // is <= 8 points and still visibly its own badge, so the five axes that make
+    // 200 stickers unique are untouched.
+    const dome = '<path d="M14 42 Q28 12 58 10 Q34 20 24 46 Z" fill="rgba(255,255,255,0.34)"/>';
     let body;
-    if (shape === "rosette") {
-      let pts = "";
-      for (let i = 0; i < 24; i++) {
-        const a = (i / 24) * Math.PI * 2, rad = i % 2 ? 40 : 49;
-        pts += (i ? " " : "") + (50 + Math.cos(a) * rad).toFixed(1) + "," + (50 + Math.sin(a) * rad).toFixed(1);
-      }
-      body = '<polygon points="' + pts + '" fill="url(#bg)" stroke="' + edge + '" stroke-width="2"/>';
+    if (shape === "ring") {
+      body = '<circle cx="50" cy="50" r="47" fill="' + fill + '" stroke="' + edge + '" stroke-width="2.5"/>' +
+        '<circle cx="50" cy="50" r="35" fill="none" stroke="' + edge + '" stroke-width="4"/>' + dome;
     } else if (shape === "burst") {
       let pts = "";
-      for (let i = 0; i < 20; i++) {
-        const a = (i / 20) * Math.PI * 2 - Math.PI / 2, rad = i % 2 ? 33 : 50;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 - Math.PI / 2, rad = i % 2 ? 32 : 49;
         pts += (i ? " " : "") + (50 + Math.cos(a) * rad).toFixed(1) + "," + (50 + Math.sin(a) * rad).toFixed(1);
       }
-      body = '<polygon points="' + pts + '" fill="url(#bg)" stroke="' + edge + '" stroke-width="2"/>';
+      body = '<polygon points="' + pts + '" fill="' + fill + '" stroke="' + edge + '" stroke-width="2"/>' + dome;
     } else if (shape === "squircle") {
-      body = '<rect x="4" y="4" width="92" height="92" rx="26" fill="url(#bg)" stroke="' + edge + '" stroke-width="2.5"/>';
+      body = '<rect x="4" y="4" width="92" height="92" rx="26" fill="' + fill + '" stroke="' + edge + '" stroke-width="2.5"/>' + dome;
     } else if (shape === "shield") {
-      body = '<path d="M50 3 L94 17 V52 Q94 82 50 97 Q6 82 6 52 V17 Z" fill="url(#bg)" stroke="' + edge + '" stroke-width="2.5"/>';
+      body = '<path d="M50 3 L94 17 V52 Q94 82 50 97 Q6 82 6 52 V17 Z" fill="' + fill + '" stroke="' + edge + '" stroke-width="2.5"/>' + dome;
     } else {
-      body = '<circle cx="50" cy="50" r="47" fill="url(#bg)" stroke="' + edge + '" stroke-width="2.5"/>';
+      body = '<circle cx="50" cy="50" r="47" fill="' + fill + '" stroke="' + edge + '" stroke-width="2.5"/>' + dome;
     }
-    return g + body;
+    return body;
   }
 
   // Two more axes, because the badge alone left 5 colliding pairs out of 200 —
@@ -123,11 +133,7 @@
     for (let i = 0; i < n; i++) {
       const a = -Math.PI / 2 + (i / Math.max(1, n)) * Math.PI * 2 + 0.5;
       const x = 50 + Math.cos(a) * 41, y = 50 + Math.sin(a) * 41;
-      out += '<path d="M' + x.toFixed(1) + " " + (y - 5).toFixed(1) + " L" + (x + 1.6).toFixed(1) + " " + (y - 1.6).toFixed(1) +
-        " L" + (x + 5).toFixed(1) + " " + y.toFixed(1) + " L" + (x + 1.6).toFixed(1) + " " + (y + 1.6).toFixed(1) +
-        " L" + x.toFixed(1) + " " + (y + 5).toFixed(1) + " L" + (x - 1.6).toFixed(1) + " " + (y + 1.6).toFixed(1) +
-        " L" + (x - 5).toFixed(1) + " " + y.toFixed(1) + " L" + (x - 1.6).toFixed(1) + " " + (y - 1.6).toFixed(1) +
-        ' Z" fill="' + fill + '" opacity="0.85"/>';
+      out += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4" fill="' + fill + '"/>';
     }
     return out;
   }
