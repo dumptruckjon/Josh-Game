@@ -1609,6 +1609,90 @@ test("AUDIT difficulty shape: no level may be a wave-1 GOTCHA (opening damage st
   }
 });
 
+// The four SHIPPED abilities are invisible to this entire suite: the winnability
+// oracle never calls useAbility, so nothing has ever measured what 🧨 Toy Box
+// Drop / 🍯 Sticky Floor / ⚡ Overclock / 📣 Rally Horn do to a finale. Measured
+// here (8 seeds, best-of-two plans, powers fired at max cooldown rate on the
+// BOSS WAVE ONLY — spamming from wave 1 instead bankrupts the build and loses
+// every seed, which is its own evidence that the gold cost bites early):
+//
+//     finale               normal play   ability spam
+//     L4  Bed Monster          14            14      +0
+//     L8  Vacuum King          11            18      +7
+//     L12 The Static            7             5      -2   (the gold cost outweighs)
+//     L16 Tickmaster           17            20      +3   (flawless)
+//     L20 Toolbox Titan         9            20     +11   (flawless — the tensest finale, erased)
+//     L24 The Moving Van       14            13      -1
+//
+// So three finales survive the powers and three do not. Pinned as a baseline
+// rather than a bare bar, for the same reason as the meta test — but note this
+// one IS failable on L4/L12/L24 against the real cap, so it is not a rubber
+// stamp. It is also the test any NEW power must pass before it ships.
+test("AUDIT ability abuse: spamming the shipped powers must not erase a finale", () => {
+  const MAX_BOSS_LEVEL_FINISH = 17;
+  const BASELINE = { 8: 18, 16: 20, 20: 20 }; // measured 2026-07; Phase 3 should shrink this
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function run(level, plan, seed) {
+    const e = TD.createEngine(level, { seed, difficulty: "normal" });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      if (e.state.phase === "wave" && e.state.waveIdx >= level.waves.length - 1) {
+        const lead = e.state.enemies.filter((x) => x.alive).sort((a, b) => b.dist - a.dist)[0];
+        for (const ab of DATA.ABILITIES) {
+          if (!e.abilityReady(ab.id).ok) continue;
+          if (ab.kind === "point") { if (lead) { const p = e.posOn(lead.pathIdx || 0, lead.dist); e.useAbility(ab.id, { x: p.x, y: p.y }); } }
+          else if (ab.kind === "tower") { const t = e.state.towers[0]; if (t) e.useAbility(ab.id, { towerId: t.id }); }
+          else e.useAbility(ab.id, {});
+        }
+      }
+      e.tick();
+    }
+    return e.state;
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+  const finales = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss));
+  assert.ok(Object.keys(BASELINE).length < finales.length,
+    "the baseline must never cover every finale — this test has to be able to fail");
+  for (const lvl of finales) {
+    const perSeed = SEEDS.map((seed) => {
+      const wins = PLANS.map((p) => run(lvl, p, seed)).filter((r) => r.phase === "won");
+      return wins.length ? Math.max(...wins.map((r) => r.lives)) : -1;
+    });
+    const sorted = perSeed.filter((l) => l >= 0).slice().sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : -1;
+    const base = BASELINE[lvl.id];
+    if (base === undefined) {
+      assert.ok(median <= MAX_BOSS_LEVEL_FINISH,
+        `L${lvl.id} "${lvl.name}" finishes at a median ${median} when the powers are spammed (${perSeed.join(", ")}) — ` +
+        "a finale must still cost something even against full ability use.");
+    } else {
+      assert.ok(median <= base,
+        `L${lvl.id} "${lvl.name}" got softer under ability spam: median ${median} vs a pinned ${base} (${perSeed.join(", ")})`);
+      assert.ok(base > MAX_BOSS_LEVEL_FINISH,
+        `L${lvl.id} is in BASELINE at ${base}, which is within the real bar — remove it`);
+    }
+  }
+});
+
 // The same audit, run with the WHOLE star tree owned — the balance instrument
 // that did not exist. Every tuning number in this project (and in CLAUDE.md and
 // every PLAN doc) is a NO-META number, because the winnability oracle passes no
@@ -3334,6 +3418,57 @@ test("TD-16 guide truth: every level gimmick explains ITSELF, from the level's o
   const nightText = TD.levelGimmicks(nightLevel).find((g) => g.key === "night").text;
   assert.match(nightText, new RegExp(String(Math.round(DATA.RULES.nightRangeMult * 100)) + "%"),
     "the night entry must state the engine's actual nightRangeMult");
+});
+
+// The targeting control had two owners: the engine gated "cheap" on `mods`
+// (fixed at createEngine from opts.meta) while the button re-derived it from
+// save.meta. Those can disagree — a resumed run, or a respec mid-session — and
+// the button relabelled itself even when setTargeting refused, so the tower kept
+// its old mode while the UI claimed otherwise. One owner now.
+test("TD8 targeting: the ENGINE owns which modes a run allows, and refuses the rest", () => {
+  const L = DATA.LEVELS[0];
+  const plain = TD.createEngine(L, { seed: 7 });
+  const withNode = TD.createEngine(L, { seed: 7, meta: ["cheaptarget"] });
+  assert.ok(plain.targetingModes().indexOf("cheap") < 0, "without the 🔻 Weak Spot node, cheap is not offered");
+  assert.ok(withNode.targetingModes().indexOf("cheap") >= 0, "with the node, it is");
+  // every OFFERED mode must be accepted, and anything not offered must be refused —
+  // that pairing is what stops the button showing a mode the engine will reject.
+  plain.place("dart", L.pads[0].id);
+  const t = plain.state.towers[0];
+  for (const m of plain.targetingModes()) {
+    assert.ok(plain.setTargeting(t.id, m).ok, `an offered mode ("${m}") must be accepted`);
+    assert.equal(t.targeting, m);
+  }
+  const denied = plain.setTargeting(t.id, "cheap");
+  assert.equal(denied.ok, false, "a mode this run does not allow is refused");
+  assert.equal(denied.reason, "locked");
+  assert.notEqual(t.targeting, "cheap", "…and the tower is unchanged, so a UI that honours the result cannot lie");
+});
+
+// reachedBy must DERIVE from the arsenal, not restate it. Both the line list and
+// the air answer were literals, so a 5th tower line (or a change to which lines
+// reach air) would have left the Toybox Guide teaching the old counter matrix
+// while the engine did something else — the counting law, applied to the thing
+// the guide exists to explain.
+test("TD-12 guide truth: reachedBy DERIVES from TOWERS (hitsFliers / kind), never a literal", () => {
+  const lines = Object.keys(DATA.TOWERS);
+  // ground enemy: everything reaches it
+  assert.deepEqual(TD.reachedBy(DATA.ENEMIES.sock), lines, "a plain ground enemy is reachable by every line");
+  // flier: exactly the lines whose data says they hit air
+  const air = lines.filter((k) => DATA.TOWERS[k].hitsFliers);
+  assert.deepEqual(TD.reachedBy(DATA.ENEMIES.hawk), air, "a flier is reachable by exactly the hitsFliers lines");
+  assert.ok(air.length >= 1 && air.length < lines.length, "air is answerable, but not by everything");
+  // boss: soldiers never engage one (fireTowers skips ed.boss), so no camp line
+  const noCamp = lines.filter((k) => DATA.TOWERS[k].kind !== "camp");
+  assert.deepEqual(TD.reachedBy(DATA.ENEMIES.bedmonster), noCamp, "a boss cannot be blocked by bodies");
+  // …and the derivation must FOLLOW the data. Flip hitsFliers on a clone and the
+  // answer must change; a literal would not notice.
+  const realDart = DATA.TOWERS.dart.hitsFliers;
+  try {
+    DATA.TOWERS.dart.hitsFliers = false;
+    assert.ok(TD.reachedBy(DATA.ENEMIES.hawk).indexOf("dart") < 0,
+      "flipping dart.hitsFliers must remove it from a flier's answer — reachedBy is reading a literal");
+  } finally { DATA.TOWERS.dart.hitsFliers = realDart; }
 });
 
 // A badge that EXISTS is not a badge you can EARN. The shipped structure test

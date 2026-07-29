@@ -933,14 +933,16 @@
       const targetBtn = UI.bubble.querySelector(".td-target");
       if (targetBtn) targetBtn.addEventListener("click", (e2) => {
         e2.stopPropagation();
-        // "cheap" (weakest-first) is gated behind the 🔻 Weak Spot star node —
-        // the engine refuses it without the node, and the cycle used to be a
-        // hard-coded 4-mode list, so the 2⭐ purchase bought nothing selectable.
-        const modes = ["first", "last", "strong", "close"];
-        if ((save.meta || []).indexOf("cheaptarget") >= 0) modes.push("cheap");
+        // ASK THE ENGINE which modes this run allows, rather than re-deriving it
+        // from save.meta: `mods` is fixed at createEngine, so a resumed run or a
+        // mid-session respec could leave these two disagreeing — the button
+        // offering "cheap" (the 🔻 Weak Spot node) while the engine refuses it.
+        // And honour the result before relabelling, or the button lies.
+        const modes = cur.engine.targetingModes();
         const nextMode = modes[(modes.indexOf(tower.targeting) + 1) % modes.length];
-        cur.engine.setTargeting(tower.id, nextMode);
-        e2.target.textContent = "🎯 " + nextMode;
+        const r = cur.engine.setTargeting(tower.id, nextMode);
+        if (r.ok) e2.target.textContent = "🎯 " + nextMode;
+        else sfx("deny");
       });
     }
   }

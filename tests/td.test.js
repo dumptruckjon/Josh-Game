@@ -2565,3 +2565,58 @@ test("TD17 lever: the diversion is TIMED, and the countdown is VISIBLE on the sw
   assert.ok(cool.near.includes(String(Math.ceil(cool.state.secs))), "the re-arm countdown is drawn too, so you can time the next one");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
+
+test("TD9 control strip: adjacent power tiles must never OVERLAP (the strip is full at four)", async () => {
+  // `.td-abil { min-width: 44px }` masks track starvation: when a 5th power is
+  // added the grid cannot shrink the tiles, so instead of overflowing they
+  // physically overlap — and `scrollWidth === clientWidth` throughout, which is
+  // why every shipped overflow guardrail stays green. Reproduced by cloning
+  // tiles: at 320px a 5th tile overlaps its neighbour by 6px and a 6th by 19px;
+  // at 360px a 6th by 9px; at 390px by 1.5px. That is the audit hole that makes
+  // "the ability strip has room for exactly four" an enforceable fact rather
+  // than a comment, and it is the gate any 5th power has to pass.
+  //
+  // Grouped BY ROW: in landscape the strip is a vertical column in the gutter,
+  // where tiles share an x-range by design — comparing left/right there would
+  // be a false failure.
+  const probe = async (w, h, clones) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.evaluate(() => { window.__TD.newGame(1, { seed: 7 }); });
+    await page.waitForTimeout(120);
+    return page.evaluate((n) => {
+      const strip = document.querySelector("#screen-td-play .td-abils") || document.querySelector("#screen-td-play .td-controls");
+      if (!strip) return { worst: 0, tiles: 0 };
+      const proto = strip.querySelector(".td-abil");
+      const added = [];
+      for (let i = 0; i < n; i++) { const c = proto.cloneNode(true); strip.appendChild(c); added.push(c); }
+      const rects = [...strip.querySelectorAll(".td-abil")].map((e) => e.getBoundingClientRect());
+      // same ROW = same top (within a few px); only then is left/right meaningful
+      let worst = 0;
+      const rows = {};
+      for (const r of rects) { const k = Math.round(r.top / 4); (rows[k] = rows[k] || []).push(r); }
+      for (const k of Object.keys(rows)) {
+        const row = rows[k].sort((a, b) => a.left - b.left);
+        for (let i = 1; i < row.length; i++) worst = Math.min(worst, row[i].left - row[i - 1].right);
+      }
+      added.forEach((a) => a.remove());
+      return { worst: Math.round(worst * 10) / 10, tiles: rects.length };
+    }, clones);
+  };
+
+  for (const [w, h] of [[320, 568], [360, 640], [390, 844]]) {
+    const now = await probe(w, h, 0);
+    assert.equal(now.tiles, 4, `the shipped strip is 4 powers at ${w}px`);
+    assert.ok(now.worst >= 0, `the SHIPPED four tiles must not overlap at ${w}px (worst gap ${now.worst}px)`);
+  }
+  // …and a 5th would. This is the assertion that makes the limit real: it fails
+  // on the pre-fix code only in the sense that nothing checked it — add a power
+  // without widening the strip and this is what catches it.
+  const five = await probe(320, 568, 1);
+  assert.ok(five.worst < 0,
+    `a 5th power is expected to overlap at 320px today (measured ${five.worst}px) — if this no longer holds the strip was widened, ` +
+    "which is good news: re-measure and update this test rather than deleting it");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});

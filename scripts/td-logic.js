@@ -1184,10 +1184,21 @@
       state.towers.splice(i, 1);
       return { ok: true, refund };
     }
+    // The ONE list of targeting modes, and the ONE place that says which are
+    // legal in THIS run. The UI used to keep its own copy and decide "cheap"
+    // from save.meta — but `mods` is computed once at createEngine from
+    // opts.meta, so a resumed run (or a respec mid-session) could leave the
+    // button offering a mode the engine then refuses, while the label changed
+    // anyway. That is the documented "a control must reflect the engine" class,
+    // and it becomes a live bug the moment per-run loadouts land.
+    const TARGET_MODES = ["first", "last", "strong", "close", "cheap"];
+    function targetingModes() {
+      return TARGET_MODES.filter((m) => m !== "cheap" || mods.cheapTarget);
+    }
     function setTargeting(towerId, mode) {
       const t = towerById(towerId);
       if (!t) return { ok: false, reason: "bad-id" };
-      if (["first", "last", "strong", "close", "cheap"].indexOf(mode) < 0) return { ok: false, reason: "bad-mode" };
+      if (TARGET_MODES.indexOf(mode) < 0) return { ok: false, reason: "bad-mode" };
       if (mode === "cheap" && !mods.cheapTarget) return { ok: false, reason: "locked" }; // needs the star-tree node
       t.targeting = mode; t.targetId = 0;
       return { ok: true };
@@ -1397,7 +1408,7 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, setTargeting, rally, callWave,
+      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       // TD-17 the ONE place the lever's timing is described, so the button, the
@@ -1457,11 +1468,18 @@
   // Which tower lines can even REACH this enemy. The one place that answers
   // "why is nothing shooting it?" — the question the game never answered.
   function reachedBy(def) {
-    const all = ["dart", "mortar", "fan", "camp"];
-    if (def && def.flier) return ["dart", "fan"]; // mortar is ground-only, camps are bodies
+    // DERIVED from the arsenal, not a hand-kept list. The line names and the air
+    // answer were both literals here, so a 5th tower line — or a change to which
+    // lines reach air — would have left the guide teaching the old matrix while
+    // the engine did something else. `hitsFliers` is already the data field the
+    // engine's own targeting honours, so read that.
+    const all = Object.keys(DATA.TOWERS);
+    if (def && def.flier) return all.filter((k) => DATA.TOWERS[k].hitsFliers);
     // Soldiers never engage a BOSS (tryEngage skips ed.boss), so listing the camp
     // on a boss card was the guide teaching something the engine forbids.
-    if (def && def.boss) return ["dart", "mortar", "fan"];
+    // …and a camp is BODIES: fireTowers' soldier-engage skips `ed.boss`, so the
+    // camp can never touch a boss and listing it would teach the opposite.
+    if (def && def.boss) return all.filter((k) => DATA.TOWERS[k].kind !== "camp");
     return all;
   }
 

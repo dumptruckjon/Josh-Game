@@ -802,6 +802,13 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
     assert.ok(sw.includes(icon), `PWA icon ${icon} precached`);
   }
   const tdm = read("scripts/td-main.js");
+  // TD8 targeting has ONE owner: the button asks the engine which modes this run
+  // allows and honours the result, instead of re-deriving "cheap" from save.meta
+  // (which is a different source of truth from the engine's createEngine-time
+  // `mods`, so the two could disagree and the label could lie).
+  assert.match(tdm, /cur\.engine\.targetingModes\(\)/, "the targeting cycle asks the ENGINE for its legal modes");
+  assert.ok(!/indexOf\("cheaptarget"\)/.test(tdm), "…and no longer re-derives the gated mode from save.meta");
+
   // TD-17: the diversion is TIMED, so it deliberately does NOT ride the
   // checkpoint — saving the route without its expiry tick would restore a
   // diversion that never ends (the free-upgrade this phase removed).
