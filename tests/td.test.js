@@ -2671,3 +2671,81 @@ test("P3 energy: the ⚙️ budget is on the HUD, spends on use, and rides the c
     "the checkpoint carries the run's remaining energy — otherwise every resume re-grants it");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
+
+test("P4 loadout: a run brings the EQUIPPED nodes, not everything owned", async () => {
+  // The checkpoint-fidelity class, on its seventh instance. writeMidRun used to
+  // snapshot `save.meta.slice()`, so an unthreaded loadout would hand a resumed
+  // run every node the player has ever bought.
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const slots = await page.evaluate(() => window.TDData.RULES.metaSlots);
+  const owned = await page.evaluate((n) => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1 };
+    raw.stars = { casual: {}, normal: {}, heroic: {} };
+    for (const l of window.TDData.LEVELS) raw.stars.normal[l.id] = 3;   // everything earned
+    raw.meta = window.TDData.META_NODES.map((x) => x.id);               // everything owned
+    // deliberately OVER-full: a hand-edited save, a shrunken RULES.metaSlots or a
+    // stale pack must all be clamped by the engine's own rule, not trusted
+    raw.loadout = raw.meta.slice();
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    return { meta: raw.meta.length, loadout: raw.meta.slice(0, n) };
+  }, slots);
+  assert.ok(owned.meta > slots, "the fixture owns — and packs — more than the rules allow");
+  // seed → reload → hop the hash: `goto(url + "#hash")` is a SAME-DOCUMENT
+  // navigation and would never re-run module init against the new save.
+  await page.reload();
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const live = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });
+    return window.__TD.engine().state.meta;
+  });
+  assert.deepEqual(live, owned.loadout,
+    "the LIVE run is handed exactly the equipped, capped loadout — not everything owned, and not an over-full pack");
+  const usedCount = await page.evaluate(() => {
+    // the engine keeps meta as pure input; read what startLevel actually handed it
+    window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+    location.hash = "#td-home";
+    return new Promise((r) => setTimeout(() => {
+      const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+      r(s.midRun ? s.midRun.meta : null);
+    }, 80));
+  });
+  assert.ok(Array.isArray(usedCount), "a checkpoint was written");
+  assert.deepEqual(usedCount, owned.loadout,
+    "the checkpoint carries the EQUIPPED loadout — handing a resumed run everything owned is the bug this exists to catch");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("P4 loadout: the star tree can pack and unpack, and never past the cap", async () => {
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const slots = await page.evaluate(() => window.TDData.RULES.metaSlots);
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1 };
+    raw.stars = { casual: {}, normal: {}, heroic: {} };
+    for (const l of window.TDData.LEVELS) raw.stars.normal[l.id] = 3;
+    raw.meta = window.TDData.META_NODES.map((x) => x.id);
+    raw.loadout = [];
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator("#screen-td-home .td-tree-open").click();
+  await page.locator(".td-node__equip").first().waitFor({ state: "visible" });
+
+  // pack more than the cap allows, one tap at a time
+  for (let i = 0; i < slots + 3; i++) {
+    const free = page.locator(".td-node__equip:not([disabled]):not(.td-node__equip--on)");
+    if (!(await free.count())) break;
+    await free.first().click();
+  }
+  const packed = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1")).loadout || []).length);
+  assert.equal(packed, slots, `the pack fills to exactly ${slots} and refuses the rest (got ${packed})`);
+  // …and un-packing is always allowed, or the last slot would be a trap
+  await page.locator(".td-node__equip--on").first().click();
+  const after = await page.evaluate(() => (JSON.parse(localStorage.getItem("jon-td-save-v1")).loadout || []).length);
+  assert.equal(after, slots - 1, "a full pack can still be emptied");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});

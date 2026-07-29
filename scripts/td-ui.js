@@ -445,17 +445,32 @@
   UI.showStarTree = function (save, onChange, keepScroll) {
     const t = starTotals(save);
     const owned = new Set(save.meta || []);
+    const SLOTS = global.TDData.RULES.metaSlots;
+    // P4: OWNING a node and BRINGING it are different. Equipped ∩ owned, capped —
+    // the same rule the engine is handed, computed from the same two fields, so
+    // the overlay can never show a loadout the run would not actually use.
+    const equipped = (save.loadout || []).filter((id) => owned.has(id)).slice(0, SLOTS);
+    const eq = new Set(equipped);
     const branches = (global.TDData.META_BRANCHES || []).map((br) => {
       const rows = NODES().filter((n) => n.branch === br.id).map((n) => {
         const has = owned.has(n.id);
         const locked = has ? null : treeLockReason(owned, n);
         const buyable = has || (!locked && t.avail >= n.cost);
-        return '<button class="td-node' + (has ? " td-node--on" : "") + (locked ? " td-node--locked" : "") + '"' + (buyable ? "" : " disabled") +
+        const on = eq.has(n.id);
+        // the equip toggle only exists once you own the node; a full rack still
+        // lets you UN-equip, or the last slot would be a trap
+        const equipBtn = has
+          ? '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' +
+            (!on && eq.size >= SLOTS ? " disabled" : "") +
+            ' data-equip="' + n.id + '" aria-label="' + (on ? "Unequip " : "Equip ") + n.name + '">' + (on ? "🎒" : "＋") + "</button>"
+          : "";
+        return '<div class="td-node-row">' +
+          '<button class="td-node' + (has ? " td-node--on" : "") + (locked ? " td-node--locked" : "") + '"' + (buyable ? "" : " disabled") +
           ' data-node="' + n.id + '">' +
           '<span class="td-node__icon">' + n.icon + "</span>" +
           '<span class="td-node__body"><span class="td-node__name">' + n.name + (n.reqSpend ? " 👑" : "") + "</span>" +
           '<span class="td-node__desc">' + (locked ? "🔒 " + locked : n.desc) + "</span></span>" +
-          '<span class="td-node__cost">' + (has ? "✓" : "⭐" + n.cost) + "</span></button>";
+          '<span class="td-node__cost">' + (has ? "✓" : "⭐" + n.cost) + "</span></button>" + equipBtn + "</div>";
       }).join("");
       return '<p class="td-tree__branch">' + br.icon + " " + br.name +
         ' <span class="td-tree__spent">⭐' + branchSpend(owned, br.id, null) + " spent</span></p>" +
@@ -463,6 +478,8 @@
     }).join("");
     const el = metaOverlay("td-tree", '<h3>⭐ Star Tree</h3>' +
       '<p class="td-overlay__stars td-tree__avail">⭐ ' + t.avail + " to spend · " + t.spent + " used</p>" +
+      '<p class="td-overlay__sub td-tree__slots">🎒 ' + equipped.length + " / " + SLOTS +
+      " equipped — a run brings only what is packed, so the tree is a choice every battle.</p>" +
       branches +
       '<div class="td-overlay__row"><button class="td-btn td-tree-respec" type="button">↺ Refund all</button>' +
       '<button class="td-btn td-btn--call td-tree-done" type="button">Done</button></div>');
@@ -473,7 +490,7 @@
     // the re-render. (390×844 in tests hides this; a real device shows it.)
     const box = el.querySelector(".td-overlay__box");
     if (box && keepScroll) box.scrollTop = keepScroll;
-    const rerender = (meta) => { const top = box ? box.scrollTop : 0; onChange(meta); UI.showStarTree(save, onChange, top); };
+    const rerender = (meta, load) => { const top = box ? box.scrollTop : 0; onChange(meta, load); UI.showStarTree(save, onChange, top); };
     el.querySelectorAll(".td-node").forEach((b) => b.addEventListener("click", () => {
       const id = b.dataset.node; const set = new Set(save.meta || []);
       const node = NODES().find((n) => n.id === id);
@@ -482,10 +499,20 @@
       else {
         if (treeLockReason(set, node) || starTotals(save).avail < node.cost) return;
         set.add(id);
+        // a freshly bought node auto-equips while there is room — buying
+        // something that then does nothing until a second tap reads as broken
+        if (eq.size < SLOTS) eq.add(id);
       }
-      rerender([...set]); // re-render with new state, keeping scroll position
+      rerender([...set], [...eq]);
     }));
-    el.querySelector(".td-tree-respec").addEventListener("click", () => rerender([]));
+    el.querySelectorAll(".td-node__equip").forEach((b) => b.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const id = b.dataset.equip;
+      if (eq.has(id)) eq.delete(id);
+      else if (eq.size < SLOTS) eq.add(id);
+      rerender(save.meta || [], [...eq]);
+    }));
+    el.querySelector(".td-tree-respec").addEventListener("click", () => rerender([], []));
     el.querySelector(".td-tree-done").addEventListener("click", UI.closeOverlay);
   };
 

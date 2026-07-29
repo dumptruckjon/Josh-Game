@@ -3988,3 +3988,57 @@ test("AUDIT badges: every boss finale's achievement is actually AWARDED somewher
     assert.ok(ids.has(m[1]), `td-main.js awards "${m[1]}", which is not in DATA.ACHIEVEMENTS`);
   }
 });
+
+// ================= Phase 4: owning a node and BRINGING it =================
+
+test("P4 loadout: RULES.metaSlots is a real cap, and the tree is bigger than it", () => {
+  const R = DATA.RULES;
+  assert.ok(R.metaSlots >= 1 && R.metaSlots < DATA.META_NODES.length,
+    `a run must bring FEWER nodes (${R.metaSlots}) than the tree holds (${DATA.META_NODES.length}) — otherwise the slot budget is decoration`);
+  // and the tree must still cost more than you can ever earn, so allocation is
+  // a permanent choice as well as a per-run one
+  const total = DATA.META_NODES.reduce((s, n) => s + n.cost, 0);
+  const cap = DATA.LEVELS.length * 3;
+  assert.ok(total > cap, `tree total (${total}⭐) must exceed the earnable ceiling (${cap}⭐)`);
+});
+
+test("P4 loadout: a capped loadout really is weaker than the whole tree", () => {
+  // The measurement that set metaSlots. Reported in lives LOST rather than lives
+  // remaining, because Extra Hearts raises the STARTING total — "finished at 18"
+  // against a 24-life door is not softer than 14 against 20, and the shipped
+  // remaining-lives band silently mis-scores every lives-boosting loadout.
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  const lvl = DATA.LEVELS.find((l) => l.id === 16);           // the boss-quantized attic finale
+  function lost(meta, seed) {
+    const e = TD.createEngine(lvl, { seed, difficulty: "normal", meta });
+    const start = e.state.lives;
+    let guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const p of lvl.pads) {
+            if (!e.state.towers.find((t) => t.padId === p.id)) {
+              if (e.state.gold >= cost("dart", 0) && e.place("dart", p.id).ok) spent = true;
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state.phase === "won" ? start - e.state.lives : -1;
+  }
+  const ALL = DATA.META_NODES.map((n) => n.id);
+  const seeds = [1, 2, 3];
+  const avg = (m) => seeds.map((s) => lost(m, s)).reduce((a, b) => a + b, 0) / seeds.length;
+  const none = avg([]), all = avg(ALL), capped = avg(DATA.META_NODES.filter((n) => n.branch === "econ").map((n) => n.id).slice(0, DATA.RULES.metaSlots));
+  assert.ok(none > all, `the whole tree really does trivialise this finale (${none} lives lost → ${all})`);
+  assert.ok(capped > all,
+    `a ${DATA.RULES.metaSlots}-slot loadout must cost the player more than owning everything (${capped} vs ${all}) — that is what the cap buys`);
+});

@@ -45,6 +45,16 @@
     // monotonically at every rate. Flat is constant by construction.
     chargePerWave: 2,
     chargeMax: 3,        // a small bank, so skipping a wave's powers is worth something
+    // P4: a run may EQUIP at most this many of the nodes you own, so the star
+    // tree is an allocation decision every run instead of a purchase you make
+    // once. Chosen by sweep (5 panel loadouts x 6 finales x 4 seeds, measured in
+    // lives LOST — the honest metric, since Extra Hearts raises the starting
+    // total): the whole 23-node tree drives five of six finales to zero lives
+    // lost, while 6 slots of any single branch leaves four of six intact. See
+    // the recorded NEGATIVE result in CLAUDE.md — a slot cap alone does NOT
+    // rescue L8 and L16, because those two are boss-quantized and three
+    // individual Firepower nodes each flip them on their own.
+    metaSlots: 6,
     sellRefund: 0.8,
     stars: [[18, 3], [10, 2], [1, 1]],
     slowCap: 0.6,        // slows never stack — strongest wins, capped (§5.1)

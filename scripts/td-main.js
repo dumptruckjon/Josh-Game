@@ -25,9 +25,11 @@
       // AUDIT: two fort tabs used whole-blob last-writer-wins, silently wiping
       // stars/achievements earned in the other tab. Fold the stored copy's
       // MONOTONIC fields in before writing: stars/endlessBest per-key max, ach
-      // union. meta is NOT merged (a respec legitimately REMOVES nodes) and
-      // settings/difficulty/midRun stay last-writer-wins. A deliberate reset
-      // passes {force:true} to skip the merge — otherwise it could never clear.
+      // union. meta is NOT merged (a respec legitimately REMOVES nodes), and
+      // `loadout` follows meta for exactly the same reason — un-equipping is a
+      // deliberate removal, so unioning it would resurrect a pack you just
+      // emptied. settings/difficulty/midRun stay last-writer-wins. A deliberate
+      // reset passes {force:true} to skip the merge — otherwise it could never clear.
       if (!(opts && opts.force)) {
         const raw = localStorage.getItem(SAVE_KEY);
         if (raw) {
@@ -92,10 +94,24 @@
   if (typeof save.settings.dmgNumbers !== "boolean") save.settings.dmgNumbers = false; // TD-6 opt-in
   if (typeof save.settings.music !== "boolean") save.settings.music = false;            // TD-6 opt-in, off by default
   if (!Array.isArray(save.meta)) save.meta = [];   // TD-5 star-tree nodes owned
+  // P4: what you OWN and what you BRING are now different things. A run may
+  // equip at most RULES.metaSlots of the nodes you own, so allocation is a
+  // decision every run rather than a purchase you make once. A save from before
+  // this migrates by auto-equipping the first slots-worth it owns, so nobody
+  // logs in to a fort that suddenly forgot its upgrades.
+  if (!Array.isArray(save.loadout)) save.loadout = save.meta.slice(0, DATA.RULES.metaSlots);
   if (!Array.isArray(save.ach)) save.ach = [];     // TD-5 achievement ids earned
   if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
   if (!("midRun" in save)) save.midRun = null;     // TD-5 resume checkpoint
   if (!save.bests || typeof save.bests !== "object") save.bests = {}; // TD-13 best run per level+difficulty
+
+  // THE one owner of "which nodes is this run actually running with". Equipped
+  // ∩ owned, capped at the slot budget — so a hand-edited save, a refund, or a
+  // shrunken RULES.metaSlots can never hand a run more than the rules allow.
+  function activeLoadout() {
+    const owned = new Set(save.meta || []);
+    return (save.loadout || []).filter((id) => owned.has(id)).slice(0, DATA.RULES.metaSlots);
+  }
 
   // ---- THE one owner of "wipe the fort" (RULE 7) ----
   // Both the grown-ups ⚙️ Reset button and the __TD.resetSave test hook build the
@@ -111,6 +127,7 @@
       settings: { sfx: true, music: false, dmgNumbers: false },
       difficulty: "normal",
       meta: [],
+      loadout: [],
       ach: [],
       endlessBest: {},
       midRun: null,
@@ -541,9 +558,11 @@
     // hook may override per-call. The engine fully supports casual/normal/heroic
     // (hp/speed/bounty/start-gold multipliers) — casual eases, heroic bites hard.
     const difficulty = opts.difficulty || save.difficulty || "normal";
-    // TD-5: the owned star-tree nodes flow in as pure engine input; a test hook
-    // may override per-call (opts.meta).
-    const meta = opts.meta || save.meta || [];
+    // TD-5: the star-tree nodes flow in as pure engine input; a test hook may
+    // override per-call (opts.meta). P4: what a RUN brings is the equipped
+    // LOADOUT, not everything owned — one owner, so the engine, the checkpoint
+    // and the UI can never disagree about which nodes are live.
+    const meta = opts.meta || activeLoadout();
     const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta });
     // 🧸 Kid mode is a PLAY mode, not progression: mark the run cheated so it can
     // never write a star or earn a badge, and paint the kid-sized control skin.
@@ -585,7 +604,10 @@
     save.midRun = {
       levelId: st.levelId, endless: st.endless, world: cur.levelDef.world,
       difficulty: st.difficulty, seed: st.seed, waveIdx: st.waveIdx,
-      gold: st.gold, lives: st.lives, meta: (save.meta || []).slice(),
+      // the LOADOUT, not everything owned: handing a resumed run every node you
+      // have ever bought is the checkpoint-fidelity bug class, now on its
+      // seventh instance (leaked / soldiersLost / lines / leverRoute / shieldUsed / charge)
+      gold: st.gold, lives: st.lives, meta: activeLoadout(),
       // achievement context so a resumed win is judged against the WHOLE run,
       // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
@@ -1089,7 +1111,13 @@
     },
     fieldTap,
     // TD-5 meta screens (opened from the fort home)
-    openTree: () => UI.showStarTree(save, (newMeta) => { save.meta = newMeta; persist(save); }),
+    openTree: () => UI.showStarTree(save, (newMeta, newLoadout) => {
+      save.meta = newMeta;
+      if (newLoadout) save.loadout = newLoadout;
+      // a refunded node can never stay equipped
+      save.loadout = (save.loadout || []).filter((id) => save.meta.indexOf(id) >= 0);
+      persist(save);
+    }),
     openAchievements: () => UI.showAchievements(save),
     openEndless: () => UI.showEndless(save, (world) => startEndless(world)),
     // 🧸 Kid Fort: the first level, kid difficulty, kid-sized buttons, no losing.

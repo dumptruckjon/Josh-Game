@@ -176,6 +176,7 @@
     // stream generates each wave, so composition is reproducible per seed).
     // (mods computed FIRST — the night range multiplier below reads Night Owl.)
     const mods = metaMods(opts.meta);
+    const runMeta = (opts.meta || []).slice();   // what this run was actually handed
     const nightBase = levelDef.night ? R.nightRangeMult : 1;
     const rangeMul = mods.nightOwl ? 1 - (1 - nightBase) / 2 : nightBase; // 🦉 halves the dimming
     const zones = levelDef.zones && levelDef.zones.length ? levelDef.zones : null;
@@ -213,6 +214,7 @@
       leverUntil: 0, // TD-17: tick the timed diversion expires and the track snaps back to short
       abilityCd: {}, // TD-9: ability id → tick it becomes usable again
       charge: 0,     // ⚙️ Toy Energy: +chargePerWave on each wave SENT, capped at chargeMax
+      meta: runMeta, // P4: the EQUIPPED loadout this run brought (pure input, recorded so it is testable)
       puddles: [],   // TD-9: live Sticky Floor zones { x, y, r, slow, until }
       reveals: [],   // 🧨's reveal rider: { x, y, r, until } — read by the ONE isHidden gate
       // TD-13 run tallies. These live in STATE, not in the event stream: the
