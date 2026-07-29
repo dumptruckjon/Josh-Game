@@ -211,6 +211,23 @@
           b.strokeStyle = "rgba(255,255,255,0.09)"; b.lineWidth = 1;
           b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.moveTo(0, y + cell * 0.55); b.lineTo(W, y + cell * 0.55); b.stroke();
         }
+      } else if (FLOOR.pattern === "dropcloth") {
+        // a painter's dust sheet: coarse canvas weave, creases where it was
+        // folded, and a few dried paint spatters
+        b.strokeStyle = ink; b.lineWidth = 1;
+        for (let y = 0; y < H; y += cell * 0.3) { b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.stroke(); }
+        for (let x = 0; x < W; x += cell * 0.3) { b.beginPath(); b.moveTo(x, 0); b.lineTo(x, H); b.stroke(); }
+        b.strokeStyle = "rgba(255,250,240,0.10)"; b.lineWidth = Math.max(2, cell * 0.09);
+        for (let i = 0; i < 4; i++) {   // fold creases
+          const y = spot(i + 31, 89) * H;
+          b.beginPath(); b.moveTo(0, y); b.lineTo(W, y + cell * 0.3); b.stroke();
+        }
+        const paints = ["rgba(210,120,110,0.16)", "rgba(120,170,210,0.16)", "rgba(230,205,120,0.16)"];
+        for (let i = 0; i < 90; i++) {
+          const x = spot(i + 61, 971) * W, y = spot(i + 19, 859) * H;
+          b.fillStyle = paints[i % paints.length];
+          b.beginPath(); b.arc(x, y, cell * (0.05 + spot(i + 9, 37) * 0.14), 0, 7); b.fill();
+        }
       } else {
         // carpet: the original faint weave, now on the world's own palette
         b.strokeStyle = ink; b.lineWidth = 1;
@@ -565,6 +582,67 @@
         ctx.restore();
         ctx.fillStyle = "#6a6252";
         ctx.beginPath(); ctx.arc(sx - r * 0.16, sy + bob - r * 0.08, r * 0.06, 0, 7); ctx.arc(sx + r * 0.06, sy + bob - r * 0.2, r * 0.06, 0, 7); ctx.fill();
+      } else if (e.type === "chair") {
+        // 🪑 Flat-Pack Chair — a half-assembled flat-pack seat, one leg still
+        // loose, marching in on the other three (World 7's sock body)
+        shadow(sx, sy + r * 0.6, r * 0.62, r * 0.18);
+        const gch = ctx.createLinearGradient(sx, sy - r * 0.7, sx, sy + r * 0.5);
+        gch.addColorStop(0, "#d6b98c"); gch.addColorStop(1, "#9c7b4e");
+        ctx.fillStyle = gch;
+        ctx.beginPath(); ctx.rect(sx - r * 0.5, sy - r * 0.75, r * 1.0, r * 0.6); ctx.fill();   // back
+        ctx.beginPath(); ctx.rect(sx - r * 0.6, sy - r * 0.16, r * 1.2, r * 0.26); ctx.fill();  // seat
+        ctx.strokeStyle = "#6d5433"; ctx.lineWidth = Math.max(1, cell * 0.05);
+        ctx.strokeRect(sx - r * 0.5, sy - r * 0.75, r * 1.0, r * 0.6);
+        ctx.beginPath();                                                                        // legs, one askew
+        ctx.moveTo(sx - r * 0.46, sy + r * 0.1); ctx.lineTo(sx - r * 0.52, sy + r * 0.62);
+        ctx.moveTo(sx + r * 0.46, sy + r * 0.1); ctx.lineTo(sx + r * 0.52, sy + r * 0.62);
+        ctx.moveTo(sx + r * 0.1, sy + r * 0.1); ctx.lineTo(sx + r * 0.36, sy + r * 0.55);
+        ctx.stroke();
+        ctx.fillStyle = "#4a3a22";                                                              // dowel holes = eyes
+        ctx.beginPath(); ctx.arc(sx - r * 0.2, sy - r * 0.5, r * 0.09, 0, 7); ctx.arc(sx + r * 0.2, sy - r * 0.5, r * 0.09, 0, 7); ctx.fill();
+      } else if (e.type === "housekey") {
+        // 🔑 Spare Key — a brass key skittering along on its teeth
+        shadow(sx, sy + r * 0.42, r * 0.55, r * 0.14);
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(Math.sin(e.dist * 1.1 + e.id) * 0.3);
+        const gk = ctx.createLinearGradient(-r * 0.6, 0, r * 0.6, 0);
+        gk.addColorStop(0, "#f2d98a"); gk.addColorStop(1, "#b58f3c");
+        ctx.fillStyle = gk;
+        ctx.beginPath(); ctx.arc(-r * 0.42, 0, r * 0.34, 0, 7); ctx.fill();     // bow
+        ctx.beginPath(); ctx.rect(-r * 0.2, -r * 0.1, r * 0.86, r * 0.2); ctx.fill(); // shaft
+        ctx.beginPath();                                                        // teeth
+        ctx.rect(r * 0.34, r * 0.08, r * 0.12, r * 0.2);
+        ctx.rect(r * 0.56, r * 0.08, r * 0.1, r * 0.26); ctx.fill();
+        ctx.strokeStyle = "#7d6027"; ctx.lineWidth = Math.max(1, cell * 0.035);
+        ctx.beginPath(); ctx.arc(-r * 0.42, 0, r * 0.34, 0, 7); ctx.stroke();
+        ctx.fillStyle = "#5b4a1e";
+        ctx.beginPath(); ctx.arc(-r * 0.42, 0, r * 0.14, 0, 7); ctx.fill();     // bow hole
+        ctx.restore();
+      } else if (e.type === "housedog") {
+        // 🐕 The Housedog — World 7's finale: a big scruffy family dog with a
+        // chewed toy in its jaws and ears that flatten as its phases escalate
+        const R = r * bossScale(e, 3.0);
+        const ph = e.hp / e.maxHp;
+        shadow(sx, sy + R * 0.5, R * 0.72, R * 0.2);
+        const gd = ctx.createLinearGradient(sx, sy - R * 0.5, sx, sy + R * 0.45);
+        gd.addColorStop(0, "#c99a5e"); gd.addColorStop(1, "#8c6437");
+        ctx.fillStyle = gd;
+        ctx.beginPath(); ctx.ellipse(sx + R * 0.12, sy + R * 0.08, R * 0.62, R * 0.42, 0, 0, 7); ctx.fill(); // body
+        ctx.beginPath(); ctx.ellipse(sx - R * 0.44, sy - R * 0.12, R * 0.36, R * 0.32, 0, 0, 7); ctx.fill(); // head
+        ctx.fillStyle = "#6f4c26";                                                    // ears flatten with rage
+        const ear = ph < 0.33 ? 0.18 : ph < 0.66 ? 0.3 : 0.42;
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.9, sy - R * (0.18 + ear * 0.4), R * 0.16, R * ear, -0.4, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.1, sy - R * (0.2 + ear * 0.4), R * 0.15, R * ear, 0.3, 0, 7); ctx.fill();
+        ctx.fillStyle = "#f4e6cf";                                                    // muzzle
+        ctx.beginPath(); ctx.ellipse(sx - R * 0.66, sy - R * 0.02, R * 0.22, R * 0.17, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#33241a";
+        ctx.beginPath(); ctx.ellipse(sx - R * 0.82, sy - R * 0.05, R * 0.08, R * 0.06, 0, 0, 7); ctx.fill(); // nose
+        ctx.beginPath(); ctx.arc(sx - R * 0.5, sy - R * 0.2, R * 0.07, 0, 7); ctx.arc(sx - R * 0.26, sy - R * 0.22, R * 0.07, 0, 7); ctx.fill();
+        ctx.fillStyle = "#e2626b";                                                    // a chewed toy in the jaws
+        ctx.beginPath(); ctx.ellipse(sx - R * 0.72, sy + R * 0.16, R * 0.14, R * 0.1, 0.4, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#6f4c26"; ctx.lineWidth = Math.max(2, cell * 0.06);        // wagging tail
+        ctx.beginPath(); ctx.moveTo(sx + R * 0.7, sy - R * 0.02);
+        ctx.quadraticCurveTo(sx + R * 0.95, sy - R * (0.3 + 0.12 * Math.sin(engine.state.tick / 6)), sx + R * 0.86, sy - R * 0.42);
+        ctx.stroke();
       } else if (e.type === "blob" || e.type === "mudlet") {
         // Mud Blob / Mudlet: a gloopy brown blob with a wobble and a grumpy face
         const rr = (e.type === "blob" ? r * 1.0 : r * 0.62), w = Math.sin(engine.state.tick / 5 + e.id) * rr * 0.08;

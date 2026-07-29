@@ -290,6 +290,19 @@
       spawner: { type: "bubblewrap", every: 4, count: 2, max: 12 },
       phases: [{ upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } },
                { upTo: 0.33, speedMult: 1.3, disable: { every: 4, seconds: 3 }, spawn: { type: "boombox", count: 2, every: 7 } }] },
+    // 🐕 The Housedog (L28) — World 7's finale. The family dog that thinks every
+    // toy is a chew toy. Its whole kit is paths the engine already runs (the
+    // TD-4 lesson: a boss needing new engine code is a re-tuning job): `suck`
+    // snatches the nearest soldier, and from 66% it knocks a GUN over, so the
+    // kit is tower-facing (the Vacuum King lesson — a soldier-only kit costs a
+    // tower board nothing), then it shakes the spare keys off the hall table.
+    // hp sits inside the band World 5 proved is graded rather than quantized:
+    // above ~5800 every seed lands on exactly one boss leak.
+    housedog: { name: "The Housedog", icon: "🐕", hp: 4200, speed: 0.32, armor: 0.25, shield: 0, shieldRegen: 0,
+      bounty: 360, lives: 6, size: 3.3, flier: false, boss: true, meleeDmg: 0, meleeRate: 1,
+      suck: { every: 9 }, enrage: { hpPct: 0.5, mult: 1.2 },
+      phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 6, seconds: 3 } },
+                { upTo: 0.33, speedMult: 1.25, disable: { every: 4, seconds: 3 }, spawn: { type: "housekey", count: 4, every: 8 } } ] },
     vacuumking: { name: "Vacuum King", icon: "🌪️", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
     thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
@@ -330,6 +343,9 @@
     moving:   { label: "📦 Moving Day", spawnGlyph: "📦", backbone: { ground: ["wad", "knight", "blob", "peanut"], flier: "hawk" },
       floor: { pattern: "cardboard", top: "#7a5326", bottom: "#8d6531", ink: "rgba(60,34,10,0.26)",
                road: { edge: "#33261a", base: "#c9a877", top: "#e3c99c" } } },
+    newhouse: { label: "🏠 The New House", spawnGlyph: "🪜", backbone: { ground: ["chair", "knight", "blob", "housekey"], flier: "hawk" },
+      floor: { pattern: "dropcloth", top: "#4a4740", bottom: "#5b574d", ink: "rgba(240,236,225,0.13)",
+               road: { edge: "#2e2a22", base: "#b7ad97", top: "#dcd4c0" } } },
   };
 
   // ---- Phase 2: per-world backbone SKINS ----
@@ -362,6 +378,9 @@
     ["marble", "cog",    "Rogue Cog",      "⚙️"],
     ["sock",   "wad",    "Packing Wad",    "🗞️"],
     ["marble", "peanut", "Packing Peanut", "🥜"],
+    // World 7 (The New House) — the van has been unpacked into an empty house
+    ["sock",   "chair",    "Flat-Pack Chair", "🪑"],
+    ["marble", "housekey", "Spare Key",       "🔑"],
   ];
   for (const [src, id, name, icon] of SKINS) {
     ENEMIES[id] = Object.assign({}, ENEMIES[src], { name, icon, sortKey: src, skinOf: src });
@@ -1170,6 +1189,138 @@
         { boss: true, groups: [ { type: "movingvan", count: 1, gap: 2, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 5 }, { type: "bubblewrap", count: 10, gap: 0.6, delay: 9 }, { type: "hawk", count: 16, gap: 0.35, delay: 14 } ] },
       ],
     },
+    // ================= WORLD 7 — 🏠 The New House (L25-L28) =================
+    // The van has arrived and the toys are unloaded into a strange, empty,
+    // echoey house they now have to make theirs. Deliberately adds ZERO new
+    // engine fields: enemyTraits and levelGimmicks already cover everything it
+    // ships, so the guide documents it by derivation and the whole risk budget
+    // goes into balance. Every lane and pad set was searched against the shipped
+    // geometry laws (>=0.99 from EVERY lane, >=1.4 pairwise, >=1.9 from a lever)
+    // and every wave table was EMITTED by tools/td-wave-gen.js against both the
+    // budget curve and the composition contract.
+    {
+      id: 25,
+      name: "Bare Floorboards",
+      world: "newhouse",
+      badge: 3,
+      startGold: 1000,
+      budgetBase: 950,
+      // A spiral that winds INWARD before breaking out to the right — a topology
+      // no shipped level uses. A freshly-waxed strip of board shoves you along.
+      path: [[0, 0], [21, 0], [21, 12], [3, 12], [3, 6], [17, 6], [17, 3], [23, 3]],
+      zones: [ { from: 36, to: 42, mult: 1.25 } ],
+      pads: [ { id: "p1", cx: 2, cy: 5 }, { id: "p2", cx: 22, cy: 13 }, { id: "p3", cx: 16, cy: 2 }, { id: "p4", cx: 2, cy: 13 }, { id: "p5", cx: 11, cy: 10 }, { id: "p6", cx: 23, cy: 5 }, { id: "p7", cx: 18, cy: 7 }, { id: "p8", cx: 9, cy: 2 }, { id: "p9", cx: 5, cy: 9 }, { id: "p10", cx: 23, cy: 0 }, { id: "p11", cx: 1, cy: 9 }, { id: "p12", cx: 5, cy: 2 } ],
+      waves: [
+        { groups: [ { type: "chair", count: 20, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "housekey", count: 33, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "chair", count: 27, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 17, gap: 0.65, delay: 0 }, { type: "housekey", count: 42, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 3, gap: 0.9, delay: 4 }, { type: "chair", count: 35, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 5, gap: 0.9, delay: 4 }, { type: "blob", count: 22, gap: 0.65, delay: 0 }, { type: "housekey", count: 55, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 11, gap: 0.3, delay: 2 }, { type: "chair", count: 41, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 6, gap: 0.9, delay: 4 }, { type: "hawk", count: 14, gap: 0.3, delay: 2 }, { type: "blob", count: 26, gap: 0.65, delay: 0 }, { type: "housekey", count: 65, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 18, gap: 0.3, delay: 2 }, { type: "chair", count: 51, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "ghost", count: 17, gap: 0.9, delay: 4 }, { type: "hawk", count: 23, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "housekey", count: 74, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "hawk", count: 29, gap: 0.3, delay: 2 }, { type: "chair", count: 79, gap: 0.65, delay: 0 }, { type: "knight", count: 20, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 21, gap: 0.9, delay: 4 }, { type: "hawk", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 43, gap: 0.65, delay: 0 }, { type: "housekey", count: 109, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 34, gap: 0.9, delay: 4 }, { type: "hawk", count: 46, gap: 0.3, delay: 2 }, { type: "chair", count: 86, gap: 0.65, delay: 0 }, { type: "knight", count: 22, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "cushion", count: 15, gap: 0.9, delay: 4 }, { type: "hawk", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 49, gap: 0.65, delay: 0 }, { type: "housekey", count: 121, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 26,
+      name: "Up the Stairs",
+      world: "newhouse",
+      badge: 3,
+      startGold: 1400,
+      budgetBase: 900,
+      // Three horizontal runs exactly 6 rows apart, so no tower covers two
+      // flights (a tier-3 mortar reaches 4.0). The landing cupboard is a side
+      // door at 36 of 61 — 59%, inside the authored 25-62% band.
+      path: [[0, 13], [9, 13], [9, 7], [2, 7], [2, 1], [13, 1], [13, 7], [18, 7], [18, 13], [23, 13]],
+      pads: [ { id: "p1", cx: 1, cy: 0 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 14, cy: 0 }, { id: "p4", cx: 7, cy: 11 }, { id: "p5", cx: 1, cy: 8 }, { id: "p6", cx: 15, cy: 9 }, { id: "p7", cx: 10, cy: 6 }, { id: "p8", cx: 19, cy: 6 }, { id: "p9", cx: 4, cy: 4 }, { id: "p10", cx: 11, cy: 13 }, { id: "p11", cx: 12, cy: 8 }, { id: "p12", cx: 15, cy: 4 }, { id: "p13", cx: 16, cy: 13 } ],
+      waves: [
+        { groups: [ { type: "chair", count: 18, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "housekey", count: 31, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "chair", count: 25, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 16, gap: 0.65, delay: 0 }, { type: "housekey", count: 39, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 2, gap: 0.9, delay: 4 }, { type: "chair", count: 32, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 4, gap: 0.9, delay: 4 }, { type: "blob", count: 21, gap: 0.65, delay: 0 }, { type: "housekey", count: 54, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 11, gap: 0.3, delay: 2 }, { type: "chair", count: 38, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 8, gap: 0.9, delay: 4 }, { type: "hawk", count: 14, gap: 0.3, delay: 2 }, { type: "blob", count: 24, gap: 0.65, delay: 0 }, { type: "housekey", count: 61, gap: 0.8, delay: 3, at: 36 } ] },
+        { groups: [ { type: "cushion", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 17, gap: 0.3, delay: 2 }, { type: "chair", count: 49, gap: 0.65, delay: 0 }, { type: "knight", count: 12, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "racer", count: 12, gap: 0.9, delay: 4 }, { type: "hawk", count: 22, gap: 0.3, delay: 2 }, { type: "blob", count: 28, gap: 0.65, delay: 0 }, { type: "housekey", count: 70, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 10, gap: 0.9, delay: 4 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "chair", count: 64, gap: 0.65, delay: 0 }, { type: "knight", count: 16, gap: 0.8, delay: 3, at: 36 } ] },
+        { groups: [ { type: "ghost", count: 25, gap: 0.9, delay: 4 }, { type: "hawk", count: 35, gap: 0.3, delay: 2 }, { type: "blob", count: 41, gap: 0.65, delay: 0 }, { type: "housekey", count: 103, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 32, gap: 0.9, delay: 4 }, { type: "hawk", count: 44, gap: 0.3, delay: 2 }, { type: "chair", count: 81, gap: 0.65, delay: 0 }, { type: "knight", count: 21, gap: 0.8, delay: 3, at: 36 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "bucket", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 55, gap: 0.3, delay: 2 }, { type: "blob", count: 54, gap: 0.65, delay: 0 }, { type: "housekey", count: 135, gap: 0.8, delay: 3, at: 36 } ] },
+      ],
+    },
+    {
+      id: 27,
+      name: "The Swinging Door",
+      world: "newhouse",
+      badge: 3,
+      startGold: 1200,
+      budgetBase: 900,
+      // The world's one fork + lever (a guardrail requires exactly one per
+      // world). Prop the kitchen door open and the traffic goes the long way
+      // round the island: 40 cells becomes 52, a 1.30x gain.
+      paths: [
+        [[0, 1], [6, 1], [6, 6], [16, 6], [16, 1], [21, 1], [21, 8], [23, 8]],
+        [[0, 1], [6, 1], [6, 6], [9, 6], [9, 12], [15, 12], [15, 6], [16, 6], [16, 1], [21, 1], [21, 8], [23, 8]],
+      ],
+      fork: { at: 14 },
+      lever: { cx: 9, cy: 6 },
+      pads: [ { id: "p1", cx: 5, cy: 7 }, { id: "p2", cx: 22, cy: 0 }, { id: "p3", cx: 20, cy: 9 }, { id: "p4", cx: 7, cy: 0 }, { id: "p5", cx: 15, cy: 0 }, { id: "p6", cx: 12, cy: 8 }, { id: "p7", cx: 0, cy: 3 }, { id: "p8", cx: 17, cy: 7 }, { id: "p9", cx: 23, cy: 5 }, { id: "p10", cx: 9, cy: 4 }, { id: "p11", cx: 19, cy: 3 }, { id: "p12", cx: 14, cy: 4 }, { id: "p13", cx: 4, cy: 3 } ],
+      waves: [
+        { groups: [ { type: "chair", count: 18, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "housekey", count: 31, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "chair", count: 25, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 16, gap: 0.65, delay: 0 }, { type: "housekey", count: 40, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "chair", count: 31, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 22, gap: 0.65, delay: 0 }, { type: "housekey", count: 54, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 10, gap: 0.3, delay: 2 }, { type: "chair", count: 38, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 1, gap: 0.9, delay: 4 }, { type: "hawk", count: 13, gap: 0.3, delay: 2 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "housekey", count: 68, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 17, gap: 0.3, delay: 2 }, { type: "chair", count: 49, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "screw", count: 9, gap: 0.9, delay: 4 }, { type: "hawk", count: 21, gap: 0.3, delay: 2 }, { type: "blob", count: 28, gap: 0.65, delay: 0 }, { type: "housekey", count: 71, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 15, gap: 0.9, delay: 4 }, { type: "hawk", count: 27, gap: 0.3, delay: 2 }, { type: "chair", count: 66, gap: 0.65, delay: 0 }, { type: "knight", count: 16, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 24, gap: 0.9, delay: 4 }, { type: "hawk", count: 34, gap: 0.3, delay: 2 }, { type: "blob", count: 42, gap: 0.65, delay: 0 }, { type: "housekey", count: 105, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 15, gap: 0.9, delay: 4 }, { type: "hawk", count: 42, gap: 0.3, delay: 2 }, { type: "chair", count: 86, gap: 0.65, delay: 0 }, { type: "knight", count: 21, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 32, gap: 0.9, delay: 4 }, { type: "hawk", count: 52, gap: 0.3, delay: 2 }, { type: "blob", count: 55, gap: 0.65, delay: 0 }, { type: "housekey", count: 137, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "bubblewrap", count: 20, gap: 0.9, delay: 4 }, { type: "hawk", count: 65, gap: 0.3, delay: 2 }, { type: "chair", count: 96, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 28,
+      name: "The Housedog",
+      world: "newhouse",
+      badge: 3,
+      startGold: 1500,
+      budgetBase: 1050,
+      // No gimmick: the boss IS the declared hook. Forcing a mechanic onto a
+      // finale is measurably destructive (L4+night loses every heroic seed).
+      path: [[0, 2], [11, 2], [11, 8], [3, 8], [3, 13], [18, 13], [18, 7], [23, 7]],
+      pads: [ { id: "p1", cx: 2, cy: 7 }, { id: "p2", cx: 23, cy: 5 }, { id: "p3", cx: 12, cy: 1 }, { id: "p4", cx: 14, cy: 11 }, { id: "p5", cx: 17, cy: 6 }, { id: "p6", cx: 0, cy: 0 }, { id: "p7", cx: 7, cy: 11 }, { id: "p8", cx: 20, cy: 13 }, { id: "p9", cx: 1, cy: 13 }, { id: "p10", cx: 6, cy: 0 }, { id: "p11", cx: 9, cy: 6 }, { id: "p12", cx: 12, cy: 9 }, { id: "p13", cx: 5, cy: 4 }, { id: "p14", cx: 13, cy: 5 } ],
+      waves: [
+        { groups: [ { type: "chair", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "housekey", count: 37, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "chair", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 19, gap: 0.65, delay: 0 }, { type: "housekey", count: 46, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 2, gap: 0.9, delay: 4 }, { type: "chair", count: 37, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 3, gap: 0.9, delay: 4 }, { type: "blob", count: 25, gap: 0.65, delay: 0 }, { type: "housekey", count: 63, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 12, gap: 0.3, delay: 2 }, { type: "chair", count: 45, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 6, gap: 0.9, delay: 4 }, { type: "hawk", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "housekey", count: 72, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 11, gap: 0.9, delay: 4 }, { type: "hawk", count: 20, gap: 0.3, delay: 2 }, { type: "chair", count: 57, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "racer", count: 14, gap: 0.9, delay: 4 }, { type: "hawk", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 33, gap: 0.65, delay: 0 }, { type: "housekey", count: 83, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 23, gap: 0.9, delay: 4 }, { type: "hawk", count: 32, gap: 0.3, delay: 2 }, { type: "chair", count: 75, gap: 0.65, delay: 0 }, { type: "knight", count: 19, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 41, gap: 0.3, delay: 2 }, { type: "blob", count: 56, gap: 0.65, delay: 0 }, { type: "housekey", count: 141, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 37, gap: 0.9, delay: 4 }, { type: "hawk", count: 51, gap: 0.3, delay: 2 }, { type: "chair", count: 97, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "boombox", count: 28, gap: 0.9, delay: 4 }, { type: "hawk", count: 64, gap: 0.3, delay: 2 }, { type: "blob", count: 54, gap: 0.65, delay: 0 }, { type: "housekey", count: 135, gap: 0.8, delay: 3 } ] },
+        { boss: true, groups: [ { type: "cushion", count: 12, gap: 0.8, delay: 0 }, { type: "boombox", count: 6, gap: 1, delay: 3 }, { type: "hawk", count: 16, gap: 0.35, delay: 6 }, { type: "housedog", count: 1, gap: 1, delay: 2 } ] },
+      ],
+    },
+
   ];
 
   // ---- TD-5 META (§8.1): star tree. Spend earned ⭐ on permanent buffs; free
@@ -1251,6 +1402,7 @@
     { id: "windeddown",    icon: "⏰", name: "Wound Down",    desc: "Beat the Tickmaster" },
     { id: "toolsdown",     icon: "🧰", name: "Tools Down",     desc: "Beat the Toolbox Titan" },
     { id: "notleaving",    icon: "🚚", name: "Not Leaving",    desc: "Beat The Moving Van" },
+    { id: "gooddog",       icon: "🐕", name: "Good Dog",       desc: "Beat The Housedog" },
     // desc is DERIVED at read time (see td-ui) — a literal here went stale the
     // moment World 4 raised the ceiling from 36 to 48.
     { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn half the stars" },
@@ -1282,6 +1434,9 @@
       // endless run has to answer both the padding and the music.
       moving: { label: "📦 Moving Day", pool: ["sock", "knight", "blob", "bubblewrap", "boombox", "hawk", "racer", "cushion"], miniBoss: "pinata" },
       garage: { label: "🔧 Garage", pool: ["sock", "knight", "blob", "racer", "bucket", "hawk", "cushion", "tinplane"], miniBoss: "pinata" },
+      // World 7: the house's own crowd plus air plus three disruptors — an
+      // endless run here has to answer everything the campaign has taught.
+      newhouse: { label: "🏠 The New House", pool: ["chair", "housekey", "knight", "blob", "hawk", "cushion", "boombox", "screw"], miniBoss: "pinata" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
     arenas: {
@@ -1305,6 +1460,11 @@
       // lane immediately or nothing you can afford does anything.
       moving: { path: [ [0, 10], [21, 10], [21, 5], [3, 5], [3, 1], [23, 1] ], startGold: 500,
         pads: [ { id: "p1", cx: 0, cy: 12 }, { id: "p2", cx: 4, cy: 12 }, { id: "p3", cx: 8, cy: 12 }, { id: "p4", cx: 12, cy: 12 }, { id: "p5", cx: 16, cy: 12 }, { id: "p6", cx: 20, cy: 12 }, { id: "p7", cx: 23, cy: 8 }, { id: "p8", cx: 19, cy: 7 }, { id: "p9", cx: 15, cy: 7 }, { id: "p10", cx: 11, cy: 7 }, { id: "p11", cx: 7, cy: 7 }, { id: "p12", cx: 1, cy: 7 }, { id: "p13", cx: 6, cy: 3 }, { id: "p14", cx: 14, cy: 3 } ] },
+      // World 7's arena CLIMBS to the top row at the end (up to the new room),
+      // where the other six descend or mirror. Pads searched at BAND=2.2 like
+      // every arena: you start poor, so a tier-1 dart must touch the lane at once.
+      newhouse: { path: [ [0, 5], [19, 5], [19, 10], [2, 10], [2, 0], [23, 0] ], startGold: 520,
+        pads: [ { id: "p1", cx: 1, cy: 11 }, { id: "p2", cx: 23, cy: 2 }, { id: "p3", cx: 14, cy: 12 }, { id: "p4", cx: 8, cy: 2 }, { id: "p5", cx: 0, cy: 0 }, { id: "p6", cx: 20, cy: 11 }, { id: "p7", cx: 15, cy: 3 }, { id: "p8", cx: 7, cy: 8 }, { id: "p9", cx: 20, cy: 4 }, { id: "p10", cx: 12, cy: 7 }, { id: "p11", cx: 9, cy: 12 }, { id: "p12", cx: 17, cy: 7 }, { id: "p13", cx: 0, cy: 7 }, { id: "p14", cx: 4, cy: 3 } ] },
       garage: { path: [ [0, 3], [21, 3], [21, 8], [3, 8], [3, 13], [23, 13] ], startGold: 480,
         pads: [ { id: "p1", cx: 0, cy: 1 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 9, cy: 11 }, { id: "p4", cx: 16, cy: 1 }, { id: "p5", cx: 1, cy: 9 }, { id: "p6", cx: 8, cy: 1 }, { id: "p7", cx: 16, cy: 9 }, { id: "p8", cx: 22, cy: 4 }, { id: "p9", cx: 6, cy: 6 }, { id: "p10", cx: 11, cy: 6 }, { id: "p11", cx: 4, cy: 1 }, { id: "p12", cx: 5, cy: 11 }, { id: "p13", cx: 12, cy: 1 }, { id: "p14", cx: 1, cy: 13 } ] },
     },
