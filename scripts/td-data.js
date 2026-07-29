@@ -1215,6 +1215,22 @@
     { id: "nightowl",      branch: "fort", icon: "🦉", name: "Night Owl",       desc: "Night range penalty halved",   cost: 2 },
     { id: "patchkit",      branch: "fort", icon: "🩹", name: "Patch Kit",       desc: "+1 life every 5th wave",       cost: 4 },
     { id: "stickershield", branch: "fort", icon: "🌟", name: "Sticker Shield",  desc: "First leak each run costs 0 lives", cost: 6, reqSpend: 8 },
+    // ---- P4.3 BREADTH: seven new KINDS, +28⭐ (77 → 105) ----
+    // The star ceiling derives as LEVELS.length * 3, and a shipped guardrail
+    // requires the tree to cost MORE than you can ever earn — at 32 levels the
+    // ceiling is 96, so the 77⭐ tree was the hard blocker on a seventh world.
+    // Grown by BREADTH, never by adding ranks: a rank is a metaMods ternary and
+    // adds raw power, and three individual Firepower nodes already erase a boss
+    // finale on their own. Under a 6-slot pack, more KINDS is more choice.
+    // Every one of these is deliberately SITUATIONAL — dead weight on the wrong
+    // level, which is what makes packing it a decision rather than an upgrade.
+    { id: "deepfreeze",   branch: "fire", icon: "🧊", name: "Deep Freeze",   desc: "Slows last 40% longer",              cost: 4 },
+    { id: "ricochet",     branch: "fire", icon: "🪃", name: "Ricochet",      desc: "The Fan's chain jumps one more",     cost: 5 },
+    { id: "widerblast",   branch: "fire", icon: "💣", name: "Wider Blast",   desc: "Tap-anywhere powers cover +25%",     cost: 4 },
+    { id: "sparebattery", branch: "econ", icon: "🔋", name: "Spare Battery", desc: "+1 toy energy every wave",           cost: 5 },
+    { id: "scoutreport",  branch: "econ", icon: "🧭", name: "Scout Report",  desc: "See two waves ahead, not one",       cost: 3 },
+    { id: "fieldrepair",  branch: "fort", icon: "🧰", name: "Field Repair",  desc: "Jammed guns come back twice as fast", cost: 4 },
+    { id: "quickmarch",   branch: "fort", icon: "🥾", name: "Quick March",   desc: "Soldiers reach their post sooner",   cost: 3 },
   ];
 
   // ---- TD-5 ACHIEVEMENTS (§8.2): unlocked from real play, toast on earn,

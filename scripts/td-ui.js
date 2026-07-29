@@ -648,7 +648,12 @@
       // every build boundary but not while a rushed wave is still walking.
       const nextIdx = state.sentIdx == null ? state.waveIdx : state.sentIdx;
       if (!endless && state.phase === "build" && nextIdx < total) {
-        const groups = level.waves[nextIdx].groups;
+        // 🧭 Scout Report is the tree's one PURE-INFORMATION node: it changes no
+        // engine number at all (so it carries exactly zero balance risk) and
+        // reads the run's own equipped loadout, not save.meta — what you BROUGHT
+        // is what you see.
+        const scouting = (state.meta || []).indexOf("scoutreport") >= 0 && nextIdx + 1 < total;
+        const groups = level.waves[nextIdx].groups.concat(scouting ? level.waves[nextIdx + 1].groups : []);
         const counts = {};
         groups.forEach((g) => { counts[g.type] = (counts[g.type] || 0) + g.count; });
         const parts = Object.keys(counts).map((type) => {
@@ -664,7 +669,7 @@
         // fine here and spills off a real 320px phone (the tower-panel lesson).
         // The field marker says WHERE; this says a flank is coming at all.
         const flank = groups.filter((g) => g.at > 0).reduce((n, g) => n + g.count, 0);
-        nw.textContent = "Next: " + parts.join("  ") + (flank ? "   🚪" + flank : "");
+        nw.textContent = (scouting ? "Next 2: " : "Next: ") + parts.join("  ") + (flank ? "   🚪" + flank : "");
         nw.hidden = false;
       } else nw.hidden = true;
     }

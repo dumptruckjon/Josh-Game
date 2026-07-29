@@ -121,6 +121,19 @@
       bossDmg: s.has("bossdmg") ? 1.15 : 1,
       allowance: s.has("allowance") ? 12 : 0,
       stickerShield: s.has("stickershield"),
+      // ---- breadth (P4.3): seven NEW KINDS, each consumed at exactly ONE
+      // engine site. Deliberately none of them is raw damage: three individual
+      // Firepower nodes already erase a boss finale on their own, and under a
+      // 6-slot pack it is CHOICE that makes the tree interesting, not power.
+      // Every one is situational — dead weight on the wrong level, which is
+      // precisely what makes packing it a decision.
+      charge: s.has("sparebattery") ? 1 : 0,      // ⚙️ energy per wave
+      slowSeconds: s.has("deepfreeze") ? 1.4 : 1, // slows linger
+      abilityRadius: s.has("widerblast") ? 1.25 : 1,
+      jamMul: s.has("fieldrepair") ? 0.5 : 1,     // a jammed gun returns sooner
+      chainPlus: s.has("ricochet") ? 1 : 0,       // the Fan's chain jumps once more
+      marchMul: s.has("quickmarch") ? 1.6 : 1,    // soldiers reach their post sooner
+      scout: s.has("scoutreport"),                // UI-only: see two waves ahead
     };
   }
 
@@ -287,7 +300,7 @@
       // is constant by construction, and tightens exactly where the problem is.
       // Granted per wave SENT, so a ⏩ RUSH pays for the wave it sends and not
       // for the one it happens to clear alongside it.
-      state.charge = Math.min(R.chargeMax, (state.charge || 0) + R.chargePerWave);
+      state.charge = Math.min(R.chargeMax + mods.charge, (state.charge || 0) + R.chargePerWave + mods.charge);
       emit({ type: "wave", n: state.sentIdx, inFlight: state.sentIdx - state.waveIdx });
     }
 
@@ -345,6 +358,12 @@
     // the Rally Horn must not count it as somebody to rally (it charged 80 gold
     // and a 30s cooldown to revive nobody).
     function livingCamp(s) { return !!towerById(s.campId); }
+    // Jamming a gun had TWO writers (the Loose Screw's sap and a boss's disable
+    // phase), so 🧰 Field Repair would have applied to one and not the other —
+    // the documented "grep every place" class. One owner now.
+    function jamTower(t, seconds) {
+      t.disabledUntil = state.tick + Math.round(seconds * mods.jamMul * DATA.TICK_RATE);
+    }
     function applySlow(e, pct, seconds) {
       // W5 Grease Racer: greased wheels — slows simply do not stick. Guarded in
       // the ONE slow path, so the Fan's aura, a Blizzard's cone and the Sticky
@@ -354,7 +373,9 @@
       let p = pct * (enemyDef(e).flier ? R.flierSlowFactor : 1);
       p = Math.min(p, R.slowCap);
       const active = state.tick < e.slowUntil ? e.slowPct : 0;
-      if (p >= active) { e.slowPct = p; e.slowUntil = state.tick + Math.round(seconds * DATA.TICK_RATE); }
+      // 🧊 Deep Freeze lengthens every slow from the ONE place a slow is applied,
+      // so the Fan's aura, a Blizzard cone and the Sticky Floor all inherit it.
+      if (p >= active) { e.slowPct = p; e.slowUntil = state.tick + Math.round(seconds * mods.slowSeconds * DATA.TICK_RATE); }
     }
     function effSpeed(e) {
       const slow = state.tick < e.slowUntil ? e.slowPct : 0;
@@ -397,7 +418,7 @@
           if (d < best) { best = d; victim = t; }
         }
         if (victim) {
-          victim.disabledUntil = state.tick + Math.round(def.sap.seconds * DATA.TICK_RATE);
+          jamTower(victim, def.sap.seconds);
           emit({ type: "disable", x: victim.cx, y: victim.cy, seconds: def.sap.seconds });
         }
       }
@@ -517,7 +538,7 @@
             const live = state.towers.filter((t) => t.lineId !== "camp" && !(t.disabledUntil && state.tick < t.disabledUntil));
             if (live.length) {
               const victim = live[Math.floor(rng() * live.length)];
-              victim.disabledUntil = state.tick + Math.round(ph.disable.seconds * DATA.TICK_RATE);
+              jamTower(victim, ph.disable.seconds);
               emit({ type: "disable", x: victim.cx, y: victim.cy, seconds: ph.disable.seconds });
             }
           }
@@ -922,7 +943,7 @@
         const dx = sol.tx - sol.x, dy = sol.ty - sol.y;
         const d = Math.sqrt(dx * dx + dy * dy);
         if (d > 0.05) {
-          const step = Math.min(d, R.soldierWalkSpeed * DT);
+          const step = Math.min(d, R.soldierWalkSpeed * mods.marchMul * DT);
           sol.x += (dx / d) * step; sol.y += (dy / d) * step;
           continue;
         }
@@ -1008,7 +1029,7 @@
                 let cur2 = enemyById(first);
                 let dmg = s.chain.dmg;
                 const points = [{ x: t.cx, y: t.cy }];
-                while (cur2 && hitIds.length < s.chain.targets) {
+                while (cur2 && hitIds.length < s.chain.targets + mods.chainPlus) {
                   hitIds.push(cur2.id);
                   const p = epos(cur2);
                   points.push({ x: p.x, y: p.y });
@@ -1394,6 +1415,9 @@
     // Would this use actually DO anything? An ability that changes nothing must
     // never charge gold or start a cooldown — that reads exactly like a broken
     // button (reported: "some of them don't even seem to work at all").
+    // 💣 Wider Blast, read ONCE per ability so the blast, the reveal, the puddle
+    // and the ring the player sees are all the same circle.
+    function abilityRadius(def) { return (def.radius || 0) * mods.abilityRadius; }
     function abilityWouldDo(def, o) {
       // The horn revives the downed AND heals the hurt, so it is useful whenever
       // any soldier is less than fully fit — not only when one is flat on its
@@ -1405,7 +1429,7 @@
         // un-hides them. Without this, tapping 🧨 into a crater full of phased
         // ghosts (L12's boss wave ships eight) refused with "nothing in the
         // blast", so the ability read as broken exactly where it is needed.
-        const r2 = def.radius * def.radius;
+        const r2 = abilityRadius(def) ** 2;
         return state.enemies.some((e) => {
           if (!e.alive || (!def.reveal && isHidden(e))) return false;
           const p = epos(e);
@@ -1436,8 +1460,9 @@
         // The reveal is pushed BEFORE the damage loop, so the same tap that
         // flushes a phased ghost out also hits it — otherwise the rider would
         // only ever help the shot after.
-        if (def.reveal) state.reveals.push({ x: o.x, y: o.y, r: def.reveal.radius, until: state.tick + Math.round(def.reveal.seconds * DATA.TICK_RATE) });
-        const r2 = def.radius * def.radius;
+        const rad = abilityRadius(def);
+        if (def.reveal) state.reveals.push({ x: o.x, y: o.y, r: def.reveal.radius * mods.abilityRadius, until: state.tick + Math.round(def.reveal.seconds * DATA.TICK_RATE) });
+        const r2 = rad * rad;
         for (const e of state.enemies) {
           if (!e.alive || isHidden(e)) continue; // an untargetable enemy is untargetable by EVERY damage path
           const p = epos(e);
@@ -1452,7 +1477,7 @@
           // A LIVE zone, not a one-shot: enemies that walk in later are slowed
           // too. Refreshed each tick through the ONE applySlow (flier factor,
           // cap and strongest-wins all inherited).
-          state.puddles.push({ x: o.x, y: o.y, r: def.radius, slow: def.slow, until: state.tick + Math.round(def.seconds * DATA.TICK_RATE) });
+          state.puddles.push({ x: o.x, y: o.y, r: rad, slow: def.slow, until: state.tick + Math.round(def.seconds * DATA.TICK_RATE) });
         }
       } else if (def.kind === "tower") {
         const t = towerById(o.towerId);
@@ -1479,7 +1504,7 @@
       state.gold -= def.gold;
       state.charge -= chk.need;
       state.abilityCd[id] = state.tick + Math.round(def.cooldown * DATA.TICK_RATE);
-      emit({ type: "ability", id, x: o.x, y: o.y, radius: def.radius || 0, hits, charge: state.charge });
+      emit({ type: "ability", id, x: o.x, y: o.y, radius: abilityRadius(def), hits, charge: state.charge });
       return { ok: true, hits, charge: state.charge };
     }
     // Live Sticky Floor zones re-apply their slow every tick (a short refresh so

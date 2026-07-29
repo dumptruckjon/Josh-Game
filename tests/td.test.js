@@ -551,8 +551,10 @@ test("TD5 star tree: buying a node persists to save.meta and feeds the next run;
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.locator(".td-tree-open").click();
   await page.locator(".td-tree").waitFor({ state: "visible" });
-  // TD-8: 23 nodes across 3 labeled branches
-  assert.equal(await page.locator(".td-node").count(), 23, "23 star-tree nodes");
+  // DERIVED, not a literal: this said "23" and went stale the moment the tree
+  // grew by breadth — the same counting law that caught the level grid.
+  const nodeCount = await page.evaluate(() => window.TDData.META_NODES.length);
+  assert.equal(await page.locator(".td-node").count(), nodeCount, `${nodeCount} star-tree nodes`);
   assert.equal(await page.locator(".td-tree__branch").count(), 3, "3 branch headers");
   // rank gating: Sharp Darts II is locked until Sharp Darts I is owned
   assert.ok(await page.locator('.td-node[data-node="dartdmg2"]').isDisabled(), "rank II starts locked");

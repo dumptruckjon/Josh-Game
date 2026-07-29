@@ -980,6 +980,8 @@ test("TD5 star tree: metaMods is a pure function of owned node ids (neutral tree
     // TD-8 abilities all default OFF
     bounty: 1, critBonus: 0, nightOwl: false, guardDog: 1, patchKit: false,
     bossDmg: 1, allowance: 0, stickerShield: false,
+    // P4.3 breadth: seven new KINDS, all default-noop
+    charge: 0, slowSeconds: 1, abilityRadius: 1, jamMul: 1, chainPlus: 0, marchMul: 1, scout: false,
   }, "empty tree is exactly vanilla");
   const all = DATA.META_NODES.map((n) => n.id);
   const mAll = TD.metaMods(all);
@@ -4057,4 +4059,91 @@ test("P4 loadout: a capped loadout really is weaker than the whole tree", () => 
   assert.ok(none > all, `the whole tree really does trivialise this finale (${none} lives lost → ${all})`);
   assert.ok(capped > all,
     `a ${DATA.RULES.metaSlots}-slot loadout must cost the player more than owning everything (${capped} vs ${all}) — that is what the cap buys`);
+});
+
+// ================= P4.3: the tree grows by BREADTH =================
+
+test("P4.3 tree: it costs more than a 32-level campaign can earn", () => {
+  // The star ceiling DERIVES as LEVELS.length * 3, and the tree must cost more
+  // than you can ever earn or a completionist buys everything and the choice
+  // evaporates. At 24 levels that is 72; a seventh and eighth world take it to
+  // 96, which is what made the 77⭐ tree the hard blocker on expanding.
+  const total = DATA.META_NODES.reduce((s, n) => s + n.cost, 0);
+  assert.ok(total > DATA.LEVELS.length * 3, `tree ${total}⭐ must exceed today's ceiling ${DATA.LEVELS.length * 3}⭐`);
+  assert.ok(total > 96, `tree ${total}⭐ must also clear a 32-level ceiling (96⭐) — otherwise a seventh world cannot ship`);
+  // …and a run must still bring far fewer nodes than the tree holds
+  assert.ok(DATA.RULES.metaSlots * 3 <= DATA.META_NODES.length,
+    `a ${DATA.RULES.metaSlots}-slot pack against ${DATA.META_NODES.length} nodes keeps allocation a real decision`);
+  // no duplicate ids, and every branch is a real one
+  const ids = DATA.META_NODES.map((n) => n.id);
+  assert.equal(new Set(ids).size, ids.length, "node ids are unique");
+  const branches = new Set(DATA.META_BRANCHES.map((b) => b.id));
+  for (const n of DATA.META_NODES) assert.ok(branches.has(n.branch), `node ${n.id} names a real branch`);
+});
+
+test("P4.3 tree: every node CHANGES something — no node is decoration", () => {
+  // A node that produces no engine difference is a star you spent on nothing.
+  // metaMods is pure, so this is exact: flip one node on and require the mods
+  // object to differ. The one deliberate exception is documented inline.
+  const UI_ONLY = new Set(["scoutreport"]); // pure information: read by the wave preview, never by the engine
+  const base = JSON.stringify(TD.metaMods([]));
+  for (const n of DATA.META_NODES) {
+    const withIt = JSON.stringify(TD.metaMods([n.id]));
+    assert.notEqual(withIt, base, `node "${n.id}" changes nothing in metaMods — it is a star spent on decoration`);
+    void UI_ONLY;
+  }
+  // …and the UI-only node must be readable from the RUN's loadout, not save.meta
+  const ui = require("fs").readFileSync("scripts/td-ui.js", "utf8");
+  for (const id of UI_ONLY) {
+    assert.ok(ui.includes(id), `the UI-only node "${id}" must actually be read somewhere in the UI`);
+    assert.match(ui, /state\.meta \|\| \[\]/, "…and from the run's equipped loadout (state.meta), not from save.meta");
+  }
+});
+
+test("P4.3 breadth: each new KIND is felt at its own engine site", () => {
+  const L = DATA.LEVELS[0];
+  const mk = (meta) => TD.createEngine(L, { seed: 4, meta });
+
+  // 🔋 Spare Battery — the ONE charge grant
+  const a = mk([]), b = mk(["sparebattery"]);
+  a.callWave(); b.callWave();
+  assert.equal(b.state.charge, a.state.charge + 1, "Spare Battery grants an extra energy per wave");
+
+  // 🧊 Deep Freeze — inside the ONE applySlow
+  const slowOf = (meta) => {
+    const e = mk(meta);
+    e.callWave();
+    for (let i = 0; i < 40; i++) e.tick();
+    const x = mkEnemy("sock", 4, 0);
+    e.state.enemies.length = 0; e.state.enemies.push(x);
+    e.state.gold = 9e6; e.state.charge = 9;
+    const p = e.posOn(0, 4);
+    assert.equal(e.useAbility("sticky", { x: p.x, y: p.y }).ok, true);
+    e.tick();
+    return x.slowUntil - e.state.tick;
+  };
+  const plain = slowOf([]), frozen = slowOf(["deepfreeze"]);
+  assert.ok(frozen > plain, `Deep Freeze lengthens a slow (${plain} → ${frozen} ticks)`);
+
+  // 💣 Wider Blast — one radius, so the blast and the puddle agree
+  const radOf = (meta) => {
+    const e = mk(meta);
+    e.callWave();
+    for (let i = 0; i < 40; i++) e.tick();
+    e.state.gold = 9e6; e.state.charge = 9;
+    const p = e.posOn(0, 4);
+    assert.equal(e.useAbility("sticky", { x: p.x, y: p.y }).ok, true);
+    return e.state.puddles[e.state.puddles.length - 1].r;
+  };
+  assert.ok(radOf(["widerblast"]) > radOf([]), "Wider Blast really widens the zone that is placed");
+
+  // 🧰 Field Repair — ONE owner for jamming, so the sap AND a boss phase inherit it
+  const src = require("fs").readFileSync("scripts/td-logic.js", "utf8");
+  const writes = (src.match(/\.disabledUntil\s*=/g) || []).length;
+  assert.equal(writes, 1, `"disabledUntil" must have exactly ONE writer (found ${writes}) — two writers is how a mod applies to one jam and not the other`);
+  assert.match(src, /function jamTower/, "…and that owner is jamTower");
+
+  // 🪃 Ricochet + 🥾 Quick March — read at their own single sites
+  assert.match(src, /s\.chain\.targets \+ mods\.chainPlus/, "Ricochet is read at the chain's target count");
+  assert.match(src, /R\.soldierWalkSpeed \* mods\.marchMul/, "Quick March is read at the soldier walk step");
 });
