@@ -126,9 +126,17 @@
       bg.width = W * dpr; bg.height = H * dpr;
       const b = bg.getContext("2d");
       b.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // The world's own FLOOR. This was one hard-coded blue gradient on all 24
+      // levels — the biggest pixel area on screen carrying zero world identity,
+      // so the Toy Store and the Garage looked like the same room. The palette
+      // and the texture are DATA (WORLDS[w].floor), baked once into this cached
+      // canvas, so a per-world floor costs nothing per frame and a new world
+      // cannot inherit a blank one.
+      const FLOOR = (global.TDData.WORLDS[engine.levelDef.world] || {}).floor
+        || { pattern: "carpet", top: "#12213c", bottom: "#1c2c49", ink: "rgba(255,255,255,0.035)" };
       const g = b.createLinearGradient(0, 0, 0, H);
       if (NIGHT) { g.addColorStop(0, "#070d1c"); g.addColorStop(1, "#0c1526"); } // firefly-night: darker floor
-      else { g.addColorStop(0, "#12213c"); g.addColorStop(1, "#1c2c49"); }
+      else { g.addColorStop(0, FLOOR.top); g.addColorStop(1, FLOOR.bottom); }
       b.fillStyle = g; b.fillRect(0, 0, W, H);
       if (NIGHT) { // scattered firefly glows (baked, deterministic positions)
         for (let i = 0; i < 14; i++) {
@@ -142,10 +150,79 @@
       const vig = b.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.62);
       vig.addColorStop(0, "rgba(255,255,255,0.05)"); vig.addColorStop(1, "rgba(0,0,0,0.18)");
       b.fillStyle = vig; b.fillRect(0, 0, W, H);
-      // faint carpet weave
-      b.strokeStyle = "rgba(255,255,255,0.035)"; b.lineWidth = 1;
-      for (let y = 0; y < GRID.h; y += 1) { b.beginPath(); b.moveTo(0, y * cell); b.lineTo(W, y * cell); b.stroke(); }
-      for (let x = 0; x < GRID.w; x += 1) { b.beginPath(); b.moveTo(x * cell, 0); b.lineTo(x * cell, H); b.stroke(); }
+      // ---- the world's floor TEXTURE (baked; deterministic, no rng) ----
+      // A cheap hash so speckle is stable across reloads and across the
+      // determinism suite — Math.random is banned everywhere in this project.
+      const spot = (i, m) => ((i * 2654435761) % m) / m;
+      const ink = NIGHT ? "rgba(255,255,255,0.03)" : FLOOR.ink;
+      b.save();
+      if (FLOOR.pattern === "grass") {
+        // tufts of blades, denser toward the bottom so the lawn has depth
+        b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.045); b.lineCap = "round";
+        for (let i = 0; i < 420; i++) {
+          const x = spot(i + 7, 997) * W, y = spot(i + 91, 887) * H;
+          const len = cell * (0.16 + spot(i + 3, 71) * 0.2), lean = (spot(i + 17, 53) - 0.5) * cell * 0.22;
+          b.beginPath(); b.moveTo(x, y); b.lineTo(x + lean, y - len); b.stroke();
+        }
+      } else if (FLOOR.pattern === "tile") {
+        // big polished squares with a bright bevel on two sides — a shop floor
+        const t = cell * 2;
+        for (let y = 0; y < H; y += t) for (let x = 0; x < W; x += t) {
+          const alt = ((x / t) + (y / t)) % 2 < 1;
+          b.fillStyle = alt ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.06)";
+          b.fillRect(x, y, t, t);
+          b.strokeStyle = ink; b.lineWidth = 1;
+          b.beginPath(); b.moveTo(x, y); b.lineTo(x + t, y); b.moveTo(x, y); b.lineTo(x, y + t); b.stroke();
+        }
+      } else if (FLOOR.pattern === "boards") {
+        // long planks with dark seams, staggered butt-joints and nail heads
+        const bh = cell * 1.6;
+        for (let y = 0, row = 0; y < H; y += bh, row++) {
+          b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.05);
+          b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.stroke();
+          const off = (row % 2 ? cell * 5 : 0);
+          for (let x = off; x < W; x += cell * 9) {
+            b.beginPath(); b.moveTo(x, y); b.lineTo(x, y + bh); b.stroke();
+            b.fillStyle = "rgba(255,235,200,0.13)";
+            b.beginPath(); b.arc(x + cell * 0.4, y + bh * 0.5, Math.max(1, cell * 0.045), 0, 7); b.fill();
+            b.beginPath(); b.arc(x + cell * 8.6, y + bh * 0.5, Math.max(1, cell * 0.045), 0, 7); b.fill();
+          }
+        }
+      } else if (FLOOR.pattern === "concrete") {
+        // expansion joints on a big grid + oil speckle
+        b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.07);
+        for (let y = 0; y < H; y += cell * 4) { b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.stroke(); }
+        for (let x = 0; x < W; x += cell * 5) { b.beginPath(); b.moveTo(x, 0); b.lineTo(x, H); b.stroke(); }
+        for (let i = 0; i < 260; i++) {
+          const x = spot(i + 13, 991) * W, y = spot(i + 57, 883) * H;
+          b.fillStyle = spot(i, 31) > 0.6 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.14)";
+          b.beginPath(); b.arc(x, y, cell * (0.03 + spot(i + 5, 23) * 0.06), 0, 7); b.fill();
+        }
+      } else if (FLOOR.pattern === "cardboard") {
+        // corrugation flutes + a few strips of packing tape
+        b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.05);
+        for (let x = 0; x < W; x += cell * 0.55) { b.beginPath(); b.moveTo(x, 0); b.lineTo(x, H); b.stroke(); }
+        b.strokeStyle = "rgba(255,255,255,0.07)"; b.lineWidth = Math.max(1, cell * 0.03);
+        for (let x = cell * 0.2; x < W; x += cell * 0.55) { b.beginPath(); b.moveTo(x, 0); b.lineTo(x, H); b.stroke(); }
+        b.fillStyle = "rgba(240,225,190,0.10)";
+        for (let i = 0; i < 5; i++) {
+          const y = (spot(i + 21, 97)) * H;
+          b.fillRect(0, y, W, cell * 0.55);
+          b.strokeStyle = "rgba(255,255,255,0.09)"; b.lineWidth = 1;
+          b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.moveTo(0, y + cell * 0.55); b.lineTo(W, y + cell * 0.55); b.stroke();
+        }
+      } else {
+        // carpet: the original faint weave, now on the world's own palette
+        b.strokeStyle = ink; b.lineWidth = 1;
+        for (let y = 0; y < GRID.h; y += 1) { b.beginPath(); b.moveTo(0, y * cell); b.lineTo(W, y * cell); b.stroke(); }
+        for (let x = 0; x < GRID.w; x += 1) { b.beginPath(); b.moveTo(x * cell, 0); b.lineTo(x * cell, H); b.stroke(); }
+        b.fillStyle = "rgba(255,255,255,0.03)";
+        for (let i = 0; i < 300; i++) {
+          const x = spot(i + 11, 983) * W, y = spot(i + 43, 877) * H;
+          b.fillRect(x, y, Math.max(1, cell * 0.06), Math.max(1, cell * 0.06));
+        }
+      }
+      b.restore();
 
       b.lineCap = "round"; b.lineJoin = "round";
       const primaryPath = lanes[0];
@@ -164,10 +241,13 @@
         ribbon(lanes[i], cell * 0.9, "#4d6b86");
         ribbon(lanes[i], Math.max(2, cell * 0.08), "rgba(180,220,255,0.5)", [cell * 0.28, cell * 0.28]);
       }
-      // the primary (default) lane on top: a warm wooden toy-road
-      ribbon(primaryPath, cell * 1.16, "#3c2f22");
-      ribbon(primaryPath, cell * 1.0, "#caa268");
-      ribbon(primaryPath, cell * 0.86, "#e0bd83");
+      // the primary (default) lane on top: a warm wooden toy-road, re-tinted per
+      // world where the room calls for it (a garden path, bare attic boards, a
+      // strip of packing tape) — the default keeps the original toy-road wood.
+      const ROAD = FLOOR.road || { edge: "#3c2f22", base: "#caa268", top: "#e0bd83" };
+      ribbon(primaryPath, cell * 1.16, ROAD.edge);
+      ribbon(primaryPath, cell * 1.0, ROAD.base);
+      ribbon(primaryPath, cell * 0.86, ROAD.top);
       ribbon(primaryPath, Math.max(2, cell * 0.09), "rgba(255,255,255,0.55)", [cell * 0.34, cell * 0.34]);
       b.setLineDash([]);
       // spawn/exit endcaps tinted so the route reads at a glance (lanes share both)
@@ -454,6 +534,8 @@
           ctx.lineTo(sx + Math.cos(a) * rad, sy + Math.sin(a) * rad);
         }
         ctx.closePath(); ctx.fill();
+        // a dark rim so a pale body still reads against the sand-coloured lane
+        ctx.strokeStyle = "rgba(92,78,54,0.95)"; ctx.lineWidth = Math.max(1.5, cell * 0.05); ctx.stroke();
         ctx.strokeStyle = "#b9ad93"; ctx.lineWidth = Math.max(1, cell * 0.025);
         ctx.beginPath();
         ctx.moveTo(sx - r * 0.5, sy - r * 0.2); ctx.lineTo(sx - r * 0.05, sy + r * 0.06); ctx.lineTo(sx + r * 0.45, sy - r * 0.3);
@@ -471,8 +553,12 @@
         const gp = ctx.createLinearGradient(-r * 0.4, -r * 0.4, r * 0.4, r * 0.4);
         gp.addColorStop(0, "#fdfaf0"); gp.addColorStop(1, "#ddd4bd");
         ctx.fillStyle = gp;
-        ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.22, r * 0.3, r * 0.26, 0, 0, 7); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(r * 0.3, r * 0.22, r * 0.3, r * 0.26, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = "rgba(96,84,58,0.95)"; ctx.lineWidth = Math.max(1.5, cell * 0.05);
+        // one closed S-shape, filled AND stroked: the first cut drew three
+        // overlapping pale shapes with no rim and the swarm vanished on the lane
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.3, -r * 0.22, r * 0.3, r * 0.26, 0, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(r * 0.3, r * 0.22, r * 0.3, r * 0.26, 0, 0, 7); ctx.fill(); ctx.stroke();
         ctx.beginPath(); ctx.rect(-r * 0.3, -r * 0.24, r * 0.6, r * 0.48); ctx.fill();
         ctx.strokeStyle = "rgba(160,150,125,0.7)"; ctx.lineWidth = Math.max(1, cell * 0.022);
         ctx.beginPath(); ctx.moveTo(-r * 0.42, -r * 0.02); ctx.lineTo(r * 0.42, -r * 0.02); ctx.stroke();

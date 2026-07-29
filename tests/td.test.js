@@ -2749,3 +2749,53 @@ test("P4 loadout: the star tree can pack and unpack, and never past the cap", as
   assert.equal(after, slots - 1, "a full pack can still be emptied");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
+
+test("ART: every world's FLOOR is its own room — no two render the same", async () => {
+  // The floor is the biggest pixel area on screen and shipped as ONE hard-coded
+  // blue grid on all 24 levels, so the Toy Store and the Garage looked like the
+  // same room. It is a data field now (WORLDS[w].floor), and this is the generic
+  // forcing function: a seventh world cannot inherit a copy-pasted floor,
+  // exactly as the enemy-art hash stops a missing draw branch.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const sigs = await page.evaluate(() => {
+    const out = {};
+    const worlds = Object.keys(window.TDData.WORLDS);
+    // ONE level, re-skinned with each world in turn. Comparing each world's own
+    // level would compare their PATHS too, and the hash would differ even if
+    // every floor were identical — the first cut of this test did exactly that
+    // and survived a mutation that gave two worlds the same floor.
+    const base = window.TDData.LEVELS.find((l) => !l.night && !l.paths);
+    window.__TD.newGame(base.id, { seed: 3 });
+    const eng = window.__TD.engine();
+    const realWorld = eng.levelDef.world;
+    // …and hold spawnGlyph CONSTANT. It is also per-world and it is painted on
+    // the field, so it alone made every world hash differently — the second cut
+    // of this test still survived a mutation that gave two worlds one floor.
+    const glyphs = {};
+    for (const w of worlds) { glyphs[w] = window.TDData.WORLDS[w].spawnGlyph; window.TDData.WORLDS[w].spawnGlyph = "⬛"; }
+    for (const w of worlds) {
+      eng.levelDef.world = w;
+      const r = window.__TD.render();
+      r.resize(); r.draw(0);
+      const cv = document.querySelector("#screen-td-play .td-canvas");
+      const ctx = cv.getContext("2d");
+      const d = ctx.getImageData(0, 0, cv.width, Math.min(cv.height, Math.round(cv.height * 0.5))).data;
+      let h = 5381;
+      for (let i = 0; i < d.length; i += 40) h = ((h * 33) ^ (d[i] + d[i + 1] * 3 + d[i + 2] * 7)) >>> 0;
+      out[w] = h;
+    }
+    eng.levelDef.world = realWorld;
+    for (const w of worlds) window.TDData.WORLDS[w].spawnGlyph = glyphs[w];
+    return out;
+  });
+  const byHash = {};
+  for (const w of Object.keys(sigs)) (byHash[sigs[w]] = byHash[sigs[w]] || []).push(w);
+  const clash = Object.keys(byHash).filter((h) => byHash[h].length > 1).map((h) => byHash[h].join(" = "));
+  assert.deepEqual(clash, [], `worlds whose floors render identically: ${clash.join("; ")}`);
+  // …and every world must actually DECLARE one, so the fallback is never load-bearing
+  const declared = await page.evaluate(() =>
+    Object.entries(window.TDData.WORLDS).filter(([, w]) => !w.floor || !w.floor.pattern).map(([k]) => k));
+  assert.deepEqual(declared, [], `worlds with no floor declared: ${declared.join(", ")}`);
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});

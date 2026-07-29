@@ -307,13 +307,29 @@
   // even secondary] — and `backbone.flier` is its one air shape. Both the
   // generator and the composition audit READ this instead of keeping their own
   // copy of the six, which is what let all 24 levels share 85% of their bodies.
+  // `floor` is the world's FLOOR — the biggest pixel area on screen and, until
+  // now, the same dark blue grid on all 24 levels, so the Toy Store and the
+  // Garage looked identical. It is a data field for the same reason spawnGlyph
+  // is: a surface that lives in an if/else chain gets left behind when a world
+  // ships (the attic once marched in under the bedroom's bed). `pattern` names
+  // the texture the renderer bakes; `top`/`bottom` are the floor gradient;
+  // `ink` is the texture's own colour; `road` optionally re-tints the lane.
   const WORLDS = {
-    bedroom:  { label: "🛏️ Bedroom",  spawnGlyph: "🛏️", backbone: { ground: ["sock", "knight", "blob", "marble"], flier: "balloon" } },
-    backyard: { label: "🌳 Backyard", spawnGlyph: "🌳", backbone: { ground: ["acorn", "knight", "blob", "ant"], flier: "hawk" } },
-    toystore: { label: "🧸 Toy Store", spawnGlyph: "🧸", backbone: { ground: ["yoyo", "knight", "blob", "die"], flier: "hawk" } },
-    attic:    { label: "🧳 Attic",    spawnGlyph: "🧳", backbone: { ground: ["mitten", "knight", "blob", "yarn"], flier: "hawk" } },
-    garage:   { label: "🔧 Garage",   spawnGlyph: "🔧", backbone: { ground: ["rag", "knight", "blob", "cog"], flier: "hawk" } },
-    moving:   { label: "📦 Moving Day", spawnGlyph: "📦", backbone: { ground: ["wad", "knight", "blob", "peanut"], flier: "hawk" } },
+    bedroom:  { label: "🛏️ Bedroom",  spawnGlyph: "🛏️", backbone: { ground: ["sock", "knight", "blob", "marble"], flier: "balloon" },
+      floor: { pattern: "carpet", top: "#2a2350", bottom: "#3a2f63", ink: "rgba(255,255,255,0.05)" } },
+    backyard: { label: "🌳 Backyard", spawnGlyph: "🌳", backbone: { ground: ["acorn", "knight", "blob", "ant"], flier: "hawk" },
+      floor: { pattern: "grass", top: "#1d4526", bottom: "#2c5c31", ink: "rgba(190,255,170,0.16)",
+               road: { edge: "#4a3a22", base: "#b98f56", top: "#d9b478" } } },
+    toystore: { label: "🧸 Toy Store", spawnGlyph: "🧸", backbone: { ground: ["yoyo", "knight", "blob", "die"], flier: "hawk" },
+      floor: { pattern: "tile", top: "#123f4a", bottom: "#17505e", ink: "rgba(190,245,255,0.10)" } },
+    attic:    { label: "🧳 Attic",    spawnGlyph: "🧳", backbone: { ground: ["mitten", "knight", "blob", "yarn"], flier: "hawk" },
+      floor: { pattern: "boards", top: "#3a2a1c", bottom: "#4a3625", ink: "rgba(20,12,6,0.32)",
+               road: { edge: "#2a1f14", base: "#9d7d52", top: "#c3a273" } } },
+    garage:   { label: "🔧 Garage",   spawnGlyph: "🔧", backbone: { ground: ["rag", "knight", "blob", "cog"], flier: "hawk" },
+      floor: { pattern: "concrete", top: "#2b3038", bottom: "#383e47", ink: "rgba(0,0,0,0.22)" } },
+    moving:   { label: "📦 Moving Day", spawnGlyph: "📦", backbone: { ground: ["wad", "knight", "blob", "peanut"], flier: "hawk" },
+      floor: { pattern: "cardboard", top: "#7a5326", bottom: "#8d6531", ink: "rgba(60,34,10,0.26)",
+               road: { edge: "#33261a", base: "#c9a877", top: "#e3c99c" } } },
   };
 
   // ---- Phase 2: per-world backbone SKINS ----
