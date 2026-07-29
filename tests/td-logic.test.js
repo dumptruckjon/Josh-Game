@@ -991,8 +991,8 @@ test("TD5 star tree: metaMods is a pure function of owned node ids (neutral tree
   assert.ok(Math.abs(mAll.bounty - 1.08) < 1e-9); assert.ok(Math.abs(mAll.critBonus - 0.03) < 1e-9);
   assert.equal(mAll.allowance, 12); assert.ok(mAll.nightOwl && mAll.patchKit && mAll.stickerShield);
   const ids = new Set(all); assert.equal(ids.size, DATA.META_NODES.length, "node ids unique");
-  const total = DATA.META_NODES.reduce((a, n) => a + n.cost, 0);
-  assert.ok(total > 36, `TD-8 tree total must exceed the 36⭐ ceiling (got ${total})`);
+  // (the dead-stars ceiling assertion lives once, in the TD8 tree-data test —
+  // this was a verbatim duplicate of a literal that had already gone stale)
 });
 
 test("TD5 meta applies at createEngine: +gold, +lives, +dart dmg, cheaper branch, better refund", () => {
@@ -1339,8 +1339,20 @@ test("TD8 tree data: 3 branches, consistent ranks/capstones, total cost EXCEEDS 
     }
   }
   // The dead-stars law: a tree that costs less than the earnable ceiling gets
-  // fully bought and stops being a choice. Lock it out forever.
-  assert.ok(total > 36, "tree total (" + total + "⭐) must exceed the 36⭐ earnable ceiling");
+  // fully bought and stops being a choice.
+  //
+  // This asserted the LITERAL 36 — a World-3-era number (12 levels x 3) that was
+  // duplicated verbatim in a second test. The runtime has always derived the
+  // ceiling (td-main.js STAR_CEILING, td-ui.js), so the two drifted apart the
+  // moment a world shipped: at 24 levels the real ceiling is 72 against a 77⭐
+  // tree, i.e. 94% affordable versus the 47% TD-8 designed for — and 77 > 36
+  // passes at ANY level count, so the property was already broken and no test
+  // could see it. Third instance of the counting law (TOTAL_PLANNED = 12, the
+  // VS16 file list): derive the number, never write the one you ship with.
+  const cap = DATA.LEVELS.length * 3;
+  assert.ok(total > cap,
+    `tree total (${total}⭐) must exceed the earnable ceiling (${cap}⭐ = ${DATA.LEVELS.length} levels x 3) — ` +
+    "at or below it a completionist buys everything and the tree stops being a choice");
   for (const b of branchIds) {
     assert.equal(nodes.filter((n) => n.branch === b && n.reqSpend).length, 1, "exactly one 👑 capstone in " + b);
   }
@@ -1595,6 +1607,90 @@ test("AUDIT difficulty shape: no level may be a wave-1 GOTCHA (opening damage st
     assert.ok(opening <= MAX_OPENING_DAMAGE,
       `L${lvl.id} "${lvl.name}" loses ${opening} lives in waves 1-3 — that's a starting-gold gotcha, not difficulty (max ${MAX_OPENING_DAMAGE}). Raise its startGold or soften the opening waves.`);
   }
+});
+
+// The same audit, run with the WHOLE star tree owned — the balance instrument
+// that did not exist. Every tuning number in this project (and in CLAUDE.md and
+// every PLAN doc) is a NO-META number, because the winnability oracle passes no
+// `meta`. The tree is not a garnish, though: it is the strongest difficulty knob
+// in the game, and 94% of it is affordable today against the 47% TD-8 designed
+// for. Measured with the shipped oracle, 8 seeds, best-of-two plans:
+//
+//     finale                no-meta median   full-tree median
+//     L4  Bed Monster            14                24
+//     L8  Vacuum King            11                24
+//     L12 The Static              7                22
+//     L16 Tickmaster             17                24
+//     L20 Toolbox Titan           9                24   <- "the tensest ending in the game"
+//     L24 The Moving Van         14                22
+//
+// ALL SIX are erased, not the two the plan predicted. That rules out the
+// exemption-list shape this test was first written with: exempting 6 of 6 would
+// make it unfailable, which is exactly the "a test that cannot fail is worse
+// than no test" trap. So it pins the MEASURED BASELINE instead, which fails on
+// three real regressions: a finale getting even softer, a NEW finale shipping
+// broken, and (the good one) Phase 4 fixing a finale without tightening this.
+test("AUDIT boss tension WITH the full star tree: pin the meta erosion so it cannot worsen", () => {
+  const ALL_META = DATA.META_NODES.map((n) => n.id);
+  const MAX_BOSS_LEVEL_FINISH = 17;   // the bar the no-meta audit enforces
+  // Measured 2026-07 with this exact harness. A finale absent here is NEW and is
+  // held to the real bar — so a 7th world cannot quietly add a 7th broken one.
+  const BASELINE = { 4: 24, 8: 24, 12: 22, 16: 24, 20: 24, 24: 22 };
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function run(level, plan, seed) {
+    const e = TD.createEngine(level, { seed, difficulty: "normal", meta: ALL_META });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state;
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+  const finales = DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss));
+  let fixed = 0;
+
+  for (const lvl of finales) {
+    const perSeed = SEEDS.map((seed) => {
+      const wins = PLANS.map((p) => run(lvl, p, seed)).filter((r) => r.phase === "won");
+      return wins.length ? Math.max(...wins.map((r) => r.lives)) : -1;
+    });
+    const sorted = perSeed.filter((l) => l >= 0).slice().sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : -1;
+    const base = BASELINE[lvl.id];
+
+    if (base === undefined) {
+      assert.ok(median <= MAX_BOSS_LEVEL_FINISH,
+        `L${lvl.id} "${lvl.name}" is a NEW finale and finishes at a median ${median} with the full star tree ` +
+        `(${perSeed.join(", ")}) — a new world must not add another meta-erased finale. Bound applied power, do not extend BASELINE.`);
+      continue;
+    }
+    assert.ok(median <= base,
+      `L${lvl.id} "${lvl.name}" got SOFTER under the full tree: median ${median} vs a pinned baseline of ${base} (${perSeed.join(", ")})`);
+    if (median <= MAX_BOSS_LEVEL_FINISH) fixed += 1;
+  }
+  // The good failure: when Phase 4 bounds applied power, finales drop back under
+  // the bar and this forces BASELINE to be tightened rather than left to rot.
+  assert.equal(fixed, 0,
+    `${fixed} finale(s) now hold up under the full star tree — remove them from BASELINE so the real bar applies from here on`);
 });
 
 test("AUDIT boss tension: every boss FINALE must actually cost something", () => {
@@ -2570,9 +2666,14 @@ test("AUDIT endless: EVERY world has a real arena, and no mini-boss is a campaig
   // 10-life World-4 boss) as its every-5th-wave mini-boss, so a wave-5 board
   // that cannot possibly kill it lost half its lives on the spot. Both are
   // "content outgrew a literal" defects, and both are structural to check.
-  const worlds = Object.keys(DATA.ENDLESS.worlds);
+  // …and it must iterate the CAMPAIGN, not the endless table itself. Walking
+  // Object.keys(ENDLESS.worlds) only ever audits the worlds that already have an
+  // entry, so a 7th campaign world with no arena passes green — which is
+  // precisely the attic defect above, re-armed. Derive from the levels.
+  const worlds = [...new Set(DATA.LEVELS.map((l) => l.world))];
   assert.ok(worlds.length >= 4, `every shipped world has an endless entry (${worlds.length})`);
   for (const w of worlds) {
+    assert.ok(DATA.ENDLESS.worlds[w], `${w} is a campaign world, so it must have an ENDLESS entry`);
     const arena = DATA.ENDLESS.arenas[w];
     assert.ok(arena, `${w} has its OWN arena (never a silent fallback to another world's map)`);
     assert.ok(arena.path.length >= 2 && arena.pads.length >= 8, `${w}'s arena is a real map`);
@@ -3233,4 +3334,34 @@ test("TD-16 guide truth: every level gimmick explains ITSELF, from the level's o
   const nightText = TD.levelGimmicks(nightLevel).find((g) => g.key === "night").text;
   assert.match(nightText, new RegExp(String(Math.round(DATA.RULES.nightRangeMult * 100)) + "%"),
     "the night entry must state the engine's actual nightRangeMult");
+});
+
+// A badge that EXISTS is not a badge you can EARN. The shipped structure test
+// asserts ACHIEVEMENTS.length === bosses + 9, which forces the data to keep pace
+// with the roster — but nothing forces the award to be wired. World 6 shipped
+// with the Moving Van's badge added to the data and the `earnAch` line added by
+// hand in a separate file; had that line been missed, the count guardrail would
+// still have been green and the badge simply unobtainable. Same class as the
+// fort-home grid that showed 12 cards for 16 levels.
+//
+// Checked as TEXT against td-main.js rather than by refactoring a shipped award
+// path: the win handler is a long chain of level-id guards, and the cheap,
+// honest check is that each boss level appears in it.
+test("AUDIT badges: every boss finale's achievement is actually AWARDED somewhere", () => {
+  const main = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "scripts/td-main.js"), "utf8");
+  const bossLevels = DATA.LEVELS.filter((l) => (l.waves || []).some((w) => w.boss));
+  assert.ok(bossLevels.length >= 6, `the campaign really has boss finales (${bossLevels.length})`);
+  for (const l of bossLevels) {
+    // the award chain guards on the level id, e.g. `if (st.levelId === 24) earnAch("notleaving")`
+    const re = new RegExp("levelId\\s*===\\s*" + l.id + "\\b[^\\n]*earnAch\\(");
+    assert.match(main, re,
+      `L${l.id} (${l.name}) is a boss finale but nothing in td-main.js awards a badge for beating it — ` +
+      "the ACHIEVEMENTS count guardrail cannot see this, because the datum exists and only the wiring is missing");
+  }
+  // …and every id the chain awards must be a real ACHIEVEMENTS entry, so a typo
+  // in either direction is caught rather than silently never firing.
+  const ids = new Set(DATA.ACHIEVEMENTS.map((a) => a.id));
+  for (const m of main.matchAll(/earnAch\("([a-z0-9_]+)"\)/g)) {
+    assert.ok(ids.has(m[1]), `td-main.js awards "${m[1]}", which is not in DATA.ACHIEVEMENTS`);
+  }
 });
