@@ -1058,6 +1058,15 @@
           } else if (s.zapDps) {
             const beamId = pickByMode(candidates(t, 0, reachOf(t, s.zapRange), true), t.targeting, t);
             const beamTarget = beamId ? enemyById(beamId) : null;
+            // The Fan's beam target used to be computed and THROWN AWAY, so the
+            // renderer had nothing to draw and Fan tiers 1-3 plus the Blizzard
+            // branch — three of the four variants — fired with literally no
+            // visual: you paid 300 gold and the field looked identical. It is
+            // recorded on the SAME `t.targetId` the Dart already uses ("what
+            // this tower is engaging") rather than a second parallel field, so
+            // the renderer needs one rule for both lines. Deterministic: a pure
+            // function of state, recomputed every tick, never read by combat.
+            t.targetId = beamId || 0;
             if (beamTarget) {
               // ⚡ Overclock: the Fan has no cooldown to divide, so the boost has
               // to scale the beam's accumulation or the ability is a paid no-op.
@@ -1591,6 +1600,26 @@
     if (def.charge) out.push({ key: "charge", icon: "🐂", text: "Charges when hit" });
     if (def.goldBurst) out.push({ key: "gold", icon: "🪅", text: "Bursts +" + def.goldBurst + " gold when popped" });
     if (def.boss) out.push({ key: "boss", icon: "👑", text: "Boss — its kit escalates as its health drops" });
+    // These four were SHIPPED mechanics with no card line at all: the Bed
+    // Monster's stomp, the Static's hp-gated phases, the Vacuum King's suck and
+    // its enrage. The FIELD_TRAIT guardrail hand-listed the fields it checked,
+    // so it never asked about them — the "a scan's own list is part of the
+    // scan" class, applied to a trait table. It derives now, so a new field
+    // must either produce a line or join a documented non-trait list.
+    if (def.stomp) out.push({ key: "stomp", icon: "💥", text: "Stomps every " + def.stomp.seconds + "s — knocks out soldiers standing near it, and a body in the road will not stop it" });
+    if (def.suck) out.push({ key: "suck", icon: "🌪️", text: "Inhales the nearest soldier every " + def.suck.every + "s — blocking it costs you the blocker" });
+    if (def.enrage) out.push({ key: "enrage", icon: "😡", text: "Enrages below " + Math.round(def.enrage.hpPct * 100) + "% health — moves " + Math.round((def.enrage.mult - 1) * 100) + "% faster" });
+    if (def.phases) {
+      const kit = [];
+      for (const p of def.phases) {
+        if (p.disable) kit.push("jams a gun every " + p.disable.every + "s");
+        if (p.spawn) kit.push("calls in " + p.spawn.count + " × " + (DATA.ENEMIES[p.spawn.type] || { name: p.spawn.type }).name);
+        if (p.speedMult) kit.push("dashes " + Math.round((p.speedMult - 1) * 100) + "% faster");
+        if (p.armor) kit.push("hardens to " + Math.round(p.armor * 100) + "% armor");
+      }
+      const uniq = kit.filter((t, i) => kit.indexOf(t) === i);
+      if (uniq.length) out.push({ key: "phases", icon: "⚡", text: "Escalates as it weakens — " + uniq.join(", ") + ". Burst it down before the next stage" });
+    }
     // The toll is the single most consequential number on the card: letting one
     // of these reach the door is not the same as letting a sock through.
     if (def.lives > 1) out.push({ key: "toll", icon: "💔", text: "Costs " + def.lives + " stickers if it reaches the door" });

@@ -21,6 +21,7 @@
     let selection = null; // {pad?, ghostRange?, tower?}
     const fx = [];        // {kind, x, y, ttl, max, text?} (world coords)
     const prevPos = new Map();
+    const prevProj = new Map();
     let bg = null;
     const NIGHT = !!engine.levelDef.night;
     const ZONES = engine.levelDef.zones || null;
@@ -135,9 +136,13 @@
       const FLOOR = (global.TDData.WORLDS[engine.levelDef.world] || {}).floor
         || { pattern: "carpet", top: "#12213c", bottom: "#1c2c49", ink: "rgba(255,255,255,0.035)" };
       const g = b.createLinearGradient(0, 0, 0, H);
-      if (NIGHT) { g.addColorStop(0, "#070d1c"); g.addColorStop(1, "#0c1526"); } // firefly-night: darker floor
-      else { g.addColorStop(0, FLOOR.top); g.addColorStop(1, FLOOR.bottom); }
+      g.addColorStop(0, FLOOR.top); g.addColorStop(1, FLOOR.bottom);
       b.fillStyle = g; b.fillRect(0, 0, W, H);
+      // Night used to REPLACE the world's floor with a flat blue-black, throwing
+      // away the one surface that says which room you are in — a night level
+      // looked like no world at all. It now DIMS the real floor with a cool
+      // overlay, so the backyard's grass is still grass after dark.
+      if (NIGHT) { b.fillStyle = "rgba(6,10,26,0.72)"; b.fillRect(0, 0, W, H); }
       if (NIGHT) { // scattered firefly glows (baked, deterministic positions)
         for (let i = 0; i < 14; i++) {
           const fx0 = ((i * 137) % (GRID.w * 10)) / 10, fy0 = ((i * 71) % (GRID.h * 10)) / 10;
@@ -211,6 +216,23 @@
           b.strokeStyle = "rgba(255,255,255,0.09)"; b.lineWidth = 1;
           b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.moveTo(0, y + cell * 0.55); b.lineTo(W, y + cell * 0.55); b.stroke();
         }
+      } else if (FLOOR.pattern === "grating") {
+        // cold steel grating: diamond-plate lozenges on cross-bands, with a warm
+        // sodium-lamp pool top-left so the plant reads as lit from one fixture
+        b.strokeStyle = "rgba(0,0,0,0.35)"; b.lineWidth = Math.max(1, cell * 0.06);
+        for (let y = 0; y < H; y += cell * 1.1) { b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.stroke(); }
+        for (let x = 0; x < W; x += cell * 3.2) { b.beginPath(); b.moveTo(x, 0); b.lineTo(x, H); b.stroke(); }
+        b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.05);
+        for (let y = cell * 0.55, row = 0; y < H; y += cell * 1.1, row++) {
+          for (let x = (row % 2 ? cell * 0.55 : 0); x < W; x += cell * 1.1) {
+            b.beginPath();
+            b.moveTo(x, y - cell * 0.2); b.lineTo(x + cell * 0.28, y); b.lineTo(x, y + cell * 0.2); b.lineTo(x - cell * 0.28, y);
+            b.closePath(); b.stroke();
+          }
+        }
+        const lamp = b.createRadialGradient(W * 0.22, H * 0.16, 0, W * 0.22, H * 0.16, Math.max(W, H) * 0.55);
+        lamp.addColorStop(0, "rgba(255,196,110,0.16)"); lamp.addColorStop(1, "rgba(255,196,110,0)");
+        b.fillStyle = lamp; b.fillRect(0, 0, W, H);
       } else if (FLOOR.pattern === "dropcloth") {
         // a painter's dust sheet: coarse canvas weave, creases where it was
         // folded, and a few dried paint spatters
@@ -243,13 +265,64 @@
 
       b.lineCap = "round"; b.lineJoin = "round";
       const primaryPath = lanes[0];
-      const ribbon = (path, width, color, dash) => {
+      // `dy` offsets the whole polyline, which is what gives the road a real lit
+      // CROSS-SECTION instead of three concentric same-centred tan bands.
+      const ribbon = (path, width, color, dash, dy) => {
         b.strokeStyle = color; b.lineWidth = width;
         if (dash) b.setLineDash(dash); else b.setLineDash([]);
+        const o = dy || 0;
         b.beginPath();
-        b.moveTo((path[0][0] + 0.5) * cell, (path[0][1] + 0.5) * cell);
-        for (const [x, y] of path.slice(1)) b.lineTo((x + 0.5) * cell, (y + 0.5) * cell);
+        b.moveTo((path[0][0] + 0.5) * cell, (path[0][1] + 0.5) * cell + o);
+        for (const [x, y] of path.slice(1)) b.lineTo((x + 0.5) * cell, (y + 0.5) * cell + o);
         b.stroke();
+      };
+      // The lane is 19.4% of the canvas — the second-biggest surface after the
+      // floor, and the one the eye tracks for a whole run — and it was four flat
+      // strokes plus a highway dash, so three worlds shipped the SAME road and a
+      // 56-cell serpentine gave no cue whether you were on a straight or a curve.
+      // `style` is a data field on the world (mirroring `floor.pattern`), so a new
+      // world declares its road instead of inheriting the shared wood.
+      const roadTexture = (path, ROAD) => {
+        const style = ROAD.style || "plain";
+        if (style === "plain") return;
+        const tie = ROAD.tie || "rgba(58,40,22,0.26)";
+        // Walk the polyline by arc length so spacing is even through corners.
+        let carry = 0;
+        for (let i = 1; i < path.length; i++) {
+          const ax = (path[i - 1][0] + 0.5) * cell, ay = (path[i - 1][1] + 0.5) * cell;
+          const bx = (path[i][0] + 0.5) * cell, by = (path[i][1] + 0.5) * cell;
+          const len = Math.hypot(bx - ax, by - ay);
+          if (!len) continue;
+          const ux = (bx - ax) / len, uy = (by - ay) / len;   // tangent
+          const nx = -uy, ny = ux;                            // normal
+          const step = cell * (style === "ties" ? 0.62 : 0.9);
+          for (let d = carry; d < len; d += step) {
+            const px = ax + ux * d, py = ay + uy * d;
+            if (style === "ties") {                            // wooden sleepers
+              b.strokeStyle = tie; b.lineWidth = Math.max(2, cell * 0.13);
+              b.beginPath();
+              b.moveTo(px + nx * cell * 0.45, py + ny * cell * 0.45);
+              b.lineTo(px - nx * cell * 0.45, py - ny * cell * 0.45);
+              b.stroke();
+            } else if (style === "stones") {                   // flagstones, staggered
+              const off = (Math.round(d / step) % 2 ? 0.18 : -0.18) * cell;
+              b.save();
+              b.translate(px + nx * off, py + ny * off);
+              b.rotate(Math.atan2(uy, ux));
+              b.fillStyle = tie;
+              b.beginPath(); b.rect(-cell * 0.31, -cell * 0.22, cell * 0.62, cell * 0.44); b.fill();
+              b.strokeStyle = "rgba(255,255,255,0.16)"; b.lineWidth = 1;
+              b.beginPath(); b.moveTo(-cell * 0.31, -cell * 0.22); b.lineTo(cell * 0.31, -cell * 0.22); b.stroke();
+              b.restore();
+            }
+          }
+          carry = (carry - len) % step; if (carry < 0) carry += step;
+        }
+        if (style === "tape") {                                // two marked-out edges
+          b.strokeStyle = tie; b.lineWidth = Math.max(1.5, cell * 0.05);
+          for (const s of [-0.30, 0.30]) ribbon(path, Math.max(1.5, cell * 0.05), tie, [cell * 0.5, cell * 0.35], s * cell);
+        }
+        b.setLineDash([]);
       };
       // TD-7: secondary lanes (the lever's "switch track") beneath, in a cooler
       // steel-blue so the alternate route reads as a toy train siding.
@@ -262,15 +335,44 @@
       // world where the room calls for it (a garden path, bare attic boards, a
       // strip of packing tape) — the default keeps the original toy-road wood.
       const ROAD = FLOOR.road || { edge: "#3c2f22", base: "#caa268", top: "#e0bd83" };
-      ribbon(primaryPath, cell * 1.16, ROAD.edge);
-      ribbon(primaryPath, cell * 1.0, ROAD.base);
-      ribbon(primaryPath, cell * 0.86, ROAD.top);
-      ribbon(primaryPath, Math.max(2, cell * 0.09), "rgba(255,255,255,0.55)", [cell * 0.34, cell * 0.34]);
+      ribbon(primaryPath, cell * 1.30, "rgba(0,0,0,0.30)", null, cell * 0.10); // contact shadow
+      ribbon(primaryPath, cell * 1.16, ROAD.edge);                              // kerb
+      ribbon(primaryPath, cell * 1.0, ROAD.base);                               // base
+      ribbon(primaryPath, cell * 0.66, ROAD.top, null, -cell * 0.08);           // lit crown
+      // The white centre dash is GONE: it duplicated the lever's own running
+      // dashes on the six fork levels, and the per-world texture is a stronger
+      // centre cue than a highway line on a toy road.
+      roadTexture(primaryPath, ROAD);
       b.setLineDash([]);
       // spawn/exit endcaps tinted so the route reads at a glance (lanes share both)
       const cap = (pt, color) => { b.fillStyle = color; b.beginPath(); b.arc((pt[0] + 0.5) * cell, (pt[1] + 0.5) * cell, cell * 0.6, 0, 7); b.fill(); };
       cap(primaryPath[0], "rgba(120,170,255,0.25)");
-      cap(primaryPath[primaryPath.length - 1], "rgba(120,255,170,0.25)");
+      // THE DOOR. This is the only way you lose a sticker, and it was a faint
+      // green dot the same size as the spawn — indistinguishable from it, on a
+      // board where the whole point is stopping things reaching here. Now it is a
+      // striped threshold across the lane with a warning glow, so "past this line
+      // costs you" is legible before it happens.
+      {
+        const e0 = primaryPath[primaryPath.length - 1], e1 = primaryPath[primaryPath.length - 2] || e0;
+        const ex = (e0[0] + 0.5) * cell, ey = (e0[1] + 0.5) * cell;
+        const ux = Math.sign(e0[0] - e1[0]), uy = Math.sign(e0[1] - e1[1]);
+        const nx = -uy, ny = ux;
+        const gl = b.createRadialGradient(ex, ey, 0, ex, ey, cell * 1.5);
+        gl.addColorStop(0, "rgba(255,120,110,0.34)"); gl.addColorStop(1, "rgba(255,120,110,0)");
+        b.fillStyle = gl; b.beginPath(); b.arc(ex, ey, cell * 1.5, 0, 7); b.fill();
+        b.save();
+        b.lineCap = "butt";
+        for (let i = -3; i <= 3; i++) {                 // hazard stripes across the lane
+          b.strokeStyle = i % 2 ? "rgba(255,238,120,0.85)" : "rgba(40,32,20,0.85)";
+          b.lineWidth = Math.max(2, cell * 0.16);
+          const t = i * cell * 0.16;
+          b.beginPath();
+          b.moveTo(ex + nx * cell * 0.58 + ux * t, ey + ny * cell * 0.58 + uy * t);
+          b.lineTo(ex - nx * cell * 0.58 + ux * t, ey - ny * cell * 0.58 + uy * t);
+          b.stroke();
+        }
+        b.restore();
+      }
 
       // build pads: bolted steel sockets that clearly say "build here"
       for (const p of engine.levelDef.pads) {
@@ -319,9 +421,78 @@
 
     // ---------- shared bits ----------
     function shadow(x, y, rx, ry) {
-      ctx.fillStyle = "rgba(0,0,0,0.28)";
-      ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill();
+      noInk(() => {
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill();
+      });
     }
+
+    // ---------- THE SILHOUETTE LAW ----------
+    // Measured WCAG contrast of each enemy's dominant body colour against the
+    // lane it actually walks on: acorn 1.05:1, housekey 1.06:1, yoyo 1.14:1,
+    // chair 1.27:1, marble 1.43:1, sock 1.58:1. EVERY lane in every world is a
+    // light tan, so a pale body is structurally invisible — it is not one bad
+    // colour choice, it is the whole roster against the whole road. Two sprites
+    // already carried a hand-added rim (`wad`, `peanut`) precisely because their
+    // swarms vanished; the comment on `peanut` says so.
+    //
+    // Rather than bolt a `rim()` call onto each of the 45 draw branches — which
+    // a 46th enemy would not inherit, the failure mode this project keeps
+    // re-learning — the ink line is applied by INTERCEPTING the enemy pass:
+    // inside `withInk()` every `fill()` is preceded by a stroke of the same path
+    // in near-black. One mechanism, every present AND future sprite, and the
+    // draw branches stay pure art. `noInk()` opts a call out (ground shadows,
+    // reveal glows, hp bars — things that must not be outlined).
+    //
+    // RIM is 7.7:1 – 12.5:1 against every lane in the game (luminance 0.387
+    // attic → 0.661 New House), and at 390px an enemy is ~17px across, where
+    // outline and hue are the ONLY channels that still resolve — eye dots are
+    // 1.3px. So this is the one art change that survives at phone scale.
+    const RIM = "rgba(26,18,10,0.92)";
+    let inkDepth = 0, inkOff = 0;
+    const canInk = (function () {
+      // Feature-checked: shadow the accessor on the instance so the art's 254
+      // colour assignments need no edits. Safari 14.0 has these as prototype
+      // accessors (standard WebIDL), but if a browser ever hides them the
+      // renderer must still draw — just without the ink line.
+      const proto = Object.getPrototypeOf(ctx);
+      const fill = proto && Object.getOwnPropertyDescriptor(proto, "fillStyle");
+      if (!fill || !fill.set || !fill.get || typeof ctx.stroke !== "function") return false;
+      const realFill = ctx.fill.bind(ctx);
+      const realStroke = ctx.stroke.bind(ctx);
+      let busy = false;   // the fill path strokes internally; don't recurse
+      const pen = (w) => {
+        const ps = ctx.strokeStyle, pw = ctx.lineWidth, pj = ctx.lineJoin, pc = ctx.lineCap;
+        ctx.strokeStyle = RIM; ctx.lineWidth = w; ctx.lineJoin = "round"; ctx.lineCap = "round";
+        busy = true; realStroke(); busy = false;
+        ctx.strokeStyle = ps; ctx.lineWidth = pw; ctx.lineJoin = pj; ctx.lineCap = pc;
+      };
+      ctx.fill = function (rule) {
+        const out = rule === undefined ? realFill() : realFill(rule);
+        // FILL FIRST, then stroke — the order the two hand-rimmed sprites (`wad`,
+        // `peanut`) already used. Stroking first puts half the pen UNDER the body,
+        // so at dpr 1 only ~0.7px of a 1.35px line survived and the measured
+        // boundary stayed as bright as the body: the guardrail caught that on its
+        // first run, with 35 of 45 types still pale.
+        if (inkDepth > 0 && !inkOff && !busy) pen(Math.max(1.5, cell * 0.07));
+        return out;
+      };
+      // A STROKE-ONLY sprite needs the ink too, and there are two: the Runaway
+      // Clip is a hollow chrome wire with no fill anywhere, and the Battery Bot's
+      // shell is likewise drawn as an outline. Measured at ringMinMed 186 and 191
+      // against a rimmed roster at 24-68 — so a fill-only interception would have
+      // shipped exactly two invisible enemies and called the law satisfied. Here
+      // the dark pen goes UNDER (wider, first), so the bright wire keeps its
+      // colour and gains a contour. Hairlines are skipped: inking a 1px detail
+      // line just turns it to mud.
+      ctx.stroke = function () {
+        if (inkDepth > 0 && !inkOff && !busy && ctx.lineWidth >= cell * 0.04) pen(ctx.lineWidth + Math.max(1.6, cell * 0.06));
+        return realStroke();
+      };
+      return true;
+    })();
+    function withInk(fn) { if (!canInk) return fn(); inkDepth++; try { return fn(); } finally { inkDepth--; } }
+    function noInk(fn) { if (!canInk) return fn(); inkOff++; try { return fn(); } finally { inkOff--; } }
 
     // ---------- enemies (upright, screen space) ----------
     // A boss must LOOK like one. The scale is a data field (`size`), so a new
@@ -336,11 +507,11 @@
     function revealed(e) { return !!(engine.isRevealed && engine.isRevealed(e)); }
     function drawEnemy(e, sx, sy) {
       const r = cell * 0.34;
-      if (revealed(e)) {
+      if (revealed(e)) noInk(() => {
         const pulse = 0.25 + 0.15 * Math.sin(engine.state.tick / 4 + e.id);
         ctx.fillStyle = "rgba(255,214,120," + pulse.toFixed(2) + ")";
         ctx.beginPath(); ctx.arc(sx, sy, r * 1.5, 0, 7); ctx.fill();
-      }
+      });
       if (e.type === "balloon") {
         // a floating balloon-bug: small ground shadow (it hovers), body, knot, string
         shadow(sx, sy + cell * 0.5, r * 0.6, r * 0.22);
@@ -447,7 +618,11 @@
         const gd = ctx.createLinearGradient(0, -r * 0.6, 0, r * 0.6);
         gd.addColorStop(0, "#ffffff"); gd.addColorStop(1, "#cfd6e2");
         ctx.fillStyle = gd; ctx.beginPath(); ctx.rect(-r * 0.58, -r * 0.58, r * 1.16, r * 1.16); ctx.fill();
-        ctx.strokeStyle = "#8d97a8"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        // Its own outline was #8d97a8 (luma ~150) drawn via strokeRect, which
+        // bypasses the path — so it painted a PALE line straight over the ink and
+        // left the die the one sprite in the roster with no dark contour (measured
+        // 115 against a lane of 140). Repointed dark; the pips supply the detail.
+        ctx.strokeStyle = "rgba(40,48,63,0.9)"; ctx.lineWidth = Math.max(1, cell * 0.04);
         ctx.strokeRect(-r * 0.58, -r * 0.58, r * 1.16, r * 1.16);
         ctx.fillStyle = "#28303f";
         const pip = (px, py) => { ctx.beginPath(); ctx.arc(px * r * 0.32, py * r * 0.32, r * 0.11, 0, 7); ctx.fill(); };
@@ -582,6 +757,93 @@
         ctx.restore();
         ctx.fillStyle = "#6a6252";
         ctx.beginPath(); ctx.arc(sx - r * 0.16, sy + bob - r * 0.08, r * 0.06, 0, 7); ctx.arc(sx + r * 0.06, sy + bob - r * 0.2, r * 0.06, 0, 7); ctx.fill();
+      } else if (e.type === "carton") {
+        // 🧃 Juice Carton — a squat gable-top drink carton, sun-faded, listing
+        shadow(sx, sy + r * 0.6, r * 0.58, r * 0.16);
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(Math.sin(engine.state.tick / 6 + e.id) * 0.1);
+        const gca = ctx.createLinearGradient(0, -r * 0.6, 0, r * 0.6);
+        gca.addColorStop(0, "#e8a45c"); gca.addColorStop(1, "#b3702e");
+        ctx.fillStyle = gca;
+        ctx.beginPath(); ctx.rect(-r * 0.46, -r * 0.3, r * 0.92, r * 0.9); ctx.fill();
+        ctx.fillStyle = "#cfd6dd";                                        // crimped foil gable
+        ctx.beginPath(); ctx.moveTo(-r * 0.46, -r * 0.3); ctx.lineTo(0, -r * 0.72); ctx.lineTo(r * 0.46, -r * 0.3); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(70,45,20,0.9)"; ctx.lineWidth = Math.max(1.5, cell * 0.05);
+        ctx.beginPath(); ctx.rect(-r * 0.46, -r * 0.3, r * 0.92, r * 0.9); ctx.stroke();
+        ctx.strokeStyle = "rgba(70,45,20,0.5)"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.beginPath(); ctx.moveTo(0, -r * 0.3); ctx.lineTo(0, r * 0.6); ctx.stroke();
+        ctx.fillStyle = "#f2f6fa";                                        // bent straw
+        ctx.beginPath(); ctx.rect(r * 0.1, -r * 0.95, r * 0.09, r * 0.36); ctx.fill();
+        ctx.fillStyle = "#3a2712";
+        ctx.beginPath(); ctx.arc(-r * 0.18, r * 0.16, r * 0.08, 0, 7); ctx.arc(r * 0.18, r * 0.16, r * 0.08, 0, 7); ctx.fill();
+        ctx.restore();
+      } else if (e.type === "clip") {
+        // 📎 Runaway Clip — HOLLOW chrome wire, tumbling. Deliberately not the
+        // Rogue Cog's filled toothed disc: two nested outlines, no fill, no face.
+        shadow(sx, sy + r * 0.45, r * 0.5, r * 0.13);
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(engine.state.tick * 0.12 + e.id);
+        const gcl = ctx.createLinearGradient(-r * 0.5, -r * 0.5, r * 0.5, r * 0.5);
+        gcl.addColorStop(0, "#f4f7fb"); gcl.addColorStop(1, "#8a95a4");
+        ctx.strokeStyle = gcl; ctx.lineWidth = Math.max(1.5, cell * 0.055);
+        const rr = (w, h) => { ctx.beginPath(); ctx.moveTo(-w, -h + r * 0.1); ctx.quadraticCurveTo(-w, -h, -w + r * 0.1, -h); ctx.lineTo(w - r * 0.1, -h); ctx.quadraticCurveTo(w, -h, w, -h + r * 0.1); ctx.lineTo(w, h - r * 0.1); ctx.quadraticCurveTo(w, h, w - r * 0.1, h); ctx.stroke(); };
+        rr(r * 0.24, r * 0.6); rr(r * 0.12, r * 0.44);
+        ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.beginPath(); ctx.moveTo(-r * 0.2, -r * 0.4); ctx.lineTo(-r * 0.2, r * 0.1); ctx.stroke();
+        ctx.restore();
+      } else if (e.type === "leaflet") {
+        // 📄 Loose Leaf — the campaign's first EXCLUSIVE flier. A sheet at an
+        // angle with a folded corner; the shadow sits well BELOW so the gap
+        // reads as air, the way every flier here does.
+        shadow(sx, sy + cell * 0.55, r * 0.5, r * 0.18);
+        const flut = Math.sin(engine.state.tick / 3 + e.id) * 0.18;
+        ctx.save(); ctx.translate(sx, sy - cell * 0.06); ctx.transform(1, flut, 0, 1, 0, 0);
+        ctx.fillStyle = "#f6f4ee";
+        ctx.beginPath(); ctx.moveTo(-r * 0.52, -r * 0.62); ctx.lineTo(r * 0.44, -r * 0.52); ctx.lineTo(r * 0.52, r * 0.62); ctx.lineTo(-r * 0.44, r * 0.52); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(90,88,78,0.9)"; ctx.lineWidth = Math.max(1.2, cell * 0.035); ctx.stroke();
+        ctx.fillStyle = "#d8d4c6";                                        // folded corner
+        ctx.beginPath(); ctx.moveTo(r * 0.44, -r * 0.52); ctx.lineTo(r * 0.14, -r * 0.46); ctx.lineTo(r * 0.48, -r * 0.14); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(120,118,108,0.6)"; ctx.lineWidth = Math.max(1, cell * 0.022);
+        for (let k = 0; k < 3; k++) { const y = -r * 0.12 + k * r * 0.24; ctx.beginPath(); ctx.moveTo(-r * 0.34, y); ctx.lineTo(r * 0.32, y); ctx.stroke(); }
+        ctx.fillStyle = "#4a4840";
+        ctx.beginPath(); ctx.arc(-r * 0.2, -r * 0.34, r * 0.07, 0, 7); ctx.arc(r * 0.06, -r * 0.31, r * 0.07, 0, 7); ctx.fill();
+        ctx.restore();
+      } else if (e.type === "bigmagnet") {
+        // 🧲 The Big Magnet — a gantry electromagnet on hazard-striped beams.
+        // The DEBRIS clinging to the pole faces counts the phase (2 / 5 / 9) and
+        // the halo goes white-hot in P3, the Tickmaster's precedent — so the
+        // phase is readable on the boss itself, not only in the numbers.
+        const R = r * bossScale(e, 3.2);
+        const ph = e.hp / e.maxHp;
+        const scraps = ph < 0.33 ? 9 : ph < 0.66 ? 5 : 2;
+        shadow(sx, sy + R * 0.55, R * 0.68, R * 0.2);
+        ctx.strokeStyle = "#6d7787"; ctx.lineWidth = Math.max(2, cell * 0.05);   // cables
+        ctx.beginPath(); ctx.moveTo(sx - R * 0.34, sy - R * 0.9); ctx.lineTo(sx - R * 0.34, sy - R * 0.42);
+        ctx.moveTo(sx + R * 0.34, sy - R * 0.9); ctx.lineTo(sx + R * 0.34, sy - R * 0.42); ctx.stroke();
+        ctx.fillStyle = "#2a2d33";                                              // hazard crossbeam
+        ctx.beginPath(); ctx.rect(sx - R * 0.62, sy - R * 1.0, R * 1.24, R * 0.2); ctx.fill();
+        ctx.fillStyle = "#f2c53d";
+        for (let k = 0; k < 5; k++) ctx.fillRect(sx - R * 0.58 + k * R * 0.25, sy - R * 0.98, R * 0.11, R * 0.16);
+        const halo = ph < 0.33 ? "rgba(255,255,255," : "rgba(120,200,255,";      // charge halo
+        for (let k = 1; k <= 3; k++) {
+          const a = (0.24 - k * 0.05) * (0.6 + 0.4 * Math.sin(engine.state.tick / 7 + k));
+          ctx.strokeStyle = halo + Math.max(0.02, a).toFixed(2) + ")"; ctx.lineWidth = Math.max(1.5, cell * 0.05);
+          ctx.beginPath(); ctx.arc(sx, sy + R * 0.1, R * (0.5 + k * 0.16), 0.15, Math.PI - 0.15); ctx.stroke();
+        }
+        ctx.fillStyle = "#c0392b";                                              // horseshoe body
+        ctx.beginPath();
+        ctx.arc(sx, sy - R * 0.1, R * 0.5, Math.PI, 0); ctx.lineTo(sx + R * 0.5, sy + R * 0.16);
+        ctx.lineTo(sx + R * 0.28, sy + R * 0.16); ctx.lineTo(sx + R * 0.28, sy - R * 0.1);
+        ctx.arc(sx, sy - R * 0.1, R * 0.28, 0, Math.PI, true); ctx.lineTo(sx - R * 0.5, sy + R * 0.16);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#8fa6c4";                                              // pole faces
+        ctx.fillRect(sx - R * 0.5, sy + R * 0.14, R * 0.22, R * 0.16);
+        ctx.fillRect(sx + R * 0.28, sy + R * 0.14, R * 0.22, R * 0.16);
+        ctx.fillStyle = "#5d666f";                                              // clinging debris
+        for (let k = 0; k < scraps; k++) {
+          const side = k % 2 ? 1 : -1, i = Math.floor(k / 2);
+          ctx.beginPath();
+          ctx.rect(sx + side * R * 0.39 - R * 0.06 + (i % 2) * R * 0.05, sy + R * 0.3 + i * R * 0.09, R * 0.12, R * 0.07);
+          ctx.fill();
+        }
       } else if (e.type === "chair") {
         // 🪑 Flat-Pack Chair — a half-assembled flat-pack seat, one leg still
         // loose, marching in on the other three (World 7's sock body)
@@ -1212,6 +1474,43 @@
         }
       }
     }
+    // The Fan's continuous zap. Tiers 1-3 and the Blizzard branch never emitted
+    // an event (only the Static's `chain` did), so three of the four Fan variants
+    // fired with NO visual at all — a 300-gold purchase that changed nothing you
+    // could see. A `shoot` event would be wrong here anyway: the beam is a state,
+    // not an impact, and one event per tick per fan would blow the 400-cap event
+    // buffer that already ate this project's damage tallies once.
+    function drawZapBeams(st) {
+      for (const t of st.towers) {
+        if (t.lineId !== "fan" || !t.targetId) continue;
+        if (t.disabledUntil && st.tick < t.disabledUntil) continue;   // a jammed gun fires nothing
+        const target = st.enemies.find((x) => x.alive && x.id === t.targetId);
+        if (!target) continue;
+        const a = worldToScreen(t.cx + 0.5, t.cy + 0.5);
+        const tp = engine.posOn(target.pathIdx, target.dist);
+        const b = worldToScreen(tp.x + 0.5, tp.y + 0.5);
+        // A jagged arc, deterministic off the tick so it crackles without rng.
+        const seg = 5, jag = cell * 0.12;
+        ctx.save();
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        for (const pass of [{ w: 0.20, c: "rgba(150,225,255,0.30)" }, { w: 0.075, c: "rgba(235,250,255,0.95)" }]) {
+          ctx.strokeStyle = pass.c; ctx.lineWidth = Math.max(1, cell * pass.w);
+          ctx.beginPath(); ctx.moveTo(a.x, a.y);
+          for (let i = 1; i < seg; i++) {
+            const f = i / seg;
+            const nx = -(b.y - a.y), ny = b.x - a.x, nl = Math.hypot(nx, ny) || 1;
+            const wob = Math.sin(st.tick * 0.9 + i * 2.1 + t.id) * jag * (1 - Math.abs(f - 0.5) * 2);
+            ctx.lineTo(a.x + (b.x - a.x) * f + (nx / nl) * wob, a.y + (b.y - a.y) * f + (ny / nl) * wob);
+          }
+          ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+        const gl = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, cell * 0.4);
+        gl.addColorStop(0, "rgba(210,245,255,0.55)"); gl.addColorStop(1, "rgba(210,245,255,0)");
+        ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(b.x, b.y, cell * 0.4, 0, 7); ctx.fill();
+        ctx.restore();
+      }
+    }
+
     function drawTower(t) {
       const p = worldToScreen(t.cx + 0.5, t.cy + 0.5);
       const x = p.x, y = p.y, u = cell;
@@ -1906,6 +2205,7 @@
       exitWorld();
 
       // ---------- CHARACTER pass (upright, screen space) ----------
+      drawZapBeams(st);           // BEFORE the towers, so a beam leaves the muzzle
       for (const t of st.towers) drawTower(t);
       for (const s of st.soldiers) if (s.alive) drawSoldier(s);
       // mortar shells arc between launch and impact
@@ -1929,19 +2229,31 @@
         const wy = prev.y + (curP.y - prev.y) * alpha + 0.5;
         const p = worldToScreen(wx, wy);
         const bob = Math.sin((st.tick / 4) + e.id) * cell * 0.06;
-        drawEnemy(e, p.x, p.y + bob);
+        withInk(() => drawEnemy(e, p.x, p.y + bob)); // the silhouette law
         if (e.slowUntil && st.tick < e.slowUntil) { // frost tint
           ctx.fillStyle = "rgba(140,210,255,0.32)";
           ctx.beginPath(); ctx.arc(p.x, p.y + bob, cell * 0.36, 0, 7); ctx.fill();
         }
         lerped.push({ e, x: p.x, y: p.y + bob });
       }
-      // projectiles (upright dots, on top of enemies)
+      // Projectiles (upright, on top of enemies). These used to be drawn from RAW
+      // tick state while every enemy lerped by `alpha` — and a dart travels
+      // 9 cells/s ÷ 30Hz = 0.30 cells/tick, which at cell 27 is an 8.1px jump
+      // every other frame at 60fps. So the one fast-moving thing on the field
+      // was the one thing that stuttered. Same `prevPos` treatment as enemies
+      // (projectiles carry a stable `id`), plus a motion streak back along the
+      // travel vector so a shot reads as a shot rather than a hovering dot.
       for (const pr of st.projectiles) {
-        const p = worldToScreen(pr.x + 0.5, pr.y + 0.5);
+        const prev = prevProj.get(pr.id) || pr;
+        const px = prev.x + (pr.x - prev.x) * alpha, py = prev.y + (pr.y - prev.y) * alpha;
+        const p = worldToScreen(px + 0.5, py + 0.5);
+        const back = worldToScreen(px + 0.5 - (pr.x - prev.x) * 1.6, py + 0.5 - (pr.y - prev.y) * 1.6);
+        ctx.strokeStyle = "rgba(255,231,140,0.5)";
+        ctx.lineWidth = Math.max(1, cell * 0.07); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(back.x, back.y); ctx.lineTo(p.x, p.y); ctx.stroke();
         ctx.fillStyle = "#fff3b0";
         ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.11, 0, 7); ctx.fill();
-        ctx.fillStyle = "#ffd94a";
+        ctx.fillStyle = pr.crit ? "#ffffff" : "#ffd94a";
         ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.07, 0, 7); ctx.fill();
       }
 
@@ -2060,6 +2372,8 @@
     function afterTick() {
       prevPos.clear();
       for (const e of engine.state.enemies) if (e.alive) prevPos.set(e.id, engine.posOn(e.pathIdx, e.dist));
+      prevProj.clear();
+      for (const pr of engine.state.projectiles) prevProj.set(pr.id, { x: pr.x, y: pr.y });
     }
 
     resize();

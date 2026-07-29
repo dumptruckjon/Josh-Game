@@ -303,6 +303,19 @@
       suck: { every: 9 }, enrage: { hpPct: 0.5, mult: 1.2 },
       phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 6, seconds: 3 } },
                 { upTo: 0.33, speedMult: 1.25, disable: { every: 4, seconds: 3 }, spawn: { type: "housekey", count: 4, every: 8 } } ] },
+    // 🧲 The Big Magnet (L32) — the campaign's final boss, hanging over the
+    // sorting belt. Every verb is a path the engine already runs (the TD-4 boss
+    // law), and the COMBINATION is unused: `stomp` has been dormant since the
+    // Bed Monster on L4, so the last boss reuses the first one's signature move
+    // as a deliberate arc callback, while `disable` from 66% keeps it
+    // tower-facing (the Vacuum King lesson).
+    bigmagnet: { name: "The Big Magnet", icon: "🧲", hp: 4800, speed: 0.3, armor: 0.35,
+      shield: 140, shieldRegen: 12, bounty: 400, lives: 6, size: 3.4, flier: false, boss: true,
+      meleeDmg: 0, meleeRate: 1,
+      stomp: { dmg: 70, radius: 1.8, seconds: 5 },
+      phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } },
+                { upTo: 0.33, speedMult: 1.25, disable: { every: 3, seconds: 3 },
+                  spawn: { type: "carton", count: 5, every: 6 } } ] },
     vacuumking: { name: "Vacuum King", icon: "🌪️", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
     thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
@@ -329,23 +342,37 @@
   // `ink` is the texture's own colour; `road` optionally re-tints the lane.
   const WORLDS = {
     bedroom:  { label: "🛏️ Bedroom",  spawnGlyph: "🛏️", backbone: { ground: ["sock", "knight", "blob", "marble"], flier: "balloon" },
-      floor: { pattern: "carpet", top: "#2a2350", bottom: "#3a2f63", ink: "rgba(255,255,255,0.05)" } },
+      floor: { pattern: "carpet", top: "#2a2350", bottom: "#3a2f63", ink: "rgba(255,255,255,0.05)",
+               road: { edge: "#3c2f22", base: "#caa268", top: "#e0bd83", style: "ties", tie: "rgba(58,40,22,0.30)" } } },
     backyard: { label: "🌳 Backyard", spawnGlyph: "🌳", backbone: { ground: ["acorn", "knight", "blob", "ant"], flier: "hawk" },
       floor: { pattern: "grass", top: "#1d4526", bottom: "#2c5c31", ink: "rgba(190,255,170,0.16)",
-               road: { edge: "#4a3a22", base: "#b98f56", top: "#d9b478" } } },
+               road: { edge: "#4a3a22", base: "#b98f56", top: "#d9b478", style: "stones", tie: "rgba(72,58,36,0.32)" } } },
     toystore: { label: "🧸 Toy Store", spawnGlyph: "🧸", backbone: { ground: ["yoyo", "knight", "blob", "die"], flier: "hawk" },
-      floor: { pattern: "tile", top: "#123f4a", bottom: "#17505e", ink: "rgba(190,245,255,0.10)" } },
+      floor: { pattern: "tile", top: "#123f4a", bottom: "#17505e", ink: "rgba(190,245,255,0.10)",
+               road: { edge: "#3a2c1e", base: "#d8b06a", top: "#efd39a", style: "ties", tie: "rgba(52,34,18,0.24)" } } },
     attic:    { label: "🧳 Attic",    spawnGlyph: "🧳", backbone: { ground: ["mitten", "knight", "blob", "yarn"], flier: "hawk" },
       floor: { pattern: "boards", top: "#3a2a1c", bottom: "#4a3625", ink: "rgba(20,12,6,0.32)",
-               road: { edge: "#2a1f14", base: "#9d7d52", top: "#c3a273" } } },
+               road: { edge: "#2a1f14", base: "#9d7d52", top: "#c3a273", style: "tape", tie: "rgba(28,20,12,0.34)" } } },
     garage:   { label: "🔧 Garage",   spawnGlyph: "🔧", backbone: { ground: ["rag", "knight", "blob", "cog"], flier: "hawk" },
-      floor: { pattern: "concrete", top: "#2b3038", bottom: "#383e47", ink: "rgba(0,0,0,0.22)" } },
+      floor: { pattern: "concrete", top: "#2b3038", bottom: "#383e47", ink: "rgba(0,0,0,0.22)",
+               road: { edge: "#22262c", base: "#8d949e", top: "#a9b1bb", style: "tape", tie: "rgba(255,214,80,0.55)" } } },
     moving:   { label: "📦 Moving Day", spawnGlyph: "📦", backbone: { ground: ["wad", "knight", "blob", "peanut"], flier: "hawk" },
       floor: { pattern: "cardboard", top: "#7a5326", bottom: "#8d6531", ink: "rgba(60,34,10,0.26)",
-               road: { edge: "#33261a", base: "#c9a877", top: "#e3c99c" } } },
+               road: { edge: "#33261a", base: "#c9a877", top: "#e3c99c", style: "tape", tie: "rgba(180,150,105,0.55)" } } },
+    // World 7 — the van arrived. Bare boards under a pale painter's drop-cloth.
     newhouse: { label: "🏠 The New House", spawnGlyph: "🪜", backbone: { ground: ["chair", "knight", "blob", "housekey"], flier: "hawk" },
       floor: { pattern: "dropcloth", top: "#4a4740", bottom: "#5b574d", ink: "rgba(240,236,225,0.13)",
-               road: { edge: "#2e2a22", base: "#b7ad97", top: "#dcd4c0" } } },
+               road: { edge: "#2e2a22", base: "#b7ad97", top: "#dcd4c0", style: "stones", tie: "rgba(120,112,96,0.26)" } } },
+    // World 8 — the box that never got unpacked in the New House went out with
+    // the recycling. Deliberately NOT another room in the displacement chain:
+    // this is the step AFTER being kept. Steel grating under sodium lamps, and
+    // the road is a dark rubber conveyor belt so it can never be confused with
+    // the New House's pale drop-cloth. Both ♻️ carry U+FE0F — U+267B is
+    // text-default and ships as a monochrome sliver on iOS 14.2 without it.
+    sortline: { label: "♻️ The Sort Line", spawnGlyph: "♻️",
+      backbone: { ground: ["carton", "knight", "blob", "clip"], flier: "leaflet" },
+      floor: { pattern: "grating", top: "#232a2e", bottom: "#2f383d", ink: "rgba(255,196,110,0.09)",
+               road: { edge: "#101315", base: "#454b52", top: "#636a73", style: "ties", tie: "rgba(12,14,16,0.55)" } } },
   };
 
   // ---- Phase 2: per-world backbone SKINS ----
@@ -381,6 +408,13 @@
     // World 7 (The New House) — the van has been unpacked into an empty house
     ["sock",   "chair",    "Flat-Pack Chair", "🪑"],
     ["marble", "housekey", "Spare Key",       "🔑"],
+    // World 8 (The Sort Line). The HAWK skin is the new idea: every world since
+    // the backyard shared one flier, and it is 11-23% of every world's bodies —
+    // measured as the single cheapest differentiation lever left, taking the
+    // worst world-pair cosine from 0.688 to 0.428.
+    ["sock",   "carton",  "Juice Carton", "🧃"],
+    ["marble", "clip",    "Runaway Clip", "📎"],
+    ["hawk",   "leaflet", "Loose Leaf",   "📄"],
   ];
   for (const [src, id, name, icon] of SKINS) {
     ENEMIES[id] = Object.assign({}, ENEMIES[src], { name, icon, sortKey: src, skinOf: src });
@@ -470,13 +504,26 @@
       startGold: 400,  // AUDIT 2026-07: raised so the OPENING is fair — the old value lost 4-8 lives in waves 1-3 before a real board existed (the front-loaded-difficulty fix)
       budgetBase: 330,
       // TD-11: the lever is INTRODUCED here, deep in World 1, so L10's train
-      // set isn't the first time you meet one. Default (short) route unchanged.
+      // set isn't the first time you meet one. Default (short) route unchanged —
+      // lane 0 IS `path`, so a re-fork is a default-noop and needs no re-tune.
+      //
+      // RE-FORKED 2026-07. The first cut branched at dist 35 of a 46-cell lane —
+      // 76% of the way to the door — and the sweep measured its lever at a gain
+      // of exactly 0.0 lives at EVERY board size from 4 to 9 pads: there was no
+      // board left downstream for the extra exposure to act on. Legality had
+      // been checked; VALUE never had, because the shipped lever guardrail was
+      // hard-pinned to L10. Re-searched with tools/td-fork-search.js (RESEARCH=1)
+      // and re-measured: the new detour splits at dist 14 (30% along) for +2.0
+      // lives at the thinnest board and +1.0 at 5 pads. L3 still cannot be made
+      // DECISIVE — a 5-pad dart board clears it on every seed, so no diversion
+      // can flip a loss — and that is recorded as the tutorial fork's exemption
+      // in `TD7 lever advantage` rather than papered over.
       paths: [
         [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 3], [23, 3] ],
-        [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 9], [10, 9], [10, 3], [18, 3], [23, 3] ],
+        [ [0, 12], [4, 12], [4, 3], [5, 3], [5, 13], [8, 13], [8, 3], [11, 3], [11, 10], [18, 10], [18, 3], [23, 3] ],
       ],
-      fork: { at: 35 },   // shared-prefix length — where the tracks split
-      lever: { cx: 18, cy: 9 }, // tap it to send the traffic the long way
+      fork: { at: 14 },   // shared-prefix length — where the tracks split
+      lever: { cx: 5, cy: 3 }, // tap it to send the traffic the long way
       path: [ [0, 12], [4, 12], [4, 3], [11, 3], [11, 10], [18, 10], [18, 3], [23, 3] ],
       pads: [
         { id: "p1", cx: 2, cy: 10 },
@@ -1321,6 +1368,151 @@
       ],
     },
 
+    // ================= WORLD 8 — ♻️ The Sort Line (L29-L32) =================
+    // A recycling-and-salvage sorting plant: the box that never got unpacked in
+    // the New House went out with the recycling. The toys' last stand before the
+    // crusher. Its crowd is TRASH rather than toys, and it carries the
+    // campaign's first EXCLUSIVE flier — measured as the single cheapest
+    // differentiation lever left (worst world-pair cosine 0.688 -> 0.428).
+    {
+      id: 29,
+      name: "The Tipping Floor",
+      world: "sortline",
+      badge: 3,
+      startGold: 1350,
+      budgetBase: 950,
+      // Hook: a burst bag of gunk on the tipping floor (mud patch).
+      path: [[0, 1], [19, 1], [19, 7], [4, 7], [4, 13], [23, 13]],
+      zones: [ { from: 30, to: 38, mult: 0.75 } ],
+      pads: [ { id: "p1", cx: 3, cy: 6 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 20, cy: 0 }, { id: "p4", cx: 12, cy: 11 }, { id: "p5", cx: 11, cy: 3 }, { id: "p6", cx: 2, cy: 13 }, { id: "p7", cx: 20, cy: 8 }, { id: "p8", cx: 6, cy: 10 }, { id: "p9", cx: 16, cy: 3 }, { id: "p10", cx: 0, cy: 3 }, { id: "p11", cx: 6, cy: 3 }, { id: "p12", cx: 17, cy: 11 }, { id: "p13", cx: 21, cy: 4 } ],
+      waves: [
+        { groups: [ { type: "carton", count: 20, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 13, gap: 0.65, delay: 0 }, { type: "clip", count: 33, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "carton", count: 27, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 17, gap: 0.65, delay: 0 }, { type: "clip", count: 42, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 3, gap: 0.9, delay: 4 }, { type: "carton", count: 34, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 6, gap: 0.9, delay: 4 }, { type: "blob", count: 22, gap: 0.65, delay: 0 }, { type: "clip", count: 56, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 3, gap: 0.9, delay: 4 }, { type: "leaflet", count: 11, gap: 0.3, delay: 2 }, { type: "carton", count: 41, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 14, gap: 0.3, delay: 2 }, { type: "blob", count: 26, gap: 0.65, delay: 0 }, { type: "clip", count: 65, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 7, gap: 0.9, delay: 4 }, { type: "leaflet", count: 18, gap: 0.3, delay: 2 }, { type: "carton", count: 51, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "ghost", count: 17, gap: 0.9, delay: 4 }, { type: "leaflet", count: 23, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "clip", count: 74, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 29, gap: 0.3, delay: 2 }, { type: "carton", count: 67, gap: 0.65, delay: 0 }, { type: "knight", count: 17, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 21, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 43, gap: 0.65, delay: 0 }, { type: "clip", count: 109, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 34, gap: 0.9, delay: 4 }, { type: "leaflet", count: 46, gap: 0.3, delay: 2 }, { type: "carton", count: 86, gap: 0.65, delay: 0 }, { type: "knight", count: 22, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "bubblewrap", count: 18, gap: 0.9, delay: 4 }, { type: "leaflet", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 48, gap: 0.65, delay: 0 }, { type: "clip", count: 119, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 30,
+      name: "Picking Station",
+      world: "sortline",
+      badge: 3,
+      // 8-SEED SWEEP 2026-07: this shipped at 1450 and LOST on heroic seed 5 —
+      // "every level winnable on heroic" is a contract, and `AUDIT heroic is a
+      // SLOPE` drives seed 7 only, so it passed green. Swept 1450/1600/1750/1900
+      // (all still lose that seed) → 2050 clears every seed with a floor of 6.
+      // Normal is unmoved because it is already capped (20 on 7 of 8 seeds); see
+      // the formality note on the waves below.
+      startGold: 2050,
+      budgetBase: 1000,
+      // Hook: a live socket on the sorting rig (power pad on p5). Its air
+      // pressure starts a wave EARLIER than its siblings — the Loose Leaf is the
+      // world's own flier, so this is the level that teaches it.
+      path: [[0, 13], [17, 13], [17, 7], [3, 7], [3, 1], [21, 1], [21, 5], [23, 5]],
+      pads: [ { id: "p1", cx: 2, cy: 0 }, { id: "p2", cx: 23, cy: 7 }, { id: "p3", cx: 10, cy: 11 }, { id: "p4", cx: 0, cy: 11 }, { id: "p5", cx: 14, cy: 3, boost: { range: 1.18, rate: 1.15 } }, { id: "p6", cx: 22, cy: 0 }, { id: "p7", cx: 19, cy: 13 }, { id: "p8", cx: 7, cy: 5 }, { id: "p9", cx: 18, cy: 6 }, { id: "p10", cx: 2, cy: 8 }, { id: "p11", cx: 15, cy: 10 }, { id: "p12", cx: 5, cy: 11 }, { id: "p13", cx: 1, cy: 4 } ],
+      waves: [
+        { groups: [ { type: "carton", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 14, gap: 0.65, delay: 0 }, { type: "clip", count: 35, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "carton", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 17, gap: 0.65, delay: 0 }, { type: "clip", count: 44, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 2, gap: 0.9, delay: 4 }, { type: "carton", count: 37, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "leaflet", count: 9, gap: 0.3, delay: 2 }, { type: "blob", count: 21, gap: 0.65, delay: 0 }, { type: "clip", count: 53, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 6, gap: 0.9, delay: 4 }, { type: "leaflet", count: 12, gap: 0.3, delay: 2 }, { type: "carton", count: 42, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 15, gap: 0.3, delay: 2 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "clip", count: 69, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 11, gap: 0.9, delay: 4 }, { type: "leaflet", count: 19, gap: 0.3, delay: 2 }, { type: "carton", count: 56, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "leaflet", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 36, gap: 0.65, delay: 0 }, { type: "clip", count: 90, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 21, gap: 0.9, delay: 4 }, { type: "leaflet", count: 30, gap: 0.3, delay: 2 }, { type: "carton", count: 74, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 11, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 47, gap: 0.65, delay: 0 }, { type: "clip", count: 119, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 34, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 93, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 26, gap: 0.9, delay: 4 }, { type: "leaflet", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 61, gap: 0.65, delay: 0 }, { type: "clip", count: 152, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "cushion", count: 19, gap: 0.9, delay: 4 }, { type: "leaflet", count: 72, gap: 0.3, delay: 2 }, { type: "carton", count: 110, gap: 0.65, delay: 0 }, { type: "knight", count: 27, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 31,
+      name: "The Sorter Arm",
+      world: "sortline",
+      badge: 3,
+      // FORMALITY ON NORMAL, and it is DELIBERATE — recorded so the dead end is
+      // not re-walked. This finishes 20/20 on normal across 8 seeds (heroic
+      // median 13, no losses), which is the class CLAUDE.md broke its own +/-2
+      // rule to fix on L13. Gold cannot help (already capped) and the only lever
+      // this engine responds to is threat shape — so a 🚪 side door was measured
+      // at three doses: normal stayed pinned at 20 at EVERY dose, while the doses
+      // large enough to matter took heroic to LOSING 3 of 8 seeds. That is the
+      // threshold domination this project has now measured on five levels: a
+      // board holds a wave completely or collapses. Its real interest is the
+      // lever (proven decisive at a 9-pad board), not its margin.
+      startGold: 1400,
+      budgetBase: 1000,
+      // Hook: the diverter that decides which chute — the world's one fork +
+      // lever. 53 cells becomes 67, a 1.26x gain; the lanes coincide to the
+      // fork and diverge after it, so throwing it reroutes in-flight traffic
+      // with no teleport.
+      paths: [
+        [[0, 7], [8, 7], [8, 1], [19, 1], [19, 7], [13, 7], [13, 13], [23, 13]],
+        [[0, 7], [8, 7], [8, 1], [19, 1], [23, 1], [23, 10], [19, 10], [19, 7], [13, 7], [13, 13], [23, 13]],
+      ],
+      fork: { at: 25 },
+      lever: { cx: 19, cy: 1 },
+      pads: [ { id: "p1", cx: 7, cy: 0 }, { id: "p2", cx: 21, cy: 7 }, { id: "p3", cx: 11, cy: 13 }, { id: "p4", cx: 0, cy: 9 }, { id: "p5", cx: 12, cy: 6 }, { id: "p6", cx: 6, cy: 9 }, { id: "p7", cx: 17, cy: 3 }, { id: "p8", cx: 17, cy: 11 }, { id: "p9", cx: 3, cy: 5 }, { id: "p10", cx: 9, cy: 8 }, { id: "p11", cx: 21, cy: 3 }, { id: "p12", cx: 10, cy: 3 } ],
+      waves: [
+        { groups: [ { type: "carton", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 14, gap: 0.65, delay: 0 }, { type: "clip", count: 35, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "carton", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 4, gap: 0.9, delay: 4 }, { type: "blob", count: 17, gap: 0.65, delay: 0 }, { type: "clip", count: 43, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 2, gap: 0.9, delay: 4 }, { type: "carton", count: 36, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 24, gap: 0.65, delay: 0 }, { type: "clip", count: 60, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 6, gap: 0.9, delay: 4 }, { type: "leaflet", count: 12, gap: 0.3, delay: 2 }, { type: "carton", count: 42, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 6, gap: 0.9, delay: 4 }, { type: "leaflet", count: 15, gap: 0.3, delay: 2 }, { type: "blob", count: 28, gap: 0.65, delay: 0 }, { type: "clip", count: 68, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 19, gap: 0.3, delay: 2 }, { type: "carton", count: 55, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "slime", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 32, gap: 0.65, delay: 0 }, { type: "clip", count: 81, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 17, gap: 0.9, delay: 4 }, { type: "leaflet", count: 30, gap: 0.3, delay: 2 }, { type: "carton", count: 73, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 27, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 47, gap: 0.65, delay: 0 }, { type: "clip", count: 117, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 28, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 94, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 5, gap: 0.9, delay: 4 }, { type: "leaflet", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 71, gap: 0.65, delay: 0 }, { type: "clip", count: 178, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "ghost", count: 52, gap: 0.9, delay: 4 }, { type: "leaflet", count: 72, gap: 0.3, delay: 2 }, { type: "carton", count: 110, gap: 0.65, delay: 0 }, { type: "knight", count: 27, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 32,
+      name: "The Big Magnet",
+      world: "sortline",
+      badge: 3,
+      startGold: 1800,
+      budgetBase: 1050,
+      // The campaign's last level. No gimmick — the boss IS the hook.
+      path: [[0, 3], [18, 3], [18, 9], [2, 9], [2, 13], [21, 13], [21, 10], [23, 10]],
+      pads: [ { id: "p1", cx: 1, cy: 8 }, { id: "p2", cx: 23, cy: 13 }, { id: "p3", cx: 14, cy: 1 }, { id: "p4", cx: 11, cy: 11 }, { id: "p5", cx: 5, cy: 1 }, { id: "p6", cx: 20, cy: 6 }, { id: "p7", cx: 17, cy: 11 }, { id: "p8", cx: 19, cy: 2 }, { id: "p9", cx: 7, cy: 7 }, { id: "p10", cx: 0, cy: 13 }, { id: "p11", cx: 0, cy: 1 }, { id: "p12", cx: 14, cy: 7 }, { id: "p13", cx: 20, cy: 9 }, { id: "p14", cx: 5, cy: 11 } ],
+      waves: [
+        { groups: [ { type: "carton", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "clip", count: 37, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "carton", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "clip", count: 44, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "carton", count: 38, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 5, gap: 0.9, delay: 4 }, { type: "blob", count: 25, gap: 0.65, delay: 0 }, { type: "clip", count: 62, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 4, gap: 0.9, delay: 4 }, { type: "leaflet", count: 12, gap: 0.3, delay: 2 }, { type: "carton", count: 46, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 11, gap: 0.9, delay: 4 }, { type: "leaflet", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 28, gap: 0.65, delay: 0 }, { type: "clip", count: 72, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 20, gap: 0.3, delay: 2 }, { type: "carton", count: 57, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "racer", count: 14, gap: 0.9, delay: 4 }, { type: "leaflet", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 33, gap: 0.65, delay: 0 }, { type: "clip", count: 83, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 3, gap: 0.9, delay: 4 }, { type: "leaflet", count: 32, gap: 0.3, delay: 2 }, { type: "carton", count: 84, gap: 0.65, delay: 0 }, { type: "knight", count: 21, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 29, gap: 0.9, delay: 4 }, { type: "leaflet", count: 41, gap: 0.3, delay: 2 }, { type: "blob", count: 48, gap: 0.65, delay: 0 }, { type: "clip", count: 121, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 23, gap: 0.9, delay: 4 }, { type: "leaflet", count: 51, gap: 0.3, delay: 2 }, { type: "carton", count: 96, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "cushion", count: 17, gap: 0.9, delay: 4 }, { type: "leaflet", count: 64, gap: 0.3, delay: 2 }, { type: "blob", count: 54, gap: 0.65, delay: 0 }, { type: "clip", count: 135, gap: 0.8, delay: 3 } ] },
+        { boss: true, groups: [ { type: "bigmagnet", count: 1, gap: 2, delay: 0 }, { type: "cushion", count: 10, gap: 0.7, delay: 5 }, { type: "slime", count: 10, gap: 0.7, delay: 10 }, { type: "leaflet", count: 18, gap: 0.35, delay: 15 } ] },
+      ],
+    },
+
   ];
 
   // ---- TD-5 META (§8.1): star tree. Spend earned ⭐ on permanent buffs; free
@@ -1403,6 +1595,7 @@
     { id: "toolsdown",     icon: "🧰", name: "Tools Down",     desc: "Beat the Toolbox Titan" },
     { id: "notleaving",    icon: "🚚", name: "Not Leaving",    desc: "Beat The Moving Van" },
     { id: "gooddog",       icon: "🐕", name: "Good Dog",       desc: "Beat The Housedog" },
+    { id: "scrapped",      icon: "🧲", name: "Scrapped",       desc: "Beat The Big Magnet" },
     // desc is DERIVED at read time (see td-ui) — a literal here went stale the
     // moment World 4 raised the ceiling from 36 to 48.
     { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn half the stars" },
@@ -1437,6 +1630,9 @@
       // World 7: the house's own crowd plus air plus three disruptors — an
       // endless run here has to answer everything the campaign has taught.
       newhouse: { label: "🏠 The New House", pool: ["chair", "housekey", "knight", "blob", "hawk", "cushion", "boombox", "screw"], miniBoss: "pinata" },
+      // World 8: its own crowd plus the two resist shapes, so an endless run
+      // here has to answer both the padding and the cushioning.
+      sortline: { label: "♻️ The Sort Line", pool: ["carton", "clip", "knight", "blob", "leaflet", "cushion", "bubblewrap", "slime"], miniBoss: "pinata" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
     arenas: {
@@ -1463,6 +1659,8 @@
       // World 7's arena CLIMBS to the top row at the end (up to the new room),
       // where the other six descend or mirror. Pads searched at BAND=2.2 like
       // every arena: you start poor, so a tier-1 dart must touch the lane at once.
+      sortline: { path: [ [0, 1], [20, 1], [20, 7], [4, 7], [4, 12], [23, 12] ], startGold: 540,
+        pads: [ { id: "p1", cx: 3, cy: 6 }, { id: "p2", cx: 21, cy: 0 }, { id: "p3", cx: 14, cy: 10 }, { id: "p4", cx: 23, cy: 10 }, { id: "p5", cx: 3, cy: 13 }, { id: "p6", cx: 10, cy: 3 }, { id: "p7", cx: 8, cy: 9 }, { id: "p8", cx: 16, cy: 3 }, { id: "p9", cx: 22, cy: 5 }, { id: "p10", cx: 21, cy: 8 }, { id: "p11", cx: 0, cy: 3 }, { id: "p12", cx: 6, cy: 3 }, { id: "p13", cx: 13, cy: 5 }, { id: "p14", cx: 18, cy: 10 } ] },
       newhouse: { path: [ [0, 5], [19, 5], [19, 10], [2, 10], [2, 0], [23, 0] ], startGold: 520,
         pads: [ { id: "p1", cx: 1, cy: 11 }, { id: "p2", cx: 23, cy: 2 }, { id: "p3", cx: 14, cy: 12 }, { id: "p4", cx: 8, cy: 2 }, { id: "p5", cx: 0, cy: 0 }, { id: "p6", cx: 20, cy: 11 }, { id: "p7", cx: 15, cy: 3 }, { id: "p8", cx: 7, cy: 8 }, { id: "p9", cx: 20, cy: 4 }, { id: "p10", cx: 12, cy: 7 }, { id: "p11", cx: 9, cy: 12 }, { id: "p12", cx: 17, cy: 7 }, { id: "p13", cx: 0, cy: 7 }, { id: "p14", cx: 4, cy: 3 } ] },
       garage: { path: [ [0, 3], [21, 3], [21, 8], [3, 8], [3, 13], [23, 13] ], startGold: 480,

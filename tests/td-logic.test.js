@@ -1248,17 +1248,30 @@ test("TD17 lever timer is GAME-TIME, so fast-forward cannot cheat it", () => {
     "feeding the SAME ticks in bigger batches (what 2x/3x does) gives an identical lever state AND identical enemy progress");
 });
 
-test("TD7 lever advantage: sending the train the LONG way (more coverage) saves lives", () => {
-  const L10 = DATA.LEVELS.find((l) => l.id === 10);
+test("TD7 lever advantage: sending the train the LONG way (more coverage) saves lives — on EVERY fork", () => {
+  // SCOPE. This was hard-pinned to `l.id === 10` while the lever spread to all
+  // eight worlds, so seven forks had NOTHING that could fail if their lever were
+  // worthless — and one of them was: L3's original detour branched 76% of the
+  // way down its lane and measured a gain of exactly 0.0 lives at every board
+  // size. A guardrail nothing can fail is a wish, which is the same class as the
+  // fork sweep that stayed an unactionable open item for two whole worlds.
+  //
+  // Each level names the THIN board at which the question is real: too few pads
+  // and it loses both ways, too many and it wins both ways. Caps measured by
+  // sweeping every size from (pads-7) to pads on 4 seeds.
+  // cap → the thin board; gain → the lives the diversion is worth at seed 7,
+  // measured, then floored well below the measurement so seed drift cannot
+  // flake it. L3 (the tutorial fork, 9 waves) is the one level where the lever
+  // CANNOT be decisive — a 5-pad dart board clears it on every seed, so no
+  // diversion can flip a loss — hence its honest bar is "it must still help".
+  const FORK = {
+    3: { cap: 4, gain: 1 }, 7: { cap: 7, gain: 5 }, 10: { cap: 13, gain: 4 }, 15: { cap: 9, gain: 4 },
+    19: { cap: 9, gain: 8 }, 23: { cap: 9, gain: 6 }, 27: { cap: 13, gain: 4 }, 31: { cap: 9, gain: 6 },
+  };
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
-  function play(pull) {
-    const e = TD.createEngine(L10, { seed: 7 });
-    // A constrained build: dart-only, no tier-4 branches. Recalibrated for TD-10
-    // — L10 now carries Drip Slimes and Loose Screws, so a 5-pad board loses
-    // BOTH ways and the lever's advantage is unmeasurable at that size. Nine
-    // dart pads is the smallest board that survives the level at all, which is
-    // where "did the long route help?" becomes a real question again.
-    const thin = L10.pads.slice(0, 9).map((p) => p.id);
+  function play(lvl, cap, pull) {
+    const e = TD.createEngine(lvl, { seed: 7 });
+    const thin = lvl.pads.slice(0, cap).map((p) => p.id);
     let g = 0, everLong = false;
     while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 400000) {
       if (e.state.phase === "build") {
@@ -1272,9 +1285,24 @@ test("TD7 lever advantage: sending the train the LONG way (more coverage) saves 
     }
     return { phase: e.state.phase, lives: e.state.lives, everLong };
   }
-  const shortRun = play(false), longRun = play(true);
-  assert.ok(longRun.everLong, "pulling actually routed enemies down the long lane");
-  assert.ok(longRun.lives > shortRun.lives, `the long route saves lives (short-only ${shortRun.lives} → with-lever ${longRun.lives})`);
+  const forks = DATA.LEVELS.filter((l) => l.fork);
+  assert.ok(forks.length >= 8, `every world ships a fork (${forks.length} found)`);
+  let decisive = 0;
+  for (const lvl of forks) {
+    const spec = FORK[lvl.id];
+    assert.ok(spec, `L${lvl.id} ships a fork but no measured thin-board cap — sweep it with tools/td-fork-search.js and add one, or its lever is unverified`);
+    const shortRun = play(lvl, spec.cap, false), longRun = play(lvl, spec.cap, true);
+    assert.ok(longRun.everLong, `L${lvl.id}: pulling actually routed enemies down the long lane`);
+    const gain = longRun.lives - shortRun.lives;
+    assert.ok(gain >= spec.gain,
+      `L${lvl.id}: the diversion must be worth >= ${spec.gain} lives at a ${spec.cap}-pad board (short ${shortRun.lives} → with-lever ${longRun.lives}, gain ${gain}). A lever that changes nothing is a free upgrade dressed up as a control — L3 shipped one for two whole worlds.`);
+    if (shortRun.phase === "lost" && longRun.phase === "won") decisive++;
+  }
+  // A POPULATION claim, so one level's seed luck can't break it and no single
+  // level has to carry a phase-flip it structurally cannot produce (L3 and L10
+  // are both winnable at every board size; their levers are worth 1 and 7 lives).
+  assert.ok(decisive >= 4,
+    `at least 4 of the ${forks.length} forks must be outright DECISIVE at their thin board — lose short, win with the diversion (got ${decisive}). Otherwise every lever has quietly become cosmetic.`);
 });
 
 test("AUDIT pad geometry: no pad sits ON a lane, none crowd each other (every level + arena)", () => {
@@ -2457,8 +2485,30 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
   }
   // Every special FIELD an enemy carries must produce a trait line — otherwise a
   // new mechanic ships invisible to the player, which is the bug this fixes.
+  //
+  // The map below used to be the WHOLE check, hand-listed — so it silently had
+  // eight holes, and four of them were real: `stomp`, `phases`, `suck` and
+  // `enrage` were shipped boss mechanics with no card line at all (the Bed
+  // Monster's unblockable stomp, the Static's escalating kit, the Vacuum King's
+  // soldier-suck and its enrage). That is the documented "a scan's own list is
+  // part of the scan" class, applied to a trait table: the guardrail could only
+  // catch you after you remembered to edit the guardrail. So the FIELDS are now
+  // DERIVED from the union of everything any enemy actually carries, and a
+  // field must either name its trait here or sit on NOT_A_TRAIT with a reason.
   const FIELD_TRAIT = { flier: "flier", shield: "shield", splashResist: "splash", slowHeal: "slowheal",
-    sap: "sap", phase: "phase", tunnel: "tunnel", split: "split", heal: "heal", charge: "charge", goldBurst: "gold", boss: "boss" };
+    sap: "sap", phase: "phase", tunnel: "tunnel", split: "split", heal: "heal", charge: "charge", goldBurst: "gold", boss: "boss",
+    bonkResist: "bonkresist", hurry: "hurry", slowImmune: "slowimmune", spawner: "spawner",
+    stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases" };
+  // Plain stats (spoken by the card's own stat line), presentation, or fields
+  // asserted separately below. Everything else MUST be a trait.
+  const NOT_A_TRAIT = new Set(["hp", "speed", "icon", "name", "bounty", "size", "meleeDmg", "meleeRate",
+    "shieldRegen", "skinOf", "sortKey", "armor", "lives"]);
+  const ALL_FIELDS = new Set();
+  for (const def of Object.values(DATA.ENEMIES)) for (const f of Object.keys(def)) ALL_FIELDS.add(f);
+  for (const f of ALL_FIELDS) {
+    assert.ok(FIELD_TRAIT[f] || NOT_A_TRAIT.has(f),
+      `.${f} is a field some enemy carries but this guardrail does not know it — give it a trait line in enemyTraits and map it here, or add it to NOT_A_TRAIT with a reason. A mechanic nothing explains is invisible.`);
+  }
   for (const [k, def] of Object.entries(DATA.ENEMIES)) {
     const keys = TD.enemyTraits(def).map((t) => t.key);
     for (const [field, trait] of Object.entries(FIELD_TRAIT)) {
@@ -3358,7 +3408,16 @@ test("W5 wave composition: a vanilla backbone, at most ONE disruptive special pe
   // per-world backbone would silently have been read as five disruptive shapes.
   const BACKBONE = new Set(DATA.BACKBONE_TYPES);
   const VALVE = new Set(["pinata"]);
-  for (const lvl of DATA.LEVELS.filter((l) => l.world === "garage")) {
+  // SCOPE. This read `l.world === "garage"` and stayed that way through three
+  // more worlds — so moving, newhouse and sortline were all EMITTED against the
+  // rule and then never checked against it, the same narrow-scope class as the
+  // flex-gap law guarding only main.css. Every world from the garage on is held
+  // to it; the four older worlds predate the World-4 revert that taught it and
+  // genuinely fail (L10 w2 is 74% mole, L12 w1 is 67% ghost), so retro-fitting
+  // would flag deliberate design as broken. Measured before widening.
+  const RULED = new Set(["garage", "moving", "newhouse", "sortline"]);
+  assert.ok([...RULED].every((w) => DATA.WORLDS[w]), "every ruled world exists");
+  for (const lvl of DATA.LEVELS.filter((l) => RULED.has(l.world))) {
     lvl.waves.forEach((w, i) => {
       if (w.boss) return;                       // a finale is its own difficulty axis
       const hp = (g) => DATA.ENEMIES[g.type].hp * g.count;

@@ -137,8 +137,15 @@ function check(level, def, alt, D, R, legs) {
 }
 
 const only = process.argv[2] ? process.argv[2].split(",").map(Number) : null;
-const targets = DATA.LEVELS.filter((l) => !l.fork && (!only || only.includes(l.id)));
-console.log(`searching ${targets.length} un-forked level(s) · min gain ${MIN_GAIN}x\n`);
+// RESEARCH=1 re-searches a level that ALREADY has a fork. Needed because a fork
+// can be legal and still be WORTHLESS: L3's shipped detour branches 76% of the
+// way down its own lane, so the sim measured its lever at a gain of 0.0 lives at
+// every board size — there is no board left downstream to exploit. Legality was
+// checked; VALUE never was. Since lane 0 is untouched by a re-fork, swapping the
+// second lane is still a default-noop and needs no re-tune.
+const RESEARCH = !!process.env.RESEARCH;
+const targets = DATA.LEVELS.filter((l) => (RESEARCH || !l.fork) && (!only || only.includes(l.id)));
+console.log(`searching ${targets.length} level(s) · min gain ${MIN_GAIN}x${RESEARCH ? " · RE-searching forked maps" : ""}\n`);
 
 const hits = {};
 for (const level of targets) {

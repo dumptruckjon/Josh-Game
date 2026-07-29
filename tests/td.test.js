@@ -1362,6 +1362,26 @@ test("TD-12 guide: 📖 opens a card for every enemy, naming what can hit it", a
   const plane = await page.evaluate(() => document.querySelector('.td-guide__card[data-enemy="tinplane"]').textContent);
   assert.match(plane, /Armored/, "the Tin Plane's armor is explained");
   assert.match(plane, /zap ignores armor/, "…including the counter-play that answers it");
+  // Every STAR-TREE node must appear too. The tree grew to 30 nodes across three
+  // branches and was documented NOWHERE outside its own buy screen — the same
+  // condition that made TD-12 write this guide for the enemies, and that TD-16's
+  // gimmicks hit again. Derived from DATA.META_NODES, so a 31st node cannot ship
+  // invisible and the branch totals can never drift from the data.
+  const tree = await page.evaluate(() => {
+    const ul = document.querySelector(".td-guide__tree");
+    return { text: ul ? ul.textContent : "", nodes: window.TDData.META_NODES.map((n) => n.name), total: window.TDData.META_NODES.reduce((s, n) => s + n.cost, 0) };
+  });
+  for (const name of tree.nodes) {
+    assert.ok(tree.text.indexOf(name) >= 0, `the guide explains the star-tree skill "${name}" — a power nothing describes is invisible`);
+  }
+  const branchTotals = await page.evaluate(() => {
+    const by = {};
+    for (const n of window.TDData.META_NODES) by[n.branch] = (by[n.branch] || 0) + n.cost;
+    return by;
+  });
+  for (const [b, sum] of Object.entries(branchTotals)) {
+    assert.ok(tree.text.indexOf(sum + "⭐") >= 0, `the ${b} branch states its real total (${sum}⭐) rather than a hand-typed one`);
+  }
   // It must fit the narrowest device, and scroll rather than clip.
   await page.setViewportSize({ width: 320, height: 568 });
   await page.waitForTimeout(60);
@@ -2309,6 +2329,210 @@ test("ART: every enemy draws as ITSELF — none falls through to the Sock Goblin
   assert.deepEqual(clashes, [], `enemies that draw identically (a missing art branch): ${clashes.join("; ")}`);
 });
 
+test("ART: every enemy has a SILHOUETTE against the lane it walks on, and no two are near-twins", async () => {
+  // TWO defects in one measurement pass, both invisible to the exact-hash test
+  // above — which only ever caught a MISSING branch, so two enemies could be 98%
+  // alike and sail through (measured: screw/tinplane were RGB distance 0).
+  //
+  // (1) THE SILHOUETTE LAW. Measured WCAG contrast of each enemy's dominant body
+  //     colour against its own lane: acorn 1.05:1, housekey 1.06:1, yoyo 1.14:1,
+  //     chair 1.27:1, marble 1.43:1, sock 1.58:1. Every lane in every world is a
+  //     light tan, so a pale body is structurally invisible. Rendered on the
+  //     LIGHTEST lane in the game (the New House, luminance 0.661) — the worst
+  //     case, so passing here passes everywhere — each type's own ink boundary
+  //     must be DARK, which is what the centralized ink line in `withInk()`
+  //     provides. Exempts the Glitter Ghost, whose outline is deliberately
+  //     alpha'd so a phased ghost keeps looking untargetable.
+  // (2) NEAR-TWINS. A coarse 10x10 mean-RGB signature per type; the closest pair
+  //     must differ by more than a floor. This is the honest version of "no two
+  //     enemies render the same".
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const lightest = await page.evaluate(() => {
+    // The New House lane is the palest surface an enemy ever stands on.
+    const L = window.TDData.LEVELS.find((l) => l.world === "newhouse");
+    return L ? L.id : 1;
+  });
+  await page.evaluate((id) => { window.__TD.newGame(id, { seed: 8 }); }, lightest);
+  await page.waitForTimeout(140);
+  const out = await page.evaluate(() => {
+    const st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const ctx = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const HALF = 44;
+    // A MID-LANE distance. At dist 3 the sample box clamps against the canvas
+    // edge, so its centre stops being the enemy and the "lane" it measured was
+    // whatever floor happened to be there (it reported 78 for a ribbon at ~215).
+    const eng = window.__TD.engine();
+    const lane = eng.levelDef.paths ? eng.levelDef.paths[0] : eng.levelDef.path;
+    let total = 0;
+    for (let i = 1; i < lane.length; i++) total += Math.hypot(lane[i][0] - lane[i - 1][0], lane[i][1] - lane[i - 1][1]);
+    // The sample distance is CHOSEN BY CONSTRAINT, not a fixed fraction — two
+    // fractions were tried and each failed for a different reason that had
+    // nothing to do with the art. It must be (a) far enough from every canvas
+    // edge that the sample box is fully in bounds, because getImageData returns
+    // transparent black outside and those zeros dragged the measured lane luma
+    // from ~211 down to 92; and (b) OUTSIDE the mole tunnel (the middle third,
+    // where `isHidden` is true and the Digger Mole is correctly drawn as almost
+    // nothing — which made it read as a near-twin of every small dark sprite).
+    const margin = HALF + 8;
+    let D = 0;
+    for (let f = 0.10; f <= 0.90; f += 0.01) {
+      if (f > 0.30 && f < 0.70) continue;                    // the tunnel third
+      const w = eng.posOn(0, total * f), p = window.__TD.w2s(w.x, w.y);
+      if (p.x > margin && p.y > margin && p.x < canvas.clientWidth - margin && p.y < canvas.clientHeight - margin) { D = total * f; break; }
+    }
+    if (!D) throw new Error("no in-bounds off-tunnel sample point on this lane");
+    const grab = () => {
+      const w = eng.posOn(0, D);
+      const p = window.__TD.w2s(w.x, w.y);
+      const x0 = Math.round((p.x - HALF) * dpr), y0 = Math.round((p.y - HALF) * dpr);
+      const wpx = Math.round(HALF * 2 * dpr), hpx = Math.round(HALF * 2 * dpr);
+      return { d: ctx.getImageData(x0, y0, wpx, hpx).data, w: wpx, h: hpx };
+    };
+    const mk = (type) => {
+      const def = window.TDData.ENEMIES[type];
+      return {
+        id: 1, type, alive: true, hp: def.hp, maxHp: def.hp, shield: def.shield || 0,
+        dist: D, pathIdx: 0, slowUntil: 0, slowAmt: 0, speedMult: 1, flier: !!def.flier,
+        engagedBy: 0, lastPhase: 0, charge: 0, brittleUntil: 0,
+      };
+    };
+    st.towers.length = 0; st.soldiers.length = 0;
+    // B = the EMPTY lane, drawn once: the reference every enemy is diffed against.
+    st.enemies.length = 0; r.draw(0);
+    const B = grab();
+    const luma = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    const res = {};
+    // The lane luma must be measured where the enemy actually STANDS, not over
+    // the whole sample box — the New House floor is a dark grey and its road is
+    // the pale surface, so averaging the box reported 78 (the floor) for a
+    // ribbon at ~215 and the separation check was meaningless.
+    let laneSum = 0, laneN = 0;
+    {
+      const cx = Math.round(HALF * dpr), cy = Math.round(HALF * dpr);
+      const rad = Math.round(6 * dpr);
+      for (let y = cy - rad; y <= cy + rad; y++) for (let x = cx - rad; x <= cx + rad; x++) {
+        const i = (y * B.w + x) * 4;
+        if (i >= 0 && i < B.d.length) { laneSum += luma(B.d, i); laneN++; }
+      }
+    }
+    const laneLuma = laneN ? laneSum / laneN : 128;
+    for (const type of Object.keys(window.TDData.ENEMIES)) {
+      st.enemies.length = 0; st.enemies.push(mk(type));
+      r.draw(0);
+      const A = grab();
+      // ink mask: pixels the enemy actually changed
+      const ink = new Uint8Array(A.w * A.h);
+      for (let p = 0, i = 0; p < ink.length; p++, i += 4) {
+        const dd = Math.abs(A.d[i] - B.d[i]) + Math.abs(A.d[i + 1] - B.d[i + 1]) + Math.abs(A.d[i + 2] - B.d[i + 2]);
+        ink[p] = dd > 30 ? 1 : 0;
+      }
+      // Boundary = ink pixels with a non-ink 4-neighbour, scored by the DARKEST
+      // luma in their 3x3 neighbourhood. The raw boundary pixel is antialiased
+      // against the lane, so it reads bright even on a properly rimmed sprite;
+      // the neighbourhood minimum asks the real question — "is there a dark line
+      // here at all". Measured separation is emphatic: a rimmed roster sits at
+      // 24-68 and the two un-rimmed sprites sat at 186 and 191.
+      const edge = [];
+      for (let y = 1; y < A.h - 1; y++) for (let x = 1; x < A.w - 1; x++) {
+        const p = y * A.w + x;
+        if (!ink[p]) continue;
+        if (ink[p - 1] && ink[p + 1] && ink[p - A.w] && ink[p + A.w]) continue;
+        let m = 999;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) m = Math.min(m, luma(A.d, ((y + dy) * A.w + (x + dx)) * 4));
+        edge.push(m);
+      }
+      edge.sort((a, b) => a - b);
+      // Coarse mean-RGB signature for the near-twin check, taken over a TIGHT
+      // box around the sprite. Over the full 88px sample box, 96 of 100 grid
+      // cells are identical background and diluted every real difference by ~25x,
+      // so the numbers were unreadable (two clearly different sprites scored
+      // 0.33). An enemy is ~17-24px across, so a 32px box is the sprite.
+      const G = 8, sig = [];
+      const cx0 = A.w / 2, cy0 = A.h / 2, span = 16 * dpr;
+      for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
+        let sr = 0, sg = 0, sb = 0, n = 0;
+        const xa = Math.round(cx0 - span + gx * 2 * span / G), xb = Math.round(cx0 - span + (gx + 1) * 2 * span / G);
+        const ya = Math.round(cy0 - span + gy * 2 * span / G), yb = Math.round(cy0 - span + (gy + 1) * 2 * span / G);
+        for (let y = ya; y < yb; y++) for (let x = xa; x < xb; x++) {
+          const i = (y * A.w + x) * 4; sr += A.d[i]; sg += A.d[i + 1]; sb += A.d[i + 2]; n++;
+        }
+        if (n) sig.push(sr / n, sg / n, sb / n); else sig.push(0, 0, 0);
+      }
+      res[type] = { edgeMed: edge.length ? edge[Math.floor(edge.length / 2)] : 255, edgeN: edge.length, sig };
+    }
+    st.enemies.length = 0;
+    return { laneLuma, res };
+  });
+  const GHOST_EXEMPT = new Set(["ghost"]); // its rim is alpha'd on purpose (phased = faint)
+  const dark = [];
+  for (const [type, v] of Object.entries(out.res)) {
+    assert.ok(v.edgeN > 20, `${type} barely paints anything (${v.edgeN} boundary px) — it has no readable body`);
+    if (GHOST_EXEMPT.has(type)) continue;
+    dark.push([type, Math.round(v.edgeMed)]);
+  }
+  // 110 sits well above the measured rimmed roster (24-68) and well below the
+  // two sprites that shipped without one (186, 191), so it cannot flake either way.
+  const pale = dark.filter(([, m]) => m > 110);
+  assert.deepEqual(pale, [],
+    `these enemies have NO dark contour on the palest lane in the game (lane luma ${Math.round(out.laneLuma)}), so on the field they are a shape-shaped smudge — measured body-vs-lane contrast runs as low as 1.05:1: ${pale.map(([t, m]) => t + "=" + m).join(", ")}`);
+  // …and it must be meaningfully DARKER than the lane, not merely different.
+  // Measured on the New House at lane luma 133: the darkest contours sit at
+  // 24-30 and the palest shipped one is the white die at 93 (margin 40), so a
+  // 30 floor holds every sprite with headroom while an un-rimmed one (186, 191)
+  // lands on the wrong side by a mile.
+  const sep = dark.filter(([, m]) => out.laneLuma - m < 30);
+  assert.deepEqual(sep, [], `these enemies' contours do not read as darker than the lane they walk on (lane luma ${Math.round(out.laneLuma)}): ${sep.map(([t, m]) => t + "=" + m).join(", ")}`);
+  // near-twins: closest pair by mean |dRGB| over the coarse signature
+  const types = Object.keys(out.res);
+  let worst = { d: Infinity, a: "", b: "" };
+  for (let i = 0; i < types.length; i++) for (let j = i + 1; j < types.length; j++) {
+    const a = out.res[types[i]].sig, b = out.res[types[j]].sig;
+    let s = 0; for (let k = 0; k < a.length; k++) s += Math.abs(a[k] - b[k]);
+    const d = s / a.length;
+    if (d < worst.d) worst = { d, a: types[i], b: types[j] };
+  }
+  // Measured closest pairs over the shipped roster: bubblewrap/rag 1.52,
+  // chair/carton 1.53, sock/chair 1.61, mole/rag 1.67 — so 1.2 sits below every
+  // real pair with headroom while a genuine collision (two branches drawing the
+  // same thing) scores near 0. Before the ink line landed, four pairs measured a
+  // dominant-body RGB distance of exactly 0 and the exact-hash test passed them.
+  assert.ok(worst.d > 1.2,
+    `${worst.a} and ${worst.b} render as near-twins (mean channel difference ${worst.d.toFixed(2)}). The exact-hash test only catches a MISSING branch — two enemies 98% alike pass it.`);
+});
+
+test("ART: the frame still fits its budget at the crowded-board peak", async () => {
+  // The ink line adds a stroke per fill inside the enemy pass, so it has a real
+  // per-frame cost — and CLAUDE.md's TD-6 lesson is that perf worry here is
+  // usually unfounded but must be MEASURED, not guessed. A/B at L24's documented
+  // 100+ concurrent-enemy peak with every pad built: 2.15 ms without the ink,
+  // 3.51 ms with, against a 16.7 ms 60fps budget. Pinned generously (headless
+  // timing is noisy and CI is slower than this sandbox) so it catches a change
+  // that costs MULTIPLES, which is the only kind worth failing a build over.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const last = await page.evaluate(() => window.TDData.LEVELS[window.TDData.LEVELS.length - 1].id);
+  await page.evaluate((id) => window.__TD.newGame(id, { seed: 7 }), last);
+  await page.waitForTimeout(140);
+  const out = await page.evaluate(() => {
+    const eng = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    st.gold = 999999;
+    for (const p of eng.levelDef.pads) eng.place("dart", p.id);
+    st.waveIdx = eng.levelDef.waves.length - 2; st.sentIdx = st.waveIdx;
+    eng.callWave();
+    for (let i = 0; i < 2600; i++) eng.tick();
+    const alive = st.enemies.filter((e) => e.alive).length;
+    const N = 160, t0 = performance.now();
+    for (let i = 0; i < N; i++) r.draw(i / N);
+    return { alive, ms: (performance.now() - t0) / N };
+  });
+  assert.ok(out.alive >= 20, `the board is genuinely crowded for this measurement (${out.alive} alive)`);
+  assert.ok(out.ms < 12, `a draw at the crowded peak took ${out.ms.toFixed(2)} ms with ${out.alive} enemies alive — the 60fps budget is 16.7 ms and the measured baseline is ~3.5`);
+});
+
 test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
@@ -2785,19 +3009,48 @@ test("ART: every world's FLOOR is its own room — no two render the same", asyn
       const d = ctx.getImageData(0, 0, cv.width, Math.min(cv.height, Math.round(cv.height * 0.5))).data;
       let h = 5381;
       for (let i = 0; i < d.length; i += 40) h = ((h * 33) ^ (d[i] + d[i + 1] * 3 + d[i + 2] * 7)) >>> 0;
+      // A SECOND hash over the lane corridor only. The lane is 19.4% of the
+      // canvas and shipped as four flat strokes with no per-world texture, so
+      // three worlds had literally the same road — and the whole-canvas hash
+      // above would happily pass that on the carpet-vs-tile difference alone.
+      const lane = eng.levelDef.paths ? eng.levelDef.paths[0] : eng.levelDef.path;
+      let rh = 5381;
+      for (const [lx, ly] of lane) {
+        const p = window.__TD.w2s(lx + 0.5, ly + 0.5);
+        const dp = cv.width / cv.clientWidth;
+        const x0 = Math.max(0, Math.round((p.x - 14) * dp)), y0 = Math.max(0, Math.round((p.y - 14) * dp));
+        const wpx = Math.min(Math.round(28 * dp), cv.width - x0), hpx = Math.min(Math.round(28 * dp), cv.height - y0);
+        if (wpx <= 0 || hpx <= 0) continue;
+        const rd = ctx.getImageData(x0, y0, wpx, hpx).data;
+        for (let i = 0; i < rd.length; i += 8) rh = ((rh * 33) ^ (rd[i] + rd[i + 1] * 3 + rd[i + 2] * 7)) >>> 0;
+      }
       out[w] = h;
+      out["road:" + w] = rh;
     }
     eng.levelDef.world = realWorld;
     for (const w of worlds) window.TDData.WORLDS[w].spawnGlyph = glyphs[w];
     return out;
   });
   const byHash = {};
-  for (const w of Object.keys(sigs)) (byHash[sigs[w]] = byHash[sigs[w]] || []).push(w);
+  for (const w of Object.keys(sigs)) {
+    if (w.indexOf("road:") === 0) continue;
+    (byHash[sigs[w]] = byHash[sigs[w]] || []).push(w);
+  }
   const clash = Object.keys(byHash).filter((h) => byHash[h].length > 1).map((h) => byHash[h].join(" = "));
   assert.deepEqual(clash, [], `worlds whose floors render identically: ${clash.join("; ")}`);
-  // …and every world must actually DECLARE one, so the fallback is never load-bearing
+  const byRoad = {};
+  for (const w of Object.keys(sigs)) {
+    if (w.indexOf("road:") !== 0) continue;
+    (byRoad[sigs[w]] = byRoad[sigs[w]] || []).push(w.slice(5));
+  }
+  const rclash = Object.keys(byRoad).filter((h) => byRoad[h].length > 1).map((h) => byRoad[h].join(" = "));
+  assert.deepEqual(rclash, [], `worlds whose LANE renders identically: ${rclash.join("; ")}. The lane is a fifth of the canvas and the surface the eye tracks all run — bedroom, toystore and garage shipped literally the same road.`);
+  // …and every world must actually DECLARE both, so the fallback is never load-bearing
   const declared = await page.evaluate(() =>
     Object.entries(window.TDData.WORLDS).filter(([, w]) => !w.floor || !w.floor.pattern).map(([k]) => k));
   assert.deepEqual(declared, [], `worlds with no floor declared: ${declared.join(", ")}`);
+  const roads = await page.evaluate(() =>
+    Object.entries(window.TDData.WORLDS).filter(([, w]) => !w.floor || !w.floor.road || !w.floor.road.style).map(([k]) => k));
+  assert.deepEqual(roads, [], `worlds with no road style declared: ${roads.join(", ")}`);
   await page.evaluate(() => { window.__TD.resetSave(); });
 });

@@ -145,10 +145,17 @@ const emit = (waves) => waves.map((w) =>
 // ---- --check: validate what is actually SHIPPED ----
 if (require.main === module && process.argv.includes("--check")) {
   // The composition rule arrived with World 5 (it is what the World-4 revert
-  // taught), so it is applied to the world that was authored under it. The
-  // older worlds are held to the budget contract they were built against —
-  // retro-fitting the newer rule would flag deliberate design as broken.
-  const RULED = new Set(["garage"]);
+  // taught), so it is applied to every world authored under it. The older
+  // worlds are held to the budget contract they were built against —
+  // retro-fitting the newer rule would flag deliberate design as broken (and
+  // it genuinely would: L10 w2 is 74% mole, L12 w1 is 67% ghost).
+  //
+  // This used to be `new Set(["garage"])` and stayed that way through three
+  // more worlds, so moving/newhouse/sortline were emitted under the rule and
+  // then never CHECKED against it — the "a scan's own list is part of the
+  // scan" class again. Measured: all four below pass; bedroom, backyard,
+  // toystore and attic all fail. Do not widen further without measuring.
+  const RULED = new Set(["garage", "moving", "newhouse", "sortline"]);
   let ok = true;
   for (const l of DATA.LEVELS) {
     ok = validate(`L${l.id} ${l.name}`, l.budgetBase, l.waves,

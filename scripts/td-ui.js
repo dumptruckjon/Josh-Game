@@ -366,6 +366,23 @@
     const gimRow = [...gseen.values()].map((v) =>
       '<li><span class="td-guide__tico">' + v.g.icon + "</span><b>" + v.g.name + "</b> — " + v.g.text +
       ' <i>(levels ' + v.on.join(", ") + ")</i></li>").join("");
+    // The star tree grew to 30 nodes across three branches and was documented
+    // NOWHERE outside the buy screen — the same condition that made TD-12 write
+    // this guide in the first place, and that TD-16's gimmicks hit again. Derived
+    // from DATA.META_NODES (grouped by its own branch list), so a 31st node
+    // documents itself and the totals can never drift from the data.
+    const BR = { fire: "🎯 Firepower", econ: "💰 Economy", fort: "🏰 Fortification" };
+    const nodes = global.TDData.META_NODES || [];
+    const treeRow = Object.keys(BR).filter((b) => nodes.some((n) => n.branch === b)).map((b) => {
+      const mine = nodes.filter((n) => n.branch === b);
+      return '<li><b>' + BR[b] + "</b> <i>(" + mine.length + " skills, " +
+        mine.reduce((s, n) => s + n.cost, 0) + "⭐)</i><ul>" +
+        mine.map((n) => '<li><span class="td-guide__tico">' + n.icon + "</span>" + n.name +
+          " — " + n.desc + " <i>(" + n.cost + "⭐" +
+          (n.req ? ", after " + ((nodes.find((x) => x.id === n.req) || {}).name || n.req) : "") +
+          (n.reqSpend ? ", needs " + n.reqSpend + "⭐ spent in this branch" : "") + ")</i></li>").join("") +
+        "</ul></li>";
+    }).join("");
 
     const el = metaOverlay("td-overlay--guide",
       "<h3>📖 Toybox Guide</h3>" +
@@ -380,6 +397,9 @@
       (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk.</li></ul>" +
       '<p class="td-overlay__sub">Level tricks — the board itself fights back.</p>' +
       '<ul class="td-guide__towers td-guide__gimmicks">' + gimRow + "</ul>" +
+      '<p class="td-overlay__sub">⭐ Star Tree — spend the stars you earn, then bring ' +
+      (global.TDData.RULES.metaSlots || 6) + " into a run.</p>" +
+      '<ul class="td-guide__towers td-guide__tree">' + treeRow + "</ul>" +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
     el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);
