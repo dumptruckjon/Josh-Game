@@ -1484,7 +1484,15 @@
       if (tier < 2) return;
       ctx.fillStyle = tier >= 4 ? "#4a3f14" : "#26334f";
       ctx.beginPath(); ctx.ellipse(x, y + u * 0.3, u * (tier >= 3 ? 0.44 : 0.38), u * (tier >= 3 ? 0.17 : 0.14), 0, 0, 7); ctx.fill();
-      ctx.strokeStyle = tier >= 4 ? "#ffd94a" : "#4a628f"; ctx.lineWidth = Math.max(1, u * 0.035); ctx.stroke();
+      // TIER READS OFF THE PLINTH RING, not off the pips. The pips are
+      // `u * 0.045` — a 2.4px dot at the 390px phone's cell of 27, and 1.5px at
+      // 320 — so the information they carry is simply not delivered at the size
+      // the game is actually played. This ring is already ~24px across and
+      // already stroked, so a colour ladder (bronze → silver → gold) costs
+      // nothing and is legible at every cell size. Tier 1 has no plinth at all,
+      // which is its own signal, so the ladder is three steps.
+      ctx.strokeStyle = tier >= 4 ? "#ffd94a" : tier >= 3 ? "#c8cfdb" : "#b0754a";
+      ctx.lineWidth = Math.max(1.5, u * 0.05); ctx.stroke();
       if (tier >= 3) { // bolt heads around the skirt
         ctx.fillStyle = tier >= 4 ? "#ffe9a3" : "#8fa6d0";
         for (let i = 0; i < 6; i++) {
@@ -1785,9 +1793,12 @@
         ctx.lineTo(x + u * 0.16, y + u * 0.46);
         ctx.closePath(); ctx.fill();
       } else {
+        // Tier now reads off the plinth's colour ladder (see towerPlinth); these
+        // stay as a secondary cue, but bigger and fewer so they are visible at
+        // all rather than three 2.4px specks 3.8px apart.
         ctx.fillStyle = "#ffe27a";
-        for (let i = 0; i < tier; i++) {
-          ctx.beginPath(); ctx.arc(x - u * 0.2 + i * u * 0.14, y + u * 0.42, u * 0.045, 0, 7); ctx.fill();
+        for (let i = 0; i < tier - 1; i++) {
+          ctx.beginPath(); ctx.arc(x - u * 0.09 + i * u * 0.18, y + u * 0.44, u * 0.07, 0, 7); ctx.fill();
         }
       }
       // jammed by The Static: a pulsing red crackle so the player sees the gun is down
