@@ -720,7 +720,7 @@
         // 🧽 Grease Rag — a slumped oily cloth with drips
         shadow(sx, sy + r * 0.5, r * 0.7, r * 0.18);
         const gg2 = ctx.createLinearGradient(sx, sy - r * 0.5, sx, sy + r * 0.5);
-        gg2.addColorStop(0, "#7f8896"); gg2.addColorStop(1, "#454d59");
+        gg2.addColorStop(0, "#cf9a7e"); gg2.addColorStop(1, "#7a4634");
         ctx.fillStyle = gg2;
         ctx.beginPath();
         ctx.moveTo(sx - r * 0.75, sy + r * 0.4);
@@ -826,7 +826,7 @@
         shadow(sx, sy + r * 0.45, r * 0.5, r * 0.13);
         ctx.save(); ctx.translate(sx, sy); ctx.rotate(engine.state.tick * 0.12 + e.id);
         const gcl = ctx.createLinearGradient(-r * 0.5, -r * 0.5, r * 0.5, r * 0.5);
-        gcl.addColorStop(0, "#f4f7fb"); gcl.addColorStop(1, "#8a95a4");
+        gcl.addColorStop(0, "#dff05a"); gcl.addColorStop(1, "#8fa314");
         ctx.strokeStyle = gcl; ctx.lineWidth = Math.max(1.5, cell * 0.055);
         const rr = (w, h) => { ctx.beginPath(); ctx.moveTo(-w, -h + r * 0.1); ctx.quadraticCurveTo(-w, -h, -w + r * 0.1, -h); ctx.lineTo(w - r * 0.1, -h); ctx.quadraticCurveTo(w, -h, w, -h + r * 0.1); ctx.lineTo(w, h - r * 0.1); ctx.quadraticCurveTo(w, h, w - r * 0.1, h); ctx.stroke(); };
         rr(r * 0.24, r * 0.6); rr(r * 0.12, r * 0.44);
@@ -956,7 +956,7 @@
         const rr = (e.type === "blob" ? r * 1.0 : r * 0.62), w = Math.sin(engine.state.tick / 5 + e.id) * rr * 0.08;
         shadow(sx, sy + rr * 0.9, rr * 0.9, rr * 0.3);
         const gb = ctx.createRadialGradient(sx - rr * 0.3, sy - rr * 0.3, rr * 0.1, sx, sy, rr);
-        gb.addColorStop(0, "#a9814e"); gb.addColorStop(1, "#6e4d24");
+        gb.addColorStop(0, "#93a03f"); gb.addColorStop(1, "#4e5a18");
         ctx.fillStyle = gb;
         ctx.beginPath();
         ctx.moveTo(sx - rr, sy + rr * 0.6);
@@ -976,7 +976,7 @@
         // Plastic Knight: a steel-blue armored toy with a shield emblem + helmet slit
         shadow(sx, sy + r * 0.5, r * 0.6, r * 0.2);
         const gk = ctx.createLinearGradient(sx - r, sy - r, sx + r, sy + r);
-        gk.addColorStop(0, "#cfd8e6"); gk.addColorStop(0.5, "#8a9bb4"); gk.addColorStop(1, "#5b6b86");
+        gk.addColorStop(0, "#9db6ee"); gk.addColorStop(0.5, "#4f6ec4"); gk.addColorStop(1, "#2b3f86");
         ctx.fillStyle = gk;
         ctx.beginPath(); ctx.moveTo(sx, sy - r * 0.85);
         ctx.quadraticCurveTo(sx + r * 0.75, sy - r * 0.75, sx + r * 0.7, sy + r * 0.2);
@@ -984,7 +984,7 @@
         ctx.quadraticCurveTo(sx - r * 0.6, sy + r * 0.9, sx - r * 0.7, sy + r * 0.2);
         ctx.quadraticCurveTo(sx - r * 0.75, sy - r * 0.75, sx, sy - r * 0.85);
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#3a475e"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.strokeStyle = "#22336e"; ctx.lineWidth = Math.max(1, cell * 0.03);
         ctx.beginPath(); ctx.moveTo(sx - r * 0.32, sy - r * 0.28); ctx.lineTo(sx + r * 0.32, sy - r * 0.28); ctx.stroke(); // helmet slit
         ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.rect(sx - r * 0.28, sy - r * 0.32, r * 0.56, r * 0.14); ctx.fill();
         ctx.strokeStyle = "#ffe27a"; ctx.lineWidth = Math.max(1, cell * 0.045); ctx.lineCap = "round"; // shield cross
@@ -1008,7 +1008,7 @@
       } else if (e.type === "healer") {
         // Junk Healer: a grey bot with a glowing green + (heal) and a wrench antenna
         shadow(sx, sy + r * 0.5, r * 0.55, r * 0.2);
-        ctx.strokeStyle = "#9aa7b8"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.strokeStyle = "#1e7fa8"; ctx.lineWidth = Math.max(1, cell * 0.03);
         ctx.beginPath(); ctx.moveTo(sx, sy - r * 0.6); ctx.lineTo(sx, sy - r * 0.92); ctx.stroke();
         ctx.fillStyle = "#8f9db0"; ctx.beginPath(); ctx.arc(sx, sy - r * 0.98, r * 0.1, 0, 7); ctx.fill();
         const gh = ctx.createLinearGradient(sx, sy - r * 0.6, sx, sy + r * 0.7);
@@ -1057,27 +1057,27 @@
         ctx.globalAlpha = (e.phaseHidden && !revealed(e)) ? 0.22 : 0.9;
         const rr = r * 0.95, w = Math.sin(engine.state.tick / 6 + e.id) * rr * 0.06;
         const gg = ctx.createLinearGradient(sx, sy - rr, sx, sy + rr);
-        gg.addColorStop(0, "#eaf2ff"); gg.addColorStop(1, "#b9caf0");
+        gg.addColorStop(0, "#f7e9ff"); gg.addColorStop(1, "#c9a2ee");
         ctx.fillStyle = gg;
         ctx.beginPath();
         ctx.arc(sx, sy - rr * 0.15, rr * 0.8, Math.PI, 0);
         ctx.lineTo(sx + rr * 0.8, sy + rr * 0.7 + w);
         for (let k = 2; k >= -2; k--) { const bx = sx + k * rr * 0.32; ctx.quadraticCurveTo(bx + rr * 0.16, sy + rr * (k % 2 ? 0.5 : 0.85), bx, sy + rr * 0.7 - w * (k % 2)); }
         ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#38507a";
+        ctx.fillStyle = "#5b2f7a";
         ctx.beginPath(); ctx.arc(sx - rr * 0.26, sy - rr * 0.12, rr * 0.14, 0, 7); ctx.arc(sx + rr * 0.26, sy - rr * 0.12, rr * 0.14, 0, 7); ctx.fill();
         if (e.phaseHidden) { ctx.strokeStyle = "rgba(180,210,255,0.5)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, rr * 1.1, 0, 7); ctx.stroke(); }
         ctx.restore();
       } else if (e.type === "battery") {
         // Battery Bot: a boxy tin robot; a blue shield bubble shows while charged
         shadow(sx, sy + r * 0.5, r * 0.6, r * 0.2);
-        ctx.strokeStyle = "#9aa7b8"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.strokeStyle = "#1e7fa8"; ctx.lineWidth = Math.max(1, cell * 0.03);
         ctx.beginPath(); ctx.moveTo(sx - r * 0.2, sy - r * 0.62); ctx.lineTo(sx - r * 0.2, sy - r * 0.9); ctx.moveTo(sx + r * 0.2, sy - r * 0.62); ctx.lineTo(sx + r * 0.2, sy - r * 0.9); ctx.stroke();
-        ctx.fillStyle = "#cdd7e6"; ctx.beginPath(); ctx.arc(sx - r * 0.2, sy - r * 0.94, r * 0.08, 0, 7); ctx.arc(sx + r * 0.2, sy - r * 0.94, r * 0.08, 0, 7); ctx.fill();
+        ctx.fillStyle = "#ffe9a8"; ctx.beginPath(); ctx.arc(sx - r * 0.2, sy - r * 0.94, r * 0.08, 0, 7); ctx.arc(sx + r * 0.2, sy - r * 0.94, r * 0.08, 0, 7); ctx.fill();
         const gbt = ctx.createLinearGradient(sx, sy - r * 0.6, sx, sy + r * 0.6);
-        gbt.addColorStop(0, "#c3ccd8"); gbt.addColorStop(1, "#7d8a9c");
+        gbt.addColorStop(0, "#5ad2f0"); gbt.addColorStop(1, "#12688f");
         ctx.fillStyle = gbt; ctx.beginPath(); ctx.rect(sx - r * 0.6, sy - r * 0.6, r * 1.2, r * 1.2); ctx.fill();
-        ctx.strokeStyle = "#59677a"; ctx.lineWidth = Math.max(1, cell * 0.03); ctx.strokeRect(sx - r * 0.6, sy - r * 0.6, r * 1.2, r * 1.2);
+        ctx.strokeStyle = "#0d4a66"; ctx.lineWidth = Math.max(1, cell * 0.03); ctx.strokeRect(sx - r * 0.6, sy - r * 0.6, r * 1.2, r * 1.2);
         ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - r * 0.22, sy - r * 0.16, r * 0.11, 0, 7); ctx.arc(sx + r * 0.22, sy - r * 0.16, r * 0.11, 0, 7); ctx.fill();
         // battery gauge (green bars)
         ctx.fillStyle = "#69d06a"; for (let k = 0; k < 3; k++) { ctx.fillRect(sx - r * 0.34 + k * r * 0.26, sy + r * 0.18, r * 0.16, r * 0.18); }
@@ -1088,13 +1088,13 @@
         const laneTot = engine.paths[e.pathIdx || 0].total; // its own lane's middle third
         const under = e.dist > laneTot / 3 && e.dist < (laneTot * 2) / 3 && !revealed(e);
         if (under) {
-          ctx.fillStyle = "#6e4d29"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.2, r * 0.95, r * 0.5, 0, Math.PI, 0); ctx.fill();
-          ctx.fillStyle = "#5a3e20"; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(sx + k * r * 0.4, sy + r * 0.18, r * 0.14, 0, 7); ctx.fill(); }
+          ctx.fillStyle = "#6b6673"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.2, r * 0.95, r * 0.5, 0, Math.PI, 0); ctx.fill();
+          ctx.fillStyle = "#524d59"; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(sx + k * r * 0.4, sy + r * 0.18, r * 0.14, 0, 7); ctx.fill(); }
           ctx.fillStyle = "rgba(120,90,55,0.6)"; ctx.beginPath(); ctx.moveTo(sx - r * 0.2, sy - r * 0.1); ctx.lineTo(sx, sy - r * 0.4); ctx.lineTo(sx + r * 0.2, sy - r * 0.1); ctx.closePath(); ctx.fill();
         } else {
           shadow(sx, sy + r * 0.5, r * 0.55, r * 0.18);
           const gml = ctx.createRadialGradient(sx - r * 0.2, sy - r * 0.2, r * 0.1, sx, sy, r * 0.9);
-          gml.addColorStop(0, "#8a6a44"); gml.addColorStop(1, "#5c4023");
+          gml.addColorStop(0, "#8f8a94"); gml.addColorStop(1, "#4a464f");
           ctx.fillStyle = gml; ctx.beginPath(); ctx.ellipse(sx, sy, r * 0.75, r * 0.68, 0, 0, 7); ctx.fill();
           ctx.fillStyle = "#f0c9a0"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.28, r * 0.28, r * 0.2, 0, 0, 7); ctx.fill(); // snout
           ctx.fillStyle = "#3a2a18"; ctx.beginPath(); ctx.arc(sx, sy + r * 0.3, r * 0.08, 0, 7); ctx.fill();
@@ -1174,7 +1174,7 @@
         // Loose Screw: a slotted head that keeps turning — it jams your guns.
         shadow(sx, sy + cell * 0.34, r * 0.6, r * 0.2);
         const g = ctx.createLinearGradient(sx - r * 0.6, sy - r, sx + r * 0.6, sy + r);
-        g.addColorStop(0, "#d7dde8"); g.addColorStop(1, "#8b96a8");
+        g.addColorStop(0, "#d98f5a"); g.addColorStop(1, "#8a4a18");
         ctx.fillStyle = g;
         ctx.beginPath(); // tapered shank
         ctx.moveTo(sx - r * 0.32, sy - r * 0.2);
@@ -1186,7 +1186,7 @@
         for (let k = 0; k < 3; k++) { const yy = sy + r * (0.05 + k * 0.3); ctx.beginPath(); ctx.moveTo(sx - r * 0.28 + k * r * 0.05, yy); ctx.lineTo(sx + r * 0.28 - k * r * 0.05, yy + r * 0.1); ctx.stroke(); }
         ctx.fillStyle = g; // round head
         ctx.beginPath(); ctx.ellipse(sx, sy - r * 0.42, r * 0.66, r * 0.44, 0, 0, 7); ctx.fill();
-        ctx.strokeStyle = "#4d5870"; ctx.lineWidth = Math.max(1.5, cell * 0.045); ctx.lineCap = "round";
+        ctx.strokeStyle = "#5c3410"; ctx.lineWidth = Math.max(1.5, cell * 0.045); ctx.lineCap = "round";
         const a = engine.state.tick * 0.16; // the slot spins — it is working loose
         ctx.beginPath();
         ctx.moveTo(sx - Math.cos(a) * r * 0.42, sy - r * 0.42 - Math.sin(a) * r * 0.26);
@@ -1222,18 +1222,18 @@
         const bank = Math.sin(engine.state.tick / 9 + e.id) * 0.16;
         ctx.save(); ctx.translate(sx, sy); ctx.rotate(bank);
         const g = ctx.createLinearGradient(0, -r, 0, r);
-        g.addColorStop(0, "#d7dfeb"); g.addColorStop(1, "#8b97ab");
+        g.addColorStop(0, "#f0817a"); g.addColorStop(1, "#b03a33");
         ctx.fillStyle = g; // wings
         ctx.beginPath();
         ctx.moveTo(-r * 1.15, r * 0.06); ctx.lineTo(-r * 0.2, -r * 0.2);
         ctx.lineTo(r * 0.2, -r * 0.2); ctx.lineTo(r * 1.15, r * 0.06);
         ctx.lineTo(r * 0.2, r * 0.3); ctx.lineTo(-r * 0.2, r * 0.3);
         ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#aab6c8"; // fuselage
+        ctx.fillStyle = "#d9534a"; // fuselage
         ctx.beginPath(); ctx.ellipse(0, 0, r * 0.34, r * 0.9, 0, 0, 7); ctx.fill();
-        ctx.fillStyle = "#6f7c92"; // tail fin
+        ctx.fillStyle = "#8f2b26"; // tail fin
         ctx.beginPath(); ctx.moveTo(0, r * 0.62); ctx.lineTo(-r * 0.42, r * 1.02); ctx.lineTo(r * 0.42, r * 1.02); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#5e6a7e"; // rivets down the plates
+        ctx.fillStyle = "#f4c9a0"; // rivets down the plates
         for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.arc(0, k * r * 0.3, r * 0.055, 0, 7); ctx.fill(); }
         ctx.fillStyle = "#7fe3ff"; // canopy
         ctx.beginPath(); ctx.ellipse(0, -r * 0.42, r * 0.2, r * 0.28, 0, 0, 7); ctx.fill();
@@ -1325,17 +1325,17 @@
         ctx.strokeStyle = "rgba(255,180,90," + (0.45 * (1 - ph)).toFixed(3) + ")";
         ctx.lineWidth = Math.max(1.5, cell * 0.05);
         ctx.beginPath(); ctx.arc(sx, sy, r * (0.7 + ph * 0.7), 0, 7); ctx.stroke();
-        ctx.fillStyle = "#3b4453";
+        ctx.fillStyle = "#8e3aa0";
         ctx.beginPath(); ctx.roundRect ? ctx.roundRect(sx - r * 0.66, sy - r * 0.36, r * 1.32, r * 0.78, r * 0.12)
                                        : ctx.rect(sx - r * 0.66, sy - r * 0.36, r * 1.32, r * 0.78);
         ctx.fill();
         ctx.strokeStyle = "#20262f"; ctx.lineWidth = Math.max(1.5, cell * 0.04); ctx.stroke();
-        ctx.strokeStyle = "#8d99ad"; ctx.lineWidth = Math.max(2, cell * 0.05);   // handle
+        ctx.strokeStyle = "#e0a8e8"; ctx.lineWidth = Math.max(2, cell * 0.05);   // handle
         ctx.beginPath(); ctx.arc(sx, sy - r * 0.36, r * 0.36, Math.PI, 0); ctx.stroke();
         for (const dx of [-0.34, 0.34]) {                                        // speakers
           ctx.fillStyle = "#1b2029";
           ctx.beginPath(); ctx.arc(sx + r * dx, sy + r * 0.04, r * 0.22, 0, 7); ctx.fill();
-          ctx.fillStyle = "#5a677d";
+          ctx.fillStyle = "#c86ad0";
           ctx.beginPath(); ctx.arc(sx + r * dx, sy + r * 0.04, r * 0.09, 0, 7); ctx.fill();
         }
         ctx.fillStyle = "#ffd35c";                                               // the dial
@@ -1413,15 +1413,15 @@
         // the rim — the drip is the whole mechanic, so it shows on the sprite.
         shadow(sx, sy + r * 0.6, r * 0.7, r * 0.2);
         const gb = ctx.createLinearGradient(sx - r * 0.6, 0, sx + r * 0.6, 0);
-        gb.addColorStop(0, "#9aa7b8"); gb.addColorStop(0.45, "#dfe6f0"); gb.addColorStop(1, "#7f8b9c");
+        gb.addColorStop(0, "#3f9aa8"); gb.addColorStop(0.45, "#7fd2dd"); gb.addColorStop(1, "#1e5f6b");
         ctx.fillStyle = gb;
         ctx.beginPath();
         ctx.moveTo(sx - r * 0.62, sy - r * 0.42); ctx.lineTo(sx + r * 0.62, sy - r * 0.42);
         ctx.lineTo(sx + r * 0.44, sy + r * 0.62); ctx.lineTo(sx - r * 0.44, sy + r * 0.62);
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#5c6779"; ctx.lineWidth = Math.max(1.5, cell * 0.05); ctx.stroke();
+        ctx.strokeStyle = "#154a54"; ctx.lineWidth = Math.max(1.5, cell * 0.05); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(sx - r * 0.55, sy + r * 0.12); ctx.lineTo(sx + r * 0.55, sy + r * 0.12); ctx.stroke(); // rib
-        ctx.strokeStyle = "#6d788c"; ctx.lineWidth = Math.max(2, cell * 0.06); // handle
+        ctx.strokeStyle = "#2b7f8c"; ctx.lineWidth = Math.max(2, cell * 0.06); // handle
         ctx.beginPath(); ctx.arc(sx, sy - r * 0.44, r * 0.6, Math.PI, 0); ctx.stroke();
         ctx.fillStyle = "#b9762f"; // bolts heaped above the rim
         for (const [bx, by] of [[-0.34, -0.56], [0, -0.66], [0.34, -0.54], [-0.14, -0.44], [0.18, -0.42]]) {

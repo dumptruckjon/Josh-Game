@@ -2669,6 +2669,22 @@ shared ink rim, the antialiased blend between them and a 5px sprite — and when
 re-measurement disagrees with a recorded finding, suspect the new instrument
 before overturning the old number, especially when the new one names entirely
 different pairs.
+**FIXED, in three measured rounds, and the roster is now self-policing.**
+🛡 Plastic Knight → blue plastic, 🔋 Battery Bot → electric cyan, 🔩 Loose Screw
+→ bronze, 🪣 Bolt Bucket → teal, 📻 Boom Box → 80s magenta, ✈️ Tin Plane →
+tin-toy red, 🦫 Digger Mole → slate (it had shared the Mud Blob's brown while
+doing something completely different), 👻 Glitter Ghost → lilac, 🧽 Oil Rag →
+oil-stained, 📎 Runaway Clip → lime, 🟤 Mud Blob → swamp olive. Worst pair
+anywhere **0.0 → 11.7**, and the 131 pairs under 25 fell to 9 — every one of
+which is a BOSS beside a small body, where 1.8-3.1× scale does the separating.
+Two of the three rounds were spent fixing collisions the previous round had just
+CREATED (a brass screw landed on the Spare Key's gold; a green battery on the
+Drip Slime; an orange clip on the Grease Racer), which is the argument for
+iterating against a measurement instead of picking colours by eye. The guardrail
+lives in `site.test.js` because it needs no browser at all: **inside a world's
+own wave pool, two bodies of comparable SIZE must differ by ≥20**, with the size
+exemption DERIVED from `boss`/`size` rather than hand-listed. Mutation-proven by
+reverting the Knight to steel.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

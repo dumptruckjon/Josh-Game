@@ -1209,3 +1209,71 @@ test("the Sticker Book's DOM has ONE owner — both books build through JoshStic
       `${f} still builds a sticker-slot by hand — JoshStickers.slot() is the one owner`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// 🏰 The fort's COLOUR law: inside a world's own enemy pool, two bodies of
+// comparable SIZE must not share a colour.
+//
+// The roster shipped as a steel monoculture — Plastic Knight, Battery Bot,
+// Loose Screw, Tin Plane, Bolt Bucket and Boom Box were all the same pale
+// blue-grey, and `#dfe6f0` was the LITERAL same hex in two of them. Measured
+// per world against each world's actual wave pool: every one of the eight had a
+// colliding pair, garage `cog`/`bucket` and `bucket`/`battery` at exactly 0.0,
+// `knight`/`battery` 2.2 in six worlds, `screw`/`tinplane` 3.2 in five. That
+// matters for play, not just looks: the Knight is ARMORED, the Tin Plane FLIES,
+// the Screw JAMS a gun and the Slime REGROWS while slowed — the Toybox Guide
+// tells you to answer each of them differently, and they looked identical.
+//
+// Three properties make this measurable from SOURCE, which is why it is here and
+// not in the browser suite: no rasteriser, no floor, no shared ink rim, no
+// antialiased blend, no sprite-size confound. An earlier rendered-pixel attempt
+// hit all four and wrongly reported the finding as not reproducing.
+//
+// The size exemption is DERIVED, not a hand list: a boss draws at 1.8-3.1x
+// scale, so its silhouette separates it from a small body regardless of hue.
+test("guardrail: no two same-size enemies in a world's pool share a body colour", () => {
+  const DATA = require(path.join(root, "scripts/td-data.js"));
+  const src = read("scripts/td-render.js");
+  const chain = src.slice(src.indexOf("function drawEnemy("));
+  const blocks = {};
+  // truncate each branch at the next `} else`, or the LAST one runs to the end
+  // of the file and picks up the tower drawing
+  for (const part of chain.split('} else if (e.type === "').slice(1)) {
+    blocks[part.slice(0, part.indexOf('"'))] = part.split(/\n {6}\} else/)[0];
+  }
+  const firstBranch = chain.split('if (e.type === "balloon") {')[1];
+  if (firstBranch) blocks.balloon = firstBranch.split(/\n {6}\} else/)[0];
+
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const luma = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  // BODY colours = the first two light-enough literals in the branch (the
+  // gradient stops / main fills). The near-black outline every sprite shares is
+  // excluded for the same reason the ink rim had to be.
+  const body = {};
+  for (const [t, b] of Object.entries(blocks)) {
+    const cols = [...new Set(b.match(/#[0-9a-fA-F]{6}/g) || [])].map(hex).filter((c) => luma(c) > 60);
+    if (cols.length) body[t] = cols.slice(0, 2);
+  }
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const near = (a, b) => Math.min(...a.flatMap((x) => b.map((y) => dist(x, y))));
+  const FLOOR = 20;
+  const big = (t) => { const d = DATA.ENEMIES[t] || {}; return !!d.boss || (d.size || 1) >= 1.5; };
+
+  const bad = [];
+  for (const w of Object.keys(DATA.WORLDS)) {
+    const pool = new Set();
+    for (const l of DATA.LEVELS.filter((x) => x.world === w)) {
+      for (const wv of l.waves) for (const g of wv.groups) pool.add(g.type);
+    }
+    const ts = [...pool].filter((t) => body[t]);
+    assert.ok(ts.length >= 4, `${w}'s pool is readable from the renderer (${ts.length} sprites)`);
+    for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) {
+      if (big(ts[i]) || big(ts[j])) continue;   // scale separates them
+      const d = near(body[ts[i]], body[ts[j]]);
+      if (d < FLOOR) bad.push(`${w}: ${ts[i]}/${ts[j]} ${d.toFixed(1)}`);
+    }
+  }
+  assert.deepEqual(bad, [],
+    "these same-size enemies share a world's pool AND a body colour, so a player cannot tell " +
+    "which counter to reach for: " + bad.join(", "));
+});
