@@ -2732,6 +2732,55 @@ at 0.85 on **L2 (the early teach), L18 and L26** — three worlds, normal within
 the ±2 design rule on both plans, heroic −1 to −3, no mono result flipped,
 neglect still losing. L9 was measured and REJECTED: World 3 is the documented
 hardest world and the band took heroic/mixed from 7,7,3,5 to LOST on every seed.
+**The post-P6 audit found ONE defect, and it was in a TEST — the same "a scan's
+own list is part of the scan" class, on its fifth instance.** `AUDIT: every fort
+overlay lands ON SCREEN` exists because the star-tree dialog once opened
+hundreds of pixels below the fold and read as a dead button; its `OPENERS` was a
+hand-written map of six, so the **🎒 Powers picker — the newest dialog in the
+fort — was invisible to it**. The picker happened to be fine, which is exactly
+the point: the test could not have told you either way. It now DERIVES the list
+from the fort home's own `.td-metabtn`/`.td-adminrow` buttons (7 found, up from
+6), with a `NOT_A_DIALOG` allowlist so 🧸 Kid Fort opts out on the record.
+Mutation: give `.td-powers` the old `position: absolute` and it goes red on
+exactly the dialog it previously could not see. Same family as the flex-gap law
+guarding only `main.css`, the live-verify probe hitting only `index.html`, the
+VS16 scan hand-listing nine files and `FIELD_TRAIT` hand-listing twelve fields —
+when a list can go stale, derive it.
+Everything else in the new surface held under eleven probes: a marked enemy that
+DIES mid-mark is survivable; a hand-edited `save.powers` (empty, unknown ids,
+duplicates, over-full, not-an-array) never crashes `createEngine` or
+`abilityReady`; `zapResist` and a cover band COMPOSE correctly on the beam
+(0.200 measured against 0.200 expected — each multiplier applied once, not
+twice); `propCells` dresses all eight ENDLESS arenas (7 props each) despite
+their string ids; no side door opens inside a band (33 vs 3-18 on L2); every
+band is a FRONT band (5-28% of its lane); no prop lands near a spawn or an exit;
+and the three banded levels still replay identically.
+**And the honest counterpart to 🦆's zero: 📌 Call the Shot measures 2.50×.**
+Parking a fat body in a crowd of chaff on a six-gun board and pointing every gun
+at it dealt 60 damage in five seconds against 24 unmarked. So the two P6 powers
+sit at opposite ends — one is a real lever, one is legibility only — and both
+numbers are recorded rather than assumed. The rule the pair teaches: **measure
+what a new power is WORTH the same way you measure what a new enemy costs**,
+because "it fires and the suite is green" says nothing about whether it changes
+a board.
+**The four measured DEAD ENDS (RULE 7 step 3), so the next pass does not rebuild
+them.** (1) **`hitCap` ("no single blow may exceed N") is not a new axis** — for
+any tower whose per-hit damage exceeds the cap, effective HP scales by
+`dmg/cap`, so a hit cap IS a line-keyed HP multiplier with extra steps, and
+bigger HP piles are already documented as not working. (2) **A coverage-gap /
+front-guard enemy is dead before it is built** — kills are front-loaded (73.4%
+in the first four lane deciles) but DPS is NOT (L20 carries 98 dps-units across
+deciles 1-4 against 295 across 5-10), so an enemy that survives the front meets
+an idle 75% of the board. That independently re-derives the shipped Digger-Mole
+result and explains WHY it measured zero. (3) **An un-jam power is worth ~nothing
+** — jammed tower-time under the mixed plan is 0.00-0.73% across L16/L20/L22/
+L24/L28; note this is a statement about the PROBLEM, not about the shipped 🧰
+Field Repair node, which does halve jam duration. (4) **`pads[].unlockWave` is a
+landmine** — the shipped oracle's fill loop `break`s at the first empty pad
+whether or not `place()` succeeded, so a pad that can refuse would stop the
+solver building anything at all for the rest of the run. Any future pad-gating
+field must be proven against that loop first, in BOTH copies
+(`tests/td-logic.test.js` and `tools/td-sim.js`).
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

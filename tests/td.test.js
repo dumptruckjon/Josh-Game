@@ -2080,10 +2080,30 @@ test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () =>
       stars: { casual: {}, normal: all, heroic: {} }, ach: ["firstblood"], endlessBest: { bedroom: 12 } }));
   });
   await page.reload({ waitUntil: "load" });
-  const OPENERS = {
-    "star tree": ".td-tree-open", badges: ".td-ach-open", endless: ".td-endless-open",
-    guide: ".td-guide-open", backup: ".td-backup-open", "reset gate": ".td-reset-open",
+  // DERIVED from the fort home's own controls, not a hand-written list. It WAS
+  // a literal of six, and the 🎒 Powers picker — the newest dialog in the fort —
+  // was simply not in it, so the one test written to catch "a dialog opens below
+  // the fold and the button looks dead" could not see the newest button. That is
+  // this repo's most-repeated defect ("a scan's own list is part of the scan":
+  // the flex-gap law guarded only main.css, the live-verify probe hit only
+  // index.html, the VS16 scan hand-listed nine files, FIELD_TRAIT hand-listed
+  // twelve fields). A new fort button must now either open an auditable dialog
+  // or consciously join NOT_A_DIALOG below.
+  const NOT_A_DIALOG = {
+    ".td-kid-open": "starts a kid run — it navigates, it does not open a dialog",
   };
+  const OPENERS = await page.evaluate((skip) => {
+    const out = {};
+    const btns = document.querySelectorAll("#screen-td-home .td-metabtn, #screen-td-home .td-adminrow button");
+    for (const b of btns) {
+      const sel = "." + [...b.classList].find((c) => /-open$/.test(c));
+      if (sel === ".undefined" || skip[sel]) continue;
+      out[(b.textContent || sel).trim()] = sel;
+    }
+    return out;
+  }, NOT_A_DIALOG);
+  assert.ok(Object.keys(OPENERS).length >= 7,
+    `the fort's dialog openers are derived from its buttons (found ${Object.keys(OPENERS).length}: ${Object.values(OPENERS).join(" ")})`);
   const bad = [];
   for (const vp of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
     await page.setViewportSize(vp);
