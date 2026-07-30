@@ -121,23 +121,61 @@ test("the viewport meta opts into safe areas", async () => {
   assert.match(content, /viewport-fit=cover/);
 });
 
-test("the front door: no overflow + three giant well-spaced world tiles at 390 and 320", async () => {
-  for (const w of [390, 320]) {
-    await page.setViewportSize({ width: w, height: 780 });
+test("the front door: three giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
+  // This test ran at a fixed 780px height, which is exactly why it never saw
+  // the defect: measured on the shipped build, the THIRD door was 152px below
+  // the fold at 320x568, 42px at 360x640, 15px at 375x667 and 63px in
+  // landscape at 844x390 — with nothing on screen hinting the 🏰 world exists.
+  // A world you have to scroll to find is a world a four-year-old does not
+  // know about, on the ONLY screen that leads anywhere.
+  for (const [w, h] of [[390, 780], [320, 780], [320, 568], [375, 667], [844, 390], [810, 1080]]) {
+    await page.setViewportSize({ width: w, height: h });
     await showScreen(page, "#start", "#screen-start");
     assert.equal(await page.locator(".start-tile").count(), 3, "three world tiles");
-    await noOverflow(page, `start@${w}`);
-    await auditActiveScreen(page, `start@${w}`);
+    await noOverflow(page, `start@${w}x${h}`);
+    await auditActiveScreen(page, `start@${w}x${h}`);
+    const m = await page.evaluate(() => {
+      const ts = [...document.querySelectorAll(".start-tile")];
+      return {
+        last: Math.max(...ts.map((t) => t.getBoundingClientRect().bottom)),
+        // Where each label sits INSIDE its own tile: the three mark boxes used
+        // to differ (Josh's SVG portrait inks 56x77 where 👵🏻 inks 58x63 and
+        // 🏰 inks 72x70), so the doors did not read as peers.
+        offsets: ts.map((t) => Math.round(t.querySelector(".start-tile__label").getBoundingClientRect().top - t.getBoundingClientRect().top)),
+        vh: innerHeight,
+      };
+    });
+    assert.ok(m.last <= m.vh,
+      `all three doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
+    assert.ok(Math.max(...m.offsets) - Math.min(...m.offsets) <= 4,
+      `the three doors must carry equally-weighted marks at ${w}x${h} — label offsets ${m.offsets.join("/")}`);
   }
 });
 
-test("home launcher: no overflow + big well-spaced tiles at 390 and 320", async () => {
-  for (const w of [390, 320]) {
-    await page.setViewportSize({ width: w, height: 780 });
+test("home launcher: no overflow + big well-spaced tiles at phone AND tablet sizes", async () => {
+  // 768x1024 and 1024x768 are here because a viewport list IS the test — the
+  // lesson this repo has now learned three times (the pad-under-CALL audit ran
+  // at the only two sizes where the button happens to miss; the flex-gap law
+  // guarded only main.css; the VS16 scan named its files by hand). Josh's real
+  // device is an iPad and NOTHING measured it: the launcher grew in COLUMN
+  // COUNT, so at 768, 810 and 834 wide it served SEVEN columns of 85x120px —
+  // the same tile as a 320px phone, at maximum density, with 45-57px of dead
+  // gutter each side.
+  for (const [w, h] of [[390, 780], [320, 780], [768, 1024], [1024, 768]]) {
+    await page.setViewportSize({ width: w, height: h });
     await showScreen(page, "#home", "#screen-home");
-    await noOverflow(page, `home@${w}`);
-    await auditActiveScreen(page, `home@${w}`);
+    await noOverflow(page, `home@${w}x${h}`);
+    await auditActiveScreen(page, `home@${w}x${h}`);
   }
+  // …and the tiles must actually get BIGGER, not just more numerous.
+  const widthAt = async (w) => {
+    await page.setViewportSize({ width: w, height: 1024 });
+    await showScreen(page, "#home", "#screen-home");
+    return page.evaluate(() => document.querySelector("#screen-home .tile").getBoundingClientRect().width);
+  };
+  const small = await widthAt(320), big = await widthAt(810);
+  assert.ok(big >= small * 1.4,
+    `on a tablet the tiles must SCALE, not just multiply — 320px gives ${Math.round(small)}px tiles and 810px gives ${Math.round(big)}px`);
 });
 
 test("EVERY category screen: no overflow + big well-spaced tiles at 320px", async () => {
@@ -145,11 +183,13 @@ test("EVERY category screen: no overflow + big well-spaced tiles at 320px", asyn
   // their own test below, so enumerate only the tiles on HIS home grid.
   const cats = await page.evaluate(() => [...document.querySelectorAll("#screen-home .tile--cat")].map((t) => t.dataset.cat));
   assert.ok(cats.length >= 3, "expected several categories");
-  await page.setViewportSize({ width: 320, height: 780 });
-  for (const c of cats) {
-    await showScreen(page, "#cat-" + c, `#screen-cat-${c}`);
-    await noOverflow(page, "cat-" + c);
-    await auditActiveScreen(page, "cat-" + c);
+  for (const [w, h] of [[320, 780], [768, 1024]]) {
+    await page.setViewportSize({ width: w, height: h });
+    for (const c of cats) {
+      await showScreen(page, "#cat-" + c, `#screen-cat-${c}`);
+      await noOverflow(page, `cat-${c}@${w}`);
+      await auditActiveScreen(page, `cat-${c}@${w}`);
+    }
   }
 });
 
@@ -163,8 +203,8 @@ test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", asy
   }
 });
 
-test("the Sticker Book: no overflow + >=75px well-spaced slots at 390 and 320", async () => {
-  for (const w of [390, 320]) {
+test("the Sticker Book: no overflow + >=75px well-spaced slots at phone AND tablet sizes", async () => {
+  for (const w of [390, 320, 768, 1024]) {
     await page.setViewportSize({ width: w, height: 780 });
     await showScreen(page, "#stickers", "#screen-stickers");
     await noOverflow(page, `stickers@${w}`);
@@ -189,7 +229,7 @@ test("华丽's screens: home, all 7 categories and her sticker book pass the aud
   const cats = await page.evaluate(() =>
     (window.HualiContent ? window.HualiContent.CATEGORIES : []).map((c) => c.id));
   assert.equal(cats.length, 7, "expected her 7 categories");
-  for (const w of [390, 320]) {
+  for (const w of [390, 320, 768, 1024]) {
     await page.setViewportSize({ width: w, height: 780 });
     await showScreen(page, "#hl-home", "#screen-hl-home");
     await noOverflow(page, `hl-home@${w}`);

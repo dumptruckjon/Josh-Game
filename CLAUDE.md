@@ -2457,6 +2457,34 @@ guardrails (≤ Emoji 13.0, VS16 where text-default). The guardrail reads the LI
 registry in the browser — a Node require only loads part of it — and is
 deliberately per-CATEGORY, since cross-category reuse is fine (a child never sees
 `#cat-science` and `#cat-find` side by side).
+**On Josh's REAL device — an iPad — the launcher gave him MORE tiles, not bigger
+ones.** `repeat(auto-fill, minmax(84px, 1fr))` inside a 720px cap grows in COLUMN
+COUNT and never in track size, so 768×1024, 810×1080 AND 834×1112 all measured
+**seven columns of 85×120px** — the same tile as a 320px phone, at maximum
+density, with 45-57px of dead gutter each side; the front door was three
+letterbox strips and her world served 12.8px Chinese on a ten-inch screen.
+Nothing saw it because `mobile.test.js` audited 390 and 320 only — *a viewport
+list IS the test*, now the fourth instance of that class. A media query above
+600px scales the TRACK: 810 wide now gives 4 columns of 183×180 on the home,
+5×143 in the Sticker Book, 3 doors of 249×260, 3×249 in her world. Two
+implementation traps, both of which produced a silently-wrong layout: a `@media`
+block that OVERRIDES base rules must come after them in the file (moved to the
+top it lost every override at equal specificity and looked like the query wasn't
+matching); and **`margin-left/right: auto` on a FLEX ITEM cancels the stretch and
+shrink-wraps it** — `#screens` becomes a column flex container in a game, so
+capping the game screens back to 720px with auto margins collapsed her home to
+320px until an explicit `width: 100%` restored a definite cross size. The cap is
+deliberately scoped so all 240 in-game stages keep their old measure.
+**The front door — the first screen anyone sees and the only route into any
+world — hid the third world below the fold**: measured 152px past the bottom at
+320×568, 42px at 360×640, 15px at 375×667 and 63px in landscape at 844×390, with
+nothing hinting the 🏰 world exists. Its own test ran at a fixed 780px height,
+which is exactly why it never saw it. And measured as INK rather than boxes, the
+three doors were not peers — Josh's `JoshArt.friend` portrait inks 56×77 where
+👵🏻 inks 58×63 and 🏰 inks 72×70, so the PRIMARY door carried the lightest mark
+and the three labels sat at three different heights (a 21px spread). One shared
+mark box (spread 0) and a short-screen block (every door above the fold at every
+tested size), both mutation-proven.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

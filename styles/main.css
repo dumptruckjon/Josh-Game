@@ -192,8 +192,16 @@ body {
   padding: 16px 12px;
 }
 .start-tile:active { transform: scale(0.97); }
-.start-tile__icon { font-size: 4rem; line-height: 1; }
-.start-tile__art { display: block; width: 96px; height: 96px; }
+/* ONE shared mark box for all three doors. Measured INK, not boxes: Josh's
+   JoshArt.friend portrait inks 56x77 inside a 96x96 box while 👵🏻 inks 58x63
+   and 🏰 inks 72x70 at their own font size — so the PRIMARY door carried the
+   lightest mark, and because the mark boxes differed the three labels sat at
+   three different heights (a 21px spread). Same box, same centring, so the
+   doors read as peers. */
+.start-tile__icon, .start-tile__art {
+  display: flex; align-items: center; justify-content: center;
+  width: 104px; height: 104px; font-size: 4.6rem; line-height: 1;
+}
 .start-tile__art svg { width: 100%; height: 100%; display: block; }
 .start-tile__label { font-size: 1.15rem; font-weight: 800; color: #4a5568; text-align: center; }
 .start-tile--josh { background: linear-gradient(135deg, #d9f3ff, #9fdcff); }
@@ -2449,3 +2457,63 @@ body.hl-mode .brand { color: #ffe9b0; }
 .spy__target { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0 8px; }
 .spy__targetGlyph { font-size: 2.4rem; line-height: 1; }
 .spy__targetLabel { font-size: 0.8rem; color: #6b7a8d; font-weight: 700; }
+
+/* ---------- Tablet: scale the TRACK, not the column count ----------
+   Josh's real device is an iPad, and the launcher grew only in COLUMNS:
+   `repeat(auto-fill, minmax(84px, 1fr))` inside a 720px cap measured SEVEN
+   columns of 85x120px at 768x1024, 810x1080 AND 834x1112 — the same tile size
+   as a 320px phone, 34 of them crammed 7-across, with 45-57px of dead gutter
+   each side. On the biggest screen he owns his targets sat at their 85px
+   minimum, barely over the 75px floor, at maximum density. The front door
+   became three letterbox strips, and 华丽's world was worst: 12.8px Chinese on
+   a 10-inch screen. Nothing below 600px moves.
+   SCOPED to the NAVIGATION screens on purpose: widening #screens itself would
+   also widen all 240 in-game stages, several of which size art with
+   `min(Npx, Nvw)`, and that is a separate pass with its own audit. Grid `gap`
+   (never flex gap) keeps this alive on the iOS 14.2 floor. */
+@media (min-width: 600px) {
+  #screens { max-width: 900px; }
+  /* …but every GAME screen keeps the old 720px measure. A child cannot exceed
+     its parent's cap, so the container has to widen and the games narrow back;
+     the nav screens (.start / .home / .category / .stickers, in either world)
+     are the ones that get the room. */
+  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers) {
+    /* `width: 100%` is load-bearing, not decoration: `#screens` becomes a
+       COLUMN FLEX container in a game (main.css `body.in-game #screens`), and
+       an auto cross-axis margin on a flex item cancels the stretch and
+       shrink-wraps it — her home collapsed to 320px with the cap alone. A
+       definite width restores the stretch and lets the auto margins centre. */
+    width: 100%;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .home-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .hl-screen .home-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .tile { min-height: 164px; }
+  .tile--cat { min-height: 180px; }
+  .tile__icon { font-size: 4.2rem; }
+  .tile--cat .tile__icon { font-size: 4.8rem; }
+  .tile__label { font-size: 1.05rem; }
+  .tile--cat .tile__label { font-size: 1.25rem; }
+  .tile__badge { font-size: 1.9rem; }
+  .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .start-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .start-tile { min-height: 260px; }
+  .start-tile__icon, .start-tile__art { width: 148px; height: 148px; font-size: 6rem; }
+  .start-tile__label { font-size: 1.4rem; }
+}
+
+/* ---------- Short screens: all three doors above the fold ----------
+   The front door is the first thing anyone sees and the ONLY route into any
+   world, and the third tile was BELOW THE FOLD on every small phone —
+   measured 152px past the bottom at 320x568, 42px at 360x640, 15px at
+   375x667 and 63px in landscape at 844x390, with nothing on screen hinting
+   the 🏰 world exists. Nothing taller than 700px moves; this block must come
+   AFTER the tablet block so a short LANDSCAPE tablet gets it too. */
+@media (max-height: 700px) {
+  .start__title { margin: 2px 0 8px; font-size: 1.1rem; }
+  .start-tile { min-height: 116px; padding: 10px 12px; }
+  .start-tile__icon, .start-tile__art { width: 74px; height: 74px; font-size: 3.5rem; }
+  .start-tile__label { font-size: 1rem; }
+}
