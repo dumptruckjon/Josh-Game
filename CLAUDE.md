@@ -2637,6 +2637,25 @@ crown gold itself" check is a false-failure machine, because the same
 `#ffd94a` legitimately paints the Tickmaster's clock pivot, a tier-4 tower ring
 and a dart in flight — the one-owner claim is asserted directly instead (the
 helper is defined exactly once).
+**A NEGATIVE result on the same pass, recorded because a bad metric nearly
+caused a 46-sprite re-tint.** The art backlog carried "four enemy pairs still
+at RGB distance 0-5", so the roster's body colours were re-measured by rendering
+each enemy and histogramming its ink. Three successive versions of that metric
+were WRONG, each in an instructive way: the first binned the whole canvas and
+reported every enemy's dominant colour as the FLOOR; the second diffed the floor
+out and reported the silhouette-law INK RIM, which is identical on every sprite
+by design; the third filtered by luma and still reported a mid-brown
+`rgb(153,102,68)` that appears in no sprite's palette at all — it is the
+ANTIALIASED BLEND between the near-black rim and the tan lane. The tell was the
+pixel counts: 3-7 per bin, because the fixture rendered a whole battlefield into
+120×120 and each enemy was about five pixels across. The actual palettes are
+plainly distinct (Plastic Knight silver-blue `#cfd8e6`, Kite Hawk orange
+`#ff8f5a`, Tin Plane pale blue `#d7dfeb`, Drip Slime green `#9df3b8`, Juice
+Carton orange `#e8a45c`), so **the finding did not reproduce and no re-tint was
+made.** If it is attempted again: render the sprite LARGE, erode the rim before
+sampling, and scope the comparison to pairs that actually SHARE A WAVE (279 of
+them) — a colour reused by two enemies that never meet costs the player nothing,
+and that denominator is part of the measurement.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
