@@ -241,6 +241,35 @@ test("beating games marks them with a ⭐ on the launcher", async () => {
     `the ⭐ badge must not cover the tile's picture — it overlaps the icon box by ${worst.ox}x${worst.oy}px`);
 });
 
+test("no two games on the SAME category screen wear the same picture", async () => {
+  // RULE 5's first law is "zero reading required — icons carry the play". On
+  // #cat-numbers a four-year-old saw THREE identical 🔟 tiles (Build the
+  // Number, Ten & Some More, Make Ten); the only thing separating them was a
+  // 12.8px English label he cannot read, so he could tell them apart solely by
+  // remembering grid position. Measured on the shipped registry: 21 groups,
+  // 45 of 240 tiles. This is the same defect the fort's pixel-hash guardrail
+  // exists to catch ("no two enemy types may render identically") — never
+  // applied to the ONE surface every game is reached through.
+  //
+  // Deliberately PER-CATEGORY, not global: cross-category reuse is fine
+  // (a child never sees #cat-science and #cat-find side by side), and this
+  // must read the live registry, because a Node require only loads part of it.
+  const dupes = await page.evaluate(() => {
+    const by = {};
+    for (const g of (window.JoshGames || [])) {
+      const cat = g.hl ? "华丽/" + (g.hlCat || "?") : (g.cat || "?");
+      ((by[cat] = by[cat] || {})[g.icon] = by[cat][g.icon] || []).push(g.id);
+    }
+    const out = [];
+    for (const [cat, icons] of Object.entries(by)) {
+      for (const [icon, ids] of Object.entries(icons)) if (ids.length > 1) out.push(`${cat}: ${icon} on ${ids.join(", ")}`);
+    }
+    return out;
+  });
+  assert.equal(dupes.length, 0,
+    `every tile on a category screen must be a DIFFERENT picture — ${dupes.join(" | ")}`);
+});
+
 test("华丽's world names itself in the top bar, and Josh's names his", async () => {
   // The sticky bar is the one element on screen 100% of the time, and it said
   // "Josh's Games" in every world — English, in Josh's blue, inside her

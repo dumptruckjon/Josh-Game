@@ -541,7 +541,7 @@
   // blank — deduce which picture belongs there (row/column elimination).
   F.register({
     id: "picture-squares",
-    icon: "🧩",
+    icon: "🪟",
     title: "Picture Squares",
     skill: "deduction / sudoku [W]",
     start(api) {

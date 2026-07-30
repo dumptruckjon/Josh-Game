@@ -77,7 +77,7 @@
   // ---- Spot the One: a crowd all the same but ONE — find the different one ----
   F.register({
     id: "find-crowd",
-    icon: "🕵️",
+    icon: "🙋",
     title: "Spot the One",
     skill: "visual search",
     start(api) {
@@ -568,7 +568,7 @@
   // ---- Number Hunt (letter-hunt's numeral sibling) [M→W] ----
   F.register({
     id: "number-hunt",
-    icon: "🎈",
+    icon: "7️⃣",
     title: "Number Hunt",
     skill: "numeral recognition [M→W]",
     start(api) {
@@ -870,7 +870,7 @@
   // ================= Road to 180 — Set 2, Wave 6 =================
   // ---- Count the Animals (categorize-then-count: filter, THEN count) ----
   F.register({
-    id: "category-count", icon: "🐾", title: "Count the Animals", skill: "categorize then count [W]",
+    id: "category-count", icon: "🦓", title: "Count the Animals", skill: "categorize then count [W]",
     start(api) {
       const L = window.JoshLogic;
       const ROUNDS = 4; let round = 0, last = -1;
@@ -907,7 +907,7 @@
 
   // ---- Find the Tiniest (size discrimination; uniform hit box, varying glyph) ----
   F.register({
-    id: "smallest-hunt", icon: "🔎", title: "Find the Tiniest", skill: "size discrimination [M]",
+    id: "smallest-hunt", icon: "🔬", title: "Find the Tiniest", skill: "size discrimination [M]",
     start(api) {
       const L = window.JoshLogic;
       const ROUNDS = 4; let round = 0, lastAsk = null;
@@ -1072,7 +1072,7 @@
   // ================= Road to 200 — Set 3, Wave 10 =================
   // ---- Shape Spy (find every shape of a kind IN a scene — mechanic K) ----
   F.register({
-    id: "shape-spy", icon: "🔎", title: "Shape Spy", skill: "embedded shapes [W]",
+    id: "shape-spy", icon: "🔷", title: "Shape Spy", skill: "embedded shapes [W]",
     start(api) {
       const scene = api.C.SPY_SCENE, NAMES = api.C.SPY_SHAPE_NAMES || {};
       const ROUNDS = 3;

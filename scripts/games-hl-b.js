@@ -429,7 +429,7 @@
 
   // 猜灯谜 — classic folk riddles under a lantern.
   reg("hlc-culture", {
-    id: "hl-riddle", icon: "🏮", title: "猜灯谜",
+    id: "hl-riddle", icon: "🎋", title: "猜灯谜",
     skill: "谜语",
     start(api) {
       const ROUNDS = 3;

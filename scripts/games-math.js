@@ -226,7 +226,7 @@
   // ---- Which Has More (compare quantities, [P]) ----
   F.register({
     id: "which-more",
-    icon: "⚖️",
+    icon: "🍇",
     title: "Which Has More?",
     skill: "compare quantities [P]",
     start(api) {
@@ -521,7 +521,7 @@
   // ---- Build the Number (place value: tens + ones, [W]) ----
   F.register({
     id: "place-value",
-    icon: "🔟",
+    icon: "🏢",
     title: "Build the Number",
     skill: "place value [W]",
     start(api) {
@@ -682,7 +682,7 @@
   // is concrete: the empty cells ARE the answer, so a non-reader can self-check.
   F.register({
     id: "make-ten",
-    icon: "🔟",
+    icon: "🤲",
     title: "Make Ten",
     skill: "number bonds to 10 [W]",
     start(api) {
@@ -1028,7 +1028,7 @@
   // ---- Number Line Hop (a frog sits on the missing number) [M/W] ----
   F.register({
     id: "line-hop",
-    icon: "🐸",
+    icon: "🦘",
     title: "Number Line Hop",
     skill: "numbers on a line [M/W]",
     start(api) {
@@ -1077,7 +1077,7 @@
 
   // ---- Nickel Trade (a nickel is worth 5 pennies) [NA→P] ----
   F.register({
-    id: "nickel-trade", icon: "🪙", title: "Nickel Trade", skill: "money / coins [NA→P]",
+    id: "nickel-trade", icon: "💵", title: "Nickel Trade", skill: "money / coins [NA→P]",
     start(api) {
       const L = window.JoshLogic;
       const ROUNDS = 4; let round = 0, r = null;
@@ -1472,7 +1472,7 @@
 
   // ---- Partner Up! (parity through pairing — mechanic A-lite, toy contract) ----
   F.register({
-    id: "partner-up", icon: "🦆", title: "Partner Up!", skill: "odd / even [P]",
+    id: "partner-up", icon: "👫", title: "Partner Up!", skill: "odd / even [P]",
     start(api) {
       const L = window.JoshLogic;
       const ROUNDS = 4; let round = 0, last = -1;
@@ -1623,7 +1623,7 @@
   // Stack unit blocks up to the thing's head; the dashed alignment line shows
   // when they're even. The flag clears on the COMPLETING block (piggy-bank law).
   F.register({
-    id: "how-tall", icon: "📏", title: "How Tall?", skill: "measure with units [P→W]",
+    id: "how-tall", icon: "📐", title: "How Tall?", skill: "measure with units [P→W]",
     start(api) {
       const L = window.JoshLogic;
       const THINGS = api.C.TALL_THINGS || [];

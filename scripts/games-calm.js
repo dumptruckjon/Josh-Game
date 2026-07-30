@@ -769,7 +769,7 @@
   // miss is a giggle and a gentle "what would HELP?" redirect.
   F.register({
     id: "kind-helpers",
-    icon: "🤝",
+    icon: "💗",
     title: "Kind Helpers",
     skill: "kindness / conflict resolution [W]",
     start(api) {

@@ -296,7 +296,7 @@
   // continent (self-checking); tap the chip whose color matches that continent.
   F.register({
     id: "continent-match",
-    icon: "🌍",
+    icon: "🐨",
     title: "Where Do They Live?",
     skill: "continents / geography [W]",
     start(api) {
@@ -347,7 +347,7 @@
   // real mixable color. Truth table lives in content.js MIXES.
   F.register({
     id: "color-mix",
-    icon: "🎨",
+    icon: "🌈",
     title: "Mix It!",
     skill: "color mixing [P]",
     start(api) {

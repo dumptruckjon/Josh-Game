@@ -307,7 +307,7 @@
   // ---- Finish the Word: which sound starts it — sh, ch, or th? ([W]) ----
   F.register({
     id: "digraph-finish",
-    icon: "🔡",
+    icon: "🧀",
     title: "sh, ch, or th?",
     skill: "digraphs sh·ch·th [W]",
     start(api) {
@@ -354,7 +354,7 @@
   // Reuses the lacing mechanic to teach letter FORMATION (his writing edge).
   F.register({
     id: "letter-maker",
-    icon: "✏️",
+    icon: "🖍️",
     title: "Letter Maker",
     skill: "letter formation / writing [W]",
     start(api) {
@@ -667,7 +667,7 @@
   // whole train then chants its letters in order.
   F.register({
     id: "alpha-train",
-    icon: "🚂",
+    icon: "🚋",
     title: "Alphabet Train",
     skill: "alphabet order [W]",
     start(api) {
@@ -969,7 +969,7 @@
   // alphabet order (whole alphabet reachable via alphaRun).
   F.register({
     id: "abc-dots",
-    icon: "🔤",
+    icon: "✨",
     title: "ABC Dot-to-Dot",
     skill: "alphabet order / reveal [W]",
     start(api) {
@@ -1089,7 +1089,7 @@
   // ================= Road to 180 — Set 2, Wave 7 =================
   // ---- Little Letter Maker (lowercase trace — letter-maker's sibling) ----
   F.register({
-    id: "little-letters", icon: "✍️", title: "Little Letter Maker", skill: "lowercase writing [W]",
+    id: "little-letters", icon: "🖊️", title: "Little Letter Maker", skill: "lowercase writing [W]",
     start(api) {
       const C = api.C;
       const ROUNDS = 4;

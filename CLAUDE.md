@@ -2442,6 +2442,21 @@ the site** — 12.8px game titles, 15.2px category titles, in the only world who
 user reads — so it is two columns at 18.4px now: every title on one line, 132px
 taps, 16px gaps, no overflow at 320/390/414, her category screens filling a
 viewport they were wasting half of, at the cost of one flick on her home.
+**45 of 240 tiles shared their PICTURE with a sibling on the same category
+screen** — RULE 5's first law is "zero reading required, icons carry the play",
+and `#cat-numbers` showed a four-year-old THREE identical 🔟 tiles (Build the
+Number, Ten & Some More, Make Ten), separated only by a 12.8px English label he
+cannot read: he could tell them apart solely by remembering grid position. 21
+groups in all (🔎×3 and 🕸️×3 too). This is exactly the defect the fort's
+pixel-hash guardrail exists to catch — "no two enemy types may render
+identically" — never applied to the ONE surface every game is reached through.
+24 icons changed, chosen so the glyph stays with the game that OWNS it (the
+seesaw keeps ⚖️, "Which Has More?" becomes 🍇; "Hop & Count" keeps 🐸,
+"Number Line Hop" becomes 🦘) and every replacement passes both shipped emoji
+guardrails (≤ Emoji 13.0, VS16 where text-default). The guardrail reads the LIVE
+registry in the browser — a Node require only loads part of it — and is
+deliberately per-CATEGORY, since cross-category reuse is fine (a child never sees
+`#cat-science` and `#cat-find` side by side).
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

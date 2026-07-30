@@ -365,7 +365,7 @@
   // the whole batch → confetti → a fresh batch. Endless, missless, no reading.
   F.register({
     id: "thwip-villains",
-    icon: "🕸️",
+    icon: "👺",
     title: "Thwip the Villains",
     skill: "cause→effect / Spidey play [P]",
     start(api) {
@@ -586,7 +586,7 @@
   // ---- Web Swing! (tap the numbered buildings in order; hero hops across) ----
   F.register({
     id: "web-swing",
-    icon: "🕸️",
+    icon: "🏙️",
     title: "Web Swing!",
     skill: "ordered taps / hero play [P]",
     start(api) {
