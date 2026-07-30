@@ -371,26 +371,26 @@
   // `ink` is the texture's own colour; `road` optionally re-tints the lane.
   const WORLDS = {
     bedroom:  { label: "🛏️ Bedroom",  spawnGlyph: "🛏️", backbone: { ground: ["sock", "knight", "blob", "marble"], flier: "balloon" },
-      floor: { pattern: "carpet", top: "#2a2350", bottom: "#3a2f63", ink: "rgba(255,255,255,0.05)",
+      floor: { pattern: "carpet", props: ["blocks", "box", "case"], top: "#2a2350", bottom: "#3a2f63", ink: "rgba(255,255,255,0.05)",
                road: { edge: "#3c2f22", base: "#caa268", top: "#e0bd83", style: "ties", tie: "rgba(58,40,22,0.30)" } } },
     backyard: { label: "🌳 Backyard", spawnGlyph: "🌳", backbone: { ground: ["acorn", "knight", "blob", "ant"], flier: "hawk" },
-      floor: { pattern: "grass", top: "#1d4526", bottom: "#2c5c31", ink: "rgba(190,255,170,0.16)",
+      floor: { pattern: "grass", props: ["bush", "stone", "tin"], top: "#1d4526", bottom: "#2c5c31", ink: "rgba(190,255,170,0.16)",
                road: { edge: "#4a3a22", base: "#b98f56", top: "#d9b478", style: "stones", tie: "rgba(72,58,36,0.32)" } } },
     toystore: { label: "🧸 Toy Store", spawnGlyph: "🧸", backbone: { ground: ["yoyo", "knight", "blob", "die"], flier: "hawk" },
-      floor: { pattern: "tile", top: "#123f4a", bottom: "#17505e", ink: "rgba(190,245,255,0.10)",
+      floor: { pattern: "tile", props: ["box", "blocks", "stone"], top: "#123f4a", bottom: "#17505e", ink: "rgba(190,245,255,0.10)",
                road: { edge: "#3a2c1e", base: "#d8b06a", top: "#efd39a", style: "ties", tie: "rgba(52,34,18,0.24)" } } },
     attic:    { label: "🧳 Attic",    spawnGlyph: "🧳", backbone: { ground: ["mitten", "knight", "blob", "yarn"], flier: "hawk" },
-      floor: { pattern: "boards", top: "#3a2a1c", bottom: "#4a3625", ink: "rgba(20,12,6,0.32)",
+      floor: { pattern: "boards", props: ["case", "box", "stain"], top: "#3a2a1c", bottom: "#4a3625", ink: "rgba(20,12,6,0.32)",
                road: { edge: "#2a1f14", base: "#9d7d52", top: "#c3a273", style: "tape", tie: "rgba(28,20,12,0.34)" } } },
     garage:   { label: "🔧 Garage",   spawnGlyph: "🔧", backbone: { ground: ["rag", "knight", "blob", "cog"], flier: "hawk" },
-      floor: { pattern: "concrete", top: "#2b3038", bottom: "#383e47", ink: "rgba(0,0,0,0.22)",
+      floor: { pattern: "concrete", props: ["tyre", "tin", "stain"], top: "#2b3038", bottom: "#383e47", ink: "rgba(0,0,0,0.22)",
                road: { edge: "#22262c", base: "#8d949e", top: "#a9b1bb", style: "tape", tie: "rgba(255,214,80,0.55)" } } },
     moving:   { label: "📦 Moving Day", spawnGlyph: "📦", backbone: { ground: ["wad", "knight", "blob", "peanut"], flier: "hawk" },
-      floor: { pattern: "cardboard", top: "#7a5326", bottom: "#8d6531", ink: "rgba(60,34,10,0.26)",
+      floor: { pattern: "cardboard", props: ["box", "case", "tyre"], top: "#7a5326", bottom: "#8d6531", ink: "rgba(60,34,10,0.26)",
                road: { edge: "#33261a", base: "#c9a877", top: "#e3c99c", style: "tape", tie: "rgba(180,150,105,0.55)" } } },
     // World 7 — the van arrived. Bare boards under a pale painter's drop-cloth.
     newhouse: { label: "🏠 The New House", spawnGlyph: "🪜", backbone: { ground: ["chair", "knight", "blob", "housekey"], flier: "hawk" },
-      floor: { pattern: "dropcloth", top: "#4a4740", bottom: "#5b574d", ink: "rgba(240,236,225,0.13)",
+      floor: { pattern: "dropcloth", props: ["tin", "box", "stone"], top: "#4a4740", bottom: "#5b574d", ink: "rgba(240,236,225,0.13)",
                road: { edge: "#2e2a22", base: "#b7ad97", top: "#dcd4c0", style: "stones", tie: "rgba(120,112,96,0.26)" } } },
     // World 8 — the box that never got unpacked in the New House went out with
     // the recycling. Deliberately NOT another room in the displacement chain:
@@ -400,7 +400,7 @@
     // text-default and ships as a monochrome sliver on iOS 14.2 without it.
     sortline: { label: "♻️ The Sort Line", spawnGlyph: "♻️",
       backbone: { ground: ["carton", "knight", "blob", "clip"], flier: "leaflet" },
-      floor: { pattern: "grating", top: "#232a2e", bottom: "#2f383d", ink: "rgba(255,196,110,0.09)",
+      floor: { pattern: "grating", props: ["tin", "case", "stain"], top: "#232a2e", bottom: "#2f383d", ink: "rgba(255,196,110,0.09)",
                road: { edge: "#101315", base: "#454b52", top: "#636a73", style: "ties", tie: "rgba(12,14,16,0.55)" } } },
   };
 

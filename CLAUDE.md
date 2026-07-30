@@ -958,8 +958,8 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/46-enemy roster (31 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/46-enemy roster (31 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
@@ -2685,6 +2685,27 @@ lives in `site.test.js` because it needs no browser at all: **inside a world's
 own wave pool, two bodies of comparable SIZE must differ by ≥20**, with the size
 exemption DERIVED from `boss`/`size` rather than hand-listed. Mutation-proven by
 reverting the Knight to steel.
+**And the floor got FURNITURE, with the WHERE decided in the engine.** The board
+is 336 cells, the lane takes ~65 and the pads ≤14, so about three quarters of
+every screen was bare — the Bedroom, the Garage and Moving Day were told apart
+by a palette and a hatch pattern alone, and the field read as a diagram rather
+than a room. `TDLogic.propCells(levelDef, grid)` decides placement and lives
+beside `enemyTraits`/`reachedBy`/`levelGimmicks` for the same three reasons:
+it is testable with no browser, it has NO rng (a per-cell hash, so a level
+always dresses identically), and it takes **no cell size**, so a `resize()` can
+never shift a prop. Clearance is measured against EVERY lane — the TD-11 lesson
+written as code, and mutation-proven: check only `paths[0]` and L3 immediately
+grows a prop sitting 0.00 from its switch track. The art side is eight shared
+primitives (box · blocks · bush · stone · tyre · tin · case · stain) that eight
+worlds pick three of, so a ninth world costs a three-item list rather than three
+drawings, and they are baked into the background at ≤0.62 alpha under the lane —
+zero per-frame cost, never a face, never the pads' blue-steel. One
+implementation note worth keeping: the first selector walked the eligible cells
+on a fixed STRIDE, which only enumerates every index when the stride is coprime
+with the length, so the tightest maps silently got 2 props instead of 7 — a
+hash-ordered greedy pass with a two-stage gap fixed it, and 31 of 32 levels now
+take the full 7 (the tightest takes 3, which the guardrail asserts as a floor
+rather than pretending otherwise).
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

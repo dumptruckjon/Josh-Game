@@ -2940,6 +2940,55 @@ test("TD-9 abilities: a no-op use is REFUSED, and costs neither gold nor cooldow
   assert.ok(e.state.gold < 5000, "…and is paid for");
 });
 
+test("ART floor props: placed purely, clear of EVERY lane, and never moved by a resize", () => {
+  // Three quarters of every board was bare floor. The props that dress it are
+  // placed by a PURE function so this can be checked without a browser at all.
+  //
+  // The clearance is measured against EVERY lane, not lane 0 — the TD-11 lesson
+  // as an assertion. Mutation: check only `paths[0]` and the eight fork levels
+  // immediately grow a prop on their switch track.
+  const LANE = 1.6, PAD = 1.4;
+  const near = (px, py, path) => {
+    let best = Infinity;
+    for (const s of path.segs) {
+      const dx = s.bx - s.ax, dy = s.by - s.ay, l2 = dx * dx + dy * dy;
+      let t = l2 ? ((px - s.ax) * dx + (py - s.ay) * dy) / l2 : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      best = Math.min(best, Math.hypot(px - (s.ax + dx * t), py - (s.ay + dy * t)));
+    }
+    return best;
+  };
+  let forked = 0;
+  for (const lv of DATA.LEVELS) {
+    const props = TD.propCells(lv, DATA.GRID);
+    // A level that dresses with nothing is a bare board — the thing this fixes.
+    assert.ok(props.length >= 3, `L${lv.id} gets some floor dressing (${props.length})`);
+    // PURE: two calls agree exactly, and it takes no cell size, so a resize()
+    // can never shift a prop (the props are baked once into the background).
+    assert.deepEqual(TD.propCells(lv, DATA.GRID), props, `L${lv.id} places props deterministically`);
+    const lanes = (lv.paths && lv.paths.length ? lv.paths : [lv.path]).map(TD.buildPath);
+    if (lanes.length > 1) forked++;
+    for (const p of props) {
+      assert.ok(p.x > 0 && p.x < DATA.GRID.w && p.y > 0 && p.y < DATA.GRID.h, `L${lv.id} prop is on the board`);
+      for (let i = 0; i < lanes.length; i++) {
+        assert.ok(near(p.x, p.y, lanes[i]) >= LANE,
+          `L${lv.id} prop (${p.x},${p.y}) sits ${near(p.x, p.y, lanes[i]).toFixed(2)} from lane ${i} — it must never touch the corridor an enemy walks`);
+      }
+      for (const pd of lv.pads) {
+        assert.ok(Math.hypot(p.x - pd.cx, p.y - pd.cy) >= PAD, `L${lv.id} prop clears pad ${pd.id}`);
+      }
+      if (lv.lever) assert.ok(Math.hypot(p.x - lv.lever.cx, p.y - lv.lever.cy) >= PAD, `L${lv.id} prop clears the lever`);
+    }
+  }
+  assert.ok(forked >= 8, `the multi-lane clearance really is exercised (${forked} fork levels)`);
+  // Every world must actually declare a prop set, or its floor stays bare —
+  // derived, so a ninth world cannot ship undressed.
+  for (const [w, def] of Object.entries(DATA.WORLDS)) {
+    assert.ok(Array.isArray(def.floor.props) && def.floor.props.length === 3,
+      `${w} declares three floor props (it has ${JSON.stringify(def.floor && def.floor.props)})`);
+  }
+});
+
 test("P6 wave data: every group has the fields the spawner arithmetic needs", () => {
   // Found while dosing a new enemy: a group without `delay` makes
   // `Math.max(0, g.delay + i * g.gap + jitter)` NaN, the spawn tick NaN, the

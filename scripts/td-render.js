@@ -121,6 +121,63 @@
     function exitWorld() { ctx.restore(); }
 
     // ---- Baked floor: gradient, subtle rug texture, the path ribbon, pads ----
+    // The EIGHT shared floor primitives. Deliberately a small closed set: eight
+    // worlds pick three each from `WORLDS[w].floor.props`, so a ninth world
+    // costs a three-item list rather than three new drawings — and each is ≤12
+    // canvas ops, painted once into the baked background, so the per-frame cost
+    // is exactly zero. Vector only, never emoji: an emoji here would land
+    // straight in the ≤13.0 and VS16 scans.
+    function drawProp(b, kind, x, y, u, ink) {
+      const dark = "rgba(0,0,0,0.45)";
+      b.save();
+      b.strokeStyle = ink; b.lineWidth = Math.max(1, u * 0.05);
+      if (kind === "box") {                                   // a cardboard carton
+        b.fillStyle = "#a97b47"; b.fillRect(x - u * 0.34, y - u * 0.3, u * 0.68, u * 0.58);
+        b.fillStyle = "#c08f55"; b.fillRect(x - u * 0.34, y - u * 0.3, u * 0.68, u * 0.16);
+        b.strokeRect(x - u * 0.34, y - u * 0.3, u * 0.68, u * 0.58);
+        b.beginPath(); b.moveTo(x, y - u * 0.14); b.lineTo(x, y + u * 0.28); b.stroke();
+      } else if (kind === "blocks") {                          // a little stack of bricks
+        const cols = ["#d95f52", "#4f8fd9", "#e2b23a"];
+        for (let i = 0; i < 3; i++) {
+          b.fillStyle = cols[i];
+          b.fillRect(x - u * 0.3 + (i % 2) * u * 0.1, y + u * 0.24 - (i + 1) * u * 0.18, u * 0.5, u * 0.16);
+        }
+      } else if (kind === "bush") {                            // a garden shrub
+        b.fillStyle = "#2f6b34";
+        for (const [dx, dy, r] of [[-0.2, 0.06, 0.26], [0.18, 0.04, 0.24], [0, -0.14, 0.28]]) {
+          b.beginPath(); b.arc(x + dx * u, y + dy * u, r * u, 0, 7); b.fill();
+        }
+        b.fillStyle = "#3f8a42";
+        b.beginPath(); b.arc(x - u * 0.06, y - u * 0.16, u * 0.16, 0, 7); b.fill();
+      } else if (kind === "stone") {                           // a rounded pebble
+        b.fillStyle = "#8d8a83";
+        b.beginPath(); b.ellipse(x, y, u * 0.32, u * 0.24, 0.3, 0, 7); b.fill();
+        b.fillStyle = "rgba(255,255,255,0.18)";
+        b.beginPath(); b.ellipse(x - u * 0.08, y - u * 0.08, u * 0.14, u * 0.08, 0.3, 0, 7); b.fill();
+      } else if (kind === "tyre") {                            // a stacked tyre
+        b.fillStyle = "#2b2b30";
+        b.beginPath(); b.ellipse(x, y, u * 0.34, u * 0.26, 0, 0, 7); b.fill();
+        b.fillStyle = "#4a4a52";
+        b.beginPath(); b.ellipse(x, y - u * 0.04, u * 0.16, u * 0.12, 0, 0, 7); b.fill();
+      } else if (kind === "tin") {                             // a paint/oil tin
+        b.fillStyle = "#8f9aa8"; b.fillRect(x - u * 0.24, y - u * 0.26, u * 0.48, u * 0.52);
+        b.fillStyle = "#b6c0cc"; b.fillRect(x - u * 0.24, y - u * 0.26, u * 0.48, u * 0.1);
+        b.fillStyle = "#c86a3a"; b.fillRect(x - u * 0.24, y - u * 0.04, u * 0.48, u * 0.14);
+        b.strokeRect(x - u * 0.24, y - u * 0.26, u * 0.48, u * 0.52);
+      } else if (kind === "case") {                            // an old suitcase
+        b.fillStyle = "#7a4d33"; b.fillRect(x - u * 0.36, y - u * 0.2, u * 0.72, u * 0.4);
+        b.strokeRect(x - u * 0.36, y - u * 0.2, u * 0.72, u * 0.4);
+        b.strokeStyle = dark;
+        b.beginPath(); b.moveTo(x - u * 0.36, y - u * 0.02); b.lineTo(x + u * 0.36, y - u * 0.02); b.stroke();
+        b.beginPath(); b.arc(x, y - u * 0.24, u * 0.09, Math.PI, 0); b.stroke();   // handle
+      } else {                                                  // "stain" — a floor mark
+        b.fillStyle = ink;
+        b.beginPath(); b.ellipse(x, y, u * 0.4, u * 0.22, 0.5, 0, 7); b.fill();
+        b.beginPath(); b.ellipse(x + u * 0.26, y + u * 0.14, u * 0.12, u * 0.07, 0.2, 0, 7); b.fill();
+      }
+      b.restore();
+    }
+
     function bakeBg() {
       bg = document.createElement("canvas");
       const W = cell * GRID.w, H = cell * GRID.h; // WORLD-oriented bake
@@ -324,6 +381,32 @@
         }
         b.setLineDash([]);
       };
+      // ---- decorative floor PROPS, baked under the lane ----
+      // Three quarters of every board was bare: the lane takes ~65 of 336 cells
+      // and the pads ≤14, so the Bedroom, the Garage and Moving Day were told
+      // apart by a palette and a hatch pattern alone and the field read as a
+      // diagram rather than a room. WHERE they go is decided purely, in the
+      // engine (TDLogic.propCells — no rng, no cell size, clearance measured
+      // against EVERY lane); WHAT they look like is eight shared primitives, so
+      // eight worlds cost eight three-item lists rather than 24 drawings.
+      //
+      // Readability first: baked so they never move, ≤0.62 alpha, tinted toward
+      // the floor, never the pads' blue-steel, never a face, and ≥1.6 cells from
+      // any lane so they never touch the corridor an enemy walks. Drawn BEFORE
+      // the lanes and pads, so anything that matters paints over them.
+      const PROPS = FLOOR.props;
+      if (PROPS && global.TDLogic && global.TDLogic.propCells) {
+        const ink2 = FLOOR.propInk || "rgba(0,0,0,0.34)";
+        b.save();
+        b.globalAlpha = NIGHT ? 0.38 : 0.62;
+        for (const p of global.TDLogic.propCells(engine.levelDef, GRID)) {
+          const px = (p.x + 0.5) * cell, py = (p.y + 0.5) * cell, u = cell * p.s;
+          b.fillStyle = "rgba(0,0,0,0.22)";                       // contact shadow
+          b.beginPath(); b.ellipse(px, py + u * 0.34, u * 0.42, u * 0.14, 0, 0, 7); b.fill();
+          drawProp(b, PROPS[p.kind % PROPS.length], px, py, u, ink2);
+        }
+        b.restore();
+      }
       // TD-7: secondary lanes (the lever's "switch track") beneath, in a cooler
       // steel-blue so the alternate route reads as a toy train siding.
       for (let i = lanes.length - 1; i >= 1; i--) {

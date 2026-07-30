@@ -1809,7 +1809,76 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, DT };
+  // ---- Decorative floor props: WHERE, decided purely (§art) ----
+  // The board is 336 cells; the lane occupies ~65 and the pads ≤14, so ~76% of
+  // every screen was bare floor and the Bedroom, the Garage and Moving Day were
+  // told apart by a palette and a hatch pattern alone — the field read as a
+  // diagram rather than a room.
+  //
+  // Placement lives HERE, beside enemyTraits/reachedBy/levelGimmicks, for the
+  // reasons that make those pure too: it is testable without a browser, it has
+  // no rng (the same multiplicative hash the floor speckle uses, so the same
+  // level always dresses identically), and it takes NO cell size — a resize()
+  // can never shift a prop.
+  //
+  // Clearance is measured against EVERY lane, not lane 0. That is the TD-11
+  // lesson stated as code: a fork level's switch track is a lane an enemy really
+  // walks, and the original pad-geometry audit checked only the default one.
+  function propCells(levelDef, grid, opts) {
+    const o = opts || {};
+    const LANE = o.lane == null ? 1.6 : o.lane;   // never touch the corridor an enemy walks
+    const PAD = o.pad == null ? 1.4 : o.pad;      // nor crowd a build socket
+    const want = o.count == null ? 7 : o.count;
+    const G = grid || DATA.GRID;
+    const lanes = (levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path]).map(buildPath);
+    const pads = levelDef.pads || [];
+    // distance from a point to a polyline, in CELL-INDEX space — the same space
+    // pads and path points are stored in (the documented "two coordinate spaces
+    // one +0.5 apart" trap: mixing them biases every distance by a half-cell)
+    function toLane(px, py, path) {
+      let best = Infinity;
+      for (const s of path.segs) {
+        const dx = s.bx - s.ax, dy = s.by - s.ay;
+        const len2 = dx * dx + dy * dy;
+        let t = len2 ? ((px - s.ax) * dx + (py - s.ay) * dy) / len2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        best = Math.min(best, Math.hypot(px - (s.ax + dx * t), py - (s.ay + dy * t)));
+      }
+      return best;
+    }
+    const free = [];
+    for (let y = 1; y < G.h - 1; y++) for (let x = 1; x < G.w - 1; x++) {
+      if (lanes.some((p) => toLane(x, y, p) < LANE)) continue;
+      if (pads.some((p) => Math.hypot(x - p.cx, y - p.cy) < PAD)) continue;
+      if (levelDef.lever && Math.hypot(x - levelDef.lever.cx, y - levelDef.lever.cy) < PAD) continue;
+      free.push([x, y]);
+    }
+    // Spread them out: consider the eligible cells in a deterministic shuffled
+    // order and greedily take any that is far enough from one already placed.
+    //
+    // The first cut walked the list on a fixed STRIDE, which only enumerates
+    // every index when the stride is coprime with the length — otherwise it
+    // cycles a subset, and the tightest maps got 2 props instead of 7. Sorting
+    // by a per-cell hash visits all of them and is still a pure function of the
+    // level, so two calls agree exactly.
+    const seed = String(levelDef.id).split("").reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const key = (c) => (((c[0] * 73856093) ^ (c[1] * 19349663) ^ (seed * 83492791)) >>> 0);
+    const order = free.slice().sort((a, b) => key(a) - key(b) || a[0] - b[0] || a[1] - b[1]);
+    const out = [];
+    // Two passes: prefer well-separated props, then fill any shortfall with a
+    // looser gap rather than silently shipping a bare board.
+    for (const gap of [3, 2]) {
+      for (const [x, y] of order) {
+        if (out.length >= want) break;
+        if (out.some((p) => Math.hypot(p.x - x, p.y - y) < gap)) continue;
+        const h = ((x * 73856093) ^ (y * 19349663)) >>> 0;
+        out.push({ x, y, kind: h % 3, s: 1.4 + ((h >>> 5) % 9) / 10 });
+      }
+    }
+    return out;
+  }
+
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);
