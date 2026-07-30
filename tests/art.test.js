@@ -37,6 +37,58 @@ test("numberFriend draws exactly n cubes for n = 1..10 (and clamps out of range)
   assert.equal((ART.numberFriend(99).match(/<rect /g) || []).length, 10, "clamps to <= 10");
 });
 
+test("numberFriend is COUNTABLE: square cubes, a face on its own cube, and bigger n = more ink", () => {
+  // It is the countable in build-number, add-up and number-match, the whole of
+  // the Grow! toy, three buddy tiles and a Sticker Book kind. The old drawing
+  // pinned the cube WIDTH at 44 and split a fixed 76-unit height between the
+  // cubes, so all three of these properties were false and nothing could fail:
+  // cubes ran 2.75:1 at n=1 and 7.86:1 at n=10 (stripes, not blocks); the face
+  // was placed by a fixed 4-unit offset so at n=10 the mouth landed in the GAP
+  // between cube 1 and cube 2; and ink PEAKED at n=5 (29.0%) and fell to 24.6%
+  // at n=10, so in add-up — a game whose beat is two friends merging into their
+  // sum — 4 + 5 = 9 drew a sum smaller than either addend.
+  const boxOf = (svg) => {
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    const put = (x, y, p) => { p = p || 0; x0 = Math.min(x0, x - p); x1 = Math.max(x1, x + p); y0 = Math.min(y0, y - p); y1 = Math.max(y1, y + p); };
+    for (const m of svg.matchAll(/<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*stroke-width="([\d.]+)"/g)) {
+      const [x, y, w, h, sw] = m.slice(1).map(Number); put(x, y, sw / 2); put(x + w, y + h, sw / 2);
+    }
+    for (const m of svg.matchAll(/<circle cx="([-\d.]+)" cy="([-\d.]+)" r="([\d.]+)"(?:[^>]*stroke-width="([\d.]+)")?/g)) {
+      const [cx, cy, r, sw] = m.slice(1).map((v) => Number(v || 0)); put(cx, cy, r + sw / 2);
+    }
+    for (const m of svg.matchAll(/<ellipse cx="([-\d.]+)" cy="([-\d.]+)" rx="([\d.]+)" ry="([\d.]+)"/g)) {
+      const [cx, cy, rx, ry] = m.slice(1).map(Number); put(cx - rx, cy - ry); put(cx + rx, cy + ry);
+    }
+    for (const m of svg.matchAll(/<path d="([^"]+)"[^>]*stroke-width="([\d.]+)"/g)) {
+      const sw = Number(m[2]); const nums = (m[1].match(/-?[\d.]+/g) || []).map(Number);
+      for (let i = 0; i + 1 < nums.length; i += 2) put(nums[i], nums[i + 1], sw / 2);
+    }
+    return { x0, x1, y0, y1 };
+  };
+  let prevInk = -1;
+  for (let n = 1; n <= 10; n++) {
+    const svg = ART.numberFriend(n, "#5ec8ff");
+    const cubes = [...svg.matchAll(/<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)].map((m) => m.slice(1).map(Number));
+    assert.equal(cubes.length, n, `n=${n} draws n cubes`);
+    // 1. A cube is a CUBE. A stack of stripes is not countable as blocks.
+    cubes.forEach(([, , w, h]) => assert.ok(Math.abs(w / h - 1) < 0.02, `n=${n}: a cube must be square (got ${w.toFixed(1)}x${h.toFixed(1)} = ${(w / h).toFixed(2)}:1)`));
+    // 2. Bigger number, bigger friend — monotonic ink, so a sum can never draw
+    //    smaller than one of its addends.
+    const ink = cubes.reduce((a, r) => a + r[2] * r[3], 0);
+    assert.ok(ink > prevInk, `n=${n} must draw MORE ink than n=${n - 1} (${(ink / 100).toFixed(1)}% vs ${(prevInk / 100).toFixed(1)}%) — add-up merges two friends into their sum`);
+    prevInk = ink;
+    // 3. The face lives INSIDE one cube — never in a seam, never spanning two.
+    const face = svg.slice(svg.indexOf('<circle cx='));
+    const fb = boxOf(face);
+    const holds = cubes.some((c) => fb.x0 >= c[0] - 0.6 && fb.x1 <= c[0] + c[2] + 0.6 && fb.y0 >= c[1] - 0.6 && fb.y1 <= c[1] + c[3] + 0.6);
+    assert.ok(holds, `n=${n}: the eyes and mouth must fit inside ONE cube (face box x[${fb.x0.toFixed(1)},${fb.x1.toFixed(1)}] y[${fb.y0.toFixed(1)},${fb.y1.toFixed(1)}])`);
+    // 4. Nothing — arms, feet, seams — escapes the viewBox.
+    const b = boxOf(svg);
+    assert.ok(b.x0 >= 0 && b.x1 <= 100 && b.y0 >= 0 && b.y1 <= 100,
+      `n=${n}: every part stays in the 100x100 box (got x[${b.x0.toFixed(1)},${b.x1.toFixed(1)}] y[${b.y0.toFixed(1)},${b.y1.toFixed(1)}])`);
+  }
+});
+
 test("hero() draws a FIGURE, not a blob — it fills its box and stays a colour search", () => {
   // The default buddy for any child who never opens the picker: buddy.js builds
   // its roster HEROES-first and falls back to ROSTER[0], so this drawing is the

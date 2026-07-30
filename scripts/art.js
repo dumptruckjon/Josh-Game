@@ -66,28 +66,87 @@
     );
   }
 
-  // A Numberblock-style number-friend: a stack of n colored cubes with a face
-  // and little arms. Grows taller as n grows.
+  // A Numberblock-style number-friend: n colored CUBES with a face, arms and
+  // feet. It is the countable in three maths games (build-number, add-up,
+  // number-match), the whole of the Grow! toy, three buddy tiles and a Sticker
+  // Book kind — so "how many blocks is this?" has to be answerable at a glance.
+  //
+  // REDRAWN 2026-07. The old drawing kept the cubes' WIDTH fixed at 44 and
+  // divided a fixed 76-unit height between them, which broke three ways:
+  //   • the "cubes" stopped being cubes — 2.75:1 at n=1, and 7.86:1 lozenges at
+  //     n=10, which is a stack of stripes, not a stack of blocks;
+  //   • the face was positioned off the TOP cube by a fixed 4-unit offset, so at
+  //     n=10 the mouth was drawn in the GAP between cube 1 and cube 2 — off the
+  //     body entirely;
+  //   • ink was NOT monotonic in n: it peaked at n=5 (29.0%) and fell away to
+  //     24.6% at n=10, so in `add-up` — an ADDITION game whose whole beat is two
+  //     friends merging into their sum — 4 + 5 = 9 drew a sum SMALLER than
+  //     either addend. The height was flat at 74 for every n from 5 to 10, so
+  //     size carried no information across half the range.
+  // Now the cubes are SQUARE, laid out in bottom-anchored columns of at most 3
+  // (so ten fits without becoming a sliver, and 3-frames stay countable), and
+  // the cube size is derived from a deliberately monotonic ink budget so a
+  // bigger number is ALWAYS a bigger friend. n=1 fills 14.6% of the box instead
+  // of sitting in the bottom sixteenth of it as a squat pill.
+  const NF_ROWS = 3;            // tallest column — keeps a 10 from being a sliver
+  const NF_INK = (n) => 1450 + 350 * n; // area budget in viewBox units², monotonic
   function numberFriend(n, color) {
     n = clamp(Math.round(n || 1), 1, 10);
     color = color || "#5ec8ff";
-    const cubeH = Math.min(18, 76 / n);
-    const w = 44, x = 28;
+    const seam = shade(color, -0.3);
+    // Columns are balanced (tallest first), so the familiar shapes come out
+    // right: 4 is a 2x2 square, 6 a 2x3, 9 a 3x3 — the way Numberblocks stand.
+    const cols = Math.ceil(n / NF_ROWS);
+    const base = Math.floor(n / cols), extra = n % cols;
+    const colH = [];                    // cubes in each column, left→right
+    for (let c = 0; c < cols; c++) colH.push(base + (c < extra ? 1 : 0));
+    const rows = colH[0];
+    // Square cube whose size spends the ink budget, then clamped so the whole
+    // group still fits the box (96 wide × 88 tall, leaving room for feet).
+    const s = Math.min(Math.sqrt(NF_INK(n) / n), 88 / rows, 96 / cols);
+    const g = s * 0.05;                 // inset, so neighbours have a visible seam
+    const bottom = 92;                  // the friend stands on the stage floor
+    const left = 50 - (cols * s) / 2;
     let cubes = "";
-    for (let i = 0; i < n; i++) {
-      const y = 90 - (i + 1) * cubeH;
-      cubes += '<rect x="' + x + '" y="' + y.toFixed(1) + '" width="' + w + '" height="' + (cubeH - 2).toFixed(1) +
-        '" rx="4" fill="' + color + '" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>';
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < colH[c]; r++) {
+        const x = left + c * s + g;
+        const y = bottom - (r + 1) * s + g;
+        cubes += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + (s - 2 * g).toFixed(1) +
+          '" height="' + (s - 2 * g).toFixed(1) + '" rx="' + (s * 0.16).toFixed(1) + '" fill="' + color +
+          '" stroke="' + seam + '" stroke-width="' + Math.max(1, s * 0.05).toFixed(1) + '"/>';
+      }
     }
-    const topY = 90 - n * cubeH;
-    const eyeY = topY + cubeH * 0.42;
-    const midY = 90 - (n * cubeH) / 2;
-    const limbs = '<line x1="' + x + '" y1="' + midY.toFixed(1) + '" x2="16" y2="' + (midY - 4).toFixed(1) + '" stroke="#333" stroke-width="2"/>' +
-      '<line x1="' + (x + w) + '" y1="' + midY.toFixed(1) + '" x2="84" y2="' + (midY - 4).toFixed(1) + '" stroke="#333" stroke-width="2"/>';
-    const face = '<circle cx="42" cy="' + eyeY.toFixed(1) + '" r="2.7" fill="#fff"/><circle cx="42" cy="' + eyeY.toFixed(1) + '" r="1.3" fill="#111"/>' +
-      '<circle cx="58" cy="' + eyeY.toFixed(1) + '" r="2.7" fill="#fff"/><circle cx="58" cy="' + eyeY.toFixed(1) + '" r="1.3" fill="#111"/>' +
-      '<path d="M44 ' + (eyeY + 4).toFixed(1) + ' Q50 ' + (eyeY + 7).toFixed(1) + ' 56 ' + (eyeY + 4).toFixed(1) + '" stroke="#111" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
-    return wrap(cubes + limbs + face);
+    // Face on the TOP cube of the first column — derived from that cube's own
+    // box, so it can never drift onto a neighbour or into a seam.
+    const fx = left + s / 2, fy = bottom - colH[0] * s + s / 2;
+    const eye = (dx) => '<circle cx="' + (fx + dx * s).toFixed(1) + '" cy="' + (fy - 0.06 * s).toFixed(1) +
+      '" r="' + (0.125 * s).toFixed(1) + '" fill="#fff" stroke="#111" stroke-width="' + Math.max(0.8, s * 0.028).toFixed(1) + '"/>' +
+      '<circle cx="' + (fx + dx * s).toFixed(1) + '" cy="' + (fy - 0.06 * s).toFixed(1) + '" r="' + (0.06 * s).toFixed(1) + '" fill="#111"/>';
+    const face = eye(-0.2) + eye(0.2) +
+      '<path d="M' + (fx - 0.17 * s).toFixed(1) + " " + (fy + 0.13 * s).toFixed(1) +
+      " Q" + fx.toFixed(1) + " " + (fy + 0.28 * s).toFixed(1) +
+      " " + (fx + 0.17 * s).toFixed(1) + " " + (fy + 0.13 * s).toFixed(1) +
+      '" stroke="#111" stroke-width="' + Math.max(1.1, s * 0.055).toFixed(1) + '" fill="none" stroke-linecap="round"/>';
+    // Arms only when the group leaves room for them (a ten is 89 units wide).
+    const room = (100 - cols * s) / 2 - 2;
+    let limbs = "";
+    if (room >= 3) {
+      const reach = Math.min(room, 11);
+      const ly = bottom - (colH[0] * s) / 2;
+      const ry = bottom - (colH[cols - 1] * s) / 2;
+      const arm = (x1, y1, x2, y2) => '<path d="M' + x1.toFixed(1) + " " + y1.toFixed(1) + " L" + x2.toFixed(1) + " " + y2.toFixed(1) +
+        '" stroke="' + seam + '" stroke-width="' + Math.max(2, s * 0.09).toFixed(1) + '" stroke-linecap="round" fill="none"/>';
+      limbs = arm(left, ly, left - reach, ly - reach * 0.45) +
+        arm(left + cols * s, ry, left + cols * s + reach, ry - reach * 0.45);
+    }
+    // Feet sit BELOW the bottom row, so their offset is capped in absolute units
+    // rather than scaled with s — a lone big cube would otherwise push them out
+    // through the floor of the 100×100 box.
+    const fh = Math.min(s * 0.1, 2.6), fd = Math.min(s * 0.11, 2.8);
+    const foot = (dx) => '<ellipse cx="' + (fx + dx * s).toFixed(1) + '" cy="' + (bottom + fd).toFixed(1) +
+      '" rx="' + (s * 0.21).toFixed(1) + '" ry="' + fh.toFixed(1) + '" fill="' + seam + '"/>';
+    return wrap(cubes + limbs + foot(-0.26) + foot(0.26) + face);
   }
 
   // A friendly rescue pup with a colored collar + badge (Paw Patrol homage).

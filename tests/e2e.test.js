@@ -516,6 +516,82 @@ test("Buddy: pick a companion — it persists and stars in the win celebration",
   assert.ok(popHtml && popHtml === expected, "the win celebration must pop the chosen buddy's art");
 });
 
+test("winning brings the Again button INTO VIEW, and the buddy pop never covers it", async () => {
+  // MEASURED 2026-07 on the shipped build, driving real wins at five viewports:
+  // the just-revealed Again button landed BELOW THE FOLD on a 320x568 phone in
+  // odd-one-out (37px past the bottom) and music-pad (35px), on a 360x640 in
+  // count-feed (64px), and 156-220px down in EVERY game sampled in landscape.
+  // Josh wins and the one button he wants is off the screen. Nothing tested it,
+  // because the win tests only ever read screen.dataset.won.
+  // The pop is the other half: it is position:fixed, so at some heights its
+  // bottom edge sat exactly where the Again button's top is.
+  const ctx = await browser.newContext({ viewport: { width: 320, height: 568 } });
+  const p = await ctx.newPage();
+  try {
+    for (const id of ["odd-one-out", "music-pad"]) {
+      await p.goto(baseURL + "#" + id, { waitUntil: "load" });
+      const screen = p.locator("#screen-" + id);
+      await screen.waitFor({ state: "visible" });
+      let won = false;
+      for (let i = 0; i < 300 && !won; i++) {
+        won = await screen.evaluate((el) => el.dataset.won === "1");
+        if (won) break;
+        const hit = await screen.evaluate((el) => {
+          const t = el.querySelector('[data-correct="1"]') || el.querySelector("[data-toy]");
+          if (!t) return false; t.click(); return true;
+        });
+        if (!hit) await p.waitForTimeout(20);
+      }
+      assert.ok(won, `${id} should reach a win`);
+      await p.waitForTimeout(500); // let the scroll settle
+      const m = await p.evaluate((gid) => {
+        const s = document.getElementById("screen-" + gid);
+        const ag = s.querySelector(".game__again");
+        const hero = document.querySelector(".win-hero");
+        const R = (e) => { const r = e.getBoundingClientRect(); return { t: Math.round(r.top), b: Math.round(r.bottom) }; };
+        return { again: ag && !ag.hidden ? R(ag) : null, hero: hero ? R(hero) : null, vh: innerHeight };
+      }, id);
+      assert.ok(m.again, `${id}: the Again button is shown after a win`);
+      assert.ok(m.again.t >= 0 && m.again.b <= m.vh,
+        `${id}: Again must be ON SCREEN after a win (top ${m.again.t}, bottom ${m.again.b}, viewport ${m.vh})`);
+      if (m.hero) {
+        assert.ok(m.hero.b <= m.again.t,
+          `${id}: the buddy pop must sit clear ABOVE the Again button (pop bottom ${m.hero.b}, button top ${m.again.t})`);
+        assert.ok(m.hero.t >= 0 && m.hero.b <= m.vh,
+          `${id}: the buddy pop stays in view (top ${m.hero.t}, bottom ${m.hero.b}, viewport ${m.vh})`);
+      }
+    }
+    // The pop is position:FIXED, so whether it lands on the button depends only
+    // on its `bottom` offset versus the space the Again button reserves at the
+    // foot of a page whose content FITS. Measure that reserve from the app (a
+    // tall viewport where nothing scrolls) rather than hard-coding it, then
+    // check the pop clears it at every short height — a plain percentage does
+    // not (14% of 640 is 90px against a 92px reserve, which is the 2px overlap
+    // that was measured on the shipped build).
+    await p.setViewportSize({ width: 390, height: 844 });
+    await p.waitForTimeout(120);
+    const reserve = await p.evaluate(() => {
+      const ag = document.querySelector(".screen:not([hidden]) .game__again");
+      return ag && !ag.hidden ? Math.round(innerHeight - ag.getBoundingClientRect().top) : null;
+    });
+    assert.ok(reserve && reserve > 0, "measured the space the Again button reserves at the foot of a page that fits");
+    for (const vh of [568, 640, 700, 844]) {
+      await p.setViewportSize({ width: 390, height: vh });
+      await p.waitForTimeout(60);
+      const bottom = await p.evaluate(() => {
+        const d = document.createElement("div");
+        d.className = "win-hero";
+        document.body.appendChild(d);
+        const v = parseFloat(getComputedStyle(d).bottom);
+        d.remove();
+        return v;
+      });
+      assert.ok(bottom >= reserve,
+        `at ${vh}px tall the buddy pop sits ${bottom}px up, but the Again button reserves ${reserve}px — the pop would land on the button`);
+    }
+  } finally { await ctx.close(); }
+});
+
 test("What Time? draws both clock hands (half-past tier ready)", async () => {
   await openGame("clock");
   const lines = await page.locator("#screen-clock .clock svg line").count();

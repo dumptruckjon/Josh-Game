@@ -193,6 +193,17 @@
         if (FX.stars) FX.stars();
         sayLive((opts && opts.say) || randItem((zh ? HL.PRAISE : C.PRAISE_SPOKEN) || ["Yay"]));
         againBtn.hidden = false;
+        // MEASURED 2026-07: on a short screen the just-revealed Again button can
+        // sit BELOW the fold — on a 320x568 phone it was 37px past the bottom in
+        // odd-one-out and 35px in music-pad, and in landscape it was 156-220px
+        // down on every game sampled. Josh wins, and the one button he wants is
+        // off the screen. Bring it into view from the ONE place a game is won, so
+        // all 240 games inherit it (and honour reduced-motion, like every other
+        // movement in the app).
+        try {
+          const still = global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          againBtn.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" });
+        } catch (e) { /* ignore */ }
         // Josh's chosen buddy pops in to celebrate (his pick threads through every
         // win). Falls back to a random homage hero if no buddy module/choice.
         try {

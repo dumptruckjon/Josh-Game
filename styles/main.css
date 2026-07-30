@@ -781,8 +781,21 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .rocket-art--launch { transform: translateY(-220px); opacity: 0.3; }
 
 /* ---------- Original SVG art (JoshArt) ---------- */
+/* The celebration pop: Josh's chosen buddy, on every win in all 200 games.
+   It shipped at a FLAT 120px at every size, so on a 320px phone it was 38% of
+   the width and on a 768px iPad only 16% — the same drawing reading as a big
+   cheer on one device and a sticker in the corner on another. It also lands
+   ON the just-played board (faded cards, a grid, a scene), and a 6px drop
+   shadow is not enough to lift a flat drawing off a busy one, so it gets a
+   soft halo — a background gradient, NOT a filter (a filter is the documented
+   WebKit rasterization cliff, and this pops on every single win). */
 .win-hero {
-  position: fixed; left: 50%; bottom: 14%; width: 120px; height: 120px;
+  /* 14% of a 640-tall phone is 90px, and the Again button's top sits at most
+     92px above the viewport bottom — so a plain percentage put the pop ON the
+     button at some sizes. The floor clears it at every measured viewport. */
+  position: fixed; left: 50%; bottom: max(112px, 14%);
+  width: clamp(128px, 34vw, 230px); height: clamp(128px, 34vw, 230px);
+  background: radial-gradient(circle at 50% 55%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.6) 42%, rgba(255, 255, 255, 0) 68%);
   transform: translateX(-50%); z-index: 70; pointer-events: none; animation: heroPop 0.5s ease-out;
 }
 .win-hero svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25)); }
