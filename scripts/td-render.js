@@ -2107,6 +2107,38 @@
       const scroll = (engine.state.tick * 0.08) % 1;
       for (const z of ZONES) {
         const span = z.to - z.from, n = Math.max(2, Math.round(span / 0.6));
+        // ⛱️ Blanket Cover (dmg < 1): a stretch of lane where your SHOTS land
+        // soft. It must be unmistakable against both of the speed zones — the
+        // conveyor's cyan directional chevrons and the mud's brown gloop — so it
+        // is a cool SHADE thrown across the lane with a scalloped edge, i.e. it
+        // reads as something overhead rather than something on the ground.
+        // Drawn first and continued, so a band that carries only `dmg` never
+        // falls through to the speed drawing.
+        if (z.dmg != null && z.dmg < 1) {
+          ctx.save();
+          for (let i = 0; i <= n; i++) {
+            const d = z.from + (i / n) * span;
+            const p = engine.posAt(d), tan = tangentAt(d);
+            const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
+            ctx.fillStyle = "rgba(28,34,66,0.42)";
+            ctx.beginPath(); ctx.ellipse(cx, cy, cell * 0.5, cell * 0.42, Math.atan2(tan.y, tan.x), 0, 7); ctx.fill();
+          }
+          // a scalloped hem along each side, so the edge of the cover is legible
+          const nHem = Math.max(3, Math.round(span / 0.8));
+          ctx.fillStyle = "rgba(96,118,190,0.5)";
+          for (const side of [-1, 1]) {
+            for (let i = 0; i <= nHem; i++) {
+              const d = z.from + (i / nHem) * span;
+              const p = engine.posAt(d), tan = tangentAt(d);
+              const nx = -tan.y, ny = tan.x;
+              ctx.beginPath();
+              ctx.arc((p.x + 0.5) * cell + nx * side * cell * 0.52, (p.y + 0.5) * cell + ny * side * cell * 0.52, cell * 0.11, 0, 7);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+          continue;
+        }
         const slow = z.mult < 1;
         for (let i = 0; i <= n; i++) {
           const d = z.from + ((i + (slow ? 0 : scroll)) / n) * span;

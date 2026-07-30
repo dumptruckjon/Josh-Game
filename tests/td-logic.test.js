@@ -2940,6 +2940,71 @@ test("TD-9 abilities: a no-op use is REFUSED, and costs neither gold nor cooldow
   assert.ok(e.state.gold < 5000, "…and is paid for");
 });
 
+test("P6 ⛱️ Blanket Cover: every damage family lands at exactly the band's dmg", () => {
+  // The 4th gimmick shape. `zones[].mult` scales TIME in range; `dmg` scales
+  // DAMAGE in range — the two factors of the same integral, so it is the same
+  // array, the same disjointness rule and the same renderer machinery.
+  //
+  // Shipped ONE-SIDED (below 1 only). A dmg > 1 "spotlight" was measured to turn
+  // a LOSING dart-mono board into a winning one on two levels, which is exactly
+  // the property `AUDIT mono builds` protects — the two halves are not
+  // symmetric knobs, and a two-sided bound here would be a bound nothing can hit.
+  const bands = [];
+  for (const l of DATA.LEVELS) for (const z of l.zones || []) if (z.dmg != null) bands.push({ l, z });
+  assert.ok(bands.length >= 1, "the campaign actually ships a cover band");
+  for (const { l, z } of bands) {
+    assert.ok(z.dmg >= 0.7 && z.dmg < 1,
+      `L${l.id} cover is ${z.dmg} — the band is 0.70 <= dmg < 1. Below 0.70 was measured unwinnable on heroic; ` +
+      "at or above 1 it becomes the spotlight that flips a mono result.");
+    assert.ok(typeof z.mult === "number",
+      `L${l.id}'s cover band must still state a numeric mult — effSpeed multiplies by it, and a bare undefined is NaN`);
+  }
+  // EFFECT, per damage family. A pinned enemy inside the band vs an identical
+  // one outside it: the delivered damage ratio must equal the band's dmg.
+  const lvl = JSON.parse(JSON.stringify(DATA.LEVELS.find((l) => l.pads.length >= 2)));
+  lvl.zones = [{ from: 6, to: 14, mult: 1, dmg: 0.5 }];
+  const e = TD.createEngine(lvl, { seed: 9 });
+  e.state.phase = "wave";
+  const hit = (dist, how) => {
+    const x = mkEnemy("sock", dist); x.id = 7700; x.hp = 100000; x.maxHp = 100000;
+    e.state.enemies.length = 0; e.state.enemies.push(x);
+    e.dealDamage(x, 200, 0, how);
+    return 100000 - x.hp;
+  };
+  for (const how of ["dart", "splash", "zap", "melee", "ability"]) {
+    const inside = hit(10, how), outside = hit(20, how);
+    assert.equal(outside, 200, `${how} outside the band is untouched`);
+    assert.equal(inside, 100, `${how} inside the band lands at the band's dmg (got ${inside}/200)`);
+  }
+  // …and the Fan's BEAM, whose 1-damage packets would be rounded straight back
+  // to 1 if the band were applied at dealDamage alone. Mutation: delete the
+  // accumulator multiply and THIS row goes red while every row above stays green.
+  const fanLvl = JSON.parse(JSON.stringify(DATA.LEVELS.find((l) => l.pads.length >= 2)));
+  const probe = TD.createEngine(fanLvl, { seed: 9 });
+  const d0 = distNear(probe, fanLvl.pads[0]);
+  fanLvl.zones = [{ from: d0 - 1.5, to: d0 + 1.5, mult: 1, dmg: 0.5 }];
+  // Same tower, same enemy, same spot on the lane, run twice — the ONLY
+  // difference is whether the level carries the band.
+  const beamLoss = () => {
+    const en = TD.createEngine(fanLvl, { seed: 9 });
+    en.state.gold = 999999;
+    assert.ok(en.place("fan", fanLvl.pads[0].id).ok);
+    en.state.phase = "wave";
+    const x = mkEnemy("sock", d0); x.id = 7701; x.hp = 100000; x.maxHp = 100000;
+    en.state.enemies.length = 0; en.state.enemies.push(x);
+    for (let i = 0; i < 600; i++) { x.dist = d0; en.tick(); }
+    return 100000 - x.hp;
+  };
+  const withBand = beamLoss();
+  fanLvl.zones = [];
+  const noBand = beamLoss();
+  assert.ok(noBand > 50, `the fan beam really is firing (${noBand})`);
+  const ratio = withBand / noBand;
+  assert.ok(Math.abs(ratio - 0.5) <= 0.05,
+    `the Fan's BEAM must honour the cover band too — measured ${ratio.toFixed(3)} (${withBand} vs ${noBand}). ` +
+    "A 1.000 here means the band was applied only at dealDamage, where Math.round(1 * 0.5) = 1 erases it.");
+});
+
 test("ART floor props: placed purely, clear of EVERY lane, and never moved by a resize", () => {
   // Three quarters of every board was bare floor. The props that dress it are
   // placed by a PURE function so this can be checked without a browser at all.
@@ -4270,8 +4335,9 @@ test("TD-16 guide truth: every level gimmick explains ITSELF, from the level's o
   // sixth mechanic without a levelGimmicks branch and this fails — the mechanic
   // cannot ship invisible.
   const FIELD_TO_KEY = [
-    ["zones-slow", (l) => (l.zones || []).some((z) => z.mult < 1), "mud"],
-    ["zones-fast", (l) => (l.zones || []).some((z) => z.mult > 1), "conveyor"],
+    ["zones-slow", (l) => (l.zones || []).some((z) => z.mult != null && z.mult < 1), "mud"],
+    ["zones-dmg-low", (l) => (l.zones || []).some((z) => z.dmg != null && z.dmg < 1), "cover"],
+    ["zones-fast", (l) => (l.zones || []).some((z) => z.mult != null && z.mult > 1), "conveyor"],
     ["night", (l) => !!l.night, "night"],
     ["pads[].boost", (l) => (l.pads || []).some((p) => p.boost), "power"],
     ["groups[].at", (l) => (l.waves || []).some((w) => (w.groups || []).some((g) => g.at > 0)), "door"],

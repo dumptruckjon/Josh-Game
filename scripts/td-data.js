@@ -502,6 +502,7 @@
       startGold: 300,
       budgetBase: 260,
       path: [ [0, 2], [19, 2], [19, 11], [4, 11], [4, 7], [23, 7] ],
+      zones: [ { from: 3, to: 18, mult: 1, dmg: 0.85 } ], // ⛱️ Blanket Cover — shots land soft over the front of the lane
       pads: [
         { id: "p1", cx: 3, cy: 4 },
         { id: "p2", cx: 6, cy: 4 },
@@ -1040,6 +1041,7 @@
       // rows 3-4 apart and a tier-3 dart reaches ~4, so ONE tower covered two
       // runs and the level was flawless at 10 pads on heroic.
       path: [[0, 12], [17, 12], [17, 6], [4, 6], [4, 0], [23, 0]],
+      zones: [ { from: 3, to: 17, mult: 1, dmg: 0.85 } ], // ⛱️ Blanket Cover — shots land soft over the front of the lane
       pads: [ { id: "p1", cx: 3, cy: 7 }, { id: "p2", cx: 23, cy: 2 }, { id: "p3", cx: 18, cy: 13 }, { id: "p4", cx: 12, cy: 2 }, { id: "p5", cx: 10, cy: 10 }, { id: "p6", cx: 18, cy: 5 }, { id: "p7", cx: 2, cy: 0 , boost: { range: 1.18, rate: 1.15 } }, { id: "p8", cx: 6, cy: 3 }, { id: "p9", cx: 15, cy: 9 }, { id: "p10", cx: 0, cy: 10 }, { id: "p11", cx: 6, cy: 10 }, { id: "p12", cx: 19, cy: 9 } ],
       waves: [
         { groups: [ { type: "rag", count: 16, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },
@@ -1314,6 +1316,7 @@
       // flights (a tier-3 mortar reaches 4.0). The landing cupboard is a side
       // door at 36 of 61 — 59%, inside the authored 25-62% band.
       path: [[0, 13], [9, 13], [9, 7], [2, 7], [2, 1], [13, 1], [13, 7], [18, 7], [18, 13], [23, 13]],
+      zones: [ { from: 3, to: 17, mult: 1, dmg: 0.85 } ], // ⛱️ Blanket Cover — shots land soft over the front of the lane
       pads: [ { id: "p1", cx: 1, cy: 0 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 14, cy: 0 }, { id: "p4", cx: 7, cy: 11 }, { id: "p5", cx: 1, cy: 8 }, { id: "p6", cx: 15, cy: 9 }, { id: "p7", cx: 10, cy: 6 }, { id: "p8", cx: 19, cy: 6 }, { id: "p9", cx: 4, cy: 4 }, { id: "p10", cx: 11, cy: 13 }, { id: "p11", cx: 12, cy: 8 }, { id: "p12", cx: 15, cy: 4 }, { id: "p13", cx: 16, cy: 13 } ],
       waves: [
         { groups: [ { type: "chair", count: 18, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },

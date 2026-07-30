@@ -411,7 +411,12 @@
       // The Static P3 (or any boss phase) can set a live speed multiplier.
       if (e.speedMult) base *= e.speedMult;
       // Conveyor strip (Slip'n'Slide): faster while inside a speed zone.
-      if (zones) for (const z of zones) { if (e.dist >= z.from && e.dist <= z.to) { base *= z.mult; break; } }
+      // `z.mult == null ? 1` because a zone may now carry a DAMAGE band and no
+      // speed at all — and a bare `base *= undefined` is NaN, which propagates
+      // into `dist` and quietly freezes every enemy on the level. Same class as
+      // the `delay`-less wave group that hung a whole wave: a data field one
+      // short must degrade, not corrupt.
+      if (zones) for (const z of zones) { if (e.dist >= z.from && e.dist <= z.to) { base *= (z.mult == null ? 1 : z.mult); break; } }
       // W6 Boom Box: an ally is blaring a beat nearby, so this one hustles. The
       // FLAG is written by hurryTick (one pass, the Junk Healer's shape) and
       // only READ here — effSpeed is already the single place a speed is
@@ -419,6 +424,26 @@
       // each growing their own speed computation.
       if (e.hurriedUntil && state.tick < e.hurriedUntil) base *= e.hurriedMult || 1;
       return base * (1 - slow);
+    }
+    // ⛱️ Blanket Cover — the 4th gimmick shape. `zones[].mult` scales TIME in
+    // range; this scales DAMAGE in range. They are the two factors of the same
+    // integral, which is why it is the same array, the same disjointness rule
+    // and the same renderer machinery as the conveyor and the mud patch.
+    //
+    // First POSITIONAL match wins, exactly like effSpeed's loop breaks on the
+    // first positional match — not "first match that happens to carry a dmg",
+    // which would let a level's two overlapping zones disagree about which one
+    // applies. (Zones are guardrailed disjoint anyway; matching effSpeed's
+    // semantics keeps the two readings of the same array identical.)
+    //
+    // Shipped one-sided (below 1 only). A dmg > 1 "spotlight" was measured to
+    // turn a LOSING dart-mono board into a winning one on two levels, which is
+    // the exact property `AUDIT mono builds` exists to protect — the two halves
+    // are not symmetric knobs, so only the cover half ships.
+    function zoneDmg(e) {
+      if (!zones) return 1;
+      for (const z of zones) if (e.dist >= z.from && e.dist <= z.to) return z.dmg == null ? 1 : z.dmg;
+      return 1;
     }
 
     // TD-10 Loose Screw: jams the NEAREST shooting tower within reach. Nearest
@@ -652,6 +677,16 @@
       if (!preScaled && zr && how === "zap") {
         hpDmg = Math.round(hpDmg * (1 - zr));
         shieldDmg = Math.round(shieldDmg * (1 - zr));
+      }
+      // ⛱️ Blanket Cover: a stretch of lane where everything you shoot lands
+      // soft. ONE clause here, so every `how` — dart, splash, the chain's zap,
+      // a soldier's swing, an ability — inherits it with no call-site change.
+      // The Fan's BEAM is the exception and is handled at its accumulator for
+      // the documented reason: it delivers 1-damage packets, so a fraction
+      // applied to that rounded point would be erased entirely.
+      if (!preScaled) {
+        const zd = zoneDmg(e);
+        if (zd !== 1) { hpDmg = Math.round(hpDmg * zd); shieldDmg = Math.round(shieldDmg * zd); }
       }
       const hpBefore = e.hp, shieldBefore = e.shield || 0;
       if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
@@ -1142,7 +1177,10 @@
               // Fan entirely. dealDamage is told `preScaled`, so it does not
               // re-apply it.
               const zapResist = 1 - (enemyDef(beamTarget).zapResist || 0);
-              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT * boostOf(t) * zapBoss * zapBrittle * zapResist;
+              // ⛱️ the beam's half of the cover band, for the same rounding
+              // reason: applied at dealDamage it would be Math.round(1 * 0.75)
+              // = 1 and the Fan would silently ignore the zone entirely.
+              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT * boostOf(t) * zapBoss * zapBrittle * zapResist * zoneDmg(beamTarget);
               if (t.zapAcc >= 1) {
                 const whole = Math.floor(t.zapAcc);
                 t.zapAcc -= whole;
@@ -1786,11 +1824,14 @@
     if (!def) return [];
     const out = [];
     const zones = def.zones || [];
-    const slow = zones.filter((z) => z.mult < 1), fast = zones.filter((z) => z.mult > 1);
+    const slow = zones.filter((z) => z.mult != null && z.mult < 1), fast = zones.filter((z) => z.mult != null && z.mult > 1);
+    const cover = zones.filter((z) => z.dmg != null && z.dmg < 1);
     if (slow.length) out.push({ key: "mud", icon: "🕳️", name: "Mud Patch",
       text: "A gloopy brown stretch of lane. Anything crossing it walks at " + Math.round(slow[0].mult * 100) + "% speed — free extra seconds for whatever covers it." });
     if (fast.length) out.push({ key: "conveyor", icon: "➡️", name: "Conveyor",
       text: "A strip of scrolling arrows. It shoves everything along at " + Math.round(fast[0].mult * 100) + "% speed, so guns covering it get LESS time. Don't spend your board here." });
+    if (cover.length) out.push({ key: "cover", icon: "⛱️", name: "Blanket Cover",
+      text: "A stretch of lane under cover. Anything you shoot in there only lands at " + Math.round(cover[0].dmg * 100) + "% — build somewhere the shots count." });
     if (def.night) out.push({ key: "night", icon: "🌙", name: "Lights Out",
       // read off RULES, never a literal — the guide must quote the engine's number
       text: "The room is dark: Dart and Mortar reach " + Math.round(DATA.RULES.nightRangeMult * 100) + "% as far. The Fan is unaffected — its aura doesn't need to see. A selected tower's ring always shows its TRUE reach." });

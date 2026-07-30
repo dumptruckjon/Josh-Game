@@ -2706,6 +2706,32 @@ with the length, so the tightest maps silently got 2 props instead of 7 — a
 hash-ordered greedy pass with a two-stage gap fixed it, and 31 of 32 levels now
 take the full 7 (the tightest takes 3, which the guardrail asserts as a floor
 rather than pretending otherwise).
+**P6c — ⛱️ Blanket Cover, the 4th gimmick shape, and the half of it that was
+CUT.** `zones[].mult` scales TIME in range; `zones[].dmg` scales DAMAGE in
+range. They are the two factors of the same integral, which is why it reuses the
+same array, the same disjointness rule and the same renderer machinery as the
+conveyor and the mud patch. Three things worth keeping. (1) **The SPOTLIGHT half
+(`dmg > 1`) was measured and dropped.** It was the strongest single result the
+spec found — a tail band at ×1.4 took dart-mono on heroic from LOST on every
+seed to winning on two levels — and that is precisely why it cannot ship: it
+flips exactly the property `AUDIT mono builds` exists to protect. So the bound
+is deliberately ONE-SIDED (`0.70 ≤ dmg < 1`), because the two halves are not
+symmetric knobs and a two-sided bound would be a bound nothing could hit.
+(2) **Two mandatory call sites, again.** The clause in `dealDamage` covers dart,
+splash, chain-zap, melee and ability with no call-site change; the Fan's BEAM
+needs its own multiply at the accumulator, because it delivers 1-damage packets
+and `Math.round(1 × 0.85)` is 1 — the same rounding trap that already ate
+brittle, Boss Bonker and `zapResist`. Mutation-proven independently: drop the
+accumulator and the beam row alone goes red at ratio 1.000; drop the dealDamage
+clause and every other family goes red while the beam stays green. (3) **A zone
+may now carry only `dmg`, so `effSpeed` had to stop trusting `z.mult`** — a bare
+`base *= undefined` is NaN, which propagates into `dist` and freezes every enemy
+on the level. That is the `delay`-less wave group all over again, and the
+guardrail requires a numeric `mult` on every shipped band as well. Dosed by sim
+at 0.85 on **L2 (the early teach), L18 and L26** — three worlds, normal within
+the ±2 design rule on both plans, heroic −1 to −3, no mono result flipped,
+neglect still losing. L9 was measured and REJECTED: World 3 is the documented
+hardest world and the band took heroic/mixed from 7,7,3,5 to LOST on every seed.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
@@ -2827,10 +2853,10 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   repo (with a `RESEARCH=1` flag) so the sweep is repeatable instead of a scratch
 >   script that gets thrown away. Each one's VALUE is measured, not assumed.
 > - **Level gimmicks**: CLOSED — 26 of 32 levels carry one (`night`, conveyor,
->   🕳️ mud, ⚡ power pad, 🚪 side door, fork+lever), all six worlds represented,
+>   🕳️ mud, ⛱️ blanket cover, ⚡ power pad, 🚪 side door, fork+lever), all six worlds represented,
 >   and every one now DOCUMENTS itself in the Toybox Guide via
 >   `TDLogic.levelGimmicks` (guardrailed, so a new mechanic cannot ship
->   invisible). What is still open is a FOURTH mechanic, not more placements:
+>   invisible). The FOURTH mechanic shipped (⛱️ Blanket Cover — `zones[].dmg`, damage-in-range beside the conveyor's time-in-range); what is still open is a FIFTH:
 >   the shipped shapes cover slow / speed / buff / flank / reroute, and a
 >   destructible obstacle or timed gate would each need a second engine read
 >   site (see PLAN_GIMMICKS §6.4).
