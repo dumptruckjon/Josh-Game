@@ -2485,6 +2485,26 @@ three doors were not peers — Josh's `JoshArt.friend` portrait inks 56×77 wher
 and the three labels sat at three different heights (a 21px spread). One shared
 mark box (spread 0) and a short-screen block (every door above the fold at every
 tested size), both mutation-proven.
+**A cue that does not survive to the size the game is PLAYED at is not
+delivering its information** — the fort's tower tier pips are `u * 0.045`, which
+at the 390px phone's real cell of 27 is a 2.4px dot (1.5px at 320), three of them
+3.8px apart. Tier now steps the PLINTH RING's colour instead (bronze → silver →
+gold; tier 1 has no plinth, which is its own signal), a ~24px ring that was
+already being stroked, so the change costs nothing. Measured per-tier pixel
+difference at cell 27 rose modestly (mortar 1→2 187 → 218, fan 2→3 370 → 397) —
+and the raw count deliberately understates it, because only the ring's own
+pixels changed hue. The honest statement is that the cue moved from a 2.4px dot
+to a 24px ring in a distinct colour. Note the existing per-tier pixel-hash
+guardrail stayed green throughout, which is exactly what the pips were worth: it
+was never measuring them.
+**The Sticker Book's DOM had TWO owners** — Josh's 200-slot book and 华丽's
+40-slot book each built the same three meter elements and the same slot
+structure from scratch, ~50 duplicated lines apart, while the shared CSS, the
+live `josh-won` plop, the `[data-sticker]` lookup and the `is-won` replay all
+assume ONE structure. `JoshStickers.meter()`/`slot()` are that owner now, and
+the guardrail asserts both books call them AND that neither hand-rolls a
+`sticker-meter`/`sticker-slot` any more. Same class as `josh-won-*` having three
+writers and the fort's save reset having two.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
