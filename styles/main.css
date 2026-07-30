@@ -356,7 +356,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .mascot--wiggle { animation: mascotWiggle 400ms ease-in-out; transform-origin: 50% 90%; }
 
 /* ---------- Choice grids (used by many games) ---------- */
-.choices { display: grid; gap: var(--pad); width: 100%; }
+.choices { display: grid; gap: var(--pad); width: 100%; max-width: 620px; margin-left: auto; margin-right: auto; }
 .choices--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .choices--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .choice {
@@ -522,16 +522,34 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 
 /* ---------- Science & sorting ---------- */
 .sort__item { font-size: clamp(4rem, 26vw, 7rem); line-height: 1; }
-.sort__bins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
+/* On an iPad in portrait a bin measures roughly 320 x 235 CSS px and carried a
+   FIXED 2.6rem (~41px) emoji — about 2% ink coverage, so "Alive or Not?" read as
+   two enormous blank rectangles with an accidental-looking picture in each. The
+   icon now scales WITH its card (the `.choice` next door already did), the grids
+   stop ballooning on a tablet, and the bin reads as a CONTAINER you drop things
+   into rather than a sheet of paper. Longhand margins, never margin-inline —
+   the iOS-14.2 floor. */
+.sort__bins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; max-width: 620px; margin-left: auto; margin-right: auto; }
 .sort__bins--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .sort__bin {
+  position: relative; overflow: hidden;
   min-height: 120px; border-radius: 22px; background: var(--card);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
 }
-.sort__binIcon { font-size: 2.6rem; line-height: 1; }
+/* the lip. `position: relative` above is load-bearing: an absolutely-positioned
+   pseudo on a static parent escapes to the nearest positioned ancestor, which is
+   the same class of bug as the .td-overlay absolute/fixed finding. */
+.sort__bin::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 34px;
+  background: linear-gradient(180deg, rgba(43, 58, 85, 0) 0%, rgba(43, 58, 85, 0.10) 100%);
+  border-top: 3px solid rgba(43, 58, 85, 0.10); border-radius: 0 0 22px 22px;
+  pointer-events: none;
+}
+.sort__binIcon { font-size: clamp(2.6rem, 13vw, 4.6rem); line-height: 1; }
 .sort__binLabel { font-size: 0.9rem; font-weight: 800; color: #667; text-align: center; }
-.sort__bin--hit { outline: 5px solid #7be08a; outline-offset: -2px; }
+.sort__bin--hit { outline: 5px solid #7be08a; outline-offset: -2px; animation: binPop 260ms ease; }
+@keyframes binPop { 0% { transform: scale(1); } 55% { transform: scale(1.06); } 100% { transform: scale(1); } }
 
 /* ---------- Breathing Star (calm) ---------- */
 .breathe__star {
@@ -1351,6 +1369,8 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
   .add__scene--merge .add__group { transform: none !important; }
   .breathe--big, .balloon--float { transform: none !important; }
   .win-hero, .grow--pop, .mascot--cheer, .mascot--wiggle { animation: none !important; transform: none !important; }
+  /* the sort bin's reward pop — the green outline still shows, only the bounce goes */
+  .sort__bin--hit { animation: none !important; transform: none !important; }
   /* reveals must still be VISIBLE without motion, not stuck invisible */
   .dot__reveal--on, .lf__reveal--on, .cbn__reveal--on { animation: none !important; opacity: 1 !important; }
   .lf__cell--target, .lf__around--pulse { animation: none !important; transform: none !important; }

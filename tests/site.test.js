@@ -360,6 +360,49 @@ test("mobile / iOS Safari optimizations are in place", () => {
   }
 });
 
+test("an absolutely-positioned ::after has a POSITIONED parent, and new animations honour reduced motion", () => {
+  // (1) An absolutely-positioned pseudo-element on a STATIC parent escapes to the
+  //     nearest positioned ancestor — the same class of bug as the .td-overlay
+  //     absolute-vs-fixed finding, where a scrim centred on its host screen
+  //     instead of the viewport. The sort bin's drop-lip is the first pseudo in
+  //     the app to rely on this, so make it a law rather than a one-off.
+  // (2) RULE 5: every new keyframe must be listed in the reduced-motion block.
+  //     The repo already disables .win-hero / .mascot--cheer / .sticker-slot.plop
+  //     there; an animation that skips it is a regression, not an oversight.
+  for (const file of ["styles/main.css", "styles/td.css"]) {
+    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    const rules = body.split("}");
+    for (let i = 0; i < rules.length; i++) {
+      const parts = rules[i].split("{");
+      if (parts.length < 2) continue;
+      const sel = parts[0].trim(), decls = parts[1] || "";
+      const m = /^(.*?)::(after|before)$/.exec(sel.split(",")[0].trim());
+      if (!m || !/position:\s*absolute/.test(decls)) continue;
+      const parent = m[1].trim();
+      const parentRule = rules.find((r) => {
+        const p2 = r.split("{");
+        return p2.length > 1 && p2[0].split(",").some((x) => x.trim() === parent);
+      });
+      assert.ok(parentRule && /position:\s*(relative|absolute|fixed|sticky)/.test(parentRule.split("{")[1] || ""),
+        `${file}: "${sel}" is absolutely positioned, so "${parent}" must be positioned too — otherwise the pseudo escapes to the nearest positioned ancestor and lands somewhere else entirely`);
+    }
+  }
+  // Every @keyframes in main.css must be reachable from the reduced-motion block
+  // through at least one selector that uses it.
+  const css = read("styles/main.css");
+  const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+  for (const kf of (css.match(/@keyframes\s+([\w-]+)/g) || []).map((k) => k.split(/\s+/)[1])) {
+    const users = (css.match(new RegExp("[^{}]+\\{[^{}]*animation[^;}]*" + kf + "\\b[^;}]*", "g")) || [])
+      .map((r) => r.split("{")[0].trim()).filter(Boolean);
+    if (!users.length) continue;                       // an unused keyframe animates nothing
+    const named = users.some((sel) => sel.split(",").some((one) => {
+      const cls = (one.trim().match(/\.[\w-]+/g) || []).pop();
+      return cls && reduced.indexOf(cls) >= 0;
+    }));
+    assert.ok(named, `@keyframes ${kf} animates ${users.join(" / ")} but nothing in the prefers-reduced-motion block turns it off`);
+  }
+});
+
 test("the fort's ⚙️ Toy Energy actually says what it is", () => {
   // Shipped as a bare gear numeral in the HUD, on every ability button and in
   // the guide's cost lines — and NOTHING in the app ever named it. The owner's

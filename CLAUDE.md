@@ -2357,6 +2357,22 @@ proved this game winnable for its whole life without ever noticing the picture
 never changed, so the browser test drives the real controls and READS the drawing —
 asserting n rocks land in the bed for n taps, that it stays level while loading,
 and that the lever tips it (mutation-proven on all three).
+**The choice card and the sort bin are the most-rendered surface in Josh's world
+and were the emptiest** — 121 of 200 games build `.choice` buttons and 11 more use
+`.sort__bin`, and on an iPad in portrait a bin measured roughly 320 × 235 CSS px
+carrying a FIXED 2.6rem emoji: about 2% ink coverage, so "Alive or Not?" read as
+two enormous blank rectangles with an accidental-looking picture in each. Fixed in
+the stylesheet alone, no per-game work: the bin icon now scales WITH its card
+(`.choice` already did), both grids cap at 620px so they stop ballooning on a
+tablet, the bin gained a drop-LIP so it reads as a container rather than paper, and
+a correct drop pops it. Two laws came out of it, both generic and mutation-proven:
+**an absolutely-positioned `::after` must have a POSITIONED parent** (a static one
+lets the pseudo escape to the nearest positioned ancestor — the `.td-overlay`
+absolute-vs-fixed bug in miniature, and the bin's lip is the first pseudo in the
+app to depend on it), and **every `@keyframes` that something actually animates
+must be switched off in the `prefers-reduced-motion` block** — previously a
+convention the repo followed by hand, now a scan that walks every keyframe, finds
+its users, and fails if none of them is named in that block.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
