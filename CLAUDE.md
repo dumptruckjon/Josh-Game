@@ -2651,11 +2651,24 @@ pixel counts: 3-7 per bin, because the fixture rendered a whole battlefield into
 120×120 and each enemy was about five pixels across. The actual palettes are
 plainly distinct (Plastic Knight silver-blue `#cfd8e6`, Kite Hawk orange
 `#ff8f5a`, Tin Plane pale blue `#d7dfeb`, Drip Slime green `#9df3b8`, Juice
-Carton orange `#e8a45c`), so **the finding did not reproduce and no re-tint was
-made.** If it is attempted again: render the sprite LARGE, erode the rim before
-sampling, and scope the comparison to pairs that actually SHARE A WAVE (279 of
-them) — a colour reused by two enemies that never meet costs the player nothing,
-and that denominator is part of the measurement.
+Carton orange `#e8a45c`) — so the pairs the broken metric named are fine.
+**But the ORIGINAL finding is real, and the first write-up of this paragraph
+wrongly called it "not reproduced" — a claim made after testing the wrong
+pairs.** Reading the palette LITERALS instead (no rasteriser, no antialiasing,
+no sprite-size confound) and scoping to each world's ACTUAL enemy pool
+reproduces it and makes it worse than "four pairs": every one of the eight
+worlds has a colliding pair, and several are exactly 0.0 — garage `cog`/`bucket`
+0.0 and `bucket`/`battery` 0.0; moving, newhouse and sortline all
+`battery`/`bucket` 0.0; `knight`/`battery` **2.2 in six worlds**;
+`screw`/`tinplane` **3.2 in five**. The cause is a steel monoculture: Plastic
+Knight, Battery Bot, Loose Screw, Tin Plane, Bolt Bucket and Cog are all pale
+blue-grey, and `#dfe6f0` is the literal same hex in two of them. Two lessons,
+and the second is the one that cost the time: measure a palette from the SOURCE
+when you can, because a rendered-pixel metric has to survive the floor, the
+shared ink rim, the antialiased blend between them and a 5px sprite — and when a
+re-measurement disagrees with a recorded finding, suspect the new instrument
+before overturning the old number, especially when the new one names entirely
+different pairs.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
