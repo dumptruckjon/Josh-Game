@@ -451,6 +451,19 @@
   function route() {
     const id = (location.hash || "").replace(/^#/, "");
     const home = document.getElementById("screen-home");
+    // The sticky top bar is the one element on screen 100% of the time, and it
+    // said "Josh's Games" in every world — English, in Josh's blue, inside
+    // 华丽's red-gold world, for the only person here who reads. route() is
+    // the ONE writer: it already knows which world it is entering, so the name
+    // can never go stale the way a per-world init would (the junk-#hl-* hash
+    // lesson). The fort hides the bar entirely, so it needs no branch.
+    try {
+      const brand = document.querySelector(".brand");
+      if (brand) {
+        const hl = window.HualiContent;
+        brand.textContent = id.indexOf("hl-") === 0 && hl && hl.BRAND ? hl.BRAND : "Josh's Games";
+      }
+    } catch (e) { /* ignore */ }
     // AUDIT: leaving a screen must actually STOP it — clear its api.later timers
     // (via __onHide) and cancel any in-flight utterance, or the hidden game keeps
     // narrating over the new one (screens are hidden, never detached, so

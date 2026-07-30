@@ -2373,6 +2373,75 @@ app to depend on it), and **every `@keyframes` that something actually animates
 must be switched off in the `prefers-reduced-motion` block** — previously a
 convention the repo followed by hand, now a scan that walks every keyframe, finds
 its users, and fails if none of them is named in that block.
+**`numberFriend` is the countable in three maths games and it was not made of
+cubes** — the drawing pinned the WIDTH at 44 and divided a fixed 76-unit height
+between the blocks, so a "cube" ran 2.75:1 at n=1 and **7.86:1 at n=10** (a stack
+of stripes, in games that ask a four-year-old to count them); the face was placed
+by a fixed 4-unit offset from the top of the stack, so at n=10 the mouth was drawn
+in the GAP between cube 1 and cube 2, off the body entirely; and **ink was not
+monotonic in n** — it peaked at n=5 (29.0% of the box) and fell to 24.6% at n=10
+with the height flat at 74 for every n from 5 up, so in `add-up`, whose whole beat
+is two friends MERGING into their sum, 4 + 5 = 9 drew a sum smaller than either
+addend. Cubes are square now, in balanced bottom-anchored columns of at most three
+(4 is a 2×2, 6 a 2×3, 9 a 3×3, 10 a 3+3+2+2 — the shapes the show uses, and a ten
+that is countable rather than a sliver), sized from a deliberately MONOTONIC ink
+budget so a bigger number is always a bigger friend (14.6% → 40.0%), with the face
+derived from its own cube's box. Four guardrails, each mutation-proven against the
+old behaviour: square, monotonic, face-inside-one-cube, nothing outside the
+viewBox. Lesson: when a drawing is the ANSWER to a counting question, its geometry
+is correctness — and "is it a valid svg" was the whole bar before.
+**Measuring the win pop found a defect nothing tested: the Again button lands
+BELOW THE FOLD on short screens.** Driving real wins at five viewports, the
+just-revealed button sat 37px past the bottom on a 320×568 phone in odd-one-out
+and 35px in music-pad, 64px down on a 360×640 in count-feed, and **156-220px down
+in every game sampled in landscape** — Josh wins and the one button he wants is
+off the screen. Every win test only ever read `screen.dataset.won`. The win path
+now scrolls it into view from the ONE place a game is won, so all 240 games
+inherit it (reduced-motion honoured). The pop itself was a flat 120px at every
+size — 38% of a 320px phone, 16% of a 768px iPad — and lands ON the just-played
+board, so it scales with the viewport now and carries a soft halo: a background
+gradient, **not a filter**, because a filter on a thing that renders on every
+single win is the documented WebKit rasterization cliff. Its `bottom` also needed
+a px FLOOR: 14% of a 640-tall phone is 90px against a 92px Again-button reserve,
+a measured 2px overlap. The guardrail derives that reserve FROM THE APP (measure a
+tall viewport where nothing scrolls) instead of hard-coding 92.
+**华丽's world had never had a PAINTED-CONTRAST pass, and her primary navigation
+measured 1.90:1.** Computed styles cannot see it — her page is a gradient and the
+failures are simply the labels that happen to sit low on it — so the method was to
+screenshot each screen twice (once with all text ink made transparent), decode
+both PNGs, and score each run's most fully-covered ink pixel against the
+background revealed underneath. Two sampling traps first: scoring the WORST ink
+pixel makes every run on the site "fail" (antialiased edges are a blend of ink and
+background), and an emoji-only run is ART, not text. Findings, all reproduced
+independently of the audit spec: **her seven category tiles at 1.90-1.93:1** —
+ONE cascade bug did both halves, since `.hl-tile`'s cream card comes later in the
+file than `.tile--cat` at equal specificity (so every category painted identically
+and `--cat-color` was never rendered — seven identical pictures with different
+emoji), while her dark-red label landed on `.tile--cat`'s 55%-black pill; **the 福
+she is asked to TRACE at 1.39:1**, which is the task, not decoration, and alpha
+alone cannot fix it on that red (0.60 → 3.04:1 computed), the box has to darken
+too; `.music__hint` 2.02:1, `.hl-calmlabel` 3.44:1, `.hl-diffvs` 4.40:1; the
+shared sticker meter's numeral at 4.37:1 on a FULL gold fill — a latent failure
+that appears exactly when the number matters; and Josh's Surprise label at 4.24:1.
+All fixed and re-measured to 0 failing runs of 143. Three laws came out of it:
+**a gradient with a TRANSLUCENT stop must use background longhands** (the
+shorthand resets `background-color` to transparent, so that stop composites over
+the page and a tile's colour drifts with its scroll position — an opaque gradient
+is safe and stays exempt); **cream text in her world must carry its own plate**,
+since L(#ffe9b0) is 0.827 and needs a background luminance ≤ 0.145 while her gold
+end is 0.423 — so no bare cream can EVER pass there, with an exemption list that
+must NAME the ancestor providing the plate and that ancestor is then checked; and
+the plate rule is the single owner of those colours (the old per-rule cream
+declarations were deleted rather than left to lose the cascade). Two shell fixes
+with the same shape: her top bar said **"Josh's Games" in Josh's blue** in every
+world, now named by `route()` — the one place that knows which world is being
+entered — and her shell used the **same 🏠 for two destinations** (her home's
+button exits to the front door, a category's returns to her home), now 🚪 vs 🏠
+exactly as Josh's world already did. And her navigation was **the smallest text on
+the site** — 12.8px game titles, 15.2px category titles, in the only world whose
+user reads — so it is two columns at 18.4px now: every title on one line, 132px
+taps, 16px gaps, no overflow at 320/390/414, her category screens filling a
+viewport they were wasting half of, at the cost of one flick on her home.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

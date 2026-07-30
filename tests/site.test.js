@@ -401,6 +401,53 @@ test("an absolutely-positioned ::after has a POSITIONED parent, and new animatio
     }));
     assert.ok(named, `@keyframes ${kf} animates ${users.join(" / ")} but nothing in the prefers-reduced-motion block turns it off`);
   }
+  // A gradient with a TRANSLUCENT stop, laid on a tile with the `background`
+  // SHORTHAND, resets background-color to transparent — so that stop composites
+  // over whatever is behind the tile, which is the page gradient. That cost
+  // Josh's category colours their constancy (the same white label measured
+  // #586c71 on one tile and #765d5d on another purely from vertical position)
+  // and it wiped 华丽's colours out entirely, because a later cream rule at
+  // equal specificity simply won. An OPAQUE gradient is safe and stays exempt.
+  for (const chunk of css.replace(/\/\*[\s\S]*?\*\//g, "").split("}")) {
+    const sel = (chunk.split("{")[0] || "").trim();
+    const decls = chunk.split("{").pop() || "";
+    if (!/\.tile--/.test(sel) || /\.tile__/.test(sel)) continue; // the card, not its label pill
+    const grad = (decls.match(/gradient\([^;]*/) || [])[0];
+    if (!grad || !/rgba\([^)]*,\s*0?\.\d+\s*\)|\btransparent\b/.test(grad)) continue;
+    assert.ok(/background-color\s*:/.test(decls),
+      `main.css: "${sel}" paints a gradient with a TRANSLUCENT stop on a tile — declare background-color and background-image as LONGHANDS, never the \`background\` shorthand, or that stop composites over the page gradient and the tile's colour drifts with its position`);
+  }
+  // 华丽's page is a gradient that ENDS in gold, and cream ink can never pass
+  // AA on that end (L(#ffe9b0) = 0.827 needs a background luminance <= 0.145;
+  // the gold is 0.423). So a cream run in her world must carry its own plate.
+  // Measured before the plate landed: .music__hint 2.02:1, .hl-calmlabel
+  // 3.44:1, .hl-diffvs 4.40:1 — all simply labels that sat low on the page.
+  // The exemption is a cream run whose ANCESTOR carries the plate — it must
+  // NAME that ancestor rule, and that rule is then checked for a real
+  // background, so the list cannot become a dumping ground.
+  const PLATED_BY = {
+    "body.hl-mode .brand": "body.hl-mode .topbar", // 10.39:1 on the bar's own plum plate
+  };
+  const hlBlock = css.slice(css.indexOf("华丽的世界")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const hlRules = hlBlock.split("}").map((c) => [(c.split("{")[0] || "").trim(), c.split("{").pop() || ""]);
+  const remIsLarge = (decls) => {
+    const m = /font-size:\s*(?:clamp\(\s*)?([\d.]+)rem/.exec(decls);
+    if (!m) return false;                              // no size here — assume body text
+    const px = parseFloat(m[1]) * 16;
+    const bold = (parseInt((/font-weight:\s*(\d+)/.exec(decls) || [])[1], 10) || 400) >= 700;
+    return px >= 24 || (px >= 18.66 && bold);          // WCAG "large text" — a 3.0 bar
+  };
+  for (const [sel, decls] of hlRules) {
+    if (!/color:\s*(#ffe9b0|#fff8ec)\b/i.test(decls)) continue;
+    if (/background/.test(decls)) continue;
+    if (remIsLarge(decls)) continue;                   // 3.0 bar, and measured clear
+    const host = PLATED_BY[sel];
+    assert.ok(host,
+      `main.css: "${sel}" paints cream text inside 华丽's world with no background of its own — on the gold end of her page gradient that can never reach AA. Give it the shared dark plate, or add it to PLATED_BY naming the ancestor that plates it.`);
+    const hostRule = hlRules.find(([s]) => s === host);
+    assert.ok(hostRule && /background/.test(hostRule[1]),
+      `main.css: "${sel}" is exempted because "${host}" plates it — but "${host}" declares no background`);
+  }
 });
 
 test("the fort's ⚙️ Toy Energy actually says what it is", () => {

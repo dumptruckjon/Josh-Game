@@ -328,3 +328,27 @@ test("AUDIT 量词: 花 lists 把 as also-valid (一把花 is real) and it is ne
   const hua = HL.MEASURE_WORDS.find((m) => m.noun === "花");
   assert.ok((hua.alsoOk || []).includes("把"), "花 must list 把 in alsoOk — 一把花 is standard Chinese");
 });
+
+test("AUDIT 导航: 🚪 leaves her world, 🏠 returns to her home — one glyph, one meaning", () => {
+  // Her shell built EVERY nav bar with the same 🏠 and the same "回主页" label,
+  // but her home's button leaves for the FRONT DOOR while a category's returns
+  // to HER HOME. One glyph with two destinations costs a 70-year-old a wrong
+  // tap and a lost place, and Josh's world already solved it (🚪 out of a
+  // world, 🏠 back to its launcher) — hers simply never inherited it.
+  const fs = require("fs");
+  const path = require("path");
+  const main = fs.readFileSync(path.join(__dirname, "..", "scripts/hl-main.js"), "utf8");
+  assert.match(main, /exit \? "🚪" : "🏠"/, "bar() must pick the glyph from whether it is an EXIT");
+  assert.match(main, /exit \? HL\.HOME_EXIT_LABEL : HL\.HOME_LABEL/, "…and the matching label, both from HualiContent");
+  assert.match(main, /bar\(HL\.TITLE, "", true\)/, "her HOME's bar is the exit (🚪 → the front door)");
+  assert.match(main, /bar\(cat\.icon \+ " " \+ cat\.title, "#hl-home"\)/, "…while a category bar returns to her home (🏠)");
+  assert.equal(typeof HL.HOME_EXIT_LABEL, "string", "回大门 lives in HualiContent, like every other string of hers");
+  assert.notEqual(HL.HOME_EXIT_LABEL, HL.HOME_LABEL, "the two destinations must not share a label either");
+  // The top bar's NAME is hers while she is in her world (main.js's route() is
+  // the one writer — a per-world init would go stale on the junk-hash path).
+  assert.equal(HL.BRAND, "华丽的游戏", "her world's top-bar name");
+  const app = fs.readFileSync(path.join(__dirname, "..", "scripts/main.js"), "utf8");
+  const route = app.slice(app.indexOf("function route()"));
+  assert.match(route.slice(0, 1400), /\.brand[\s\S]{0,400}HualiContent[\s\S]{0,120}BRAND/,
+    "route() sets the brand name — it is the only place that knows which world is being entered");
+});

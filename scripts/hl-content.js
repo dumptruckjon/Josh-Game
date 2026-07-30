@@ -29,7 +29,10 @@
     STICKERS_TITLE: "🏮 我的贴纸",
     STICKERS_TILE: "贴纸",
     SURPRISE_TILE: "随便玩",
-    HOME_LABEL: "回主页",
+    BRAND: "华丽的游戏",      // the top bar's name while inside her world
+    HOME_LABEL: "回主页",     // 🏠 — a category screen back to HER home
+    HOME_EXIT_LABEL: "回大门", // 🚪 — her home out to the front door
+
     // Deterministic sticker pool (Chinese motifs; picked by a stable hash).
     STICKER_POOL: ["🏮", "🧧", "🐉", "🐼", "🍵", "🥟", "🥮", "🌸", "💮", "🌕", "🐭", "🐮", "🐯", "🐰", "🐍", "🐴", "🐑", "🐵", "🐔", "🐶", "🐷", "🐲", "🦚", "🌺", "🍊"],
 

@@ -203,6 +203,31 @@ test("华丽's screens: home, all 7 categories and her sticker book pass the aud
     await noOverflow(page, `hl-stickers@${w}`);
     await auditActiveScreen(page, `hl-stickers@${w}`);
   }
+  // Her navigation is READ, unlike Josh's. It shipped as the smallest text on
+  // the whole site — 12.8px game titles and 15.2px category titles — for the
+  // only person here who reads, while her in-game prompt was already sized up
+  // to 18.4px. Chinese needs the size: stroke density, not cap height, is the
+  // legibility limit. And a title that wraps mid-word ("麻将牌 / 艺") is worse
+  // than a small one, which is what three columns produced at 390px.
+  for (const w of [390, 320]) {
+    await page.setViewportSize({ width: w, height: 780 });
+    for (const id of ["#hl-home", "#hl-cat-" + cats[0]]) {
+      await showScreen(page, id, "#screen-" + id.slice(1));
+      const bad = await page.evaluate((sid) => {
+        const out = [];
+        for (const l of document.querySelectorAll("#screen-" + sid + " .tile__label")) {
+          const fs = parseFloat(getComputedStyle(l).fontSize);
+          const rng = document.createRange();
+          rng.selectNodeContents(l);
+          const lines = rng.getClientRects().length;
+          if (fs < 16 || lines > 1) out.push(`${l.textContent} (${fs}px, ${lines} line${lines === 1 ? "" : "s"})`);
+        }
+        return out;
+      }, id.slice(1));
+      assert.equal(bad.length, 0,
+        `${id}@${w}: every one of her tile labels must be >= 16px and fit on ONE line — ${bad.join("; ")}`);
+    }
+  }
 });
 
 test("a game is playable by touch (Odd-One-Out to a win)", async () => {

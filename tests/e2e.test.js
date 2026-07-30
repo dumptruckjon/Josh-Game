@@ -221,6 +221,57 @@ test("beating games marks them with a ⭐ on the launcher", async () => {
   await page.locator("#screen-home").waitFor({ state: "visible" });
   const badges = await page.locator(".tile__badge").count();
   assert.ok(badges >= 3, `expected several beaten-game star badges, got ${badges}`);
+  // …and the trophy must not sit ON the picture. The tile's emoji is the only
+  // cue a non-reader has, and the badge was overlapping it by 4x11px (the star
+  // landing on 🧱's bricks, on ⚖️'s beam). The tile reserves a badge corner
+  // now. It cannot reach zero on a 109px card with a centred 42px glyph — 6px
+  // is a corner nick — so the bar is where the geometry actually lands.
+  const worst = await page.evaluate(() => {
+    let ox = 0, oy = 0;
+    for (const b of document.querySelectorAll("#screen-home .tile__badge")) {
+      const icon = b.parentElement.querySelector(".tile__icon");
+      if (!icon) continue;
+      const r = b.getBoundingClientRect(), i = icon.getBoundingClientRect();
+      ox = Math.max(ox, Math.min(r.right, i.right) - Math.max(r.left, i.left));
+      oy = Math.max(oy, Math.min(r.bottom, i.bottom) - Math.max(r.top, i.top));
+    }
+    return { ox: Math.round(ox), oy: Math.round(oy) };
+  });
+  assert.ok(worst.ox <= 6 || worst.oy <= 6,
+    `the ⭐ badge must not cover the tile's picture — it overlaps the icon box by ${worst.ox}x${worst.oy}px`);
+});
+
+test("华丽's world names itself in the top bar, and Josh's names his", async () => {
+  // The sticky bar is the one element on screen 100% of the time, and it said
+  // "Josh's Games" in every world — English, in Josh's blue, inside her
+  // red-gold world, for the only person here who reads. route() owns the name
+  // (a per-world init goes stale on the junk-hash path, the documented
+  // #hl-* theme bug), so it must also flip BACK on the way out.
+  const brand = page.locator(".brand");
+  await page.evaluate(() => { location.hash = "#home"; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  assert.equal((await brand.textContent()).trim(), "Josh's Games", "his world keeps his name");
+  await page.evaluate(() => { location.hash = "#hl-home"; });
+  await page.locator("#screen-hl-home").waitFor({ state: "visible" });
+  const zh = await page.evaluate(() => window.HualiContent.BRAND);
+  assert.equal((await brand.textContent()).trim(), zh, "her world says her name");
+  await page.evaluate(() => { location.hash = "#hl-poem"; });
+  await page.locator("#screen-hl-poem").waitFor({ state: "visible" });
+  assert.equal((await brand.textContent()).trim(), zh, "…on her game screens too");
+  await page.evaluate(() => { location.hash = "#home"; });
+  await page.locator("#screen-home").waitFor({ state: "visible" });
+  assert.equal((await brand.textContent()).trim(), "Josh's Games", "and it flips back on the way out");
+  // Her home EXITS to the front door (🚪); a category returns to her home (🏠).
+  await page.evaluate(() => { location.hash = "#hl-home"; });
+  await page.locator("#screen-hl-home").waitFor({ state: "visible" });
+  assert.equal(await page.locator("#screen-hl-home .game__home").textContent(), "🚪", "her home's button is the exit");
+  await page.locator("#screen-hl-home .game__home").click();
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  await page.evaluate(() => { location.hash = "#hl-cat-hlc-words"; });
+  await page.locator("#screen-hl-cat-hlc-words").waitFor({ state: "visible" });
+  assert.equal(await page.locator("#screen-hl-cat-hlc-words .game__home").textContent(), "🏠", "a category's button goes home");
+  await page.locator("#screen-hl-cat-hlc-words .game__home").click();
+  await page.locator("#screen-hl-home").waitFor({ state: "visible" });
 });
 
 test("the Sticker Book has one slot per game and fills the ones Josh has won", async () => {

@@ -64,14 +64,21 @@
     s.__onShow = function () { if (onShow) onShow(); };
   }
 
-  function bar(titleText, backHash) {
+  // AUDIT 2026-07: her shell used the SAME 🏠 for two different
+  // destinations — her home's bar left for the FRONT DOOR while every category
+  // bar returned to HER HOME, both labelled "回主页". One glyph with two
+  // meanings costs a 70-year-old a wrong tap and a lost place. Josh's world
+  // already distinguishes them (🚪 out of a world, 🏠 back to its launcher);
+  // hers just never inherited the convention. `exit` picks which one, and both
+  // labels live in HualiContent so her strings stay in one file.
+  function bar(titleText, backHash, exit) {
     const b = document.createElement("div");
     b.className = "game__bar";
     const back = document.createElement("button");
     back.className = "btn-round game__home";
     back.type = "button";
-    back.setAttribute("aria-label", HL.HOME_LABEL);
-    back.textContent = "🏠";
+    back.setAttribute("aria-label", exit ? HL.HOME_EXIT_LABEL : HL.HOME_LABEL);
+    back.textContent = exit ? "🚪" : "🏠";
     back.addEventListener("click", () => { location.hash = backHash; });
     const title = document.createElement("h2");
     title.className = "game__title";
@@ -97,7 +104,7 @@
     home.className = "screen hl-screen hl-home";
     home.id = "screen-hl-home";
     home.hidden = true;
-    home.appendChild(bar(HL.TITLE, ""));
+    home.appendChild(bar(HL.TITLE, "", true)); // 🚪 — her home exits to the front door
     const hello = document.createElement("p");
     hello.className = "hl-hello";
     hello.textContent = HL.GREETING;
