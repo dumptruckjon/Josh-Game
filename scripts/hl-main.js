@@ -178,38 +178,19 @@
     book.hidden = true;
     book.appendChild(bar(HL.STICKERS_TITLE, "#hl-home"));
 
-    const meter = document.createElement("div");
-    meter.className = "sticker-meter";
-    meter.setAttribute("aria-hidden", "true");
-    const meterFill = document.createElement("div");
-    meterFill.className = "sticker-meter__fill";
-    const meterText = document.createElement("div");
-    meterText.className = "sticker-meter__text";
-    meter.append(meterFill, meterText);
-    book.appendChild(meter);
+    // Same two helpers as Josh's book — JoshStickers owns the book's DOM, so a
+    // fix to a slot or the meter lands ONCE for both worlds.
+    const ST = window.JoshStickers;
+    const meter = ST.meter();
+    book.appendChild(meter.el);
 
     const sgrid = document.createElement("div");
     sgrid.className = "sticker-grid";
     games.forEach((def) => {
-      const slot = document.createElement("button");
-      slot.className = "sticker-slot tap";
-      slot.type = "button";
-      slot.dataset.sticker = def.id;
-      slot.setAttribute("aria-label", def.title);
-      const seal = document.createElement("span");
-      seal.className = "sticker-slot__seal";
-      seal.setAttribute("aria-hidden", "true");
-      seal.textContent = "❓";
-      const art = document.createElement("span");
-      art.className = "sticker-slot__art hl-sticker";
-      art.setAttribute("aria-hidden", "true");
-      art.textContent = stickerFor(def.id);
-      slot.append(seal, art);
-      slot.addEventListener("click", () => {
-        if (slot.classList.contains("is-won")) { location.hash = "#" + def.id; }
-        else { sayZh("先玩这个游戏，赢了就有贴纸！"); slot.classList.remove("bump"); void slot.offsetWidth; slot.classList.add("bump"); }
-      });
-      sgrid.appendChild(slot);
+      sgrid.appendChild(ST.slot(def, stickerFor(def.id), {
+        artClass: "hl-sticker",
+        onLocked: () => sayZh("先玩这个游戏，赢了就有贴纸！"),
+      }));
     });
     book.appendChild(sgrid);
 
@@ -221,8 +202,7 @@
         if (slot) slot.classList.toggle("is-won", isWon);
         if (isWon) won += 1;
       });
-      meterFill.style.width = games.length ? Math.round((won / games.length) * 100) + "%" : "0%";
-      meterText.textContent = "🏮 " + won + " / " + games.length;
+      meter.set(won, games.length, "🏮");
       book.dataset.won = String(won);
     };
     navScreen(book, refreshHlStickers);

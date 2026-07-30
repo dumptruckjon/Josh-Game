@@ -1167,3 +1167,27 @@ test("guardrail: haptics and wake lock are feature-checked, never assumed", () =
     assert.ok(m.includes('sfx("' + k + '")'), `…and something actually fires "${k}" (a cue nothing plays is dead)`);
   }
 });
+
+test("the Sticker Book's DOM has ONE owner — both books build through JoshStickers", () => {
+  // Josh's 200-slot book and 华丽's 40-slot book built the same three meter
+  // elements and the same slot structure from scratch, ~50 duplicated lines
+  // apart in main.js and hl-main.js. They are not free to drift: the shared
+  // CSS, the live `josh-won` plop, the `[data-sticker]` lookup and the `is-won`
+  // replay all assume ONE structure — so a fix to either would have to be made
+  // twice, which is the shape of every "two owners" bug this repo has recorded
+  // (josh-won-* had three writers; the fort's save reset had two).
+  const st = read("scripts/stickers.js");
+  assert.match(st, /function meter\(\)/, "JoshStickers owns the star meter");
+  assert.match(st, /function slot\(def, art, opts\)/, "…and the slot");
+  assert.match(st, /global\.JoshStickers = \{ artFor, meter, slot \}/, "…and exports both");
+  for (const f of ["scripts/main.js", "scripts/hl-main.js"]) {
+    const src = read(f);
+    assert.ok(/ST\.meter\(\)/.test(src), `${f} must build its meter through JoshStickers.meter()`);
+    assert.ok(/ST\.slot\(def,/.test(src), `${f} must build its slots through JoshStickers.slot()`);
+    // …and must not hand-roll them any more.
+    assert.ok(!/className = "sticker-meter"/.test(src),
+      `${f} still builds a sticker-meter by hand — JoshStickers.meter() is the one owner`);
+    assert.ok(!/className = "sticker-slot tap"/.test(src),
+      `${f} still builds a sticker-slot by hand — JoshStickers.slot() is the one owner`);
+  }
+});

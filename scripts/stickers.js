@@ -184,5 +184,67 @@
       '<g transform="translate(50 50) rotate(' + tilt + ') scale(0.72) translate(-50 -50)">' + body + "</g></svg>";
   }
 
-  global.JoshStickers = { artFor };
+  // ---------------------------------------------------------------------
+  // THE STICKER BOOK'S DOM, in one place.
+  //
+  // Both books — Josh's 200 and 华丽's 40 — built the same three meter elements
+  // and the same slot structure from scratch, in main.js and hl-main.js, ~50
+  // duplicated lines apart. The two are not free to drift: the shared CSS, the
+  // live `josh-won` plop, the `[data-sticker]` lookup and the `is-won` replay
+  // all assume one structure. A contrast fix landed in CSS this time, so the
+  // duplication did not bite — the next one would have to be made twice, which
+  // is exactly the shape of every "two owners" bug this project has recorded.
+  // ---------------------------------------------------------------------
+
+  // The star meter: returns the element plus a set(won, total, icon) that owns
+  // both the fill width and the numeral.
+  function meter() {
+    const el = document.createElement("div");
+    el.className = "sticker-meter";
+    el.setAttribute("aria-hidden", "true");
+    const fill = document.createElement("div");
+    fill.className = "sticker-meter__fill";
+    const text = document.createElement("div");
+    text.className = "sticker-meter__text";
+    el.append(fill, text);
+    return {
+      el,
+      set(won, total, icon) {
+        fill.style.width = total ? Math.round((won / total) * 100) + "%" : "0%";
+        text.textContent = icon + " " + won + " / " + total;
+      },
+    };
+  }
+
+  // One slot. `art` is the picture (an <svg> string for Josh, an emoji for
+  // 华丽); `onLocked` is what to say when a not-yet-won sticker is tapped —
+  // a won one always replays its game, in both worlds.
+  function slot(def, art, opts) {
+    opts = opts || {};
+    const el = document.createElement("button");
+    el.className = "sticker-slot tap";
+    el.type = "button";
+    el.dataset.sticker = def.id;
+    el.setAttribute("aria-label", def.title);
+    const seal = document.createElement("span");
+    seal.className = "sticker-slot__seal";
+    seal.setAttribute("aria-hidden", "true");
+    seal.textContent = "❓";
+    const pic = document.createElement("span");
+    pic.className = "sticker-slot__art " + (opts.artClass || "art-fill");
+    pic.setAttribute("aria-hidden", "true");
+    if (opts.html) { try { pic.innerHTML = art; } catch (e) { pic.textContent = "⭐"; } }
+    else pic.textContent = art;
+    el.append(seal, pic);
+    el.addEventListener("click", () => {
+      if (el.classList.contains("is-won")) { location.hash = "#" + def.id; }
+      else {
+        if (opts.onLocked) opts.onLocked();
+        el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+      }
+    });
+    return el;
+  }
+
+  global.JoshStickers = { artFor, meter, slot };
 })(typeof window !== "undefined" ? window : globalThis);

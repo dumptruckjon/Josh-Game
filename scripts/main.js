@@ -396,40 +396,22 @@
     title.textContent = "📖 My Stickers";
     bar.append(back, title, document.createElement("span"));
 
-    const meter = document.createElement("div");
-    meter.className = "sticker-meter";
-    meter.setAttribute("aria-hidden", "true");
-    const meterFill = document.createElement("div");
-    meterFill.className = "sticker-meter__fill";
-    const meterText = document.createElement("div");
-    meterText.className = "sticker-meter__text";
-    meter.append(meterFill, meterText);
+    // The meter and the slots come from JoshStickers, the ONE owner of the
+    // book's DOM — 华丽's book builds hers through the same two helpers.
+    const meter = ST.meter();
 
     const sgrid = document.createElement("div");
     sgrid.className = "sticker-grid";
     games.forEach((def) => {
-      const slot = document.createElement("button");
-      slot.className = "sticker-slot tap";
-      slot.type = "button";
-      slot.dataset.sticker = def.id;
-      slot.setAttribute("aria-label", def.title);
-      const seal = document.createElement("span");
-      seal.className = "sticker-slot__seal";
-      seal.setAttribute("aria-hidden", "true");
-      seal.textContent = "❓";
-      const art = document.createElement("span");
-      art.className = "sticker-slot__art art-fill";
-      art.setAttribute("aria-hidden", "true");
-      try { art.innerHTML = ST ? ST.artFor(def) : ""; } catch (e) { art.textContent = "⭐"; }
-      slot.append(seal, art);
-      slot.addEventListener("click", () => {
-        if (slot.classList.contains("is-won")) { location.hash = "#" + def.id; } // a won sticker replays its game
-        else { if (A.say) A.say("Play to win this one!"); slot.classList.remove("bump"); void slot.offsetWidth; slot.classList.add("bump"); }
-      });
-      sgrid.appendChild(slot);
+      let art = "";
+      try { art = ST.artFor(def); } catch (e) { art = ""; }
+      sgrid.appendChild(ST.slot(def, art, {
+        html: true,
+        onLocked: () => { if (A.say) A.say("Play to win this one!"); },
+      }));
     });
 
-    screen.append(bar, meter, sgrid);
+    screen.append(bar, meter.el, sgrid);
     screens.appendChild(screen);
 
     refreshStickers = function () {
@@ -441,8 +423,7 @@
         if (slot) slot.classList.toggle("is-won", isWon);
         if (isWon) won += 1;
       });
-      meterFill.style.width = total ? Math.round((won / total) * 100) + "%" : "0%";
-      meterText.textContent = "⭐ " + won + " / " + total;
+      meter.set(won, total, "⭐");
       screen.dataset.won = String(won);
     };
     refreshStickers();
