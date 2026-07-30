@@ -141,3 +141,27 @@ test("pup() draws a different DOG per spec, not one dog with a different collar"
   const drawn = (C.PUPS || []).map((p) => ART.pup(p.collar, p.art));
   assert.equal(new Set(drawn).size, drawn.length, "every shipped pup renders as its own dog");
 });
+
+test("truck() tips its bed and carries a countable load (Dump Truck is the namesake)", () => {
+  // It shipped as a 🚚 DELIVERY-van emoji glued to a flat orange div, while this
+  // function had one caller in the whole repo and was never seen in a game. A
+  // dump truck's entire appeal is the bed going up — an emoji cannot tip, cannot
+  // be partly loaded, and is not even the right vehicle.
+  const flat = ART.truck("#ffb703", { tip: 0, load: 0 });
+  const tipped = ART.truck("#ffb703", { tip: 1, load: 0 });
+  assert.notEqual(flat, tipped, "the bed actually tips");
+  assert.match(flat, /rotate\(-?0(\.0)? /, "flat is an unrotated bed");
+  assert.match(tipped, /rotate\(-30/, "fully tipped rotates the bed about the rear axle");
+  // The load must be COUNTABLE — this is a counting game, so n rocks means n rocks.
+  const rockCount = (s) => (s.match(/fill="#8d8b86"/g) || []).length;
+  for (let n = 0; n <= 5; n++) {
+    assert.equal(rockCount(ART.truck("#ffb703", { load: n })), n, `load ${n} draws ${n} rocks`);
+  }
+  assert.equal(rockCount(ART.truck("#ffb703", { load: 99 })), 5, "an out-of-range load clamps rather than overflowing the bed");
+  assert.equal(rockCount(ART.truck("#ffb703", { load: -3 })), 0, "…in both directions");
+  // Backwards compatible: the sticker book calls truck(colour) with no opts.
+  const bare = ART.truck("#ffb703");
+  assert.ok(bare.startsWith("<svg") && bare.endsWith("</svg>"), "an opts-less call still draws");
+  assert.equal(rockCount(bare), 0, "…empty and level");
+  assert.ok(ART.truck("#2b6cff").indexOf("#2b6cff") >= 0, "the body colour is still a parameter");
+});

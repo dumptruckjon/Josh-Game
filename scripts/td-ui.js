@@ -76,9 +76,14 @@
       '<div class="td-bar td-bar--play">' +
         '<button class="btn-round td-mini td-quit" type="button" aria-label="Back to the fort">🏠</button>' +
         '<div class="td-hud">' +
-          '<span class="td-hud__lives">❤️ 20</span>' +
-          '<span class="td-hud__gold">🪙 0</span>' +
-          '<span class="td-hud__charge">⚙️ 0</span>' +
+          '<span class="td-hud__lives" title="Stickers left — lose them all and the run ends">❤️ 20</span>' +
+          '<span class="td-hud__gold" title="Gold — spend it on towers and upgrades">🪙 0</span>' +
+          // ⚙️ shipped as a BARE NUMERAL that nothing in the app ever named — the
+          // owner's first question on seeing it was "what does the gear mean?",
+          // which is the same defect TD-12 fixed for the abilities (whose names
+          // lived only in an aria-label). Now it says so on hover, to a screen
+          // reader, and in the guide's Powers section.
+          '<span class="td-hud__charge" title="Toy Energy — every power costs some. You get more each wave.">⚙️ 0</span>' +
           '<span class="td-hud__wave">wave 0/0</span>' +
         "</div>" +
         '<button class="btn-round td-mini td-speed" type="button" aria-label="Game speed">1×</button>' +
@@ -388,7 +393,13 @@
       "<h3>📖 Toybox Guide</h3>" +
       '<p class="td-overlay__sub">What each toy does — and what can actually hit it.</p>' +
       '<ul class="td-guide__towers">' + towerRow + "</ul>" +
-      '<p class="td-overlay__sub">Powers — usable during a wave only.</p>' +
+      // Each power's cost line reads "130🪙 · 1⚙️", and ⚙️ was never DEFINED
+      // anywhere in the app — the symbol appeared in the HUD, on every ability
+      // button and here, and nothing said what it was. Numbers quoted from RULES
+      // so they cannot drift from the engine.
+      '<p class="td-overlay__sub">Powers — usable during a wave only. Each costs gold 🪙 <b>and</b> ⚙️ Toy Energy: you get ' +
+        global.TDData.RULES.chargePerWave + " more ⚙️ every wave you send, banked up to " +
+        global.TDData.RULES.chargeMax + ". That is what stops late-game gold making the powers free.</p>" +
       '<ul class="td-guide__towers td-guide__abils">' + abilRow + "</ul>" +
       // The wave button does two different jobs; say so, or ⏩ RUSH is a mystery.
       '<p class="td-overlay__sub">The wave button</p>' +
@@ -613,7 +624,10 @@
     // ⚙️ Toy Energy is the powers' real cost late, so it belongs beside gold —
     // a resource you can't see is a resource you can't plan around.
     const charge = q(".td-hud__charge");
-    if (charge) charge.textContent = "⚙️ " + (state.charge || 0);
+    if (charge) {
+      charge.textContent = "⚙️ " + (state.charge || 0);
+      charge.setAttribute("aria-label", (state.charge || 0) + " toy energy — every power costs some");
+    }
     const level = global.TDData.LEVELS.find((l) => l.id === state.levelId);
     const endless = state.endless || !level; // endless runs aren't in DATA.LEVELS
     const total = level ? level.waves.length : 0;

@@ -821,6 +821,40 @@ test("AUDIT: a navigated-away game falls SILENT and stops advancing (api.later +
   assert.ok(!speaking, "no utterance may still be speaking after the route cancelled speech");
 });
 
+test("Dump Truck!: the rig is DRAWN, and it fills then TIPS (the namesake game)", async () => {
+  // It shipped as a 🚚 delivery-van emoji beside a flat orange div. The
+  // every-game harness proved it winnable the whole time, because a tap harness
+  // cannot see that the picture never changed — the same blind spot that let a
+  // dead ▶ reveal control and three invisible Fan variants ship green. So drive
+  // the real controls and read the drawing.
+  await page.evaluate(() => { location.hash = "#dump-truck"; });
+  await page.waitForTimeout(200);
+  const rocksIn = () => page.evaluate(() =>
+    (document.querySelector(".truck__rig").innerHTML.match(/fill="#8d8b86"/g) || []).length);
+  const tipOf = () => page.evaluate(() => {
+    const m = document.querySelector(".truck__rig").innerHTML.match(/rotate\((-?[\d.]+)/);
+    return m ? Number(m[1]) : null;
+  });
+  assert.ok(await page.evaluate(() => !!document.querySelector(".truck__rig svg")),
+    "the rig is an SVG drawing, not an emoji span");
+  assert.equal(await rocksIn(), 0, "it starts empty");
+  assert.equal(await tipOf(), 0, "…and level");
+  // Load every rock this round offers, checking the bed fills as we go.
+  const rocks = page.locator(".truck__rock:not([disabled])");
+  const n = await rocks.count();
+  assert.ok(n >= 3, `the round offers rocks to load (got ${n})`);
+  for (let i = 0; i < n; i++) {
+    await page.locator(".truck__rock:not([disabled])").first().click();
+    await page.waitForTimeout(60);
+    assert.equal(await rocksIn(), i + 1, `rock ${i + 1} lands IN the bed`);
+  }
+  assert.equal(await tipOf(), 0, "the bed stays level while loading");
+  // …then the lever tips it.
+  await page.locator(".truck__lever").click();
+  await page.waitForTimeout(80);
+  assert.ok(await tipOf() < -20, "pulling DUMP tips the bed right up");
+});
+
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

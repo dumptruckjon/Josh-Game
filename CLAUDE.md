@@ -2320,6 +2320,44 @@ points, ~1KB per sticker), with all five uniqueness axes intact at 200/200. The
 generalizable rule: **when you add art to a surface rendered by the hundred, count
 the path points — and never conclude its cost from a Chromium measurement.**
 
+**A SYMBOL THE PLAYER CANNOT DECODE IS A MECHANIC THEY CANNOT PLAN AROUND** —
+reported by the owner as, simply, *"what's the gear symbol mean at top of play
+space?"*. ⚙️ Toy Energy is the fort's second currency (the whole reason the powers
+stop being free once a board holds thousands of gold), and it shipped as a BARE
+NUMERAL: the glyph appeared in the HUD, on all four ability buttons and in the
+guide's cost lines, and **nothing anywhere in the app ever named it**. That is the
+identical defect TD-12 fixed for the abilities, whose names lived only inside an
+`aria-label` — recorded then, and re-committed three phases later on a resource
+whose entire job is to be budgeted. The fix names it in all three places (a HUD
+`title`, a live `aria-label` carrying the value, and a Powers paragraph in the
+Toybox Guide that quotes `RULES.chargePerWave`/`chargeMax` rather than re-typing
+them), and the guardrail asserts each. **The general rule: when you add a
+RESOURCE, the test that it is explained is not optional — ship the name with the
+number.** The touch-law pass that came with it closed the other half of "the page
+must not move under a thumb": `touch-action` stops the double-tap zoom and nothing
+else, so the rubber-band bounce, **pull-to-refresh (which can RELOAD mid-round and
+drop it)**, and scroll CHAINING out of an inner scroller onto the page behind an
+open dialog were all still live. `overscroll-behavior: none` on the root plus
+`contain` on every internal scroller kills all three, cannot touch pinch-zoom (so
+the deliberate "stop the ACCIDENTAL zoom, never ban zooming" choice is intact),
+and is guardrail-locked by a generic scan: any rule with `overflow-y: auto|scroll`
+must also declare `contain`. Honest floor, stated rather than glossed: Safari added
+`overscroll-behavior` in 16, so Josh's iOS 14.2 iPad ignores it — it is the whole
+fix on Android, desktop and any newer iPad, and nothing regresses on 14.2.
+**And Dump Truck! — the namesake game — was a 🚚 DELIVERY-van emoji glued to a flat
+orange div**, while `JoshArt.truck()` had exactly one caller in the repo (the
+sticker book) and was never seen in a game. A dump truck's whole appeal is the bed
+going up, and an emoji cannot tip, cannot show a partial load, and is not even the
+right vehicle. `truck(color, {tip, load})` now renders the bed at any angle with a
+countable pile of rocks in it, so loading and dumping are one picture changing; the
+CSS tilt and the flat orange bed are retired with it (an SVG attribute change is
+instantaneous, so the tip is motion-safe by construction instead of needing a
+`prefers-reduced-motion` opt-out). The lesson is the tap-harness one again: it
+proved this game winnable for its whole life without ever noticing the picture
+never changed, so the browser test drives the real controls and READS the drawing —
+asserting n rocks land in the bed for n taps, that it stays level while loading,
+and that the lever tips it (mutation-proven on all three).
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book

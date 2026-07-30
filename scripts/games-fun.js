@@ -792,11 +792,16 @@
     start(api) {
       const LOADS = C.TRUCK_LOADS || [3, 4, 5];
       let round = 0;
-      const truck = api.el("div", { class: "truck__rig", aria: { hidden: "true" } }, [
-        api.el("span", { class: "truck__bed" }),
-        api.el("span", { class: "truck__cab", text: "🚚" }),
-      ]);
-      const bed = truck.querySelector(".truck__bed");
+      // The rig is DRAWN, not a 🚚 emoji beside a flat orange div — 🚚 is a
+      // delivery van, it cannot tip, and it cannot show a partial load, which is
+      // the whole point of this game. `JoshArt.truck(color, {tip, load})` renders
+      // the bed at any angle with any number of rocks in it, so loading and
+      // dumping are the same picture changing.
+      const ART = window.JoshArt;
+      const truck = api.el("div", { class: "truck__rig art-fill", aria: { hidden: "true" } });
+      const drawRig = (tip, load) => {
+        truck.innerHTML = (ART && ART.truck) ? ART.truck("#ffb703", { tip: tip, load: load }) : "🚚";
+      };
       const rocks = api.el("div", { class: "choices choices--3 truck__rocks" });
       const lever = api.el("button", { class: "btn-big truck__lever", type: "button", hidden: "" }, ["⬇️ DUMP!"]);
       api.stage.append(truck, rocks, lever);
@@ -804,8 +809,8 @@
       function newRound() {
         const n = LOADS[round % LOADS.length];
         let loaded = 0;
-        truck.classList.remove("truck__rig--dump");
-        bed.innerHTML = "";
+        truck.dataset.loaded = "0";
+        drawRig(0, 0);
         lever.hidden = true; delete lever.dataset.correct;
         rocks.innerHTML = "";
         api.setPrompt("Load the rocks, then pull the DUMP lever!", ["🪨", "🚚", "⬇️"]);
@@ -816,8 +821,9 @@
             if (r.dataset.loaded) return;
             r.dataset.loaded = "1"; delete r.dataset.correct;
             r.classList.add("truck__rock--gone"); r.disabled = true;
-            bed.appendChild(api.el("span", { class: "truck__load pop", aria: { hidden: "true" }, text: "🪨" }));
             loaded += 1;
+            truck.dataset.loaded = String(loaded);
+            drawRig(0, loaded);   // the rock lands IN the bed
             try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(300 + loaded * 40, { duration: 0.1 }); } catch (e) { /* ignore */ }
             api.say(String(loaded));
             if (loaded >= n) { lever.hidden = false; lever.dataset.correct = "1"; api.say("Now pull the DUMP lever!"); }
@@ -825,10 +831,14 @@
           rocks.appendChild(r);
         }
       }
+      const loadedNow = () => Number(truck.dataset.loaded || 0);
       lever.addEventListener("click", () => {
         if (lever.hidden || lever.dataset.done) return;
         lever.dataset.done = "1"; delete lever.dataset.correct;
-        truck.classList.add("truck__rig--dump");
+        // The bed tips in the DRAWING, not via a CSS class — an SVG attribute
+        // change is instantaneous, so it is motion-safe by construction rather
+        // than needing a prefers-reduced-motion opt-out.
+        drawRig(1, loadedNow());
         api.say("Dump!");
         setTimeout(() => {
           round += 1;

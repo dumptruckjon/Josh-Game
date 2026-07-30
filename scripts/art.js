@@ -134,12 +134,35 @@
   }
 
   // A construction dumptruck (Rubble & Crew homage).
-  function truck(color) {
+  // A construction dump truck. `opts.tip` (0..1) raises the BED and `opts.load`
+  // (0..5) fills it with rocks — because Dump Truck! is the namesake game and a
+  // dump truck's whole appeal is the bed going up. It shipped as a 🚚 emoji (a
+  // DELIVERY van, not even the right vehicle) glued to a flat orange div, while
+  // this function had exactly one caller in the repo and could not tip, could
+  // not be partly loaded, and was never seen in a game. An emoji glyph cannot do
+  // any of those things; this is the clearest case in the app for a drawing.
+  // The bed pivots at the rear axle, so the load slides out the back.
+  function truck(color, opts) {
     color = color || "#ffb703";
+    opts = opts || {};
+    const tip = Math.max(0, Math.min(1, opts.tip || 0));
+    const load = clamp(Math.round(opts.load || 0), 0, 5);
+    let rocks = "";
+    for (let i = 0; i < load; i++) {
+      const x = 22 + (i % 3) * 14, y = 44 + Math.floor(i / 3) * 10;
+      rocks += '<path d="M' + x + " " + (y + 7) + " L" + (x + 4) + " " + y + " L" + (x + 11) + " " + (y + 1) +
+        " L" + (x + 14) + " " + (y + 7) + " L" + (x + 9) + " " + (y + 12) + " L" + (x + 2) + " " + (y + 10) +
+        ' Z" fill="#8d8b86" stroke="#6f6d68" stroke-width="1"/>';
+    }
     return wrap(
-      '<polygon points="18,40 64,40 58,64 18,64" fill="' + color + '"/>' +
+      '<g transform="rotate(' + (-30 * tip).toFixed(1) + ' 22 62)">' +
+        '<polygon points="18,40 64,40 58,64 18,64" fill="' + color + '"/>' +
+        '<path d="M58 44 L52 64 M64 44 L58 64" stroke="#2b2b3a" stroke-width="2" opacity="0.35" fill="none"/>' +
+        rocks +
+      "</g>" +
       '<rect x="64" y="42" width="18" height="22" rx="3" fill="#ffd24d"/>' +
       '<rect x="67" y="46" width="11" height="9" rx="2" fill="#bfe9ff"/>' +
+      '<circle cx="81" cy="58" r="2.6" fill="#fff6d6"/>' +
       '<rect x="14" y="64" width="72" height="7" fill="#555"/>' +
       '<circle cx="32" cy="76" r="9" fill="#333"/><circle cx="32" cy="76" r="4" fill="#aaa"/>' +
       '<circle cx="72" cy="76" r="9" fill="#333"/><circle cx="72" cy="76" r="4" fill="#aaa"/>'

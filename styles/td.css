@@ -368,6 +368,7 @@ body.td-mode #screens { padding: 0; }
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   max-height: calc(100vh - 24px); /* Safari 14 fallback */
   max-height: calc(100dvh - 24px); overflow-y: auto; /* the tall pause menu must scroll, not clip, in short landscape viewports */
+  overscroll-behavior: contain; /* reaching the end of the star tree must not scroll the fort behind it */
 }
 .td-overlay__box > * + * { margin-top: 12px; } /* flex-gap is dropped on iOS 14.2 */
 .td-overlay__box h3 { margin: 0; color: #ffe27a; font-size: 1.3rem; }
@@ -403,7 +404,7 @@ body.td-mode #screens { padding: 0; }
 }
 
 /* wide overlay box for the tree/badges/endless lists (scrolls if tall) */
-.td-overlay__box--wide { width: min(360px, 92vw); max-height: 86vh; max-height: 86dvh; overflow-y: auto; } /* vh first: Safari 14 fallback */
+.td-overlay__box--wide { width: min(360px, 92vw); max-height: 86vh; max-height: 86dvh; overflow-y: auto; overscroll-behavior: contain; } /* vh first: Safari 14 fallback */
 .td-overlay__row { display: flex; }
 .td-overlay__row > * + * { margin-left: 10px; } /* flex-gap is dropped on iOS 14.2 */
 .td-overlay__row .td-btn { flex: 1; }

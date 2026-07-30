@@ -47,6 +47,23 @@ html, body,
   user-select: none;
   -webkit-touch-callout: none; /* no long-press callout bubble on labels/art */
 }
+/* THE OTHER HALF of "don't move under my thumb". `touch-action` stops the
+   double-tap zoom, but it does nothing about the three ways a page still shifts
+   during play: the rubber-band bounce when a finger drags past the top or
+   bottom, pull-to-refresh (which can RELOAD the page mid-game — the worst of
+   the three, since it drops the round), and scroll CHAINING, where reaching the
+   end of an inner scroller hands the rest of the gesture to the page and slides
+   the whole screen behind an open dialog.
+   `none` on the root kills all three. It cannot affect pinch-zoom, so the
+   deliberate accessibility choice made when the double-tap fix landed — stop
+   the ACCIDENTAL zoom, never ban zooming — is untouched.
+   HONEST FLOOR: Safari added overscroll-behavior in 16, so Josh's iOS 14.2 iPad
+   ignores this. It is still worth having: it is the whole fix on Android, on
+   desktop, and on any newer iPad in the house, and on 14.2 nothing regresses. */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
 /* …but real text fields keep every default. These are the ONLY places the app
    wants a caret, a selection and the iOS paste menu: the fort's 💾 Backup box
    (you copy a save out of it and paste one back in — it even calls .select() on
@@ -1074,6 +1091,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
 .buddyc[hidden] { display: none; }
 .buddyc__box {
   width: min(94vw, 360px); max-height: 86vh; max-height: 86dvh; overflow-y: auto; /* vh first: Safari 14 fallback */
+  overscroll-behavior: contain; /* scrolling to this box's end must not slide the PAGE behind it */
   background: #fff; border-radius: 22px; padding: 16px 14px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
 }
 .buddyc__title { text-align: center; margin: 2px 0 12px; font-size: 1.2rem; font-weight: 800; color: #b83b5e; }
@@ -2184,12 +2202,13 @@ body.hl-mode {
 .tidy__toys { max-width: 340px; margin: 0 auto; }
 .tidy__toy { font-size: clamp(2rem, 11vw, 2.8rem); }
 
-/* Dump Truck! — a truck whose bed fills, then tilts to dump. */
-.truck__rig { display: flex; align-items: flex-end; justify-content: center; gap: 2px; min-height: 96px; margin: 8px 0 12px; transition: transform 0.5s ease; transform-origin: 60% bottom; }
-.truck__rig--dump { transform: rotate(-16deg); }
-.truck__bed { display: flex; flex-wrap: wrap-reverse; align-content: flex-end; justify-content: center; gap: 1px; width: 108px; min-height: 54px; padding: 4px; background: #d98c3a; border-radius: 8px 8px 4px 4px; }
-.truck__load { font-size: 1.2rem; line-height: 1; }
-.truck__cab { font-size: clamp(2.6rem, 15vw, 3.6rem); line-height: 1; }
+/* Dump Truck! — the rig is DRAWN (JoshArt.truck), so the bed tips and the load
+   fills inside the SVG itself. The old CSS tilt (.truck__rig--dump) and the flat
+   orange .truck__bed / 🚚 .truck__cab are gone with it: an emoji cannot tip and
+   cannot show a partial load, which is the entire game. Nothing here animates,
+   so the tip is motion-safe by construction. */
+.truck__rig { width: min(72vw, 260px); margin: 8px auto 12px; }
+.truck__rig svg { width: 100%; height: auto; display: block; }
 .truck__rocks { max-width: 320px; margin: 0 auto; }
 .truck__rock { font-size: clamp(2rem, 11vw, 2.8rem); }
 .truck__rock--gone { opacity: 0; transform: scale(0.4); transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }

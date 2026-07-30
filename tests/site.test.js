@@ -329,6 +329,53 @@ test("mobile / iOS Safari optimizations are in place", () => {
   assert.match(css, /-webkit-backdrop-filter/, "Safari needs -webkit-backdrop-filter");
   assert.match(css, /touch-action:\s*manipulation/, "prevent double-tap zoom");
   assert.match(css, /-webkit-tap-highlight-color/, "remove the iOS tap highlight");
+  // THE OTHER HALF of "the page must not move under a thumb". `touch-action`
+  // stops the double-tap zoom but nothing else: the rubber-band bounce, and
+  // pull-to-refresh (which can RELOAD the page mid-round and drop it), and
+  // scroll CHAINING out of an inner scroller onto the page behind an open
+  // dialog. `overscroll-behavior: none` on the root kills all three and cannot
+  // touch pinch-zoom, so the deliberate "stop the ACCIDENTAL zoom, never ban
+  // zooming" accessibility choice is preserved.
+  {
+    // There is more than one `html, body` rule, so ask whether ANY of them
+    // declares it rather than trusting the first match.
+    const roots = css.split("}").filter((r) => /(^|[\s;*/])html\s*,\s*body\s*\{/.test(r + "{"));
+    assert.ok(roots.length, "found the html, body rule(s)");
+    assert.ok(roots.some((r) => /overscroll-behavior:\s*none/.test(r)),
+      "html, body must set overscroll-behavior: none — otherwise a drag past the top or bottom rubber-bands the page, and pull-to-refresh can reload mid-round");
+  }
+  // …and every INNER scroller must contain its own overscroll, or reaching its
+  // end hands the rest of the gesture to the page and slides the whole screen
+  // behind the dialog you are reading.
+  for (const file of ["styles/main.css", "styles/td.css"]) {
+    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const rule of body.split("}")) {
+      const parts = rule.split("{");
+      if (parts.length < 2) continue;
+      const sel = parts[0], decls = parts[1] || "";
+      if (!/overflow-y:\s*(auto|scroll)/.test(decls)) continue;
+      assert.match(decls, /overscroll-behavior:\s*contain/,
+        `${file}: "${sel.trim()}" scrolls internally, so it must also declare overscroll-behavior: contain — otherwise scrolling to its end drags the page behind it`);
+    }
+  }
+});
+
+test("the fort's ⚙️ Toy Energy actually says what it is", () => {
+  // Shipped as a bare gear numeral in the HUD, on every ability button and in
+  // the guide's cost lines — and NOTHING in the app ever named it. The owner's
+  // first question on seeing it was "what does the gear mean?", which is the
+  // same defect TD-12 fixed for the abilities, whose names lived only inside an
+  // aria-label. A symbol the player cannot decode is a mechanic they cannot plan
+  // around, which is the entire reason this resource exists.
+  const ui = read("scripts/td-ui.js");
+  assert.match(ui, /td-hud__charge"[^>]*title="[^"]*Toy Energy/i,
+    "the HUD's ⚙️ chip must name Toy Energy on hover");
+  assert.match(ui, /setAttribute\("aria-label", *\(state\.charge[^)]*\)[^;]*toy energy/i,
+    "…and to a screen reader, with the live value");
+  const guide = ui.slice(ui.indexOf("Powers — usable during a wave only"), ui.indexOf("The wave button"));
+  assert.match(guide, /Toy Energy/, "the guide's Powers section must define ⚙️, not just spend it");
+  assert.match(guide, /RULES\.chargePerWave/, "…quoting the engine's own per-wave grant, never a re-typed number");
+  assert.match(guide, /RULES\.chargeMax/, "…and its own cap");
 });
 
 test("tap targets are sized for little fingers (>= 75px)", () => {
