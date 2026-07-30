@@ -1002,8 +1002,10 @@ test("guardrail: the fort reset has one owner, forces past the merge, and covers
   const tdm = read("scripts/td-main.js");
   assert.match(tdm, /function freshSave\(/, "a single freshSave() factory builds the reset save");
   assert.match(tdm, /function resetProgress\(/, "a single resetProgress() owns the wipe");
-  assert.match(tdm, /resetSave: \(\) => resetProgress\(\)/,
+  assert.match(tdm, /resetSave: \(\) => resetProgress\(/,
     "the __TD test hook routes through the ONE owner (never its own literal, which would drift)");
+  assert.match(tdm, /resetSave: \(\) => resetProgress\(\{ dropRun: true \}\)/,
+    "…and drops the parked run, or the next navigation re-checkpoints the run it just wiped");
   assert.match(tdm, /resetFort: \(\) => \{/, "the fort home's grown-ups reset is wired to a hook");
   assert.match(tdm, /resetProgress\(\{ keepPrefs: true, dropRun: true \}\)/,
     "the grown-ups reset keeps preferences and drops any parked run");
@@ -1011,10 +1013,26 @@ test("guardrail: the fort reset has one owner, forces past the merge, and covers
   // fields (stars / ach / endlessBest) straight back in and the wipe is a no-op.
   const body = tdm.slice(tdm.indexOf("function resetProgress("), tdm.indexOf("function resetProgress(") + 600);
   assert.match(body, /persist\(save, \{ force: true \}\)/, "a deliberate reset skips the two-tab monotonic merge");
-  // Every field the boot loader coerces must appear in freshSave.
+  // Every field the boot loader coerces must appear in freshSave — and the LIST
+  // IS DERIVED from the loader itself. It used to be seven hand-written names,
+  // which is the defect class this repo keeps paying for ("a scan's own list is
+  // part of the scan"): `save.bests`, `save.loadout` and `save.powers` all
+  // landed after that list was written and none of them was covered by it. The
+  // same gap in the loader's own defaults is what crashed the first win twice
+  // (save.ach, then save.stars). Now a new persisted field is covered the
+  // moment it is coerced at boot.
   const fresh = tdm.slice(tdm.indexOf("function freshSave("), tdm.indexOf("function resetProgress("));
-  for (const field of ["stars", "settings", "difficulty", "meta", "ach", "endlessBest", "midRun"]) {
-    assert.ok(new RegExp("\\b" + field + ":").test(fresh), `freshSave() must reset save.${field}`);
+  const coerced = new Set();
+  for (const line of tdm.split("\n")) {
+    let m = /^\s*if \(.*\bsave\.([A-Za-z]+)\b.*\)\s*save\.\1 =/.exec(line);        // if (!Array.isArray(save.x)) save.x = …
+    if (!m) m = /^\s*if \(!\("([A-Za-z]+)" in save\)\)\s*save\.\1 =/.exec(line);   // if (!("midRun" in save)) save.midRun = …
+    if (m) coerced.add(m[1]);
+  }
+  assert.ok(coerced.size >= 8, `the loader's coercions must be findable (found ${coerced.size}: ${[...coerced].join(", ")})`);
+  for (const field of coerced) {
+    assert.ok(new RegExp("\\b" + field + ":").test(fresh),
+      `save.${field} is coerced at boot, so freshSave() must reset it — a reset path that misses a persisted ` +
+      "field leaves it undefined, which is exactly how save.ach and save.stars each crashed a win");
   }
   for (const d of ["casual", "normal", "heroic"]) {
     assert.ok(new RegExp(d + ": \\{\\}").test(fresh), `freshSave() must clear the ${d} star ladder`);

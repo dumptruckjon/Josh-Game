@@ -28,7 +28,8 @@
       // union. meta is NOT merged (a respec legitimately REMOVES nodes), and
       // `loadout` follows meta for exactly the same reason — un-equipping is a
       // deliberate removal, so unioning it would resurrect a pack you just
-      // emptied. settings/difficulty/midRun stay last-writer-wins. A deliberate
+      // emptied. `powers` is the same shape of choice and follows the same rule.
+      // settings/difficulty/midRun stay last-writer-wins. A deliberate
       // reset passes {force:true} to skip the merge — otherwise it could never clear.
       if (!(opts && opts.force)) {
         const raw = localStorage.getItem(SAVE_KEY);
@@ -100,6 +101,10 @@
   // this migrates by auto-equipping the first slots-worth it owns, so nobody
   // logs in to a fort that suddenly forgot its upgrades.
   if (!Array.isArray(save.loadout)) save.loadout = save.meta.slice(0, DATA.RULES.metaSlots);
+  // P6: which POWERS this fort brings to a run. DERIVED from the data, never a
+  // written literal (the TOTAL_PLANNED lesson), so a save from before the pool
+  // grew migrates to the first slots-worth and nobody logs in to an empty strip.
+  if (!Array.isArray(save.powers)) save.powers = DATA.ABILITIES.slice(0, DATA.RULES.abilitySlots).map((a) => a.id);
   if (!Array.isArray(save.ach)) save.ach = [];     // TD-5 achievement ids earned
   if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
   if (!("midRun" in save)) save.midRun = null;     // TD-5 resume checkpoint
@@ -111,6 +116,14 @@
   function activeLoadout() {
     const owned = new Set(save.meta || []);
     return (save.loadout || []).filter((id) => owned.has(id)).slice(0, DATA.RULES.metaSlots);
+  }
+  // The same owner for POWERS: equipped ∩ real, capped at the slot budget, and
+  // never empty (a hand-edited save that cleared it would leave a run with no
+  // strip at all, which reads as the feature being broken).
+  function activePowers() {
+    const real = new Set(DATA.ABILITIES.map((a) => a.id));
+    const eq = (save.powers || []).filter((id) => real.has(id)).slice(0, DATA.RULES.abilitySlots);
+    return eq.length ? eq : DATA.ABILITIES.slice(0, DATA.RULES.abilitySlots).map((a) => a.id);
   }
 
   // ---- THE one owner of "wipe the fort" (RULE 7) ----
@@ -128,6 +141,7 @@
       difficulty: "normal",
       meta: [],
       loadout: [],
+      powers: DATA.ABILITIES.slice(0, DATA.RULES.abilitySlots).map((a) => a.id),
       ach: [],
       endlessBest: {},
       midRun: null,
@@ -565,7 +579,11 @@
     // LOADOUT, not everything owned — one owner, so the engine, the checkpoint
     // and the UI can never disagree about which nodes are live.
     const meta = opts.meta || activeLoadout();
-    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta });
+    // P6: the POWERS this run brings, through the same one owner. The engine's
+    // own default is the whole pool (so sims stay unchanged); a real run is
+    // always handed its equipped, slot-capped four.
+    const powers = opts.powers || activePowers();
+    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta, powers });
     // 🧸 Kid mode is a PLAY mode, not progression: mark the run cheated so it can
     // never write a star or earn a badge, and paint the kid-sized control skin.
     if (difficulty === "kid") { engine.state.cheated = true; doc.body.classList.add("td-kid"); }
@@ -583,6 +601,7 @@
     UI.closeOverlay();
     UI.hideBubble();
     if (UI.hideBanner) UI.hideBanner(); // never inherit the previous level's boss klaxon
+    if (UI.abilityStrip) UI.abilityStrip(engine.state.powers); // P6: the strip IS the run's loadout
     UI.hud(engine.state);
     const speedBtn = doc.querySelector("#screen-td-play .td-speed");
     if (speedBtn) speedBtn.textContent = "1×";
@@ -609,7 +628,12 @@
       // the LOADOUT, not everything owned: handing a resumed run every node you
       // have ever bought is the checkpoint-fidelity bug class, now on its
       // seventh instance (leaked / soldiersLost / lines / leverRoute / shieldUsed / charge)
-      gold: st.gold, lives: st.lives, meta: activeLoadout(),
+      // ...and the POWERS, for the same reason: the checkpoint must carry
+      // everything the resumed run's rules depend on, or a run resumed after the
+      // pool changed comes back with a strip it never chose. Read off the RUN
+      // (st.powers), not the save, so a loadout edited while a run is parked
+      // cannot retroactively rewrite the run that is being restored.
+      gold: st.gold, lives: st.lives, meta: activeLoadout(), powers: (st.powers || []).slice(),
       // achievement context so a resumed win is judged against the WHOLE run,
       // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
@@ -684,7 +708,10 @@
     const levelDef = mr.endless ? endlessLevelDef(mr.world) : DATA.LEVELS.find((l) => l.id === mr.levelId);
     if (!levelDef) { clearMidRun(); location.hash = "#td-home"; return; }
     location.hash = "#td-play";
-    startLevel(mr.levelId, { levelDef, seed: mr.seed, difficulty: mr.difficulty, meta: mr.meta });
+    // A legacy checkpoint has no `powers` — fall through to the live loadout,
+    // which is what a pre-P6 resume effectively did.
+    startLevel(mr.levelId, { levelDef, seed: mr.seed, difficulty: mr.difficulty, meta: mr.meta,
+      powers: Array.isArray(mr.powers) && mr.powers.length ? mr.powers : null });
     // Carry the pre-checkpoint achievement context across the resume so the win
     // is judged honestly against the whole run (startLevel reset these to fresh).
     cur.leaked = !!mr.leaked;
@@ -1037,6 +1064,9 @@
   global.JonTD = JonTD;
 
   // ---- Wire the shell once the DOM exists (scripts are deferred → DOM ready) ----
+  // The guide reads the packed set through the ONE owner (the same list the
+  // engine is handed), so a 🎒 in the guide always means "this is on the strip".
+  UI._packedPowers = () => activePowers();
   UI.buildScreens({
     exitFort: () => { location.hash = ""; },
     quitToFort: () => { promptLeave(() => { location.hash = "#td-home"; }); },
@@ -1120,6 +1150,10 @@
       save.loadout = (save.loadout || []).filter((id) => save.meta.indexOf(id) >= 0);
       persist(save);
     }),
+    // P6 powers pack. `powers` is a CHOICE, so like `meta`/`loadout` it is
+    // last-writer-wins across two tabs, never unioned — unioning would resurrect
+    // a power you deliberately left behind.
+    openPowers: () => UI.showPowers(save, (picked) => { save.powers = picked; persist(save); }),
     openAchievements: () => UI.showAchievements(save),
     openEndless: () => UI.showEndless(save, (world) => startEndless(world)),
     // 🧸 Kid Fort: the first level, kid difficulty, kid-sized buttons, no losing.
@@ -1180,7 +1214,15 @@
     isRotated: () => (cur ? cur.render.isRotated() : false),
     newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) { cur.paused = true; syncWake(); } return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
-    resetSave: () => resetProgress(), // the ONE owner — a new save field is covered here automatically
+    // The ONE owner — a new save field is covered here automatically. It DROPS
+    // the parked run too, exactly like the grown-ups button: without that,
+    // `cur` survived the wipe and the very next navigation ran
+    // leavingPlay() -> writeMidRun() and RESURRECTED a checkpoint from the
+    // run that had just been reset — so a test that reset and moved on left
+    // a stale midRun behind, and a later `#td-play` bounced back to the fort
+    // home. Same shape as the ✕-discard bug: something downstream in the
+    // same call re-creates what you just deleted.
+    resetSave: () => resetProgress({ dropRun: true }),
     // read-only test hooks (audit guardrails): the resume checkpoint, the live
     // achievement context, the earned-badge list, and a trigger for resume.
     midRun: () => (save.midRun ? JSON.parse(JSON.stringify(save.midRun)) : null),

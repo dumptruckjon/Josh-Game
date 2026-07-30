@@ -55,6 +55,12 @@
     // rescue L8 and L16, because those two are boss-quantized and three
     // individual Firepower nodes each flip them on their own.
     metaSlots: 6,
+    // P6: the ability strip CANNOT grow — the portrait rule is a hard
+    // `repeat(4, minmax(0,1fr))` and a cloned 5th tile overlaps at 320px — so a
+    // new power is a CHOICE, not a 5th button, exactly like metaSlots made the
+    // star tree an allocation. It also gives 📣 Rally Horn (inert on a board
+    // with no camp) something to lose to.
+    abilitySlots: 4,
     sellRefund: 0.8,
     stars: [[18, 3], [10, 2], [1, 1]],
     slowCap: 0.6,        // slows never stack — strongest wins, capped (§5.1)
@@ -119,6 +125,15 @@
       gold: 110, cooldown: 24, kind: "tower", mult: 2.5, seconds: 6, crashMult: 0.5, crashSeconds: 12 },
     { id: "horn", short: "Rally", icon: "📣", name: "Rally Horn", role: "every soldier back on their feet",
       gold: 80, cooldown: 30, kind: "instant" },
+    // 📌 P6 — the first power that does something on EVERY board, which is the
+    // measured hole in the set: neither oracle plan ever builds a camp, so
+    // `abilityWouldDo` returns false for 📣 Rally Horn on every run the entire
+    // suite makes, including the audit whose job is "spamming the powers must
+    // not erase a finale". One of four powers was inert in every test.
+    // It costs two ⚙️ — whole-board focus fire is the strongest thing in the
+    // set, and energy (not gold) is what bites late.
+    { id: "mark", short: "Focus", icon: "📌", name: "Call the Shot", role: "every gun aims at what you tap",
+      gold: 70, cooldown: 24, charges: 2, kind: "point", radius: 1.4, mark: { seconds: 5 } },
   ];
 
   // ---- Towers (§4): 4 lines × tiers 1-3 + two exclusive tier-4 branches ----
@@ -273,6 +288,20 @@
     // through. The Cushion says "stop leaning on AoE"; this says "stop leaning
     // on single-target", so together they close the counter matrix.
     bubblewrap: { name: "Bubble Wrap", icon: "🧻", hp: 130, speed: 0.6, armor: 0, shield: 0, shieldRegen: 0, bounty: 15, lives: 1, flier: false, bonkResist: 0.6, meleeDmg: 5, meleeRate: 1 },
+    // ---- P6: the last EMPTY cell of the resist matrix ----
+    // 🦆 Rubber Duck. Every other line already had an answer aimed at it —
+    // `armor` blunts the dart's bonk, `splashResist` soaks the mortar,
+    // `bonkResist` pads single hits, `slowImmune` deletes the Fan's SLOW and a
+    // `shield` buffers its zap — but nothing reduced the Fan's DAMAGE, so a
+    // Fan's zap was the one attack in the game that no enemy was built to shrug
+    // off. Rubber does: the zap lands at 40% (the same 0.6 the Cushion and the
+    // Bubble Wrap use, so the roster's resists are one strength, not three).
+    // Deliberately ONE resist in one body — the ≤1-disruptive-special-per-wave
+    // contract counts GROUPS, not traits inside a body, so stacking two resists
+    // would slip past exactly the rule that exists to stop "shielded + resistant
+    // with no answer". Ground, slow and fat: it is a wall you have to shoot,
+    // which is the point.
+    duck: { name: "Rubber Duck", icon: "🦆", hp: 140, speed: 0.58, armor: 0, shield: 0, shieldRegen: 0, bounty: 15, lives: 1, flier: false, zapResist: 0.6, meleeDmg: 5, meleeRate: 1 },
     // 📻 Boom Box — it does not fight. It makes the wave arrive FASTER than
     // your board expects, which is a threat no amount of damage answers; the
     // answer is to shoot the support first (the Junk Healer's lesson, applied
@@ -627,10 +656,10 @@
         { groups: [ { type: "ghost", count: 7, gap: 0.9, delay: 0 }, { type: "acorn", count: 9, gap: 0.85, delay: 3 }, { type: "cushion", count: 1, gap: 0.9, delay: 3 } ] },
         { groups: [ { type: "knight", count: 3, gap: 1, delay: 0 }, { type: "ghost", count: 5, gap: 0.9, delay: 3 }, { type: "ant", count: 10, gap: 0.55, delay: 4 }, { type: "cushion", count: 1, gap: 0.9, delay: 3 } ] },
         { groups: [ { type: "knight", count: 4, gap: 1, delay: 0 }, { type: "ghost", count: 5, gap: 0.9, delay: 3 }, { type: "acorn", count: 3, gap: 0.85, delay: 4 }, { type: "hawk", count: 3, gap: 0.3, delay: 2 }, { type: "cushion", count: 1, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 } ] },
-        { groups: [ { type: "blob", count: 5, gap: 0.85, delay: 0 }, { type: "ghost", count: 5, gap: 0.9, delay: 3 }, { type: "ant", count: 9, gap: 0.55, delay: 4 }, { type: "hawk", count: 6, gap: 0.3, delay: 2 }, { type: "cushion", count: 1, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 } ] },
+        { groups: [ { type: "blob", count: 4, gap: 0.85, delay: 0 }, { type: "ghost", count: 5, gap: 0.9, delay: 3 }, { type: "ant", count: 7, gap: 0.55, delay: 4 }, { type: "hawk", count: 6, gap: 0.3, delay: 2 }, { type: "cushion", count: 1, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 }, { type: "duck", count: 1, gap: 0.7, delay: 2 } ] },
         { groups: [ { type: "blob", count: 6, gap: 0.85, delay: 0 }, { type: "ghost", count: 6, gap: 0.9, delay: 3 }, { type: "knight", count: 3, gap: 1, delay: 4 }, { type: "hawk", count: 4, gap: 0.3, delay: 2 }, { type: "cushion", count: 1, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 } ] },
-        { groups: [ { type: "knight", count: 6, gap: 1, delay: 0 }, { type: "ghost", count: 7, gap: 0.9, delay: 3 }, { type: "blob", count: 4, gap: 0.85, delay: 4 }, { type: "hawk", count: 5, gap: 0.3, delay: 2 }, { type: "cushion", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 } ] },
-        { groups: [ { type: "knight", count: 8, gap: 1, delay: 0 }, { type: "ghost", count: 8, gap: 0.9, delay: 3 }, { type: "blob", count: 5, gap: 0.85, delay: 4 }, { type: "acorn", count: 3, gap: 0.85, delay: 5 }, { type: "hawk", count: 7, gap: 0.3, delay: 2 }, { type: "cushion", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 3, gap: 0.45, delay: 5 } ] },
+        { groups: [ { type: "knight", count: 5, gap: 1, delay: 0 }, { type: "ghost", count: 7, gap: 0.9, delay: 3 }, { type: "blob", count: 4, gap: 0.85, delay: 4 }, { type: "hawk", count: 5, gap: 0.3, delay: 2 }, { type: "cushion", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 2, gap: 0.45, delay: 5 }, { type: "duck", count: 1, gap: 0.7, delay: 2 } ] },
+        { groups: [ { type: "knight", count: 7, gap: 1, delay: 0 }, { type: "ghost", count: 8, gap: 0.9, delay: 3 }, { type: "blob", count: 4, gap: 0.85, delay: 4 }, { type: "acorn", count: 3, gap: 0.85, delay: 5 }, { type: "hawk", count: 7, gap: 0.3, delay: 2 }, { type: "cushion", count: 2, gap: 0.9, delay: 3 }, { type: "tinplane", count: 3, gap: 0.45, delay: 5 }, { type: "duck", count: 1, gap: 0.7, delay: 2 } ] },
       ],
     },
     {

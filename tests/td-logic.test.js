@@ -1659,6 +1659,17 @@ test("AUDIT difficulty shape: no level may be a wave-1 GOTCHA (opening damage st
 // one IS failable on L4/L12/L24 against the real cap, so it is not a rubber
 // stamp. It is also the test any NEW power must pass before it ships.
 test("AUDIT ability abuse: spamming the shipped powers must not erase a finale", () => {
+  // P6 NOTE ON SCOPE. A run may only BRING RULES.abilitySlots of the pool, so
+  // "spam everything" is a loadout no player can field. That is deliberate here
+  // and it is sound in one direction only: a full-pool run is a strict UPPER
+  // BOUND over every legal pack (a pack is a subset, and abilityReady refuses
+  // what is not equipped), so passing at the bound proves every pack passes. It
+  // is the opposite of the P4 mistake — there the full tree was used to BLAME
+  // individual nodes, where an unreachable state tells you nothing; here the
+  // question is only "can ability use erase a finale", and a conservative bound
+  // answers it. What a bound cannot do is prove each power was reached, so the
+  // separate "P6 coverage" test asserts every shipped power actually FIRES —
+  // that is the falsifiable half, and it is red today on a camp-less plan.
   const MAX_BOSS_LEVEL_FINISH = 17;
   // Measured 2026-07, then RE-measured after Phase 3 gave the powers a flat
   // per-wave energy budget: L16 went 20 → 8 and L20 20 → 9, both back inside the
@@ -2497,7 +2508,7 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
   // field must either name its trait here or sit on NOT_A_TRAIT with a reason.
   const FIELD_TRAIT = { flier: "flier", shield: "shield", splashResist: "splash", slowHeal: "slowheal",
     sap: "sap", phase: "phase", tunnel: "tunnel", split: "split", heal: "heal", charge: "charge", goldBurst: "gold", boss: "boss",
-    bonkResist: "bonkresist", hurry: "hurry", slowImmune: "slowimmune", spawner: "spawner",
+    bonkResist: "bonkresist", zapResist: "zapresist", hurry: "hurry", slowImmune: "slowimmune", spawner: "spawner",
     stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases" };
   // Plain stats (spoken by the card's own stat line), presentation, or fields
   // asserted separately below. Everything else MUST be a trait.
@@ -2927,6 +2938,266 @@ test("TD-9 abilities: a no-op use is REFUSED, and costs neither gold nor cooldow
   const good = e.useAbility("drop", { x: p.x, y: p.y });
   assert.ok(good.ok && good.hits > 0, "a real use lands");
   assert.ok(e.state.gold < 5000, "…and is paid for");
+});
+
+test("P6 wave data: every group has the fields the spawner arithmetic needs", () => {
+  // Found while dosing a new enemy: a group without `delay` makes
+  // `Math.max(0, g.delay + i * g.gap + jitter)` NaN, the spawn tick NaN, the
+  // enemy never arrives and the WAVE NEVER FINISHES — so the level reads as
+  // unwinnable rather than as malformed data. The engine no longer hangs on it,
+  // and this asserts the shipped data is complete either way (so the defaults
+  // stay a safety net, never a licence to author half a group).
+  const bad = [];
+  for (const l of DATA.LEVELS) {
+    l.waves.forEach((w, wi) => {
+      assert.ok(Array.isArray(w.groups) && w.groups.length, `L${l.id} wave ${wi + 1} has groups`);
+      for (const g of w.groups) {
+        for (const f of ["count", "gap", "delay"]) {
+          if (typeof g[f] !== "number" || !isFinite(g[f])) bad.push(`L${l.id} w${wi + 1} ${g.type}.${f}=${g[f]}`);
+        }
+        if (!DATA.ENEMIES[g.type]) bad.push(`L${l.id} w${wi + 1} unknown enemy "${g.type}"`);
+      }
+    });
+  }
+  assert.deepEqual(bad, [], "these wave groups are missing a numeric field the spawner needs: " + bad.join(", "));
+  // …and the engine survives one anyway, instead of hanging.
+  const lvl = JSON.parse(JSON.stringify(DATA.LEVELS[0]));
+  delete lvl.waves[0].groups[0].delay;
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.callWave();
+  for (let i = 0; i < 900; i++) e.tick();
+  assert.ok(e.state.enemies.length > 0 || e.state.waveIdx > 0,
+    "a delay-less group still spawns — a missing field must not silently hang the wave");
+});
+
+test("P6 🦆 zapResist: the Fan's beam lands at EXACTLY (1 - zapResist), and nothing else changes", () => {
+  // The trap this test exists for: the Fan's beam accumulates 6-16 dps into ONE
+  // point of damage per tick and both computeHit and dealDamage ROUND, so a
+  // fraction applied to that single point floors to zero — `Math.round(1*0.4)`
+  // is 0 and the beam would deal NO damage at any tier, for ever. So the
+  // assertion is an EXACT RATIO, not "it survives much longer": surviving
+  // infinitely longer passes on the broken build, which is precisely the kind of
+  // test this repo has learnt to distrust.
+  const ZR = DATA.ENEMIES.duck.zapResist;
+  assert.ok(ZR > 0 && ZR < 1, "the duck carries a real zapResist");
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  for (const tier of [1, 2, 3]) {
+    const e = TD.createEngine(lvl, { seed: 11 });
+    e.state.gold = 999999;
+    assert.ok(e.place("fan", lvl.pads[0].id).ok);
+    const t = e.state.towers[0];
+    for (let u = 1; u < tier; u++) assert.ok(e.upgrade(t.id).ok, "fan reaches tier " + tier);
+    e.state.phase = "wave";
+    // one rubber body and one plain body of IDENTICAL hp, both pinned in the
+    // beam's reach — so the only difference between them is the resist
+    const d = distNear(e, t);
+    const HP = 100000;                                  // never dies, so the ratio is clean
+    const rubber = mkEnemy("duck", d); rubber.id = 8801; rubber.hp = HP; rubber.maxHp = HP;
+    const plain = mkEnemy("sock", d); plain.id = 8802; plain.hp = HP; plain.maxHp = HP;
+    // measure them ONE AT A TIME: the beam only ever engages a single target
+    const lost = (who) => {
+      e.state.enemies.length = 0;
+      e.state.enemies.push(who);
+      who.hp = HP;
+      const before = who.hp;
+      for (let i = 0; i < 600; i++) { who.dist = d; e.tick(); }
+      return before - who.hp;
+    };
+    const lr = lost(rubber), lp = lost(plain);
+    assert.ok(lp > 50, `tier ${tier}: the plain body really is being zapped (${lp})`);
+    assert.ok(lr > 0, `tier ${tier}: the rubber body still takes SOME zap (${lr}) — a resist is not immunity`);
+    const ratio = lr / lp;
+    assert.ok(Math.abs(ratio - (1 - ZR)) <= 0.03,
+      `tier ${tier}: the beam must land at exactly ${(1 - ZR).toFixed(2)} on rubber — measured ${ratio.toFixed(3)} ` +
+      `(${lr} vs ${lp}). A 0.00 here means the fraction was applied to the rounded single point of damage instead of the accumulator.`);
+  }
+  // …and it is keyed on `how`, so the seam is provable without a time-to-kill:
+  // a dart's bonk and a mortar's splash go through untouched, and the Static
+  // branch's chain jump (also "zap") is attenuated by the same rule.
+  const e2 = TD.createEngine(lvl, { seed: 5 });
+  e2.state.phase = "wave";
+  const probe = (how) => {
+    const x = mkEnemy("duck", 1); x.id = 8810; x.hp = 1000; x.maxHp = 1000;
+    e2.state.enemies.length = 0; e2.state.enemies.push(x);
+    e2.dealDamage(x, 100, 0, how);
+    return 1000 - x.hp;
+  };
+  assert.equal(probe("dart"), 100, "a dart's bonk is untouched by zapResist");
+  assert.equal(probe("splash"), 100, "so is mortar splash");
+  assert.equal(probe("melee"), 100, "so is a soldier's swing");
+  assert.equal(probe("zap"), Math.round(100 * (1 - ZR)), "a chain-lightning jump IS attenuated (same `how`)");
+});
+
+test("P6 loadout: an un-equipped power is REFUSED, and the run records what it brought", () => {
+  const lvl = DATA.LEVELS[0];
+  // The engine's own default is the WHOLE pool, deliberately: every shipped sim
+  // and engine test predates the loadout and must be unchanged, and for the
+  // abuse audit a full-pool run is a strict UPPER BOUND over every legal pack.
+  const all = DATA.ABILITIES.map((a) => a.id);
+  assert.deepEqual(TD.createEngine(lvl, { seed: 7 }).state.powers, all,
+    "no `powers` opt → the whole pool (so no existing engine test changes)");
+
+  // A real run brings exactly RULES.abilitySlots of them.
+  const pack = all.filter((id) => id !== "horn").slice(0, DATA.RULES.abilitySlots);
+  assert.equal(pack.length, DATA.RULES.abilitySlots, "the pack fills the strip");
+  const e = TD.createEngine(lvl, { seed: 7, powers: pack });
+  assert.deepEqual(e.state.powers, pack, "the run records the loadout it was handed (the P4 live-path lesson)");
+  e.state.gold = 5000; e.state.charge = 3;
+  e.callWave();
+  for (let i = 0; i < 120; i++) e.tick();
+
+  // "you didn't bring it" is checked FIRST, so it can never be masked by a
+  // resource reason — even with no gold and no energy at all.
+  e.state.gold = 0; e.state.charge = 0;
+  assert.equal(e.abilityReady("horn").reason, "not-equipped", "an un-packed power says so, not 'gold'");
+  assert.equal(e.useAbility("horn", {}).reason, "not-equipped", "…and using it is refused");
+  e.state.gold = 5000; e.state.charge = 3;
+  assert.equal(e.abilityReady("horn").reason, "not-equipped", "…with a full purse too");
+  // …while a packed one is judged on its merits.
+  assert.notEqual(e.abilityReady(pack[0]).reason, "not-equipped", "a packed power is not gated by the loadout");
+});
+
+test("P6 coverage: every shipped power must actually FIRE — none may be inert in the whole suite", () => {
+  // The measured defect this whole item exists for: neither oracle plan ever
+  // builds a camp, so `abilityWouldDo` returned false for 📣 Rally Horn on
+  // EVERY run the entire suite makes — including the audit whose job is to
+  // prove the powers do not erase a finale. One of four powers was untested.
+  // This gives each power what it needs and asserts it lands, so a future power
+  // cannot ship inert (and this one FAILS on a camp-less plan, which is exactly
+  // the hole it closes).
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 4);
+  const e = TD.createEngine(lvl, { seed: 5 });
+  e.state.gold = 999999;
+  const LINES = ["dart", "mortar", "fan", "camp"]; // a camp, so the horn has a squad
+  lvl.pads.slice(0, 4).forEach((p, i) => { assert.ok(e.place(LINES[i], p.id).ok, LINES[i] + " builds"); });
+  const fired = new Set();
+  e.callWave();
+  for (let g = 0; g < 4000 && fired.size < DATA.ABILITIES.length; g++) {
+    e.tick();
+    if (e.state.phase === "build") e.callWave();
+    e.state.gold = 999999; e.state.charge = 9;                 // cost is not what is under test
+    // Cooldowns are deliberately NOT cleared: 🧨 has a 2.4-cell blast, so a
+    // drop every single tick permanently empties the neighbourhood and the
+    // later powers find nothing to aim at. The real cooldowns space them out.
+    for (const s of e.state.soldiers) if (s.alive) s.hp = 1;    // give the horn something to heal
+    for (const ab of DATA.ABILITIES) {
+      // The lead is recomputed PER power: 🧨 Toy Box Drop clears a 2.4-cell
+      // radius, so a lead captured once per tick is already dead by 📌's turn
+      // and the coverage check would blame the power instead of the fixture.
+      const lead = e.state.enemies.filter((x) => x.alive && !e.isHidden(x)).sort((a, b) => b.dist - a.dist)[0];
+      let r;
+      if (ab.kind === "instant") r = e.useAbility(ab.id, {});
+      else if (ab.kind === "tower") r = e.useAbility(ab.id, { towerId: e.state.towers[0].id });
+      else if (lead) { const p = e.posOn(lead.pathIdx || 0, lead.dist); r = e.useAbility(ab.id, { x: p.x, y: p.y }); }
+      if (r && r.ok) fired.add(ab.id);
+    }
+  }
+  const missing = DATA.ABILITIES.map((a) => a.id).filter((id) => !fired.has(id));
+  assert.deepEqual(missing, [],
+    "these powers never successfully fired even when handed everything they need: " + missing.join(", ") +
+    " — a power the suite can never exercise is a power that can ship broken");
+});
+
+test("P6 📌 Call the Shot: EVERY aiming line drops its own mode and shoots the mark", () => {
+  // The discriminating fixture: three bodies where no shipped mode would pick
+  // the one that gets marked. A = furthest + weakest (what `first` picks),
+  // B = strongest (what `strong` picks), C = the middle body nobody wants.
+  const REACH = {
+    dart: { min: 0, max: DATA.TOWERS.dart.tiers[0].range },
+    mortar: { min: DATA.TOWERS.mortar.tiers[0].rangeMin, max: DATA.TOWERS.mortar.tiers[0].range },
+    fan: { min: 0, max: DATA.TOWERS.fan.tiers[0].zapRange },
+  };
+  const LINES = ["dart", "mortar", "fan"];
+  // find a lane stretch three DISTINCT pads all cover at tier 1 (searched, not
+  // eyeballed — the BODY_FIGURE_BOX / pad-geometry discipline)
+  let found = null;
+  for (const lvl of DATA.LEVELS) {
+    const probe = TD.createEngine(lvl, { seed: 7 });
+    for (let d = 1.5; d < 60 && !found; d += 0.25) {
+      const pick = {};
+      const ok = LINES.every((line) => {
+        const pad = lvl.pads.find((pd) => {
+          if (Object.values(pick).some((q) => q.id === pd.id)) return false;
+          return [d, d + 0.4, d + 0.8].every((dd) => {
+            const p = probe.posOn(0, dd);
+            const q = Math.hypot(p.x - pd.cx, p.y - pd.cy);
+            return q >= REACH[line].min + 0.2 && q <= REACH[line].max - 0.2;
+          });
+        });
+        if (pad) { pick[line] = pad; return true; }
+        return false;
+      });
+      if (ok) found = { lvl, d, pick };
+    }
+    if (found) break;
+  }
+  assert.ok(found, "a fixture level exists where one lane stretch is covered by a dart, a mortar and a fan");
+
+  const e = TD.createEngine(found.lvl, { seed: 7, powers: ["mark", "drop", "sticky", "overclock"] });
+  const st = e.state;
+  st.gold = 99999;
+  const t = {};
+  for (const line of LINES) { assert.ok(e.place(line, found.pick[line].id).ok); t[line] = st.towers[st.towers.length - 1]; }
+  e.setTargeting(t.dart.id, "first");   // the STICKY mode — it needs its own clause
+  e.setTargeting(t.mortar.id, "strong");
+  e.setTargeting(t.fan.id, "strong");
+
+  const D = found.d;
+  let withC = true;
+  const repark = () => {
+    st.enemies.length = 0;
+    st.enemies.push(mkEnemy("sock", D + 0.8), mkEnemy("marble", D + 0.4));
+    st.enemies[0].id = 9001; st.enemies[0].hp = 8;
+    st.enemies[1].id = 9002; st.enemies[1].hp = 900; st.enemies[1].maxHp = 900;
+    if (withC) { const c = mkEnemy("marble", D); c.id = 9003; c.hp = 120; st.enemies.push(c); }
+  };
+  st.phase = "wave";
+  for (let i = 0; i < 4; i++) { repark(); e.tick(); }
+  assert.equal(t.dart.targetId, 9001, "baseline: the dart holds the leader (its own `first`)");
+  assert.equal(t.mortar.targetId, 9002, "baseline: the mortar holds the strongest");
+  assert.equal(t.fan.targetId, 9002, "baseline: so does the fan — nobody chose 9003");
+
+  st.charge = 3;
+  const p = e.posOn(0, D);
+  const r = e.useAbility("mark", { x: p.x, y: p.y });
+  assert.ok(r.ok, "the mark lands: " + JSON.stringify(r));
+  assert.equal(st.markId, 9003, "…on the NEAREST body to the tap");
+  for (let i = 0; i < 3; i++) { repark(); e.tick(); }
+  // The dart row is the mutation-sensitive one: delete the sticky-KEEP clause
+  // and it stays on 9001 while the mortar and fan move — the exact shape of the
+  // half-applied fix this repo keeps finding (a phased ghost kept its lock).
+  assert.equal(t.dart.targetId, 9003, "the dart drops its sticky lock for the mark");
+  assert.equal(t.mortar.targetId, 9003, "the mortar re-aims");
+  assert.equal(t.fan.targetId, 9003, "the fan's beam re-aims");
+
+  const expiry = st.markUntil;
+  while (st.tick <= expiry + 2) { repark(); e.tick(); }
+  assert.equal(t.mortar.targetId, 9002, "on expiry the re-evaluating lines go back to their own modes");
+  assert.equal(t.fan.targetId, 9002, "…the fan too");
+  withC = false;   // a sticky dart is only free once its target leaves
+  for (let i = 0; i < 3; i++) { repark(); e.tick(); }
+  assert.equal(t.dart.targetId, 9001, "and the sticky dart re-picks by `first` once the mark has gone");
+});
+
+test("P6 📌 refuses honestly: no gun to aim, nothing to aim at, or an untargetable body", () => {
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const e = TD.createEngine(lvl, { seed: 3, powers: ["mark", "drop", "sticky", "horn"] });
+  e.state.gold = 99999; e.state.charge = 3;
+  e.callWave();
+  for (let i = 0; i < 90; i++) e.tick();
+  const live = e.state.enemies.find((x) => x.alive);
+  assert.ok(live, "enemies are walking");
+  const p = e.posOn(live.pathIdx, live.dist);
+  // 1. a camp is bodies, not a gun — it cannot be told where to aim
+  assert.ok(e.place("camp", lvl.pads[0].id).ok);
+  assert.equal(e.useAbility("mark", { x: p.x, y: p.y }).reason, "no-tower",
+    "a camp-only board is told it has no gun to aim, not 'nothing there'");
+  // 2. a real gun, but a tap into empty space
+  assert.ok(e.place("dart", lvl.pads[1].id).ok);
+  assert.equal(e.useAbility("mark", { x: 0.5, y: DATA.GRID.h - 0.5 }).reason, "no-targets",
+    "…and an empty tap says nothing is there");
+  assert.equal(e.state.charge, 3, "neither refusal spent a single ⚙️");
+  assert.deepEqual(e.state.abilityCd, {}, "…nor started a cooldown");
 });
 
 test("Rally Horn: works whenever the squad is HURT, not only when someone is down", () => {

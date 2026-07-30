@@ -520,6 +520,31 @@
       const def = global.TDData.ENEMIES[e.type];
       return (def && def.size) || fallback;
     }
+    // 👑 THE boss mark, and there is exactly ONE of it. Four bosses hand-rolled
+    // their own crown polygon and the other FOUR had none at all — including the
+    // first boss you ever meet (the Bed Monster) and the campaign's last (the
+    // Big Magnet). The fort home puts a 👑 on a boss finale and the guide gives
+    // every boss a "its kit escalates" line, so the one place the player could
+    // not tell a boss from a big enemy was the battlefield itself. Centralized
+    // here, so a ninth boss inherits it — and a guardrail derived from
+    // `DATA.ENEMIES` fails if any boss's draw branch does not call it.
+    // `topY` is the top of the body, in screen px; the crown sits above it.
+    function bossCrown(sx, topY, R) {
+      const h = R * 0.3, w = R * 0.42;
+      ctx.fillStyle = "#ffd94a";
+      ctx.beginPath();
+      ctx.moveTo(sx - w, topY);
+      ctx.lineTo(sx - w, topY - h);
+      ctx.lineTo(sx - w * 0.5, topY - h * 0.45);
+      ctx.lineTo(sx, topY - h * 1.28);
+      ctx.lineTo(sx + w * 0.5, topY - h * 0.45);
+      ctx.lineTo(sx + w, topY - h);
+      ctx.lineTo(sx + w, topY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#c8392f";                                   // a jewel, so it reads at cell 27
+      ctx.beginPath(); ctx.arc(sx, topY - h * 0.34, R * 0.07, 0, 7); ctx.fill();
+    }
     // 🧨's reveal rider: a flushed-out hider must LOOK catchable, or the player
     // has no way to know the blast did anything (the picture is the mechanic —
     // the same lesson the side-door marker taught).
@@ -863,6 +888,7 @@
           ctx.rect(sx + side * R * 0.39 - R * 0.06 + (i % 2) * R * 0.05, sy + R * 0.3 + i * R * 0.09, R * 0.12, R * 0.07);
           ctx.fill();
         }
+        bossCrown(sx, sy - R * 0.62, R);   // the campaign FINALE had no boss mark either
       } else if (e.type === "chair") {
         // 🪑 Flat-Pack Chair — a half-assembled flat-pack seat, one leg still
         // loose, marching in on the other three (World 7's sock body)
@@ -924,6 +950,7 @@
         ctx.beginPath(); ctx.moveTo(sx + R * 0.7, sy - R * 0.02);
         ctx.quadraticCurveTo(sx + R * 0.95, sy - R * (0.3 + 0.12 * Math.sin(engine.state.tick / 6)), sx + R * 0.86, sy - R * 0.42);
         ctx.stroke();
+        bossCrown(sx - R * 0.4, sy - R * 0.55, R);   // over the head, not the middle of the body
       } else if (e.type === "blob" || e.type === "mudlet") {
         // Mud Blob / Mudlet: a gloopy brown blob with a wobble and a grumpy face
         const rr = (e.type === "blob" ? r * 1.0 : r * 0.62), w = Math.sin(engine.state.tick / 5 + e.id) * rr * 0.08;
@@ -1022,6 +1049,7 @@
         ctx.fillStyle = "#2a1030"; ctx.beginPath(); ctx.arc(sx - R * 0.24, sy + R * 0.05, R * 0.08, 0, 7); ctx.arc(sx + R * 0.09, sy + R * 0.05, R * 0.08, 0, 7); ctx.fill();
         ctx.fillStyle = "#7a2030"; ctx.beginPath(); ctx.moveTo(sx - R * 0.35, sy + R * 0.26); ctx.quadraticCurveTo(sx, sy + R * 0.5, sx + R * 0.35, sy + R * 0.26); ctx.closePath(); ctx.fill(); // grin
         ctx.fillStyle = "#fff"; for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(sx + k * R * 0.13, sy + R * 0.27); ctx.lineTo(sx + k * R * 0.13 + R * 0.06, sy + R * 0.27); ctx.lineTo(sx + k * R * 0.13 + R * 0.03, sy + R * 0.37); ctx.closePath(); ctx.fill(); } // teeth
+        bossCrown(sx, sy - R * 0.35, R);   // the FIRST boss you meet had no boss mark at all
       } else if (e.type === "ghost") {
         // Glitter Ghost: a translucent sheet ghost; fades right out mid-phase so
         // the player SEES why it can't be targeted, then shimmers back.
@@ -1104,8 +1132,7 @@
         ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = Math.max(2, cell * 0.06);
         for (let k = 0; k < 4; k++) { const yy = sy - R * 0.6 + k * R * 0.35, ph = spin + k; ctx.beginPath(); ctx.ellipse(sx + Math.sin(ph) * R * 0.12, yy, R * (0.62 - k * 0.12), R * 0.1, 0, 0, 7); ctx.stroke(); }
         ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - R * 0.16, sy - R * 0.35, R * 0.1, 0, 7); ctx.arc(sx + R * 0.16, sy - R * 0.35, R * 0.1, 0, 7); ctx.fill();
-        ctx.fillStyle = "#ffd94a"; // crown
-        ctx.beginPath(); ctx.moveTo(sx - R * 0.4, sy - R * 0.78); ctx.lineTo(sx - R * 0.4, sy - R * 1.02); ctx.lineTo(sx - R * 0.2, sy - R * 0.86); ctx.lineTo(sx, sy - R * 1.08); ctx.lineTo(sx + R * 0.2, sy - R * 0.86); ctx.lineTo(sx + R * 0.4, sy - R * 1.02); ctx.lineTo(sx + R * 0.4, sy - R * 0.78); ctx.closePath(); ctx.fill();
+        bossCrown(sx, sy - R * 0.78, R);
       } else if (e.type === "thestatic") {
         // The Static boss: a crackling electric cloud; brighter as it escalates
         const R = r * bossScale(e, 1.85), frac = e.hp / e.maxHp;
@@ -1121,6 +1148,7 @@
         for (let k = 0; k < 3; k++) { const a = engine.state.tick * 0.3 + k * 2.1; ctx.beginPath(); ctx.moveTo(sx, sy); let bx = sx, by = sy; for (let j = 0; j < 3; j++) { bx += Math.cos(a + j) * R * 0.3; by += Math.sin(a + j) * R * 0.3; ctx.lineTo(bx + (j % 2 ? R * 0.12 : -R * 0.12), by); } ctx.stroke(); }
         ctx.fillStyle = "#fff2a0"; ctx.beginPath(); ctx.arc(sx - R * 0.2, sy - R * 0.12, R * 0.12, 0, 7); ctx.arc(sx + R * 0.2, sy - R * 0.12, R * 0.12, 0, 7); ctx.fill();
         ctx.fillStyle = "#22304a"; ctx.beginPath(); ctx.arc(sx - R * 0.2, sy - R * 0.12, R * 0.05, 0, 7); ctx.arc(sx + R * 0.2, sy - R * 0.12, R * 0.05, 0, 7); ctx.fill();
+        bossCrown(sx, sy - R * 0.62, R);
       } else if (e.type === "cushion") {
         // Couch Cushion: a plump square pillow, corner tassels, a sleepy face.
         // Reads SOFT on purpose — it soaks blasts, so it should look like it would.
@@ -1246,12 +1274,7 @@
         ctx.fillStyle = "#22304a"; // eyes on the rim, above the dial
         ctx.beginPath(); ctx.arc(sx - R * 0.26, sy - R * 0.4, R * 0.09, 0, 7); ctx.fill();
         ctx.beginPath(); ctx.arc(sx + R * 0.26, sy - R * 0.4, R * 0.09, 0, 7); ctx.fill();
-        ctx.fillStyle = "#ffd94a"; // crown — it is a boss
-        ctx.beginPath();
-        ctx.moveTo(sx - R * 0.4, sy - R * 0.9); ctx.lineTo(sx - R * 0.4, sy - R * 1.16);
-        ctx.lineTo(sx - R * 0.2, sy - R * 1.0); ctx.lineTo(sx, sy - R * 1.22);
-        ctx.lineTo(sx + R * 0.2, sy - R * 1.0); ctx.lineTo(sx + R * 0.4, sy - R * 1.16);
-        ctx.lineTo(sx + R * 0.4, sy - R * 0.9); ctx.closePath(); ctx.fill();
+        bossCrown(sx, sy - R * 0.9, R);
       } else if (e.type === "bubblewrap") {
         // Bubble Wrap: a fat roll of wrap, its bubbles visibly intact. Single
         // hits pop one at a time, so the picture has to look like MANY small
@@ -1271,6 +1294,28 @@
         ctx.fillStyle = "#2a3140";
         ctx.beginPath(); ctx.arc(sx - r * 0.2, sy + r * 0.62, r * 0.07, 0, 7); ctx.fill();
         ctx.beginPath(); ctx.arc(sx + r * 0.2, sy + r * 0.62, r * 0.07, 0, 7); ctx.fill();
+      } else if (e.type === "duck") {
+        // Rubber Duck: a fat bath duck sitting low, with a visible RUBBER
+        // highlight — the tell is that it looks bouncy/insulating, which is why
+        // the zap slides off it. Distinct silhouette from every other body: a
+        // round base + a raised head + a wedge beak (the near-twin check compares
+        // a tight box, so a generic blob would not pass).
+        shadow(sx, sy + r * 0.5, r * 0.66, r * 0.2);
+        const gd = ctx.createLinearGradient(0, sy - r * 0.5, 0, sy + r * 0.55);
+        gd.addColorStop(0, "#ffe066"); gd.addColorStop(0.6, "#f5b800"); gd.addColorStop(1, "#c98d00");
+        ctx.fillStyle = gd;
+        ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.16, r * 0.62, r * 0.42, 0, 0, 7); ctx.fill();  // body
+        ctx.beginPath(); ctx.arc(sx + r * 0.2, sy - r * 0.34, r * 0.3, 0, 7); ctx.fill();          // head
+        ctx.fillStyle = "#ff8c1a";                                                                 // beak
+        ctx.beginPath();
+        ctx.moveTo(sx + r * 0.44, sy - r * 0.36);
+        ctx.lineTo(sx + r * 0.86, sy - r * 0.26);
+        ctx.lineTo(sx + r * 0.44, sy - r * 0.16);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.7)";                                                   // rubber sheen
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.24, sy - r * 0.02, r * 0.2, r * 0.1, -0.5, 0, 7); ctx.fill();
+        ctx.fillStyle = "#2a3140";
+        ctx.beginPath(); ctx.arc(sx + r * 0.28, sy - r * 0.42, r * 0.07, 0, 7); ctx.fill();         // eye
       } else if (e.type === "boombox") {
         // Boom Box: a chunky stereo with two speakers and sound rings pulsing
         // out of it — the rings are the tell, because the threat is the AURA,
@@ -1335,12 +1380,7 @@
           const yy = sy - R * 0.42 + (R * 0.84 * (1 - open)) * (k / 5);
           ctx.beginPath(); ctx.moveTo(sx - R * 0.72, yy); ctx.lineTo(sx + R * 0.28, yy); ctx.stroke();
         }
-        ctx.fillStyle = "#ffd94a";                                               // crown — it is a boss
-        ctx.beginPath();
-        ctx.moveTo(sx - R * 0.34, sy - R * 0.86); ctx.lineTo(sx - R * 0.34, sy - R * 1.1);
-        ctx.lineTo(sx - R * 0.17, sy - R * 0.96); ctx.lineTo(sx, sy - R * 1.16);
-        ctx.lineTo(sx + R * 0.17, sy - R * 0.96); ctx.lineTo(sx + R * 0.34, sy - R * 1.1);
-        ctx.lineTo(sx + R * 0.34, sy - R * 0.86); ctx.closePath(); ctx.fill();
+        bossCrown(sx, sy - R * 0.86, R);
       } else if (e.type === "racer") {
         // Grease Racer: a skateboard with a grease-slick trail. Low, wide and
         // leaning forward — it should READ as fast, because "slows do nothing"
@@ -1426,12 +1466,7 @@
         ctx.fillStyle = frac <= 0.33 ? "#ffd0d0" : "#ffe9a8"; // eyes, glaring when enraged
         ctx.beginPath(); ctx.arc(sx - R * 0.26, sy + R * 0.06, R * 0.11, 0, 7); ctx.fill();
         ctx.beginPath(); ctx.arc(sx + R * 0.26, sy + R * 0.06, R * 0.11, 0, 7); ctx.fill();
-        ctx.fillStyle = "#ffd94a"; // crown — it is a boss
-        ctx.beginPath();
-        ctx.moveTo(sx - R * 0.34, sy - R * 0.78); ctx.lineTo(sx - R * 0.34, sy - R * 1.02);
-        ctx.lineTo(sx - R * 0.17, sy - R * 0.88); ctx.lineTo(sx, sy - R * 1.08);
-        ctx.lineTo(sx + R * 0.17, sy - R * 0.88); ctx.lineTo(sx + R * 0.34, sy - R * 1.02);
-        ctx.lineTo(sx + R * 0.34, sy - R * 0.78); ctx.closePath(); ctx.fill();
+        bossCrown(sx, sy - R * 0.78, R);
       } else {
         // Sock Goblin: a cream sock with a folded cuff, a toe, and a cheeky face
         shadow(sx, sy + cell * 0.34, r * 0.72, r * 0.24);
@@ -2259,6 +2294,28 @@
         const wy = prev.y + (curP.y - prev.y) * alpha + 0.5;
         const p = worldToScreen(wx, wy);
         const bob = Math.sin((st.tick / 4) + e.id) * cell * 0.06;
+        // 📌 Call the Shot: a whole-board focus fire you paid 70 gold and two ⚙️
+        // for is only a decision if you can SEE which body it landed on. Drawn
+        // UNDER the sprite so it reads as a ring on the floor, and noInk'd —
+        // the silhouette pass is for bodies, not for a marker.
+        if (st.markId === e.id && st.tick < st.markUntil) {
+          const t = ((st.tick % 20) / 20);
+          const pulse = reduceMotion ? 0.5 : t;             // static under prefers-reduced-motion
+          noInk(() => {
+            ctx.strokeStyle = "rgba(255,96,96,0.95)";
+            ctx.lineWidth = Math.max(1.5, cell * 0.07);
+            ctx.beginPath(); ctx.arc(p.x, p.y + bob, cell * (0.42 + pulse * 0.16), 0, 7); ctx.stroke();
+            ctx.fillStyle = "rgba(255,96,96,0.9)";
+            for (let k = 0; k < 4; k++) {                    // crosshair ticks
+              const a = (Math.PI / 2) * k + Math.PI / 4;
+              const r0 = cell * 0.44, r1 = cell * 0.62;
+              ctx.beginPath();
+              ctx.moveTo(p.x + Math.cos(a) * r0, p.y + bob + Math.sin(a) * r0);
+              ctx.lineTo(p.x + Math.cos(a) * r1, p.y + bob + Math.sin(a) * r1);
+              ctx.strokeStyle = "rgba(255,96,96,0.9)"; ctx.stroke();
+            }
+          });
+        }
         withInk(() => drawEnemy(e, p.x, p.y + bob)); // the silhouette law
         if (e.slowUntil && st.tick < e.slowUntil) { // frost tint
           ctx.fillStyle = "rgba(140,210,255,0.32)";

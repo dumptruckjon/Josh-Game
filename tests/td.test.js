@@ -1429,8 +1429,10 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
   await page.waitForTimeout(80);
 
   const strip = page.locator("#screen-td-play .td-abils .td-abil");
-  const n = await page.evaluate(() => window.TDData.ABILITIES.length);
-  assert.equal(await strip.count(), n, `the field carries all ${n} ability buttons`);
+  // P6: the strip is the PACK, not the pool. This read `ABILITIES.length` and
+  // was only correct while the two happened to be equal — the counting law.
+  const n = await page.evaluate(() => window.TDData.RULES.abilitySlots);
+  assert.equal(await strip.count(), n, `the field carries the packed ${n} ability buttons`);
 
   // Powers are wave-only, so the strip only exists once the wave is walking —
   // in build phase the corner belongs to CALL.
@@ -2277,6 +2279,45 @@ test("ART: every tower TIER draws differently, and each tier-4 branch is its own
   assert.deepEqual(same, [], `camp tiers whose SOLDIERS draw identically: ${same.join("; ")}`);
 });
 
+test("ART: every BOSS wears the crown, and there is exactly one crown", async () => {
+  // 4 of 8 bosses drew NO boss mark at all — including the Bed Monster, the
+  // first boss you ever meet, and the Big Magnet, the campaign's finale — while
+  // the other four each hand-rolled their own 7-point polygon. The fort home
+  // puts a 👑 on a boss finale and the guide gives every boss an "its kit
+  // escalates" line, so the one place a player could NOT tell a boss from a big
+  // enemy was the battlefield. Derived from DATA.ENEMIES, so a ninth boss
+  // inherits the check; mutation: delete a `bossCrown(` call → red.
+  // The renderer is not introspectable from the page, so read the source the
+  // same way the site does — over HTTP, from the very file the browser ran.
+  const src = await page.evaluate(async () => {
+    const tag = [...document.querySelectorAll("script")].find((s) => /td-render\.js/.test(s.src));
+    return tag ? (await fetch(tag.src)).text() : null;
+  });
+  assert.ok(src && src.length > 1000, "td-render.js was fetched from the running page");
+  assert.ok(/function bossCrown\(/.test(src), "there is ONE shared boss crown");
+  const chain = src.slice(src.indexOf("function drawEnemy("));
+  const blocks = {};
+  // truncate each branch at the next `} else` — without this the LAST branch
+  // runs to the end of the file and picks up the tower/projectile drawing,
+  // which is how a "boss paints its own crown" check reported the Toolbox Titan
+  // for a tier-4 tower RING 300 lines below it
+  for (const part of chain.split('} else if (e.type === "').slice(1)) {
+    blocks[part.slice(0, part.indexOf('"'))] = part.split(/\n {6}\} else/)[0];
+  }
+  const firstBranch = chain.split('if (e.type === "balloon") {')[1];
+  if (firstBranch) blocks.balloon = firstBranch.split(/\n {6}\} else/)[0];
+  const bosses = await page.evaluate(() => Object.entries(window.TDData.ENEMIES).filter(([, v]) => v.boss).map(([k]) => k));
+  assert.ok(bosses.length >= 8, `every boss is checked (${bosses.length})`);
+  const missing = bosses.filter((b) => !blocks[b] || !/bossCrown\(/.test(blocks[b]));
+  assert.deepEqual(missing, [], "these bosses draw no boss mark: " + missing.join(", "));
+  // …and there is exactly ONE crown implementation. A colour-literal ban would
+  // be a false-failure machine — the same gold legitimately paints the
+  // Tickmaster's clock pivot, a tier-4 tower ring and a dart in flight — so the
+  // one-owner claim is checked directly instead: the helper is defined once.
+  assert.equal((src.match(/function bossCrown\(/g) || []).length, 1,
+    "the boss crown has exactly one implementation");
+});
+
 test("ART: every enemy draws as ITSELF — none falls through to the Sock Goblin", async () => {
   // The enemy draw is a long if/else chain ending in a default sock. Two shipped
   // enemies never got a branch: the Tin Plane, and — worse — **the Tickmaster**,
@@ -2835,19 +2876,94 @@ test("TD9 control strip: adjacent power tiles must never OVERLAP (the strip is f
     }, clones);
   };
 
+  // DERIVED from RULES.abilitySlots, never the number we happen to ship with —
+  // P6 grew the POOL past the strip, so a literal 4 here would have quietly
+  // become a coincidence. Raising abilitySlots without widening the strip now
+  // turns this test red, which is exactly its job.
+  const SLOTS = await page.evaluate(() => window.TDData.RULES.abilitySlots);
   for (const [w, h] of [[320, 568], [360, 640], [390, 844]]) {
     const now = await probe(w, h, 0);
-    assert.equal(now.tiles, 4, `the shipped strip is 4 powers at ${w}px`);
-    assert.ok(now.worst >= 0, `the SHIPPED four tiles must not overlap at ${w}px (worst gap ${now.worst}px)`);
+    assert.equal(now.tiles, SLOTS, `the shipped strip is RULES.abilitySlots (${SLOTS}) powers at ${w}px`);
+    assert.ok(now.worst >= 0, `the SHIPPED ${SLOTS} tiles must not overlap at ${w}px (worst gap ${now.worst}px)`);
   }
   // …and a 5th would. This is the assertion that makes the limit real: it fails
   // on the pre-fix code only in the sense that nothing checked it — add a power
   // without widening the strip and this is what catches it.
   const five = await probe(320, 568, 1);
   assert.ok(five.worst < 0,
-    `a 5th power is expected to overlap at 320px today (measured ${five.worst}px) — if this no longer holds the strip was widened, ` +
+    `a ${SLOTS + 1}th power is expected to overlap at 320px today (measured ${five.worst}px) — if this no longer holds the strip was widened, ` +
     "which is good news: re-measure and update this test rather than deleting it");
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("P6 loadout: the strip IS the pack — a power you left behind is not on it and cannot fire", async () => {
+  // The strip used to be built ONCE from the whole of TDData.ABILITIES, which
+  // was only ever correct while the pool happened to be exactly the strip's
+  // width. Reverting UI.abilityStrip to read the pool renders every power and
+  // this test goes red — that is the mutation it exists to catch.
+  const packed = await page.evaluate(() => {
+    window.__TD.resetSave();
+    const pool = window.TDData.ABILITIES.map((a) => a.id);
+    // a legal, deliberately NON-default pack: drop the horn, bring the newest
+    const pack = pool.filter((id) => id !== "horn").slice(0, window.TDData.RULES.abilitySlots);
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.powers = pack;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    return pack;
+  });
+  // A hash-only "reload" is a SAME-DOCUMENT navigation, so module init never
+  // re-runs and the seeded save is silently ignored (a documented footgun that
+  // cost a red run once). Reload, THEN hop the hash.
+  await page.reload();
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 7 }); });
+  await page.waitForTimeout(150);
+
+  const shown = await page.evaluate(() => [...document.querySelectorAll("#screen-td-play .td-abil")].map((b) => b.dataset.abil));
+  assert.deepEqual(shown, packed, "the strip renders exactly the packed powers, in order");
+  const run = await page.evaluate(() => window.__TD.engine().state.powers);
+  assert.deepEqual(run, packed, "…and the RUN was handed the same list (not everything owned)");
+  const refused = await page.evaluate(() => window.__TD.engine().abilityReady("horn"));
+  assert.equal(refused.reason, "not-equipped", "the power left behind is refused by the engine, not merely hidden");
+
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.reload();
+  // leave a NEUTRAL hash: a following test that sets the hash to the value it
+  // already holds fires no hashchange, so route() never runs and its screen
+  // never appears (this stranded the next test on a hidden #screen-td-play)
+  await page.evaluate(() => { location.hash = ""; });
+});
+
+test("P6 loadout: the fort's 🎒 Powers picker writes the pack, and the guide marks it", async () => {
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.click("#screen-td-home .td-powers-open");
+  await page.locator(".td-powers").waitFor({ state: "visible" });
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).powers);
+  // un-pack one, pack the one that was left out
+  const swap = await page.evaluate(() => {
+    const on = [...document.querySelectorAll(".td-powers [data-equippow]")].filter((b) => b.classList.contains("td-node__equip--on"));
+    const off = [...document.querySelectorAll(".td-powers [data-equippow]")].filter((b) => !b.classList.contains("td-node__equip--on"));
+    return { drop: on[on.length - 1].dataset.equippow, add: off[0] ? off[0].dataset.equippow : null };
+  });
+  assert.ok(swap.add, "the pool is larger than the strip, so there is always something to swap in");
+  await page.click(`.td-powers [data-equippow="${swap.drop}"]`);
+  await page.click(`.td-powers [data-equippow="${swap.add}"]`);
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).powers);
+  assert.ok(!after.includes(swap.drop), `${swap.drop} was left behind`);
+  assert.ok(after.includes(swap.add), `${swap.add} was packed`);
+  assert.equal(after.length, before.length, "the pack is always exactly the strip's width");
+
+  // the guide must agree with the strip — a 🎒 there means "this is on the bar"
+  await page.locator(".td-powers-done").click();
+  await page.click("#screen-td-home .td-guide-open");
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+  const marks = await page.evaluate(() => [...document.querySelectorAll(".td-guide__abils li")].map((li) => li.textContent.includes("🎒")));
+  const pool = await page.evaluate(() => window.TDData.ABILITIES.map((a) => a.id));
+  assert.deepEqual(marks, pool.map((id) => after.includes(id)),
+    "the guide's 🎒 marks exactly the packed powers");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
@@ -2900,6 +3016,53 @@ test("P3 energy: the ⚙️ budget is on the HUD, spends on use, and rides the c
   assert.equal(resumed.saved, resumed.before,
     "the checkpoint carries the run's remaining energy — otherwise every resume re-grants it");
   await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
+test("P6 loadout: the PACK rides the checkpoint, so a resume plays the run you left", async () => {
+  // The checkpoint-fidelity class again (leaked / soldiersLost / lines /
+  // leverRoute / shieldUsed / charge / countdown / tallies — this is the ninth).
+  // Without it, editing the pack while a run is parked retroactively rewrites
+  // the run you are about to restore.
+  const pack = await page.evaluate(() => {
+    window.__TD.resetSave();
+    const pool = window.TDData.ABILITIES.map((a) => a.id);
+    const p = pool.filter((id) => id !== "horn").slice(0, window.TDData.RULES.abilitySlots);
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.powers = p;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    return p;
+  });
+  await page.reload();
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const saved = await page.evaluate(async () => {
+    window.__TD.newGame(1, { seed: 7 });
+    window.__TD.script([["place", "dart", "p1"], ["call"], ["untilPhase", "build", 400000]]);
+    location.hash = "#td-home";
+    await new Promise((r) => setTimeout(r, 60));
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    return s.midRun ? s.midRun.powers : null;
+  });
+  assert.deepEqual(saved, pack, "the checkpoint carries the run's pack");
+
+  // Now change the pack while the run is parked; the RESUME must honour the
+  // checkpoint, not the edit.
+  const resumed = await page.evaluate(async () => {
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    s.powers = window.TDData.ABILITIES.map((a) => a.id).slice(0, window.TDData.RULES.abilitySlots);
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(s));
+    return s.powers;
+  });
+  await page.reload();
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator(".td-resume button").first().click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const live = await page.evaluate(() => window.__TD.engine().state.powers);
+  assert.deepEqual(live, pack, "the resumed run kept its own pack, not the newer edit");
+  assert.notDeepEqual(live, resumed, "…and the edit really was different (so this can fail)");
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.reload();
+  await page.evaluate(() => { location.hash = ""; });   // neutral hash — see above
 });
 
 test("P4 loadout: a run brings the EQUIPPED nodes, not everything owned", async () => {

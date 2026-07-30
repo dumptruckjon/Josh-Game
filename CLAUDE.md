@@ -958,11 +958,11 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/45-enemy roster (30 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/46-enemy roster (31 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
-│   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
-│   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/ach/endlessBest/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
+│   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
+│   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
@@ -995,7 +995,7 @@ tooling.
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
 ├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
-├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) NOT built. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
+├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; its `zapResist`, `zones[].dmg` and new-enemy items are still open, and its own spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`) — read that before building the rest. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
 ```
@@ -1308,13 +1308,17 @@ only ever move the opening. Four abilities (`DATA.ABILITIES`, driven by
 is still untouchable), 🍯 **Sticky Floor** (a LIVE zone in `state.puddles` that
 re-slows whatever walks in, through the one `applySlow`), ⚡ **Overclock** (a
 tower fires 2× for 8s via ONE `boostOf(t)` read at every cooldown-set site, so a
-future tower line inherits it free) and 📣 **Rally Horn** (every downed soldier
-straight back up). Two deliberate design laws: each costs **gold** as well as a
+future tower line inherits it free), 📣 **Rally Horn** (every downed soldier
+straight back up) and — added by P6 — 📌 **Call the Shot** (every gun on the board
+aims at the body you tap for 5s, through the ONE `pickByMode` plus the dart's
+sticky-KEEP). Two deliberate design laws: each costs **gold** as well as a
 cooldown, so an ability is a real trade against a tower rather than free power
 (it can't silently inflate the curve — the auto-solver never uses them, so every
-winnability sim stays conservative and needed no re-tune); and all four are
+winnability sim stays conservative and needed no re-tune); and all of them are
 **pure deterministic** (tick-stamped cooldowns, zero rng), so a headless sim
-drives each one and an ability-using run still replays byte-identically.
+drives each one and an ability-using run still replays byte-identically. The
+pool is larger than the strip, so a run EQUIPS `RULES.abilitySlots` of it (the
+🎒 Powers picker on the fort home; `save.powers`, one owner in `activePowers()`).
 **TD-10 THREAT SHAPES** generalizes the flier lesson with four enemies that each
 break a different one-line board — 🛋 **Couch Cushion** (`splashResist` applied in
 the ONE `dealDamage` keyed on `how`, so mortar splash AND the Toy Box Drop both
@@ -2505,6 +2509,134 @@ assume ONE structure. `JoshStickers.meter()`/`slot()` are that owner now, and
 the guardrail asserts both books call them AND that neither hand-rolls a
 `sticker-meter`/`sticker-slot` any more. Same class as `josh-won-*` having three
 writers and the fort's save reset having two.
+**P6a — the fort's power strip became a CHOICE, and the item that justified it
+was a measured coverage hole rather than a feature request.** The strip cannot
+grow: the portrait rule is a hard `repeat(4, minmax(0,1fr))` and the shipped
+guardrail proves a cloned 5th tile physically OVERLAPS at 320px, so a new power
+had to be a decision, not a button. Mirroring `RULES.metaSlots`, a run now
+EQUIPS `RULES.abilitySlots` (4) of a 5-power pool through one owner
+(`activePowers()` in td-main), and **📌 Call the Shot** is the fifth: tap a body
+and every gun on the board aims at it for 5s (70🪙 · 2⚙️ · 24s). Six things
+worth keeping. (1) **The hole it closes was real and quantified**: neither
+oracle plan (DART, MIXED) ever builds a camp, so `abilityWouldDo` returned false
+for 📣 Rally Horn on *every run the entire suite makes* — including the audit
+whose whole job is "spamming the powers must not erase a finale". One of four
+powers was inert in every test, and a player on a dart board carried a
+permanently dead tile. The new **`P6 coverage`** guardrail hands each power
+exactly what it needs and asserts it FIRES; it is mutation-proven by swapping
+the camp out of the fixture, which is the shipped defect reproduced. (2)
+**Focus fire needed TWO clauses, not one** — `pickByMode` is the single chooser
+for the dart's acquire, the mortar, the Fan's beam and the chain's first link,
+but the dart's `first` mode is deliberately STICKY, so one clause moved the
+mortar and fan and left the most-built line inert. Deleting the sticky-KEEP
+clause turns the dart row red while mortar/fan stay green — the exact shape of
+the phased-ghost bug, reproduced on purpose as the mutation proof. (3) **The
+mortar kept its target in a LOCAL**, so "what is this tower engaging" was
+knowable for two lines of three; it records `t.targetId` like the others now
+(never read by combat, so behaviour is unchanged) and that is what makes the
+guardrail readable instead of inferring aim from where a shell landed. (4) **The
+engine's `powers` default is the WHOLE pool, on purpose**, so every shipped sim
+is byte-identical — and for the abuse audit a full-pool run is a strict UPPER
+BOUND over every legal pack (a pack is a subset; `abilityReady` refuses what is
+not equipped), which is why 📌 shipped only after that audit re-passed on all 8
+finales × 8 seeds × 2 plans. Note the asymmetry with the P4 lesson: an
+unreachable loadout tells you nothing when you are BLAMING individual nodes, but
+a conservative bound is exactly right when the question is "can this erase a
+finale". (5) **`save.powers` is the tenth instance of the persisted-field law**,
+and rather than add an eleventh hand-written list, the `site.test.js` check now
+DERIVES the field list from the loader's own coercions — which immediately
+showed that `bests`, `loadout` and `powers` had all landed after the old
+seven-name literal was written and none was covered. (6) The pack rides the
+midRun checkpoint (read off `state.powers`, not the save, so editing the pack
+while a run is parked cannot retroactively rewrite the run being restored),
+while `markId`/`markUntil` deliberately do NOT — an absolute tick restored into
+a fresh engine is the documented `leverCd` trap.
+**P6b — 🦆 Rubber Duck fills the last EMPTY cell of the resist matrix, and the
+whole item is a lesson about WHERE a multiplier may be applied.** Every tower
+line already had an enemy built to shrug it off — `armor` blunts the dart's
+bonk, `splashResist` soaks the mortar, `bonkResist` pads single hits,
+`slowImmune` deletes the Fan's *slow* and a `shield` buffers its zap — but
+nothing reduced the Fan's *damage*. `zapResist: 0.6` does (the same 0.6 the
+Cushion and the Bubble Wrap use, so the roster's resists are one strength rather
+than three), keyed on `how === "zap"` so it covers the beam AND the Static
+branch's chain jump from the one `dealDamage`. Four things worth keeping.
+(1) **The obvious implementation is a catastrophe, and its obvious test cannot
+catch it.** The beam accumulates 6-16 dps into ONE point of damage per tick and
+`dealDamage` rounds, so applying the fraction there makes `Math.round(1 × 0.4)`
+= **0**: the Fan would deal literally zero damage to a duck at every tier, for
+ever. So the multiplier rides the ACCUMULATOR (the same reason brittle and Boss
+Bonker already do) and the `dealDamage` clause is gated `!preScaled`. The
+verified trap is that a "it survives ~2.5× longer" assertion PASSES on the
+broken build — surviving infinitely longer satisfies it — so the guardrail
+asserts an EXACT ratio (±0.03 of `1 − zapResist`) at tiers 1/2/3, and is
+mutation-proven three ways: drop the accumulator multiply → ratio 1.000; drop
+the `!preScaled` gate → 0 damage; drop the `dealDamage` clause → the chain/`zap`
+seam row goes red while the beam rows stay green. (2) **A resist must be proven
+by the `how` seam, not by a time-to-kill** — the engine already exposes
+`dealDamage` for exactly this, so the test fires 100 damage as dart / splash /
+melee / zap at one pinned body and reads four numbers, with no confounds.
+(3) **One resist per body.** The `≤1 disruptive special per wave` contract counts
+GROUPS, not traits inside a body, so a duck that also carried a shield would slip
+straight past the rule written to stop "shielded + resistant with no answer".
+(4) The trait line is DERIVED (`enemyTraits`), so the Toybox Guide explains the
+new counter the moment the field exists — and the derived `FIELD_TRAIT`
+guardrail proved itself by going RED until `zapResist` was mapped, which is
+precisely the job it was rewritten for.
+**AND THE HONEST HEADLINE: `zapResist` is worth ZERO lives, because the Fan is
+not a damage line.** Dosed HP-preservingly into L6 and L8's late waves at 0 / 4
+/ 8 / 12% over 4 seeds, every plan and both difficulties moved by 0-1 life —
+L8's four rows are byte-identical at every dose, and L6's shipped-oracle numbers
+after placement (normal 18,19,19,19 · heroic 11,14,14,13) are *exactly* the
+pre-placement ones. The reason is structural and was confirmed directly: the
+MIXED plan builds 2 fans of 12 pads and leans on the SLOW aura, dart-mono builds
+none at all, and a deliberately fan-heavy board **already loses L6 on every seed
+at 0% ducks** — so there is no board for a counter to fan DAMAGE to bite. This
+is the same shape as the recorded `plated` cut and the Tin Plane result, and it
+is written down rather than dressed up: **🦆 is shipped as a legible completion
+of the counter matrix and a distinct body, NOT as a difficulty knob, and a
+future author must not reach for `zapResist` to make a level harder.** What
+makes it safe to ship anyway is the same measurement — it is provably
+outcome-neutral on the shipped oracle, so it cannot break a tuned level. Dose
+placed at 3.5% of L6's HP.
+**A WAVE GROUP MISSING ONE FIELD DID NOT FAIL — IT HUNG, and reported as an
+unwinnable level.** Found while dosing the duck: `scheduleWave` computed
+`Math.max(0, g.delay + i * g.gap + jitter)`, so a group authored without `delay`
+made the spawn tick NaN, the enemy never arrived, and the wave never completed —
+the sim dutifully reported LOST on every plan at every difficulty, and the first
+read of that was "3 ducks flipped the whole level", which is absurd on its face
+and is what gave it away. Exactly the class already documented for a `mult`-less
+zone silently NaN-ing every enemy's `dist`. `(g.delay || 0)` and a default gap
+now make it degrade instead of hang, and a new guardrail asserts every shipped
+group carries numeric `count`/`gap`/`delay` AND that the engine survives one
+that does not (mutation-proven by reverting the `|| 0`). Lesson: when a sim
+returns an impossible result, suspect the FIXTURE before the balance.
+**`__TD.resetSave()` did not actually reset — the run it wiped re-checkpointed
+itself on the next navigation.** The shipped grown-ups button passes
+`{keepPrefs:true, dropRun:true}`; the test hook passed nothing, so `cur` survived
+the wipe and the very next `route()` ran `leavingPlay()` → `writeMidRun()` and
+wrote a fresh `midRun` from the run that had just been reset. A later test
+navigating to `#td-play` then bounced back to the fort home (a stale checkpoint
+with no live run), which presented as an unrelated test timing out on a hidden
+screen. It is the documented ✕-discard shape — something downstream in the same
+call re-creates what you just deleted — and the fix is one word (`{dropRun:
+true}`), pinned by the reset guardrail. The fort browser suite went 84s → 52s
+afterwards, because tests stopped inheriting a parked run.
+**HALF THE BOSSES WORE NO CROWN, and the four that did each drew their own.**
+The fort home stamps 👑 on a boss finale and the Toybox Guide gives every boss
+an "its kit escalates" line, so the ONE place a player could not tell a boss
+from a big enemy was the battlefield itself — and the four unmarked ones
+included **the first boss you ever meet (the Bed Monster, L4)** and **the
+campaign's finale (the Big Magnet, L32)**. There is one `bossCrown()` now, and
+the guardrail DERIVES its subject list from `DATA.ENEMIES` (every entry with
+`boss: true` must call it), so a ninth boss inherits the check — mutation-proven
+by deleting the Bed Monster's call. Two testing notes worth keeping: splitting
+the enemy draw chain on `} else if (e.type === "` leaves the LAST branch running
+to the end of the file, which reported the Toolbox Titan for a tier-4 TOWER ring
+300 lines below it (truncate at the next `} else`); and a "no boss paints the
+crown gold itself" check is a false-failure machine, because the same
+`#ffd94a` legitimately paints the Tickmaster's clock pivot, a tier-4 tower ring
+and a dart in flight — the one-owner claim is asserted directly instead (the
+helper is defined exactly once).
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

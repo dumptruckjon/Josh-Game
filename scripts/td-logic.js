@@ -194,6 +194,10 @@
     // (mods computed FIRST — the night range multiplier below reads Night Owl.)
     const mods = metaMods(opts.meta);
     const runMeta = (opts.meta || []).slice();   // what this run was actually handed
+    // P6 powers: DERIVED, never a written literal (the TOTAL_PLANNED lesson).
+    // With no opt the run carries the whole pool, which keeps every existing
+    // engine test and sim byte-identical; a real run is handed its equipped four.
+    const runPowers = Array.isArray(opts.powers) ? opts.powers.slice() : (DATA.ABILITIES || []).map((a) => a.id);
     const nightBase = levelDef.night ? R.nightRangeMult : 1;
     const rangeMul = mods.nightOwl ? 1 - (1 - nightBase) / 2 : nightBase; // 🦉 halves the dimming
     const zones = levelDef.zones && levelDef.zones.length ? levelDef.zones : null;
@@ -232,6 +236,12 @@
       abilityCd: {}, // TD-9: ability id → tick it becomes usable again
       charge: 0,     // ⚙️ Toy Energy: +chargePerWave on each wave SENT, capped at chargeMax
       meta: runMeta, // P4: the EQUIPPED loadout this run brought (pure input, recorded so it is testable)
+      // P6: the POWERS this run brought. Recorded ON the run for the same reason
+      // `meta` is — a guardrail that only inspects the checkpoint misses the live
+      // path. The engine's own default is the WHOLE pool (so every shipped engine
+      // test is unchanged); the UI always passes a real, slot-capped list.
+      powers: runPowers,
+      markId: 0, markUntil: 0, // 📌 Call the Shot: whole-board focus fire, tick-stamped
       puddles: [],   // TD-9: live Sticky Floor zones { x, y, r, slow, until }
       reveals: [],   // 🧨's reveal rider: { x, y, r, until } — read by the ONE isHidden gate
       // TD-13 run tallies. These live in STATE, not in the event stream: the
@@ -266,7 +276,15 @@
       for (const g of wave.groups) {
         for (let i = 0; i < g.count; i++) {
           const jitter = (rng() - 0.5) * 0.3;
-          const at = Math.max(0, g.delay + i * g.gap + jitter);
+          // `|| 0` on delay and a default gap: a group missing either used to
+          // make `at` NaN, and `Math.max(0, NaN)` is NaN — so the spawn tick was
+          // NaN, the enemy never arrived, and the WAVE NEVER FINISHED. A level
+          // authored one field short did not fail loudly; it hung, and a sim
+          // reported it as an unwinnable level. Exactly the class already
+          // documented for a `mult`-less zone silently NaN-ing every enemy's
+          // `dist`. Every shipped group carries both (guardrail-locked), so
+          // this changes no historical stream — it just refuses to hang.
+          const at = Math.max(0, (g.delay || 0) + i * (g.gap || 0.6) + jitter);
           // TD-16 🚪 Side Door: `g.at` is a path DISTANCE — the group walks in
           // partway down the lane instead of at the entrance, so a board packed
           // around the door does nothing about them. spawnEnemy already took a
@@ -617,6 +635,24 @@
         hpDmg = Math.round(hpDmg * (1 - br));
         shieldDmg = Math.round(shieldDmg * (1 - br));
       }
+      // P6 🦆 Rubber Duck: the one EMPTY cell of the resist matrix. `armor`
+      // blunts bonk, `splashResist` soaks area, `bonkResist` pads single hits,
+      // `slowImmune` kills the Fan's slow and a `shield` buffers its zap — but
+      // NOTHING attenuated the Fan's damage. Keyed on `how === "zap"`, so it
+      // covers BOTH fan paths (the beam and the Static branch's chain jump) from
+      // this one site.
+      //   The `!preScaled` gate is NOT optional. The beam delivers ONE point of
+      // damage per tick and this function rounds, so `Math.round(1 * 0.5) = 0`
+      // — an ungated clause means the beam deals literally ZERO damage at every
+      // tier, for ever. That is why the multiplier is applied to the beam's
+      // ACCUMULATOR instead (the same reason brittle and Boss Bonker are), and
+      // why an "it survives much longer" style assertion would pass on the
+      // broken build: surviving infinitely longer satisfies it.
+      const zr = enemyDef(e).zapResist;
+      if (!preScaled && zr && how === "zap") {
+        hpDmg = Math.round(hpDmg * (1 - zr));
+        shieldDmg = Math.round(shieldDmg * (1 - zr));
+      }
       const hpBefore = e.hp, shieldBefore = e.shield || 0;
       if (shieldDmg && e.shield) e.shield = Math.max(0, e.shield - shieldDmg);
       if (hpDmg > 0) { e.hp -= hpDmg; triggerCharge(e); }
@@ -749,6 +785,14 @@
     // ---- Targeting (shared): candidates already filtered; pick by mode. ----
     function pickByMode(cands, mode, t) {
       if (!cands.length) return 0;
+      // 📌 Call the Shot overrides every mode while it lasts. ONE clause here
+      // covers the dart's acquire, the mortar, the Fan's zap beam AND the Static
+      // chain's first link, because this is the single chooser for all four —
+      // the other half of the pair is the dart's sticky-KEEP branch below, which
+      // is exactly where the shipped "a phased ghost kept its lock" bug lived.
+      if (state.tick < state.markUntil && state.markId) {
+        for (const e of cands) if (e.id === state.markId) return e.id;
+      }
       let best = cands[0];
       for (const e of cands) {
         if (mode === "first" && e.dist > best.dist) best = e;
@@ -979,6 +1023,11 @@
             const p = epos(cur);
             keep = (p.x - t.cx) ** 2 + (p.y - t.cy) ** 2 <= dartRange * dartRange;
           }
+          // 📌 the sticky half. Without this a `first`-mode dart holds its old
+          // lock through the whole mark and the power reads as broken on the
+          // MOST-BUILT line — the documented "grep every place a target is
+          // chosen OR kept" pair, and the reason the ghost fix needed two edits.
+          if (keep && state.tick < state.markUntil && state.markId && t.targetId !== state.markId) keep = false;
           const prevTarget = t.targetId;
           if (!keep) t.targetId = pickByMode(candidates(t, 0, dartRange, def.hitsFliers), t.targeting, t);
           if (s.spinUp) {
@@ -1006,6 +1055,13 @@
         } else if (def.kind === "mortar") {
           const cands = candidates(t, s.rangeMin, reachOf(t, s.range * rangeMul), false);
           const targetId = pickByMode(cands, t.targeting, t);
+          // Record it on the SAME field the dart and the fan use. The mortar
+          // kept its choice in a local, so "what is this tower engaging" was
+          // knowable for two lines out of three — invisible to the renderer and
+          // untestable without inferring it from where a shell landed. Never
+          // read by combat (the mortar re-picks every tick), so behaviour is
+          // unchanged; it is the one seam a future aiming cue reads.
+          t.targetId = targetId || 0;
           const target = targetId ? enemyById(targetId) : null;
           if (target && t.cooldown <= 0) {
             t.cooldown = Math.round(s.rate * DATA.TICK_RATE / boostOf(t));
@@ -1080,7 +1136,13 @@
               // the beam loses nothing by taking this path.)
               const zapBoss = (mods.bossDmg > 1 && enemyDef(beamTarget).boss) ? mods.bossDmg : 1;
               const zapBrittle = beamTarget.brittle ? R.brittleBonus : 1;
-              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT * boostOf(t) * zapBoss * zapBrittle;
+              // 🦆 zapResist rides the ACCUMULATOR for the documented reason:
+              // applying a fraction to the single rounded point of damage the
+              // beam delivers would floor it to zero and silently disable the
+              // Fan entirely. dealDamage is told `preScaled`, so it does not
+              // re-apply it.
+              const zapResist = 1 - (enemyDef(beamTarget).zapResist || 0);
+              t.zapAcc = (t.zapAcc || 0) + s.zapDps * DT * boostOf(t) * zapBoss * zapBrittle * zapResist;
               if (t.zapAcc >= 1) {
                 const whole = Math.floor(t.zapAcc);
                 t.zapAcc -= whole;
@@ -1414,6 +1476,10 @@
     function abilityReady(id) {
       const def = abilityDef(id);
       if (!def) return { ok: false, reason: "bad-ability" };
+      // P6: you brought RULES.abilitySlots of the pool. Checked FIRST — an
+      // un-equipped power is not a resource state, so "you didn't bring it"
+      // must never be masked by "you're out of energy".
+      if (state.powers.indexOf(id) < 0) return { ok: false, reason: "not-equipped" };
       // These are IN-WAVE abilities. Outside a wave there is nothing to hit and
       // a puddle would expire before the first enemy arrived, so spending gold
       // then is pure loss — refuse it rather than quietly take the money.
@@ -1437,12 +1503,38 @@
     // inline and quietly gave the node a second read site.
     function scaleRadius(r) { return (r || 0) * mods.abilityRadius; }
     function abilityRadius(def) { return scaleRadius(def.radius); }
+    // 📌 the NEAREST non-hidden enemy to the tap, inside the ring. One owner, so
+    // `abilityWouldDo` and `useAbility` can never disagree about what was
+    // marked (the "a power that changes nothing must never charge you" law needs
+    // the check and the act to be the same computation). Untargetable enemies are
+    // excluded through the ONE isHidden gate — you cannot focus-fire a phased
+    // ghost, and nothing may charge you for trying.
+    function markTargetAt(o) {
+      const def = abilityDef("mark");
+      const r2 = scaleRadius(def ? def.radius : 0) ** 2;
+      let best = null, bd = Infinity;
+      for (const e of state.enemies) {
+        if (!e.alive || isHidden(e)) continue;
+        const p = epos(e);
+        const d2 = (p.x - o.x) ** 2 + (p.y - o.y) ** 2;
+        if (d2 <= r2 && d2 < bd) { bd = d2; best = e; }
+      }
+      return best;
+    }
     function abilityWouldDo(def, o) {
       // The horn revives the downed AND heals the hurt, so it is useful whenever
       // any soldier is less than fully fit — not only when one is flat on its
       // back. (Reported: it refused while a camp was on the board.)
       if (def.kind === "instant") return state.soldiers.some((s) => livingCamp(s) && (!s.alive || s.hp < s.maxHp));
       if (def.kind === "tower") return !!towerById(o.towerId);
+      // 📌 needs BOTH halves to be real: something to point at, and a gun that
+      // can be pointed. A camp does not aim, so a camp-only board would pay 70
+      // gold and two ⚙️ for nothing — the "a power that changes nothing must
+      // never charge you" law, which is what made three powers read as broken.
+      if (def.mark) {
+        if (!state.towers.some((t) => t.lineId !== "camp")) return false;
+        return !!markTargetAt(o);
+      }
       if (def.dmg) {                                                             // something in the blast
         // A REVEALING blast counts hidden enemies as targets — it is what
         // un-hides them. Without this, tapping 🧨 into a crater full of phased
@@ -1471,7 +1563,13 @@
         // telling someone to build a camp they already own is worse than silence.
         const why = def.kind === "instant"
           ? (state.soldiers.length ? "all-healthy" : "no-soldiers")
-          : def.kind === "tower" ? "no-tower" : "no-targets";
+          : def.kind === "tower" ? "no-tower"
+            // 📌 fails two different ways and they need different advice: "you
+            // have no gun to aim" is a build problem, "nothing there" is an aim
+            // problem. Reporting one as the other is what made a working power
+            // read as broken.
+            : (def.mark && !state.towers.some((t) => t.lineId !== "camp")) ? "no-tower"
+              : "no-targets";
         return { ok: false, reason: why };
       }
       let hits = 0;
@@ -1480,9 +1578,19 @@
         // flushes a phased ghost out also hits it — otherwise the rider would
         // only ever help the shot after.
         const rad = abilityRadius(def);
+        if (def.mark) {
+          // Pure state, tick-stamped, zero rng — so a headless sim drives it and
+          // a replay stays byte-identical. Deliberately NOT checkpointed: an
+          // absolute tick restored into a fresh engine is the documented
+          // `leverCd` trap (it would hand a resumed run a mark that never ends).
+          const m = markTargetAt(o);
+          state.markId = m.id;
+          state.markUntil = state.tick + Math.round(def.mark.seconds * DATA.TICK_RATE);
+          hits = 1;
+        }
         if (def.reveal) state.reveals.push({ x: o.x, y: o.y, r: scaleRadius(def.reveal.radius), until: state.tick + Math.round(def.reveal.seconds * DATA.TICK_RATE) });
         const r2 = rad * rad;
-        for (const e of state.enemies) {
+        if (!def.mark) for (const e of state.enemies) {   // a mark hits exactly one thing: the one it marked
           if (!e.alive || isHidden(e)) continue; // an untargetable enemy is untargetable by EVERY damage path
           const p = epos(e);
           if ((p.x - o.x) ** 2 + (p.y - o.y) ** 2 > r2) continue;
@@ -1589,6 +1697,7 @@
     if (def.splashResist) out.push({ key: "splash", icon: "🛋️", text: "Soaks blasts — splash lands at " + Math.round((1 - def.splashResist) * 100) + "%; use single-target" });
     if (def.slowHeal) out.push({ key: "slowheal", icon: "💧", text: "Regrows while SLOWED — slows alone will never kill it" });
     if (def.bonkResist) out.push({ key: "bonkresist", icon: "🧻", text: "Padded — single hits (dart, soldier) land at " + Math.round((1 - def.bonkResist) * 100) + "%; answer it with splash or zap" });
+    if (def.zapResist) out.push({ key: "zapresist", icon: "🦆", text: "Rubber — the Fan's zap lands at " + Math.round((1 - def.zapResist) * 100) + "%; hit it with darts or a blast instead" });
     if (def.hurry) out.push({ key: "hurry", icon: "📻", text: "Blares a beat — everything near it moves " + Math.round((def.hurry.mult - 1) * 100) + "% faster. Shoot the music, not the dancers" });
     if (def.slowImmune) out.push({ key: "slowimmune", icon: "🛹", text: "Greased — slows do NOTHING to it; you need damage or a body in the way" });
     if (def.spawner) out.push({ key: "spawner", icon: "🪣", text: "Drips out " + def.spawner.count + " × " + (DATA.ENEMIES[def.spawner.type] || { name: def.spawner.type }).name + " every " + def.spawner.every + "s while alive" + (def.spawner.max ? " (up to " + def.spawner.max + ")" : "") + " — kill it early and far from the door" });

@@ -33,6 +33,7 @@
       '<div class="td-diff" role="group" aria-label="Difficulty"></div>' +
       '<div class="td-meta" role="group" aria-label="Meta">' +
         '<button class="td-metabtn td-tree-open" type="button">⭐ Star Tree</button>' +
+        '<button class="td-metabtn td-powers-open" type="button">🎒 Powers</button>' +
         '<button class="td-metabtn td-ach-open" type="button">🏅 Badges</button>' +
         '<button class="td-metabtn td-endless-open" type="button">♾️ Endless</button>' +
         '<button class="td-metabtn td-guide-open" type="button">📖 Guide</button>' +
@@ -58,6 +59,7 @@
     screens.appendChild(home);
     home.querySelector(".td-exit").addEventListener("click", hooks.exitFort);
     home.querySelector(".td-tree-open").addEventListener("click", hooks.openTree);
+    home.querySelector(".td-powers-open").addEventListener("click", hooks.openPowers);
     home.querySelector(".td-ach-open").addEventListener("click", hooks.openAchievements);
     home.querySelector(".td-endless-open").addEventListener("click", hooks.openEndless);
     home.querySelector(".td-guide-open").addEventListener("click", () => UI.showGuide());
@@ -116,25 +118,39 @@
     play.querySelector(".td-speed").addEventListener("click", hooks.toggleSpeed);
     play.querySelector(".td-call").addEventListener("click", hooks.callWave);
 
-    // TD-9 ability bar: one button per ability, built once. A "point"/"tower"
+    // TD-9 ability bar: one button per EQUIPPED ability. A "point"/"tower"
     // ability ARMS (the next field tap resolves it); an "instant" one fires now.
+    //
+    // P6: it used to be built ONCE from the whole of `TDData.ABILITIES`, which
+    // was fine only while the pool was exactly the strip's width. It is rebuilt
+    // per run from the run's own list now, so the strip is always exactly
+    // `RULES.abilitySlots` tiles no matter how large the pool grows — the CSS
+    // (a hard `repeat(4, minmax(0,1fr))`) never has to change.
     const abilWrap = play.querySelector(".td-abils");
-    for (const a of (global.TDData.ABILITIES || [])) {
-      const b = doc.createElement("button");
-      b.className = "td-abil";
-      b.type = "button";
-      b.dataset.abil = a.id;
-      b.dataset.adult = "1"; // the fort is Jon's space — adult-sized, not kid-sized
-      b.setAttribute("aria-label", a.name + " — " + a.role + ", costs " + a.gold + " gold");
-      // The NAME is on the button, not just in the aria-label — a sighted player
-      // was shown "🧨 130" and nothing else, so no power explained itself.
-      b.innerHTML = '<span class="td-abil__icon">' + a.icon + "</span>" +
-        '<span class="td-abil__name">' + (a.short || a.name) + "</span>" +
-        '<span class="td-abil__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️</span>" +
-        '<span class="td-abil__cd" hidden></span>';
-      b.addEventListener("click", (ev) => { ev.stopPropagation(); hooks.useAbility(a.id); });
-      abilWrap.appendChild(b);
-    }
+    UI.abilityStrip = function (ids) {
+      const pool = global.TDData.ABILITIES || [];
+      const list = (Array.isArray(ids) && ids.length ? ids : pool.map((a) => a.id))
+        .map((id) => pool.find((a) => a.id === id)).filter(Boolean)
+        .slice(0, global.TDData.RULES.abilitySlots);
+      abilWrap.innerHTML = "";
+      for (const a of list) {
+        const b = doc.createElement("button");
+        b.className = "td-abil";
+        b.type = "button";
+        b.dataset.abil = a.id;
+        b.dataset.adult = "1"; // the fort is Jon's space — adult-sized, not kid-sized
+        b.setAttribute("aria-label", a.name + " — " + a.role + ", costs " + a.gold + " gold");
+        // The NAME is on the button, not just in the aria-label — a sighted player
+        // was shown "🧨 130" and nothing else, so no power explained itself.
+        b.innerHTML = '<span class="td-abil__icon">' + a.icon + "</span>" +
+          '<span class="td-abil__name">' + (a.short || a.name) + "</span>" +
+          '<span class="td-abil__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️</span>" +
+          '<span class="td-abil__cd" hidden></span>';
+        b.addEventListener("click", (ev) => { ev.stopPropagation(); hooks.useAbility(a.id); });
+        abilWrap.appendChild(b);
+      }
+    };
+    UI.abilityStrip(null);
 
     // In-field build bubble + tower panel (positioned over the canvas)
     const wrap = play.querySelector(".td-canvas-wrap");
@@ -351,11 +367,14 @@
       (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") + "</li>").join("");
     // Abilities were explained NOWHERE — the button showed only an icon and a
     // price. They belong in the guide beside the towers.
+    // Which powers are PACKED — read through the one owner in td-main (the same
+    // list the engine is handed), so the guide can never disagree with the strip.
+    const packed = new Set(UI._packedPowers ? UI._packedPowers() : (global.TDData.ABILITIES || []).map((a) => a.id));
     const abilRow = (global.TDData.ABILITIES || []).map((a) =>
       '<li><span class="td-guide__tico">' + a.icon + "</span><b>" + a.name + "</b> — " + a.role +
       ' <i>(' + a.gold + "🪙 · " + (a.charges === undefined ? 1 : a.charges) + "⚙️ · " + a.cooldown + "s · " +
       (a.kind === "tower" ? "tap a tower" : a.kind === "point" ? "tap the field" : "instant") +
-      ")</i></li>").join("");
+      ")</i>" + (packed.has(a.id) ? " 🎒" : "") + "</li>").join("");
     // TD-16 shipped five level gimmicks and documented NONE of them — nothing
     // anywhere said night cuts your reach, or that a brown patch slows while a
     // chevron strip speeds up. Derived from the level data via
@@ -399,7 +418,9 @@
       // so they cannot drift from the engine.
       '<p class="td-overlay__sub">Powers — usable during a wave only. Each costs gold 🪙 <b>and</b> ⚙️ Toy Energy: you get ' +
         global.TDData.RULES.chargePerWave + " more ⚙️ every wave you send, banked up to " +
-        global.TDData.RULES.chargeMax + ". That is what stops late-game gold making the powers free.</p>" +
+        global.TDData.RULES.chargeMax + ". That is what stops late-game gold making the powers free. " +
+        "The strip holds " + global.TDData.RULES.abilitySlots + " of the " + (global.TDData.ABILITIES || []).length +
+        ", so 🎒 Powers on the fort home is where you choose which ones you bring. 🎒 marks what is packed.</p>" +
       '<ul class="td-guide__towers td-guide__abils">' + abilRow + "</ul>" +
       // The wave button does two different jobs; say so, or ⏩ RUSH is a mystery.
       '<p class="td-overlay__sub">The wave button</p>' +
@@ -545,6 +566,45 @@
     }));
     el.querySelector(".td-tree-respec").addEventListener("click", () => rerender([], []));
     el.querySelector(".td-tree-done").addEventListener("click", UI.closeOverlay);
+  };
+
+  // P6 Powers pack: bring RULES.abilitySlots of the pool. Deliberately the same
+  // shape as the star tree's equip toggle — one slot budget, one "＋ / 🎒"
+  // affordance, one scroll-preserving rebuild — because a second UX for the
+  // same idea is how two owners of one concept start disagreeing.
+  UI.showPowers = function (save, onChange, keepScroll) {
+    const pool = global.TDData.ABILITIES || [];
+    const SLOTS = global.TDData.RULES.abilitySlots;
+    const real = new Set(pool.map((a) => a.id));
+    const eq = new Set((save.powers || []).filter((id) => real.has(id)).slice(0, SLOTS));
+    const rows = pool.map((a) => {
+      const on = eq.has(a.id);
+      return '<div class="td-node-row">' +
+        '<button class="td-node' + (on ? " td-node--on" : "") + '" data-power="' + a.id + '" type="button">' +
+        '<span class="td-node__icon">' + a.icon + "</span>" +
+        '<span class="td-node__body"><span class="td-node__name">' + a.name + "</span>" +
+        '<span class="td-node__desc">' + a.role + "</span></span>" +
+        '<span class="td-node__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️</span></button>" +
+        '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' +
+        (!on && eq.size >= SLOTS ? " disabled" : "") +
+        ' data-equippow="' + a.id + '" aria-label="' + (on ? "Leave behind " : "Pack ") + a.name + '">' + (on ? "🎒" : "＋") + "</button></div>";
+    }).join("");
+    const el = metaOverlay("td-powers", "<h3>🎒 Powers Pack</h3>" +
+      '<p class="td-overlay__sub">' + eq.size + " / " + SLOTS +
+      " packed — the strip holds " + SLOTS + ", so bringing one power means leaving another behind.</p>" +
+      '<div class="td-nodes">' + rows + "</div>" +
+      '<div class="td-overlay__row"><button class="td-btn td-btn--call td-powers-done" type="button">Done</button></div>');
+    const box = el.querySelector(".td-overlay__box");
+    if (box && keepScroll) box.scrollTop = keepScroll;
+    const rerender = () => { const top = box ? box.scrollTop : 0; onChange([...eq]); UI.showPowers(save, onChange, top); };
+    const toggle = (id) => {
+      if (eq.has(id)) { if (eq.size > 1) eq.delete(id); }  // never pack an EMPTY strip
+      else if (eq.size < SLOTS) eq.add(id);
+      rerender();
+    };
+    el.querySelectorAll("[data-power]").forEach((b) => b.addEventListener("click", () => toggle(b.dataset.power)));
+    el.querySelectorAll("[data-equippow]").forEach((b) => b.addEventListener("click", (ev) => { ev.stopPropagation(); toggle(b.dataset.equippow); }));
+    el.querySelector(".td-powers-done").addEventListener("click", UI.closeOverlay);
   };
 
   // Badges: the 12-achievement grid, earned lit + named, locked dimmed.
