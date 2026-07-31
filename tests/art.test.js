@@ -5,6 +5,14 @@ const test = require("node:test");
 const assert = require("node:assert");
 const ART = require("../scripts/art.js");
 
+// The shading gradients every picture shares, read from the page that declares
+// them (comments stripped — this block is heavily documented and a scan that
+// matches its own prose passes for a reason it never claimed).
+const SHARED_IDS = new Set([...require("fs")
+  .readFileSync(require("path").join(__dirname, "..", "index.html"), "utf8")
+  .replace(/<!--[\s\S]*?-->/g, "")
+  .matchAll(/<(?:linear|radial)Gradient id="([^"]+)"/g)].map((m) => m[1]));
+
 test("every character returns a well-formed 100x100 svg string", () => {
   const samples = {
     hero: ART.hero("#e23636"),
@@ -28,13 +36,23 @@ test("every character returns a well-formed 100x100 svg string", () => {
   }
 });
 
+// Each cube is now drawn TWICE — the flat fill, then the shared light over the
+// identical geometry (`lit()` in art.js). So "count the rects" counts 2n. Count
+// the FLAT ones instead: that keeps the property at full strength AND lets the
+// lit twin be checked separately, which is a stronger claim than the old one.
+const flatCubes = (svg) => (svg.match(/<rect [^>]*fill="#/g) || []).length;
+const litCubes = (svg) => (svg.match(/<rect [^>]*fill="url\(#jart-/g) || []).length;
+
 test("numberFriend draws exactly n cubes for n = 1..10 (and clamps out of range)", () => {
   for (let n = 1; n <= 10; n++) {
-    const cubes = (ART.numberFriend(n, "#5ec8ff").match(/<rect /g) || []).length;
-    assert.equal(cubes, n, `n=${n} should draw n cubes`);
+    const svg = ART.numberFriend(n, "#5ec8ff");
+    assert.equal(flatCubes(svg), n, `n=${n} should draw n cubes`);
+    // Exactly one highlight per cube, from the same template — a cube that lost
+    // its light, or gained a second, means lit() stopped pairing them.
+    assert.equal(litCubes(svg), n, `n=${n}: every cube carries exactly one lit twin`);
   }
-  assert.equal((ART.numberFriend(0).match(/<rect /g) || []).length, 1, "clamps to >= 1");
-  assert.equal((ART.numberFriend(99).match(/<rect /g) || []).length, 10, "clamps to <= 10");
+  assert.equal(flatCubes(ART.numberFriend(0)), 1, "clamps to >= 1");
+  assert.equal(flatCubes(ART.numberFriend(99)), 10, "clamps to <= 10");
 });
 
 test("numberFriend is COUNTABLE: square cubes, a face on its own cube, and bigger n = more ink", () => {
@@ -68,7 +86,9 @@ test("numberFriend is COUNTABLE: square cubes, a face on its own cube, and bigge
   let prevInk = -1;
   for (let n = 1; n <= 10; n++) {
     const svg = ART.numberFriend(n, "#5ec8ff");
-    const cubes = [...svg.matchAll(/<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)].map((m) => m.slice(1).map(Number));
+    // the FLAT cubes only — each is drawn twice now (see flatCubes above), and
+    // double-counting would make the ink test pass for the wrong reason
+    const cubes = [...svg.matchAll(/<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*fill="#/g)].map((m) => m.slice(1).map(Number));
     assert.equal(cubes.length, n, `n=${n} draws n cubes`);
     // 1. A cube is a CUBE. A stack of stripes is not countable as blocks.
     cubes.forEach(([, , w, h]) => assert.ok(Math.abs(w / h - 1) < 0.02, `n=${n}: a cube must be square (got ${w.toFixed(1)}x${h.toFixed(1)} = ${(w / h).toFixed(2)}:1)`));
@@ -161,7 +181,20 @@ test("the Sticker Book gives every one of Josh's 200 games its OWN sticker", () 
     // see it (the strings all differ); only this can.
     assert.ok(svg.indexOf("id=") < 0,
       `${id}'s sticker declares an id — 200 stickers share one document, so a duplicate id silently repoints every other sticker's fill at the first one`);
-    assert.ok(svg.indexOf("url(#") < 0, `${id}'s sticker references a fragment id, which collides across the 200-slot book`);
+    // REFERENCING one is a different matter, and this used to ban that too. The
+    // collapse is caused by 200 COMPETING DECLARATIONS, not by the reference —
+    // so a single document-level definition that every sticker points at is the
+    // fix for the flatness rather than a re-run of the bug. It is only safe
+    // because those gradients are ALPHA-ONLY: they carry no colour of their own,
+    // so they cannot flatten 200 differently-coloured badges into one. The rule
+    // is therefore narrowed, not dropped — a sticker may reference the SHARED
+    // ids and nothing else, and the list is derived from index.html rather than
+    // written here, so it cannot drift.
+    for (const m of svg.matchAll(/url\(#([^)]+)\)/g)) {
+      assert.ok(SHARED_IDS.has(m[1]),
+        `${id}'s sticker references #${m[1]}, which index.html does not declare — an ad-hoc ` +
+        "fragment id collides across the 200-slot book");
+    }
     const dup = seen.get(svg);
     assert.ok(!dup, `${id} and ${dup} draw the IDENTICAL sticker — every game needs its own prize`);
     seen.set(svg, id);

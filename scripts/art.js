@@ -23,6 +23,45 @@
     return "#" + ch.map((c) => clamp(c, 0, 255).toString(16).padStart(2, "0")).join("");
   }
 
+  // ---- ONE LIGHT, shared by every picture in the app ---------------------
+  // This art shipped entirely FLAT: 371 lines, zero gradients, so a head, a
+  // cube and a balloon were all the same solid disc of colour. These three
+  // references light every drawing from the upper LEFT — the same direction the
+  // fort's canvas renderer uses (`LIGHT` in td-render.js) — so both worlds agree
+  // on where the light is.
+  //
+  // The gradients themselves are declared ONCE, in index.html. Three laws, and
+  // the middle one is a trap this repo already fell into:
+  //  1. NO <filter>, ever. A filter on art rendered by the hundred (200 Sticker
+  //     Book slots) is the documented WebKit rasterization cliff that once
+  //     stalled CI for over an hour. A gradient fill composites; a filter
+  //     forces its own rasterization pass.
+  //  2. NO per-picture <defs>. SVG fragment ids resolve DOCUMENT-WIDE and the
+  //     Sticker Book paints 200 pictures into one page — `stickers.js` records
+  //     the first cut, where every badge's own url(#bg) collapsed onto the
+  //     FIRST sticker's gradient. One SHARED definition is the escape, and it
+  //     is only safe because these are ALPHA-ONLY (white -> transparent ->
+  //     black): they carry no colour of their own, so sharing them across 240
+  //     differently-coloured pictures is correct by construction.
+  //  3. Every reference carries a ` none` FALLBACK. An unresolved paint server
+  //     renders black in some engines and nothing in others, so if the shared
+  //     block is ever absent (a detached document, a future page) the overlay
+  //     provably paints NOTHING and the art degrades to exactly the flat
+  //     drawing it was before. The "a field one short must degrade, not
+  //     disable" law, applied to paint.
+  const LIT = "url(#jart-lit) none";       // flat + faceted surfaces
+  const DOME = "url(#jart-dome) none";     // spheres: heads, balloons, muzzles
+  const GROUND = "url(#jart-ground) none"; // the soft contact shadow underfoot
+
+  // A body drawn TWICE: the flat colour, then the light over the exact same
+  // geometry. `shape` carries {F} where its fill goes and {S} where its stroke
+  // attributes go; the lit pass drops the stroke, so ink is never doubled — and
+  // because both passes come from ONE template the highlight can never drift off
+  // its body, which is precisely how a hand-copied second path goes wrong.
+  const lit = (shape, fill, grad, strokeAttrs) =>
+    shape.replace(/\{F\}/g, fill).replace(/\{S\}/g, strokeAttrs || "") +
+    shape.replace(/\{F\}/g, grad || LIT).replace(/\{S\}/g, "");
+
   // A friendly masked spider-hero (red = Spidey, pink = Ghost-Spider, blue = Spin).
   //
   // REDRAWN 2026-07, and it is the highest-reach asset in the app: `buddy.js`
@@ -45,20 +84,20 @@
     color = color || "#e23636";
     const dk = shade(color, -0.34), lt = shade(color, 0.2);
     return wrap(
-      '<ellipse cx="50" cy="96" rx="20" ry="3.5" fill="rgba(0,0,0,0.12)"/>' +
+      '<ellipse cx="50" cy="95" rx="22" ry="5" fill="' + GROUND + '"/>' +
       '<rect x="37" y="70" width="10" height="21" rx="5" fill="' + dk + '"/>' +
       '<rect x="53" y="70" width="10" height="21" rx="5" fill="' + dk + '"/>' +
       '<rect x="32" y="86" width="17" height="9" rx="4.5" fill="#1b1f2e"/>' +
       '<rect x="51" y="86" width="17" height="9" rx="4.5" fill="#1b1f2e"/>' +
-      '<path d="M34 49 Q50 43 66 49 L63 75 Q50 80 37 75 Z" fill="' + color + '"/>' +
+      lit('<path d="M34 49 Q50 43 66 49 L63 75 Q50 80 37 75 Z" fill="{F}"/>', color) +
       '<path d="M37 54 L19 40" stroke="' + color + '" stroke-width="9" stroke-linecap="round" fill="none"/>' +
       '<path d="M63 54 L79 66" stroke="' + color + '" stroke-width="9" stroke-linecap="round" fill="none"/>' +
-      '<circle cx="18" cy="38" r="6.5" fill="' + lt + '"/>' +
-      '<circle cx="81" cy="68" r="6.5" fill="' + lt + '"/>' +
+      lit('<circle cx="18" cy="38" r="6.5" fill="{F}"/>', lt, DOME) +
+      lit('<circle cx="81" cy="68" r="6.5" fill="{F}"/>', lt, DOME) +
       '<path d="M18 38 L5 23 M18 38 L11 21 M18 38 L3 30" stroke="rgba(255,255,255,0.85)" stroke-width="2" stroke-linecap="round" fill="none"/>' +
       '<ellipse cx="50" cy="57" rx="3" ry="4" fill="' + dk + '"/>' +
       '<path d="M47 55 L41 51 M53 55 L59 51 M47 59 L41 63 M53 59 L59 63" stroke="' + dk + '" stroke-width="1.5" stroke-linecap="round" fill="none"/>' +
-      '<circle cx="50" cy="30" r="21" fill="' + color + '"/>' +
+      lit('<circle cx="50" cy="30" r="21" fill="{F}"/>', color, DOME) +
       '<path d="M50 9 V51 M29 30 H71 M35 15 L65 45 M65 15 L35 45" stroke="' + dk + '" stroke-width="1.4" fill="none" opacity="0.6"/>' +
       '<path d="M50 18 Q38 23 33 32 M50 18 Q62 23 67 32" stroke="' + dk + '" stroke-width="1.2" fill="none" opacity="0.5"/>' +
       '<path d="M31 30 Q36 19 47 25 Q45 38 33 37 Z" fill="#fff" stroke="#1b1f2e" stroke-width="2"/>' +
@@ -112,9 +151,13 @@
       for (let r = 0; r < colH[c]; r++) {
         const x = left + c * s + g;
         const y = bottom - (r + 1) * s + g;
-        cubes += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + (s - 2 * g).toFixed(1) +
-          '" height="' + (s - 2 * g).toFixed(1) + '" rx="' + (s * 0.16).toFixed(1) + '" fill="' + color +
-          '" stroke="' + seam + '" stroke-width="' + Math.max(1, s * 0.05).toFixed(1) + '"/>';
+        // Lit PER CUBE, not once over the group: a single wash across the whole
+        // stack would need a clip (or it paints a translucent rectangle over the
+        // background), and it would flatten exactly the seams that make the
+        // cubes countable. n <= 10, so the cost is bounded.
+        cubes += lit('<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + (s - 2 * g).toFixed(1) +
+          '" height="' + (s - 2 * g).toFixed(1) + '" rx="' + (s * 0.16).toFixed(1) + '" fill="{F}" {S}/>',
+          color, LIT, 'stroke="' + seam + '" stroke-width="' + Math.max(1, s * 0.05).toFixed(1) + '"');
       }
     }
     // Face on the TOP cube of the first column — derived from that cube's own
@@ -146,7 +189,11 @@
     const fh = Math.min(s * 0.1, 2.6), fd = Math.min(s * 0.11, 2.8);
     const foot = (dx) => '<ellipse cx="' + (fx + dx * s).toFixed(1) + '" cy="' + (bottom + fd).toFixed(1) +
       '" rx="' + (s * 0.21).toFixed(1) + '" ry="' + fh.toFixed(1) + '" fill="' + seam + '"/>';
-    return wrap(cubes + limbs + foot(-0.26) + foot(0.26) + face);
+    // A soft contact shadow, sized to the group's own footprint, so the friend
+    // stands ON the floor instead of floating over it.
+    const floor = '<ellipse cx="50" cy="95.4" rx="' + Math.min(46, (cols * s) / 2 + 4).toFixed(1) +
+      '" ry="3.6" fill="' + GROUND + '"/>';
+    return wrap(floor + cubes + limbs + foot(-0.26) + foot(0.26) + face);
   }
 
   // A friendly rescue pup with a colored collar + badge (Paw Patrol homage).
@@ -180,10 +227,10 @@
       : "";
     return wrap(
       ears +
-      '<circle cx="50" cy="46" r="30" fill="' + coat + '"/>' +
+      lit('<circle cx="50" cy="46" r="30" fill="{F}"/>', coat, DOME) +
       patch +
       '<circle cx="40" cy="42" r="4" fill="#3a2a15"/><circle cx="60" cy="42" r="4" fill="#3a2a15"/>' +
-      '<ellipse cx="50" cy="58" rx="14" ry="10" fill="' + shade(coat, 0.3) + '"/>' +
+      lit('<ellipse cx="50" cy="58" rx="14" ry="10" fill="{F}"/>', shade(coat, 0.3), DOME) +
       '<ellipse cx="50" cy="53" rx="4.5" ry="3.2" fill="#3a2a15"/>' +
       '<path d="M46 62 Q50 71 54 62 Z" fill="#ff8fa3"/>' +
       cap +
@@ -214,12 +261,17 @@
         ' Z" fill="#8d8b86" stroke="#6f6d68" stroke-width="1"/>';
     }
     return wrap(
+      '<ellipse cx="52" cy="86" rx="40" ry="5" fill="' + GROUND + '"/>' +
+      // The bed's light rides its own rotation (an objectBoundingBox gradient is
+      // relative to the shape's user space), so a fully-tipped bed is lit from
+      // its own upper-left rather than the world's. At 30 degrees that is
+      // imperceptible, and the alternative is a per-tip gradient definition.
       '<g transform="rotate(' + (-30 * tip).toFixed(1) + ' 22 62)">' +
-        '<polygon points="18,40 64,40 58,64 18,64" fill="' + color + '"/>' +
+        lit('<polygon points="18,40 64,40 58,64 18,64" fill="{F}"/>', color) +
         '<path d="M58 44 L52 64 M64 44 L58 64" stroke="#2b2b3a" stroke-width="2" opacity="0.35" fill="none"/>' +
         rocks +
       "</g>" +
-      '<rect x="64" y="42" width="18" height="22" rx="3" fill="#ffd24d"/>' +
+      lit('<rect x="64" y="42" width="18" height="22" rx="3" fill="{F}"/>', "#ffd24d") +
       '<rect x="67" y="46" width="11" height="9" rx="2" fill="#bfe9ff"/>' +
       '<circle cx="81" cy="58" r="2.6" fill="#fff6d6"/>' +
       '<rect x="14" y="64" width="72" height="7" fill="#555"/>' +
@@ -232,7 +284,8 @@
   function star(color) {
     color = color || "#ffd24d";
     return wrap(
-      '<polygon points="50,6 61,38 96,38 68,59 79,92 50,71 21,92 32,59 4,38 39,38" fill="' + color + '" stroke="#f5a623" stroke-width="2"/>' +
+      lit('<polygon points="50,6 61,38 96,38 68,59 79,92 50,71 21,92 32,59 4,38 39,38" fill="{F}" {S}/>',
+        color, LIT, 'stroke="#f5a623" stroke-width="2"') +
       '<circle cx="43" cy="46" r="3" fill="#3a2a00"/><circle cx="57" cy="46" r="3" fill="#3a2a00"/>' +
       '<path d="M44 54 Q50 60 56 54" stroke="#3a2a00" stroke-width="2" fill="none" stroke-linecap="round"/>'
     );
@@ -246,9 +299,10 @@
     color = color || "#e23636";
     const dk = shade(color, -0.28);
     return wrap(
-      '<path d="M50 8 C64 22 66 44 60 62 H40 C34 44 36 22 50 8 Z" fill="#eceff4" stroke="#c7ced9" stroke-width="1.5"/>' +
+      lit('<path d="M50 8 C64 22 66 44 60 62 H40 C34 44 36 22 50 8 Z" fill="{F}" {S}/>',
+        "#eceff4", LIT, 'stroke="#c7ced9" stroke-width="1.5"') +
       '<path d="M43 18 Q50 12 57 18 Q50 22 43 18 Z" fill="' + color + '"/>' +
-      '<circle cx="50" cy="34" r="8" fill="#5ec8ff" stroke="#2b6cff" stroke-width="2"/>' +
+      lit('<circle cx="50" cy="34" r="8" fill="{F}" {S}/>', "#5ec8ff", DOME, 'stroke="#2b6cff" stroke-width="2"') +
       '<polygon points="40,54 26,68 40,64" fill="' + color + '"/><polygon points="60,54 74,68 60,64" fill="' + color + '"/>' +
       '<rect x="40" y="56" width="20" height="4" rx="2" fill="' + dk + '"/>' +
       '<path d="M44 62 H56 L52 84 Q50 90 48 84 Z" fill="#ffa64d"/>'
@@ -258,7 +312,7 @@
   function balloon(color) {
     color = color || "#ff5e7e";
     return wrap(
-      '<ellipse cx="50" cy="40" rx="28" ry="34" fill="' + color + '"/>' +
+      lit('<ellipse cx="50" cy="40" rx="28" ry="34" fill="{F}"/>', color, DOME) +
       '<path d="M46 72 L54 72 L50 80 Z" fill="' + color + '"/>' +
       '<path d="M50 80 C 53 88 47 92 50 100" stroke="#999" stroke-width="1.5" fill="none"/>' +
       '<ellipse cx="42" cy="30" rx="6" ry="9" fill="rgba(255,255,255,0.45)"/>'
@@ -267,8 +321,9 @@
 
   function home() {
     return wrap(
-      '<polygon points="50,14 88,46 12,46" fill="#e2574c"/>' +
-      '<rect x="24" y="46" width="52" height="40" fill="#f4d9a6"/>' +
+      '<ellipse cx="50" cy="88" rx="34" ry="4.5" fill="' + GROUND + '"/>' +
+      lit('<polygon points="50,14 88,46 12,46" fill="{F}"/>', "#e2574c") +
+      lit('<rect x="24" y="46" width="52" height="40" fill="{F}"/>', "#f4d9a6") +
       '<rect x="44" y="60" width="16" height="26" fill="#8a5a2b"/>' +
       '<rect x="30" y="54" width="12" height="12" fill="#bfe9ff"/><rect x="58" y="54" width="12" height="12" fill="#bfe9ff"/>'
     );
@@ -279,8 +334,8 @@
     skin = skin || "#e8b98c";
     shirt = shirt || "#5ec8ff";
     return wrap(
-      '<rect x="30" y="60" width="40" height="34" rx="10" fill="' + shirt + '"/>' +
-      '<circle cx="50" cy="40" r="24" fill="' + skin + '"/>' +
+      lit('<rect x="30" y="60" width="40" height="34" rx="10" fill="{F}"/>', shirt) +
+      lit('<circle cx="50" cy="40" r="24" fill="{F}"/>', skin, DOME) +
       '<circle cx="42" cy="38" r="3" fill="#3a2a15"/><circle cx="58" cy="38" r="3" fill="#3a2a15"/>' +
       '<path d="M42 48 Q50 55 58 48" stroke="#3a2a15" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
     );
@@ -311,9 +366,9 @@
     const hair = spec.hair || "#241a14";
     const shirt = spec.shirt || "#5ec8ff";
     return wrap(
-      '<rect x="29" y="60" width="42" height="34" rx="13" fill="' + shirt + '"/>' +
+      lit('<rect x="29" y="60" width="42" height="34" rx="13" fill="{F}"/>', shirt) +
       '<circle cx="26" cy="42" r="4.5" fill="' + skin + '"/><circle cx="74" cy="42" r="4.5" fill="' + skin + '"/>' +
-      '<circle cx="50" cy="40" r="24" fill="' + skin + '"/>' +
+      lit('<circle cx="50" cy="40" r="24" fill="{F}"/>', skin, DOME) +
       hairFor(spec.style, hair) +
       '<circle cx="42" cy="42" r="3" fill="#2a1a12"/><circle cx="58" cy="42" r="3" fill="#2a1a12"/>' +
       '<circle cx="38" cy="49" r="3.4" fill="rgba(255,120,120,0.26)"/><circle cx="62" cy="49" r="3.4" fill="rgba(255,120,120,0.26)"/>' +
@@ -327,19 +382,19 @@
   // in content.js FIXABLE_SCENES (truth-tested); the drawings live here.
   const FIX_PARTS = {
     face: {
-      base: '<circle cx="50" cy="52" r="34" fill="#ffe0a3" stroke="#e6b25a" stroke-width="2.5"/>',
+      base: lit('<circle cx="50" cy="52" r="34" fill="{F}" {S}/>', "#ffe0a3", DOME, 'stroke="#e6b25a" stroke-width="2.5"'),
       eyes: '<circle cx="39" cy="45" r="5" fill="#2a1a12"/><circle cx="61" cy="45" r="5" fill="#2a1a12"/>',
       nose: '<path d="M50 50 L44 62 H56 Z" fill="#e6a54d"/>',
       mouth: '<path d="M38 68 Q50 80 62 68" stroke="#c0392b" stroke-width="3.4" fill="none" stroke-linecap="round"/>',
     },
     house: {
-      base: '<rect x="24" y="46" width="52" height="42" fill="#ffd9a0" stroke="#d9a866" stroke-width="2"/>',
-      roof: '<path d="M18 46 L50 20 L82 46 Z" fill="#e0573c"/>',
+      base: lit('<rect x="24" y="46" width="52" height="42" fill="{F}" {S}/>', "#ffd9a0", LIT, 'stroke="#d9a866" stroke-width="2"'),
+      roof: lit('<path d="M18 46 L50 20 L82 46 Z" fill="{F}"/>', "#e0573c"),
       door: '<rect x="44" y="64" width="14" height="24" rx="2" fill="#8a5a2b"/>',
       window: '<rect x="30" y="54" width="12" height="12" fill="#bfe6ff" stroke="#6aa9d6" stroke-width="1.5"/>',
     },
     flower: {
-      base: '<circle cx="50" cy="40" r="11" fill="#ffd24d" stroke="#e0a800" stroke-width="1.5"/>',
+      base: lit('<circle cx="50" cy="40" r="11" fill="{F}" {S}/>', "#ffd24d", DOME, 'stroke="#e0a800" stroke-width="1.5"'),
       petals: '<g fill="#ff8fc7">' + [0, 60, 120, 180, 240, 300].map((a) => {
         const rad = a * Math.PI / 180, x = 50 + 20 * Math.cos(rad), y = 40 + 20 * Math.sin(rad);
         return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="9"/>';
@@ -348,7 +403,11 @@
       leaf: '<ellipse cx="63" cy="70" rx="12" ry="6" fill="#7be08a" transform="rotate(-24 63 70)"/>',
     },
     snowman: {
-      base: '<circle cx="50" cy="70" r="20" fill="#f4f9ff" stroke="#c3d4e6" stroke-width="2"/><circle cx="50" cy="40" r="14" fill="#f4f9ff" stroke="#c3d4e6" stroke-width="2"/>' +
+      // Two separate lit() calls, not one two-shape template: the circles
+      // overlap, and a combined pass would lay the BODY's gradient over the
+      // already-drawn head. Each ball owns its own flat-then-lit pair.
+      base: lit('<circle cx="50" cy="70" r="20" fill="{F}" {S}/>', "#f4f9ff", DOME, 'stroke="#c3d4e6" stroke-width="2"') +
+        lit('<circle cx="50" cy="40" r="14" fill="{F}" {S}/>', "#f4f9ff", DOME, 'stroke="#c3d4e6" stroke-width="2"') +
         '<path d="M31 66 L14 58 M69 66 L86 58" stroke="#8a5a2b" stroke-width="2.5" stroke-linecap="round"/>' +
         '<circle cx="50" cy="64" r="2.5" fill="#3a4a5a"/><circle cx="50" cy="74" r="2.5" fill="#3a4a5a"/>',
       eyes: '<circle cx="45" cy="37" r="2.6" fill="#2a1a12"/><circle cx="55" cy="37" r="2.6" fill="#2a1a12"/>',

@@ -1011,6 +1011,93 @@ test("Dump Truck!: the rig is DRAWN, and it fills then TIPS (the namesake game)"
   assert.ok(await tipOf() < -20, "pulling DUMP tips the bed right up");
 });
 
+test("ONE LIGHT: the shared gradients paint from the upper left, and stay inside the body", async () => {
+  // The string guardrail in site.test.js proves the CONTRACT (one shared block,
+  // alpha-only stops, every reference carries the ` none` fallback). Two things
+  // it cannot see are pixel questions:
+  //   1. is the gradient actually pointed the right way?
+  //   2. does the light stay INSIDE the body it belongs to? `lit()` emits the
+  //      flat fill and the highlight from ONE template precisely so a highlight
+  //      can never drift off its shape — this is what proves that holds.
+  //
+  // (1) is deliberately measured on a NEUTRAL GREY SWATCH, not on a character:
+  // the first attempt sampled "the upper left of the head", landed inside the
+  // dark hair, and reported a confident -63 on art that was correct.
+  //
+  // What is NOT asserted here, on purpose: that a missing shared block degrades
+  // to the flat drawing instead of a black blob. It is true, and the ` none`
+  // fallback that guarantees it is pinned by the string guardrail — but the
+  // mutation that removes the fallback still renders identically in Chromium,
+  // which already treats an unresolved paint server as `none`. A pixel
+  // assertion for it could not fail on the engine that runs it, and a test that
+  // cannot fail is worse than no test.
+  const out = await page.evaluate(async () => {
+    const defs = document.querySelector(".jart-defs").innerHTML;
+    const strip = (s) => String(s).replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
+    const draw = async (inner) => {
+      const doc = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="200" height="200">' +
+        defs + inner + "</svg>";
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res; img.onerror = () => rej(new Error("svg failed to load"));
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(doc);
+      });
+      const c = document.createElement("canvas"); c.width = c.height = 200;
+      const g = c.getContext("2d");
+      g.fillStyle = "#ffffff"; g.fillRect(0, 0, 200, 200);
+      g.drawImage(img, 0, 0, 200, 200);
+      return g.getImageData(0, 0, 200, 200);
+    };
+    const at = (A, cx, cy, r) => {
+      let s = 0, n = 0;
+      for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
+        if ((x - cx) ** 2 + (y - cy) ** 2 > r * r) continue;
+        const i = (y * A.width + x) * 4;
+        s += 0.2126 * A.data[i] + 0.7152 * A.data[i + 1] + 0.0722 * A.data[i + 2]; n++;
+      }
+      return s / n;
+    };
+    const res = {};
+    for (const id of ["jart-lit", "jart-dome"]) {
+      const A = await draw('<rect x="12" y="12" width="76" height="76" fill="#808080"/>' +
+        '<rect x="12" y="12" width="76" height="76" fill="url(#' + id + ') none"/>');
+      // both samples sit on the SAME grey, well inside the swatch, on the light axis
+      res[id] = at(A, 68, 56, 14) - at(A, 132, 144, 14);
+    }
+    // Does the surface light stay inside its body? Compare the shipped art
+    // against the SAME art with the surface passes neutralized. `jart-ground`
+    // is left in BOTH — a contact shadow is deliberately ink on the floor,
+    // outside the body, which is the whole point of it.
+    const hero = strip(window.JoshArt.hero("#e23636"));
+    const flat = await draw(hero.replace(/url\(#jart-(?:lit|dome)\)/g, "url(#none-here)"));
+    const shipped = await draw(hero);
+    let outside = 0, inside = 0;
+    for (let i = 0; i < flat.data.length; i += 4) {
+      const bg = flat.data[i] > 250 && flat.data[i + 1] > 250 && flat.data[i + 2] > 250;
+      const changed = Math.abs(flat.data[i] - shipped.data[i]) > 6 ||
+        Math.abs(flat.data[i + 1] - shipped.data[i + 1]) > 6 ||
+        Math.abs(flat.data[i + 2] - shipped.data[i + 2]) > 6;
+      if (changed) { if (bg) outside++; else inside++; }
+    }
+    res.outside = outside;
+    res.inside = inside;
+    return res;
+  });
+  assert.ok(out["jart-lit"] > 8,
+    `the shared surface gradient must be brighter up-LEFT than down-right (delta ${out["jart-lit"].toFixed(1)})`);
+  assert.ok(out["jart-dome"] > 8,
+    `…and so must the dome, or two pictures side by side disagree about where the light is ` +
+    `(delta ${out["jart-dome"].toFixed(1)})`);
+  assert.ok(out.inside > 400,
+    `the light must actually reach the drawing (only ${out.inside} pixels changed inside it)`);
+  // A handful of pixels along an antialiased edge is inevitable; a highlight
+  // that has drifted off its shape is hundreds.
+  assert.ok(out.outside < 60,
+    `the surface light must stay INSIDE the body it belongs to — ${out.outside} pixels of it ` +
+    "landed on bare background, which is a highlight drawn from geometry that no longer matches " +
+    "its body (exactly what lit()'s single template exists to prevent)");
+});
+
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

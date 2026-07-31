@@ -930,7 +930,7 @@ tooling.
 
 ```
 .
-├── index.html                  # The whole site: front door (#screen-start, 3 world tiles) + Josh's launcher shell; all other screens injected
+├── index.html                  # The whole site: front door (#screen-start, 3 world tiles) + Josh's launcher shell; all other screens injected. Also carries the ONE shared `.jart-defs` block — 3 ALPHA-ONLY shading gradients (jart-lit/dome/ground) that every JoshArt picture references by stable id (per-picture defs collapse — see the learnings)
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
@@ -942,7 +942,7 @@ tooling.
 │   ├── logic.js                # PURE, deterministic game logic (window.JoshLogic + module.exports) — unit-tested
 │   ├── effects.js              # Shared JoshEffects.confetti()/stars() (celebrations)
 │   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off) + iOS-safe tone() + win/good/bump CUES (mute-gated)
-│   ├── art.js                  # window.JoshArt — original homage SVG (hero/pup/numberFriend/friend/truck/rocket/fixable-scenes/…)
+│   ├── art.js                  # window.JoshArt — original homage SVG (hero/pup/numberFriend/friend/truck/rocket/fixable-scenes/…), lit from the upper LEFT (the fort's own LIGHT) via `lit()` + index.html's shared gradients; NO <defs>, NO <filter>, every ref carries a ` none` fallback
 │   ├── stickers.js             # window.JoshProgress (THE owner of josh-won-* flags) + window.JoshStickers.artFor (deterministic sticker per game)
 │   ├── buddy.js                # window.JoshBuddy (THE owner of josh-buddy) — pick-a-companion roster + home companion + themed win art
 │   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT
@@ -966,6 +966,7 @@ tooling.
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
+│   ├── art.test.js             # UNIT tests for scripts/art.js — every kind is a well-formed 100x100 svg, numberFriend is countable, hero is a figure not a blob, the 200 Sticker Book prizes are all distinct, and the shared-gradient contract (no per-picture <defs>, only ids index.html declares)
 │   ├── content.test.js         # CORRECTNESS: ground-truth restatement — answers can't silently go wrong
 │   ├── hl-content.test.js      # 华丽 CORRECTNESS: poems/idioms/zodiac/量词/festivals/dishes/seasons truth tables + no-gate lock + FU_PATH tap geometry
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
@@ -3265,6 +3266,65 @@ with a dead zone declares it at EVERY tier and EVERY branch (with a
 not-vacuously-true check, since some lines correctly have none). Third instance of
 the class after the `mult`-less zone and the `delay`-less wave group: **a data
 field one short must degrade, not disable.**
+
+**Josh's SVG art shipped entirely FLAT — 371 lines of `art.js`, zero gradients,
+zero filters — and the fix had to route around a defect this repo had already
+hit and reverted.** A head, a cube and a balloon were all the same solid disc of
+colour, in the library that draws the home companion, every win pop and all 200
+Sticker Book slots. The naive fix is refuted in the code: `stickers.js` carries
+a comment recording a first cut where every badge emitted its own
+`<defs><radialGradient id="bg">`, and because **SVG fragment ids resolve
+DOCUMENT-WIDE** while the Sticker Book paints 200 pictures into one page, every
+`url(#bg)` collapsed onto the FIRST sticker's gradient — invisible to any string
+test, since the strings all differ and only the RENDERING collapses. The escape
+is not "no gradients": it is **ONE shared definition in `index.html`**, and it is
+only correct because the three gradients are **ALPHA-ONLY** (white → transparent
+→ black), so they carry no colour of their own and sharing them across 240
+differently-coloured pictures is right by construction. The whole document pays
+for **3 gradient objects instead of 200**. Four things worth keeping. (1) **A
+`<filter>` is still banned** — a filter on art rendered by the hundred is the
+documented WebKit rasterization cliff that once stalled CI for over an hour;
+gradients composite in the same pass, filters force their own. Measured cost of
+the whole change: the Sticker Book went **2860 → 3340 svg nodes (+16.8%) with no
+change in build time** (Chromium; CI's real WebKit walks that page in
+`mobile.test.js`, which is the honest proof). (2) **The flat fill and its
+highlight come from ONE template** (`lit(shape, fill, grad, strokeAttrs)`, with
+`{F}`/`{S}` placeholders) — a hand-copied second path is exactly how a highlight
+drifts off its body, and the e2e guardrail measures that directly: it renders
+the art with the surface passes neutralized and fails if the light changes any
+pixel the flat drawing left as background. (3) **Every reference carries a
+` none` fallback** (`fill="url(#jart-lit) none"`) so an absent block degrades to
+the flat drawing rather than an engine-dependent black blob — **but the pixel
+assertion for that was deliberately NOT kept**: the mutation that removes the
+fallback renders identically in Chromium, which already treats an unresolved
+paint server as `none`, so the claim could not fail on the engine that runs it.
+It is pinned by the string guardrail (which the mutation DOES fail) and the
+fallback stays as defence-in-depth. A test that cannot fail is worse than no
+test. (4) **A scan matched its own documentation, for the third time this
+session** — the "art.js must not emit `<defs>`" check fired on the comment
+explaining that very rule, so both the HTML and the JS are comment-stripped
+before scanning; same family as the `bg` id "declared in index.html" that was
+only ever prose. Sampling lesson, the same one as the fort's baked-light probe:
+the first direction test sampled "the upper-left of the head" and landed inside
+the dark HAIR, reporting a confident −63 on art that was correct — so the claim
+is split into three unconfounded ones (the gradient is measured on a neutral
+grey swatch; a string test proves every kind uses it; a pixel test proves it
+stays inside the body).
+**Three shipped tests went red, and all three were RIGHT to** — recorded because
+the resolution is the interesting part. Two counted cubes with `match(/<rect /g)`
+and now saw 2n, so they count the FLAT cubes and additionally assert exactly one
+lit twin each: the property is restored at full strength AND the `lit()` pairing
+invariant is now pinned at the unit level, which is strictly more than before.
+The third is the real one: `the Sticker Book gives every game its OWN sticker`
+banned `url(#` outright, and it was written for exactly this defect. It was
+narrowed rather than dropped, because the collapse is caused by **200 competing
+DECLARATIONS, not by the reference** — a sticker still may not declare an id, and
+it may now reference only ids `index.html` actually declares (derived from the
+file, not listed in the test). Both halves mutation-proven. And the reason those
+three escaped the per-suite sweep is its own lesson: **`tests/art.test.js` was
+not in this file's repo-structure listing**, so enumerating suites from the doc
+instead of the directory missed a whole file — the "a scan's own list is part of
+the scan" class, this time with the list being CLAUDE.md. It is listed now.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

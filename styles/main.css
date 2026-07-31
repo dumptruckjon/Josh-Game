@@ -124,6 +124,12 @@ body {
 }
 .btn-big:active, .btn-round:active { transform: scale(0.96); }
 
+/* The one shared shading-gradient block (index.html). It carries no drawing —
+   only <defs> — but an inline <svg> is still an inline BOX, so without this it
+   contributes a line box at the top of every page. Taken fully out of flow
+   rather than trusted to width="0"/height="0". */
+.jart-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
 /* ---------- Top bar ---------- */
 .topbar {
   position: sticky;

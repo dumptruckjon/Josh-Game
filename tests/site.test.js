@@ -1320,3 +1320,105 @@ test("guardrail: no two same-size enemies in a world's pool share a body colour"
     "these same-size enemies share a world's pool AND a body colour, so a player cannot tell " +
     "which counter to reach for: " + bad.join(", "));
 });
+
+// ---------------------------------------------------------------------------
+// GUARDRAIL — ONE LIGHT for Josh's SVG art, shared safely.
+//
+// The art shipped entirely FLAT (371 lines, zero gradients), so a head, a cube
+// and a balloon were all the same solid disc of colour. It is lit now, and the
+// whole design turns on a defect this repo already hit once: `stickers.js`
+// records a first attempt that gave each sticker its OWN <defs><radialGradient
+// id="bg">, which collapsed onto the first sticker's gradient because SVG
+// fragment ids resolve DOCUMENT-WIDE and the Sticker Book paints 200 pictures
+// into one page. Sharing ONE definition is the escape — and it is only correct
+// because the gradients are ALPHA-ONLY. These checks pin every part of that.
+// ---------------------------------------------------------------------------
+test("ONE LIGHT: Josh's art shares three alpha-only gradients, and cannot re-open the collapse", () => {
+  const html = read("index.html");
+  const art = read("scripts/art.js");
+  // Strip HTML comments FIRST: this block is heavily commented and a comment
+  // that merely mentions an id must not be able to satisfy the check.
+  const live = html.replace(/<!--[\s\S]*?-->/g, "");
+  const block = /<svg class="jart-defs"[\s\S]*?<\/svg>/.exec(live);
+  assert.ok(block, "index.html declares the ONE shared shading block (.jart-defs)");
+
+  const declared = [...block[0].matchAll(/<(?:linear|radial)Gradient id="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(declared.slice().sort(), ["jart-dome", "jart-ground", "jart-lit"],
+    "exactly the three shared gradients, by stable id");
+  assert.equal((live.match(/<(?:linear|radial)Gradient/g) || []).length, declared.length,
+    "and NO gradient is declared anywhere else in the page — a second block re-opens the id collapse");
+
+  // ALPHA-ONLY is the whole reason one definition can serve 240 differently
+  // coloured pictures. A gradient carrying a colour of its own would tint every
+  // one of them the same, which is exactly the collapse in another costume.
+  for (const m of block[0].matchAll(/stop-color="([^"]+)"/g)) {
+    assert.ok(/^#(?:ffffff|000000)$/.test(m[1]),
+      `a shared stop must be pure white or pure black (alpha-only), got ${m[1]}`);
+  }
+  for (const m of block[0].matchAll(/<stop\b[^>]*>/g)) {
+    assert.ok(/stop-opacity="/.test(m[0]), `every shared stop declares its opacity: ${m[0]}`);
+  }
+
+  // The art may reference the shared block; it may never declare its own.
+  // Comments are stripped for the same reason the HTML's were: art.js DOCUMENTS
+  // this rule at length, and a scan that matches its own prose passes (or here,
+  // fails) for a reason it never claimed.
+  const code = art.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  for (const bad of ["<defs", "<linearGradient", "<radialGradient"]) {
+    assert.ok(!code.includes(bad),
+      `scripts/art.js must not emit ${bad} — a per-picture definition is the documented collapse ` +
+      "(200 Sticker Book slots, one document, one winning id)");
+  }
+  // A filter on art rendered by the hundred is the documented WebKit
+  // rasterization cliff that once stalled CI for over an hour.
+  assert.ok(!/<filter|filter\s*[:=]/.test(code),
+    "scripts/art.js must not use a filter — gradients composite, filters rasterize");
+});
+
+test("ONE LIGHT: every picture uses it, and a missing block degrades instead of painting black", () => {
+  const JoshArt = require("../scripts/art.js");
+  const live = read("index.html").replace(/<!--[\s\S]*?-->/g, "");
+  const declared = new Set([...live.matchAll(/<(?:linear|radial)Gradient id="([^"]+)"/g)].map((m) => m[1]));
+
+  // Every art kind, driven through its real signature.
+  const kinds = {
+    hero: JoshArt.hero("#e23636"),
+    numberFriend: JoshArt.numberFriend(7, "#5ec8ff"),
+    pup: JoshArt.pup("#e23636", { coat: "#e3b781", ears: "pointy", patch: "#fff", cap: "#2b6cff" }),
+    truck: JoshArt.truck("#ffb703", { tip: 0.6, load: 4 }),
+    star: JoshArt.star("#ffd24d"),
+    rocket: JoshArt.rocket("#c77dff"),
+    balloon: JoshArt.balloon("#ff5e7e"),
+    home: JoshArt.home(),
+    kid: JoshArt.kid(),
+    friend: JoshArt.friend({ style: "curly" }),
+  };
+  for (const scene of ["face", "house", "flower", "snowman"]) kinds["fixable:" + scene] = JoshArt.fixable(scene);
+
+  let refs = 0;
+  for (const [name, svg] of Object.entries(kinds)) {
+    assert.ok(/url\(#jart-/.test(svg),
+      `${name} must be lit by the shared light — a new art kind may not ship flat`);
+    for (const m of svg.matchAll(/(?:fill|stroke)="url\(#([^)]+)\)([^"]*)"/g)) {
+      refs++;
+      assert.ok(declared.has(m[1]), `${name} references #${m[1]}, which index.html does not declare`);
+      // An unresolved paint server renders BLACK in some engines and nothing in
+      // others. The ` none` fallback makes it provably nothing, so if the shared
+      // block is ever absent the art degrades to exactly the flat drawing it was
+      // — the "a field one short must degrade, not disable" law, in paint.
+      assert.equal(m[2].trim(), "none",
+        `${name}: every gradient reference needs the ` + "` none` fallback, got \"" + m[0] + '"');
+    }
+  }
+  assert.ok(refs >= 30, `the light must actually be applied widely (saw ${refs} references)`);
+
+  // The Sticker Book paints 200 of these into ONE page, so an art kind that
+  // quietly triples its element count is a real cost on WebKit's rasterizer.
+  // (Measured at the time of writing: the book went 2860 -> 3340 nodes, +16.8%,
+  // with no change in build time.)
+  const elems = (s) => (s.match(/<(?!\/)/g) || []).length;
+  for (const [name, svg] of Object.entries(kinds)) {
+    assert.ok(elems(svg) <= 34, `${name} draws ${elems(svg)} elements; the budget is 34 (x200 in the book)`);
+  }
+  assert.ok(elems(JoshArt.numberFriend(10)) <= 34, "even a ten stays inside the budget");
+});
