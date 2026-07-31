@@ -3072,6 +3072,29 @@ through on any seed". Lesson: when a tuned value sits in a narrow band, pin the
 band, not a median — and when a proposed law measures true-for-most, prefer the
 neighbouring law that measures true-for-all *only if it can still fail on the
 defect you just fixed*.
+**And the pass found a REAL defect in the same session's own new code: a 📻 Boom
+Box DOWNGRADED a 🛢️ oil slick, because `effSpeed` being the single READ is not
+enough once a field has two WRITERS.** CLAUDE.md already records the read-side
+law — "effSpeed is already the single place a speed is decided, so zones, enrage,
+boss phases and this all compose instead of each growing their own speed
+computation" — and the Oil Drum's slick honoured it by writing the Boom Box's own
+`hurriedMult` rather than inventing a second field. But the two WRITERS shipped
+with different policies: the puddle took the MAX, `hurryTick` plain-assigned, and
+`hurryTick` runs LAST in the tick. So a Boom Box walking into a ×1.45 slick pulled
+the enemy DOWN to ×1.35 — measured at 2.308 → 2.151 cells per 60 ticks, a 6.8%
+loss, with the stronger effect silently erased by the weaker. It is reachable, not
+theoretical: **L34 and L36 both carry a drum AND a boom box**, and ⏩ RUSH puts two
+waves on the field at once. Fixed with `applyHurry(e, mult, ticks)` — the exact
+`applySlow` shape, strongest-wins, one owner — and guardrailed in two halves: a
+behavioural test that the pair composes to 1.45 (mutation-proven against BOTH the
+shipped unconditional assign and a last-writer-wins `applyHurry`) and a structural
+scan asserting `.hurriedMult =` appears exactly ONCE in the engine, so a third
+source cannot re-open it. Shipped balance is untouched — L34/L36 re-sim
+byte-identically, because the auto-solver never rushes and so never overlaps the
+two sources, which is also exactly why no existing test could see it. **The
+general rule: "one read site" is a composition guarantee only while there is also
+one WRITE site. When a second source starts writing a shared field, give it an
+owner the same day.**
 **Also hardened: `(s.rangeMin || 0) * mods.mortarMinMul`.** 🎯 Close Quarters
 multiplies a tower's minimum range, and a stat block lacking the field makes
 `undefined * 0.6` NaN — `d2 >= NaN` is false for every enemy, so the mortar would

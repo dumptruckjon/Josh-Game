@@ -3394,6 +3394,65 @@ test("🛢️ spill: the slick is laid where it DIES, hurries what crosses it, a
   assert.equal(e3.state.puddles.length, 0, "the slick expires on its own tick");
 });
 
+test("hurry has ONE owner: a 📻 Boom Box must never DOWNGRADE a 🛢️ oil slick", () => {
+  // Measured defect. `hurriedMult` had one writer (the Boom Box) until the Oil
+  // Drum's slick became a second, and the two shipped with different policies:
+  // the puddle took the MAX, hurryTick plain-assigned — and hurryTick runs LAST
+  // in the tick. So a Boom Box walking into a ×1.45 slick pulled the enemy DOWN
+  // to ×1.35 (2.308 → 2.151 cells per 60 ticks, a 6.8% loss). Reachable: L34 and
+  // L36 both carry a drum AND a boom box, and ⏩ RUSH puts two waves on the
+  // field at once. `effSpeed` being the single READ is not enough when a field
+  // has two WRITERS — so both now go through `applyHurry`, strongest-wins,
+  // exactly as `applySlow` already owns the slow side.
+  const drum = DATA.ENEMIES.drum, bb = DATA.ENEMIES.boombox;
+  assert.ok(drum.spill.mult > bb.hurry.mult,
+    "this test needs the slick to be the STRONGER of the two, or it cannot detect a downgrade");
+
+  const lvl = DATA.LEVELS.find((l) => l.id === 34);
+  // travel of one pinned sock over 60 ticks under each combination
+  function moved({ slick, boom }) {
+    const e = TD.createEngine(lvl, { seed: 4 });
+    e.callWave();
+    for (let i = 0; i < 5; i++) e.tick();
+    e.state.enemies.length = 0; e.state.puddles.length = 0;
+    const victim = mkEnemy("sock", 6);
+    victim.hurriedUntil = 0; victim.hurriedMult = 1;
+    e.state.enemies.push(victim);
+    const p = e.posOn(0, 6);
+    if (slick) e.state.puddles.push({ x: p.x, y: p.y, r: 12, hurry: drum.spill.mult, until: e.state.tick + 9999 });
+    if (boom) { const b = mkEnemy("boombox", 6.05); b.hurriedUntil = 0; b.hurriedMult = 1; e.state.enemies.push(b); }
+    const d0 = victim.dist;
+    for (let i = 0; i < 60; i++) {
+      e.tick();
+      victim.hp = DATA.ENEMIES.sock.hp;                       // measuring speed, not survival
+      const b = e.state.enemies.find((x) => x.type === "boombox");
+      if (b) { b.hp = DATA.ENEMIES.boombox.hp; b.dist = victim.dist + 0.05; }
+      if (slick) { const q = e.posOn(0, victim.dist); e.state.puddles[0].x = q.x; e.state.puddles[0].y = q.y; }
+    }
+    return { d: victim.dist - d0, mult: victim.hurriedMult };
+  }
+  const plain = moved({});
+  const slickOnly = moved({ slick: true });
+  const boomOnly = moved({ boom: true });
+  const both = moved({ slick: true, boom: true });
+
+  assert.ok(slickOnly.d > plain.d && boomOnly.d > plain.d, "both sources hurry on their own");
+  assert.ok(slickOnly.d > boomOnly.d, "the slick is the stronger source, as its data says");
+  assert.equal(both.mult, drum.spill.mult,
+    `a Boom Box beside an oil slick left hurriedMult at ${both.mult}, not the stronger ${drum.spill.mult} — the last writer won instead of the strongest`);
+  assert.ok(both.d >= slickOnly.d - 1e-6,
+    `adding a Boom Box made the enemy SLOWER: ${both.d.toFixed(3)} cells vs ${slickOnly.d.toFixed(3)} in the slick alone`);
+
+  // …and the structural half, so a THIRD source cannot re-open it: the field is
+  // ASSIGNED in exactly one place, inside applyHurry. (The spawn record sets it
+  // as an object-literal property, which is a default, not a source.)
+  const src = require("fs").readFileSync("scripts/td-logic.js", "utf8");
+  const writes = (src.match(/\.hurriedMult\s*=/g) || []).length;
+  assert.equal(writes, 1,
+    `hurriedMult is assigned in ${writes} places — it must have exactly ONE owner (applyHurry), or two sources can disagree on policy again`);
+  assert.ok(/function applyHurry\(/.test(src), "applyHurry is that owner");
+});
+
 test("P6 loadout: an un-equipped power is REFUSED, and the run records what it brought", () => {
   const lvl = DATA.LEVELS[0];
   // The engine's own default is the WHOLE pool, deliberately: every shipped sim

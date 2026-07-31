@@ -418,6 +418,23 @@
       // so the Fan's aura, a Blizzard cone and the Sticky Floor all inherit it.
       if (p >= active) { e.slowPct = p; e.slowUntil = state.tick + Math.round(seconds * mods.slowSeconds * DATA.TICK_RATE); }
     }
+    // The applySlow of hurries: STRONGEST WINS, one owner, so the two sources
+    // cannot disagree. `hurriedMult` had a single writer (📻 Boom Box) until the
+    // 🛢️ Oil Drum's slick became a second one, and the two shipped with
+    // different policies — the puddle took the max, hurryTick assigned
+    // unconditionally and runs LAST — so a Boom Box walking into an oil slick
+    // DOWNGRADED the enemy from ×1.45 to ×1.35 (measured: 2.308 → 2.151 cells
+    // per 60 ticks, a 6.8% loss). Reachable on L34/L36, which carry both, the
+    // moment ⏩ RUSH puts two waves on the field. effSpeed being the single
+    // READ is not enough when a field has two WRITERS.
+    function applyHurry(e, mult, ticks) {
+      if (!(mult > 1)) return;
+      const until = e.hurriedUntil || 0;
+      const cur = until > state.tick ? (e.hurriedMult || 1) : 1;   // expired ⇒ no hurry
+      if (mult > cur) e.hurriedMult = mult;
+      const till = state.tick + ticks;
+      if (till > until) e.hurriedUntil = till;
+    }
     function effSpeed(e) {
       const slow = state.tick < e.slowUntil ? e.slowPct : 0;
       const def = enemyDef(e);
@@ -518,10 +535,9 @@
         for (const e of state.enemies) {
           if (!e.alive || e === h) continue;
           const p = epos(e);
-          if ((p.x - hp2.x) ** 2 + (p.y - hp2.y) ** 2 <= r2) {
-            e.hurriedUntil = state.tick + 2;      // refreshed every tick it is in range
-            e.hurriedMult = def.hurry.mult;
-          }
+          // through the ONE owner: this used to assign unconditionally and runs
+          // AFTER puddleTick, so a weaker beat overwrote a stronger oil slick
+          if ((p.x - hp2.x) ** 2 + (p.y - hp2.y) ** 2 <= r2) applyHurry(e, def.hurry.mult, 2);
         }
       }
     }
@@ -1742,22 +1758,10 @@
             // 🛢️ an oil slick is the Sticky Floor's mirror — it HURRIES. It writes
             // the Boom Box's own flag rather than growing a second speed field,
             // because `effSpeed` already has exactly one place that reads a hurry
-            // and every speed effect must keep composing there. STRONGEST wins
-            // (the slow's own rule), so two overlapping slicks are order-free
-            // instead of last-writer.
-            //   `|| 0` is load-bearing, not decoration. Unlike hurryTick, which
-            // plain-assigns, this READS the flag before writing it — and any
-            // comparison against an `undefined` field is false, so a body built
-            // without `hurriedUntil` would silently never get oiled while every
-            // number in the engine still looked right. Same class as the zone
-            // with no `mult` and the wave group with no `delay`: a field one
-            // short must degrade, not disable.
-            if (z.hurry) {
-              const until = e.hurriedUntil || 0;
-              const cur = until > state.tick ? (e.hurriedMult || 1) : 1;
-              if (z.hurry > cur) e.hurriedMult = z.hurry;
-              if (state.tick + 2 > until) e.hurriedUntil = state.tick + 2;
-            }
+            // and every speed effect must keep composing there — and it goes
+            // through `applyHurry`, the ONE owner, so strongest wins whichever
+            // source got there first (the slow's own rule).
+            if (z.hurry) applyHurry(e, z.hurry, 2);
           }
         }
       }
