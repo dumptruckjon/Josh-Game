@@ -1272,6 +1272,13 @@ test("TD7 lever advantage: sending the train the LONG way (more coverage) saves 
   const FORK = {
     3: { cap: 4, gain: 1 }, 7: { cap: 7, gain: 5 }, 10: { cap: 13, gain: 4 }, 15: { cap: 9, gain: 4 },
     19: { cap: 9, gain: 8 }, 23: { cap: 9, gain: 6 }, 27: { cap: 13, gain: 4 }, 31: { cap: 9, gain: 6 },
+    // L35 (The Paint Line) measured: at seed 7 an 8- or 9-pad board loses BOTH
+    // ways and a 10-pad board wins both, so this fork has no phase flip to give
+    // — like L3 and L10 it is a magnitude lever, not a decisive one, and the
+    // population claim below is what carries the "levers are not cosmetic"
+    // burden. Worth 6 lives at cap 10 (short won 13 → with-lever 19); floored
+    // at 5 so seed drift cannot flake it.
+    35: { cap: 10, gain: 5 },
   };
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
   function play(lvl, cap, pull) {
@@ -4071,7 +4078,7 @@ test("W5 wave composition: a vanilla backbone, at most ONE disruptive special pe
   // to it; the four older worlds predate the World-4 revert that taught it and
   // genuinely fail (L10 w2 is 74% mole, L12 w1 is 67% ghost), so retro-fitting
   // would flag deliberate design as broken. Measured before widening.
-  const RULED = new Set(["garage", "moving", "newhouse", "sortline"]);
+  const RULED = new Set(["garage", "moving", "newhouse", "sortline", "toyworks"]);
   assert.ok([...RULED].every((w) => DATA.WORLDS[w]), "every ruled world exists");
   for (const lvl of DATA.LEVELS.filter((l) => RULED.has(l.world))) {
     lvl.waves.forEach((w, i) => {

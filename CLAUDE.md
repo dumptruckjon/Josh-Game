@@ -958,7 +958,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/47-enemy roster (32 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 35 nodes/123⭐ (vs a 96⭐ ceiling; 15⭐ of headroom above the 108⭐ a ninth world would create) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/51-enemy roster (33 + 18 per-world backbone SKINS) + 9 bosses/36 levels (9 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 35 nodes/123⭐ (vs the 108⭐ ceiling 36 levels create — 15⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -2990,6 +2990,49 @@ alone is the whole mechanic, and the test now asserts the VALUE (`a 1-life leak
 costs exactly 1`), which fails the moment the floor is removed. Four of the five
 nodes were caught by their first mutation; the fifth taught more than the other
 four together.
+
+**WORLD 9 — 🏭 The Toy Works (L33-L36) SHIPPED, and the guardrails wrote the
+patch list.** The loop closes: the step after ♻️ The Sort Line is the factory
+that melts you down and moulds the next toy. Three backbone skins (🧩 Reject
+Piece, 🟠 Resin Pellet, 🥏 Flying Offcut), the 🗜️ Stamping Press boss, its own
+`mould` floor pattern and `plates` road, a 9th endless arena, and the world's one
+fork+lever on L35. Nothing was typed by hand: lanes and pads came out of
+`W9=1 tools/td-map-search.js`, waves out of `tools/td-wave-gen.js`. **The first
+full run then failed FIVE guardrails, and every one was a real omission** — no
+achievement badge for the new boss (and separately, no wiring that awards it —
+two different tests, which is the point), L33/L34 with no declared hook, L36's
+escort asking the identical question to L16's (`armor,flier`), and L35 shipping a
+fork with no measured thin-board cap. That is the "make the tests able to fail"
+investment paying rent: a new world cannot ship half-wired.
+Four measurements are worth keeping. (1) **The 8-seed rule earned its keep
+again**: at the default 4 seeds L36 looked fine, and at 8 it **LOST on heroic
+seed 1** — the L30 defect exactly. Its waves came down (budgetBase 1150 → 1050,
+regenerated, not hand-trimmed) and it now reads normal median 14 (10-14, graded)
+and heroic 8 (5-9, no losses). (2) **On this world gold is a CLIFF, not a
+slope** — L33 measured normal 12 at 900 gold, 19 at 1100, and a flat 20 at 1300
+and 1500, with heroic LOST on every seed at 900. Threshold domination reproduced
+a sixth time, now on a brand-new map: there is no setting that makes normal
+*graded*, so World 9 ships where every gate passes with a tense heroic (L33 16,
+L34 13, L35 9) and a flat-20 normal, exactly as the Garage did. (3) **Gold and
+boss hp are both INERT on a finale whose pressure is its wave table** — L36 read
+identically at 1900/2100/2300 gold and at 3800/4400/5000 boss hp; only the waves
+moved it. Sweep the knob you think is responsible before you turn it. (4) **A
+lever must be measured, not assumed**: L35's is worth 6 lives at a 10-pad board
+(short won 13 → with-lever 19) but has NO phase flip at any board size, so it
+joins L3 and L10 as a magnitude lever and the population claim carries the
+"levers are not cosmetic" burden.
+Two art traps, both of which the guardrails caught and neither of which reading
+the code would have: **a boss must draw at `R = r * bossScale(e, …)`, and there
+are only three call sites** — the Stamping Press was drawn at plain `r`, i.e.
+grunt radius, and painted 312 ink pixels against an ordinary toy's 434. And
+**the near-twin metric is driven by SILHOUETTE and coverage far more than hue**:
+the shipped roster's closest pairs sit at 1.52-1.67 against a 1.2 floor, so a
+magenta Reject Piece still read as the tan Grease Rag (0.91) purely because both
+were wide low blobs. Re-colouring did nothing; making it tall and narrow with a
+bright top face and a deep socket fixed it. The way to tell those two cases
+apart is the experiment that settles it in one run: replace the sprite with a
+plain white circle and see whether the reported pair changes — it did, which
+proved the branch was running and the shape was the problem.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

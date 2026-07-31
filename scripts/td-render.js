@@ -290,6 +290,27 @@
         const lamp = b.createRadialGradient(W * 0.22, H * 0.16, 0, W * 0.22, H * 0.16, Math.max(W, H) * 0.55);
         lamp.addColorStop(0, "rgba(255,196,110,0.16)"); lamp.addColorStop(1, "rgba(255,196,110,0)");
         b.fillStyle = lamp; b.fillRect(0, 0, W, H);
+      } else if (FLOOR.pattern === "mould") {
+        // the factory floor: a grid of MOULD CAVITIES — rounded wells sunk into
+        // an oiled steel bed, each with a highlight on its upper lip so it reads
+        // as recessed rather than printed. Its own pattern rather than a
+        // re-tinted "grating": the floor guardrail hashes the lane CORRIDOR as
+        // well as the canvas, and three worlds once shipped an identical road
+        // because none of them declared one.
+        b.strokeStyle = "rgba(0,0,0,0.30)"; b.lineWidth = Math.max(1, cell * 0.05);
+        for (let y = 0; y < H; y += cell * 1.6) { b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.stroke(); }
+        for (let x = 0; x < W; x += cell * 1.6) { b.beginPath(); b.moveTo(x, 0); b.lineTo(x, H); b.stroke(); }
+        for (let y = cell * 0.8, row = 0; y < H; y += cell * 1.6, row++) {
+          for (let x = (row % 2 ? cell * 0.8 : cell * 1.6); x < W; x += cell * 3.2) {
+            b.fillStyle = "rgba(0,0,0,0.26)";                       // the well
+            b.beginPath(); b.ellipse(x, y, cell * 0.42, cell * 0.30, 0, 0, 7); b.fill();
+            b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.05);
+            b.beginPath(); b.ellipse(x, y - cell * 0.05, cell * 0.42, cell * 0.30, 0, Math.PI, 2 * Math.PI); b.stroke();
+          }
+        }
+        const heat = b.createRadialGradient(W * 0.78, H * 0.82, 0, W * 0.78, H * 0.82, Math.max(W, H) * 0.6);
+        heat.addColorStop(0, "rgba(255,140,50,0.13)"); heat.addColorStop(1, "rgba(255,140,50,0)");
+        b.fillStyle = heat; b.fillRect(0, 0, W, H);
       } else if (FLOOR.pattern === "dropcloth") {
         // a painter's dust sheet: coarse canvas weave, creases where it was
         // folded, and a few dried paint spatters
@@ -352,7 +373,7 @@
           if (!len) continue;
           const ux = (bx - ax) / len, uy = (by - ay) / len;   // tangent
           const nx = -uy, ny = ux;                            // normal
-          const step = cell * (style === "ties" ? 0.62 : 0.9);
+          const step = cell * (style === "ties" ? 0.62 : style === "plates" ? 0.88 : 0.9);
           for (let d = carry; d < len; d += step) {
             const px = ax + ux * d, py = ay + uy * d;
             if (style === "ties") {                            // wooden sleepers
@@ -361,6 +382,21 @@
               b.moveTo(px + nx * cell * 0.45, py + ny * cell * 0.45);
               b.lineTo(px - nx * cell * 0.45, py - ny * cell * 0.45);
               b.stroke();
+            } else if (style === "plates") {                   // bolted steel floor plates
+              // Deliberately NOT a moving belt: a belt road would read as the
+              // conveyor GIMMICK, and a mechanic you cannot tell from a
+              // decoration is the side-door defect all over again. Static plates
+              // with bolt heads say "factory floor" and imply no direction.
+              b.save();
+              b.translate(px, py);
+              b.rotate(Math.atan2(uy, ux));
+              b.strokeStyle = tie; b.lineWidth = Math.max(1.5, cell * 0.06);
+              b.beginPath(); b.rect(-cell * 0.42, -cell * 0.44, cell * 0.84, cell * 0.88); b.stroke();
+              b.fillStyle = tie;                                     // four bolt heads
+              for (const sx of [-0.30, 0.30]) for (const sy of [-0.32, 0.32]) {
+                b.beginPath(); b.arc(sx * cell, sy * cell, Math.max(1, cell * 0.055), 0, 7); b.fill();
+              }
+              b.restore();
             } else if (style === "stones") {                   // flagstones, staggered
               const off = (Math.round(d / step) % 2 ? 0.18 : -0.18) * cell;
               b.save();
@@ -933,6 +969,83 @@
         ctx.fillStyle = "#4a4840";
         ctx.beginPath(); ctx.arc(-r * 0.2, -r * 0.34, r * 0.07, 0, 7); ctx.arc(r * 0.06, -r * 0.31, r * 0.07, 0, 7); ctx.fill();
         ctx.restore();
+      } else if (e.type === "reject") {
+        // 🧩 Reject Piece — a jigsaw tab that came off the mould misshapen. Drawn
+        // TALL and narrow with a bold sunken socket and a bright top face: the
+        // near-twin metric is driven by silhouette and coverage as much as hue
+        // (the shipped roster's closest pairs sit at 1.52-1.67 against a 1.2
+        // floor), and a wide low blob reads as the Grease Rag no matter what
+        // colour it is. Measured, not eyeballed.
+        shadow(sx, sy + r * 0.62, r * 0.44, r * 0.16);
+        const gj = ctx.createLinearGradient(0, sy - r * 0.72, 0, sy + r * 0.62);
+        gj.addColorStop(0, "#f57ac0"); gj.addColorStop(1, "#8e1a63");
+        ctx.fillStyle = gj;
+        ctx.beginPath(); ctx.rect(sx - r * 0.34, sy - r * 0.72, r * 0.68, r * 1.34); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + r * 0.36, sy - r * 0.3, r * 0.22, 0, 7); ctx.fill();   // knob
+        ctx.fillStyle = "#ffb3d9";                                                            // bright top face
+        ctx.beginPath(); ctx.rect(sx - r * 0.34, sy - r * 0.72, r * 0.68, r * 0.2); ctx.fill();
+        ctx.fillStyle = "#1d0f18";                                                            // deep socket
+        ctx.beginPath(); ctx.arc(sx - r * 0.36, sy + r * 0.14, r * 0.24, 0, 7); ctx.fill();
+        ctx.fillStyle = "#33202b";
+        ctx.beginPath(); ctx.arc(sx - r * 0.1, sy - r * 0.3, r * 0.07, 0, 7); ctx.arc(sx + r * 0.12, sy - r * 0.3, r * 0.07, 0, 7); ctx.fill();
+      } else if (e.type === "pellet") {
+        // 🟠 Resin Pellet — what the line is FED. A fat, nearly-round bead with a
+        // hard dark seam right across it, so its coverage and internal contrast
+        // are unlike the Spare Key's thin silhouette (they measured 1.13 apart
+        // against a 1.2 floor when it was a small pale lozenge).
+        shadow(sx, sy + r * 0.5, r * 0.46, r * 0.16);
+        const gp = ctx.createRadialGradient(sx - r * 0.16, sy - r * 0.18, r * 0.05, sx, sy, r * 0.52);
+        gp.addColorStop(0, "#fffdf6"); gp.addColorStop(1, "#b8ad8b");
+        ctx.fillStyle = gp;
+        ctx.beginPath(); ctx.arc(sx, sy, r * 0.5, 0, 7); ctx.fill();
+        ctx.fillStyle = "#5d5442";                                          // the mould seam
+        ctx.beginPath(); ctx.rect(sx - r * 0.5, sy - r * 0.07, r * 1.0, r * 0.14); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.18, sy - r * 0.26, r * 0.14, r * 0.08, -0.5, 0, 7); ctx.fill();
+      } else if (e.type === "offcut") {
+        // 🥏 Flying Offcut — a disc of trimmed sprue flung off the line, spinning
+        // edge-on. Shadow sits well BELOW, like every flier here, and the disc
+        // tilts as it turns so it reads as spinning rather than sliding.
+        shadow(sx, sy + cell * 0.55, r * 0.44, r * 0.16);
+        const spin = (engine.state.tick / 4 + e.id) % 6.283;
+        ctx.save(); ctx.translate(sx, sy - cell * 0.06); ctx.rotate(spin);
+        const gd = ctx.createLinearGradient(-r * 0.5, 0, r * 0.5, 0);
+        gd.addColorStop(0, "#a8e024"); gd.addColorStop(1, "#6b9412");
+        ctx.fillStyle = gd;
+        ctx.beginPath(); ctx.ellipse(0, 0, r * 0.5, r * 0.2 + r * 0.24 * Math.abs(Math.cos(spin)), 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = "rgba(46,60,10,0.85)"; ctx.lineWidth = Math.max(1.2, cell * 0.03); ctx.stroke();
+        ctx.restore();
+      } else if (e.type === "stamper") {
+        // 🗜️ The Stamping Press — the campaign's last boss. Drawn as a SOLID
+        // machine rather than an open gantry: the boss-size guardrail counts INK
+        // PIXELS, and a frame of thin bars paints less than an ordinary toy no
+        // matter how wide it is (the first cut measured 260px against a grunt's
+        // 434). Its RAM rides down as the phases escalate, so the fight is
+        // readable on the machine itself — the Tickmaster's precedent.
+        // A boss draws at BOSS scale. Omitting this is why the first cut painted
+        // 312 ink pixels against an ordinary toy's 434: `r` is the grunt
+        // radius, and `bossScale` is the ONE place `size` becomes pixels.
+        const R = r * bossScale(e, 3.4);
+        const ph = e.hp / e.maxHp;
+        const drop = ph > 0.66 ? 0 : ph > 0.33 ? R * 0.18 : R * 0.34;
+        shadow(sx, sy + R * 0.74, R * 0.86, R * 0.26);
+        const gs = ctx.createLinearGradient(sx - R * 0.8, 0, sx + R * 0.8, 0);
+        gs.addColorStop(0, "#3f4650"); gs.addColorStop(0.45, "#79828f"); gs.addColorStop(1, "#333a43");
+        ctx.fillStyle = gs;                                               // the housing
+        ctx.beginPath(); ctx.rect(sx - R * 0.8, sy - R * 0.86, R * 1.6, R * 1.6); ctx.fill();
+        ctx.fillStyle = "#242a31";                                        // the throat the ram rides in
+        ctx.beginPath(); ctx.rect(sx - R * 0.52, sy - R * 0.4, R * 1.04, R * 0.86); ctx.fill();
+        ctx.fillStyle = "#9aa4b1";                                        // the RAM
+        ctx.beginPath(); ctx.rect(sx - R * 0.46, sy - R * 0.36 + drop, R * 0.92, R * 0.5); ctx.fill();
+        ctx.fillStyle = ph > 0.33 ? "#4a525c" : "#f2622a";                // the die, red-hot in P3
+        ctx.beginPath(); ctx.rect(sx - R * 0.4, sy + R * 0.1 + drop, R * 0.8, R * 0.18); ctx.fill();
+        ctx.fillStyle = "#1b2027";                                        // bed
+        ctx.beginPath(); ctx.rect(sx - R * 0.72, sy + R * 0.5, R * 1.44, R * 0.24); ctx.fill();
+        ctx.fillStyle = "#ffd94a";                                        // hazard band on the crown
+        ctx.beginPath(); ctx.rect(sx - R * 0.8, sy - R * 0.86, R * 1.6, R * 0.16); ctx.fill();
+        ctx.fillStyle = "#2a2f36";
+        for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.rect(sx + k * R * 0.22 - R * 0.05, sy - R * 0.86, R * 0.1, R * 0.16); ctx.fill(); }
+        bossCrown(sx, sy - R * 0.86, R);
       } else if (e.type === "bigmagnet") {
         // 🧲 The Big Magnet — a gantry electromagnet on hazard-striped beams.
         // The DEBRIS clinging to the pole faces counts the phase (2 / 5 / 9) and

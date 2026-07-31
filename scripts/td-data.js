@@ -360,6 +360,21 @@
       phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } },
                 { upTo: 0.33, speedMult: 1.25, disable: { every: 3, seconds: 3 },
                   spawn: { type: "carton", count: 5, every: 6 } } ] },
+    // 🗜️ The Stamping Press (L36) — World 9's finale and the campaign's last
+    // fight: the machine that flattens what is left of you into the next toy.
+    // Every part of its kit is a path the engine already runs (the TD-4 law — a
+    // boss that needs new engine code is a re-tuning job, not a boss): `stomp`
+    // IS the press coming down, the hp-gated `phases` jam a gun (the Static's
+    // path) and then feed rejects onto the line (the Big Magnet's path).
+    // hp and the leak toll are NOT guessed — they come from `--boss`, judged on
+    // SPREAD rather than median, so the finale can actually end more than one way.
+    stamper: { name: "The Stamping Press", icon: "🗜️", hp: 5000, speed: 0.3, armor: 0.3,
+      shield: 120, shieldRegen: 12, bounty: 420, lives: 6, size: 3.4, flier: false, boss: true,
+      meleeDmg: 0, meleeRate: 1,
+      stomp: { dmg: 75, radius: 1.9, seconds: 5 },
+      phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } },
+                { upTo: 0.33, speedMult: 1.25, disable: { every: 3, seconds: 3 },
+                  spawn: { type: "reject", count: 5, every: 6 } } ] },
     // hp 8000 → 7600 DE-QUANTIZES this finale. At 8000 the Vacuum King reached
     // the door on EVERY seed and every build, so L8 ended at exactly 10-11 lives
     // eight times out of eight — the whole level reduced to a guaranteed 8-life
@@ -427,6 +442,17 @@
       backbone: { ground: ["carton", "knight", "blob", "clip"], flier: "leaflet" },
       floor: { pattern: "grating", props: ["tin", "case", "stain"], top: "#232a2e", bottom: "#2f383d", ink: "rgba(255,196,110,0.09)",
                road: { edge: "#101315", base: "#454b52", top: "#636a73", style: "ties", tie: "rgba(12,14,16,0.55)" } } },
+    // World 9 — the factory floor. Its own `pattern` and `road.style` (both new)
+    // rather than a re-tinted existing pair: the floor guardrail hashes the lane
+    // CORRIDOR as well as the whole canvas, and three worlds once shipped the
+    // identical road because they had no `road` field at all. "plates" is
+    // deliberately NOT a belt — a moving-belt road would read as the conveyor
+    // GIMMICK, and a mechanic you cannot tell apart from a decoration is the
+    // side-door defect all over again.
+    toyworks: { label: "🏭 The Toy Works", spawnGlyph: "🏭",
+      backbone: { ground: ["reject", "knight", "blob", "pellet"], flier: "offcut" },
+      floor: { pattern: "mould", props: ["box", "tin", "stain"], top: "#2a2622", bottom: "#3a332c", ink: "rgba(255,158,74,0.10)",
+               road: { edge: "#17130f", base: "#5a5148", top: "#7b7064", style: "plates", tie: "rgba(255,190,110,0.30)" } } },
   };
 
   // ---- Phase 2: per-world backbone SKINS ----
@@ -469,6 +495,14 @@
     ["sock",   "carton",  "Juice Carton", "🧃"],
     ["marble", "clip",    "Runaway Clip", "📎"],
     ["hawk",   "leaflet", "Loose Leaf",   "📄"],
+    // World 9 (The Toy Works) — the loop closes: the step after being sorted is
+    // the factory that melts you down and moulds a NEW toy. A reject piece came
+    // off the line misshapen; a resin pellet is what the line is fed. It takes a
+    // hawk skin too (the World-8 finding: the shared flier is 11-23% of every
+    // world's bodies and reskinning it is the cheapest differentiation left).
+    ["sock",   "reject",  "Reject Piece",  "🧩"],
+    ["marble", "pellet",  "Resin Pellet",  "🟠"],
+    ["hawk",   "offcut",  "Flying Offcut", "🥏"],
   ];
   for (const [src, id, name, icon] of SKINS) {
     ENEMIES[id] = Object.assign({}, ENEMIES[src], { name, icon, sortKey: src, skinOf: src });
@@ -1570,6 +1604,118 @@
       ],
     },
 
+
+    // ================= World 9 — 🏭 The Toy Works (L33-L36) =================
+    // The loop closes: the step after being sorted is the factory that melts
+    // you down and moulds the NEXT toy. Lanes and pads are OUTPUT from
+    // `W9=1 node tools/td-map-search.js` — every one satisfies the four
+    // geometry laws (>=0.99 from EVERY lane, >=1.4 pairwise, >=1.9 from a
+    // lever, <=BAND from the lane it must cover). Waves are OUTPUT from
+    // tools/td-wave-gen.js against both contracts. Nothing here was typed by
+    // hand, which is the whole point: authored coordinates and authored waves
+    // get the same programmatic truth-check.
+    {
+      id: 33, name: "The Intake", world: "toyworks", badge: 3,
+      // 🚪 the INTAKE hopper: part of each late wave is fed onto the line 30
+      // cells down, behind anything built at the entrance. Thematic and the
+      // right direction — a door is measured at -1 to -5 lives.
+      startGold: 1250, budgetBase: 1000,
+      path: [ [0, 2], [19, 2], [19, 8], [4, 8], [4, 12], [23, 12] ],
+      pads: [ { id: "p1", cx: 3, cy: 7 }, { id: "p2", cx: 23, cy: 10 }, { id: "p3", cx: 14, cy: 0 }, { id: "p4", cx: 13, cy: 10 }, { id: "p5", cx: 20, cy: 1 }, { id: "p6", cx: 3, cy: 13 }, { id: "p7", cx: 0, cy: 0 }, { id: "p8", cx: 7, cy: 0 }, { id: "p9", cx: 9, cy: 6 }, { id: "p10", cx: 17, cy: 6 }, { id: "p11", cx: 20, cy: 9 }, { id: "p12", cx: 7, cy: 10 } ],
+      waves: [
+        { groups: [ { type: "reject", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 14, gap: 0.65, delay: 0 }, { type: "pellet", count: 35, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "reject", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "pellet", count: 45, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 3, gap: 0.9, delay: 4 }, { type: "reject", count: 35, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 5, gap: 0.9, delay: 4 }, { type: "blob", count: 23, gap: 0.65, delay: 0 }, { type: "pellet", count: 59, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 3, gap: 0.9, delay: 4 }, { type: "offcut", count: 12, gap: 0.3, delay: 2 }, { type: "reject", count: 41, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 11, gap: 0.9, delay: 4 }, { type: "offcut", count: 15, gap: 0.3, delay: 2 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "pellet", count: 68, gap: 0.8, delay: 3, at: 30 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "screw", count: 8, gap: 0.9, delay: 4 }, { type: "offcut", count: 19, gap: 0.3, delay: 2 }, { type: "reject", count: 48, gap: 0.65, delay: 0 }, { type: "knight", count: 12, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 7, gap: 0.9, delay: 4 }, { type: "offcut", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 36, gap: 0.65, delay: 0 }, { type: "pellet", count: 90, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 17, gap: 0.9, delay: 4 }, { type: "offcut", count: 31, gap: 0.3, delay: 2 }, { type: "reject", count: 72, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3, at: 30 } ] },
+        { groups: [ { type: "slime", count: 14, gap: 0.9, delay: 4 }, { type: "offcut", count: 39, gap: 0.3, delay: 2 }, { type: "blob", count: 46, gap: 0.65, delay: 0 }, { type: "pellet", count: 114, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "tinplane", count: 35, gap: 0.9, delay: 4 }, { type: "offcut", count: 49, gap: 0.3, delay: 2 }, { type: "reject", count: 77, gap: 0.65, delay: 0 }, { type: "knight", count: 20, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 16, gap: 0.9, delay: 4 }, { type: "offcut", count: 61, gap: 0.3, delay: 2 }, { type: "blob", count: 59, gap: 0.65, delay: 0 }, { type: "pellet", count: 148, gap: 0.8, delay: 3, at: 30 } ] },
+      ],
+    },
+    {
+      id: 34, name: "The Mould Room", world: "toyworks", badge: 3,
+      // ➡️ the line itself: a belt run that shoves everything along, so the
+      // guns covering it get LESS time. Capped well under the 1.35 the
+      // conveyor-strength guardrail allows (a strong conveyor is a free loss).
+      zones: [ { from: 18, to: 30, mult: 1.25 } ],
+      startGold: 1250, budgetBase: 1050,
+      path: [ [0, 11], [16, 11], [16, 5], [6, 5], [6, 1], [21, 1], [21, 6], [23, 6] ],
+      pads: [ { id: "p1", cx: 5, cy: 0 }, { id: "p2", cx: 23, cy: 8 }, { id: "p3", cx: 0, cy: 13 }, { id: "p4", cx: 12, cy: 13 }, { id: "p5", cx: 22, cy: 0 }, { id: "p6", cx: 13, cy: 3 }, { id: "p7", cx: 5, cy: 6 }, { id: "p8", cx: 17, cy: 12 }, { id: "p9", cx: 6, cy: 13 }, { id: "p10", cx: 17, cy: 4 }, { id: "p11", cx: 9, cy: 9 }, { id: "p12", cx: 14, cy: 8 }, { id: "p13", cx: 20, cy: 7 } ],
+      waves: [
+        { groups: [ { type: "reject", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "pellet", count: 37, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "reject", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 3, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "pellet", count: 46, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "duck", count: 2, gap: 0.9, delay: 4 }, { type: "reject", count: 39, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bucket", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 26, gap: 0.65, delay: 0 }, { type: "pellet", count: 64, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 7, gap: 0.9, delay: 4 }, { type: "offcut", count: 12, gap: 0.3, delay: 2 }, { type: "reject", count: 44, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "drum", count: 3, gap: 0.9, delay: 4 }, { type: "offcut", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "pellet", count: 72, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 11, gap: 0.9, delay: 4 }, { type: "offcut", count: 20, gap: 0.3, delay: 2 }, { type: "reject", count: 57, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "offcut", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 38, gap: 0.65, delay: 0 }, { type: "pellet", count: 95, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 14, gap: 0.9, delay: 4 }, { type: "offcut", count: 32, gap: 0.3, delay: 2 }, { type: "reject", count: 75, gap: 0.65, delay: 0 }, { type: "knight", count: 19, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "racer", count: 23, gap: 0.9, delay: 4 }, { type: "offcut", count: 41, gap: 0.3, delay: 2 }, { type: "blob", count: 48, gap: 0.65, delay: 0 }, { type: "pellet", count: 120, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 19, gap: 0.9, delay: 4 }, { type: "offcut", count: 51, gap: 0.3, delay: 2 }, { type: "reject", count: 96, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "bucket", count: 5, gap: 0.9, delay: 4 }, { type: "offcut", count: 64, gap: 0.3, delay: 2 }, { type: "blob", count: 66, gap: 0.65, delay: 0 }, { type: "pellet", count: 166, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 35, name: "The Paint Line", world: "toyworks", badge: 3,
+      startGold: 1350, budgetBase: 1100,
+      path: [ [0, 7], [7, 7], [7, 2], [18, 2], [18, 9], [12, 9], [12, 13], [23, 13] ],
+      paths: [ [ [0, 7], [7, 7], [7, 2], [18, 2], [18, 9], [12, 9], [12, 13], [23, 13] ], [ [0, 7], [7, 7], [7, 12], [2, 12], [2, 2], [7, 2], [18, 2], [18, 9], [12, 9], [12, 13], [23, 13] ] ],
+      fork: { at: 7 }, lever: { cx: 7, cy: 7 },
+      pads: [ { id: "p1", cx: 11, cy: 8 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 19, cy: 1 }, { id: "p4", cx: 0, cy: 5 }, { id: "p5", cx: 7, cy: 0 }, { id: "p6", cx: 5, cy: 9 }, { id: "p7", cx: 13, cy: 0 }, { id: "p8", cx: 17, cy: 11 }, { id: "p9", cx: 10, cy: 13 }, { id: "p10", cx: 16, cy: 6 }, { id: "p11", cx: 5, cy: 4 }, { id: "p12", cx: 20, cy: 8 }, { id: "p13", cx: 10, cy: 4 }, { id: "p14", cx: 0, cy: 9 }, { id: "p15", cx: 19, cy: 10 } ],
+      waves: [
+        { groups: [ { type: "reject", count: 22, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "pellet", count: 38, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "reject", count: 32, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 4, gap: 0.9, delay: 4 }, { type: "blob", count: 19, gap: 0.65, delay: 0 }, { type: "pellet", count: 48, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 4, gap: 0.9, delay: 4 }, { type: "reject", count: 40, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "pellet", count: 67, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 9, gap: 0.9, delay: 4 }, { type: "offcut", count: 13, gap: 0.3, delay: 2 }, { type: "reject", count: 45, gap: 0.65, delay: 0 }, { type: "knight", count: 12, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "screw", count: 7, gap: 0.9, delay: 4 }, { type: "offcut", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 26, gap: 0.65, delay: 0 }, { type: "pellet", count: 65, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 12, gap: 0.9, delay: 4 }, { type: "offcut", count: 21, gap: 0.3, delay: 2 }, { type: "reject", count: 62, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 8, gap: 0.9, delay: 4 }, { type: "offcut", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 39, gap: 0.65, delay: 0 }, { type: "pellet", count: 98, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 23, gap: 0.9, delay: 4 }, { type: "offcut", count: 33, gap: 0.3, delay: 2 }, { type: "reject", count: 81, gap: 0.65, delay: 0 }, { type: "knight", count: 20, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "battery", count: 23, gap: 0.9, delay: 4 }, { type: "offcut", count: 41, gap: 0.3, delay: 2 }, { type: "blob", count: 44, gap: 0.65, delay: 0 }, { type: "pellet", count: 109, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "mole", count: 31, gap: 0.9, delay: 4 }, { type: "offcut", count: 51, gap: 0.3, delay: 2 }, { type: "reject", count: 105, gap: 0.65, delay: 0 }, { type: "knight", count: 26, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 23, gap: 0.9, delay: 4 }, { type: "offcut", count: 64, gap: 0.3, delay: 2 }, { type: "blob", count: 67, gap: 0.65, delay: 0 }, { type: "pellet", count: 168, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 57, gap: 0.9, delay: 4 }, { type: "offcut", count: 79, gap: 0.3, delay: 2 }, { type: "reject", count: 135, gap: 0.65, delay: 0 }, { type: "knight", count: 34, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      id: 36, name: "The Stamping Press", world: "toyworks", badge: 3,
+      startGold: 1900, budgetBase: 1050,
+      path: [ [0, 13], [14, 13], [14, 7], [3, 7], [3, 2], [20, 2], [20, 10], [23, 10] ],
+      pads: [ { id: "p1", cx: 2, cy: 1 }, { id: "p2", cx: 23, cy: 12 }, { id: "p3", cx: 16, cy: 0 }, { id: "p4", cx: 10, cy: 11 }, { id: "p5", cx: 0, cy: 11 }, { id: "p6", cx: 15, cy: 6 }, { id: "p7", cx: 22, cy: 4 }, { id: "p8", cx: 9, cy: 0 }, { id: "p9", cx: 16, cy: 13 }, { id: "p10", cx: 6, cy: 5 }, { id: "p11", cx: 2, cy: 8 }, { id: "p12", cx: 19, cy: 11 }, { id: "p13", cx: 21, cy: 1 }, { id: "p14", cx: 11, cy: 4 } ],
+      waves: [
+        { groups: [ { type: "reject", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "pellet", count: 37, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "reject", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 19, gap: 0.65, delay: 0 }, { type: "pellet", count: 46, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "reject", count: 38, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "duck", count: 3, gap: 0.9, delay: 4 }, { type: "blob", count: 24, gap: 0.65, delay: 0 }, { type: "pellet", count: 60, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 4, gap: 0.9, delay: 4 }, { type: "offcut", count: 12, gap: 0.3, delay: 2 }, { type: "reject", count: 43, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 9, gap: 0.9, delay: 4 }, { type: "offcut", count: 15, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "pellet", count: 72, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "drum", count: 4, gap: 0.9, delay: 4 }, { type: "offcut", count: 20, gap: 0.3, delay: 2 }, { type: "reject", count: 50, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 6, gap: 0.9, delay: 4 }, { type: "offcut", count: 25, gap: 0.3, delay: 2 }, { type: "blob", count: 38, gap: 0.65, delay: 0 }, { type: "pellet", count: 96, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 13, gap: 0.9, delay: 4 }, { type: "offcut", count: 31, gap: 0.3, delay: 2 }, { type: "reject", count: 77, gap: 0.65, delay: 0 }, { type: "knight", count: 19, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 12, gap: 0.9, delay: 4 }, { type: "offcut", count: 39, gap: 0.3, delay: 2 }, { type: "blob", count: 49, gap: 0.65, delay: 0 }, { type: "pellet", count: 123, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "boombox", count: 22, gap: 0.9, delay: 4 }, { type: "offcut", count: 49, gap: 0.3, delay: 2 }, { type: "reject", count: 85, gap: 0.65, delay: 0 }, { type: "knight", count: 21, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 44, gap: 0.9, delay: 4 }, { type: "offcut", count: 61, gap: 0.3, delay: 2 }, { type: "blob", count: 64, gap: 0.65, delay: 0 }, { type: "pellet", count: 160, gap: 0.8, delay: 3 } ] },
+        // The campaign's last question, and deliberately one no other finale
+        // asks: air + rubber + a slick. Break the drums in the wrong place and
+        // the Press itself speeds up over the spill.
+        { boss: true, groups: [ { type: "stamper", count: 1, gap: 1, delay: 0 }, { type: "drum", count: 5, gap: 0.9, delay: 3 }, { type: "duck", count: 6, gap: 0.9, delay: 6 }, { type: "offcut", count: 14, gap: 0.3, delay: 2 }, { type: "reject", count: 16, gap: 0.65, delay: 5 } ] },
+      ],
+    },
   ];
 
   // ---- TD-5 META (§8.1): star tree. Spend earned ⭐ on permanent buffs; free
@@ -1664,6 +1810,7 @@
     { id: "notleaving",    icon: "🚚", name: "Not Leaving",    desc: "Beat The Moving Van" },
     { id: "gooddog",       icon: "🐕", name: "Good Dog",       desc: "Beat The Housedog" },
     { id: "scrapped",      icon: "🧲", name: "Scrapped",       desc: "Beat The Big Magnet" },
+    { id: "pressed",       icon: "🗜️", name: "Pressed",        desc: "Beat The Stamping Press" },
     // desc is DERIVED at read time (see td-ui) — a literal here went stale the
     // moment World 4 raised the ceiling from 36 to 48.
     { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn half the stars" },
@@ -1701,6 +1848,7 @@
       // World 8: its own crowd plus the two resist shapes, so an endless run
       // here has to answer both the padding and the cushioning.
       sortline: { label: "♻️ The Sort Line", pool: ["carton", "clip", "knight", "blob", "leaflet", "cushion", "bubblewrap", "slime"], miniBoss: "pinata" },
+      toyworks: { label: "🏭 The Toy Works", pool: ["reject", "pellet", "knight", "blob", "offcut", "cushion", "battery", "racer"], miniBoss: "pinata" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
     arenas: {
@@ -1727,6 +1875,11 @@
       // World 7's arena CLIMBS to the top row at the end (up to the new room),
       // where the other six descend or mirror. Pads searched at BAND=2.2 like
       // every arena: you start poor, so a tier-1 dart must touch the lane at once.
+      // The Toy Works arena — pads searched at BAND=2.2, like every other arena:
+      // an arena starts you poor, so a tier-1 dart's short reach has to touch the
+      // lane from wave 1 or the run dies at wave 2.
+      toyworks: { path: [ [0, 2], [20, 2], [20, 7], [3, 7], [3, 12], [23, 12] ], startGold: 540,
+        pads: [ { id: "p1", cx: 2, cy: 6 }, { id: "p2", cx: 23, cy: 10 }, { id: "p3", cx: 14, cy: 0 }, { id: "p4", cx: 12, cy: 10 }, { id: "p5", cx: 21, cy: 1 }, { id: "p6", cx: 2, cy: 13 }, { id: "p7", cx: 6, cy: 0 }, { id: "p8", cx: 0, cy: 0 }, { id: "p9", cx: 9, cy: 5 }, { id: "p10", cx: 17, cy: 5 }, { id: "p11", cx: 6, cy: 9 }, { id: "p12", cx: 17, cy: 10 }, { id: "p13", cx: 21, cy: 8 }, { id: "p14", cx: 13, cy: 4 } ] },
       sortline: { path: [ [0, 1], [20, 1], [20, 7], [4, 7], [4, 12], [23, 12] ], startGold: 540,
         pads: [ { id: "p1", cx: 3, cy: 6 }, { id: "p2", cx: 21, cy: 0 }, { id: "p3", cx: 14, cy: 10 }, { id: "p4", cx: 23, cy: 10 }, { id: "p5", cx: 3, cy: 13 }, { id: "p6", cx: 10, cy: 3 }, { id: "p7", cx: 8, cy: 9 }, { id: "p8", cx: 16, cy: 3 }, { id: "p9", cx: 22, cy: 5 }, { id: "p10", cx: 21, cy: 8 }, { id: "p11", cx: 0, cy: 3 }, { id: "p12", cx: 6, cy: 3 }, { id: "p13", cx: 13, cy: 5 }, { id: "p14", cx: 18, cy: 10 } ] },
       newhouse: { path: [ [0, 5], [19, 5], [19, 10], [2, 10], [2, 0], [23, 0] ], startGold: 520,

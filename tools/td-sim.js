@@ -234,6 +234,36 @@ if (process.argv.includes("--swap")) {
   process.exit(0);
 }
 
+// ---- --gold: sweep startGold, the opening-board knob ----
+//
+//   GOLDS=1000,1200,1500 node tools/td-sim.js 33 --gold
+//
+// startGold decides the OPENING board, and the difficulty audit measured that
+// 76% of all damage lands in waves 1-3 — so on a fresh level it is the knob with
+// the most authority. (On a TUNED level it is documented as near-inert upward:
+// raising it just trivializes.) Prints every seed, because a median hides the
+// floor and the floor is what `AUDIT heroic is a SLOPE` actually rides on.
+if (process.argv.includes("--gold")) {
+  const GOLDS = (process.env.GOLDS || "").split(",").filter(Boolean).map(Number);
+  for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
+    console.log(`\nL${lvl.id} ${lvl.name} (shipped startGold ${lvl.startGold})`);
+    for (const g of (GOLDS.length ? GOLDS : [lvl.startGold])) {
+      const alt = Object.assign({}, lvl, { startGold: g });
+      const cols = [];
+      for (const d of DIFFS) {
+        const r = SEEDS.map((s) => best(alt, s, d));
+        const w = r.filter((x) => x.phase === "won").map((x) => x.lives);
+        const lost = r.length - w.length;
+        cols.push(w.length
+          ? `${d} ${w.join(",")} med ${median(w)} min ${Math.min(...w)}${lost ? ` LOST x${lost}` : ""}`
+          : `${d} LOST on every seed`);
+      }
+      console.log(`   gold=${String(g).padStart(5)} | ${cols.join(" | ")}`);
+    }
+  }
+  process.exit(0);
+}
+
 for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
   const cols = [];
   for (const d of DIFFS) {

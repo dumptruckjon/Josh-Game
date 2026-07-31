@@ -6,13 +6,21 @@ of you.
 
 Written against `00fb5b2` (32 levels / 8 worlds, star tree 123⭐ / 35 nodes).
 
-> **Status: DESIGNED + GEOMETRY VERIFIED. Not built.**
-> Everything in §3 is output from `tools/td-map-search.js` and satisfies every
-> shipped geometry law. Nothing here is in `td-data.js` yet, and it must land as
-> **one commit** — a half-built world breaks the per-world guardrails (every
-> world needs exactly one lever, an endless arena behind 4 levels, a boss
-> finale, its own backbone) and would put unreachable content on the grid, which
-> is the documented World-4 defect.
+> **Status: ✅ BUILT AND SHIPPED.** See CLAUDE.md for what the five failing
+> guardrails caught on the first run and the four measurements that came out of
+> the tuning. Section 6's exits were exercised: L33-L35's normal is pinned at 20
+> and is recorded as unreachable rather than faked, and L35's lever is a
+> magnitude lever with no phase flip. It landed as ONE commit, for the reason
+> the plan gave: a half-built world breaks the per-world guardrails and would put
+> unreachable content on the grid — the documented World-4 defect.
+>
+> Two things in this document were superseded during the build and are left as
+> written so the record stays honest: §2.1's second skin was to be a 🪵 Sprue Bit
+> and shipped as a 🟠 **Resin Pellet** (plus a THIRD skin, 🥏 Flying Offcut, once
+> the World-8 finding — that reskinning the shared flier is the cheapest
+> differentiation left — was applied here too); and §2.3's road was to be a
+> moving belt, which was rejected during implementation because a belt reads as
+> the conveyor GIMMICK. It ships as static bolted `plates`.
 
 ---
 
