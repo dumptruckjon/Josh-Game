@@ -2931,6 +2931,33 @@ matters: the fix is a normal-difficulty fix, not a general one. Method note for
 the next finale: **judge a boss on SPREAD, not median** — a sweep judged on
 medians alone happily picks a perfectly flat setting, which is exactly the defect
 being fixed, so `--boss` prints `min..max` on every row.
+**The BACKBONE STAT-SHAPE lever was the last untried difficulty knob, and it is
+NOT a lever — measured, refuted, closed.** `PLAN_EXPANSION.md` carried it as the
+biggest thing left on the table: *"at 0.00% budget drift, two pure vanilla swaps
+took L21 heroic from median 13 to a LOSS and L17 from 10 to 5 while normal barely
+moved"*, tagged `[unverified]` and deferred as "a real and large lever — and a
+cliff". It was never run through the shipped oracle. Every world's ground
+backbone is the same four shapes wearing local names (slot 0 a 34hp/0.8 body,
+slot 1 the 90hp/0.6 armored Knight, slot 2 the 60hp/0.7 splitter Blob, slot 3 a
+16hp/1.7 swarm body), so substituting one slot for another and rescaling the
+count is a pure change of what a wave IS at a constant budget — which is why it
+looked like the one knob left after gold, budget base, lane length and side-door
+dose had all failed. Driven properly (`--swap`, now beside `--lever` and `--boss`)
+over **three directions × five levels at ~0% drift**: L21 heroic 12 → **12,
+identical**; L17 12 → 13. And the decisive half — **normal never moved once.**
+L23, L30 and L31, the three levels this file records as pinned at 20/20 and
+immovable, stayed at exactly 20,20,20,20 whether their even-wave primary became
+the swarm body or the armored Knight, while heroic wandered ±3 in **both**
+directions (L30 came out *easier* under both supposedly-harder swaps). That is
+threshold domination reproduced a **fifth** time, and it settles the shape of
+this engine: the backbone's stat profile is a FLAVOUR axis — it is what makes the
+Garage's crowd feel unlike Moving Day's — and it is not a difficulty axis. Do not
+reach for it to make a level harder. The generalizable rule is the one this
+session paid for twice: **a claim carrying `[unverified]` is a hypothesis, and in
+this repo the cheapest way to close one is to build the flag that measures it** —
+`--swap` costs nothing to keep (pure data manipulation over shipped levels, no
+engine support), so the next author who doubts this can re-run it in one command
+instead of re-deriving it.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

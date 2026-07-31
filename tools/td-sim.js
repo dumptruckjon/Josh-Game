@@ -177,6 +177,63 @@ if (process.argv.includes("--boss")) {
   process.exit(0);
 }
 
+// ---- --swap: the BACKBONE STAT-SHAPE lever, at ~0% budget drift ----
+//
+//   node tools/td-sim.js 23 --swap
+//   SWAP_FROM=2 SWAP_TO=3 SWAP_AT=0.5 node tools/td-sim.js 23,30,31 --swap
+//
+// Every world's ground backbone is the SAME four shapes wearing local names:
+// slot 0 a 34hp/0.8 body, slot 1 the 90hp/0.6 armored Knight, slot 2 the 60hp/0.7
+// splitter Blob, slot 3 a 16hp/1.7 swarm body. Substituting one slot for another
+// and rescaling the count to preserve HP changes what a wave IS — how many
+// bodies, how fast, whether armor matters — while leaving the ±25% budget curve
+// it was authored against essentially untouched. That is the one lever left for a
+// level that measures as a formality, because bigger HP piles are documented not
+// to work anywhere in this engine.
+//
+// PLAN_EXPANSION.md §8 records this as a real and LARGE lever *and a cliff*, and
+// marks its own numbers [unverified] — which is why it lives here rather than in
+// a scratch file. It prints the whole per-seed row, and the drift it actually
+// caused, so a swap can never be adopted on a median alone.
+if (process.argv.includes("--swap")) {
+  const FROM = Number(process.env.SWAP_FROM || 0), TO = Number(process.env.SWAP_TO || 3);
+  const AT = Number(process.env.SWAP_AT || 0.5);          // swap waves from this fraction on
+  for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
+    const bb = (DATA.WORLDS[lvl.world] || {}).backbone;
+    if (!bb) { console.log(`L${lvl.id}: no world backbone`); continue; }
+    const from = bb.ground[FROM], to = bb.ground[TO];
+    const first = Math.ceil(lvl.waves.length * AT);
+    // HP-PRESERVING substitution, rebuilt as a fresh level object so DATA is untouched
+    let moved = 0, drift = 0, total = 0;
+    const waves = lvl.waves.map((w, i) => {
+      total += w.groups.reduce((s, g) => s + DATA.ENEMIES[g.type].hp * g.count, 0);
+      if (i < first || w.boss) return w;
+      return Object.assign({}, w, { groups: w.groups.map((g) => {
+        if (g.type !== from) return g;
+        const hp = DATA.ENEMIES[from].hp * g.count;
+        const n = Math.max(1, Math.round(hp / DATA.ENEMIES[to].hp));
+        moved++; drift += DATA.ENEMIES[to].hp * n - hp;
+        return Object.assign({}, g, { type: to, count: n });
+      }) });
+    });
+    const swapped = Object.assign({}, lvl, { waves });
+    console.log(`\nL${lvl.id} ${lvl.name} — ${from} → ${to} from wave ${first + 1} on ` +
+      `(${moved} groups, budget drift ${(100 * drift / total).toFixed(2)}%)`);
+    if (!moved) { console.log("   (nothing to swap — that slot does not appear in those waves)"); continue; }
+    for (const [label, target] of [["BEFORE", lvl], ["AFTER ", swapped]]) {
+      const cols = [];
+      for (const d of DIFFS) {
+        const r = SEEDS.map((s) => best(target, s, d));
+        const w = r.filter((x) => x.phase === "won").map((x) => x.lives);
+        const lost = r.length - w.length;
+        cols.push(w.length ? `${d} ${w.join(",")} med ${median(w)}${lost ? ` LOST x${lost}` : ""}` : `${d} LOST on every seed`);
+      }
+      console.log(`   ${label} | ${cols.join(" | ")}`);
+    }
+  }
+  process.exit(0);
+}
+
 for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
   const cols = [];
   for (const d of DIFFS) {
