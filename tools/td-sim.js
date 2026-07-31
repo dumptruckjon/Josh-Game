@@ -72,8 +72,157 @@ const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length 
 
 const SEEDS = (process.env.SEEDS || "7,23,99,404").split(",").map(Number);
 const DIFFS = (process.env.DIFFS || "normal,heroic").split(",");
-const only = process.argv[2] ? process.argv[2].split(",").map(Number) : null;
+// argv[2] is the level list ONLY when it actually looks like one — otherwise
+// `node tools/td-sim.js --priority` parses the FLAG as levels, yields [NaN] and
+// silently selects nothing. (It did; that is why this guard exists.)
+const only = /^[0-9]+(,[0-9]+)*$/.test(process.argv[2] || "") ? process.argv[2].split(",").map(Number) : null;
 const ALL_META = DATA.META_NODES.map((n) => n.id);
+
+// ---- --priority: a DECISION-AWARE oracle, and why one has to exist ----
+//
+//   node tools/td-sim.js 17,34,36 --priority
+//   node tools/td-sim.js 17 --priority --focus drum
+//
+// 🛢️ Oil Drum shipped OUTCOME-NEUTRAL on the shipped oracle, and the recorded
+// reason is not that the mechanic is weak — it is that the auto-solver has no
+// positional agency. It builds, it fires, and it can never CHOOSE to break a
+// drum early. A sock crossing the slick really does cover 1.45x the ground and
+// no gate we own can see it. Every future "changes a decision, not a number"
+// enemy has the same problem, so the instrument has to come before the content.
+//
+// The player this models spends 📌 Call the Shot on the body that matters. 📌 is
+// the right lever because `markId` already overrides every targeting mode
+// through the ONE `pickByMode` plus the dart's sticky-KEEP, so "a player who
+// prioritises" needs no new engine support. It pays 📌's real price — 70 gold,
+// 2 ⚙️, a 24s cooldown, wave-only — so it cannot out-earn the blind oracle for
+// free.
+//
+// THE CONTROL ARM IS THE WHOLE POINT. Marking at all converts idle mid-wave gold
+// into focused DPS, which is a RESOURCE effect, not a decision. So there are
+// three arms and the answer is the difference between the last two:
+//
+//   blind   — never marks (the shipped oracle, unchanged)
+//   spend   — marks the FIRST living body it can reach: same gold, same
+//             cooldown, no discrimination
+//   focus   — marks the body the mechanic is about
+//
+//   decision worth  =  focus - spend        (NOT focus - blind)
+//
+// Without the control, any mechanic would "measure positive" purely because the
+// arm that uses a power beats the arm that does not.
+const MARK = "mark";
+function playSmart(level, seed, plan, difficulty, mode, focusTypes) {
+  const e = TD.createEngine(level, { seed, difficulty });
+  const padIds = level.pads.map((p) => p.id);
+  let idx = 0, guard = 0, marks = 0;
+  const want = new Set(focusTypes || []);
+  const tryMark = () => {
+    if (mode === "blind") return;
+    if (e.state.phase !== "wave") return;                 // 📌 is wave-only
+    if (!e.abilityReady(MARK).ok) return;
+    // A COMPETENT player marks something a gun can actually shoot. Marking the
+    // first matching body in state order happily picks one no tower can reach —
+    // the mark then expires before it arrives and the arm measures nothing.
+    // (Verified separately: `markId` only overrides among in-range candidates,
+    // which is correct engine behaviour, so an out-of-range mark is a no-op.)
+    const reach = (en) => {
+      const p = e.posOn(en.pathIdx || 0, en.dist);
+      return e.state.towers.some((t) => {
+        if (t.lineId === "camp") return false;
+        const def = DATA.TOWERS[t.lineId];
+        const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
+        return s && Math.hypot(p.x - t.cx, p.y - t.cy) <= (s.range || 0);
+      });
+    };
+    let pick = null;
+    for (const en of e.state.enemies) {
+      if (!en.alive || e.isHidden(en)) continue;
+      if (mode === "focus" && !want.has(en.type)) continue;
+      if (!reach(en)) continue;
+      pick = en; break;
+    }
+    if (!pick) return;
+    const p = e.posOn(pick.pathIdx || 0, pick.dist);
+    const gold0 = e.state.gold, charge0 = e.state.charge;
+    if (e.useAbility(MARK, { x: p.x, y: p.y }).ok) {
+      marks += 1;
+      // FREE=1 refunds the price so the DECISION can be measured apart from what
+      // it COSTS. This is not a playable run and is not a balance claim — it is
+      // the only way to separate "prioritising does not matter" from "this
+      // oracle can never afford to prioritise". It matters because the priced
+      // arm scored NEGATIVE even on the Junk Healer, the textbook focus target:
+      // the solver builds greedily to exhaustion every build phase, so its
+      // marginal 70 gold is always worth more as a tower than as a mark.
+      if (process.env.FREE) { e.state.gold = gold0; e.state.charge = charge0; }
+    }
+  };
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 900000) {
+    if (e.state.phase === "build") {
+      let spent = true;
+      while (spent) {
+        spent = false;
+        for (const pid of padIds) {
+          if (!e.state.towers.find((t) => t.padId === pid)) {
+            const line = plan[idx % plan.length];
+            if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+            break;
+          }
+        }
+        if (spent) continue;
+        const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+        for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+      }
+      e.callWave();
+    }
+    e.tick();
+    tryMark();
+  }
+  return { phase: e.state.phase, lives: e.state.lives, marks };
+}
+const bestSmart = (level, seed, difficulty, mode, focusTypes) => {
+  const a = playSmart(level, seed, DART, difficulty, mode, focusTypes);
+  const b = playSmart(level, seed, MIXED, difficulty, mode, focusTypes);
+  if (a.phase === "won" && b.phase === "won") return a.lives >= b.lives ? a : b;
+  return a.phase === "won" ? a : b.phase === "won" ? b : a;
+};
+
+if (process.argv.includes("--priority")) {
+  const fi = process.argv.indexOf("--focus");
+  const focus = fi >= 0 && process.argv[fi + 1] ? process.argv[fi + 1].split(",") : ["drum"];
+  const levels = only ? DATA.LEVELS.filter((l) => only.includes(l.id))
+    : DATA.LEVELS.filter((l) => l.waves.some((w) => w.groups.some((g) => focus.includes(g.type))));
+  console.log(`DECISION-AWARE oracle — focusing [${focus.join(",")}] · seeds ${SEEDS.join(",")}`);
+  console.log("decision worth = focus - spend (the spend arm marks indiscriminately, so it nets out the resource effect)\n");
+  for (const diff of DIFFS) {
+    console.log(`--- ${diff} ---`);
+    let sumGap = 0, n = 0;
+    for (const l of levels) {
+      const row = {};
+      for (const mode of ["blind", "spend", "focus"]) {
+        const rs = SEEDS.map((s) => bestSmart(l, s, diff, mode, focus));
+        row[mode] = rs.map((r) => (r.phase === "won" ? r.lives : -1));
+        row[mode + "M"] = rs.reduce((a, r) => a + r.marks, 0);
+      }
+      const avg = (v) => v.reduce((a, b) => a + b, 0) / v.length;
+      // BOTH gaps, and the verdict is the FIRST one. Reporting only focus-spend
+      // is how this tool lied on its first run: the spend arm is not neutral, it
+      // is actively HARMFUL on heroic (56 indiscriminate marks divert ~4000 gold
+      // from building), so `focus - spend` read +2.00 while `focus - blind` was
+      // exactly 0.00 — the focus arm had merely returned to baseline. A control
+      // that costs something only nets out the resource effect if you also check
+      // the arm that spends nothing.
+      const vsBlind = avg(row.focus) - avg(row.blind);
+      const vsSpend = avg(row.focus) - avg(row.spend);
+      sumGap += vsBlind; n += 1;
+      console.log(`L${String(l.id).padStart(2)} ${l.name.slice(0, 16).padEnd(17)} ` +
+        `blind ${avg(row.blind).toFixed(1)}  spend ${avg(row.spend).toFixed(1)} (${row.spendM} marks)  ` +
+        `focus ${avg(row.focus).toFixed(1)} (${row.focusM} marks)   ` +
+        `vs-blind ${vsBlind >= 0 ? "+" : ""}${vsBlind.toFixed(2)}   vs-spend ${vsSpend >= 0 ? "+" : ""}${vsSpend.toFixed(2)}`);
+    }
+    if (n) console.log(`    DECISION WORTH (focus - blind): ${(sumGap / n >= 0 ? "+" : "")}${(sumGap / n).toFixed(2)} lives\n`);
+  }
+  process.exit(0);
+}
 
 // ---- --lever: what is a fork's lever actually WORTH? ----
 //

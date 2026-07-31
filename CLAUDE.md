@@ -978,7 +978,7 @@ tooling.
 ├── tools/                      # NODE-ONLY dev tools (not loaded by the site) — the
 │   │                           #   balance work in CLAUDE.md was produced by these,
 │   │                           #   so they live in the repo instead of a scratchpad
-│   ├── td-sim.js               # 🏰 measure any level with the SHIPPED oracle (normal/heroic/casual × seeds, + losable-by-neglect incl. the full star tree). `node tools/td-sim.js 13,17`. NEVER tune against a stronger solver — that is what got World 4 reverted. `--lever` measures what a fork's lever is WORTH (a thin build that LOSES on the short route and WINS with it thrown) — the right way to choose between fork candidates, since longest != best.
+│   ├── td-sim.js               # 🏰 measure any level with the SHIPPED oracle (normal/heroic/casual × seeds, + losable-by-neglect incl. the full star tree). `node tools/td-sim.js 13,17`. NEVER tune against a stronger solver — that is what got World 4 reverted. `--lever` measures what a fork's lever is WORTH (a thin build that LOSES on the short route and WINS with it thrown) — the right way to choose between fork candidates, since longest != best. `--priority` is the DECISION-aware arm (blind/spend/focus; `FREE=1` isolates a decision from its price) — judge on focus-blind, NEVER focus-spend: a control arm that costs something is not a control.
 │   ├── td-wave-gen.js          # 🏰 emit + validate wave tables against BOTH contracts (±25% budget curve; ≥70% backbone / ≤1 special ≤25% / valve ≤12% / plain openers). `--check` audits every shipped level against the contracts it was AUTHORED under. The data file is written LAST.
 │   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
 │   └── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
@@ -996,6 +996,7 @@ tooling.
 ├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
 ├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; **P6b** shipped 🦆 `zapResist`, **P6c** shipped ⛱️ `zones[].dmg`, and **P6d closes the I5 new-enemy item**: of its three bodies, 🪂 Parachute Trooper was cut by the critique (the Tin Plane renamed), 🥫 Pantry Can was cut by MEASUREMENT (a shield is anti-Fan only — see the learnings block), and 🛢️ **Oil Drum shipped** on a positional axis instead of a resist. The spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`); note that its critique was itself wrong about the shield arithmetic, so treat both as claims to measure. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
+├── PLAN_ENEMY_ESCORT.md        # 🌫️ BUILT then CUT: the decision-axis probe. Phase 1 shipped the decision-aware oracle (`tools/td-sim.js --priority`) and it killed the enemy before it was built — targeting priority measures ZERO even free, even on the Junk Healer, so 🌫️ Dust Bunny is not built. §6 is the report; §§2-4 are the refuted design, not a backlog.
 ├── PLAN_WORLD_9.md             # 🏭 DESIGNED, NOT BUILT: World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
@@ -3170,6 +3171,39 @@ the last three waves, L20 29 of 48, L28 20 of 34, L32 13 of 26, L36 16 of 28.
 Eight levels are front-loaded (≥50% of their damage in waves 1-3), worst L11 at
 ~5.0 lives per seed — right at, but not through, the shipped >5 gotcha bar, so
 nothing is breached. No new defect; the value is the map.
+**THE DECISION AXIS IS CLOSED: targeting priority is worth ZERO in this engine,
+and that is threshold domination reproduced a SEVENTH time — now in the ORDERING
+domain.** `PLAN_ENEMY_ESCORT.md` proposed 🌫️ Dust Bunny, an escort that makes
+nearby bodies untargetable while it lives, on the "change a DECISION, not a
+number" axis 🛢️ Oil Drum opened. Its whole value proposition is *kill this one
+first*. Phase 1 built the instrument that could measure that — a decision-aware
+oracle (`tools/td-sim.js --priority`) that spends 📌 Call the Shot on the body
+that matters, using the shipped build loop otherwise — and the answer killed the
+enemy before it was built: **focusing the 🔧 Junk Healer, the textbook focus
+target in the whole roster, is worth +0.00 lives on normal AND heroic**, with
+📌's price refunded and marks restricted to bodies a gun can actually reach.
+🛢️ measures +0.00 / −0.08 the same way. The cause is not the one the plan
+assumed (a solver with no positional agency) — a solver that CAN choose,
+perfectly and for free, still gains nothing, because a board that holds a wave
+holds it regardless of firing order and a board that collapses collapses
+regardless. So the Bunny is CUT, and **a future "decision" enemy must change what
+the board IS, not what it shoots first** — every lever measured to move this
+engine is of that kind (a fork re-routes the lane, a gimmick changes the ground,
+a threat shape changes what must be countered). Three method lessons, each of
+which produced a WRONG answer first: (1) **a control arm that costs something is
+not a control** — the first metric was `focus − spend` and read **+2.00 on
+heroic**, which looked like the decision paying off; `focus − blind` was 0.00 and
+the spend arm was simply harmful (56 marks × 70 gold diverted from building), so
+the tool now prints both gaps and judges on `focus − blind`; (2) **calibrate on a
+case that MUST succeed** — the null was only trustworthy once the Junk Healer arm
+also returned 0.00, because without it "the mechanic is worthless" and "the
+instrument measures nothing" are indistinguishable; (3) **verify the mechanism,
+then the fixture** — a direct probe showed the mark "did not redirect fire" and
+the instrument looked broken, but the body was out of every tower's range and
+`markId` correctly only overrides among in-range candidates (re-run in range:
+fire redirected, target 6 → 7). Also fixed while there: `tools/td-sim.js` parsed
+`argv[2]` as a level list unconditionally, so `--priority` with no level argument
+became `[NaN]` and silently selected nothing.
 **Also hardened: `(s.rangeMin || 0) * mods.mortarMinMul`.** 🎯 Close Quarters
 multiplies a tower's minimum range, and a stat block lacking the field makes
 `undefined * 0.6` NaN — `d2 >= NaN` is false for every enemy, so the mortar would
