@@ -958,7 +958,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/47-enemy roster (32 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/47-enemy roster (32 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 35 nodes/123⭐ (vs a 96⭐ ceiling; 15⭐ of headroom above the 108⭐ a ninth world would create) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -2958,6 +2958,37 @@ this repo the cheapest way to close one is to build the flag that measures it** 
 `--swap` costs nothing to keep (pure data manipulation over shipped levels, no
 engine support), so the next author who doubts this can re-run it in one command
 instead of re-deriving it.
+
+**The star tree grew to 123⭐ / 35 nodes, which UNBLOCKS a ninth world — and it
+grew entirely by BREADTH, as this file's own rule demands.** The ceiling derives
+as `LEVELS.length * 3`, so 36 levels means 108⭐ and the "the tree must cost more
+than you can earn" guardrail goes red at 105. Five new KINDS (never ranks — a
+rank is raw power, and three individual Firepower ranks are already recorded as
+each erasing a boss finale on their own; a kind is a choice, and under a 6-slot
+pack only choices make the tree interesting): ⏱️ **Fast Hands** (powers return
+20% sooner — the ONE `abilityCd` stamp), 🎯 **Close Quarters** (the Mortar's dead
+zone shrinks 40% — the only `candidates()` call in the engine that passes a
+non-zero minimum, so exactly one read site, and it finally answers the
+structural weakness that makes mortar-mono lose at any damage), 🔧 **Handyman**
+(tier 1-3 upgrades −10%, deliberately NOT branches, which Bulk Deal already
+owns — two nodes discounting the same purchase would stack into a cheaper board
+than either was priced for), 🔌 **Warmed Up** (the ⚙️ bank starts full, so wave 1
+can afford a power), 🛬 **Soft Landing** (a leak costs 2 fewer stickers, floored
+at 1). Margin at 36 levels: **15⭐**. Two lessons came out of it, and the second
+is the sharper one. (1) **The "empty tree is exactly vanilla" `deepEqual` is a
+whole-SHAPE assertion, and that is what makes it valuable** — it went red the
+moment five keys landed in `metaMods` without declaring what "off" means, which
+is precisely the dead-default class this repo keeps finding. Adding a mod without
+its identity value cannot ship. (2) **A guard that cannot change an outcome is
+dead code whose test cannot fail, and mutation testing is how you find out.**
+Soft Landing was first written `rawToll > 1 ? Math.max(1, rawToll - 2) : rawToll`
+with an assertion that a 1-life sock is untouched — and the mutation that deletes
+the `> 1` guard PASSED, because `Math.max(1, 1 - 2)` is already 1. The guard was
+provably redundant and the assertion provably vacuous. Both are gone: the clamp
+alone is the whole mechanic, and the test now asserts the VALUE (`a 1-life leak
+costs exactly 1`), which fails the moment the floor is removed. Four of the five
+nodes were caught by their first mutation; the fifth taught more than the other
+four together.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

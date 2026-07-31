@@ -133,6 +133,21 @@
       jamMul: s.has("fieldrepair") ? 0.5 : 1,     // a jammed gun returns sooner
       chainPlus: s.has("ricochet") ? 1 : 0,       // the Fan's chain jumps once more
       marchMul: s.has("quickmarch") ? 1.6 : 1,    // soldiers reach their post sooner
+      // ---- breadth (W9 unblock): five MORE new kinds, same discipline — each
+      // consumed at exactly ONE engine site, none of them raw damage. The tree
+      // had to outgrow the star CEILING (`LEVELS.length * 3`) before a ninth
+      // world could ship, and CLAUDE.md is explicit that it grows by BREADTH,
+      // never by adding ranks, because a rank is power and a kind is a choice.
+      abilityCdMul: s.has("quickhands") ? 0.8 : 1, // powers come back sooner
+      mortarMinMul: s.has("closequarters") ? 0.6 : 1, // the tube's dead zone shrinks
+      upgradeCost: s.has("handyman") ? 0.9 : 1,   // tiers 1-3 are cheaper (NOT branches — that is Bulk Deal)
+      warmedUp: s.has("warmedup"),                // start a level with the energy bank full
+      // 🛬 Soft Landing cuts the toll of a MULTI-life leak only. A boss leak is
+      // worth 6-10 stickers and is what QUANTIZES a finale (measured: L8 ended
+      // on exactly 10 lives on all 8 seeds), so this is the one node aimed at
+      // that shape — and it deliberately cannot touch a 1-life sock, or it
+      // would just be Extra Hearts by another name.
+      softLanding: s.has("softlanding") ? 2 : 0,
       // NOTE: 🧭 Scout Report is deliberately absent here. It is the tree's one
       // pure-INFORMATION node and the wave preview reads it from the run's own
       // `state.meta`, so a metaMods key for it would be dead code — and a dead
@@ -234,7 +249,9 @@
       leverCd: 0,    // tick the lever re-arms (starts when the diversion ENDS, not when it is thrown)
       leverUntil: 0, // TD-17: tick the timed diversion expires and the track snaps back to short
       abilityCd: {}, // TD-9: ability id → tick it becomes usable again
-      charge: 0,     // ⚙️ Toy Energy: +chargePerWave on each wave SENT, capped at chargeMax
+      // ⚙️ Toy Energy: +chargePerWave on each wave SENT, capped at chargeMax.
+      // 🔌 Warmed Up starts the bank full, so wave 1 can afford a power.
+      charge: mods.warmedUp ? DATA.RULES.chargeMax : 0,
       meta: runMeta, // P4: the EQUIPPED loadout this run brought (pure input, recorded so it is testable)
       // P6: the POWERS this run brought. Recorded ON the run for the same reason
       // `meta` is — a guardrail that only inspects the checkpoint misses the live
@@ -730,7 +747,14 @@
         emit({ type: "leak", enemy: e.type, shielded: true });
         return;
       }
-      const toll = enemyDef(e).lives;
+      // 🛬 Soft Landing softens a leak, but the FLOOR is what makes it a
+      // boss-shaped node rather than Extra Hearts by another name: a 1-life sock
+      // still costs exactly 1, while a 6-10 sticker boss — the thing that
+      // QUANTIZES a finale — costs 2 less. The clamp alone does that, so there
+      // is deliberately no `lives > 1` guard: `max(1, 1 - 2)` is already 1, and
+      // a guard that cannot change an outcome is dead code whose test cannot
+      // fail (this one was written, and a mutation walked straight through it).
+      const toll = Math.max(1, enemyDef(e).lives - mods.softLanding);
       state.lives -= toll;
       // The COST rides the event: a boss eating 8 stickers at once has to read
       // as a catastrophe on the field, not as the same red flash a sock makes.
@@ -1101,7 +1125,10 @@
             emit({ type: "shoot", x: t.cx, y: t.cy, tower: t.lineId });
           }
         } else if (def.kind === "mortar") {
-          const cands = candidates(t, s.rangeMin, reachOf(t, s.range * rangeMul), false);
+          // 🎯 Close Quarters shrinks the tube's dead zone. This is the only
+          // candidates() call in the engine that passes a non-zero minimum, so
+          // the node has exactly one read site.
+          const cands = candidates(t, s.rangeMin * mods.mortarMinMul, reachOf(t, s.range * rangeMul), false);
           const targetId = pickByMode(cands, t.targeting, t);
           // Record it on the SAME field the dart and the fan use. The mortar
           // kept its choice in a local, so "what is this tower engaging" was
@@ -1357,7 +1384,10 @@
       if (!t) return { ok: false, reason: "bad-id" };
       const def = DATA.TOWERS[t.lineId];
       if (t.tier >= 3) return { ok: false, reason: t.tier === 3 ? "branch-required" : "max" };
-      const cost = def.tiers[t.tier].cost;
+      // 🔧 Handyman: tiers 1-3 only. Bulk Deal already owns tier-4 branch
+      // prices, and two nodes discounting the same purchase would stack into
+      // a cheaper board than either was priced for.
+      const cost = Math.round(def.tiers[t.tier].cost * mods.upgradeCost);
       if (state.gold < cost) return { ok: false, reason: "gold" };
       state.gold -= cost; t.tier += 1; t.spent += cost;
       if (t.lineId === "camp") { // squad refits: heal to the new tier's hp
@@ -1681,7 +1711,8 @@
       }
       state.gold -= def.gold;
       state.charge -= chk.need;
-      state.abilityCd[id] = state.tick + Math.round(def.cooldown * DATA.TICK_RATE);
+      // ⏱️ Fast Hands: the ONE place a power's cooldown is set.
+      state.abilityCd[id] = state.tick + Math.round(def.cooldown * DATA.TICK_RATE * mods.abilityCdMul);
       emit({ type: "ability", id, x: o.x, y: o.y, radius: abilityRadius(def), hits, charge: state.charge });
       return { ok: true, hits, charge: state.charge };
     }

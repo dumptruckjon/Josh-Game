@@ -982,6 +982,11 @@ test("TD5 star tree: metaMods is a pure function of owned node ids (neutral tree
     bossDmg: 1, allowance: 0, stickerShield: false,
     // P4.3 breadth: seven new KINDS, all default-noop
     charge: 0, slowSeconds: 1, abilityRadius: 1, jamMul: 1, chainPlus: 0, marchMul: 1,
+    // W9 breadth: five more, likewise default-noop. This deepEqual is the reason
+    // a new mod cannot ship without declaring its identity value — it is a
+    // whole-shape assertion, so adding a key to metaMods and forgetting what
+    // "off" means turns it red immediately.
+    abilityCdMul: 1, mortarMinMul: 1, upgradeCost: 1, warmedUp: false, softLanding: 0,
   }, "empty tree is exactly vanilla");
   const all = DATA.META_NODES.map((n) => n.id);
   const mAll = TD.metaMods(all);
@@ -3341,6 +3346,100 @@ test("P6 loadout: an un-equipped power is REFUSED, and the run records what it b
   assert.equal(e.abilityReady("horn").reason, "not-equipped", "…with a full purse too");
   // …while a packed one is judged on its merits.
   assert.notEqual(e.abilityReady(pack[0]).reason, "not-equipped", "a packed power is not gated by the loadout");
+});
+
+test("W9 tree growth: the five new KINDS each fire at their one site, and the ceiling still holds", () => {
+  // The star ceiling derives as `LEVELS.length * 3`, so a ninth world (36 levels
+  // → 108⭐) needs a tree that still costs MORE than you can earn. It has to grow
+  // by BREADTH: a rank is raw power, a kind is a choice, and three individual
+  // Firepower ranks are already recorded as each erasing a boss finale on their
+  // own. So every node below is measured through the ENGINE, not just asserted
+  // to exist in metaMods — a node whose mod nothing reads is exactly the "dead
+  // feature" class this repo keeps finding.
+  const total = DATA.META_NODES.reduce((s, n) => s + n.cost, 0);
+  assert.ok(total > 36 * 3,
+    `the tree costs ${total}⭐ against a 36-level ceiling of 108 — grow it by BREADTH before adding a ninth world`);
+  for (const id of ["quickhands", "closequarters", "handyman", "warmedup", "softlanding"]) {
+    assert.ok(DATA.META_NODES.some((n) => n.id === id), `${id} is a real node`);
+  }
+
+  const micro = (over) => Object.assign({
+    id: 9900, name: "w9", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 3 }],
+    waves: [{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }],
+  }, over || {});
+
+  // ⏱️ Fast Hands — the cooldown stamped at the ONE useAbility site
+  const cd = (meta) => {
+    const e = TD.createEngine(micro(), { seed: 3, meta });
+    e.state.phase = "wave"; e.state.gold = 99999; e.state.charge = 99;
+    e.state.enemies.push(mkEnemy("sock", 5));
+    const p = e.posOn(0, 5);
+    assert.ok(e.useAbility("drop", { x: p.x, y: p.y }).ok, "the drop lands");
+    return e.state.abilityCd.drop - e.state.tick;
+  };
+  const cdOff = cd([]), cdOn = cd(["quickhands"]);
+  assert.ok(Math.abs(cdOn / cdOff - 0.8) < 0.02,
+    `Fast Hands must cut a power's cooldown to 80% — measured ${(cdOn / cdOff).toFixed(3)} (${cdOff} → ${cdOn})`);
+
+  // 🎯 Close Quarters — a body INSIDE the mortar's dead zone becomes shootable
+  const deadZoneHit = (meta) => {
+    const lvl = micro({ pads: [{ id: "m", cx: 6, cy: 3 }] });
+    const e = TD.createEngine(lvl, { seed: 3, meta });
+    e.state.gold = 99999;
+    assert.ok(e.place("mortar", "m").ok);
+    e.state.phase = "wave";
+    const t = e.state.towers[0];
+    const rmin = DATA.TOWERS.mortar.tiers[0].rangeMin;
+    // park it at 0.75 x the minimum — inside the dead zone, outside the shrunk one
+    const foe = mkEnemy("sock", 6 + rmin * 0.75); foe.id = 9901; foe.hp = 1e6; foe.maxHp = 1e6;
+    e.state.enemies.push(foe);
+    for (let i = 0; i < 300; i++) { foe.dist = 6 + rmin * 0.75; e.tick(); }
+    return foe.maxHp - foe.hp;
+  };
+  assert.equal(deadZoneHit([]), 0, "a body under the tube is normally UNTOUCHABLE — the dead zone is real");
+  assert.ok(deadZoneHit(["closequarters"]) > 0,
+    "Close Quarters must let the Mortar reach into its own dead zone");
+
+  // 🔧 Handyman — tier 1-3 only, and NOT tier-4 branches (that is Bulk Deal)
+  const upCost = (meta) => {
+    const e = TD.createEngine(micro(), { seed: 3, meta });
+    e.state.gold = 99999;
+    assert.ok(e.place("dart", "m").ok);
+    const before = e.state.gold;
+    assert.ok(e.upgrade(e.state.towers[0].id).ok);
+    return before - e.state.gold;
+  };
+  const upOff = upCost([]), upOn = upCost(["handyman"]);
+  assert.ok(Math.abs(upOn / upOff - 0.9) < 0.02,
+    `Handyman must make a tier 1-3 upgrade 10% cheaper — measured ${upOff} → ${upOn}`);
+
+  // 🔌 Warmed Up — the energy bank starts full instead of empty
+  assert.equal(TD.createEngine(micro(), { seed: 3 }).state.charge, 0, "normally you start with no energy");
+  assert.equal(TD.createEngine(micro(), { seed: 3, meta: ["warmedup"] }).state.charge, DATA.RULES.chargeMax,
+    "Warmed Up starts the bank full");
+
+  // 🛬 Soft Landing — a MULTI-life leak costs less; a 1-life body is untouched
+  const leakCost = (type, meta) => {
+    const e = TD.createEngine(micro(), { seed: 3, meta });
+    e.state.phase = "wave";
+    const lane = TD.buildPath(micro().path);
+    const foe = mkEnemy(type, lane.total - 0.2); foe.id = 9902;
+    e.state.enemies.push(foe);
+    const before = e.state.lives;
+    for (let i = 0; i < 60 && e.state.enemies.length; i++) e.tick();
+    return before - e.state.lives;
+  };
+  const boss = Object.entries(DATA.ENEMIES).find(([, d]) => d.boss && d.lives > 1);
+  assert.ok(boss, "there is a multi-life boss to leak");
+  const bigOff = leakCost(boss[0], []), bigOn = leakCost(boss[0], ["softlanding"]);
+  assert.equal(bigOn, bigOff - 2, `Soft Landing must take 2 off a ${bigOff}-sticker leak — got ${bigOn}`);
+  // …and the FLOOR is what keeps it boss-shaped rather than Extra Hearts by
+  // another name. Assert the VALUE, not an equality with the un-owned case:
+  // `max(1, 1 - 2)` is 1 either way, so a comparison here cannot fail — which is
+  // exactly how the first version of this let a mutation through.
+  assert.equal(leakCost("sock", ["softlanding"]), 1,
+    "a 1-life leak still costs exactly 1 — Soft Landing must never drop a toll below one sticker");
 });
 
 test("P6 coverage: every shipped power must actually FIRE — none may be inert in the whole suite", () => {

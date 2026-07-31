@@ -1631,6 +1631,17 @@
     { id: "scoutreport",  branch: "econ", icon: "🧭", name: "Scout Report",  desc: "See two waves ahead, not one",       cost: 3 },
     { id: "fieldrepair",  branch: "fort", icon: "🧰", name: "Field Repair",  desc: "Jammed guns come back twice as fast", cost: 4 },
     { id: "quickmarch",   branch: "fort", icon: "🥾", name: "Quick March",   desc: "Soldiers reach their post sooner",   cost: 3 },
+    // ---- W9 unblock: five MORE new KINDS. The star ceiling derives as
+    // `LEVELS.length * 3`, so a ninth world (36 levels → 108⭐) needs a tree that
+    // still costs more than you can earn. It grows by BREADTH, never by adding
+    // ranks: a rank is raw power, a kind is a choice, and under a 6-slot pack
+    // only choices make the tree interesting. Each is consumed at exactly ONE
+    // engine site and none of them is raw damage.
+    { id: "quickhands",   branch: "fire", icon: "⏱️", name: "Fast Hands",    desc: "Powers come back 20% sooner",        cost: 4 },
+    { id: "closequarters", branch: "fire", icon: "🎯", name: "Close Quarters", desc: "The Mortar's dead zone shrinks 40%", cost: 3 },
+    { id: "handyman",     branch: "econ", icon: "🔧", name: "Handyman",      desc: "Tier 1-3 upgrades cost 10% less",    cost: 4 },
+    { id: "warmedup",     branch: "econ", icon: "🔌", name: "Warmed Up",     desc: "Start each level with a full battery", cost: 3 },
+    { id: "softlanding",  branch: "fort", icon: "🛬", name: "Soft Landing",  desc: "Big leaks cost 2 fewer stickers",    cost: 4 },
   ];
 
   // ---- TD-5 ACHIEVEMENTS (§8.2): unlocked from real play, toast on earn,
