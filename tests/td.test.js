@@ -2636,6 +2636,50 @@ test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
 
+test("ART: firing PAINTS something — a gun that only makes a sound is half a gun", async () => {
+  // The engine has always emitted `shoot` and td-main has always played a tick
+  // for it, but nothing was ever DRAWN: on a full board every gun fired
+  // continuously and the muzzle showed nothing, so a projectile appeared out of
+  // the air. This asserts the ink, not the event — the shipped lesson is that a
+  // feature whose test only calls the API is untested as a feature.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 5 }));
+  await page.waitForTimeout(160);
+  const out = await page.evaluate(() => {
+    const eng = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    st.gold = 999999;
+    const pad = eng.levelDef.pads[0];
+    eng.place("dart", pad.id);
+    eng.callWave();
+    for (let i = 0; i < 400; i++) eng.tick();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c2 = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const s = window.__TD.w2s(pad.cx + 0.5, pad.cy + 0.5);
+    const R = Math.round(22 * dpr);
+    const cx = Math.round(s.x * dpr), cy = Math.round(s.y * dpr);
+    const grab = () => Array.from(c2.getImageData(cx - R, cy - R, R * 2, R * 2).data);
+    // the SAME state drawn twice: once with a fresh muzzle flash queued, once
+    // without. Anything else on the board is identical, so a difference is the
+    // flash and nothing else.
+    r.afterTick(); r.draw(0);
+    const without = grab();
+    r.pushFx({ type: "shoot", x: pad.cx, y: pad.cy, tower: "dart" });
+    r.draw(0);
+    const withFlash = grab();
+    let diff = 0;
+    for (let i = 0; i < without.length; i += 4) {
+      if (Math.abs(without[i] - withFlash[i]) + Math.abs(without[i + 1] - withFlash[i + 1])
+        + Math.abs(without[i + 2] - withFlash[i + 2]) > 12) diff++;
+    }
+    return { diff, hasPushFx: typeof r.pushFx === "function" };
+  });
+  assert.ok(out.hasPushFx, "the renderer must expose pushFx for this to be drivable");
+  assert.ok(out.diff > 60,
+    `firing changed only ${out.diff} pixels at the muzzle — a shot must be visible, not just audible`);
+});
+
 test("ART: the field is lit from ONE direction, in BOTH orientations", async () => {
   // The fort had shading but no LIGHT: every shadow was a centred blob, so
   // nothing agreed about where it was lit from and objects read as stickers on a

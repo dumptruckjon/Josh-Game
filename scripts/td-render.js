@@ -2384,6 +2384,19 @@
       else if (e.type === "die") {
         fx.push(fxAt({ kind: "stars", ttl: 16, max: 16 }, e.x, e.y));
         fx.push(fxAt({ kind: "gold", ttl: 26, max: 26, text: "+" + e.bounty }, e.x, e.y));
+      } else if (e.type === "shoot") {
+        // FIRING HAD A SOUND AND NO PICTURE. The engine has always emitted
+        // `shoot` and td-main has always played a tick for it, but nothing was
+        // ever drawn: on a 14-tower board every gun fired continuously and the
+        // muzzle showed nothing, so a projectile simply appeared out of the air.
+        // A short bright flash at the barrel is the cheapest possible fix for
+        // the biggest remaining hole in how the field FEELS.
+        //
+        // ttl 4 is deliberate. This is the single most frequent event in the
+        // game — far more often than a hit, because a miss still fires — so it
+        // has to expire almost immediately or the fx list grows without bound at
+        // the peak. Two ops, no shake: a shake per shot would be a seizure.
+        fx.push(fxAt({ kind: "muzzle", ttl: 4, max: 4, line: e.tower }, e.x, e.y));
       } else if (e.type === "build" || e.type === "upgrade") fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y));
       else if (e.type === "leak") { // a burst of leaks REFRESHES one flash — never stacks to an opaque wall
         const cost = e.lives || 1;
@@ -2614,6 +2627,22 @@
     function drawScreenFx() { // text + full-screen flashes, never rotated
       for (const f of fx) {
         const a = f.ttl / f.max;
+        if (f.kind === "muzzle") {
+          // In the CHARACTER pass, not the floor pass. Drawn with the terrain fx
+          // it was painted and then covered COMPLETELY by the tower body a few
+          // lines later — measured as zero changed pixels across the whole
+          // canvas, which reads exactly like "the effect does not work". A muzzle
+          // flash belongs in front of the gun that made it.
+          const p = worldToScreen(f.x, f.y);
+          const big = f.line === "mortar" ? 1.5 : f.line === "fan" ? 0.9 : 1.0;
+          const r0 = cell * 0.34 * big * (0.55 + a * 0.45);
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r0);
+          g.addColorStop(0, "rgba(255,252,232," + (0.9 * a) + ")");
+          g.addColorStop(0.45, "rgba(255,206,110," + (0.6 * a) + ")");
+          g.addColorStop(1, "rgba(255,170,60,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(p.x, p.y, r0, 0, 7); ctx.fill();
+        }
         if (f.kind === "gold") {
           const p = worldToScreen(f.x, f.y);
           ctx.fillStyle = "rgba(255,226,122," + a + ")";

@@ -3204,6 +3204,58 @@ the instrument looked broken, but the body was out of every tower's range and
 fire redirected, target 6 → 7). Also fixed while there: `tools/td-sim.js` parsed
 `argv[2]` as a level list unconditionally, so `--priority` with no level argument
 became `[NaN]` and silently selected nothing.
+**THE ART PASS (T1-T3): the fort had shading but no LIGHT, and the three defects
+it surfaced were all in the SEAM, not the sprites.** Diagnosed by screenshotting
+all nine worlds mid-combat at 390x844 rather than reading the renderer: every
+shadow was a centred grey blob so nothing agreed where the light came from, the
+floor (~75% of the screen) was a two-stop gradient with imperceptible speckle,
+and the lane was a decal printed on the room. Fixed with ONE global `LIGHT`
+vector driving three things, each through a seam that already existed — the
+baked `bakeBg()` (zero per-frame cost), the ONE `shadow()` helper all 50 unit
+call sites use, and `withInk()`'s existing fill interception. A 52nd enemy and a
+5th tower line inherit the model for free.
+Four things worth keeping, every one of which cost a wrong answer first.
+(1) **The baked plate is NOT in screen space.** It is world-oriented and drawn
+through a 90° rotation in portrait, so a shadow baked "down-right" comes out
+down-LEFT on a phone; the bake must use the inverse of `w2s`'s rotation. The
+same +0.5/rotation class this renderer has been bitten by repeatedly — and it is
+invisible in a screenshot, because the bedroom's `stain` props look exactly like
+cast shadows. I nearly "corrected" a correct rotation because of one. The
+guardrail (`ART: the field is lit from ONE direction, in BOTH orientations`)
+samples a ring around every prop and compares lit-side against shadow-side luma
+(portrait +6.90, landscape +28.57), and its OWN first version used a fixed 16px
+ring — about one cell in landscape but well past the prop in portrait, where the
+cell is less than half the size — and reported a meaningless −0.19. **A sampling
+radius that does not scale with the thing sampled is not a measurement.**
+(2) **A lit edge must be CLIPPED to the body.** Translating the stroke toward
+LIGHT made it poke past the ink on the lit side and BRIGHTEN the contour: the
+silhouette guardrail went red naming nine enemies. Clipping to the current path
+confines the highlight inside the shape — which is what a rim light is — and
+leaves the contour the ink line's. 9 failures → 1, and **the last one was not
+the highlight at all**: isolating the halves showed the Grease Racer failed with
+the lit edge OFF, because its contour had been passing on darkness BORROWED from
+its own drop shadow. Two consequences: occlusion under a body covers the WHOLE
+body (a shrunken core is neither physical nor safe), and a cast that is too wide
+inflates the sprite's measured ink mask so the guardrail samples the SHADOW's
+edge instead of the body's.
+(3) **The highlight is OFF by default, and that is a measurement.** A/B at L24's
+162-enemy peak: 2.22 ms baseline → 2.67 with the directional shadow → 4.49 with
+the lit edge on everything. The extra 1.82 ms is almost all the per-sprite
+`clip()`, the worst thing to spend on a software rasteriser — and Josh's iPad and
+CI's real WebKit both rasterize in software, so a Chromium number here
+UNDER-estimates. A rim light on a body a few pixels across is invisible anyway:
+the swarm was paying most and showing least. Towers and bosses opt in; final cost
+3.18 ms against a 16.7 ms budget.
+(4) **A muzzle flash drawn in the FLOOR pass is painted and then covered
+completely by the tower.** Firing had a sound and no picture — the engine has
+always emitted `shoot` and td-main has always played a tick for it, but nothing
+was ever drawn, so a projectile appeared out of the air on a 14-gun board. The
+first fix measured **zero changed pixels across the whole canvas**, which reads
+exactly like "the effect does not work"; it was drawing correctly, one pass too
+early. A muzzle flash belongs in front of the gun that made it. Its guardrail
+asserts the INK (same state drawn twice, once with the flash queued) rather than
+the event, because a feature whose test only calls the API is untested as a
+feature.
 **Also hardened: `(s.rangeMin || 0) * mods.mortarMinMul`.** 🎯 Close Quarters
 multiplies a tower's minimum range, and a stat block lacking the field makes
 `undefined * 0.6` NaN — `d2 >= NaN` is false for every enemy, so the mortar would
