@@ -3095,6 +3095,81 @@ two sources, which is also exactly why no existing test could see it. **The
 general rule: "one read site" is a composition guarantee only while there is also
 one WRITE site. When a second source starts writing a shared field, give it an
 owner the same day.**
+**A six-dimension PLAYABILITY / ART / QUALITY audit of the fort found ONE real
+defect and five clean results — and the clean results are the deliverable,
+because each one closes a question that would otherwise be re-asked.** The
+defect: **the "every `@keyframes` must have a reduced-motion off switch" law read
+`styles/main.css` ONLY**, so `td.css`'s four fort animations were never audited
+by the very rule written to stop an animation shipping ungated. All four happen
+to comply, so this was latent — but a FIFTH fort animation could ship with no off
+switch and nothing would notice. Fifth instance of the class (flex-gap guarded
+only main.css · the VS16 scan hand-listed nine files · live-verify probed only
+index.html · FIELD_TRAIT hand-listed twelve fields · the overlay audit
+hand-listed six dialogs). **Widening it exposed a second bug in the check
+itself**: it took `css.slice(indexOf("@media (prefers-reduced-motion)"))`, which
+works for main.css only because that file keeps ONE block at the end — td.css
+puts an off switch inline beside each animation, so a slice-to-end swallows the
+rest of the file and matches the animation's own NORMAL rule, making the check
+unable to fail. Proven: deleting `td-toastpop`'s off switch left the slice
+version green. It now extracts the CONTENTS of every reduced-motion at-rule, and
+is mutation-proven on both stylesheets. Lesson: when you widen a scan's scope,
+re-run its mutation — a check that was accidentally correct for one input is
+often structurally wrong for the next.
+The five measured-clean results, with their methods, so nobody re-derives them:
+(1) **Fort UI contrast: 0 WCAG AA failures across 10 surfaces.** Method is the
+华丽 pass's (screenshot twice, once with all text ink transparent, decode both
+PNGs, score each run's most fully-covered ink pixel against the background
+revealed underneath). Its FIRST run reported 39 failures and every one was an
+artifact — text sitting behind a modal scrim (deliberately dimmed) or clipped
+below an overlay's scroll edge. So the method needs a third sampling rule
+alongside "score the most-covered pixel, not the worst" and "an emoji-only run is
+ART": **skip anything `elementFromPoint` says is occluded, and anything outside
+its scrolling ancestor's box.** The instrument was then CALIBRATED by injecting a
+known-bad run and confirming all 10 surfaces caught it — do that before believing
+a clean sweep. Deliberately NOT added to CI: it costs 77s and currently finds
+nothing, and this repo has already paid for a WebKit rasterization stall; the
+method is recorded here so it can be re-run on demand. (2) **The roster is
+colour-blind safe, and the reason is the silhouette law.** Under simulated
+deuteranopia/protanopia/tritanopia the per-world hue floor collapses (60-81
+colliding pairs, worst 2.2-3.7 against a shipped ≥20 floor) — but re-scoring the
+near-twin SIGNATURE under the same simulation barely moves it (closest pair
+rag/mole 2.16 normal → 2.03-2.23 simulated, against a 1.2 floor). Hue was never
+doing the separating work, so the collisions are real and inconsequential. Do not
+re-tint the roster for CVD. (3) **Tier art is readable at real play size** — every
+tier step changes 98-536 pixels even at the smallest cell, so the tier-pip class
+of defect has not returned. The two enemies flagged as "small" (pellet, ant) are
+both skins of the swarm body, deliberately the tiniest sprite in the game; the
+60px floor that flagged them was invented, not measured, which is the
+fence-around-the-residual trap. (4) **Every fort control has a speakable
+accessible name** — 48-192 controls across 9 fort screens, 0 nameless. Note the
+probe's own scope bug first reported 1315 "controls" per screen: all screens share
+one DOM, so an unscoped query sweeps Josh's 200 games. (5) **`td.css` is clean
+against all four cross-cutting iOS laws** (no animated background, dvh paired
+with vh, aspect-ratio with a height fallback, no `inset:` shorthand).
+**And the playability half found no dead content: every targeting mode is the
+best choice somewhere.** Measured over the 9 boss finales × 4 seeds on normal,
+the best-mode tally is first 4 / strong 2 / close 2 / last 1, and the swings are
+large — L4 reads first 10.0 vs last 1.0, L16 strong 16.3 vs close 7.8. Two
+existing tests proved the MECHANISM (a mode is accepted; dart-on-strong
+re-evaluates) but nothing drove a whole level under each mode, so the selector
+could have been cosmetic and no test would have known; `AUDIT targeting is a LIVE
+lever` now pins those two swings at a 4-life bar (6s, mutation-proven: neuter
+`setTargeting` and both modes score an identical 5.3). The tier-4 BRANCH half of
+that sweep was inconclusive and is recorded as such rather than dressed up — a
+5-tower cap cannot clear L20/L28/L36 at all, so only L12 produced a signal
+(branch "b" turned a loss into a 3.8-life win). A branch comparison needs a
+board that can actually finish the level.
+**The WITHIN-level shape was measured for the first time (every audit before it
+compared levels to each other), and it confirms the designed shape holds where
+a level bites at all.** Lives lost per wave, normal, best plan over 4 seeds:
+**11 of 36 levels leak NOTHING** (L1/L2/L7/L19/L22/L23/L25/L26/L27/L31/L35) —
+which puts a precise number on the flat-20 result this file already records, and
+they are exactly the levels the step-function findings said could not be graded.
+On every level that DOES hurt, the peak is the finale: L16 loses 26 of its 29 in
+the last three waves, L20 29 of 48, L28 20 of 34, L32 13 of 26, L36 16 of 28.
+Eight levels are front-loaded (≥50% of their damage in waves 1-3), worst L11 at
+~5.0 lives per seed — right at, but not through, the shipped >5 gotcha bar, so
+nothing is breached. No new defect; the value is the map.
 **Also hardened: `(s.rangeMin || 0) * mods.mortarMinMul`.** 🎯 Close Quarters
 multiplies a tower's minimum range, and a stat block lacking the field makes
 `undefined * 0.6` NaN — `d2 >= NaN` is false for every enemy, so the mortar would

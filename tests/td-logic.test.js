@@ -4532,6 +4532,75 @@ test("W5 Toolbox Titan: every hp-gated phase actually fires (forced, band by ban
   assert.ok(summoned, `under 33% it summons ${summonType}s`);
 });
 
+test("AUDIT targeting is a LIVE lever — mode choice must change the outcome, and no mode is dead", () => {
+  // Two existing tests prove the MECHANISM (a mode is accepted; dart-on-strong
+  // re-evaluates instead of sticky-locking). Neither asks the question a player
+  // asks: does picking a mode change how the run GOES? Nothing drove a whole
+  // level under each mode, so the whole selector could have been cosmetic.
+  //
+  // Measured across the 9 boss finales x 4 seeds, mean lives on normal:
+  //   L4  first 10.0  last  1.0  strong  2.0  close 2.0
+  //   L8  first 10.0  last 11.0  strong 12.0  close 11.0
+  //   L12 first  5.8  last  5.8  strong  4.5  close 6.0
+  //   L16 first 10.0  last  8.3  strong 16.3  close 7.8
+  //   L20 first  7.3  last  8.0  strong  6.0  close 9.5
+  // Best-mode tally over those 9 levels: first 4, strong 2, close 2, last 1 —
+  // so EVERY mode is the right answer somewhere and none is dead content. The
+  // guardrail pins the two biggest swings rather than the whole 144-sim sweep:
+  // they are 9.0 and 8.5 lives apart, so a 4-life bar cannot flake, and it goes
+  // flat the moment setTargeting stops mattering.
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  const PLAN = ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"];
+  function run(level, seed, mode) {
+    const e = TD.createEngine(level, { seed, difficulty: "normal" });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    const setAll = () => { for (const t of e.state.towers) if (t.targeting !== mode) e.setTargeting(t.id, mode); };
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = PLAN[idx % PLAN.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) { spent = true; break; } } }
+        }
+        setAll();
+        e.callWave();
+      }
+      e.tick();
+      // a tier-4 branch can carry its own defaultTargeting, so re-assert
+      if (e.state.tick % 90 === 0) setAll();
+    }
+    return e.state.phase === "won" ? e.state.lives : -1;
+  }
+  const mean = (level, mode) => [1, 2, 3, 4].map((s) => run(level, s, mode)).reduce((a, b) => a + b, 0) / 4;
+  const MIN_SWING = 4;
+  for (const [id, hi, lo] of [[4, "first", "last"], [16, "strong", "close"]]) {
+    const lvl = DATA.LEVELS.find((l) => l.id === id);
+    const a = mean(lvl, hi), b = mean(lvl, lo);
+    assert.ok(a - b >= MIN_SWING,
+      `L${id}: "${hi}" scored ${a.toFixed(1)} lives and "${lo}" ${b.toFixed(1)} — targeting mode must visibly change the run (expected a gap of at least ${MIN_SWING}). If these are equal, setTargeting is not reaching the guns.`);
+  }
+  // …and every mode the UI offers must be a legal choice on a real tower, or
+  // the picker shows an option the engine refuses.
+  const lvl = DATA.LEVELS[0];
+  const e = TD.createEngine(lvl, { seed: 1 });
+  e.state.gold = 9e9;
+  assert.ok(e.place("dart", lvl.pads[0].id).ok);
+  const t = e.state.towers[0];
+  for (const m of e.targetingModes()) {
+    assert.equal(e.setTargeting(t.id, m).ok, true, `the UI offers targeting mode "${m}" but the engine refuses it`);
+  }
+});
+
 test("AUDIT boss kits: EVERY boss's declared abilities actually fire — derived, band by band", () => {
   // CLAUDE.md already records the law ("a boss whose kit escalates by hp% needs
   // a test that FORCES each phase — a solver may never drop it into its low

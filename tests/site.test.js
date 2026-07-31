@@ -387,20 +387,63 @@ test("an absolutely-positioned ::after has a POSITIONED parent, and new animatio
         `${file}: "${sel}" is absolutely positioned, so "${parent}" must be positioned too — otherwise the pseudo escapes to the nearest positioned ancestor and lands somewhere else entirely`);
     }
   }
-  // Every @keyframes in main.css must be reachable from the reduced-motion block
-  // through at least one selector that uses it.
-  const css = read("styles/main.css");
-  const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
-  for (const kf of (css.match(/@keyframes\s+([\w-]+)/g) || []).map((k) => k.split(/\s+/)[1])) {
-    const users = (css.match(new RegExp("[^{}]+\\{[^{}]*animation[^;}]*" + kf + "\\b[^;}]*", "g")) || [])
-      .map((r) => r.split("{")[0].trim()).filter(Boolean);
-    if (!users.length) continue;                       // an unused keyframe animates nothing
-    const named = users.some((sel) => sel.split(",").some((one) => {
-      const cls = (one.trim().match(/\.[\w-]+/g) || []).pop();
-      return cls && reduced.indexOf(cls) >= 0;
-    }));
-    assert.ok(named, `@keyframes ${kf} animates ${users.join(" / ")} but nothing in the prefers-reduced-motion block turns it off`);
+  // Every @keyframes must be reachable from its own stylesheet's
+  // reduced-motion block through at least one selector that uses it.
+  //
+  // SCOPE. This read `styles/main.css` ONLY — so `styles/td.css`'s four fort
+  // animations (td-bump / td-shake / td-bannerpop / td-toastpop) were never
+  // audited by the very law written to stop an animation shipping ungated.
+  // All four happen to comply, so this was a latent hole rather than a live
+  // defect, but a FIFTH fort animation could ship with no off switch and
+  // nothing would notice. That is the fifth instance of the class this repo
+  // keeps paying for — the flex-gap law guarded only main.css, the VS16 scan
+  // hand-listed nine files, the live-verify probe hit only index.html,
+  // FIELD_TRAIT hand-listed twelve fields, the overlay audit hand-listed six
+  // dialogs. When a list can go stale, derive it.
+  const SHEETS = ["styles/main.css", "styles/td.css"];
+  let kfChecked = 0;
+  // Collect the CONTENTS of every reduced-motion at-rule, not a slice from the
+  // first one. main.css keeps a single block at the end, so slicing worked
+  // there by luck; td.css puts an off switch inline beside each animation, so
+  // a slice-to-end swallows the rest of the file and matches the animation's
+  // OWN normal rule — the check then cannot fail. (Proven: deleting
+  // td-toastpop's off switch left the slice version green.)
+  const reducedBlocks = (css) => {
+    let out = "";
+    const needle = "@media (prefers-reduced-motion: reduce)";
+    for (let i = css.indexOf(needle); i >= 0; i = css.indexOf(needle, i + 1)) {
+      const open = css.indexOf("{", i);
+      if (open < 0) break;
+      let depth = 0, j = open;
+      for (; j < css.length; j++) {
+        if (css[j] === "{") depth++;
+        else if (css[j] === "}") { depth--; if (!depth) break; }
+      }
+      out += css.slice(open, j) + "\n";
+    }
+    return out;
+  };
+  for (const sheet of SHEETS) {
+    const css = read(sheet);
+    const reduced = reducedBlocks(css);
+    for (const kf of (css.match(/@keyframes\s+([\w-]+)/g) || []).map((k) => k.split(/\s+/)[1])) {
+      const users = (css.match(new RegExp("[^{}]+\\{[^{}]*animation[^;}]*" + kf + "\\b[^;}]*", "g")) || [])
+        .map((r) => r.split("{")[0].trim()).filter(Boolean);
+      if (!users.length) continue;                       // an unused keyframe animates nothing
+      const named = users.some((sel) => sel.split(",").some((one) => {
+        const cls = (one.trim().match(/\.[\w-]+/g) || []).pop();
+        return cls && reduced.indexOf(cls) >= 0;
+      }));
+      assert.ok(named, `${sheet}: @keyframes ${kf} animates ${users.join(" / ")} but nothing in that file's prefers-reduced-motion block turns it off`);
+      kfChecked += 1;
+    }
   }
+  // …and the sweep is not vacuous — the fort's own animations must be among
+  // what it checked, or a refactor that moved them elsewhere would silently
+  // shrink the scan back to one file.
+  assert.ok(kfChecked >= 30, `only ${kfChecked} animated keyframes were checked across ${SHEETS.join(" + ")}`);
+  assert.ok(/@keyframes\s+td-/.test(read("styles/td.css")), "the fort stylesheet must be in the scan's scope");
+  const css = read("styles/main.css");   // the tile-gradient law below is Josh's world only
   // A gradient with a TRANSLUCENT stop, laid on a tile with the `background`
   // SHORTHAND, resets background-color to transparent — so that stop composites
   // over whatever is behind the tile, which is the page gradient. That cost
