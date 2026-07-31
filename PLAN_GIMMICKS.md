@@ -223,3 +223,16 @@ late wave, landing at −1.
   untunable, and a localised version is the same knob with a smaller radius.
 - **Destructible obstacles** and **timed gates** were both rejected for needing
   a second engine read site — the phase's own rule 1.
+  - **UPDATE (later pass): the destructible obstacle was BUILT and then CUT, and
+    the stated reason was wrong.** It needs no second read site: a 🧱 crate is a
+    SOLDIER the level owns instead of a camp, so a `fixture` flag inherits
+    block / hold / melee-trade / free-on-death / disengage-from-hidden with the
+    enemy side of the engine untouched. It was cut on measurement instead. Its
+    identity is a chokepoint that ERODES across a run, and that is unreachable:
+    it holds `blocks` bodies each swinging ~5 dmg/s, so ~15 dps against a queue
+    of 20-100 consumes it **in wave 1-2 at every authorable hp, including 1800**
+    — lasting eight waves needs ~7000, which is a permanent free chokepoint.
+    And it changes nothing the player DECIDES (you cannot move, protect or trade
+    it), which is the bar the other six shapes all clear. Its one measurable
+    effect was L9 normal median 16 → 18. Do not rebuild it; see CLAUDE.md for
+    the numbers and for the three fixture bugs the sweep produced.

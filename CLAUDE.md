@@ -2864,6 +2864,43 @@ an outcome-neutral body cannot break a tuned level. Dosed HP-preservingly into
 L17 "Oil Slick" (w7 and w11, racer→drum, ±2.3%), so the ±25% budget contract and
 the ≥70%-backbone rule are untouched. **When the resist matrix is full, the next
 enemy has to change a DECISION, not a number.**
+**🧱 BARRICADE — built, measured, CUT. The fifth gimmick shape does not work, and
+the arithmetic says it never can.** `PLAN_GIMMICKS §6.4` deferred a destructible
+obstacle for "needing a second engine read site"; it does not need one — a crate
+is a SOLDIER the level owns rather than a camp, so a `fixture` flag lets it
+inherit block / hold / melee-trade / free-on-death / disengage-from-hidden
+untouched, and the entire enemy side of the engine stays as it is. It was built
+that way and it works. It was cut anyway, for two measured reasons. (1) **Its
+identity is unreachable.** The design is a chokepoint that ERODES across a run —
+the only mechanic in the game whose effect changes as you play. But it holds
+`blocks` bodies at once and each swings for ~5 damage a second, so it takes ~15
+dps against a queue of 20-100, and it is consumed **in wave 1-2 at every
+authorable hp — including 1800**. Lasting eight waves needs ~7000 hp, which is a
+permanent free chokepoint, i.e. the failure mode rather than the feature. There
+is no hp that is both durable and erodable. (2) **It fails this project's own bar
+for a gimmick: it changes nothing the player DECIDES.** Mud, conveyor, cover,
+power pad, side door and lever each change where you build or when you act; a
+crate at an authored spot that is gone by wave 2 cannot be moved, protected or
+traded. Its only measurable effect was L9 normal median 16 → 18, i.e. softening a
+level that is not a formality and does not need it. Both halves recorded so the
+next author does not rebuild it.
+**And the same afternoon reproduced the World-4 revert IN MINIATURE, which is the
+more useful lesson.** The first barricade sweep was a scratch script with a
+hand-typed MIXED plan — same four lines, DIFFERENT pad ordering. It reported L29
+heroic 20/20 where the shipped oracle reports median 8, and L31 a total loss on
+all 8 seeds where the oracle reports 13; it also claimed the crate was worth +6
+heroic lives and moved nothing on normal. Every one of those numbers was fiction,
+and the tell was that L31 "unwinnable on heroic" contradicts a shipped guardrail.
+**A pad ORDERING is part of the oracle.** Two smaller instrument bugs rode along:
+the erosion probe called `callWave()` with no towers, so every enemy survived to
+chew the crate and it always read "dies wave 1" — it was measuring a board that
+does not exist; and an `if (hp === 0) break` meant only the baseline row ever
+ran. Three fixture bugs in one sweep, each of which looked exactly like a result.
+The rule that would have caught all three on sight: **a measurement that does not
+go through the shipped `best()` is not a measurement of this game** — which is
+why the sweep was rewritten as a `--barricade` flag inside `tools/td-sim.js`
+before being trusted, and why it was removed with the feature rather than left
+behind as an instrument for something that no longer exists.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
