@@ -616,6 +616,19 @@
       // never mutate state.enemies mid-iteration; flushed after the combat pass.
       if (def.split) for (let i = 0; i < def.split.count; i++) pendingSpawns.push({ type: def.split.into, dist: e.dist, pathIdx: e.pathIdx || 0 });
       const p = epos(e);
+      // 🛢️ Oil Drum: it SPILLS where it dies, and whatever crosses the slick
+      // hustles. Written HERE, in the one idempotent death path, so it fires
+      // whichever line landed the kill — and read nowhere new: a slick is a
+      // `state.puddles` entry (the Sticky Floor's own array) carrying `hurry`
+      // instead of `slow`, and `effSpeed` already has exactly one place that
+      // reads a hurry flag (the Boom Box's). So the whole mechanic is one write
+      // and zero new read sites.
+      //   It is a DECISION, not a stat: killing drums in front of your best guns
+      // speeds the rest of the wave through your own kill zone, so *where* you
+      // break them matters. That is the axis the roster was missing — every
+      // other recent shape was a resist, and resists measured at zero lives.
+      if (def.spill) state.puddles.push({ x: p.x, y: p.y, r: def.spill.r,
+        hurry: def.spill.mult, until: state.tick + Math.round(def.spill.seconds * DATA.TICK_RATE) });
       emit({ type: "die", x: p.x, y: p.y, bounty, enemy: e.type, how });
     }
 
@@ -1686,7 +1699,28 @@
           if (!e.alive) continue;
           const p = epos(e);
           if (isHidden(e)) continue; // untargetable means untouchable — the Fan's aura already skips these
-          if ((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= r2) applySlow(e, z.slow, 0.25);
+          if ((p.x - z.x) ** 2 + (p.y - z.y) ** 2 <= r2) {
+            if (z.slow) applySlow(e, z.slow, 0.25);
+            // 🛢️ an oil slick is the Sticky Floor's mirror — it HURRIES. It writes
+            // the Boom Box's own flag rather than growing a second speed field,
+            // because `effSpeed` already has exactly one place that reads a hurry
+            // and every speed effect must keep composing there. STRONGEST wins
+            // (the slow's own rule), so two overlapping slicks are order-free
+            // instead of last-writer.
+            //   `|| 0` is load-bearing, not decoration. Unlike hurryTick, which
+            // plain-assigns, this READS the flag before writing it — and any
+            // comparison against an `undefined` field is false, so a body built
+            // without `hurriedUntil` would silently never get oiled while every
+            // number in the engine still looked right. Same class as the zone
+            // with no `mult` and the wave group with no `delay`: a field one
+            // short must degrade, not disable.
+            if (z.hurry) {
+              const until = e.hurriedUntil || 0;
+              const cur = until > state.tick ? (e.hurriedMult || 1) : 1;
+              if (z.hurry > cur) e.hurriedMult = z.hurry;
+              if (state.tick + 2 > until) e.hurriedUntil = state.tick + 2;
+            }
+          }
         }
       }
     }
@@ -1737,6 +1771,7 @@
     if (def.bonkResist) out.push({ key: "bonkresist", icon: "🧻", text: "Padded — single hits (dart, soldier) land at " + Math.round((1 - def.bonkResist) * 100) + "%; answer it with splash or zap" });
     if (def.zapResist) out.push({ key: "zapresist", icon: "🦆", text: "Rubber — the Fan's zap lands at " + Math.round((1 - def.zapResist) * 100) + "%; hit it with darts or a blast instead" });
     if (def.hurry) out.push({ key: "hurry", icon: "📻", text: "Blares a beat — everything near it moves " + Math.round((def.hurry.mult - 1) * 100) + "% faster. Shoot the music, not the dancers" });
+    if (def.spill) out.push({ key: "spill", icon: "🛢️", text: "Spills where it DIES — a slick that lasts " + def.spill.seconds + "s and hurries anything crossing it by " + Math.round((def.spill.mult - 1) * 100) + "%. Break it early, not in front of your best guns" });
     if (def.slowImmune) out.push({ key: "slowimmune", icon: "🛹", text: "Greased — slows do NOTHING to it; you need damage or a body in the way" });
     if (def.spawner) out.push({ key: "spawner", icon: "🪣", text: "Drips out " + def.spawner.count + " × " + (DATA.ENEMIES[def.spawner.type] || { name: def.spawner.type }).name + " every " + def.spawner.every + "s while alive" + (def.spawner.max ? " (up to " + def.spawner.max + ")" : "") + " — kill it early and far from the door" });
     if (def.sap) out.push({ key: "sap", icon: "🔩", text: "Jams the nearest gun — camps are immune" });

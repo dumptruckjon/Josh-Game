@@ -958,7 +958,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/46-enemy roster (31 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/47-enemy roster (32 + 15 per-world backbone SKINS) + 8 bosses/32 levels (8 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 30 nodes/105⭐ (vs a 96⭐ ceiling) against a 6-slot per-run `metaSlots` loadout, 17 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -995,7 +995,7 @@ tooling.
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
 ├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
-├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; its `zapResist`, `zones[].dmg` and new-enemy items are still open, and its own spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`) — read that before building the rest. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
+├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; **P6b** shipped 🦆 `zapResist`, **P6c** shipped ⛱️ `zones[].dmg`, and **P6d closes the I5 new-enemy item**: of its three bodies, 🪂 Parachute Trooper was cut by the critique (the Tin Plane renamed), 🥫 Pantry Can was cut by MEASUREMENT (a shield is anti-Fan only — see the learnings block), and 🛢️ **Oil Drum shipped** on a positional axis instead of a resist. The spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`); note that its critique was itself wrong about the shield arithmetic, so treat both as claims to measure. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
 ```
@@ -2811,6 +2811,59 @@ mutate it: on the old literal it reports "saw 4 of 5". (A 5th line is still
 recorded as NO — neither oracle plan would buy one, so it would ship provably
 untested as a feature — but it must not ALSO need a code hunt to become
 buyable.)
+**A `shield` is an anti-FAN buffer and NOTHING else — and TWO design documents
+were built on the opposite belief, so this one is worth more than the enemy it
+killed.** `computeHit` moves damage into a shield on exactly one condition,
+`dmgType === "zap"`, and every non-Fan source in the game is `bonk`. So for a
+dart, a mortar, a soldier or an ability, a shielded body is EXACTLY its hp: it
+dies at exactly the same moment a shieldless clone would. Measured through the
+real firing path — dart, mortar and camp kill times are **identical to two
+decimals at `shieldRegen` 0 and 34**, while a tier-1 Fan goes from 40s to
+**never** at any regen ≥6. Three things follow, and each closed an open item.
+(1) **🥫 Pantry Can is CUT.** Its spec identity was a fast-resealing shield sold
+as a "you must go TALL, not wide" check; the measurement says a fast reseal only
+ever means "the Fan cannot hurt me", which is 🦆 Rubber Duck's already-recorded
+**zero-lives** role wearing a tin hat. (2) **The wave-budget audit still weighs a
+group by plain `hp`, deliberately.** The spec's critique claimed the curve was
+"~35% blind" to shielded groups and I started fixing exactly that — re-anchoring
+three levels' `budgetBase` and re-authoring two waves — before measuring the
+premise. Counting shield as budget HP would OVER-count for three of the four
+lines and turn the typo guard into the false-positive machine this repo refuses
+to ship; the change was reverted whole. (3) The fact is now pinned by a guardrail
+that tests `computeHit`, not `dealDamage` — dealDamage takes hpDmg and shieldDmg
+as separate arguments and spends whatever it is handed, so a test that passes it
+a shieldDmg proves only that arithmetic works. It also asserts every non-Fan tier
+is `bonk`, or the clause it checks would be guarding nothing. Meta-lesson: **a
+critique is a claim, not a measurement** — the correction was right about the
+STACKING and wrong about the arithmetic, and only driving the engine separated
+them.
+**🛢️ Oil Drum ships as the roster's first POSITIONAL threat: it spills where it
+DIES.** Every recent shape was a resist and the resists are exhausted — the
+matrix has one reduction per damage family, and two of the last three measured at
+zero lives. So the drum carries no resist at all: `spill` pushes a `state.puddles`
+entry (the Sticky Floor's own array) carrying `hurry` instead of `slow`, from the
+ONE idempotent `killEnemy`, and `effSpeed` already had exactly one place that
+reads a hurry flag (the Boom Box's) — **one write, zero new read sites**, so it
+composes with zones, enrage, boss phases and the music for free. Killing drums in
+front of your best guns speeds the rest of the wave through your own kill zone,
+so *where* you break them is the decision. Two things to keep. **The `|| 0` in
+that write is load-bearing:** unlike `hurryTick`, which plain-assigns, this READS
+the flag before writing it, and any comparison against an `undefined` field is
+false — so a body constructed without `hurriedUntil` was silently never oiled
+while every number in the engine still looked right. Exactly the zone with no
+`mult` and the wave group with no `delay`: a field one short must degrade, not
+disable. And **the drum measures outcome-NEUTRAL on the shipped oracle** (L17
+normal 19 on all 8 seeds before and after; heroic median 11 → 12, flat) — but for
+a structurally different reason than 🦆. 🦆 was neutral because the Fan is not a
+damage line, so there was no board for its counter to bite. The drum is neutral
+because **the auto-solver has no positional agency**: it builds and fires and can
+never choose to break a drum early. The mechanic is real (a sock crossing the
+slick covers a measured 1.45× the ground), it is simply invisible to a solver
+that makes no positional choices — which is also what makes it safe to ship, since
+an outcome-neutral body cannot break a tuned level. Dosed HP-preservingly into
+L17 "Oil Slick" (w7 and w11, racer→drum, ±2.3%), so the ±25% budget contract and
+the ≥70%-backbone rule are untouched. **When the resist matrix is full, the next
+enemy has to change a DECISION, not a number.**
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

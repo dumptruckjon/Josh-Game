@@ -2509,7 +2509,7 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
   const FIELD_TRAIT = { flier: "flier", shield: "shield", splashResist: "splash", slowHeal: "slowheal",
     sap: "sap", phase: "phase", tunnel: "tunnel", split: "split", heal: "heal", charge: "charge", goldBurst: "gold", boss: "boss",
     bonkResist: "bonkresist", zapResist: "zapresist", hurry: "hurry", slowImmune: "slowimmune", spawner: "spawner",
-    stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases" };
+    stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases", spill: "spill" };
   // Plain stats (spoken by the card's own stat line), presentation, or fields
   // asserted separately below. Everything else MUST be a trait.
   const NOT_A_TRAIT = new Set(["hp", "speed", "icon", "name", "bounty", "size", "meleeDmg", "meleeRate",
@@ -3172,6 +3172,146 @@ test("P6 🦆 zapResist: the Fan's beam lands at EXACTLY (1 - zapResist), and no
   assert.equal(probe("splash"), 100, "so is mortar splash");
   assert.equal(probe("melee"), 100, "so is a soldier's swing");
   assert.equal(probe("zap"), Math.round(100 * (1 - ZR)), "a chain-lightning jump IS attenuated (same `how`)");
+});
+
+test("SHIELD is an anti-FAN buffer and NOTHING else — the fact two design docs got wrong", () => {
+  // Written because a whole enemy was designed on the opposite belief and had to
+  // be cut. `computeHit` moves damage into the shield on ONE condition —
+  // `dmgType === "zap"` — so for a dart, a mortar, a soldier or an ability a
+  // shielded body is EXACTLY its hp. A design spec built a 🥫 Pantry Can around
+  // a fast-resealing shield as a "you must go tall, not wide" check, and its own
+  // critique claimed the wave-budget audit was "~35% blind" to shielded groups.
+  // Both assume a shield is generic effective HP. It is not, and this pins it so
+  // the next author does not spend the same afternoon.
+  //
+  // Consequence for the budget curve, recorded here because it is the reason the
+  // audit still weighs a group by plain `hp`: adding `shield` to that weight
+  // would OVER-count for three of the four lines, and an audit that rejects a
+  // correctly-sized wave is the false-positive machine this repo refuses to ship.
+  const lvl = DATA.LEVELS.find((l) => l.pads.length >= 2);
+  const shielded = Object.entries(DATA.ENEMIES).filter(([, d]) => d.shield > 0 && !d.boss);
+  assert.ok(shielded.length, "there is a shielded non-boss to measure");
+
+  // 1. The seam. It has to be `computeHit`, NOT `dealDamage`: dealDamage takes
+  //    hpDmg and shieldDmg as separate arguments and spends whatever it is
+  //    handed, so a test that passes it a shieldDmg proves only that arithmetic
+  //    works. computeHit is where a tower's damage is SPLIT, and it is the only
+  //    place that decides a shield is involved at all.
+  for (const [key, def] of shielded) {
+    const body = { shield: def.shield, armor: def.armor || 0, brittle: false };
+    for (const dmgType of ["bonk", "zap"]) {
+      const hit = TD.computeHit(40, dmgType, body);
+      if (dmgType === "zap") {
+        assert.ok(hit.shieldDmg > 0, `${key}: a zap DOES spend the shield`);
+      } else {
+        assert.equal(hit.shieldDmg, 0,
+          `${key}: "${dmgType}" must put NOTHING into the shield — a shield is not generic hp, ` +
+          `and every non-Fan source in the game is bonk`);
+      }
+    }
+  }
+  // …and every non-Fan tower really is bonk, or the clause above guards nothing.
+  for (const [line, t] of Object.entries(DATA.TOWERS)) {
+    if (line === "fan") continue;
+    for (const s of t.tiers) if (s.dmg) assert.equal(s.dmgType || "bonk", "bonk",
+      `${line} deals ${s.dmgType} — if a second line ever deals zap, re-measure the shield's worth`);
+  }
+
+  // 2. The behaviour: regen changes a FAN's time-to-kill and no one else's.
+  //    Measured across the whole regen range, a dart/mortar/camp is identical at
+  //    regen 0 and regen 34 while a tier-1 Fan goes from killing to never.
+  const killTime = (line, regen) => {
+    const def = Object.assign({}, DATA.ENEMIES.battery, { hp: 150, speed: 0.5, shield: 90, shieldRegen: regen });
+    const saved = DATA.ENEMIES.battery;
+    DATA.ENEMIES.battery = def;
+    try {
+      const lv = { id: 8821, name: "shieldprobe", world: "test", startGold: 999999, budgetBase: 100,
+        path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 6, cy: 5 }],
+        waves: [{ groups: [{ type: "battery", count: 1, gap: 1, delay: 0 }] }] };
+      const en = TD.createEngine(lv, { seed: 4 });
+      assert.ok(en.place(line, "m").ok);
+      en.callWave();
+      let g = 0, seen = false;
+      while (g++ < 30 * 200) {
+        en.tick();
+        const b = en.state.enemies[0];
+        // the engine SPLICES a dead body out, so "was here, now gone" is the kill
+        if (!b) { if (seen) return g / 30; continue; }
+        seen = true;
+        b.dist = 6;                                   // pinned in reach, never leaks
+      }
+      return Infinity;
+    } finally { DATA.ENEMIES.battery = saved; }
+  };
+  for (const line of ["dart", "mortar", "camp"]) {
+    const slow = killTime(line, 0), fast = killTime(line, 34);
+    assert.ok(isFinite(slow) && isFinite(fast), `${line} kills a shielded body at both regen rates`);
+    assert.equal(slow.toFixed(2), fast.toFixed(2),
+      `${line}: a shield's REGEN must be irrelevant to it (${slow} vs ${fast}) — if this ever differs, ` +
+      `computeHit has started routing ${line} damage into the shield and the budget-curve note above is stale`);
+  }
+  assert.ok(isFinite(killTime("fan", 0)), "a fan CAN break a shield that does not reseal");
+  assert.equal(killTime("fan", 34), Infinity,
+    "…and CANNOT break one that reseals faster than it zaps — the shield's whole job");
+});
+
+test("🛢️ spill: the slick is laid where it DIES, hurries what crosses it, and expires", () => {
+  const D = DATA.ENEMIES.drum;
+  assert.ok(D && D.spill, "the Oil Drum carries a spill");
+  assert.ok(D.spill.mult > 1 && D.spill.r > 0 && D.spill.seconds > 0, "a spill is a real, positive hurry zone");
+  // ONE resist rule: a spill is a mechanic, and the drum deliberately carries no
+  // damage reduction at all — the axis is WHERE you kill it, not how hard it is.
+  for (const k of ["armor", "splashResist", "bonkResist", "zapResist", "slowImmune", "shield"]) {
+    assert.ok(!D[k], `the drum must carry no ${k} — its threat is positional, not a stat`);
+  }
+
+  const lvl = { id: 8830, name: "spill", world: "test", startGold: 999999, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 4, cy: 3 }],
+    waves: [{ groups: [{ type: "drum", count: 1, gap: 1, delay: 0 }] }] };
+
+  // No slick until something dies — the puddle must come from the DEATH, not the
+  // spawn (a spill written at spawn would be a zone, not a decision).
+  const e = TD.createEngine(lvl, { seed: 6 });
+  e.state.phase = "wave";
+  const drum = mkEnemy("drum", 9); drum.id = 8831;
+  e.state.enemies.push(drum);
+  e.tick();
+  assert.equal(e.state.puddles.length, 0, "a living drum leaves nothing behind");
+  // dealDamage calls killEnemy INLINE when hp hits 0, so the slick exists on
+  // return — ticking first would walk the drum on and make "where it died" a
+  // moving target (it did, the first time this was written).
+  const diedAt = drum.dist;
+  e.dealDamage(drum, drum.hp + 50, 0, "dart");
+  assert.equal(e.state.puddles.length, 1, "killing it lays exactly one slick");
+  const z = e.state.puddles[0];
+  assert.equal(z.hurry, D.spill.mult, "the slick carries the drum's own multiplier");
+  assert.ok(!z.slow, "a slick is not a Sticky Floor — it must not slow");
+  const at = e.posOn(0, diedAt);
+  assert.ok(Math.hypot(z.x - at.x, z.y - at.y) < 0.01, "…laid exactly where it died, not at the spawn");
+
+  // A body crossing it really does move faster — measured as DISTANCE covered,
+  // through the engine's own tick, not by reading the flag it sets.
+  const walk = (withSlick) => {
+    const en = TD.createEngine(lvl, { seed: 6 });
+    en.state.phase = "wave";
+    const s = mkEnemy("sock", 8.4); s.id = 8832;
+    en.state.enemies.push(s);
+    if (withSlick) en.state.puddles.push({ x: at.x, y: at.y, r: D.spill.r, hurry: D.spill.mult, until: 99999 });
+    const from = s.dist;
+    for (let i = 0; i < 40; i++) en.tick();
+    return s.dist - from;
+  };
+  const plain = walk(false), oiled = walk(true);
+  const ratio = oiled / plain;
+  assert.ok(Math.abs(ratio - D.spill.mult) <= 0.06,
+    `a sock crossing the slick must cover ${D.spill.mult}× the ground — measured ${ratio.toFixed(3)} (${plain.toFixed(3)} → ${oiled.toFixed(3)})`);
+
+  // …and it burns down, so a slick is a window and not a permanent speed zone.
+  const e3 = TD.createEngine(lvl, { seed: 6 });
+  e3.state.phase = "wave";
+  e3.state.puddles.push({ x: at.x, y: at.y, r: D.spill.r, hurry: D.spill.mult, until: e3.state.tick + 5 });
+  for (let i = 0; i < 12; i++) e3.tick();
+  assert.equal(e3.state.puddles.length, 0, "the slick expires on its own tick");
 });
 
 test("P6 loadout: an un-equipped power is REFUSED, and the run records what it brought", () => {

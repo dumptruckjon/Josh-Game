@@ -1399,6 +1399,25 @@
         ctx.beginPath(); ctx.ellipse(sx - r * 0.24, sy - r * 0.02, r * 0.2, r * 0.1, -0.5, 0, 7); ctx.fill();
         ctx.fillStyle = "#2a3140";
         ctx.beginPath(); ctx.arc(sx + r * 0.28, sy - r * 0.42, r * 0.07, 0, 7); ctx.fill();         // eye
+      } else if (e.type === "drum") {
+        // Oil Drum: an upright barrel — a TALL rectangle with two hoop ribs and a
+        // lid rim, which is a silhouette nothing else in the roster has (every
+        // other body is round, boxy-wide or winged). Deep petrol green so it
+        // clears the garage's steel-and-brown pool by a wide margin, with a
+        // rainbow oil sheen that says "this thing is full of slippery stuff"
+        // BEFORE it ever dies and proves it.
+        shadow(sx, sy + r * 0.62, r * 0.5, r * 0.16);
+        const gb = ctx.createLinearGradient(sx - r * 0.44, 0, sx + r * 0.44, 0);
+        gb.addColorStop(0, "#1d4d3a"); gb.addColorStop(0.42, "#2f7d5c"); gb.addColorStop(1, "#173f30");
+        ctx.fillStyle = gb;
+        ctx.beginPath(); ctx.rect(sx - r * 0.44, sy - r * 0.62, r * 0.88, r * 1.24); ctx.fill();
+        ctx.fillStyle = "#3f9a72";                                        // lid
+        ctx.beginPath(); ctx.ellipse(sx, sy - r * 0.62, r * 0.44, r * 0.15, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#123328";                                        // two hoop ribs
+        ctx.beginPath(); ctx.rect(sx - r * 0.46, sy - r * 0.24, r * 0.92, r * 0.13); ctx.fill();
+        ctx.beginPath(); ctx.rect(sx - r * 0.46, sy + r * 0.16, r * 0.92, r * 0.13); ctx.fill();
+        ctx.fillStyle = "rgba(126, 214, 255, 0.5)";                       // oil sheen
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.16, sy - r * 0.44, r * 0.13, r * 0.3, 0.25, 0, 7); ctx.fill();
       } else if (e.type === "boombox") {
         // Boom Box: a chunky stereo with two speakers and sound rings pulsing
         // out of it — the rings are the tell, because the threat is the AURA,
@@ -2338,11 +2357,27 @@
       for (const z of list) {
         const left = (z.until - st.tick) / global.TDData.TICK_RATE;
         const a = Math.max(0.12, Math.min(0.42, left));
-        ctx.fillStyle = "rgba(255, 196, 74, " + a.toFixed(3) + ")";
+        // An oil SLICK and a sticky puddle do opposite things, so they must never
+        // look alike: amber+bright for the slow you WANT, dark petrol with a cold
+        // iridescent rim for the slick you do NOT. Same rule as the side-door
+        // marker that wore the exit's own door — a mechanic the player cannot
+        // tell apart from its opposite is a mechanic they cannot plan around.
+        const oil = !!z.hurry;
+        ctx.fillStyle = oil
+          ? "rgba(24, 30, 26, " + Math.min(0.62, a + 0.18).toFixed(3) + ")"
+          : "rgba(255, 196, 74, " + a.toFixed(3) + ")";
         ctx.beginPath();
         ctx.arc((z.x + 0.5) * cell, (z.y + 0.5) * cell, z.r * cell, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = "rgba(255, 226, 122, " + Math.min(0.8, a + 0.25).toFixed(3) + ")";
+        if (oil) {                                        // rainbow sheen inside the slick
+          ctx.fillStyle = "rgba(126, 214, 255, " + (a * 0.55).toFixed(3) + ")";
+          ctx.beginPath();
+          ctx.ellipse((z.x + 0.32) * cell, (z.y + 0.34) * cell, z.r * cell * 0.46, z.r * cell * 0.24, 0.5, 0, 7);
+          ctx.fill();
+        }
+        ctx.strokeStyle = oil
+          ? "rgba(150, 230, 200, " + Math.min(0.85, a + 0.3).toFixed(3) + ")"
+          : "rgba(255, 226, 122, " + Math.min(0.8, a + 0.25).toFixed(3) + ")";
         ctx.lineWidth = Math.max(1.5, cell * 0.05);
         ctx.stroke();
       }

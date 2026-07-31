@@ -302,6 +302,21 @@
     // with no answer". Ground, slow and fat: it is a wall you have to shoot,
     // which is the point.
     duck: { name: "Rubber Duck", icon: "🦆", hp: 140, speed: 0.58, armor: 0, shield: 0, shieldRegen: 0, bounty: 15, lives: 1, flier: false, zapResist: 0.6, meleeDmg: 5, meleeRate: 1 },
+    // 🛢️ Oil Drum — the first body whose threat is WHERE you kill it. It carries
+    // no resist at all; it SPILLS on death, and the slick hustles everything that
+    // crosses it (`spill` → a `state.puddles` entry carrying `hurry`, the Sticky
+    // Floor's own array and the Boom Box's own flag — one write in `killEnemy`,
+    // zero new read sites).
+    //   WHY NOT ANOTHER RESIST. The three shapes before it were resists and two
+    // measured at ZERO lives (the Tin Plane, then 🦆). And a fourth was designed
+    // here and CUT by measurement: a 🥫 Pantry Can built on a fast-resealing
+    // shield, because `computeHit` routes damage into a shield ONLY for
+    // `dmgType === "zap"` — a shield is an anti-FAN buffer and nothing else, so
+    // "reseals faster than you can break it" is 🦆's already-measured-zero role
+    // wearing a tin hat. Drove it: dart/mortar/camp times are IDENTICAL at
+    // shieldRegen 0 and 34, while a tier-1 Fan goes 40s → never at regen ≥6.
+    // The axis that was actually missing is a DECISION, and this is it.
+    drum: { name: "Oil Drum", icon: "🛢️", hp: 200, speed: 0.7, armor: 0, shield: 0, shieldRegen: 0, bounty: 18, lives: 1, flier: false, meleeDmg: 5, meleeRate: 1, spill: { r: 1.7, mult: 1.45, seconds: 5 } },
     // 📻 Boom Box — it does not fight. It makes the wave arrive FASTER than
     // your board expects, which is a threat no amount of damage answers; the
     // answer is to shoot the support first (the Junk Healer's lesson, applied
@@ -1018,11 +1033,11 @@
         { groups: [ { type: "racer", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 12, gap: 0.65, delay: 0 }, { type: "cog", count: 30, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "racer", count: 3, gap: 0.9, delay: 4 }, { type: "rag", count: 25, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "screw", count: 3, gap: 0.9, delay: 4 }, { type: "blob", count: 16, gap: 0.65, delay: 0 }, { type: "cog", count: 40, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "racer", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 8, gap: 0.3, delay: 2 }, { type: "rag", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "drum", count: 2, gap: 0.9, delay: 4 }, { type: "hawk", count: 8, gap: 0.3, delay: 2 }, { type: "rag", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "cushion", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 11, gap: 0.3, delay: 2 }, { type: "blob", count: 19, gap: 0.65, delay: 0 }, { type: "cog", count: 46, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "racer", count: 8, gap: 0.9, delay: 4 }, { type: "hawk", count: 13, gap: 0.3, delay: 2 }, { type: "rag", count: 37, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "ghost", count: 12, gap: 0.9, delay: 4 }, { type: "hawk", count: 17, gap: 0.3, delay: 2 }, { type: "blob", count: 25, gap: 0.65, delay: 0 }, { type: "cog", count: 62, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "racer", count: 12, gap: 0.9, delay: 4 }, { type: "hawk", count: 22, gap: 0.3, delay: 2 }, { type: "rag", count: 49, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "drum", count: 4, gap: 0.9, delay: 4 }, { type: "hawk", count: 22, gap: 0.3, delay: 2 }, { type: "rag", count: 49, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "slime", count: 10, gap: 0.9, delay: 4 }, { type: "hawk", count: 27, gap: 0.3, delay: 2 }, { type: "blob", count: 32, gap: 0.65, delay: 0 }, { type: "cog", count: 80, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "tinplane", count: 25, gap: 0.9, delay: 4 }, { type: "hawk", count: 34, gap: 0.3, delay: 2 }, { type: "rag", count: 64, gap: 0.65, delay: 0 }, { type: "knight", count: 16, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "racer", count: 24, gap: 0.9, delay: 4 }, { type: "hawk", count: 43, gap: 0.3, delay: 2 }, { type: "blob", count: 37, gap: 0.65, delay: 0 }, { type: "cog", count: 93, gap: 0.8, delay: 3 } ] },
