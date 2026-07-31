@@ -3033,6 +3033,54 @@ bright top face and a deep socket fixed it. The way to tell those two cases
 apart is the experiment that settles it in one run: replace the sprite with a
 plain white circle and see whether the reported pair changes — it did, which
 proved the branch was running and the shape was the problem.
+**A post-World-9 test pass found that the "force every boss phase" law was
+honoured by ONE HAND-WRITTEN TEST PER BOSS — so the list itself was the hole, and
+three finales had no test at all.** CLAUDE.md already records the law (a solver
+may never drop a boss into its low bands, so a `disable`/`spawn`/`dash` kit can
+ship dead-untested), and it had been obeyed for the Static, the Tickmaster, the
+Titan and the Moving Van by writing a bespoke test each time. The consequence was
+exactly the recurring class: **`housedog` (W7), `bigmagnet` — the CAMPAIGN finale
+— and `stamper` (W9) appear NOWHERE in the engine suite**, each carrying a full
+3-band kit, and every future world's boss would escape the same way. `AUDIT boss
+kits` now derives its subjects from `DATA.ENEMIES` (`boss: true`) and drives every
+band plus `stomp`/`suck`/`enrage`/`spawner`, so boss #10 is covered the moment it
+declares itself; the bespoke tests stay (they assert extras like the van's capped
+load). Measured result: **all 9 kits are live** — this was a coverage defect, not
+a behaviour one. The sweep costs under a second, and it carries a
+`effectsProven >= 25` floor so a refactor that stopped bosses declaring kits
+cannot make it pass by finding nothing to check. **Three fixture traps each
+produced a false "it never fires" while the engine was correct**, and all three
+are the documented "suspect the FIXTURE before the balance" shape: `upTo`
+DESCENDS and `activePhase` keeps the LAST match, so band *i* covers
+`(phases[i+1].upTo, phases[i].upTo]` — the NEXT entry is the floor, and using the
+previous one puts every probe in band 0 where nothing is declared; `enrage` is
+read in `effSpeed` and never sets `e.speedMult`, so it must be measured as the
+boss covering more ground, not as a flag; and `stomp` hits soldiers within a
+radius OF THE BOSS, so the squad has to be parked on it. **The same pass found the
+one commit this session that changed shipped balance with no test at all** — the
+L8 de-quantization (Vacuum King 8000 → 7600) — and writing its guardrail produced
+a REFUTATION worth more than the test: the natural general law, "a boss finale
+must be holdable cleanly on at least one seed", measures FALSE for six of the nine
+finales (L4/L12/L20/L24/L28/L32/L36 all leak their boss on 8 of 8 seeds under the
+shipped oracle; only L16 at 7/8 joins L8 at 2/8). Six exemptions is a fence around
+the residual, not a law. The neighbouring universal property — every finale has a
+lives spread ≥ 1 — is too WEAK to catch it, because pre-fix L8 finished 10-11 on
+normal, a spread of exactly 1. So the guardrail is deliberately L8-scoped and
+pins the band from BOTH sides (holdable on ≥1 seed, leaks on ≥1 seed),
+mutation-proven at 8000 → "reached the door on 8/8" and at 7200 → "never got
+through on any seed". Lesson: when a tuned value sits in a narrow band, pin the
+band, not a median — and when a proposed law measures true-for-most, prefer the
+neighbouring law that measures true-for-all *only if it can still fail on the
+defect you just fixed*.
+**Also hardened: `(s.rangeMin || 0) * mods.mortarMinMul`.** 🎯 Close Quarters
+multiplies a tower's minimum range, and a stat block lacking the field makes
+`undefined * 0.6` NaN — `d2 >= NaN` is false for every enemy, so the mortar would
+silently never fire again. Both shipped tier-4 branches declare one by luck, not
+design. The coercion makes it degrade, and a derived guardrail asserts that a line
+with a dead zone declares it at EVERY tier and EVERY branch (with a
+not-vacuously-true check, since some lines correctly have none). Third instance of
+the class after the `mult`-less zone and the `delay`-less wave group: **a data
+field one short must degrade, not disable.**
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
@@ -3175,7 +3223,11 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   10..18 spread. Two things were MEASURED and are settled: the leak toll is a
 >   pure offset and can never de-quantize anything (heroic came out at exactly
 >   `20 − toll − 2` at every hp), and L8's heroic is structurally ungradable (the
->   King leaks at every hp down to 4800). Do not re-open either.
+>   King leaks at every hp down to 4800). Do not re-open either. That hp value
+>   shipped with NO guardrail and is now pinned from BOTH sides by `L8 stays in
+>   its GRADED band` (holdable on ≥1 seed, leaks on ≥1) — the band is only ~200 hp
+>   wide, so it needs pinning, and the tempting general form of that law is
+>   refuted (6 of 9 finales leak their boss on every seed).
 > - **The star ceiling**: satisfied with margin. It derives as
 >   `LEVELS.length * 3` = **108** at 36 levels, against a **123⭐ / 35-node**
 >   tree — margin **15**. A TENTH world would make it 120 and leave only 3, so

@@ -1128,7 +1128,14 @@
           // 🎯 Close Quarters shrinks the tube's dead zone. This is the only
           // candidates() call in the engine that passes a non-zero minimum, so
           // the node has exactly one read site.
-          const cands = candidates(t, s.rangeMin * mods.mortarMinMul, reachOf(t, s.range * rangeMul), false);
+          //   `|| 0` is load-bearing: a stat block WITHOUT a rangeMin would make
+          // `undefined * 0.6` NaN, and `d2 >= NaN` is false for every enemy — the
+          // mortar would silently never fire again. Both shipped tier-4 branches
+          // happen to declare one, so today this is luck rather than design; the
+          // coercion plus the guardrail in td-logic.test.js make it design. Same
+          // class as the `mult`-less zone and the `delay`-less wave group: a
+          // field one short must degrade, not disable.
+          const cands = candidates(t, (s.rangeMin || 0) * mods.mortarMinMul, reachOf(t, s.range * rangeMul), false);
           const targetId = pickByMode(cands, t.targeting, t);
           // Record it on the SAME field the dart and the fan use. The mortar
           // kept its choice in a local, so "what is this tower engaging" was

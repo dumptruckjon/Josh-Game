@@ -1920,6 +1920,74 @@ test("AUDIT boss tension: every boss FINALE must actually cost something", () =>
     "the Vacuum King must keep a tower-facing threat (a jam phase) — without it a tower-only build is immune to its whole kit and the World-2 finale costs nothing");
 });
 
+test("L8 stays in its GRADED band — the Vacuum King must be holdable, and must still bite", () => {
+  // The de-quantization (8000 → 7600 hp) shipped with NO guardrail, so nothing
+  // would have noticed it being flattened again. The defect it fixed was not a
+  // bad median but ZERO INFLUENCE: at 8000 the King reached the door on all 8
+  // seeds under every build, so L8 was a fixed 8-life tax. At 7600 it is held
+  // cleanly on 2 of 8 and leaks on 6 — the first graded boss band found in this
+  // engine, and it is only ~200 hp wide (7200 kills it on every seed, 8000 on
+  // none), so it needs pinning from BOTH sides.
+  //
+  // SCOPED TO L8 DELIBERATELY. The obvious general law — "a boss finale must be
+  // holdable cleanly on at least one seed" — was measured across all 9 finales
+  // and REFUTED: L4/L12/L20/L24/L28/L32/L36 all leak their boss on 8 of 8 seeds
+  // under this same oracle, and only L16 (7/8 clean) joins L8 in being graded
+  // that way. Shipping it as a universal rule would mean six exemptions, which
+  // is a fence around the residual rather than a law. The neighbouring universal
+  // property (spread ≥ 1 life) is too weak to catch this: pre-fix L8 finished
+  // 10-11 on normal, a spread of 1, and would have sailed through.
+  const lvl = DATA.LEVELS.find((l) => l.id === 8);
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  // the same greedy build + plans `AUDIT boss tension` uses — never a stronger
+  // solver than the shipped oracle (the World-4 revert)
+  function run(plan, seed) {
+    const e = TD.createEngine(lvl, { seed, difficulty: "normal" });
+    const padIds = lvl.pads.map((p) => p.id);
+    let idx = 0, guard = 0, bossLeaks = 0;
+    const drain = () => {
+      for (const ev of e.events) if (ev.type === "leak" && ev.boss && !ev.shielded) bossLeaks++;
+      e.events.length = 0;   // safe headless: the engine only ever pushes to it
+    };
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick(); drain();
+    }
+    drain();
+    return { phase: e.state.phase, lives: e.state.lives, bossLeaks };
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  const perSeed = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => {
+    const rs = PLANS.map((p) => run(p, seed)).filter((r) => r.phase === "won");
+    if (!rs.length) return null;
+    return rs.reduce((a, b) => (b.lives > a.lives ? b : a)).bossLeaks;   // the BEST plan, as the audit does
+  });
+  const ok = perSeed.filter((x) => x != null);
+  const clean = ok.filter((x) => x === 0).length;
+  assert.ok(ok.length >= 7, `L8 must stay winnable on essentially every seed (${perSeed.join(",")})`);
+  assert.ok(clean >= 1,
+    `the Vacuum King reached the door on ${ok.length - clean}/${ok.length} seeds (${perSeed.join(",")}) — ` +
+    "L8 is a fixed tax again, not a fight. Holding it cleanly must be POSSIBLE (hp ≈ 7600; 8000 leaks on every seed).");
+  assert.ok(clean < ok.length,
+    `the Vacuum King never got through on any seed (${perSeed.join(",")}) — the finale is a formality (7200 kills it on every seed).`);
+});
+
 test("RUSH: a mid-wave call puts TWO waves on the field, and both must be cleared", () => {
   // Requested: "the ability to summon waves even when the previous wave is still
   // on screen. In which case you'd have multiple waves of bad guys at once!"
@@ -3355,6 +3423,32 @@ test("P6 loadout: an un-equipped power is REFUSED, and the run records what it b
   assert.notEqual(e.abilityReady(pack[0]).reason, "not-equipped", "a packed power is not gated by the loadout");
 });
 
+test("a line with a MINIMUM range must declare one at every tier AND every branch", () => {
+  // 🎯 Close Quarters multiplies `rangeMin`, and a stat block missing the field
+  // makes `undefined * 0.6` NaN — `d2 >= NaN * NaN` is false for every enemy, so
+  // the mortar would silently never fire again. The engine coerces it, but the
+  // real fix is that a line with a dead zone declares it EVERYWHERE, or a future
+  // tier-4 branch inherits a hole. Derived from the data, so a new line and a
+  // new branch are both covered the moment they exist.
+  for (const [line, def] of Object.entries(DATA.TOWERS)) {
+    const tiers = def.tiers.filter((t) => t.dmg != null);
+    const anyMin = tiers.some((t) => t.rangeMin > 0);
+    if (!anyMin) continue;
+    for (let i = 0; i < tiers.length; i++) {
+      assert.ok(tiers[i].rangeMin > 0,
+        `${line} tier ${i + 1} has no rangeMin though the line has a dead zone — a missing minimum NaNs the whole acquisition`);
+    }
+    for (const [key, br] of Object.entries(def.branches || {})) {
+      assert.ok(br.rangeMin > 0,
+        `${line}'s tier-4 branch "${key}" has no rangeMin though the line has a dead zone at every other tier`);
+    }
+  }
+  // …and the exemption is real: at least one line has NO minimum, so this is
+  // not vacuously true over the whole roster.
+  assert.ok(Object.values(DATA.TOWERS).some((d) => d.tiers.every((t) => !t.rangeMin)),
+    "some line has no dead zone at all, so the rule above is a real filter");
+});
+
 test("W9 tree growth: the five new KINDS each fire at their one site, and the ceiling still holds", () => {
   // The star ceiling derives as `LEVELS.length * 3`, so a ninth world (36 levels
   // → 108⭐) needs a tree that still costs MORE than you can earn. It has to grow
@@ -4377,6 +4471,141 @@ test("W5 Toolbox Titan: every hp-gated phase actually fires (forced, band by ban
   let summoned = false;
   for (let i = 0; i < 700 && !summoned; i++) { e.tick(); summoned = e.state.enemies.some((x) => x.type === summonType && x.alive); }
   assert.ok(summoned, `under 33% it summons ${summonType}s`);
+});
+
+test("AUDIT boss kits: EVERY boss's declared abilities actually fire — derived, band by band", () => {
+  // CLAUDE.md already records the law ("a boss whose kit escalates by hp% needs
+  // a test that FORCES each phase — a solver may never drop it into its low
+  // bands, so the disable/summon/dash code can ship dead-untested"), and it was
+  // honoured with ONE HAND-WRITTEN TEST PER BOSS. That list is the defect: the
+  // suite named 6 of 9 bosses, so `housedog`, `bigmagnet` — the CAMPAIGN
+  // finale — and `stamper` shipped three full 3-band kits with no test at all,
+  // and each new world's boss would escape the same way. This is the same "a
+  // scan's own list is part of the scan" class as FIELD_TRAIT, the VS16 file
+  // list and the overlay OPENERS map, applied to BEHAVIOUR instead of
+  // documentation: the subject list derives from DATA.ENEMIES, so boss #10 is
+  // covered the moment it declares `boss: true`.
+  //
+  // Three fixture traps, each of which produced a false "it never fires" while
+  // the engine was correct — recorded because the next author will hit them:
+  //  1. `upTo` DESCENDS (1, 0.66, 0.33) and activePhase keeps the LAST match, so
+  //     band i covers (phases[i+1].upTo, phases[i].upTo] — the NEXT entry is the
+  //     floor, not the previous one.
+  //  2. `enrage` is read in effSpeed and NEVER sets e.speedMult, so it has to be
+  //     measured as the boss actually covering more ground, not as a flag.
+  //  3. `stomp` damages soldiers within a radius OF THE BOSS, so the squad must
+  //     be parked on it or nothing is ever in range.
+  function bossBoard(withCamp) {
+    const lvl = DATA.LEVELS.find((l) => l.pads.length >= 4);
+    const e = TD.createEngine(lvl, { seed: 9 });
+    e.state.gold = 9e9;
+    e.place("dart", lvl.pads[0].id);
+    e.place("dart", lvl.pads[1].id);
+    e.place("mortar", lvl.pads[2].id);
+    if (withCamp) e.place("camp", lvl.pads[3].id);
+    e.callWave();
+    for (let i = 0; i < 60; i++) e.tick();
+    e.state.enemies.length = 0;   // clear the wave; we inject the boss ourselves
+    return e;
+  }
+  const distOnSquad = (e) => {                                   // trap 3
+    const s = e.state.soldiers.find((x) => x.alive);
+    if (!s) return 2;
+    let best = 0, bd = Infinity;
+    for (let d = 0; d < 200; d += 0.1) {
+      const p = e.posOn(0, d);
+      const q = (p.x - s.x) ** 2 + (p.y - s.y) ** 2;
+      if (q < bd) { bd = q; best = d; }
+    }
+    return best;
+  };
+
+  const bosses = Object.entries(DATA.ENEMIES).filter(([, d]) => d.boss);
+  assert.ok(bosses.length >= 9, `expected every shipped boss, saw ${bosses.length}`);
+  let effectsProven = 0;
+
+  for (const [type, def] of bosses) {
+    const phases = def.phases || [];
+    for (let bi = 0; bi < phases.length; bi++) {
+      const ph = phases[bi];
+      const effects = Object.keys(ph).filter((k) => k !== "hpPct" && k !== "upTo");
+      if (!effects.length) continue;                             // band 0 is "normal"
+      const e = bossBoard(false);
+      const boss = mkEnemy(type, 2);
+      e.state.enemies.push(boss);
+      const floor = bi + 1 < phases.length ? phases[bi + 1].upTo : 0;  // trap 1
+      const frac = (floor + ph.upTo) / 2;
+      const pin = () => { boss.hp = Math.max(1, Math.round(def.hp * frac)); };
+      pin();
+      const got = {};
+      for (let i = 0; i < 1500; i++) {
+        e.tick(); pin();                                         // hold it in-band
+        if (ph.disable && e.state.towers.some((t) => t.disabledUntil > e.state.tick)) got.disable = true;
+        if (ph.spawn && e.state.enemies.some((x) => x.type === ph.spawn.type && x.alive)) got.spawn = true;
+        if (ph.speedMult && (boss.speedMult || 0) > 1) got.speedMult = true;
+        if (effects.every((k) => got[k])) break;
+      }
+      for (const k of effects) {
+        assert.ok(got[k], `${type} band ${bi} (hp ${Math.round(frac * 100)}%) declares "${k}" but it never fires — the kit is dead data`);
+        effectsProven += 1;
+      }
+    }
+    if (def.stomp) {                                             // trap 3
+      const e = bossBoard(true);
+      const d = distOnSquad(e);
+      const boss = mkEnemy(type, d); e.state.enemies.push(boss);
+      assert.ok(e.state.soldiers.some((s) => s.alive), `${type}'s stomp test needs a squad to stomp`);
+      let hurt = false;
+      for (let i = 0; i < 1500 && !hurt; i++) {
+        e.tick(); boss.hp = def.hp; boss.dist = d;
+        hurt = e.state.soldiers.some((s) => !s.alive || s.hp < s.maxHp);
+      }
+      assert.ok(hurt, `${type} declares stomp but a squad parked under it was never hurt`);
+      effectsProven += 1;
+    }
+    if (def.suck) {
+      const e = bossBoard(true);
+      const boss = mkEnemy(type, 2); e.state.enemies.push(boss);
+      const n0 = e.state.soldiers.filter((s) => s.alive).length;
+      assert.ok(n0 > 0, `${type}'s suck test needs a squad to inhale`);
+      let sucked = false;
+      for (let i = 0; i < 1500 && !sucked; i++) {
+        e.tick(); boss.hp = def.hp;
+        sucked = e.state.soldiers.filter((s) => s.alive).length < n0;
+      }
+      assert.ok(sucked, `${type} declares suck but no soldier was ever inhaled`);
+      effectsProven += 1;
+    }
+    if (def.enrage) {                                            // trap 2
+      const travel = (frac) => {
+        const e = bossBoard(false);
+        const boss = mkEnemy(type, 2); e.state.enemies.push(boss);
+        const pin = () => { boss.hp = Math.max(1, Math.round(def.hp * frac)); };
+        pin();
+        const d0 = boss.dist;
+        for (let i = 0; i < 200; i++) { e.tick(); pin(); }
+        return boss.dist - d0;
+      };
+      const calm = travel(Math.min(1, def.enrage.hpPct + 0.2));
+      const mad = travel(Math.max(0.02, def.enrage.hpPct - 0.05));
+      assert.ok(calm > 0, `${type}'s enrage test needs the boss to be moving at all`);
+      assert.ok(mad / calm > 1.02,
+        `${type} declares enrage ×${def.enrage.mult} below ${def.enrage.hpPct} hp but covered ${mad.toFixed(2)} cells vs ${calm.toFixed(2)} above it`);
+      effectsProven += 1;
+    }
+    if (def.spawner) {
+      const e = bossBoard(false);
+      const boss = mkEnemy(type, 2); e.state.enemies.push(boss);
+      let dripped = false;
+      for (let i = 0; i < 900 && !dripped; i++) { e.tick(); boss.hp = def.hp; dripped = e.state.enemies.some((x) => x.type === def.spawner.type && x.alive); }
+      assert.ok(dripped, `${type} declares a spawner but never dripped a ${def.spawner.type}`);
+      effectsProven += 1;
+    }
+  }
+  // …and the sweep is not vacuous: if a refactor stopped bosses declaring kits,
+  // every assertion above would be skipped and this test would pass silently.
+  assert.ok(effectsProven >= 25,
+    `only ${effectsProven} boss abilities were actually exercised — the sweep found nothing to prove`);
 });
 
 
