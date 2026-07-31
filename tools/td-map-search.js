@@ -120,12 +120,41 @@ const L20 = [[0, 1], [15, 1], [15, 6], [4, 6], [4, 10], [19, 10], [19, 13], [23,
 // wave 2 — which is exactly what the first cut did.
 const ARENA = [[0, 3], [21, 3], [21, 8], [3, 8], [3, 13], [23, 13]];
 
+// ---- the four Toy Works maps (World 9, L33-L36) ----
+// The campaign's last world: the step after the sort line is the factory that
+// melts you down and makes a new toy out of you. Lanes are searched, never
+// eyeballed — every one below satisfies the same four laws as the Garage set.
+//
+// L33 The Intake — the gentle opener: one long sweep so a thin opening board
+// still gets exposure (short paths are HARDER, the TD-4 law).
+const L33 = [[0, 2], [19, 2], [19, 8], [4, 8], [4, 12], [23, 12]];
+// L34 The Mould Room — a tight double-back, so coverage overlaps and the level
+// rewards depth over breadth.
+const L34 = [[0, 11], [16, 11], [16, 5], [6, 5], [6, 1], [21, 1], [21, 6], [23, 6]];
+// L35 The Paint Line — World 9's fork. The shared PREFIX runs to the lever so a
+// throw reroutes in-flight enemies with no teleport, and the detour is a real
+// loop rather than a hairpin lying on the default lane.
+const L35a = [[0, 7], [7, 7], [7, 2], [18, 2], [18, 9], [12, 9], [12, 13], [23, 13]];
+const L35b = [[0, 7], [7, 7], [7, 12], [2, 12], [2, 2], [7, 2], [18, 2], [18, 9], [12, 9], [12, 13], [23, 13]];
+const LEVER35 = { cx: 7, cy: 7 };
+// L36 The Stamping Press — the campaign finale: a long approach into a short,
+// brutal final run at the door.
+const L36 = [[0, 13], [14, 13], [14, 7], [3, 7], [3, 2], [20, 2], [20, 10], [23, 10]];
+// The Toy Works arena — serpentine, pads searched at BAND=2.2 (an arena starts
+// you poor, so a tier-1 dart's short reach has to touch the lane from wave 1).
+const ARENA9 = [[0, 2], [20, 2], [20, 7], [3, 7], [3, 12], [23, 12]];
+
 const out = {};
-for (const [name, lanes, n, lever] of [
-  ["L17", [L17], 12, null], ["L18", [L18], 12, null],
-  ["L19", [L19a, L19b], 15, LEVER19], ["L20", [L20], 14, null],
-  ...(process.env.ARENA ? [["ARENA", [ARENA], 14, null]] : []),
-]) {
+for (const [name, lanes, n, lever] of (
+  process.env.W9 ? [
+    ["L33", [L33], 12, null], ["L34", [L34], 13, null],
+    ["L35", [L35a, L35b], 15, LEVER35], ["L36", [L36], 14, null],
+    ...(process.env.ARENA ? [["ARENA9", [ARENA9], 14, null]] : []),
+  ] : [
+    ["L17", [L17], 12, null], ["L18", [L18], 12, null],
+    ["L19", [L19a, L19b], 15, LEVER19], ["L20", [L20], 14, null],
+    ...(process.env.ARENA ? [["ARENA", [ARENA], 14, null]] : []),
+  ])) {
   const pads = placePads(lanes, n, lever);
   const ok = validate(name, lanes, pads, lever);
   if (ok) out[name] = { lanes, pads, lever };
