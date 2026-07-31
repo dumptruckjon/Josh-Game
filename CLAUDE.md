@@ -3148,38 +3148,53 @@ for any new `logic.js` function and a browser check if it needs special handling
 > planned 200 and 华丽 at 40, so new games are a fresh design decision against
 > `JOSH_PROFILE.md`, not a backlog.
 >
-> **What IS open (opportunities, not obligations), measured 2026-07:**
-> - **Forks/levers**: CLOSED — **every one of the 8 worlds now has exactly one**
->   (L3, L7, L10, L15, L19, L23, L27, L31), and `tools/td-fork-search.js` is in the
->   repo (with a `RESEARCH=1` flag) so the sweep is repeatable instead of a scratch
->   script that gets thrown away. Each one's VALUE is measured, not assumed.
-> - **Level gimmicks**: CLOSED — 26 of 32 levels carry one (`night`, conveyor,
->   🕳️ mud, ⛱️ blanket cover, ⚡ power pad, 🚪 side door, fork+lever), all six worlds represented,
->   and every one now DOCUMENTS itself in the Toybox Guide via
->   `TDLogic.levelGimmicks` (guardrailed, so a new mechanic cannot ship
->   invisible). The FOURTH mechanic shipped (⛱️ Blanket Cover — `zones[].dmg`, damage-in-range beside the conveyor's time-in-range); what is still open is a FIFTH:
->   the shipped shapes cover slow / speed / buff / flank / reroute, and a
->   destructible obstacle or timed gate would each need a second engine read
->   site (see PLAN_GIMMICKS §6.4).
-> - **Level DISTINCTNESS**: CLOSED for the 24 shipped levels. Every world has its
->   own backbone crowd (worst pairwise body-count similarity 0.691, was 0.997),
->   no two levels run the same special SCHEDULE (worst 60%, was five pairs at
->   100%), each finale's escort asks a different question, and every level has a
->   hook or a boss. All four are guardrail-locked, so a new level inherits them.
-> - **The meta economy**: PARTLY closed. A run equips ≤ `RULES.metaSlots` (6) of
->   what it owns, so allocation is a per-run decision — but the measured NEGATIVE
->   result stands: L8 and L16 are boss-quantized, and three individual Firepower
->   nodes each erase L16 on their own, which no slot cap can fix. De-quantizing
->   those two finales (a leak-toll re-tune) is the open item, and it is a
->   deliberate balance pass to be commissioned, not a defect to fix on sight.
-> - **The star ceiling** is the hard blocker on an 8-world campaign: it derives
->   as `LEVELS.length * 3`. Worlds 7-8 shipped and the tree grew with them: the
->   ceiling is **96** against a **105⭐ / 30-node** tree, margin 9. **A NINTH world
->   breaks it** — 36 levels is a 108⭐ ceiling and the "the tree must cost more
->   than you can earn" guardrail goes red. Grow the tree by BREADTH (new kinds
->   with real read sites) BEFORE adding one — never by adding ranks, which are
->   raw power. The seven nodes added for Worlds 7-8 were all breadth.
-
+> **What IS open (opportunities, not obligations), re-measured 2026-07 after
+> World 9):**
+> - **Forks/levers**: CLOSED — **each of the 9 worlds has exactly one** (L3, L7,
+>   L10, L15, L19, L23, L27, L31, L35), guardrail-derived from the data so a
+>   world cannot ship with none or with two. `tools/td-fork-search.js` is in the
+>   repo (with `RESEARCH=1`) so the sweep is repeatable. Each one's VALUE is
+>   measured: L3/L10/L35 are magnitude levers (no phase flip is structurally
+>   available), the other five are decisive at their thin board.
+> - **Level gimmicks**: CLOSED, including the fifth. Six shapes ship (`night`,
+>   conveyor, 🕳️ mud, ⛱️ blanket cover, ⚡ power pad, 🚪 side door, fork+lever)
+>   across 29 of 36 levels, every world represented, each documenting itself in
+>   the Toybox Guide via `TDLogic.levelGimmicks`. The FIFTH candidate — a
+>   destructible obstacle — was **built and then CUT by measurement**: a crate is
+>   a `fixture` soldier (so it needed no second engine read site, contrary to
+>   PLAN_GIMMICKS §6.4's stated reason), but it is consumed in wave 1-2 at every
+>   authorable hp including 1800, so its erode-across-the-run identity is
+>   unreachable, and it changes nothing the player decides. Do not rebuild it.
+> - **Level DISTINCTNESS**: CLOSED for all 36. Every world has its own backbone
+>   crowd, no two levels run the same special SCHEDULE, each finale's escort asks
+>   a different question, and every level has a hook or a boss — all four
+>   guardrail-locked, so a new level inherits them.
+> - **The meta economy**: the L8/L16 item is CLOSED. L16 had already fixed itself
+>   (the earlier Tickmaster toll cut); L8 was de-quantized by Vacuum King
+>   8000 → 7600 hp, taking normal from a flat 10-11 on all 8 seeds to a real
+>   10..18 spread. Two things were MEASURED and are settled: the leak toll is a
+>   pure offset and can never de-quantize anything (heroic came out at exactly
+>   `20 − toll − 2` at every hp), and L8's heroic is structurally ungradable (the
+>   King leaks at every hp down to 4800). Do not re-open either.
+> - **The star ceiling**: satisfied with margin. It derives as
+>   `LEVELS.length * 3` = **108** at 36 levels, against a **123⭐ / 35-node**
+>   tree — margin **15**. A TENTH world would make it 120 and leave only 3, so
+>   grow the tree by BREADTH first (new kinds with real read sites), never by
+>   adding ranks. The five nodes added for World 9 were all breadth.
+> - **Difficulty**: the campaign is now measured on a floor it cannot leave.
+>   `normal` and `heroic` winnability are separated by a STEP, not a slope —
+>   reproduced six times, most recently on World 9's fresh maps (L33 read normal
+>   12 at 900 gold, 19 at 1100, and a flat 20 at both 1300 and 1500). Several
+>   levels therefore sit at a flat 20 on normal and are recorded as unreachable
+>   rather than faked. The ONLY lever this engine responds to is THREAT SHAPE
+>   (an hp-preserving swap); bigger HP piles, backbone stat shape, gold, budget
+>   base, lane length and side-door dose are each measured NOT to work. That is a
+>   deliberate content pass to commission, not a defect to fix on sight.
+> - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The
+>   resist matrix is full (one reduction per damage family) and the last three
+>   resist shapes each measured at ~zero lives, so the next enemy has to change a
+>   DECISION rather than a number — 🛢️ Oil Drum's `spill` is the template.
+>
 > - **华丽's world has had one adversarial pass** (the app-wide audit, which
 >   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but
 >   nothing like the fort's repeated ones. The iOS-14.2 and emoji classes are now
