@@ -5258,3 +5258,28 @@ test("P4.3 breadth: each new KIND is felt at its own engine site", () => {
     assert.equal(n, 1, `mods.${key} must be read at exactly ONE site (found ${n}) — a second site is how a buff applies to one path and not the other`);
   }
 });
+
+test("a hit event NAMES the body it landed on — the renderer's flash is keyed on it", () => {
+  // Shots used to land with a poof in the air and no reaction from the body they
+  // struck, because the event said WHERE it landed and never WHAT it hit. The
+  // renderer whitens and pops that sprite now, so the id is load-bearing.
+  //
+  // This lives here, in the engine suite, and that is the point: the browser
+  // guardrail drives `pushFx` directly, so it proves the RENDERER reacts to an
+  // id — it cannot notice the engine no longer sending one (verified: deleting
+  // `id: target.id` left that test green). Events are not part of `state`, so
+  // this cannot move the determinism hash.
+  const eng = TD.createEngine(L1, { seed: 5 });
+  eng.state.gold = 99999;
+  eng.place("dart", L1.pads[0].id);
+  eng.callWave();
+  let hit = null;
+  for (let i = 0; i < 4000 && !hit; i++) {
+    eng.tick();
+    hit = eng.events.find((e) => e.type === "hit");
+  }
+  assert.ok(hit, "a dart landed a hit inside 4000 ticks");
+  assert.equal(typeof hit.id, "number", "the hit event names WHICH enemy it struck");
+  assert.ok(eng.state.enemies.some((e) => e.id === hit.id),
+    `hit.id ${hit.id} must be a real body on the field`);
+});

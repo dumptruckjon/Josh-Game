@@ -713,7 +713,7 @@
     // exact look this pass exists to remove.
     const LITEDGE = "rgba(255,246,224,0.30)";
     const INK_PER_SPRITE = Number(global.__INK_BUDGET || 4);
-    let inkDepth = 0, inkOff = 0, inkBudget = 0, litOn = false;
+    let inkDepth = 0, inkOff = 0, inkBudget = 0, litOn = false, flashOn = 0;
     const canInk = (function () {
       // Feature-checked: shadow the accessor on the instance so the art's 254
       // colour assignments need no edits. Safari 14.0 has these as prototype
@@ -733,6 +733,23 @@
       };
       ctx.fill = function (rule) {
         const out = rule === undefined ? realFill() : realFill(rule);
+        // THE HIT FLASH, on the interception that already exists. Shots landed
+        // with a poof in the AIR and no reaction from the body they hit, so on a
+        // 14-tower board you saw sparks near things rather than things being
+        // shot. Re-filling the path that was just filled whitens the sprite —
+        // no clip, no filter, no per-enemy art, so all 51 bodies and any 52nd
+        // inherit it. Deliberately EVERY fill, not just the first (unlike the
+        // ink line): flashing only the primary shape reads as a hole punched in
+        // the body rather than the body lighting up.
+        //   Cost is bounded by how many bodies are flashing at once, not by the
+        // enemy count — a flash lives 4 ticks, so at the peak it is a handful of
+        // sprites, and it skips the clip() that made the lit edge dear.
+        if (flashOn > 0 && inkDepth > 0 && !inkOff && !busy) {
+          const pf = ctx.fillStyle;
+          ctx.fillStyle = "rgba(255,246,214," + flashOn.toFixed(2) + ")";   // hot, not pure white
+          busy = true; if (rule === undefined) realFill(); else realFill(rule); busy = false;
+          ctx.fillStyle = pf;
+        }
         // FILL FIRST, then stroke — the order the two hand-rimmed sprites (`wad`,
         // `peanut`) already used. Stroking first puts half the pen UNDER the body,
         // so at dpr 1 only ~0.7px of a 1.35px line survived and the measured
@@ -812,10 +829,10 @@
     // that 162 are the ones paying most and showing least. So the highlight goes
     // on the big, long-lived, deliberately-inspected things — towers and bosses —
     // and the swarm keeps the ink line alone.
-    function withInk(fn, lit) {
+    function withInk(fn, lit, flash) {
       if (!canInk) return fn();
-      inkDepth++; inkBudget = INK_PER_SPRITE; litOn = !!lit;
-      try { return fn(); } finally { inkDepth--; inkBudget = 0; litOn = false; }
+      inkDepth++; inkBudget = INK_PER_SPRITE; litOn = !!lit; flashOn = flash || 0;
+      try { return fn(); } finally { inkDepth--; inkBudget = 0; litOn = false; flashOn = 0; }
     }
     function noInk(fn) { if (!canInk) return fn(); inkOff++; try { return fn(); } finally { inkOff--; } }
 
@@ -2372,8 +2389,26 @@
     // rally ring, the suck beam, the leak toll) painted half a cell up-left of
     // the thing it belonged to. One helper now applies the shift once.
     const fxAt = (o, x, y) => { o.x = x + 0.5; o.y = y + 0.5; return o; };
+    // Which bodies were struck, and until when. A tick-stamped map in the
+    // RENDERER, never a field on the enemy: the engine is pure and a purely
+    // visual cue has no business in hashed state. Entries expire in FLASH_TICKS
+    // and are pruned every frame, so it cannot grow across a run.
+    const hitFlash = new Map();
+    const FLASH_TICKS = 4;
+    // A cap, stated rather than silent: at an endless peak dozens of bodies can
+    // die in one tick, and each pop is a full sprite draw. 20 concurrent pops is
+    // far more than reads as anything, and it bounds the cost.
+    const MAX_POPS = 20;
+    const popCount = () => fx.reduce((n, f) => n + (f.kind === "pop" ? 1 : 0), 0);
     function pushFx(e) {
       if (e.type === "hit") {
+        if (e.id) {
+          const t = engine.state.tick;
+          hitFlash.set(e.id, t + FLASH_TICKS);
+          // prune here rather than per frame: a run kills thousands of bodies,
+          // and every entry is stale 4 ticks after it lands.
+          if (hitFlash.size > 96) for (const [k, v] of hitFlash) if (v <= t) hitFlash.delete(k);
+        }
         fx.push(fxAt({ kind: "poof", ttl: 8, max: 8 }, e.x, e.y));
         if (e.crit) triggerShake(2);
         if (showDmg && e.dmg) fx.push(fxAt({ kind: "dmgnum", ttl: 22, max: 22, text: (e.crit ? "" : "") + e.dmg, crit: !!e.crit }, e.x, e.y));
@@ -2384,6 +2419,12 @@
       else if (e.type === "die") {
         fx.push(fxAt({ kind: "stars", ttl: 16, max: 16 }, e.x, e.y));
         fx.push(fxAt({ kind: "gold", ttl: 26, max: 26, text: "+" + e.bounty }, e.x, e.y));
+        // …and the BODY goes with it. An enemy is only ever flagged dead (it is
+        // never spliced), but the draw loop skips `!alive`, so a hundred bodies a
+        // wave simply blinked out of existence mid-stride. The `die` event has
+        // always carried the enemy TYPE and its position, so the corpse is a pure
+        // render concern: the real sprite, squashed wide and flat as it fades.
+        if (e.enemy && popCount() < MAX_POPS) fx.push(fxAt({ kind: "pop", ttl: 9, max: 9, etype: e.enemy }, e.x, e.y));
       } else if (e.type === "shoot") {
         // FIRING HAD A SOUND AND NO PICTURE. The engine has always emitted
         // `shoot` and td-main has always played a tick for it, but nothing was
@@ -2627,6 +2668,21 @@
     function drawScreenFx() { // text + full-screen flashes, never rotated
       for (const f of fx) {
         const a = f.ttl / f.max;
+        if (f.kind === "pop") {
+          // The character pass, upright, for the same reason the muzzle moved
+          // here: only the FLOOR rotates in portrait, and a corpse is a body.
+          // The synthetic carries every field drawEnemy reads — including
+          // pathIdx/dist, because a live 🧨 reveal makes revealed() call epos().
+          const p = worldToScreen(f.x, f.y);
+          const k = 1 - a;
+          ctx.save();
+          ctx.globalAlpha = a;
+          ctx.translate(p.x, p.y);
+          ctx.scale(1 + k * 0.5, Math.max(0.08, 1 - k * 0.8));   // squash: wider, flatter
+          withInk(() => drawEnemy({ type: f.etype, id: 0, hp: 0, maxHp: 1, shield: 0, pathIdx: 0, dist: 0 }, 0, 0), false);
+          ctx.restore();
+          continue;
+        }
         if (f.kind === "muzzle") {
           // In the CHARACTER pass, not the floor pass. Drawn with the terrain fx
           // it was painted and then covered COMPLETELY by the tower body a few
@@ -2798,7 +2854,26 @@
             }
           });
         }
-        withInk(() => drawEnemy(e, p.x, p.y + bob), !!(global.TDData.ENEMIES[e.type] || {}).boss); // silhouette law; bosses are big enough for the highlight
+        const flashUntil = hitFlash.get(e.id) || 0;
+        const flash = flashUntil > st.tick ? (flashUntil - st.tick) / FLASH_TICKS : 0;
+        // A white tint ALONE does not work on this roster, and that is a
+        // measurement rather than a preference: the bodies are deliberately PALE
+        // (the whole reason the ink line exists), so even a FULL white overlay
+        // moved only ~119 device pixels of a sock at cell 27, most of them by
+        // less than 24/765 of RGB. So the flash is two cues — a warm tint, which
+        // does the work on the dark bodies, and a brief SCALE pop, which reads on
+        // any colour because it moves the silhouette itself.
+        // The pop is MOTION, so it is gated on prefers-reduced-motion exactly as
+        // the screen-shake is; the tint stays, so the cue never disappears
+        // entirely for a player who asked for less movement.
+        const pop = flash > 0 && !reduceMotion;
+        if (pop) {
+          const k = 1 + flash * 0.18;
+          ctx.save();
+          ctx.translate(p.x, p.y + bob); ctx.scale(k, k); ctx.translate(-p.x, -(p.y + bob));
+        }
+        withInk(() => drawEnemy(e, p.x, p.y + bob), !!(global.TDData.ENEMIES[e.type] || {}).boss, flash * 0.55); // silhouette law; bosses are big enough for the highlight
+        if (pop) ctx.restore();
         if (e.slowUntil && st.tick < e.slowUntil) { // frost tint
           ctx.fillStyle = "rgba(140,210,255,0.32)";
           ctx.beginPath(); ctx.arc(p.x, p.y + bob, cell * 0.36, 0, 7); ctx.fill();

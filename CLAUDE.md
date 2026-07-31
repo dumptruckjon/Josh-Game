@@ -960,7 +960,7 @@ tooling.
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/51-enemy roster (33 + 18 per-world backbone SKINS) + 9 bosses/36 levels (9 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 35 nodes/123⭐ (vs the 108⭐ ceiling 36 levels create — 15⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
-│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
+│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
@@ -3325,6 +3325,45 @@ three escaped the per-suite sweep is its own lesson: **`tests/art.test.js` was
 not in this file's repo-structure listing**, so enumerating suites from the doc
 instead of the directory missed a whole file — the "a scan's own list is part of
 the scan" class, this time with the list being CLAUDE.md. It is listed now.
+
+**The fort's BODIES did not react — and the two cues that fix it cost four
+false-passing tests to prove, every one of them a confound this file already
+warns about.** A shot landed as a poof in the AIR (the `hit` event said WHERE,
+never WHAT) and a killed enemy simply blinked out mid-stride while its stars and
+gold played over bare floor. Both turned out cheap: an enemy is only ever
+FLAGGED dead — never spliced — and the `die` event has always carried the enemy
+TYPE and its position, so **the corpse is a pure render concern**, and the flash
+needed exactly one new field (`id: target.id`, the shape `dmg`/`tower` already
+took; events are not part of `state`, so the determinism hash cannot move). Both
+ride seams that already exist: the flash re-fills the path the `ctx.fill`
+interception has just filled (no clip, no filter, so all 51 bodies and a 52nd
+inherit it), and the corpse is the real sprite drawn squashed and fading in the
+CHARACTER pass. Five things worth keeping. (1) **A white hit-flash does not work
+on this roster, and that is a measurement.** The bodies are deliberately PALE —
+the whole reason the ink line exists — so a FULL white overlay moved only ~119
+device pixels of a sock at cell 27, most of them by under 24/765 of RGB. The
+flash is two cues now: a warm tint, which carries the dark bodies and is the
+entire cue under `prefers-reduced-motion`, plus a brief SCALE pop, which reads on
+any colour because it moves the silhouette itself (103 → 304 changed pixels). The
+pop is motion, so it is gated exactly as the screen-shake is. (2) **A `hit` also
+pushes a poof AT the hit point**, so a test that fires both events on the body is
+measuring the poof — the first cut survived deleting the whitening AND deleting
+the engine's id. The flash is keyed on the ID, not the position, so firing the
+hits six cells away puts the poof outside the sample box and leaves the flash on
+the sprite. (3) **`draw()` ages every fx by one**, so pushing a second `die` to
+get a control ADDS a second set of stars on top of the first; the fix ages the
+board empty between frames and asserts a `residue` of ~0, which makes the
+isolation self-verifying rather than assumed. (4) **The +0.5 trap, for the fifth
+time, and this time inside a test** — `posOn()` is corner-based and the enemy
+pass draws at `worldToScreen(pos + 0.5)`, so sampling the corner read 22 changed
+pixels on a flash that works; worse, in the corpse test TWO such errors cancelled
+(the event pushed half a cell off, sampled half a cell off), which is exactly how
+a wrong convention hides. The shipped muzzle guardrail already had the right
+convention and was the tiebreaker. (5) **A browser test that drives `pushFx`
+directly proves the RENDERER reacts to an id — it cannot notice the ENGINE no
+longer sending one** (verified: deleting `id: target.id` left it green), so that
+claim lives in the engine suite instead. Same family as "a feature whose tests
+all call the API is untested as a feature", one level down.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

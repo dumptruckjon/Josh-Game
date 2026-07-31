@@ -3380,3 +3380,172 @@ test("ART: every world's FLOOR is its own room — no two render the same", asyn
   assert.deepEqual(roads, [], `worlds with no road style declared: ${roads.join(", ")}`);
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
+
+test("ART: a body REACTS when it is shot — the flash lands on the enemy, not the air", async () => {
+  // Shots landed with a poof in the AIR and no reaction from the body they hit,
+  // so on a 14-tower board you saw sparks near things rather than things being
+  // shot. `hit` now carries the enemy id and the renderer whitens that sprite.
+  // Asserts the INK, on the same same-state-drawn-twice pattern the muzzle
+  // guardrail uses: everything else on the board is identical, so a difference
+  // is the flash and nothing else.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 5 }));
+  await page.waitForTimeout(160);
+  const out = await page.evaluate(() => {
+    const eng = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    st.gold = 999999;
+    eng.callWave();
+    for (let i = 0; i < 200 && !st.enemies.some((e) => e.alive); i++) eng.tick();
+    const foe = st.enemies.find((e) => e.alive);
+    if (!foe) return { err: "no live enemy" };
+    const p = eng.posOn(foe.pathIdx || 0, foe.dist);
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c2 = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    // +0.5: posOn() is CORNER-based and the enemy pass draws at
+    // worldToScreen(pos + 0.5) — the two coordinate spaces this repo has been
+    // caught by four times. Sampling the corner put the box half a cell up-left
+    // of the sprite and read 22 changed pixels on a flash that works.
+    const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);
+    const R = Math.round(20 * dpr);
+    const cx = Math.round(s.x * dpr), cy = Math.round(s.y * dpr);
+    const grab = () => Array.from(c2.getImageData(cx - R, cy - R, R * 2, R * 2).data);
+    r.afterTick(); r.draw(0);
+    // ISOLATION. A `hit` also pushes a poof AT the hit point, so pushing both
+    // events on the body measures the poof, not the flash — the first cut did
+    // exactly that and survived both mutations (delete the whitening, delete the
+    // engine's id) because the poof alone moved hundreds of pixels.
+    //   The flash is keyed on the ID, not the position, so the fix is to fire
+    // the hits six cells away: the poof lands well outside the sample box while
+    // the flash still lands on the sprite. Everything else in the box is
+    // byte-identical between the two frames.
+    const far = { x: p.x + 6, y: p.y + 6 };   // the engine emits corner coords
+    r.pushFx({ type: "hit", x: far.x, y: far.y, dmg: 4 });
+    r.draw(0);
+    const anon = grab();
+    r.pushFx({ type: "hit", x: far.x, y: far.y, dmg: 4, id: foe.id });
+    r.draw(0);
+    const lit = grab();
+    const diff = (a, b) => {
+      let n = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) n++;
+      }
+      return n;
+    };
+    return { flash: diff(anon, lit), type: foe.type };
+  });
+  assert.ok(!out.err, out.err || "");
+  assert.ok(out.flash > 60,
+    `a hit changed only ${out.flash} pixels ON the ${out.type} it struck — the body must react, ` +
+    "not just the air around it");
+
+  // The flash is TWO cues, and this is the only thing that guards the quieter
+  // one. The scale pop alone clears the threshold above, so deleting the tint
+  // left that assertion green — but the tint is the ENTIRE cue for a player who
+  // asked for less motion, exactly as the shake is disabled and nothing replaces
+  // it. So measure with motion reduced: the pop must be gone (a strictly smaller
+  // change) and the tint must still mark the body (a change at all).
+  // The renderer samples matchMedia ONCE at create, so the level has to be
+  // restarted after switching — the same shape the shipped screen-shake
+  // guardrail uses. Without it `reduced` stays false and this reads as a bug in
+  // the gate rather than in the fixture.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 5 }));
+  await page.waitForTimeout(160);
+  const calm = await page.evaluate(() => {
+    const eng = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    st.gold = 999999;
+    eng.callWave();
+    for (let i = 0; i < 200 && !st.enemies.some((e) => e.alive); i++) eng.tick();
+    const foe = st.enemies.find((e) => e.alive);
+    if (!foe) return { err: "no live enemy" };
+    const p = eng.posOn(foe.pathIdx || 0, foe.dist);
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c2 = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);
+    const R = Math.round(20 * dpr);
+    const cx = Math.round(s.x * dpr), cy = Math.round(s.y * dpr);
+    const grab = () => Array.from(c2.getImageData(cx - R, cy - R, R * 2, R * 2).data);
+    const far = { x: p.x + 6, y: p.y + 6 };
+    r.afterTick(); r.draw(0);
+    r.pushFx({ type: "hit", x: far.x, y: far.y, dmg: 4 });
+    r.draw(0);
+    const anon = grab();
+    r.pushFx({ type: "hit", x: far.x, y: far.y, dmg: 4, id: foe.id });
+    r.draw(0);
+    const lit = grab();
+    let n = 0;
+    for (let i = 0; i < anon.length; i += 4) {
+      if (Math.abs(anon[i] - lit[i]) + Math.abs(anon[i + 1] - lit[i + 1])
+        + Math.abs(anon[i + 2] - lit[i + 2]) > 24) n++;
+    }
+    return { flash: n, reduced: r.shakeInfo().reduced };
+  });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  assert.ok(!calm.err, calm.err || "");
+  assert.equal(calm.reduced, true, "the renderer sees prefers-reduced-motion");
+  assert.ok(calm.flash > 10,
+    `with motion reduced the hit changed only ${calm.flash} pixels — the tint is the whole cue ` +
+    "there, so it cannot be the pop doing all the work");
+  assert.ok(calm.flash < out.flash,
+    `the scale pop must be OFF under reduced motion (${calm.flash} changed vs ${out.flash} with ` +
+    "motion allowed — no smaller means the pop still fired)");
+});
+
+test("ART: a killed body POPS instead of blinking out of existence", async () => {
+  // An enemy is only ever FLAGGED dead (it is never spliced), and the draw loop
+  // skips `!alive` — so a hundred bodies a wave vanished mid-stride while the
+  // stars and the gold number played over empty floor.
+  //
+  // The control is the same `die` event WITHOUT its `enemy` field: the pop is
+  // the only thing gated on it, so stars and gold are identical in both frames
+  // and the difference is exactly the corpse. Diffing against a no-die frame
+  // would have credited the pop with the stars the game already had.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 5 }));
+  await page.waitForTimeout(160);
+  const out = await page.evaluate(() => {
+    const eng = window.__TD.engine(), r = window.__TD.render();
+    const p = eng.posOn(0, 6);
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c2 = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);   // sprite centre, not cell corner
+    const R = Math.round(24 * dpr);
+    const cx = Math.round(s.x * dpr), cy = Math.round(s.y * dpr);
+    const grab = () => Array.from(c2.getImageData(cx - R, cy - R, R * 2, R * 2).data);
+    r.afterTick(); r.draw(0);
+    const base = grab();
+    r.pushFx({ type: "die", x: p.x, y: p.y, bounty: 3 });   // stars + gold only
+    r.draw(0);
+    const noBody = grab();
+    // ISOLATION: draw() ages every fx by one and prunes the expired, so 40 draws
+    // clear the board. Without this the second push would ADD a second set of
+    // stars and gold on top of the first, and the "corpse" would be measuring
+    // doubled sparkles as well as the body.
+    for (let i = 0; i < 40; i++) r.draw(0);
+    const aged = grab();
+    r.pushFx({ type: "die", x: p.x, y: p.y, bounty: 3, enemy: "sock" });
+    r.draw(0);
+    const withBody = grab();
+    const diff = (a, b) => {
+      let n = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) n++;
+      }
+      return n;
+    };
+    // both frames now carry stars+gold at the SAME age; only one carries a body
+    return { corpse: diff(noBody, withBody), residue: diff(base, aged) };
+  });
+  assert.ok(out.residue < 20,
+    `ageing the fx out left ${out.residue} changed pixels — the two frames are not comparable, ` +
+    "so the corpse measurement below would be confounded by leftover sparkles");
+  assert.ok(out.corpse > 150,
+    `the death drew only ${out.corpse} pixels of body — a killed enemy must leave a corpse to ` +
+    "squash away, not blink out while its stars play over bare floor");
+});

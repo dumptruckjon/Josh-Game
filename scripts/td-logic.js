@@ -1357,7 +1357,11 @@
         const step = pr.speed * DT;
         if (d <= Math.max(0.18, step)) {
           const hit = computeHit(pr.dmg, pr.dmgType, target);
-          emit({ type: "hit", x: tp.x, y: tp.y, crit: pr.crit || false, dmg: hit.hpDmg + hit.shieldDmg }); // dmg for the opt-in damage-number fx
+          // `id` so the struck BODY can react, not just the air around it. A
+          // render cue belongs on the EVENT, computed once at the damage site —
+          // the same shape `dmg` and `tower` already took. Events are not part
+          // of `state`, so this cannot move the determinism hash.
+          emit({ type: "hit", x: tp.x, y: tp.y, crit: pr.crit || false, dmg: hit.hpDmg + hit.shieldDmg, id: target.id }); // dmg for the opt-in damage-number fx
           dealDamage(target, hit.hpDmg, hit.shieldDmg, "dart");
           pr.dead = true;
         } else {
