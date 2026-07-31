@@ -263,8 +263,42 @@ test("TD2 build menu: all four toy lines offered with prices; unaffordable optio
   const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
   await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
   await page.locator(".td-buildmenu").waitFor({ state: "visible" });
-  const opts = await page.locator(".td-buildmenu .td-buy").count();
-  assert.equal(opts, 4, "dart + mortar + fan + camp are all offered");
+  // DERIVED, like the level grid and the star ceiling: the menu must offer one
+  // button per shipped tower line, with that line's real first-tier price. The
+  // list used to be a literal `["dart","mortar","fan","camp"]` in td-main —
+  // the same shape as the `TOTAL_PLANNED = 12` that left World 4 unreachable.
+  const menu = await page.evaluate(() => ({
+    shown: [...document.querySelectorAll(".td-buildmenu .td-buy")].map((b) => ({
+      line: b.dataset.line, cost: Number(b.dataset.cost),
+    })),
+    lines: Object.keys(window.TDData.TOWERS).map((id) => ({
+      line: id, cost: window.TDData.TOWERS[id].tiers[0].cost,
+    })),
+  }));
+  assert.deepEqual(menu.shown, menu.lines,
+    "the build menu offers one button per DATA.TOWERS line, at that line's real tier-1 price — " +
+    "add a 5th line and it must become buyable without a code hunt");
+  // …and the proof it is really DERIVED, baked in rather than left to an
+  // external mutation: inject a fixture line and the menu must grow. On the old
+  // literal it does not, which is precisely how a shipped 5th line would have
+  // been unbuyable — the `TOTAL_PLANNED = 12` failure wearing a different hat.
+  const grew = await page.evaluate(() => {
+    const T = window.TDData.TOWERS;
+    T.__fixture = { name: "Fixture", icon: "🧪", kind: "dart", role: "test only", hitsFliers: true,
+      projectileSpeed: 9, tiers: [{ name: "Fixture", cost: 999, dmg: 1, dmgType: "bonk", rate: 2, range: 3 }] };
+    return Object.keys(T).length;
+  });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-buildmenu").waitFor({ state: "visible" });
+  const after = await page.locator(".td-buildmenu .td-buy").count();
+  await page.evaluate(() => { delete window.TDData.TOWERS.__fixture; });
+  assert.equal(after, grew,
+    `a 5th tower line must appear in the build menu without touching td-main (saw ${after} of ${grew})`);
+  // put the board back the way the rest of this test expects
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-buildmenu").waitFor({ state: "visible" });
   const disabled = await page.locator('.td-buildmenu .td-buy[disabled]').count();
   assert.equal(disabled, 0, "everything is affordable at 220 start gold");
   // buy the camp — soldiers deploy

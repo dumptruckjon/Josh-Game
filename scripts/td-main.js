@@ -892,11 +892,20 @@
     const sp = cur.render.worldToScreen(pad.cx + 0.5, pad.cy + 0.5);
     const bx = UI.canvas.offsetLeft + sp.x, by = UI.canvas.offsetTop + sp.y;
     if (!tower) {
-      // ---- build menu: all four toy lines, priced; unaffordable ones dim ----
+      // ---- build menu: every toy line, priced; unaffordable ones dim ----
       cur.selPadId = pad.id;
       cur.render.setSelection({ pad, ghostRange: DATA.TOWERS.dart.tiers[0].range });
       const gold = cur.engine.state.gold;
-      const lines = ["dart", "mortar", "fan", "camp"];
+      // DERIVED from the data, never a written literal. This was
+      // `["dart","mortar","fan","camp"]` — the same shape as the
+      // `TOTAL_PLANNED = 12` that left a whole world's levels with no card and
+      // unreachable by the player. A 5th tower line is a real design decision
+      // (and is currently recorded as NO, because neither oracle plan would buy
+      // it, so it would ship provably untested as a feature) — but if one is
+      // ever added, it must not ALSO need a code hunt to become buyable.
+      // `.td-buildmenu` is a wrapping 2-column grid, so a 5th button costs no
+      // layout, unlike the ability strip's hard four.
+      const lines = Object.keys(DATA.TOWERS);
       UI.showBubble(
         '<div class="td-buildmenu">' +
         lines.map((id) => {

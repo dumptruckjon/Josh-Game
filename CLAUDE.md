@@ -2781,6 +2781,36 @@ whether or not `place()` succeeded, so a pad that can refuse would stop the
 solver building anything at all for the rest of the run. Any future pad-gating
 field must be proven against that loop first, in BOTH copies
 (`tests/td-logic.test.js` and `tools/td-sim.js`).
+**A proposed guardrail was MEASURED and replaced by a better one — the honest
+outcome when a law turns out not to be a property of the shipped game.** The
+content spec's corrected form of its dose item was "the world that teaches shape
+X must carry ≥5% of ITS world's HP in X", and the four shapes it named do sit
+there (bubblewrap 5.2% of moving, racer 4.8% of garage, cushion 5.0% of
+backyard, boombox 4.8% of moving). But measuring EVERY designed counter shape
+shows slime at 2.8% of its best world and 🦆 at 0.6% — so the law holds for four
+of six, and shipping it would have meant two exemptions, one of which (slime)
+exists only to make the test pass. That is a fence around the residual, not a
+law. What the data DOES support, and what this project has now paid for three
+times, is reachability: World 4's levels shipped with no card on the grid,
+casual/heroic shipped with no selector, and 🦆 spent part of an afternoon fully
+built — engine field, art, guide card, guardrails — while sitting in NO wave
+table. `AUDIT roster` derives every route a body can enter play (a wave group, a
+spawner's drip, a splitter's children, a boss phase's summon, an endless pool or
+mini-boss) and fails on any enemy nothing can spawn, and on any type spawned
+without a definition. No threshold, no exemptions, and mutation-proven by
+deleting the duck's wave groups — which is exactly the state it was in that
+morning. **When a proposed law measures as true-for-most, prefer the neighbouring
+law that measures as true-for-all.**
+**The build menu's tower list is DERIVED now** (`Object.keys(DATA.TOWERS)`,
+was `["dart","mortar","fan","camp"]`) — the counting law applied to the one
+surface a new tower line has to appear on. `.td-buildmenu` is a wrapping
+2-column grid so a 5th button costs no layout, unlike the ability strip's hard
+four. The guardrail injects a fixture line at runtime and asserts the menu
+GROWS, so it is self-proving rather than relying on someone remembering to
+mutate it: on the old literal it reports "saw 4 of 5". (A 5th line is still
+recorded as NO — neither oracle plan would buy one, so it would ship provably
+untested as a feature — but it must not ALSO need a code hunt to become
+buyable.)
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

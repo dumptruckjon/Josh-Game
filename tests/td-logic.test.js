@@ -2940,6 +2940,38 @@ test("TD-9 abilities: a no-op use is REFUSED, and costs neither gold nor cooldow
   assert.ok(e.state.gold < 5000, "…and is paid for");
 });
 
+test("AUDIT roster: every enemy in DATA.ENEMIES is actually REACHABLE by a player", () => {
+  // The "content that exists but cannot be reached" class, which this project
+  // has now paid for three times: World 4's levels shipped with no card on the
+  // grid; the casual/heroic difficulties shipped with no selector; and the 🦆
+  // Rubber Duck spent part of an afternoon fully built — engine field, art,
+  // guide card, guardrails — while sitting in NO wave table, so nothing in the
+  // game could spawn it. An enemy in the roster that nothing spawns is not
+  // content, it is dead weight that looks like content.
+  //
+  // Reachability is DERIVED from every route a body can actually enter play:
+  // a wave group, a spawner's drip, a splitter's children, a boss phase's
+  // summon, or an endless pool / mini-boss.
+  const reachable = new Set();
+  for (const l of DATA.LEVELS) for (const w of l.waves) for (const g of w.groups || []) reachable.add(g.type);
+  for (const def of Object.values(DATA.ENEMIES)) {
+    if (def.spawner) reachable.add(def.spawner.type);
+    if (def.split) reachable.add(def.split.type || "mudlet");
+    for (const p of def.phases || []) if (p.spawn) reachable.add(p.spawn.type);
+  }
+  for (const w of Object.values((DATA.ENDLESS && DATA.ENDLESS.worlds) || {})) {
+    for (const t of w.pool || []) reachable.add(t);
+    if (w.miniBoss) reachable.add(w.miniBoss);
+  }
+  const orphans = Object.keys(DATA.ENEMIES).filter((t) => !reachable.has(t));
+  assert.deepEqual(orphans, [],
+    "these enemies are in the roster but nothing can ever spawn them: " + orphans.join(", ") +
+    " — every one costs art, a guide card and a draw branch while being unreachable");
+  // …and the reverse: nothing may be spawned that has no definition.
+  const undef = [...reachable].filter((t) => !DATA.ENEMIES[t]);
+  assert.deepEqual(undef, [], "these types are spawned but not defined: " + undef.join(", "));
+});
+
 test("P6 ⛱️ Blanket Cover: every damage family lands at exactly the band's dmg", () => {
   // The 4th gimmick shape. `zones[].mult` scales TIME in range; `dmg` scales
   // DAMAGE in range — the two factors of the same integral, so it is the same
