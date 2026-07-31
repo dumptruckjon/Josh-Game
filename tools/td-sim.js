@@ -134,6 +134,49 @@ if (process.argv.includes("--lever")) {
   process.exit(0);
 }
 
+// ---- --boss: sweep a finale's boss hp x leak toll, looking for SPREAD ----
+//
+//   node tools/td-sim.js 8 --boss
+//   BOSS_HP=5200,6400,7600 BOSS_TOLL=4,6,8 node tools/td-sim.js 8 --boss
+//
+// A finale is QUANTIZED when its level leaks nothing before the boss wave: the
+// whole run then reduces to "does the boss die?", one leak is worth its entire
+// toll, and the outcome can only land on a few values. The tell is not a bad
+// median — it is ZERO VARIANCE. L8 measured heroic 10 on all 8 seeds.
+//
+// So this prints the SPREAD (min..max) as well as the median, because a sweep
+// judged on medians alone will happily pick a setting that is perfectly flat.
+// It mutates DATA in-process rather than editing the data file between runs, so
+// every row goes through the same shipped `best()`.
+if (process.argv.includes("--boss")) {
+  const HPS = (process.env.BOSS_HP || "").split(",").filter(Boolean).map(Number);
+  const TOLLS = (process.env.BOSS_TOLL || "").split(",").filter(Boolean).map(Number);
+  for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
+    const finale = lvl.waves[lvl.waves.length - 1];
+    const key = (finale.groups || []).map((g) => g.type).find((t) => DATA.ENEMIES[t] && DATA.ENEMIES[t].boss);
+    if (!key) { console.log(`L${lvl.id} ${lvl.name}: no boss finale`); continue; }
+    const def = DATA.ENEMIES[key], hp0 = def.hp, toll0 = def.lives;
+    console.log(`\nL${lvl.id} ${lvl.name} — ${def.name} (shipped hp ${hp0}, toll ${toll0})`);
+    for (const hp of (HPS.length ? HPS : [hp0])) {
+      for (const toll of (TOLLS.length ? TOLLS : [toll0])) {
+        def.hp = hp; def.lives = toll;
+        const cols = [];
+        for (const d of DIFFS) {
+          const r = SEEDS.map((s) => best(lvl, s, d));
+          const w = r.filter((x) => x.phase === "won").map((x) => x.lives);
+          const lost = r.length - w.length;
+          cols.push(w.length
+            ? `${d} ${w.join(",")} med ${median(w)} spread ${Math.min(...w)}..${Math.max(...w)}${lost ? ` LOST x${lost}` : ""}`
+            : `${d} LOST on every seed`);
+        }
+        console.log(`   hp=${String(hp).padStart(5)} toll=${toll} | ${cols.join(" | ")}`);
+      }
+    }
+    def.hp = hp0; def.lives = toll0;
+  }
+  process.exit(0);
+}
+
 for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
   const cols = [];
   for (const d of DIFFS) {

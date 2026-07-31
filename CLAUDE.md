@@ -2901,6 +2901,36 @@ go through the shipped `best()` is not a measurement of this game** — which is
 why the sweep was rewritten as a `--barricade` flag inside `tools/td-sim.js`
 before being trusted, and why it was removed with the feature rather than left
 behind as an instrument for something that no longer exists.
+**The L8/L16 QUANTIZED-FINALE item is closed: L16 had already fixed itself, L8
+was fixed by a 400-hp move, and the reason the obvious lever fails is now
+measured.** Re-measuring the two levels this file records as boss-quantized found
+**L16 is no longer one** — the earlier Tickmaster toll cut (10 → 8) did its job,
+and it now reads normal 10,6,20,15,20,17,14,17 (a genuine 6-to-20 spread) and
+heroic 4-8. L8 was the live one, and the tell was not a bad median but **ZERO
+VARIANCE**: heroic finished on exactly 10 lives on all 8 seeds, normal on 10-11,
+because the 8000-hp Vacuum King reached the door on every seed and every build.
+The level reduced to a guaranteed 8-life tax you could not influence. Three
+things came out of the sweep (`node tools/td-sim.js 8 --boss`, added beside
+`--lever` so it is repeatable). (1) **The leak TOLL cannot de-quantize anything —
+it is a pure offset.** Heroic came out at exactly `20 − toll − 2` for every
+toll ∈ {4,6,8} at every hp ∈ {4800…8000}: 14, 12, 10, each with spread 0. A toll
+change moves the constant and never creates variance, so it is a readability
+knob, not a tension knob. (2) **The hp cliff is real but NARROW, and there is a
+graded band inside it.** On normal: 7200 → the boss dies on all 8 seeds (18,18,…
+a formality); 7400 → it leaks on 2 of 8; **7600 → 6 of 8, spread 10..18**; 8000 →
+8 of 8. So 7600 is the only value where both outcomes genuinely happen, and it is
+what ships — holding the King cleanly is possible for the first time. This is the
+first time a graded boss band has been FOUND in this engine; the L16 sweep that
+concluded "the boss's hp cannot grade that finale" swept in steps of 100 across
+3200-3500 and the L8 band turned out to be ~200 wide at ~7500, so the lesson is
+that the cliff has structure and you have to sweep INTO it, not that it is
+always sheer. (3) **Heroic is structurally ungradable here and is left alone** —
+at ×1.30 hp the King leaks at every value tested down to 4800, so heroic stays a
+flat 10 (in the 5-17 audit band, and a real fight). Recording that half honestly
+matters: the fix is a normal-difficulty fix, not a general one. Method note for
+the next finale: **judge a boss on SPREAD, not median** — a sweep judged on
+medians alone happily picks a perfectly flat setting, which is exactly the defect
+being fixed, so `--boss` prints `min..max` on every row.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

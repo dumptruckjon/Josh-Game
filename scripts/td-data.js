@@ -360,7 +360,17 @@
       phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } },
                 { upTo: 0.33, speedMult: 1.25, disable: { every: 3, seconds: 3 },
                   spawn: { type: "carton", count: 5, every: 6 } } ] },
-    vacuumking: { name: "Vacuum King", icon: "🌪️", hp: 8000, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
+    // hp 8000 → 7600 DE-QUANTIZES this finale. At 8000 the Vacuum King reached
+    // the door on EVERY seed and every build, so L8 ended at exactly 10-11 lives
+    // eight times out of eight — the whole level reduced to a guaranteed 8-life
+    // tax with no outcome you could influence. The cliff is narrow and was found
+    // by sweep (`node tools/td-sim.js 8 --boss`): 7200 → the boss dies on all 8
+    // normal seeds (18,18,…, a formality); 7400 → it leaks on 2 of 8; 7600 → 6 of
+    // 8, spread 10..18. So 7600 is the only value where BOTH outcomes really
+    // happen, and holding the King cleanly becomes possible for the first time.
+    // Heroic is unchanged and cannot be moved — at ×1.30 hp it leaks at every
+    // value tested down to 4800, so heroic stays a flat 10. See CLAUDE.md.
+    vacuumking: { name: "Vacuum King", icon: "🌪️", hp: 7600, speed: 0.3, armor: 0.25, shield: 60, shieldRegen: 10, bounty: 300, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, suck: { every: 8 }, enrage: { hpPct: 0.5, mult: 1.2 }, phases: [{ upTo: 1.0 }, { upTo: 0.5, disable: { every: 6, seconds: 3 } }] }, // inhales the nearest soldier every 8s (instant KO); under half hp it also jams a random gun + a 1.2× hustle
     thestatic: { name: "The Static", icon: "⚡", hp: 8000, speed: 0.32, armor: 0.5, shield: 0, shieldRegen: 0, bounty: 500, lives: 8, size: 3.2, flier: false, boss: true, meleeDmg: 0, meleeRate: 1, phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 7, seconds: 4 } }, { upTo: 0.33, speedMult: 1.9, spawn: { type: "battery", count: 2, every: 10 } } ] }, // P1 armored wall; P2 jams a random gun; P3 dashes (~0.6) + summons Battery Bots — punishes a single-carry build
   };
 
