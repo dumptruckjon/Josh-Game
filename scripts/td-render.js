@@ -120,6 +120,30 @@
     }
     function exitWorld() { ctx.restore(); }
 
+    // ---- THE LIGHT ----
+    // ONE global light direction for the whole fort. Before this, the field had
+    // shading but no LIGHT: every shadow was a centred grey blob, so nothing
+    // agreed about where it was lit from and objects read as stickers laid on a
+    // plane. A single shared vector is what makes a flat 2D board look designed
+    // — every cast shadow offsets along it, every lit edge faces into it.
+    //
+    // Screen-space and CONSTANT: the floor rotates 90° in portrait but the light
+    // must not, or the room would appear to swing when the phone turns. It is
+    // declared here, beside the baked floor, because the bake is its first
+    // consumer and the entity pass is its second.
+    const LIGHT = { x: -0.55, y: -0.84 };            // from upper-left, ON SCREEN
+    const SHADOW = { x: -LIGHT.x, y: -LIGHT.y };     // …so shadows fall lower-right
+
+    // …and the FLOOR is not in screen space. The baked plate is world-oriented
+    // and gets drawn through a 90° rotation in portrait, so a shadow baked
+    // "down-right" comes out pointing down-LEFT on the phone — which is exactly
+    // what the first cut of this did, and it is the same +0.5/rotation class of
+    // coordinate bug this renderer has been bitten by before. `w2s` maps a world
+    // direction (dx,dy) to screen (-dy,dx) when rotated, so the bake must use the
+    // INVERSE of that to land on LIGHT once painted. Recomputed at bake time
+    // because `rotated` is decided in resize(), which is what triggers the bake.
+    const bakeVec = (v) => (rotated ? { x: v.y, y: -v.x } : { x: v.x, y: v.y });
+
     // ---- Baked floor: gradient, subtle rug texture, the path ribbon, pads ----
     // The EIGHT shared floor primitives. Deliberately a small closed set: eight
     // worlds pick three each from `WORLDS[w].floor.props`, so a ninth world
@@ -127,7 +151,52 @@
     // canvas ops, painted once into the baked background, so the per-frame cost
     // is exactly zero. Vector only, never emoji: an emoji here would land
     // straight in the ≤13.0 and VS16 scans.
+    // A prop, GROUNDED and SHADED. Three things happen here and the order is the
+    // point: (1) contact + cast shadow straight onto the floor, (2) the body on
+    // its OWN scratch layer, (3) one directional wash clipped to that body with
+    // `source-atop`. The scratch layer is what makes (3) legal — running
+    // source-atop on the shared background would tint the FLOOR inside the
+    // prop's box as well, since the floor is already painted there. It is a
+    // bake-time canvas per prop (seven per level, once per resize), so the
+    // per-frame cost stays exactly zero.
     function drawProp(b, kind, x, y, u, ink) {
+      // CONTACT + CAST. Every prop was a flat shape with nothing under it, so a
+      // crate read as a sticker rather than an object in the room. A tight dark
+      // core exactly at the base is what plants a thing; the wider soft ellipse
+      // thrown along SHADOW is what says where the light is.
+      const SH = bakeVec(SHADOW), LT = bakeVec(LIGHT);
+      const sx = x + SH.x * u * 0.30, sy = y + SH.y * u * 0.30;
+      const cast = b.createRadialGradient(sx, sy, 0, sx, sy, u * 0.55);
+      cast.addColorStop(0, "rgba(0,0,0,0.32)");
+      cast.addColorStop(1, "rgba(0,0,0,0)");
+      b.save();
+      b.fillStyle = cast;
+      b.beginPath(); b.ellipse(sx, sy, u * 0.55, u * 0.30, 0, 0, 7); b.fill();
+      b.fillStyle = "rgba(0,0,0,0.28)";
+      b.beginPath(); b.ellipse(x + SH.x * u * 0.08, y + SH.y * u * 0.08, u * 0.26, u * 0.12, 0, 0, 7); b.fill();
+      b.restore();
+
+      const S = Math.max(8, Math.ceil(u * 1.6));
+      const sc = document.createElement("canvas");
+      sc.width = Math.ceil(S * dpr); sc.height = Math.ceil(S * dpr);
+      const p = sc.getContext("2d");
+      p.setTransform(dpr, 0, 0, dpr, 0, 0);
+      p.translate(S / 2 - x, S / 2 - y);      // so the body's absolute coords land centred
+      drawPropBody(p, kind, x, y, u, ink);
+      if (kind !== "stain") {                 // a stain is a mark ON the floor, not a form above it
+        p.setTransform(dpr, 0, 0, dpr, 0, 0);
+        p.globalCompositeOperation = "source-atop";
+        const sh = p.createLinearGradient(S / 2 + LT.x * u * 0.5, S / 2 + LT.y * u * 0.5,
+          S / 2 - LT.x * u * 0.5, S / 2 - LT.y * u * 0.5);
+        sh.addColorStop(0, "rgba(255,248,232,0.22)");
+        sh.addColorStop(0.5, "rgba(255,255,255,0)");
+        sh.addColorStop(1, "rgba(0,0,0,0.28)");
+        p.fillStyle = sh; p.fillRect(0, 0, S, S);
+      }
+      b.drawImage(sc, 0, 0, sc.width, sc.height, x - S / 2, y - S / 2, S, S);
+    }
+
+    function drawPropBody(b, kind, x, y, u, ink) {
       const dark = "rgba(0,0,0,0.45)";
       b.save();
       b.strokeStyle = ink; b.lineWidth = Math.max(1, u * 0.05);
@@ -208,9 +277,32 @@
           b.fillStyle = gl; b.beginPath(); b.arc(fx0 * cell, fy0 * cell, cell * 0.7, 0, 7); b.fill();
         }
       }
-      // soft vignette so the field feels like a lit playmat
-      const vig = b.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.62);
-      vig.addColorStop(0, "rgba(255,255,255,0.05)"); vig.addColorStop(1, "rgba(0,0,0,0.18)");
+      // LIGHT POOLING. The floor was a two-stop vertical gradient across ~75% of
+      // the screen — the largest surface in the game carrying almost no
+      // information, which is what made every room read as a plane rather than a
+      // place. Four broad, deterministic patches (hash-placed, never rng) break
+      // that flatness up before any texture goes on top: two warm pools biased
+      // toward LIGHT, two cool sinks opposite. Baked, so it is free per frame.
+      const pool = (px, py, r, col) => {
+        const gp = b.createRadialGradient(px, py, 0, px, py, r);
+        gp.addColorStop(0, col); gp.addColorStop(1, col.replace(/[\d.]+\)$/, "0)"));
+        b.fillStyle = gp; b.fillRect(0, 0, W, H);
+      };
+      const warm = NIGHT ? "rgba(150,190,255,0.05)" : "rgba(255,240,205,0.09)";
+      const cool = NIGHT ? "rgba(0,0,20,0.16)" : "rgba(20,26,60,0.10)";
+      const BL = bakeVec(LIGHT);
+      pool(W * (0.5 + BL.x * 0.42), H * (0.5 + BL.y * 0.30), Math.max(W, H) * 0.62, warm);
+      pool(W * (0.5 + BL.x * 0.20 + 0.22), H * (0.5 + BL.y * 0.20 - 0.18), Math.max(W, H) * 0.34, warm);
+      pool(W * (0.5 - BL.x * 0.34), H * (0.5 - BL.y * 0.36), Math.max(W, H) * 0.52, cool);
+      pool(W * (0.5 - BL.x * 0.18 - 0.20), H * (0.5 - BL.y * 0.18 + 0.22), Math.max(W, H) * 0.36, cool);
+      // soft vignette so the field feels like a lit playmat — anchored to LIGHT
+      // rather than dead-centre, so the bright spot agrees with everything else
+      const vig = b.createRadialGradient(
+        W * (0.5 + BL.x * 0.14), H * (0.5 + BL.y * 0.10), Math.min(W, H) * 0.16,
+        W / 2, H / 2, Math.max(W, H) * 0.60);
+      vig.addColorStop(0, "rgba(255,255,255,0.07)");
+      vig.addColorStop(0.55, "rgba(0,0,0,0.04)");
+      vig.addColorStop(1, "rgba(0,0,0,0.30)");
       b.fillStyle = vig; b.fillRect(0, 0, W, H);
       // ---- the world's floor TEXTURE (baked; deterministic, no rng) ----
       // A cheap hash so speckle is stable across reloads and across the
@@ -454,6 +546,14 @@
       // world where the room calls for it (a garden path, bare attic boards, a
       // strip of packing tape) — the default keeps the original toy-road wood.
       const ROAD = FLOOR.road || { edge: "#3c2f22", base: "#caa268", top: "#e0bd83" };
+      // AMBIENT TRENCH. The road had a contact shadow hugging its own edge but
+      // the FLOOR beside it was untouched, so the lane read as a decal printed on
+      // the room rather than a path worn into it. Three widening, fading passes
+      // fake a soft occlusion falloff without a blur filter — `ctx.filter` is the
+      // documented WebKit rasterisation cliff and this file uses none.
+      ribbon(primaryPath, cell * 2.05, "rgba(0,0,0,0.055)", null, cell * 0.10);
+      ribbon(primaryPath, cell * 1.70, "rgba(0,0,0,0.075)", null, cell * 0.10);
+      ribbon(primaryPath, cell * 1.46, "rgba(0,0,0,0.10)", null, cell * 0.10);
       ribbon(primaryPath, cell * 1.30, "rgba(0,0,0,0.30)", null, cell * 0.10); // contact shadow
       ribbon(primaryPath, cell * 1.16, ROAD.edge);                              // kerb
       ribbon(primaryPath, cell * 1.0, ROAD.base);                               // base
@@ -536,6 +636,20 @@
           b.stroke();
         }
       }
+
+      // THE GRADE, last. One warm-to-cool wash across the whole plate, aligned
+      // with LIGHT, so the nine worlds read as one game shot under one lamp
+      // instead of nine unrelated palettes. Deliberately a baked overlay and NOT
+      // a CSS/canvas `filter`: a filter on something rendered every frame is the
+      // WebKit rasterisation cliff this repo has already paid for once.
+      const GL = bakeVec(LIGHT);
+      const grade = b.createLinearGradient(
+        W * (0.5 + GL.x * 0.5), H * (0.5 + GL.y * 0.5),
+        W * (0.5 - GL.x * 0.5), H * (0.5 - GL.y * 0.5));
+      grade.addColorStop(0, NIGHT ? "rgba(120,165,255,0.055)" : "rgba(255,224,170,0.065)");
+      grade.addColorStop(0.5, "rgba(255,255,255,0)");
+      grade.addColorStop(1, NIGHT ? "rgba(0,4,24,0.10)" : "rgba(28,20,60,0.075)");
+      b.fillStyle = grade; b.fillRect(0, 0, W, H);
     }
 
     // ---------- shared bits ----------
