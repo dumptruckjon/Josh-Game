@@ -2636,6 +2636,67 @@ test("no uncaught page errors in the fort run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
 
+test("ART: the field is lit from ONE direction, in BOTH orientations", async () => {
+  // The fort had shading but no LIGHT: every shadow was a centred blob, so
+  // nothing agreed about where it was lit from and objects read as stickers on a
+  // plane. One shared vector now drives every cast shadow and lit edge — and it
+  // needs a guardrail precisely because it CANNOT be eyeballed.
+  //
+  // Two reasons. (1) The baked floor plate is WORLD-oriented and drawn through a
+  // 90° rotation in portrait, so a shadow baked "down-right" comes out pointing
+  // down-LEFT on a phone; the bake has to use the inverse of `w2s`'s rotation and
+  // getting that backwards looks completely normal in a screenshot. (2) The
+  // bedroom's `stain` props look exactly like cast shadows, which is how a wrong
+  // answer gets believed — I nearly "corrected" a correct rotation because of one.
+  //
+  // Method: sample a ring around every prop and compare mean luma on the lit side
+  // against the shadow side. Shadow side must be measurably darker, in BOTH
+  // orientations. The ring scales with the CELL — its first version used a fixed
+  // 16px, about one cell in landscape but well past the prop in portrait where
+  // the cell is less than half the size, and duly reported a meaningless -0.19.
+  for (const [w, h, name] of [[390, 844, "portrait"], [844, 390, "landscape"]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.evaluate(() => window.__TD.newGame(1, { seed: 3 }));
+    await page.waitForTimeout(160);
+    const out = await page.evaluate(() => {
+      const r = window.__TD.render();
+      r.resize(); r.draw(0);
+      const canvas = document.querySelector("#screen-td-play .td-canvas");
+      const c2 = canvas.getContext("2d");
+      const dpr = canvas.width / canvas.clientWidth;
+      const LIGHT = { x: -0.55, y: -0.84 };                 // must match td-render.js
+      const cells = window.TDLogic.propCells(window.TDData.LEVELS[0], { w: 24, h: 14 });
+      const o0 = window.__TD.w2s(0, 0), o1 = window.__TD.w2s(1, 0);
+      const cellPx = Math.hypot(o1.x - o0.x, o1.y - o0.y);
+      const luma = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      let lit = 0, shad = 0, n = 0;
+      for (const p of cells) {
+        const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);
+        const R = Math.round(cellPx * 0.95 * dpr);
+        const cx = Math.round(s.x * dpr), cy = Math.round(s.y * dpr);
+        if (cx - R < 0 || cy - R < 0 || cx + R > canvas.width || cy + R > canvas.height) continue;
+        const A = c2.getImageData(cx - R, cy - R, R * 2, R * 2);
+        for (let y = 0; y < A.height; y++) for (let x = 0; x < A.width; x++) {
+          const dx = x - R, dy = y - R, d = Math.hypot(dx, dy);
+          if (d < R * 0.55 || d > R) continue;              // a ring OUTSIDE the body
+          const dot = (dx * LIGHT.x + dy * LIGHT.y) / (d || 1);
+          const i = (y * A.width + x) * 4;
+          if (dot > 0.5) { lit += luma(A.data, i); n++; }
+          else if (dot < -0.5) { shad += luma(A.data, i); }
+        }
+      }
+      return { lit: lit / n, shad: shad / n, props: cells.length, n };
+    });
+    assert.ok(out.n > 200, `${name}: too few samples (${out.n}) for this to mean anything`);
+    assert.ok(out.lit - out.shad > 2,
+      `${name}: the shadow side of a prop measured ${out.shad.toFixed(1)} luma against a lit side of ${out.lit.toFixed(1)} ` +
+      "— the field is not lit from LIGHT. In portrait this usually means the bake forgot that its plate is rotated 90°.");
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+});
+
 test("ART: a boss really is BIGGER, and its leak flashes deeper than a sock's", async () => {
   // TD-15 made both of these DATA fields (`size`, `lives`) read by one helper
   // each, and neither was ever rendered in a test — a boss could have shipped

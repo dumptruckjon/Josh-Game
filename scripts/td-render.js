@@ -653,9 +653,34 @@
     }
 
     // ---------- shared bits ----------
+    // Every unit on the field — 51 enemy types, 4 tower lines, soldiers, the
+    // squad, bosses — goes through this ONE helper, which is why it is where the
+    // lighting model belongs: 50 call sites inherit direction for free, exactly
+    // as they inherited the ink line. It used to paint a single flat ellipse
+    // dead under the body, so nothing on the board agreed about where the light
+    // was and every unit read as a sticker.
+    //
+    // Two ellipses, same as the props: a soft CAST thrown along SHADOW (which is
+    // screen-space here — characters are drawn upright in an unrotated context,
+    // unlike the baked floor), plus a tight CONTACT core at the base. The cast
+    // uses a radial gradient rather than a blur, because `ctx.filter` is the
+    // documented WebKit rasterisation cliff and this renderer uses none.
     function shadow(x, y, rx, ry) {
       noInk(() => {
-        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        const ox = x + SHADOW.x * rx * 0.55, oy = y + SHADOW.y * ry * 0.75;
+        const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, Math.max(rx, ry) * 1.15);
+        g.addColorStop(0, "rgba(0,0,0,0.34)");
+        g.addColorStop(0.6, "rgba(0,0,0,0.16)");
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.ellipse(ox, oy, rx * 1.15, ry * 1.15, 0, 0, 7); ctx.fill();
+        // The contact core covers the WHOLE footprint, not a shrunken disc.
+        // Shrinking it to 0.8x turned the silhouette guardrail red on the Grease
+        // Racer — a genuinely useful failure, because it showed that sprite's
+        // contour was passing on darkness BORROWED from its own drop shadow
+        // rather than on its own ink. Occlusion under a body covers the body, so
+        // full size is also the physically right answer.
+        ctx.fillStyle = "rgba(0,0,0,0.26)";
         ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill();
       });
     }
@@ -682,8 +707,13 @@
     // outline and hue are the ONLY channels that still resolve — eye dots are
     // 1.3px. So this is the one art change that survives at phone scale.
     const RIM = "rgba(26,18,10,0.92)";
+    // The ink line's counterpart. Warm and translucent so it reads as light
+    // falling on a body rather than a white outline drawn around one — a solid
+    // pen here turns every sprite into a sticker with a border, which is the
+    // exact look this pass exists to remove.
+    const LITEDGE = "rgba(255,246,224,0.30)";
     const INK_PER_SPRITE = Number(global.__INK_BUDGET || 4);
-    let inkDepth = 0, inkOff = 0, inkBudget = 0;
+    let inkDepth = 0, inkOff = 0, inkBudget = 0, litOn = false;
     const canInk = (function () {
       // Feature-checked: shadow the accessor on the instance so the art's 254
       // colour assignments need no edits. Safari 14.0 has these as prototype
@@ -723,6 +753,34 @@
         if (inkDepth > 0 && !inkOff && !busy && inkBudget > 0) {
           inkBudget--;
           pen(Math.max(1.5, cell * 0.07));
+          // …and the LIT EDGE, on the same sprite, from the same budget. The ink
+          // line gives every body a dark contour; this gives it a light SIDE, so
+          // the two together read as a form under a lamp rather than a flat
+          // shape with an outline. It is the identical path, stroked a second
+          // time thinner and offset toward LIGHT — a translate is all it takes,
+          // because the path is already built. One extra stroke per sprite
+          // (~45/frame at the peak), no new interception, no filter.
+          //   CLIPPED to the body, and that is not optional. The first cut simply
+          // translated the stroke toward LIGHT, so it poked out past the ink on
+          // the lit side and BRIGHTENED the contour — the silhouette guardrail
+          // went red naming nine enemies (mudlet, knight, healer, brick, mole,
+          // tinplane, racer, yarn, reject) whose boundary no longer read darker
+          // than the lane. Clipping to the current path confines the highlight
+          // strictly inside the shape, which is what a rim light is anyway, and
+          // leaves the dark contour the ink line's alone.
+          if (litOn) {
+          const px = LIGHT.x * Math.max(0.6, cell * 0.040);
+          const py = LIGHT.y * Math.max(0.6, cell * 0.040);
+          const ps = ctx.strokeStyle, pw = ctx.lineWidth, pj = ctx.lineJoin, pc = ctx.lineCap;
+          ctx.save();
+          ctx.clip();                       // the body, in its own untranslated space
+          ctx.translate(px, py);
+          ctx.strokeStyle = LITEDGE; ctx.lineWidth = Math.max(1, cell * 0.040);
+          ctx.lineJoin = "round"; ctx.lineCap = "round";
+          busy = true; realStroke(); busy = false;
+          ctx.restore();
+          ctx.strokeStyle = ps; ctx.lineWidth = pw; ctx.lineJoin = pj; ctx.lineCap = pc;
+          }
         }
         return out;
       };
@@ -743,7 +801,22 @@
       };
       return true;
     })();
-    function withInk(fn) { if (!canInk) return fn(); inkDepth++; inkBudget = INK_PER_SPRITE; try { return fn(); } finally { inkDepth--; inkBudget = 0; } }
+    // `lit` opts a sprite into the highlight. It is OFF by default and that is a
+    // measurement, not a preference: A/B at L24's 162-enemy peak reads 2.22 ms
+    // baseline → 2.67 with the directional shadow → 4.49 with the lit edge on
+    // everything. The extra 1.82 ms is almost entirely the per-sprite `clip()`,
+    // which is the single worst thing to spend on a software rasteriser — and
+    // Josh's iPad and CI's real WebKit both rasterize in software, so a Chromium
+    // number here is an UNDER-estimate (the documented trap). Meanwhile a rim
+    // light on a body a few pixels across is invisible: the enemies that make up
+    // that 162 are the ones paying most and showing least. So the highlight goes
+    // on the big, long-lived, deliberately-inspected things — towers and bosses —
+    // and the swarm keeps the ink line alone.
+    function withInk(fn, lit) {
+      if (!canInk) return fn();
+      inkDepth++; inkBudget = INK_PER_SPRITE; litOn = !!lit;
+      try { return fn(); } finally { inkDepth--; inkBudget = 0; litOn = false; }
+    }
     function noInk(fn) { if (!canInk) return fn(); inkOff++; try { return fn(); } finally { inkOff--; } }
 
     // ---------- enemies (upright, screen space) ----------
@@ -2648,7 +2721,10 @@
 
       // ---------- CHARACTER pass (upright, screen space) ----------
       drawZapBeams(st);           // BEFORE the towers, so a beam leaves the muzzle
-      for (const t of st.towers) drawTower(t);
+      // Towers are the biggest, longest-lived, most deliberately-inspected things
+      // on the board — you buy them, upgrade them and stare at them — so they are
+      // exactly where the highlight earns its cost. There are at most 14.
+      for (const t of st.towers) withInk(() => drawTower(t), true);
       for (const s of st.soldiers) if (s.alive) drawSoldier(s);
       // mortar shells arc between launch and impact
       for (const sh of st.shells) {
@@ -2693,7 +2769,7 @@
             }
           });
         }
-        withInk(() => drawEnemy(e, p.x, p.y + bob)); // the silhouette law
+        withInk(() => drawEnemy(e, p.x, p.y + bob), !!(global.TDData.ENEMIES[e.type] || {}).boss); // silhouette law; bosses are big enough for the highlight
         if (e.slowUntil && st.tick < e.slowUntil) { // frost tint
           ctx.fillStyle = "rgba(140,210,255,0.32)";
           ctx.beginPath(); ctx.arc(p.x, p.y + bob, cell * 0.36, 0, 7); ctx.fill();
