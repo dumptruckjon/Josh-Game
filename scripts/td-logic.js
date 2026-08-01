@@ -775,12 +775,13 @@
       // The COST rides the event: a boss eating 8 stickers at once has to read
       // as a catastrophe on the field, not as the same red flash a sock makes.
       emit({ type: "leak", enemy: e.type, lives: toll, boss: !!enemyDef(e).boss });
-      // 🧸 Kid mode has NO failure state (RULE 5): the stickers can run low and
-      // the leak still happens, but the fort never falls over. One flag, read at
-      // the ONE place a run can be lost.
+      // The ONE place a run can be lost. The retired kid mode's `noLose` flag
+      // used to spare the fort here; with that mode gone every difficulty is
+      // losable and this branch is unconditional.
       if (state.lives <= 0) {
-        state.lives = diff.noLose ? 1 : 0;
-        if (!diff.noLose) { state.phase = "lost"; emit({ type: "lost" }); }
+        state.lives = 0;
+        state.phase = "lost";
+        emit({ type: "lost" });
       }
     }
 

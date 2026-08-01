@@ -249,9 +249,38 @@ body.td-mode #screens { padding: 0; }
   color: #e8eefc; padding: 0; cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  /* Nothing may paint outside the rounded box. The cost line used to wrap
+     mid-string and spill over both kerbs on a real phone; clipping is the
+     belt to the markup's braces, and it also trims the corner badge to the
+     tile's own radius. */
+  overflow: hidden;
 }
-.td-abil__icon { display: block; font-size: 1.4rem; line-height: 1.1; margin-top: 4px; }
-.td-abil__cost { display: block; font-size: 0.7rem; font-weight: 800; color: #ffd94a; }
+/* THE one place an ability tile's TYPOGRAPHY is set, for the same reason the
+   size above has one owner. These three used to be declared again, unscoped,
+   ~320 lines below — so the small-phone media block's icon/name/cost overrides
+   were dead letters and a 320px screen rendered the same type as a 414px one.
+   Measured before the fix: icon 19.2px and cost 9.92px at EVERY width, though
+   the ≤359px block asks for 1rem and 0.55rem. Declared once, here, so the
+   media queries below actually win. */
+.td-abil__icon { display: block; font-size: 1.2rem; line-height: 1.1; margin-top: 3px; }
+.td-abil__name { display: block; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.02em; color: #cfe2ff; }
+/* nowrap: "130🪙" is one token and must never break between the number and its
+   coin. It fits by CONSTRUCTION now the ⚙️ charge has its own corner badge —
+   ~29px of a 40px content box, with headroom for iOS's wider emoji. */
+.td-abil__cost { display: block; font-size: 0.62rem; font-weight: 800; color: #ffd94a; white-space: nowrap; }
+/* ⚙️ energy charge as a corner badge rather than a second token on the cost
+   line — one number per place, and the line is half as wide. Nowrap because a
+   two-character badge must never become two lines. */
+.td-abil__gear {
+  /* Inset far enough to clear the tile's 14px CORNER RADIUS — at 2px down from
+     the top edge the rounded border is still ~7px inboard, so a badge at
+     right:3px got its corner shaved by `overflow: hidden`. A bounding-box test
+     cannot see that (a rect ignores the radius), so it is a measured constant,
+     not an eyeballed one. */
+  position: absolute; top: 4px; right: 6px;
+  font-size: 0.5rem; font-weight: 800; line-height: 1;
+  color: #bcd0f2; white-space: nowrap; pointer-events: none;
+}
 .td-abil__cd {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex; align-items: center; justify-content: center;
@@ -405,6 +434,21 @@ body.td-mode #screens { padding: 0; }
 
 /* wide overlay box for the tree/badges/endless lists (scrolls if tall) */
 .td-overlay__box--wide { width: min(360px, 92vw); max-height: 86vh; max-height: 86dvh; overflow-y: auto; overscroll-behavior: contain; } /* vh first: Safari 14 fallback */
+/* ✕ close, injected by metaOverlay so EVERY meta dialog has one. The star tree
+   is far taller than its box, so the bottom "Done" meant scrolling the whole
+   tree just to shut it. Sticky, so it rides the top edge while the content
+   scrolls under it; where sticky is unavailable it degrades to sitting at the
+   top of the content, which is still a scroll UP rather than to the very end.
+   It is the FIRST child, so `> * + *`'s margin-top never applies to it. */
+.td-overlay__x {
+  position: -webkit-sticky; position: sticky; top: -6px; z-index: 3;
+  align-self: flex-end; margin-bottom: -6px;
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  border-radius: 50%; border: 2px solid #3a548a; background: #1d2c4a;
+  color: #cfe2ff; font-size: 1.1rem; font-weight: 800; line-height: 1;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.td-overlay__x:active { transform: scale(0.94); }
 .td-overlay__row { display: flex; }
 .td-overlay__row > * + * { margin-left: 10px; } /* flex-gap is dropped on iOS 14.2 */
 .td-overlay__row .td-btn { flex: 1; }
@@ -547,9 +591,8 @@ body.td-mode #screens { padding: 0; }
 
 /* ability buttons name themselves; the hint explains an armed/refused tap.
    (The size lives in the base .td-abil rule — never re-declare it here.) */
-.td-abil__icon { font-size: 1.2rem; margin-top: 3px; }
-.td-abil__name { display: block; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.02em; color: #cfe2ff; }
-.td-abil__cost { display: block; font-size: 0.62rem; font-weight: 800; color: #ffd94a; }
+/* (icon / name / cost typography moved UP to the single owner beside .td-abil —
+   duplicating it here silently killed every media-query override.) */
 .td-abilhint {
   position: absolute; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom));
   transform: translateX(-50%); z-index: 8; max-width: calc(100% - 20px);
@@ -576,42 +619,6 @@ body.td-mode #screens { padding: 0; }
 /* World 6 tint: moving day — cardboard brown, the warmest and the last. */
 .td-level[data-world="moving"] { border-color: #7d6242; background: #2b2013; }
 
-/* ---- 🧸 Kid Fort: RULE 5 applies INSIDE this mode ----
-   Josh's laws (≥75px targets, generous spacing) are deliberately off in the
-   adult fort — but the moment the fort is HIS, they are back on. Nothing here
-   changes the adult skin; it is scoped entirely to body.td-kid. */
-body.td-kid .td-mini { width: 76px; height: 76px; min-width: 76px; min-height: 76px; font-size: 1.7rem; }
-body.td-kid .td-btn { min-height: 76px; min-width: 110px; font-size: 1.2rem; }
-body.td-kid .td-abil { width: 78px; height: 82px; min-width: 78px; min-height: 78px; }
-/* Kid buttons are ≥75px (RULE 5), so a 4-wide row is 360px — wider than a 320px
-   phone. It wraps to 2×2, and unlike the adult strip it FLOATS over the field:
-   an in-flow 180px-tall block would shrink Josh's battlefield by a third. That
-   is a safe trade only here — the kid difficulty carries `noLose`, so a pad
-   under a button can never cost him anything. */
-body.td-kid .td-controls {
-  position: absolute; right: 14px; bottom: 18px; top: auto; left: auto;
-  width: auto; margin: 0; z-index: 7; gap: 16px;
-  /* stacked, never side-by-side: a 172px-wide column over the corner of the
-     field, not a 272px bar across most of its width. The column template must
-     be overridden too — portrait's `minmax(76px,92px) minmax(0,1fr)` gives two
-     tracks, and row-flow then fills them ACROSS, which is exactly the 272px bar
-     this comment says it isn't. */
-  grid-auto-flow: row; align-content: end;
-  grid-template-columns: minmax(0, 1fr);
-  -webkit-transform: none; transform: none;
-}
-body.td-kid .td-abils {
-  gap: 16px; grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0;
-}
-body.td-kid .td-call { min-height: 76px; font-size: 1.2rem; }
-body.td-kid .td-call__label { font-size: 1.2rem; }
-/* the kid block floats, so its landscape gutter is not needed — give the
-   battlefield the full width back (auto, not 100%, so portrait's full-bleed
-   negative margins still widen it) */
-body.td-kid .td-canvas-wrap { width: auto; }
-body.td-kid .td-abil__icon { font-size: 1.7rem; }
-body.td-kid .td-buy, body.td-kid .td-up, body.td-kid .td-sell,
-body.td-kid .td-target, body.td-kid .td-branch, body.td-kid .td-rally { min-height: 76px; min-width: 92px; font-size: 1.05rem; }
-body.td-kid .td-buildmenu { gap: 16px; }
-body.td-kid .td-hud { font-size: 1.2rem; }
+/* The 🧸 Kid Fort skin lived here and was RETIRED (owner, 2026-08) along with
+   its `kid` difficulty and the engine's `noLose` branch — the mode was unused,
+   and a skin with no way to reach it is dead CSS. */

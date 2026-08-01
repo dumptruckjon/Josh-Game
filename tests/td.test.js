@@ -690,12 +690,14 @@ test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores th
   await page.evaluate(() => { window.__TD.resetSave(); }); // clean up for later tests
 });
 
-test("AUDIT: a restored save can't leave the fort stuck in kid mode", async () => {
-  // `kid` is a per-RUN mode (the 🧸 button passes it to startLevel), never a
-  // saved chip — the home offers only casual/normal/heroic. A backup carrying
-  // difficulty:"kid" passed the boot check, because it IS a real difficulty,
-  // and stuck: every level launched from the grid became an unlosable run that
-  // could never score a star, with no control to switch back.
+test("AUDIT: a restored save naming a retired difficulty is coerced, not obeyed", async () => {
+  // Originally: `kid` was a per-RUN mode, never a saved chip, but a backup
+  // carrying difficulty:"kid" passed the boot check because it WAS a real
+  // difficulty — every level from the grid became an unlosable run that could
+  // never score a star, with no control to switch back.
+  //   The mode is retired now, which makes this case MORE likely rather than
+  // less: any save written before the removal still names it. The boot coercion
+  // is what has to hold, so the test is kept and re-pointed at that claim.
   await page.evaluate(() => {
     const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1, stars: {} };
     raw.difficulty = "kid";
@@ -711,12 +713,13 @@ test("AUDIT: a restored save can't leave the fort stuck in kid mode", async () =
   const st = await page.evaluate(() => ({ diff: window.__TD.state().difficulty, cheated: window.__TD.state().cheated, kidSkin: document.body.classList.contains("td-kid") }));
   assert.notEqual(st.diff, "kid", "a level started from the grid is a real run");
   assert.ok(!st.cheated, "…which can actually earn its star");
-  assert.ok(!st.kidSkin, "…and is not wearing the kid skin");
-  // the 🧸 button still works — kid mode is per-run, passed at start
-  await page.evaluate(() => { window.__TD.newGame(1, { difficulty: "kid" }); });
-  await page.waitForTimeout(60);
-  assert.ok(await page.evaluate(() => window.__TD.state().cheated && document.body.classList.contains("td-kid")),
-    "…and the 🧸 route into kid mode is untouched");
+  assert.ok(!st.kidSkin, "…and no retired skin is painted");
+  // …and the run it DOES start is genuinely losable, which is the whole point
+  // of refusing the retired chip rather than quietly honouring it.
+  assert.ok(await page.evaluate(() => {
+    const d = window.TDData.DIFFICULTIES[window.__TD.state().difficulty];
+    return !!d && !d.noLose;
+  }), "the coerced run is on a real, losable difficulty");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
@@ -1815,76 +1818,11 @@ test("the fort home shows a card for EVERY shipped level — World 4 was unreach
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
-test("🧸 Kid Fort: the button really opens a kid run — big controls, no losing, no stars", async () => {
-  // World 4 and Kid Fort shipped with engine coverage only; the BUTTON had never
-  // been pressed in a browser. The "a feature whose tests all call the API
-  // directly is untested as a FEATURE" lesson, applied to the fort's kid mode.
-  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
-  await page.locator("#screen-td-home").waitFor({ state: "visible" });
-  const kidBtn = page.locator(".td-kid-open");
-  assert.equal(await kidBtn.count(), 1, "the fort home carries a 🧸 Kid Fort button");
-  await kidBtn.click();
-  await page.locator("#screen-td-play").waitFor({ state: "visible" });
-  await page.waitForTimeout(150);
-  const st = await page.evaluate(() => ({
-    difficulty: window.__TD.state().difficulty,
-    cheated: !!window.__TD.state().cheated,
-    body: document.body.classList.contains("td-kid"),
-    level: window.__TD.state().levelId,
-  }));
-  assert.equal(st.difficulty, "kid", "the run really is on the kid ladder");
-  assert.equal(st.body, true, "…and the kid control skin is painted");
-  assert.equal(st.cheated, true, "…and it is marked cheated, so it can never write a star");
-  assert.equal(st.level, 1, "…and it opens the first level");
-
-  // RULE 5 is back ON inside body.td-kid: every VISIBLE control is ≥75px.
-  const small = await page.evaluate(() => {
-    const bad = [];
-    for (const el of document.querySelectorAll("#screen-td-play button")) {
-      if (el.hidden || el.offsetParent === null) continue;
-      const b = el.getBoundingClientRect();
-      if (!b.width || !b.height) continue;
-      if (b.width < 75 || b.height < 75) bad.push((el.className || "") + " " + Math.round(b.width) + "×" + Math.round(b.height));
-    }
-    return bad;
-  });
-  assert.deepEqual(small, [], `kid fort controls under 75px: ${small.join(", ")}`);
-
-  // Mid-WAVE controls must be kid-sized too — the ⏩ RUSH button only exists
-  // once a wave is walking, so the build-phase sweep above never sees it.
-  await page.evaluate(() => { window.__TD.script([["call"], ["tick", 90]]); window.TDUI.hud(window.__TD.state()); });
-  const smallInWave = await page.evaluate(() => {
-    const bad = [];
-    for (const el of document.querySelectorAll("#screen-td-play button")) {
-      if (el.hidden || el.offsetParent === null) continue;
-      const b = el.getBoundingClientRect();
-      if (!b.width || !b.height) continue;
-      if (b.width < 75 || b.height < 75) bad.push((el.className || "") + " " + Math.round(b.width) + "×" + Math.round(b.height));
-      if (b.left < -1 || b.right > window.innerWidth + 1) bad.push((el.className || "") + " off screen");
-    }
-    return bad;
-  });
-  assert.deepEqual(smallInWave, [], `kid fort MID-WAVE controls under 75px or off screen: ${smallInWave.join(", ")}`);
-  assert.match(await page.locator("#screen-td-play .td-call").textContent(), /RUSH/,
-    "…and the wave button really is offering a RUSH by then");
-
-  // Leak the whole wave past an empty board: Josh must NEVER see a defeat.
-  await page.evaluate(() => { window.__TD.script([["tick", 6000]]); });
-  const after = await page.evaluate(() => ({ phase: window.__TD.state().phase, lives: window.__TD.state().lives }));
-  assert.notEqual(after.phase, "lost", "kid fort never loses, however much gets through");
-  assert.ok(after.lives >= 1, `…and hearts never hit zero (${after.lives})`);
-  assert.equal(await page.locator(".td-overlay").count(), 0, "no defeat overlay ever appears");
-
-  // …and back out cleanly, with the kid skin removed for the adult fort.
-  await page.evaluate(() => { window.__TD.leaveToHome(); });
-  await page.waitForTimeout(80);
-  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(1, { seed: 1 }); });
-  await page.waitForTimeout(80);
-  assert.equal(await page.evaluate(() => document.body.classList.contains("td-kid")), false,
-    "starting an adult run takes the kid skin back off");
-  await page.evaluate(() => { window.__TD.resetSave(); });
-});
-
+// The 🧸 Kid Fort button test lived here. The mode is RETIRED (owner, 2026-08)
+// — button, `kid` difficulty, `noLose` and the body.td-kid skin were removed
+// together, so there is no button left to press. `site.test.js` now guards the
+// removal itself (no layer may carry half of it back), and the engine suite
+// asserts every shipped difficulty is losable with no exemption.
 test("screen wake lock: held only while a battle is LIVE, visible and unpaused", async () => {
   // The first cut acquired the lock in startLevel and released it only in
   // stopLoop, so pausing — or quitting to the fort mid-run — left the screen
@@ -2123,9 +2061,10 @@ test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () =>
   // index.html, the VS16 scan hand-listed nine files, FIELD_TRAIT hand-listed
   // twelve fields). A new fort button must now either open an auditable dialog
   // or consciously join NOT_A_DIALOG below.
-  const NOT_A_DIALOG = {
-    ".td-kid-open": "starts a kid run — it navigates, it does not open a dialog",
-  };
+  // Every fort-home button currently opens an auditable dialog. The one former
+  // exemption (.td-kid-open) went with the retired Kid Fort mode; a new
+  // navigating button must consciously re-open this list.
+  const NOT_A_DIALOG = {};
   const OPENERS = await page.evaluate((skip) => {
     const out = {};
     const btns = document.querySelectorAll("#screen-td-home .td-metabtn, #screen-td-home .td-adminrow button");
@@ -4072,5 +4011,114 @@ test("ART: the marker is centred by its INK, proven with a deliberately off-cent
   assert.ok(off < 0.05,
     `the test glyph's ink landed ${off.toFixed(2)} cells off the anchor (${m.offX.toFixed(2)}, ${m.offY.toFixed(2)}) ` +
     "— glyphs must be placed by their INK, or an emoji whose ink sits off-centre in its box hangs off the lane");
+  await page.setViewportSize({ width: 390, height: 844 });
+});
+test("UX: every meta dialog has a ✕ that is reachable WITHOUT scrolling, and closes it", async () => {
+  // Reported from real play: "for menus like star tree and guide, don't make me
+  // scroll all the way to bottom to close. Also give an x in top."
+  //
+  // The star tree is 30 nodes — far taller than its 86dvh box — so the only exit
+  // was a "Done" at the very end of it. The ✕ is injected by metaOverlay, so the
+  // openers are DERIVED here rather than listed: a new dialog inherits both the
+  // button and this check. (The same "a scan's own list is part of the scan"
+  // lesson that left the 🎒 Powers picker invisible to the overlay audit.)
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const openers = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("#screen-td-home .td-metabtn, #screen-td-home .td-adminrow button"))
+      .map((b) => b.className.split(" ").find((c) => c.endsWith("-open"))).filter(Boolean));
+  assert.ok(openers.length >= 5, `expected the fort's meta buttons, saw ${openers.join(",")}`);
+  for (const cls of openers) {
+    await page.evaluate((c) => document.querySelector("." + c).click(), cls);
+    await page.waitForTimeout(90);
+    const m = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay__box");
+      if (!box) return null;
+      const x = box.querySelector(".td-overlay__x");
+      if (!x) return { noX: true };
+      const bb = box.getBoundingClientRect(), xb = x.getBoundingClientRect();
+      return {
+        // "without scrolling" = the ✕ is inside the box's VISIBLE band while the
+        // box sits at its initial scrollTop of 0.
+        scrollTop: box.scrollTop,
+        aboveFold: xb.top >= bb.top - 1 && xb.bottom <= bb.bottom + 1,
+        onScreen: xb.top >= 0 && xb.bottom <= window.innerHeight,
+        w: Math.round(xb.width), h: Math.round(xb.height),
+        scrollable: box.scrollHeight - box.clientHeight,
+      };
+    });
+    assert.ok(m, `${cls} opened no dialog`);
+    assert.ok(!m.noX, `${cls}'s dialog has no ✕ — metaOverlay must give every dialog one`);
+    assert.equal(m.scrollTop, 0, `${cls} opens already scrolled`);
+    assert.ok(m.aboveFold, `${cls}'s ✕ is not in the box's visible band at scrollTop 0`);
+    assert.ok(m.onScreen, `${cls}'s ✕ is off-screen`);
+    assert.ok(m.w >= 44 && m.h >= 44, `${cls}'s ✕ is ${m.w}×${m.h} — below the fort's 44px adult floor`);
+    // …and it actually closes.
+    await page.evaluate(() => document.querySelector(".td-overlay__x").click());
+    await page.waitForTimeout(60);
+    assert.equal(await page.locator(".td-overlay").count(), 0, `${cls}'s ✕ did not close the dialog`);
+  }
+  // The tree is the one that MOTIVATED this: prove it really is taller than its
+  // box, or the test above passes for a dialog that never needed scrolling.
+  await page.evaluate(() => document.querySelector(".td-tree-open").click());
+  await page.waitForTimeout(90);
+  const over = await page.evaluate(() => {
+    const box = document.querySelector(".td-overlay__box");
+    return box.scrollHeight - box.clientHeight;
+  });
+  assert.ok(over > 80, `the star tree should overflow its box (only ${over}px) — otherwise this test proves nothing`);
+  await page.evaluate(() => document.querySelector(".td-overlay__x").click());
+  await page.setViewportSize({ width: 390, height: 844 });
+});
+
+test("UX: a power tile's cost fits INSIDE its box, with headroom for iOS-wide emoji", async () => {
+  // From a photo of the real strip: the cost shipped as ONE string,
+  // "130🪙 ·1⚙️", which measured ~48px inside a 40px content box — so it wrapped
+  // mid-string and the second line spilled over the rounded border. iOS renders
+  // emoji WIDER than headless Chromium, so the margin has to be real, not
+  // marginal (the trap that already spilled the tower panel and the next-wave
+  // line). Gold stays on the line; the ⚙️ charge is a corner badge.
+  for (const vp of [{ w: 320, h: 568 }, { w: 360, h: 640 }, { w: 390, h: 844 }, { w: 414, h: 896 }]) {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.evaluate(() => { window.__TD.newGame(1, { seed: 3 }); window.__TD.script([["call"], ["tick", 40]]); });
+    await page.waitForTimeout(120);
+    const rows = await page.evaluate(() => {
+      // measure the TEXT's ink, not the block span's width — a block span is as
+      // wide as its parent whatever it contains, so span width proves nothing.
+      const ink = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };
+      return Array.from(document.querySelectorAll(".td-abil")).map((el) => {
+        const tb = el.getBoundingClientRect();
+        const cost = el.querySelector(".td-abil__cost"), gear = el.querySelector(".td-abil__gear");
+        const gb = gear.getBoundingClientRect();
+        return {
+          id: el.dataset.abil, inner: el.clientWidth,
+          costInk: +ink(cost).toFixed(1),
+          costLines: cost.scrollWidth - cost.clientWidth,
+          gearInside: gb.left >= tb.left - 0.5 && gb.right <= tb.right + 0.5 && gb.top >= tb.top - 0.5,
+          gearInk: +ink(gear).toFixed(1),
+        };
+      });
+    });
+    assert.equal(rows.length, 4, `${vp.w}px: the strip must show its four powers`);
+    for (const r of rows) {
+      assert.ok(r.costInk <= r.inner - 6,
+        `${vp.w}px ${r.id}: cost ink ${r.costInk}px in a ${r.inner}px box — needs ≥6px spare for iOS's wider emoji`);
+      assert.ok(r.costLines <= 0, `${vp.w}px ${r.id}: the cost overflows its line (${r.costLines}px)`);
+      assert.ok(r.gearInside, `${vp.w}px ${r.id}: the ⚙️ badge is not inside the tile`);
+      assert.ok(r.gearInk > 4, `${vp.w}px ${r.id}: the ⚙️ badge must actually draw`);
+    }
+    // The old single-string layout is what this exists to prevent, so prove the
+    // split is still load-bearing — but for the WIDEST cost, not every tile: a
+    // two-digit power (90🪙) genuinely would still fit combined at 320px, and
+    // asserting it wouldn't is claiming more than the measurement supports.
+    const worst = rows.reduce((a, r) => (r.costInk + r.gearInk > a.costInk + a.gearInk ? r : a));
+    assert.ok(worst.costInk + worst.gearInk > worst.inner,
+      `${vp.w}px: the widest tile (${worst.id}) would be ${(worst.costInk + worst.gearInk).toFixed(1)}px with gold and ` +
+      `energy on one line — if that now fits ${worst.inner}px, the corner badge is no longer doing anything and this ` +
+      "test has stopped measuring the thing it was written for");
+  }
   await page.setViewportSize({ width: 390, height: 844 });
 });

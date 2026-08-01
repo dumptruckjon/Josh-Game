@@ -37,7 +37,6 @@
         '<button class="td-metabtn td-ach-open" type="button">🏅 Badges</button>' +
         '<button class="td-metabtn td-endless-open" type="button">♾️ Endless</button>' +
         '<button class="td-metabtn td-guide-open" type="button">📖 Guide</button>' +
-        '<button class="td-metabtn td-kid-open" type="button">🧸 Kid Fort</button>' +
       "</div>" +
       '<div class="td-levels" role="list"></div>' +
       // COUNTS ARE DERIVED. "16 levels across 4 worlds" was a literal, and its
@@ -47,7 +46,7 @@
         new Set(global.TDData.LEVELS.map(function (l) { return l.world; })).size +
         ' worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers, soakers, jammers, greased runners, spawners, padding, blaring stereos) and ' +
         global.TDData.LEVELS.filter(function (l) { return l.waves.some(function (w) { return w.boss; }); }).length +
-        ' bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale. 🧸 Kid Fort is Josh&#39;s no-lose mode.</p>' +
+        ' bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>' +
       // Start-over control. Deliberately small and quiet (data-adult exempts it
       // from the kid ≥75px audit) and behind a type-the-word gate, exactly like
       // Josh's ⚙️ Grown-ups star reset — Josh reaches the fort from the front
@@ -63,7 +62,6 @@
     home.querySelector(".td-ach-open").addEventListener("click", hooks.openAchievements);
     home.querySelector(".td-endless-open").addEventListener("click", hooks.openEndless);
     home.querySelector(".td-guide-open").addEventListener("click", () => UI.showGuide());
-    home.querySelector(".td-kid-open").addEventListener("click", hooks.kidFort);
     home.querySelector(".td-reset-open").addEventListener("click", () => UI.showResetGate(hooks.resetFort));
     home.querySelector(".td-backup-open").addEventListener("click", () => UI.showBackup(hooks.exportSave, hooks.importSave));
 
@@ -139,12 +137,26 @@
         b.type = "button";
         b.dataset.abil = a.id;
         b.dataset.adult = "1"; // the fort is Jon's space — adult-sized, not kid-sized
-        b.setAttribute("aria-label", a.name + " — " + a.role + ", costs " + a.gold + " gold");
+        // The ⚙️ badge is aria-hidden (it is a glyph, not a sentence), so the
+        // label has to NAME the second currency — the "ship the name with the
+        // number" rule that ⚙️ Toy Energy already cost us once.
+        b.setAttribute("aria-label", a.name + " — " + a.role + ", costs " + a.gold + " gold and " +
+          (a.charges === undefined ? 1 : a.charges) + " toy energy");
         // The NAME is on the button, not just in the aria-label — a sighted player
         // was shown "🧨 130" and nothing else, so no power explained itself.
+        // The two costs are SEPARATE elements, not one string. As a single
+        // "130🪙 ·1⚙️" it could not fit a 56px content box, so it wrapped
+        // mid-string and spilled past the rounded border — and iOS renders emoji
+        // WIDER than headless Chromium, so it measured fine here and looked
+        // broken on the phone (the tower panel and the next-wave line have both
+        // been bitten by exactly that). Gold stays on the cost line; the ⚙️
+        // energy charge moves to a corner badge, which halves the line's width
+        // and gives each cost its own place instead of a run-on.
+        const charges = a.charges === undefined ? 1 : a.charges;
         b.innerHTML = '<span class="td-abil__icon">' + a.icon + "</span>" +
           '<span class="td-abil__name">' + (a.short || a.name) + "</span>" +
-          '<span class="td-abil__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️</span>" +
+          '<span class="td-abil__cost">' + a.gold + "🪙</span>" +
+          '<span class="td-abil__gear" aria-hidden="true">' + charges + "⚙️</span>" +
           '<span class="td-abil__cd" hidden></span>';
         b.addEventListener("click", (ev) => { ev.stopPropagation(); hooks.useAbility(a.id); });
         abilWrap.appendChild(b);
@@ -452,12 +464,23 @@
     if (fort && !fort.hidden) return fort;
     return play || fort;
   }
+  // Every meta dialog (star tree, guide, badges, endless, powers, backup) gets a
+  // ✕ in the top-right, injected HERE so there is ONE owner and a new dialog
+  // inherits it — reported from real play as having to scroll all the way to the
+  // bottom of the tree just to close it. The bottom "Done" stays: it is the
+  // natural end of a read-through. The ✕ is `position: sticky`, so it rides the
+  // top edge of the box as it scrolls; if sticky is unavailable it degrades to
+  // sitting at the top of the content, which is still one scroll-UP instead of
+  // a scroll to the very bottom.
   function metaOverlay(cls, html) {
     let el = doc.querySelector(".td-overlay");
     if (el) el.remove();
     el = doc.createElement("div");
     el.className = "td-overlay " + cls;
-    el.innerHTML = '<div class="td-overlay__box td-overlay__box--wide">' + html + "</div>";
+    el.innerHTML = '<div class="td-overlay__box td-overlay__box--wide">' +
+      '<button class="td-overlay__x" type="button" data-adult="1" aria-label="Close">✕</button>' +
+      html + "</div>";
+    el.querySelector(".td-overlay__x").addEventListener("click", UI.closeOverlay);
     const host = hostScreen();
     if (host) host.appendChild(el);
     return el;

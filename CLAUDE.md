@@ -1499,8 +1499,9 @@ instead of silently pushing the page taller. During build the strip goes INERT
 (dimmed + `pointer-events: none`) rather than hidden, so the field never resizes
 at a phase boundary — and a power armed mid-wave is disarmed when the wave ends
 (the stale-rally-arm class). Kid Fort is the one documented exception: its ≥75px
-buttons are a 172×180 block that would eat a third of Josh's field, so it keeps
-floating — safe only because the `kid` difficulty is `noLose`. The audit is now
+buttons were a 172×180 block that would have eaten a third of the field, so it
+kept floating — safe only because that difficulty was `noLose` (the mode is
+retired now, so the exception is gone with it). The audit is now
 three laws: nothing may bury a pad or the lever during BUILD (a pad buried there
 is permanently unbuildable), the lever must be clear mid-wave too, and a fenced
 count for the residual. (2) "I want towers to look visibly different each level
@@ -3577,6 +3578,65 @@ systematically miss or hit a texture whose period (3.2 cells) is unrelated to th
 sampling grid — the phase-alignment cousin of "a sampling radius that does not
 scale with the thing sampled". Dense per-pixel sampling is what makes the number
 mean anything.
+**🧸 KID FORT IS RETIRED (owner, 2026-08: "we don't use it") — removed WHOLE, and
+that is the decision worth recording.** Deleting only the button would have left
+the `kid` difficulty, its `noLose` branch and the `body.td-kid` skin in the tree
+with nothing able to select them — precisely the dead-feature class this project
+has already paid for twice (heroic shipped working but unreachable; World 4's
+levels shipped with no card on the grid). So the button, the difficulty entry,
+the engine's `noLose` read and the whole kid skin went together, and the
+guardrail is a LAYER SCAN that fails if either half creeps back: a button with no
+mode, or a mode with no button. Two consequences. The engine's losing site is now
+UNCONDITIONAL, so the tests that used to prove "the kid gate does not leak into
+the adult ladders" became the simpler, stronger claim that **no difficulty is
+exempt**, with the list DERIVED so a future tier cannot ship unlosable by
+omission. And a REMOVAL is the one time this project's "additions-only, never a
+regression" rule is deliberately overridden, so it is stated rather than implied:
+coverage of a retired feature was dropped on purpose, and coverage of everything
+that remains got broader.
+**Two UX reports from the same session, both about things not fitting.** (1) **A
+dialog that scrolls must be closable from the TOP.** The star tree is 30 nodes
+against an 86dvh box and its only exit was a "Done" at the very end, so shutting
+it meant scrolling the whole tree. Every meta dialog now gets a sticky ✕ injected
+by `metaOverlay` — ONE owner, so a new dialog inherits it — while the bottom Done
+stays as the natural end of a read-through. The guardrail DERIVES the opener list
+from the fort home's own buttons (the "a scan's own list is part of the scan"
+lesson that had already left the 🎒 Powers picker invisible to the overlay audit),
+and it first proves the tree genuinely overflows its box — otherwise it would be
+asserting a scroll-free close on a dialog that never needed one. (2) **A cost
+line carrying two emoji could not fit a 40px tile.** The ability strip shipped
+its price as ONE string, `130🪙 ·1⚙️`, measured at **46.9px inside a 40px content
+box** — so it wrapped mid-string and the second line spilled over the rounded
+border, exactly as the owner's photo showed. Gold stays on the line and the ⚙️
+charge moved to a corner badge, taking the widest tile to ~29px with 11-17px of
+headroom — real margin, which matters because **iOS renders emoji WIDER than
+headless Chromium** (the trap that has now bitten the tower panel, the next-wave
+line and this). Three smaller lessons: a `display: block` span is as wide as its
+parent whatever it contains, so the test measures the TEXT's ink via a Range, not
+the span; the badge's inset is a MEASURED constant, because 2px below the top
+edge a 14px corner radius is still ~7px inboard and a bounding-box assertion
+cannot see a corner being shaved by `overflow: hidden`; and the self-verifying
+clause ("the split must still be load-bearing") immediately caught itself
+over-claiming — a two-digit cost really would still fit combined at 320px, so it
+asserts the WIDEST tile rather than every tile. The same pass found the tile's
+icon/name/cost typography **declared twice** — unscoped, ~320 lines below the
+base rule — so the ≤359px media block asking for a 1rem icon and a 0.55rem cost
+was a dead letter and a 320px phone rendered identical type to a 414px one. That
+is the documented "a size declared twice has no owner" bug, second instance, same
+element.
+**And the container silently re-cloned to a stale commit for the THIRD time in
+one session**, mid-task: `HEAD` went back to a commit from before nine pushed
+commits, `git status` reported CLEAN, and the edits in progress were sitting on
+that old base — so the working tree looked healthy while CLAUDE.md had quietly
+lost ~800 lines. It was caught only because a `grep` for a learning written
+minutes earlier returned nothing. The recovery that works: snapshot the working
+diff and the whole tree FIRST (`git diff > patch`, `tar` the worktree), then
+`git fetch origin main` (the remote is intact — it is only the local clone that
+rolls back), `git reset --hard origin/main`, and re-apply with `git apply -3` so
+overlapping files 3-way merge instead of clobbering. Lesson: **on a remote
+runner, "git says clean" is not evidence your work is present** — verify against
+a fact you know should be there (a line count, a string you just wrote), and
+never trust a clean status alone after a container restart.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

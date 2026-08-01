@@ -1157,24 +1157,32 @@ test("guardrail: every ability names itself on its button and in the guide", () 
   assert.match(tdl, /function abilityWouldDo\(/, "a no-op use is detected BEFORE gold or cooldown is spent");
 });
 
-// 🧸 Kid Fort must be a PLAY mode, never a progression shortcut.
-test("guardrail: kid mode cannot earn stars or badges, and wears kid-sized controls", () => {
-  const tdm = read("scripts/td-main.js");
-  assert.match(tdm, /if \(difficulty === "kid"\) \{ engine\.state\.cheated = true;/,
-    "a kid run is marked cheated, so it can never write a star or earn a badge");
-  assert.match(tdm, /doc\.body\.classList\.add\("td-kid"\)/, "…and paints the kid-sized skin");
-  assert.match(tdm, /else doc\.body\.classList\.remove\("td-kid"\)/, "…which the adult fort never inherits");
-  assert.match(tdm, /kidFort: \(\) =>/, "the fort home can start a kid run");
-  const css = read("styles/td.css");
-  // RULE 5 applies INSIDE kid mode: every control it restyles must be ≥75px.
-  const kidRules = css.split("\n").filter((l) => l.indexOf("body.td-kid") === 0);
-  assert.ok(kidRules.length >= 6, "kid mode restyles the controls");
-  for (const r of kidRules) {
-    const sizes = (r.match(/min-(?:width|height): (\d+)px/g) || []).map((m) => +m.match(/(\d+)px/)[1]);
-    for (const px of sizes) assert.ok(px >= 75, `kid-mode control must be ≥75px (RULE 5), got ${px}px in: ${r.trim().slice(0, 60)}`);
+// 🧸 Kid Fort was RETIRED (owner, 2026-08) — it was never used. It is removed
+// WHOLE rather than just unhooked: a difficulty nothing can select is the
+// dead-feature class this project has already paid for twice (heroic shipped
+// with no selector; World 4's levels shipped with no card). This guardrail
+// fails if any half of it creeps back — a button with no mode, or a mode with
+// no button — and it is the reason `noLose` no longer exists anywhere.
+test("guardrail: the retired Kid Fort mode is gone from EVERY layer, not just the button", () => {
+  const layers = {
+    "scripts/td-ui.js": [/td-kid-open/, /Kid Fort/],
+    "scripts/td-main.js": [/kidFort/, /td-kid/, /=== "kid"/],
+    "scripts/td-data.js": [/^\s*kid: \{/m],
+    "styles/td.css": [/^body\.td-kid/m],
+  };
+  for (const [file, pats] of Object.entries(layers)) {
+    // strip comments — the removal is DOCUMENTED in each file, and a guardrail
+    // that matches its own explanation is the recurring self-match trap.
+    const src = read(file).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    for (const p of pats) assert.ok(!p.test(src), `${file} still carries kid-mode code (${p})`);
   }
-  const tdl = read("scripts/td-logic.js");
-  assert.match(tdl, /diff\.noLose/, "the engine reads the no-lose flag at the one lose site");
+  // The engine's lose site must be unconditional now — no flag may spare a run.
+  const tdl = read("scripts/td-logic.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(!/noLose/.test(tdl), "the engine must not read a no-lose flag any more");
+  const DATA = require("../scripts/td-data.js");
+  const diffs = Object.keys(DATA.DIFFICULTIES);
+  assert.ok(diffs.length >= 3, "casual/normal/heroic still ship");
+  for (const d of diffs) assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must be losable — no difficulty may be exempt`);
 });
 
 // Haptics + wake lock are BOTH platform-gated. The point of these guardrails is

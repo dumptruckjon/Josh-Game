@@ -869,29 +869,24 @@ test("W4 The Tickmaster boss: P2 dashes, P3 jams a gun AND summons Loose Screws"
   assert.ok(fin.boss && fin.groups.some((g) => g.type === "tickmaster"), "L16's last wave is the Tickmaster");
 });
 
-test("🧸 Kid Fort: `noLose` is read at the ONE losing site — and ONLY for kid", () => {
-  // RULE 5 forbids failure states for Josh, so the kid difficulty carries
-  // noLose. The risk is a gate that leaks: if it were read anywhere else, or
-  // mis-scoped, the adult ladders would quietly become unlosable too.
+test("the losing site is UNCONDITIONAL — every shipped difficulty can lose", () => {
+  // This replaces the kid-mode gate test. The retired 🧸 mode carried `noLose`,
+  // and the risk then was a gate that LEAKED into the adult ladders. With the
+  // mode gone the claim is simpler and stronger: nothing is exempt. The
+  // difficulty list is DERIVED, so a future tier inherits the check instead of
+  // quietly shipping unlosable.
   const lvl = { id: 94, name: "m", world: "test", startGold: 0, budgetBase: 100,
     path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 9 }],
     waves: [{ groups: [{ type: "sock", count: 40, gap: 0.4, delay: 0 }] }] };
-  const leakAll = (difficulty) => {
-    const e = TD.createEngine(lvl, { seed: 3, difficulty });
+  const diffs = Object.keys(DATA.DIFFICULTIES);
+  assert.ok(diffs.length >= 3, `expected the three ladders, saw ${diffs.join(",")}`);
+  for (const d of diffs) {
+    const e = TD.createEngine(lvl, { seed: 3, difficulty: d });
     e.callWave();
     for (let i = 0; i < 6000 && e.state.phase === "wave"; i++) e.tick();
-    return { phase: e.state.phase, lives: e.state.lives };
-  };
-  for (const d of ["casual", "normal", "heroic"]) {
-    const r = leakAll(d);
-    assert.equal(r.phase, "lost", `${d} is genuinely losable — 40 socks past an empty board ends the run`);
-  }
-  const kid = leakAll("kid");
-  assert.notEqual(kid.phase, "lost", "kid NEVER loses, however many leak");
-  assert.ok(kid.lives >= 1, `…and the heart meter never empties (${kid.lives})`);
-  assert.equal(DATA.DIFFICULTIES.kid.noLose, true, "kid is the only difficulty with noLose");
-  for (const d of ["casual", "normal", "heroic"]) {
-    assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must stay losable`);
+    assert.equal(e.state.phase, "lost", `${d} is genuinely losable — 40 socks past an empty board ends the run`);
+    assert.equal(e.state.lives, 0, `${d} must empty the heart meter, not floor it`);
+    assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must not carry a no-lose exemption`);
   }
 });
 
@@ -3781,33 +3776,20 @@ test("Rally Horn: works whenever the squad is HURT, not only when someone is dow
   assert.equal(bare.useAbility("horn", {}).reason, "no-soldiers", "no camp → the build-a-camp message");
 });
 
-// ---- 🧸 Kid Fort: a different CONTRACT, not another difficulty tier ----
-test("kid mode has NO failure state — the fort never falls, however badly it goes", () => {
-  // RULE 5 forbids failure states for Josh. Every other difficulty must still
-  // be losable, so this is one flag read at the ONE place a run can be lost.
-  for (const l of [DATA.LEVELS[0], DATA.LEVELS[7], DATA.LEVELS[15]]) {
-    const e = TD.createEngine(l, { seed: 7, difficulty: "kid" });
-    let g = 0;
-    while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 900000) {
-      if (e.state.phase === "build") e.callWave();
-      e.tick();
-    }
-    assert.equal(e.state.phase, "won", `L${l.id}: kid mode must never lose, even building NOTHING`);
-    assert.ok(e.state.lives >= 1, "…and the sticker count never hits zero");
-  }
-  // every OTHER difficulty is still genuinely losable by neglect
-  for (const d of ["casual", "normal", "heroic"]) {
+// The 🧸 Kid Fort neglect test lived here. The mode is RETIRED (owner, 2026-08),
+// so its half of the claim is gone — but the valuable half is kept and is now
+// UNCONDITIONAL: doing nothing must lose on every shipped difficulty, with the
+// list DERIVED so a future tier cannot ship unlosable by omission.
+test("neglect LOSES on every shipped difficulty — no tier is exempt", () => {
+  for (const d of Object.keys(DATA.DIFFICULTIES)) {
     const e = TD.createEngine(DATA.LEVELS[0], { seed: 7, difficulty: d });
     let g = 0;
     while (e.state.phase !== "won" && e.state.phase !== "lost" && g++ < 900000) {
       if (e.state.phase === "build") e.callWave();
       e.tick();
     }
-    assert.equal(e.state.phase, "lost", `${d} must still be losable — noLose is kid-only`);
-  }
-  assert.equal(DATA.DIFFICULTIES.kid.noLose, true, "kid carries the no-lose flag");
-  for (const d of ["casual", "normal", "heroic"]) {
-    assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must NOT carry it`);
+    assert.equal(e.state.phase, "lost", `${d} must be losable by building NOTHING`);
+    assert.ok(!DATA.DIFFICULTIES[d].noLose, `${d} must not carry a no-lose flag`);
   }
 });
 
