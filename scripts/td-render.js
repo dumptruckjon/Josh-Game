@@ -2463,6 +2463,50 @@
     // own numbers instead of recomputing them from the level data and proving
     // nothing.
     const markers = { spawn: null, exit: null, spawnW: 0, exitW: 0 };
+    // WHERE A GLYPH'S INK SITS inside its box, measured from PIXELS.
+    // textAlign/textBaseline centre the glyph's METRICS, and an emoji's ink
+    // frequently sits off-centre inside them — the bed's pillow pushes it
+    // sideways — so the marker looked shifted off the lane even with its anchor
+    // exactly on the centre-line.
+    //   The first fix corrected by measureText's actualBoundingBox* fields. It
+    // measured right in headless Chromium, and a photo of the real iPad still
+    // showed the bed hanging over the kerb — so those metrics cannot be trusted
+    // here (WebKit has reported them relative to the text origin rather than the
+    // alignment point, which would push the glyph the WRONG way). Rendering the
+    // glyph once and scanning its pixels cannot be engine-dependent. Cached per
+    // glyph+size, so it is a handful of small draws for a whole run.
+    const inkCache = new Map();
+    function inkBox(ch, px) {
+      const key = ch + "|" + px;
+      const hit = inkCache.get(key);
+      if (hit) return hit;
+      const S = Math.max(8, Math.ceil(px * 2));
+      const c = document.createElement("canvas");
+      c.width = S; c.height = S;
+      const g = c.getContext("2d", { willReadFrequently: true });
+      g.font = px + "px sans-serif";
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillStyle = "#fff";
+      g.fillText(ch, S / 2, S / 2);
+      let x0 = S, x1 = -1, y0 = S, y1 = -1;
+      const d = g.getImageData(0, 0, S, S).data;
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          if (d[(y * S + x) * 4 + 3] > 12) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+        }
+      }
+      const v = x1 < 0
+        ? { dx: 0, dy: 0, w: px, h: px }
+        : { dx: (x0 + x1) / 2 - S / 2, dy: (y0 + y1) / 2 - S / 2, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+      inkCache.set(key, v);
+      return v;
+    }
+
     // Which bodies were struck, and until when. A tick-stamped map in the
     // RENDERER, never a field on the enemy: the engine is pure and a purely
     // visual cue has no business in hashed state. Entries expire in FLASH_TICKS
@@ -2995,34 +3039,24 @@
       const glyph = (wx, wy, ch, sz, fit) => {
         const p = worldToScreen(wx + 0.5, wy + 0.5);
         let px = Math.round(cell * (sz || 0.9));
-        ctx.font = px + "px sans-serif";
-        if (fit) {
-          const w = ctx.measureText(ch).width;
-          if (w > fit) { px = Math.max(8, Math.floor(px * (fit / w))); ctx.font = px + "px sans-serif"; }
+        let ink = inkBox(ch, px);
+        // Fit by the INK width, not the advance. The advance carries side
+        // bearing, so fitting by it leaves the drawn picture narrower than asked
+        // on one engine and wider on another — and "does it fit the road" is a
+        // question about the picture, not about the font's box.
+        if (fit && ink.w > fit) {
+          px = Math.max(8, Math.floor(px * (fit / ink.w)));
+          ink = inkBox(ch, px);
         }
+        ctx.font = px + "px sans-serif";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        // CENTRE THE INK, not the advance box. textAlign/textBaseline centre the
-        // glyph's METRICS, and an emoji's ink frequently sits off-centre inside
-        // them — the bed's pillow pushes its ink to one side — so the marker
-        // looked shifted off the lane even though its anchor was exactly on the
-        // centre-line. Measured per glyph, because the offset differs by font:
-        // Apple's bed and Chromium's are not the same shape, which is why this
-        // cannot be a hand-tuned nudge.
         // A COLOUR emoji ignores fillStyle, but a monochrome fallback glyph does
         // not — and this helper used to inherit whatever fill the previous draw
         // call happened to leave, so the bed/door/flag changed colour depending
         // on what was on the field. Always state it.
         ctx.fillStyle = "#eef3ff";
-        const im = ctx.measureText(ch);
-        let ix = 0, iy = 0;
-        if (im.actualBoundingBoxLeft != null && im.actualBoundingBoxRight != null) {
-          ix = (im.actualBoundingBoxRight - im.actualBoundingBoxLeft) / 2;
-        }
-        if (im.actualBoundingBoxAscent != null && im.actualBoundingBoxDescent != null) {
-          iy = (im.actualBoundingBoxDescent - im.actualBoundingBoxAscent) / 2;
-        }
-        ctx.fillText(ch, p.x - ix, p.y - iy);
-        return im.width;
+        ctx.fillText(ch, p.x - ink.dx, p.y - ink.dy);
+        return ink.w;
       };
       // TD-7: the track-switch lever — a tappable round button on the fork. Red
       // when ready, steel + a sweeping ring while cooling down; a little arm shows

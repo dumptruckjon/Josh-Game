@@ -3749,3 +3749,122 @@ test("ART: a cover band is one continuous sheet, not a string of beads", async (
     `the cover's thinnest point is ${(m.lo * 100).toFixed(1)}% against a thickest of ` +
     `${(m.hi * 100).toFixed(1)}% — it must be one continuous sheet, not a row of overlapping discs`);
 });
+
+test("ART: the spawn marker's INK lands on the lane, not just its anchor", async () => {
+  // Three attempts at "the bed is on the lane" passed while a photo of the real
+  // iPad showed it hanging over the kerb, because each measured the wrong thing:
+  //   1. the anchor's distance to the lane — derived from lane[0], so 0.00 by
+  //      construction on all 36 levels;
+  //   2. the glyph's ADVANCE width — which is not the picture;
+  //   3. a correction from measureText's actualBoundingBox* — right in Chromium,
+  //      still wrong on WebKit.
+  // This measures the INK: the same level rendered with the marker blanked, and
+  // the pixels that differ ARE the marker. That is what the eye sees, and it
+  // cannot be fooled by a font metric.
+  for (const vp of [{ w: 402, h: 874, n: "portrait" }, { w: 874, h: 402, n: "landscape" }]) {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    const rows = await page.evaluate(() => {
+      const out = [];
+      for (const id of [1, 9, 21, 33]) {
+        const lv = window.TDData.LEVELS.find((l) => l.id === id);
+        const W = window.TDData.WORLDS[lv.world];
+        const real = W.spawnGlyph;
+        const shot = () => {
+          window.__TD.newGame(id, { seed: 3 });
+          const r = window.__TD.render(); r.resize(); r.afterTick(); r.draw(0);
+          const c = document.querySelector("#screen-td-play .td-canvas");
+          return { d: c.getContext("2d").getImageData(0, 0, c.width, c.height).data,
+            w: c.width, h: c.height, dpr: c.width / c.clientWidth, mk: r.markerInfo() };
+        };
+        const on = shot();
+        W.spawnGlyph = " ";                 // blank ONLY the marker
+        const off = shot();
+        W.spawnGlyph = real;
+        let sx = 0, sy = 0, n = 0, x0 = 1e9, x1 = -1e9;
+        for (let y = 0; y < on.h; y++) {
+          for (let x = 0; x < on.w; x++) {
+            const i = (y * on.w + x) * 4;
+            const dd = Math.abs(on.d[i] - off.d[i]) + Math.abs(on.d[i + 1] - off.d[i + 1])
+              + Math.abs(on.d[i + 2] - off.d[i + 2]);
+            if (dd > 24) { sx += x; sy += y; n++; if (x < x0) x0 = x; if (x > x1) x1 = x; }
+          }
+        }
+        const a = window.__TD.w2s(on.mk.spawn[0] + 0.5, on.mk.spawn[1] + 0.5);
+        const cellPx = on.mk.cell * on.dpr;
+        out.push({ id, n, cellPx,
+          offX: n ? ((sx / n) - a.x * on.dpr) / cellPx : 99,
+          offY: n ? ((sy / n) - a.y * on.dpr) / cellPx : 99,
+          wCells: n ? (x1 - x0 + 1) / cellPx : 99 });
+      }
+      return out;
+    });
+    for (const r of rows) {
+      // As a FRACTION of the cell, not a pixel count: the suite runs at dpr 1
+      // and the standalone probe at dpr 2, so a fixed count is four times
+      // stricter in one of them.
+      assert.ok(r.n > r.cellPx * r.cellPx * 0.12,
+        `${vp.n} L${r.id}: only ${r.n} px of marker ink on a ${r.cellPx.toFixed(0)}px cell — it must actually draw`);
+      const off = Math.hypot(r.offX, r.offY);
+      assert.ok(off < 0.16,
+        `${vp.n} L${r.id}: the marker's INK centre sits ${off.toFixed(2)} cells off the lane centre-line ` +
+        `(${r.offX.toFixed(2)}, ${r.offY.toFixed(2)}) — the picture must sit on the road, not merely its anchor`);
+      assert.ok(r.wCells < 0.95,
+        `${vp.n} L${r.id}: the marker's ink is ${r.wCells.toFixed(2)} cells wide against a 1.00-cell road`);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+});
+
+test("ART: the marker is centred by its INK, proven with a deliberately off-centre glyph", async () => {
+  // The check above cannot prove the CENTRING in this sandbox, and that is worth
+  // stating: Chromium's bed emoji is already nearly centred in its box, so
+  // deleting the correction moves it by ~0.04 cells and the assertion still
+  // passes. That is exactly why the earlier metric-based fix measured right here
+  // and a photo of the real iPad still showed the bed over the kerb — Apple's
+  // emoji sits differently in its box.
+  //
+  // So prove the MECHANISM instead, with a glyph whose ink is off-centre in
+  // EVERY font: a descender letter sits low in its box. If inkBox() re-centres
+  // that, it will re-centre a bed on any engine.
+  await page.setViewportSize({ width: 402, height: 874 });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const m = await page.evaluate(() => {
+    const lv = window.TDData.LEVELS[0];
+    const W = window.TDData.WORLDS[lv.world];
+    const real = W.spawnGlyph;
+    const shot = () => {
+      window.__TD.newGame(1, { seed: 3 });
+      const r = window.__TD.render(); r.resize(); r.afterTick(); r.draw(0);
+      const c = document.querySelector("#screen-td-play .td-canvas");
+      return { d: c.getContext("2d").getImageData(0, 0, c.width, c.height).data,
+        w: c.width, h: c.height, dpr: c.width / c.clientWidth, mk: r.markerInfo() };
+    };
+    W.spawnGlyph = "g";
+    const on = shot();
+    W.spawnGlyph = " ";
+    const off = shot();
+    W.spawnGlyph = real;
+    let sx = 0, sy = 0, n = 0;
+    for (let y = 0; y < on.h; y++) {
+      for (let x = 0; x < on.w; x++) {
+        const i = (y * on.w + x) * 4;
+        const dd = Math.abs(on.d[i] - off.d[i]) + Math.abs(on.d[i + 1] - off.d[i + 1])
+          + Math.abs(on.d[i + 2] - off.d[i + 2]);
+        if (dd > 24) { sx += x; sy += y; n++; }
+      }
+    }
+    const a = window.__TD.w2s(on.mk.spawn[0] + 0.5, on.mk.spawn[1] + 0.5);
+    const cellPx = on.mk.cell * on.dpr;
+    return { n, offX: n ? ((sx / n) - a.x * on.dpr) / cellPx : 99,
+      offY: n ? ((sy / n) - a.y * on.dpr) / cellPx : 99 };
+  });
+  assert.ok(m.n > 40, `the test glyph must draw (got ${m.n} px)`);
+  const off = Math.hypot(m.offX, m.offY);
+  assert.ok(off < 0.05,
+    `the test glyph's ink landed ${off.toFixed(2)} cells off the anchor (${m.offX.toFixed(2)}, ${m.offY.toFixed(2)}) ` +
+    "— glyphs must be placed by their INK, or an emoji whose ink sits off-centre in its box hangs off the lane");
+  await page.setViewportSize({ width: 390, height: 844 });
+});

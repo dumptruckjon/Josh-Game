@@ -3415,6 +3415,47 @@ finding is recorded WITHOUT a change: World 9's `mould` floor is a tiled field o
 dark cavities, which reads much like the defect just fixed, but it is the
 declared, world-appropriate texture for a moulding room and changing it is a
 design call, not a bug fix.
+**Three photos of the real iPad closed that item, and each one caught the
+NEIGHBOURING property to the one I had just confirmed — which is the failure mode
+worth writing down, not any of the three bugs.** Round one moved the spawn/exit
+markers along the lane so they stopped straddling its rounded end cap; I verified
+the POSITION and stopped, and the reply was "I still see bed not in lane". It was
+right: the painted road is exactly 1.00 cells wide and the bed emoji drew at
+**1.11**, so it hung over both kerbs. Round two capped the marker to the road —
+and the reply was "still not centered". Also right: the glyph was now the correct
+SIZE at the correct ANCHOR, and its INK still sat off-centre inside its own box.
+Position, size, placement-within-the-box are three independent properties of one
+picture, and confirming any one of them says nothing about the other two.
+Four things generalise. (1) **`measureText`'s `actualBoundingBox*` fields are not
+a cross-engine truth.** The first ink correction used them, measured right in
+headless Chromium, and a photo of the real device still showed the bed over the
+kerb — WebKit has reported those relative to the text ORIGIN rather than the
+alignment point, which pushes the glyph the wrong way. It is now an `inkBox()`
+that renders the glyph once to a scratch canvas and scans alpha for the real
+bbox: a rasterised picture cannot be engine-dependent the way a metric is. Cached
+per glyph+size, so it is a handful of tiny draws for a whole run. (2) **Fit by
+the INK width, not the advance** — the advance carries side bearing, so fitting
+by it leaves the picture narrower than asked on one engine and wider on another,
+and "does it fit the road" is a question about the picture. (3) **A mutation that
+PASSES is telling you the test measures a no-op in this environment.** Deleting
+the ink centring moves Chromium's bed ~0.04 cells and the assertion still passed
+— which is precisely why the metric-based fix looked correct here and failed on
+Josh's iPad. So the centring is proven by MECHANISM instead, with a glyph whose
+ink is off-centre in every font (a descender `g`, which sits low in its box); it
+fails at 0.07 cells against a 0.05 tolerance. When the sandbox cannot exhibit the
+defect, find an input that makes the mechanism observable rather than widening
+the tolerance until the real glyph passes. (4) **A per-level visual vet must walk
+the FEATURE space, not the level list.** The same photo showed a column of dark
+ovals down L2's lane which I had been reading as shadows for two rounds; they are
+the ⛱️ Blanket Cover zone, which stamped a full-cell ellipse every 0.6 cells and
+so painted ~26 overlapping discs plus ~40 hem circles — the literal
+circles-after-circles the prop fix had just removed elsewhere, surviving in the
+one place my vet could not see it, because **L1 has no zones**. It is one
+continuous stroked sheet now (3 canvas ops, not ~66). Its guardrail was itself
+confounded twice before it could fail honestly — first by the road ties under the
+band, then because alpha compositing removes luma in proportion to the base, so a
+uniform overlay over a textured floor yields a VARYING absolute difference; the
+invariant is `diff/base`, and the thinnest point must be ≥60% of the thickest.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
