@@ -2903,8 +2903,19 @@
           ctx.fillStyle = "rgba(255,255,255," + a + ")";
           ctx.fillText(f.text, p.x, ty);
         }
-        f.ttl -= 1;
       }
+      // AGE EVERY fx, in a pass of its own. This used to sit at the bottom of
+      // the draw loop above, where any branch that `continue`d skipped it — and
+      // the corpse branch does continue, so a `pop` never aged, never faded and
+      // was never spliced. Twenty dead bodies (MAX_POPS) piled up on the field
+      // permanently, each drawn from a synthetic carrying hp 0, which is exactly
+      // how it was reported: "bad guys after being killed are stuck on the map,
+      // 0 health sprites just persisting there wave after wave". Worse, once the
+      // cap filled, the corpse cue silently stopped working at all.
+      //   Ageing cannot live inside a loop that has early exits. One pass, no
+      // branches, so a future fx kind that needs its own `continue` inherits
+      // correct lifetime for free.
+      for (const f of fx) f.ttl -= 1;
       for (let i = fx.length - 1; i >= 0; i--) if (fx[i].ttl <= 0) fx.splice(i, 1);
     }
 

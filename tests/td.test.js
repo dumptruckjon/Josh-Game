@@ -3550,6 +3550,59 @@ test("ART: a killed body POPS instead of blinking out of existence", async () =>
     "squash away, not blink out while its stars play over bare floor");
 });
 
+test("ART: a corpse EXPIRES — every fx must age, including the ones that draw and continue", async () => {
+  // Reported from real play: "some of the bad guys after being killed are stuck
+  // on the map — 0 health sprites just persisting there wave after wave."
+  //
+  // Exactly right, and it was a one-word regression. The ageing step `f.ttl -= 1`
+  // sat at the BOTTOM of the screen-fx draw loop, and the corpse branch draws in
+  // the character pass and then `continue`s — so a `pop` was never aged, never
+  // faded and was never spliced. It renders from a synthetic carrying `hp: 0`,
+  // which is literally the 0-health sprite that was reported, and MAX_POPS of
+  // them accumulated on the field permanently. Once that cap filled, the corpse
+  // cue silently stopped working altogether.
+  //
+  // The test above could not catch it, and that is the lesson: its first push
+  // deliberately omits `enemy` (stars + gold only, no pop) so that its ageing
+  // window is clean, and it reads the corpse on the very next frame. It proves a
+  // corpse is DRAWN. Nothing proved it goes AWAY.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 3 });
+    const r = window.__TD.render(); r.resize(); r.afterTick();
+    const eng = window.__TD.engine();
+    const p = eng.posAt(6);
+    const c = document.querySelector("#screen-td-play .td-canvas");
+    const c2 = c.getContext("2d");
+    const dpr = c.width / c.clientWidth;
+    const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);
+    const R = Math.round(r.markerInfo().cell * dpr * 1.6);
+    const cx = Math.round(s.x * dpr), cy = Math.round(s.y * dpr);
+    const grab = () => Array.from(c2.getImageData(cx - R, cy - R, R * 2, R * 2).data);
+    const diff = (a, b) => {
+      let n = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) n++;
+      }
+      return n;
+    };
+    r.draw(0);
+    const before = grab();
+    r.pushFx({ type: "die", x: p.x, y: p.y, bounty: 3, enemy: "sock" });
+    r.draw(0);
+    const withBody = grab();
+    // Well past every ttl a `die` pushes (pop 9, stars 16, gold 26).
+    for (let i = 0; i < 60; i++) r.draw(0);
+    const after = grab();
+    return { drawn: diff(before, withBody), left: diff(before, after) };
+  });
+  assert.ok(out.drawn > 150, `the corpse must actually draw (got ${out.drawn} px)`);
+  assert.ok(out.left < 20,
+    `${out.left} pixels of the dead body are STILL on the field 60 frames after it died — a corpse must ` +
+    "age out and be spliced, not stand there for the rest of the run");
+});
+
 test("ART: a prop casts a FLAT ground shadow, offset toward SHADOW, in both orientations", async () => {
   // Reported from real play as "some of the shadows are just circles after
   // circles", and the source read innocent — so this measures INK. Suppressing

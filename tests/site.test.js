@@ -1464,3 +1464,31 @@ test("a prop's shading has exactly ONE owner", () => {
   assert.ok(dp && /softEllipse\(/.test(dp[0]),
     "drawProp is the owner, so it must lay the shading down itself");
 });
+
+test("SELF-HEAL: fx ageing has ONE un-skippable owner, outside the branchy draw loop", () => {
+  // Reported from real play: "some of the bad guys after being killed are stuck
+  // on the map — 0 health sprites just persisting there wave after wave."
+  //
+  // `f.ttl -= 1` used to sit at the BOTTOM of drawScreenFx's draw loop, and the
+  // corpse branch draws in the character pass and then `continue`s — so a `pop`
+  // never aged, never faded and was never spliced. It draws from a synthetic
+  // carrying hp 0 (the reported 0-health sprite), and MAX_POPS of them piled up
+  // permanently; once the cap filled, the corpse cue stopped working at all.
+  //
+  // The browser test proves the corpse expires. This one stops the SHAPE coming
+  // back: a lifetime that is decremented inside a loop with early exits is only
+  // correct for the branches that happen not to exit, so the next fx kind that
+  // needs its own `continue` would silently become immortal too.
+  const src = read("scripts/td-render.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const ages = src.match(/\.ttl -= 1/g) || [];
+  assert.equal(ages.length, 1, `fx lifetime is decremented in ${ages.length} places — it must have exactly one owner`);
+  assert.match(src, /for \(const f of fx\) f\.ttl -= 1;/,
+    "ageing must be its own branch-free pass over every fx, never the last line of a loop that can `continue`");
+  // …and that pass must sit OUTSIDE the draw loop, or the one-owner claim is vacuous.
+  const draw = /function drawScreenFx\(\) \{[\s\S]*?\n {6}for \(const f of fx\) f\.ttl -= 1;/.exec(src);
+  assert.ok(draw, "found drawScreenFx and its ageing pass");
+  const body = draw[0];
+  const loopEnd = body.lastIndexOf("\n      }");
+  assert.ok(loopEnd > -1 && loopEnd < body.lastIndexOf("for (const f of fx) f.ttl -= 1;"),
+    "the ageing pass must come AFTER the draw loop closes, not inside it");
+});

@@ -3502,6 +3502,38 @@ structural guardrail that counts `ctx.ellipse` calls by DIFFERENCE against the
 same level with its zones removed: shadows and props cancel, the zone pass is
 what remains, and it is immune to anything painted on top. Pixels where they can
 be trusted, structure everywhere.
+**A LIFETIME DECREMENTED AT THE BOTTOM OF A BRANCHY LOOP IS ONLY CORRECT FOR THE
+BRANCHES THAT DO NOT EXIT — reported from real play as "some of the bad guys
+after being killed are stuck on the map, 0 health sprites just persisting there
+wave after wave", and it was a one-word regression in the death-corpse feature
+shipped two commits earlier.** `f.ttl -= 1` sat as the last statement of
+`drawScreenFx`'s draw loop, and the corpse branch draws in the character pass and
+then `continue`s — so a `pop` fx was never aged, never faded, and was never
+spliced. It renders from a synthetic carrying `hp: 0`, which is *literally* the
+0-health sprite in the report, and `MAX_POPS` (20) of them accumulated on the
+field permanently; worse, once that cap filled the corpse cue silently stopped
+working at all, so the feature both broke the board AND stopped doing its job.
+Ageing is now its own branch-free pass after the loop, so a future fx kind that
+needs a `continue` inherits a correct lifetime for free. **The reason the shipped
+test could not catch it is the sharpest part:** the corpse test's FIRST
+`pushFx({type:"die"})` deliberately omits `enemy` (stars + gold only, no pop) so
+its 40-frame ageing window is clean, and it reads the corpse on the very next
+frame — so no `pop` ever existed while anything was being aged. It proved a
+corpse is DRAWN; nothing proved it goes AWAY. When you add an effect with a
+lifetime, the test that it APPEARS and the test that it EXPIRES are two different
+tests, and only the second one would have caught this. Guardrails: a browser test
+that pushes a real corpse and asserts the field returns to baseline 60 frames
+later (mutation-proven — 321 stray pixels remain on the pre-fix code), plus a
+structural `site.test.js` check that the decrement has exactly ONE owner and that
+it sits outside the draw loop (the `keepAwake`/`hurriedMult` one-owner shape). And
+the diagnostic lesson: the user read them as corpses, my first four hypotheses
+were all ENGINE-side (a retained-dead filter, a zeroed `effSpeed`, a `blockedBy`
+stalemate, an hp≤0-but-alive body) and every one was refuted by measurement —
+`finishIfWaveDone` requires every enemy dead, `slowCap` is 0.6 so a slow can never
+freeze anything, and `dealDamage` is the only hp write and always calls
+`killEnemy`. The renderer skipping `!e.alive` was the clue that mattered: if the
+engine cannot draw a dead body, a body on screen that will not move is not the
+engine's.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
