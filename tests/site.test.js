@@ -1422,3 +1422,45 @@ test("ONE LIGHT: every picture uses it, and a missing block degrades instead of 
   }
   assert.ok(elems(JoshArt.numberFriend(10)) <= 34, "even a ten stays inside the budget");
 });
+
+// ---------------------------------------------------------------------------
+// GUARDRAIL — the FLOOR and the PROPS, after a visual vet of all 36 levels.
+// ---------------------------------------------------------------------------
+test("every world's declared floor pattern has a renderer branch", () => {
+  // The bedroom — World 1, the first floor anybody sees — declared `carpet` and
+  // NO branch existed, so it rendered as a bare gradient with no texture at all.
+  // Exactly the class already documented for the spawn marker's if/else falling
+  // through to the bedroom's bed, and invisible to the floor guardrail because
+  // that hashes the canvas and the palette alone still differed between worlds.
+  const DATA = require("../scripts/td-data.js");
+  const src = read("scripts/td-render.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const impl = new Set([...src.matchAll(/pattern === "([a-z]+)"/g)].map((m) => m[1]));
+  assert.ok(impl.size >= 5, `the scan must actually find the branches (saw ${impl.size})`);
+  const missing = [];
+  for (const [name, w] of Object.entries(DATA.WORLDS)) {
+    const p = w.floor && w.floor.pattern;
+    assert.ok(p, `${name} declares a floor pattern`);
+    if (!impl.has(p)) missing.push(`${name}:${p}`);
+  }
+  assert.deepEqual(missing, [],
+    "these worlds declare a floor pattern the renderer does not implement, so their floor " +
+    "silently paints untextured: " + missing.join(", "));
+});
+
+test("a prop's shading has exactly ONE owner", () => {
+  // Every prop used to carry THREE shadows from TWO owners: a flat-alpha,
+  // hard-edged ellipse at the call site, plus the cast and contact that the
+  // lighting pass later gave drawProp and which was never de-duplicated. The
+  // call-site one was drawn in bake space with no counter-rotation, so on a
+  // phone it came out as a tall oval BESIDE the prop and the floor read as a
+  // row of dark discs. Same shape as every other two-owner bug in this file.
+  const src = read("scripts/td-render.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const loop = /for \(const p of global\.TDLogic\.propCells\([\s\S]*?\n {8}\}/.exec(src);
+  assert.ok(loop, "found the prop placement loop");
+  assert.ok(!/ellipse\(/.test(loop[0]),
+    "the prop loop must not draw its own shadow ellipse — drawProp owns a prop's shading");
+  // …and drawProp must still actually shade, or the check above passes vacuously.
+  const dp = /function drawProp\(([\s\S]*?)\n {4}\}/.exec(src);
+  assert.ok(dp && /softEllipse\(/.test(dp[0]),
+    "drawProp is the owner, so it must lay the shading down itself");
+});

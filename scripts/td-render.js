@@ -164,17 +164,26 @@
       // crate read as a sticker rather than an object in the room. A tight dark
       // core exactly at the base is what plants a thing; the wider soft ellipse
       // thrown along SHADOW is what says where the light is.
-      const SH = bakeVec(SHADOW), LT = bakeVec(LIGHT);
+      const SH = bakeVec(SHADOW);
       const sx = x + SH.x * u * 0.30, sy = y + SH.y * u * 0.30;
-      const cast = b.createRadialGradient(sx, sy, 0, sx, sy, u * 0.55);
-      cast.addColorStop(0, "rgba(0,0,0,0.32)");
-      cast.addColorStop(1, "rgba(0,0,0,0)");
-      b.save();
-      b.fillStyle = cast;
-      b.beginPath(); b.ellipse(sx, sy, u * 0.55, u * 0.30, 0, 0, 7); b.fill();
-      b.fillStyle = "rgba(0,0,0,0.28)";
-      b.beginPath(); b.ellipse(x + SH.x * u * 0.08, y + SH.y * u * 0.08, u * 0.26, u * 0.12, 0, 0, 7); b.fill();
-      b.restore();
+      // A ground shadow is SQUASHED along the screen's vertical — but this is
+      // baked into the world-oriented plate, which is drawn through a 90°
+      // rotation in portrait, so a flat ellipse in bake space came out as a TALL
+      // oval on a phone. The squash axis has to follow the SCREEN, so the
+      // ellipse is rotated by whatever the bake does to screen-horizontal.
+      // (Same class as the cast direction itself needing bakeVec — invisible in
+      // a landscape screenshot, wrong in every portrait one.)
+      const bh = bakeVec({ x: 1, y: 0 });
+      const rot = Math.atan2(bh.y, bh.x);
+      // SIZED TO THE PROP, not to the cell. The first cut threw a 1.24-cell-wide
+      // shadow under a 0.68-cell prop — nearly double the thing casting it — and
+      // props sit about 3 cells apart, so neighbouring shadows almost touched
+      // and the floor read as a row of dark discs with small objects perched on
+      // them. A shadow that is bigger than its object stops being a shadow.
+      softEllipse(b, sx, sy, u * 0.40, u * 0.21, rot,
+        [[0, 0.22], [0.5, 0.13], [0.8, 0.04], [1, 0]]);
+      softEllipse(b, x + SH.x * u * 0.06, y + SH.y * u * 0.06, u * 0.25, u * 0.115, rot,
+        [[0, 0.26], [0.6, 0.2], [1, 0]]);
 
       const S = Math.max(8, Math.ceil(u * 1.6));
       const sc = document.createElement("canvas");
@@ -186,14 +195,28 @@
       if (kind !== "stain") {                 // a stain is a mark ON the floor, not a form above it
         p.setTransform(dpr, 0, 0, dpr, 0, 0);
         p.globalCompositeOperation = "source-atop";
-        const sh = p.createLinearGradient(S / 2 + LT.x * u * 0.5, S / 2 + LT.y * u * 0.5,
-          S / 2 - LT.x * u * 0.5, S / 2 - LT.y * u * 0.5);
+        // SCREEN light, not bake light: the blit below is counter-rotated, so
+        // this scratch ends up in screen orientation.
+        const sh = p.createLinearGradient(S / 2 + LIGHT.x * u * 0.5, S / 2 + LIGHT.y * u * 0.5,
+          S / 2 - LIGHT.x * u * 0.5, S / 2 - LIGHT.y * u * 0.5);
         sh.addColorStop(0, "rgba(255,248,232,0.22)");
         sh.addColorStop(0.5, "rgba(255,255,255,0)");
         sh.addColorStop(1, "rgba(0,0,0,0.28)");
         p.fillStyle = sh; p.fillRect(0, 0, S, S);
       }
-      b.drawImage(sc, 0, 0, sc.width, sc.height, x - S / 2, y - S / 2, S, S);
+      // A PROP IS AN OBJECT, NOT FLOOR TEXTURE — so it stands upright, like every
+      // character. It is baked into the world-oriented plate for the per-frame
+      // cost (which is the right trade), and that plate is drawn through a 90°
+      // rotation in portrait, so on a phone every prop was lying on its side: a
+      // stack of bricks rendered as three vertical bars standing side by side, a
+      // suitcase stood on its end. Counter-rotating the blit by the same angle
+      // the shadow ellipse uses cancels the plate exactly, so props are upright
+      // in BOTH orientations and the bake stays free.
+      b.save();
+      b.translate(x, y);
+      b.rotate(rot);
+      b.drawImage(sc, 0, 0, sc.width, sc.height, -S / 2, -S / 2, S, S);
+      b.restore();
     }
 
     function drawPropBody(b, kind, x, y, u, ink) {
@@ -310,7 +333,27 @@
       const spot = (i, m) => ((i * 2654435761) % m) / m;
       const ink = NIGHT ? "rgba(255,255,255,0.03)" : FLOOR.ink;
       b.save();
-      if (FLOOR.pattern === "grass") {
+      if (FLOOR.pattern === "carpet") {
+        // Short pile with a faint vacuum-stripe nap. THE BEDROOM DECLARED THIS
+        // AND NO BRANCH EXISTED, so World 1 — the first floor anybody sees, and
+        // the one a new player judges the whole game by — rendered as a bare
+        // gradient with no texture at all. Exactly the class already documented
+        // for the spawn marker's if/else falling through to the bedroom's bed:
+        // a data field with no implementation fails silently, and the floor
+        // guardrail's hash still passed because the palette alone differs.
+        const band = cell * 2.2;
+        for (let x = 0; x < W; x += band) {
+          b.fillStyle = ((x / band) | 0) % 2 ? "rgba(255,255,255,0.022)" : "rgba(0,0,0,0.035)";
+          b.fillRect(x, 0, band, H);
+        }
+        b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.03); b.lineCap = "round";
+        for (let i = 0; i < 520; i++) {
+          const x = spot(i + 13, 991) * W, y = spot(i + 57, 883) * H;
+          const len = cell * (0.06 + spot(i + 5, 61) * 0.07);
+          const lean = (spot(i + 23, 47) - 0.5) * cell * 0.06;
+          b.beginPath(); b.moveTo(x, y); b.lineTo(x + lean, y - len); b.stroke();
+        }
+      } else if (FLOOR.pattern === "grass") {
         // tufts of blades, denser toward the bottom so the lawn has depth
         b.strokeStyle = ink; b.lineWidth = Math.max(1, cell * 0.045); b.lineCap = "round";
         for (let i = 0; i < 420; i++) {
@@ -529,8 +572,14 @@
         b.globalAlpha = NIGHT ? 0.38 : 0.62;
         for (const p of global.TDLogic.propCells(engine.levelDef, GRID)) {
           const px = (p.x + 0.5) * cell, py = (p.y + 0.5) * cell, u = cell * p.s;
-          b.fillStyle = "rgba(0,0,0,0.22)";                       // contact shadow
-          b.beginPath(); b.ellipse(px, py + u * 0.34, u * 0.42, u * 0.14, 0, 0, 7); b.fill();
+          // NO shadow here. There used to be one — a flat-alpha, hard-edged
+          // ellipse — and when the lighting pass gave `drawProp` its own cast and
+          // contact it was never removed, so every prop carried THREE shadows
+          // from TWO owners. Worse, this one was drawn in bake space with no
+          // counter-rotation, so on a phone it came out as a tall oval sitting
+          // beside the prop instead of under it: the floor read as a row of dark
+          // discs with small objects perched next to them. `drawProp` is the one
+          // owner of a prop's shading.
           drawProp(b, PROPS[p.kind % PROPS.length], px, py, u, ink2);
         }
         b.restore();
@@ -665,23 +714,43 @@
     // unlike the baked floor), plus a tight CONTACT core at the base. The cast
     // uses a radial gradient rather than a blur, because `ctx.filter` is the
     // documented WebKit rasterisation cliff and this renderer uses none.
+    // A soft ELLIPTICAL falloff, drawn in unit space. The first cut paired a
+    // CIRCULAR gradient (radius max(rx,ry)) with an ELLIPTICAL fill, so on the
+    // short axis the ellipse cut the gradient off partway down its ramp: at a
+    // typical rx=10, ry=3 the boundary still carried ~0.25 alpha, leaving a
+    // hard-edged dark disc that read as a sticker on the floor rather than as
+    // shade. With a unit-circle gradient under a translate+scale, the falloff is
+    // elliptical BY CONSTRUCTION and reaches exactly zero at the boundary, so
+    // there is no edge to see — and the shadow takes the shape of the footprint
+    // instead of always being a circle.
+    function softEllipse(c, cx, cy, rx, ry, rot, stops) {
+      if (!(rx > 0.05) || !(ry > 0.05)) return;
+      c.save();
+      c.translate(cx, cy);
+      if (rot) c.rotate(rot);
+      c.scale(rx, ry);
+      const g = c.createRadialGradient(0, 0, 0, 0, 0, 1);
+      for (const [at, a] of stops) g.addColorStop(at, "rgba(0,0,0," + a + ")");
+      c.fillStyle = g;
+      c.beginPath(); c.arc(0, 0, 1, 0, 7); c.fill();
+      c.restore();
+    }
     function shadow(x, y, rx, ry) {
       noInk(() => {
         const ox = x + SHADOW.x * rx * 0.55, oy = y + SHADOW.y * ry * 0.75;
-        const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, Math.max(rx, ry) * 1.15);
-        g.addColorStop(0, "rgba(0,0,0,0.34)");
-        g.addColorStop(0.6, "rgba(0,0,0,0.16)");
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.ellipse(ox, oy, rx * 1.15, ry * 1.15, 0, 0, 7); ctx.fill();
-        // The contact core covers the WHOLE footprint, not a shrunken disc.
-        // Shrinking it to 0.8x turned the silhouette guardrail red on the Grease
-        // Racer — a genuinely useful failure, because it showed that sprite's
-        // contour was passing on darkness BORROWED from its own drop shadow
-        // rather than on its own ink. Occlusion under a body covers the body, so
-        // full size is also the physically right answer.
-        ctx.fillStyle = "rgba(0,0,0,0.26)";
-        ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill();
+        // the thrown cast…
+        softEllipse(ctx, ox, oy, rx * 1.35, ry * 1.35, 0,
+          [[0, 0.30], [0.45, 0.19], [0.78, 0.06], [1, 0]]);
+        // …and the contact core, which plants the body. It covers the WHOLE
+        // footprint, not a shrunken disc: shrinking it to 0.8x turned the
+        // silhouette guardrail red on the Grease Racer — a genuinely useful
+        // failure, because it showed that sprite's contour was passing on
+        // darkness BORROWED from its own drop shadow rather than on its own ink.
+        // Occlusion under a body covers the body, so full size is also the
+        // physically right answer. It is feathered rather than flat-filled for
+        // the same reason as the cast: a constant-alpha ellipse has a hard rim.
+        softEllipse(ctx, x, y, rx * 1.12, ry * 1.12, 0,
+          [[0, 0.30], [0.62, 0.26], [1, 0]]);
       });
     }
 
@@ -2389,6 +2458,11 @@
     // rally ring, the suck beam, the leak toll) painted half a cell up-left of
     // the thing it belonged to. One helper now applies the shift once.
     const fxAt = (o, x, y) => { o.x = x + 0.5; o.y = y + 0.5; return o; };
+    // where the last draw actually put the spawn/exit markers, in cell-index
+    // space — the leverInfo/doorInfo precedent, so a test reads the RENDERER's
+    // own numbers instead of recomputing them from the level data and proving
+    // nothing.
+    const markers = { spawn: null, exit: null };
     // Which bodies were struck, and until when. A tick-stamped map in the
     // RENDERER, never a field on the enemy: the engine is pure and a purely
     // visual cue has no business in hashed state. Entries expire in FLASH_TICKS
@@ -2973,7 +3047,20 @@
       // (the same class as the enemy draw that marched the Tickmaster in as a
       // sock), so a 5th world would have inherited a bed too.
       const spawnGlyph = (global.TDData.WORLDS[engine.levelDef.world] || {}).spawnGlyph || "🛏️";
-      glyph(s0[0], s0[1], spawnGlyph);
+      // ON THE ROAD, not on its end cap. A lane's first and last waypoints sit at
+      // the board EDGE, so both markers were centred half a cell in, straddling
+      // the lane's rounded cap with the cap poking out past them — reported as
+      // "the entrance bed isn't on the path". Stepping a little way ALONG the
+      // first (and last) segment puts each marker squarely on the road it
+      // belongs to, at any board size and in either orientation.
+      const along = (a, b, d) => {
+        const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+        return [a[0] + (dx / L) * d, a[1] + (dy / L) * d];
+      };
+      const INSET = 0.85;
+      markers.spawn = prim.length > 1 ? along(prim[0], prim[1], INSET) : s0;
+      markers.exit = prim.length > 1 ? along(prim[prim.length - 1], prim[prim.length - 2], INSET) : s1;
+      glyph(markers.spawn[0], markers.spawn[1], spawnGlyph);
       // TD-16 side doors, upright like every other character. ON the crossbar,
       // not offset from it: the FLOOR rotates 90° in portrait while characters
       // stay upright, so a world-y offset here would come out as a screen-x
@@ -2987,7 +3074,7 @@
       // at 0.72 — same picture as where they already come from, smaller so the
       // primary spawn still reads as primary.
       for (const at of nextDoors()) { const dp = engine.posAt(at); glyph(dp.x, dp.y, spawnGlyph, 0.72); }
-      glyph(s1[0], s1[1], "🚪");
+      glyph(markers.exit[0], markers.exit[1], "🚪");
       if (selection && selection.tower) {
         const selT = st.towers.find((x) => x.id === selection.tower);
         // rallyX/rallyY are path points — cell-index space, exactly like an
@@ -3027,6 +3114,7 @@
       setDamageNumbers: (on) => { showDmg = !!on; }, // TD-6 opt-in
       shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
       leverInfo: () => ({ hasSeg: !!leverSeg, lit: lastLitLane }), // test hook: which lane the route overlay lit last draw
+      markerInfo: () => ({ spawn: markers.spawn, exit: markers.exit }), // test hook: where the spawn/exit markers were drawn
       // test hook (the leverInfo precedent): which side doors are lit right now
       // and what picture marks them. Reported from real play as invisible —
       // it wore the EXIT's 🚪 and vanished the moment the wave started — so the

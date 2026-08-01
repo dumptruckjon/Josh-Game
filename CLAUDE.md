@@ -3365,6 +3365,57 @@ longer sending one** (verified: deleting `id: target.id` left it green), so that
 claim lives in the engine suite instead. Same family as "a feature whose tests
 all call the API is untested as a feature", one level down.
 
+**A VISUAL vet of all 36 levels — screenshot every board, then magnify — found
+four defects that every numeric guardrail had passed, and the headline is that
+three of them came from the same place: something drawn into the BAKED,
+world-oriented floor plate that should not have been.** Reported as "the
+entrance bed isn't on the path" and "some of the shadows are just circles after
+circles". (1) **Every prop carried THREE shadows from TWO owners.** The prop
+placement loop drew a flat-alpha, hard-edged ellipse, and when the lighting pass
+later gave `drawProp` its own cast and contact, that one was never removed —
+and because it was drawn in bake space with no counter-rotation, the 90°
+portrait rotation stood it on end, so on a phone it was a TALL oval sitting
+BESIDE the prop. Measured per prop: 44×45px at aspect **0.98** — a disc — centred
+on the object; after removing the duplicate, 20×11px at aspect **1.82**, offset
+down-right from the light. `drawProp` is the one owner now. (2) **Prop BODIES
+were rotated too** — a stack of bricks rendered as three vertical bars standing
+side by side, a suitcase stood on its end. A prop is an OBJECT, not floor
+texture, so the blit is counter-rotated by the same angle the shadow ellipse
+uses; the bake stays free and props are upright in both orientations. (3) **The
+shadow gradient was CIRCULAR under an ELLIPTICAL fill**, so on the short axis the
+ellipse cut the ramp off at ~25% alpha and left a hard rim; `softEllipse()` draws
+a unit circle under a translate+scale, so the falloff is elliptical by
+construction and reaches exactly zero at the boundary. (4) **World 1's floor
+never had a texture at all**: the bedroom declares `carpet` and no such branch
+existed, so the first floor anybody sees painted as a bare gradient — the
+documented "a data field with no implementation fails silently" class, invisible
+to the floor guardrail because that hashes the canvas and the palette alone
+still differed. A derived check now fails if any world's declared pattern has no
+branch. And the bed: a lane's first and last waypoints sit at the board EDGE, so
+both markers were centred half a cell in, straddling the lane's rounded end cap
+with the cap poking out past them; they are stepped 0.85 cells ALONG the lane
+now.
+Four method lessons, each of which produced a wrong answer first. **A
+measurement derived from the same data it is checking cannot fail** — the first
+"is the spawn on the lane?" probe computed the glyph position from `lane[0]` and
+then measured its distance to the lane: 0.00 on all 36 levels, by construction.
+**The fix for that metric was wrong too**: "distance from the board edge" reads
+0.00 forever on L21, whose lane runs out along the bottom row, so the honest
+quantity is how far the marker is inset ALONG the path. **A screenshot is not a
+diagnosis** — I read the ovals as being on the lit side and nearly "fixed" a
+correct shadow direction (the centroid measured −0.90, correctly opposite the
+light), then read them as baked floor, then as prop bodies; only suppressing
+`propCells` and diffing the canvas identified them, and only classifying the
+differing pixels as *darker* vs *more colourful* separated shading from ink.
+**And a clamp that never fires is not a fix**: the first cut for the bed clamped
+the glyph inside the canvas, and the outermost canvas rows measured byte-identical
+with and without it — the bed was never actually clipped, so the clamp and its
+guardrail were both deleted rather than shipped as unfalsifiable code. One
+finding is recorded WITHOUT a change: World 9's `mould` floor is a tiled field of
+dark cavities, which reads much like the defect just fixed, but it is the
+declared, world-appropriate texture for a moulding room and changing it is a
+design call, not a bug fix.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book

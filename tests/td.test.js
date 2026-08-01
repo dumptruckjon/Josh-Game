@@ -3549,3 +3549,127 @@ test("ART: a killed body POPS instead of blinking out of existence", async () =>
     `the death drew only ${out.corpse} pixels of body — a killed enemy must leave a corpse to ` +
     "squash away, not blink out while its stars play over bare floor");
 });
+
+test("ART: a prop casts a FLAT ground shadow, offset toward SHADOW, in both orientations", async () => {
+  // Reported from real play as "some of the shadows are just circles after
+  // circles", and the source read innocent — so this measures INK. Suppressing
+  // the props and diffing isolates exactly their contribution; the shading is
+  // then the darker-but-not-more-colourful part of that difference.
+  //
+  // Pre-fix this measured 44x45px at aspect 0.98 CENTRED on the prop: a dark
+  // disc the prop sat on, because a leftover call-site ellipse was drawn in
+  // BAKE space (so the 90° portrait rotation stood it on end) on top of
+  // drawProp's own cast and contact.
+  for (const vp of [{ w: 390, h: 844, n: "portrait" }, { w: 844, h: 390, n: "landscape" }]) {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    const m = await page.evaluate(() => {
+      const shot = (noProps) => {
+        const orig = window.TDLogic.propCells;
+        if (noProps) window.TDLogic.propCells = () => [];
+        window.__TD.newGame(1, { seed: 3 });
+        const r = window.__TD.render(); r.resize(); r.afterTick(); r.draw(0);
+        const c = document.querySelector("#screen-td-play .td-canvas");
+        const d = c.getContext("2d").getImageData(0, 0, c.width, c.height);
+        window.TDLogic.propCells = orig;
+        return { d, w: c.width, h: c.height, dpr: c.width / c.clientWidth };
+      };
+      const off = shot(true), on = shot(false);
+      const cells = window.TDLogic.propCells(window.TDData.LEVELS[0], { w: 24, h: 14 });
+      const o0 = window.__TD.w2s(0, 0), o1 = window.__TD.w2s(1, 0);
+      const cellPx = Math.hypot(o1.x - o0.x, o1.y - o0.y) * on.dpr;
+      const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const sat = (d, i) => Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+      const out = [];
+      for (const p of cells) {
+        const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);
+        const cx = Math.round(s.x * on.dpr), cy = Math.round(s.y * on.dpr);
+        const R = Math.round(cellPx * 1.4);
+        if (cx - R < 0 || cy - R < 0 || cx + R > on.w || cy + R > on.h) continue;
+        let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, n = 0;
+        for (let y = cy - R; y <= cy + R; y++) for (let x = cx - R; x <= cx + R; x++) {
+          const i = (y * on.w + x) * 4;
+          if (lum(off.d.data, i) - lum(on.d.data, i) > 6 && sat(on.d.data, i) - sat(off.d.data, i) < 10) {
+            n++; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+          }
+        }
+        if (n < 20) continue;
+        out.push({ aspect: (x1 - x0 + 1) / (y1 - y0 + 1), dx: (x0 + x1) / 2 - cx, dy: (y0 + y1) / 2 - cy,
+          wCells: (x1 - x0 + 1) / cellPx });
+      }
+      return out;
+    });
+    assert.ok(m.length >= 3, `${vp.n}: found ${m.length} props to measure`);
+    const avg = (f) => m.reduce((s, r) => s + f(r), 0) / m.length;
+    // A ground shadow lies FLAT on the floor — in screen space, always wider
+    // than tall, whichever way the world-oriented plate happens to be rotated.
+    assert.ok(avg((r) => r.aspect) > 1.35,
+      `${vp.n}: prop shading averages aspect ${avg((r) => r.aspect).toFixed(2)} — a ground shadow must ` +
+      "be flat (wider than tall) on screen, not a disc");
+    // …and it falls AWAY from the light, which is upper-left.
+    assert.ok(avg((r) => r.dx) > 0 && avg((r) => r.dy) > 0,
+      `${vp.n}: shading sits at (${avg((r) => r.dx).toFixed(1)}, ${avg((r) => r.dy).toFixed(1)})px from the ` +
+      "prop — it must fall down-and-right, away from the light");
+    // …and it belongs to the prop rather than dwarfing it.
+    assert.ok(avg((r) => r.wCells) < 1.3,
+      `${vp.n}: shading is ${avg((r) => r.wCells).toFixed(2)} cells wide — a shadow bigger than the thing ` +
+      "casting it stops reading as a shadow");
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+});
+
+test("ART: the spawn and exit markers sit ON the road, not on its end cap", async () => {
+  // "The entrance bed isn't on the path." A lane's first and last waypoints are
+  // at the board EDGE, so both markers were centred half a cell in and straddled
+  // the lane's rounded end cap, with the cap poking out past them. They are
+  // stepped along the first/last segment now.
+  //
+  // Read from render.markerInfo() — the renderer's OWN numbers. Recomputing the
+  // position from the level data here would be tautological: the first version
+  // of this measurement derived the point from lane[0] and then measured its
+  // distance to the lane, which is 0.00 by construction on every level.
+  for (const vp of [{ w: 390, h: 844, n: "portrait" }, { w: 844, h: 390, n: "landscape" }]) {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    for (const id of [1, 9, 21, 33]) {
+      await page.evaluate(() => { location.hash = "#td-play"; });
+      await page.locator("#screen-td-play").waitFor({ state: "visible" });
+      const m = await page.evaluate((lid) => {
+        window.__TD.newGame(lid, { seed: 3 });
+        const r = window.__TD.render(); r.resize(); r.afterTick(); r.draw(0);
+        const mk = r.markerInfo();
+        const lv = window.TDData.LEVELS.find((l) => l.id === lid);
+        const lane = (lv.paths || [lv.path])[0];
+        const near = (pt) => {   // distance from the marker to the lane centre-line
+          let best = 1e9;
+          for (let i = 0; i + 1 < lane.length; i++) {
+            const a = lane[i], b = lane[i + 1];
+            const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1;
+            let t = ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / L2;
+            t = Math.max(0, Math.min(1, t));
+            best = Math.min(best, Math.hypot(pt[0] - (a[0] + t * dx), pt[1] - (a[1] + t * dy)));
+          }
+          return best;
+        };
+        // How far the marker is stepped in ALONG the lane from its endpoint.
+        // NOT "distance from the board edge": L21's lane runs out along the
+        // bottom row, so a marker correctly inset along it stays at y=13 and
+        // that metric reads 0.00 forever.
+        const D = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+        return { spawnIn: D(mk.spawn, lane[0]), exitIn: D(mk.exit, lane[lane.length - 1]),
+          spawnOff: near(mk.spawn), exitOff: near(mk.exit) };
+      }, id);
+      // still ON the lane…
+      assert.ok(m.spawnOff < 0.05 && m.exitOff < 0.05,
+        `${vp.n} L${id}: markers drifted off the lane (spawn ${m.spawnOff.toFixed(2)}, exit ${m.exitOff.toFixed(2)} cells)`);
+      // …and stepped IN from the endpoint, so each sits on the road rather than
+      // straddling the lane's rounded end cap. Un-inset markers measure 0.00.
+      assert.ok(m.spawnIn > 0.7,
+        `${vp.n} L${id}: the spawn marker is only ${m.spawnIn.toFixed(2)} cells along the lane from its ` +
+        "start — it must stand on the road, not on the lane's end cap");
+      assert.ok(m.exitIn > 0.7,
+        `${vp.n} L${id}: the exit marker is only ${m.exitIn.toFixed(2)} cells along the lane from its end`);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+});
