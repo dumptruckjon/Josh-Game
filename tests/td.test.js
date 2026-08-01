@@ -3657,7 +3657,8 @@ test("ART: the spawn and exit markers sit ON the road, not on its end cap", asyn
         // that metric reads 0.00 forever.
         const D = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
         return { spawnIn: D(mk.spawn, lane[0]), exitIn: D(mk.exit, lane[lane.length - 1]),
-          spawnOff: near(mk.spawn), exitOff: near(mk.exit) };
+          spawnOff: near(mk.spawn), exitOff: near(mk.exit),
+          spawnW: mk.spawnW / mk.cell, exitW: mk.exitW / mk.cell };
       }, id);
       // still ON the lane…
       assert.ok(m.spawnOff < 0.05 && m.exitOff < 0.05,
@@ -3669,6 +3670,15 @@ test("ART: the spawn and exit markers sit ON the road, not on its end cap", asyn
         "start — it must stand on the road, not on the lane's end cap");
       assert.ok(m.exitIn > 0.7,
         `${vp.n} L${id}: the exit marker is only ${m.exitIn.toFixed(2)} cells along the lane from its end`);
+      // …and NARROW ENOUGH TO BE ON IT. The painted road measures exactly 1.00
+      // cells and the bed measured 1.11, so it overhung both kerbs and read as
+      // lying across the lane rather than standing in it — which is what "the
+      // entrance bed isn't in the lane" actually was. The size is fitted by
+      // MEASURING the glyph at draw time, so iOS rendering emoji wider than
+      // desktop cannot re-open it.
+      assert.ok(m.spawnW < 0.92 && m.exitW < 0.92,
+        `${vp.n} L${id}: markers draw ${m.spawnW.toFixed(2)}/${m.exitW.toFixed(2)} cells wide against a ` +
+        "1.00-cell road — a marker wider than the road hangs over both kerbs");
     }
   }
   await page.setViewportSize({ width: 390, height: 844 });

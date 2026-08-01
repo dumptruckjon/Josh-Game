@@ -2462,7 +2462,7 @@
     // space — the leverInfo/doorInfo precedent, so a test reads the RENDERER's
     // own numbers instead of recomputing them from the level data and proving
     // nothing.
-    const markers = { spawn: null, exit: null };
+    const markers = { spawn: null, exit: null, spawnW: 0, exitW: 0 };
     // Which bodies were struck, and until when. A tick-stamped map in the
     // RENDERER, never a field on the enemy: the engine is pure and a purely
     // visual cue has no business in hashed state. Entries expire in FLASH_TICKS
@@ -2976,9 +2976,20 @@
       }
 
       // upright glyphs (bed / door / rally flag)
-      const glyph = (wx, wy, ch, sz) => {
+      // `fit` caps the drawn WIDTH. The bed measured 1.11 cells against a road
+      // that measures exactly 1.00, so it overhung both kerbs and read as lying
+      // across the lane rather than standing on it. Measured at draw time, not
+      // assumed: iOS renders emoji WIDER than desktop, so a size that fits in
+      // headless Chromium can still spill on the real iPad — the documented trap
+      // that already spilled the tower panel and the next-wave line.
+      const glyph = (wx, wy, ch, sz, fit) => {
         const p = worldToScreen(wx + 0.5, wy + 0.5);
-        ctx.font = Math.round(cell * (sz || 0.9)) + "px sans-serif";
+        let px = Math.round(cell * (sz || 0.9));
+        ctx.font = px + "px sans-serif";
+        if (fit) {
+          const w = ctx.measureText(ch).width;
+          if (w > fit) { px = Math.max(8, Math.floor(px * (fit / w))); ctx.font = px + "px sans-serif"; }
+        }
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         // A COLOUR emoji ignores fillStyle, but a monochrome fallback glyph does
         // not — and this helper used to inherit whatever fill the previous draw
@@ -2986,6 +2997,7 @@
         // on what was on the field. Always state it.
         ctx.fillStyle = "#eef3ff";
         ctx.fillText(ch, p.x, p.y);
+        return ctx.measureText(ch).width;
       };
       // TD-7: the track-switch lever — a tappable round button on the fork. Red
       // when ready, steel + a sweeping ring while cooling down; a little arm shows
@@ -3058,9 +3070,10 @@
         return [a[0] + (dx / L) * d, a[1] + (dy / L) * d];
       };
       const INSET = 0.85;
+      const ROAD_FIT = 0.82;   // the painted road measures exactly 1.00 cells
       markers.spawn = prim.length > 1 ? along(prim[0], prim[1], INSET) : s0;
       markers.exit = prim.length > 1 ? along(prim[prim.length - 1], prim[prim.length - 2], INSET) : s1;
-      glyph(markers.spawn[0], markers.spawn[1], spawnGlyph);
+      markers.spawnW = glyph(markers.spawn[0], markers.spawn[1], spawnGlyph, 0.9, cell * ROAD_FIT);
       // TD-16 side doors, upright like every other character. ON the crossbar,
       // not offset from it: the FLOOR rotates 90° in portrait while characters
       // stay upright, so a world-y offset here would come out as a screen-x
@@ -3073,8 +3086,8 @@
       // wears the WORLD's spawn glyph (a data field, so a new world inherits it)
       // at 0.72 — same picture as where they already come from, smaller so the
       // primary spawn still reads as primary.
-      for (const at of nextDoors()) { const dp = engine.posAt(at); glyph(dp.x, dp.y, spawnGlyph, 0.72); }
-      glyph(markers.exit[0], markers.exit[1], "🚪");
+      for (const at of nextDoors()) { const dp = engine.posAt(at); glyph(dp.x, dp.y, spawnGlyph, 0.72, cell * ROAD_FIT); }
+      markers.exitW = glyph(markers.exit[0], markers.exit[1], "🚪", 0.9, cell * ROAD_FIT);
       if (selection && selection.tower) {
         const selT = st.towers.find((x) => x.id === selection.tower);
         // rallyX/rallyY are path points — cell-index space, exactly like an
@@ -3114,7 +3127,7 @@
       setDamageNumbers: (on) => { showDmg = !!on; }, // TD-6 opt-in
       shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
       leverInfo: () => ({ hasSeg: !!leverSeg, lit: lastLitLane }), // test hook: which lane the route overlay lit last draw
-      markerInfo: () => ({ spawn: markers.spawn, exit: markers.exit }), // test hook: where the spawn/exit markers were drawn
+      markerInfo: () => ({ spawn: markers.spawn, exit: markers.exit, spawnW: markers.spawnW, exitW: markers.exitW, cell }), // test hook: where the spawn/exit markers were drawn
       // test hook (the leverInfo precedent): which side doors are lit right now
       // and what picture marks them. Reported from real play as invisible —
       // it wore the EXIT's 🚪 and vanished the moment the wave started — so the
