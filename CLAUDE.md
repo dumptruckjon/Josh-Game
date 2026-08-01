@@ -3456,6 +3456,52 @@ confounded twice before it could fail honestly — first by the road ties under 
 band, then because alpha compositing removes luma in proportion to the base, so a
 uniform overlay over a textured floor yields a VARYING absolute difference; the
 invariant is `diff/base`, and the thinnest point must be ≥60% of the thickest.
+**And fixing the cover band did NOT fix the mud patch, because they are the same
+law in two different drawers — which is the whole reason RULE 7 says centralize
+the correct way rather than patch the case in front of you.** The mud kept
+stamping an ellipse every 0.6 cells, so 🕳️ mud shipped as a row of discs on
+**L1, the first level anybody plays**: the original "some of the shadows are just
+circles after circles" was still literally true there after two rounds of fixing
+it elsewhere, and the vet that would have caught it looked at levels rather than
+at MECHANICS. A per-level visual pass must walk the feature space — every gimmick,
+every band kind — not the level list. Both ground bands are now one filled body
+between two wobbling rims (the rim keeps it organic, which is what the stamps were
+for; the body between them is unbroken, which stamps never are), and the bubbles
+scatter across the puddle instead of filing down its centre-line and rise toward
+SCREEN-up via `bakeVec` — the zone pass runs inside the rotated floor transform,
+so a bare `-y` drifted them sideways in portrait.
+Four measurement lessons, and they matter more than the fix. (1) **The defect was
+not what it looked like.** The stamps were 0.84 cells long at 0.6 spacing, so they
+never actually GAPPED on the centre-line — they double-covered, and
+`1-(1-0.55)² = 0.80` against a declared 0.55. "Circles after circles" here is
+periodic OVER-darkening, not holes. Diagnose before you threshold. (2) **A metric
+can be wrong three times running, each time looking exactly like a defect in the
+drawing** — raw luma along the lane varies from the road's own rungs; the
+DIFFERENCE against a zone-less render varies because alpha compositing removes
+luma in proportion to the base; and that difference as a RATIO goes NEGATIVE on
+the sort line, whose belt is darker than the mud so the mud LIGHTENS it — it
+reported −1.28 on a band that is perfect. The invariant is the overlay's own
+ALPHA, recoverable because the colour is known: `a = (base−got)/(base−C)`. It is
+sign-safe and comes back as the literal 0.55/0.40 the renderer declares, which is
+what makes it a measurement rather than a number tuned until it passed. (3)
+**Smoothing added to defeat a confound destroyed the test's ability to fail.**
+Taking the median of five samples ACROSS the band (to see past a lever level's
+centre dashes) left the stamped code GREEN, because averaging across the width
+hides a seam that runs along it; and the spread-based threshold scored the stamped
+version at **0.602 against a 0.6 floor** — passing by 0.002, which is luck, not a
+guardrail. The fix is to assert against the DECLARED alpha: a single fill cannot
+exceed its own alpha, so overlap is the one signature of stamping that cannot be
+faked, and both bounds are mutation-proven (restore the stamps → peaks at 0.796;
+draw the band at the wrong shade → drops to 0.304). (4) **When a designed overlay
+makes a surface unmeasurable, exclude by what the level IS and cover it another
+way.** A lever level paints a route indicator along the lane — a continuous glow
+plus 90%-opaque running dashes at an 0.85-cell period — so no offset clears both,
+and the L7 numbers that looked like a beaded band were the indicator. It is
+excluded by `paths.length > 1` (derived, not an id list) and covered instead by a
+structural guardrail that counts `ctx.ellipse` calls by DIFFERENCE against the
+same level with its zones removed: shadows and props cancel, the zone pass is
+what remains, and it is immune to anything painted on top. Pixels where they can
+be trusted, structure everywhere.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

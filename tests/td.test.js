@@ -3684,6 +3684,159 @@ test("ART: the spawn and exit markers sit ON the road, not on its end cap", asyn
   await page.setViewportSize({ width: 390, height: 844 });
 });
 
+test("ART: every ground band is one continuous sheet, not a string of beads", async () => {
+  // GENERALIZED from the L2-cover-only version below, because fixing the cover
+  // band did NOT fix the mud patch — they are drawn by different code, and the
+  // mud kept stamping an ellipse every 0.6 cells. That shipped as a row of beads
+  // with visible gaps on L1, THE FIRST LEVEL ANYBODY PLAYS, which is where the
+  // original "some of the shadows are just circles after circles" was still true
+  // after two rounds of fixing it elsewhere. So the law is now stated once over
+  // every band the data declares, and a new band inherits it.
+  //
+  // A ground band (mud / cover) is a continuous condition and must paint as one
+  // body. A CONVEYOR is excluded on purpose and by a derived predicate, not a
+  // level list: its chevrons are a deliberate directional motif, the way lane
+  // markings are, so periodicity is the point.
+  //
+  // The metric took three tries and each wrong one is recorded, because each
+  // looked like a defect in the drawing:
+  //   1. raw luma along the centre-line — sd 9.4 on a band that is genuinely
+  //      continuous, because the road is drawn with rungs across it;
+  //   2. the DIFFERENCE against a zone-less render — still varies, because alpha
+  //      compositing removes luma in proportion to what is underneath;
+  //   3. that difference as a RATIO — right for a dark overlay on a light road,
+  //      but it goes NEGATIVE on the sort line, whose belt is darker than the mud
+  //      so the mud LIGHTENS it. Reported -1.28 on a perfect band.
+  // The quantity that is actually invariant is the overlay's own ALPHA, which is
+  // recoverable because the overlay colour is known: got = base(1-a) + C·a, so
+  // a = (base-got)/(base-C). It is sign-safe, and it comes back as the literal
+  // 0.55 / 0.40 the renderer declares — which is what makes it a measurement
+  // rather than a threshold someone tuned until it passed.
+  //
+  // And the assertion is against that DECLARED alpha, not against the band's own
+  // spread, because measuring the stamped version showed the defect is not what
+  // it looks like: the stamps were 0.84 cells long at 0.6 spacing, so they never
+  // actually GAPPED on the centre-line — they double-covered, and 1-(1-0.55)^2 =
+  // 0.80 against a single 0.55. What reads as a row of discs is periodic
+  // OVER-darkening. A spread test scored that 0.602 against a 0.6 floor, i.e. it
+  // passed by 0.002 — luck, not a guardrail. Overlap is the signature of
+  // stamping and it can only ever push alpha ABOVE the declared value, which a
+  // single fill cannot do, so the honest bound is two-sided around the number
+  // the renderer states.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const BANDS = await page.evaluate(() => {
+    const lumc = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    // the two ground-band overlay colours, restated from the renderer
+    const C = { mud: lumc(96, 74, 44), cover: lumc(28, 34, 66) };
+    const ALPHA = { mud: 0.55, cover: 0.40 };   // restated from the renderer
+    const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    const shot = (id) => {
+      window.__TD.newGame(id, { seed: 3 });
+      const r = window.__TD.render(); r.resize(); r.afterTick(); r.draw(0);
+      const c = document.querySelector("#screen-td-play .td-canvas");
+      return { d: c.getContext("2d").getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height,
+        dpr: c.width / c.clientWidth, cell: r.markerInfo().cell };
+    };
+    const out = [];
+    for (const lv of window.TDData.LEVELS) {
+      const zones = lv.zones || [];
+      if (!zones.length) continue;
+      // A LEVER level paints a route indicator ALONG the lane — a continuous
+      // glow plus 90%-opaque running dashes — so the lane's own pixels are not
+      // the band's pixels there and no offset clears both. Excluded by what the
+      // level IS, not by id, and covered instead by the structural test below.
+      if ((lv.paths || [lv.path]).length > 1) continue;
+      for (const z of zones) {
+        const kind = (z.dmg != null && z.dmg < 1) ? "cover" : (z.mult < 1 ? "mud" : null);
+        if (!kind) continue;
+        const withZ = shot(lv.id);
+        lv.zones = [];                    // ZONES is read at renderer creation
+        const noZ = shot(lv.id);
+        lv.zones = zones;
+        const eng = window.__TD.engine();
+        const a = [];
+        for (let k = 0; k <= 60; k++) {
+          const dist = z.from + 0.9 + (k / 60) * ((z.to - z.from) - 1.8);
+          const q0 = eng.posAt(dist);
+          const s0 = window.__TD.w2s(q0.x + 0.5, q0.y + 0.5);
+          // ON the centre-line, one sample. An earlier draft took the median of
+          // five samples ACROSS the band, to see past a lever level's centre
+          // dashes — and that smoothing made the test PASS on the very defect it
+          // exists to catch (restoring the 0.6-cell stamps left it green, because
+          // averaging across the width hides a seam that runs along it). Lever
+          // levels are excluded above for exactly that reason, so the smoothing
+          // bought nothing and cost the test its ability to fail.
+          const x = Math.round(s0.x * withZ.dpr), y = Math.round(s0.y * withZ.dpr);
+          if (x < 0 || y < 0 || x >= withZ.w || y >= withZ.h) continue;
+          const i = (y * withZ.w + x) * 4;
+          const base = lum(noZ.d, i);
+          if (Math.abs(base - C[kind]) < 12) continue;   // unmeasurable there
+          a.push((base - lum(withZ.d, i)) / (base - C[kind]));
+        }
+        if (a.length) out.push({ id: lv.id, kind, want: ALPHA[kind], n: a.length,
+          lo: Math.min(...a), hi: Math.max(...a) });
+      }
+    }
+    return out;
+  });
+  // The population is part of the test: a derived scan that silently covers
+  // nothing is the failure mode this repo keeps re-learning.
+  assert.ok(BANDS.length >= 8, `only ${BANDS.length} ground bands measured — the scan must cover the shipped bands`);
+  assert.ok(BANDS.some((b) => b.kind === "mud") && BANDS.some((b) => b.kind === "cover"),
+    "both ground-band kinds must be measured");
+  for (const b of BANDS) {
+    assert.ok(b.n >= 40, `L${b.id} ${b.kind}: sampled ${b.n} points`);
+    assert.ok(b.hi <= b.want * 1.2,
+      `L${b.id} ${b.kind}: alpha peaks at ${b.hi.toFixed(3)} against a declared ${b.want} — a single fill ` +
+      "cannot exceed its own alpha, so this band is being STAMPED and the overlaps are double-darkening it");
+    assert.ok(b.lo >= b.want * 0.8,
+      `L${b.id} ${b.kind}: alpha drops to ${b.lo.toFixed(3)} against a declared ${b.want} — the band must lay ` +
+      "the same shade for its whole length, with no thin or missing stretch");
+  }
+});
+
+test("ART: a ground band is drawn as ONE shape, never as repeated stamps", async () => {
+  // The pixel law above cannot see a lever level, whose lane carries a route
+  // indicator. This states the same law structurally, so it covers EVERY level
+  // including those — and it cannot be confounded by anything painted on top.
+  //
+  // Counting is by DIFFERENCE against the same level with its zones removed, so
+  // the shadows and props that legitimately use ellipses cancel out and what is
+  // left is the zone pass alone.
+  const m = await page.evaluate(() => {
+    const proto = CanvasRenderingContext2D.prototype;
+    const real = proto.ellipse;
+    let n = 0;
+    proto.ellipse = function (...args) { n += 1; return real.apply(this, args); };
+    const count = (id) => {
+      window.__TD.newGame(id, { seed: 3 });
+      const r = window.__TD.render(); r.resize(); r.afterTick();
+      n = 0; r.draw(0); return n;
+    };
+    const rows = [];
+    try {
+      for (const lv of window.TDData.LEVELS) {
+        const zones = lv.zones || [];
+        const band = zones.find((z) => (z.dmg != null && z.dmg < 1) || z.mult < 1);
+        if (!band) continue;
+        const withZ = count(lv.id);
+        lv.zones = [];
+        const noZ = count(lv.id);
+        lv.zones = zones;
+        rows.push({ id: lv.id, extra: withZ - noZ });
+      }
+    } finally { proto.ellipse = real; }
+    return rows;
+  });
+  assert.ok(m.length >= 8, `only ${m.length} banded levels scanned`);
+  for (const r of m) {
+    assert.ok(r.extra === 0,
+      `L${r.id}: its ground band adds ${r.extra} ellipse stamps to the frame — a band must be filled as one ` +
+      "shape along the lane, not stamped every few tenths of a cell (that is what read as circles-after-circles)");
+  }
+});
+
 test("ART: a cover band is one continuous sheet, not a string of beads", async () => {
   // Reported from real play on L2 as "weird shadows": the ⛱️ Blanket Cover
   // stamped an ellipse every 0.6 cells while each was a full cell wide, so a

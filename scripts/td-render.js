@@ -2640,23 +2640,70 @@
           ctx.restore();
           continue;
         }
-        const slow = z.mult < 1;
+        // 🕳️ MUD PATCH (mult < 1) — the SAME defect as the cover band above, and
+        // it survived the fix for it because the two are drawn by different code.
+        // This stamped an ellipse every 0.6 cells, and the stamps read as a row
+        // of beads with visible gaps: measured as an alpha varying 0.26-0.48
+        // along L1's band and 0.01-0.37 along L7's, against 0.92-0.99 for a
+        // continuous cover. L1 is the FIRST level anybody plays, so the original
+        // "some of the shadows are just circles after circles" was still true
+        // there after two rounds of fixing it elsewhere.
+        //   A puddle is ONE body of goo. Fill the lane once between two wobbling
+        // rims — the rim keeps it organic, which is what the stamps were for,
+        // while the body between them is unbroken, which stamps never are.
+        if (z.mult != null && z.mult < 1) {
+          const steps = Math.max(4, Math.round(span / 0.3));
+          const pts = [], nrm = [];
+          for (let i = 0; i <= steps; i++) {
+            const d = z.from + (i / steps) * span;
+            const q = engine.posAt(d), t = tangentAt(d);
+            pts.push([(q.x + 0.5) * cell, (q.y + 0.5) * cell]);
+            nrm.push([-t.y, t.x]);
+          }
+          const hw = (i) => cell * (0.30 + 0.055 * Math.sin(i * 1.9) + 0.035 * Math.sin(i * 0.83 + 1.1));
+          ctx.save();
+          ctx.beginPath();
+          for (let i = 0; i <= steps; i++) {
+            const w = hw(i);
+            const x = pts[i][0] + nrm[i][0] * w, y = pts[i][1] + nrm[i][1] * w;
+            if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+          }
+          for (let i = steps; i >= 0; i--) {
+            const w = hw(i);
+            ctx.lineTo(pts[i][0] - nrm[i][0] * w, pts[i][1] - nrm[i][1] * w);
+          }
+          ctx.closePath();
+          ctx.fillStyle = "rgba(96,74,44,0.55)";
+          ctx.fill();
+          // Slow bubbles rising, so it reads as WET rather than as a hole. Two
+          // changes from the per-stamp version: they are SCATTERED across the
+          // puddle instead of filed down its centre-line (a file of bubbles is
+          // neither natural nor readable), and they rise toward SCREEN-up via
+          // bakeVec — this pass runs inside the rotated floor transform, so a
+          // bare -y drifted them sideways in portrait, the same law that keeps
+          // characters upright.
+          const up = bakeVec({ x: 0, y: -1 });
+          const bubbles = Math.max(2, Math.round(span / 1.2));
+          for (let k = 0; k < bubbles; k++) {
+            const i = Math.round(((k + 0.5) / bubbles) * steps);
+            const ph = ((engine.state.tick * 0.03) + k * 0.37) % 1;
+            const off = (k % 2 ? 0.17 : -0.15) * cell, rise = ph * cell * 0.22;
+            ctx.fillStyle = "rgba(206,180,132," + (0.5 * (1 - ph)).toFixed(3) + ")";
+            ctx.beginPath();
+            ctx.arc(pts[i][0] + nrm[i][0] * off + up.x * rise,
+              pts[i][1] + nrm[i][1] * off + up.y * rise,
+              cell * 0.07 * (1 - ph * 0.5), 0, 7);
+            ctx.fill();
+          }
+          ctx.restore();
+          continue;
+        }
         for (let i = 0; i <= n; i++) {
-          const d = z.from + ((i + (slow ? 0 : scroll)) / n) * span;
+          const d = z.from + ((i + scroll) / n) * span;
           if (d < z.from || d > z.to) continue;
           const p = engine.posAt(d), tan = tangentAt(d);
           const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
           const nx = -tan.y, ny = tan.x, s = cell * 0.28;
-          if (slow) {
-            // a gloopy blot across the lane…
-            ctx.fillStyle = "rgba(96,74,44,0.55)";
-            ctx.beginPath(); ctx.ellipse(cx, cy, cell * 0.42, cell * 0.34, Math.atan2(tan.y, tan.x), 0, 7); ctx.fill();
-            // …with one slow bubble rising, so it reads as WET, not as a hole
-            const ph = ((engine.state.tick * 0.03) + i * 0.37) % 1;
-            ctx.fillStyle = "rgba(206,180,132," + (0.5 * (1 - ph)).toFixed(3) + ")";
-            ctx.beginPath(); ctx.arc(cx + nx * cell * 0.1, cy + ny * cell * 0.1 - ph * cell * 0.22, cell * 0.07 * (1 - ph * 0.5), 0, 7); ctx.fill();
-            continue;
-          }
           ctx.strokeStyle = "rgba(120,230,255,0.55)"; ctx.lineWidth = Math.max(2, cell * 0.06); ctx.lineCap = "round"; ctx.lineJoin = "round";
           ctx.beginPath();
           ctx.moveTo(cx - tan.x * s + nx * s, cy - tan.y * s + ny * s);
