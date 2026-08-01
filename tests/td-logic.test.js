@@ -5283,3 +5283,114 @@ test("a hit event NAMES the body it landed on — the renderer's flash is keyed 
   assert.ok(eng.state.enemies.some((e) => e.id === hit.id),
     `hit.id ${hit.id} must be a real body on the field`);
 });
+
+// ---------------------------------------------------------------------------
+// AUDIT: the camp BLOCK machinery — the one path that can freeze an enemy, and
+// the one neither winnability oracle ever builds.
+//
+// Both shipped plans (DART, MIXED) buy no camps at all, so `blockedBy` — the
+// only code in the engine that stops a live enemy indefinitely — was exercised
+// by a handful of bespoke tests and nothing else. That hole surfaced while
+// chasing a "killed enemies are stuck on the map" report: a camp-heavy sweep was
+// the first thing that produced stalled bodies at all, and telling a real freeze
+// from a soldier legitimately holding an enemy took a duration measurement.
+//
+// Worse, `blocks: 2` (hold TWO at once) exists on exactly ONE stat block in the
+// whole game — the Dino Squad tier-4 branch — so `countBlocked`/`maxBlocks` were
+// dead code at every tier anything in the suite ever built.
+//
+// The invariant is deliberately "freed within ONE tick", not "never held by a
+// dead soldier": soldiers die in soldierTick(), which runs AFTER the enemy loop,
+// so at end-of-tick a second held enemy can legitimately still point at the
+// blocker that just fell, and the enemy loop clears it on its next pass. Stating
+// it as "never" would fail on correct code — measured at exactly 1 tick.
+// ---------------------------------------------------------------------------
+function campSweep(levels, opts) {
+  const dino = opts && opts.dino;
+  let everBlocked = 0, maxHold = 0, worstDeadRun = 0, worstDeadInfo = "", frozen = [], hung = [];
+  for (const lv of levels) {
+    const eng = TD.createEngine(lv, { seed: 3, difficulty: "normal" });
+    const st = eng.state;
+    let built = false, guard = 0;
+    const seen = new Set(), deadRun = new Map(), lastDist = new Map(), stall = new Map();
+    while (st.phase !== "won" && st.phase !== "lost" && st.waveIdx < 6) {
+      if (st.phase === "build") {
+        if (dino) st.gold = 99999;
+        if (!built) { for (const p of lv.pads) eng.place("camp", p.id); built = true; }
+        for (const p of lv.pads) eng.place("camp", p.id);
+        if (dino) for (const t of st.towers) { eng.upgrade(t.id); eng.upgrade(t.id); eng.branch(t.id, "a"); }
+        eng.callWave();
+      }
+      eng.tick();
+      const live = new Set(st.soldiers.filter((s) => s.alive).map((s) => s.id));
+      const held = new Map();
+      for (const e of st.enemies) {
+        if (!e.alive) continue;
+        if (e.blockedBy) {
+          seen.add(e.id);
+          held.set(e.blockedBy, (held.get(e.blockedBy) || 0) + 1);
+          const n = live.has(e.blockedBy) ? 0 : (deadRun.get(e.id) || 0) + 1;
+          deadRun.set(e.id, n);
+          if (n > worstDeadRun) { worstDeadRun = n; worstDeadInfo = `L${lv.id} ${e.type}#${e.id} soldier ${e.blockedBy}`; }
+        } else deadRun.set(e.id, 0);
+        const prev = lastDist.get(e.id);
+        if (prev !== undefined && Math.abs(e.dist - prev) < 1e-9) {
+          const k = (stall.get(e.id) || 0) + 1;
+          stall.set(e.id, k);
+          if (k === 1200) frozen.push(`L${lv.id} ${e.type}#${e.id} has not moved for 40s at dist ${e.dist.toFixed(2)} (blockedBy=${e.blockedBy})`);
+        } else stall.set(e.id, 0);
+        lastDist.set(e.id, e.dist);
+      }
+      for (const n of held.values()) if (n > maxHold) maxHold = n;
+      if (++guard > 80000) { hung.push(`L${lv.id} never resolved (phase ${st.phase}, wave ${st.waveIdx})`); break; }
+    }
+    everBlocked += seen.size;
+  }
+  return { everBlocked, maxHold, worstDeadRun, worstDeadInfo, frozen, hung };
+}
+
+test("AUDIT: a camp board never freezes an enemy, and its block cap holds", () => {
+  // One level per world, camps on every pad — derived, so a tenth world inherits it.
+  const seen = new Set(), levels = [];
+  for (const lv of DATA.LEVELS) if (!seen.has(lv.world)) { seen.add(lv.world); levels.push(lv); }
+  const r = campSweep(levels);
+  // Coverage floor FIRST: without it every assertion below passes vacuously on a
+  // build where camps stopped engaging at all.
+  assert.ok(r.everBlocked > 300,
+    `only ${r.everBlocked} enemies were ever blocked across ${levels.length} levels — the block path must actually run`);
+  assert.deepEqual(r.hung, [], "a camp-only board must always resolve its waves");
+  assert.deepEqual(r.frozen, [], "no enemy may sit motionless for 40s");
+  // EXACTLY zero, not "at most one". With blocks:1 the soldier engages the one
+  // enemy it holds, so the melee-death path clears that foe as it falls and the
+  // state never arises at all. Asserting <= 1 here would be vacuous — measured:
+  // deleting the enemy loop's dead-blocker rescue leaves this test green, and
+  // only the Dino case below goes red. This assertion instead pins the melee
+  // path's own release, which is what keeps the plain case clean.
+  assert.equal(r.worstDeadRun, 0,
+    `an enemy ended a tick held by a DEAD soldier (${r.worstDeadInfo}) — with a single-block camp the melee ` +
+    "death path must clear its foe as it falls, so this state should never occur");
+  assert.equal(r.maxHold, 1, `a plain camp holds one enemy per soldier, saw ${r.maxHold}`);
+});
+
+test("AUDIT: Dino Squad really does hold TWO — the only stat block with blocks > 1", () => {
+  // `blocks: 2` lives on exactly one branch in the whole game, so without this
+  // the multi-hold code (countBlocked / maxBlocks) is never executed by anything.
+  const lv = DATA.LEVELS.find((l) => l.id === 12);
+  const r = campSweep([lv], { dino: true });
+  assert.equal(DATA.TOWERS.camp.branches.a.blocks, 2, "Dino Squad is the double-block branch");
+  assert.equal(r.maxHold, 2,
+    `a Dino soldier held at most ${r.maxHold} enemies — its blocks:2 must actually let it hold two, and never three`);
+  assert.deepEqual(r.frozen, [], "no enemy may sit motionless for 40s under a double-blocking squad");
+  assert.ok(r.worstDeadRun <= 1,
+    `held by a dead Dino for ${r.worstDeadRun} ticks (${r.worstDeadInfo}) — the SECOND held enemy is the one the ` +
+    "melee-death path does not clear, so the enemy loop's release is what stops it freezing");
+});
+
+// NOT ADDED: a "selling a camp releases what it held" test. One was written and
+// then removed — `TD2 selling a camp mid-melee frees its blocked enemies and
+// dismisses the squad` above already drives exactly that path (block → sell →
+// nobody frozen → it resumes), and a near-duplicate on a shipped level instead
+// of a synthetic one is noise, not coverage. Recorded so the gap is not
+// "re-closed" a third time. Measured: with the dead-blocker rescue deleted, the
+// sell tests both stay GREEN — sell() clears blockedBy itself — which is why the
+// Dino case above is the only thing that pins that rescue line.

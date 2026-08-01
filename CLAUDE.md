@@ -3534,6 +3534,49 @@ freeze anything, and `dealDamage` is the only hp write and always calls
 `killEnemy`. The renderer skipping `!e.alive` was the clue that mattered: if the
 engine cannot draw a dead body, a body on screen that will not move is not the
 engine's.
+**Closing that hunt's own two loose ends produced one real coverage finding and
+one refuted worry — and the coverage one is the sharper.** (1) **The camp BLOCK
+path measures CLEAN, but `blocks: 2` was dead code.** Neither winnability oracle
+buys a camp, so `blockedBy` — the only code in the engine that can stop a live
+enemy indefinitely — was exercised by a handful of bespoke tests and nothing
+else. Driven properly (one level per world, camps on every pad, 6 waves) it holds
+every invariant: 0 violations, **2172 enemies actually blocked**, 10.3s. The
+finding is underneath: **`blocks: 2` (hold TWO at once) exists on exactly ONE
+stat block in the whole game — the Dino Squad tier-4 branch — so
+`countBlocked`/`maxBlocks` never executed at any tier anything in the suite ever
+built. And the enemy loop's dead-blocker rescue is load-bearing ONLY for
+`blocks > 1`**: deleting it leaves the plain-camp sweep green AND both sell tests
+green, and only a Dino board goes red (240 ticks held by a fallen soldier),
+because with `blocks: 1` the soldier engages the one enemy it holds and the
+melee-death path clears that foe as it falls. That line could have been deleted
+and the whole suite would have stayed green. Two lessons on stating the
+invariant: it must be "**freed within ONE tick**", not "never held by a dead
+soldier", because soldiers die in `soldierTick()` which runs AFTER the enemy
+loop, so a second held enemy legitimately points at a just-fallen blocker for
+exactly one tick (measured — the same "check the DURATION before calling it a
+freeze" trap that made a moving pinata look stalled); and `<= 1` is VACUOUS in
+the plain case, where the state never arises at all, so that test asserts
+**exactly 0** (pinning the melee release, mutation-proven separately) while the
+Dino test asserts `<= 1` (pinning the rescue). A third test — "selling a camp
+releases what it held" — was written and then REMOVED: a shipped test already
+drives that exact path, and measurement showed `sell()` clears `blockedBy` itself
+so it cannot pin the rescue either. A near-duplicate is noise, not coverage.
+(2) **World 9's `mould` floor was flagged as maybe reading like the disc defect,
+and the worry is REFUTED by measurement, so nothing changed.** Densely sampling
+every floor pixel ≥3 cells from every lane and ≥2.5 from every pad (~40k px per
+world) puts mould at **sd 27.5, sixth of nine** — calmer than concrete 52.3, tile
+51.1, dropcloth 50.4, cardboard 40.9 and boards 38.4. It is also structurally the
+opposite of the defect: its wells are 0.84 cells wide at **3.2-cell spacing**
+(separated, ~26% coverage) where the stamps were 0.84 long at 0.6 spacing
+(overlapping), and a screenshot shows a regular grid with the lane completely
+clear. A "floor busyness" guardrail was considered and deliberately NOT added —
+the shipped range is 16.7-52.3, a 3× spread, so any cap would be an invented
+threshold, i.e. the fence-around-the-residual this file warns against. Sampling
+note worth keeping: the first pass scored only cell CENTRES and can
+systematically miss or hit a texture whose period (3.2 cells) is unrelated to the
+sampling grid — the phase-alignment cousin of "a sampling radius that does not
+scale with the thing sampled". Dense per-pixel sampling is what makes the number
+mean anything.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
@@ -3699,6 +3742,19 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   resist matrix is full (one reduction per damage family) and the last three
 >   resist shapes each measured at ~zero lives, so the next enemy has to change a
 >   DECISION rather than a number — 🛢️ Oil Drum's `spill` is the template.
+>
+> - **The camp / `blockedBy` path**: CLOSED. It is the only code that can stop a
+>   live enemy indefinitely and neither oracle plan builds a camp, so it was
+>   nearly untested; a per-world camp sweep (derived, so a tenth world inherits
+>   it) now pins its invariants, and a Dino Squad test covers `blocks: 2` — the
+>   game's ONLY stat block above 1, and the sole reason the enemy loop's
+>   dead-blocker rescue exists. Measured clean: 0 violations, 2172 enemies
+>   blocked, ~10s.
+>
+> - **World 9's `mould` floor**: CLOSED, no change. Measured sixth-busiest of
+>   nine floors (sd 27.5 against concrete's 52.3), wells separated at 3.2-cell
+>   spacing rather than overlapping, lane clear. No busyness guardrail was added
+>   — the shipped spread is 3×, so a cap would be an invented threshold.
 >
 > - **华丽's world has had one adversarial pass** (the app-wide audit, which
 >   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but
