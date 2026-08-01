@@ -3683,3 +3683,69 @@ test("ART: the spawn and exit markers sit ON the road, not on its end cap", asyn
   }
   await page.setViewportSize({ width: 390, height: 844 });
 });
+
+test("ART: a cover band is one continuous sheet, not a string of beads", async () => {
+  // Reported from real play on L2 as "weird shadows": the ⛱️ Blanket Cover
+  // stamped an ellipse every 0.6 cells while each was a full cell wide, so a
+  // 15-cell band rendered as ~26 overlapping discs down the lane with ~40 hem
+  // circles beside them — the literal circles-after-circles the prop fix had
+  // just removed elsewhere, in the one place L1 could never show it (L1 has no
+  // zones, so the level I vetted could not see this).
+  //
+  // A sheet is UNIFORM along its length; beads are periodic. Measuring the raw
+  // canvas does NOT show that: the bedroom road is drawn with tie rungs across
+  // it, which vary the luma along the centre-line by themselves and gave sd 9.4
+  // on a band that is genuinely continuous. So the band is ISOLATED first, by
+  // diffing against the same level rendered with its zones removed — the same
+  // suppress-and-diff that identified the prop shadows.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const m = await page.evaluate(() => {
+    const lv = window.TDData.LEVELS.find((l) => l.id === 2);
+    const zones = lv.zones || [];
+    const z = zones.find((q) => q.dmg != null && q.dmg < 1);
+    if (!z) return { err: "L2 no longer carries a cover band" };
+    const shot = () => {
+      const r = window.__TD.render(); r.resize(); r.afterTick(); r.draw(0);
+      const c = document.querySelector("#screen-td-play .td-canvas");
+      return { d: c.getContext("2d").getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height,
+        dpr: c.width / c.clientWidth };
+    };
+    window.__TD.newGame(2, { seed: 3 });
+    const withZ = shot();
+    lv.zones = [];                       // ZONES is read at renderer creation
+    window.__TD.newGame(2, { seed: 3 });
+    const noZ = shot();
+    lv.zones = zones;
+    const eng = window.__TD.engine();
+    const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    const vals = [];
+    for (let k = 0; k <= 60; k++) {
+      const dist = z.from + 0.9 + (k / 60) * ((z.to - z.from) - 1.8);
+      const p = eng.posAt(dist);
+      const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);
+      const x = Math.round(s.x * withZ.dpr), y = Math.round(s.y * withZ.dpr);
+      if (x < 0 || y < 0 || x >= withZ.w || y >= withZ.h) continue;
+      const i = (y * withZ.w + x) * 4;
+      // the RATIO, not the difference. Alpha compositing removes luma in
+      // proportion to what is underneath, and the bedroom road is drawn with tie
+      // rungs across it — so a perfectly uniform sheet still shows a varying
+      // DIFFERENCE (measured sd 6.3, range 19) purely from the road's texture.
+      // diff/base is the alpha itself, which a sheet holds constant.
+      const base = lum(noZ.d, i);
+      if (base > 8) vals.push((base - lum(withZ.d, i)) / base);
+    }
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    return { n: vals.length, mean, lo, hi };
+  });
+  assert.ok(!m.err, m.err || "");
+  assert.ok(m.n >= 40, `sampled ${m.n} points along the band`);
+  assert.ok(m.mean > 0.05, `the cover dims the lane by only ${(m.mean * 100).toFixed(1)}% — it must be visible`);
+  // A beaded band has GAPS: between two discs the alpha drops toward zero, so
+  // the thinnest point is a fraction of the thickest. A sheet lays the same
+  // shade the whole way.
+  assert.ok(m.lo > m.hi * 0.6,
+    `the cover's thinnest point is ${(m.lo * 100).toFixed(1)}% against a thickest of ` +
+    `${(m.hi * 100).toFixed(1)}% — it must be one continuous sheet, not a row of overlapping discs`);
+});

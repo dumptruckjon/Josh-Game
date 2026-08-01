@@ -2562,27 +2562,37 @@
         // Drawn first and continued, so a band that carries only `dmg` never
         // falls through to the speed drawing.
         if (z.dmg != null && z.dmg < 1) {
+          // ONE CONTINUOUS SHEET, not a string of beads. The first cut stamped an
+          // ellipse every 0.6 cells while each was a full cell wide, so a 15-cell
+          // band became 26 overlapping discs running down the lane with ~40 hem
+          // circles beside them — reported from real play as "weird shadows",
+          // and it was the literal circles-after-circles the prop fix had just
+          // removed elsewhere. A cover is a sheet: stroke the lane once.
+          const steps = Math.max(2, Math.round(span / 0.35));
+          const pts = [], nrm = [];
+          for (let i = 0; i <= steps; i++) {
+            const d = z.from + (i / steps) * span;
+            const q = engine.posAt(d), t = tangentAt(d);
+            pts.push([(q.x + 0.5) * cell, (q.y + 0.5) * cell]);
+            nrm.push([-t.y, t.x]);
+          }
+          const run = (off) => {
+            ctx.beginPath();
+            pts.forEach((q, i) => {
+              const x = q[0] + nrm[i][0] * off, y = q[1] + nrm[i][1] * off;
+              if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+            });
+            ctx.stroke();
+          };
           ctx.save();
-          for (let i = 0; i <= n; i++) {
-            const d = z.from + (i / n) * span;
-            const p = engine.posAt(d), tan = tangentAt(d);
-            const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
-            ctx.fillStyle = "rgba(28,34,66,0.42)";
-            ctx.beginPath(); ctx.ellipse(cx, cy, cell * 0.5, cell * 0.42, Math.atan2(tan.y, tan.x), 0, 7); ctx.fill();
-          }
-          // a scalloped hem along each side, so the edge of the cover is legible
-          const nHem = Math.max(3, Math.round(span / 0.8));
-          ctx.fillStyle = "rgba(96,118,190,0.5)";
-          for (const side of [-1, 1]) {
-            for (let i = 0; i <= nHem; i++) {
-              const d = z.from + (i / nHem) * span;
-              const p = engine.posAt(d), tan = tangentAt(d);
-              const nx = -tan.y, ny = tan.x;
-              ctx.beginPath();
-              ctx.arc((p.x + 0.5) * cell + nx * side * cell * 0.52, (p.y + 0.5) * cell + ny * side * cell * 0.52, cell * 0.11, 0, 7);
-              ctx.fill();
-            }
-          }
+          ctx.lineCap = "round"; ctx.lineJoin = "round";
+          ctx.strokeStyle = "rgba(28,34,66,0.40)";
+          ctx.lineWidth = cell * 0.92;
+          run(0);
+          // a brighter hem down each side, so the EDGE of the cover is legible
+          ctx.strokeStyle = "rgba(122,148,222,0.55)";
+          ctx.lineWidth = Math.max(1.5, cell * 0.07);
+          run(cell * 0.44); run(-cell * 0.44);
           ctx.restore();
           continue;
         }
@@ -2991,13 +3001,28 @@
           if (w > fit) { px = Math.max(8, Math.floor(px * (fit / w))); ctx.font = px + "px sans-serif"; }
         }
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        // CENTRE THE INK, not the advance box. textAlign/textBaseline centre the
+        // glyph's METRICS, and an emoji's ink frequently sits off-centre inside
+        // them — the bed's pillow pushes its ink to one side — so the marker
+        // looked shifted off the lane even though its anchor was exactly on the
+        // centre-line. Measured per glyph, because the offset differs by font:
+        // Apple's bed and Chromium's are not the same shape, which is why this
+        // cannot be a hand-tuned nudge.
         // A COLOUR emoji ignores fillStyle, but a monochrome fallback glyph does
         // not — and this helper used to inherit whatever fill the previous draw
         // call happened to leave, so the bed/door/flag changed colour depending
         // on what was on the field. Always state it.
         ctx.fillStyle = "#eef3ff";
-        ctx.fillText(ch, p.x, p.y);
-        return ctx.measureText(ch).width;
+        const im = ctx.measureText(ch);
+        let ix = 0, iy = 0;
+        if (im.actualBoundingBoxLeft != null && im.actualBoundingBoxRight != null) {
+          ix = (im.actualBoundingBoxRight - im.actualBoundingBoxLeft) / 2;
+        }
+        if (im.actualBoundingBoxAscent != null && im.actualBoundingBoxDescent != null) {
+          iy = (im.actualBoundingBoxDescent - im.actualBoundingBoxAscent) / 2;
+        }
+        ctx.fillText(ch, p.x - ix, p.y - iy);
+        return im.width;
       };
       // TD-7: the track-switch lever — a tappable round button on the fork. Red
       // when ready, steel + a sweeping ring while cooling down; a little arm shows
