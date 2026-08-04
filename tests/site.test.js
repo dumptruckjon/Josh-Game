@@ -763,6 +763,41 @@ test("guardrail: no emoji newer than Emoji 13.0 (iOS 14.2 floor — no tofu on J
   assert.deepEqual(offenders, [], `emoji above the iOS 14.2 floor (render as tofu): ${offenders.join(", ")}`);
 });
 
+// RULE 7 (self-healing), the same iOS-14.2 floor one layer down: the CANVAS 2D
+// API has a floor too, and it is invisible in CI for the identical reason the
+// CSS ones were — Chromium and CI's modern WebKit both have these, Josh's iPad
+// does not, so a bare call ships green and throws on the one device that
+// matters. `roundRect` is Safari 16 and is used by the tower art; `filter` is
+// Safari 17 AND is this project's documented rasterization cliff. Both must be
+// feature-checked at their call site, exactly as the ink line's `canInk` probe
+// already does for the fillStyle accessor.
+//   Derived from the same SCRIPTS list as the emoji scan — a scan's own file
+// list is part of the scan, and that lesson has been paid for three times here.
+test("guardrail: a Safari-16+ canvas call is feature-checked (iOS 14.2 floor)", () => {
+  const FLOORED = ["roundRect", "conicGradient", "createConicGradient", "reset"];
+  const offenders = [];
+  for (const f of SCRIPTS) {
+    const src = read(f);
+    for (const api of FLOORED) {
+      // PER CALL SITE, not per file. The first cut asked whether the name was
+      // guarded anywhere in the file, which is unfalsifiable the moment one use
+      // is guarded: td-render.js already had two ternary-guarded roundRects, so
+      // deleting the guard on a THIRD stayed green. Caught by mutating it, which
+      // is the only way this class ever gets caught.
+      //   The guard must be on the same line as the call — `if (ctx.x) ctx.x(…)`
+      // or `ctx.x ? ctx.x(…) : …` — which is how all the shipped uses read.
+      src.split("\n").forEach((line, i) => {
+        if (!new RegExp(`ctx\\.${api}\\s*\\(`).test(line)) return;
+        const guarded = new RegExp(`(if\\s*\\(\\s*ctx\\.${api}\\s*\\)|typeof\\s+ctx\\.${api}|ctx\\.${api}\\s*\\?)`).test(line);
+        if (!guarded) offenders.push(`${f}:${i + 1} ctx.${api}()`);
+      });
+    }
+    if (/ctx\.filter\s*=/.test(src)) offenders.push(`${f}: ctx.filter is Safari 17 AND the documented WebKit rasterization cliff`);
+  }
+  assert.deepEqual(offenders, [],
+    `these canvas calls are newer than Safari 14.0, so they throw or no-op on Josh's iPad while passing in CI's modern browsers — feature-check them with a fallback: ${offenders.join(", ")}`);
+});
+
 // RULE 7 (self-healing): a CONTENTLESS square that gets its height ONLY from
 // `aspect-ratio` collapses to a sliver on Josh's iOS 14.2 iPad — Safari 14 has
 // NO aspect-ratio support (added in Safari 15). CI's modern WebKit/Chromium

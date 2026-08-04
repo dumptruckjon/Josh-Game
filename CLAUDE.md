@@ -960,7 +960,7 @@ tooling.
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/51-enemy roster (33 + 18 per-world backbone SKINS) + 9 bosses/36 levels (9 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 35 nodes/123⭐ (vs the 108⭐ ceiling 36 levels create — 15⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
-│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) and one draw branch per enemy (both pixel-hash guardrailed)
+│   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
@@ -2810,6 +2810,87 @@ without a definition. No threshold, no exemptions, and mutation-proven by
 deleting the duck's wave groups — which is exactly the state it was in that
 morning. **When a proposed law measures as true-for-most, prefer the neighbouring
 law that measures as true-for-all.**
+**The TOWERS were four coloured balls, and the honest way to find that out was
+to MEASURE the silhouette rather than describe it.** Rendered at the 27px cell a
+phone actually uses, the three SHOOTING lines were all discs — circularity 0.669
+(dart), 0.687 (mortar), 0.698 (fan) against camp's 0.395 triangle — and
+dart-vs-fan at tier 1 scored **0.301** on a 10×10 occupancy grid, the tightest
+cross-line pair in the game. So at the instant you place a tower, exactly when
+you most need to know what you bought, colour was carrying the whole read and
+form none of it; and the named fiction ("Pea Shooter", "Crate Cannon", "Army
+Guys") appeared nowhere on the screen — not a pea, not a plank, not a soldier.
+Rebuilt around a shared `TOY` material kit (sheen · bolt · tape · plank · tube)
+so the fix is a MATERIAL language a fifth line inherits rather than four one-off
+redraws: a blaster with orange-tipped barrels and a visible pea hopper, a wooden
+crate with grain and corner brackets, a real desk fan on a neck with a spoked
+guard cage, a tent with guy ropes and a sentry. Tightest pair **0.301 → 0.402**,
+every pair improved, fan circularity 0.698 → 0.131. Five things worth keeping.
+(1) **The functional part has to protrude far enough to EXIST** — the dart's
+barrels cleared its dome by 0.17 cells (≈5px) and the mortar's muzzle by 0.07
+(≈2px), which is why they read as ears and a bump rather than as guns. (2) **A
+per-sprite ink budget is consumed in DRAW ORDER, so decoration drawn first
+silently steals the body's contour** — and it had: `towerPlinth`'s six 0.028u
+skirt bolts (0.75px, so inking them buys literally nothing) plus its fill and
+ring spent all four pens BEFORE the tower was drawn, which is the entire measured
+slide from edgeMed 23 at tier 1, where there is no plinth at all, to 68 at tier
+3. The bolts are `noInk()` now. Note the diagnosis went wrong first: the trend
+was visible early and I blamed the barrels, which was plausible and false — the
+4/6/8-pens-identical result is what named the real consumer. (3) **The two
+halves of that budget cost wildly different amounts and are now separate** — the
+dark pen is one stroke of an already-built path; the lit edge does a `clip()`,
+which this file already measures as nearly the whole 1.82 ms it costs at the
+enemy peak. So towers get 9 pens and the lit budget deliberately does NOT grow.
+9 is measured, not chosen: against a 40-pen reference every line saturates at 8
+and the Minigun (5 spinning barrels + body + plinth) needs the 9th. (4) **Detail
+that mushes at the real cell size must not be load-bearing** — the camp's first
+cut fielded three army men at 0.052u wide, i.e. **1.4px**, which is noise; one
+sentry at 0.10u × 0.26u in a LIGHT khaki (a dark-green man on a dark-green tent
+is invisible at any size) is the smallest thing that still reads as a person.
+(5) **Two guardrails, both mutation-proven against the art they replaced**: a
+cross-LINE distinctness check (the enemy near-twin law applied to towers,
+threshold 0.33 — above the measured 0.301 and below the rebuilt minimum, and
+derived from `DATA.TOWERS` so a fifth line inherits it), and a SATURATION check
+that is the only falsifiable form of "the budget covers the body" — a fixed
+darkness threshold cannot catch it, because 68 is a perfectly dark edge in
+absolute terms, so the test asserts instead that handing out MORE pens changes
+nothing. Un-noInk the skirt bolts and 12 variants go red. The shipped perf
+guardrail also grew teeth it was missing: it built tier-1 darts only, so a cost
+living in the fan or camp art was invisible to it; it builds a tier-3 MIX now.
+**Two process lessons, both expensive.** First, **the whole diagnosis was
+initially made against a rolled-back clone** — the container had reset the repo
+to a stale commit, so the "towers have no ink line" premise was simply false on
+`main` (it had shipped two commits earlier), and the contact sheet I reasoned
+from was a picture of code that no longer existed. Check `git log` against
+`origin/main` before believing anything you measure here. Second, **a
+single-burst perf A/B is worthless**: the first measurement said the tower pass
+cost 6.38 ms and I nearly reverted the whole pass over it, but the no-tower
+control swung 4.30→9.31 ms run to run, i.e. the noise was larger than the signal.
+Interleaving the two conditions across 25 short reps and comparing MEDIANS gives
+the real number — **1.17 → 1.93 ms**, a frame of 5.34 → 6.25 ms against 16.7 —
+and it scales with tower count (≤14), not with enemies. And a third, cheap one:
+**never `git checkout <file>` to undo a mutation test on a file with uncommitted
+work** — it discarded the entire rebuild in one command. Copy the file first, or
+reverse exactly the patch you applied.
+**The iOS-14.2 floor has a CANVAS layer, and it had no guardrail** — the CSS
+floor laws (no flex-gap for spacing, no `inset:`, `dvh` needs a `vh` twin, no
+bare `aspect-ratio`) are all enforced, but the 2D context has the same shape of
+trap: `ctx.roundRect` is Safari **16**, `ctx.filter` is Safari **17** *and* this
+project's documented rasterization cliff, and both are present in Chromium and in
+CI's modern WebKit — so a bare call ships green and misbehaves on the one device
+that matters. Now scanned (derived from the same `SCRIPTS` list as the emoji
+check), requiring a same-line feature check with a fallback, exactly as the ink
+line's own `canInk` probe already does for the fillStyle accessor. The dart's
+body uses `roundRect`, so the fallback was rendered on a simulated Safari 14
+(`delete CanvasRenderingContext2D.prototype.roundRect`) rather than assumed: a
+sharp-cornered box, still plainly a blaster, no page errors.
+**And writing that guardrail immediately re-taught the oldest lesson here: a
+guard check scoped to the FILE is unfalsifiable the moment one call site is
+guarded.** The first cut asked "is `roundRect` tested anywhere in this source?",
+and `td-render.js` already had two ternary-guarded uses — so deleting the guard
+from a THIRD stayed green, and the test could only ever have caught a file where
+*every* use was bare. It checks per call site now, and names the line. The only
+reason this was found is that the mutation was actually run; a guardrail you did
+not try to break is a guardrail you have not tested.
 **The build menu's tower list is DERIVED now** (`Object.keys(DATA.TOWERS)`,
 was `["dart","mortar","fan","camp"]`) — the counting law applied to the one
 surface a new tower line has to appear on. `.td-buildmenu` is a wrapping

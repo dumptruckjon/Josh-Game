@@ -2272,6 +2272,125 @@ test("ART: every tower TIER draws differently, and each tier-4 branch is its own
   assert.deepEqual(same, [], `camp tiers whose SOLDIERS draw identically: ${same.join("; ")}`);
 });
 
+// A helper both tower-art tests below share: park one tower alone on the field,
+// draw, and return the ink MASK (which pixels the tower changed) plus a coarse
+// occupancy grid of it. Shape, not colour — a repaint must not be able to pass
+// a distinctness check that a player reads as "two green balls".
+const TOWER_SHAPE_PROBE = `(lines, tiers, pens, boost) => {
+  const st = window.__TD.state(), r = window.__TD.render();
+  r.resize();
+  if (pens) r.setTowerPens(pens);
+  const canvas = document.querySelector("#screen-td-play .td-canvas");
+  const ctx = canvas.getContext("2d");
+  const dpr = canvas.width / canvas.clientWidth;
+  const HALF = 44, p = window.__TD.w2s(6.5, 6.5);
+  const grab = () => {
+    const d = ctx.getImageData(Math.round((p.x - HALF) * dpr), Math.round((p.y - HALF) * dpr),
+      Math.round(HALF * 2 * dpr), Math.round(HALF * 2 * dpr));
+    return { d: d.data, w: d.width, h: d.height };
+  };
+  st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
+  r.draw(0);
+  const B = grab();
+  const out = {};
+  for (const line of lines) for (const v of tiers) {
+    st.towers.length = 0; st.soldiers.length = 0;
+    st.towers.push({
+      id: 1, lineId: line, tier: typeof v === "number" ? v : 4,
+      branch: typeof v === "number" ? "" : v, padId: "art", cx: 6, cy: 6,
+      cooldown: 0, targetId: 0, zapAcc: 0, heat: 0, targeting: "first",
+      spent: 0, rallyX: 0, rallyY: 0, disabledUntil: 0,
+      boostUntil: boost ? 1e9 : 0, crashUntil: 0,
+    });
+    r.draw(0);
+    const A = grab();
+    const ink = new Uint8Array(A.w * A.h);
+    for (let q = 0, i = 0; q < ink.length; q++, i += 4) {
+      const dd = Math.abs(A.d[i] - B.d[i]) + Math.abs(A.d[i+1] - B.d[i+1]) + Math.abs(A.d[i+2] - B.d[i+2]);
+      ink[q] = dd > 30 ? 1 : 0;
+    }
+    const G = 10, occ = [];
+    for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
+      let n = 0, t = 0;
+      const xa = Math.round(gx*A.w/G), xb = Math.round((gx+1)*A.w/G);
+      const ya = Math.round(gy*A.h/G), yb = Math.round((gy+1)*A.h/G);
+      for (let y = ya; y < yb; y++) for (let x = xa; x < xb; x++) { n += ink[y*A.w+x]; t++; }
+      occ.push(t ? n/t : 0);
+    }
+    out[line + ":" + v] = occ;
+  }
+  st.towers.length = 0;
+  r.setTowerPens(9);
+  return out;
+}`;
+
+test("ART: the four tower LINES do not draw the same shape", async () => {
+  // Measured on the art this replaced, at the 27px cell a phone actually
+  // renders: the three SHOOTING lines were all discs — circularity 0.669 (dart),
+  // 0.687 (mortar), 0.698 (fan) against camp's 0.395 triangle — and dart-vs-fan
+  // at tier 1 scored 0.301 on this grid, the tightest cross-line pair in the
+  // game. So at the moment you place a tower, which is exactly when you most
+  // need to know what you bought, three of four lines were the same ball in a
+  // different colour and only the hue told them apart. This is the enemy
+  // near-twin law applied to towers, and the threshold sits ABOVE that measured
+  // 0.301 and below the rebuilt minimum, so it fails on the art it replaced.
+  //   Tier 1 only would be the weak version: a line must stay itself as it
+  // upgrades, so every tier is checked. Derived from DATA.TOWERS, so a fifth
+  // line inherits it.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 5 }); });
+  await page.waitForTimeout(80);
+  const lines = await page.evaluate(() => Object.keys(window.TDData.TOWERS));
+  const occ = await page.evaluate(
+    ([probe, ls]) => eval(probe)(ls, [1, 2, 3], 0), [TOWER_SHAPE_PROBE, lines]);
+  const worst = [];
+  for (const t of [1, 2, 3]) {
+    for (let i = 0; i < lines.length; i++) for (let j = i + 1; j < lines.length; j++) {
+      const a = occ[lines[i] + ":" + t], b = occ[lines[j] + ":" + t];
+      let s = 0; for (let q = 0; q < a.length; q++) s += (a[q] - b[q]) ** 2;
+      worst.push([`T${t} ${lines[i]}/${lines[j]}`, Math.sqrt(s)]);
+    }
+  }
+  worst.sort((p, q) => p[1] - q[1]);
+  const tooAlike = worst.filter(([, d]) => d < 0.33);
+  assert.deepEqual(tooAlike.map(([k]) => k), [],
+    `these tower LINES draw nearly the same silhouette, so a player cannot tell what they built without reading the colour: ${
+      tooAlike.map(([k, d]) => k + "=" + d.toFixed(3)).join(", ")} (closest overall ${worst[0][0]}=${worst[0][1].toFixed(3)})`);
+});
+
+test("ART: the shipped ink budget covers a whole tower, with nothing starving it", async () => {
+  // The per-sprite ink budget is consumed in DRAW ORDER, so decoration drawn
+  // before the body silently steals the body's contour — and it had. The
+  // plinth's six 0.028u skirt bolts (0.75px at a 27px cell, so inking them buys
+  // literally nothing) plus its fill and ring spent all four pens BEFORE the
+  // tower was drawn, which is the whole of the measured slide from edgeMed 23 at
+  // tier 1, where there is no plinth at all, to 68 at tier 3.
+  //   A fixed threshold cannot catch that — 68 is still a perfectly dark edge in
+  // absolute terms. The falsifiable property is SATURATION: if the shipped
+  // budget really does cover the body, handing out more pens changes nothing. It
+  // is mutation-proven both ways — un-noInk the skirt bolts, or draw any new
+  // decoration before the body, and the extra pens start changing pixels.
+  const lines = await page.evaluate(() => Object.keys(window.TDData.TOWERS));
+  //   Driven BOOSTED as well as plain, because ⚡ Overclock strokes a ring
+  // round the tower before its body and that ring is wide enough to take a pen
+  // — so a buffed tower could have had its own silhouette starved by the buff,
+  // the plinth-bolt trap one ring further out. A status overlay never inks.
+  const starved = [];
+  for (const boost of [false, true]) {
+    const [ship, rich] = await page.evaluate(
+      ([probe, ls, b]) => [eval(probe)(ls, [1, 2, 3, "a", "b"], 9, b), eval(probe)(ls, [1, 2, 3, "a", "b"], 40, b)],
+      [TOWER_SHAPE_PROBE, lines, boost]);
+    for (const k of Object.keys(ship)) {
+      let s = 0;
+      for (let q = 0; q < ship[k].length; q++) s += (ship[k][q] - rich[k][q]) ** 2;
+      if (Math.sqrt(s) > 0.02) starved.push((boost ? "boosted " : "") + k + "=" + Math.sqrt(s).toFixed(3));
+    }
+  }
+  assert.deepEqual(starved, [],
+    `these tower variants draw DIFFERENTLY with a bigger ink budget, so the shipped budget is being spent on decoration before the body and their silhouette is starved: ${starved.join(", ")}`);
+});
+
 test("ART: every BOSS wears the crown, and there is exactly one crown", async () => {
   // 4 of 8 bosses drew NO boss mark at all — including the Bed Monster, the
   // first boss you ever meet, and the Big Magnet, the campaign's finale — while
@@ -2554,7 +2673,17 @@ test("ART: the frame still fits its budget at the crowded-board peak", async () 
   const out = await page.evaluate(() => {
     const eng = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
     st.gold = 999999;
-    for (const p of eng.levelDef.pads) eng.place("dart", p.id);
+    // A MIX at tier 3, not tier-1 darts. The towers are real objects now — a
+    // crate with grain and brackets, a fan with a spoked cage, a tent with a
+    // sentry — and the busiest art is tier 3, so building one line at its
+    // cheapest tier would leave a cost living in the fan or the camp entirely
+    // invisible to the only test that watches the frame budget.
+    const LINES = Object.keys(window.TDData.TOWERS);
+    eng.levelDef.pads.forEach((p, i) => {
+      eng.place(LINES[i % LINES.length], p.id);
+      const t = st.towers[st.towers.length - 1];
+      if (t) { eng.upgrade(t.id); eng.upgrade(t.id); }
+    });
     st.waveIdx = eng.levelDef.waves.length - 2; st.sentIdx = st.waveIdx;
     eng.callWave();
     // Sized to be MEANINGFUL but not a CI tax: enough ticks to crowd the board,
