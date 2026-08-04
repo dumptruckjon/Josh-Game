@@ -1383,13 +1383,44 @@
     }
 
     // ---- Player commands ----
+    // THE one place a price is computed. `place`/`upgrade`/`branch` all read it,
+    // and the UI asks the ENGINE for it rather than re-deriving it from DATA —
+    // the same lesson already recorded for targeting modes ("ask the engine
+    // which modes this run allows"), applied to money.
+    //   It had really drifted: the panel printed `def.tiers[tier].cost` while
+    // upgrade() charged that × `mods.upgradeCost` (🔧 Handyman, 0.9), and the
+    // branch buttons ignored `mods.branchCost` (💰 Bulk Deal) the same way. So a
+    // run owning either node showed a price it was not charged AND greyed the
+    // button out at golds it could actually afford. Building happens to be
+    // undiscounted today, which is exactly why it must route through here too —
+    // otherwise the next economy node reintroduces the bug on a third path.
+    // Returns Infinity for anything unpurchasable, so `gold >= price` is false.
+    function priceOf(kind, a) {
+      if (kind === "build") {
+        const def = DATA.TOWERS[a];
+        return def ? def.tiers[0].cost : Infinity;
+      }
+      if (kind === "upgrade") {
+        const t = towerById(a);
+        if (!t || t.tier >= 3) return Infinity;
+        return Math.round(DATA.TOWERS[t.lineId].tiers[t.tier].cost * mods.upgradeCost);
+      }
+      if (kind === "branch") {
+        const t = a && towerById(a.towerId);
+        if (!t) return Infinity;
+        const def = DATA.TOWERS[t.lineId];
+        const b = def.branches && def.branches[a.choice];
+        return b ? Math.round(b.cost * mods.branchCost) : Infinity;
+      }
+      return Infinity;
+    }
     function place(lineId, padId) {
       const def = DATA.TOWERS[lineId];
       const pad = padById(padId);
       if (!def || !pad) return { ok: false, reason: "bad-id" };
       if (towerAt(padId)) return { ok: false, reason: "occupied" };
       if (state.phase === "won" || state.phase === "lost") return { ok: false, reason: "over" };
-      const cost = def.tiers[0].cost;
+      const cost = priceOf("build", lineId);
       if (state.gold < cost) return { ok: false, reason: "gold" };
       state.gold -= cost;
       const t = {
@@ -1415,7 +1446,7 @@
       // 🔧 Handyman: tiers 1-3 only. Bulk Deal already owns tier-4 branch
       // prices, and two nodes discounting the same purchase would stack into
       // a cheaper board than either was priced for.
-      const cost = Math.round(def.tiers[t.tier].cost * mods.upgradeCost);
+      const cost = priceOf("upgrade", t.id);
       if (state.gold < cost) return { ok: false, reason: "gold" };
       state.gold -= cost; t.tier += 1; t.spent += cost;
       if (t.lineId === "camp") { // squad refits: heal to the new tier's hp
@@ -1432,7 +1463,7 @@
       const def = DATA.TOWERS[t.lineId];
       const b = def.branches && def.branches[choice];
       if (!b) return { ok: false, reason: "bad-branch" };
-      const bCost = Math.round(b.cost * mods.branchCost); // TD-5 Bulk Deal
+      const bCost = priceOf("branch", { towerId: t.id, choice }); // TD-5 Bulk Deal, via the one price owner
       if (state.gold < bCost) return { ok: false, reason: "gold" };
       state.gold -= bCost; t.tier = 4; t.branch = choice; t.spent += bCost;
       if (b.defaultTargeting) t.targeting = b.defaultTargeting;
@@ -1773,7 +1804,7 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave,
+      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       // the renderer paints a revealed hider differently, and the guardrails

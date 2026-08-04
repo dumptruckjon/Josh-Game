@@ -563,6 +563,9 @@
     return { id: "endless-" + world, name: "Endless " + world, world, endless: { world }, startGold: a.startGold, budgetBase: DATA.ENDLESS.base, path: a.path, pads: a.pads };
   }
 
+  // Prices paint from the LIVE engine gold, not a cached figure — one owner,
+  // read at the moment a dialog is built.
+  if (UI.setGoldSource) UI.setGoldSource(() => (cur && cur.engine) ? cur.engine.state.gold : 0);
   function startLevel(levelId, opts) {
     opts = opts || {};
     // opts.levelDef lets an endless run pass its generated arena directly.
@@ -905,7 +908,12 @@
         '<div class="td-buildmenu">' +
         lines.map((id) => {
           const d = DATA.TOWERS[id];
-          const cost = d.tiers[0].cost;
+          // ASK THE ENGINE, never re-derive from DATA: a meta discount applies
+          // inside the engine, so a locally-computed price can show a number the
+          // engine does not charge (and grey the button out at golds that CAN
+          // afford it). Building is undiscounted today; it routes through the
+          // same owner so the next economy node cannot reintroduce that.
+          const cost = cur.engine.priceOf("build", id);
           // icon + ROLE (single-shot / splash / slows / blocks path) + price, so
           // a player knows what each toy DOES, not just what it costs.
           // data-cost lets UI.prices() re-colour this LIVE as gold comes in —
@@ -920,7 +928,9 @@
         "</div>",
         bx, by
       );
-      UI.prices(cur.engine.state.gold);
+      // (no repaint here: UI.showBubble paints every price BEFORE revealing the
+      //  dialog, which is the ONE owner of that. A second call here would be
+      //  redundant and would make the no-flash guardrail unable to fail.)
       UI.bubble.querySelectorAll(".td-buy").forEach((btn) => {
         btn.addEventListener("click", (e2) => {
           e2.stopPropagation();
@@ -935,59 +945,80 @@
       });
     } else {
       // ---- tower panel: upgrade | branch cards at tier 3 | targeting/rally | sell ----
+      // The panel STAYS OPEN after a purchase and re-renders itself, so a tower
+      // can be taken 1→2→3 in one opening instead of re-tapping it each time.
+      // That is why the whole thing is a function: buying changes the tier, the
+      // price, the stat line and the sell refund, so the only honest way to keep
+      // it up is to rebuild it from the tower's CURRENT state.
       cur.selTowerId = tower.id;
       cur.render.setSelection({ tower: tower.id });
-      const def = DATA.TOWERS[tower.lineId];
-      const s = (tower.tier === 4 && tower.branch) ? def.branches[tower.branch] : def.tiers[tower.tier - 1];
-      const refund = Math.floor(tower.spent * DATA.RULES.sellRefund);
-      let middle = "";
-      if (tower.tier < 3) {
-        middle = '<button class="td-up" data-cost="' + def.tiers[tower.tier].cost + '" type="button">⬆ ' + def.tiers[tower.tier].cost + "🪙</button>";
-      } else if (tower.tier === 3) {
-        middle =
-          '<button class="td-branch" data-b="a" data-cost="' + def.branches.a.cost + '" type="button">' + def.branches.a.name + " " + def.branches.a.cost + "🪙</button>" +
-          '<button class="td-branch" data-b="b" data-cost="' + def.branches.b.cost + '" type="button">' + def.branches.b.name + " " + def.branches.b.cost + "🪙</button>";
-      }
-      const control = tower.lineId === "camp"
-        ? '<button class="td-rally" type="button">🚩 Rally</button>'
-        : '<button class="td-target" type="button">🎯 ' + tower.targeting + "</button>";
-      UI.showBubble(
-        '<div class="td-panel">' +
-          '<span class="td-panel__name">' + s.name + "</span>" +
-          '<span class="td-panel__stats">' + statLine(tower) + "</span>" +
-          middle + control +
-          '<button class="td-sell" type="button">💰 sell ' + refund + "</button>" +
-        "</div>",
-        bx, by
-      );
+      const towerId = tower.id;
+      const renderPanel = () => {
+        // Re-fetch from state: after an upgrade the tier/spent have moved, and a
+        // sold tower is gone entirely (in which case there is nothing to show).
+        const t = cur.engine.state.towers.find((x) => x.id === towerId);
+        if (!t) { UI.hideBubble(); cur.render.setSelection(null); return; }
+        const def = DATA.TOWERS[t.lineId];
+        const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
+        const refund = Math.floor(t.spent * DATA.RULES.sellRefund);
+        let middle = "";
+        if (t.tier < 3) {
+          // Price from the ENGINE, so the label and the affordability gate are
+          // the number actually charged (🔧 Handyman took 110 → 99, and the old
+          // DATA-derived label showed 110 and greyed out the button at 100-109).
+          const c = cur.engine.priceOf("upgrade", t.id);
+          middle = '<button class="td-up" data-cost="' + c + '" type="button">⬆ ' + c + "🪙</button>";
+        } else if (t.tier === 3) {
+          const ca = cur.engine.priceOf("branch", { towerId: t.id, choice: "a" });
+          const cb = cur.engine.priceOf("branch", { towerId: t.id, choice: "b" });
+          middle =
+            '<button class="td-branch" data-b="a" data-cost="' + ca + '" type="button">' + def.branches.a.name + " " + ca + "🪙</button>" +
+            '<button class="td-branch" data-b="b" data-cost="' + cb + '" type="button">' + def.branches.b.name + " " + cb + "🪙</button>";
+        }
+        const control = t.lineId === "camp"
+          ? '<button class="td-rally" type="button">🚩 Rally</button>'
+          : '<button class="td-target" type="button">🎯 ' + t.targeting + "</button>";
+        UI.showBubble(
+          '<div class="td-panel">' +
+            '<span class="td-panel__name">' + s.name + "</span>" +
+            '<span class="td-panel__stats">' + statLine(t) + "</span>" +
+            middle + control +
+            '<button class="td-sell" type="button">💰 sell ' + refund + "</button>" +
+          "</div>",
+          bx, by
+        );
+        wirePanel();
+      };
+      const nope = () => { // refused: shake, but never close — the player is mid-decision
+        UI.bubble.classList.add("td-bubble--no");
+        setTimeout(() => { if (UI.bubble) UI.bubble.classList.remove("td-bubble--no"); }, 300);
+      };
+      function wirePanel() {
       const up = UI.bubble.querySelector(".td-up");
       if (up) up.addEventListener("click", (e2) => {
         e2.stopPropagation();
-        if (cur.engine.upgrade(tower.id).ok) sfx("upgrade");
-        UI.hideBubble(); cur.render.setSelection(null); UI.hud(cur.engine.state);
+        if (cur.engine.upgrade(towerId).ok) { sfx("upgrade"); UI.hud(cur.engine.state); renderPanel(); }
+        else { nope(); UI.hud(cur.engine.state); }
       });
       UI.bubble.querySelectorAll(".td-branch").forEach((btn) => {
         btn.addEventListener("click", (e2) => {
           e2.stopPropagation();
-          if (cur.engine.branch(tower.id, btn.dataset.b).ok) sfx("tier");
-          else {
-            UI.bubble.classList.add("td-bubble--no");
-            setTimeout(() => UI.bubble.classList.remove("td-bubble--no"), 300);
-            return;
-          }
-          UI.hideBubble(); cur.render.setSelection(null); UI.hud(cur.engine.state);
+          if (cur.engine.branch(towerId, btn.dataset.b).ok) { sfx("tier"); UI.hud(cur.engine.state); renderPanel(); }
+          else { nope(); UI.hud(cur.engine.state); }
         });
       });
       const rallyBtn = UI.bubble.querySelector(".td-rally");
       if (rallyBtn) rallyBtn.addEventListener("click", (e2) => {
         e2.stopPropagation();
-        cur.rallyArmId = tower.id; // next field tap plants the flag
+        cur.rallyArmId = towerId; // next field tap plants the flag
         UI.showBubble('<div class="td-panel"><span class="td-panel__name">🚩 tap the field</span></div>', bx, by);
         UI.bubble.classList.add("td-bubble--hint"); // click-transparent — the field tap must pass through
       });
+      // Selling is the ONE panel action that still closes: the thing the panel
+      // is about no longer exists.
       UI.bubble.querySelector(".td-sell").addEventListener("click", (e2) => {
         e2.stopPropagation();
-        if (cur.engine.sell(tower.id).ok) sfx("sell");
+        if (cur.engine.sell(towerId).ok) sfx("sell");
         UI.hideBubble(); cur.render.setSelection(null); UI.hud(cur.engine.state);
       });
       const targetBtn = UI.bubble.querySelector(".td-target");
@@ -998,12 +1029,18 @@
         // mid-session respec could leave these two disagreeing — the button
         // offering "cheap" (the 🔻 Weak Spot node) while the engine refuses it.
         // And honour the result before relabelling, or the button lies.
+        // Read the CURRENT tower: a tier-4 branch can set its own default aim,
+        // so the closure's snapshot would cycle from a stale mode.
+        const live = cur.engine.state.towers.find((x) => x.id === towerId);
+        if (!live) return;
         const modes = cur.engine.targetingModes();
-        const nextMode = modes[(modes.indexOf(tower.targeting) + 1) % modes.length];
-        const r = cur.engine.setTargeting(tower.id, nextMode);
+        const nextMode = modes[(modes.indexOf(live.targeting) + 1) % modes.length];
+        const r = cur.engine.setTargeting(towerId, nextMode);
         if (r.ok) e2.target.textContent = "🎯 " + nextMode;
         else sfx("deny");
       });
+      }
+      renderPanel();
     }
   }
 

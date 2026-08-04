@@ -5376,3 +5376,53 @@ test("AUDIT: Dino Squad really does hold TWO — the only stat block with blocks
 // "re-closed" a third time. Measured: with the dead-blocker rescue deleted, the
 // sell tests both stay GREEN — sell() clears blockedBy itself — which is why the
 // Dino case above is the only thing that pins that rescue line.
+
+test("AUDIT: priceOf is the ONE price owner — what it quotes is what it charges", () => {
+  // The panel used to re-derive prices from DATA while the engine applied a meta
+  // discount, so a run owning 🔧 Handyman was SHOWN 110 and CHARGED 99 — and the
+  // button sat red-and-disabled across the 100-109 band it could afford. Fixed
+  // by making the engine the single source: place/upgrade/branch all read
+  // priceOf, and the UI asks for it instead of computing its own.
+  const lv = DATA.LEVELS[0];
+  const mk = (meta) => TD.createEngine(lv, { seed: 3, meta });
+  for (const meta of [[], ["handyman"], ["branchcost"], ["handyman", "branchcost"]]) {
+    const e = mk(meta);
+    const tag = meta.length ? meta.join("+") : "no-meta";
+    // BUILD: quoted === charged
+    e.state.gold = 99999;
+    let before = e.state.gold;
+    const buildPrice = e.priceOf("build", "dart");
+    assert.ok(e.place("dart", lv.pads[0].id).ok, `${tag}: place`);
+    assert.equal(before - e.state.gold, buildPrice, `${tag}: build charged something other than its quote`);
+    const t = e.state.towers[0];
+    // UPGRADE: quoted === charged, at every tier it is offered
+    while (t.tier < 3) {
+      const q = e.priceOf("upgrade", t.id);
+      before = e.state.gold;
+      assert.ok(e.upgrade(t.id).ok, `${tag}: upgrade to ${t.tier + 1}`);
+      assert.equal(before - e.state.gold, q, `${tag}: upgrade charged something other than its quote`);
+    }
+    // BRANCH: quoted === charged
+    const qb = e.priceOf("branch", { towerId: t.id, choice: "a" });
+    before = e.state.gold;
+    assert.ok(e.branch(t.id, "a").ok, `${tag}: branch`);
+    assert.equal(before - e.state.gold, qb, `${tag}: branch charged something other than its quote`);
+    // …and once maxed there is nothing left to quote.
+    assert.equal(e.priceOf("upgrade", t.id), Infinity, `${tag}: a tier-4 tower has no upgrade price`);
+  }
+  // The discounts must MOVE the number, or the loop above proves nothing.
+  const plain = mk([]), hand = mk(["handyman"]), bulk = mk(["branchcost"]);
+  for (const e of [plain, hand, bulk]) { e.state.gold = 99999; e.place("dart", lv.pads[0].id); }
+  const [p, h] = [plain.state.towers[0], hand.state.towers[0]];
+  assert.ok(hand.priceOf("upgrade", h.id) < plain.priceOf("upgrade", p.id),
+    "🔧 Handyman must lower the upgrade quote");
+  const bt = bulk.state.towers[0];
+  while (bt.tier < 3) bulk.upgrade(bt.id);
+  while (p.tier < 3) plain.upgrade(p.id);
+  assert.ok(bulk.priceOf("branch", { towerId: bt.id, choice: "a" }) < plain.priceOf("branch", { towerId: p.id, choice: "a" }),
+    "💰 Bulk Deal must lower the branch quote");
+  // Unpurchasable is Infinity, so `gold >= price` is false rather than NaN-false.
+  assert.equal(plain.priceOf("build", "nope"), Infinity, "an unknown line has no price");
+  assert.equal(plain.priceOf("upgrade", 999999), Infinity, "an unknown tower has no price");
+  assert.equal(plain.priceOf("branch", { towerId: p.id, choice: "zz" }), Infinity, "an unknown branch has no price");
+});

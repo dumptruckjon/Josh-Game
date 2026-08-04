@@ -844,6 +844,10 @@
     if (!b) return;
     b.innerHTML = html;
     b.classList.remove("td-bubble--below", "td-bubble--hint");
+    // Colour every price BEFORE the dialog is revealed. Doing it after (which is
+    // what leaving it to UI.hud did) shows one frame of the base colour, so an
+    // unaffordable upgrade flashed as if it were buyable.
+    paintPrices();
     b.hidden = false;
     // Position + clamp ENTIRELY in the FIELD's own offset coordinates (real px
     // via clientWidth/offsetWidth), NOT the viewport. The old clamp trusted
@@ -891,16 +895,42 @@
   // this can re-colour them as gold comes in — RED while you can't afford it,
   // GREEN the moment you can — WITHOUT closing and reopening the dialog. Called
   // from UI.hud(), i.e. every frame the HUD updates.
-  UI.prices = function (gold) {
-    if (!UI.bubble || UI.bubble.hidden) return;
+  //   The gold is CACHED here because showBubble has to paint the affordance
+  // before the dialog is ever visible. It used to run only from UI.hud(), i.e.
+  // one frame LATE — so every price appeared in its base colour first (the
+  // branch cards are purple) and only then flipped to red. Reported as "the
+  // colour flashes purple even if I cannot afford it", and that flash is a lie
+  // in the exact moment a player is deciding.
+  //   It reads the LIVE gold through a source function rather than a cached
+  // number. A cache looked equivalent and was not: gold that moves without a HUD
+  // tick (a grant, a direct state edit) left the next dialog opening painted
+  // from a stale figure — caught by the shipped RED→GREEN test, which sets gold
+  // and opens immediately.
+  let lastGold = 0;
+  let goldFn = null;
+  UI.setGoldSource = function (fn) { goldFn = fn; };
+  function currentGold() { return goldFn ? goldFn() : lastGold; }
+  function paintPrices() {
+    if (!UI.bubble) return;
+    const gold = currentGold();
     for (const el of UI.bubble.querySelectorAll("[data-cost]")) {
       const cost = +el.dataset.cost;
-      const can = gold >= cost;
+      // A non-finite cost means "not purchasable" (the engine returns Infinity),
+      // and NaN would make every comparison false in a way that looks the same
+      // but is not — so be explicit rather than relying on the coincidence.
+      const can = Number.isFinite(cost) && gold >= cost;
       el.classList.toggle("td-afford", can);
       el.classList.toggle("td-afford--no", !can);
       el.disabled = !can;
     }
+  }
+  UI.paintPrices = paintPrices;          // showBubble paints BEFORE revealing
+  UI.prices = function (gold) {
+    lastGold = gold;                      // fallback only; the source function wins
+    if (UI.bubble && UI.bubble.hidden) return;
+    paintPrices();
   };
+  UI.lastGold = function () { return lastGold; };
 
   UI.hideBubble = function () { if (UI.bubble) UI.bubble.hidden = true; };
 

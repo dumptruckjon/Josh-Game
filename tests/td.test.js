@@ -4122,3 +4122,115 @@ test("UX: a power tile's cost fits INSIDE its box, with headroom for iOS-wide em
   }
   await page.setViewportSize({ width: 390, height: 844 });
 });
+
+test("UX: the tower panel STAYS OPEN and re-renders, so one opening can upgrade repeatedly", async () => {
+  // Reported from real play: "Upgrade menu can stay up until dismissed so user
+  // can upgrade a single tower easily multiple times in one opening."
+  // It used to hideBubble() on every purchase, so taking a tower 1→2→3 meant
+  // re-tapping it twice. Buying now re-renders the panel from the tower's
+  // CURRENT state — the tier, price, stat line and sell refund all move — and
+  // only SELLING closes it, because then the subject no longer exists.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 3 });
+    const eng = window.__TD.engine();
+    const pad = eng.levelDef.pads[0];
+    const tapPad = () => {
+      const s = window.__TD.w2s(pad.cx + 0.5, pad.cy + 0.5);
+      const c = document.querySelector("#screen-td-play .td-canvas");
+      const r = c.getBoundingClientRect();
+      c.dispatchEvent(new MouseEvent("click", { clientX: r.left + s.x, clientY: r.top + s.y, bubbles: true }));
+    };
+    tapPad();
+    document.querySelector(".td-buy[data-line=dart]").click();
+    eng.state.gold = 5000; window.TDUI.hud(eng.state);
+    tapPad();                                     // ONE opening from here on
+    const bubble = document.querySelector(".td-bubble");
+    const steps = [];
+    for (let i = 0; i < 2; i++) {
+      const btn = document.querySelector(".td-up");
+      if (!btn) break;
+      const labelBefore = btn.textContent.trim();
+      btn.click();
+      steps.push({
+        tier: eng.state.towers[0].tier,
+        stillOpen: !bubble.hidden,
+        labelBefore,
+        labelAfter: (document.querySelector(".td-up") || {}).textContent || null,
+        branchesShown: document.querySelectorAll(".td-branch").length,
+      });
+    }
+    // …and selling DOES close it, since the tower is gone.
+    const sell = document.querySelector(".td-sell");
+    if (sell) sell.click();
+    return { steps, closedAfterSell: bubble.hidden, towersLeft: eng.state.towers.length };
+  });
+  assert.equal(out.steps.length, 2, "two upgrades must be reachable without re-opening the panel");
+  assert.deepEqual(out.steps.map((s) => s.tier), [2, 3], "the tower really climbs 1→2→3");
+  for (const s of out.steps) assert.ok(s.stillOpen, `the panel closed after upgrading to tier ${s.tier}`);
+  assert.notEqual(out.steps[0].labelBefore, out.steps[1].labelBefore,
+    "the price must RE-RENDER between tiers — an unchanged label means a stale panel");
+  assert.equal(out.steps[1].branchesShown, 2, "at tier 3 the panel re-renders into the two branch cards");
+  assert.ok(out.closedAfterSell, "selling must still close the panel — its subject is gone");
+  assert.equal(out.towersLeft, 0, "…and the tower really was sold");
+});
+
+test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", async () => {
+  // Two defects in one place.
+  //   (a) "When I first open the dialog the color will flash purple even if I
+  // cannot afford upgrade." UI.prices ran only from UI.hud(), i.e. a frame after
+  // the bubble was revealed, so every price showed its BASE colour first (the
+  // branch cards are purple) and only then went red.
+  //   (b) The panel re-derived prices from DATA while the engine charges
+  // `× mods.upgradeCost` (🔧 Handyman) and `× mods.branchCost` (💰 Bulk Deal) —
+  // so an owning run was shown 110 while being charged 99, and the button sat
+  // red-and-disabled at 100-109 gold, which it could actually afford.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    const probe = (meta) => {
+      window.__TD.newGame(1, { seed: 3, meta });
+      const eng = window.__TD.engine();
+      const pad = eng.levelDef.pads[0];
+      const tapPad = () => {
+        const s = window.__TD.w2s(pad.cx + 0.5, pad.cy + 0.5);
+        const c = document.querySelector("#screen-td-play .td-canvas");
+        const r = c.getBoundingClientRect();
+        c.dispatchEvent(new MouseEvent("click", { clientX: r.left + s.x, clientY: r.top + s.y, bubbles: true }));
+      };
+      eng.state.gold = 9000; window.TDUI.hud(eng.state);
+      tapPad();
+      document.querySelector(".td-buy[data-line=dart]").click();
+      const id = eng.state.towers[0].id;
+      const price = eng.priceOf("upgrade", id);
+      const read = (gold) => {
+        eng.state.gold = gold; window.TDUI.hud(eng.state);
+        document.querySelector(".td-bubble").hidden = true;   // force a fresh OPEN
+        tapPad();
+        const up = document.querySelector(".td-up");
+        return { cost: +up.dataset.cost, label: up.textContent.trim(),
+                 afford: up.classList.contains("td-afford"),
+                 no: up.classList.contains("td-afford--no"), disabled: up.disabled };
+      };
+      return { price, poor: read(price - 1), exact: read(price) };
+    };
+    return { plain: probe([]), disc: probe(["handyman"]) };
+  });
+  for (const [name, r] of Object.entries(out)) {
+    // (b) the number the button SHOWS is the number the engine charges
+    assert.equal(r.poor.cost, r.price, `${name}: data-cost must be the engine's price`);
+    assert.ok(r.poor.label.indexOf(String(r.price)) >= 0,
+      `${name}: the label "${r.poor.label}" must print the engine's price ${r.price}`);
+    // (a) correct on the FIRST paint, with no window of the base colour
+    assert.ok(r.poor.no && !r.poor.afford, `${name}: one gold short must open RED, never flash affordable`);
+    assert.ok(r.poor.disabled, `${name}: …and be untappable`);
+    assert.ok(r.exact.afford && !r.exact.no, `${name}: exactly affording must open GREEN`);
+    assert.ok(!r.exact.disabled, `${name}: …and be tappable`);
+  }
+  // The discount must actually BITE, or the plain/disc pair proves nothing.
+  assert.ok(out.disc.price < out.plain.price,
+    `🔧 Handyman must lower the upgrade price (plain ${out.plain.price}, discounted ${out.disc.price}) — ` +
+    "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
+});

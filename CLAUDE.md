@@ -985,6 +985,11 @@ tooling.
 │   └── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
+├── .claude/
+│   ├── settings.json           # SessionStart hook registration (project scope)
+│   └── resync-main.sh          # heals a container that came back on a STALE clone:
+│                               #   fast-forwards ONLY when strictly behind origin/main
+│                               #   with a clean tree; never touches dirty or ahead.
 ├── .gitignore                  # ignores node_modules etc.
 ├── .github/workflows/
 │   └── deploy.yml              # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
@@ -3637,6 +3642,63 @@ overlapping files 3-way merge instead of clobbering. Lesson: **on a remote
 runner, "git says clean" is not evidence your work is present** — verify against
 a fact you know should be there (a line count, a string you just wrote), and
 never trust a clean status alone after a container restart.
+**The mechanism was then diagnosed, and it is not a rollback or a re-clone: the
+runner's writable disk is RESTORED FROM A SNAPSHOT.** The evidence is the reflog
+— it jumps from a commit made on 31 July straight to the manual `reset` days
+later, with **none** of the session's pushed commits in it, because they were
+made in a different (discarded) container's filesystem. `package.json` and
+`.git/HEAD` still carry the original clone's mtimes, while `/root/.claude/*` are
+all stamped at boot: the platform reprovisions ITS files every restart and the
+repo comes back from a fixed image. A fresh `git clone` would leave
+`clone: from …` in the reflog and today's timestamps; neither is there.
+`.claude/resync-main.sh` + `.claude/settings.json` now run on SessionStart and
+fast-forward the clone when — and only when — it is strictly BEHIND origin/main
+with a clean tree, which is the rollback signature and the one case with nothing
+local to lose. A dirty tree is never touched (uncommitted work is the only thing
+the remote cannot restore); an AHEAD head is left alone (that is unpushed work);
+anything off `main`, in sync, or unreachable is a silent no-op; and it always
+exits 0 so a network blip cannot wedge startup. All five branches were driven in
+a throwaway clone rather than the live one.
+**Its honest limit, stated because a half-fix that reads as a fix is worse than
+none: the hook lives IN the repo, and the repo is what rolls back.** Restoring an
+image that predates the hook restores a tree without it, so it cannot fire on the
+very image this container is pinned to. It closes the problem for every clone
+that contains it — any new session or environment created from current `main` —
+and until then the manual check stands: compare `git rev-parse origin/main`
+against a known SHA, never a clean `git status`.
+**"The upgrade colour flashes purple even if I cannot afford it" turned out to be
+TWO defects, and the second one was arithmetic, not timing.** (1) The affordance
+was painted a frame LATE: `UI.prices()` ran only from `UI.hud()`, so the tower
+panel was revealed in its BASE colour (the branch cards are purple, the upgrade
+yellow) and only went red on the next frame. The build menu never showed it
+because that path happened to call `UI.prices()` synchronously right after
+`showBubble` — so the same bug had a workaround on one path and nothing on the
+other, which is why it read as intermittent. `showBubble` now paints every price
+BEFORE `hidden = false`, as the ONE owner. (2) **The panel re-derived prices from
+`DATA` while the engine charged a discounted number.** `upgrade()` applies
+`mods.upgradeCost` (🔧 Handyman, ×0.9) and `branch()` applies `mods.branchCost`
+(💰 Bulk Deal), so an owning run was SHOWN 110 and CHARGED 99 — and the button
+sat red **and `disabled`** across the whole 100-109 band it could actually
+afford. Branches had a 26-gold dead band. Fixed by making the engine the single
+source of price: `priceOf(kind, arg)` is the one computation, `place`/`upgrade`/
+`branch` all read it, and the UI asks the engine instead of doing its own maths —
+the "ASK THE ENGINE which modes this run allows" lesson already recorded for
+targeting, applied to money. Building is undiscounted today and routes through it
+anyway, so the next economy node cannot reintroduce the bug on a third path.
+Three method notes. **A redundant fix makes its own guardrail unfalsifiable**: I
+first kept BOTH the pre-reveal paint and a synchronous repaint after it, and the
+no-flash mutation stayed GREEN because either mechanism alone was sufficient —
+the test only went red once the repaint was deleted and `showBubble` genuinely
+owned it. **And the cache I reached for first was wrong in a way that looked
+equivalent**: painting from a gold value cached by `UI.hud()` fails whenever gold
+moves without a HUD tick, which the shipped RED→GREEN test does deliberately —
+so prices read the LIVE gold through a source function instead. That test failing
+is what caught it, which is the argument for running the whole suite rather than
+just the new cases. Finally, the panel now **stays open and re-renders** after a
+purchase (a tower can go 1→2→3 in one opening) — the honest way to keep a dialog
+up is to rebuild it from the subject's CURRENT state, since tier, price, stat
+line and sell refund all move; only SELLING closes it, because then the subject
+is gone.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
