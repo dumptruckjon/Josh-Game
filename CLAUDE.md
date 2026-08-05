@@ -981,6 +981,7 @@ tooling.
 │   │                           #   so they live in the repo instead of a scratchpad
 │   ├── td-sim.js               # 🏰 measure any level with the SHIPPED oracle (normal/heroic/casual × seeds, + losable-by-neglect incl. the full star tree). `node tools/td-sim.js 13,17`. NEVER tune against a stronger solver — that is what got World 4 reverted. `--lever` measures what a fork's lever is WORTH (a thin build that LOSES on the short route and WINS with it thrown) — the right way to choose between fork candidates, since longest != best. `--priority` is the DECISION-aware arm (blind/spend/focus; `FREE=1` isolates a decision from its price) — judge on focus-blind, NEVER focus-spend: a control arm that costs something is not a control.
 │   ├── td-wave-gen.js          # 🏰 emit + validate wave tables against BOTH contracts (±25% budget curve; ≥70% backbone / ≤1 special ≤25% / valve ≤12% / plain openers). `--check` audits every shipped level against the contracts it was AUTHORED under. The data file is written LAST.
+│   ├── td-elite.js             # 🎯 does a BOSS-SCALE body move a flat level? HP-preserving concentration/elite swap over the last N waves, judged by the shipped oracle × 8 seeds. `LEVELS=27 HEAVY=__elite ELITE_HP=900 FRACS=0,0.35 node tools/td-elite.js`. This is what proved crowd cannot bite and boss-scale can.
 │   ├── td-gold.js              # 💰 what a MAXED board does with its gold — fills every pad, upgrades to T3, takes a branch (the shipped oracle stops at T3, so it cannot see this), and reports the wave the board becomes UNSPENDABLE. `SWEEP=1` sweeps bounty. This is what measured the 21-of-36 dead-stretch finding.
 │   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
 │   └── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
@@ -2811,6 +2812,40 @@ without a definition. No threshold, no exemptions, and mutation-proven by
 deleting the duck's wave groups — which is exactly the state it was in that
 morning. **When a proposed law measures as true-for-most, prefer the neighbouring
 law that measures as true-for-all.**
+**THE DIFFICULTY QUESTION IS ANSWERED, AND THE ANSWER IS ONE SENTENCE: in this
+engine a level costs lives IF AND ONLY IF IT HAS A BOSS.** Measured with the
+shipped oracle over all 36 levels × 8 seeds on normal: **11 levels sit at a flat
+median 20 on every seed** (L1, L2, L7, L19, L22, L23, L25, L26, L27, L31, L35 —
+World 7 and World 9 are formalities apart from their bosses), and every one of
+the nine boss levels lands in 7-17. The correlation is not HP, not pads, not
+gold, and the cleanest proof is a single pair: **L31 carries 5,997 HP per pad and
+finishes flat 20; L32 carries 5,066 and costs 6 lives.** L12 at 3,220 HP/pad
+costs 13. The only structural difference is the boss.
+That retro-explains every refuted lever in this file — flier share, backbone
+stat shape, HP piles, gold, budget base, lane length, side-door dose — because
+all of them are *more or different CROWD*, and a crowd of ordinary bodies
+provably cannot beat a completed board at any budget the ±25% contract allows.
+It is why they each measured zero. **A NEW refutation was added on the same
+axis and is worth recording so nobody retries it: CONCENTRATION does not work
+either.** Converting up to 50% of a flat level's late-wave HP into 400hp
+Piñatas — the heaviest non-boss body in the game — moved L27's normal by
+literally nothing (20 on all 8 seeds at every fraction). The fixture was
+verified rather than trusted: wave 14 really did go from 276 small bodies to
+139 small + 11 Piñatas at 0.0% HP drift. 400hp is simply not boss scale.
+**What DOES move it is a boss-scale body, and it is the first thing in this
+project's history to move a flat level at all.** Injecting a synthetic elite
+HP-preservingly into L27's last six waves (`tools/td-elite.js`, kept so this is
+re-runnable): at 900hp / 35% normal goes 20 → **19 with genuine per-seed variance
+(19,19,19,19,19,20,19,19)** and heroic 14 → 9 with no losses; at 1300hp normal is
+19 but heroic loses a seed; at 1800hp normal is 18 and heroic collapses to 6.
+So the step function this file documents six times over is now located to within
+400hp of elite: **the window where normal grades and heroic survives is narrow,
+and the prize inside it is one life.** That is the honest size of the effect, and
+it is why no wave-table pass was shipped from this investigation — a graded
+normal needs a real mini-boss per late world (art, a guide card, a distinct
+silhouette, per-level dosing), which is a content project on the scale of a
+world, not a re-tune. Recorded, measured, and left as a decision rather than
+half-built.
 **GOLD STOPPED BEING A RESOURCE, and the cause was not income — it was that the
 board RUNS OUT OF THINGS TO BUY.** Reported from real play: *"on normal I end
 levels with thousands of extra money even when I have max level towers on every
