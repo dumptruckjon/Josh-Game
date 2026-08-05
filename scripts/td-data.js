@@ -46,6 +46,15 @@
     // monotonically at every rate. Flat is constant by construction.
     chargePerWave: 2,
     chargeMax: 3,        // a small bank, so skipping a wave's powers is worth something
+    // ⚙️ THE EXCHANGE — the sink for late-game gold. A maxed board banks 2,770
+    // spare on average (8,138 worst) because 21 of 36 levels run out of things
+    // to buy ~2 waves before the end, so gold quietly stops being a resource.
+    // Trading it for ⚙️ gives the surplus a use AND makes "bank for a branch or
+    // buy a power now" a real decision — but the number bought is capped PER
+    // WAVE so the per-wave energy budget stays flat, which is the property
+    // Phase 3 established and which a per-kill grant provably cannot hold.
+    chargeBuyMax: 1,     // extra ⚙️ purchasable per wave — the safety cap
+    chargeBuyBase: 450,  // price of the first; doubles for each further one in a wave
     // P4: a run may EQUIP at most this many of the nodes you own, so the star
     // tree is an allocation decision every run instead of a purchase you make
     // once. Chosen by sweep (5 panel loadouts x 6 finales x 4 seeds, measured in

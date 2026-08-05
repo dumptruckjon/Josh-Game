@@ -260,7 +260,24 @@
   //      (the Team-Song setTimeout-composer precedent). OFF by default, behind its
   //      own toggle, mute-gated — never gates gameplay on a timer. ----
   let musicTimer = 0;
-  const MELODY = [392, 440, 494, 523, 494, 440, 392, 330]; // G A B C B A G E
+  // The first version was ONE bare sine walking an 8-note scale up and back,
+  // forever, looping every 3.4 seconds — no bass, no harmony, no rhythm and no
+  // variation, which is the shape of music that stops being pleasant on about
+  // the third pass. This is a real little toy-march instead: a 32-step phrase
+  // (4 bars) over a walking bass, with the melody resting on some steps so it
+  // breathes, and a B section so the loop is 8 bars long rather than 8 notes.
+  //   Still the setTimeout composer — the documented Team-Song precedent —
+  // because JoshAudio.tone() only plays at `currentTime` and gameplay is never
+  // gated on a timer. Off by default, behind its own toggle, mute-gated, and
+  // it re-checks both every step so a mid-song mute really does silence it.
+  const REST = 0;
+  //                bar 1                    bar 2
+  const MEL_A = [392, 0, 494, 523, 0, 494, 392, 0,   440, 0, 523, 587, 0, 523, 440, 0];
+  const MEL_B = [523, 0, 587, 659, 0, 587, 523, 0,   494, 0, 440, 392, 0, 440, 330, 0];
+  // a walking bass, one note per half-bar, an octave and a half below
+  const BASS_A = [98, 98, 131, 131, 110, 110, 147, 147];
+  const BASS_B = [131, 131, 165, 165, 110, 110, 98, 98];
+  const STEP_MS = 190;                    // ~158 bpm in eighths: a march, not a dirge
   function stopMusic() { if (musicTimer) { clearTimeout(musicTimer); musicTimer = 0; } }
   function startMusic() {
     stopMusic();
@@ -269,9 +286,15 @@
     const step = () => {
       try {
         if (!save.settings.music || !save.settings.sfx || (A.isMuted && A.isMuted())) { musicTimer = 0; return; }
-        A.tone(MELODY[i % MELODY.length], { duration: 0.28, gain: 0.045, type: "sine" });
+        const bar = Math.floor(i / 16) % 2;               // A section, then B
+        const mel = (bar ? MEL_B : MEL_A)[i % 16];
+        const bass = (bar ? BASS_B : BASS_A)[Math.floor((i % 16) / 2)];
+        if (mel !== REST) A.tone(mel, { duration: 0.26, gain: 0.05, type: "triangle" });
+        // the bass lands on the downbeat of each half-bar and is deliberately
+        // plain (no partial, no filter sparkle) so it stays under the melody
+        if (i % 2 === 0) A.tone(bass, { duration: 0.3, gain: 0.055, type: "sine", plain: true });
         i += 1;
-        musicTimer = setTimeout(step, 430);
+        musicTimer = setTimeout(step, STEP_MS);
       } catch (e) { musicTimer = 0; }
     };
     musicTimer = setTimeout(step, 300);
@@ -566,6 +589,7 @@
   // Prices paint from the LIVE engine gold, not a cached figure — one owner,
   // read at the moment a dialog is built.
   if (UI.setGoldSource) UI.setGoldSource(() => (cur && cur.engine) ? cur.engine.state.gold : 0);
+  if (UI.setEngineSource) UI.setEngineSource(() => (cur && cur.engine) ? cur.engine : null);
   function startLevel(levelId, opts) {
     opts = opts || {};
     // opts.levelDef lets an endless run pass its generated arena directly.
@@ -1115,6 +1139,28 @@
     // point/tower one ARMS and the next field tap resolves it (the rally-flag
     // precedent). Re-tapping an armed ability disarms it — a toddler-proof
     // toggle, and the same double-tap forgiveness the kid games learned.
+    // ⚙️ THE EXCHANGE — trade surplus gold for one more Toy Energy. The refusal
+    // SPEAKS through the same hint line the powers use, because a control that
+    // silently does nothing is the exact defect that made three powers read as
+    // broken ("some of them don't even seem to work at all").
+    buyCharge: () => {
+      if (!cur) return;
+      const r = cur.engine.buyCharge();
+      if (!r.ok) {
+        sfx("deny");
+        UI.abilityHint({
+          "not-in-wave": "⚙️ Buy energy once the wave is walking",
+          "wave-limit": "⚙️ Only one extra energy per wave",
+          full: "⚙️ Your energy is already full",
+          gold: "⚙️ Not enough gold for another energy (" + cur.engine.chargePrice() + "🪙)",
+        }[r.reason] || "⚙️ Cannot buy energy right now");
+      } else {
+        sfx("upgrade");
+        UI.abilityHint("");
+      }
+      UI.hud(cur.engine.state);
+      UI.abilities(cur.engine.state, cur.abilArmId);
+    },
     useAbility: (id) => {
       if (!cur) return;
       const def = (DATA.ABILITIES || []).find((a) => a.id === id);

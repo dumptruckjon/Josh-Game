@@ -83,7 +83,17 @@
           // which is the same defect TD-12 fixed for the abilities (whose names
           // lived only in an aria-label). Now it says so on hover, to a screen
           // reader, and in the guide's Powers section.
-          '<span class="td-hud__charge" title="Toy Energy — every power costs some. You get more each wave.">⚙️ 0</span>' +
+          // The ⚙️ readout is also THE EXCHANGE: tap it mid-wave to trade gold
+          // for one more energy. It lives here rather than in the ability strip
+          // because that strip is a hard 4-column grid — a shipped guardrail
+          // proves a 5th tile physically overlaps at 320px — so a new control
+          // has to cost no layout.
+          // The STATIC title names the resource from the first paint, before any
+          // HUD tick has run; UI.hud() then refines it with the live price and
+          // the reason it is refused. Both matter — a control that names itself
+          // only after a frame has passed is nameless exactly when it is new.
+          '<button type="button" class="td-hud__charge" data-adult="1" data-buycharge="1"' +
+          ' title="Toy Energy — every power costs some. You get more each wave, and can buy one more during a wave.">⚙️ 0</button>' +
           '<span class="td-hud__wave">wave 0/0</span>' +
         "</div>" +
         '<button class="btn-round td-mini td-speed" type="button" aria-label="Game speed">1×</button>' +
@@ -115,6 +125,7 @@
     play.querySelector(".td-pause").addEventListener("click", hooks.togglePause);
     play.querySelector(".td-speed").addEventListener("click", hooks.toggleSpeed);
     play.querySelector(".td-call").addEventListener("click", hooks.callWave);
+    play.querySelector(".td-hud__charge").addEventListener("click", hooks.buyCharge);
 
     // TD-9 ability bar: one button per EQUIPPED ability. A "point"/"tower"
     // ability ARMS (the next field tap resolves it); an "instant" one fires now.
@@ -432,7 +443,10 @@
         global.TDData.RULES.chargePerWave + " more ⚙️ every wave you send, banked up to " +
         global.TDData.RULES.chargeMax + ". That is what stops late-game gold making the powers free. " +
         "The strip holds " + global.TDData.RULES.abilitySlots + " of the " + (global.TDData.ABILITIES || []).length +
-        ", so 🎒 Powers on the fort home is where you choose which ones you bring. 🎒 marks what is packed.</p>" +
+        ", so 🎒 Powers on the fort home is where you choose which ones you bring. 🎒 marks what is packed. " +
+        "Once your board is full and gold has nowhere left to go, <b>tap the ⚙️ in the top bar</b> to buy " +
+        global.TDData.RULES.chargeBuyMax + " more energy for " + global.TDData.RULES.chargeBuyBase +
+        "🪙 — once per wave, so an overflowing purse buys options, never a free win.</p>" +
       '<ul class="td-guide__towers td-guide__abils">' + abilRow + "</ul>" +
       // The wave button does two different jobs; say so, or ⏩ RUSH is a mystery.
       '<p class="td-overlay__sub">The wave button</p>' +
@@ -709,7 +723,24 @@
     const charge = q(".td-hud__charge");
     if (charge) {
       charge.textContent = "⚙️ " + (state.charge || 0);
-      charge.setAttribute("aria-label", (state.charge || 0) + " toy energy — every power costs some");
+      // NAME the resource and its price, every frame. ⚙️ shipped once as a bare
+      // numeral that nothing in the app ever explained — the documented "a
+      // symbol the player cannot decode is a mechanic they cannot plan around"
+      // defect — so the exchange must not repeat it: the button says what it
+      // costs, and says why when it refuses.
+      const eng = hudEngine && hudEngine();
+      const r = eng && eng.buyChargeReady ? eng.buyChargeReady() : { ok: false, reason: "none" };
+      const price = eng && eng.chargePrice ? eng.chargePrice() : 0;
+      const why = {
+        "not-in-wave": "Toy Energy — buy more once a wave is walking",
+        "wave-limit": "Toy Energy — you have already bought one this wave",
+        full: "Toy Energy — your bank is full",
+        gold: "Toy Energy — costs " + price + " gold, and you cannot afford it yet",
+      }[r.reason] || ("Toy Energy — tap to buy one more for " + price + " gold");
+      charge.disabled = !r.ok;
+      charge.classList.toggle("is-buyable", !!r.ok);
+      charge.title = why;
+      charge.setAttribute("aria-label", (state.charge || 0) + " toy energy. " + why);
     }
     const level = global.TDData.LEVELS.find((l) => l.id === state.levelId);
     const endless = state.endless || !level; // endless runs aren't in DATA.LEVELS
@@ -910,6 +941,12 @@
   let goldFn = null;
   UI.setGoldSource = function (fn) { goldFn = fn; };
   function currentGold() { return goldFn ? goldFn() : lastGold; }
+  // The same injection for the ENGINE itself, so the HUD can ask it what a
+  // purchase costs and why it is refused instead of re-deriving either — the
+  // `priceOf` lesson: the engine is the single source of a price.
+  let engineFn = null;
+  UI.setEngineSource = function (fn) { engineFn = fn; };
+  function hudEngine() { return engineFn ? engineFn() : null; }
   function paintPrices() {
     if (!UI.bubble) return;
     const gold = currentGold();

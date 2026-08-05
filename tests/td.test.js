@@ -1892,6 +1892,55 @@ test("screen wake lock: held only while a battle is LIVE, visible and unpaused",
   await page.evaluate(() => { delete navigator.wakeLock; window.__TD.resetSave(); });
 });
 
+test("⚙️ exchange: the BUTTON buys energy, and says why when it won't", async () => {
+  // The engine test drives buyCharge() directly, which proves the mechanic and
+  // nothing about the feature — this repo has already paid for that once, when
+  // three powers "didn't seem to work at all" while every test called useAbility
+  // straight. So press the actual control and read the actual screen.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 5 }); });
+  await page.waitForTimeout(120);
+  const chip = page.locator("#screen-td-play .td-hud__charge");
+
+  // BUILD phase: it must refuse, and the refusal must be readable — not a
+  // silent no-op, which is what a broken button looks like.
+  const build = await page.evaluate(() => {
+    const b = document.querySelector("#screen-td-play .td-hud__charge");
+    return { disabled: b.disabled, title: b.title, label: b.getAttribute("aria-label") };
+  });
+  assert.ok(build.disabled, "during build the exchange is refused (it is wave-only, like every timed effect)");
+  assert.match(build.title + " " + build.label, /wave/i, "…and it SAYS the wave is why");
+
+  // WAVE phase with gold: one purchase works, the second is refused BY THE CAP.
+  const out = await page.evaluate(async () => {
+    const st = window.__TD.state();
+    st.gold = 99999;
+    // __TD.script repaints the HUD as part of its contract; the rAF loop does
+    // NOT run in the harness (gold after a bare callWave rises only by the
+    // early-call bonus, which is how this was diagnosed), so driving the engine
+    // directly would leave the chip painted from the build phase for ever.
+    window.__TD.script([["call"], ["tick", 1]]);
+    await new Promise((r) => setTimeout(r, 40));
+    const b = document.querySelector("#screen-td-play .td-hud__charge");
+    const before = { charge: st.charge, gold: st.gold, disabled: b.disabled, buyable: b.classList.contains("is-buyable") };
+    b.click();
+    await new Promise((r) => setTimeout(r, 60));
+    const after = { charge: st.charge, gold: st.gold, disabled: b.disabled, title: b.title };
+    b.click();                                  // the capped second tap
+    await new Promise((r) => setTimeout(r, 60));
+    return { before, after, capped: { charge: st.charge, gold: st.gold }, price: window.TDData.RULES.chargeBuyBase };
+  });
+  assert.ok(!out.before.disabled && out.before.buyable,
+    "mid-wave with gold the chip is live and looks it");
+  assert.equal(out.after.charge, out.before.charge + 1, "the tap actually grants the energy");
+  assert.equal(out.after.gold, out.before.gold - out.price, "…and charges exactly the quoted price");
+  assert.ok(out.after.disabled, "a second tap in the same wave is refused — the cap is the safety property");
+  assert.match(out.after.title, /wave/i, "…and the chip says the per-wave limit is why");
+  assert.equal(out.capped.charge, out.after.charge, "the capped tap grants nothing");
+  assert.equal(out.capped.gold, out.after.gold, "…and, crucially, takes NO gold for it");
+});
+
 test("PORTRAIT: the battlefield gets every pixel — full-bleed width, ONE control row", async () => {
   // Portrait is the only mode this game is played in (owner, 2026-07), so the
   // field is optimised for it and the two things that were costing it are

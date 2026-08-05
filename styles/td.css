@@ -101,6 +101,33 @@ body.td-mode #screens { padding: 0; }
   font-weight: 800; font-size: 1rem; color: #e8eefc;
   flex: 1; justify-content: center; flex-wrap: wrap; min-width: 0;
 }
+/* ⚙️ THE EXCHANGE. The energy readout is also the buy button, so it must read
+   as a control while still sitting flush in a row of plain numbers. It carries
+   its own state: buyable gets a warm ring, refused stays quiet rather than
+   shouting — a control that is merely unavailable must not look broken. */
+.td-hud__charge {
+  font: inherit; color: inherit;
+  background: rgba(255, 214, 80, 0.10);
+  border: 1px solid rgba(255, 214, 80, 0.28);
+  border-radius: 10px;
+  padding: 2px 8px;
+  /* The fort's adult tap floor is 44px and this is a real control, so it must
+     meet it — the shipped portrait audit caught it at 25px the moment it
+     stopped being a <span>. It costs the battlefield NOTHING: the bar is
+     already 54px tall because its .td-mini siblings are, so the chip is just
+     filling height the row had anyway. */
+  min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.td-hud__charge.is-buyable {
+  background: rgba(255, 214, 80, 0.22);
+  border-color: rgba(255, 214, 80, 0.7);
+}
+.td-hud__charge[disabled] { opacity: 0.75; cursor: default; }
+
 .td-canvas-wrap { position: relative; width: 100%; }
 .td-canvas {
   display: block; margin: 0 auto; border-radius: 14px;

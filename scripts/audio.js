@@ -52,21 +52,115 @@
     if (!actx) { try { actx = new AC(); } catch (e) { return null; } }
     return actx;
   }
+  // THE MASTER BUS. Every voice in all three worlds goes through it, and it
+  // exists because the old code connected each oscillator straight to
+  // `destination`: with no headroom and no limiter, simultaneous cues simply
+  // SUM. That is not hypothetical — a mortar splash kills a whole group at
+  // once, so `die` (one tone per kill, unthrottled) can fire ten voices in a
+  // tick on top of `splash` and `shoot`, and on a phone speaker that clips into
+  // a crackle. A compressor with a low threshold is a soft limiter: quiet
+  // things are untouched, a pile-up is squashed instead of distorting.
+  //   `createDynamicsCompressor` is ancient (Safari 6), but it is feature
+  // checked anyway and degrades to a plain gain — the canvas-floor lesson
+  // applied to audio: never assume, and never let a missing node mute the game.
+  let bus = null;
+  function master(c) {
+    if (bus) return bus;
+    try {
+      const g = c.createGain();
+      g.gain.value = 0.9;
+      if (c.createDynamicsCompressor) {
+        const k = c.createDynamicsCompressor();
+        // A limiter, not a pumping compressor: high ratio, fast attack so a
+        // burst is caught, slow-ish release so it does not breathe.
+        if (k.threshold) k.threshold.value = -14;
+        if (k.knee) k.knee.value = 6;
+        if (k.ratio) k.ratio.value = 12;
+        if (k.attack) k.attack.value = 0.003;
+        if (k.release) k.release.value = 0.18;
+        g.connect(k); k.connect(c.destination);
+      } else {
+        g.connect(c.destination);
+      }
+      bus = g;
+    } catch (e) { bus = null; }
+    return bus;
+  }
+
+  // A VOICE CAP. `die` fires once per kill with no throttle, so a wave that
+  // ends in a splash can ask for dozens of oscillators inside one frame. Past a
+  // handful they stop being distinguishable and become noise, so extra voices
+  // are DROPPED rather than queued — a late note is worse than no note.
+  const MAX_VOICES = 12;
+  let voices = 0;
+
   function playFreq(c, freq, opts) {
     opts = opts || {};
-    const o = c.createOscillator();
-    const g = c.createGain();
-    o.type = opts.type || "triangle";
-    o.frequency.value = freq;
+    const out = master(c) || c.destination;
+    if (voices >= MAX_VOICES) return;
     const dur = opts.duration || 0.6;
     const peak = opts.gain || 0.3;
     const t = c.currentTime + 0.02; // small look-ahead: never schedule in the past
+    const g = c.createGain();
+
+    // A TONE WITH A BODY, not a bare waveform. Every sound in the app used to
+    // be one raw oscillator into the speaker, which is why it read as a beeper
+    // rather than a toybox: no harmonic, no filter, nothing to give it size.
+    // Two cheap additions fix that and both are bounded by the voice cap — a
+    // second oscillator a fifth up at low level (a partial, so notes have
+    // sparkle) and a gentle lowpass that takes the fizz off `square`.
+    // `opts.plain` opts a cue out when it wants the dry click.
+    const rich = !opts.plain;
+    if (rich && c.createBiquadFilter) {
+      const f = c.createBiquadFilter();
+      f.type = "lowpass";
+      // track the note so a high tick stays bright and a low thump stays round
+      f.frequency.value = Math.max(700, Math.min(12000, freq * 4.5));
+      f.Q.value = 0.7;
+      g.connect(f); f.connect(out);
+    } else {
+      g.connect(out);
+    }
+
+    const o = c.createOscillator();
+    o.type = opts.type || "triangle";
+    o.frequency.value = freq;
+    o.connect(g);
+
+    let o2 = null;
+    if (rich && dur >= 0.05) {
+      o2 = c.createOscillator();
+      o2.type = "sine";
+      o2.frequency.value = freq * 2.005;   // an octave, barely detuned so it shimmers
+      const g2 = c.createGain();
+      g2.gain.value = 0.16;
+      o2.connect(g2); g2.connect(g);
+    }
+
+    // A REAL ENVELOPE. The old one used a fixed 20ms attack for every cue, so a
+    // 30ms "tick" spent two thirds of its life attacking and had no snap at
+    // all; and it ramped to 0.0008 and then stopped the oscillator outright,
+    // which clicks. Attack now scales with the note, and the tail ramps
+    // linearly to true silence before the oscillator is stopped.
+    const atk = Math.max(0.004, Math.min(0.02, dur * 0.25));
+    const end = t + dur;
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(peak, t + 0.02); // soft attack
-    g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
-    o.connect(g); g.connect(c.destination);
-    o.start(t);
-    o.stop(t + dur + 0.05);
+    g.gain.exponentialRampToValueAtTime(peak, t + atk);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0008, peak * 0.02), end);
+    g.gain.linearRampToValueAtTime(0, end + 0.03);   // click-free tail
+
+    // The cap is only safe if a voice is ALWAYS released — a counter that can
+    // leak would make the game go permanently silent, which is far worse than
+    // the pile-up it prevents. So `done` is idempotent and fired by whichever
+    // of the two paths arrives first: `onended`, or a timer for the case where
+    // a backgrounded tab never delivers it.
+    voices++;
+    let freed = false;
+    const done = () => { if (freed) return; freed = true; voices = Math.max(0, voices - 1); };
+    o.onended = done;
+    setTimeout(done, (dur + 0.5) * 1000);
+    o.start(t); o.stop(end + 0.04);
+    if (o2) { o2.start(t); o2.stop(end + 0.04); }
   }
   function tone(freq, opts) {
     try {

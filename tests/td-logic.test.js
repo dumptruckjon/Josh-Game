@@ -1746,6 +1746,117 @@ test("AUDIT ability abuse: spamming the shipped powers must not erase a finale",
   }
 });
 
+test("⚙️ exchange: gold buys energy, capped per wave, and cannot erase a finale", () => {
+  // Reported from real play: "on normal I end levels with thousands of extra
+  // money even when I have max level towers on every spot." Measured with
+  // tools/td-gold.js: 21 of 36 levels reach a board with literally NOTHING left
+  // to buy, on average 2.2 waves before the end, leaving 2,770 gold unspent
+  // (8,138 worst). So the exchange gives that surplus a use — but energy is the
+  // constraint Phase 3 installed precisely to stop late gold making the powers
+  // free, so the whole design rests on the PER-WAVE cap.
+  const R = DATA.RULES;
+  const L = DATA.LEVELS[0];
+
+  // --- the mechanics, exactly ---
+  const e = TD.createEngine(L, { seed: 7, difficulty: "normal" });
+  assert.equal(e.buyChargeReady().reason, "not-in-wave",
+    "the exchange is wave-only, like every other timed effect");
+  e.state.gold = 99999;
+  e.callWave();
+  const p0 = e.chargePrice();
+  assert.equal(p0, R.chargeBuyBase, "the first energy of a wave costs the base price");
+  const goldBefore = e.state.gold, chargeBefore = e.state.charge;
+  assert.ok(e.buyCharge().ok, "a wave-phase purchase with gold and room succeeds");
+  assert.equal(e.state.charge, chargeBefore + 1, "…and actually grants the energy");
+  assert.equal(e.state.gold, goldBefore - p0, "…and charges exactly the quoted price");
+  assert.equal(e.buyChargeReady().reason, "wave-limit",
+    `only ${R.chargeBuyMax} may be bought per wave — this cap is the entire safety property`);
+
+  // Nothing is taken for a purchase that would do nothing — the documented
+  // "a power that changes nothing must never charge you" law.
+  const f = TD.createEngine(L, { seed: 7, difficulty: "normal" });
+  f.state.gold = 99999;
+  f.callWave();
+  f.state.charge = R.chargeMax;
+  assert.equal(f.buyChargeReady().reason, "full", "a full bank refuses instead of taking the money");
+  const g = TD.createEngine(L, { seed: 7, difficulty: "normal" });
+  g.callWave();
+  g.state.gold = 0;
+  assert.equal(g.buyChargeReady().reason, "gold", "a broke board is told it is broke");
+
+  // The allowance RESETS with the per-wave grant, and needs no checkpoint field
+  // because a checkpoint is a wave boundary where it is always 0.
+  const h = TD.createEngine(L, { seed: 7, difficulty: "normal" });
+  h.state.gold = 99999;
+  h.callWave();
+  assert.ok(h.buyCharge().ok);
+  h.state.phase = "build"; h.state.charge = 0;
+  h.callWave();
+  assert.equal(h.state.chargeBought, 0, "the per-wave allowance resets when the next wave is sent");
+
+  // --- and the balance property, which is the one that matters ---
+  // Mirrors the ability-abuse fixture above, then buys every ⚙️ the exchange
+  // will sell on EVERY wave — a strict upper bound on what a player can do.
+  // Measured: every finale's median is IDENTICAL to the no-exchange baseline
+  // (several per-seed values are LOWER, because energy bought is gold not spent
+  // on towers — the trade has a real cost). Falsifiable, and proven so: at
+  // chargeBuyMax 6 / base 100 this goes red on L16, whose median jumps 8 → 20,
+  // i.e. the finale erased on 5 of 8 seeds.
+  const MAX_BOSS_LEVEL_FINISH = 17;
+  const BASELINE = { 8: 18 };   // the same residual the sibling audit pins
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function run(level, plan, seed) {
+    const en = TD.createEngine(level, { seed, difficulty: "normal" });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    while (en.state.phase !== "won" && en.state.phase !== "lost" && guard++ < 400000) {
+      if (en.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!en.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (en.state.gold >= cost(line, 0)) { if (en.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = en.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (en.state.gold >= cost(t.lineId, t.tier)) { if (en.upgrade(t.id).ok) spent = true; break; } }
+        }
+        en.callWave();
+      }
+      if (en.state.phase === "wave") { while (en.buyChargeReady().ok) en.buyCharge(); }
+      if (en.state.phase === "wave" && en.state.waveIdx >= level.waves.length - 1) {
+        const lead = en.state.enemies.filter((x) => x.alive).sort((a, b) => b.dist - a.dist)[0];
+        for (const ab of DATA.ABILITIES) {
+          if (!en.abilityReady(ab.id).ok) continue;
+          if (ab.kind === "point") { if (lead) { const q = en.posOn(lead.pathIdx || 0, lead.dist); en.useAbility(ab.id, { x: q.x, y: q.y }); } }
+          else if (ab.kind === "tower") { const t = en.state.towers[0]; if (t) en.useAbility(ab.id, { towerId: t.id }); }
+          else en.useAbility(ab.id, {});
+        }
+      }
+      en.tick();
+    }
+    return en.state;
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+  for (const lvl of DATA.LEVELS.filter((l) => l.waves.some((w) => w.boss))) {
+    const perSeed = SEEDS.map((seed) => {
+      const wins = PLANS.map((p) => run(lvl, p, seed)).filter((r) => r.phase === "won");
+      return wins.length ? Math.max(...wins.map((r) => r.lives)) : -1;
+    });
+    const sorted = perSeed.filter((l) => l >= 0).slice().sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : -1;
+    const bar = BASELINE[lvl.id] === undefined ? MAX_BOSS_LEVEL_FINISH : BASELINE[lvl.id];
+    assert.ok(median <= bar,
+      `L${lvl.id} "${lvl.name}" finishes at a median ${median} when gold is poured into ⚙️ and the powers are spammed ` +
+      `(${perSeed.join(", ")}) — the per-wave cap (${R.chargeBuyMax}) is meant to stop a full purse buying a finale.`);
+  }
+});
+
 // The same audit, run with the strongest loadout a player can actually BRING —
 // the balance instrument that did not exist. Every tuning number in this project
 // (and in CLAUDE.md and every PLAN doc) is a NO-META number, because the

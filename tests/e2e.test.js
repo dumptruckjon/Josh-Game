@@ -35,11 +35,50 @@ before(async () => {
       const self = this;
       return new Promise((res) => setTimeout(() => { self.state = "running"; now = 5; res(); }, 5));
     };
+    // The stub must model iOS Safari FAITHFULLY, and that includes the parts of
+    // the API it has had since 2013. The first version gave GainNode only
+    // setValueAtTime + exponentialRampToValueAtTime, so the moment the shared
+    // envelope used linearRampToValueAtTime for a click-free tail, every note
+    // in the app threw inside tone()'s try/catch and went SILENT — two shipped
+    // tests timed out and it read exactly like a product bug. Suspect the
+    // fixture: a stub less capable than every real browser invents failures.
+    //   It also records the GRAPH (what each node connects to), so a test can
+    // prove voices route through the master bus instead of the speaker.
+    window.__graph = { toDestination: 0, comp: 0, filters: 0 };
+    function param() {
+      return {
+        value: 0,
+        setValueAtTime() { return this; },
+        exponentialRampToValueAtTime() { return this; },
+        linearRampToValueAtTime() { return this; },
+        setTargetAtTime() { return this; },
+        cancelScheduledValues() { return this; },
+      };
+    }
+    function node(self, extra) {
+      return Object.assign({
+        context: self,
+        connect(dest) { if (dest === self.destination) window.__graph.toDestination++; return dest; },
+        disconnect() {},
+      }, extra || {});
+    }
     Stub.prototype.createOscillator = function () {
       const self = this;
-      return { frequency: { value: 0 }, type: "", connect() {}, stop() {}, start() { if (self.state !== "running") window.__startedWhileSuspended++; window.__notes++; } };
+      return node(self, {
+        frequency: param(), detune: param(), type: "", onended: null,
+        stop() {},
+        start() { if (self.state !== "running") window.__startedWhileSuspended++; window.__notes++; },
+      });
     };
-    Stub.prototype.createGain = function () { return { gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; };
+    Stub.prototype.createGain = function () { return node(this, { gain: param() }); };
+    Stub.prototype.createBiquadFilter = function () {
+      window.__graph.filters++;
+      return node(this, { type: "lowpass", frequency: param(), Q: param(), gain: param() });
+    };
+    Stub.prototype.createDynamicsCompressor = function () {
+      window.__graph.comp++;
+      return node(this, { threshold: param(), knee: param(), ratio: param(), attack: param(), release: param() });
+    };
     window.AudioContext = Stub;
     window.webkitAudioContext = Stub;
   });
@@ -1096,6 +1135,55 @@ test("ONE LIGHT: the shared gradients paint from the upper left, and stay inside
     `the surface light must stay INSIDE the body it belongs to — ${out.outside} pixels of it ` +
     "landed on bare background, which is a highlight drawn from geometry that no longer matches " +
     "its body (exactly what lit()'s single template exists to prevent)");
+});
+
+test("AUDIO: every voice goes through the limiter, and the voice cap holds AND releases", async () => {
+  // Every sound in all three worlds used to connect its oscillator straight to
+  // `destination`, so simultaneous cues simply SUM with no headroom — and they
+  // really do pile up: `die` fires once per kill with no throttle, so a mortar
+  // splash that clears a group asks for a dozen voices in one tick on top of
+  // `splash` and `shoot`. On a phone speaker that clips into a crackle.
+  //   Two claims, and the SECOND is the one that is easy to get wrong: a cap
+  // that never released would make the game go permanently silent, which is a
+  // far worse bug than the pile-up it prevents. "It caps" and "it frees" are
+  // different tests — the corpse-fx lesson, in the audio layer.
+  await page.goto(baseURL);
+  await page.waitForSelector("#screen-start", { state: "visible" });
+  const out = await page.evaluate(async () => {
+    // The suite stubs WebAudio to model iOS; the stub records the graph, so the
+    // question "did anything bypass the bus?" is answerable without a real
+    // context — and `__notes` already counts every oscillator that started.
+    window.__notes = 0;
+    window.__graph.toDestination = 0; window.__graph.comp = 0;
+    localStorage.setItem("josh-muted", "0");
+    const A = window.JoshAudio;
+    A.setMuted(false);
+    A.unlock();
+    await new Promise((r) => setTimeout(r, 60));   // let the async resume land
+    window.__notes = 0;
+    // A burst far larger than the cap, all in one tick — the splash case.
+    const BURST = 50;
+    for (let i = 0; i < BURST; i++) A.tone(400 + i * 7, { duration: 0.05, gain: 0.05 });
+    await new Promise((r) => setTimeout(r, 150));
+    const capped = window.__notes;
+    // …then let them finish and fire again: the cap must have RELEASED.
+    await new Promise((r) => setTimeout(r, 1500));
+    const before = window.__notes;
+    for (let i = 0; i < 5; i++) A.tone(500, { duration: 0.05, gain: 0.05 });
+    await new Promise((r) => setTimeout(r, 150));
+    return {
+      burst: BURST, capped, afterRelease: window.__notes - before,
+      comp: window.__graph.comp, toDestination: window.__graph.toDestination,
+    };
+  });
+  assert.ok(out.comp >= 1, "the master bus builds a limiter (a compressor) — without it overlapping cues clip");
+  assert.equal(out.toDestination, 1,
+    `exactly ONE node may reach the speaker (the bus); ${out.toDestination} did, so voices are bypassing the limiter`);
+  assert.ok(out.capped > 0, "the burst made some sound at all");
+  assert.ok(out.capped < out.burst,
+    `a ${out.burst}-voice burst must be capped, not all played (got ${out.capped} notes)`);
+  assert.ok(out.afterRelease >= 5,
+    `the voice cap must RELEASE — after the burst finished, 5 fresh tones produced only ${out.afterRelease} notes, so the game would go quieter and quieter`);
 });
 
 test("no uncaught page errors during the whole run", () => {

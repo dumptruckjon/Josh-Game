@@ -252,6 +252,7 @@
       // ⚙️ Toy Energy: +chargePerWave on each wave SENT, capped at chargeMax.
       // 🔌 Warmed Up starts the bank full, so wave 1 can afford a power.
       charge: mods.warmedUp ? DATA.RULES.chargeMax : 0,
+      chargeBought: 0,                            // ⚙️ bought with gold THIS wave
       meta: runMeta, // P4: the EQUIPPED loadout this run brought (pure input, recorded so it is testable)
       // P6: the POWERS this run brought. Recorded ON the run for the same reason
       // `meta` is — a guardrail that only inspects the checkpoint misses the live
@@ -340,8 +341,21 @@
       // Granted per wave SENT, so a ⏩ RUSH pays for the wave it sends and not
       // for the one it happens to clear alongside it.
       // 🔋 Spare Battery raises BOTH the per-wave grant and the bank, read once
-      const extraCharge = mods.charge;
-      state.charge = Math.min(R.chargeMax + extraCharge, (state.charge || 0) + R.chargePerWave + extraCharge);
+      const extraCharge = chargeBonus;
+      state.charge = Math.min(chargeCap(), (state.charge || 0) + R.chargePerWave + extraCharge);
+      // …and the ⚙️ EXCHANGE resets with the grant. Reported from real play:
+      // "on normal I end levels with thousands of extra money even when I have
+      // max level towers on every spot" — measured, 21 of 36 levels reach a
+      // board with literally nothing left to buy, on average 2.2 waves before
+      // the level ends, leaving 2,770 gold unspent (up to 8,138 on L31). So
+      // gold stops being a resource exactly when the powers become the only
+      // decision left. It can now be traded for ⚙️, which re-couples the two
+      // currencies without re-opening the defect Phase 3 closed: the number
+      // bought is capped PER WAVE, so the per-wave energy budget stays flat by
+      // construction and cannot scale with wave size the way a per-kill grant
+      // did. It needs no checkpoint field — a checkpoint is a wave boundary,
+      // where this is always 0.
+      state.chargeBought = 0;
       emit({ type: "wave", n: state.sentIdx, inFlight: state.sentIdx - state.waveIdx });
     }
 
@@ -1613,6 +1627,44 @@
     // real trade against a tower rather than free power. Zero rng: a headless
     // sim can drive every one of them and a replay stays byte-identical.
     const abilityDef = (id) => (DATA.ABILITIES || []).find((a) => a.id === id) || null;
+    // ⚙️ THE EXCHANGE. Price is one computation so the button, the refusal and
+    // the charge can never disagree — the `priceOf` lesson, applied to the
+    // second currency. Doubling within a wave means a surplus is absorbable at
+    // any size without the first one being expensive.
+    function chargePrice() {
+      const R = DATA.RULES;
+      return Math.round((R.chargeBuyBase || 450) * Math.pow(2, state.chargeBought || 0));
+    }
+    // THE ⚙️ bank ceiling, and the ONE place `mods.charge` is read — 🔋 Spare
+    // Battery raises the bank as well as the grant, and a shipped guardrail
+    // requires exactly one read site precisely so a buff cannot apply to the
+    // per-wave grant and not to the exchange (it caught this when the exchange
+    // first computed its own cap).
+    // Read ONCE. `mods` is fixed for a run, so a const is the honest shape and
+    // it keeps the "exactly one read site" law satisfiable while the grant and
+    // the exchange both need the number.
+    const chargeBonus = mods.charge;
+    function chargeCap() { return DATA.RULES.chargeMax + chargeBonus; }
+    // Refusals are named, never silent, and nothing is charged for a purchase
+    // that would do nothing — the documented "a power that changes nothing must
+    // never charge you" law, which is what made three powers read as broken.
+    function buyChargeReady() {
+      const R = DATA.RULES;
+      if (state.phase !== "wave") return { ok: false, reason: "not-in-wave" };
+      if ((state.chargeBought || 0) >= (R.chargeBuyMax || 0)) return { ok: false, reason: "wave-limit" };
+      if ((state.charge || 0) >= chargeCap()) return { ok: false, reason: "full" };
+      if (state.gold < chargePrice()) return { ok: false, reason: "gold" };
+      return { ok: true };
+    }
+    function buyCharge() {
+      const r = buyChargeReady();
+      if (!r.ok) return r;
+      state.gold -= chargePrice();
+      state.charge = (state.charge || 0) + 1;
+      state.chargeBought = (state.chargeBought || 0) + 1;
+      emit({ type: "buycharge", charge: state.charge, gold: state.gold });
+      return { ok: true };
+    }
     function abilityReady(id) {
       const def = abilityDef(id);
       if (!def) return { ok: false, reason: "bad-ability" };
@@ -1805,6 +1857,7 @@
 
     return {
       state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf,
+      chargePrice, buyCharge, buyChargeReady,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       // the renderer paints a revealed hider differently, and the guardrails

@@ -981,6 +981,7 @@ tooling.
 │   │                           #   so they live in the repo instead of a scratchpad
 │   ├── td-sim.js               # 🏰 measure any level with the SHIPPED oracle (normal/heroic/casual × seeds, + losable-by-neglect incl. the full star tree). `node tools/td-sim.js 13,17`. NEVER tune against a stronger solver — that is what got World 4 reverted. `--lever` measures what a fork's lever is WORTH (a thin build that LOSES on the short route and WINS with it thrown) — the right way to choose between fork candidates, since longest != best. `--priority` is the DECISION-aware arm (blind/spend/focus; `FREE=1` isolates a decision from its price) — judge on focus-blind, NEVER focus-spend: a control arm that costs something is not a control.
 │   ├── td-wave-gen.js          # 🏰 emit + validate wave tables against BOTH contracts (±25% budget curve; ≥70% backbone / ≤1 special ≤25% / valve ≤12% / plain openers). `--check` audits every shipped level against the contracts it was AUTHORED under. The data file is written LAST.
+│   ├── td-gold.js              # 💰 what a MAXED board does with its gold — fills every pad, upgrades to T3, takes a branch (the shipped oracle stops at T3, so it cannot see this), and reports the wave the board becomes UNSPENDABLE. `SWEEP=1` sweeps bounty. This is what measured the 21-of-36 dead-stretch finding.
 │   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
 │   └── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
@@ -2810,6 +2811,74 @@ without a definition. No threshold, no exemptions, and mutation-proven by
 deleting the duck's wave groups — which is exactly the state it was in that
 morning. **When a proposed law measures as true-for-most, prefer the neighbouring
 law that measures as true-for-all.**
+**GOLD STOPPED BEING A RESOURCE, and the cause was not income — it was that the
+board RUNS OUT OF THINGS TO BUY.** Reported from real play: *"on normal I end
+levels with thousands of extra money even when I have max level towers on every
+spot."* The shipped oracle cannot see this at all, because it deliberately stops
+at tier 3 and never buys a tier-4 branch — it is still spending when a real
+player has finished. A player-shaped probe (`tools/td-gold.js`: fill every pad →
+tier 3 → take a branch) measured it exactly: **21 of 36 levels reach a board
+with literally nothing left to purchase, on average 2.2 waves before the level
+ends** (up to 4), leaving **2,770 gold unspent on average and 8,138 at worst**
+(L31). Worlds 1-3 never hit it — this is a World-5-onward problem, which is why
+the report said "on normal at least". Two things then constrained the fix, both
+measured before anything was built. **Stars are scored purely on lives
+(`[[18,3],[10,2],[1,1]]`), so the obvious sink — spend gold to repair the door —
+would literally be BUYING STARS**; ruled out on that basis alone. And **cutting
+income is not a difficulty lever**: in a bounty sweep the lives column came out
+NON-MONOTONIC (L31: 4 → 14 → 20 → 6 → 20), which is the greedy probe's build
+ORDER changing, not a signal — the "a pad ordering is part of the oracle" trap,
+this time inside my own instrument. Only the economy columns from that sweep are
+trustworthy, and they say a 0.7× bounty removes the dead stretch entirely.
+**The fix is an EXCHANGE: tap the ⚙️ in the HUD to buy one more Toy Energy for
+450🪙, once per wave.** It re-couples the two currencies so surplus buys options,
+and it is safe for exactly one reason — the PER-WAVE CAP. Phase 3 made energy a
+flat per-wave budget precisely because a per-kill grant scales with wave size;
+capping purchases keeps that flatness by construction. Measured against the
+shipped ability-abuse fixture, buying every ⚙️ available on EVERY wave and
+spamming all five powers: **all nine boss finales come out at IDENTICAL medians
+to the no-exchange baseline**, and several per-seed values are LOWER, because
+energy bought is gold not spent on towers — the trade has a real cost, which is
+what makes it a decision. The guardrail is falsifiable and was proven so: at
+`chargeBuyMax` 6 / base 100, **L16's median jumps 8 → 20** — the finale erased on
+5 of 8 seeds. Two implementation notes. `state.chargeBought` needs NO checkpoint
+field, because a checkpoint is a wave boundary where it is always 0 (the
+`waveIdx`/`sentIdx` reasoning). And a shipped guardrail caught the first cut
+honestly: **`mods.charge` must have exactly ONE read site**, and computing the
+bank ceiling inside the exchange made a second — so the cap became one
+`chargeCap()` over a single `const chargeBonus = mods.charge`, which is the shape
+that keeps a 🔋 Spare Battery applying to the grant AND the exchange rather than
+one of them.
+**THE APP'S SOUND WAS A BEEPER, and every defect was in the ONE shared primitive
+— so every fix reaches all 240 games and the fort at once.** Four things, each
+measured rather than described. (1) **Every voice connected straight to
+`destination`**, so simultaneous cues simply SUM with no headroom and no
+limiter. That is not hypothetical: `die` fires once per kill with no throttle, so
+a mortar splash that clears a group asks for a dozen voices in a tick on top of
+`splash` and `shoot` — measured, an uncapped 50-cue burst creates **100
+oscillators**. There is now a master bus with a compressor as a soft limiter, and
+a guardrail asserts exactly ONE node reaches the speaker. (2) **A voice cap (12)
+that DROPS rather than queues** — a late note is worse than no note. The second
+half is the one that is easy to get wrong and is tested separately: a cap that
+leaked would make the game go permanently silent, which is far worse than the
+pile-up it prevents, so `done` is idempotent and fired by whichever of `onended`
+or a timer arrives first. "It caps" and "it frees" are two different tests — the
+corpse-fx lesson, in the audio layer. (3) **A fixed 20ms attack for every cue**,
+so a 30ms tick spent two thirds of its life attacking and had no snap; and the
+envelope ramped to 0.0008 and then stopped the oscillator, which clicks. Attack
+now scales with the note and the tail ramps to true silence. (4) **The music was
+ONE bare sine walking an 8-note scale up and back, forever**, looping every 3.4
+seconds — now a 4-bar phrase over a walking bass with an A/B section, still the
+setTimeout composer, still mute-gated and off by default.
+**And the audio work found a FIXTURE bug that presented exactly like a product
+bug.** The e2e suite stubs `AudioContext` to model iOS faithfully, but its
+`GainNode` had only `setValueAtTime` and `exponentialRampToValueAtTime` — so the
+moment the shared envelope used `linearRampToValueAtTime` (original Web Audio,
+2013, present in every browser including Josh's iOS 14.2 iPad) every note in the
+app threw inside `tone()`'s try/catch and went silent, and **two shipped tests
+timed out**. Suspect the fixture: a stub less capable than every real browser
+invents failures. It now models the real node graph — and records what each node
+connects to, which is what makes the limiter claim testable at all.
 **The TOWERS were four coloured balls, and the honest way to find that out was
 to MEASURE the silhouette rather than describe it.** Rendered at the 27px cell a
 phone actually uses, the three SHOOTING lines were all discs — circularity 0.669
