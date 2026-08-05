@@ -2812,6 +2812,41 @@ without a definition. No threshold, no exemptions, and mutation-proven by
 deleting the duck's wave groups — which is exactly the state it was in that
 morning. **When a proposed law measures as true-for-most, prefer the neighbouring
 law that measures as true-for-all.**
+**THE MINI-BOSS WAS BUILT, MEASURED, AND CUT — because an HP-preserving swap is
+NOT LEAK-preserving, and in a game scored on lives that is the whole ballgame.**
+Following the "a level bites iff it has a boss" finding, a 🗑️ Wheelie Bin
+(900hp, armor, its own art) was added and dosed at 35% of the last six waves
+into all eight flat late levels. Result across 8 seeds: **normal stayed
+20,20,20,20,20,20,20,20 on every single one**, and heroic moved in BOTH
+directions — L19 15 → **20**, L23 13 → **17**, L26 10 → **13** all got EASIER,
+while L27 14 → 12 and L35 9 → 8 got harder.
+The mechanism, and it is structural: every body the swap replaces carries
+`lives: 1`, so trading ~97 small bodies for ~10 elites removes ~97 potential
+leak-lives and adds 10. **Concentration therefore REDUCES a level's total leak
+capacity**, which is the opposite of difficulty. To be leak-neutral a 900hp
+elite replacing 16hp Spare Keys would need ~56 lives, which is absurd. So the
+lever cannot work as a SWAP at any hp — and that also explains why bosses bite:
+a boss is ADDITIVE and its wave is explicitly exempt from the ±25% budget
+contract, not concentrated inside it. Anything that keeps total wave HP constant
+is fighting the wrong quantity.
+**Two process errors are worth more than the feature.** (1) **I shipped a stat I
+had not measured**: the probe that produced the promising L27 number used
+`speed: 0.5`, and the shipped enemy was given `0.42` for flavour afterwards —
+slower means longer under the guns, i.e. easier, and it silently undid the
+effect. Never adjust the thing between measuring it and shipping it; re-measure
+or ship exactly what was measured. (2) **I over-read a single result.** That
+earlier L27 "20 → 19 with per-seed variance" was one life on one level, and the
+eight-level sweep shows it was inside the noise this swap produces — the honest
+reading of one level moving by one life is "no effect detected", not "the lever
+works". The enemy was reverted rather than shipped unverified: nothing spawned
+it, so `AUDIT roster` would have gone red, and a half-measured balance change is
+exactly what got World 4 reverted once already.
+**What is still open, with the search space now much smaller:** making a
+non-boss level cost lives needs an ADDITIVE, budget-exempt body with a leak toll
+in the 2-6 range (the Piñata is 400hp/2, bosses are 6-10) — i.e. a real
+mini-boss WAVE, not a re-mix of an existing one. That is a deliberate content
+pass with its own budget-audit exemption, and it should be measured on lives
+LOST rather than lives remaining.
 **TWO REAL-PLAY BUGS, AND BOTH GUARDRAILS PASSED A MUTATION BEFORE THEY WORKED —
 which is the actual lesson of the pass.** (1) **"Sound on/off in the menu also
 turned off music."** True, and it was TWO couplings, not one: `startMusic()` and
@@ -2878,8 +2913,9 @@ Piñatas — the heaviest non-boss body in the game — moved L27's normal by
 literally nothing (20 on all 8 seeds at every fraction). The fixture was
 verified rather than trusted: wave 14 really did go from 276 small bodies to
 139 small + 11 Piñatas at 0.0% HP drift. 400hp is simply not boss scale.
-**What DOES move it is a boss-scale body, and it is the first thing in this
-project's history to move a flat level at all.** Injecting a synthetic elite
+**What LOOKED like it moved it was a boss-scale body — and the follow-up
+eight-level sweep REFUTED that; see the mini-boss entry above, which supersedes
+this paragraph.** Injecting a synthetic elite
 HP-preservingly into L27's last six waves (`tools/td-elite.js`, kept so this is
 re-runnable): at 900hp / 35% normal goes 20 → **19 with genuine per-seed variance
 (19,19,19,19,19,20,19,19)** and heroic 14 → 9 with no losses; at 1300hp normal is
