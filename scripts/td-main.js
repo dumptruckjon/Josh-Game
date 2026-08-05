@@ -211,7 +211,25 @@
     lever: [14, 40, 14], deny: [8, 50, 8], won: [30, 60, 30, 60, 90], lost: [90, 120, 90],
     ability: 20, phase: [50, 70, 50], lowlives: [70, 80, 70], cleared: [16, 30, 16],
   };
+  // THE AUDIO GATES, in ONE place. Reported from real play: turning Sounds off
+  // in the pause menu also killed the music, because startMusic() and its
+  // per-note step() both early-returned on `!save.settings.sfx` and the Sounds
+  // toggle itself called stopMusic(). They are offered as two separate buttons,
+  // so they must be two separate switches:
+  //   🔇 (the global JoshAudio mute) is the parent's master — it silences all.
+  //   🔔 Sounds = the game's effects. Haptics ride the same call site.
+  //   🎵 Music  = the looping march.
+  // Neither of the two may silence the other; only the master silences both.
+  function audioMuted() { return !!(A.isMuted && A.isMuted()); }
+  function sfxOn() { return !audioMuted() && !!save.settings.sfx; }
+  // NOTE the deliberate asymmetry, which is why there is no `musicOn()` twin:
+  // for effects the two conditions are one gate (no cue either way), but for
+  // music they mean different things — Music off ENDS the loop, while the mute
+  // only skips the note so unmuting resumes mid-phrase. Collapsing them into
+  // one predicate would have silently made a mute kill the loop for good.
   function buzz(kind) {
+    // Haptics deliberately follow the Sounds switch but NOT the global 🔇 —
+    // that mute is about sound, and a silenced phone should still buzz.
     if (!CAN_BUZZ || !save.settings.sfx) return;
     const pat = BUZZ[kind];
     if (!pat) return;
@@ -219,9 +237,8 @@
   }
   function sfx(kind, arg) {
     buzz(kind); // haptics ride the SAME call site as audio, so a new cue gets both
-    if (!save.settings.sfx) return;
+    if (!sfxOn()) return;   // the ONE gate: Sounds off, or the global 🔇
     try {
-      if (A.isMuted && A.isMuted()) return; // fort sounds respect the global 🔇 too
       if (kind === "build") { A.tone(660, { duration: 0.08, gain: 0.12 }); setTimeout(() => A.tone(880, { duration: 0.1, gain: 0.12 }), 70); }
       else if (kind === "upgrade") { [520, 660, 880].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.09, gain: 0.12 }), i * 70)); }
       else if (kind === "sell") A.tone(280, { duration: 0.12, gain: 0.1, type: "sine" });
@@ -281,18 +298,23 @@
   function stopMusic() { if (musicTimer) { clearTimeout(musicTimer); musicTimer = 0; } }
   function startMusic() {
     stopMusic();
-    if (!save.settings.music || !save.settings.sfx) return;
+    if (!save.settings.music) return;   // NOT gated on Sounds — they are independent
     let i = 0;
     const step = () => {
       try {
-        if (!save.settings.music || !save.settings.sfx || (A.isMuted && A.isMuted())) { musicTimer = 0; return; }
-        const bar = Math.floor(i / 16) % 2;               // A section, then B
-        const mel = (bar ? MEL_B : MEL_A)[i % 16];
-        const bass = (bar ? BASS_B : BASS_A)[Math.floor((i % 16) / 2)];
-        if (mel !== REST) A.tone(mel, { duration: 0.26, gain: 0.05, type: "triangle" });
-        // the bass lands on the downbeat of each half-bar and is deliberately
-        // plain (no partial, no filter sparkle) so it stays under the melody
-        if (i % 2 === 0) A.tone(bass, { duration: 0.3, gain: 0.055, type: "sine", plain: true });
+        // Music OFF stops the loop; the global 🔇 only skips the NOTE, keeping
+        // the loop alive so unmuting resumes instantly instead of needing the
+        // music toggled off and on again.
+        if (!save.settings.music) { musicTimer = 0; return; }
+        if (!audioMuted()) {
+          const bar = Math.floor(i / 16) % 2;             // A section, then B
+          const mel = (bar ? MEL_B : MEL_A)[i % 16];
+          const bass = (bar ? BASS_B : BASS_A)[Math.floor((i % 16) / 2)];
+          if (mel !== REST) A.tone(mel, { duration: 0.26, gain: 0.05, type: "triangle" });
+          // the bass lands on the downbeat of each half-bar and is deliberately
+          // plain (no partial, no filter sparkle) so it stays under the melody
+          if (i % 2 === 0) A.tone(bass, { duration: 0.3, gain: 0.055, type: "sine", plain: true });
+        }
         i += 1;
         musicTimer = setTimeout(step, STEP_MS);
       } catch (e) { musicTimer = 0; }
@@ -361,7 +383,8 @@
         startLevel(cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId,
           cur.engine.state.endless ? { levelDef: cur.levelDef, difficulty: d } : { difficulty: d });
       },
-      sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); if (!save.settings.sfx) stopMusic(); else startMusic(); openPause(); },
+      // Toggling Sounds must NOT touch the music — that coupling is the bug.
+      sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); openPause(); },
       music: () => { save.settings.music = !save.settings.music; persist(save); if (save.settings.music) startMusic(); else stopMusic(); openPause(); },
       dmg: () => { save.settings.dmgNumbers = !save.settings.dmgNumbers; persist(save); if (cur.render.setDamageNumbers) cur.render.setDamageNumbers(save.settings.dmgNumbers); openPause(); },
       quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },

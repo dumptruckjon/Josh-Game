@@ -97,10 +97,44 @@ body.td-mode #screens { padding: 0; }
   font-size: 1.35rem; /* adult-sized (≥44) — the fort is Jon's space */
 }
 .td-hud {
-  display: flex; gap: 10px; align-items: center;
+  display: flex; align-items: center;
   font-weight: 800; font-size: 1rem; color: #e8eefc;
   flex: 1; justify-content: center; flex-wrap: wrap; min-width: 0;
+  /* Digits must not change width as they change VALUE. Without this a run's
+     gold going 950 -> 12500 re-flows the whole bar. */
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum"; -webkit-font-feature-settings: "tnum"; font-feature-settings: "tnum";
 }
+/* THE READOUTS RESERVE THEIR WIDEST CONTENT, and that is a bug fix, not tidiness.
+   Reported from real play: "the gear symbol in header kept jumping between top
+   line and line below so it was hard to press since it kept moving." Measured at
+   390x844 the ⚙️ sat at y=8 with 0 gold and at y=37 once gold grew — a 29px jump
+   mid-run, and at 375x667 the bar went to THREE rows. The HUD is a wrapping
+   flex row, so every widening readout could push the ⚙️ onto the next line
+   under the player's thumb.
+   Reserving each item's worst case makes the layout depend only on the VIEWPORT,
+   never on the game state: the bar may still wrap on a narrow phone, but it
+   wraps the same way for the whole run, so the button never moves. Widths are
+   measured against the longest real string each can hold (lives "❤️ 20",
+   gold "🪙 99999", wave "wave 14-15/15"), not guessed — at 390px the bar leaves
+   180px per row while the readouts need 347px in total, so the HUD must wrap and
+   the fix is that it now wraps IDENTICALLY every time. Fitting two rows rather
+   than three needs the wave label under 117px, which is why it is set slightly
+   smaller: at 1em "wave 14-15/15" measures 132px and at 0.88em it is 116px, so
+   the word survives instead of being cut to a bare "14-15/15". */
+/* CHILD MARGINS, not flex `gap` — Safari 14.0 (the floor this app targets)
+   DROPS gap in flex layout. This row sat on the flex-gap allowlist justified as
+   "readouts — not tappable", and that justification stopped being true the
+   moment the ⚙️ became a real button: on the actual device the gap vanishes and
+   the button sits flush against the gold. Margins work everywhere, and they
+   space the WRAPPED rows too, which a row-gap would not have on 14.0 either. */
+.td-hud > * { margin-top: 2px; margin-bottom: 2px; }
+.td-hud > * + * { margin-left: 4px; }
+.td-hud__lives { min-width: 3em; }
+.td-hud__gold { min-width: 5.125em; }
+/* em, so the reservation shrinks WITH the font at the narrow breakpoint — fixed
+   px would over-reserve there and cost the battlefield a whole extra row. */
+.td-hud__wave { font-size: 0.88em; min-width: 8.25em; text-align: center; }
 /* ⚙️ THE EXCHANGE. The energy readout is also the buy button, so it must read
    as a control while still sitting flush in a row of plain numbers. It carries
    its own state: buyable gets a warm ring, refused stays quiet rather than

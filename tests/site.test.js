@@ -936,7 +936,7 @@ test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has 
   const ALLOWED_TD = new Set([
     ".td-ach",       // badge card internals (icon / name / desc)
     ".td-buy",       // inside ONE build button (icon / role / price)
-    ".td-hud",       // ❤ 🪙 wave readouts — not tappable
+
     ".td-level",     // inside ONE level card (number / name / stars)
     ".td-node",      // inside ONE star-tree button (icon / body / cost)
     ".td-toast",     // pointer-events: none by design

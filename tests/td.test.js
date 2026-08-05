@@ -1892,6 +1892,122 @@ test("screen wake lock: held only while a battle is LIVE, visible and unpaused",
   await page.evaluate(() => { delete navigator.wakeLock; window.__TD.resetSave(); });
 });
 
+test("🔔 Sounds and 🎵 Music are INDEPENDENT switches under the global 🔇", async () => {
+  // Reported from real play: "Sound on/off in the menu for TD also turned off
+  // music." Both startMusic() and its per-note step() early-returned on
+  // `!save.settings.sfx`, and the Sounds toggle itself called stopMusic() — so
+  // one button silenced two things the menu offers separately.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 5 }); });
+  await page.waitForTimeout(100);
+  const out = await page.evaluate(async () => {
+    // Count notes at the ONE shared primitive, so this measures what is
+    // actually audible rather than what a flag says.
+    const A = window.JoshAudio;
+    const realTone = A.tone;
+    let notes = 0;
+    A.tone = function () { notes++; return realTone.apply(this, arguments); };
+    A.setMuted(false);
+    // Drive the REAL pause-menu buttons — the label says the current state, so
+    // clicking until it reads what we want is exactly what a player does. A test
+    // that flips the save flags would not have caught the Sounds handler calling
+    // stopMusic(), which is half of this bug.
+    const btn = (act) => document.querySelector('.td-overlay--pause [data-act="' + act + '"]');
+    const openPause = () => { if (!btn("sfx")) document.querySelector("#screen-td-play .td-pause").click(); };
+    const setTo = async (act, wantOn) => {
+      for (let i = 0; i < 3; i++) {
+        openPause();
+        await new Promise((r) => setTimeout(r, 30));
+        const b = btn(act);
+        if (!b) return false;
+        const on = /\bon\b/.test(b.textContent);
+        if (on === wantOn) return true;
+        b.click();
+        await new Promise((r) => setTimeout(r, 30));
+      }
+      return false;
+    };
+    const set = async (sfx, music) => { await setTo("sfx", sfx); await setTo("music", music); };
+    const sample = async (ms) => { notes = 0; await new Promise((r) => setTimeout(r, ms)); return notes; };
+    const res = {};
+    // music ON, sounds ON → music plays
+    await set(true, true); res.bothOn = await sample(700);
+    // music ON, sounds OFF → music MUST still play (this is the bug)
+    await set(false, true); res.soundsOff = await sample(700);
+    // …and it must also START from cold while Sounds is off. Toggling music off
+    // and on again re-enters startMusic(), which is a SEPARATE gate from the
+    // per-note one — reverting only that gate left the already-running loop
+    // alive, so without this step the mutation passes and the test is half a
+    // test. This is the real user path: sounds already off, then wanting music.
+    await setTo("music", false); await setTo("music", true);
+    res.startedWithSoundsOff = await sample(700);
+    // music OFF, sounds ON → silence from the loop
+    await set(true, false); res.musicOff = await sample(700);
+    // music ON but globally muted → silent, and it must RESUME on unmute
+    // rather than needing the toggle cycled (the loop is kept alive on purpose)
+    await set(true, true); A.setMuted(true); res.muted = await sample(700);
+    A.setMuted(false); res.unmuted = await sample(700);
+    A.tone = realTone;
+    return res;
+  });
+  assert.ok(out.bothOn > 0, `music with both on should play notes (got ${out.bothOn})`);
+  assert.ok(out.soundsOff > 0,
+    `MUSIC MUST SURVIVE SOUNDS OFF — they are two buttons in the menu, so one may not silence the other (got ${out.soundsOff} notes)`);
+  assert.ok(out.startedWithSoundsOff > 0,
+    `music must also START while Sounds is off — startMusic() is a second, separate gate (got ${out.startedWithSoundsOff} notes)`);
+  assert.equal(out.musicOff, 0, `music off must be silent (got ${out.musicOff} notes)`);
+  assert.equal(out.muted, 0, `the global 🔇 silences the music too (got ${out.muted} notes)`);
+  assert.ok(out.unmuted > 0,
+    `unmuting must RESUME the music without cycling the toggle — the loop is deliberately kept alive while muted (got ${out.unmuted} notes)`);
+});
+
+test("HUD: the ⚙️ never changes row as the numbers change", async () => {
+  // Reported from real play: "the gear symbol in header kept jumping between top
+  // line and line below so it was hard to press since it kept moving." The HUD
+  // is a wrapping flex row, so a widening readout could push the button onto the
+  // next line under the player's thumb. Measured before the fix: at 390x844 it
+  // sat at y=8 with 0 gold and y=37 once gold grew, and at 375x667 the bar went
+  // to three rows mid-run.
+  //   The fix is that the layout now depends only on the VIEWPORT: the bar may
+  // still wrap on a narrow phone, but it wraps the same way all run. So the
+  // assertion is "the y never changes", NOT "it never wraps".
+  const SIZES = [[430, 932], [414, 896], [390, 844], [375, 667], [360, 640], [320, 568], [844, 390]];
+  const bad = [];
+  // The play screen must be VISIBLE or every rect reads 0 and four zeros look
+  // exactly like four identical positions — this test passed a mutation that
+  // way before the navigation was added, which is why the degenerate reading is
+  // now an explicit failure below rather than something to notice by eye.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  for (const [w, h] of SIZES) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => { window.__TD.newGame(12, { seed: 5 }); });
+    // a resize has to actually reflow before anything is measured — a short
+    // wait here silently made this test unable to see the very bug it is for
+    await page.waitForTimeout(220);
+    const ys = await page.evaluate(async () => {
+      const st = window.__TD.state();
+      const out = [];
+      // the states a real run passes through: gold growing by orders of
+      // magnitude, lives falling, the wave label widening to "wave 14-15/15"
+      for (const s of [{ g: 0, l: 20, w: 0 }, { g: 950, l: 20, w: 3 }, { g: 12500, l: 9, w: 8 }, { g: 99999, l: 3, w: 13 }]) {
+        st.gold = s.g; st.lives = s.l; st.waveIdx = s.w; st.sentIdx = s.w + 1;
+        window.__TD.script([["tick", 1]]);
+        await new Promise((r) => setTimeout(r, 60));
+        out.push(Math.round(document.querySelector("#screen-td-play .td-hud__charge").getBoundingClientRect().top));
+      }
+      return out;
+    });
+    if (process.env.HUD_DEBUG) console.log("   DEBUG", w + "x" + h, ys.join(","));
+    if (ys.some((y) => y <= 0)) bad.push(`${w}x${h}: measured y=${ys.join(",")} — the screen was hidden, so this measured nothing`);
+    else if (new Set(ys).size !== 1) bad.push(`${w}x${h}: ⚙️ moved to y=${ys.join(",")}`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.deepEqual(bad, [],
+    `the ⚙️ changes row as the game state changes, so it moves out from under the player's thumb mid-run:\n  ${bad.join("\n  ")}`);
+});
+
 test("⚙️ exchange: the BUTTON buys energy, and says why when it won't", async () => {
   // The engine test drives buyCharge() directly, which proves the mechanic and
   // nothing about the feature — this repo has already paid for that once, when

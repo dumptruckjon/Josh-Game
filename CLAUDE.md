@@ -2812,6 +2812,52 @@ without a definition. No threshold, no exemptions, and mutation-proven by
 deleting the duck's wave groups — which is exactly the state it was in that
 morning. **When a proposed law measures as true-for-most, prefer the neighbouring
 law that measures as true-for-all.**
+**TWO REAL-PLAY BUGS, AND BOTH GUARDRAILS PASSED A MUTATION BEFORE THEY WORKED —
+which is the actual lesson of the pass.** (1) **"Sound on/off in the menu also
+turned off music."** True, and it was TWO couplings, not one: `startMusic()` and
+its per-note `step()` both early-returned on `!save.settings.sfx`, AND the Sounds
+handler itself called `stopMusic()`. One button silenced two things the menu
+offers as separate switches. Fixed with one owner (`audioMuted`/`sfxOn`) and the
+semantics the menu implies — the global 🔇 is the master and silences everything;
+Sounds and Music are then independent, and neither may silence the other.
+Deliberate asymmetry worth keeping: Music OFF ends the loop, while the global
+mute only skips the NOTE, so unmuting resumes mid-phrase instead of needing the
+toggle cycled — which is exactly why there is no `musicOn()` twin to `sfxOn()`,
+because collapsing them would have made a mute kill the loop for good. **The
+guardrail needed two attempts:** driving Sounds off while music was already
+playing does NOT re-enter `startMusic()`, so reverting that gate left the running
+loop alive and the test stayed green. It now also toggles music off and on again
+while Sounds is off — the real user path, and a second, separate gate.
+(2) **"The gear symbol kept jumping between the top line and the line below."**
+Measured: at 390×844 the ⚙️ sat at y=8 with 0 gold and y=37 once gold grew — a
+29px jump mid-run — and at 375×667 the bar went to THREE rows. `.td-hud` is a
+wrapping flex row, so every widening readout could push the button onto the next
+line under the player's thumb, and making it a 44px button had made it a bigger
+target for the reflow to move. The HUD needs 347px against 180px per row at
+390px, so it MUST wrap: the fix is that it now wraps IDENTICALLY every time —
+tabular numerals plus a reserved width for each readout's worst case, in `em` so
+the reservation shrinks with the font at the narrow breakpoint. Fitting two rows
+rather than three needed the wave label under 117px, so it sits at 0.88em (132 →
+116px) and keeps the word "wave" instead of being cut to a bare "14-15/15". Every
+viewport is now stable AND no taller than before (390: 73 → 71, 320: 96 → 90).
+A third defect surfaced while fixing it, and it is the allowlist class: `.td-hud`
+sat on the flex-gap allowlist justified as "readouts — not tappable", and **that
+justification stopped being true the moment the ⚙️ became a button** — Safari 14
+DROPS flex gap, so on the real device the button sat flush against the gold while
+every headless measurement showed 8px. The allowlist is exactly what stopped the
+guardrail seeing it. It uses child margins now and the entry is gone. Two things
+came out of that: the `* + *` pattern is not gap-equivalent on a WRAPPING row
+(the first item of each wrapped row also takes the margin, so it eats 8px of row
+width and wraps a whole row earlier — 4px restores the two-row layout), and the
+71px I had measured with `gap` was **a Chromium-only number that never existed on
+Jon's phone**. When you touch a rule on that allowlist, re-read its reason.
+**Its guardrail passed the mutation THREE times before it worked**, and the
+reason is the one to remember: the test never navigated to the play screen, so
+`getBoundingClientRect().top` returned 0 at every viewport — and **four zeros
+look exactly like four identical positions**. A hidden element is the classic
+degenerate reading, so the test now fails explicitly on `y <= 0` rather than
+scoring it as "stable". Only after that did it catch the mutation, and it catches
+it at exactly the two reported viewports.
 **THE DIFFICULTY QUESTION IS ANSWERED, AND THE ANSWER IS ONE SENTENCE: in this
 engine a level costs lives IF AND ONLY IF IT HAS A BOSS.** Measured with the
 shipped oracle over all 36 levels × 8 seeds on normal: **11 levels sit at a flat
