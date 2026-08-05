@@ -3966,6 +3966,58 @@ purchase (a tower can go 1→2→3 in one opening) — the honest way to keep a 
 up is to rebuild it from the subject's CURRENT state, since tier, price, stat
 line and sell refund all move; only SELLING closes it, because then the subject
 is gone.
+**华丽's first BEHAVIOURAL pass — driving all 40 of her games and READING every
+spoken line — found the one quiz that never said its own answer, and then a
+much bigger app-wide defect one file over.** (1) **月亮圆缺 never named a
+phase.** Every sibling restates the truth on a correct tap ("对！是兔！",
+"找到了！是四筒！", "西瓜是夏天的，答对了！"); the moon game said only "月亮就
+是这样慢慢变圆的" — so the game *about* phases named none of them, on the
+channel a 70-year-old actually uses, and all three chips carried the same
+`aria-label` "月相". `MOON_NAMES` is the single owner (spoken line + label), the
+SPOT_NAMES pattern extended, and 描福字 stopped speaking the bare numeral it
+prints (`"1"` → `"第一笔"`, via `CN_NUM`) — the digit-shaped cousin of speaking a
+picture. (2) **The DISTRACTOR audit came back CLEAN, and that is the deliverable
+too**: ~500 distinct rounds captured across her 23 pick-the-answer games (量词,
+反义词, 节日, 名菜, 四季, 灯谜, 唐诗, 成语, 生肖, 月相, 顺子, 记菜单, the
+arithmetic set) and no distractor is also-defensible, no analogy inverted, no
+emoji spoken. The one marginal call is recorded rather than "fixed": 大雁 is
+keyed to 秋 and 春 is always on offer, but 秋高气爽、大雁南飞 is the canonical
+Chinese association and inventing a defect to look thorough is worse than
+leaving it. (3) **The real find: a celebration can fire on a screen the player
+has already left.** `framework.js` gated winCue/goodCue/bumpCue and every spoken
+line on `!screen.hidden` — and left the two lines *between* them, `FX.confetti()`
+and `FX.stars()`, ungated. Four games defer their win behind a raw `setTimeout`
+(300-650ms) whose `isConnected` guard can never be false, because `route()` only
+HIDES a screen. Measured: tap the last answer of **color-number / drive-home /
+how-tall / sink-float** and press 🏠 inside the delay, and full-screen confetti
++ stars rain over the launcher — 4 of 4. Fixed the RULE-7 way: ONE `live()`
+predicate and ONE `cue()` owner that every celebration goes through, so all 240
+games inherit it, with a `site.test.js` line scan (any `FX.confetti`/`FX.stars`
+not inside `cue(` fails) and a browser test, both mutation-proven. The *win
+itself* still records — it was earned; only the party is withheld. Note the
+tell, which is the wake-lock lesson exactly: **two adjacent lines disagreeing
+about whether `hidden` matters means one of them is wrong.** (4) **Three
+fixtures in a row measured nothing, each for a different reason, and that is the
+lesson worth more than the fix.** The registry probe read `Object.keys(window
+.JoshGames)` — it is an ARRAY of defs, so the `"hl-"` filter matched nothing and
+a 40-game world reported **0**. The round sampler re-navigated to a WON game to
+restart it, but the framework does not re-run `start()` on a re-show, so every
+attempt after the first exited instantly on `dataset.won` and it looked like the
+games repeat one fixed sequence forever (press the real Again button). And the
+first two confetti probes navigated home *after* `dataset.won` had flipped (i.e.
+after the deferred win had already fired) and then guessed at "the last tap"
+with a heuristic that fires in round 1 of a 4-round game — both reported a clean
+**0/240** on code that was provably broken. **A negative result from a fixture
+you have not falsified is not a negative result.** The way out was to stop
+guessing the moment: leave after EVERY tap, wait out the longest deferral, come
+back. (5) **A measured non-defect, recorded so nobody re-opens it:** a scan for
+tappables sharing an accessible name found 5 pure-art cases and 44 label-over-
+content cases — and the 44 are mostly CORRECT (a memory tile must hide its face;
+a find-the-odd-one hunt should not hand the answer to assistive tech), so it is
+a false-positive machine, not a defect list. 脸谱找对 keeps its six identical
+"脸谱" labels for the same reason naming them would solve the game. 月亮圆缺 was
+the exception only because its row is `aria-hidden`, so naming the chips spoils
+nothing and the spoken answer is pure instruction.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
@@ -4145,11 +4197,14 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   spacing rather than overlapping, lane clear. No busyness guardrail was added
 >   — the shipped spread is 3×, so a cap would be an invented threshold.
 >
-> - **华丽's world has had one adversarial pass** (the app-wide audit, which
->   found the 七夕节/汤圆 bin clash, 花's 把, and a 1.09:1 contrast failure) but
->   nothing like the fort's repeated ones. The iOS-14.2 and emoji classes are now
->   guardrailed app-wide, so a pass there would be about BEHAVIOUR: drive each
->   game, listen to the spoken sentence, prove no distractor is also correct.
+> - **华丽's BEHAVIOURAL pass is DONE** (2026-08): all 40 games driven, every
+>   spoken line read, ~500 distinct rounds captured across her 23 pick-the-answer
+>   games. Content truth came back clean; the fixes were 月亮圆缺 not naming its
+>   own answer, 描福字 speaking a bare digit, and 深呼吸's raw timers. What it
+>   ALSO surfaced is app-wide and is the reason to run these passes: the framework
+>   celebrated on screens the player had already left. Still open for her world:
+>   a PAINTED pass of the same kind that Josh's world got — screenshot each
+>   screen, look at what the picture actually says.
 
 ## Development Workflow
 

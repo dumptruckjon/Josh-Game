@@ -218,8 +218,22 @@
     ],
     // Moon phases new → full (月亮圆缺), waxing order.
     MOON: ["🌑", "🌒", "🌓", "🌔", "🌕"],
+    // What each phase is CALLED. Sound is her primary channel, and 月亮圆缺 was
+    // the one quiz in her world that never restated its own answer — every
+    // sibling says "对！是兔！" / "找到了！是四筒！" / "西瓜是夏天的" while the
+    // moon game said only "月亮就是这样慢慢变圆的", so the game ABOUT phases
+    // never once named a phase. This table is the single owner (spoken line +
+    // the chip's aria, which was a bare "月相" on all three). Same shape as
+    // SPOT_NAMES; hl-content.test.js fails if a phase has no name.
+    MOON_NAMES: {
+      "🌑": "新月", "🌒": "蛾眉月", "🌓": "上弦月", "🌔": "盈凸月", "🌕": "满月",
+    },
     // Breathing (深呼吸) spoken pacing lines.
     BREATHE: { in: "吸气……", out: "呼气……", done: "真舒服。心静自然凉。" },
+    // Chinese numerals, so a spoken ordinal is a WORD and not a digit glyph:
+    // 描福字 used to say the bare "1".."7" it prints in the dot, which is the
+    // digit-shaped cousin of speaking a picture.
+    CN_NUM: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"],
     // 福-tracing dot path (stroke-order-ish flow over a watermark 福).
     FU_PATH: [
       { x: 22, y: 18 }, { x: 20, y: 52 }, { x: 24, y: 86 },

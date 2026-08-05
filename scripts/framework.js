@@ -105,7 +105,20 @@
     // speaking over the new screen (isConnected guards never fire — the DOM
     // stays attached). Gate ALL framework speech/cues on the screen being
     // visible, and give games api.later() — timers that die on hide/restart.
-    const sayLive = (t) => { if (!screen.hidden) A.say(t, sayOpts); };
+    //
+    // ONE predicate for "this game is the screen the player is actually looking
+    // at". It used to live only inside sayLive and be re-typed inline at the
+    // three audio cues — and the two lines that were NEVER given it (FX.confetti
+    // and FX.stars, sitting BETWEEN two that were) is how a celebration ended up
+    // raining over the launcher: four games defer their win behind a raw timer,
+    // so tapping the last answer and pressing 🏠 inside the delay threw the party
+    // on the home screen. A deferred effect needs one predicate and one owner,
+    // or the guarded and unguarded paths drift apart.
+    const live = () => !screen.hidden;
+    const sayLive = (t) => { if (live()) A.say(t, sayOpts); };
+    // Every visual/audio celebration goes through here, so a game that defers its
+    // own round-advance behind a timer cannot land the party on another screen.
+    const cue = (fn) => { try { if (live()) fn(); } catch (e) { /* ignore */ } };
     function speak() { sayLive(currentPrompt); }
     const timers = new Set();
     function clearTimers() { for (const id of timers) clearTimeout(id); timers.clear(); }
@@ -168,8 +181,8 @@
       },
       // A correct round in a multi-round game (celebrate, keep going).
       roundWin(opts) {
-        FX.confetti({ colors: C.CONFETTI_COLORS, count: 70 });
-        try { if (A.goodCue && !screen.hidden) A.goodCue(); } catch (e) { /* ignore */ }
+        cue(() => FX.confetti({ colors: C.CONFETTI_COLORS, count: 70 }));
+        cue(() => A.goodCue && A.goodCue());
         reactMascot("cheer");
         // Extend the clean streak only if this round had no miss; a stumbled round
         // resets it. (Observable via screen.dataset.streak so it can be tested.)
@@ -187,10 +200,12 @@
         if (screen.dataset.won === "1") return;
         screen.dataset.won = "1";
         screen.classList.add("is-won");
-        FX.confetti({ colors: C.CONFETTI_COLORS });
-        try { if (A.winCue && !screen.hidden) A.winCue(); } catch (e) { /* ignore */ } // the "you did it!" jingle
+        // The win itself is EARNED and still recorded below even if the player
+        // has walked away mid-celebration — only the party is withheld.
+        cue(() => FX.confetti({ colors: C.CONFETTI_COLORS }));
+        cue(() => A.winCue && A.winCue()); // the "you did it!" jingle
         reactMascot("cheer");
-        if (FX.stars) FX.stars();
+        cue(() => FX.stars && FX.stars());
         sayLive((opts && opts.say) || randItem((zh ? HL.PRAISE : C.PRAISE_SPOKEN) || ["Yay"]));
         againBtn.hidden = false;
         // MEASURED 2026-07: on a short screen the just-revealed Again button can
@@ -236,7 +251,7 @@
           void node.offsetWidth;
           node.classList.add("bump");
         }
-        try { if (A.bumpCue && !screen.hidden) A.bumpCue(); } catch (e) { /* ignore */ } // soft, non-punishing
+        cue(() => A.bumpCue && A.bumpCue()); // soft, non-punishing
         reactMascot("wiggle");
         missedSinceWin = true; // this round is no longer a clean win → breaks the ramp streak
         sayLive(randItem((zh ? HL.TRYAGAIN : C.TRYAGAIN_SPOKEN) || ["Try again"]));

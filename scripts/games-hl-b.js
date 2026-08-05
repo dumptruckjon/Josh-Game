@@ -705,10 +705,14 @@
         if (n >= BREATHS) return;
         n += 1;
         lotus.classList.add("breathe--big");
-        setTimeout(() => lotus.classList.remove("breathe--big"), 1600);
+        // api.later, not a raw setTimeout: route() only HIDES a screen, so the
+        // `lotus.isConnected && n <= BREATHS` guard this used to carry could
+        // never be false — both halves are always true. api.later's timers die
+        // on hide and on Again, which is what the guard was reaching for.
+        api.later(() => lotus.classList.remove("breathe--big"), 1600);
         label.textContent = HL.BREATHE.in + " " + HL.BREATHE.out + "（" + n + "）";
         api.say(HL.BREATHE.in);
-        setTimeout(() => { if (lotus.isConnected && n <= BREATHS) api.say(HL.BREATHE.out); }, 1700);
+        api.later(() => api.say(HL.BREATHE.out), 1700);
         if (n >= BREATHS) {
           delete lotus.dataset.correct;
           api.win({ say: HL.BREATHE.done });
@@ -771,13 +775,16 @@
         r.choices.forEach((ch) => {
           const b = api.el("button", {
             class: "choice hl-moonchip tap", type: "button",
-            dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "月相" },
+            dataset: ch.correct ? { correct: "1" } : {},
+            aria: { label: HL.MOON_NAMES[ch.value] || "月相" },
           }, [ch.value]);
           b.addEventListener("click", () => {
             if (!ch.correct) { api.tryAgain(b); return; }
             const blank = row.querySelector(".hl-runtile--blank");
             if (blank) { blank.textContent = r.answer; blank.classList.remove("hl-runtile--blank"); blank.classList.add("pop"); }
-            api.say("对啦！月亮就是这样慢慢变圆的。");
+            // NAME the phase — the whole point of the game, and the one quiz in
+            // her world that never restated its own answer.
+            api.say("对啦！缺的是" + (HL.MOON_NAMES[r.answer] || "这个") + "。月亮就是这样慢慢变圆的。");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "月有阴晴圆缺，您全知道！" });
             else { api.roundWin(); newRound(); }
@@ -809,7 +816,8 @@
           if (i !== step) { api.tryAgain(d); return; }
           d.dataset.done = "1"; delete d.dataset.correct;
           d.classList.add("hl-fudot--done");
-          api.say(String(i + 1));
+          // Speak the ORDINAL, not the digit: "第三笔", never a bare "3".
+          api.say("第" + (HL.CN_NUM[i] || String(i + 1)) + "笔");
           step += 1;
           if (step < dots.length) dots[step].dataset.correct = "1";
           else {

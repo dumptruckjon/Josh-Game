@@ -1029,7 +1029,22 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
   // RULE 7 source-locks for the 27-defect app-wide audit (behavioral tests live
   // in e2e/td/offline suites; these keep the load-bearing lines from vanishing).
   const fw = read("scripts/framework.js");
-  assert.match(fw, /const sayLive = \(t\) => \{ if \(!screen\.hidden\)/, "framework speech is gated on screen visibility");
+  assert.match(fw, /const live = \(\) => !screen\.hidden;/, "there is ONE 'is this game on screen' predicate");
+  assert.match(fw, /const sayLive = \(t\) => \{ if \(live\(\)\)/, "framework speech is gated on screen visibility");
+  // MEASURED 2026-08: winCue/goodCue/bumpCue and every spoken line were gated,
+  // and the two lines BETWEEN them — FX.confetti() and FX.stars() — were not, so
+  // a game that defers its win behind a raw timer rained confetti over the
+  // launcher (proven on color-number / drive-home / how-tall / sink-float). Every
+  // celebration now goes through the same `cue()`; a bare call is the regression.
+  assert.match(fw, /const cue = \(fn\) => \{ try \{ if \(live\(\)\) fn\(\); \}/, "one owner for every celebration cue");
+  for (const line of fw.split("\n")) {
+    if (line.trim().startsWith("//")) continue;
+    if (!/FX\.(confetti|stars)\s*\(/.test(line)) continue;
+    assert.match(line, /cue\(/, `framework fires a celebration outside cue(): ${line.trim()}`);
+  }
+  for (const c of ["winCue", "goodCue", "bumpCue"]) {
+    assert.match(fw, new RegExp(`cue\\(\\(\\) => A\\.${c} && A\\.${c}\\(\\)\\)`), `${c} goes through cue()`);
+  }
   assert.match(fw, /later\(fn, ms\)/, "api.later exists (auto-cleared timers)");
   assert.match(fw, /screen\.__onHide = \(\) => \{ clearTimers\(\); \}/, "screens clear their timers on hide");
   const mainjs = read("scripts/main.js");

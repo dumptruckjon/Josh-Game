@@ -882,6 +882,70 @@ test("toddler chaos guardrail: hammer double-taps can't double-celebrate, soft-l
   }
 });
 
+test("a celebration never fires on a screen the player has already left", async () => {
+  // MEASURED 2026-08. framework.js gated winCue/goodCue/bumpCue and every spoken
+  // line on `!screen.hidden` — and left the two lines BETWEEN them, FX.confetti()
+  // and FX.stars(), ungated. Four games defer their win behind a raw setTimeout
+  // (300-650ms) whose `isConnected` guard can never be false, because route()
+  // only HIDES a screen. So: tap the last answer, press 🏠 inside the delay, and
+  // full-screen confetti + stars rain over the launcher. All four leaked; the
+  // fix is ONE `live()` predicate that every cue goes through.
+  //
+  // Two earlier versions of this measurement found NOTHING, both for fixture
+  // reasons worth remembering: one navigated home only after dataset.won had
+  // flipped (after the deferred win had fired), and one guessed at "the last
+  // tap" with a heuristic that fires in round 1 of a 4-round game. Don't guess —
+  // leave after EVERY tap, wait out the longest deferral, and come back.
+  const DEFERRED_WIN = ["color-number", "drive-home", "how-tall", "sink-float"];
+  for (const id of DEFERRED_WIN) {
+    await openGame(id);
+    await page.evaluate(() => {
+      const FX = window.JoshEffects;
+      window.__LEAK = [];
+      if (FX.__wrapped) return;
+      FX.__wrapped = true;
+      for (const name of ["confetti", "stars"]) {
+        const real = FX[name];
+        if (!real) continue;
+        FX[name] = function (...a) {
+          const vis = Array.from(document.querySelectorAll(".screen")).filter((s) => !s.hidden)
+            .map((s) => s.id).join("+") || "(none)";
+          window.__LEAK.push(name + " on " + vis);
+          return real.apply(this, a);
+        };
+      }
+    });
+    const leaks = [];
+    let won = false;
+    for (let i = 0; i < 90 && !won; i++) {
+      // Tap and leave in ONE evaluate — a round trip would eat most of a 300ms
+      // deferral and the window under test would close before we got there.
+      const acted = await page.evaluate((g) => {
+        const el = document.querySelector("#screen-" + g);
+        if (!el || el.dataset.won === "1") return "won";
+        const t = el.querySelector('[data-correct="1"]') || el.querySelector("[data-toy]");
+        if (!t) return "none";
+        window.__LEAK = [];
+        t.click();
+        location.hash = "#home";
+        return "tapped";
+      }, id);
+      if (acted === "won") break;
+      if (acted === "none") { await page.waitForTimeout(30); continue; }
+      await page.waitForTimeout(750); // outlasts the longest deferral (650ms)
+      for (const s of await page.evaluate((g) =>
+        (window.__LEAK || []).filter((x) => x.indexOf("screen-" + g) === -1), id)) {
+        if (leaks.indexOf(s) === -1) leaks.push(s);
+      }
+      await page.evaluate((g) => { location.hash = "#" + g; }, id);
+      await page.waitForTimeout(60);
+      won = await page.evaluate((g) => document.querySelector("#screen-" + g).dataset.won === "1", id);
+    }
+    assert.ok(won, `"${id}" must still finish when the player keeps stepping out`);
+    assert.deepEqual(leaks, [], `"${id}" celebrated on a screen the player had left: ${leaks.join(", ")}`);
+  }
+});
+
 // ================= 华丽的世界 (grandma's world) =================
 
 test("华丽 entry: her world opens directly from the front door — no gate, greeted by name", async () => {
@@ -944,6 +1008,48 @@ test("华丽 game screens speak her language: zh chrome + Again label", async ()
   assert.ok(await screen.evaluate((el) => el.classList.contains("game--hl")), "her screens carry the hl theme class");
   const again = await screen.locator(".game__again").evaluate((el) => el.textContent);
   assert.ok(again.includes("再来"), "the Again button reads 再来");
+});
+
+test("华丽: a quiz SAYS its own answer, and an ordinal is a word not a digit", async () => {
+  // BEHAVIOURAL PASS 2026-08 — the tap-harness proves a game is winnable, never
+  // that its instruction makes sense, so all 40 of her games were driven with
+  // JoshAudio.say captured and every line READ. Two games were speaking less
+  // than they should: 月亮圆缺 was the one quiz that never restated its answer
+  // (its siblings all say "对！是兔！" / "西瓜是夏天的"), so the game about
+  // moon phases never once named a phase; and 描福字 spoke the bare numeral it
+  // prints in the dot — the digit-shaped cousin of speaking a picture.
+  const said = async (id, taps) => {
+    await openGame(id);
+    await page.evaluate(() => {
+      const A = window.JoshAudio;
+      if (!A.__cap) { A.__cap = A.say.bind(A); }
+      window.__SAID = [];
+      A.say = (t, o) => { window.__SAID.push(String(t)); return A.__cap(t, o); };
+    });
+    const screen = page.locator(`#screen-${id}`);
+    for (let i = 0; i < taps; i++) {
+      const ok = await page.evaluate((g) => {
+        const t = document.querySelector("#screen-" + g + ' [data-correct="1"]');
+        if (!t) return false;
+        t.click(); return true;
+      }, id);
+      if (!ok) break;
+      await page.waitForTimeout(60);
+    }
+    await screen.waitFor({ state: "visible" });
+    return page.evaluate(() => window.__SAID.slice());
+  };
+
+  const NAMES = ["新月", "蛾眉月", "上弦月", "盈凸月", "满月"];
+  const moon = await said("hl-moon", 1);
+  assert.ok(moon.some((s) => NAMES.some((n) => s.includes(n))),
+    `月亮圆缺 must NAME the phase it just filled in; heard: ${JSON.stringify(moon)}`);
+
+  const fu = await said("hl-fu-trace", 2);
+  assert.ok(fu.some((s) => /^第[一二三四五六七八九十]笔$/.test(s)),
+    `描福字 must speak "第一笔", not a bare digit; heard: ${JSON.stringify(fu)}`);
+  assert.ok(!fu.some((s) => /^\d+$/.test(s)),
+    `描福字 must never speak a bare numeral; heard: ${JSON.stringify(fu)}`);
 });
 
 test("华丽 sticker book: one slot per hl game, filled by the wins, meter at 40", async () => {

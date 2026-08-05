@@ -265,6 +265,32 @@ test("MOON is the waxing sequence new → full", () => {
   assert.deepEqual(HL.MOON, ["🌑", "🌒", "🌓", "🌔", "🌕"]);
 });
 
+test("MOON_NAMES names every phase, so the moon game can SAY its own answer", () => {
+  // BEHAVIOURAL PASS 2026-08: driving all 40 of her games and reading every
+  // spoken line found 月亮圆缺 was the ONE quiz that never restated its answer
+  // — its sibling games all say "对！是兔！" / "找到了！是四筒！" — so the game
+  // about moon phases never once named a phase, on the channel she actually
+  // uses. Generic on purpose (the SPOT_NAMES pattern): add a phase without
+  // naming it and this fails.
+  const TRUTH = { "🌑": "新月", "🌒": "蛾眉月", "🌓": "上弦月", "🌔": "盈凸月", "🌕": "满月" };
+  for (const m of HL.MOON) {
+    const n = HL.MOON_NAMES[m];
+    assert.ok(n && isCJK(n), `MOON phase ${m} has no Chinese name in MOON_NAMES`);
+    assert.equal(n, TRUTH[m], `${m} is ${TRUTH[m]}`);
+  }
+  assert.equal(new Set(Object.values(HL.MOON_NAMES)).size, HL.MOON.length,
+    "two phases sharing a name would make the spoken answer ambiguous");
+});
+
+test("CN_NUM: a spoken ordinal is a WORD, not a digit", () => {
+  // 描福字 used to say the bare "1".."7" printed in each dot — the digit-shaped
+  // cousin of speaking a picture. It reads them off this table now, so it must
+  // cover every stroke in FU_PATH.
+  assert.deepEqual(HL.CN_NUM, ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]);
+  assert.ok(HL.CN_NUM.length >= HL.FU_PATH.length,
+    "every 福 stroke needs a Chinese ordinal to be spoken by");
+});
+
 test("ECHO_INSTRUMENTS: three distinct Chinese percussion voices", () => {
   assert.equal(HL.ECHO_INSTRUMENTS.length, 3, "the echo game's drums array maps 1:1 to makeBeat's 3 voices");
   const names = HL.ECHO_INSTRUMENTS.map((i) => i.name);
