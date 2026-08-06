@@ -1207,6 +1207,61 @@ test("guardrail: every ability names itself on its button and in the guide", () 
   assert.match(tdl, /function abilityWouldDo\(/, "a no-op use is detected BEFORE gold or cooldown is spent");
 });
 
+// The same defect one layer down, and this one was a TRAP rather than a gap.
+// MEASURED 2026-08: the branch buttons showed a name and a price, the guide
+// covered lines and powers but not branches, and the only number anywhere was
+// the panel's `dps` — which points the WRONG WAY here. Sniper Scope reads 47.3
+// dps against the tier-3 dart's 34.3, yet converting every dart to Sniper loses
+// L22/L26/L31 outright and 5 of 9 boss finales, because 85 damage a shot is
+// overkill against 30 of the 42 non-boss bodies (median hp 34) and its real
+// kill rate is a third of the tier-3's. The numbers are NOT the bug — Sniper is
+// the anti-tough option and genuinely wins L12/L16 — the silence was.
+test("guardrail: every tier-4 branch states its ROLE where it is chosen and in the guide", () => {
+  const data = require("../scripts/td-data.js");
+  let branches = 0;
+  for (const [line, T] of Object.entries(data.TOWERS)) {
+    for (const [key, b] of Object.entries(T.branches || {})) {
+      branches += 1;
+      assert.ok(b.name, `${line}.${key} needs a name`);
+      assert.ok(b.role && b.role.length >= 12,
+        `${line}.${key} (${b.name}) needs a role line — a 300-gold choice with no explanation is a trap`);
+      // The overkill law, derived rather than asserted about one branch: if a
+      // SINGLE-TARGET shot lands more damage than MOST non-boss bodies have hp,
+      // the role must say so, because paper dps tells the player the opposite.
+      // Splash is deliberately exempt and this is not a get-out — the first cut
+      // of this law flagged Big Bertha (105 dmg, 34/42 bodies) and that would
+      // have been a FALSE warning: a shell applies its damage to every body in
+      // the radius, so a big number lands on a clump rather than being thrown
+      // away on one. Only a single-target branch can overkill.
+      if (b.dmg && !b.splash) {
+        const smaller = Object.values(data.ENEMIES).filter((e) => !e.boss && e.hp < b.dmg).length;
+        const total = Object.values(data.ENEMIES).filter((e) => !e.boss).length;
+        if (smaller / total > 0.6) {
+          assert.match(b.role, /wasted|overkill|small bodies/i,
+            `${b.name} one-shots ${smaller}/${total} non-boss bodies, so its role must warn about the waste`);
+        }
+      }
+    }
+  }
+  assert.ok(branches >= 8, `expected the shipped branch set, saw ${branches}`);
+  const tdm = read("scripts/td-main.js");
+  assert.match(tdm, /td-branch__role">' \+ def\.branches\[k\]\.role/, "the branch BUTTON has a role renderer");
+  // …and it must be USED. The first cut only checked that the helper existed,
+  // so deleting `+ role("a")` from the button left the test green — the same
+  // "asserts the artefact, not the live path" trap the loadout guardrail hit.
+  for (const k of ["a", "b"]) {
+    assert.ok(tdm.includes('role("' + k + '")'), `the ${k} branch button actually renders its role`);
+  }
+  assert.match(tdm, /def\.branches\.a\.name \+ " — " \+ def\.branches\.a\.role/, "…and so does its aria-label");
+  const tdu = read("scripts/td-ui.js");
+  assert.match(tdu, /const branchRow = \(k\) => Object\.keys\(T\[k\]\.branches/,
+    "the guide DERIVES its branch rows from the data, so a ninth branch documents itself");
+  assert.match(tdu, /\+ branchRow\(k\)\)\.join\(""\)/, "…and the tower list actually renders them");
+  const css = read("styles/td.css");
+  assert.match(css, /\.td-branch__role \{[^}]*margin-top/,
+    "the role line is spaced with a child margin, never flex gap (Safari 14.0 drops it)");
+});
+
 // 🧸 Kid Fort was RETIRED (owner, 2026-08) — it was never used. It is removed
 // WHOLE rather than just unhooked: a difficulty nothing can select is the
 // dead-feature class this project has already paid for twice (heroic shipped

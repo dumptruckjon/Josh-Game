@@ -1005,7 +1005,7 @@ tooling.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
 ├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; **P6b** shipped 🦆 `zapResist`, **P6c** shipped ⛱️ `zones[].dmg`, and **P6d closes the I5 new-enemy item**: of its three bodies, 🪂 Parachute Trooper was cut by the critique (the Tin Plane renamed), 🥫 Pantry Can was cut by MEASUREMENT (a shield is anti-Fan only — see the learnings block), and 🛢️ **Oil Drum shipped** on a positional axis instead of a resist. The spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`); note that its critique was itself wrong about the shield arithmetic, so treat both as claims to measure. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
 ├── PLAN_ENEMY_ESCORT.md        # 🌫️ BUILT then CUT: the decision-axis probe. Phase 1 shipped the decision-aware oracle (`tools/td-sim.js --priority`) and it killed the enemy before it was built — targeting priority measures ZERO even free, even on the Junk Healer, so 🌫️ Dust Bunny is not built. §6 is the report; §§2-4 are the refuted design, not a backlog.
-├── PLAN_WORLD_9.md             # 🏭 DESIGNED, NOT BUILT: World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
+├── PLAN_WORLD_9.md             # 🏭 ✅ BUILT (this line said "DESIGNED, NOT BUILT" for a release AFTER the world shipped — the "a list that outlives its contents" class, caught 2026-08 by reading DATA.LEVELS instead of the doc): World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
 ```
@@ -4019,6 +4019,53 @@ a false-positive machine, not a defect list. 脸谱找对 keeps its six identica
 the exception only because its row is `aria-hidden`, so naming the chips spoils
 nothing and the spoken answer is pure instruction.
 
+**Going after the flat levels found a TRAP instead — the fourth lying stat line,
+and this one actively loses you the game.** The starting point was a measurement:
+across 8 seeds on normal, **12 of 36 levels finish 20/20 on every seed** (L1, L2,
+L7, L19, L22, L23, L25, L26, L27, L30, L31, L35), and every level that costs real
+lives has a boss. (1) **The additive, budget-exempt mini-boss is a NEGATIVE
+result — it is a disguised constant.** Keeping the wave and ADDING one fat body
+with a multi-life toll avoids the concentration trap that killed the swap
+version, and it does move the number: on L26 it goes 20 → 17 between 2400 and
+3000 hp. But the **spread across 8 seeds is 0 at every hp** — all seeds agree
+exactly — and it stays 0 when the body is given the Static's random-gun `disable`
+kit, a backbone `spawn` kit, both, or is split into three bodies at toll 1. A
+threat with no seed coupling sets a price, it does not create tension, so the
+level would be identical with three fewer starting lives. The shipped bosses that
+DO grade (L8 `11,10,11,11,18,11,18,10`, L16, L36) get their variance from kits
+big enough to change the board, not from being fat. Do not rebuild this.
+(2) **What the experiment found instead: converting every Dart to Sniper Scope
+LOSES the level.** L22, L26 and L31 all go from a comfortable win to a total loss
+at 12-13 conversions (L31 at 8), and 5 of 9 boss finales go with them — L28, L32
+and L24 to outright losses, L20 8→1, L36 7→1 — while all-Minigun is never worse
+than baseline anywhere and is sometimes far better (L36 7→14, L20 8→12). The
+cause is **overkill**: Sniper lands 85 a shot every 2.2s, but **30 of the 42
+non-boss bodies have less hp than that** (median 34, L26's housekeys 16), so its
+real kill rate is 0.45/s against the tier-3 dart's 1.43/s — a 3.2× loss, exactly
+inverted from the 47.3-vs-34.3 `dps` the tower panel advertises. The shipped "no
+tier-4 DPS downgrade" guardrail passes because it measures paper DPS. **The
+numbers are not the bug** — Sniper is the anti-tough option and genuinely wins
+L12 (4,2,4,2 → 12,10,12,10) and L16 (3,4,4,4 → 20,20,20,20) — the SILENCE was:
+the button showed a name and a price, the guide covered lines and powers and
+never mentioned branches, and the only number pointed the wrong way. Every branch
+now states its ROLE where it is chosen and in the guide (derived from the data,
+so a ninth branch documents itself), with a derived overkill law: a
+single-target branch that one-shots >60% of the roster must say it is wasted on
+small bodies. Re-tuning the damage was deliberately NOT done — that re-tunes 36
+levels, which the threshold-domination findings say the data will not support.
+Three method lessons: **an "observation arm" must be a strict SUPERSET of the
+shipped oracle or it measures nothing** — the first cut bought a 260-gold branch
+whenever it could not afford a 70-gold tower, starving placement, and the
+"stronger" build lost 17 lives on a level the oracle clears at 20/20, which
+looked exactly like a finding; **a splash branch is exempt from the overkill law
+on physics, not by name** — the law's first cut flagged Big Bertha (105 dmg,
+34/42 bodies) and that would have been a FALSE warning, because a shell applies
+its damage to every body in the radius; and **a mutation that does not mutate
+proves nothing** — two of five mutation checks "passed" because the search string
+used a real em-dash while the file carried the JS escape `—` from a python
+heredoc, so the replace silently no-opped. Check the byte count changed before
+believing a mutation result.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
@@ -4179,6 +4226,10 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   (an hp-preserving swap); bigger HP piles, backbone stat shape, gold, budget
 >   base, lane length and side-door dose are each measured NOT to work. That is a
 >   deliberate content pass to commission, not a defect to fix on sight.
+> - **The additive mini-boss**: CLOSED, measured, do not rebuild. Spread 0 across
+>   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
+>   constant (see the learnings block for the numbers). The 12 flat-20 levels
+>   remain flat, and that is now a THREAT-SHAPE question only.
 > - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The
 >   resist matrix is full (one reduction per damage family) and the last three
 >   resist shapes each measured at ~zero lives, so the next enemy has to change a

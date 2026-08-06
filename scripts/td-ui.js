@@ -385,9 +385,21 @@
         '<p class="td-guide__reach">Can be hit by: ' + reach + "</p>" +
         "<ul class=\"td-guide__traits\">" + traits + "</ul></div>";
     };
+    // Each line names its role, and — MEASURED 2026-08 — so does each of its two
+    // tier-4 BRANCHES, which had no explanation anywhere in the app. That was a
+    // real trap rather than a gap: the panel advertises Sniper Scope at 47.3 dps
+    // against the tier-3 dart's 34.3, and converting every dart to Sniper loses
+    // L22/L26/L31 outright plus 5 of 9 boss finales, because 85 damage a shot is
+    // overkill against 30 of the 42 non-boss bodies. DERIVED from the data, so a
+    // ninth branch documents itself (guardrail-locked).
+    const branchRow = (k) => Object.keys(T[k].branches || {}).map((bk) => {
+      const b = T[k].branches[bk];
+      return '<li class="td-guide__branch"><span class="td-guide__tico">✦</span><b>' + b.name + "</b> — " + b.role +
+        " <i>(" + b.cost + "🪙)</i></li>";
+    }).join("");
     const towerRow = Object.keys(T).map((k) =>
       '<li><span class="td-guide__tico">' + (LINE[k] || "•") + "</span><b>" + T[k].name + "</b> — " + (T[k].role || "") +
-      (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") + "</li>").join("");
+      (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") + "</li>" + branchRow(k)).join("");
     // Abilities were explained NOWHERE — the button showed only an icon and a
     // price. They belong in the guide beside the towers.
     // Which powers are PACKED — read through the one owner in td-main (the same

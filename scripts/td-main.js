@@ -1018,9 +1018,23 @@
         } else if (t.tier === 3) {
           const ca = cur.engine.priceOf("branch", { towerId: t.id, choice: "a" });
           const cb = cur.engine.priceOf("branch", { towerId: t.id, choice: "b" });
+          // MEASURED 2026-08: the branch buttons used to show a name and a price
+          // and nothing else, while the panel's `dps` line actively MISLEADS
+          // here — Sniper Scope reads 47.3 dps against the tier-3 dart's 34.3,
+          // yet converting every dart to Sniper LOSES L22/L26/L31 outright and
+          // 5 of 9 boss finales, because 85 damage a shot is overkill against 30
+          // of the 42 non-boss bodies (median hp 34) and its real kill rate is a
+          // third of the tier-3's. Paper DPS is the wrong statistic and the
+          // player had no other. Each branch now states its ROLE at the moment
+          // of choosing, the way the build menu already does for the four lines.
+          const role = (k) => '<span class="td-branch__role">' + def.branches[k].role + "</span>";
           middle =
-            '<button class="td-branch" data-b="a" data-cost="' + ca + '" type="button">' + def.branches.a.name + " " + ca + "🪙</button>" +
-            '<button class="td-branch" data-b="b" data-cost="' + cb + '" type="button">' + def.branches.b.name + " " + cb + "🪙</button>";
+            '<button class="td-branch" data-b="a" data-cost="' + ca + '" type="button" aria-label="' +
+              def.branches.a.name + " — " + def.branches.a.role + ", " + ca + ' gold">' +
+              def.branches.a.name + " " + ca + "🪙" + role("a") + "</button>" +
+            '<button class="td-branch" data-b="b" data-cost="' + cb + '" type="button" aria-label="' +
+              def.branches.b.name + " — " + def.branches.b.role + ", " + cb + ' gold">' +
+              def.branches.b.name + " " + cb + "🪙" + role("b") + "</button>";
         }
         const control = t.lineId === "camp"
           ? '<button class="td-rally" type="button">🚩 Rally</button>'

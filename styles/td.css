@@ -233,7 +233,21 @@ body.td-mode #screens { padding: 0; }
 .td-buy, .td-up { background: #ffd94a; color: #3a2c00; }
 .td-sell { background: #26334f; color: #cfe2ff; }
 .td-target { background: #2fa562; color: #08331c; }
-.td-branch { background: #7a5cd6; color: #f2edff; font-size: 0.88rem; max-width: 40vw; }
+/* A branch button now stacks NAME+price over its ROLE, the way .td-buy stacks
+   icon · role · price for the four lines. The role is what makes the choice
+   informed: the panel's dps line reads Sniper 47.3 vs the tier-3 dart's 34.3,
+   but 85 damage a shot is overkill against 30 of 42 non-boss bodies, so paper
+   dps points the wrong way. Child margin, never flex `gap` — Safari 14.0 drops
+   gap in flex and the two lines would collapse together on Josh's iPad. */
+.td-branch {
+  background: #7a5cd6; color: #f2edff; font-size: 0.88rem; max-width: 40vw;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1.12; white-space: normal;
+}
+.td-branch__role {
+  display: block; margin-top: 3px;
+  font-size: 0.74rem; font-weight: 600; opacity: 0.92;
+}
 .td-rally { background: #e2626b; color: #fff1f1; }
 /* Build-menu buttons stack icon · ROLE · price so a player knows the job. */
 .td-buy {
