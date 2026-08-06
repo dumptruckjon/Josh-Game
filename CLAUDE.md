@@ -4188,6 +4188,20 @@ while green on 7 — the chosen set is the one that catches BOTH. A full 8-seed
 sweep of all 36 levels was run FIRST and passes, so it is a strengthening rather
 than a newly-blocked build; it costs ~2 min on a ~25 min gate.
 
+**A level that costs the SAME on every seed is as untense as one that costs
+nothing — the flat-20 metric was hiding half the problem.** Re-baselining after
+the threat-shape doses, `L21 Boxes by the Door` reads **19 on all 8 seeds**:
+spread 0, exactly one life every time. That is the identical shape the additive
+mini-boss turned out to be (a disguised constant), just at a different offset —
+the player's build cannot change the outcome, so the level asks nothing, and no
+"flat 20/20" search would ever look at it. The right metric for "does this level
+ask a question" is SPREAD across seeds, not the median: by that measure the soft
+set is larger than the twelve levels the first pass targeted (L34 moves on 1 of
+8 seeds and only by a life; L33 on 2). Recorded rather than acted on in the same
+breath, because widening the target set is a measurement job for
+`tools/td-threat.js`, not an assumption — but the next author should search on
+spread.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
