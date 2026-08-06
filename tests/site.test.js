@@ -1216,6 +1216,56 @@ test("guardrail: every ability names itself on its button and in the guide", () 
 // overkill against 30 of the 42 non-boss bodies (median hp 34) and its real
 // kill rate is a third of the tier-3's. The numbers are NOT the bug — Sniper is
 // the anti-tough option and genuinely wins L12/L16 — the silence was.
+test("guardrail: a fort control that SPENDS a resource shows the price on its face", () => {
+  // Reported from real play: "buying extra gear doesn't specify cost". The ⚙️
+  // Toy Energy exchange rendered as "⚙️ 0" with the gold price only in `title`
+  // and `aria-label` — and a title is a HOVER affordance, which a touch device
+  // does not have. So on the actual phone it was a buy button that never said
+  // what it cost. That is the THIRD instance of this class (TD-12's abilities
+  // lived only in an aria-label; then ⚙️ itself shipped unnamed), which is why
+  // it is a guardrail and not just a fix.
+  const ui = read("scripts/td-ui.js");
+  assert.ok(/class="td-hud__chargeBuy"/.test(ui),
+    "the ⚙️ exchange must have a visible price element, not just a title");
+  assert.ok(/buyEl\.textContent\s*=\s*priceable\s*\?\s*price\s*\+\s*"🪙"/.test(ui),
+    "…and it must be filled with the LIVE price from the engine");
+  // The count and the price are separate nodes: a whole-node textContent write
+  // is what forced the price into the title in the first place, because it
+  // erased any child added beside the number.
+  assert.ok(/querySelector\("\.td-hud__chargeN"\)/.test(ui),
+    "the ⚙️ COUNT must be written into its own span, or the price node is erased every frame");
+  const css = read("styles/td.css");
+  assert.ok(/\.td-hud__chargeBuy\s*\{/.test(css), "the price line needs its own style");
+});
+
+test("guardrail: the fort's rapid-tap controls carry BOTH double-tap-zoom defences", () => {
+  // Reported from real play: a double-tap on CALL / RUSH and on the ⚙️ buy
+  // button zooms the page. `touch-action: manipulation` is declared page-wide,
+  // on `.td-screen`, on each control and (now) on their containers — and it
+  // intersects down the ancestor chain, so on paper the gesture is already
+  // dead. It is a DEVICE-ONLY bug: WebKit is not installed in the dev sandbox,
+  // so Chromium can neither prove nor disprove the iOS behaviour. When a layer
+  // cannot be verified, it needs a second one working by a different mechanism.
+  const css = read("styles/td.css");
+  assert.ok(/\.td-controls,\s*\.td-hud,\s*\.td-abils,\s*\.td-bar\s*\{[^}]*touch-action:\s*manipulation/.test(css),
+    "the fort's control CONTAINERS must declare touch-action too — the gaps between buttons are where a fumbled second tap lands");
+  const ui = read("scripts/td-ui.js");
+  assert.ok(/UI\.noDoubleTapZoom\s*=\s*function/.test(ui), "the touchend guard must exist");
+  // It is worthless without { passive: false } — preventDefault is ignored in a
+  // passive listener, which fails SILENTLY and would leave a guard that looks
+  // present and does nothing.
+  assert.ok(/addEventListener\("touchend",[\s\S]{0,400}?\{\s*passive:\s*false\s*\}/.test(ui),
+    "the touchend guard must be non-passive, or its preventDefault is ignored");
+  // …and it must actually be applied to the controls the report named.
+  for (const sel of [".td-call", ".td-hud__charge"]) {
+    assert.ok(new RegExp("noDoubleTapZoom[\\s\\S]{0,200}" + sel.replace(".", "\\.")).test(ui)
+      || new RegExp(sel.replace(".", "\\.") + "[\\s\\S]{0,200}noDoubleTapZoom").test(ui),
+      `${sel} must be guarded — it is one of the controls the report named`);
+  }
+  assert.ok(/UI\.noDoubleTapZoom\(b\)/.test(ui),
+    "each ability tile must be guarded as it is built — the strip is rebuilt per run");
+});
+
 test("guardrail: every tier-4 branch states its ROLE where it is chosen and in the guide", () => {
   const data = require("../scripts/td-data.js");
   let branches = 0;

@@ -2777,6 +2777,20 @@
       else if (e.type === "suck") fx.push(fxAt({ kind: "suck", sx: e.sx + 0.5, sy: e.sy + 0.5, ttl: 14, max: 14 }, e.x, e.y)); // Vacuum King inhale
       else if (e.type === "disable") fx.push(fxAt({ kind: "spark", ttl: 16, max: 16 }, e.x, e.y)); // The Static jam
       else if (e.type === "summon") fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y)); // minion pop
+      // A SOLDIER GOING DOWN HAD NO PICTURE. An audit of every emitted event
+      // against this dispatcher found nine with no visual; most are owned by
+      // some other surface (the HUD, the banner, the defeat screen), but this
+      // one was a real hole: army guys simply vanished mid-fight, and the
+      // Vacuum King's ENTIRE kit is KO-ing them, so its signature move read as
+      // nothing happening. A grey dust puff, deliberately not the gold `stars`
+      // a kill uses — losing a body must not look like scoring one.
+      else if (e.type === "soldier-down") fx.push(fxAt({ kind: "dust", ttl: 18, max: 18 }, e.x, e.y));
+      // …and SELLING drew nothing while build and upgrade both ring. The event
+      // already carried the refund, so the gold it returns floats like a bounty.
+      else if (e.type === "sell") {
+        fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y));
+        if (e.refund) fx.push(fxAt({ kind: "gold", ttl: 26, max: 26, text: "+" + e.refund }, e.x, e.y));
+      }
       // TD-9 powers had SOUND but no picture: a 130-gold Toy Box Drop damaged
       // enemies with nothing on screen to show where it landed (the "some of
       // them don't even seem to work" report). A point power now blooms at its
@@ -3017,6 +3031,20 @@
         } else if (f.kind === "ring") {
           ctx.strokeStyle = "rgba(126,220,255," + a + ")"; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(f.x * cell, f.y * cell, cell * (1.2 - a * 0.6), 0, 7); ctx.stroke();
+        } else if (f.kind === "dust") {
+          // A soldier going down: three grey puffs drifting apart and up. Grey,
+          // and NOT the gold `stars` a kill uses — losing one of your own bodies
+          // must never read like scoring one.
+          const spread = 1 - a;
+          for (let i = 0; i < 3; i++) {
+            const ang = (i / 3) * Math.PI * 2 + 0.7;
+            const dx = Math.cos(ang) * cell * 0.34 * spread;
+            const dy = Math.sin(ang) * cell * 0.22 * spread - cell * 0.3 * spread;
+            ctx.fillStyle = "rgba(176,182,196," + (0.55 * a) + ")";
+            ctx.beginPath();
+            ctx.arc(f.x * cell + dx, f.y * cell + dy, cell * 0.13 * (0.6 + spread), 0, 7);
+            ctx.fill();
+          }
         } else if (f.kind === "chain") {
           ctx.strokeStyle = "rgba(160,240,255," + a + ")"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
           ctx.beginPath();

@@ -151,11 +151,23 @@ body.td-mode #screens { padding: 0; }
      already 54px tall because its .td-mini siblings are, so the chip is just
      filling height the row had anyway. */
   min-height: 44px;
-  display: inline-flex; align-items: center; justify-content: center;
+  /* Two stacked lines: the count you HAVE, and the price to buy one more. A
+     column, because the bar is width-constrained and a run-on "⚙️ 3 12🪙" is
+     exactly the shape that spilled the tower panel and the next-wave line on a
+     real phone (iOS renders emoji wider than headless Chromium measures). */
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1.05;
   cursor: pointer;
   -webkit-appearance: none; appearance: none;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
+/* Child MARGIN, never flex `gap` — Safari 14.0 drops gap in flex, which is the
+   documented reason the fort's whole top bar once sat flush on the real iPad. */
+.td-hud__chargeBuy {
+  display: block; margin-top: 1px;
+  font-size: 0.66rem; font-weight: 800; opacity: 0.95;
+}
+.td-hud__chargeBuy[hidden] { display: none; }
 .td-hud__charge.is-buyable {
   background: rgba(255, 214, 80, 0.22);
   border-color: rgba(255, 214, 80, 0.7);
@@ -302,7 +314,24 @@ body.td-mode #screens { padding: 0; }
    ~150px of dead space below it), so this costs no field size at all.
    Landscape is height-limited but has wide side gutters — see the media query. */
 /* The whole off-field control block: the wave button on top, the powers under
-   it. One grid column, so CALL stretches to exactly the strip's width. */
+   it. One grid column, so CALL stretches to exactly the strip's width.
+
+   TOUCH: every control here already carries `touch-action: manipulation`, and
+   `.td-screen` carries it too — and `touch-action` INTERSECTS down the ancestor
+   chain, so in theory a tap anywhere inside is already safe. It is declared on
+   the CONTAINERS as well because a real-play report says a double-tap on CALL /
+   RUSH and on the ⚙️ buy button still zooms, and the gaps BETWEEN controls (the
+   8px grid gutters, the block's own padding) are the one surface where the
+   second tap of a fumbled double-tap can land on something that is not a
+   button. This cannot regress anything — the canvas's stricter `none` still
+   wins its own intersection — and it costs one declaration. It is only half the
+   fix: the other half is the touchend guard in td-ui.js, because this is a
+   device-only bug (WebKit is not installed in the dev sandbox) and one layer
+   that cannot be verified here is not enough. */
+.td-controls, .td-hud, .td-abils, .td-bar {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 .td-controls {
   display: grid; gap: 8px; justify-content: center; margin: 8px auto 0;
 }

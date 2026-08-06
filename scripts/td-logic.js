@@ -1282,6 +1282,28 @@
         if (sh.t >= sh.T) {
           sh.dead = true;
           emit({ type: "splash", x: sh.tx, y: sh.ty, r: sh.splash });
+          // STICKY BOMB LEAVES GOO — it says so on its own tooltip ("the goo it
+          // LEAVES slows whatever WALKS IN") and it did not. The only thing it
+          // did was slow the bodies caught in the blast at the instant of
+          // detonation, so nothing lingered, nothing could walk in, and there
+          // was nothing on the ground to draw: the branch's whole identity was a
+          // sentence. Reported from real play as "shouldn't it leave goo on the
+          // path that's visible?" — the documented "a named mechanic must BE
+          // that mechanic" class (四宫数独 was a Latin square).
+          //
+          // It routes through `state.puddles`, the ONE lingering-ground-effect
+          // path the 🍯 Sticky Floor ability and the 🛢️ Oil Drum's spill already
+          // share, so it inherits `puddleTick`'s slow application, its
+          // `isHidden` gate, its expiry, its checkpoint behaviour and — free —
+          // the renderer that already draws a puddle. No new mechanism, and the
+          // picture comes with it.
+          if (sh.goo) {
+            state.puddles.push({
+              x: sh.tx, y: sh.ty, r: sh.splash,
+              slow: sh.goo.slow,
+              until: state.tick + Math.round(sh.goo.seconds * DATA.TICK_RATE),
+            });
+          }
           for (const e of state.enemies) {
             if (!e.alive || enemyDef(e).flier || isHidden(e)) continue; // hidden (phased ghost / tunnelling mole) is untargetable, incl. by AoE
             const p = epos(e);

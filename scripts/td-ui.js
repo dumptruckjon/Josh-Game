@@ -92,8 +92,16 @@
           // HUD tick has run; UI.hud() then refines it with the live price and
           // the reason it is refused. Both matter — a control that names itself
           // only after a frame has passed is nameless exactly when it is new.
+          // …and it must show its PRICE on its face. It shipped reading "⚙️ 0"
+          // with the gold cost only in `title`/`aria-label` — and a title is a
+          // HOVER affordance, which a touch device does not have, so on the
+          // actual phone this is a buy button that never says what it costs
+          // until after you have pressed it. That is the third instance of the
+          // same class (TD-12's abilities, then ⚙️ itself being unnamed): if a
+          // control takes a resource, the number goes on the button.
           '<button type="button" class="td-hud__charge" data-adult="1" data-buycharge="1"' +
-          ' title="Toy Energy — every power costs some. You get more each wave, and can buy one more during a wave.">⚙️ 0</button>' +
+          ' title="Toy Energy — every power costs some. You get more each wave, and can buy one more during a wave.">' +
+          '<span class="td-hud__chargeN">⚙️ 0</span><span class="td-hud__chargeBuy" hidden></span></button>' +
           '<span class="td-hud__wave">wave 0/0</span>' +
         "</div>" +
         '<button class="btn-round td-mini td-speed" type="button" aria-label="Game speed">1×</button>' +
@@ -120,12 +128,44 @@
         "</button>" +
         '<div class="td-abils" role="group" aria-label="Abilities"></div>' +
       "</div>";
+    // SECOND LAYER against the double-tap zoom, reported from real play on CALL
+    // / RUSH and on the ⚙️ buy button. `touch-action: manipulation` is declared
+    // page-wide, on `.td-screen`, on every control AND (now) on their
+    // containers — and `touch-action` intersects down the ancestor chain, so on
+    // paper the gesture is already dead. It is still reaching the player, and
+    // this is a DEVICE-ONLY bug: WebKit is not installed in the dev sandbox, so
+    // Chromium cannot prove or disprove the iOS behaviour either way. When you
+    // cannot verify a layer, add a second one that works by a different
+    // mechanism.
+    //
+    // preventDefault on the SECOND `touchend` inside the double-tap window
+    // cancels the gesture at its source (it is what fastclick was built on),
+    // and it needs `{ passive: false }` or the call is ignored outright.
+    //
+    // Swallowing that tap is not a cost here, it is the POINT: these are the
+    // fort's rapid-tap controls, and a second press within 350ms is a fumble in
+    // every one of them. CALL already has `RULES.rushSettle` for exactly this
+    // reason — a doubled press must not send a wave you have not seen — and the
+    // ⚙️ exchange is capped at one purchase a wave anyway. The first tap is
+    // never touched, so nothing becomes less responsive.
+    UI.noDoubleTapZoom = function (el) {
+      if (!el || el.dataset.ndtz) return;
+      el.dataset.ndtz = "1";
+      let last = -1e9;
+      el.addEventListener("touchend", function (ev) {
+        const now = (ev && typeof ev.timeStamp === "number") ? ev.timeStamp : 0;
+        if (now - last < 350) ev.preventDefault();   // kills the zoom AND the stray click
+        last = now;
+      }, { passive: false });
+    };
+
     screens.appendChild(play);
     play.querySelector(".td-quit").addEventListener("click", hooks.quitToFort);
     play.querySelector(".td-pause").addEventListener("click", hooks.togglePause);
     play.querySelector(".td-speed").addEventListener("click", hooks.toggleSpeed);
     play.querySelector(".td-call").addEventListener("click", hooks.callWave);
     play.querySelector(".td-hud__charge").addEventListener("click", hooks.buyCharge);
+    for (const el of play.querySelectorAll(".td-call, .td-hud__charge, .td-speed, .td-pause")) UI.noDoubleTapZoom(el);
 
     // TD-9 ability bar: one button per EQUIPPED ability. A "point"/"tower"
     // ability ARMS (the next field tap resolves it); an "instant" one fires now.
@@ -170,6 +210,7 @@
           '<span class="td-abil__gear" aria-hidden="true">' + charges + "⚙️</span>" +
           '<span class="td-abil__cd" hidden></span>';
         b.addEventListener("click", (ev) => { ev.stopPropagation(); hooks.useAbility(a.id); });
+        UI.noDoubleTapZoom(b);   // the strip is rebuilt per run, so guard each new tile
         abilWrap.appendChild(b);
       }
     };
@@ -734,7 +775,12 @@
     // a resource you can't see is a resource you can't plan around.
     const charge = q(".td-hud__charge");
     if (charge) {
-      charge.textContent = "⚙️ " + (state.charge || 0);
+      // Write the COUNT into its own span. This used to be
+      // `charge.textContent = ...`, which is why the price could only ever live
+      // in the title: a whole-node write erases any child you add.
+      const nEl = charge.querySelector(".td-hud__chargeN");
+      if (nEl) nEl.textContent = "⚙️ " + (state.charge || 0);
+      else charge.textContent = "⚙️ " + (state.charge || 0);
       // NAME the resource and its price, every frame. ⚙️ shipped once as a bare
       // numeral that nothing in the app ever explained — the documented "a
       // symbol the player cannot decode is a mechanic they cannot plan around"
@@ -749,6 +795,17 @@
         full: "Toy Energy — your bank is full",
         gold: "Toy Energy — costs " + price + " gold, and you cannot afford it yet",
       }[r.reason] || ("Toy Energy — tap to buy one more for " + price + " gold");
+      // THE PRICE, ON THE BUTTON. Shown whenever a purchase is a thing that
+      // could happen — including when it is refused for GOLD, which is exactly
+      // the moment you want the number. Hidden only when there is no purchase to
+      // price at all (bank full, or already bought this wave), so the readout
+      // never shows a cost for something you cannot buy at any price.
+      const buyEl = charge.querySelector(".td-hud__chargeBuy");
+      if (buyEl) {
+        const priceable = price > 0 && (r.ok || r.reason === "gold" || r.reason === "not-in-wave");
+        buyEl.hidden = !priceable;
+        buyEl.textContent = priceable ? price + "🪙" : "";
+      }
       charge.disabled = !r.ok;
       charge.classList.toggle("is-buyable", !!r.ok);
       charge.title = why;

@@ -4551,3 +4551,32 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
     `🔧 Handyman must lower the upgrade price (plain ${out.plain.price}, discounted ${out.disc.price}) — ` +
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
 });
+
+test("the ⚙️ exchange shows its GOLD PRICE on the button, not only in a title", async () => {
+  // Reported from real play: "buying extra gear doesn't specify cost". A title
+  // is a hover affordance and this game is played on a phone, so the price has
+  // to be rendered ink. Structural checks live in site.test.js; this one drives
+  // the real HUD and READS THE BUTTON, because "the code exists" and "the
+  // player can see it" are different claims — the lesson from the powers, whose
+  // names were present in aria-labels and invisible on screen.
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+  // In-wave is when the exchange is live, so send one and let the HUD tick.
+  await page.evaluate(() => { window.__TD.script([["call"]]); });
+  await page.waitForTimeout(120);
+  const seen = await page.evaluate(() => {
+    const b = document.querySelector("#screen-td-play .td-hud__charge");
+    if (!b) return { found: false };
+    const buy = b.querySelector(".td-hud__chargeBuy");
+    return {
+      found: true,
+      text: (b.textContent || "").trim(),
+      priceShown: !!(buy && !buy.hidden && /\d/.test(buy.textContent || "")),
+      priceText: buy ? (buy.textContent || "") : "",
+    };
+  });
+  assert.ok(seen.found, "the ⚙️ exchange button must exist on the play screen");
+  assert.ok(seen.priceShown,
+    `the ⚙️ button must render its gold price as text (saw "${seen.text}") — a title is invisible on a touch device`);
+  assert.ok(/🪙/.test(seen.priceText),
+    `the price must name its currency (saw "${seen.priceText}")`);
+});
