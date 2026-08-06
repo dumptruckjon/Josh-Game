@@ -2360,6 +2360,67 @@ test("AUDIT mono builds: on HEROIC no single plan clears the campaign — you mu
   assert.ok(won(4, ["dart"]), "…and reward the dart swarm — so neither plan is universal");
 });
 
+test("AUDIT threat shape: a healer dose must still make its level cost something", () => {
+  // 12 of 36 levels finished 20/20 on EVERY seed — a third of the campaign was a
+  // formality — and `heal` was the one counter shape appearing on a single level
+  // in the whole game. It is a DPS-THRESHOLD shape rather than an HP pile, which
+  // is why it moves a flat level where gold, budget base, lane length, bigger HP
+  // and side-door dose are all measured not to. The doses cost real work to find
+  // (five were built and measured; three were rejected), so this stops a future
+  // re-tune quietly undoing them. DERIVED from the data: dose another level and
+  // it inherits the check; the level list is never written down here.
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function run(level, plan, seed) {
+    const e = TD.createEngine(level, { seed, difficulty: "normal" });
+    const padIds = level.pads.map((p) => p.id);
+    let idx = 0, guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state.phase === "won" ? e.state.lives : -1;
+  }
+  const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  const SEEDS = [1, 3, 5, 7];
+  // Levels whose LATE waves carry a mending body, excluding boss finales (which
+  // already cost lives by their own axis and are graded elsewhere).
+  const dosed = DATA.LEVELS.filter((l) => l.waves.slice(-5).some((w) =>
+    !w.boss && w.groups.some((g) => DATA.ENEMIES[g.type] && DATA.ENEMIES[g.type].heal)));
+  // The COUNT is pinned, not just the behaviour. A derived list cannot notice
+  // its own members being deleted: the first cut of this test asserted only
+  // ">= 2" and reverting L19's dose left it GREEN, because L19 simply dropped
+  // out of the list and L4 (a boss level that has always carried healers) kept
+  // the count up. If you deliberately add or remove a dose, change this number
+  // and say why in the commit — that is the point of it being here.
+  assert.deepEqual(dosed.map((l) => l.id), [4, 19, 25],
+    "the healer-bearing levels are L4 (original) plus the two measured doses; " +
+    "removing one silently un-does work that took five measured attempts to find");
+  for (const lvl of dosed) {
+    const lives = SEEDS.map((s) => Math.max(...PLANS.map((p) => run(lvl, p, s))));
+    assert.ok(!lives.some((x) => x < 0),
+      `L${lvl.id} "${lvl.name}" carries a healer dose and is now UNWINNABLE on a screened seed (${lives.join(",")})`);
+    assert.ok(lives.some((x) => x < 20),
+      `L${lvl.id} "${lvl.name}" carries a healer dose but still finishes 20/20 on every screened seed (${lives.join(",")}) — ` +
+      "the dose has stopped doing anything, which is what it was placed to fix");
+  }
+});
+
 test("AUDIT threat shape: World 2-3 late waves keep ANTI-AIR pressure (mono-build counter)", () => {
   // Backlog item 5: mortar and camp CANNOT hit fliers (only dart/fan can), so a
   // flier presence in the late game is what stops a single line from carrying
