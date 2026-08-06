@@ -4225,7 +4225,17 @@ actually survive were never tested. The gentlest dose that still moves a level
 is what you want, not the biggest, so it now confirms strongest / middle /
 weakest. L34 w10 ×3 shipped from that fix and is the strongest result of the
 set: 7 of 8 seeds move (20,19,20,20,20,20,20,20 → 17,19,17,20,20,15,19,16),
-heroic median 11 → 6 at minimum 4 with zero losses. **Before trusting a
+heroic median 11 → 6 at minimum 4 with zero losses. **A THIRD flaw in the same instrument, and the worst kind — a criterion a NO-OP
+satisfies.** Re-running L33 with the selection fixed produced two 8-seed
+"PASSES" whose normal line was `20,19,20,20,19,20,20,20` — byte-identical to
+L33's own BASELINE. The screen was `!nn.every(x => x === 20)`, which only means
+"the dose did something" on a level that starts at a flat 20; L33 starts with
+two 19s, so a dose that changed nothing sailed through. It now measures the
+level's own baseline first and requires a candidate to cost strictly MORE than
+the untouched level. That is the same defect as a test that cannot fail, wearing
+the search's clothes — and it is the third time in one pass this tool reported
+something confidently wrong (sampled waves, aggressive-only confirmation, and
+now a no-op-satisfying criterion). **Before trusting a
 "nothing here", ask what the search was allowed to see** — and note which
 earlier negatives the fix invalidates: L22 is unaffected (no candidate passed
 even the screen) and L26/L35 had ≤3 candidates so all were confirmed, but L33's

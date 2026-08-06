@@ -141,13 +141,23 @@ for (const id of arg.split(",").map(Number)) {
   if (!base) { console.log(`L${id}: no such level`); continue; }
   if (FORKS.has(id)) { console.log(`L${id} ${base.name}: SKIPPED — carries a lever (its difficulty is the lever's value)`); continue; }
   const n = base.waves.length;
+  // Measure the level's OWN baseline first. The screen used to be
+  // `!nn.every(x => x === 20)`, which is only equivalent to "the dose did
+  // something" on a level that starts at a flat 20 — on L33, whose base is
+  // 20,19,20,20,19,20,20,20, two doses "passed" while reproducing the baseline
+  // EXACTLY. A criterion that a no-op satisfies is the same defect as a test
+  // that cannot fail, so a candidate must now cost strictly more than the
+  // untouched level does.
+  const baseNormal = SCREEN.map((sd) => best(base, sd, "normal"));
+  const baseSum = baseNormal.reduce((a, b) => a + b, 0);
   const hits = [];
   for (let wv = Math.max(1, n - 5); wv <= n; wv++) {
     for (const dose of DOSES) {
       const sw = swapped(base, wv, dose, TYPE);
       if (!sw) continue;
       const nn = SCREEN.map((s) => best(sw.level, s, "normal"));
-      if (nn.every((x) => x === 20) || nn.some((x) => x < 0)) continue;
+      if (nn.some((x) => x < 0)) continue;
+      if (nn.reduce((a, b) => a + b, 0) >= baseSum) continue;   // no-op or easier: not a dose
       const hh = SCREEN.map((s) => best(sw.level, s, "heroic"));
       if (hh.some((x) => x < 0)) continue;
       if (neglect(sw.level, SCREEN[0]) !== "lost") continue;
@@ -169,7 +179,8 @@ for (const id of arg.split(",").map(Number)) {
     const nn = FULL.map((s) => best(h.level, s, "normal"));
     const hh = FULL.map((s) => best(h.level, s, "heroic"));
     const dd = FULL.map((s) => playWith(h.level, s, DART, "normal"));
-    const ok = !hh.some((x) => x < 0) && !nn.every((x) => x === 20) && !nn.some((x) => x < 0);
+    const ok = !hh.some((x) => x < 0) && !nn.some((x) => x < 0) &&
+      nn.reduce((a, b) => a + b, 0) < baseSum;
     console.log(`L${id} w${h.wv} ${h.was} x${h.dose} @8seeds ${ok ? "PASS" : "FAIL"} | normal ${nn.join(",")} | heroic ${hh.join(",")} | dart ${dd.join(",")}`);
   }
 }
