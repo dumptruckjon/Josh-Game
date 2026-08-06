@@ -4235,7 +4235,15 @@ level's own baseline first and requires a candidate to cost strictly MORE than
 the untouched level. That is the same defect as a test that cannot fail, wearing
 the search's clothes — and it is the third time in one pass this tool reported
 something confidently wrong (sampled waves, aggressive-only confirmation, and
-now a no-op-satisfying criterion). **Before trusting a
+now a no-op-satisfying criterion). **The FIX then produced a fourth**: the
+baseline was computed over the 4-seed screen while the confirm arm runs 8 seeds,
+so an 8-element sum was compared against a 4-element one, it is always larger,
+and every candidate reported FAIL — including one with zero heroic losses. Each
+arm computes its own baseline now. Four wrong answers from one instrument in a
+single pass, every one of them plausible-looking, is the argument for treating a
+measurement tool as code that needs its own adversarial reading: **compare like
+with like, and be suspicious when a fix makes everything fail as neatly as the
+bug made everything pass.** **Before trusting a
 "nothing here", ask what the search was allowed to see** — and note which
 earlier negatives the fix invalidates: L22 is unaffected (no candidate passed
 even the screen) and L26/L35 had ≤3 candidates so all were confirmed, but L33's

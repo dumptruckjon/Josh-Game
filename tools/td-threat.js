@@ -150,6 +150,7 @@ for (const id of arg.split(",").map(Number)) {
   // untouched level does.
   const baseNormal = SCREEN.map((sd) => best(base, sd, "normal"));
   const baseSum = baseNormal.reduce((a, b) => a + b, 0);
+  let baseFullSum = null;   // computed lazily: only needed if something survives the screen
   const hits = [];
   for (let wv = Math.max(1, n - 5); wv <= n; wv++) {
     for (const dose of DOSES) {
@@ -172,6 +173,7 @@ for (const id of arg.split(",").map(Number)) {
   // while the mild ones that might have survived were never tested at all. What
   // you actually want is the GENTLEST dose that still moves the level, so try
   // the strongest, the weakest and the middle.
+  baseFullSum = FULL.map((sd) => best(base, sd, "normal")).reduce((a, b) => a + b, 0);
   hits.sort((a, b) => a.nn.reduce((s, x) => s + x, 0) - b.nn.reduce((s, x) => s + x, 0));
   const pick = hits.length <= 3 ? hits
     : [hits[0], hits[Math.floor(hits.length / 2)], hits[hits.length - 1]];
@@ -179,8 +181,14 @@ for (const id of arg.split(",").map(Number)) {
     const nn = FULL.map((s) => best(h.level, s, "normal"));
     const hh = FULL.map((s) => best(h.level, s, "heroic"));
     const dd = FULL.map((s) => playWith(h.level, s, DART, "normal"));
+    // Compare like with like: this arm runs FULL seeds, so it must be judged
+    // against a FULL-seed baseline. The first cut compared an 8-seed sum to the
+    // 4-seed screen baseline, which is always smaller, so every candidate
+    // reported FAIL — including one with zero heroic losses. A fix that
+    // introduces its own false negative is exactly the failure this tool has
+    // now produced three times, so the baseline is computed per arm.
     const ok = !hh.some((x) => x < 0) && !nn.some((x) => x < 0) &&
-      nn.reduce((a, b) => a + b, 0) < baseSum;
+      nn.reduce((a, b) => a + b, 0) < baseFullSum;
     console.log(`L${id} w${h.wv} ${h.was} x${h.dose} @8seeds ${ok ? "PASS" : "FAIL"} | normal ${nn.join(",")} | heroic ${hh.join(",")} | dart ${dd.join(",")}`);
   }
 }
