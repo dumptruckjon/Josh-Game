@@ -1709,7 +1709,17 @@
         { groups: [ { type: "racer", count: 7, gap: 0.9, delay: 4 }, { type: "offcut", count: 12, gap: 0.3, delay: 2 }, { type: "reject", count: 44, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "drum", count: 3, gap: 0.9, delay: 4 }, { type: "offcut", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "pellet", count: 72, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "battery", count: 11, gap: 0.9, delay: 4 }, { type: "offcut", count: 20, gap: 0.3, delay: 2 }, { type: "reject", count: 57, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "offcut", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 38, gap: 0.65, delay: 0 }, { type: "pellet", count: 95, gap: 0.8, delay: 3 } ] },
+        // THREAT SHAPE (measured 2026-08), the fourth dose and the strongest of
+        // the set: 7 of 8 seeds move. L34 was the SOFTEST level in the campaign
+        // — it moved on 1 seed and only by a life — and it was nearly missed,
+        // because the search tool 8-seed-confirmed only its three most
+        // AGGRESSIVE candidates, all of which blow out heroic, and reported L34
+        // as having nothing. The gentlest dose that still moves a level is what
+        // you actually want; the tool now confirms strongest, middle and
+        // weakest. 8 seeds: normal 20,19,20,20,20,20,20,20 ->
+        // 17,19,17,20,20,15,19,16; heroic median 11 -> 6, minimum 4, ZERO
+        // losses; neglect still loses.
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "healer", count: 3, gap: 0.9, delay: 4 }, { type: "offcut", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 42, gap: 0.65, delay: 0 }, { type: "pellet", count: 95, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "boombox", count: 14, gap: 0.9, delay: 4 }, { type: "offcut", count: 32, gap: 0.3, delay: 2 }, { type: "reject", count: 75, gap: 0.65, delay: 0 }, { type: "knight", count: 19, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "racer", count: 23, gap: 0.9, delay: 4 }, { type: "offcut", count: 41, gap: 0.3, delay: 2 }, { type: "blob", count: 48, gap: 0.65, delay: 0 }, { type: "pellet", count: 120, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "slime", count: 19, gap: 0.9, delay: 4 }, { type: "offcut", count: 51, gap: 0.3, delay: 2 }, { type: "reject", count: 96, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },

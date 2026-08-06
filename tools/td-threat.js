@@ -156,8 +156,16 @@ for (const id of arg.split(",").map(Number)) {
     }
   }
   if (!hits.length) { console.log(`L${id} ${base.name}: NO safe (wave,dose) in the grid`); continue; }
+  // Confirm a SPREAD of candidates, not just the most aggressive ones. The first
+  // cut sorted by strongest normal movement and 8-seed-confirmed the top 3 —
+  // which on L34 meant every confirmed candidate was one that blows out heroic,
+  // while the mild ones that might have survived were never tested at all. What
+  // you actually want is the GENTLEST dose that still moves the level, so try
+  // the strongest, the weakest and the middle.
   hits.sort((a, b) => a.nn.reduce((s, x) => s + x, 0) - b.nn.reduce((s, x) => s + x, 0));
-  for (const h of hits.slice(0, 3)) {
+  const pick = hits.length <= 3 ? hits
+    : [hits[0], hits[Math.floor(hits.length / 2)], hits[hits.length - 1]];
+  for (const h of pick) {
     const nn = FULL.map((s) => best(h.level, s, "normal"));
     const hh = FULL.map((s) => best(h.level, s, "heroic"));
     const dd = FULL.map((s) => playWith(h.level, s, DART, "normal"));

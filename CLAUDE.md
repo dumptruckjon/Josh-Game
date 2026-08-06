@@ -4104,7 +4104,7 @@ only REPLACE; and the dose-controllable legal form is therefore *swap the
 special for a SMALL healer group and return the reclaimed HP to the fattest
 backbone group*, which preserves total wave HP, RAISES the ≥70% backbone share
 and keeps the special count at 1, so all three contracts hold by construction.
-**Shipped: L19 w12 (×4), L25 w12 (×5) and L30 w13 (×5)** — the dose is per
+**Shipped: L19 w12 (×4), L25 w12 (×5), L30 w13 (×5) and L34 w10 (×3)** — the dose is per
 level, and the search now covers every (wave, dose) rather than three sampled
 waves, which is the only reason L30 was found at all. 8 seeds: normal 20×8 →
 20,16,20,20,20,20,20,17, heroic median 15 → 16 with zero losses, dart-mono
@@ -4376,8 +4376,9 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
 >   constant (see the learnings block for the numbers).
 > - **The flat levels / threat shape**: the SEARCH is CLOSED and the campaign
->   went from 12 levels finishing 20/20 on every seed to **9**. Shipped:
->   **L19 w12 ×4, L25 w12 ×5, L30 w13 ×5** (8 seeds each; heroic zero losses;
+>   went from 12 levels finishing 20/20 on every seed to **8**. Shipped:
+>   **L19 w12 ×4, L25 w12 ×5, L30 w13 ×5, L34 w10 ×3** (8 seeds each; heroic
+>   zero losses;
 >   neglect still loses). `tools/td-threat.js` grid-searched every (wave, dose)
 >   on the rest, so what remains is a measured answer rather than a sampling
 >   gap: **L22 has NO safe dose anywhere in the grid**; every L26 and L35
