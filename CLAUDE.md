@@ -4527,11 +4527,15 @@ for any new `logic.js` function and a browser check if it needs special handling
 > - **The additive mini-boss**: CLOSED, measured, do not rebuild. Spread 0 across
 >   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
 >   constant (see the learnings block for the numbers).
-> - **The flat levels / threat shape**: IN PROGRESS, and the target list is now
+> - **The flat levels / threat shape**: CLOSED, and the target list is now
 >   DERIVED (`SPREAD=1 node tools/td-threat.js`) rather than remembered — which
 >   is what re-opened it, because the old flat-20 criterion structurally could
->   not see a level reading 19 on all eight seeds. The search is now CLOSED on
->   every level the scan surfaced. Shipped: **L19 w12 ×4, L21 w12 ×3, L25 w12
+>   not see a level reading 19 on all eight seeds. Every level the scan
+>   surfaced has an answer. The doser now enforces four rules learned here:
+>   rank the confirm set on HEROIC HEADROOM (the binding axis, not the one you
+>   want to move); a dose must MOVE the 3★ outcome and must not ERASE it; skip
+>   levels whose difficulty is a PINNED property; and a dose must buy BUILD
+>   DIVERSITY. Shipped: **L19 w12 ×4, L21 w12 ×3, L25 w12
 >   ×5, L30 w13 ×5, L33 w12 ×3, L34 w10 ×3** (8 seeds each; heroic zero losses;
 >   neglect still loses). Measured answers, not sampling gaps: **L22 has NO safe
 >   dose anywhere in the grid**; every L26 and L35 candidate passing the 4-seed
@@ -4547,10 +4551,21 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   costs heroic median **11 → 5** on a level already moving on 4 of 8 seeds, so
 >   it was never one of the levels that asks nothing. Do not re-try gold, budget
 >   base, lane length, HP piles or side doors on any of them.
+> - **🏆 Full Fort reachability**: CLOSED, measured, no change and deliberately
+>   no guardrail. The oracle never 3-stars 11 of 36 levels, but L13 gets there
+>   on a tier-4 BRANCH, L9/L11 on branches + Extra Hearts (0/8 → 8/8), and every
+>   boss finale — including L20 at a max of 10 — 3-stars 4/4 at 24/24 on casual
+>   with the full tree, which counts because stars are best-across-ladders. The
+>   meta layer is load-bearing rather than decorative. A threshold guardrail
+>   would have 6 lives of slack on the hardest case, i.e. could not fail.
 > - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The
 >   resist matrix is full (one reduction per damage family) and the last three
 >   resist shapes each measured at ~zero lives, so the next enemy has to change a
->   DECISION rather than a number — 🛢️ Oil Drum's `spill` is the template.
+>   DECISION rather than a number — 🛢️ Oil Drum's `spill` is the template. Note
+>   the two measured warnings: targeting PRIORITY is worth 0.00 lives even when
+>   played perfectly and free (`PLAN_ENEMY_ESCORT` §6), and the Oil Drum itself
+>   measured outcome-neutral on the shipped oracle, so "changes a decision" is a
+>   design goal the sim cannot score. Build it for legibility, not for the curve.
 >
 > - **The camp / `blockedBy` path**: CLOSED. It is the only code that can stop a
 >   live enemy indefinitely and neither oracle plan builds a camp, so it was
