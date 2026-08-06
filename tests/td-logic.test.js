@@ -2412,12 +2412,45 @@ test("AUDIT threat shape: a healer dose must still make its level cost something
     "the healer-bearing levels are L4 (original) plus the six measured doses; " +
     "removing one silently un-does work that took five measured attempts to find");
   for (const lvl of dosed) {
-    const lives = SEEDS.map((s) => Math.max(...PLANS.map((p) => run(lvl, p, s))));
+    // Keep BOTH plans' results rather than only their max: the diversity check
+    // below is then free, because these sims are already being paid for.
+    const byPlan = SEEDS.map((s) => PLANS.map((p) => run(lvl, p, s)));   // [dart, mixed] per seed
+    const lives = byPlan.map((v) => Math.max(...v));
     assert.ok(!lives.some((x) => x < 0),
       `L${lvl.id} "${lvl.name}" carries a healer dose and is now UNWINNABLE on a screened seed (${lives.join(",")})`);
     assert.ok(lives.some((x) => x < 20),
       `L${lvl.id} "${lvl.name}" carries a healer dose but still finishes 20/20 on every screened seed (${lives.join(",")}) — ` +
       "the dose has stopped doing anything, which is what it was placed to fix");
+    // …and it must still buy BUILD DIVERSITY, which is the whole point of a
+    // mending body: it punishes a board that cannot out-damage the healing, so
+    // a dart swarm should no longer be as good as a considered mix. This was an
+    // eyeballed justification until a candidate on L14 passed every numeric gate
+    // while scoring 0/8 — it would have cost heroic 6 -> 2 to change nothing
+    // about what you build. Measured on the shipped set before being asserted:
+    // L19 4/4, L21 4/4, L25 4/4, L34 4/4, L30 2/4, L33 1/4.
+    // L4 is EXCLUDED, and derived rather than hand-listed: it is a boss finale
+    // (its difficulty is the Bed Monster, not its waves), it predates these
+    // doses, and `AUDIT mono builds` separately pins it as the level that must
+    // DEFEAT the mixed plan and reward the dart swarm — so requiring the
+    // opposite here would be two tests asserting contradictory things. Measuring
+    // that BEFORE writing this was the point: L4 scores 0/4 (dart 14,14,14,13 vs
+    // mixed 3,4,3,3), so asserting over every dosed level would have gone red on
+    // shipped content immediately.
+    // Mutation note, because it is an honest caveat: killing the healer
+    // (`hps: 15 -> 0`) does NOT isolate this assertion — the "still finishes
+    // 20/20" check above throws first, which is the redundant-fix trap. It is
+    // proven instead by collapsing the INSTRUMENT (setting the mixed plan to
+    // ["dart"]), which fires exactly this assertion while the lives checks stay
+    // green. A product-side mutation that removes the diversity without also
+    // removing the dose's effect does not obviously exist, since the diversity
+    // IS the dose's effect.
+    if (lvl.waves.some((w) => w.boss)) continue;
+    const div = byPlan.filter(([dart, mixed]) => mixed > dart).length;
+    assert.ok(div > 0,
+      `L${lvl.id} "${lvl.name}" carries a healer dose but the dart-only board now keeps everything ` +
+      `the mixed plan does on all ${SEEDS.length} screened seeds ` +
+      `(dart ${byPlan.map((v) => v[0]).join(",")} vs mixed ${byPlan.map((v) => v[1]).join(",")}) — ` +
+      "the dose is charging lives without buying the build diversity it exists for");
   }
 });
 

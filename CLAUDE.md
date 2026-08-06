@@ -4344,6 +4344,25 @@ losses — and the mixed plan now beats a dart swarm on 8 of 8 seeds by 40 lives
 It was also the only one of L21's four confirmed arms with any heroic headroom
 at all (the other three all bottom out at 1), which is the heroic-headroom
 ranking earning its keep on the very next level after the one that motivated it.
+**The diversity rule then became a GUARDRAIL, at zero extra cost, because the
+dose-lock test was already computing both plans and throwing one away** — it
+kept only `Math.max(dart, mixed)`, so the gap it needed was being discarded one
+line before it was wanted. Three things about it are worth keeping. **Measure
+before you assert:** L4 scores **0/4** (dart 14,14,14,13 vs mixed 3,4,3,3), so
+asserting over every healer-bearing level would have gone red on shipped content
+at once; it is excluded by a DERIVED condition (`waves.some(w => w.boss)`)
+rather than a hand list, and the exclusion is principled because `AUDIT mono
+builds` separately pins L4 as the level that must DEFEAT the mixed plan — two
+tests demanding opposite things would be a contradiction, not coverage. **The
+obvious mutation does not isolate it:** killing the healer (`hps: 15 → 0`) fires
+the older "still finishes 20/20" assertion first, the same redundant-fix trap
+that made the price-flash guardrail unfalsifiable earlier in this session. It is
+proven instead by collapsing the INSTRUMENT (mixed plan → `["dart"]`), which
+fires exactly this assertion with the lives checks still green — and the honest
+caveat is recorded in the test, because a product-side mutation that removes the
+diversity without also removing the dose's effect does not exist: **the
+diversity IS the dose's effect.** Shipped margins: L19/L21/L25/L34 4/4, L30 2/4,
+L33 1/4.
 **The spread scan's other output was a REACHABILITY question, and it is closed:
 🏆 Full Fort is earnable.** The scan's max column shows the shipped oracle never
 3-stars **11 of 36 levels** (3★ is 18 lives of 20), which matters because
