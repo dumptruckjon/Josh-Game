@@ -3399,7 +3399,15 @@ test("P3 energy: the ⚙️ budget is on the HUD, spends on use, and rides the c
   await page.waitForTimeout(120);
   const shown = await page.evaluate(() => {
     const el = document.querySelector("#screen-td-play .td-hud__charge");
-    return { text: el && el.textContent, state: window.__TD.state().charge };
+    // Read the COUNT node, not the whole button. The button gained a second
+    // line — the gold price, which used to live only in a `title` and was
+    // therefore invisible on a touch device — so its textContent is now the
+    // count and the price run together ("⚙️ 2" + "450🪙"). The assertion below
+    // is unchanged in strength: it still demands the readout equal the engine
+    // EXACTLY, it just reads the node that holds it. (Re-pointing a test at a
+    // field that changed shape, rather than loosening it.)
+    const n = el && el.querySelector(".td-hud__chargeN");
+    return { text: n && n.textContent, state: window.__TD.state().charge };
   });
   assert.ok(shown.state > 0, `a wave granted energy (${shown.state})`);
   assert.equal(shown.text, "⚙️ " + shown.state, "…and the HUD shows exactly what the engine holds");
@@ -3411,7 +3419,11 @@ test("P3 energy: the ⚙️ budget is on the HUD, spends on use, and rides the c
     const p = window.__TD.engine().posOn(live.pathIdx || 0, live.dist);
     const r = window.__TD.engine().useAbility("drop", { x: p.x, y: p.y });
     window.__TD.script([["tick", 1]]);
-    return { ok: r.ok, state: window.__TD.state().charge, text: document.querySelector("#screen-td-play .td-hud__charge").textContent };
+    // …the COUNT node again, for the same reason as above: the button now also
+    // carries the gold price, so its whole textContent is two values run
+    // together. Strength unchanged — still an exact match against the engine.
+    const nEl = document.querySelector("#screen-td-play .td-hud__chargeN");
+    return { ok: r.ok, state: window.__TD.state().charge, text: nEl && nEl.textContent };
   });
   assert.equal(after.ok, true, "the power fired");
   assert.equal(after.state, shown.state - 1, "…and it cost exactly one charge");

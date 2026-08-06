@@ -2791,6 +2791,14 @@
         fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y));
         if (e.refund) fx.push(fxAt({ kind: "gold", ttl: 26, max: 26, text: "+" + e.refund }, e.x, e.y));
       }
+      // A BOSS ESCALATING had no punctuation on the field. `phase` fires when a
+      // boss crosses an hp gate and its kit changes — armour up, a gun jammed,
+      // minions summoned, a dash — which is the single biggest turn a fight
+      // takes, and the only tell was the Tickmaster's hands speeding up (art
+      // that one boss happens to have). It carries no position, because it is
+      // about the boss rather than a spot, so it shakes the field: the same
+      // language a boss ARRIVING already uses, one step harder.
+      else if (e.type === "phase") triggerShake(4);
       // TD-9 powers had SOUND but no picture: a 130-gold Toy Box Drop damaged
       // enemies with nothing on screen to show where it landed (the "some of
       // them don't even seem to work" report). A point power now blooms at its

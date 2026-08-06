@@ -4383,6 +4383,59 @@ that a test which cannot fail is worse than no test. It also uses a solver
 stronger than the shipped oracle, which is fine as a DIAGNOSTIC and must never
 become a tuning target.
 
+**Three real-play reports in one message, and the through-line is that each was
+INVISIBLE to a test that was already passing.** (1) **A `title` is a HOVER
+affordance, and this game is played on a phone** — the ⚙️ Toy Energy exchange
+rendered as `⚙️ 0` with its gold price only in `title`/`aria-label`, so a buy
+button never said what it cost until after you had pressed it ("buying extra
+gear doesn't specify cost"). That is the THIRD instance of the class: TD-12
+found the abilities' NAMES living only in an aria-label, then ⚙️ itself shipped
+as a bare numeral nothing explained. The proximate cause is worth knowing
+because it will recur: `charge.textContent = "⚙️ " + n` is a WHOLE-NODE write,
+so it erases any sibling you add beside the number — which is exactly why the
+price had nowhere to go but the title. Split the node first, then the price can
+be ink. Guardrailed twice: structurally, and by a browser test that drives the
+real HUD and READS THE BUTTON, because "the code exists" and "the player can see
+it" are different claims. (2) **When a layer cannot be VERIFIED, add a second
+one that works by a different mechanism.** Double-tap zoom was reported on CALL
+/ RUSH and the ⚙️ button although `touch-action: manipulation` was already
+declared page-wide, on `.td-screen` and on every control — and it intersects
+down the ancestor chain, so on paper the gesture was already dead. WebKit is not
+installed in the dev sandbox, so Chromium can neither prove nor disprove it.
+So the containers declare it too (the 8px gaps BETWEEN buttons are the one
+surface a fumbled second tap lands on that is not a button), and a `touchend`
+guard calls `preventDefault` on a second tap within 350ms, killing the gesture
+at source. Two details decide whether that guard is real: it needs
+`{ passive: false }` or `preventDefault` is ignored SILENTLY (a guard that looks
+present and does nothing — the guardrail asserts it), and swallowing the second
+tap is the POINT rather than a cost, because every control it is applied to
+already treats a doubled press as a fumble (`RULES.rushSettle` exists for
+precisely that). (3) **Sticky Bomb's goo was a sentence.** Its own role text
+says "the goo it LEAVES slows whatever WALKS IN"; the code only slowed bodies
+caught in the blast at the instant of detonation, so nothing lingered, nothing
+could walk in, and there was nothing on the ground to draw — the whole identity
+of a 300-gold branch was its description. The documented "a named mechanic must
+BE that mechanic" class (四宫数独 was a Latin square). The fix routes it through
+`state.puddles`, the ONE lingering-ground-effect path the 🍯 Sticky Floor
+ability and the 🛢️ Oil Drum's spill already share, so it inherits the slow
+application, the `isHidden` gate, expiry, checkpointing **and the renderer** —
+the picture came free, which is the argument for the shared path over a new
+field. Measured 450 ticks of goo from one branch over a wave; determinism is
+untouched because no oracle plan buys tier-4 branches, which is also why this
+cannot move a winnability sim.
+**The method that generalises from (3): diff the EMITTED EVENTS against the
+renderer's dispatcher.** Of 25 event types the engine emits, nine had no visual.
+Most are legitimately owned by another surface (the HUD, the wave banner, the
+defeat screen), but two were real holes and both were invisible to every
+existing test: **`soldier-down` drew nothing**, so army guys vanished mid-fight
+— and the Vacuum King's ENTIRE kit is KO-ing soldiers, so the boss's signature
+move read as nothing happening (now a grey dust puff, deliberately NOT the gold
+`stars` a kill uses: losing one of your own bodies must not look like scoring
+one); and **`sell` drew nothing** while `build` and `upgrade` both ring, though
+the event already carried the refund to float. When you next wonder whether the
+game FEELS complete, enumerate the events and ask which have no picture — it is
+a cheap, mechanical audit that a tap-harness can never perform.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
