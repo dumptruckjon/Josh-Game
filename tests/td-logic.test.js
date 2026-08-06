@@ -2408,8 +2408,8 @@ test("AUDIT threat shape: a healer dose must still make its level cost something
   // out of the list and L4 (a boss level that has always carried healers) kept
   // the count up. If you deliberately add or remove a dose, change this number
   // and say why in the commit — that is the point of it being here.
-  assert.deepEqual(dosed.map((l) => l.id), [4, 19, 25],
-    "the healer-bearing levels are L4 (original) plus the two measured doses; " +
+  assert.deepEqual(dosed.map((l) => l.id), [4, 19, 25, 30],
+    "the healer-bearing levels are L4 (original) plus the three measured doses; " +
     "removing one silently un-does work that took five measured attempts to find");
   for (const lvl of dosed) {
     const lives = SEEDS.map((s) => Math.max(...PLANS.map((p) => run(lvl, p, s))));

@@ -4104,7 +4104,9 @@ only REPLACE; and the dose-controllable legal form is therefore *swap the
 special for a SMALL healer group and return the reclaimed HP to the fattest
 backbone group*, which preserves total wave HP, RAISES the ≥70% backbone share
 and keeps the special count at 1, so all three contracts hold by construction.
-**Shipped: L19 w12 (×4) and L25 w12 (×5)** — the dose is per level, and both are NON-FORK levels by design (see L31 below). 8 seeds: normal 20×8 →
+**Shipped: L19 w12 (×4), L25 w12 (×5) and L30 w13 (×5)** — the dose is per
+level, and the search now covers every (wave, dose) rather than three sampled
+waves, which is the only reason L30 was found at all. 8 seeds: normal 20×8 →
 20,16,20,20,20,20,20,17, heroic median 15 → 16 with zero losses, dart-mono
 19,16,17,18,18,16,16,19 → 11,6,9,10,9,11,8,11 — it is the dart swarm this
 punishes. L25: normal 20×8 → 20,20,16,15,20,20,20,20, heroic median 14 → 6 with

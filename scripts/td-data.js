@@ -1556,7 +1556,15 @@
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "leaflet", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 36, gap: 0.65, delay: 0 }, { type: "clip", count: 90, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "ghost", count: 21, gap: 0.9, delay: 4 }, { type: "leaflet", count: 30, gap: 0.3, delay: 2 }, { type: "carton", count: 74, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "bubblewrap", count: 11, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 47, gap: 0.65, delay: 0 }, { type: "clip", count: 119, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "tinplane", count: 34, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 93, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+        // THREAT SHAPE (measured 2026-08), the third dose, and the one that only
+        // turned up once the search covered every (wave, dose) instead of three
+        // sampled waves. L30 was REJECTED earlier at w12 x3 — heroic fell to a
+        // minimum of 1, a coin flip rather than difficulty — and w13 x5 is the
+        // same level made to bite with a comfortable margin instead. 8 seeds:
+        // normal 20x8 -> 19,18,16,20,20,19,20,20; heroic 12,14,5,8,9,6,8,11
+        // (minimum 5, ZERO losses); neglect still loses. WAVE POSITION beat dose
+        // again, which is now the rule rather than the observation.
+        { groups: [ { type: "healer", count: 5, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 136, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "boombox", count: 26, gap: 0.9, delay: 4 }, { type: "leaflet", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 61, gap: 0.65, delay: 0 }, { type: "clip", count: 152, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "cushion", count: 19, gap: 0.9, delay: 4 }, { type: "leaflet", count: 72, gap: 0.3, delay: 2 }, { type: "carton", count: 110, gap: 0.65, delay: 0 }, { type: "knight", count: 27, gap: 0.8, delay: 3 } ] },
       ],
