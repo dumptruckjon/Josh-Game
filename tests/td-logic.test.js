@@ -2451,8 +2451,8 @@ test("AUDIT heroic is a SLOPE, not a cliff: every level stays winnable on heroic
   assert.ok(DATA.DIFFICULTIES.heroic.hp > 1.2 && DATA.DIFFICULTIES.heroic.bounty < 1,
     "heroic must still be genuinely harder: tougher enemies that pay less");
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
-  function run(level, plan) {
-    const e = TD.createEngine(level, { seed: 7, difficulty: "heroic" });
+  function run(level, plan, seed) {
+    const e = TD.createEngine(level, { seed, difficulty: "heroic" });
     const padIds = level.pads.map((p) => p.id);
     let idx = 0, guard = 0;
     while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
@@ -2478,9 +2478,21 @@ test("AUDIT heroic is a SLOPE, not a cliff: every level stays winnable on heroic
     return e.state;
   }
   const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
+  // THREE seeds, not one. This drove seed 7 alone, and a single seed is not a
+  // sample: the threat-shape pass built two doses that were clean on four seeds
+  // and lost heroic on eight (L22's on seeds 1 and 3, L26's on 11/13/17/19), and
+  // the record already carries an L30 that lost on seed 5 while green on 7. The
+  // set is chosen by what actually slipped through — {1, 7, 13} catches BOTH of
+  // those failures — and the full 8-seed sweep was run before widening this, so
+  // it is a strengthening rather than a newly-blocked build: every level is
+  // winnable on heroic on all 8. Costs ~2 min on a ~25 min gate; use
+  // `tools/td-threat.js` when you want the full eight on demand.
+  const SEEDS = [1, 7, 13];
   for (const lvl of DATA.LEVELS) {
-    const won = PLANS.some((p) => run(lvl, p).phase === "won");
-    assert.ok(won, `L${lvl.id} "${lvl.name}" is not winnable on HEROIC by either sensible build — heroic must stay a hard slope, not a wall`);
+    for (const seed of SEEDS) {
+      const won = PLANS.some((p) => run(lvl, p, seed).phase === "won");
+      assert.ok(won, `L${lvl.id} "${lvl.name}" is not winnable on HEROIC (seed ${seed}) by either sensible build — heroic must stay a hard slope, not a wall`);
+    }
   }
 });
 

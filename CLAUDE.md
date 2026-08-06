@@ -4160,6 +4160,32 @@ from the distribution rather than re-deriving it — and note the shape of the
 gap, which is this project's recurring one: a test that proves something CAN
 happen is not a test that it DOES.
 
+**A WALL-CLOCK assertion in a suite that also runs balance sims cannot be
+fixed by a better statistic — it has to stop measuring the machine.** The frame
+-budget guardrail failed three times today on commits that touch no render code
+at all. It averaged 50 draws and asserted the MEAN: `npm test` is bare
+`node --test`, which runs the test FILES concurrently on 4 cores, and the
+PLAYABILITY sim alone burns 248s of CPU, so one descheduled slice dragged it
+(17.82 ms against a ~3.5 baseline, 3/3 green in isolation). Switching to the
+MEDIAN was the documented interleaved-medians lesson and it still failed at
+14.60 ms — because under real starvation EVERY draw is slow and the median
+rises with them. What the test actually guards is the PER-ENEMY cost of the ink
+line, so it now measures exactly that: the same draw with the crowd and with
+the crowd removed, INTERLEAVED in one window, asserting their RATIO. Both arms
+are slowed equally by contention, so the ratio is not. Measured 2.48× (crowded
+6.70 ms vs empty 2.70 ms) against a bound of 6, and a 5×-cost mutation takes it
+to 15.59 → red. A loose absolute bound (60 ms) is kept only for the failure a
+ratio cannot see — the floor itself going catastrophically slow. **The general
+rule: a performance guardrail must compare against a control measured in the
+same conditions, never against a constant, or it is a test of how busy the box
+is.** And the same pass widened `AUDIT heroic is a SLOPE` from ONE seed to
+{1, 7, 13}: a single seed is not a sample, the threat-shape work built two doses
+that were clean on four seeds and lost heroic on eight (L22's on seeds 1 and 3,
+L26's on 11/13/17/19), and the record already carried an L30 that lost on seed 5
+while green on 7 — the chosen set is the one that catches BOTH. A full 8-seed
+sweep of all 36 levels was run FIRST and passes, so it is a strengthening rather
+than a newly-blocked build; it costs ~2 min on a ~25 min gate.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
