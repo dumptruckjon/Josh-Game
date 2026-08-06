@@ -4202,6 +4202,16 @@ breath, because widening the target set is a measurement job for
 `tools/td-threat.js`, not an assumption — but the next author should search on
 spread.
 
+**A `str.replace` with no assert is the em-dash mutation trap wearing a
+different hat.** Updating this file after the L30 dose, one of two edits
+silently no-opped because the target text had been reflowed by an earlier edit —
+so the learnings block said three doses had shipped while the open-items block
+still said two, and the working tree was CLEAN and the commit went green. It was
+found by grepping for the new text rather than by anything failing. The rule is
+the same one mutation testing teaches: **after a scripted edit, verify the
+change is PRESENT, not just that the script exited 0** — `assert s.count(old)==1`
+before replacing, and grep for the result after.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
@@ -4365,14 +4375,20 @@ for any new `logic.js` function and a browser check if it needs special handling
 > - **The additive mini-boss**: CLOSED, measured, do not rebuild. Spread 0 across
 >   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
 >   constant (see the learnings block for the numbers).
-> - **The flat levels / threat shape**: PARTLY closed. The healer swap is the
->   first lever that has ever moved one, and it shipped on **L19 w12 (×4) and
->   L25 w12 (×5)** (8 seeds each; heroic zero losses; dart-mono roughly halved).
->   L31, L26, L30, L22 and L23 were each measured and REJECTED with their
->   numbers — L31 because a fork level's difficulty IS its lever's value.
->   **10 of 36 levels still finish 20/20 on normal**, and the step function now has nine confirmations — so the remaining ones are a `heal`-dose search per level
->   (position matters more than dose), not a new mechanic. Do not re-try gold,
->   budget base, lane length, HP piles or side doors on them.
+> - **The flat levels / threat shape**: the SEARCH is CLOSED and the campaign
+>   went from 12 levels finishing 20/20 on every seed to **9**. Shipped:
+>   **L19 w12 ×4, L25 w12 ×5, L30 w13 ×5** (8 seeds each; heroic zero losses;
+>   neglect still loses). `tools/td-threat.js` grid-searched every (wave, dose)
+>   on the rest, so what remains is a measured answer rather than a sampling
+>   gap: **L22 has NO safe dose anywhere in the grid**; every L26 and L35
+>   candidate passing the 4-seed screen FAILED at 8; L23 and L31 are forks,
+>   where a level's difficulty IS its lever's value; L1/L2 are the tutorial and
+>   L7 sits at its measured heroic ceiling. The NEAR-flat tier was searched too:
+>   **L33** has no dose surviving 8 seeds, and **L18** has one (w10 bucket ×3,
+>   normal spread 2 → 5, zero heroic losses) that was still REJECTED — it costs
+>   heroic median **11 → 5** on a level already moving on 4 of 8 seeds, and L18
+>   was never one of the levels that asks nothing. Do not re-try gold, budget
+>   base, lane length, HP piles or side doors on any of them.
 > - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The
 >   resist matrix is full (one reduction per damage family) and the last three
 >   resist shapes each measured at ~zero lives, so the next enemy has to change a
