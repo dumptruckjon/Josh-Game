@@ -4344,6 +4344,25 @@ losses — and the mixed plan now beats a dart swarm on 8 of 8 seeds by 40 lives
 It was also the only one of L21's four confirmed arms with any heroic headroom
 at all (the other three all bottom out at 1), which is the heroic-headroom
 ranking earning its keep on the very next level after the one that motivated it.
+**The spread scan's other output was a REACHABILITY question, and it is closed:
+🏆 Full Fort is earnable.** The scan's max column shows the shipped oracle never
+3-stars **11 of 36 levels** (3★ is 18 lives of 20), which matters because
+`fullfort` requires EVERY star — the same "a feature nothing can select is dead
+content" class as unreachable heroic and World 4's cardless levels. Measured
+rather than assumed, and the answer is layered, which is good design rather than
+a defect: seven of the eleven are boss finales; **L10** is a fork the oracle
+never levers; **L13** 3-stars 8/8 the moment you take a tier-4 BRANCH (17 →
+18-20); **L9 and L11** need branches AND Extra Hearts I+II (0/8 → **8/8**, 19-21);
+and every remaining case — including L20, the worst at a max of 10 — 3-stars
+**4/4 seeds at 24/24 lives** on casual with the full tree, which counts because
+`bestStarsOf` takes the best across the three ladders. So the meta layer is
+load-bearing: a handful of levels are deliberately gated behind investment, and
+the completionist path exists. **No guardrail was added, deliberately** — the
+margin on the hardest finale is 6 lives (24 against a threshold of 18), so a
+threshold test there could not realistically fail, and this file's own rule is
+that a test which cannot fail is worse than no test. It also uses a solver
+stronger than the shipped oracle, which is fine as a DIAGNOSTIC and must never
+become a tuning target.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
