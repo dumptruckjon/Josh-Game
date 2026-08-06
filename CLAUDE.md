@@ -1003,7 +1003,8 @@ tooling.
 │   ├── td-elite.js             # 🎯 does a BOSS-SCALE body move a flat level? HP-preserving concentration/elite swap over the last N waves, judged by the shipped oracle × 8 seeds. `LEVELS=27 HEAVY=__elite ELITE_HP=900 FRACS=0,0.35 node tools/td-elite.js`. This is what proved crowd cannot bite and boss-scale can.
 │   ├── td-gold.js              # 💰 what a MAXED board does with its gold — fills every pad, upgrades to T3, takes a branch (the shipped oracle stops at T3, so it cannot see this), and reports the wave the board becomes UNSPENDABLE. `SWEEP=1` sweeps bounty. This is what measured the 21-of-36 dead-stretch finding.
 │   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
-│   └── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
+│   ├── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
+│   └── td-threat.js            # 🏰 THREAT-SHAPE doser: `node tools/td-threat.js` audits which counter each level's late game never asks for; `node tools/td-threat.js 22,26` grid-searches (wave × dose) for a swap that moves a level finishing 20/20 on every seed. Screens on 4 seeds, CONFIRMS on 8 (two doses looked clean on 4 and lost heroic on 8), SKIPS fork levels (a fork's difficulty IS its lever's value — L31 measured beautifully and broke `TD7 lever advantage`), never ADDS hp and never drains the flier group. In the repo for the reason the fork sweep sat open two releases: a scratch script gets thrown away and the item becomes unactionable.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
 ├── .claude/
@@ -4103,10 +4104,12 @@ only REPLACE; and the dose-controllable legal form is therefore *swap the
 special for a SMALL healer group and return the reclaimed HP to the fattest
 backbone group*, which preserves total wave HP, RAISES the ≥70% backbone share
 and keeps the special count at 1, so all three contracts hold by construction.
-**Shipped: L19 w12 only**, `special → 4 healers`. 8 seeds: normal 20×8 →
+**Shipped: L19 w12 (×4) and L25 w12 (×5)** — the dose is per level, and both are NON-FORK levels by design (see L31 below). 8 seeds: normal 20×8 →
 20,16,20,20,20,20,20,17, heroic median 15 → 16 with zero losses, dart-mono
 19,16,17,18,18,16,16,19 → 11,6,9,10,9,11,8,11 — it is the dart swarm this
-punishes. Neglect still loses. **THREE doses were built, measured and then
+punishes. L25: normal 20×8 → 20,20,16,15,20,20,20,20, heroic median 14 → 6 with
+zero losses, dart-mono 14,14,14,14,14,13,15,16 → 8,8,8,8,9,8,11,9. Neglect
+still loses both. **FIVE doses were built, measured and then
 REJECTED, and each rejection is a rule.** (1) **L31 w12 measured beautifully and
 still broke the build, because L31 CARRIES A LEVER** — `TD7 lever advantage`
 requires a thin 9-pad board to LOSE on the short route and WIN with the diversion
@@ -4302,11 +4305,11 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
 >   constant (see the learnings block for the numbers).
 > - **The flat levels / threat shape**: PARTLY closed. The healer swap is the
->   first lever that has ever moved one, and it shipped on **L19 w12** (8 seeds;
->   heroic zero losses; dart-mono roughly halved). L31, L26, L30 and L23 were
->   each measured and REJECTED with their numbers — L31 because a fork level's
->   difficulty IS its lever's value. **11 of 36 levels still finish 20/20 on
->   normal**, and the step function now has nine confirmations — so the remaining ones are a `heal`-dose search per level
+>   first lever that has ever moved one, and it shipped on **L19 w12 (×4) and
+>   L25 w12 (×5)** (8 seeds each; heroic zero losses; dart-mono roughly halved).
+>   L31, L26, L30, L22 and L23 were each measured and REJECTED with their
+>   numbers — L31 because a fork level's difficulty IS its lever's value.
+>   **10 of 36 levels still finish 20/20 on normal**, and the step function now has nine confirmations — so the remaining ones are a `heal`-dose search per level
 >   (position matters more than dose), not a new mechanic. Do not re-try gold,
 >   budget base, lane length, HP piles or side doors on them.
 > - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The

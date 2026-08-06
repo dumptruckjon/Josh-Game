@@ -1380,7 +1380,18 @@
         { groups: [ { type: "slime", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 18, gap: 0.3, delay: 2 }, { type: "chair", count: 51, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "ghost", count: 17, gap: 0.9, delay: 4 }, { type: "hawk", count: 23, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "housekey", count: 74, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "hawk", count: 29, gap: 0.3, delay: 2 }, { type: "chair", count: 79, gap: 0.65, delay: 0 }, { type: "knight", count: 20, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "battery", count: 21, gap: 0.9, delay: 4 }, { type: "hawk", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 43, gap: 0.65, delay: 0 }, { type: "housekey", count: 109, gap: 0.8, delay: 3 } ] },
+        // THREAT SHAPE (measured 2026-08), the second of the set, and the one on
+        // a NON-FORK level. L19 carries a lever too and kept its dose only
+        // because `TD7 lever advantage` was re-run and still passes; L31's
+        // identical swap measured beautifully and broke that contract outright
+        // (a thin board lost on BOTH routes, so the diversion was worth nothing).
+        // A fork level's difficulty IS its lever's value — dose the non-fork ones
+        // or re-verify the lever after. 8 seeds: normal 20x8 ->
+        // 20,20,16,15,20,20,20,20; heroic median
+        // 14 -> 6 with ZERO losses; dart-mono 14,14,14,14,14,13,15,16 ->
+        // 8,8,8,8,9,8,11,9. Neglect still loses. It needed x5 where L19 needed
+        // x4: the dose is per level, and wave POSITION matters more than either.
+        { groups: [ { type: "healer", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 60, gap: 0.65, delay: 0 }, { type: "housekey", count: 109, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "tinplane", count: 34, gap: 0.9, delay: 4 }, { type: "hawk", count: 46, gap: 0.3, delay: 2 }, { type: "chair", count: 86, gap: 0.65, delay: 0 }, { type: "knight", count: 22, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "cushion", count: 15, gap: 0.9, delay: 4 }, { type: "hawk", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 49, gap: 0.65, delay: 0 }, { type: "housekey", count: 121, gap: 0.8, delay: 3 } ] },
       ],
