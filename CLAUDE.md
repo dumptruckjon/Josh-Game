@@ -4212,6 +4212,26 @@ the same one mutation testing teaches: **after a scripted edit, verify the
 change is PRESENT, not just that the script exited 0** — `assert s.count(old)==1`
 before replacing, and grep for the result after.
 
+**A NEGATIVE result is only as good as the coverage behind it — twice in one
+pass a search reported "nothing here" that was really a property of how the
+search chose what to look at.** First, sampling three waves per level instead of
+the whole (wave × dose) grid: that is how L30 was written off, and the full grid
+then found w13 ×5 with a comfortable margin. Second, and worse because it looked
+principled: `tools/td-threat.js` screened on 4 seeds and then 8-seed-CONFIRMED
+only the three candidates with the strongest normal movement. On **L34 — the
+softest level in the campaign** — every aggressive candidate blows out heroic,
+so all three failed and the tool reported no safe dose, while the mild ones that
+actually survive were never tested. The gentlest dose that still moves a level
+is what you want, not the biggest, so it now confirms strongest / middle /
+weakest. L34 w10 ×3 shipped from that fix and is the strongest result of the
+set: 7 of 8 seeds move (20,19,20,20,20,20,20,20 → 17,19,17,20,20,15,19,16),
+heroic median 11 → 6 at minimum 4 with zero losses. **Before trusting a
+"nothing here", ask what the search was allowed to see** — and note which
+earlier negatives the fix invalidates: L22 is unaffected (no candidate passed
+even the screen) and L26/L35 had ≤3 candidates so all were confirmed, but L33's
+verdict came from 14 candidates of which only the 3 most aggressive were tested,
+so it had to be re-run.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
