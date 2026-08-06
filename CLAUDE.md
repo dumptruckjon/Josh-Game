@@ -4066,6 +4066,48 @@ used a real em-dash while the file carried the JS escape `—` from a python
 heredoc, so the replace silently no-opped. Check the byte count changed before
 believing a mutation result.
 
+**The THREAT-SHAPE pass on the flat levels: the healer is the first lever that
+has ever moved one, and the step function is confirmed for the eighth and ninth
+time.** Baseline, 8 seeds on normal: **12 of 36 levels finish 20/20 on every
+seed** and every level that costs real lives has a boss. A per-trait audit of
+each level's late waves found the opening: **`heal` appears on exactly ONE level
+in the whole campaign (L4, 18%)** — the only counter shape that is essentially
+unused — and unlike everything already refuted it is a **DPS-THRESHOLD** shape
+rather than an HP pile, so a board that cannot out-damage the mending never
+finishes the wave. It works, hard: 6% of late-wave HP takes L26 from a flat 20
+to 7/3/7/LOST. Three constraints shaped the shippable form, each found by
+measuring: healers **mend each other**, so effective HP scales super-linearly
+with count (a full-for-full swap puts 13-21 on a wave and L31 loses on normal at
+every seed); **every late wave of every flat level already carries exactly one
+special**, so `W5 wave composition` forbids ADDING a healer anywhere — it can
+only REPLACE; and the dose-controllable legal form is therefore *swap the
+special for a SMALL healer group and return the reclaimed HP to the fattest
+backbone group*, which preserves total wave HP, RAISES the ≥70% backbone share
+and keeps the special count at 1, so all three contracts hold by construction.
+**Shipped: L19 w12 and L31 w12**, each `special → 4 healers`. 8 seeds: L19
+normal 20×8 → 20,16,20,20,20,20,20,17, heroic median 15 → 16 with zero losses,
+dart-mono 19,16,17,18,18,16,16,19 → 11,6,9,10,9,11,8,11; L31 normal 20×8 →
+20,14,17,20,20,20,15,14 (half the seeds move), heroic 13 → 14 zero losses,
+dart-mono 18,17,18,19,18,18,17,18 → 11,10,12,15,13,11,11,13. Neglect still loses
+both. **Two were measured and REJECTED**: L30 w12 ×3 moves normal only 20 → 18-20
+while taking heroic from median 11 to 4 with a MINIMUM of 1 — a level that is
+nearly unwinnable on some seeds is a coin flip, not difficulty, so a 1-2 life
+gain does not buy it; and **L23 has no safe dose at all** (×2 loses one heroic
+seed, ×3 loses three, ×4 loses two), independently corroborating the recorded
+finding that it is pinned at 20/20 and unmovable. L26 is the sharpest statement
+of the step function yet: at 3 healers normal is 20,16,20,20 and heroic survives;
+at 4 normal finally GRADES (15,15,15,15) and heroic loses 3 of 4 seeds. There is
+no dose in between. Two new facts worth keeping: **wave POSITION matters more
+than dose** — on L26 only w12 responded at all and w11/w13 were inert at every
+count, which no earlier lever showed; and what this pass actually buys is not
+lives-remaining on normal (nothing buys that) but **build diversity** — the
+healer roughly halves what a dart-only board keeps, which is the property
+`AUDIT mono builds` exists to protect. One method note: the first doser drained
+whichever group was fattest, which can be the FLIER group — that would have
+silently deleted the anti-air property the `AUDIT threat shape` law protects, so
+a doser must exclude the shapes the contracts depend on, not just the ones it is
+adding.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
@@ -4228,8 +4270,15 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   deliberate content pass to commission, not a defect to fix on sight.
 > - **The additive mini-boss**: CLOSED, measured, do not rebuild. Spread 0 across
 >   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
->   constant (see the learnings block for the numbers). The 12 flat-20 levels
->   remain flat, and that is now a THREAT-SHAPE question only.
+>   constant (see the learnings block for the numbers).
+> - **The flat levels / threat shape**: PARTLY closed. The healer swap is the
+>   first lever that has ever moved one, and it shipped on **L19 w12 and L31
+>   w12** (measured at 8 seeds; heroic zero losses; dart-mono roughly halved).
+>   L30 and L23 were measured and REJECTED with their numbers. **10 of 36 levels
+>   still finish 20/20 on normal**, and the step function now has nine
+>   confirmations — so the remaining ones are a `heal`-dose search per level
+>   (position matters more than dose), not a new mechanic. Do not re-try gold,
+>   budget base, lane length, HP piles or side doors on them.
 > - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The
 >   resist matrix is full (one reduction per damage family) and the last three
 >   resist shapes each measured at ~zero lives, so the next enemy has to change a

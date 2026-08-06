@@ -1163,7 +1163,18 @@
         { groups: [ { type: "racer", count: 8, gap: 0.9, delay: 4 }, { type: "hawk", count: 14, gap: 0.3, delay: 2 }, { type: "rag", count: 41, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "cushion", count: 5, gap: 0.9, delay: 4 }, { type: "hawk", count: 18, gap: 0.3, delay: 2 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "cog", count: 67, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "mole", count: 14, gap: 0.9, delay: 4 }, { type: "hawk", count: 23, gap: 0.3, delay: 2 }, { type: "rag", count: 54, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "bucket", count: 2, gap: 0.9, delay: 4 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "blob", count: 42, gap: 0.65, delay: 0 }, { type: "cog", count: 104, gap: 0.8, delay: 3 } ] },
+        // THREAT SHAPE (measured 2026-08). L19 finished 20/20 on all 8 seeds —
+        // a formality. `heal` was the one counter shape in the whole roster that
+        // appeared on a SINGLE level (L4), and it is a DPS-THRESHOLD shape, not
+        // an HP pile, which is why it moves a flat level where gold, budget,
+        // lane length and side-door dose are all measured not to. The swap is
+        // contract-legal by construction: the wave's ONE special becomes 4
+        // healers and the reclaimed HP goes back to the fattest backbone group,
+        // so total wave HP, the >=70% backbone share and the <=1-special rule
+        // are all preserved. 8 seeds: normal 20x8 -> 20,16,20,20,20,20,20,17;
+        // heroic median 15 -> 16 with ZERO losses; dart-mono 19,16,17,18,18,16,
+        // 16,19 -> 11,6,9,10,9,11,8,11 (it is the dart swarm this punishes).
+        { groups: [ { type: "healer", count: 4, gap: 0.9, delay: 4 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "blob", count: 45, gap: 0.65, delay: 0 }, { type: "cog", count: 104, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "slime", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 35, gap: 0.3, delay: 2 }, { type: "rag", count: 65, gap: 0.65, delay: 0 }, { type: "knight", count: 16, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "racer", count: 25, gap: 0.9, delay: 4 }, { type: "hawk", count: 44, gap: 0.3, delay: 2 }, { type: "blob", count: 46, gap: 0.65, delay: 0 }, { type: "cog", count: 116, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "tinplane", count: 40, gap: 0.9, delay: 4 }, { type: "hawk", count: 55, gap: 0.3, delay: 2 }, { type: "rag", count: 94, gap: 0.65, delay: 0 }, { type: "knight", count: 23, gap: 0.8, delay: 3 } ] },
@@ -1579,7 +1590,14 @@
         { groups: [ { type: "boombox", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 19, gap: 0.3, delay: 2 }, { type: "carton", count: 55, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "slime", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 32, gap: 0.65, delay: 0 }, { type: "clip", count: 81, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "racer", count: 17, gap: 0.9, delay: 4 }, { type: "leaflet", count: 30, gap: 0.3, delay: 2 }, { type: "carton", count: 73, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "tinplane", count: 27, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 47, gap: 0.65, delay: 0 }, { type: "clip", count: 117, gap: 0.8, delay: 3 } ] },
+        // THREAT SHAPE (measured 2026-08) — the same swap as L19 w12, and the
+        // strongest of the set. 8 seeds: normal 20x8 -> 20,14,17,20,20,20,15,14
+        // (half the seeds move); heroic median 13 -> 14, ZERO losses; dart-mono
+        // 18,17,18,19,18,18,17,18 -> 11,10,12,15,13,11,11,13. Wave POSITION
+        // turned out to matter more than dose: on L26 only w12 responded at all
+        // and w11/w13 were inert at every count, which is not something any
+        // earlier lever showed.
+        { groups: [ { type: "healer", count: 4, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 66, gap: 0.65, delay: 0 }, { type: "clip", count: 117, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "mole", count: 28, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 94, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "bucket", count: 5, gap: 0.9, delay: 4 }, { type: "leaflet", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 71, gap: 0.65, delay: 0 }, { type: "clip", count: 178, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "ghost", count: 52, gap: 0.9, delay: 4 }, { type: "leaflet", count: 72, gap: 0.3, delay: 2 }, { type: "carton", count: 110, gap: 0.65, delay: 0 }, { type: "knight", count: 27, gap: 0.8, delay: 3 } ] },
