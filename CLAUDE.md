@@ -4320,10 +4320,30 @@ a dart-ONLY board … and reward a mixed one"), so changing it changes the thing
 it exists to demonstrate — exactly why L31's beautiful measurement broke `TD7
 lever advantage`. That fact lives in the TESTS, not the data, so it cannot be
 derived: `PINNED` is an explicit map (L4, L5, L8) where each entry NAMES its
-pinner and the tool prints why it skipped. A third signal came free and is worth
-watching: on every L5 candidate the `dart` column is byte-identical to
-best-of-plans on all 8 seeds, so the dose bought **zero build diversity** —
-which is the thing these healer doses are actually for.
+pinner and the tool prints why it skipped.
+**That third signal turned out to be the decisive one, and it is now the fourth
+rule: a dose must buy BUILD DIVERSITY, which is what these doses are FOR.** This
+file already states the purpose plainly — "what this buys is not lives-remaining
+on normal but build diversity, since it roughly halves what a dart-only board
+keeps" — and it was being eyeballed rather than checked, so a candidate could
+pass every numeric gate while leaving a dart swarm exactly as good as the best
+plan. Counting the seeds where the mixed plan beats dart-only separates every
+dose the search has produced with nothing in between: **L19 8/8, L25 8/8, L30
+4/8, L33 4/8 and the new L21 8/8 — against L14 w10 and L5 w6 at EXACTLY 0/8**.
+It is what settles **L14, whose w10 dose passed the star bounds and is still
+REJECTED**: L14 is simply a dart-favouring level (its baseline dart column
+equals best-of-plans too), so the dose would have paid heroic min **6 → 2 on
+three of eight seeds** to change nothing about what you build.
+**And the widened search's real prize was L21 — the flattest level in the game.**
+It read **19 on all eight seeds, spread 0**: a fixed toll no build could move,
+and precisely the shape a flat-20 criterion could never see. Its w12 slime group
+becomes 3 Junk Healers (845 hp back to the blobs, 33 → 47, wave hp −0.10%,
+backbone 95.1%): normal **14,16,15,19,19,19,14,19** (spread **5**, 3★ 8/8 → 4/8),
+heroic **6,6,7,4,3,6,3,8** — min 3 against a measured baseline min of 7, no
+losses — and the mixed plan now beats a dart swarm on 8 of 8 seeds by 40 lives.
+It was also the only one of L21's four confirmed arms with any heroic headroom
+at all (the other three all bottom out at 1), which is the heroic-headroom
+ranking earning its keep on the very next level after the one that motivated it.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
@@ -4491,18 +4511,23 @@ for any new `logic.js` function and a browser check if it needs special handling
 > - **The flat levels / threat shape**: IN PROGRESS, and the target list is now
 >   DERIVED (`SPREAD=1 node tools/td-threat.js`) rather than remembered — which
 >   is what re-opened it, because the old flat-20 criterion structurally could
->   not see a level reading 19 on all eight seeds. Shipped so far:
->   **L19 w12 ×4, L25 w12 ×5, L30 w13 ×5, L33 w12 ×3, L34 w10 ×3** (8 seeds
->   each; heroic zero losses; neglect still loses). Measured answers, not
->   sampling gaps: **L22 has NO safe dose anywhere in the grid**; every L26 and
->   L35 candidate passing the 4-seed screen FAILED at 8; L23/L31 are forks,
->   where a level's difficulty IS its lever's value; L1/L2 are World 1's
->   tutorial and stay flat by design; L7 sits at its measured heroic ceiling.
->   **L18** has a dose (w10 bucket ×3, zero heroic losses) that was REJECTED —
->   it costs heroic median **11 → 5** on a level already moving on 4 of 8 seeds,
->   so it was never one of the levels that asks nothing. STILL OPEN: **L5, L14,
->   L17, L21** — surfaced only by the spread scan and never searched. Do not
->   re-try gold, budget base, lane length, HP piles or side doors on any of them.
+>   not see a level reading 19 on all eight seeds. The search is now CLOSED on
+>   every level the scan surfaced. Shipped: **L19 w12 ×4, L21 w12 ×3, L25 w12
+>   ×5, L30 w13 ×5, L33 w12 ×3, L34 w10 ×3** (8 seeds each; heroic zero losses;
+>   neglect still loses). Measured answers, not sampling gaps: **L22 has NO safe
+>   dose anywhere in the grid**; every L26 and L35 candidate passing the 4-seed
+>   screen FAILED at 8; L23/L31 are forks, where a level's difficulty IS its
+>   lever's value; L1/L2 are World 1's tutorial and stay flat by design; L7 sits
+>   at its measured heroic ceiling; **L5 is skipped as a PINNED level** (its
+>   heroic behaviour is what `AUDIT mono builds` asserts) and all four of its
+>   candidates made 3★ unreachable anyway; **L14 is a dart-favouring level** —
+>   its one star-passing dose buys 0/8 build diversity for heroic 6 → 2, so it
+>   pays a real cost to change nothing; **L17's** three candidates are two
+>   heroic losses and a no-op that moves normal by 2 lives across all 8 seeds.
+>   **L18** has a dose (w10 bucket ×3, zero heroic losses) also REJECTED — it
+>   costs heroic median **11 → 5** on a level already moving on 4 of 8 seeds, so
+>   it was never one of the levels that asks nothing. Do not re-try gold, budget
+>   base, lane length, HP piles or side doors on any of them.
 > - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The
 >   resist matrix is full (one reduction per damage family) and the last three
 >   resist shapes each measured at ~zero lives, so the next enemy has to change a

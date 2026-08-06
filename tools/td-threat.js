@@ -273,12 +273,25 @@ for (const id of arg.split(",").map(Number)) {
     // they separate every data point this search has produced with no exceptions
     // — shipped doses land at 3-7 of 8 (from a baseline 8 of 8), while every
     // rejected candidate is either 0/8 or unmoved at 8/8.
+    // …and it must buy BUILD DIVERSITY, which is what these doses are FOR.
+    // CLAUDE.md states the purpose plainly — "what this buys is not
+    // lives-remaining on normal but build diversity, since it roughly halves
+    // what a dart-only board keeps" — and it was being eyeballed rather than
+    // checked, so a candidate could pass every numeric gate while leaving the
+    // dart swarm exactly as good as the best plan. Measured across every dose
+    // this search has produced, the separation is total: all four previously
+    // shipped doses and the two now shipping score 4/8 to 8/8 seeds where the
+    // mixed plan beats dart-only, while L14 w10 and L5 w6 both score EXACTLY
+    // 0/8 — a dart-favouring level that no healer dose changes, so it pays a
+    // heroic cost for nothing. `div` is that count.
     const stars3 = nn.filter((x) => x >= STAR3).length;
-    const moved = stars3 < baseStars3, keeps = stars3 > 0;
+    const div = nn.filter((x, i) => x > dd[i]).length;
+    const moved = stars3 < baseStars3, keeps = stars3 > 0, diverse = div > 0;
     const ok = !hh.some((x) => x < 0) && !nn.some((x) => x < 0) &&
-      nn.reduce((a, b) => a + b, 0) < baseFullSum && moved && keeps;
+      nn.reduce((a, b) => a + b, 0) < baseFullSum && moved && keeps && diverse;
     const why = !keeps ? " [3★ UNREACHABLE on every seed]"
-      : !moved ? " [3★ outcome UNCHANGED — the level plays the same]" : "";
-    console.log(`L${id} w${h.wv} ${h.was} x${h.dose} @8seeds ${ok ? "PASS" : "FAIL"}${why} | normal ${nn.join(",")} | heroic ${hh.join(",")} | dart ${dd.join(",")} | 3★ ${baseStars3}/8 → ${stars3}/8`);
+      : !moved ? " [3★ outcome UNCHANGED — the level plays the same]"
+      : !diverse ? " [NO build diversity — dart-only keeps everything the best plan does]" : "";
+    console.log(`L${id} w${h.wv} ${h.was} x${h.dose} @8seeds ${ok ? "PASS" : "FAIL"}${why} | normal ${nn.join(",")} | heroic ${hh.join(",")} | dart ${dd.join(",")} | 3★ ${baseStars3}/8 → ${stars3}/8 | mixed>dart ${div}/8`);
   }
 }

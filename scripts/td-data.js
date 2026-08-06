@@ -1247,7 +1247,16 @@
         { groups: [ { type: "boombox", count: 6, gap: 0.9, delay: 4 }, { type: "hawk", count: 14, gap: 0.3, delay: 2 }, { type: "wad", count: 39, gap: 0.65, delay: 0 }, { type: "knight", count: 10, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "ghost", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 18, gap: 0.3, delay: 2 }, { type: "blob", count: 25, gap: 0.65, delay: 0 }, { type: "peanut", count: 63, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "bubblewrap", count: 7, gap: 0.9, delay: 4 }, { type: "hawk", count: 22, gap: 0.3, delay: 2 }, { type: "wad", count: 50, gap: 0.65, delay: 0 }, { type: "knight", count: 13, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "slime", count: 10, gap: 0.9, delay: 4 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "blob", count: 33, gap: 0.65, delay: 0 }, { type: "peanut", count: 83, gap: 0.8, delay: 3 } ] },
+        // THREAT-SHAPE dose, and the best one the search found: the slime group
+        // is 3 Junk Healers, the reclaimed 845 hp going back to the blob group
+        // (33 -> 47), so wave hp moves 0.1% and the >=70% backbone share only
+        // rises. L21 was the flattest level in the game — 19 on all EIGHT seeds,
+        // spread 0, i.e. a fixed toll no build could change. Now 14-19 (spread
+        // 5), 3-star on 4 of 8 rather than 8 of 8, heroic min 3 with no losses
+        // (baseline min 7), and it is the one dose that buys real BUILD
+        // DIVERSITY: the mixed plan beats a dart-only board on 8 of 8 seeds by
+        // 40 lives, where a dart swarm used to be as good as anything.
+        { groups: [ { type: "healer", count: 3, gap: 0.9, delay: 4 }, { type: "hawk", count: 28, gap: 0.3, delay: 2 }, { type: "blob", count: 47, gap: 0.65, delay: 0 }, { type: "peanut", count: 83, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "boombox", count: 16, gap: 0.9, delay: 4 }, { type: "hawk", count: 35, gap: 0.3, delay: 2 }, { type: "wad", count: 67, gap: 0.65, delay: 0 }, { type: "knight", count: 16, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bubblewrap", count: 13, gap: 0.9, delay: 4 }, { type: "hawk", count: 44, gap: 0.3, delay: 2 }, { type: "blob", count: 39, gap: 0.65, delay: 0 }, { type: "peanut", count: 97, gap: 0.8, delay: 3 } ] },
       ],
@@ -1697,7 +1706,8 @@
         { groups: [ { type: "battery", count: 17, gap: 0.9, delay: 4 }, { type: "offcut", count: 31, gap: 0.3, delay: 2 }, { type: "reject", count: 72, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3, at: 30 } ] },
         // THREAT-SHAPE dose: the slime group is 3 Junk Healers, and the 1285 hp
         // that reclaims goes back to the blob group (46 -> 67), so the wave's
-        // total hp is unchanged and the >=70% backbone share only rises. L33
+        // total hp moves 7294 -> 7269 (0.3%, well inside the +/-25% budget
+        // contract) and the >=70% backbone share only rises, to 96.5%. L33
         // finished 19-20 on all eight seeds; a healer is a DPS-THRESHOLD shape,
         // so it asks a question a bigger hp pile cannot. -> 16-18, heroic min 2
         // (the shipped L29 floor), dart-mono still clears. tools/td-threat.js
