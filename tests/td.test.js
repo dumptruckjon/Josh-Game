@@ -2857,12 +2857,28 @@ test("ART: the frame still fits its budget at the crowded-board peak", async () 
     // whose only job is catching a MULTIPLE-cost regression.
     for (let i = 0; i < 900; i++) eng.tick();
     const alive = st.enemies.filter((e) => e.alive).length;
-    const N = 50, t0 = performance.now();
-    for (let i = 0; i < N; i++) r.draw(i / N);
-    return { alive, ms: (performance.now() - t0) / N };
+    // MEDIAN, not mean. `npm test` is `node --test`, which runs the test FILES
+    // concurrently (4 here), and td-logic's PLAYABILITY sim alone burns 248s of
+    // CPU — so this browser measurement competes with three CPU-saturated
+    // processes. Under that, ONE descheduled slice drags a 50-draw mean a long
+    // way: this test measured 17.82 ms in a full-suite run and 3/3 green in
+    // isolation, on a commit that does not touch the renderer at all. A median
+    // is robust to the stall while still rising if EVERY draw gets slower,
+    // which is the only regression worth failing a build over. The mean is kept
+    // as a loose second bound so a pathological tail can't hide behind it.
+    const N = 50, times = [];
+    for (let i = 0; i < N; i++) { const t = performance.now(); r.draw(i / N); times.push(performance.now() - t); }
+    const sorted = times.slice().sort((a, b) => a - b);
+    return {
+      alive, n: N,
+      ms: sorted[Math.floor(N / 2)],
+      mean: times.reduce((a, b) => a + b, 0) / N,
+      worst: sorted[N - 1],
+    };
   });
   assert.ok(out.alive >= 20, `the board is genuinely crowded for this measurement (${out.alive} alive)`);
-  assert.ok(out.ms < 12, `a draw at the crowded peak took ${out.ms.toFixed(2)} ms with ${out.alive} enemies alive — the 60fps budget is 16.7 ms and the measured baseline is ~3.5`);
+  assert.ok(out.ms < 12, `the MEDIAN draw at the crowded peak took ${out.ms.toFixed(2)} ms with ${out.alive} enemies alive — the 60fps budget is 16.7 ms and the measured baseline is ~3.5 (mean ${out.mean.toFixed(2)}, worst ${out.worst.toFixed(2)})`);
+  assert.ok(out.mean < 40, `even allowing for a loaded CI box, a mean of ${out.mean.toFixed(2)} ms across ${out.n} draws is a real cost, not a stall (median ${out.ms.toFixed(2)})`);
 });
 
 test("no uncaught page errors in the fort run", () => {
