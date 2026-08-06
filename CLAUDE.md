@@ -4141,6 +4141,25 @@ silently deleted the anti-air property the `AUDIT threat shape` law protects, so
 a doser must exclude the shapes the contracts depend on, not just the ones it is
 adding.
 
+**A ROSTER-PRESENCE measurement, recorded because `AUDIT roster` proves an
+enemy is REACHABLE and says nothing about whether it is ever MET.** Measured as
+each type's share of total campaign HP and the number of levels it appears on:
+**`blob` (18.1%) and `knight` (15.8%) are a third of the entire campaign**, and
+knight appears on **36 of 36 levels** — the per-world backbone SKINS fixed the
+four ground backbone types but these two were never skinned. At the other end,
+**`brick` is a declared member of `BACKBONE_TYPES` and appears on ONE level at
+0.043%** — it is load-bearing in the ≥70%-backbone composition contract while
+being effectively absent from the game — and `bull` sits on 2 levels at 0.154%.
+`duck` at 0.126% over 3 levels is consistent with its already-recorded "worth
+zero lives, shipped for legibility" result, and `mudlet` at 0.000% is CORRECT
+(it is the Mud Blob's split child, which the roster audit already counts as
+reachable). No change was made: raising a barely-present type's share is a
+balance edit that the budget and composition contracts constrain, and it must be
+measured per level like every other dose. Recorded so the next author starts
+from the distribution rather than re-deriving it — and note the shape of the
+gap, which is this project's recurring one: a test that proves something CAN
+happen is not a test that it DOES.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
