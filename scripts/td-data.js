@@ -1590,14 +1590,18 @@
         { groups: [ { type: "boombox", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 19, gap: 0.3, delay: 2 }, { type: "carton", count: 55, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "slime", count: 8, gap: 0.9, delay: 4 }, { type: "leaflet", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 32, gap: 0.65, delay: 0 }, { type: "clip", count: 81, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "racer", count: 17, gap: 0.9, delay: 4 }, { type: "leaflet", count: 30, gap: 0.3, delay: 2 }, { type: "carton", count: 73, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
-        // THREAT SHAPE (measured 2026-08) — the same swap as L19 w12, and the
-        // strongest of the set. 8 seeds: normal 20x8 -> 20,14,17,20,20,20,15,14
-        // (half the seeds move); heroic median 13 -> 14, ZERO losses; dart-mono
-        // 18,17,18,19,18,18,17,18 -> 11,10,12,15,13,11,11,13. Wave POSITION
-        // turned out to matter more than dose: on L26 only w12 responded at all
-        // and w11/w13 were inert at every count, which is not something any
-        // earlier lever showed.
-        { groups: [ { type: "healer", count: 4, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 66, gap: 0.65, delay: 0 }, { type: "clip", count: 117, gap: 0.8, delay: 3 } ] },
+        // REVERTED (2026-08). This wave took the same healer swap as L19 w12 and
+        // measured beautifully in isolation — normal 20x8 -> 20,14,17,20,20,20,
+        // 15,14, heroic zero losses, dart-mono nearly halved — and it still
+        // broke the build, because **L31 CARRIES A LEVER**. `TD7 lever advantage`
+        // requires a thin 9-pad board to LOSE on the short route and WIN with the
+        // diversion thrown; making the level harder made that board lose on BOTH
+        // routes (short 0 -> lever 2, against a >=6 contract), so the lever
+        // stopped being worth anything. A difficulty change on a fork level is
+        // therefore also a change to that fork's reason to exist. Five of the
+        // twelve flat levels are forks (L7, L19, L23, L27, L31) — dose the
+        // non-fork ones, or re-verify the lever after.
+        { groups: [ { type: "tinplane", count: 27, gap: 0.9, delay: 4 }, { type: "leaflet", count: 37, gap: 0.3, delay: 2 }, { type: "blob", count: 47, gap: 0.65, delay: 0 }, { type: "clip", count: 117, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "mole", count: 28, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 94, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "bucket", count: 5, gap: 0.9, delay: 4 }, { type: "leaflet", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 71, gap: 0.65, delay: 0 }, { type: "clip", count: 178, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "ghost", count: 52, gap: 0.9, delay: 4 }, { type: "leaflet", count: 72, gap: 0.3, delay: 2 }, { type: "carton", count: 110, gap: 0.65, delay: 0 }, { type: "knight", count: 27, gap: 0.8, delay: 3 } ] },

@@ -1497,9 +1497,16 @@
         ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.32, r * 0.18, r * 0.12, 0, 0, 7); ctx.fill(); // snout
         if (charging) { ctx.strokeStyle = "rgba(255,120,90,0.7)"; ctx.lineWidth = 2; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(sx + r * 0.9, sy + k * r * 0.3); ctx.lineTo(sx + r * 1.3, sy + k * r * 0.3); ctx.stroke(); } }
       } else if (e.type === "healer") {
-        // Junk Healer: a grey bot with a glowing green + (heal) and a wrench antenna
+        // Junk Healer: a grey bot with a glowing green + (heal) and a wrench antenna.
+        // The antenna is GREEN, not the blue every other bot antenna uses: the
+        // healer joined the garage pool when L19 took its threat-shape swap, and
+        // it was sharing the Battery Bot's exact antenna colour — distance 0.0,
+        // which the same-pool colour guardrail correctly failed. Green also says
+        // "medic" at a glance, which is the whole point of telling them apart.
+        // (Do not name the old hex here: that scan reads source TEXT, so a colour
+        // literal in a COMMENT counts, and mentioning it re-created the clash.)
         shadow(sx, sy + r * 0.5, r * 0.55, r * 0.2);
-        ctx.strokeStyle = "#1e7fa8"; ctx.lineWidth = Math.max(1, cell * 0.03);
+        ctx.strokeStyle = "#3fae5a"; ctx.lineWidth = Math.max(1, cell * 0.03);
         ctx.beginPath(); ctx.moveTo(sx, sy - r * 0.6); ctx.lineTo(sx, sy - r * 0.92); ctx.stroke();
         ctx.fillStyle = "#8f9db0"; ctx.beginPath(); ctx.arc(sx, sy - r * 0.98, r * 0.1, 0, 7); ctx.fill();
         const gh = ctx.createLinearGradient(sx, sy - r * 0.6, sx, sy + r * 0.7);
