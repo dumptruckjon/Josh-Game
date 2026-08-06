@@ -1004,7 +1004,7 @@ tooling.
 │   ├── td-gold.js              # 💰 what a MAXED board does with its gold — fills every pad, upgrades to T3, takes a branch (the shipped oracle stops at T3, so it cannot see this), and reports the wave the board becomes UNSPENDABLE. `SWEEP=1` sweeps bounty. This is what measured the 21-of-36 dead-stretch finding.
 │   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
 │   ├── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
-│   └── td-threat.js            # 🏰 THREAT-SHAPE doser: `node tools/td-threat.js` audits which counter each level's late game never asks for; `node tools/td-threat.js 22,26` grid-searches (wave × dose) for a swap that moves a level finishing 20/20 on every seed. Screens on 4 seeds, CONFIRMS on 8 (two doses looked clean on 4 and lost heroic on 8), SKIPS fork levels (a fork's difficulty IS its lever's value — L31 measured beautifully and broke `TD7 lever advantage`), never ADDS hp and never drains the flier group. In the repo for the reason the fork sweep sat open two releases: a scratch script gets thrown away and the item becomes unactionable.
+│   └── td-threat.js            # 🏰 THREAT-SHAPE doser. `SPREAD=1 node tools/td-threat.js` DERIVES the target list (per-level min/median/max/spread over 8 seeds) — the flat-level list must never be a remembered one, and spread is the signal, not the value: a level reading 19 on all eight seeds is as much a disguised constant as one reading 20. `node tools/td-threat.js` audits which counter each level's late game never asks for; `node tools/td-threat.js 22,26` grid-searches (wave × dose) for a swap. Screens on 4 seeds, CONFIRMS on 8 (two doses looked clean on 4 and lost heroic on 8), and the confirm set is ranked by HEROIC HEADROOM — heroic is the binding axis, and ranking on normal movement twice confirmed the wrong candidates. SKIPS fork levels (a fork's difficulty IS its lever's value — L31 measured beautifully and broke `TD7 lever advantage`), never ADDS hp and never drains the flier group. In the repo for the reason the fork sweep sat open two releases: a scratch script gets thrown away and the item becomes unactionable.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
 ├── .claude/
@@ -4249,6 +4249,81 @@ earlier negatives the fix invalidates: L22 is unaffected (no candidate passed
 even the screen) and L26/L35 had ≤3 candidates so all were confirmed, but L33's
 verdict came from 14 candidates of which only the 3 most aggressive were tested,
 so it had to be re-run.
+**And the re-run produced a FIFTH flaw in the same instrument, which is the one
+worth generalising: a search must rank on the axis that BINDS, not the axis you
+want to move.** Every rejection this doser has ever produced was a heroic loss —
+never a normal one — so heroic is the constraint and normal movement is merely
+the objective. Both previous selections sorted by NORMAL: the first took the 3
+strongest movers (so on L34 every candidate tested was one that blows out
+heroic), and the "fix" took strongest/middle/gentlest (so on L33 it confirmed a
+dose with heroic min **1** while the three candidates with heroic headroom
+**4-5 were never run at all**). Ranked by heroic headroom, L33's answer appears
+immediately and is better on BOTH axes than anything the old order tested —
+w12's slime group → **3 Junk Healers**, normal 20 → 16,18,18,18,16,16,17,16 with
+heroic 9,5,5,9,2,7,6,2 (min 2, the floor shipped L29 already sits at) and
+dart-mono still clearing every seed. Five wrong answers from one instrument, and
+the shape of the fifth is: **when a search has a hard constraint and a soft
+objective, sorting by the objective hides the feasible region.**
+**The bigger find is the TARGET LIST, and it was wrong in a way no amount of
+searching would have fixed: `SPREAD=1 node tools/td-threat.js` now derives it.**
+The flat-level work had been aimed at levels finishing 20/20 on every seed — but
+a level reading **19 on all eight seeds** (L21 does) is exactly as much a
+disguised constant: the roll changes nothing, so the level asks no question, it
+just charges a fixed toll. Measuring min/median/max/spread over 8 seeds for all
+36 levels says so directly, and it named **six levels that had never been
+searched at all** — L1, L2, L5, L14, L17, L21 — of which four (L5 19, L14 19,
+L17 19, L21 19) are invisible to a flat-20 criterion by construction. L1/L2 are
+World 1's tutorial and stay flat by design. The same scan re-derives things this
+file previously recorded as separate findings, which is the argument for keeping
+it as a mode rather than a memory: L11 reads **spread 0 at median 15** (a
+different pathology — a real cost, but the seed is irrelevant), L16 reads
+**spread 14 (6→20)** which is the boss quantization stated as a number, and
+World 3 is still the hardest world. **Spread, not the value, is the signal** —
+and the flat-level list must never again be a remembered one.
+**A hand-seeded exception inside a DERIVATION is the same defect as a
+hand-written scan list, and `BACKBONE_TYPES` had one.** It correctly derives from
+every world's declared `backbone`, then seeds `["brick"]` before the loop — and
+the comment justifying that seed claimed brick was "on every world by design".
+Measured: brick is authored on **exactly one level (L2), in one world of nine**,
+and otherwise only ever arrives as the Bolt Bucket's spawner drip, which the
+wave-budget audit cannot see at all. The comment was fixed to the measurement.
+The real risk is what the seed GRANTS: anything in it collects backbone credit
+without a world declaring it, and the composition contract is "≥70% backbone,
+≤1 special at ≤25% HP" — so seeding a mechanic-carrying enemy would reclassify a
+special as backbone and let a wave ship two disruptive shapes with no answer,
+the exact failure that took World 4 from 2/4 to 4/4 when it was fixed. `P2
+identity` now derives the declared set and requires every seed to be VANILLA
+(no armor/shield/resist/phase/heal/spawner/… field). Mutation-proven by seeding
+`ghost` → red naming `phase`; seeding `knight` correctly stays GREEN, because
+knight IS declared by every world and so is not a seed — that is the guardrail
+scoping right, not a hole in it.
+**Widening the search produced the criterion the whole exercise had been
+missing, and it is read off the shipped STAR LADDER rather than invented: a dose
+must MOVE the star outcome and must not ERASE it.** "Costs strictly more than
+baseline" turned out to be too weak on one side and silent on the other, and
+each half cost a real measurement. Too weak: **L17 w11 passed while costing 2
+lives across ALL EIGHT seeds** (0.25 a seed — noise) with 3★ unchanged at 8/8,
+so nothing a player experiences changed while heroic was taxed for free. Silent:
+**every L5 candidate** took a reliable 18-19 to **12-15 on 8 of 8 seeds with the
+spread unchanged at 1-2**, so 3★ became UNREACHABLE — not a question, a strictly
+WORSE constant, i.e. the additive mini-boss result (spread 0 at every hp)
+wearing a threat shape. With `stars` = `[[18,3],[10,2],[1,1]]` the line derives
+itself, and the two bounds (`stars3 < baseStars3` and `stars3 > 0`) agree with
+**all 13 measured candidates, zero disagreements**: every shipped dose lands at
+3-7 of 8 from a baseline 8 of 8, and every rejected one is either 0/8 or an
+unmoved 8/8. That is a separation, not a fence.
+**And L5 is a REJECT for a second, independent reason: a level whose DIFFICULTY
+IS A PINNED PROPERTY must be skipped,
+which is the fork rule generalized.** L5 is one of the two levels `AUDIT mono
+builds` uses to prove no single plan clears the campaign ("heroic L5 must defeat
+a dart-ONLY board … and reward a mixed one"), so changing it changes the thing
+it exists to demonstrate — exactly why L31's beautiful measurement broke `TD7
+lever advantage`. That fact lives in the TESTS, not the data, so it cannot be
+derived: `PINNED` is an explicit map (L4, L5, L8) where each entry NAMES its
+pinner and the tool prints why it skipped. A third signal came free and is worth
+watching: on every L5 candidate the `dart` column is byte-identical to
+best-of-plans on all 8 seeds, so the dose bought **zero build diversity** —
+which is the thing these healer doses are actually for.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
@@ -4413,21 +4488,21 @@ for any new `logic.js` function and a browser check if it needs special handling
 > - **The additive mini-boss**: CLOSED, measured, do not rebuild. Spread 0 across
 >   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
 >   constant (see the learnings block for the numbers).
-> - **The flat levels / threat shape**: the SEARCH is CLOSED and the campaign
->   went from 12 levels finishing 20/20 on every seed to **8**. Shipped:
->   **L19 w12 ×4, L25 w12 ×5, L30 w13 ×5, L34 w10 ×3** (8 seeds each; heroic
->   zero losses;
->   neglect still loses). `tools/td-threat.js` grid-searched every (wave, dose)
->   on the rest, so what remains is a measured answer rather than a sampling
->   gap: **L22 has NO safe dose anywhere in the grid**; every L26 and L35
->   candidate passing the 4-seed screen FAILED at 8; L23 and L31 are forks,
->   where a level's difficulty IS its lever's value; L1/L2 are the tutorial and
->   L7 sits at its measured heroic ceiling. The NEAR-flat tier was searched too:
->   **L33** has no dose surviving 8 seeds, and **L18** has one (w10 bucket ×3,
->   normal spread 2 → 5, zero heroic losses) that was still REJECTED — it costs
->   heroic median **11 → 5** on a level already moving on 4 of 8 seeds, and L18
->   was never one of the levels that asks nothing. Do not re-try gold, budget
->   base, lane length, HP piles or side doors on any of them.
+> - **The flat levels / threat shape**: IN PROGRESS, and the target list is now
+>   DERIVED (`SPREAD=1 node tools/td-threat.js`) rather than remembered — which
+>   is what re-opened it, because the old flat-20 criterion structurally could
+>   not see a level reading 19 on all eight seeds. Shipped so far:
+>   **L19 w12 ×4, L25 w12 ×5, L30 w13 ×5, L33 w12 ×3, L34 w10 ×3** (8 seeds
+>   each; heroic zero losses; neglect still loses). Measured answers, not
+>   sampling gaps: **L22 has NO safe dose anywhere in the grid**; every L26 and
+>   L35 candidate passing the 4-seed screen FAILED at 8; L23/L31 are forks,
+>   where a level's difficulty IS its lever's value; L1/L2 are World 1's
+>   tutorial and stay flat by design; L7 sits at its measured heroic ceiling.
+>   **L18** has a dose (w10 bucket ×3, zero heroic losses) that was REJECTED —
+>   it costs heroic median **11 → 5** on a level already moving on 4 of 8 seeds,
+>   so it was never one of the levels that asks nothing. STILL OPEN: **L5, L14,
+>   L17, L21** — surfaced only by the spread scan and never searched. Do not
+>   re-try gold, budget base, lane length, HP piles or side doors on any of them.
 > - **Genuinely untried**: a NEW ENEMY on an axis the roster does not have. The
 >   resist matrix is full (one reduction per damage family) and the last three
 >   resist shapes each measured at ~zero lives, so the next enemy has to change a

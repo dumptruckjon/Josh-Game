@@ -2408,8 +2408,8 @@ test("AUDIT threat shape: a healer dose must still make its level cost something
   // out of the list and L4 (a boss level that has always carried healers) kept
   // the count up. If you deliberately add or remove a dose, change this number
   // and say why in the commit — that is the point of it being here.
-  assert.deepEqual(dosed.map((l) => l.id), [4, 19, 25, 30, 34],
-    "the healer-bearing levels are L4 (original) plus the four measured doses; " +
+  assert.deepEqual(dosed.map((l) => l.id), [4, 19, 25, 30, 33, 34],
+    "the healer-bearing levels are L4 (original) plus the five measured doses; " +
     "removing one silently un-does work that took five measured attempts to find");
   for (const lvl of dosed) {
     const lives = SEEDS.map((s) => Math.max(...PLANS.map((p) => run(lvl, p, s))));
@@ -4451,6 +4451,29 @@ test("P2 identity: every world's backbone has a shape no other world uses", () =
   for (const w of worlds) for (const t of DATA.WORLDS[w].backbone.ground.concat([DATA.WORLDS[w].backbone.flier])) {
     assert.ok(DATA.ENEMIES[t], `world "${w}" names a backbone type "${t}" that is not in the roster`);
     assert.ok(DATA.BACKBONE_TYPES.indexOf(t) >= 0, `BACKBONE_TYPES must contain "${t}"`);
+  }
+  // …and the reverse. BACKBONE_TYPES derives from the worlds, but it HAND-SEEDS
+  // a set before the loop, and anything in that seed collects backbone credit
+  // without any world declaring it. That matters because the composition
+  // contract is "at least 70% backbone, at most one special at at most 25% HP":
+  // seeding a mechanic-carrying enemy would reclassify a special as backbone and
+  // let a wave carry two disruptive shapes with no answer — the exact failure
+  // that took World 4 from 2/4 to 4/4 when it was fixed. So a seed must be
+  // VANILLA. (Deriving the seed list rather than re-typing it is the point: the
+  // literal ["brick"] is checked, not trusted.)
+  const declared = new Set();
+  for (const w of worlds) DATA.WORLDS[w].backbone.ground.concat([DATA.WORLDS[w].backbone.flier]).forEach((t) => declared.add(t));
+  const MECHANIC = ["armor", "shield", "shieldRegen", "splashResist", "bonkResist", "zapResist",
+    "slowImmune", "slowHeal", "phase", "tunnel", "heal", "spawner", "hurry", "charge", "split",
+    "goldBurst", "stomp", "suck", "enrage", "phases", "disable", "boss"];
+  for (const t of DATA.BACKBONE_TYPES) {
+    if (declared.has(t)) continue;
+    const e = DATA.ENEMIES[t];
+    assert.ok(e, `BACKBONE_TYPES seeds "${t}", which is not in the roster`);
+    const carries = MECHANIC.filter((m) => e[m]);
+    assert.deepEqual(carries, [],
+      `"${t}" is hand-seeded into BACKBONE_TYPES but no world declares it, and it carries ${carries.join(", ")} — ` +
+      `a special taking backbone credit lets a wave ship two disruptive shapes past the composition contract`);
   }
   // …and the guide SAYS where you meet each world's regulars — otherwise ten
   // stat-identical "no tricks" cards read as ten copies of the same enemy.

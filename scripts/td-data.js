@@ -523,8 +523,18 @@
   // ["sock","marble","blob","knight","brick","hawk"], which is exactly the
   // literal that made every world's waves the same shape.
   const BACKBONE_TYPES = (() => {
-    // brick is on every world by design: it is authored in tight squads as
-    // splash bait, never a world's identity, so it is not skinned.
+    // ONE hand-seeded exception. The comment here used to claim brick was "on
+    // every world by design"; measuring it, brick is authored on exactly ONE
+    // level (L2) in one world of nine, and otherwise only ever arrives as the
+    // Bolt Bucket's spawner drip — which the wave-budget audit cannot see at
+    // all. So it is World 1's squad enemy plus a drip, not a campaign regular,
+    // and it is unskinned because it is never a world's identity.
+    //
+    // A hand-seed inside a derivation is the "a scan's own list is part of the
+    // scan" shape, so it is guardrailed rather than trusted: anything seeded
+    // here takes BACKBONE credit without a world declaring it, which would let
+    // a mechanic-carrying enemy slip past the "<=1 special per wave" contract.
+    // `AUDIT backbone` therefore requires every seed to be VANILLA.
     const s = new Set(["brick"]);
     for (const w of Object.values(WORLDS)) { w.backbone.ground.forEach((t) => s.add(t)); s.add(w.backbone.flier); }
     return [...s];
@@ -1685,7 +1695,13 @@
         { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "screw", count: 8, gap: 0.9, delay: 4 }, { type: "offcut", count: 19, gap: 0.3, delay: 2 }, { type: "reject", count: 48, gap: 0.65, delay: 0 }, { type: "knight", count: 12, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "bubblewrap", count: 7, gap: 0.9, delay: 4 }, { type: "offcut", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 36, gap: 0.65, delay: 0 }, { type: "pellet", count: 90, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "battery", count: 17, gap: 0.9, delay: 4 }, { type: "offcut", count: 31, gap: 0.3, delay: 2 }, { type: "reject", count: 72, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3, at: 30 } ] },
-        { groups: [ { type: "slime", count: 14, gap: 0.9, delay: 4 }, { type: "offcut", count: 39, gap: 0.3, delay: 2 }, { type: "blob", count: 46, gap: 0.65, delay: 0 }, { type: "pellet", count: 114, gap: 0.8, delay: 3 } ] },
+        // THREAT-SHAPE dose: the slime group is 3 Junk Healers, and the 1285 hp
+        // that reclaims goes back to the blob group (46 -> 67), so the wave's
+        // total hp is unchanged and the >=70% backbone share only rises. L33
+        // finished 19-20 on all eight seeds; a healer is a DPS-THRESHOLD shape,
+        // so it asks a question a bigger hp pile cannot. -> 16-18, heroic min 2
+        // (the shipped L29 floor), dart-mono still clears. tools/td-threat.js
+        { groups: [ { type: "healer", count: 3, gap: 0.9, delay: 4 }, { type: "offcut", count: 39, gap: 0.3, delay: 2 }, { type: "blob", count: 67, gap: 0.65, delay: 0 }, { type: "pellet", count: 114, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "tinplane", count: 35, gap: 0.9, delay: 4 }, { type: "offcut", count: 49, gap: 0.3, delay: 2 }, { type: "reject", count: 77, gap: 0.65, delay: 0 }, { type: "knight", count: 20, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "cushion", count: 16, gap: 0.9, delay: 4 }, { type: "offcut", count: 61, gap: 0.3, delay: 2 }, { type: "blob", count: 59, gap: 0.65, delay: 0 }, { type: "pellet", count: 148, gap: 0.8, delay: 3, at: 30 } ] },
       ],
