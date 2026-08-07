@@ -4435,6 +4435,28 @@ one); and **`sell` drew nothing** while `build` and `upgrade` both ring, though
 the event already carried the refund to float. When you next wonder whether the
 game FEELS complete, enumerate the events and ask which have no picture — it is
 a cheap, mechanical audit that a tap-harness can never perform.
+**A PUSH DID NOT TRIGGER A DEPLOY, and the only thing that caught it was the
+owner opening the site.** `02312d2` was on `origin/main`, the full suite was
+green, and nothing was wrong with the code — but GitHub created NO workflow run
+for that push, so the live site simply kept serving the previous commit. Every
+earlier push the same day had triggered normally, which is what made it hard to
+believe. The tell is unambiguous once you look for it: `list_workflow_runs`
+filtered to `status: in_progress` returned 0, `queued` returned 0, and the
+completed list's newest entry was the PREVIOUS commit — three cheap, small,
+uncached queries that together mean "no run exists", as opposed to "a run is
+pending". Do not diagnose this from the unfiltered listing: it returns ~428KB
+and a byte-identical payload on repeat calls, so it looks stale whether or not
+it is, and reading it as a cache is what delayed the diagnosis here.
+**The fix takes seconds, because `deploy.yml` declares `workflow_dispatch:`
+alongside `push`** — trigger it with `actions_run_trigger` / `run_workflow` on
+ref `main` and the same three jobs run against the head commit (test → deploy →
+verify-live, all green, live site confirmed). Two lasting points. **A green
+local suite and a pushed commit do NOT mean the site is live**; RULE 6 already
+says a change is done only once the deploy is watched, and this is the failure
+mode it exists for — the deploy can be missing rather than broken, which shows
+up as silence, not as red. And **when a user says the live site looks stale,
+believe it over your own reading of the API**: that report was the evidence that
+overturned the cache theory, and it was right.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
