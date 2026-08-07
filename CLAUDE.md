@@ -1024,6 +1024,7 @@ tooling.
 ├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
 ├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; **P6b** shipped 🦆 `zapResist`, **P6c** shipped ⛱️ `zones[].dmg`, and **P6d closes the I5 new-enemy item**: of its three bodies, 🪂 Parachute Trooper was cut by the critique (the Tin Plane renamed), 🥫 Pantry Can was cut by MEASUREMENT (a shield is anti-Fan only — see the learnings block), and 🛢️ **Oil Drum shipped** on a positional axis instead of a resist. The spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`); note that its critique was itself wrong about the shield arithmetic, so treat both as claims to measure. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
+├── PLAN_TOWER_BRANCHES.md      # 🎯 DESIGNED, NOT BUILT: "a third ultimate per tower?" — the answer is NOT three-on-every-line (Dart and Fan have a real third axis; Mortar and Camp do not, and every candidate for them duplicates a shipped ability or breaks the guardrailed two-lines-reach-air truth), and NOT a fifth line (~5× the cost for the same feeling). §5 is the real deliverable: all EIGHT shipped tier-4 branches are unverified by the winnability suite — the oracle's fill loop is `t.tier < 3`, so it never branches — which is exactly how Sticky Bomb shipped promising goo it never left. Phases A-C (identity guardrails · a diagnostic-only `--branch` observation arm · deriving the panel's branch buttons) are pure infrastructure worth building even if no new branch is ever added. §8 is the do-not-build list.
 ├── PLAN_ENEMY_ESCORT.md        # 🌫️ BUILT then CUT: the decision-axis probe. Phase 1 shipped the decision-aware oracle (`tools/td-sim.js --priority`) and it killed the enemy before it was built — targeting priority measures ZERO even free, even on the Junk Healer, so 🌫️ Dust Bunny is not built. §6 is the report; §§2-4 are the refuted design, not a backlog.
 ├── PLAN_WORLD_9.md             # 🏭 ✅ BUILT (this line said "DESIGNED, NOT BUILT" for a release AFTER the world shipped — the "a list that outlives its contents" class, caught 2026-08 by reading DATA.LEVELS instead of the doc): World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
@@ -4660,6 +4661,30 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   played perfectly and free (`PLAN_ENEMY_ESCORT` §6), and the Oil Drum itself
 >   measured outcome-neutral on the shipped oracle, so "changes a decision" is a
 >   design goal the sim cannot score. Build it for legibility, not for the curve.
+>
+> - **Tier-4 branches**: DESIGNED, NOT BUILT — see `PLAN_TOWER_BRANCHES.md`. The
+>   headline is a COVERAGE finding, not a content one: **all eight shipped
+>   branches are unverified by the winnability suite**, because the oracle's fill
+>   loop is `t.tier < 3` and so never branches. Sticky Bomb is the proof — it
+>   shipped for months whose "the goo it leaves slows whatever walks in" existed
+>   only as a sentence. Phase A (one identity guardrail per branch, driving the
+>   declared mechanic through its own engine seam, in the `zapResist` style) is
+>   worth building whether or not a branch is ever added, and is the RULE-7
+>   obligation the Sticky Bomb fix left open. On the owner's actual question: a
+>   third branch is right for **Dart** (armour strip — `computeHit` applies armor
+>   at exactly one line, so it is the Oil Drum's one-write-zero-new-reads shape,
+>   and armor is the commonest trait in the game at 14 of 51 enemies) and **Fan**
+>   (a support aura buffing nearby TOWERS — `boostOf`/`reachOf` are the sole
+>   readers of rate and range and `boostOf` already multiplies two independent
+>   sources, so a third factor cannot clobber ⚡ Overclock), and WRONG for Mortar
+>   and Camp, whose every candidate either duplicates a shipped ability or gives
+>   a line air access and goes red on the two-lines-reach-air truth table. A
+>   fifth tower LINE is ~5× the cost for the same feeling (5 sprites against a
+>   thin 0.402 cross-line distinctness margin) — though note its recorded blocker
+>   is already half-cleared, since the build menu derives from
+>   `Object.keys(DATA.TOWERS)`. The tower PANEL is the only place `a`/`b` is
+>   hard-coded (`td-main.js:1032/1035`); the engine's `branch()` is already
+>   generic and the Toybox Guide already derives.
 >
 > - **The camp / `blockedBy` path**: CLOSED. It is the only code that can stop a
 >   live enemy indefinitely and neither oracle plan builds a camp, so it was
