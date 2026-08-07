@@ -940,6 +940,55 @@ guardrail that only inspects the artefact misses the live path** — the loadout
 test passed while `startLevel` still handed a run everything owned, because it
 only read the checkpoint, so the engine now records its own `state.meta`.
 
+**EVERY TIER-4 BRANCH WAS UNVERIFIED, AND THE THREE FIXTURE BUGS FOUND WHILE
+FIXING IT ARE WORTH MORE THAN THE TESTS.** Asked for a brainstorm on a third
+ultimate per tower, the first thing to measure was what the existing eight
+prove — and the answer was nothing about their MECHANICS. Both winnability
+oracles fill and upgrade with `t.tier < 3`, so neither ever calls `branch()`;
+what existed was exclusivity, pricing, a no-DPS-downgrade stat table and a
+pixel-hash silhouette check. That is precisely how Sticky Bomb shipped for
+months whose *"the goo it LEAVES slows whatever WALKS IN"* existed only as a
+sentence. Six branches now prove their own claim through their own seam (Dino's
+`blocks: 2` and RC's `stun` were already driven, and a near-duplicate is noise,
+not coverage), each mutation-proven: Sniper by **first-shot DISTANCE**, because
+shot COUNT is confounded by rate (2.2s vs 0.7s) while distance is pure range;
+Minigun by the damage stream reading `3,4,5,6,7,8,9,9,3,4,…` — ramp to full,
+then back to the floor on a real retarget; Bertha by bodies caught by the FIRST
+shell; Sticky by a body **newly slowed on a tick with NO detonation** (on a
+mortar-only board nothing else can slow anything, so that IS "walks in", and it
+needs no position at all); Blizzard by marking brittle where T3 and Static do
+not; Static by an arc reading `30, 23, 17, 13`. **Three fixture bugs were hit,
+each of which first presented as a product defect** — the "suspect the FIXTURE"
+law three times in one sitting: `state.enemies` is COMPACTED on death, so a
+before/after hp diff cannot see a kill and a one-shotting shell scored "0 bodies
+hit" (count `die` events plus surviving hp drops); an enemy carries `dist` along
+its lane, **not `x`/`y`**, so a probe reading x/y reads undefined, every body
+scores as outside the puddle, and the goo claim fails on a working engine; and a
+blast-width count **against socks measures nothing**, because a tier-3 shell
+already one-shots every sock in its radius and both blasts saturate (Crate 9,
+Bertha 9, Sticky 11 — not even ordered by radius), so it must use a body that
+SURVIVES the hit and becomes pure geometry (8 → 11). One more general lesson,
+from test 6: **two clauses can be needed because they catch different
+mutations** — the per-link decay check pins the arc's SHAPE (applying decay once
+gives `30,23,23,23` and fails it) but goes vacuous at `decay: 1.0`, where the
+expectation flattens with the data, so a separate "the arc genuinely weakens"
+clause carries that case. On the design question itself, `PLAN_TOWER_BRANCHES.md`
+records the answer: a third ultimate is right for **Dart** and **Fan** and wrong
+for Mortar and Camp, whose every candidate duplicates a shipped ability or gives
+a line air access and goes red on the two-lines-reach-air truth table — *"each
+line has as many ultimates as it has real axes"* is a design statement; *"every
+line has three"* would require inventing two. **And the document's own §6 was
+then refuted by measuring it within the hour**, which is the discipline working
+on itself: it reasoned that a third branch button "simply wraps, so layout is not
+a blocker", and driving the real tier-3 panel with a cloned card shows the third
+takes a whole third row (+111px, 239 → 350) and goes past the fold on **320×480,
+320×568 AND landscape 844×390** (12/20/33px). A third branch needs a panel
+re-fit, not two template lines. That probe hit the fixture class one more time
+for luck: **the tower panel now STAYS OPEN and re-renders after a purchase**, so
+clicking `.td-up` three times lands the third click on a branch card and
+silently measures a tier-4 panel with no branch row — drive upgrades through
+`__TD.script` and click only to open.
+
 ---
 
 ## Repository Structure

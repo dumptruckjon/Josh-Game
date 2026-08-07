@@ -412,6 +412,236 @@ test("TD2 branches: exclusive, tier-3-gated, priced; Sniper crits are seeded-det
   assert.ok(dmgs.length >= 8 && dmgs[0] < dmgs[dmgs.length - 1], `spin-up ramps dart damage (${dmgs[0]} → ${dmgs[dmgs.length - 1]})`);
 });
 
+// ---------------------------------------------------------------------------
+// BRANCH IDENTITY (RULE 7). Every tier-4 branch is INVISIBLE to the winnability
+// suite: both oracle plans fill and upgrade with `t.tier < 3`, so neither ever
+// calls branch(). What existed before this block was exclusivity, pricing, the
+// no-DPS-downgrade stat table and a pixel-hash silhouette check — none of which
+// drives a branch's declared MECHANIC. That is exactly how Sticky Bomb shipped
+// for months whose "the goo it LEAVES slows whatever WALKS IN" existed only as
+// a sentence: the code slowed bodies caught in the blast at the instant of
+// detonation, nothing lingered, nothing could walk in, and there was nothing on
+// the ground to draw.
+//
+// So each branch now proves its own claim through its own engine seam, the way
+// `zapResist` is proven by firing each `how` at one pinned body rather than by
+// a time-to-kill with confounds. Dino Squad's `blocks: 2` and RC Racers' `stun`
+// are already driven by "TD2 Army Guys" above and are deliberately NOT repeated
+// here — a near-duplicate is noise, not coverage.
+//
+// Three FIXTURE traps were hit writing these, each of which first presented as
+// a product defect, and all three are worth knowing before editing this block:
+//   • `state.enemies` is COMPACTED on death, so a before/after hp diff cannot
+//     see a kill at all — a one-shotting shell scored "0 bodies hit". Count the
+//     `die` events plus the survivors whose hp dropped.
+//   • an enemy carries `dist` along its lane, NOT `x`/`y`. A probe reading x/y
+//     reads undefined, every body scores as "outside the puddle", and the goo
+//     claim fails on a working engine.
+//   • a blast-width count against SOCKS measures nothing, because a tier-3
+//     shell already one-shots every sock in its radius and both blasts
+//     saturate. Use a body that SURVIVES the hit, so the count is geometry.
+// ---------------------------------------------------------------------------
+
+// One shell's reach is a pure RANGE question if you measure the distance the
+// enemy has covered when the FIRST dart leaves the tower — shot COUNT is
+// confounded by rate (Sniper 2.2s vs tier 3's 0.7s), first-shot distance is not.
+function firstShotDist(branchKey) {
+  const lvl = micro([{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }], [{ id: "m1", cx: 12, cy: 4 }]);
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.place("dart", "m1");
+  const t = e.state.towers[0];
+  e.state.gold = 9999;
+  e.upgrade(t.id); e.upgrade(t.id);
+  if (branchKey) assert.ok(e.branch(t.id, branchKey).ok, "branch applied");
+  e.callWave();
+  for (let i = 0; i < 6000; i++) { e.tick(); if (e.state.projectiles.length) return e.state.enemies[0].dist; }
+  return -1;
+}
+
+test("BRANCH IDENTITY 🎯 Sniper Scope opens fire where tier 3 cannot reach", () => {
+  const t3 = firstShotDist(null);
+  const sniper = firstShotDist("a");
+  assert.ok(t3 > 0 && sniper > 0, `both builds must fire (t3 ${t3}, sniper ${sniper})`);
+  // range 3.0 → 5.5 against a pad 2 cells off the lane, so the Sniper must
+  // engage a good 2+ cells earlier. Measured 9.79 vs 6.88.
+  assert.ok(sniper < t3 - 1.5,
+    `Sniper Scope must engage far earlier than tier 3 (first shot at dist ${sniper.toFixed(2)} vs ${t3.toFixed(2)}) — ` +
+    "its role line is \"one big far shot\", and range is the half of that a stat table cannot check");
+  assert.ok(DATA.TOWERS.dart.branches.a.range > DATA.TOWERS.dart.tiers[2].range, "…and the data says so too");
+});
+
+test("BRANCH IDENTITY 🎯 Minigun spins UP on one target and RESETS on the next", () => {
+  const B = DATA.TOWERS.dart.branches.b;
+  const floor = Math.max(1, Math.round(B.dmg * B.heatFloor));
+  assert.ok(floor < B.dmg, "the fixture is only meaningful while the floor is below full damage");
+  // socks spaced far enough apart that each is killed before the next arrives,
+  // so every retarget is a REAL one.
+  const lvl = micro([{ groups: [{ type: "sock", count: 4, gap: 3.0, delay: 0 }] }], [{ id: "m1", cx: 8, cy: 3 }]);
+  const e = TD.createEngine(lvl, { seed: 9 });
+  e.place("dart", "m1");
+  const t = e.state.towers[0];
+  e.state.gold = 9999;
+  e.upgrade(t.id); e.upgrade(t.id);
+  assert.ok(e.branch(t.id, "b").ok, "Minigun applied");
+  e.callWave();
+  const seen = new Set(), dmgs = [];
+  for (let i = 0; i < 6000 && e.state.phase === "wave"; i++) {
+    e.tick();
+    for (const p of e.state.projectiles) if (!seen.has(p.id)) { seen.add(p.id); dmgs.push(p.dmg); }
+  }
+  let peaked = false, reset = false;
+  for (const d of dmgs) { if (d >= B.dmg) peaked = true; else if (peaked && d <= floor) reset = true; }
+  assert.ok(peaked, `the stream must reach full damage ${B.dmg} (saw ${dmgs.join(",")})`);
+  assert.ok(reset,
+    `a real retarget must drop the Minigun back to its ${floor}-damage floor (saw ${dmgs.join(",")}) — ` +
+    "without the reset it is a permanently-wound-up gun, not a spin-up weapon");
+});
+
+// Bodies damaged by ONE shell. Knights are 90hp behind 50% armour, so neither a
+// 58-damage Crate Cannon nor a 105-damage Bertha kills one — the count is pure
+// blast geometry rather than a damage comparison in disguise.
+function firstShellBodies(branchKey) {
+  const lvl = micro([{ groups: [{ type: "knight", count: 18, gap: 0.35, delay: 0 }] }], [{ id: "m1", cx: 12, cy: 4 }]);
+  const e = TD.createEngine(lvl, { seed: 5 });
+  e.place("mortar", "m1");
+  const t = e.state.towers[0];
+  e.state.gold = 9999;
+  e.upgrade(t.id); e.upgrade(t.id);
+  if (branchKey) assert.ok(e.branch(t.id, branchKey).ok, "branch applied");
+  e.callWave();
+  for (let i = 0; i < 800; i++) {
+    const before = new Map(e.state.enemies.map((x) => [x.id, x.hp]));
+    e.tick();
+    const evs = e.events.splice(0);
+    if (!evs.some((v) => v.type === "splash")) continue;
+    const killed = evs.filter((v) => v.type === "die").length;
+    const hurt = e.state.enemies.filter((x) => before.has(x.id) && x.hp < before.get(x.id)).length;
+    return killed + hurt;
+  }
+  return -1;
+}
+
+test("BRANCH IDENTITY 🧱 Big Bertha's blast really is WIDER than the tier it replaces", () => {
+  const crate = firstShellBodies(null);
+  const bertha = firstShellBodies("a");
+  assert.ok(crate > 0 && bertha > 0, `both shells must land on the column (crate ${crate}, bertha ${bertha})`);
+  // splash 1.6 → 2.2 against a column 0.21 cells apart. Measured 8 vs 11.
+  assert.ok(bertha >= crate + 2,
+    `Big Bertha must catch materially more bodies per shell (${bertha} vs Crate Cannon's ${crate}) — ` +
+    "\"a wider blast\" is its whole identity beside the damage the stat table already checks");
+  assert.ok(DATA.TOWERS.mortar.branches.a.splash > DATA.TOWERS.mortar.tiers[2].splash, "…and the data says so too");
+});
+
+test("BRANCH IDENTITY 🧱 Sticky Bomb LEAVES goo — a body that walks in LATER is slowed", () => {
+  const G = DATA.TOWERS.mortar.branches.b;
+  // A mortar-only board has no aura and no zap, so the ONLY thing on the field
+  // that can slow anything is the goo. A body newly slowed on a tick with NO
+  // detonation therefore walked into a puddle that was already on the ground —
+  // which is the claim, stated without needing a position at all.
+  const run = (branchKey) => {
+    const lvl = micro([{ groups: [{ type: "knight", count: 14, gap: 0.7, delay: 0 }] }], [{ id: "m1", cx: 10, cy: 4 }]);
+    const e = TD.createEngine(lvl, { seed: 5 });
+    e.place("mortar", "m1");
+    const t = e.state.towers[0];
+    e.state.gold = 9999;
+    e.upgrade(t.id); e.upgrade(t.id);
+    if (branchKey) assert.ok(e.branch(t.id, branchKey).ok, "branch applied");
+    e.callWave();
+    let puddle = null, lateSlows = 0;
+    let prev = new Map();
+    for (let i = 0; i < 2000 && e.state.phase === "wave"; i++) {
+      e.tick();
+      const detonated = e.events.splice(0).some((v) => v.type === "splash");
+      if (!puddle && e.state.puddles.length) puddle = Object.assign({}, e.state.puddles[0]);
+      for (const x of e.state.enemies) {
+        if (!x.alive) continue;
+        const slowed = x.slowPct > 0 && e.state.tick < x.slowUntil;
+        if (slowed && !prev.get(x.id) && !detonated) lateSlows++;
+      }
+      prev = new Map(e.state.enemies.map((x) => [x.id, x.slowPct > 0 && e.state.tick < x.slowUntil]));
+    }
+    return { puddle, lateSlows };
+  };
+
+  const sticky = run("b");
+  assert.ok(sticky.puddle, "a Sticky Bomb detonation must leave a puddle on the ground");
+  assert.equal(sticky.puddle.r, G.splash, "the goo covers the shell's own blast");
+  assert.equal(sticky.puddle.slow, G.goo.slow, "…at the declared slow");
+  assert.ok(sticky.lateSlows > 0,
+    `a body must be slowed on a tick with NO detonation (saw ${sticky.lateSlows}) — that is "walks in", ` +
+    "and slowing only what the blast caught is the defect this branch shipped with");
+
+  // the control: the tier it replaces, and its sibling, leave nothing behind
+  for (const [key, label] of [[null, "Crate Cannon"], ["a", "Big Bertha"]]) {
+    const r = run(key);
+    assert.equal(r.puddle, null, `${label} must leave no goo`);
+    assert.equal(r.lateSlows, 0, `${label} has nothing that can slow anything`);
+  }
+});
+
+test("BRANCH IDENTITY 🧊 Blizzard Cone makes bodies brittle — tier 3 and Static do not", () => {
+  const chilled = (branchKey) => {
+    const lvl = micro([{ groups: [{ type: "knight", count: 2, gap: 1, delay: 0 }] }], [{ id: "m1", cx: 8, cy: 3 }]);
+    const e = TD.createEngine(lvl, { seed: 4 });
+    e.place("fan", "m1");
+    const t = e.state.towers[0];
+    e.state.gold = 9999;
+    e.upgrade(t.id); e.upgrade(t.id);
+    if (branchKey) assert.ok(e.branch(t.id, branchKey).ok, "branch applied");
+    e.callWave();
+    for (let i = 0; i < 1200 && e.state.phase === "wave"; i++) {
+      e.tick();
+      if (e.state.enemies.some((x) => x.alive && x.brittle)) return true;
+    }
+    return false;
+  };
+  assert.ok(chilled("a"), "Blizzard Cone must actually mark bodies brittle — \"chilled bodies take extra damage\" is its identity");
+  assert.ok(!chilled(null), "…and the Freezer Blast it replaces must not (or the branch buys nothing)");
+  assert.ok(!chilled("b"), "…nor its sibling, which trades the cold for lightning");
+  // the brittle multiplier itself is combat math, so pin it at the seam
+  const base = { type: "sock", hp: 100, maxHp: 100, shield: 0, armor: 0, brittle: false };
+  const plain = TD.computeHit(50, "bonk", base).hpDmg;
+  const brittle = TD.computeHit(50, "bonk", Object.assign({}, base, { brittle: true })).hpDmg;
+  assert.ok(brittle > plain, `a brittle body must take more (${brittle} vs ${plain})`);
+});
+
+test("BRANCH IDENTITY 🧊 Static Zap's chain DECAYS by its declared factor down the arc", () => {
+  const C = DATA.TOWERS.fan.branches.b.chain;
+  const lvl = micro([{ groups: [{ type: "knight", count: 12, gap: 0.4, delay: 0 }] }], [{ id: "m1", cx: 10, cy: 3 }]);
+  const e = TD.createEngine(lvl, { seed: 8 });
+  e.place("fan", "m1");
+  const t = e.state.towers[0];
+  e.state.gold = 9999;
+  e.upgrade(t.id); e.upgrade(t.id);
+  assert.ok(e.branch(t.id, "b").ok, "Static Zap applied");
+  e.callWave();
+  let arc = null;
+  for (let i = 0; i < 1500 && e.state.phase === "wave" && !arc; i++) {
+    const before = new Map(e.state.enemies.map((x) => [x.id, x.hp]));
+    e.tick();
+    e.events.splice(0);
+    const hits = e.state.enemies
+      .filter((x) => before.has(x.id) && x.hp < before.get(x.id))
+      .map((x) => before.get(x.id) - x.hp)
+      .sort((a, b) => b - a);
+    if (hits.length >= 3) arc = hits;
+  }
+  assert.ok(arc, "the chain must strike at least 3 bodies in one firing");
+  assert.equal(arc[0], C.dmg, `the first link lands full damage (saw ${arc[0]})`);
+  for (let i = 1; i < arc.length; i++) {
+    const want = Math.round(C.dmg * Math.pow(C.decay, i));
+    assert.ok(Math.abs(arc[i] - want) <= 1,
+      `link ${i} must decay to ~${want} (saw ${arc[i]}; whole arc ${arc.join(",")}) — ` +
+      "the shipped tests count the strikes and their jump radius, never how much each one is worth");
+  }
+  // The two clauses catch DIFFERENT mutations and both are needed. The per-link
+  // check pins the arc's SHAPE against the declared factor (applying decay once
+  // instead of compounding gives 30,23,23,23 and fails it) but goes vacuous at
+  // decay 1.0, because the expectation flattens with the data. This one pins
+  // that the factor is a decay at all.
+  assert.ok(arc[arc.length - 1] < arc[0], "…so the arc genuinely weakens rather than hitting flat");
+});
+
 test("TD2 mixed arsenal: deterministic replay AND an all-four-lines L1 build wins", () => {
   const lvl = micro([
     { groups: [{ type: "sock", count: 6, gap: 0.4, delay: 0 }, { type: "marble", count: 4, gap: 0.3, delay: 1 }] },

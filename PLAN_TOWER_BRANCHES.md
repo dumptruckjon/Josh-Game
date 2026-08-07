@@ -3,8 +3,9 @@
 **Question asked (owner, 2026-08):** *"Deep brainstorm on either new tower types
 or upgrade branches, eg each tower can have 3 ultimate choices vs current 2."*
 
-**Status: DESIGNED, NOT BUILT.** Nothing in this document has shipped. It is a
-decision document with measurements, not a backlog.
+**Status: Phase A ✅ BUILT; everything else DESIGNED, NOT BUILT.** The six branch
+identity guardrails of §5a ship with this document (pure coverage, zero balance
+risk, no new content). No new branch and no new tower line has been added.
 
 ---
 
@@ -16,12 +17,15 @@ decision document with measurements, not a backlog.
    truth. Recommend a third branch on **Dart** and **Fan** only.
 2. **Not a fifth tower line** — but the reason on record is now the *wrong* one,
    and the right one is smaller than it looks. See §4.
-3. **Neither should be built first.** All eight shipped branches are
-   **completely unverified by the winnability suite** — neither oracle plan buys
-   tier 4 — which is exactly how Sticky Bomb spent months promising goo it never
-   left. Going 8 → 12 makes that hole 50% worse. **§5 is the real deliverable.**
-4. The order is therefore: **verify what exists → make the UI able to show a
-   third → then add content.** Each is independently shippable (§7).
+3. **Neither should be built first**, because the shipped branches' MECHANICS
+   were unverified by the winnability suite — neither oracle plan buys tier 4 —
+   which is exactly how Sticky Bomb spent months promising goo it never left.
+   Going 8 → 12 would have made that hole 50% worse. **§5 was the real
+   deliverable, and Phase A of it now ships with this document**: six branches
+   gained an identity guardrail (Dino's `blocks: 2` and RC's `stun` already had
+   one), each mutation-proven.
+4. The order is therefore: **verify what exists (done) → make the UI able to
+   show a third → then add content.** Each is independently shippable (§7).
 
 ---
 
@@ -203,32 +207,47 @@ the instant of detonation, nothing lingered, nothing could walk in, and there wa
 nothing on the ground to draw. Adding four more branches without closing this is
 adding four more sentences.
 
-### 5a. Branch identity guardrails (Phase A — ships alone, zero balance risk)
+### 5a. Branch identity guardrails — ✅ **BUILT** (Phase A, `td-logic.test.js`)
 
 One test per branch, driving its **declared mechanic through its own engine
-seam**, in the style of the `zapResist` proof (fire 100 damage as each `how` at
-one pinned body and read four numbers — no time-to-kill, no confounds):
+seam**, in the style of the `zapResist` proof (fire each `how` at one pinned
+body and read the numbers — no time-to-kill, no confounds). **Correction to the
+first draft of this document: it is six tests, not eight.** Dino Squad's
+`blocks: 2` and RC Racers' `stun` are already driven by `TD2 Army Guys`, and a
+near-duplicate is noise, not coverage.
 
-| Branch | The claim | How to prove it |
-|---|---|---|
-| Sniper Scope | one big far shot | fires at `range` T3 cannot reach; seeded crit lands at the declared rate |
-| Minigun | ramps up | shot interval falls from `spinUp` to `heatFloor` over a held target, and **resets** when the target dies |
-| Big Bertha | wider blast | count bodies damaged by one shell vs Crate Cannon at identical spacing |
-| **Sticky Bomb** | goo **lingers** | a body entering the crater **after** detonation is slowed (this is the shipped fix — pin it) |
-| Blizzard Cone | brittle | `computeHit` yields `×R.brittleBonus` on a chilled body and plain damage on an unchilled one |
-| Static Zap | arcs to 4 | strike count and per-jump decay (partially covered — extend to decay) |
-| Dino Squad | **blocks 2** | two enemies held by one soldier; the dead-blocker rescue frees both within one tick |
-| RC Racers | stun | a struck body's `dist` does not advance for `stun` seconds |
+| Branch | The claim | How it is proven | Mutation that turns it red |
+|---|---|---|---|
+| Sniper Scope | one big far shot | first-shot **distance** (shot *count* is confounded by rate; distance is pure range). Measured 6.88 vs T3's 9.79 | `range: 5.5 → 3.0` |
+| Minigun | spins up **and resets** | dart damage over a wave reads `3,4,5,6,7,8,9,9,3,4,…` — ramp to full, then back to the floor on a real retarget | delete `else t.heat = s.heatFloor` |
+| Big Bertha | wider blast | bodies caught by the **first** shell, against **knights that survive it**, so the count is geometry. 11 vs Crate Cannon's 8 | `splash: 2.2 → 1.6` |
+| **Sticky Bomb** | goo **lingers** | on a mortar-only board nothing else can slow anything, so a body **newly slowed on a tick with no detonation** walked into goo already on the ground. 10 such. Crate and Bertha: 0 puddles, 0 slows | remove the `state.puddles.push` (i.e. the shipped defect) |
+| Blizzard Cone | brittle | the branch marks bodies brittle; T3 **and** Static Zap do not | delete the `s.brittle` mark |
+| Static Zap | arc **decays** | one firing reads `30, 23, 17, 13` = `30 × 0.75ⁿ`. Strike count and jump radius were already covered; the per-link **value** was not | `decay: 0.75 → 1.0`, and separately applying decay once (`30,23,23,23`) |
 
-Each **mutation-proven** — the assertion must go red when the mechanic is
-removed. Note the documented trap: several will need the *mechanism* collapsed
-rather than the *data* zeroed, because a shipped assertion may fire first (the
-redundancy trap that made both the diversity guardrail and the price-flash
-guardrail unfalsifiable on the first attempt).
+All six were run against each mutation and went red. Note the documented trap
+that shaped test 6: **the two clauses catch different mutations and both are
+needed** — the per-link check pins the arc's shape but goes vacuous at
+`decay: 1.0`, because the expectation flattens with the data.
 
-**This is worth building whether or not any new branch is ever added.** It
-retroactively verifies eight shipped features and it is the RULE 7 obligation
-the Sticky Bomb fix left open.
+**Three fixture bugs were hit writing these, each of which first presented as a
+product defect** — the "suspect the FIXTURE before the content" law, three times
+in one sitting, and all three are recorded in the test block's header so the
+next author does not re-derive them:
+
+1. `state.enemies` is **compacted on death**, so a before/after hp diff cannot
+   see a kill — a one-shotting shell scored "0 bodies hit". Count `die` events
+   plus surviving hp drops.
+2. An enemy carries `dist` along its lane, **not `x`/`y`**. A probe reading
+   `x`/`y` reads `undefined`, every body scores as outside the puddle, and the
+   goo claim fails on a perfectly working engine.
+3. A blast-width count **against socks measures nothing** — a tier-3 shell
+   already one-shots every sock in its radius and both blasts saturate (Crate 9,
+   Bertha 9, Sticky 11: not even ordered by radius). Use a body that survives.
+
+**This was worth building whether or not any new branch is ever added.** It
+retroactively verifies six shipped features nobody had ever driven, and it is
+the RULE 7 obligation the Sticky Bomb fix left open.
 
 ### 5b. A branch OBSERVATION arm (Phase B — diagnostic only)
 
@@ -261,14 +280,52 @@ The engine is already generic. The **panel** is not:
 - `td-ui.js:436` (the Toybox Guide) **already** derives:
   `Object.keys(T[k].branches || {}).map(...)`. Copy that shape.
 
-**Layout is not a blocker.** `.td-panel` is `flex-wrap: wrap; max-width: 320px`
-with child margins (never flex `gap` — Safari 14.0). `.td-branch` is
-`max-width: 40vw`, so at a 320px viewport two fit one row (128 + 8 + 128 = 264)
-and a third wraps to its own — which is what wrapping is for. **What must be
-measured** is total panel height at 320×480 (the smallest audited viewport):
-name + stats + **3** branch rows + targeting + sell. If it overflows, the fix is
-the shipped one — the dialog clamp measures the widest CHILD edge in the FIELD's
-own offset coordinates, never `vw` or `documentElement.clientWidth`.
+**Layout IS a blocker — measured, and it overturns the first draft of this
+section**, which reasoned that a third button simply wraps and called it fine.
+Driving the real tier-3 panel and cloning its branch card (shipped CSS, nothing
+changed), across the viewports the fort is audited at:
+
+| Viewport | 2 branches | 3 branches |
+|---|---|---|
+| 320×480 | 304×239 fits | 304×**350** — **overflows by 12px** |
+| 320×568 | 304×239 fits | 304×**350** — **overflows by 20px** |
+| 360×640 | 340×239 fits | 340×334 fits |
+| 390×844 | 340×308 fits | 340×390 fits |
+| 844×390 (landscape) | 340×266 fits | 340×**335** — **overflows by 33px** |
+
+`.td-panel` is `flex-wrap: wrap; max-width: 320px` with child margins (never flex
+`gap` — Safari 14.0), and `.td-branch` is `max-width: 40vw`, so at 320px two fit
+one row (128 + 8 + 128 = 264) and the third takes a whole third row: **+111px**,
+past the fold on both 320-wide phones and in landscape. So Phase C is not "derive
+the buttons"; it needs a real answer, and there are three:
+
+1. **Three across on one row** — `.td-branch` from `max-width: 40vw` to ~30vw
+   (3 × 96 + 2 × 8 = 304 at 320px). Cheapest, but 96px is tight for a name, a
+   price and a role line, and iOS renders emoji wider than headless Chromium —
+   the trap that has already spilled the tower panel, the next-wave line and the
+   ability strip's cost.
+2. **Let the bubble scroll** — `max-height` + `overflow-y: auto` + `contain`
+   (the shipped overscroll law). Safe, but a scrolling context menu on a pad is
+   poor feel.
+3. **A dedicated ultimate step** — tier 3's panel offers one "⭐ Ultimate"
+   button that swaps the bubble to a three-card chooser. Most work, best feel,
+   and it is the only option that leaves room for a role line long enough to
+   carry the overkill warning the branches now depend on.
+
+Whichever is chosen, the shipped clamp discipline applies: measure the widest
+CHILD edge in the FIELD's own offset coordinates, never `vw` or
+`documentElement.clientWidth`.
+
+**Fixture note** (the recurring class, hit again here): the panel now **stays
+open and re-renders after a purchase**, so a probe that clicks `.td-up` three
+times lands its third click on a branch card and silently measures a tier-4
+panel with no branch row at all. Drive the upgrades through
+`__TD.script([["upgrade", 0], …])` and click only to open.
+
+**Guardrail:** inject a fixture third branch at runtime and assert the panel
+GROWS **and still fits at every audited viewport** — the self-proving shape the
+build-menu guardrail already uses (*"saw 4 of 5"* on the old literal), plus the
+bound this measurement shows is the one that actually bites.
 
 **Guardrail:** inject a fixture third branch at runtime and assert the panel
 GROWS — the exact self-proving shape the build-menu guardrail already uses
@@ -281,13 +338,15 @@ check.
 
 | Phase | What | Ships alone? | Balance risk | Value if nothing after it lands |
 |---|---|---|---|---|
-| **A** | 8 branch identity guardrails (§5a) | ✅ | **none** | **High** — verifies 8 shipped features nobody has ever driven |
+| **A** ✅ | 6 branch identity guardrails (§5a) — **BUILT** | ✅ | **none** | **High** — verifies 6 shipped features nobody had ever driven |
 | **B** | `tools/td-sim.js --branch` observation arm (§5b) | ✅ | none (diagnostic) | High — first numbers on what a branch is worth |
-| **C** | Derive the panel's branch buttons; fixture guardrail; 320×480 height check (§6) | ✅ | none | Medium — removes the only structural blocker |
+| **C** | Derive the panel's branch buttons **and re-fit the panel** — a third card overflows 320×480, 320×568 and landscape by 12-33px (§6, measured) | ✅ | none | Medium — removes the structural blocker, and it is bigger than the first draft assumed |
 | **D** | 🎯 Dart `c` **Rust Ray** — armour strip | ✅ | **low** (one seam, answers the commonest trait) | High |
 | **E** | 🧊 Fan `c` **Desk Fan** — support aura | ✅ | **medium** (board-wide rate buff) | High |
 
-A, B and C are pure infrastructure and could ship in one sitting. D and E are
+A and B are pure infrastructure. C is too, but the §6 measurement moves it from
+"two template lines" to a real panel re-fit, which is a point in favour of
+settling the design question (Dart+Fan, or nothing) before paying for it. D and E are
 each a data block, one engine seam, one sprite, one identity guardrail and a
 dose measurement. **Stop after C and the project is strictly better off**, which
 is the test of a correctly-ordered plan.
@@ -304,7 +363,7 @@ is the test of a correctly-ordered plan.
 | Any branch that is **more damage** | The damage axis is full; Sniper already proves paper dps points the wrong way (71% overkill) |
 | A **damaging ground zone** | The `zones[].dmg > 1` spotlight was built and CUT — it flips `AUDIT mono builds` |
 | A branch that **reuses a shared field** (`e.armor`, `hurriedMult`, `t.boostMult`) | Two writers with different policies is the recorded clobber bug; multiply, or own the field |
-| Building **D or E before A** | 8 unverified branches is the current debt; 12 is worse, and A is cheap |
+| Building **D or E before B** | A is done, so the debt is now "nobody has measured what a branch is WORTH" — 🦆 measured 0 lives and 📌 measured 2.50×, and only a sim tells those apart |
 | Tuning any level **against a branch-buying solver** | The World-4 revert. Diagnostic only |
 
 ---
