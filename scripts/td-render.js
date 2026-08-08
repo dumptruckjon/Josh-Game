@@ -3319,7 +3319,7 @@
           const a = f.cx, b = f.cy;
           for (const t of st.towers) {
             if (t.id === f.id || !(t.supRate > 1 || t.supRange > 1)) continue;
-            const p0 = w2s(a + 0.5, b + 0.5), p1 = w2s(t.cx + 0.5, t.cy + 0.5);
+            const p0 = worldToScreen(a + 0.5, b + 0.5), p1 = worldToScreen(t.cx + 0.5, t.cy + 0.5);
             const pulse = 0.42 + 0.22 * Math.sin(st.tick * 0.08 + t.id);
             ctx.strokeStyle = "rgba(255,190,90," + pulse.toFixed(2) + ")";
             ctx.lineWidth = Math.max(1.5, cell * 0.05);

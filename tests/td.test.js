@@ -2623,6 +2623,161 @@ test("ART: every BOSS wears the crown, and there is exactly one crown", async ()
     "the boss crown has exactly one implementation");
 });
 
+test("TD2 the THIRD ultimates are buyable by TAP, and each one WORKS and SHOWS on a real board", async () => {
+  // A feature whose tests all call the API is untested AS A FEATURE. This one
+  // taps the actual card and then draws the actual board — and it earns its
+  // keep: the support-link renderer shipped its first cut calling `w2s`, which
+  // is not in scope inside draw(), so building a Tail Wind threw on EVERY frame.
+  // The whole fort browser suite was green, because nothing built one and drew.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const buyThird = async (line) => {
+    await page.evaluate((ln) => {
+      window.__TD.newGame(1, { seed: 42 });
+      window.__TD.grantGold(9000);
+      // upgrades through the ENGINE: the panel stays open and re-renders after a
+      // purchase, so a third `.td-up` click would land on a branch card.
+      window.__TD.script([["place", ln, "p3"], ["upgrade", 0], ["upgrade", 0]]);
+    }, line);
+    const rect = await page.locator(".td-canvas").boundingBox();
+    const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.locator(".td-panel").waitFor({ state: "visible", timeout: 5000 });
+    const card = page.locator('.td-branch[data-b="c"]');
+    assert.equal(await card.count(), 1, `${line}'s third ultimate must have a card to tap`);
+    const label = await card.textContent();
+    await card.click();
+    return { label, t: await page.evaluate(() => window.__TD.state().towers[0]) };
+  };
+
+  const rust = await buyThird("dart");
+  assert.equal(rust.t.tier, 4, "Rust Ray purchased by tap");
+  assert.equal(rust.t.branch, "c");
+  assert.match(rust.label, /ARMOUR|armour/, "…and its card says what it does, not just what it costs");
+
+  // it must strip on the field, EMIT so the renderer and sfx have a hook, and
+  // the board must keep drawing without throwing
+  const live = await page.evaluate(() => {
+    const e = window.__TD.engine(), r = window.__TD.render();
+    let sawStrip = false, sawEvent = false;
+    e.callWave();
+    for (let i = 0; i < 3000 && e.state.phase === "wave"; i++) {
+      e.tick();
+      if (e.events.some((v) => v.type === "strip")) sawEvent = true;
+      if (e.state.enemies.some((x) => x.alive && x.stripped)) sawStrip = true;
+      if (sawStrip && sawEvent) break;
+    }
+    r.draw(0);
+    return { sawStrip, sawEvent };
+  });
+  assert.ok(live.sawStrip, "a Rust Ray on a real board must actually strip something");
+  assert.ok(live.sawEvent, "…and emit, or nothing can draw or sound it");
+
+  const wind = await buyThird("fan");
+  assert.equal(wind.t.tier, 4, "Tail Wind purchased by tap");
+  assert.equal(wind.t.branch, "c");
+  assert.match(wind.label, /OWN towers|neighbours/, "…and its card says who it helps");
+
+  // a neighbour must actually feel it, AND the field must still draw
+  const helped = await page.evaluate(() => {
+    const e = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    const R = window.TDData.TOWERS.fan.branches.c.support.radius;
+    const fan = st.towers[0];
+    const pad = (e.levelDef.pads || []).find((p) => p.id !== "p3" &&
+      (p.cx - fan.cx) ** 2 + (p.cy - fan.cy) ** 2 <= R * R);
+    if (!pad) return { skipped: true };
+    e.state.gold = 9000;
+    e.place("dart", pad.id);
+    const d = st.towers[st.towers.length - 1];
+    e.upgrade(d.id); e.upgrade(d.id);
+    e.tick();
+    r.draw(0); // the frame that used to throw
+    return { supRate: d.supRate, supRange: d.supRange };
+  });
+  assert.ok(!helped.skipped, "the fixture needs a pad within the support radius, or it proves nothing");
+  const SUP = await page.evaluate(() => window.TDData.TOWERS.fan.branches.c.support);
+  assert.equal(helped.supRate, SUP.rate, "a neighbouring gun must actually be sped up");
+  assert.equal(helped.supRange, SUP.range, "…and given the extra reach");
+});
+
+test("ART: both new mechanics actually PAINT — 'does it work' and 'can you see it' are different questions", async () => {
+  // The first cut of this feature had ZERO references to either mechanic in the
+  // renderer and emitted no events, so a 270-gold gun and a 300-gold support
+  // tower changed nothing a player could perceive. That is the same defect as
+  // "three of the four Fan variants fired with no visual at all".
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  const strip = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });
+    const st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c = canvas.getContext("2d");
+    const put = (stripped) => {
+      st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
+      st.enemies.push({ id: 1, type: "knight", alive: true, hp: 90, maxHp: 90, shield: 0,
+        dist: 6, pathIdx: 0, slowUntil: 0, slowPct: 0, speedMult: 1,
+        stripUntil: stripped ? st.tick + 90 : 0, stripAmt: 0.6, stripped: !!stripped,
+        brittleUntil: 0, blockedBy: 0, stunnedUntil: 0 });
+      r.draw(0);
+      return c.getImageData(0, 0, canvas.width, canvas.height).data;
+    };
+    const a = put(false), b = put(true);
+    let diff = 0;
+    for (let i = 0; i < a.length; i += 4) {
+      if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) diff++;
+    }
+    return diff;
+  });
+  assert.ok(strip > 120,
+    `a STRIPPED body must look different from an unstripped one (only ${strip} px changed) — ` +
+    "which bodies are currently soft is the entire reason to own a Rust Ray");
+
+  const linkPx = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });
+    const e = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    const R = window.TDData.TOWERS.fan.branches.c.support.radius;
+    const pads = e.levelDef.pads;
+    let A = null, B = null;
+    for (const p of pads) { for (const q of pads) {
+      if (p.id !== q.id && Math.hypot(p.cx - q.cx, p.cy - q.cy) <= R) { A = p; B = q; break; }
+    } if (A) break; }
+    if (!A) return -1;
+    st.enemies.length = 0;
+    e.state.gold = 99999;
+    e.place("dart", B.id);
+    const d = st.towers[st.towers.length - 1];
+    e.upgrade(d.id); e.upgrade(d.id);
+    e.place("fan", A.id);
+    const f = st.towers[st.towers.length - 1];
+    e.upgrade(f.id); e.upgrade(f.id); e.branch(f.id, "c");
+    e.tick();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c = canvas.getContext("2d");
+    // The whole link pass is gated on `hadSupport`, so drawing the SAME board
+    // with it off is a control in which the fan's own sprite, the pads and the
+    // floor are identical and ONLY the wiring differs. Without this the diff
+    // would be dominated by the fan sprite itself and would prove nothing.
+    r.draw(0);
+    const withL = c.getImageData(0, 0, canvas.width, canvas.height).data;
+    st.hadSupport = false;
+    r.draw(0);
+    const noL = c.getImageData(0, 0, canvas.width, canvas.height).data;
+    st.hadSupport = true;
+    let n = 0;
+    for (let i = 0; i < withL.length; i += 4) {
+      if (withL[i] !== noL[i] || withL[i + 1] !== noL[i + 1] || withL[i + 2] !== noL[i + 2]) n++;
+    }
+    return n;
+  });
+  assert.ok(linkPx > 0, "L1 must have a pad pair inside the support radius for this to mean anything");
+  assert.ok(linkPx > 200,
+    `a Tail Wind must DRAW the guns it is helping (only ${linkPx} px) — WHERE you place it is the ` +
+    "whole decision the branch exists to create, and an invisible buff cannot be placed well");
+});
+
 test("ART: every enemy draws as ITSELF — none falls through to the Sock Goblin", async () => {
   // The enemy draw is a long if/else chain ending in a default sock. Two shipped
   // enemies never got a branch: the Tin Plane, and — worse — **the Tickmaster**,
