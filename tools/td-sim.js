@@ -383,6 +383,109 @@ if (process.argv.includes("--swap")) {
   process.exit(0);
 }
 
+// ---- --branch: what is a TIER-4 BRANCH actually worth? ----
+//
+//   node tools/td-sim.js 12,20 --branch
+//   CAP=3 node tools/td-sim.js 20 --branch          # convert up to 3 of the line
+//   CAP=99 DIFFS=heroic node tools/td-sim.js 16 --branch
+//
+// DIAGNOSTIC ONLY. This is deliberately a STRONGER solver than the shipped
+// oracle — it is the same fill and upgrade loop plus a third step — and this
+// project has already reverted a whole world for tuning against one of those.
+// Precedent for a stronger solver as a diagnostic exists (the Full Fort
+// reachability measurement) and the rule attached to it is the rule here: read
+// it, never tune to it. `best()` and PLAYABILITY stay exactly as they are.
+//
+// It exists because NOTHING could answer "what is a branch worth". Both oracle
+// plans fill and upgrade with `t.tier < 3`, so neither has ever called
+// `branch()` — which is how Sticky Bomb shipped for months promising goo it
+// never left, and how 🎯 Rust Ray and 🧊 Tail Wind shipped with no measurement
+// of their effect on a level at all.
+//
+// FOUR FIXTURE BUGS were hit building the scratch version of this, every one of
+// which reported "the branch is worth nothing" on a working engine. They are
+// designed out here, and each is worth reading before editing:
+//
+//  1. AN ALL-IN ARM IS THE MORTAR-MONO SHAPE. Converting every dart to a Rust
+//     Ray deletes the board's damage and measures the absence of a tier-3 line,
+//     not the presence of a branch. A support or debuff branch is inherently a
+//     few-of choice, so `CAP` (default 1) is how many get converted, and the
+//     all-in arm is available but has to be asked for.
+//  2. SPEND THE BUDGET ON A SUCCESS, NEVER AN ATTEMPT. An early try at 90 gold
+//     against a 300-gold branch used to consume the one allowed conversion, and
+//     it was never retried.
+//  3. CHECK ELIGIBILITY BEFORE SPENDING IT. Asking the picker about a tier-1
+//     tower burned the budget before the tower could possibly be branched.
+//  4. PRINT `bought`. Every one of the above presents as every arm reading
+//     identical to the control, which is indistinguishable from a real null —
+//     so the count of purchases is part of the output, not a debug aid.
+//
+// Branches are bought ONLY from surplus, after every pad is filled and every
+// tower is tier 3, so placement is never starved. That is what makes this a
+// strict superset of the oracle rather than a different player.
+function playBranch(level, seed, plan, difficulty, want) {
+  const e = TD.createEngine(level, { seed, difficulty });
+  const padIds = level.pads.map((p) => p.id);
+  let idx = 0, guard = 0, bought = 0;
+  while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 900000) {
+    if (e.state.phase === "build") {
+      let spent = true;
+      while (spent) {
+        spent = false;
+        for (const pid of padIds) {
+          if (!e.state.towers.find((t) => t.padId === pid)) {
+            const line = plan[idx % plan.length];
+            if (e.state.gold >= cost(line, 0)) { if (e.place(line, pid).ok) { idx++; spent = true; } }
+            break;
+          }
+        }
+        if (spent) continue;
+        const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+        for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        if (spent || !want || bought >= want.cap) continue;
+        if (!padIds.every((pid) => e.state.towers.find((t) => t.padId === pid))) continue;
+        for (const t of e.state.towers) {
+          if (t.tier !== 3 || t.lineId !== want.line) continue;   // eligibility BEFORE budget
+          if (e.branch(t.id, want.key).ok) { bought += 1; spent = true; break; } // budget on SUCCESS
+        }
+      }
+      e.callWave();
+    }
+    e.tick();
+  }
+  return { phase: e.state.phase, lives: e.state.lives, bought };
+}
+
+if (process.argv.includes("--branch")) {
+  const CAP = Number(process.env.CAP || 1);
+  const ARMS = [["none", null]];
+  for (const [line, def] of Object.entries(DATA.TOWERS)) {
+    for (const [key, b] of Object.entries(def.branches || {})) {
+      ARMS.push([`${line}:${key} ${b.name}`, { line, key, cap: CAP }]);
+    }
+  }
+  for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
+    const armour = lvl.waves.flatMap((w) => w.groups)
+      .filter((g) => (DATA.ENEMIES[g.type] || {}).armor > 0).reduce((n, g) => n + g.count, 0);
+    for (const diff of DIFFS) {
+      console.log(`\nL${lvl.id} ${lvl.name} (${diff}, convert up to ${CAP}) — armoured bodies in its waves: ${armour}`);
+      for (const [name, want] of ARMS) {
+        let buys = 0;
+        const v = SEEDS.map((seed) => {
+          const rs = [DART, MIXED].map((pl) => playBranch(lvl, seed, pl, diff, want));
+          buys += rs.reduce((n, r) => n + r.bought, 0);
+          const won = rs.filter((r) => r.phase === "won");
+          return won.length ? Math.max(...won.map((r) => r.lives)) : -1;
+        });
+        const lost = v.filter((x) => x < 0).length;
+        console.log(`   ${name.padEnd(22)} median ${String(median(v)).padStart(3)}  [${v.join(",")}]` +
+          `  bought=${buys}${lost ? `  LOST ${lost}/${SEEDS.length}` : ""}`);
+      }
+    }
+  }
+  process.exit(0);
+}
+
 // ---- --gold: sweep startGold, the opening-board knob ----
 //
 //   GOLDS=1000,1200,1500 node tools/td-sim.js 33 --gold
