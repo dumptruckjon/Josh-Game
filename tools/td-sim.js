@@ -426,7 +426,7 @@ if (process.argv.includes("--swap")) {
 function playBranch(level, seed, plan, difficulty, want) {
   const e = TD.createEngine(level, { seed, difficulty });
   const padIds = level.pads.map((p) => p.id);
-  let idx = 0, guard = 0, bought = 0;
+  let idx = 0, guard = 0, bought = 0, ready = false;
   while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 900000) {
     if (e.state.phase === "build") {
       let spent = true;
@@ -442,6 +442,12 @@ function playBranch(level, seed, plan, difficulty, want) {
         if (spent) continue;
         const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
         for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        // `ready` is the honest disambiguation of a bought=0 row: a branch can go
+        // unbought because the LINE is absent from both plans (no camp is ever
+        // built), or because the board never got rich enough to branch at all.
+        // Those are completely different facts and both are real — on L4 and L8
+        // the oracle never even completes a maxed board before the level ends.
+        if (e.state.towers.length === padIds.length && e.state.towers.every((t) => t.tier >= 3)) ready = true;
         if (spent || !want || bought >= want.cap) continue;
         if (!padIds.every((pid) => e.state.towers.find((t) => t.padId === pid))) continue;
         for (const t of e.state.towers) {
@@ -453,7 +459,7 @@ function playBranch(level, seed, plan, difficulty, want) {
     }
     e.tick();
   }
-  return { phase: e.state.phase, lives: e.state.lives, bought };
+  return { phase: e.state.phase, lives: e.state.lives, bought, ready };
 }
 
 if (process.argv.includes("--branch")) {
@@ -470,16 +476,19 @@ if (process.argv.includes("--branch")) {
     for (const diff of DIFFS) {
       console.log(`\nL${lvl.id} ${lvl.name} (${diff}, convert up to ${CAP}) — armoured bodies in its waves: ${armour}`);
       for (const [name, want] of ARMS) {
-        let buys = 0;
+        let buys = 0, everReady = false;
         const v = SEEDS.map((seed) => {
           const rs = [DART, MIXED].map((pl) => playBranch(lvl, seed, pl, diff, want));
           buys += rs.reduce((n, r) => n + r.bought, 0);
+          if (rs.some((r) => r.ready)) everReady = true;
           const won = rs.filter((r) => r.phase === "won");
           return won.length ? Math.max(...won.map((r) => r.lives)) : -1;
         });
         const lost = v.filter((x) => x < 0).length;
         console.log(`   ${name.padEnd(22)} median ${String(median(v)).padStart(3)}  [${v.join(",")}]` +
-          `  bought=${buys}${lost ? `  LOST ${lost}/${SEEDS.length}` : ""}`);
+          `  bought=${buys}` +
+          (buys === 0 && want ? (everReady ? "  (line not in either plan)" : "  (board never maxed — unreachable here)") : "") +
+          `${lost ? `  LOST ${lost}/${SEEDS.length}` : ""}`);
       }
     }
   }
