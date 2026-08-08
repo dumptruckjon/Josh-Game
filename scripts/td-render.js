@@ -61,6 +61,10 @@
       leverSeg = { mids: [mid(a), mid(b)] };
     }
     let lastLitLane = -1; // leverInfo() test hook: which lane the overlay lit last draw
+    // decorInfo() test hook: anything a DECORATIVE layer threw. draw() catches
+    // those so a decoration can never cost the player the board, and this is
+    // what stops that catch from also hiding the bug from the suite.
+    const decorErrors = [];
     // How many ink pens a TOWER gets (see the tower pass). Settable so a test can
     // prove the shipped value is SUFFICIENT — raising it must not change the
     // picture, and that is exactly the property that breaks the moment
@@ -3356,8 +3360,14 @@
             ctx.beginPath(); ctx.arc(p1.x, p1.y, cell * 0.44, 0, 7); ctx.stroke();
           }
         }
-      } catch (err) { /* a decoration must never cost the player the board */ }
-      finally { ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.restore(); }
+      } catch (err) {
+        // The board survives — but the failure must NOT be silent, or this catch
+        // would hide from the tests exactly the class of bug it exists to
+        // survive (the w2s ReferenceError would now be swallowed). So it is
+        // RECORDED and exposed via decorInfo(), the shakeInfo/leverInfo
+        // precedent: robust for the player, loud for the developer.
+        if (decorErrors.length < 8) decorErrors.push(String(err));
+      } finally { ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.restore(); }
       for (const t of st.towers) withInk(() => drawTower(t), true, 0, towerPens);
       for (const s of st.soldiers) if (s.alive) drawSoldier(s);
       // mortar shells arc between launch and impact
@@ -3627,6 +3637,7 @@
       setSelection: (s) => { selection = s; },
       setDamageNumbers: (on) => { showDmg = !!on; }, // TD-6 opt-in
       shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
+      decorInfo: () => decorErrors.slice(), // test hook: what a decorative layer threw (see the catch in draw)
       leverInfo: () => ({ hasSeg: !!leverSeg, lit: lastLitLane }), // test hook: which lane the route overlay lit last draw
       markerInfo: () => ({ spawn: markers.spawn, exit: markers.exit, spawnW: markers.spawnW, exitW: markers.exitW, cell }), // test hook: where the spawn/exit markers were drawn
       // test hook (the leverInfo precedent): which side doors are lit right now

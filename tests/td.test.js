@@ -2700,6 +2700,79 @@ test("TD2 the THIRD ultimates are buyable by TAP, and each one WORKS and SHOWS o
   assert.equal(helped.supRange, SUP.range, "…and given the extra reach");
 });
 
+test("ART: EVERY tier-4 branch survives a real draw on a live board", async () => {
+  // This is the guardrail the w2s bug should have hit and did not. A new branch
+  // shipped a renderer block that threw on EVERY frame, and the whole fort suite
+  // was green — because the tier-art guardrail renders each variant in
+  // ISOLATION (it cannot see a throw in draw()'s own composition), and the only
+  // test that put one on a real board was written in the SAME commit as the fix.
+  //
+  // So the eight ORIGINAL branches had never been placed on a live board and
+  // drawn through a real frame either. Derived from DATA.TOWERS, so a ninth
+  // branch inherits it the moment it exists rather than when someone remembers.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const errsBefore = pageErrors.length;
+  const out = await page.evaluate(() => {
+    const bad = [], seen = [];
+    for (const line of Object.keys(window.TDData.TOWERS)) {
+      for (const key of Object.keys(window.TDData.TOWERS[line].branches || {})) {
+        seen.push(line + ":" + key);
+        try {
+          window.__TD.newGame(1, { seed: 11 });
+          window.__TD.grantGold(99999);
+          const e = window.__TD.engine(), st = e.state, r = window.__TD.render();
+          r.resize();
+          // The two CLOSEST pads, not the first two. This test's first cut took
+          // pads.slice(0, 2) and was VACUOUS: on L1 those are 5.0 cells apart
+          // against the 4.5 support radius, so neither tower buffed the other,
+          // every tower failed the `supRate > 1` check and the link loop
+          // `continue`d before it ever reached the line that used to throw.
+          // Proven by re-introducing the historical w2s bug: the test passed.
+          // Exactly the defect it exists to catch — a fixture that never
+          // creates the condition — so the pads are chosen by distance.
+          const ps = e.levelDef.pads;
+          let pair = [ps[0], ps[1]], best = Infinity;
+          for (const a of ps) for (const b of ps) {
+            if (a.id === b.id) continue;
+            const d = Math.hypot(a.cx - b.cx, a.cy - b.cy);
+            if (d < best) { best = d; pair = [a, b]; }
+          }
+          for (const pad of pair) {
+            e.place(line, pad.id);
+            const t = st.towers[st.towers.length - 1];
+            e.upgrade(t.id); e.upgrade(t.id); e.branch(t.id, key);
+          }
+          e.callWave();
+          // draw across a spread of ticks: dashes, spin-up and pulses are all
+          // tick-derived, so one frame can miss a branch of the draw.
+          for (let i = 0; i < 240; i++) {
+            e.tick();
+            if (i % 30 === 0) r.draw(0);
+          }
+          r.draw(0.5);
+          const tiers = st.towers.map((t) => t.tier + (t.branch || ""));
+          if (!tiers.every((x) => x === "4" + key)) bad.push(line + ":" + key + " never reached tier 4 (" + tiers.join(",") + ")");
+          // no `? :` fallback: a MISSING hook must fail loudly, not silently
+          // skip the check — that is how a guard goes quietly vacuous.
+          const decor = r.decorInfo();
+          if (decor.length) bad.push(line + ":" + key + " decorative layer threw: " + decor[0]);
+        } catch (err) {
+          bad.push(line + ":" + key + " threw during draw: " + String(err));
+        }
+      }
+    }
+    return { bad, seen };
+  });
+  // self-verifying: if the derivation found nothing, the test is vacuous
+  assert.ok(out.seen.length >= 8,
+    `every tier-4 branch must be exercised — only found ${out.seen.length} (${out.seen.join(", ")})`);
+  assert.deepEqual(out.bad, [],
+    "a tier-4 branch must survive a REAL draw on a live board: " + out.bad.join(" | "));
+  assert.equal(pageErrors.length, errsBefore,
+    `building every tier-4 branch and drawing must raise no page error: ${pageErrors.slice(errsBefore).join("; ")}`);
+});
+
 test("ART: a frame never LEAKS canvas state, and a decoration cannot cost the board", async () => {
   // Reported from real play as "Tail Wind wipes the board and things went
   // crazy": no towers, orange circles down the lane, a big cyan cone, HUD still

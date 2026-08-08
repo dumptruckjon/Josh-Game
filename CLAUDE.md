@@ -4551,6 +4551,29 @@ the bound sat ABOVE the defect and could not have failed. It is 3000 now, and th
 assertion is ordered BEFORE the "nothing escaped" one so the same mutation proves
 the stronger claim. Writing a guardrail for someone else's bug is no protection
 against writing an unfalsifiable one.
+**THE COVERAGE HOLE BEHIND IT: the fort suite DOES assert no page errors, and it
+was green anyway, because nothing ever put the new branch on a board and drew
+it.** The tier-art guardrail renders each variant in ISOLATION, so it cannot see
+a throw in `draw()`'s own composition, and the only test that built one on a live
+board was written in the SAME COMMIT as the fix — which means the EIGHT original
+tier-4 branches had never been drawn through a real frame either. Two things
+close it, and the first is the subtle one: **a `catch` added for robustness will
+hide from the suite exactly the class of bug it exists to survive**, so the catch
+now RECORDS what it swallowed and exposes it via `render.decorInfo()` (the
+shakeInfo/leverInfo precedent) — robust for the player, loud for the developer.
+On top of that, a guardrail DERIVED from `DATA.TOWERS` builds every line x every
+branch on a live board, runs a wave, draws across a spread of ticks and asserts
+no throw, no `decorInfo` and no page error, so a ninth branch inherits it when it
+exists rather than when someone remembers. **And that guardrail's FIRST cut was
+itself vacuous, caught only by running the mutation** — it placed on
+`pads.slice(0, 2)`, which on L1 are 5.0 cells apart against the 4.5 support
+radius, so neither tower buffed the other, every tower failed the `supRate > 1`
+check, and the link loop `continue`d before ever reaching the line that used to
+throw: re-introducing the historical `w2s` bug left it GREEN (a sibling test
+caught it, which is what exposed the hole). The pads are chosen by measured
+distance now, and the hook is read with no `? :` fallback, because a missing hook
+must fail loudly instead of silently skipping the check. Same shape as the
+original defect one level up: **the fixture never created the condition.**
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
