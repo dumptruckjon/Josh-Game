@@ -60,6 +60,20 @@
     return { x: last.bx, y: last.by };
   }
 
+  // 🎯 Rust Ray strips armour, and this is the ONE place armour is ever read —
+  // so the strip covers the Dart, the Mortar's splash, a soldier's melee and
+  // every ability at once, with no call site knowing about it (the Oil Drum's
+  // one-write-zero-new-reads shape). `stripped` is resolved once per tick
+  // beside `brittle`, so this stays a pure function of the enemy it is handed.
+  // A body without the fields — every plain-object test fixture — degrades to
+  // its plain armour rather than NaN: a field one short must degrade, not
+  // disable (the `mult`-less zone and the `delay`-less wave group).
+  function effArmor(enemy) {
+    const a = enemy.armor || 0;
+    if (!enemy.stripped) return a;
+    return Math.max(0, a * (1 - (enemy.stripAmt || 0)));
+  }
+
   // ---- Combat math (§5.1) — pure, unit-tested directly. ----
   function computeHit(dmg, dmgType, enemy) {
     let d = dmg;
@@ -68,7 +82,7 @@
       shieldDmg = Math.min(d, enemy.shield);
       d -= shieldDmg;
     }
-    if (dmgType === "bonk") d *= (1 - (enemy.armor || 0));
+    if (dmgType === "bonk") d *= (1 - effArmor(enemy));
     if (enemy.brittle) d *= R.brittleBonus;
     return { hpDmg: Math.round(d), shieldDmg: Math.round(shieldDmg) };
   }
@@ -377,6 +391,7 @@
         speed: def.speed * diff.speed,
         slowPct: 0, slowUntil: 0,
         brittle: false, brittleUntil: 0,
+        stripped: false, stripUntil: 0, stripAmt: 0, // 🎯 Rust Ray: armour peeled off
         blockedBy: 0, stunnedUntil: 0, meleeCd: 0, stunApplied: false,
         chargeUntil: 0, chargeCd: 0, stompCd: 0, phaseHidden: false,
         suckCd: 0, disableCd: 0, minionCd: 0, speedMult: 0, // TD-4 boss timers
@@ -402,13 +417,54 @@
       if (t && t.boostUntil && state.tick < t.boostUntil) over = t.boostMult || 2;
       else if (t && t.crashUntil && state.tick < t.crashUntil) over = t.crashMult || 1;
       const pb = padBoost(t);
-      return over * ((pb && pb.rate) || 1);
+      // 🧊 Tail Wind MULTIPLIES in rather than assigning, so a supported tower
+      // that is also Overclocked and also on a ⚡ power pad gets all three —
+      // three independent factors cannot clobber each other, which assignment
+      // provably can (the 📻/🛢️ hurry bug).
+      return over * ((pb && pb.rate) || 1) * ((t && t.supRate) || 1);
     }
     // …and the matching REACH wrapper. A range buff has to reach every site a
     // range is read at — dart acquire, dart sticky-KEEP, mortar, fan aura, fan
     // zap — which is the documented "grep every place a target is chosen OR
     // kept" discipline, applied to distance instead of eligibility.
-    function reachOf(t, r) { const pb = padBoost(t); return pb && pb.range ? r * pb.range : r; }
+    function reachOf(t, r) {
+      const pb = padBoost(t);
+      return r * ((pb && pb.range) || 1) * ((t && t.supRange) || 1);
+    }
+    // 🧊 Tail Wind: the ONE writer of a tower's support multipliers. A write pass
+    // (the Junk Healer's shape) feeding the two existing single-read wrappers
+    // above, so every range read the fort has — dart acquire, dart sticky-KEEP,
+    // mortar, fan aura, fan zap — and every cooldown-set site inherit it with no
+    // call-site change. STRONGEST WINS, so two overlapping Tail Winds do not
+    // stack, and a fan never supports ITSELF.
+    function supportTick() {
+      const fans = [];
+      for (const t of state.towers) {
+        const st = statsOf(DATA.TOWERS[t.lineId], t);
+        if (st && st.support) fans.push({ t, s: st });
+      }
+      // Nothing to do AND nothing to clean up — so a board with no Tail Wind
+      // never writes these fields at all and its state stays byte-identical to
+      // every historical run. The `hadSupport` latch is what makes SELLING the
+      // last one clear the buffs instead of freezing them on.
+      if (!fans.length && !state.hadSupport) return;
+      state.hadSupport = fans.length > 0;
+      for (const t of state.towers) { t.supRate = 1; t.supRange = 1; }
+      for (const f of fans) {
+        // its OWN radius, sized to the maps (see td-data). `|| auraRange` so a
+        // support block one field short degrades instead of NaN-ing every
+        // distance. Support does NOT chain: every supRange was reset to 1 just
+        // above, so two Tail Winds cannot bootstrap each other's reach.
+        const rr = reachOf(f.t, f.s.support.radius || f.s.auraRange);
+        for (const t of state.towers) {
+          if (t.id === f.t.id) continue; // a support tower never supports itself
+          const dx = t.cx - f.t.cx, dy = t.cy - f.t.cy;
+          if (dx * dx + dy * dy > rr * rr) continue;
+          t.supRate = Math.max(t.supRate, f.s.support.rate || 1);
+          t.supRange = Math.max(t.supRange, f.s.support.range || 1);
+        }
+      }
+    }
     // A soldier whose camp has been SOLD is an orphan: it is about to pack up, so
     // the Rally Horn must not count it as somebody to rally (it charged 80 gold
     // and a 30s cooldown to revive nobody).
@@ -431,6 +487,23 @@
       // 🧊 Deep Freeze lengthens every slow from the ONE place a slow is applied,
       // so the Fan's aura, a Blizzard cone and the Sticky Floor all inherit it.
       if (p >= active) { e.slowPct = p; e.slowUntil = state.tick + Math.round(seconds * mods.slowSeconds * DATA.TICK_RATE); }
+    }
+    // 🎯 Rust Ray's armour strip. STRONGEST WINS through ONE owner, exactly as
+    // applySlow and applyHurry do — two Rust Rays on the same body must not
+    // stack into full penetration, and a weaker/expiring strip must never
+    // downgrade a stronger live one (the 📻-into-🛢️ bug, which shipped precisely
+    // because a second writer arrived with a different policy).
+    function applyStrip(e, amount, seconds) {
+      const active = state.tick < e.stripUntil ? (e.stripAmt || 0) : 0;
+      if (amount >= active) {
+        e.stripAmt = amount;
+        e.stripUntil = state.tick + Math.round(seconds * DATA.TICK_RATE);
+        // the mechanic was INVISIBLE without this: nothing in the renderer knew
+        // a body had been softened, so a 270-gold gun changed nothing you could
+        // see — the Fan-fires-with-no-visual defect, third instance. Events are
+        // not part of `state`, so this cannot move the determinism hash.
+        emit({ type: "strip", x: epos(e).x, y: epos(e).y, id: e.id });
+      }
     }
     // The applySlow of hurries: STRONGEST WINS, one owner, so the two sources
     // cannot disagree. `hurriedMult` had a single writer (📻 Boom Box) until the
@@ -1152,6 +1225,7 @@
             state.projectiles.push({
               id: nextId++, x: t.cx, y: t.cy, targetId: t.targetId,
               dmg, dmgType: s.dmgType, speed: def.projectileSpeed, crit,
+              strip: s.strip || null, // 🎯 the debuff rides the dart, applied where it LANDS
             });
             emit({ type: "shoot", x: t.cx, y: t.cy, tower: t.lineId });
           }
@@ -1331,6 +1405,13 @@
         // returns early, so without this a pre-placed Sticky Floor would live
         // for ever (caught by the browser test, not by reading the code).
         puddleTick();
+        // …and the same trap for the Tail Wind: this branch returns early, so
+        // without this a support fan bought BETWEEN waves would leave its
+        // neighbours' stats stale until the wave started — and the tower panel
+        // READS those stats, so the player would be shown a lie about the tower
+        // they just paid 300 gold to help. Combat is unaffected either way
+        // (nothing fires during build); truthfulness is the point.
+        supportTick();
         if (state.countdown <= 0) startWave();
         return;
       }
@@ -1344,6 +1425,7 @@
       for (const e of state.enemies) {
         if (!e.alive) continue;
         e.brittle = state.tick < e.brittleUntil;
+        e.stripped = state.tick < e.stripUntil; // 🎯 resolved here so effArmor stays pure
         // TD-10 Drip Slime: a slow FEEDS it. A fan-only board can hold it still
         // for ever and never kill it — bring damage, not just crowd control.
         const shDef = enemyDef(e);
@@ -1378,6 +1460,7 @@
       healTick();  // healers mend allies (before towers fire, so it's felt)
       sapTick();   // Loose Screws jam a nearby gun
       puddleTick(); // TD-9 Sticky Floor zones re-slow whatever is standing in them
+      supportTick(); // 🧊 Tail Wind buffs neighbours — must land BEFORE they fire
       fireTowers();
 
       // dart projectiles home
@@ -1399,6 +1482,9 @@
           // the same shape `dmg` and `tower` already took. Events are not part
           // of `state`, so this cannot move the determinism hash.
           emit({ type: "hit", x: tp.x, y: tp.y, crit: pr.crit || false, dmg: hit.hpDmg + hit.shieldDmg, id: target.id }); // dmg for the opt-in damage-number fx
+          // 🎯 the strip lands where the dart LANDS, and BEFORE the damage, so
+          // this very shot already benefits from the armour it just peeled.
+          if (pr.strip) applyStrip(target, pr.strip.amount, pr.strip.seconds);
           dealDamage(target, hit.hpDmg, hit.shieldDmg, "dart");
           pr.dead = true;
         } else {
@@ -1879,6 +1965,7 @@
 
     return {
       state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf,
+      applyStrip, // 🎯 exposed like isHidden/dealDamage: a guardrail must drive the seam, not infer it
       chargePrice, buyCharge, buyChargeReady,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),

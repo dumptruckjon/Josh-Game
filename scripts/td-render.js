@@ -2167,8 +2167,8 @@
         // with a BARREL out the front and a hopper on top — a T, not a ball —
         // and the barrel protrudes far enough to read (it used to clear the dome
         // by 0.17 cells, about 5px, which is why it looked like an ear).
-        const bw = u * (br === "b" ? 0.34 : 0.3), bh = u * (0.2 + tier * 0.012);
-        const reach = br === "a" ? 0.86 : br === "b" ? 0.66 : 0.52 + tier * 0.07;
+        const bw = u * (br === "b" ? 0.34 : br === "c" ? 0.33 : 0.3), bh = u * (0.2 + tier * 0.012);
+        const reach = br === "a" ? 0.86 : br === "b" ? 0.66 : br === "c" ? 0.46 : 0.52 + tier * 0.07;
         if (br === "a") {                                // Sniper: bipod, behind
           TOY.tube(x - u * 0.1, y + u * 0.06, x - u * 0.28, y + u * 0.32, Math.max(2, u * 0.055), "#17422c", "#4f9e6b");
           TOY.tube(x + u * 0.1, y + u * 0.06, x + u * 0.28, y + u * 0.32, Math.max(2, u * 0.055), "#17422c", "#4f9e6b");
@@ -2183,6 +2183,30 @@
               Math.max(2, u * (0.085 + dep * 0.012)), dep > 0 ? "#17422c" : "#123424", "#4f9e6b");
           }
           noInk(() => { ctx.fillStyle = "#ff8a3d"; ctx.beginPath(); ctx.arc(x, y - u * reach, u * 0.09, 0, 7); ctx.fill(); });
+        } else if (br === "c") {
+          // RUST RAY: a SPRAYER, not a gun. A short neck into a wide flared CONE
+          // over a slung canister — a trapezoid silhouette where the Sniper is a
+          // long thin barrel on a bipod and the Minigun a fat spinning drum. It
+          // also breaks the dart line's green for oxidised orange, because what
+          // it emits is rust, not foam.
+          const nx = x, ny = y - u * reach;
+          TOY.tube(x, y - u * 0.02, nx, ny + u * 0.06, Math.max(3, u * 0.1), "#5b3312", "#a4602c");
+          const gc = ctx.createLinearGradient(nx - u * 0.25, ny, nx + u * 0.25, ny);
+          gc.addColorStop(0, "#c2712f"); gc.addColorStop(1, "#7a4416");
+          ctx.fillStyle = gc;
+          ctx.beginPath();
+          ctx.moveTo(nx - u * 0.09, ny + u * 0.08); ctx.lineTo(nx + u * 0.09, ny + u * 0.08);
+          ctx.lineTo(nx + u * 0.25, ny - u * 0.14); ctx.lineTo(nx - u * 0.25, ny - u * 0.14);
+          ctx.closePath(); ctx.fill();
+          noInk(() => {
+            ctx.fillStyle = "rgba(214,128,54,0.5)";
+            for (let i = 0; i < 3; i++) {
+              const px = nx + (i - 1) * u * 0.15, py = ny - u * 0.2 - (i === 1 ? u * 0.05 : 0);
+              ctx.beginPath(); ctx.arc(px, py, u * 0.055, 0, 7); ctx.fill();
+            }
+          });
+          ctx.fillStyle = "#8a4a1f";
+          ctx.beginPath(); ctx.ellipse(x - u * 0.3, y - u * 0.05, u * 0.1, u * 0.19, 0.2, 0, 7); ctx.fill();
         } else {
           const n = br === "a" ? 1 : tier;
           for (let i = 0; i < n; i++) {
@@ -2328,7 +2352,7 @@
           ctx.fillStyle = "#20516b";                     // base
           ctx.beginPath(); ctx.ellipse(x, y + u * 0.31, u * 0.25, u * 0.1, 0, 0, 7); ctx.fill();
           TOY.tube(x, y + u * 0.29, x, hy + u * 0.05, Math.max(3, u * 0.085), "#1b4459", "#3f88ab");
-          ctx.fillStyle = br === "a" ? "#bfe6f5" : "#2a7fa0";   // motor housing
+          ctx.fillStyle = br === "a" ? "#bfe6f5" : br === "c" ? "#f0b64a" : "#2a7fa0";   // motor housing
           ctx.beginPath(); ctx.ellipse(x, hy, u * (0.19 + tier * 0.008), u * (0.18 + tier * 0.008), 0, 0, 7); ctx.fill();
           const blades = br === "a" ? 6 : 2 + tier;
           const spin = engine.state.tick * (br ? 0.24 : 0.14) + t.id;
@@ -2363,6 +2387,33 @@
               ctx.stroke();
             }
           });
+          if (br === "c") {
+            // TAIL WIND: a BOX fan. A square grille is the largest silhouette
+            // change available without leaving the fan fiction, and it has to be
+            // large — this is the one tower that does not point at the enemy, so
+            // "different machine" must read at a glance. The amber chevrons blow
+            // OUTWARD, toward the neighbours it is actually helping.
+            const gr = u * (cage + 0.05);
+            ctx.fillStyle = "#c98a22";
+            ctx.beginPath();
+            ctx.rect(x - gr, hy - gr, gr * 2, gr * 0.16);
+            ctx.rect(x - gr, hy + gr - gr * 0.16, gr * 2, gr * 0.16);
+            ctx.rect(x - gr, hy - gr, gr * 0.16, gr * 2);
+            ctx.rect(x + gr - gr * 0.16, hy - gr, gr * 0.16, gr * 2);
+            ctx.fill();
+            noInk(() => {
+              ctx.strokeStyle = "rgba(255,203,110,0.85)";
+              ctx.lineWidth = Math.max(1, u * 0.03); ctx.lineCap = "round";
+              const puff = (engine.state.tick * 0.05 + t.id) % 1;
+              for (let i = 0; i < 4; i++) {
+                const a = (i / 4) * Math.PI * 2 + 0.78;
+                const r0 = u * (cage + 0.12 + puff * 0.16);
+                ctx.beginPath();
+                ctx.arc(x + Math.cos(a) * r0, hy + Math.sin(a) * r0, u * 0.11, a - 0.9, a + 0.9);
+                ctx.stroke();
+              }
+            });
+          }
           if (br === "a") noInk(() => {                  // Blizzard: icicles + snow ring
             ctx.fillStyle = "#eafaff";
             for (let i = 0; i < 5; i++) {
@@ -2787,6 +2838,9 @@
       else if (e.type === "soldier-down") fx.push(fxAt({ kind: "dust", ttl: 18, max: 18 }, e.x, e.y));
       // …and SELLING drew nothing while build and upgrade both ring. The event
       // already carried the refund, so the gold it returns floats like a bounty.
+      // 🎯 a Rust Ray landing. The persistent ring says WHICH bodies are soft;
+      // this says the moment it happened, so the gun has a report of its own.
+      else if (e.type === "strip") fx.push(fxAt({ kind: "rust", ttl: 16, max: 16 }, e.x, e.y));
       else if (e.type === "sell") {
         fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y));
         if (e.refund) fx.push(fxAt({ kind: "gold", ttl: 26, max: 26, text: "+" + e.refund }, e.x, e.y));
@@ -3053,6 +3107,19 @@
             ctx.arc(f.x * cell + dx, f.y * cell + dy, cell * 0.13 * (0.6 + spread), 0, 7);
             ctx.fill();
           }
+        } else if (f.kind === "rust") {
+          // flakes coming OFF the body. They FALL, where the soldier-down dust
+          // puff RISES, so the two cues read as different events at a glance.
+          const spread = 1 - a;
+          for (let i = 0; i < 5; i++) {
+            const ang = (i / 5) * Math.PI * 2 + 0.4;
+            const dx = Math.cos(ang) * cell * 0.3 * spread;
+            const dy = Math.sin(ang) * cell * 0.2 * spread + cell * 0.24 * spread;
+            ctx.fillStyle = "rgba(214,128,54," + (0.9 * a).toFixed(2) + ")";
+            ctx.beginPath();
+            ctx.arc(f.x * cell + dx, f.y * cell + dy, cell * 0.06 * (0.5 + a), 0, 7);
+            ctx.fill();
+          }
         } else if (f.kind === "chain") {
           ctx.strokeStyle = "rgba(160,240,255," + a + ")"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
           ctx.beginPath();
@@ -3240,6 +3307,32 @@
       // there are at most 14 towers on a board against 125 enemies at the peak —
       // measured at +0.6 ms of a 16.7 ms frame, and pinned by the perf guardrail
       // rather than assumed.
+      // 🧊 TAIL WIND LINKS. Without these the support tower was invisible: you
+      // could not tell which guns it was helping, and WHERE you place it is the
+      // entire decision the branch exists to create. Drawn UNDER the towers so
+      // they read as wiring rather than as ordnance, and skipped entirely when
+      // no support tower is on the board (zero cost for every other run).
+      if (st.hadSupport) {
+        for (const f of st.towers) {
+          const fs = (global.TDData.TOWERS[f.lineId].branches || {})[f.branch];
+          if (f.tier !== 4 || !fs || !fs.support) continue;
+          const a = f.cx, b = f.cy;
+          for (const t of st.towers) {
+            if (t.id === f.id || !(t.supRate > 1 || t.supRange > 1)) continue;
+            const p0 = w2s(a + 0.5, b + 0.5), p1 = w2s(t.cx + 0.5, t.cy + 0.5);
+            const pulse = 0.42 + 0.22 * Math.sin(st.tick * 0.08 + t.id);
+            ctx.strokeStyle = "rgba(255,190,90," + pulse.toFixed(2) + ")";
+            ctx.lineWidth = Math.max(1.5, cell * 0.05);
+            ctx.setLineDash([cell * 0.18, cell * 0.16]);
+            ctx.lineDashOffset = -(st.tick % 60) * cell * 0.02;
+            ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.strokeStyle = "rgba(255,203,110,0.75)";
+            ctx.lineWidth = Math.max(1, cell * 0.035);
+            ctx.beginPath(); ctx.arc(p1.x, p1.y, cell * 0.44, 0, 7); ctx.stroke();
+          }
+        }
+      }
       for (const t of st.towers) withInk(() => drawTower(t), true, 0, towerPens);
       for (const s of st.soldiers) if (s.alive) drawSoldier(s);
       // mortar shells arc between launch and impact
@@ -3308,6 +3401,21 @@
         if (e.slowUntil && st.tick < e.slowUntil) { // frost tint
           ctx.fillStyle = "rgba(140,210,255,0.32)";
           ctx.beginPath(); ctx.arc(p.x, p.y + bob, cell * 0.36, 0, 7); ctx.fill();
+        }
+        // 🎯 STRIPPED: armour peeled. Deliberately a BROKEN RING, not a filled
+        // disc, so it cannot be confused with the frost tint above — and it is
+        // PERSISTENT, because the STATE is what you play around; a burst at the
+        // moment of the hit tells you nothing a second later. Which bodies are
+        // currently soft is the entire reason to own a Rust Ray, and without
+        // this the branch changed nothing you could see.
+        if (e.stripUntil && st.tick < e.stripUntil) {
+          const rr = cell * 0.42;
+          ctx.strokeStyle = "rgba(226,132,52,0.95)";
+          ctx.lineWidth = Math.max(1.5, cell * 0.06);
+          for (let i = 0; i < 5; i++) {
+            const a0 = (i / 5) * Math.PI * 2 + st.tick * 0.02;
+            ctx.beginPath(); ctx.arc(p.x, p.y + bob, rr, a0, a0 + 0.72); ctx.stroke();
+          }
         }
         lerped.push({ e, x: p.x, y: p.y + bob });
       }

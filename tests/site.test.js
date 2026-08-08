@@ -1295,14 +1295,20 @@ test("guardrail: every tier-4 branch states its ROLE where it is chosen and in t
   }
   assert.ok(branches >= 8, `expected the shipped branch set, saw ${branches}`);
   const tdm = read("scripts/td-main.js");
-  assert.match(tdm, /td-branch__role">' \+ def\.branches\[k\]\.role/, "the branch BUTTON has a role renderer");
-  // …and it must be USED. The first cut only checked that the helper existed,
-  // so deleting `+ role("a")` from the button left the test green — the same
-  // "asserts the artefact, not the live path" trap the loadout guardrail hit.
-  for (const k of ["a", "b"]) {
-    assert.ok(tdm.includes('role("' + k + '")'), `the ${k} branch button actually renders its role`);
-  }
-  assert.match(tdm, /def\.branches\.a\.name \+ " — " \+ def\.branches\.a\.role/, "…and so does its aria-label");
+  // The panel DERIVES its branch buttons. This was the only place in the fort
+  // that hard-coded "a"/"b" — the engine's branch() has always been generic and
+  // the guide already derived — so a line with three ultimates needs no code
+  // hunt. Pinned as a derivation rather than a per-key list, because a per-key
+  // list is exactly the thing that goes stale.
+  assert.match(tdm, /const keys = Object\.keys\(def\.branches \|\| \{\}\)/,
+    "the tower panel must DERIVE its branch buttons — a hard-coded a/b is how a shipped branch becomes unreachable");
+  assert.match(tdm, /data-b="' \+ k \+ '"/, "…and render one button per key");
+  assert.match(tdm, /td-branch__role">' \+ b\.role/, "the branch BUTTON renders its role");
+  assert.match(tdm, /b\.name \+ " — " \+ b\.role/, "…and so does its aria-label");
+  // The row is sized to the COUNT: a third card left to wrap measured 239 → 350px
+  // and fell past the fold at 320x480, 320x568 and landscape 844x390.
+  assert.match(tdm, /td-branchrow--' \+ keys\.length/,
+    "the branch row must carry its own count, so N cards stay on ONE row");
   const tdu = read("scripts/td-ui.js");
   assert.match(tdu, /const branchRow = \(k\) => Object\.keys\(T\[k\]\.branches/,
     "the guide DERIVES its branch rows from the data, so a ninth branch documents itself");

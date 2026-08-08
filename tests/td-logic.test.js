@@ -8,6 +8,10 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const TD = require("../scripts/td-logic.js");
 const DATA = require("../scripts/td-data.js");
+const { readFileSync } = require("node:fs");
+const { join } = require("node:path");
+// Structural claims (one owner, one read site) need the SOURCE, not the API.
+const readSrc = (f) => readFileSync(join(__dirname, "..", f), "utf8");
 
 const L1 = DATA.LEVELS[0];
 
@@ -642,6 +646,185 @@ test("BRANCH IDENTITY 🧊 Static Zap's chain DECAYS by its declared factor down
   assert.ok(arc[arc.length - 1] < arc[0], "…so the arc genuinely weakens rather than hitting flat");
 });
 
+// ---- The two THIRD ultimates (Dart c / Fan c). Same contract as the six above:
+// each proves its own declared mechanic through its own engine seam, with the
+// expectation DERIVED from the data rather than re-typed. ----
+
+test("BRANCH IDENTITY 🎯 Rust Ray peels ARMOUR — so every OTHER line hits harder too", () => {
+  const S = DATA.TOWERS.dart.branches.c.strip;
+  const e = TD.createEngine(micro([{ groups: [{ type: "knight", count: 1, gap: 1, delay: 0 }] }]), { seed: 1 });
+  e.callWave(); ticks(e, 60);
+  const k = e.state.enemies[0];
+  assert.ok(k && k.armor > 0, "the fixture needs an ARMOURED body or this test is vacuous");
+  const plain = TD.computeHit(100, "bonk", k).hpDmg;
+  assert.equal(plain, Math.round(100 * (1 - k.armor)), "baseline: armour halves bonk");
+  e.applyStrip(k, S.amount, S.seconds);
+  e.tick(); // the resolve pass sets `stripped`, which keeps computeHit pure
+  const stripped = TD.computeHit(100, "bonk", k).hpDmg;
+  assert.equal(stripped, Math.round(100 * (1 - k.armor * (1 - S.amount))),
+    `a stripped body must lose ${S.amount * 100}% of its armour (saw ${plain} → ${stripped})`);
+  assert.ok(stripped > plain, "…which is strictly more damage, or the branch buys nothing");
+  // THE POINT: armour lives at ONE line, so peeling it helps the mortar's
+  // splash, a soldier's melee and every ability. A strip that only helped the
+  // dart that fired it would be a damage upgrade wearing a support costume.
+  assert.equal(TD.computeHit(100, "zap", k).hpDmg, 100, "zap never saw armour, so it must not change");
+  assert.match(readSrc("scripts/td-logic.js"), /if \(dmgType === "bonk"\) d \*= \(1 - effArmor\(enemy\)\)/,
+    "the strip must ride the ONE armour read — a second read site is how a mechanic applies to one line and not the others");
+});
+
+test("BRANCH IDENTITY 🎯 a real Rust Ray dart strips where it LANDS, and SAYS so", () => {
+  const S = DATA.TOWERS.dart.branches.c.strip;
+  const lvl = micro([{ groups: [{ type: "knight", count: 6, gap: 0.6, delay: 0 }] }], [{ id: "m1", cx: 5, cy: 3 }]);
+  const e = TD.createEngine(lvl, { seed: 4 });
+  e.state.gold = 9999;
+  e.place("dart", "m1");
+  const t = e.state.towers[0];
+  e.upgrade(t.id); e.upgrade(t.id);
+  assert.ok(e.branch(t.id, "c").ok, "Rust Ray applied");
+  e.callWave();
+  let sawStripped = false, sawEvent = false;
+  for (let i = 0; i < 3000 && e.state.phase === "wave" && !(sawStripped && sawEvent); i++) {
+    e.tick();
+    if (e.events.some((v) => v.type === "strip")) sawEvent = true;
+    sawStripped = sawStripped || e.state.enemies.some((x) => x.alive && x.stripped && x.stripAmt === S.amount);
+  }
+  assert.ok(sawStripped, "a body hit by a Rust Ray must actually come out stripped");
+  // The mechanic was INVISIBLE without an event: nothing could draw it and
+  // nothing could sound it, so a 270-gold gun changed nothing you could
+  // perceive — the Fan-fires-with-no-visual defect, third instance.
+  assert.ok(sawEvent, "…and it must EMIT, or the renderer and the sfx have no hook");
+});
+
+test("BRANCH IDENTITY 🎯 the strip has ONE owner: strongest wins, and never downgrades", () => {
+  const e = TD.createEngine(micro([{ groups: [{ type: "knight", count: 1, gap: 1, delay: 0 }] }]), { seed: 1 });
+  e.callWave(); ticks(e, 60);
+  const k = e.state.enemies[0];
+  e.applyStrip(k, 0.6, 3);
+  e.applyStrip(k, 0.2, 3);
+  assert.equal(k.stripAmt, 0.6, "a WEAKER strip must not overwrite a live stronger one — the 📻-into-🛢️ bug");
+  e.applyStrip(k, 0.9, 3);
+  assert.equal(k.stripAmt, 0.9, "…but a stronger one does");
+  const code = readSrc("scripts/td-logic.js");
+  assert.equal((code.match(/\.stripAmt = /g) || []).length, 1,
+    "exactly ONE writer of stripAmt — 'one read site' is a composition guarantee only while there is also one WRITE site");
+});
+
+// Isolating the Tail Wind's two halves matters: shot COUNT rises for BOTH a rate
+// buff and a range buff (the tower acquires sooner and holds longer), which is
+// exactly how the ⚡ power pad's first guardrail shipped unable to fail. Rate is
+// read off the cooldown the engine SETS — a number range cannot touch — and
+// range off the first-shot distance.
+function twCooldown(support, overclock) {
+  const lvl = micro([{ groups: [{ type: "knight", count: 30, gap: 0.4, delay: 0 }] }],
+    [{ id: "m1", cx: 5, cy: 4 }, { id: "m2", cx: 6, cy: 4 }]);
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.state.gold = 99999;
+  e.place("dart", "m1");
+  const d = e.state.towers[0];
+  e.upgrade(d.id); e.upgrade(d.id);
+  if (support) {
+    e.place("fan", "m2");
+    const f = e.state.towers[1];
+    e.upgrade(f.id); e.upgrade(f.id);
+    assert.ok(e.branch(f.id, "c").ok, "Tail Wind applied");
+  }
+  if (overclock) { d.boostUntil = 1e9; d.boostMult = 2; }
+  e.callWave();
+  let peak = 0;
+  for (let i = 0; i < 900; i++) { e.tick(); peak = Math.max(peak, d.cooldown); }
+  return peak;
+}
+
+test("BRANCH IDENTITY 🧊 Tail Wind speeds up its NEIGHBOURS, and COMPOSES with ⚡ Overclock", () => {
+  const SUP = DATA.TOWERS.fan.branches.c.support;
+  const base = DATA.TOWERS.dart.tiers[2].rate * DATA.TICK_RATE;
+  assert.equal(twCooldown(false, false), Math.round(base), "baseline cooldown is the tier's own rate");
+  assert.equal(twCooldown(true, false), Math.round(base / SUP.rate),
+    `a supported dart must reload ${SUP.rate}x faster — measured on the cooldown, where range cannot confound it`);
+  // Support MULTIPLIES into boostOf instead of assigning precisely so that three
+  // independent sources (Overclock, a ⚡ pad, a Tail Wind) all land. Assignment
+  // would silently drop whichever wrote first — the shipped 📻/🛢️ bug.
+  assert.equal(twCooldown(false, true), Math.round(base / 2), "Overclock alone is 2x");
+  assert.equal(twCooldown(true, true), Math.round(base / (2 * SUP.rate)),
+    "both together must be 2 x support — if this equals either alone, one source is clobbering the other");
+});
+
+test("BRANCH IDENTITY 🧊 Tail Wind extends a neighbour's REACH (and never buffs itself)", () => {
+  const SUP = DATA.TOWERS.fan.branches.c.support;
+  const firstDist = (support) => {
+    const lvl = micro([{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }],
+      [{ id: "m1", cx: 12, cy: 4 }, { id: "m2", cx: 13, cy: 4 }]);
+    const e = TD.createEngine(lvl, { seed: 3 });
+    e.state.gold = 99999;
+    e.place("dart", "m1");
+    const d = e.state.towers[0];
+    e.upgrade(d.id); e.upgrade(d.id);
+    if (support) {
+      e.place("fan", "m2");
+      const f = e.state.towers[1];
+      e.upgrade(f.id); e.upgrade(f.id); e.branch(f.id, "c");
+    }
+    e.callWave();
+    for (let i = 0; i < 6000; i++) { e.tick(); if (e.state.projectiles.length) return e.state.enemies[0].dist; }
+    return -1;
+  };
+  const plain = firstDist(false), buffed = firstDist(true);
+  assert.ok(plain > 0 && buffed > 0, `both builds must fire (${plain}, ${buffed})`);
+  const engageAt = (r) => 12 - Math.sqrt(r * r - 4);   // the pad sits 2 cells off the lane
+  const R = DATA.TOWERS.dart.tiers[2].range;
+  assert.ok(Math.abs(plain - engageAt(R)) < 0.1, `baseline engages at ~${engageAt(R).toFixed(2)} (saw ${plain.toFixed(2)})`);
+  assert.ok(Math.abs(buffed - engageAt(R * SUP.range)) < 0.1,
+    `a supported dart must engage at ~${engageAt(R * SUP.range).toFixed(2)} (saw ${buffed.toFixed(2)}) — ` +
+    "reach is the half of this branch a shot-count test cannot separate from its rate");
+
+  const lvl = micro([{ groups: [{ type: "sock", count: 5, gap: 1, delay: 0 }] }],
+    [{ id: "m1", cx: 5, cy: 4 }, { id: "m2", cx: 6, cy: 4 }]);
+  const e = TD.createEngine(lvl, { seed: 3 });
+  e.state.gold = 99999;
+  e.place("dart", "m1");
+  const d = e.state.towers[0];
+  e.upgrade(d.id); e.upgrade(d.id);
+  e.place("fan", "m2");
+  const f = e.state.towers[1];
+  e.upgrade(f.id); e.upgrade(f.id); e.branch(f.id, "c");
+  e.callWave(); e.tick();
+  assert.equal(d.supRate, SUP.rate, "the neighbour is buffed");
+  assert.equal(f.supRate, 1, "the Tail Wind itself is not — it is a support tower, not a self-buff");
+  e.sell(f.id); e.tick();
+  assert.equal(d.supRate, 1, "selling the Tail Wind clears what it was giving");
+});
+
+test("BRANCH IDENTITY 🧊 its radius is sized to the MAPS, and a board without one writes nothing", () => {
+  // The single most important number in the branch. At the fan's own 2.4 aura a
+  // Tail Wind reaches NOTHING on 21 of 36 levels, because the median distance
+  // from a pad to its nearest neighbour is 4.00 cells — it would have been a
+  // 300-gold trap. A support tower's radius is a property of the MAPS.
+  const R = DATA.TOWERS.fan.branches.c.support.radius;
+  assert.ok(R > DATA.TOWERS.fan.branches.c.auraRange,
+    "the support radius must be its OWN number, larger than the combat aura");
+  const dead = DATA.LEVELS.filter((l) => !l.pads.some((a) =>
+    l.pads.some((b) => b.id !== a.id && Math.hypot(a.cx - b.cx, a.cy - b.cy) <= R)));
+  assert.equal(dead.length, 0,
+    `a Tail Wind must be able to help SOMETHING on every level (dead: ${dead.map((l) => l.id).join(",")})`);
+  // …but placement must still be a real decision, or the tower is free power.
+  const pads = DATA.LEVELS.flatMap((l) => l.pads.map((a) =>
+    l.pads.filter((b) => b.id !== a.id && Math.hypot(a.cx - b.cx, a.cy - b.cy) <= R).length));
+  const useless = pads.filter((n) => n === 0).length / pads.length;
+  assert.ok(useless > 0.1,
+    `WHERE you put it must matter — only ${(useless * 100).toFixed(0)}% of pads buff nobody, which makes placement free`);
+
+  // and the support pass never writes on a board that has no support tower, so
+  // every historical run's state stays byte-identical.
+  const lvl = micro([{ groups: [{ type: "sock", count: 6, gap: 0.5, delay: 0 }] }], [{ id: "m1", cx: 5, cy: 3 }]);
+  const e = TD.createEngine(lvl, { seed: 2 });
+  e.state.gold = 9999;
+  e.place("dart", "m1");
+  e.callWave(); ticks(e, 400);
+  assert.ok(e.state.towers.every((t) => t.supRate === undefined && t.supRange === undefined),
+    "a board with no support tower must not carry support fields at all");
+  assert.equal(e.state.hadSupport, undefined, "…nor the latch");
+});
+
 test("TD2 mixed arsenal: deterministic replay AND an all-four-lines L1 build wins", () => {
   const lvl = micro([
     { groups: [{ type: "sock", count: 6, gap: 0.4, delay: 0 }, { type: "marble", count: 4, gap: 0.3, delay: 1 }] },
@@ -707,7 +890,26 @@ test("AUDIT: no DAMAGE-role tier-4 branch is a straight DPS downgrade from the t
   // listed here so the exemption is explicit, not accidental:
   //   • camp 'a' Dino Squad — trades squad DPS for tank HP + double-block
   //   • fan  'a'/'b' Blizzard/Static — trade slow/zap for brittle/chain utility
+  //   • dart 'c' Rust Ray — its output IS the armour strip; 28 dps against the
+  //     Foam Gatling's 34.3 is the price of a support gun, and every other
+  //     tower on the board hits harder for it
+  //   • fan  'c' Tail Wind — it barely fights at all; it buffs its neighbours
+  // The two lists together must COVER every shipped branch, so a future one
+  // cannot be exempt by omission the way these two nearly were — an
+  // inclusion-only list is the "a scan's own list is part of the scan" trap.
   const dpsBranch = [["dart", "a"], ["dart", "b"], ["mortar", "a"], ["mortar", "b"], ["camp", "b"]];
+  const utilityBranch = [["camp", "a"], ["fan", "a"], ["fan", "b"], ["dart", "c"], ["fan", "c"]];
+  const classified = new Set(dpsBranch.concat(utilityBranch).map(([l, k]) => l + ":" + k));
+  for (const [line, def] of Object.entries(DATA.TOWERS)) {
+    for (const key of Object.keys(def.branches || {})) {
+      assert.ok(classified.has(line + ":" + key),
+        `${line} '${key}' (${def.branches[key].name}) is neither a damage-role branch nor a listed sidegrade — ` +
+        "classify it, so a DPS downgrade can never ship merely because nobody added it to a list");
+    }
+  }
+  for (const [line, key] of utilityBranch) {
+    assert.ok(DATA.TOWERS[line].branches[key], `${line} '${key}' is exempted but does not exist — stale list`);
+  }
   for (const [line, key] of dpsBranch) {
     const def = DATA.TOWERS[line], t3 = def.tiers[2], b = def.branches[key];
     const bd = def.kind === "camp" ? b.soldiers * b.dmg / b.rate : b.dmg / b.rate;

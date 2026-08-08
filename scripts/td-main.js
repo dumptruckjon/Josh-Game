@@ -193,6 +193,7 @@
 
   // ---- SFX (through the ONE iOS-safe JoshAudio.tone; global 🔇 + fort toggle) ----
   let lastShotCue = 0;
+  let lastStripCue = 0;
   // ---- Haptics ----
   // navigator.vibrate is NOT supported by Safari on iOS (iPhone or iPad), so this
   // is a real no-op there — feature-checked rather than pretending. It fires on
@@ -242,6 +243,19 @@
       if (kind === "build") { A.tone(660, { duration: 0.08, gain: 0.12 }); setTimeout(() => A.tone(880, { duration: 0.1, gain: 0.12 }), 70); }
       else if (kind === "upgrade") { [520, 660, 880].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.09, gain: 0.12 }), i * 70)); }
       else if (kind === "sell") A.tone(280, { duration: 0.12, gain: 0.1, type: "sine" });
+      // 🎯 the Rust Ray's corrosive tick — a short falling rasp, deliberately dry
+      // and quiet so it sits UNDER the dart's own report rather than competing
+      // with it. Throttled on the same principle as `shoot`: a Rust Ray fires
+      // twice a second and several may be on the board, and an unthrottled cue
+      // is how a burst of kills once asked for 100 oscillators at once.
+      else if (kind === "strip") {
+        const now = Date.now();
+        if (now - lastStripCue > 140) {
+          lastStripCue = now;
+          A.tone(340, { duration: 0.06, gain: 0.055, type: "sawtooth" });
+          setTimeout(() => A.tone(240, { duration: 0.07, gain: 0.045, type: "sawtooth" }), 45);
+        }
+      }
       else if (kind === "shoot") {
         const now = Date.now();
         if (now - lastShotCue > 110) {
@@ -568,6 +582,7 @@
       else if (e.type === "ability") sfx("ability"); // a power actually landed
       else if (e.type === "chain") sfx("chain");
       else if (e.type === "splash") sfx("splash");
+      else if (e.type === "strip") sfx("strip"); // 🎯 a Rust Ray softening a body
       else if (e.type === "boss") { UI.showBanner("⚠️ " + e.name + " incoming!"); sfx("boss"); }
       else if (e.type === "phase") { UI.showBanner("⚠️ " + e.name + " is getting angrier!"); sfx("phase"); }
     }
@@ -1016,25 +1031,28 @@
           const c = cur.engine.priceOf("upgrade", t.id);
           middle = '<button class="td-up" data-cost="' + c + '" type="button">⬆ ' + c + "🪙</button>";
         } else if (t.tier === 3) {
-          const ca = cur.engine.priceOf("branch", { towerId: t.id, choice: "a" });
-          const cb = cur.engine.priceOf("branch", { towerId: t.id, choice: "b" });
-          // MEASURED 2026-08: the branch buttons used to show a name and a price
-          // and nothing else, while the panel's `dps` line actively MISLEADS
-          // here — Sniper Scope reads 47.3 dps against the tier-3 dart's 34.3,
-          // yet converting every dart to Sniper LOSES L22/L26/L31 outright and
-          // 5 of 9 boss finales, because 85 damage a shot is overkill against 30
-          // of the 42 non-boss bodies (median hp 34) and its real kill rate is a
-          // third of the tier-3's. Paper DPS is the wrong statistic and the
-          // player had no other. Each branch now states its ROLE at the moment
-          // of choosing, the way the build menu already does for the four lines.
-          const role = (k) => '<span class="td-branch__role">' + def.branches[k].role + "</span>";
-          middle =
-            '<button class="td-branch" data-b="a" data-cost="' + ca + '" type="button" aria-label="' +
-              def.branches.a.name + " — " + def.branches.a.role + ", " + ca + ' gold">' +
-              def.branches.a.name + " " + ca + "🪙" + role("a") + "</button>" +
-            '<button class="td-branch" data-b="b" data-cost="' + cb + '" type="button" aria-label="' +
-              def.branches.b.name + " — " + def.branches.b.role + ", " + cb + ' gold">' +
-              def.branches.b.name + " " + cb + "🪙" + role("b") + "</button>";
+          // Each branch states its ROLE at the moment of choosing, because the
+          // panel's dps line actively MISLEADS here: Sniper Scope reads 47.3
+          // against the tier-3 dart's 34.3, yet converting every dart to Sniper
+          // LOSES L22/L26/L31 and 5 of 9 boss finales — 85 damage a shot is
+          // overkill against 30 of the 42 non-boss bodies (median hp 34).
+          //
+          // DERIVED from the line's own branch map — the counting law. This was
+          // the ONLY place in the fort that hard-coded "a" and "b" (the engine's
+          // branch() has always been generic and the Toybox Guide already
+          // derived), so a line with three ultimates needs no code hunt. The row
+          // is a GRID sized to the count, because a third card left to WRAP
+          // measured +111px (239 → 350) and fell past the fold at 320x480,
+          // 320x568 and landscape 844x390.
+          const keys = Object.keys(def.branches || {});
+          middle = '<div class="td-branchrow td-branchrow--' + keys.length + '">' + keys.map((k) => {
+            const b = def.branches[k];
+            const c = cur.engine.priceOf("branch", { towerId: t.id, choice: k });
+            return '<button class="td-branch" data-b="' + k + '" data-cost="' + c + '" type="button" aria-label="' +
+              b.name + " — " + b.role + ", " + c + ' gold">' +
+              '<span class="td-branch__name">' + b.name + " " + c + "🪙</span>" +
+              '<span class="td-branch__role">' + b.role + "</span></button>";
+          }).join("") + "</div>";
         }
         const control = t.lineId === "camp"
           ? '<button class="td-rally" type="button">🚩 Rally</button>'

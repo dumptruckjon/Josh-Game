@@ -160,6 +160,14 @@
       branches: {
         a: { name: "Sniper Scope", role: "one big far shot — most of it is WASTED on small bodies", cost: 260, dmg: 85, dmgType: "bonk", rate: 2.2, range: 5.5, crit: 0.15, critMult: 2.5, defaultTargeting: "strong" },
         b: { name: "Minigun", role: "a fast close stream — shreds crowds, never overkills", cost: 280, dmg: 9, dmgType: "bonk", rate: 0.12, range: 2.2, spinUp: 1.2, heatFloor: 0.3 },
+        // The Dart's third axis is SUPPORT, not more damage — the damage axis is
+        // full (Sniper already one-shots 71% of the roster and loses levels for
+        // it). Armour is the commonest trait in the game (14 of 51 bodies) and
+        // nothing could remove it: you either brought the Fan, whose zap ignores
+        // armour, or you out-damaged it. `strip` is read at the ONE place armour
+        // is applied, so peeling it helps the mortar, the soldiers and the
+        // abilities too — this gun's output is the debuff, not the hit.
+        c: { name: "Rust Ray", role: "peels ARMOUR off — every other tower then hits harder", cost: 270, dmg: 14, dmgType: "bonk", rate: 0.5, range: 3.2, strip: { amount: 0.6, seconds: 3 } },
       },
     },
     mortar: {
@@ -185,6 +193,20 @@
       branches: {
         a: { name: "Blizzard Cone", role: "colder aura, and chilled bodies take extra damage", cost: 300, slow: 0.6, auraRange: 2.6, zapDps: 16, zapRange: 2.6, brittle: 3 }, // zap 12→16: keeps it ABOVE tier-3 Freezer Blast (14) after the tier zap re-tune, so the upgrade never reads as a zap downgrade; brittle linger seconds
         b: { name: "Static Zap", role: "lightning that arcs to 4 nearby bodies (less slow)", cost: 320, slow: 0.4, auraRange: 2.4, chain: { dmg: 30, targets: 4, decay: 0.75, jump: 1.5, rate: 1.1 }, zapRange: 2.6 },
+        // The Fan's third axis is the only one no tower has ever had: it points
+        // at YOUR towers instead of at the enemy. `support` folds into boostOf
+        // and reachOf — the sole readers of fire-rate and range — by
+        // MULTIPLICATION, so it composes with ⚡ Overclock and a ⚡ power pad
+        // instead of clobbering either. It barely fights; its whole output is
+        // the neighbours, which makes it the one branch that rewards WIDE.
+        //   `radius` is its OWN number, not the combat `auraRange`, and it is
+        // SIZED TO THE MAPS rather than guessed: the median distance from a pad
+        // to its nearest neighbour is 4.00 cells across all 36 levels, so at the
+        // fan's own 2.4 aura a Tail Wind would have reached NOTHING on 21 of
+        // them and been a 300-gold trap. At 4.5 no level is dead, while 25% of
+        // pads still buff nobody — which is the point: WHERE you put it is the
+        // decision. (5.0 drops that to 12% and makes placement free.)
+        c: { name: "Tail Wind", role: "blows on your OWN towers — neighbours fire faster and further", cost: 300, slow: 0.2, auraRange: 2.4, zapDps: 4, zapRange: 2.4, support: { rate: 1.25, range: 1.15, radius: 4.5 } },
       },
     },
     camp: {

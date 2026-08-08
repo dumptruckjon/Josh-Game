@@ -251,11 +251,30 @@ body.td-mode #screens { padding: 0; }
    but 85 damage a shot is overkill against 30 of 42 non-boss bodies, so paper
    dps points the wrong way. Child margin, never flex `gap` — Safari 14.0 drops
    gap in flex and the two lines would collapse together on Josh's iPad. */
-.td-branch {
-  background: #7a5cd6; color: #f2edff; font-size: 0.88rem; max-width: 40vw;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  line-height: 1.12; white-space: normal;
+/* The branch cards live in their own GRID rather than flowing in the panel's
+   wrap. MEASURED: a third card left to wrap took the panel from 239px to 350px
+   and fell past the fold at 320x480 (12px), 320x568 (20px) and landscape
+   844x390 (33px) — a branch you cannot reach is not a branch. A grid keeps N
+   cards on ONE row whatever N is, and the three-card panel measures the SAME
+   239px the two-card one did. Grid `gap` is used deliberately: it is FLEX gap
+   that Safari 14.0 drops, and grid gap works there. The count is a modifier
+   class, never `repeat(var(--n), …)`, which is not safe on 14.0. */
+.td-branchrow {
+  width: 100%; display: grid; gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.td-branchrow--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.td-branch {
+  background: #7a5cd6; color: #f2edff; font-size: 0.88rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1.12; white-space: normal; min-width: 0; padding: 8px 6px;
+}
+/* At three-across on a 320px phone a card is ~87px, so the NAME must be free to
+   wrap and the role must shrink — the size difference lives in the TYPE, never
+   in the tappable box (the Will-It-Fit law). */
+.td-branchrow--3 .td-branch { font-size: 0.76rem; }
+.td-branchrow--3 .td-branch__role { font-size: 0.62rem; }
+.td-branch__name { display: block; }
 .td-branch__role {
   display: block; margin-top: 3px;
   font-size: 0.74rem; font-weight: 600; opacity: 0.92;

@@ -325,7 +325,15 @@ test("TD2 tower panel: upgrades lead to two branch cards; picking one becomes ti
   await openPanel();
   await page.locator(".td-up").click();      // t3
   await openPanel();
-  assert.equal(await page.locator(".td-branch").count(), 2, "tier 3 offers BOTH branch cards");
+  // DERIVED — the Dart offers three ultimates now, and a literal 2 is exactly
+  // how a shipped branch becomes unreachable.
+  const dartKeys = await page.evaluate(() => Object.keys(window.TDData.TOWERS.dart.branches));
+  assert.equal(await page.locator(".td-branch").count(), dartKeys.length,
+    `tier 3 must offer EVERY branch the line declares (${dartKeys.join("/")})`);
+  for (const k of dartKeys) {
+    assert.equal(await page.locator('.td-branch[data-b="' + k + '"]').count(), 1,
+      `the ${k} branch needs a card of its own`);
+  }
   await page.locator('.td-branch[data-b="a"]').click(); // Sniper Scope
   const t = await page.evaluate(() => window.__TD.state().towers[0]);
   assert.equal(t.tier, 4, "branched to tier 4");
@@ -2365,7 +2373,12 @@ test("ART: every tower TIER draws differently, and each tier-4 branch is its own
     const dpr = canvas.width / canvas.clientWidth;
     const out = {};
     for (const line of Object.keys(window.TDData.TOWERS)) {
-      for (const v of [1, 2, 3, "a", "b"]) {
+      // DERIVED from the line's own branches. This was the literal
+      // [1, 2, 3, "a", "b"], so when the Dart and the Fan each gained a THIRD
+      // ultimate their sprites would have shipped completely unchecked — the
+      // "a scan's own list is part of the scan" class, inside the guardrail
+      // whose whole job is to stop a tier shipping without art.
+      for (const v of [1, 2, 3].concat(Object.keys(window.TDData.TOWERS[line].branches || {}))) {
         st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
         st.towers.push({
           id: 1, lineId: line, tier: typeof v === "number" ? v : 4,
@@ -2389,14 +2402,29 @@ test("ART: every tower TIER draws differently, and each tier-4 branch is its own
     return out;
   });
   const lines = await page.evaluate(() => Object.keys(window.TDData.TOWERS));
+  const BRANCH_KEYS = await page.evaluate(() => {
+    const o = {};
+    for (const [k, T] of Object.entries(window.TDData.TOWERS)) o[k] = Object.keys(T.branches || {});
+    return o;
+  });
   for (const line of lines) {
     const s = (v) => sigs[line + ":" + v];
     assert.notEqual(s(1), s(2), `${line}: tier 2 must look different from tier 1`);
     assert.notEqual(s(2), s(3), `${line}: tier 3 must look different from tier 2`);
     assert.notEqual(s(1), s(3), `${line}: tier 3 must look different from tier 1`);
-    assert.notEqual(s(3), s("a"), `${line}: the A branch must look different from tier 3`);
-    assert.notEqual(s(3), s("b"), `${line}: the B branch must look different from tier 3`);
-    assert.notEqual(s("a"), s("b"), `${line}: the two tier-4 branches must not look alike`);
+    // every branch differs from the tier it replaces AND from each sibling —
+    // pairwise and derived, so a third (or fourth) inherits the check
+    const keys = BRANCH_KEYS[line];
+    assert.ok(keys.length >= 2, `${line} must offer a real tier-4 choice (saw ${keys.length})`);
+    for (const k of keys) {
+      assert.notEqual(s(3), s(k), `${line}: the ${k} branch must look different from tier 3`);
+    }
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        assert.notEqual(s(keys[i]), s(keys[j]),
+          `${line}: tier-4 branches ${keys[i]} and ${keys[j]} must not look alike`);
+      }
+    }
   }
 
   // …and the SQUAD a camp fields must show its rank too: every soldier drew as
@@ -4501,7 +4529,9 @@ test("UX: the tower panel STAYS OPEN and re-renders, so one opening can upgrade 
   for (const s of out.steps) assert.ok(s.stillOpen, `the panel closed after upgrading to tier ${s.tier}`);
   assert.notEqual(out.steps[0].labelBefore, out.steps[1].labelBefore,
     "the price must RE-RENDER between tiers — an unchanged label means a stale panel");
-  assert.equal(out.steps[1].branchesShown, 2, "at tier 3 the panel re-renders into the two branch cards");
+  const nBranches = await page.evaluate(() => Object.keys(window.TDData.TOWERS.dart.branches).length);
+  assert.equal(out.steps[1].branchesShown, nBranches,
+    `at tier 3 the panel re-renders into ALL ${nBranches} branch cards`);
   assert.ok(out.closedAfterSell, "selling must still close the panel — its subject is gone");
   assert.equal(out.towersLeft, 0, "…and the tower really was sold");
 });
