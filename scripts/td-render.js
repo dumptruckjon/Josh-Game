@@ -3312,8 +3312,32 @@
       // entire decision the branch exists to create. Drawn UNDER the towers so
       // they read as wiring rather than as ordnance, and skipped entirely when
       // no support tower is on the board (zero cost for every other run).
-      if (st.hadSupport) {
-        for (const f of st.towers) {
+      // SAVE/RESTORE, and a try/catch, are both load-bearing here.
+      //
+      // Reported from real play as "Tail Wind wipes the board and things went
+      // crazy": no towers, orange circles down the lane, a big cyan cone, HUD
+      // still counting. The cause was a one-word slip below — this called
+      // `w2s(...)`, which is not in scope inside draw(), so a ReferenceError
+      // fired every frame a Tail Wind existed and aborted the frame HERE. The
+      // draw order is what identifies it: floor, puddles (the orange circles)
+      // and zap beams (the cyan) are all drawn before this point; towers,
+      // soldiers, enemies and projectiles all after; the HUD is DOM. When a
+      // canvas frame is half-drawn, the draw ORDER tells you where it stopped.
+      //
+      // The try/catch is the systemic half, and it is why this survived the fix
+      // of that typo: a purely DECORATIVE overlay must never be able to abort
+      // the frame that draws the towers. draw() has no other guard, so ANY
+      // throw here silently costs the player their entire board while the HUD
+      // keeps updating. The save/restore is the second defect in the same
+      // block — it sets strokeStyle, lineWidth, a line DASH and lineDashOffset
+      // on the SHARED context and used to reset only the dash array, leaving a
+      // dirty lineDashOffset for the tower pass to inherit.
+      try {
+        ctx.save();
+        // the GATE is read inside the try too — the first cut left it in the `if`
+        // condition, so a failure reading it still escaped and still cost the
+        // board. Caught by the guardrail, which is what it is for.
+        if (st.hadSupport) for (const f of st.towers) {
           const fs = (global.TDData.TOWERS[f.lineId].branches || {})[f.branch];
           if (f.tier !== 4 || !fs || !fs.support) continue;
           const a = f.cx, b = f.cy;
@@ -3332,7 +3356,8 @@
             ctx.beginPath(); ctx.arc(p1.x, p1.y, cell * 0.44, 0, 7); ctx.stroke();
           }
         }
-      }
+      } catch (err) { /* a decoration must never cost the player the board */ }
+      finally { ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.restore(); }
       for (const t of st.towers) withInk(() => drawTower(t), true, 0, towerPens);
       for (const s of st.soldiers) if (s.alive) drawSoldier(s);
       // mortar shells arc between launch and impact
@@ -3408,6 +3433,12 @@
         // moment of the hit tells you nothing a second later. Which bodies are
         // currently soft is the entire reason to own a Rust Ray, and without
         // this the branch changed nothing you could see.
+        // No noInk() here, and that is MEASURED rather than assumed: this sits
+        // OUTSIDE withInk, so inkDepth is 0, and withInk's finally has already
+        // zeroed inkBudget — the pen cannot fire for two independent reasons.
+        // A/B on a pinned tick renders byte-identical with and without the
+        // wrap, so it would be a guard that never fires, which this project
+        // deletes rather than ships (the bed-glyph clamp precedent).
         if (e.stripUntil && st.tick < e.stripUntil) {
           const rr = cell * 0.42;
           ctx.strokeStyle = "rgba(226,132,52,0.95)";

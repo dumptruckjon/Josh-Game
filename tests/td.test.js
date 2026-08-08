@@ -2700,6 +2700,84 @@ test("TD2 the THIRD ultimates are buyable by TAP, and each one WORKS and SHOWS o
   assert.equal(helped.supRange, SUP.range, "…and given the extra reach");
 });
 
+test("ART: a frame never LEAKS canvas state, and a decoration cannot cost the board", async () => {
+  // Reported from real play as "Tail Wind wipes the board and things went
+  // crazy": no towers, orange circles down the lane, a big cyan cone, HUD still
+  // counting. The cause was a ReferenceError in the support-link block (it
+  // called `w2s`, out of scope inside draw()), which aborted the frame at that
+  // exact line — the draw order predicts the screenshot precisely, since floor,
+  // puddles and zap beams all come before it and every character after it.
+  // The typo is fixed; this test guards the two SYSTEMIC defects the same block
+  // had — it mutated shared canvas state without save/restore, and draw() had
+  // no guard at all, so any throw in a purely decorative layer costs the board.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    window.__TD.newGame(8, { seed: 3 });
+    const e = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    e.state.gold = 999999;
+    const R = window.TDData.TOWERS.fan.branches.c.support.radius;
+    const pads = e.levelDef.pads;
+    const fanPad = pads.find((p) => pads.filter((q) => q.id !== p.id &&
+      Math.hypot(p.cx - q.cx, p.cy - q.cy) <= R).length >= 2) || pads[0];
+    e.place("fan", fanPad.id);
+    const f = st.towers[0];
+    e.upgrade(f.id); e.upgrade(f.id); e.branch(f.id, "c");
+    for (const p of pads) {
+      if (p.id === fanPad.id) continue;
+      e.place("dart", p.id);
+      const d = st.towers[st.towers.length - 1];
+      e.upgrade(d.id); e.upgrade(d.id);
+    }
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c = canvas.getContext("2d");
+    e.callWave();
+    for (let i = 0; i < 4000 && e.state.phase === "wave"; i++) {
+      e.tick();
+      if (st.enemies.filter((x) => x.alive).length >= 3) break;
+    }
+    // 1. a frame must leave the shared context exactly as it found it
+    c.setLineDash([]); c.lineDashOffset = 0;
+    r.draw(0);
+    const leaked = { dash: c.getLineDash().length, offset: c.lineDashOffset };
+
+    // 2. and a THROW inside the decorative layer must not cost the tower pass.
+    //    `hadSupport` is the gate on that whole block, so a getter that throws
+    //    when it is read reproduces exactly the failure mode reported.
+    const before = c.getImageData(0, 0, canvas.width, canvas.height).data;
+    let towerPixels = 0;
+    Object.defineProperty(st, "hadSupport", { get() { throw new Error("boom"); }, configurable: true });
+    let threw = false;
+    try { r.draw(0); } catch (err) { threw = true; }
+    delete st.hadSupport;
+    st.hadSupport = true;
+    const after = c.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 0; i < before.length; i += 4) {
+      if (before[i] !== after[i] || before[i + 1] !== after[i + 1] || before[i + 2] !== after[i + 2]) towerPixels++;
+    }
+    return { leaked, threw, diffWhenDecorationFails: towerPixels, towers: st.towers.length };
+  });
+  assert.equal(out.leaked.dash, 0, "a frame must not leave a line DASH set on the shared context");
+  assert.equal(out.leaked.offset, 0, "…nor a lineDashOffset — the tower pass is drawn after this and inherits it");
+  // This is asserted BEFORE `threw` deliberately: both fire on the same
+  // mutation (delete the catch), and this is the stronger claim — it measures
+  // the CONSEQUENCE (the board is gone) rather than the mechanism (something
+  // was thrown). Ordering it first is what makes the bound below directly
+  // mutation-proven instead of merely argued.
+  //
+  // The bound is MEASURED, not invented. On this fixture the decoration failing
+  // costs 351 px (just the missing links) while the tower pass genuinely not
+  // running costs 10,958 — a factor of 31, so 3000 sits cleanly between them
+  // with 8x headroom above the real number and 3.6x margin below the defect.
+  // The first cut of this line said `< 20000`, which is ABOVE 10,958: it could
+  // not have caught the very thing it claims to, i.e. a test that cannot fail.
+  assert.ok(out.diffWhenDecorationFails < 3000,
+    `with the decoration failing the board must still paint essentially the same (${out.diffWhenDecorationFails} px differ) — ` +
+    "a decoration that can abort the frame costs the player every tower while the HUD keeps updating");
+  assert.ok(!out.threw, "a failure inside the decorative layer must not escape draw()");
+});
+
 test("ART: both new mechanics actually PAINT — 'does it work' and 'can you see it' are different questions", async () => {
   // The first cut of this feature had ZERO references to either mechanic in the
   // renderer and emitted no events, so a 270-gold gun and a 300-gold support

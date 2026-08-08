@@ -4507,6 +4507,50 @@ mode it exists for — the deploy can be missing rather than broken, which shows
 up as silence, not as red. And **when a user says the live site looks stale,
 believe it over your own reading of the API**: that report was the evidence that
 overturned the cache theory, and it was right.
+**"TAIL WIND WIPES THE BOARD AND THINGS WENT CRAZY" — and the diagnosis was in
+the DRAW ORDER, after six probes had failed to reproduce it.** The screenshot
+showed no towers at all, orange circles stacked down the lane and a big cyan
+cone, while the HUD kept counting waves. The cause was a one-word slip in the
+commit that shipped the branch: the support-link overlay called `w2s(...)`,
+which is not in scope inside `draw()`, so a `ReferenceError` fired on EVERY
+frame the moment a Tail Wind existed, aborting the frame at that exact line. Map
+that against the draw order and it predicts the picture precisely — floor,
+puddles (the amber circles), zap beams (the cyan) all come BEFORE it; towers,
+soldiers, enemies and projectiles all come after; and the HUD is DOM, so it
+carries on regardless. **When a canvas frame is partly drawn, the draw ORDER
+tells you where it stopped** — that is a faster diagnosis than any repro, and I
+reached for it last instead of first. The other reason it looked unreproducible
+is the one worth the most: **I was probing code that was already fixed.** The
+slip shipped in `856bd16`, was corrected in `5b43fc7` an hour later, and the
+player was on the older deploy — so my sandbox was faithfully showing me a
+working board. **Check which COMMIT the report came from before concluding
+"cannot reproduce".** The hardening shipped anyway, because the real lesson is
+systemic: that block also mutated shared canvas state (`strokeStyle`,
+`lineWidth`, a line DASH and `lineDashOffset`) and reset only the dash array,
+and `draw()` had no guard at all — so it is now `save()`/`restore()` in a `try`,
+a `finally` resetting both dash fields, and a `catch`, because **a purely
+DECORATIVE overlay must never be able to abort the frame that draws the towers.**
+Four method lessons, three of them about my own instruments. (1) **The GATE must
+be read inside the `try`** — the first cut left `if (st.hadSupport)` in the
+condition, so a throw reading it still escaped and still cost the board; the new
+guardrail caught exactly that, which is what it is for. (2) **A probe that hashes
+a LIVE frame is measuring the rAF loop, not the code** — three runs of an
+unchanged file gave three different hashes, because the loop keeps ticking the
+engine between processes. Hand-place the bodies and PIN `state.tick` (the ring's
+phase and the bob are both tick-derived) and it goes byte-stable. My first A/B
+"found" a difference that was pure noise. (3) **A `noInk()` wrap I added was DEAD
+CODE, and measuring said so** — the strip ring sits outside `withInk`, so
+`inkDepth` is 0, and `withInk`'s `finally` has already zeroed `inkBudget`; the pen
+cannot fire for two independent reasons, and the pinned-tick A/B renders
+byte-identical with and without. Deleted rather than shipped, per the
+bed-glyph-clamp precedent. (4) **A bound must be measured against the thing it
+claims to catch.** My new assertion said the board must still paint "essentially
+the same" when the decoration fails, at `< 20000` px — but the decoration failing
+costs **351** px while the tower pass genuinely not running costs **11,884**, so
+the bound sat ABOVE the defect and could not have failed. It is 3000 now, and the
+assertion is ordered BEFORE the "nothing escaped" one so the same mutation proves
+the stronger claim. Writing a guardrail for someone else's bug is no protection
+against writing an unfalsifiable one.
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
