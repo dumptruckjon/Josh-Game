@@ -450,8 +450,16 @@ function playBranch(level, seed, plan, difficulty, want) {
         if (e.state.towers.length === padIds.length && e.state.towers.every((t) => t.tier >= 3)) ready = true;
         if (spent || !want || bought >= want.cap) continue;
         if (!padIds.every((pid) => e.state.towers.find((t) => t.padId === pid))) continue;
-        for (const t of e.state.towers) {
-          if (t.tier !== 3 || t.lineId !== want.line) continue;   // eligibility BEFORE budget
+        // WHICH tower is converted is a real variable, not an implementation
+        // detail: a human picks the pad, and for a positional branch (Sticky's
+        // goo, Bertha's blast, Tail Wind's neighbours) the pad IS most of the
+        // value. Converting the first eligible tower in pad order therefore
+        // measures an arbitrary choice, and "worth nothing at an arbitrary pad"
+        // is a much weaker claim than "worth nothing". BRANCHPAD=<n> converts
+        // the n-th eligible tower instead, so the choice can be swept.
+        const elig = e.state.towers.filter((t) => t.tier === 3 && t.lineId === want.line);
+        const pick = want.pad == null ? elig : (elig[want.pad] ? [elig[want.pad]] : []);
+        for (const t of pick) {
           if (e.branch(t.id, want.key).ok) { bought += 1; spent = true; break; } // budget on SUCCESS
         }
       }
@@ -464,10 +472,11 @@ function playBranch(level, seed, plan, difficulty, want) {
 
 if (process.argv.includes("--branch")) {
   const CAP = Number(process.env.CAP || 1);
+  const PAD = process.env.BRANCHPAD == null ? null : Number(process.env.BRANCHPAD);
   const ARMS = [["none", null]];
   for (const [line, def] of Object.entries(DATA.TOWERS)) {
     for (const [key, b] of Object.entries(def.branches || {})) {
-      ARMS.push([`${line}:${key} ${b.name}`, { line, key, cap: CAP }]);
+      ARMS.push([`${line}:${key} ${b.name}`, { line, key, cap: CAP, pad: PAD }]);
     }
   }
   for (const lvl of DATA.LEVELS.filter((l) => !only || only.includes(l.id))) {
