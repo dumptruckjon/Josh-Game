@@ -2140,6 +2140,43 @@
   // Clearance is measured against EVERY lane, not lane 0. That is the TD-11
   // lesson stated as code: a fork level's switch track is a lane an enemy really
   // walks, and the original pad-geometry audit checked only the default one.
+  // ---- laneCoverage: how much of the lane a pad can actually SHOOT ----
+  //
+  // Placement is the fort's biggest INVISIBLE decision. The tier-4 branch audit
+  // measured it: converting the same tower at a different pad swings L20 by up
+  // to 5 lives (Sniper reads 15 at one pad and 20 at another, Bertha 10 vs 13),
+  // which is more than most branches' entire headline value — and nothing in
+  // the game says a word about it. The panel tells you what a tower DOES; this
+  // is the number that tells you where it works.
+  //
+  // Cell-INDEX space on both sides. A tower stores `cx: pad.cx` and targets
+  // against `posAt`'s indices, so index space is the truth here; adding the
+  // canvas's half-cell centring is the +0.5 error this renderer has been bitten
+  // by repeatedly, and it would bias every distance by up to a half-cell.
+  //
+  // LANE 0 only, deliberately: enemies walk the default route unless a lever is
+  // thrown, so scoring the union over every lane would flatter a pad that only
+  // covers a branch nobody is walking. A fork's second lane is the lever's
+  // business, not this number's.
+  //
+  // rangeMin is the Mortar's dead zone — the one stat that makes two pads at
+  // equal distance genuinely different — so it is subtracted, not ignored.
+  function laneCoverage(levelDef, cx, cy, range, rangeMin) {
+    const lane = buildPath((levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path])[0]);
+    if (!lane.total) return 0;
+    const lo = (rangeMin || 0) * (rangeMin || 0), hi = (range || 0) * (range || 0);
+    if (hi <= 0) return 0;
+    const STEP = 0.05;                       // ~800-1300 samples on a shipped lane
+    let hits = 0, n = 0;
+    for (let d = 0; d <= lane.total; d += STEP) {
+      const p = posAt(lane, d);
+      const dx = p.x - cx, dy = p.y - cy, r2 = dx * dx + dy * dy;
+      n += 1;
+      if (r2 <= hi && r2 >= lo) hits += 1;
+    }
+    return n ? hits / n : 0;
+  }
+
   function propCells(levelDef, grid, opts) {
     const o = opts || {};
     const LANE = o.lane == null ? 1.6 : o.lane;   // never touch the corridor an enemy walks
@@ -2194,7 +2231,7 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, DT };
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

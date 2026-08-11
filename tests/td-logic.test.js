@@ -6112,3 +6112,61 @@ test("AUDIT: priceOf is the ONE price owner — what it quotes is what it charge
   assert.equal(plain.priceOf("upgrade", 999999), Infinity, "an unknown tower has no price");
   assert.equal(plain.priceOf("branch", { towerId: p.id, choice: "zz" }), Infinity, "an unknown branch has no price");
 });
+
+test("laneCoverage: placement is a REAL difference, and the number PREDICTS it", () => {
+  // Placement is the fort's biggest invisible decision — the branch audit
+  // measured up to 5 lives from which tower you convert — and nothing in the
+  // game said a word about it. This is the number that makes it visible, so it
+  // has to actually discriminate and actually predict, not merely look precise.
+  const dart = DATA.TOWERS.dart.tiers[2];
+
+  // 1. it DISCRIMINATES on shipped maps. A metric that reads the same at every
+  //    pad would be worse than no metric: it would tell the player the choice
+  //    does not matter, which is the opposite of what the sweep found.
+  for (const id of [12, 20, 33]) {
+    const lvl = DATA.LEVELS.find((l) => l.id === id);
+    const cov = lvl.pads.map((p) => TD.laneCoverage(lvl, p.cx, p.cy, dart.range, 0));
+    const best = Math.max(...cov), worst = Math.min(...cov);
+    assert.ok(best > worst * 1.8,
+      `L${id}: coverage must separate pads (best ${(best * 100).toFixed(1)}% vs worst ${(worst * 100).toFixed(1)}%)`);
+    assert.ok(best > 0 && best < 1, `L${id}: a sane fraction, got ${best}`);
+  }
+
+  // 2. the Mortar's DEAD ZONE is subtracted. It is the one stat that makes two
+  //    pads at equal distance genuinely different, so ignoring it would mislead
+  //    exactly where the advice matters most.
+  const l20 = DATA.LEVELS.find((l) => l.id === 20);
+  const pad = l20.pads[0];
+  const open = TD.laneCoverage(l20, pad.cx, pad.cy, 4, 0);
+  const holed = TD.laneCoverage(l20, pad.cx, pad.cy, 4, 2.5);
+  assert.ok(holed < open, `a minimum range must REDUCE coverage (${holed} vs ${open})`);
+
+  // 3. monotonic in range — more reach can never cover less lane
+  let prev = -1;
+  for (const r of [1, 2, 3, 4, 6, 9]) {
+    const c = TD.laneCoverage(l20, pad.cx, pad.cy, r, 0);
+    assert.ok(c >= prev, `coverage must not fall as range grows (r=${r})`);
+    prev = c;
+  }
+  assert.equal(TD.laneCoverage(l20, pad.cx, pad.cy, 0, 0), 0, "no range covers nothing");
+
+  // 4. LANE 0 ONLY, and this is a deliberate choice rather than an oversight:
+  //    enemies walk the default route unless a lever is thrown, so scoring the
+  //    union over every lane would flatter a pad that only covers a branch
+  //    nobody is walking. Proven on a fork level by scoring a point that sits
+  //    on the SECOND lane where the two have diverged.
+  const fork = DATA.LEVELS.find((l) => l.paths && l.paths.length > 1);
+  assert.ok(fork, "a fork level exists to test against");
+  const [a, b] = fork.paths;
+  let far = null, bestD = 0;
+  for (const [bx, by] of b) {
+    let m = Infinity;
+    for (const [ax, ay] of a) m = Math.min(m, Math.hypot(ax - bx, ay - by));
+    if (m > bestD) { bestD = m; far = [bx, by]; }
+  }
+  assert.ok(bestD > 2, `the two lanes diverge by ${bestD.toFixed(1)} cells somewhere`);
+  const onLane1 = TD.laneCoverage(fork, far[0], far[1], 1.5, 0);
+  assert.equal(onLane1, 0,
+    `L${fork.id}: a point ${bestD.toFixed(1)} cells off the DEFAULT lane must score 0 — ` +
+    "coverage is about the route enemies actually walk, not the one the lever opens");
+});
