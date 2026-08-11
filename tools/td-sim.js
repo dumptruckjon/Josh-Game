@@ -511,7 +511,11 @@ if (process.argv.includes("--branch")) {
         }
         console.log(`   ${name.padEnd(22)} median ${String(median(v)).padStart(3)}  [${v.join(",")}]` +
           `  bought=${buys}` +
-          (buys === 0 && want ? (everReady ? "  (line not in either plan)" : "  (board never maxed — unreachable here)") : "") +
+          (buys === 0 && want
+            ? (!everReady ? "  (board never maxed — unreachable here)"
+              : want.pad != null ? `  (no ${want.pad + 1}th ${want.line} on this board)`
+              : "  (line not in either plan)")
+            : "") +
           `${lost ? `  LOST ${lost}/${SEEDS.length}` : ""}`);
       }
     }
