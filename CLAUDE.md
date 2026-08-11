@@ -4575,6 +4575,44 @@ distance now, and the hook is read with no `? :` fallback, because a missing hoo
 must fail loudly instead of silently skipping the check. Same shape as the
 original defect one level up: **the fixture never created the condition.**
 
+**THE TIER-4 BRANCH AUDIT: every branch earns its gold, and the thing that is
+actually missing is WHERE to put it. Two of my own headline findings in this
+one audit were artifacts of the instrument, both caught by testing the
+instrument instead of trusting it.** The question — is each of the 10 branches
+ever worth its 260-300 gold? — was open because both oracle plans fill with
+`t.tier < 3` and never call `branch()`. The first sweep (9 boss finales, 8
+seeds, normal, convert 1) said **Sniper Scope +20 lives and every other branch
+between -1 and +2**, i.e. seven decorative ultimates, several actively harmful.
+That reading was WRONG, twice over. (1) The headline is `max(DART, MIXED)`, and
+a branch can only move the plan CONTAINING its line, so the max can hide an
+effect or misattribute a drop — `PERPLAN=1` splits it and showed L12's 7 -> 5
+was real (the winning mixed plan fell) rather than an artifact, which is the
+half that survived. (2) The fatal one: the arm converts the FIRST eligible
+tier-3 in pad order, and for a positional branch the pad IS most of the value.
+`BRANCHPAD=n` makes the choice a variable, and on **L20 every single branch is
+POSITIVE at its best pad** — Sniper +12, Bertha +5, Static/Tail Wind/Rust Ray
++3, Blizzard/Sticky +2, Minigun +1 — against a control of 8. The placement
+swing is enormous and is the finding: **Sniper reads 15 at one pad and 20 at
+another, Bertha 10 vs 13, Tail Wind 8 vs 11 — up to 5 lives from WHICH tower
+you convert, which is more than most branches' entire headline value.** So the
+branches are not weak and do not need re-tuning (which the threshold-domination
+results say the data would not support anyway); what the game never tells you
+is where to put one. The tower panel states what a branch DOES and nothing
+about where it works, and the Toybox Guide's branch roles are level-agnostic.
+That is the actionable gap, and it is an INFORMATION fix, the same call already
+made for Sniper's overkill. Two limits stay on the record: **Dino Squad and RC
+Racers remain unmeasurable**, because neither oracle plan builds a camp (the
+same structural hole that made Rally Horn inert in every test), and this sweep
+is normal-only — heroic is the binding axis and has not been run. Also
+reconfirmed: L4 and L8 contribute nothing because the board never reaches
+full-and-maxed there, so tier-4 is a late-campaign feature; and L12 is a level
+where no branch helps even at its best pad (Sniper is -2 at every pad, exactly
+as the shipped overkill law predicts for a board full of small bodies), which
+is branches being situational — the design working, not failing. The
+generalizable rule, now paid for twice in one sitting: **when an instrument
+makes a CHOICE the player would make, that choice is a variable, not an
+implementation detail** — sweep it before believing any null result.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
