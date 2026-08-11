@@ -4613,6 +4613,35 @@ generalizable rule, now paid for twice in one sitting: **when an instrument
 makes a CHOICE the player would make, that choice is a variable, not an
 implementation detail** — sweep it before believing any null result.
 
+**The branch audit's two recorded gaps are now CLOSED, and closing them
+produced the strongest result of the whole exercise: on HEROIC the ranking
+INVERTS.** L20, best pad per branch, control 12 lives: **Sniper Scope goes from
++12 on normal (the one branch clearly worth buying) to -4 on heroic (the one
+that hurts most)**, while Minigun goes from +1 to +2 and is the best pick there;
+Rust Ray, Blizzard and Static Zap are flat 0; Bertha -1; Sticky and Tail Wind
+-2. So the correct branch depends on the LEVEL and the DIFFICULTY, which is
+conclusive for the information fix and fatal to any re-tune: there is no set of
+stat numbers that makes a branch right in both places, because the same branch
+against the same map is right at one hp multiplier and wrong at another.
+**The camp branches are measurable at last, and both read a clean NULL** —
+`PLANS=camp` runs a camp-inclusive board for control AND branch arms, and on
+L20 Dino Squad and RC Racers are byte-identical to their control on all 8 seeds
+at every pad, with `bought=8` proving the purchases landed. That is the exact
+signature the four earlier fixture bugs produced, so note what separates it: the
+camp board is genuinely stronger than the oracle's (control 11 vs the mixed
+plan's 8), so camps ARE contributing, and `blocks: 2` and the RC stun are
+separately driven live by `TD2 Army Guys` in the engine suite. The honest claim
+is therefore narrow — on L20 neither camp branch changes lives — and one level
+does not generalize; a plausible mechanism is that L20's leaks come from bodies
+soldiers cannot block at all. **An ANOMALY is recorded rather than explained:
+heroic L20 finishes with MORE lives than normal L20 under the shipped oracle
+(control 12 `[12,14,14,12,12,12,12,12]` vs 8 `[10,10,8,8,8,8,8,10]`)**, which is
+backwards for a difficulty whose whole definition is hp x1.30 and bounty x0.9.
+It reproduces on all 8 seeds and was verified against raw output rather than a
+parse. It is out of scope for a branch audit and is NOT a claim that heroic is
+mis-tuned — but it is the kind of thing that, left unwritten, gets re-discovered
+as a bug. Worth one focused look.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
