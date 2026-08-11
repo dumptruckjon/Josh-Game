@@ -4778,29 +4778,40 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   measured outcome-neutral on the shipped oracle, so "changes a decision" is a
 >   design goal the sim cannot score. Build it for legibility, not for the curve.
 >
-> - **Tier-4 branches**: DESIGNED, NOT BUILT — see `PLAN_TOWER_BRANCHES.md`. The
->   headline is a COVERAGE finding, not a content one: **all eight shipped
->   branches are unverified by the winnability suite**, because the oracle's fill
->   loop is `t.tier < 3` and so never branches. Sticky Bomb is the proof — it
->   shipped for months whose "the goo it leaves slows whatever walks in" existed
->   only as a sentence. Phase A (one identity guardrail per branch, driving the
->   declared mechanic through its own engine seam, in the `zapResist` style) is
->   worth building whether or not a branch is ever added, and is the RULE-7
->   obligation the Sticky Bomb fix left open. On the owner's actual question: a
->   third branch is right for **Dart** (armour strip — `computeHit` applies armor
->   at exactly one line, so it is the Oil Drum's one-write-zero-new-reads shape,
->   and armor is the commonest trait in the game at 14 of 51 enemies) and **Fan**
->   (a support aura buffing nearby TOWERS — `boostOf`/`reachOf` are the sole
->   readers of rate and range and `boostOf` already multiplies two independent
->   sources, so a third factor cannot clobber ⚡ Overclock), and WRONG for Mortar
->   and Camp, whose every candidate either duplicates a shipped ability or gives
->   a line air access and goes red on the two-lines-reach-air truth table. A
->   fifth tower LINE is ~5× the cost for the same feeling (5 sprites against a
->   thin 0.402 cross-line distinctness margin) — though note its recorded blocker
->   is already half-cleared, since the build menu derives from
->   `Object.keys(DATA.TOWERS)`. The tower PANEL is the only place `a`/`b` is
->   hard-coded (`td-main.js:1032/1035`); the engine's `branch()` is already
->   generic and the Toybox Guide already derives.
+> - **Tier-4 branches**: ✅ BUILT (this entry said "DESIGNED, NOT BUILT" for a
+>   release AFTER all of it shipped — the "a list that outlives its contents"
+>   class again, caught 2026-08 by grepping the tests instead of reading the
+>   doc). Shipped: **Phase A**, one identity guardrail per branch driving the
+>   declared mechanic through its own engine seam (6 in `td-logic.test.js` —
+>   Sniper by first-shot DISTANCE, Minigun by the ramping damage stream, Bertha
+>   by bodies caught in the FIRST shell, Sticky by a body newly slowed on a tick
+>   with NO detonation, Blizzard by brittle, Static by a decaying arc; Dino's
+>   `blocks: 2` and RC's `stun` were already driven and a near-duplicate is
+>   noise, not coverage); **`tools/td-sim.js --branch`**, the only instrument
+>   that can measure a branch at all, since both oracle plans fill with
+>   `t.tier < 3` and so never call `branch()`; and the two RIGHT third
+>   ultimates — 🎯 **Rust Ray** (Dart, armour strip through the ONE `computeHit`
+>   armor line) and 🧊 **Tail Wind** (Fan, a support aura through `boostOf`/
+>   `reachOf`, strongest-wins, never buffs itself). The panel's `a`/`b` literals
+>   are gone (it derives from `Object.keys(def.branches)`), so a ninth branch
+>   needs no code hunt, and a browser guardrail derived from `DATA.TOWERS`
+>   drives EVERY branch through a real `draw()` on a live board.
+>   **Still deliberately NOT built, with reasons:** a third ultimate for Mortar
+>   or Camp (every candidate duplicates a shipped ability or gives a line air
+>   access and goes red on the guardrailed two-lines-reach-air truth table —
+>   *"each line has as many ultimates as it has real axes"*), and a FIFTH tower
+>   LINE (~5x the cost for the same feeling, 5 sprites against a thin 0.402
+>   cross-line distinctness margin, and neither oracle plan would buy it so it
+>   would ship provably untested as a feature — note its old blocker IS now
+>   fully cleared, since both the build menu and the panel derive).
+>   **The open question this leaves, and the honest one:** a CAP=1 `--branch`
+>   sweep over the 9 boss finales says **Sniper Scope is the only branch that
+>   clearly pays** (L20 10 -> 20, L32 14 -> 20, L16 17 -> 20) while most others
+>   sit inside seed noise — yet converting EVERY dart to Sniper *loses* 3
+>   levels outright. So Sniper is correctly a specialist you want one of, and
+>   what is unproven is whether the other 8 branches are ever worth their
+>   260-300 gold. That is measurable with the shipped instrument and is the
+>   best-value open work on the fort.
 >
 > - **The camp / `blockedBy` path**: CLOSED. It is the only code that can stop a
 >   live enemy indefinitely and neither oracle plan builds a camp, so it was
