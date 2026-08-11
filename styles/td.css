@@ -283,10 +283,21 @@ body.td-mode #screens { padding: 0; }
 /* Build-menu buttons stack icon · ROLE · price so a player knows the job. */
 .td-buy {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; line-height: 1.05; min-height: 62px;
+  gap: 1px; line-height: 1.05; min-height: 72px;   /* 4 lines now: icon / role / road / cost */
 }
 .td-buy__icon { font-size: 1.3rem; }
-.td-buy__role { font-size: 0.6rem; font-weight: 700; opacity: 0.78; text-transform: uppercase; letter-spacing: 0.02em; }
+/* MEASURED, not eyeballed: hierarchy here comes from SIZE and CASE, never from
+   `opacity`. The affordable state paints #052a14 on #2fa562, which is 4.96:1 at
+   full strength — real headroom over AA's 4.5, but none at all to spend, so the
+   shipped `opacity: 0.78` on this label was dimming it to 3.52:1 and a 0.62
+   would have been 2.66:1. The other two states (yellow 9.92:1, maroon 7.25:1)
+   could afford dimming; the green one decides it for all three. */
+.td-buy__role { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+/* how much of the road this toy reaches FROM THIS PAD. Placement was the fort's
+   biggest invisible decision (measured at up to 5 lives), so the figure sits
+   right under the role, before the price you are about to pay — subordinate by
+   being smaller and lower-case, which costs no contrast. */
+.td-buy__cov { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.02em; }
 .td-buy__cost { font-size: 0.92rem; }
 .td-panel { display: flex; align-items: center; flex-wrap: wrap; max-width: 320px; }
 .td-panel > * { margin: 0 8px 8px 0; } /* flex-gap is dropped on iOS 14.2 */
@@ -732,7 +743,11 @@ body.td-mode #screens { padding: 0; }
 .td-buy.td-afford, .td-up.td-afford, .td-branch.td-afford { background: #2fa562; color: #052a14; }
 .td-buy.td-afford--no, .td-up.td-afford--no, .td-branch.td-afford--no { background: #6b2a33; color: #ffc9d1; }
 .td-buy.td-afford--no .td-buy__cost, .td-up.td-afford--no, .td-branch.td-afford--no { color: #ff9db4; }
-.td-buy.td-afford .td-buy__cost { color: #eaffef; }
+/* The price is the biggest text on the button, and on the green "you can afford
+   it" fill a near-white #eaffef measured 3.00:1 — the worst run on the surface,
+   on the one word the player is deciding with. The button's own dark ink is
+   4.96:1 and is no less prominent at 0.92rem/800. */
+.td-buy.td-afford .td-buy__cost { color: #052a14; }
 .td-buy[disabled], .td-up[disabled], .td-branch[disabled] { opacity: 0.72; }
 
 /* World 4 tint: the attic — warm dusty amber, distinct from the other three. */

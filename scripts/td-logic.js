@@ -1505,6 +1505,88 @@
     }
 
     // ---- Player commands ----
+    // How much of the lane a pad can SHOOT, for a prospective build or a built
+    // tower — the number that makes placement visible (see laneCoverage).
+    //
+    // ASK THE ENGINE, never re-derive. Every modifier to reach lives in here:
+    // night dimming, 🦉 Night Owl halving it, ⚡ a power pad extending it, and
+    // 🎯 Close Quarters shrinking the Mortar's dead zone. The UI computing this
+    // from DATA would drift exactly as the tower panel's prices did when they
+    // showed 110 while the engine charged 99.
+    //
+    // Reach is DERIVED from whichever field the line actually has, so a fifth
+    // line inherits this without a code hunt: `range` for a gun, `auraRange`
+    // for the Fan (night-exempt by design — only dart and mortar dim). A Camp
+    // returns null: its soldiers BLOCK rather than shoot, so a coverage % would
+    // assert something false about it.
+    function statOf(lineId, tier, branchKey) {
+      const def = DATA.TOWERS[lineId];
+      if (!def) return null;
+      // A tier-4 branch is its OWN stat block, and its reach can move in either
+      // direction: Sniper Scope takes the dart 3 → 5.5 while Minigun DROPS it to
+      // 2.2. Clamping tier 4 down to tier 3's stats would have quietly asserted
+      // that a branch never changes what it covers, which is false for 3 of the
+      // 10 shipped branches — and the shrink is the one a player most needs told.
+      return (tier === 4 && branchKey && def.branches && def.branches[branchKey])
+        ? def.branches[branchKey]
+        : def.tiers[Math.max(0, Math.min(2, (tier || 1) - 1))];
+    }
+    // THE reach of a stat block, in cells: `{ reach, dead }`, or null for a line
+    // that does not shoot. `sup` is a built tower's support multiplier (🧊 Tail
+    // Wind) — absent for a prospective build, because nothing is standing there
+    // yet to be buffed.
+    //
+    // The LARGEST radius at which this tower affects the lane at all, taken over
+    // every reach field the stat block has. The Fan carries TWO — a 1.8-cell
+    // slow aura and a 2.2-cell zap — and reading only the aura understated it
+    // badly enough to be a lie: it reported a tier-1 fan covering 0% of the lane
+    // on 312 of 451 pads, when the zap reaches from most of them. Derived rather
+    // than listed, so a future stat cannot be silently missed the same way.
+    function reachInfo(st, cx, cy, sup) {
+      if (!st) return null;
+      const pad = (levelDef.pads || []).find((q) => q.cx === cx && q.cy === cy);
+      const boost = pad && pad.boost && pad.boost.range ? pad.boost.range : 1;
+      let reach = 0, dead = 0;
+      if (st.range != null) {                       // a gun: night dims it
+        reach = Math.max(reach, st.range * rangeMul);
+        dead = (st.rangeMin || 0) * mods.mortarMinMul;
+      }
+      // the Fan is night-EXEMPT by design — only dart and mortar dim. `fanAura`
+      // is ❄️ Cold Front, applied at the aura's own read site in the tick.
+      if (st.auraRange != null) reach = Math.max(reach, st.auraRange + mods.fanAura);
+      if (st.zapRange != null) reach = Math.max(reach, st.zapRange);
+      if (!reach) return null;                      // a Camp blocks, it does not shoot
+      // Only the OUTER radius takes the pad boost and the support multiplier —
+      // the engine's own mortar call passes `rangeMin * mortarMinMul` raw and
+      // wraps only the max in `reachOf()`. Scaling the dead zone here too would
+      // be this surface disagreeing with the engine about the one thing it
+      // exists to report, and it would grow the hole under a mortar standing on
+      // a ⚡ power pad — a spot where the engine says it can still fire.
+      return { reach: reach * boost * (sup || 1), dead: dead };
+    }
+    function coverageOf(lineId, tier, cx, cy, branchKey) {
+      const r = reachInfo(statOf(lineId, tier, branchKey), cx, cy);
+      return r ? laneCoverage(levelDef, cx, cy, r.reach, r.dead) : null;
+    }
+    // What the RENDERER must draw as a tower's range ring. It had been doing its
+    // own arithmetic and understated the truth four ways: the Fan's ring used
+    // `auraRange` while its zap reaches further (22% / 14% / 8% short at tiers
+    // 1-3), ❄️ Cold Front was ignored, a ⚡ power pad's +18% never showed on the
+    // six levels that have one, and 🧊 Tail Wind — a 300-gold branch whose whole
+    // pitch is that neighbours "fire faster and FURTHER" — bought a buff the
+    // player could not see. Same lesson as the prices: ask the engine.
+    function towerReach(towerId) {
+      const t = state.towers.find((x) => x.id === towerId);
+      if (!t) return null;
+      const r = reachInfo(statOf(t.lineId, t.tier, t.branch), t.cx, t.cy, t.supRange);
+      return r ? r.reach : null;
+    }
+    // …and for a pad you have not built on yet, where no support applies.
+    function reachAt(lineId, tier, cx, cy, branchKey) {
+      const r = reachInfo(statOf(lineId, tier, branchKey), cx, cy, 1);
+      return r ? r.reach : null;
+    }
+
     // THE one place a price is computed. `place`/`upgrade`/`branch` all read it,
     // and the UI asks the ENGINE for it rather than re-deriving it from DATA —
     // the same lesson already recorded for targeting modes ("ask the engine
@@ -1964,7 +2046,7 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf,
+      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf, coverageOf, towerReach, reachAt,
       applyStrip, // 🎯 exposed like isHidden/dealDamage: a guardrail must drive the seam, not infer it
       chargePrice, buyCharge, buyChargeReady,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed

@@ -6150,6 +6150,32 @@ test("laneCoverage: placement is a REAL difference, and the number PREDICTS it",
   }
   assert.equal(TD.laneCoverage(l20, pad.cx, pad.cy, 0, 0), 0, "no range covers nothing");
 
+  // 3b. REACH spans every field the stat block has. The Fan carries TWO — a
+  //     1.8-cell slow aura and a 2.2-cell zap — and an earlier cut of this read
+  //     only the aura, which reported a tier-1 fan covering 0% of the lane on
+  //     312 of 451 shipped pads. That is not a rounding error, it is a LIE
+  //     about a tower the player is deciding whether to buy.
+  {
+    let zero = 0, total = 0;
+    for (const lvl of DATA.LEVELS) {
+      const eng = TD.createEngine(lvl, { seed: 7 });
+      for (const p of lvl.pads) {
+        total += 1;
+        if (eng.coverageOf("fan", 1, p.cx, p.cy) === 0) zero += 1;
+      }
+    }
+    assert.ok(zero / total < 0.10,
+      `a tier-1 Fan reads ZERO coverage on ${zero}/${total} pads (${(100 * zero / total).toFixed(0)}%) — ` +
+      "reach must span every field the stat block has (the Fan's zap out-reaches its aura), or the number lies about the tower");
+  }
+  // 3c. a Camp BLOCKS rather than shoots, so it must return null rather than a
+  //     percentage that asserts something false about it.
+  {
+    const eng = TD.createEngine(l20, { seed: 7 });
+    assert.equal(eng.coverageOf("camp", 1, l20.pads[0].cx, l20.pads[0].cy), null,
+      "a Camp has no shooting reach — a coverage % would be a false claim, not a low one");
+  }
+
   // 4. LANE 0 ONLY, and this is a deliberate choice rather than an oversight:
   //    enemies walk the default route unless a lever is thrown, so scoring the
   //    union over every lane would flatter a pad that only covers a branch
@@ -6169,4 +6195,103 @@ test("laneCoverage: placement is a REAL difference, and the number PREDICTS it",
   assert.equal(onLane1, 0,
     `L${fork.id}: a point ${bestD.toFixed(1)} cells off the DEFAULT lane must score 0 — ` +
     "coverage is about the route enemies actually walk, not the one the lever opens");
+});
+
+test("towerReach: the ring the player sees is the reach the engine USES", async () => {
+  // The renderer used to do its own range arithmetic and understated the truth
+  // four ways. Each clause below is one of them, measured on shipped data — a
+  // ring that reads SMALLER than the tower's real reach is worse than no ring,
+  // because it is the placement cue and it was lying about placement.
+  const L3 = DATA.LEVELS.find((l) => l.id === 3);
+  const boosted = L3.pads.find((p) => p.boost && p.boost.range);
+  const plain = L3.pads.find((p) => !(p.boost && p.boost.range));
+  assert.ok(boosted && plain, "L3 has both a ⚡ power pad and an ordinary one");
+
+  // 1. THE FAN. Its zap out-reaches its slow aura at every tier, so a ring drawn
+  //    from `auraRange` alone is short — measured 22% / 14% / 8% at tiers 1-3.
+  for (const tier of [1, 2, 3]) {
+    const e = TD.createEngine(L3, { seed: 7 });
+    e.state.gold = 99999;
+    assert.ok(e.place("fan", plain.id).ok);
+    const t = e.state.towers[0];
+    while (t.tier < tier) e.upgrade(t.id);
+    const s = DATA.TOWERS.fan.tiers[tier - 1];
+    assert.equal(e.towerReach(t.id), Math.max(s.auraRange, s.zapRange),
+      `a tier-${tier} Fan reaches its ZAP (${s.zapRange}), not just its aura (${s.auraRange})`);
+    assert.ok(e.towerReach(t.id) > s.auraRange, `…and the zap is genuinely the longer of the two at tier ${tier}`);
+  }
+
+  // 2. A ⚡ POWER PAD extends reach, and the same tower on an ordinary pad does
+  //    not — so the ring must differ between two pads on the SAME level.
+  {
+    const e = TD.createEngine(L3, { seed: 7 });
+    e.state.gold = 99999;
+    assert.ok(e.place("dart", boosted.id).ok);
+    assert.ok(e.place("dart", plain.id).ok);
+    const [on, off] = e.state.towers;
+    const base = DATA.TOWERS.dart.tiers[0].range;
+    assert.equal(off.tier, 1);
+    assert.ok(Math.abs(e.towerReach(off.id) - base) < 1e-9, "an ordinary pad gives the plain reach");
+    assert.ok(Math.abs(e.towerReach(on.id) - base * boosted.boost.range) < 1e-9,
+      `a ⚡ power pad's ×${boosted.boost.range} must show in the ring (${e.towerReach(on.id)} vs ${e.towerReach(off.id)})`);
+  }
+
+  // 3. 🧊 TAIL WIND is a 300-gold branch sold on making neighbours "fire faster
+  //    and FURTHER". If the ring ignores its support multiplier, the player
+  //    bought reach they can never see.
+  {
+    const e = TD.createEngine(L3, { seed: 7 });
+    e.state.gold = 99999;
+    assert.ok(e.place("dart", plain.id).ok);
+    const t = e.state.towers[0];
+    const before = e.towerReach(t.id);
+    t.supRange = 1.15;                       // exactly what supportTick writes
+    assert.ok(Math.abs(e.towerReach(t.id) - before * 1.15) < 1e-9,
+      `a supported tower's ring must grow with it (${before} → ${e.towerReach(t.id)})`);
+  }
+
+  // 4. A CAMP posts soldiers rather than shooting, so it has no shooting reach
+  //    at all — the renderer draws its RALLY range instead, and a number here
+  //    would be a false claim rather than a small one.
+  {
+    const e = TD.createEngine(L3, { seed: 7 });
+    e.state.gold = 99999;
+    assert.ok(e.place("camp", plain.id).ok);
+    assert.equal(e.towerReach(e.state.towers[0].id), null, "a Camp has no shooting reach");
+  }
+  // 5. THE DEAD ZONE DOES NOT SCALE. The engine's mortar call passes
+  //    `rangeMin * mortarMinMul` RAW and wraps only the max in reachOf(), so a
+  //    mortar on a ⚡ power pad reaches further without the hole under it
+  //    growing. Scaling both would make this surface disagree with the engine
+  //    about the one thing it exists to report.
+  //
+  //    It must be measured on a pad where the two answers actually DIFFER, or
+  //    the assertion is vacuous — on L3's socket both come out at 12.921%, so
+  //    the pad is SEARCHED for rather than assumed.
+  {
+    const base = DATA.TOWERS.mortar.tiers[0];
+    assert.ok(base.rangeMin > 0, "the Mortar has a dead zone to test");
+    let probe = null;
+    for (const lvl of DATA.LEVELS) {
+      for (const p of lvl.pads || []) {
+        if (!(p.boost && p.boost.range)) continue;
+        const eng = TD.createEngine(lvl, { seed: 7 });
+        const outer = eng.reachAt("mortar", 1, p.cx, p.cy);
+        const raw = TD.laneCoverage(lvl, p.cx, p.cy, outer, base.rangeMin);
+        const scaled = TD.laneCoverage(lvl, p.cx, p.cy, outer, base.rangeMin * p.boost.range);
+        if (raw !== scaled) { probe = { lvl, p, eng, outer, raw, scaled }; break; }
+      }
+      if (probe) break;
+    }
+    assert.ok(probe,
+      "no ⚡ power pad distinguishes a raw dead zone from a scaled one — this clause would be vacuous");
+    assert.ok(Math.abs(probe.outer - base.range * probe.p.boost.range) < 1e-9,
+      "a ⚡ pad extends the Mortar's OUTER reach");
+    assert.equal(probe.eng.coverageOf("mortar", 1, probe.p.cx, probe.p.cy), probe.raw,
+      `L${probe.lvl.id} ${probe.p.id}: the figure must use the engine's RAW dead zone ` +
+      `(${(100 * probe.raw).toFixed(2)}%), not a boosted one (${(100 * probe.scaled).toFixed(2)}%) — ` +
+      "the boost extends the outer radius only, so the hole under a mortar never grows");
+  }
+  // …and a tower that does not exist is null rather than a throw.
+  assert.equal(TD.createEngine(L3, { seed: 7 }).towerReach("nope"), null, "an unknown tower id is null");
 });

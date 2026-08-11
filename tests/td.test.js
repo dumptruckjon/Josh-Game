@@ -1427,6 +1427,14 @@ test("TD-12 guide: 📖 opens a card for every enemy, naming what can hit it", a
   for (const [b, sum] of Object.entries(branchTotals)) {
     assert.ok(tree.text.indexOf(sum + "⭐") >= 0, `the ${b} branch states its real total (${sum}⭐) rather than a hand-typed one`);
   }
+  // …and so must PLACEMENT. The build buttons and tower panels now carry a
+  // "% road" figure, and a number the player cannot interpret is the ⚙️ Toy
+  // Energy mistake repeated: that symbol shipped on the HUD, on four ability
+  // buttons and in this guide's cost lines with nothing anywhere naming it.
+  const guideText = await page.evaluate(() => document.querySelector(".td-overlay--guide .td-overlay__box").textContent);
+  assert.match(guideText, /% road/, "the guide must explain the % road figure the build menu and tower panel show");
+  assert.match(guideText, /camp shows none|blocks the lane/i,
+    "…including why a Camp shows none — an absent figure needs explaining as much as a present one");
   // It must fit the narrowest device, and scroll rather than clip.
   await page.setViewportSize({ width: 320, height: 568 });
   await page.waitForTimeout(60);
@@ -2698,6 +2706,269 @@ test("TD2 the THIRD ultimates are buyable by TAP, and each one WORKS and SHOWS o
   const SUP = await page.evaluate(() => window.TDData.TOWERS.fan.branches.c.support);
   assert.equal(helped.supRate, SUP.rate, "a neighbouring gun must actually be sped up");
   assert.equal(helped.supRange, SUP.range, "…and given the extra reach");
+});
+
+test("PLACEMENT: the build menu SHOWS how much road a pad reaches, and it differs by pad", async () => {
+  // The branch audit measured up to 5 lives from WHICH pad you convert, and a
+  // pad's worth was unknowable until after the gold was spent. A number that
+  // exists in the engine but never reaches the screen fixes nothing — the same
+  // gap as the abilities whose names lived only in an aria-label, and ⚙️ Toy
+  // Energy shipping as a bare numeral nothing explained.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(20, { seed: 7 }); });
+  const rect = await page.locator(".td-canvas").boundingBox();
+  // Ask the ENGINE which pads are best and worst for a dart — the prices lesson
+  // applied to coverage: the UI must never re-derive a number the engine owns,
+  // and the test must not re-derive it either.
+  const picks = await page.evaluate(() => {
+    const e = window.__TD.engine();
+    const scored = e.levelDef.pads
+      .map((p) => ({ cx: p.cx, cy: p.cy, c: e.coverageOf("dart", 1, p.cx, p.cy) }))
+      .sort((a, b) => b.c - a.c);
+    return { best: scored[0], worst: scored[scored.length - 1] };
+  });
+  const read = async (pad) => {
+    await page.evaluate(() => { window.__TD.newGame(20, { seed: 7 }); });
+    const sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.locator(".td-buildmenu").waitFor({ state: "visible" });
+    return page.evaluate(() => {
+      const q = (sel) => document.querySelector(sel);
+      const cov = (line) => {
+        const c = q('.td-buildmenu .td-buy[data-line="' + line + '"] .td-buy__cov');
+        return c ? c.textContent : null;
+      };
+      return { dart: cov("dart"), mortar: cov("mortar"), camp: cov("camp") };
+    });
+  };
+  const best = await read(picks.best), worst = await read(picks.worst);
+  assert.ok(best.dart && /%/.test(best.dart),
+    `the build menu must SHOW a road figure, got ${JSON.stringify(best.dart)}`);
+  assert.equal(best.dart, Math.round(picks.best.c * 100) + "% road",
+    "…and it must be the ENGINE's number, not one the UI recomputed — the prices bug, where the " +
+    "panel showed 110 while the engine charged 99");
+  assert.notEqual(best.dart, worst.dart,
+    `the figure must DIFFER between the best and worst pad (${best.dart} vs ${worst.dart}) — ` +
+    "a number that reads the same everywhere tells the player the choice does not matter, " +
+    "which is the opposite of what the branch audit measured");
+  assert.ok(Math.round(picks.best.c * 100) > Math.round(picks.worst.c * 100),
+    "the best pad must read higher than the worst");
+  // Per LINE, not per pad: a mortar out-reaches a dart, so the same pad is worth
+  // a different amount to each — which is the other half of the placement choice.
+  assert.ok(best.mortar && best.mortar !== best.dart,
+    `the same pad must read differently for a longer-reaching line (dart ${best.dart} vs mortar ${best.mortar})`);
+  // A Camp does not shoot, so it has no road figure to give. Showing 0% there
+  // would be a lie about a line whose whole job is blocking.
+  assert.equal(best.camp, null, "a Camp blocks rather than shoots — it must show no road figure at all");
+});
+
+test("PLACEMENT: the range ring on the field is the reach the engine USES", async () => {
+  // The engine half of this lives in td-logic.test.js; this is the half that
+  // matters to a player — the renderer had its own copy of the arithmetic, so
+  // proving `towerReach` is right says nothing about what gets PAINTED. Read the
+  // radius actually handed to ctx.arc, the "go and read what was drawn" rule
+  // that replaced a confounded pixel hash on the lever countdown.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const got = await page.evaluate(() => {
+    // L3 carries a ⚡ power pad, so one board proves the Fan's zap AND the pad
+    // boost — the two the old ring was short by.
+    window.__TD.newGame(3, { seed: 7 });
+    const e = window.__TD.engine();
+    const lv = e.levelDef;
+    const boosted = lv.pads.find((p) => p.boost && p.boost.range);
+    const plain = lv.pads.find((p) => !(p.boost && p.boost.range));
+    e.state.gold = 99999;
+    window.__TD.script([["place", "fan", plain.id], ["place", "dart", boosted.id]]);
+    const a = window.__TD.w2s(0, 0), b = window.__TD.w2s(1, 0);
+    const cell = Math.hypot(b.x - a.x, b.y - a.y);
+    const r = window.__TD.render();
+    const read = (tower) => {
+      const arcs = [];
+      const orig = CanvasRenderingContext2D.prototype.arc;
+      CanvasRenderingContext2D.prototype.arc = function (x, y, rad) {
+        arcs.push({ x, y, rad }); return orig.apply(this, arguments);
+      };
+      try {
+        r.setSelection({ tower: tower.id });
+        r.draw(0);                            // MAKE it happen before reading it
+      } finally { CanvasRenderingContext2D.prototype.arc = orig; }
+      // the ring is centred on the tower's own cell, in the floor pass's coords
+      const cx = (tower.cx + 0.5) * cell, cy = (tower.cy + 0.5) * cell;
+      const hit = arcs.filter((q) => Math.hypot(q.x - cx, q.y - cy) < 1);
+      return hit.length ? Math.max(...hit.map((q) => q.rad)) / cell : null;
+    };
+    const [fan, dart] = e.state.towers;
+    const out = {
+      fanDrawn: read(fan), fanEngine: e.towerReach(fan.id),
+      fanAura: window.TDData.TOWERS.fan.tiers[0].auraRange,
+      dartDrawn: read(dart), dartEngine: e.towerReach(dart.id),
+      dartBase: window.TDData.TOWERS.dart.tiers[0].range,
+    };
+    out.pads = { boosted: { cx: boosted.cx, cy: boosted.cy }, plain: { cx: plain.cx, cy: plain.cy } };
+    return out;
+  });
+  assert.ok(got.fanDrawn, "a selected tower paints a range ring at all");
+  assert.ok(Math.abs(got.fanDrawn - got.fanEngine) < 0.02,
+    `the Fan's ring must be the reach the engine uses (drew ${got.fanDrawn}, engine ${got.fanEngine})`);
+  assert.ok(got.fanDrawn > got.fanAura + 0.01,
+    `…which is its ZAP, not its slow aura — drawing ${got.fanAura} understates a tier-1 Fan by ` +
+    `${(100 * (got.fanEngine / got.fanAura - 1)).toFixed(0)}%`);
+  assert.ok(Math.abs(got.dartDrawn - got.dartEngine) < 0.02,
+    `a ⚡ power pad's boost must show in the ring (drew ${got.dartDrawn}, engine ${got.dartEngine})`);
+  assert.ok(got.dartDrawn > got.dartBase + 0.01,
+    `…and it must be BIGGER than the same dart on an ordinary pad (${got.dartDrawn} vs ${got.dartBase})`);
+  // …and the GHOST ring shown while the build menu is open, on a pad with
+  // nothing on it yet. It is a different code path (td-main's own setSelection),
+  // and it shipped as a hard-coded literal — the same circle on a ⚡ pad as on an
+  // ordinary one. This half must be driven by a REAL TAP: reading it through a
+  // setSelection call of the test's own would prove the renderer draws what it
+  // is handed and notice nothing when td-main stops handing it the right value.
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const ghost = async (pad) => {
+    await page.evaluate(() => { window.__TD.newGame(3, { seed: 7 }); });
+    const sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.locator(".td-buildmenu").waitFor({ state: "visible", timeout: 4000 });
+    return page.evaluate((p) => {
+      const a = window.__TD.w2s(0, 0), b = window.__TD.w2s(1, 0);
+      const cell = Math.hypot(b.x - a.x, b.y - a.y);
+      const arcs = [];
+      const orig = CanvasRenderingContext2D.prototype.arc;
+      CanvasRenderingContext2D.prototype.arc = function (x, y, rad) { arcs.push({ x, y, rad }); return orig.apply(this, arguments); };
+      try { window.__TD.render().draw(0); } finally { CanvasRenderingContext2D.prototype.arc = orig; }
+      const cx = (p.cx + 0.5) * cell, cy = (p.cy + 0.5) * cell;
+      const hit = arcs.filter((q) => Math.hypot(q.x - cx, q.y - cy) < 1);
+      return hit.length ? Math.max(...hit.map((q) => q.rad)) / cell : null;
+    }, pad);
+  };
+  const gBoost = await ghost(got.pads.boosted), gPlain = await ghost(got.pads.plain);
+  assert.ok(gBoost && gPlain, "tapping an empty pad shows a ghost ring while you choose");
+  assert.ok(gBoost > gPlain + 0.01,
+    `the ghost ring must differ between a ⚡ power pad and an ordinary one ` +
+    `(${gBoost} vs ${gPlain}) — it shipped as a hard-coded literal, the same circle everywhere`);
+});
+
+test("PLACEMENT: every label on a build button clears AA, in every affordability state", async () => {
+  // Contrast is measurable, not eyeballable — and this surface proved it. Adding
+  // the road figure at `opacity: 0.62` would have measured 2.66:1, and measuring
+  // it showed the SHIPPED role label was already at 3.52:1 and the price, the
+  // biggest text on the button, at 3.00:1. The cause is one number: on the green
+  // "you can afford it" fill the ink is 4.96:1 at full strength, so there is no
+  // headroom to dim, while the yellow (9.92) and maroon (7.25) states have
+  // plenty — the tightest state has to decide the rule for all three.
+  //
+  // Read from the REAL cascade rather than from a list of CSS rules, so a label
+  // added to this button tomorrow is audited without anyone remembering to.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const audit = async (gold, label) => {
+    await page.evaluate((g) => {
+      window.__TD.newGame(1, { seed: 42 });
+      window.__TD.engine().state.gold = g;
+    }, gold);
+    const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.locator(".td-buildmenu").waitFor({ state: "visible" });
+    const runs = await page.evaluate(() => {
+      const px = (s) => (s.match(/[\d.]+/g) || []).slice(0, 4).map(Number);
+      const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+      const out = [];
+      document.querySelectorAll(".td-buildmenu .td-buy").forEach((btn) => {
+        const bg = px(getComputedStyle(btn).backgroundColor).slice(0, 3);
+        btn.querySelectorAll("span").forEach((el) => {
+          const cs = getComputedStyle(el);
+          if (!el.textContent.trim()) return;
+          // an icon is ART, not text — the same rule the 华丽 contrast pass needed
+          if (el.classList.contains("td-buy__icon")) return;
+          const c = px(cs.color), a = (c[3] === undefined ? 1 : c[3]) * Number(cs.opacity);
+          const ink = [0, 1, 2].map((i) => Math.round(c[i] * a + bg[i] * (1 - a)));
+          const [hi, lo] = [lum(ink), lum(bg)].sort((p, q) => q - p);
+          out.push({ cls: el.className, line: btn.dataset.line, r: (hi + 0.05) / (lo + 0.05),
+                     size: parseFloat(cs.fontSize), weight: Number(cs.fontWeight) });
+        });
+      });
+      return out;
+    });
+    assert.ok(runs.length >= 8, `${label}: expected several labels to audit, saw ${runs.length}`);
+    for (const r of runs) {
+      // Everything here is SMALL text (<18.66px), so the bar is the full 4.5.
+      const large = r.size >= 24 || (r.size >= 18.66 && r.weight >= 700);
+      const bar = large ? 3 : 4.5;
+      assert.ok(r.r >= bar,
+        `${label}: ${r.cls} on the ${r.line} button is ${r.r.toFixed(2)}:1, below AA's ${bar}:1 — ` +
+        "dim a label with SIZE, never with opacity, on a fill this tight");
+    }
+    await page.locator("#screen-td-play .td-hud").click();
+    return runs.length;
+  };
+  await audit(9999, "affordable (green)");
+  await audit(0, "unaffordable (maroon)");
+});
+
+test("PLACEMENT: a built tower states its road, and a branch that MOVES it says so", async () => {
+  // The other half of the same finding: the branch audit measured up to 5 lives
+  // from WHICH tower you convert, and a branch can move the reach in EITHER
+  // direction — Sniper Scope takes the dart 3 → 5.5 while Minigun DROPS it to
+  // 2.2. A 300-gold purchase that silently shrinks what a tower covers is the
+  // same class as the dps line that reads 47.3 for a branch which loses levels.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const openTier3 = async (line) => {
+    await page.evaluate((a) => {
+      window.__TD.newGame(1, { seed: 7 });
+      window.__TD.grantGold(9000);
+      window.__TD.script([["place", a, "p1"], ["upgrade", 0], ["upgrade", 0]]);
+    }, line);
+    const pad = await page.evaluate(() => {
+      const p = window.__TD.engine().levelDef.pads.find((q) => q.id === "p1");
+      return { cx: p.cx, cy: p.cy };
+    });
+    const sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.locator(".td-panel").waitFor({ state: "visible", timeout: 4000 });
+    return page.evaluate(() => {
+      const e = window.__TD.engine(), t = e.state.towers[0];
+      const cards = {};
+      document.querySelectorAll(".td-branch").forEach((b) => {
+        cards[b.dataset.b] = b.querySelector(".td-branch__role").textContent;
+      });
+      return {
+        stats: document.querySelector(".td-panel__stats").textContent,
+        now: Math.round(e.coverageOf(t.lineId, t.tier, t.cx, t.cy) * 100),
+        cards,
+      };
+    });
+  };
+  const dart = await openTier3("dart");
+  assert.ok(dart.stats.endsWith(dart.now + "% road"),
+    `a built tower's panel must state what it covers from THIS pad — got ${JSON.stringify(dart.stats)}`);
+  // Sniper RISES, Minigun FALLS. Both arrows must be there, and pointing the
+  // right way: showing only the upgrade would be the same half-truth as the dps
+  // line, and the shrink is the one a player most needs told.
+  const arrow = (txt) => {
+    const m = /road (\d+)%→(\d+)%/.exec(txt || "");
+    return m ? { from: Number(m[1]), to: Number(m[2]) } : null;
+  };
+  const sniper = arrow(dart.cards.a), minigun = arrow(dart.cards.b);
+  assert.ok(sniper && sniper.to > sniper.from,
+    `Sniper Scope must show its reach GROWING — got ${JSON.stringify(dart.cards.a)}`);
+  assert.ok(minigun && minigun.to < minigun.from,
+    `Minigun must show its reach SHRINKING — a 300-gold purchase that quietly covers less ` +
+    `road is exactly what this exists to surface — got ${JSON.stringify(dart.cards.b)}`);
+  assert.equal(sniper.from, dart.now, "…and the arrow starts from what the tower covers today");
+  // A branch that does NOT move the figure must show no arrow, or the cue means
+  // nothing: Sticky Bomb keeps the mortar's 4-cell reach exactly.
+  const mortar = await openTier3("mortar");
+  assert.equal(arrow(mortar.cards.b), null,
+    `a branch that leaves the reach alone must show no arrow — got ${JSON.stringify(mortar.cards.b)}`);
+  assert.ok(arrow(mortar.cards.a), "…while Big Bertha, which does extend it, still shows one");
+  const camp = await openTier3("camp");
+  assert.ok(!/road/.test(camp.stats), `a Camp blocks rather than shoots — got ${JSON.stringify(camp.stats)}`);
 });
 
 test("ART: EVERY tier-4 branch survives a real draw on a live board", async () => {

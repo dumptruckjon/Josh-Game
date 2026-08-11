@@ -3280,17 +3280,24 @@
       drawSideDoors();
       drawLeverRoute(st);
       drawPuddles(st);
-      if (selection && selection.pad) drawRange(selection.pad.cx, selection.pad.cy, (selection.ghostRange || 2.6) * nightMul, true);
+      // `ghostRange` arrives ALREADY EFFECTIVE from the engine (it folds in night
+      // dimming and a ⚡ power pad's boost), so it is drawn as given.
+      if (selection && selection.pad) drawRange(selection.pad.cx, selection.pad.cy, selection.ghostRange || 2.6 * nightMul, true);
       if (selection && selection.tower) {
         const t = st.towers.find((x) => x.id === selection.tower);
         if (t) {
-          const def = global.TDData.TOWERS[t.lineId];
-          const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
-          // night dims dart/mortar reach — show the TRUE (reduced) ring, Fan exempt
-          const ring = t.lineId === "fan" ? s.auraRange
-            : t.lineId === "camp" ? global.TDData.TOWERS.camp.rallyRange
-            : s.range * nightMul;
-          drawRange(t.cx, t.cy, ring, true);
+          // ASK THE ENGINE. This block used to do its own arithmetic and was
+          // short four ways: it read the Fan's `auraRange` while the zap reaches
+          // further (22% / 14% / 8% short at tiers 1-3), it ignored ❄️ Cold
+          // Front, it ignored a ⚡ power pad's +18% on the six levels that have
+          // one, and it ignored 🧊 Tail Wind — a 300-gold branch sold on making
+          // neighbours "fire faster and FURTHER", whose reach buff the ring
+          // therefore never showed. A ring that understates reach is worse than
+          // no ring: it is the placement cue, and it was lying.
+          const ring = t.lineId === "camp"
+            ? global.TDData.TOWERS.camp.rallyRange   // a Camp posts soldiers; it does not shoot
+            : engine.towerReach(t.id);
+          if (ring) drawRange(t.cx, t.cy, ring, true);
         }
       }
       drawWorldFx();

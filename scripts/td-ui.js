@@ -488,6 +488,18 @@
       "<h3>📖 Toybox Guide</h3>" +
       '<p class="td-overlay__sub">What each toy does — and what can actually hit it.</p>' +
       '<ul class="td-guide__towers">' + towerRow + "</ul>" +
+      // WHERE you build is worth as much as WHAT you build: a sweep of every pad
+      // on a boss finale moved the result by up to 5 lives with the same tower
+      // and the same branch, purely from which socket it stood on. Nothing said
+      // so, and nothing could be read off the board. Hence the figure on every
+      // build button and tower panel — and hence this paragraph, because a
+      // number the player cannot interpret is the ⚙️ mistake again.
+      '<p class="td-overlay__sub">Placement — <b>% road</b></p>' +
+      '<ul class="td-guide__towers"><li><span class="td-guide__tico">🛣️</span>Every build button and tower panel says how much of the ' +
+      "road that socket reaches. The same tower is worth several times more from one pad than another, so the figure — not the price — " +
+      "is usually the choice. A 🪖 Army Guys camp shows none: it blocks the lane rather than shooting down it.</li>" +
+      '<li><span class="td-guide__tico">✦</span>At tier 3 a branch card also shows the move, e.g. <i>road 12%→28%</i>. Some ultimates ' +
+      "reach FURTHER and some reach LESS — a Minigun trades reach for rate — so check the arrow before spending.</li></ul>" +
       // Each power's cost line reads "130🪙 · 1⚙️", and ⚙️ was never DEFINED
       // anywhere in the app — the symbol appeared in the HUD, on every ability
       // button and here, and nothing said what it was. Numbers quoted from RULES

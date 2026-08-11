@@ -1027,7 +1027,7 @@ tooling.
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/51-enemy roster (33 + 18 per-world backbone SKINS) + 9 bosses/36 levels (9 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 35 nodes/123⭐ (vs the 108⭐ ceiling 36 levels create — 15⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails); P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
@@ -4726,6 +4726,104 @@ Also from the same sweep: after these fixes the campaign is clean at **36 levels
 × 12 seeds, zero losses** — a far stronger statement than the contract rested on
 before, when it was 36 × 3.
 
+**PLACEMENT IS NOW VISIBLE — the branch audit's one actionable finding, shipped.
+The audit measured up to 5 lives from WHICH pad a tower stands on (Sniper 15 at
+one pad and 20 at another on the same level, Bertha 10 vs 13, Tail Wind 8 vs 11),
+and NOTHING in the game said so: the build button offered an icon, a role and a
+price, and the tower panel stated dps and range — all of which are properties of
+the TOWER, none of the SOCKET.** The figure is `TDLogic.laneCoverage(levelDef,
+cx, cy, range, rangeMin)` — the share of the lane, sampled every 0.05 cells, that
+falls inside the annulus a tower at that pad actually covers — and it is
+validated against real damage rather than assumed: Spearman ρ 0.587 / 0.798 /
+0.825 on L20 / L12 / L33, with the best pad dealing 2.37× / 1.30× / 5.19× the
+worst. It ships on the build button (`12% road`) and in the tower panel's stat
+line, and at tier 3 each branch card states the MOVE (`road 12%→28%`). Six
+things worth keeping. (1) **ASK THE ENGINE, never re-derive** — night dimming, 🦉
+Night Owl, ⚡ a power pad and 🎯 Close Quarters all change reach, and a UI
+computing this from `DATA` would drift exactly as the tower panel's prices did
+when they showed 110 while the engine charged 99; so `engine.coverageOf(line,
+tier, cx, cy, branch)` is the one owner and the guardrail asserts the rendered
+string equals the engine's number. (2) **Reach is DERIVED from whichever fields
+the stat block HAS**, and the first cut read only `auraRange` for the Fan — which
+also carries a longer `zapRange` (2.2 vs 1.8) — so it reported a tier-1 fan
+covering **0% of the lane on 312 of 451 pads**. A hand-listed field is the
+recurring scope bug; taking the max over every reach field means a fifth line
+inherits it. (3) **A tier-4 branch is its OWN stat block, and its reach moves in
+BOTH directions** — Sniper takes the dart 3 → 5.5 while **Minigun DROPS it to
+2.2**, so clamping tier 4 down to tier 3 would have asserted that a branch never
+changes what it covers (false for 3 of 10) and hidden the one thing a player most
+needs told: that a 300-gold purchase can quietly cover LESS road. The arrow
+appears only when the figure actually moves, so the cue means something — Sticky
+Bomb keeps the mortar's reach exactly and correctly shows nothing. (4) **A Camp
+returns `null`, not 0%** — its soldiers block the lane rather than shooting down
+it, and a percentage would assert something false about the line. (5) **Measured,
+not reasoned, against the documented fold risk** — a third branch card row once
+cost +111px and fell past the fold at 320×480; adding the road text costs **+11px
+on the dart's 3-card row (239 → 250)** with zero overflow at 320×480, 320×568,
+390×844 and landscape 844×390, and the mortar's 2-card row does not grow at all.
+(6) The figure is EXPLAINED in the Toybox Guide, because ⚙️ Toy Energy already
+taught that shipping a number with no name is its own defect. Seventeen
+mutations, all proven: drop the figure · UI recomputes it · figure ignores the
+pad · figure ignores the line · Camp shows 0% · panel drops it · show only
+growth · always show the arrow · clamp tier 4 to tier 3 · drop the guide
+paragraph · re-dim the figure · restore the near-white price · restore the
+dimmed role · restore the renderer's own ring maths · drop the pad boost and
+support from reach · restore the hard-coded ghost range · scale the dead zone
+with the outer radius.
+**And the RANGE RING — the other placement cue, the one on the field — was
+understating reach four different ways, because the renderer did its own
+arithmetic instead of asking the engine.** Measured on shipped data: the Fan's
+ring was drawn from `auraRange` while its ZAP reaches further, so it was
+**22% / 14% / 8% short at tiers 1-3**; ❄️ Cold Front's aura bonus was ignored; a
+⚡ power pad's **+18%** never showed on the six levels that have one; and 🧊 Tail
+Wind — a 300-gold branch sold on making neighbours "fire faster and **FURTHER**"
+— bought a reach buff the ring could not show, so its headline benefit was
+invisible on the field. A ring that understates is worse than no ring: it IS the
+placement cue, and it was lying about placement. Reach now has ONE owner
+(`reachInfo` → `towerReach(id)` for a built tower, `reachAt(line, tier, cx, cy,
+branch)` for a pad you are still choosing, and `coverageOf` on top of both), so
+the ring, the ghost preview and the % road figure can never disagree — and the
+build ghost, which shipped as a hard-coded `DATA.TOWERS.dart.tiers[0].range`,
+now draws the same circle on a power pad as the engine actually grants.
+**The test lesson repeated itself inside this very fix:** my first ghost-ring
+guardrail called `setSelection` with its own computed value, which proves the
+renderer draws what it is handed and would notice NOTHING when td-main stopped
+handing it the right number — reverting the hard-coded literal left it green. It
+drives a real pad TAP now, and then it fails. Same shape as the `pushFx` lesson
+one level up: a test that constructs the input cannot see the producer break.
+**And UNIFYING two code paths is itself a place to introduce a disagreement:**
+folding the ring and the coverage figure into one `reachInfo` made it natural to
+apply the pad boost and the support multiplier to BOTH radii, and the engine
+applies them to neither minimum — its mortar call passes `rangeMin *
+mortarMinMul` raw and wraps only the max in `reachOf()`. So the refactor briefly
+grew the dead zone under a mortar standing on a ⚡ power pad, i.e. the surface
+whose entire purpose is agreeing with the engine disagreed with it. Its
+guardrail had to SEARCH for a pad where the two answers differ — on L3's socket
+both come out at 12.921% and the clause would have been vacuous; L22's p7 reads
+12.33% against 11.24%. **When you merge two callers into one helper, check every
+argument each caller was NOT transforming, and prove the new test on data that
+can tell the two behaviours apart.**
+
+**And measuring the new label's CONTRAST found two shipped AA failures on the
+same button — the fort's own contrast pass reported 0 across 10 surfaces and
+had never opened the build menu.** The road figure was first styled `opacity:
+0.62`, which measured **2.66:1**; the diagnosis is one number and it decides the
+whole surface. The affordable state paints `#052a14` on `#2fa562` = **4.96:1 at
+full strength** — over AA's 4.5, with nothing to spend — while the other two
+states have plenty (yellow 9.92, maroon 7.25). So on this button `opacity` is
+never an available dimming tool, and the shipped `.td-buy__role` at 0.78 was
+already at **3.52:1** while `.td-buy__cost`, the biggest text and the word the
+player is deciding with, was a near-white `#eaffef` at **3.00:1**. All three now
+sit at 4.96-9.92 and hierarchy comes from SIZE and CASE instead. Two method
+notes: **read the real CASCADE, not a list of CSS rules** — the guardrail drives
+both affordability states in a browser and audits every text run inside the
+button, so a label added tomorrow is audited without anyone remembering; and
+**a byte-count check cannot see a same-length mutation** — `#052a14` → `#eaffef`
+is the identical length, so my own `len(s2) != len(s)` assert fired and skipped
+the mutation entirely, which looked exactly like the guardrail passing. Compare
+the STRINGS. That is the em-dash mutation trap wearing a different hat, and it
+is now the second time it has bitten in this repo.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
@@ -4955,14 +5053,17 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   cross-line distinctness margin, and neither oracle plan would buy it so it
 >   would ship provably untested as a feature — note its old blocker IS now
 >   fully cleared, since both the build menu and the panel derive).
->   **The open question this leaves, and the honest one:** a CAP=1 `--branch`
->   sweep over the 9 boss finales says **Sniper Scope is the only branch that
->   clearly pays** (L20 10 -> 20, L32 14 -> 20, L16 17 -> 20) while most others
->   sit inside seed noise — yet converting EVERY dart to Sniper *loses* 3
->   levels outright. So Sniper is correctly a specialist you want one of, and
->   what is unproven is whether the other 8 branches are ever worth their
->   260-300 gold. That is measurable with the shipped instrument and is the
->   best-value open work on the fort.
+>   **The "are the other 8 branches worth their gold?" question is CLOSED, and
+>   its answer became a feature.** They are — the first sweep said otherwise only
+>   because it converted the FIRST eligible tower in pad order; sweeping the pad
+>   (`BRANCHPAD=n`) makes **every branch positive at its best pad on L20** and
+>   shows the placement swing is up to 5 lives, larger than most branches' whole
+>   headline value. Heroic then INVERTS the ranking (Sniper +12 normal, −4
+>   heroic; Minigun best there), which is conclusive against re-tuning any stat
+>   and conclusive FOR telling the player. Hence the shipped `% road` figure on
+>   every build button, tower panel and branch card. Camp branches measured a
+>   clean null on L20 with a camp-inclusive plan (`PLANS=camp`), which is one
+>   level, not a generalization.
 >
 > - **The camp / `blockedBy` path**: CLOSED. It is the only code that can stop a
 >   live enemy indefinitely and neither oracle plan builds a camp, so it was

@@ -824,7 +824,7 @@
     if (t.lineId === "fan") {
       let str = "❄️ " + Math.round(s.slow * 100) + "% slow · " + s.auraRange + " aura";
       if (s.chain) str += " · chain"; else if (s.zapDps) str += " · " + s.zapDps + " zap";
-      return str;
+      return str + roadTxt(t);
     }
     if (t.lineId === "camp") {
       const dps = s.soldiers * s.dmg / s.rate;
@@ -834,7 +834,19 @@
     let str = dps.toFixed(0) + " dps · " + s.range + " rng";
     if (s.splash) str += " · 💥" + s.splash;
     if (s.crit) str += " · crit";
-    return str;
+    return str + roadTxt(t);
+  }
+
+  // How much of the lane this tower actually reaches from the pad it stands on.
+  // A built tower's placement is otherwise invisible: the panel states dps and
+  // range, and a 3-cell reach is worth 25% of the road on one pad and 5% on
+  // another — a difference the branch audit measured at up to 5 lives. Asked of
+  // the ENGINE (night, 🦉, ⚡ and 🎯 all live in there), and the tower's own
+  // branch is passed so a tier-4 reads its OWN reach rather than tier 3's.
+  function roadTxt(t) {
+    if (!cur || !cur.engine.coverageOf) return "";
+    const c = cur.engine.coverageOf(t.lineId, t.tier, t.cx, t.cy, t.branch);
+    return c == null ? "" : " · " + (c * 100).toFixed(0) + "% road";
   }
 
   // Is a real level running (something to lose)? build/wave only — not won/lost.
@@ -954,7 +966,10 @@
     if (!tower) {
       // ---- build menu: every toy line, priced; unaffordable ones dim ----
       cur.selPadId = pad.id;
-      cur.render.setSelection({ pad, ghostRange: DATA.TOWERS.dart.tiers[0].range });
+      // The ghost ring is the dart's reach as a reference, asked of the ENGINE so
+      // it carries night dimming and this pad's ⚡ boost — the shipped literal
+      // showed the same circle on a power pad as on an ordinary one.
+      cur.render.setSelection({ pad, ghostRange: cur.engine.reachAt("dart", 1, pad.cx, pad.cy) });
       const gold = cur.engine.state.gold;
       // DERIVED from the data, never a written literal. This was
       // `["dart","mortar","fan","camp"]` — the same shape as the
@@ -981,9 +996,23 @@
           // data-cost lets UI.prices() re-colour this LIVE as gold comes in —
           // red while you can't afford it, green the moment you can, without
           // closing and reopening the dialog.
+          // LANE COVERAGE — how much of the road this toy can actually shoot
+          // FROM THIS PAD. Placement was the fort's biggest invisible decision:
+          // the branch audit measured up to 5 lives from which tower you
+          // convert, and a pad's worth was unknowable until after you had spent
+          // the gold. Asked of the ENGINE, never re-derived, because night
+          // dimming, 🦉 Night Owl, ⚡ a power pad and 🎯 Close Quarters all live
+          // in there — the same rule the prices needed. A Camp returns null (it
+          // blocks rather than shoots) and simply shows no figure, rather than a
+          // percentage that would assert something false about it.
+          const cov = cur.engine.coverageOf(id, 1, pad.cx, pad.cy);
+          const covTxt = cov == null ? "" :
+            '<span class="td-buy__cov" title="how much of the road this reaches from here">' +
+            (cov * 100).toFixed(0) + "% road</span>";
           return '<button class="td-buy" data-line="' + id + '" data-cost="' + cost + '" type="button">' +
             '<span class="td-buy__icon">' + d.icon + "</span>" +
             '<span class="td-buy__role">' + d.role + "</span>" +
+            covTxt +
             '<span class="td-buy__cost">' + cost + "🪙</span>" +
             "</button>";
         }).join("") +
@@ -1044,14 +1073,27 @@
           // is a GRID sized to the count, because a third card left to WRAP
           // measured +111px (239 → 350) and fell past the fold at 320x480,
           // 320x568 and landscape 844x390.
+          // A branch can also MOVE the reach, in either direction — Sniper Scope
+          // takes the dart 3 → 5.5 and Minigun DROPS it to 2.2 — so each card
+          // states what it would cover FROM THIS PAD, and the arrow only appears
+          // when the figure actually changes (a silent shrink on a 300-gold
+          // purchase is exactly the class of thing the overkill warning exists
+          // for). Appended to the existing role line rather than given a row of
+          // its own: a third card row already measured +111px and fell past the
+          // fold at 320×480.
+          const now = cur.engine.coverageOf(t.lineId, t.tier, t.cx, t.cy);
           const keys = Object.keys(def.branches || {});
           middle = '<div class="td-branchrow td-branchrow--' + keys.length + '">' + keys.map((k) => {
             const b = def.branches[k];
             const c = cur.engine.priceOf("branch", { towerId: t.id, choice: k });
+            const bc = cur.engine.coverageOf(t.lineId, 4, t.cx, t.cy, k);
+            const pct = (v) => (v * 100).toFixed(0) + "%";
+            const road = (bc == null || now == null || pct(bc) === pct(now)) ? ""
+              : " · road " + pct(now) + "→" + pct(bc);
             return '<button class="td-branch" data-b="' + k + '" data-cost="' + c + '" type="button" aria-label="' +
-              b.name + " — " + b.role + ", " + c + ' gold">' +
+              b.name + " — " + b.role + road + ", " + c + ' gold">' +
               '<span class="td-branch__name">' + b.name + " " + c + "🪙</span>" +
-              '<span class="td-branch__role">' + b.role + "</span></button>";
+              '<span class="td-branch__role">' + b.role + road + "</span></button>";
           }).join("") + "</div>";
         }
         const control = t.lineId === "camp"
