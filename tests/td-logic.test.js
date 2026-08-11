@@ -2952,7 +2952,17 @@ test("AUDIT heroic is a SLOPE, not a cliff: every level stays winnable on heroic
   // it is a strengthening rather than a newly-blocked build: every level is
   // winnable on heroic on all 8. Costs ~2 min on a ~25 min gate; use
   // `tools/td-threat.js` when you want the full eight on demand.
-  const SEEDS = [1, 7, 13];
+  //
+  // SEED 23 joined the set the same way, and it is the reason this comment's
+  // "every level is winnable on heroic on all 8" claim was WRONG when written:
+  // L21 and L30 both lost on 23 while green on {1, 7, 13}, and both had been
+  // recorded as validated at 8 seeds. The cause was the healer dose — healers
+  // MEND EACH OTHER, so a count that is 5% of a wave's hp is worth far more
+  // than its hp and can flip one seed while eleven others are comfortable.
+  // Fixed at the source (L21 startGold 1200 -> 1275, L30 w13 healers 5 -> 3,
+  // HP-preserving) rather than by exempting the levels. A seed set is only ever
+  // as good as the failures it has been shown; add to it, never trim it.
+  const SEEDS = [1, 7, 13, 23];
   for (const lvl of DATA.LEVELS) {
     for (const seed of SEEDS) {
       const won = PLANS.some((p) => run(lvl, p, seed).phase === "won");

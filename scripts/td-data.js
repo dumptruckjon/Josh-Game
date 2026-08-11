@@ -1250,7 +1250,7 @@
       name: "Boxes by the Door",
       world: "moving",
       badge: 3,
-      startGold: 1200,
+      startGold: 1275,
       budgetBase: 720,
       // The world opens gently: a long lane with rows 6 apart, so exposure comes
       // from the walk rather than from one tower covering two runs.
@@ -1605,7 +1605,7 @@
         // normal 20x8 -> 19,18,16,20,20,19,20,20; heroic 12,14,5,8,9,6,8,11
         // (minimum 5, ZERO losses); neglect still loses. WAVE POSITION beat dose
         // again, which is now the rule rather than the observation.
-        { groups: [ { type: "healer", count: 5, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 136, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "healer", count: 3, gap: 0.9, delay: 4 }, { type: "leaflet", count: 47, gap: 0.3, delay: 2 }, { type: "carton", count: 141, gap: 0.65, delay: 0 }, { type: "knight", count: 24, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "boombox", count: 26, gap: 0.9, delay: 4 }, { type: "leaflet", count: 58, gap: 0.3, delay: 2 }, { type: "blob", count: 61, gap: 0.65, delay: 0 }, { type: "clip", count: 152, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "cushion", count: 19, gap: 0.9, delay: 4 }, { type: "leaflet", count: 72, gap: 0.3, delay: 2 }, { type: "carton", count: 110, gap: 0.65, delay: 0 }, { type: "knight", count: 27, gap: 0.8, delay: 3 } ] },
       ],
