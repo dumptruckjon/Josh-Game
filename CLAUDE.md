@@ -4693,6 +4693,39 @@ exactly ONE of 36 levels (L20, +4), with L32 tied and 32 correct**, so the
 ladder is broadly sound and L20 is an isolated outlier rather than a systemic
 break — worth one look someday, not a re-tune.
 
+**THE HEALER DOSE HAS A SINGLE-SEED CLIFF, ON THREE OF THE SIX LEVELS THAT
+CARRY ONE — and the intuitive repair is HOLLOW on all three.** After fixing L21
+and L30 (seed 23), a 36-level × 12-seed heroic sweep with the guardrail's exact
+`run()` found exactly ONE more loss: **L25 on seed 2**, also a healer-dosed
+level. So L21, L25 and L30 — half the shipped threat-shape doses — each had a
+seed on which the level is unwinnable on heroic, and the shipped guardrail's
+{1, 7, 13} could not see any of them. The MECHANISM is why: healers mend EACH
+OTHER, so a dose sized as a share of wave hp (4.9% on L21/L30) behaves nothing
+like that share — it is comfortable on eleven seeds and fatal on the one that
+happens to cluster them. A three-seed sample against a failure that lives on
+roughly one seed in twelve is not a sample. Fixes: **L21 `startGold 1200 →
+1275`, L25 `1000 → 1075`, L30 `w13 healers 5 → 3` (carton 136 → 141, wave hp
+exactly preserved at 8619)**; guardrail seeds **{1, 7, 13} → {1, 7, 13, 23, 2}**,
+each addition proven RED on the pre-fix data naming the level and seed by name.
+**THE LESSON THAT GENERALISES, and it caught me three times out of three: on
+every one of these levels the obvious repair — cut the dose — also gives zero
+heroic losses, AND returns normal 3★ to exactly its undosed value.** L21 at 2
+healers prints normal `[19,19,19,19,19,19,19,19]`, byte-identical to no dose;
+L25 at 4 or 3 healers takes 3★ back to 12/12, the undosed number; L30 at 4 drops
+diversity to 2/8, BELOW the 3/8 of no dose at all. Each would have sat in the
+data file looking like a tuned level and done nothing. **Fixing the bug-metric
+is not the same as fixing the level: check the change against the dose's
+PURPOSE (does 3★ still move, does diversity survive), not only against the
+symptom you set out to remove.** Gold was the right lever on L21 and L25 and is
+**completely inert on L30** (2050/2150/2250/2350 all still lose seed 23 and move
+normal by zero), so the levers do not generalise either — measure both. Recorded
+and NOT acted on: **L10 runs at median 2 with a MINIMUM of 1 across 12 seeds** —
+it never loses, but it is one life from this same failure and is the thinnest
+margin in the campaign, so it is the first place to look if anything shifts.
+Also from the same sweep: after these fixes the campaign is clean at **36 levels
+× 12 seeds, zero losses** — a far stronger statement than the contract rested on
+before, when it was 36 × 3.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
