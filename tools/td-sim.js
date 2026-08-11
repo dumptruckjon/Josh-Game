@@ -485,6 +485,21 @@ if (process.argv.includes("--branch")) {
           return won.length ? Math.max(...won.map((r) => r.lives)) : -1;
         });
         const lost = v.filter((x) => x < 0).length;
+        // PERPLAN=1 breaks the row out by plan. The headline number is
+        // `max(DART, MIXED)` — the same best-of the shipped oracle uses — and a
+        // branch can only ever move the plan that CONTAINS its line, so the max
+        // can hide a real effect (the unaffected plan wins) or show a drop that
+        // is really "the better plan got worse". Neither is visible in the
+        // aggregate, and both change what the number means.
+        if (process.env.PERPLAN) {
+          for (const [pname, pl] of [["dart", DART], ["mixed", MIXED]]) {
+            const pv = SEEDS.map((seed) => {
+              const r = playBranch(lvl, seed, pl, diff, want);
+              return r.phase === "won" ? r.lives : -1;
+            });
+            console.log(`        ${pname.padEnd(6)} median ${String(median(pv)).padStart(3)}  [${pv.join(",")}]`);
+          }
+        }
         console.log(`   ${name.padEnd(22)} median ${String(median(v)).padStart(3)}  [${v.join(",")}]` +
           `  bought=${buys}` +
           (buys === 0 && want ? (everReady ? "  (line not in either plan)" : "  (board never maxed — unreachable here)") : "") +
