@@ -1402,7 +1402,7 @@
       name: "Bare Floorboards",
       world: "newhouse",
       badge: 3,
-      startGold: 1000,
+      startGold: 1075,
       budgetBase: 950,
       // A spiral that winds INWARD before breaking out to the right — a topology
       // no shipped level uses. A freshly-waxed strip of board shoves you along.

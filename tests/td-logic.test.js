@@ -2962,7 +2962,11 @@ test("AUDIT heroic is a SLOPE, not a cliff: every level stays winnable on heroic
   // Fixed at the source (L21 startGold 1200 -> 1275, L30 w13 healers 5 -> 3,
   // HP-preserving) rather than by exempting the levels. A seed set is only ever
   // as good as the failures it has been shown; add to it, never trim it.
-  const SEEDS = [1, 7, 13, 23];
+  // SEED 2 joined for the same reason 23 did, one level later: a 36-level x
+  // 12-seed sweep run right after fixing L21/L30 found L25 losing on it — the
+  // THIRD of the six healer-dosed levels to have a single-seed cliff, which
+  // makes it a property of the shape rather than three coincidences.
+  const SEEDS = [1, 7, 13, 23, 2];
   for (const lvl of DATA.LEVELS) {
     for (const seed of SEEDS) {
       const won = PLANS.some((p) => run(lvl, p, seed).phase === "won");
