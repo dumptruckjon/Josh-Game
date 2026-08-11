@@ -4642,6 +4642,57 @@ parse. It is out of scope for a branch audit and is NOT a claim that heroic is
 mis-tuned — but it is the kind of thing that, left unwritten, gets re-discovered
 as a bug. Worth one focused look.
 
+**TWO LEVELS WERE UNWINNABLE ON HEROIC AT SEED 23, AND THE TWO NEAR-MISSES
+FIXING THEM ARE WORTH MORE THAN THE FIX.** Found while chasing something else:
+`AUDIT heroic is a SLOPE` drives seeds {1, 7, 13}, and **L21 and L30 both LOSE
+on heroic seed 23** under the same best-of-two oracle, so the contract "every
+level stays winnable on heroic" was false while the suite was green. **The
+cause is the healer dose, measured rather than guessed** — removing only the
+healer group takes both from 1/12 losses to 0/12 and lifts heroic medians
+5.5 → 11 and 8 → 11.5. Healers are **4.9% of wave hp** on each and decide the
+level, which is the already-documented super-linear mending: they heal EACH
+OTHER, so a count that is nothing as hp is everything as effective hp, and it
+can flip ONE seed while eleven others are comfortable. **The two levels needed
+OPPOSITE levers, so no single fix would have done:** L21 took `startGold
+1200 → 1275` (heroic 1/8 → 0/8, median 6 → 8, floor still 4, and the dose keeps
+working untouched — normal 3★ stays 3/8, diversity 8/8; 1275 is minimal, 1350
+takes heroic to median 11 and goes soft), while on L30 **gold is completely
+inert** — 2050/2150/2250/2350 all still lose seed 23 and move normal by zero —
+so it took `w13 healers 5 → 3` with `carton 136 → 141`, wave hp EXACTLY
+preserved at 8619 (heroic 1/8 → 0/8, diversity 5/8 fully kept, where reverting
+the dose outright would drop it to 3/8). Guardrail widened to {1, 7, 13, 23}
+and proven BOTH ways: red on the pre-fix data naming L21 and seed 23, green
+after. **NEAR-MISS 1, the important one: the obvious repair was HOLLOW.** Dose
+sizes chosen to satisfy "no heroic losses" failed the other three dose rules —
+L21 at 2 healers produces normal `[19,19,19,19,19,19,19,19]`, **byte-identical
+to having NO dose at all**, and L30 at 4 drops diversity to 2/8, **BELOW the
+3/8 of no dose whatsoever**. Both would have sat in the data file looking like
+tuned levels and done nothing. Optimising whichever metric you measured first
+is how a no-op passes its own criterion; the four rules (move 3★, do not erase
+it, buy diversity, lose no seed) exist precisely because any one of them alone
+is satisfiable by a change that does nothing. **NEAR-MISS 2: a shipped balance
+RECORD was wrong.** This file logs L21's dose as validated at `heroic
+6,6,7,4,3,6,3,8 — no losses` across 8 seeds INCLUDING 23, and the shipped level
+loses there. Whatever the reason (a different tool's oracle, or drift after the
+fact), a recorded measurement disagreed with the artefact, and only re-measuring
+found it — **a balance number in this file is evidence, not proof, and the
+cheapest way to check one is to re-run it.** Recorded separately and still open:
+**L30's dose never moved normal at all** — flat 20/20 and 3★ 8/8 with or without
+healers — so by this project's own rule that a dose must move the 3★ outcome,
+one of the six shipped threat-shape doses does not qualify; its real value was
+always diversity, which the smaller dose keeps in full. Two smaller lessons.
+**My own scan regex silently dropped exactly the rows that mattered** — it
+matched numeric seed lists, and a losing level prints `heroic LOST@23`, so the
+only two defective levels in 36 were invisible; the 34-of-36 count is what
+exposed it, and that is the "a scan's own list is part of the scan" law landing
+inside an analysis script. **And a KILLED process and a FAILING suite both exit
+non-zero** — the tell is that a real failure writes hundreds of bytes of TAP
+output while a kill wrote 22, so check the byte count before reporting a
+failure. Closing the item that started this: **heroic is easier than normal on
+exactly ONE of 36 levels (L20, +4), with L32 tied and 32 correct**, so the
+ladder is broadly sound and L20 is an isolated outlier rather than a systemic
+break — worth one look someday, not a re-tune.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
