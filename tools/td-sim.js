@@ -54,6 +54,14 @@ function playWith(level, seed, plan, difficulty) {
 
 const DART = ["dart"];
 const MIXED = ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"];
+// A camp-inclusive plan, used ONLY when asked for (PLANS=camp). Neither shipped
+// oracle plan builds a camp — which is the documented reason Rally Horn was
+// inert in every test — and it is also why Dino Squad and RC Racers were the
+// two tier-4 branches the --branch audit could not measure at all: with no camp
+// on the board there is nothing to convert. This is a WEAKER board than either
+// oracle plan, so its absolute lives mean little; what it supports is the
+// controlled comparison, since the `none` arm runs the same plan.
+const CAMP = ["camp", "dart", "camp", "dart", "mortar", "dart", "camp", "dart", "dart", "dart", "dart", "dart"];
 
 // "Winnable" means EITHER sensible build clears it — a competent player picks
 // the tool for the level, and the roster deliberately splits the two plans.
@@ -473,6 +481,17 @@ function playBranch(level, seed, plan, difficulty, want) {
 if (process.argv.includes("--branch")) {
   const CAP = Number(process.env.CAP || 1);
   const PAD = process.env.BRANCHPAD == null ? null : Number(process.env.BRANCHPAD);
+  // PLANS picks which boards to run. Default is the shipped best-of-two, so
+  // every existing measurement is unchanged; `PLANS=camp` is what makes the two
+  // camp branches measurable at all. Adding camp to the DEFAULT would be wrong
+  // — the headline is a max, so a third plan can only raise it, and every
+  // number the audit already recorded would move.
+  const BY_NAME = { dart: DART, mixed: MIXED, camp: CAMP };
+  const PLANS = (process.env.PLANS || "dart,mixed").split(",").map((n) => {
+    const pl = BY_NAME[n.trim()];
+    if (!pl) throw new Error(`unknown plan "${n}" — use ${Object.keys(BY_NAME).join(",")}`);
+    return pl;
+  });
   const ARMS = [["none", null]];
   for (const [line, def] of Object.entries(DATA.TOWERS)) {
     for (const [key, b] of Object.entries(def.branches || {})) {
@@ -487,7 +506,7 @@ if (process.argv.includes("--branch")) {
       for (const [name, want] of ARMS) {
         let buys = 0, everReady = false;
         const v = SEEDS.map((seed) => {
-          const rs = [DART, MIXED].map((pl) => playBranch(lvl, seed, pl, diff, want));
+          const rs = PLANS.map((pl) => playBranch(lvl, seed, pl, diff, want));
           buys += rs.reduce((n, r) => n + r.bought, 0);
           if (rs.some((r) => r.ready)) everReady = true;
           const won = rs.filter((r) => r.phase === "won");
@@ -501,7 +520,7 @@ if (process.argv.includes("--branch")) {
         // is really "the better plan got worse". Neither is visible in the
         // aggregate, and both change what the number means.
         if (process.env.PERPLAN) {
-          for (const [pname, pl] of [["dart", DART], ["mixed", MIXED]]) {
+          for (const [pname, pl] of Object.entries(BY_NAME).filter(([, pl]) => PLANS.includes(pl))) {
             const pv = SEEDS.map((seed) => {
               const r = playBranch(lvl, seed, pl, diff, want);
               return r.phase === "won" ? r.lives : -1;
