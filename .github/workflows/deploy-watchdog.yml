@@ -1,0 +1,63 @@
+name: Deploy watchdog
+
+# A push to main sometimes creates NO workflow run at all. It has now happened
+# twice (02312d2 and aa19e32): the commit lands on origin/main, GitHub fires
+# nothing, and the live site quietly keeps serving the previous build. Nothing
+# goes red — the failure mode is SILENCE, which is exactly why both instances
+# were caught by a human opening the site rather than by CI. RULE 6 says a
+# change is not done until the deploy is watched; this is what does the
+# watching when the deploy never starts.
+#
+# ANTI-LOOP, and it is the whole safety argument: this dispatches ONLY when the
+# head commit has ZERO deploy runs of any kind. The moment a run exists —
+# queued, in progress, succeeded, or FAILED — it stops. So a genuinely broken
+# deploy is kicked exactly once and then left alone to be red in the normal
+# way; the watchdog can never turn a failing build into a dispatch storm.
+on:
+  schedule:
+    # Every 30 minutes: a missed deploy is recovered well inside an hour, and
+    # the job is a couple of API calls, so the cost is negligible.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # required to dispatch deploy.yml
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch the deploy if main's head has no run at all
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const branch = await github.rest.repos.getBranch({ owner, repo, branch: "main" });
+            const sha = branch.data.commit.sha;
+            const short = sha.slice(0, 7);
+            const committedAt = new Date(branch.data.commit.commit.committer.date);
+            const ageMin = (Date.now() - committedAt.getTime()) / 60000;
+
+            // A healthy push creates its run within seconds. Waiting 10 minutes
+            // means this can never race a run that is merely still being
+            // created, and never double-fires on a commit pushed moments ago.
+            if (ageMin < 10) {
+              core.info(`head ${short} is only ${ageMin.toFixed(1)} min old — too fresh to judge`);
+              return;
+            }
+
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: "deploy.yml", head_sha: sha, per_page: 1,
+            });
+            if (runs.data.total_count > 0) {
+              core.info(`head ${short} already has ${runs.data.total_count} deploy run(s) — nothing to do`);
+              return;
+            }
+
+            core.warning(
+              `No deploy run exists for ${short} (${ageMin.toFixed(0)} min old) — GitHub did not fire on the push. Dispatching.`
+            );
+            await github.rest.actions.createWorkflowDispatch({
+              owner, repo, workflow_id: "deploy.yml", ref: "main",
+            });

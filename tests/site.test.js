@@ -1661,3 +1661,37 @@ test("SELF-HEAL: fx ageing has ONE un-skippable owner, outside the branchy draw 
   assert.ok(loopEnd > -1 && loopEnd < body.lastIndexOf("for (const f of fx) f.ttl -= 1;"),
     "the ageing pass must come AFTER the draw loop closes, not inside it");
 });
+
+test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", () => {
+  // A push to main sometimes creates NO workflow run at all — twice now
+  // (02312d2, aa19e32). The commit lands, GitHub fires nothing, and the live
+  // site quietly serves the previous build. The failure mode is SILENCE, so
+  // nothing goes red and both instances were caught by a human opening the
+  // site. The watchdog turns that into an automatic recovery.
+  const wd = read(".github/workflows/deploy-watchdog.yml");
+
+  // it has to fire on its own, and be pokeable by hand for testing
+  assert.match(wd, /^ {2}schedule:/m, "the watchdog must run on a schedule — that is the entire point");
+  assert.match(wd, /cron: *"[^"]+"/, "…with a real cron expression");
+  assert.match(wd, /^ {2}workflow_dispatch:/m, "…and be manually pokeable, or it can never be tested");
+
+  // it cannot dispatch anything without this permission — a silent no-op
+  // would look exactly like a watchdog that is working and finding nothing.
+  assert.match(wd, /actions: *write/, "dispatching deploy.yml requires actions: write");
+  assert.match(wd, /createWorkflowDispatch/, "it must actually dispatch");
+  assert.match(wd, /workflow_id: *"deploy\.yml", *ref: *"main"/,
+    "it must dispatch the DEPLOY workflow on main, not something else");
+
+  // THE SAFETY PROPERTY. It dispatches only when the head commit has ZERO runs
+  // of any kind, so the moment a run exists — including a FAILED one — it stops.
+  // Without this a broken deploy would be re-kicked every 30 minutes for ever,
+  // which is a worse bug than the one being fixed.
+  assert.match(wd, /listWorkflowRuns\(\{[\s\S]{0,200}head_sha: *sha/,
+    "it must look for runs of THIS head commit, or it cannot tell a missed deploy from an old one");
+  assert.match(wd, /total_count > 0[\s\S]{0,240}?return;/,
+    "it must bail out when ANY run already exists — that is what stops a failing deploy being re-kicked for ever");
+
+  // and it must not race a run that is simply still being created
+  assert.match(wd, /ageMin < 10[\s\S]{0,200}?return;/,
+    "it must ignore a commit younger than ~10 min; a healthy push creates its run within seconds");
+});
