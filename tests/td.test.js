@@ -2904,7 +2904,7 @@ test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async ()
     // prices, gold, lives, wave counts, star costs. Caught by a mutation the
     // narrower test it replaced did catch and this one did not.
     const isArt = (t) => !/[\p{L}\p{Nd}]/u.test(t);
-    const out = { runs: 0, fails: [], exempt: 0 };
+    const out = { runs: 0, overlay: 0, fails: [], exempt: 0 };
     const seen = new Set();
     for (const el of document.querySelectorAll("*")) {
       if (!el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
@@ -2914,6 +2914,7 @@ test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async ()
       const txt = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
       if (!txt) continue;
       out.runs += 1;
+      if (el.closest(".td-overlay")) out.overlay += 1;   // the DIRECT did-it-open measure
       if (isArt(txt)) continue;                          // an icon is ART, not text
       const cs = getComputedStyle(el);
       if (cs.visibility === "hidden" || Number(cs.opacity) === 0) continue;
@@ -2940,15 +2941,26 @@ test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async ()
   }, label);
 
   const fails = [], surfaces = [];
-  const add = async (label, minRuns) => {
+  const add = async (label, minRuns, minOverlay) => {
     const o = await AUDIT(label);
     // CALIBRATION, baked in: a surface that never opened audits the runs of the
     // one behind it and reports a clean sweep. Two of these (the pause menu and
     // the victory overlay) silently did exactly that while this was a scratch
-    // probe, so the run count is asserted rather than trusted.
+    // probe, so opening is asserted rather than trusted.
     assert.ok(o.runs >= minRuns,
       `${label}: only ${o.runs} text runs visible (expected >= ${minRuns}) — the surface did not open, ` +
       "so a clean result here would be a false negative");
+    // For an OVERLAY surface, count the runs that came from inside the overlay
+    // itself. The first cut compared the TOTAL against the bare home's count,
+    // and that is a proxy, not the claim: 💾 Backup and ⚙️ Reset fort sit at the
+    // bottom of the fort home, so clicking them SCROLLS the page, the home's own
+    // visible runs drop, and the total fell below a bar derived from the
+    // unscrolled home — a false failure on two dialogs that had plainly opened
+    // (5 and 8 runs inside the overlay). It passed only while the home happened
+    // to be short enough, and World 10's four extra level cards ended that. The
+    // direct measure cannot drift with the home's size or the scroll position.
+    if (minOverlay) assert.ok(o.overlay >= minOverlay,
+      `${label}: ${o.overlay} text runs inside .td-overlay (expected >= ${minOverlay}) — the dialog did not open`);
     surfaces.push(label); fails.push(...o.fails);
     return o;
   };
@@ -2960,8 +2972,8 @@ test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async ()
   // fresh page (124) — and the full suite runs this after tests that change the
   // save, where the same healthy screen renders 58. An absolute count here is a
   // fence around one observed state; what actually catches "the surface never
-  // opened" is the RELATIVE check on everything opened over a base, below.
-  const home = await add("fort home", 20);
+  // opened" is the OVERLAY-run check on everything opened, below.
+  await add("fort home", 20);
 
   // DERIVED, not listed: every dialog the fort home can open.
   const openers = await page.evaluate(() => [...document.querySelectorAll("#screen-td-home .td-metabtn, #screen-td-home .td-adminrow button")]
@@ -2970,8 +2982,8 @@ test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async ()
   for (const o of openers) {
     await page.locator("#screen-td-home ." + o.cls).first().click();
     await page.waitForTimeout(220);
-    // each dialog must ADD runs over the bare home, or it did not open
-    await add("dialog " + o.txt, home.runs + 3);
+    // it must have painted its own text INSIDE the overlay, or it did not open
+    await add("dialog " + o.txt, 20, 3);
     await page.evaluate(() => { if (window.TDUI && TDUI.closeOverlay) TDUI.closeOverlay(); });
     await page.waitForTimeout(140);
   }
@@ -3018,12 +3030,12 @@ test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async ()
     await page.waitForTimeout(220);
   }
   assert.equal(await page.locator(".td-overlay").count(), 1, "the pause menu opened");
-  await add("pause menu", 5);   // opened-proof is its own selector, waited for above
+  await add("pause menu", 5, 3);   // …and its own overlay runs are counted
   await page.evaluate(() => { if (window.TDUI && TDUI.closeOverlay) TDUI.closeOverlay(); });
 
   await page.evaluate(() => window.__TD.winL1(7));
   await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 8000 });
-  await add("victory overlay", 5);   // .td-overlay--win was waited for; a finished run REMOVES controls, so it legitimately has FEWER runs than the play screen
+  await add("victory overlay", 5, 3);   // a finished run REMOVES controls, so its TOTAL is legitimately lower than the play screen's — the overlay count is what proves it opened
 
   assert.ok(surfaces.length >= 13, `expected to audit every fort surface, saw ${surfaces.length}`);
   assert.deepEqual(fails, [],

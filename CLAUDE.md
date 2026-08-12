@@ -5016,6 +5016,24 @@ lever is decisive at an 8-pad board (short 0/4 → long 3/4) and worth 6 lives a
 9, which is what `TD7 lever advantage` now pins. And L37 ships at a flat `20 ×8`
 on normal — the **seventh** reproduction of the step function, recorded rather
 than faked, exactly as World 5 and World 9's openers were.
+**And the world broke a guardrail by GROWING, which is the more transferable
+find: a CALIBRATION that uses a proxy instead of the claim goes stale with the
+thing it measured against.** The fort contrast audit proves each dialog really
+opened — the two surfaces that once silently audited the screen behind them are
+why it exists — and it did that by asserting the dialog's TOTAL visible text
+runs exceeded the bare fort home's. That is a proxy. `💾 Backup` and `⚙️ Reset
+fort` sit at the BOTTOM of the home, so Playwright's click scrolls the page to
+1094px, the home's own visible runs drop out of the viewport, and the total fell
+BELOW a bar derived from the unscrolled home — a false failure on two dialogs
+that had plainly opened (measured: 5 and 8 runs inside `.td-overlay`). It had
+been passing on luck, and World 10's four extra level cards took the home from
+53 to 61 runs and ended it. The fix measures the CLAIM: count the runs that came
+from inside the overlay itself, which cannot drift with the home's height or the
+scroll position — and it is the same shape the audit's other seven surfaces
+already used (prove it opened by its own element). Mutation-proven by skipping
+one dialog's click: *"dialog 🏅 Badges: 0 text runs inside .td-overlay"*. The
+general rule, now paid for once more: **when a check asserts "X happened", assert
+X, not a quantity that correlates with X today.**
 
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,

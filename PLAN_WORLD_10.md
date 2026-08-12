@@ -172,3 +172,25 @@ is not faked with a knob the data does not support.
   work (CLAUDE.md, repeatedly).
 - ❌ Add an eleventh world without growing the star tree first. At 44 levels the
   ceiling is 132⭐ against a 140⭐ tree — margin 8, and shrinking.
+
+## 7. What this world broke by GROWING, and why that is the useful part
+
+The fort's contrast audit went red on a world that touches none of its code. It
+proves each dialog really opened — two surfaces once silently audited the screen
+behind them and reported a clean sweep, which is why the calibration exists — and
+it did that by asserting the dialog's TOTAL visible text runs exceeded the bare
+fort home's. **That is a proxy, not the claim.** `💾 Backup` and `⚙️ Reset fort`
+sit at the bottom of the home, so clicking them scrolls the page to 1094px, the
+home's own runs leave the viewport, and the total falls below a bar derived from
+the *unscrolled* home. Both dialogs had plainly opened (5 and 8 runs inside
+`.td-overlay`). It passed only while the home was short enough, and four more
+level cards — 53 runs → 61 — ended that.
+
+Fixed by measuring the claim: count the runs from inside the overlay itself,
+which cannot drift with the home's height or the scroll position, and which is
+the same shape the audit's other seven surfaces already used (prove it opened by
+its own element). Mutation-proven by skipping one dialog's click →
+*"dialog 🏅 Badges: 0 text runs inside .td-overlay"*.
+
+**When a check asserts "X happened", assert X — not a quantity that correlates
+with X today.**
