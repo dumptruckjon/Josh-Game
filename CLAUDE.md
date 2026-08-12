@@ -4931,6 +4931,29 @@ bosses: each is hand-tuned to sit inside its own ~3%-wide band, which is an
 authoring act for nine finales, not a reusable pattern. Corollary for the next
 author: **"the median moved" is exactly what a disguised constant does** — judge
 a dose on spread and on the star outcome, never on the median alone.
+**The phase then proposed a FINALE as the one remaining honest lever, and
+measuring that closed the axis from two MORE directions.** (a) **A boss on a flat
+level is STRUCTURALLY FORBIDDEN** — `TD structure` asserts `bossLevels ===
+worlds.map((w,i)=>(i+1)*4)` ("a boss headlines each world finale"), and that
+contract is load-bearing for the unlock ladder, the endless gate and the star
+ceiling. The proposal was made without checking it was available, which is its
+own lesson: **check that a lever is structurally reachable before offering it**.
+A tenth world is the only legal home for a new finale (and would leave the
+ceiling at 120⭐ against the 123⭐ tree, margin 3). (b) **A near-constant finale
+cannot be de-quantized by boss hp.** Five of nine finales are near-constants
+(L4 spread 1; L12/L20/L24/L32 spread 2) — the same defect as a flat level. The
+Bed Monster sweeps `1200-1680 → 20,19,…` (always dies) and `1700-3400 →
+14,13,…` (always leaks), byte-identical across 2400-3400, so the shipped 2400 is
+nowhere near a band; the whole transition is **1680→1700, a 20hp window 1.2%
+wide, and every seed flips together**. (c) **So the law extends from elites to
+BOSSES.** L24 does vary by seed (12..14) — but the Moving Van leaks on every
+seed at every hp from 3000 to 5400, so all of that variance is pre-boss chip
+damage from the CROWD. L8 was de-quantizable only because its level carries
+enough pre-boss variance for the boss's fate to land differently across seeds:
+that is a property of the LEVEL, never a knob on the boss. The difficulty axis
+is therefore closed from three independent directions — non-boss elites are
+constants, a boss on a flat level is forbidden, and a finale cannot be graded by
+hp — and in every case the reason is the same single law.
 And the flat set has nothing left to dose regardless: the derived scan
 (`SPREAD=1 node tools/td-threat.js`) names 13 levels that ask no question, 5
 carry levers, and every remaining one already has a measured reason on the

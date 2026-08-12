@@ -129,6 +129,54 @@ remaining hope. It is now closed too.
 - ❌ Another hp sweep. The hp is not a knob; shapes 3, 4 and 6 saturate, and
   shape 1's usable band is 4.5% wide and erases 3★ inside it.
 
+## 5b. ADDENDUM — the finale lever was tried too, and it is also closed
+
+§6 below originally proposed a FINALE as the one remaining honest lever ("a boss
+is additive, budget-exempt and hand-tuned into its own band"). That was proposed
+without checking whether it was structurally available. It is not, and when the
+underlying idea was measured anyway it failed for the same reason as everything
+else. Three findings, all new:
+
+**(a) A boss on a flat level is STRUCTURALLY FORBIDDEN.** `TD structure` asserts
+
+```js
+assert.deepEqual(bossLevels, worlds.map((w, i) => (i + 1) * 4),
+                 "a boss headlines each world finale");
+```
+
+so boss levels must be exactly L4, L8, … L36 — one per world, on its last level.
+Giving a flat mid-world level a boss wave breaks that contract, and the contract
+is load-bearing (the unlock ladder, the endless gate and the star ceiling all
+assume worlds of four ending on a boss). A tenth world is the only structurally
+legal home for a new finale.
+
+**(b) A near-constant finale cannot be de-quantized by boss hp.** Five of the
+nine finales are near-constants by the spread scan — L4 (spread 1), L12, L20,
+L24, L32 (spread 2) — which is the same defect as a flat level. Sweeping the Bed
+Monster (L4) on 8 seeds:
+
+```
+1200-1680  ->  20,19,20,19,19,20,19,20     the boss always DIES
+1700-3400  ->  14,13,14,13,13,14,13,14     the boss always LEAKS
+```
+
+Byte-identical across 2400-3400, so the shipped 2400 is nowhere near a band. The
+whole transition is **1680 -> 1700: a 20hp window, 1.2% wide** — and at no value
+do the seeds disagree. **They all flip together.**
+
+**(c) The law extends from elites to BOSSES.** L24 does vary by seed (12..14 at
+every hp) — but the Moving Van itself leaks on every seed at every hp from 3000
+to 5400; all of that variance is *pre-boss chip damage from the crowd*. So a
+boss's own fate is deterministic too, exactly like an elite's. L8 was
+de-quantizable only because its level happens to carry enough pre-boss variance
+for the boss's fate to land differently across seeds; that is a property of the
+LEVEL, not a knob on the boss.
+
+So the difficulty axis is now closed from three independent directions: non-boss
+elites are constants (§2), a boss on a flat level is forbidden (a), and a finale
+cannot be graded by hp (b). In every case the reason is the same single law in
+§3 — one body is deterministic, variance is always the crowd.
+
 ## 6. What would actually be next, if anything
 
 Nothing on the difficulty axis is supported by the data. The measured levers all
@@ -141,6 +189,8 @@ point elsewhere:
    build change) would re-open it — but note the last three resist shapes each
    measured ~zero lives, and targeting priority measured **0.00 even played
    perfectly and free**.
-3. If a level must feel harder, the honest lever is a **finale**, because a boss
-   is additive, budget-exempt and hand-tuned into its own band — i.e. the thing
-   the engine already supports.
+3. ~~If a level must feel harder, the honest lever is a **finale**.~~ **Refuted
+   in §5b** — forbidden on a flat level by the world-structure contract, and a
+   finale cannot be graded by boss hp anyway. The only structurally legal home
+   for a new finale is a TENTH WORLD (L37-40), which is a full world pass and
+   would leave the star ceiling at 120⭐ against the 123⭐ tree (margin 3).
