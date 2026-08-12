@@ -4975,6 +4975,28 @@ honest lever if a level must bite is a FINALE, because a boss is additive,
 budget-exempt and hand-tuned into its band — the thing the engine already
 supports.
 
+**华丽's ART pass found the SAME defect twice, and both times the guardrail that
+exists to catch it was scoped to Josh's registry.** Her home showed 🏮 on BOTH
+贴纸 and 民俗文化 — two identical red lanterns side by side, on the one screen a
+70-year-old navigates by picture — and the tile-icon law that caught 45 of Josh's
+240 tiles could not see it, because a home's category / 随便玩 / sticker-book
+tiles are built directly by main.js and hl-main.js and are NOT registered games.
+It walks the rendered nav tiles of both homes now, per screen. Her 🏮 book was
+the second: Josh's was fixed to 200/200 unique prizes and hers still picked one
+of 25 motifs by hash, measuring **22 unique across 40 games with 28 of 40 sharing
+one** — and its guardrail is literally titled "Josh's 200 games". Same fix as
+his (the motif ON a shaped, coloured seal: 25 x 4 x 8 = 800 combinations), with
+his lesson applied — THREE independently-seeded streams, and the motif keeps its
+ORIGINAL seed so an earned sticker keeps the picture she won. Two things worth
+keeping. **FNV with a different SEED is only weakly decorrelated** — the first
+cut measured 36/40, which is the "one hash sliced into bit-fields" trap wearing a
+different hat; a murmur3 finalizer on the derived streams gives 40/40, while 5
+shapes measures 38/40, so this is a property of these hashes and these ids rather
+than a monotonic one. And **a probe that RETYPES a hash measures its own typo**:
+my first reading of the book said 19 unique / 33 sharing, computed with an h*31
+hash against a shipped FNV, and it was the mutation message DISAGREEING with it
+that exposed the error. Copy the hash out of the source.
+
 **WORLD 10 — 🎉 The Party (L37-L40) SHIPPED, and it is the one lever the closed
 difficulty axis left open, acted on.** The mini-boss phase ended with exactly one
 route: a finale is additive and budget-exempt, and `TD structure` allows a boss
@@ -5317,6 +5339,13 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   spacing rather than overlapping, lane clear. No busyness guardrail was added
 >   — the shipped spread is 3×, so a cap would be an invented threshold.
 >
+> - **华丽's ART pass is DONE** (2026-08) — the item this list carried as open.
+>   Two real defects, both the shape Josh's world was fixed for and hers was
+>   not, and both invisible to guardrails scoped to HIS registry: her home wore
+>   🏮 on BOTH 贴纸 and 民俗文化 (now 🎆, and the tile-icon law walks the
+>   RENDERED nav tiles of both homes now, not just registered games), and her
+>   🏮 book gave **28 of 40 games a prize another game already had** (22 unique;
+>   the motif now sits on a shaped, coloured seal — 25 x 4 x 8 — for 40/40).
 > - **华丽's BEHAVIOURAL pass is DONE** (2026-08): all 40 games driven, every
 >   spoken line read, ~500 distinct rounds captured across her 23 pick-the-answer
 >   games. Content truth came back clean; the fixes were 月亮圆缺 not naming its
