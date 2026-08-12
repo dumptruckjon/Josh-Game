@@ -1560,7 +1560,8 @@ body.hl-mode .brand { color: #ffe9b0; }
   border: 2px solid rgba(212, 164, 55, 0.55); color: #5a2a12;
 }
 .game--hl .choice--num { color: #b23a1a; }
-.game--hl .music__hint { font-weight: 700; }
+.game--hl .music__hint { font-weight: 700; font-size: 1.1rem; }   /* scoped to HER world on purpose: .music__hint is shared with Josh's music
+      pad, where 15.2px is correct because that line is for the grown-up. */
 
 /* ---- Shared hl grids: NEVER more than 3 button columns (the >=75px tap rule
    must hold at 320px; 4 columns of buttons cannot). Spans may pack tighter. ---- */
@@ -1696,7 +1697,10 @@ body.hl-mode .brand { color: #ffe9b0; }
   font-size: 2.2rem; line-height: 1;
 }
 .hl-diffrow--ref .hl-diffcell { background: rgba(255, 248, 236, 0.85); border: 2px dashed rgba(212, 164, 55, 0.6); }
-.hl-diffvs { width: 100%; text-align: center; font-size: 0.95rem; font-weight: 700; margin: 2px 0; }
+.hl-diffvs { width: 100%; text-align: center; font-size: 1.1rem; font-weight: 700; margin: 2px 0; }   /* 0.95rem = 15.2px, the size the nav pass called out as too small in the one
+      world whose user READS. This run and .music__hint below were the only two of
+      her 40 games under 16px — both had been through the CONTRAST pass, which
+      measured colour and never type. */
 
 /* ---- 静心时光 ---- */
 .hl-lotus {

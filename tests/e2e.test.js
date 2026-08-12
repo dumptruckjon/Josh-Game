@@ -334,6 +334,49 @@ test("no two games on the SAME category screen wear the same picture", async () 
   }
 });
 
+test("华丽's world is READABLE — no game shows her text below 16px", async () => {
+  // Her world is the only one on this site whose user actually reads: Josh is a
+  // non-reader by design (RULE 5's first law) and the fort is Jon's. The nav pass
+  // already raised her home and category titles off 12.8/15.2px for exactly this
+  // reason — and nobody had ever measured her GAME screens.
+  //
+  // Measured across all 40: the floor was 15.2px on two of them, 找不同's
+  // "▲ 上图 · 下图哪里不同？ ▼" (the instruction itself) and 古筝's sound hint.
+  // Both had already been through the CONTRAST pass, which measured colour and
+  // never type — two passes over the same runs, each blind to the other's axis.
+  //
+  // Emoji runs are excluded: a picture is not type. 16px is the floor the other
+  // 38 already held, so this is a ratchet on shipped behaviour, not an invention.
+  const FLOOR = 16;
+  const ids = await page.evaluate(() => (window.JoshGames || []).filter((g) => g.hl).map((g) => g.id));
+  assert.ok(ids.length >= 40, `her world registers its games (${ids.length})`);
+  const small = [];
+  let checked = 0;
+  for (const id of ids) {
+    await page.evaluate((h) => { location.hash = h; }, id);
+    await page.locator("#screen-" + id).waitFor({ state: "visible" });
+    const found = await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      const out = [];
+      let runs = 0;
+      for (const n of el.querySelectorAll("*")) {
+        if (!n.offsetParent) continue;
+        const t = [...n.childNodes].filter((x) => x.nodeType === 3).map((x) => x.textContent).join("").trim();
+        if (!t || !/[\p{L}\p{Nd}]/u.test(t)) continue;   // an emoji run is a PICTURE, not type
+        runs++;
+        const px = parseFloat(getComputedStyle(n).fontSize);
+        if (px < 16) out.push(px.toFixed(1) + "px \"" + t.slice(0, 20) + "\"");
+      }
+      return { out, runs };
+    }, "#screen-" + id);
+    checked += found.runs;
+    for (const f of found.out) small.push(id + ": " + f);
+  }
+  assert.ok(checked >= 80, `audited her real text (${checked} runs across ${ids.length} games)`);
+  assert.deepEqual(small, [],
+    `she reads this world — these runs are under ${FLOOR}px: ${small.join(" | ")}`);
+});
+
 test("华丽's 🏮 book gives every one of HER 40 games its own prize too", async () => {
   // The uniqueness guardrail next door is titled "Josh's 200 games" and is
   // scoped to his registry, so her book was never checked — the fourth instance
