@@ -5016,6 +5016,22 @@ lever is decisive at an 8-pad board (short 0/4 → long 3/4) and worth 6 lives a
 9, which is what `TD7 lever advantage` now pins. And L37 ships at a flat `20 ×8`
 on normal — the **seventh** reproduction of the step function, recorded rather
 than faked, exactly as World 5 and World 9's openers were.
+**The visual vet of the new floor found one real defect, and it is about a
+SHARED primitive meeting a NEW context.** World 10 is the first BRIGHT floor in
+the game, and its prop trio included `stain` — a floor MARK, drawn as a dark
+ellipse at ≤0.62 alpha with no cast shadow, because it is a mark rather than a
+form above the ground. That is subtle on the four DARK floors that use it
+(attic / garage / sort line / toy works) and on a plum carpet it reads as a
+HOLE: three of them in one screenshot quadrant, indistinguishable from the
+duplicate-shadow defect the owner once reported as *"some of the shadows are
+just circles after circles"*. Swapped for `tin`, which has form and a shadow.
+The rule: **a floor-MARK prop belongs on a dark floor; a light floor wants props
+with FORM** — and the only way to know was to look, because no number test can
+tell a hole from a shadow from a mark. The same pass confirmed the two things
+that class usually breaks: 🎉 fits inside the road at the lane start (the
+bed-glyph ink-fit law) and the exit is the striped hazard threshold, so the two
+ends of the lane are never confusable.
+
 **And the world broke a guardrail by GROWING, which is the more transferable
 find: a CALIBRATION that uses a proxy instead of the claim goes stale with the
 thing it measured against.** The fort contrast audit proves each dialog really

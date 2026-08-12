@@ -510,7 +510,13 @@
     // worlds once shipped the identical road because they simply had no `road`.
     party: { label: "🎉 The Party", spawnGlyph: "🎉",
       backbone: { ground: ["popper", "knight", "blob", "sweet"], flier: "streamer" },
-      floor: { pattern: "confetti", props: ["box", "blocks", "stain"], top: "#4a2f52", bottom: "#5d3b63", ink: "rgba(255,236,150,0.12)",
+      // `stain` is deliberately NOT in this trio, and the reason generalizes: a
+      // floor MARK is drawn as a dark ellipse at <=0.62 alpha, which is subtle on
+      // the four DARK floors that use it (attic/garage/sortline/toyworks) and reads
+      // as a HOLE on a bright one — screenshotted on this plum carpet, three of them
+      // in one quadrant, indistinguishable from the duplicate-shadow defect the owner
+      // once reported as "circles after circles". A light floor wants props with FORM.
+      floor: { pattern: "confetti", props: ["box", "blocks", "tin"], top: "#4a2f52", bottom: "#5d3b63", ink: "rgba(255,236,150,0.12)",
                road: { edge: "#2a1730", base: "#c66aa8", top: "#e894c6", style: "chain", tie: "rgba(255,236,150,0.42)" } } },
   };
 

@@ -173,6 +173,21 @@ is not faked with a knob the data does not support.
 - ❌ Add an eleventh world without growing the star tree first. At 44 levels the
   ceiling is 132⭐ against a 140⭐ tree — margin 8, and shrinking.
 
+## 6b. The visual vet found one real defect: `stain` on a BRIGHT floor
+
+A floor MARK is drawn as a dark ellipse at ≤0.62 alpha with no cast shadow —
+because it is a mark, not a form above the ground. That is subtle on the four
+DARK floors that use it (attic / garage / sort line / toy works). On this plum
+carpet it reads as a HOLE: three in one screenshot quadrant, indistinguishable
+from the duplicate-shadow defect once reported as *"circles after circles"*.
+Prop trio is `["box", "blocks", "tin"]` now.
+
+**A floor-MARK prop belongs on a dark floor; a light floor wants props with
+FORM.** No number test can tell a hole from a shadow from a mark — the only way
+to know was to look. The same pass confirmed 🎉 fits inside the road at the lane
+start (the bed-glyph ink-fit law) and the exit is the striped hazard threshold,
+so the lane's two ends are never confusable.
+
 ## 7. What this world broke by GROWING, and why that is the useful part
 
 The fort's contrast audit went red on a world that touches none of its code. It
