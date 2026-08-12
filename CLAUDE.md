@@ -4975,6 +4975,23 @@ honest lever if a level must bite is a FINALE, because a boss is additive,
 budget-exempt and hand-tuned into its band — the thing the engine already
 supports.
 
+**And the same pass found a THIRD defect on an axis nobody had measured: two of
+her games showed 15.2px INSTRUCTION text.** Her world is the only one here whose
+user reads — Josh is a non-reader by design and the fort is Jon's — and the nav
+pass had already raised her home and category titles off 12.8/15.2px for that
+reason, but her GAME screens had never been measured. Across all 40 the floor was
+15.2px on exactly two: 找不同's `▲ 上图 · 下图哪里不同？ ▼`, which IS the
+instruction, and 古筝's sound hint. The other 38 already held 16px+, so the fix is
+a ratchet on shipped behaviour rather than an invented threshold, and `.music__hint`
+is shared with Josh's music pad (where 15.2px is right, because that line is for
+the grown-up) so the size fix is scoped to `.game--hl`. **The lesson is that BOTH
+runs had already been through the painted-CONTRAST pass** — which fixed
+`.music__hint` at 2.02:1 and `.hl-diffvs` at 4.40:1. That pass measured COLOUR;
+nothing had ever measured TYPE. Two audits over the identical runs, each blind to
+the other's axis. So when a pass finds a defect on a surface, ask which OTHER
+property of that same surface nobody has measured — a guardrail now walks every
+one of her games and fails on any letter/digit run under 16px.
+
 **华丽's ART pass found the SAME defect twice, and both times the guardrail that
 exists to catch it was scoped to Josh's registry.** Her home showed 🏮 on BOTH
 贴纸 and 民俗文化 — two identical red lanterns side by side, on the one screen a
