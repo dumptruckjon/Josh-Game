@@ -22,7 +22,7 @@
       { id: "hlc-words", icon: "📜", title: "诗词成语", color: "#ad6800" },
       { id: "hlc-memory", icon: "🧠", title: "记忆锻炼", color: "#7a4fd0" },
       { id: "hlc-math", icon: "🧮", title: "心算算术", color: "#1769aa" },
-      { id: "hlc-culture", icon: "🏮", title: "民俗文化", color: "#b23c17" },
+      { id: "hlc-culture", icon: "🎆", title: "民俗文化", color: "#b23c17" },
       { id: "hlc-eyes", icon: "👁️", title: "眼明手快", color: "#2e7d32" },
       { id: "hlc-calm", icon: "🍵", title: "静心时光", color: "#00796b" },
     ],

@@ -307,6 +307,65 @@ test("no two games on the SAME category screen wear the same picture", async () 
   });
   assert.equal(dupes.length, 0,
     `every tile on a category screen must be a DIFFERENT picture — ${dupes.join(" | ")}`);
+
+  // …and the same law on the NAVIGATION tiles, which this check could not see.
+  // It reads the REGISTRY, and a home screen's category / 随便玩 / sticker-book
+  // tiles are built directly by main.js and hl-main.js — they are not registered
+  // games. So 华丽's home shipped 🏮 on BOTH 贴纸 and 民俗文化: two identical red
+  // lanterns side by side on the one screen a 70-year-old navigates by picture.
+  // Read off the rendered DOM rather than the data, because that is what she
+  // actually sees, and per SCREEN, because cross-screen reuse is fine.
+  for (const [hash, sel] of [["#home", "#screen-home"], ["#hl-home", "#screen-hl-home"]]) {
+    await page.evaluate((h) => { location.hash = h; }, hash);
+    await page.locator(sel).waitFor({ state: "visible" });
+    const nav = await page.evaluate((s) => {
+      const seen = {};
+      for (const t of document.querySelectorAll(s + " .tile")) {
+        const ic = t.querySelector(".tile__icon"), lb = t.querySelector(".tile__label");
+        const k = ic && ic.textContent.trim();
+        if (k) (seen[k] = seen[k] || []).push((lb ? lb.textContent : "").trim());
+      }
+      return { total: Object.values(seen).reduce((a, b) => a + b.length, 0),
+               dup: Object.entries(seen).filter(([, a]) => a.length > 1).map(([i, a]) => i + " on " + a.join(" & ")) };
+    }, sel);
+    assert.ok(nav.total >= 8, `${sel} rendered ${nav.total} nav tiles — too few to be auditing the real home`);
+    assert.deepEqual(nav.dup, [],
+      `${sel}: two navigation tiles wear the same picture — ${nav.dup.join("; ")}`);
+  }
+});
+
+test("华丽's 🏮 book gives every one of HER 40 games its own prize too", async () => {
+  // The uniqueness guardrail next door is titled "Josh's 200 games" and is
+  // scoped to his registry, so her book was never checked — the fourth instance
+  // this session of a scan whose own scope was the defect (the flex-gap law
+  // guarded only main.css, the VS16 scan hand-listed nine files, the nav tiles
+  // above were invisible to the registry check).
+  //
+  // Measured through the SHIPPED hash, her 25-motif pool over 40 games gave **22
+  // unique prizes, 28 of 40 games sharing one**, largest group 🐲 x4 — exactly
+  // the defect Josh's book was fixed for and hers was not. Read off the RENDERED
+  // slots rather than the data, because the prize is what she actually sees — and
+  // because a probe that RETYPES the hash measures its own typo: the first pass
+  // here used h*31 against a shipped FNV and confidently reported 19/33.
+  await page.evaluate(() => { location.hash = "#hl-stickers"; });
+  await page.locator("#screen-hl-stickers").waitFor({ state: "visible" });
+  const seen = await page.evaluate(() => {
+    const out = {};
+    for (const slot of document.querySelectorAll("#screen-hl-stickers .sticker-slot")) {
+      const seal = slot.querySelector(".hl-seal");
+      // the prize IS motif + shape + colour; any one of the three alone repeats
+      const key = seal
+        ? [seal.textContent.trim(), [...seal.classList].filter((c) => /--s\d/.test(c)).join(""), seal.style.background].join("|")
+        : slot.querySelector(".sticker-slot__art").textContent.trim();
+      (out[key] = out[key] || []).push(slot.dataset.sticker);
+    }
+    return out;
+  });
+  const total = Object.values(seen).reduce((a, b) => a + b.length, 0);
+  assert.ok(total >= 40, `her book rendered ${total} slots — too few to be auditing the real book`);
+  const dup = Object.entries(seen).filter(([, a]) => a.length > 1).map(([k, a]) => k + " on " + a.join(", "));
+  assert.deepEqual(dup, [],
+    `${total - Object.keys(seen).length} of her ${total} games share a prize with another: ${dup.join(" | ")}`);
 });
 
 test("华丽's world names itself in the top bar, and Josh's names his", async () => {

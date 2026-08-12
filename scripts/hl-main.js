@@ -19,11 +19,43 @@
     if (window.JoshProgress) return window.JoshProgress.isWon(id);
     try { return localStorage.getItem("josh-won-" + id) === "1"; } catch (e) { return false; }
   }
-  // A stable Chinese-motif sticker per game (FNV-ish hash into the pool).
-  function stickerFor(id) {
-    let h = 2166136261;
+  // A stable Chinese-motif sticker per game: the motif ON a shaped, coloured
+  // seal. Josh's book was fixed this way and hers never was — measured, her 25
+  // motifs across 40 games gave **22 unique prizes, with 28 of 40 games sharing
+  // one** and the largest group 🐲 x4. A collection where most prizes repeat is
+  // not a collection. (The first probe of that reported 19/33 and was WRONG: it
+  // RETYPED the hash as h*31 while the shipped one is FNV. Copy, do not retype.)
+  //
+  // THREE independently-seeded streams, which is the lesson Josh's fix paid for:
+  // slicing ONE hash into bit-fields correlates the axes through the modulo (his
+  // left exactly the pairs the birthday bound predicts). The motif keeps its
+  // ORIGINAL seed, so a sticker already earned keeps the picture she won.
+  // 25 motifs x 4 shapes x 8 colours = 800 combinations for 40 games.
+  const SEAL_SHAPES = 4;
+  const SEAL_COLORS = ["#c8302b", "#d9a022", "#2e7d6b", "#2b5f9e", "#7a3f8f", "#8c3d2a", "#d4657f", "#4f8f3a"];
+  function h32(id, seed) {
+    let h = seed >>> 0;
     for (const ch of id) h = ((h ^ ch.codePointAt(0)) * 16777619) >>> 0;
-    return HL.STICKER_POOL[h % HL.STICKER_POOL.length];
+    return h >>> 0;
+  }
+  // FNV with a different SEED is only weakly decorrelated — the shape and colour
+  // streams still collided at 36 of 40, which is Josh's "one hash sliced into
+  // bit-fields" trap wearing a different hat. A murmur3 finalizer decorrelates
+  // them properly: 40/40. Applied to the DERIVED streams only, so the motif hash
+  // is byte-identical to the shipped one and a sticker already earned keeps the
+  // picture she won.
+  function mix(h) {
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0;
+    h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  function stickerFor(id) {
+    const motif = HL.STICKER_POOL[h32(id, 2166136261) % HL.STICKER_POOL.length];
+    const shape = mix(h32(id, 0x9e3779b1)) % SEAL_SHAPES;
+    const color = SEAL_COLORS[mix(h32(id, 0x85ebca6b)) % SEAL_COLORS.length];
+    // No <filter> and no per-sticker <defs>: the book paints 40 of these on one
+    // scrolling page, and both are documented WebKit cliffs in this repo.
+    return '<span class="hl-seal hl-seal--s' + shape + '" style="background:' + color + '">' + motif + "</span>";
   }
 
   let refreshHlStickers = null;
@@ -188,7 +220,7 @@
     sgrid.className = "sticker-grid";
     games.forEach((def) => {
       sgrid.appendChild(ST.slot(def, stickerFor(def.id), {
-        artClass: "hl-sticker",
+        artClass: "hl-sticker", html: true,
         onLocked: () => sayZh("先玩这个游戏，赢了就有贴纸！"),
       }));
     });
