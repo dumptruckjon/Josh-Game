@@ -2850,63 +2850,184 @@ test("PLACEMENT: the range ring on the field is the reach the engine USES", asyn
     `(${gBoost} vs ${gPlain}) — it shipped as a hard-coded literal, the same circle everywhere`);
 });
 
-test("PLACEMENT: every label on a build button clears AA, in every affordability state", async () => {
-  // Contrast is measurable, not eyeballable — and this surface proved it. Adding
-  // the road figure at `opacity: 0.62` would have measured 2.66:1, and measuring
-  // it showed the SHIPPED role label was already at 3.52:1 and the price, the
-  // biggest text on the button, at 3.00:1. The cause is one number: on the green
-  // "you can afford it" fill the ink is 4.96:1 at full strength, so there is no
-  // headroom to dim, while the yellow (9.92) and maroon (7.25) states have
-  // plenty — the tightest state has to decide the rule for all three.
+test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async () => {
+  // The fort HAD a contrast pass. It reported 0 failures across 10 surfaces and
+  // had never opened the BUILD MENU, where measuring found two shipped AA
+  // failures — the role label at 3.52:1 and the price, the biggest text on the
+  // button, at 3.00:1. Its surface list was hand-written, which is the class
+  // this repo keeps paying for (the flex-gap law guarded only main.css, the
+  // VS16 scan hand-listed nine files, FIELD_TRAIT hand-listed twelve fields,
+  // the overlay audit hand-listed six dialogs). So this DERIVES its surfaces
+  // from the fort home's own buttons and walks the play screen's real states.
   //
-  // Read from the REAL cascade rather than from a list of CSS rules, so a label
-  // added to this button tomorrow is audited without anyone remembering to.
+  // Widening it immediately found two more instances of the very law the build
+  // menu taught: `.td-branch__role` dimmed to 4.40:1 and `.td-target` at
+  // 4.45:1, both on the same #2fa562 fill whose ink is 4.96:1 at full strength
+  // — i.e. a fill with no headroom to dim on.
+  //
+  // WCAG 1.4.3 exempts text that is part of an INACTIVE component, so a
+  // disabled/locked run is recorded and skipped rather than quietly "passing":
+  // the fort's locked star-tree nodes, locked endless arenas, the disabled
+  // equip button and the unearned difficulty pips are all deliberately dim, and
+  // dimming IS the signal there. The exempt COUNT is asserted below so that
+  // exemption can never silently grow to swallow the audit.
+  const AUDIT = (label) => page.evaluate((lbl) => {
+    const px = (t) => (t.match(/-?[\d.]+/g) || []).slice(0, 4).map(Number);
+    const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const ratio = (a, b) => { const [h, l] = [lum(a), lum(b)].sort((x, y) => y - x); return (h + 0.05) / (l + 0.05); };
+    const mix = (fg, bg, a) => [0, 1, 2].map((i) => Math.round(fg[i] * a + bg[i] * (1 - a)));
+    // The fort body is a dark navy gradient (#0b1526 -> #142440 -> #1b2c4d). For
+    // light ink the WORST case is the lightest stop, so use it: that is a bound,
+    // not a guess, and it needs no screenshot decoding (which is why this costs
+    // ~9s and can live in CI at all).
+    const BODY = [27, 44, 77];
+    const bgOf = (el) => {
+      let n = el, over = null;
+      while (n && n !== document.documentElement) {
+        const cs = getComputedStyle(n);
+        const c = px(cs.backgroundColor);
+        const a = c[3] === undefined ? 1 : c[3];
+        if (a > 0) {
+          if (a === 1) return over ? mix(over.layer, c.slice(0, 3), over.a) : c.slice(0, 3);
+          if (!over) over = { layer: c.slice(0, 3), a };
+        }
+        if (/gradient/.test(cs.backgroundImage)) return over ? mix(over.layer, BODY, over.a) : BODY;
+        n = n.parentElement;
+      }
+      return over ? mix(over.layer, BODY, over.a) : BODY;
+    };
+    // A run is ART only if it carries no LETTER and no DIGIT. The obvious
+    // spelling — an emoji character class — is a trap: `\p{Emoji_Component}`
+    // MATCHES THE ASCII DIGITS (they are keycap bases), so "70🪙" tested as
+    // emoji-only and this audit silently skipped every number in the fort:
+    // prices, gold, lives, wave counts, star costs. Caught by a mutation the
+    // narrower test it replaced did catch and this one did not.
+    const isArt = (t) => !/[\p{L}\p{Nd}]/u.test(t);
+    const out = { runs: 0, fails: [], exempt: 0 };
+    const seen = new Set();
+    for (const el of document.querySelectorAll("*")) {
+      if (!el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
+      const txt = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
+      if (!txt) continue;
+      out.runs += 1;
+      if (isArt(txt)) continue;                          // an icon is ART, not text
+      const cs = getComputedStyle(el);
+      if (cs.visibility === "hidden" || Number(cs.opacity) === 0) continue;
+      // occluded, or scrolled out of its own box? skip — both are false positives
+      const cx = Math.min(innerWidth - 1, Math.max(1, r.left + Math.min(6, r.width / 2)));
+      const cy = Math.min(innerHeight - 1, Math.max(1, r.top + r.height / 2));
+      const top = document.elementFromPoint(cx, cy);
+      if (top && top !== el && !el.contains(top) && !top.contains(el)) continue;
+      if (el.closest("[disabled]") || el.closest('[aria-disabled="true"]') ||
+          el.closest('[class*="--locked"], [class*="__dim"]')) { out.exempt += 1; continue; }
+      const c = px(cs.color);
+      const bg = bgOf(el);
+      const ink = mix(c.slice(0, 3), bg, (c[3] === undefined ? 1 : c[3]) * Number(cs.opacity));
+      const size = parseFloat(cs.fontSize), weight = Number(cs.fontWeight);
+      const bar = (size >= 24 || (size >= 18.66 && weight >= 700)) ? 3 : 4.5;
+      const rr = ratio(ink, bg);
+      const key = el.className + "|" + txt.slice(0, 24);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (rr < bar) out.fails.push(`${lbl}: .${String(el.className).slice(0, 40)} "${txt.slice(0, 28)}" ` +
+        `is ${rr.toFixed(2)}:1 at ${size}px/w${weight}, below AA's ${bar}:1`);
+    }
+    return out;
+  }, label);
+
+  const fails = [], surfaces = [];
+  const add = async (label, minRuns) => {
+    const o = await AUDIT(label);
+    // CALIBRATION, baked in: a surface that never opened audits the runs of the
+    // one behind it and reports a clean sweep. Two of these (the pause menu and
+    // the victory overlay) silently did exactly that while this was a scratch
+    // probe, so the run count is asserted rather than trusted.
+    assert.ok(o.runs >= minRuns,
+      `${label}: only ${o.runs} text runs visible (expected >= ${minRuns}) — the surface did not open, ` +
+      "so a clean result here would be a false negative");
+    surfaces.push(label); fails.push(...o.fails);
+    return o;
+  };
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  // A SANITY floor only. The first cut asserted >= 60 runs, calibrated against a
+  // fresh page (124) — and the full suite runs this after tests that change the
+  // save, where the same healthy screen renders 58. An absolute count here is a
+  // fence around one observed state; what actually catches "the surface never
+  // opened" is the RELATIVE check on everything opened over a base, below.
+  const home = await add("fort home", 20);
+
+  // DERIVED, not listed: every dialog the fort home can open.
+  const openers = await page.evaluate(() => [...document.querySelectorAll("#screen-td-home .td-metabtn, #screen-td-home .td-adminrow button")]
+    .map((b) => ({ cls: [...b.classList].find((c) => /-open$|reset|backup/.test(c)) || b.className.split(" ").pop(), txt: b.textContent.trim().slice(0, 14) })));
+  assert.ok(openers.length >= 6, `expected the fort home to offer several dialogs, saw ${openers.length}`);
+  for (const o of openers) {
+    await page.locator("#screen-td-home ." + o.cls).first().click();
+    await page.waitForTimeout(220);
+    // each dialog must ADD runs over the bare home, or it did not open
+    await add("dialog " + o.txt, home.runs + 3);
+    await page.evaluate(() => { if (window.TDUI && TDUI.closeOverlay) TDUI.closeOverlay(); });
+    await page.waitForTimeout(140);
+  }
+
+  // ---- play screen: the states a player actually decides in ----
   await page.evaluate(() => { location.hash = "#td-play"; });
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(3, { seed: 7 }));
+  await page.waitForTimeout(150);
+  await add("play (build phase)", 5);
   const rect = await page.locator(".td-canvas").boundingBox();
-  const audit = async (gold, label) => {
-    await page.evaluate((g) => {
-      window.__TD.newGame(1, { seed: 42 });
-      window.__TD.engine().state.gold = g;
-    }, gold);
-    const sp = await page.evaluate(() => window.__TD.w2s(9.5, 5.5));
+  const pad = await page.evaluate(() => { const p = window.__TD.engine().levelDef.pads[0]; return { cx: p.cx, cy: p.cy }; });
+  const tapPad = async () => {
+    const sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
     await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
-    await page.locator(".td-buildmenu").waitFor({ state: "visible" });
-    const runs = await page.evaluate(() => {
-      const px = (s) => (s.match(/[\d.]+/g) || []).slice(0, 4).map(Number);
-      const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
-      const out = [];
-      document.querySelectorAll(".td-buildmenu .td-buy").forEach((btn) => {
-        const bg = px(getComputedStyle(btn).backgroundColor).slice(0, 3);
-        btn.querySelectorAll("span").forEach((el) => {
-          const cs = getComputedStyle(el);
-          if (!el.textContent.trim()) return;
-          // an icon is ART, not text — the same rule the 华丽 contrast pass needed
-          if (el.classList.contains("td-buy__icon")) return;
-          const c = px(cs.color), a = (c[3] === undefined ? 1 : c[3]) * Number(cs.opacity);
-          const ink = [0, 1, 2].map((i) => Math.round(c[i] * a + bg[i] * (1 - a)));
-          const [hi, lo] = [lum(ink), lum(bg)].sort((p, q) => q - p);
-          out.push({ cls: el.className, line: btn.dataset.line, r: (hi + 0.05) / (lo + 0.05),
-                     size: parseFloat(cs.fontSize), weight: Number(cs.fontWeight) });
-        });
-      });
-      return out;
-    });
-    assert.ok(runs.length >= 8, `${label}: expected several labels to audit, saw ${runs.length}`);
-    for (const r of runs) {
-      // Everything here is SMALL text (<18.66px), so the bar is the full 4.5.
-      const large = r.size >= 24 || (r.size >= 18.66 && r.weight >= 700);
-      const bar = large ? 3 : 4.5;
-      assert.ok(r.r >= bar,
-        `${label}: ${r.cls} on the ${r.line} button is ${r.r.toFixed(2)}:1, below AA's ${bar}:1 — ` +
-        "dim a label with SIZE, never with opacity, on a fill this tight");
-    }
-    await page.locator("#screen-td-play .td-hud").click();
-    return runs.length;
   };
-  await audit(9999, "affordable (green)");
-  await audit(0, "unaffordable (maroon)");
+  const dismiss = () => page.evaluate(() => document.querySelector("#screen-td-play .td-hud").click());
+
+  await tapPad();
+  await page.locator(".td-buildmenu").waitFor({ state: "visible", timeout: 4000 });
+  await add("build menu (affordable)", 5);   // opened-proof is its own selector, waited for above
+  await dismiss();
+  await page.evaluate(() => { window.__TD.engine().state.gold = 0; });
+  await tapPad();
+  await page.locator(".td-buildmenu").waitFor({ state: "visible", timeout: 4000 });
+  await add("build menu (unaffordable)", 5);   // opened-proof is its own selector, waited for above
+  await dismiss();
+
+  await page.evaluate(() => {
+    window.__TD.newGame(3, { seed: 7 }); window.__TD.grantGold(9000);
+    window.__TD.script([["place", "dart", "p1"], ["upgrade", 0], ["upgrade", 0]]);
+  });
+  await tapPad();
+  await page.locator(".td-panel").waitFor({ state: "visible", timeout: 4000 });
+  await add("tower panel (tier 3)", 5);   // opened-proof is its own selector, waited for above
+  await dismiss();
+
+  // __TD.newGame leaves the run PAUSED, so the first tap RESUMES rather than
+  // opening the menu — drive it until the overlay is really there.
+  await page.evaluate(() => document.querySelector("#screen-td-play .td-pause").click());
+  await page.waitForTimeout(180);
+  if (!(await page.locator(".td-overlay").count())) {
+    await page.evaluate(() => document.querySelector("#screen-td-play .td-pause").click());
+    await page.waitForTimeout(220);
+  }
+  assert.equal(await page.locator(".td-overlay").count(), 1, "the pause menu opened");
+  await add("pause menu", 5);   // opened-proof is its own selector, waited for above
+  await page.evaluate(() => { if (window.TDUI && TDUI.closeOverlay) TDUI.closeOverlay(); });
+
+  await page.evaluate(() => window.__TD.winL1(7));
+  await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 8000 });
+  await add("victory overlay", 5);   // .td-overlay--win was waited for; a finished run REMOVES controls, so it legitimately has FEWER runs than the play screen
+
+  assert.ok(surfaces.length >= 13, `expected to audit every fort surface, saw ${surfaces.length}`);
+  assert.deepEqual(fails, [],
+    `${fails.length} ACTIVE text run(s) below WCAG AA on the fort:\n  ` + fails.join("\n  "));
 });
 
 test("PLACEMENT: a built tower states its road, and a branch that MOVES it says so", async () => {

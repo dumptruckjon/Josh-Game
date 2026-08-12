@@ -4824,6 +4824,85 @@ the mutation entirely, which looked exactly like the guardrail passing. Compare
 the STRINGS. That is the em-dash mutation trap wearing a different hat, and it
 is now the second time it has bitten in this repo.
 
+**THE BRANCH AUDIT'S TWO RECORDED GAPS ARE CLOSED, AND BOTH ANSWERS ARGUE
+AGAINST EVER RE-TUNING A BRANCH STAT.** (1) **On heroic, a branch's sign is a
+property of the LEVEL, not of the branch.** Swept over the seven late finales
+(4 seeds, convert 1, the shipped best-of-two plans): **Sniper Scope reads +12 on
+L16, −7 on L20, −2 on L24 and ~0 on L28/L32** — the same 300-gold purchase is
+the best and the worst pick in the game depending on which map it stands on.
+Two more results worth keeping: **Static Zap on L36 is +6 with ZERO variance
+across all four seeds** (14,14,14,14 against a control of 8), the cleanest
+single branch result measured anywhere; and **L12 is inert — every arm returns
+the control's exact numbers with `bought=4`**, because that level is decided
+long before a board is full and maxed. Combined with the recorded normal-side
+finding (every branch positive at its BEST pad, up to 5 lives of swing from
+placement alone), this settles the design question: **no set of stat numbers can
+make a branch right in both places, so the answer was always information** —
+which is what the `% road` figure and the overkill warning ship. Do not re-tune
+a branch's damage to "fix" a level. (2) **The camp branches measure ~zero, and
+now on more than one level.** With a camp-inclusive plan (`PLANS=camp`, so the
+control runs the same board), **11 of 14 level-difficulty combos are
+byte-identical to control with `bought=4` proving the purchases landed**. Dino Squad moves **+1 life on L28
+normal** (3→4, 8→9, 6→7 on three seeds) and flips a single L16 heroic seed from
+a loss to a 1-life win. In the three combos that DID move, the two branches are
+**identical to each other** — on L36 heroic both read exactly `[3,7,3,5]`
+against a control of `[2,7,2,7]` — which is the signature of a PRICE effect
+rather than an ability effect: converting anything costs 300 gold, and the
+`--priority` arm already records that a control which costs something is not a
+control. So the two camp ultimates are, on the finales,
+effectively decorative. **Two limits stated rather than glossed:** the CAMP plan
+is deliberately WEAKER than either oracle plan (it loses seeds on L16/L28
+heroic), so only the controlled comparison means anything, not the absolute
+lives; and this converts the FIRST eligible camp, with the pad NOT swept —
+given that placement is worth up to 5 lives on the shooting lines, a
+`BRANCHPAD` sweep could still move it, and that is the honest next probe rather
+than a conclusion already drawn.
+
+**THE FORT'S CONTRAST PASS WAS SCOPED BY A HAND-WRITTEN SURFACE LIST, AND
+WIDENING IT FOUND THE SAME LAW BROKEN TWICE MORE — but the finding that matters
+is the one about my own guardrail, which shipped blind to every NUMBER in the
+game.** The recorded pass reported "0 WCAG AA failures across 10 surfaces" and
+had never opened the build menu, where measuring then found two (role 3.52:1,
+price 3.00:1). Deriving the surface list instead — every dialog the fort home's
+own `.td-metabtn`/`.td-adminrow` buttons can open, plus the play screen's real
+states — audits 14 surfaces and found **4 more ACTIVE runs below AA, all on
+surfaces the old list never opened**: `.td-branch__role` dimmed to **4.40:1**
+(the text stating what a 300-gold ultimate does, and where the new road delta
+lives) and `.td-target` at **4.45:1**. Both are the identical law the build menu
+taught — the affordable fill paints `#052a14` on `#2fa562` = **4.96:1 at full
+strength**, so there is no headroom to dim on — which means **my own fix a day
+earlier was scoped to `.td-buy__*` when the law is about the FILL**. Fixed to
+4.96:1 by removing the opacity and matching the ink; hierarchy is size and case.
+Five things worth keeping. (1) **A wider replacement must be proven against the
+mutations its predecessor caught.** The new audit caught 3 of the 4 CSS
+mutations and silently missed `.td-buy__cost` — because the "is this run ART?"
+test was an emoji character class, and **`\p{Emoji_Component}` MATCHES THE ASCII
+DIGITS** (they are keycap bases), so `"70🪙"` tested as emoji-only and the audit
+skipped **every number in the fort**: prices, gold, lives, wave counts, star
+costs. The rule is now "no letter and no digit ⇒ ART" (`!/[\p{L}\p{Nd}]/u`). A
+replacement test that is wider in principle can be narrower in fact.
+(2) **Calibration is baked in, because two surfaces silently never opened** — a
+surface that fails to open audits the runs of the screen behind it and reports a
+clean sweep, so each surface asserts a minimum run count and each home dialog
+must ADD runs over the bare home. The pause menu did exactly this (37 runs,
+identical to the tower panel behind it) for the same reason worth remembering:
+**`__TD.newGame` leaves the run PAUSED, so the first ⏸ tap RESUMES instead of
+opening the menu.** Its mutation proof is a `showPauseMenu` that returns early —
+the audit must go RED, not quietly pass. (3) **WCAG 1.4.3 exempts INACTIVE
+components, and 14 of the 18 findings are exactly that** — locked star-tree
+nodes, locked endless arenas, the disabled equip `＋`, the unearned difficulty
+pips — where dimming IS the signal; they are classified by measurement
+(`[disabled]`, `aria-disabled`, a `--locked`/`__dim` ancestor) rather than
+argued, and the exempt COUNT is asserted so the exemption cannot silently grow
+to swallow the audit. (4) **Composited computed styles beat screenshot decoding
+here**: the fort body is a dark navy gradient, and for light ink the WORST case
+is its LIGHTEST stop, so bounding by `#1b2c4d` is rigorous and needs no PNG
+decode — which takes the pass from the recorded 77s (explicitly kept out of CI)
+to **9s**, and that is the whole reason it can be a guardrail instead of a
+memory. (5) A run is deduped by class+text and skipped when `elementFromPoint`
+says something else is on top, the two sampling rules the 华丽 pass already
+needed.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
