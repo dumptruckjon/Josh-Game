@@ -1897,6 +1897,17 @@
     { id: "handyman",     branch: "econ", icon: "🔧", name: "Handyman",      desc: "Tier 1-3 upgrades cost 10% less",    cost: 4 },
     { id: "warmedup",     branch: "econ", icon: "🔌", name: "Warmed Up",     desc: "Start each level with a full battery", cost: 3 },
     { id: "softlanding",  branch: "fort", icon: "🛬", name: "Soft Landing",  desc: "Big leaks cost 2 fewer stickers",    cost: 4 },
+    // ---- W10 unblock: five more KINDS (never ranks). A tenth world takes the
+    // earnable ceiling to 120⭐, and at the old 123⭐ the tree would have been
+    // 97.6% affordable — TD-8 designed for 47%, so it stops being a choice.
+    // Every one is situational: Live Wire and Steady Aim need a specific
+    // tier-4 branch or the crit line, Coin Magnet needs piñatas, and both
+    // squad nodes are dead weight unless you build a camp.
+    { id: "livewire",     branch: "fire", icon: "🔗", name: "Live Wire",     desc: "The Fan's chain keeps more punch each jump", cost: 4 },
+    { id: "steadyaim",    branch: "fire", icon: "🎯", name: "Steady Aim",    desc: "Critical hits do 25% more damage",           cost: 3 },
+    { id: "coinmagnet",   branch: "econ", icon: "🧲", name: "Coin Magnet",   desc: "Piñatas burst 60% more gold",                cost: 3 },
+    { id: "padding",      branch: "fort", icon: "🧱", name: "Padding",       desc: "Soldiers take 25% less melee damage",        cost: 4 },
+    { id: "drillsergeant", branch: "fort", icon: "🥁", name: "Drill Sergeant", desc: "Soldiers hit 25% harder",                  cost: 3 },
   ];
 
   // ---- TD-5 ACHIEVEMENTS (§8.2): unlocked from real play, toast on earn,

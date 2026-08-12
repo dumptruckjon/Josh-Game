@@ -1414,6 +1414,10 @@ test("TD5 star tree: metaMods is a pure function of owned node ids (neutral tree
     // whole-shape assertion, so adding a key to metaMods and forgetting what
     // "off" means turns it red immediately.
     abilityCdMul: 1, mortarMinMul: 1, upgradeCost: 1, warmedUp: false, softLanding: 0,
+    // W10 breadth: five more, likewise default-noop. This assertion went RED the
+    // moment they landed, which is precisely what it is for — a mod that ships
+    // without declaring what "off" means is the dead-default class.
+    chainDecayPlus: 0, critMul: 1, goldBurstMul: 1, soldierArmor: 0, soldierDmg: 1,
   }, "empty tree is exactly vanilla");
   const all = DATA.META_NODES.map((n) => n.id);
   const mAll = TD.metaMods(all);
@@ -1832,6 +1836,121 @@ test("TD8 tree data: 3 branches, consistent ranks/capstones, total cost EXCEEDS 
     const n = nodes.find((x) => x.id === id);
     assert.ok(n, "legacy node " + id + " must still exist");
     assert.equal(n.cost, legacy[id], "legacy node " + id + " must keep its cost");
+  }
+});
+
+test("W10 tree: each of the five new KINDS actually does something, at its ONE site", () => {
+  // A node that ships with no effect is the dead-default class. metaMods is pure
+  // input, so every one of these is provable by driving the engine with and
+  // without it — no browser, no sampling.
+  //
+  // THREE FIXTURE BUGS were hit writing this, each of which first presented as
+  // "the node does nothing": time-to-clear a WAVE measures the last body's
+  // TRANSIT, not the squad's damage (951 ticks either way); a loop that exits
+  // while no enemy is alive exits at tick 0, before the first spawn; and events
+  // live on `e.events`, not `e.state.events`. Suspect the fixture first.
+  const lane = (type, count) => ({ id: 93, name: "micro", world: "test", startGold: 9000,
+    budgetBase: 4000, path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 3 }],
+    waves: [{ groups: [{ type, count, gap: 0.5, delay: 0 }] }] });
+
+  // 🥁 Drill Sergeant — measured on a BLOCKED body, so transit is not in it.
+  const ticksToKill = (meta) => {
+    const e = TD.createEngine(lane("pinata", 1), { seed: 3, meta });
+    e.place("camp", "m"); e.callWave();
+    let t = 0, seen = false;
+    while (t < 40000 && e.state.phase === "wave") {
+      e.tick(); t += 1;
+      if (e.state.enemies.some((x) => x.alive)) seen = true;
+      else if (seen) return t;
+    }
+    return -1;
+  };
+  const plainT = ticksToKill([]), drilledT = ticksToKill(["drillsergeant"]);
+  assert.ok(drilledT > 0 && drilledT < plainT * 0.9,
+    `🥁 Drill Sergeant must kill a blocked body clearly faster (${drilledT} vs ${plainT} ticks)`);
+
+  // 🧱 Padding — same board, squad HP left after a fixed fight.
+  const squadHp = (meta) => {
+    const e = TD.createEngine(lane("pinata", 1), { seed: 3, meta });
+    e.place("camp", "m"); e.callWave();
+    for (let i = 0; i < 3000 && e.state.phase === "wave"; i++) e.tick();
+    return e.state.soldiers.reduce((n, sl) => n + Math.max(0, sl.hp), 0);
+  };
+  const plainHp = squadHp([]), padHp = squadHp(["padding"]);
+  assert.ok(padHp > plainHp * 1.1,
+    `🧱 Padding must leave the squad clearly healthier (${padHp} vs ${plainHp} hp)`);
+
+  // 🧲 Coin Magnet — driven through the ONE kill path rather than a
+  // time-to-kill, because a tier-1 dart cannot bring down a 400hp piñata before
+  // it walks off the lane. The burst is added at TWO adjacent lines (gold and
+  // goldEarned) which now share one local, so a mutation that fixes one and
+  // misses the other is caught here.
+  const burst = (meta) => {
+    const e = TD.createEngine(lane("pinata", 1), { seed: 5, meta });
+    e.callWave();
+    let f = null;
+    for (let i = 0; i < 400 && !f; i++) { e.tick(); f = e.state.enemies.find((x) => x.alive); }
+    assert.ok(f, "the piñata spawned");
+    const g0 = e.state.goldEarned;
+    e.dealDamage(f, 99999, 0, "dart");
+    return e.state.goldEarned - g0;
+  };
+  const plainG = burst([]), magnetG = burst(["coinmagnet"]);
+  assert.ok(magnetG > plainG,
+    `🧲 Coin Magnet must pay more for a piñata (${magnetG} vs ${plainG} gold)`);
+
+  // 🎯 Steady Aim — a crit hits HARDER, never more often. Lucky Darts supplies
+  // the chance in BOTH arms, so the rng stream is identical and only the size
+  // of the biggest hit can move.
+  const biggestHit = (meta) => {
+    const e = TD.createEngine(lane("sock", 40), { seed: 5, meta });
+    e.place("dart", "m"); e.callWave();
+    let max = 0;
+    for (let i = 0; i < 9000 && e.state.phase === "wave"; i++) {
+      e.tick();
+      for (const ev of e.events.splice(0)) if (ev.type === "hit" && ev.dmg > max) max = ev.dmg;
+    }
+    return max;
+  };
+  const critOnly = biggestHit(["critchance"]), aimed = biggestHit(["critchance", "steadyaim"]);
+  assert.ok(aimed > critOnly,
+    `🎯 Steady Aim must raise the biggest hit (${aimed} vs ${critOnly})`);
+
+  // 🔗 Live Wire — the chain keeps more per jump. This MUST be measured on the
+  // real arc: a first cut asserted only `metaMods(["livewire"]).chainDecayPlus > 0`
+  // and survived deleting the read site entirely, which is the documented "a
+  // guardrail that only inspects the artefact misses the live path" trap.
+  const C = DATA.TOWERS.fan.branches.b.chain;
+  const arcOf = (meta) => {
+    const lvl = micro([{ groups: [{ type: "knight", count: 12, gap: 0.4, delay: 0 }] }], [{ id: "m1", cx: 10, cy: 3 }]);
+    const e = TD.createEngine(lvl, { seed: 8, meta });
+    e.place("fan", "m1");
+    const t = e.state.towers[0];
+    e.state.gold = 9999;
+    e.upgrade(t.id); e.upgrade(t.id);
+    assert.ok(e.branch(t.id, "b").ok, "Static Zap applied");
+    e.callWave();
+    for (let i = 0; i < 1500 && e.state.phase === "wave"; i++) {
+      const before = new Map(e.state.enemies.map((x) => [x.id, x.hp]));
+      e.tick(); e.events.splice(0);
+      const hits = e.state.enemies
+        .filter((x) => before.has(x.id) && x.hp < before.get(x.id))
+        .map((x) => before.get(x.id) - x.hp)
+        .sort((a, b) => b - a);
+      if (hits.length >= 3) return hits;
+    }
+    return null;
+  };
+  const vanillaArc = arcOf([]), wiredArc = arcOf(["livewire"]);
+  assert.ok(vanillaArc && wiredArc, "both arcs struck at least 3 bodies");
+  assert.equal(wiredArc[0], vanillaArc[0], "the FIRST link is untouched — this node is about retention, not power");
+  assert.ok(wiredArc[1] > vanillaArc[1],
+    `🔗 Live Wire must make the second link hit harder (${wiredArc.join(",")} vs ${vanillaArc.join(",")})`);
+  // …and the arc must still WEAKEN — a chain that gained damage per link would
+  // be a bug, not a buff. The 0.95 cap is what guarantees it.
+  for (let i = 1; i < wiredArc.length; i++) {
+    assert.ok(wiredArc[i] < wiredArc[i - 1],
+      `a Live Wire chain still weakens each jump (${wiredArc.join(",")})`);
   }
 });
 

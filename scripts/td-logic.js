@@ -156,6 +156,18 @@
       mortarMinMul: s.has("closequarters") ? 0.6 : 1, // the tube's dead zone shrinks
       upgradeCost: s.has("handyman") ? 0.9 : 1,   // tiers 1-3 are cheaper (NOT branches — that is Bulk Deal)
       warmedUp: s.has("warmedup"),                // start a level with the energy bank full
+      // ---- breadth (W10 unblock): five MORE kinds, same discipline again —
+      // each consumed at exactly ONE engine site, none of them raw tower
+      // damage, and every one SITUATIONAL (dead weight on the wrong board),
+      // which is what makes packing it a decision rather than a power creep.
+      // A tenth world takes the ceiling to 120⭐, and CLAUDE.md is explicit
+      // that the tree grows by BREADTH, never by ranks: a rank is power, a
+      // kind is a choice.
+      chainDecayPlus: s.has("livewire") ? 0.12 : 0,  // 🔗 the Fan's chain keeps more per jump
+      critMul: s.has("steadyaim") ? 1.25 : 1,        // 🎯 a crit hits harder (never more OFTEN)
+      goldBurstMul: s.has("coinmagnet") ? 1.6 : 1,   // 🧲 piñata bursts pay more
+      soldierArmor: s.has("padding") ? 0.25 : 0,     // 🧱 soldiers take less melee
+      soldierDmg: s.has("drillsergeant") ? 1.25 : 1, // 🥁 soldiers hit harder
       // 🛬 Soft Landing cuts the toll of a MULTI-life leak only. A boss leak is
       // worth 6-10 stickers and is what QUANTIZES a finale (measured: L8 ended
       // on exactly 10 lives on all 8 seeds), so this is the one node aimed at
@@ -729,9 +741,10 @@
       if (e.blockedBy) { const s = soldierById(e.blockedBy); if (s) s.engagedId = 0; e.blockedBy = 0; }
       const def = enemyDef(e);
       const bounty = Math.round(def.bounty * diff.bounty * mods.bounty); // 🪙 Bounty Hunter
-      state.gold += bounty + (def.goldBurst || 0); // Piñata candy-burst
+      const burst = Math.round((def.goldBurst || 0) * mods.goldBurstMul); // 🧲 Coin Magnet — ONE local, because this was read twice
+      state.gold += bounty + burst; // Piñata candy-burst
       state.kills += 1;
-      state.goldEarned += bounty + (def.goldBurst || 0);
+      state.goldEarned += bounty + burst;
       // Splitters (Mud Blob) spawn children at the death spot — BUFFERED so we
       // never mutate state.enemies mid-iteration; flushed after the combat pass.
       if (def.split) for (let i = 0; i < def.split.count; i++) pendingSpawns.push({ type: def.split.into, dist: e.dist, pathIdx: e.pathIdx || 0 });
@@ -1142,7 +1155,7 @@
             // ⚡ Overclock on a camp speeds up its SQUAD (the camp itself never
             // shoots, so the three cooldown sites never reached it).
             sol.meleeCd = Math.round(cs.rate * DATA.TICK_RATE / boostOf(camp));
-            const hit = computeHit(cs.dmg, "bonk", foe);
+            const hit = computeHit(cs.dmg * mods.soldierDmg, "bonk", foe); // 🥁 Drill Sergeant
             dealDamage(foe, hit.hpDmg, 0, "melee");
             if (!foe.alive) { sol.engagedId = 0; continue; }
           }
@@ -1152,7 +1165,7 @@
             if (foe.meleeCd > 0) foe.meleeCd -= 1;
             if (foe.meleeCd <= 0 && fd.meleeDmg > 0) {
               foe.meleeCd = Math.round(fd.meleeRate * DATA.TICK_RATE);
-              sol.hp -= Math.round(fd.meleeDmg * (1 - (cs.armor || 0)));
+              sol.hp -= Math.round(fd.meleeDmg * (1 - Math.min(0.9, (cs.armor || 0) + mods.soldierArmor))); // 🧱 Padding
               if (sol.hp <= 0) {
                 sol.alive = false;
                 sol.respawnAt = state.tick + respawnTicks(cs);
@@ -1221,7 +1234,7 @@
             // rng draw only happens when a chance EXISTS, so meta-less runs
             // keep their exact historical rng stream (determinism hashes hold).
             const critChance = (s.crit || 0) + mods.critBonus;
-            if (critChance > 0 && rng() < critChance) { dmg = Math.round(dmg * (s.critMult || 1.5)); crit = true; }
+            if (critChance > 0 && rng() < critChance) { dmg = Math.round(dmg * (s.critMult || 1.5) * mods.critMul); crit = true; }
             state.projectiles.push({
               id: nextId++, x: t.cx, y: t.cy, targetId: t.targetId,
               dmg, dmgType: s.dmgType, speed: def.projectileSpeed, crit,
@@ -1284,7 +1297,7 @@
                   points.push({ x: p.x, y: p.y });
                   const hit = computeHit(Math.round(dmg), "zap", cur2);
                   dealDamage(cur2, hit.hpDmg, hit.shieldDmg, "zap");
-                  dmg *= s.chain.decay;
+                  dmg *= Math.min(0.95, s.chain.decay + mods.chainDecayPlus); // 🔗 Live Wire, capped so a chain always weakens
                   // jump: nearest alive enemy within jump range of the last hit
                   let next = null, bestD = s.chain.jump * s.chain.jump;
                   for (const e of state.enemies) {
