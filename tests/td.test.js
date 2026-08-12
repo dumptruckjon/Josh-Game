@@ -2850,6 +2850,52 @@ test("PLACEMENT: the range ring on the field is the reach the engine USES", asyn
     `(${gBoost} vs ${gPlain}) — it shipped as a hard-coded literal, the same circle everywhere`);
 });
 
+test("ART: every WORLD tints its level cards, and no two worlds share a colour", async () => {
+  // This was two hand-written CSS rules — backyard and toystore — whose comment
+  // still read "World 1 bedroom (default navy), 2 backyard, 3 toystore" after the
+  // campaign reached ten worlds. So SEVEN of ten rendered as the same navy while
+  // CLAUDE.md claimed the fort home "shows world tints": the counting law, this
+  // time living in a stylesheet. The tint is DERIVED from each world's own floor
+  // now, so an 11th world inherits it; this test derives its expectations the
+  // same way, which is what makes it able to fail on a world that ships without
+  // one rather than on a list someone forgot to extend.
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    s.v = 1; s.stars = { casual: {}, normal: {}, heroic: {} };
+    for (let i = 1; i <= window.TDData.LEVELS.length; i++) s.stars.normal[i] = 3;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(s));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const seen = await page.evaluate(() => {
+    const out = {};
+    for (const card of document.querySelectorAll("#screen-td-home .td-level[data-world]")) {
+      const cs = getComputedStyle(card);
+      out[card.dataset.world] = { bg: cs.backgroundColor, border: cs.borderTopColor };
+    }
+    return out;
+  });
+  const worlds = await page.evaluate(() => [...new Set(window.TDData.LEVELS.map((l) => l.world))]);
+  const missing = worlds.filter((w) => !seen[w]);
+  assert.deepEqual(missing, [], `worlds with no level card rendered: ${missing.join(", ")}`);
+  const byBg = {};
+  for (const w of worlds) (byBg[seen[w].bg] = byBg[seen[w].bg] || []).push(w);
+  const shared = Object.values(byBg).filter((a) => a.length > 1).map((a) => a.join(" = "));
+  assert.deepEqual(shared, [],
+    `these worlds' level cards render the same colour, so the grid cannot say which room a level is in: ${shared.join("; ")}`);
+  // …and the tint must stay dark enough for the card's OWN text. #9db4dd needs a
+  // background under ~0.061 relative luminance, and a floor like the party's plum
+  // carpet is far lighter than that — the cap is what makes this safe to derive.
+  const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  for (const w of worlds) {
+    const c = (seen[w].bg.match(/\d+/g) || []).slice(0, 3).map(Number);
+    const L = 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+    assert.ok(L <= 0.061, `${w}'s card tint is luminance ${L.toFixed(3)} — its own #9db4dd label would drop below AA`);
+  }
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async () => {
   // The fort HAD a contrast pass. It reported 0 failures across 10 surfaces and
   // had never opened the BUILD MENU, where measuring found two shipped AA

@@ -10,6 +10,34 @@
   const doc = global.document;
   if (!doc) return;
 
+  // ---- per-world level-card tint, DERIVED from the world's own floor ----
+  // This was FIVE hand-written CSS rules, split across TWO blocks 700 lines apart
+  // (backyard + toystore near the top, attic + garage + moving down by the retired
+  // Kid Fort skin) — which is why nobody noticed the list had stopped covering the
+  // campaign: worlds 7-10 (the New House, the Sort Line, the Toy Works and the
+  // Party) shipped with NO tint while CLAUDE.md claimed the fort home "shows world
+  // tints". The counting law, on a stylesheet, with the extra twist that a list
+  // living in two places is a list nobody can audit.
+  //
+  // Luminance is CAPPED rather than trusted: the card's own text is #9db4dd, which
+  // needs a background under ~0.061 relative luminance to clear AA, and a floor
+  // like the party's plum carpet is far lighter than that. So the floor colour is
+  // pulled toward the card navy until it is dark enough BY CONSTRUCTION, which is
+  // what lets an 11th world inherit this with no contrast review.
+  const TINTS = {};
+  function worldTint(w) {
+    if (TINTS[w] !== undefined) return TINTS[w];
+    const f = ((global.TDData.WORLDS || {})[w] || {}).floor;
+    if (!f || !f.top) return (TINTS[w] = null);
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+    const BASE = [14, 24, 48];                       // the default card navy
+    let c = [1, 3, 5].map((i) => parseInt(f.top.slice(i, i + 2), 16));
+    for (let k = 0; k < 40 && lum(c) > 0.045; k++) c = c.map((v, i) => Math.round(v * 0.86 + BASE[i] * 0.14));
+    const border = c.map((v) => Math.min(255, Math.round(v * 1.9 + 26)));
+    return (TINTS[w] = { bg: "rgb(" + c.join(",") + ")", border: "rgb(" + border.join(",") + ")" });
+  }
+
   const UI = {};
 
   // ---- Screens ----
@@ -268,6 +296,7 @@
     // stars, and level N+1 unlocks by beating level N on THAT difficulty.
     const dstars = (save.stars && save.stars[selDiff]) || {};
     const starsOf = (k) => dstars[String(k)] | 0;
+
     for (let n = 1; n <= TOTAL_PLANNED; n++) {
       const def = LEVELS.find((l) => l.id === n);
       // Progression: L1 is always open; every later level unlocks once the
@@ -278,7 +307,11 @@
       const card = doc.createElement("button");
       card.type = "button";
       card.className = "td-level" + (playable ? "" : " td-level--locked");
-      if (def && def.world) card.dataset.world = def.world; // wood / grass / neon tint
+      if (def && def.world) {
+        card.dataset.world = def.world;
+        const t = worldTint(def.world);   // DERIVED from the world's own floor
+        if (t) { card.style.background = t.bg; card.style.borderColor = t.border; }
+      }
       if (playable) {
         const stars = starsOf(n);
         const badge = Math.max(1, Math.min(3, def.badge || 1)); // difficulty 1-3
