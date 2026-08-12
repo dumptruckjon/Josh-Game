@@ -192,5 +192,11 @@ point elsewhere:
 3. ~~If a level must feel harder, the honest lever is a **finale**.~~ **Refuted
    in §5b** — forbidden on a flat level by the world-structure contract, and a
    finale cannot be graded by boss hp anyway. The only structurally legal home
-   for a new finale is a TENTH WORLD (L37-40), which is a full world pass and
-   would leave the star ceiling at 120⭐ against the 123⭐ tree (margin 3).
+   for a new finale is a TENTH WORLD (L37-40), which is a full world pass.
+   **ACTED ON, and it worked:** the star tree was grown FIRST by breadth to
+   140⭐ (so 40 levels' 120⭐ ceiling leaves margin 20), and
+   `PLAN_WORLD_10.md` — 🎉 The Party — ships 🎁 The Big Present at a normal
+   median of **12 with a SPREAD of 6**, i.e. a finale that really does end more
+   than one way. That is the distinction this document exists to make: a boss
+   is ADDITIVE and budget-exempt and can be hand-tuned into its band, which is
+   exactly what a non-boss elite (§2, §3) provably cannot be.
