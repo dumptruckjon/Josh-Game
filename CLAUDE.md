@@ -1053,6 +1053,7 @@ tooling.
 │   ├── td-gold.js              # 💰 what a MAXED board does with its gold — fills every pad, upgrades to T3, takes a branch (the shipped oracle stops at T3, so it cannot see this), and reports the wave the board becomes UNSPENDABLE. `SWEEP=1` sweeps bounty. This is what measured the 21-of-36 dead-stretch finding.
 │   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
 │   ├── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
+│   ├── td-miniboss.js         # 🧪 is an ADDITIVE elite a real lever? Judges on the doser's four rules PLUS spread, because "the median moved" is exactly what a disguised constant does. Reproduces the two recorded nulls before measuring anything new. Six shapes measured, all constants — see PLAN_MINIBOSS.md; the tool is kept so the seventh idea is one command, not a re-derivation.
 │   └── td-threat.js            # 🏰 THREAT-SHAPE doser. `SPREAD=1 node tools/td-threat.js` DERIVES the target list (per-level min/median/max/spread over 8 seeds) — the flat-level list must never be a remembered one, and spread is the signal, not the value: a level reading 19 on all eight seeds is as much a disguised constant as one reading 20. `node tools/td-threat.js` audits which counter each level's late game never asks for; `node tools/td-threat.js 22,26` grid-searches (wave × dose) for a swap. Screens on 4 seeds, CONFIRMS on 8 (two doses looked clean on 4 and lost heroic on 8), and the confirm set is ranked by HEROIC HEADROOM — heroic is the binding axis, and ranking on normal movement twice confirmed the wrong candidates. SKIPS fork levels (a fork's difficulty IS its lever's value — L31 measured beautifully and broke `TD7 lever advantage`), never ADDS hp and never drains the flier group. In the repo for the reason the fork sweep sat open two releases: a scratch script gets thrown away and the item becomes unactionable.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
@@ -4903,6 +4904,43 @@ memory. (5) A run is deduped by class+text and skipped when `elementFromPoint`
 says something else is on top, the two sampling rules the 华丽 pass already
 needed.
 
+**THE MINI-BOSS WAS COMMISSIONED AS A FULL CONTENT PHASE AND THE PHASE'S OUTPUT
+IS A LAW ABOUT THE ENGINE, NOT A BODY.** Two attempts were already on the record
+as refuted; rather than trust that, the phase rebuilt the instrument
+(`tools/td-miniboss.js`, shipped oracle verbatim, ADDITIVE dose) and reproduced
+the recorded null exactly — L26 base `20×8`, a 2400hp toll elite `17×8`, spread
+0 — before measuring anything new. **Six shapes, all constants**: additive toll
+body (`17×8`), split into three plain elites (all die, `20×8`), a single heal
+elite (`19×8` flat from 2400 to 3600), a spawn kit (`18×8`), a hurry aura (`18`
+with spread 2 at exactly one hp, but 3★ unmoved at 8/8), and — the decisive one
+— three mid-weight healers, which give **byte-identical results at 400, 600 AND
+800 hp on two levels**. The hp is not a knob; it saturates. One refinement to
+the old record, found by sweeping INTO the cliff as the L8 lesson says to: a
+graded band **does** exist and is useless — `2100 → 20×8`, `2200 → spread 3,
+3★ 1/8`, `2300 → 17×8`, i.e. ~100hp of ~2200 (4.5%), weighted 7:1, with the
+reward already gone inside it.
+**THE LAW: in this engine a SINGLE body is deterministic, so it can only ever
+charge a FIXED TOLL — variance comes from MANY MARGINAL AGENTS, not from one big
+one.** The board's damage and the body's transit are both deterministic, so an
+elite either dies before the exit or does not; every kit merely selects *which*
+constant it lands on. That explains rather than restates why the one lever that
+works, works: the shipped healer doses are 3-5 *small* (85hp) healers in the
+crowd, and they grade with spread 4-5 because many small agents die at different
+times under seed jitter and compound differently. It also explains the shipped
+bosses: each is hand-tuned to sit inside its own ~3%-wide band, which is an
+authoring act for nine finales, not a reusable pattern. Corollary for the next
+author: **"the median moved" is exactly what a disguised constant does** — judge
+a dose on spread and on the star outcome, never on the median alone.
+And the flat set has nothing left to dose regardless: the derived scan
+(`SPREAD=1 node tools/td-threat.js`) names 13 levels that ask no question, 5
+carry levers, and every remaining one already has a measured reason on the
+record (L1/L2 tutorial by design, L5 pinned by `AUDIT mono builds`, L14 buys 0/8
+diversity, L17 two heroic losses and a no-op, L22 no safe dose in the whole
+grid, L26 every 4-seed candidate failed at 8, L30 shipped for diversity). The
+honest lever if a level must bite is a FINALE, because a boss is additive,
+budget-exempt and hand-tuned into its band — the thing the engine already
+supports.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
@@ -5063,9 +5101,16 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   (an hp-preserving swap); bigger HP piles, backbone stat shape, gold, budget
 >   base, lane length and side-door dose are each measured NOT to work. That is a
 >   deliberate content pass to commission, not a defect to fix on sight.
-> - **The additive mini-boss**: CLOSED, measured, do not rebuild. Spread 0 across
->   8 seeds at every hp, with or without a jam/summon kit, so it is a disguised
->   constant (see the learnings block for the numbers).
+> - **The mini-boss**: CLOSED for the THIRD time, now with the mechanism, and
+>   commissioned as a full content phase that concluded it must not be built
+>   (`PLAN_MINIBOSS.md`, `tools/td-miniboss.js`). Six shapes measured on 8
+>   seeds — additive toll body, split into three, heal elite, spawn kit, hurry
+>   aura, and three mid-weight healers — and every one lands on a CONSTANT.
+>   The decisive datum is that shape 6 gives byte-identical results at 400,
+>   600 and 800 hp on two levels: the hp is not a knob, it saturates. The one
+>   refinement to the old record is that a graded band DOES exist, and is
+>   useless: ~100hp of ~2200 (4.5%), weighted 7:1, with 3★ already collapsed
+>   from 8/8 to 1/8 inside it. Do not sweep hp again.
 > - **The flat levels / threat shape**: CLOSED, and the target list is now
 >   DERIVED (`SPREAD=1 node tools/td-threat.js`) rather than remembered — which
 >   is what re-opened it, because the old flat-20 criterion structurally could
