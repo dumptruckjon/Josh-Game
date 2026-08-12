@@ -457,6 +457,27 @@
         const heat = b.createRadialGradient(W * 0.78, H * 0.82, 0, W * 0.78, H * 0.82, Math.max(W, H) * 0.6);
         heat.addColorStop(0, "rgba(255,140,50,0.13)"); heat.addColorStop(1, "rgba(255,140,50,0)");
         b.fillStyle = heat; b.fillRect(0, 0, W, H);
+      } else if (FLOOR.pattern === "confetti") {
+        // the party floor: a scatter of paper flecks over a plum carpet, plus a
+        // few long streamers that have already come down. Deliberately the
+        // BRIGHTEST floor in the game — nine worlds of dim rooms, and this is
+        // the one place the toybox is being GIVEN rather than got rid of.
+        // Placement is a hash of the cell index, so it is identical every draw.
+        for (let i = 0; i < 260; i++) {
+          const x = spot(i, 61) * W, y = spot(i + 7, 53) * H, a = spot(i + 13, 41) * 6.283;
+          b.save(); b.translate(x, y); b.rotate(a);
+          b.fillStyle = ["rgba(255,214,90,0.30)", "rgba(120,230,255,0.26)",
+                         "rgba(255,120,190,0.28)", "rgba(170,255,170,0.24)"][i % 4];
+          b.fillRect(-cell * 0.09, -cell * 0.05, cell * 0.18, cell * 0.1);
+          b.restore();
+        }
+        b.strokeStyle = ink; b.lineWidth = Math.max(1.5, cell * 0.07);
+        for (let i = 0; i < 5; i++) {                          // fallen streamers
+          const x0 = spot(i + 3, 71) * W, y0 = spot(i + 11, 67) * H;
+          b.beginPath(); b.moveTo(x0, y0);
+          for (let k = 1; k <= 6; k++) b.lineTo(x0 + k * cell * 0.7, y0 + Math.sin(k + i) * cell * 0.34);
+          b.stroke();
+        }
       } else if (FLOOR.pattern === "dropcloth") {
         // a painter's dust sheet: coarse canvas weave, creases where it was
         // folded, and a few dried paint spatters
@@ -519,7 +540,7 @@
           if (!len) continue;
           const ux = (bx - ax) / len, uy = (by - ay) / len;   // tangent
           const nx = -uy, ny = ux;                            // normal
-          const step = cell * (style === "ties" ? 0.62 : style === "plates" ? 0.88 : 0.9);
+          const step = cell * (style === "ties" ? 0.62 : style === "plates" ? 0.88 : style === "chain" ? 0.52 : 0.9);
           for (let d = carry; d < len; d += step) {
             const px = ax + ux * d, py = ay + uy * d;
             if (style === "ties") {                            // wooden sleepers
@@ -542,6 +563,15 @@
               for (const sx of [-0.30, 0.30]) for (const sy of [-0.32, 0.32]) {
                 b.beginPath(); b.arc(sx * cell, sy * cell, Math.max(1, cell * 0.055), 0, 7); b.fill();
               }
+              b.restore();
+            } else if (style === "chain") {                    // a paper chain, link by link
+              b.save();
+              b.translate(px, py);
+              b.rotate(Math.atan2(uy, ux));
+              b.strokeStyle = tie; b.lineWidth = Math.max(1.5, cell * 0.07);
+              b.beginPath(); b.ellipse(0, 0, cell * 0.22, cell * 0.3, 0, 0, 7); b.stroke();
+              b.strokeStyle = "rgba(255,255,255,0.20)"; b.lineWidth = 1;
+              b.beginPath(); b.ellipse(0, -cell * 0.04, cell * 0.22, cell * 0.3, 0, Math.PI, 2 * Math.PI); b.stroke();
               b.restore();
             } else if (style === "stones") {                   // flagstones, staggered
               const off = (Math.round(d / step) % 2 ? 0.18 : -0.18) * cell;
@@ -1314,6 +1344,103 @@
         ctx.beginPath(); ctx.ellipse(0, 0, r * 0.5, r * 0.2 + r * 0.24 * Math.abs(Math.cos(spin)), 0, 0, 7); ctx.fill();
         ctx.strokeStyle = "rgba(46,60,10,0.85)"; ctx.lineWidth = Math.max(1.2, cell * 0.03); ctx.stroke();
         ctx.restore();
+      } else if (e.type === "popper") {
+        // 🎊 Party Popper — a fired cone with the bang still coming out of it.
+        // Drawn NARROW-AT-THE-BOTTOM and flaring at the top so its coverage is
+        // top-heavy: the near-twin metric is driven by silhouette far more than
+        // hue, and every other sock skin is a wide low body.
+        shadow(sx, sy + r * 0.62, r * 0.4, r * 0.15);
+        const gpo = ctx.createLinearGradient(sx, sy + r * 0.6, sx, sy - r * 0.5);
+        gpo.addColorStop(0, "#ff7a1f"); gpo.addColorStop(1, "#b83c00");
+        ctx.fillStyle = gpo;
+        ctx.beginPath();                                                    // the cone, mouth UP
+        ctx.moveTo(sx - r * 0.14, sy + r * 0.6); ctx.lineTo(sx + r * 0.14, sy + r * 0.6);
+        ctx.lineTo(sx + r * 0.46, sy - r * 0.24); ctx.lineTo(sx - r * 0.46, sy - r * 0.24);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#ffd94a";                                          // the bang
+        ctx.beginPath(); ctx.ellipse(sx, sy - r * 0.3, r * 0.46, r * 0.16, 0, 0, 7); ctx.fill();
+        for (let k = 0; k < 5; k++) {                                       // streamers out of the mouth
+          const a = -1.9 + k * 0.48, d = r * (0.5 + 0.16 * (k % 2));
+          ctx.fillStyle = k % 2 ? "#7ce8ff" : "#ff5fa2";
+          ctx.beginPath();
+          ctx.rect(sx + Math.cos(a) * d - r * 0.06, sy - r * 0.3 + Math.sin(a) * d, r * 0.12, r * 0.12);
+          ctx.fill();
+        }
+      } else if (e.type === "sweet") {
+        // 🍬 Loose Sweet — a wrapped boiled sweet, twisted at BOTH ends. Wide
+        // and low with two pinched tails, so it cannot be confused with the
+        // round Resin Pellet or the thin Spare Key at the same body size.
+        shadow(sx, sy + r * 0.42, r * 0.46, r * 0.14);
+        const gsw = ctx.createLinearGradient(sx - r * 0.4, 0, sx + r * 0.4, 0);
+        gsw.addColorStop(0, "#19d4c0"); gsw.addColorStop(1, "#0b8f88");
+        ctx.fillStyle = gsw;
+        ctx.beginPath(); ctx.ellipse(sx, sy, r * 0.34, r * 0.28, 0, 0, 7); ctx.fill();
+        ctx.beginPath();                                                    // twisted wrapper ends
+        ctx.moveTo(sx - r * 0.3, sy); ctx.lineTo(sx - r * 0.58, sy - r * 0.24);
+        ctx.lineTo(sx - r * 0.58, sy + r * 0.24); ctx.closePath();
+        ctx.moveTo(sx + r * 0.3, sy); ctx.lineTo(sx + r * 0.58, sy - r * 0.24);
+        ctx.lineTo(sx + r * 0.58, sy + r * 0.24); ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.8)";                            // the shine on the sugar
+        ctx.beginPath(); ctx.ellipse(sx - r * 0.1, sy - r * 0.1, r * 0.11, r * 0.06, -0.5, 0, 7); ctx.fill();
+      } else if (e.type === "streamer") {
+        // 🎏 Stray Streamer — a paper ribbon that got loose and is riding the
+        // air. Like every flier here the shadow sits well BELOW; the ribbon
+        // WAVES rather than spins, which is what separates it from the Flying
+        // Offcut's disc at the same tiny size.
+        shadow(sx, sy + cell * 0.55, r * 0.4, r * 0.14);
+        const t = engine.state.tick / 5 + e.id;
+        ctx.save(); ctx.translate(sx, sy - cell * 0.06);
+        ctx.fillStyle = "#a98cff";
+        ctx.beginPath(); ctx.moveTo(-r * 0.56, 0);
+        for (let k = 1; k <= 6; k++) {
+          const x = -r * 0.56 + (r * 1.12 * k) / 6;
+          ctx.lineTo(x, Math.sin(t + k * 0.9) * r * 0.16);
+        }
+        for (let k = 6; k >= 0; k--) {
+          const x = -r * 0.56 + (r * 1.12 * k) / 6;
+          ctx.lineTo(x, Math.sin(t + k * 0.9) * r * 0.16 + r * 0.17);
+        }
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#5c3fd6";                                          // the folded underside
+        ctx.beginPath(); ctx.rect(-r * 0.56, r * 0.02, r * 0.16, r * 0.15); ctx.fill();
+        ctx.restore();
+      } else if (e.type === "bigpresent") {
+        // 🎁 The Big Present — World 10's finale. Its phase is readable on the
+        // box itself: the LID lifts as the hp bands fall (the Tickmaster's
+        // precedent), and in P3 the whole thing is off and the poppers are
+        // coming out. Solid box, not an open frame — the boss-size guardrail
+        // counts INK, and a wireframe paints less than an ordinary toy.
+        const R = r * bossScale(e, 3.4);
+        const ph = e.hp / e.maxHp;
+        const lift = ph > 0.66 ? 0 : ph > 0.33 ? R * 0.26 : R * 0.6;
+        shadow(sx, sy + R * 0.78, R * 0.9, R * 0.26);
+        const gbp = ctx.createLinearGradient(sx - R * 0.78, 0, sx + R * 0.78, 0);
+        gbp.addColorStop(0, "#8e1c5c"); gbp.addColorStop(0.45, "#e0479a"); gbp.addColorStop(1, "#7a1550");
+        ctx.fillStyle = gbp;                                               // the wrapped box
+        ctx.beginPath(); ctx.rect(sx - R * 0.78, sy - R * 0.42, R * 1.56, R * 1.2); ctx.fill();
+        ctx.fillStyle = "#ffd94a";                                          // the vertical ribbon
+        ctx.beginPath(); ctx.rect(sx - R * 0.14, sy - R * 0.42, R * 0.28, R * 1.2); ctx.fill();
+        ctx.fillStyle = "#f2622a";                                          // the horizontal ribbon
+        ctx.beginPath(); ctx.rect(sx - R * 0.78, sy + R * 0.16, R * 1.56, R * 0.2); ctx.fill();
+        ctx.fillStyle = "#c92f7d";                                          // the lid, riding up
+        ctx.beginPath(); ctx.rect(sx - R * 0.88, sy - R * 0.6 - lift, R * 1.76, R * 0.24); ctx.fill();
+        ctx.fillStyle = "#ffd94a";                                          // the bow on the lid
+        ctx.beginPath();
+        ctx.ellipse(sx - R * 0.24, sy - R * 0.74 - lift, R * 0.2, R * 0.14, -0.5, 0, 7);
+        ctx.ellipse(sx + R * 0.24, sy - R * 0.74 - lift, R * 0.2, R * 0.14, 0.5, 0, 7);
+        ctx.ellipse(sx, sy - R * 0.72 - lift, R * 0.11, R * 0.11, 0, 0, 7);
+        ctx.fill();
+        if (ph <= 0.66) {                                                   // what is coming OUT of it
+          ctx.fillStyle = "#7ce8ff";
+          for (let k = 0; k < (ph <= 0.33 ? 6 : 3); k++) {
+            const a = -2.4 + k * 0.42;
+            ctx.beginPath();
+            ctx.rect(sx + Math.cos(a) * R * 0.6 - R * 0.07, sy - R * 0.5 - lift + Math.sin(a) * R * 0.5, R * 0.14, R * 0.14);
+            ctx.fill();
+          }
+        }
+        bossCrown(sx, sy - R * 0.86 - lift, R);
       } else if (e.type === "stamper") {
         // 🗜️ The Stamping Press — the campaign's last boss. Drawn as a SOLID
         // machine rather than an open gantry: the boss-size guardrail counts INK

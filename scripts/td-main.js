@@ -421,6 +421,7 @@
     if (st.levelId === 28) earnAch("gooddog");
     if (st.levelId === 32) earnAch("scrapped");
     if (st.levelId === 36) earnAch("pressed");
+    if (st.levelId === 40) earnAch("unwrapped");
     if (!cur.leaked) earnAch("noleaks");                    // all 20 stickers kept safe
     if (st.difficulty === "heroic") earnAch("heroicheart");
     const linesUsed = Object.keys(cur.lines);

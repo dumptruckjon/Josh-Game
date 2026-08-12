@@ -407,6 +407,22 @@
       phases: [ { upTo: 1.0 }, { upTo: 0.66, disable: { every: 5, seconds: 3 } },
                 { upTo: 0.33, speedMult: 1.25, disable: { every: 3, seconds: 3 },
                   spawn: { type: "reject", count: 5, every: 6 } } ] },
+    // 🎁 The Big Present (L40) — World 10's finale and the campaign's new last
+    // fight. Its kit is deliberately the ONE combination no other boss uses: a
+    // `hurry` aura, so the Present does not hit you at all — it makes the whole
+    // party ARRIVE FASTER, which is a threat damage cannot answer and which the
+    // engine already runs (the Boom Box's write pass, read in the ONE `effSpeed`).
+    // Everything else is a shipped path: the shield IS the wrapping paper, and
+    // the hp-gated phases tear it open (poppers spill out at 66%) and then set
+    // the room off (a jammed gun + a dash at 33%). hp/toll come from `--boss`,
+    // judged on SPREAD rather than median so the finale can end more than one way.
+    bigpresent: { name: "The Big Present", icon: "🎁", hp: 5200, speed: 0.3, armor: 0.3,
+      shield: 140, shieldRegen: 12, bounty: 440, lives: 6, size: 3.4, flier: false, boss: true,
+      meleeDmg: 0, meleeRate: 1,
+      hurry: { mult: 1.35, radius: 3.2 },
+      phases: [ { upTo: 1.0 }, { upTo: 0.66, spawn: { type: "popper", count: 6, every: 6 } },
+                { upTo: 0.33, speedMult: 1.3, disable: { every: 4, seconds: 3 },
+                  spawn: { type: "popper", count: 8, every: 5 } } ] },
     // hp 8000 → 7600 DE-QUANTIZES this finale. At 8000 the Vacuum King reached
     // the door on EVERY seed and every build, so L8 ended at exactly 10-11 lives
     // eight times out of eight — the whole level reduced to a guaranteed 8-life
@@ -485,6 +501,17 @@
       backbone: { ground: ["reject", "knight", "blob", "pellet"], flier: "offcut" },
       floor: { pattern: "mould", props: ["box", "tin", "stain"], top: "#2a2622", bottom: "#3a332c", ink: "rgba(255,158,74,0.10)",
                road: { edge: "#17130f", base: "#5a5148", top: "#7b7064", style: "plates", tie: "rgba(255,190,110,0.30)" } } },
+    // World 10 — the toy the factory moulded gets WRAPPED and handed over. Every
+    // world so far was somewhere the toybox was pushed further from the bedroom;
+    // this is the one place the chain runs the other way, so it is the brightest
+    // floor in the game rather than another dim room. Its own `pattern` and
+    // `road.style` (both new) for the reason World 9's were new: the floor
+    // guardrail hashes the lane CORRIDOR as well as the whole canvas, and three
+    // worlds once shipped the identical road because they simply had no `road`.
+    party: { label: "🎉 The Party", spawnGlyph: "🎉",
+      backbone: { ground: ["popper", "knight", "blob", "sweet"], flier: "streamer" },
+      floor: { pattern: "confetti", props: ["box", "blocks", "stain"], top: "#4a2f52", bottom: "#5d3b63", ink: "rgba(255,236,150,0.12)",
+               road: { edge: "#2a1730", base: "#c66aa8", top: "#e894c6", style: "chain", tie: "rgba(255,236,150,0.42)" } } },
   };
 
   // ---- Phase 2: per-world backbone SKINS ----
@@ -535,6 +562,12 @@
     ["sock",   "reject",  "Reject Piece",  "🧩"],
     ["marble", "pellet",  "Resin Pellet",  "🟠"],
     ["hawk",   "offcut",  "Flying Offcut", "🥏"],
+    // World 10 (The Party) — the new toy is wrapped and given away. All three
+    // glyphs are Emoji 0.6/1.0 and emoji-presentation by default, so none needs
+    // U+FE0F (the VS16 scan checks that, but picking safe glyphs is cheaper).
+    ["sock",   "popper",   "Party Popper",   "🎊"],
+    ["marble", "sweet",    "Loose Sweet",    "🍬"],
+    ["hawk",   "streamer", "Stray Streamer", "🎏"],
   ];
   for (const [src, id, name, icon] of SKINS) {
     ENEMIES[id] = Object.assign({}, ENEMIES[src], { name, icon, sortKey: src, skinOf: src });
@@ -1825,6 +1858,112 @@
         { boss: true, groups: [ { type: "stamper", count: 1, gap: 1, delay: 0 }, { type: "drum", count: 5, gap: 0.9, delay: 3 }, { type: "duck", count: 6, gap: 0.9, delay: 6 }, { type: "offcut", count: 14, gap: 0.3, delay: 2 }, { type: "reject", count: 16, gap: 0.65, delay: 5 } ] },
       ],
     },
+    {
+      // ---- WORLD 10: 🎉 The Party (L37-L40) ----
+      // The toy the factory moulded gets wrapped and handed over. Its hook is
+      // the ⚡ disco socket: the one gimmick that makes a pad BETTER, so the
+      // world opens by teaching that where you build is a decision.
+      id: 37, name: "Streamers Up", world: "party", badge: 3,
+      startGold: 1250, budgetBase: 1000,
+      path: [ [0, 3], [18, 3], [18, 9], [5, 9], [5, 13], [23, 13] ],
+      pads: [ { id: "p1", cx: 4, cy: 8 }, { id: "p2", cx: 23, cy: 11 }, { id: "p3", cx: 15, cy: 1 }, { id: "p4", cx: 13, cy: 11 }, { id: "p5", cx: 0, cy: 1 }, { id: "p6", cx: 7, cy: 1 }, { id: "p7", cx: 20, cy: 5 }, { id: "p8", cx: 19, cy: 10 }, { id: "p9", cx: 11, cy: 5, boost: { range: 1.18, rate: 1.15 } }, { id: "p10", cx: 3, cy: 13 }, { id: "p11", cx: 8, cy: 11 }, { id: "p12", cx: 19, cy: 2 } ],
+      waves: [
+        { groups: [ { type: "popper", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 5, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 14, gap: 0.65, delay: 0 }, { type: "sweet", count: 35, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "popper", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 1, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "sweet", count: 45, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 3, gap: 0.9, delay: 4 }, { type: "popper", count: 36, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "duck", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 24, gap: 0.65, delay: 0 }, { type: "sweet", count: 60, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 3, gap: 0.9, delay: 4 }, { type: "streamer", count: 12, gap: 0.3, delay: 2 }, { type: "popper", count: 41, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 11, gap: 0.9, delay: 4 }, { type: "streamer", count: 15, gap: 0.3, delay: 2 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "sweet", count: 68, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 8, gap: 0.9, delay: 4 }, { type: "streamer", count: 19, gap: 0.3, delay: 2 }, { type: "popper", count: 55, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "bubblewrap", count: 7, gap: 0.9, delay: 4 }, { type: "streamer", count: 24, gap: 0.3, delay: 2 }, { type: "blob", count: 32, gap: 0.65, delay: 0 }, { type: "sweet", count: 80, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 8, gap: 0.9, delay: 4 }, { type: "streamer", count: 31, gap: 0.3, delay: 2 }, { type: "popper", count: 71, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 14, gap: 0.9, delay: 4 }, { type: "streamer", count: 39, gap: 0.3, delay: 2 }, { type: "blob", count: 46, gap: 0.65, delay: 0 }, { type: "sweet", count: 114, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 22, gap: 0.9, delay: 4 }, { type: "streamer", count: 49, gap: 0.3, delay: 2 }, { type: "popper", count: 91, gap: 0.65, delay: 0 }, { type: "knight", count: 23, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "cushion", count: 16, gap: 0.9, delay: 4 }, { type: "streamer", count: 61, gap: 0.3, delay: 2 }, { type: "blob", count: 51, gap: 0.65, delay: 0 }, { type: "sweet", count: 128, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      // Pass the Parcel: the two lanes run up the SAME column and only split at
+      // the top, so a parcel already walking can be sent round the long way with
+      // no teleport (the shared-prefix invariant). fork.at = 13 is where they
+      // actually diverge, measured — not where the lever stands.
+      id: 38, name: "Pass the Parcel", world: "party", badge: 3,
+      startGold: 1700, budgetBase: 800,
+      path: [ [0, 12], [5, 12], [5, 4], [14, 4], [14, 10], [20, 10], [20, 3], [23, 3] ],
+      paths: [ [ [0, 12], [5, 12], [5, 4], [14, 4], [14, 10], [20, 10], [20, 3], [23, 3] ],
+               [ [0, 12], [5, 12], [5, 1], [19, 1], [19, 7], [11, 7], [11, 4], [14, 4], [14, 10], [20, 10], [20, 3], [23, 3] ] ],
+      fork: { at: 13 }, lever: { cx: 5, cy: 12 },
+      pads: [ { id: "p1", cx: 13, cy: 11 }, { id: "p2", cx: 23, cy: 1 }, { id: "p3", cx: 0, cy: 10 }, { id: "p4", cx: 15, cy: 3 }, { id: "p5", cx: 21, cy: 11 }, { id: "p6", cx: 7, cy: 6 }, { id: "p7", cx: 7, cy: 12 }, { id: "p8", cx: 22, cy: 6 }, { id: "p9", cx: 3, cy: 4 }, { id: "p10", cx: 17, cy: 12 }, { id: "p11", cx: 3, cy: 8 } ],
+      waves: [
+        { groups: [ { type: "popper", count: 17, gap: 0.65, delay: 0 }, { type: "knight", count: 4, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 11, gap: 0.65, delay: 0 }, { type: "sweet", count: 28, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "popper", count: 23, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 14, gap: 0.65, delay: 0 }, { type: "sweet", count: 34, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 2, gap: 0.9, delay: 4 }, { type: "popper", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 7, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 19, gap: 0.65, delay: 0 }, { type: "sweet", count: 46, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 7, gap: 0.9, delay: 4 }, { type: "streamer", count: 9, gap: 0.3, delay: 2 }, { type: "popper", count: 35, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 5, gap: 0.9, delay: 4 }, { type: "streamer", count: 12, gap: 0.3, delay: 2 }, { type: "blob", count: 22, gap: 0.65, delay: 0 }, { type: "sweet", count: 55, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 6, gap: 0.9, delay: 4 }, { type: "streamer", count: 16, gap: 0.3, delay: 2 }, { type: "popper", count: 42, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 12, gap: 0.9, delay: 4 }, { type: "streamer", count: 20, gap: 0.3, delay: 2 }, { type: "blob", count: 27, gap: 0.65, delay: 0 }, { type: "sweet", count: 69, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 11, gap: 0.9, delay: 4 }, { type: "streamer", count: 26, gap: 0.3, delay: 2 }, { type: "popper", count: 56, gap: 0.65, delay: 0 }, { type: "knight", count: 14, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 10, gap: 0.9, delay: 4 }, { type: "streamer", count: 33, gap: 0.3, delay: 2 }, { type: "blob", count: 35, gap: 0.65, delay: 0 }, { type: "sweet", count: 89, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 30, gap: 0.9, delay: 4 }, { type: "streamer", count: 41, gap: 0.3, delay: 2 }, { type: "popper", count: 70, gap: 0.65, delay: 0 }, { type: "knight", count: 18, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      // Musical Chairs — the conveyor IS the music: while it plays everyone
+      // keeps moving, and the strip sits mid-lane so it shoves the crowd
+      // through the middle of your board rather than past its edge.
+      id: 39, name: "Musical Chairs", world: "party", badge: 3,
+      startGold: 1300, budgetBase: 1050,
+      path: [ [0, 12], [15, 12], [15, 6], [4, 6], [4, 2], [20, 2], [20, 8], [23, 8] ],
+      zones: [ { from: 21, to: 32, mult: 1.28 } ],
+      pads: [ { id: "p1", cx: 3, cy: 1 }, { id: "p2", cx: 23, cy: 10 }, { id: "p3", cx: 16, cy: 0 }, { id: "p4", cx: 10, cy: 10 }, { id: "p5", cx: 0, cy: 10 }, { id: "p6", cx: 16, cy: 13 }, { id: "p7", cx: 21, cy: 1 }, { id: "p8", cx: 16, cy: 5 }, { id: "p9", cx: 9, cy: 0 }, { id: "p10", cx: 3, cy: 7 }, { id: "p11", cx: 19, cy: 9 }, { id: "p12", cx: 7, cy: 4 }, { id: "p13", cx: 12, cy: 4 } ],
+      waves: [
+        { groups: [ { type: "popper", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "sweet", count: 37, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "popper", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 4, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "sweet", count: 45, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "popper", count: 38, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 4, gap: 0.9, delay: 4 }, { type: "streamer", count: 9, gap: 0.3, delay: 2 }, { type: "blob", count: 22, gap: 0.65, delay: 0 }, { type: "sweet", count: 55, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 4, gap: 0.9, delay: 4 }, { type: "streamer", count: 12, gap: 0.3, delay: 2 }, { type: "popper", count: 46, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 6, gap: 0.9, delay: 4 }, { type: "streamer", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "sweet", count: 72, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 14, gap: 0.9, delay: 4 }, { type: "streamer", count: 20, gap: 0.3, delay: 2 }, { type: "popper", count: 57, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "duck", count: 7, gap: 0.9, delay: 4 }, { type: "streamer", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 37, gap: 0.65, delay: 0 }, { type: "sweet", count: 93, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 10, gap: 0.9, delay: 4 }, { type: "streamer", count: 32, gap: 0.3, delay: 2 }, { type: "popper", count: 74, gap: 0.65, delay: 0 }, { type: "knight", count: 19, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 18, gap: 0.9, delay: 4 }, { type: "streamer", count: 41, gap: 0.3, delay: 2 }, { type: "blob", count: 48, gap: 0.65, delay: 0 }, { type: "sweet", count: 120, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 2, gap: 1, delay: 0 }, { type: "ghost", count: 37, gap: 0.9, delay: 4 }, { type: "streamer", count: 51, gap: 0.3, delay: 2 }, { type: "popper", count: 82, gap: 0.65, delay: 0 }, { type: "knight", count: 21, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "drum", count: 13, gap: 0.9, delay: 4 }, { type: "streamer", count: 64, gap: 0.3, delay: 2 }, { type: "blob", count: 61, gap: 0.65, delay: 0 }, { type: "sweet", count: 153, gap: 0.8, delay: 3 } ] },
+      ],
+    },
+    {
+      // The campaign's last level. The Big Present never touches you — it makes
+      // the whole room ARRIVE FASTER (a `hurry` aura, the one boss kit no other
+      // finale uses) while the healers mend its escort.
+      id: 40, name: "The Big Present", world: "party", badge: 3,
+      startGold: 1950, budgetBase: 1050,
+      path: [ [0, 2], [13, 2], [13, 8], [3, 8], [3, 12], [19, 12], [19, 6], [23, 6] ],
+      pads: [ { id: "p1", cx: 2, cy: 7 }, { id: "p2", cx: 23, cy: 4 }, { id: "p3", cx: 14, cy: 9 }, { id: "p4", cx: 9, cy: 0 }, { id: "p5", cx: 20, cy: 13 }, { id: "p6", cx: 2, cy: 13 }, { id: "p7", cx: 0, cy: 0 }, { id: "p8", cx: 14, cy: 1 }, { id: "p9", cx: 18, cy: 5 }, { id: "p10", cx: 8, cy: 6 }, { id: "p11", cx: 6, cy: 10 }, { id: "p12", cx: 21, cy: 8 }, { id: "p13", cx: 4, cy: 0 }, { id: "p14", cx: 10, cy: 10 } ],
+      waves: [
+        { groups: [ { type: "popper", count: 21, gap: 0.65, delay: 0 }, { type: "knight", count: 6, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "blob", count: 15, gap: 0.65, delay: 0 }, { type: "sweet", count: 37, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "popper", count: 30, gap: 0.65, delay: 0 }, { type: "knight", count: 8, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "slime", count: 2, gap: 0.9, delay: 4 }, { type: "blob", count: 18, gap: 0.65, delay: 0 }, { type: "sweet", count: 45, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "popper", count: 38, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "battery", count: 5, gap: 0.9, delay: 4 }, { type: "blob", count: 25, gap: 0.65, delay: 0 }, { type: "sweet", count: 62, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 5, gap: 0.9, delay: 4 }, { type: "streamer", count: 12, gap: 0.3, delay: 2 }, { type: "popper", count: 45, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "bubblewrap", count: 5, gap: 0.9, delay: 4 }, { type: "streamer", count: 15, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "sweet", count: 71, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "ghost", count: 14, gap: 0.9, delay: 4 }, { type: "streamer", count: 20, gap: 0.3, delay: 2 }, { type: "popper", count: 57, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "pinata", count: 1, gap: 1, delay: 0 }, { type: "boombox", count: 11, gap: 0.9, delay: 4 }, { type: "streamer", count: 25, gap: 0.3, delay: 2 }, { type: "blob", count: 34, gap: 0.65, delay: 0 }, { type: "sweet", count: 84, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "screw", count: 13, gap: 0.9, delay: 4 }, { type: "streamer", count: 31, gap: 0.3, delay: 2 }, { type: "popper", count: 77, gap: 0.65, delay: 0 }, { type: "knight", count: 19, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "cushion", count: 10, gap: 0.9, delay: 4 }, { type: "streamer", count: 39, gap: 0.3, delay: 2 }, { type: "blob", count: 50, gap: 0.65, delay: 0 }, { type: "sweet", count: 125, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "tinplane", count: 35, gap: 0.9, delay: 4 }, { type: "streamer", count: 49, gap: 0.3, delay: 2 }, { type: "popper", count: 100, gap: 0.65, delay: 0 }, { type: "knight", count: 25, gap: 0.8, delay: 3 } ] },
+        { groups: [ { type: "boombox", count: 27, gap: 0.9, delay: 4 }, { type: "streamer", count: 61, gap: 0.3, delay: 2 }, { type: "blob", count: 64, gap: 0.65, delay: 0 }, { type: "sweet", count: 160, gap: 0.8, delay: 3 } ] },
+        { boss: true, groups: [ { type: "bigpresent", count: 1, gap: 1, delay: 0 }, { type: "healer", count: 5, gap: 0.9, delay: 3 }, { type: "pinata", count: 2, gap: 1.2, delay: 7 }, { type: "streamer", count: 16, gap: 0.3, delay: 2 }, { type: "popper", count: 18, gap: 0.65, delay: 5 } ] },
+      ],
+    },
   ];
 
   // ---- TD-5 META (§8.1): star tree. Spend earned ⭐ on permanent buffs; free
@@ -1931,6 +2070,7 @@
     { id: "gooddog",       icon: "🐕", name: "Good Dog",       desc: "Beat The Housedog" },
     { id: "scrapped",      icon: "🧲", name: "Scrapped",       desc: "Beat The Big Magnet" },
     { id: "pressed",       icon: "🗜️", name: "Pressed",        desc: "Beat The Stamping Press" },
+    { id: "unwrapped",     icon: "🎁", name: "Unwrapped",     desc: "Beat The Big Present" },
     // desc is DERIVED at read time (see td-ui) — a literal here went stale the
     // moment World 4 raised the ceiling from 36 to 48.
     { id: "starcollector", icon: "⭐", name: "Star Collector",desc: "Earn half the stars" },
@@ -1969,6 +2109,7 @@
       // here has to answer both the padding and the cushioning.
       sortline: { label: "♻️ The Sort Line", pool: ["carton", "clip", "knight", "blob", "leaflet", "cushion", "bubblewrap", "slime"], miniBoss: "pinata" },
       toyworks: { label: "🏭 The Toy Works", pool: ["reject", "pellet", "knight", "blob", "offcut", "cushion", "battery", "racer"], miniBoss: "pinata" },
+      party: { label: "🎉 The Party", pool: ["popper", "sweet", "knight", "blob", "streamer", "healer", "bubblewrap", "boombox"], miniBoss: "pinata" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
     arenas: {
@@ -1998,6 +2139,10 @@
       // The Toy Works arena — pads searched at BAND=2.2, like every other arena:
       // an arena starts you poor, so a tier-1 dart's short reach has to touch the
       // lane from wave 1 or the run dies at wave 2.
+      // The Party arena — pads searched at BAND=2.2 like every other arena: an
+      // arena starts you poor, so a tier-1 dart must touch the lane from wave 1.
+      party: { path: [ [0, 12], [19, 12], [19, 6], [4, 6], [4, 2], [23, 2] ], startGold: 540,
+        pads: [ { id: "p1", cx: 3, cy: 1 }, { id: "p2", cx: 20, cy: 13 }, { id: "p3", cx: 17, cy: 0 }, { id: "p4", cx: 9, cy: 10 }, { id: "p5", cx: 0, cy: 10 }, { id: "p6", cx: 20, cy: 5 }, { id: "p7", cx: 10, cy: 0 }, { id: "p8", cx: 3, cy: 7 }, { id: "p9", cx: 15, cy: 8 }, { id: "p10", cx: 23, cy: 0 }, { id: "p11", cx: 7, cy: 4 }, { id: "p12", cx: 12, cy: 4 }, { id: "p13", cx: 21, cy: 9 }, { id: "p14", cx: 16, cy: 4 } ] },
       toyworks: { path: [ [0, 2], [20, 2], [20, 7], [3, 7], [3, 12], [23, 12] ], startGold: 540,
         pads: [ { id: "p1", cx: 2, cy: 6 }, { id: "p2", cx: 23, cy: 10 }, { id: "p3", cx: 14, cy: 0 }, { id: "p4", cx: 12, cy: 10 }, { id: "p5", cx: 21, cy: 1 }, { id: "p6", cx: 2, cy: 13 }, { id: "p7", cx: 6, cy: 0 }, { id: "p8", cx: 0, cy: 0 }, { id: "p9", cx: 9, cy: 5 }, { id: "p10", cx: 17, cy: 5 }, { id: "p11", cx: 6, cy: 9 }, { id: "p12", cx: 17, cy: 10 }, { id: "p13", cx: 21, cy: 8 }, { id: "p14", cx: 13, cy: 4 } ] },
       sortline: { path: [ [0, 1], [20, 1], [20, 7], [4, 7], [4, 12], [23, 12] ], startGold: 540,

@@ -1710,6 +1710,12 @@ test("TD7 lever advantage: sending the train the LONG way (more coverage) saves 
     // burden. Worth 6 lives at cap 10 (short won 13 → with-lever 19); floored
     // at 5 so seed drift cannot flake it.
     35: { cap: 10, gain: 5 },
+    // L38 (Pass the Parcel) measured with `node tools/td-sim.js 38 --lever`: a
+    // 6- or 7-pad board loses both ways, an 8-pad board loses SHORT on all four
+    // seeds and wins LONG on three, and a 9-pad board is the knife edge at seed
+    // 7 — short wins with 4 lives, the diversion wins with 10. Floored at 5 so
+    // seed drift cannot flake it.
+    38: { cap: 9, gain: 5 },
   };
   const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
   function play(lvl, cap, pull) {
@@ -4995,7 +5001,7 @@ test("W5 wave composition: a vanilla backbone, at most ONE disruptive special pe
   // to it; the four older worlds predate the World-4 revert that taught it and
   // genuinely fail (L10 w2 is 74% mole, L12 w1 is 67% ghost), so retro-fitting
   // would flag deliberate design as broken. Measured before widening.
-  const RULED = new Set(["garage", "moving", "newhouse", "sortline", "toyworks"]);
+  const RULED = new Set(["garage", "moving", "newhouse", "sortline", "toyworks", "party"]);
   assert.ok([...RULED].every((w) => DATA.WORLDS[w]), "every ruled world exists");
   for (const lvl of DATA.LEVELS.filter((l) => RULED.has(l.world))) {
     lvl.waves.forEach((w, i) => {

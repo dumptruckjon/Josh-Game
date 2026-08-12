@@ -144,9 +144,33 @@ const L36 = [[0, 13], [14, 13], [14, 7], [3, 7], [3, 2], [20, 2], [20, 10], [23,
 // you poor, so a tier-1 dart's short reach has to touch the lane from wave 1).
 const ARENA9 = [[0, 2], [20, 2], [20, 7], [3, 7], [3, 12], [23, 12]];
 
+// ---- World 10 "The Party" (L37-40) ----
+// L37 Streamers Up — the opener: one long sweep, because short paths are HARDER
+// (the TD-4 law) and a thin first board needs exposure.
+const L37 = [[0, 3], [18, 3], [18, 9], [5, 9], [5, 13], [23, 13]];
+// L38 Pass the Parcel — World 10's FORK. The parcel goes round the circle: the
+// shared prefix runs to the lever so a throw reroutes in-flight bodies with no
+// teleport, and the detour is a real loop, not a hairpin lying on the default.
+const L38a = [[0, 12], [5, 12], [5, 4], [14, 4], [14, 10], [20, 10], [20, 3], [23, 3]];
+const L38b = [[0, 12], [5, 12], [5, 1], [19, 1], [19, 7], [11, 7], [11, 4], [14, 4], [14, 10], [20, 10], [20, 3], [23, 3]];
+const LEVER38 = { cx: 5, cy: 12 };
+// L39 Musical Chairs — a tight double-back so coverage overlaps and depth beats
+// breadth.
+const L39 = [[0, 12], [15, 12], [15, 6], [4, 6], [4, 2], [20, 2], [20, 8], [23, 8]];
+// L40 The Big Present — the campaign's true finale: a long approach into a
+// short, brutal run at the door.
+const L40 = [[0, 2], [13, 2], [13, 8], [3, 8], [3, 12], [19, 12], [19, 6], [23, 6]];
+// The Party arena — serpentine; pads searched at BAND=2.2 because an arena
+// starts you poor and a tier-1 dart must touch the lane from wave 1.
+const ARENA10 = [[0, 12], [19, 12], [19, 6], [4, 6], [4, 2], [23, 2]];
+
 const out = {};
 for (const [name, lanes, n, lever] of (
-  process.env.W9 ? [
+  process.env.W10 ? [
+    ["L37", [L37], 12, null], ["L38", [L38a, L38b], 15, LEVER38],
+    ["L39", [L39], 13, null], ["L40", [L40], 14, null],
+    ...(process.env.ARENA ? [["ARENA10", [ARENA10], 14, null]] : []),
+  ] : process.env.W9 ? [
     ["L33", [L33], 12, null], ["L34", [L34], 13, null],
     ["L35", [L35a, L35b], 15, LEVER35], ["L36", [L36], 14, null],
     ...(process.env.ARENA ? [["ARENA9", [ARENA9], 14, null]] : []),

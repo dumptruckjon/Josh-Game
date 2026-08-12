@@ -1026,7 +1026,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/51-enemy roster (33 + 18 per-world backbone SKINS) + 9 bosses/36 levels (9 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 35 nodes/123⭐ (vs the 108⭐ ceiling 36 levels create — 15⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/55-enemy roster (34 + 21 per-world backbone SKINS) + 10 bosses/40 levels (10 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35/L38)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 40 nodes/140⭐ (vs the 120⭐ ceiling 40 levels create — 20⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
@@ -1076,6 +1076,10 @@ tooling.
 ├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; **P6b** shipped 🦆 `zapResist`, **P6c** shipped ⛱️ `zones[].dmg`, and **P6d closes the I5 new-enemy item**: of its three bodies, 🪂 Parachute Trooper was cut by the critique (the Tin Plane renamed), 🥫 Pantry Can was cut by MEASUREMENT (a shield is anti-Fan only — see the learnings block), and 🛢️ **Oil Drum shipped** on a positional axis instead of a resist. The spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`); note that its critique was itself wrong about the shield arithmetic, so treat both as claims to measure. §0 is the star-ceiling finding — read it before adding a NINTH world (36 levels = a 108⭐ ceiling and the guardrail goes red); several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
 ├── PLAN_TOWER_BRANCHES.md      # 🎯 BUILT (phases A-E): "a third ultimate per tower?" — the answer is NOT three-on-every-line (Dart and Fan have a real third axis; Mortar and Camp do not, and every candidate for them duplicates a shipped ability or breaks the guardrailed two-lines-reach-air truth), and NOT a fifth line (~5× the cost for the same feeling). §5 is the real deliverable: all EIGHT shipped tier-4 branches are unverified by the winnability suite — the oracle's fill loop is `t.tier < 3`, so it never branches — which is exactly how Sticky Bomb shipped promising goo it never left. Phases A-C (identity guardrails · a diagnostic-only `--branch` observation arm · deriving the panel's branch buttons) are pure infrastructure worth building even if no new branch is ever added. §8 is the do-not-build list.
 ├── PLAN_ENEMY_ESCORT.md        # 🌫️ BUILT then CUT: the decision-axis probe. Phase 1 shipped the decision-aware oracle (`tools/td-sim.js --priority`) and it killed the enemy before it was built — targeting priority measures ZERO even free, even on the Junk Healer, so 🌫️ Dust Bunny is not built. §6 is the report; §§2-4 are the refuted design, not a backlog.
+├── PLAN_WORLD_10.md            # 🎉 ✅ BUILT: World 10 "The Party" — L37-L40, the world that exists because a
+│                               #   FINALE is the only lever the difficulty axis has left (PLAN_MINIBOSS §5b), and a
+│                               #   boss may only headline a world's fourth level. 🎁 The Big Present is the first
+│                               #   boss to carry `hurry` — it does not hit you, it makes the party ARRIVE FASTER.
 ├── PLAN_WORLD_9.md             # 🏭 ✅ BUILT (this line said "DESIGNED, NOT BUILT" for a release AFTER the world shipped — the "a list that outlives its contents" class, caught 2026-08 by reading DATA.LEVELS instead of the doc): World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
 └── CLAUDE.md                   # This file
@@ -1286,13 +1290,20 @@ space**: real difficulty, real defeat screens, real timers — RULE 5's kid tap
 laws deliberately do not apply inside (its controls are adult-sized
 `data-adult`; the front-door tile itself is kid-sized). Status: **COMPLETE
 (TD-1 … TD-6 all shipped)** — shell +
-deterministic engine + **all 32 Levels across 8 worlds** (Bedroom L1-4, Backyard
+deterministic engine + **all 40 Levels across 10 worlds** (Bedroom L1-4, Backyard
 L5-8, Toy Store L9-12, Attic L13-16, Garage L17-20, Moving Day L21-24, **🏠 The New
 House L25-28** (the reprise world — 🪑 Flat-Pack Chair and 🔑 Spare Key skins on a
 pale drop-cloth floor, The Housedog boss) and **♻️ The Sort Line L29-32** (the step
 AFTER being kept — 🧃 Juice Carton, 📎 Runaway Clip and the campaign's first
 EXCLUSIVE flier 📄 Loose Leaf, on steel grating with a dark rubber-belt lane; The
-Big Magnet closes the campaign); distinct path/pad layouts, each
+Big Magnet), **🏭 The Toy Works L33-36** (the loop closes — the step after being
+sorted is the factory that melts you down into a new toy; The Stamping Press) and
+**🎉 The Party L37-40** (the one world where the chain runs the OTHER way: the new
+toy is wrapped and GIVEN, so it is the brightest floor in the game — 🎊 Party
+Popper / 🍬 Loose Sweet / 🎏 Stray Streamer on confetti carpet with a paper-chain
+lane, and 🎁 The Big Present closes the campaign as the first boss whose kit is a
+`hurry` aura: it never hits you, it makes the party ARRIVE FASTER); distinct
+path/pad layouts, each
 proven winnable by a headless best-of-two auto-solver + losable by neglect, and
 L12 winnable on Heroic; beat level N to unlock N+1, ▶ Next-level on the victory
 screen; the fort home shows world tints, difficulty pips, and a 👑 on each boss
@@ -1360,8 +1371,8 @@ board). **TD-7 MULTI-PATH** (the last deferred subsystem, now shipped): the
 engine is lane-aware — a level may define multiple `paths[]` and each enemy
 carries a `pathIdx`, positioned/targeted/leaked on its OWN lane (single-path
 levels stay byte-identical: `paths=[path]`, every `pathIdx` 0). The lever now
-ships on **exactly one level in each of the 8 worlds** (L3, L7, L10, L15, L19,
-L23, L27, L31 — guardrail-locked, so a 9th world cannot ship without one). **L10 "The Train
+ships on **exactly one level in each of the 10 worlds** (L3, L7, L10, L15, L19,
+L23, L27, L31, L35, L38 — guardrail-locked, so an 11th world cannot ship without one). **L10 "The Train
 Set"** is the set piece: two lanes share a prefix then split at the fork
 into a SHORT default track and a LONG loop that rejoins the short tail; throwing
 the 🔀 **track-switch lever** (`pullLever`, 8s cooldown) sends the incoming train
@@ -4964,6 +4975,48 @@ honest lever if a level must bite is a FINALE, because a boss is additive,
 budget-exempt and hand-tuned into its band — the thing the engine already
 supports.
 
+**WORLD 10 — 🎉 The Party (L37-L40) SHIPPED, and it is the one lever the closed
+difficulty axis left open, acted on.** The mini-boss phase ended with exactly one
+route: a finale is additive and budget-exempt, and `TD structure` allows a boss
+only on a world's fourth level, so a new finale means a new WORLD. That was
+blocked on the star ceiling (`LEVELS.length * 3`), so the tree was grown FIRST by
+BREADTH — five new KINDS, never ranks — to 140⭐ against the 120⭐ that 40 levels
+create (margin 20). The world itself is the only one where the displacement chain
+runs the OTHER way (the toy World 9 melted down is wrapped and GIVEN), which is
+why it is the brightest floor in the game rather than a tenth dim room: its own
+`confetti` pattern and `chain` road, three skins (🎊 Party Popper / 🍬 Loose
+Sweet / 🎏 Stray Streamer), a tenth arena, and the fork+lever on L38.
+**🎁 The Big Present is the first boss whose kit is a `hurry` aura** — it never
+touches you, it makes the whole party ARRIVE FASTER, which is a threat damage
+cannot answer and which needed no engine code at all (the Boom Box's write pass,
+read in the ONE `effSpeed`). Nine bosses ship stomp/suck/enrage/disable/spawn in
+various mixes and none had ever carried it. It measures as a real finale: normal
+`6,12,12,6,12,11,12,12` (median 12, **spread 6**) and heroic median 8, no losses
+on 8 seeds — graded, not a fixed toll, which is precisely what the mini-boss
+phase proved a non-boss body can never be.
+**THE MEASUREMENT WORTH KEEPING is L38's, because it names a quantity this file
+had only ever gestured at.** Its first cut ran a **36-cell** default lane — the
+shortest in the campaign — and measured normal med 10 with **heroic LOST on every
+seed**. Gold is completely inert against that: 1300 / 1600 / 1900 / 2200 / 2500
+all lose every heroic seed and move normal by nothing. Cutting the wave budget
+does not fix it either — at `base 700` normal finishes `20,20,20,17`, comfortable,
+while heroic still loses all four. The quantity that actually decides it is
+**total EXPOSURE = Σ(pad lane-coverage) × lane length**, i.e. how many cell-passes
+of tower fire the whole board delivers: L38 measured **39** against L31's 53 and
+L40's 66, so the board was 40% short of a normal one and no amount of money could
+buy the missing seconds. Re-searched to a 44/72 fork (exposure 43.7) and re-tuned
+to `base 800, count 13, gold 1700`, it lands at normal median 18 (graded, 16-20)
+and heroic median 9 with no losses. **When a level is unwinnable on heroic while
+normal looks fine, measure exposure before touching gold or the budget base** —
+and note this is the TD-4 "a short path is HARDER" law finally expressed as a
+number you can compare across levels, which `TDLogic.laneCoverage` (shipped for
+the placement UI) makes a one-liner.
+Two smaller notes. The **fork's value must be measured, not assumed**: L38's
+lever is decisive at an 8-pad board (short 0/4 → long 3/4) and worth 6 lives at
+9, which is what `TD7 lever advantage` now pins. And L37 ships at a flat `20 ×8`
+on normal — the **seventh** reproduction of the step function, recorded rather
+than faked, exactly as World 5 and World 9's openers were.
+
 Invariants (guardrail-locked in `site.test.js` + `tests/td.test.js`):
 - **Never registers in `JoshFramework`/`JoshGames`** — no tile, no sticker slot,
   invisible to the every-game harness and the kid mobile audit. Josh's book
@@ -5080,8 +5133,8 @@ for any new `logic.js` function and a browser check if it needs special handling
 >
 > **What IS open (opportunities, not obligations), re-measured 2026-07 after
 > World 9):**
-> - **Forks/levers**: CLOSED — **each of the 9 worlds has exactly one** (L3, L7,
->   L10, L15, L19, L23, L27, L31, L35), guardrail-derived from the data so a
+> - **Forks/levers**: CLOSED — **each of the 10 worlds has exactly one** (L3, L7,
+>   L10, L15, L19, L23, L27, L31, L35, L38), guardrail-derived from the data so a
 >   world cannot ship with none or with two. `tools/td-fork-search.js` is in the
 >   repo (with `RESEARCH=1`) so the sweep is repeatable. Each one's VALUE is
 >   measured: L3/L10/L35 are magnitude levers (no phase flip is structurally
@@ -5095,7 +5148,7 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   PLAN_GIMMICKS §6.4's stated reason), but it is consumed in wave 1-2 at every
 >   authorable hp including 1800, so its erode-across-the-run identity is
 >   unreachable, and it changes nothing the player decides. Do not rebuild it.
-> - **Level DISTINCTNESS**: CLOSED for all 36. Every world has its own backbone
+> - **Level DISTINCTNESS**: CLOSED for all 40. Every world has its own backbone
 >   crowd, no two levels run the same special SCHEDULE, each finale's escort asks
 >   a different question, and every level has a hook or a boss — all four
 >   guardrail-locked, so a new level inherits them.
@@ -5111,10 +5164,11 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   wide, so it needs pinning, and the tempting general form of that law is
 >   refuted (6 of 9 finales leak their boss on every seed).
 > - **The star ceiling**: satisfied with margin. It derives as
->   `LEVELS.length * 3` = **108** at 36 levels, against a **123⭐ / 35-node**
->   tree — margin **15**. A TENTH world would make it 120 and leave only 3, so
+>   `LEVELS.length * 3` = **120** at 40 levels, against a **140⭐ / 40-node**
+>   tree — margin **20**. An ELEVENTH world would make it 132 and leave 8, so
 >   grow the tree by BREADTH first (new kinds with real read sites), never by
->   adding ranks. The five nodes added for World 9 were all breadth.
+>   adding ranks. The five nodes added for World 9 and the five for World 10
+>   were all breadth.
 > - **Difficulty**: the campaign is now measured on a floor it cannot leave.
 >   `normal` and `heroic` winnability are separated by a STEP, not a slope —
 >   reproduced six times, most recently on World 9's fresh maps (L33 read normal
@@ -5124,7 +5178,11 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   (an hp-preserving swap); bigger HP piles, backbone stat shape, gold, budget
 >   base, lane length and side-door dose are each measured NOT to work. That is a
 >   deliberate content pass to commission, not a defect to fix on sight.
-> - **The mini-boss**: CLOSED for the THIRD time, now with the mechanism, and
+> - **The mini-boss**: CLOSED for the THIRD time, and ACTED ON — its one
+>   remaining route (a finale is additive and budget-exempt, and a boss may only
+>   headline a world's fourth level) became **World 10, 🎉 The Party (L37-L40)**,
+>   whose 🎁 Big Present finishes at a median 12 with a spread of 6. The refutation
+>   itself stands unchanged, with the mechanism, and
 >   commissioned as a full content phase that concluded it must not be built
 >   (`PLAN_MINIBOSS.md`, `tools/td-miniboss.js`). Six shapes measured on 8
 >   seeds — additive toll body, split into three, heal elite, spawn kit, hurry
