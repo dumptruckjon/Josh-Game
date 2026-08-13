@@ -1013,34 +1013,45 @@ test("AUDIT: the pause menu scrolls (never clips) in short landscape viewports",
   await page.waitForTimeout(150);
 });
 
-test("TD7 L10 lever: the fork level renders, and a real tap on the lever throws the track", async () => {
+test("TD7 lever: EVERY fork level renders its lanes, and a real tap throws the track", async () => {
+  // DERIVED over every fork, not pinned to L10. It was `newGame(10)` while the
+  // lever spread to one level in each of ten worlds — so a world's new fork had
+  // its VALUE measured by the node sim and its RENDER + real tap covered by
+  // nothing. That matters because a fork's lanes are new geometry every time,
+  // and the recorded TD-7 bug was exactly a rendering one: enemies drawn on the
+  // wrong track because the renderer positioned them on lane 0 instead of their
+  // own. A number sim cannot feel that.
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   const errsBefore = pageErrors.length;
-  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(10, { seed: 7 }); });
+  const forkIds = await page.evaluate(() => window.TDData.LEVELS.filter((l) => l.fork && l.lever).map((l) => l.id));
+  assert.ok(forkIds.length >= 8, `every world ships a fork (${forkIds.length} found)`);
+  for (const lid of forkIds) {
+  await page.evaluate((n) => { location.hash = "#td-play"; window.__TD.newGame(n, { seed: 7 }); }, lid);
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
   // the multi-lane fork level (two ribbons + the lever glyph) renders with no error
   await page.evaluate(() => { const r = window.__TD.render(); r.resize(); r.draw(0); });
   // start a wave and let a few enemies march onto the default (short) lane
   const before = await page.evaluate(() => { window.__TD.script([["call"], ["tick", 45]]); return window.__TD.state().leverRoute; });
-  assert.equal(before, 0, "the track starts on the short (default) lane");
+  assert.equal(before, 0, `L${lid}: the track starts on the short (default) lane`);
   // a REAL tap on the lever's world position (via the shared world→screen map) throws it
   const canvas = page.locator("#screen-td-play .td-canvas");
   const rect = await canvas.boundingBox();
   const sp = await page.evaluate(() => { const lv = window.__TD.engine().levelDef.lever; return window.__TD.w2s(lv.cx + 0.5, lv.cy + 0.5); });
   // Before the throw, a draw must light the SHORT (default) route on the field.
   const litBefore = await page.evaluate(() => { const r = window.__TD.render(); r.draw(0); return r.leverInfo(); });
-  assert.ok(litBefore.hasSeg, "the lever level precomputes its divergent branch segments");
-  assert.equal(litBefore.lit, 0, "the route overlay lights the SHORT lane before the throw");
+  assert.ok(litBefore.hasSeg, `L${lid}: the lever level precomputes its divergent branch segments`);
+  assert.equal(litBefore.lit, 0, `L${lid}: the route overlay lights the SHORT lane before the throw`);
   await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
   const after = await page.evaluate(() => ({ route: window.__TD.state().leverRoute, long: window.__TD.state().enemies.some((e) => e.alive && e.pathIdx === 1) }));
-  assert.equal(after.route, 1, "the tap threw the lever to the long lane");
-  assert.ok(after.long, "enemies on the shared prefix were rerouted the long way");
+  assert.equal(after.route, 1, `L${lid}: the tap threw the lever to the long lane`);
+  assert.ok(after.long, `L${lid}: enemies on the shared prefix were rerouted the long way`);
   // The field overlay must follow the throw: the LONG route lights up now
   // (the persistent-toggle state is readable on the TRACK, not just the button).
   const litAfter = await page.evaluate(() => { const r = window.__TD.render(); r.draw(0); return r.leverInfo().lit; });
-  assert.equal(litAfter, 1, "the route overlay lights the LONG lane after the throw");
-  assert.equal(pageErrors.length, errsBefore, "the fork level + lever produced no page error");
+  assert.equal(litAfter, 1, `L${lid}: the route overlay lights the LONG lane after the throw`);
+  }
+  assert.equal(pageErrors.length, errsBefore, "no fork level or lever produced a page error");
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
