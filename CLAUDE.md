@@ -4711,6 +4711,22 @@ failure. Closing the item that started this: **heroic is easier than normal on
 exactly ONE of 36 levels (L20, +4), with L32 tied and 32 correct**, so the
 ladder is broadly sound and L20 is an isolated outlier rather than a systemic
 break — worth one look someday, not a re-tune.
+**That look happened (2026-08), and the inversion is CONFINED TO ONE PLAN, which
+makes it a property rather than a defect.** Split per plan over 8 seeds, L20 reads
+dart normal med 8 → heroic med **5** (and an outright LOSS on one seed), i.e. the
+correct direction and steeply so; mixed reads normal med 8 → heroic med **12**.
+The shipped oracle takes `max(dart, mixed)`, so the headline inverts entirely
+because of the fan+mortar arm. Two things follow. The plausible mechanism is an
+engine property, not a bug: heroic's `hp ×1.30` makes bodies DWELL longer on the
+lane, and a slow-aura + splash board gains superlinearly from that (tankier
+bodies clump, and AoE efficiency scales with clumping) while a single-target dart
+swarm pays the HP bump as pure cost — so L20-on-heroic is a level where the mixed
+build is close to mandatory, which is defensible design. And the obvious lever is
+REFUTED: a gold sweep (1070/1110/1150/1190 × 8 seeds) moves normal **not at all**
+— it reads med 8 at every value — while heroic only shifts 11→12, so no gold
+setting closes a 4-life gap. Recorded rather than re-tuned: changing a shipped
+boss finale on a best-of number that the greedy oracle's build ORDER partly
+shapes is the World-4 revert's exact shape.
 
 **THE HEALER DOSE HAS A SINGLE-SEED CLIFF, ON THREE OF THE SIX LEVELS THAT
 CARRY ONE — and the intuitive repair is HOLLOW on all three.** After fixing L21
