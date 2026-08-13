@@ -1189,9 +1189,19 @@ asserts both a level-id badge and an event badge — two clauses because they ar
 wired in different places, which three mutations confirm: kill the level-id
 branch and only First Blood survives; kill the event branch and only Doorman
 does; make `earnAch` a no-op and both vanish. **The general shape, now seen
-twice in one session: a structural scan proves a CALL SITE exists, and only
+three times in one session: a structural scan proves a CALL SITE exists, and only
 driving the feature proves the call does anything** — pair them rather than
-picking one.
+picking one. The third instance was the **Toybox Guide**, which builds six
+sections from data and had only two asserted on the RENDERED page (enemy cards,
+star tree). Every `levelGimmicks` test lives in `td-logic.test.js` and checks the
+DERIVATION, so the render loop could drop the Level-tricks section — or the
+Powers row, or the branch roles, or the tower lines — and every one of those
+guardrails would stay green while the mechanic went undocumented, which is the
+exact condition the guide was written to fix. One browser test now walks all
+four against the data (a sixth gimmick, a fifth line, a ninth branch or a sixth
+power inherits it), with an explicit non-empty check on each list so the loops
+cannot pass vacuously; mutation-proven by emptying the gimmick loop and the
+powers row separately.
 
 ---
 

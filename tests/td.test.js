@@ -5365,6 +5365,50 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
 });
 
+test("TD-12 guide: every DERIVED section actually reaches the page", async () => {
+  // The guide builds six sections from data. Two are asserted on the rendered
+  // page (enemy cards, star tree) and four were only ever tested as
+  // DERIVATIONS: every levelGimmicks test lives in td-logic.test.js and checks
+  // the function, so the render loop could drop a section — or the whole
+  // section could stop being appended — with those guardrails green. That is
+  // the same structural-vs-driven split that let `earnAch` go undriven: a scan
+  // proves the data exists, only the page proves the player can read it.
+  //
+  // Derived from the data, so a sixth gimmick, a fifth line, a ninth branch or
+  // a sixth power inherits the check instead of needing someone to remember.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator(".td-guide-open").click();
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+  const g = await page.evaluate(() => {
+    const D = window.TDData, L = window.TDLogic;
+    const gimmicks = new Set();
+    for (const lv of D.LEVELS) for (const x of L.levelGimmicks(lv)) gimmicks.add(x.name);
+    const branches = [];
+    for (const t of Object.values(D.TOWERS)) for (const b of Object.values(t.branches || {})) branches.push(b.name);
+    return {
+      text: document.querySelector(".td-overlay--guide .td-overlay__box").textContent,
+      gimmicks: [...gimmicks],
+      powers: (D.ABILITIES || []).map((a) => a.name),
+      branches,
+      lines: Object.values(D.TOWERS).map((t) => t.name),
+    };
+  });
+  // None of the four may be vacuously empty, or the loops below assert nothing.
+  assert.ok(g.gimmicks.length >= 4, `the campaign really has gimmicks (${g.gimmicks.length})`);
+  assert.ok(g.powers.length >= 4, `…and powers (${g.powers.length})`);
+  assert.ok(g.branches.length >= 8, `…and tier-4 branches (${g.branches.length})`);
+  assert.ok(g.lines.length >= 4, `…and tower lines (${g.lines.length})`);
+  for (const [what, names] of Object.entries({ gimmick: g.gimmicks, power: g.powers, branch: g.branches, line: g.lines })) {
+    for (const n of names) {
+      assert.ok(g.text.indexOf(n) >= 0,
+        `the guide's rendered page never mentions the ${what} "${n}" — it is derived from the data, ` +
+        "so a section that stops being appended leaves the mechanic undocumented while the derivation test stays green");
+    }
+  }
+  await page.locator(".td-guide-done").click();
+});
+
 test("AUDIT badges: WINNING actually earns one, end to end", async () => {
   // The engine-side guardrail that every declared badge is awarded is a TEXT
   // scan of td-main.js — it proves an `earnAch("doorman")` line EXISTS, not that
