@@ -103,6 +103,30 @@ four and lost heroic on eight.
 L40 is the deliverable: median 12 with a spread of 6, inside the 5-17 band
 `AUDIT boss tension` demands, and it ends more than one way.
 
+### 5.0 Re-measured on SIXTEEN seeds — no single-seed cliff
+
+L40's escort is **5 Junk Healers**, and this repo's record is explicit that healer
+doses hide single-seed cliffs an 8-seed sample misses: L21, L25 and L30 each
+concealed one, and each was found only by widening the sweep. So the world was
+re-measured on 16 seeds (`1,7,13,23,2,99,404,5,3,11,17,19,29,31,37,41`):
+
+| level | normal | heroic | min |
+| --- | --- | --- | --- |
+| L37 | `20 ×16` | med **15** (12-17) | 12 |
+| L38 | med **18** (15-20) | med **9** (4-11) | 4 |
+| L39 | med **20** (19-20) | med **13** (10-17) | 10 |
+| L40 | med **12** (4-12, spread **8**) | med **9** (6-10) | 6 |
+
+**All 64 level×seed heroic combos are wins.** No cliff. Two things follow. The
+healer mechanism did not bite here, and the plausible reason is structural: these
+healers ride a BOSS wave, which is budget-exempt and reached with a fully built
+board, rather than a mid-game dose landing on a board still under construction.
+And L40 grades BETTER than the 8-seed sample suggested — spread 6 → **8**.
+
+The number to watch is **L38's heroic minimum of 4**. That is thin, but it sits
+above shipped norms (L29 floors at 2, and L10 at 1 is recorded as the campaign's
+thinnest), so it ships as-is and is written down rather than tuned away.
+
 ### 5.1 L38 was structurally unwinnable on heroic, and GOLD could not touch it
 
 The first cut ran a **36-cell** default lane with 11 pads — the shortest lane in

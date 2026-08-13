@@ -4992,8 +4992,19 @@ the other's axis. So when a pass finds a defect on a surface, ask which OTHER
 property of that same surface nobody has measured — a guardrail now walks every
 one of her games and fails on any letter/digit run under 16px.
 
-**The post-World-10 deep pass: the boss's headline mechanic was UNDRIVEN, and the
-determinism suite cannot see a historical drift.** Two findings, both about
+**The post-World-10 deep pass: the boss's headline mechanic was UNDRIVEN, the
+determinism suite cannot see a historical drift, and the world itself came back
+CLEAN on 16 seeds.** Taking the last one first, because a negative result is the
+cheap half of an audit and this one closes a real worry: L40's escort is 5 Junk
+Healers, the exact shape recorded as hiding single-seed cliffs (L21, L25 and L30
+each concealed one from an 8-seed sample), so the world was re-swept on 16 seeds
+— **all 64 level×seed heroic combos win**, no cliff, and L40's normal spread
+actually WIDENS from 6 to 8 (4..12). The plausible reason the mechanism did not
+bite is structural and worth keeping: these healers ride a BOSS wave, which is
+budget-exempt and met with a fully built board, rather than a mid-game dose
+landing on a board still under construction. L38's heroic minimum of 4 is the
+number to watch — thin, but above shipped norms (L29 floors at 2, L10 at 1), so
+it is recorded rather than tuned away. The other two findings are about
 coverage rather than behaviour. (1) **`AUDIT boss kits` had no `hurry` branch.**
 It is derived and drives stomp / suck / enrage / spawner plus every per-band
 phase key — but `hurry` is a TOP-LEVEL field, so the per-band loop cannot see it
