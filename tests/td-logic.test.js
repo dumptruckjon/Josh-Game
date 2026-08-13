@@ -5514,6 +5514,35 @@ test("AUDIT boss kits: EVERY boss's declared abilities actually fire — derived
         `${type} declares enrage ×${def.enrage.mult} below ${def.enrage.hpPct} hp but covered ${mad.toFixed(2)} cells vs ${calm.toFixed(2)} above it`);
       effectsProven += 1;
     }
+    if (def.hurry) {
+      // TRAP 4, and this branch exists because the audit did not have one: World
+      // 10's whole design justification is that 🎁 The Big Present never hits you
+      // — it makes the party ARRIVE FASTER — and that field was declared with
+      // NOTHING driving it. `hurry` is TOP-LEVEL, not inside `phases`, so the
+      // per-band loop above cannot see it either; the boss kit would have shipped
+      // dead and this audit would still have passed on its phases alone.
+      //
+      // Measured as GROUND COVERED by an escort, not as a flag: hurry is read in
+      // effSpeed and never sets a field on the body it speeds up — the same trap
+      // that `enrage` above documents.
+      const travel = (withBoss) => {
+        const e = bossBoard(false);
+        e.state.phase = "wave";
+        const mate = Object.assign({}, DATA.ENEMIES.sock, { id: 9101, type: "sock", alive: true, hp: 1e9, maxHp: 1e9, dist: 20, pathIdx: 0, shield: 0 });
+        e.state.enemies.push(mate);
+        const boss = withBoss ? mkEnemy(type, 20) : null;
+        if (boss) e.state.enemies.push(boss);
+        const d0 = mate.dist;
+        for (let i = 0; i < 120; i++) { e.tick(); mate.hp = 1e9; if (boss) { boss.hp = def.hp; boss.dist = 20; } }
+        return mate.dist - d0;
+      };
+      const alone = travel(false), escorted = travel(true);
+      assert.ok(alone > 0, `${type}'s hurry test needs its escort to be moving at all`);
+      assert.ok(escorted / alone > 1.05,
+        `${type} declares a hurry aura ×${def.hurry.mult} but an escort beside it covered ` +
+        `${escorted.toFixed(2)} cells against ${alone.toFixed(2)} alone — the aura never fired`);
+      effectsProven += 1;
+    }
     if (def.spawner) {
       const e = bossBoard(false);
       const boss = mkEnemy(type, 2); e.state.enemies.push(boss);
