@@ -2973,7 +2973,13 @@ test("AUDIT threat shape: a healer dose must still make its level cost something
     return e.state.phase === "won" ? e.state.lives : -1;
   }
   const PLANS = [["dart"], ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"]];
-  const SEEDS = [1, 3, 5, 7];
+  // The STANDARD seed set, not a bespoke [1,3,5,7]. This test guards the one
+  // mechanism this repo records as hiding SINGLE-SEED CLIFFS — L21, L25 and L30
+  // each concealed one — and those cliffs were on seeds 23 and 2, NEITHER of
+  // which the bespoke set contained. A guardrail that cannot see the failures its
+  // own mechanism is known for is the L32 class (a bespoke sample inside one
+  // audit), and this is the second instance found in the same sweep.
+  const SEEDS = [1, 7, 13, 23, 2];
   // Levels whose LATE waves carry a mending body, excluding boss finales (which
   // already cost lives by their own axis and are graded elsewhere).
   const dosed = DATA.LEVELS.filter((l) => l.waves.slice(-5).some((w) =>
@@ -2994,9 +3000,37 @@ test("AUDIT threat shape: a healer dose must still make its level cost something
     const lives = byPlan.map((v) => Math.max(...v));
     assert.ok(!lives.some((x) => x < 0),
       `L${lvl.id} "${lvl.name}" carries a healer dose and is now UNWINNABLE on a screened seed (${lives.join(",")})`);
-    assert.ok(lives.some((x) => x < 20),
-      `L${lvl.id} "${lvl.name}" carries a healer dose but still finishes 20/20 on every screened seed (${lives.join(",")}) — ` +
-      "the dose has stopped doing anything, which is what it was placed to fix");
+    // The dose must be WORTH something, measured against its own control — the
+    // same level with its healer groups removed. The old assertion here was
+    // `lives.some(x < 20)` on best-of-plans, and it was passing on seed luck:
+    // L19's dose leaves best-of-plans flat at 20 on every standard seed, so the
+    // check only survived because seed 3 happened to be in the bespoke set.
+    //
+    // Measured, the six doses work through TWO different channels, which is why
+    // one bar could never see them all (dose worth, standard seeds):
+    //   L19 gap +8 / lives 0 · L25 gap +6 / lives 0   <- punish the dart swarm
+    //   L33 gap  0 / lives +4 · L34 gap +1 / lives +3 · L21 gap 0 / lives +1
+    //   L30 gap -1 / lives  0                          <- worth nothing
+    // So it is a DISJUNCTION: cost best-of-plans lives, or widen the dart-vs-mixed
+    // gap. Either is the dose doing its job; neither is a dose that has stopped.
+    if (!lvl.waves.some((w) => w.boss)) {
+      const ctrl = JSON.parse(JSON.stringify(lvl));
+      for (const w of ctrl.waves) w.groups = w.groups.filter((g) => !(DATA.ENEMIES[g.type] && DATA.ENEMIES[g.type].heal));
+      const cByPlan = SEEDS.map((sd) => PLANS.map((p) => run(ctrl, p, sd)));
+      const md = (a) => { const x = [...a].sort((u, v) => u - v); return x[Math.floor(x.length / 2)]; };
+      const gap = (bp) => md(bp.map((v) => v[1])) - md(bp.map((v) => v[0]));
+      const worth = (md(cByPlan.map((v) => Math.max(...v))) - md(lives)) + (gap(byPlan) - gap(cByPlan));
+      // L30 is EXEMPT by measurement, not by convenience: it scores -1, and
+      // CLAUDE.md already records it as "one of the six shipped doses [that] does
+      // not qualify … its real value was always diversity" — which this control
+      // shows does not hold either (gap 1 dosed vs 2 undosed). Pinned so it can
+      // still fail if it gets WORSE, and named so the exemption is a decision.
+      const floor = lvl.id === 30 ? -1 : 1;
+      assert.ok(worth >= floor,
+        `L${lvl.id} "${lvl.name}"'s healer dose is worth ${worth} against its own no-healer control ` +
+        `(need >= ${floor}) — it neither costs best-of-plans lives nor widens the dart-vs-mixed gap, ` +
+        "so it has stopped doing the thing it was placed to do");
+    }
     // …and it must still buy BUILD DIVERSITY, which is the whole point of a
     // mending body: it punishes a board that cannot out-damage the healing, so
     // a dart swarm should no longer be as good as a considered mix. This was an
@@ -3012,14 +3046,12 @@ test("AUDIT threat shape: a healer dose must still make its level cost something
     // that BEFORE writing this was the point: L4 scores 0/4 (dart 14,14,14,13 vs
     // mixed 3,4,3,3), so asserting over every dosed level would have gone red on
     // shipped content immediately.
-    // Mutation note, because it is an honest caveat: killing the healer
-    // (`hps: 15 -> 0`) does NOT isolate this assertion — the "still finishes
-    // 20/20" check above throws first, which is the redundant-fix trap. It is
-    // proven instead by collapsing the INSTRUMENT (setting the mixed plan to
-    // ["dart"]), which fires exactly this assertion while the lives checks stay
-    // green. A product-side mutation that removes the diversity without also
-    // removing the dose's effect does not obviously exist, since the diversity
-    // IS the dose's effect.
+    // Mutation note, UPDATED: killing the healer (`hps: 15 -> 0`) used not to
+    // isolate anything here — the old "still finishes 20/20" check threw first,
+    // the redundant-fix trap — so this clause could only be proven by collapsing
+    // the instrument. The control-based worth check above fixes that: with a dead
+    // healer it now fails directly, `L19 ... worth 0 against its own no-healer
+    // control`, which is a PRODUCT-side mutation isolating a product claim.
     if (lvl.waves.some((w) => w.boss)) continue;
     const div = byPlan.filter(([dart, mixed]) => mixed > dart).length;
     assert.ok(div > 0,

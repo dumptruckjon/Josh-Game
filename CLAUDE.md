@@ -4168,10 +4168,17 @@ backbone group*, which preserves total wave HP, RAISES the ≥70% backbone share
 and keeps the special count at 1, so all three contracts hold by construction.
 **Shipped: L19 w12 (×4), L25 w12 (×5), L30 w13 (×5) and L34 w10 (×3)** — the dose is per
 level, and the search now covers every (wave, dose) rather than three sampled
-waves, which is the only reason L30 was found at all. 8 seeds: normal 20×8 →
-20,16,20,20,20,20,20,17, heroic median 15 → 16 with zero losses, dart-mono
-19,16,17,18,18,16,16,19 → 11,6,9,10,9,11,8,11 — it is the dart swarm this
-punishes. L25: normal 20×8 → 20,20,16,15,20,20,20,20, heroic median 14 → 6 with
+waves, which is the only reason L30 was found at all. **CORRECTION (re-measured
+2026-08): L19's normal column recorded here as `20,16,20,20,20,20,20,17` is
+WRONG — the shipped `tools/td-sim.js` on those exact 8 seeds gives `20 ×8`, and
+the test harness independently agrees. The 16/17 appear on seeds 3 and 19, which
+are not in that set, so the vector was written against a different seed list.
+The DART column is confirmed in magnitude (~18 undosed → ~10 dosed), and that is
+the dose's real effect** — L19 punishes the dart swarm rather than moving
+best-of-plans lives, exactly as the "what this buys is not lives-remaining but
+build diversity" note below says. heroic median 15 → 16 with zero losses,
+dart-mono 19,16,17,18,18,16,16,19 → 11,6,9,10,9,11,8,11 — it is the dart swarm
+this punishes. L25: normal 20×8 → 20,20,16,15,20,20,20,20, heroic median 14 → 6 with
 zero losses, dart-mono 14,14,14,14,14,13,15,16 → 8,8,8,8,9,8,11,9. Neglect
 still loses both. **FIVE doses were built, measured and then
 REJECTED, and each rejection is a rule.** (1) **L31 w12 measured beautifully and
@@ -4991,6 +4998,36 @@ nothing had ever measured TYPE. Two audits over the identical runs, each blind t
 the other's axis. So when a pass finds a defect on a surface, ask which OTHER
 property of that same surface nobody has measured — a guardrail now walks every
 one of her games and fails on any letter/digit run under 16px.
+
+**THE SAME BESPOKE-SEED CLASS APPEARED TWICE MORE, AND THE SECOND ONE WAS
+GUARDING THE MECHANISM MOST KNOWN FOR CLIFFS.** Sweeping the suite for the L32
+shape found the healer-dose lock sampling `SEEDS = [1, 3, 5, 7]` — bespoke, on the
+one mechanism this file records as hiding SINGLE-SEED CLIFFS, and those cliffs
+were on seeds **23 and 2, neither of which that set contains**. Switching to the
+standard set made it fail on L19, which looked like a defective dose and was not:
+measured against its own no-healer control, **L19's dose takes a dart swarm from
+~18 lives to ~10** — exactly the "roughly halves what a dart-only board keeps"
+this file already claims these doses are for — while leaving best-of-plans flat,
+because the mixed plan absorbs it. The test was asserting the wrong quantity.
+**Measured, the six doses work through TWO channels**, which is why no single bar
+could see them all (worth vs control, standard seeds): L19 gap +8 / lives 0 · L25
+gap +6 / lives 0 (punish the dart swarm) · L33 gap 0 / lives +4 · L34 gap +1 /
+lives +3 · L21 gap 0 / lives +1 (cost lives outright) · **L30 gap −1 / lives 0**
+(worth nothing, which this file already recorded — and the control shows its
+stated diversity fallback does not hold either). So the assertion is now a
+DISJUNCTION against a per-level control: cost best-of-plans lives OR widen the
+dart-vs-mixed gap. Two things that improves. The old `lives.some(x < 20)` check
+was **passing on seed luck** — L19 is flat 20 on every standard seed and survived
+only because seed 3 was in the bespoke set — and the diversity clause beside it is
+a COUNT that reads 12/12 with the dose AND 12/12 without, so it could not detect
+removal at all; only the hard-coded id list protected them. And the test's own
+mutation note said killing the healer "does NOT isolate this assertion" because
+the 20/20 check threw first; with the control it now fails directly (`L19 … worth
+0 against its own no-healer control`), so a PRODUCT mutation isolates a product
+claim. **A recorded number was also wrong**: L19's normal column here read
+`20,16,20,20,20,20,20,17` and both the shipped tool and the test harness give
+`20 ×8` on those seeds — the 16/17 land on seeds 3 and 19. A balance number in
+this file is evidence, not proof.
 
 **A BESPOKE SEED SET INSIDE ONE AUDIT HID A THIRD ERASED FINALE — and the reason
 more seeds is NOT the fix is the part worth keeping.** `AUDIT boss tension with
