@@ -211,7 +211,16 @@
     },
     camp: {
       name: "Army Guys Camp", icon: "🪖", kind: "camp", role: "blocks path", hitsFliers: false,
-      rallyRange: 2.5,
+      // 3.05 is MEASURED, not chosen: pad-to-nearest-lane distance across all
+      // 501 camp-able pads is p90 2.00 and max 3.000, so this is the smallest
+      // value under which EVERY camp-able pad can post its wall on the road.
+      // It reads as a widening from 2.5 and is really an alignment — the engine
+      // has always posted soldiers up to 3.04 cells out by default (that is the
+      // reach every level was tuned with), while the gate refused the player
+      // the same reach, so a camp on 16 pads opened on a flag position it would
+      // not let you choose again. No sim re-rallies by hand, so the only thing
+      // that changes is what a MANUAL rally may reach.
+      rallyRange: 3.05,
       tiers: [
         { name: "Army Guys", cost: 90, soldiers: 3, hp: 55, dmg: 4, rate: 0.9, armor: 0, respawn: 8 },
         { name: "Sarge Squad", cost: 150, soldiers: 3, hp: 85, dmg: 8, rate: 0.9, armor: 0.25, respawn: 8 },

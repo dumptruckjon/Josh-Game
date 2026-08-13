@@ -989,6 +989,97 @@ clicking `.td-up` three times lands the third click on a branch card and
 silently measures a tier-4 panel with no branch row — drive upgrades through
 `__TD.script` and click only to open.
 
+**THE CAMP'S RALLY WAS DEFERRED AS COSMETIC AND WAS NOT — and the reason it read
+as cosmetic is that the guardrail meant to catch it walked ONE level while its
+own comment said "EVERY camp-able pad".** This file carried `defaultRally`'s
+half-cell bias as known-and-not-worth-fixing, on the grounds that removing it
+"moves 237 of 247 pads' rally points … and takes soldier posts >0.5 cells off a
+lane from 1 to 4". Swept properly — all 40 levels, every pad, against EVERY lane
+— the shipped numbers were **22 of 501 pads posting a soldier off the lane** and
+**16 of 501 camps opening on a flag `rally()` itself refuses**. Three defects,
+one per layer, and each fix is a different shape. (1) **A spread along a straight
+TANGENT leaves the polyline** — at a lane END it simply runs off the last
+waypoint (L18/p2 rallies at the exit (23,0) and posted a guy at (23.52,−0.10),
+i.e. off the board on a 24-wide grid). **I first wrote this up as "a dead
+soldier" and MEASURED it before committing, which is the reason this paragraph is
+smaller than it started:** the engage radius is 0.55 and that post is 0.53 out,
+so it is *not* inert — it blocks 8 bodies where its two siblings block 17 and 18.
+The real defect is that it stands past the end of the road, is out of position,
+and is one stagger-width from useless. Posts now walk the lane's own ARC LENGTH
+with the squad's window slid inside the lane, so "on the road" is true by
+construction for every lane shape and no future spacing can tip it past 0.55; a
+rally point the player placed OFF the lane keeps its offset, so only the SPREAD
+changed. 22 → 0, worst 0.224. **Check a claim like "it can never work" against
+the number that decides it** — 0.53 against 0.55 is the whole difference between
+a positioning bug and a dead feature, and the overstatement was already written
+into the code comment and the assertion message before the probe caught it. (2) **The bias itself is the fifth site to mix this engine's two
+coordinate spaces** — a lane point is a CELL INDEX and `pad.cx + 0.5` is a WORLD
+centre, and only one side got the +0.5. (3) **The gate and the engine disagreed
+about reach, and the GATE was the wrong one.** `rallyRange` said 2.5 while
+`defaultRally` has always posted soldiers up to 3.04 out — so the tuned reality
+was ~3.0 and the rule refused the player the reach the engine was already using.
+Pad-to-nearest-lane distance across all 501 pads is p90 2.00, max 3.000, so
+**3.05 is the measured smallest value under which every camp-able pad can put its
+wall on the road**; `rally()` and `defaultRally` now share ONE predicate.
+**The first fix I reached for was a REGRESSION, and measuring the engage radius
+is what caught it**: clamping the default into the old 2.5 gate fixed
+reachability (16 → 0) but, on the 9 pads that sit 3.00 from every lane, left the
+flag 0.50 short of the road — and since the ±0.10 stagger is perpendicular too,
+half of each of those squads lands at 0.60, **past the 0.55 engage radius and so
+genuinely unable to reach anything on the lane**. A reachability fix that
+silently disarms part of seven squads is worse than the bug it fixes. **And two of my own instruments lied on the
+way**: a hand-rolled camp board showed L28 flipping won → lost, which is the
+recorded "a pad ORDERING is part of the oracle" trap (the shipped `PLANS=camp`
+arm is byte-identical on all 9 affected levels × 8 seeds × both difficulties);
+and a `grep -E "^L[0-9]"` over the sim's output silently dropped **L4**, because
+ids are padded to two chars and it prints `L 4` — a scan's own PATTERN is part of
+the scan. Two empty result files also compared "IDENTICAL" before either job had
+finished, which is the degenerate reading in its purest form: assert the files
+are non-empty before believing a diff. **Testing lesson, the sharpest one:
+mutation M1 PASSED.** With the reach widened, the biased default is still inside
+the gate and still on a lane, so restoring the bias survived both of the clauses
+I had written — the widening alone satisfied them. A third clause was needed that
+asks for what the fix actually claims: the default must be the NEAREST lane point
+*in the engine's own space* (biased, it is up to 1.062 cells further than the true
+minimum on 16 pads; unbiased, 0.000 on all 501). When a mutation passes, the test
+is measuring something adjacent to the claim. The clamp survives as the thing that
+makes `defaultRally`'s postcondition unconditional rather than a silent
+precondition on level data — proven by a marooned-pad fixture, and proven DEAD on
+shipped data by the clause that every pad reaches the road, which is what makes a
+future distant pad fail with an actionable message instead of an illegal state.
+**Do not `git stash` uncommitted work inside a command that can time out** — a
+2-minute cap killed the wrapper before its `stash pop` and left the whole change
+in `stash@{0}` with a clean-looking tree. Use a `git worktree` at the baseline
+commit instead; it also lets before/after run in parallel.
+
+**"ASK THE ENGINE, NEVER RE-DERIVE" HAD TWO MORE VIOLATIONS, and both were on
+the money moving the OTHER way — which is why nobody reported them.** The price
+flash fixed the panel showing 110 while 🔧 Handyman charged 99; the SELL refund
+one line above it in the same function was still
+`Math.floor(t.spent * DATA.RULES.sellRefund)` — the raw rule — while `sell()`
+pays `× mods.sellRefund`. ♻️ Trade-In lifts that 80% → 90%, so a run owning it
+was shown **272** on a tier-3 dart and handed **306**. The out-of-energy hint had
+the identical shape: it printed `RULES.chargePerWave`, so a 🔋 Spare Battery run
+was told it banks 2 ⚙️ a wave while banking 3. **UNDERSTATING what the player
+gets is the quiet half of this class** — an overcharge produces a bug report and
+a greyed-out button you can afford, while being handed MORE than the label
+promised produces nothing at all, so only a test finds it. Both now have an
+engine owner (`refundOf`, `chargeGrant`) that `sell()` and the wave payout use
+themselves, plus a structural scan that `td-main` reads neither rule (with the
+Toybox Guide deliberately exempt — it explains the MECHANIC, so quoting the base
+rule there is correct, and that distinction is what keeps the scan from being a
+false-positive machine). **The fixture lesson landed twice in one test.** The
+browser probe upgraded with `__TD.script([["upgrade", id], …])` — the op takes an
+INDEX into `state.towers`, not an id — so both upgrades silently no-opped and the
+probe measured a tier-1 tower while its comment claimed tier 3; the mutation
+still went red (56 vs 63), so it would have shipped as a passing test of the
+wrong thing. It now returns `tier`/`spent` and asserts them, and reproduces the
+real numbers (272 vs 306). And **a one-owner scan that counts an IDENTIFIER
+catches every name containing it**: the first rally-reach scan matched
+`rallyRange` and scored the gate's own name `rallyRangeOK` three times, reporting
+5 owners of a value with 2 — count the DATA path (`TOWERS.camp.rallyRange`), not
+the word.
+
 ---
 
 ## Repository Structure
@@ -1790,12 +1881,14 @@ blind to exactly the corruption it exists to catch; **a boss draws at its `size`
 scale, so an hp bar pinned 0.6 cells above the centre painted INSIDE the body of
 every boss**; `close` targeting was a selectable mode no test ever drove; and a
 boss's size and a multi-life leak's heavier flash were data fields no render test
-read. **Recorded, not forced:** `defaultRally()` measures a path point (cell
-index) against the pad's WORLD centre, disagreeing with `rally()`'s own range
-check — removing the bias is cosmetically correct and moves 237 of 247 pads'
-rally points by up to 6 cells, re-posturing every camp on tuned levels and taking
-soldier posts >0.5 cells off a lane from 1 to 4. Not worth the trade; fix it
-alongside a camp re-tune. Finally, **the live-verify guard had the same
+read. **Recorded, not forced — and later MEASURED and FIXED, see the rally entry
+at the end of this block:** `defaultRally()` measures a path point (cell index)
+against the pad's WORLD centre, disagreeing with `rally()`'s own range check.
+This was written off as cosmetic on numbers taken from a one-level sample ("moves
+237 of 247 pads … soldier posts off a lane from 1 to 4"); swept over all 40
+levels it was 22 of 501 pads posting a soldier where it can never block and 16
+camps opening on a flag `rally()` refuses. The deferral was wrong because the
+measurement behind it was scoped to L1. Finally, **the live-verify guard had the same
 scope bug as everything else**: it polled only `index.html` for `?v=<sha>`, so a
 CDN edge serving the new HTML with a not-yet-propagated `art.js` failed two
 tests on a commit that touched neither — it now requires every versioned asset

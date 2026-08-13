@@ -1031,11 +1031,9 @@
     }
 
     // ---- Soldiers ----
-    // Unit tangent of the path at its nearest point to (px,py) — so a camp's
-    // soldiers line up ALONG the lane, standing ON the path ribbon as a visible
-    // blockade, instead of scattering to the side of it. Deterministic (fixed
-    // sampling, no RNG).
-    function pathTangentAt(px, py) {
+    // The lane point nearest (px,py), across EVERY lane — the one owner for
+    // "where on the road is this?". Deterministic (fixed sampling, no RNG).
+    function pathNearest(px, py) {
       let bestD = Infinity, bestDist = 0, bestPath = path;
       for (const pth of paths) { // TD-7: nearest point across every lane
         for (let d = 0; d <= pth.total; d += 0.2) {
@@ -1044,23 +1042,50 @@
           if (dd < bestD) { bestD = dd; bestDist = d; bestPath = pth; }
         }
       }
-      const a = posAt(bestPath, Math.max(0, bestDist - 0.35));
-      const b = posAt(bestPath, Math.min(bestPath.total, bestDist + 0.35));
+      return { pth: bestPath, dist: bestDist };
+    }
+    // Unit tangent of a lane at an arc-length position.
+    function tangentAt(pth, dist) {
+      const a = posAt(pth, Math.max(0, dist - 0.35));
+      const b = posAt(pth, Math.min(pth.total, dist + 0.35));
       let tx = b.x - a.x, ty = b.y - a.y;
       const m = Math.hypot(tx, ty) || 1;
       return { x: tx / m, y: ty / m };
     }
     function rallySlots(t) {
       const s = statsOf(DATA.TOWERS.camp, t);
-      const tan = pathTangentAt(t.rallyX, t.rallyY);
-      const nx = -tan.y, ny = tan.x; // in-ribbon perpendicular
+      // Soldiers line up ALONG the lane, standing ON the path ribbon as a
+      // visible blockade. They are spread by the lane's own ARC LENGTH, not
+      // along a straight tangent through the rally point: a tangent leaves the
+      // polyline wherever the road turns, and — the shipped defect this fixes —
+      // it runs straight off the END of the road. 22 of 501 camp-able pads put
+      // a soldier 0.52 cells past the last waypoint; L18/p2 rallies at the exit
+      // (23,0) and posted a guy at (23.52,-0.10), i.e. off the board on a
+      // 24-wide grid. MEASURED, so as not to overstate it: that soldier is not
+      // inert — 0.53 off the lane is still inside the 0.55 engage radius — but
+      // it is out of position and one stagger-width from useless, blocking 8
+      // bodies where its two siblings block 17 and 18. Walking the arc makes
+      // "on the lane" true by construction for every lane shape and every rally
+      // point, so no future spacing or lane geometry can tip it past 0.55.
+      const near = pathNearest(t.rallyX, t.rallyY);
+      // A rally point the player placed OFF the lane keeps its offset, so the
+      // rally control means exactly what it did before — only the SPREAD changed.
+      const anchor = posAt(near.pth, near.dist);
+      const offX = t.rallyX - anchor.x, offY = t.rallyY - anchor.y;
+      // Slide the whole squad's window inside the lane rather than clamping each
+      // post, so the wall stays evenly spaced instead of stacking men at the end.
+      const span = (s.soldiers - 1) * 0.52;
+      const centre = span >= near.pth.total
+        ? near.pth.total / 2
+        : Math.max(span / 2, Math.min(near.pth.total - span / 2, near.dist));
       const out = [];
-      // spread soldiers along the lane (centred on the rally point), with a tiny
-      // stagger kept well inside the ribbon so every guy stands on the path
       for (let i = 0; i < s.soldiers; i++) {
-        const along = (i - (s.soldiers - 1) / 2) * 0.52;
+        const d = centre + (i - (s.soldiers - 1) / 2) * 0.52;
+        const p = posAt(near.pth, d);
+        const tan = tangentAt(near.pth, d);
+        // a tiny stagger, kept well inside the ribbon so every guy is still on it
         const perp = (i % 2 === 0 ? -0.1 : 0.1);
-        out.push({ x: t.rallyX + tan.x * along + nx * perp, y: t.rallyY + tan.y * along + ny * perp });
+        out.push({ x: p.x + offX - tan.y * perp, y: p.y + offY + tan.x * perp });
       }
       return out;
     }
@@ -1076,28 +1101,47 @@
         });
       }
     }
+    // The ONE range gate for a rally flag. rally() and defaultRally() must agree
+    // about what "in range" means, or the engine can hand a camp an opening
+    // posture the player is then refused when they try to restore it.
+    function rallyRangeOK(cx, cy, x, y) {
+      const rr = DATA.TOWERS.camp.rallyRange;
+      return (x - cx) ** 2 + (y - cy) ** 2 <= rr * rr;
+    }
+    function rallyClamp(cx, cy, x, y) {
+      if (rallyRangeOK(cx, cy, x, y)) return { x, y };
+      const rr = DATA.TOWERS.camp.rallyRange;
+      const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1;
+      const k = (rr - 1e-6) / d; // land strictly inside, so the gate cannot round us out
+      return { x: cx + dx * k, y: cy + dy * k };
+    }
     function defaultRally(pad) {
-      // nearest point on the path within rally range of the pad (sampled).
-      // KNOWN, MEASURED, DELIBERATELY UNCHANGED: the comparison below mixes
-      // spaces — a path point is a cell index, `pad.cx + 0.5` is a world
-      // centre — so the default rally point is biased half a cell down-right,
-      // and rally()'s own range check (which measures from t.cx) disagrees with
-      // it by that much. Removing the bias is cosmetically correct and moves
-      // 237 of the 247 shipped pads' default rally points, by up to 6 cells
-      // where two lanes are near-equidistant, changing every camp's opening
-      // posture on levels that were tuned with it — and it takes the count of
-      // soldier posts sitting >0.5 cells off a lane from 1 to 4. The old point
-      // is a real point ON the lane and the player can re-rally anywhere, so
-      // the trade is not worth it. Fix it only alongside a camp re-tune.
+      // Nearest point on ANY lane, measured in the engine's own space, then
+      // pulled inside rally()'s gate.
+      //
+      // This carried a documented half-cell bias for a long time — a path point
+      // is a CELL INDEX and `pad.cx + 0.5` is a world CENTRE, so only one side
+      // of the comparison got the +0.5 (the fifth instance of this engine's two
+      // coordinate spaces disagreeing). It was deferred as cosmetic; measured,
+      // it was not. On 16 of 501 camp-able pads the biased default landed up to
+      // 3.04 cells from the pad against a rallyRange of 2.5, i.e. rally() would
+      // REFUSE it — so those camps opened on a flag position the player could
+      // never choose or put back. Removing the bias alone leaves 9, because
+      // those pads are genuinely >2.5 cells from every lane and no lane point
+      // is reachable from them at all; the clamp is what makes the default
+      // always a state rally() accepts, posting the squad as far up the road as
+      // the flag can actually go. The old objection about soldier posts is gone
+      // with it: posts now walk the lane's arc, so they are on the lane
+      // whichever point is chosen.
       let best = null, bestD = Infinity;
       for (const pth of paths) { // TD-7: rally to the nearest point on ANY lane
         for (let d = 0; d <= pth.total; d += 0.25) {
           const p = posAt(pth, d);
-          const dd = (p.x - (pad.cx + 0.5)) ** 2 + (p.y - (pad.cy + 0.5)) ** 2;
+          const dd = (p.x - pad.cx) ** 2 + (p.y - pad.cy) ** 2;
           if (dd < bestD) { bestD = dd; best = p; }
         }
       }
-      return best || { x: pad.cx + 0.5, y: pad.cy + 0.5 };
+      return rallyClamp(pad.cx, pad.cy, best ? best.x : pad.cx, best ? best.y : pad.cy);
     }
 
     function soldierTick() {
@@ -1600,6 +1644,18 @@
       return r ? r.reach : null;
     }
 
+    // What selling this tower ACTUALLY pays — the one owner, for exactly the
+    // reason priceOf below is one. ♻️ Trade-In lifts the refund 80% → 90%, and
+    // the tower panel used to label its button `Math.floor(t.spent *
+    // DATA.RULES.sellRefund)` — the raw rule — so a run owning the node was
+    // shown 272 on a tier-3 dart and handed 306. Same defect as the price flash,
+    // on the money moving the other way, which is why it went unreported:
+    // nobody complains about being given MORE than the label promised.
+    function refundOf(towerId) {
+      const t = towerById(towerId);
+      if (!t) return 0;
+      return Math.floor(t.spent * mods.sellRefund);
+    }
     // THE one place a price is computed. `place`/`upgrade`/`branch` all read it,
     // and the UI asks the ENGINE for it rather than re-deriving it from DATA —
     // the same lesson already recorded for targeting modes ("ask the engine
@@ -1696,7 +1752,7 @@
       const i = state.towers.findIndex((t) => t.id === towerId);
       if (i < 0) return { ok: false, reason: "bad-id" };
       const t = state.towers[i];
-      const refund = Math.floor(t.spent * mods.sellRefund); // TD-5 Trade-In (else R.sellRefund)
+      const refund = refundOf(towerId);
       state.gold += refund;
       for (const sol of state.soldiers) {
         if (sol.campId === t.id) {
@@ -1730,8 +1786,9 @@
     function rally(towerId, x, y) {
       const t = towerById(towerId);
       if (!t || t.lineId !== "camp") return { ok: false, reason: "bad-id" };
-      const rr = DATA.TOWERS.camp.rallyRange;
-      if ((x - t.cx) ** 2 + (y - t.cy) ** 2 > rr * rr) return { ok: false, reason: "range" };
+      // the SAME gate defaultRally clamps to, so the opening posture is always a
+      // position the player is allowed to choose again
+      if (!rallyRangeOK(t.cx, t.cy, x, y)) return { ok: false, reason: "range" };
       t.rallyX = x; t.rallyY = y;
       const slots = rallySlots(t);
       for (const sol of state.soldiers) {
@@ -2059,9 +2116,13 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf, coverageOf, towerReach, reachAt,
+      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, reachAt,
       applyStrip, // 🎯 exposed like isHidden/dealDamage: a guardrail must drive the seam, not infer it
       chargePrice, buyCharge, buyChargeReady,
+      // What THIS run banks per wave sent. 🔋 Spare Battery adds to it, so a UI
+      // that prints RULES.chargePerWave is telling an owning run the wrong
+      // number — the sell-refund defect, one unit smaller. Ask the engine.
+      chargeGrant: () => R.chargePerWave + chargeBonus,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       // the renderer paints a revealed hider differently, and the guardrails

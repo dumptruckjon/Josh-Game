@@ -358,7 +358,11 @@ test("TD2 rally flow: 🚩 Rally arms the next field tap and moves the flag", as
     const t = window.__TD.state().towers[0];
     return { x: t.rallyX, y: t.rallyY };
   });
-  // plant the flag ~1.5 cells away (inside the 2.5 rally range)
+  // Plant the flag ~1.5 cells away. The reach is read from the DATA rather than
+  // retyped here: the comment used to say "inside the 2.5 rally range" and went
+  // stale the moment that value moved, which is the retyped-number class.
+  const reach = await page.evaluate(() => window.TDData.TOWERS.camp.rallyRange);
+  assert.ok(reach >= 1.6, `the fixture taps ~1.5 cells out, which must be inside the reach (${reach})`);
   const target = await page.evaluate(() => window.__TD.w2s(8, 4.2));
   await page.mouse.click(rect.x + target.x, rect.y + target.y);
   const after2 = await page.evaluate(() => {
@@ -5359,6 +5363,66 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
   assert.ok(out.disc.price < out.plain.price,
     `🔧 Handyman must lower the upgrade price (plain ${out.plain.price}, discounted ${out.disc.price}) — ` +
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
+});
+
+test("UX: the SELL button's number is what selling actually pays", async () => {
+  // The same defect as the price flash, on the money moving the other way, and
+  // it survived that fix by one line: the panel labelled its button
+  // `Math.floor(t.spent * DATA.RULES.sellRefund)` — the RAW rule — while sell()
+  // pays `× mods.sellRefund`. ♻️ Trade-In lifts that 80% → 90%, so an owning run
+  // was shown 272 on a tier-3 dart and handed 306. Understating income is the
+  // quieter half of the class (you do not notice being given MORE), which is
+  // exactly why it needs a test rather than a player.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    const probe = (meta) => {
+      window.__TD.newGame(1, { seed: 3, meta });
+      const eng = window.__TD.engine();
+      const pad = eng.levelDef.pads[0];
+      const tapPad = () => {
+        const s = window.__TD.w2s(pad.cx + 0.5, pad.cy + 0.5);
+        const c = document.querySelector("#screen-td-play .td-canvas");
+        const r = c.getBoundingClientRect();
+        c.dispatchEvent(new MouseEvent("click", { clientX: r.left + s.x, clientY: r.top + s.y, bubbles: true }));
+      };
+      eng.state.gold = 9000; window.TDUI.hud(eng.state);
+      tapPad();
+      document.querySelector(".td-buy[data-line=dart]").click();
+      const id = eng.state.towers[0].id;
+      // Upgrade through the engine, never by clicking: the panel re-renders in
+      // place after a purchase, so a third click would land on a branch card.
+      // NOTE `script`'s upgrade op takes an INDEX into state.towers, not an id —
+      // passing the id here made both ops silently no-op and left the probe
+      // measuring a tier-1 tower while claiming tier 3, so `spent` is returned
+      // and asserted below rather than trusted.
+      window.__TD.script([["upgrade", 0], ["upgrade", 0]]);
+      document.querySelector(".td-bubble").hidden = true;   // force a fresh OPEN
+      tapPad();
+      const btn = document.querySelector(".td-sell");
+      const shown = +(btn.textContent.match(/(\d+)/) || [])[1];
+      const tw = eng.state.towers.find((x) => x.id === id);
+      const goldBefore = eng.state.gold;
+      const paid = eng.sell(id).refund;
+      return { shown, paid, delta: eng.state.gold - goldBefore, spent: tw.spent, tier: tw.tier };
+    };
+    return { plain: probe([]), tradein: probe(["sellrefund"]) };
+  });
+  for (const [name, r] of Object.entries(out)) {
+    // The fixture must have built the tower it claims: a silently no-opped
+    // upgrade would leave a 70-gold tier-1, where the gap is smaller and the
+    // test would still pass while measuring something else entirely.
+    assert.equal(r.tier, 3, `${name}: the probe must reach tier 3 (saw tier ${r.tier}, spent ${r.spent})`);
+    assert.equal(r.shown, r.paid,
+      `${name}: the sell button printed ${r.shown} and selling paid ${r.paid} — the label must be the ENGINE's refund`);
+    assert.equal(r.delta, r.paid, `${name}: …and that refund is what actually reaches your gold`);
+  }
+  // The node must actually BITE, or the pair proves nothing — the plain/discount
+  // lesson from the price test, which is the only thing that separates a
+  // DATA-derived label from an engine-derived one.
+  assert.ok(out.tradein.paid > out.plain.paid,
+    `♻️ Trade-In must raise the refund (plain ${out.plain.paid}, Trade-In ${out.tradein.paid}) — ` +
+    "with them equal this test cannot tell the two sources apart");
 });
 
 test("the ⚙️ exchange shows its GOLD PRICE on the button, not only in a title", async () => {

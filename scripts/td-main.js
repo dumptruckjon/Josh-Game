@@ -804,7 +804,9 @@
     e.state.shieldUsed = !!mr.shieldUsed; // TD-8: restore a spent Sticker Shield (legacy midRun lacks it → false, matching a fresh run)
     // A legacy checkpoint has no charge; give it a wave's worth rather than
     // zero, so an old saved run is never resumed into a dead power strip.
-    e.state.charge = mr.charge === undefined ? global.TDData.RULES.chargePerWave : mr.charge;
+    // THIS run's wave, from the engine — 🔋 Spare Battery makes it bigger, and
+    // the raw rule would quietly hand an owning run less than a wave.
+    e.state.charge = mr.charge === undefined ? e.chargeGrant() : mr.charge;
     e.state.leverRoute = 0; e.state.leverUntil = 0; e.state.leverCd = 0; // TD-17: resume on the short route, lever armed (a timed diversion cannot be checkpointed — see writeMidRun)
     // legacy midRun saves lack these → keep the fresh values (a full countdown,
     // a zeroed tally), which is exactly what a pre-fix resume already did
@@ -875,7 +877,9 @@
     if (reason === "not-in-wave") return "⏳ " + name + " only works during a wave";
     if (reason === "gold") return "🪙 Not enough gold for " + name + " (" + (def ? def.gold : "?") + ")";
     if (reason === "cooldown") return "⏱ " + name + " is still recharging";
-    if (reason === "charge") return "⚙️ Out of toy energy — you get " + global.TDData.RULES.chargePerWave + " more each wave";
+    // THIS run's grant, not the raw rule: 🔋 Spare Battery adds to it, so an
+    // owning run was told it banks less than it does (the sell-refund class).
+    if (reason === "charge") return "⚙️ Out of toy energy — you get " + cur.engine.chargeGrant() + " more each wave";
     if (reason === "no-targets") return "🎯 Nothing in the blast — tap closer to the toys";
     if (reason === "no-soldiers") return "🪖 No soldiers to rally — build an Army Guys camp first";
     if (reason === "all-healthy") return "🪖 Your squad is already up and at full health";
@@ -1052,7 +1056,10 @@
         if (!t) { UI.hideBubble(); cur.render.setSelection(null); return; }
         const def = DATA.TOWERS[t.lineId];
         const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
-        const refund = Math.floor(t.spent * DATA.RULES.sellRefund);
+        // Refund from the ENGINE for the same reason the prices below are:
+        // ♻️ Trade-In pays 90% where the raw rule says 80%, so a DATA-derived
+        // label told an owning run it would get less than it actually got.
+        const refund = cur.engine.refundOf(t.id);
         let middle = "";
         if (t.tier < 3) {
           // Price from the ENGINE, so the label and the affordability gate are

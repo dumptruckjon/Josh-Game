@@ -952,30 +952,160 @@ test("AUDIT: a rally issued mid-combat updates an ENGAGED soldier's post (honore
 });
 
 test("AUDIT: camp soldiers rally ON the path (posts sit on the lane, not scattered beside it)", () => {
-  // The block soldiers used to spread with fixed 2D offsets that pushed some off
-  // the ribbon; now they line up ALONG the path tangent. Every soldier's post
-  // must sit within half a cell of the path centre-line, for EVERY camp-able pad.
-  const distToPath = (e, x, y) => {
+  // A camp's only job is to BLOCK, and a soldier blocks what comes within
+  // 0.55 cells of it — so how far a post sits from the road is the whole of
+  // whether it works. The 0.5 bar here is that engage radius with a margin.
+  //
+  // SCOPE, and it is the point of this rewrite: the comment here used to say
+  // "for EVERY camp-able pad" while the loop walked L1's six. Swept over all
+  // 40 levels the shipped tangent spread put a post off the lane on 22 of 501
+  // camp-able pads — every one of them a rally point at a lane END, where a
+  // straight tangent through it simply runs off the last waypoint (L18/p2
+  // rallies at the exit (23,0) and posted a guy at (23.52,-0.10), off the board
+  // on a 24-wide grid). Measured rather than assumed: at 0.53 that soldier is
+  // still barely inside 0.55, so it is out of position rather than inert — it
+  // blocks 8 bodies where its siblings block 17 and 18 — and it is one
+  // stagger-width from dead. Posts now walk the lane's own ARC LENGTH, so being
+  // on the lane is true by construction; this walks every pad of every level so
+  // a future lane shape cannot re-open it. A scan's own list is part of the scan.
+  //
+  // Measured against EVERY lane, not just lane 0: a fork level's camp may
+  // legitimately post on the switch track (the TD-11 lesson — when a level
+  // gains a second lane, every per-lane law must be re-run against all of them).
+  // Exact point-segment projection rather than a sampled walk: at 501 pads a
+  // 0.1-step scan of every lane is ~1M posAt calls, and sampling granularity
+  // would sit inside the tolerance being asserted.
+  const distToAnyLane = (e, x, y) => {
     let best = Infinity;
-    for (let d = 0; d <= e.path.total; d += 0.1) {
-      const p = e.posAt(d);
-      const dd = (p.x - x) ** 2 + (p.y - y) ** 2;
+    for (let li = 0; li < e.paths.length; li++) {
+      for (const s of e.paths[li].segs) {
+        const dx = s.bx - s.ax, dy = s.by - s.ay;
+        const L2 = dx * dx + dy * dy;
+        let t = L2 === 0 ? 0 : ((x - s.ax) * dx + (y - s.ay) * dy) / L2;
+        t = Math.max(0, Math.min(1, t));
+        const dd = (s.ax + dx * t - x) ** 2 + (s.ay + dy * t - y) ** 2;
+        if (dd < best) best = dd;
+      }
+    }
+    return Math.sqrt(best);
+  };
+  let pads = 0, worst = 0, worstAt = "";
+  for (const lvl of DATA.LEVELS) {
+    for (const pad of lvl.pads) {
+      const e = TD.createEngine(lvl, { seed: 5 });
+      e.state.gold = 99999; // a geometry sweep, not a balance sim
+      if (!e.place("camp", pad.id).ok) continue;
+      const cam = e.state.towers[e.state.towers.length - 1];
+      for (let i = 0; i < 120; i++) e.tick(); // let them deploy
+      const mine = e.state.soldiers.filter((s) => s.campId === cam.id);
+      assert.ok(mine.length >= 2, `L${lvl.id} camp on ${pad.id} fielded a squad`);
+      pads++;
+      for (const s of mine) {
+        const dPost = distToAnyLane(e, s.tx, s.ty);
+        if (dPost > worst) { worst = dPost; worstAt = `L${lvl.id}/${pad.id}`; }
+        assert.ok(dPost <= 0.5,
+          `L${lvl.id} camp ${pad.id}: a soldier post must sit ON a lane (dist ${dPost.toFixed(2)} ≤ 0.5) — ` +
+          "past the 0.55 engage radius it can never reach anything on the road, and this bar keeps a margin");
+      }
+    }
+  }
+  // The sweep must actually have swept. A `continue` that silently skipped every
+  // pad would leave every assertion above unreached and this test green.
+  assert.ok(pads >= 400, `the sweep must cover the campaign's camp-able pads, saw ${pads}`);
+  assert.ok(worst > 0, `worst post distance ${worst.toFixed(3)} at ${worstAt}`); // keep the number in the log
+});
+
+test("AUDIT: a camp's OPENING rally is a flag position the player may choose again", () => {
+  // The engine picks a camp's first rally point; the player moves it with
+  // rally(), which refuses anything outside rallyRange. Those two must agree,
+  // or the camp opens on a posture that can never be restored once you move it.
+  //
+  // They did not. defaultRally compared a lane point (a CELL INDEX) against
+  // `pad.cx + 0.5` (a WORLD centre) — this engine's two coordinate spaces, the
+  // fifth site to mix them — so on 16 of 501 camp-able pads the default landed
+  // up to 3.04 cells out against a gate of 2.5 and rally() would have refused
+  // it. Removing the bias alone left 9, because those pads are genuinely 3.00
+  // cells from every lane: the gate was simply narrower than the reach the
+  // engine has always used, and every level was tuned with that reach.
+  //
+  // TWO clauses, because they fail on different things. The first is a law
+  // about the DATA and it is what makes this test able to fail on a new level.
+  const RR = DATA.TOWERS.camp.rallyRange;
+  const onALane = (e, x, y) => {
+    let best = Infinity;
+    for (const pth of e.paths) for (const s of pth.segs) {
+      const dx = s.bx - s.ax, dy = s.by - s.ay, L2 = dx * dx + dy * dy;
+      let t = L2 === 0 ? 0 : ((x - s.ax) * dx + (y - s.ay) * dy) / L2;
+      t = Math.max(0, Math.min(1, t));
+      const dd = (s.ax + dx * t - x) ** 2 + (s.ay + dy * t - y) ** 2;
       if (dd < best) best = dd;
     }
     return Math.sqrt(best);
   };
-  for (const pad of L1.pads) {
-    const e = TD.createEngine(L1, { seed: 5 });
-    if (!e.place("camp", pad.id).ok) continue; // startGold covers one camp
-    const cam = e.state.towers[e.state.towers.length - 1];
-    for (let i = 0; i < 120; i++) e.tick(); // let them deploy
-    const mine = e.state.soldiers.filter((s) => s.campId === cam.id);
-    assert.ok(mine.length >= 2, `camp on ${pad.id} fielded a squad`);
-    for (const s of mine) {
-      const dPost = distToPath(e, s.tx, s.ty);
-      assert.ok(dPost <= 0.5, `camp ${pad.id}: a soldier post must sit ON the path (dist ${dPost.toFixed(2)} ≤ 0.5)`);
+  let n = 0, worst = 0, worstAt = "";
+  for (const lvl of DATA.LEVELS) {
+    for (const pad of lvl.pads) {
+      const e = TD.createEngine(lvl, { seed: 5 });
+      e.state.gold = 99999;
+      if (!e.place("camp", pad.id).ok) continue;
+      const c = e.state.towers[e.state.towers.length - 1];
+      n++;
+      const d = Math.hypot(c.rallyX - c.cx, c.rallyY - c.cy);
+      if (d > worst) { worst = d; worstAt = `L${lvl.id}/${pad.id}`; }
+      // The clause that actually pins the COORDINATE fix, and it needed its own
+      // measurement: with the reach widened, the biased default is still inside
+      // the gate and still on a lane, so restoring the bias passes both of the
+      // clauses below. What it cannot survive is being asked for the NEAREST
+      // point — biased, the chosen point is up to 1.062 cells further from the
+      // pad than the true minimum on 16 pads; measured in the engine's own
+      // space it is 0.000 on all 501. Tolerance is the sampler's 0.25 step.
+      let best = Infinity;
+      for (const pth of e.paths) for (const s of pth.segs) {
+        const dx = s.bx - s.ax, dy = s.by - s.ay, L2 = dx * dx + dy * dy;
+        let t = L2 === 0 ? 0 : ((c.cx - s.ax) * dx + (c.cy - s.ay) * dy) / L2;
+        t = Math.max(0, Math.min(1, t));
+        const dd = (s.ax + dx * t - c.cx) ** 2 + (s.ay + dy * t - c.cy) ** 2;
+        if (dd < best) best = dd;
+      }
+      assert.ok(d - Math.sqrt(best) <= 0.13,
+        `L${lvl.id}/${pad.id}: the opening rally is ${d.toFixed(2)} from the pad but a lane point ` +
+        `${Math.sqrt(best).toFixed(2)} away exists — defaultRally must measure in the engine's own ` +
+        "space (a lane point is a CELL INDEX, and so is pad.cx), like rally() and targeting do");
+      assert.ok(e.rally(c.id, c.rallyX, c.rallyY).ok,
+        `L${lvl.id}/${pad.id}: the camp OPENED on (${c.rallyX.toFixed(2)},${c.rallyY.toFixed(2)}), ` +
+        `${d.toFixed(2)} cells from the pad, and rally() refuses it (range ${RR}) — ` +
+        "move that flag once and the opening posture is gone for good");
+      // …and the clamp must not be doing the work on shipped data: every
+      // camp-able pad must be able to put its wall ON the road. A new level
+      // whose pad sits further than rallyRange from every lane fails HERE,
+      // which is the actionable message (move the pad, or widen the reach).
+      assert.ok(onALane(e, c.rallyX, c.rallyY) < 0.01,
+        `L${lvl.id}/${pad.id}: the default rally is ${onALane(e, c.rallyX, c.rallyY).toFixed(2)} cells ` +
+        `off every lane — it is ${d.toFixed(2)} from the pad against a reach of ${RR}, so this pad cannot ` +
+        "post its soldiers on the road at all and a camp built there can never block");
     }
   }
+  assert.ok(n >= 400, `the sweep must cover the campaign's camp-able pads, saw ${n}`);
+  assert.ok(worst <= RR, `worst opening rally ${worst.toFixed(2)} at ${worstAt} (reach ${RR})`);
+
+  // The second clause is a law about the CODE: defaultRally's postcondition is
+  // unconditional, not a silent precondition on level data. A pad deliberately
+  // marooned from the lane must still open on a flag rally() accepts — the
+  // clamp is what makes the function total, and it is dead on shipped data by
+  // design (the clause above proves that), so this is the only thing that can
+  // exercise it. Without it the engine would answer a bad level with an
+  // illegal state instead of a degraded one.
+  const marooned = JSON.parse(JSON.stringify(DATA.LEVELS[0]));
+  marooned.pads = [{ id: "far", cx: marooned.path[0][0], cy: marooned.path[0][1] + 9 }];
+  const me = TD.createEngine(marooned, { seed: 5 });
+  me.state.gold = 99999;
+  assert.ok(me.place("camp", "far").ok, "the marooned fixture placed a camp");
+  const mc = me.state.towers[0];
+  const md = Math.hypot(mc.rallyX - mc.cx, mc.rallyY - mc.cy);
+  assert.ok(md > RR - 0.01 && md <= RR,
+    `a marooned pad's default must be pulled to the edge of the reach, got ${md.toFixed(3)} (reach ${RR})`);
+  assert.ok(me.rally(mc.id, mc.rallyX, mc.rallyY).ok,
+    "defaultRally must ALWAYS return a point rally() accepts, even for a pad no lane comes near");
 });
 
 test("PLAYABILITY: EVERY shipped level is winnable by a sensible build AND losable by neglect", () => {
@@ -2412,6 +2542,57 @@ test("⚙️ exchange: gold buys energy, capped per wave, and cannot erase a fin
       `L${lvl.id} "${lvl.name}" finishes at a median ${median} when gold is poured into ⚙️ and the powers are spammed ` +
       `(${perSeed.join(", ")}) — the per-wave cap (${R.chargeBuyMax}) is meant to stop a full purse buying a finale.`);
   }
+});
+
+test("a number the UI SHOWS comes from the engine, because the meta moves it", () => {
+  // The price flash established the law — "ASK THE ENGINE, never re-derive" —
+  // after the panel showed 110 while 🔧 Handyman charged 99. Two numbers were
+  // still being derived from DATA afterwards, both understating what the run
+  // gets, which is the quieter half of the class: nobody notices being handed
+  // MORE than the label promised, so only a test can find it.
+  const L = DATA.LEVELS[0];
+  const build = (meta) => {
+    const e = TD.createEngine(L, { seed: 5, meta });
+    e.state.gold = 9000;
+    e.place("dart", L.pads[0].id);
+    const t = e.state.towers[0];
+    e.upgrade(t.id); e.upgrade(t.id);
+    return { e, t };
+  };
+  // ---- ♻️ Trade-In: sell refund 80% → 90%. The panel labelled its button
+  // `Math.floor(t.spent * DATA.RULES.sellRefund)` while sell() paid
+  // `× mods.sellRefund` — 272 shown against 306 paid on a tier-3 dart.
+  for (const meta of [[], ["sellrefund"]]) {
+    const { e, t } = build(meta);
+    assert.equal(t.tier, 3, "the fixture must reach tier 3 for the gap to be worth measuring");
+    const quoted = e.refundOf(t.id);
+    const before = e.state.gold;
+    const paid = e.sell(t.id).refund;
+    assert.equal(quoted, paid, `refundOf must quote what sell() pays (meta ${JSON.stringify(meta)})`);
+    assert.equal(e.state.gold - before, paid, "…and that is what reaches your gold");
+  }
+  const plain = build([]), disc = build(["sellrefund"]);
+  assert.ok(disc.e.refundOf(disc.t.id) > plain.e.refundOf(plain.t.id),
+    "♻️ Trade-In must actually raise the refund, or the pair above proves nothing about the SOURCE");
+  assert.equal(plain.e.refundOf(plain.t.id), Math.floor(plain.t.spent * DATA.RULES.sellRefund),
+    "with no node the engine's refund is still the plain rule — the fix must not have changed the base game");
+  assert.equal(plain.e.refundOf(99999), 0, "an unknown tower refunds nothing rather than throwing");
+
+  // ---- 🔋 Spare Battery: +1 ⚙️ per wave. The out-of-energy hint printed
+  // RULES.chargePerWave, so an owning run was told it banks 2 when it banks 3.
+  for (const meta of [[], ["sparebattery"]]) {
+    const e = TD.createEngine(L, { seed: 5, meta });
+    const before = e.state.charge;
+    e.callWave();
+    assert.equal(e.chargeGrant(), e.state.charge - before,
+      `chargeGrant must be the energy a wave actually banks (meta ${JSON.stringify(meta)})`);
+  }
+  const b0 = TD.createEngine(L, { seed: 5, meta: [] });
+  const b1 = TD.createEngine(L, { seed: 5, meta: ["sparebattery"] });
+  assert.ok(b1.chargeGrant() > b0.chargeGrant(),
+    "🔋 Spare Battery must actually raise the grant, or the assertion above is satisfied by the raw rule");
+  assert.equal(b0.chargeGrant(), DATA.RULES.chargePerWave,
+    "…and with no node it is exactly the rule, so the base game is unchanged");
 });
 
 // The same audit, run with the strongest loadout a player can actually BRING —

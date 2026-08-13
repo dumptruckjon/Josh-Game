@@ -1662,6 +1662,58 @@ test("SELF-HEAL: fx ageing has ONE un-skippable owner, outside the branchy draw 
     "the ageing pass must come AFTER the draw loop closes, not inside it");
 });
 
+test("the fort UI never re-derives a number the META moves", () => {
+  // "ASK THE ENGINE, never re-derive" — the law from the price flash, where the
+  // panel showed 110 and 🔧 Handyman charged 99. Two sites still broke it after
+  // that fix, both understating the run: the SELL button multiplied by
+  // DATA.RULES.sellRefund (♻️ Trade-In pays 90%, so 272 shown / 306 paid), and
+  // the out-of-energy hint printed DATA.RULES.chargePerWave (🔋 Spare Battery
+  // banks one more). Behaviour is pinned in td-logic/td browser tests; this
+  // stops a THIRD site growing its own copy, which is how the first two got in.
+  const src = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  for (const rule of ["sellRefund", "chargePerWave"]) {
+    // The GUIDE may quote a rule — it explains the mechanic rather than this
+    // run — so only td-main (the live play surface) is scanned here.
+    // No exemptions: the resume path's legacy-checkpoint default was the last
+    // one and it asks the engine too, so an owning run is never handed less
+    // than a wave's worth of energy on restore.
+    const hits = (src.match(new RegExp("RULES\\." + rule, "g")) || []).length;
+    assert.equal(hits, 0,
+      `td-main reads RULES.${rule} ${hits} time(s) — a meta node moves it, ` +
+      "so the number shown to (or given to) the player must come from the engine");
+  }
+  assert.match(src, /refundOf\(/, "the sell button must ask the engine for its refund");
+  assert.match(src, /chargeGrant\(\)/, "the out-of-energy hint must ask the engine for this run's grant");
+});
+
+test("the camp's rally REACH has exactly ONE owner", () => {
+  // rally() gates the player's flag and defaultRally() picks the opening one.
+  // While they each measured reach for themselves they disagreed — and not
+  // subtly: 16 of 501 camp-able pads opened on a flag rally() would refuse, so
+  // moving it once lost that posture for good. The behavioural proof lives in
+  // `AUDIT: a camp's OPENING rally is a flag position the player may choose
+  // again`; this stops a THIRD site growing its own copy of the comparison,
+  // which is exactly how `hurriedMult` acquired two writers with two different
+  // policies and how the wake lock's acquire and release drifted apart.
+  const src = read("scripts/td-logic.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  // Count the DATA read, not the identifier: `rallyRange` is a substring of
+  // `rallyRangeOK`, so matching the bare name scores the gate's own name three
+  // times and the scan reports 5 owners of a value with 2. Same family as the
+  // enemy-colour scan re-creating a clash by naming the old hex in a comment.
+  const reads = (src.match(/TOWERS\.camp\.rallyRange/g) || []).length;
+  assert.equal(reads, 2,
+    `the reach may be read only by the gate and the clamp, saw ${reads} reads of TOWERS.camp.rallyRange`);
+  // …and both of those must be the gate and the clamp, or the count is vacuous.
+  assert.ok(/function rallyRangeOK\([\s\S]{0,220}?rallyRange/.test(src),
+    "rallyRangeOK is the gate and must read the reach itself");
+  assert.ok(/function rallyClamp\([\s\S]{0,320}?rallyRangeOK\(/.test(src),
+    "rallyClamp must ask the SAME gate rather than re-deriving the comparison");
+  assert.ok(/function rally\(towerId[\s\S]{0,400}?!rallyRangeOK\(/.test(src),
+    "rally() must ask the gate too — it is the site that used to own its own copy");
+  assert.ok(/return rallyClamp\(/.test(src),
+    "defaultRally must return through the clamp, so its result is always a position rally() accepts");
+});
+
 test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", () => {
   // A push to main sometimes creates NO workflow run at all — twice now
   // (02312d2, aa19e32). The commit lands, GitHub fires nothing, and the live
