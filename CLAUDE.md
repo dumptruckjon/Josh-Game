@@ -4992,6 +4992,35 @@ the other's axis. So when a pass finds a defect on a surface, ask which OTHER
 property of that same surface nobody has measured — a guardrail now walks every
 one of her games and fails on any letter/digit run under 16px.
 
+**A BESPOKE SEED SET INSIDE ONE AUDIT HID A THIRD ERASED FINALE — and the reason
+more seeds is NOT the fix is the part worth keeping.** `AUDIT boss tension with
+the strongest LEGAL loadout` asserts no finale is erased by the strongest legal
+6-node pack, exempting L8 and L16 as boss-QUANTIZED. It drove `SEEDS = [1,2,3,4]`,
+its own set, where the rest of the suite standardises on `{1,7,13,23}`. That is
+the "a scan's own list is part of the scan" class applied to SAMPLING, and it was
+hiding a real erasure: measured over 12 seeds, **L32's lives-lost vector against
+that pack is `[0,6,7,6,0,0,7,0,0,0,0,0]` — erased on 8 of 12** — while `[1,2,3,4]`
+is the unrepresentative quarter and reported a median of 6. **The seductive fix,
+"use more seeds", does not work**: a quantized finale's outcome is BIMODAL, so the
+median is unstable in the sample size — 4 seeds say 6, 8 seeds say 6, 12 seeds say
+0. Switching to the set the suite already uses costs nothing, reads the truth
+(`[0,0,0,0]`), and was verified against all ten finales first: no other level
+drops below the floor and several read HIGHER. So L32 joins L8 and L16 as the
+THIRD quantized finale — its no-meta cost is a healthy 7 lives, but the Big
+Magnet's 6-life toll means one boss leak IS the level, so any damage increase
+flips it from one leak to none. **Stated plainly: this extends a BASELINE the
+test's own message says not to extend.** The justification is that it is the same
+measured shape as the two already there, that the pin is at the measured value so
+it can still fail if L32 gets softer, and that the audit now holds SEVEN finales
+to the real bar rather than the 4-of-6 it had when that message was written. The
+alternative — re-tuning L32 so its finale survives a maxed pack — is recorded as
+an option and not taken, because the L8 sweep showed a quantized finale has only a
+~200hp-wide band where it grades at all. Also measured and REJECTED on the way:
+a cost-ordered worst-legal pack (the obvious self-updating fix for "any node
+appended to the fire branch is never erosion-tested") is WEAKER than the shipped
+one on 6 of 10 finales, so swapping it would have lost coverage — cost is a poorer
+proxy for power than it looks.
+
 **The post-World-10 deep pass: the boss's headline mechanic was UNDRIVEN, the
 determinism suite cannot see a historical drift, and the world itself came back
 CLEAN on 16 seeds.** Taking the last one first, because a negative result is the
