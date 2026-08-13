@@ -5365,6 +5365,51 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
 });
 
+test("UX: the damage-numbers toggle actually draws the damage", async () => {
+  // `setDamageNumbers` is wired end to end — pause-menu toggle → save →
+  // renderer — and td-main's own comment calls it a hook "for tests", but no
+  // test drove it. That is the shape in which the Fan's beam and the muzzle
+  // flash both turned out to draw nothing at all: an opt-in fx nobody looks at.
+  //
+  // Read what is DRAWN rather than diffing pixels. A number is text, so wrapping
+  // fillText answers the question exactly — including the TD-6 claim that the
+  // value is THREADED through the event rather than recomputed — where a pixel
+  // diff would only say "something changed" and could be satisfied by anything.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 5 });
+    const eng = window.__TD.engine(), r = window.__TD.render();
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const ctx = cv.getContext("2d");
+    const real = ctx.fillText.bind(ctx);
+    let drawn = [];
+    ctx.fillText = (t, x, y) => { drawn.push(String(t)); return real(t, x, y); };
+    const p = eng.posOn(0, 3);
+    const run = (on, dmg, crit) => {
+      r.setDamageNumbers(on);
+      for (let k = 0; k < 40; k++) r.draw(0);       // age any earlier fx out
+      r.pushFx({ type: "hit", x: p.x, y: p.y, dmg, crit });
+      drawn = [];
+      r.draw(0);
+      return drawn.slice();
+    };
+    const off = run(false, 37, false);
+    const on = run(true, 37, false);
+    const critOn = run(true, 58, true);
+    ctx.fillText = real;
+    return { off, on, critOn, hasHook: typeof r.setDamageNumbers === "function" };
+  });
+  assert.ok(out.hasHook, "the renderer must expose setDamageNumbers for the pause toggle to reach it");
+  assert.ok(out.on.includes("37"),
+    `with the toggle ON the hit's damage must be drawn (saw ${JSON.stringify(out.on)})`);
+  assert.ok(!out.off.includes("37"),
+    `with the toggle OFF it must not be (saw ${JSON.stringify(out.off)}) — otherwise the option does nothing`);
+  // THREADED, not recomputed: a different hit must draw its own number.
+  assert.ok(out.critOn.includes("58"),
+    `the number must come from the event, not a constant (saw ${JSON.stringify(out.critOn)})`);
+});
+
 test("UX: a hider flushed out by 🧨 LOOKS catchable", async () => {
   // `engine.isRevealed` exists for exactly one reason — the renderer paints a
   // flushed-out hider with a pulsing halo, and that halo is the player's ONLY

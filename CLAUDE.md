@@ -1158,6 +1158,24 @@ counted by the `bosses + 9` structure test, rendered in the 🏅 overlay, and
 handed out by nothing. Measured clean (all 19 are awarded), so it exists for the
 next one — the same dead-content class as heroic shipping with no selector and
 World 4 shipping with no cards.
+**The same enumeration applied to the RENDERER found four undriven hooks, and
+the one that mattered was `setDamageNumbers`** — an opt-in fx wired end to end
+(pause toggle → save → renderer) whose own comment in td-main calls it a hook
+"for tests", with no test driving it. That is exactly the shape in which the
+Fan's beam and the muzzle flash each turned out to draw nothing at all. It
+works; the gap was coverage. Two things worth keeping. **A number is TEXT, so
+wrap `fillText` and read it** rather than diffing pixels — the lever-countdown
+lesson — which lets the test assert the TD-6 threading claim directly (the
+value must come from the event, not be recomputed) instead of settling for
+"something changed". And **a mutation that fires an EARLIER clause has not
+proven the later one**: hard-coding the text to `"9"` failed the "ON draws 37"
+clause, so the threading clause was still unproven until a second mutation
+hard-coded it to `"37"` — clause 2 then passes and only clause 3 goes red.
+Removed while there: `text: (e.crit ? "" : "") + e.dmg`, a ternary with two
+empty branches that reads like a crit prefix and is a no-op. Left alone and
+recorded instead: `cellSize` is a genuinely dead export (no app or test
+reference), but a one-line accessor is neither misleading nor unfalsifiable, so
+it does not meet the bar that retired Kid Fort and the bed-glyph clamp.
 
 ---
 

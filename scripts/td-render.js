@@ -2910,7 +2910,11 @@
         }
         fx.push(fxAt({ kind: "poof", ttl: 8, max: 8 }, e.x, e.y));
         if (e.crit) triggerShake(2);
-        if (showDmg && e.dmg) fx.push(fxAt({ kind: "dmgnum", ttl: 22, max: 22, text: (e.crit ? "" : "") + e.dmg, crit: !!e.crit }, e.x, e.y));
+        // the crit is carried by the `crit` flag (the draw colours it amber and
+        // sizes it up); the text is just the number. It used to read
+        // `(e.crit ? "" : "") + e.dmg` — a ternary with two empty branches, which
+        // looks like a crit prefix and is a no-op.
+        if (showDmg && e.dmg) fx.push(fxAt({ kind: "dmgnum", ttl: 22, max: 22, text: String(e.dmg), crit: !!e.crit }, e.x, e.y));
       }
       else if (e.type === "splash") { fx.push(fxAt({ kind: "boom", r: e.r, ttl: 12, max: 12 }, e.x, e.y)); triggerShake(1.5); }
       else if (e.type === "stomp") { fx.push(fxAt({ kind: "boom", r: e.r, ttl: 14, max: 14 }, e.x, e.y)); triggerShake(3.5); } // boss shockwave
