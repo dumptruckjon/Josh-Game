@@ -2595,6 +2595,90 @@ test("a number the UI SHOWS comes from the engine, because the meta moves it", (
     "…and with no node it is exactly the rule, so the base game is unchanged");
 });
 
+test("the tower panel's STAT LINE is what the tower actually fights with", () => {
+  // Same law, on the tower panel's stats. It read raw DATA and was wrong on six
+  // axes — and the worst needs no meta at all: on a NIGHT level it printed the
+  // tier's range while the engine used ×0.85 of it and the range RING beside it
+  // drew the smaller circle, and on a ⚡ power pad it understated, hiding the
+  // socket's whole benefit.
+  //
+  // towerStats multiplies the same `mods` the combat sites do, which is a second
+  // multiplication, so this pins it BEHAVIOURALLY rather than by structure: the
+  // dps it reports must be the damage a shot really carries.
+  const L1 = DATA.LEVELS[0];
+  const build = (lvl, meta, line, padId, tier) => {
+    const e = TD.createEngine(lvl, { seed: 5, meta });
+    e.state.gold = 99999;
+    assert.ok(e.place(line, padId || lvl.pads[0].id).ok, `placed a ${line}`);
+    const t = e.state.towers[0];
+    for (let i = 1; i < (tier || 1); i++) e.upgrade(t.id);
+    return { e, t };
+  };
+  // ---- RANGE is towerReach, the ONE owner, so the text and the ring agree.
+  for (const lvl of DATA.LEVELS) {
+    const { e, t } = build(lvl, [], "dart", null, 3);
+    assert.equal(e.towerStats(t.id).range, e.towerReach(t.id),
+      `L${lvl.id}: the panel's range must BE towerReach — the ring already is, and the two must not disagree`);
+  }
+  // …and it must actually differ somewhere, or "range comes from the engine" is
+  // satisfied by the raw number. A night level and a ⚡ socket are the two cases.
+  const night = DATA.LEVELS.find((l) => l.night);
+  assert.ok(night, "a night level must exist for this claim to be testable");
+  const nb = build(night, [], "dart", null, 3);
+  const rawRange = DATA.TOWERS.dart.tiers[2].range;
+  assert.ok(nb.e.towerStats(nb.t.id).range < rawRange,
+    `night must shrink the printed range (raw ${rawRange}, engine ${nb.e.towerStats(nb.t.id).range})`);
+  const padLvl = DATA.LEVELS.find((l) => (l.pads || []).some((p) => p.boost && p.boost.range));
+  if (padLvl) {
+    const bp = padLvl.pads.find((p) => p.boost && p.boost.range);
+    const pb = build(padLvl, [], "dart", bp.id, 3);
+    assert.ok(pb.e.towerStats(pb.t.id).range > rawRange,
+      "a ⚡ power pad must GROW the printed range — hiding that was hiding the socket's whole point");
+  }
+  // ---- DPS: the number on the panel is the damage a shot carries. Driven
+  // through the real firing path, not inferred: place a dart, run a wave, and
+  // read the projectile it launches.
+  const dartDps = (meta) => {
+    const { e, t } = build(L1, meta, "dart", null, 3);
+    const st = e.towerStats(t.id);
+    e.callWave();
+    let seen = 0;
+    for (let i = 0; i < 3000 && !seen; i++) {
+      e.tick();
+      const p = e.state.projectiles.find((x) => !x.crit); // a crit is a separate multiplier
+      if (p) seen = p.dmg;
+    }
+    assert.ok(seen > 0, `a dart must actually fire (meta ${JSON.stringify(meta)})`);
+    return { panel: st.dmg, fired: seen, rate: st.rate };
+  };
+  for (const meta of [[], ["dartdmg"], ["dartdmg2"]]) {
+    const r = dartDps(meta);
+    assert.ok(Math.abs(r.panel - r.fired) < 0.51,
+      `the panel's dps is built from ${r.panel} damage but a shot carries ${r.fired} (meta ${JSON.stringify(meta)})`);
+  }
+  assert.ok(dartDps(["dartdmg2"]).panel > dartDps([]).panel,
+    "🎯 Sharp Darts II must raise the printed damage, or the equality above is satisfied by the raw stat");
+  // ---- the other three lines' modified stats, each against the mod the engine
+  // applies — a line whose stat stopped moving would be showing a stale number.
+  const pairs = [
+    ["mortar", "splash", ["mortarsplash2"]],
+    ["fan", "auraRange", ["fanrange"]],
+    ["camp", "hp", ["soldierhp2"]],
+  ];
+  for (const [line, key, meta] of pairs) {
+    const a = build(L1, [], line, null, 3), b = build(L1, meta, line, null, 3);
+    assert.ok(b.e.towerStats(b.t.id)[key] > a.e.towerStats(a.t.id)[key],
+      `${line}'s ${key} must reflect ${meta[0]} (plain ${a.e.towerStats(a.t.id)[key]}, node ${b.e.towerStats(b.t.id)[key]})`);
+  }
+  // 🪖 Tough Troops is the one whose effect is observable on a real body.
+  const camp = build(L1, ["soldierhp2"], "camp", null, 3);
+  for (let i = 0; i < 120; i++) camp.e.tick();
+  const sol = camp.e.state.soldiers.find((s) => s.campId === camp.t.id);
+  assert.equal(camp.e.towerStats(camp.t.id).hp, sol.maxHp,
+    "the panel's soldier hp must be the hp a soldier is actually spawned with");
+  assert.equal(camp.e.towerStats(99999), null, "an unknown tower has no stats rather than throwing");
+});
+
 // The same audit, run with the strongest loadout a player can actually BRING —
 // the balance instrument that did not exist. Every tuning number in this project
 // (and in CLAUDE.md and every PLAN doc) is a NO-META number, because the

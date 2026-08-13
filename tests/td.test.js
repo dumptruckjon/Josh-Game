@@ -5365,6 +5365,64 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
 });
 
+test("UX: the tower panel's stat line reads the ENGINE, and reads cleanly", async () => {
+  // Two claims the engine test cannot make. (1) The rendered line uses the
+  // engine's numbers — on a NIGHT level it printed the tier's range while the
+  // ring beside it drew ×0.85 of it. (2) Those numbers are floats (2.4 aura +
+  // 0.3 Cold Front is 2.7000000000000002), so the line has to FORMAT them; a
+  // panel reading "2.7000000000000002 aura" would be a worse bug than the stale
+  // number it replaced, and only reading the DOM can catch it.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    const night = window.TDData.LEVELS.find((l) => l.night);
+    const read = (levelId, line, meta) => {
+      window.__TD.newGame(levelId, { seed: 3, meta });
+      const eng = window.__TD.engine();
+      const pad = eng.levelDef.pads[0];
+      const tapPad = () => {
+        const s = window.__TD.w2s(pad.cx + 0.5, pad.cy + 0.5);
+        const c = document.querySelector("#screen-td-play .td-canvas");
+        const r = c.getBoundingClientRect();
+        c.dispatchEvent(new MouseEvent("click", { clientX: r.left + s.x, clientY: r.top + s.y, bubbles: true }));
+      };
+      eng.state.gold = 9000; window.TDUI.hud(eng.state);
+      tapPad();
+      document.querySelector(".td-buy[data-line=" + line + "]").click();
+      const id = eng.state.towers[0].id;
+      window.__TD.script([["upgrade", 0], ["upgrade", 0]]);
+      document.querySelector(".td-bubble").hidden = true;
+      tapPad();
+      return {
+        text: document.querySelector(".td-panel__stats").textContent,
+        reach: eng.towerReach(id), tier: eng.state.towers[0].tier,
+      };
+    };
+    return {
+      nightId: night.id,
+      rawDartRange: window.TDData.TOWERS.dart.tiers[2].range,
+      dartNight: read(night.id, "dart", []),
+      fanCold: read(1, "fan", ["fanrange"]),
+    };
+  });
+  // (2) no float spew anywhere on the line — the thing a human would see first
+  for (const [name, r] of Object.entries(out)) {
+    if (typeof r !== "object") continue;
+    assert.equal(r.tier, 3, `${name}: the probe must reach tier 3 (saw ${r.tier})`);
+    assert.ok(!/\d\.\d{3,}/.test(r.text),
+      `${name}: the stat line must format its numbers, saw "${r.text}"`);
+  }
+  // (1) the printed range IS the engine's reach, on the level where they differ
+  const shown = +(out.dartNight.text.match(/([\d.]+) rng/) || [])[1];
+  assert.ok(Math.abs(shown - out.dartNight.reach) < 0.011,
+    `on night L${out.nightId} the panel printed "${out.dartNight.text}" but the engine's reach is ` +
+    `${out.dartNight.reach.toFixed(2)} — the range RING already draws the engine's number, and the ` +
+    "two must not disagree in front of the player");
+  assert.ok(shown < out.rawDartRange,
+    `night must visibly shrink the printed range (saw ${shown} of a raw ${out.rawDartRange}) — ` +
+    "otherwise this test passes on a panel that is still printing the tier's number");
+});
+
 test("UX: the SELL button's number is what selling actually pays", async () => {
   // The same defect as the price flash, on the money moving the other way, and
   // it survived that fix by one line: the panel labelled its button

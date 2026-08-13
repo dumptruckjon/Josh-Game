@@ -1080,6 +1080,36 @@ catches every name containing it**: the first rally-reach scan matched
 5 owners of a value with 2 — count the DATA path (`TOWERS.camp.rallyRange`), not
 the word.
 
+**THE TOWER PANEL'S STAT LINE WAS THE THIRD AND WORST INSTANCE, and unlike the
+other two it was wrong with NO META AT ALL.** `statLine` read raw `DATA` for
+every figure it prints, so on a NIGHT level it said **"3 rng" while the engine
+used 2.55 — and the range RING drawn beside it in the same panel already showed
+2.55**, because the ring was fixed to ask the engine and the TEXT was never in
+that list. On a ⚡ power pad it understated the other way (3 against 3.54),
+hiding the entire benefit of the socket — the one thing the `% road` figure had
+just been shipped to make visible. With nodes owned it was also wrong on five
+more axes: dart dps 34 vs 41 (🎯 Sharp Darts II), mortar splash 1.6 vs 1.92
+(💥 Big Booms II), fan aura 2.4 vs 2.70 (❄️ Cold Front), soldier hp 120 vs 156
+(🪖 Tough Troops II), and no crit shown at all on a 🍀 Lucky Darts run. Fixed with
+`towerStats(towerId)`: range comes from `towerReach`, the existing ONE owner, and
+the rest apply exactly the mods the combat sites apply, **keyed on `def.kind`
+like the combat branches themselves** so a fifth line of a known kind inherits
+them. Three things worth keeping. (1) **It is deliberately a SECOND
+multiplication of `mods`, and is therefore pinned BEHAVIOURALLY rather than
+structurally** — the panel's dps must equal the damage a shot really carries,
+driven through the real firing path and read off the projectile, and the soldier
+hp must equal what a soldier actually spawns with; routing ten hot-loop sites
+through a new accessor to get structural one-ownership is a refactor of a tuned
+deterministic engine, and a failing number is the cheaper guarantee. (2) **The
+moment a UI reads engine values it inherits FLOATS**: `2.4 + 0.3` is
+`2.7000000000000002` and a night range is `2.5499999…`, so the line needs a
+formatter — the mutation that removes it renders `❄️ 50% slow ·
+2.6999999999999997 aura`, which would have been a worse bug than the stale number
+it replaced, and only reading the DOM catches it. (3) **Every "it reflects the
+engine" clause needs a partner clause that the value actually MOVES**, or it is
+satisfied by the raw number — each of the five was mutation-proven separately by
+neutering just its own multiplier.
+
 ---
 
 ## Repository Structure

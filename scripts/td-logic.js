@@ -1638,6 +1638,44 @@
       const r = reachInfo(statOf(t.lineId, t.tier, t.branch), t.cx, t.cy, t.supRange);
       return r ? r.reach : null;
     }
+    // The stat block a built tower ACTUALLY fights with — its tier/branch stats
+    // with this run's meta and this level applied. The tower panel prints these.
+    //
+    // It used to print raw DATA, and was wrong on six axes. The worst needs no
+    // meta at all: on a night level the panel said "3 rng" while the engine used
+    // 2.55 and the range RING beside it drew 2.55, and on a ⚡ power pad it said
+    // 3 against a real 3.54 — hiding the whole benefit of the socket, which is
+    // the one thing the % road figure was shipped to make visible. With nodes
+    // owned it also understated dart dps (34 vs 41 on Sharp Darts II), mortar
+    // splash (1.6 vs 1.92), fan aura (2.4 vs 2.70), soldier hp (120 vs 156) and
+    // showed no crit at all on a 🍀 Lucky Darts run.
+    //
+    // Range comes from towerReach, already the ONE owner. The rest apply exactly
+    // the mods the combat sites apply and nothing else — keyed on `kind`, like
+    // the combat branches themselves, so a fifth line of a known kind inherits
+    // them. This is a SECOND multiplication of the same `mods`, so it is pinned
+    // BEHAVIOURALLY (the panel's dps must equal the damage a shot really deals)
+    // rather than structurally; a drift shows up as a failing number, not as a
+    // reviewer noticing.
+    function towerStats(towerId) {
+      const t = state.towers.find((x) => x.id === towerId);
+      if (!t) return null;
+      const def = DATA.TOWERS[t.lineId];
+      const out = Object.assign({}, statsOf(def, t));
+      const reach = towerReach(towerId);
+      if (reach != null) out.range = reach;
+      if (def.kind === "dart") {
+        out.dmg = out.dmg * mods.dartDmg;
+        out.crit = (out.crit || 0) + mods.critBonus;
+      } else if (def.kind === "mortar") {
+        out.splash = out.splash * mods.mortarSplash;
+      } else if (def.kind === "fan") {
+        out.auraRange = out.auraRange + mods.fanAura;
+      } else if (def.kind === "camp") {
+        out.hp = Math.round(out.hp * mods.soldierHp);
+      }
+      return out;
+    }
     // …and for a pad you have not built on yet, where no support applies.
     function reachAt(lineId, tier, cx, cy, branchKey) {
       const r = reachInfo(statOf(lineId, tier, branchKey), cx, cy, 1);
@@ -2116,7 +2154,7 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, reachAt,
+      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, towerStats, reachAt,
       applyStrip, // 🎯 exposed like isHidden/dealDamage: a guardrail must drive the seam, not infer it
       chargePrice, buyCharge, buyChargeReady,
       // What THIS run banks per wave sent. 🔋 Spare Battery adds to it, so a UI

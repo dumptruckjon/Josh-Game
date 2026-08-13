@@ -823,9 +823,19 @@
   // tower actually does at its current tier (premium-TD table stakes).
   function statLine(t) {
     const def = DATA.TOWERS[t.lineId];
-    const s = (t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1];
+    // ASK THE ENGINE. These are the numbers the tower actually fights with —
+    // night, 🦉, ⚡ a power pad and 🧊 Tail Wind all move the range, and five
+    // star-tree nodes move dps/splash/aura/soldier-hp/crit. Read from DATA this
+    // line said "3 rng" on a night level while the ring beside it drew 2.55.
+    const s = (cur && cur.engine.towerStats && cur.engine.towerStats(t.id))
+      || ((t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1]);
+    // Engine values are floats (2.4 aura + 0.3 Cold Front is 2.7000000000000002,
+    // and a night range is 2.5499999…), so every number is formatted rather than
+    // concatenated — a stat line reading "2.7000000000000002 aura" would be a
+    // worse bug than the stale one this replaced.
+    const num = (v) => String(Math.round(v * 100) / 100);
     if (t.lineId === "fan") {
-      let str = "❄️ " + Math.round(s.slow * 100) + "% slow · " + s.auraRange + " aura";
+      let str = "❄️ " + Math.round(s.slow * 100) + "% slow · " + num(s.auraRange) + " aura";
       if (s.chain) str += " · chain"; else if (s.zapDps) str += " · " + s.zapDps + " zap";
       return str + roadTxt(t);
     }
@@ -834,8 +844,8 @@
       return "🪖 " + s.soldiers + "×" + s.hp + "hp · " + dps.toFixed(0) + " dps";
     }
     const dps = s.dmg / s.rate; // dart / mortar
-    let str = dps.toFixed(0) + " dps · " + s.range + " rng";
-    if (s.splash) str += " · 💥" + s.splash;
+    let str = dps.toFixed(0) + " dps · " + num(s.range) + " rng";
+    if (s.splash) str += " · 💥" + num(s.splash);
     if (s.crit) str += " · crit";
     return str + roadTxt(t);
   }
