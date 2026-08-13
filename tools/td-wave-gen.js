@@ -155,7 +155,7 @@ if (require.main === module && process.argv.includes("--check")) {
   // then never CHECKED against it — the "a scan's own list is part of the
   // scan" class again. Measured: all four below pass; bedroom, backyard,
   // toystore and attic all fail. Do not widen further without measuring.
-  const RULED = new Set(["garage", "moving", "newhouse", "sortline", "toyworks", "party"]);
+  const RULED = new Set(Object.keys(DATA.WORLDS).filter((w) => !DATA.PRE_CONTRACT_WORLDS.includes(w)));
   let ok = true;
   for (const l of DATA.LEVELS) {
     ok = validate(`L${l.id} ${l.name}`, l.budgetBase, l.waves,

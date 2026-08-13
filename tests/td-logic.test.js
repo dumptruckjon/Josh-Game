@@ -5020,7 +5020,13 @@ test("W5 wave composition: a vanilla backbone, at most ONE disruptive special pe
   // to it; the four older worlds predate the World-4 revert that taught it and
   // genuinely fail (L10 w2 is 74% mole, L12 w1 is 67% ghost), so retro-fitting
   // would flag deliberate design as broken. Measured before widening.
-  const RULED = new Set(["garage", "moving", "newhouse", "sortline", "toyworks", "party"]);
+  // DERIVED: every world EXCEPT the ones that predate the contract. The list used
+  // to name the worlds that ARE ruled, in this file and in tools/td-wave-gen.js,
+  // and it went stale once already — three worlds were emitted against the
+  // contract and then never checked against it. Inverting means an eleventh world
+  // is ruled by DEFAULT; the exemption list is closed, because the past cannot
+  // grow. ONE owner now: DATA.PRE_CONTRACT_WORLDS.
+  const RULED = new Set(Object.keys(DATA.WORLDS).filter((w) => !DATA.PRE_CONTRACT_WORLDS.includes(w)));
   assert.ok([...RULED].every((w) => DATA.WORLDS[w]), "every ruled world exists");
   for (const lvl of DATA.LEVELS.filter((l) => RULED.has(l.world))) {
     lvl.waves.forEach((w, i) => {

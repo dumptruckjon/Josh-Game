@@ -579,6 +579,23 @@
     ENEMIES[id] = Object.assign({}, ENEMIES[src], { name, icon, sortKey: src, skinOf: src });
   }
 
+  // The worlds that PREDATE the composition contract, and therefore the ONE owner
+  // of which levels `W5 wave composition` (and tools/td-wave-gen --check) rule.
+  //
+  // This was a hand-written RULED list of the worlds that ARE covered, duplicated
+  // in the test AND the tool — and CLAUDE.md records it going stale exactly that
+  // way once already ("read l.world === 'garage' and stayed that way through
+  // three more worlds"), so three worlds were emitted against the contract and
+  // then never checked against it. Inverting it closes the hole for good: the
+  // exemption list is CLOSED (the past cannot grow), so an eleventh world is
+  // ruled by default instead of needing someone to remember. Behaviour today is
+  // byte-identical to the list it replaces.
+  //
+  // These four predate the World-4 revert that taught the contract; re-authoring
+  // their wave tables to satisfy it would be a re-tune of tuned levels, which is
+  // why they are exempt rather than fixed.
+  const PRE_CONTRACT_WORLDS = ["bedroom", "backyard", "toystore", "attic"];
+
   // The ONE list of what counts as backbone, derived from the worlds. The
   // generator and the composition audit each carried their own copy of
   // ["sock","marble","blob","knight","brick","hawk"], which is exactly the
@@ -2160,7 +2177,7 @@
     },
   };
 
-  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, TOWERS, ENEMIES, WORLDS, BACKBONE_TYPES, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
+  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, TOWERS, ENEMIES, WORLDS, BACKBONE_TYPES, PRE_CONTRACT_WORLDS, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
 
   if (typeof module !== "undefined" && module.exports) module.exports = DATA;
   if (global && typeof global === "object") global.TDData = DATA;
