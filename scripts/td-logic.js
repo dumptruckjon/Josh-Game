@@ -1664,15 +1664,23 @@
       const out = Object.assign({}, statsOf(def, t));
       const reach = towerReach(towerId);
       if (reach != null) out.range = reach;
+      // Every multiplied field is coerced: a stat block one field short must
+      // DEGRADE, not disable. `undefined * 1.2` is NaN and this line is printed
+      // to the player, so the failure would be a panel reading "NaN dps" — the
+      // same class as the `mult`-less zone that froze every enemy and the
+      // `delay`-less wave group that hung a level. Shipped data carries all of
+      // them (a derived guardrail asserts that, so an author hears about it at
+      // authoring time rather than the player hearing about it on the panel).
+      const n = (v, d) => (typeof v === "number" && isFinite(v) ? v : d);
       if (def.kind === "dart") {
-        out.dmg = out.dmg * mods.dartDmg;
-        out.crit = (out.crit || 0) + mods.critBonus;
+        out.dmg = n(out.dmg, 0) * mods.dartDmg;
+        out.crit = n(out.crit, 0) + mods.critBonus;
       } else if (def.kind === "mortar") {
-        out.splash = out.splash * mods.mortarSplash;
+        out.splash = n(out.splash, 0) * mods.mortarSplash;
       } else if (def.kind === "fan") {
-        out.auraRange = out.auraRange + mods.fanAura;
+        out.auraRange = n(out.auraRange, 0) + mods.fanAura;
       } else if (def.kind === "camp") {
-        out.hp = Math.round(out.hp * mods.soldierHp);
+        out.hp = Math.round(n(out.hp, 0) * mods.soldierHp);
       }
       return out;
     }

@@ -2677,6 +2677,45 @@ test("the tower panel's STAT LINE is what the tower actually fights with", () =>
   assert.equal(camp.e.towerStats(camp.t.id).hp, sol.maxHp,
     "the panel's soldier hp must be the hp a soldier is actually spawned with");
   assert.equal(camp.e.towerStats(99999), null, "an unknown tower has no stats rather than throwing");
+
+  // A stat block one field short must be caught at AUTHORING time, not printed
+  // to the player as "NaN dps". Derived from the kinds towerStats multiplies, so
+  // a fifth line of a known kind — and every future tier and branch — inherits
+  // the check. (The engine also coerces, tested below, but a silent 0 on the
+  // panel is still wrong; this is the clause that names the offender.)
+  const NEEDS = { dart: ["dmg"], mortar: ["splash"], fan: ["auraRange"], camp: ["hp"] };
+  let checked = 0;
+  for (const [id, def] of Object.entries(DATA.TOWERS)) {
+    for (const key of NEEDS[def.kind] || []) {
+      const blocks = [
+        ...def.tiers.map((s, i) => ["tier" + (i + 1), s]),
+        ...Object.entries(def.branches || {}).map(([k, s]) => ["branch:" + k, s]),
+      ];
+      for (const [label, s] of blocks) {
+        checked++;
+        assert.equal(typeof s[key], "number",
+          `${id}/${label} has no numeric ${key}, and towerStats multiplies it — the panel would print NaN`);
+      }
+    }
+  }
+  assert.ok(checked >= 20, `the sweep must cover every tier and branch of every line, saw ${checked}`);
+
+  // …and the engine degrades anyway, so an unlisted future field cannot make the
+  // panel unreadable while someone is fixing the data.
+  const short = JSON.parse(JSON.stringify(DATA.LEVELS[0]));
+  const bare = TD.createEngine(short, { seed: 5, meta: ["dartdmg2"] });
+  bare.state.gold = 99999;
+  bare.place("dart", short.pads[0].id);
+  const bt = bare.state.towers[0];
+  delete bt.tier; bt.tier = 1;
+  const savedDmg = DATA.TOWERS.dart.tiers[0].dmg;
+  delete DATA.TOWERS.dart.tiers[0].dmg;
+  try {
+    const st = bare.towerStats(bt.id);
+    assert.ok(isFinite(st.dmg), `a missing stat must degrade to a finite number, got ${st.dmg}`);
+  } finally {
+    DATA.TOWERS.dart.tiers[0].dmg = savedDmg;
+  }
 });
 
 // The same audit, run with the strongest loadout a player can actually BRING —

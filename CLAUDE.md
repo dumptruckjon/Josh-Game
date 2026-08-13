@@ -1108,7 +1108,18 @@ formatter — the mutation that removes it renders `❄️ 50% slow ·
 it replaced, and only reading the DOM catches it. (3) **Every "it reflects the
 engine" clause needs a partner clause that the value actually MOVES**, or it is
 satisfied by the raw number — each of the five was mutation-proven separately by
-neutering just its own multiplier.
+neutering just its own multiplier. (4) **A new accessor that multiplies a data
+field inherits the field-one-short law** — `undefined * 1.2` is NaN and this one
+is PRINTED, so the failure mode is a panel reading "NaN dps", the same class as
+the `mult`-less zone that froze every enemy and the `delay`-less wave group that
+hung a level. Every multiplied field is coerced, and a DERIVED guardrail walks
+every tier and branch of every line (22 blocks) so an author hears about a
+missing stat at authoring time rather than the player hearing about it on the
+panel. And the mutation for that clause **silently did not mutate the first
+time** — I searched `td-data.js` for `bertha`, but branches are keyed `a`/`b`/`c`,
+so the script threw, the test printed `ok`, and it looked like a proven clause.
+Check that the file actually changed before believing a mutation result; this is
+the em-dash trap's third appearance in this repo.
 
 ---
 
