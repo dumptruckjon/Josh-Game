@@ -5365,6 +5365,136 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
 });
 
+test("UX: a hider flushed out by 🧨 LOOKS catchable", async () => {
+  // `engine.isRevealed` exists for exactly one reason — the renderer paints a
+  // flushed-out hider with a pulsing halo, and that halo is the player's ONLY
+  // confirmation that a 130-gold blast did anything to a body it cannot
+  // normally touch. It was the one engine export no test drove: the ENGINE side
+  // is covered (the P3 reveal tests prove a revealed hider becomes targetable
+  // through the one isHidden gate) while the PICTURE was not, so the halo could
+  // have stopped painting and the whole suite would have stayed green.
+  //
+  // A tunnelling Digger Mole is the tractable hider: it is hidden for the whole
+  // middle third of its lane, deterministically, where a Glitter Ghost phases on
+  // its own clock.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    const lvl = window.TDData.LEVELS.find((l) => l.waves.some((w) => w.groups.some((g) => g.type === "mole")));
+    window.__TD.newGame(lvl.id, { seed: 5 });
+    const eng = window.__TD.engine(), r = window.__TD.render();
+    // Hand-spawn is not available, so walk the waves until the one carrying the
+    // mole. A tower-less board LOSES before wave 3 and then callWave is a no-op,
+    // which is why the first cut of this fixture never found a mole at all — so
+    // make the run unloseable for the walk. This is a RENDER test; lives are not
+    // the thing under measurement (the same licence as gold in the pad sweeps).
+    const wi = lvl.waves.findIndex((w) => w.groups.some((g) => g.type === "mole"));
+    for (let i = 0; i <= wi; i++) {
+      eng.state.lives = 9999;
+      eng.callWave();
+      for (let k = 0; k < 1200 && eng.state.phase === "wave"; k++) eng.tick();
+    }
+    eng.state.lives = 9999;
+    // ISOLATION, and it took a failed mutation to get right. The obvious probe
+    // — a HIDDEN mole, draw, reveal, draw — measures the body becoming
+    // un-hidden, not the halo: `isHidden` returns false the moment `revealedAt`
+    // is true, so the sprite itself changes and deleting the halo entirely left
+    // that version GREEN. `revealedAt` does not care whether a body is a hider,
+    // so the clean control is a body that is ALREADY visible in both frames:
+    // then the reveal changes the halo and nothing else.
+    // Both bodies must come from the SAME frame: latching them across ticks let
+    // the visible one walk into the tunnel before the draw, and the control's
+    // own precondition then failed.
+    let mole = null, hidden = null;
+    for (let k = 0; k < 6000; k++) {
+      eng.tick();
+      const live = eng.state.enemies.filter((e) => e.alive && e.type === "mole");
+      mole = live.find((e) => !eng.isHidden(e));
+      hidden = live.find((e) => eng.isHidden(e));
+      if (mole && hidden) break;
+    }
+    if (!mole || !hidden) return { found: false };
+    const p = eng.posOn(mole.pathIdx || 0, mole.dist);
+    const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);   // the +0.5 draw convention
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const c = cv.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const R = Math.round(26 * dpr);
+    const gx = Math.round(s.x * dpr), gy = Math.round(s.y * dpr);
+    const grab = () => Array.from(c.getImageData(gx - R, gy - R, R * 2, R * 2).data);
+    // FREEZE the tick: the halo's alpha pulses off state.tick, and every other
+    // body on the field moves with it, so both frames must be the same tick or
+    // the diff is measuring the wave walking past.
+    const tick = eng.state.tick;
+    // …and `draw()` AGES every screen fx by one, so two consecutive draws are
+    // not the same picture while a poof or a damage number is still alive near
+    // the body. Age the board empty first, then prove it: two draws with nothing
+    // changed must differ by ~0, which makes the isolation self-verifying rather
+    // than assumed. Without this the diff below was dominated by expiring fx and
+    // deleting the halo entirely left the test GREEN.
+    for (let k = 0; k < 90; k++) r.draw(0);
+    const plain = grab();
+    r.draw(0);
+    const again = grab();
+    let residue = 0;
+    for (let i = 0; i < plain.length; i += 4) {
+      if (Math.abs(plain[i] - again[i]) + Math.abs(plain[i + 1] - again[i + 1]) + Math.abs(plain[i + 2] - again[i + 2]) > 16) residue++;
+    }
+    // The export exists for the RENDERER alone (the renderer guards on
+    // `engine.isRevealed &&`, so losing it makes the halo stop silently). It was
+    // the one engine export no test drove; name it, so its loss reads as itself.
+    if (typeof eng.isRevealed !== "function") return { found: true, noExport: true };
+    const wasHidden = eng.isHidden(mole), wasRevealed = eng.isRevealed(mole);
+    // A blast-sized reveal covers the NEIGHBOURS too, and an un-hidden body
+    // appearing in the box is worth ~212 px of its own — more than a naive
+    // threshold, which is precisely how the first cut survived deleting the
+    // halo. So the zone is drawn tight enough to contain ONLY the sampled body,
+    // and that is asserted rather than hoped: `solo` counts everything inside it.
+    const RR = 0.3;
+    const solo = eng.state.enemies.filter((e) => {
+      const q = eng.posOn(e.pathIdx || 0, e.dist);
+      return e.alive && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 <= RR * RR;
+    }).length;
+    eng.state.reveals.push({ x: p.x, y: p.y, r: RR, until: tick + 300 });
+    r.draw(0);
+    const lit = grab();
+    const nowRevealed = eng.isRevealed(mole), stillVisible = !eng.isHidden(mole);
+    // …and the SEMANTIC half, on the body that really is tunnelling: a reveal
+    // must both flag it and make it targetable through the one isHidden gate.
+    const hp = eng.posOn(hidden.pathIdx || 0, hidden.dist);
+    eng.state.reveals.push({ x: hp.x, y: hp.y, r: 0.3, until: tick + 300 });
+    const hiddenFlagged = eng.isRevealed(hidden), hiddenNowTargetable = !eng.isHidden(hidden);
+    let changed = 0;
+    for (let i = 0; i < again.length; i += 4) {
+      if (Math.abs(again[i] - lit[i]) + Math.abs(again[i + 1] - lit[i + 1]) + Math.abs(again[i + 2] - lit[i + 2]) > 16) changed++;
+    }
+    return { found: true, changed, residue, solo, wasHidden, wasRevealed, nowRevealed, stillVisible,
+             hiddenFlagged, hiddenNowTargetable, tickHeld: eng.state.tick === tick, box: R * R * 4 };
+  });
+  assert.ok(out.found, "the fixture needs a mole in its visible stretch AND one tunnelling");
+  assert.ok(!out.noExport,
+    "the engine must expose isRevealed — the renderer guards on it, so dropping it stops the halo silently");
+  // The control must really be a control: the body is visible in BOTH frames, so
+  // the only thing the reveal can change in the sample box is the halo.
+  assert.ok(!out.wasHidden && !out.wasRevealed, "the sampled body starts VISIBLE and unrevealed");
+  assert.ok(out.nowRevealed && out.stillVisible,
+    "…and after the reveal it is flagged while STILL visible — otherwise this measures the sprite, not the halo");
+  assert.ok(out.tickHeld, "both frames must be drawn at the same tick, or the diff is the wave walking");
+  assert.ok(out.residue <= 4,
+    `two draws with nothing changed must be the same picture (${out.residue} px drifted) — ` +
+    "otherwise the diff below is expiring fx, which is exactly how the first cut of this test " +
+    "survived deleting the halo it claims to measure");
+  assert.equal(out.solo, 1,
+    `the reveal zone must contain ONLY the sampled body (saw ${out.solo}) — a neighbour un-hiding ` +
+    "inside the sample box is worth ~212 px on its own, which would swamp the halo");
+  assert.ok(out.changed > 400,
+    `a revealed body must LOOK different (only ${out.changed} px of ${out.box} changed) — ` +
+    "the halo is the whole feedback that the blast reached something you cannot normally hit");
+  // The semantics, on a body that really is tunnelling.
+  assert.ok(out.hiddenFlagged && out.hiddenNowTargetable,
+    "a reveal over a tunnelling mole must flag it AND make it targetable through the one isHidden gate");
+});
+
 test("UX: the tower panel's stat line reads the ENGINE, and reads cleanly", async () => {
   // Two claims the engine test cannot make. (1) The rendered line uses the
   // engine's numbers — on a NIGHT level it printed the tier's range while the

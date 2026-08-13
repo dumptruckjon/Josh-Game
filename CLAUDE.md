@@ -1121,6 +1121,44 @@ so the script threw, the test printed `ok`, and it looked like a proven clause.
 Check that the file actually changed before believing a mutation result; this is
 the em-dash trap's third appearance in this repo.
 
+**ENUMERATING THE ENGINE'S EXPORTS FOUND THE ONE NOTHING DROVE — `isRevealed`,
+which exists for the RENDERER alone — and isolating its test took FOUR attempts,
+every one of which passed while measuring the wrong thing.** The export's whole
+job is the pulsing amber halo on a body flushed out by 🧨, which is the player's
+only confirmation that a 130-gold blast reached something it cannot normally
+touch; the ENGINE side was covered (the P3 tests prove a revealed hider becomes
+targetable through the one `isHidden` gate) and the PICTURE was not, so the halo
+could have stopped painting with the suite green. It does paint — a coverage
+hole, not a defect — but the four failed isolations are the lesson. (1) The
+obvious probe (hidden body → draw → reveal → draw) measures the SPRITE becoming
+un-hidden, because `isHidden` returns false the moment `revealedAt` is true; the
+halo mutation passed. (2) Latching the two bodies across ticks let the visible
+one walk into the tunnel before the draw, so the control's own precondition was
+false. (3) `draw()` AGES every screen fx by one, so two consecutive draws are
+not the same picture — fixed by ageing the board empty and asserting a residue
+of ~0, which makes the isolation self-verifying rather than assumed. (4) The
+one that actually mattered: a blast-sized reveal covers the NEIGHBOURS, and a
+nearby hidden mole appearing inside the sample box is worth **212 px on its own**
+— more than the threshold I had picked, which is exactly why the mutation kept
+passing. **Stop guessing and print what changed**: a diagnostic reporting the
+changed-pixel bbox and mean RGB delta showed 919 px of warm brightening with the
+halo and 212 px of *darkening at the bottom of the box* without it, which named
+the confound immediately. The fix is a reveal radius tight enough to contain
+only the sampled body, with `solo === 1` asserted rather than hoped — after
+which the mutation reads **0 px of 2704**. General rule, now paid for twice in
+two days: **when a mutation passes, do not raise the threshold — find out what
+else moved.** And a scan's own pattern is part of the scan for the third time:
+my export enumerator matched comment prose and reported 59 "untested exports",
+and after stripping comments it reported `rangeMul` too, which is a false
+positive from an access-pattern regex that missed `engine.rangeMul || 1`.
+**The same pass closed the mirror hole in the badge audit**: it checked that
+every boss finale awards a badge and that every awarded id is declared, but never
+that every DECLARED badge is awarded — so a twentieth achievement could ship
+counted by the `bosses + 9` structure test, rendered in the 🏅 overlay, and
+handed out by nothing. Measured clean (all 19 are awarded), so it exists for the
+next one — the same dead-content class as heroic shipping with no selector and
+World 4 shipping with no cards.
+
 ---
 
 ## Repository Structure

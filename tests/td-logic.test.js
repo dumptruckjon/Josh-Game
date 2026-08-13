@@ -6278,9 +6278,27 @@ test("AUDIT badges: every boss finale's achievement is actually AWARDED somewher
   // …and every id the chain awards must be a real ACHIEVEMENTS entry, so a typo
   // in either direction is caught rather than silently never firing.
   const ids = new Set(DATA.ACHIEVEMENTS.map((a) => a.id));
+  const awarded = new Set();
   for (const m of main.matchAll(/earnAch\("([a-z0-9_]+)"\)/g)) {
+    awarded.add(m[1]);
     assert.ok(ids.has(m[1]), `td-main.js awards "${m[1]}", which is not in DATA.ACHIEVEMENTS`);
   }
+  // THE OTHER DIRECTION, which nothing checked: a badge can be declared, counted
+  // by the `bosses + 9` structure test, rendered in the 🏅 overlay — and awarded
+  // by nothing at all. The boss loop above only covers the finale badges, so the
+  // nine cross-cutting ones (First Blood, No Leaks, Pea Purist, Ice Age, Star
+  // Collector, Full Fort, Marathoner, Heroic Heart, Dyson Denied) were declared
+  // with no check that anything can hand them out. Measured clean on ship — all
+  // 19 are awarded — so this exists for the twentieth, which would otherwise be
+  // dead content of exactly the kind this repo has shipped twice (heroic with no
+  // selector, World 4 with no cards).
+  for (const a of DATA.ACHIEVEMENTS) {
+    assert.ok(awarded.has(a.id),
+      `"${a.id}" (${a.name}) is declared in DATA.ACHIEVEMENTS but no earnAch() in td-main.js ever awards it — ` +
+      "it would show in the 🏅 overlay as a badge the player can never earn");
+  }
+  assert.equal(awarded.size, DATA.ACHIEVEMENTS.length,
+    `every declared badge is awarded and every award is declared (${awarded.size} vs ${DATA.ACHIEVEMENTS.length})`);
 });
 
 // ================= Phase 4: owning a node and BRINGING it =================
