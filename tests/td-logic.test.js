@@ -5282,6 +5282,19 @@ test("P2 skins: an enemy's ID is a NAME — the spawn order rides sortKey, not t
   }
   // Drive it: a wave of two groups that spawn on the SAME tick must produce the
   // same arrival order whether the second group is the ancestor or its skin.
+  // …and the mirror of that: every skin must carry its ancestor's key. The check
+  // above only proves a NON-skin has none, so a skin with a WRONG sortKey would
+  // sail through while a different skin's behavioural check below passed. Derived,
+  // so a world's new skins are covered the day they land rather than when someone
+  // remembers to extend a sample.
+  const skins = Object.keys(DATA.ENEMIES).filter((k) => DATA.ENEMIES[k].skinOf);
+  assert.ok(skins.length >= 12, `the skin system actually ships (${skins.length} skins)`);
+  for (const k of skins) {
+    const d = DATA.ENEMIES[k];
+    assert.equal(d.sortKey, d.skinOf,
+      `skin "${k}" is a costume on "${d.skinOf}" but sorts as "${d.sortKey}" — an id is a NAME, and the spawn tiebreak must ride the ancestor`);
+    assert.ok(DATA.ENEMIES[d.skinOf], `skin "${k}" names an ancestor that exists`);
+  }
   const skin = Object.keys(DATA.ENEMIES).find((k) => DATA.ENEMIES[k].skinOf === "marble");
   assert.ok(skin, "a marble skin exists to test with");
   const base = DATA.LEVELS[0];

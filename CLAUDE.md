@@ -4992,6 +4992,32 @@ the other's axis. So when a pass finds a defect on a surface, ask which OTHER
 property of that same surface nobody has measured — a guardrail now walks every
 one of her games and fails on any letter/digit run under 16px.
 
+**The post-World-10 deep pass: the boss's headline mechanic was UNDRIVEN, and the
+determinism suite cannot see a historical drift.** Two findings, both about
+coverage rather than behaviour. (1) **`AUDIT boss kits` had no `hurry` branch.**
+It is derived and drives stomp / suck / enrage / spawner plus every per-band
+phase key — but `hurry` is a TOP-LEVEL field, so the per-band loop cannot see it
+either, and 🎁 The Big Present's entire design justification (it never hits you;
+it makes the party ARRIVE FASTER) was declared with nothing driving it. The kit
+could have shipped dead and the audit would still have gone green on its phases.
+Measured first: the feature is CORRECT — an escort beside the boss covers 1.347×
+the ground against a declared 1.35, and it composes with a Boom Box exactly as
+the one-owner `applyHurry` law requires. So it was a pure coverage hole; the
+branch is derived (a future aura boss inherits it) and measures GROUND COVERED
+rather than a flag, because hurry never sets a field on the body it speeds up —
+the same trap the `enrage` branch beside it documents. (2) **Every determinism
+assertion in the suite is `hashState(a) === hashState(b)` — self-consistency, not
+a pinned historical hash** — so if adding World 10's three skins had perturbed an
+existing level's spawn stream, nothing would have caught it. Measured against a
+worktree at the pre-World-10 commit with a fixed script on all 36 older levels:
+**every hash identical**, so the world is a true default-noop and the `sortKey`
+mechanism held. No literal-hash pin was added (36 literals would have to be
+re-typed on every deliberate balance edit — a fence, not a law); what was added
+is the missing half of the skin law: `P2 skins` checked that a NON-skin has no
+sortKey and never that a SKIN's equals its ancestor, so a skin with a wrong key
+would sail through while a different skin's behavioural check passed. Now derived
+over every skin, mutation-proven.
+
 **华丽's ART pass found the SAME defect twice, and both times the guardrail that
 exists to catch it was scoped to Josh's registry.** Her home showed 🏮 on BOTH
 贴纸 and 民俗文化 — two identical red lanterns side by side, on the one screen a
