@@ -1176,6 +1176,22 @@ empty branches that reads like a crit prefix and is a no-op. Left alone and
 recorded instead: `cellSize` is a genuinely dead export (no app or test
 reference), but a one-line accessor is neither misleading nor unfalsifiable, so
 it does not meet the bar that retired Kid Fort and the bed-glyph clamp.
+**And enumerating the 18 `__TD` hooks closed the loop on the badge work itself:
+`ach` was undriven, and the reason turned out to matter.** The guardrail added
+an hour earlier — every declared badge must be awarded — is a TEXT scan of
+td-main.js: it proves an `earnAch("doorman")` line EXISTS, never that beating a
+level runs it. Every other badge test SEEDS `save.ach` to exercise the
+merge/reset/persist paths, so **nothing had ever driven the award chain**, which
+is precisely the path this file records crashing twice (`save.ach.indexOf` on a
+legacy save, then `save.stars`). A win that silently earned nothing would have
+looked exactly like a win. The new test resets the save, wins L1 honestly, and
+asserts both a level-id badge and an event badge — two clauses because they are
+wired in different places, which three mutations confirm: kill the level-id
+branch and only First Blood survives; kill the event branch and only Doorman
+does; make `earnAch` a no-op and both vanish. **The general shape, now seen
+twice in one session: a structural scan proves a CALL SITE exists, and only
+driving the feature proves the call does anything** — pair them rather than
+picking one.
 
 ---
 

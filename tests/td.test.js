@@ -5365,6 +5365,33 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
 });
 
+test("AUDIT badges: WINNING actually earns one, end to end", async () => {
+  // The engine-side guardrail that every declared badge is awarded is a TEXT
+  // scan of td-main.js — it proves an `earnAch("doorman")` line EXISTS, not that
+  // beating a level runs it. And every other badge test SEEDS save.ach to
+  // exercise the merge/reset/persist paths, so nothing had ever driven the award
+  // chain itself. It is exactly the path this file records crashing twice
+  // (`save.ach.indexOf` on a legacy save, then `save.stars`), and a win that
+  // silently earns nothing would look identical to a win.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(async () => {
+    window.__TD.resetSave();                       // a pre-earned badge would pass trivially
+    const before = window.__TD.ach();
+    window.__TD.winL1(7);
+    const st = window.__TD.state();
+    return { before, after: window.__TD.ach(), phase: st.phase, cheated: !!st.cheated };
+  });
+  assert.deepEqual(out.before, [], "the reset must actually clear the badges, or this proves nothing");
+  assert.equal(out.phase, "won", "the fixture must really win the level");
+  assert.ok(!out.cheated, "…honestly — a cheated run is skipped by awardWinAchievements by design");
+  assert.ok(out.after.includes("doorman"),
+    `beating L1 must award its badge (saw ${JSON.stringify(out.after)}) — the level-id branch of the chain`);
+  assert.ok(out.after.includes("firstblood"),
+    `…and a kill must award First Blood (saw ${JSON.stringify(out.after)}) — the event branch, ` +
+    "which is wired somewhere else entirely and would not be covered by the level-id case alone");
+});
+
 test("UX: the damage-numbers toggle actually draws the damage", async () => {
   // `setDamageNumbers` is wired end to end — pause-menu toggle → save →
   // renderer — and td-main's own comment calls it a hook "for tests", but no
