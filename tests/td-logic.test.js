@@ -2544,6 +2544,248 @@ test("⚙️ exchange: gold buys energy, capped per wave, and cannot erase a fin
   }
 });
 
+test("TD-18 🎇 Sparkler: it POPS where it dies, jamming the nearest gun", () => {
+  // The decision axis the Oil Drum opened, asking a different question: the
+  // drum changes the GROUND, this takes a GUN off the board. Driven through
+  // the engine's own seam (dealDamage → the ONE killEnemy) rather than inferred
+  // from a time-to-kill, so no confound can dress a broken mechanic as working.
+  const L1 = DATA.LEVELS[0];
+  const def = DATA.ENEMIES.sparkler;
+  assert.ok(def && def.jamBurst, "the Sparkler declares a jamBurst");
+  // helper: park one sparkler at a known spot with a tower nearby, kill it,
+  // and read the tower's jam state.
+  const probe = (line, gap) => {
+    const e = TD.createEngine(L1, { seed: 5 });
+    e.state.gold = 99999;
+    const pad = L1.pads[0];
+    assert.ok(e.place(line, pad.id).ok, "placed the " + line);
+    const t = e.state.towers[0];
+    // spawn a sparkler and drag it to `gap` cells from the tower along its lane
+    e.state.enemies.push({ id: 9001, type: "sparkler", alive: true, dist: 0, pathIdx: 0,
+      speed: def.speed, hp: def.hp, maxHp: def.hp, shield: 0, blockedBy: 0, slowUntil: 0, chargeCd: 0, sapCd: 0 });
+    const foe = e.state.enemies[e.state.enemies.length - 1];
+    // walk it to the closest point on the lane to this tower, then offset
+    let bestD = Infinity, bestDist = 0;
+    for (let d = 0; d <= e.path.total; d += 0.1) {
+      const p = e.posAt(d);
+      const q = Math.hypot(p.x - t.cx, p.y - t.cy);
+      if (q < bestD) { bestD = q; bestDist = d; }
+    }
+    foe.dist = bestDist;
+    const reach = Math.hypot(e.posAt(foe.dist).x - t.cx, e.posAt(foe.dist).y - t.cy);
+    const before = t.disabledUntil;
+    e.dealDamage(foe, 99999, 0, "dart");     // the ONE damage path → the ONE killEnemy
+    return { jammed: t.disabledUntil > before, tick: e.state.tick, until: t.disabledUntil, reach, t, e };
+  };
+  // ---- a shooting gun inside the radius IS jammed
+  const near = probe("dart");
+  assert.ok(near.reach <= def.jamBurst.radius,
+    `the fixture must place the gun INSIDE the burst (${near.reach.toFixed(2)} ≤ ${def.jamBurst.radius}) or it proves nothing`);
+  assert.ok(near.jammed, "a gun inside the burst is jammed when the Sparkler dies");
+  assert.equal(near.until - near.tick, Math.round(def.jamBurst.seconds * DATA.TICK_RATE),
+    "…for exactly the declared duration, through the one jamTower owner");
+  // ---- a CAMP is never jammed: bodies, not electronics (the Screw's rule,
+  //      shared because both route through the one jamNearest owner)
+  const camp = probe("camp");
+  assert.ok(camp.reach <= def.jamBurst.radius, "the camp fixture is also inside the burst");
+  assert.ok(!camp.jammed, "Army Guys are bodies, not electronics — a camp never jams");
+  // ---- and it must be a DEATH burst, not an aura: alive, it jams nothing.
+  // The sparkler is parked at the SAME spot the death probe used — right on
+  // top of the gun. The first cut left it at dist 0 (the lane start, far from
+  // the pad), so an aura mutation could not have reached the tower and the
+  // clause passed vacuously: the fixture never created the condition it claims
+  // to rule out.
+  const alive = TD.createEngine(L1, { seed: 5 });
+  alive.state.gold = 99999;
+  alive.place("dart", L1.pads[0].id);
+  const at = alive.state.towers[0];
+  let aBest = Infinity, aDist = 0;
+  for (let d = 0; d <= alive.path.total; d += 0.1) {
+    const p = alive.posAt(d);
+    const q = Math.hypot(p.x - at.cx, p.y - at.cy);
+    if (q < aBest) { aBest = q; aDist = d; }
+  }
+  assert.ok(aBest <= def.jamBurst.radius,
+    `the living-sparkler fixture must sit INSIDE the burst radius (${aBest.toFixed(2)}) or it rules out nothing`);
+  // …and the COMBAT pass has to actually run: tick() returns early in the build
+  // phase, so a fixture that never calls a wave exercises none of the per-tick
+  // enemy code and would "rule out" an aura that was simply never reached.
+  alive.callWave();
+  assert.equal(alive.state.phase, "wave", "the fixture is in the wave phase, or no enemy code runs at all");
+  // `speed` is not optional on a hand-built body: effSpeed reads e.speed, so a
+  // literal one field short makes `dist` NaN, posAt clamps NaN to the lane END,
+  // and the body silently teleports out of range — while a post-loop read of
+  // the PINNED dist still looks perfect. That is exactly how this clause passed
+  // its own mutation four times. The precondition below makes it self-verifying.
+  alive.state.enemies.push({ id: 9002, type: "sparkler", alive: true, dist: aDist, pathIdx: 0,
+    speed: def.speed, hp: 9e9, maxHp: 9e9, shield: 0, blockedBy: 0, slowUntil: 0, chargeCd: 0, sapCd: 0 });
+  alive.tick();
+  const moved = alive.state.enemies.find((x) => x.id === 9002);
+  const step = moved.dist - aDist;
+  assert.ok(Number.isFinite(step) && step > 0 && step < 1,
+    `the living body must actually WALK (step ${step}) — a NaN/frozen dist means the fixture is missing a field and the clause is vacuous`);
+  for (let i = 0; i < 200; i++) {
+    alive.state.enemies.forEach((x) => { if (x.id === 9002) { x.dist = aDist; x.hp = 9e9; } }); // pin it: alive and in range
+    alive.tick();
+  }
+  // EVER jammed, not "jammed right now". `disabledUntil` starts at 0 and only a
+  // jam ever writes it, so this catches a jam that has since expired — which
+  // the first cut did not: an aura mutation jams once, jamNearest then SKIPS
+  // the already-jammed tower, and the jam had run out by the end of the loop,
+  // so an end-state check read clean on a broken engine.
+  assert.equal(at.disabledUntil, 0,
+    "a LIVING sparkler jams nothing — the whole mechanic is that you choose where it dies");
+});
+
+test("TD-18 jamming has ONE owner, and the Screw's legacy aim is PINNED on purpose", () => {
+  // Two enemies jam a gun, and a second copy of "find the nearest tower" is
+  // exactly how the half-cell bug below survived. So: one owner, and the ONE
+  // thing the callers disagree about is a named parameter rather than a
+  // constant somebody has to notice.
+  const src = require("fs").readFileSync("scripts/td-logic.js", "utf8");
+  const code = src.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, ""); // a scan must not read its own docs
+  assert.equal((code.match(/function nearestJammable\b/g) || []).length, 1,
+    "exactly one place decides which tower gets jammed");
+  assert.equal((code.match(/jamNearest\(/g) || []).length, 3,
+    "…defined once and called by exactly the two jammers (Screw + Sparkler)");
+  // The pin itself. The Sparkler passes NO bias (raw cell indices, the space
+  // candidates()/the dart's keep/the mortar all use); the Screw passes 0.5
+  // because it has always measured to a tower's world CENTRE. Straightening it
+  // is measured to break PLAYABILITY on L16 and TD7 lever advantage on L31, so
+  // it is deliberate — but it must stay VISIBLE, not decay into folklore.
+  assert.match(code, /const SCREW_AIM_BIAS = 0\.5;/,
+    "the legacy aim is a named constant, so it can never read as an accident");
+  assert.match(code, /def\.sap\.seconds, SCREW_AIM_BIAS\)/, "…and only the Screw uses it");
+  assert.match(code, /def\.jamBurst\.radius, def\.jamBurst\.seconds\)/,
+    "the Sparkler is new content and uses the engine's own index space");
+  // …and prove the parameter is LOAD-BEARING rather than decorative: on a board
+  // where the two spaces disagree, the bias must change which tower is chosen.
+  // Without this the constant could be 0.5 or 5 and nothing would notice.
+  const L = DATA.LEVELS[0];
+  const e = TD.createEngine(L, { seed: 3 });
+  e.state.gold = 999999;
+  for (const p of L.pads) e.place("dart", p.id);
+  // sweep the lane for a spot where biased and unbiased aim pick DIFFERENT guns
+  let disagreed = false;
+  for (let d = 0; d <= e.path.total && !disagreed; d += 0.25) {
+    const p = e.posAt(d);
+    const pick = (b) => {
+      let best = 3.5 * 3.5, win = null;
+      for (const t of e.state.towers) {
+        const q = (t.cx + b - p.x) ** 2 + (t.cy + b - p.y) ** 2;
+        if (q < best) { best = q; win = t.id; }
+      }
+      return win;
+    };
+    const a = pick(0), b = pick(0.5);
+    if (a && b && a !== b) disagreed = true;
+  }
+  assert.ok(disagreed,
+    "the half-cell bias really does re-aim the Screw on a shipped map — it is a live behavioural pin, not a cosmetic constant");
+});
+
+test("TD-18 chips: a ban is enforced by the ENGINE, and no chips means exactly vanilla", () => {
+  // A chip is an opt-in constraint, pure input like meta/powers. Three claims,
+  // each with its own failure mode: the ban actually binds (a picker that arms
+  // a chip nothing enforces is dead content), the default is a true noop (the
+  // shipped sims pass no chips, so any drift here silently re-tunes 40 levels),
+  // and an unknown id degrades instead of crashing or inventing a ban.
+  const L1 = DATA.LEVELS[0];
+  // ---- the default is byte-identical vanilla, proven by the determinism hash
+  const play = (opts) => {
+    const e = TD.createEngine(L1, Object.assign({ seed: 9 }, opts));
+    e.state.gold = 500;
+    e.place("dart", L1.pads[0].id);
+    e.callWave();
+    for (let i = 0; i < 900; i++) e.tick();
+    // the WHOLE state, through the same hash the determinism suite trusts —
+    // state.chips itself legitimately differs, so it is masked out first
+    const s = JSON.parse(JSON.stringify(e.state));
+    delete s.chips;
+    return TD.hashState(s);
+  };
+  assert.equal(play({}), play({ chips: [] }),
+    "chips: [] must be byte-identical to no chips at all — the shipped sims depend on it");
+  assert.equal(play({}), play({ chips: ["not-a-real-chip"] }),
+    "an unknown chip id must degrade to no effect (a hand-edited save cannot invent a ban)");
+  // ---- every declared line ban binds at place(), and only its own line
+  for (const chip of DATA.CHIPS.filter((c) => c.ban && c.ban.line)) {
+    const e = TD.createEngine(L1, { seed: 5, chips: [chip.id] });
+    e.state.gold = 99999;
+    const banned = e.place(chip.ban.line, L1.pads[0].id);
+    assert.equal(banned.ok, false, `${chip.id} must refuse its line`);
+    assert.equal(banned.reason, "chip", `…with the chip reason, so the UI can say why`);
+    assert.equal(e.lineAllowed(chip.ban.line), false, `lineAllowed must agree (${chip.id})`);
+    const other = Object.keys(DATA.TOWERS).find((t) => t !== chip.ban.line);
+    assert.ok(e.place(other, L1.pads[0].id).ok, `${chip.id} must not touch ${other}`);
+    assert.ok(e.lineAllowed(other), "…and lineAllowed says so");
+  }
+  // ---- 🔇 Quiet Hands turns the whole strip off, before any resource reason
+  const q = TD.createEngine(L1, { seed: 5, chips: ["nopowers"] });
+  q.state.gold = 99999;
+  for (const a of DATA.ABILITIES) {
+    assert.equal(q.abilityReady(a.id).reason, "chip",
+      `${a.id} must refuse under Quiet Hands — a run-level vow, not a resource state`);
+  }
+  // …and without it every power reaches its normal refusals, so the clause
+  // above cannot be satisfied by powers that were already broken.
+  const q2 = TD.createEngine(L1, { seed: 5, chips: ["nofan"] });
+  assert.notEqual(q2.abilityReady(DATA.ABILITIES[0].id).reason, "chip",
+    "a line-ban chip must NOT touch the powers");
+  // ---- the run records what constrained it (checkpoint fidelity's read side)
+  assert.deepEqual(q.state.chips, ["nopowers"], "state.chips carries the run's chips");
+  assert.deepEqual(TD.createEngine(L1, { seed: 5 }).state.chips, [], "…and defaults empty");
+});
+
+test("TD-18 chips: every shipped chip is COMPLETABLE on every level (measured, not hoped)", () => {
+  // A challenge that cannot be done is the dead-content class (heroic with no
+  // selector, World 4 with no cards) — so completability is a GUARDRAIL, not a
+  // design note. One dart-mono arm proves three chips at once: it builds no
+  // fan, no mortar and no camp, so a level it clears is completable under any
+  // of those bans. It clears all 40 on CASUAL (L27/L40 need the mixed plan on
+  // normal — measured before this shipped, which is why the bar is casual).
+  // 🔇 Quiet Hands is proven by PLAYABILITY itself: the oracle never uses a
+  // power, so every level's own winnability sim is already a no-powers clear.
+  //   A "no darts" chip was cut by this exact measurement — its arms failed 30
+  // of 40 on normal and 10 on casual — so this test walking only line-ban chips
+  // whose banned line the dart plan avoids is not an accident of scope: a
+  // future chip banning the DART must bring its own measured arm.
+  const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+  function dartClears(level, seed) {
+    const e = TD.createEngine(level, { seed, difficulty: "casual",
+      chips: ["nofan", "nomortar", "nocamp"] }); // the bans THEMSELVES, so the arm proves the chips as shipped
+    const padIds = level.pads.map((p) => p.id);
+    let guard = 0;
+    while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 400000) {
+      if (e.state.phase === "build") {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const pid of padIds) {
+            if (!e.state.towers.find((t) => t.padId === pid)) {
+              if (e.state.gold >= cost("dart", 0)) { if (e.place("dart", pid).ok) spent = true; }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        e.callWave();
+      }
+      e.tick();
+    }
+    return e.state.phase === "won";
+  }
+  const failed = [];
+  for (const lvl of DATA.LEVELS) {
+    if (!dartClears(lvl, 1) && !dartClears(lvl, 7)) failed.push(lvl.id);
+  }
+  assert.deepEqual(failed, [],
+    `a dart-only board (all three line-ban chips armed) must clear every level on casual — ` +
+    `L${failed.join(",L")} fail, so a shipped chip has become an unearnable badge there`);
+});
+
 test("a number the UI SHOWS comes from the engine, because the meta moves it", () => {
   // The price flash established the law — "ASK THE ENGINE, never re-derive" —
   // after the panel showed 110 while 🔧 Handyman charged 99. Two numbers were
@@ -3727,7 +3969,7 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
   const FIELD_TRAIT = { flier: "flier", shield: "shield", splashResist: "splash", slowHeal: "slowheal",
     sap: "sap", phase: "phase", tunnel: "tunnel", split: "split", heal: "heal", charge: "charge", goldBurst: "gold", boss: "boss",
     bonkResist: "bonkresist", zapResist: "zapresist", hurry: "hurry", slowImmune: "slowimmune", spawner: "spawner",
-    stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases", spill: "spill" };
+    stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases", spill: "spill", jamBurst: "jamburst" };
   // Plain stats (spoken by the card's own stat line), presentation, or fields
   // asserted separately below. Everything else MUST be a trait.
   const NOT_A_TRAIT = new Set(["hp", "speed", "icon", "name", "bounty", "size", "meleeDmg", "meleeRate",
@@ -5012,6 +5254,61 @@ test("AUDIT endless: EVERY world has a real arena, and no mini-boss is a campaig
     // …and each world's levels must exist, or "3⭐ all 4 to unlock" is a lie
     const lv = DATA.LEVELS.filter((l) => l.world === w);
     assert.ok(lv.length >= 4, `${w} really has the levels its unlock asks you to 3-star (${lv.length})`);
+  }
+});
+
+test("AUDIT endless: each world's mini-boss is its OWN, and is a legal spike", () => {
+  // All ten arenas used to punctuate with the identical Piñata — the
+  // world-differentiation programme that gave the campaign per-world backbone
+  // skins stopped at the endless mode, so ten runs asked one question.
+  //
+  // Two laws, both learned the hard way and both DERIVED so an 11th arena
+  // inherits them:
+  //   · GROUND only. Mortar and Camp cannot touch air (the guardrailed
+  //     two-lines-reach-air truth), so a flier wall every 5th wave would make
+  //     some boards unwinnable by construction rather than by skill.
+  //   · never a campaign BOSS. The attic shipped `tickmaster` here — the
+  //     3200hp/10-life World-4 finale — and a wave-5 board that cannot kill it
+  //     lost half its lives on the spot; runs ended at wave 5 against 28-46
+  //     elsewhere. A mini-boss is a spike, not a wall.
+  const worlds = Object.entries(DATA.ENDLESS.worlds);
+  assert.ok(worlds.length >= 10, `every shipped world has an arena (${worlds.length})`);
+  const seen = new Map();
+  for (const [w, cfg] of worlds) {
+    const def = DATA.ENEMIES[cfg.miniBoss];
+    assert.ok(def, `${w}'s mini-boss "${cfg.miniBoss}" must be a real enemy`);
+    assert.ok(!def.flier, `${w}: a mini-boss must be GROUND — mortar/camp boards cannot answer a flier wall`);
+    assert.ok(!def.boss, `${w}: a mini-boss must not be a campaign boss (the tickmaster lesson)`);
+    // …and it must actually BE a spike. Written first as "beefier than the
+    // pool's biggest" and that is arithmetically impossible on the shipped
+    // roster — six worlds would compete for the four ground bodies at ≥150hp —
+    // so the threshold was the defect, not the assignments. The feasible law is
+    // "never BELOW the world's typical body", and it earned its keep at once:
+    // it caught three picks (ghost 0.61×, healer 0.94×, racer 1.00×) that were
+    // literally trash-tier punctuation.
+    //   The kit clause below is DELIBERATELY kept while being, on today's
+    // roster, implied by the one above — measured, not assumed: every kit-less
+    // ground body caps at 34hp and the lowest pool median is 40, so the median
+    // clause always fires first and no mutation can isolate the kit clause.
+    // It is here because the two state different things (mass vs mechanism) and
+    // the correlation is a property of the current roster, not of the concepts
+    // — the same reason the chain-decay guardrail keeps a second clause that
+    // goes vacuous at decay 1.0. Do not read it as independently proven.
+    const poolHp = cfg.pool.map((t) => DATA.ENEMIES[t].hp).sort((a, b) => a - b);
+    const median = poolHp[Math.floor(poolHp.length / 2)];
+    assert.ok(def.hp >= median,
+      `${w}: the mini-boss (${cfg.miniBoss} ${def.hp}hp) is below its own pool's median (${median}hp) — ` +
+      "punctuation weaker than the typical body is a garnish, not a spike");
+    const KIT = ["heal", "spawner", "hurry", "charge", "phase", "tunnel", "slowHeal", "bonkResist",
+      "splashResist", "shieldRegen", "slowImmune", "goldBurst", "split", "sap", "spill", "armor", "zapResist"];
+    assert.ok(KIT.some((k) => def[k]),
+      `${w}: the mini-boss (${cfg.miniBoss}) carries no special at all — a plain body is just more wave`);
+    seen.set(cfg.miniBoss, (seen.get(cfg.miniBoss) || 0) + 1);
+  }
+  // DISTINCT — the whole point. Stated as "no id twice" rather than a count, so
+  // the message names the offender.
+  for (const [id, n] of seen) {
+    assert.equal(n, 1, `"${id}" punctuates ${n} arenas — each world's spike must be its own body`);
   }
 });
 

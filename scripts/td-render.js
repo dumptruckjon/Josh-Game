@@ -1964,6 +1964,40 @@
         ctx.beginPath(); ctx.rect(sx - r * 0.46, sy + r * 0.16, r * 0.92, r * 0.13); ctx.fill();
         ctx.fillStyle = "rgba(126, 214, 255, 0.5)";                       // oil sheen
         ctx.beginPath(); ctx.ellipse(sx - r * 0.16, sy - r * 0.44, r * 0.13, r * 0.3, 0.25, 0, 7); ctx.fill();
+      } else if (e.type === "sparkler") {
+        // Sparkler: a thin diagonal STICK with a crackling head — a silhouette
+        // nothing else has (every other body is a blob, box or barrel), which
+        // matters because the player has to spot it early enough to decide
+        // WHERE to kill it. Electric cyan, measured at 27.9 from the nearest
+        // party-pool colour (battery) against a floor of 20; the Loose Screw,
+        // whose timer-jam this mirrors, is bronze, so the pair reads as two
+        // different threats rather than a re-skin.
+        //   The sparks spin off `engine.state.tick` (NOT a bare `state`, which
+        // is not in scope here — a first cut used one and threw inside the enemy
+        // pass on every frame a Sparkler was alive, i.e. it would have wiped the
+        // board exactly like the Tail Wind's `w2s` slip; the art guardrails
+        // caught it). Tick-derived, so it freezes when paused and costs no rng.
+        shadow(sx, sy + r * 0.6, r * 0.4, r * 0.14);
+        ctx.strokeStyle = "#3c4a5e";                                       // the wire stick
+        ctx.lineWidth = Math.max(1, r * 0.14); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(sx + r * 0.34, sy + r * 0.56); ctx.lineTo(sx - r * 0.1, sy - r * 0.12); ctx.stroke();
+        const gs = ctx.createRadialGradient(sx - r * 0.16, sy - r * 0.26, r * 0.04, sx - r * 0.16, sy - r * 0.26, r * 0.5);
+        gs.addColorStop(0, "#5ef0ff"); gs.addColorStop(1, "#1596b5");
+        ctx.fillStyle = gs;                                                // the burning head
+        ctx.beginPath(); ctx.arc(sx - r * 0.16, sy - r * 0.26, r * 0.34, 0, 7); ctx.fill();
+        // four crackling sparks, spun by the tick so it reads as ALIGHT
+        noInk(() => {
+          ctx.strokeStyle = "rgba(94, 240, 255, 0.85)";
+          ctx.lineWidth = Math.max(1, r * 0.08);
+          for (let i = 0; i < 4; i++) {
+            const a = (i / 4) * 6.283 + engine.state.tick / 5 + e.id;
+            const ix = sx - r * 0.16, iy = sy - r * 0.26;
+            ctx.beginPath();
+            ctx.moveTo(ix + Math.cos(a) * r * 0.4, iy + Math.sin(a) * r * 0.4);
+            ctx.lineTo(ix + Math.cos(a) * r * 0.62, iy + Math.sin(a) * r * 0.62);
+            ctx.stroke();
+          }
+        });
       } else if (e.type === "boombox") {
         // Boom Box: a chunky stereo with two speakers and sound rings pulsing
         // out of it — the rings are the tell, because the threat is the AURA,

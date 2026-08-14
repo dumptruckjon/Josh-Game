@@ -62,8 +62,10 @@
       '<div class="td-meta" role="group" aria-label="Meta">' +
         '<button class="td-metabtn td-tree-open" type="button">⭐ Star Tree</button>' +
         '<button class="td-metabtn td-powers-open" type="button">🎒 Powers</button>' +
+        '<button class="td-metabtn td-chips-open" type="button">🎖️ Challenges</button>' +
         '<button class="td-metabtn td-ach-open" type="button">🏅 Badges</button>' +
         '<button class="td-metabtn td-endless-open" type="button">♾️ Endless</button>' +
+        '<button class="td-metabtn td-daily-open" type="button">📅 Daily</button>' +
         '<button class="td-metabtn td-guide-open" type="button">📖 Guide</button>' +
       "</div>" +
       '<div class="td-levels" role="list"></div>' +
@@ -87,8 +89,10 @@
     home.querySelector(".td-exit").addEventListener("click", hooks.exitFort);
     home.querySelector(".td-tree-open").addEventListener("click", hooks.openTree);
     home.querySelector(".td-powers-open").addEventListener("click", hooks.openPowers);
+    home.querySelector(".td-chips-open").addEventListener("click", hooks.openChips);
     home.querySelector(".td-ach-open").addEventListener("click", hooks.openAchievements);
     home.querySelector(".td-endless-open").addEventListener("click", hooks.openEndless);
+    home.querySelector(".td-daily-open").addEventListener("click", hooks.openDaily);
     home.querySelector(".td-guide-open").addEventListener("click", () => UI.showGuide());
     home.querySelector(".td-reset-open").addEventListener("click", () => UI.showResetGate(hooks.resetFort));
     home.querySelector(".td-backup-open").addEventListener("click", () => UI.showBackup(hooks.exportSave, hooks.importSave));
@@ -318,11 +322,20 @@
         const isBoss = def.waves.some((w) => w.boss);
         const pips = '<span class="td-level__badge td-badge--' + badge + '">' +
           "●".repeat(badge) + '<span class="td-level__dim">' + "●".repeat(3 - badge) + "</span></span>";
+        // TD-18: the challenge chips WON on this level, stamped on its card —
+        // icons resolved through the data so a retired chip id just drops out.
+        const wonChips = ((save.chipsWon || {})[n] || [])
+          .map((id) => (global.TDData.CHIPS || []).find((c) => c.id === id))
+          .filter(Boolean);
+        const chipTxt = wonChips.length
+          ? '<span class="td-level__chips" title="challenges done here">' + wonChips.map((c) => c.icon).join("") + "</span>"
+          : "";
         card.innerHTML =
           '<span class="td-level__n">' + n + (isBoss ? " 👑" : "") + "</span>" +
           '<span class="td-level__name">' + def.name + "</span>" +
           pips +
-          '<span class="td-level__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(Math.max(0, 3 - stars)) + "</span></span>";
+          '<span class="td-level__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(Math.max(0, 3 - stars)) + "</span></span>" +
+          chipTxt;
         card.addEventListener("click", () => onPick(n));
       } else if (def && !unlocked) {
         // built, but still locked behind the previous level — tell the player why
@@ -553,6 +566,15 @@
       (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk.</li></ul>" +
       '<p class="td-overlay__sub">Level tricks — the board itself fights back.</p>' +
       '<ul class="td-guide__towers td-guide__gimmicks">' + gimRow + "</ul>" +
+      // TD-18: a resource shipped without a name was this guide's founding
+      // defect (⚙️), so the chips explain themselves here from their own data.
+      '<p class="td-overlay__sub">🎖️ Challenges — arm a chip, win with it on, and it stamps that level’s card. ' +
+      "A chip only ever takes a tool away, so it never makes a run easier — and every one is beatable " +
+      "on every level (measured on casual with the tools that remain, not assumed).</p>" +
+      '<ul class="td-guide__towers td-guide__chips">' +
+      (global.TDData.CHIPS || []).map((c) =>
+        '<li><span class="td-guide__tico">' + c.icon + "</span><b>" + c.name + "</b> — " + c.desc + "</li>").join("") +
+      "</ul>" +
       '<p class="td-overlay__sub">⭐ Star Tree — spend the stars you earn, then bring ' +
       (global.TDData.RULES.metaSlots || 6) + " into a run.</p>" +
       '<ul class="td-guide__towers td-guide__tree">' + treeRow + "</ul>" +
@@ -740,6 +762,74 @@
     el.querySelectorAll("[data-power]").forEach((b) => b.addEventListener("click", () => toggle(b.dataset.power)));
     el.querySelectorAll("[data-equippow]").forEach((b) => b.addEventListener("click", (ev) => { ev.stopPropagation(); toggle(b.dataset.equippow); }));
     el.querySelector(".td-powers-done").addEventListener("click", UI.closeOverlay);
+  };
+
+  // TD-18 Daily Toybox: today's board, said out loud before you commit — which
+  // arena, which chip (if any), and both bests. The pick itself is computed in
+  // td-main (it owns the calendar); this overlay just states it.
+  UI.showDaily = function (pick, save, onPlay) {
+    const arena = (global.TDData.ENDLESS.worlds[pick.world] || {}).label || pick.world;
+    const chip = pick.chip ? (global.TDData.CHIPS || []).find((c) => c.id === pick.chip) : null;
+    const d = save.daily || { day: "", best: 0, allTime: 0 };
+    const today = d.day === pick.day ? (d.best | 0) : 0;
+    metaOverlay("td-daily", "<h3>📅 Daily Toybox</h3>" +
+      '<p class="td-overlay__sub">One endless board a day — same seed all day, so every attempt is the ' +
+      "same puzzle and your best is a fair best. It rolls over at midnight.</p>" +
+      '<div class="td-daily__card">' +
+        '<p class="td-daily__arena">' + arena + "</p>" +
+        '<p class="td-daily__mod">' + (chip ? chip.icon + " " + chip.name + " — " + chip.desc : "🙂 No twist today — full toybox") + "</p>" +
+        '<p class="td-daily__best">Today’s best: <b>wave ' + today + "</b> · All-time daily best: <b>wave " + (d.allTime | 0) + "</b></p>" +
+      "</div>" +
+      '<div class="td-overlay__row">' +
+        '<button class="td-btn td-btn--call td-daily-play" type="button">▶ Play today’s board</button>' +
+        '<button class="td-btn td-daily-done" type="button">Done</button>' +
+      "</div>").querySelectorAll(".td-daily-play, .td-daily-done").forEach((b) =>
+        b.addEventListener("click", () => { UI.closeOverlay(); if (b.classList.contains("td-daily-play")) onPlay(); }));
+  };
+
+  // TD-18 Challenge chips: arm opt-in constraints for the next run. Same shape
+  // as the Powers pack on purpose (one toggle affordance, one rebuild pattern).
+  // With the shipped set every COMBINATION is playable — the three line bans
+  // together leave the dart, which is the measured dart-mono arm, and Quiet
+  // Hands removes nothing the oracle uses — but if a future chip ever bans the
+  // DART, this picker needs a guard against arming all four lines at once.
+  UI.showChips = function (save, onChange) {
+    const pool = global.TDData.CHIPS || [];
+    const real = new Set(pool.map((c) => c.id));
+    const armed = new Set((save.chipsArmed || []).filter((id) => real.has(id)));
+    // how many level-cards each chip is stamped on — the collection readout
+    const wonCount = (id) => {
+      let n = 0;
+      const w = save.chipsWon || {};
+      for (const k in w) if (Array.isArray(w[k]) && w[k].indexOf(id) >= 0) n++;
+      return n;
+    };
+    const total = global.TDData.LEVELS.length;
+    const rows = pool.map((c) => {
+      const on = armed.has(c.id);
+      return '<div class="td-node-row">' +
+        '<button class="td-node' + (on ? " td-node--on" : "") + '" data-chip="' + c.id + '" type="button">' +
+        '<span class="td-node__icon">' + c.icon + "</span>" +
+        '<span class="td-node__body"><span class="td-node__name">' + c.name + "</span>" +
+        '<span class="td-node__desc">' + c.desc + "</span></span>" +
+        '<span class="td-node__cost">' + wonCount(c.id) + "/" + total + "</span></button>" +
+        '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' +
+        ' data-armchip="' + c.id + '" aria-label="' + (on ? "Disarm " : "Arm ") + c.name + '">' + (on ? "🎖️" : "＋") + "</button></div>";
+    }).join("");
+    const el = metaOverlay("td-chips", "<h3>🎖️ Challenges</h3>" +
+      '<p class="td-overlay__sub">Arm a chip, then WIN a level with it still on — it stamps that level’s card. ' +
+      "Chips only ever take tools away, so they never make a run easier; every one is beatable on every level " +
+      "(on casual at least — that was measured, not hoped).</p>" +
+      '<div class="td-nodes">' + rows + "</div>" +
+      '<div class="td-overlay__row"><button class="td-btn td-btn--call td-chips-done" type="button">Done</button></div>');
+    const toggle = (id) => {
+      if (armed.has(id)) armed.delete(id); else armed.add(id);
+      onChange([...armed]);
+      UI.showChips(save, onChange);
+    };
+    el.querySelectorAll("[data-chip]").forEach((b) => b.addEventListener("click", () => toggle(b.dataset.chip)));
+    el.querySelectorAll("[data-armchip]").forEach((b) => b.addEventListener("click", (ev) => { ev.stopPropagation(); toggle(b.dataset.armchip); }));
+    el.querySelector(".td-chips-done").addEventListener("click", UI.closeOverlay);
   };
 
   // Badges: the 12-achievement grid, earned lit + named, locked dimmed.

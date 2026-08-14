@@ -103,6 +103,37 @@
     // winnability oracle never pulls the lever, so every shipped number stands.
   };
 
+  // ---- TD-18 CHALLENGE CHIPS: player-chosen constraints ----
+  // The measurement program's final word on the flat levels is that no DATA
+  // dose can grade them (threshold domination, reproduced nine times) — so the
+  // remaining difficulty axis is the one the player sets themselves. A chip is
+  // an opt-in CONSTRAINT armed before a run: it can only ever remove options,
+  // never add power, so it cannot inflate the tuned curve and the winnability
+  // sims (which pass no chips) are untouched by construction.
+  //   Completability is MEASURED, not assumed — a challenge that cannot be done
+  // is the dead-content class (heroic with no selector, World 4 with no cards):
+  //   · nopowers — the shipped oracle never uses a power, so every level's own
+  //     PLAYABILITY sim already proves this one completable everywhere.
+  //   · nofan/nomortar/nocamp — the dart-mono arm builds none of the three, and
+  //     it clears all 40 levels on casual (L27/L40 need the mixed plan on
+  //     normal), so one measured arm proves all three chips completable.
+  //   · a "no darts" chip was designed and CUT by this measurement: the
+  //     fan/mortar and fan/mortar/camp arms fail 30 of 40 levels on normal and
+  //     10 even on casual (L7, L13-15, L23-24, L33, L36, L38, L40) — the Dart
+  //     really is the load-bearing generalist the balance record says it is,
+  //     and a chip that is impossible on a quarter of the campaign is an
+  //     unearnable badge, the dead-content class. Do not re-add it without a
+  //     measured arm that clears every level.
+  // Winning a level with a chip armed stamps it on that level's card — a
+  // COSMETIC record, deliberately: star income would break the "tree must cost
+  // more than you can earn" economy law.
+  const CHIPS = [
+    { id: "nopowers", icon: "🔇", name: "Quiet Hands", desc: "No powers — win with towers alone", ban: { powers: true } },
+    { id: "nofan", icon: "🥵", name: "Heat Wave", desc: "No Freeze-Pop Fans", ban: { line: "fan" } },
+    { id: "nomortar", icon: "🧺", name: "Crates Packed", desc: "No Block Mortars", ban: { line: "mortar" } },
+    { id: "nocamp", icon: "⛺", name: "Camp's Closed", desc: "No Army Guys camps", ban: { line: "camp" } },
+  ];
+
   // ---- TD-9 ACTIVE ABILITIES: the in-WAVE layer ----
   // Every other decision in this game happens in the BUILD phase — once you hit
   // CALL you were a spectator, which is also why difficulty could only ever be
@@ -358,6 +389,21 @@
     // shieldRegen 0 and 34, while a tier-1 Fan goes 40s → never at regen ≥6.
     // The axis that was actually missing is a DECISION, and this is it.
     drum: { name: "Oil Drum", icon: "🛢️", hp: 200, speed: 0.7, armor: 0, shield: 0, shieldRegen: 0, bounty: 18, lives: 1, flier: false, meleeDmg: 5, meleeRate: 1, spill: { r: 1.7, mult: 1.45, seconds: 5 } },
+    // 🎇 Sparkler — the second body on the DECISION axis the Oil Drum opened,
+    // and deliberately a different question from it. The drum changes the
+    // GROUND (whatever crosses the slick hustles); this one takes a GUN off the
+    // board: it pops when it dies and jams the nearest shooter, so killing
+    // sparklers on top of your best tower silences that tower for two seconds.
+    // Where you break it is the whole mechanic.
+    //   It is the Loose Screw's mirror, and the pair is the point: the Screw
+    // jams on a TIMER wherever it happens to be (you cannot influence it), the
+    // Sparkler jams where YOU choose to kill it. Same one `jamNearest` owner,
+    // so both share the reach rule and the camps-are-immune rule.
+    //   HP is the design lever, not the jam: at 34hp it would die wherever the
+    // first shot found it and the choice would not exist, so it is beefy enough
+    // to walk into a decision. Radius is deliberately tighter than the Screw's
+    // 3.5 — a death-burst you aim is stronger than a timer you cannot.
+    sparkler: { name: "Sparkler", icon: "🎇", hp: 120, speed: 0.75, armor: 0, shield: 0, shieldRegen: 0, bounty: 20, lives: 1, flier: false, meleeDmg: 5, meleeRate: 1, jamBurst: { radius: 2.2, seconds: 2 } },
     // 📻 Boom Box — it does not fight. It makes the wave arrive FASTER than
     // your board expects, which is a threat no amount of damage answers; the
     // answer is to shoot the support first (the Junk Healer's lesson, applied
@@ -1961,7 +2007,13 @@
         { groups: [ { type: "cushion", count: 2, gap: 0.9, delay: 4 }, { type: "popper", count: 38, gap: 0.65, delay: 0 }, { type: "knight", count: 9, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "boombox", count: 4, gap: 0.9, delay: 4 }, { type: "streamer", count: 9, gap: 0.3, delay: 2 }, { type: "blob", count: 22, gap: 0.65, delay: 0 }, { type: "sweet", count: 55, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "slime", count: 4, gap: 0.9, delay: 4 }, { type: "streamer", count: 12, gap: 0.3, delay: 2 }, { type: "popper", count: 46, gap: 0.65, delay: 0 }, { type: "knight", count: 11, gap: 0.8, delay: 3 } ] },
-        { groups: [ { type: "screw", count: 6, gap: 0.9, delay: 4 }, { type: "streamer", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "sweet", count: 72, gap: 0.8, delay: 3 } ] },
+        // 🎇 the Sparkler's campaign home, an HP-PRESERVING swap for the Loose
+        // Screw (its sibling: the Screw jams on a timer, this one jams where you
+        // let it DIE). 6 screws = 570hp → 5 sparklers = 600, so sweet drops
+        // 72 → 70 (−32): wave hp 3942 → 3940, a −0.05% drift, so the ±25%
+        // budget curve and the ≥70% backbone share are both untouched, and the
+        // wave still carries exactly ONE non-backbone special.
+        { groups: [ { type: "sparkler", count: 5, gap: 0.9, delay: 4 }, { type: "streamer", count: 16, gap: 0.3, delay: 2 }, { type: "blob", count: 29, gap: 0.65, delay: 0 }, { type: "sweet", count: 70, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "ghost", count: 14, gap: 0.9, delay: 4 }, { type: "streamer", count: 20, gap: 0.3, delay: 2 }, { type: "popper", count: 57, gap: 0.65, delay: 0 }, { type: "knight", count: 15, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "duck", count: 7, gap: 0.9, delay: 4 }, { type: "streamer", count: 26, gap: 0.3, delay: 2 }, { type: "blob", count: 37, gap: 0.65, delay: 0 }, { type: "sweet", count: 93, gap: 0.8, delay: 3 } ] },
         { groups: [ { type: "bubblewrap", count: 10, gap: 0.9, delay: 4 }, { type: "streamer", count: 32, gap: 0.3, delay: 2 }, { type: "popper", count: 74, gap: 0.65, delay: 0 }, { type: "knight", count: 19, gap: 0.8, delay: 3 } ] },
@@ -2119,29 +2171,35 @@
     base: 300, growth: 1.16, miniBossEvery: 5,
     worlds: {
       bedroom:  { label: "🛏️ Bedroom", pool: ["sock", "marble", "blob", "knight", "balloon", "bull", "brick"], miniBoss: "pinata" },
-      backyard: { label: "🌳 Backyard", pool: ["sock", "marble", "knight", "ghost", "mole", "battery", "hawk", "blob"], miniBoss: "pinata" },
-      toystore: { label: "🧸 Toy Store", pool: ["knight", "ghost", "mole", "battery", "blob", "hawk", "bull"], miniBoss: "pinata" },
-      // miniBoss is the PIÑATA in every world, including this one. The attic
-      // shipped with "tickmaster" — the 3200hp, 10-life World-4 campaign boss —
-      // as its every-5th-wave punctuation, so a wave-5 board that cannot
-      // possibly kill it lost half its lives on the spot and the run ended at
-      // wave 5 against 28-46 elsewhere. A mini-boss is a spike, not a wall; the
-      // attic earns its difficulty from an all-specials pool instead.
-      attic: { label: "🧳 Attic", pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "pinata" },
+      backyard: { label: "🌳 Backyard", pool: ["sock", "marble", "knight", "ghost", "mole", "battery", "hawk", "blob"], miniBoss: "bull" },
+      toystore: { label: "🧸 Toy Store", pool: ["knight", "ghost", "mole", "battery", "blob", "hawk", "bull"], miniBoss: "battery" },
+      // TD-18: each world's every-5th-wave punctuation is now ITS OWN signature
+      // body, so ten endless runs ask ten different questions (the same
+      // world-differentiation programme that gave the campaign per-world
+      // backbone skins — all ten arenas used to share one Piñata). Two laws
+      // hold for every entry, guardrail-locked: a mini-boss is GROUND (mortar
+      // and camp cannot touch air, so a flier wall would make some boards
+      // unwinnable by construction) and it is never a campaign BOSS — the
+      // attic once shipped "tickmaster", the 3200hp, 10-life World-4 finale,
+      // as its punctuation, and a wave-5 board that could not possibly kill it
+      // lost half its lives on the spot (runs ended at wave 5 against 28-46
+      // elsewhere). A mini-boss is a spike, not a wall. The bedroom keeps the
+      // classic Piñata; the count still scales with depth (1 + n/10).
+      attic: { label: "🧳 Attic", pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "cushion" },
       // World 5: a vanilla backbone plus BOTH garage shapes, so an endless run
       // has to answer the slow-immune runner and the spawner it just learned.
       // World 6: the two Moving Day shapes plus a vanilla backbone, so an
       // endless run has to answer both the padding and the music.
-      moving: { label: "📦 Moving Day", pool: ["sock", "knight", "blob", "bubblewrap", "boombox", "hawk", "racer", "cushion"], miniBoss: "pinata" },
-      garage: { label: "🔧 Garage", pool: ["sock", "knight", "blob", "racer", "bucket", "hawk", "cushion", "tinplane"], miniBoss: "pinata" },
+      moving: { label: "📦 Moving Day", pool: ["sock", "knight", "blob", "bubblewrap", "boombox", "hawk", "racer", "cushion"], miniBoss: "bubblewrap" },
+      garage: { label: "🔧 Garage", pool: ["sock", "knight", "blob", "racer", "bucket", "hawk", "cushion", "tinplane"], miniBoss: "drum" },
       // World 7: the house's own crowd plus air plus three disruptors — an
       // endless run here has to answer everything the campaign has taught.
-      newhouse: { label: "🏠 The New House", pool: ["chair", "housekey", "knight", "blob", "hawk", "cushion", "boombox", "screw"], miniBoss: "pinata" },
+      newhouse: { label: "🏠 The New House", pool: ["chair", "housekey", "knight", "blob", "hawk", "cushion", "boombox", "screw"], miniBoss: "slime" },
       // World 8: its own crowd plus the two resist shapes, so an endless run
       // here has to answer both the padding and the cushioning.
-      sortline: { label: "♻️ The Sort Line", pool: ["carton", "clip", "knight", "blob", "leaflet", "cushion", "bubblewrap", "slime"], miniBoss: "pinata" },
-      toyworks: { label: "🏭 The Toy Works", pool: ["reject", "pellet", "knight", "blob", "offcut", "cushion", "battery", "racer"], miniBoss: "pinata" },
-      party: { label: "🎉 The Party", pool: ["popper", "sweet", "knight", "blob", "streamer", "healer", "bubblewrap", "boombox"], miniBoss: "pinata" },
+      sortline: { label: "♻️ The Sort Line", pool: ["carton", "clip", "knight", "blob", "leaflet", "cushion", "bubblewrap", "slime"], miniBoss: "duck" },
+      toyworks: { label: "🏭 The Toy Works", pool: ["reject", "pellet", "knight", "blob", "offcut", "cushion", "battery", "racer"], miniBoss: "bucket" },
+      party: { label: "🎉 The Party", pool: ["popper", "sweet", "knight", "blob", "streamer", "healer", "sparkler", "boombox"], miniBoss: "boombox" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
     arenas: {
@@ -2186,7 +2244,7 @@
     },
   };
 
-  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, TOWERS, ENEMIES, WORLDS, BACKBONE_TYPES, PRE_CONTRACT_WORLDS, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
+  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, CHIPS, TOWERS, ENEMIES, WORLDS, BACKBONE_TYPES, PRE_CONTRACT_WORLDS, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
 
   if (typeof module !== "undefined" && module.exports) module.exports = DATA;
   if (global && typeof global === "object") global.TDData = DATA;

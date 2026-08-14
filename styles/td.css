@@ -51,6 +51,8 @@ body.td-mode #screens { padding: 0; }
 .td-level__n { color: #9db4dd; font-size: 0.85rem; }
 .td-level__name { text-align: center; padding: 0 4px; }
 .td-level__stars { font-size: 0.85rem; }
+/* TD-18: challenge chips WON here, stamped under the stars */
+.td-level__chips { font-size: 0.7rem; line-height: 1; }
 .td-level__need { font-size: 0.72rem; color: #9db4dd; font-weight: 700; }
 .td-level__dim { opacity: 0.25; }
 /* difficulty pips (1-3), colored by tier */
@@ -314,6 +316,10 @@ body.td-mode #screens { padding: 0; }
    being smaller and lower-case, which costs no contrast. */
 .td-buy__cov { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.02em; }
 .td-buy__cost { font-size: 0.92rem; }
+/* TD-18: a chip-banned line. Dimming is legal here and ONLY here because the
+   button is genuinely [disabled] — WCAG 1.4.3 exempts inactive controls, the
+   same measured licence the locked star-tree nodes use. */
+.td-buy--chipban { opacity: 0.45; filter: none; }
 .td-panel { display: flex; align-items: center; flex-wrap: wrap; max-width: 320px; }
 .td-panel > * { margin: 0 8px 8px 0; } /* flex-gap is dropped on iOS 14.2 */
 .td-panel__name { font-weight: 800; color: #ffe27a; padding: 0 4px; white-space: nowrap; }
@@ -602,6 +608,14 @@ body.td-mode #screens { padding: 0; }
 .td-overlay__row > * + * { margin-left: 10px; } /* flex-gap is dropped on iOS 14.2 */
 .td-overlay__row .td-btn { flex: 1; }
 .td-overlay__sub { color: #9db4dd; margin: 0; font-size: 0.92rem; }
+/* TD-18 Daily Toybox card — colors reuse the overlay's proven-AA pairs
+   (#9db4dd body, #ffe27a highlight on the #16233d box). */
+.td-daily__card { background: #101a30; border: 1px solid #3a548a; border-radius: 12px; padding: 12px; margin: 10px 0; display: grid; }
+.td-daily__card > * + * { margin-top: 6px; }  /* grid gap survives iOS 14.0, but margins need no allowlist entry */
+.td-daily__arena { margin: 0; font-weight: 800; font-size: 1.05rem; color: #ffe27a; }
+.td-daily__mod { margin: 0; color: #cfdcf5; font-size: 0.92rem; }
+.td-daily__best { margin: 0; color: #9db4dd; font-size: 0.85rem; }
+.td-daily__best b { color: #ffe27a; }
 .td-tree__avail { color: #ffe27a; }
 
 /* star tree nodes */

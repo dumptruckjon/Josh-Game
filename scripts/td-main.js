@@ -66,6 +66,26 @@
               save.endlessBest = save.endlessBest || {};
               for (const w in other.endlessBest) save.endlessBest[w] = Math.max(save.endlessBest[w] || 0, other.endlessBest[w] || 0);
             }
+            // TD-18: a chip WON only ever accumulates, so it folds as a per-level
+            // union like `ach`. `chipsArmed` is a preference and stays
+            // last-writer-wins, exactly like `loadout` — disarming is deliberate.
+            if (other.chipsWon && typeof other.chipsWon === "object") {
+              save.chipsWon = save.chipsWon || {};
+              for (const k in other.chipsWon) {
+                if (!Array.isArray(other.chipsWon[k])) continue;
+                save.chipsWon[k] = [...new Set([...(save.chipsWon[k] || []), ...other.chipsWon[k]])];
+              }
+            }
+            // TD-18 daily: allTime is monotonic; today's best folds as max only
+            // when both tabs are on the SAME day — a later day string wins
+            // outright (ISO dates compare lexically), because yesterday's score
+            // must never survive as today's.
+            if (other.daily && typeof other.daily === "object") {
+              const mine = save.daily = (save.daily && typeof save.daily === "object") ? save.daily : { day: "", best: 0, allTime: 0 };
+              mine.allTime = Math.max(mine.allTime | 0, other.daily.allTime | 0);
+              if (other.daily.day === mine.day) mine.best = Math.max(mine.best | 0, other.daily.best | 0);
+              else if (String(other.daily.day || "") > String(mine.day || "")) { mine.day = other.daily.day; mine.best = other.daily.best | 0; }
+            }
           }
         }
       }
@@ -107,6 +127,13 @@
   if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
   if (!("midRun" in save)) save.midRun = null;     // TD-5 resume checkpoint
   if (!save.bests || typeof save.bests !== "object") save.bests = {}; // TD-13 best run per level+difficulty
+  // TD-18 challenge chips: what is ARMED for the next run (a preference, like
+  // the loadout) and what has been WON per level (progress, per-level id lists).
+  if (!Array.isArray(save.chipsArmed)) save.chipsArmed = [];
+  if (!save.chipsWon || typeof save.chipsWon !== "object") save.chipsWon = {};
+  // TD-18 Daily Toybox: today's best and the all-time daily best. Bounded on
+  // purpose — one day + one number, never a growing per-day history.
+  if (!save.daily || typeof save.daily !== "object") save.daily = { day: "", best: 0, allTime: 0 };
 
   // THE one owner of "which nodes is this run actually running with". Equipped
   // ∩ owned, capped at the slot budget — so a hand-edited save, a refund, or a
@@ -114,6 +141,13 @@
   function activeLoadout() {
     const owned = new Set(save.meta || []);
     return (save.loadout || []).filter((id) => owned.has(id)).slice(0, DATA.RULES.metaSlots);
+  }
+  // TD-18: the one owner of "which chips constrain the next run". Armed ∩ real
+  // — a hand-edited save cannot invent a ban — and deliberately NOT forced
+  // non-empty: no chips is the normal state.
+  function activeChips() {
+    const real = new Set((DATA.CHIPS || []).map((c) => c.id));
+    return (save.chipsArmed || []).filter((id) => real.has(id));
   }
   // The same owner for POWERS: equipped ∩ real, capped at the slot budget, and
   // never empty (a hand-edited save that cleared it would leave a run with no
@@ -144,6 +178,9 @@
       endlessBest: {},
       midRun: null,
       bests: {},
+      chipsArmed: [],
+      chipsWon: {},
+      daily: { day: "", best: 0, allTime: 0 },
     };
     if (keepPrefs) {
       if (save && save.settings) s.settings = JSON.parse(JSON.stringify(save.settings));
@@ -455,6 +492,21 @@
       }
       if (!st.cheated) clearMidRun(); // a kid win must not delete the grown-up's saved run
       awardWinAchievements(st);
+      // TD-18: a chip survives to the WIN → it is stamped on this level's card.
+      // Campaign levels only (an endless/daily id is a string), never a cheated
+      // run, and only chips the data still declares — the same three gates the
+      // badges use, because a chip is the same kind of earned record.
+      if (!st.cheated && typeof st.levelId === "number" && (st.chips || []).length) {
+        const real = new Set((DATA.CHIPS || []).map((c) => c.id));
+        const wonHere = save.chipsWon[st.levelId] = save.chipsWon[st.levelId] || [];
+        const fresh = st.chips.filter((c) => real.has(c) && wonHere.indexOf(c) < 0);
+        if (fresh.length) {
+          wonHere.push(...fresh);
+          persist(save);
+          const names = fresh.map((id) => { const d = DATA.CHIPS.find((c) => c.id === id); return d ? d.icon + " " + d.name : id; });
+          if (UI.notice) UI.notice("🎖️ Challenge done: " + names.join(" · "));
+        }
+      }
       sfx("won");
       const nextId = st.levelId + 1;
       const nextExists = !!DATA.LEVELS.find((l) => l.id === nextId);
@@ -480,7 +532,19 @@
       stopLoop();
       clearMidRun();
       sfx("lost");
-      if (st.endless) {
+      if (st.endless && cur.dailyDay) {
+        // TD-18 daily: its own ladder — a daily score never writes the world's
+        // endlessBest (that grid is the endless mode's record, and the daily
+        // can visit arenas the player has not unlocked there). Marathoner still
+        // counts: a daily IS an endless run, and 20 waves is 20 waves.
+        const score = st.waveIdx, day = cur.dailyDay;
+        recordDaily(score);
+        if (!st.cheated && score >= 20) earnAch("marathoner");
+        UI.showDefeat({
+          retry: () => { UI.closeOverlay(); startDaily(day); },
+          quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
+        }, { score, best: save.daily.best | 0 });
+      } else if (st.endless) {
         const world = cur.levelDef.world, score = st.waveIdx;
         const best = (save.endlessBest[world] || 0);
         if (!st.cheated && score > best) { save.endlessBest[world] = score; persist(save); }
@@ -648,7 +712,11 @@
     // own default is the whole pool (so sims stay unchanged); a real run is
     // always handed its equipped, slot-capped four.
     const powers = opts.powers || activePowers();
-    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta, powers });
+    // TD-18: the CHIPS this run is constrained by. An explicit [] (a resumed
+    // legacy checkpoint) stays empty — `[] || x` keeps the array — while an
+    // ordinary start reads whatever the player armed on the fort home.
+    const chips = opts.chips || activeChips();
+    const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta, powers, chips });
     const render = R.create(UI.canvas, engine);
     if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
@@ -676,11 +744,67 @@
     startLevel(null, { levelDef: endlessLevelDef(world) });
   }
 
+  // ---- TD-18 DAILY TOYBOX ----
+  // A fresh puzzle every day, for free, because the engine is deterministic by
+  // seed — the same property the whole test strategy rests on. The SHELL reads
+  // the calendar (Date is banned inside the engine, and startLevel already
+  // seeds ordinary runs from Date.now()); the engine just gets numbers.
+  function dayKey(d) {
+    const t = d || new Date();
+    // LOCAL date, not UTC: "today's puzzle" should roll over at Jon's midnight.
+    return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+  }
+  // Three independently-seeded draws from one day string. FNV alone with
+  // different seeds is only weakly decorrelated (measured 36/40 in the sticker
+  // work), so each stream gets the murmur3 finalizer — the fix that took the
+  // seals to 40/40.
+  function dayHash(day, seed) {
+    let h = seed >>> 0;
+    for (const ch of day) h = ((h ^ ch.codePointAt(0)) * 16777619) >>> 0;
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0;
+    h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  function dailyPick(day) {
+    const worlds = Object.keys(DATA.ENDLESS.arenas);        // DERIVED — a new arena joins the rotation by existing
+    const world = worlds[dayHash(day, 2166136261) % worlds.length];
+    // one day in (chips+1) is unmodified — a breather is part of the rotation
+    const mods = [null].concat((DATA.CHIPS || []).map((c) => c.id));
+    const chip = mods[dayHash(day, 0x9e3779b1) % mods.length];
+    const seed = dayHash(day, 0x85ebca6b) % 100000;
+    return { day, world, chip, seed };
+  }
+  function startDaily(dayOverride) {
+    const pick = dailyPick(dayOverride || dayKey());
+    location.hash = "#td-play";
+    // Difficulty pinned to NORMAL so the day's board is the same board no
+    // matter where the fort-home chip sits — a daily is one shared puzzle.
+    startLevel(null, { levelDef: endlessLevelDef(pick.world), seed: pick.seed,
+      difficulty: "normal", chips: pick.chip ? [pick.chip] : [] });
+    if (cur) cur.dailyDay = pick.day;
+  }
+  // Score a finished/abandoned daily. ONE owner called from both exits (the
+  // lost branch and leavingPlay) — the endless-milestone lesson: a record kept
+  // only on defeat is lost on a quit.
+  function recordDaily(score) {
+    if (!cur || !cur.dailyDay || cur.engine.state.cheated) return;
+    const d = save.daily;
+    if (d.day === cur.dailyDay) d.best = Math.max(d.best | 0, score);
+    else { d.day = cur.dailyDay; d.best = score; }
+    d.allTime = Math.max(d.allTime | 0, score);
+    persist(save);
+  }
+
   // ---- TD-5 mid-run checkpoint (§9.3): snapshot at each wave boundary, restore
   //      on Resume, clear on win/loss/quit. Only towers + scalars — honest
   //      wave-granularity (mid-wave enemy positions are NOT saved). ----
   function writeMidRun() {
     if (!cur || cur.engine.state.cheated) return;
+    // TD-18: a daily is a single sitting, deliberately — resuming YESTERDAY'S
+    // daily today would score a stale board under a fresh day, and carrying the
+    // day key through the checkpoint buys that ambiguity for no real gain.
+    // Quitting a daily records its score on the way out instead (leavingPlay).
+    if (cur.dailyDay) return;
     const st = cur.engine.state;
     if (st.phase !== "build") return;
     save.midRun = {
@@ -695,6 +819,10 @@
       // (st.powers), not the save, so a loadout edited while a run is parked
       // cannot retroactively rewrite the run that is being restored.
       gold: st.gold, lives: st.lives, meta: activeLoadout(), powers: (st.powers || []).slice(),
+      // TD-18: the CHIPS, same law — a resumed challenge run must still be the
+      // challenge, read off the RUN so re-arming chips while one is parked
+      // cannot retroactively loosen (or tighten) the run being restored.
+      chips: (st.chips || []).slice(),
       // achievement context so a resumed win is judged against the WHOLE run,
       // not just the post-resume slice (No Leaks / Dyson Denied / First Blood).
       leaked: !!cur.leaked, soldiersLost: cur.soldiersLost || 0, sawKill: !!cur.sawKill,
@@ -755,8 +883,15 @@
     // still keeps the last build checkpoint (writeMidRun refuses otherwise).
     if (st && st.phase === "build") writeMidRun();
     if (st && st.endless && !st.cheated && st.phase !== "won" && st.phase !== "lost") {
-      const world = cur.levelDef.world, score = st.waveIdx;
-      if (score > (save.endlessBest[world] || 0)) { save.endlessBest[world] = score; persist(save); }
+      const score = st.waveIdx;
+      if (cur.dailyDay) {
+        // TD-18: a quit daily still records — the endless-milestone lesson —
+        // and never touches the world's endlessBest ladder.
+        recordDaily(score);
+      } else {
+        const world = cur.levelDef.world;
+        if (score > (save.endlessBest[world] || 0)) { save.endlessBest[world] = score; persist(save); }
+      }
       if (score >= 20) earnAch("marathoner"); // earnAch de-dupes + persists
     }
     cur.rallyArmId = 0; cur.abilArmId = null; cur.selPadId = null; cur.selTowerId = null;
@@ -770,9 +905,13 @@
     if (!levelDef) { clearMidRun(); location.hash = "#td-home"; return; }
     location.hash = "#td-play";
     // A legacy checkpoint has no `powers` — fall through to the live loadout,
-    // which is what a pre-P6 resume effectively did.
+    // which is what a pre-P6 resume effectively did. A legacy checkpoint has no
+    // `chips` either → an unconstrained run, matching what it was when parked
+    // (a chipped checkpoint's towers are all legal lines by construction, so
+    // the rebuild below can never be refused by its own run's ban).
     startLevel(mr.levelId, { levelDef, seed: mr.seed, difficulty: mr.difficulty, meta: mr.meta,
-      powers: Array.isArray(mr.powers) && mr.powers.length ? mr.powers : null });
+      powers: Array.isArray(mr.powers) && mr.powers.length ? mr.powers : null,
+      chips: Array.isArray(mr.chips) ? mr.chips : [] });
     // Carry the pre-checkpoint achievement context across the resume so the win
     // is judged honestly against the whole run (startLevel reset these to fresh).
     cur.leaked = !!mr.leaked;
@@ -884,6 +1023,7 @@
   // and one that charges you for nothing reads worse.
   function abilityWhy(reason, def) {
     const name = def ? def.name : "That";
+    if (reason === "chip") return "🔇 Powers are off for this challenge — Quiet Hands is armed";
     if (reason === "not-in-wave") return "⏳ " + name + " only works during a wave";
     if (reason === "gold") return "🪙 Not enough gold for " + name + " (" + (def ? def.gold : "?") + ")";
     if (reason === "cooldown") return "⏱ " + name + " is still recharging";
@@ -1024,6 +1164,21 @@
           const covTxt = cov == null ? "" :
             '<span class="td-buy__cov" title="how much of the road this reaches from here">' +
             (cov * 100).toFixed(0) + "% road</span>";
+          // TD-18: a chip-banned line renders LOCKED, asked of the ENGINE (the
+          // ban lives on the run). It deliberately carries NO data-cost —
+          // paintPrices re-enables every affordable [data-cost] button on each
+          // repaint, so a priced-but-banned button would flick back tappable.
+          // No price shown either: a price on a thing this run may never buy is
+          // noise, and the role line says exactly why it refuses instead of the
+          // button reading as broken (the dead-control law).
+          const banned = cur.engine.lineAllowed && !cur.engine.lineAllowed(id);
+          if (banned) {
+            return '<button class="td-buy td-buy--chipban" data-line="' + id + '" type="button" disabled>' +
+              '<span class="td-buy__icon">' + d.icon + "</span>" +
+              '<span class="td-buy__role">off for this challenge</span>' +
+              '<span class="td-buy__cost">🎖️</span>' +
+              "</button>";
+          }
           return '<button class="td-buy" data-line="' + id + '" data-cost="' + cost + '" type="button">' +
             '<span class="td-buy__icon">' + d.icon + "</span>" +
             '<span class="td-buy__role">' + d.role + "</span>" +
@@ -1356,8 +1511,10 @@
     // last-writer-wins across two tabs, never unioned — unioning would resurrect
     // a power you deliberately left behind.
     openPowers: () => UI.showPowers(save, (picked) => { save.powers = picked; persist(save); }),
+    openChips: () => UI.showChips(save, (armed) => { save.chipsArmed = armed; persist(save); }),
     openAchievements: () => UI.showAchievements(save),
     openEndless: () => UI.showEndless(save, (world) => startEndless(world)),
+    openDaily: () => UI.showDaily(dailyPick(dayKey()), save, () => startDaily()),
     // Grown-ups reset: wipe progress (keeping sound/graphics prefs + the
     // difficulty chip), drop any parked run, then re-render the fort home so the
     // grid re-locks, the star tree empties and the Resume banner disappears.
@@ -1431,6 +1588,10 @@
     endlessBest: () => Object.assign({}, save.endlessBest),
     resume: () => { resumeMidRun(); return cur ? cur.engine.state.phase : null; },
     startEndless: (world) => { startEndless(world); if (cur) { cur.paused = true; syncWake(); } return true; },
+    // TD-18 daily: the pick for any day (a FIXTURE injection point, so a test
+    // can pin the calendar) and a way to play it. Info and act, separately.
+    dailyInfo: (day) => dailyPick(day || dayKey()),
+    playDaily: (day) => { startDaily(day); if (cur) { cur.paused = true; syncWake(); } return true; },
     // Exercises the real leave chokepoint — including the hash, so the router
     // and the screens agree afterwards exactly as they do when the player taps
     // 🏠 (the app always leaves via the hash; a route() call alone left the hash
@@ -1462,8 +1623,11 @@
       return e.state.phase;
     },
     // The exact CI winning plan from tests/td-logic.test.js, reproducible in-browser.
-    winL1: (seed) => {
-      global.__TD.newGame(1, { seed: seed == null ? 7 : seed });
+    winL1: (seed, opts) => {
+      // opts passes through (chips, meta, …) so a fixture can win under a
+      // constraint — the chip-stamp test needs the win and the chips on the
+      // SAME run, and a second newGame here would silently drop them.
+      global.__TD.newGame(1, Object.assign({ seed: seed == null ? 7 : seed }, opts || {}));
       const e = cur.engine;
       const s = global.__TD.script;
       s([["place", "dart", "p3"], ["place", "dart", "p2"], ["place", "dart", "p4"]]);

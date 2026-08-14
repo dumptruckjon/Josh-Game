@@ -1203,6 +1203,125 @@ power inherits it), with an explicit non-empty check on each list so the loops
 cannot pass vacuously; mutation-proven by emptying the gimmick loop and the
 powers row separately.
 
+**TD-18 shipped four between-runs features — 🎖️ challenge chips, 📅 the Daily
+Toybox, per-world endless mini-bosses and 🎇 the Sparkler — and every lesson in
+it was about a claim that LOOKED verified and was not.** (1) **A constraint is
+the one kind of new content that cannot inflate a tuned curve, which is what
+makes chips safe** — a chip only ever REMOVES an option (a tower line, or the
+powers), so `chips: []` is a default-noop proven byte-identical on the
+determinism hash, no winnability sim moved, and the whole feature needed no
+re-tune. Both bans are enforced in the ENGINE (the first clause of `place()` and
+of `abilityReady()`), never in the UI, so the menu greying out is a courtesy and
+the rule is the engine's. (2) **A challenge nobody can complete is worse than no
+challenge, so completability was MEASURED before shipping, and it cut a chip.**
+A fifth chip banning the Dart looked like the obvious mirror of the other three
+and fails **30 of 40 levels on normal** (10 of 40 even on casual), because the
+Dart is the documented generalist and two of the remaining lines cannot reach
+air. It was cut and the measurement is written into the data file beside the
+list, so the next author does not re-add it. The other four clear all 40. (3)
+**A law can be arithmetically impossible, and writing it down is how you find
+out** — the first mini-boss rule was "each world's spike must be beefier than
+anything in its own pool", and there are only four bodies above 150hp against
+ten worlds competing for them, so it could never be satisfied. Replaced with
+"≥ the pool's median hp", which three of my ten assignments then FAILED (ghost
+0.61×, healer 0.94×, racer 1.00×) — the law earning its keep on the very batch
+that wrote it. (4) **I claimed a two-clause guardrail was load-bearing on both
+halves and it was not**, so the comment now says which half is vacuous: the
+"a mini-boss must carry a KIT" clause cannot fail on shipped data, because every
+kit-less body caps at 34hp and the lowest pool median is 40, so the hp clause
+already excludes them. Say that in the comment rather than implying two
+protections where there is one.
+
+**THE SPARKLER'S THIRD CLAUSE PASSED ITS MUTATION FOUR TIMES, AND ONLY THE
+FOURTH DIAGNOSIS WAS THE REAL ONE — because the fixture was one field short.**
+🎇 Sparkler is the Loose Screw's mirror (the Screw jams on a TIMER; this one jams
+where you let it DIE), so its test has to rule out an aura, and the clause "a
+LIVING sparkler jams nothing" survived an aura mutation four times running: (a)
+the body was parked at dist 0, far from the tower, so the mutation could not
+reach it; (b) the assertion read `disabledUntil > tick` at the END, but
+`jamNearest` skips an already-jammed tower so the jam had expired by then — it
+asserts `=== 0` now, which catches a jam that has since lapsed; (c) `tick()`
+returns early in the BUILD phase, so a fixture that never calls a wave runs none
+of the per-tick enemy code at all; and (d) the one that actually mattered — the
+hand-built enemy literal omitted **`speed`**, `effSpeed` returns `e.speed`, so
+`dist` went **NaN**, `posAt` clamps NaN to the LANE END, and the body silently
+teleported 18 cells away from the tower every tick. The post-loop read looked
+perfect because the loop PINS `dist` back after each tick, so the corruption
+existed only inside the code under test. Three things generalise. **Print what
+happened INSIDE the loop, not what the state looks like afterwards** — one
+`console.log` in the mutated branch showed `dist NaN` immediately, after three
+wrong theories reasoned from end-state alone. **A hand-built body needs every
+field the hot loop multiplies** — this is the `mult`-less zone and the
+`delay`-less wave group for the fourth time, now inside a TEST, and the fixture
+is the one place the engine's own coercions cannot protect you. And **a fixture
+precondition should be self-verifying**: the clause now ticks once WITHOUT
+pinning and asserts the body actually walked a finite, sane step, which fails
+loudly (`step NaN`) the moment a field goes missing again, instead of passing
+vacuously. Both halves mutation-proven — the aura mutation now reads
+`expected 0, actual 241`, and deleting `speed` from the fixture fires the new
+precondition rather than the claim.
+
+**AND THE DOSE MEASUREMENT REPRODUCED THE SAME CLASS ONE LEVEL UP: a probe that
+calls an API the engine does not have returns a confident ZERO.** The Sparkler's
+campaign dose measured byte-identical to its control on all 8 seeds × both
+difficulties, which is the correct answer and is ALSO exactly what a dose that
+never fires looks like — so it was verified rather than believed. The first
+verification probe drained events with `e.drain ? e.drain() : []`; the engine
+exposes `e.events`, not `drain()`, so the ternary quietly evaluated to `[]` and
+it reported **"5 sparklers spawned, 0 deaths, 0 jams"** on a fully working
+mechanic. Read against the real buffer it reports 5 spawned, 5 dead and **3
+jams**, i.e. the mechanic is live in a real campaign run and is simply absorbed
+by a maxed board — the Oil Drum's result and the Oil Drum's reason (the shipped
+oracle has no positional agency, so it can never choose where to break one). An
+outcome-neutral body cannot break a tuned level, which is what makes it safe to
+ship for legibility. **The same trap fired a third time in the same hour and was
+caught only by a byte count**: the before/after harness takes its level list from
+a `LEVELS` env var, an invocation that omitted it printed NOTHING, and the diff
+against a real 385-byte baseline would have been read as "the fix changed
+everything" — the mirror of the recorded case where two EMPTY files compared
+IDENTICAL. Assert a result file is non-empty before believing any comparison,
+in either direction. Dosed HP-preservingly into **L39 w8** as a straight swap for
+the Loose Screw (6 screws 570hp → 5 sparklers 600, sweet 72 → 70): wave hp 3942 →
+3940, a −0.05% drift, backbone 84.8%, one special at 15.2% — so the ±25% budget
+curve and the composition contract are untouched. It also joins the party
+endless pool, giving it two reachable routes for `AUDIT roster`.
+
+**AND EXTRACTING A ONE OWNER IS HOW THE SIXTH TWO-COORDINATE-SPACE BUG WAS
+FOUND.** The Sparkler and the Screw both need "jam the nearest gun", so the
+Screw's inline loop became `jamNearest()` — and the moment the two call sites had
+to agree, the shipped line read `(t.cx + 0.5 - p.x)`, comparing a WORLD centre
+against a raw lane INDEX, while `candidates()`, the dart's sticky-keep and the
+mortar all compare raw `t.cx` against `p.x`. That is the sixth instance of this
+engine's two spaces one `+0.5` apart, and it was the ONE targeting site that had
+it — silently costing the Loose Screw its aim on **28 levels**.
+**And the correct fix does NOT ship, because the balance gate — not my
+judgement — was allowed to decide, and it said no.** Straightening the aim moves
+4 of 18 measured level×difficulty rows (largest: L16 normal `10,14,6,17` →
+`10,4,5,5`) and breaks two shipped contracts outright: `PLAYABILITY` (L16
+finishes on **4 lives @seed 7** against its ≥5 floor) and `TD7 lever advantage`
+(**L31's diversion falls from ≥6 lives to 2** — a sharper Screw makes the thin
+board lose on BOTH routes, so the fork stops being worth throwing, the exact
+shape already recorded for L31's healer dose: *a difficulty change on a fork
+level is also a change to that fork's reason to exist*). The reason it is not
+simply a bug fix is that **the Screw's radius and period were tuned AROUND the
+bias**, so correcting the space is a stealth buff to a tuned enemy across a
+quarter of the campaign, in exchange for nothing a player can perceive. So the
+ONE-owner refactor ships (it is what the Sparkler needs, and it is what surfaced
+this at all), the legacy aim is pinned as a NAMED parameter — `SCREW_AIM_BIAS`,
+passed only by the Screw, while the Sparkler uses the engine's own index space
+from birth — and the pin is guardrailed three ways: one owner, only the Screw
+passes it, and the constant is proven **load-bearing** by sweeping a shipped map
+for a spot where biased and unbiased aim pick different guns (so it can never
+decay into a cosmetic 0.5 nobody checks). Byte-identical to the shipped baseline
+on all 18 rows, verified. Straightening it is a two-level re-tune with its own
+8-seed verification — a commissioned balance pass, not a rider on a feature
+batch. Two lessons: **a duplicated computation hides a bug because there is
+nothing to disagree with — give it an owner and the disagreement surfaces
+itself**; and **a bug whose fix a tuned system was built around is a re-tune,
+not a fix** — measure the blast radius before calling it free, and if you defer,
+defer with the failing contract NAMED (the rally bias was once deferred on a
+measurement scoped to a single level, and that deferral was wrong).
+
 ---
 
 ## Repository Structure
@@ -1240,11 +1359,11 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/55-enemy roster (34 + 21 per-world backbone SKINS) + 10 bosses/40 levels (10 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35/L38)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 40 nodes/140⭐ (vs the 120⭐ ceiling 40 levels create — 20⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/56-enemy roster (35 + 21 per-world backbone SKINS) + 10 bosses/40 levels (10 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35/L38)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 40 nodes/140⭐ (vs the 120⭐ ceiling 40 levels create — 20⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD, each with its OWN mini-boss rather than ten Piñatas) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of) + TD-18 `CHIPS` (the 4 opt-in run constraints; a fifth banning the Dart was CUT by measurement — see the comment beside the list)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP; TD-18 run CHIPS are pure input like meta/powers, refused in the FIRST clause of `place()`/`abilityReady()` (never in the UI), and `jamNearest` is the ONE owner the Loose Screw and the 🎇 Sparkler share
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
-│   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
-│   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
+│   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
+│   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
@@ -1571,7 +1690,8 @@ threaded through
 achievements** (`jon-td-ach`, toast on unlock, one per boss + First Blood/No
 Leaks/Pea Purist/Ice Age/Star Collector/Full Fort/Marathoner/Heroic Heart);
 **Endless mode ×3** (a per-world arena with a deterministic wave generator —
-budget `300·1.16^n`, a mini-boss every 5th wave — unlocked once a world's 4
+budget `300·1.16^n`, a mini-boss every 5th wave, each world's spike being its
+OWN body rather than ten identical Piñatas — unlocked once a world's 4
 levels are 3⭐, best score saved per world); and **resume mid-run** (a
 wave-boundary checkpoint in `save.midRun` → a Resume banner on the fort home that
 cold-restores the build). **TD-6 POLISH** finishes it: a full audio-cue set
@@ -1703,6 +1823,26 @@ must never overwrite a heroic best) and is the THIRD instance of the
 persisted-field law, so it was covered at all three sites (loader defaults,
 `freshSave`, the two-tab merge, where a best folds as a MAX like stars) with a
 guardrail pinning each.
+**TD-18 BETWEEN-RUNS** adds the replay layer the campaign was missing, all four
+pieces built on seams that already existed. **🎖️ Challenge chips** (`DATA.CHIPS`,
+armed on the fort home) are opt-in run CONSTRAINTS — 🔇 Quiet Hands (no powers),
+🥵 Heat Wave / 🧺 Crates Packed / ⛺ Camp's Closed (no Fan / Mortar / Camp) —
+threaded through `createEngine` as pure input beside meta and powers, refused in
+the FIRST clause of `place()`/`abilityReady()` so the engine owns the rule, and
+recorded per level in `save.chipsWon` so a beaten level wears the chips it was
+beaten under. Because a chip only ever removes an option it cannot inflate the
+curve, and `chips: []` is a proven default-noop. **📅 The Daily Toybox** is one
+endless arena + one chip + one seed, all three chosen by hashing the calendar
+date, so every player gets the same puzzle on the same day; it scores on its own
+ladder (`save.daily`: today's best + all-time) and deliberately writes NO mid-run
+checkpoint, since a resumable daily is a re-roll. **Per-world endless mini-bosses**
+replace the ten identical Piñatas — each arena's every-5th-wave spike is now a
+body from its own world, gated by a guardrail requiring it to be at or above its
+pool's median hp. And **🎇 the Sparkler** is the Loose Screw's mirror on the
+decision axis the Oil Drum opened: it jams the nearest gun where it DIES
+(`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
+you break it is the choice. Like the Drum it measures outcome-neutral on the
+shipped oracle and ships for legibility, not for the curve.
 **TD-11 MULTI-PATH EVERYWHERE** takes the TD-7 lane subsystem from 1 of 12 levels
 to 3: **L3** introduces the lever deep in World 1 (so L10's train set is no longer
 the first one you meet) and **L7** gets a mid-game use. The retrofit is safe

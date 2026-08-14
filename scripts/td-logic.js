@@ -239,6 +239,15 @@
     // With no opt the run carries the whole pool, which keeps every existing
     // engine test and sim byte-identical; a real run is handed its equipped four.
     const runPowers = Array.isArray(opts.powers) ? opts.powers.slice() : (DATA.ABILITIES || []).map((a) => a.id);
+    // TD-18 challenge chips: opt-in CONSTRAINTS, pure input exactly like meta
+    // and powers. The default is NO chips, so every shipped sim and test is
+    // byte-identical; bans derive from DATA.CHIPS (the picker's own definition,
+    // one owner) and an unknown id degrades to no effect — a hand-edited save
+    // must never crash the engine or invent a ban that nothing declared.
+    const runChips = Array.isArray(opts.chips) ? opts.chips.slice() : [];
+    const chipDefs = (DATA.CHIPS || []).filter((c) => runChips.indexOf(c.id) >= 0);
+    const chipLineBans = new Set(chipDefs.filter((c) => c.ban && c.ban.line).map((c) => c.ban.line));
+    const chipNoPowers = chipDefs.some((c) => c.ban && c.ban.powers);
     const nightBase = levelDef.night ? R.nightRangeMult : 1;
     const rangeMul = mods.nightOwl ? 1 - (1 - nightBase) / 2 : nightBase; // 🦉 halves the dimming
     const zones = levelDef.zones && levelDef.zones.length ? levelDef.zones : null;
@@ -285,6 +294,10 @@
       // path. The engine's own default is the WHOLE pool (so every shipped engine
       // test is unchanged); the UI always passes a real, slot-capped list.
       powers: runPowers,
+      // TD-18: the chips this run is constrained by — recorded ON the run for
+      // the same reason meta and powers are, and so the checkpoint can carry
+      // them (a resumed challenge run must still be the challenge).
+      chips: runChips,
       markId: 0, markUntil: 0, // 📌 Call the Shot: whole-board focus fire, tick-stamped
       puddles: [],   // TD-9: live Sticky Floor zones { x, y, r, slow, until }
       reveals: [],   // 🧨's reveal rider: { x, y, r, until } — read by the ONE isHidden gate
@@ -583,6 +596,56 @@
     // (not random) on purpose — you can SEE which gun is about to go quiet, so
     // it's a readable emergency rather than a dice roll, and it costs no rng
     // draw, which keeps every historical replay stream byte-identical.
+    // THE one owner of "which gun does a jammer reach from here" — the Loose
+    // Screw's periodic sap and the Sparkler's on-death burst both ask this, so
+    // they can never disagree about reach or about what counts as jammable.
+    //
+    // Measured in CELL-INDEX space, like every other tower↔enemy distance in
+    // this engine (targeting, the dart's sticky-keep, the mortar's flight time
+    // all read `p.x - t.cx`). This was the ONE site that added +0.5 to the
+    // tower and not to the lane point — a 0.707-cell bias on a 3.5 radius, the
+    // sixth instance of this engine's two coordinate spaces disagreeing, and
+    // the same bug shape as defaultRally's. Nearest, not random: a jam is meant
+    // to be a readable emergency, and it costs no rng draw.
+    // THE one owner of "jam the nearest gun". Two enemies ask for it — the
+    // Loose Screw on a timer and the 🎇 Sparkler where it DIES — and a second
+    // copy is exactly how the bug below hid for as long as it did.
+    //
+    // `aimBias` is added to a tower's cell index before measuring, and it is a
+    // parameter rather than a constant because the two callers genuinely
+    // disagree. The Sparkler is new content and passes 0 — the raw index space
+    // that `candidates()`, the dart's sticky-KEEP and the mortar all use. The
+    // Screw passes 0.5 because it has ALWAYS compared a tower's WORLD CENTRE
+    // (`cx + 0.5`) against a raw lane INDEX: a real instance of this engine's
+    // two-spaces-one-half-cell-apart bug, and the only targeting site that has
+    // it. It is PINNED, not fixed, and the reason is measured rather than
+    // assumed: the Screw's radius and period were tuned around the bias, and
+    // correcting it (8 seeds, all 40 levels) moves real outcomes on 28
+    // Screw-bearing levels and breaks two shipped contracts — PLAYABILITY
+    // (L16 finishes on 4 lives @seed 7 against its ≥5 floor) and TD7 lever
+    // advantage (L31's diversion falls from ≥6 lives to 2, because a sharper
+    // Screw makes the thin board lose on BOTH routes, so the fork stops being
+    // worth throwing). Straightening it is a two-level re-tune that needs its
+    // own 8-seed verification, not a rider on a feature batch. See CLAUDE.md.
+    function nearestJammable(x, y, radius, aimBias) {
+      const b = aimBias || 0;
+      let victim = null, best = radius * radius;
+      for (const t of state.towers) {
+        if (t.lineId === "camp") continue; // camps are bodies, not electronics
+        if (t.disabledUntil && state.tick < t.disabledUntil) continue;
+        const d = (t.cx + b - x) ** 2 + (t.cy + b - y) ** 2;
+        if (d < best) { best = d; victim = t; }
+      }
+      return victim;
+    }
+    function jamNearest(x, y, radius, seconds, aimBias) {
+      const victim = nearestJammable(x, y, radius, aimBias);
+      if (!victim) return null;
+      jamTower(victim, seconds);
+      emit({ type: "disable", x: victim.cx, y: victim.cy, seconds });
+      return victim;
+    }
+    const SCREW_AIM_BIAS = 0.5; // ^ pinned legacy aim — see nearestJammable
     function sapTick() {
       for (const e of state.enemies) {
         if (!e.alive) continue;
@@ -592,17 +655,7 @@
         if (state.tick < e.sapCd) continue;
         e.sapCd = state.tick + Math.round(def.sap.every * DATA.TICK_RATE);
         const p = epos(e);
-        let victim = null, best = def.sap.radius * def.sap.radius;
-        for (const t of state.towers) {
-          if (t.lineId === "camp") continue; // camps are bodies, not electronics
-          if (t.disabledUntil && state.tick < t.disabledUntil) continue;
-          const d = (t.cx + 0.5 - p.x) ** 2 + (t.cy + 0.5 - p.y) ** 2;
-          if (d < best) { best = d; victim = t; }
-        }
-        if (victim) {
-          jamTower(victim, def.sap.seconds);
-          emit({ type: "disable", x: victim.cx, y: victim.cy, seconds: def.sap.seconds });
-        }
+        jamNearest(p.x, p.y, def.sap.radius, def.sap.seconds, SCREW_AIM_BIAS);
       }
     }
 
@@ -762,6 +815,18 @@
       // other recent shape was a resist, and resists measured at zero lives.
       if (def.spill) state.puddles.push({ x: p.x, y: p.y, r: def.spill.r,
         hurry: def.spill.mult, until: state.tick + Math.round(def.spill.seconds * DATA.TICK_RATE) });
+      // 🎇 Sparkler: it POPS when it dies and jams the nearest gun. Written in
+      // the one idempotent death path, so it fires whichever line landed the
+      // kill (the Oil Drum's shape), and routed through the ONE jam owner, so
+      // it shares the Screw's reach rule and its camps-are-immune rule with no
+      // second read site.
+      //   Like the drum it is a DECISION rather than a stat: killing sparklers
+      // on top of your best gun silences that gun, so *where* you break them is
+      // the question. Unlike the drum it answers a different axis — the drum
+      // speeds the wave up, this one takes a tower off the board — and unlike
+      // the Screw (which jams on a timer, wherever it happens to be) the player
+      // chooses when and where it goes off.
+      if (def.jamBurst) jamNearest(p.x, p.y, def.jamBurst.radius, def.jamBurst.seconds);
       emit({ type: "die", x: p.x, y: p.y, bounty, enemy: e.type, how });
     }
 
@@ -1737,6 +1802,9 @@
       const def = DATA.TOWERS[lineId];
       const pad = padById(padId);
       if (!def || !pad) return { ok: false, reason: "bad-id" };
+      // TD-18: a chip-banned line is refused before anything else about the
+      // pad is considered — the ban is a property of the RUN, not the spot.
+      if (chipLineBans.has(lineId)) return { ok: false, reason: "chip" };
       if (towerAt(padId)) return { ok: false, reason: "occupied" };
       if (state.phase === "won" || state.phase === "lost") return { ok: false, reason: "over" };
       const cost = priceOf("build", lineId);
@@ -1974,6 +2042,9 @@
     function abilityReady(id) {
       const def = abilityDef(id);
       if (!def) return { ok: false, reason: "bad-ability" };
+      // TD-18 🔇 Quiet Hands: the whole strip is off for this run. Checked
+      // before everything — a chip is a run-level vow, not a resource state.
+      if (chipNoPowers) return { ok: false, reason: "chip" };
       // P6: you brought RULES.abilitySlots of the pool. Checked FIRST — an
       // un-equipped power is not a resource state, so "you didn't bring it"
       // must never be masked by "you're out of energy".
@@ -2171,6 +2242,9 @@
       chargeGrant: () => R.chargePerWave + chargeBonus,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
+      // TD-18: may this run build this line? The build menu asks the ENGINE
+      // rather than re-deriving the ban from save + DATA (the price-flash law).
+      lineAllowed: (id) => !chipLineBans.has(id),
       // the renderer paints a revealed hider differently, and the guardrails
       // drive this rather than inferring it from a time-to-kill
       isRevealed: (e) => revealedAt(e),
@@ -2214,6 +2288,7 @@
     if (def.zapResist) out.push({ key: "zapresist", icon: "🦆", text: "Rubber — the Fan's zap lands at " + Math.round((1 - def.zapResist) * 100) + "%; hit it with darts or a blast instead" });
     if (def.hurry) out.push({ key: "hurry", icon: "📻", text: "Blares a beat — everything near it moves " + Math.round((def.hurry.mult - 1) * 100) + "% faster. Shoot the music, not the dancers" });
     if (def.spill) out.push({ key: "spill", icon: "🛢️", text: "Spills where it DIES — a slick that lasts " + def.spill.seconds + "s and hurries anything crossing it by " + Math.round((def.spill.mult - 1) * 100) + "%. Break it early, not in front of your best guns" });
+    if (def.jamBurst) out.push({ key: "jamburst", icon: "🎇", text: "POPS where it DIES — jams the nearest gun within " + def.jamBurst.radius + " cells for " + def.jamBurst.seconds + "s. Army Guys are bodies, not electronics, so they never jam. Kill it away from your best tower" });
     if (def.slowImmune) out.push({ key: "slowimmune", icon: "🛹", text: "Greased — slows do NOTHING to it; you need damage or a body in the way" });
     if (def.spawner) out.push({ key: "spawner", icon: "🪣", text: "Drips out " + def.spawner.count + " × " + (DATA.ENEMIES[def.spawner.type] || { name: def.spawner.type }).name + " every " + def.spawner.every + "s while alive" + (def.spawner.max ? " (up to " + def.spawner.max + ")" : "") + " — kill it early and far from the door" });
     if (def.sap) out.push({ key: "sap", icon: "🔩", text: "Jams the nearest gun — camps are immune" });

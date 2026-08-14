@@ -5392,14 +5392,16 @@ test("TD-12 guide: every DERIVED section actually reaches the page", async () =>
       powers: (D.ABILITIES || []).map((a) => a.name),
       branches,
       lines: Object.values(D.TOWERS).map((t) => t.name),
+      chips: (D.CHIPS || []).map((c) => c.name),
     };
   });
-  // None of the four may be vacuously empty, or the loops below assert nothing.
+  // None of the five may be vacuously empty, or the loops below assert nothing.
   assert.ok(g.gimmicks.length >= 4, `the campaign really has gimmicks (${g.gimmicks.length})`);
   assert.ok(g.powers.length >= 4, `…and powers (${g.powers.length})`);
   assert.ok(g.branches.length >= 8, `…and tier-4 branches (${g.branches.length})`);
   assert.ok(g.lines.length >= 4, `…and tower lines (${g.lines.length})`);
-  for (const [what, names] of Object.entries({ gimmick: g.gimmicks, power: g.powers, branch: g.branches, line: g.lines })) {
+  assert.ok(g.chips.length >= 4, `…and challenge chips (${g.chips.length})`);
+  for (const [what, names] of Object.entries({ gimmick: g.gimmicks, power: g.powers, branch: g.branches, line: g.lines, chip: g.chips })) {
     for (const n of names) {
       assert.ok(g.text.indexOf(n) >= 0,
         `the guide's rendered page never mentions the ${what} "${n}" — it is derived from the data, ` +
@@ -5407,6 +5409,139 @@ test("TD-12 guide: every DERIVED section actually reaches the page", async () =>
     }
   }
   await page.locator(".td-guide-done").click();
+});
+
+test("TD-18 daily: the same day is the same puzzle, scored on ITS OWN ladder", async () => {
+  // The daily's whole promise is determinism-by-date: every attempt at today's
+  // board is the same board, so a best is a fair best. The engine is already
+  // deterministic by seed; what this drives is the SHELL's half — the date →
+  // (arena, chip, seed) pick, the run actually carrying it, and the score
+  // landing on the daily ladder and nowhere else.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  const picks = await page.evaluate(() => {
+    const D = window.TDData;
+    const a = window.__TD.dailyInfo("2026-08-14");
+    const b = window.__TD.dailyInfo("2026-08-14");
+    const worlds = Object.keys(D.ENDLESS.arenas);
+    const chips = new Set((D.CHIPS || []).map((c) => c.id));
+    // 60 days of picks: every field stays legal, and the rotation actually
+    // rotates (a stuck pick would be one board forever — a dead feature).
+    const seen = { worlds: new Set(), chips: new Set(), seeds: new Set() };
+    for (let i = 1; i <= 60; i++) {
+      const p = window.__TD.dailyInfo("2026-09-" + String((i % 28) + 1).padStart(2, "0") + (i > 28 ? "x" + i : ""));
+      if (!worlds.includes(p.world)) return { bad: "world " + p.world };
+      if (p.chip !== null && !chips.has(p.chip)) return { bad: "chip " + p.chip };
+      seen.worlds.add(p.world); seen.chips.add(String(p.chip)); seen.seeds.add(p.seed);
+    }
+    return { same: JSON.stringify(a) === JSON.stringify(b), pick: a,
+             worlds: seen.worlds.size, chips: seen.chips.size, seeds: seen.seeds.size };
+  });
+  assert.ok(!picks.bad, `every pick must be legal (${picks.bad})`);
+  assert.ok(picks.same, "the same day string must produce the identical pick");
+  assert.ok(picks.worlds >= 5, `the arena rotation must actually rotate (${picks.worlds} of 10 seen in 60 days)`);
+  assert.ok(picks.chips >= 3, `…and the modifier draw too (${picks.chips} distinct)`);
+  assert.ok(picks.seeds >= 40, `…and the seeds must not collapse (${picks.seeds} distinct)`);
+  // ---- play the pinned day: the run carries the pick
+  const run = await page.evaluate(() => {
+    window.__TD.playDaily("2026-08-14");
+    const st = window.__TD.state();
+    const eng = window.__TD.engine();
+    return { world: eng.levelDef.world, chips: st.chips, endless: !!st.endless,
+             difficulty: st.difficulty, midRunAfterBuildLeave: null };
+  });
+  const expect = picks.pick;
+  assert.equal(run.world, expect.world, "the run is on the day's arena");
+  assert.deepEqual(run.chips, expect.chip ? [expect.chip] : [], "…with the day's chip");
+  assert.ok(run.endless, "…as an endless run");
+  assert.equal(run.difficulty, "normal", "…pinned to normal, so the board is one shared puzzle");
+  // ---- a daily never checkpoints (single sitting, by design)
+  await page.evaluate(() => { location.hash = "#td-home"; }); // leavingPlay fires on the route
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const mid = await page.evaluate(() =>
+    ({ midRun: window.__TD.midRun(), daily: JSON.parse(localStorage.getItem("jon-td-save-v1")).daily }));
+  assert.equal(mid.midRun, null, "a daily leaves no resume checkpoint");
+  // …and the QUIT still recorded the (zero-wave) attempt on the daily ladder
+  assert.equal(mid.daily.day, "2026-08-14", "the quit records under the run's own day");
+  // ---- lose a real daily: score lands on the daily ladder and ONLY there
+  const out = await page.evaluate(() => {
+    location.hash = "#td-play";
+    window.__TD.playDaily("2026-08-14");
+    for (let i = 0; i < 40 && window.__TD.state().phase !== "lost"; i++) {
+      window.__TD.script([["call"], ["untilPhase", "build", 60000]]);
+    }
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    return { phase: window.__TD.state().phase, daily: s.daily, endlessBest: s.endlessBest };
+  });
+  assert.equal(out.phase, "lost", "neglecting the daily loses it");
+  assert.ok((out.daily.best | 0) >= 1, `the daily best recorded (wave ${out.daily.best})`);
+  assert.equal(out.daily.allTime | 0, out.daily.best | 0, "…and the all-time daily best tracks it");
+  assert.deepEqual(out.endlessBest, {},
+    "a daily score must NEVER write the endless grid — separate ladders, and the daily can visit arenas endless has not unlocked");
+});
+
+test("TD-18 chips: armed in the picker, locked on the menu, stamped by the WIN", async () => {
+  // The engine tests prove the ban binds; this drives the FEATURE — picker to
+  // build menu to win to level card — because a structural proof that a call
+  // site exists says nothing about the player being able to reach it (the
+  // earnAch lesson, same session).
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  // ---- arm 🥵 Heat Wave through the real picker
+  await page.locator(".td-chips-open").click();
+  await page.locator(".td-overlay--td-chips, .td-chips").first().waitFor({ state: "visible" });
+  await page.locator('[data-armchip="nofan"]').click();
+  const armed = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).chipsArmed);
+  assert.deepEqual(armed, ["nofan"], "arming through the picker persists");
+  await page.locator(".td-chips-done").click();
+  // ---- the run carries it: the fan button is LOCKED in the build menu
+  await page.evaluate(() => { location.hash = "#td-play"; window.__TD.newGame(1, { seed: 7, chips: ["nofan"] }); });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const menu = await page.evaluate(() => {
+    const eng = window.__TD.engine();
+    const pad = eng.levelDef.pads[0];
+    const s = window.__TD.w2s(pad.cx + 0.5, pad.cy + 0.5);
+    const c = document.querySelector("#screen-td-play .td-canvas");
+    const r = c.getBoundingClientRect();
+    c.dispatchEvent(new MouseEvent("click", { clientX: r.left + s.x, clientY: r.top + s.y, bubbles: true }));
+    const fan = document.querySelector('.td-buy[data-line="fan"]');
+    const dart = document.querySelector('.td-buy[data-line="dart"]');
+    return { fanDisabled: fan.disabled, fanText: fan.textContent, fanHasCost: fan.hasAttribute("data-cost"),
+             dartDisabled: dart.disabled, refuse: eng.place("fan", pad.id).reason };
+  });
+  assert.ok(menu.fanDisabled, "the banned line's button is disabled");
+  assert.match(menu.fanText, /challenge/i, "…and says WHY, instead of reading as broken");
+  assert.ok(!menu.fanHasCost, "…and carries no data-cost, or paintPrices would re-enable it on the next repaint");
+  assert.ok(!menu.dartDisabled, "an allowed line stays buyable");
+  assert.equal(menu.refuse, "chip", "the engine refuses the same thing the button shows");
+  // ---- the checkpoint carries the chips (a resumed challenge is still the challenge)
+  const mr = await page.evaluate(() => { window.__TD.script([["place", "dart", "p3"]]); location.hash = "#td-home"; return window.__TD.midRun(); });
+  assert.deepEqual(mr && mr.chips, ["nofan"], "writeMidRun snapshots the run's chips");
+  // ---- win honestly with the chip on → the level card is stamped
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  const won = await page.evaluate(() => {
+    window.__TD.winL1(7, { chips: ["nofan"] });
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    return { phase: window.__TD.state().phase, chipsWon: s.chipsWon, ranWith: window.__TD.state().chips };
+  });
+  assert.equal(won.phase, "won", "the fixture really wins");
+  assert.deepEqual(won.ranWith, ["nofan"], "…with the chip actually ON the run (winL1 must not drop opts)");
+  assert.deepEqual(won.chipsWon && won.chipsWon["1"], ["nofan"], "the win stamps the chip on L1");
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const card = await page.evaluate(() => {
+    const c = document.querySelector(".td-levels .td-level:not(.td-level--locked)");
+    const chips = c.querySelector(".td-level__chips");
+    return chips ? chips.textContent : "";
+  });
+  assert.ok(card.indexOf("🥵") >= 0, `L1's card shows the earned chip (saw "${card}")`);
+  // ---- and the reset clears it, or the wipe leaves ghost trophies
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  const wiped = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")));
+  assert.deepEqual(wiped.chipsWon, {}, "reset clears the stamps");
+  assert.deepEqual(wiped.chipsArmed, [], "…and the armed set");
 });
 
 test("AUDIT badges: WINNING actually earns one, end to end", async () => {
