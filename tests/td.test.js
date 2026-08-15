@@ -5892,3 +5892,67 @@ test("the ⚙️ exchange shows its GOLD PRICE on the button, not only in a titl
   assert.ok(/🪙/.test(seen.priceText),
     `the price must name its currency (saw "${seen.priceText}")`);
 });
+
+test("ART: a body you must SINGLE OUT is not the faintest thing on the field", async () => {
+  // 🎇 the Sparkler's entire mechanic is that YOU choose where it dies, so the
+  // player has to pick it out of a crowd early. Its first cut did the opposite:
+  // rendered on a real board it painted 442 ink pixels against the party
+  // backbone Popper's 547 — the faintest body out there — because the ink line
+  // that gives every sprite its dark contour was swallowing a small cyan head.
+  //
+  // The assertion is deliberately a COMPARISON, not a pixel constant. An
+  // absolute floor would be an invented threshold (this repo's own swarm bodies
+  // are deliberately tiny, so no global minimum is honest); "must out-ink the
+  // ordinary crowd body it hides among" is a real property, and it fails on the
+  // pre-fix sprite. Same shape as the frame-budget guardrail, which compares
+  // against a control measured in the same conditions rather than a constant.
+  //
+  // Measured by DIFFERENCE against the identical frame with no body, so the
+  // floor, the lane, the props and the conveyor all cancel out.
+  // A DEDICATED high-DPR page, because the measurement's RESOLUTION is part of
+  // the test: the shared context runs at deviceScaleFactor 1, where the whole
+  // sprite is ~150 device pixels and the honest margin quantizes down to 13 px —
+  // the mutation even read 147 vs 147, two identical numbers, which is what a
+  // collapsed measurement looks like. At dpr 3 the same claim has real room.
+  const hiCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
+  const hiPage = await hiCtx.newPage();
+  await hiPage.goto(baseURL, { waitUntil: "load" });
+  await hiPage.evaluate(() => { location.hash = "#td-play"; });
+  await hiPage.locator("#screen-td-play").waitFor({ state: "visible" });
+  await hiPage.evaluate(() => { window.__TD.newGame(39, { seed: 7 }); });   // the Sparkler's home level
+  await hiPage.waitForTimeout(200);
+  const out = await hiPage.evaluate(() => {
+    const e = window.__TD.engine(), r = window.__TD.render();
+    r.resize();
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const g = cv.getContext("2d");
+    const ink = (type, dist) => {
+      e.state.enemies.length = 0;
+      e.state.tick = 300;                       // pin it: sparks + scroll are tick-derived
+      r.draw(0);
+      const empty = g.getImageData(0, 0, cv.width, cv.height);
+      e.state.enemies.push({ id: 7777, type, alive: true, dist, pathIdx: 0, speed: 0.75,
+        hp: 120, maxHp: 120, shield: 0, blockedBy: 0, slowUntil: 0, chargeCd: 0, sapCd: 0 });
+      e.state.tick = 300;
+      r.draw(0);
+      const withIt = g.getImageData(0, 0, cv.width, cv.height);
+      let n = 0;
+      for (let i = 0; i < empty.data.length; i += 4) {
+        const d = Math.abs(empty.data[i] - withIt.data[i]) +
+                  Math.abs(empty.data[i + 1] - withIt.data[i + 1]) +
+                  Math.abs(empty.data[i + 2] - withIt.data[i + 2]);
+        if (d > 12) n++;
+      }
+      return n;
+    };
+    const D = e.path.total * 0.35;
+    return { spark: ink("sparkler", D), popper: ink("popper", D), screw: ink("screw", D) };
+  });
+  await hiCtx.close();
+  // the controls must be non-trivial, or the comparison is vacuous
+  assert.ok(out.popper > 100 && out.screw > 100,
+    `the control bodies must actually paint (popper ${out.popper}, screw ${out.screw}) or this proves nothing`);
+  assert.ok(out.spark > out.popper,
+    `🎇 must out-ink the ordinary crowd body it hides among — you have to pick it out to use it ` +
+    `(sparkler ${out.spark} px vs popper ${out.popper} px)`);
+});

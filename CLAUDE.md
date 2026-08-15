@@ -1286,6 +1286,88 @@ the Loose Screw (6 screws 570hp → 5 sparklers 600, sweet 72 → 70): wave hp 3
 curve and the composition contract are untouched. It also joins the party
 endless pool, giving it two reachable routes for `AUDIT roster`.
 
+**AND THEN I LOOKED AT THE FOUR NEW SCREENS, WHICH NO TEST DOES — two defects,
+and my first diagnosis of the second one was WRONG.** Every TD-18 test drives its
+feature through `__TD` or asserts a DOM property; that is the same gap that let
+the abilities ship with their names only in an `aria-label`. Screenshotting the
+🎖️ picker, the 📅 card, the stamped level grid and the 🎇 Sparkler on a live
+board found: (1) **the Challenges blurb ended "(on casual at least — that was
+measured, not hoped)"** — a note to a colleague about how the feature was
+VERIFIED, shipped as player copy. Methodology belongs in the commit message and
+here; the dialog should say what the thing does. Guardrailed by a narrow LAW —
+player-facing strings may not use this repo's test-suite vocabulary
+(`guardrail`, `mutation-proven`, `byte-identical`, `the oracle`, `auto-solver`,
+…) — deliberately NOT a fuzzy "is this developer-ish" check, which would be a
+false-positive machine, and deliberately not banning `seed`, which is real
+player vocabulary on the Daily card. (2) **The Sparkler was the FAINTEST body on
+the field**, which is fatal for the one enemy whose whole design is picking it
+out early to choose where it dies: 442 ink px against its own sibling the Loose
+Screw's 864 and the party backbone Popper's 547, because the silhouette law's
+dark ink rim was swallowing a small cyan head. Bigger head, a white-hot core and
+the sparks moved inside `noInk()` (a thing that is ON FIRE must not be outlined
+in black at its centre) → 590 px. **The first diagnosis was camouflage and it was
+refuted by measuring**: the Sparkler is cyan and L39 — its only campaign home —
+carries a cyan conveyor, which looked damning in a 4× crop; rendered on the strip
+it paints 442 px and off the strip 444 px, so the floor never hid it and the
+sprite was simply small. *Look at the picture, then measure the thing you think
+you saw.* Three notes on the guardrail, which took three attempts: it is a
+COMPARISON (must out-ink the ordinary crowd body it hides among), never a pixel
+constant, because this roster's swarm bodies are deliberately tiny so no absolute
+floor is honest — the frame-budget ratio lesson applied to art; **the
+measurement's RESOLUTION is part of the test**, since the shared context runs at
+`deviceScaleFactor: 1` where the whole sprite is ~150 device pixels and the
+margin quantized to 13 px (the mutation read **147 vs 147**, two identical
+numbers, the signature of a collapsed measurement), so it now opens its own
+dpr-3 page; and the controls are asserted non-trivial first, or the comparison
+could pass vacuously.
+
+**华丽's PAINTED pass found its first real defect on the device she actually
+uses, and the phone-sized test suite could never have seen it.** Every screen in
+her world was captured at 390x844 AND at 834x1112 — an iPad, which is what a
+70-year-old holds — and 两幅找不同, the one game whose whole task is comparing a
+top row of pictures with a bottom row, breaks there: the one-line "▲ 上图 · 下图
+哪里不同？▼" label measured 245x45 on the phone and **245x205 on the tablet**,
+pushing the two pictures she must compare ~800px apart with a big empty plate
+between them. The cause is a good rule over-applying: `.game__stage` is a GRID
+whose auto rows stretch to fill a tall screen — deliberate, and the fix for the
+documented "a game screen must fill the viewport, no dead bottom half" — and this
+game gave it THREE rows, so the free space split three ways and a one-line label
+got 209px of it. Fixed by wrapping the trio in ONE stage child, so the stage
+stretches one row and the group keeps its own spacing: 36px label and a 40px gap
+at 320, 390 AND 834, identical. **Scoped deliberately, on a measurement**: 127 of
+240 games have a stretched stage row, and for nearly all of them that IS the
+feature working — it is only a defect when the stretch separates the things being
+COMPARED, so the comparison game is pinned rather than the stage rule changed
+under 240 games. Three testing notes, and the last one is the sharpest. **A
+viewport list is the test, for the fifth time** — 390 and 320 both render this
+game correctly. **The first guardrail could not fail**: it resized the existing
+page with `setViewportSize`, which does NOT reproduce the defect (reverted fix +
+resize measured 40px; reverted fix + a FRESH 834 context measured 220px), so it
+survived its own mutation; each size now gets its own context, which is how a
+real device loads the page, and reverting the wrapper turns it red at 241px. And
+**a line I added on a stale reading was measured redundant and deleted**: an
+`align-content: center` went in because the wrap's own rows appeared to stretch
+in turn (216px), and re-running back-to-back gave identical numbers with and
+without it — the 216 was a measurement taken against a stale script. A redundant
+fix makes its own guardrail unfalsifiable (the price-flash lesson), so it is gone
+rather than shipped as a line whose comment claims work it does not do.
+**OPEN, MEASURED, AND DELIBERATELY NOT BUNDLED: the same stretch separates a
+QUESTION from its ANSWERS across her world, and the obvious metric undercounts
+it.** 量词搭配 on the iPad puts "一□牛 🐮" at the top and its three answer cards
+~340px below, each card 340x700px holding a single character. A scan of her 37
+choice-card games reported only 3 with a question-to-answer gap ≥250px and did
+NOT list that one — because it measured BOX to BOX, and the question's box is
+itself the stretched row: `.hl-bigline` is a **358px box containing one line of
+text**, so the box gap reads 24px while the visible emptiness is ~340px. **An
+ink-based metric is required; a box-gap metric structurally cannot see this
+defect.** It is not bundled with the 找不同 fix because that one was a
+single-game wrapper with a mutation-proven guardrail, whereas this is a layout
+pass over both worlds' 240 games — the shape that got World 4 reverted — and it
+needs its own verification. The fix pattern is known and proven (wrap the group
+so the stage stretches ONE row); what is missing is the measurement across every
+game and the decision about which games legitimately want a tall card (Josh is
+4, and a big tap target is the point there).
+
 **AND EXTRACTING A ONE OWNER IS HOW THE SIXTH TWO-COORDINATE-SPACE BUG WAS
 FOUND.** The Sparkler and the Screw both need "jam the nearest gun", so the
 Screw's inline loop became `jamNearest()` — and the moment the two call sites had

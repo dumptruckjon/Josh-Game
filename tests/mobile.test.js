@@ -333,3 +333,52 @@ test("iOS touch hygiene: no accidental double-tap zoom, no long-press text selec
 test("no uncaught page errors on mobile", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
+
+test("a game that asks you to COMPARE keeps the two things close, at every size", async () => {
+  // 华丽 plays on an iPad, and 两幅找不同's whole task is comparing a top row with
+  // a bottom row. The game stage is a grid whose auto rows STRETCH to fill a tall
+  // screen — deliberate, and what stops a game stranding its play in the top
+  // third — but it was three stage rows, so on 834x1112 the free space split
+  // three ways and handed the one-line "▲ above · below ▼" label a 209px row:
+  // measured 245x45 on a phone and 245x205 there, with the two pictures ~800px
+  // apart and a big empty plate between them. The phone was fine, which is
+  // exactly why 390/320 could not see it — a viewport list IS the test.
+  //
+  // Scoped on purpose. 127 of 240 games have a stretched stage row and for nearly
+  // all of them that is the feature working; it is only a defect when the stretch
+  // separates the things being COMPARED. So this pins the comparison game rather
+  // than changing the stage rule under 240 games.
+  // Each size gets a FRESH context, which is how a real device loads the page.
+  // Resizing the existing page instead does NOT reproduce the defect: with the
+  // fix reverted, setViewportSize(834) still measured 40px while a fresh 834
+  // context measured 220px — so the first cut of this test survived its own
+  // mutation and was proving nothing.
+  const sizes = [{ w: 320, h: 568 }, { w: 390, h: 844 }, { w: 834, h: 1112 }];
+  const seen = [];
+  for (const s of sizes) {
+    const ctx2 = await browser.newContext({ viewport: { width: s.w, height: s.h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    await p2.goto(baseURL, { waitUntil: "load" });
+    await p2.evaluate(() => { location.hash = "#hl-diff"; });
+    await p2.locator("#screen-hl-diff").waitFor({ state: "visible" });
+    await p2.waitForTimeout(320);
+    const m = await p2.evaluate(() => {
+      const q = (sel) => document.querySelector("#screen-hl-diff " + sel).getBoundingClientRect();
+      const top = q(".hl-diffrow--ref"), bot = q(".hl-diffrow:not(.hl-diffrow--ref)"), vs = q(".hl-diffvs");
+      return { gap: Math.round(bot.top - top.bottom), vsH: Math.round(vs.height), rows: Math.round(top.height) };
+    });
+    await ctx2.close();
+    seen.push({ ...s, ...m });
+    // the fixture must be real, or the comparison below is vacuous
+    assert.ok(m.rows > 20, `${s.w}x${s.h}: the picture rows must actually render (got ${m.rows}px)`);
+    assert.ok(m.gap <= 90,
+      `${s.w}x${s.h}: the two pictures she must compare are ${m.gap}px apart — the stage stretch is separating them`);
+    assert.ok(m.vsH <= 90,
+      `${s.w}x${s.h}: the one-line label between them inflated to ${m.vsH}px, so it reads as an empty panel`);
+  }
+  // …and the layout must not DEPEND on the height: a tablet must get the same
+  // spacing as a phone, which is the property that actually broke.
+  const gaps = seen.map((x) => x.gap);
+  assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 24,
+    "the comparison spacing must not grow with the screen: " + JSON.stringify(seen));
+});

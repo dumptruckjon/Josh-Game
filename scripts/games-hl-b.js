@@ -654,7 +654,18 @@
       const topRow = api.el("div", { class: "hl-diffrow hl-diffrow--ref", aria: { hidden: "true" } });
       const vs = api.el("div", { class: "hl-diffvs", aria: { hidden: "true" }, text: "▲ 上图 · 下图哪里不同？ ▼" });
       const botRow = api.el("div", { class: "hl-diffrow" });
-      api.stage.append(topRow, vs, botRow);
+      // ONE stage child, not three. The game stage is a grid whose auto rows
+      // STRETCH to fill a tall screen — deliberate, and what stops a game
+      // stranding its play in the top third. But three stage rows means the
+      // free space is split three ways, so on 华丽's iPad the one-line "▲ above ·
+      // below ▼" label was handed a 209px row (245x45 on a phone, 245x205 there)
+      // and the two pictures she is asked to COMPARE ended up ~800px apart with
+      // a big empty plate between them. Wrapping them makes the stage stretch
+      // ONE row and lets the trio keep its own tight spacing at any height.
+      // Scoped on purpose: 127 of 240 games have a stretched row, and for nearly
+      // all of them that is the feature working. It is only a defect when the
+      // stretch separates the things being compared.
+      api.stage.append(api.el("div", { class: "hl-diffwrap" }, [topRow, vs, botRow]));
       function newRound() {
         r = L.makeSpotDifference(HL.SPOT_POOL, api.shouldRamp(2) ? 5 : 4, undefined);
         api.setPrompt("两幅图哪里不一样？点下面那一个！", ["🖼️", "👀", "☝️"]);

@@ -817,9 +817,14 @@
         ' data-armchip="' + c.id + '" aria-label="' + (on ? "Disarm " : "Arm ") + c.name + '">' + (on ? "🎖️" : "＋") + "</button></div>";
     }).join("");
     const el = metaOverlay("td-chips", "<h3>🎖️ Challenges</h3>" +
+      // Copy is for the PLAYER, not for the next engineer. The first cut ended
+      // "(on casual at least — that was measured, not hoped)", which is a note to
+      // a colleague about how the chips were verified; a screenshot pass caught
+      // it. Say what the chip does and what it is worth; keep the methodology in
+      // the commit message and CLAUDE.md, where it belongs.
       '<p class="td-overlay__sub">Arm a chip, then WIN a level with it still on — it stamps that level’s card. ' +
-      "Chips only ever take tools away, so they never make a run easier; every one is beatable on every level " +
-      "(on casual at least — that was measured, not hoped).</p>" +
+      "A chip only ever takes a tool away, so it never makes a run easier — and every one of them can be " +
+      "beaten on every level.</p>" +
       '<div class="td-nodes">' + rows + "</div>" +
       '<div class="td-overlay__row"><button class="td-btn td-btn--call td-chips-done" type="button">Done</button></div>');
     const toggle = (id) => {

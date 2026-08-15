@@ -1747,3 +1747,39 @@ test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", (
   assert.match(wd, /ageMin < 10[\s\S]{0,200}?return;/,
     "it must ignore a commit younger than ~10 min; a healthy push creates its run within seconds");
 });
+
+test("player copy is written for the PLAYER, not for the next engineer", () => {
+  // Found by SCREENSHOTTING the new 🎖️ Challenges dialog rather than testing it:
+  // its blurb ended "(on casual at least — that was measured, not hoped)", which
+  // is a note to a colleague about how the feature was verified. Nothing could
+  // catch it, because every test of that dialog asserted DOM structure.
+  //
+  // This is deliberately a LAW about vocabulary rather than a fuzzy "is this
+  // developer-ish" check, which would be a false-positive machine: the words
+  // below are this repo's TEST-SUITE vocabulary and have no meaning to someone
+  // playing a tower defense game. Methodology belongs in the commit message and
+  // CLAUDE.md, where it survives; the dialog should say what the thing DOES.
+  //
+  // Note what is NOT banned, on purpose: "seed" is real player-facing vocabulary
+  // in the Daily card ("same seed all day"), and a chip's own description may
+  // legitimately say "beatable". The list is only terms that describe how the
+  // code was PROVEN.
+  const BANNED = [
+    "measured, not hoped", "guardrail", "mutation-proven", "byte-identical",
+    "the oracle", "auto-solver", "the sim ", "regression test", "test suite",
+  ];
+  const UI_FILES = ["scripts/td-ui.js", "scripts/td-main.js", "scripts/hl-main.js", "scripts/main.js"];
+  const hits = [];
+  for (const f of UI_FILES) {
+    const src = require("fs").readFileSync(f, "utf8");
+    src.split("\n").forEach((line, i) => {
+      const code = line.replace(/^\s*\/\/.*$/, "");        // a scan must not read its own docs
+      if (!/["'`]/.test(code)) return;
+      for (const b of BANNED) {
+        if (code.toLowerCase().includes(b.toLowerCase())) hits.push(`${f}:${i + 1} — "${b}"`);
+      }
+    });
+  }
+  assert.deepEqual(hits, [],
+    "these are test-suite words in a string that reaches the screen — say what the feature DOES:\n  " + hits.join("\n  "));
+});

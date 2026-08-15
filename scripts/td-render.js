@@ -1977,24 +1977,36 @@
         // pass on every frame a Sparkler was alive, i.e. it would have wiped the
         // board exactly like the Tail Wind's `w2s` slip; the art guardrails
         // caught it). Tick-derived, so it freezes when paused and costs no rng.
+        //   SIZE was measured, not eyeballed. The first cut drew a 0.34r head and
+        // hair-thin sparks, and the silhouette law's ink rim then ate most of the
+        // cyan: rendered on a real board it painted 442 ink px against its own
+        // sibling the Loose Screw's 864 and the party backbone Popper's 547 — the
+        // FAINTEST body on the field, for the one enemy whose whole design is
+        // spotting it early. (The first theory was camouflage — cyan sprite on
+        // L39's cyan conveyor — and measuring refuted it: on the strip 442 px vs
+        // 444 px off it. The colour was never the problem; the sprite was small.)
+        const hx = sx - r * 0.16, hy = sy - r * 0.3;
         shadow(sx, sy + r * 0.6, r * 0.4, r * 0.14);
         ctx.strokeStyle = "#3c4a5e";                                       // the wire stick
-        ctx.lineWidth = Math.max(1, r * 0.14); ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(sx + r * 0.34, sy + r * 0.56); ctx.lineTo(sx - r * 0.1, sy - r * 0.12); ctx.stroke();
-        const gs = ctx.createRadialGradient(sx - r * 0.16, sy - r * 0.26, r * 0.04, sx - r * 0.16, sy - r * 0.26, r * 0.5);
+        ctx.lineWidth = Math.max(1, r * 0.16); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(sx + r * 0.36, sy + r * 0.6); ctx.lineTo(hx + r * 0.06, hy + r * 0.16); ctx.stroke();
+        const gs = ctx.createRadialGradient(hx, hy, r * 0.05, hx, hy, r * 0.58);
         gs.addColorStop(0, "#5ef0ff"); gs.addColorStop(1, "#1596b5");
         ctx.fillStyle = gs;                                                // the burning head
-        ctx.beginPath(); ctx.arc(sx - r * 0.16, sy - r * 0.26, r * 0.34, 0, 7); ctx.fill();
-        // four crackling sparks, spun by the tick so it reads as ALIGHT
+        ctx.beginPath(); ctx.arc(hx, hy, r * 0.44, 0, 7); ctx.fill();
+        // The bright CORE and the sparks are noInk: the dark pen is what was
+        // swallowing the light, and a thing that is on fire must not be outlined
+        // in black at its centre.
         noInk(() => {
-          ctx.strokeStyle = "rgba(94, 240, 255, 0.85)";
-          ctx.lineWidth = Math.max(1, r * 0.08);
-          for (let i = 0; i < 4; i++) {
-            const a = (i / 4) * 6.283 + engine.state.tick / 5 + e.id;
-            const ix = sx - r * 0.16, iy = sy - r * 0.26;
+          ctx.fillStyle = "#eaffff";                                        // white-hot core
+          ctx.beginPath(); ctx.arc(hx, hy, r * 0.17, 0, 7); ctx.fill();
+          ctx.strokeStyle = "rgba(94, 240, 255, 0.9)";
+          ctx.lineWidth = Math.max(1, r * 0.12); ctx.lineCap = "round";
+          for (let i = 0; i < 5; i++) {                                     // crackling sparks
+            const a = (i / 5) * 6.283 + engine.state.tick / 5 + e.id;
             ctx.beginPath();
-            ctx.moveTo(ix + Math.cos(a) * r * 0.4, iy + Math.sin(a) * r * 0.4);
-            ctx.lineTo(ix + Math.cos(a) * r * 0.62, iy + Math.sin(a) * r * 0.62);
+            ctx.moveTo(hx + Math.cos(a) * r * 0.5, hy + Math.sin(a) * r * 0.5);
+            ctx.lineTo(hx + Math.cos(a) * r * 0.82, hy + Math.sin(a) * r * 0.82);
             ctx.stroke();
           }
         });

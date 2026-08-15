@@ -1690,6 +1690,21 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-pond--glow .hl-pondcell--target { filter: drop-shadow(0 0 8px rgba(255, 210, 77, 0.95)); }
 .hl-shapebtn { min-height: 92px; }
 .hl-shape { width: 54px; height: 54px; display: block; }
+/* The two pictures being COMPARED plus their label are one stage child, so the
+   stage's row-stretch (which fills a tall screen — the anti-dead-bottom-half
+   rule) inflates ONE row instead of three. Before this, 华丽's iPad gave the
+   one-line label a 209px row and pushed the two rows ~800px apart, in the one
+   game whose whole task is comparing them; the phone was fine, which is why no
+   test at 390/320 could see it. `display: grid` with a single 100% column is
+   the shape this repo already uses for a stage (a bare auto track collapses a
+   width:100% child; a rigid 100% track lets a wide child blow it out). */
+   The WRAPPER is the whole fix, and that was checked rather than assumed: an
+   `align-content: center` was added on a reading that the wrap's own rows
+   stretched in turn (216px), and re-measuring back-to-back showed identical
+   numbers with and without it — the 216 was a stale measurement. A redundant
+   declaration makes its own guardrail unfalsifiable, so it is gone; reverting
+   the wrapper alone takes the two rows 241px apart and turns the test red. */
+.hl-diffwrap { display: grid; grid-template-columns: minmax(0, 100%); justify-items: center; width: 100%; }
 .hl-diffrow { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
 .hl-diffrow > * { margin: calc(var(--pad) / 2); }
 .hl-diffcell {
