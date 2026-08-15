@@ -1628,7 +1628,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-row { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; font-size: 2.4rem; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
 .hl-row > * { margin: calc(var(--pad) / 2); }
 .hl-row--after { margin-top: 2px; }
-.hl-spot { font-size: 2.2rem; min-height: 84px; min-width: var(--tap); } /* flex rows must keep the tap floor */
+.hl-spot { font-size: clamp(2.2rem, 7vw, 3.6rem); min-height: 84px; min-width: var(--tap); } /* flex rows must keep the tap floor; the clamp min is the old phone value — see .hl-pondcell */
 .hl-spot--lit { background: linear-gradient(180deg, #fff3b0, #ffcf5e); border-color: #d4a437; filter: drop-shadow(0 0 10px rgba(255, 210, 77, 0.8)); }
 .hl-menu {
   width: 100%; text-align: center; font-size: clamp(1.3rem, 6vw, 1.7rem); font-weight: 900; line-height: 1.6;
@@ -1686,7 +1686,15 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* ---- 眼明手快 ---- */
 .hl-pond { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; border-radius: 18px; background: linear-gradient(180deg, #bfe9ff, #8fd4f5); padding: 10px; }
-.hl-pondcell { font-size: 2rem; line-height: 1.4; text-align: center; }
+/* A picture she must COUNT or TELL APART has to grow with the screen. Measured on
+   her iPad: the pond's cells doubled (79 -> 169px wide) while the glyph stayed a
+   phone-sized 32px, so 池塘数数 asked a 70-year-old to count turtles among fish and
+   ducks at 32px on a ten-inch screen, and 找一找 hid a 35px orange in twelve
+   230x90px cards (~5% ink). Same defect Josh's world already fixed for .choice
+   and .sort__binIcon — hers never inherited it. The clamp MIN is each rule's
+   previous value, so every phone size renders byte-identically and only the
+   tablet gains. */
+.hl-pondcell { font-size: clamp(2rem, 6.5vw, 3.4rem); line-height: 1.4; text-align: center; }
 .hl-pond--glow .hl-pondcell--target { filter: drop-shadow(0 0 8px rgba(255, 210, 77, 0.95)); }
 .hl-shapebtn { min-height: 92px; }
 .hl-shape { width: 54px; height: 54px; display: block; }

@@ -1380,6 +1380,23 @@ question-to-answer distance neither exceeds 160px on a tablet nor grows more
 than 80px from phone to tablet — the property that actually broke — with an
 explicit non-vacuous check that it measured at least five games.
 
+**AND THE PAINTED PASS'S OTHER FIND: her iPad doubled the CELL and kept a
+phone-sized PICTURE.** Measured on 834x1112, the pond cells in 池塘数数 grew
+79 -> 169px wide while the glyph inside stayed 32px, and 找一找 hid a 35px orange
+in twelve 230x90px cards (~5% ink) — so the two games that ask a 70-year-old to
+COUNT and to TELL APART small pictures were doing it at phone size on a ten-inch
+screen. This is the identical defect Josh's world already fixed for `.choice`
+and `.sort__binIcon` ("the bin icon now scales WITH its card"); her world simply
+never inherited it, which is the recurring shape — a fix recorded as a one-off
+instead of asked "what else has this?". Both rules now use the same
+`clamp(min, Nvw, max)` pattern, and **the clamp MIN is each rule's previous
+value**, so every phone size renders exactly as before and only the tablet
+gains: 32 -> 54px and 35 -> 58px on tablet, unchanged at 390. Guardrailed as a
+RATIO between two real renders (tablet glyph >= 1.4x the phone glyph) rather
+than a pixel constant, with the phone value pinned separately — because the fix
+is only safe if it changes nothing at 390. Mutation-proven: reverting either
+clamp reports "32px on a tablet vs 32px on a phone".
+
 **AND EXTRACTING A ONE OWNER IS HOW THE SIXTH TWO-COORDINATE-SPACE BUG WAS
 FOUND.** The Sparkler and the Screw both need "jam the nearest gun", so the
 Screw's inline loop became `jamNearest()` — and the moment the two call sites had

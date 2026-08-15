@@ -445,3 +445,47 @@ test("a question stays with its answers when the screen gets TALLER", async () =
       `(phone ${phone[id]}, tablet ${tablet[id]}) — free space is being injected between them`);
   }
 });
+
+test("a picture she must COUNT or TELL APART grows with the screen", async () => {
+  // 华丽 plays on an iPad. Her find-and-count games doubled their CELLS on a
+  // tablet (79 -> 169px) while the glyph inside stayed a phone-sized 32-35px, so
+  // 池塘数数 asked a 70-year-old to count turtles among fish and ducks at 32px on
+  // a ten-inch screen and 找一找 hid a 35px orange in twelve 230x90px cards, about
+  // 5% ink. Josh's world already fixed exactly this for .choice and
+  // .sort__binIcon; hers never inherited it.
+  //
+  // The assertion is a RATIO between two real renders, not a pixel constant —
+  // the same shape as the frame-budget guardrail. And the phone value is pinned
+  // separately, because the fix is only safe if it changes nothing at 390.
+  const glyph = async (w, h) => {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    await p2.goto(baseURL, { waitUntil: "load" });
+    const out = {};
+    for (const id of ["hl-koi", "hl-panda", "hl-lantern"]) {
+      await p2.evaluate((x) => { location.hash = "#" + x; }, id);
+      try { await p2.locator("#screen-" + id).waitFor({ state: "visible", timeout: 3000 }); } catch { continue; }
+      await p2.waitForTimeout(250);
+      out[id] = await p2.evaluate((x) => {
+        const st = document.querySelector("#screen-" + x + " .game__stage");
+        const leaves = [...st.querySelectorAll(".hl-pondcell, .hl-spot")];
+        if (!leaves.length) return null;
+        return Math.round(Math.min(...leaves.map((n) => parseFloat(getComputedStyle(n).fontSize))));
+      }, id);
+    }
+    await ctx2.close();
+    return out;
+  };
+  const phone = await glyph(390, 844);
+  const tablet = await glyph(834, 1112);
+  const ids = Object.keys(phone).filter((k) => phone[k] && tablet[k]);
+  assert.ok(ids.length >= 3, `the fixture must measure all three games (got ${ids.length})`);
+  for (const id of ids) {
+    assert.ok(tablet[id] >= phone[id] * 1.4,
+      `${id}: the thing she must tell apart is ${tablet[id]}px on a tablet vs ${phone[id]}px on a phone — ` +
+      `the screen grew and the picture did not`);
+    // the phone must be untouched: this fix may only ADD room on a big screen
+    assert.ok(phone[id] >= 32 && phone[id] <= 36,
+      `${id}: the phone glyph moved to ${phone[id]}px — the clamp floor must keep small screens exactly as they were`);
+  }
+});
