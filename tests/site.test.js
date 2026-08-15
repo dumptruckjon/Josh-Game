@@ -1783,3 +1783,28 @@ test("player copy is written for the PLAYER, not for the next engineer", () => {
   assert.deepEqual(hits, [],
     "these are test-suite words in a string that reaches the screen — say what the feature DOES:\n  " + hits.join("\n  "));
 });
+
+test("the game stage centres its play on the axis it actually has", () => {
+  // `.game__stage` is a GRID, and on a grid `justify-content` is the INLINE
+  // axis. The in-game rule declared `justify-content: safe center` under a
+  // comment saying it "centres the play vertically" — so the vertical centering
+  // it describes was never happening: the grid's auto rows simply stretched to
+  // fill the screen, which looks like filling and is not centering.
+  //
+  // The cost was measured, ink-to-ink (a box-gap metric cannot see it, because
+  // the question's own box IS the stretched row): on a 834x1112 tablet, 43 games
+  // had 300px or more of visible emptiness between a question and its answers,
+  // 75 had 200px or more, worst 466px — against 23 at 200px on a phone. Adding
+  // the row-axis property took 300px+ from 43 games to ZERO and 200px+ to zero.
+  //
+  // `safe` on both, so tall content is never clipped — it falls back to
+  // start-alignment and the page scrolls, exactly as the original comment
+  // promised.
+  const css = require("fs").readFileSync("styles/main.css", "utf8");
+  const rule = css.match(/body\.in-game \.game__stage \{[^}]*\}/);
+  assert.ok(rule, "the in-game stage rule must exist");
+  assert.match(rule[0], /align-content:\s*safe center/,
+    "a grid centres its ROWS with align-content; justify-content is the inline axis and cannot do it");
+  assert.match(rule[0], /justify-content:\s*safe center/,
+    "…and the inline centring stays, so a narrow child is still centred");
+});

@@ -360,7 +360,7 @@ body {
 body.in-game { display: flex; flex-direction: column; }
 body.in-game #screens { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 body.in-game .screen.game { flex: 1 1 auto; display: flex; flex-direction: column; }
-body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; }
+body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-content: safe center; }
 /* A soft meadow "floor" glow so the bottom reads as ground, not empty gradient. */
 .screen.game {
   background:

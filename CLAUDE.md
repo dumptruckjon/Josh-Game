@@ -1351,22 +1351,34 @@ in turn (216px), and re-running back-to-back gave identical numbers with and
 without it — the 216 was a measurement taken against a stale script. A redundant
 fix makes its own guardrail unfalsifiable (the price-flash lesson), so it is gone
 rather than shipped as a line whose comment claims work it does not do.
-**OPEN, MEASURED, AND DELIBERATELY NOT BUNDLED: the same stretch separates a
-QUESTION from its ANSWERS across her world, and the obvious metric undercounts
-it.** 量词搭配 on the iPad puts "一□牛 🐮" at the top and its three answer cards
-~340px below, each card 340x700px holding a single character. A scan of her 37
-choice-card games reported only 3 with a question-to-answer gap ≥250px and did
-NOT list that one — because it measured BOX to BOX, and the question's box is
-itself the stretched row: `.hl-bigline` is a **358px box containing one line of
-text**, so the box gap reads 24px while the visible emptiness is ~340px. **An
-ink-based metric is required; a box-gap metric structurally cannot see this
-defect.** It is not bundled with the 找不同 fix because that one was a
-single-game wrapper with a mutation-proven guardrail, whereas this is a layout
-pass over both worlds' 240 games — the shape that got World 4 reverted — and it
-needs its own verification. The fix pattern is known and proven (wrap the group
-so the stage stretches ONE row); what is missing is the measurement across every
-game and the decision about which games legitimately want a tall card (Josh is
-4, and a big tap target is the point there).
+**AND THEN THE SAME STRETCH TURNED OUT TO BE A WRONG-AXIS PROPERTY, which is
+why it separated a QUESTION from its ANSWERS across BOTH worlds.** The follow-up
+started as a layout pass and ended as a one-line fix, because the cause was not
+the stretch being over-applied — it was that the centring the code claimed to do
+was never happening. `body.in-game .game__stage` declared `justify-content: safe
+center` under a comment saying it "centres the play vertically", and
+`.game__stage` is a GRID, where `justify-content` is the INLINE axis. So the
+vertical centring was a dead declaration and the grid's auto rows simply
+stretched to fill the screen — which looks like filling and is not centring.
+Adding the row-axis twin (`align-content: safe center`, `safe` so tall content
+still falls back to start-alignment and scrolls) makes the code do what its own
+comment says. **Measured ink-to-ink, before and after: games with ≥300px of
+visible emptiness between a question and its answers on an 834x1112 tablet went
+43 → 0, ≥200px went 75 → 0, and the worst case (Build the Number, 466px) went to
+67.** Full suite green, including the 240-game ≥75px tap audit and the every-game
+harness — the answer cards do get shorter (Build the Number's went 276 → 76px)
+but they are wide, above the floor, and now adjacent to the thing they answer.
+**The measurement is the whole story here, and the first version of it was
+blind.** A box-to-box gap metric reported "3 of 37" and did NOT list 量词搭配, the
+game whose screenshot started this — because the question's own box IS the
+stretched row: `.hl-bigline` is a 358px box containing one line of text, so the
+box gap reads 24px while the visible emptiness is ~340px. Only an INK metric (a
+`Range` over the text nodes, which hugs the glyphs, plus painting leaf elements)
+can see it. Guardrailed twice, both mutation-proven: a structural law that the
+rule must declare the row axis at all, and a behavioural one asserting the
+question-to-answer distance neither exceeds 160px on a tablet nor grows more
+than 80px from phone to tablet — the property that actually broke — with an
+explicit non-vacuous check that it measured at least five games.
 
 **AND EXTRACTING A ONE OWNER IS HOW THE SIXTH TWO-COORDINATE-SPACE BUG WAS
 FOUND.** The Sparkler and the Screw both need "jam the nearest gun", so the

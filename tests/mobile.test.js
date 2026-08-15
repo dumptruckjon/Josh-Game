@@ -382,3 +382,66 @@ test("a game that asks you to COMPARE keeps the two things close, at every size"
   assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 24,
     "the comparison spacing must not grow with the screen: " + JSON.stringify(seen));
 });
+
+test("a question stays with its answers when the screen gets TALLER", async () => {
+  // The property that actually broke: the visible distance between a question
+  // and the answers it belongs to must not GROW with the screen. The stage is a
+  // grid whose auto rows used to stretch, so free space was injected BETWEEN the
+  // question and the choices — on a tablet that reached 466px on the worst game.
+  //
+  // Measured ink-to-ink, not box-to-box. A box metric structurally cannot see
+  // this defect: the question's own box IS the stretched row, so it reported a
+  // 24px gap on a game whose visible emptiness was ~340px. A Range hugs the
+  // glyphs; an element box does not.
+  const inkBottomAbove = (limitName) => limitName; // (documentation only)
+  const sample = ["place-value", "build-word", "end-sound", "fair-share", "hl-mw", "hl-idiom", "hl-riddle"];
+  const measure = async (w, h) => {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    await p2.goto(baseURL, { waitUntil: "load" });
+    const out = {};
+    for (const id of sample) {
+      await p2.evaluate((x) => { location.hash = "#" + x; }, id);
+      try { await p2.locator("#screen-" + id).waitFor({ state: "visible", timeout: 3000 }); } catch { continue; }
+      await p2.waitForTimeout(220);
+      out[id] = await p2.evaluate((x) => {
+        const st = document.querySelector("#screen-" + x + " .game__stage");
+        if (!st) return null;
+        const ans = [...st.querySelectorAll(".choice, .sort__bin, .tap")].filter((n) => n.getBoundingClientRect().height > 8);
+        if (!ans.length) return null;
+        const top = Math.min(...ans.map((n) => n.getBoundingClientRect().top));
+        let ink = -1e9;
+        const walk = (node) => {
+          if (node.nodeType === 3) {
+            if (!node.nodeValue.trim()) return;
+            const r = document.createRange(); r.selectNodeContents(node);
+            for (const rect of r.getClientRects()) {
+              if (rect.height >= 1 && rect.bottom <= top + 1) ink = Math.max(ink, rect.bottom);
+            }
+            return;
+          }
+          if (node.nodeType !== 1) return;
+          const cs = getComputedStyle(node);
+          if (cs.visibility === "hidden" || cs.display === "none") return;
+          for (const kid of node.childNodes) walk(kid);
+        };
+        walk(st);
+        return ink < -1e8 ? null : Math.round(top - ink);
+      }, id);
+    }
+    await ctx2.close();
+    return out;
+  };
+  const phone = await measure(390, 844);
+  const tablet = await measure(834, 1112);   // 华丽's actual device
+  const checked = Object.keys(phone).filter((k) => phone[k] != null && tablet[k] != null);
+  assert.ok(checked.length >= 5,
+    `the fixture must actually measure games (got ${checked.length}) — a vacuous pass is not a pass`);
+  for (const id of checked) {
+    assert.ok(tablet[id] <= 160,
+      `${id}: ${tablet[id]}px of empty space between the question and its answers on a tablet`);
+    assert.ok(tablet[id] - phone[id] <= 80,
+      `${id}: the question drifts ${tablet[id] - phone[id]}px further from its answers on a taller screen ` +
+      `(phone ${phone[id]}, tablet ${tablet[id]}) — free space is being injected between them`);
+  }
+});
