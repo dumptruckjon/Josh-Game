@@ -562,7 +562,9 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
           const r = n.getBoundingClientRect();
           if (r.width > bw) { bw = r.width; bf = leafSize(n); }
         }
-        return bw > 0 && bf > 0 ? { w: bw, f: bf } : null;
+        const d = document.documentElement;
+        const over = d.scrollWidth - d.clientWidth;
+        return bw > 0 && bf > 0 ? { w: bw, f: bf, over } : null;
       }, id);
       if (m) out[id] = m;
     }
@@ -572,6 +574,14 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
   const phone = await shot(390, 844);
   const tablet = await shot(834, 1112);
   const ids = Object.keys(phone).filter((k) => tablet[k]);
+
+  // Free coverage, because this walk is already at 834: the shipped overflow
+  // audit runs at 390 and 320, and the clamp pass that made this test necessary
+  // only changes anything ABOVE ~453px wide — so its entire effect landed in
+  // the one width class nothing checked. Measured 0 of 240 when it shipped.
+  const spill = ids.filter((id) => tablet[id].over > 0)
+    .map((id) => `${id} (+${tablet[id].over}px)`);
+  assert.deepEqual(spill, [], `games that scroll sideways on a tablet: ${spill.join(", ")}`);
   assert.ok(ids.length >= 90,
     `the scan must actually find both worlds' picture cards (got ${ids.length}) — a vacuous pass is not a pass`);
   for (const id of ids) {

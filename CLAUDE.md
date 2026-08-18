@@ -1598,6 +1598,15 @@ round is random, so their glyph differs run to run. A before/after diff over a
 randomised surface needs that check, or noise reads as regression.
 (5) The widened scan costs ~110s because it walks 240 games at two viewports —
 paid deliberately, since the alternative is a scan whose scope is a list.
+(6) **And the clamp pass's whole effect landed in the one width class nothing
+audited.** It only changes anything above ~453px wide, while the shipped
+overflow audit runs at 390 and 320 — so 121 games got a bigger glyph at a width
+no test measured. Walked at 834: 0 of 240 overflow, 0 page errors. The check is
+now folded into the ratio scan's own 834 pass, which was already loading every
+game there, so it costs nothing; mutation-proven by forcing a tablet-only
+overflow, which flags 100 games. **When a change is scoped to a condition, check
+whether anything actually tests that condition** — a green suite means less than
+it looks like when the change is invisible to every viewport in it.
 
 **THE FORT'S PORTRAIT LAW WAS PINNED AT SEVEN PHONE WIDTHS, AND ADDING THE IPAD
 "FAILED" — BUT THE DEFECT WAS IN THE CLAUSE, NOT THE PRODUCT.** The law says the
