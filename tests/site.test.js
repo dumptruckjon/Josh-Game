@@ -1748,6 +1748,114 @@ test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", (
     "it must ignore a commit younger than ~10 min; a healthy push creates its run within seconds");
 });
 
+test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry", () => {
+  // The watchdog above recovers a push that created NO run. This is the OTHER
+  // silence, and it cost two commits: on 2026-08-18 `npx playwright install`
+  // HUNG. The measured norm is 57s (run #301, the last green one); run #304 sat
+  // on it for 92 minutes. Because deploy.yml is `concurrency: group: pages,
+  // cancel-in-progress: false`, a hung run holds the group for up to GitHub's
+  // 6-hour ceiling and drops everything queued behind it — so 4c98dee and
+  // df77afc both came out `cancelled`, nothing went red, and the live site kept
+  // serving abf31db. The watchdog cannot help: it stops the moment a run
+  // EXISTS, which is exactly the anti-loop property that makes it safe.
+  //
+  // So a hang is prevented at the source, and this pins that it stays prevented.
+  const dep = read(".github/workflows/deploy.yml");
+  const act = read(".github/actions/install-browsers/action.yml");
+
+  // ONE owner. If a third job ever inlines the command it skips the retry
+  // silently — the "same computation in two places" bug this repo keeps paying
+  // for, here with the second copy being the one that hangs.
+  assert.equal((dep.match(/playwright install/g) || []).length, 0,
+    "deploy.yml must not run `playwright install` itself — it goes through .github/actions/install-browsers");
+
+  // DERIVED, so a future third job is covered without editing this test: every
+  // step that installs browsers, found by its own name, must come through the
+  // action and must carry a backstop timeout.
+  const steps = dep.split(/\n {6}- /).slice(1);
+  const installers = steps.filter((s) => /^name:.*Install browsers/.test(s));
+  assert.ok(installers.length >= 2,
+    `expected the test and verify-live jobs to install browsers, found ${installers.length} — if this is 0 the whole test is vacuous`);
+  for (const s of installers) {
+    const name = s.split("\n")[0];
+    assert.match(s, /uses: \.\/\.github\/actions\/install-browsers/,
+      `"${name}" must install through the shared action, or it inherits no retry and no timeout`);
+    assert.match(s, /timeout-minutes: *\d+/,
+      `"${name}" must carry a backstop timeout-minutes — the composite's own steps cannot declare one`);
+  }
+
+  // The action has to do the three things its name claims. A "retry" that
+  // cannot interrupt a stall is not a retry: the hang has to be BOUNDED per
+  // attempt, or attempt 1 simply never returns and attempts 2-3 never happen.
+  assert.match(act, /timeout .*--signal=KILL "\$\{PER_ATTEMPT\}s"|timeout[^\n]*PER_ATTEMPT/,
+    "each attempt must be bounded by `timeout`, or a stalled attempt blocks the retries behind it");
+  assert.match(act, /for i in \$\(seq 1 "\$ATTEMPTS"\)/,
+    "it must actually loop — one bounded attempt turns a transient stall into a red build");
+  assert.ok(/ATTEMPTS=([2-9]|\d\d)/.test(act),
+    "…more than once");
+  // and it must still FAIL when the retries are exhausted. A loop that falls
+  // out with exit 0 would hide a genuinely broken install behind a green tick,
+  // which is a worse bug than the hang it replaces.
+  assert.match(act, /::error::[\s\S]{0,200}?exit 1\s*$/,
+    "after the last attempt it must exit non-zero — a swallowed failure is worse than the hang");
+});
+
+test("CI: the browser-install retry actually RETRIES, and names a hang a hang", () => {
+  // The structural test above pins that a retry EXISTS. It cannot pin that it
+  // WORKS, and the first cut of this action did not: it captured the attempt's
+  // status as `code=$?` immediately after an `if`, and a failed `if` condition
+  // with no else leaves the compound statement's own status of 0 — so `code`
+  // was always 0, the HUNG branch could never fire, and a real exit 7 was
+  // reported as "failed with exit 0". Both bugs are invisible to a regex and
+  // were found by RUNNING the thing, which is what this now does for good.
+  //
+  // It drives the SHIPPED script text, substituting only the two timing
+  // constants so a hang case takes seconds instead of 36 minutes — and it
+  // asserts those constants are present first, because a substitution that
+  // silently matches nothing would leave this testing the wrong thing.
+  const os = require("node:os");
+  const { spawnSync } = require("node:child_process");
+
+  const act = read(".github/actions/install-browsers/action.yml");
+  const body = act.split(/\n *run: \|\n/)[1];
+  assert.ok(body, "could not find the action's run: block — this test would otherwise be vacuous");
+  const script = body.split("\n").map((l) => l.replace(/^ {8}/, "")).join("\n");
+  for (const k of ["PER_ATTEMPT=720", "ATTEMPTS=3", "BACKOFF=20"]) {
+    assert.ok(script.includes(k), `expected ${k} in the shipped script; the substitution below would no-op`);
+  }
+  const fast = script.replace("PER_ATTEMPT=720", "PER_ATTEMPT=1").replace("BACKOFF=20", "BACKOFF=0");
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "josh-install-"));
+  fs.mkdirSync(path.join(dir, "bin"));
+  fs.writeFileSync(path.join(dir, "script.sh"), fast);
+  const run = (stub) => {
+    fs.writeFileSync(path.join(dir, "bin", "npx"), stub, { mode: 0o755 });
+    const r = spawnSync("bash", [path.join(dir, "script.sh")], {
+      encoding: "utf8", timeout: 60000,
+      env: { ...process.env, PATH: `${path.join(dir, "bin")}:${process.env.PATH}` },
+    });
+    return { code: r.status, out: (r.stdout || "") + (r.stderr || "") };
+  };
+
+  // A download that never returns is the case this whole action exists for.
+  // It must be BOUNDED (or the retries behind it never happen), must end red,
+  // and must SAY it hung — a run that reports "failed with exit 0" sends the
+  // next person looking for a broken install instead of a stalled network.
+  const hang = run("#!/bin/bash\nexec sleep 999\n");
+  assert.equal(hang.code, 1, "a permanent hang must end as a real failure, not a green tick");
+  assert.equal((hang.out.match(/HUNG/g) || []).length, 3,
+    `every attempt must be killed and reported as a HANG, saw: ${hang.out.trim().split("\n").join(" | ")}`);
+
+  // …and a transient failure must actually be recovered, with the REAL exit
+  // code reported for the attempts that failed.
+  const counter = path.join(dir, "n");
+  const flaky = run(`#!/bin/bash\nn=$(cat ${counter} 2>/dev/null || echo 0); n=$((n+1)); echo $n > ${counter}\n[ "$n" -ge 3 ] && exit 0 || exit 7\n`);
+  assert.equal(flaky.code, 0, "two transient failures then a success must end green — that is what the retry is for");
+  assert.match(flaky.out, /installed on attempt 3/, "it must report which attempt succeeded");
+  assert.match(flaky.out, /attempt 1 failed with exit 7/,
+    `a failed attempt must report its REAL exit code, saw: ${flaky.out.trim().split("\n").join(" | ")}`);
+});
+
 test("player copy is written for the PLAYER, not for the next engineer", () => {
   // Found by SCREENSHOTTING the new 🎖️ Challenges dialog rather than testing it:
   // its blurb ended "(on casual at least — that was measured, not hoped)", which

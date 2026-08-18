@@ -1499,6 +1499,46 @@ not a fix** — measure the blast radius before calling it free, and if you defe
 defer with the failing contract NAMED (the rally bias was once deferred on a
 measurement scoped to a single level, and that deferral was wrong).
 
+**TWO COMMITS SHIPPED, PASSED, AND NEVER REACHED THE SITE — because CI HUNG, and
+a hang is worse than a failure.** Reported by nothing at all, which is the point:
+`4c98dee` and `df77afc` both came back `cancelled` and the live site quietly kept
+serving `abf31db`. The cause was `npx playwright install --with-deps chromium
+webkit` stalling — the measured norm on this repo is **57 seconds** (run #301,
+the last green one) and run #304 sat on it for **92 minutes** and was still
+going. The damage is not the lost time. `deploy.yml` is `concurrency: group:
+pages, cancel-in-progress: false`, so a hung run **holds the group for up to
+GitHub's 6-hour ceiling and drops every push queued behind it as `cancelled`** —
+one stalled download silently un-shipped two commits of finished work. Four
+things worth keeping. (1) **The deploy watchdog could not help, and must not be
+widened to.** It exists for the sibling failure (a push that creates NO run) and
+its entire safety argument is that it stops the moment a run EXISTS — hung,
+failed, anything — so it can never become a dispatch storm against a genuinely
+broken build. Covering hangs there would trade that away; the cure belongs at
+the source. (2) **So the install is now bounded and retried** through ONE
+composite action (`.github/actions/install-browsers`) that both jobs use, with a
+per-attempt `timeout --signal=KILL` and 3 attempts: a stall becomes a retry, and
+a download that will not come becomes a fast red you can SEE. It is one owner
+rather than a line in each job for the reason this repo keeps paying for — the
+retry cannot exist in one copy and be missing from the other. The per-attempt
+bound is 12 min, chosen as ~60% headroom over the slowest HEALTHY install ever
+observed here (7.5 min, run #301's verify-live), not guessed. (3) **A regex
+could not have caught what was actually wrong with it.** The first cut read
+`code=$?` immediately after an `if`, and a failed `if` condition with no else
+leaves the compound statement's own status of **0** — so `code` was always 0,
+the HUNG branch could never fire, and a real exit 7 was reported as "failed with
+exit 0", which would send the next person hunting a broken install instead of a
+stalled network. Found by RUNNING the script against a stubbed `npx`, and now
+pinned by a behavioural guardrail that drives the shipped script text
+(substituting only the two timing constants, after asserting those constants
+exist so the substitution cannot silently no-op) and asserts a permanent hang
+ends red with three HUNG warnings while a fail-fail-succeed ends green on
+attempt 3. Mutation-proven by re-introducing the `$?` bug itself. (4) **Driving
+it also found a second, smaller bug the same way**: it backed off after the
+FINAL attempt too, adding a pointless 60s that makes the failure timing read as
+yet another stall. **`timeout-minutes` on the caller step is the backstop, not
+the mechanism** — composite-action steps cannot declare one, so the bound has to
+live in the script.
+
 ---
 
 ## Repository Structure
@@ -1573,8 +1613,17 @@ tooling.
 │                               #   fast-forwards ONLY when strictly behind origin/main
 │                               #   with a clean tree; never touches dirty or ahead.
 ├── .gitignore                  # ignores node_modules etc.
-├── .github/workflows/
-│   └── deploy.yml              # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
+├── .github/
+│   ├── workflows/
+│   │   ├── deploy.yml          # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
+│   │   └── deploy-watchdog.yml # every 30 min: dispatch the deploy if main's head has NO run at all
+│   │                           #   (a push sometimes fires nothing — the failure mode is SILENCE). It
+│   │                           #   stops the moment ANY run exists, which is what stops it looping.
+│   └── actions/install-browsers/
+│       └── action.yml          # the ONE owner of `playwright install` — a per-attempt `timeout` + 3
+│                               #   tries, so a stalled download is retried and never HANGS. A hang
+│                               #   holds the `pages` concurrency group for 6h and silently drops
+│                               #   every push behind it (it un-shipped 4c98dee and df77afc).
 ├── JOSH_PROFILE.md             # WHO JOSH IS: skill levels, non-reader law, friends, interests, game-mechanic menu — READ before building
 ├── josh-profile.json           # ^ same profile, machine-readable (for programmatic game generation)
 ├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)

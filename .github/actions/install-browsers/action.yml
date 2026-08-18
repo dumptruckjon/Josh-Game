@@ -1,0 +1,66 @@
+name: Install Playwright browsers
+description: >
+  Install Chromium + WebKit (Safari's engine) with a per-attempt timeout and
+  retries, so a stalled download becomes a retry or a fast red — never a hang.
+
+# WHY THIS EXISTS, and why it is ONE owner rather than a line in each job.
+#
+# On 2026-08-18 this step HUNG. The measured norm is 57 seconds (run #301, the
+# last green one); run #304 sat on it for 92 minutes and was still going. The
+# damage is not the lost time, it is that deploy.yml is `concurrency: group:
+# pages, cancel-in-progress: false` — so a hung run holds the group for up to
+# GitHub's 6-hour ceiling and every push behind it is dropped as `cancelled`.
+# That is exactly what happened to 4c98dee and df77afc: two commits of shipped
+# fixes, both reported `cancelled`, and the live site quietly kept serving
+# abf31db. Nothing went red. The failure mode was SILENCE again — the same
+# shape the deploy watchdog was written for, which cannot help here because it
+# deliberately stops the moment a run EXISTS, hung or not.
+#
+# So the cure is at the source: a download that stalls is retried, and a
+# download that will not come is a fast failure you can SEE. A hang is worse
+# than a failure, because a failure is visible and bounded.
+#
+# The two jobs that need browsers (test, verify-live) both come through here,
+# so the retry cannot exist in one and be missing from the other — this repo
+# has paid repeatedly for the same computation living in two places.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -uo pipefail
+        # 12 min per attempt: the norm is 57s and the slowest healthy install
+        # ever observed here is 7.5 min (run #301's verify-live job), so this
+        # is ~60% headroom over the worst REAL case rather than a guess.
+        PER_ATTEMPT=720
+        ATTEMPTS=3
+        BACKOFF=20
+        for i in $(seq 1 "$ATTEMPTS"); do
+          # Capture the status DIRECTLY, never as `code=$?` after an `if`:
+          # a failed `if` condition with no else leaves the compound statement's
+          # own status of 0, so `code` was always 0 — the HUNG branch below
+          # could never fire and every failure reported "exit 0". Found by
+          # running this script against a stubbed npx, not by reading it.
+          timeout --signal=KILL "${PER_ATTEMPT}s" npx playwright install --with-deps chromium webkit
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            echo "::notice::Playwright browsers installed on attempt $i"
+            exit 0
+          fi
+          # 124 = timeout fired, 137 = it had to KILL. Either way it HUNG,
+          # which is the case this whole action exists for; anything else is
+          # an ordinary failure (a bad mirror, a transient 5xx) and is also
+          # worth retrying, so both paths fall through to the next attempt.
+          if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then
+            echo "::warning::browser install attempt $i HUNG — killed after ${PER_ATTEMPT}s"
+          else
+            echo "::warning::browser install attempt $i failed with exit $code"
+          fi
+          # Back off only if there is another attempt to make. Sleeping after
+          # the LAST one just delays the red by a minute and makes the failure
+          # timing read as another stall.
+          if [ "$i" -lt "$ATTEMPTS" ]; then sleep $((i * BACKOFF)); fi
+        done
+        echo "::error::Playwright browser install failed $ATTEMPTS times — this is a real failure, not a hang"
+        exit 1
