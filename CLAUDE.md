@@ -1620,6 +1620,18 @@ turn it red. And **the tablet sizes earn their place independently of that
 clause**: the one-control-row rule, the no-page-scroll rule and the adult 44px
 floor are now checked at an aspect (0.75) nothing had ever run, against the
 phone's 0.46, on a renderer that rotates its floor 90 degrees in portrait.
+**Its sibling had the identical gap, and that one guards something that cannot
+be recovered from**: `AUDIT: no pad hides under ANY floating field control`
+carries a comment saying in as many words that *the viewport list IS the test* —
+and listed eight phone/landscape sizes and no tablet portrait. A pad buried
+during BUILD is permanently unbuildable, and the board's cell size is derived
+from the viewport, so every pad's screen position moves with the aspect: a
+control that misses every pad at eight phone shapes says nothing about a ninth.
+Measured CLEAN at 768x1024 and 834x1112 (0 buried across all 50 maps), so this
+is coverage rather than a fix — and proven non-vacuous by floating a control
+over the field at tablet widths only, which fires at exactly the new size and
+names the pads. When a test's own comment says the list is the test, the list is
+also the thing to go back and extend.
 
 ---
 

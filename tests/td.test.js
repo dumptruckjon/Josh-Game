@@ -1175,6 +1175,12 @@ test("AUDIT: no pad hides under ANY floating field control (every map, both orie
     { width: 390, height: 844 }, { width: 375, height: 667 }, { width: 360, height: 640 },
     { width: 320, height: 568 }, { width: 320, height: 480 },
     { width: 844, height: 390 }, { width: 667, height: 375 }, { width: 1024, height: 768 },
+    // …and the iPad in PORTRAIT, which this list never had. The board's cell
+    // size is derived from the viewport, so every pad's screen position moves
+    // with the aspect — a control that misses every pad at eight phone sizes
+    // says nothing about a ninth shape. The comment above is literal: the
+    // viewport list IS the test.
+    { width: 768, height: 1024 }, { width: 834, height: 1112 },
   ]) {
     await page.setViewportSize(vp);
     await page.evaluate(() => { location.hash = "#td-play"; });
