@@ -30,10 +30,15 @@ runs:
     - shell: bash
       run: |
         set -uo pipefail
-        # 12 min per attempt: the norm is 57s and the slowest healthy install
-        # ever observed here is 7.5 min (run #301's verify-live job), so this
-        # is ~60% headroom over the worst REAL case rather than a guess.
-        PER_ATTEMPT=720
+        # 15 min per attempt. RE-MEASURED the same day this shipped, because a
+        # bound that is too TIGHT is its own bug: it kills a download that was
+        # nearly done and starts over. The norm is 57s, but the CDN was
+        # degraded on 2026-08-18 and two healthy installs took 5m45s and
+        # 10m01s — so the old 12 min, justified as ~60% headroom over a 7.5 min
+        # worst case, was really only 20% over the worst case that then
+        # happened. 15 min restores ~50% headroom against the observed worst,
+        # and still turns a 6-hour hang into a 15-minute retry.
+        PER_ATTEMPT=900
         ATTEMPTS=3
         BACKOFF=20
         for i in $(seq 1 "$ATTEMPTS"); do

@@ -37,8 +37,8 @@ jobs:
         # Through the shared action: it retries and, crucially, CANNOT hang.
         # A hang here holds the `pages` concurrency group for up to 6 hours and
         # silently drops every push behind it. 45 min is a backstop above the
-        # action's own worst case (3 x 12 min + backoff), never the real limit.
-        timeout-minutes: 45
+        # action's own worst case (3 x 15 min + backoff), never the real limit.
+        timeout-minutes: 55
         uses: ./.github/actions/install-browsers
 
       - name: Run tests (unit + browser e2e + mobile WebKit)
@@ -95,8 +95,8 @@ jobs:
         # Through the shared action: it retries and, crucially, CANNOT hang.
         # A hang here holds the `pages` concurrency group for up to 6 hours and
         # silently drops every push behind it. 45 min is a backstop above the
-        # action's own worst case (3 x 12 min + backoff), never the real limit.
-        timeout-minutes: 45
+        # action's own worst case (3 x 15 min + backoff), never the real limit.
+        timeout-minutes: 55
         uses: ./.github/actions/install-browsers
 
       - name: Wait for the live site to serve this commit

@@ -1520,8 +1520,15 @@ per-attempt `timeout --signal=KILL` and 3 attempts: a stall becomes a retry, and
 a download that will not come becomes a fast red you can SEE. It is one owner
 rather than a line in each job for the reason this repo keeps paying for — the
 retry cannot exist in one copy and be missing from the other. The per-attempt
-bound is 12 min, chosen as ~60% headroom over the slowest HEALTHY install ever
-observed here (7.5 min, run #301's verify-live), not guessed. (3) **A regex
+bound is 15 min — and the number is worth keeping because it was RE-MEASURED the
+same day it shipped. It went out at 12 min, justified as ~60% headroom over the
+slowest healthy install then on record (7.5 min); within the hour the CDN's bad
+day produced healthy installs of 5m45s and 10m01s, which made the shipped bound
+20% headroom over reality rather than 60%. **A bound that is too TIGHT is its own
+bug** — it kills a download that was nearly done and starts over — so it is 15
+min now, and a 6-hour hang is still a 15-minute retry. The lesson generalises
+past CI: a threshold justified against the worst case you have SEEN needs
+re-checking the first time you see a worse one. (3) **A regex
 could not have caught what was actually wrong with it.** The first cut read
 `code=$?` immediately after an `if`, and a failed `if` condition with no else
 leaves the compound statement's own status of **0** — so `code` was always 0,
