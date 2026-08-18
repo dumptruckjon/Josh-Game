@@ -2102,6 +2102,11 @@ test("PORTRAIT: the battlefield gets every pixel — full-bleed width, ONE contr
     { width: 430, height: 932 }, { width: 414, height: 896 }, { width: 390, height: 844 },
     { width: 375, height: 667 }, { width: 360, height: 640 },
     { width: 320, height: 568 }, { width: 320, height: 480 },
+    // The iPad, in portrait. This list was seven PHONE widths, and the fort
+    // rotates its floor 90 degrees in portrait, so a 0.75 aspect exercises a
+    // different branch of resize() than a phone's 0.46 — "a viewport list IS
+    // the test", now for the sixth time in this repo.
+    { width: 768, height: 1024 }, { width: 834, height: 1112 },
   ];
   const bad = [];
   for (const vp of sizes) {
@@ -2128,8 +2133,25 @@ test("PORTRAIT: the battlefield gets every pixel — full-bleed width, ONE contr
       };
     });
     const tag = `${vp.width}x${vp.height}`;
-    // the field's box spans the screen — not the padded content box
-    if (g.wrapW < vp.width - 1) bad.push(`${tag}: the field box is ${g.wrapW}px inside a ${vp.width}px screen (side padding is taxing the battlefield)`);
+    // The field must be limited by the VIEWPORT, never by a container cap.
+    //
+    // This clause used to be `wrapW >= vp.width` outright, which is the right
+    // law on a phone — the board is WIDTH-limited there, so every pixel of
+    // side padding comes straight off the battlefield. On a tablet it is a
+    // PROXY that has stopped tracking the property: the board is
+    // HEIGHT-limited (canvas 546px inside an 834px screen), so the 720px
+    // game-screen cap cannot bind. Measured rather than argued — excluding the
+    // fort from that cap moves the canvas by exactly 0px at 768, 834 AND 1024
+    // wide, so "fixing" it would be a redundant change whose own guardrail
+    // could never fail. Assert the property itself instead: whatever the box
+    // is, it is not the thing squeezing the field.
+    // The bar is a MEASURED separation, not a slack: a canvas does not grow to
+    // exactly its box (it sits ~8px inside), so the first cut used `> wrapW - 2`
+    // and a 400px cap that really does squeeze the field 546 -> 392px sailed
+    // straight through it. Healthy tablet reads 546/720 = 0.76; a binding cap
+    // reads 392/400 = 0.98. 0.90 sits between the two.
+    const capBinding = g.wrapW < vp.width - 1 && g.canvasW / g.wrapW > 0.90;
+    if (capBinding) bad.push(`${tag}: the field box is ${g.wrapW}px inside a ${vp.width}px screen AND the canvas has grown to meet it (${g.canvasW}px) — the container is taxing the battlefield`);
     // ONE row of controls, never two (a second row comes straight off the field)
     if (g.ctlH > 70) bad.push(`${tag}: the control block is ${g.ctlH}px — that is two rows`);
     // …and none of that may cost a scroll or an undersized adult control

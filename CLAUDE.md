@@ -1576,6 +1576,35 @@ randomised surface needs that check, or noise reads as regression.
 (5) The widened scan costs ~110s because it walks 240 games at two viewports —
 paid deliberately, since the alternative is a scan whose scope is a list.
 
+**THE FORT'S PORTRAIT LAW WAS PINNED AT SEVEN PHONE WIDTHS, AND ADDING THE IPAD
+"FAILED" — BUT THE DEFECT WAS IN THE CLAUSE, NOT THE PRODUCT.** The law says the
+battlefield gets every pixel, and enforced it as `wrapW >= viewport.width`; at
+768/834/1024 portrait that clause goes red, because the 720px game-screen cap
+applies to the fort's play screen too. The obvious reading is "the cap is taxing
+the field". **Measured, it is not: excluding the fort from that cap moves the
+canvas by exactly 0px at all three widths** (504x864, 546x936, 700x1200 before
+and after). The board is HEIGHT-limited on a tablet — the canvas is 546px inside
+an 834px box — so the cap cannot bind, and shipping the CSS "fix" would have been
+a redundant change whose own guardrail could never fail, the trap already
+recorded twice here. **`wrapW >= width` is a PROXY that tracks the real property
+on a width-limited phone and stops tracking it on a height-limited tablet** —
+"when a check asserts X, assert X, not a quantity that correlates with X today",
+now landing on a check written in this repo rather than on someone else's.
+So the clause became the property itself (the container is not what is squeezing
+the field) and the tablet sizes were added rather than exempted. Two further
+lessons. **The first replacement was UNFALSIFIABLE and only the mutation found
+it**: it read `canvasW > wrapW - 2`, and a canvas does not grow to exactly its
+box — it sits ~8px inside — so a 400px cap that really does squeeze the field
+546 -> 392px sailed straight through. The rule held again: when a mutation
+passes, do not widen the tolerance, go and print what actually moved. The bar is
+now a MEASURED separation rather than a slack (healthy tablet 546/720 = 0.76, a
+binding cap 392/400 = 0.98, so 0.90 sits between them), and it is proven on BOTH
+halves — restoring the phone's side padding and adding a tablet-binding cap each
+turn it red. And **the tablet sizes earn their place independently of that
+clause**: the one-control-row rule, the no-page-scroll rule and the adult 44px
+floor are now checked at an aspect (0.75) nothing had ever run, against the
+phone's 0.46, on a renderer that rotates its floor 90 degrees in portrait.
+
 ---
 
 ## Repository Structure
