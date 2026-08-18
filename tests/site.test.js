@@ -1915,10 +1915,10 @@ test("CI: the browser-install retry actually RETRIES, and names a hang a hang", 
   const body = act.split(/\n *run: \|\n/)[1];
   assert.ok(body, "could not find the action's run: block — this test would otherwise be vacuous");
   const script = body.split("\n").map((l) => l.replace(/^ {8}/, "")).join("\n");
-  for (const k of ["PER_ATTEMPT=900", "ATTEMPTS=3", "BACKOFF=20"]) {
+  for (const k of ["PER_ATTEMPT=1200", "ATTEMPTS=3", "BACKOFF=20"]) {
     assert.ok(script.includes(k), `expected ${k} in the shipped script; the substitution below would no-op`);
   }
-  const fast = script.replace("PER_ATTEMPT=900", "PER_ATTEMPT=1").replace("BACKOFF=20", "BACKOFF=0");
+  const fast = script.replace("PER_ATTEMPT=1200", "PER_ATTEMPT=1").replace("BACKOFF=20", "BACKOFF=0");
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "josh-install-"));
   fs.mkdirSync(path.join(dir, "bin"));
