@@ -1621,11 +1621,15 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-linechip { font-size: clamp(1.25rem, 6vw, 1.7rem); font-weight: 800; letter-spacing: 2px; min-height: 84px; }
 
 /* Character chips & cells (成语 / 找字). */
-.hl-charchip { font-size: clamp(1.9rem, 9vw, 2.6rem); font-weight: 900; }
+/* Her iPad stretches the hunt cards to 224x92 while the CHARACTER inside stayed
+   capped at 2.6rem (~41px) — and 找不同的字 hangs its whole answer on one ~3px
+   stroke (日 vs 目). Same class as the pond/find fix below: the clamp MIN is the
+   old value so 390 and 320 are untouched, only the cap rises. */
+.hl-charchip { font-size: clamp(1.9rem, 9vw, 3.4rem); font-weight: 900; }
 .hl-charcell--hit { background: linear-gradient(180deg, #ffe9b0, #ffd24d); border-color: #d4a437; }
 
 /* ---- 记忆 games ---- */
-.hl-row { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; font-size: 2.4rem; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
+.hl-row { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; font-size: clamp(2.4rem, 7.5vw, 3.8rem); } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
 .hl-row > * { margin: calc(var(--pad) / 2); }
 .hl-row--after { margin-top: 2px; }
 .hl-spot { font-size: clamp(2.2rem, 7vw, 3.6rem); min-height: 84px; min-width: var(--tap); } /* flex rows must keep the tap floor; the clamp min is the old phone value — see .hl-pondcell */
@@ -1640,7 +1644,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-dish--hit { background: linear-gradient(180deg, #e8f8e0, #d7f8de); border-color: #7be08a; }
 .hl-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .hl-steps .hl-dish { min-height: 90px; }
-.hl-lineup { display: flex; justify-content: center; gap: 12px; font-size: 2.8rem; margin-bottom: 8px; width: 100%; }
+.hl-lineup { display: flex; justify-content: center; gap: 12px; font-size: clamp(2.8rem, 8.5vw, 4.2rem); margin-bottom: 8px; width: 100%; }
 .hl-lineupcell { line-height: 1; }
 .hl-lineupcell--hid { filter: drop-shadow(0 3px 6px rgba(80, 0, 0, 0.3)); }
 .hl-zochip { font-size: clamp(1.3rem, 6vw, 1.7rem); font-weight: 800; }

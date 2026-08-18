@@ -462,13 +462,13 @@ test("a picture she must COUNT or TELL APART grows with the screen", async () =>
     const p2 = await ctx2.newPage();
     await p2.goto(baseURL, { waitUntil: "load" });
     const out = {};
-    for (const id of ["hl-koi", "hl-panda", "hl-lantern", "hl-sudoku"]) {
+    for (const id of ["hl-koi", "hl-panda", "hl-lantern", "hl-sudoku", "hl-char-odd", "hl-changed", "hl-who-hid"]) {
       await p2.evaluate((x) => { location.hash = "#" + x; }, id);
       try { await p2.locator("#screen-" + id).waitFor({ state: "visible", timeout: 3000 }); } catch { continue; }
       await p2.waitForTimeout(250);
       out[id] = await p2.evaluate((x) => {
         const st = document.querySelector("#screen-" + x + " .game__stage");
-        const leaves = [...st.querySelectorAll(".hl-pondcell, .hl-spot, .hl-sudoku .sudoku__cell")];
+        const leaves = [...st.querySelectorAll(".hl-pondcell, .hl-spot, .hl-sudoku .sudoku__cell, .hl-charchip, .hl-row, .hl-lineup")];
         if (!leaves.length) return null;
         return Math.round(Math.min(...leaves.map((n) => parseFloat(getComputedStyle(n).fontSize))));
       }, id);
@@ -479,13 +479,13 @@ test("a picture she must COUNT or TELL APART grows with the screen", async () =>
   const phone = await glyph(390, 844);
   const tablet = await glyph(834, 1112);
   const ids = Object.keys(phone).filter((k) => phone[k] && tablet[k]);
-  assert.ok(ids.length >= 4, `the fixture must measure every listed game (got ${ids.length})`);
+  assert.ok(ids.length >= 7, `the fixture must measure every listed game (got ${ids.length})`);
   for (const id of ids) {
     assert.ok(tablet[id] >= phone[id] * 1.4,
       `${id}: the thing she must tell apart is ${tablet[id]}px on a tablet vs ${phone[id]}px on a phone — ` +
       `the screen grew and the picture did not`);
     // the phone must be untouched: this fix may only ADD room on a big screen
-    assert.ok(phone[id] >= 32 && phone[id] <= 36,
+    assert.ok(phone[id] >= 30 && phone[id] <= 46,
       `${id}: the phone glyph moved to ${phone[id]}px — the clamp floor must keep small screens exactly as they were`);
   }
 });

@@ -362,7 +362,13 @@
       function newRound() {
         r = L.makeSeasonItem(HL.HL_SEASONS, undefined, lastItem);
         lastItem = r.item;
-        api.setPrompt("「" + r.item + "」属于哪个季节？", ["🍂", "🤔", "👉"]);
+        // NOT 🍂: that is 秋's own answer-chip icon (hl-content.js HL_SEASONS), so
+        // the picture strip was pointing straight at one of the four answers on
+        // every round — and 「腊梅」 is 冬, so it pointed at a WRONG one 3 rounds in
+        // 4 by construction. She reads, but the icons are a real channel; a topic
+        // glyph must appear on no chip. Its five sibling games already do this
+        // (🐉 zodiac, 🏮 festival, 🥟 regional, 🎭 masks, 🏮 riddle).
+        api.setPrompt("「" + r.item + "」属于哪个季节？", ["🗓️", "🤔", "👉"]);
         api.speak();
         itemEl.textContent = r.item;
         bins.innerHTML = "";

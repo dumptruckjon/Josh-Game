@@ -1397,6 +1397,35 @@ than a pixel constant, with the phone value pinned separately — because the fi
 is only safe if it changes nothing at 390. Mutation-proven: reverting either
 clamp reports "32px on a tablet vs 32px on a phone".
 
+**AND THE PAINTED PASS'S REVIEW ROUND FOUND THE PICTURE CHANNEL POINTING AT A
+WRONG ANSWER — plus three more games whose pictures ignored her iPad, and one
+finding I REJECTED after checking it myself.** 四季分明's prompt strip was
+hard-coded `["🍂","🤔","👉"]` while 秋's own answer chip is 🍂, so the icon row
+pointed straight at one of the four answers on EVERY round — and since 「腊梅」 is
+冬, it pointed at a WRONG one three rounds in four, by construction. Her other
+five culture games all use a topic glyph that appears on no chip. **The generic
+law was measured and REJECTED**: across all 240 games, 14 have a strip containing
+some answer icon, and even narrowed to "the icon of a WRONG answer in a
+single-answer quiz" 5 remain (car-wash / hl-tea / plant-care are ritual STEPS;
+more-in-scene and left-right name both object types) — all defensible, so a
+general rule would need five exemptions, i.e. a fence around the residual rather
+than a law. It is pinned as a content truth on that one game instead.
+Three more games kept a phone-sized picture on the tablet, the same class as the
+pond: 找不同的字/找福字 (`.hl-charchip` capped at 2.6rem while the cards stretch to
+224x92 — and that game hangs its whole answer on one ~3px stroke, 日 vs 目),
+什么变了 (`.hl-row`) and 谁藏起来了 (`.hl-lineup`), both pixel-identical at 390 and
+834. All three clamped with the old value as the MIN, so the phone is untouched;
+one guardrail covers all six classes.
+**And one finding was REJECTED on inspection, which is what the verify step is
+for**: the reviewer measured 照样敲's lit drum at 101px against its 92px
+neighbours and called it the documented "a lit cue must not be a `transform:
+scale()` on a gapped grid" defect. It is not — that is `cbHit`, a transient 0.3s
+bounce shared with Josh's Copy My Beat, and the game's own handler opens with
+`if (demoing) return;`, so input is ignored while the pattern plays and the only
+other time it fires is on her own successful tap. The screenshot caught a
+mid-animation frame. The documented law is about a PERSISTENT lit pad she has to
+aim around; a 300ms feedback bounce on a disabled surface is not the same thing.
+
 **AND EXTRACTING A ONE OWNER IS HOW THE SIXTH TWO-COORDINATE-SPACE BUG WAS
 FOUND.** The Sparkler and the Screw both need "jam the nearest gun", so the
 Screw's inline loop became `jamNearest()` — and the moment the two call sites had

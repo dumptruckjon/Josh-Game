@@ -378,3 +378,29 @@ test("AUDIT 导航: 🚪 leaves her world, 🏠 returns to her home — one glyp
   assert.match(route.slice(0, 1400), /\.brand[\s\S]{0,400}HualiContent[\s\S]{0,120}BRAND/,
     "route() sets the brand name — it is the only place that knows which world is being entered");
 });
+
+test("四季分明's icon strip must not point at one of the four seasons", () => {
+  // Found by LOOKING at her iPad: the prompt strip was hard-coded ["🍂","🤔","👉"]
+  // while 秋's own answer chip is 🍂 (HL_SEASONS), so the picture channel pointed
+  // straight at one of the four answers on EVERY round — and since 「腊梅」 is 冬,
+  // it pointed at a WRONG one three rounds in four, by construction. She reads,
+  // but the icons are a real channel, and her other five culture games all use a
+  // topic glyph that appears on no chip (🐉 zodiac, 🏮 festival, 🥟 regional,
+  // 🎭 masks, 🏮 riddle).
+  //
+  // Deliberately scoped to this game rather than made a generic law. Measured
+  // across all 240 games: 14 have a strip containing some answer icon, and even
+  // narrowed to "the icon of a WRONG answer in a single-answer quiz" 5 remain —
+  // car-wash, hl-tea and plant-care are ritual STEPS, more-in-scene and
+  // left-right name both object types. All defensible, so a general rule would
+  // need five exemptions, i.e. a fence around the residual rather than a law.
+  const src = require("fs").readFileSync(require("path").join(__dirname, "..", "scripts/games-hl-b.js"), "utf8");
+  const call = src.match(/属于哪个季节？"[^)]*\)/);
+  assert.ok(call, "the 四季分明 prompt call must still be findable");
+  const seasonIcons = (HL.HL_SEASONS || []).map((s) => s.icon);
+  assert.ok(seasonIcons.length === 4, "four seasons");
+  for (const icon of seasonIcons) {
+    assert.ok(!call[0].includes(icon),
+      `the 四季分明 icon strip contains ${icon}, which is an answer chip's own icon — the picture points at one of the four answers`);
+  }
+});
