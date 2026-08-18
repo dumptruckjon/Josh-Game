@@ -368,6 +368,17 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
       rgba(120, 214, 140, 0.20), rgba(120, 214, 140, 0) 72%)
     no-repeat bottom center / 100% 150px;
 }
+/* …but it is Josh's MEADOW, and it was never scoped, so a green ground glow was
+   painting under every one of 华丽's red-gold screens — a hard-edged lighter
+   block across the bottom (a 20-unit colour step at its left edge, 49 at its
+   lower one) that reads as a stray half-drawn panel, since nothing in her world
+   stands on grass. Her floor is the warm gold her own page already ends in. */
+.screen.game.game--hl {
+  background:
+    radial-gradient(135% 130px at 50% 100%,
+      rgba(255, 214, 120, 0.18), rgba(255, 214, 120, 0) 72%)
+    no-repeat bottom center / 100% 150px;
+}
 
 /* A#2: the opt-in reactive buddy (api.mascot()) — a friendly face on the floor. */
 /* 88px, not 72: the mascot is now Josh's chosen buddy (a full figure) rather than
@@ -1578,12 +1589,12 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* Concentration cards: face hidden until .hl-card--open/--done. */
 .hl-card { position: relative; min-height: 96px; }
-.hl-card .hl-cardback { font-size: 2.2rem; }
+.hl-card .hl-cardback { font-size: clamp(2.2rem, 6.5vw, 3.6rem); } /* the card doubles on her iPad; its back must not stay phone-sized */
 .hl-card .hl-tileface, .hl-card .hl-cardface { display: none; }
 .hl-card.hl-card--open .hl-tileface, .hl-card.hl-card--done .hl-tileface,
 .hl-card.hl-card--open .hl-cardface, .hl-card.hl-card--done .hl-cardface { display: block; }
 .hl-card.hl-card--open .hl-cardback, .hl-card.hl-card--done .hl-cardback { display: none; }
-.hl-cardface { font-size: 2.6rem; line-height: 1; }
+.hl-cardface { font-size: clamp(2.6rem, 7.5vw, 4rem); line-height: 1; } /* the card doubles on her iPad (109 -> 229px); the face must grow with it */
 .hl-card--done { background: linear-gradient(180deg, #e8f8e0, #d7f8de); border-color: #7be08a; opacity: 0.9; }
 
 /* ---- Runs (缺哪张牌 / 生肖排队 / 月亮圆缺): display-only spans + choice chips ---- */
@@ -1598,7 +1609,14 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-zoemoji { font-size: 1.9rem; line-height: 1.1; }
 .hl-zoname { font-size: 1.05rem; line-height: 1.2; color: #5a2a12; font-weight: 800; }
 .hl-mooncell { font-size: 2.2rem; }
-.hl-moonchip { font-size: 2.6rem; background: linear-gradient(180deg, #1c2340, #2c3560); border-color: #4a5a9a; }
+/* `.game--hl .choice` (0,2,0) beats a bare `.hl-moonchip` (0,1,0) whatever the
+   source order, so the night-sky background this rule has always declared was
+   NEVER painted: the moons sat on the same cream card as everything else, and on
+   the one screen whose question is "how full is the moon" the fullest moon was
+   the faintest mark on the page (273 ink px against the crescent's 814). Scoped
+   to match, and sized so the picture grows with her screen. */
+.game--hl .hl-moonchip { font-size: clamp(2.6rem, 7.5vw, 4rem); background: linear-gradient(180deg, #1c2340, #2c3560); border-color: #4a5a9a; color: #fff8ec; }
+.game--hl .hl-mooncell { font-size: clamp(2.2rem, 6.5vw, 3.4rem); }
 
 /* ---- Big text lines (poems, idioms, math) ---- */
 .hl-bigline {
@@ -1699,7 +1717,18 @@ body.hl-mode .brand { color: #ffe9b0; }
 .game--hl .qp__box { border: 2px solid rgba(212, 164, 55, 0.55); }
 
 /* ---- 民俗 ---- */
-.hl-festitem, .hl-clue {
+/* `.hl-clue` is a CLUE, not a control, and it was the most button-like object on
+   its screen: a 3px full-strength #d4a437 border against the nine real cards'
+   2px washed gold. Her world's vocabulary is "cream card + gold border = touch
+   this" (the same law that fixed 快看快记's peek cover), so the non-control was
+   winning that contest. It takes the dark plate her sibling game hl-panda
+   already uses for exactly this job. */
+.hl-clue {
+  background: rgba(74, 12, 12, 0.72); border: 2px solid rgba(212, 164, 55, 0.35); border-radius: 16px;
+  padding: 10px 14px; color: #fff8ec; text-shadow: none; width: fit-content;
+  margin-left: auto; margin-right: auto;
+}
+.hl-festitem {
   background: #fff8ec; border: 3px solid #d4a437; border-radius: 16px; padding: 10px 14px;
   color: #7c1f1f; text-shadow: none; width: fit-content; margin-left: auto; margin-right: auto;
 }
@@ -1728,7 +1757,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-pondcell { font-size: clamp(2rem, 6.5vw, 3.4rem); line-height: 1.4; text-align: center; }
 .hl-pond--glow .hl-pondcell--target { filter: drop-shadow(0 0 8px rgba(255, 210, 77, 0.95)); }
 .hl-shapebtn { min-height: 92px; }
-.hl-shape { width: 54px; height: 54px; display: block; }
+.hl-shape { width: clamp(54px, 8vw, 88px); height: clamp(54px, 8vw, 88px); display: block; } /* the card grew 2.17x and the picture 0x — see .hl-diffcell */
 /* The two pictures being COMPARED plus their label are one stage child, so the
    stage's row-stretch (which fills a tall screen — the anti-dead-bottom-half
    rule) inflates ONE row instead of three. Before this, 华丽's iPad gave the
@@ -1747,8 +1776,13 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-diffrow { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; } /* margins, not flex-gap: dropped on iOS 14.2 (audit) */
 .hl-diffrow > * { margin: calc(var(--pad) / 2); }
 .hl-diffcell {
-  width: 84px; height: 84px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
-  font-size: 2.2rem; line-height: 1;
+  /* Grows on her iPad. A hard 84px card with a 2.2rem glyph rendered
+     byte-identically at 390 and 834 — on the ONE game whose whole task is
+     comparing two rows of pictures, and whose pool holds three pale tan foods
+     (🍵 🥟 🥮), so a 🥟→🥮 round asked a 70-year-old to separate two beige blobs
+     at 35px. Clamp MIN is the old value, so phone and 320 are untouched. */
+  width: clamp(84px, 12vw, 132px); height: clamp(84px, 12vw, 132px); border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(2.2rem, 6.5vw, 3.6rem); line-height: 1;
 }
 .hl-diffrow--ref .hl-diffcell { background: rgba(255, 248, 236, 0.85); border: 2px dashed rgba(212, 164, 55, 0.6); }
 .hl-diffvs { width: 100%; text-align: center; font-size: 1.1rem; font-weight: 700; margin: 2px 0; }   /* 0.95rem = 15.2px, the size the nav pass called out as too small in the one

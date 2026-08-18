@@ -489,3 +489,78 @@ test("a picture she must COUNT or TELL APART grows with the screen", async () =>
       `${id}: the phone glyph moved to ${phone[id]}px — the clamp floor must keep small screens exactly as they were`);
   }
 });
+
+test("a card that grows must not keep a phone-sized picture (derived, no lists)", async () => {
+  // The sibling of the test above, and the reason both exist: that one names its
+  // games and selectors, which is this repo's most-repeated failure mode — a
+  // scan's own list is part of the scan. This one names nothing. It walks every
+  // one of her games, finds each tappable card whose content is a PICTURE (a
+  // leaf with no letters and no digits — the "is this ART" test), and asks
+  // whether the picture kept its share of the card when the screen doubled.
+  //
+  // BE CLEAR ABOUT WHAT IT CANNOT SEE: it catches "the card grew and the picture
+  // did not", which was the defect in 找一找, 池塘数数 and 月亮圆缺. It would NOT
+  // have caught 两幅找不同, where NEITHER grew and the ratio stayed a perfect 1.0.
+  // So the two tests are complementary and neither is sufficient alone.
+  //
+  // The bar is a RATCHET on shipped behaviour chosen so it can actually FAIL:
+  // measured today the eight cards keep 0.73 / 0.78 / 0.78 / 0.83 / 1.0 / 1.0 /
+  // 1.29 / 1.42, while pinning 月亮圆缺's moon back to its old fixed 2.6rem
+  // computes 0.556. 0.65 sits between the two. An earlier 0.5 passed that
+  // mutation, i.e. it could not catch the very defect it was written for.
+  const shot = async (w, h) => {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    await p2.goto(baseURL, { waitUntil: "load" });
+    const ids = await p2.evaluate(() => (window.JoshGames || []).filter((g) => g.hl).map((g) => g.id));
+    const out = {};
+    for (const id of ids) {
+      await p2.evaluate((x) => { location.hash = "#" + x; }, id);
+      try { await p2.locator("#screen-" + id).waitFor({ state: "visible", timeout: 2500 }); } catch { continue; }
+      await p2.waitForTimeout(190);
+      const m = await p2.evaluate((x) => {
+        const st = document.querySelector("#screen-" + x + " .game__stage");
+        if (!st) return null;
+        const cards = [...st.querySelectorAll("button, .choice")].filter((n) => {
+          const t = (n.textContent || "").trim();
+          return t && !/[\p{L}\p{Nd}]/u.test(t);
+        });
+        if (!cards.length) return null;
+        const leafSize = (n) => {
+          // The picture is either a leaf CHILD (a card with a face and a back)
+          // or the card's own text, which is the common case. Seeding with the
+          // card's own font-size measured the CARD rather than the picture;
+          // seeding with 0 dropped every card that has no children at all.
+          let best = 0;
+          let kids = 0;
+          for (const k of n.querySelectorAll("*")) {
+            if (k.children.length || !(k.textContent || "").trim()) continue;
+            if (getComputedStyle(k).display === "none") continue;
+            kids++; best = Math.max(best, parseFloat(getComputedStyle(k).fontSize) || 0);
+          }
+          return kids ? best : (parseFloat(getComputedStyle(n).fontSize) || 0);
+        };
+        let bw = 0, bf = 0;
+        for (const n of cards) {
+          const r = n.getBoundingClientRect();
+          if (r.width > bw) { bw = r.width; bf = leafSize(n); }
+        }
+        return bw > 0 && bf > 0 ? { w: bw, f: bf } : null;
+      }, id);
+      if (m) out[id] = m;
+    }
+    await ctx2.close();
+    return out;
+  };
+  const phone = await shot(390, 844);
+  const tablet = await shot(834, 1112);
+  const ids = Object.keys(phone).filter((k) => tablet[k]);
+  assert.ok(ids.length >= 6,
+    `the scan must actually find her picture cards (got ${ids.length}) — a vacuous pass is not a pass`);
+  for (const id of ids) {
+    const kept = (tablet[id].f / tablet[id].w) / (phone[id].f / phone[id].w);
+    assert.ok(kept >= 0.65,
+      `${id}: the card grew ${Math.round(phone[id].w)}->${Math.round(tablet[id].w)}px but its picture only ` +
+      `${Math.round(phone[id].f)}->${Math.round(tablet[id].f)}px, keeping ${kept.toFixed(2)} of its share of the card`);
+  }
+});

@@ -1426,6 +1426,43 @@ other time it fires is on her own successful tap. The screenshot caught a
 mid-animation frame. The documented law is about a PERSISTENT lit pad she has to
 aim around; a 300ms feedback bounce on a disabled surface is not the same thing.
 
+**THE LAST TWO REVIEW SLICES FOUND A DECLARED RULE THAT NEVER PAINTED, AN
+AFFORDANCE INVERSION, AND JOSH'S MEADOW GROWING UNDER HER RED-GOLD WORLD.**
+(1) **`.hl-moonchip` has always declared a night-sky background and it was never
+applied**: `.game--hl .choice` is (0,2,0) and a bare `.hl-moonchip` is (0,1,0),
+so specificity beat source order and the moons sat on the same cream card as
+everything else — on the one screen whose question is *how full is the moon*, the
+fullest moon was the FAINTEST mark on the page (273 ink px against a crescent's
+814). Scoping the selector to match makes the rule do what it has always said.
+(2) **A clue is not a control**: `.hl-clue` shared a rule with `.hl-festitem`
+giving it a 3px full-strength gold border, against the nine real answer cards'
+2px washed gold — so on 按提示找 the one thing she must NOT tap was the most
+button-like object on screen, the exact mirror of the peek-cover defect fixed an
+hour earlier. It takes the dark plate its sibling 找一找 already uses.
+(3) **Josh's meadow was never scoped**: `.screen.game`'s green
+`radial-gradient` "soft floor" painted under every one of her red-gold screens as
+a hard-edged lighter block (a 20-unit colour step at one edge, 49 at the other),
+reading as a stray half-drawn panel, since nothing in her world stands on grass.
+Hers is the warm gold her own page already ends in.
+**AND THE REVIEWER'S SHARPEST POINT WAS ABOUT MY OWN GUARDRAIL: its game list AND
+its selector list were both hand-written**, which is this file's most-repeated
+failure mode, committed twice in one sitting. Deriving a replacement took FOUR
+measurements, and each wrong one is worth recording. "The biggest thing on the
+stage must grow" flags **15 of 37** games, nearly all legitimately (a 300px 福 to
+trace, a 96px breathing lotus, and several runs of TEXT, which should not scale
+like a picture). The honest invariant is a RATIO — *the card grew and the picture
+did not* — and the first three attempts at it measured the wrong element: seeding
+the leaf search with the CARD's own font-size measured the card (记忆配对 read
+47→54, its `.choice` clamp, while its face and back had really gone 42→63 and
+35→54), and seeding with 0 instead dropped every card whose glyph is its own text
+rather than a child, taking the sample from 8 games to 1. **And the first bar was
+unfalsifiable**: at 0.5 the net passed a mutation that pinned the moon back to its
+old fixed size (0.556), i.e. it could not catch the defect it was written for.
+Measured floor is now 0.73 with the mutation at 0.556, so the bar is 0.65 —
+between the two, not beside them. The two tests are kept as COMPLEMENTARY and the
+comment says so: the ratio net catches *card grew, picture did not* and would NOT
+have caught 两幅找不同, where NEITHER grew and the ratio stayed a perfect 1.0.
+
 **AND EXTRACTING A ONE OWNER IS HOW THE SIXTH TWO-COORDINATE-SPACE BUG WAS
 FOUND.** The Sparkler and the Screw both need "jam the nearest gun", so the
 Screw's inline loop became `jamNearest()` — and the moment the two call sites had
