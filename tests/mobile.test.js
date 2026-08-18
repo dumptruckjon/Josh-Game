@@ -494,9 +494,16 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
   // The sibling of the test above, and the reason both exist: that one names its
   // games and selectors, which is this repo's most-repeated failure mode — a
   // scan's own list is part of the scan. This one names nothing. It walks every
-  // one of her games, finds each tappable card whose content is a PICTURE (a
+  // game in BOTH worlds, finds each tappable card whose content is a PICTURE (a
   // leaf with no letters and no digits — the "is this ART" test), and asks
   // whether the picture kept its share of the card when the screen doubled.
+  //
+  // IT SHIPPED SCOPED TO HER 40 GAMES, which was the same defect it is named
+  // for, committed in the test itself: Josh plays on an iPad too, and measured
+  // across his 200 the very next day, 64 of 96 picture-card games were below
+  // this bar — `.choice` alone accounted for 27, and `.find__cell` was a flat
+  // 2.2rem with no clamp at all, so a 35px emoji sat in a 229px card. The
+  // filter is gone; the scope is now every registered game.
   //
   // BE CLEAR ABOUT WHAT IT CANNOT SEE: it catches "the card grew and the picture
   // did not", which was the defect in 找一找, 池塘数数 and 月亮圆缺. It would NOT
@@ -512,7 +519,7 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
     const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
     const p2 = await ctx2.newPage();
     await p2.goto(baseURL, { waitUntil: "load" });
-    const ids = await p2.evaluate(() => (window.JoshGames || []).filter((g) => g.hl).map((g) => g.id));
+    const ids = await p2.evaluate(() => (window.JoshGames || []).map((g) => g.id));
     const out = {};
     for (const id of ids) {
       await p2.evaluate((x) => { location.hash = "#" + x; }, id);
@@ -526,6 +533,15 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
           return t && !/[\p{L}\p{Nd}]/u.test(t);
         });
         if (!cards.length) return null;
+        // A picture whose size is set INLINE is one whose size IS the answer —
+        // "find the tiniest star", "smallest to biggest", "will it fit?" each
+        // compute a per-round px/rem size in JS. CSS cannot scale those, and
+        // scaling them WOULD change the puzzle: bigger absolute differences on
+        // a tablet make the discrimination easier. So they are exempt, and the
+        // exemption is DERIVED from the inline style rather than a game list.
+        const inlineSized = (n) =>
+          !!(n.style && n.style.fontSize) ||
+          [...n.querySelectorAll("*")].some((k) => k.style && k.style.fontSize);
         const leafSize = (n) => {
           // The picture is either a leaf CHILD (a card with a face and a back)
           // or the card's own text, which is the common case. Seeding with the
@@ -542,6 +558,7 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
         };
         let bw = 0, bf = 0;
         for (const n of cards) {
+          if (inlineSized(n)) continue;
           const r = n.getBoundingClientRect();
           if (r.width > bw) { bw = r.width; bf = leafSize(n); }
         }
@@ -555,8 +572,8 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
   const phone = await shot(390, 844);
   const tablet = await shot(834, 1112);
   const ids = Object.keys(phone).filter((k) => tablet[k]);
-  assert.ok(ids.length >= 6,
-    `the scan must actually find her picture cards (got ${ids.length}) — a vacuous pass is not a pass`);
+  assert.ok(ids.length >= 90,
+    `the scan must actually find both worlds' picture cards (got ${ids.length}) — a vacuous pass is not a pass`);
   for (const id of ids) {
     const kept = (tablet[id].f / tablet[id].w) / (phone[id].f / phone[id].w);
     assert.ok(kept >= 0.65,

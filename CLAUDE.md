@@ -1539,6 +1539,43 @@ yet another stall. **`timeout-minutes` on the caller step is the backstop, not
 the mechanism** — composite-action steps cannot declare one, so the bound has to
 live in the script.
 
+**THE GUARDRAIL I WROTE TO CATCH "THE CARD GREW AND THE PICTURE DID NOT" WAS
+ITSELF SCOPED TO ONE WORLD — the defect it is named for, committed inside the
+test.** It ended `.filter((g) => g.hl)`, so it walked her 40 games and none of
+Josh's 200, and Josh plays on an iPad too. Measured across his games the next
+day: **64 of 96 picture-card games were below the same bar all 8 of hers now
+pass**, with the signature stark — `card 109→229px, picture 35→35px`, a glyph
+that does not move while the card doubles. Five things worth keeping.
+(1) **Group the failures by the CSS RULE, not by the game, before touching
+anything.** 64 games looked like 64 fixes; grouped by the element actually
+carrying the picture it was **33 elements, and `.choice` alone accounted for 27
+of them** — its `clamp(2.4rem, 12vw, 3.4rem)` simply hit its cap, since 12vw
+only reaches 3.4rem above ~453px. Raising that one max took 64 → 34.
+`.find__cell` (7 games) was a flat `2.2rem` with no clamp at all.
+(2) **The phone is unchanged BY CONSTRUCTION, not by hope.** For a flat size the
+replacement is `clamp(CURRENT, (CURRENT_px/3.90)vw, 1.5×CURRENT)`: the vw track
+lands exactly on the min at 390 and below it at 320, so both phone widths
+compute the identical pixel value and only a big screen can gain. Verified
+directly — 320/390/414 byte-identical, 600/834 +29%, zero horizontal overflow at
+any width. For a rule that ALREADY clamps, raise only the max, which is safe
+wherever the vw track was already deciding; the one exception is worth naming,
+because `.house__piece`'s max was binding at 390 already, so it moved +1.3px —
+measured and accepted rather than assumed to be free.
+(3) **The exemption is DERIVED, and it is principled rather than a fence.** Four
+games set `fontSize` INLINE per round because the size IS the answer (find the
+tiniest star, smallest-to-biggest, will it fit?). CSS cannot scale an inline
+style, and scaling it *would change the puzzle* — bigger absolute differences on
+a tablet make the discrimination EASIER — so keeping them absolute is arguably
+correct, not a compromise. The test skips any card whose picture carries an
+inline font-size, so it names no game, and the mutation that deletes the
+exemption goes red, i.e. it is load-bearing rather than decorative.
+(4) **Three of the four games whose phone value "moved" were measurement NOISE**,
+and they identified themselves: they are exactly the inline-sized ones, whose
+round is random, so their glyph differs run to run. A before/after diff over a
+randomised surface needs that check, or noise reads as regression.
+(5) The widened scan costs ~110s because it walks 240 games at two viewports —
+paid deliberately, since the alternative is a scan whose scope is a list.
+
 ---
 
 ## Repository Structure

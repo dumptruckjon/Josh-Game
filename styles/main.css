@@ -413,7 +413,12 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
   background: linear-gradient(180deg, #ffffff 0%, #eef4ff 100%);
   border: 2px solid rgba(120, 170, 255, 0.22);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-  font-size: clamp(2.4rem, 12vw, 3.4rem);
+  /* The MAX is what a tablet gets. 12vw only reaches the old 3.4rem cap above
+     ~453px wide, so raising it is invisible at 320 and 390 (both still compute
+     38.4px and 46.8px) and only ever grows the picture on a big screen — where
+     the card itself grows 1.8x and the glyph used to grow 1.16x, leaving Josh
+     an emoji at ~2% of a 196px card on the iPad he actually plays on. */
+  font-size: clamp(2.4rem, 12vw, 4.4rem);
   line-height: 1;
   display: flex;
   align-items: center;
@@ -514,7 +519,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
   display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
   gap: 4px; padding: 10px;
 }
-.more__dot { font-size: 1.7rem; line-height: 1; }
+.more__dot { font-size: clamp(1.7rem, 6.9vw, 2.5rem); line-height: 1; }
 .more__win { outline: 5px solid #7be08a; outline-offset: -2px; }
 
 /* ---------- Coin Shop ---------- */
@@ -714,14 +719,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .bub {
   min-height: 96px; border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #dff6ff, #9fd8ff);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 2.4rem;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: clamp(2.4rem, 9.8vw, 3.6rem);
   transition: opacity 0.2s, transform 0.2s;
 }
 .bub--pop { opacity: 0.4; transform: scale(0.7); }
 
 /* ---------- Peekaboo ---------- */
 .peek__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
-.peek { min-height: 100px; border-radius: 18px; background: #ffe6a8; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 2.8rem; }
+.peek { min-height: 100px; border-radius: 18px; background: #ffe6a8; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: clamp(2.8rem, 11.4vw, 4.2rem); }
 .peek--open { background: #d7f8de; }
 .peek__art { width: 58px; display: block; margin: 0 auto; }
 .peek__art svg { width: 100%; height: auto; display: block; }
@@ -733,7 +738,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .balloon--float { transform: translateY(-160px); opacity: 0.35; }
 
 /* ---------- Music Pad ---------- */
-.music__pad { min-height: 110px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); font-size: 2rem; color: rgba(255, 255, 255, 0.9); }
+.music__pad { min-height: 110px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); font-size: clamp(2rem, 8.2vw, 3rem); color: rgba(255, 255, 255, 0.9); }
 .music__hit { filter: brightness(1.15); transform: scale(0.96); }
 .music__hint { margin-top: 14px; text-align: center; font-size: 0.95rem; color: #5b6b7d; line-height: 1.35; }
 
@@ -746,7 +751,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .find__field { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .find__cell {
   min-height: 80px; border-radius: 16px; background: var(--card);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1); font-size: 2.2rem;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1); font-size: clamp(2.2rem, 9vw, 3.3rem);
 }
 .find__cell--found { background: #d7f8de; opacity: 0.75; }
 /* Dense static scene (count-the-scene) — spans, not tap targets, so they can be small. */
@@ -917,7 +922,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 }
 .wi__card:active { transform: scale(0.97); }
 .wi__hero { display: block; width: 70%; height: 74px; }
-.wi__item { position: absolute; right: 6px; bottom: 4px; font-size: 1.5rem; line-height: 1; }
+.wi__item { position: absolute; right: 6px; bottom: 4px; font-size: clamp(1.5rem, 6.1vw, 2.2rem); line-height: 1; }
 .wi__card--dim { opacity: 0.32; }
 
 /* ---------- Shape's Real Twin (3D solids) ---------- */
@@ -1142,7 +1147,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 @keyframes villainBob { 0%, 100% { transform: translateY(4px); } 50% { transform: translateY(-6px); } }
 .villain__web {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
-  font-size: 3.4rem; opacity: 0; pointer-events: none;
+  font-size: clamp(3.4rem, 13.9vw, 5.1rem); opacity: 0; pointer-events: none;
 }
 .villain--webbed { background: #e8edf6; }
 .villain--webbed .villain__guy { animation: none; filter: grayscale(0.5); opacity: 0.55; transform: scale(0.82); }
@@ -1286,11 +1291,11 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .tub__item--float { top: 64px; }   /* bobs at the waterline */
 @keyframes tubBob { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
 .tub__item--float { animation: tubBob 1.6s ease-in-out 2 0.9s; }
-.tub__guess { font-size: 2.4rem; }
+.tub__guess { font-size: clamp(2.4rem, 9.8vw, 3.6rem); }
 
 /* ---------- 🐣 Mama & Baby ---------- */
 .mb__baby { font-size: clamp(64px, 22vw, 96px); line-height: 1; text-align: center; }
-.mb__mama { position: relative; font-size: 2.6rem; }
+.mb__mama { position: relative; font-size: clamp(2.6rem, 10.6vw, 3.9rem); }
 @keyframes mbNuzzle { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-6deg) scale(1.06); } 70% { transform: rotate(6deg) scale(1.06); } }
 .mb__mama--nuzzle { animation: mbNuzzle 0.7s ease-in-out; }
 .mb__heart { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 30px; pointer-events: none; }
@@ -1382,7 +1387,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 
 /* ---------- 😊 Feelings & 🤝 Kind Helpers ---------- */
 .fl__icons { font-size: clamp(44px, 16vw, 64px); text-align: center; min-height: 64px; }
-.fl__face, .kh__opt { position: relative; font-size: 2.8rem; }
+.fl__face, .kh__opt { position: relative; font-size: clamp(2.8rem, 11.4vw, 4.2rem); }
 .kh__heart { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 30px; pointer-events: none; }
 @keyframes khHeart { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 40% { opacity: 1; transform: translateX(-50%) scale(1.2) translateY(-8px); } 100% { opacity: 0; transform: translateX(-50%) translateY(-24px); } }
 .kh__heart { animation: khHeart 1.05s ease-out forwards; }
@@ -1405,7 +1410,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .dm__gear--hat { right: 24px; top: -14px; }
 .dm__gear--over { right: 14px; top: -34px; font-size: 48px; }
 .dm__gear--hand { right: -6px; bottom: 8px; }
-.dm__chip { font-size: 2.6rem; }
+.dm__chip { font-size: clamp(2.6rem, 10.6vw, 3.9rem); }
 
 /* ---------- 🌈 Season Windows ---------- */
 .sw__item { font-size: clamp(48px, 16vw, 64px); text-align: center; line-height: 1; }
@@ -1925,7 +1930,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 }
 
 /* Quiet Garden — soft buds that bloom. */
-.garden__bud { min-height: 96px; font-size: 3rem; background: linear-gradient(180deg, #f4fff0, #e2f6df); transition: transform 0.5s ease; }
+.garden__bud { min-height: 96px; font-size: clamp(3rem, 12.3vw, 4.5rem); background: linear-gradient(180deg, #f4fff0, #e2f6df); transition: transform 0.5s ease; }
 .garden__bud--open { transform: scale(1.08); background: linear-gradient(180deg, #fff6fb, #ffe9f3); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1943,7 +1948,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .nickel__top { text-align: center; font-size: 3rem; margin-bottom: 6px; }
 .nickel__label { display: inline-block; margin-left: 6px; font-size: 1.6rem; font-weight: 900; color: #b8860b; vertical-align: middle; }
 .nickel__pile { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 2px; font-size: 1.4rem; padding: 6px; }
-.nickel__coin { font-size: 1.4rem; line-height: 1; }
+.nickel__coin { font-size: clamp(1.4rem, 5.7vw, 2.1rem); line-height: 1; }
 
 /* Double It! — a butterfly with mirrored wings. */
 .double__wings { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
@@ -1955,7 +1960,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 /* Long or Short? — stacked caterpillar rows (whole-row buttons). */
 .cater { display: grid; gap: var(--pad); width: 100%; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .cater__row { min-height: 78px; justify-content: flex-start; padding: 8px 12px; flex-wrap: wrap; font-size: 1.6rem; gap: 2px; }
-.cater__head { font-size: 1.8rem; }
+.cater__head { font-size: clamp(1.8rem, 7.3vw, 2.7rem); }
 .cater__seg { font-size: 1.5rem; line-height: 1; }
 
 /* Blast-Off Countdown. */
@@ -2052,7 +2057,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* Silly Stories — a composite animal+item card. */
 .silly__card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1; }
-.silly__a { font-size: clamp(2rem, 11vw, 3rem); }
+.silly__a { font-size: clamp(2rem, 11vw, 3.8rem); }
 .silly__i { font-size: clamp(1.4rem, 7vw, 2rem); }
 
 /* More in the Pond — a mixed scene + two kind choices. */
@@ -2063,7 +2068,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   border: 2px solid rgba(80, 150, 220, 0.25);
 }
 .more__item { font-size: clamp(1.6rem, 8vw, 2.2rem); line-height: 1; }
-.more__choice { font-size: clamp(2rem, 11vw, 2.8rem); }
+.more__choice { font-size: clamp(2rem, 11vw, 3.6rem); }
 
 /* Little Detective — clue bar + card grid + self-checking fade. */
 .clue__bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 12px; }
@@ -2073,7 +2078,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   border-radius: 16px; background: #fff8ec; border: 2px solid rgba(120, 170, 255, 0.3);
 }
 .clue__plus { font-size: clamp(1.4rem, 7vw, 2rem); font-weight: 900; color: #7a6a3a; }
-.clue__pick { font-size: clamp(2rem, 11vw, 2.8rem); transition: opacity 300ms ease, filter 300ms ease; }
+.clue__pick { font-size: clamp(2rem, 11vw, 3.6rem); transition: opacity 300ms ease, filter 300ms ease; }
 .clue__pick--dim { opacity: 0.28; filter: grayscale(0.6); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2143,7 +2148,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   border-radius: 18px; background: rgba(255, 255, 255, 0.5); border: 2px dashed rgba(120, 170, 255, 0.3);
 }
 .house__part { font-size: clamp(2rem, 11vw, 2.8rem); line-height: 1; }
-.house__piece { font-size: clamp(2rem, 11vw, 2.6rem); }
+.house__piece { font-size: clamp(2rem, 11vw, 3.4rem); }
 
 /* Hello Around the World — four friends who wave and greet. */
 .hello__bubble {
@@ -2165,7 +2170,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; font-size: 1.5rem;
 }
 .pizza__got { line-height: 1; }
-.pizza__slice { font-size: clamp(2rem, 11vw, 2.8rem); }
+.pizza__slice { font-size: clamp(2rem, 11vw, 3.6rem); }
 
 /* Grandma's Visit — a warm hunt through Josh's toys. */
 .grandma__grid { max-width: 320px; margin: 6px auto; }
@@ -2202,7 +2207,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 }
 .table__slot--set { filter: none; color: inherit; background: #fff2c9; border-style: solid; border-color: #f0b860; }
 .table__tray { margin-top: 4px; }
-.table__item { font-size: clamp(2rem, 11vw, 2.8rem); }
+.table__item { font-size: clamp(2rem, 11vw, 3.6rem); }
 
 /* Shared mechanic-A HELD state (set-table, match-all, and every future
    pick-and-place game) — a lift + glow so the picked item reads as "in hand". */
@@ -2253,7 +2258,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 /* The Fruit Graph — three columns you tap. */
 .graph { align-items: end; }
 .graph__col { display: flex; flex-direction: column-reverse; align-items: center; gap: 3px; padding: 8px 4px; min-height: 120px; justify-content: flex-start; }
-.graph__fruit { font-size: 1.7rem; line-height: 1; }
+.graph__fruit { font-size: clamp(1.7rem, 6.9vw, 2.5rem); line-height: 1; }
 
 /* Fullest Glass — three drawn glasses. */
 .glass__glass { padding: 6px; }
@@ -2261,7 +2266,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* Partner Up — ducks pairing off. */
 .partner__say { text-align: center; font-size: clamp(1.1rem, 5.5vw, 1.5rem); font-weight: 800; color: #2b6cff; margin: 4px 0 10px; min-height: 1.6em; }
-.partner__duck { font-size: clamp(2rem, 11vw, 2.8rem); }
+.partner__duck { font-size: clamp(2rem, 11vw, 3.6rem); }
 .partner__duck--paired { background: #eafbe8; border-color: #7be08a; }
 
 /* Count the Animals — a mixed scene + number chips. */
@@ -2276,7 +2281,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* Sandwich Shop — the growing stack + the pantry grid. */
 .sandwich__tray { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; min-height: 2.6rem; font-size: 2rem; margin-bottom: 8px; }
-.sandwich__cell { font-size: clamp(2rem, 11vw, 2.8rem); }
+.sandwich__cell { font-size: clamp(2rem, 11vw, 3.6rem); }
 .sandwich__cell--got { background: #eafbe8; border-color: #7be08a; opacity: 0.7; }
 
 /* Splat Studio — a canvas that fills with color blobs + a wipe sponge. */
@@ -2343,7 +2348,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 /* What Goes First? — a friend + two clothing choices. */
 .dress__friend { width: 120px; height: 120px; margin: 4px auto 8px; }
 .dress__friend svg { width: 100%; height: 100%; }
-.dress__item { font-size: clamp(2.4rem, 13vw, 3.2rem); }
+.dress__item { font-size: clamp(2.4rem, 13vw, 4.2rem); }
 .dress__item--on { background: #eafbe8; border-color: #7be08a; }
 
 /* Treasure Hunt! — the map/chest + four scene spots. */
