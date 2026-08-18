@@ -8,11 +8,27 @@ name: Deploy watchdog
 # change is not done until the deploy is watched; this is what does the
 # watching when the deploy never starts.
 #
-# ANTI-LOOP, and it is the whole safety argument: this dispatches ONLY when the
-# head commit has ZERO deploy runs of any kind. The moment a run exists —
-# queued, in progress, succeeded, or FAILED — it stops. So a genuinely broken
-# deploy is kicked exactly once and then left alone to be red in the normal
-# way; the watchdog can never turn a failing build into a dispatch storm.
+# THE SECOND SILENCE, added 2026-08 after it cost two commits: a run can EXIST
+# and still never publish. `npx playwright install` hung for 92 minutes, and
+# because deploy.yml is `concurrency: group: pages, cancel-in-progress: false` a
+# hung run holds the group for up to GitHub's 6-hour ceiling and drops the
+# pushes behind it as `cancelled`. 4c98dee and df77afc both ended `cancelled`,
+# the live site quietly kept serving abf31db, and nothing went red — a human
+# opening the site is what found it. The hang itself is fixed at source (see
+# .github/actions/install-browsers), but the CLASS is worth watching for.
+#
+# So this now checks the PROPERTY rather than a proxy for it: does the live site
+# actually serve main's head? "A run exists" correlated with that and stopped
+# correlating the moment a run could exist without publishing.
+#
+# ANTI-LOOP, and it is the whole safety argument. Four independent brakes, and
+# every one of them must be crossed before a single dispatch happens:
+#   1. a run for this sha is still ACTIVE          -> wait, do not race it
+#   2. any run for this sha FAILED                 -> leave it red, never re-kick
+#   3. a workflow_dispatch run for this sha exists -> we already kicked it once
+#   4. the live site already serves this sha       -> nothing is wrong
+# So a genuinely broken deploy is never kicked at all, and a stuck one is kicked
+# exactly once. The watchdog can never turn a failing build into a storm.
 on:
   schedule:
     # Every 30 minutes: a missed deploy is recovered well inside an hour, and
@@ -28,7 +44,7 @@ jobs:
   watch:
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch the deploy if main's head has no run at all
+      - name: Dispatch the deploy if main's head never ran, or ran and never shipped
         uses: actions/github-script@v7
         with:
           script: |
@@ -48,16 +64,66 @@ jobs:
             }
 
             const runs = await github.rest.actions.listWorkflowRuns({
-              owner, repo, workflow_id: "deploy.yml", head_sha: sha, per_page: 1,
+              owner, repo, workflow_id: "deploy.yml", head_sha: sha, per_page: 20,
             });
-            if (runs.data.total_count > 0) {
-              core.info(`head ${short} already has ${runs.data.total_count} deploy run(s) — nothing to do`);
+            const list = runs.data.workflow_runs || [];
+            const kick = async (why) => {
+              core.warning(`${why} Dispatching deploy.yml for ${short}.`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner, repo, workflow_id: "deploy.yml", ref: "main",
+              });
+            };
+
+            // SILENCE #1 — the push fired nothing at all (02312d2, aa19e32).
+            if (list.length === 0) {
+              await kick(`No deploy run exists for ${short} (${ageMin.toFixed(0)} min old) — GitHub did not fire on the push.`);
               return;
             }
 
-            core.warning(
-              `No deploy run exists for ${short} (${ageMin.toFixed(0)} min old) — GitHub did not fire on the push. Dispatching.`
+            // BRAKE 1: something is still running. Never race it.
+            const ACTIVE = ["queued", "in_progress", "pending", "requested", "waiting"];
+            const busy = list.find((r) => ACTIVE.includes(r.status));
+            if (busy) {
+              core.info(`head ${short} has a run that is ${busy.status} — waiting`);
+              return;
+            }
+            // BRAKE 2: a real failure must stay red. This is the difference
+            // between a watchdog and a retry loop.
+            const failed = list.find((r) => r.conclusion === "failure" || r.conclusion === "timed_out");
+            if (failed) {
+              core.info(`head ${short} has a ${failed.conclusion} run — that is a real failure, leaving it alone`);
+              return;
+            }
+            // BRAKE 3: we have already kicked this exact commit once.
+            const mine = list.find((r) => r.event === "workflow_dispatch");
+            if (mine) {
+              core.info(`head ${short} already has a dispatched run (#${mine.run_number}) — one kick per commit`);
+              return;
+            }
+
+            // SILENCE #2 — runs exist, none is active, none failed, and yet the
+            // site may still not be serving this commit. A full deploy is ~35
+            // min, so judging before that would just be racing the pipeline.
+            if (ageMin < 45) {
+              core.info(`head ${short} is ${ageMin.toFixed(0)} min old — too early to call the live site stale`);
+              return;
+            }
+            const url = "https://dumptruckjon.github.io/Josh-Game/";
+            let html = null;
+            try {
+              const res = await fetch(url, { cache: "no-store" });
+              if (res.ok) html = await res.text();
+            } catch (e) {
+              core.info(`could not reach the live site (${e.message}) — treating as unknown, not as stale`);
+            }
+            // Unreachable is NOT stale. Only a page we actually read, that
+            // demonstrably serves a different build, justifies a dispatch.
+            if (html === null) return;
+            if (html.includes(`v=${sha.slice(0, 8)}`)) {
+              core.info(`live site is serving ${short} — nothing to do`);
+              return;
+            }
+            await kick(
+              `head ${short} is ${ageMin.toFixed(0)} min old with ${list.length} run(s), none active and none failed, ` +
+              `but the live site is NOT serving it — the deploy ran and never shipped.`
             );
-            await github.rest.actions.createWorkflowDispatch({
-              owner, repo, workflow_id: "deploy.yml", ref: "main",
-            });

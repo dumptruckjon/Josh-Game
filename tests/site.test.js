@@ -1734,18 +1734,113 @@ test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", (
   assert.match(wd, /workflow_id: *"deploy\.yml", *ref: *"main"/,
     "it must dispatch the DEPLOY workflow on main, not something else");
 
-  // THE SAFETY PROPERTY. It dispatches only when the head commit has ZERO runs
-  // of any kind, so the moment a run exists — including a FAILED one — it stops.
-  // Without this a broken deploy would be re-kicked every 30 minutes for ever,
-  // which is a worse bug than the one being fixed.
   assert.match(wd, /listWorkflowRuns\(\{[\s\S]{0,200}head_sha: *sha/,
     "it must look for runs of THIS head commit, or it cannot tell a missed deploy from an old one");
-  assert.match(wd, /total_count > 0[\s\S]{0,240}?return;/,
-    "it must bail out when ANY run already exists — that is what stops a failing deploy being re-kicked for ever");
 
-  // and it must not race a run that is simply still being created
+  // SILENCE #1 — the push fired nothing at all.
+  assert.match(wd, /list\.length === 0[\s\S]{0,200}?kick\(/,
+    "zero runs for the head commit must still dispatch — that is the original failure this exists for");
+
+  // SILENCE #2 — a run EXISTED and never shipped. It cost two commits on
+  // 2026-08-18: a hung install held the `pages` concurrency group, the pushes
+  // behind it came back `cancelled`, and the live site quietly served an older
+  // build with nothing red. "A run exists" was a PROXY for "the site is
+  // current", and it stopped tracking it the moment a run could exist without
+  // publishing — so the watchdog now checks the property itself.
+  assert.match(wd, /fetch\(url/,
+    "it must actually read the live site — that is the property, everything else is a proxy for it");
+  assert.match(wd, /includes\(`v=\$\{sha\.slice\(0, 8\)\}`\)[\s\S]{0,160}?return;/,
+    "…and must do nothing when the live site already serves this commit");
+  assert.match(wd, /html === null\) return;/,
+    "an UNREACHABLE site is not a stale one — a network blip must never trigger a deploy");
+
+  // THE SAFETY PROPERTY, now four independent brakes. Each is what stops this
+  // becoming a retry loop, and a broken build must cross NONE of them.
+  assert.match(wd, /ACTIVE *= *\[[^\]]*"in_progress"[\s\S]{0,240}?return;/,
+    "brake 1: a run still queued or in progress must be waited for, never raced");
+  assert.match(wd, /conclusion === "failure"[\s\S]{0,240}?return;/,
+    "brake 2: a genuinely FAILED deploy must be left red — this is the difference from a retry loop");
+  assert.match(wd, /event === "workflow_dispatch"[\s\S]{0,240}?return;/,
+    "brake 3: one kick per commit — a dispatched run already existing must stop it dead");
+
+  // and it must not race a run that is simply still being created, nor call the
+  // site stale while a ~35-minute pipeline is still legitimately running.
   assert.match(wd, /ageMin < 10[\s\S]{0,200}?return;/,
     "it must ignore a commit younger than ~10 min; a healthy push creates its run within seconds");
+  assert.match(wd, /ageMin < 45[\s\S]{0,200}?return;/,
+    "…and must not judge the live site before a full deploy could plausibly have finished");
+});
+
+test("CI: the watchdog's brakes actually BRAKE, and its two silences actually dispatch", () => {
+  // The test above proves the call sites EXIST. It cannot prove they DO
+  // anything — the recurring lesson here is that a structural scan proves a
+  // line is present and only driving the feature proves it fires. For a
+  // watchdog both failure modes are severe: one that never dispatches is
+  // useless, and one that dispatches when it should not is a storm against a
+  // build that is legitimately red. So the shipped script body is executed
+  // against stubs, once per scenario.
+  const wd = read(".github/workflows/deploy-watchdog.yml");
+  const body = wd.split(/\n *script: \|\n/)[1];
+  assert.ok(body, "could not find the watchdog's script: block — this test would be vacuous");
+  const src = body.split("\n").map((l) => l.replace(/^ {12}/, "")).join("\n");
+  assert.ok(/createWorkflowDispatch/.test(src), "extracted the wrong block");
+
+  const SHA = "0123456789abcdef0123456789abcdef01234567";
+  const run = async ({ ageMin, runs, live }) => {
+    const dispatched = [];
+    const github = {
+      rest: {
+        repos: {
+          getBranch: async () => ({
+            data: { commit: { sha: SHA, commit: { committer: { date: new Date(Date.now() - ageMin * 60000).toISOString() } } } },
+          }),
+        },
+        actions: {
+          listWorkflowRuns: async () => ({ data: { total_count: runs.length, workflow_runs: runs } }),
+          createWorkflowDispatch: async (a) => { dispatched.push(a); },
+        },
+      },
+    };
+    const core = { info: () => {}, warning: () => {} };
+    const context = { repo: { owner: "o", repo: "r" } };
+    const fetchStub = async () => {
+      if (live === "unreachable") throw new Error("ENOTFOUND");
+      return { ok: true, text: async () => live };
+    };
+    const fn = new Function("github", "core", "context", "fetch", `return (async () => {\n${src}\n})();`);
+    await fn(github, core, context, fetchStub);
+    return dispatched.length;
+  };
+
+  const ok = (sha) => ({ status: "completed", conclusion: "success", event: "push", run_number: 1 });
+  const cancelled = { status: "completed", conclusion: "cancelled", event: "push", run_number: 2 };
+  const failed = { status: "completed", conclusion: "failure", event: "push", run_number: 3 };
+  const busy = { status: "in_progress", conclusion: null, event: "push", run_number: 4 };
+  const kicked = { status: "completed", conclusion: "cancelled", event: "workflow_dispatch", run_number: 5 };
+  const CUR = `<script src="./scripts/main.js?v=${SHA.slice(0, 8)}"></script>`;
+  const OLD = `<script src="./scripts/main.js?v=deadbeef"></script>`;
+
+  const cases = [
+    // SILENCE #1 — the push fired nothing. The original reason this exists.
+    ["no run at all, old enough", { ageMin: 20, runs: [], live: OLD }, 1],
+    ["no run at all, too fresh", { ageMin: 5, runs: [], live: OLD }, 0],
+    // SILENCE #2 — a run existed and never shipped (4c98dee / df77afc).
+    ["runs cancelled, site stale", { ageMin: 60, runs: [cancelled], live: OLD }, 1],
+    ["runs cancelled, site CURRENT", { ageMin: 60, runs: [cancelled], live: CUR }, 0],
+    ["succeeded but never published", { ageMin: 60, runs: [ok()], live: OLD }, 1],
+    ["stale but too early to judge", { ageMin: 20, runs: [cancelled], live: OLD }, 0],
+    // THE BRAKES
+    ["brake 1: a run is still active", { ageMin: 60, runs: [busy, cancelled], live: OLD }, 0],
+    ["brake 2: a run FAILED", { ageMin: 60, runs: [failed, cancelled], live: OLD }, 0],
+    ["brake 3: already kicked once", { ageMin: 60, runs: [kicked], live: OLD }, 0],
+    ["a network blip is not staleness", { ageMin: 60, runs: [cancelled], live: "unreachable" }, 0],
+  ];
+  return (async () => {
+    for (const [name, input, want] of cases) {
+      const got = await run(input);
+      assert.equal(got, want, `${name}: expected ${want} dispatch(es), got ${got}`);
+    }
+  })();
 });
 
 test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry", () => {

@@ -1538,6 +1538,22 @@ FINAL attempt too, adding a pointless 60s that makes the failure timing read as
 yet another stall. **`timeout-minutes` on the caller step is the backstop, not
 the mechanism** — composite-action steps cannot declare one, so the bound has to
 live in the script.
+**And the WATCHDOG was asserting a proxy too, so it was rewritten to assert the
+property.** It existed for the sibling silence (a push that fires NO run) and
+bailed the moment any run existed — which is exactly why it was blind to this
+one, where runs existed and simply never published. "A run exists" correlated
+with "the site is current" right up until a run could exist without shipping.
+It now fetches the live page and compares against main's head, with four
+independent brakes that a broken build must cross NONE of: a run still active
+(wait, never race it), any run FAILED (leave it red — that is the whole
+difference between a watchdog and a retry loop), a `workflow_dispatch` run
+already present (one kick per commit), and an UNREACHABLE site treated as
+unknown rather than stale, so a network blip can never trigger a deploy. And
+because a structural scan proves a call site exists and only driving the thing
+proves it fires, the shipped `script:` body is now EXECUTED against stubbed
+`github`/`core`/`fetch` across ten scenarios — mutation-proven three ways:
+deleting the failure brake makes it storm a red build, deleting the unreachable
+guard makes a blip deploy, and short-circuiting the live check makes it useless.
 
 **THE GUARDRAIL I WROTE TO CATCH "THE CARD GREW AND THE PICTURE DID NOT" WAS
 ITSELF SCOPED TO ONE WORLD — the defect it is named for, committed inside the
@@ -1682,9 +1698,10 @@ tooling.
 ├── .github/
 │   ├── workflows/
 │   │   ├── deploy.yml          # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
-│   │   └── deploy-watchdog.yml # every 30 min: dispatch the deploy if main's head has NO run at all
-│   │                           #   (a push sometimes fires nothing — the failure mode is SILENCE). It
-│   │                           #   stops the moment ANY run exists, which is what stops it looping.
+│   │   └── deploy-watchdog.yml # every 30 min: does the LIVE SITE serve main's head? Covers both
+│   │                           #   silences — a push that fires no run, and a run that exists and
+│   │                           #   never publishes. Four brakes stop it looping (active run / any
+│   │                           #   FAILED run / already dispatched once / site unreachable).
 │   └── actions/install-browsers/
 │       └── action.yml          # the ONE owner of `playwright install` — a per-attempt `timeout` + 3
 │                               #   tries, so a stalled download is retried and never HANGS. A hang
