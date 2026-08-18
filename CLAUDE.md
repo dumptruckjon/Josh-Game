@@ -6075,20 +6075,36 @@ for any new `logic.js` function and a browser check if it needs special handling
 
 ## Development Workflow
 
-### FIRST, EVERY SESSION: check the clone is not stale
+### FIRST, EVERY SESSION: check the clone is not stale — AND that you are on `main`
 This runner restores the writable disk from a pinned SNAPSHOT, so a session can
 start with the repo rolled back to an old commit while `git status` reads
 perfectly clean. It happened five times in one session, once mid-edit — and that
 is the dangerous case, because uncommitted work then sits on a stale base and
-committing it REVERTS everything since. Do this before touching anything:
+committing it REVERTS everything since. It can also come back on a DIFFERENT
+BRANCH, which is the same silence in another costume: RULE 1 ships to `main` and
+the deploy only runs there, so a commit made on a side branch is finished work
+that never reaches Josh. Do this before touching anything:
 
 ```bash
-git fetch origin main -q && git log --oneline -1 && git rev-parse --short origin/main
+git fetch origin main -q && git rev-parse --abbrev-ref HEAD && git log --oneline -1 && git rev-parse --short origin/main
 ```
 
 If HEAD is behind `origin/main`: with a clean tree, `git reset --hard
 origin/main`. With uncommitted work, save it first — `git diff > /tmp/save.patch`,
 reset, then `git apply -3 /tmp/save.patch`.
+
+**And VERIFY the push landed — the message is not the evidence.** `git push -u
+origin main` pushes the local ref named `main`; if HEAD is on another branch
+that ref has not moved, so git prints a perfectly truthful **"Everything
+up-to-date"** and nothing has shipped. Worse, `if git push ... | tail -3; then
+echo PUSH OK; fi` tests the exit status of `tail`, which is 0 whatever the push
+did — so a failed push reads as a success. This nearly ended a session
+reporting a shipped fix while the live site stayed two commits stale. Check the
+REMOTE, not the wording:
+
+```bash
+git push origin HEAD:main && [ "$(git ls-remote origin main | cut -c1-8)" = "$(git rev-parse --short=8 HEAD)" ] && echo "remote head matches HEAD"
+```
 
 **This cannot be automated from inside the repo.** A `.claude/` hook lives in the
 very tree that rolls back (and an uncommitted one is simply deleted), and
