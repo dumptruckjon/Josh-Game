@@ -1646,7 +1646,26 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-zochip { font-size: clamp(1.3rem, 6vw, 1.7rem); font-weight: 800; }
 
 /* ---- 数独 (reuses Josh's .sudoku__grid) ---- */
-.hl-sudoku .sudoku__cell { background: #fffdf7; color: #b71c1c; border: 1px solid rgba(180, 120, 20, 0.3); }
+/* Her board is the thing she READS to solve the puzzle, and it was the one board
+   in her world that ignored the tablet entirely: measured 300x300 at BOTH 390 and
+   834 (every other board's container doubles), because .sudoku__grid caps at
+   300px and the cell font caps at 2.4rem. Both caps are Josh's and stay his —
+   these raise them for HER world only, so a 70-year-old gets a bigger grid and
+   bigger digits on a ten-inch screen. Measured after the change: tablet board
+   300 -> 420 with 98px cells and 51px digits, and the PHONE gains a little too
+   (300 -> 358, filling the width it already had) while 320 is untouched at 288
+   and Josh's Picture Squares stays exactly 300 everywhere. The phone gain was
+   not the goal but it is real and harmless, so it is written down rather than
+   engineered away — a comment that claims "the phone is unchanged" when the
+   render says otherwise is the kind of false note this file keeps catching. */
+/* COMPOUND, not descendant: `.hl-sudoku` is the grid ELEMENT itself
+   (class="sudoku__grid sudoku__grid--4 hl-sudoku"), so `.hl-sudoku .sudoku__grid`
+   matches nothing — the cell rule below only works because cells really are
+   descendants. The first cut used the descendant form and the board stayed 300px
+   while the digits grew, which is what measuring the render caught. */
+.sudoku__grid.hl-sudoku { max-width: 420px; }
+.hl-sudoku .sudoku__cell { background: #fffdf7; color: #b71c1c; border: 1px solid rgba(180, 120, 20, 0.3);
+  font-size: clamp(1.6rem, 9vw, 3.2rem); }
 .hl-sudoku .sudoku__cell--blank { background: #fff3c9; box-shadow: inset 0 0 0 3px #d4a437; }
 /* Real 四宫数独: thicker dividers between the four 2×2 boxes (col 2 / row 2). */
 .hl-sudoku .sudoku__cell:nth-child(2), .hl-sudoku .sudoku__cell:nth-child(6),
@@ -1665,7 +1684,15 @@ body.hl-mode .brand { color: #ffe9b0; }
 }
 .hl-countdot { position: absolute; transform: translate(-50%, -50%); font-size: 30px; line-height: 1; }
 .hl-peekbox { background: rgba(255, 248, 236, 0.92); }
+/* Her world's affordance vocabulary is "cream card + gold border = touch this",
+   and the peek cover — the ONE thing she must tap FIRST — was the only control
+   on that screen without it (measured: the cover is a real 250x190 BUTTON with
+   `border: 0px`, while the answer chips beside it carry the 2px gold). So before
+   the reveal, the most button-like objects on screen were the three answers she
+   cannot answer yet. Scoped to her world: `.qp__cloud` is shared with Josh's
+   Quick Peek, where a 4-year-old taps a big emoji and the cue is not the same. */
 .hl-cloth { font-size: 72px; }
+.game--hl .qp__box { border: 2px solid rgba(212, 164, 55, 0.55); }
 
 /* ---- 民俗 ---- */
 .hl-festitem, .hl-clue {
