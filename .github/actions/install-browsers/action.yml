@@ -148,8 +148,25 @@ runs:
           # false. Never `--foreground` here, though: it leaves the command in
           # the shell's own process group, and a command that signals its group
           # then takes the loop with it — measured.
+          # SPLIT FOR ATTRIBUTION, not to change the budget: both halves sit
+          # inside ONE timeout, so an attempt still costs at most PER_ATTEMPT
+          # and the retry arithmetic below is untouched. What it buys is knowing
+          # WHICH half stalled, which the combined `--with-deps` could never say.
+          #
+          # The evidence that this matters: run #326's install finished in 29
+          # SECONDS, and run #328's took 53m32s — and #328's log says "Cache hit
+          # occurred on the primary key playwright-Linux-…", so it downloaded
+          # nothing. The browsers come from the actions cache; what is left to
+          # stall is apt, exactly as this file predicted when the cache landed.
+          # A killed attempt now leaves its phase marker as the last line, so
+          # the next person reads the cause instead of re-deriving it.
           timeout --signal=TERM --kill-after=30s "${PER_ATTEMPT}s" \
-            npx playwright install --with-deps chromium webkit
+            bash -c '
+              echo "::notice::install 1/2 — system deps (apt); this is the half that stalls"
+              npx playwright install-deps chromium webkit || exit $?
+              echo "::notice::install 2/2 — browsers (served from the actions cache on a hit)"
+              npx playwright install chromium webkit
+            '
           code=$?
           if [ "$code" -eq 0 ]; then
             echo "::notice::Playwright browsers installed on attempt $i"

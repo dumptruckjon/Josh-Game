@@ -2068,6 +2068,26 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
   // the SHELL's process group, which reproduces the exact failure signature.
   assert.ok(!/--foreground/.test(actCode0),
     "never --foreground here: it puts the command back in the shell's own process group");
+  // …and the attempt must be ATTRIBUTABLE. The browser cache made the download
+  // free — run #326 installed in 29 SECONDS — yet run #328 still burned 53m32s
+  // here while its own log said "Cache hit occurred on the primary key", i.e. it
+  // downloaded nothing. So the stall is apt, and a combined `--with-deps` can
+  // never say that: the two halves run as separate labelled commands inside ONE
+  // timeout, which leaves the phase marker as the last line when a stall is
+  // killed. One timeout, so the per-attempt budget and the retry arithmetic are
+  // unchanged — this is diagnosis, not a re-tune.
+  assert.ok(!/install --with-deps/.test(actCode0),
+    "the combined --with-deps hides WHICH half stalled — run the two phases separately");
+  assert.match(actCode0, /npx playwright install-deps [^\n]*chromium[^\n]*webkit/,
+    "the apt half must be its own command, so a killed attempt names it");
+  assert.match(actCode0, /npx playwright install chromium webkit/,
+    "…and the browser half must be its own command too");
+  assert.equal((actCode0.match(/timeout --signal/g) || []).length, 1,
+    "both phases must sit inside ONE timeout, or an attempt could cost twice the bound and the 3 x PER_ATTEMPT arithmetic against the caller's backstop stops holding");
+  for (const phase of [/::notice::install 1\/2/, /::notice::install 2\/2/]) {
+    assert.match(actCode0, phase,
+      "each phase must announce itself, or a killed attempt still cannot be attributed");
+  }
   assert.match(act, /for i in \$\(seq 1 "\$ATTEMPTS"\)/,
     "it must actually loop — one bounded attempt turns a transient stall into a red build");
   assert.ok(/ATTEMPTS=([2-9]|\d\d)/.test(act),

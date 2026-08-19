@@ -1882,6 +1882,29 @@ the seed is read back after a second reload and ASSERTED, so the precondition
 verifies itself instead of being hoped for. Both halves are then mutation-proven,
 and the guard's mutation reproduces the exact `object is not iterable` throw the
 engine probe predicted.
+
+**AND THE INSTALL STALL WAS FINALLY ATTRIBUTED, by reading a log line rather
+than re-tuning a constant for the fourth time.** Three more stalls landed the
+same day (53m32s, 26m35s, and one 49-minute run in flight), and the decisive
+datum is in run #328's own log: **"Cache hit occurred on the primary key
+playwright-Linux-…"**. The cache HIT, so that 53-minute install downloaded
+nothing — run #326 proves the healthy shape of a hit at **29 seconds**. So the
+CDN is off the critical path exactly as intended, and what is left to stall is
+apt, which is what this file already predicted when the cache landed. The
+combined `npx playwright install --with-deps` could never say that, so the two
+halves now run as separate labelled commands inside ONE `timeout`: the
+per-attempt budget and the `3 x PER_ATTEMPT < backstop` arithmetic are
+unchanged, and a killed attempt leaves its phase marker as the last line. **This
+is diagnosis, not a re-tune** — and note the bound was NOT touched, because the
+retry keeps recovering (run #328 succeeded on attempt 3, the second time that
+has happened) and this file's own rule is that a bound is not raised without a
+run that made all three attempts and ran out of TIME rather than out of luck.
+The behavioural guardrail needed no rewrite, which is the tell that the change
+is minimal: its flaky stub short-circuits on a failing first phase, so the
+per-attempt counting still holds. Three new clauses pin the split (no
+`--with-deps`, both phases named, exactly ONE `timeout`), each mutation-proven —
+the last one because a second `timeout` would silently double an attempt's cost
+and break the arithmetic against the caller's `timeout-minutes`.
 **Four method notes, and three of them are traps this file already names.**
 (1) **The flattening trap, twice in one sitting, written by the person who
 documented it.** Quick March's clause derived its expected ratio from
