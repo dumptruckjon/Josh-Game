@@ -41,6 +41,13 @@ runs:
     # browsers already present and does only the apt `--with-deps` work; on a
     # miss it downloads exactly as before, still bounded and still retried.
     #
+    # MEASURED, run #323: a warm cache put one job's install at 41 SECONDS.
+    # The same run's other job still took 18m38s with a cache HIT (its post
+    # step saved nothing, which is what a hit looks like) — so that time was
+    # entirely apt, not the download. Read that carefully before touching the
+    # bound: the cache removes the CDN, and what is left to stall is apt, which
+    # is exactly what both of the runs that lost a deploy were stuck in.
+    #
     # The path is Playwright's DEFAULT browsers directory on Linux. That
     # matters more than it looks: caching a directory the install does not
     # actually use is a no-op that looks like a fix and reports a cache hit

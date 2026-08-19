@@ -1052,14 +1052,15 @@
 
   // A compact stat line for the tower panel — so the player can read what a
   // tower actually does at its current tier (premium-TD table stakes).
-  function statLine(t) {
+  function statLine(t, tierAt) {
     const def = DATA.TOWERS[t.lineId];
+    const tier = tierAt || t.tier;
     // ASK THE ENGINE. These are the numbers the tower actually fights with —
     // night, 🦉, ⚡ a power pad and 🧊 Tail Wind all move the range, and five
     // star-tree nodes move dps/splash/aura/soldier-hp/crit. Read from DATA this
     // line said "3 rng" on a night level while the ring beside it drew 2.55.
-    const s = (cur && cur.engine.towerStats && cur.engine.towerStats(t.id))
-      || ((t.tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[t.tier - 1]);
+    const s = (cur && cur.engine.towerStats && cur.engine.towerStats(t.id, tierAt))
+      || ((tier === 4 && t.branch) ? def.branches[t.branch] : def.tiers[tier - 1]);
     // Engine values are floats (2.4 aura + 0.3 Cold Front is 2.7000000000000002,
     // and a night range is 2.5499999…), so every number is formatted rather than
     // concatenated — a stat line reading "2.7000000000000002 aura" would be a
@@ -1068,7 +1069,7 @@
     if (t.lineId === "fan") {
       let str = "❄️ " + Math.round(s.slow * 100) + "% slow · " + num(s.auraRange) + " aura";
       if (s.chain) str += " · chain"; else if (s.zapDps) str += " · " + s.zapDps + " zap";
-      return str + roadTxt(t);
+      return str + roadTxt(t, tier);
     }
     if (t.lineId === "camp") {
       const dps = s.soldiers * s.dmg / s.rate;
@@ -1078,7 +1079,7 @@
     let str = dps.toFixed(0) + " dps · " + num(s.range) + " rng";
     if (s.splash) str += " · 💥" + num(s.splash);
     if (s.crit) str += " · crit";
-    return str + roadTxt(t);
+    return str + roadTxt(t, tier);
   }
 
   // How much of the lane this tower actually reaches from the pad it stands on.
@@ -1087,9 +1088,9 @@
   // another — a difference the branch audit measured at up to 5 lives. Asked of
   // the ENGINE (night, 🦉, ⚡ and 🎯 all live in there), and the tower's own
   // branch is passed so a tier-4 reads its OWN reach rather than tier 3's.
-  function roadTxt(t) {
+  function roadTxt(t, tierAt) {
     if (!cur || !cur.engine.coverageOf) return "";
-    const c = cur.engine.coverageOf(t.lineId, t.tier, t.cx, t.cy, t.branch);
+    const c = cur.engine.coverageOf(t.lineId, tierAt || t.tier, t.cx, t.cy, t.branch);
     return c == null ? "" : " · " + (c * 100).toFixed(0) + "% road";
   }
 
@@ -1371,6 +1372,15 @@
           '<div class="td-panel">' +
             '<span class="td-panel__name">' + s.name + "</span>" +
             '<span class="td-panel__stats">' + statLine(t) + "</span>" +
+            // What ⬆ actually BUYS. The most frequent decision in the game
+            // showed a price and nothing else, while the tier-3 branch cards
+            // beside it have always stated their move (road 12%→28%). Same
+            // formatter as the line above, deliberately — a second one is how
+            // the current and the preview drift apart, which is the defect
+            // that made the panel print 110 while the engine charged 99.
+            (t.tier < 3
+              ? '<span class="td-panel__next">→ ' + statLine(t, t.tier + 1) + "</span>"
+              : "") +
             middle + control +
             // ↩ UNDO takes the SELL slot rather than sitting beside it. Same
             // button, same place, same size — so offering it costs no layout,

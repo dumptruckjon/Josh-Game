@@ -148,6 +148,22 @@
   // Every power costs ⚙️ Toy Energy as well as gold. Gold prices stay where they
   // are on purpose: cutting them would be a 4-5x buff in the wrong direction and
   // would delete the last gold sink. Energy is what bites late, gold early.
+  // What each aiming mode MEANS. The tower panel cycles "🎯 first / last /
+  // strong / close / cheap" and nothing anywhere said what they were — and
+  // "first" (furthest along the lane, i.e. closest to your door) versus
+  // "close" (nearest to the gun) is genuinely ambiguous. It is not a cosmetic
+  // choice: measured over the boss finales the best mode swings a level by 4-9
+  // lives, and which mode wins differs per level. The ENGINE owns the list
+  // (TARGET_MODES); this owns the words, and a guardrail asserts every mode the
+  // engine offers has an entry, so a sixth cannot ship undocumented.
+  const TARGETING = {
+    first: "the body FURTHEST along the lane — the one about to reach your door. The safe default, and the only mode that sticks to its target instead of re-picking every tick.",
+    last: "the body that has come the LEAST far. Catches a wave early, before it reaches the crowded end of your board.",
+    strong: "the most hp left on the field. Aims at whatever is hardest to kill, which is usually the thing that would actually get through.",
+    close: "whatever is nearest to THIS gun. Wastes the least travel time, so it suits a short-ranged tower on a busy stretch.",
+    cheap: "the body worth the most gold. A 💰 Economy pick — it turns your guns toward the payday rather than the threat.",
+  };
+
   const ABILITIES = [
     // 🧨 also REVEALS: untargetability is the one thing a big blast has no answer
     // to, and a standalone 🔦 button would be dead on most levels (there is no
@@ -2282,7 +2298,7 @@
     },
   };
 
-  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, CHIPS, TOWERS, ENEMIES, WORLDS, MUSIC, BACKBONE_TYPES, PRE_CONTRACT_WORLDS, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
+  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, TARGETING, CHIPS, TOWERS, ENEMIES, WORLDS, MUSIC, BACKBONE_TYPES, PRE_CONTRACT_WORLDS, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
 
   if (typeof module !== "undefined" && module.exports) module.exports = DATA;
   if (global && typeof global === "object") global.TDData = DATA;

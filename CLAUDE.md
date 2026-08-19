@@ -2315,6 +2315,56 @@ decision axis the Oil Drum opened: it jams the nearest gun where it DIES
 (`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
 you break it is the choice. Like the Drum it measures outcome-neutral on the
 shipped oracle and ships for legibility, not for the curve.
+**THE MOST FREQUENT DECISION IN THE GAME SHOWED A PRICE AND NOTHING ELSE.**
+The ⬆ button read `110🪙` while the tier-3 branch cards two lines below it have
+always stated their move (`road 12%→28%`) — so the panel told you what a 300-gold
+ultimate buys and not what a 110-gold upgrade buys, which is the same
+information problem the `% road` figure fixed for placement, one decision over.
+It now previews the next tier on a green `→` line. Four things worth keeping.
+(1) **It is the SAME formatter, parameterised** — `towerStats(towerId, tierAt)`
+rather than a second function, because this is the only place the star-tree mods
+are applied to a printable stat block and two copies of that is exactly how the
+panel came to print 110 while the engine charged 99. It uses the tower's own
+`cx/cy/supRange`, so the preview keeps its ⚡ power pad and its 🧊 Tail Wind
+support — an upgraded tower does not lose them. (2) **Measured against the fold,
+because this panel is the one a third branch row was rejected for** (+111px, past
+the fold at 320×480, 320×568 and landscape): the preview costs **+26px**
+(183 → 209) and sits at 171..380 in a 480-tall viewport, ~100px clear. (3) **The
+mutation that makes the panel too tall fired the WRONG clause** — a 9rem preview
+disturbed the tier-3 flow, so the "a tier-3 panel offers branches" assertion
+failed first and the fold clause never ran. Reordered so the fold check comes
+first; the documented "a mutation that fires an EARLIER clause has not proven
+the later one", now landing on layout rather than on text. (4) **And a mutation
+that leaves the rest of a sentence intact does not shorten the string** — cutting
+`close: "whatever is nearest…` to `close: "x` left 80 characters of tail and the
+`length > 20` clause passed; the honest mutation deletes the whole entry.
+**The same pass gave the 🎯 button its words.** It cycles *first / last / strong
+/ close / cheap* and nothing in the app said what any of them meant — while
+`AUDIT targeting is a LIVE lever` measures the best mode as worth **4-9 lives**
+on a boss finale, with a different winner per level. "First" (furthest along the
+lane) versus "close" (nearest the gun) is genuinely ambiguous, so a lever that
+decides levels was unreadable. `DATA.TARGETING` owns the words, the ENGINE still
+owns the list, and a derived guardrail asserts every mode `targetingModes()`
+offers has a description AND that nothing is described which the engine never
+offers — so a sixth mode cannot ship undocumented and a removed one cannot leave
+a paragraph behind. Paired, per the standing rule, with a browser test that
+opens the real 📖 Guide and reads the modes off the rendered page: a structural
+scan proves the table exists, only opening the guide proves the render loop puts
+it there. The guide also now mentions the ⬆ preview, because a feature shipped
+without its description is the side-door staleness class, and that was fixed an
+hour earlier in the same file.
+**And the Powers rows stated cost, ⚙️, cooldown and where to tap — but not how
+BIG.** 🧨 is 130🪙 and 2.4 cells wide, and the one number that decides WHERE you
+tap was the one missing, so an aimed power was aimed by eye. It is a data field
+already (`ABILITIES[].radius`), shown only when present so an instant power does
+not grow a meaningless "0 cells", and guardrailed by derivation. Its first
+clause matched `radius + " cells"`, which **passed for 🍯 Sticky because "2
+cells" appears elsewhere in the guide** — the mutation named only two of three
+powers, which is the tell. Matching the exact rendered phrase names all three.
+A substring assertion over a page's whole text can be satisfied by a
+coincidence; make the needle specific enough that only the thing under test can
+produce it.
+
 **A RESTORED CHECKPOINT COERCED ITS ARRAY AND TRUSTED ITS NUMBERS — the same
 function disagreeing with itself, which is the third time that smell has found
 a real defect.** `resumeMidRun` reads `Array.isArray(mr.towers) ? mr.towers :

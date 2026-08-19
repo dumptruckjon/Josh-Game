@@ -6515,3 +6515,138 @@ test("⏩ fast-forward is remembered between levels, and a junk value cannot fre
   await page.evaluate(() => { window.__TD.resetSave(); });
   await page.reload();
 });
+
+test("the ⬆ button says what it BUYS, not just what it costs", async () => {
+  // Upgrading is the most frequent decision in the game after placement, and
+  // the panel showed a price and nothing else — while the tier-3 branch cards
+  // beside it have always stated their move (road 12%→28%). Same information
+  // problem the % road figure fixed for placement, one decision over.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const pad = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 42 });
+    window.__TD.grantGold(5000);
+    const p = window.__TD.engine().levelDef.pads[0];
+    window.__TD.engine().place("dart", p.id);
+    return p;
+  });
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-panel").waitFor({ state: "visible" });
+
+  const read = await page.evaluate(() => {
+    const e = window.__TD.engine();
+    const t = e.state.towers[0];
+    const now = e.towerStats(t.id);
+    const next = e.towerStats(t.id, t.tier + 1);
+    return {
+      tier: t.tier,
+      cur: (document.querySelector(".td-panel__stats") || {}).textContent || "",
+      nxt: (document.querySelector(".td-panel__next") || {}).textContent || "",
+      curDps: (now.dmg / now.rate).toFixed(0),
+      nextDps: (next.dmg / next.rate).toFixed(0),
+    };
+  });
+  assert.equal(read.tier, 1, "the fixture must open a tier-1 tower, or there is nothing to preview");
+  assert.ok(read.nxt, "a tier-1 tower must preview what its ⬆ buys");
+
+  // It must be the ENGINE's next-tier number, not a re-derivation from DATA —
+  // the defect that made this panel print 110 while the engine charged 99.
+  assert.ok(read.nxt.includes(read.nextDps + " dps"),
+    `the preview must state the engine's tier-2 dps (${read.nextDps}), saw "${read.nxt}"`);
+  // …and the partner clause, or the one above is satisfied by simply repeating
+  // the current line: the number has to MOVE.
+  assert.notEqual(read.nextDps, read.curDps,
+    "tier 2 must differ from tier 1, or this test cannot tell a preview from a copy");
+  assert.ok(!read.cur.includes(read.nextDps + " dps"),
+    `the CURRENT line must still read tier 1 (${read.curDps} dps), saw "${read.cur}"`);
+
+  // The extra line must not push the panel past the fold — this panel is the
+  // one a third branch row was measured against and rejected for (+111px, past
+  // the fold at 320x480, 320x568 AND landscape).
+  const spill = [];
+  for (const vp of [{ width: 320, height: 480 }, { width: 320, height: 568 },
+                    { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(vp);
+    await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); window.__TD.grantGold(5000); });
+    await page.evaluate((p) => { window.__TD.engine().place("dart", p.id); }, pad);
+    const r2 = await page.locator("#screen-td-play .td-canvas").boundingBox();
+    const s2 = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+    await page.mouse.click(r2.x + s2.x, r2.y + s2.y);
+    await page.waitForTimeout(60);
+    const box = await page.evaluate(() => {
+      const b = document.querySelector(".td-bubble");
+      if (!b || b.hidden) return null;
+      const r = b.getBoundingClientRect();
+      return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) };
+    });
+    if (!box) { spill.push(`${vp.width}x${vp.height}: the panel never opened`); continue; }
+    if (box.top < 0 || box.bottom > vp.height + 1) spill.push(`${vp.width}x${vp.height}: ${box.top}..${box.bottom} vs ${vp.height} tall`);
+    if (box.left < 0 || box.right > vp.width + 1) spill.push(`${vp.width}x${vp.height}: ${box.left}..${box.right} vs ${vp.width} wide`);
+  }
+  assert.deepEqual(spill, [], "the upgrade preview must not push the panel off screen:\n" + spill.join("\n"));
+  // A tier-3 tower has branches instead, and must NOT offer an upgrade preview.
+  // Back to a known viewport first: the fold loop above left the last one, and
+  // the pad's screen position moves with it.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 42 }); });
+  await page.waitForTimeout(60);
+  const rect3 = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const sp3 = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+  await page.evaluate((p) => {
+    const e = window.__TD.engine();
+    window.__TD.grantGold(5000);
+    if (!e.state.towers.length) e.place("dart", p.id);
+    const t = e.state.towers[0];
+    e.upgrade(t.id); e.upgrade(t.id);
+  }, pad);
+  await page.mouse.click(rect3.x + sp3.x, rect3.y + sp3.y);
+  await page.locator(".td-panel").waitFor({ state: "visible" });
+  const atThree = await page.evaluate(() => ({
+    tier: window.__TD.engine().state.towers[0].tier,
+    nxt: document.querySelector(".td-panel__next"),
+  }));
+  assert.equal(atThree.tier, 3, "the fixture must have reached tier 3");
+  assert.equal(atThree.nxt, null, "a tier-3 panel offers branches, not an upgrade preview");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.TDUI.hideBubble());
+});
+
+test("the guide RENDERS every aiming mode, not just declares them", async () => {
+  // A structural scan proves the table exists; only opening the guide proves
+  // the render loop puts it on the page. This repo has shipped that gap three
+  // times (the gimmick list, the powers row, the branch roles).
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator("#screen-td-home .td-guide-open").click();
+  await page.waitForTimeout(120);
+  const seen = await page.evaluate(() => {
+    const box = document.querySelector(".td-overlay");
+    return { text: box ? box.textContent : "", modes: Object.keys(window.TDData.TARGETING || {}) };
+  });
+  assert.ok(seen.modes.length >= 4, `expected the mode table, saw ${seen.modes.length}`);
+  assert.match(seen.text, /Aiming/, "the guide must carry an Aiming section");
+  for (const m of seen.modes) {
+    assert.ok(seen.text.includes(m), `the guide never renders the "${m}" aiming mode`);
+  }
+  const missing = await page.evaluate(() => {
+    const t = document.querySelector(".td-overlay").textContent;
+    return Object.entries(window.TDData.TARGETING).filter(([, d]) => !t.includes(d.slice(0, 30))).map(([m]) => m);
+  });
+  assert.deepEqual(missing, [], `the guide renders these modes' NAMES but not their descriptions: ${missing.join(", ")}`);
+
+  // An AIMED power must also say how big it is. The rows already stated cost,
+  // ⚙️, cooldown and where to tap, and left out the number that decides WHERE —
+  // aiming a 130🪙 blast by eye is a guess. Derived, so a sixth power with a
+  // radius inherits the requirement.
+  const sized = await page.evaluate(() => {
+    const t = document.querySelector(".td-overlay").textContent;
+    const withR = (window.TDData.ABILITIES || []).filter((a) => a.radius);
+    return { n: withR.length, silent: withR.filter((a) => !t.includes(a.radius + " cells wide")).map((a) => a.id) };
+  });
+  assert.ok(sized.n >= 2, `expected several aimed powers to have a radius, saw ${sized.n}`);
+  assert.deepEqual(sized.silent, [], `these powers never state their blast size: ${sized.silent.join(", ")}`);
+  await page.evaluate(() => window.TDUI.closeOverlay());
+});

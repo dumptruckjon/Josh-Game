@@ -496,6 +496,11 @@
       '<li><span class="td-guide__tico">' + a.icon + "</span><b>" + a.name + "</b> — " + a.role +
       ' <i>(' + a.gold + "🪙 · " + (a.charges === undefined ? 1 : a.charges) + "⚙️ · " + a.cooldown + "s · " +
       (a.kind === "tower" ? "tap a tower" : a.kind === "point" ? "tap the field" : "instant") +
+      // …and HOW BIG. The row already stated what it costs, how often, and
+      // where to tap — and left out the one number that decides WHERE: a 130🪙
+      // blast you aim by eye is a guess. Only shown when the ability has a
+      // radius, so an instant one does not grow a meaningless "0 cells".
+      (a.radius ? " · " + a.radius + " cells wide" : "") +
       ")</i>" + (packed.has(a.id) ? " 🎒" : "") + "</li>").join("");
     // TD-16 shipped five level gimmicks and documented NONE of them — nothing
     // anywhere said night cuts your reach, or that a brown patch slows while a
@@ -545,7 +550,23 @@
       "road that socket reaches. The same tower is worth several times more from one pad than another, so the figure — not the price — " +
       "is usually the choice. A 🪖 Army Guys camp shows none: it blocks the lane rather than shooting down it.</li>" +
       '<li><span class="td-guide__tico">✦</span>At tier 3 a branch card also shows the move, e.g. <i>road 12%→28%</i>. Some ultimates ' +
-      "reach FURTHER and some reach LESS — a Minigun trades reach for rate — so check the arrow before spending.</li></ul>" +
+      "reach FURTHER and some reach LESS — a Minigun trades reach for rate — so check the arrow before spending.</li>" +
+      '<li><span class="td-guide__tico">⬆</span>Below tier 3 the panel previews the upgrade on a green <i>→</i> line: the same figures ' +
+      "the tower shows now, as they would be one tier up. Compare the two lines rather than the price.</li></ul>" +
+      // Targeting was a cycle button with four words on it and no explanation
+      // anywhere — and "first" vs "close" is genuinely ambiguous. It is also
+      // NOT cosmetic: over the boss finales the best mode swings a level by
+      // 4-9 lives and the winner differs per level, which is exactly the kind
+      // of lever that is worthless if the player cannot read it. DERIVED from
+      // DATA.TARGETING, so a sixth mode documents itself.
+      '<p class="td-overlay__sub">Aiming — the 🎯 button</p>' +
+      '<ul class="td-guide__towers"><li><span class="td-guide__tico">🎯</span>Every gun aims on its OWN setting; tap 🎯 on its panel to ' +
+      "cycle. It is worth real lives — on a boss level the best setting can be several lives better than the worst, and which one wins " +
+      "differs from level to level, so it is worth a try when a wave keeps getting through.</li>" +
+      Object.keys(global.TDData.TARGETING || {}).map(function (m) {
+        return '<li><span class="td-guide__tico">·</span><b>' + m + "</b> — " + global.TDData.TARGETING[m] + "</li>";
+      }).join("") +
+      "</ul>" +
       // Each power's cost line reads "130🪙 · 1⚙️", and ⚙️ was never DEFINED
       // anywhere in the app — the symbol appeared in the HUD, on every ability
       // button and here, and nothing said what it was. Numbers quoted from RULES

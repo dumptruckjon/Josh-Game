@@ -1722,12 +1722,23 @@
     // BEHAVIOURALLY (the panel's dps must equal the damage a shot really deals)
     // rather than structurally; a drift shows up as a failing number, not as a
     // reviewer noticing.
-    function towerStats(towerId) {
+    // `tierAt`/`branchAt` ask the same question about a DIFFERENT tier of the
+    // same tower — what the panel needs to show what an upgrade actually buys,
+    // which until now was a price and nothing else. Deliberately a parameter
+    // rather than a second function: this is the only place the star-tree mods
+    // are applied to a printable stat block, and two copies of that is exactly
+    // how the panel came to print 110 while the engine charged 99. The tower's
+    // OWN cx/cy/supRange are used, so the preview keeps its power pad and its
+    // 🧊 Tail Wind support — an upgraded tower does not lose them.
+    function towerStats(towerId, tierAt, branchAt) {
       const t = state.towers.find((x) => x.id === towerId);
       if (!t) return null;
       const def = DATA.TOWERS[t.lineId];
-      const out = Object.assign({}, statsOf(def, t));
-      const reach = towerReach(towerId);
+      const tier = tierAt || t.tier;
+      const branch = branchAt === undefined ? t.branch : branchAt;
+      const out = Object.assign({}, statOf(t.lineId, tier, branch));
+      const r = reachInfo(statOf(t.lineId, tier, branch), t.cx, t.cy, t.supRange);
+      const reach = r ? r.reach : null;
       if (reach != null) out.range = reach;
       // Every multiplied field is coerced: a stat block one field short must
       // DEGRADE, not disable. `undefined * 1.2` is NaN and this line is printed

@@ -7364,3 +7364,24 @@ test("↩ undo takes back the tower you just placed, at FULL price, and nothing 
       "undoing a camp must retire its soldiers, exactly as selling it does");
   }
 });
+
+test("every aiming mode the engine offers is EXPLAINED", () => {
+  // The 🎯 button cycled four words with no explanation anywhere, and "first"
+  // (furthest along the lane) vs "close" (nearest the gun) is genuinely
+  // ambiguous. It is also a measured lever — over the boss finales the best
+  // mode swings a level by 4-9 lives — so a mode the player cannot read is a
+  // mode they cannot use. DERIVED from the engine, like FIELD_TRAIT: a sixth
+  // mode cannot ship undocumented.
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 1, meta: DATA.META_NODES.map((n) => n.id) });
+  const modes = e.targetingModes();
+  assert.ok(modes.length >= 4, `expected the full mode list, saw ${modes.length} — this test would be near-vacuous`);
+  for (const m of modes) {
+    const txt = (DATA.TARGETING || {})[m];
+    assert.ok(txt && txt.length > 20, `aiming mode "${m}" has no description in DATA.TARGETING`);
+  }
+  // …and nothing in the table that the engine will never offer, which would be
+  // a paragraph describing a control the player can never reach.
+  for (const k of Object.keys(DATA.TARGETING || {})) {
+    assert.ok(modes.indexOf(k) >= 0, `DATA.TARGETING describes "${k}", which the engine never offers`);
+  }
+});
