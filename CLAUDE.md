@@ -1550,6 +1550,58 @@ FINAL attempt too, adding a pointless 60s that makes the failure timing read as
 yet another stall. **`timeout-minutes` on the caller step is the backstop, not
 the mechanism** — composite-action steps cannot declare one, so the bound has to
 live in the script.
+
+**TD-19 (a soundtrack, an early warning, and undo) — and the two most useful
+things in it are a feature I did NOT build and a bug I did NOT have.**
+(1) **A marker that appears when the thing happens is not a warning.** The 🚪
+side door was already drawn, but only for waves IN FLIGHT plus the one queued
+during build — i.e. it lit up at the moment your gold was already committed,
+which is why it kept being reported as unanticipatable even after being "fixed"
+twice. It now also warns for the wave AFTER the queued one (during a wave, the
+next one), so a flank always costs you a full build phase of notice. **The
+DESIGN was settled by a screenshot, not by reasoning**: the first cut was a
+0.44-cell dashed ring, which at the real 27px cell read as a smudge among the
+props and blue pads — useless as a warning. It is a radar ping now (a filled
+hotspot, a bar across the lane, and a ring that expands and fades on a 1s
+cycle), in a warm red-orange no floor, pad or lane in any world uses.
+(2) **A clause can be empty for the WRONG reason.** "A door already shown as
+active must not ALSO be warned" passed on L2 — where wave 6 simply has no door,
+so the assertion was vacuous. L26 is the level that can actually test it (waves
+12 and 13 open the SAME door), and the test now uses it. The mutation that
+removes the exclusion is red only because of that second level.
+(3) **The score is DATA and the arrangement is a PURE function**, which is what
+makes a soundtrack testable at all: `DATA.MUSIC` + `TDLogic.musicStep(i, ctx)`
+returns voices, so per-world keys, the build/wave thinning and the boss's minor
+scale are all asserted in node with no audio. The player is then proven
+SEPARATELY in a browser (toggle → composer → `JoshAudio.tone`), because a pure
+test cannot see a dead toggle. Ten worlds now have ten keys; build strips the
+march to its strong beats and drops the percussion; a boss forces the minor
+scale and adds a drone once per phrase.
+(4) **I nearly documented a bug that never existed.** Calling `TDLogic.musicStep`
+from td-main (whose module alias is `TD`) looked like the classic silent death
+behind the composer's try/catch, and I wrote that up — then the mutation that
+re-introduces it stayed GREEN, because `TDLogic`/`TDData` are globals and
+resolve fine from inside the IIFE. Using the module's aliases is a consistency
+fix, not a bug fix. **Run the mutation before believing your own story about a
+bug**, or you leave the next reader hunting a failure that never happened.
+(5) **↩ Undo: a TIME window was the wrong rule.** Sell pays 80%, so a mis-tap
+costs a fifth of the tower — the most common way to lose gold in this game. The
+first cut allowed a full refund for 8 seconds, and 8 seconds of a tower SHOOTING
+is real value, so that is renting a gun for free. Tying it to the BUILD PHASE
+instead (and clearing it in `callWave`) makes the exploit *not exist* rather
+than be small, and is more generous at the same time — the whole build phase
+rather than a countdown. `lastBuild` is deliberately a CLOSURE var, not a field
+on `state`: undo is a UI affordance, so hashState stays untouched and a resumed
+run correctly offers none, exactly like `leverCd`. Both paths go through ONE
+`removeTower()`, so undo cannot forget the blocked-enemy release that `sell`
+remembers.
+(6) **Two QoL items were dropped on inspection, which is the point of looking
+first.** Auto-pause on backgrounding was already shipped — and had NO test, so
+"build it" correctly became "cover it" (the guardrail asserts the ENGINE stops
+advancing, not an internal flag, and both halves are mutation-proven). And
+"remember the last tower line" was dropped because the build menu is already one
+tap per line: it would have saved exactly zero taps while looking like an
+improvement.
 **"A LIST THAT OUTLIVES ITS CONTENTS" HAS NOW HAPPENED FOUR TIMES, so it is a
 guardrail rather than a habit.** The recorded three were PLAN_WORLD_9 saying
 DESIGNED-NOT-BUILT after the world shipped, the "ideas for more games" list being
@@ -2256,6 +2308,20 @@ decision axis the Oil Drum opened: it jams the nearest gun where it DIES
 (`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
 you break it is the choice. Like the Drum it measures outcome-neutral on the
 shipped oracle and ships for legibility, not for the curve.
+**TD-19 COMFORT & SOUND** is three player-facing asks. **🎵 The soundtrack** is
+now a real score rather than one tune: `DATA.MUSIC` holds it as scale DEGREES
+and `TDLogic.musicStep(i, ctx)` arranges it, so each of the ten worlds has its
+own key (`WORLDS[].music`), the build phase is thinned to the strong beats with
+no percussion, a wave is the full march with a harmony line, and a boss forces
+the minor scale plus a drone. Pure, so it is unit-tested with no audio; the
+player chain (toggle → composer → `JoshAudio.tone`) is proven separately in a
+browser. **🚪 The side door now warns a WAVE early** — the marker used to appear
+only for waves in flight or the one already queued, i.e. after the gold was
+committed — drawn as an expanding radar ping in a red-orange nothing else on the
+field uses. **↩ Undo** takes back the tower you just placed at FULL price,
+scoped to the build phase (and cleared by `callWave`) so a tower that has
+actually shot can never be un-bought; it shares ONE `removeTower()` with `sell`
+and takes the sell slot in the panel, so it costs no layout.
 **TD-11 MULTI-PATH EVERYWHERE** takes the TD-7 lane subsystem from 1 of 12 levels
 to 3: **L3** introduces the lever deep in World 1 (so L10's train set is no longer
 the first one you meet) and **L7** gets a mid-game use. The retrofit is safe

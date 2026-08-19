@@ -2334,6 +2334,273 @@ test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () =>
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("⏸ backgrounding the app pauses the battle, and coming back says so", async () => {
+  // This has shipped for a while with NO test, which is a real gap for a feature
+  // whose whole job is to protect a run: a phone call mid-wave must not cost you
+  // the level, and returning must not drop you straight back into a fight you
+  // cannot see. Measured by whether the ENGINE actually advances rather than by
+  // an internal flag — there is no paused() hook, and the effect is the claim.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 4 });
+    window.__TD.script([["call"], ["tick", 30]]);   // a LIVE wave, which is when it matters
+  });
+  // __TD.newGame leaves the run PAUSED, so the battle has to be handed back
+  // before any of this means anything.
+  await page.locator("#screen-td-play .td-pause").click();
+  await page.waitForTimeout(400);
+  const ticks = () => page.evaluate(() => window.__TD.engine().state.tick);
+  const t0 = await ticks();
+  await page.waitForTimeout(400);
+  const t1 = await ticks();
+  assert.ok(t1 > t0, `the probe must start from a RUNNING battle (tick ${t0} -> ${t1})`);
+
+  // go away
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForTimeout(120);
+  const h0 = await ticks();
+  await page.waitForTimeout(500);
+  const h1 = await ticks();
+  assert.equal(h1, h0, `backgrounding must stop the battle (tick ran ${h0} -> ${h1})`);
+
+  // …and come back
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForTimeout(250);
+  const r0 = await ticks();
+  await page.waitForTimeout(400);
+  assert.equal(await ticks(), r0,
+    "returning must NOT silently resume — that drops you into a wave you never saw start");
+  assert.ok(await page.locator('.td-overlay [data-act="music"]').count(),
+    "…it must open the pause menu, so the state is visible and escapable");
+
+  // and the menu hands the battle back
+  await page.locator('.td-overlay [data-act="resume"]').click();
+  await page.waitForTimeout(400);
+  assert.ok((await ticks()) > r0, "Resume must return control");
+});
+
+test("↩ the panel OFFERS undo, and taking it restores the gold", async () => {
+  // The engine test proves the rule; this proves the player can reach it. Undo
+  // deliberately takes the SELL slot rather than adding a fourth control, so
+  // the two claims here are that the slot changes when the offer is live and
+  // that the same button does the right one of the two things.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const pad = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 5 });
+    const p = window.__TD.engine().levelDef.pads[0];
+    return { id: p.id, cx: p.cx, cy: p.cy };
+  });
+  const before = await page.evaluate(() => window.__TD.engine().state.gold);
+  await page.evaluate((p) => { window.__TD.script([["place", "dart", p.id]]); }, pad);
+  const spent = before - (await page.evaluate(() => window.__TD.engine().state.gold));
+  assert.ok(spent > 0, "the probe must actually have bought something");
+
+  const rect = await page.locator(".td-canvas").boundingBox();
+  const sp = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+  await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+  await page.locator(".td-panel").waitFor({ state: "visible" });
+
+  const label = await page.locator(".td-sell").textContent();
+  assert.match(label, /undo/i, `the slot must offer undo on a just-placed tower, saw "${label}"`);
+  assert.ok(await page.locator(".td-sell--undo").count(), "…and must be styled as the undo variant, not the sell one");
+
+  await page.locator(".td-sell").click();
+  await page.waitForTimeout(120);
+  const after = await page.evaluate(() => ({
+    gold: window.__TD.engine().state.gold, towers: window.__TD.engine().state.towers.length,
+  }));
+  assert.equal(after.towers, 0, "undo must remove the tower");
+  assert.equal(after.gold, before, `undo must restore the full ${spent} gold, gold is ${after.gold} of ${before}`);
+
+  // …and once the offer has lapsed the SAME slot is an ordinary sell again, at
+  // the ordinary rate. Without this the test would pass on a button that says
+  // "undo" for ever and quietly refunds everything.
+  await page.evaluate((p) => {
+    window.__TD.newGame(1, { seed: 5 });
+    window.__TD.script([["place", "dart", p.id], ["call"], ["tick", 40]]);
+  }, pad);
+  const mid = await page.evaluate(() => window.__TD.engine().state.gold);
+  const sp2 = await page.evaluate((p) => window.__TD.w2s(p.cx + 0.5, p.cy + 0.5), pad);
+  await page.mouse.click(rect.x + sp2.x, rect.y + sp2.y);
+  await page.locator(".td-panel").waitFor({ state: "visible" });
+  const label2 = await page.locator(".td-sell").textContent();
+  assert.match(label2, /sell/i, `mid-wave the slot must be an ordinary sell, saw "${label2}"`);
+  await page.locator(".td-sell").click();
+  await page.waitForTimeout(120);
+  const back = (await page.evaluate(() => window.__TD.engine().state.gold)) - mid;
+  assert.ok(back > 0 && back < spent,
+    `a mid-wave sell must pay the ordinary rate, not the full price (got ${back} of ${spent})`);
+});
+
+test("🎵 the music actually PLAYS, and follows the run", async () => {
+  // The score's own test is pure, which is what makes it cheap — and is exactly
+  // why it cannot see the PLAYER: the toggle, the clock, the mute gate and the
+  // call into JoshAudio.tone(). This drives all of it through the real ⏸ menu.
+  //
+  // Worth recording, because I nearly wrote the opposite here: the tempting
+  // story was that calling `TDLogic.musicStep` from td-main (whose alias is
+  // `TD`) had left the music silently dead behind the composer's try/catch.
+  // Mutation says otherwise — re-introducing that exact line keeps this test
+  // GREEN, because TDLogic and TDData are globals and resolve fine from inside
+  // the IIFE. Using the module's own aliases is a consistency fix, not a bug
+  // fix, and claiming otherwise would have sent the next reader hunting a
+  // failure that never happened. What this test DOES catch, both proven: a
+  // composer that sounds nothing, and a toggle that no longer starts the loop.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 3 });
+    // the fort's audio is muted by default and music is off by default — both
+    // are the shipped state, so both have to be turned on to hear anything.
+    window.JoshAudio.setMuted(false);
+    window.__heard = [];
+    const real = window.JoshAudio.tone;
+    window.JoshAudio.tone = function (hz, opts) { window.__heard.push({ hz, o: opts || {} }); return real.call(this, hz, opts); };
+  });
+  // drive the REAL control: ⏸ opens the pause menu, then 🎵 Music toggles it.
+  // __TD.newGame leaves the run paused, so the first ⏸ can be a resume — click
+  // until the menu is actually up rather than assuming.
+  for (let i = 0; i < 3; i++) {
+    if (await page.locator('.td-overlay [data-act="music"]').count()) break;
+    await page.locator("#screen-td-play .td-pause").click();
+    await page.waitForTimeout(150);
+  }
+  assert.ok(await page.locator('.td-overlay [data-act="music"]').count(), "the pause menu must offer the music toggle");
+  await page.evaluate(() => { window.__heard.length = 0; });
+  await page.locator('.td-overlay [data-act="music"]').click();
+  // 2.6s is ~13 steps at 190ms. It has to be that long because this runs in the
+  // BUILD phase, where the arrangement is deliberately stripped to the strong
+  // beats — about 0.6 voices per step, so a 7-step window legitimately hears
+  // only 4 notes. The first cut of this assertion failed on working code for
+  // exactly that reason.
+  await page.waitForTimeout(2600);
+
+  const heard = await page.evaluate(() => window.__heard.slice());
+  assert.ok(heard.length >= 6,
+    `turning the music on must actually sound notes, heard ${heard.length}`);
+
+  // …and they must be THIS world's notes, not some other tune. Bedroom is G,
+  // so every pitch has to appear in the pure score for bedroom.
+  const legal = await page.evaluate(() => {
+    const set = new Set();
+    for (const ph of ["build", "wave"]) {
+      for (let i = 0; i < 64; i++) {
+        for (const v of window.TDLogic.musicStep(i, { world: "bedroom", phase: ph })) set.add(v.hz.toFixed(2));
+      }
+    }
+    return [...set];
+  });
+  const stray = heard.map((h) => h.hz.toFixed(2)).filter((h) => legal.indexOf(h) < 0);
+  assert.deepEqual(stray.slice(0, 5), [],
+    `every note must come from THIS world's score, stray pitches: ${stray.slice(0, 5).join(", ")}`);
+
+  // turning it back off must stop the loop, not just mute a note
+  await page.locator('.td-overlay [data-act="music"]').click();
+  await page.waitForTimeout(260);
+  await page.evaluate(() => { window.__heard.length = 0; });
+  await page.waitForTimeout(900);
+  const after = await page.evaluate(() => window.__heard.length);
+  assert.equal(after, 0, `music off must END the loop, still heard ${after} notes`);
+});
+
+test("🚪 a side door warns you a WAVE ahead, not as it opens", async () => {
+  // Reported: you cannot prepare for a flank you are only told about once your
+  // gold is committed. The marker existed but only for waves IN FLIGHT plus the
+  // one queued during build — i.e. it appears at the moment it is too late to
+  // move guns. A door changes WHERE the board needs to be, so it needs a wave
+  // of notice. L2 carries exactly one door, on wave index 5.
+  //
+  // The build phase is set DIRECTLY rather than played forward, deliberately:
+  // the claim under test is which waves the marker looks at, and playing there
+  // would instead be a test of whether 300 gold survives five waves (it does
+  // not — that buys four tier-1 darts). Nothing is ticked, only drawn.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const seen = await page.evaluate(() => {
+    window.__TD.newGame(2, { seed: 7 });
+    const e = window.__TD.engine(), r = window.__TD.render();
+    const out = [];
+    for (let n = 0; n < 7; n++) {
+      const st = e.state;
+      st.phase = "build"; st.waveIdx = n; st.sentIdx = n;
+      const d = r.doorInfo();
+      out.push({ sent: n, doors: d.doors.slice(), soon: d.soon.slice() });
+    }
+    return out;
+  });
+  const at = (n) => seen[n] || {};
+  assert.equal(seen.length, 7, `the probe must reach every build it claims to: ${JSON.stringify(seen)}`);
+
+  // THE CLAIM: one wave out it is WARNED, and it is not yet active.
+  assert.ok(at(4).soon.length > 0,
+    `at the build before wave 5 the door must be warned, saw ${JSON.stringify(at(4))}`);
+  assert.equal(at(4).doors.length, 0,
+    `…and must NOT yet be drawn as an open door, saw ${JSON.stringify(at(4))}`);
+  // …and when the wave is actually queued it flips to active, exactly once.
+  assert.ok(at(5).doors.length > 0,
+    `at the build for wave 5 the door must be ACTIVE, saw ${JSON.stringify(at(5))}`);
+  assert.equal(at(5).soon.length, 0,
+    `…and must not also be warned, or both styles paint the same spot: ${JSON.stringify(at(5))}`);
+  // That last clause is VACUOUS on L2, where wave 6 has no door at all — it is
+  // empty for the wrong reason. L26 is the level that can actually test it:
+  // waves 12 and 13 both open a door at the SAME point, so without the
+  // exclusion the active gate and the warning ring would paint on top of each
+  // other and the player could not tell "open now" from "one wave out".
+  const both = await page.evaluate(() => {
+    window.__TD.newGame(26, { seed: 7 });
+    const e = window.__TD.engine(), r = window.__TD.render();
+    const st = e.state;
+    st.phase = "build"; st.waveIdx = 12; st.sentIdx = 12;
+    const d = r.doorInfo();
+    return { doors: d.doors.slice(), soon: d.soon.slice() };
+  });
+  assert.deepEqual(both.doors, [36], `L26 wave 12 opens its door at 36, saw ${JSON.stringify(both)}`);
+  assert.deepEqual(both.soon, [],
+    `wave 13 opens the SAME door, so it must not ALSO be warned: ${JSON.stringify(both)}`);
+  // two waves out is too early — otherwise the marker is permanent decoration
+  assert.equal(at(3).soon.length + at(3).doors.length, 0,
+    `two waves out is too early to warn, saw ${JSON.stringify(at(3))}`);
+
+  // AND IT ACTUALLY PAINTS. Without this the test proves a data flag, not a
+  // warning — the class this repo hit when the Fan's beam and the muzzle flash
+  // each turned out to draw nothing at all. During build the field is static
+  // and the door sits on the lane, so between two builds the only thing that
+  // can differ in a tight box around it is the warning itself.
+  const ink = await page.evaluate(() => {
+    window.__TD.newGame(2, { seed: 7 });   // back to L2 — the clause above left L26 loaded
+    const e = window.__TD.engine(), r = window.__TD.render();
+    const doorAt = e.levelDef.waves[5].groups.find((g) => g.at > 0).at;
+    const sample = () => {
+      const p = e.posAt(doorAt);
+      const sc = r.worldToScreen(p.x + 0.5, p.y + 0.5);
+      const cv = document.querySelector("#screen-td-play .td-canvas");
+      const g = cv.getContext("2d");
+      const dpr = cv.width / cv.getBoundingClientRect().width;
+      const R = Math.max(6, Math.round(r.cellSize() * 0.75 * dpr));
+      const d = g.getImageData(Math.round(sc.x * dpr) - R, Math.round(sc.y * dpr) - R, R * 2, R * 2).data;
+      let sum = 0; for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+      return sum;
+    };
+    const st = e.state;
+    st.phase = "build"; st.waveIdx = 3; st.sentIdx = 3;
+    r.draw(0); const quiet = sample();
+    st.waveIdx = 4; st.sentIdx = 4;
+    r.draw(0); const warned = sample();
+    return { quiet, warned, soon: r.doorInfo().soon.length };
+  });
+  assert.equal(ink.soon, 1, "the ink probe must be taken in the warned state");
+  assert.notEqual(ink.warned, ink.quiet,
+    `the warning must actually paint on the field (ink ${ink.quiet} -> ${ink.warned})`);
+});
+
 test("a resize while the field is HIDDEN must not collapse the battlefield", async () => {
   // A hidden screen measures 0 wide, and resize() clamped the cell to its
   // minimum — so any code path that starts a level while the play screen is

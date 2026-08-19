@@ -328,46 +328,48 @@
   //      (the Team-Song setTimeout-composer precedent). OFF by default, behind its
   //      own toggle, mute-gated — never gates gameplay on a timer. ----
   let musicTimer = 0;
-  // The first version was ONE bare sine walking an 8-note scale up and back,
-  // forever, looping every 3.4 seconds — no bass, no harmony, no rhythm and no
-  // variation, which is the shape of music that stops being pleasant on about
-  // the third pass. This is a real little toy-march instead: a 32-step phrase
-  // (4 bars) over a walking bass, with the melody resting on some steps so it
-  // breathes, and a B section so the loop is 8 bars long rather than 8 notes.
+  // Two rewrites so far, and each fixed the same complaint one level up.
+  // v1 was ONE bare sine walking an 8-note scale up and back, looping every 3.4
+  // seconds. v2 (TD-6) made it a real toy-march — melody over a walking bass,
+  // AB across 8 bars — and that is what was still playing when the soundtrack
+  // was called thin again: ONE key and ONE arrangement, the same in all ten
+  // worlds and identical whether you were building in silence or watching a
+  // boss walk in. v3 keeps the march and gives it a per-world key, a
+  // phase-aware arrangement and a boss voice; see DATA.MUSIC + TDLogic.musicStep.
   //   Still the setTimeout composer — the documented Team-Song precedent —
   // because JoshAudio.tone() only plays at `currentTime` and gameplay is never
   // gated on a timer. Off by default, behind its own toggle, mute-gated, and
   // it re-checks both every step so a mid-song mute really does silence it.
-  const REST = 0;
-  //                bar 1                    bar 2
-  const MEL_A = [392, 0, 494, 523, 0, 494, 392, 0,   440, 0, 523, 587, 0, 523, 440, 0];
-  const MEL_B = [523, 0, 587, 659, 0, 587, 523, 0,   494, 0, 440, 392, 0, 440, 330, 0];
-  // a walking bass, one note per half-bar, an octave and a half below
-  const BASS_A = [98, 98, 131, 131, 110, 110, 147, 147];
-  const BASS_B = [131, 131, 165, 165, 110, 110, 98, 98];
-  const STEP_MS = 190;                    // ~158 bpm in eighths: a march, not a dirge
   function stopMusic() { if (musicTimer) { clearTimeout(musicTimer); musicTimer = 0; } }
+  // The score itself is DATA (DATA.MUSIC) and the arrangement is a PURE function
+  // (TDLogic.musicStep, aliased TD here), so what plays is unit-testable with no
+  // audio at all.
+  // This is only the player: it keeps the clock, reads the live run for context,
+  // and sounds whatever the step returns through the ONE iOS-safe tone().
+  function musicCtx() {
+    if (!cur) return { phase: "build" };
+    const st = cur.engine.state, def = cur.engine.levelDef;
+    const w = (def.waves || [])[st.waveIdx];
+    return { world: def.world, phase: st.phase === "wave" ? "wave" : "build", boss: !!(w && w.boss) };
+  }
   function startMusic() {
     stopMusic();
     if (!save.settings.music) return;   // NOT gated on Sounds — they are independent
     let i = 0;
     const step = () => {
       try {
-        // Music OFF stops the loop; the global 🔇 only skips the NOTE, keeping
-        // the loop alive so unmuting resumes instantly instead of needing the
+        // Music OFF stops the loop; the global 🔇 only skips the NOTES, keeping
+        // the loop alive so unmuting resumes mid-phrase instead of needing the
         // music toggled off and on again.
         if (!save.settings.music) { musicTimer = 0; return; }
         if (!audioMuted()) {
-          const bar = Math.floor(i / 16) % 2;             // A section, then B
-          const mel = (bar ? MEL_B : MEL_A)[i % 16];
-          const bass = (bar ? BASS_B : BASS_A)[Math.floor((i % 16) / 2)];
-          if (mel !== REST) A.tone(mel, { duration: 0.26, gain: 0.05, type: "triangle" });
-          // the bass lands on the downbeat of each half-bar and is deliberately
-          // plain (no partial, no filter sparkle) so it stays under the melody
-          if (i % 2 === 0) A.tone(bass, { duration: 0.3, gain: 0.055, type: "sine", plain: true });
+          const voices = TD.musicStep(i, musicCtx());
+          for (const v of voices) {
+            A.tone(v.hz, { duration: v.duration, gain: v.gain, type: v.type, plain: v.plain });
+          }
         }
         i += 1;
-        musicTimer = setTimeout(step, STEP_MS);
+        musicTimer = setTimeout(step, (DATA.MUSIC && DATA.MUSIC.stepMs) || 190);
       } catch (e) { musicTimer = 0; }
     };
     musicTimer = setTimeout(step, 300);
@@ -1269,6 +1271,9 @@
               '<span class="td-branch__role">' + b.role + road + "</span></button>";
           }).join("") + "</div>";
         }
+        // ASK THE ENGINE: it owns whether this tower is still un-acted-upon.
+        const undo = cur.engine.undoInfo && cur.engine.undoInfo();
+        const canUndo = !!(undo && undo.id === t.id);
         const control = t.lineId === "camp"
           ? '<button class="td-rally" type="button">🚩 Rally</button>'
           : '<button class="td-target" type="button">🎯 ' + t.targeting + "</button>";
@@ -1277,7 +1282,14 @@
             '<span class="td-panel__name">' + s.name + "</span>" +
             '<span class="td-panel__stats">' + statLine(t) + "</span>" +
             middle + control +
-            '<button class="td-sell" type="button">💰 sell ' + refund + "</button>" +
+            // ↩ UNDO takes the SELL slot rather than sitting beside it. Same
+            // button, same place, same size — so offering it costs no layout,
+            // which matters because this panel is already measured against the
+            // fold at 320x480 and a fourth control would push a tier-3 panel
+            // past it. When it is not on offer the slot is the ordinary sell.
+            (canUndo
+              ? '<button class="td-sell td-sell--undo" type="button">↩ undo ' + undo.refund + "</button>"
+              : '<button class="td-sell" type="button">💰 sell ' + refund + "</button>") +
           "</div>",
           bx, by
         );
@@ -1312,7 +1324,12 @@
       // is about no longer exists.
       UI.bubble.querySelector(".td-sell").addEventListener("click", (e2) => {
         e2.stopPropagation();
-        if (cur.engine.sell(towerId).ok) sfx("sell");
+        // The SAME button does both, and which one is decided by the ENGINE, not
+        // by the label: a panel left open across a phase change would otherwise
+        // still be showing "undo" for a tower that has since fought a wave.
+        const u = cur.engine.undoInfo && cur.engine.undoInfo();
+        const ok = (u && u.id === towerId) ? cur.engine.undoLast().ok : cur.engine.sell(towerId).ok;
+        if (ok) sfx("sell");
         UI.hideBubble(); cur.render.setSelection(null); UI.hud(cur.engine.state);
       });
       const targetBtn = UI.bubble.querySelector(".td-target");

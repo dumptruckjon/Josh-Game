@@ -512,27 +512,55 @@
   // ships (the attic once marched in under the bedroom's bed). `pattern` names
   // the texture the renderer bakes; `top`/`bottom` are the floor gradient;
   // `ink` is the texture's own colour; `road` optionally re-tints the lane.
+  // ---- 🎵 THE SCORE (TD-19) ----
+  // The old loop was ONE melody over a walking bass, AB across 8 bars, in one
+  // fixed key, identical in every world and every phase — so ten rooms and a
+  // 40-level campaign all sounded like the same eight bars. This is the same
+  // idea done properly, and it is DATA plus a pure step function (TDLogic
+  // .musicStep) so it can be unit-tested without any audio at all.
+  //
+  // Everything still goes through the ONE iOS-safe JoshAudio.tone(), is
+  // mute-gated, is off by default, and is driven by the setTimeout composer —
+  // tone() only plays at currentTime, and gameplay is never gated on a timer.
+  const MUSIC = {
+    stepMs: 190,                       // ~158bpm in eighths: a march, not a dirge
+    // Melody and bass are written as SCALE DEGREES, not frequencies, which is
+    // what makes a per-world key a one-line data change instead of a re-write.
+    scales: {
+      bright: [0, 2, 4, 5, 7, 9, 11, 12, 14, 16],   // major
+      dark:   [0, 2, 3, 5, 7, 8, 10, 12, 14, 15],   // natural minor — the boss voice
+    },
+    form: ["A", "A", "B", "A"],        // 64 steps, so the loop is 8 bars, not 2
+    mel: {
+      A: [4, null, 6, 7, null, 6, 4, null, 5, null, 7, 9, null, 7, 5, null],
+      B: [7, null, 6, 4, null, 6, 7, null, 8, null, 7, 5, null, 4, 2, null],
+    },
+    bass: { A: [0, 0, 3, 3, 4, 4, 2, 2], B: [4, 4, 2, 2, 3, 3, 0, 0] },
+    perc: ["k", null, null, null, "t", null, null, null,
+           "k", null, null, null, "t", null, null, null],
+  };
+
   const WORLDS = {
-    bedroom:  { label: "🛏️ Bedroom",  spawnGlyph: "🛏️", backbone: { ground: ["sock", "knight", "blob", "marble"], flier: "balloon" },
+    bedroom:  { music: { root: 196.00, mode: "bright" }, label: "🛏️ Bedroom",  spawnGlyph: "🛏️", backbone: { ground: ["sock", "knight", "blob", "marble"], flier: "balloon" },
       floor: { pattern: "carpet", props: ["blocks", "box", "case"], top: "#2a2350", bottom: "#3a2f63", ink: "rgba(255,255,255,0.05)",
                road: { edge: "#3c2f22", base: "#caa268", top: "#e0bd83", style: "ties", tie: "rgba(58,40,22,0.30)" } } },
-    backyard: { label: "🌳 Backyard", spawnGlyph: "🌳", backbone: { ground: ["acorn", "knight", "blob", "ant"], flier: "hawk" },
+    backyard: { music: { root: 220.00, mode: "bright" }, label: "🌳 Backyard", spawnGlyph: "🌳", backbone: { ground: ["acorn", "knight", "blob", "ant"], flier: "hawk" },
       floor: { pattern: "grass", props: ["bush", "stone", "tin"], top: "#1d4526", bottom: "#2c5c31", ink: "rgba(190,255,170,0.16)",
                road: { edge: "#4a3a22", base: "#b98f56", top: "#d9b478", style: "stones", tie: "rgba(72,58,36,0.32)" } } },
-    toystore: { label: "🧸 Toy Store", spawnGlyph: "🧸", backbone: { ground: ["yoyo", "knight", "blob", "die"], flier: "hawk" },
+    toystore: { music: { root: 261.63, mode: "bright" }, label: "🧸 Toy Store", spawnGlyph: "🧸", backbone: { ground: ["yoyo", "knight", "blob", "die"], flier: "hawk" },
       floor: { pattern: "tile", props: ["box", "blocks", "stone"], top: "#123f4a", bottom: "#17505e", ink: "rgba(190,245,255,0.10)",
                road: { edge: "#3a2c1e", base: "#d8b06a", top: "#efd39a", style: "ties", tie: "rgba(52,34,18,0.24)" } } },
-    attic:    { label: "🧳 Attic",    spawnGlyph: "🧳", backbone: { ground: ["mitten", "knight", "blob", "yarn"], flier: "hawk" },
+    attic:    { music: { root: 164.81, mode: "dark" }, label: "🧳 Attic",    spawnGlyph: "🧳", backbone: { ground: ["mitten", "knight", "blob", "yarn"], flier: "hawk" },
       floor: { pattern: "boards", props: ["case", "box", "stain"], top: "#3a2a1c", bottom: "#4a3625", ink: "rgba(20,12,6,0.32)",
                road: { edge: "#2a1f14", base: "#9d7d52", top: "#c3a273", style: "tape", tie: "rgba(28,20,12,0.34)" } } },
-    garage:   { label: "🔧 Garage",   spawnGlyph: "🔧", backbone: { ground: ["rag", "knight", "blob", "cog"], flier: "hawk" },
+    garage:   { music: { root: 146.83, mode: "dark" }, label: "🔧 Garage",   spawnGlyph: "🔧", backbone: { ground: ["rag", "knight", "blob", "cog"], flier: "hawk" },
       floor: { pattern: "concrete", props: ["tyre", "tin", "stain"], top: "#2b3038", bottom: "#383e47", ink: "rgba(0,0,0,0.22)",
                road: { edge: "#22262c", base: "#8d949e", top: "#a9b1bb", style: "tape", tie: "rgba(255,214,80,0.55)" } } },
-    moving:   { label: "📦 Moving Day", spawnGlyph: "📦", backbone: { ground: ["wad", "knight", "blob", "peanut"], flier: "hawk" },
+    moving:   { music: { root: 174.61, mode: "bright" }, label: "📦 Moving Day", spawnGlyph: "📦", backbone: { ground: ["wad", "knight", "blob", "peanut"], flier: "hawk" },
       floor: { pattern: "cardboard", props: ["box", "case", "tyre"], top: "#7a5326", bottom: "#8d6531", ink: "rgba(60,34,10,0.26)",
                road: { edge: "#33261a", base: "#c9a877", top: "#e3c99c", style: "tape", tie: "rgba(180,150,105,0.55)" } } },
     // World 7 — the van arrived. Bare boards under a pale painter's drop-cloth.
-    newhouse: { label: "🏠 The New House", spawnGlyph: "🪜", backbone: { ground: ["chair", "knight", "blob", "housekey"], flier: "hawk" },
+    newhouse: { music: { root: 196.00, mode: "bright" }, label: "🏠 The New House", spawnGlyph: "🪜", backbone: { ground: ["chair", "knight", "blob", "housekey"], flier: "hawk" },
       floor: { pattern: "dropcloth", props: ["tin", "box", "stone"], top: "#4a4740", bottom: "#5b574d", ink: "rgba(240,236,225,0.13)",
                road: { edge: "#2e2a22", base: "#b7ad97", top: "#dcd4c0", style: "stones", tie: "rgba(120,112,96,0.26)" } } },
     // World 8 — the box that never got unpacked in the New House went out with
@@ -541,7 +569,7 @@
     // the road is a dark rubber conveyor belt so it can never be confused with
     // the New House's pale drop-cloth. Both ♻️ carry U+FE0F — U+267B is
     // text-default and ships as a monochrome sliver on iOS 14.2 without it.
-    sortline: { label: "♻️ The Sort Line", spawnGlyph: "♻️",
+    sortline: { music: { root: 155.56, mode: "dark" }, label: "♻️ The Sort Line", spawnGlyph: "♻️",
       backbone: { ground: ["carton", "knight", "blob", "clip"], flier: "leaflet" },
       floor: { pattern: "grating", props: ["tin", "case", "stain"], top: "#232a2e", bottom: "#2f383d", ink: "rgba(255,196,110,0.09)",
                road: { edge: "#101315", base: "#454b52", top: "#636a73", style: "ties", tie: "rgba(12,14,16,0.55)" } } },
@@ -552,7 +580,7 @@
     // deliberately NOT a belt — a moving-belt road would read as the conveyor
     // GIMMICK, and a mechanic you cannot tell apart from a decoration is the
     // side-door defect all over again.
-    toyworks: { label: "🏭 The Toy Works", spawnGlyph: "🏭",
+    toyworks: { music: { root: 233.08, mode: "dark" }, label: "🏭 The Toy Works", spawnGlyph: "🏭",
       backbone: { ground: ["reject", "knight", "blob", "pellet"], flier: "offcut" },
       floor: { pattern: "mould", props: ["box", "tin", "stain"], top: "#2a2622", bottom: "#3a332c", ink: "rgba(255,158,74,0.10)",
                road: { edge: "#17130f", base: "#5a5148", top: "#7b7064", style: "plates", tie: "rgba(255,190,110,0.30)" } } },
@@ -563,7 +591,7 @@
     // `road.style` (both new) for the reason World 9's were new: the floor
     // guardrail hashes the lane CORRIDOR as well as the whole canvas, and three
     // worlds once shipped the identical road because they simply had no `road`.
-    party: { label: "🎉 The Party", spawnGlyph: "🎉",
+    party: { music: { root: 293.66, mode: "bright" }, label: "🎉 The Party", spawnGlyph: "🎉",
       backbone: { ground: ["popper", "knight", "blob", "sweet"], flier: "streamer" },
       // `stain` is deliberately NOT in this trio, and the reason generalizes: a
       // floor MARK is drawn as a dark ellipse at <=0.62 alpha, which is subtle on
@@ -2244,7 +2272,7 @@
     },
   };
 
-  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, CHIPS, TOWERS, ENEMIES, WORLDS, BACKBONE_TYPES, PRE_CONTRACT_WORLDS, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
+  const DATA = { GRID, TICK_RATE, DIFFICULTIES, RULES, ABILITIES, CHIPS, TOWERS, ENEMIES, WORLDS, MUSIC, BACKBONE_TYPES, PRE_CONTRACT_WORLDS, LEVELS, META_BRANCHES, META_NODES, ACHIEVEMENTS, ENDLESS };
 
   if (typeof module !== "undefined" && module.exports) module.exports = DATA;
   if (global && typeof global === "object") global.TDData = DATA;

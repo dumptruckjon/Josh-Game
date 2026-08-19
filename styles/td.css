@@ -254,6 +254,11 @@ body.td-mode #screens { padding: 0; }
 }
 .td-buy, .td-up { background: #ffd94a; color: #3a2c00; }
 .td-sell { background: #26334f; color: #cfe2ff; }
+/* ↩ Undo takes the sell slot, so it has to READ differently or the player will
+   not notice the offer. Amber, the one hue nothing else in this panel uses
+   (sell is navy, target/branch are green), with dark ink on it — measured
+   9.04:1, the same discipline as the fill above: one ink for one fill. */
+.td-sell--undo { background: #f0b429; color: #2a1a00; }
 /* The same green as the affordable fill, so it takes the same ink: #08331c
    measured 4.45:1 and #052a14 is 4.96:1. One ink for one fill. */
 .td-target { background: #2fa562; color: #052a14; }

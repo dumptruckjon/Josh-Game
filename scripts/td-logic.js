@@ -1762,6 +1762,7 @@
     // shown 272 on a tier-3 dart and handed 306. Same defect as the price flash,
     // on the money moving the other way, which is why it went unreported:
     // nobody complains about being given MORE than the label promised.
+    let lastBuild = null;   // { id, cost, tick } — see undoLast()
     function refundOf(towerId) {
       const t = towerById(towerId);
       if (!t) return 0;
@@ -1821,11 +1822,19 @@
         t.rallyX = r.x; t.rallyY = r.y;
       }
       state.towers.push(t);
+      // Deliberately a CLOSURE var and not a field on `state`: undo is a UI
+      // affordance, not engine truth. Keeping it out of state means hashState is
+      // untouched (the determinism suite is this engine's whole test strategy)
+      // and a mid-run checkpoint cannot restore a stale undo — a resumed run
+      // correctly offers none, exactly like `leverCd`.
+      lastBuild = { id: t.id, cost: cost, tick: state.tick };
       if (lineId === "camp") spawnSoldiers(t);
       emit({ type: "build", x: pad.cx, y: pad.cy });
       return { ok: true };
     }
     function upgrade(towerId) {
+      // an upgrade or a branch is a COMMITMENT: no undo after it
+      if (lastBuild && lastBuild.id === towerId) lastBuild = null;
       const t = towerById(towerId);
       if (!t) return { ok: false, reason: "bad-id" };
       const def = DATA.TOWERS[t.lineId];
@@ -1844,6 +1853,8 @@
       return { ok: true };
     }
     function branch(towerId, choice) {
+      // an upgrade or a branch is a COMMITMENT: no undo after it
+      if (lastBuild && lastBuild.id === towerId) lastBuild = null;
       const t = towerById(towerId);
       if (!t) return { ok: false, reason: "bad-id" };
       if (t.tier !== 3 || t.branch) return { ok: false, reason: "not-tier3" };
@@ -1862,11 +1873,11 @@
       emit({ type: "upgrade", x: t.cx, y: t.cy });
       return { ok: true };
     }
-    function sell(towerId) {
-      const i = state.towers.findIndex((t) => t.id === towerId);
-      if (i < 0) return { ok: false, reason: "bad-id" };
+    // ONE teardown, so an undo can never forget the half a sell remembers — the
+    // blocked-enemy release in particular, which is the only thing in the engine
+    // that can strand a live enemy pointing at a soldier that no longer exists.
+    function removeTower(i, refund, how) {
       const t = state.towers[i];
-      const refund = refundOf(towerId);
       state.gold += refund;
       for (const sol of state.soldiers) {
         if (sol.campId === t.id) {
@@ -1874,9 +1885,41 @@
           sol.alive = false; sol.respawnAt = 0; sol.campId = -1;
         }
       }
-      emit({ type: "sell", x: t.cx, y: t.cy, refund });
+      emit({ type: how, x: t.cx, y: t.cy, refund });
       state.towers.splice(i, 1);
-      return { ok: true, refund };
+      if (lastBuild && lastBuild.id === t.id) lastBuild = null;
+      return refund;
+    }
+    function sell(towerId) {
+      const i = state.towers.findIndex((t) => t.id === towerId);
+      if (i < 0) return { ok: false, reason: "bad-id" };
+      return { ok: true, refund: removeTower(i, refundOf(towerId), "sell") };
+    }
+    // ---- ↩ Undo the last placement (TD-19) ----
+    // The most expensive mistake in this game is a tower on the wrong pad, and
+    // sell only pays back 80% (90% with ♻️ Trade-In) — so the fix for a mis-tap
+    // costs a fifth of the tower. Undo pays ALL of it, and is deliberately
+    // narrow: the tower you JUST placed, before you have upgraded it, inside a
+    // few seconds. Outside that it is an ordinary sell at the ordinary rate, so
+    // this can never become a way to rent towers for free.
+    function undoInfo() {
+      if (!lastBuild) return null;
+      // BUILD PHASE ONLY, and cleared when a wave is called — which together
+      // mean the tower has provably never acted. A time window was the first
+      // cut and it is the wrong rule: 8 seconds of a tower SHOOTING is real
+      // value, so a wave-phase undo at full price is renting a gun for free.
+      // Tied to the phase instead, the offer is generous (the whole build, not
+      // a countdown) and the exploit does not exist rather than being small.
+      if (state.phase !== "build") return null;
+      const t = towerById(lastBuild.id);
+      if (!t) return null;
+      return { id: t.id, refund: t.spent };
+    }
+    function undoLast() {
+      const info = undoInfo();
+      if (!info) return { ok: false, reason: "nothing" };
+      const i = state.towers.findIndex((t) => t.id === info.id);
+      return { ok: true, refund: removeTower(i, info.refund, "sell") };
     }
     // The ONE list of targeting modes, and the ONE place that says which are
     // legal in THIS run. The UI used to keep its own copy and decide "cheap"
@@ -1942,6 +1985,10 @@
     function callWave() {
       const info = callInfo();
       if (!info.ok) return { ok: false, reason: info.reason };
+      // Sending a wave COMMITS the board. Without this, the next build phase
+      // would still be holding a reference to a tower that has just fought a
+      // whole wave, and offer it back at full price.
+      lastBuild = null;
       state.gold += info.bonus;
       // The run summary reports "gold earned", and this is real income — on a
       // run that always calls early it is hundreds of gold. It used to count
@@ -2233,7 +2280,7 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, towerStats, reachAt,
+      state, events, tick, place, upgrade, branch, sell, undoLast, undoInfo, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, towerStats, reachAt,
       applyStrip, // 🎯 exposed like isHidden/dealDamage: a guardrail must drive the seam, not infer it
       chargePrice, buyCharge, buyChargeReady,
       // What THIS run banks per wave sent. 🔋 Spare Battery adds to it, so a UI
@@ -2508,7 +2555,67 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, DT };
+  // ---- 🎵 musicStep: what the soundtrack plays on step i ----
+  // PURE, so the score is unit-testable with no audio and no browser — the same
+  // reason enemyTraits/levelGimmicks/laneCoverage live here. It returns voices;
+  // td-main is the only thing that knows how to sound them, and it does that
+  // through the ONE iOS-safe JoshAudio.tone().
+  //
+  // Three things the old loop did not do, and they are the whole point:
+  //   · a per-WORLD key, so ten rooms do not share one tune (DATA.WORLDS[].music)
+  //   · a PHASE-aware arrangement — build is sparse and quiet so you can think,
+  //     a wave is the full march with percussion and a harmony line
+  //   · a BOSS voice — the minor scale plus a low drone, regardless of world
+  function musicStep(i, ctx) {
+    const M = DATA.MUSIC, c = ctx || {};
+    const w = DATA.WORLDS[c.world] || {};
+    const mus = w.music || { root: 196, mode: "bright" };
+    const boss = !!c.boss;
+    const quiet = c.phase === "build";
+    const scale = M.scales[boss ? "dark" : (mus.mode || "bright")] || M.scales.bright;
+    const total = M.form.length * 16;
+    const step = ((i % total) + total) % total;
+    const phrase = M.form[Math.floor(step / 16)];
+    const k = step % 16;
+    // a field one short must degrade, not disable: an unknown degree would make
+    // `scale[deg]` undefined and hand NaN straight to the oscillator.
+    const hz = (deg, oct) => {
+      const semi = scale[deg];
+      if (typeof semi !== "number") return 0;
+      return mus.root * Math.pow(2, (semi + 12 * (oct || 0)) / 12);
+    };
+    const out = [];
+    const mel = M.mel[phrase][k];
+    // BUILD keeps only the strong beats — the same tune, thinned out, so the
+    // quiet phase is recognisably the same piece rather than a second track.
+    if (mel != null && !(quiet && k % 4 !== 0)) {
+      const f = hz(mel);
+      if (f) out.push({ hz: f, duration: 0.26, gain: quiet ? 0.034 : 0.05, type: "triangle" });
+      // a third above, only under a wave: it is what makes the march sound
+      // arranged rather than single-voiced, and it is the first thing to go
+      // when the board is calm.
+      const h = hz(mel + 2);
+      if (h && !quiet) out.push({ hz: h, duration: 0.22, gain: 0.02, type: "triangle" });
+    }
+    if (k % 2 === 0) {
+      const f = hz(M.bass[phrase][k / 2], -2);
+      if (f) out.push({ hz: f, duration: 0.3, gain: quiet ? 0.038 : 0.055, type: "sine", plain: true });
+    }
+    if (!quiet) {
+      const p = M.perc[k];
+      if (p === "k") out.push({ hz: 70, duration: 0.09, gain: 0.05, type: "sine", plain: true });
+      else if (p === "t") out.push({ hz: 1180, duration: 0.035, gain: 0.018, type: "triangle", plain: true });
+    }
+    // the boss drone lands once per phrase, not once per step — four voices in
+    // a tick is already the busiest this ever gets, and JoshAudio caps at 12.
+    if (boss && k === 0) {
+      const f = hz(0, -3);
+      if (f) out.push({ hz: f, duration: 1.1, gain: 0.03, type: "sine", plain: true });
+    }
+    return out;
+  }
+
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, musicStep, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

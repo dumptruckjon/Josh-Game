@@ -3184,18 +3184,74 @@
     // explained them is gone. A door now stays lit for as long as a wave using it
     // is in flight (waveIdx..sentIdx-1 — waves can OVERLAP since TD-15, so it is
     // a range, not one index). (2) It wore the EXIT's 🚪 — see the upright pass.
+    function doorsOf(i) {
+      const w = (engine.levelDef.waves || [])[i];
+      const out = [];
+      if (w) w.groups.forEach((g) => { if (g.at > 0) out.push(g.at); });
+      return out;
+    }
     function nextDoors() {
-      const st = engine.state, waves = engine.levelDef.waves || [];
+      const st = engine.state;
       const idxs = st.phase === "build" ? [st.sentIdx] : [];
       for (let i = st.waveIdx; i < st.sentIdx; i++) idxs.push(i); // in flight (empty during build)
       const out = new Set();
-      for (const i of idxs) {
-        const w = waves[i];
-        if (w) w.groups.forEach((g) => { if (g.at > 0) out.add(g.at); });
-      }
+      for (const i of idxs) for (const at of doorsOf(i)) out.add(at);
       return [...out];
     }
+    // ONE WAVE OF NOTICE. The marker above only ever appears for a wave that is
+    // in flight, or the one you are about to call — which is the moment your
+    // gold is already committed. A door changes WHERE you need guns, so being
+    // told as it opens is being told too late; you need the wave before.
+    //   During build that is the wave AFTER the one queued; during a wave it is
+    // the next one to send. A door already shown as ACTIVE is never repeated
+    // here, or a two-wave door run would draw both styles on the same spot.
+    function soonDoors() {
+      const st = engine.state;
+      const ahead = st.phase === "build" ? st.sentIdx + 1 : st.sentIdx;
+      const active = new Set(nextDoors());
+      return doorsOf(ahead).filter((at) => !active.has(at))
+        .filter((at, i, a) => a.indexOf(at) === i);
+    }
+    // The advance warning: same geometry, deliberately a DIFFERENT read — a
+    // dashed outline that flashes about twice as fast as the steady active
+    // pulse, so "one wave out" and "open now" are never confusable. Static
+    // under prefers-reduced-motion (it still shows, it just stops blinking).
+    function drawSoonDoors() {
+      for (const at of soonDoors()) {
+        const p = engine.posAt(at), tan = tangentAt(at);
+        const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
+        const nx = -tan.y, ny = tan.x;
+        // A RADAR PING, not a thin ring. The first cut was a 0.44-cell dashed
+        // circle and a screenshot at the real 27px cell settled it: against a
+        // dark floor already carrying props and blue pads it read as a smudge,
+        // which is no use as a warning. So it is deliberately loud — a filled
+        // hotspot, a bar across the lane, and a ring that EXPANDS and fades on
+        // a ~1s cycle, which is the one motion the eye picks up in peripheral
+        // vision. Warm red-orange: no pad, prop or lane in any world is that
+        // colour, so it cannot be mistaken for scenery.
+        const t = engine.state.tick;
+        const beat = reduceMotion ? 0.55 : (t % 30) / 30;          // 1s at 30Hz
+        ctx.save();
+        // the hotspot itself
+        const core = reduceMotion ? 0.30 : 0.18 + 0.22 * (0.5 + 0.5 * Math.cos(t * 0.21));
+        ctx.fillStyle = "rgba(255,90,60," + core.toFixed(3) + ")";
+        ctx.beginPath(); ctx.arc(cx, cy, cell * 0.62, 0, Math.PI * 2); ctx.fill();
+        // the expanding ping
+        ctx.strokeStyle = "rgba(255,150,90," + (0.85 * (1 - beat)).toFixed(3) + ")";
+        ctx.lineWidth = Math.max(2, cell * 0.09); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.arc(cx, cy, cell * (0.45 + 0.75 * beat), 0, Math.PI * 2); ctx.stroke();
+        // a solid bar across the lane, so it still says WHERE they walk in
+        ctx.strokeStyle = "rgba(255,190,120,0.95)";
+        ctx.lineWidth = Math.max(2, cell * 0.13);
+        ctx.beginPath();
+        ctx.moveTo(cx + nx * cell * 0.6, cy + ny * cell * 0.6);
+        ctx.lineTo(cx - nx * cell * 0.6, cy - ny * cell * 0.6);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
     function drawSideDoors() {
+      drawSoonDoors();
       for (const at of nextDoors()) {
         const p = engine.posAt(at), tan = tangentAt(at);
         const cx = (p.x + 0.5) * cell, cy = (p.y + 0.5) * cell;
@@ -3830,6 +3886,7 @@
       // guardrail asserts a DISTINCT glyph and that it survives into the wave.
       doorInfo: () => ({
         doors: nextDoors(),
+        soon: soonDoors(),   // test hook: the one-wave-out warning
         glyph: (global.TDData.WORLDS[engine.levelDef.world] || {}).spawnGlyph || "🛏️",
         exitGlyph: "🚪",
       }),

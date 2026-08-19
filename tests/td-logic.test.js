@@ -7138,3 +7138,155 @@ test("towerReach: the ring the player sees is the reach the engine USES", async 
   // …and a tower that does not exist is null rather than a throw.
   assert.equal(TD.createEngine(L3, { seed: 7 }).towerReach("nope"), null, "an unknown tower id is null");
 });
+
+test("🎵 the score is per-world, phase-aware and boss-aware", () => {
+  // The soundtrack was reported thin, and the reason was structural rather than
+  // a matter of taste: ONE key and ONE arrangement for ten worlds, identical
+  // whether you were building in silence or watching a boss walk in. The score
+  // is DATA and the arrangement is PURE, so all of that is checkable here with
+  // no audio and no browser.
+  const worlds = Object.keys(DATA.WORLDS);
+  assert.ok(worlds.length >= 10, `expected the shipped worlds, saw ${worlds.length}`);
+
+  // DERIVED: every world must declare a key, or it silently falls back and two
+  // rooms sound identical again — the defect this replaced.
+  const mute = worlds.filter((w) => !DATA.WORLDS[w].music || !DATA.WORLDS[w].music.root);
+  assert.deepEqual(mute, [], `every world must declare its own music key, missing: ${mute.join(", ")}`);
+
+  const notes = (ctx) => {
+    const out = [];
+    for (let i = 0; i < 64; i++) for (const v of TD.musicStep(i, ctx)) out.push(v);
+    return out;
+  };
+  // …and declaring one is not enough: two worlds must actually SOUND different.
+  const pitches = (w) => notes({ world: w, phase: "wave" }).map((v) => v.hz.toFixed(2)).join(",");
+  const distinct = new Set(worlds.map(pitches));
+  assert.ok(distinct.size >= 6,
+    `ten worlds must not share one tune — saw only ${distinct.size} distinct pitch sets`);
+
+  // The arrangement THINS during build. This is the thing you can hear: the
+  // same march, stripped to its strong beats, so a build phase is calm.
+  for (const w of ["bedroom", "party"]) {
+    const wave = notes({ world: w, phase: "wave" });
+    const build = notes({ world: w, phase: "build" });
+    assert.ok(build.length * 2 < wave.length,
+      `${w}: build must be markedly sparser than a wave (${build.length} vs ${wave.length} voices)`);
+    // percussion is a wave-only voice; 70Hz is the kick
+    assert.ok(wave.some((v) => v.hz === 70), `${w}: a wave must carry the kick`);
+    assert.ok(!build.some((v) => v.hz === 70), `${w}: build must drop the percussion`);
+  }
+
+  // A boss is its own voice — the minor scale even in a bright world, plus a
+  // drone that lands once per phrase rather than once per step.
+  const bright = notes({ world: "party", phase: "wave" });
+  const bossy = notes({ world: "party", phase: "wave", boss: true });
+  assert.notEqual(bright.map((v) => v.hz.toFixed(1)).join(","), bossy.map((v) => v.hz.toFixed(1)).join(","),
+    "a boss wave must not sound identical to an ordinary one in the same world");
+  const drones = bossy.filter((v) => v.duration >= 1);
+  assert.equal(drones.length, DATA.MUSIC.form.length,
+    `the drone lands once per phrase (expected ${DATA.MUSIC.form.length}, saw ${drones.length})`);
+
+  // Every field the player multiplies must be a real number. A missing scale
+  // degree would hand NaN straight to the oscillator — the `mult`-less zone and
+  // the `delay`-less wave group, in the audio layer.
+  for (const w of worlds) {
+    for (const ctx of [{ world: w, phase: "wave" }, { world: w, phase: "build" }, { world: w, phase: "wave", boss: true }]) {
+      for (const v of notes(ctx)) {
+        assert.ok(Number.isFinite(v.hz) && v.hz > 0, `${w}: a voice must have a real pitch, saw ${v.hz}`);
+        assert.ok(Number.isFinite(v.gain) && v.gain > 0 && v.gain < 0.2, `${w}: gain out of range: ${v.gain}`);
+        assert.ok(Number.isFinite(v.duration) && v.duration > 0, `${w}: duration must be real, saw ${v.duration}`);
+      }
+    }
+  }
+  // an unknown world must degrade to something audible, not to silence or NaN
+  const fallback = notes({ world: "no-such-world", phase: "wave" });
+  assert.ok(fallback.length > 0 && fallback.every((v) => Number.isFinite(v.hz)),
+    "an unknown world must still play something sane");
+
+  // The busiest step must stay well inside JoshAudio's 12-voice cap, or the
+  // music starts stealing voices from the game's own sfx.
+  let worst = 0;
+  for (const w of worlds) for (let i = 0; i < 64; i++) {
+    worst = Math.max(worst, TD.musicStep(i, { world: w, phase: "wave", boss: true }).length);
+  }
+  assert.ok(worst <= 6, `the score must stay well under the 12-voice cap, worst step was ${worst}`);
+
+  // …and it is a LOOP: 64 steps, so the phrase does not drift.
+  const a = JSON.stringify(TD.musicStep(5, { world: "attic", phase: "wave" }));
+  const b = JSON.stringify(TD.musicStep(5 + 64, { world: "attic", phase: "wave" }));
+  assert.equal(a, b, "the loop must be exactly form.length x 16 steps long");
+});
+
+test("↩ undo takes back the tower you just placed, at FULL price, and nothing else", () => {
+  // Sell pays 80% (90% with ♻️ Trade-In), so before this the fix for a mis-tap
+  // cost a fifth of the tower — the most common and most annoying way to lose
+  // gold in the game. Undo pays all of it back, and the whole design question is
+  // what stops it becoming a way to rent guns for free.
+  const L1 = DATA.LEVELS[0];
+  const fresh = () => TD.createEngine(L1, { seed: 1 });
+
+  // 1. the plain case: place, change your mind, get everything back
+  let e = fresh();
+  const g0 = e.state.gold;
+  assert.equal(e.place("dart", L1.pads[0].id).ok, true);
+  assert.ok(e.state.gold < g0, "placing must cost gold, or the rest of this proves nothing");
+  const info = e.undoInfo();
+  assert.ok(info && info.id === e.state.towers[0].id, `undo must be offered on the tower just placed, saw ${JSON.stringify(info)}`);
+  assert.equal(e.undoLast().ok, true);
+  assert.equal(e.state.gold, g0, "undo must refund the FULL price");
+  assert.equal(e.state.towers.length, 0, "…and actually remove the tower");
+
+  // 2. exactly once
+  assert.equal(e.undoLast().ok, false, "there is nothing left to undo");
+
+  // 3. THE SAFETY PROPERTY. A tower that has acted may not be un-bought.
+  //    Calling the wave commits the board, so the NEXT build phase must not
+  //    still be offering back a tower that fought through it.
+  e = fresh();
+  e.place("dart", L1.pads[0].id);
+  e.callWave();
+  assert.equal(e.undoInfo(), null, "calling the wave must end the offer immediately");
+  let guard = 0;
+  while (e.state.phase !== "build" && e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 200000) e.tick();
+  assert.equal(e.state.phase, "build", "the probe needs to reach the next build phase");
+  assert.equal(e.undoLast().ok, false,
+    "a tower that fought a whole wave must NOT be refundable at full price in the next build");
+
+  // 4. …and a tower placed DURING a wave is never undoable, because it is
+  //    already shooting. This is why the rule is the phase and not a timer.
+  e = fresh();
+  e.callWave(); e.tick();
+  e.place("dart", L1.pads[0].id);
+  assert.equal(e.undoInfo(), null, "a tower placed mid-wave is already working — no undo");
+
+  // 5. an upgrade is a commitment
+  e = fresh();
+  e.place("dart", L1.pads[0].id);
+  e.upgrade(e.state.towers[0].id);
+  assert.equal(e.undoLast().ok, false, "upgrading commits the tower");
+
+  // 6. selling is untouched — still the ordinary rate, so undo is strictly the
+  //    better deal and there is no incentive to game the two against each other
+  e = fresh();
+  const before = e.state.gold;
+  e.place("dart", L1.pads[0].id);
+  const paid = before - e.state.gold;
+  const sold = e.sell(e.state.towers[0].id).refund;
+  assert.ok(sold < paid, `sell must still be a loss (${sold} of ${paid}), or undo means nothing`);
+  assert.equal(sold, Math.floor(paid * DATA.RULES.sellRefund), "sell must still use the shipped refund rate");
+
+  // 7. undo must not skip the teardown a sell does. A camp holds enemies via
+  //    blockedBy, and that is the one thing in the engine that can strand a live
+  //    enemy pointing at a soldier that no longer exists — which is why both
+  //    paths go through one removeTower().
+  e = fresh();
+  const campPad = L1.pads.find((p) => TD.createEngine(L1, { seed: 1 }).place("camp", p.id).ok);
+  if (campPad) {
+    e = fresh();
+    e.place("camp", campPad.id);
+    assert.ok(e.state.soldiers.some((s) => s.campId === e.state.towers[0].id), "the camp must have fielded soldiers");
+    e.undoLast();
+    assert.ok(!e.state.soldiers.some((s) => s.alive && s.campId >= 0),
+      "undoing a camp must retire its soldiers, exactly as selling it does");
+  }
+});
