@@ -2502,6 +2502,18 @@ test("🎵 the music actually PLAYS, and follows the run", async () => {
   assert.deepEqual(stray.slice(0, 5), [],
     `every note must come from THIS world's score, stray pitches: ${stray.slice(0, 5).join(", ")}`);
 
+  // …and the RUN has to reach the score. The ctx is computed in td-main from
+  // live state, which no pure test can see: with lives low the same world must
+  // start producing the tense voice, identified by the drone (the only voice
+  // over a second long).
+  await page.evaluate(() => {
+    window.__TD.engine().state.lives = 2;
+    window.__heard.length = 0;
+  });
+  await page.waitForTimeout(2600);
+  const scared = await page.evaluate(() => window.__heard.some((h) => (h.o.duration || 0) >= 1));
+  assert.equal(scared, true, "with the door nearly down, the score must turn tense (the drone)");
+
   // turning it back off must stop the loop, not just mute a note
   await page.locator('.td-overlay [data-act="music"]').click();
   await page.waitForTimeout(260);

@@ -7186,6 +7186,16 @@ test("🎵 the score is per-world, phase-aware and boss-aware", () => {
   assert.equal(drones.length, DATA.MUSIC.form.length,
     `the drone lands once per phrase (expected ${DATA.MUSIC.form.length}, saw ${drones.length})`);
 
+  // DANGER is the other reason to stop being cheerful, and it deliberately gets
+  // the SAME voice as a boss: the message is "this is serious", and splitting it
+  // into two moods would make both less legible. It matters because during a
+  // wave you are watching the field, not the lives counter.
+  const calm = notes({ world: "party", phase: "wave" });
+  const scared = notes({ world: "party", phase: "wave", danger: true });
+  const sig = (ns) => ns.map((v) => v.hz.toFixed(1)).join(",");
+  assert.notEqual(sig(calm), sig(scared), "being nearly dead must change the music");
+  assert.equal(sig(scared), sig(bossy), "danger and a boss share one voice, on purpose");
+
   // Every field the player multiplies must be a real number. A missing scale
   // degree would hand NaN straight to the oscillator — the `mult`-less zone and
   // the `delay`-less wave group, in the audio layer.

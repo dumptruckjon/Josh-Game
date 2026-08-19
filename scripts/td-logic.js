@@ -2570,9 +2570,14 @@
     const M = DATA.MUSIC, c = ctx || {};
     const w = DATA.WORLDS[c.world] || {};
     const mus = w.music || { root: 196, mode: "bright" };
+    // TENSE covers both reasons the music should stop being cheerful: a boss is
+    // walking in, or the door is nearly down. They get the same voice on
+    // purpose — the message is "this is serious", and splitting it into two
+    // moods would only make both of them less legible.
     const boss = !!c.boss;
+    const tense = boss || !!c.danger;
     const quiet = c.phase === "build";
-    const scale = M.scales[boss ? "dark" : (mus.mode || "bright")] || M.scales.bright;
+    const scale = M.scales[tense ? "dark" : (mus.mode || "bright")] || M.scales.bright;
     const total = M.form.length * 16;
     const step = ((i % total) + total) % total;
     const phrase = M.form[Math.floor(step / 16)];
@@ -2608,7 +2613,7 @@
     }
     // the boss drone lands once per phrase, not once per step — four voices in
     // a tick is already the busiest this ever gets, and JoshAudio caps at 12.
-    if (boss && k === 0) {
+    if (tense && k === 0) {
       const f = hz(0, -3);
       if (f) out.push({ hz: f, duration: 1.1, gain: 0.03, type: "sine", plain: true });
     }

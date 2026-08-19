@@ -1576,7 +1576,12 @@ scale are all asserted in node with no audio. The player is then proven
 SEPARATELY in a browser (toggle → composer → `JoshAudio.tone`), because a pure
 test cannot see a dead toggle. Ten worlds now have ten keys; build strips the
 march to its strong beats and drops the percussion; a boss forces the minor
-scale and adds a drone once per phrase.
+scale and adds a drone once per phrase, and so does DANGER — a run down to
+~30% of the lives it STARTED with (a proportion, because ❤️ Extra Hearts can
+start you at 24) gets the same tense voice, deliberately, since the message is
+"this is serious" and two separate moods would make both less legible. That one
+matters most of the four, because during a wave you are watching the field and
+not the lives counter.
 (4) **I nearly documented a bug that never existed.** Calling `TDLogic.musicStep`
 from td-main (whose module alias is `TD`) looked like the classic silent death
 behind the composer's try/catch, and I wrote that up — then the mutation that
@@ -2315,7 +2320,9 @@ own key (`WORLDS[].music`), the build phase is thinned to the strong beats with
 no percussion, a wave is the full march with a harmony line, and a boss forces
 the minor scale plus a drone. Pure, so it is unit-tested with no audio; the
 player chain (toggle → composer → `JoshAudio.tone`) is proven separately in a
-browser. **🚪 The side door now warns a WAVE early** — the marker used to appear
+browser, and it follows the RUN as well as the room: the arrangement thins for
+a build phase and turns minor with a drone for a boss OR for low lives.
+**🚪 The side door now warns a WAVE early** — the marker used to appear
 only for waves in flight or the one already queued, i.e. after the gold was
 committed — drawn as an expanding radar ping in a red-orange nothing else on the
 field uses. **↩ Undo** takes back the tower you just placed at FULL price,

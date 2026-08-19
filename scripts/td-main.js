@@ -350,7 +350,12 @@
     if (!cur) return { phase: "build" };
     const st = cur.engine.state, def = cur.engine.levelDef;
     const w = (def.waves || [])[st.waveIdx];
-    return { world: def.world, phase: st.phase === "wave" ? "wave" : "build", boss: !!(w && w.boss) };
+    // DANGER is the one thing you want to hear without looking at the HUD,
+    // because during a wave you are watching the field. A proportion of the
+    // run's own starting lives, not a constant: a loadout can start you at 24.
+    const danger = st.lives <= Math.max(3, Math.ceil((cur.lives0 || 20) * 0.3));
+    return { world: def.world, phase: st.phase === "wave" ? "wave" : "build",
+             boss: !!(w && w.boss), danger: danger };
   }
   function startMusic() {
     stopMusic();
@@ -723,7 +728,12 @@
     if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
       lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1, // TD-5 achievement context
-      leaks: {}, leakWave: 0 }; // TD-12 post-mortem context (the tallies live in engine state)
+      leaks: {}, leakWave: 0, // TD-12 post-mortem context (the tallies live in engine state)
+      // The run's STARTING lives, kept here rather than on state: the score uses
+      // it to know when you are in trouble, and a UI affordance has no business
+      // adding a field to the hashed engine state. It cannot be derived from
+      // RULES.lives either — ❤️ Extra Hearts starts you higher.
+      lives0: engine.state.lives };
     // The HUD reads the CALL/RUSH offer straight off the engine, so the button
     // can never promise gold the engine would refuse (the dead-control lesson).
     UI._callInfo = () => (cur ? cur.engine.callInfo() : null);
