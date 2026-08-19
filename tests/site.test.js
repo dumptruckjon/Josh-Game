@@ -1714,6 +1714,84 @@ test("the camp's rally REACH has exactly ONE owner", () => {
     "defaultRally must return through the clamp, so its result is always a position rally() accepts");
 });
 
+test("DOCS: the repo tree names every file, and no plan claims to be unbuilt while it ships", () => {
+  // Two halves of one recurring defect — "a list that outlives its contents",
+  // which this file records four times: PLAN_WORLD_9 said DESIGNED-NOT-BUILT
+  // after the world shipped, the "ideas for more games" list was entirely
+  // built, CLAUDE.md's own open-items said 华丽's painted pass was still open
+  // a release after it landed, and PLAN_WORLD_4 said "NOT SHIPPED" while all
+  // four of its levels were live under exactly the names it lists. A stale doc
+  // is worse than no doc: it sends the next author to build what exists, or to
+  // trust a tree that has quietly stopped describing the repo.
+  const fsx = require("node:fs");
+  const doc = read("CLAUDE.md");
+  const tree = doc.slice(doc.indexOf("## Repository Structure"), doc.indexOf("## Current Site Behavior"));
+  assert.ok(tree.length > 2000, "could not isolate the repo-structure block — this test would be vacuous");
+
+  // HALF 1: every file that exists is named. Derived by walking the repo, so a
+  // new script/test/tool/workflow is covered the day it lands, not the day
+  // someone remembers to extend a list.
+  const real = [];
+  for (const d of ["scripts", "tests", "tools", "styles"]) {
+    for (const f of fsx.readdirSync(path.join(root, d))) {
+      if (/\.(js|css)$/.test(f)) real.push(`${d}/${f}`);
+    }
+  }
+  const walkYml = (d) => {
+    for (const e of fsx.readdirSync(path.join(root, d), { withFileTypes: true })) {
+      if (e.isDirectory()) walkYml(`${d}/${e.name}`);
+      else if (/\.ya?ml$/.test(e.name)) real.push(`${d}/${e.name}`);
+    }
+  };
+  walkYml(".github");
+  for (const f of fsx.readdirSync(root)) if (/^PLAN_.*\.md$/.test(f)) real.push(f);
+  assert.ok(real.length > 30, `expected to find the repo's files, saw ${real.length}`);
+  const unnamed = real.filter((f) => !tree.includes(f.split("/").pop()));
+  assert.deepEqual(unnamed, [],
+    `these files exist but the repo tree in CLAUDE.md never names them:\n  ${unnamed.join("\n  ")}`);
+
+  // …and the reverse: a name in a tree ENTRY must be a file that exists. Only
+  // entry lines are checked, never the comments beside them — those legitimately
+  // reference paths outside the repo (a scratchpad spec, for instance).
+  const have = new Set(real.map((f) => f.split("/").pop()));
+  for (const extra of ["index.html", "sw.js", "manifest.webmanifest", "package.json",
+    "package-lock.json", "CLAUDE.md", "JOSH_PROFILE.md", "josh-profile.json",
+    "settings.json", "resync-main.sh", ".gitignore"]) have.add(extra);
+  const ghosts = [];
+  for (const line of tree.split("\n")) {
+    if (!line.includes("──")) continue;
+    const entry = line.split("#")[0];
+    const m = entry.match(/([\w.-]+\.(?:webmanifest|json|yaml|html|css|yml|js|md|sh))(?![\w])/);
+    if (m && !have.has(m[1])) ghosts.push(m[1]);
+  }
+  assert.deepEqual(ghosts, [],
+    `the repo tree names files that do not exist: ${ghosts.join(", ")}`);
+
+  // HALF 2: a WORLD plan may not call itself unbuilt while its world ships.
+  //
+  // Scoped hard, because the loose version is a false-positive machine and this
+  // repo does not ship those. Matching "NOT SHIPPED" anywhere in the header
+  // flagged two docs that are both CORRECT: PLAN_MINIBOSS says "NOT BUILT AS
+  // CONTENT", which is an accurate refutation that happens to name shipped
+  // levels while discussing where a finale could go; and PLAN_WORLD_4's own
+  // corrected header contains the words "NOT SHIPPED" while EXPLAINING that it
+  // used to say that. So the check reads the status VERDICT — the first bolded
+  // token after "Status:" — and compares it against the one fact that is
+  // unambiguous: whether the world key the doc names has levels in DATA.LEVELS.
+  const DATA = require("../scripts/td-data.js");
+  const worlds = new Set(DATA.LEVELS.map((l) => l.world));
+  const liars = [];
+  for (const f of fsx.readdirSync(root).filter((x) => /^PLAN_WORLD_.*\.md$/.test(x))) {
+    const txt = fsx.readFileSync(path.join(root, f), "utf8");
+    const verdict = (txt.match(/Status:\s*\*\*(.+?)\*\*/) || [])[1];
+    if (!verdict || !/NOT\s+(SHIPPED|BUILT)/i.test(verdict)) continue;
+    const named = [...new Set([...txt.matchAll(/world\s+`(\w+)`/g)].map((m) => m[1]))]
+      .filter((w) => worlds.has(w));
+    if (named.length) liars.push(`${f} says "${verdict}" but world(s) ${named.join(", ")} are in DATA.LEVELS`);
+  }
+  assert.deepEqual(liars, [], `plan docs that outlived their contents:\n  ${liars.join("\n  ")}`);
+});
+
 test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", () => {
   // A push to main sometimes creates NO workflow run at all — twice now
   // (02312d2, aa19e32). The commit lands, GitHub fires nothing, and the live

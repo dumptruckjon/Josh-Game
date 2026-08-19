@@ -1550,6 +1550,32 @@ FINAL attempt too, adding a pointless 60s that makes the failure timing read as
 yet another stall. **`timeout-minutes` on the caller step is the backstop, not
 the mechanism** — composite-action steps cannot declare one, so the bound has to
 live in the script.
+**"A LIST THAT OUTLIVES ITS CONTENTS" HAS NOW HAPPENED FOUR TIMES, so it is a
+guardrail rather than a habit.** The recorded three were PLAN_WORLD_9 saying
+DESIGNED-NOT-BUILT after the world shipped, the "ideas for more games" list being
+entirely built, and this file's own open-items claiming 华丽's painted pass was
+still open a release after it landed. The fourth was found by deriving it:
+**`PLAN_WORLD_4.md` said "Status: NOT SHIPPED" while all four attic levels were
+live under exactly the names it lists** — and its other half, 🧸 Kid Fort, had
+since been RETIRED, so the doc was stale in both directions and would have sent
+the next author to build a world that exists and revive a mode deliberately
+removed. The same sweep found the repo tree had stopped naming
+`PLAN_WORLD_4.md` at all (and, earlier the same day, `deploy-watchdog.yml`).
+Two things worth keeping. **The tree half is precise and derived** — walk
+`scripts/tests/tools/styles`, every workflow, every `PLAN_*.md`, and require each
+to be named, plus the reverse (a name in a tree ENTRY must exist, comments
+excluded because they legitimately cite paths outside the repo). **The plan-status
+half had to be scoped HARD, because the loose version is exactly the
+false-positive machine this repo refuses to ship**: matching "NOT SHIPPED"
+anywhere in a header flagged two CORRECT docs — PLAN_MINIBOSS, whose "NOT BUILT
+AS CONTENT" is an accurate refutation that merely names shipped levels while
+discussing where a finale could go, and PLAN_WORLD_4's own corrected header,
+which contains the words while EXPLAINING that it used to say them. So it reads
+the status VERDICT (the first bolded token after `Status:`) and compares it
+against the one unambiguous fact available: whether the world key the doc names
+has levels in `DATA.LEVELS`. Mutation-proven three ways, and the tightening is
+proven not to have simply silenced it, because a legitimate NOT-BUILT doc still
+passes.
 **And the WATCHDOG was asserting a proxy too, so it was rewritten to assert the
 property.** It existed for the sibling silence (a push that fires NO run) and
 bailed the moment any run existed — which is exactly why it was blind to this
@@ -1746,6 +1772,11 @@ tooling.
 ├── PLAN_ROAD_TO_180.md         # Set 2 build plan (40 MORE: pick-place, toggle-match, reveal, co-op echo, waves W5-W8) — ✅ BUILT (Josh at 180)
 ├── PLAN_ROAD_TO_200.md         # Set 3 build plan (20 MORE gap-fillers: numeral trace, syllables, blending, compounds, analogies, measurement, life cycles, scene-zone, dump truck, waves W9-W10 + audit) — ✅ BUILT (Josh at 200)
 ├── PLAN_TOWER_DEFENSE.md       # 🏰 "Fort Josh: Toybox Defense" — Jon's adult TD world: full design (engine/towers/enemies/12 levels/bosses/meta/tests). Historical note: the plan's "Jon" name gate shipped, then was removed by request 2026-07 (front-door tile instead)
+├── PLAN_WORLD_4.md             # 🧳 ✅ BUILT: World 4 "the Attic" — L13-L16, the Tickmaster. Its header said
+│                               #   NOT SHIPPED for several releases after the world went live (the
+│                               #   list-outlives-its-contents class). Its real value is the FIRST attempt's
+│                               #   REVERT: never tune against a solver stronger than the suite's. The plan's
+│                               #   other half, 🧸 Kid Fort, was later RETIRED whole — do not rebuild it.
 ├── PLAN_WORLD_6.md             # 📦 ✅ BUILT: World 6 "Moving Day" — L21-L24, 🧻 Bubble Wrap (bonkResist — the Couch Cushion's mirror, and the first hard counter to the Dart), 📻 Boom Box (a hurry aura), The Moving Van boss, a 6th endless arena. §9 records the step function reproduced a THIRD time, and warns that a 7th world breaks the star-tree guardrail.
 ├── PLAN_GIMMICKS.md            # 🎛️ ✅ BUILT: TD-16 level gimmicks — 🕳️ mud patch (the conveyor's data field mirrored), ⚡ power pad (a socket that buffs whatever is built on it), 🚪 side door (a wave group that enters partway down the lane). §6 records what each is WORTH in lives, the zone-overlap bug, and why a mud patch had to come back off L5.
 ├── PLAN_EXPANSION.md           # 📈 PARTLY BUILT: phases 1-5 shipped (guardrails that can fail · per-world backbone SKINS + level distinctness · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · per-run loadout slots · **Worlds 7-8, L25-L32**, with the star tree grown to 105⭐/30 nodes so the ceiling guardrail still holds). Phase 6 (new content) PART-BUILT: **P6a** shipped the ability LOADOUT (`RULES.abilitySlots`, `save.powers`, the 🎒 Powers picker) + 📌 **Call the Shot**, with the critique's corrections applied; **P6b** shipped 🦆 `zapResist`, **P6c** shipped ⛱️ `zones[].dmg`, and **P6d closes the I5 new-enemy item**: of its three bodies, 🪂 Parachute Trooper was cut by the critique (the Tin Plane renamed), 🥫 Pantry Can was cut by MEASUREMENT (a shield is anti-Fan only — see the learnings block), and 🛢️ **Oil Drum shipped** on a positional axis instead of a resist. The spec was found NEEDS_CHANGES on 16 counts (`scratchpad/specs/10-crit-content.md`); note that its critique was itself wrong about the shield arithmetic, so treat both as claims to measure. §0 is the star-ceiling finding — its arithmetic is stale (Worlds 9 and 10 shipped, and the tree grew by BREADTH to 140⭐ against the 120⭐ that 40 levels create), but the LAW it states still binds: grow the tree before the campaign, or the must-cost-more-than-you-can-earn guardrail goes red; several of its own premises were refuted by measurement, and the corrections are in this file's learnings block.
@@ -6185,9 +6216,25 @@ for any new `logic.js` function and a browser check if it needs special handling
 >   games. Content truth came back clean; the fixes were 月亮圆缺 not naming its
 >   own answer, 描福字 speaking a bare digit, and 深呼吸's raw timers. What it
 >   ALSO surfaced is app-wide and is the reason to run these passes: the framework
->   celebrated on screens the player had already left. Still open for her world:
->   a PAINTED pass of the same kind that Josh's world got — screenshot each
->   screen, look at what the picture actually says.
+>   celebrated on screens the player had already left.
+> - **华丽's PAINTED pass is DONE** (2026-08) — this line said it was still open
+>   for a release AFTER it shipped, which is the "a list that outlives its
+>   contents" class for the third time in this file. Every screen captured at
+>   390 AND at 834 (an iPad, which is what a 70-year-old actually holds), 11
+>   findings: 两幅找不同's stretched label, the pond/找一找/charchip/row/lineup
+>   pictures kept at phone size, `.hl-moonchip`'s night sky that specificity
+>   never let paint, `.hl-clue` reading as the most tappable thing on a screen
+>   where it must NOT be tapped, Josh's green meadow painting under her red-gold
+>   screens, and 四季分明's icon strip pointing at a WRONG answer. One finding
+>   was REJECTED on inspection (照样敲's "lit pad" is a 300ms bounce on a
+>   disabled surface, not the documented persistent-lit-cue defect) and one was
+>   already fixed.
+> - **Josh's world at iPad size is DONE** (2026-08): the same axis measured
+>   across his 200 found 64 of 96 picture-card games below the bar all 8 of hers
+>   pass; now 3, and those 3 are the games where glyph size IS the puzzle.
+>   Contrast, affordance and type are viewport-INDEPENDENT and already have
+>   their own passes, so layout/size was the only tablet-specific axis and it is
+>   now measured on two metrics at 0 offenders.
 
 ## Development Workflow
 

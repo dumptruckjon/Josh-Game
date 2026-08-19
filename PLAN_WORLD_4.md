@@ -1,8 +1,21 @@
 # World 4 (the Attic) + Kid-Mode Fort — build plan and measured findings
 
-Status: **NOT SHIPPED.** A full attempt was made and reverted rather than ship
-levels that fail the project's own guardrails. Everything below is measured, so
-the next session starts ahead instead of repeating the search.
+Status: **✅ SHIPPED** (on the second attempt) — this line read "NOT SHIPPED" for
+several releases AFTER the world went live, which is the "a list that outlives
+its contents" class and is why a future author must check `DATA.LEVELS` rather
+than trust a plan's own header. All four attic levels are in the campaign
+(L13 Dusty Rafters, L14 Moth Light, L15 The Old Trunk, L16 Tickmaster) and the
+Tickmaster is a real boss.
+
+The FIRST attempt was reverted rather than ship levels that fail the project's
+own guardrails, and that revert is the valuable part of this document: never
+tune against a solver stronger than the one in the suite. Everything below is
+the measured record of that search.
+
+**🧸 Kid Fort, the other half of this plan, was later RETIRED** (owner, 2026-08:
+"we don't use it") and removed WHOLE — button, `kid` difficulty, the `noLose`
+branch and the `body.td-kid` skin — so that a mode nothing can select could not
+linger as dead content. Do not rebuild it from this document.
 
 ## What was built and proven to work
 
