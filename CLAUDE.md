@@ -1777,6 +1777,136 @@ deleted twice (the redundant price-flash paint, the bed-glyph clamp). No change
 shipped. What IS true and already guarded is the thing that matters: no tap
 anywhere falls below 75px, now checked at 320, 390 AND 834.
 
+**ENUMERATING THE 40 STAR-TREE NODES AGAINST THE TEST SOURCES FOUND FOUR THAT NO
+TEST NAMES — and hunting them turned up a real defect two files away, where
+❤️ Extra Hearts had moved a number that two player-facing strings printed
+literally.** The enumeration is the `cheap` lesson generalised: that mode's
+description was written from its identifier and shipped false, so the question
+became *which other player-facing claim has nothing driving it?* Abilities,
+chips and targeting all came back fully covered; the tree did not. **`earlycall`,
+`ricochet`, `fieldrepair` and `quickmarch` appear in no test at all** — they pass
+the two derived laws (every node changes `metaMods`; every `metaMods` key is read
+inside `createEngine`), which prove a READ SITE EXISTS and say nothing about
+what the read does. Driven, **all four are correct** (Early Bird ×1.504, Ricochet
+4 → 5 bodies, Field Repair 75 → 38 ticks, Quick March ×1.6), so this half is
+coverage rather than a fix — the honest half to write down, because the next
+author needs to know the hole was the suite. The derived guardrail now requires
+every node to be NAMED by some test, comment-stripped for the fourth recorded
+time (a scan must not count its own documentation).
+**The defect it led to: `UI.showVictory` printed `lives + " of 20 stickers kept
+safe"`, and a run carrying Extra Hearts II starts at 24 — so a flawless win
+rendered the literal nonsense "24 of 20".** The 🛡️ No Leaks badge said "Win a
+level with all 20 lives" while the code awards on `!cur.leaked`, which is wrong
+in BOTH directions: 20 is not the total for an Extra Hearts run, and a 🌟 Sticker
+Shield run can finish with every life it started and correctly NOT earn it. This
+file already recorded the underlying law from the BALANCE side — *"lives
+REMAINING is the wrong metric the moment the meta can change the starting
+total"* — and had never applied it to the strings. Third instance of ASK THE
+ENGINE after the sell refund and the per-wave charge; fixed the same way, with
+one `maxLives()` the state init, the 🩹 Patch Kit cap and the UI all read.
+**The codebase already disagreed with itself, which is the tell this file keeps
+naming**: `cur.lives0` existed for the danger-music threshold, carrying a comment
+saying in as many words that the total *"cannot be derived from RULES.lives —
+❤️ Extra Hearts starts you higher"*, while the victory screen four hundred lines
+away printed 20. Same shape as the wake lock's `visibilitychange` handler testing
+`!cur.paused` while nothing enforced it. `lives0` is retired onto the owner.
+**Widening the ASK-THE-ENGINE scan then found a FOURTH site**: the CALL button
+read `const bonus = info ? info.bonus : Math.ceil(secs * RULES.earlyCallRate)`,
+and ⏩ Early Bird multiplies exactly that rate by 1.5 — so whenever the fallback
+was reached it understated an owning run by a third. The fix is not to correct
+the arithmetic but to delete it: a figure comes from the engine or it is not
+shown, and the button falls back to showing the clock alone. **Three of the four
+sites in this class have now understated rather than overcharged**, which is why
+only a test finds them — being handed more than the label promised produces no
+bug report. The scan is per-RULE rather than per-file so the Toybox Guide can go
+on quoting `chargePerWave` (it explains the MECHANIC), and it needed one clause a
+named-rule scan structurally cannot provide: replacing `maxLives() * 0.3` with
+`20 * 0.3` is invisible to it, so both consumers are COUNTED. A count is not a
+tuning pin — a third consumer keeps it green and dropping one is a conscious act.
+**Cross-referencing every `metaMods` key against the values read outside the
+engine found no fifth live site, and three deliberate non-fixes worth naming so
+nobody "corrects" them**: the Toybox Guide quotes the BASE night penalty, the
+BASE ability radius and each enemy's BASE bounty, which 🦉 Night Owl, 💣 Wider
+Blast and 🪙 Bounty Hunter respectively move — and the guide is opened from the
+fort home where no run exists, so the base is the only number it can honestly
+state, and each node's own text says it grows them. Every LIVE surface is
+already right: the range ring asks `rangeMul`, the blast fx reads the radius off
+the ability EVENT (which the engine emits pre-scaled — the TD-6
+put-the-datum-on-the-event rule paying off), and the power strip's countdown
+subtracts from `state.abilityCd`, the engine's own STAMPED value, so ⏱️ Fast
+Hands is baked in before the UI ever sees it.
+**And the same sweep found a THIRD sibling breaking a law its own comment
+states.** `writeMidRun` stores `powers` and `chips` read off the RUN — each with
+a comment saying so, "so a loadout edited while a run is parked cannot
+retroactively rewrite the run that is being restored" — and the line between
+them read `meta: activeLoadout()`, which reads the SAVE. Verified reachable
+rather than assumed: `writeMidRun()` fires at EVERY wave boundary (phaseWatch),
+so park a run, respec on the fort home, resume, clear one wave, park again — the
+second checkpoint carries the NEW loadout while the live engine is still running
+the old one, and the next resume silently changes the run's rules. With the
+victory string now honest it surfaces as "24 of 20" by a different door. Two of
+three siblings had the right policy and one did not, which is the shape that
+gave `hurriedMult` two writers and drifted the wake lock's acquire and release
+apart. Its fixture needs no seeding, which is what makes the test sharp: a fresh
+save owns nothing, so `activeLoadout()` is `[]` while the run holds two nodes.
+**And the RESTORE side had the same smell on a single line**: `startLevel(...,
+meta: mr.meta, powers: Array.isArray(mr.powers) …, chips: Array.isArray(mr.chips)
+…)` — two of three guarded. Measured rather than assumed: `metaMods` opens with
+`new Set(meta || [])`, so a `meta` of `{}`, `7` or `true` throws *"is not
+iterable"* inside `createEngine`, i.e. tapping Resume on a hand-edited or
+truncated 💾 Backup breaks the fort, which is precisely the class the `towers`
+and `waveIdx` guards were written for. Guarded now — and deliberately NOT with
+powers' `&& .length`, because an EMPTY loadout is a real choice and falling back
+to `activeLoadout()` there would hand a deliberately-empty run whatever is
+equipped now, reintroducing the bug fixed one function up. **Three fields on one
+line with two policies between them is the same shape as `hurriedMult`'s two
+writers and the wake lock's drifted acquire/release — when you find one sibling
+misbehaving, read the whole row.**
+**Two METHOD failures in the same sitting, and both produced a green result that
+meant nothing.** (1) **An absent process does not mean "not started yet".**
+`node --test` buffers each file's TAP, so `td.test.js` had already RUN and
+flushed nothing, while `pgrep` showed only the still-grinding `td-logic`. I read
+that as "it is queued" and edited both the test file and `td-main.js` mid-run —
+so the suite's 733/733 covered neither of the two newest tests nor the edits, and
+its verdict on that file was unattributable. The tell was in the final log's test
+NUMBERING, not in the process list. Either finish the run before touching
+anything, or re-run the specific file afterwards; do not infer scheduling from
+`ps`. (2) **A fixture that hand-edits `localStorage` while a run is PARKED does
+not stick** — the live module holds its own `save` and rewrites it, so all four
+corrupt-meta values were replaced by the healthy one before the reload and Resume
+ran against a perfectly good checkpoint. Four clauses passed VACUOUSLY. It
+surfaced only because a fifth clause expected a value the clobber could
+contradict (an EMPTY loadout came back as `["lives"]`) — otherwise the whole test
+would have shipped proving nothing. The run is dropped by a reload FIRST now, and
+the seed is read back after a second reload and ASSERTED, so the precondition
+verifies itself instead of being hoped for. Both halves are then mutation-proven,
+and the guard's mutation reproduces the exact `object is not iterable` throw the
+engine probe predicted.
+**Four method notes, and three of them are traps this file already names.**
+(1) **The flattening trap, twice in one sitting, written by the person who
+documented it.** Quick March's clause derived its expected ratio from
+`metaMods(...).marchMul` — the very mod under test — so neutering it to 1 made
+the expectation 1 too and 1.000 ≈ 1.000 passed. Then the same shape recurred on
+`maxLives()`: once the state init asks the owner, `maxLives() === state.lives`
+is self-satisfying, and only an explicit *"Extra Hearts II must genuinely move
+the total"* clause catches a neutered accessor. Both now carry a second clause
+that cannot flatten. (2) **Two fixture bugs each produced a confident null on a
+working engine** — `engine.upgrade()` takes a tower **ID** while `__TD.script`'s
+`upgrade` op takes an **INDEX**, so a probe that passed 0 silently measured a
+tier-1 fan and reported Ricochet worth nothing; and a Loose Screw's sap fires
+every 7s while the screw WALKS 5.6 cells in that time, clear of its own 3.5-cell
+radius, so "it never jams" was the fixture, not the node. Both fixtures are now
+self-verifying (assert the branch took; assert the gun is inside the sap radius).
+(3) **A mutation harness must compare the STRINGS, not the byte count** — three
+of these mutations are same-length, and the length check alone reports a clean
+skip that reads exactly like a passing clause. (4) **A `cancelled` CI run is
+ambiguous and this file only documents one cause.** Run #327 came back cancelled
+with a ~2-minute duration because `concurrency: pages` keeps at most ONE pending
+run and a third push evicts the middle one — queue collapse, harmless on a linear
+main because the tip run carries the evicted commit. The hang looks different: it
+sits for tens of minutes behind a run stuck in install. Check the duration and
+whether a successor exists before hunting a stall.
+
 ---
 
 ## Repository Structure
@@ -3624,7 +3754,7 @@ regression can present as a HANG rather than a failure, which looks nothing like
 a test going red. **And the filter turned out to be only the FIRST of three
 Chromium-invisible costs in the same change — finding the others took timing every
 suite in isolation, which is the only honest way.** Per-file: `site` fast,
-`td-logic` ~14 min CPU (the 32-level sims — inherent), `e2e` 593s, `td` **69s**,
+`td-logic` ~14 min CPU (the 32-level sims — inherent; the campaign is 40 levels now, so that figure understates it by ~25% and a local run measured 23 min — a justification refuted by later data, which a comment cannot report), `e2e` 593s, `td` **69s**,
 `mobile` **17s**, `offline` 6s. That cleared every file I had touched and left the
 one CI-only variable: real WebKit. Two further costs were cut on that reasoning,
 and both matter on Josh's actual iPad too. (a) **The ink line stroked after EVERY

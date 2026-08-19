@@ -6707,6 +6707,196 @@ test("P4.3 tree: every node CHANGES something — no node is decoration", () => 
   }
 });
 
+test("the run's STARTING lives have one owner — ❤️ Extra Hearts moved a number two places printed literally", () => {
+  // The victory screen read `lives + " of 20 stickers kept safe"` and the
+  // No Leaks badge said "Win a level with all 20 lives", while a run carrying
+  // ❤️ Extra Hearts II starts at 24 — so a flawless win rendered the literal
+  // nonsense "24 of 20 stickers kept safe", and the badge's words promised a
+  // life count while the code awards on "nothing leaked" (which is why 🌟
+  // Sticker Shield correctly withholds it after an absorbed leak).
+  //
+  // This is the sell-refund / charge-per-wave defect a third time: a UI
+  // re-deriving a quantity the meta layer had already moved. Same fix — the
+  // engine owns it, everything else asks. CLAUDE.md already records the
+  // underlying law from the balance side ("lives REMAINING is the wrong metric
+  // the moment the meta can change the starting total"); it was never applied
+  // to the strings.
+  const L = DATA.LEVELS[0];
+  for (const meta of [[], ["lives"], ["lives", "lives2"]]) {
+    const e = TD.createEngine(L, { seed: 5, meta });
+    assert.equal(e.maxLives(), e.state.lives,
+      `maxLives() must BE the total the run starts with (meta ${JSON.stringify(meta)})`);
+  }
+  assert.equal(TD.createEngine(L, { seed: 5, meta: [] }).maxLives(), DATA.RULES.lives);
+  assert.equal(TD.createEngine(L, { seed: 5, meta: ["lives", "lives2"] }).maxLives(),
+    DATA.RULES.lives + 4, "Extra Hearts II must genuinely move the total, or the clause above is vacuous");
+
+  // ONE owner: the 🩹 Patch Kit cap was the second place this was computed, and
+  // two copies of a quantity is how the panel came to print 110 while the
+  // engine charged 99. Comment-stripped, because this repo has three recorded
+  // cases of a one-owner count counting its own documentation.
+  const src = readSrc("scripts/td-logic.js").split("\n")
+    .filter((l) => { const t = l.trim(); return !(t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")); })
+    .join("\n");
+  const owners = (src.match(/R\.lives \+ mods\.lives/g) || []).length;
+  assert.equal(owners, 1,
+    `the run's starting life total must be computed in exactly ONE place — found ${owners}`);
+
+  // …and the badge's WORDS must describe the condition the code actually tests.
+  // It awards on `!cur.leaked`, never on a life count, and the count is not even
+  // fixed. Pinned narrowly to the shape that shipped rather than banning the
+  // digits — "Reach Endless wave 20" is a legitimate 20 two entries away.
+  const noleaks = DATA.ACHIEVEMENTS.find((a) => a.id === "noleaks");
+  assert.doesNotMatch(noleaks.desc, /\b\d+ lives\b/,
+    `No Leaks awards on leaking nothing, not on a life count the meta can move — got "${noleaks.desc}"`);
+  assert.match(noleaks.desc, /leak/i, "…so its words must name the leak");
+});
+
+test("P4 tree: the four ORPHAN nodes are DRIVEN, and no future node can escape", () => {
+  // Found by enumerating META_NODES against the test sources: four nodes were
+  // named in NO test at all — earlycall, ricochet, fieldrepair, quickmarch.
+  // They were not invisible: the derived laws above proved each one changes
+  // metaMods and that every metaMods key is read inside createEngine. But a
+  // structural scan proves a READ SITE EXISTS; only driving the node proves the
+  // read does what the node's own words promise. That gap is exactly how the
+  // `cheap` aiming mode shipped described as chasing gold when the engine
+  // finishes the almost-dead, and it is the same shape as the `ach` award chain
+  // and `isRevealed`, both of which were covered only after being enumerated.
+  //
+  // Measured outcome: all four are CORRECT. This is coverage, not a fix — which
+  // is the honest half to write down, because the next author needs to know the
+  // hole was the test suite rather than the engine.
+  const micro = (over) => Object.assign({
+    id: 9900, name: "probe", world: "test", startGold: 9000, budgetBase: 100,
+    path: [[0, 3], [23, 3]], pads: [{ id: "m", cx: 5, cy: 2 }],
+    waves: [{ groups: [{ type: "sock", count: 1, gap: 1, delay: 0 }] }],
+  }, over || {});
+
+  // ⏩ Early Bird — "Early-call bonus ×1.5", at the ONE callWave payout
+  const early = (meta) => {
+    const e = TD.createEngine(micro(), { seed: 3, meta });
+    const before = e.state.gold;
+    assert.ok(e.callWave().ok, "the wave is callable from build");
+    return e.state.gold - before;
+  };
+  const eb0 = early([]), eb1 = early(["earlycall"]);
+  assert.ok(eb0 > 0, `the base early-call bonus must be non-zero or this clause is vacuous (got ${eb0})`);
+  assert.ok(Math.abs(eb1 / eb0 - 1.5) < 0.02,
+    `Early Bird must pay 1.5x the early-call bonus — measured ${(eb1 / eb0).toFixed(3)} (${eb0} → ${eb1})`);
+  // …and the WORDS carry that same number, so re-tuning the node cannot leave
+  // its description behind. That coupling is the entire point of this test.
+  assert.match(DATA.META_NODES.find((n) => n.id === "earlycall").desc, /1\.5/,
+    "Early Bird's description must state the 1.5x it was just measured to pay");
+
+  // 🪃 Ricochet — "The Fan's chain jumps one more", at the ONE chain loop.
+  // Static Zap carries no zapDps, so the chain is the only thing that can
+  // damage anything here and `hurt` IS the arc length.
+  const BODIES = 9;
+  const chainHurt = (meta) => {
+    const e = TD.createEngine(micro(), { seed: 3, meta });
+    e.state.gold = 999999;
+    assert.ok(e.place("fan", "m").ok);
+    const t = e.state.towers[0];
+    assert.ok(e.upgrade(t.id).ok && e.upgrade(t.id).ok && e.branch(t.id, "b").ok,
+      "the probe reaches Static Zap (upgrade takes a tower ID, never an index)");
+    assert.equal(t.branch, "b", "…and the branch actually took");
+    e.state.phase = "wave";
+    for (let i = 0; i < BODIES; i++) {
+      const f = mkEnemy("knight", 4.6 + i * 0.6);
+      f.id = 8000 + i; f.hp = 1e6; f.maxHp = 1e6; f.shield = 0; f.speed = 0;
+      e.state.enemies.push(f);
+    }
+    const hp0 = e.state.enemies.map((x) => x.hp);
+    for (let i = 0; i < 120; i++) e.tick();
+    return e.state.enemies.filter((x, i) => x.hp < hp0[i]).length;
+  };
+  const targets = DATA.TOWERS.fan.branches.b.chain.targets;
+  const ch0 = chainHurt([]), ch1 = chainHurt(["ricochet"]);
+  assert.equal(ch0, targets, `Static Zap's arc must reach its declared ${targets} bodies — measured ${ch0}`);
+  assert.equal(ch1, targets + 1, `Ricochet must add exactly one jump — measured ${ch1}`);
+  assert.ok(ch1 < BODIES, "…and the line is longer than the arc, so the count is capped by the node and not by supply");
+
+  // 🧰 Field Repair — "Jammed guns come back twice as fast", at the ONE jamTower.
+  // The screw is pinned at speed 0: its sap fires every 7s and it would
+  // otherwise walk 5.6 cells clear of its own 3.5-cell radius first, which is
+  // how the first run of this probe reported a confident "never jams".
+  const jam = (meta) => {
+    const e = TD.createEngine(micro(), { seed: 3, meta });
+    e.state.gold = 999999;
+    assert.ok(e.place("dart", "m").ok);
+    const t = e.state.towers[0];
+    e.state.phase = "wave";
+    const screw = mkEnemy("screw", 5);
+    screw.hp = 1e6; screw.maxHp = 1e6; screw.speed = 0;
+    e.state.enemies.push(screw);
+    const p = e.posOn(0, screw.dist);
+    assert.ok(Math.hypot(p.x - t.cx, p.y - t.cy) < DATA.ENEMIES.screw.sap.radius,
+      "fixture precondition: the gun is inside the screw's sap radius");
+    for (let i = 0; i < 900; i++) {
+      e.tick();
+      if (t.disabledUntil > e.state.tick) return t.disabledUntil - e.state.tick;
+    }
+    return 0;
+  };
+  const declared = Math.round(DATA.ENEMIES.screw.sap.seconds * DATA.TICK_RATE);
+  const j0 = jam([]), j1 = jam(["fieldrepair"]);
+  assert.equal(j0, declared, `an un-helped jam lasts the screw's declared ${declared} ticks — measured ${j0}`);
+  assert.ok(Math.abs(j1 / j0 - 0.5) < 0.03,
+    `Field Repair must halve a jam — measured ${(j1 / j0).toFixed(3)} (${j0} → ${j1} ticks)`);
+
+  // 🥾 Quick March — "Soldiers reach their post sooner", at the ONE march step.
+  // Measured as ground covered over a fixed window rather than as arrival, so
+  // the spawn stagger cancels: both squads take their first step before the
+  // window opens, and the ratio is the step ratio.
+  const march = (meta) => {
+    const e = TD.createEngine(micro({ pads: [{ id: "m", cx: 5, cy: 6 }] }), { seed: 3, meta });
+    e.state.gold = 999999;
+    assert.ok(e.place("camp", "m").ok);
+    e.state.phase = "wave";
+    e.tick();
+    const s = e.state.soldiers[0];
+    assert.ok(s, "the camp fields a soldier");
+    const x0 = s.x, y0 = s.y;
+    for (let i = 0; i < 12; i++) e.tick();
+    const moved = Math.hypot(s.x - x0, s.y - y0);
+    assert.ok(moved > 0 && Number.isFinite(moved),
+      `fixture precondition: the soldier walked a finite, sane distance (got ${moved})`);
+    return moved;
+  };
+  const mm = TD.metaMods(["quickmarch"]).marchMul;
+  const m0 = march([]), m1 = march(["quickmarch"]);
+  // TWO clauses, because the first one alone PASSED its mutation: it derives
+  // the expectation from the very mod it is testing, so neutering marchMul to
+  // 1 flattens the expectation with the data and 1.000 ≈ 1.000 is satisfied.
+  // The same shape as the chain-decay check that goes vacuous at decay 1.0 —
+  // written here by the person who documented it. The first clause keeps the
+  // measurement honest if the value is ever re-tuned; the second is what makes
+  // the node load-bearing at all, and it cannot flatten.
+  assert.ok(m1 > m0 * 1.05,
+    `Quick March must genuinely quicken the march — measured ${m0.toFixed(3)} → ${m1.toFixed(3)} cells per 12 ticks`);
+  assert.ok(Math.abs(m1 / m0 - mm) < 0.02,
+    `…and by exactly the declared ${mm}x — measured ${(m1 / m0).toFixed(3)}`);
+
+  // …AND THE DERIVED HALF, so the next node cannot repeat this. A star-tree
+  // node must be NAMED by some test, which is the cheapest available proxy for
+  // "somebody wrote something that drives it". Full-line comments are stripped
+  // first: this repo has three recorded cases of a scan counting its own
+  // documentation (the art.js <defs> scan, the install action's env clause, and
+  // startMusic()'s call sites), and prose about a node must not stand in for a
+  // test of it.
+  const stripComments = (s) => s.split("\n").filter((l) => {
+    const t = l.trim();
+    return !(t.startsWith("//") || t.startsWith("*") || t.startsWith("/*"));
+  }).join("\n");
+  const suites = ["tests/td-logic.test.js", "tests/td.test.js"]
+    .map((f) => stripComments(readSrc(f))).join("\n");
+  const unnamed = DATA.META_NODES
+    .filter((n) => !new RegExp("[\"'`]" + n.id + "[\"'`]").test(suites))
+    .map((n) => `${n.id} (${n.name})`);
+  assert.deepEqual(unnamed, [],
+    `star-tree nodes no test ever names: ${unnamed.join(", ")} — its metaMods key being read is not proof the read does what the node promises`);
+});
+
 test("P4.3 breadth: each new KIND is felt at its own engine site", () => {
   const L = DATA.LEVELS[0];
   const mk = (meta) => TD.createEngine(L, { seed: 4, meta });

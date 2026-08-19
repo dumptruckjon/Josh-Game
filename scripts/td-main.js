@@ -361,7 +361,11 @@
     // DANGER is the one thing you want to hear without looking at the HUD,
     // because during a wave you are watching the field. A proportion of the
     // run's own starting lives, not a constant: a loadout can start you at 24.
-    const danger = st.lives <= Math.max(3, Math.ceil((cur.lives0 || 20) * 0.3));
+    // A PROPORTION of what this run started with, never of a literal 20 — the
+    // score already knew ❤️ Extra Hearts moves that total while the victory
+    // screen was printing "24 of 20", which is the codebase disagreeing with
+    // itself. Both ask the engine now.
+    const danger = st.lives <= Math.max(3, Math.ceil(cur.engine.maxLives() * 0.3));
     return { world: def.world, phase: st.phase === "wave" ? "wave" : "build",
              boss: !!(w && w.boss), danger: danger };
   }
@@ -566,7 +570,7 @@
         if (!prev || st.lives > (prev.lives | 0)) { save.bests[bk] = { lives: st.lives, stars: st.stars }; pb = !!prev; }
         persist(save);
       }
-      UI.showVictory(st.stars, st.lives, {
+      UI.showVictory(st.stars, st.lives, cur.engine.maxLives(), {
         continueOn: () => { UI.closeOverlay(); location.hash = "#td-home"; },
         // A cheated (kid) win unlocks nothing, so it must not offer ▶ Next level —
         // it escaped kid mode into an adult run and promised a lock it never opened.
@@ -777,12 +781,7 @@
     if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: save.settings.speed || 1, paused: false, selPadId: null, selTowerId: null,
       lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1, // TD-5 achievement context
-      leaks: {}, leakWave: 0, // TD-12 post-mortem context (the tallies live in engine state)
-      // The run's STARTING lives, kept here rather than on state: the score uses
-      // it to know when you are in trouble, and a UI affordance has no business
-      // adding a field to the hashed engine state. It cannot be derived from
-      // RULES.lives either — ❤️ Extra Hearts starts you higher.
-      lives0: engine.state.lives };
+      leaks: {}, leakWave: 0 }; // TD-12 post-mortem context (the tallies live in engine state)
     // The HUD reads the CALL/RUSH offer straight off the engine, so the button
     // can never promise gold the engine would refuse (the dead-control lesson).
     UI._callInfo = () => (cur ? cur.engine.callInfo() : null);
@@ -873,12 +872,19 @@
       // the LOADOUT, not everything owned: handing a resumed run every node you
       // have ever bought is the checkpoint-fidelity bug class, now on its
       // seventh instance (leaked / soldiersLost / lines / leverRoute / shieldUsed / charge)
+      // — and read off the RUN (st.meta), exactly like powers and chips below.
+      // It used to call activeLoadout(), which reads the SAVE: park a run, respec
+      // on the fort home, resume, play one wave, and phaseWatch rewrote the
+      // checkpoint with the NEW loadout while the live engine still ran the old
+      // one, so the next resume silently changed the run's rules. Two of these
+      // three siblings had the right policy and one did not — the shape that
+      // gave hurriedMult two writers and drifted the wake lock apart.
       // ...and the POWERS, for the same reason: the checkpoint must carry
       // everything the resumed run's rules depend on, or a run resumed after the
       // pool changed comes back with a strip it never chose. Read off the RUN
       // (st.powers), not the save, so a loadout edited while a run is parked
       // cannot retroactively rewrite the run that is being restored.
-      gold: st.gold, lives: st.lives, meta: activeLoadout(), powers: (st.powers || []).slice(),
+      gold: st.gold, lives: st.lives, meta: (st.meta || []).slice(), powers: (st.powers || []).slice(),
       // TD-18: the CHIPS, same law — a resumed challenge run must still be the
       // challenge, read off the RUN so re-arming chips while one is parked
       // cannot retroactively loosen (or tighten) the run being restored.
@@ -1001,7 +1007,21 @@
     // `chips` either → an unconstrained run, matching what it was when parked
     // (a chipped checkpoint's towers are all legal lines by construction, so
     // the rebuild below can never be refused by its own run's ban).
-    startLevel(mr.levelId, { levelDef, seed: mr.seed, difficulty: mr.difficulty, meta: mr.meta,
+    // meta is guarded like its two neighbours, which it was not: a restored
+    // backup is a PASTE, and `metaMods` opens with `new Set(meta || [])`, so an
+    // object/number/boolean throws "is not iterable" INSIDE createEngine —
+    // measured, not assumed — and tapping Resume simply breaks the fort. Three
+    // fields on one line, two guarded and one not, is the same smell that had
+    // `meta` reading the save while powers and chips read the run.
+    //
+    // Not `&& .length` like powers, deliberately: an EMPTY loadout is a real
+    // choice (bring nothing), and falling back to activeLoadout() there would
+    // hand a deliberately-empty run whatever is equipped NOW — reintroducing
+    // the very bug fixed one function up. `[] || x` is `[]`, so startLevel
+    // keeps it. Only a NON-array falls through to the live loadout, which is
+    // exactly what a legacy pre-P4 checkpoint (no meta at all) already does.
+    startLevel(mr.levelId, { levelDef, seed: mr.seed, difficulty: mr.difficulty,
+      meta: Array.isArray(mr.meta) ? mr.meta : null,
       powers: Array.isArray(mr.powers) && mr.powers.length ? mr.powers : null,
       chips: Array.isArray(mr.chips) ? mr.chips : [] });
     // Carry the pre-checkpoint achievement context across the resume so the win

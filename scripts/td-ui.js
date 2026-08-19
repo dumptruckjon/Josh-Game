@@ -1019,9 +1019,14 @@
       call.classList.toggle("td-call--rush", state.phase !== "build");
       if (state.phase === "build") {
         const secs = Math.ceil(state.countdown / global.TDData.TICK_RATE);
-        const bonus = info ? info.bonus : Math.ceil((state.countdown / global.TDData.TICK_RATE) * global.TDData.RULES.earlyCallRate);
         label.textContent = "▶ CALL";
-        meta.textContent = ok ? "+" + bonus + "🪙 · " + secs + "s" : "";
+        // The figure comes from the engine or it is not shown. This fallback
+        // used to re-derive it from RULES.earlyCallRate, which ⏩ Early Bird
+        // multiplies by 1.5 — so whenever it was reached it UNDERSTATED an
+        // owning run by a third, the quiet half of this class: an overcharge
+        // gets reported, being handed more than the label promised never is.
+        // If the engine has not spoken yet, show the clock, not a guess.
+        meta.textContent = !ok ? "" : info ? "+" + info.bonus + "🪙 · " + secs + "s" : secs + "s";
       } else if (!over) {
         label.textContent = "⏩ RUSH";
         meta.textContent = ok ? "+" + info.bonus + "🪙"
@@ -1276,12 +1281,12 @@
       "</div>";
   }
 
-  UI.showVictory = function (stars, lives, hooks, rs) {
+  UI.showVictory = function (stars, lives, maxLives, hooks, rs) {
     const hasNext = !!hooks.nextLevel;
     const el = overlay("td-overlay--win",
       '<h3>Fort defended! 🎉</h3>' +
       '<p class="td-overlay__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(3 - stars) + "</span></p>" +
-      "<p>" + lives + " of 20 stickers kept safe</p>" +
+      "<p>" + lives + " of " + maxLives + " stickers kept safe</p>" +
       summaryHtml(rs) +
       (hasNext ? '<p class="td-overlay__warn">🔓 Level ' + hooks.nextLevel + ' unlocked!</p>' : "") +
       (hasNext ? '<button class="td-btn td-btn--call" data-act="next" type="button">▶ Next level</button>' : "") +

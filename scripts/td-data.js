@@ -2199,7 +2199,7 @@
   const ACHIEVEMENTS = [
     { id: "firstblood",    icon: "⚔️", name: "First Blood",   desc: "Pop your first toy" },
     { id: "doorman",       icon: "🚪", name: "Doorman",       desc: "Win Level 1" },
-    { id: "noleaks",       icon: "🛡️", name: "No Leaks",      desc: "Win a level with all 20 lives" },
+    { id: "noleaks",       icon: "🛡️", name: "No Leaks",      desc: "Win a level without leaking a single toy" },
     { id: "peapurist",     icon: "🎯", name: "Pea Purist",    desc: "Win Level 2 with only Darts" },
     { id: "iceage",        icon: "🧊", name: "Ice Age",       desc: "Slow 20 enemies at once" },
     { id: "bossbonker",    icon: "🛏️", name: "Boss Bonker",   desc: "Beat the Bed Monster" },

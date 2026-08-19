@@ -1722,8 +1722,9 @@ test("the fort UI never re-derives a number the META moves", () => {
   // the out-of-energy hint printed DATA.RULES.chargePerWave (🔋 Spare Battery
   // banks one more). Behaviour is pinned in td-logic/td browser tests; this
   // stops a THIRD site growing its own copy, which is how the first two got in.
-  const src = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-  for (const rule of ["sellRefund", "chargePerWave"]) {
+  const strip = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const src = strip("scripts/td-main.js");
+  for (const rule of ["sellRefund", "chargePerWave", "lives", "earlyCallRate"]) {
     // The GUIDE may quote a rule — it explains the mechanic rather than this
     // run — so only td-main (the live play surface) is scanned here.
     // No exemptions: the resume path's legacy-checkpoint default was the last
@@ -1736,6 +1737,30 @@ test("the fort UI never re-derives a number the META moves", () => {
   }
   assert.match(src, /refundOf\(/, "the sell button must ask the engine for its refund");
   assert.match(src, /chargeGrant\(\)/, "the out-of-energy hint must ask the engine for this run's grant");
+  // BOTH consumers must ask the owner, counted rather than matched once: a
+  // named-rule scan is blind to a bare literal, so replacing the danger score's
+  // `maxLives() * 0.3` with `20 * 0.3` passes every clause above (proven — that
+  // mutation was green until this line existed). A count is not a tuning pin;
+  // a third consumer keeps it green, and dropping one is a conscious act.
+  const asks = (src.match(/maxLives\(\)/g) || []).length;
+  assert.ok(asks >= 2,
+    `both the victory screen and the danger score must ask the engine for the run's starting lives — found ${asks} site(s)`);
+
+  // td-ui is scanned for the two rules the GUIDE does not quote. The exemption
+  // is per-RULE rather than per-file: the guide explains the ⚙️ energy mechanic
+  // and correctly names chargePerWave/chargeMax there, but it says nothing about
+  // the early-call rate or the life total, so a read of either is a live
+  // surface re-deriving a number the meta moves. Both were: the victory screen
+  // printed "24 of 20 stickers kept safe" to an ❤️ Extra Hearts run, and the
+  // CALL button's fallback re-derived the bonus from earlyCallRate, which
+  // ⏩ Early Bird multiplies by 1.5 — understating an owning run by a third.
+  const ui = strip("scripts/td-ui.js");
+  for (const rule of ["lives", "earlyCallRate"]) {
+    const hits = (ui.match(new RegExp("RULES\\." + rule, "g")) || []).length;
+    assert.equal(hits, 0,
+      `td-ui reads RULES.${rule} ${hits} time(s) — the guide does not quote it, so this is a live ` +
+      "surface re-deriving a number a meta node moves");
+  }
 });
 
 test("the camp's rally REACH has exactly ONE owner", () => {

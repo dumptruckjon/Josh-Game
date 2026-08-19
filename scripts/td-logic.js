@@ -275,7 +275,7 @@
       sentIdx: 0,
       lastCallTick: -9999, // a RUSH must be deliberate — see callInfo's `too-soon`
       gold: levelDef.startGold + diff.startGold + mods.startGold,
-      lives: R.lives + mods.lives,
+      lives: maxLives(),
       stars: 0,
       cheated: false,
       shieldUsed: false, // 🌟 Sticker Shield: has the one free leak been spent?
@@ -996,7 +996,7 @@
       if (!levelWon) {
         for (let n = clearedFrom + 1; n <= state.waveIdx; n++) {
           if (mods.allowance) { state.gold += mods.allowance; state.goldEarned += mods.allowance; } // 💵 Allowance
-          if (mods.patchKit && n % 5 === 0) state.lives = Math.min(R.lives + mods.lives, state.lives + 1); // 🩹 Patch Kit
+          if (mods.patchKit && n % 5 === 0) state.lives = Math.min(maxLives(), state.lives + 1); // 🩹 Patch Kit
         }
       }
       // Endless never "wins" — it just keeps generating harder waves; the score
@@ -1774,6 +1774,7 @@
     // on the money moving the other way, which is why it went unreported:
     // nobody complains about being given MORE than the label promised.
     let lastBuild = null;   // { id, cost, tick } — see undoLast()
+    function maxLives() { return R.lives + mods.lives; }
     function refundOf(towerId) {
       const t = towerById(towerId);
       if (!t) return 0;
@@ -2298,6 +2299,13 @@
       // that prints RULES.chargePerWave is telling an owning run the wrong
       // number — the sell-refund defect, one unit smaller. Ask the engine.
       chargeGrant: () => R.chargePerWave + chargeBonus,
+      // What THIS run STARTED with. ❤️ Extra Hearts moves it to 22 or 24, so a
+      // UI that prints a literal 20 renders "24 of 20 stickers kept safe" —
+      // which it did. Same shape as the sell-refund and charge-per-wave defects
+      // (the panel re-deriving a number the meta had already moved), and the
+      // same fix: the engine owns it and everything else asks. The Patch Kit
+      // cap was the second computation of this quantity and now reads it too.
+      maxLives,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       // TD-18: may this run build this line? The build menu asks the ENGINE

@@ -187,6 +187,128 @@ test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on scre
   await page.waitForTimeout(250);
 });
 
+test("a corrupt checkpoint meta cannot break Resume — it is guarded like its two neighbours", async () => {
+  // `metaMods` opens with `new Set(meta || [])`, so an object/number/boolean
+  // throws "is not iterable" inside createEngine, and a restored 💾 Backup is a
+  // PASTE validated only as "parses, is an object, v === 1, stars is an object".
+  // powers and chips on the same startLevel line were both Array.isArray-guarded
+  // and meta was not — two siblings with a policy and one without, the same
+  // smell that had meta reading the save while they read the run.
+  //
+  // THE FIXTURE IS THE HARD PART, and its first cut passed four clauses
+  // VACUOUSLY. Hand-editing localStorage while a run is still parked does not
+  // stick: the live module holds its own `save` and rewrites it, so every
+  // corrupt value was replaced by the real one before the reload and Resume ran
+  // against a perfectly healthy checkpoint. It only surfaced because the fifth
+  // clause (an empty loadout) expected a value the clobber could contradict.
+  // So the run is dropped by a reload FIRST, and the seed is then read back
+  // after a second reload and asserted — a precondition that verifies itself
+  // rather than one that is hoped for.
+  const seed = async (m) => {
+    await page.evaluate(() => {
+      window.__TD.resetSave();
+      window.__TD.newGame(1, { meta: ["lives"] });
+      window.__TD.leaveToHome();            // a real checkpoint, written by the real chokepoint
+    });
+    await page.reload();                     // drop the live run, so nothing can rewrite the save
+    await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+    await page.evaluate((mm) => {
+      const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+      raw.midRun.meta = mm;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    }, m);
+    await page.reload();
+    await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+    return await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "null");
+      return raw && raw.midRun ? raw.midRun.meta : null;
+    });
+  };
+
+  for (const bad of [{}, 7, true, "lives"]) {
+    const landed = await seed(bad);
+    assert.deepEqual(landed, bad,
+      `fixture precondition: the corrupt meta ${JSON.stringify(bad)} must survive to the save, not be rewritten by the live run (found ${JSON.stringify(landed)})`);
+    const out = await page.evaluate(() => {
+      try { window.__TD.resume(); return { ok: true }; }
+      catch (e) { return { ok: false, err: String(e && e.message) }; }
+    });
+    assert.ok(out.ok, `a checkpoint whose meta is ${JSON.stringify(bad)} must not throw on Resume — got ${out.err}`);
+  }
+
+  // …and an EMPTY loadout resumes as EMPTY, not as whatever is equipped now:
+  // guarding this with powers' `&& .length` would fall back to activeLoadout()
+  // and reintroduce the bug fixed one function up.
+  const landedEmpty = await seed([]);
+  assert.deepEqual(landedEmpty, [], "fixture precondition: the empty loadout reached the save");
+  const empty = await page.evaluate(() => {
+    window.__TD.resume();
+    const st = window.__TD.state();
+    return (st && st.meta) || null;
+  });
+  assert.deepEqual(empty, [], "an empty loadout must survive the resume as empty");
+  await page.evaluate(() => window.__TD.resetSave());
+});
+
+test("the resume checkpoint carries the RUN's loadout, not whatever is equipped NOW", async () => {
+  // writeMidRun's own comments say powers and chips must be read off the RUN
+  // "so a loadout edited while a run is parked cannot retroactively rewrite the
+  // run that is being restored" — and `meta` called activeLoadout(), which reads
+  // the SAVE. Reachable in ordinary play: park a run, respec on the fort home,
+  // resume, clear one wave, and phaseWatch rewrites the checkpoint with the NEW
+  // loadout while the live engine is still running the old one. The next resume
+  // then comes back a different run. Two of three siblings had the right policy.
+  //
+  // The fixture needs no seeding: a fresh save owns nothing, so activeLoadout()
+  // is [] while this run is handed two nodes — the pre-fix value and the correct
+  // one could not be further apart.
+  const got = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.newGame(1, { meta: ["lives", "lives2"] });
+    const live = (window.__TD.state().meta || []).slice();
+    window.__TD.leaveToHome();          // the real chokepoint: leavingPlay -> writeMidRun
+    const mr = window.__TD.midRun();
+    return { live, saved: mr && mr.meta, lives: mr && mr.lives };
+  });
+  assert.deepEqual(got.live, ["lives", "lives2"],
+    "fixture precondition: the run really was handed the two nodes");
+  assert.deepEqual(got.saved, ["lives", "lives2"],
+    `the checkpoint must carry the RUN's loadout — got ${JSON.stringify(got.saved)}, which is what the SAVE holds, not the run`);
+  assert.equal(got.lives, 24,
+    "…and the lives it restores are that loadout's total, so a resumed run cannot read '24 of 20'");
+});
+
+test("the victory screen counts stickers out of the run's OWN total, not a literal 20", async () => {
+  // Shipped: `lives + " of 20 stickers kept safe"`. ❤️ Extra Hearts II starts a
+  // run at 24, so a flawless win rendered "24 of 20 stickers kept safe" — a
+  // number the meta layer had moved, printed literally, which is the same
+  // defect as the panel showing 110 while the engine charged 99 and the hint
+  // quoting RULES.chargePerWave to a 🔋 Spare Battery run.
+  //
+  // Two runs, because a single one is satisfied by any constant: the total must
+  // MOVE with the loadout. That is the clause a literal cannot pass.
+  const read = async (meta) => {
+    await page.evaluate((m) => {
+      window.__TD.resetSave();
+      return window.__TD.winL1(7, { meta: m });
+    }, meta);
+    await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 5000 });
+    const txt = await page.locator(".td-overlay--win").textContent();
+    const m = txt.match(/(\d+) of (\d+) stickers kept safe/);
+    assert.ok(m, `the victory screen must state stickers kept — got ${JSON.stringify(txt.slice(0, 120))}`);
+    await page.evaluate(() => window.__TD.leaveToHome());
+    return { kept: +m[1], total: +m[2] };
+  };
+  const plain = await read([]);
+  const hearts = await read(["lives", "lives2"]);
+
+  assert.equal(plain.total, 20, "a vanilla run is still out of 20");
+  assert.equal(hearts.total, 24, "…and an Extra Hearts II run is out of 24, not 20");
+  assert.ok(hearts.kept <= hearts.total,
+    `a run can never keep MORE stickers than it started with — read "${hearts.kept} of ${hearts.total}"`);
+  assert.ok(plain.kept <= plain.total, `same for a vanilla run — read "${plain.kept} of ${plain.total}"`);
+});
+
 test("scripted victory via the shipped __TD hooks: the CI plan wins in-browser too", async () => {
   const before = await page.evaluate(() => {
     let josh = 0;
