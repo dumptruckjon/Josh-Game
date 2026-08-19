@@ -421,10 +421,42 @@
   // The ONE owner. Every place that can change those conditions calls this, so
   // a future state (a new overlay, a new phase) cannot forget one half.
   function syncWake() { if (wakeWanted()) keepAwake(); else letSleep(); }
+
+  // ---- and the soundtrack's own predicate, which the music never had ----
+  // The wake lock got one BECAUSE of exactly this bug, and the music was left
+  // with none: it started in startLevel and stopped only in stopLoop, so
+  // backgrounding the tab (which auto-pauses the battle) left the loop
+  // scheduling — throttled to ~1Hz by the browser, i.e. the march degrades to
+  // an arrhythmic drone while you are in another app — and quitting to the
+  // fort mid-run played battle music over the menu, with musicCtx() reading a
+  // parked run for its build/wave/boss/danger arrangement.
+  //
+  // Deliberately NOT wakeWanted(). The two agree about a backgrounded tab and
+  // a finished run, and differ on PAUSE: a pause menu sits OVER a visible
+  // battlefield and should keep its music (which is what games do), while a
+  // battle you have navigated away from should not. Gating on "the play screen
+  // is not hidden" is the fort's version of the framework-wide law that all
+  // speech and cues gate on `!screen.hidden`.
+  function musicWanted() {
+    if (!save.settings.music || !cur || doc.hidden) return false;
+    const play = doc.getElementById("screen-td-play");
+    if (play && play.hidden) return false;
+    const ph = cur.engine.state.phase;
+    return ph !== "won" && ph !== "lost";
+  }
+  // THE owner. startMusic() restarts the phrase from bar 1, so it must only be
+  // reached when the loop is not already running, or every syncRun() — and
+  // there is one on each pause, resume and route — would stutter the music.
+  function syncMusic() { if (musicWanted()) { if (!musicTimer) startMusic(); } else stopMusic(); }
+
+  // One call for both, so a future state cannot remember the lock and forget
+  // the music. This is the thing every site calls; the two halves keep their
+  // own predicates because they genuinely disagree about a paused battle.
+  function syncRun() { syncWake(); syncMusic(); }
   if (doc.addEventListener) {
     // The browser drops the lock whenever the tab backgrounds, so coming back
     // has to re-acquire — and going away must forget the stale handle.
-    doc.addEventListener("visibilitychange", syncWake);
+    doc.addEventListener("visibilitychange", syncRun);
   }
 
   // The pause menu, hoisted out of togglePause: returning from the background
@@ -432,7 +464,7 @@
   function showPauseMenu() {
     if (!cur) return;
     const openPause = () => UI.showPause({
-      resume: () => { cur.paused = false; cur.autoPaused = false; UI.closeOverlay(); syncWake(); },
+      resume: () => { cur.paused = false; cur.autoPaused = false; UI.closeOverlay(); syncRun(); },
       restart: () => {
         // Carry the RUN's difficulty. Dropping it silently converted a Kid Fort
         // run into an adult one (RULE 5 controls gone, defeat reachable).
@@ -443,7 +475,7 @@
       },
       // Toggling Sounds must NOT touch the music — that coupling is the bug.
       sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); openPause(); },
-      music: () => { save.settings.music = !save.settings.music; persist(save); if (save.settings.music) startMusic(); else stopMusic(); openPause(); },
+      music: () => { save.settings.music = !save.settings.music; persist(save); syncMusic(); openPause(); },
       dmg: () => { save.settings.dmgNumbers = !save.settings.dmgNumbers; persist(save); if (cur.render.setDamageNumbers) cur.render.setDamageNumbers(save.settings.dmgNumbers); openPause(); },
       quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },
     }, save.settings);
@@ -746,8 +778,7 @@
     // The HUD reads the CALL/RUSH offer straight off the engine, so the button
     // can never promise gold the engine would refuse (the dead-control lesson).
     UI._callInfo = () => (cur ? cur.engine.callInfo() : null);
-    startMusic(); // TD-6 optional looping march (no-op unless the toggle is on)
-    syncWake();   // don't let the phone doze while a wave plays out
+    syncRun();   // starts the march and holds the screen awake, under one predicate each
     UI.closeOverlay();
     UI.hideBubble();
     if (UI.hideBanner) UI.hideBanner(); // never inherit the previous level's boss klaxon
@@ -1030,13 +1061,13 @@
   // while the player decides so nothing leaks. "Keep playing" resumes.
   function promptLeave(onLeave) {
     if (!inLevel()) { onLeave(); return; }
-    cur.paused = true; syncWake(); // a battle paused behind a confirm must not hold the screen awake
+    cur.paused = true; syncRun(); // a battle paused behind a confirm must not hold the screen awake
     UI.confirm({
       title: "Leave the battle?",
       msg: "You'll lose your progress on this level.",
       yes: "🏰 Leave", no: "↩ Keep playing",
       onYes: () => { UI.closeOverlay(); onLeave(); },
-      onNo: () => { UI.closeOverlay(); if (cur) { cur.paused = false; syncWake(); } }, // keep-playing resumes the battle — take the lock back
+      onNo: () => { UI.closeOverlay(); if (cur) { cur.paused = false; syncRun(); } }, // keep-playing resumes the battle — take the lock back
     });
   }
 
@@ -1400,7 +1431,7 @@
         UI.renderResume(save, resumeMidRun, () => { discardRun(); JonTD.route("td-home"); }); // TD-5 resume banner
         const s = doc.getElementById("screen-td-home");
         if (s) s.hidden = false;
-        if (cur) { cur.paused = true; syncWake(); } // browsing the fort must not hold the screen awake
+        if (cur) { cur.paused = true; syncRun(); } // browsing the fort must not hold the screen awake
         global.scrollTo(0, 0);
         return true;
       }
@@ -1414,7 +1445,7 @@
         // DESTROYED the saved run on any reload from this hash.
         if (!cur && save.midRun) { location.hash = "#td-home"; return true; }
         if (!cur) startLevel(1, {}); // deep entry → default to L1
-        else { cur.paused = false; syncWake(); }
+        else { cur.paused = false; syncRun(); }
         // startLevel may have run while the screen was still hidden (hash
         // routing is async) — the canvas would have sized against a 0-width
         // parent. Re-measure now that the screen is visible.
@@ -1427,7 +1458,7 @@
     onLeave() {
       leavingPlay(); // leaving the fort entirely: same milestone-record + transient-state clear
       doc.body.classList.remove("td-mode");
-      if (cur) { cur.paused = true; syncWake(); }
+      if (cur) { cur.paused = true; syncRun(); }
       UI.hideBubble();
       UI.closeOverlay();
     },
@@ -1501,9 +1532,9 @@
       // screen used to swap the results away for a Paused menu you could not
       // get back from (losing ▶ Next level / 🔁 Try again / the run summary).
       if (!inLevel()) return;
-      if (cur.paused) { cur.paused = false; cur.autoPaused = false; UI.closeOverlay(); syncWake(); return; }
+      if (cur.paused) { cur.paused = false; cur.autoPaused = false; UI.closeOverlay(); syncRun(); return; }
       cur.paused = true;
-      syncWake(); // a paused battle must NOT hold the screen awake
+      syncRun(); // a paused battle must NOT hold the screen awake
       showPauseMenu();
     },
     toggleSpeed: () => {
@@ -1577,7 +1608,7 @@
   });
   doc.addEventListener("visibilitychange", () => {
     if (!cur) return;
-    if (doc.hidden) { cur.paused = true; cur.autoPaused = true; syncWake(); return; } // the browser drops the lock anyway; keep our own state honest
+    if (doc.hidden) { cur.paused = true; cur.autoPaused = true; syncRun(); return; } // the browser drops the lock anyway; keep our own state honest
     // Coming BACK has to be escapable. Without this the battle stayed paused for
     // ever with nothing on screen saying so, and ⏸ (a toggle) then resumed
     // instead of pausing — the control lied about its own state.
@@ -1605,7 +1636,7 @@
     // Orientation contract for tests: the ONE world↔screen mapping + mode.
     w2s: (x, y) => (cur ? cur.render.worldToScreen(x, y) : { x: 0, y: 0 }),
     isRotated: () => (cur ? cur.render.isRotated() : false),
-    newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) { cur.paused = true; syncWake(); } return true; },
+    newGame: (levelId, opts) => { startLevel(levelId, opts || {}); if (cur) { cur.paused = true; syncRun(); } return true; },
     grantGold: (n) => { if (cur) { cur.engine.state.gold += n; cur.engine.state.cheated = true; } },
     // The ONE owner — a new save field is covered here automatically. It DROPS
     // the parked run too, exactly like the grown-ups button: without that,
@@ -1623,11 +1654,11 @@
     ach: () => (save.ach || []).slice(),
     endlessBest: () => Object.assign({}, save.endlessBest),
     resume: () => { resumeMidRun(); return cur ? cur.engine.state.phase : null; },
-    startEndless: (world) => { startEndless(world); if (cur) { cur.paused = true; syncWake(); } return true; },
+    startEndless: (world) => { startEndless(world); if (cur) { cur.paused = true; syncRun(); } return true; },
     // TD-18 daily: the pick for any day (a FIXTURE injection point, so a test
     // can pin the calendar) and a way to play it. Info and act, separately.
     dailyInfo: (day) => dailyPick(day || dayKey()),
-    playDaily: (day) => { startDaily(day); if (cur) { cur.paused = true; syncWake(); } return true; },
+    playDaily: (day) => { startDaily(day); if (cur) { cur.paused = true; syncRun(); } return true; },
     // Exercises the real leave chokepoint — including the hash, so the router
     // and the screens agree afterwards exactly as they do when the player taps
     // 🏠 (the app always leaves via the hash; a route() call alone left the hash

@@ -6323,3 +6323,72 @@ test("ART: a body you must SINGLE OUT is not the faintest thing on the field", a
     `🎇 must out-ink the ordinary crowd body it hides among — you have to pick it out to use it ` +
     `(sparkler ${out.spark} px vs popper ${out.popper} px)`);
 });
+
+test("🎵 the soundtrack follows the battle you are LOOKING at", async () => {
+  // The wake lock has one predicate BECAUSE it once stayed held while you
+  // browsed the star tree. The music shipped with none: startMusic() in
+  // startLevel, stopMusic() only in stopLoop. So backgrounding the tab —
+  // which auto-pauses the battle — left the loop scheduling, throttled by the
+  // browser to ~1Hz, i.e. the 190ms march degrades to an arrhythmic drone
+  // while you are in another app; and quitting to the fort mid-run played
+  // battle music over the menu, with musicCtx() reading a parked run for its
+  // build/wave/boss/danger arrangement.
+  //
+  // PAUSE is deliberately NOT in the predicate: a pause menu sits over a
+  // visible battlefield and keeps its music, which is what games do. What
+  // stops it is leaving — the tab, or the screen.
+  await page.evaluate(() => {
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({
+      v: 1, stars: {}, difficulty: "normal",
+      settings: { sfx: true, music: true, dmgNumbers: false },
+    }));
+  });
+  await page.reload();
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 5 }); });
+  await page.waitForTimeout(100);
+
+  const out = await page.evaluate(async () => {
+    // Count at the ONE shared primitive, so this measures what is audible
+    // rather than what a flag says.
+    const A = window.JoshAudio;
+    const realTone = A.tone;
+    let notes = 0;
+    A.tone = function () { notes++; return realTone.apply(this, arguments); };
+    A.setMuted(false);
+    let hiddenVal = false;
+    Object.defineProperty(document, "hidden", { get: () => hiddenVal, configurable: true });
+    const setHidden = async (v) => {
+      hiddenVal = v;
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((r) => setTimeout(r, 60));
+    };
+    const sample = async (ms) => { notes = 0; await new Promise((r) => setTimeout(r, ms)); return notes; };
+
+    const res = {};
+    res.playing = await sample(900);                 // a live, visible battle plays
+    await setHidden(true);
+    res.backgrounded = await sample(900);            // …you switched apps: silence
+    await setHidden(false);
+    res.returned = await sample(900);                // …and back
+    location.hash = "#td-home";
+    await new Promise((r) => setTimeout(r, 120));
+    res.atFort = await sample(900);                  // battle music must not play over the fort
+    delete document.hidden;
+    A.tone = realTone;
+    return res;
+  });
+
+  assert.ok(out.playing > 0,
+    `a live battle with 🎵 on must play notes (got ${out.playing}) — the rest of this test is vacuous otherwise`);
+  assert.equal(out.backgrounded, 0,
+    `backgrounding the tab must stop the loop, not throttle it to a drone (got ${out.backgrounded} notes)`);
+  assert.ok(out.returned > 0,
+    `coming back must resume the march (got ${out.returned} notes)`);
+  assert.equal(out.atFort, 0,
+    `leaving the battlefield must stop the battle's music (got ${out.atFort} notes over the fort home)`);
+
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.reload();
+});

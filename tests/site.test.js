@@ -12,15 +12,29 @@ const root = path.join(__dirname, "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const content = require("../scripts/content.js");
 
-const SCRIPTS = [
-  "scripts/content.js", "scripts/logic.js", "scripts/effects.js", "scripts/audio.js", "scripts/art.js",
-  "scripts/stickers.js", "scripts/buddy.js", "scripts/framework.js", "scripts/games-toys.js", "scripts/games-math.js",
-  "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js",
-  "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js",
-  "scripts/hl-content.js", "scripts/games-hl-a.js", "scripts/games-hl-b.js", "scripts/hl-main.js",
-  "scripts/td-data.js", "scripts/td-logic.js", "scripts/td-render.js", "scripts/td-ui.js", "scripts/td-main.js",
-  "scripts/main.js",
-];
+// DERIVED from the page, never maintained by hand. Half the structural
+// guardrails in this file iterate SCRIPTS — the Emoji <=13.0 scan, the VS16
+// scan, the canvas-API floor scan, the Math.random ban, the SW precache check
+// — so a hand-written list means a new script file escapes ALL of them at
+// once, silently, until something ships blank on Josh's iPad. That is this
+// repo's most-repeated own goal (the VS16 scan hand-listed nine files and so
+// missed td-logic.js; the flex-gap law guarded only main.css; the live-verify
+// probe polled only index.html), and the fix is always the same: read the list
+// off the artefact. What the page loads IS what ships, so a script removed
+// from index.html correctly drops out of every scan with it.
+const SCRIPTS = [...read("index.html").matchAll(/<script[^>]+src="([^"?]+)/g)].map((m) => m[1].replace(/^\.\//, ""));
+
+test("the script list is DERIVED from index.html, and is not empty", () => {
+  // Guards the derivation itself: a regex that stops matching would silently
+  // make every scan above it vacuous, which is worse than the hand list it
+  // replaced because it fails OPEN and looks green.
+  assert.ok(SCRIPTS.length >= 20,
+    `only ${SCRIPTS.length} scripts found in index.html — every scan that iterates SCRIPTS would be near-vacuous`);
+  assert.equal(new Set(SCRIPTS).size, SCRIPTS.length, "a script is loaded twice");
+  for (const s of SCRIPTS) {
+    assert.match(s, /^scripts\/[\w-]+\.js$/, `"${s}" does not look like a script path — the regex is picking up something else`);
+  }
+});
 
 test("core files exist", () => {
   for (const f of ["index.html", "styles/main.css", "styles/td.css", "sw.js", "manifest.webmanifest", ...SCRIPTS]) {
@@ -41,8 +55,18 @@ test("index.html loads every script + css, all cache-busted", () => {
 
 test("service worker precaches every script + css + index", () => {
   const sw = read("sw.js");
+  // PARSE the CORE array — do not substring the file. A whole-file match is
+  // satisfied by a COMMENT, and sw.js's own offline-fallback comment quotes
+  // "./scripts/main.js" while explaining the precache, so the launcher could
+  // drop out of CORE entirely and this test would still pass. Offline that is
+  // the documented dead shell: the versioned request misses, falls through to
+  // the index.html fallback, and the browser parses HTML as JavaScript.
+  const coreBlock = sw.match(/const CORE = \[([\s\S]*?)\n\];/);
+  assert.ok(coreBlock, "sw.js must declare a CORE precache array");
+  const core = [...coreBlock[1].matchAll(/"([^"]+)"/g)].map((m) => m[1].replace(/^\.\//, ""));
+  assert.ok(core.length >= 20, `CORE parsed as only ${core.length} entries — this check would be near-vacuous`);
   for (const s of [...SCRIPTS, "styles/main.css", "styles/td.css", "index.html"]) {
-    assert.ok(sw.includes(s.replace(/^scripts\//, "scripts/")), `SW missing ${s}`);
+    assert.ok(core.includes(s), `SW CORE is missing ${s} — offline it 404s to the HTML fallback and the app boots as a dead shell`);
   }
   assert.match(sw, /addEventListener\(\s*["']fetch["']/, "SW needs a fetch handler");
   assert.match(sw, /addEventListener\(\s*["']install["']/, "SW needs an install handler");
@@ -1374,8 +1398,16 @@ test("guardrail: haptics and wake lock are feature-checked, never assumed", () =
   assert.match(m, /function wakeWanted\(\)/, "the wake lock has ONE predicate");
   assert.match(m, /function syncWake\(\) \{ if \(wakeWanted\(\)\) keepAwake\(\); else letSleep\(\); \}/,
     "…and ONE owner that applies it");
-  const wakeCalls = (m.match(/(?<!function )\b(keepAwake|letSleep)\(\)/g) || []);
-  const strayWake = wakeCalls.filter((c) => c === "keepAwake()").length;
+  // COMMENT-STRIPPED, because a one-owner count is an identifier count and the
+  // rule is explained in prose right beside the code it governs — so the scan
+  // matches its own documentation and reports call sites that are sentences.
+  // (The keepAwake count below survived only because its comment happens to
+  // write "keepAwake/letSleep" without the parens.) Cuts at `//` unless it is
+  // part of a `://`, so a URL in a string cannot swallow a real call.
+  const mCode = m.split("\n")
+    .map((l) => (/^\s*\/\//.test(l) ? "" : l.replace(/([^:])\/\/.*$/, "$1")))
+    .join("\n");
+  const strayWake = (mCode.match(/(?<!function )\bkeepAwake\(\)/g) || []).length;
   assert.equal(strayWake, 1, `keepAwake() must be called ONLY from syncWake (found ${strayWake})`);
   // Every place that flips `cur.paused` must re-sync the lock within a few lines.
   // Matching the exact surrounding text is brittle (and was: an unrelated edit to
@@ -1384,13 +1416,33 @@ test("guardrail: haptics and wake lock are feature-checked, never assumed", () =
   assert.ok(pausedWrites.length >= 4, `the pause flag is written in several places (${pausedWrites.length})`);
   for (const w of pausedWrites) {
     const after = m.slice(w.index, w.index + 320);
-    assert.match(after, /syncWake\(\)/,
-      `every write to cur.paused must re-sync the wake lock — none found after "${m.slice(w.index, w.index + 60).split("\n")[0]}"`);
+    assert.match(after, /syncRun\(\)/,
+      `every write to cur.paused must re-sync the run — none found after "${m.slice(w.index, w.index + 60).split("\n")[0]}"`);
   }
-  // …and the lock's own visibilitychange listener must be the syncWake one (a
+  // …and the lock's own visibilitychange listener must be the composed one (a
   // bare /visibilitychange/ match is satisfied by the unrelated auto-pause listener).
-  assert.match(m, /addEventListener\("visibilitychange", syncWake\)/,
-    "the wake lock's visibilitychange listener is syncWake itself, not an unrelated one");
+  assert.match(m, /addEventListener\("visibilitychange", syncRun\)/,
+    "the run's visibilitychange listener is syncRun itself, not an unrelated one");
+
+  // THE SOUNDTRACK NEEDS THE SAME THING, and shipped with none of it: it was
+  // started in startLevel and stopped only in stopLoop, so backgrounding the
+  // tab left the loop scheduling (throttled to ~1Hz — the march becomes a
+  // drone while you are in another app) and quitting to the fort played
+  // battle music over the menu. That is the wake lock's own bug, one
+  // lifecycle over, so it gets the same shape: one predicate, one owner.
+  assert.match(m, /function musicWanted\(\)/, "the soundtrack has ONE predicate");
+  assert.match(m, /function syncMusic\(\) \{ if \(musicWanted\(\)\) \{ if \(!musicTimer\) startMusic\(\); \} else stopMusic\(\); \}/,
+    "…and ONE owner that applies it — the !musicTimer guard matters, or every pause/resume/route restarts the phrase");
+  const strayMusic = (mCode.match(/(?<!function )\bstartMusic\(\)/g) || []).length;
+  assert.equal(strayMusic, 1, `startMusic() must be called ONLY from syncMusic (found ${strayMusic})`);
+  // The two predicates genuinely disagree about a paused battle (a pause menu
+  // sits over a visible field and keeps its music), so they stay separate —
+  // but every CALL SITE takes both, or the halves drift exactly as the wake
+  // lock's acquire and release once did.
+  assert.match(m, /function syncRun\(\) \{ syncWake\(\); syncMusic\(\); \}/,
+    "one composed owner, so a future state cannot remember the lock and forget the music");
+  const strayWakeOwner = (mCode.match(/(?<!function )\bsyncWake\(\)/g) || []).length;
+  assert.equal(strayWakeOwner, 1, `syncWake() must be reached only through syncRun (found ${strayWakeOwner})`);
   // Every new cue is real: it must exist in sfx() AND be fired from somewhere.
   for (const k of ["ability", "arm", "cleared", "phase", "lowlives", "tier"]) {
     assert.ok(m.includes('kind === "' + k + '"'), `sfx() defines the "${k}" cue`);
@@ -1935,6 +1987,9 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
   // So a hang is prevented at the source, and this pins that it stays prevented.
   const dep = read(".github/workflows/deploy.yml");
   const act = read(".github/actions/install-browsers/action.yml");
+  // Comment-stripped, because the rules are explained IN the action and a scan
+  // that matches its own documentation is this repo's most-repeated own goal.
+  const actCode0 = act.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
 
   // ONE owner. If a third job ever inlines the command it skips the retry
   // silently — the "same computation in two places" bug this repo keeps paying
@@ -1960,8 +2015,21 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
   // The action has to do the three things its name claims. A "retry" that
   // cannot interrupt a stall is not a retry: the hang has to be BOUNDED per
   // attempt, or attempt 1 simply never returns and attempts 2-3 never happen.
-  assert.match(act, /timeout .*--signal=KILL "\$\{PER_ATTEMPT\}s"|timeout[^\n]*PER_ATTEMPT/,
+  assert.match(act, /timeout[^\n]*PER_ATTEMPT/,
     "each attempt must be bounded by `timeout`, or a stalled attempt blocks the retries behind it");
+  // …and the attempt must run in its OWN SESSION. Run #320 ended `exit 137`
+  // with ZERO warning lines: the signal that ended attempt 1 also killed the
+  // shell running the loop, so the retry — the entire point of this action —
+  // never happened, and a deploy was lost to a stall the retry was written for.
+  // timeout signals a process GROUP, so whether the parent survives is a
+  // property of the runner's process-group topology, which no local harness
+  // reproduces. setsid makes it structural rather than topological.
+  assert.match(act, /setsid --wait timeout/,
+    "the attempt must run under `setsid --wait`, or a group-directed signal can kill the retry loop itself");
+  // --foreground looks like the fix and is the trap: it leaves the command in
+  // the SHELL's process group, which reproduces the exact failure signature.
+  assert.ok(!/--foreground/.test(actCode0),
+    "never --foreground here: it puts the command back in the shell's own process group");
   assert.match(act, /for i in \$\(seq 1 "\$ATTEMPTS"\)/,
     "it must actually loop — one bounded attempt turns a transient stall into a red build");
   assert.ok(/ATTEMPTS=([2-9]|\d\d)/.test(act),
@@ -1988,8 +2056,7 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
     "cache Playwright's DEFAULT browsers dir — caching a path the install does not use is a silent no-op");
   // Comment-stripped, because the rule is explained IN the action and a scan
   // that matches its own documentation is this repo's most-repeated own goal.
-  const actCode = act.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
-  assert.ok(!/PLAYWRIGHT_BROWSERS_PATH/.test(actCode),
+  assert.ok(!/PLAYWRIGHT_BROWSERS_PATH/.test(actCode0),
     "the action must not repoint PLAYWRIGHT_BROWSERS_PATH, or the cached path and the installed path diverge");
   // A key that never changes serves the wrong browsers after a Playwright
   // bump — for ever, since the entry is only rewritten on a miss.
@@ -2041,7 +2108,14 @@ test("CI: the browser-install retry actually RETRIES, and names a hang a hang", 
   fs.writeFileSync(path.join(dir, "script.sh"), fast);
   const run = (stub) => {
     fs.writeFileSync(path.join(dir, "bin", "npx"), stub, { mode: 0o755 });
-    const r = spawnSync("bash", [path.join(dir, "script.sh")], {
+    // setsid on the HARNESS too, and for the same reason the script needs it:
+    // the case below drives an attempt that signals its own process group, and
+    // without this the signal walks all the way out and kills `node --test`
+    // itself — the suite dies instead of reporting. (Verified: it does.) This
+    // does NOT mask the script's own setsid, which isolates one level deeper;
+    // dropping it still turns the case red rather than fatal. Linux-only, like
+    // the runner this action exists for.
+    const r = spawnSync("setsid", ["--wait", "bash", path.join(dir, "script.sh")], {
       encoding: "utf8", timeout: 60000,
       env: { ...process.env, PATH: `${path.join(dir, "bin")}:${process.env.PATH}` },
     });
@@ -2056,6 +2130,23 @@ test("CI: the browser-install retry actually RETRIES, and names a hang a hang", 
   assert.equal(hang.code, 1, "a permanent hang must end as a real failure, not a green tick");
   assert.equal((hang.out.match(/HUNG/g) || []).length, consts.ATTEMPTS,
     `every attempt must be killed and reported as a HANG, saw: ${hang.out.trim().split("\n").join(" | ")}`);
+
+  // THE MECHANISM THAT ACTUALLY BIT, which the hang case above cannot see: an
+  // attempt whose death signals its own process GROUP. On run #320 that took
+  // the retry loop down with it — `exit 137`, zero warnings, no attempt 2 —
+  // while this very test was green, because a local shell's process-group
+  // topology is not the runner's. So the property is asserted against the
+  // mechanism instead: whatever the attempt does to its own group, the loop
+  // must still make every attempt and still end red. (Mutation-proven by
+  // adding --foreground and dropping setsid, which reproduces #320's exact
+  // signature: 0 attempts, exit 137. Note it does NOT go red on dropping
+  // setsid alone, because a plain interactive-shell topology already isolates
+  // the group — the structural clause above is what pins that half.)
+  const grouped = run("#!/bin/bash\nsleep 0.2\nkill -KILL 0\n");
+  assert.equal(grouped.code, 1,
+    "an attempt that signals its own process group must not take the retry loop with it");
+  assert.equal((grouped.out.match(/HUNG|failed with exit/g) || []).length, consts.ATTEMPTS,
+    `every attempt must still run, saw: ${grouped.out.trim().split("\n").join(" | ")}`);
 
   // …and a transient failure must actually be recovered, with the REAL exit
   // code reported for the attempts that failed.

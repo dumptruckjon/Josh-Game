@@ -2315,6 +2315,107 @@ decision axis the Oil Drum opened: it jams the nearest gun where it DIES
 (`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
 you break it is the choice. Like the Drum it measures outcome-neutral on the
 shipped oracle and ships for legibility, not for the curve.
+**THE RETRY DID NOT RETRY — and the guardrail that drives the shipped script
+text was GREEN while CI was red, because a test is only as faithful as its
+ENVIRONMENT.** Run #320 ended `exit 137` with **zero** `::warning::` lines: the
+signal that ended attempt 1 also killed the SHELL running the loop, so attempts
+2 and 3 never happened and a deploy was lost to exactly the stall this action
+exists to survive. `timeout` signals a process GROUP, so whether the parent
+survives depends on the runner's process-group topology — and no local harness
+reproduces it (both a plain `bash script.sh` and a `setsid` one retried
+happily here, three times each, which is precisely why the behavioural test
+passed). Four things worth keeping. (1) **`--foreground` is the trap, not the
+fix.** It reads like the obvious answer and is the opposite: it leaves the
+command in the SHELL's own process group, and measured against a stub whose
+death signals its group it reproduces #320's exact signature — **exit 137, zero
+attempts**. The fix is `setsid --wait`, which puts the attempt in its own
+SESSION so no group-directed signal, from `timeout` or from the command itself,
+can reach out of it — structural rather than topological. Also TERM with a
+`--kill-after` escalation instead of a bare KILL, so the common case shuts down
+cleanly and a stuck apt tree still goes with it. (2) **The failure reproduced
+so faithfully that it killed the TEST RUNNER**: driving the #320 configuration
+took down `node --test` itself rather than reporting, so the harness now spawns
+the script under `setsid` too. A harness must isolate the thing it is testing,
+or a genuine regression presents as the suite dying instead of failing — and
+that is one step worse than a green test, because it looks like infrastructure.
+It does not mask the script's own `setsid`, which isolates a level deeper:
+dropping that still turns the case red. (3) **The clause and the mutation
+disagree about which half is load-bearing, so say so** — dropping `setsid`
+alone does NOT go red behaviourally (an ordinary shell topology already
+isolates the group); the structural clause is what pins that half, and the
+behavioural one pins the mechanism. Two clauses, two different mutations, and
+the comment names which is which. (4) **Run #320 is NOT evidence the 25-minute
+bound is too small.** The log shows apt going silent for 24 minutes inside
+`--with-deps` after fetching InRelease — a stall, which is what the retry is
+for — so the bound did its job and the retry did not. That note lives beside
+the constant, because the tempting reading of a killed attempt is always
+"raise it", and this repo has already raised it three times.
+
+**THE GUARDRAIL PROTECTING THE OFFLINE PWA COULD NOT SEE THE LAUNCHER FALL OUT
+OF THE PRECACHE — because it substring-matched the whole file, and the file's
+own comment quotes the path.** `sw.js`'s offline-fallback comment explains the
+dead-shell bug using the literal `"./scripts/main.js"`, and the test asserted
+`sw.includes(s)` for each script — so deleting `./scripts/main.js` from `CORE`
+leaves the check GREEN. Verified rather than reasoned: with the launcher
+removed from the array the old assertion passes, and offline that is exactly
+the documented disaster (the versioned request misses, falls through to the
+`index.html` fallback, and the browser parses HTML as JavaScript with
+`window.JoshGames` empty). It parses the `CORE` array now, with a `>= 20`
+non-vacuity floor. **And the list it checks AGAINST was hand-written**, which
+is the same class one level up: `SCRIPTS` feeds the Emoji ≤13.0 scan, the VS16
+scan, the canvas-API floor scan, the `Math.random` ban and this precache check,
+so a new script file escaped ALL of them at once until someone remembered to
+add it — the fourth instance after the VS16 scan's nine files, the flex-gap law
+guarding only `main.css`, and the live-verify probe polling only
+`index.html`. It derives from `index.html`'s own `<script src>` tags now, so
+what the page LOADS is what gets scanned, and a script removed from the page
+correctly drops out with it. Two notes worth keeping. **A derivation fails
+OPEN**, which is worse than the hand list it replaced unless it is guarded: a
+regex that stops matching makes five scans silently vacuous and everything
+stays green, so the derivation has its own test (≥20 entries, no duplicates,
+every entry shaped like a script path) — mutation-proven by breaking the regex,
+which reports "only 0 scripts found". And **the load-bearing proof is M2**: add
+a brand-new `<script>` to `index.html` and the suite immediately names it as
+missing from the precache, which is the failure the hand list could never
+produce.
+
+**THE SOUNDTRACK HAD NO PREDICATE — the wake lock's own bug, one lifecycle
+over, in the same file.** `keepAwake`/`letSleep` got `wakeWanted()` + `syncWake()`
+precisely because the first cut acquired in `startLevel` and released only in
+`stopLoop`, so a paused or quit-from run held the lock for ever. The music
+shipped with exactly that shape and nobody noticed: `startMusic()` in
+`startLevel`, `stopMusic()` only in `stopLoop`. Two reachable defects fall out.
+**Backgrounding the tab auto-pauses the battle and does NOT stop the loop** — so
+it keeps scheduling while you are in another app, throttled by the browser to
+~1Hz, which turns a 190ms march into an arrhythmic drone. **And quitting to the
+fort mid-run played battle music over the menu**, with `musicCtx()` reading a
+PARKED run for its build/wave/boss/danger arrangement — the soundtrack
+describing a battle that is not on screen. Fixed the RULE 7 way: one predicate
+(`musicWanted()`), one owner (`syncMusic()`), and one composed `syncRun()` that
+every site calls. Four things worth keeping. (1) **The two predicates
+deliberately DISAGREE, which is why they stay separate rather than being
+merged** — they agree about a hidden tab and a finished run and differ on
+PAUSE, because a pause menu sits OVER a visible battlefield and should keep its
+music (which is what games do) while a battle you have navigated away from
+should not. Gating the music on "the play screen is not hidden" is the fort's
+version of the framework-wide law that all speech and cues gate on
+`!screen.hidden`. What is shared is the CALL SITE: `syncRun()` is what every
+pause, resume and route takes, so the halves cannot drift the way the lock's
+acquire and release once did. (2) **`syncMusic` needs its `!musicTimer` guard**
+— `startMusic()` restarts the phrase from bar one, and `syncRun()` fires on
+every pause, resume and route, so without it the music stutters back to the top
+each time you open the pause menu. (3) **The sweep that rewrites `syncWake()`
+call sites to `syncRun()` will rewrite the one INSIDE `syncRun` into infinite
+recursion** unless it is corrected afterwards — worth stating because the
+symptom is a stack overflow at the first pause, far from the edit. (4) **The
+one-owner COUNT matched its own documentation, for the third time in one
+sitting** (after the `PLAYWRIGHT_BROWSERS_PATH` clause and, historically, the
+`art.js` `<defs>` scan): two of `startMusic()`'s three "call sites" were the
+comments explaining the rule. Every one-owner count in that test is
+comment-stripped now — including the pre-existing `keepAwake()` one, which was
+green only because its comment happens to write `keepAwake/letSleep` without
+the parens. A count of identifiers must not be able to count sentences.
+
 **THE INSTALL BOUND WAS RE-MEASURED A THIRD TIME AND THE DATA SAID SOMETHING
 DIFFERENT — it is not drifting upward, it is BIMODAL, and the fix was to stop
 tuning the constant.** Run #317 took **17m47s** and **17m39s** on the two jobs;

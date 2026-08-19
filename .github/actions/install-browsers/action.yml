@@ -75,6 +75,11 @@ runs:
         # only thing a generous bound costs is the worst-case hold on the
         # `pages` group (3 x 25 + backoff = 76 min, under the caller's 85), and
         # that is still a bounded, visible failure rather than a 6-hour hang.
+        # Run #320 exceeded this and was killed correctly: apt went silent for
+        # 24 minutes inside `--with-deps`, which is exactly the stall this
+        # action exists to retry. It did not retry — see the setsid note below
+        # — so that run is NOT evidence the bound is too small. Do not raise it
+        # again without a run that actually made all three attempts.
         PER_ATTEMPT=1500
         ATTEMPTS=3
         BACKOFF=20
@@ -84,7 +89,25 @@ runs:
           # own status of 0, so `code` was always 0 — the HUNG branch below
           # could never fire and every failure reported "exit 0". Found by
           # running this script against a stubbed npx, not by reading it.
-          timeout --signal=KILL "${PER_ATTEMPT}s" npx playwright install --with-deps chromium webkit
+          # setsid --wait, and it is LOAD-BEARING: run #320 died as `exit 137`
+          # with ZERO ::warning:: lines, i.e. the retry loop never reached
+          # attempt 2, because the signal that ended the attempt also killed
+          # the SHELL running the loop. timeout signals a process GROUP, so
+          # whether the parent survives depends on the runner's process-group
+          # topology — which a local harness does not reproduce (this script's
+          # own behavioural test was green while CI was red). A new SESSION
+          # makes it structural instead of topological: no group-directed
+          # signal, from timeout OR from the command itself, can reach out of
+          # it. Measured against both mechanisms; --foreground is the trap, not
+          # the fix — it leaves the command in the shell's own group and
+          # reproduces the exact CI signature (exit 137, zero attempts).
+          #
+          # TERM with a KILL escalation rather than a bare KILL, so the common
+          # case shuts down cleanly; timeout still signals the whole group
+          # inside the session, so a stuck apt tree goes with it. Both 124
+          # (timed out) and 137 (had to KILL) land in the HUNG branch below.
+          setsid --wait timeout --signal=TERM --kill-after=30s "${PER_ATTEMPT}s" \
+            npx playwright install --with-deps chromium webkit
           code=$?
           if [ "$code" -eq 0 ]; then
             echo "::notice::Playwright browsers installed on attempt $i"
