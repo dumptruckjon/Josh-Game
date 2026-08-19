@@ -7376,12 +7376,63 @@ test("every aiming mode the engine offers is EXPLAINED", () => {
   const modes = e.targetingModes();
   assert.ok(modes.length >= 4, `expected the full mode list, saw ${modes.length} — this test would be near-vacuous`);
   for (const m of modes) {
-    const txt = (DATA.TARGETING || {})[m];
-    assert.ok(txt && txt.length > 20, `aiming mode "${m}" has no description in DATA.TARGETING`);
+    const t = (DATA.TARGETING || {})[m];
+    assert.ok(t && t.desc && t.desc.length > 20, `aiming mode "${m}" has no description in DATA.TARGETING`);
+    assert.ok(t.name, `aiming mode "${m}" has no player-facing name — the button would print the engine id`);
   }
   // …and nothing in the table that the engine will never offer, which would be
   // a paragraph describing a control the player can never reach.
   for (const k of Object.keys(DATA.TARGETING || {})) {
     assert.ok(modes.indexOf(k) >= 0, `DATA.TARGETING describes "${k}", which the engine never offers`);
   }
+});
+
+test("each 🎯 mode PICKS what its description claims", () => {
+  // Written because the description shipped WRONG. The engine's mode id is
+  // `cheap`, and from the id alone the guide called it an Economy pick that
+  // aims at the body worth the most gold. It does nothing of the kind:
+  // `e.hp < best.hp` — it finishes the almost-dead — which is exactly what the
+  // 🔻 Weak Spot node that unlocks it has always promised ("Weakest" aim). A
+  // structural test that every mode HAS a description cannot catch a
+  // description that is false, so this drives the engine and reads the choice.
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 4, meta: ["cheaptarget"] });
+  const pad = DATA.LEVELS[0].pads.slice().sort((a, b) => a.id < b.id ? -1 : 1)[0];
+  assert.ok(e.place("dart", pad.id).ok, "the fixture must get a gun on the board");
+  const tw = e.state.towers[0];
+  e.callWave();
+  // run until at least two bodies are inside this tower's reach
+  const reach = e.towerReach(tw.id);
+  // posAt wants a BUILT path (segs/total), not the raw waypoint array — passing
+  // the level's own `path` throws "path.segs is not iterable".
+  const lane = TD.buildPath(DATA.LEVELS[0].path);
+  const inRange = () => e.state.enemies.filter((x) => {
+    if (!x.alive) return false;
+    const p = TD.posAt(lane, x.dist);
+    return (p.x - tw.cx) ** 2 + (p.y - tw.cy) ** 2 <= reach * reach;
+  });
+  for (let i = 0; i < 3000 && inRange().length < 2; i++) e.tick();
+  const near = inRange();
+  assert.ok(near.length >= 2, `the fixture needs two bodies in range, saw ${near.length}`);
+
+  // give them clearly different hp, high enough that one tick cannot kill either
+  near[0].hp = 900; near[1].hp = 120;
+  const weakest = near[1].id, strongest = near[0].id;
+
+  const pickWith = (mode) => {
+    for (const x of e.state.enemies) if (x.id === strongest) x.hp = 900; else if (x.id === weakest) x.hp = 120;
+    assert.ok(e.setTargeting(tw.id, mode).ok, `mode ${mode} must be settable`);
+    e.tick();
+    return e.state.towers[0].targetId;
+  };
+  assert.equal(pickWith("cheap"), weakest,
+    '"cheap" is the WEAKEST body (least hp) — the description must not claim it aims at gold');
+  assert.equal(pickWith("strong"), strongest,
+    '"strong" is the most hp left');
+  // …and the words must match that. This clause is the one that would have
+  // caught the shipped error: the mode is described by what it DOES.
+  const d = DATA.TARGETING.cheap;
+  assert.equal(d.name, "weakest", "the player-facing name must match the 🔻 Weak Spot node that unlocks it");
+  assert.match(d.desc, /hp/i, "…and the description must say it is about hp");
+  assert.ok(!/gold|payday|worth the most/i.test(d.desc),
+    `"cheap" has nothing to do with price — the id is misleading and the description must not repeat it: "${d.desc}"`);
 });

@@ -6624,16 +6624,18 @@ test("the guide RENDERS every aiming mode, not just declares them", async () => 
   await page.waitForTimeout(120);
   const seen = await page.evaluate(() => {
     const box = document.querySelector(".td-overlay");
-    return { text: box ? box.textContent : "", modes: Object.keys(window.TDData.TARGETING || {}) };
+    const T = window.TDData.TARGETING || {};
+    const names = {}; for (const k of Object.keys(T)) names[k] = T[k].name || k;
+    return { text: box ? box.textContent : "", modes: Object.keys(T), names };
   });
   assert.ok(seen.modes.length >= 4, `expected the mode table, saw ${seen.modes.length}`);
   assert.match(seen.text, /Aiming/, "the guide must carry an Aiming section");
   for (const m of seen.modes) {
-    assert.ok(seen.text.includes(m), `the guide never renders the "${m}" aiming mode`);
+    assert.ok(seen.text.includes(seen.names[m]), `the guide never renders the "${m}" aiming mode`);
   }
   const missing = await page.evaluate(() => {
     const t = document.querySelector(".td-overlay").textContent;
-    return Object.entries(window.TDData.TARGETING).filter(([, d]) => !t.includes(d.slice(0, 30))).map(([m]) => m);
+    return Object.entries(window.TDData.TARGETING).filter(([, d]) => !t.includes(d.desc.slice(0, 30))).map(([m]) => m);
   });
   assert.deepEqual(missing, [], `the guide renders these modes' NAMES but not their descriptions: ${missing.join(", ")}`);
 

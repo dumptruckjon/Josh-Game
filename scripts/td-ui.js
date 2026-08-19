@@ -564,7 +564,8 @@
       "cycle. It is worth real lives — on a boss level the best setting can be several lives better than the worst, and which one wins " +
       "differs from level to level, so it is worth a try when a wave keeps getting through.</li>" +
       Object.keys(global.TDData.TARGETING || {}).map(function (m) {
-        return '<li><span class="td-guide__tico">·</span><b>' + m + "</b> — " + global.TDData.TARGETING[m] + "</li>";
+        const t = global.TDData.TARGETING[m];
+        return '<li><span class="td-guide__tico">·</span><b>' + (t.name || m) + "</b> — " + t.desc + "</li>";
       }).join("") +
       "</ul>" +
       // Each power's cost line reads "130🪙 · 1⚙️", and ⚙️ was never DEFINED

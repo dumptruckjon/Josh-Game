@@ -2315,6 +2315,34 @@ decision axis the Oil Drum opened: it jams the nearest gun where it DIES
 (`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
 you break it is the choice. Like the Drum it measures outcome-neutral on the
 shipped oracle and ships for legibility, not for the curve.
+**I DOCUMENTED A MECHANIC FROM ITS IDENTIFIER INSTEAD OF ITS IMPLEMENTATION,
+AND SHIPPED THE LIE — caught by screenshotting the star tree an hour later.**
+The engine's fifth aiming mode is `cheap`, so the guide entry I had just written
+described it as *"the body worth the most gold. A 💰 Economy pick — it turns
+your guns toward the payday rather than the threat."* The engine does nothing of
+the kind: `else if (mode === "cheap" && e.hp < best.hp)` — it finishes the
+almost-dead — which is exactly what the 🔻 Weak Spot node that unlocks it has
+always promised ("Unlock **Weakest** aim"). The tree and my new guide
+contradicted each other in the same app, and the tree was right. Four things
+worth keeping. (1) **An id is a name somebody chose once; read the code.** This
+repo already records the mirror of it twice — an enemy's id being load-bearing
+on the tick stream, and *"a named mechanic must BE that mechanic"* (四宫数独 was
+a Latin square) — and this is the third face: a mechanic whose OWN NAME
+misdescribes it, where trusting the name produces false player copy. The other
+four modes were checked against the implementation line by line and are
+correct. (2) **A structural guardrail cannot catch a false description.** Mine
+asserted every mode the engine offers HAS a description and that nothing is
+described which the engine never offers — both green while the text was wrong.
+Only driving the engine and reading which body it picks can pin the meaning, so
+the test now sets two bodies to 900 and 120 hp and asserts `cheap` takes the
+120 and `strong` the 900, then asserts the words match. (3) **The button was
+printing the engine's id**, so the one mode you have to BUY read "cheap" while
+the node granting it said "Weakest" — each mode carries a player-facing `name`
+now, and the guardrail ties it to the node's own promise. (4) **The fixture
+needed a BUILT path**: `posAt` takes `buildPath()` output (segs/total), and
+handing it the level's raw `path` array throws "path.segs is not iterable" —
+suspect the fixture, again.
+
 **THE STICKY ✕ WAS EATING THE END OF LINES IN FIVE OF THE NINE FORT DIALOGS —
 found by SCREENSHOTTING my own new guide section, not by any test.** It was
 added so a long dialog could be closed from the top (the 30-node star tree

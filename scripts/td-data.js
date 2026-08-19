@@ -156,12 +156,19 @@
   // lives, and which mode wins differs per level. The ENGINE owns the list
   // (TARGET_MODES); this owns the words, and a guardrail asserts every mode the
   // engine offers has an entry, so a sixth cannot ship undocumented.
+  // Each mode carries the word the PLAYER sees as well as what it does. The
+  // button used to print the raw engine id, so the one mode you have to buy
+  // read "cheap" — while the 🔻 Weak Spot node that unlocks it promises
+  // "Weakest" aim, and the engine picks `e.hp < best.hp`, i.e. finish the
+  // almost-dead. Nothing to do with price. (The first cut of this table
+  // described it as an Economy pick, from the id alone; a behavioural
+  // guardrail now drives each mode and pins what it really chooses.)
   const TARGETING = {
-    first: "the body FURTHEST along the lane — the one about to reach your door. The safe default, and the only mode that sticks to its target instead of re-picking every tick.",
-    last: "the body that has come the LEAST far. Catches a wave early, before it reaches the crowded end of your board.",
-    strong: "the most hp left on the field. Aims at whatever is hardest to kill, which is usually the thing that would actually get through.",
-    close: "whatever is nearest to THIS gun. Wastes the least travel time, so it suits a short-ranged tower on a busy stretch.",
-    cheap: "the body worth the most gold. A 💰 Economy pick — it turns your guns toward the payday rather than the threat.",
+    first: { name: "first", desc: "the body FURTHEST along the lane — the one about to reach your door. The safe default, and the only mode that sticks to its target instead of re-picking every tick." },
+    last: { name: "last", desc: "the body that has come the LEAST far. Catches a wave early, before it reaches the crowded end of your board." },
+    strong: { name: "strong", desc: "the most hp left on the field. Aims at whatever is hardest to kill, which is usually the thing that would actually get through." },
+    close: { name: "close", desc: "whatever is nearest to THIS gun. Wastes the least travel time, so it suits a short-ranged tower on a busy stretch." },
+    cheap: { name: "weakest", desc: "the body with the LEAST hp left — it finishes off the almost-dead rather than starting again on a fresh one, so fewer shots are wasted on something that dies anyway. Unlocked by 🔻 Weak Spot." },
   };
 
   const ABILITIES = [

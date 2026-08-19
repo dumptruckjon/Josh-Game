@@ -1367,7 +1367,11 @@
         const canUndo = !!(undo && undo.id === t.id);
         const control = t.lineId === "camp"
           ? '<button class="td-rally" type="button">🚩 Rally</button>'
-          : '<button class="td-target" type="button">🎯 ' + t.targeting + "</button>";
+          // the PLAYER's word, not the engine's id: the mode you unlock read
+          // "cheap" on the button while the 🔻 Weak Spot node that grants it
+          // promises "Weakest" aim, which is what the engine actually does.
+          : '<button class="td-target" type="button">🎯 ' +
+            (((DATA.TARGETING || {})[t.targeting] || {}).name || t.targeting) + "</button>";
         UI.showBubble(
           '<div class="td-panel">' +
             '<span class="td-panel__name">' + s.name + "</span>" +
