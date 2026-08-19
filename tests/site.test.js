@@ -2025,6 +2025,20 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
   // TERM). Runs #320 and #321 both died exactly there.
   assert.match(actCode0, /^\s*set \+e\b/m,
     "the script must clear errexit — Actions runs `shell: bash` with -e, so one failed attempt would end the loop");
+  // …and a retry must be able to SUCCEED. `--with-deps` runs apt under sudo, in
+  // a different session, so timeout's process-group kill misses it: run #324
+  // had attempts 2 and 3 both die in ~20s on "Could not get lock … held by
+  // process 2640 (apt-get)", the same pid attempt 1 had left running. A retry
+  // that cannot win is not a retry.
+  assert.match(actCode0, /clear_apt_locks\(\)\s*\{/,
+    "the script must be able to clear a lock left by a killed attempt");
+  assert.match(actCode0, /if \[ "\$i" -lt "\$ATTEMPTS" \]; then clear_apt_locks;/,
+    "…and must do it BEFORE the next attempt, or the retry dies on the lock in 20 seconds");
+  // -x (match the process NAME) never -f (match the full command line), which
+  // would match this script's own cleanup line — the pkill trap that killed a
+  // shell earlier the same day.
+  assert.ok(!/pkill[^\n]*-f/.test(actCode0),
+    "pkill must match process NAMES (-x), not command lines (-f) — -f matches the cleanup line itself");
   // --foreground looks like the fix and is the trap: it leaves the command in
   // the SHELL's process group, which reproduces the exact failure signature.
   assert.ok(!/--foreground/.test(actCode0),

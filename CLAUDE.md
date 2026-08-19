@@ -2446,6 +2446,32 @@ fix, and the thing the original complaint was about. Player copy cannot go red
 on its own, so a feature can be improved and its description left behind; that
 sentence is now tied by a guardrail to the renderer that implements it.
 
+**AND WHEN THE RETRY FINALLY RAN, IT COULD NOT WIN — a killed attempt leaves
+apt ALIVE, holding the lock its own retries need.** Run #324 is the first run
+where all three attempts happened (the errexit fix working), and it still went
+red: attempt 1 timed out at 25 min, then attempts 2 AND 3 each died in about 20
+seconds on `E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by
+process 2640 (apt-get)` — **the same pid both times**, with apt still printing
+`Get:` lines after the script had given up. The mechanism is that
+`--with-deps` runs apt under **sudo**, which puts it in a different session, so
+`timeout`'s process-group kill never reaches it. So the retry was structurally
+correct and practically useless against the one failure mode it exists for, and
+the two fixes had to be made in this order to be visible at all: without the
+errexit fix there was no attempt 2 to observe failing. Three things worth
+keeping. (1) **A retry that cannot succeed is not a retry** — clear the state
+the killed attempt left before trying again, or you have bought three fast
+failures instead of one slow one. The cleanup kills leftover apt/dpkg, removes
+the stale lock files and runs `dpkg --configure -a` to repair a half-configured
+DB, between attempts only. (2) **`pkill -x`, never `pkill -f`**: matching the
+full command line with a pattern like `dpkg` matches the cleanup line *itself*
+— and that is not hypothetical, a `pkill -f` killed the shell it was typed in
+earlier the same day (exit 144, twice). The guardrail bans `-f` here for that
+reason. (3) **The bound is still not the problem, and now there is a run that
+proves it.** The note beside `PER_ATTEMPT` said not to raise it again without a
+run that actually made all three attempts; #324 is that run, and it says
+attempts 2 and 3 failed on a LOCK in 20 seconds, not on time. Raising the
+timeout would have changed nothing.
+
 **THE RETRY DID NOT RETRY, TWICE — and the cause was `errexit`, one character,
 after I had already shipped a fix for a mechanism that was not happening.**
 Runs #320 and #321 both ended with ZERO `::warning::` lines: the first failing

@@ -103,6 +103,32 @@ runs:
         PER_ATTEMPT=1500
         ATTEMPTS=3
         BACKOFF=20
+
+        # A KILLED ATTEMPT LEAVES apt ALIVE, AND IT BLOCKS ITS OWN RETRIES.
+        # `--with-deps` runs apt under sudo, which puts it in a different
+        # session — so timeout's process-group kill misses it, it keeps
+        # downloading, and it keeps /var/lib/dpkg/lock-frontend. Verified in run
+        # #324: attempt 1 timed out at 25 min and attempts 2 AND 3 then died in
+        # ~20s each on "Could not get lock … held by process 2640 (apt-get)" —
+        # the same pid both times — with apt still printing Get: lines after the
+        # script had given up. So the retry was structurally correct and
+        # practically useless against the one failure mode it exists for.
+        #
+        # -x matches the process NAME, never the full command line: `pkill -f`
+        # with a pattern like 'dpkg' would match this very script's own cleanup
+        # line. (That trap is not hypothetical — a `pkill -f` killed the shell
+        # it was typed in earlier the same day.)
+        clear_apt_locks() {
+          sudo pkill -TERM -x 'apt|apt-get|dpkg|unattended-upgr' 2>/dev/null || true
+          sleep 3
+          sudo pkill -KILL -x 'apt|apt-get|dpkg|unattended-upgr' 2>/dev/null || true
+          sudo rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock \
+                     /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend 2>/dev/null || true
+          # a force-killed dpkg can leave the package DB half-configured; this
+          # repairs it, and the runner is ephemeral so there is nothing to lose.
+          sudo dpkg --configure -a 2>/dev/null || true
+        }
+
         for i in $(seq 1 "$ATTEMPTS"); do
           # Capture the status DIRECTLY, never as `code=$?` after an `if`:
           # a failed `if` condition with no else leaves the compound statement's
@@ -140,8 +166,9 @@ runs:
           fi
           # Back off only if there is another attempt to make. Sleeping after
           # the LAST one just delays the red by a minute and makes the failure
-          # timing read as another stall.
-          if [ "$i" -lt "$ATTEMPTS" ]; then sleep $((i * BACKOFF)); fi
+          # timing read as another stall. Clear the locks FIRST, or the next
+          # attempt fails in 20 seconds on a lock the killed one still holds.
+          if [ "$i" -lt "$ATTEMPTS" ]; then clear_apt_locks; sleep $((i * BACKOFF)); fi
         done
         echo "::error::Playwright browser install failed $ATTEMPTS times — this is a real failure, not a hang"
         exit 1
