@@ -2507,6 +2507,21 @@ fix, and the thing the original complaint was about. Player copy cannot go red
 on its own, so a feature can be improved and its description left behind; that
 sentence is now tied by a guardrail to the renderer that implements it.
 
+**AND THEN IT WORKED, ON ATTEMPT 3 — verified from the log, which corrected my
+own reading of the clock.** Run #325's install ran 51m45s and came back GREEN
+with `##[notice]Playwright browsers installed on attempt 3`. From the
+timestamps: attempt 1 timed out at the 25-minute bound, attempt 2 timed out too,
+and attempt 3 then succeeded in about **39 seconds** — the locks cleared and the
+browser cache serving. I had reported "attempt 2 completing" from the duration
+alone before reading the notice; the elapsed time was consistent with either,
+and only the log says which. Three facts worth keeping: the retry is now
+genuinely able to recover a stalled install (it never had been), a post-cleanup
+attempt costs seconds rather than minutes because the cache removes the
+download, and the same run's verify-live install took **44 seconds** on a warm
+cache. Both CI fixes were needed and in this order — without errexit cleared
+there was no attempt 2 to observe, and without the lock cleanup attempts 2 and 3
+died in 20 seconds each.
+
 **AND WHEN THE RETRY FINALLY RAN, IT COULD NOT WIN — a killed attempt leaves
 apt ALIVE, holding the lock its own retries need.** Run #324 is the first run
 where all three attempts happened (the errexit fix working), and it still went
