@@ -632,8 +632,19 @@
     if (el) el.remove();
     el = doc.createElement("div");
     el.className = "td-overlay " + cls;
+    // The ✕ rides in a full-width STRIP, not as a bare floating circle. As a
+    // circle it was `position: sticky` over the box's right edge, so every line
+    // that scrolled past it lost its right end — measured across the nine fort
+    // dialogs, it covered real content in FIVE: a star-tree node's ⭐ cost (the
+    // number you decide with), a badge's description, the endless blurb, the
+    // reset dialog's own title, and 601px² of the guide. An opaque full-width
+    // strip turns that into ordinary scrolling — content passes under a clean
+    // horizontal edge — and costs no width, where reserving a right gutter
+    // would take 52px of a 296px dialog.
     el.innerHTML = '<div class="td-overlay__box td-overlay__box--wide">' +
+      '<div class="td-overlay__top">' +
       '<button class="td-overlay__x" type="button" data-adult="1" aria-label="Close">✕</button>' +
+      "</div>" +
       html + "</div>";
     el.querySelector(".td-overlay__x").addEventListener("click", UI.closeOverlay);
     const host = hostScreen();

@@ -6650,3 +6650,86 @@ test("the guide RENDERS every aiming mode, not just declares them", async () => 
   assert.deepEqual(sized.silent, [], `these powers never state their blast size: ${sized.silent.join(", ")}`);
   await page.evaluate(() => window.TDUI.closeOverlay());
 });
+
+test("no dialog line is HALF-covered by the ✕", async () => {
+  // The sticky ✕ shipped as a bare circle riding the box's right edge, so every
+  // line that scrolled past it lost its right end. Measured across the nine
+  // fort dialogs it covered real content in FIVE — including a star-tree node's
+  // ⭐ cost, which is the number you decide with, and the reset dialog's own
+  // title. It lives in a full-width opaque strip now, which turns that into
+  // ordinary scrolling: a line is either visible or fully behind the header,
+  // never eaten from one side.
+  //
+  // The property is exactly that, and it is measured by OCCLUSION rather than
+  // geometry: a text rect always reports its box whether or not something is
+  // painted over it, so the test asks elementFromPoint along each line. Some
+  // points reaching the text and others reaching the close control means the
+  // line is half-covered — the defect. All points reaching the header is fine.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const openers = await page.evaluate(() =>
+    document.querySelectorAll("#screen-td-home .td-metabtn, #screen-td-home .td-adminrow button").length);
+  assert.ok(openers >= 7, `expected the fort's dialogs, found ${openers} openers`);
+
+  const bad = [];
+  let scrolled = 0;
+  for (let i = 0; i < openers; i++) {
+    const label = await page.evaluate((k) => {
+      const b = [...document.querySelectorAll("#screen-td-home .td-metabtn, #screen-td-home .td-adminrow button")][k];
+      b.click(); return b.textContent.trim().slice(0, 16);
+    }, i);
+    await page.waitForTimeout(140);
+    const r = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay__box");
+      const strip = document.querySelector(".td-overlay__top");
+      const x = document.querySelector(".td-overlay__x") || (strip && strip.querySelector("button"));
+      if (!box || !x) return { noX: true };
+      if (!strip || !strip.contains(x)) return { noStrip: true };
+      // the strip must span the box's CONTENT width, or "fully hidden" is not
+      // the only possible outcome and a line can still be eaten from one side
+      const br = box.getBoundingClientRect(), sr = strip.getBoundingClientRect();
+      const bw = parseFloat(getComputedStyle(box).borderLeftWidth) || 0;
+      const spans = sr.left <= br.left + bw + 1 && sr.right >= br.right - bw - 1;
+      const max = Math.max(0, box.scrollHeight - box.clientHeight);
+      let half = null;
+      for (let s = 0; s <= 10; s++) {
+        box.scrollTop = (max * s) / 10;
+        const w = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+        let t;
+        while ((t = w.nextNode())) {
+          if (!t.textContent.trim() || strip.contains(t.parentNode)) continue;
+          const rg = document.createRange(); rg.selectNodeContents(t);
+          for (const q of rg.getClientRects()) {
+            if (q.height < 6 || q.width < 12) continue;
+            if (q.bottom < br.top || q.top > br.bottom) continue;
+            const y = q.top + q.height / 2;
+            let onText = 0, onChrome = 0;
+            for (let k = 0; k <= 10; k++) {
+              const el = document.elementFromPoint(q.left + (q.width * k) / 10, y);
+              if (!el) continue;
+              if (el === x || strip.contains(el)) onChrome++;
+              else if (el.contains(t) || el === t.parentNode) onText++;
+            }
+            if (onText > 0 && onChrome > 0) half = { text: t.textContent.trim().slice(0, 34), onText, onChrome };
+          }
+        }
+      }
+      box.scrollTop = 0;
+      return { spans, half, scrollable: max > 0 };
+    });
+    if (r.noX) bad.push(`${label}: no ✕ at all`);
+    else if (r.noStrip) bad.push(`${label}: the ✕ is not in a strip — a bare circle eats the end of every line it passes`);
+    else {
+      if (!r.spans) bad.push(`${label}: the strip does not span the box, so a line can still be half-covered`);
+      if (r.half) bad.push(`${label}: "${r.half.text}" is HALF-covered (${r.half.onText} pts visible, ${r.half.onChrome} under the ✕)`);
+      if (r.scrollable) scrolled++;
+    }
+    await page.evaluate(() => { const c = document.querySelector(".td-overlay__top button"); if (c) c.click(); else window.TDUI.closeOverlay(); });
+    await page.waitForTimeout(70);
+  }
+  // the defect FIRST: a missing strip also zeroes `scrolled` (the probe returns
+  // early), and the count clause would then fire with a message about scrolling
+  // that sends the reader somewhere else entirely.
+  assert.deepEqual(bad, [], "the ✕ must never eat part of a line:\n" + bad.join("\n"));
+  assert.ok(scrolled >= 3, `at least a few fort dialogs must actually scroll, or this proves nothing (${scrolled})`);
+});

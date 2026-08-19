@@ -2315,6 +2315,39 @@ decision axis the Oil Drum opened: it jams the nearest gun where it DIES
 (`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
 you break it is the choice. Like the Drum it measures outcome-neutral on the
 shipped oracle and ships for legibility, not for the curve.
+**THE STICKY ✕ WAS EATING THE END OF LINES IN FIVE OF THE NINE FORT DIALOGS —
+found by SCREENSHOTTING my own new guide section, not by any test.** It was
+added so a long dialog could be closed from the top (the 30-node star tree
+otherwise meant scrolling to the bottom just to shut it), and it shipped as a
+bare `position: sticky` circle riding the box's right edge — so every line that
+scrolled past lost its right end. Measured across all nine: ⭐ Star Tree covered
+a node's **⭐ cost** (the number you decide with), 🏅 Badges an achievement's
+description, ♾️ Endless its blurb, ⚙️ Reset its own title, and 📖 Guide 601px²
+of prose. Four things worth keeping. (1) **A full-width opaque STRIP, not a
+right gutter.** A gutter is the obvious fix and costs 52px of a 296px dialog
+permanently, on every line, for a button that only occupies the top corner; the
+strip costs zero width and turns "a circle eats the end of a line" into
+ordinary scrolling under a header, which is what every app does. (2) **The
+sticky offset is measured, not guessed** — at `top: 0` the strip parks 24px low
+and strands a 16px band of text ABOVE it, which reads *worse* than the circle
+(a line floating over an opaque header looks broken); `-22px` leaves 2px,
+`-26px` overshoots, and `-24px` — the box's 22px padding plus its 2px border —
+lands flush. (3) **The metric had to change with the fix, and the obvious one
+lies.** Geometric overlap cannot tell "hidden behind an opaque full-width
+header" (fine) from "clipped by a circle" (the defect), because a text rect
+reports its box whether or not anything is painted over it — after the fix my
+first probe still reported overlaps on all five. The honest property is
+OCCLUSION: sample `elementFromPoint` along each line, and a line where some
+points reach the text and others reach the close control is half-covered. (4)
+**Two fixture traps on the way.** The first walker reported the ✕'s own glyph
+overlapping itself, because the button's subtree was in the walk. And the
+mutation that restores the bare circle fired the non-vacuity clause ("at least
+a few dialogs must scroll") rather than the one written for it — the probe
+returns early with no strip, so nothing counts as scrollable — and because I
+grepped for only the expected message, I briefly read that red run as GREEN.
+Assert the defect BEFORE the non-vacuity guard, and never grep for one message
+when the test has several.
+
 **THE MOST FREQUENT DECISION IN THE GAME SHOWED A PRICE AND NOTHING ELSE.**
 The ⬆ button read `110🪙` while the tier-3 branch cards two lines below it have
 always stated their move (`road 12%→28%`) — so the panel told you what a 300-gold

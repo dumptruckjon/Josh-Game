@@ -605,9 +605,26 @@ body.td-mode #screens { padding: 0; }
    scrolls under it; where sticky is unavailable it degrades to sitting at the
    top of the content, which is still a scroll UP rather than to the very end.
    It is the FIRST child, so `> * + *`'s margin-top never applies to it. */
+/* The strip is what sticks, not the button. A bare sticky circle rode over the
+   box's right edge and clipped the right end of any line scrolling past it —
+   measured, it covered real content in five of the nine fort dialogs. Bleeding
+   to the box's 22px padding makes it full width and opaque, so content scrolls
+   under a clean horizontal edge (ordinary app behaviour) instead of under a
+   circle punched into a paragraph. Costs no width; a right gutter would have
+   taken 52px of a 296px dialog. */
+.td-overlay__top {
+  /* -24px = the box's 22px padding + its 2px border, so the strip parks EXACTLY
+     flush with the top of the scrollport. Measured: at top:0 it sits 24px low
+     and a 16px band of text leaks above it (which is worse than the circle it
+     replaced — a line stranded above an opaque header reads as broken), at
+     -22px 2px leaks, at -26px it overshoots. */
+  position: -webkit-sticky; position: sticky; top: -24px; z-index: 3;
+  display: flex; justify-content: flex-end;
+  margin: -22px -22px 0; padding: 22px 22px 4px;
+  background: #16233d;                 /* the box's own colour */
+  border-radius: 16px 16px 0 0;
+}
 .td-overlay__x {
-  position: -webkit-sticky; position: sticky; top: -6px; z-index: 3;
-  align-self: flex-end; margin-bottom: -6px;
   width: 44px; height: 44px; min-width: 44px; min-height: 44px;
   border-radius: 50%; border: 2px solid #3a548a; background: #1d2c4a;
   color: #cfe2ff; font-size: 1.1rem; font-weight: 800; line-height: 1;
