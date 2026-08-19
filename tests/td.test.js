@@ -187,6 +187,127 @@ test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on scre
   await page.waitForTimeout(250);
 });
 
+test("AUDIT badges: the three cheap UNDRIVEN wiring shapes actually award", async () => {
+  // Enumerating ACHIEVEMENTS against the test sources found 14 of 19 named in no
+  // test. They are not one shape: there are SIX wiring shapes and only two were
+  // driven (a level-id badge via doorman, an event badge via firstblood), so a
+  // passing suite said nothing about the other four.
+  //
+  // Scope is decided by a measured constraint rather than by taste: A BADGE TEST
+  // CANNOT CHEAT. awardWinAchievements is skipped on a cheated run and
+  // __TD.grantGold sets cheated, so the cost of driving a badge is the cost of
+  // LEGITIMATELY winning the level it needs. That makes four of them genuinely
+  // expensive (peapurist needs a darts-only L2, dysondenied an L8 win losing ≤3
+  // soldiers, iceage 20 bodies slowed at once, marathoner endless wave 20) and
+  // these three cheap — measured headlessly first, so the fixtures are known to
+  // reach the states they claim rather than hoped to.
+  const ach = () => page.evaluate(() => window.__TD.ach());
+
+  // 1. RUN-CONTEXT (!cur.leaked). The CI plan on CASUAL finishes L1 at 20 of 20
+  //    — zero leaks — while on normal it finishes at 16 and must NOT earn it.
+  await page.evaluate(() => { window.__TD.resetSave(); return window.__TD.winL1(7, { difficulty: "casual" }); });
+  const ctx = await page.evaluate(() => window.__TD.ctx());
+  assert.equal(ctx && ctx.leaked, false, "fixture precondition: the casual run really leaked nothing");
+  assert.ok((await ach()).includes("noleaks"), "a flawless win must earn 🛡️ No Leaks");
+  await page.evaluate(() => window.__TD.leaveToHome());
+
+  await page.evaluate(() => { window.__TD.resetSave(); return window.__TD.winL1(7); });
+  assert.equal((await page.evaluate(() => window.__TD.ctx())).leaked, true,
+    "fixture precondition: the same plan on normal DOES leak, so the negative below is real");
+  assert.ok(!(await ach()).includes("noleaks"), "…and a win that leaked must NOT earn it");
+  await page.evaluate(() => window.__TD.leaveToHome());
+
+  // 2. RUN-CONTEXT (st.difficulty). Its own read, in its own clause.
+  await page.evaluate(() => { window.__TD.resetSave(); return window.__TD.winL1(7, { difficulty: "heroic" }); });
+  assert.ok((await ach()).includes("heroicheart"), "winning on heroic must earn 💀 Heroic Heart");
+  await page.evaluate(() => window.__TD.leaveToHome());
+
+  // 3. STAR TOTALS, the shape that matters most: the cap is LEVELS.length * 3,
+  //    and CLAUDE.md records that a literal 36 would fire Full Fort a whole world
+  //    early. Nothing proved that derivation was LIVE. Seeding one level short is
+  //    what makes this falsifiable — with 40 levels a stale literal makes 119
+  //    stars clear its cap and award wrongly.
+  const seedStars = async (short) => {
+    await page.evaluate((isShort) => {
+      window.__TD.resetSave();
+      const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+      raw.stars = { casual: {}, normal: {}, heroic: {} };
+      const ids = window.TDData.LEVELS.map((l) => l.id);
+      for (const id of ids) raw.stars.normal[String(id)] = 3;
+      if (isShort) raw.stars.normal[String(ids[ids.length - 1])] = 2;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    }, short);
+    await page.reload();
+    await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+    const seeded = await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+      return Object.values(raw.stars.normal).reduce((a, b) => a + b, 0);
+    });
+    await page.evaluate(() => window.__TD.winL1(7));
+    const got = await page.evaluate(() => window.__TD.ach());
+    await page.evaluate(() => window.__TD.leaveToHome());
+    return { seeded, got };
+  };
+
+  const cap = await page.evaluate(() => window.TDData.LEVELS.length * 3);
+  const full = await seedStars(false);
+  assert.equal(full.seeded, cap, `fixture precondition: the seed must reach the ceiling (${full.seeded} vs ${cap})`);
+  assert.ok(full.got.includes("starcollector"), "half the stars must earn ⭐ Star Collector");
+  assert.ok(full.got.includes("fullfort"), "every star must earn 👑 Full Fort");
+
+  const short = await seedStars(true);
+  assert.equal(short.seeded, cap - 1, "fixture precondition: one star short of the ceiling");
+  assert.ok(short.got.includes("starcollector"), "…still well past half");
+  assert.ok(!short.got.includes("fullfort"),
+    `one star short must NOT earn Full Fort — if it does, the ceiling is a stale literal rather than LEVELS.length * 3 (seeded ${short.seeded}, cap ${cap})`);
+});
+
+test("the victory screen says what the NEXT star would have taken", async () => {
+  // Nothing in the fort has ever named RULES.stars, so a 2-star finish left you
+  // guessing what the bar was — the same gap the ⬆ preview closed for upgrades,
+  // where a decision was shown a price and not what it buys.
+  //
+  // Both branches are driven by REAL wins through the shipped hook rather than
+  // by calling showVictory with a constructed argument, which cannot see its
+  // producer break: the CI plan finishes L1 at 16 lives (2★, so the hint shows)
+  // and the SAME plan on casual finishes at 19-20 (3★, where there is nothing
+  // left to say). Measured headlessly first — an earlier reading of "19 lives"
+  // was a different build entirely, and would have made this test exercise only
+  // the absent branch while looking thorough.
+  const read = async (opts) => {
+    const phase = await page.evaluate((o) => {
+      window.__TD.resetSave();
+      return window.__TD.winL1(7, o || undefined);
+    }, opts || null);
+    assert.equal(phase, "won", `the plan must actually win (opts ${JSON.stringify(opts)})`);
+    await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 5000 });
+    const out = await page.evaluate(() => {
+      const st = window.__TD.state();
+      const el = document.querySelector(".td-overlay__goal");
+      return {
+        stars: st.stars, lives: st.lives,
+        goal: window.__TD.engine().starGoal(),
+        text: el ? el.textContent : null,
+      };
+    });
+    await page.evaluate(() => window.__TD.leaveToHome());
+    return out;
+  };
+
+  const two = await read();
+  assert.equal(two.stars, 2,
+    `fixture precondition: the CI plan must finish L1 BELOW 3 stars or the hint never renders (got ${two.stars}★ at ${two.lives} lives)`);
+  assert.ok(two.goal, "…so the engine must offer a next-star goal");
+  assert.equal(two.text, (two.goal.need - two.lives) + " more for " + "⭐".repeat(two.goal.stars),
+    `the hint must state the ENGINE's own numbers — got ${JSON.stringify(two.text)}`);
+
+  const three = await read({ difficulty: "casual" });
+  assert.equal(three.stars, 3,
+    `fixture precondition: casual must reach 3 stars, or the absent branch is untested (got ${three.stars}★)`);
+  assert.equal(three.goal, null, "…so there is no next star to name");
+  assert.equal(three.text, null, "and the hint must be ABSENT at 3 stars, not an empty line");
+});
+
 test("a corrupt checkpoint meta cannot break Resume — it is guarded like its two neighbours", async () => {
   // `metaMods` opens with `new Set(meta || [])`, so an object/number/boolean
   // throws "is not iterable" inside createEngine, and a restored 💾 Backup is a

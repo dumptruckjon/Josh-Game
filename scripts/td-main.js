@@ -570,7 +570,7 @@
         if (!prev || st.lives > (prev.lives | 0)) { save.bests[bk] = { lives: st.lives, stars: st.stars }; pb = !!prev; }
         persist(save);
       }
-      UI.showVictory(st.stars, st.lives, cur.engine.maxLives(), {
+      UI.showVictory(st.stars, st.lives, cur.engine.maxLives(), cur.engine.starGoal(), {
         continueOn: () => { UI.closeOverlay(); location.hash = "#td-home"; },
         // A cheated (kid) win unlocks nothing, so it must not offer ▶ Next level —
         // it escaped kid mode into an adult run and promised a lock it never opened.

@@ -1930,6 +1930,64 @@ main because the tip run carries the evicted commit. The hang looks different: i
 sits for tens of minutes behind a run stuck in install. Check the duration and
 whether a successor exists before hunting a stall.
 
+**NOTHING IN THE FORT EVER NAMED THE STAR THRESHOLDS — a player finishing at 2★
+had no way to learn that 18 lives was the bar.** `RULES.stars` is
+`[[18,3],[10,2],[1,1]]` and appears in no player-facing surface at all: the
+victory screen showed the stars you got and the stickers you kept, and never the
+number you were being scored against. Same gap the ⬆ preview closed for
+upgrades, where the most frequent decision in the game showed a price and not
+what it buys. The engine owns the arithmetic (`starGoal()` — the ask-the-engine
+law), it is written ORDER-INDEPENDENTLY on purpose (reversing `R.stars` gives
+identical answers at every life count, so the fact that it is authored
+descending today is not load-bearing), and it returns null at 3★ where there is
+nothing to say. Three things worth keeping. (1) **The fixture was settled by
+MEASUREMENT and it inverted my assumption**: I had recorded that `winL1`
+finishes L1 at 19 lives / 3★ — that number was actually from a different probe
+build (6 darts, no upgrades). Replaying the SHIPPED plan headlessly across four
+seeds gives **16 lives / 2★**, so the hint's render path is reachable through
+the existing hook, and the SAME plan on casual gives 19-20 / 3★, so the absent
+branch is reachable too. Had I not re-measured, the test would have exercised
+only the absent branch while looking thorough — and the fallback I was about to
+reach for (calling `showVictory` with a constructed argument) is the shape this
+file already records as unable to see its producer break. (2) **Reuse a style
+that is already contrast-audited** rather than inventing a class: the line takes
+`.td-sum__line`, so it adds no new AA risk to an overlay the fort's contrast pass
+already walks, and carries a second class purely as the test's handle. A brand
+new text run in a dialog is exactly what an audit scoped to known surfaces
+misses. (3) **A HUD readout was considered and REJECTED**: knowing mid-run that
+3★ is already gone is arguably more useful, but `.td-hud` is the documented
+reflow-sensitive surface (the ⚙️ button jumping between rows), and buying that
+risk for a number the victory screen can state honestly is a bad trade.
+
+**ENUMERATING THE 19 ACHIEVEMENTS THE SAME WAY FOUND 14 NAMED IN NO TEST — and
+the useful part is the constraint that decides which of them are worth
+driving.** They are not one shape: `earnAch` is reached through SIX distinct
+wirings (a level-id on win ×11, four separate run-context reads, an endless
+score with three call sites, a live event, a slow-count sampler, and the star
+totals), and only two were driven — `doorman` for the level-id shape and
+`firstblood` for the event. A structural scan already proves every declared
+badge has an `earnAch("id")` call site, which is the "a scan proves a CALL SITE
+exists" half; nothing proved the other four wirings fire.
+**The constraint: A BADGE TEST CANNOT CHEAT.** `awardWinAchievements` is skipped
+on a cheated run and `__TD.grantGold` sets `cheated`, so the cost of driving a
+badge is the cost of LEGITIMATELY winning the level it needs — which is why
+every gold-less probe of a bespoke build lost, and why `winL1` exists at all.
+Measured against that, three shapes are cheap and four are not: `noleaks` falls
+out of `winL1` on CASUAL (20 of 20, zero leaks) with the same plan on normal
+finishing at 16 as its negative control, `heroicheart` out of `winL1` on heroic,
+and the star totals out of a seeded save plus any legitimate win. `peapurist`
+(a darts-only L2), `dysondenied` (an L8 win losing ≤3 soldiers), `iceage` (20
+bodies slowed at once) and `marathoner` (endless wave 20) each need a bespoke
+winning plan for one level or mode, and are recorded as expensive rather than
+quietly skipped.
+**The star-total clause is the one that matters, and it is falsifiable only
+because of the one-short seed.** Its cap is `LEVELS.length * 3`, the derivation
+this file records replacing a literal 36 that would have fired 👑 Full Fort a
+whole world early — and with 40 levels a stale literal makes a 119-star save
+clear its cap and award wrongly. Seeding to the ceiling proves the badge fires;
+seeding ONE star short is what proves the ceiling is still derived. A test that
+only seeds the full amount passes on both the correct and the broken version.
+
 ---
 
 ## Repository Structure

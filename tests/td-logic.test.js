@@ -6707,6 +6707,28 @@ test("P4.3 tree: every node CHANGES something — no node is decoration", () => 
   }
 });
 
+test("starGoal names the NEAREST next star, and nothing at the top", () => {
+  // The victory screen prints this, so it is player-facing arithmetic and the
+  // engine owns it (the ask-the-engine law this batch is about). Written
+  // order-independently on purpose: R.stars is authored descending today and
+  // the result must not silently depend on that.
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 1 });
+  const th = DATA.RULES.stars;
+  const top = Math.max(...th.map(([n]) => n));
+  assert.equal(e.starGoal(top), null, "at the top threshold there is no next star");
+  assert.equal(e.starGoal(top + 5), null,
+    "…nor above it — ❤️ Extra Hearts can start a run higher than the 3★ bar");
+  for (const [need] of th) {
+    const g = e.starGoal(need - 1);
+    assert.ok(g, `one life short of ${need} must name a goal`);
+    assert.ok(g.need <= need,
+      `…and it must be the NEAREST threshold above, got ${g.need} for ${need - 1} lives`);
+    assert.ok(g.need > need - 1, "…and strictly above the lives you finished with");
+  }
+  assert.equal(e.starGoal(0).need, Math.min(...th.map(([n]) => n)),
+    "from zero the next star is the LOWEST threshold, whatever order R.stars is authored in");
+});
+
 test("the run's STARTING lives have one owner — ❤️ Extra Hearts moved a number two places printed literally", () => {
   // The victory screen read `lives + " of 20 stickers kept safe"` and the
   // No Leaks badge said "Win a level with all 20 lives", while a run carrying

@@ -1281,12 +1281,21 @@
       "</div>";
   }
 
-  UI.showVictory = function (stars, lives, maxLives, hooks, rs) {
+  UI.showVictory = function (stars, lives, maxLives, goal, hooks, rs) {
     const hasNext = !!hooks.nextLevel;
     const el = overlay("td-overlay--win",
       '<h3>Fort defended! 🎉</h3>' +
       '<p class="td-overlay__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(3 - stars) + "</span></p>" +
       "<p>" + lives + " of " + maxLives + " stickers kept safe</p>" +
+      // …and what the next star would have taken. Nothing in the fort has ever
+      // named these thresholds, so a 2-star finish gave you no idea what the
+      // bar was. Absent at 3 stars, where there is nothing left to say.
+      // Styled with the summary's existing dim line rather than a new class:
+      // it is informational and must not compete with the stars, and reusing an
+      // already contrast-audited colour adds no new AA risk to this overlay.
+      // The second class is only the test's handle.
+      (goal ? '<p class="td-sum__line td-overlay__goal">' + (goal.need - lives) + " more for "
+        + "⭐".repeat(goal.stars) + "</p>" : "") +
       summaryHtml(rs) +
       (hasNext ? '<p class="td-overlay__warn">🔓 Level ' + hooks.nextLevel + ' unlocked!</p>' : "") +
       (hasNext ? '<button class="td-btn td-btn--call" data-act="next" type="button">▶ Next level</button>' : "") +

@@ -1775,6 +1775,20 @@
     // nobody complains about being given MORE than the label promised.
     let lastBuild = null;   // { id, cost, tick } — see undoLast()
     function maxLives() { return R.lives + mods.lives; }
+    // What the NEXT star would have taken, or null at 3-star. The victory
+    // screen states it for the same reason the ⬆ button previews its tier: a
+    // number you are being SCORED on should be visible rather than inferred,
+    // and nothing anywhere in the fort has ever named these thresholds.
+    // Order-independent on purpose — R.stars is authored descending today and
+    // this must not silently depend on that.
+    function starGoal(lives) {
+      const l = typeof lives === "number" ? lives : state.lives;
+      let best = null;
+      for (const [need, stars] of R.stars) {
+        if (need > l && (!best || need < best.need)) best = { need, stars };
+      }
+      return best;
+    }
     function refundOf(towerId) {
       const t = towerById(towerId);
       if (!t) return 0;
@@ -2305,7 +2319,7 @@
       // (the panel re-deriving a number the meta had already moved), and the
       // same fix: the engine owns it and everything else asks. The Patch Kit
       // cap was the second computation of this quantity and now reads it too.
-      maxLives,
+      maxLives, starGoal,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
       // TD-18: may this run build this line? The build menu asks the ENGINE
