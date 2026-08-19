@@ -112,6 +112,14 @@
   if (!save.settings) save.settings = { sfx: true };
   if (typeof save.settings.dmgNumbers !== "boolean") save.settings.dmgNumbers = false; // TD-6 opt-in
   if (typeof save.settings.music !== "boolean") save.settings.music = false;            // TD-6 opt-in, off by default
+  // Field speed is remembered between levels — retapping ⏩ on all 40 levels
+  // (and on every restart) is the friction this removes. CLAMPED because it is
+  // a NUMBER, not a flag: the frame loop does `acc += elapsed * speed`, so a
+  // hand-edited or restored `speed: 0` would freeze the battle for ever and a
+  // huge value would make it unplayable. A field one short must degrade, not
+  // disable.
+  const sp = Math.round(Number(save.settings.speed));
+  save.settings.speed = sp >= 1 && sp <= 3 ? sp : 1;
   if (!Array.isArray(save.meta)) save.meta = [];   // TD-5 star-tree nodes owned
   // P4: what you OWN and what you BRING are now different things. A run may
   // equip at most RULES.metaSlots of the nodes you own, so allocation is a
@@ -169,7 +177,7 @@
     const s = {
       v: 1,
       stars: { casual: {}, normal: {}, heroic: {} },
-      settings: { sfx: true, music: false, dmgNumbers: false },
+      settings: { sfx: true, music: false, dmgNumbers: false, speed: 1 },
       difficulty: "normal",
       meta: [],
       loadout: [],
@@ -767,7 +775,7 @@
     const engine = TD.createEngine(levelDef, { seed: opts.seed == null ? (Date.now() % 100000) : opts.seed, difficulty, meta, powers, chips });
     const render = R.create(UI.canvas, engine);
     if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
-    cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: 1, paused: false, selPadId: null, selTowerId: null,
+    cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: save.settings.speed || 1, paused: false, selPadId: null, selTowerId: null,
       lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1, // TD-5 achievement context
       leaks: {}, leakWave: 0, // TD-12 post-mortem context (the tallies live in engine state)
       // The run's STARTING lives, kept here rather than on state: the score uses
@@ -785,7 +793,7 @@
     if (UI.abilityStrip) UI.abilityStrip(engine.state.powers); // P6: the strip IS the run's loadout
     UI.hud(engine.state);
     const speedBtn = doc.querySelector("#screen-td-play .td-speed");
-    if (speedBtn) speedBtn.textContent = "1×";
+    if (speedBtn) speedBtn.textContent = cur.speed + "×";
     render.resize();
     render.draw(0);
     cur.raf = requestAnimationFrame(frame);
@@ -955,6 +963,38 @@
     if (!mr) { location.hash = "#td-home"; return; }
     const levelDef = mr.endless ? endlessLevelDef(mr.world) : DATA.LEVELS.find((l) => l.id === mr.levelId);
     if (!levelDef) { clearMidRun(); location.hash = "#td-home"; return; }
+    // The towers array below is coerced (`Array.isArray(mr.towers) ? … : []`)
+    // because a malformed backup once threw "mr.towers is not iterable" here.
+    // The SCALARS beside it were never given the same treatment — the same
+    // function disagreeing with itself, which is the smell that found the wake
+    // lock and the soundtrack. A restored backup is a PASTE, validated only as
+    // "parses, is an object, v === 1, stars is an object", so a truncated or
+    // hand-edited one arrives here intact.
+    //
+    // And a junk waveIdx does not fail politely. Verified against the engine:
+    // the board comes back looking perfectly correct and the FIRST ▶ CALL
+    // throws "Cannot read properties of null (reading 'groups')" inside the
+    // click handler, so the run simply freezes in build with nothing said.
+    //
+    // DISCARD rather than clamp: resuming at a silently-corrected wave with
+    // the saved gold is a worse lie than "that run could not be read", and it
+    // matches the !levelDef branch one line up.
+    //
+    // Endless has no wave TABLE — its waves are generated — so it needs its own
+    // bound or every endless resume would be thrown away. 1000 is far past any
+    // reachable run (the budget is 300·1.16^n, already 1e33 by wave 500) and
+    // far below where the generator goes non-finite, so anything above it is
+    // corruption rather than play.
+    // A real finite NUMBER, not a coercible one: Number(null) is 0 and
+    // Number("2") is 2, so coercing would wave through a null `lives` (a run
+    // that is dead on arrival) while looking like it had checked. An integer
+    // wave, too — waves[1.5] is undefined and throws exactly like waves[999].
+    const num = (v) => typeof v === "number" && Number.isFinite(v);
+    const maxWave = levelDef.endless ? 1000 : (levelDef.waves || []).length;
+    if (!num(mr.waveIdx) || mr.waveIdx !== Math.floor(mr.waveIdx) ||
+        mr.waveIdx < 0 || mr.waveIdx >= maxWave || !num(mr.gold) || !num(mr.lives)) {
+      clearMidRun(); location.hash = "#td-home"; return;
+    }
     location.hash = "#td-play";
     // A legacy checkpoint has no `powers` — fall through to the live loadout,
     // which is what a pre-P6 resume effectively did. A legacy checkpoint has no
@@ -1542,6 +1582,7 @@
       // 1× → 2× → 3× → 1×. 3× is 90 ticks/sec; the frame loop already caps at
       // 6 ticks per frame, so a slow frame can never spiral.
       cur.speed = cur.speed >= 3 ? 1 : cur.speed + 1;
+      save.settings.speed = cur.speed; persist(save);   // remembered for the next level
       const b = doc.querySelector("#screen-td-play .td-speed");
       if (b) b.textContent = cur.speed + "×";
     },

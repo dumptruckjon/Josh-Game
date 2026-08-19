@@ -2315,41 +2315,122 @@ decision axis the Oil Drum opened: it jams the nearest gun where it DIES
 (`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
 you break it is the choice. Like the Drum it measures outcome-neutral on the
 shipped oracle and ships for legibility, not for the curve.
-**THE RETRY DID NOT RETRY — and the guardrail that drives the shipped script
-text was GREEN while CI was red, because a test is only as faithful as its
-ENVIRONMENT.** Run #320 ended `exit 137` with **zero** `::warning::` lines: the
-signal that ended attempt 1 also killed the SHELL running the loop, so attempts
-2 and 3 never happened and a deploy was lost to exactly the stall this action
-exists to survive. `timeout` signals a process GROUP, so whether the parent
-survives depends on the runner's process-group topology — and no local harness
-reproduces it (both a plain `bash script.sh` and a `setsid` one retried
-happily here, three times each, which is precisely why the behavioural test
-passed). Four things worth keeping. (1) **`--foreground` is the trap, not the
-fix.** It reads like the obvious answer and is the opposite: it leaves the
-command in the SHELL's own process group, and measured against a stub whose
-death signals its group it reproduces #320's exact signature — **exit 137, zero
-attempts**. The fix is `setsid --wait`, which puts the attempt in its own
-SESSION so no group-directed signal, from `timeout` or from the command itself,
-can reach out of it — structural rather than topological. Also TERM with a
-`--kill-after` escalation instead of a bare KILL, so the common case shuts down
-cleanly and a stuck apt tree still goes with it. (2) **The failure reproduced
-so faithfully that it killed the TEST RUNNER**: driving the #320 configuration
-took down `node --test` itself rather than reporting, so the harness now spawns
-the script under `setsid` too. A harness must isolate the thing it is testing,
-or a genuine regression presents as the suite dying instead of failing — and
-that is one step worse than a green test, because it looks like infrastructure.
-It does not mask the script's own `setsid`, which isolates a level deeper:
-dropping that still turns the case red. (3) **The clause and the mutation
-disagree about which half is load-bearing, so say so** — dropping `setsid`
-alone does NOT go red behaviourally (an ordinary shell topology already
-isolates the group); the structural clause is what pins that half, and the
-behavioural one pins the mechanism. Two clauses, two different mutations, and
-the comment names which is which. (4) **Run #320 is NOT evidence the 25-minute
-bound is too small.** The log shows apt going silent for 24 minutes inside
-`--with-deps` after fetching InRelease — a stall, which is what the retry is
-for — so the bound did its job and the retry did not. That note lives beside
-the constant, because the tempting reading of a killed attempt is always
-"raise it", and this repo has already raised it three times.
+**A RESTORED CHECKPOINT COERCED ITS ARRAY AND TRUSTED ITS NUMBERS — the same
+function disagreeing with itself, which is the third time that smell has found
+a real defect.** `resumeMidRun` reads `Array.isArray(mr.towers) ? mr.towers :
+[]` because a malformed backup once threw "mr.towers is not iterable"; the
+scalars on the next line — `waveIdx`, `gold`, `lives` — were never given the
+same treatment. A 💾 Backup restore is a PASTE, validated only as "parses, is
+an object, `v === 1`, `stars` is an object", so a truncated or hand-edited one
+arrives here intact. **And a junk `waveIdx` does not fail politely**: verified
+against the engine, the board comes back looking perfectly correct and the
+FIRST ▶ CALL throws `Cannot read properties of null (reading 'groups')` inside
+the click handler, so the run freezes in build with nothing said — a silent
+death one tap after a successful-looking restore. Four things worth keeping.
+(1) **The line is COERCE what has a sane default, DISCARD what does not.**
+`towers → []` is sane: you lost your board and the run plays. `waveIdx` has no
+sane default — resuming at wave 0 with wave-12 gold is a different, wrong run —
+so it is refused and the checkpoint cleared, matching the `!levelDef` branch one
+line up. Both behaviours now sit in the same test so the next reader sees the
+distinction rather than picking one. (2) **The obvious bound throws away every
+ENDLESS resume**, because endless has no wave TABLE — its waves are generated —
+so `(levelDef.waves || []).length` is 0 for them and every checkpoint would be
+refused. Mutation-proven; that clause exists because the natural implementation
+is wrong. (3) **`Number(null)` is 0, so a coercing check "validates" nothing** —
+it waved a null `lives` straight through while looking rigorous. The predicate
+is `typeof v === "number" && Number.isFinite(v)`, plus an INTEGER test for the
+wave, since `waves[1.5]` is undefined and throws exactly like `waves[999]`.
+(4) **The test seeded localStorage without a RELOAD and so passed against a
+working guard** — the module keeps its in-memory copy, the seed is invisible,
+and the resume succeeds against the old checkpoint. The clause directly above it
+reloads for exactly that reason; this is the documented same-document
+footgun landing one more time. And from the same batch: **a whole-object
+`deepEqual` on a settings blob fails the moment ANY new setting is added**, even
+though nothing about the behaviour changed — the ⏩ speed preference turned the
+reset guardrail red naming a field it had never heard of. The claim is "the
+reset loses no preference", so it is asserted per seeded key now; a reset that
+adds a defaulted key is not a preference-loss bug, and the weakened form still
+goes red when preference-keeping is removed.
+
+**THE BOSS DRONE — the one voice whose whole job is to say "this is serious" —
+WAS INAUDIBLE IN ALL TEN WORLDS, and the reason nothing caught it is that its
+frequency is COMPUTED.** Every tone literal in the app is eyeballable and sane
+(the lowest anywhere is the mortar splash at 110Hz); the music is the one place
+a frequency is derived, `root × 2^(semi + 12·oct)/12`, and the drone at
+`hz(0, -3)` is root/8 — **18.4Hz in the garage and 19.4 on the sort line, BELOW
+the ~20Hz threshold of human hearing**, and 24-37Hz in the other eight, which
+no phone speaker reproduces. So a voice slot (of JoshAudio's 12) and an
+oscillator were spent on silence, on the cue that matters most. Found by
+exhaustively evaluating every voice the pure `musicStep` can emit — 212,500 of
+them across every world × phase × boss × danger — which is cheap precisely
+because the score is DATA and the arrangement is PURE. Fixed with an
+octave-FOLD to `DATA.MUSIC.floorHz` at the ONE site every voice goes through,
+so a future low voice inherits it. Five things worth keeping. (1) **Fold, never
+clamp** — a clamp satisfies "nothing below the floor" while changing the NOTE,
+so the test needs a second clause that folded/unfolded is a power of two; the
+clamp mutation reports `ratio 2.2449`. (2) **An unbounded `while (f < floor) f
+*= 2` inside the tick cannot FAIL, it HANGS** — and verified, it hangs
+`node --test` rather than failing it, which is a step worse than a green test
+because it reads as broken infrastructure. Bounded now, and the comment says
+plainly that the bound is defence-in-depth which cannot fail while the `f > 0`
+guard stands — its whole job is that removing that guard yields a wrong NUMBER
+a test can report. (3) **`root: 0` does not separate the two protections and a
+NEGATIVE root does**: with the loop bounded, 0 folds to 0 and the existing
+`if (f)` truthiness check drops the voice, so the guard looks redundant; -220
+doubles to a LARGER negative, stays truthy, and reaches the oscillator — the
+probe reports `hz=-1350154`. When a mutation passes, find the input that
+separates the claims. (4) **A test-name pattern that matches NOTHING reports
+`# pass 1` and green mutations.** Three mutations "passed" against
+`--test-name-pattern="music"` because the test is called "🎵 the score is
+per-world…" — no match, so node ran the FILE with zero subtests and my new
+assertions never executed. `# pass 1` on a 196-test file was the tell. (5) The
+same pass shipped two smaller things: **⏩ fast-forward is now remembered
+between levels** (it was hard-reset to 1× at every start, so a 2× player
+retapped on all 40 levels and every restart) — CLAMPED, because it is a NUMBER
+the frame loop multiplies by, and note the `|| 1` fallback masks a saved 0 but
+NOT a saved 99, so the clamp is load-bearing only at the top end and the test
+must probe there; and **the Toybox Guide's side-door entry still described the
+version that was broken**, saying the door "is marked on the field" without
+mentioning that it now pings a whole wave BEFORE it opens — which is the entire
+fix, and the thing the original complaint was about. Player copy cannot go red
+on its own, so a feature can be improved and its description left behind; that
+sentence is now tied by a guardrail to the renderer that implements it.
+
+**THE RETRY DID NOT RETRY, TWICE — and the cause was `errexit`, one character,
+after I had already shipped a fix for a mechanism that was not happening.**
+Runs #320 and #321 both ended with ZERO `::warning::` lines: the first failing
+attempt ended the script, so attempts 2 and 3 never ran and two deploys were
+lost to exactly the stall this action exists to survive. **GitHub Actions runs
+`shell: bash` as `bash --noprofile --norc -eo pipefail {0}` — errexit is ON —
+and `set -uo pipefail` does not clear it.** So `code=$?` was never reached and
+the step exited with the command's own status. `set +e` is the fix.
+Four things worth keeping, and the first two are about how I got it wrong.
+(1) **The behavioural guardrail drove the shipped script TEXT and still could
+not see it, because it spawned a plain `bash script.sh`.** A harness is only as
+faithful as its INVOCATION, not just its input — plain bash gives 3 attempts and
+exit 1, `bash -e` on the same text gives 0 attempts and the command's own exit
+code, which is the CI signature byte-for-byte. It spawns `bash -e` now.
+(2) **I diagnosed it as a process-group kill first, shipped `setsid --wait` for
+that, and the theory was REFUTED by the next run** — which failed identically
+but reported 124 instead of 137, i.e. my TERM change had worked at the signal
+level and changed nothing about the retry. The tell was there and I read past
+it: the step duration was 1505s BOTH times, exactly one attempt, which no
+process-group story explains. The `setsid` wrapper is gone rather than kept as
+a fix whose stated reason is false — the same call this repo already made for
+the redundant price-flash paint and the dead `noInk` wrap. What survives from
+that pass is measured and independent: `--signal=TERM --kill-after` shuts down
+cleanly and reports 124 ("it stalled") rather than a bare 137 ("something
+killed it"), and `--foreground` is banned because it genuinely does leave the
+command in the shell's own process group, where a command that signals its
+group takes the loop with it. (3) **I also claimed mid-investigation that the
+fix was working, from arithmetic on a jobs response I had not re-queried** —
+the step had already ended; "still running past the bound" was a stale reading.
+Re-fetch before believing an elapsed-time argument. (4) **Run #320 is still not
+evidence the 25-minute bound is small.** Both stalls were apt going silent
+inside `--with-deps` — the case the retry is for — and the retry is what was
+broken. That note sits beside the constant, because the tempting reading of a
+killed attempt is always "raise it", and this repo has already raised it three
+times.
 
 **THE GUARDRAIL PROTECTING THE OFFLINE PWA COULD NOT SEE THE LAUNCHER FALL OUT
 OF THE PRECACHE — because it substring-matched the whole file, and the file's

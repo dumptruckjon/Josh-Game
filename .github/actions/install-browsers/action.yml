@@ -57,7 +57,20 @@ runs:
 
     - shell: bash
       run: |
-        set -uo pipefail
+        # `set +e` FIRST, and it is the whole reason this action ever failed.
+        # GitHub Actions runs `shell: bash` as `bash --noprofile --norc -eo
+        # pipefail {0}` — errexit is ON — and `set -uo pipefail` does NOT clear
+        # it. So the FIRST failing attempt exited the script immediately, before
+        # `code=$?` was ever read: no ::warning::, no attempt 2, and the step's
+        # exit code was the command's own (137 under KILL, 124 under TERM).
+        # Runs #320 and #321 both died that way, on the retry that exists to
+        # stop a stalled download un-shipping a commit.
+        #
+        # It was invisible to the behavioural guardrail for one reason: that
+        # test spawned `bash script.sh`, without -e. A harness that drives the
+        # shipped script TEXT is still only as faithful as its INVOCATION, and
+        # it now spawns the way Actions does.
+        set +e -uo pipefail
         # 25 min per attempt. RE-MEASURED THREE TIMES, which is the whole
         # lesson: a bound justified against the worst case you have SEEN needs
         # re-checking the first time you see a worse one. It shipped at 12 min
@@ -89,24 +102,20 @@ runs:
           # own status of 0, so `code` was always 0 — the HUNG branch below
           # could never fire and every failure reported "exit 0". Found by
           # running this script against a stubbed npx, not by reading it.
-          # setsid --wait, and it is LOAD-BEARING: run #320 died as `exit 137`
-          # with ZERO ::warning:: lines, i.e. the retry loop never reached
-          # attempt 2, because the signal that ended the attempt also killed
-          # the SHELL running the loop. timeout signals a process GROUP, so
-          # whether the parent survives depends on the runner's process-group
-          # topology — which a local harness does not reproduce (this script's
-          # own behavioural test was green while CI was red). A new SESSION
-          # makes it structural instead of topological: no group-directed
-          # signal, from timeout OR from the command itself, can reach out of
-          # it. Measured against both mechanisms; --foreground is the trap, not
-          # the fix — it leaves the command in the shell's own group and
-          # reproduces the exact CI signature (exit 137, zero attempts).
+          # TERM with a KILL escalation rather than a bare KILL: the common case
+          # shuts down cleanly, timeout still signals the whole group so a stuck
+          # apt tree goes with it, and the step reports 124 (timed out) rather
+          # than a bare 137 — which is the difference between "it stalled" and
+          # "something killed it". Both land in the HUNG branch below.
           #
-          # TERM with a KILL escalation rather than a bare KILL, so the common
-          # case shuts down cleanly; timeout still signals the whole group
-          # inside the session, so a stuck apt tree goes with it. Both 124
-          # (timed out) and 137 (had to KILL) land in the HUNG branch below.
-          setsid --wait timeout --signal=TERM --kill-after=30s "${PER_ATTEMPT}s" \
+          # An earlier cut wrapped this in `setsid --wait`, on the theory that a
+          # group-directed signal was killing the retry loop. That theory was
+          # REFUTED by reproducing the real mechanism (errexit — see above), so
+          # the wrapper is gone rather than left as a fix whose stated reason is
+          # false. Never `--foreground` here, though: it leaves the command in
+          # the shell's own process group, and a command that signals its group
+          # then takes the loop with it — measured.
+          timeout --signal=TERM --kill-after=30s "${PER_ATTEMPT}s" \
             npx playwright install --with-deps chromium webkit
           code=$?
           if [ "$code" -eq 0 ]; then

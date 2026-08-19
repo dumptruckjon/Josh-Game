@@ -2017,15 +2017,14 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
   // attempt, or attempt 1 simply never returns and attempts 2-3 never happen.
   assert.match(act, /timeout[^\n]*PER_ATTEMPT/,
     "each attempt must be bounded by `timeout`, or a stalled attempt blocks the retries behind it");
-  // …and the attempt must run in its OWN SESSION. Run #320 ended `exit 137`
-  // with ZERO warning lines: the signal that ended attempt 1 also killed the
-  // shell running the loop, so the retry — the entire point of this action —
-  // never happened, and a deploy was lost to a stall the retry was written for.
-  // timeout signals a process GROUP, so whether the parent survives is a
-  // property of the runner's process-group topology, which no local harness
-  // reproduces. setsid makes it structural rather than topological.
-  assert.match(act, /setsid --wait timeout/,
-    "the attempt must run under `setsid --wait`, or a group-directed signal can kill the retry loop itself");
+  // …and errexit must be OFF. This is the one that actually bit, twice: Actions
+  // runs `shell: bash` as `bash --noprofile --norc -eo pipefail {0}`, and
+  // `set -uo pipefail` does not clear the -e. So the first failing attempt
+  // exited the script before `code=$?` was read — no warning, no attempt 2, and
+  // the step reported the command's own status (137 under KILL, 124 under
+  // TERM). Runs #320 and #321 both died exactly there.
+  assert.match(actCode0, /^\s*set \+e\b/m,
+    "the script must clear errexit — Actions runs `shell: bash` with -e, so one failed attempt would end the loop");
   // --foreground looks like the fix and is the trap: it leaves the command in
   // the SHELL's process group, which reproduces the exact failure signature.
   assert.ok(!/--foreground/.test(actCode0),
@@ -2108,14 +2107,15 @@ test("CI: the browser-install retry actually RETRIES, and names a hang a hang", 
   fs.writeFileSync(path.join(dir, "script.sh"), fast);
   const run = (stub) => {
     fs.writeFileSync(path.join(dir, "bin", "npx"), stub, { mode: 0o755 });
-    // setsid on the HARNESS too, and for the same reason the script needs it:
-    // the case below drives an attempt that signals its own process group, and
-    // without this the signal walks all the way out and kills `node --test`
-    // itself — the suite dies instead of reporting. (Verified: it does.) This
-    // does NOT mask the script's own setsid, which isolates one level deeper;
-    // dropping it still turns the case red rather than fatal. Linux-only, like
-    // the runner this action exists for.
-    const r = spawnSync("setsid", ["--wait", "bash", path.join(dir, "script.sh")], {
+    // `bash -e`, because that is how Actions invokes it — and driving the
+    // shipped script text with a PLAIN `bash` is exactly why this guardrail was
+    // green through two red CI runs. A harness is only as faithful as its
+    // invocation, not just its input. (Verified both ways: plain bash gives 3
+    // attempts and exit 1; `bash -e` on the pre-fix script gives 0 attempts and
+    // the command's own exit code, byte-for-byte the CI signature.)
+    // setsid keeps the group-kill case below from walking out and killing
+    // `node --test` itself, which it otherwise does.
+    const r = spawnSync("setsid", ["--wait", "bash", "-e", path.join(dir, "script.sh")], {
       encoding: "utf8", timeout: 60000,
       env: { ...process.env, PATH: `${path.join(dir, "bin")}:${process.env.PATH}` },
     });
@@ -2156,6 +2156,22 @@ test("CI: the browser-install retry actually RETRIES, and names a hang a hang", 
   assert.match(flaky.out, new RegExp(`installed on attempt ${consts.ATTEMPTS}`), "it must report which attempt succeeded");
   assert.match(flaky.out, /attempt 1 failed with exit 7/,
     `a failed attempt must report its REAL exit code, saw: ${flaky.out.trim().split("\n").join(" | ")}`);
+});
+
+test("the guide's side-door entry describes the door we actually ship", () => {
+  // The door was reported as unanticipatable twice, and the fix was to warn a
+  // WAVE early rather than at the moment it opens. The guide text is the only
+  // place that tells a player the notice exists — and player copy cannot go
+  // red on its own, so a feature can be improved and its description left
+  // describing the broken version. Ties the sentence to the renderer that
+  // implements it: if one goes, the other must.
+  const logic = read("scripts/td-logic.js");
+  const door = logic.match(/name: "Side Door",[\s\S]{0,600}?\}\);/);
+  assert.ok(door, "the guide must still carry a Side Door entry");
+  assert.match(door[0], /BEFORE it opens/,
+    "the side-door entry must say the warning comes a wave EARLY — that is the whole fix");
+  assert.match(read("scripts/td-render.js"), /function soonDoors|soonDoors\s*=/,
+    "…and the renderer must actually draw that advance warning");
 });
 
 test("player copy is written for the PLAYER, not for the next engineer", () => {

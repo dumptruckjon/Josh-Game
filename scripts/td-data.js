@@ -523,6 +523,16 @@
   // mute-gated, is off by default, and is driven by the setTimeout composer —
   // tone() only plays at currentTime, and gameplay is never gated on a timer.
   const MUSIC = {
+    // The lowest note the arrangement is allowed to sound. Anything under this
+    // is octave-FOLDED up (see musicStep), never clamped, so the pitch class is
+    // exactly preserved. Measured need: the boss/danger drone is hz(0, -3),
+    // i.e. root/8, which put it at 18.4Hz in the garage and 19.4 on the sort
+    // line — BELOW the ~20Hz threshold of human hearing — and at 24-37Hz in the
+    // other eight worlds, which no phone speaker reproduces. The one voice
+    // whose whole job is to say "this is serious" was silent in all ten. 55Hz
+    // is A1: above the hearing floor with margin, and still under the 70Hz kick
+    // so the kick stays the lowest thing on the field.
+    floorHz: 55,
     stepMs: 190,                       // ~158bpm in eighths: a march, not a dirge
     // Melody and bass are written as SCALE DEGREES, not frequencies, which is
     // what makes a per-world key a one-line data change instead of a re-write.

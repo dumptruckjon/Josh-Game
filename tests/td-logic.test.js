@@ -7222,6 +7222,70 @@ test("🎵 the score is per-world, phase-aware and boss-aware", () => {
   assert.ok(worst <= 6, `the score must stay well under the 12-voice cap, worst step was ${worst}`);
 
   // …and it is a LOOP: 64 steps, so the phrase does not drift.
+  // ---- the audible floor ----
+  // Found by exhaustively checking every voice the score can emit: the
+  // boss/danger drone is hz(0, -3), i.e. root/8, which put it at 18.4Hz in the
+  // garage and 19.4 on the sort line — BELOW the ~20Hz threshold of human
+  // hearing — and at 24-37Hz in the other eight, which no phone speaker
+  // reproduces. So the one voice whose whole job is to say "this is serious"
+  // was silent in all ten worlds while spending an oscillator and one of
+  // JoshAudio's 12 voice slots.
+  {
+    let lowest = Infinity, worlds = 0;
+    for (const w of Object.keys(DATA.WORLDS)) {
+      worlds++;
+      for (const phase of ["build", "wave"]) for (const boss of [false, true]) for (const danger of [false, true]) {
+        for (let i = 0; i < DATA.MUSIC.form.length * 16; i++) {
+          for (const v of TD.musicStep(i, { world: w, phase, boss, danger })) {
+            assert.ok(Number.isFinite(v.hz) && v.hz > 0, `${w}/${phase} step ${i}: hz ${v.hz}`);
+            lowest = Math.min(lowest, v.hz);
+          }
+        }
+      }
+    }
+    assert.ok(worlds >= 10, `expected every world checked, saw ${worlds}`);
+    assert.ok(lowest >= DATA.MUSIC.floorHz,
+      `no voice may sound below the audible floor — lowest was ${lowest.toFixed(1)}Hz against ${DATA.MUSIC.floorHz}`);
+
+    // FOLD, not clamp. A clamp would satisfy the clause above while changing
+    // the NOTE, which is a different tune; doubling preserves the pitch class
+    // exactly, so folded/unfolded must be a power of two.
+    for (const w of Object.keys(DATA.WORLDS)) {
+      const root = DATA.WORLDS[w].music.root;
+      const drone = TD.musicStep(0, { world: w, phase: "wave", boss: true }).filter((v) => v.duration > 1)[0];
+      assert.ok(drone, `${w} must still sound a boss drone`);
+      const ratio = drone.hz / (root / 8);            // hz(0, -3) before folding
+      assert.ok(Math.abs(Math.log2(ratio) - Math.round(Math.log2(ratio))) < 1e-9,
+        `${w}: the drone must be an OCTAVE fold of root/8, not a clamp (ratio ${ratio.toFixed(4)})`);
+    }
+
+    // and the guard that matters more than either: a world whose root is junk
+    // must not sound a bad note — and, more importantly, must not spin the fold
+    // loop, which runs inside the tick. Both halves are needed: the `f > 0`
+    // guard returns early, and the loop is BOUNDED so that even without it the
+    // failure is a wrong number this test can report rather than a hang that
+    // takes the runner with it. (Verified: with an unbounded `while`, removing
+    // the guard hangs `node --test` instead of failing it.)
+    // NEGATIVE is the case that separates the two protections, and 0 alone does
+    // not: with the loop bounded, a root of 0 folds to 0 and the existing
+    // `if (f)` truthiness check drops the voice, so the guard looks redundant.
+    // A negative root doubles to a LARGER negative, stays truthy, and reaches
+    // the oscillator — so that is what makes the guard falsifiable.
+    for (const junk of [0, -220, NaN]) {
+      DATA.WORLDS.__probe = { music: { root: junk, mode: "bright" } };
+      try {
+        const t0 = Date.now();
+        for (let i = 0; i < 64; i++) {
+          for (const v of TD.musicStep(i, { world: "__probe", phase: "wave", boss: true })) {
+            assert.ok(Number.isFinite(v.hz) && v.hz > 0,
+              `a root of ${junk} must degrade to silence, never emit hz=${v.hz} to the oscillator`);
+          }
+        }
+        assert.ok(Date.now() - t0 < 1000, `a root of ${junk} must not spin the fold loop`);
+      } finally { delete DATA.WORLDS.__probe; }
+    }
+  }
+
   const a = JSON.stringify(TD.musicStep(5, { world: "attic", phase: "wave" }));
   const b = JSON.stringify(TD.musicStep(5 + 64, { world: "attic", phase: "wave" }));
   assert.equal(a, b, "the loop must be exactly form.length x 16 steps long");

@@ -2440,7 +2440,11 @@
         text: "A socket ringed in amber. Whatever you build on it fires " + Math.round(((b.rate || 1) - 1) * 100) + "% faster and reaches " + Math.round(((b.range || 1) - 1) * 100) + "% further. Put your best gun here." });
     }
     if ((def.waves || []).some((w) => (w.groups || []).some((g) => g.at > 0))) out.push({ key: "door", icon: "🚪", name: "Side Door",
-      text: "Part of a wave walks in PARTWAY down the lane instead of at the start — behind anything you built up front. The door is marked on the field, and the next-wave line says how many are coming through it." });
+      // The advance warning is the POINT of this entry: a marker that appears
+      // when the thing happens is not a warning, and this door was reported as
+      // unanticipatable twice before it warned early. Say so, or the guide
+      // describes the version that was broken.
+      text: "Part of a wave walks in PARTWAY down the lane instead of at the start — behind anything you built up front. The door pings on the field a whole wave BEFORE it opens, so you always get a full build phase of notice, and the next-wave line says how many are coming through it." });
     if (def.fork && def.lever) out.push({ key: "lever", icon: "🔀", name: "Track Switch",
       // numbers quoted from RULES, never re-typed — the guide must not drift
       text: "A lever on the field. Tap it to divert the traffic the long way for " + (DATA.RULES.leverHold || 10) +
@@ -2584,10 +2588,29 @@
     const k = step % 16;
     // a field one short must degrade, not disable: an unknown degree would make
     // `scale[deg]` undefined and hand NaN straight to the oscillator.
+    // ONE site, so melody, harmony, bass and the boss drone all inherit the
+    // audible floor — the drone is the one that needed it (root/8 = 18.4Hz in
+    // the garage) but a future low voice gets it for free.
+    const floorHz = M.floorHz > 0 ? M.floorHz : 55;
     const hz = (deg, oct) => {
       const semi = scale[deg];
       if (typeof semi !== "number") return 0;
-      return mus.root * Math.pow(2, (semi + 12 * (oct || 0)) / 12);
+      let f = mus.root * Math.pow(2, (semi + 12 * (oct || 0)) / 12);
+      // guard BEFORE the loop: a root of 0 or a NaN would spin here for ever,
+      // and this runs inside the tick. A field one short must degrade, not hang.
+      if (!(f > 0)) return 0;
+      // FOLD, never clamp: doubling preserves the pitch class exactly, so the
+      // harmony is unchanged and only the register moves. The BOUND is
+      // deliberately defence-in-depth and cannot fail while the guard above
+      // stands — say so rather than implying two protections where there is
+      // one. Its whole job is that removing that guard then produces a wrong
+      // NUMBER a test can report, instead of an infinite loop inside the tick:
+      // verified, the unbounded version hangs `node --test` rather than failing
+      // it, which is one step worse than a green test because it reads as
+      // broken infrastructure. 12 covers a factor of 4096; the deepest real
+      // case needs 2.
+      for (let n = 0; n < 12 && f < floorHz; n++) f *= 2;
+      return f;
     };
     const out = [];
     const mel = M.mel[phrase][k];

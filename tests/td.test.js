@@ -810,6 +810,65 @@ test("AUDIT resume: the checkpoint carries the countdown, the tally, and survive
   assert.equal(junk.phase, "build", "a malformed checkpoint still resumes into a playable build phase");
   assert.equal(junk.waveIdx, 1, "…at the saved wave");
   assert.equal(junk.towers, 0, "…with no towers, rather than an exception");
+
+  // (4) …and the SCALARS beside `towers` needed the opposite treatment, which
+  // is the line worth drawing: COERCE what has a sane default, DISCARD what
+  // does not. `towers → []` is sane — you lost your board and the run plays.
+  // `waveIdx` has no sane default: resuming at wave 0 with wave-12 gold is a
+  // different, wrong run, so a silently-corrected wave is a worse lie than
+  // "that checkpoint could not be read". Left unguarded it did not even fail
+  // politely — the board came back looking correct and the FIRST ▶ CALL threw
+  // "Cannot read properties of null (reading 'groups')" inside the click
+  // handler, freezing the run in build with nothing said.
+  for (const bad of [{ waveIdx: 999 }, { waveIdx: -3 }, { waveIdx: "x" }, { waveIdx: 1.5 },
+                     { gold: "lots" }, { lives: null }, { lives: undefined }]) {
+    // Seed, then RELOAD — writing localStorage without one leaves the fort
+    // module holding its in-memory copy, so the seed is invisible and the
+    // resume succeeds against the old checkpoint. (It did: this clause passed
+    // a working guard until the reload went in. Clause (3) above reloads for
+    // exactly the same reason.)
+    await page.evaluate((patch) => {
+      const raw = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1, stars: {} };
+      raw.midRun = Object.assign({ levelId: 1, endless: false, world: "bedroom", difficulty: "normal",
+        seed: 7, waveIdx: 1, gold: 300, lives: 15, meta: [], towers: [] }, patch);
+      localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    }, bad);
+    await page.reload({ waitUntil: "load" });
+    const cleared = await page.evaluate(async () => {
+      location.hash = "#td-home";
+      await new Promise((r) => setTimeout(r, 80));
+      window.__TD.resume();
+      await new Promise((r) => setTimeout(r, 150));
+      return {
+        hash: location.hash,
+        midRun: (JSON.parse(localStorage.getItem("jon-td-save-v1")) || {}).midRun || null,
+      };
+    });
+    assert.equal(cleared.hash, "#td-home",
+      `a checkpoint with ${JSON.stringify(bad)} must be refused, not resumed into a run that dies on CALL`);
+    assert.equal(cleared.midRun, null,
+      `…and the unreadable checkpoint must be cleared, or the fort offers Resume for ever (${JSON.stringify(bad)})`);
+  }
+
+  // (5) ENDLESS has no wave TABLE — its waves are generated — so the bound
+  // above needs its own branch or every endless resume would be thrown away.
+  // This clause exists because the obvious implementation does exactly that.
+  const endless = await page.evaluate(async () => {
+    window.__TD.resetSave();
+    window.__TD.startEndless("bedroom");
+    window.__TD.script([["tick", 400]]);
+    const m = window.__TD.midRun();
+    if (!m) return { wrote: false };
+    location.hash = "#td-home";
+    await new Promise((r) => setTimeout(r, 60));
+    window.__TD.resume();
+    await new Promise((r) => setTimeout(r, 120));
+    return { wrote: true, hash: location.hash, phase: (window.__TD.state() || {}).phase };
+  });
+  assert.ok(endless.wrote, "an endless run must write a checkpoint, or clause (5) proves nothing");
+  assert.notEqual(endless.hash, "#td-home", "a HEALTHY endless checkpoint must still resume");
+  assert.ok(endless.phase, "…into a live run");
+
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
@@ -1799,7 +1858,15 @@ test("grown-ups ⚙️ reset: the word gate wipes ALL fort progress — and NOTH
   assert.deepEqual(after.endlessBest, {}, "endless bests are cleared");
   assert.equal(after.midRun, null, "the saved run is discarded");
   // preferences are NOT progress — they survive (the Josh-reset-keeps-mute rule)
-  assert.deepEqual(after.settings, SEEDED.settings, "sound/graphics settings survive the reset");
+  // Every preference you HAD survives — asserted per key rather than as a
+  // whole-object deepEqual, which fails the moment a new setting is added even
+  // though nothing about the reset changed. (It did: ⏩ speed joined settings
+  // and this went red naming a field the test had never heard of.) The claim
+  // is "the reset loses no preference", so assert exactly that; a reset that
+  // ADDS a defaulted key is not a preference-loss bug.
+  for (const [k, v] of Object.entries(SEEDED.settings)) {
+    assert.equal(after.settings[k], v, `the ${k} preference survives the reset (the Josh-reset-keeps-mute rule)`);
+  }
   assert.equal(after.difficulty, "heroic", "the chosen difficulty chip survives the reset");
   // …and the home re-renders immediately: re-locked grid, no Resume banner.
   assert.equal(await page.locator(".td-level--locked").count(), shipped - 1, "the level grid re-locks at once");
@@ -6388,6 +6455,62 @@ test("🎵 the soundtrack follows the battle you are LOOKING at", async () => {
     `coming back must resume the march (got ${out.returned} notes)`);
   assert.equal(out.atFort, 0,
     `leaving the battlefield must stop the battle's music (got ${out.atFort} notes over the fort home)`);
+
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.reload();
+});
+
+test("⏩ fast-forward is remembered between levels, and a junk value cannot freeze the game", async () => {
+  // Retapping ⏩ on all 40 levels — and on every restart, and every ▶ Next —
+  // is pure friction for a player who likes 2x. Unlike "remember the last
+  // tower line" (dropped, because the build menu is already one tap per line)
+  // this actually saves taps. It is a PREFERENCE, so it lives in
+  // save.settings and the grown-ups reset keeps it.
+  await page.evaluate(() => { localStorage.removeItem("jon-td-save-v1"); });
+  await page.reload();
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 5 }); });
+  await page.locator("#screen-td-play .td-speed").click();
+
+  const after = await page.evaluate(() => ({
+    label: document.querySelector("#screen-td-play .td-speed").textContent,
+    // read defensively: with the persist removed, NOTHING writes a save at all
+    // in this flow, and a raw JSON.parse(null) fails as "cannot read 'settings'"
+    // — which sends the next reader hunting a missing save instead of a
+    // missing write. The assertion should name the defect.
+    saved: (() => {
+      const raw = localStorage.getItem("jon-td-save-v1");
+      if (!raw) return "no save was written at all";
+      return (JSON.parse(raw).settings || {}).speed;
+    })(),
+  }));
+  assert.equal(after.label, "2×", "tapping ⏩ steps the speed");
+  assert.equal(after.saved, 2, "…and the choice is persisted, or nothing can restore it");
+
+  // The half that matters: a DIFFERENT level must come up already at 2x. The
+  // label is rendered FROM cur.speed at level start, so reading it proves the
+  // engine's own value, not just the caption.
+  await page.evaluate(() => { window.__TD.newGame(2, { seed: 5 }); });
+  assert.equal(await page.locator("#screen-td-play .td-speed").textContent(), "2×",
+    "a new level must come up at the speed you chose");
+
+  // CLAMPED, because it is a number and the frame loop multiplies by it. 99x
+  // is unplayable and 0 would freeze the battle for ever; a restored backup or
+  // a hand-edited save must degrade to 1x, never disable the game.
+  for (const junk of [0, 99, -3, "fast", null]) {
+    await page.evaluate((v) => {
+      const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+      s.settings.speed = v;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify(s));
+    }, junk);
+    await page.reload();
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.evaluate(() => { window.__TD.newGame(1, { seed: 5 }); });
+    assert.equal(await page.locator("#screen-td-play .td-speed").textContent(), "1×",
+      `a saved speed of ${JSON.stringify(junk)} must degrade to 1× — the frame loop multiplies by this`);
+  }
 
   await page.evaluate(() => { window.__TD.resetSave(); });
   await page.reload();
