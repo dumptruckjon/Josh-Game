@@ -532,7 +532,6 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
           const t = (n.textContent || "").trim();
           return t && !/[\p{L}\p{Nd}]/u.test(t);
         });
-        if (!cards.length) return null;
         // A picture whose size is set INLINE is one whose size IS the answer —
         // "find the tiniest star", "smallest to biggest", "will it fit?" each
         // compute a per-round px/rem size in JS. CSS cannot scale those, and
@@ -557,14 +556,30 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
           return kids ? best : (parseFloat(getComputedStyle(n).fontSize) || 0);
         };
         let bw = 0, bf = 0;
-        for (const n of cards) {
+        for (const n of cards) {   // empty for a game with no picture card — the box below still applies
           if (inlineSized(n)) continue;
           const r = n.getBoundingClientRect();
           if (r.width > bw) { bw = r.width; bf = leafSize(n); }
         }
         const d = document.documentElement;
         const over = d.scrollWidth - d.clientWidth;
-        return bw > 0 && bf > 0 ? { w: bw, f: bf, over } : null;
+        // Smallest tappable thing on the stage, so the >=75px law is checked at
+        // this size too. [data-adult] is exempt for the same reason the 320px
+        // audit exempts it: the grown-ups reset gate is deliberately small.
+        let minTap = Infinity, tapWho = "";
+        for (const n of st.querySelectorAll("button, a, [role=button]")) {
+          if (n.closest("[data-adult]") || n.hidden || n.offsetParent === null) continue;
+          const r = n.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1) continue;
+          const sm = Math.min(r.width, r.height);
+          if (sm < minTap) { minTap = sm; tapWho = String(n.className || n.tagName).split(" ")[0]; }
+        }
+        const box = { over, minTap: minTap === Infinity ? null : minTap, tapWho };
+        // The picture-ratio half only applies to games that HAVE a picture card;
+        // the overflow and tap halves apply to every game, so they are returned
+        // either way. Returning null here is what limited the overflow check to
+        // ~96 of 240 games when it was first folded in.
+        return bw > 0 && bf > 0 ? { w: bw, f: bf, ...box } : box;
       }, id);
       if (m) out[id] = m;
     }
@@ -573,15 +588,30 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
   };
   const phone = await shot(390, 844);
   const tablet = await shot(834, 1112);
-  const ids = Object.keys(phone).filter((k) => tablet[k]);
+  const ids = Object.keys(phone).filter((k) => tablet[k] && phone[k].f && tablet[k].f);
 
   // Free coverage, because this walk is already at 834: the shipped overflow
   // audit runs at 390 and 320, and the clamp pass that made this test necessary
   // only changes anything ABOVE ~453px wide — so its entire effect landed in
   // the one width class nothing checked. Measured 0 of 240 when it shipped.
-  const spill = ids.filter((id) => tablet[id].over > 0)
+  const everyGame = Object.keys(tablet);
+  assert.ok(everyGame.length >= 200,
+    `the overflow/tap halves must see EVERY game, not just the ones with picture cards (saw ${everyGame.length})`);
+  // A shared failure here is usually ONE css rule, so the message names a few
+  // and counts the rest — a mutation flagged 160 games and printed an
+  // unreadable wall, which is a message nobody acts on.
+  const brief = (list) => list.length <= 8 ? list.join(", ")
+    : `${list.slice(0, 8).join(", ")} … and ${list.length - 8} more`;
+  const spill = everyGame.filter((id) => tablet[id].over > 0)
     .map((id) => `${id} (+${tablet[id].over}px)`);
-  assert.deepEqual(spill, [], `games that scroll sideways on a tablet: ${spill.join(", ")}`);
+  assert.equal(spill.length, 0, `games that scroll sideways on a tablet: ${brief(spill)}`);
+
+  // …and the >=75px law holds at this size too. Measured 76px at its tightest
+  // (count-feed's snack) when this shipped, so the margin is one pixel — which
+  // is precisely why it is worth asserting at the size nothing else checks.
+  const tiny = everyGame.filter((id) => tablet[id].minTap !== null && tablet[id].minTap < 75)
+    .map((id) => `${id} ${Math.round(tablet[id].minTap)}px (${tablet[id].tapWho})`);
+  assert.equal(tiny.length, 0, `taps under 75px on a tablet: ${brief(tiny)}`);
   assert.ok(ids.length >= 90,
     `the scan must actually find both worlds' picture cards (got ${ids.length}) — a vacuous pass is not a pass`);
   for (const id of ids) {

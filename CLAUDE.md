@@ -1629,7 +1629,16 @@ round is random, so their glyph differs run to run. A before/after diff over a
 randomised surface needs that check, or noise reads as regression.
 (5) The widened scan costs ~110s because it walks 240 games at two viewports —
 paid deliberately, since the alternative is a scan whose scope is a list.
-(6) **And the clamp pass's whole effect landed in the one width class nothing
+(6) **A guardrail folded into an existing walk inherits that walk's FILTER, and
+mine silently covered 104 of 240 games.** The ratio scan returns early for a game
+with no picture card, so folding the tablet overflow check into it quietly scoped
+that check to the games that happen to have one. Both the overflow and the tap
+halves apply to EVERY game, so they are returned unconditionally now and a
+`>= 200` count assertion makes a future early-return fail loudly instead of
+narrowing the scan again. Also from the same pass: a shared failure is usually
+ONE css rule, so a message that names 160 games is a wall nobody acts on — it
+names eight and counts the rest.
+(7) **And the clamp pass's whole effect landed in the one width class nothing
 audited.** It only changes anything above ~453px wide, while the shipped
 overflow audit runs at 390 and 320 — so 121 games got a bigger glyph at a width
 no test measured. Walked at 834: 0 of 240 overflow, 0 page errors. The check is
