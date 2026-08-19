@@ -36,9 +36,12 @@ jobs:
       - name: Install browsers (Chromium + WebKit/Safari engine)
         # Through the shared action: it retries and, crucially, CANNOT hang.
         # A hang here holds the `pages` concurrency group for up to 6 hours and
-        # silently drops every push behind it. 45 min is a backstop above the
-        # action's own worst case (3 x 20 min + backoff), never the real limit.
-        timeout-minutes: 70
+        # silently drops every push behind it. 85 min is a backstop above the
+        # action's own worst case (3 x 25 min + backoff = 76), never the real
+        # limit — and it must stay ABOVE it, or attempt 3 is killed mid-flight
+        # and ATTEMPTS=3 is a lie. The old comment here said 45 while the value
+        # read 70: a comment cannot go red, so check it when you move either.
+        timeout-minutes: 85
         uses: ./.github/actions/install-browsers
 
       - name: Run tests (unit + browser e2e + mobile WebKit)
@@ -94,9 +97,12 @@ jobs:
       - name: Install browsers (Chromium + WebKit/Safari engine)
         # Through the shared action: it retries and, crucially, CANNOT hang.
         # A hang here holds the `pages` concurrency group for up to 6 hours and
-        # silently drops every push behind it. 45 min is a backstop above the
-        # action's own worst case (3 x 20 min + backoff), never the real limit.
-        timeout-minutes: 70
+        # silently drops every push behind it. 85 min is a backstop above the
+        # action's own worst case (3 x 25 min + backoff = 76), never the real
+        # limit — and it must stay ABOVE it, or attempt 3 is killed mid-flight
+        # and ATTEMPTS=3 is a lie. The old comment here said 45 while the value
+        # read 70: a comment cannot go red, so check it when you move either.
+        timeout-minutes: 85
         uses: ./.github/actions/install-browsers
 
       - name: Wait for the live site to serve this commit

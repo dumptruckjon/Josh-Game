@@ -1971,6 +1971,30 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
   // which is a worse bug than the hang it replaces.
   assert.match(act, /::error::[\s\S]{0,200}?exit 1\s*$/,
     "after the last attempt it must exit non-zero — a swallowed failure is worse than the hang");
+
+  // …and the CDN comes off the critical path, which is the fix the third
+  // re-measurement of the bound produced. The install is not drifting upward,
+  // it is BIMODAL — run #319 measured 44s and 4m05s where run #317 measured
+  // 17m47s and 17m39s hours earlier — and no value of PER_ATTEMPT makes a
+  // third-party mirror reliable, it only decides how long we wait for it.
+  assert.match(act, /uses: actions\/cache@v\d/,
+    "the browsers must be cached, or every run re-downloads ~350MB from a mirror whose bad day once cost two commits");
+  // The cached path must be the one `playwright install` ACTUALLY uses.
+  // Caching a directory the install ignores is a no-op that looks like a fix
+  // and reports a cache hit for ever, which is strictly worse than no cache:
+  // it hides the download it was meant to remove. ~/.cache/ms-playwright is
+  // Playwright's default on Linux, so nothing here may repoint it.
+  assert.match(act, /path: *~\/\.cache\/ms-playwright/,
+    "cache Playwright's DEFAULT browsers dir — caching a path the install does not use is a silent no-op");
+  // Comment-stripped, because the rule is explained IN the action and a scan
+  // that matches its own documentation is this repo's most-repeated own goal.
+  const actCode = act.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+  assert.ok(!/PLAYWRIGHT_BROWSERS_PATH/.test(actCode),
+    "the action must not repoint PLAYWRIGHT_BROWSERS_PATH, or the cached path and the installed path diverge");
+  // A key that never changes serves the wrong browsers after a Playwright
+  // bump — for ever, since the entry is only rewritten on a miss.
+  assert.match(act, /key: *[^\n]*hashFiles\('package-lock\.json'\)/,
+    "the cache key must be derived from the lockfile, or a Playwright version bump keeps restoring the old browsers");
 });
 
 test("CI: the browser-install retry actually RETRIES, and names a hang a hang", () => {
@@ -1993,10 +2017,24 @@ test("CI: the browser-install retry actually RETRIES, and names a hang a hang", 
   const body = act.split(/\n *run: \|\n/)[1];
   assert.ok(body, "could not find the action's run: block — this test would otherwise be vacuous");
   const script = body.split("\n").map((l) => l.replace(/^ {8}/, "")).join("\n");
-  for (const k of ["PER_ATTEMPT=1200", "ATTEMPTS=3", "BACKOFF=20"]) {
-    assert.ok(script.includes(k), `expected ${k} in the shipped script; the substitution below would no-op`);
+  // DERIVED, not pinned. Pinning `PER_ATTEMPT=1200` here made a pure re-tune
+  // of the timeout break a test about RETRY BEHAVIOUR, which teaches the next
+  // author to edit the test rather than think about the bound — and the bound
+  // has already moved three times. Reading the constants keeps the
+  // substitution honest (it still cannot silently no-op) while leaving the
+  // value free to move.
+  const consts = {};
+  for (const k of ["PER_ATTEMPT", "ATTEMPTS", "BACKOFF"]) {
+    const m = script.match(new RegExp(`^${k}=(\\d+)$`, "m"));
+    assert.ok(m, `expected ${k}=<number> in the shipped script; the substitution below would no-op`);
+    consts[k] = Number(m[1]);
   }
-  const fast = script.replace("PER_ATTEMPT=1200", "PER_ATTEMPT=1").replace("BACKOFF=20", "BACKOFF=0");
+  assert.ok(consts.ATTEMPTS >= 2, "one attempt is not a retry");
+  const fast = script
+    .replace(`PER_ATTEMPT=${consts.PER_ATTEMPT}`, "PER_ATTEMPT=1")
+    .replace(`BACKOFF=${consts.BACKOFF}`, "BACKOFF=0");
+  assert.notEqual(fast, script,
+    "the timing substitution changed nothing — this would test the shipped 25-minute timings and time out");
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "josh-install-"));
   fs.mkdirSync(path.join(dir, "bin"));
@@ -2016,15 +2054,15 @@ test("CI: the browser-install retry actually RETRIES, and names a hang a hang", 
   // next person looking for a broken install instead of a stalled network.
   const hang = run("#!/bin/bash\nexec sleep 999\n");
   assert.equal(hang.code, 1, "a permanent hang must end as a real failure, not a green tick");
-  assert.equal((hang.out.match(/HUNG/g) || []).length, 3,
+  assert.equal((hang.out.match(/HUNG/g) || []).length, consts.ATTEMPTS,
     `every attempt must be killed and reported as a HANG, saw: ${hang.out.trim().split("\n").join(" | ")}`);
 
   // …and a transient failure must actually be recovered, with the REAL exit
   // code reported for the attempts that failed.
   const counter = path.join(dir, "n");
-  const flaky = run(`#!/bin/bash\nn=$(cat ${counter} 2>/dev/null || echo 0); n=$((n+1)); echo $n > ${counter}\n[ "$n" -ge 3 ] && exit 0 || exit 7\n`);
-  assert.equal(flaky.code, 0, "two transient failures then a success must end green — that is what the retry is for");
-  assert.match(flaky.out, /installed on attempt 3/, "it must report which attempt succeeded");
+  const flaky = run(`#!/bin/bash\nn=$(cat ${counter} 2>/dev/null || echo 0); n=$((n+1)); echo $n > ${counter}\n[ "$n" -ge ${consts.ATTEMPTS} ] && exit 0 || exit 7\n`);
+  assert.equal(flaky.code, 0, "transient failures then a success must end green — that is what the retry is for");
+  assert.match(flaky.out, new RegExp(`installed on attempt ${consts.ATTEMPTS}`), "it must report which attempt succeeded");
   assert.match(flaky.out, /attempt 1 failed with exit 7/,
     `a failed attempt must report its REAL exit code, saw: ${flaky.out.trim().split("\n").join(" | ")}`);
 });

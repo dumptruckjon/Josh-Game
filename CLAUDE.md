@@ -1859,10 +1859,12 @@ tooling.
 │   │                           #   never publishes. Four brakes stop it looping (active run / any
 │   │                           #   FAILED run / already dispatched once / site unreachable).
 │   └── actions/install-browsers/
-│       └── action.yml          # the ONE owner of `playwright install` — a per-attempt `timeout` + 3
-│                               #   tries, so a stalled download is retried and never HANGS. A hang
-│                               #   holds the `pages` concurrency group for 6h and silently drops
-│                               #   every push behind it (it un-shipped 4c98dee and df77afc).
+│       └── action.yml          # the ONE owner of `playwright install` — a GitHub-hosted browser
+│                               #   cache (so the flaky Playwright CDN is off the critical path)
+│                               #   plus a per-attempt `timeout` + 3 tries, so a stalled download
+│                               #   is retried and never HANGS. A hang holds the `pages`
+│                               #   concurrency group for 6h and silently drops every push behind
+│                               #   it (it un-shipped 4c98dee and df77afc).
 ├── JOSH_PROFILE.md             # WHO JOSH IS: skill levels, non-reader law, friends, interests, game-mechanic menu — READ before building
 ├── josh-profile.json           # ^ same profile, machine-readable (for programmatic game generation)
 ├── PLAN_ROAD_TO_140.md         # Set 1 build plan (40 games, waves W1-W4) — ✅ BUILT (Josh at 140)
@@ -2313,6 +2315,46 @@ decision axis the Oil Drum opened: it jams the nearest gun where it DIES
 (`jamBurst`, through the ONE `killEnemy` and the ONE `jamNearest`), so *where*
 you break it is the choice. Like the Drum it measures outcome-neutral on the
 shipped oracle and ships for legibility, not for the curve.
+**THE INSTALL BOUND WAS RE-MEASURED A THIRD TIME AND THE DATA SAID SOMETHING
+DIFFERENT — it is not drifting upward, it is BIMODAL, and the fix was to stop
+tuning the constant.** Run #317 took **17m47s** and **17m39s** on the two jobs;
+three hours later run #319 took **4m05s** and **44s** — the same work, against a
+documented 57-second norm. So the number had moved 57s → 7m30s → 10m01s →
+14m48s → 17m47s not because installs are getting slower but because the
+Playwright CDN has bad days, **and no value of `PER_ATTEMPT` makes a
+third-party mirror reliable — it only decides how long you wait for it.** The
+structural fix is an `actions/cache` of `~/.cache/ms-playwright` inside the same
+ONE owner, so the ~350MB comes from inside the datacentre; a hit leaves
+`playwright install` doing only its apt `--with-deps` work, a miss downloads
+exactly as before, still bounded and still retried. Four things worth keeping.
+(1) **A comment that justifies a constant can be REFUTED by later data, and a
+comment cannot go red** — the shipped file still read "20 min is ~35% over the
+observed worst" when the observed worst had become 17m47s and the real figure
+was **12%**. That is the same defect class as `deploy.yml`'s install comment
+saying "45 min is a backstop" beside a `timeout-minutes: 70`, found in the same
+pass. When you move a number, re-read the sentence that explains it; when you
+see a worse worst case, re-read the sentence that was justified against the old
+one. (Bound now 25 min, caller backstop 70 → 85 so `3 × 25 + backoff = 76` still
+fits and `ATTEMPTS=3` is not a lie.) (2) **A guardrail that pins a TUNING
+CONSTANT teaches the next author to edit the test instead of thinking about the
+bound.** The behavioural test hard-coded `PER_ATTEMPT=1200` as a
+substitution-safety check, so a pure re-tune broke a test about RETRY
+BEHAVIOUR; it now READS the three constants out of the shipped script and
+derives the expected HUNG count and the flaky stub's success attempt from
+`ATTEMPTS`, keeping the no-op guard (`assert.notEqual(fast, script)`) that made
+the pin worth having. Proven on BOTH halves: 900/1500/2400 and `ATTEMPTS=4` all
+stay green, while renaming the constant or setting `ATTEMPTS=1` goes red. (3)
+**Caching the wrong directory is a no-op that LOOKS like a fix and reports a
+cache hit for ever** — strictly worse than no cache, because it hides the
+download it was meant to remove. So the path is asserted to be Playwright's
+Linux default and the action is forbidden from repointing
+`PLAYWRIGHT_BROWSERS_PATH`, and the key must be derived from the lockfile or a
+version bump keeps restoring the old browsers (the entry is only rewritten on a
+miss). (4) **The scan matched its own documentation, again** — the
+`PLAYWRIGHT_BROWSERS_PATH` clause fired on the comment explaining the rule, so
+the action is comment-stripped before scanning, exactly as the `art.js`
+`<defs>` scan already had to be. All four clauses mutation-proven.
+
 **TD-19 COMFORT & SOUND** is three player-facing asks. **🎵 The soundtrack** is
 now a real score rather than one tune: `DATA.MUSIC` holds it as scale DEGREES
 and `TDLogic.musicStep(i, ctx)` arranges it, so each of the ten worlds has its

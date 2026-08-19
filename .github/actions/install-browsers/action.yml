@@ -1,7 +1,8 @@
 name: Install Playwright browsers
 description: >
-  Install Chromium + WebKit (Safari's engine) with a per-attempt timeout and
-  retries, so a stalled download becomes a retry or a fast red — never a hang.
+  Install Chromium + WebKit (Safari's engine) from a cache where possible, and
+  otherwise with a per-attempt timeout and retries, so a stalled download
+  becomes a retry or a fast red — never a hang.
 
 # WHY THIS EXISTS, and why it is ONE owner rather than a line in each job.
 #
@@ -27,22 +28,54 @@ description: >
 runs:
   using: composite
   steps:
+    # THE STRUCTURAL FIX, added 2026-08-19 after re-measuring the bound for the
+    # third time. The install duration is not drifting upward, it is BIMODAL:
+    # run #319 measured 44s and 4m05s while run #317, three hours earlier,
+    # measured 17m47s and 17m39s on the same commit-shaped work. That spread is
+    # the Playwright CDN having a bad day, and no value of PER_ATTEMPT makes a
+    # third-party CDN reliable — it only decides how long we wait for it.
+    #
+    # So take the CDN off the critical path. GitHub's own cache serves the same
+    # ~350MB from inside the datacentre, which is both far faster and far more
+    # predictable than the mirror. On a hit `playwright install` finds the
+    # browsers already present and does only the apt `--with-deps` work; on a
+    # miss it downloads exactly as before, still bounded and still retried.
+    #
+    # The path is Playwright's DEFAULT browsers directory on Linux. That
+    # matters more than it looks: caching a directory the install does not
+    # actually use is a no-op that looks like a fix and reports a cache hit
+    # forever, so nothing below may set PLAYWRIGHT_BROWSERS_PATH elsewhere.
+    # restore-keys means a lockfile bump still restores the previous set and
+    # downloads only what changed, rather than starting from nothing.
+    - name: Restore the Playwright browser cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          playwright-${{ runner.os }}-
+
     - shell: bash
       run: |
         set -uo pipefail
-        # 20 min per attempt. RE-MEASURED TWICE on 2026-08-18, which is the
-        # whole lesson: a bound justified against the worst case you have SEEN
-        # needs re-checking the first time you see a worse one. It shipped at
-        # 12 min (~60% over a 7.5 min record), was raised to 15 when the same
-        # day produced 5m45s and 10m01s, and then a healthy verify-live install
-        # took 14m48s — clearing the 15 min bound by TWELVE SECONDS. A bound
-        # running at 99% utilisation is not a bound, it is a coin flip: the
-        # retry makes it self-healing rather than red, but it still throws away
-        # a download that was seconds from done and pays for it twice. 20 min
-        # is ~35% over the observed worst and still turns a 6-hour hang — which
-        # holds the `pages` concurrency group and drops the pushes behind it —
-        # into a bounded, visible failure.
-        PER_ATTEMPT=1200
+        # 25 min per attempt. RE-MEASURED THREE TIMES, which is the whole
+        # lesson: a bound justified against the worst case you have SEEN needs
+        # re-checking the first time you see a worse one. It shipped at 12 min
+        # (~60% over a 7.5 min record), was raised to 15 when the same day
+        # produced 5m45s and 10m01s, then to 20 when a healthy verify-live
+        # install took 14m48s — clearing the 15 min bound by TWELVE SECONDS.
+        # Then run #317 took 17m47s, which left the shipped 20 only 12% over
+        # the observed worst while its own comment still claimed ~35%: the
+        # justification had been refuted by the data and nobody had noticed,
+        # because a comment cannot go red. 25 restores that ~40%.
+        #
+        # A bound running at 99% utilisation is not a bound, it is a coin flip:
+        # the retry keeps it self-healing rather than red, but it still throws
+        # away a download that was seconds from done and pays for it twice. The
+        # only thing a generous bound costs is the worst-case hold on the
+        # `pages` group (3 x 25 + backoff = 76 min, under the caller's 85), and
+        # that is still a bounded, visible failure rather than a 6-hour hang.
+        PER_ATTEMPT=1500
         ATTEMPTS=3
         BACKOFF=20
         for i in $(seq 1 "$ATTEMPTS"); do
