@@ -2334,6 +2334,66 @@ test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () =>
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("🚪 losing to a flank says so — the one defeat whose fix is POSITIONAL", async () => {
+  // The post-mortem reads the counter matrix: what got past you, and what could
+  // not even reach it. That is the right diagnosis for every defeat EXCEPT this
+  // one. If part of the wave walked in behind your guns, no change of tower
+  // line helps — the fix is where you built, not what — and the counter advice
+  // on its own would send you off to rebuild for the wrong reason.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    window.__TD.newGame(2, { seed: 7 });          // L2's only door is on wave 6
+    window.__TD.grantGold(5000);
+    const e = window.__TD.engine();
+    window.__TD.script(e.levelDef.pads.map((p) => ["place", "dart", p.id]));
+    const ups = [];
+    e.state.towers.forEach((t, i) => { ups.push(["upgrade", i]); ups.push(["upgrade", i]); });
+    window.__TD.script(ups);
+    // play up to the door wave with a real board…
+    let guard = 0;
+    while (e.state.sentIdx < 5 && e.state.phase !== "lost" && guard++ < 40) {
+      window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+    }
+    const reached = e.state.sentIdx;
+    // …then strip it, so the flank is what actually lands. `sell` takes an
+    // INDEX and the array compacts, so index 0 repeatedly empties the board.
+    window.__TD.script(e.state.towers.map(() => ["sell", 0]));
+    guard = 0;
+    while (e.state.phase !== "lost" && e.state.phase !== "won" && guard++ < 40) {
+      window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+    }
+    return { reached, phase: e.state.phase, wave: e.state.waveIdx + 1 };
+  });
+  assert.equal(out.reached, 5, `the probe must reach the door wave, got sentIdx ${out.reached}`);
+  assert.equal(out.phase, "lost", `the probe must actually lose, ended ${out.phase}`);
+  assert.equal(out.wave, 6, `…on the door wave, lost on ${out.wave}`);
+
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 5000 });
+  const txt = await page.locator(".td-overlay--lose").textContent();
+  assert.match(txt, /side door/i,
+    `the defeat screen must name the flank, said: ${txt.replace(/\s+/g, " ").slice(0, 240)}`);
+  assert.match(txt, /🚪/, "…and mark it with the door glyph the field uses");
+
+  // …and it must NOT say that on an ordinary defeat, or the line is noise that
+  // appears on every loss and tells you nothing.
+  const plain = await page.evaluate(() => {
+    window.__TD.newGame(2, { seed: 7 });
+    const e = window.__TD.engine();
+    let guard = 0;
+    while (e.state.phase !== "lost" && e.state.phase !== "won" && guard++ < 40) {
+      window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+    }
+    return { phase: e.state.phase, wave: e.state.waveIdx + 1 };
+  });
+  assert.equal(plain.phase, "lost", "the control must also lose");
+  assert.ok(plain.wave < 6, `…on an ordinary wave, not the door one (was ${plain.wave})`);
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 5000 });
+  const txt2 = await page.locator(".td-overlay--lose").textContent();
+  assert.ok(!/side door/i.test(txt2),
+    `an ordinary defeat must NOT blame a flank: ${txt2.replace(/\s+/g, " ").slice(0, 200)}`);
+});
+
 test("⏸ backgrounding the app pauses the battle, and coming back says so", async () => {
   // This has shipped for a while with NO test, which is a real gap for a feature
   // whose whole job is to protect a run: a phone call mid-wave must not cost you

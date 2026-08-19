@@ -2328,7 +2328,14 @@ committed — drawn as an expanding radar ping in a red-orange nothing else on t
 field uses. **↩ Undo** takes back the tower you just placed at FULL price,
 scoped to the build phase (and cleared by `callWave`) so a tower that has
 actually shot can never be un-bought; it shares ONE `removeTower()` with `sell`
-and takes the sell slot in the panel, so it costs no layout.
+and takes the sell slot in the panel, so it costs no layout. The **post-mortem**
+gained the matching line: the defeat screen reads the counter matrix, which is
+the right diagnosis for every loss EXCEPT a flank — if part of the wave walked
+in behind your guns, no change of tower LINE helps and the counter advice sends
+you off to rebuild for the wrong reason. It is derived from the losing wave's
+own groups (no engine field), additive rather than instead-of, and the guardrail
+pins BOTH halves: a door-wave defeat must name it and an ordinary defeat must
+not, or the line is noise on every loss.
 **TD-11 MULTI-PATH EVERYWHERE** takes the TD-7 lane subsystem from 1 of 12 levels
 to 3: **L3** introduces the lever deep in World 1 (so L10's train set is no longer
 the first one you meet) and **L7** gets a mid-game use. The retrofit is safe

@@ -625,7 +625,16 @@
       if (def.slowHeal && built.length === 1 && built[0] === "fan") { advice = "The " + def.name + " regrows while slowed — slows alone can't kill it."; focus = t; break; }
       if (def.armor >= 0.5 && built.length === 1 && built[0] === "dart") { advice = "The " + def.name + " is armored — a dart's bonk lands at half. The Fan's zap ignores armor."; focus = t; break; }
     }
+    // Did that wave come in through a SIDE DOOR? Derived from the level's own
+    // wave table rather than tracked on the enemy, so it costs the engine
+    // nothing. It matters because it is the one defeat whose fix is POSITIONAL:
+    // no change of tower line helps if part of the wave walks in behind your
+    // guns, and the counter-matrix advice above would otherwise send you off to
+    // rebuild for the wrong reason.
+    const lw = (cur.engine.levelDef.waves || [])[(cur.leakWave || cur.engine.state.waveIdx + 1) - 1];
+    const flank = lw ? lw.groups.filter((g) => g.at > 0).reduce((n, g) => n + g.count, 0) : 0;
     return {
+      flank: flank,
       wave: cur.leakWave || cur.engine.state.waveIdx + 1,
       rows: types.slice(0, 4).map((t) => ({ type: t, icon: (DATA.ENEMIES[t] || {}).icon || "•", name: (DATA.ENEMIES[t] || {}).name || t, n: leaks[t] })),
       total: types.reduce((a, t) => a + leaks[t], 0),

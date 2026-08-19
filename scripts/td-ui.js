@@ -1276,6 +1276,11 @@
           '<ul class="td-pm__list">' + pm.rows.map((r) =>
             '<li><span class="td-pm__ico">' + r.icon + "</span>" + r.name + '<span class="td-pm__n">×' + r.n + "</span></li>").join("") + "</ul>" +
           (pm.advice ? '<p class="td-pm__advice">' + pm.advice + "</p>" : "") +
+          // A flank is its own diagnosis, and it is ADDITIVE rather than
+          // instead of: the wave can both come in behind you AND carry
+          // something your board could not answer.
+          (pm.flank ? '<p class="td-pm__advice">🚪 ' + pm.flank +
+            " of that wave came in through the side door, behind your guns — cover it next time.</p>" : "") +
           '<button class="td-btn td-pm__guide" type="button" data-act="guide">📖 See the guide</button>' +
         "</div>" : "") + summaryHtml(rs);
     const el = overlay("td-overlay--lose",
