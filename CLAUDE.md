@@ -1688,6 +1688,37 @@ is coverage rather than a fix — and proven non-vacuous by floating a control
 over the field at tablet widths only, which fires at exactly the new size and
 names the pads. When a test's own comment says the list is the test, the list is
 also the thing to go back and extend.
+**The THIRD fort audit was measured and deliberately NOT extended, which is the
+other half of that lesson.** `AUDIT: every fort overlay lands ON SCREEN` also
+lists only phone/landscape sizes, and all 9 dialogs measure clean at both iPad
+portrait sizes — but the reason to leave it alone is structural, not the clean
+number: an overlay goes off screen when the viewport is SMALL (too tall for
+320x568, too wide for 320), so tablet portrait is the roomiest case and the
+least able to catch anything the existing list already would. Compare the
+pad-burial audit, where the tablet ASPECT genuinely relocates every pad on
+screen and so is a real new failure mode. **"Extend every viewport list" is not
+the law; "the list is the test" means ask what each size can uniquely catch** —
+and adding one that can catch nothing is the fence-around-the-residual this file
+keeps refusing.
+**And a REFACTOR was proposed, measured, and dropped in the same pass: `--tap`
+is a FLOOR, not a scale.** The tightest tap in Josh's world is `.feed__snack` at
+76px against a 75px audit floor, which looked like an accident until it turned
+out to be `min-height: var(--tap)` and `--tap: 76px` — the project's own token.
+Ten CSS rules hard-code `76px` rather than reading it, which is the documented
+"a size declared twice has no owner" class (`.td-abil` at 52 vs 60), so the
+obvious move is to convert them. Six of the ten genuinely mean "a tap target";
+four are art or display rows (`.build__friend`, `.wh__row`, `.hl-runtile`,
+`.hl-maskbtn svg`) that correctly keep their own value. But the conversion is
+behaviourally identical today, so it only earns its place if the token can be
+proven LOAD-BEARING — bump `--tap` and every tap must grow. **Measured, that law
+is false: at `--tap: 120px`, 190 of 240 games have a tap that does not follow,
+led by `.choice` in 151 of them, because `.choice` sets its own `min-height:
+96px` — deliberately ABOVE the floor.** A component choosing to be bigger than
+the minimum is correct, so there is no coherent property for the refactor to
+establish, and it would be an unfalsifiable change of the kind this file already
+deleted twice (the redundant price-flash paint, the bed-glyph clamp). No change
+shipped. What IS true and already guarded is the thing that matters: no tap
+anywhere falls below 75px, now checked at 320, 390 AND 834.
 
 ---
 
