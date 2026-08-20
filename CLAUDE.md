@@ -2027,6 +2027,35 @@ writable disk is one restore unit — the repo and the scratchpad die together.
 Staging work outside git is not staging it anywhere; commit early on a branch, or
 accept that an interrupted change is lost.
 
+**ALL FOUR BADGES I HAD SCOPED AS "EXPENSIVE" WERE CHEAP — the scoping note was
+wrong on every one, and re-measuring instead of trusting it is what found two
+real defects.** The note said `peapurist`, `dysondenied`, `iceage` and
+`marathoner` each needed a bespoke winning plan. Measured: **🧊 Ice Age needs no
+win at all** (sampled per FRAME; a fan on every pad peaks at 23 slowed on L32 by
+wave 4), **🎯 Pea Purist**'s dart-only board wins L2 at 16 lives, **🌪️ Dyson
+Denied**'s L8 win comes in at 11 lives with **0** soldiers lost even on a
+camp-free board, and **🏃 Marathoner** reaches endless wave 20 in **470 ms** of
+sim. Two of them were blocked not by the game but by `__TD.script` skipping side
+effects the real loop and UI perform (the sampler, and `cur.lines`); the other
+two were simply never tried. **A scoping verdict is a claim like any other —
+this one cost two shipped defects by looking authoritative in a note.**
+**Marathoner needed a robustness check the others did not**: `startLevel` seeds
+an ordinary run from `Date.now()`, so an endless test gets a RANDOM seed and
+would be a coin flip if survival were marginal. Measured across 8 seeds × 2
+arenas, every run hit the probe's own 26-wave cap rather than dying — consistent
+with the recorded "a maxed 14-pad build survives past 400k ticks" — so the
+fixture is safe by measurement rather than by luck. Its wiring is also unlike
+every other badge: it is awarded when the run ENDS or when you LEAVE, never on a
+win, so the test has to walk out of the arena to collect it.
+**All SIX earnAch wirings are now driven, and the seven badges still named in no
+test are a deliberate stop, not a gap**: `windeddown/toolsdown/notleaving/
+gooddog/scrapped/pressed/unwrapped` are the level-id siblings for the L12-L40
+boss finales, and that wiring is already driven twice (`doorman` on L1,
+`bossbonker` on L4). Driving each would mean legitimately winning eight more
+finales for a shape already proven, while the declaration scan separately
+guarantees every badge has a call site. Cover a WIRING, not each of its
+instances.
+
 ---
 
 ## Repository Structure

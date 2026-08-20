@@ -187,6 +187,44 @@ test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on scre
   await page.waitForTimeout(250);
 });
 
+test("AUDIT badges: 🏃 Marathoner — the endless shape, awarded on the way OUT", async () => {
+  // The last of the six earnAch wirings, and the fourth of four badges I had
+  // filed as "expensive" that turned out cheap. An honest mixed board reaches
+  // endless wave 20 comfortably — measured across 8 seeds in two arenas, every
+  // one ran to the probe's own 26-wave cap rather than dying — which matters
+  // because startLevel seeds an ordinary run from Date.now(), so this test gets
+  // a RANDOM seed and would be a coin flip if survival were marginal.
+  //
+  // Its wiring is unlike every other badge: it is awarded when the run ENDS or
+  // when you LEAVE (leavingPlay), never on a win — so the test has to walk out
+  // of the arena to collect it.
+  const out = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.startEndless("bedroom");
+    const pads = window.TDData.ENDLESS.arenas.bedroom.pads;
+    const LINES = ["dart", "mortar", "fan", "dart"];
+    for (let w = 0; w < 24; w++) {
+      const st = window.__TD.state();
+      if (!st || st.phase === "lost" || st.waveIdx >= 21) break;
+      window.__TD.script(pads.map((p, i) => ["place", LINES[i % LINES.length], p.id]));
+      const ups = [];
+      for (let i = 0; i < window.__TD.state().towers.length; i++) ups.push(["upgrade", i], ["upgrade", i]);
+      window.__TD.script(ups);
+      window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+    }
+    const st = window.__TD.state();
+    const reached = st.waveIdx, cheated = !!st.cheated;
+    window.__TD.leaveToHome();            // the real chokepoint that records it
+    return { reached, cheated, ach: window.__TD.ach() };
+  });
+
+  assert.equal(out.cheated, false, "fixture precondition: an honest run, or every award is suppressed");
+  assert.ok(out.reached >= 20,
+    `fixture precondition: the board must actually survive to wave 20 (reached ${out.reached})`);
+  assert.ok(out.ach.includes("marathoner"),
+    `reaching endless wave 20 must earn 🏃 Marathoner on the way out — got ${JSON.stringify(out.ach)}`);
+});
+
 test("AUDIT badges: 🧊 Ice Age and 🎯 Pea Purist — the two the HOOK was hiding", async () => {
   // Both were filed as "expensive" and both are cheap; measuring overturned my
   // own verdict twice. Neither was blocked by the game — each was blocked by
