@@ -1928,7 +1928,20 @@ with a ~2-minute duration because `concurrency: pages` keeps at most ONE pending
 run and a third push evicts the middle one — queue collapse, harmless on a linear
 main because the tip run carries the evicted commit. The hang looks different: it
 sits for tens of minutes behind a run stuck in install. Check the duration and
-whether a successor exists before hunting a stall.
+whether a successor exists before hunting a stall. **(5) And an IN-PROGRESS run's
+age is not its RUN time — it is mostly QUEUE time, which is a third way to
+misread this.** Run #335 showed 60 minutes elapsed with #336 stacked behind it,
+which is the exact signature this file describes for a hung install; it was
+nothing of the kind. Its `created_at` was 04:36 and its job's `started_at` was
+05:28, so 52 of those minutes were spent waiting on the `pages` concurrency
+group, and the install itself took **50 seconds** on a cache hit. The run object
+and the JOB object answer different questions: `run.created_at` is when the push
+happened, `job.started_at` is when a runner picked it up, and only the difference
+between a step's own `started_at`/`completed_at` is time the build actually
+spent. Read the JOB before touching `PER_ATTEMPT` — the bound has been re-tuned
+three times in this repo, twice on evidence that turned out to be about
+something else, and the note beside it already says not to raise it without a run
+that made all three attempts and ran out of TIME rather than out of luck.
 
 **NOTHING IN THE FORT EVER NAMED THE STAR THRESHOLDS — a player finishing at 2★
 had no way to learn that 18 lives was the bar.** `RULES.stars` is
