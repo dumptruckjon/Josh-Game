@@ -187,6 +187,63 @@ test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on scre
   await page.waitForTimeout(250);
 });
 
+test("AUDIT badges: 🧊 Ice Age and 🎯 Pea Purist — the two the HOOK was hiding", async () => {
+  // Both were filed as "expensive" and both are cheap; measuring overturned my
+  // own verdict twice. Neither was blocked by the game — each was blocked by
+  // __TD.script skipping a side effect the real UI performs.
+  //
+  // 🧊 Ice Age is the one badge sampled PER FRAME rather than at an outcome, so
+  // it needs NO win — only 20 bodies slowed at once on an honest run. A fan on
+  // every pad, funded by the level's OWN start gold (place() refuses what you
+  // cannot afford, so this is not a cheat — and cheating would suppress every
+  // award), peaks at 23 slowed on L32 by wave 4, measured headlessly. Its
+  // sampler used to live inline in loop(), which script() never runs.
+  const ice = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.newGame(32);
+    const L = window.TDData.LEVELS.find((l) => l.id === 32);
+    for (let w = 0; w < 4; w++) {
+      window.__TD.script(L.pads.map((p) => ["place", "fan", p.id]));
+      const ups = [];
+      // NOTE: script's upgrade op takes an INDEX into state.towers, never an id.
+      for (let i = 0; i < window.__TD.state().towers.length; i++) ups.push(["upgrade", i], ["upgrade", i]);
+      window.__TD.script(ups);
+      window.__TD.script([["call"], ["untilPhase", "build", 200000]]);
+    }
+    const st = window.__TD.state();
+    return { towers: st.towers.length, cheated: !!st.cheated, ach: window.__TD.ach() };
+  });
+  assert.ok(ice.towers >= 8, `fixture precondition: the level's own gold must fund a real fan board (built ${ice.towers})`);
+  assert.equal(ice.cheated, false, "fixture precondition: an honest run, or every award is suppressed");
+  assert.ok(ice.ach.includes("iceage"),
+    `20 bodies slowed at once must earn 🧊 Ice Age — got ${JSON.stringify(ice.ach)}`);
+  await page.evaluate(() => window.__TD.leaveToHome());
+
+  // 🎯 Pea Purist reads cur.lines, which the UI's build handler writes and
+  // e.place() does not — so a scripted dart-only win left it EMPTY and the badge
+  // could never earn. L2 dart-only wins legitimately at 16 lives (measured).
+  const pea = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.newGame(2);
+    const L = window.TDData.LEVELS.find((l) => l.id === 2);
+    for (let w = 0; w < 12 && window.__TD.state().phase !== "won" && window.__TD.state().phase !== "lost"; w++) {
+      window.__TD.script(L.pads.map((p) => ["place", "dart", p.id]));
+      const ups = [];
+      for (let i = 0; i < window.__TD.state().towers.length; i++) ups.push(["upgrade", i], ["upgrade", i]);
+      window.__TD.script(ups);
+      window.__TD.script([["call"], ["untilPhase", "build", 200000]]);
+    }
+    const st = window.__TD.state();
+    return { phase: st.phase, lines: window.__TD.ctx().lines, ach: window.__TD.ach() };
+  });
+  assert.equal(pea.phase, "won", "fixture precondition: a dart-only board must actually win L2");
+  assert.deepEqual(pea.lines, ["dart"],
+    `the hook must record the LINE it built, as the UI does — got ${JSON.stringify(pea.lines)}`);
+  assert.ok(pea.ach.includes("peapurist"),
+    `a darts-only L2 win must earn 🎯 Pea Purist — got ${JSON.stringify(pea.ach)}`);
+  await page.evaluate(() => window.__TD.leaveToHome());
+});
+
 test("AUDIT badges: the three cheap UNDRIVEN wiring shapes actually award", async () => {
   // Enumerating ACHIEVEMENTS against the test sources found 14 of 19 named in no
   // test. They are not one shape: there are SIX wiring shapes and only two were

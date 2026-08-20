@@ -517,6 +517,21 @@
     checkStarAchievements();
   }
 
+  // TD-5 Ice Age: 20 enemies slowed at once. ONE owner, because this is the only
+  // badge sampled PER FRAME rather than awarded at an outcome — and while it
+  // lived inline in loop(), __TD.script (how every fort test advances the
+  // engine) never ran it, so a scripted run could reach 23 slowed and earn
+  // nothing. The gate and both guards live in here so no call site can forget
+  // them; the checks are cheap but run a few times a second, not every tick.
+  function sampleIceAge() {
+    if (!cur || cur.sawIce || cur.engine.state.cheated) return;
+    const st = cur.engine.state, tk = st.tick;
+    if ((tk & 7) !== 0) return;
+    let slowed = 0;
+    for (const e of st.enemies) if (e.alive && tk < e.slowUntil) slowed++;
+    if (slowed >= 20) { cur.sawIce = true; earnAch("iceage"); }
+  }
+
   function phaseWatch(prevPhase) {
     const st = cur.engine.state;
     if (st.phase === prevPhase) return;
@@ -731,12 +746,7 @@
       ticks += 1;
     }
     drainEvents();
-    // TD-5 Ice Age: 20 enemies slowed at once (checked cheaply a few times/sec)
-    if (!cur.sawIce && !cur.engine.state.cheated && (cur.engine.state.tick & 7) === 0) {
-      const st = cur.engine.state, tk = st.tick;
-      let slowed = 0; for (const e of st.enemies) if (e.alive && tk < e.slowUntil) slowed++;
-      if (slowed >= 20) { cur.sawIce = true; earnAch("iceage"); }
-    }
+    sampleIceAge();
     phaseWatch(prevPhase);
     cur.render.draw(Math.max(0, Math.min(1, cur.acc / DT_MS)));
     if ((cur.engine.state.tick & 7) === 0) UI.hud(cur.engine.state); // ~4Hz
@@ -1745,16 +1755,23 @@
       if (!cur) return false;
       const e = cur.engine;
       for (const c of cmds) {
-        if (c[0] === "place") e.place(c[1], c[2]);
+        // Record the LINE too, exactly as the UI's build handler and the resume
+        // path both do. e.place() alone does not — `cur.lines` is written by the
+        // button handler — so a scripted run left it EMPTY and 🎯 Pea Purist
+        // ("win L2 with only Darts") could never earn. Same shape as the Ice Age
+        // sampler above: the hook advances the engine but skips a side effect
+        // the real UI performs, and the resume path already carried a comment
+        // saying exactly this.
+        if (c[0] === "place") { const r = e.place(c[1], c[2]); if (r && r.ok && cur.lines) cur.lines[c[1]] = true; }
         else if (c[0] === "upgrade") { const t = e.state.towers[c[1]]; if (t) e.upgrade(t.id); }
         else if (c[0] === "sell") { const t = e.state.towers[c[1]]; if (t) e.sell(t.id); }
         else if (c[0] === "target") { const t = e.state.towers[c[1]]; if (t) e.setTargeting(t.id, c[2]); }
         else if (c[0] === "call") e.callWave();
-        else if (c[0] === "tick") { for (let i = 0; i < c[1]; i++) e.tick(); }
+        else if (c[0] === "tick") { for (let i = 0; i < c[1]; i++) { e.tick(); sampleIceAge(); } }
         else if (c[0] === "untilPhase") {
           let guard = 0;
           const cap = c[2] || 100000;
-          while (e.state.phase !== c[1] && e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < cap) e.tick();
+          while (e.state.phase !== c[1] && e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < cap) { e.tick(); sampleIceAge(); }
         }
       }
       cur.render.afterTick();

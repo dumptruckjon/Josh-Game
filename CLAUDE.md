@@ -1988,6 +1988,45 @@ clear its cap and award wrongly. Seeding to the ceiling proves the badge fires;
 seeding ONE star short is what proves the ceiling is still derived. A test that
 only seeds the full amount passes on both the correct and the broken version.
 
+**TWO MORE BADGES WERE UNDRIVABLE, AND NEITHER WAS BLOCKED BY THE GAME — the
+TEST HOOK was skipping side effects the real loop and the real UI perform.**
+Having scoped four badges as "expensive", I re-measured instead of trusting my
+own note, and two of the four are cheap. **🧊 Ice Age needs no win at all**: it
+is the only badge sampled PER FRAME rather than awarded at an outcome, so it
+wants 20 bodies slowed at once and nothing else — and a fan on every pad, funded
+by the level's OWN start gold (`place()` refuses what you cannot afford, so it is
+not a cheat, and a cheat would suppress every award), peaks at **23 slowed on L32
+by wave 4**. **🎯 Pea Purist** likewise: a dart-only board wins L2 legitimately at
+16 lives. What blocked them was `__TD.script`, which is how every fort test
+advances the engine: it runs `afterTick`/`drainEvents`/`phaseWatch` and **never
+the Ice Age sampler, which lived inline in `loop()`**, and it calls `e.place()`
+directly, which does **not** write `cur.lines` — that is the build BUTTON's job,
+so a scripted darts-only win left the line set EMPTY and Pea Purist could never
+fire. Both are one-owner fixes now (`sampleIceAge()` called from the frame loop
+and both scripted tick paths; `place` recording its line), and the mutations
+reproduce the pre-fix states exactly — `got ["firstblood"]` and `got []`.
+**The general law: a hook that stands in for the main loop must reproduce its
+SIDE EFFECTS, not just its ticks** — the "a harness is only as faithful as its
+INVOCATION" lesson, moved from a shell to the tick loop. The tell was already in
+the tree: `resumeMidRun` carries a comment saying it repopulates `cur.lines`
+"rebuilt via engine.place(), not the UI handler", i.e. a third site had already
+hit this and worked around it locally instead of fixing the seam.
+**And the guardrail's first clause was a false-positive machine**, which is the
+failure this file keeps naming: it asserted that no site OTHER than the sampler
+carries a `tick & 7` gate, and the HUD has its own unrelated ~4Hz throttle
+written with exactly that idiom, so it flagged working code the first time it
+ran. The honest form is POSITIVE — assert the gate and the once-only/honest-run
+guards live inside the owner's own body, so a call site cannot forget them.
+Prefer asserting what a thing must BE over enumerating what everything else must
+not be.
+**Container note, paid for in re-work: the snapshot rollback takes `/tmp` WITH
+it.** This session parked a finished, mutation-proven change as patch files in
+the scratchpad while a gate ran; the clone rolled back mid-gate and the scratch
+files were gone too, so the whole change had to be re-derived from scratch. The
+writable disk is one restore unit — the repo and the scratchpad die together.
+Staging work outside git is not staging it anywhere; commit early on a branch, or
+accept that an interrupted change is lost.
+
 ---
 
 ## Repository Structure

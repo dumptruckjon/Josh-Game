@@ -1115,6 +1115,47 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
 // win crashes on it. The grown-ups ⚙️ button and the __TD test hook must both
 // build the fresh save in the SAME place, and it must cover every field the
 // loader coerces at boot.
+test("guardrail: __TD.script must tick and record the way the real loop does", () => {
+  // TWO badges were undrivable for the same reason, and neither had anything to
+  // do with the game state: __TD.script — how every fort test advances the
+  // engine — advances it WITHOUT the side effects the real loop and the real UI
+  // perform. 🧊 Ice Age is sampled per FRAME and its sampler lived inline in
+  // loop(); 🎯 Pea Purist reads cur.lines, which the build BUTTON writes while
+  // e.place() does not. The resume path already carried a comment about the
+  // second one, which is the tell that this is a pattern rather than a one-off.
+  //
+  // Comment-stripped: a one-owner count is an identifier count, and this repo
+  // has four recorded cases of a scan counting its own documentation.
+  const m = read("scripts/td-main.js").split("\n")
+    .map((l) => (/^\s*\/\//.test(l) ? "" : l.replace(/([^:])\/\/.*$/, "$1")))
+    .join("\n");
+
+  const defs = (m.match(/function sampleIceAge\(\)/g) || []).length;
+  assert.equal(defs, 1, `the Ice Age sampler must be defined exactly once (found ${defs})`);
+  // The gate and both guards belong INSIDE the owner. Asserted positively: the
+  // first cut asserted that no OTHER site carries a `tick & 7` gate, and that is
+  // a false-positive machine — the HUD has its own unrelated ~4Hz throttle
+  // written with exactly that idiom, so it flagged working code the first time
+  // it ran. Assert what the thing must BE, not what everything else must not be.
+  const body = (m.match(/function sampleIceAge\(\)[\s\S]*?\n  \}/) || [""])[0];
+  assert.match(body, /& 7\) !== 0\) return;/,
+    "the sampler's per-frame gate must live inside it, so a call site cannot forget it");
+  assert.match(body, /cur\.sawIce \|\| cur\.engine\.state\.cheated/,
+    "…and so must the once-only and honest-run guards, or scripting it would award on a cheated run");
+
+  const calls = (m.match(/(?<!function )\bsampleIceAge\(\)/g) || []).length;
+  assert.ok(calls >= 3,
+    `the sampler must run from the frame loop AND both scripted tick paths (found ${calls} call sites)`);
+  assert.match(m, /for \(let i = 0; i < c\[1\]; i\+\+\) \{ e\.tick\(\); sampleIceAge\(\); \}/,
+    "script's [\"tick\", n] must sample every tick, as the frame loop does");
+  assert.match(m, /guard\+\+ < cap\) \{ e\.tick\(\); sampleIceAge\(\); \}/,
+    "…and so must its untilPhase loop, which is where a whole wave actually runs");
+
+  // …and the other skipped side effect: the line a scripted build used.
+  assert.match(m, /if \(c\[0\] === "place"\) \{ const r = e\.place\(c\[1\], c\[2\]\); if \(r && r\.ok && cur\.lines\) cur\.lines\[c\[1\]\] = true; \}/,
+    "script's place must record cur.lines like the build button does, or 🎯 Pea Purist can never earn from a scripted run");
+});
+
 test("guardrail: the fort reset has one owner, forces past the merge, and covers every persisted field", () => {
   const tdm = read("scripts/td-main.js");
   assert.match(tdm, /function freshSave\(/, "a single freshSave() factory builds the reset save");
