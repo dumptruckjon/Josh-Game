@@ -3,9 +3,17 @@
 **Question asked (owner, 2026-08):** *"Deep brainstorm on either new tower types
 or upgrade branches, eg each tower can have 3 ultimate choices vs current 2."*
 
-**Status: Phase A ✅ BUILT; everything else DESIGNED, NOT BUILT.** The six branch
-identity guardrails of §5a ship with this document (pure coverage, zero balance
-risk, no new content). No new branch and no new tower line has been added.
+**Status: ✅ BUILT (phases A-E).** The six branch identity guardrails of §5a shipped
+with this document, and so did the two RIGHT third ultimates the analysis chose:
+🎯 **Rust Ray** (Dart — armour strip through the ONE `computeHit` armor line) and
+🧊 **Tail Wind** (Fan — a support aura through `boostOf`/`reachOf`). Both are in
+`DATA.TOWERS`, so the roster is 10 branches, not 8.
+
+Still deliberately NOT built, and §8 says why: a third ultimate for **Mortar or
+Camp** (every candidate duplicates a shipped ability or gives a line air access,
+which goes red on the guardrailed two-lines-reach-air truth table) and a **fifth
+tower LINE**. That half of the verdict stands; "no new branch has been added" no
+longer does.
 
 ---
 

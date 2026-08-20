@@ -1,6 +1,13 @@
 # PLAN_EXPANSION.md — Fort Josh: quantity, distinctness, and the meta economy
 
-Status: PLAN. Nothing here is built. Every number below was measured against the shipped
+Status: **PARTLY BUILT.** Phases 1-5 shipped (guardrails that can fail · per-world
+backbone skins · ⚙️ Toy Energy / 🧨 reveal / ⚡ crash · the per-run loadout slots ·
+Worlds 7-8). Phase 6 is PART-built: P6a (`RULES.abilitySlots`, 📌 Call the Shot),
+P6b (🦆 `zapResist`), P6c (⛱️ `zones[].dmg`, on L2/L18/L26) and P6d (🛢️ Oil Drum's
+`spill`) are all in the shipped data — verified by reading `scripts/td-data.js`,
+not by trusting this line. Treat the phase text below as the design record.
+
+Every number below was measured against the shipped
 data/engine (`node -e` against `scripts/td-data.js`, `tools/td-sim.js` with the **shipped**
 best-of-two oracle) or verified by line number in the repo. Where a claim is inherited from an
 analysis and was *not* independently re-run, it is marked **[unverified]** and carries a

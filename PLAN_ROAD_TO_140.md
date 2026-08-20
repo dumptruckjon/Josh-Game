@@ -1,6 +1,8 @@
 # 🗺️ Road to 140 — plan for the next 40 Josh games
 
-**Status: PLANNED — not yet built.** This is the complete, handoff-ready build plan for
+**Status: ✅ BUILT AND SHIPPED.** Josh's catalog reached 140 and is now at 200 (240 with
+华丽's 40) — verified against the live registry, not this line. Kept as the record of
+how Set 1 was built. This was the complete, handoff-ready build plan for
 adding **40 new English-side games** (Josh's world only; 华丽's 40 are untouched),
 taking Josh's catalog **100 → 140** (site total 180). It is written to be executed
 by a fresh session with no other context beyond this repo: every game has its

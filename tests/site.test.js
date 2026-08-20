@@ -1899,15 +1899,55 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
   const DATA = require("../scripts/td-data.js");
   const worlds = new Set(DATA.LEVELS.map((l) => l.world));
   const liars = [];
-  for (const f of fsx.readdirSync(root).filter((x) => /^PLAN_WORLD_.*\.md$/.test(x))) {
+  let verdictsRead = 0;   // NOT `read` — that is this file's own file-reading helper
+  // EVERY plan doc, not just PLAN_WORLD_*: the file list is part of the scan, and
+  // this one was scoped to a name PREFIX while five docs outside it carried stale
+  // verdicts (three ROAD_TO plans saying "not yet built" with Josh's 200 games
+  // live, PLAN_TOWER_BRANCHES saying "no new branch has been added" with Rust Ray
+  // and Tail Wind in DATA.TOWERS, and PLAN_EXPANSION saying "nothing here is
+  // built" with all of phases 1-5 shipped). Widening the glob costs nothing and
+  // adds no false-positive surface — the world-key test below simply never fires
+  // on a doc that names no shipped world. It does NOT catch those five; nothing
+  // derivable does, which is why they were fixed by hand and why no fuzzy
+  // "mentions a shipped thing" rule was invented here (that version flagged two
+  // CORRECT docs when it was tried).
+  for (const f of fsx.readdirSync(root).filter((x) => /^PLAN_.*\.md$/.test(x))) {
     const txt = fsx.readFileSync(path.join(root, f), "utf8");
-    const verdict = (txt.match(/Status:\s*\*\*(.+?)\*\*/) || [])[1];
+    // Read the verdict from EITHER bolding style. The first cut required
+    // `Status: **verdict**` (bold after the colon) and half the docs write
+    // `**Status: verdict**` (bold around the whole line) — so it silently
+    // skipped 7 of 14, INCLUDING PLAN_WORLD_9 and PLAN_WORLD_10, the very shape
+    // it exists to police. A scan that matches nothing reports nothing.
+    const line = (txt.match(/^.*Status:.*$/m) || [""])[0].replace(/\*\*/g, "");
+    // Just the leading VERDICT, cut at the first clause boundary. Taking the
+    // whole sentence is too greedy: PLAN_WORLD_4's corrected header reads
+    // `✅ SHIPPED (on the second attempt) — this line read "NOT SHIPPED" for…`,
+    // and swallowing that quote makes a CORRECTED doc look like a lying one —
+    // the exact false positive this guardrail was scoped hard to avoid.
+    const verdict = (line.split(/Status:\s*/)[1] || "").split(/[.\n(—"]/)[0].trim();
+    if (verdict) verdictsRead += 1;
     if (!verdict || !/NOT\s+(SHIPPED|BUILT)/i.test(verdict)) continue;
-    const named = [...new Set([...txt.matchAll(/world\s+`(\w+)`/g)].map((m) => m[1]))]
-      .filter((w) => worlds.has(w));
+    // DERIVE the world from the FILENAME, not from prose. The old detector
+    // required the literal `` world `key` `` and that phrasing appears in
+    // exactly ONE doc (PLAN_WORLD_4, the one it was written against) — so it
+    // was a single-case check wearing a law's clothes, and PLAN_WORLD_9 and
+    // PLAN_WORLD_10 could each have claimed NOT BUILT with all four of their
+    // levels live. A world is four levels, so PLAN_WORLD_<N> is levels
+    // 4N-3..4N: if level 4N is in DATA.LEVELS, that world shipped. No text
+    // matching, nothing to phrase wrong.
+    const n = Number((f.match(/^PLAN_WORLD_(\d+)\.md$/) || [])[1] || 0);
+    const shipped = n ? DATA.LEVELS.find((l) => l.id === n * 4) : null;
+    const named = shipped
+      ? [shipped.world]
+      : [...new Set([...txt.matchAll(/`(\w+)`/g)].map((m) => m[1]))].filter((w) => worlds.has(w));
     if (named.length) liars.push(`${f} says "${verdict}" but world(s) ${named.join(", ")} are in DATA.LEVELS`);
   }
   assert.deepEqual(liars, [], `plan docs that outlived their contents:\n  ${liars.join("\n  ")}`);
+  // …and the scan must actually have READ them. A derivation fails OPEN: if the
+  // Status regex stops matching, every doc is skipped and this test passes while
+  // checking nothing — which is precisely the state it was in.
+  assert.ok(verdictsRead >= 12,
+    `the plan-status scan only read ${verdictsRead} verdicts — it is matching almost nothing, so its green is meaningless`);
 });
 
 test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", () => {

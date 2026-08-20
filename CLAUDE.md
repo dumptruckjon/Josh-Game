@@ -2120,6 +2120,45 @@ unfalsifiable-change trap this file already deleted twice. The headroom number i
 here so a future author who does want a bigger glyph knows what they have to
 spend.
 
+**ASKED WHETHER ANY TD WORK WAS STILL OPEN, THE HONEST ANSWER TURNED OUT TO BE
+"FIVE PLAN DOCS SAY SO, AND ALL FIVE ARE LYING" — and the guardrail written for
+exactly that class was blind three separate ways.** The docs: `PLAN_ROAD_TO_140`,
+`_180` and `_200` all said PLANNED / not-yet-built with Josh's **200 games live**
+(counted off the running registry: 240 total, 200 + 40); `PLAN_TOWER_BRANCHES`
+said *"everything else DESIGNED, NOT BUILT … no new branch has been added"* with
+🎯 Rust Ray and 🧊 Tail Wind both in `DATA.TOWERS` (10 branches, not 8); and
+`PLAN_EXPANSION` said *"Status: PLAN. Nothing here is built"* with phases 1-5 and
+P6a-P6d all verifiable in the shipped data (`abilitySlots`, 📌 Call the Shot, 🦆
+`zapResist`, ⛱️ `zones[].dmg` on L2/L18/L26, 🛢️ `spill`, Worlds 7-8, ⚙️ energy).
+That is the fifth through ninth instance of a list outliving its contents.
+**The guardrail could not have caught any of them, for three compounding
+reasons, each worse than the last.** (1) Its file glob was `PLAN_WORLD_*.md`, so
+nine docs were out of scope — the file list is part of the scan, again.
+(2) It read the verdict with `/Status:\s*\*\*(.+?)\*\*/`, which only matches
+`Status: **X**`; half the docs write `**Status: X**`, so it silently skipped
+**7 of 14 — including PLAN_WORLD_9 and PLAN_WORLD_10**, the very shape it
+polices. (3) Worst: it detected the world with the literal pattern
+`` world `key` ``, which appears in **exactly one doc — PLAN_WORLD_4, the one it
+was written against**. So a check that reads like a law was a single-case
+assertion, and W9 or W10 could each have claimed NOT BUILT with all four levels
+live. The world now DERIVES from the filename (a world is four levels, so
+`PLAN_WORLD_<N>` is levels 4N-3..4N — if level 4N is in `DATA.LEVELS`, it
+shipped), which needs no prose at all, plus a `verdictsRead >= 12` floor because
+a derivation fails OPEN and this one had been failing open all along.
+**Three of my own mistakes fixing it, all previously documented classes.** My
+first widened extractor took the whole sentence and false-positived on
+PLAN_WORLD_4's CORRECTED header, which quotes the words *"NOT SHIPPED"* while
+explaining that it used to say them — the precise false positive this file warned
+about; the verdict is now cut at the first clause boundary. I named the counter
+`read`, which SHADOWS this file's own `read()` file helper and threw
+`Cannot access 'read' before initialization` from the unrelated half of the same
+test. And the mutations I ran to "prove" the fix all passed against
+`--test-name-pattern="outlived"` — a word that appears in the assertion MESSAGE
+and not in the test NAME, so node ran the file with zero subtests and printed
+`# tests 1 / # pass 1`. That is the documented pattern-matches-nothing trap,
+committed by the person who wrote it down, and the tell was `# tests 1` on a
+68-test file.
+
 ---
 
 ## Repository Structure

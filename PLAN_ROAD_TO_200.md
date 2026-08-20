@@ -1,6 +1,7 @@
 # 🚀 Road to 200 — Set 3 build plan (20 games: 180 → 200)
 
-**Status: APPROVED — execute when asked.** Companion to `PLAN_ROAD_TO_140.md` (✅ built)
+**Status: ✅ BUILT AND SHIPPED** — Josh's catalog is at 200, verified against the live
+registry (240 games: 200 Josh + 40 华丽). Companion to `PLAN_ROAD_TO_140.md` (✅ built)
 and `PLAN_ROAD_TO_180.md` (✅ built). Same per-wave gate, same test contract, same bar.
 
 > **⚠️ HANDOFF BRIEF (read this first, builder).** This plan will be executed by a

@@ -1,7 +1,7 @@
 # 🗺️ Road to 180 — Set 2: forty MORE Josh games (build AFTER Road-to-140)
 
-**Status: PLANNED — not yet built. Sequenced strictly AFTER
-`PLAN_ROAD_TO_140.md`** (its 40 games are Set 1; this file is Set 2). Executing
+**Status: ✅ BUILT AND SHIPPED** (Set 2; Josh's catalog is now 200). Was sequenced
+strictly AFTER `PLAN_ROAD_TO_140.md`** (its 40 games are Set 1; this file is Set 2). Executing
 this plan takes Josh's catalog **140 → 180** (site total 220 with 华丽's 40).
 
 **Everything in §0 of `PLAN_ROAD_TO_140.md` applies verbatim** — the test
