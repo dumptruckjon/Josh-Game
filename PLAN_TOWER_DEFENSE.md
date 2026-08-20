@@ -6,6 +6,18 @@ engine, towers, enemies, combat math, economy, all 12 levels, waves, bosses,
 meta-progression, UI, audio, save format, test strategy, and phased build plan.
 Written so a coding session can execute it phase by phase with no guessing.
 
+> **Status: ✅ BUILT AND SHIPPED — but this document is the ORIGINAL design, and
+> the fort outgrew it.** Everything below was built, and then TD-4 through TD-19
+> went far past it, so read it as the foundation rather than as a description of
+> what ships. Two things in the header above are already wrong: there is **no
+> name gate** (it shipped, and was removed by request in 2026-07 — the fort opens
+> directly from the front door's 🏰 tile), and the campaign is **40 levels across
+> 10 worlds**, not 12. The current shape of the fort — the enemy roster, the meta
+> tree, the abilities, the gimmicks, the balance findings — lives in CLAUDE.md and
+> in the later `PLAN_WORLD_*` / `PLAN_GIMMICKS` / `PLAN_TOWER_BRANCHES` docs. This
+> file is kept for its engine and combat-math derivations, which are still the
+> ones the code implements.
+
 ---
 
 ## 0. Vision, quality bar, and HONEST scope

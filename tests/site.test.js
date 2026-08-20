@@ -1688,7 +1688,7 @@ test("ONE LIGHT: every picture uses it, and a missing block degrades instead of 
 // ---------------------------------------------------------------------------
 // GUARDRAIL — the FLOOR and the PROPS, after a visual vet of all 36 levels.
 // ---------------------------------------------------------------------------
-test("every world's declared floor pattern has a renderer branch", () => {
+test("every world's declared floor, road and props have a renderer branch", () => {
   // The bedroom — World 1, the first floor anybody sees — declared `carpet` and
   // NO branch existed, so it rendered as a bare gradient with no texture at all.
   // Exactly the class already documented for the spawn marker's if/else falling
@@ -1707,6 +1707,42 @@ test("every world's declared floor pattern has a renderer branch", () => {
   assert.deepEqual(missing, [],
     "these worlds declare a floor pattern the renderer does not implement, so their floor " +
     "silently paints untextured: " + missing.join(", "));
+
+  // The same law, on the world's other two declared surfaces. `pattern` was the
+  // one that bit, but `road` is the field this file records THREE worlds sharing
+  // (they had none and fell through to the default wood), and it covers the 19%
+  // of the canvas the eye actually tracks for a whole run.
+  const styles = new Set([...src.matchAll(/style === "([a-z]+)"/g)].map((m) => m[1]));
+  assert.ok(styles.size >= 4, `the road scan must find the branches (saw ${styles.size})`);
+  const roadless = [];
+  for (const [name, w] of Object.entries(DATA.WORLDS)) {
+    const st = w.floor && w.floor.road && w.floor.road.style;
+    assert.ok(st, `${name} declares a road style`);
+    if (!styles.has(st)) roadless.push(`${name}:${st}`);
+  }
+  assert.deepEqual(roadless, [],
+    "these worlds declare a road style the renderer does not draw, so their lane silently " +
+    "falls back to the shared wood: " + roadless.join(", "));
+
+  // And the PROPS, where the failure is not blankness but a wrong picture: the
+  // dispatch ends in an `else` that draws a floor STAIN, so a new or mistyped
+  // prop name does not vanish — it paints a dark ellipse. On a light floor that
+  // reads as a HOLE, which is exactly the defect that took `stain` off World 10.
+  // The assertion is deliberately EXACT rather than an allowlist: `stain` is the
+  // documented default, and the moment a second prop joins it in the fall-through
+  // this goes red instead of quietly widening.
+  const kinds = new Set([...src.matchAll(/kind === "([a-z]+)"/g)].map((m) => m[1]));
+  const declaredProps = new Set();
+  for (const w of Object.values(DATA.WORLDS)) {
+    assert.ok((w.floor.props || []).length, "every world declares floor props");
+    for (const pr of w.floor.props) declaredProps.add(pr);
+  }
+  assert.ok(declaredProps.size >= 6, `the prop scan must find the props (saw ${declaredProps.size})`);
+  const undrawn = [...declaredProps].filter((pr) => !kinds.has(pr)).sort();
+  assert.deepEqual(undrawn, ["stain"],
+    "exactly one declared prop may rely on the renderer's default branch (the floor stain). " +
+    "Anything else here has no drawing of its own and will silently paint as a dark ellipse — " +
+    "a hole in the floor, not a toy: " + undrawn.join(", "));
 });
 
 test("a prop's shading has exactly ONE owner", () => {
@@ -1832,6 +1868,150 @@ test("the camp's rally REACH has exactly ONE owner", () => {
     "defaultRally must return through the clamp, so its result is always a position rally() accepts");
 });
 
+test("guardrail: the stale-clone SessionStart hook exists AND is wired", () => {
+  // This container restores its writable disk from a SNAPSHOT, so a session can
+  // begin with the repo rolled back to an old commit while `git status` reads
+  // perfectly clean — it happened twice in one day and destroyed an entire
+  // uncommitted change. .claude/resync-main.sh is what heals that, and
+  // settings.json is what makes it run.
+  //
+  // Both had ZERO coverage: their only mention in any test was the tree check's
+  // hand-written allowlist, which asserts they exist rather than deriving it. The
+  // failure mode is the worst kind — silent. Nothing goes red; the container just
+  // starts losing work again.
+  const cfg = JSON.parse(read(".claude/settings.json"));
+  const hooks = ((cfg.hooks || {}).SessionStart || []).flatMap((h) => h.hooks || []);
+  const cmds = hooks.filter((h) => h.type === "command").map((h) => String(h.command));
+  assert.ok(cmds.length >= 1, "settings.json must register at least one SessionStart command hook");
+  assert.ok(cmds.some((c) => c.includes("resync-main.sh")),
+    `SessionStart must run resync-main.sh — otherwise the script can sit in the repo doing nothing, ` +
+    `and a rolled-back clone silently eats the next uncommitted change. Registered: ${JSON.stringify(cmds)}`);
+
+  // …and the script it names must actually be there and runnable.
+  const sh = read(".claude/resync-main.sh");
+  assert.match(sh, /^#!/, "the hook script needs a shebang — it is invoked as a command");
+  assert.ok(fs.statSync(path.join(root, ".claude/resync-main.sh")).mode & 0o111,
+    "the hook script must be executable, or SessionStart silently fails");
+
+  // The SAFETY properties are what make it acceptable to run automatically at all.
+  // COMMENT-STRIPPED first: the script's own header discusses why a blanket
+  // `git reset --hard` would be wrong, so a naive ban would match its own
+  // documentation — the trap this repo has hit four times.
+  const code = sh.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+  assert.match(code, /rev-parse --git-dir/, "it must confirm it is in a git work tree before anything");
+  assert.match(code, /--porcelain\b/,
+    "it must test the tree is CLEAN — resetting a DIRTY tree would destroy exactly the uncommitted work it exists to protect");
+  assert.match(code, /merge --ff-only/,
+    "it may only FAST-FORWARD: anything that rewrites or discards history is not a heal, it is the bug");
+  assert.match(code, /"\$branch" = "main"/,
+    "it must act only on main — a side branch's divergence is deliberate, not a rollback");
+  assert.ok(!/reset --hard/.test(code),
+    "it must never hard-reset; --ff-only is the whole safety argument");
+  assert.ok((code.match(/exit 0/g) || []).length >= 4,
+    "every bail-out must exit 0 — a network blip at SessionStart must not wedge the session");
+});
+
+test("guardrail: the stale-clone hook BEHAVES — all six branches driven in throwaway clones", () => {
+  // The sibling guardrail above is STRUCTURAL: it proves the script contains the
+  // right idioms. This drives it. A scan proving a call site exists must be
+  // paired with something that proves the call does anything — and for this
+  // script the stakes are the whole reason it exists: case 2 below is the one
+  // where a careless version destroys the very uncommitted work it protects.
+  const os = require("node:os");
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "josh-resync-"));
+  const sh = (cmd, cwd) => execFileSync("bash", ["-c", cmd], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    sh("git init -q --bare origin.git && git clone -q origin.git work", tmp);
+    const work = path.join(tmp, "work");
+    sh("git config user.email t@t && git config user.name t && mkdir -p .claude", work);
+    fs.copyFileSync(path.join(root, ".claude/resync-main.sh"), path.join(work, ".claude/resync-main.sh"));
+    fs.chmodSync(path.join(work, ".claude/resync-main.sh"), 0o755);
+    sh("echo A > f.txt && git add -A && git commit -qm A && git branch -M main && git push -q origin main", work);
+    const A = sh("git rev-parse HEAD", work).trim();
+    sh("echo B > f.txt && git commit -qam B && git push -q origin main", work);
+    const B = sh("git rev-parse HEAD", work).trim();
+    const head = () => sh("git rev-parse HEAD", work).trim();
+    const run = () => {
+      try { return { out: sh("./.claude/resync-main.sh 2>&1", work), code: 0 }; }
+      catch (e) { return { out: String(e.stdout || "") + String(e.stderr || ""), code: e.status }; }
+    };
+    // The fixture must be able to tell the cases apart, or every clause below is
+    // vacuous — assert the two commits really differ before relying on them.
+    assert.notEqual(A, B, "fixture: the two commits must differ");
+
+    // 1. BEHIND + clean — the rollback itself. Must fast-forward, and say so.
+    sh(`git reset --hard -q ${A}`, work);
+    let r = run();
+    assert.equal(r.code, 0, "the hook must always exit 0");
+    assert.equal(head(), B, "a rolled-back CLEAN clone must be fast-forwarded to origin/main");
+    assert.match(r.out, /rolled back/i, "…and it must SAY so, or the session silently starts from an old tree");
+
+    // 2. BEHIND + DIRTY — the case that must never be 'healed'. Resetting here
+    //    would destroy exactly the uncommitted work the hook exists to protect.
+    sh(`git reset --hard -q ${A} && echo local > uncommitted.txt`, work);
+    r = run();
+    assert.equal(r.code, 0, "the hook must always exit 0");
+    assert.equal(head(), A, "a DIRTY rolled-back clone must be LEFT ALONE");
+    assert.ok(fs.existsSync(path.join(work, "uncommitted.txt")),
+      "…and its uncommitted file must survive untouched");
+    assert.match(r.out, /NOT touching/i, "…and it must warn loudly, since only the human can save that work");
+    fs.unlinkSync(path.join(work, "uncommitted.txt"));
+
+    // 3. AHEAD — unpushed commits are not a rollback.
+    sh(`git reset --hard -q ${B} && echo C > f.txt && git commit -qam C`, work);
+    const C = head();
+    r = run();
+    assert.equal(head(), C, "an AHEAD clone holds unpushed work — it must be left alone");
+    // Being left alone is not enough, and finding that out is why this clause
+    // exists: `merge --ff-only` REFUSES to rewind, so an ahead clone survives
+    // even when the ancestor test is broken — the ff-only flag is the safety and
+    // the ancestor test is the CLASSIFICATION. Mis-classified, a perfectly normal
+    // "I have not pushed yet" opens the session with "the fast-forward failed,
+    // resync before trusting local files", which sends the next session hunting a
+    // rollback that never happened. That is the false-positive machine this repo
+    // refuses to ship, so the WORDING is the assertion.
+    assert.match(r.out, /unpushed/i,
+      "an AHEAD clone must be named as unpushed work…");
+    assert.ok(!/failed/i.test(r.out),
+      `…and never reported as a failure — nothing failed. Said: ${JSON.stringify(r.out.trim())}`);
+
+    // 4. Not on main — a side branch's divergence is deliberate, and silent.
+    sh(`git checkout -q -b side ${A}`, work);
+    r = run();
+    assert.equal(head(), A, "off main, the hook must do nothing");
+    assert.equal(r.out.trim(), "", "…and say nothing: a side branch is not a fault to warn about");
+
+    // 5. In sync — the normal case must be SILENT, or every session opens with noise.
+    sh(`git checkout -q main && git reset --hard -q ${B}`, work);
+    r = run();
+    assert.equal(head(), B, "an in-sync clone is untouched");
+    assert.equal(r.out.trim(), "", "the normal case must print nothing at all");
+    assert.equal(r.code, 0, "the hook must always exit 0");
+
+    // 6. NOT A GIT REPO AT ALL. SessionStart fires wherever the platform points
+    //    it, including a fresh environment where the clone does not exist yet —
+    //    so it must bail silently rather than spraying git errors across the
+    //    start of every session. Note this pins the OUTCOME, not a line: TWO
+    //    guards deliver it (`rev-parse --git-dir`, and the `|| exit 0` on the
+    //    branch read), so removing either alone stays green — measured, and
+    //    stated rather than implied. Removing BOTH turns this red with
+    //    "fatal: not a git repository" as the session's opening words.
+    const bare = path.join(tmp, "nogit", ".claude");
+    fs.mkdirSync(bare, { recursive: true });
+    fs.copyFileSync(path.join(root, ".claude/resync-main.sh"), path.join(bare, "resync-main.sh"));
+    fs.chmodSync(path.join(bare, "resync-main.sh"), 0o755);
+    assert.ok(!fs.existsSync(path.join(tmp, "nogit", ".git")), "fixture: nogit/ must not be a repo");
+    let n;
+    try { n = { out: sh("./.claude/resync-main.sh 2>&1", path.join(tmp, "nogit")), code: 0 }; }
+    catch (e) { n = { out: String(e.stdout || "") + String(e.stderr || ""), code: e.status }; }
+    assert.equal(n.code, 0, "outside a git tree the hook must still exit 0");
+    assert.equal(n.out.trim(), "",
+      `outside a git tree it must say NOTHING — git's own errors are not a session-start message. Said: ${JSON.stringify(n.out.trim())}`);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test("DOCS: the repo tree names every file, and no plan claims to be unbuilt while it ships", () => {
   // Two halves of one recurring defect — "a list that outlives its contents",
   // which this file records four times: PLAN_WORLD_9 said DESIGNED-NOT-BUILT
@@ -1862,6 +2042,15 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
     }
   };
   walkYml(".github");
+  // .claude too. Its two files had ZERO coverage: the only mention of either in
+  // any test was the hand-written allowlist below, which ADDS them to the "this
+  // exists" set by fiat — so deleting them broke nothing that anything checks.
+  // That matters because resync-main.sh is the SessionStart hook that heals the
+  // stale-clone rollback, and its failure mode is silent: the container would
+  // simply start losing work again with no red test and no error.
+  for (const f of fsx.readdirSync(path.join(root, ".claude"))) {
+    if (/\.(sh|json)$/.test(f)) real.push(`.claude/${f}`);
+  }
   for (const f of fsx.readdirSync(root)) if (/^PLAN_.*\.md$/.test(f)) real.push(f);
   assert.ok(real.length > 30, `expected to find the repo's files, saw ${real.length}`);
   const unnamed = real.filter((f) => !tree.includes(f.split("/").pop()));
@@ -1872,9 +2061,12 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
   // entry lines are checked, never the comments beside them — those legitimately
   // reference paths outside the repo (a scratchpad spec, for instance).
   const have = new Set(real.map((f) => f.split("/").pop()));
+  // settings.json and resync-main.sh are NO LONGER here — they are walked above,
+  // so their existence is derived rather than granted. What is left is only the
+  // root files this walk deliberately does not collect.
   for (const extra of ["index.html", "sw.js", "manifest.webmanifest", "package.json",
     "package-lock.json", "CLAUDE.md", "JOSH_PROFILE.md", "josh-profile.json",
-    "settings.json", "resync-main.sh", ".gitignore"]) have.add(extra);
+    ".gitignore"]) have.add(extra);
   const ghosts = [];
   for (const line of tree.split("\n")) {
     if (!line.includes("──")) continue;
@@ -1918,7 +2110,17 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
     // `**Status: verdict**` (bold around the whole line) — so it silently
     // skipped 7 of 14, INCLUDING PLAN_WORLD_9 and PLAN_WORLD_10, the very shape
     // it exists to police. A scan that matches nothing reports nothing.
-    const line = (txt.match(/^.*Status:.*$/m) || [""])[0].replace(/\*\*/g, "");
+    // EVERY Status: line, not just the first. PLAN_TOWER_DEFENSE.md carries
+    // three — a document verdict at the top and two per-phase section statuses
+    // hundreds of lines down — and reading only the first meant a stale SECTION
+    // status was being reported as the DOCUMENT's verdict for as long as the
+    // doc had no header status at all. Scoping by line number is not the fix:
+    // three docs (GIMMICKS, WORLD_5, WORLD_6) legitimately state their single
+    // verdict at the END of the file. Reading them all needs no heuristic and
+    // is strictly stronger — a stale "NOT BUILT" anywhere in a doc is a lie
+    // wherever it sits.
+    const lines = [...txt.matchAll(/^.*Status:.*$/gm)].map((m) => m[0].replace(/\*\*/g, ""));
+    const line = lines.find((l) => /NOT\s+(SHIPPED|BUILT)/i.test(l)) || lines[0] || "";
     // Just the leading VERDICT, cut at the first clause boundary. Taking the
     // whole sentence is too greedy: PLAN_WORLD_4's corrected header reads
     // `✅ SHIPPED (on the second attempt) — this line read "NOT SHIPPED" for…`,
@@ -1946,8 +2148,18 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
   // …and the scan must actually have READ them. A derivation fails OPEN: if the
   // Status regex stops matching, every doc is skipped and this test passes while
   // checking nothing — which is precisely the state it was in.
-  assert.ok(verdictsRead >= 12,
-    `the plan-status scan only read ${verdictsRead} verdicts — it is matching almost nothing, so its green is meaningless`);
+  // EVERY plan doc, not "almost all". The floor used to be `>= 12` against 13
+  // docs, which permitted exactly one to carry no Status line at all — and one
+  // did: PLAN_TOWER_DEFENSE.md, the fort's foundational design, whose header
+  // still described a name gate that was removed and a campaign of 12 levels
+  // that is now 40. A doc with no verdict is not caught by this law, it is
+  // INVISIBLE to it, so the honest floor is all of them.
+  const planDocs = fsx.readdirSync(root).filter((x) => /^PLAN_.*\.md$/.test(x));
+  assert.ok(planDocs.length >= 12, `the plan-doc list must not be empty (saw ${planDocs.length})`);
+  assert.equal(verdictsRead, planDocs.length,
+    `${planDocs.length - verdictsRead} plan doc(s) carry no readable "Status:" verdict, so this law cannot ` +
+    `see them at all — every PLAN_*.md must state whether it is built, or a stale design ` +
+    `sends the next author to build something that already ships`);
 });
 
 test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", () => {

@@ -583,6 +583,120 @@ test("BRANCH IDENTITY 🧱 Sticky Bomb LEAVES goo — a body that walks in LATER
   }
 });
 
+test("the OPENING build phase is longer — and that is where the mandatory 135🪙 comes from", () => {
+  // buildCountdownFirst is named in no test, and it is not a cosmetic "time to
+  // get settled": the early-call bonus is Math.ceil(secondsLeft * earlyCallRate),
+  // so the FIRST countdown sets the ceiling on the wave-1 bonus — 135🪙 against
+  // every later wave's 60🪙. The difficulty audit in CLAUDE.md rests on that
+  // exact figure ("135g ~= 2 extra opening towers … not a greed option, it was
+  // mandatory"), and four levels had their startGold re-tuned around it. So this
+  // one data value is the most load-bearing number in the opening, and collapsing
+  // it into buildCountdown would quietly delete 75🪙 from every level's first
+  // decision with nothing going red.
+  const e = TD.createEngine(DATA.LEVELS[0], { seed: 1 });
+  assert.equal(e.state.phase, "build", "fixture: a fresh run opens in the build phase");
+  const first = e.state.countdown;
+  const bonus1 = e.callInfo().bonus;
+
+  e.callWave();
+  let guard = 0;
+  while (e.state.phase !== "build" && guard++ < 200000) e.tick();
+  assert.equal(e.state.phase, "build", "fixture: wave 1 must actually finish and hand back a build phase");
+  const later = e.state.countdown;
+  const bonus2 = e.callInfo().bonus;
+
+  // 1. The property, which cannot flatten: the opening is genuinely longer.
+  assert.ok(first > later,
+    `the first build phase must be longer than the ones that follow (${first} vs ${later} ticks)`);
+  assert.ok(bonus1 > bonus2,
+    `…so calling wave 1 early must pay more than calling any later wave early (${bonus1} vs ${bonus2})`);
+
+  // 2. The wiring: the bonus really is the countdown at the shipped rate. This
+  //    one DERIVES from the rules under test, so halving either would flatten it
+  //    — clause 1 above is what makes that safe to assert.
+  assert.equal(bonus1, Math.ceil(DATA.RULES.buildCountdownFirst * DATA.RULES.earlyCallRate),
+    "the opening bonus must be the first countdown at the early-call rate");
+  assert.equal(bonus2, Math.ceil(DATA.RULES.buildCountdown * DATA.RULES.earlyCallRate),
+    "and a later wave's must be the ordinary countdown at the same rate");
+
+  // 3. The PIN. Neither clause above notices both inputs moving together, and
+  //    this number is quoted by a shipped balance finding — a deliberate re-tune
+  //    should have to come here and say so.
+  assert.equal(bonus1, 135,
+    "the opening early-call bonus is the 135🪙 the front-loading audit measured against — " +
+    "changing buildCountdownFirst or earlyCallRate re-tunes every level's opening board");
+});
+
+test("the Fan's BEAM carries its multipliers at FULL strength — including 👊 Boss Bonker", () => {
+  // The Fan does not fire shots: it accumulates 6-16 dps into `t.zapAcc` and
+  // spends WHOLE points. computeHit and dealDamage both round, so a multiplier
+  // applied to the single point of damage a beam delivers per tick is
+  // Math.round(1 * 1.2) = 1 — brittle and Boss Bonker did literally nothing on
+  // a Fan until they were moved onto the accumulator.
+  //
+  // `AUDIT combat: the Fan's beam keeps its multipliers` already guards the
+  // BRITTLE half, and this test does not duplicate it — measured, after I
+  // claimed it did not exist and was refuted by running the mutation. Two
+  // things it does not cover, both verified by mutation:
+  //   * MAGNITUDE. It asserts `brittle > plain` over a whole wave, so it goes
+  //     red when the multiplier is deleted and stays GREEN at 1.10 or 1.15
+  //     against a declared 1.20 — a bonus delivering half its strength is
+  //     invisible to an inequality. Its fixture is also confounded: total fan
+  //     damage over a wave is bounded by the wave's own HP and moves with kill
+  //     timing, so the quantity is not purely the multiplier.
+  //   * 👊 BOSS BONKER, which rides the same accumulator line and which nothing
+  //     anywhere drives through a beam (the only test-file mentions of the
+  //     "bossdmg" meta id beside a Fan are the two below).
+  // So this pins a single body, pinned in range, and reads the RATIO.
+  //
+  // The body is pinned with speed 0 so it stays inside the beam; that is a
+  // DECLARED zero, not a missing field, and the precondition below is
+  // self-verifying — a NaN dist would clamp to the lane end (out of range) and
+  // report 0 damage, which reads exactly like a broken multiplier.
+  const beamDamage = (opts) => {
+    const e = TD.createEngine(DATA.LEVELS[0], { seed: 9, meta: opts.meta || [] });
+    e.state.gold = 99999;
+    const r = e.place("fan", DATA.LEVELS[0].pads[0].id);   // place takes a pad ID, not coords
+    assert.ok(r && r.ok, `fixture: the fan must be built (${r && r.reason})`);
+    e.state.phase = "wave";
+    e.state.enemies.push({ id: 901, type: opts.type, alive: true, hp: 1e6, maxHp: 1e6, dist: 5,
+      pathIdx: 0, armor: 0, shield: 0, speed: 0, slowPct: 0, slowUntil: 0,
+      brittleUntil: opts.brittle ? 1e9 : 0 });
+    const b = e.state.enemies[e.state.enemies.length - 1];
+    const hp0 = b.hp, dist0 = b.dist;
+    for (let i = 0; i < 900; i++) e.tick();
+    assert.ok(Number.isFinite(b.dist) && b.dist === dist0,
+      `fixture: the body must stay pinned in the beam (dist ${dist0} -> ${b.dist})`);
+    return hp0 - b.hp;
+  };
+
+  // --- brittle -------------------------------------------------------------
+  const plain = beamDamage({ type: "sock" });
+  assert.ok(plain > 100, `fixture: the beam must actually connect, or every ratio below is 0/0 (dealt ${plain})`);
+  const brittle = beamDamage({ type: "sock", brittle: true });
+  // Two clauses on purpose. The second DERIVES its expectation from the rule it
+  // is testing, so neutering brittleBonus to 1 would flatten it into 1 ~= 1 and
+  // it would pass; the first cannot flatten.
+  assert.ok(brittle > plain,
+    `a brittle body must take MORE from a beam, not the same (${brittle} vs ${plain})`);
+  const bRatio = brittle / plain;
+  assert.ok(Math.abs(bRatio - DATA.RULES.brittleBonus) < 0.02,
+    `the beam must carry the full brittle bonus. Expected ~${DATA.RULES.brittleBonus}, got ${bRatio.toFixed(4)} ` +
+    `(${plain} -> ${brittle}). A ratio of 1.000 means it was applied at dealDamage and rounded away.`);
+
+  // --- 👊 Boss Bonker ------------------------------------------------------
+  const bossOff = beamDamage({ type: "bedmonster" });
+  const bossOn = beamDamage({ type: "bedmonster", meta: ["bossdmg"] });
+  assert.ok(bossOn > bossOff,
+    `👊 Boss Bonker must reach a boss through the beam (${bossOn} vs ${bossOff})`);
+  const kRatio = bossOn / bossOff;
+  assert.ok(Math.abs(kRatio - 1.15) < 0.02,
+    `the beam must carry the full Boss Bonker bonus. Expected ~1.15, got ${kRatio.toFixed(4)} (${bossOff} -> ${bossOn}).`);
+  // …and it must be keyed on BOSS, or it is a blanket damage node wearing a name.
+  assert.equal(beamDamage({ type: "sock", meta: ["bossdmg"] }), plain,
+    "👊 Boss Bonker must leave a non-boss beam target completely alone");
+});
+
 test("BRANCH IDENTITY 🧊 Blizzard Cone makes bodies brittle — tier 3 and Static do not", () => {
   const chilled = (branchKey) => {
     const lvl = micro([{ groups: [{ type: "knight", count: 2, gap: 1, delay: 0 }] }], [{ id: "m1", cx: 8, cy: 3 }]);
@@ -795,15 +909,28 @@ test("BRANCH IDENTITY 🧊 Tail Wind extends a neighbour's REACH (and never buff
 });
 
 test("BRANCH IDENTITY 🧊 its radius is sized to the MAPS, and a board without one writes nothing", () => {
-  // The single most important number in the branch. At the fan's own 2.4 aura a
-  // Tail Wind reaches NOTHING on 21 of 36 levels, because the median distance
-  // from a pad to its nearest neighbour is 4.00 cells — it would have been a
-  // 300-gold trap. A support tower's radius is a property of the MAPS.
-  const R = DATA.TOWERS.fan.branches.c.support.radius;
-  assert.ok(R > DATA.TOWERS.fan.branches.c.auraRange,
+  // The single most important number in the branch: a support tower's radius is
+  // a property of the MAPS, not of the tower. At the fan's own combat aura a
+  // Tail Wind would reach NOTHING on most levels — a 300-gold trap — because the
+  // median pad sits ~4 cells from its nearest neighbour.
+  //
+  // That justification used to live in this comment as "21 of 36 levels", and a
+  // comment cannot go red: four more worlds shipped and it silently became 25 of
+  // 40. So it is an ASSERTION now. It pins the REASON the radius is its own
+  // number, which means a future world of tightly-packed pads has to come here
+  // and argue, instead of quietly turning the branch into free power.
+  const FB = DATA.TOWERS.fan.branches.c;
+  const R = FB.support.radius;
+  const deadAt = (r) => DATA.LEVELS.filter((l) => !l.pads.some((a) =>
+    l.pads.some((b) => b.id !== a.id && Math.hypot(a.cx - b.cx, a.cy - b.cy) <= r)));
+  assert.ok(R > FB.auraRange,
     "the support radius must be its OWN number, larger than the combat aura");
-  const dead = DATA.LEVELS.filter((l) => !l.pads.some((a) =>
-    l.pads.some((b) => b.id !== a.id && Math.hypot(a.cx - b.cx, a.cy - b.cy) <= R)));
+  const strandedAtAura = deadAt(FB.auraRange).length;
+  assert.ok(strandedAtAura >= DATA.LEVELS.length * 0.25,
+    `the radius only earns its own number because the combat aura would strand a large share of the ` +
+    `campaign — that is now only ${strandedAtAura} of ${DATA.LEVELS.length} levels, so either the maps ` +
+    `have tightened or the aura has grown, and the radius needs re-deciding rather than inheriting`);
+  const dead = deadAt(R);
   assert.equal(dead.length, 0,
     `a Tail Wind must be able to help SOMETHING on every level (dead: ${dead.map((l) => l.id).join(",")})`);
   // …but placement must still be a real decision, or the tower is free power.

@@ -2159,6 +2159,160 @@ and not in the test NAME, so node ran the file with zero subtests and printed
 committed by the person who wrote it down, and the tell was `# tests 1` on a
 68-test file.
 
+**THE SCRIPT THAT SAVES THIS SESSION FROM THE ROLLBACK HAD ZERO COVERAGE, AND
+ITS FAILURE MODE IS SILENCE.** Auditing the sibling half of the plan-status test
+found that `.claude/resync-main.sh` and `.claude/settings.json` were mentioned in
+exactly ONE place in the whole suite — the tree check's hand-written allowlist,
+which ADDS them to the "this exists" set by fiat. So nothing checked that the
+hook existed, and nothing checked it was WIRED. That is the worst shape a gap can
+take here: the hook is what heals a container that came back on a stale clone,
+which happened twice in one day and destroyed a finished, mutation-proven change;
+if it silently stopped firing, no test would go red and the only symptom would be
+work quietly disappearing again. The forward walk now collects `.claude` (so
+existence is DERIVED and the allowlist shrinks by two — deleting the script is
+caught), and a new guardrail asserts the wiring plus the four SAFETY properties
+that make auto-running it acceptable at all: it may only `merge --ff-only`, only
+from a `--porcelain`-clean tree, only on `main`, and it must `exit 0` on every
+bail-out so a network blip at SessionStart cannot wedge the session. Every one is
+mutation-proven — un-wire the hook, weaken the clean-tree test, turn the
+fast-forward into a `reset --hard`, or let it act on any branch, and it goes red.
+**Two of my own assertions were too weak on the first write, both in ways this
+file already names.** `/porcelain/` still matches `porcelainXX`, so the mutation
+that neutered the clean-tree check passed — a substring test is not a word test.
+And the `reset --hard` ban had to be COMMENT-STRIPPED, because the script's own
+header explains why a blanket hard reset would be wrong, so the scan matched its
+own documentation for the fifth recorded time.
+**AND DRIVING IT — the other half of the standing pairing — found a real defect
+the structural scan could not see, in the branch the scan proves hardest.** A
+scan proves the idioms are PRESENT; only running the script proves what they do,
+so it is now driven through all six of its branches in throwaway clones (a bare
+origin + a clone, ~0.6s). Five went red on the obvious mutations. The sixth,
+**forcing the `merge-base --is-ancestor` test true so an AHEAD clone is treated
+as a rollback, PASSED** — and chasing that instead of widening the tolerance is
+what found the defect: `merge --ff-only` REFUSES to rewind, so unpushed work
+survives a broken ancestor test on its own. **The `--ff-only` flag is the SAFETY;
+the ancestor test is the CLASSIFICATION** — and mis-classified, the most ordinary
+state in the world ("I committed and have not pushed yet") opens the session with
+`⚠️ the fast-forward failed. Resync before trusting local files`, sending the next
+session hunting a rollback that never happened. That is the false-positive machine
+this file keeps refusing to ship, so the WORDING is now the assertion (it must
+name unpushed work, and must never say *failed*), and the mutation goes red.
+Two smaller things worth keeping. **A case can pin an OUTCOME that two guards
+both deliver, and saying so is part of the test**: running outside a git tree is
+silent because of `rev-parse --git-dir` AND the `|| exit 0` on the branch read, so
+removing either alone stays green and only removing BOTH turns it red with
+`fatal: not a git repository` as the session's opening words — measured, and
+written into the comment rather than left as an implied seven-for-seven. And the
+same run re-confirmed the newest habit: every mutation asserts its anchor appears
+exactly once and that the file actually CHANGED before the result is believed.
+
+**ENUMERATING `DATA.RULES` — the one config surface never swept the way abilities,
+chips, nodes, badges, targeting modes and engine exports have been — found 21
+keys, none dead, and THREE named in no test. Two of the three turned out to be
+covered behaviourally anyway, and chasing the difference is where the real hole
+was.** `flierSlowFactor` is pinned by a slow test asserting 0.15, and
+`brittleBonus` by `computeHit(10, "bonk", {brittle:true}) === 12` — so the
+name-scan is a proxy and had to be checked, not believed. But `brittleBonus` has
+a SECOND read site — **the Fan's beam**, where the accumulator spends WHOLE
+points and `Math.round(1 × 1.2) = 1`, the documented bug where brittle and
+👊 Boss Bonker *"did literally nothing on a Fan"*. I wrote that seam up as having
+NO guardrail, on a grep of the tests for `brittle`. **It has one, and the
+mutation run is what told me so.** `AUDIT combat: the Fan's beam keeps its
+multipliers` caught the brittle mutation immediately; my grep had missed it
+because the pipeline ended in `| head`, which is the "a scan's own pattern is
+part of the scan" law landing on the SHELL rather than on the regex — a truncated
+scan does not report that it truncated. **Verifying a hole instead of arguing it
+is the entire reason that claim did not ship.**
+What the run then made measurable is better than the hole I thought I had. The
+shipped test asserts `brittle > plain` over a whole WAVE, so it goes red when the
+multiplier is deleted and stays **GREEN at 1.10 and at 1.15 against a declared
+1.20** — an inequality cannot see a bonus delivering half its strength, and its
+quantity is confounded anyway (total fan damage over a wave is bounded by the
+wave's own HP and moves with kill timing). And it does not touch 👊 Boss Bonker,
+which rides the same accumulator line: dropping `zapBoss` leaves the entire
+shipped suite green, and an exhaustive grep of the `"bossdmg"` meta id confirms
+nothing anywhere drove it through a beam. So the new test pins a single body in
+range and reads the RATIO, with a control clause that a non-boss beam target is
+untouched — mutation-proven at 1.10, 1.15, `zapBoss = 1`, and a blanket
+`mods.bossDmg`. **Two lessons, and the second is the one worth carrying: an
+INEQUALITY is not a MAGNITUDE.** A test that proves a multiplier exists is not a
+test that it is the multiplier you declared, and for anything applied at a
+ROUNDING seam that gap is exactly where the original bug lived.
+**The third rule was the sharpest, because it is not a rounding subtlety — it is
+the single most load-bearing number in the opening, and nothing named it.**
+`buildCountdownFirst: 45` against `buildCountdown: 20` is not "time to get
+settled": the early-call bonus is `ceil(secondsLeft × earlyCallRate)`, so the
+FIRST countdown sets the ceiling on the wave-1 bonus at **135🪙 against every
+later wave's 60🪙** — and this file's own front-loading audit quotes that exact
+135 (*"≈ 2 extra opening towers … not a greed option, it was mandatory"*) and
+re-tuned four levels' `startGold` around it. Collapsing the two rules into one
+would quietly delete 75🪙 from every level's first decision with nothing going
+red. Three clauses on purpose, and the mutations show why each is needed: the
+PROPERTY (the opening is strictly longer, cannot flatten) catches a collapse; the
+WIRING (bonus derives from countdown × rate) flattens on its own and is only safe
+because of the first; and the PIN (135) is the only one that sees **both inputs
+move together** — shaving 45 → 40 leaves clauses 1 and 2 perfectly happy and
+fires only the pin.
+**And the same sweep found the FLOOR law guarding one of a world's three declared
+surfaces.** `every world's declared floor pattern has a renderer branch` exists
+because the bedroom shipped `carpet` with no branch and painted bare — but `road`
+is the field this file records THREE worlds silently sharing (they declared none
+and fell through to the default wood), and it covers the strip the eye tracks for
+a whole run. Widened to `pattern` + `road.style` + `props`; all three measure
+CLEAN, so this is coverage rather than a fix, which is the honest half to write
+down. The props half is the interesting one, because its failure is not blankness
+but a WRONG PICTURE: the dispatch ends in an `else` that draws a floor STAIN, so
+a new or mistyped prop name does not vanish, it paints a dark ellipse — and *"a
+floor-MARK prop on a light floor reads as a HOLE"* is the defect that took `stain`
+off World 10 a release ago. So the assertion is deliberately EXACT
+(`undrawn deepEqual ["stain"]`) rather than an allowlist: the moment a second prop
+joins the fall-through it goes red instead of quietly widening. All four mutations
+red, including one re-proving the original pattern clause survived the widening.
+**Last, a JUSTIFICATION had gone stale by four worlds, in the one place that
+cannot go red.** The Tail Wind radius test explained its number as *"at the fan's
+own 2.4 aura a Tail Wind reaches NOTHING on 21 of 36 levels, median pad-to-pad
+4.00 cells"* — measured today it is **25 of 40** at a median of **4.12**. The
+conclusion held and the figures did not, which is this file's own recorded law
+(*"a comment that justifies a constant can be REFUTED by later data, and a comment
+cannot go red"*) landing on a test comment rather than on CI. Rather than re-type
+numbers that will go stale at world eleven, the justification is now an ASSERTION:
+the combat aura must strand at least a quarter of the campaign, or the radius has
+stopped earning its own number and the branch is drifting toward free power. Its
+first mutation **fired an EARLIER clause** — growing the aura to the radius trips
+`R > auraRange` and never reaches the new one, the documented trap — so isolating
+it needed an aura that stays *under* the radius and still strands nobody (4.4 →
+`0 of 40`). The bar sits between the shipped 62.5% and the 5% at aura 4.0, and an
+intermediate 3.6 correctly stays GREEN at 12 of 40, which is what makes it a
+separation rather than a fence. One fixture note, the same class as the
+upgrade-index/id trap: `place()` takes a pad **ID**, not coordinates, so the first
+beam probe reported `bad-id` on all eight pads and looked like a broken engine.
+**And the plan-status law shipped a release earlier turned out to be reading the
+WRONG LINE — a mid-document SECTION status, hundreds of lines from the header,
+being reported as the whole document's verdict.** `PLAN_TOWER_DEFENSE.md` — the
+fort's foundational design, the first thing a new author opens — had no header
+status at all, so the extractor's `match(/^.*Status:.*$/m)` found a per-phase note
+on line 331 reading *"ALL 12 levels across 3 worlds SHIPPED (TD-4 done)"* and
+scored the doc as read. It is not NOT-BUILT, so the law stayed green while the
+document's actual header described **a name gate that was removed in 2026-07 and a
+campaign of 12 levels that is now 40.** Two fixes, and the interesting part is the
+one I did NOT make. The obvious repair is to scope the search to the top of the
+file — and that is WRONG: three docs (GIMMICKS, WORLD_5, WORLD_6) legitimately
+state their single verdict at the END, so a line-number window would make them
+unreadable and the law would silently narrow to eleven of fourteen. The rule that
+needs no heuristic is to read EVERY `Status:` line and prefer any that claims
+NOT BUILT — a stale lie is a lie wherever it sits, and a genuine section status
+that says SHIPPED cannot false-positive. Alongside it the coverage floor went from
+`>= 12` to `=== planDocs.length`: with fourteen docs, `>= 12` permitted two to
+carry no verdict at all, and a doc with no verdict is not merely unchecked by this
+law, it is INVISIBLE to it. Both mutation-proven (strip the only Status from a
+one-status doc → "1 plan doc(s) carry no readable Status verdict"; append a lying
+status to the END of an honest doc → caught). The fort's plan doc now carries a
+header verdict that says plainly it is the ORIGINAL design and points at what
+superseded it. **Sixth instance of "a list that outlives its contents", and the
+first where the stale text was hidden BEHIND a guardrail written for exactly that
+defect — a scan that reads one match of many is a scan whose scope is a
+coincidence.**
+
 ---
 
 ## Repository Structure
