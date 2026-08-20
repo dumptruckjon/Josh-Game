@@ -665,7 +665,7 @@ test("defeat: neglect loses and the overlay offers a retry that restarts", async
   }, null, { timeout: 5000 });
 });
 
-test("pause freezes the sim; the speed toggle doubles it", async () => {
+test("pause freezes the sim; the speed toggle steps 1× → 2× → 3× → 1×", async () => {
   await page.evaluate(() => { window.__TD.newGame(1, { seed: 3 }); });
   // resume the loop (newGame pauses for determinism; same-hash set is a no-op,
   // so hop away and back to re-fire the route → unpause)
@@ -2051,7 +2051,24 @@ test("TD-9 abilities: the in-wave strip arms on tap and a real field tap fires i
   assert.ok(await page.evaluate(() => (window.__TD.state().abilityCd || {}).drop > window.__TD.state().tick),
     "the field tap actually SPENT the ability (its cooldown is now running)");
   assert.ok(await page.evaluate(() => document.querySelector('.td-abil[data-abil="drop"]').classList.contains("td-abil--cool")),
-    "…and the button shows the cooldown");
+    "…and the button is flagged as cooling");
+  // The class above is a HANDLE — `td-abil--cool` is styled by nothing at all.
+  // What the player actually sees is `.td-abil__cd`, a full-tile scrim with the
+  // seconds on it, and asserting the flag while the message claimed "the button
+  // shows the cooldown" is this repo's standing trap: a scan proves a call site
+  // exists, only driving the feature proves it does anything. Hide that element
+  // and the strip's whole refusal model goes silent with the suite green.
+  const cd = await page.evaluate(() => {
+    const el = document.querySelector('.td-abil[data-abil="drop"] .td-abil__cd');
+    if (!el) return null;
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    return { text: el.textContent.trim(), w: r.width, h: r.height,
+      shown: !el.hidden && cs.display !== "none" && cs.visibility !== "hidden" && +cs.opacity > 0.1 };
+  });
+  assert.ok(cd && cd.shown && cd.w > 20 && cd.h > 20,
+    `the cooldown must be VISIBLE on the tile, not just flagged on it (${JSON.stringify(cd)})`);
+  assert.match(cd.text, /^\d+s$/,
+    `…and it must read the seconds remaining, so the refusal explains itself (got ${JSON.stringify(cd.text)})`);
 
   // An "instant" ability needs no field tap at all.
   // An "instant" ability needs no field tap — but the Rally Horn now REFUSES

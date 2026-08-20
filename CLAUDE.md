@@ -2313,6 +2313,74 @@ first where the stale text was hidden BEHIND a guardrail written for exactly tha
 defect — a scan that reads one match of many is a scan whose scope is a
 coincidence.**
 
+**PUSHING THE SAME ENUMERATION ONTO THE SURFACES NEXT DOOR: no dead config
+anywhere, and the "named in no test" half found FIVE tower fields, of which two
+were genuinely uncovered — plus two TEST NAMES that state numbers the data
+contradicts.** Every field of `DATA.ABILITIES`, `DATA.TOWERS`, `DATA.ENEMIES`,
+`DATA.CHIPS` and the meta nodes is read by the engine or the app, so there is no
+`cheap`-shaped dead lever left. But `critMult`, `defaultTargeting`, `spinUp`,
+`shellSpeed` and `zapDps` are named in no test — and, exactly as with
+`brittleBonus`, the name-scan is a PROXY and had to be checked: three of the five
+are driven behaviourally under other names (the Minigun's ramp IS `spinUp`, the
+beam's 6 dps IS `zapDps`, a shell's flight time IS `shellSpeed`). The other two
+were not. **`defaultTargeting` is declared on exactly two things — the Mortar
+line and the Sniper Scope branch, both `strong`, against an `|| "first"`
+fallback — and has two read sites, neither driven.** That is not cosmetic:
+`AUDIT targeting is a LIVE lever` measures the best mode as worth 4-9 lives on a
+boss finale, and the Sniper's own role text says most of its damage is WASTED on
+small bodies, so silently opening it on `first` aims the game's biggest single
+shot at whatever chaff is furthest along — the overkill failure the branch's own
+warning exists to prevent, arriving through the back door. **`critMult` is the
+INEQUALITY-IS-NOT-A-MAGNITUDE law landing again the same day it was written**:
+the engine reads `dmg * (s.critMult || 1.5)`, both sides of that `||` ship, and
+the existing 🎯 Steady Aim test asserts only that the biggest hit RISES — which a
+1.05× crit satisfies. Now measured on the real hit stream: Sniper 85 → 213
+(2.506× against a declared 2.5) and a plain tier-3 dart with 🍀 Lucky Darts
+24 → 36 (exactly 1.500×, the fallback). The non-flattening partner is the
+interesting part of the design — both magnitude clauses DERIVE from the field
+under test, so a `critMult` flattened to the default satisfies them both; the
+clause that cannot flatten is that the branch's multiplier must genuinely BEAT
+the default, and it is what turns that mutation red at `measured 1.506x`.
+**And checking every numeric claim in a TEST NAME against the data found two
+lies among thirteen.** Eleven check out (80% sell refund, ±25% budget, and four
+separate 0.5s — flier slow, knight armour, tin-plane armour, the Vacuum King's
+enrage threshold). The two that do not: `Overclock really doubles a tower's fire
+rate, then wears off` — the shipped `mult` is **2.5**, and that body asserts
+neither the size nor the wearing-off, both of which live in a sibling that
+measures inside the exact `ab.seconds` window (this one's window is 8s against a
+6s burst, so it straddles into the crash and can only ever support an
+inequality); and `the speed toggle doubles it`, written before TD-14 made it a
+1×→2×→3×→1× stepper, which its own body correctly checks. A test name is
+documentation that runs, and it is the one kind that cannot go red — the same
+class as the guide describing `cheap` from its identifier, one layer in.
+**And cross-checking the fort's CSS classes against their users turned a
+suspected defect into a measured NON-defect plus a real coverage hole — the
+better outcome of the two.** Three sibling state modifiers are toggled on one
+line of the ability strip, and only two are styled: `--poor` dims to 0.55,
+`--armed` takes a gold ring, and **`td-abil--cool` is styled by nothing at all**,
+which looked exactly like "the state you cannot fix by waiting is shown more
+faintly than the one you can". It is not: `.td-abil__cd` is a FULL-TILE scrim at
+0.78 alpha with the seconds centred on it, so the cooling state is the loudest of
+the three and the class is a semantic handle. No change shipped — this repo has
+deleted redundant paint twice for exactly this reason, and inventing a dim here
+would have been a third.
+What the same look found is that **the test asserting that state reads the
+HANDLE while its own message claims the PICTURE** — `"…and the button shows the
+cooldown"`, asserting `classList.contains("td-abil--cool")`, a class with no
+style. Delete `.td-abil__cd`'s rule and the strip's entire refusal model goes
+silent with the suite green, on the one control whose design brief was that a
+refusal must never be a mystery. It now reads the element: visible, bigger than
+20px square, and matching `/^\d+s$/`. Three mutations, and the middle one is why
+the size check is there — collapsing the overlay to **1×1** leaves it
+`display: flex`, `visibility: visible`, `opacity: 1`, so every naive "is it
+shown?" predicate passes while the player sees nothing. **A visibility assertion
+that does not measure a SIZE is not a visibility assertion.** The first cut of
+that scan was also a false-positive machine worth recording: matching any `td-*`
+token reported 54 "unstyled classes" that were element ids, `data-act` values and
+the module filenames `td-main`/`td-render`/`td-ui`, and the four "dead styles" it
+named were all built by string concatenation. Extracting only `className`,
+`classList.*` and `class="…"` is what made the one real signal visible.
+
 ---
 
 ## Repository Structure

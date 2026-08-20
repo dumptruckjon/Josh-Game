@@ -583,6 +583,74 @@ test("BRANCH IDENTITY 🧱 Sticky Bomb LEAVES goo — a body that walks in LATER
   }
 });
 
+test("a line's declared defaultTargeting and critMult are the ones it actually uses", () => {
+  // Both fields are named in no test, and both have real consequences.
+  //
+  // defaultTargeting is declared on exactly two things — the Mortar line and the
+  // Sniper Scope branch, both "strong" — against an `|| "first"` fallback. That
+  // is not cosmetic: `AUDIT targeting is a LIVE lever` measures the best mode as
+  // worth 4-9 lives on a boss finale, and the Sniper's own role text says most of
+  // its damage is WASTED on small bodies, so opening on `first` would aim the
+  // game's biggest single shot at whatever chaff is furthest along. Drop either
+  // read and nothing else in the suite notices.
+  const line = (id, padId, e) => { assert.ok(e.place(id, padId).ok, `${id} built`); return e.state.towers[e.state.towers.length - 1]; };
+  const e0 = TD.createEngine(DATA.LEVELS[0], { seed: 3 });
+  e0.state.gold = 99999;
+  const pads = DATA.LEVELS[0].pads;
+  const declared = Object.entries(DATA.TOWERS).filter(([, d]) => d.defaultTargeting);
+  assert.ok(declared.length >= 1, "at least one line must declare a default, or this field is dead");
+  Object.keys(DATA.TOWERS).forEach((id, i) => {
+    const t = line(id, pads[i].id, e0);
+    assert.equal(t.targeting, DATA.TOWERS[id].defaultTargeting || "first",
+      `a fresh ${id} must open on the mode its data declares`);
+  });
+  // …and a BRANCH may override it, which is a second read site.
+  const dart = e0.state.towers[0];
+  assert.equal(dart.targeting, "first", "fixture: the dart opens on the fallback");
+  e0.upgrade(dart.id); e0.upgrade(dart.id);
+  assert.equal(dart.tier, 3, "fixture: the dart really reached tier 3");
+  const br = Object.entries(DATA.TOWERS.dart.branches).find(([, b]) => b.defaultTargeting);
+  assert.ok(br, "fixture: a dart branch declares its own default");
+  assert.ok(e0.branch(dart.id, br[0]).ok, "branch taken");
+  assert.equal(dart.targeting, br[1].defaultTargeting,
+    `${br[1].name} must re-aim the tower it replaces — it is a different weapon`);
+
+  // critMult: `dmg * (s.critMult || 1.5)`. Both sides of that `||` ship, and
+  // neither has a magnitude test — the existing 🎯 Steady Aim check asserts only
+  // that the biggest hit RISES, which a 1.05x crit would satisfy.
+  const critHits = (seed, branch, meta) => {
+    const e = TD.createEngine(DATA.LEVELS[0], { seed, meta: meta || [] });
+    e.state.gold = 9e9;
+    const t = line("dart", pads[0].id, e);
+    e.upgrade(t.id); e.upgrade(t.id);
+    if (branch) assert.ok(e.branch(t.id, branch).ok, "branch taken");
+    const norm = new Set(), crit = new Set();
+    for (let w = 0; w < 3; w++) {
+      if (e.state.phase === "build") e.callWave();
+      for (let i = 0; i < 9000 && e.state.phase === "wave"; i++) {
+        e.tick();
+        for (const ev of e.events.splice(0)) if (ev.type === "hit") (ev.crit ? crit : norm).add(ev.dmg);
+      }
+    }
+    assert.ok(norm.size && crit.size,
+      `fixture: seed ${seed} must produce BOTH ordinary and crit hits (norm ${norm.size}, crit ${crit.size})`);
+    return Math.max(...crit) / Math.max(...norm);
+  };
+  const sniperKey = Object.entries(DATA.TOWERS.dart.branches).find(([, b]) => b.critMult);
+  assert.ok(sniperKey, "fixture: a dart branch declares its own critMult");
+  const sniper = critHits(5, sniperKey[0]);
+  const fallback = critHits(2, null, ["critchance"]);   // 🍀 supplies the chance a plain tier has none of
+  assert.ok(Math.abs(sniper - sniperKey[1].critMult) < 0.02,
+    `${sniperKey[1].name}'s crit must land its declared ${sniperKey[1].critMult}x (measured ${sniper.toFixed(3)}x)`);
+  assert.ok(Math.abs(fallback - 1.5) < 0.02,
+    `a tier with no critMult of its own must use the engine's 1.5x default (measured ${fallback.toFixed(3)}x)`);
+  // The clauses above DERIVE from the field they test, so a critMult flattened
+  // to the default would satisfy the first one. This cannot flatten: the branch
+  // buys a crit that is genuinely bigger than the ordinary one.
+  assert.ok(sniper > fallback + 0.5,
+    `the branch's declared multiplier must actually beat the default (${sniper.toFixed(3)}x vs ${fallback.toFixed(3)}x)`);
+});
+
 test("the OPENING build phase is longer — and that is where the mandatory 135🪙 comes from", () => {
   // buildCountdownFirst is named in no test, and it is not a cosmetic "time to
   // get settled": the early-call bonus is Math.ceil(secondsLeft * earlyCallRate),
@@ -3892,7 +3960,15 @@ test("TD-9 abilities: Sticky Floor is a LIVE zone — it slows what walks in lat
   assert.equal(e.state.puddles.length, 0, "the puddle expires on its own tick");
 });
 
-test("TD-9 abilities: Overclock really doubles a tower's fire rate, then wears off", () => {
+test("TD-9 abilities: ⚡ Overclock's useAbility call really speeds a tower up", () => {
+  // Named "really doubles … then wears off" until it was checked against the
+  // data: the shipped `mult` is 2.5, and this body asserts neither the size nor
+  // the wearing-off. It proves the end-to-end useAbility call raises the shot
+  // COUNT, which is worth having on its own; the MAGNITUDE and the crash are
+  // pinned by "⚡ the burst and the crash are the sizes the data declares",
+  // which measures inside the exact `ab.seconds` window. This one's window is
+  // deliberately 8s against a 6s burst, so it straddles into the crash and can
+  // only ever support an inequality — which is why it must not claim a number.
   const lvl = DATA.LEVELS[0];
   const shots = (useOverclock) => {
     const e = TD.createEngine(lvl, { seed: 5 });
