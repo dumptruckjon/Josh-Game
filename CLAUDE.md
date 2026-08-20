@@ -2089,6 +2089,37 @@ inside the guide function, so calling `L.levelGimmicks` from the level grid thre
 a ReferenceError and rendered ZERO cards. The measurement caught it instantly —
 which is the argument for measuring the render rather than reading the diff.
 
+**AND THE OBVIOUS COMPANION FEATURE WAS MEASURED AND REJECTED — a flier warning
+in the next-wave preview.** The reasoning for it is strong on paper: only Dart
+and Fan reach air, a mortar-only board is the mistake this file documents most,
+and the DEFEAT screen already diagnoses it after the fact ("Nothing you built
+could even reach the Kite Hawk"), which is a diagnosis arriving one wave too
+late. The 🚪 side-door marker exists on exactly that argument — a flank has to be
+ANTICIPATED, not discovered. The numbers say air is not the same case: a 🚪 flank
+appears in **16 of 542 waves (3%)**, which is why it reads as a signal, while a
+flier appears in **297 of 542 (55%)** — a marker that fires on more than half of
+every preview is noise, not information. The decisive figure is the third one:
+**0 of 542 waves are mostly air** (>60% of wave hp), so a per-wave warning could
+never be the fact that decides the wave. Mortar-mono was a whole-CAMPAIGN
+coverage gap, not something a player reacts to one wave ahead, and the counter
+matrix is already stated where that gap is actually made — the Toybox Guide and
+the build menu's role lines. **The same scan cleared a worry rather than finding a
+bug**: the widest preview today carries EIGHT distinct enemy types (L11 w15), and
+🧭 Scout Report doubles it to sixteen, which looked like the documented
+iOS-wider-emoji spill waiting to happen — but the pill already carries
+`max-width: calc(100% - 16px)`, `white-space: normal` and `pointer-events: none`,
+so the worst case wraps downward at no cost. Both results are recorded because
+the next author reading that preview will have exactly this idea.
+**One more non-change, with its budget written down.** The level card's trick
+strip renders at **9.9px**, which is precisely the size of the difficulty pips
+already beside it, and the tightest card in the game (L18's three icons at 320px)
+uses 53 of 91px — **38px free**. Bumping it for legibility was considered and
+dropped: it is at parity with the card's own secondary type, there is no measured
+defect, and no guardrail for it exists that is not an invented threshold — the
+unfalsifiable-change trap this file already deleted twice. The headroom number is
+here so a future author who does want a bigger glyph knows what they have to
+spend.
+
 ---
 
 ## Repository Structure
