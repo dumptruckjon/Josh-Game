@@ -65,8 +65,22 @@ test("service worker precaches every script + css + index", () => {
   assert.ok(coreBlock, "sw.js must declare a CORE precache array");
   const core = [...coreBlock[1].matchAll(/"([^"]+)"/g)].map((m) => m[1].replace(/^\.\//, ""));
   assert.ok(core.length >= 20, `CORE parsed as only ${core.length} entries — this check would be near-vacuous`);
-  for (const s of [...SCRIPTS, "styles/main.css", "styles/td.css", "index.html"]) {
-    assert.ok(core.includes(s), `SW CORE is missing ${s} — offline it 404s to the HTML fallback and the app boots as a dead shell`);
+  // DERIVE the required set from the page, not from a list. SCRIPTS already comes
+  // off `<script src>` for exactly this reason, but the tail beside it was typed
+  // by hand — two stylesheets and index.html — so a THIRD stylesheet, or the
+  // manifest, or a new linked asset would escape the check that exists to stop
+  // the app booting as a dead shell offline. Every same-origin thing the page
+  // links must be precached; measured at 30 entries with none missing, so this
+  // is a tightening of a passing check rather than a newly-blocked build.
+  const linked = new Set([...read("index.html").matchAll(/(?:href|src)="(?!https?:|#|data:|\/\/)([^"?]+)/g)]
+    .map((m) => m[1].replace(/^\.\//, "")).filter((u) => u && !u.startsWith("#")));
+  assert.ok(linked.size >= 25, `the page-asset scan must find the links (saw ${linked.size})`);
+  for (const u of [...linked, "index.html"]) {
+    assert.ok(core.includes(u), `SW CORE is missing ${u} — offline it 404s to the HTML fallback and the app boots as a dead shell`);
+  }
+  // …and the derivation must still cover what the hand list covered.
+  for (const s of [...SCRIPTS, "styles/main.css", "styles/td.css"]) {
+    assert.ok(linked.has(s), `the derived link set lost ${s} — a broken regex here silently empties this whole check`);
   }
   assert.match(sw, /addEventListener\(\s*["']fetch["']/, "SW needs a fetch handler");
   assert.match(sw, /addEventListener\(\s*["']install["']/, "SW needs an install handler");
@@ -1079,10 +1093,32 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
   assert.match(fx, /MAX_PIECES/, "confetti pool is capped");
   assert.ok(!/cssText = "position:fixed;inset:0/.test(fx), "no inset: shorthand in JS-injected styles either");
   const sw = read("sw.js");
+  // Parse CORE here too rather than substring the file — same reason as above.
+  const coreBlk = sw.match(/const CORE = \[([\s\S]*?)\n\];/);
+  assert.ok(coreBlk, "sw.js must declare a CORE precache array");
+  const coreParsed = [...coreBlk[1].matchAll(/"([^"]+)"/g)].map((m) => m[1].replace(/^\.\//, ""));
+  assert.ok(coreParsed.length >= 20, `CORE parsed as only ${coreParsed.length} entries — near-vacuous`);
   assert.match(sw, /res\.ok && \(isNav \|\| !\/text\\\/html\/i\.test\(ct\)\)/, "SW only runtime-caches trustworthy responses (poisoning fix)");
   assert.match(sw, /isNav \? caches\.match\("\.\/index\.html"\) : undefined/, "index.html falls back for NAVIGATIONS only");
-  for (const icon of ["./assets/apple-touch-icon.png", "./assets/icon-192.png", "./assets/icon-512.png", "./assets/icon-maskable-512.png"]) {
-    assert.ok(sw.includes(icon), `PWA icon ${icon} precached`);
+  // PWA icons, DERIVED from the two places that declare them — the manifest and
+  // the page — and checked on all three axes that can break an install. This
+  // check carried BOTH of the defects this file keeps recording, at once: a
+  // hand-written list of four (so a fifth manifest icon escaped it entirely) and
+  // a whole-FILE `sw.includes(path)` (so a comment quoting the path satisfies
+  // it, exactly the bug already fixed for the script precache above, where the
+  // array is parsed). And nothing checked the files EXIST: a manifest naming an
+  // icon that is not on disk is an install that fails on the device with the
+  // suite green.
+  const manifest = JSON.parse(read("manifest.webmanifest"));
+  const icons = new Set((manifest.icons || []).map((i) => i.src.replace(/^\.\//, "")));
+  for (const m of read("index.html").matchAll(/(?:href|src)="([^"]*assets\/[^"?]+)/g)) icons.add(m[1].replace(/^\.\//, ""));
+  assert.ok(icons.size >= 3, `the icon scan must find the declarations (saw ${icons.size})`);
+  // NOT an existsSync check: "the manifest's icons are on disk" is already
+  // asserted where the manifest is parsed, and a near-duplicate is noise rather
+  // than coverage. What is new is the PRECACHE, read off the parsed array.
+  for (const icon of icons) {
+    assert.ok(coreParsed.includes(icon),
+      `PWA icon ${icon} is not in the SW precache, so an offline install has no icon`);
   }
   const tdm = read("scripts/td-main.js");
   // TD8 targeting has ONE owner: the button asks the engine which modes this run

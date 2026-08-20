@@ -2381,6 +2381,41 @@ the module filenames `td-main`/`td-render`/`td-ui`, and the four "dead styles" i
 named were all built by string concatenation. Extracting only `className`,
 `classList.*` and `class="…"` is what made the one real signal visible.
 
+**THE PWA ICON CHECK CARRIED BOTH RECORDED DEFECTS AT ONCE — a hand-written list
+AND a whole-file substring — on the surface that decides whether the app
+installs at all.** It read `for (const icon of ["./assets/apple-touch-icon.png",
+…4 literals]) assert.ok(sw.includes(icon))`. So a FIFTH icon added to the
+manifest escaped it entirely, and because `includes` matches the whole file, a
+path merely MENTIONED in a comment satisfies it — the identical bug already
+fixed one test up, where CORE is parsed. Both are now derived (manifest `icons[]`
+∪ the page's own `assets/…` references, checked against the PARSED array), and
+mutation-proven three ways: an icon dropped from CORE, an icon present only in a
+comment, and a genuine fifth icon that exists on disk and is not precached — the
+last of which the hand list could not have failed on. One clause was deliberately
+DELETED on discovery: "the manifest's icons are on disk" is already asserted
+where the manifest is parsed, and a near-duplicate is noise rather than coverage.
+**The same look found the sibling law half-derived.** The offline dead-shell check
+takes `[...SCRIPTS, "styles/main.css", "styles/td.css", "index.html"]` — SCRIPTS
+comes off `<script src>` for exactly this reason and the tail beside it was typed
+by hand, so a THIRD stylesheet, or `manifest.webmanifest`, or any new linked
+asset was outside the check that exists to stop the app booting empty offline. It
+derives from every same-origin `href`/`src` on the page now (30 entries, measured
+clean before the change, so it is a tightening of a passing check rather than a
+newly-blocked build), and it keeps a clause asserting the derived set still
+CONTAINS the scripts and stylesheets the old list named — because **a derivation
+fails OPEN**: breaking the regex makes the whole check vacuous and everything
+stays green, which the mutation reproduces as `the page-asset scan must find the
+links (saw 0)`.
+Two method notes. **A wrapper reported two of these mutations GREEN when they were
+red** — its `--test-name-pattern` matched nothing and its fallback logic mis-read
+the TAP summary, so the honest result only appeared on a direct run. That is "a
+harness is only as faithful as its INVOCATION" landing on a throwaway mutation
+script, and the tell was that MK1 failed with a message I did not recognise —
+which is also how the pre-existing `existsSync` check was discovered. **When a
+mutation result names an assertion you did not write, stop and find out whose it
+is.** And the second: `cp` the file before mutating and restore in a `finally`,
+never `git checkout` — this file already records losing a whole rebuild that way.
+
 ---
 
 ## Repository Structure
