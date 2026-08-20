@@ -55,6 +55,13 @@ body.td-mode #screens { padding: 0; }
 .td-level__chips { font-size: 0.7rem; line-height: 1; }
 .td-level__need { font-size: 0.72rem; color: #9db4dd; font-weight: 700; }
 .td-level__dim { opacity: 0.25; }
+/* What this level does to you (mud / conveyor / cover / socket / door / fork /
+   night), derived from the level's own fields. A CORNER badge so it costs the
+   40-card grid ZERO height — growing that grid has broken a layout twice. */
+.td-level__top { display: flex; align-items: center; justify-content: center; }
+/* margin, never flex `gap`: Safari 14.0 DROPS gap in flex, and this is real
+   separation rather than decoration, so the iOS floor law applies. */
+.td-level__tricks { margin-left: 4px; font-size: 0.62rem; line-height: 1; letter-spacing: -1px; }
 /* difficulty pips (1-3), colored by tier */
 .td-level__badge { font-size: 0.62rem; letter-spacing: 1px; line-height: 1; }
 .td-badge--1 { color: #6fd08a; }

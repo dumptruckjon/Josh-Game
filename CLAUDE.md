@@ -2056,6 +2056,39 @@ finales for a shape already proven, while the declaration scan separately
 guarantees every badge has a call site. Cover a WIRING, not each of its
 instances.
 
+**THE FORT NEVER TOLD YOU WHAT A LEVEL DOES TO YOU UNTIL YOU WERE INSIDE IT —
+and the loadout is chosen on the screen that stayed silent.** `levelGimmicks`
+has been derived since TD-16 and had exactly ONE consumer, the Toybox Guide, so
+learning that L14 is a night level meant opening the guide and cross-
+referencing. That matters because the ⭐ tree slots, the 🎒 powers and the 🎖️
+chips are all picked on the fort home BEFORE you enter: "this one is a night
+level" is precisely the cue that says pack 🦉 Night Owl. The card now carries a
+derived trick strip (32 of 40 levels, max 3 icons), named in an `aria-label`
+because a `title` is hover-only on a phone. Four things worth keeping, and three
+of them are my own mistakes.
+(1) **My BASELINE was not comparable, and it hid a real defect.** I measured the
+grid on a fresh save — where most cards are the shorter LOCKED variant — and
+compared it against an unlocked state, then reported "zero layout cost". The
+honest A/B is the same state with the strip `display:none`, which does measure
+byte-identical (card, grid, home, overflow, at 320/390/834). Compare like with
+like, in the state the feature actually appears in.
+(2) **The first cut was an absolutely-positioned corner badge, and it collided.**
+It measured free and then sat on top of the level number at 320px on exactly the
+two 3-gimmick levels (L7, L18). Sharing the number's flex row makes non-overlap
+STRUCTURAL rather than a matter of arithmetic that holds at one width — and it
+still costs no row, because the number's row already existed.
+(3) **The collision clause could not FAIL at the test's own viewport.** The
+overlap only happens at 320 and the fort browser tests run at 390, so restoring
+the colliding CSS passed the mutation. "A viewport list IS the test" landing on a
+check written minutes earlier; the clause now measures at 320 too, where the card
+is narrowest, and the mutation goes red. (It fires on either overlap OR escaping
+the card, which also catches the positioned-parent trap, since the corner badge
+needs a `position: relative` ancestor the flex version does not.)
+(4) **An alias is scoped where it is declared**: `const L = global.TDLogic` lives
+inside the guide function, so calling `L.levelGimmicks` from the level grid threw
+a ReferenceError and rendered ZERO cards. The measurement caught it instantly —
+which is the argument for measuring the render rather than reading the diff.
+
 ---
 
 ## Repository Structure

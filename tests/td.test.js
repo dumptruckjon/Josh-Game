@@ -187,6 +187,105 @@ test("dialog UX: tapping outside dismisses; the dialog ALWAYS fits fully on scre
   await page.waitForTimeout(250);
 });
 
+test("the level card says what the level DOES to you, and costs the grid nothing", async () => {
+  // The loadout, the powers and the chips are all chosen on the fort home,
+  // BEFORE you enter a level — so "this one is a night level" is exactly the cue
+  // that says pack 🦉 Night Owl. TDLogic.levelGimmicks already derived it for the
+  // Toybox Guide; it just was not where the decision is made.
+  //
+  // DERIVED, so a sixth mechanic appears here the moment it exists and a retired
+  // one drops out. The comparison is computed IN THE PAGE, against the very
+  // modules the page loaded, rather than against a second copy required here.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || '{"v":1}');
+    raw.stars = { casual: {}, normal: {}, heroic: {} };
+    for (const l of window.TDData.LEVELS) raw.stars.normal[String(l.id)] = 3;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  // Seed -> RELOAD -> hop the hash: page.goto(url + "#hash") is a SAME-DOCUMENT
+  // navigation, so it would never re-run module init and the seed above would be
+  // invisible. And the hash has to be hopped explicitly — with a name pattern
+  // this test does not inherit whatever screen a previous one left showing.
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(150);
+
+  const got = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll("#screen-td-home .td-level")];
+    if (!cards.length) return { cards: 0, levels: window.TDData.LEVELS.length, bad: ["no level cards rendered"], clash: [], withStrip: 0, gridH: 0, gridHidden: 0 };
+    const bad = [], clash = [];
+    let withStrip = 0;
+    window.TDData.LEVELS.forEach((lv, i) => {
+      const gs = window.TDLogic.levelGimmicks(lv);
+      const t = cards[i] && cards[i].querySelector(".td-level__tricks");
+      const n = cards[i] && cards[i].querySelector(".td-level__n");
+      const icons = t ? t.textContent : null;
+      const want = gs.length ? gs.map((g) => g.icon).join("") : null;
+      if (icons !== want) bad.push(`L${lv.id}: want ${want} got ${icons}`);
+      if (gs.length) {
+        withStrip += 1;
+        const wantLabel = gs.map((g) => g.name).join(", ");
+        if (!t || t.getAttribute("aria-label") !== wantLabel) bad.push(`L${lv.id}: label ${t && t.getAttribute("aria-label")}`);
+        if (t && n) {
+          const a = t.getBoundingClientRect(), b = n.getBoundingClientRect();
+          if (!(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom)) clash.push(lv.id);
+        }
+      }
+    });
+    const grid = cards[0].parentElement;
+    const gridH = Math.round(grid.getBoundingClientRect().height);
+    // …and the A/B for layout cost, in the SAME state — the obvious baseline (a
+    // fresh save) is mostly LOCKED cards and is not comparable, and that mistake
+    // is exactly what hid the collision the clash check below now guards.
+    const st = document.createElement("style");
+    st.textContent = ".td-level__tricks{display:none!important}";
+    document.head.appendChild(st);
+    const gridHidden = Math.round(grid.getBoundingClientRect().height);
+    st.remove();
+    return { cards: cards.length, levels: window.TDData.LEVELS.length, bad, clash, withStrip, gridH, gridHidden };
+  });
+
+  assert.equal(got.cards, got.levels, "every shipped level has a card");
+  assert.ok(got.withStrip >= 20,
+    `fixture precondition: most levels carry a gimmick (${got.withStrip}) or this test proves little`);
+  assert.deepEqual(got.bad, [], `a card disagrees with levelGimmicks: ${got.bad.join(" ; ")}`);
+  // A first cut used an absolutely positioned corner badge; it measured free and
+  // then COLLIDED with the level number at 320px on exactly the two 3-gimmick
+  // levels. Sharing the number's flex row makes non-overlap structural.
+  assert.deepEqual(got.clash, [], `a trick strip overlaps its level number on: ${got.clash.join(", ")}`);
+
+  // …and the width that can actually FAIL. The corner-badge cut collided only at
+  // 320px, so checking at 390 alone let its mutation pass — a viewport list IS
+  // the test, and a clause that cannot fail is worse than no clause. The card is
+  // narrowest here, which is exactly where a wide strip runs into the number.
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.waitForTimeout(150);
+  const narrow = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll("#screen-td-home .td-level")];
+    const clash = [], seen = [];
+    window.TDData.LEVELS.forEach((lv, i) => {
+      const t = cards[i] && cards[i].querySelector(".td-level__tricks");
+      const n = cards[i] && cards[i].querySelector(".td-level__n");
+      if (!t || !n) return;
+      seen.push(lv.id);
+      const a = t.getBoundingClientRect(), b = n.getBoundingClientRect();
+      if (!(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom)) clash.push(lv.id);
+      const cb = cards[i].getBoundingClientRect();
+      if (a.right > cb.right + 0.5 || a.left < cb.left - 0.5) clash.push(lv.id + "(escapes)");
+    });
+    return { clash, seen: seen.length };
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(narrow.seen >= 20, `fixture precondition: the strips are still rendered at 320px (saw ${narrow.seen})`);
+  assert.deepEqual(narrow.clash, [],
+    `at 320px a trick strip overlaps or escapes its card on: ${narrow.clash.join(", ")}`);
+  assert.equal(got.gridH, got.gridHidden,
+    `the trick strip must add NO height to the 40-card grid (with ${got.gridH}px, without ${got.gridHidden}px)`);
+  await page.evaluate(() => window.__TD.resetSave());
+});
+
 test("AUDIT badges: 🏃 Marathoner — the endless shape, awarded on the way OUT", async () => {
   // The last of the six earnAch wirings, and the fourth of four badges I had
   // filed as "expensive" that turned out cheap. An honest mixed board reaches

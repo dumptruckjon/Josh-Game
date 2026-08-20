@@ -330,8 +330,30 @@
         const chipTxt = wonChips.length
           ? '<span class="td-level__chips" title="challenges done here">' + wonChips.map((c) => c.icon).join("") + "</span>"
           : "";
+        // TD: what this level DOES to you, derived from its own fields through
+        // the same TDLogic.levelGimmicks the Toybox Guide reads — so a new
+        // mechanic appears here the moment it exists, and a retired one drops
+        // out. It belongs on the CARD because the loadout, the powers and the
+        // chips are all chosen on this screen, BEFORE you enter: "this one is a
+        // night level" is exactly the cue that says pack 🦉 Night Owl, and the
+        // guide could only tell you after a cross-reference.
+        //
+        // It shares the NUMBER's row rather than adding one, because adding
+        // content to this 40-card grid has broken a layout twice (it once
+        // pushed every fort dialog below the fold, and it later broke the
+        // contrast audit's opened-proof). A first cut put it in an absolutely
+        // positioned corner, which measured free and then COLLIDED with the
+        // level number at 320px on the two 3-gimmick levels — a flex row cannot
+        // overlap, so the guarantee is structural rather than arithmetic.
+        const tricks = global.TDLogic.levelGimmicks(def);   // `L` is scoped to the guide, not here
+        const trickTxt = tricks.length
+          ? '<span class="td-level__tricks" aria-label="' +
+            tricks.map((g) => g.name).join(", ") + '">' +
+            tricks.map((g) => g.icon).join("") + "</span>"
+          : "";
         card.innerHTML =
-          '<span class="td-level__n">' + n + (isBoss ? " 👑" : "") + "</span>" +
+          '<span class="td-level__top"><span class="td-level__n">' + n +
+          (isBoss ? " 👑" : "") + "</span>" + trickTxt + "</span>" +
           '<span class="td-level__name">' + def.name + "</span>" +
           pips +
           '<span class="td-level__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(Math.max(0, 3 - stars)) + "</span></span>" +
