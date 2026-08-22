@@ -2464,6 +2464,32 @@ beaten the card sits ABOVE the centre line, so centring it would scroll negative
 and clamp to 0, making the already-visible guard unobservable — 4 beaten is the
 input that separates the claims.
 
+**QoL: NONE OF THE SEVEN FORT-HOME BUTTONS SHOWED A NUMBER, so "you have stars
+waiting" was invisible until you opened the tree.** `starTotals(save)` has
+computed `avail` all along and had exactly two consumers, both INSIDE the star
+tree — the header that prints it and the affordability check — so in a 40-node,
+140⭐ tree a player could sit on unspent stars, which are literally unused power,
+with nothing on the screen saying so. The ⭐ button now carries the count, from
+that same one owner. Three things decided the shape. **It is a CORNER BADGE, not
+inline text**: at 320px that button already wraps to two lines, and appending
+"· 12" risks a third and a grid that shifts under the thumb — measured, the badge
+leaves all seven button heights byte-identical at 320 and 390 with no page
+overflow, and a three-digit 120 (the campaign ceiling) still sits inside. **It is
+drawn only when `avail > 0`**, because a badge that is always there is decoration
+and one that appears when there is something to act on is a signal. And **the
+count refreshes from `showStarTree` as well as the home render**, because the
+tree's Done button only calls `closeOverlay` — the home is never re-rendered — so
+without that second call site spending six stars would leave the button still
+saying six, which is the single worst moment for it to be wrong. That staleness
+is the mutation worth keeping: `120 -> 120`. Five mutations red, including one
+that shows EARNED instead of unspent (caught by the same clause, since earned
+does not move when you spend).
+**The obvious sibling was REJECTED by measurement, so nobody re-adds it**: a
+"🎒 2/4 packed" badge sounds like the same win, and `activePowers()` already
+falls back to the first `abilitySlots` powers whenever `save.powers` is empty —
+so a pack is NEVER under-filled, the interesting state cannot occur, and the
+badge could only ever read 4/4, which is the decoration the rule above rejects.
+
 ---
 
 ## Repository Structure

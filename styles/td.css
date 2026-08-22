@@ -598,10 +598,27 @@ body.td-mode #screens { padding: 0; }
   gap: 8px; justify-content: center; margin: 0 0 14px;
 }
 .td-metabtn {
+  /* positioned so the count badge below can ride the corner without joining the
+     text flow — at 320px this button already wraps to two lines, and an inline
+     count risks a third and a grid that shifts under the thumb. */
+  position: relative;
   max-width: 100%; min-height: 48px; padding: 8px 6px;
   border-radius: 12px; border: 2px solid #3a548a; background: #182a4a;
   color: #cfe2ff; font-weight: 800; font-size: 0.95rem;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+
+/* A live count on a fort-home button — today only the ⭐ tree's unspent stars.
+   Gold on near-black is ~11.8:1, well clear of AA, and it is drawn ONLY when
+   there is something to act on: a badge that is always present is decoration,
+   one that appears when stars are waiting is a signal. pointer-events:none so
+   it can never eat the button's own tap. */
+.td-metabtn__n {
+  position: absolute; top: 3px; right: 5px;
+  min-width: 18px; padding: 0 4px;
+  border-radius: 9px; background: #ffd94a; color: #052a14;
+  font-size: 0.62rem; font-weight: 800; line-height: 18px;
+  pointer-events: none;
 }
 
 /* wide overlay box for the tree/badges/endless lists (scrolls if tall) */

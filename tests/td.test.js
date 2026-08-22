@@ -39,6 +39,83 @@ test("the front door's 🏰 tile opens the fort DIRECTLY (the name gate is gone)
   assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "fort theme on");
 });
 
+test("QoL: the fort home says how many stars are waiting to be spent", async () => {
+  // All seven meta buttons showed no numbers at all, so "you have stars to
+  // spend" was invisible until you opened the tree — and in a 40-node, 140⭐
+  // tree unspent stars are literally unused power. The count is DERIVED from
+  // starTotals(), the same owner the tree's own header reads.
+  const openHome = async () => {
+    await page.evaluate(() => { location.hash = "#__renav"; });   // a same-hash set is a no-op: route() would never fire
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible" });
+    await page.waitForTimeout(60);
+  };
+  const read = () => page.evaluate(() => {
+    const b = document.querySelector("#screen-td-home .td-tree-open");
+    const n = b.querySelector(".td-metabtn__n");
+    const bb = b.getBoundingClientRect(), nb = n && n.getBoundingClientRect();
+    return {
+      text: n ? n.textContent.trim() : null,
+      aria: b.getAttribute("aria-label"),
+      inside: !!(nb && nb.top >= bb.top && nb.right <= bb.right && nb.bottom <= bb.bottom && nb.left >= bb.left),
+      btnH: Math.round(bb.height),
+      pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+    };
+  });
+  const seedStars = async (levels) => {
+    await page.evaluate((n) => {
+      const stars = {}; for (let i = 1; i <= n; i++) stars[i] = 3;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify({
+        v: 1, stars: { casual: {}, normal: stars, heroic: {} }, difficulty: "normal" }));
+    }, levels);
+    await page.reload({ waitUntil: "load" });
+    await openHome();
+  };
+
+  // 1. The count is there, correct, and inside its button.
+  await seedStars(4);                                  // 4 levels x 3 stars, none spent
+  let r = await read();
+  assert.equal(r.text, "12", `the button must state the unspent stars (saw ${r.text})`);
+  assert.ok(r.inside, "the badge must sit inside the button it annotates");
+  assert.match(r.aria || "", /12 stars to spend/,
+    "…and the accessible name must carry the number — a title attribute is hover-only on a phone");
+  assert.ok(!r.pageOverflow, "the badge must not push the home wider than the screen");
+
+  // 2. THREE digits must still fit: the ceiling is LEVELS.length * 3.
+  await seedStars(40);
+  r = await read();
+  assert.equal(r.text, "120", `the whole campaign's stars must fit (saw ${r.text})`);
+  assert.ok(r.inside && !r.pageOverflow, "a three-digit count must stay inside the button and on screen");
+
+  // 3. Spending must UPDATE it. The tree's Done only closes the overlay — the
+  //    home is never re-rendered — so without a refresh inside showStarTree the
+  //    button would still claim the stars you just spent, which is the single
+  //    worst moment for it to be wrong.
+  const before = (await read()).text;
+  await page.locator("#screen-td-home .td-tree-open").click();
+  await page.locator(".td-overlay .td-node").first().waitFor({ state: "visible" });
+  const cost = await page.evaluate(() => {
+    const n = document.querySelector(".td-overlay .td-node:not([disabled])");
+    n.click();
+    return true;
+  });
+  assert.ok(cost, "fixture: a buyable node must exist with 120 stars available");
+  await page.waitForTimeout(120);
+  const after = (await read()).text;
+  assert.ok(Number(after) < Number(before),
+    `spending a star must drop the count behind the dialog (${before} -> ${after})`);
+
+  // 4. …and with nothing to spend there must be NO badge. A badge that is always
+  //    present is decoration; one that appears when there is something to act on
+  //    is a signal.
+  await page.evaluate(() => { localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1, stars: { casual: {}, normal: {}, heroic: {} }, difficulty: "normal" })); });
+  await page.reload({ waitUntil: "load" });
+  await openHome();
+  r = await read();
+  assert.equal(r.text, null, `a fresh save has nothing to spend, so there must be no badge (saw ${r.text})`);
+});
+
 test("QoL: the fort home brings the NEXT level to play into view", async () => {
   // The fort home is ~2100px tall and its route ends with scrollTo(0, 0), so
   // from level 13 onward the level you actually came here to play sits below

@@ -378,6 +378,7 @@
       grid.appendChild(card);
     }
     if (nextCard) nextCard.dataset.next = "1";
+    UI.renderMetaCounts(save);
   };
 
   // Bring the next level to play into view. The fort home is 2001-2101px tall
@@ -411,6 +412,30 @@
     // this observable to a test rather than a race against an animation.
     card.scrollIntoView({ block: "center", behavior: "auto" });
     return card;
+  };
+
+  // A live count on the fort-home meta buttons. The seven of them showed no
+  // numbers at all, so "you have stars waiting to be spent" was invisible until
+  // you opened the tree — and unspent stars are literally unused power in a
+  // 40-node, 140⭐ tree. ONE owner, called from the home render AND from
+  // showStarTree, because the tree's Done button only closes the overlay: with
+  // no refresh there, spending six stars would leave the button still saying six,
+  // which is the worst moment for it to be wrong.
+  UI.renderMetaCounts = function (save) {
+    const btn = doc.querySelector("#screen-td-home .td-tree-open");
+    if (!btn) return null;
+    const old = btn.querySelector(".td-metabtn__n");
+    if (old) old.remove();
+    const avail = starTotals(save).avail;
+    if (avail <= 0) return null;          // nothing to act on: no badge, no noise
+    const n = doc.createElement("span");
+    n.className = "td-metabtn__n";
+    n.textContent = String(avail);
+    // The button's own label already says what it is; this is the count, so the
+    // accessible name has to carry it too (a title is hover-only on a phone).
+    btn.setAttribute("aria-label", "Star Tree — " + avail + " star" + (avail === 1 ? "" : "s") + " to spend");
+    btn.appendChild(n);
+    return n;
   };
 
   // ---- TD-5 META: star accounting, resume banner, star tree, badges, endless ----
@@ -780,6 +805,7 @@
         ' <span class="td-tree__spent">⭐' + branchSpend(owned, br.id, null) + " spent</span></p>" +
         '<div class="td-nodes">' + rows + "</div>";
     }).join("");
+    UI.renderMetaCounts(save);   // buying/refunding re-enters here, so the button behind the dialog stays true
     const el = metaOverlay("td-tree", '<h3>⭐ Star Tree</h3>' +
       '<p class="td-overlay__stars td-tree__avail">⭐ ' + t.avail + " to spend · " + t.spent + " used</p>" +
       '<p class="td-overlay__sub td-tree__slots">🎒 ' + equipped.length + " / " + SLOTS +
