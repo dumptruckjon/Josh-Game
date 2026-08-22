@@ -545,6 +545,15 @@
     // half-armed power survives into the build phase (where its strip is hidden)
     // and silently eats the first pad tap. Same class as the stale rally arm.
     if (st.phase !== "wave" && cur.abilArmId) { cur.abilArmId = null; UI.abilityHint(""); }
+    // …and the MIRROR of it: a wave STARTING must close the tower panel / build
+    // menu. That bubble is absolutely positioned over the field with
+    // pointer-events: auto, so left open it both hides and BLOCKS TAPS on a
+    // measured 21% of the battlefield — exactly the ground an aimed power (🧨,
+    // 🍯) needs, and exactly when the fight starts. The CALL button already
+    // cleared it; the countdown simply RUNNING OUT did not, so the two routes
+    // into the same state disagreed. One rule here covers both. Opening the
+    // panel DURING a wave is untouched — building mid-wave is legal.
+    if (st.phase === "wave" && prevPhase === "build") { UI.hideBubble(); cur.render.setSelection(null); }
     if (st.phase === "won") {
       stopLoop();
       if (!st.cheated) {

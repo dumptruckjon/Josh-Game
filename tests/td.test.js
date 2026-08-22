@@ -39,6 +39,73 @@ test("the front door's 🏰 tile opens the fort DIRECTLY (the name gate is gone)
   assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "fort theme on");
 });
 
+test("QoL: a wave starting closes the tower panel — it sits ON the battlefield", async () => {
+  // The panel/build menu is a bubble absolutely positioned over the field with
+  // pointer-events: auto, so left open when the fight starts it both HIDES and
+  // BLOCKS TAPS on a measured 21% of the battlefield — exactly the ground an
+  // aimed power needs. The CALL button already cleared it; the countdown simply
+  // RUNNING OUT did not, so the two routes into the same state disagreed. This
+  // drives the route a CALL tap never covers.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(5, { seed: 3 }));
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(50);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const L = window.TDData.LEVELS.find((l) => l.id === 5);
+    window.__TD.script(L.pads.slice(0, 3).map((p) => ["place", "dart", p.id]));
+  });
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const tapTower = async () => {
+    const sp = await page.evaluate(() => {
+      const t = window.__TD.state().towers[0];
+      return window.__TD.w2s(t.cx + 0.5, t.cy + 0.5);
+    });
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.waitForTimeout(250);
+  };
+  const look = () => page.evaluate(() => {
+    const b = document.querySelector("#screen-td-play .td-bubble");
+    const c = document.querySelector("#screen-td-play .td-canvas");
+    const bb = b && b.getBoundingClientRect(), cb = c.getBoundingClientRect();
+    const oh = bb ? Math.max(0, Math.min(bb.bottom, cb.bottom) - Math.max(bb.top, cb.top)) : 0;
+    const ow = bb ? Math.max(0, Math.min(bb.right, cb.right) - Math.max(bb.left, cb.left)) : 0;
+    return { shown: !!(b && !b.hidden), phase: window.__TD.state().phase,
+      coversPct: bb && !b.hidden ? +(100 * oh * ow / (cb.width * cb.height)).toFixed(1) : 0 };
+  });
+
+  await tapTower();
+  let r = await look();
+  assert.equal(r.phase, "build", "fixture: still in the build phase");
+  assert.ok(r.shown, "fixture: tapping a tower opens its panel");
+  // Non-vacuity: it must genuinely be a big occluder, or closing it buys nothing.
+  assert.ok(r.coversPct > 15,
+    `fixture: the panel must really cover a lot of the field, or this test proves nothing (${r.coversPct}%)`);
+
+  // Let the countdown EXPIRE — the route a CALL tap never takes. Driven by the
+  // REAL frame loop: script(["tick"]) runs with the renderer paused and skips
+  // phaseWatch entirely, so it cannot answer this.
+  await page.evaluate(() => { window.__TD.state().countdown = 20; });
+  await page.waitForFunction(() => window.__TD.state().phase === "wave", null, { timeout: 8000 });
+  await page.waitForTimeout(250);
+  r = await look();
+  assert.equal(r.phase, "wave", "fixture: the wave really started");
+  assert.ok(!r.shown && r.coversPct === 0,
+    `the panel must close when the wave starts (still covering ${r.coversPct}% of the field)`);
+
+  // CONTROL: building and inspecting MID-WAVE is legal, so a panel opened during
+  // the wave must STAY. The rule is scoped to the build→wave transition, not to
+  // "the phase is wave".
+  await tapTower();
+  await page.waitForTimeout(400);
+  r = await look();
+  assert.equal(r.phase, "wave", "fixture: still mid-wave");
+  assert.ok(r.shown,
+    "a panel opened DURING a wave must stay open — inspecting and building mid-wave is legal");
+});
+
 test("QoL: the fort home says how many stars are waiting to be spent", async () => {
   // All seven meta buttons showed no numbers at all, so "you have stars to
   // spend" was invisible until you opened the tree — and in a 40-node, 140⭐

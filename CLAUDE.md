@@ -2490,6 +2490,32 @@ falls back to the first `abilitySlots` powers whenever `save.powers` is empty �
 so a pack is NEVER under-filled, the interesting state cannot occur, and the
 badge could only ever read 4/4, which is the decoration the rule above rejects.
 
+**QoL: THE TOWER PANEL SAT ON THE BATTLEFIELD THROUGH THE FIGHT — and the two
+routes into that state DISAGREED, which is this file's most reliable tell.** The
+panel (and the build menu) is a bubble absolutely positioned over the field with
+`pointer-events: auto`, so left open when a wave starts it both HIDES and BLOCKS
+TAPS on a measured **21.2% of the battlefield** — precisely the ground an aimed
+🧨 or 🍯 needs, at precisely the moment the fight begins. The ▶ CALL button
+already cleared it; the build countdown simply RUNNING OUT did not. The rule now
+lives in `phaseWatch`, one line below its exact mirror ("a wave ENDING must
+disarm the power strip, or a half-armed power survives into the build phase") —
+so one rule covers both routes, and opening the panel mid-wave is untouched,
+because building and inspecting mid-wave is legal.
+**Three fixture lessons, and the first is the sharpest.** My screenshot showed
+the panel sitting over a live wave, which looked like the defect — but it was
+`__TD.script(["call"])` bypassing the CALL button's own handler, so it was a
+FALSE image that happened to point at a REAL bug by a different door. Driving the
+actual button showed CALL was fine; driving the actual countdown found the bug.
+**The harness's `call` op is not the button, and `script(["tick"])` runs with the
+renderer paused and never reaches `phaseWatch` at all** — neither can answer a
+question about how the UI REACTS, which is the "a hook that stands in for the main
+loop must reproduce its SIDE EFFECTS" law landing on a screenshot. And the third:
+the obvious over-closing mutation (`phase === "wave"` instead of the transition)
+came back GREEN because it changes **no behaviour** — `phaseWatch` returns early
+unless the phase actually changed — so the control clause had to be proven by an
+over-close on the per-FRAME path instead. A mutation that alters nothing proves
+nothing; when one passes, check whether it was even a different program.
+
 ---
 
 ## Repository Structure
