@@ -2429,6 +2429,41 @@ mutation result names an assertion you did not write, stop and find out whose it
 is.** And the second: `cp` the file before mutating and restore in a `finally`,
 never `git checkout` — this file already records losing a whole rebuild that way.
 
+**QoL: THE FORT HOME BURIED THE ONE LEVEL YOU CAME BACK TO PLAY — and the three
+FIXTURE defects found while proving it are worth more than the feature.** The
+level grid is 40 cards on a ~2100px page and the route ends with
+`scrollTo(0, 0)`, so from level 13 onward the next level to play sits below the
+fold, and by level 37 it is **1668px down an 844px viewport** — measured, in view
+at 0 and 4 beaten, out of view at 12/20/28/36. You return to this screen after
+EVERY level, so the player who has invested the most scrolls the furthest, every
+single time. The grid now tags that card while it builds (it is the one place
+that already knows `playable` and `stars` — a second computation of "which level
+is next" is how two owners drift) and the route brings it into view.
+Two design calls are the interesting part. **A parked run OUTRANKS it**: the
+Resume banner sits above the grid, so scrolling down puts it at **top −924**, and
+a QoL change that quietly buries a better affordance is not an improvement — the
+scroll declines whenever the banner is up. And the scroll is **INSTANT, not
+smooth**: it fires while the screen is being entered, before the player has
+looked at it, so there is nothing for an animation to explain, and 1051px of
+smooth swoop is a long distracting slide nobody asked for. That also removes a
+`prefers-reduced-motion` gate and an entire class of test flake.
+**Three fixture defects, each of which made a clause pass vacuously or report a
+false number, and each caught only by a mutation.** (1) **Browsers RESTORE scroll
+position across a reload**, so running the deep case first left the next case
+starting part-way down the page and reporting a scroll the feature never
+performed. (2) **Setting `location.hash` to the value it already has is a NO-OP**
+— no hashchange, no `route()` — so after the first case two of three clauses
+never ran the feature at all and passed on nothing; the tell was the parked-run
+mutation coming back GREEN. Hop away (`#__renav`) first, which is the pattern the
+rest of this suite already uses. (3) **A stable-for-N-polls settle can conclude
+BEFORE a smooth animation starts**, and it reported **2px of what was really a
+1051px scroll** — which made a load-bearing guard look like it was worth two
+pixels and nearly got it written off. With the scroll now instant, one frame is
+the whole wait. And the "find the separating input" law applied again: at 0
+beaten the card sits ABOVE the centre line, so centring it would scroll negative
+and clamp to 0, making the already-visible guard unobservable — 4 beaten is the
+input that separates the claims.
+
 ---
 
 ## Repository Structure

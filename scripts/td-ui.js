@@ -300,6 +300,7 @@
     // stars, and level N+1 unlocks by beating level N on THAT difficulty.
     const dstars = (save.stars && save.stars[selDiff]) || {};
     const starsOf = (k) => dstars[String(k)] | 0;
+    let nextCard = null;
 
     for (let n = 1; n <= TOTAL_PLANNED; n++) {
       const def = LEVELS.find((l) => l.id === n);
@@ -369,8 +370,47 @@
         card.disabled = true;
         card.innerHTML = '<span class="td-level__n">' + n + '</span><span class="td-level__name">🔒</span>';
       }
+      // The card the player is most likely to want: the first PLAYABLE level not
+      // yet beaten on THIS ladder. Tagged while the grid is built, because this
+      // loop is the one place that already knows `playable` and `stars` — a
+      // second computation of "which level is next" is how two owners drift.
+      if (playable && starsOf(n) === 0 && !nextCard) nextCard = card;
       grid.appendChild(card);
     }
+    if (nextCard) nextCard.dataset.next = "1";
+  };
+
+  // Bring the next level to play into view. The fort home is 2001-2101px tall
+  // and the route ends with scrollTo(0, 0), so the level you actually want is
+  // BELOW the fold from level 13 onward and 1668px down by level 37 — and you
+  // return to this screen after every single level, so the player who has
+  // invested the most scrolls the furthest, every time. Measured at 390x844:
+  // in view at 0 and 4 beaten, out of view at 12, 20, 28 and 36.
+  //
+  // Deliberately only when it is OUT of view: re-centring a card the player can
+  // already see moves the page for nothing. And deliberately NOT called from the
+  // difficulty chips, which sit at the top of this screen — yanking the grid
+  // while a thumb is on a chip is the "never move the page under the thumb" rule.
+  UI.focusNextLevel = function () {
+    // A PARKED RUN outranks the next level. The Resume banner sits above the
+    // grid, so scrolling down would push the one control the player almost
+    // certainly wants off the top of the screen — a QoL change that quietly
+    // buries a better affordance is not an improvement.
+    const resume = doc.querySelector("#screen-td-home .td-resume");
+    if (resume && !resume.hidden) return null;
+    const card = doc.querySelector("#screen-td-home .td-level[data-next]");
+    if (!card || !card.scrollIntoView) return null;
+    const r = card.getBoundingClientRect();
+    const vh = global.innerHeight || 0;
+    if (r.top >= 0 && r.bottom <= vh) return null;         // already visible: leave the page alone
+    // INSTANT, deliberately. This fires while the screen is being entered, before
+    // the player has looked at it, so there is nothing for an animation to
+    // explain — and the scroll can be 1051px, which as a smooth swoop is a long
+    // distracting slide the player did not ask for. Landing already in the right
+    // place is calmer, needs no prefers-reduced-motion gate, and is what makes
+    // this observable to a test rather than a race against an animation.
+    card.scrollIntoView({ block: "center", behavior: "auto" });
+    return card;
   };
 
   // ---- TD-5 META: star accounting, resume banner, star tree, badges, endless ----

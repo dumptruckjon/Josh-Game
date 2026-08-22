@@ -39,6 +39,124 @@ test("the front door's 🏰 tile opens the fort DIRECTLY (the name gate is gone)
   assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "fort theme on");
 });
 
+test("QoL: the fort home brings the NEXT level to play into view", async () => {
+  // The fort home is ~2100px tall and its route ends with scrollTo(0, 0), so
+  // from level 13 onward the level you actually came here to play sits below
+  // the fold — 1668px down by level 37 — and you return to this screen after
+  // EVERY level, so the player who has invested the most scrolls the furthest,
+  // every single time. Measured before the fix at 390x844: in view at 0 and 4
+  // beaten, out of view at 12, 20, 28 and 36.
+  // scrollIntoView with behavior:"smooth" is ASYNC — measuring straight after
+  // catches it mid-animation and reports a PARTIAL scroll, which reads exactly
+  // like a half-working fix (it reported 2px of a 958px scroll). Every clause
+  // below waits for scrollY to stop moving before it measures.
+  // The scroll is INSTANT by design (see UI.focusNextLevel), so one frame is
+  // enough. This used to poll for a smooth animation to settle and could
+  // conclude before it even started — reporting 2px of what was really a 1051px
+  // scroll, which made a load-bearing guard look worth two pixels.
+  const settle = () => page.evaluate(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))));
+  const seed = async (beaten) => {
+    await page.evaluate((n) => {
+      const stars = {}; for (let i = 1; i <= n; i++) stars[i] = 3;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify({
+        v: 1, stars: { casual: {}, normal: stars, heroic: {} }, difficulty: "normal" }));
+    }, beaten);
+    await page.reload({ waitUntil: "load" });          // a hash hop is SAME-document: the module would keep its old save
+    // …and pin the scroll. Browsers RESTORE scroll position across a reload, so
+    // running the deep case first left the next one starting part-way down the
+    // page and reporting a scroll this feature never performed. Each case must
+    // model ARRIVING at the fort, not reloading mid-scroll.
+    await page.evaluate(() => { history.scrollRestoration = "manual"; window.scrollTo(0, 0); });
+    // HOP AWAY FIRST. Setting location.hash to the value it already has is a
+    // no-op: no hashchange, no route(), so the feature under test never runs and
+    // the clause passes VACUOUSLY. After the first case the hash is already
+    // #td-home, which is exactly how the parked-run mutation came back green.
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible" });
+    await settle();
+    return page.evaluate((n) => {
+      const cards = [...document.querySelectorAll("#screen-td-home .td-level")];
+      const next = cards[n];                            // 0-indexed → the first unbeaten level
+      const b = next.getBoundingClientRect();
+      return {
+        total: cards.length,
+        tagged: document.querySelector("#screen-td-home .td-level[data-next]") === next,
+        top: b.top, inView: b.top >= 0 && b.bottom <= window.innerHeight,
+        scrollY: window.scrollY, docTop: b.top + window.scrollY, vh: window.innerHeight,
+        // Ask the function itself, AFTER reading scrollY. It returns the card it
+        // scrolled to, or null when it declined because the card was already
+        // visible — a crisp contract, unlike a pixel delta that happened to be
+        // 2px here and could round to 0 and flake.
+        declinesWhenVisible: window.TDUI.focusNextLevel() === null,
+      };
+    }, beaten);
+  };
+
+  // 1. DEEP progress: the next level must be on screen without the player scrolling.
+  const deep = await seed(28);
+  assert.equal(deep.total, 40, "fixture: the grid renders every shipped level");
+  assert.ok(deep.tagged, "the next level to play carries data-next (the grid is the ONE owner of 'which is next')");
+  // Non-vacuity: it must genuinely have been below the fold, or clause 1 is free.
+  assert.ok(deep.docTop > deep.vh,
+    `fixture: L29 must actually start below the first screenful, or this proves nothing (docTop ${deep.docTop} vs viewport ${deep.vh})`);
+  assert.ok(deep.inView,
+    `the next level to play must be brought into view (top ${Math.round(deep.top)}, viewport ${deep.vh}, scrollY ${deep.scrollY})`);
+
+  // 2. …and it must NOT be over-eager: a level already on screen must not move
+  //    the page at all. Deliberately measured at FOUR beaten, not zero — at zero
+  //    L1 sits ABOVE the centre line, so centring it would scroll negative and
+  //    clamp to 0, and the mutation that deletes the already-visible guard is
+  //    unobservable. At four, L5 is in view at ~473px and centring WOULD scroll
+  //    ~98px, so this clause can actually fail.
+  const shallow = await seed(4);
+  assert.ok(shallow.inView, "fixture: L5 is visible at four beaten without help");
+  assert.ok(shallow.docTop > 400 && shallow.docTop + 94 < shallow.vh,
+    `fixture: L5 must sit fully in view but BELOW the centre line, or the guard is unobservable (docTop ${shallow.docTop}, viewport ${shallow.vh})`);
+  // The crisp clause FIRST: a pixel delta happened to be 2px here and could
+  // round to 0 and flake, and if it fired first it would mask this one — the
+  // "a mutation that fires an EARLIER clause has not proven the later one" trap.
+  assert.ok(shallow.declinesWhenVisible,
+    "focusNextLevel must DECLINE (return null) for a card that is already visible, not scroll it");
+  assert.equal(shallow.scrollY, 0,
+    `…and the page must not have moved at all (scrollY ${shallow.scrollY})`);
+
+  // 3. A PARKED RUN outranks the next level. The Resume banner renders above the
+  //    grid, so scrolling down would push it off the top — burying the control
+  //    the player almost certainly came back for.
+  //    The save must be DEEP here, not the shallow one above: with 4 beaten the
+  //    next level is visible anyway, so the already-visible guard would decline
+  //    and this clause could not tell whether the parked-run guard exists at all.
+  await page.evaluate(() => {
+    const stars = {}; for (let i = 1; i <= 28; i++) stars[i] = 3;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({
+      v: 1, stars: { casual: {}, normal: stars, heroic: {} }, difficulty: "normal",
+      midRun: { levelId: 29, waveIdx: 4, towers: [], gold: 300, lives: 18, difficulty: "normal" },
+    }));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { history.scrollRestoration = "manual"; window.scrollTo(0, 0); });
+  await page.evaluate(() => { location.hash = "#__renav"; });   // a same-hash set is a no-op: hop away or route() never fires
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await settle();
+  const parked = await page.evaluate(() => {
+    const r = document.querySelector("#screen-td-home .td-resume");
+    const b = r && r.getBoundingClientRect();
+    return { shown: !!(r && !r.hidden), top: b ? b.top : null,
+      visible: !!(b && b.top >= 0 && b.bottom <= window.innerHeight), scrollY: window.scrollY };
+  });
+  assert.ok(parked.shown, "fixture: a parked run must actually render the Resume banner");
+  // The PROPERTY first, and it fails hard: without the guard the page scrolls
+  // 1051px and the banner lands at top -924, not marginally off.
+  assert.ok(parked.visible,
+    `the Resume banner must stay on screen — it is the control a returning player wants (top ${parked.top}, scrollY ${parked.scrollY})`);
+  assert.equal(parked.scrollY, 0,
+    `…and the page must not have moved at all (scrollY ${parked.scrollY})`);
+});
+
 test("fort home shows L1 open and every later level locked on a fresh save", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#__renav"; });
   await page.waitForTimeout(50);

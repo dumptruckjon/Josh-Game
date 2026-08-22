@@ -1517,6 +1517,11 @@
         if (s) s.hidden = false;
         if (cur) { cur.paused = true; syncRun(); } // browsing the fort must not hold the screen awake
         global.scrollTo(0, 0);
+        // …then bring the level you are actually here to play into view. Top-of
+        // -page is right when there is nothing to continue (a fresh save, or a
+        // fully-beaten ladder); from level 13 onward it buries the next level
+        // below the fold, on every single return to the fort.
+        UI.focusNextLevel();
         return true;
       }
       if (id === "td-play") {
