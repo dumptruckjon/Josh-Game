@@ -2516,6 +2516,41 @@ unless the phase actually changed — so the control clause had to be proven by 
 over-close on the per-FRAME path instead. A mutation that alters nothing proves
 nothing; when one passes, check whether it was even a different program.
 
+**QoL: NOTHING IN A LIVE BATTLE SAID WHICH LEVEL YOU WERE ON.** Not the HUD
+(hearts, gold, "wave 1/11"), not the pause menu ("Paused" and six buttons) — so
+a resumed run, or one you came back to after a break, had no answer short of
+quitting to the fort. It goes in the PAUSE MENU rather than the HUD for a
+measured reason: the HUD is the documented reflow-sensitive surface whose column
+widths were reserved to stop the ⚙️ jumping between rows, while the pause menu is
+a vertical button list with room. Measured at the sizes that dialog has form
+at — six buttons once overflowed a 390-tall landscape viewport with no scroll —
+the extra line keeps the box on screen at 320×480, 320×568, 390×844 and
+landscape 844×390, scrolling where the content is taller, with the last button
+always reachable.
+The interesting part is that it is a ONE-OWNER extraction, not a new string. The
+resume banner already built this sentence inline, so a second copy in the pause
+menu would have been two owners of "what is this run called" — and the drift is
+not cosmetic: an endless `levelId` is a STRING like `"endless-bedroom"` that is
+NOT in `DATA.LEVELS`, so a copy that forgets the endless branch throws exactly
+where `UI.hud` once did, every frame. `UI.runLabel(levelId, endless, daily)`
+carries the same `endless || !lvl` predicate the HUD uses, names the arena for an
+endless run (`♾️ Endless · 🛏️ Bedroom`), the day for a 📅 Daily, and degrades to
+`♾️ Endless` for an id it cannot resolve rather than building a label out of
+`undefined`. Four mutations red, including the resume banner going back to its
+own inline string, and a structural check that `runLabel` is defined once and
+that both consumers read it.
+**And the gate caught the new test LEAKING A PARKED RUN into the next one** —
+which is worth more than the feature. Seeding `save.midRun` to check the resume
+banner and never clearing it left a stale checkpoint behind, and a stale
+checkpoint with no live run bounces `#td-play` straight back to the fort home,
+so the FOLLOWING test timed out waiting for a screen that would never show. That
+is precisely the symptom this file already records from the
+`resetSave`-without-`dropRun` bug ("a later test navigating to #td-play then
+bounced back to the fort home… which presented as an unrelated test timing out on
+a hidden screen"), and it arrived by a new door: not a hook forgetting to drop a
+run, but a TEST forgetting to. A fixture that seeds a checkpoint owns clearing
+it, and the clean-up now asserts the banner is actually gone rather than hoping.
+
 ---
 
 ## Repository Structure

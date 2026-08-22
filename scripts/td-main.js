@@ -490,7 +490,9 @@
       music: () => { save.settings.music = !save.settings.music; persist(save); syncMusic(); openPause(); },
       dmg: () => { save.settings.dmgNumbers = !save.settings.dmgNumbers; persist(save); if (cur.render.setDamageNumbers) cur.render.setDamageNumbers(save.settings.dmgNumbers); openPause(); },
       quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },
-    }, save.settings);
+    }, save.settings,
+    // Which level is this? Nothing in a live battle said so.
+    UI.runLabel(cur.engine.state.levelId, cur.engine.state.endless, cur.dailyDay));
     openPause();
   }
 

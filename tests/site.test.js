@@ -1904,6 +1904,25 @@ test("the camp's rally REACH has exactly ONE owner", () => {
     "defaultRally must return through the clamp, so its result is always a position rally() accepts");
 });
 
+test("guardrail: \"what is this run called\" has exactly ONE owner", () => {
+  // The pause menu and the resume banner both have to name the run, and the
+  // banner used to build that sentence inline. Two copies is how they drift —
+  // and the drift is not cosmetic here: an endless levelId is a STRING that is
+  // NOT in DATA.LEVELS, so a second copy that forgets the endless branch throws
+  // exactly where UI.hud once did.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((ui.match(/UI\.runLabel = function/g) || []).length, 1,
+    "runLabel must be defined exactly once");
+  assert.ok((ui.match(/UI\.runLabel\(/g) || []).length >= 1,
+    "…and actually used inside td-ui (the resume banner)");
+  const main = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.match(main, /UI\.runLabel\(/, "…and by the pause menu, which is told where it is");
+  // The endless branch is the load-bearing half: without it a string levelId
+  // falls through LEVELS.find and the label is built from undefined.
+  assert.match(ui, /endless \|\| !lvl/,
+    "runLabel must carry the endless predicate UI.hud uses — a generated level is not in DATA.LEVELS");
+});
+
 test("guardrail: the stale-clone SessionStart hook exists AND is wired", () => {
   // This container restores its writable disk from a SNAPSHOT, so a session can
   // begin with the repo rolled back to an old commit while `git status` reads

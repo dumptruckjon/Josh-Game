@@ -39,6 +39,98 @@ test("the front door's 🏰 tile opens the fort DIRECTLY (the name gate is gone)
   assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "fort theme on");
 });
 
+test("QoL: the pause menu says WHICH level you are in, endless included", async () => {
+  // Nothing in a live battle said where you were — not the HUD, not the pause
+  // menu — so a resumed run, or one you came back to, had no answer short of
+  // quitting to the fort. The pause menu is where you look when you stop to
+  // think, and unlike the HUD it has room (the HUD is the documented
+  // reflow-sensitive surface).
+  const openPause = async () => {
+    await page.locator("#screen-td-play .td-pause").click();
+    await page.locator(".td-overlay--pause").waitFor({ state: "visible" });
+    await page.waitForTimeout(120);
+    return page.evaluate(() => {
+      const box = document.querySelector(".td-overlay--pause .td-overlay__box");
+      const w = box.querySelector(".td-pause__where");
+      const btns = [...box.querySelectorAll("button")];
+      const last = btns[btns.length - 1].getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      return { where: w ? w.textContent.trim() : null,
+        boxInView: b.top >= -1 && b.bottom <= window.innerHeight + 1,
+        lastReachable: last.bottom <= window.innerHeight + 1 || box.scrollHeight > box.clientHeight };
+    });
+  };
+  const enter = async (fn) => {
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.evaluate(fn);
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(50);
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.waitForTimeout(300);
+  };
+
+  // 1. A campaign level names itself.
+  await enter(() => window.__TD.newGame(5, { seed: 3 }));
+  let r = await openPause();
+  const lvl5 = await page.evaluate(() => window.TDData.LEVELS.find((l) => l.id === 5).name);
+  assert.ok(r.where && r.where.includes("Level 5") && r.where.includes(lvl5),
+    `the pause menu must name the level (saw ${JSON.stringify(r.where)}, expected "Level 5 · ${lvl5}")`);
+  // …and the extra line must not push the menu past the fold. This dialog has
+  // form: six buttons once overflowed a 390-tall landscape viewport with no
+  // scroll, which is why the box carries max-height + overflow-y.
+  assert.ok(r.boxInView && r.lastReachable, "the pause menu must still fit, or scroll, with the line added");
+  await page.evaluate(() => { document.querySelector('.td-overlay--pause [data-act="resume"]').click(); });
+  await page.waitForTimeout(120);
+
+  // 2. An ENDLESS run must name itself too, and must not throw doing it: its
+  //    levelId is a STRING like "endless-bedroom" that is NOT in DATA.LEVELS —
+  //    the documented trap that had UI.hud throwing every frame.
+  await enter(() => window.__TD.startEndless("bedroom"));
+  r = await openPause();
+  assert.ok(r.where && /Endless/.test(r.where),
+    `an endless run must name itself (saw ${JSON.stringify(r.where)})`);
+  const arena = await page.evaluate(() => window.TDData.ENDLESS.worlds.bedroom.label);
+  assert.ok(r.where.includes(arena),
+    `…and say WHICH arena (saw ${JSON.stringify(r.where)}, expected it to contain ${JSON.stringify(arena)})`);
+  await page.evaluate(() => { document.querySelector('.td-overlay--pause [data-act="resume"]').click(); });
+  await page.waitForTimeout(120);
+
+  // 3. ONE owner. The resume banner built this same sentence inline before, and
+  //    two copies of "what is this run called" is exactly how they drift.
+  const banner = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    raw.midRun = { levelId: 5, waveIdx: 2, towers: [], gold: 200, lives: 15, difficulty: "normal" };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    return true;
+  });
+  assert.ok(banner, "fixture: seeded a parked run");
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const txt = await page.locator(".td-resume__txt").textContent();
+  assert.ok(txt.includes("Level 5") && txt.includes(lvl5),
+    `the resume banner must use the same owner, so it names the level the same way (saw ${JSON.stringify(txt)})`);
+
+  // CLEAN UP THE PARKED RUN. A stale checkpoint with no live run bounces
+  // #td-play straight back to the fort home, so leaving one behind makes the
+  // NEXT test time out waiting for a screen that will never show — the exact
+  // symptom this file records from the resetSave-without-dropRun bug, and how
+  // this test was caught leaking in the first place.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    delete raw.midRun;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".td-resume:not([hidden])").count(), 0,
+    "fixture: the parked run must be gone, or the next test cannot reach #td-play");
+});
+
 test("QoL: a wave starting closes the tower panel — it sits ON the battlefield", async () => {
   // The panel/build menu is a bubble absolutely positioned over the field with
   // pointer-events: auto, so left open when the fight starts it both HIDES and

@@ -464,8 +464,7 @@
     if (!el) return;
     const mr = save.midRun;
     if (!mr) { el.hidden = true; el.innerHTML = ""; return; }
-    const lvl = global.TDData.LEVELS.find((l) => l.id === mr.levelId);
-    const label = mr.endless ? ("Endless · wave " + (mr.waveIdx + 1)) : ((lvl ? lvl.name : "Level " + mr.levelId) + " · wave " + (mr.waveIdx + 1));
+    const label = UI.runLabel(mr.levelId, mr.endless, mr.daily) + " · wave " + (mr.waveIdx + 1);
     el.hidden = false;
     el.innerHTML = '<span class="td-resume__txt">▶ Resume: ' + label + "</span>" +
       '<button class="td-resume__go" type="button">Resume</button>' +
@@ -1337,9 +1336,29 @@
   }
   UI.closeOverlay = function () { const el = doc.querySelector(".td-overlay"); if (el) el.remove(); };
 
-  UI.showPause = function (hooks, settings) {
+  // ONE owner of "what is this run called". Nothing in a live battle said which
+  // level you were on — not the HUD, not the pause menu — so a resumed or
+  // returned-to run had no answer short of quitting to the fort. The resume
+  // banner already built this sentence inline; a second copy in the pause menu
+  // is exactly how two owners drift, so both read this.
+  UI.runLabel = function (levelId, endless, daily) {
+    if (daily) return "📅 Daily Toybox";
+    const lvl = global.TDData.LEVELS.find((l) => l.id === levelId);
+    // `endless || !lvl` is the same predicate UI.hud uses, and it is load-bearing:
+    // an endless id is a STRING like "endless-bedroom" that is NOT in
+    // DATA.LEVELS, the documented trap that had the HUD throwing every frame.
+    if (endless || !lvl) {
+      const w = String(levelId || "").replace(/^endless-/, "");
+      const meta = (global.TDData.ENDLESS && global.TDData.ENDLESS.worlds[w]) || null;
+      return "♾️ Endless" + (meta && meta.label ? " · " + meta.label : "");
+    }
+    return "Level " + lvl.id + " · " + lvl.name;
+  };
+
+  UI.showPause = function (hooks, settings, label) {
     const el = overlay("td-overlay--pause",
       '<h3>Paused</h3>' +
+      (label ? '<p class="td-overlay__sub td-pause__where">' + label + "</p>" : "") +
       '<button class="td-btn" data-act="resume" type="button">▶ Resume</button>' +
       '<button class="td-btn" data-act="restart" type="button">🔁 Restart level</button>' +
       '<button class="td-btn" data-act="sfx" type="button">' + (settings.sfx ? "🔔 Sounds on" : "🔕 Sounds off") + "</button>" +
