@@ -989,12 +989,17 @@
     const best = save.endlessBest || {};
     const rows = worlds.map(([w, label]) => {
       const open = UI.endlessUnlocked(save, w);
-      const b = best[w] ? (" · best wave " + best[w]) : "";
       // the lock hint counts the world's ACTUAL levels — "the 4 levels" was a
       // literal that happened to be right for four worlds of four
       const n = worldLevels(w).length;
+      // "3⭐ the 4 levels" had no verb, and a best score read as a bare "🏆 12" —
+      // 12 of WHAT. The unit was already written, in a variable this function
+      // computed and then never used; that dead line is what named the fix.
+      const state = open
+        ? (best[w] ? "🏆 wave " + best[w] : "new!")
+        : "🔒 3⭐ all " + n + " levels";
       return '<button class="td-endless' + (open ? "" : " td-endless--locked") + '"' + (open ? "" : " disabled") +
-        ' data-world="' + w + '">' + label + (open ? '<span class="td-endless__best">' + (best[w] ? "🏆 " + best[w] : "new!") + "</span>" : '<span class="td-endless__best">🔒 3⭐ the ' + n + ' levels</span>') + "</button>";
+        ' data-world="' + w + '">' + label + '<span class="td-endless__best">' + state + "</span></button>";
     }).join("");
     const el = metaOverlay("td-endlesspick", '<h3>♾️ Endless</h3>' +
       '<p class="td-overlay__sub">Survive as long as you can — the toys never stop coming.</p>' +

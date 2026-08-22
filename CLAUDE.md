@@ -2551,6 +2551,23 @@ a hidden screen"), and it arrived by a new door: not a hook forgetting to drop a
 run, but a TEST forgetting to. A fixture that seeds a checkpoint owns clearing
 it, and the clean-up now asserts the banner is actually gone rather than hoping.
 
+**QoL: THE ENDLESS PICKER'S OWN DEAD CODE NAMED THE FIX.** Screenshotting the
+fort's dialogs found two copy defects in one list: an unlocked arena's best score
+rendered as a bare **"🏆 12"** — twelve of WHAT — which is the ⚙️ Toy Energy class
+(a number shipped with no name), and a locked arena read **"🔒 3⭐ the 4
+levels"**, which has no verb and parses as nothing. The unit was already written:
+the same function computed `const b = " · best wave " + best[w]` and **never used
+it**, so the intent existed and the wiring had been lost. Now "🏆 wave 27" and
+"🔒 3⭐ all 4 levels", and the dead variable is gone.
+Two testing notes. **The COUNT half of the rendered clause is vacuous on shipped
+data and the comment says so** — all ten worlds have exactly four levels, so
+hard-coding `4` passes it (measured, not assumed); the WORDING is what the
+browser test pins, and the DERIVATION is held by a structural check that can
+actually fail. And the earlier-clause trap for the third time today: replacing
+`n` with the literal `4` also broke the regex's shape, so it fired "the hint must
+still be there" instead of "the count must be derived" — isolating it needed a
+mutation that keeps the concatenation (`+ 4 +`) and changes only the value.
+
 ---
 
 ## Repository Structure

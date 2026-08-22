@@ -1904,6 +1904,20 @@ test("the camp's rally REACH has exactly ONE owner", () => {
     "defaultRally must return through the clamp, so its result is always a position rally() accepts");
 });
 
+test("guardrail: the Endless lock hint DERIVES its level count", () => {
+  // "the 4 levels" was a literal that happened to be right when every world had
+  // four — and it still is right for all ten, which is exactly why the browser
+  // test cannot catch a regression here: hard-coding 4 passes it. This can.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const hint = ui.match(/"🔒 3⭐ all " \+ ([^ ]+) \+ " levels"/);
+  assert.ok(hint, "the Endless lock hint must still be there, phrased as an instruction");
+  assert.ok(!/^\d+$/.test(hint[1]),
+    `the level count must be DERIVED, not a literal (saw ${hint[1]}) — every world has four today, so a ` +
+    "literal is invisible to the rendered test");
+  assert.match(ui, /const n = worldLevels\(w\)\.length/,
+    "…and derived from the world's own levels");
+});
+
 test("guardrail: \"what is this run called\" has exactly ONE owner", () => {
   // The pause menu and the resume banner both have to name the run, and the
   // banner used to build that sentence inline. Two copies is how they drift —

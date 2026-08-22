@@ -39,6 +39,67 @@ test("the front door's 🏰 tile opens the fort DIRECTLY (the name gate is gone)
   assert.ok(await page.evaluate(() => document.body.classList.contains("td-mode")), "fort theme on");
 });
 
+test("QoL: the Endless picker names its unit and reads as English", async () => {
+  // Two player-facing copy defects on one surface. A best score rendered as a
+  // bare "🏆 12" — twelve of WHAT — which is the same class as ⚙️ Toy Energy
+  // shipping as an unnamed numeral; and the locked hint read "🔒 3⭐ the 4
+  // levels", which has no verb. The unit was already written in this very
+  // function, in a variable it computed (" · best wave ") and never used — that
+  // dead line is what named the fix.
+  await page.evaluate(() => {
+    const st = {}; for (let i = 1; i <= 8; i++) st[i] = 3;       // two worlds unlocked
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({
+      v: 1, stars: { casual: {}, normal: st, heroic: {} }, difficulty: "normal",
+      endlessBest: { bedroom: 27 } }));                          // one with a score, one without
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator("#screen-td-home .td-endless-open").click();
+  await page.waitForTimeout(250);
+
+  const rows = await page.evaluate(() => {
+    const out = [];
+    for (const b of document.querySelectorAll(".td-endless")) {
+      const bb = b.getBoundingClientRect();
+      const s = b.querySelector(".td-endless__best");
+      const sb = s.getBoundingClientRect();
+      out.push({ world: b.dataset.world, txt: s.textContent.trim(),
+        locked: b.classList.contains("td-endless--locked"),
+        overflows: sb.right > bb.right + 1 || sb.left < bb.left - 1 });
+    }
+    return out;
+  });
+  assert.ok(rows.length >= 6, `fixture: the picker must list the worlds (saw ${rows.length})`);
+
+  const scored = rows.find((r) => r.world === "bedroom");
+  assert.ok(scored && !scored.locked, "fixture: bedroom must be unlocked with a best");
+  assert.match(scored.txt, /wave\s*27/,
+    `a best score must name its UNIT, not read as a bare number (saw ${JSON.stringify(scored.txt)})`);
+
+  const fresh = rows.find((r) => !r.locked && !/wave/.test(r.txt));
+  assert.ok(fresh && /new/i.test(fresh.txt),
+    `an unlocked arena with no score yet says so (saw ${JSON.stringify(fresh && fresh.txt)})`);
+
+  const locked = rows.filter((r) => r.locked);
+  assert.ok(locked.length >= 1, "fixture: at least one arena must still be locked");
+  for (const r of locked) {
+    // DERIVED: the count is the world's real level count, not a literal that
+    // happened to be right when every world had four.
+    // NOTE: the COUNT half of this clause is vacuous on shipped data — every one
+    // of the ten worlds has exactly four levels, so hard-coding "4" passes it
+    // (measured, not assumed). What it really pins is the WORDING. The
+    // derivation is held by a structural check in site.test.js, which can fail.
+    const n = await page.evaluate((w) => window.TDData.LEVELS.filter((l) => l.world === w).length, r.world);
+    assert.ok(r.txt.includes("all " + n + " levels"),
+      `a locked arena must read as an instruction naming its real level count ` +
+      `(${r.world}: saw ${JSON.stringify(r.txt)}, expected "all ${n} levels")`);
+  }
+  assert.ok(!rows.some((r) => r.overflows), "no row's status may spill outside its button");
+});
+
 test("QoL: the pause menu says WHICH level you are in, endless included", async () => {
   // Nothing in a live battle said where you were — not the HUD, not the pause
   // menu — so a resumed run, or one you came back to, had no answer short of
