@@ -648,7 +648,8 @@
       '<p class="td-overlay__sub">Aiming — the 🎯 button</p>' +
       '<ul class="td-guide__towers"><li><span class="td-guide__tico">🎯</span>Every gun aims on its OWN setting; tap 🎯 on its panel to ' +
       "cycle. It is worth real lives — on a boss level the best setting can be several lives better than the worst, and which one wins " +
-      "differs from level to level, so it is worth a try when a wave keeps getting through.</li>" +
+      "differs from level to level, so it is worth a try when a wave keeps getting through. Your last choice is remembered per " +
+      "toy line, so the next one you build of that line opens already aimed that way.</li>" +
       Object.keys(global.TDData.TARGETING || {}).map(function (m) {
         const t = global.TDData.TARGETING[m];
         return '<li><span class="td-guide__tico">·</span><b>' + (t.name || m) + "</b> — " + t.desc + "</li>";

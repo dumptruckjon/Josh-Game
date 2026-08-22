@@ -2568,6 +2568,45 @@ actually fail. And the earlier-clause trap for the third time today: replacing
 still be there" instead of "the count must be derived" — isolating it needed a
 mutation that keeps the concatenation (`+ 4 +`) and changes only the value.
 
+**THE FORT REMEMBERED EVERY PREFERENCE EXCEPT THE ONE WORTH LIVES.** Auditing
+what persists — ⏩ speed, sounds, music, damage numbers, the difficulty chip, the
+🎒 pack, the ⭐ loadout, the 🎖️ chips — left exactly one gap: the 🎯 targeting
+mode, which reset to the line's default on every tower of every level. That is
+the ⏩ speed defect's exact shape (*"a 2× player retapped on all 40 levels and
+every restart"*) multiplied by 10-14 towers, on the lever `AUDIT targeting is a
+LIVE lever` measures at **4-9 lives on a boss finale**. A new tower now opens on
+the mode you last chose for THAT line. Three limits keep it a pure tap-saver
+rather than new power: it lives inside `settings`, so the grown-ups reset's
+`keepPrefs` clones it and the two-tab merge treats it last-writer-wins with no
+eleventh top-level field; it applies only at `place()` time, because a tier-4
+branch's own `defaultTargeting` (the Sniper's `strong`) is a declaration, not a
+leftover; and it goes through the engine's `setTargeting`, so a `cheap`
+remembered from before a 🔻 Weak Spot respec is refused (`locked`) and the line's
+default stands. No sim moves — the auto-solver never calls `setTargeting` at all.
+**The sharp lesson is where a WRITE test has to stand.** The persistence clause
+first sat at the END of the test and deleting `persist(save)` left it GREEN:
+`save` is ONE shared object, so by then any other `persist()` — the checkpoint,
+a settings toggle — has flushed the same object and the clause passes with the
+write at the site under test deleted. Read it at the moment nothing else has a
+reason to persist (here, immediately after the choice, mid-build-phase); the
+mutation then goes red. **A test that something was WRITTEN must run before
+anything else writes the same object**, which is the "when a mutation passes,
+find out what else moved" law applied to storage rather than to pixels. Three
+more previously-recorded traps landed in the same fixture: the persisted-field
+scan derives only TOP-LEVEL coercions, so a `save.settings.X` default was
+outside the law that exists for exactly it (now derived too, with its own
+non-vacuity floor); a `page.reload()` keeps the hash, so re-setting it is a
+SAME-HASH no-op and the screen never routes; and a parked `midRun` bounces
+`#td-play` straight back to the fort home, so a storage seed must clear it. And
+the structural half had to be comment-stripped for the sixth recorded time,
+because `applyAim`'s own comment explains the rule using the words it bans.
+**A shell waiter can watch ITSELF.** `until ! pgrep -f "node --test"` never
+terminated, because a second waiter's command line contains that literal string —
+so each polled the other for ever, and a third one would have made it permanent.
+The `pkill -f` trap in its polling form, and the tell was that the log had
+already printed its own `# duration_ms`. Match the binary (`pgrep -x node`) or
+watch the log's terminal line, never a pattern your own command line contains.
+
 ---
 
 ## Repository Structure

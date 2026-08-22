@@ -2655,3 +2655,47 @@ test("the game stage centres its play on the axis it actually has", () => {
   assert.match(rule[0], /justify-content:\s*safe center/,
     "…and the inline centring stays, so a narrow child is still centred");
 });
+
+test("guardrail: remembered AIM goes through the engine, and nested save defaults are covered", () => {
+  const raw = read("scripts/td-main.js");
+  const tdm = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  // ONE owner, and it must ASK THE ENGINE. Assigning `t.targeting` directly
+  // would look identical for every legal mode and would silently apply an
+  // ILLEGAL one — a `cheap` remembered from before a 🔻 Weak Spot respec — which
+  // setTargeting refuses (`locked`). The browser test proves the refusal; this
+  // proves no OTHER site can grow that bypasses it. Comment-stripped, because
+  // applyAim's own comment explains the rule using the words it bans — a scan
+  // that counts its own documentation is this repo's most-repeated defect.
+  const writes = (tdm.match(/\.targeting\s*=/g) || []).length;
+  assert.equal(writes, 0,
+    `the UI must never assign a tower's targeting directly (${writes} site(s)) — it goes through ` +
+    "engine.setTargeting, which is what refuses a mode this run has not unlocked");
+  assert.equal((tdm.match(/function applyAim\(/g) || []).length, 1,
+    "remembered aim has exactly ONE owner");
+  // …and the guide must SAY it. A feature shipped without its description is the
+  // side-door staleness class: player copy cannot go red on its own, so the two
+  // are tied here — if the behaviour is ever removed, this sentence must go with
+  // it, and if the sentence is dropped the behaviour becomes undiscoverable.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.match(ui, /remembered per[\s\S]{0,80}opens already aimed/,
+    "the Toybox Guide's aiming section must say that the last choice is remembered per tower line");
+
+  // The persisted-field law reaches INSIDE settings too. The sibling check above
+  // derives top-level coercions; a `save.settings.X` default is exactly as
+  // load-bearing (a reset that leaves one undefined is the save.ach / save.stars
+  // crash class), and the top-level regex cannot see it — `save.settings.aim =`
+  // does not match `save.settings =`.
+  const fresh = tdm.slice(tdm.indexOf("function freshSave("), tdm.indexOf("function resetProgress("));
+  const nested = new Set();
+  for (const line of tdm.split("\n")) {
+    const m = /^\s*if \(.*\bsave\.settings\.([A-Za-z]+)\b.*\)\s*save\.settings\.\1 =/.exec(line);
+    if (m) nested.add(m[1]);
+  }
+  assert.ok(nested.size >= 3,
+    `the loader's settings coercions must be findable (found ${nested.size}: ${[...nested].join(", ")})`);
+  for (const field of nested) {
+    assert.ok(new RegExp("\\b" + field + ":").test(fresh),
+      `save.settings.${field} is coerced at boot, so freshSave() must reset it too`);
+  }
+});

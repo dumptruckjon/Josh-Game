@@ -7604,3 +7604,143 @@ test("no dialog line is HALF-covered by the ✕", async () => {
   assert.deepEqual(bad, [], "the ✕ must never eat part of a line:\n" + bad.join("\n"));
   assert.ok(scrolled >= 3, `at least a few fort dialogs must actually scroll, or this proves nothing (${scrolled})`);
 });
+
+test("QoL: a new tower opens on the aim you LAST chose for that line", async () => {
+  // Every remembered preference in the fort persists — ⏩ speed, sounds, music,
+  // damage numbers, the difficulty chip, the 🎒 pack, the ⭐ loadout, the 🎖️
+  // chips — except the one lever `AUDIT targeting is a LIVE lever` measures at
+  // 4-9 lives on a boss finale, which reset to the line default on every tower
+  // of every level. That is the ⏩ speed defect's exact shape ("a 2× player
+  // retapped on all 40 levels"), multiplied by 10-14 towers.
+  //
+  // Both halves MUST go through real taps: __TD.script(["place", …]) calls the
+  // engine directly and so skips the UI handler that applies this, which is the
+  // documented "a hook that stands in for the main loop does not reproduce its
+  // side effects" trap — here the correct behaviour, since the claim is about
+  // the build BUTTON.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+  const start = async () => {
+    await page.evaluate(() => window.__TD.newGame(5, { seed: 3 }));
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.waitForTimeout(300);
+    // Gold enough for several towers, WITHOUT __TD.grantGold — that marks the
+    // run cheated, and a cheated run is a different code path.
+    await page.evaluate(() => { window.__TD.state().gold = 4000; });
+  };
+  await start();
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const tapPad = async (i) => {
+    const sp = await page.evaluate((n) => {
+      const p = window.TDData.LEVELS.find((l) => l.id === 5).pads[n];
+      return window.__TD.w2s(p.cx + 0.5, p.cy + 0.5);
+    }, i);
+    await page.mouse.click(rect.x + sp.x, rect.y + sp.y);
+    await page.waitForTimeout(220);
+  };
+  const build = async (i, line) => {
+    await tapPad(i);
+    await page.locator('#screen-td-play .td-bubble .td-buy[data-line="' + line + '"]').click();
+    await page.waitForTimeout(220);
+  };
+  const aimOf = (padId) => page.evaluate((pid) => {
+    const t = window.__TD.state().towers.find((x) => x.padId === pid);
+    return t ? t.targeting : null;
+  }, padId);
+  const padIds = await page.evaluate(() =>
+    window.TDData.LEVELS.find((l) => l.id === 5).pads.slice(0, 4).map((p) => p.id));
+
+  // 1. First dart: the line's own default, because nothing is remembered yet.
+  await build(0, "dart");
+  assert.equal(await aimOf(padIds[0]), "first",
+    "fixture: a dart opens on its declared default when nothing has been chosen");
+
+  // 2. Choose a different mode by hand — two taps of 🎯 walks first → last → strong.
+  await tapPad(0);
+  const target = page.locator("#screen-td-play .td-bubble .td-target");
+  await target.click();
+  await page.waitForTimeout(120);
+  await target.click();
+  await page.waitForTimeout(160);
+  assert.equal(await aimOf(padIds[0]), "strong", "fixture: two 🎯 taps reach `strong`");
+  // …and it must reach STORAGE, or it is forgotten between sessions. Read it HERE,
+  // immediately after the choice: `save` is one shared object, so by the end of a
+  // run any other persist() has flushed it and a late read passes with the write
+  // at this site deleted — a clause that cannot fail. Nothing else persists during
+  // a build phase, so this is the one moment that isolates it.
+  const stored = await page.evaluate(() => {
+    try { return JSON.parse(localStorage.getItem("jon-td-save-v1")); } catch (e) { return null; }
+  });
+  assert.equal(stored && stored.settings && stored.settings.aim && stored.settings.aim.dart, "strong",
+    "choosing an aim must be PERSISTED at once, not left in memory for something else to flush");
+  await page.evaluate(() => { location.hash = "#__renav"; });   // dismiss the panel without another field tap
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(120);
+
+  // 3. THE CLAIM: the next dart opens already aimed.
+  await build(1, "dart");
+  assert.equal(await aimOf(padIds[1]), "strong",
+    "a new tower must open on the aim you last chose for that line");
+
+  // 4. CONTROL: the memory is PER LINE. The Mortar declares `strong` itself, so
+  //    a control against it would be indistinguishable — set the dart to `last`
+  //    first, then a mortar must still open on its OWN default.
+  await tapPad(1);
+  await page.locator("#screen-td-play .td-bubble .td-target").click();  // strong → close
+  await page.waitForTimeout(120);
+  await page.locator("#screen-td-play .td-bubble .td-target").click();  // close → first
+  await page.waitForTimeout(120);
+  await page.locator("#screen-td-play .td-bubble .td-target").click();  // first → last
+  await page.waitForTimeout(160);
+  assert.equal(await aimOf(padIds[1]), "last", "fixture: three more 🎯 taps reach `last`");
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(120);
+  await build(2, "mortar");
+  assert.equal(await aimOf(padIds[2]), "strong",
+    "the memory is PER LINE — a mortar must keep its own declared default, not the dart's");
+
+  // 5. It is a PREFERENCE, so it survives starting the level again — the whole
+  //    point (the ⏩ speed lesson: "and on every restart").
+  await start();
+  await build(0, "dart");
+  assert.equal(await aimOf(padIds[0]), "last",
+    "the remembered aim must survive a restart, or it is re-set every level anyway");
+
+  // 6. DEGRADE, NOT DISABLE. `cheap` is unlocked by the 🔻 Weak Spot node, so a
+  //    mode remembered before a respec is one this run is not allowed. It must be
+  //    refused and the line's own default must stand — which holds only because
+  //    the memory is applied through the engine's setTargeting rather than by
+  //    assigning t.targeting, and that is the single reason this clause exists.
+  // Seeded through STORAGE + a reload, which is also the only honest way to make
+  // this state: `cheap` needs the node owned, and reaching it any other way would
+  // be a hand-built fixture. Reload, never goto(url + "#hash") — that is a
+  // same-document navigation and would never re-run module init, so the seed
+  // would be invisible (the documented footgun).
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.settings.aim = { dart: "cheap" };
+    raw.midRun = null;   // a parked run bounces #td-play straight back to the fort home
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  const reseeded = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    return raw.settings && raw.settings.aim && raw.settings.aim.dart;
+  });
+  assert.equal(reseeded, "cheap", "fixture: the seeded aim must survive the reload, or this clause is vacuous");
+  // The reload keeps the hash, so re-setting it to #td-play is a SAME-HASH no-op:
+  // no hashchange, no route(), and the screen stays hidden. Hop first.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible", timeout: 8000 });
+  await start();
+  await build(0, "dart");
+  assert.equal(await aimOf(padIds[0]), "first",
+    "an aim this run has not unlocked must be refused, leaving the line's own default");
+});

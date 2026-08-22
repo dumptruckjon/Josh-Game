@@ -120,6 +120,17 @@
   // disable.
   const sp = Math.round(Number(save.settings.speed));
   save.settings.speed = sp >= 1 && sp <= 3 ? sp : 1;
+  // 🎯 Remembered aim: the LAST targeting mode you chose for a tower LINE becomes
+  // the opening mode for the next tower of that line. Exactly the ⏩ speed fix's
+  // shape — a per-tower control that resets every level is one you re-tap on 10-14
+  // towers across all 40 of them — and it matters more here, because `AUDIT
+  // targeting is a LIVE lever` measures the best mode at 4-9 lives on a boss
+  // finale. It is a PREFERENCE, so it lives inside `settings`: the grown-ups
+  // reset's keepPrefs clones it for free and the two-tab merge treats it
+  // last-writer-wins like every other setting, with no eleventh top-level field.
+  // A junk container would make every lookup throw, so coerce it — a field one
+  // short must degrade, not disable.
+  if (!save.settings.aim || typeof save.settings.aim !== "object") save.settings.aim = {};
   if (!Array.isArray(save.meta)) save.meta = [];   // TD-5 star-tree nodes owned
   // P4: what you OWN and what you BRING are now different things. A run may
   // equip at most RULES.metaSlots of the nodes you own, so allocation is a
@@ -177,7 +188,7 @@
     const s = {
       v: 1,
       stars: { casual: {}, normal: {}, heroic: {} },
-      settings: { sfx: true, music: false, dmgNumbers: false, speed: 1 },
+      settings: { sfx: true, music: false, dmgNumbers: false, speed: 1, aim: {} },
       difficulty: "normal",
       meta: [],
       loadout: [],
@@ -1153,6 +1164,23 @@
     });
   }
 
+  // 🎯 The ONE owner of remembered aim. A freshly placed tower opens on whatever
+  // mode you last chose for THAT line, so a board can be aimed once instead of
+  // tower by tower. Three deliberate limits keep it a pure tap-saver rather than
+  // a new power: it applies only at place() time (a tier-4 branch's own
+  // `defaultTargeting` — the Sniper's `strong` — is a declaration, not a
+  // leftover, so branching is left alone); it goes through the engine's own
+  // setTargeting, so a `cheap` remembered from before a respec is refused
+  // (`locked`) and the line's default simply stands; and every mode it can set
+  // is one the player could set by hand, so no sim moves — the auto-solver never
+  // calls setTargeting at all.
+  function applyAim(lineId, padId) {
+    const want = save.settings.aim && save.settings.aim[lineId];
+    if (!want || !cur || !cur.engine) return;
+    const t = cur.engine.state.towers.find((x) => x.padId === padId);
+    if (t) cur.engine.setTargeting(t.id, want);
+  }
+
   // Plain-English refusals. A power that silently declines reads as broken —
   // and one that charges you for nothing reads worse.
   function abilityWhy(reason, def) {
@@ -1330,7 +1358,7 @@
         btn.addEventListener("click", (e2) => {
           e2.stopPropagation();
           const r = cur.engine.place(btn.dataset.line, pad.id);
-          if (r.ok) { sfx("build"); if (cur.lines) cur.lines[btn.dataset.line] = true; UI.hideBubble(); cur.render.setSelection(null); }
+          if (r.ok) { sfx("build"); if (cur.lines) cur.lines[btn.dataset.line] = true; applyAim(btn.dataset.line, pad.id); UI.hideBubble(); cur.render.setSelection(null); }
           else {
             UI.bubble.classList.add("td-bubble--no");
             setTimeout(() => UI.bubble.classList.remove("td-bubble--no"), 300);
@@ -1492,8 +1520,11 @@
         const modes = cur.engine.targetingModes();
         const nextMode = modes[(modes.indexOf(live.targeting) + 1) % modes.length];
         const r = cur.engine.setTargeting(towerId, nextMode);
-        if (r.ok) e2.target.textContent = "🎯 " + nextMode;
-        else sfx("deny");
+        if (r.ok) {
+          e2.target.textContent = "🎯 " + nextMode;
+          // Remember it for the NEXT tower of this line (see the boot coercion).
+          save.settings.aim[live.lineId] = nextMode; persist(save);
+        } else sfx("deny");
       });
       }
       renderPanel();
