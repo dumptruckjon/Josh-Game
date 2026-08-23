@@ -2685,6 +2685,30 @@ for a run that is on heroic — the same checkpoint-fidelity class already
 recorded for `writeMidRun`'s `meta: activeLoadout()`, and the reason those three
 sibling fields are read off the run.
 
+**THE META ROW SAID NOTHING ABOUT WHAT YOU HAD ARMED.** ⭐ Star Tree has badged
+unspent stars since the QoL pass began, justified because an unspent star is
+literally unused power; the other six buttons were bare, and two of them carry
+state a player acts on. A 🎖️ challenge chip is armed BEFORE a run and changes
+that run's rules, so arming one and forgetting it means entering a level under a
+constraint you cannot see — the run LABEL now names it once you are inside (the
+entry above), and the fort home is where you would actually fix it. And 📅 the
+Daily is one puzzle per calendar day, so "today's is unplayed" is the entire
+reason to open that button, and it clears once today's score is recorded rather
+than nagging. Both go through the ONE `renderMetaCounts` owner, which grew a
+`mark()` helper rather than a second badge path.
+**The interesting half is what is deliberately NOT badged, and why that is
+written into the code**: 🎒 Powers is always slots-of-slots (`activePowers`
+never leaves a pack under-filled), 🏅 Badges are earned rather than spent, and
+♾️ Endless / 📖 Guide carry no per-visit state — so a badge there would be
+decoration, which this project has already deleted twice for being
+unfalsifiable, and the test asserts those four stay BARE so a future author
+cannot quietly complete the set. Two smaller rules held: the date rule that
+decides *which* daily this is keeps its single owner in `dayKey` and is
+INJECTED into the UI (`UI.today`) rather than re-derived, and the chip count
+resolves ids through `DATA.CHIPS` so a retired chip drops out — both
+mutation-proven, the second by a `__retired` id in the fixture that must not be
+counted.
+
 ---
 
 ## Repository Structure

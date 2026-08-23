@@ -8042,3 +8042,87 @@ test("QoL: a run's label says which RULES it is under, and keeps them while park
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(80);
 });
+
+test("QoL: the fort's meta row marks what is ARMED and what is WAITING", async () => {
+  // ⭐ already badged unspent stars. Two of the other six buttons carry state a
+  // player acts on and said nothing: a challenge chip armed BEFORE a run changes
+  // that run's rules (arming one and forgetting is a real confusion), and the
+  // Daily is one puzzle per calendar day, so "today's is unplayed" is the whole
+  // reason to open it. The other four stay bare on purpose.
+  const openHome = async () => {
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+    await page.waitForTimeout(80);
+  };
+  const badges = () => page.evaluate(() => {
+    const out = {};
+    for (const sel of ["tree", "chips", "daily", "powers", "ach", "endless", "guide"]) {
+      const b = document.querySelector("#screen-td-home .td-" + sel + "-open");
+      const n = b && b.querySelector(".td-metabtn__n");
+      out[sel] = n ? { n: n.textContent, aria: b.getAttribute("aria-label") || "" } : null;
+    }
+    return out;
+  });
+
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+  await openHome();
+
+  // 1. A fresh save: nothing to spend, nothing armed, today untouched.
+  let b = await badges();
+  assert.equal(b.tree, null, "a fresh save has no stars to spend, so no ⭐ badge");
+  assert.equal(b.chips, null, "nothing armed, so no 🎖️ badge");
+  assert.ok(b.daily, "today's Daily is unplayed on a fresh save, so it is marked");
+  assert.match(b.daily.aria, /unplayed/i, "…and the accessible name says so (a title is hover-only on a phone)");
+  // Deliberately bare — recorded so nobody completes the set with decoration.
+  for (const k of ["powers", "ach", "endless", "guide"]) {
+    assert.equal(b[k], null, `${k} carries nothing a player can act on, so it must stay bare`);
+  }
+
+  // 2. Arm a chip: the badge appears, counts, and drops a retired id.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.chipsArmed = ["nocamp", "nofan", "__retired"];
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await openHome();
+  b = await badges();
+  assert.ok(b.chips, "an armed challenge must be visible from the fort home");
+  assert.equal(b.chips.n, "2",
+    "the count resolves ids through the data, so a retired chip simply drops out");
+  assert.match(b.chips.aria, /armed/i, "…and the accessible name carries the count");
+
+  // 3. Play today's Daily and the badge goes away rather than nagging.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    const d = new Date();
+    raw.daily = { day: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0"), best: 4, allTime: 4 };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await openHome();
+  b = await badges();
+  assert.equal(b.daily, null, "once today's Daily is recorded the badge clears");
+  assert.ok(b.chips, "…and clearing one badge must not clear another");
+
+  // 4. Stars still work — the owner grew, it did not move.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.stars = { casual: {}, normal: { "1": 3, "2": 3 }, heroic: {} };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await openHome();
+  b = await badges();
+  assert.equal(b.tree && b.tree.n, "6", "six unspent stars, still badged on ⭐");
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

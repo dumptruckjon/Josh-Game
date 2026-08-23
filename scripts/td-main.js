@@ -1614,6 +1614,11 @@
   // The guide reads the packed set through the ONE owner (the same list the
   // engine is handed), so a 🎒 in the guide always means "this is on the strip".
   UI._packedPowers = () => activePowers();
+  // The local-midnight rule that decides "which daily is this" has ONE owner
+  // (dayKey), and the fort home's 📅 badge needs to ask it. Inject the reader
+  // rather than re-deriving the date in the UI — a second copy of that rule is
+  // how two owners of one string always start.
+  UI.today = dayKey;
   UI.buildScreens({
     exitFort: () => { location.hash = ""; },
     quitToFort: () => { promptDiscard(() => { location.hash = "#td-home"; }, LEAVE_COPY); },
@@ -1724,7 +1729,10 @@
     // last-writer-wins across two tabs, never unioned — unioning would resurrect
     // a power you deliberately left behind.
     openPowers: () => UI.showPowers(save, (picked) => { save.powers = picked; persist(save); }),
-    openChips: () => UI.showChips(save, (armed) => { save.chipsArmed = armed; persist(save); }),
+    openChips: () => UI.showChips(save, (armed) => {
+      save.chipsArmed = armed; persist(save);
+      UI.renderMetaCounts(save);   // the 🎖️ badge is what says a constraint is armed at all
+    }),
     openAchievements: () => UI.showAchievements(save),
     openEndless: () => UI.showEndless(save, (world) => startEndless(world)),
     openDaily: () => UI.showDaily(dailyPick(dayKey()), save, () => startDaily()),

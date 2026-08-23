@@ -455,21 +455,52 @@
   // showStarTree, because the tree's Done button only closes the overlay: with
   // no refresh there, spending six stars would leave the button still saying six,
   // which is the worst moment for it to be wrong.
+  // Today's date, injected ONCE by td-main so the local-midnight rule that
+  // decides "which daily is this" keeps a single owner instead of being
+  // re-derived here. Absent (a bare UI test) → no daily badge, never a crash.
+  UI.today = null;
+  // The ONE owner of the meta row's badges. It marks only what a player can ACT
+  // on: stars waiting to be spent, challenge chips armed for the next run, and a
+  // daily that today has not touched. The other four buttons are deliberately
+  // bare, and the reasons are recorded so nobody "completes the set": 🎒 Powers
+  // is always slots-of-slots (activePowers never leaves a pack under-filled), 🏅
+  // Badges are earned rather than spent, and ♾️ Endless / 📖 Guide carry no
+  // per-visit state. A badge on those would be decoration, which this project
+  // has deleted twice for being unfalsifiable.
   UI.renderMetaCounts = function (save) {
-    const btn = doc.querySelector("#screen-td-home .td-tree-open");
-    if (!btn) return null;
-    const old = btn.querySelector(".td-metabtn__n");
-    if (old) old.remove();
+    const home = doc.querySelector("#screen-td-home");
+    if (!home) return null;
+    let first = null;
+    const mark = (sel, count, label) => {
+      const btn = home.querySelector(sel);
+      if (!btn) return;
+      const old = btn.querySelector(".td-metabtn__n");
+      if (old) old.remove();
+      btn.removeAttribute("aria-label");
+      if (!count) return;                 // nothing to act on: no badge, no noise
+      const n = doc.createElement("span");
+      n.className = "td-metabtn__n";
+      n.textContent = String(count);
+      // The button's own text already says what it is; this is the count, so the
+      // accessible name has to carry it too (a title is hover-only on a phone).
+      btn.setAttribute("aria-label", label);
+      btn.appendChild(n);
+      if (!first) first = n;
+    };
     const avail = starTotals(save).avail;
-    if (avail <= 0) return null;          // nothing to act on: no badge, no noise
-    const n = doc.createElement("span");
-    n.className = "td-metabtn__n";
-    n.textContent = String(avail);
-    // The button's own label already says what it is; this is the count, so the
-    // accessible name has to carry it too (a title is hover-only on a phone).
-    btn.setAttribute("aria-label", "Star Tree — " + avail + " star" + (avail === 1 ? "" : "s") + " to spend");
-    btn.appendChild(n);
-    return n;
+    mark(".td-tree-open", avail, "Star Tree — " + avail + " star" + (avail === 1 ? "" : "s") + " to spend");
+    // Resolved through the data, so a retired chip id simply drops out — the
+    // same treatment the level cards' won-chip stamps already use.
+    const armed = (save.chipsArmed || [])
+      .filter((id) => (global.TDData.CHIPS || []).some((c) => c.id === id)).length;
+    mark(".td-chips-open", armed,
+      "Challenges — " + armed + " armed for your next run");
+    // One puzzle per calendar day: an unplayed one is the whole reason to open
+    // this, and once today's is recorded the badge goes away rather than nagging.
+    const today = UI.today ? UI.today() : "";
+    const fresh = today && (save.daily || {}).day !== today ? 1 : 0;
+    mark(".td-daily-open", fresh, "Daily Toybox — today's is unplayed");
+    return first;
   };
 
   // ---- TD-5 META: star accounting, resume banner, star tree, badges, endless ----
