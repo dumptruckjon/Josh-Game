@@ -8585,7 +8585,25 @@ test("QoL: a badge earned at a WIN is announced inside the victory box, not behi
     const lines = [...box.querySelectorAll(".td-earned__line")].map((p) => p.textContent.trim());
     const boxRect = box.getBoundingClientRect();
     const toasts = [...document.querySelectorAll(".td-toast")].map((t) => t.textContent.trim());
-    return { lines, toasts, ach: window.__TD.ach(),
+    // measure the real ink gap between the bold lead-in and the name after it
+    let gap = -1;
+    const line = box.querySelector(".td-earned__line");
+    if (line) {
+      const b = line.querySelector("b");
+      const txt = line.querySelector(".td-earned__txt") || line;
+      const after = [...txt.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+      if (b && after) {
+        // Start the range AFTER the leading whitespace — selecting the whole
+        // node includes the space, so its left edge is flush with </b> whether
+        // or not the space actually renders, and the metric reads 0 either way.
+        const first = after.textContent.search(/\S/);
+        const rng = document.createRange();
+        rng.setStart(after, first); rng.setEnd(after, after.textContent.length);
+        const rb = b.getBoundingClientRect(), ra = rng.getBoundingClientRect();
+        gap = Math.round(ra.left - rb.right);
+      }
+    }
+    return { lines, toasts, gap, ach: window.__TD.ach(),
       // everything the box says must actually be ON the box, not clipped away
       inside: lines.length === 0 || [...box.querySelectorAll(".td-earned__line")].every((p) => {
         const q = p.getBoundingClientRect();
@@ -8600,6 +8618,14 @@ test("QoL: a badge earned at a WIN is announced inside the victory box, not behi
   assert.ok(r.lines.join(" ").indexOf("Doorman") >= 0,
     `…by name (saw ${JSON.stringify(r.lines)})`);
   assert.ok(r.inside, "…and the line must be laid out inside the box, not clipped");
+  // The space between "Badge earned!" and the name must actually RENDER. This
+  // line is a flex container, which turns each child into an item and trims the
+  // whitespace at their boundaries — so a bare text node beside the <b> lost its
+  // leading space while textContent still reported one. A text assertion cannot
+  // see that; only the geometry can.
+  assert.ok(r.gap >= 2,
+    `"Badge earned!" and the badge's name must be separated when RENDERED — a flex ` +
+    `container trims the space between its items (measured ${r.gap}px)`);
   // …and NOT as a toast, which is painted under the scrim.
   assert.ok(!r.toasts.some((t) => t.indexOf("Doorman") >= 0),
     `a win-time badge must not also be a toast behind the scrim (toasts: ${JSON.stringify(r.toasts)})`);
@@ -8658,4 +8684,25 @@ test("QoL: a badge earned at a WIN is announced inside the victory box, not behi
     `fixture: a mid-run badge must actually be earned (got ${JSON.stringify(mid.ach)})`);
   assert.ok(mid.grew,
     "a badge earned mid-run must still toast — the outcome box is not on screen to hold it");
+
+  // …and that toast must be taken away when a dialog opens over it. The toast
+  // paints UNDER the scrim by design, so leaving it there turns something the
+  // player has already seen into a dimmed ghost at the bottom of the picture.
+  // __TD.newGame leaves the run PAUSED, so a first ⏸ tap would RESUME rather
+  // than open the menu (documented). Route to unpause first — route() does not
+  // touch toasts, so the one just earned is still there, which is asserted.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(150);
+  const alive = await page.evaluate(() => document.querySelectorAll(".td-toast").length);
+  assert.ok(alive > 0, "fixture: the toast must survive to the dialog, or this clause is vacuous");
+  await page.locator("#screen-td-play .td-pause").click();
+  await page.locator(".td-overlay--pause").waitFor({ state: "visible", timeout: 5000 });
+  await page.waitForTimeout(120);
+  const ghosts = await page.evaluate(() => document.querySelectorAll(".td-toast").length);
+  assert.equal(ghosts, 0,
+    `a toast alive when a dialog opens must be cleared, not left dimmed under the scrim (${ghosts} left)`);
+  await page.evaluate(() => { document.querySelector('.td-overlay [data-act="resume"]').click(); });
+  await page.waitForTimeout(100);
 });

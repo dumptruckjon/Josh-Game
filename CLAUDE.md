@@ -2872,6 +2872,28 @@ with the gate, and both drive Chromium while the suite already runs its files in
 parallel. Do not run a probe while the gate is up; it is the frame-budget
 contention lesson one level higher, and here it cost an hour and a half.
 
+**AND SCREENSHOTTING THE FIX FOUND TWO MORE — one of which NO TEXT ASSERTION
+COULD EVER SEE.** The new badge line rendered as **"Badge earned!Doorman"**,
+with no space — while `textContent` reported `"🚪Badge earned! Doorman"`, space
+and all. The cause is that the line is a **flex container**, which turns each
+child into an ITEM and trims the whitespace at their boundaries, so a bare text
+node beside the `<b>` loses its leading space in LAYOUT while remaining in the
+DOM. Wrapping the message in its own span makes it one item and the space
+survives. Two things generalise: **a flex container silently eats the space
+between an inline element and an adjacent text node**, and the only way to catch
+it is the PICTURE or the geometry — every text-based assertion passes. The
+metric took two attempts, too: a Range over the whole text node INCLUDES the
+leading space, so its left edge is flush with `</b>` whether or not the space
+renders and the gap reads 0 either way; it has to start after the whitespace.
+Second, **a toast still alive when a dialog opens becomes a dimmed ghost**,
+because the toast paints under the scrim by design — so `overlay()` now clears
+them. Its mutation initially passed, since the existing clauses only checked
+that a WIN-time badge was not a toast; the clause that covers it earns a toast
+mid-run and then opens the pause menu. That clause hit the documented
+`newGame`-leaves-the-run-PAUSED trap (the first ⏸ tap resumes instead of
+opening), and it asserts the toast is still alive before opening the dialog, so
+it cannot pass by having nothing to clear.
+
 ---
 
 ## Repository Structure

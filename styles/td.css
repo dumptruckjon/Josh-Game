@@ -796,6 +796,7 @@ body.td-mode #screens { padding: 0; }
 .td-earned { display: grid; grid-auto-flow: row; gap: 2px; }  /* grid gap survives iOS 14.0 */
 .td-earned__line { display: flex; align-items: center; justify-content: center; }
 .td-earned__icon { font-size: 1.25rem; margin-right: 8px; }
+.td-earned__txt { min-width: 0; }   /* ONE flex item, so its internal spaces survive */
 
 /* achievement toast */
 .td-toast {

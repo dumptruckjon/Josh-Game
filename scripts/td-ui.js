@@ -1084,6 +1084,13 @@
   // ONE toast implementation. It mounts on the screen that is actually VISIBLE —
   // a fort-home toast (e.g. the grown-ups reset) would be invisible if it always
   // went to the hidden play screen.
+  // An outcome (or any) overlay drops the scrim over the whole screen, and the
+  // toast paints UNDER it by design — so a toast still alive when a dialog opens
+  // becomes a dimmed ghost at the bottom of the picture. It has already had its
+  // moment; take it away rather than leaving it to be half-read.
+  UI.clearToasts = function () {
+    for (const t of doc.querySelectorAll(".td-toast")) t.remove();
+  };
   UI.notice = function (icon, html) {
     const host = hostScreen();
     if (!host) return null;
@@ -1458,6 +1465,7 @@
   function overlay(cls, html) {
     let el = doc.querySelector(".td-overlay");
     if (el) el.remove();
+    UI.clearToasts();   // a toast under the scrim is a dimmed ghost — see clearToasts
     el = doc.createElement("div");
     el.className = "td-overlay " + cls;
     el.innerHTML = '<div class="td-overlay__box">' + html + "</div>";
@@ -1543,9 +1551,15 @@
   // Reuses .td-sum__line, a pairing the fort's contrast audit already walks.
   function earnedHtml(earned) {
     if (!earned || !earned.length) return "";
+    // The message is wrapped in its OWN span rather than left as a bare text
+    // node: this line is a flex container, and a flex container turns each child
+    // into an item and TRIMS the whitespace at their boundaries — so
+    // "<b>Badge earned!</b> Doorman" rendered as "Badge earned!Doorman" while
+    // textContent still reported the space. Only looking at the picture (or
+    // measuring the gap) catches that; a text assertion cannot.
     return '<div class="td-earned">' + earned.map((e) =>
       '<p class="td-sum__line td-earned__line"><span class="td-earned__icon">' + e.icon + "</span>" +
-      e.html.replace(/<br>/g, " ") + "</p>").join("") + "</div>";
+      '<span class="td-earned__txt">' + e.html.replace(/<br>/g, " ") + "</span></p>").join("") + "</div>";
   }
 
   UI.showVictory = function (stars, lives, maxLives, goal, hooks, rs, earned) {
