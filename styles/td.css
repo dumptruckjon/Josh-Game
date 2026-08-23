@@ -383,6 +383,17 @@ body.td-mode #screens { padding: 0; }
   max-width: calc(100% - 16px); white-space: normal; text-align: center;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
+/* Derived anchors — the pill dodges the lanes rather than always sitting
+   top-centre, which measured as covering the incoming bodies on 10 of 40 maps
+   once it started staying up through a wave. */
+/* On the narrowest phone the pill is ~47% of the canvas, so left/right barely
+   differ from centre and it can hardly dodge at all (measured: 12 of 40 maps
+   still covered). A smaller pill has real room to move. */
+@media (max-width: 359px) {
+  .td-nextwave { font-size: 0.76rem; padding: 3px 8px; }
+}
+.td-nextwave--left { left: 8px; transform: none; }
+.td-nextwave--right { left: auto; right: 8px; transform: none; }
 .td-nextwave[hidden] { display: none; }
 
 /* TD-9 ability strip — the in-WAVE controls, floating up the left of the field.

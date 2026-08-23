@@ -2760,6 +2760,34 @@ from the calendar, so re-deriving them is correct. When a derivation would need
 a heuristic, prefer a named scope with a derived PROPERTY over a clever scan
 that is wrong on its first run.
 
+**SHIPPING TWELVE UI CHANGES WITHOUT LOOKING AT A PIXEL, THEN LOOKING — and the
+screenshot found a regression I had introduced an hour earlier.** Keeping the
+next-wave pill up through a wave (so ⏩ RUSH can be read) also keeps it OVER the
+field, and measured across all 40 maps the fixed top-CENTRE anchor lands on a
+lane's first cells on **10 of them**. That was harmless while it only showed
+during BUILD — an empty road — and is a real cost with bodies walking underneath
+it: a control that cannot steal a tap can still hide the thing you are deciding
+about. The pill now picks whichever of left / centre / right keeps the most
+distance from every lane point in its own horizontal band, which takes 390px
+from **10 → 1** (L7's lane spans the whole band at that height, so it keeps the
+centre and is never WORSE than what it replaced).
+**"A viewport list IS the test", again, and this time it halved the result.** The
+same derived anchor clears only 28 of 40 at **320px**, because there the pill is
+~47% of the canvas width and left/right barely differ from centre — there is
+nowhere to dodge TO. A narrow-width font shrink gives it room and takes 320 to
+7 of 40; landscape reads 1 and an iPad 0. All four numbers are pinned rather
+than fenced, at the values actually measured.
+**And the probe disagreeing with its own prediction found a real staleness
+bug.** The recompute was keyed on the pill's TEXT, so two levels whose wave-1
+preview reads identically leave the previous level's corner in place — and there
+are **7 such pairs among the 40**. It keys on level + canvas width + text now,
+which also covers a rotation, since that moves every lane without changing a
+character. The test isolates it with L39 and L40: byte-identical previews,
+opposite clear corners, so a text-only key visibly leaves L40 wearing L39's
+anchor. That clause had to be moved to the FRONT of the test — the population
+walk is affected by staleness too, so it fired first and the pair clause was
+still unproven, the earlier-clause trap for the fourth time in this stretch.
+
 ---
 
 ## Repository Structure

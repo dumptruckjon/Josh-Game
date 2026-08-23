@@ -1237,8 +1237,26 @@
         // fine here and spills off a real 320px phone (the tower-panel lesson).
         // The field marker says WHERE; this says a flank is coming at all.
         const flank = groups.filter((g) => g.at > 0).reduce((n, g) => n + g.count, 0);
-        nw.textContent = (scouting ? "Next 2: " : "Next: ") + parts.join("  ") + (flank ? "   🚪" + flank : "");
+        const txt = (scouting ? "Next 2: " : "Next: ") + parts.join("  ") + (flank ? "   🚪" + flank : "");
+        // Re-anchor on the TEXT, the LEVEL and the canvas WIDTH together. Keying
+        // on the text alone was a real staleness bug, found by a probe
+        // disagreeing with its own prediction: two levels whose wave-1 preview
+        // reads the same leave the previous level's corner in place, and a
+        // rotation moves every lane without changing a character.
+        const key = state.levelId + ":" + (UI.canvas ? UI.canvas.clientWidth : 0) + ":" + txt;
+        const fresh = nw.dataset.anchorKey !== key || nw.hidden;
+        nw.dataset.anchorKey = key;
+        nw.textContent = txt;
         nw.hidden = false;
+        // Pick the corner that sits CLEAREST of the lanes. Measured across all 40
+        // maps, the fixed centre anchor lands on a lane's first cells on 10 of
+        // them — harmless while this only showed during BUILD (an empty road) and
+        // a real cost now that it stays up through a wave, with bodies walking
+        // underneath it. Best-of-three clears 39; L7's lane spans the whole band
+        // at this height, so it keeps the centre and is no worse than before.
+        // Recomputed only when the TEXT changes (a wave boundary), never per
+        // frame — it costs one layout read.
+        if (fresh) UI.anchorPreview(nw);
       } else nw.hidden = true;
     }
     UI.abilities(state);
@@ -1250,6 +1268,32 @@
   // actually do (the "dead feature" lesson: the control must reflect the engine).
   // A one-line hint over the field: what an armed ability is waiting for, or why
   // the last tap was refused. Without this a refusal was a silent blip.
+  // Choose the pill's horizontal anchor: whichever of left / centre / right keeps
+  // the most distance from every lane point in the pill's own horizontal band.
+  // Ties and hopeless maps fall back to the centre, so this can never be WORSE
+  // than the fixed anchor it replaces.
+  UI.anchorPreview = function (nw) {
+    nw.classList.remove("td-nextwave--left", "td-nextwave--right");
+    const pts = UI._lanePts ? UI._lanePts() : [];
+    const cv = UI.canvas;
+    if (!pts.length || !cv || !cv.clientWidth) return "center";
+    const w = nw.offsetWidth, cw = cv.clientWidth;
+    if (!w || w >= cw - 16) return "center";
+    const top = nw.offsetTop, bot = top + nw.offsetHeight;
+    const band = pts.filter((q) => q.y >= top - 14 && q.y <= bot + 14);
+    if (!band.length) return "center";
+    const spans = { left: [8, 8 + w], center: [(cw - w) / 2, (cw + w) / 2], right: [cw - w - 8, cw - 8] };
+    let best = "center", bestGap = -1;
+    for (const k of ["center", "left", "right"]) {
+      const [a, b] = spans[k];
+      let gap = Infinity;
+      for (const q of band) gap = Math.min(gap, Math.max(a - q.x, 0, q.x - b));
+      if (gap > bestGap) { bestGap = gap; best = k; }
+    }
+    if (best !== "center") nw.classList.add("td-nextwave--" + best);
+    return best;
+  };
+
   UI.abilityHint = function (text) {
     let el = doc.querySelector("#screen-td-play .td-abilhint");
     if (!el) {

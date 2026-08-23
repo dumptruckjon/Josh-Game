@@ -835,6 +835,24 @@
     // The HUD reads the CALL/RUSH offer straight off the engine, so the button
     // can never promise gold the engine would refuse (the dead-control lesson).
     UI._callInfo = () => (cur ? cur.engine.callInfo() : null);
+    // Where the LANES are, in canvas coordinates. The next-wave pill floats over
+    // the field, and once it started staying up during a WAVE it began covering
+    // the bodies walking in on 10 of the 40 maps — a control that cannot steal a
+    // tap can still hide the thing you are deciding about. The pill picks its own
+    // corner from this; only td-main has both the level's lanes and the render's
+    // one world↔screen mapping, and only the UI knows how wide the pill is, so
+    // the geometry is injected and the choice is made where the width lives.
+    UI._lanePts = () => {
+      if (!cur) return [];
+      const out = [];
+      for (const path of (cur.levelDef.paths || [cur.levelDef.path] || [])) {
+        for (const pt of path || []) {
+          const s = cur.render.worldToScreen(pt[0] + 0.5, pt[1] + 0.5);
+          out.push({ x: s.x, y: s.y });
+        }
+      }
+      return out;
+    };
     syncRun();   // starts the march and holds the screen awake, under one predicate each
     UI.closeOverlay();
     UI.hideBubble();

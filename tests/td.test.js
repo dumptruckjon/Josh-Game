@@ -8275,3 +8275,77 @@ test("QoL: continuing a run keeps THAT run's rules — Retry must not change the
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: the next-wave pill dodges the lanes instead of sitting on the incoming bodies", async () => {
+  // Keeping the preview up through a wave (so ⏩ RUSH can be read) put it over
+  // the road: measured across all 40 maps at 390px, the fixed top-CENTRE anchor
+  // lands on a lane's first cells on 10 of them. Harmless while it only showed
+  // during BUILD — an empty road — and a real cost with bodies walking under it.
+  // It now picks whichever of left / centre / right keeps the most distance from
+  // every lane point in its own horizontal band.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  // The anchor must re-key on the LEVEL, not only on the text. L39 and L40 have
+  // byte-identical wave-1 previews and want OPPOSITE corners, so a text-only key
+  // leaves L40 wearing L39's anchor — a real staleness bug, found by a probe
+  // disagreeing with its own prediction.
+  const anchorOf = (id) => page.evaluate((lv) => {
+    window.__TD.newGame(lv, { seed: 3 });
+    const nw = document.querySelector("#screen-td-play .td-nextwave");
+    return { cls: [...nw.classList].filter((c) => c.startsWith("td-nextwave--")).join(",") || "center",
+      text: nw.textContent };
+  }, id);
+  const a = await anchorOf(39);
+  const b = await anchorOf(40);
+  assert.equal(a.text, b.text,
+    "fixture: these two levels must share a preview text, or this proves nothing about the key");
+  assert.notEqual(a.cls, b.cls,
+    `the anchor must be re-derived when the LEVEL changes, not only when the text does (both ${a.cls})`);
+
+  const measure = async () => page.evaluate(() => {
+    const ids = window.TDData.LEVELS.map((l) => l.id);
+    const out = [];
+    for (const id of ids) {
+      window.__TD.newGame(id, { seed: 3 });
+      const nw = document.querySelector("#screen-td-play .td-nextwave");
+      const cv = document.querySelector("#screen-td-play .td-canvas");
+      if (!nw || nw.hidden) continue;
+      const p = nw.getBoundingClientRect(), c = cv.getBoundingClientRect();
+      const L = window.TDData.LEVELS.find((l) => l.id === id);
+      let covered = 0, pts = 0;
+      for (const path of (L.paths || [L.path])) {
+        for (let i = 0; i < Math.min(6, path.length); i++) {
+          const s = window.__TD.w2s(path[i][0] + 0.5, path[i][1] + 0.5);
+          const x = c.left + s.x, y = c.top + s.y;
+          pts++;
+          if (x >= p.left && x <= p.right && y >= p.top && y <= p.bottom) covered++;
+        }
+      }
+      out.push({ id, covered, pts });
+    }
+    return out;
+  });
+
+  // 390: the size this is played at. The residual is L7, whose lane spans the
+  // whole band at this height so no anchor clears it — it keeps the centre and
+  // is therefore never WORSE than the fixed anchor this replaced.
+  let rows = await measure();
+  assert.ok(rows.length >= 40, `fixture: every level must show a wave-1 preview (saw ${rows.length})`);
+  let hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
+  assert.ok(hit.length <= 1,
+    `at 390px the pill must dodge the lanes on all but the one map that cannot (covered on L${hit.join(", L")})`);
+
+  // 320: the pill is ~47% of the canvas here, so there is far less room to move
+  // — measured 12 of 40 before the narrow-width shrink and 7 after. Pinned at
+  // the measured value so a wider pill, or a new map, cannot quietly regress it.
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.waitForTimeout(150);
+  rows = await measure();
+  hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
+  assert.ok(hit.length <= 7,
+    `at 320px the pill covers a lane on ${hit.length} maps, over the measured budget of 7 (L${hit.join(", L")})`);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(150);
+
+});
