@@ -8194,3 +8194,84 @@ test("QoL: the next-wave preview stays up while ⏩ RUSH is on offer", async () 
   assert.notEqual(r.text, buildText,
     "fixture: it must have moved on from the wave that is already out, or this proves nothing");
 });
+
+test("QoL: continuing a run keeps THAT run's rules — Retry must not change the difficulty", async () => {
+  // REPRODUCED before it was fixed: park a heroic run, switch the fort-home chip
+  // to Easy, resume (the checkpoint correctly restores heroic), lose — and the
+  // shipped Retry handed back a CASUAL run, so a win there wrote a casual star
+  // for what the screen had just called Hard. `startLevel` resolves
+  // `opts.difficulty || save.difficulty`, and retry passed only a seed. Three
+  // siblings had two policies (restart and ▶ Next carried it, retry did not) and
+  // none of them carried the CHIPS, so a resumed challenge run silently stopped
+  // being a challenge on every one of those paths.
+  const openHome = async () => {
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+    await page.waitForTimeout(80);
+  };
+  const seed = async (difficulty, chips) => {
+    await page.evaluate((v) => {
+      const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+      raw.difficulty = v.difficulty; raw.chipsArmed = v.chips;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    }, { difficulty, chips });
+    await page.reload();
+    await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+    await openHome();
+  };
+  const rules = () => page.evaluate(() => {
+    const s = window.__TD.state();
+    return s ? { difficulty: s.difficulty, chips: (s.chips || []).slice() } : null;
+  });
+
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+  await seed("heroic", ["nocamp"]);
+
+  await page.locator("#screen-td-home .td-level").first().click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(250);
+  assert.deepEqual(await rules(), { difficulty: "heroic", chips: ["nocamp"] },
+    "fixture: the run really starts on Hard, with the chip armed");
+
+  // Park it, then change BOTH on the fort home while it sits there.
+  await page.locator("#screen-td-play .td-pause").click();
+  await page.locator('.td-overlay [data-act="quit"]').click();
+  await page.locator(".td-overlay--confirm").waitFor({ state: "visible", timeout: 5000 });
+  await page.locator('.td-overlay--confirm [data-act="yes"]').click();
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(150);
+  await seed("casual", []);
+
+  await page.locator("#screen-td-home .td-resume__go").click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(250);
+  assert.deepEqual(await rules(), { difficulty: "heroic", chips: ["nocamp"] },
+    "fixture: the checkpoint restores the RUN's rules, not the home's — this is what makes them disagree");
+
+  // Lose it, then Retry.
+  await page.evaluate(() => window.__TD.script([["call"], ["untilPhase", "lost", 400000]]));
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 8000 });
+  await page.evaluate(() => { document.querySelector('.td-overlay [data-act="retry"]').click(); });
+  await page.waitForTimeout(400);
+  const after = await rules();
+  assert.equal(after.difficulty, "heroic",
+    `Retry must replay the run you LOST, not the ladder the fort home is set to (got ${after.difficulty})`);
+  assert.deepEqual(after.chips, ["nocamp"],
+    "…and a challenge run must still be a challenge when you retry it");
+
+  // The other shuffle button is the same decision with a different seed.
+  await page.evaluate(() => window.__TD.script([["call"], ["untilPhase", "lost", 400000]]));
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 8000 });
+  await page.evaluate(() => { document.querySelector('.td-overlay [data-act="retrynew"]').click(); });
+  await page.waitForTimeout(400);
+  const shuffled = await rules();
+  assert.equal(shuffled.difficulty, "heroic", "the new-shuffle retry keeps the run's ladder too");
+  assert.deepEqual(shuffled.chips, ["nocamp"], "…and its challenge");
+
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

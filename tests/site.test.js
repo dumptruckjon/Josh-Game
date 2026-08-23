@@ -2767,3 +2767,33 @@ test("guardrail: a difficulty's player-facing NAME has exactly one owner", () =>
   assert.ok(!/DIFFICULTIES\s*\|\|\s*\{\}\)\[[^\]]+\]\.label/.test(ui.replace(/UI\.difficultyLabel[\s\S]{0,300}/, "")),
     "nothing else reads a difficulty's label directly");
 });
+
+test("guardrail: every 'continue this run' start goes through the one rules owner", () => {
+  const tdm = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((tdm.match(/function continueOpts\(/g) || []).length, 1,
+    "the run's carried rules have exactly ONE owner");
+
+  // Retry, retry-with-a-new-shuffle, restart and ▶ Next all CONTINUE a run, and
+  // `startLevel` resolves `opts.difficulty || save.difficulty` — so a start that
+  // forgets to say which run it is continuing silently inherits whatever the
+  // fort home is set to now. That shipped: losing a heroic run and tapping Retry
+  // handed back a casual one.
+  //   The two regions ARE named, because "which code can see a live run" is not
+  // something a text scan can derive honestly — but the property inside them is
+  // a COUNT, so a fifth outcome button is caught without editing this test, and
+  // each region is asserted to exist so a rename cannot make it vacuous. Note
+  // `startDaily` is deliberately not counted: a daily's rules come from the
+  // calendar, so re-deriving them is correct.
+  for (const fn of ["phaseWatch", "showPauseMenu"]) {
+    const at = tdm.indexOf("function " + fn + "(");
+    assert.ok(at > 0, `the ${fn} region must be findable`);
+    const end = tdm.indexOf("\n  function ", at + 10);
+    const body = tdm.slice(at, end > 0 ? end : undefined);
+    const starts = (body.match(/start(?:Level|Endless)\(/g) || []).length;
+    const carried = (body.match(/continueOpts\(/g) || []).length;
+    assert.ok(starts > 0, `${fn} must actually start levels, or this clause is vacuous (${starts})`);
+    assert.equal(carried, starts,
+      `${fn} starts ${starts} run(s) but carries the run's rules ${carried} time(s) — a continue that ` +
+      "forgets inherits the fort home's difficulty and chips instead of the ones you were playing");
+  }
+});

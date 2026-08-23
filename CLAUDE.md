@@ -2729,6 +2729,37 @@ describes the wave already WALKING, which looks completely plausible on screen
 and is exactly backwards — `waveIdx` is what has been CLEARED and `sentIdx` what
 has been SENT, and only the second is what a RUSH tap would add.
 
+**LOSING A HARD RUN AND TAPPING RETRY COULD HAND YOU AN EASY ONE — reproduced,
+then fixed.** `startLevel` resolves `opts.difficulty || save.difficulty`, and the
+defeat screen's Retry passed only a seed, so it silently inherited whatever the
+fort home was set to *now*. The path is one a player walks: park a heroic run,
+switch the chip to 😌 Easy, resume (the checkpoint correctly restores heroic),
+lose — and the probe printed `AFTER RETRY difficulty: casual`. A win there writes
+a CASUAL star for what the screen had just called Hard. Three siblings with two
+policies, again: `restart` and ▶ Next carried `st.difficulty` (and restart's own
+comment explains why it must), Retry carried nothing — and **none of the four
+carried the CHIPS**, so a resumed challenge run stopped being a challenge on
+every one of those paths. Fixed with ONE `continueOpts(st)`, and the line drawn
+deliberately: difficulty and chips are carried because they cannot be changed
+from the play screen and they decide how a win is SCORED, while `meta`/`powers`
+are a fort-home loadout that every start re-reads including the first, so
+carrying them would lock a resumed run's pack in with no way to change it. The
+endless retry was included for the same reason its scoreboard demands it —
+`endlessBest` is not keyed by difficulty, so a silent switch mid-session puts two
+different games on one board.
+**The structural half is the interesting one, because the honest derivation was
+not available.** "Which code can see a live run" cannot be read off the text —
+my first attempt split the file on handler names and immediately false-positived
+on a confirm dialog's `onNo`, which had merely swallowed a following chunk. So
+the two regions are NAMED (`phaseWatch`, `showPauseMenu`), each asserted to
+exist so a rename cannot make the check vacuous, and the property inside them is
+a COUNT: the number of `startLevel`/`startEndless` calls must equal the number
+of `continueOpts` references, which catches a fifth outcome button without
+editing the test. `startDaily` is deliberately uncounted — a daily's rules come
+from the calendar, so re-deriving them is correct. When a derivation would need
+a heuristic, prefer a named scope with a derived PROPERTY over a clever scan
+that is wrong on its first run.
+
 ---
 
 ## Repository Structure

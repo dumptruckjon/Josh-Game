@@ -491,9 +491,9 @@
       restart: () => {
         // Carry the RUN's difficulty. Dropping it silently converted a Kid Fort
         // run into an adult one (RULE 5 controls gone, defeat reachable).
-        const d = cur.engine.state.difficulty;
-        const id = cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId;
-        const opts = cur.engine.state.endless ? { levelDef: cur.levelDef, difficulty: d } : { difficulty: d };
+        const st0 = cur.engine.state;
+        const id = cur.levelDef ? cur.levelDef.id : st0.levelId;
+        const opts = Object.assign(continueOpts(st0), st0.endless ? { levelDef: cur.levelDef } : {});
         UI.closeOverlay();
         // Same gate as leaving: this discards a live board with no undo.
         promptDiscard(() => startLevel(id, opts), RESTART_COPY);
@@ -616,7 +616,7 @@
         // it escaped kid mode into an adult run and promised a lock it never opened.
         nextLevel: nextExists && !st.cheated ? nextId : null,
         onNext: nextExists && !st.cheated
-          ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, { difficulty: st.difficulty }); }
+          ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, continueOpts(st)); }
           : null,
       }, runSummary(pb));
     } else if (st.phase === "lost") {
@@ -641,13 +641,13 @@
         if (!st.cheated && score > best) { save.endlessBest[world] = score; persist(save); }
         if (!st.cheated && score >= 20) earnAch("marathoner");
         UI.showDefeat({
-          retry: () => { UI.closeOverlay(); startEndless(world); },
+          retry: () => { UI.closeOverlay(); startEndless(world, continueOpts(st)); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
         }, { score, best: Math.max(best, score) });
       } else {
         UI.showDefeat({
-          retry: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: st.seed }); },
-          retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, { seed: (Date.now() % 100000) }); },
+          retry: () => { UI.closeOverlay(); startLevel(st.levelId, Object.assign(continueOpts(st), { seed: st.seed })); },
+          retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, Object.assign(continueOpts(st), { seed: (Date.now() % 100000) })); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
           guide: (type) => { UI.closeOverlay(); UI.showGuide(type); },
         }, null, postMortem(), runSummary(false));
@@ -787,6 +787,21 @@
   // Prices paint from the LIVE engine gold, not a cached figure — one owner,
   // read at the moment a dialog is built.
   if (UI.setGoldSource) UI.setGoldSource(() => (cur && cur.engine) ? cur.engine.state.gold : 0);
+  // CONTINUING a run — retry, retry-with-a-new-shuffle, restart, or ▶ Next — must
+  // carry that RUN's rules, not whatever the fort home happens to be set to now.
+  // The two can genuinely disagree: park a heroic run, switch the chip to Easy,
+  // resume (the checkpoint restores heroic), lose — and the shipped retry
+  // handed you a CASUAL run, so a win there wrote a casual star for what the
+  // screen had called Hard. Reproduced before it was fixed. Three siblings had
+  // two policies (restart and ▶ Next carried the difficulty, retry carried
+  // nothing) and none of the four carried the CHIPS, so a resumed challenge run
+  // silently stopped being a challenge on every one of those paths.
+  //   Deliberately NOT meta/powers: those are a fort-home loadout that every
+  // start re-reads, including the very first one, whereas the difficulty and the
+  // chips cannot be changed from the play screen and decide how a win is SCORED.
+  function continueOpts(st) {
+    return { difficulty: st.difficulty, chips: (st.chips || []).slice() };
+  }
   if (UI.setEngineSource) UI.setEngineSource(() => (cur && cur.engine) ? cur.engine : null);
   function startLevel(levelId, opts) {
     opts = opts || {};
@@ -833,9 +848,13 @@
     cur.raf = requestAnimationFrame(frame);
   }
 
-  function startEndless(world) {
+  // `opts` is how an endless RETRY continues the run's own rules; the picker on
+  // the fort home passes none, so choosing an arena there correctly reads what
+  // is selected now. endlessBest is not keyed by difficulty, so a silent switch
+  // mid-session would put two different games on one scoreboard.
+  function startEndless(world, opts) {
     location.hash = "#td-play";
-    startLevel(null, { levelDef: endlessLevelDef(world) });
+    startLevel(null, Object.assign({ levelDef: endlessLevelDef(world) }, opts || {}));
   }
 
   // ---- TD-18 DAILY TOYBOX ----
