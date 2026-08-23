@@ -8836,6 +8836,7 @@ test("QoL: the 21-screen Toybox Guide has contents you can jump with", async () 
         small: btns.filter((x) => x.getBoundingClientRect().height < 44).length,
         blank: btns.filter((x) => !x.textContent.trim()).length,
         navH: Math.round(box.querySelector(".td-guide__toc").getBoundingClientRect().height),
+        cols: getComputedStyle(box.querySelector(".td-guide__toc")).gridTemplateColumns.trim().split(/\s+/).length,
         jumps, ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         rosterHasSection: (() => {
           const list = box.querySelector(".td-guide__list");
@@ -8859,6 +8860,11 @@ test("QoL: the 21-screen Toybox Guide has contents you can jump with", async () 
     assert.equal(r.blank, 0, "every entry must be labelled");
     assert.equal(r.small, 0, `every entry must clear the fort's 44px adult floor at ${w}px`);
     assert.ok(r.navH <= 200, `the row must stay compact (${r.navH}px of a ${r.boxH}px box)`);
+    // …and it fills its rows EVENLY. The entry count is fixed and small, so an
+    // auto-fit grid leaves a ragged last row for the same number of rows an even
+    // one fills — the level grid's orphan lesson, one dialog over.
+    assert.equal(r.n % r.cols, 0,
+      `at ${w}px the contents must fill evenly — ${r.n} entries in ${r.cols} columns leaves an orphan`);
     assert.ok(r.ovf <= 1, `no sideways scroll at ${w}px (${r.ovf}px)`);
 
     for (const j of r.jumps) {
@@ -8883,6 +8889,70 @@ test("QoL: the 21-screen Toybox Guide has contents you can jump with", async () 
       `…and the last section is a long way down, which is the point (${deepest}px)`);
     await page.evaluate(() => { document.querySelector(".td-overlay__x").click(); });
     await page.waitForTimeout(120);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+});
+
+test("QoL: a bigger screen gives the fort BIGGER controls, never more cramped ones", async () => {
+  // Measured before the fix, the meta row's buttons went 117px at 390 → 109 at
+  // 600 → 93 at 768, 834 and 1024: a WIDER screen handed you a NARROWER control,
+  // with every label wrapped to two lines, because `auto-fit` at a 92px minimum
+  // simply packed all seven across. That is the same defect Josh's launcher had
+  // ("more tiles, not bigger"), and it had never been fixed on this screen.
+  //
+  // The law is deliberately NOT strict monotonicity: a wrapping grid steps when
+  // it gains a column (the meta row really does go 187px at 600 → 168 at 768),
+  // and that is inherent rather than a defect. The property that matters, and
+  // the one that was false, is that a TABLET must never be stingier than a
+  // PHONE.
+  const read = async (w, h) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+    await page.waitForTimeout(120);
+    return page.evaluate(() => {
+      const out = { widths: {}, wrapped: 0 };
+      for (const sel of [".td-metabtn", ".td-level", ".td-diffbtn"]) {
+        const e = document.querySelector("#screen-td-home " + sel);
+        out.widths[sel] = e ? Math.round(e.getBoundingClientRect().width) : null;
+      }
+      const rng = document.createRange();
+      for (const b of document.querySelectorAll("#screen-td-home .td-metabtn")) {
+        for (const n of b.childNodes) {
+          if (n.nodeType !== 3 || !n.textContent.trim()) continue;
+          rng.selectNodeContents(n);
+          if (rng.getClientRects().length > 1) out.wrapped++;
+        }
+      }
+      out.ovf = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+      return out;
+    });
+  };
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+
+  const phone = await read(390, 844);
+  for (const sel of Object.keys(phone.widths)) {
+    assert.ok(phone.widths[sel] > 0, `fixture: ${sel} must be on the fort home to compare`);
+  }
+  for (const [w, h] of [[768, 1024], [834, 1112], [1024, 1366]]) {
+    const big = await read(w, h);
+    for (const sel of Object.keys(phone.widths)) {
+      assert.ok(big.widths[sel] >= phone.widths[sel],
+        `at ${w}px ${sel} is ${big.widths[sel]}px — NARROWER than the ${phone.widths[sel]}px it gets on a ` +
+        "390px phone. A bigger screen must grow the controls, not fit more of them");
+    }
+    // …and the room actually buys readability: the labels stop wrapping. This is
+    // the PAYOFF clause, not a tight pin — a 120px track also clears it (five
+    // columns of 137px) — so the clause above is the one that catches the
+    // defect, and this one says the extra room was worth taking.
+    assert.equal(big.wrapped, 0,
+      `at ${w}px no meta-row label should wrap — there is room now (${big.wrapped} wrapped)`);
+    assert.ok(big.ovf <= 1, `no sideways scroll at ${w}px (${big.ovf}px)`);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(60);

@@ -2943,6 +2943,29 @@ entries" and "one per section" are both still true with eight: the clause that
 catches it has to name the property — the roster list must be introduced by a
 section — rather than count entries a shorter guide would also satisfy.
 
+**THE FORT GAVE A TABLET MORE, NARROWER BUTTONS THAN A PHONE — the "more tiles,
+not bigger" defect, on a screen it had never been checked on.** Measured across
+six widths, the fort home's meta row went **117px at 390 → 109 at 600 → 93 at
+768, 834 and 1024**: a wider screen handed you a NARROWER control, every label
+wrapped to two lines, because `auto-fit` at a 92px minimum simply packed all
+seven across. Josh's launcher had exactly this and was fixed; the fort's own
+meta row never was. A 150px track above 600px gives **4 across at 168px with
+every label on one line**; 170px was measured and buys nothing but a third row.
+**The law had to be weaker than the obvious one, and that is the interesting
+part.** Strict monotonicity is false even after the fix — a wrapping grid STEPS
+when it gains a column, so the row really does go 187px at 600 → 168 at 768 —
+and that is inherent, not a defect. The property that was actually false, and
+is now asserted across every fort-home control, is that **a TABLET must never
+be stingier than a PHONE**. Its mutation reports the shipped number exactly
+(`93px — NARROWER than the 117px it gets on a 390px phone`). The no-wrap clause
+beside it is the payoff rather than a tight pin — a 120px track also clears it —
+and the test says so instead of implying 150 is a measured floor.
+Same commit, same lesson one dialog over: the guide's contents row was
+`auto-fit`, which at 390 is four columns for nine entries — **4+4+1**, a ragged
+last row for the same number of rows that 3+3+3 fills evenly. When the item
+count is FIXED and small, an even grid beats a dense one; the clause is
+`entries % columns === 0`, which is the level grid's orphan law generalised.
+
 ---
 
 ## Repository Structure

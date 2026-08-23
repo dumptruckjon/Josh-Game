@@ -646,9 +646,19 @@ body.td-mode #screens { padding: 0; }
 
 /* A wrapping GRID, not a flex row: the row grew to 5 buttons and overflowed
    320px, and grid gap (unlike flex gap) survives iOS 14.2. */
+/* …and on a BIG screen it must grow the buttons rather than fit MORE of them.
+   Measured, `auto-fit` at a 92px minimum packed all seven across a tablet, so
+   the buttons went 117px at 390 → 109 at 600 → 93 at 768/834/1024: WIDER screen,
+   NARROWER control, with every label wrapped to two lines. That is the same
+   defect Josh's launcher had ("more tiles, not bigger"), never fixed here. A
+   150px minimum above 600px gives 4 across at 168px with every label on ONE
+   line; 170px buys nothing but a third row. */
 .td-meta {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 8px; justify-content: center; margin: 0 0 14px;
+}
+@media (min-width: 600px) {
+  .td-meta { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 }
 .td-metabtn {
   /* positioned so the count badge below can ride the corner without joining the
@@ -829,7 +839,11 @@ body.td-mode #screens { padding: 0; }
 /* Contents for a 21-screen dialog. A wrapping GRID, because flex `gap` is
    dropped on iOS 14.0 and this is real separation between tap targets. */
 .td-guide__toc {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  /* THREE fixed columns, not auto-fit: the entry count is fixed and small, so
+     auto-fit leaves a ragged last row (4+4+1 at 390) for the same number of
+     rows that 3+3+3 fills evenly — the level grid's orphan lesson, one dialog
+     over. minmax(0,1fr) because repeat(N,1fr) is minmax(auto,1fr). */
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px; margin: 8px 0 4px;
 }
 .td-guide__tocbtn {
