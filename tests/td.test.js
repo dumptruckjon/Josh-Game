@@ -8452,3 +8452,115 @@ test("QoL: a corner badge never sits on its own label, and the grid never orphan
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: a stacked overlay button is never a different width from its siblings", async () => {
+  // The overlay box is a column flex, so its DIRECT children stretch to its
+  // width. The post-mortem's 📖 button is nested one level down, inside the
+  // post-mortem block, so it escaped that and rendered 171px wide and hard left
+  // in a column of 272px siblings — it read as a button that failed to size.
+  // A flex-item rule is escaped by nesting, and this is the generic form: any
+  // future nested button inherits the check.
+  const stacked = () => page.evaluate(() => {
+    const box = document.querySelector(".td-overlay .td-overlay__box") ||
+      (document.querySelector(".td-overlay") || {}).firstElementChild;
+    if (!box) return null;
+    // buttons deliberately laid out SIDE BY SIDE live in .td-overlay__row and
+    // are excluded — they are a row, not a column.
+    const btns = [...box.querySelectorAll(".td-btn")].filter((b) => !b.closest(".td-overlay__row"));
+    return btns.map((b) => ({ cls: b.className, w: Math.round(b.getBoundingClientRect().width),
+      x: Math.round(b.getBoundingClientRect().left) }));
+  });
+
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.newGame(1, { seed: 1 });
+    return window.__TD.script([["call"], ["untilPhase", "lost", 400000]]);
+  });
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(150);
+  let btns = await stacked();
+  assert.ok(btns && btns.length >= 4,
+    `fixture: the defeat screen must offer several stacked buttons (saw ${btns && btns.length})`);
+  let widths = [...new Set(btns.map((b) => b.w))];
+  assert.equal(widths.length, 1,
+    `every stacked button must be the same width — ${btns.map((b) => b.cls.split(" ").pop() + ":" + b.w).join(", ")}`);
+  assert.equal([...new Set(btns.map((b) => b.x))].length, 1, "…and start at the same edge");
+
+  // The pause menu is the other column of stacked buttons; it has always been
+  // uniform, so this is the control that shows the check is not defeat-specific.
+  await page.evaluate(() => { document.querySelector('.td-overlay [data-act="quit"]').click(); });
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+  await page.evaluate(() => { window.__TD.newGame(1, { seed: 3 }); });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(250);
+  await page.locator("#screen-td-play .td-pause").click();
+  await page.locator(".td-overlay--pause").waitFor({ state: "visible", timeout: 5000 });
+  btns = await stacked();
+  assert.ok(btns.length >= 5, `fixture: the pause menu must be a real column (saw ${btns.length})`);
+  widths = [...new Set(btns.map((b) => b.w))];
+  assert.equal(widths.length, 1, `the pause menu's buttons must all be one width (${widths.join(", ")})`);
+  await page.evaluate(() => { document.querySelector('.td-overlay [data-act="resume"]').click(); });
+  await page.waitForTimeout(100);
+});
+
+test("QoL: the resume banner's label stays readable on the narrowest phone", async () => {
+  // The label names the run's RULES now, and at 320 the two buttons leave it
+  // ~140px of a 296px row — measured, SIX lines of two or three words each, on
+  // the very text you read to decide whether to pick the run back up. Wrapping
+  // it onto its own full-width row gives it 268px and three lines, while the
+  // buttons keep their 44px floor.
+  const read = async (w, h) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+    await page.waitForTimeout(150);
+    return page.evaluate(() => {
+      const b = document.querySelector("#screen-td-home .td-resume");
+      if (!b || b.hidden) return null;
+      const t = b.querySelector(".td-resume__txt");
+      const rng = document.createRange(); rng.selectNodeContents(t);
+      return { lines: rng.getClientRects().length,
+        goH: Math.round(b.querySelector(".td-resume__go").getBoundingClientRect().height),
+        xW: Math.round(b.querySelector(".td-resume__x").getBoundingClientRect().width),
+        ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    });
+  };
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.resetSave();
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.chipsArmed = ["nocamp"];      // the longest realistic label: level, name, ladder, chip, wave
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+  await page.locator("#screen-td-home .td-level").first().click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => { window.__TD.leaveToHome(); });
+  await page.waitForTimeout(200);
+
+  const narrow = await read(320, 568);
+  assert.ok(narrow, "fixture: leaving a build-phase run must park a checkpoint");
+  assert.ok(narrow.lines <= 3,
+    `at 320px the resume label must not fragment — it is the text you decide on (${narrow.lines} lines)`);
+  assert.ok(narrow.goH >= 44 && narrow.xW >= 44,
+    `…and the buttons keep their adult floor (${narrow.goH}px tall, ✕ ${narrow.xW}px wide)`);
+  assert.ok(narrow.ovf <= 1, `…with no sideways scroll (${narrow.ovf}px)`);
+
+  const wide = await read(390, 844);
+  assert.ok(wide.lines <= 3, `at 390px it already fitted in three lines (${wide.lines})`);
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

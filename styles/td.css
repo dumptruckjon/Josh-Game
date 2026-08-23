@@ -224,6 +224,12 @@ body.td-mode #screens { padding: 0; }
   background: #26334f; color: #e8eefc; font-size: 1.05rem; font-weight: 800;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
+/* The overlay box is a column flex, so its DIRECT children stretch to its width
+   — and this button is nested one level down, inside the post-mortem block, so
+   it escaped that and rendered 171px wide and hard left in a column of 272px
+   siblings. It reads as a button that failed to size rather than a deliberate
+   secondary one. A flex-item rule is escaped by nesting; say the width here. */
+.td-pm__guide { display: block; width: 100%; }
 .td-btn--call { background: #ffd94a; color: #3a2c00; }
 .td-btn--danger { background: #7a2b33; color: #ffdede; }
 .td-overlay__box p.td-overlay__warn { color: #ffbf8f; font-weight: 700; }
@@ -622,6 +628,21 @@ body.td-mode #screens { padding: 0; }
 .td-resume__txt { flex: 1; color: #cfeede; font-weight: 800; min-width: 0; }
 .td-resume__go { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 12px; background: #ffd94a; color: #3a2c00; font-weight: 800; touch-action: manipulation; }
 .td-resume__x { min-height: 44px; min-width: 44px; border: 0; border-radius: 12px; background: #26334f; color: #cfe2ff; font-weight: 800; touch-action: manipulation; }
+/* On the narrowest phone the two buttons leave the label ~140px of a 296px row,
+   and the label now names the run's RULES as well as its level — measured, that
+   is SIX lines of two or three words each, which is the thing you read to decide
+   whether to pick the run back up. Wrapping the label onto its own full-width
+   row gives it 268px and takes it to THREE, while the buttons keep their 44px
+   floor and the banner is 5px SHORTER. Byte-identical at 390 and up, where the
+   label already fits in three. Three declarations, not five: a margin reset and
+   a re-add for the ✕ were written and then MEASURED redundant — the label is the
+   first child, so the row's `* + *` margin never applied to it — and a line whose
+   removal changes nothing makes its own guardrail unfalsifiable. */
+@media (max-width: 359px) {
+  .td-resume { flex-wrap: wrap; }
+  .td-resume__txt { flex: 0 0 100%; margin-bottom: 8px; }
+  .td-resume__go { flex: 1; }
+}
 
 /* A wrapping GRID, not a flex row: the row grew to 5 buttons and overflowed
    320px, and grid gap (unlike flex gap) survives iOS 14.2. */

@@ -2815,6 +2815,31 @@ hour earlier**: the world heading was asserted to be wider than `card × 2.5`, a
 proxy that happened to hold at three columns and fails at two — it asserts the
 grid's own width now, which is the property it always meant.
 
+**LOOKING AT THE DEFEAT SCREEN — which nothing in this session had — found a
+button that had escaped its own column, and the mechanism generalises.** The
+overlay box is a column flex, so its DIRECT children stretch to its width; the
+post-mortem's 📖 button is nested one level down inside the post-mortem block,
+so it escaped that and rendered **171px wide and hard left in a column of 272px
+siblings**. It does not read as a deliberate secondary control — it reads as a
+button that failed to size, and it sits on the screen a player sees every time
+they lose. **A flex-item rule is escaped by NESTING**, which is the same family
+as the child-combinator traps this file records, so the guardrail is the generic
+form rather than a fix for this button: every `.td-btn` stacked in an overlay
+column must share a width and a left edge, with `.td-overlay__row` excluded
+because those are deliberately side by side. The pause menu is the control that
+proves the check is not defeat-specific.
+**And the resume banner had become six lines.** Naming the run's RULES made the
+label longer, and at 320 the two buttons leave it ~140px of a 296px row — six
+lines of two or three words each, on the very text you read to decide whether to
+pick the run back up. Wrapping it onto its own row gives it 268px and three
+lines, with the buttons at their 44px floor and the banner 5px shorter; 390 and
+up are byte-identical. **Two of the five declarations were then measured
+redundant and deleted** — the label is the first child, so the row's `* + *`
+margin never applied to it, and the mutation that removed them passed. A line
+whose removal changes nothing makes its own guardrail unfalsifiable, which is
+the third time this file has deleted one for that reason. The honest mutation
+for the rest is to remove the whole media block, which reports the original six.
+
 ---
 
 ## Repository Structure
