@@ -2731,3 +2731,34 @@ test("guardrail: throwing a live battle away has exactly ONE confirm owner", () 
       `the pause menu's "${name}" throws a live battle away, so it must ask first`);
   }
 });
+
+test("guardrail: a difficulty's player-facing NAME has exactly one owner", () => {
+  const DATA = require("../scripts/td-data.js");
+  const ids = Object.keys(DATA.DIFFICULTIES);
+  assert.ok(ids.length >= 3, `the difficulties must be findable (found ${ids.length})`);
+  // Every tier declares its own name, or a surface that reads it renders the raw
+  // id — the dead-default class this repo has crashed on twice.
+  for (const id of ids) {
+    assert.ok(typeof DATA.DIFFICULTIES[id].label === "string" && DATA.DIFFICULTIES[id].label.length > 2,
+      `difficulty "${id}" must declare a player-facing label`);
+  }
+  // …and that name lives in ONE place. It used to be a literal [id, name] list
+  // inside the level grid, so the pause menu and the resume banner — which now
+  // say which ladder a run is on — would have needed a second copy of the same
+  // strings, which is how two owners of one string always start. The needles are
+  // taken FROM the data, so a fourth tier is covered without editing this.
+  const files = ["scripts/td-ui.js", "scripts/td-main.js", "scripts/td-render.js", "index.html"];
+  for (const id of ids) {
+    const label = DATA.DIFFICULTIES[id].label;
+    for (const f of files) {
+      assert.ok(!read(f).includes(label),
+        `"${label}" is the difficulty's own declared name — ${f} must read it from the data, not restate it`);
+    }
+  }
+  // One reader, so the fallback for a label-less tier cannot drift either.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((ui.match(/UI\.difficultyLabel = function/g) || []).length, 1,
+    "one accessor owns the difficulty name");
+  assert.ok(!/DIFFICULTIES\s*\|\|\s*\{\}\)\[[^\]]+\]\.label/.test(ui.replace(/UI\.difficultyLabel[\s\S]{0,300}/, "")),
+    "nothing else reads a difficulty's label directly");
+});

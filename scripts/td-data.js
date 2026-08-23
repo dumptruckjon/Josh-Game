@@ -9,9 +9,18 @@
   const TICK_RATE = 30; // fixed-timestep logic Hz (determinism law)
 
   // ---- Difficulties (§5.5) — TD-1/2 ship normal; the table is the contract. ----
+  // `label` is the player-facing NAME, and it lives here because the data is the
+  // only place that can own it. It used to be a literal inside the level grid's
+  // chip row — so the pause menu and the resume banner, which also want to say
+  // which ladder a run is on, would have needed a SECOND copy of the same three
+  // strings. Same law as WORLDS[].label, TARGETING[].name and CHIPS[].name: a
+  // fourth tier declares its own name and every surface picks it up, and the
+  // chip row derives from these keys so it can never drift from what exists
+  // (Kid Fort's removal is the precedent — a mode and its button must not be
+  // able to disagree).
   const DIFFICULTIES = {
-    casual: { hp: 0.8, speed: 1.0, bounty: 1.1, startGold: 50 },
-    normal: { hp: 1.0, speed: 1.0, bounty: 1.0, startGold: 0 },
+    casual: { label: "😌 Easy", hp: 0.8, speed: 1.0, bounty: 1.1, startGold: 50 },
+    normal: { label: "⚔️ Normal", hp: 1.0, speed: 1.0, bounty: 1.0, startGold: 0 },
     // AUDIT 2026-07: heroic was a scattered CLIFF, not a slope — L7/L9/L10 were
     // unwinnable by a competent build while L8 was comfortable. Two knobs did
     // it: `speed` compounds with conveyor zones + fast fliers and steals tower
@@ -19,7 +28,7 @@
     // the already-decisive opening. Now heroic is a pure hp/economy challenge:
     // tougher enemies that pay less, with a fair opening. Sim: every level
     // winnable (12/12, was 6/12) at avg 11.6 lives vs ~17 on normal.
-    heroic: { hp: 1.30, speed: 1.0, bounty: 0.9, startGold: 40 },
+    heroic: { label: "💀 Hard", hp: 1.30, speed: 1.0, bounty: 0.9, startGold: 40 },
     // RETIRED (owner, 2026-08): the 🧸 Kid Fort mode and its `noLose` contract.
     // It was never used, and a mode nothing can select is the dead-feature class
     // this project has already paid for twice (unreachable heroic; unreachable

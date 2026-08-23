@@ -269,17 +269,22 @@
     // which ladder's stars/locks the grid below displays.
     const diffWrap = doc.querySelector("#screen-td-home .td-diff");
     if (diffWrap) {
-      const DIFFS = [["casual", "😌 Easy"], ["normal", "⚔️ Normal"], ["heroic", "💀 Hard"]];
+      // DERIVED from the data, never a written literal — this was three
+      // hard-coded [id, name] pairs, which is both the "a list that outlives its
+      // contents" shape (Kid Fort proved a mode and its button must not be able
+      // to disagree) and a second owner for a string the pause menu and the
+      // resume banner also want. The name lives on the difficulty itself now.
+      const DIFFS = Object.keys(global.TDData.DIFFICULTIES || {});
       diffWrap.innerHTML = "";
-      DIFFS.forEach(function (d) {
+      DIFFS.forEach(function (id) {
         const b = doc.createElement("button");
         b.type = "button";
-        b.className = "td-diffbtn" + (d[0] === selDiff ? " td-diffbtn--on" : "");
-        b.dataset.diff = d[0];
-        b.textContent = d[1];
-        b.setAttribute("aria-pressed", d[0] === selDiff ? "true" : "false");
+        b.className = "td-diffbtn" + (id === selDiff ? " td-diffbtn--on" : "");
+        b.dataset.diff = id;
+        b.textContent = UI.difficultyLabel(id);
+        b.setAttribute("aria-pressed", id === selDiff ? "true" : "false");
         b.addEventListener("click", function () {
-          if (onSetDifficulty) onSetDifficulty(d[0]);
+          if (onSetDifficulty) onSetDifficulty(id);
           UI.renderLevelGrid(save, onPick, onSetDifficulty); // re-highlight + re-ladder the grid
         });
         diffWrap.appendChild(b);
@@ -493,7 +498,8 @@
     if (!el) return;
     const mr = save.midRun;
     if (!mr) { el.hidden = true; el.innerHTML = ""; return; }
-    const label = UI.runLabel(mr.levelId, mr.endless, mr.daily) + " · wave " + (mr.waveIdx + 1);
+    const label = UI.runLabel(mr.levelId, mr.endless, mr.daily,
+      { difficulty: mr.difficulty, chips: mr.chips }) + " · wave " + (mr.waveIdx + 1);
     el.hidden = false;
     el.innerHTML = '<span class="td-resume__txt">▶ Resume: ' + label + "</span>" +
       '<button class="td-resume__go" type="button">Resume</button>' +
@@ -1376,8 +1382,26 @@
   // returned-to run had no answer short of quitting to the fort. The resume
   // banner already built this sentence inline; a second copy in the pause menu
   // is exactly how two owners drift, so both read this.
-  UI.runLabel = function (levelId, endless, daily) {
-    if (daily) return "📅 Daily Toybox";
+  // The ONE reader of a difficulty's player-facing name. Falls back to the id so
+  // a tier added without a label degrades to something readable rather than
+  // rendering "undefined" — a field one short must degrade, not disable.
+  UI.difficultyLabel = function (id) {
+    const d = (global.TDData.DIFFICULTIES || {})[id];
+    return (d && d.label) || String(id || "");
+  };
+  // What RULES is this run under? The label is shared by the pause menu and the
+  // RESUME BANNER, and deciding whether to pick a parked run back up without
+  // knowing which ladder it is on — or that you armed ⛺ Camp's Closed — is a
+  // decision made blind. `rules` is read off the RUN (state.difficulty /
+  // state.chips, or the checkpoint's own copies), never off the save: a ladder
+  // switched or a chip re-armed while a run is parked must not retroactively
+  // relabel the run being restored (the checkpoint-fidelity law).
+  UI.runLabel = function (levelId, endless, daily, rules) {
+    const r = rules || {};
+    const chips = (r.chips || []).map((id) => ((global.TDData.CHIPS || []).find((c) => c.id === id) || {}).icon)
+      .filter(Boolean).join("");
+    const extra = (r.difficulty ? " · " + UI.difficultyLabel(r.difficulty) : "") + (chips ? " · " + chips : "");
+    if (daily) return "📅 Daily Toybox" + extra;
     const lvl = global.TDData.LEVELS.find((l) => l.id === levelId);
     // `endless || !lvl` is the same predicate UI.hud uses, and it is load-bearing:
     // an endless id is a STRING like "endless-bedroom" that is NOT in
@@ -1385,9 +1409,9 @@
     if (endless || !lvl) {
       const w = String(levelId || "").replace(/^endless-/, "");
       const meta = (global.TDData.ENDLESS && global.TDData.ENDLESS.worlds[w]) || null;
-      return "♾️ Endless" + (meta && meta.label ? " · " + meta.label : "");
+      return "♾️ Endless" + (meta && meta.label ? " · " + meta.label : "") + extra;
     }
-    return "Level " + lvl.id + " · " + lvl.name;
+    return "Level " + lvl.id + " · " + lvl.name + extra;
   };
 
   UI.showPause = function (hooks, settings, label) {

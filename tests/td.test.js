@@ -7928,3 +7928,117 @@ test("QoL: Restart level asks first — it throws a live board away, exactly lik
   assert.equal(after.towers, 0, "confirming restarts: a fresh, empty board");
   assert.equal(after.phase, "build", "…back in the build phase");
 });
+
+test("QoL: a run's label says which RULES it is under, and keeps them while parked", async () => {
+  // The pause menu and the resume banner share one label, and it named only the
+  // level — so picking a parked run back up without knowing which ladder it is
+  // on, or that you armed ⛺ Camp's Closed, was a decision made blind.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.resetSave();
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.difficulty = "heroic";
+    raw.chipsArmed = ["nocamp"];
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+
+  // Start L1 through the real card, so the run picks up the armed chip and the
+  // selected ladder exactly as a player's tap would.
+  await page.locator("#screen-td-home .td-level").first().click();
+  await page.locator("#screen-td-play").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(250);
+  const runRules = await page.evaluate(() => {
+    const s = window.__TD.state();
+    return { difficulty: s.difficulty, chips: (s.chips || []).slice() };
+  });
+  assert.equal(runRules.difficulty, "heroic", "fixture: the run really is on the hard ladder");
+  assert.deepEqual(runRules.chips, ["nocamp"], "fixture: the run really carries the armed chip");
+
+  // 1. The pause menu names them.
+  await page.locator("#screen-td-play .td-pause").click();
+  await page.locator(".td-overlay--pause").waitFor({ state: "visible", timeout: 5000 });
+  const pauseLabel = await page.evaluate(() =>
+    (document.querySelector(".td-overlay--pause .td-pause__where") || {}).textContent || "");
+  assert.match(pauseLabel, /💀/, `the pause label must name the ladder (saw "${pauseLabel}")`);
+  assert.match(pauseLabel, /⛺/, `…and any armed challenge (saw "${pauseLabel}")`);
+  assert.match(pauseLabel, /Level 1/, "…without losing which level it is");
+
+  // 2. Park it, and the resume banner says the same thing — it is the one place
+  //    the decision "do I pick this up?" is actually made.
+  await page.locator('.td-overlay--pause [data-act="quit"]').click();
+  await page.locator(".td-overlay--confirm").waitFor({ state: "visible", timeout: 5000 });
+  await page.locator('.td-overlay--confirm [data-act="yes"]').click();
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(200);
+  const bannerOf = () => page.evaluate(() => {
+    const el = document.querySelector("#screen-td-home .td-resume");
+    return el && !el.hidden ? (el.querySelector(".td-resume__txt") || {}).textContent || "" : null;
+  });
+  const banner = await bannerOf();
+  assert.ok(banner, "fixture: leaving a build-phase run parks a checkpoint");
+  assert.match(banner, /💀/, `the resume banner must name the parked run's ladder (saw "${banner}")`);
+  assert.match(banner, /⛺/, `…and its challenge (saw "${banner}")`);
+
+  // 3. THE CHECKPOINT-FIDELITY CLAUSE: changing the chips and the ladder while a
+  //    run is parked must NOT relabel it. The label reads the RUN's own copies,
+  //    never the save — the same law that keeps a respec from rewriting a parked
+  //    run's rules.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.difficulty = "casual"; raw.chipsArmed = [];
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(150);
+  const parked = await bannerOf();
+  assert.match(parked, /💀/,
+    `a ladder switched while a run is parked must not relabel that run (saw "${parked}")`);
+  assert.match(parked, /⛺/, "…nor may disarming its challenge");
+
+  // 4. The difficulty CHIPS derive from the data, so a fourth tier needs no code
+  //    here. Self-proving: inject one and the row must grow.
+  const before = await page.locator("#screen-td-home .td-diffbtn").count();
+  await page.evaluate(() => {
+    window.TDData.DIFFICULTIES.__probe = { label: "🔥 Probe", hp: 1, speed: 1, bounty: 1, startGold: 0 };
+    location.hash = "#__renav";
+  });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.waitForTimeout(200);
+  const after = await page.locator("#screen-td-home .td-diffbtn").count();
+  const probeTxt = await page.evaluate(() =>
+    (document.querySelector('#screen-td-home .td-diffbtn[data-diff="__probe"]') || {}).textContent || "");
+  await page.evaluate(() => { delete window.TDData.DIFFICULTIES.__probe; });
+  assert.equal(after, before + 1, `the difficulty row must DERIVE from the data (${before} → ${after})`);
+  assert.equal(probeTxt, "🔥 Probe", "…and take each tier's own declared name");
+
+  // 5. The label grew, and this fort has spilled a dialog off a real phone twice
+  //    because iOS renders emoji wider than headless Chromium. It must WRAP.
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.waitForTimeout(150);
+  const fits = await page.evaluate(() => {
+    const el = document.querySelector("#screen-td-home .td-resume__txt");
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { right: Math.round(r.right), vw: document.documentElement.clientWidth,
+      wrap: getComputedStyle(el).whiteSpace };
+  });
+  assert.ok(fits && fits.right <= fits.vw + 1,
+    `the resume label must stay on screen at 320px (${fits && fits.right} > ${fits && fits.vw})`);
+  assert.ok(fits.wrap !== "nowrap", "…and it must be allowed to wrap rather than spill");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(80);
+});

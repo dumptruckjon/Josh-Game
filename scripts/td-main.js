@@ -505,7 +505,8 @@
       quit: () => { UI.closeOverlay(); promptDiscard(() => { location.hash = "#td-home"; }, LEAVE_COPY); },
     }, save.settings,
     // Which level is this? Nothing in a live battle said so.
-    UI.runLabel(cur.engine.state.levelId, cur.engine.state.endless, cur.dailyDay));
+    UI.runLabel(cur.engine.state.levelId, cur.engine.state.endless, cur.dailyDay,
+      { difficulty: cur.engine.state.difficulty, chips: cur.engine.state.chips }));
     openPause();
   }
 

@@ -2659,6 +2659,32 @@ edited — with a floor assertion, because that scan fails OPEN. And `UI.confirm
 must appear exactly once in `td-main`, which is what stops a future inline
 dialog quietly reintroducing a second policy.
 
+**A RUN'S LABEL NAMED ITS LEVEL AND NOT ITS RULES — and extending it found that
+the difficulty's player-facing NAME had no owner.** The pause menu and the
+resume banner share one label, so deciding whether to pick a parked run back up
+without knowing which ladder it is on, or that you armed ⛺ Camp's Closed, was a
+decision made blind. Adding that meant naming the difficulties in a second
+place — and the first copy was a literal `[["casual","😌 Easy"], …]` inside
+`renderLevelGrid`, which is both the "a list that outlives its contents" shape
+(Kid Fort's removal is the precedent: a mode and its button must not be able to
+disagree) and the start of two owners for one string. So `DIFFICULTIES[d]` now
+declares its own `label`, exactly like `WORLDS[].label`, `TARGETING[].name` and
+`CHIPS[].name`; the chip row DERIVES from `Object.keys(DIFFICULTIES)` and is
+proven self-provingly (inject a fourth tier at runtime and the row must grow —
+the build-menu fifth-line pattern); and one accessor reads the name, with a
+fallback to the id so a label-less tier degrades rather than rendering
+`undefined`. The one-owner scan takes its NEEDLES FROM THE DATA — for every
+declared label, no other source file may contain that string — so a fourth tier
+is covered without editing the test.
+**The clause that matters most is the checkpoint one, and its mutation shows the
+bug in words**: the label reads the RUN's own `state.difficulty`/`state.chips`
+(and the checkpoint's own copies), never the save, so switching ladder or
+disarming a chip while a run is parked cannot retroactively relabel it. Point it
+at the save instead and the banner reads `Level 1 · Under the Bed · 😌 Easy`
+for a run that is on heroic — the same checkpoint-fidelity class already
+recorded for `writeMidRun`'s `meta: activeLoadout()`, and the reason those three
+sibling fields are read off the run.
+
 ---
 
 ## Repository Structure
