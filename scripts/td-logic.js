@@ -976,8 +976,17 @@
       }
     }
 
+    // How many bodies this wave still owes you — the ones already walking PLUS
+    // the ones still queued to spawn. It is the same quantity `finishIfWaveDone`
+    // tests, deliberately: the readout that shows it and the rule that ends the
+    // wave are one owner, so a HUD saying "0 left" while the wave grinds on is
+    // not a state this engine can reach.
+    function bodiesLeft() {
+      return spawnQueue.length + state.enemies.filter((e) => e.alive).length;
+    }
+
     function finishIfWaveDone() {
-      if (spawnQueue.length || state.enemies.some((e) => e.alive)) return;
+      if (bodiesLeft()) return;
       state.enemies.length = 0;
       // Every wave that was SENT is now cleared — including any the player
       // rushed on top, so the two counters re-converge at the build boundary.
@@ -2341,6 +2350,11 @@
       },
       paths, path, posAt: (dist) => posAt(path, dist), posOn: (pathIdx, dist) => posAt(paths[pathIdx || 0], dist),
       isHidden: (e) => isHidden(e), // pure read: is this enemy currently untargetable (phased ghost / tunnelling mole)?
+      // Pure read, never called from the tick, so the stream is untouched. The
+      // spawn queue is module-local (a mid-wave position is deliberately not
+      // checkpointed), so this is the only way the UI can know how much of a
+      // wave is still off-screen — which is most of it for the first seconds.
+      bodiesLeft: () => bodiesLeft(),
       // Guardrail seam, the isHidden precedent: the ONE damage path, so a test
       // can prove a resistance is keyed on the right `how` without reaching
       // into internals or inferring it from a time-to-kill with confounds.

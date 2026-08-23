@@ -2768,6 +2768,36 @@ test("guardrail: a difficulty's player-facing NAME has exactly one owner", () =>
     "nothing else reads a difficulty's label directly");
 });
 
+test("guardrail: 'how much of this wave is left' has ONE definition", () => {
+  // The readout on the RUSH button and the rule that ENDS a wave are the same
+  // quantity — bodies walking plus bodies still queued — so they share an owner.
+  // Two copies is how a HUD comes to say "0 left" while the wave grinds on, and
+  // it is the same class as `hurriedMult`'s two writers.
+  const eng = read("scripts/td-logic.js")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((eng.match(/function bodiesLeft\(/g) || []).length, 1,
+    "the wave's remaining-body count must have exactly one definition");
+  assert.ok(/function finishIfWaveDone\(\)\s*\{\s*if \(bodiesLeft\(\)\)/.test(eng),
+    "the wave-end rule must READ that owner, not re-derive the queue-and-alive test");
+  assert.ok(/bodiesLeft: \(\) => bodiesLeft\(\)/.test(eng),
+    "…and the engine must expose it, or the UI has to invent its own count");
+
+  // The spawn queue is module-local ON PURPOSE (a mid-wave position is never
+  // checkpointed), so nothing outside the engine can see the part of a wave that
+  // has not spawned yet — which is most of it for the first seconds.
+  assert.ok(!/state\.spawnQueue/.test(eng),
+    "the spawn queue must stay off `state` — it is not checkpointed, and hashState would move");
+
+  // The UI asks the engine rather than counting what it can see: `state.enemies`
+  // alone understates every fresh wave, and this is the third instance of the
+  // ask-the-engine law after the sell refund and the per-wave charge.
+  const ui = read("scripts/td-ui.js")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(/bodiesLeft\(\)/.test(ui), "the wave readout must come from the engine");
+  assert.ok(!/enemies\.filter\([^)]*alive[^)]*\)\.length/.test(ui),
+    "the UI must not count live bodies itself — that silently drops everything still queued");
+});
+
 test("guardrail: 'beaten on this ladder' has ONE definition", () => {
   // The count under each difficulty chip and the grid's own unlock rule are the
   // same question asked twice — how many levels have you beaten on THIS ladder —

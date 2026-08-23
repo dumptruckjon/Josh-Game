@@ -9069,3 +9069,133 @@ test("QoL: each difficulty chip says how far that LADDER has got", async () => {
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: during a wave the button says how much of it is LEFT", async () => {
+  // The build phase has a countdown; the wave phase had no progress readout at
+  // all — so "am I nearly through this, or do I hold my gold?", the most-asked
+  // in-wave question and the exact bet ⏩ RUSH is against, was unanswerable. The
+  // count is the engine's OWN wave-end quantity (bodies walking + bodies still
+  // queued), so a button reading "0 left" during a wave that is still going is
+  // not a state the engine can be in.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 3 }));
+  await page.waitForTimeout(120);
+
+  const meta = () => page.evaluate(() =>
+    (document.querySelector("#screen-td-play .td-call__meta") || {}).textContent || "");
+  const phase = () => page.evaluate(() => window.__TD.state().phase);
+
+  // BUILD: the countdown is the relevant number, and a body count would be a lie
+  // (there are none) — so the wave readout must not appear here.
+  assert.equal(await phase(), "build", "fixture: a fresh level opens in the build phase");
+  const inBuild = await meta();
+  assert.ok(/\d+s/.test(inBuild), `the build phase still shows its countdown (saw "${inBuild}")`);
+  assert.ok(!/left/.test(inBuild), `…and no body count before any body exists (saw "${inBuild}")`);
+
+  // The moment the wave is CALLED, almost all of it is still queued rather than
+  // on screen — which is the half a player cannot see, and the half a readout
+  // built from `state.enemies` alone would silently drop.
+  const at = await page.evaluate(() => {
+    window.__TD.script([["call"]]);
+    return { onScreen: window.__TD.state().enemies.filter((e) => e.alive).length,
+      left: window.__TD.engine().bodiesLeft() };
+  });
+  await page.waitForTimeout(120);
+  // Not a fixture assumption — the property. This reads the ENGINE's own count on
+  // purpose, so an engine that forgot the queue fails HERE with an honest message
+  // rather than somewhere downstream: at the instant of the call almost nothing
+  // has spawned, so a count built from the field alone reports 0.
+  assert.ok(at.left > 0,
+    "a just-called wave must owe the player bodies — a count built from the field alone reads 0 here");
+  assert.ok(at.onScreen < at.left,
+    `at the instant of the call ${at.left} bodies are owed and only ${at.onScreen} have spawned — ` +
+    "the readout must count the QUEUE too, or it understates every fresh wave");
+  const started = await meta();
+  assert.ok(new RegExp("\\b" + at.left + " left\\b").test(started),
+    `the button must show the wave's remaining bodies (saw "${started}", expected ${at.left})`);
+
+  // …and it must DRAIN. Run the wave out and read the count on the way.
+  // Wave 1 of L1 runs ~1560 ticks with nothing built, and the whole drain happens
+  // in its last ~100 — measured. A budget short of that samples a flat 6,6,6 and
+  // reads exactly like a broken readout, which is what the first cut did.
+  let seen = [];
+  for (let i = 0; i < 90 && (await phase()) === "wave"; i++) {
+    await page.evaluate(() => window.__TD.script([["tick", 20]]));
+    const m = await meta();
+    const n = /(\d+) left/.exec(m);
+    if (n) seen.push(+n[1]);
+  }
+  assert.ok(seen.length >= 3, `fixture: the wave must run long enough to sample (saw ${seen.length} reads)`);
+  assert.ok(seen[seen.length - 1] < seen[0],
+    `the count must fall as the wave is cleared (${seen[0]} → ${seen[seen.length - 1]})`);
+  assert.ok(seen.every((n, i) => i === 0 || n <= seen[i - 1]),
+    `the count must never go UP within one wave (${seen.join(",")})`);
+
+  // The strongest clause: the readout and the rule that ENDS the wave are one
+  // owner, so the engine must be back in the build phase exactly when it hits 0.
+  const end = await page.evaluate(() => ({
+    phase: window.__TD.state().phase, left: window.__TD.engine().bodiesLeft() }));
+  if (end.phase === "build") {
+    assert.equal(end.left, 0,
+      "the wave ended, so the count it is derived from must be 0 — these are the same quantity");
+  } else {
+    assert.ok(end.left > 0, "still in the wave, so bodies must still be owed");
+  }
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});
+
+test("QoL: the CALL button reserves its tallest line, so the field never moves under a thumb", async () => {
+  // The meta line carries two facts joined by "·" — during build the early-call
+  // bonus and the clock, during a wave the bonus and how many bodies are left —
+  // and the longest of those wraps to a second line. The button is IN the
+  // portrait layout, so a button that grows is a battlefield that shrinks under
+  // the player's thumb mid-wave. It also fixes a jump that ALREADY shipped:
+  // "last wave" is one line and "2 waves out" is two.
+//   The list below is NOT the test — its last two entries are the UPPER BOUND
+  // built from the widest each half can be (the longest refusal the UI has,
+  // "N waves out" with the cap at RULES.maxWavesInFlight, and the largest body
+  // count a deep endless run could reach), so a reservation that survives them
+  // survives every real string and a new wording is covered without editing this.
+  // The bound is deliberately derived rather than an arbitrary monster: a string
+  // nothing can emit would demand a reservation nothing needs. (Where each string
+  // comes from is proven by the sibling test that drives a real wave; this one is
+  // purely about the box.)
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 3 }));
+  await page.waitForTimeout(120);
+
+  const STRINGS = ["+135🪙 · 45s", "2 waves out", "last wave", "steady…",
+    "+60🪙 · 6 left", "steady… · 6 left", "2 waves out · 148 left",
+    "+9999🪙 · 9999 left", "2 waves out · 9999 left"];
+  for (const [w, h] of [[320, 568], [390, 844], [844, 390]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(150);
+    const r = await page.evaluate((S) => {
+      const c = document.querySelector("#screen-td-play .td-call");
+      const meta = c.querySelector(".td-call__meta");
+      const keep = meta.textContent;
+      const hs = [], lines = [];
+      for (const s of S) {
+        meta.textContent = s;
+        hs.push(Math.round(c.getBoundingClientRect().height));
+        const rng = document.createRange(); rng.selectNodeContents(meta.firstChild);
+        lines.push(rng.getClientRects().length);
+      }
+      meta.textContent = keep;
+      return { hs, lines, ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    }, STRINGS);
+    assert.ok(r.lines.some((n) => n > 1),
+      `fixture: at ${w}px something in this list must actually wrap, or the reservation is untested`);
+    assert.equal(new Set(r.hs).size, 1,
+      `at ${w}px the CALL button changes height with what it says (${r.hs.join(", ")}) — ` +
+      "in portrait that resizes the battlefield under the player's thumb, and in " +
+      "landscape it makes the gutter column jump");
+    assert.ok(r.hs[0] >= 44, `at ${w}px the CALL button is under the adult 44px floor (${r.hs[0]}px)`);
+    assert.ok(r.ovf <= 1, `at ${w}px the CALL button scrolls the page sideways (${r.ovf}px)`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+});

@@ -3022,6 +3022,43 @@ landscape, and contrast is 9.92:1 selected / 10.88:1 unselected because the line
 inherits the button's own colour instead of taking a dim — `#ffd94a` has no
 headroom to spend, the law this project has now applied on four surfaces.
 
+**THE BUILD PHASE HAD A COUNTDOWN AND THE WAVE PHASE HAD NOTHING — so the
+most-asked in-wave question was unanswerable, and the fix exposed a reflow that
+had already shipped.** "Am I nearly through this, or do I hold my gold?" is the
+exact bet ⏩ RUSH is against, and the fort said nothing at all once a wave was
+walking. The count is now on the RUSH button's own meta line. Five things worth
+keeping. (1) **It is the ENGINE's own wave-end quantity, not a second count** —
+`finishIfWaveDone` has always tested `spawnQueue.length || enemies.some(alive)`,
+and that expression is now `bodiesLeft()`, which the readout also reads, so a
+button saying "0 left" while the wave grinds on is not a state this engine can
+reach. (2) **Most of a fresh wave is QUEUED, not on screen**, and the spawn queue
+is deliberately module-local (a mid-wave position is never checkpointed), so a
+readout built from `state.enemies` — the obvious implementation — understates
+every wave at exactly the moment you look: measured, the instant a wave is called
+it owes 6 bodies and 0 have spawned. That is the clause the test leads with, and
+it is what a UI-side recount fails. (3) **The line was chosen because it already
+carries a "·"-joined PAIR during build** (bonus · seconds), so no new element and
+none of the HUD reflow risk that once had the ⚙️ hopping between rows. (4) **But
+the longest pair WRAPS, and reserving for it found a jump that already shipped**:
+in landscape `last wave` is one line at 48px and `2 waves out` is two at 53px, so
+the button has been changing height on its own wording all along. The reservation
+is set to the measured worst case (57px portrait, 65px landscape) and the
+guardrail is that the button's height is IDENTICAL across every string it can
+render — which pins the old defect as well as the new one. (5) **The reservation
+costs the battlefield ZERO** — measured, the canvas is byte-identical at 320, 390,
+834 and landscape, because the field is WIDTH-limited in portrait, which is the
+same property the portrait pass exploited when it took the side padding back.
+Two testing notes. **A synthetic "longer than anything" string is not an upper
+bound, it is an arbitrary monster** — my first cut used a 68-character sentence,
+which takes four lines and would have demanded a reservation nothing needs; the
+bound is DERIVED from the widest each half can be (the longest refusal wording,
+with its cap read off `maxWavesInFlight`, plus the largest body count a deep
+endless run could reach), which is what makes the string list not-a-list. And
+**a fixture clause that reads the thing under test is not a fixture clause** —
+"a called wave owes the player bodies" reads the engine's own count on purpose,
+so an engine that forgot the queue fails there; labelling it `fixture:` made a
+real product failure read as a broken test, so it is worded as the property.
+
 ---
 
 ## Repository Structure

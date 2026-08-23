@@ -1274,10 +1274,22 @@
         meta.textContent = !ok ? "" : info ? "+" + info.bonus + "🪙 · " + secs + "s" : secs + "s";
       } else if (!over) {
         label.textContent = "⏩ RUSH";
-        meta.textContent = ok ? "+" + info.bonus + "🪙"
+        // HOW MUCH OF THIS WAVE IS LEFT. The build phase has a countdown and the
+        // wave phase had nothing at all, so the most-asked in-wave question —
+        // "am I nearly through this, or do I hold my gold?" — was unanswerable,
+        // and it is exactly the question ⏩ RUSH is a bet against. It rides this
+        // meta line because the line ALREADY carries a "· "-joined pair during
+        // build (bonus · seconds), so the widest string this button ever renders
+        // is one that already ships: no new element, and none of the HUD reflow
+        // risk that once had the ⚙️ hopping between rows. Most of a fresh wave is
+        // still QUEUED rather than on screen, which is the half you cannot see.
+        const eng2 = hudEngine && hudEngine();
+        const left = eng2 && eng2.bodiesLeft ? eng2.bodiesLeft() : null;
+        const why = ok ? "+" + info.bonus + "🪙"
           : info.reason === "too-soon" ? "steady…"
             : info.reason === "too-many-waves" ? info.max + " waves out"
               : "last wave";
+        meta.textContent = left == null ? why : why + " · " + left + " left";
       }
     }
     // Next-wave preview: during the build phase, show WHAT is coming (enemy icons
