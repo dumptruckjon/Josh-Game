@@ -2607,6 +2607,35 @@ The `pkill -f` trap in its polling form, and the tell was that the log had
 already printed its own `# duration_ms`. Match the binary (`pgrep -x node`) or
 watch the log's terminal line, never a pattern your own command line contains.
 
+**THE 40-CARD LEVEL GRID NEVER NAMED A WORLD.** The fort gives each of its ten
+worlds a floor pattern, a road style, three backbone skins and a boss, and the
+one screen where a level is actually chosen showed forty small cards in a flat
+3-wide run separated only by a background TINT — so picking a world to farm
+stars in was a scroll-and-squint, and the identity the game spends the most art
+on was invisible exactly where it would help. A heading now appears wherever the
+world CHANGES, derived end to end: the boundary from the levels' own `world`
+field, the name from `DATA.WORLDS[w].label`, the count from the SELECTED star
+ladder — so an eleventh world needs no code here and no test edit, the same law
+that keeps the card count itself off a literal. The `⭐ 7/12` half is the
+actionable one (stars are spendable power, so it says where there are still some
+to earn) and it is per-ladder, which a mutation pins: seeding NORMAL and reading
+the heading on HARD must show zero, or the count is lying on two of three
+ladders. The heading is deliberately not a control — a `div`, `pointer-events:
+none`, unfocusable — so no ≥44px law applies to it, and it uses grid `gap`,
+which unlike flex gap survives the iOS 14.0 floor. This grid has broken a layout
+twice (it once pushed every fort dialog below the fold, and later broke the
+contrast audit's opened-proof), so overflow is MEASURED at 320 and 390 rather
+than assumed; both old breakages are structurally fixed now (`position: fixed`
+overlays, and an audit that counts runs inside `.td-overlay`).
+**The mutation lesson: a NEIGHBOUR check is not a POSITION check.** The first
+clause read *"the heading must be immediately followed by a card of that world"*
+and PASSED the mutation that appends the heading AFTER its world's first card —
+because the thing following a misplaced heading is still that world's second
+card. Only "the heading sits one slot before the world's FIRST card" can fail
+it. Same family as the inequality-is-not-a-magnitude finding: a weaker form of
+the claim is often satisfied by the very defect it was written for, and the way
+to find out is to run the mutation rather than to admire the assertion.
+
 ---
 
 ## Repository Structure

@@ -47,6 +47,20 @@ body.td-mode #screens { padding: 0; }
   gap: 4px; font-size: 0.95rem; font-weight: 700;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
+/* World heading inside the level grid. Spans every column, so it reads as a
+   section break rather than a card — and it is deliberately NOT a button: it
+   carries no tap target, cannot be focused, and so no ≥44px law applies to it.
+   Grid `gap` (unlike flex gap) survives Safari 14, which is the floor here. */
+.td-worldhead {
+  grid-column: 1 / -1;
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 6px 2px 0; padding: 4px 2px 5px;
+  border-bottom: 2px solid #3a548a;
+  pointer-events: none;
+}
+.td-worldhead:first-child { margin-top: 0; }
+.td-worldhead__name { color: #e8eefc; font-size: 0.92rem; font-weight: 800; }
+.td-worldhead__stars { color: #9db4dd; font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .td-level--locked { opacity: 0.45; }
 .td-level__n { color: #9db4dd; font-size: 0.85rem; }
 .td-level__name { text-align: center; padding: 0 4px; }

@@ -7744,3 +7744,116 @@ test("QoL: a new tower opens on the aim you LAST chose for that line", async () 
   assert.equal(await aimOf(padIds[0]), "first",
     "an aim this run has not unlocked must be refused, leaving the line's own default");
 });
+
+test("QoL: the level grid names its worlds and says where stars are left", async () => {
+  // 40 cards in a flat 3-wide run, told apart only by a background tint — so the
+  // ten worlds this game gives their own floor, road, crowd and boss are unnamed
+  // on the one screen where a level is chosen, and finding a world to farm stars
+  // in is a scroll-and-squint. Everything here is DERIVED (the boundary from the
+  // levels' own `world`, the name from DATA.WORLDS, the count from the SELECTED
+  // ladder), so an eleventh world needs no code and no test edit.
+  const openHome = async () => {
+    await page.evaluate(() => { location.hash = "#__renav"; });  // a same-hash set is a no-op: route() would never fire
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+    await page.waitForTimeout(80);
+  };
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+  await openHome();
+
+  const read = () => page.evaluate(() => {
+    const grid = document.querySelector("#screen-td-home .td-levels");
+    return [...grid.children].map((el) => ({
+      head: el.classList.contains("td-worldhead"),
+      world: el.dataset.world || "",
+      text: (el.textContent || "").trim(),
+      tag: el.tagName,
+      focusable: el.tagName === "BUTTON" || el.hasAttribute("tabindex"),
+      pe: getComputedStyle(el).pointerEvents,
+      w: Math.round(el.getBoundingClientRect().width),
+    }));
+  });
+  const expected = await page.evaluate(() => {
+    const L = window.TDData.LEVELS, out = [];
+    let last = null;
+    for (const l of L) { if (l.world !== last) { last = l.world; out.push(l.world); } }
+    return { order: out, labels: Object.fromEntries(out.map((w) => [w, window.TDData.WORLDS[w].label])),
+      sizes: Object.fromEntries(out.map((w) => [w, L.filter((x) => x.world === w).length])) };
+  });
+
+  let rows = await read();
+  const heads = rows.filter((r) => r.head);
+  assert.ok(expected.order.length >= 8, `fixture: the campaign must really have several worlds (${expected.order.length})`);
+  assert.deepEqual(heads.map((h) => h.world), expected.order,
+    "every world gets exactly one heading, in campaign order");
+  // Each heading must sit immediately BEFORE its world's first card — a heading
+  // in the right order but the wrong place is still a mislabelled section.
+  for (const w of expected.order) {
+    // Assert the POSITION, not "the next thing is also this world": a heading
+    // appended AFTER its world's first card still has a same-world card next to
+    // it, so the weaker form passed that mutation. It must sit one slot before
+    // the world's FIRST card, which is the only place that labels all of them.
+    const i = rows.findIndex((r) => r.head && r.world === w);
+    const firstCard = rows.findIndex((r) => !r.head && r.world === w);
+    assert.equal(i, firstCard - 1,
+      `the ${w} heading must sit immediately before that world's FIRST card (head ${i}, first card ${firstCard})`);
+    assert.ok(heads.find((h) => h.world === w).text.includes(expected.labels[w].replace(/^\S+\s*/, "")),
+      `the ${w} heading must carry the world's own declared name`);
+  }
+  // Not a control: no tap target, nothing to focus, and the ≥44px adult law has
+  // nothing to say about it.
+  for (const h of heads) {
+    assert.equal(h.tag, "DIV", "a world heading is not a button");
+    assert.ok(!h.focusable, "a world heading must not be focusable");
+    assert.equal(h.pe, "none", "a world heading must not eat taps meant for the grid");
+  }
+  // Full-width: it is a section break, not a fourth card in the row.
+  const cardW = rows.find((r) => !r.head).w;
+  assert.ok(heads[0].w > cardW * 2.5,
+    `a world heading must span the grid, not sit in one column (${heads[0].w}px vs a ${cardW}px card)`);
+
+  // The ⭐ count is the actionable half, and it reads the SELECTED ladder.
+  const first = expected.order[0];
+  const perWorld = expected.sizes[first] * 3;
+  assert.match(heads[0].text, new RegExp("⭐\\s*0/" + perWorld),
+    `a fresh save must show no stars earned in the first world (saw "${heads[0].text}")`);
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.stars = { casual: {}, normal: { "1": 3, "2": 2 }, heroic: {} };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+  await openHome();
+  rows = await read();
+  assert.match(rows.find((r) => r.head).text, new RegExp("⭐\\s*5/" + perWorld),
+    "the heading counts the stars actually earned in that world");
+  // …on the ladder the chips select. The seed above is on NORMAL only, so
+  // switching to Hard must read zero — a count that ignored the ladder would
+  // still say 5 and would be lying on two of the three ladders.
+  await page.locator('#screen-td-home .td-diffbtn[data-diff="heroic"]').click();
+  await page.waitForTimeout(120);
+  rows = await read();
+  assert.match(rows.find((r) => r.head).text, new RegExp("⭐\\s*0/" + perWorld),
+    "the heading must count the SELECTED difficulty's ladder, not always normal");
+  await page.locator('#screen-td-home .td-diffbtn[data-diff="normal"]').click();
+  await page.waitForTimeout(120);
+
+  // Adding content to this grid has broken a layout twice before, so measure it
+  // rather than assume: no page overflow at the narrowest phone or at 390.
+  for (const w of [320, 390]) {
+    await page.setViewportSize({ width: w, height: 640 });
+    await page.waitForTimeout(120);
+    const over = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth,
+      vw: document.documentElement.clientWidth,
+    }));
+    assert.ok(over.doc <= over.vw + 1,
+      `the fort home must not scroll sideways at ${w}px (${over.doc} > ${over.vw})`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(80);
+});

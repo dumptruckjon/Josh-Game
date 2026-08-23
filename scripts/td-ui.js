@@ -301,6 +301,30 @@
     const dstars = (save.stars && save.stars[selDiff]) || {};
     const starsOf = (k) => dstars[String(k)] | 0;
     let nextCard = null;
+    // The grid is 40 cards in a flat 3-wide run, separated only by a background
+    // tint — so the ten worlds this game invests a whole floor, road, crowd and
+    // boss in are unnamed on the one screen where you pick a level, and finding
+    // a world to farm stars in is a scroll-and-squint. A heading whenever the
+    // world CHANGES is derived end to end (the boundary from the levels' own
+    // `world` field, the name from DATA.WORLDS, the count from the SELECTED
+    // ladder), so an eleventh world needs no code here — the same law that keeps
+    // the card count itself off a literal. The ⭐ x/y half is the actionable one:
+    // stars are spendable power, so it says where there are still some to earn.
+    let lastWorld = null;
+    const worldHead = (w) => {
+      const def = (global.TDData.WORLDS || {})[w];
+      const mine = LEVELS.filter((l) => l.world === w);
+      if (!def || !mine.length) return null;
+      const got = mine.reduce((a, l) => a + starsOf(l.id), 0);
+      const head = doc.createElement("div");
+      head.className = "td-worldhead";
+      head.dataset.world = w;
+      const t = worldTint(w);
+      if (t) head.style.borderColor = t.border;
+      head.innerHTML = '<span class="td-worldhead__name">' + def.label + "</span>" +
+        '<span class="td-worldhead__stars">⭐ ' + got + "/" + (mine.length * 3) + "</span>";
+      return head;
+    };
 
     for (let n = 1; n <= TOTAL_PLANNED; n++) {
       const def = LEVELS.find((l) => l.id === n);
@@ -375,6 +399,11 @@
       // loop is the one place that already knows `playable` and `stars` — a
       // second computation of "which level is next" is how two owners drift.
       if (playable && starsOf(n) === 0 && !nextCard) nextCard = card;
+      if (def && def.world && def.world !== lastWorld) {
+        lastWorld = def.world;
+        const head = worldHead(def.world);
+        if (head) grid.appendChild(head);
+      }
       grid.appendChild(card);
     }
     if (nextCard) nextCard.dataset.next = "1";
