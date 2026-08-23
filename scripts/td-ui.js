@@ -691,7 +691,7 @@
 
     const el = metaOverlay("td-overlay--guide",
       "<h3>📖 Toybox Guide</h3>" +
-      '<p class="td-overlay__sub">What each toy does — and what can actually hit it.</p>' +
+      '<p class="td-overlay__sub" data-sec="🧸 Toys">What each toy does — and what can actually hit it.</p>' +
       '<ul class="td-guide__towers">' + towerRow + "</ul>" +
       // WHERE you build is worth as much as WHAT you build: a sweep of every pad
       // on a boss finale moved the result by up to 5 lives with the same tower
@@ -699,7 +699,7 @@
       // so, and nothing could be read off the board. Hence the figure on every
       // build button and tower panel — and hence this paragraph, because a
       // number the player cannot interpret is the ⚙️ mistake again.
-      '<p class="td-overlay__sub">Placement — <b>% road</b></p>' +
+      '<p class="td-overlay__sub" data-sec="📍 Placement">Placement — <b>% road</b></p>' +
       '<ul class="td-guide__towers"><li><span class="td-guide__tico">🛣️</span>Every build button and tower panel says how much of the ' +
       "road that socket reaches. The same tower is worth several times more from one pad than another, so the figure — not the price — " +
       "is usually the choice. A 🪖 Army Guys camp shows none: it blocks the lane rather than shooting down it.</li>" +
@@ -713,7 +713,7 @@
       // 4-9 lives and the winner differs per level, which is exactly the kind
       // of lever that is worthless if the player cannot read it. DERIVED from
       // DATA.TARGETING, so a sixth mode documents itself.
-      '<p class="td-overlay__sub">Aiming — the 🎯 button</p>' +
+      '<p class="td-overlay__sub" data-sec="🎯 Aiming">Aiming — the 🎯 button</p>' +
       '<ul class="td-guide__towers"><li><span class="td-guide__tico">🎯</span>Every gun aims on its OWN setting; tap 🎯 on its panel to ' +
       "cycle. It is worth real lives — on a boss level the best setting can be several lives better than the worst, and which one wins " +
       "differs from level to level, so it is worth a try when a wave keeps getting through. Your last choice is remembered per " +
@@ -727,7 +727,7 @@
       // anywhere in the app — the symbol appeared in the HUD, on every ability
       // button and here, and nothing said what it was. Numbers quoted from RULES
       // so they cannot drift from the engine.
-      '<p class="td-overlay__sub">Powers — usable during a wave only. Each costs gold 🪙 <b>and</b> ⚙️ Toy Energy: you get ' +
+      '<p class="td-overlay__sub" data-sec="🎒 Powers">Powers — usable during a wave only. Each costs gold 🪙 <b>and</b> ⚙️ Toy Energy: you get ' +
         global.TDData.RULES.chargePerWave + " more ⚙️ every wave you send, banked up to " +
         global.TDData.RULES.chargeMax + ". That is what stops late-game gold making the powers free. " +
         "The strip holds " + global.TDData.RULES.abilitySlots + " of the " + (global.TDData.ABILITIES || []).length +
@@ -737,29 +737,63 @@
         "🪙 — once per wave, so an overflowing purse buys options, never a free win.</p>" +
       '<ul class="td-guide__towers td-guide__abils">' + abilRow + "</ul>" +
       // The wave button does two different jobs; say so, or ⏩ RUSH is a mystery.
-      '<p class="td-overlay__sub">The wave button</p>' +
+      '<p class="td-overlay__sub" data-sec="▶ Waves">The wave button</p>' +
       '<ul class="td-guide__towers"><li><b>▶ CALL</b> — start the next wave early. The sooner you call, the more gold.</li>' +
       "<li><b>⏩ RUSH</b> — send the NEXT wave on top of the one already walking, for the same bonus. Up to " +
       (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk — and the " +
       "<b>Next:</b> strip over the field stays up whenever RUSH is on offer, so you can see what you would " +
       "be sending.</li></ul>" +
-      '<p class="td-overlay__sub">Level tricks — the board itself fights back.</p>' +
+      '<p class="td-overlay__sub" data-sec="🕳️ Tricks">Level tricks — the board itself fights back.</p>' +
       '<ul class="td-guide__towers td-guide__gimmicks">' + gimRow + "</ul>" +
       // TD-18: a resource shipped without a name was this guide's founding
       // defect (⚙️), so the chips explain themselves here from their own data.
-      '<p class="td-overlay__sub">🎖️ Challenges — arm a chip, win with it on, and it stamps that level’s card. ' +
+      '<p class="td-overlay__sub" data-sec="🎖️ Chips">🎖️ Challenges — arm a chip, win with it on, and it stamps that level’s card. ' +
       "A chip only ever takes a tool away, so it never makes a run easier — and every one is beatable " +
       "on every level (measured on casual with the tools that remain, not assumed).</p>" +
       '<ul class="td-guide__towers td-guide__chips">' +
       (global.TDData.CHIPS || []).map((c) =>
         '<li><span class="td-guide__tico">' + c.icon + "</span><b>" + c.name + "</b> — " + c.desc + "</li>").join("") +
       "</ul>" +
-      '<p class="td-overlay__sub">⭐ Star Tree — spend the stars you earn, then bring ' +
+      '<p class="td-overlay__sub" data-sec="⭐ Tree">⭐ Star Tree — spend the stars you earn, then bring ' +
       (global.TDData.RULES.metaSlots || 6) + " into a run.</p>" +
       '<ul class="td-guide__towers td-guide__tree">' + treeRow + "</ul>" +
+      // The roster is 77% of this dialog and had NO heading of its own, so the
+      // guide's longest stretch was also its least navigable.
+      '<p class="td-overlay__sub" data-sec="👾 Enemies">Every toy that comes for you.</p>' +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
     el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);
+    // CONTENTS. This dialog is 15,490px tall — 21 screens — and had no way to
+    // jump at all: reaching the star-tree section meant scrolling 3,342px, and
+    // the 56-enemy roster runs to the end. The row is DERIVED from the sections'
+    // own `data-sec` labels, so a ninth section appears here the moment it is
+    // written, and it is built AFTER render because it needs the real elements.
+    const box = el.querySelector(".td-overlay__box");
+    const secs = [...box.querySelectorAll("[data-sec]")];
+    if (secs.length > 1) {
+      const nav = doc.createElement("div");
+      nav.className = "td-guide__toc";
+      secs.forEach((sec, i) => {
+        sec.id = "td-sec-" + i;
+        const b = doc.createElement("button");
+        b.type = "button";
+        b.className = "td-guide__tocbtn";
+        b.textContent = sec.dataset.sec;
+        b.dataset.go = String(i);   // NOT data-sec: that is the SECTION's own marker
+        b.addEventListener("click", () => {
+          // scroll the BOX, not the page: the dialog is the scrollport, and
+          // scrollIntoView on a sticky-headed box lands the heading under the
+          // strip. Offset by the strip's own height.
+          const top = sec.offsetTop - box.offsetTop -
+            (box.querySelector(".td-overlay__top") || { offsetHeight: 0 }).offsetHeight;
+          box.scrollTop = Math.max(0, top);
+        });
+        nav.appendChild(b);
+      });
+      const h3 = box.querySelector("h3");
+      if (h3 && h3.nextSibling) box.insertBefore(nav, h3.nextSibling);
+      else box.appendChild(nav);
+    }
     if (focusType) {
       const f = el.querySelector('.td-guide__card[data-enemy="' + focusType + '"]');
       if (f && f.scrollIntoView) f.scrollIntoView({ block: "center" });

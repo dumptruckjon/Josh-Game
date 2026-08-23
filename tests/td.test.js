@@ -8793,3 +8793,97 @@ test("QoL: the star tree's budget rides the sticky strip, so it survives scrolli
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: the 21-screen Toybox Guide has contents you can jump with", async () => {
+  // Measured, the guide is 15,490px tall — 21 screens — and had no navigation at
+  // all: reaching the star-tree section meant scrolling 3,342px, and the
+  // 56-enemy roster (77% of the dialog) ran to the end with no heading of its
+  // own. The row is DERIVED from the sections' own labels, so a ninth section
+  // appears the moment it is written.
+  const openGuide = async (w, h) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+    await page.locator("#screen-td-home .td-guide-open").click();
+    await page.waitForTimeout(250);
+  };
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+
+  for (const [w, h] of [[390, 844], [320, 568]]) {
+    await openGuide(w, h);
+    const r = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay__box");
+      const b = box.getBoundingClientRect();
+      const btns = [...box.querySelectorAll(".td-guide__tocbtn")];
+      const secs = [...box.querySelectorAll("[data-sec]")];
+      const jumps = [];
+      for (const btn of btns) {
+        box.scrollTop = 0;
+        btn.click();
+        const sec = box.querySelector("#td-sec-" + btn.dataset.go);
+        jumps.push({ label: btn.textContent.trim(),
+          scrolled: Math.round(box.scrollTop),
+          offset: Math.round(sec.getBoundingClientRect().top - b.top) });
+      }
+      box.scrollTop = 0;
+      return { n: btns.length, secs: secs.length,
+        boxH: Math.round(b.height), scrollH: box.scrollHeight,
+        stripH: Math.round(box.querySelector(".td-overlay__top").getBoundingClientRect().height),
+        small: btns.filter((x) => x.getBoundingClientRect().height < 44).length,
+        blank: btns.filter((x) => !x.textContent.trim()).length,
+        navH: Math.round(box.querySelector(".td-guide__toc").getBoundingClientRect().height),
+        jumps, ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        rosterHasSection: (() => {
+          const list = box.querySelector(".td-guide__list");
+          if (!list) return false;
+          let p = list.previousElementSibling;
+          while (p && !p.hasAttribute("data-sec")) {
+            if (p.classList.contains("td-guide__list")) return false;   // another block came first
+            p = p.previousElementSibling;
+          }
+          // it must be the heading DIRECTLY introducing the roster, not one from
+          // an earlier section several blocks back
+          return !!p && list.previousElementSibling === p;
+        })() };
+    });
+
+    // Non-vacuity: navigation only matters because this thing is enormous.
+    assert.ok(r.scrollH > r.boxH * 8,
+      `fixture: at ${w}px the guide must really be many screens (${r.scrollH} vs a ${r.boxH} box)`);
+    assert.ok(r.n >= 6, `at ${w}px the guide must offer contents (${r.n} entries)`);
+    assert.equal(r.n, r.secs, "one entry per section — the row is derived, not written out");
+    assert.equal(r.blank, 0, "every entry must be labelled");
+    assert.equal(r.small, 0, `every entry must clear the fort's 44px adult floor at ${w}px`);
+    assert.ok(r.navH <= 200, `the row must stay compact (${r.navH}px of a ${r.boxH}px box)`);
+    assert.ok(r.ovf <= 1, `no sideways scroll at ${w}px (${r.ovf}px)`);
+
+    for (const j of r.jumps) {
+      // Landing UNDER the sticky strip is the same as not landing at all, so the
+      // heading has to clear it — that offset is the whole reason the jump does
+      // its own arithmetic instead of calling scrollIntoView.
+      assert.ok(j.offset >= r.stripH - 6 && j.offset <= r.stripH + 60,
+        `"${j.label}" must land just below the sticky strip at ${w}px ` +
+        `(heading at ${j.offset}px, strip is ${r.stripH}px)`);
+    }
+    const moved = r.jumps.filter((j) => j.scrolled > 0).length;
+    assert.ok(moved >= r.n - 1,
+      `every entry but the first must actually scroll somewhere (${moved} of ${r.n} did)`);
+    // The 56-enemy roster is 77% of this dialog and shipped with no heading of
+    // its own, so the guide's longest stretch was its least reachable. It must
+    // have an entry — asserted as "the roster list is introduced by a section",
+    // which is the property, not a count that a shorter guide also satisfies.
+    assert.ok(r.rosterHasSection,
+      `at ${w}px the enemy roster must have its own contents entry — it is most of the guide`);
+    const deepest = Math.max(...r.jumps.map((j) => j.scrolled));
+    assert.ok(deepest > 2000,
+      `…and the last section is a long way down, which is the point (${deepest}px)`);
+    await page.evaluate(() => { document.querySelector(".td-overlay__x").click(); });
+    await page.waitForTimeout(120);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+});

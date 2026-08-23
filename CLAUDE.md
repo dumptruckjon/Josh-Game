@@ -2919,6 +2919,30 @@ against a bar of 8), and the comment says the true thing. **When a mutation
 passes, the first thing to check is whether the sentence justifying the code is
 even true.**
 
+**THE GAME'S TEACHING SURFACE IS 21 SCREENS LONG AND HAD NO WAY TO JUMP.**
+Measured, the 📖 Toybox Guide is **15,490px** tall in a 726px box: reaching the
+⭐ Star Tree section meant scrolling 3,342px, and the **56-enemy roster — 77% of
+the whole dialog — had no heading of its own at all**, so its longest stretch was
+also its least navigable. It now opens with a contents row, DERIVED from the
+sections' own `data-sec` labels so a ninth section appears the moment it is
+written, and the roster finally gets a heading. Nine entries, every one at the
+fort's 44px adult floor, in a wrapping grid that costs **144px at both 390 and
+320** — the first cut used a 96px minimum track, which is two columns on the
+narrow phone and cost 244px of a 488px box; 72px gives three columns at both.
+The jump does its own arithmetic on the BOX rather than calling
+`scrollIntoView`, because the box is the scrollport and it has a sticky header
+strip — landing under that strip is the same as not landing at all, which is
+exactly what its mutation reports (`heading at 0px, strip is 70px`).
+**Two lessons from the tests.** The button's index was first stored as
+`data-sec`, colliding with the SECTION marker of the same name, so
+`[data-sec]` matched eighteen things instead of nine — caught by a derived
+clause (`one entry per section`) that a hand-written count would have missed,
+and fixed in the product rather than worked around in the test. And the mutation
+that removes the roster's heading PASSED at first, because "at least six
+entries" and "one per section" are both still true with eight: the clause that
+catches it has to name the property — the roster list must be introduced by a
+section — rather than count entries a shorter guide would also satisfy.
+
 ---
 
 ## Repository Structure

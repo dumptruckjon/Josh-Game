@@ -826,6 +826,19 @@ body.td-mode #screens { padding: 0; }
 @media (prefers-reduced-motion: reduce) { .td-toast { animation: none; } }
 
 /* ---- TD-12 Toybox Guide + defeat post-mortem ---- */
+/* Contents for a 21-screen dialog. A wrapping GRID, because flex `gap` is
+   dropped on iOS 14.0 and this is real separation between tap targets. */
+.td-guide__toc {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 6px; margin: 8px 0 4px;
+}
+.td-guide__tocbtn {
+  min-height: 44px; padding: 6px 8px;          /* the fort's adult tap floor */
+  border-radius: 10px; border: 1px solid #3a548a; background: #1b2a48;
+  color: #cfe2ff; font-size: 0.78rem; font-weight: 700; line-height: 1.1;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.td-guide__tocbtn:active { transform: scale(0.97); }
 /* Grid gap, never flex gap: Safari 14.0 (Josh's iPad floor) drops flex gap. */
 .td-guide__towers { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: row; gap: 6px; text-align: left; }
 .td-guide__towers li { color: #cfe2ff; font-size: 0.92rem; }
