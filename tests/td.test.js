@@ -7857,3 +7857,74 @@ test("QoL: the level grid names its worlds and says where stars are left", async
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(80);
 });
+
+test("QoL: Restart level asks first — it throws a live board away, exactly like leaving", async () => {
+  // The pause menu's two destructive buttons shipped with opposite policies:
+  // 🏰 Back to the fort routed through UI.confirm, while 🔁 Restart level — the
+  // row DIRECTLY BELOW ▶ Resume, the button you press most — tore the board
+  // down on a single tap with no undo. Restarting is if anything the worse of
+  // the two: leaving at least keeps the last wave-boundary checkpoint.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 3 });
+    const L = window.TDData.LEVELS.find((l) => l.id === 1);
+    window.__TD.script(L.pads.slice(0, 3).map((p) => ["place", "dart", p.id]).concat([["call"], ["tick", 60]]));
+  });
+  await page.evaluate(() => { location.hash = "#__renav"; });   // same-hash set is a no-op — hop to re-fire route() and unpause
+  await page.waitForTimeout(60);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(200);
+
+  const look = () => page.evaluate(() => {
+    const s = window.__TD.state();
+    return { towers: s.towers.length, phase: s.phase, tick: s.tick, wave: s.waveIdx };
+  });
+  const before = await look();
+  assert.equal(before.towers, 3, "fixture: a real board exists");
+  assert.equal(before.phase, "wave", "fixture: a wave is walking, so the run is genuinely live");
+
+  const openPauseAndRestart = async () => {
+    await page.locator("#screen-td-play .td-pause").click();
+    await page.locator('.td-overlay [data-act="restart"]').waitFor({ state: "visible", timeout: 5000 });
+    await page.locator('.td-overlay [data-act="restart"]').click();
+    await page.waitForTimeout(200);
+  };
+
+  // 1. It must ASK, and say what it is about to do — the copy is restart's own,
+  //    not the leave dialog's, or the player is told the wrong thing.
+  await openPauseAndRestart();
+  const dlg = await page.evaluate(() => {
+    const el = document.querySelector(".td-overlay--confirm");
+    if (!el) return null;
+    return { title: (el.querySelector("h3") || {}).textContent || "",
+      yes: (el.querySelector('[data-act="yes"]') || {}).textContent || "",
+      no: (el.querySelector('[data-act="no"]') || {}).textContent || "" };
+  });
+  assert.ok(dlg, "restarting a live level must confirm first, like leaving does");
+  assert.match(dlg.title, /over\?/i, `the dialog must say it is a RESTART, not a leave (saw "${dlg.title}")`);
+  assert.match(dlg.yes, /restart/i, "the destructive button names the action");
+  assert.match(dlg.no, /keep playing/i, "and the safe choice is the prominent one");
+  const mid = await look();
+  assert.equal(mid.towers, 3, "the board must still be there while you decide");
+
+  // 2. Keep playing keeps the SAME board — and un-pauses, exactly as the leave
+  //    dialog does (they share one owner, so this pins that behaviour too).
+  await page.locator('.td-overlay--confirm [data-act="no"]').click();
+  await page.waitForTimeout(120);
+  const kept = await look();
+  assert.equal(kept.towers, 3, "keep-playing must not touch the board");
+  assert.equal(kept.wave, before.wave, "keep-playing must not rewind the run");
+  await page.waitForTimeout(350);
+  const moved = await look();
+  assert.ok(moved.tick > kept.tick,
+    `keep-playing must resume the battle, not leave it frozen (tick ${kept.tick} → ${moved.tick})`);
+
+  // 3. …and confirming really does restart.
+  await openPauseAndRestart();
+  await page.locator('.td-overlay--confirm [data-act="yes"]').click();
+  await page.waitForTimeout(300);
+  const after = await look();
+  assert.equal(after.towers, 0, "confirming restarts: a fresh, empty board");
+  assert.equal(after.phase, "build", "…back in the build phase");
+});

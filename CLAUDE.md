@@ -2636,6 +2636,29 @@ it. Same family as the inequality-is-not-a-magnitude finding: a weaker form of
 the claim is often satisfied by the very defect it was written for, and the way
 to find out is to run the mutation rather than to admire the assertion.
 
+**THE PAUSE MENU'S TWO DESTRUCTIVE BUTTONS HAD OPPOSITE POLICIES.** 🏰 Back to
+the fort has routed through `UI.confirm` since the fort's first UX pass — the
+recorded law that *a progress-losing exit must confirm first*, with ↩ Keep
+playing prominent and the battle paused while you decide — and 🔁 **Restart
+level, the row DIRECTLY BELOW ▶ Resume**, tore the board down on one tap with no
+undo. That is the button you press most, one row above the one that destroys
+your run. Restarting is if anything the worse of the two: leaving at least keeps
+the last wave-boundary checkpoint, restarting keeps nothing. Two adjacent
+siblings disagreeing about one rule is this project's most repeated tell
+(`hurriedMult`'s two writers, the wake lock's drifted acquire and release,
+`writeMidRun`'s three fields with two policies, `resumeMidRun` coercing its array
+and trusting its numbers) — so the fix is not a second confirm but ONE owner:
+`promptLeave` became `promptDiscard(onGo, copy)`, the old name is GONE rather
+than left beside it as a second path, and the two call sites pass their own copy
+(a restart dialog that says *"Leave the battle?"* tells the player the wrong
+thing, which a mutation pins). **The structural half derives its own list**: it
+does not name restart and quit, it takes every handler in `showPauseMenu` that
+restarts the level or navigates away and requires it to route through the owner,
+so a third destructive action inherits the rule instead of needing this test
+edited — with a floor assertion, because that scan fails OPEN. And `UI.confirm(`
+must appear exactly once in `td-main`, which is what stops a future inline
+dialog quietly reintroducing a second policy.
+
 ---
 
 ## Repository Structure

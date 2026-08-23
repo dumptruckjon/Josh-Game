@@ -2699,3 +2699,35 @@ test("guardrail: remembered AIM goes through the engine, and nested save default
       `save.settings.${field} is coerced at boot, so freshSave() must reset it too`);
   }
 });
+
+test("guardrail: throwing a live battle away has exactly ONE confirm owner", () => {
+  const tdm = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  // 🔁 Restart and 🏰 Back to the fort both discard a live board, and they
+  // shipped with OPPOSITE policies — one asked, one did it on a single tap from
+  // the row directly below ▶ Resume. Two adjacent siblings disagreeing about the
+  // same rule is how hurriedMult got two writers and how the wake lock's acquire
+  // and release drifted apart, so the confirm gets one owner and a second inline
+  // UI.confirm cannot reintroduce a second policy.
+  assert.equal((tdm.match(/UI\.confirm\(/g) || []).length, 1,
+    "every 'are you sure' about a live battle goes through the one owner");
+  assert.equal((tdm.match(/function promptDiscard\(/g) || []).length, 1,
+    "…and that owner is defined exactly once");
+  assert.ok(!/promptLeave/.test(tdm),
+    "the previous owner must be GONE, not left beside the new one as a second path");
+
+  // …and every destructive action in the pause menu routes through it. The list
+  // is DERIVED from the handlers themselves — anything that restarts the level
+  // or navigates away is destructive — so a third one inherits the rule instead
+  // of needing this test edited (the "a scan's own list is part of the scan" law).
+  const menu = tdm.slice(tdm.indexOf("function showPauseMenu("), tdm.indexOf("function showPauseMenu(") + 2000);
+  const parts = menu.split(/\n\s{6}(?=\w+: )/).slice(1);
+  const destructive = parts.filter((h) => /startLevel\(|location\.hash/.test(h));
+  assert.ok(destructive.length >= 2,
+    `the pause menu's destructive actions must be findable (found ${destructive.length})`);
+  for (const h of destructive) {
+    const name = (/^(\w+):/.exec(h) || [])[1];
+    assert.match(h, /promptDiscard\(/,
+      `the pause menu's "${name}" throws a live battle away, so it must ask first`);
+  }
+});

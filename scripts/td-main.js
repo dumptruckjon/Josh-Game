@@ -492,15 +492,17 @@
         // Carry the RUN's difficulty. Dropping it silently converted a Kid Fort
         // run into an adult one (RULE 5 controls gone, defeat reachable).
         const d = cur.engine.state.difficulty;
+        const id = cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId;
+        const opts = cur.engine.state.endless ? { levelDef: cur.levelDef, difficulty: d } : { difficulty: d };
         UI.closeOverlay();
-        startLevel(cur.levelDef ? cur.levelDef.id : cur.engine.state.levelId,
-          cur.engine.state.endless ? { levelDef: cur.levelDef, difficulty: d } : { difficulty: d });
+        // Same gate as leaving: this discards a live board with no undo.
+        promptDiscard(() => startLevel(id, opts), RESTART_COPY);
       },
       // Toggling Sounds must NOT touch the music — that coupling is the bug.
       sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); openPause(); },
       music: () => { save.settings.music = !save.settings.music; persist(save); syncMusic(); openPause(); },
       dmg: () => { save.settings.dmgNumbers = !save.settings.dmgNumbers; persist(save); if (cur.render.setDamageNumbers) cur.render.setDamageNumbers(save.settings.dmgNumbers); openPause(); },
-      quit: () => { UI.closeOverlay(); promptLeave(() => { location.hash = "#td-home"; }); },
+      quit: () => { UI.closeOverlay(); promptDiscard(() => { location.hash = "#td-home"; }, LEAVE_COPY); },
     }, save.settings,
     // Which level is this? Nothing in a live battle said so.
     UI.runLabel(cur.engine.state.levelId, cur.engine.state.endless, cur.dailyDay));
@@ -1152,17 +1154,28 @@
   }
   // Guard any exit that abandons the level: confirm first, pausing the battle
   // while the player decides so nothing leaks. "Keep playing" resumes.
-  function promptLeave(onLeave) {
-    if (!inLevel()) { onLeave(); return; }
+  // The ONE owner. Every action that throws a live battle away goes through this
+  // — leaving to the fort AND restarting the level. They shipped with opposite
+  // policies: 🏠 confirmed, while 🔁 Restart tore the board down on one tap,
+  // from the row DIRECTLY BELOW ▶ Resume, which is the button you press most.
+  // Two adjacent siblings disagreeing about the same rule is this project's
+  // recurring tell (hurriedMult's two writers; the wake lock's drifted acquire
+  // and release; writeMidRun's three fields with two policies), and restarting
+  // is if anything the worse of the two — leaving at least keeps the last
+  // wave-boundary checkpoint, restarting keeps nothing.
+  function promptDiscard(onGo, copy) {
+    if (!inLevel()) { onGo(); return; }
     cur.paused = true; syncRun(); // a battle paused behind a confirm must not hold the screen awake
     UI.confirm({
-      title: "Leave the battle?",
+      title: copy.title,
       msg: "You'll lose your progress on this level.",
-      yes: "🏰 Leave", no: "↩ Keep playing",
-      onYes: () => { UI.closeOverlay(); onLeave(); },
+      yes: copy.yes, no: "↩ Keep playing",
+      onYes: () => { UI.closeOverlay(); onGo(); },
       onNo: () => { UI.closeOverlay(); if (cur) { cur.paused = false; syncRun(); } }, // keep-playing resumes the battle — take the lock back
     });
   }
+  const LEAVE_COPY = { title: "Leave the battle?", yes: "🏰 Leave" };
+  const RESTART_COPY = { title: "Start this level over?", yes: "🔁 Restart" };
 
   // 🎯 The ONE owner of remembered aim. A freshly placed tower opens on whatever
   // mode you last chose for THAT line, so a board can be aimed once instead of
@@ -1602,7 +1615,7 @@
   UI._packedPowers = () => activePowers();
   UI.buildScreens({
     exitFort: () => { location.hash = ""; },
-    quitToFort: () => { promptLeave(() => { location.hash = "#td-home"; }); },
+    quitToFort: () => { promptDiscard(() => { location.hash = "#td-home"; }, LEAVE_COPY); },
     // TD-9: tapping an ability button. An "instant" one fires immediately; a
     // point/tower one ARMS and the next field tap resolves it (the rally-flag
     // precedent). Re-tapping an armed ability disarms it — a toddler-proof
