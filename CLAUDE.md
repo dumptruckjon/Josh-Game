@@ -2788,6 +2788,33 @@ anchor. That clause had to be moved to the FRONT of the test — the population
 walk is affected by staleness too, so it fired first and the pair clause was
 still unproven, the earlier-clause trap for the fourth time in this stretch.
 
+**THE SAME SCREENSHOT PASS FOUND TWO MORE, AND THE FIRST IS A LESSON THIS FILE
+ALREADY CONTAINS.** (1) **The ⭐ count badge sat ON its own label at every width
+measured** — 53px² at 390, 79px² at 768/834/1024 where the button's text wraps to
+two lines. Its own test had measured that button heights stayed byte-identical
+and that nothing overflowed, which is exactly the shape of the recorded level-card
+finding: *"a first cut put it in an absolutely positioned corner, which measured
+free and then COLLIDED with the level number"*. Committed again one screen over,
+by the person who wrote that sentence down. The cards solved it by sharing a flex
+row (a flex row cannot overlap); a corner badge can keep its corner only if the
+space is RESERVED, so a badged button gets `padding-right: 24px` — and **24 is the
+measured floor, not a round number**: at 20 the narrowest button still overlaps by
+5-7px², which its own mutation reports. (2) **The 40-card grid orphaned one card
+per world.** Every world is four levels (a boss headlines each world's fourth,
+which `TD structure` pins), so a 3-wide grid always leaves a ragged half-row —
+ten of them — while costing the SAME number of rows as 2-wide. Measured, two
+columns is strictly better: the grid is **131px shorter at 390 and 198px at
+320**, and level names wrapping to two lines go **32 of 40 → 0**, because the
+cards are half as many and half again as wide; the tablet is unchanged in height
+with wider cards. The structural clause is `levelsPerWorld % columns === 0`,
+derived from the data and the computed column count, so it generalises to an
+eleventh world of a different size; the no-wrap clause is the player-visible
+payoff and is proven independently (a `max-width` on the card, keeping two
+columns, turns only it red). **And the change broke one of my own clauses from an
+hour earlier**: the world heading was asserted to be wider than `card × 2.5`, a
+proxy that happened to hold at three columns and fails at two — it asserts the
+grid's own width now, which is the property it always meant.
+
 ---
 
 ## Repository Structure

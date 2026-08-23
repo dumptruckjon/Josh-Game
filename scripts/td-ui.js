@@ -476,6 +476,7 @@
       if (!btn) return;
       const old = btn.querySelector(".td-metabtn__n");
       if (old) old.remove();
+      btn.classList.remove("td-metabtn--n");
       btn.removeAttribute("aria-label");
       if (!count) return;                 // nothing to act on: no badge, no noise
       const n = doc.createElement("span");
@@ -484,6 +485,7 @@
       // The button's own text already says what it is; this is the count, so the
       // accessible name has to carry it too (a title is hover-only on a phone).
       btn.setAttribute("aria-label", label);
+      btn.classList.add("td-metabtn--n");   // reserve the corner — see the CSS
       btn.appendChild(n);
       if (!first) first = n;
     };

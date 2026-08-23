@@ -7810,10 +7810,16 @@ test("QoL: the level grid names its worlds and says where stars are left", async
     assert.ok(!h.focusable, "a world heading must not be focusable");
     assert.equal(h.pe, "none", "a world heading must not eat taps meant for the grid");
   }
-  // Full-width: it is a section break, not a fourth card in the row.
+  // Full-width: it is a section break, not another card in the row. Asserted
+  // against the GRID's own width rather than a multiple of a card, so it stays
+  // true whatever the column count is (it was a card multiple, and went red the
+  // day the grid became two columns — a proxy that tracked the property only at
+  // the column count it was written under).
+  const gridW = await page.evaluate(() =>
+    Math.round(document.querySelector("#screen-td-home .td-levels").getBoundingClientRect().width));
   const cardW = rows.find((r) => !r.head).w;
-  assert.ok(heads[0].w > cardW * 2.5,
-    `a world heading must span the grid, not sit in one column (${heads[0].w}px vs a ${cardW}px card)`);
+  assert.ok(heads[0].w >= gridW - 4 && heads[0].w > cardW + 8,
+    `a world heading must span the whole grid, not sit in one column (${heads[0].w}px of a ${gridW}px grid, card ${cardW}px)`);
 
   // The ⭐ count is the actionable half, and it reads the SELECTED ladder.
   const first = expected.order[0];
@@ -8348,4 +8354,101 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(150);
 
+});
+
+test("QoL: a corner badge never sits on its own label, and the grid never orphans a card", async () => {
+  // Both were found by SCREENSHOTTING changes that all their own tests passed.
+  // The ⭐ count badge measured "free" (button heights byte-identical, no page
+  // overflow) and then sat ON its own word at every width — 53px² at 390 and
+  // 79px² on a tablet, where the label wraps to two lines. The level cards had
+  // already taught this exact lesson once: an absolutely positioned corner
+  // measures free and then collides, so the guarantee has to be STRUCTURAL.
+  const openHome = async () => {
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+    await page.waitForTimeout(90);
+  };
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.resetSave();
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.stars = { casual: {}, normal: { "1": 3, "2": 3, "3": 3, "4": 3 }, heroic: {} };
+    raw.chipsArmed = ["nocamp", "nofan"];
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+
+  const look = () => page.evaluate(() => {
+    const badges = [];
+    for (const b of document.querySelectorAll("#screen-td-home .td-metabtn")) {
+      const n = b.querySelector(".td-metabtn__n");
+      if (!n) continue;
+      const nb = n.getBoundingClientRect();
+      // the LABEL's real ink, via a Range over the button's own text nodes — a
+      // span's box is as wide as its parent and would prove nothing.
+      const rng = document.createRange();
+      let worst = 0;
+      for (const node of b.childNodes) {
+        if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+        rng.selectNodeContents(node);
+        for (const t of rng.getClientRects()) {
+          const ox = Math.max(0, Math.min(nb.right, t.right) - Math.max(nb.left, t.left));
+          const oy = Math.max(0, Math.min(nb.bottom, t.bottom) - Math.max(nb.top, t.top));
+          worst = Math.max(worst, Math.round(ox * oy));
+        }
+      }
+      badges.push({ cls: [...b.classList].find((c) => c.endsWith("-open")), overlap: worst,
+        inside: nb.right <= b.getBoundingClientRect().right + 1 });
+    }
+    const grid = document.querySelector("#screen-td-home .td-levels");
+    const cols = getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length;
+    const wrapped = [...grid.querySelectorAll(".td-level__name")]
+      .filter((n) => n.getBoundingClientRect().height > 26).length;
+    return { badges, cols, wrapped, cards: grid.querySelectorAll(".td-level").length,
+      ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  });
+
+  const sizes = [[320, 568], [390, 844], [768, 1024], [834, 1112]];
+  let seen = 0;
+  for (const [w, h] of sizes) {
+    await page.setViewportSize({ width: w, height: h });
+    await openHome();
+    const r = await look();
+    assert.ok(r.badges.length >= 2,
+      `fixture: the seed must actually produce badges at ${w}px (saw ${r.badges.length})`);
+    seen += r.badges.length;
+    for (const b of r.badges) {
+      assert.equal(b.overlap, 0,
+        `at ${w}px the ${b.cls} badge overlaps its own label by ${b.overlap}px² — reserve its corner`);
+      assert.ok(b.inside, `at ${w}px the ${b.cls} badge escapes its button`);
+    }
+    // Every world is four levels, so an odd column count orphans exactly one
+    // card per world — ten ragged half-rows, for the SAME number of rows.
+    const per = await page.evaluate(() => {
+      const c = {};
+      for (const l of window.TDData.LEVELS) c[l.world] = (c[l.world] || 0) + 1;
+      return c;
+    });
+    for (const world in per) {
+      assert.equal(per[world] % r.cols, 0,
+        `world "${world}" has ${per[world]} levels in a ${r.cols}-column grid, so its last row is ragged`);
+    }
+    assert.ok(r.ovf <= 1, `the fort home must not scroll sideways at ${w}px (${r.ovf}px)`);
+  }
+  assert.ok(seen >= 8, `fixture: badges must have been measured at every size (saw ${seen})`);
+
+  // The payoff the wider card buys: at the size this is played at, a level's
+  // NAME fits on one line. It was 32 of 40 wrapping in the 3-wide grid.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openHome();
+  const r = await look();
+  assert.equal(r.cards, 40, "fixture: every level still has a card");
+  assert.ok(r.wrapped === 0,
+    `at 390px no level name should wrap — the card is wide enough now (${r.wrapped} of ${r.cards} wrapped)`);
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
 });

@@ -36,8 +36,15 @@ body.td-mode #screens { padding: 0; }
 
 /* ---- fort home ---- */
 .td-sub { margin: 0 0 12px; color: #9db4dd; }
+/* TWO columns, not three. Every world is four levels (a boss headlines each
+   world's fourth, which `TD structure` pins), so a 3-wide grid orphans exactly
+   one card per world — ten ragged half-rows — while costing the SAME number of
+   rows as 2-wide. Measured: the grid gets 131px shorter at 390 and 198px at
+   320, and level names wrapping to two lines go from 32 of 40 to 0, because the
+   cards are half as many and half again as wide. `minmax(0, 1fr)` because
+   `repeat(N, 1fr)` is `minmax(auto, 1fr)` and a wide child inflates the track. */
 .td-levels {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 .td-level {
@@ -638,6 +645,15 @@ body.td-mode #screens { padding: 0; }
    there is something to act on: a badge that is always present is decoration,
    one that appears when stars are waiting is a signal. pointer-events:none so
    it can never eat the button's own tap. */
+/* A badge riding the corner must have its space RESERVED, or the centred label
+   grows into it — measured at every width from 320 to 1024, the ⭐ count sat ON
+   its own word (53px² at 390, 79px² on a tablet where the label wraps to two
+   lines). The level cards learned this once already: "a first cut put it in an
+   absolutely positioned corner, which measured free and then COLLIDED". 24px is
+   the measured floor — 20 still leaves 5-7px² on the narrowest button — and it
+   costs no extra wrapping at any width. Applied only when a badge is present,
+   so the six bare buttons keep their symmetric padding. */
+.td-metabtn--n { padding-right: 24px; }
 .td-metabtn__n {
   position: absolute; top: 3px; right: 5px;
   min-width: 18px; padding: 0 4px;
