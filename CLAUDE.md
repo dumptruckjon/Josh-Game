@@ -2966,6 +2966,24 @@ last row for the same number of rows that 3+3+3 fills evenly. When the item
 count is FIXED and small, an even grid beats a dense one; the clause is
 `entries % columns === 0`, which is the level grid's orphan law generalised.
 
+**A VIEWPORT WAS ADDED TO A TEST, MEASURED CLEAN, AND COULD NOT FAIL — and the
+fix was a different SIZE, not a different threshold.** The next-wave pill's
+anchor test pins 390 (budget 1) and 320 (budget 7); a landscape clause was added
+at 844x390, measured 1 of 40, and the isolation run came back `ok`. Measuring the
+DEFECT rather than the fix says why: fixed-centre vs anchored is **10 vs 1** at
+390 portrait, **16 vs 7** at 320, **5 vs 1** at 667x375 — and **0 vs 0** at both
+844x390 and 1024x768. In a wide landscape the pill is a small fraction of the
+canvas and the centre already misses every lane, so no budget at that size can
+separate the two states. Re-pointed at 667x375, where the mutation reads
+`5 maps ... budget of 1 (L14, L19, L20, L26, L31)`. **This is the second half of
+"a viewport list IS the test": a size earns its place only if it can SEPARATE the
+two states, and the only way to know is to measure the defect AT that size.** It
+is the same conclusion the fort-overlay audit reached when it declined to add
+tablet portrait — but there the reasoning was structural (a roomy viewport cannot
+catch an overflow), and here nothing but the measurement would have said so. The
+two dead sizes are named in the test comment rather than silently omitted, so the
+next author does not "improve" it by adding them back.
+
 ---
 
 ## Repository Structure

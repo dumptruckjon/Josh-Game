@@ -8351,6 +8351,20 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
   hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
   assert.ok(hit.length <= 7,
     `at 320px the pill covers a lane on ${hit.length} maps, over the measured budget of 7 (L${hit.join(", L")})`);
+
+  // LANDSCAPE, and the SIZE is the test. The renderer rotates the floor 90° for
+  // portrait, so every lane moves on screen and the anchor is re-derived from
+  // that geometry — but only a landscape NARROW enough for the pill to be a real
+  // fraction of the canvas can separate the two states. Measured, fixed-centre
+  // vs anchored: 844×390 is 0 vs 0 and 1024×768 is 0 vs 0, i.e. clauses there
+  // could not fail and are not written; 667×375 is 5 vs 1, which is a genuine
+  // separation, so that is the size this pins.
+  await page.setViewportSize({ width: 667, height: 375 });
+  await page.waitForTimeout(150);
+  rows = await measure();
+  hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
+  assert.ok(hit.length <= 1,
+    `in a narrow landscape the pill covers a lane on ${hit.length} maps, over the measured budget of 1 (L${hit.join(", L")})`);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(150);
 
