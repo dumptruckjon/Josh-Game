@@ -790,6 +790,13 @@ body.td-mode #screens { padding: 0; }
 .td-endless--locked { opacity: 0.5; border-color: #3a548a; background: #182a4a; }
 .td-endless__best { font-size: 0.78rem; color: #ffe27a; font-weight: 700; }
 
+/* Badges earned AT an outcome, rendered inside its box. The toast paints UNDER
+   the overlay by design (so it can never cover these buttons in landscape), so
+   a win-time badge announced as a toast arrived dimmed behind the scrim. */
+.td-earned { display: grid; grid-auto-flow: row; gap: 2px; }  /* grid gap survives iOS 14.0 */
+.td-earned__line { display: flex; align-items: center; justify-content: center; }
+.td-earned__icon { font-size: 1.25rem; margin-right: 8px; }
+
 /* achievement toast */
 .td-toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);

@@ -2840,6 +2840,38 @@ whose removal changes nothing makes its own guardrail unfalsifiable, which is
 the third time this file has deleted one for that reason. The honest mutation
 for the rest is to remove the whole media block, which reports the original six.
 
+**A BADGE WAS ANNOUNCED BEHIND THE SCREEN IT WAS EARNED ON.** The achievement
+toast is deliberately `z-index: 15` — its own comment says it must paint UNDER
+the victory/defeat overlay so a landscape toast can never cover those buttons,
+which was an earlier audit's call and the right one. But nearly every badge is
+earned at the moment of a WIN, when that overlay is up, so the announcement
+arrived dimmed behind a 70% scrim and clipped off the bottom of the screen: the
+one thing that tells you an achievement happened was systematically hidden at
+exactly the moment it fires. Found by SCREENSHOTTING the victory screen, which
+nothing in this session had done. **Flipping the z-index would simply trade this
+defect for the one already fixed**, so the rule is instead *announce a badge
+where it was EARNED*: one `announce()` routes by the engine's phase — an outcome
+on screen means the badge is rendered INSIDE that box beside the stars and the
+unlock, and a mid-run badge (First Blood, Ice Age) still toasts, because nothing
+is covering it then. The 🎖️ challenge-done line had the identical problem and
+goes through the same owner.
+**Two fixture failures and one unproven clause, all instructive.** The control
+("a mid-run badge still toasts") passed vacuously twice: first because
+`earnAch` returns early for a badge already owned, so First Blood could never
+fire again after the win above it — and then because a neglect run has no
+towers, so nothing dies and there is no first kill to have. It needs a fresh
+save AND a board. And the mutation that never drains the pending list PASSED,
+because the test only ever reached ONE outcome box; the clause that makes the
+drain falsifiable is that a LATER box must name only what that outcome earned,
+which now reports the defeat screen repeating `Doorman` from the run before it.
+**And the gate hung for 93 minutes on a defect that did not exist.** The last
+child was `tests/td.test.js` at **5 seconds of CPU in 90 minutes** — the tell is
+CPU TIME, not liveness — and run alone the same file passes 147/147 in 138s. The
+cause was mine: I had been running browser probes and mutation runs CONCURRENTLY
+with the gate, and both drive Chromium while the suite already runs its files in
+parallel. Do not run a probe while the gate is up; it is the frame-budget
+contention lesson one level higher, and here it cost an hour and a half.
+
 ---
 
 ## Repository Structure

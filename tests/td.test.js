@@ -8564,3 +8564,98 @@ test("QoL: the resume banner's label stays readable on the narrowest phone", asy
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: a badge earned at a WIN is announced inside the victory box, not behind it", async () => {
+  // The toast is deliberately z-15 so it can never cover the outcome screen's
+  // buttons in landscape — an earlier audit's call, and the right one. But most
+  // badges are earned at the moment of a win, when that screen is up, so the
+  // announcement was arriving dimmed behind its 70% scrim and clipped off the
+  // bottom. Flipping the z-index trades this defect for the one already fixed;
+  // a badge earned at an outcome belongs INSIDE that outcome.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.evaluate(() => { window.__TD.winL1(7); });
+  await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 20000 });
+  await page.waitForTimeout(250);
+
+  const r = await page.evaluate(() => {
+    const box = document.querySelector(".td-overlay--win .td-overlay__box") ||
+      document.querySelector(".td-overlay--win").firstElementChild;
+    const lines = [...box.querySelectorAll(".td-earned__line")].map((p) => p.textContent.trim());
+    const boxRect = box.getBoundingClientRect();
+    const toasts = [...document.querySelectorAll(".td-toast")].map((t) => t.textContent.trim());
+    return { lines, toasts, ach: window.__TD.ach(),
+      // everything the box says must actually be ON the box, not clipped away
+      inside: lines.length === 0 || [...box.querySelectorAll(".td-earned__line")].every((p) => {
+        const q = p.getBoundingClientRect();
+        return q.top >= boxRect.top - 1 && q.bottom <= boxRect.bottom + 1 && q.width > 40;
+      }) };
+  });
+
+  assert.ok(r.ach.indexOf("doorman") >= 0,
+    `fixture: winning L1 must actually earn a badge (got ${JSON.stringify(r.ach)})`);
+  assert.ok(r.lines.length >= 1,
+    `a badge earned at the win must be named in the victory box (box lines: ${JSON.stringify(r.lines)})`);
+  assert.ok(r.lines.join(" ").indexOf("Doorman") >= 0,
+    `…by name (saw ${JSON.stringify(r.lines)})`);
+  assert.ok(r.inside, "…and the line must be laid out inside the box, not clipped");
+  // …and NOT as a toast, which is painted under the scrim.
+  assert.ok(!r.toasts.some((t) => t.indexOf("Doorman") >= 0),
+    `a win-time badge must not also be a toast behind the scrim (toasts: ${JSON.stringify(r.toasts)})`);
+
+  // The list must be DRAINED, or the next outcome box repeats badges you earned
+  // in a run that is already over. A neglect loss earns nothing (no kills, no
+  // win), so its box must name NOTHING — which is only true if the win's entries
+  // were taken away with it.
+  await page.evaluate(() => { document.querySelector('.td-overlay [data-act="continue"]').click(); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 1 });
+    return window.__TD.script([["call"], ["untilPhase", "lost", 400000]]);
+  });
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(200);
+  const after = await page.evaluate(() => {
+    const box = document.querySelector(".td-overlay--lose .td-overlay__box") ||
+      document.querySelector(".td-overlay--lose").firstElementChild;
+    return [...box.querySelectorAll(".td-earned__line")].map((p) => p.textContent.trim());
+  });
+  assert.deepEqual(after, [],
+    `an outcome box must name only what THIS outcome earned (saw ${JSON.stringify(after)})`);
+
+  // CONTROL: a badge earned MID-RUN still toasts — nothing is covering it then,
+  // and the toast is the only thing that can announce it at all.
+  await page.evaluate(() => { document.querySelector('.td-overlay [data-act="quit"]').click(); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(150);
+  const mid = await page.evaluate(() => {
+    // A FRESH save: earnAch returns early for a badge already owned, so without
+    // this the control measures nothing — First Blood was earned by the win
+    // above and could never fire again. (Suspect the fixture.)
+    window.__TD.resetSave();
+    for (const t of document.querySelectorAll(".td-toast")) t.remove();
+    window.__TD.newGame(1, { seed: 3 });
+    const before = document.querySelectorAll(".td-toast").length;
+    // …and a BOARD, or nothing dies and First Blood can never fire. phase is
+    // "build"/"wave" throughout — the honest mid-run case.
+    const L = window.TDData.LEVELS.find((l) => l.id === 1);
+    window.__TD.script(L.pads.slice(0, 3).map((p) => ["place", "dart", p.id])
+      .concat([["call"], ["tick", 600]]));
+    return { phase: window.__TD.state().phase,
+      grew: document.querySelectorAll(".td-toast").length > before,
+      ach: window.__TD.ach() };
+  });
+  assert.notEqual(mid.phase, "won", "fixture: the control must be a LIVE run, not an outcome");
+  assert.ok(mid.ach.indexOf("firstblood") >= 0,
+    `fixture: a mid-run badge must actually be earned (got ${JSON.stringify(mid.ach)})`);
+  assert.ok(mid.grew,
+    "a badge earned mid-run must still toast — the outcome box is not on screen to hold it");
+});

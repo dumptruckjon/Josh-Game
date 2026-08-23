@@ -1433,7 +1433,6 @@
     if (UI.bubble && UI.bubble.hidden) return;
     paintPrices();
   };
-  UI.lastGold = function () { return lastGold; };
 
   UI.hideBubble = function () { if (UI.bubble) UI.bubble.hidden = true; };
 
@@ -1538,7 +1537,18 @@
       "</div>";
   }
 
-  UI.showVictory = function (stars, lives, maxLives, goal, hooks, rs) {
+  // Badges earned AT an outcome are rendered inside that outcome's box — the
+  // toast is deliberately painted under the overlay so it can never cover these
+  // buttons, which meant the announcement was arriving dimmed behind the scrim.
+  // Reuses .td-sum__line, a pairing the fort's contrast audit already walks.
+  function earnedHtml(earned) {
+    if (!earned || !earned.length) return "";
+    return '<div class="td-earned">' + earned.map((e) =>
+      '<p class="td-sum__line td-earned__line"><span class="td-earned__icon">' + e.icon + "</span>" +
+      e.html.replace(/<br>/g, " ") + "</p>").join("") + "</div>";
+  }
+
+  UI.showVictory = function (stars, lives, maxLives, goal, hooks, rs, earned) {
     const hasNext = !!hooks.nextLevel;
     const el = overlay("td-overlay--win",
       '<h3>Fort defended! 🎉</h3>' +
@@ -1554,6 +1564,7 @@
       (goal ? '<p class="td-sum__line td-overlay__goal">' + (goal.need - lives) + " more for "
         + "⭐".repeat(goal.stars) + "</p>" : "") +
       summaryHtml(rs) +
+      earnedHtml(earned) +
       (hasNext ? '<p class="td-overlay__warn">🔓 Level ' + hooks.nextLevel + ' unlocked!</p>' : "") +
       (hasNext ? '<button class="td-btn td-btn--call" data-act="next" type="button">▶ Next level</button>' : "") +
       '<button class="td-btn" data-act="continue" type="button">' + (hasNext ? "🏰 Back to the fort" : "Continue") + "</button>");
@@ -1564,7 +1575,7 @@
     });
   };
 
-  UI.showDefeat = function (hooks, endless, pm, rs) {
+  UI.showDefeat = function (hooks, endless, pm, rs, earned) {
     // endless: { score, best } — an endless run ends only in defeat, so its
     // "score" (waves survived) is the headline, not a failure.
     const head = endless ? '<h3>♾️ Run over!</h3>' +
@@ -1586,7 +1597,7 @@
           (pm.flank ? '<p class="td-pm__advice">🚪 ' + pm.flank +
             " of that wave came in through the side door, behind your guns — cover it next time.</p>" : "") +
           '<button class="td-btn td-pm__guide" type="button" data-act="guide">📖 See the guide</button>' +
-        "</div>" : "") + summaryHtml(rs);
+        "</div>" : "") + summaryHtml(rs) + earnedHtml(earned);
     const el = overlay("td-overlay--lose",
       head +
       '<button class="td-btn" data-act="retry" type="button">🔁 ' + (endless ? "Again" : "Try again") + "</button>" +

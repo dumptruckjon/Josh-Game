@@ -221,13 +221,31 @@
   }
 
   // ---- TD-5 achievements: earn once, toast, persist (never on a cheated run) ----
+  // ANNOUNCE A BADGE WHERE IT WAS EARNED. The toast is deliberately z-15 so it
+  // can never cover the outcome screen's buttons in landscape (an earlier
+  // audit's call, and the right one) — but most badges are earned at the moment
+  // of a WIN, when that screen is up, so the announcement was being dimmed to
+  // near-illegibility behind its 70% scrim and clipped at the bottom. Flipping
+  // the z-index would just trade one defect for the one already fixed. So a
+  // badge earned while an outcome is on screen is rendered INSIDE that screen,
+  // beside the stars and the unlock, and a badge earned mid-run (First Blood,
+  // Ice Age) still toasts, because nothing is covering it then.
+  let pendingEarned = [];
+  function announce(icon, html) {
+    const st = cur && cur.engine ? cur.engine.state : null;
+    if (st && (st.phase === "won" || st.phase === "lost")) pendingEarned.push({ icon, html });
+    else if (UI.notice) UI.notice(icon, html);
+  }
+  // Drained unconditionally at BOTH outcome screens, so an entry can never leak
+  // into the next run's box.
+  function drainEarned() { const e = pendingEarned; pendingEarned = []; return e; }
   function earnAch(id) {
     if (!Array.isArray(save.ach)) save.ach = [];
     if (save.ach.indexOf(id) >= 0) return;
     const def = DATA.ACHIEVEMENTS.find((a) => a.id === id);
     if (!def) return;
     save.ach.push(id); persist(save);
-    UI.toast(def.icon, def.name); sfx("upgrade");
+    announce(def.icon, "<b>Badge earned!</b><br>" + def.name); sfx("upgrade");
   }
   // The shared meta economy (star tree, Star Collector / Full Fort) counts each
   // level's BEST stars across the three ladders — the ceiling stays 36, so the
@@ -595,7 +613,7 @@
           wonHere.push(...fresh);
           persist(save);
           const names = fresh.map((id) => { const d = DATA.CHIPS.find((c) => c.id === id); return d ? d.icon + " " + d.name : id; });
-          if (UI.notice) UI.notice("🎖️ Challenge done: " + names.join(" · "));
+          announce("🎖️", "<b>Challenge done!</b><br>" + names.join(" · "));
         }
       }
       sfx("won");
@@ -618,7 +636,7 @@
         onNext: nextExists && !st.cheated
           ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, continueOpts(st)); }
           : null,
-      }, runSummary(pb));
+      }, runSummary(pb), drainEarned());
     } else if (st.phase === "lost") {
       stopLoop();
       clearMidRun();
@@ -634,7 +652,7 @@
         UI.showDefeat({
           retry: () => { UI.closeOverlay(); startDaily(day); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
-        }, { score, best: save.daily.best | 0 });
+        }, { score, best: save.daily.best | 0 }, null, null, drainEarned());
       } else if (st.endless) {
         const world = cur.levelDef.world, score = st.waveIdx;
         const best = (save.endlessBest[world] || 0);
@@ -643,14 +661,14 @@
         UI.showDefeat({
           retry: () => { UI.closeOverlay(); startEndless(world, continueOpts(st)); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
-        }, { score, best: Math.max(best, score) });
+        }, { score, best: Math.max(best, score) }, null, null, drainEarned());
       } else {
         UI.showDefeat({
           retry: () => { UI.closeOverlay(); startLevel(st.levelId, Object.assign(continueOpts(st), { seed: st.seed })); },
           retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, Object.assign(continueOpts(st), { seed: (Date.now() % 100000) })); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
           guide: (type) => { UI.closeOverlay(); UI.showGuide(type); },
-        }, null, postMortem(), runSummary(false));
+        }, null, postMortem(), runSummary(false), drainEarned());
       }
     }
   }
