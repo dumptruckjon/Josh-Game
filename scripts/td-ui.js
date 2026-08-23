@@ -738,7 +738,9 @@
       '<p class="td-overlay__sub">The wave button</p>' +
       '<ul class="td-guide__towers"><li><b>▶ CALL</b> — start the next wave early. The sooner you call, the more gold.</li>' +
       "<li><b>⏩ RUSH</b> — send the NEXT wave on top of the one already walking, for the same bonus. Up to " +
-      (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk.</li></ul>" +
+      (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk — and the " +
+      "<b>Next:</b> strip over the field stays up whenever RUSH is on offer, so you can see what you would " +
+      "be sending.</li></ul>" +
       '<p class="td-overlay__sub">Level tricks — the board itself fights back.</p>' +
       '<ul class="td-guide__towers td-guide__gimmicks">' + gimRow + "</ul>" +
       // TD-18: a resource shipped without a name was this guide's founding
@@ -1201,7 +1203,19 @@
       // What's coming is the next UNSENT wave (sentIdx), which equals waveIdx at
       // every build boundary but not while a rushed wave is still walking.
       const nextIdx = state.sentIdx == null ? state.waveIdx : state.sentIdx;
-      if (!endless && state.phase === "build" && nextIdx < total) {
+      // Show it exactly when the next wave IS a decision. It used to be
+      // build-phase only — then TD-15 made CALL work mid-wave as ⏩ RUSH, which
+      // drops that next wave on top of the one already walking for the same
+      // early-call gold, and the preview was never revisited. So the one
+      // decision whose entire cost/benefit is "what is in the next wave" was
+      // made with the thing that says so switched off. It reads `ok` off the
+      // SAME callInfo the button reads, so the pill and the button can never
+      // disagree, and it hides again the moment RUSH is refused (steady… / N
+      // waves out / last wave) rather than becoming permanent furniture over
+      // the spawn end of the field.
+      const rush = UI._callInfo ? UI._callInfo() : null;
+      const rushable = state.phase !== "build" && !!(rush && rush.ok);
+      if (!endless && (state.phase === "build" || rushable) && nextIdx < total) {
         // 🧭 Scout Report is the tree's one PURE-INFORMATION node: it changes no
         // engine number at all (so it carries exactly zero balance risk) and
         // reads the run's own equipped loadout, not save.meta — what you BROUGHT

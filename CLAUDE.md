@@ -2709,6 +2709,26 @@ resolves ids through `DATA.CHIPS` so a retired chip drops out — both
 mutation-proven, the second by a `__retired` id in the fixture that must not be
 counted.
 
+**THE NEXT-WAVE PREVIEW HID EXACTLY WHEN THE DECISION IT INFORMS IS MADE.** It
+was gated on `state.phase === "build"` — correct when the only way to send a
+wave was ▶ CALL. TD-15 then made CALL work mid-wave as ⏩ RUSH, which drops the
+NEXT wave on top of the one already walking for the same early-call gold, and
+the preview was never revisited: so the one decision whose entire cost/benefit
+is *what is in the next wave* was made with the thing that says so switched off.
+Third instance of the law that shipped the ⬆ upgrade preview and the `% road`
+figure — the information belongs at the moment of the decision — and a sibling
+of the side-door defect, where a marker that appeared only once the wave was in
+flight lit up after the gold was already committed. The rule is deliberately
+tighter than "always show": the pill is up during BUILD, and mid-wave only while
+RUSH is actually on offer, reading `ok` off the SAME `callInfo` the button
+reads, so the two can never disagree and it disappears again when RUSH is
+refused (steady… / N waves out / last wave) instead of becoming permanent
+furniture over the spawn end of the field. Three mutations, and the sharpest is
+the one that points the preview at `waveIdx` instead of `sentIdx`: it then
+describes the wave already WALKING, which looks completely plausible on screen
+and is exactly backwards — `waveIdx` is what has been CLEARED and `sentIdx` what
+has been SENT, and only the second is what a RUSH tap would add.
+
 ---
 
 ## Repository Structure

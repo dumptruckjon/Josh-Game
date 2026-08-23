@@ -2680,6 +2680,11 @@ test("guardrail: remembered AIM goes through the engine, and nested save default
   const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   assert.match(ui, /remembered per[\s\S]{0,80}opens already aimed/,
     "the Toybox Guide's aiming section must say that the last choice is remembered per tower line");
+  // Same law, one control over: the preview now stays up whenever RUSH is on
+  // offer, and a feature improved with its description left behind is the
+  // side-door staleness class this guide has already been caught by once.
+  assert.match(ui, /stays up whenever RUSH is on offer/,
+    "the guide's ⏩ RUSH entry must say the preview is there to read");
 
   // The persisted-field law reaches INSIDE settings too. The sibling check above
   // derives top-level coercions; a `save.settings.X` default is exactly as

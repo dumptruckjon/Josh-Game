@@ -8126,3 +8126,71 @@ test("QoL: the fort's meta row marks what is ARMED and what is WAITING", async (
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: the next-wave preview stays up while ⏩ RUSH is on offer", async () => {
+  // The preview was build-phase only. TD-15 then made CALL work mid-wave as
+  // RUSH — it drops the NEXT wave on top of the one already walking, for the
+  // same early-call gold — so the one decision whose entire cost/benefit is
+  // "what is in the next wave" was made with the thing that says so switched
+  // off. Same law as the ⬆ upgrade preview and the % road figure: the
+  // information belongs at the moment of the decision.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(9, { seed: 3 }); });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(50);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(250);
+
+  const look = () => page.evaluate(() => {
+    const nw = document.querySelector("#screen-td-play .td-nextwave");
+    const call = document.querySelector("#screen-td-play .td-call");
+    const s = window.__TD.state();
+    return { shown: !!(nw && !nw.hidden), text: nw ? nw.textContent : "",
+      callOff: !!(call && call.disabled), phase: s.phase,
+      wave: s.waveIdx, sent: s.sentIdx == null ? s.waveIdx : s.sentIdx };
+  });
+
+  // 1. Build phase: unchanged.
+  let r = await look();
+  assert.equal(r.phase, "build", "fixture: a fresh level opens in the build phase");
+  assert.ok(r.shown && /Next/.test(r.text), `the build-phase preview must still be there (saw "${r.text}")`);
+  const buildText = r.text;
+
+  // 2. The wave starts. RUSH is refused for the first rushSettle seconds — a
+  //    doubled CALL tap must not send a wave you have not seen — so the preview
+  //    must be DOWN, not permanent furniture over the spawn end of the field.
+  await page.locator("#screen-td-play .td-call").click();
+  await page.waitForFunction(() => window.__TD.state().phase === "wave", null, { timeout: 8000 });
+  await page.waitForTimeout(120);
+  r = await look();
+  assert.equal(r.phase, "wave", "fixture: the wave really started");
+  assert.ok(r.callOff, "fixture: RUSH is refused during the settle window");
+  assert.ok(!r.shown, "while RUSH is refused there is no decision, so no preview");
+
+  // 3. Once RUSH is on offer the preview comes back, naming the wave a tap would
+  //    send — and it is the NEXT unsent one, not the one already walking.
+  await page.waitForFunction(() => {
+    const c = document.querySelector("#screen-td-play .td-call");
+    return c && !c.disabled && window.__TD.state().phase === "wave";
+  }, null, { timeout: 8000 });
+  await page.waitForTimeout(120);
+  r = await look();
+  assert.ok(r.shown, "the preview must be up exactly when ⏩ RUSH is on offer");
+  assert.ok(/Next/.test(r.text), `…and it must name what a RUSH would send (saw "${r.text}")`);
+  const expected = await page.evaluate(() => {
+    const s = window.__TD.state();
+    const L = window.TDData.LEVELS.find((l) => l.id === s.levelId);
+    const idx = s.sentIdx == null ? s.waveIdx : s.sentIdx;
+    const counts = {};
+    for (const g of L.waves[idx].groups) counts[g.type] = (counts[g.type] || 0) + g.count;
+    return Object.keys(counts).map((t) => window.TDData.ENEMIES[t].icon + counts[t]);
+  });
+  assert.ok(expected.length, "fixture: the next unsent wave must actually have groups");
+  for (const part of expected) {
+    assert.ok(r.text.includes(part),
+      `the preview must describe the NEXT UNSENT wave, not the one walking (missing "${part}" in "${r.text}")`);
+  }
+  assert.notEqual(r.text, buildText,
+    "fixture: it must have moved on from the wave that is already out, or this proves nothing");
+});
