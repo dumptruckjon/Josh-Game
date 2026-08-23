@@ -2768,6 +2768,31 @@ test("guardrail: a difficulty's player-facing NAME has exactly one owner", () =>
     "nothing else reads a difficulty's label directly");
 });
 
+test("guardrail: 'beaten on this ladder' has ONE definition", () => {
+  // The count under each difficulty chip and the grid's own unlock rule are the
+  // same question asked twice — how many levels have you beaten on THIS ladder —
+  // and a chip advertising a number the grid then contradicts is worse than no
+  // number at all. Comment-stripped for the seventh recorded time, because the
+  // comment beside the predicate necessarily writes its own name.
+  const ui = read("scripts/td-ui.js")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((ui.match(/const beatenOn = /g) || []).length, 1,
+    "'beaten on a ladder' must have exactly one definition");
+  assert.ok((ui.match(/beatenOn\(/g) || []).length >= 2,
+    "…and at least two consumers, or the extraction bought nothing");
+
+  // POSITIVE form — assert what the unlock rule must BE, rather than enumerating
+  // what everything else must not do, which is the false-positive machine this
+  // project keeps refusing to ship.
+  const at = ui.indexOf("UI.renderLevelGrid = function");
+  assert.ok(at > 0, "the level grid must be findable, or this scan is vacuous");
+  const body = ui.slice(at, ui.indexOf("\n  UI.", at + 40));
+  assert.ok(/const unlocked = [^;]*beatenOn\(/.test(body),
+    "the grid's unlock rule must read the shared predicate, not re-derive a star threshold");
+  assert.ok(/UI\.ladderBeaten\(/.test(body),
+    "…and the chip's count must read the shared owner too");
+});
+
 test("guardrail: every 'continue this run' start goes through the one rules owner", () => {
   const tdm = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   assert.equal((tdm.match(/function continueOpts\(/g) || []).length, 1,

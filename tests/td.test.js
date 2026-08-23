@@ -8024,8 +8024,13 @@ test("QoL: a run's label says which RULES it is under, and keeps them while park
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.waitForTimeout(200);
   const after = await page.locator("#screen-td-home .td-diffbtn").count();
-  const probeTxt = await page.evaluate(() =>
-    (document.querySelector('#screen-td-home .td-diffbtn[data-diff="__probe"]') || {}).textContent || "");
+  // Read the LABEL text node, not the whole button: the chip now carries a
+  // second line with that ladder's progress, and this clause's claim is about
+  // the NAME the tier declares, not about everything printed on the control.
+  const probeTxt = await page.evaluate(() => {
+    const b = document.querySelector('#screen-td-home .td-diffbtn[data-diff="__probe"]');
+    return b && b.firstChild ? b.firstChild.textContent : "";
+  });
   await page.evaluate(() => { delete window.TDData.DIFFICULTIES.__probe; });
   assert.equal(after, before + 1, `the difficulty row must DERIVE from the data (${before} → ${after})`);
   assert.equal(probeTxt, "🔥 Probe", "…and take each tier's own declared name");
@@ -8969,5 +8974,98 @@ test("QoL: a bigger screen gives the fort BIGGER controls, never more cramped on
     assert.ok(big.ovf <= 1, `no sideways scroll at ${w}px (${big.ovf}px)`);
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+});
+
+test("QoL: each difficulty chip says how far that LADDER has got", async () => {
+  // Stars, locks and unlocks are PER-DIFFICULTY (user request 2026-07) and
+  // NOTHING on the screen said so. Measured on a save with 24 levels beaten on
+  // Normal, tapping 💀 Hard takes the grid from 25 playable cards to 1 — which
+  // reads as "my save is gone" far more readily than "this is a separate
+  // ladder", and the fort home mentioned neither. Each chip now carries its own
+  // ladder's progress, so the collapse explains itself: Normal still says 24/40
+  // while you are standing on Hard's 0/40.
+  await page.evaluate(() => {
+    const st = {};                                  // contiguous, or the grid identity below is false
+    for (let i = 1; i <= 24; i++) st[String(i)] = i <= 14 ? 3 : 1;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({
+      v: 1, difficulty: "normal",
+      // 14 of the 24 are three-starred, so a count that measured STARS rather
+      // than "beaten" reads 14 and this test can tell the difference.
+      stars: { casual: { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2 }, normal: st, heroic: {} },
+    }));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.waitForTimeout(150);
+
+  const snap = () => page.evaluate(() => {
+    const cards = [...document.querySelectorAll("#screen-td-home .td-levels .td-level")];
+    return {
+      total: cards.length,
+      playable: cards.filter((c) => !c.classList.contains("td-level--locked")).length,
+      counts: [...document.querySelectorAll("#screen-td-home .td-diffbtn")].map((b) => ({
+        diff: b.dataset.diff,
+        n: (b.querySelector(".td-diffbtn__n") || {}).textContent || "",
+        aria: b.getAttribute("aria-label") || "",
+        h: +b.getBoundingClientRect().height.toFixed(1),
+        inside: (() => {
+          const c = b.querySelector(".td-diffbtn__n");
+          if (!c) return false;
+          const r = b.getBoundingClientRect(), q = c.getBoundingClientRect();
+          return q.left >= r.left - 0.5 && q.right <= r.right + 0.5 && q.bottom <= r.bottom + 0.5;
+        })(),
+      })),
+      ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+
+  let s = await snap();
+  assert.equal(s.total, 40, "fixture: the whole grid must render");
+
+  // Each chip reads its OWN ladder — three different numbers, so a count that
+  // read the SELECTED difficulty for all three cannot pass.
+  const by = Object.fromEntries(s.counts.map((c) => [c.diff, c.n]));
+  assert.equal(by.normal, "24/40", "the Normal chip counts levels BEATEN on Normal (not the 14 three-starred)");
+  assert.equal(by.casual, "5/40", "the Easy chip counts Easy's own ladder");
+  assert.equal(by.heroic, "0/40", "…and an untouched ladder honestly says 0 rather than hiding");
+  assert.ok(s.counts.every((c) => /levels beaten/.test(c.aria)),
+    "the chip's accessible name spells the count out — a two-line button reads as one run otherwise");
+
+  // The number and the grid are the same claim, so they are pinned together: on
+  // a CONTIGUOUS ladder the cards a grid opens are the beaten ones plus L1. This
+  // is the ONLY assertion on the playable count, deliberately — a fixture clause
+  // checking the same number would swallow every mutation aimed at this one.
+  assert.equal(s.playable, 24 + 1,
+    "the count a chip advertises must agree with how many cards the grid actually opens");
+
+  // The explanation has to survive the moment it is needed — the collapse.
+  await page.evaluate(() => {
+    document.querySelector('#screen-td-home .td-diffbtn[data-diff="heroic"]').click();
+  });
+  await page.waitForTimeout(150);
+  s = await snap();
+  assert.equal(s.playable, 1, "fixture: an untouched Hard ladder opens only L1 — this is the confusing moment");
+  const after = Object.fromEntries(s.counts.map((c) => [c.diff, c.n]));
+  assert.deepEqual(after, { casual: "5/40", normal: "24/40", heroic: "0/40" },
+    "…and at that moment the other ladders' progress must still be on screen, or the collapse reads as data loss");
+
+  // Layout: the second line must not push a control under the adult floor, spill
+  // out of its own chip, or scroll the page sideways — at the narrowest width.
+  for (const [w, h] of [[320, 568], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(120);
+    const m = await snap();
+    assert.ok(m.counts.every((c) => c.h >= 44),
+      `at ${w}px a difficulty chip fell to ${Math.min(...m.counts.map((c) => c.h))}px, under the adult 44px floor`);
+    assert.ok(m.counts.every((c) => c.inside),
+      `at ${w}px the ladder count escaped its own chip`);
+    assert.ok(m.ovf <= 1, `at ${w}px the chip row scrolls the page sideways by ${m.ovf}px`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });

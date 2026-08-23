@@ -260,6 +260,17 @@
     play.querySelector(".td-canvas").addEventListener("click", (ev) => hooks.fieldTap(ev));
   };
 
+  // "Beaten" has exactly ONE definition — >= 1 star on that ladder — and both the
+  // grid's unlock rule and the count under each difficulty chip read it, so the
+  // number a chip advertises can never disagree with how many cards the grid
+  // actually opens. Two copies of this predicate is how `hurriedMult` got two
+  // writers and how the wake lock's acquire and release drifted apart.
+  const beatenOn = (save, diff, id) =>
+    ((((save.stars || {})[diff]) || {})[String(id)] | 0) >= 1;
+  UI.ladderBeaten = function (save, diff) {
+    return global.TDData.LEVELS.filter((l) => beatenOn(save, diff, l.id)).length;
+  };
+
   UI.renderLevelGrid = function (save, onPick, onSetDifficulty) {
     // The selected difficulty is the LADDER the grid shows (each difficulty is
     // an independent progression — user request 2026-07).
@@ -281,7 +292,23 @@
         b.type = "button";
         b.className = "td-diffbtn" + (id === selDiff ? " td-diffbtn--on" : "");
         b.dataset.diff = id;
-        b.textContent = UI.difficultyLabel(id);
+        // Each ladder is an independent progression, and NOTHING said so: with 24
+        // levels beaten on Normal, tapping Hard collapses the grid from 25
+        // playable cards to 1, which reads as "my save is gone" rather than "this
+        // is a different ladder". The count is what makes the collapse legible —
+        // you can see Normal still holds 24/40 while you stand on Hard's 0/40.
+        // Deliberately ALWAYS shown, unlike the meta row's badges: the message
+        // here is the COMPARISON between the three, so hiding a zero would
+        // destroy it, and on a fresh save three 0/40s teach the split at once.
+        const beat = UI.ladderBeaten(save, id);
+        b.textContent = "";
+        b.appendChild(doc.createTextNode(UI.difficultyLabel(id)));
+        const n = doc.createElement("span");
+        n.className = "td-diffbtn__n";
+        n.textContent = beat + "/" + global.TDData.LEVELS.length;
+        b.appendChild(n);
+        b.setAttribute("aria-label", UI.difficultyLabel(id) + " — " + beat +
+          " of " + global.TDData.LEVELS.length + " levels beaten");
         b.setAttribute("aria-pressed", id === selDiff ? "true" : "false");
         b.addEventListener("click", function () {
           if (onSetDifficulty) onSetDifficulty(id);
@@ -336,7 +363,7 @@
       // Progression: L1 is always open; every later level unlocks once the
       // PREVIOUS one is beaten ON THIS DIFFICULTY (≥1 star on this ladder) —
       // so beating L1 opens L2, and so on, per ladder (PLAN §7 unlock rule).
-      const unlocked = n === 1 || starsOf(n - 1) >= 1;
+      const unlocked = n === 1 || beatenOn(save, selDiff, n - 1);
       const playable = !!def && unlocked;
       const card = doc.createElement("button");
       card.type = "button";

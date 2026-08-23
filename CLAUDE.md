@@ -2984,6 +2984,44 @@ catch an overflow), and here nothing but the measurement would have said so. The
 two dead sizes are named in the test comment rather than silently omitted, so the
 next author does not "improve" it by adding them back.
 
+**THE THREE DIFFICULTY LADDERS WERE INVISIBLE, so switching to Hard read as data
+loss.** Stars, locks and unlocks have been per-difficulty since a 2026-07 user
+request, and nothing anywhere said so: measured on a save with 24 levels beaten
+on Normal, tapping the Hard chip takes the grid from **25 playable cards to 1**,
+and the fort home's entire text mentions no ladder, no separate progress, nothing
+— so the single most alarming thing the fort can do to a player had no
+explanation on screen. Each chip now carries its own ladder's progress
+(`24/40` under Normal while you stand on Hard's `0/40`), which makes the collapse
+self-explanatory at the moment it happens. Six things worth keeping. (1) **The
+count and the grid are the same question asked twice**, so "beaten" has ONE
+definition — `>= 1` star on that ladder — that both `ladderBeaten` and the grid's
+unlock rule read; a chip advertising a number the grid then contradicts is worse
+than no number. (2) **The strongest clause is therefore an IDENTITY, not a
+value**: on a contiguous ladder the cards the grid opens must equal the beaten
+count plus L1, and the mutation that re-derives the unlock threshold inline fires
+exactly it. (3) **A fixture clause asserting the same number as a real clause
+SWALLOWS the mutation aimed at the real one** — the first cut had
+`assert.equal(s.playable, 25, "fixture: ...")` above the identity clause, so the
+mutation reported a fixture failure and the identity clause stayed unproven; the
+duplicate is deleted and the test says why. (4) **A mutation of the SHARED
+predicate fires the grid clause rather than the count clause, which is evidence
+the extraction is real** — isolating the count needs a mutation inside
+`ladderBeaten` alone. (5) **Deliberately ALWAYS shown, unlike the meta row's
+badges**, whose rule is that a badge appearing only when there is something to
+act on is a signal while an ever-present one is decoration: here the message IS
+the comparison between three numbers, so hiding a zero destroys it, and on a
+fresh save three `0/40`s teach the split at once. The difference is stated in
+the code rather than left as an inconsistency. (6) **A two-line button's
+`textContent` concatenates** (`"⚔️ Normal24/40"`), so the accessible name is set
+explicitly, and the existing self-proving test that asserted a chip's whole
+`textContent` equalled its declared tier name now reads the label TEXT NODE —
+its claim was about the NAME, not about everything printed on the control.
+Measured cost: the chip goes 46 -> 52px (adult floor 44), the count is contained
+inside its chip and the page does not scroll sideways at 320 / 390 / 834 or in
+landscape, and contrast is 9.92:1 selected / 10.88:1 unselected because the line
+inherits the button's own colour instead of taking a dim — `#ffd94a` has no
+headroom to spend, the law this project has now applied on four surfaces.
+
 ---
 
 ## Repository Structure

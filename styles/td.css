@@ -381,6 +381,15 @@ body.td-mode #screens { padding: 0; }
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .td-diffbtn--on { background: #ffd94a; color: #3a2c00; border-color: #ffd94a; }
+/* How far this LADDER has got. Inherits the button's own colour rather than
+   taking a dim: the selected chip paints on #ffd94a, which has no contrast
+   headroom to spend, and an opacity dim on a fill with none is the documented
+   defect this project has now fixed on three separate surfaces. */
+.td-diffbtn__n {
+  display: block; margin-top: 2px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
 
 /* next-wave preview strip (floats at the top of the field during build) */
 .td-nextwave {
