@@ -785,7 +785,14 @@
   // top edge of the box as it scrolls; if sticky is unavailable it degrades to
   // sitting at the top of the content, which is still one scroll-UP instead of
   // a scroll to the very bottom.
-  function metaOverlay(cls, html) {
+  // `note` is a short line that rides the STICKY strip beside the ✕, so it stays
+  // on screen while the dialog scrolls. The star tree is why it exists: its
+  // budget ("⭐ 14 to spend") was a big two-line block at the very top, which
+  // scrolls away — so the number you are deciding against disappeared the moment
+  // you started browsing the 40 nodes it applies to. Same law as the ⬆ preview
+  // and the `% road` figure: the information belongs at the moment of the
+  // decision. Always rendered (empty when absent) so the ✕ keeps its right edge.
+  function metaOverlay(cls, html, note) {
     let el = doc.querySelector(".td-overlay");
     if (el) el.remove();
     el = doc.createElement("div");
@@ -801,6 +808,7 @@
     // would take 52px of a 296px dialog.
     el.innerHTML = '<div class="td-overlay__box td-overlay__box--wide">' +
       '<div class="td-overlay__top">' +
+      '<span class="td-overlay__note">' + (note || "") + "</span>" +
       '<button class="td-overlay__x" type="button" data-adult="1" aria-label="Close">✕</button>' +
       "</div>" +
       html + "</div>";
@@ -876,13 +884,19 @@
         '<div class="td-nodes">' + rows + "</div>";
     }).join("");
     UI.renderMetaCounts(save);   // buying/refunding re-enters here, so the button behind the dialog stays true
+    // The budget rides the STICKY strip instead of a big block at the top: it was
+    // `.td-overlay__stars`, the VICTORY screen's display-size star row, so one
+    // short fact took 68px across two lines — and then scrolled out of sight,
+    // which is the half that mattered. Measured, the header ran to y=247 of a
+    // 488px box at 320px, so HALF the dialog was header and 3 of 40 nodes were
+    // visible.
     const el = metaOverlay("td-tree", '<h3>⭐ Star Tree</h3>' +
-      '<p class="td-overlay__stars td-tree__avail">⭐ ' + t.avail + " to spend · " + t.spent + " used</p>" +
       '<p class="td-overlay__sub td-tree__slots">🎒 ' + equipped.length + " / " + SLOTS +
       " equipped — a run brings only what is packed, so the tree is a choice every battle.</p>" +
       branches +
       '<div class="td-overlay__row"><button class="td-btn td-tree-respec" type="button">↺ Refund all</button>' +
-      '<button class="td-btn td-btn--call td-tree-done" type="button">Done</button></div>');
+      '<button class="td-btn td-btn--call td-tree-done" type="button">Done</button></div>',
+      '<b class="td-tree__avail">⭐ ' + t.avail + "</b> to spend · " + t.spent + " used");
     // Buying/refunding rebuilds the whole overlay (metaOverlay removes + re-appends),
     // which would reset scrollTop to 0 — on a real phone the 23-node tree is far
     // taller than its 86dvh box, so a tap near the bottom (Fortification branch)

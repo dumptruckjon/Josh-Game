@@ -8706,3 +8706,90 @@ test("QoL: a badge earned at a WIN is announced inside the victory box, not behi
   await page.evaluate(() => { document.querySelector('.td-overlay [data-act="resume"]').click(); });
   await page.waitForTimeout(100);
 });
+
+test("QoL: the star tree's budget rides the sticky strip, so it survives scrolling", async () => {
+  // The number you decide against — how many stars you have to spend — was a
+  // display-size two-line block at the very top of a dialog that scrolls 2900px.
+  // So it was gone the moment you started browsing the 40 nodes it applies to,
+  // and it cost 68px of a box that is only 488px tall at 320, where measured
+  // HALF the dialog was header and 3 of 40 nodes were visible.
+  const openTree = async (w, h) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+    await page.locator("#screen-td-home .td-tree-open").click();
+    await page.waitForTimeout(200);
+  };
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.resetSave();
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    raw.stars = { casual: {}, normal: { "1": 3, "2": 3, "3": 3, "4": 3, "5": 2 }, heroic: {} };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
+
+  for (const [w, h] of [[390, 844], [320, 568]]) {
+    await openTree(w, h);
+    const r = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay__box");
+      const b = box.getBoundingClientRect();
+      const note = box.querySelector(".td-overlay__note");
+      const x = box.querySelector(".td-overlay__x");
+      const before = { text: note.textContent.trim(), scrollable: box.scrollHeight > box.clientHeight + 1 };
+      box.scrollTop = box.scrollHeight;                 // all the way past the 40 nodes
+      const nr = note.getBoundingClientRect(), xr = x.getBoundingClientRect();
+      return Object.assign(before, {
+        scrolled: Math.round(box.scrollTop),
+        visible: nr.top >= b.top - 1 && nr.bottom <= b.bottom + 1 && nr.width > 20 && nr.height > 8,
+        overlapsX: nr.right > xr.left + 1,
+        xOnRight: Math.round(b.right - xr.right) <= 30,
+        noteLeft: Math.round(nr.left - b.left - 22),   // minus the box's own padding
+        // the header must not eat the dialog: some nodes have to be visible
+        nodesVisible: [...box.querySelectorAll(".td-node")].filter((n) => {
+          const q = n.getBoundingClientRect();
+          return q.top >= b.top && q.bottom <= b.bottom; }).length,
+      });
+    });
+    assert.ok(r.scrollable && r.scrolled > 500,
+      `fixture: at ${w}px the tree must really scroll, or nothing can scroll away (${r.scrolled}px)`);
+    assert.match(r.text, /⭐\s*\d+\s*to spend/,
+      `at ${w}px the sticky strip must carry the budget (saw "${r.text}")`);
+    assert.ok(r.visible,
+      `at ${w}px the budget must still be on screen after scrolling the whole tree`);
+    assert.ok(!r.overlapsX, `at ${w}px the note must not run under the ✕`);
+    assert.ok(r.xOnRight, `at ${w}px the ✕ must keep its right edge`);
+    // …and the budget reads as a HEADER on the left, not crowded against the ✕.
+    // (The ✕ stays right either way, because the note element is always
+    // rendered — so this is the clause that actually pins the layout.)
+    assert.ok(r.noteLeft <= 8,
+      `at ${w}px the budget must sit at the box's left edge (${r.noteLeft}px in)`);
+    assert.ok(r.nodesVisible >= 4,
+      `at ${w}px the header must leave room for real nodes (${r.nodesVisible} visible)`);
+  }
+
+  // CONTROL: every OTHER meta dialog leaves the note empty, so the ✕ must still
+  // sit hard right — with one child, a flex-end strip would put it on the left.
+  await page.evaluate(() => { document.querySelector(".td-overlay__x").click(); });
+  await page.waitForTimeout(120);
+  await page.locator("#screen-td-home .td-ach-open").click();
+  await page.waitForTimeout(200);
+  const plain = await page.evaluate(() => {
+    const box = document.querySelector(".td-overlay__box");
+    const b = box.getBoundingClientRect();
+    const note = box.querySelector(".td-overlay__note");
+    const xr = box.querySelector(".td-overlay__x").getBoundingClientRect();
+    return { note: note ? note.textContent.trim() : null, fromRight: Math.round(b.right - xr.right) };
+  });
+  assert.equal(plain.note, "", "a dialog with nothing to pin leaves the note empty");
+  assert.ok(plain.fromRight <= 30,
+    `…and the ✕ still sits on the right (${plain.fromRight}px from the edge)`);
+  await page.evaluate(() => { document.querySelector(".td-overlay__x").click(); });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

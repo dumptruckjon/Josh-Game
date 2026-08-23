@@ -705,11 +705,21 @@ body.td-mode #screens { padding: 0; }
      replaced — a line stranded above an opaque header reads as broken), at
      -22px 2px leaks, at -26px it overshoots. */
   position: -webkit-sticky; position: sticky; top: -24px; z-index: 3;
-  display: flex; justify-content: flex-end;
+  display: flex; justify-content: space-between; align-items: center;
   margin: -22px -22px 0; padding: 22px 22px 4px;
   background: #16233d;                 /* the box's own colour */
   border-radius: 16px 16px 0 0;
 }
+/* A short line that stays with the ✕ while the dialog scrolls — the star tree's
+   budget, which used to be a big block at the top that scrolled away. It is
+   ALWAYS rendered (empty on every other dialog), so the ✕ keeps its right edge
+   either way; `space-between` is what puts the note against the LEFT edge, where
+   it reads as a header, instead of crowded up against the close button. */
+.td-overlay__note {
+  min-width: 0; text-align: left; color: #9db4dd; font-size: 0.86rem; font-weight: 700;
+  line-height: 1.15; margin-right: 10px;    /* never flex `gap` — dropped on iOS 14.0 */
+}
+.td-tree__avail { color: #ffe27a; }
 .td-overlay__x {
   width: 44px; height: 44px; min-width: 44px; min-height: 44px;
   border-radius: 50%; border: 2px solid #3a548a; background: #1d2c4a;

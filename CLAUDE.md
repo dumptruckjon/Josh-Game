@@ -2894,6 +2894,31 @@ mid-run and then opens the pause menu. That clause hit the documented
 opening), and it asserts the toast is still alive before opening the dialog, so
 it cannot pass by having nothing to clear.
 
+**THE STAR TREE SHOWED YOUR BUDGET AND THEN SCROLLED IT AWAY.** How many stars
+you have to spend is the number every one of the tree's 40 nodes is judged
+against, and it lived in a big block at the very top of a dialog whose content
+is **2900px tall** — so it was gone the moment you began browsing. Worse, it
+wore `.td-overlay__stars`, the VICTORY screen's display-size star row, so one
+short fact took **68px across two lines**: measured at 320, the header ran to
+y=247 of a **488px** box, meaning HALF the dialog was header and **3 of 40**
+nodes were visible. Moving it onto the sticky strip that already carries the ✕
+fixes both halves at once — the header drops to y=179 (4 nodes at 320, 8 at 390)
+and the budget is still on screen after scrolling the whole tree. Fourth instance
+of the law that shipped the ⬆ upgrade preview, the `% road` figure and the RUSH
+preview: the information belongs where the decision is made. The slot is
+generic (`metaOverlay(cls, html, note)`), always rendered so the ✕ keeps its
+right edge, and every other dialog simply leaves it empty.
+**The mutation that mattered was the one that PASSED.** I justified
+`space-between` in a comment by saying `flex-end` would push the ✕ to the left —
+and it does not, because the note element is always rendered, so the strip
+always has two children and both go right. The comment was wrong and the clause
+it implied was untestable. What `space-between` actually buys is the note
+sitting at the LEFT edge, reading as a header, instead of crowded against the
+close button — so that is what the test now measures (79px in, under flex-end,
+against a bar of 8), and the comment says the true thing. **When a mutation
+passes, the first thing to check is whether the sentence justifying the code is
+even true.**
+
 ---
 
 ## Repository Structure
