@@ -52,7 +52,13 @@
     home.hidden = true;
     home.innerHTML =
       '<div class="td-bar">' +
-        '<button class="btn-round td-exit" type="button" aria-label="Back to the front door">🏠</button>' +
+        // `.td-mini` is the fort's OWN top-bar control size, and its comment says
+        // why: "adult-sized (>=44) - the fort is Jon's space". Without it this
+        // button falls through to `.btn-round`, which is Josh's kid chrome sized
+        // by the 76px `--tap` token — so the same 🏠, doing the same job, was
+        // 76px here and 54px on the play screen, and the largest, brightest
+        // control on an adult screen was the one that LEAVES it.
+        '<button class="btn-round td-mini td-exit" type="button" aria-label="Back to the front door">🏠</button>' +
         '<h2 class="td-title">🏰 Fort Josh</h2>' +
         '<span class="td-bar__pad" aria-hidden="true"></span>' +
       "</div>" +

@@ -9516,3 +9516,42 @@ test("QoL: a refused rally says why, and keeps your aim", async () => {
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: the fort's 🏠 is the same size on both its screens", async () => {
+  // The fort home's exit carried `btn-round` alone, which is JOSH'S kid chrome
+  // sized by the 76px `--tap` token, while the play screen's identical 🏠 also
+  // carries `.td-mini` — whose own comment says "adult-sized (>=44) — the fort
+  // is Jon's space" — and so renders at 54. Same icon, same job, two sizes; and
+  // on a dark-navy screen the near-white 76px disc was the largest, brightest
+  // thing on it, above the title. The control that LEAVES should not out-shout
+  // everything you came to do.
+  const sizeOf = async (hash, sel) => {
+    await page.evaluate((h) => { location.hash = h; }, hash);
+    await page.waitForTimeout(150);
+    return page.evaluate((s) => {
+      const e = document.querySelector(s);
+      const r = e.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) };
+    }, sel);
+  };
+  for (const [w, h] of [[390, 844], [320, 568]]) {
+    await page.setViewportSize({ width: w, height: h });
+    const home = await sizeOf("#td-home", "#screen-td-home .td-exit");
+    const play = await sizeOf("#td-play", "#screen-td-play .td-quit");
+    assert.deepEqual(home, play,
+      `at ${w}px the same 🏠 renders ${home.w}x${home.h} on the fort home and ` +
+      `${play.w}x${play.h} in a battle — one button, one job, one size`);
+    assert.ok(home.h >= 44,
+      `at ${w}px the exit fell to ${home.h}px, under the adult 44px floor`);
+
+    // A "the exit is not the loudest control" clause was written here and then
+    // DELETED: measured against every button on the fort home it is unfalsifiable,
+    // because the 40 level CARDS are buttons too and are legitimately ~90px tall,
+    // so the kid-sized 76px disc sailed under the bar. Narrowing it to a named
+    // list of chrome selectors would fire on the very same mutation as the size
+    // clause above, which is a near-duplicate rather than coverage. The size
+    // claim IS the property; the hierarchy was only its motivation.
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+});

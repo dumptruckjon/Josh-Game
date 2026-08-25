@@ -3159,6 +3159,39 @@ all — the engine's own `rallyX/rallyY` proves the flag moved, the corrected ta
 landing proves the arm survived, and the ring is asserted as INK, because a hook
 would happily report the selection while the picture stopped being drawn.
 
+**THE LOUDEST CONTROL ON THE FORT HOME WAS THE ONE THAT LEAVES IT — because it
+was wearing JOSH'S KID CHROME.** A screenshot pass over the fort's screens found
+the home's 🏠 exit rendering **76x76 in near-white on a dark-navy screen**, above
+the title and larger than every other control there, while the identical 🏠 on
+the play screen renders **54x54**. The cause is one missing class: both carry
+`btn-round`, which lives in Josh's stylesheet and is sized by the **76px `--tap`
+kid token**, and only the play screen's also carries `.td-mini` — whose own
+comment says *"adult-sized (>=44) — the fort is Jon's space"*. So the same
+button, doing the same job, had two sizes, and the fort was inheriting a size
+whose whole justification (a four-year-old's finger) does not apply to it. Fixed
+by adding the class; measured, that pulls **22px at 390 and 30px at 320** of the
+level grid above the fold (at 320 `.td-mini`'s narrow-phone override gives 46px,
+still over the adult floor). Two notes. **A "the exit is not the loudest control"
+clause was written and then DELETED as unfalsifiable**: measured against every
+button on the fort home it cannot fail, because the 40 level CARDS are buttons
+too and are legitimately ~90px tall, so a 76px disc sails under the bar — and
+narrowing it to a named list of chrome selectors would fire on the very same
+mutation as the size clause, which is a near-duplicate rather than coverage. The
+size claim IS the property; the hierarchy was only its motivation. **And the test
+NAME still promised the deleted clause**, which is the one kind of documentation
+that cannot go red — renamed to what it asserts.
+
+**A RECORDED NON-CHANGE from the same pass, so nobody "fixes" it into a
+regression:** the ⭐ Star Tree label wraps to two lines **only when its unspent-star
+badge is present** (measured 1 line → 2), which the badge's `padding-right: 24px`
+causes. It is left alone, because the button's HEIGHT is 55px either way — zero
+layout cost, since 🎖️ Challenges already wraps at this width with no badge at
+all — while both available fixes are worse than the wrap: shortening the label to
+"⭐ Stars" makes a second owner of a feature name the dialog title also uses, and
+24px is the MEASURED floor below which the badge overlaps its own label (at 20 the
+narrowest button overlaps by 5-7px²). A cosmetic wrap that costs no pixels is not
+worth breaching a measured floor for.
+
 ---
 
 ## Repository Structure
