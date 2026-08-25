@@ -2798,6 +2798,67 @@ test("guardrail: 'how much of this wave is left' has ONE definition", () => {
     "the UI must not count live bodies itself — that silently drops everything still queued");
 });
 
+test("guardrail: every ARMED field control explains a refusal", () => {
+  // The fort has controls you ARM and then aim by tapping the field: a power
+  // (🧨 / 🍯 / ⚡ / 📌) and a camp's 🚩 rally flag. An aimed tap can miss — out of
+  // range, no target, nothing to rally — and a refusal that says nothing is the
+  // "dead control" defect this project fixed for abilities and then left in
+  // place on rally for several releases, twenty lines away in the same handler.
+  //   The region is NAMED because "which code arms a field tap" is not something
+  // a text scan can derive honestly, but the property inside it is a COUNT
+  // derived from the arm variables themselves — so a THIRD armed control is
+  // caught without editing this test.
+  const tdm = read("scripts/td-main.js")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const at = tdm.indexOf("function fieldTap(");
+  assert.ok(at > 0, "the fieldTap region must be findable, or this scan is vacuous");
+  // fieldTap is the LAST function at its indent, so a `\n  function ` bound
+  // returns -1 and slice(at, -1) hands back the rest of the FILE — which is how
+  // this scan first passed both its mutations: the rally branch borrowed a deny
+  // cue from code hundreds of lines away. Bound on the closing brace instead,
+  // and assert the region is a region.
+  const close = tdm.slice(at).search(/\n {2}\}\n/);
+  assert.ok(close > 0, "the fieldTap region must have a findable end");
+  const body = tdm.slice(at, at + close);
+  assert.ok(body.length < tdm.length / 2,
+    `the fieldTap region must be a REGION, not most of the file (${body.length} chars)`);
+
+  const arms = [...new Set([...body.matchAll(/cur\.(\w*ArmId)\b/g)].map((m) => m[1]))];
+  assert.ok(arms.length >= 2,
+    `fieldTap must arm at least the power and the rally (found ${arms.join(", ") || "none"})`);
+
+  // PER BRANCH, not a total. A global count is satisfied by a NEIGHBOUR — the
+  // lever's own deny cue lives in this same handler, so "at least one deny per
+  // armed control" stayed green with rally's refusal stripped bare. Each branch
+  // is bounded by the next one so it cannot borrow a sibling's cue either.
+  const starts = arms
+    .map((a) => ({ a, i: body.indexOf("if (cur." + a) }))
+    .filter((x) => x.i >= 0)
+    .sort((x, y) => x.i - y.i);
+  assert.equal(starts.length, arms.length,
+    `every armed control must open a branch of its own (found ${starts.length} of ${arms.length})`);
+  starts.forEach((x, k) => {
+    // Each branch ends at its OWN closing brace, never at the next branch or the
+    // end of the region: the last one would otherwise swallow the lever's cue,
+    // which is exactly the borrowing this test exists to prevent.
+    const rel = body.slice(x.i).search(/\n {4}\}\n/);
+    let end = rel > 0 ? x.i + rel + 6 : body.length;
+    if (k + 1 < starts.length) end = Math.min(end, starts[k + 1].i);
+    const chunk = body.slice(x.i, end);
+    assert.ok(chunk.length < 4000,
+      `${x.a}: its branch did not close, so this clause would borrow a sibling's cue`);
+    assert.match(chunk, /sfx\("deny"\)/,
+      `${x.a}: an armed control that refuses a tap must make a refusal SOUND`);
+    // A NON-EMPTY hint: every one of these branches calls `UI.abilityHint("")`
+    // on its success path to clear a stale message, so merely finding the call
+    // proves nothing about the refusal — which is how this clause first survived
+    // its own mutation. What the refusal SAYS is pinned behaviourally next door;
+    // this half only guarantees the branch says something at all.
+    assert.match(chunk, /UI\.abilityHint\(\s*(?!""\s*\))/,
+      `${x.a}: …and must SAY WHY on the shared hint line, or the tap silently evaporates`);
+  });
+});
+
 test("guardrail: every event the engine emits reaches a consumer", () => {
   // The engine's event stream is the seam between a deterministic simulation and
   // everything the player can hear or see, and a type nobody listens to is a

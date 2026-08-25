@@ -1359,11 +1359,30 @@
     // rally mode: this tap plants the camp's flag instead of selecting
     if (cur.rallyArmId) {
       const armed = cur.rallyArmId;
-      cur.rallyArmId = 0;
       const r = cur.engine.rally(armed, gx, gy);
-      UI.hideBubble();
-      cur.render.setSelection(r.ok ? { tower: armed } : null);
-      if (r.ok) sfx("build");
+      if (r.ok) {
+        cur.rallyArmId = 0;
+        UI.hideBubble();
+        cur.render.setSelection({ tower: armed });
+        sfx("build");
+        UI.abilityHint("");
+        return;
+      }
+      // A REFUSED rally used to be completely silent: no cue, no reason, the arm
+      // consumed and — worst of all — `setSelection(null)`, which deletes the
+      // camp's rallyRange RING, i.e. the one guide you would aim by. So a tap a
+      // few pixels too far evaporated the whole interaction and you had to
+      // reopen the panel to try again. Abilities got exactly this treatment
+      // twenty lines up (a deny cue plus a reason on the shared hint line) and
+      // the one other armed, aimed control never did — two adjacent handlers
+      // disagreeing, this file's most reliable tell.
+      //   The arm and the selection are BOTH kept, so the next tap can simply be
+      // closer; leaving the play screen still clears the arm, as it always has.
+      sfx("deny");
+      cur.render.setSelection({ tower: armed });
+      UI.abilityHint(r.reason === "range"
+        ? "🚩 Too far from the camp — tap inside the ring"
+        : "🚩 That spot will not take a flag");
       return;
     }
     // TD-7: tap the track-switch lever to send the train the long way

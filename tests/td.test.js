@@ -9436,3 +9436,83 @@ test("QoL: buying ⚙️ Toy Energy makes a sound, like every other purchase", a
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: a refused rally says why, and keeps your aim", async () => {
+  // Arming ⛺ Rally and tapping a spot beyond the camp's reach used to be
+  // COMPLETELY silent: no cue, no reason, the arm consumed — and, worst of all,
+  // `setSelection(null)`, which erases the camp's rallyRange RING, i.e. the one
+  // guide you would have aimed by. So a tap a few pixels out evaporated the whole
+  // interaction and you had to reopen the panel to try again. Abilities got
+  // exactly this treatment twenty lines up in the same file (a deny cue plus a
+  // reason on the shared hint line) and the other armed, aimed control never did.
+  //   Observables are all real: the engine's own `rallyX/rallyY`, the hint's text,
+  // and the ring as INK — no test-only hook, because the ring is a picture and
+  // a hook would prove the state while the picture stopped being drawn.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const cam = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 3 });
+    window.__TD.grantGold(3000);
+    window.__TD.script([["place", "camp", window.TDData.LEVELS[0].pads[0].id]]);
+    const t = window.__TD.state().towers[0];
+    return { id: t.id, cx: t.cx, cy: t.cy, range: window.TDData.TOWERS.camp.rallyRange };
+  });
+  assert.equal(cam.id > 0, true, "fixture: a camp must be on the board to rally from");
+
+  // Drive the REAL controls: tap the camp, press 🚩, then tap the canvas at a
+  // computed world point. A test that called engine.rally() directly could not
+  // see the UI drop the arm or the ring.
+  const tapAt = async (wx, wy) => {
+    await page.evaluate(([x, y]) => {
+      const cv = document.querySelector("#screen-td-play .td-canvas");
+      const s = window.__TD.w2s(x, y), r = cv.getBoundingClientRect();
+      cv.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: r.left + s.x, clientY: r.top + s.y }));
+    }, [wx, wy]);
+    await page.waitForTimeout(80);
+  };
+  // Sample INSIDE the ring's translucent disc, offset off the lane. The stroke is
+  // 1.5px and would be a coin flip to hit; the fill is the whole area.
+  const ringInk = () => page.evaluate(([cx, cy, r]) => {
+    window.__TD.script([["tick", 1]]);          // force a fresh frame
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const s = window.__TD.w2s(cx + 0.5, cy + 0.5 + r * 0.6);
+    const d = cv.getContext("2d").getImageData(Math.round(s.x), Math.round(s.y), 1, 1).data;
+    return d[2] - d[0];                          // the ring is blue: blue-minus-red
+  }, [cam.cx, cam.cy, cam.range]);
+  const state = () => page.evaluate(() => {
+    const t = window.__TD.state().towers[0];
+    return { rx: t.rallyX, ry: t.rallyY,
+      hint: (document.querySelector("#screen-td-play .td-abilhint") || {}).textContent || "" };
+  });
+
+  const bare = await ringInk();
+  await tapAt(cam.cx + 0.5, cam.cy + 0.5);                     // select the camp
+  const selected = await ringInk();
+  assert.ok(selected > bare + 4,
+    `fixture: selecting a camp must draw its reach ring (ink ${bare} → ${selected})`);
+  const btn = page.locator("#screen-td-play .td-rally");
+  assert.ok(await btn.count(), "fixture: a camp's panel must offer 🚩 Rally");
+  await btn.click();
+  await page.waitForTimeout(80);
+
+  // FAR: well outside the camp's 3.05-cell reach.
+  const before = await state();
+  await tapAt(cam.cx + 0.5 + cam.range + 2, cam.cy + 0.5);
+  const refused = await state();
+  assert.match(refused.hint, /too far/i,
+    `a refused rally must say WHY (hint was "${refused.hint}")`);
+  assert.equal(refused.rx, before.rx, "fixture: a refused rally must not move the flag");
+  assert.ok((await ringInk()) > bare + 4,
+    "…and must KEEP the camp's reach ring on screen — erasing it deletes the one thing you aim by");
+
+  // NEAR: the corrected tap, with NO re-arming, must land. That is what proves
+  // the refusal did not eat the arm.
+  await tapAt(cam.cx + 0.5 + 1, cam.cy + 0.5);
+  const landed = await state();
+  assert.notEqual(landed.rx, before.rx,
+    "a corrected tap must land without re-opening the panel — a near miss should be " +
+    "correctable, not a restart");
+  assert.equal(landed.hint, "", "…and a successful rally clears the refusal message");
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

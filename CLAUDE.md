@@ -3125,6 +3125,40 @@ play, and `newGame` leaves the run paused, so the harness must tick once. A
 banner spy also has to be re-installed after every `page.reload()`: a spy that is
 quietly gone reads exactly like a feature that quietly stopped firing.
 
+**THE OTHER ARMED, AIMED CONTROL NEVER GOT THE TREATMENT ABILITIES DID — and
+the guardrail written for it passed its own mutations THREE TIMES, each for a
+different reason.** Enumerating every refusal the engine can return and asking
+which ones the player is told about found `rally() → "range"`: arming ⛺ Rally
+and tapping a spot beyond the camp's 3.05-cell reach was COMPLETELY silent — no
+cue, no reason, the arm consumed, and `setSelection(null)`, which erases the
+camp's reach RING, i.e. the one guide you would have aimed by. So a tap a few
+pixels out evaporated the whole interaction and you had to reopen the panel.
+Abilities were given exactly this treatment (a deny cue plus a reason on the
+shared hint line) twenty lines up **in the same handler**, which is this file's
+most reliable tell one more time. The fix keeps the arm AND the selection, so a
+near miss is correctable rather than a restart. Note what did NOT need building:
+selecting a camp already draws its `rallyRange` ring, so the preventive half
+shipped years ago and only the recovery half was missing — worth checking before
+designing a new affordance. **The three failed guardrail attempts are the real
+lesson, and all three are recorded traps.** (1) A GLOBAL count ("at least one
+deny cue per armed control") is satisfied by a NEIGHBOUR — the lever's own deny
+lives in the same handler — so stripping rally's refusal bare left it green; the
+weaker form of a claim is routinely satisfied by the very defect it was written
+for. (2) Slicing per branch did not help either, because the region itself was
+wrong: `fieldTap` is the LAST function at its indent, so `indexOf("\n  function ")`
+returned **-1** and `slice(at, -1)` handed back the rest of the FILE — 21436
+chars posing as a 10432-char region, with the last branch borrowing a cue from
+hundreds of lines away. A region bound must be asserted to BE a region. (3) With
+both fixed, the hint clause still passed, because every one of these branches
+calls `UI.abilityHint("")` on its SUCCESS path to clear a stale message — so
+finding the call proves nothing about the refusal. It requires a NON-EMPTY
+argument now, and the comment says plainly that what the refusal actually SAYS is
+pinned behaviourally next door: a scan proves a call site exists, only driving it
+proves the call does anything. The behavioural test uses no test-only hook at
+all — the engine's own `rallyX/rallyY` proves the flag moved, the corrected tap
+landing proves the arm survived, and the ring is asserted as INK, because a hook
+would happily report the selection while the picture stopped being drawn.
+
 ---
 
 ## Repository Structure
