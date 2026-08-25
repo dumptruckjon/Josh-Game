@@ -345,6 +345,16 @@
       else if (kind === "chain") A.tone(1200, { duration: 0.08, gain: 0.08, type: "square" });
       else if (kind === "splash") A.tone(110, { duration: 0.18, gain: 0.14, type: "sine" });
       else if (kind === "leak") { A.tone(330, { duration: 0.12, gain: 0.1, type: "sine" }); setTimeout(() => A.tone(262, { duration: 0.16, gain: 0.1, type: "sine" }), 110); }
+      // 🌟 the shield ate that one. Deliberately the OPPOSITE SHAPE to the leak
+      // cue above — rising where that one falls — so the ear alone separates a
+      // save from a loss without looking at the door.
+      // The FIRST note fires synchronously, exactly like the leak cue it answers:
+      // a `setTimeout(…, 0)` first note is still a tick late, and this is
+      // feedback for something that just happened.
+      else if (kind === "shielded") {
+        A.tone(784, { duration: 0.09, gain: 0.11 });
+        [1047, 1319].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.09, gain: 0.11 }), (i + 1) * 70));
+      }
       else if (kind === "wave") { [440, 440, 440, 587].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.07, gain: 0.1 }), i * 90)); }
       else if (kind === "boss") { [220, 175, 220, 175].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.22, gain: 0.16, type: "square" }), i * 240)); } // klaxon
       else if (kind === "lever") { [523, 784].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.09, gain: 0.12, type: "square" }), i * 80)); } // a ka-CHUNK track switch
@@ -357,6 +367,10 @@
       else if (kind === "cleared") { [659, 880].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.1, gain: 0.11 }), i * 110)); } // wave survived
       else if (kind === "phase") { [147, 196, 147].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.16, gain: 0.15, type: "square" }), i * 150)); } // a boss escalates
       else if (kind === "lowlives") { [330, 294].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.2, gain: 0.13, type: "sine" }), i * 200)); } // the door is nearly down
+      // A purchase confirmation, short and bright — distinct from `build`.
+      else if (kind === "buycharge") { A.tone(988, { duration: 0.06, gain: 0.1, type: "square" }); setTimeout(() => A.tone(1319, { duration: 0.06, gain: 0.1, type: "square" }), 70); }
+      // A new personal best in endless — the one number that mode is about.
+      else if (kind === "newbest") { A.tone(659, { duration: 0.1, gain: 0.13 }); [880, 1047, 1319].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.1, gain: 0.13 }), (i + 1) * 90)); }
       else if (kind === "tier") { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => A.tone(f, { duration: 0.08, gain: 0.12 }), i * 65)); } // tier-4 branch taken
     } catch (e) { /* audio must never break play */ }
   }
@@ -752,13 +766,44 @@
       else if (e.type === "hit" && e.crit) sfx("crit");
       else if (e.type === "die") { sfx("die"); if (!cur.sawKill && !cur.engine.state.cheated) { cur.sawKill = true; earnAch("firstblood"); } }
       else if (e.type === "leak") {
-        sfx("leak"); cur.leaked = true;
+        // A SHIELDED leak costs nothing, so it must not SOUND like a
+        // catastrophe. 🌟 Sticker Shield is a 6⭐ capstone behind an 8⭐ in-branch
+        // spend whose entire effect is this one moment, and the moment was
+        // presented exactly like losing stickers — same descending cue, same red
+        // wash — while the lives counter did not move, which reads as a bug
+        // rather than as a rescue. The tell was two adjacent lines disagreeing:
+        // the renderer's toll label already checked `shielded` and nothing else
+        // in either dispatcher did.
+        //   `cur.leaked` and the post-mortem count deliberately do NOT change:
+        // the body genuinely got past you, and 🛡️ No Leaks staying honest about
+        // that is a documented choice, not an oversight.
+        sfx(e.shielded ? "shielded" : "leak"); cur.leaked = true;
         // TD-12 post-mortem: WHICH toy got through, and on which wave. The
         // defeat screen used to say only "the toys got sleepy" — no diagnosis
         // at all — even though the engine already emits everything needed.
         cur.leaks = cur.leaks || {};
         cur.leaks[e.enemy] = (cur.leaks[e.enemy] || 0) + 1;
         cur.leakWave = cur.engine.state.waveIdx + 1;
+      }
+      // Every other purchase in the fort rings — build, upgrade, sell, a tier-4
+      // branch. Spending 450 gold on ⚙️ Toy Energy emitted `buycharge` and
+      // NOTHING listened: it was one of exactly two event types with no consumer
+      // in either dispatcher, found by diffing the engine's emit list against
+      // both of them.
+      else if (e.type === "buycharge") sfx("buycharge");
+      // ENDLESS has ONE number that matters — the wave you reached — and it was
+      // revealed only on the defeat screen, after the run. Passing your own
+      // record is the moment the mode exists for, so it is announced when it
+      // happens. Once per run, and only when there IS a record: a first visit has
+      // nothing to say, and a banner on every wave after the record would be
+      // furniture rather than a signal. A DAILY is excluded because it scores on
+      // its own ladder and never writes the world's endlessBest.
+      else if (e.type === "endless-wave") {
+        if (!cur.dailyDay && !cur.bestBeaten && cur.endlessRecord > 0 && e.n > cur.endlessRecord) {
+          cur.bestBeaten = true;
+          UI.showBanner("🏆 New best — wave " + e.n + "!");
+          sfx("newbest");
+        }
       }
       else if (e.type === "soldier-down") cur.soldiersLost += 1; // TD-5 Dyson Denied tracking
       else if (e.type === "wave") sfx("wave");
@@ -849,7 +894,14 @@
     if (render.setDamageNumbers) render.setDamageNumbers(save.settings.dmgNumbers); // TD-6 opt-in numbers
     cur = { engine, render, levelDef, raf: 0, acc: 0, lastT: 0, speed: save.settings.speed || 1, paused: false, selPadId: null, selTowerId: null,
       lines: {}, soldiersLost: 0, sawKill: false, lastBuildWave: -1, // TD-5 achievement context
-      leaks: {}, leakWave: 0 }; // TD-12 post-mortem context (the tallies live in engine state)
+      leaks: {}, leakWave: 0, // TD-12 post-mortem context (the tallies live in engine state)
+      // The endless record to beat, read ONCE off the save and kept on the RUN.
+      // Same reasoning as the checkpoint reading its rules off the run rather
+      // than the save: a record that moved mid-run (a second tab, or this run's
+      // own defeat write) would silently re-arm or disarm the announcement.
+      endlessRecord: engine.state.endless && levelDef && levelDef.world
+        ? (save.endlessBest[levelDef.world] | 0) : 0,
+      bestBeaten: false };
     // The HUD reads the CALL/RUSH offer straight off the engine, so the button
     // can never promise gold the engine would refuse (the dead-control lesson).
     UI._callInfo = () => (cur ? cur.engine.callInfo() : null);

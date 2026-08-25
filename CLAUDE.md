@@ -3059,6 +3059,72 @@ endless run could reach), which is what makes the string list not-a-list. And
 so an engine that forgot the queue fails there; labelling it `fixture:` made a
 real product failure read as a broken test, so it is worded as the property.
 
+**A ⭐8 CAPSTONE'S ONLY MOMENT WAS PRESENTED AS A LOSS.** 🌟 Sticker Shield's
+entire effect is that the first leak each run costs 0 lives — and the engine
+emits `{type:"leak", shielded:true}` with no `lives` field and returns before
+touching the counter, while BOTH dispatchers played the ordinary leak: the same
+descending 330→262 cue and the same full-screen red wash. So the rescue looked
+exactly like losing stickers except the number did not move, which reads as a
+bug rather than as a save. Measured headless: 20 → 15 with the node against
+20 → 14 without it. The tell was this file's most reliable one — **two adjacent
+lines disagreeing**: the renderer's toll label already checked `shielded` and
+nothing else in either file did. Four things worth keeping. (1) **The fix is a
+question of GRAMMAR, not colour** — a save costs nothing, so it does not paint
+the "you lost stickers" wash at all; it floats `🌟 SAVED` at the door through
+the `toll` fx that already existed, and the cue is the OPPOSITE SHAPE (rising
+784/1047/1319 against the leak's fall). (2) **`cur.leaked` and the post-mortem
+count deliberately do NOT change** — the body genuinely got past you, and 🛡️ No
+Leaks staying honest about that is a documented choice. (3) **The CONTROL had to
+be a second RUN, not a second leak** — the 🌟 label lives 34 draws and every body
+on L1 reaches the door within about 9, so a same-run control measures a label
+that is merely still floating; the first cut failed for exactly that reason and
+it was the FIXTURE, not the product. (4) **A `setTimeout(…, 0)` first note is
+still a tick late**: the save cue's opening note was deferred like its other two,
+so the spy saw zero tones at the leak frame while the leak cue — which plays its
+first note synchronously — saw one. Matching the leak's shape is both the fix
+and better feedback. The wash bar is a MEASURED separation rather than a slack
+(corner warmth 10 on the bare floor, 49 under the wash, and the mutation that
+re-adds the wash to a save collapses it to 49 vs 49, so the bar sits at 20).
+
+**DIFFING THE ENGINE'S EMIT LIST AGAINST BOTH DISPATCHERS FOUND THE TWO EVENTS
+NOBODY LISTENED TO — and the guardrail for it was a false negative on its first
+run.** The event stream is the seam between a deterministic simulation and
+everything the player can hear or see, so a type with no consumer is a moment
+that silently does not exist. Two of 25 had none: **`buycharge`** — 450 gold
+spent in total silence while build, upgrade, sell and a tier-4 branch all ring —
+and **`endless-wave`**, the one number that mode is about, revealed only on the
+defeat screen after the run was already over. Both now have consumers: a bright
+two-note purchase cue, and a 🏆 banner the moment an endless run passes the
+world's previous record. Five things worth keeping. (1) **The milestone fires
+ONCE per run and only when there IS a record** — a first visit has nothing to
+say and a banner on every wave after the record is furniture, which is the same
+signal-not-decoration rule the meta-row badges follow. (2) **The record is
+captured ON THE RUN at start**, not read from the save each time, and those
+genuinely diverge: `persist()` folds `endlessBest` in as a MONOTONIC max, so a
+second tab finishing a better run raises this tab's in-memory save mid-run and a
+live read would silently SUPPRESS an announcement for a record you really did
+pass. (3) **That clause did not exist until a mutation passed** — swapping the
+captured record for a live save read changed nothing, because the test never
+made the two disagree; the clause that catches it writes the other tab's score to
+storage BEFORE a wave boundary merges it. (4) **The scan's first predicate was a
+whole-file substring and was satisfied by a coincidence**: deleting the
+`buycharge` dispatch branch left it GREEN because the string still appeared in
+the sfx table as a CUE NAME — the same trap as the precache check matching a path
+inside a comment. It matches `e.type === "x"` now, which immediately surfaced a
+third case worth naming rather than hiding: **`lever`'s cue fires at the TAP
+site, synchronously**, which is better than a round trip through the event queue,
+so it joins `won`/`lost` on an exemption list where every entry carries its
+reason. (5) **A structural scan proves a call site exists; only driving it proves
+the call does anything** — `sfx("buycharge")` with no matching entry in the cue
+table falls straight through the if/else chain and plays nothing, and the scan
+cannot see that, so the purchase is driven through the real ⚙️ button. Its
+fixture taught two things: read the button's `disabled` BEFORE the tap (buying
+fills the bank and correctly disables it), and the cue rides the EVENT, so it
+plays when events are DRAINED — the frame loop does that within a frame in real
+play, and `newGame` leaves the run paused, so the harness must tick once. A
+banner spy also has to be re-installed after every `page.reload()`: a spy that is
+quietly gone reads exactly like a feature that quietly stopped firing.
+
 ---
 
 ## Repository Structure

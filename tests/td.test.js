@@ -9199,3 +9199,240 @@ test("QoL: the CALL button reserves its tallest line, so the field never moves u
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(60);
 });
+
+test("QoL: a shielded leak reads as a SAVE, not as a loss", async () => {
+  // 🌟 Sticker Shield is a 6⭐ capstone behind an 8⭐ in-branch spend whose whole
+  // effect is one moment: the first leak each run costs 0 lives. That moment was
+  // presented exactly like losing stickers — the same descending cue and the
+  // same full-screen red wash — while the lives counter did not move, which
+  // reads as a bug rather than as a rescue. Measured headless before the fix:
+  // 20 → 15 with the node against 20 → 14 without it, and the event carries
+  // `shielded: true` with no `lives` at all. The tell was two adjacent lines
+  // disagreeing: the toll label already checked `shielded` and nothing else did.
+  //   The CONTROL is a second RUN with the node absent, not a second leak in the
+  // same run: the 🌟 label lives 34 draws and every body reaches the door within
+  // ~9, so a same-run control measures a label that is merely still floating.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  const firstLeak = async (meta) => {
+    await page.evaluate((m) => {
+      window.__TD.newGame(1, { seed: 3, meta: m });
+      // A label is TEXT, so read what was DRAWN rather than hunting it in pixels
+      // (the lever-countdown lesson). Wrapped once; the flag survives re-entry.
+      const cx = document.querySelector("#screen-td-play .td-canvas").getContext("2d");
+      if (!cx.__wrapText) {
+        const real = cx.fillText.bind(cx);
+        cx.fillText = function (t, x, y) { window.__drawn.push(String(t)); return real(t, x, y); };
+        cx.__wrapText = true;
+      }
+      // The SOUND is the other half of the grammar, and the fort is muted by
+      // default — the shipped state — so it has to be turned on to hear anything.
+      window.JoshAudio.setMuted(false);
+      if (!window.JoshAudio.__wrapTone) {
+        const realTone = window.JoshAudio.tone;
+        window.JoshAudio.tone = function (hz, opts) { window.__heard.push(hz); return realTone.call(this, hz, opts); };
+        window.JoshAudio.__wrapTone = true;
+      }
+      window.__drawn = []; window.__heard = [];
+      window.__TD.script([["call"]]);
+    }, meta);
+    const before = await page.evaluate(() => window.__TD.state().lives);
+    // Nothing is built, so every body walks to the door. Step in SMALL batches:
+    // `script` draws once per batch and each draw ages the flash, so a big batch
+    // would sample a leak that has already faded. `__drawn` is cleared per frame
+    // so it holds exactly the frame the leak was seen in.
+    for (let i = 0; i < 250; i++) {
+      const now = await page.evaluate(() => {
+        window.__drawn = []; window.__heard = [];
+        window.__TD.script([["tick", 10]]);
+        const s = window.__TD.state();
+        const d = document.querySelector("#screen-td-play .td-canvas")
+          .getContext("2d").getImageData(2, 2, 1, 1).data;
+        return { lives: s.lives, shield: !!s.shieldUsed, phase: s.phase,
+          warm: d[0] - d[1], drew: window.__drawn.join(" | "), heard: window.__heard.slice() };
+      });
+      if (now.lives < before || now.shield) return { before, ...now };
+      if (now.phase !== "wave") break;
+    }
+    return null;
+  };
+
+  const saved = await firstLeak(["stickershield"]);
+  assert.ok(saved, "fixture: the shielded run must reach its first leak");
+  assert.ok(saved.shield, "fixture: the run must actually be carrying 🌟 Sticker Shield");
+  assert.equal(saved.lives, saved.before,
+    "the shield absorbs the first leak, so lives must not move — that IS the node");
+  assert.match(saved.drew, /SAVED/,
+    "the door must say what happened — a save with no label is indistinguishable " +
+    `from a bug (drew: ${saved.drew.slice(0, 140)})`);
+
+  const lost = await firstLeak([]);
+  assert.ok(lost, "fixture: the control run must reach its first leak");
+  assert.ok(lost.lives < lost.before, "fixture: with no shield the first leak must cost lives");
+  assert.ok(!/SAVED/.test(lost.drew),
+    `an unshielded leak must not claim a save (drew: ${lost.drew.slice(0, 140)})`);
+  // A MEASURED separation, not a slack: the corner reads warmth 10 on the bare
+  // floor and 49 under the leak wash, and the mutation that re-adds the wash to
+  // a save collapses it to 49 vs 49. 20 sits between the two.
+  assert.ok(lost.warm > saved.warm + 20,
+    "a real leak must wash the board redder than a saved one — a save costs nothing, so " +
+    `painting the "you lost stickers" wash is the wrong grammar (lost ${lost.warm} vs saved ${saved.warm})`);
+
+  // The cue must be the opposite SHAPE, not merely present: the leak cue opens
+  // at 330Hz and falls, the save opens at 784Hz and rises. The first tone alone
+  // separates them, and it is what a `sfx("leak")` for both cannot satisfy.
+  assert.ok(saved.heard.length && lost.heard.length,
+    `fixture: both leaks must be audible (saved ${saved.heard.length}, lost ${lost.heard.length} tones)`);
+  assert.ok(saved.heard[0] > lost.heard[0] + 200,
+    "a save must be announced by a HIGHER, rising cue than a loss — the ear is the " +
+    `channel you have while looking at the field (saved ${saved.heard[0]}Hz vs lost ${lost.heard[0]}Hz)`);
+
+  await page.evaluate(() => window.JoshAudio.setMuted(true));   // shipped state, restored
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});
+
+test("QoL: endless announces the moment you pass your own record", async () => {
+  // Endless has ONE number that matters — the wave you reached — and it was
+  // revealed only on the defeat screen, after the run was already over. The
+  // engine has always emitted `endless-wave` on every cleared wave and NOTHING
+  // listened: it was one of exactly two event types with no consumer in either
+  // dispatcher. Passing your own record is the moment the mode exists for.
+  const seed = async (best) => page.evaluate((b) => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    raw.v = 1; raw.endlessBest = b;
+    delete raw.midRun;   // a parked checkpoint bounces #td-play back to the fort home
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  }, best);
+
+  const runTo = async (best, waves) => {
+    await seed(best);
+    await page.reload({ waitUntil: "load" });
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible" });
+    // Wrap the banner rather than racing its 2.6s auto-hide: what matters is
+    // that it was SHOWN, and how many times. `startEndless` routes to the play
+    // screen itself — navigating there first would bounce, since no run is live.
+    const out = await page.evaluate((n) => {
+      // Installed unconditionally: each call reloads first, which destroys any
+      // previous wrapper — a `__wrapBanner` guard would skip re-installing and
+      // silently record nothing.
+      window.__banners = [];
+      const realBanner = window.TDUI.showBanner;
+      window.TDUI.showBanner = function (t) { window.__banners.push(String(t)); return realBanner.call(this, t); };
+      window.__TD.startEndless("bedroom");
+      // A 4-dart board clears these waves comfortably — measured headless. place()
+      // simply refuses what the arena's start gold cannot afford.
+      const pads = window.TDData.ENDLESS.arenas.bedroom.pads.map((p) => p.id);
+      const per = [];
+      for (let w = 0; w < n; w++) {
+        for (const id of pads) window.__TD.script([["place", "dart", id]]);
+        window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+        per.push({ wave: window.__TD.state().waveIdx, banners: window.__banners.slice() });
+      }
+      return { per, phase: window.__TD.state().phase };
+    }, waves);
+    return out;
+  };
+
+  // A record of 1: clearing wave 2 passes it.
+  const beat = await runTo({ bedroom: 1 }, 3);
+  assert.equal(beat.per[0].wave, 1, "fixture: the board must actually clear endless waves");
+  assert.deepEqual(beat.per[0].banners, [],
+    "clearing wave 1 only MATCHES the record of 1 — a tie is not a new best");
+  const after2 = beat.per[1].banners.filter((b) => /New best/.test(b));
+  assert.equal(after2.length, 1,
+    `passing the record must announce it exactly once (saw ${JSON.stringify(beat.per[1].banners)})`);
+  assert.match(after2[0], /wave 2/, "…and name the wave you reached");
+  const after3 = beat.per[2].banners.filter((b) => /New best/.test(b));
+  assert.equal(after3.length, 1,
+    "…and only once per RUN — every wave after the record is furniture, not a signal");
+
+  // The record is captured ON THE RUN at start, not read from the save each
+  // time — and those genuinely diverge. `persist()` folds `endlessBest` in as a
+  // MONOTONIC max, so a second tab finishing a better run on the same world
+  // raises this tab's in-memory save mid-run. Reading it live would then silently
+  // SUPPRESS the announcement for a record you really did pass. Simulated here by
+  // writing the other tab's score to storage before a wave boundary merges it.
+  await seed({ bedroom: 1 });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const raced = await page.evaluate(() => {
+    // Re-install the spy: a reload destroys it, and a spy that is quietly gone
+    // reads exactly like a feature that quietly stopped firing.
+    window.__banners = [];
+    const real = window.TDUI.showBanner;
+    window.TDUI.showBanner = function (t) { window.__banners.push(String(t)); return real.call(this, t); };
+    window.__TD.startEndless("bedroom");
+    const pads = window.TDData.ENDLESS.arenas.bedroom.pads.map((p) => p.id);
+    for (const id of pads) window.__TD.script([["place", "dart", id]]);
+    // another tab finishes a monster run on this world
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    raw.endlessBest = { bedroom: 99 };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    // wave 1 clears -> the checkpoint persists -> the merge pulls 99 in
+    window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+    const merged = window.__TD.endlessBest().bedroom;
+    for (const id of pads) window.__TD.script([["place", "dart", id]]);
+    window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+    return { merged, banners: window.__banners.slice(), wave: window.__TD.state().waveIdx };
+  });
+  assert.equal(raced.merged, 99,
+    "fixture: the wave boundary must actually merge the other tab's score, or this proves nothing");
+  assert.equal(raced.banners.filter((b) => /New best/.test(b)).length, 1,
+    "the record to beat is the one this run STARTED against — a better score arriving " +
+    "from another tab must not retroactively cancel a record you passed");
+
+  // No record to beat: a first visit has nothing to say.
+  const fresh = await runTo({}, 3);
+  assert.equal(fresh.per[2].banners.filter((b) => /New best/.test(b)).length, 0,
+    "a world with no record must not announce a 'best' — there is nothing to have beaten");
+
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});
+
+test("QoL: buying ⚙️ Toy Energy makes a sound, like every other purchase", async () => {
+  // `buycharge` was one of two event types with no consumer in either dispatcher
+  // — 450 gold spent in silence while build, upgrade, sell and a tier-4 branch
+  // all ring. This is driven rather than scanned because the structural check
+  // cannot see the other half: `sfx("buycharge")` with no matching entry in the
+  // cue table falls straight through the if/else chain and plays nothing.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const heard = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 3 });
+    window.JoshAudio.setMuted(false);
+    window.__heard = [];
+    const real = window.JoshAudio.tone;
+    window.JoshAudio.tone = function (hz, o) { window.__heard.push(hz); return real.call(this, hz, o); };
+    window.__TD.grantGold(5000);            // the exchange is gold-gated, not the point here
+    window.__TD.script([["call"], ["tick", 10]]);   // ⚙️ can only be bought mid-wave
+    const btn = document.querySelector("#screen-td-play .td-hud__charge");
+    const before = window.__TD.state().charge;
+    // Read the offer BEFORE the tap: buying fills the bank and spends this
+    // wave's one purchase, so the button is correctly disabled afterwards.
+    const offered = !btn.disabled;
+    window.__heard = [];
+    btn.click();
+    // The cue rides the EVENT, so it plays when the events are drained — the
+    // frame loop does that within a frame in real play, and `newGame` leaves the
+    // run paused, so the harness has to do it here.
+    window.__TD.script([["tick", 1]]);
+    return { before, offered, after: window.__TD.state().charge, tones: window.__heard.slice() };
+  });
+  assert.ok(heard.offered, "fixture: the ⚙️ exchange must be offered mid-wave with gold in hand");
+  assert.ok(heard.after > heard.before,
+    `fixture: the purchase must actually land (${heard.before} → ${heard.after} ⚙️)`);
+  assert.ok(heard.tones.length > 0,
+    "spending 450 gold must be audible — every other purchase in the fort rings");
+  await page.evaluate(() => window.JoshAudio.setMuted(true));
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

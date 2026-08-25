@@ -2798,6 +2798,49 @@ test("guardrail: 'how much of this wave is left' has ONE definition", () => {
     "the UI must not count live bodies itself — that silently drops everything still queued");
 });
 
+test("guardrail: every event the engine emits reaches a consumer", () => {
+  // The engine's event stream is the seam between a deterministic simulation and
+  // everything the player can hear or see, and a type nobody listens to is a
+  // moment that silently does not exist. Diffing the emit list against BOTH
+  // dispatchers is what found the two that had none: `buycharge` (450 gold spent
+  // with no cue at all, while every other purchase in the fort rings) and
+  // `endless-wave` (the one number that mode is about, revealed only after the
+  // run). DERIVED from the engine, so a new event type is covered here the day
+  // it is written rather than the day someone remembers to edit this list.
+  const eng = read("scripts/td-logic.js");
+  const types = [...new Set(
+    [...eng.matchAll(/emit\(\{\s*type:\s*"([a-z-]+)"/g)].map((m) => m[1]))].sort();
+  assert.ok(types.length >= 20,
+    `the emit scan must find the event types (saw ${types.length}) — a broken regex ` +
+    "makes this whole check vacuous, and a derivation fails OPEN");
+
+  // A consumer is a DISPATCH branch keyed on the type. It has to be that narrow:
+  // a whole-file substring match is satisfied by a coincidence, and this one was
+  // — deleting the `buycharge` branch left the check green because the string
+  // still appeared in the sfx table as a CUE NAME. That is the same trap as the
+  // precache scan matching a path inside a comment.
+  //   Some types are legitimately owned by a surface that reads engine STATE, or
+  // fires at the interaction instead, so each is named WITH its reason rather
+  // than silently tolerated. (A consumer written as a `switch` rather than an
+  // `e.type ===` chain would need to join this list too — with a reason.)
+  const OWNED_ELSEWHERE = {
+    won: "the victory screen is driven by phaseWatch reading state.phase",
+    lost: "the defeat screen is driven by phaseWatch reading state.phase",
+    lever: "the cue fires at the TAP site, synchronously — immediate feedback for a " +
+      "press beats a round trip through the event queue; the route itself is drawn from state",
+  };
+  const consumers = read("scripts/td-main.js") + read("scripts/td-render.js");
+  const orphans = types.filter((t) =>
+    !OWNED_ELSEWHERE[t] && !new RegExp('e\\.type === "' + t + '"').test(consumers));
+  assert.deepEqual(orphans, [],
+    `these event types reach no sound and no fx, so the moments they mark are invisible: ${orphans.join(", ")}`);
+
+  // …and the reverse: a reason that no longer applies is a stale exemption.
+  for (const t of Object.keys(OWNED_ELSEWHERE)) {
+    assert.ok(types.includes(t), `"${t}" is exempted here but the engine no longer emits it`);
+  }
+});
+
 test("guardrail: 'beaten on this ladder' has ONE definition", () => {
   // The count under each difficulty chip and the grid's own unlock rule are the
   // same question asked twice — how many levels have you beaten on THIS ladder —

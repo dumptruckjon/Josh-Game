@@ -2988,6 +2988,16 @@
         // the peak. Two ops, no shake: a shake per shot would be a seizure.
         fx.push(fxAt({ kind: "muzzle", ttl: 4, max: 4, line: e.tower }, e.x, e.y));
       } else if (e.type === "build" || e.type === "upgrade") fx.push(fxAt({ kind: "ring", ttl: 12, max: 12 }, e.x, e.y));
+      else if (e.type === "leak" && e.shielded) {
+        // 🌟 Sticker Shield ate it. A save costs nothing, so painting the
+        // full-screen "you lost stickers" wash is the wrong GRAMMAR rather than
+        // merely the wrong colour: it is suppressed entirely, and the door says
+        // what happened instead through the same white-on-dark label a real toll
+        // already uses. (The event still fires and still counts — the body did
+        // get past you.)
+        const end = engine.posOn(0, 1e9);
+        fx.push(fxAt({ kind: "toll", ttl: 34, max: 34, text: "🌟 SAVED" }, end.x, end.y));
+      }
       else if (e.type === "leak") { // a burst of leaks REFRESHES one flash — never stacks to an opaque wall
         const cost = e.lives || 1;
         const cur = fx.find((f) => f.kind === "leak");
@@ -2996,7 +3006,7 @@
         const ttl = e.boss ? 26 : 10, deep = e.boss ? 0.5 : 0.25;
         if (cur) { cur.ttl = Math.max(cur.ttl, ttl); cur.max = Math.max(cur.max, ttl); cur.deep = Math.max(cur.deep || 0.25, deep); }
         else fx.push({ kind: "leak", x: 0, y: 0, ttl, max: ttl, deep });
-        if (cost > 1 && !e.shielded) {
+        if (cost > 1) {   // a shielded leak never reaches here — it has its own branch above
           // the toll, floated at the door so you SEE what it cost
           const end = engine.posOn(0, 1e9);
           fx.push(fxAt({ kind: "toll", ttl: 34, max: 34, text: "−" + cost + " ❤️" }, end.x, end.y));
