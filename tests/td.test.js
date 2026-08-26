@@ -1381,6 +1381,81 @@ test("AUDIT UX: 🏠 mid-level asks before leaving — Keep playing stays, Leave
   assert.equal(await page.evaluate(() => location.hash), "#td-home", "Leave returns to the fort");
 });
 
+test("QoL: the fort-home blurb DERIVES its roster claim instead of listing it", async () => {
+  // It used to enumerate the roster in prose — "(splitters, armor, chargers,
+  // ghosts, moles, shielded bots, fliers, soakers, jammers, greased runners,
+  // spawners, padding, blaring stereos)" — while claiming to describe "the whole
+  // toybox roster". Measured, that named 13 of 25 trick shapes: every enemy
+  // shipped since went unmentioned. A prose list of 25 is unmaintainable, so it
+  // is two derived numbers plus a pointer at the surface that DOES enumerate.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+  const before = await page.evaluate(() => {
+    const E = window.TDData.ENEMIES, L = window.TDLogic;
+    const ids = Object.keys(E);
+    const NOT = new Set(["plain", "home", "skin", "costumes", "boss"]);
+    const tricks = new Set();
+    for (const k of ids) for (const t of L.enemyTraits(E[k])) if (!NOT.has(t.key)) tricks.add(t.key);
+    return { text: document.querySelector("#screen-td-home .td-note").textContent,
+      bodies: ids.filter((k) => !E[k].skinOf).length, names: ids.length, tricks: tricks.size,
+      lines: Object.keys(window.TDData.TOWERS).length };
+  });
+  assert.ok(before.bodies > 10 && before.tricks > 10, `fixture: a real roster (${before.bodies}/${before.tricks})`);
+  assert.ok(before.text.includes(String(before.bodies)) && before.text.includes(String(before.names)),
+    `the blurb must state the derived body and name counts (${before.bodies}/${before.names}) — saw ${JSON.stringify(before.text)}`);
+  assert.ok(before.text.includes(before.tricks + " tricks"),
+    `…and the derived trick count (${before.tricks}) — saw ${JSON.stringify(before.text)}`);
+  assert.ok(before.text.includes(before.lines + " tower lines"),
+    `…and the derived tower-line count (${before.lines})`);
+  // The old prose list must be GONE, or a stale enumeration sits beside the
+  // derived numbers contradicting them.
+  assert.ok(!/blaring stereos|greased runners|shielded bots/.test(before.text),
+    "the hand-written roster enumeration must not survive beside the derived counts");
+  assert.match(before.text, /Guide/, "…and it points at the surface that DOES enumerate, derived from the same data");
+
+  // The rendered note must literally CONTAIN what the owner produces, which is
+  // what ties the shell to `UI.rosterBlurb` — the clauses above would be equally
+  // happy with the same numbers hard-coded into the shell.
+  const tied = await page.evaluate(() =>
+    document.querySelector("#screen-td-home .td-note").textContent.includes(window.TDUI.rosterBlurb()));
+  assert.ok(tied, "the blurb the home renders must be the one UI.rosterBlurb() builds");
+
+  // SELF-PROVING, in BOTH directions, because a literal equal to today's count
+  // satisfies every clause above. (The note lives in the screen SHELL, built
+  // once and not re-rendered by renderLevelGrid, so the injections are checked
+  // against the OWNER; that the shell reads the owner is pinned structurally in
+  // site.test.js, which is the half a browser cannot see.)
+  const moved = await page.evaluate(() => {
+    const E = window.TDData.ENEMIES, L = window.TDLogic;
+    const NOT = new Set(["plain", "home", "skin", "costumes", "boss"]);
+    // ADD a body: the body and name counts must rise.
+    E.__probe = { name: "Probe", icon: "🧪", hp: 10, speed: 1, bounty: 1, lives: 1 };
+    const grown = window.TDUI.rosterBlurb();
+    delete E.__probe;
+    // REMOVE the sole carrier of some trick: the trick count must fall. Derived,
+    // so it needs no enemy named here — and it is the only way to falsify the
+    // trick number, since every trick the engine knows already has a carrier.
+    const carriers = {};
+    for (const k of Object.keys(E)) for (const t of L.enemyTraits(E[k])) {
+      if (!NOT.has(t.key)) (carriers[t.key] = carriers[t.key] || []).push(k);
+    }
+    const solo = Object.entries(carriers).find(([, v]) => v.length === 1);
+    const keep = solo ? E[solo[1][0]] : null;
+    if (solo) delete E[solo[1][0]];
+    const shrunk = solo ? window.TDUI.rosterBlurb() : null;
+    if (solo) E[solo[1][0]] = keep;
+    return { grown, shrunk, soloTrick: solo && solo[0], soloId: solo && solo[1][0] };
+  });
+  assert.ok(moved.grown.includes(String(before.bodies + 1)) && moved.grown.includes(String(before.names + 1)),
+    `a new body must move the derived counts (${before.bodies} -> ${before.bodies + 1}) — saw ${JSON.stringify(moved.grown)}`);
+  assert.ok(moved.soloTrick, "fixture: some trick must have exactly one carrier, or the trick count cannot be falsified");
+  assert.ok(moved.shrunk.includes((before.tricks - 1) + " tricks"),
+    `dropping "${moved.soloId}", the only carrier of "${moved.soloTrick}", must take the trick count to ` +
+    `${before.tricks - 1} — saw ${JSON.stringify(moved.shrunk)}`);
+});
+
 test("QoL: a countable badge says how CLOSE you are, and its bar is the award site's", async () => {
   // Three of the 19 badges have a countable target, and the grid showed a
   // player at 58 of 60 stars exactly what it showed one at 3. Same law as the

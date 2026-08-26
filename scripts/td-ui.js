@@ -80,9 +80,10 @@
       // card on the grid — the levels existed and no one could reach them.
       '<p class="td-note">' + global.TDData.LEVELS.length + ' levels across ' +
         new Set(global.TDData.LEVELS.map(function (l) { return l.world; })).size +
-        ' worlds — beat one to unlock the next. Face the whole toybox roster (splitters, armor, chargers, ghosts, moles, shielded bots, fliers, soakers, jammers, greased runners, spawners, padding, blaring stereos) and ' +
+        ' worlds — beat one to unlock the next. Face ' + UI.rosterBlurb() + ' and ' +
         global.TDData.LEVELS.filter(function (l) { return l.waves.some(function (w) { return w.boss; }); }).length +
-        ' bosses, with the full arsenal: 4 tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>' +
+        ' bosses, with the full arsenal: ' + Object.keys(global.TDData.TOWERS).length +
+        ' tower lines, upgrades &amp; exclusive tier-4 branches. 👑 marks a boss finale.</p>' +
       // Start-over control. Deliberately small and quiet (data-adult exempts it
       // from the kid ≥75px audit) and behind a type-the-word gate, exactly like
       // Josh's ⚙️ Grown-ups star reset — Josh reaches the fort from the front
@@ -281,6 +282,30 @@
   UI.levelBeaten = beatenOn;
   UI.ladderBeaten = function (save, diff) {
     return global.TDData.LEVELS.filter((l) => beatenOn(save, diff, l.id)).length;
+  };
+
+  // The blurb used to ENUMERATE the roster in prose — "(splitters, armor,
+  // chargers, ghosts, moles, shielded bots, fliers, soakers, jammers, greased
+  // runners, spawners, padding, blaring stereos)" — while claiming to describe
+  // "the whole toybox roster". Measured, it named 13 of the 25 trick shapes the
+  // roster actually carries: every enemy shipped since (the Junk Healer, the
+  // Drip Slime, 🦆's zap resist, 🛢️'s oil, 🎇's death-jam, the Piñata's gold
+  // burst) went unmentioned, and the boss kits never appeared at all. A prose
+  // list of 25 shapes is unmaintainable by construction, so it is DERIVED into
+  // two numbers instead, and the enumeration is delegated to the ONE surface
+  // that already derives it — 📖 the Toybox Guide. The body count is the
+  // costume fact this file just taught the guide: 35 toys wearing 56 names.
+  UI.rosterBlurb = function () {
+    const E = global.TDData.ENEMIES, L = global.TDLogic;
+    const ids = Object.keys(E);
+    const bodies = ids.filter((k) => !E[k].skinOf).length;
+    const tricks = new Set();
+    // the presentational trait keys are not TRICKS: "no tricks", where you meet
+    // it, and the two costume lines.
+    const NOT_A_TRICK = new Set(["plain", "home", "skin", "costumes", "boss"]);
+    for (const k of ids) for (const t of L.enemyTraits(E[k])) if (!NOT_A_TRICK.has(t.key)) tricks.add(t.key);
+    return bodies + " different toys wearing " + ids.length + " names, with " +
+      tricks.size + " tricks between them (📖 the Guide explains every one)";
   };
 
   UI.renderLevelGrid = function (save, onPick, onSetDifficulty) {

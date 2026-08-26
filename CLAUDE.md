@@ -3561,6 +3561,38 @@ mutation rather than to admire the assertion. The second seed exists for the
 sibling reason — a hard-coded "48/60" satisfies every other clause, so the test
 opens the grid twice and requires the number to MOVE.
 
+**THE FORT HOME ENUMERATED THE ROSTER IN PROSE AND NAMED 13 OF 25 SHAPES.** The
+blurb under the level grid claimed to describe *"the whole toybox roster"* and
+then listed it by hand — *"(splitters, armor, chargers, ghosts, moles, shielded
+bots, fliers, soakers, jammers, greased runners, spawners, padding, blaring
+stereos)"*. Measured against the trait keys `enemyTraits` actually derives, that
+is **13 of 25**: the Junk Healer, the Drip Slime, 🦆's zap resist, 🛢️'s oil,
+🎇's death-jam and the Piñata's gold burst all shipped after it was written and
+none was added, and no boss kit ever appeared. Tenth instance of a list that
+outlives its contents, this time in PLAYER COPY — and a prose list of 25 shapes
+is unmaintainable by construction, so the fix is not to extend it. It becomes
+two DERIVED numbers plus a pointer at the one surface that does enumerate:
+*"35 different toys wearing 56 names, with 24 tricks between them (📖 the Guide
+explains every one)"*. The body count is the costume fact the guide learned an
+hour earlier, now on the home screen; the tower-line count stopped being a
+literal 4 in the same line.
+**Two of the four mutations PASSED first, and both for the same reason: a
+literal equal to today's value satisfies a clause that only checks the value.**
+(1) Hard-coding the whole sentence into the shell survived
+`note.includes(UI.rosterBlurb())`, because the hard-coded text IS what the owner
+produces today — and the note lives in the screen SHELL, built once, so no
+runtime change to the owner can make the DOM follow. That half is unobservable
+from a browser and is pinned structurally instead: the note region must contain
+`UI.rosterBlurb()` and no standalone digit. (`tier-4` is exempt because a digit
+bound into a word by a hyphen is a NAME, not a count — the distinction is the
+claim, not a fence.) (2) The trick count survived hard-coding because the
+self-proving injection ADDED a body carrying `spill`, a trick the Oil Drum
+already has — **every trick the engine knows already has a carrier, so adding
+one can never move that number.** It is falsified by REMOVAL instead: derive the
+trick with exactly one carrier (14 of the 24 qualify), delete that enemy, and
+require the count to fall. **When a self-proving injection cannot move a number,
+check whether the quantity is saturated and falsify it from the other side.**
+
 ---
 
 ## Repository Structure

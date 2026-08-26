@@ -2796,6 +2796,31 @@ test("guardrail: throwing a live battle away has exactly ONE confirm owner", () 
   }
 });
 
+test("guardrail: the fort-home blurb reads the roster OWNER, not its own numbers", () => {
+  // The browser half proves the numbers are derived and that the rendered note
+  // contains what UI.rosterBlurb() builds — but the note lives in the screen
+  // SHELL, which is constructed once, so `includes(rosterBlurb())` is equally
+  // true of a literal that happens to match today's roster. That is the half a
+  // browser cannot distinguish, so it is pinned here.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((ui.match(/UI\.rosterBlurb = function/g) || []).length, 1, "the blurb has exactly one owner");
+  const note = ui.slice(ui.indexOf('<p class="td-note">'), ui.indexOf("👑 marks a boss finale"));
+  assert.ok(note.length > 40 && note.length < 1200, "the scan must find a real region to slice, not the rest of the file");
+  assert.match(note, /UI\.rosterBlurb\(\)/, "the note must ASK the owner rather than restate its numbers");
+  // …and no count in that region may be a literal. Every number the blurb states
+  // is derived from the data; a digit here is a number that will go stale, which
+  // is precisely what the prose list it replaced did.
+  // A STANDALONE number only: `tier-4 branches` is a tier's NAME, not a count,
+  // and a digit bound into a word by a hyphen is never the thing that goes
+  // stale. That distinction is the claim, not a fence around a residual.
+  const digits = note.match(/(?<![\w-])\d+(?![\w-])/g) || [];
+  assert.deepEqual(digits, [],
+    `the blurb region must contain no literal counts — saw ${JSON.stringify(digits)}`);
+  // …and every count it does state comes from the data or the owner.
+  assert.ok((note.match(/global\.TDData/g) || []).length >= 4,
+    "the levels, worlds, bosses and tower lines are all read from the data");
+});
+
 test("guardrail: a badge's description states the bar its award site enforces", () => {
   // 🌪️ Dyson Denied said only "Beat the Vacuum King" while the award site also
   // required `soldiersLost <= 3` — so a player who beat L8 and lost a fourth
