@@ -2054,10 +2054,11 @@ two were simply never tried. **A scoping verdict is a claim like any other —
 this one cost two shipped defects by looking authoritative in a note.**
 **Marathoner needed a robustness check the others did not**: `startLevel` seeds
 an ordinary run from `Date.now()`, so an endless test gets a RANDOM seed and
-would be a coin flip if survival were marginal. Measured across 8 seeds × 2
-arenas, every run hit the probe's own 26-wave cap rather than dying — consistent
-with the recorded "a maxed 14-pad build survives past 400k ticks" — so the
-fixture is safe by measurement rather than by luck. Its wiring is also unlike
+would be a coin flip if survival were marginal. **CORRECTED (2026-08): it WAS
+marginal, and the "measured across 8 seeds × 2 arenas, so the fixture is safe by
+measurement rather than by luck" claim that stood here was wrong — see the
+sample-size entry at the end of this block. The seed is pinned now.** Its wiring
+is also unlike
 every other badge: it is awarded when the run ENDS or when you LEAVE, never on a
 win, so the test has to walk out of the arena to collect it.
 **All SIX earnAch wirings are now driven, and the seven badges still named in no
@@ -3763,6 +3764,66 @@ line changes its ALIGNMENT** — the arena label had been hugging the left of a
 `space-between` flex row as a text node, and inside a block it inherited the
 dialog's centring and sat indented over its own spike line. Caught by the
 screenshot, not by any measurement.
+
+**THE THREE DIFFICULTY CHIPS NEVER SAID WHAT A LADDER DOES TO A RUN.** They
+carried "😌 Easy / ⚔️ Normal / 💀 Hard" and their per-ladder progress, and
+nothing anywhere in the app — not the chips, not the 📖 Guide, not one line of
+copy — said what changes. The numbers are large and one of them is
+counter-intuitive: **Hard hands you MORE starting gold** (+40), because heroic
+was deliberately re-shaped into a pure hp/economy challenge rather than a speed
+one, so a player reading only the icons has no way to know that the tier which
+adds 30% toy health also funds a bigger opening. It is a derived line under the
+chips now (`UI.difficultyEffect`), reading each tier's own fields — a neutral
+field says nothing rather than printing "+0%", and a fourth tier explains
+itself, which a runtime injection proves. Measured cost: the level grid starts
+**34px lower** at 320 and 390, compared like-for-like against the same page with
+the line hidden.
+Three things worth keeping. **The obvious home was a 10th ♾️/⚔️ guide section
+and the contents row's even-fill law refuses one** — the same refusal as the
+endless work an hour earlier, so a fact that belongs at a decision now has a
+second precedent for living AT the decision rather than in the manual.
+**The reflow risk is asserted, not armoured**: tapping a chip must not move the
+grid under the thumb, and a `min-height` reserving the worst case would be a
+line whose removal changes nothing today — the unfalsifiable-change trap this
+file has already deleted twice. **And the mutation that "should" have proven
+that clause PASSED**: bumping the line's font-size scales all three sentences
+equally, so the grid still does not move. The axis it actually guards is per-tier
+LENGTH — making ONE tier's sentence wrap to an extra line fires it at 320px
+(tops 530 vs 560). When a mutation passes, find the input that separates the
+claims rather than widening the assertion; here that input told me what the
+clause is really protecting, which is now written beside it.
+
+**A GREEN LOCAL GATE SHIPPED A 1-IN-200 COIN FLIP, AND THE CLAIM THAT IT WAS
+"SAFE BY MEASUREMENT" WAS THE DEFECT.** CI run #380 failed the 🏃 Marathoner
+badge test with `fixture precondition: the board must actually survive to wave
+20 (reached 3)` — and because `test` gates `deploy`, that one flake held THREE
+finished commits off the live site. The test seeds its endless run from
+`Date.now()`, which is the only non-deterministic input in an otherwise
+deterministic suite, and its own comment (and this file) recorded it as safe
+because **8 seeds × 2 arenas** had all survived. Swept properly over **1200
+seeds, 6 die before wave 20 (0.50%) — the worst at wave 3, which is CI's
+signature exactly — and another 1.2% survive on ≤3 lives.** So it was a genuine
+coin flip all along, and the reason nobody saw it is arithmetic: **a sample of 8
+cannot see a 1-in-200 rate.** A "measured safe" claim has to be sized to the
+rate it is claiming, or the word measured is doing no work.
+Three things worth keeping. **My own first two probes reproduced the mistake** —
+160 engine seeds and 20 full browser runs of the exact evaluate block, all
+clean, which at 0.5% is the expected outcome about 40% of the time; I was one
+band away from writing "not reproducible, cause unknown" and pinning a seed
+without understanding why. What broke it open was not another repro attempt but
+asking for the DISTRIBUTION (min lives across a range), which came back with a
+seed finishing on **1 life** — a board one bad roll from dying is not a robust
+fixture, and that single number reframed the whole thing. **Ask what the spread
+is before concluding a rare failure is unreproducible.** Second, the pin is
+chosen on headroom rather than convenience: seed 1066 finishes wave 21 with 20
+of 20 lives, the most in the range scanned, so it is not sitting next to the
+cliff. Third, the hook had to grow the ability to be pinned at all
+(`__TD.startEndless(world, opts)` now passes `opts` through exactly as
+`startEndless` already did), and the loop now breaks the moment a wave fails to
+return to build — calling again while one is still walking STACKS waves (TD-15
+⏩ RUSH), which is the one path that could bury this board early, and the
+failure message now names phase, lives, seed and difficulty so the next
+occurrence is diagnosable in one look instead of five probes.
 
 ---
 

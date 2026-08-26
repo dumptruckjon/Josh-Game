@@ -372,7 +372,12 @@ body.td-mode #screens { padding: 0; }
 .td-panel__next { width: 100%; font-size: 0.72rem; color: #8fe3a8; padding: 0 4px 4px; white-space: normal; }
 
 /* difficulty selector (fort home) */
-.td-diff { display: flex; justify-content: center; margin: 0 0 14px; }
+.td-diff { display: flex; justify-content: center; margin: 0 0 6px; }
+/* What the SELECTED ladder does to a run. Its own line under the chips —
+   the chips are three across already and a title is hover-only on a phone.
+   Colour is the sub-heading's, which the fort contrast audit already
+   walks. */
+.td-diffwhat { margin: 0 0 12px; font-size: 0.78rem; font-weight: 700; color: #9db4dd; }
 .td-diff > * + * { margin-left: 8px; } /* flex-gap is dropped on iOS 14.2 */
 .td-diffbtn {
   flex: 1; max-width: 130px; min-height: 46px; padding: 8px 6px;

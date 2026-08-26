@@ -65,6 +65,7 @@
       '<p class="td-sub">Toybox Defense</p>' +
       '<div class="td-resume" hidden></div>' +
       '<div class="td-diff" role="group" aria-label="Difficulty"></div>' +
+      '<p class="td-diffwhat" aria-live="polite"></p>' +
       '<div class="td-meta" role="group" aria-label="Meta">' +
         '<button class="td-metabtn td-tree-open" type="button">⭐ Star Tree</button>' +
         '<button class="td-metabtn td-powers-open" type="button">🎒 Powers</button>' +
@@ -307,6 +308,28 @@
       tricks.size + " tricks between them (📖 the Guide explains every one)";
   };
 
+  // WHAT A LADDER ACTUALLY DOES. The three chips said "😌 Easy / ⚔️ Normal /
+  // 💀 Hard" and their per-ladder progress, and NOTHING anywhere — not the
+  // chips, not the guide, not a single line of copy — said what changes. The
+  // numbers are substantial and one of them is counter-intuitive: Hard gives you
+  // MORE starting gold, because heroic was deliberately re-shaped into a pure
+  // hp/economy challenge rather than a speed one. Same law as the ⬆ upgrade
+  // preview and the % road figure — state it where the choice is made. Derived
+  // from the tier's own fields, so a fourth tier explains itself, and a field
+  // that is neutral says nothing rather than printing "+0%".
+  UI.difficultyEffect = function (id) {
+    const d = (global.TDData.DIFFICULTIES || {})[id];
+    if (!d) return "";
+    const pct = (v) => (v > 1 ? "+" : "−") + Math.round(Math.abs(v - 1) * 100) + "%";
+    const bits = [];
+    if (d.hp !== 1) bits.push(pct(d.hp) + " toy health");
+    if (d.speed !== 1) bits.push(pct(d.speed) + " toy speed");
+    if (d.bounty !== 1) bits.push(pct(d.bounty) + " gold per toy");
+    if (d.startGold) bits.push((d.startGold > 0 ? "+" : "−") + Math.abs(d.startGold) + " starting gold");
+    if (!bits.length) return "Everything at face value — this is the fight as designed.";
+    return bits.join(" · ");
+  };
+
   UI.renderLevelGrid = function (save, onPick, onSetDifficulty) {
     // The selected difficulty is the LADDER the grid shows (each difficulty is
     // an independent progression — user request 2026-07).
@@ -353,6 +376,8 @@
         diffWrap.appendChild(b);
       });
     }
+    const what = doc.querySelector("#screen-td-home .td-diffwhat");
+    if (what) what.textContent = UI.difficultyEffect(selDiff);
     const grid = doc.querySelector("#screen-td-home .td-levels");
     if (!grid) return;
     grid.innerHTML = "";

@@ -743,11 +743,25 @@ test("AUDIT badges: 🏃 Marathoner — the endless shape, awarded on the way OU
   // Its wiring is unlike every other badge: it is awarded when the run ENDS or
   // when you LEAVE (leavingPlay), never on a win — so the test has to walk out
   // of the arena to collect it.
+  // THE SEED IS PINNED, and the reason is measured. It used to come from
+  // Date.now() — the one non-deterministic input in an otherwise deterministic
+  // suite — and this test duly failed in CI with "reached 3". Swept over 1200
+  // seeds, this board DIES BEFORE WAVE 20 on 6 of them (0.50%), the worst at
+  // wave 3, which is CI's signature exactly; another 1.2% survive on ≤3 lives.
+  // So it was a genuine 1-in-200 coin flip. The comment this replaces claimed it
+  // was "safe by measurement rather than by luck" on the strength of 8 seeds —
+  // and 8 seeds cannot see a 0.5% rate. A sample has to be sized to the rate you
+  // care about, or "measured" means nothing.
+  // Seed 1066 finishes wave 21 with 20 of 20 lives, the most headroom in the
+  // range scanned. The loop also breaks the moment a wave does not return to
+  // build, because calling again while one is still walking STACKS waves
+  // (TD-15 ⏩ RUSH) and that is the one path that could bury this board early.
   const out = await page.evaluate(() => {
     window.__TD.resetSave();
-    window.__TD.startEndless("bedroom");
+    window.__TD.startEndless("bedroom", { seed: 1066 });
     const pads = window.TDData.ENDLESS.arenas.bedroom.pads;
     const LINES = ["dart", "mortar", "fan", "dart"];
+    let stalled = "";
     for (let w = 0; w < 24; w++) {
       const st = window.__TD.state();
       if (!st || st.phase === "lost" || st.waveIdx >= 21) break;
@@ -756,16 +770,23 @@ test("AUDIT badges: 🏃 Marathoner — the endless shape, awarded on the way OU
       for (let i = 0; i < window.__TD.state().towers.length; i++) ups.push(["upgrade", i], ["upgrade", i]);
       window.__TD.script(ups);
       window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+      const after = window.__TD.state();
+      if (after.phase !== "build" && after.phase !== "lost") { stalled = "wave " + w + " never returned to build (phase " + after.phase + ")"; break; }
     }
     const st = window.__TD.state();
-    const reached = st.waveIdx, cheated = !!st.cheated;
+    const info = { reached: st.waveIdx, sent: st.sentIdx, phase: st.phase, lives: st.lives,
+      towers: st.towers.length, seed: st.seed, difficulty: st.difficulty, cheated: !!st.cheated, stalled };
     window.__TD.leaveToHome();            // the real chokepoint that records it
-    return { reached, cheated, ach: window.__TD.ach() };
+    info.ach = window.__TD.ach();
+    return info;
   });
 
   assert.equal(out.cheated, false, "fixture precondition: an honest run, or every award is suppressed");
+  assert.equal(out.stalled, "", `fixture precondition: every wave must finish (${out.stalled})`);
   assert.ok(out.reached >= 20,
-    `fixture precondition: the board must actually survive to wave 20 (reached ${out.reached})`);
+    "fixture precondition: the board must actually survive to wave 20 — " +
+    `reached ${out.reached} (sent ${out.sent}, phase ${out.phase}, ${out.lives} lives, ` +
+    `${out.towers} towers, seed ${out.seed}, ${out.difficulty})`);
   assert.ok(out.ach.includes("marathoner"),
     `reaching endless wave 20 must earn 🏃 Marathoner on the way out — got ${JSON.stringify(out.ach)}`);
 });
@@ -1936,6 +1957,86 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   assert.ok(st.endless === true, "an endless run is live");
   const want = await page.evaluate((w) => window.TDData.ENDLESS.arenas[w].path, last);
   assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
+});
+
+test("QoL: the difficulty chips say what the ladder DOES to a run", async () => {
+  // The three chips said "😌 Easy / ⚔️ Normal / 💀 Hard" and their per-ladder
+  // progress, and nothing anywhere — not the chips, not the guide, not one line
+  // of copy — said what changes. The numbers are large and one is
+  // counter-intuitive: Hard hands you MORE starting gold, because heroic was
+  // deliberately re-shaped into a pure hp/economy challenge rather than a speed
+  // one. Same law as the ⬆ upgrade preview and the % road figure.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const tiers = await page.evaluate(() => {
+    const D = window.TDData.DIFFICULTIES;
+    return Object.keys(D).map((id) => ({ id, hp: D[id].hp, bounty: D[id].bounty, gold: D[id].startGold }));
+  });
+  assert.ok(tiers.length >= 3, `every declared tier (${tiers.length})`);
+
+  for (const [w, h] of [[320, 568], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(60);
+    const seen = [];
+    const tops = [];
+    for (const t of tiers) {
+      await page.click(`#screen-td-home .td-diffbtn[data-diff="${t.id}"]`);
+      await page.waitForTimeout(60);
+      const m = await page.evaluate(() => ({
+        txt: document.querySelector("#screen-td-home .td-diffwhat").textContent.trim(),
+        top: Math.round(document.querySelector("#screen-td-home .td-levels").getBoundingClientRect().top),
+      }));
+      assert.ok(m.txt.length > 10, `${t.id} says what it does at ${w}px (saw "${m.txt}")`);
+      // the NUMBERS come from that tier's own fields
+      if (t.hp !== 1) assert.ok(m.txt.includes(Math.round(Math.abs(t.hp - 1) * 100) + "% toy health"),
+        `${t.id} states its own health scaling (saw "${m.txt}")`);
+      if (t.bounty !== 1) assert.ok(m.txt.includes(Math.round(Math.abs(t.bounty - 1) * 100) + "% gold per toy"),
+        `${t.id} states its own bounty scaling (saw "${m.txt}")`);
+      if (t.gold) assert.ok(m.txt.includes(Math.abs(t.gold) + " starting gold"),
+        `${t.id} states its own starting gold (saw "${m.txt}")`);
+      seen.push(m.txt); tops.push(m.top);
+    }
+    // …and it is not one sentence for all three: the whole point is the contrast.
+    assert.equal(new Set(seen).size, tiers.length,
+      `each tier must say something DIFFERENT at ${w}px (saw ${new Set(seen).size} distinct of ${tiers.length})`);
+    // Tapping a chip must not move the grid under the thumb — the documented HUD
+    // reflow defect, on the control you tap most on this screen. Asserted rather
+    // than armoured with a reserved height, because a min-height whose removal
+    // changes nothing today would be an unfalsifiable line.
+    //   The axis it guards is per-tier LENGTH, not styling: bumping the line's
+    // font-size scales all three sentences equally and correctly does NOT fire
+    // this (measured — that mutation passes), while making ONE tier's sentence
+    // wrap to an extra line does (tops 530 vs 560 at 320px). So the thing to
+    // keep true is that every tier's line is about the same length.
+    assert.equal(new Set(tops).size, 1,
+      `the level grid must not shift when a chip is tapped at ${w}px (tops ${[...new Set(tops)].join(", ")})`);
+    assert.ok(tops[0] > 0, `fixture: the grid is really on screen at ${w}px (${tops[0]})`);
+  }
+
+  // Self-proving: a FOURTH tier must explain itself with no code change here.
+  const injected = await page.evaluate(() => {
+    const D = window.TDData.DIFFICULTIES;
+    D.__probe = { label: "🧪 Probe", hp: 1.75, speed: 1, bounty: 1, startGold: 0 };
+    // The grid reads the SELECTED tier off the save, so the probe has to be
+    // selected there — clicking its chip with a no-op handler re-renders on the
+    // old tier and the line never moves, which reads exactly like a hard-coded
+    // map surviving the injection.
+    const save = JSON.parse(localStorage.getItem("jon-td-save-v1")) || { v: 1, stars: {} };
+    save.difficulty = "__probe";
+    window.TDUI.renderLevelGrid(save, () => {}, () => {});
+    const b = document.querySelector('#screen-td-home .td-diffbtn[data-diff="__probe"]');
+    const txt = document.querySelector("#screen-td-home .td-diffwhat").textContent.trim();
+    delete D.__probe;
+    return { hadChip: !!b, txt };
+  });
+  assert.ok(injected.hadChip, "fixture: the injected tier really got a chip");
+  assert.ok(injected.txt.includes("75% toy health"),
+    `a fourth tier explains itself from its own fields (saw "${injected.txt}")`);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = ""; });
 });
 
 test("QoL: the Endless picker says what makes each arena different", async () => {

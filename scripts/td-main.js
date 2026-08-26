@@ -1963,7 +1963,11 @@
     ach: () => (save.ach || []).slice(),
     endlessBest: () => Object.assign({}, save.endlessBest),
     resume: () => { resumeMidRun(); return cur ? cur.engine.state.phase : null; },
-    startEndless: (world) => { startEndless(world); if (cur) { cur.paused = true; syncRun(); } return true; },
+    // opts passes through (seed, difficulty, …) exactly as startEndless takes
+    // them, so a fixture can PIN the run. Without it an endless test is seeded
+    // from Date.now() and is a coin flip on anything marginal — the one
+    // non-deterministic input in an otherwise deterministic suite.
+    startEndless: (world, opts) => { startEndless(world, opts || {}); if (cur) { cur.paused = true; syncRun(); } return true; },
     // TD-18 daily: the pick for any day (a FIXTURE injection point, so a test
     // can pin the calendar) and a way to play it. Info and act, separately.
     dailyInfo: (day) => dailyPick(day || dayKey()),
