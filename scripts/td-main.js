@@ -545,11 +545,20 @@
   function stopLoop() { if (cur && cur.raf) { cancelAnimationFrame(cur.raf); cur.raf = 0; } stopMusic(); letSleep(); }
 
   // TD-5: award every achievement this outcome earns (skipped on a cheated run).
+  // THE one owner of 🌪️ Dyson Denied's soldier bar — the number its own
+  // description states. It was a literal here and the description never
+  // mentioned it at all.
+  function achSoldierCap() {
+    const a = (DATA.ACHIEVEMENTS || []).find((x) => x.id === "dysondenied");
+    return a && typeof a.soldiers === "number" ? a.soldiers : 3;
+  }
   function awardWinAchievements(st) {
     if (st.cheated) return;
     if (st.levelId === 1) earnAch("doorman");
     if (st.levelId === 4) earnAch("bossbonker");
-    if (st.levelId === 8 && cur.soldiersLost <= 3) earnAch("dysondenied");
+    // ASK THE DATA for the bar the badge PROMISES, so the check and the words a
+    // player reads cannot drift. A field one short must degrade, not disable.
+    if (st.levelId === 8 && cur.soldiersLost <= achSoldierCap()) earnAch("dysondenied");
     if (st.levelId === 12) earnAch("unplugged");
     if (st.levelId === 16) earnAch("windeddown");
     if (st.levelId === 20) earnAch("toolsdown");

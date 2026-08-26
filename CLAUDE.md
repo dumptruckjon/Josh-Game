@@ -3511,6 +3511,28 @@ element, or re-authoring 34 levels' ratings on a difficulty judgement this
 engine's own threshold-domination findings say does not ramp smoothly. The
 measurement is here so the next author starts from it.
 
+**A BADGE PROMISED LESS THAN IT REQUIRED — and it is the 🛡️ No Leaks defect
+wearing a different icon, still live because every badge guardrail only ever
+asked whether a call site EXISTS.** Auditing all 19 descriptions against their
+award sites, 18 check out (every "Beat the X" names the boss its level actually
+carries — verified against `DATA.LEVELS`, not assumed) and one does not:
+**🌪️ Dyson Denied says "Beat the Vacuum King" while the code is
+`levelId === 8 && cur.soldiersLost <= 3`.** So a player who beats L8 having lost
+a fourth army guy gets nothing, having been told the requirement was just to
+win — and the condition is the badge's whole point, since the Vacuum King's
+entire kit is eating soldiers. This file already records the same shape on
+`noleaks` ("Win a level with all 20 lives" against a `!leaked` check, wrong in
+both directions); this is its sibling, and nothing found it because the two
+shipped badge laws check that every declared badge has an `earnAch` call and
+that every boss has a badge — neither reads what the call REQUIRES. Fixed the
+one-owner way: the bar moves into the DATA beside the words that promise it, the
+award site asks `achSoldierCap()`, and the description states the number. Three
+mutations red, and the third is the one that generalises: the guardrail's second
+half walks EVERY badge and fails on any numeric field its description does not
+mention, so a second gated badge inherits the rule — proven by giving
+🎯 Pea Purist a `lines: 1` it never says out loud. **When a badge is gated, the
+gate is player copy, not an implementation detail.**
+
 ---
 
 ## Repository Structure

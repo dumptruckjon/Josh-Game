@@ -2231,7 +2231,15 @@
     { id: "peapurist",     icon: "🎯", name: "Pea Purist",    desc: "Win Level 2 with only Darts" },
     { id: "iceage",        icon: "🧊", name: "Ice Age",       desc: "Slow 20 enemies at once" },
     { id: "bossbonker",    icon: "🛏️", name: "Boss Bonker",   desc: "Beat the Bed Monster" },
-    { id: "dysondenied",   icon: "🌪️", name: "Dyson Denied",  desc: "Beat the Vacuum King" },
+    // The threshold lives HERE, not as a literal in the award site, because the
+    // description has to state it: this badge said only "Beat the Vacuum King"
+    // while the code also required losing at most 3 army guys, so a player who
+    // beat L8 and lost a fourth got nothing and had been told the requirement
+    // was just to win. Same defect as 🛡️ No Leaks promising "all 20 lives"
+    // while the code awards on `!leaked` — its sibling, still live, because the
+    // badge guardrail only ever checked that a call site EXISTS.
+    { id: "dysondenied",   icon: "🌪️", name: "Dyson Denied",  soldiers: 3,
+      desc: "Beat the Vacuum King, losing at most 3 army guys" },
     { id: "unplugged",     icon: "⚡", name: "Unplugged",     desc: "Beat The Static" },
     // World 4's finale shipped with NO badge while the other three bosses each
     // had one — nobody noticed because the badge count was pinned at 12 in two

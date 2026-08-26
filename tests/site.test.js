@@ -2796,6 +2796,40 @@ test("guardrail: throwing a live battle away has exactly ONE confirm owner", () 
   }
 });
 
+test("guardrail: a badge's description states the bar its award site enforces", () => {
+  // 🌪️ Dyson Denied said only "Beat the Vacuum King" while the award site also
+  // required `soldiersLost <= 3` — so a player who beat L8 and lost a fourth
+  // army guy got nothing, having been told the requirement was just to win.
+  // That is the 🛡️ No Leaks defect ("Win a level with all 20 lives" against a
+  // `!leaked` check) with a different badge on it, and it survived because the
+  // badge guardrails only ever asked whether a call site EXISTS.
+  const DATA = require("../scripts/td-data.js");
+  const main = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const dyson = DATA.ACHIEVEMENTS.find((a) => a.id === "dysondenied");
+  assert.ok(dyson, "the badge is declared");
+  assert.equal(typeof dyson.soldiers, "number",
+    "the soldier bar belongs in the DATA beside the words that promise it, not as a literal at the award site");
+  assert.ok(dyson.desc.includes(String(dyson.soldiers)),
+    `the description must state the bar it enforces — "${dyson.desc}" never mentions ${dyson.soldiers}`);
+  // …and the award site must READ it rather than restating it.
+  assert.match(main, /cur\.soldiersLost <= achSoldierCap\(\)/,
+    "the award site asks the one owner for the bar");
+  assert.equal((main.match(/function achSoldierCap\(/g) || []).length, 1, "…which is defined exactly once");
+  assert.ok(!/soldiersLost <= \d/.test(main),
+    "no literal soldier bar may survive at the award site — that is how the words and the check drift apart");
+
+  // The general half: no badge may describe itself with a number the code does
+  // not own. Derived over every badge that declares a threshold field, so a
+  // second gated badge inherits the rule.
+  for (const a of DATA.ACHIEVEMENTS) {
+    for (const [k, v] of Object.entries(a)) {
+      if (typeof v !== "number") continue;
+      assert.ok(a.desc.includes(String(v)),
+        `badge "${a.id}" declares ${k}=${v} and its description never says so — a bar the player cannot read is a bar they cannot aim at`);
+    }
+  }
+});
+
 test("guardrail: a difficulty's player-facing NAME has exactly one owner", () => {
   const DATA = require("../scripts/td-data.js");
   const ids = Object.keys(DATA.DIFFICULTIES);
