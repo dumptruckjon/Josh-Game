@@ -3698,6 +3698,34 @@ a REVERSED copy of the literal at runtime and asserts campaign order anyway,
 with the injection asserted to have really reordered it. Same self-proving shape
 as the build menu's fifth line and the difficulty chips' fourth tier.
 
+**THE POWERS PACK IS A TRADE OF FOUR FOR FIVE AND NEVER SAID HOW OFTEN A POWER
+COMES BACK.** Cost and ⚙️ charge were on every row; the cooldown — 20s to 30s
+across the pool, which is most of what separates them — lived only in the 📖
+Guide, one dialog away from the screen where the choice is made. Fifth surface
+for the law that shipped the ⬆ upgrade preview, the `% road` figure, the ⭐ star
+goal and the RUSH preview. Three things worth keeping. **The line takes its own
+ROW inside the cost cell rather than joining it**, because that cell is
+`white-space: nowrap` and is the documented iOS-wider-emoji spill that already
+bit the tower panel, the next-wave line and the ability tile — measured, every
+row's height is byte-identical at 320 and 390 and the cost column does not
+widen, because the cost line is still the wider of the two. **It declares no
+COLOUR on purpose**, inheriting `.td-node__cost`'s yellow/green, so it adds no
+new pair to the fort's contrast surface and hierarchy comes from size and
+weight. And **the in-battle tile's accessible name states it too** — the ⚙️
+badge is `aria-hidden` and the tile has no room for the number, so a screen
+reader otherwise never learns it at all. The clause that matters most is the one
+guarding against a derivation that is really a constant: comparing each rendered
+string against the same field the UI reads is satisfied by a hard-coded
+`every 25s` if every cooldown happens to match, so a second clause asserts the
+rendered values actually DIFFER between powers — which is what the hard-coded
+mutation fires. **And the mutation run found a fixture defect worth more than
+the feature: two of the three took the NEXT test down with them**, because an
+assertion thrown mid-loop left the picker open over the fort home. A test that
+opens a dialog owns closing it EVEN WHEN IT FAILS — a `finally` — or a real
+failure presents as an unrelated test timing out, which this file already
+records from the `resetSave`-without-`dropRun` bug and from a test that seeded a
+checkpoint and never cleared it.
+
 ---
 
 ## Repository Structure

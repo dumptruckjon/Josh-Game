@@ -814,6 +814,12 @@ body.td-mode #screens { padding: 0; }
 .td-node__desc { font-size: 0.78rem; color: #9db4dd; }
 .td-node__cost { font-weight: 800; color: #ffe27a; white-space: nowrap; }
 .td-node--on .td-node__cost { color: #7ed957; }
+/* how often a power comes back — its own line, so the nowrap cost run above
+   it cannot spill (iOS renders 🪙/⚙️ wider than headless Chromium). It sets NO
+   colour on purpose: inheriting .td-node__cost's yellow/green means it adds no
+   new pair to the fort's contrast surface, and size plus weight carry the
+   hierarchy instead. */
+.td-node__cd { display: block; font-size: 0.78rem; font-weight: 600; }
 
 /* badges grid */
 .td-achs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }

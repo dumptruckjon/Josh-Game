@@ -231,7 +231,7 @@
         // label has to NAME the second currency — the "ship the name with the
         // number" rule that ⚙️ Toy Energy already cost us once.
         b.setAttribute("aria-label", a.name + " — " + a.role + ", costs " + a.gold + " gold and " +
-          (a.charges === undefined ? 1 : a.charges) + " toy energy");
+          (a.charges === undefined ? 1 : a.charges) + " toy energy, ready again every " + a.cooldown + " seconds");
         // The NAME is on the button, not just in the aria-label — a sighted player
         // was shown "🧨 130" and nothing else, so no power explained itself.
         // The two costs are SEPARATE elements, not one string. As a single
@@ -1088,7 +1088,16 @@
         '<span class="td-node__icon">' + a.icon + "</span>" +
         '<span class="td-node__body"><span class="td-node__name">' + a.name + "</span>" +
         '<span class="td-node__desc">' + a.role + "</span></span>" +
-        '<span class="td-node__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️</span></button>" +
+        // …and HOW OFTEN it comes back. The pack is a trade of 4 for 5, and the
+        // cooldown is most of what separates them (20s to 30s across the pool) —
+        // it was stated in the 📖 Guide and NOT on the screen where the choice is
+        // made, which is the same "the information belongs at the moment of the
+        // decision" law as the ⬆ upgrade preview and the % road figure. It takes
+        // its own LINE rather than joining the nowrap cost run, because that cell
+        // is the documented iOS-wider-emoji spill risk and a second line costs no
+        // width at all.
+        '<span class="td-node__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️" +
+        '<span class="td-node__cd">every ' + a.cooldown + 's</span></span></button>' +
         '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' + why +
         ' data-equippow="' + a.id + '" aria-label="' + (on ? "Leave behind " : refused ? "Pack is full, take one out first — " : "Pack ") + a.name + '">' + (on ? "🎒" : "＋") + "</button></div>";
     }).join("");

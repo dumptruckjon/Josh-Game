@@ -5927,6 +5927,78 @@ test("P6 loadout: the strip IS the pack — a power you left behind is not on it
   await page.evaluate(() => { location.hash = ""; });
 });
 
+test("QoL: the Powers Pack says how OFTEN a power comes back", async () => {
+  // The pack is a trade of 4 for 5, and the cooldown is most of what separates
+  // them — 20s to 30s across the pool. It was stated in the 📖 Guide and NOT on
+  // the screen where the choice is made, which is the same law that shipped the
+  // ⬆ upgrade preview, the % road figure and the ⭐ star goal: the information
+  // belongs at the moment of the decision.
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.click("#screen-td-home .td-powers-open");
+  await page.locator(".td-powers").waitFor({ state: "visible" });
+  // DERIVED over the pool, so a sixth power inherits this rather than needing
+  // the test edited.
+  const pool = await page.evaluate(() => (window.TDData.ABILITIES || []).map((a) => ({ id: a.id, cd: a.cooldown })));
+  assert.ok(pool.length >= 5, `the pool must be real (${pool.length} powers)`);
+  // A test that opens a dialog owns closing it EVEN WHEN IT FAILS: an assertion
+  // thrown mid-loop leaves the picker over the fort home and strands whatever
+  // runs next on a dialog it did not open — the "presented as an unrelated test
+  // timing out" trap. Proven while mutation-testing this: two of three mutations
+  // took the following test down with them until this finally was added.
+  const shown = [];
+  try {
+  for (const a of pool) {
+    const row = page.locator(`.td-powers .td-node[data-power="${a.id}"]`);
+    assert.equal(await row.count(), 1, `${a.id} has a row`);
+    const cd = row.locator(".td-node__cd");
+    assert.equal(await cd.count(), 1, `${a.id}'s row states how often it comes back`);
+    const txt = (await cd.textContent()).trim();
+    assert.equal(txt, "every " + a.cd + "s", `${a.id} states ITS OWN cooldown (saw "${txt}")`);
+    shown.push(txt);
+  }
+  // …and the number is not a constant wearing the shape of a derivation: the
+  // clause above compares against the same field the UI reads, so a hard-coded
+  // "every 25s" on every row would satisfy it only if every cooldown matched.
+  assert.ok(new Set(shown).size >= 2,
+    `the rendered cooldowns must differ between powers (saw ${[...new Set(shown)].join(", ")})`);
+  // The line takes its own ROW inside the cost cell, so it cannot widen the
+  // nowrap cost run — the documented iOS-wider-emoji spill that already bit the
+  // tower panel, the next-wave line and the ability tile.
+  const geom = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll(".td-powers .td-node")];
+    return rows.map((n) => {
+      const c = n.querySelector(".td-node__cost").getBoundingClientRect();
+      const r = n.getBoundingClientRect();
+      return Math.round(c.right - r.right);
+    });
+  });
+  for (const spill of geom) assert.ok(spill <= 0, `no cost cell may spill past its row (${spill}px)`);
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+
+  // The in-battle tile's accessible NAME states it too — the ⚙️ badge is
+  // aria-hidden and the tile has no room for the number, so a screen reader
+  // otherwise never learns it at all.
+  // Route FIRST, then start the run — __TD.newGame does not navigate, so calling
+  // it on the fort home leaves #screen-td-play hidden for ever.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.newGame(1); });
+  const labels = await page.evaluate(() => [...document.querySelectorAll(".td-abil")]
+    .map((b) => ({ id: b.dataset.abil, label: b.getAttribute("aria-label") || "" })));
+  assert.ok(labels.length >= 1, "the strip has tiles");
+  for (const t of labels) {
+    const a = pool.find((x) => x.id === t.id);
+    assert.match(t.label, new RegExp("every " + a.cd + " seconds"),
+      `${t.id}'s accessible name states its cooldown (saw "${t.label}")`);
+  }
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = ""; });
+});
+
 test("P6 loadout: the fort's 🎒 Powers picker writes the pack, and the guide marks it", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
