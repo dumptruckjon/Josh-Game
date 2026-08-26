@@ -427,6 +427,23 @@
           pips +
           '<span class="td-level__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(Math.max(0, 3 - stars)) + "</span></span>" +
           chipTxt;
+        // NAME IT. A button with no aria-label is announced as its concatenated
+        // textContent, which here was "1🕳️Under the Bed●●●⭐⭐⭐🥵" — and that is
+        // not merely unhelpful, it is WRONG: the unearned stars and the unearned
+        // difficulty pips are DIM, not absent, so a 2-of-3 level announced
+        // "star star star". The same defect the difficulty chips already had
+        // (their two lines concatenated to "⚔️ Normal24/40") and the same fix.
+        // Everything meaningful has to be in here, because an explicit label
+        // REPLACES the content for assistive tech — so the tricks, the boss and
+        // the chips are named in words, exactly as ▶ Next names them.
+        card.setAttribute("aria-label", [
+          "Level " + n + ", " + def.name,
+          isBoss ? "boss finale" : "",
+          tricks.length ? tricks.map((g) => g.name).join(", ") : "",
+          "difficulty " + badge + " of 3",
+          stars + " of 3 stars",
+          wonChips.length ? "challenges done: " + wonChips.map((c) => c.name).join(", ") : "",
+        ].filter(Boolean).join(". ") + ".");
         card.addEventListener("click", () => onPick(n));
       } else if (def && !unlocked) {
         // built, but still locked behind the previous level — tell the player why
@@ -434,9 +451,13 @@
         card.innerHTML = '<span class="td-level__n">' + n + "</span>" +
           '<span class="td-level__name">🔒</span>' +
           '<span class="td-level__stars td-level__need">win ' + (n - 1) + " ⭐</span>";
+        // "9🔒win 8 ⭐" reads as "nine, locked, win eight star". Say the rule.
+        card.setAttribute("aria-label",
+          "Level " + n + ", locked. Win level " + (n - 1) + " to open it.");
       } else {
         card.disabled = true;
         card.innerHTML = '<span class="td-level__n">' + n + '</span><span class="td-level__name">🔒</span>';
+        card.setAttribute("aria-label", "Level " + n + ", locked.");
       }
       // The card the player is most likely to want: the first PLAYABLE level not
       // yet beaten on THIS ladder. Tagged while the grid is built, because this

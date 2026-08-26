@@ -2811,11 +2811,22 @@ test("guardrail: a difficulty's player-facing NAME has exactly one owner", () =>
   // say which ladder a run is on — would have needed a second copy of the same
   // strings, which is how two owners of one string always start. The needles are
   // taken FROM the data, so a fourth tier is covered without editing this.
+  // COMMENT-STRIPPED, like the sibling clause five lines below already was —
+  // the two halves of this test disagreed, and the raw half matched its own
+  // documentation the first time a code comment described the defect it exists
+  // to prevent (a comment explaining that the chips used to concatenate to
+  // "⚔️ Normal24/40" turned this red). Seventh recorded instance of "a scan must
+  // not count its own documentation"; the law is about CODE having one owner,
+  // and prose naming a label is documentation, not a second owner.
+  const strip = (f) => read(f)
+    .replace(/\/\*[\s\S]*?\*\//g, "")     // block comments
+    .replace(/<!--[\s\S]*?-->/g, "")      // …and HTML ones, for index.html
+    .replace(/^\s*\/\/.*$/gm, "");       // line comments, anchored so a URL survives
   const files = ["scripts/td-ui.js", "scripts/td-main.js", "scripts/td-render.js", "index.html"];
   for (const id of ids) {
     const label = DATA.DIFFICULTIES[id].label;
     for (const f of files) {
-      assert.ok(!read(f).includes(label),
+      assert.ok(!strip(f).includes(label),
         `"${label}" is the difficulty's own declared name — ${f} must read it from the data, not restate it`);
     }
   }

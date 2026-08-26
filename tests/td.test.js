@@ -1381,6 +1381,67 @@ test("AUDIT UX: 🏠 mid-level asks before leaving — Keep playing stays, Leave
   assert.equal(await page.evaluate(() => location.hash), "#td-home", "Leave returns to the fort");
 });
 
+test("QoL: a level card SAYS what it is — and its star count is the save's, not the glyphs'", async () => {
+  // A button with no aria-label is announced as its concatenated textContent,
+  // and here that was "1🕳️Under the Bed●●●⭐⭐⭐🥵" for all 40 cards. That is not
+  // merely unhelpful: the unearned stars and pips are DIM, not absent, so a
+  // 2-of-3 level announced "star star star" — the label was WRONG, the same
+  // defect the difficulty chips had when their two lines concatenated to
+  // "⚔️ Normal24/40".
+  await page.evaluate(() => {
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1,
+      // deliberately MIXED: a 3, a 2, a 1 and a 0. A save that is 3★ everywhere
+      // cannot separate "counts the glyphs" from "counts the save" — the whole
+      // defect is invisible at a full house.
+      stars: { normal: { 1: 3, 2: 3, 3: 2, 4: 3, 5: 1, 6: 3, 7: 2 }, casual: {}, heroic: {} },
+      settings: {}, difficulty: "normal", meta: [], ach: [], endlessBest: {},
+      chipsWon: { 1: ["nofan"] }, midRun: null }));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home .td-level").first().waitFor({ state: "visible", timeout: 8000 });
+  const cards = await page.evaluate(() => {
+    const D = window.TDData, L = window.TDLogic;
+    const saved = (JSON.parse(localStorage.getItem("jon-td-save-v1")).stars || {}).normal || {};
+    return [...document.querySelectorAll("#screen-td-home .td-level")].map((c, i) => {
+      const n = i + 1, def = D.LEVELS.find((l) => l.id === n);
+      return { n, aria: c.getAttribute("aria-label"), locked: !!c.disabled,
+        stars: saved[String(n)] | 0, name: def ? def.name : "",
+        boss: !!(def && def.waves.some((w) => w.boss)),
+        tricks: def ? L.levelGimmicks(def).map((g) => g.name) : [] };
+    });
+  });
+  assert.equal(cards.length, await page.evaluate(() => window.TDData.LEVELS.length), "fixture: the whole grid rendered");
+  const mixed = cards.filter((c) => !c.locked).map((c) => c.stars);
+  assert.ok(new Set(mixed).size >= 3,
+    `fixture: the seed must give DIFFERENT star counts, or "counts the glyphs" and "counts the save" agree (saw ${JSON.stringify(mixed)})`);
+  for (const c of cards) {
+    assert.ok(c.aria, `level ${c.n}'s card must carry an accessible name — its textContent is a run-on of glyphs`);
+    assert.ok(c.aria.includes("Level " + c.n), `level ${c.n}'s label must name the level (saw ${JSON.stringify(c.aria)})`);
+    if (c.locked) {
+      assert.match(c.aria, /locked/i, `a locked card must say so (level ${c.n}: ${JSON.stringify(c.aria)})`);
+      continue;
+    }
+    assert.ok(c.aria.includes(c.name), `level ${c.n} must be named "${c.name}" (saw ${JSON.stringify(c.aria)})`);
+    // THE CLAIM: the number announced is the SAVE's, not the three glyphs drawn.
+    assert.ok(c.aria.includes(c.stars + " of 3 stars"),
+      `level ${c.n} has ${c.stars} stars on this ladder and its label must say so — ${JSON.stringify(c.aria)}`);
+    for (const t of c.tricks) {
+      assert.ok(c.aria.includes(t), `level ${c.n}'s label must name its "${t}" trick in words, not only as an icon`);
+    }
+    if (c.boss) assert.match(c.aria, /boss/i, `level ${c.n} is a boss finale and its label must say so`);
+  }
+  // …and a locked card names the level it is waiting on, rather than "win 8 star".
+  const firstLocked = cards.find((c) => c.locked && c.n > 1);
+  assert.ok(firstLocked, "fixture: the seed must leave something locked");
+  assert.ok(firstLocked.aria.includes("Win level " + (firstLocked.n - 1)),
+    `a locked card must state the rule (saw ${JSON.stringify(firstLocked.aria)})`);
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.waitForTimeout(60);
+});
+
 test("AUDIT progression: beating a level UNLOCKS the next (the 'level 2 never unlocked' bug)", async () => {
   // fresh fort → L2 locked and NOT tappable
   await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#__renav"; });

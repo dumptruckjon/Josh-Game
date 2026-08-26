@@ -3458,6 +3458,59 @@ the distinctness clause's loose `>= 6` floor reported nothing — World 7 takes
 cues that says which room you are in, which is the same reason the backbone
 SKINS exist.
 
+**A LEVEL CARD'S ACCESSIBLE NAME WAS NOT MERELY UNHELPFUL — IT WAS WRONG.** All
+40 cards are `<button>`s with no `aria-label`, so each is announced as its
+concatenated textContent: `"1🕳️Under the Bed●●●⭐⭐⭐🥵"`. The defect underneath
+is that the unearned stars and the unearned difficulty pips are DIM, not absent
+— three `⭐` and three `●` are always in the DOM — so **a level you have
+2-starred announced "star star star"**, and a 0-star boss finale announced the
+same. Exactly the class already fixed on the difficulty chips, whose two lines
+concatenated to `"⚔️ Normal24/40"`. Each card now carries an explicit label
+("Level 7, The Slip'n'Slide. Mud Patch, Conveyor, Track Switch. difficulty 3 of
+3. 2 of 3 stars."), and a locked one states the rule instead of reading "nine,
+locked, win eight star". Everything meaningful has to be IN the label, because
+an explicit one REPLACES the content for assistive tech — so the tricks, the
+boss and the chips are named in words, exactly as ▶ Next names them. Zero layout
+cost. **The clause that matters is falsifiable only because of the FIXTURE**: a
+save that is 3★ everywhere cannot separate "counts the glyphs" from "counts the
+save", so the seed deliberately mixes 3, 2, 1 and 0 and asserts it did
+(`new Set(stars).size >= 3`) — the find-the-separating-input rule. Five
+mutations red, including the one that hard-codes "3 of 3 stars", which reports
+the shipped defect verbatim.
+**And the gate then went red on the code COMMENT explaining that defect** —
+`a difficulty's player-facing NAME has exactly one owner` scans four files for
+any declared label, and it read them RAW while its own sibling clause five lines
+below already comment-stripped. So the two halves of one test disagreed, and the
+raw half matched its own documentation the moment a comment quoted
+`"⚔️ Normal24/40"`. Seventh recorded instance of *a scan must not count its own
+documentation*, and committed by the person who has written that sentence six
+times. Stripped now — block, line and `<!-- -->`, since `index.html` is in the
+list — and proven on BOTH sides, which is what makes it a tightening rather than
+a weakening: a second owner in `td-ui.js` code goes red, a second owner in
+`index.html` markup goes red, and the identical string inside an HTML comment
+stays green. Measured while there: the strip removes 1,790 chars from
+`index.html` and every one of them is an HTML comment (zero `//` lines, zero
+block comments), so it cannot be eating markup.
+
+**Two candidates from the same screenshot pass were MEASURED and left alone.**
+(1) **The level cards' trick icons** looked like the Sparkler's
+faintest-body-on-the-field defect — 🕳️ is the only dark glyph in the set, on a
+dark navy card. Measured as ink against the card's own background at the card's
+own 9.9px: ⚡ 1129px/Δ393, 🌙 1442/Δ396, 🕳️ 1835/Δ160, 🚪 2441/Δ209, ⛱️
+2556/Δ360, 👑 2845/Δ361, ➡️ 4341/Δ357, 🔀 4344/Δ445. So the two *small* icons are
+the *brightest* and the spread is smooth (160…445) with no separation anywhere —
+any bar would be an invented threshold, i.e. the fence this file keeps refusing.
+No change. (2) **The difficulty pips SATURATE**: the distribution is
+`{1:2, 2:4, 3:34}`, so **34 of 40 levels wear an identical `●●●`** and the
+element carries information only for World 1-2. They were authored when the
+campaign was 12 levels (bedroom 1,1,2,2 · backyard 2,2,3,3 · toystore 3,3,3,3)
+and never re-scaled as it grew to 40 — the "a list that outlives its contents"
+class, in DATA rather than in prose. Recorded rather than acted on, because both
+available fixes are the owner's call and not a defect fix: retiring a visible
+element, or re-authoring 34 levels' ratings on a difficulty judgement this
+engine's own threshold-domination findings say does not ramp smoothly. The
+measurement is here so the next author starts from it.
+
 ---
 
 ## Repository Structure
