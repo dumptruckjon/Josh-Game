@@ -1321,6 +1321,19 @@
   }
 
   // ---- Field input: tap pads to build, towers to manage ----
+  // What a targeting mode is CALLED, for the player. Exactly one mode's name
+  // differs from its engine id — `cheap` is shown as "weakest", because the mode
+  // finishes the almost-dead and "cheap" reads as something about gold — and
+  // that is precisely the one this used to get wrong: the panel's initial render
+  // read `.name` while the cycle handler eighty lines below printed the raw id,
+  // so the mode you pay 6⭐ for was labelled "weakest" until you tapped to select
+  // it and then became "cheap". Two owners of one string, disagreeing on the one
+  // string that mattered. The fallback keeps a name-less sixth mode readable
+  // rather than rendering `undefined`.
+  function targetName(mode) {
+    return ((DATA.TARGETING || {})[mode] || {}).name || mode;
+  }
+
   function fieldTap(ev) {
     if (!cur) return;
     const rect = UI.canvas.getBoundingClientRect();
@@ -1580,7 +1593,7 @@
           // "cheap" on the button while the 🔻 Weak Spot node that grants it
           // promises "Weakest" aim, which is what the engine actually does.
           : '<button class="td-target" type="button">🎯 ' +
-            (((DATA.TARGETING || {})[t.targeting] || {}).name || t.targeting) + "</button>";
+            targetName(t.targeting) + "</button>";
         UI.showBubble(
           '<div class="td-panel">' +
             '<span class="td-panel__name">' + s.name + "</span>" +
@@ -1661,7 +1674,7 @@
         const nextMode = modes[(modes.indexOf(live.targeting) + 1) % modes.length];
         const r = cur.engine.setTargeting(towerId, nextMode);
         if (r.ok) {
-          e2.target.textContent = "🎯 " + nextMode;
+          e2.target.textContent = "🎯 " + targetName(nextMode);
           // Remember it for the NEXT tower of this line (see the boot coercion).
           save.settings.aim[live.lineId] = nextMode; persist(save);
         } else sfx("deny");

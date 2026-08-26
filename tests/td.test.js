@@ -9555,3 +9555,98 @@ test("QoL: the fort's 🏠 is the same size on both its screens", async () => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(60);
 });
+
+test("QoL: the 🎯 button always shows a mode's NAME, before and after you cycle it", async () => {
+  // Exactly one targeting mode's player-facing name differs from its engine id —
+  // `cheap` is shown as "weakest", because the mode finishes the almost-dead and
+  // "cheap" reads as something about gold — and that is precisely the one this
+  // got wrong. The panel's initial render read `.name`; the cycle handler eighty
+  // lines below printed the RAW ID. So the mode you pay 6⭐ for was labelled
+  // "weakest" until you tapped to select it, and then became "cheap".
+  //   Derived from DATA.TARGETING, so a sixth mode is covered without editing
+  // this, and the id/name divergence is asserted rather than assumed: if every
+  // name equalled its id this test could not fail.
+  const modes = await page.evaluate(() => window.TDData.TARGETING);
+  const names = Object.values(modes).map((m) => m.name);
+  const ids = Object.keys(modes);
+  assert.ok(ids.some((id) => modes[id].name !== id),
+    "fixture: at least one mode must be NAMED differently from its id, or this proves nothing");
+
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  // 🔻 Weak Spot is what unlocks the mode whose name diverges, so the run has to
+  // own it or the cycle never reaches the interesting label.
+  const cam = await page.evaluate(() => {
+    window.__TD.newGame(9, { seed: 3, meta: ["cheaptarget"] });
+    window.__TD.grantGold(6000);
+    const pad = window.TDData.LEVELS.find((l) => l.id === 9).pads[7];
+    window.__TD.script([["place", "dart", pad.id]]);
+    return { cx: pad.cx, cy: pad.cy };
+  });
+  const tapPad = async () => {
+    await page.evaluate(([x, y]) => {
+      const cv = document.querySelector("#screen-td-play .td-canvas");
+      const s = window.__TD.w2s(x + 0.5, y + 0.5), r = cv.getBoundingClientRect();
+      cv.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: r.left + s.x, clientY: r.top + s.y }));
+    }, [cam.cx, cam.cy]);
+    await page.waitForTimeout(120);
+  };
+
+  // The panel's INITIAL render is a separate site from the cycle, and a tower
+  // opens on `first` — whose name equals its id — so rendering the id there
+  // looks identical and cannot be caught. Put the tower ON the diverging mode
+  // first, then open the panel.
+  await page.evaluate(() => window.__TD.script([["target", 0, "cheap"]]));
+  await tapPad();
+  const btn = page.locator("#screen-td-play .td-target");
+  assert.ok(await btn.count(), "fixture: a tower's panel must offer the 🎯 targeting button");
+  assert.equal((await btn.textContent()).replace("🎯", "").trim(), "weakest",
+    "the panel must OPEN on the mode's name too — the initial render is its own site");
+
+  // The accessor's fallback exists for a mode that declares no name. Nothing in
+  // shipped data does, so it is proven by removing one at runtime: without it
+  // the button renders the string "undefined" at the player.
+  const stripped = await page.evaluate(() => {
+    const keep = window.TDData.TARGETING.close.name;
+    delete window.TDData.TARGETING.close.name;
+    const b = document.querySelector("#screen-td-play .td-target");
+    // BOUNDED. An unbounded cycle-until-you-see-it does not fail when the label
+    // stops containing the id, it HANGS — which is exactly what happened when the
+    // fallback was mutated away and the button started rendering "undefined".
+    let guard = 0, sawUndefined = false;
+    while (!/close/.test(b.textContent) && guard++ < 12) {
+      if (/undefined/.test(b.textContent)) sawUndefined = true;
+      b.click();
+    }
+    const txt = b.textContent.replace("🎯", "").trim();
+    window.TDData.TARGETING.close.name = keep;
+    return { txt, gaveUp: guard >= 12, sawUndefined };
+  });
+  assert.ok(!stripped.sawUndefined,
+    'a mode with no declared name rendered the string "undefined" at the player');
+  assert.ok(!stripped.gaveUp,
+    "the cycle never reached the name-less mode by its id — the fallback is gone");
+  assert.equal(stripped.txt, "close",
+    `a mode with no declared name must fall back to its id, not render "${stripped.txt}"`);
+  await tapPad(); await tapPad();   // reopen cleanly for the cycle walk below
+
+  // Cycle through every mode the run can reach and read the label each time.
+  const seen = [];
+  for (let i = 0; i < ids.length + 1; i++) {
+    const txt = (await btn.textContent()).replace("🎯", "").trim();
+    seen.push(txt);
+    await btn.click();
+    await page.waitForTimeout(90);
+  }
+  for (const label of seen) {
+    assert.ok(names.includes(label),
+      `the 🎯 button showed "${label}", which is not a mode's declared NAME ` +
+      `(${names.join(", ")}) — the engine's id must never reach the player`);
+  }
+  assert.ok(new Set(seen).size >= 3,
+    `fixture: the button must actually cycle (saw ${JSON.stringify(seen)})`);
+  assert.ok(seen.includes("weakest"),
+    `the cycle must reach the mode whose name diverges from its id (saw ${JSON.stringify(seen)})`);
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

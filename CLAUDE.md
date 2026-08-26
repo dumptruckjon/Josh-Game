@@ -3192,6 +3192,45 @@ all — while both available fixes are worse than the wrap: shortening the label
 narrowest button overlaps by 5-7px²). A cosmetic wrap that costs no pixels is not
 worth breaching a measured floor for.
 
+**THE ONE TARGETING MODE YOU HAVE TO BUY WENT BACK TO CALLING ITSELF "cheap" THE
+MOMENT YOU SELECTED IT.** This file already records the defect and its fix — the
+🎯 button printed the engine's id, so the mode granted by 🔻 Weak Spot read
+"cheap" while the node promised "Weakest" — and the fix reached the panel's
+INITIAL render only. Eighty lines below it in the same file, the cycle handler
+still did `textContent = "🎯 " + nextMode`, the raw id. So the label was correct
+until you tapped the button, and then wrong: two owners of one string,
+disagreeing on **exactly the one string that matters**, because `cheap → "weakest"`
+is the only entry in `DATA.TARGETING` whose name differs from its id — every
+other mode hid the bug perfectly. Found by SCREENSHOTTING a tier-3 tower panel,
+not by any test. One `targetName()` owner now serves both sites. Three testing
+notes, each a mutation that first PASSED. **A derived test can be blind to the
+divergence it exists for**: a tower opens on `first`, whose name equals its id,
+so rendering the id at the initial-render site is INDISTINGUISHABLE there — the
+clause now puts the tower on the diverging mode before opening the panel. **A
+defence-in-depth fallback needs an injected input to be falsifiable**: nothing in
+shipped data lacks a name, so the `|| mode` fallback is proven by deleting one at
+runtime and asserting the button never renders the string `"undefined"`. And
+**an unbounded cycle-until-you-see-it does not fail, it HANGS** — with the
+fallback mutated away the label stops containing the id, and the test spun until
+it was killed. That is this file's own `while` hazard, written into a TEST; bound
+every cycle-until loop and assert the guard did not trip, so the failure names
+the cause instead of reporting whatever mode it happened to stop on.
+
+**AND THE SNAPSHOT ROLLBACK ATE A COMMITTED CHANGE, which sharpens a rule this
+file already carries.** The recorded version says staging work in the scratchpad
+is not staging it anywhere, because the repo and `/tmp` die together. The commit
+above was **committed to `main` locally** and was still lost: the container
+reprovisioned while its gate was running, the clone came back at an older
+snapshot, and `.claude/resync-main.sh` correctly fast-forwarded to `origin/main`
+reporting "no local work existed to lose" — which was true of the RESTORED clone
+and not of the work. **A local commit is not durable on this runner; only a PUSH
+is.** Two consequences worth acting on. The window between "gate green" and
+"pushed" is the exposure, so push the moment it is green rather than batching a
+report first. And when a session resumes, the hook's message tells you the clone
+was healed, NOT that nothing was lost — check `git log` for the commits you
+believe you made, exactly as the "git says clean is not evidence your work is
+present" rule already demands for uncommitted files.
+
 ---
 
 ## Repository Structure
