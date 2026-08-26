@@ -3231,6 +3231,51 @@ was healed, NOT that nothing was lost — check `git log` for the commits you
 believe you made, exactly as the "git says clean is not evidence your work is
 present" rule already demands for uncommitted files.
 
+**A FULL POWERS PACK REFUSED THE 48px BUTTON AND NOT THE 255px CARD BESIDE IT.**
+The pack holds `RULES.abilitySlots` out of a larger pool, so an un-packed power
+at capacity must be refused — and it was, on the ＋ button only. The whole ROW is
+`data-power` and is the target a player actually aims at (measured **255px
+against the ＋'s 48**), and it stayed enabled, so tapping the obvious thing did
+nothing at all and said nothing about why. That is this project's own *"a control
+that can't be used says why"* law inverted: the tiny control carried the refusal
+and the big one swallowed it, which is the same shape as the recorded Worry Box
+bug where a consumed control kept its `[data-toy]` — an element whose
+enabled-ness disagrees with what it does. Both now take the same `refused`
+expression, the same `disabled`, and the same reason. Three things kept it
+honest. **A PACKED row deliberately stays enabled at capacity** — the star tree's
+own comment already says a full rack must still let you un-equip "or the last
+slot would be a trap" — and the mutation that disables it too goes red on exactly
+that clause. **A refused card must LOOK refused**: `.td-node[disabled]` dims to
+0.45, and the test asserts it, because a control that looks tappable and is not is
+worse than one that is plainly out of reach. And the row/＋ width comparison is a
+FIXTURE clause, so if the layout ever made the ＋ the bigger target the test says
+so rather than quietly guarding the wrong element.
+
+**And the dead-code scan that found it also found a latent SECOND OWNER of a
+player-facing string.** Enumerating `UI.*` exports against every consumer left
+two with no caller; one (`UI.paintPrices`) is a harmless one-line export of a
+function called internally, and stays on the `cellSize` precedent. The other,
+`UI.toast`, formatted `"Badge earned!"` itself and went straight to `UI.notice`
+— **bypassing `announce()`, which routes by the run's PHASE** (into the outcome
+box when one is on screen, as a toast otherwise) precisely because a toast paints
+UNDER an overlay scrim and nearly every badge is earned at a win. Nothing called
+it, and that is worse rather than better: it is the name a future author would
+reach for, and reaching for it silently reinstates a fixed defect. Deleted, with
+a guardrail that the string has exactly one owner. **A dead export is harmless;
+a dead export that duplicates a live decision is a trap** — that is the line
+between this and `cellSize`. **And "dead" was measured with a scan whose own
+scope was wrong, which the GATE caught rather than the scan**: it counted `UI.x`
+references in the app but only `TDUI.x` in the tests, and a shipped guardrail
+referred to the wrapper as `UI.toast` inside a REGEX LITERAL — so the export was
+load-bearing on a TEST while the scan called it dead, and the full suite went
+red on a clause pinning the delegation. The clause was repointed rather than
+deleted, because the property it always meant (the badge announcement reaches
+the ONE toast implementation instead of growing a second) is still true and
+still worth pinning — it just lives in `announce()` now. Two lessons: a
+dead-code scan must search tests with the SAME patterns it searches source, and
+when deleting something a test names, expect to re-point that test at the
+property rather than to drop it.
+
 ---
 
 ## Repository Structure

@@ -9650,3 +9650,64 @@ test("QoL: the 🎯 button always shows a mode's NAME, before and after you cycl
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: a full Powers pack refuses the CARD you tap, not just the ＋ beside it", async () => {
+  // The pack holds RULES.abilitySlots and the pool is larger, so an un-packed
+  // power at capacity has to be refused. It was — on the 48px ＋ button only.
+  // The whole ROW is the real target at 255px, and it stayed enabled, so tapping
+  // the obvious thing did nothing at all and said nothing about why: the fort's
+  // own "a control that can't be used says why" law inverted, with the tiny
+  // control showing the refusal and the big one swallowing it.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator("#screen-td-home .td-powers-open").click();
+  await page.waitForTimeout(300);
+
+  const read = () => page.evaluate(() => {
+    const rows = [...document.querySelectorAll(".td-overlay [data-power]")];
+    const un = rows.find((r) => !r.classList.contains("td-node--on"));
+    const on = rows.find((r) => r.classList.contains("td-node--on"));
+    const plus = un ? document.querySelector('[data-equippow="' + un.dataset.power + '"]') : null;
+    return {
+      pool: rows.length,
+      packed: rows.filter((r) => r.classList.contains("td-node--on")).length,
+      rowW: un ? Math.round(un.getBoundingClientRect().width) : 0,
+      plusW: plus ? Math.round(plus.getBoundingClientRect().width) : 0,
+      rowRefused: un ? un.disabled : null,
+      rowWhy: un ? (un.title || "") : "",
+      rowDim: un ? +getComputedStyle(un).opacity : 1,
+      packedStillTappable: on ? !on.disabled : null,
+    };
+  });
+  const slots = await page.evaluate(() => window.TDData.RULES.abilitySlots);
+  let s = await read();
+  assert.ok(s.pool > slots,
+    `fixture: the pool (${s.pool}) must be larger than the pack (${slots}), or nothing is ever refused`);
+  assert.equal(s.packed, slots, "fixture: the pack starts full, which is the state under test");
+  assert.ok(s.rowW > s.plusW * 2,
+    `fixture: the row (${s.rowW}px) must be the bigger target than the ＋ (${s.plusW}px) — ` +
+    "that is why the refusal has to reach it");
+
+  assert.equal(s.rowRefused, true,
+    "at capacity the un-packed power's whole CARD must be refused, not only its ＋");
+  assert.ok(s.rowWhy.length > 0,
+    "…and the refusal must say why — a dead tap with no reason reads as a broken button");
+  assert.ok(s.rowDim < 0.8,
+    `a refused card must LOOK refused (opacity ${s.rowDim}) — one that looks tappable and is not is worse than none`);
+
+  // Un-packing must never be trapped: the way to make room has to stay live.
+  assert.equal(s.packedStillTappable, true,
+    "a PACKED power must stay tappable at capacity, or the last slot is a one-way door");
+  await page.evaluate(() => {
+    [...document.querySelectorAll(".td-overlay [data-power]")]
+      .find((r) => r.classList.contains("td-node--on")).click();
+  });
+  await page.waitForTimeout(250);
+  s = await read();
+  assert.equal(s.packed, slots - 1, "un-packing must actually free a slot");
+  assert.equal(s.rowRefused, false, "…and the refused card must come back to life once there is room");
+
+  await page.evaluate(() => window.TDUI.closeOverlay());
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});

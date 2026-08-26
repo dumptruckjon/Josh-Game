@@ -1241,7 +1241,15 @@ test("guardrail: the fort reset has one owner, forces past the merge, and covers
     "the reset control is data-adult (small on purpose — the word gate is the lock, not the size)");
   // ONE toast implementation, and it mounts on the screen that is actually visible.
   assert.match(tdu, /UI\.notice = function/, "there is one toast implementation");
-  assert.match(tdu, /UI\.toast = function \(icon, name\) \{ return UI\.notice\(/, "the badge toast delegates to it");
+  // The badge path used to be a `UI.toast` wrapper delegating here. `announce()`
+  // in td-main owns it now and routes by the run's PHASE — into the outcome box
+  // when one is on screen, as a toast otherwise — because a toast paints UNDER an
+  // overlay scrim and nearly every badge is earned at a win. The wrapper was
+  // deleted as a trap (it bypassed that routing), so what this pins is the
+  // PROPERTY it always meant: the badge announcement reaches the one toast
+  // implementation rather than growing a second.
+  assert.match(read("scripts/td-main.js"), /UI\.notice\(/,
+    "the badge announcement goes through the one toast implementation");
   // The visible-screen rule now lives in ONE chooser shared by the toast AND
   // every overlay (see the hostScreen guardrail below) — the toast just uses it.
   assert.match(tdu, /const host = hostScreen\(\);/, "a toast mounts on the VISIBLE screen (a fort-home toast must be seen)");
@@ -2857,6 +2865,28 @@ test("guardrail: every ARMED field control explains a refusal", () => {
     assert.match(chunk, /UI\.abilityHint\(\s*(?!""\s*\))/,
       `${x.a}: …and must SAY WHY on the shared hint line, or the tap silently evaporates`);
   });
+});
+
+test("guardrail: a badge announcement has ONE owner", () => {
+  // Badges are announced by `announce()`, which routes by the run's PHASE — into
+  // the outcome box when one is on screen, as a toast otherwise — because a toast
+  // paints UNDER an overlay scrim and nearly every badge is earned at a win.
+  //   `UI.toast` was a leftover one-line wrapper formatting the same string and
+  // going straight to `UI.notice`, so it BYPASSED that routing. Nothing called
+  // it, which is worse rather than better: it is the name a future author would
+  // reach for, and reaching for it silently reinstates the defect of announcing
+  // a badge behind the screen it was earned on.
+  const files = ["scripts/td-ui.js", "scripts/td-main.js"];
+  const owners = [];
+  for (const f of files) {
+    const src = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    for (const _ of src.matchAll(/Badge earned!/g)) owners.push(f);
+  }
+  assert.equal(owners.length, 1,
+    `the "Badge earned!" line must have exactly one owner (found in ${owners.join(", ") || "nowhere"})`);
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(!/UI\.toast\s*=/.test(ui),
+    "UI.toast bypassed the phase routing and is gone — announce() is the only way to announce a badge");
 });
 
 test("guardrail: every event the engine emits reaches a consumer", () => {

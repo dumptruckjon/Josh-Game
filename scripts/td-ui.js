@@ -1008,15 +1008,25 @@
     const eq = new Set((save.powers || []).filter((id) => real.has(id)).slice(0, SLOTS));
     const rows = pool.map((a) => {
       const on = eq.has(a.id);
+      // A FULL pack refuses an un-packed power, and the refusal has to reach the
+      // control the player actually aims at. The whole ROW is the target — 255px
+      // against the ＋ button's 48 — and it was left enabled while only the ＋
+      // carried `disabled`, so tapping the obvious thing did nothing at all and
+      // said nothing about why. That is the fort's own "a control that can't be
+      // used says why" law inverted: the tiny control showed the refusal and the
+      // big one swallowed it. Both now carry the same state and the same reason.
+      const refused = !on && eq.size >= SLOTS;
+      const why = refused
+        ? ' title="Pack is full — take one out first" disabled'
+        : "";
       return '<div class="td-node-row">' +
-        '<button class="td-node' + (on ? " td-node--on" : "") + '" data-power="' + a.id + '" type="button">' +
+        '<button class="td-node' + (on ? " td-node--on" : "") + '" data-power="' + a.id + '" type="button"' + why + ">" +
         '<span class="td-node__icon">' + a.icon + "</span>" +
         '<span class="td-node__body"><span class="td-node__name">' + a.name + "</span>" +
         '<span class="td-node__desc">' + a.role + "</span></span>" +
         '<span class="td-node__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️</span></button>" +
-        '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' +
-        (!on && eq.size >= SLOTS ? " disabled" : "") +
-        ' data-equippow="' + a.id + '" aria-label="' + (on ? "Leave behind " : "Pack ") + a.name + '">' + (on ? "🎒" : "＋") + "</button></div>";
+        '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' + why +
+        ' data-equippow="' + a.id + '" aria-label="' + (on ? "Leave behind " : refused ? "Pack is full, take one out first — " : "Pack ") + a.name + '">' + (on ? "🎒" : "＋") + "</button></div>";
     }).join("");
     const el = metaOverlay("td-powers", "<h3>🎒 Powers Pack</h3>" +
       '<p class="td-overlay__sub">' + eq.size + " / " + SLOTS +
@@ -1187,7 +1197,6 @@
     setTimeout(() => { el.remove(); }, 2800);
     return el;
   };
-  UI.toast = function (icon, name) { return UI.notice(icon, "<b>Badge earned!</b><br>" + name); };
 
   // ---- HUD + bubbles ----
   UI.hud = function (state) {
