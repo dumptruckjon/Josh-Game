@@ -3356,6 +3356,46 @@ law settles the rest — landscape must keep WORKING but is explicitly not a des
 target — so this would buy a few pixels on the one orientation the project
 deprioritises.
 
+**THE RESUME BANNER SAID "wave 3" — no total, no lives — AND WIDENING IT FOUND
+THAT ITS OWN LAYOUT RULE HAD BEEN TUNED AGAINST ONE FIXTURE'S STRING.** The
+banner names the level, the ladder and the chips, and then said how far in with a
+bare number: you could not tell a run two waves from its finale from one barely
+started, and nothing said whether it was parked on 3 hearts or 20 — which is the
+fact that actually decides resume-or-restart, since restarting is one tap away on
+the grid. Both numbers were already in the checkpoint. Same law as the ⬆ preview,
+the `% road` figure and the star goal, now on its fifth surface.
+**The owner first.** `UI.hud` held the only wave formatter — including the
+load-bearing `endless || !level` predicate, the thing that stops it throwing every
+frame on an id like `"endless-bedroom"` that is not in `DATA.LEVELS` — and the
+banner had quietly grown a second, poorer one beside it. One `UI.waveLabel` now
+serves both, and the scan that pins it counts the COMPUTATION (`waveIdx + 1`),
+not the copy: three other places legitimately format a wave number (the endless
+🏆 best, the picker's "Best: wave", the daily's all-time) and they are SCORES, so
+a word scan would have been the false-positive machine this project refuses.
+**Then the shipped guardrail went red, and it was right to.** `wide.lines <= 3`
+at 390 caught the longer label at 4 lines. The interesting part is what measuring
+it properly then showed: against the worst realistic label (L36 · The Stamping
+Press · 💀 Hard · two chips · wave 12/15 · ❤️ 15) the BASELINE is already 4 lines
+at 390 — so that clause was never a property of the product, only of the one
+short string its fixture happened to seed (L1, normal, one chip). Sweeping widths
+found the real defect underneath: the label's own-row rule shipped at
+`max-width: 359px`, justified in a comment as *"byte-identical at 390 and up,
+where the label already fits in three"*, and **at 360 — the commonest Android
+width — the worst label is SIX lines**, i.e. the exact fragmentation the 320 rule
+was written to fix, still live one pixel above its breakpoint. A comment that
+justifies a constant can be refuted by later data, and a comment cannot go red.
+**The new breakpoint is a measured crossover, not a round number.** Own-row
+against shared-row, worst label: 320 3L/3L · 360 3L/6L · 390 3L/4L · 414 3L/4L ·
+430 2L/4L · 480 2L/3L · 600+ 2L/2L. So owning the row wins on every phone and
+stops winning at exactly 600 — where it would buy no line and cost 46px — which
+is the project's existing tablet breakpoint, reused rather than invented. And the
+guardrail is re-pointed at what it claims: it seeds the LONGEST level name (derived
+from the data) on the hard ladder with two chips, and walks 320 / **360** / 390 /
+414. Mutation-proven both ways — restoring `359px` reports *"at 360px … 6 lines"*
+and taking the label off its own row reports 11 at 320. **When a layout bound is
+justified against a test fixture's string, re-derive the string from the DATA and
+re-measure; the bound is usually about the fixture.**
+
 ---
 
 ## Repository Structure

@@ -1945,6 +1945,38 @@ test("guardrail: \"what is this run called\" has exactly ONE owner", () => {
     "runLabel must carry the endless predicate UI.hud uses — a generated level is not in DATA.LEVELS");
 });
 
+test("guardrail: \"how far into this run\" has exactly ONE owner", () => {
+  // runLabel's sibling, and it had the same defect one field over: the HUD held
+  // the only formatter — including the load-bearing `endless || !level`
+  // predicate — and the resume banner had grown a poorer second copy beside it
+  // (`" · wave " + (mr.waveIdx + 1)`: no total, no endless branch).
+  //
+  // The scan counts the COMPUTATION, not the copy. A word scan is not available
+  // here: three other places legitimately format a wave number (the endless
+  // 🏆 best, the picker's "Best: wave", the daily's all-time), and they are
+  // SCORES, not this run's position — a scan that flagged them would be the
+  // false-positive machine this project refuses to ship. `waveIdx + 1` is the
+  // 1-based conversion, and only a formatter of the CURRENT position does it.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((ui.match(/UI\.waveLabel = function/g) || []).length, 1,
+    "waveLabel must be defined exactly once");
+  const at = ui.indexOf("UI.waveLabel = function");
+  const end = ui.indexOf("\n  UI.", at + 10);
+  assert.ok(at >= 0 && end > at, "the scan must find a real region to slice, not the rest of the file");
+  const body = ui.slice(at, end);
+  const all = (ui.match(/waveIdx \+ 1/g) || []).length;
+  const mine = (body.match(/waveIdx \+ 1/g) || []).length;
+  assert.ok(mine >= 1, "…and it must actually do the 1-based conversion itself");
+  assert.equal(all, mine,
+    `a wave position is converted to 1-based in ${all} places and ${mine} of them are inside waveLabel — ` +
+    "a second formatter is how the endless branch gets forgotten, which is the one that throws");
+  // Both surfaces must READ it, or the owner is decorative.
+  assert.match(ui, /wave\.textContent = UI\.waveLabel\(/, "the HUD reads the owner");
+  assert.match(ui, /UI\.waveLabel\(mr\./, "…and so does the resume banner");
+  assert.match(ui, /inf = endless \|\| !level/,
+    "waveLabel must carry the endless predicate — a generated level is not in DATA.LEVELS");
+});
+
 test("guardrail: the stale-clone SessionStart hook exists AND is wired", () => {
   // This container restores its writable disk from a SNAPSHOT, so a session can
   // begin with the repo rolled back to an old commit while `git status` reads

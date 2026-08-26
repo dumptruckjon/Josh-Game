@@ -174,6 +174,37 @@ test("QoL: the pause menu says WHICH level you are in, endless included", async 
   const txt = await page.locator(".td-resume__txt").textContent();
   assert.ok(txt.includes("Level 5") && txt.includes(lvl5),
     `the resume banner must use the same owner, so it names the level the same way (saw ${JSON.stringify(txt)})`);
+  // …and HOW FAR IN, with a total and the lives it is parked on. The banner
+  // said a bare "wave 3": you could not tell a run two waves from its finale
+  // from one barely started, and nothing said whether it was parked on 3 hearts
+  // or 20 — which is the fact that decides whether to resume it or restart.
+  // The total is DERIVED from the level's own wave table, so a re-authored L5
+  // cannot leave this asserting a stale number.
+  const l5waves = await page.evaluate(() => window.TDData.LEVELS.find((l) => l.id === 5).waves.length);
+  assert.ok(txt.includes("wave 3/" + l5waves),
+    `the banner must say how far in AND out of how many (saw ${JSON.stringify(txt)}, expected "wave 3/${l5waves}")`);
+  assert.ok(/❤️\s*15/.test(txt),
+    `…and the lives it is parked on, which is what decides resume-or-restart (saw ${JSON.stringify(txt)})`);
+
+  // An ENDLESS checkpoint has no wave TABLE, so the same owner must take the
+  // ♾️ branch instead of dividing by a total of 0 — the documented trap that
+  // had UI.hud throwing every frame on a levelId that is not in DATA.LEVELS.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    raw.midRun = { levelId: "endless-bedroom", endless: true, world: "bedroom", waveIdx: 6, towers: [], gold: 200, lives: 9, difficulty: "normal" };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const endTxt = await page.locator(".td-resume__txt").textContent();
+  assert.ok(endTxt.includes("wave 7 ♾️"),
+    `an endless parked run counts waves with no total (saw ${JSON.stringify(endTxt)})`);
+  assert.ok(!/wave 7\//.test(endTxt),
+    `…and never divides by a table it does not have (saw ${JSON.stringify(endTxt)})`);
+  assert.ok(/❤️\s*9/.test(endTxt), `…and still states its lives (saw ${JSON.stringify(endTxt)})`);
 
   // CLEAN UP THE PARKED RUN. A stale checkpoint with no live run bounces
   // #td-play straight back to the fort home, so leaving one behind makes the
@@ -8596,16 +8627,40 @@ test("QoL: the resume banner's label stays readable on the narrowest phone", asy
   await page.evaluate(() => { window.__TD.leaveToHome(); });
   await page.waitForTimeout(200);
 
-  const narrow = await read(320, 568);
-  assert.ok(narrow, "fixture: leaving a build-phase run must park a checkpoint");
-  assert.ok(narrow.lines <= 3,
-    `at 320px the resume label must not fragment — it is the text you decide on (${narrow.lines} lines)`);
-  assert.ok(narrow.goH >= 44 && narrow.xW >= 44,
-    `…and the buttons keep their adult floor (${narrow.goH}px tall, ✕ ${narrow.xW}px wide)`);
-  assert.ok(narrow.ovf <= 1, `…with no sideways scroll (${narrow.ovf}px)`);
+  // The parked run above is the SHORTEST label this banner can show, and a bound
+  // measured against it is a bound about the fixture. Re-point the checkpoint at
+  // the worst realistic run — the longest level name, the hard ladder, two chips,
+  // and the wave/lives the banner now states — because that is what this rule
+  // exists to survive. (The banner only READS the checkpoint, so a level id that
+  // is not unlocked is fine here; nothing resumes it.)
+  const WORST = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("jon-td-save-v1") || "{}");
+    const longest = window.TDData.LEVELS.slice().sort((a, b) => b.name.length - a.name.length)[0];
+    raw.midRun = Object.assign({}, raw.midRun, {
+      levelId: longest.id, endless: false, difficulty: "heroic",
+      chips: (window.TDData.CHIPS || []).slice(0, 2).map((c) => c.id),
+      waveIdx: longest.waves.length - 3, lives: 15,
+    });
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(raw));
+    return longest.name;
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__TD, null, { timeout: 8000 });
 
-  const wide = await read(390, 844);
-  assert.ok(wide.lines <= 3, `at 390px it already fitted in three lines (${wide.lines})`);
+  // 360 is the one that matters and the one nobody measured: this rule shipped at
+  // `max-width: 359px`, so at 360 — the commonest Android width — the worst label
+  // was SIX lines, the exact defect the 320 rule was written for, still live one
+  // pixel above its own breakpoint.
+  for (const [w, h] of [[320, 568], [360, 640], [390, 844], [414, 896]]) {
+    const m = await read(w, h);
+    assert.ok(m, `fixture: a parked checkpoint must show a banner at ${w}px`);
+    assert.ok(m.lines <= 3,
+      `at ${w}px the resume label must not fragment — it is the text you decide on ` +
+      `(${m.lines} lines for "${WORST}" on the hard ladder with two chips)`);
+    assert.ok(m.goH >= 44 && m.xW >= 44,
+      `…and the buttons keep their adult floor at ${w}px (${m.goH}px tall, ✕ ${m.xW}px wide)`);
+    assert.ok(m.ovf <= 1, `…with no sideways scroll at ${w}px (${m.ovf}px)`);
+  }
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });

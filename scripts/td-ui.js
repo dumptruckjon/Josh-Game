@@ -564,8 +564,20 @@
     if (!el) return;
     const mr = save.midRun;
     if (!mr) { el.hidden = true; el.innerHTML = ""; return; }
+    // How far in, and how much is LEFT. The banner named the level and the
+    // rules and then said "wave 6" — with no total, so you could not tell a run
+    // two waves from its finale from one barely started, and with no lives at
+    // all, which is the fact that actually decides it: picking up a run parked
+    // on 3 hearts is a different proposition from one parked on 20, and the
+    // alternative (restart it) is one tap away on the grid. Both numbers were
+    // already in the checkpoint and neither was shown. Same law as the ⬆
+    // preview, the % road figure and the star goal — the information belongs at
+    // the moment of the decision. `lives` is guarded because a hand-edited or
+    // truncated 💾 Backup reaches here: a field one short must degrade.
     const label = UI.runLabel(mr.levelId, mr.endless, mr.daily,
-      { difficulty: mr.difficulty, chips: mr.chips }) + " · wave " + (mr.waveIdx + 1);
+      { difficulty: mr.difficulty, chips: mr.chips }) +
+      " · " + UI.waveLabel(mr.levelId, mr.endless, mr.waveIdx) +
+      (typeof mr.lives === "number" ? " · ❤️ " + mr.lives : "");
     el.hidden = false;
     el.innerHTML = '<span class="td-resume__txt">▶ Resume: ' + label + "</span>" +
       '<button class="td-resume__go" type="button">Resume</button>' +
@@ -1247,16 +1259,7 @@
     const level = global.TDData.LEVELS.find((l) => l.id === state.levelId);
     const endless = state.endless || !level; // endless runs aren't in DATA.LEVELS
     const total = level ? level.waves.length : 0;
-    if (wave) {
-      // The wave you're facing or about to face (1-based) — never the old "0/6".
-      // With a RUSHED wave, TWO are walking at once, so name both: "wave 3-4/12".
-      const sent = state.sentIdx == null ? state.waveIdx : state.sentIdx;
-      const first = Math.min(state.waveIdx + 1, endless ? Infinity : total);
-      const last = Math.min(Math.max(sent, state.waveIdx + 1), endless ? Infinity : total);
-      const span = last > first ? first + "-" + last : String(first);
-      if (endless) wave.textContent = "wave " + span + " ♾️";
-      else wave.textContent = "wave " + span + "/" + total;
-    }
+    if (wave) wave.textContent = UI.waveLabel(state.levelId, state.endless, state.waveIdx, state.sentIdx);
     const call = q(".td-call");
     if (call) {
       // The CALL button lives in BOTH phases now: during build it starts the
@@ -1585,6 +1588,27 @@
   // The ONE reader of a difficulty's player-facing name. Falls back to the id so
   // a tier added without a label degrades to something readable rather than
   // rendering "undefined" — a field one short must degrade, not disable.
+  // ONE owner of "how far into this run are we". The HUD held the only copy —
+  // including the load-bearing `endless || !level` predicate, which is the thing
+  // that stops it throwing every frame on an id like "endless-bedroom" that is
+  // not in DATA.LEVELS — and the resume banner had quietly grown a second,
+  // poorer one beside it (`"wave " + (waveIdx + 1)`: no total, and no endless
+  // branch to get wrong only because it never showed one). Two formatters for
+  // one fact is how the sell refund and the ⚙️ price drifted from the engine.
+  // `sentIdx` is optional: a checkpoint is written at a wave BOUNDARY, where it
+  // always equals waveIdx, so the banner simply has no span to name.
+  UI.waveLabel = function (levelId, endless, waveIdx, sentIdx) {
+    const level = global.TDData.LEVELS.find((l) => l.id === levelId);
+    const inf = endless || !level;                 // endless runs aren't in DATA.LEVELS
+    const total = level ? level.waves.length : 0;
+    const sent = sentIdx == null ? waveIdx : sentIdx;
+    // The wave you're facing or about to face (1-based) — never the old "0/6".
+    // With a RUSHED wave, TWO are walking at once, so name both: "wave 3-4/12".
+    const first = Math.min(waveIdx + 1, inf ? Infinity : total);
+    const last = Math.min(Math.max(sent, waveIdx + 1), inf ? Infinity : total);
+    const span = last > first ? first + "-" + last : String(first);
+    return "wave " + span + (inf ? " ♾️" : "/" + total);
+  };
   UI.difficultyLabel = function (id) {
     const d = (global.TDData.DIFFICULTIES || {})[id];
     return (d && d.label) || String(id || "");

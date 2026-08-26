@@ -649,17 +649,26 @@ body.td-mode #screens { padding: 0; }
 .td-resume__txt { flex: 1; color: #cfeede; font-weight: 800; min-width: 0; }
 .td-resume__go { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 12px; background: #ffd94a; color: #3a2c00; font-weight: 800; touch-action: manipulation; }
 .td-resume__x { min-height: 44px; min-width: 44px; border: 0; border-radius: 12px; background: #26334f; color: #cfe2ff; font-weight: 800; touch-action: manipulation; }
-/* On the narrowest phone the two buttons leave the label ~140px of a 296px row,
-   and the label now names the run's RULES as well as its level — measured, that
-   is SIX lines of two or three words each, which is the thing you read to decide
-   whether to pick the run back up. Wrapping the label onto its own full-width
-   row gives it 268px and takes it to THREE, while the buttons keep their 44px
-   floor and the banner is 5px SHORTER. Byte-identical at 390 and up, where the
-   label already fits in three. Three declarations, not five: a margin reset and
-   a re-add for the ✕ were written and then MEASURED redundant — the label is the
-   first child, so the row's `* + *` margin never applied to it — and a line whose
-   removal changes nothing makes its own guardrail unfalsifiable. */
-@media (max-width: 359px) {
+/* The two buttons leave the label a sliver of the row, and the label names the
+   run's RULES and its POSITION as well as its level — so on a phone it must own
+   its row. This shipped at `max-width: 359px`, justified as "byte-identical at
+   390 and up, where the label already fits in three [lines]" — which was true of
+   the ONE label the test happened to seed and false of the labels this game can
+   actually produce. Re-measured against the worst realistic run (L36 · The
+   Stamping Press · 💀 Hard · two chips · wave 12/15 · ❤️ 15), the shared row is
+   4 lines at 390/414/430 and **SIX at 360** — i.e. the exact defect the 320 rule
+   was written for was still live one pixel above its breakpoint, on the most
+   common Android width there is. A comment that justifies a constant can be
+   refuted by later data, and a comment cannot go red.
+   Own-row measured against shared-row, worst label: 320 3L/3L (already own-row),
+   360 3L/6L, 390 3L/4L, 414 3L/4L, 430 2L/4L, 480 2L/3L, 600+ 2L/2L. So the
+   crossover is real and it is at 600 — the project's existing tablet breakpoint,
+   reused rather than invented — where the row is finally wide enough that owning
+   it buys no line and costs 46px. Three declarations, not five: a margin reset
+   and a re-add for the ✕ were written and then MEASURED redundant — the label is
+   the first child, so the row's `* + *` margin never applied to it — and a line
+   whose removal changes nothing makes its own guardrail unfalsifiable. */
+@media (max-width: 599px) {
   .td-resume { flex-wrap: wrap; }
   .td-resume__txt { flex: 0 0 100%; margin-bottom: 8px; }
   .td-resume__go { flex: 1; }
