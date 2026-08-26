@@ -2573,6 +2573,28 @@
     const ls = levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path];
     return ls.filter(Boolean);
   }
+  // ONE owner of "what order do the worlds come in", derived from the CAMPAIGN
+  // — the order each world's levels first appear in DATA.LEVELS — because that
+  // is the order the player meets them and the only order any screen should
+  // present them in. The endless picker used to read Object.keys(ENDLESS.worlds)
+  // instead, i.e. the order somebody happened to type a second literal, and the
+  // two had drifted: it listed 📦 Moving Day above 🔧 Garage, so an UNLOCKED
+  // world sat below a locked one on a screen whose whole job is showing what is
+  // open. A world with no campaign levels keeps its place at the end rather than
+  // being dropped — an arena you cannot reach is the defect that picker's own
+  // comment records (World 4's attic).
+  function worldOrder() {
+    const seen = [];
+    for (const l of DATA.LEVELS) if (l.world && seen.indexOf(l.world) < 0) seen.push(l.world);
+    return seen;
+  }
+  // Sort any world-keyed collection into campaign order. Unknown worlds sort
+  // last, keeping their own relative order, so nothing can be lost.
+  function byWorldOrder(worlds) {
+    const order = worldOrder();
+    const rank = (w) => { const i = order.indexOf(w); return i < 0 ? order.length : i; };
+    return worlds.slice().map((w, i) => [w, i]).sort((a, b) => (rank(a[0]) - rank(b[0])) || (a[1] - b[1])).map((p) => p[0]);
+  }
   function laneCoverage(levelDef, cx, cy, range, rangeMin) {
     const ls = lanesOf(levelDef);
     if (!ls.length) return 0;
@@ -2736,7 +2758,7 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, musicStep, DT };
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, worldOrder, byWorldOrder, musicStep, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -1246,8 +1246,15 @@
     // DERIVED from the data, never a literal list — World 4's attic arena
     // existed in ENDLESS.worlds and could not be reached because this line
     // named three worlds (the "level grid says 12" lesson, again).
+    // …and ORDERED by the campaign, not by the order somebody typed the keys of
+    // a second literal. Those two had drifted: 📦 Moving Day was declared above
+    // 🔧 Garage, so world 6 listed above world 5 and an UNLOCKED arena sat below
+    // a locked one — on the screen whose whole job is showing what is open.
+    // TDLogic.byWorldOrder is the ONE owner (it keeps an unknown world at the
+    // end rather than dropping it, because an unreachable arena is exactly the
+    // defect the comment above records).
     const W = global.TDData.ENDLESS.worlds;
-    const worlds = Object.keys(W).map((w) => [w, W[w].label || w]);
+    const worlds = global.TDLogic.byWorldOrder(Object.keys(W)).map((w) => [w, W[w].label || w]);
     const best = save.endlessBest || {};
     const rows = worlds.map(([w, label]) => {
       const open = UI.endlessUnlocked(save, w);

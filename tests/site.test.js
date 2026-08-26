@@ -1977,6 +1977,53 @@ test("guardrail: \"how far into this run\" has exactly ONE owner", () => {
     "waveLabel must carry the endless predicate — a generated level is not in DATA.LEVELS");
 });
 
+test("guardrail: a world LIST is ordered by the campaign, and the daily's raw order is deliberate", () => {
+  // The order the worlds come in is a campaign fact, and it had two owners:
+  // DATA.LEVELS and whoever typed the keys of ENDLESS.worlds. They drifted, and
+  // the endless picker — which read the keys — listed world 6 above world 5.
+  // Only TWO places in the app enumerate the world keys, and they want opposite
+  // things, so the exemption has to be conscious rather than accidental.
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const logic = strip(read("scripts/td-logic.js"));
+  assert.equal((logic.match(/function worldOrder\(/g) || []).length, 1, "worldOrder is defined exactly once");
+  assert.match(logic, /worldOrder, byWorldOrder/, "…and both are exported for the shell to read");
+  // it must DERIVE from the campaign, not from a list of world names
+  const at = logic.indexOf("function worldOrder(");
+  const body = logic.slice(at, logic.indexOf("\n  function ", at + 10));
+  assert.ok(at >= 0 && body.length > 20 && body.length < 500, "the scan must slice a real region");
+  assert.match(body, /DATA\.LEVELS/, "worldOrder reads the campaign itself");
+
+  // 1. anything RENDERING a list of worlds must go through the owner. Counting
+  //    `Object.keys(...ENDLESS.worlds)` across the file was the obvious form and
+  //    is VACUOUS — the picker enumerates through a local alias, so both sides
+  //    of that comparison were 0 and it passed on nothing. Slice the function
+  //    and count what IT does instead.
+  const ui = strip(read("scripts/td-ui.js"));
+  const pAt = ui.indexOf("UI.showEndless = function");
+  const pEnd = ui.indexOf("\n  UI.", pAt + 10);
+  assert.ok(pAt >= 0 && pEnd > pAt, "the scan must find showEndless to slice, not the rest of the file");
+  const pick = ui.slice(pAt, pEnd);
+  assert.equal((pick.match(/Object\.keys\(/g) || []).length, 1,
+    "showEndless enumerates the world map exactly once");
+  assert.match(pick, /byWorldOrder\(Object\.keys\(/,
+    "…and that enumeration is SORTED before it is rendered, never handed straight to .map");
+  assert.equal((ui.match(/byWorldOrder\(/g) || []).length, 1,
+    "one sorted world list in the whole shell — a second would be a second order to disagree with");
+
+  // 2. the DAILY is the deliberate exception, and its raw order is load-bearing
+  //    rather than sloppy: it indexes Object.keys(arenas) by the date hash, so
+  //    the keys must stay put or every date re-points at a different board. Its
+  //    own comment has to say so, because "sort these" is the obvious tidy-up.
+  const main = read("scripts/td-main.js");
+  assert.match(main, /Object\.keys\(DATA\.ENDLESS\.arenas\)/,
+    "the daily rotation still derives its pool from the arenas that exist");
+  const dat = read("scripts/td-data.js");
+  assert.match(dat, /KEY ORDER of `arenas` IS LOAD-BEARING/i,
+    "…and the data says so where a future author would re-order it");
+  assert.equal((strip(main).match(/byWorldOrder/g) || []).length, 0,
+    "the daily must NOT be 'fixed' to campaign order — that would re-point every past date");
+});
+
 test("guardrail: \"has this level been beaten\" has exactly ONE owner", () => {
   // The grid's unlock rule, the count under each difficulty chip and the
   // victory screen's "🔓 unlocked!" claim all ask the same question, and the

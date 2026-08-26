@@ -2283,12 +2283,19 @@
       // elsewhere). A mini-boss is a spike, not a wall. The bedroom keeps the
       // classic Piñata; the count still scales with depth (1 + n/10).
       attic: { label: "🧳 Attic", pool: ["knight", "ghost", "battery", "cushion", "slime", "screw", "tinplane"], miniBoss: "cushion" },
+      // These are declared in CAMPAIGN order. They had drifted — garage and
+      // moving were the wrong way round — and the tell was that the W5 and W6
+      // comments still sat in the right order above the wrong pair. The picker
+      // rendered these keys verbatim, so 📦 Moving Day listed above 🔧 Garage
+      // and an UNLOCKED arena sat below a locked one. It DERIVES its order now
+      // (TDLogic.byWorldOrder), so this order is legibility rather than
+      // load-bearing — unlike `arenas` below, where it decides the Daily.
       // World 5: a vanilla backbone plus BOTH garage shapes, so an endless run
       // has to answer the slow-immune runner and the spawner it just learned.
+      garage: { label: "🔧 Garage", pool: ["sock", "knight", "blob", "racer", "bucket", "hawk", "cushion", "tinplane"], miniBoss: "drum" },
       // World 6: the two Moving Day shapes plus a vanilla backbone, so an
       // endless run has to answer both the padding and the music.
       moving: { label: "📦 Moving Day", pool: ["sock", "knight", "blob", "bubblewrap", "boombox", "hawk", "racer", "cushion"], miniBoss: "bubblewrap" },
-      garage: { label: "🔧 Garage", pool: ["sock", "knight", "blob", "racer", "bucket", "hawk", "cushion", "tinplane"], miniBoss: "drum" },
       // World 7: the house's own crowd plus air plus three disruptors — an
       // endless run here has to answer everything the campaign has taught.
       newhouse: { label: "🏠 The New House", pool: ["chair", "housekey", "knight", "blob", "hawk", "cushion", "boombox", "screw"], miniBoss: "slime" },
@@ -2299,6 +2306,14 @@
       party: { label: "🎉 The Party", pool: ["popper", "sweet", "knight", "blob", "streamer", "healer", "sparkler", "boombox"], miniBoss: "boombox" },
     },
     // per-world endless "arena" geometry (a long serpentine + 14 flanking pads)
+    //
+    // ⚠ THE KEY ORDER OF `arenas` IS LOAD-BEARING. 📅 The Daily Toybox picks the
+    // day's world with `Object.keys(arenas)[hash(date) % n]`, so re-ordering
+    // these keys silently changes which board EVERY past and future date maps
+    // to — and a stored daily best then refers to a board nobody can replay.
+    // Sort them for tidiness and you break the one promise that mode makes.
+    // Pinned by "the same day is the same puzzle" in tests/td.test.js, which
+    // asserts a handful of fixed dates against their expected arenas.
     arenas: {
       bedroom:  { path: [ [0, 2], [21, 2], [21, 7], [3, 7], [3, 12], [23, 12] ], startGold: 320,
         pads: [ { id: "p1", cx: 2, cy: 0 }, { id: "p2", cx: 6, cy: 4 }, { id: "p3", cx: 10, cy: 0 }, { id: "p4", cx: 14, cy: 4 }, { id: "p5", cx: 18, cy: 0 }, { id: "p6", cx: 19, cy: 4 }, { id: "p7", cx: 20, cy: 9 }, { id: "p8", cx: 16, cy: 5 }, { id: "p9", cx: 12, cy: 9 }, { id: "p10", cx: 8, cy: 5 }, { id: "p11", cx: 4, cy: 9 }, { id: "p12", cx: 1, cy: 10 }, { id: "p13", cx: 5, cy: 10 }, { id: "p14", cx: 9, cy: 13 } ] },

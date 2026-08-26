@@ -3666,6 +3666,38 @@ recorded in one world, the next question is which other world has the same
 surface** — this is the second such carry-over in a row, after the Sticker
 Book's ghost.
 
+**THE ENDLESS PICKER LISTED WORLD 6 ABOVE WORLD 5, AND THE TWO ADJACENT LITERALS
+THAT DECIDE IT NEED OPPOSITE TREATMENT — which is the part worth keeping.**
+Found by SCREENSHOTTING the fort's five meta dialogs, which nothing does: the
+picker rendered `Object.keys(ENDLESS.worlds)`, i.e. the order somebody typed a
+second literal, and that literal had drifted from the campaign — 📦 Moving Day
+declared above 🔧 Garage. On a save partway through the campaign that puts an
+UNLOCKED arena BELOW a locked one, on the one screen whose whole job is showing
+what is open. The tell was in the file: the two comments above the pair sat
+W5-then-W6 over a moving-then-garage pair, so the swap was plainly accidental.
+One owner now (`TDLogic.byWorldOrder`, over a `worldOrder()` derived from
+`DATA.LEVELS` — the order the player actually meets the worlds), and an unknown
+world sorts LAST rather than being dropped, because an arena that exists and
+cannot be reached is the exact defect that picker's own comment already records.
+**Its sibling `ENDLESS.arenas` must NOT be sorted, and that is not a style
+choice**: 📅 the Daily indexes `Object.keys(arenas)` by the date hash, so tidying
+those keys re-points EVERY past and future date at a different board and a
+stored daily best refers to a board nobody can replay. Two literals in one
+object, one whose order must be fixed and one whose order must never move — so
+the data says so where the tidy-up would happen, and the pin is **one date per
+arena INDEX** (a shorter list tolerates a swap of the keys it does not cover).
+Three testing notes. **A comparison between two counts is satisfied by both
+being ZERO**: the first structural clause counted `Object.keys(…ENDLESS.worlds)`
+across `td-ui.js` and compared it against the sorted count — the picker
+enumerates through a local alias, so both sides were 0 and it passed on nothing,
+caught only because a sibling clause asserted the sorted count was 1. Slice the
+FUNCTION and count what it does. **And fixing the data made the code fix
+unfalsifiable** — reverting `byWorldOrder` to `Object.keys(W)` renders
+identically on correctly-ordered data — so the behavioural test hands the picker
+a REVERSED copy of the literal at runtime and asserts campaign order anyway,
+with the injection asserted to have really reordered it. Same self-proving shape
+as the build menu's fifth line and the difficulty chips' fourth tier.
+
 ---
 
 ## Repository Structure
@@ -3704,7 +3736,7 @@ tooling.
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/56-enemy roster (35 + 21 per-world backbone SKINS) + 10 bosses/40 levels (10 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35/L38)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 40 nodes/140⭐ (vs the 120⭐ ceiling 40 levels create — 20⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD, each with its OWN mini-boss rather than ten Piñatas) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of) + TD-18 `CHIPS` (the 4 opt-in run constraints; a fifth banning the Dart was CUT by measurement — see the comment beside the list)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP; TD-18 run CHIPS are pure input like meta/powers, refused in the FIRST clause of `place()`/`abilityReady()` (never in the UI), and `jamNearest` is the ONE owner the Loose Screw and the 🎇 Sparkler share
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP; TD-18 run CHIPS are pure input like meta/powers, refused in the FIRST clause of `place()`/`abilityReady()` (never in the UI), and `jamNearest` is the ONE owner the Loose Screw and the 🎇 Sparkler share; `worldOrder`/`byWorldOrder` are the ONE owner of "what order do the worlds come in" (derived from the campaign — the endless picker sorts through it rather than rendering whatever order `ENDLESS.worlds` happens to be typed in)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks

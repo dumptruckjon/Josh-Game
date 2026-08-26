@@ -1936,6 +1936,50 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
 });
 
+test("TD5 endless: the picker lists the worlds in CAMPAIGN order", async () => {
+  // The rows used to come out in the order somebody typed the keys of a second
+  // literal, and that literal had drifted from the campaign: 📦 Moving Day
+  // (world 6) rendered above 🔧 Garage (world 5). On a save partway through the
+  // campaign that puts an UNLOCKED arena BELOW a locked one — on the one screen
+  // whose whole job is showing you what is open.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const readRows = async () => {
+    await page.locator(".td-endless-open").click();
+    await page.locator(".td-endlesspick").waitFor({ state: "visible" });
+    const got = await page.$$eval(".td-endless", (bs) => bs.map((b) => b.dataset.world));
+    await page.locator(".td-endless-done").click();
+    return got;
+  };
+  const campaign = await page.evaluate(() => window.TDLogic.worldOrder());
+  assert.ok(campaign.length >= 10, `the campaign must name its worlds (${campaign.length})`);
+  const shipped = await readRows();
+  assert.deepEqual(shipped, campaign, "the shipped picker lists the worlds in campaign order");
+
+  // …and it must SORT rather than inherit, or the next author who adds a world
+  // to the wrong line of ENDLESS.worlds re-creates the defect with the suite
+  // green. Hand it the reverse (a self-proving injection — this is the only
+  // falsifier, because the shipped literal is now correctly ordered, so a
+  // picker that simply reads the keys passes the clause above).
+  const injected = await page.evaluate(() => {
+    const W = window.TDData.ENDLESS.worlds;
+    const keys = Object.keys(W).reverse();
+    const before = Object.keys(W).join(",");
+    const copy = {}; for (const k of keys) copy[k] = W[k];
+    window.TDData.ENDLESS.worlds = copy;
+    return { before, now: Object.keys(window.TDData.ENDLESS.worlds).join(",") };
+  });
+  assert.notEqual(injected.now, injected.before, "fixture: the injection really reordered the literal");
+  const afterInject = await readRows();
+  await page.evaluate((order) => {
+    const W = window.TDData.ENDLESS.worlds;
+    const copy = {}; for (const k of order) copy[k] = W[k];
+    window.TDData.ENDLESS.worlds = copy;
+  }, campaign);
+  assert.deepEqual(afterInject, campaign,
+    "a shuffled ENDLESS.worlds must still render in campaign order — the picker sorts, it does not inherit");
+});
+
 test("TD5 resume: a mid-run checkpoint offers Resume on the home and restores the build", async () => {
   // craft a mid-run save directly, then confirm the home shows a Resume banner
   await page.evaluate(() => {
@@ -7176,6 +7220,26 @@ test("TD-18 daily: the same day is the same puzzle, scored on ITS OWN ladder", a
   assert.ok(picks.worlds >= 5, `the arena rotation must actually rotate (${picks.worlds} of 10 seen in 60 days)`);
   assert.ok(picks.chips >= 3, `…and the modifier draw too (${picks.chips} distinct)`);
   assert.ok(picks.seeds >= 40, `…and the seeds must not collapse (${picks.seeds} distinct)`);
+  // ---- the date → ARENA map is pinned, because ENDLESS.arenas' KEY ORDER is
+  // load-bearing and looks like it is not: dailyPick indexes Object.keys(arenas)
+  // by the date hash, so tidying those keys into campaign order (which the
+  // sibling ENDLESS.worlds literal has just been sorted into, so the temptation
+  // is right there) silently re-points EVERY past and future day at a different
+  // board, and a stored daily best then refers to a board nobody can replay.
+  // One date per arena INDEX, so any re-ordering at all turns at least one row
+  // red — a shorter list would tolerate a swap of the keys it does not cover.
+  const DAILY_PIN = [
+    ["2026-01-19", "bedroom"], ["2026-01-04", "backyard"], ["2026-01-01", "toystore"],
+    ["2026-01-07", "attic"], ["2026-01-16", "moving"], ["2026-01-08", "party"],
+    ["2026-01-03", "toyworks"], ["2026-01-02", "sortline"], ["2026-01-05", "newhouse"],
+    ["2026-01-23", "garage"],
+  ];
+  const pinned = await page.evaluate((days) => days.map((d) => window.__TD.dailyInfo(d).world), DAILY_PIN.map((p) => p[0]));
+  assert.deepEqual(pinned, DAILY_PIN.map((p) => p[1]),
+    "each pinned date must still map to its own arena — ENDLESS.arenas' key order decides this");
+  assert.equal(new Set(pinned).size, await page.evaluate(() => Object.keys(window.TDData.ENDLESS.arenas).length),
+    "the pin must cover every arena INDEX or a swap of the keys it misses slips past — and note that ADDING " +
+    "an arena legitimately re-points every date (the hash is % n), so a new world means regenerating this table");
   // ---- play the pinned day: the run carries the pick
   const run = await page.evaluate(() => {
     window.__TD.playDaily("2026-08-14");

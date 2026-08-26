@@ -4415,6 +4415,50 @@ test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a D
     "an EMPTY paths[] falls back to the single lane, exactly as the ternary it replaced did");
 });
 
+// The order the worlds come in is a CAMPAIGN fact — the order the player meets
+// them — and it had two owners: DATA.LEVELS, and whatever order somebody typed
+// the keys of ENDLESS.worlds. They had drifted, so the endless picker listed
+// 📦 Moving Day (world 6) above 🔧 Garage (world 5), which on a fresh-ish save
+// puts an UNLOCKED arena below a locked one on the one screen whose job is to
+// show what is open.
+test("TD5 endless: the worlds come in CAMPAIGN order, from one owner", () => {
+  const order = TD.worldOrder();
+  // 1. the owner really is derived from the campaign, not from a list here
+  const seen = [];
+  for (const l of DATA.LEVELS) if (l.world && seen.indexOf(l.world) < 0) seen.push(l.world);
+  assert.deepEqual(order, seen, "worldOrder() is the order each world's levels first appear");
+  assert.equal(order.length, Object.keys(DATA.WORLDS).length,
+    `every declared world is reached by the campaign (${order.length} of ${Object.keys(DATA.WORLDS).length})`);
+  //    …and that clause alone is satisfied by a hard-coded list equal to today's
+  //    campaign (measured: replacing the derivation with the ten names in order
+  //    left it GREEN). Only a campaign the literal cannot know falsifies it, so
+  //    give it an eleventh world at runtime — the build-menu fifth-line pattern.
+  DATA.LEVELS.push({ id: -1, world: "__w11", path: [[0, 0], [1, 0]], pads: [], waves: [] });
+  let grown;
+  try { grown = TD.worldOrder(); } finally { DATA.LEVELS.pop(); }
+  assert.deepEqual(grown, order.concat(["__w11"]),
+    "an eleventh world joins the order by having a LEVEL — worldOrder must read the campaign, not a list");
+  assert.deepEqual(TD.worldOrder(), order, "fixture: the injected level is removed again");
+  // 2. …and it is a real order, not the identity on whatever it was handed:
+  //    hand it the reverse and it must come back campaign-ordered.
+  assert.deepEqual(TD.byWorldOrder(order.slice().reverse()), order,
+    "byWorldOrder sorts, rather than passing its input through");
+  // 3. a world with no campaign levels keeps its place at the END rather than
+  //    being dropped — an arena that exists and cannot be reached is exactly the
+  //    defect the picker's own comment records (World 4's attic).
+  assert.deepEqual(TD.byWorldOrder(["party", "__ghost", "bedroom"]), ["bedroom", "party", "__ghost"],
+    "an unknown world sorts last and is never lost");
+  assert.deepEqual(TD.byWorldOrder(["__b", "__a"]), ["__b", "__a"],
+    "…and unknown worlds keep their own relative order");
+  // 4. The picker no longer DEPENDS on this literal's key order (that is proven
+  //    in the browser by handing it a shuffled copy) — but the file should still
+  //    read in campaign order, because the drift started as somebody adding a
+  //    world in the wrong place and nothing saying so.
+  const declared = Object.keys(DATA.ENDLESS.worlds);
+  assert.deepEqual(TD.byWorldOrder(declared), declared,
+    "ENDLESS.worlds is declared in campaign order (" + declared.join(", ") + ")");
+});
+
 // Every world must OFFER the lever, or the subsystem quietly stops being part of
 // the game as the campaign grows. This is not hypothetical: World 4 (attic) and
 // World 6 (moving day) were both authored after TD-11's fork search ran, both
