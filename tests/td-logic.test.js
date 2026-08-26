@@ -7622,8 +7622,12 @@ test("🎵 the score is per-world, phase-aware and boss-aware", () => {
   // …and declaring one is not enough: two worlds must actually SOUND different.
   const pitches = (w) => notes({ world: w, phase: "wave" }).map((v) => v.hz.toFixed(2)).join(",");
   const distinct = new Set(worlds.map(pitches));
-  assert.ok(distinct.size >= 6,
-    `ten worlds must not share one tune — saw only ${distinct.size} distinct pitch sets`);
+  // EVERY world, not "at least six": bedroom and newhouse both shipped
+  // root 196.00, so two of ten rooms sounded identical while a loose floor of 6
+  // reported no problem. A world's key is one of the few cues that says which
+  // room you are in — the same reason the backbone SKINS exist.
+  assert.equal(distinct.size, worlds.length,
+    `every world must sound different — ${worlds.length} worlds, ${distinct.size} distinct pitch sets`);
 
   // The arrangement THINS during build. This is the thing you can hear: the
   // same march, stripped to its strong beats, so a build phase is calm.
@@ -7647,6 +7651,45 @@ test("🎵 the score is per-world, phase-aware and boss-aware", () => {
   assert.equal(drones.length, DATA.MUSIC.form.length,
     `the drone lands once per phrase (expected ${DATA.MUSIC.form.length}, saw ${drones.length})`);
 
+  // …and it must be a real cue on EVERY world, which "party" alone could never
+  // show. The tense arrangement does exactly two things — swap the scale and
+  // add a drone — and `dark` used to be BOTH the escalation and four worlds'
+  // ordinary key, so on the attic, the garage, the sort line and the toy works
+  // a boss changed the music by one low sine once per phrase. Measured: 4 of 64
+  // steps against a bright world's 43, i.e. the cue was ~10x weaker on 40% of
+  // the campaign. Derived over every world, and the bar is a measured
+  // SEPARATION (the defect is 4, the shipped cue is 40-43), not a slack.
+  // THE DATA LAW FIRST, so it can fail on its own: every mode any world
+  // declares must escalate to a scale that is actually different. Ordered
+  // ahead of the behavioural loop below because a mutation to the DATA moves
+  // both, and the earlier clause is the one that then reports — pinning the
+  // cause (a mode that escalates to itself) rather than the symptom.
+  const modes = [...new Set(worlds.map((w) => (DATA.WORLDS[w].music || {}).mode || "bright"))];
+  assert.ok(modes.length >= 2, `expected the shipped modes, saw ${JSON.stringify(modes)}`);
+  for (const m of modes) {
+    const up = (DATA.MUSIC.tenseOf || {})[m];
+    assert.ok(up && DATA.MUSIC.scales[up],
+      `mode "${m}" must declare a tense scale in MUSIC.tenseOf (saw ${JSON.stringify(up)})`);
+    assert.notDeepEqual(DATA.MUSIC.scales[up], DATA.MUSIC.scales[m],
+      `mode "${m}" escalates to a scale identical to itself — the boss voice is then the ordinary voice`);
+  }
+
+  const stepSig = (w, extra) => {
+    const out = [];
+    for (let i = 0; i < 64; i++) {
+      out.push(TD.musicStep(i, Object.assign({ world: w, phase: "wave" }, extra))
+        .map((v) => v.hz.toFixed(1)).join("|"));
+    }
+    return out;
+  };
+  for (const w of worlds) {
+    const plain = stepSig(w, {}), boss = stepSig(w, { boss: true });
+    let moved = 0;
+    for (let i = 0; i < plain.length; i++) if (plain[i] !== boss[i]) moved++;
+    assert.ok(moved >= 20,
+      `${w}: a boss must genuinely change the music, not just add a drone — only ${moved} of 64 ` +
+      "steps move. A world that already sounds dark needs an escalation of its own.");
+  }
   // DANGER is the other reason to stop being cheerful, and it deliberately gets
   // the SAME voice as a boss: the message is "this is serious", and splitting it
   // into two moods would make both less legible. It matters because during a

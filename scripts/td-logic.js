@@ -2650,7 +2650,14 @@
     const boss = !!c.boss;
     const tense = boss || !!c.danger;
     const quiet = c.phase === "build";
-    const scale = M.scales[tense ? "dark" : (mus.mode || "bright")] || M.scales.bright;
+    // The tense scale is one step DARKER than the world's own, never a fixed
+    // one: hard-coding "dark" here made the boss voice identical to the
+    // ordinary voice on every world that already sounds dark, so the cue
+    // vanished on four of ten. A field one short must degrade, not disable —
+    // an unknown mode falls back to the shipped pair.
+    const mode = mus.mode || "bright";
+    const scaleName = tense ? ((M.tenseOf || {})[mode] || "dark") : mode;
+    const scale = M.scales[scaleName] || M.scales.bright;
     const total = M.form.length * 16;
     const step = ((i % total) + total) % total;
     const phrase = M.form[Math.floor(step / 16)];

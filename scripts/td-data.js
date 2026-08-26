@@ -570,8 +570,27 @@
     // what makes a per-world key a one-line data change instead of a re-write.
     scales: {
       bright: [0, 2, 4, 5, 7, 9, 11, 12, 14, 16],   // major
-      dark:   [0, 2, 3, 5, 7, 8, 10, 12, 14, 15],   // natural minor — the boss voice
+      dark:   [0, 2, 3, 5, 7, 8, 10, 12, 14, 15],   // natural minor
+      // …and a third, because the comment above used to call `dark` "the boss
+      // voice" while FOUR worlds had adopted it as their ordinary key. The
+      // tense arrangement does exactly two things — swap the scale and add a
+      // drone — so on the attic, the garage, the sort line and the toy works a
+      // boss changed the music by ONE low sine once per phrase: measured, 4 of
+      // 64 steps against a bright world's 43. The cue that says "this is
+      // serious" was ~10x weaker on 40% of the campaign, in the back half.
+      // Octatonic: the same tune bent out of shape rather than a second track,
+      // and it is the scale film scoring reaches for. Measured against the
+      // alternatives on a dark world (steps of 64 that change): octatonic 40,
+      // phrygian dominant 32, locrian 25, harmonic minor 16, phrygian 9 — so
+      // this is the only one that matches the cue a bright world already gets.
+      tense:  [0, 2, 3, 5, 6, 8, 9, 11, 12, 14],
     },
+    // A world declares how it ordinarily sounds; this is where that escalates
+    // when a boss walks in or the door is nearly down. Data rather than an
+    // `if`, so an eleventh mode must declare its own escalation — and the
+    // guardrail requires the two to actually DIFFER, which is the defect above
+    // stated as a law.
+    tenseOf: { bright: "dark", dark: "tense" },
     form: ["A", "A", "B", "A"],        // 64 steps, so the loop is 8 bars, not 2
     mel: {
       A: [4, null, 6, 7, null, 6, 4, null, 5, null, 7, 9, null, 7, 5, null],
@@ -602,7 +621,7 @@
       floor: { pattern: "cardboard", props: ["box", "case", "tyre"], top: "#7a5326", bottom: "#8d6531", ink: "rgba(60,34,10,0.26)",
                road: { edge: "#33261a", base: "#c9a877", top: "#e3c99c", style: "tape", tie: "rgba(180,150,105,0.55)" } } },
     // World 7 — the van arrived. Bare boards under a pale painter's drop-cloth.
-    newhouse: { music: { root: 196.00, mode: "bright" }, label: "🏠 The New House", spawnGlyph: "🪜", backbone: { ground: ["chair", "knight", "blob", "housekey"], flier: "hawk" },
+    newhouse: { music: { root: 246.94, mode: "bright" }, label: "🏠 The New House", spawnGlyph: "🪜", backbone: { ground: ["chair", "knight", "blob", "housekey"], flier: "hawk" },
       floor: { pattern: "dropcloth", props: ["tin", "box", "stone"], top: "#4a4740", bottom: "#5b574d", ink: "rgba(240,236,225,0.13)",
                road: { edge: "#2e2a22", base: "#b7ad97", top: "#dcd4c0", style: "stones", tie: "rgba(120,112,96,0.26)" } } },
     // World 8 — the box that never got unpacked in the New House went out with

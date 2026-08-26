@@ -3427,6 +3427,37 @@ button is a DIRECT child of a column flex box, so `align-items: stretch`
 guarantees its width and a `width: fit-content` mutation changes nothing — the
 real risk (a NESTED button escaping the column) already has an owner.
 
+**THE BOSS MUSIC WAS ~10x WEAKER ON 40% OF THE CAMPAIGN, AND THE SCALE'S OWN
+COMMENT SAID SO.** `MUSIC.scales.dark` was labelled *"natural minor — the boss
+voice"*, and four worlds then adopted `dark` as their ORDINARY key (attic,
+garage, sort line, toy works). The tense arrangement does exactly two things —
+swap the scale and add a drone — so on those four a boss changed the music by
+ONE low sine once per phrase: measured, **4 of 64 steps against a bright world's
+43**, on the cue whose entire job is to say *this is serious*, across the whole
+back half of the campaign. The comment stated the intent and the data
+contradicted it; found by enumerating `DATA.WORLDS`, which was the one config
+surface never swept. Four things worth keeping. (1) **The escalation is DATA, not
+an `if`** — `MUSIC.tenseOf` maps a mode to the scale it escalates TO, so an
+eleventh mode must declare its own, and the law is derived: every mode any world
+declares must escalate to a scale that actually DIFFERS. Hard-coding `"dark"`
+was the defect. (2) **The scale was chosen by MEASUREMENT, not taste** — on a
+dark world, steps of 64 that move: octatonic **40**, phrygian dominant 32,
+locrian 25, harmonic minor 16, phrygian 9. Only octatonic matches the cue a
+bright world already gets, and it is the scale film scoring reaches for; the
+shipped result is 40-43 on all ten worlds against the old 4. (3) **The shipped
+music test drove `"party"` — a BRIGHT world — so it could never see this**, the
+"a viewport list IS the test" law landing on a WORLD list; the clause is derived
+over every world now, with a bar (20) that is a measured separation between the
+defect (4) and the fix (40). (4) **The two clauses had to be REORDERED to
+isolate**: a data mutation moves the behaviour too, so with the behavioural loop
+first it always reported the symptom; the data law goes first, and a
+musicStep-only mutation then fires the behavioural one. Same pass: **bedroom and
+newhouse both shipped root 196.00**, so two of ten rooms sounded identical while
+the distinctness clause's loose `>= 6` floor reported nothing — World 7 takes
+246.94 and the clause is `=== worlds.length`. A world's key is one of the few
+cues that says which room you are in, which is the same reason the backbone
+SKINS exist.
+
 ---
 
 ## Repository Structure
