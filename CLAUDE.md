@@ -3726,6 +3726,44 @@ failure presents as an unrelated test timing out, which this file already
 records from the `resetSave`-without-`dropRun` bug and from a test that seeded a
 checkpoint and never cleared it.
 
+**TEN ENDLESS ARENAS LOOKED IDENTICAL, BECAUSE THE FIELD THAT SEPARATES THEM HAD
+NO READER — and the fix was blocked by a guardrail that turned out to be right.**
+TD-18 replaced ten identical Piñatas with one signature body per world precisely
+so ten endless runs ask ten different questions, and `miniBoss` was then read by
+the wave GENERATOR and by nothing else: no picker row, no guide card, no blurb.
+So the whole point of that feature was learnable only by playing an arena to
+wave 5. Both directions are stated now — the picker row says *spikes with 🛢️ Oil
+Drum* (what makes this arena different, at the moment you choose it) and the
+body's own guide card says *Headlines the 🔧 Garage endless arena* (what is this
+thing) — the same both-ways reasoning as the costume lines, and both derived, so
+an eleventh arena names itself.
+Four things worth keeping. (1) **The obvious home for it was a 10th ♾️ Endless
+section in the Toybox Guide, and a SHIPPED law correctly refused it**: the
+contents row must fill evenly (`entries % columns === 0`), and 10 entries fit
+neither 3 columns (an orphan) nor 2 (five rows, past the row's own 200px cap)
+nor 5 (45px-wide entries at 320). The law's rationale — an even grid beats a
+dense one when the count is fixed and small — held, and the right response was to
+put the fact where the decision is rather than to widen the test. (2) **The
+cadence is deliberately NOT on the rows.** Every arena spikes every 5th wave, so
+ten rows repeating it carry zero per-arena information; it is stated once in the
+blurb and once on the enemy card, and the guardrail asserts the rows do NOT
+repeat it. (3) **A new trait line silently inflated a player-visible COUNT** —
+the fort home's blurb counts distinct trick keys across the roster, so a "where
+you meet it" line made it advertise 25 tricks when 24 mechanics exist. Caught by
+running the derived count before writing the test. (4) **And fixing that
+correctly turned a passing test RED, which was the real find**: the trick
+classification was a literal in `td-ui.js` AND a second copy inside the browser
+test, so classifying the new line correctly in the product made the test's stale
+copy disagree. Two owners of a number the player reads. It is `TDLogic
+.rosterTricks()` now, both consumers read it, and a scan asserts neither keeps
+its own `NOT_A_TRICK` set. **When a correct product change turns a test red,
+check whether the test was duplicating the decision rather than checking it.**
+One smaller lesson: **wrapping a bare text node in a block to give it a second
+line changes its ALIGNMENT** — the arena label had been hugging the left of a
+`space-between` flex row as a text node, and inside a block it inherited the
+dialog's centring and sat indented over its own spike line. Caught by the
+screenshot, not by any measurement.
+
 ---
 
 ## Repository Structure
@@ -3764,7 +3802,7 @@ tooling.
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
 │   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/56-enemy roster (35 + 21 per-world backbone SKINS) + 10 bosses/40 levels (10 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35/L38)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 40 nodes/140⭐ (vs the 120⭐ ceiling 40 levels create — 20⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD, each with its OWN mini-boss rather than ten Piñatas) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of) + TD-18 `CHIPS` (the 4 opt-in run constraints; a fifth banning the Dart was CUT by measurement — see the comment beside the list)
-│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP; TD-18 run CHIPS are pure input like meta/powers, refused in the FIRST clause of `place()`/`abilityReady()` (never in the UI), and `jamNearest` is the ONE owner the Loose Screw and the 🎇 Sparkler share; `worldOrder`/`byWorldOrder` are the ONE owner of "what order do the worlds come in" (derived from the campaign — the endless picker sorts through it rather than rendering whatever order `ENDLESS.worlds` happens to be typed in)
+│   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP; TD-18 run CHIPS are pure input like meta/powers, refused in the FIRST clause of `place()`/`abilityReady()` (never in the UI), and `jamNearest` is the ONE owner the Loose Screw and the 🎇 Sparkler share; `rosterTricks`/`NOT_A_TRICK` are the ONE owner of "which trait keys are MECHANICS" (the fort home's blurb counts them, so it is a product decision — it used to be a literal in td-ui AND a copy in the test); `worldOrder`/`byWorldOrder` are the ONE owner of "what order do the worlds come in" (derived from the campaign — the endless picker sorts through it rather than rendering whatever order `ENDLESS.worlds` happens to be typed in)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks

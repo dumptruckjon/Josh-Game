@@ -1395,9 +1395,11 @@ test("QoL: the fort-home blurb DERIVES its roster claim instead of listing it", 
   const before = await page.evaluate(() => {
     const E = window.TDData.ENEMIES, L = window.TDLogic;
     const ids = Object.keys(E);
-    const NOT = new Set(["plain", "home", "skin", "costumes", "boss"]);
-    const tricks = new Set();
-    for (const k of ids) for (const t of L.enemyTraits(E[k])) if (!NOT.has(t.key)) tricks.add(t.key);
+    // Which keys COUNT as tricks is a product decision (it decides a number the
+    // player reads), so it is read from its owner rather than copied here — the
+    // copy went stale the moment a new presentational line was classified
+    // correctly in the product, and turned this test red for being right.
+    const tricks = L.rosterTricks();
     return { text: document.querySelector("#screen-td-home .td-note").textContent,
       bodies: ids.filter((k) => !E[k].skinOf).length, names: ids.length, tricks: tricks.size,
       lines: Object.keys(window.TDData.TOWERS).length };
@@ -1934,6 +1936,68 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   assert.ok(st.endless === true, "an endless run is live");
   const want = await page.evaluate((w) => window.TDData.ENDLESS.arenas[w].path, last);
   assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
+});
+
+test("QoL: the Endless picker says what makes each arena different", async () => {
+  // TD-18 gave every arena its OWN every-5th-wave spike so ten runs ask ten
+  // different questions — and `miniBoss` was read by the wave generator and by
+  // NOTHING else, so ten identical-looking rows differed by a fact you could
+  // only learn by playing one to wave 5. A structural derivation proves the
+  // trait line EXISTS (td-logic.test.js); only opening these two surfaces
+  // proves anything renders it.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const arenas = await page.evaluate(() => {
+    const W = window.TDData.ENDLESS.worlds, E = window.TDData.ENEMIES;
+    return Object.keys(W).map((w) => ({ w, label: W[w].label, mb: E[W[w].miniBoss].name, icon: E[W[w].miniBoss].icon }));
+  });
+  assert.ok(arenas.length >= 10, `every world has an arena (${arenas.length})`);
+  await page.locator("#screen-td-home .td-endless-open").click();
+  await page.locator(".td-endlesspick").waitFor({ state: "visible" });
+  try {
+    const seen = [];
+    for (const a of arenas) {
+      const spike = page.locator(`.td-endless[data-world="${a.w}"] .td-endless__spike`);
+      assert.equal(await spike.count(), 1, `${a.w}'s row names its spike`);
+      const txt = (await spike.textContent()).trim();
+      assert.ok(txt.includes(a.mb), `${a.w} names ITS OWN spike (wanted ${a.mb}, saw "${txt}")`);
+      seen.push(txt);
+      // The row's parts CONCATENATE into its accessible name — this row already
+      // announced "🔧 Garagenew!", the defect the difficulty chips and the level
+      // cards were both fixed for, and a second line makes it worse.
+      const aria = await page.getAttribute(`.td-endless[data-world="${a.w}"]`, "aria-label");
+      assert.ok(aria && aria.includes(a.label) && aria.includes(a.mb),
+        `${a.w} has an explicit accessible name naming its arena and spike (saw ${JSON.stringify(aria)})`);
+    }
+    // …and it is not one constant on ten rows: the SPIKE is what differs.
+    assert.ok(new Set(seen).size >= 8,
+      `the arenas must name DIFFERENT spikes (saw ${new Set(seen).size} distinct of ${seen.length})`);
+    // The cadence is the same 5 everywhere, so it is stated ONCE in the blurb
+    // rather than ten times in the list, where it would carry no information.
+    const sub = await page.textContent(".td-endlesspick .td-overlay__sub");
+    const every = await page.evaluate(() => window.TDData.ENDLESS.miniBossEvery);
+    assert.match(sub, new RegExp(String(every) + "th wave"), `the blurb states the cadence once (saw "${sub}")`);
+    for (const txt of seen) assert.ok(!/th wave/.test(txt), `a row must not repeat the cadence (saw "${txt}")`);
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+
+  // …and the body's own guide card says which arena it headlines — the lookup
+  // direction, the same both-ways reasoning as the costume lines.
+  await page.locator("#screen-td-home .td-guide-open").click();
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+  try {
+    const txt = await page.textContent(".td-overlay--guide .td-overlay__box");
+    for (const a of arenas) {
+      assert.ok(txt.includes("Headlines the " + a.label),
+        `${a.mb}'s card must say it headlines the ${a.w} arena`);
+    }
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+  await page.evaluate(() => { location.hash = ""; });
 });
 
 test("TD5 endless: the picker lists the worlds in CAMPAIGN order", async () => {

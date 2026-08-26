@@ -4415,6 +4415,51 @@ test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a D
     "an EMPTY paths[] falls back to the single lane, exactly as the ternary it replaced did");
 });
 
+// TD-18 gave every endless arena its OWN every-5th-wave spike, precisely so ten
+// endless runs ask ten different questions instead of meeting the same Piñata.
+// `miniBoss` was then read by the wave GENERATOR and by nothing else — no UI
+// surface named it anywhere — so the fact that whole feature exists to create
+// was learnable only by playing an arena to wave 5.
+test("TD5 endless: an arena's own SPIKE is derived onto the body that headlines it", () => {
+  const E = DATA.ENDLESS.worlds;
+  const line = (id) => TD.enemyTraits(DATA.ENEMIES[id]).find((t) => t.key === "arena");
+  // 1. every declared mini-boss says so, and names ITS OWN arena
+  let named = 0;
+  for (const [w, def] of Object.entries(E)) {
+    const t = line(def.miniBoss);
+    assert.ok(t, `${w}'s mini-boss ${def.miniBoss} must say it headlines an arena`);
+    assert.ok(t.text.includes(def.label),
+      `${def.miniBoss} must name the ${w} arena (saw "${t.text}")`);
+    assert.ok(t.text.includes(String(DATA.ENDLESS.miniBossEvery)),
+      `…and the cadence comes from the data (saw "${t.text}")`);
+    named++;
+  }
+  assert.equal(named, Object.keys(E).length, "every arena is covered");
+  // 2. …and a body that heads NO arena must not claim one, or the line is noise
+  const heads = new Set(Object.values(E).map((w) => w.miniBoss));
+  const liars = Object.keys(DATA.ENEMIES).filter((k) => !heads.has(k) && line(k));
+  assert.deepEqual(liars, [], `these bodies head no arena and say they do: ${liars.join(", ")}`);
+  assert.ok(Object.keys(DATA.ENEMIES).length - heads.size > 20,
+    "fixture: most of the roster heads no arena, so clause 2 is not vacuous");
+  // 3. it is PRESENTATIONAL, not a mechanic. The fort home's blurb counts the
+  //    distinct trick keys across the roster, so an "where you meet it" line
+  //    counted there would advertise a trick that does not exist.
+  assert.ok(!TD.rosterTricks().has("arena"),
+    "the arena line must be exempt from the trick COUNT — it is where you meet a body, not a mechanic");
+  assert.ok(TD.rosterTricks().size > 15,
+    `fixture: the roster really has tricks to count (${TD.rosterTricks().size})`);
+  // …and that classification has ONE owner: it used to be a literal in td-ui and
+  // a second copy inside the browser test, so classifying this line correctly in
+  // the product turned a passing test red for being right.
+  const ui = readSrc("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const td = readSrc("tests/td.test.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  for (const [name, src] of [["scripts/td-ui.js", ui], ["tests/td.test.js", td]]) {
+    assert.ok(!/NOT_A_TRICK\s*=\s*new Set/.test(src),
+      `${name} must READ the trick classification, not keep its own copy`);
+    assert.match(src, /rosterTricks\(\)/, `${name} reads the owner`);
+  }
+});
+
 // The order the worlds come in is a CAMPAIGN fact — the order the player meets
 // them — and it had two owners: DATA.LEVELS, and whatever order somebody typed
 // the keys of ENDLESS.worlds. They had drifted, so the endless picker listed

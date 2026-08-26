@@ -849,6 +849,14 @@ body.td-mode #screens { padding: 0; }
 }
 .td-endless > * + * { margin-left: 8px; } /* flex-gap is dropped on iOS 14.2 */
 .td-endless--locked { opacity: 0.5; border-color: #3a548a; background: #182a4a; }
+/* The label used to be a bare text node hugging the left of a space-between
+   row; wrapping it in a block made it inherit the dialog's centring, so it
+   sat indented over its own spike line. Left is what it always looked like. */
+.td-endless__name { display: block; min-width: 0; text-align: left; }
+/* What makes this arena different — its own every-Nth-wave spike. A block
+   INSIDE the name, not a third flex item, so the row keeps its two-item
+   space-between layout and the name/spike pair cannot be split apart. */
+.td-endless__spike { display: block; font-size: 0.72rem; font-weight: 700; color: #d9c2e8; }
 .td-endless__best { font-size: 0.78rem; color: #ffe27a; font-weight: 700; }
 
 /* Badges earned AT an outcome, rendered inside its box. The toast paints UNDER

@@ -299,11 +299,10 @@
     const E = global.TDData.ENEMIES, L = global.TDLogic;
     const ids = Object.keys(E);
     const bodies = ids.filter((k) => !E[k].skinOf).length;
-    const tricks = new Set();
-    // the presentational trait keys are not TRICKS: "no tricks", where you meet
-    // it, and the two costume lines.
-    const NOT_A_TRICK = new Set(["plain", "home", "skin", "costumes", "boss"]);
-    for (const k of ids) for (const t of L.enemyTraits(E[k])) if (!NOT_A_TRICK.has(t.key)) tricks.add(t.key);
+    // Which trait keys COUNT as tricks is a product decision that decides a
+    // number the player reads, so it has one owner in TDLogic rather than a
+    // literal here and a second copy inside the test.
+    const tricks = L.rosterTricks();
     return bodies + " different toys wearing " + ids.length + " names, with " +
       tricks.size + " tricks between them (📖 the Guide explains every one)";
   };
@@ -1276,11 +1275,33 @@
       const state = open
         ? (best[w] ? "🏆 wave " + best[w] : "new!")
         : "🔒 3⭐ all " + n + " levels";
+      // WHAT MAKES THIS ARENA DIFFERENT. TD-18 gave every world its own
+      // every-Nth-wave spike precisely so ten endless runs ask ten different
+      // questions — and `miniBoss` was read by the wave generator and by
+      // NOTHING else, so the one fact that separates these ten identical-looking
+      // rows was learnable only by playing one to wave 5. Derived from the
+      // world's own entry, so an eleventh arena names itself.
+      const mb = global.TDData.ENEMIES[(W[w] || {}).miniBoss];
+      // Only the BODY goes on the row: the cadence is the same 5 for every
+      // arena, so ten rows repeating it carry no per-arena information at all —
+      // it is stated once in the blurb instead, and the enemy's own guide card
+      // says it too.
+      const spike = mb ? "spikes with " + mb.icon + " " + mb.name : "";
+      // An explicit name, because the parts CONCATENATE otherwise — this row
+      // already announced "🔧 Garagenew!", the same defect the difficulty chips
+      // and the level cards were fixed for, and a second line makes it worse.
+      const aria = label + (spike ? ". " + spike + " every " +
+        (global.TDData.ENDLESS.miniBossEvery || 5) + "th wave" : "") + ". " +
+        (open ? (best[w] ? "best wave " + best[w] : "not played yet") : "locked until all " + n + " levels are 3 stars");
       return '<button class="td-endless' + (open ? "" : " td-endless--locked") + '"' + (open ? "" : " disabled") +
-        ' data-world="' + w + '">' + label + '<span class="td-endless__best">' + state + "</span></button>";
+        ' aria-label="' + aria.replace(/"/g, "&quot;") + '"' +
+        ' data-world="' + w + '"><span class="td-endless__name">' + label +
+        (spike ? '<span class="td-endless__spike">' + spike + "</span>" : "") + "</span>" +
+        '<span class="td-endless__best">' + state + "</span></button>";
     }).join("");
     const el = metaOverlay("td-endlesspick", '<h3>♾️ Endless</h3>' +
-      '<p class="td-overlay__sub">Survive as long as you can — the toys never stop coming.</p>' +
+      '<p class="td-overlay__sub">Survive as long as you can — the toys never stop coming, and every ' +
+      (global.TDData.ENDLESS.miniBossEvery || 5) + 'th wave brings that arena’s own spike.</p>' +
       '<div class="td-endlessrows">' + rows + "</div>" +
       '<button class="td-btn td-endless-done" type="button">Close</button>');
     el.querySelectorAll(".td-endless").forEach((b) => b.addEventListener("click", () => { if (b.dataset.world) { UI.closeOverlay(); onPick(b.dataset.world); } }));

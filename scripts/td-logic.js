@@ -2445,6 +2445,31 @@
     // ten "no tricks" cards stop reading as ten copies of the same enemy.
     const home = homeWorld(def);
     if (home) out.push({ key: "home", icon: "🏠", text: "The regular crowd in the " + DATA.WORLDS[home].label });
+    // TD-18 gave every endless arena its OWN every-Nth-wave spike, so ten runs
+    // ask ten different questions instead of meeting the same Piñata — and
+    // `miniBoss` was read by the wave GENERATOR and by nothing else, so which
+    // body headlines which arena could only be learnt by playing to wave 5.
+    // Derived by identity, exactly like the costume line above.
+    const E = DATA.ENDLESS || {};
+    const arenas = Object.keys(E.worlds || {}).filter((k) => DATA.ENEMIES[E.worlds[k].miniBoss] === def);
+    if (arenas.length) out.push({ key: "arena", icon: "♾️",
+      text: "Headlines the " + arenas.map((k) => E.worlds[k].label).join(" and ") +
+        " endless arena — one arrives every " + (E.miniBossEvery || 5) + "th wave there" });
+    return out;
+  }
+  // Which trait keys are MECHANICS. The fort home's blurb states how many
+  // tricks the roster has between them, so this set decides a number the player
+  // reads — which makes it a product decision, and it needs one owner: it used
+  // to be a literal in td-ui AND a second copy inside the browser test, so
+  // classifying a new line correctly in the product turned the test red.
+  // A trick is something the board does to you; "no tricks", where you meet a
+  // body, its costumes and which endless arena it headlines are all presentation.
+  const NOT_A_TRICK = new Set(["plain", "home", "skin", "costumes", "boss", "arena"]);
+  function rosterTricks() {
+    const out = new Set();
+    for (const k of Object.keys(DATA.ENEMIES)) {
+      for (const t of enemyTraits(DATA.ENEMIES[k])) if (!NOT_A_TRICK.has(t.key)) out.add(t.key);
+    }
     return out;
   }
   // The one world whose backbone holds this enemy, or "" when it is shared (the
@@ -2758,7 +2783,7 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, worldOrder, byWorldOrder, musicStep, DT };
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, worldOrder, byWorldOrder, rosterTricks, NOT_A_TRICK, musicStep, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);
