@@ -3396,6 +3396,37 @@ and taking the label off its own row reports 11 at 320. **When a layout bound is
 justified against a test fixture's string, re-derive the string from the DATA and
 re-measure; the bound is usually about the fixture.**
 
+**▶ NEXT LEVEL IS THE ONE ENTRY INTO A LEVEL THAT SKIPS THE FORT HOME, AND IT
+NAMED NOTHING — while the line above it announced an unlock that had happened
+hours ago.** The fort home is where the ⭐ loadout, the 🎒 powers and the 🎖️
+chips are chosen, and where a level card states what the level DOES to you (the
+derived trick strip, the 👑). ▶ Next bypasses all of it, so the fastest path into
+a level was also the only one that told you nothing about it: straight into a
+night level, a fork or a boss finale with no cue to go back and pack 🦉 Night
+Owl. It carries the level's number, its name and the SAME derived
+`levelGimmicks` strip the card does — icons on the button, WORDS in the
+`aria-label`, because an icon strip is opaque to a screen reader. And the
+`🔓 Level N unlocked!` line beside it was gated on *"does a next level exist"*,
+so replaying a beaten level re-announced its unlock every time; it now reads the
+same `UI.levelBeaten` predicate the grid's unlock rule and the difficulty chips'
+counts use, captured BEFORE the star write, which is the only moment the question
+is answerable. Three readers, one predicate.
+**The lesson is in the guardrail, and it took two wrong assertions to find.** The
+fold clause first read `box.bottom <= innerHeight` — and a 60px mutation PASSED
+(455 → 468 of 480), because `.td-overlay__box` is CENTRED and capped at
+`calc(100dvh - 24px)`: as content grows the box recentres, so its bottom is a
+quantity the CSS guarantees rather than the property. That is the fort's
+`wrapW >= viewport.width` proxy again, one screen over — *when a check asserts X,
+assert X.* Measuring the CONTENT against the BOX (`scrollHeight > clientHeight`)
+is the real claim and fails at +140px, with the shipped worst case — derived as
+the longest label, a 2★ finish so the star-goal line is present, a full run
+summary and a badge — needing 425px of a 456px cap. The named label costs +10px
+(button 56 → 66, box 439 → 449) in portrait and 0 in landscape. **And a second
+clause was DELETED for being unfalsifiable rather than kept as decoration**: the
+button is a DIRECT child of a column flex box, so `align-items: stretch`
+guarantees its width and a `width: fit-content` mutation changes nothing — the
+real risk (a NESTED button escaping the column) already has an owner.
+
 ---
 
 ## Repository Structure

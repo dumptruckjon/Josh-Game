@@ -273,6 +273,12 @@
   // writers and how the wake lock's acquire and release drifted apart.
   const beatenOn = (save, diff, id) =>
     ((((save.stars || {})[diff]) || {})[String(id)] | 0) >= 1;
+  // …and the victory screen's "🔓 unlocked!" claim reads it too: that line was
+  // shown whenever a next level EXISTS, so replaying a level you had already
+  // beaten announced an unlock that happened hours ago. Three readers, one
+  // predicate — a second copy here would let the grid and the announcement
+  // disagree about what "beaten" means.
+  UI.levelBeaten = beatenOn;
   UI.ladderBeaten = function (save, diff) {
     return global.TDData.LEVELS.filter((l) => beatenOn(save, diff, l.id)).length;
   };
@@ -1690,6 +1696,23 @@
 
   UI.showVictory = function (stars, lives, maxLives, goal, hooks, rs, earned) {
     const hasNext = !!hooks.nextLevel;
+    // ▶ Next skips the fort home entirely — which is the ONE screen where the
+    // ⭐ loadout, the 🎒 powers and the 🎖️ chips are chosen, and where a level
+    // card states what the level DOES to you. So the fastest path into a level
+    // was also the only one that told you nothing about it: you went straight
+    // into a night level, a fork or a boss finale blind, with no cue to go back
+    // and pack 🦉 Night Owl. It carries the SAME derived trick strip the card
+    // does (TDLogic.levelGimmicks + the level's own boss flag), so an eleventh
+    // gimmick turns up here for free. Icons on the button, WORDS in the label —
+    // an icon strip is opaque to a screen reader.
+    const nx = hasNext ? (global.TDData.LEVELS.find((l) => l.id === hooks.nextLevel) || null) : null;
+    const nxTricks = nx ? global.TDLogic.levelGimmicks(nx) : [];
+    const nxBoss = nx && nx.waves.some((w) => w.boss);
+    const nxText = nx ? "▶ Next: " + nx.id + " · " + nx.name + (nxBoss ? " 👑" : "") +
+      (nxTricks.length ? " " + nxTricks.map((g) => g.icon).join("") : "") : "▶ Next level";
+    const nxAria = nx ? "Next level: " + nx.id + ", " + nx.name +
+      (nxBoss ? ", boss finale" : "") +
+      (nxTricks.length ? ", " + nxTricks.map((g) => g.name).join(", ") : "") : "Next level";
     const el = overlay("td-overlay--win",
       '<h3>Fort defended! 🎉</h3>' +
       '<p class="td-overlay__stars">' + "⭐".repeat(stars) + '<span class="td-level__dim">' + "⭐".repeat(3 - stars) + "</span></p>" +
@@ -1705,8 +1728,11 @@
         + "⭐".repeat(goal.stars) + "</p>" : "") +
       summaryHtml(rs) +
       earnedHtml(earned) +
-      (hasNext ? '<p class="td-overlay__warn">🔓 Level ' + hooks.nextLevel + ' unlocked!</p>' : "") +
-      (hasNext ? '<button class="td-btn td-btn--call" data-act="next" type="button">▶ Next level</button>' : "") +
+      // Only claim an unlock that ACTUALLY just happened. This was gated on
+      // `hasNext` — "does a next level exist" — so replaying a level you beat
+      // long ago announced "🔓 Level 24 unlocked!" every single time.
+      (hasNext && hooks.nextIsNew ? '<p class="td-overlay__warn">🔓 Level ' + hooks.nextLevel + ' unlocked!</p>' : "") +
+      (hasNext ? '<button class="td-btn td-btn--call" data-act="next" type="button" aria-label="' + nxAria + '">' + nxText + "</button>" : "") +
       '<button class="td-btn" data-act="continue" type="button">' + (hasNext ? "🏰 Back to the fort" : "Continue") + "</button>");
     el.addEventListener("click", (ev) => {
       const act = ev.target && ev.target.dataset && ev.target.dataset.act;

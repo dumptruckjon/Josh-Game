@@ -604,6 +604,12 @@
     if (st.phase === "wave" && prevPhase === "build") { UI.hideBubble(); cur.render.setSelection(null); }
     if (st.phase === "won") {
       stopLoop();
+      // Was the next level ALREADY open before this win? The unlock rule is
+      // "beat N with a star → N+1 opens", so it is exactly whether THIS level
+      // already carried a star on the RUN's own ladder — read through the same
+      // UI.levelBeaten the grid uses, and captured BEFORE the write below,
+      // which is the only moment the question is answerable.
+      const wasBeaten = UI.levelBeaten(save, st.difficulty, st.levelId);
       if (!st.cheated) {
         // the star lands on the RUN's difficulty ladder (a resumed run can
         // differ from the currently-selected chip — the run's own difficulty
@@ -647,6 +653,7 @@
         // A cheated (kid) win unlocks nothing, so it must not offer ▶ Next level —
         // it escaped kid mode into an adult run and promised a lock it never opened.
         nextLevel: nextExists && !st.cheated ? nextId : null,
+        nextIsNew: !wasBeaten,
         onNext: nextExists && !st.cheated
           ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, continueOpts(st)); }
           : null,

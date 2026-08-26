@@ -1977,6 +1977,25 @@ test("guardrail: \"how far into this run\" has exactly ONE owner", () => {
     "waveLabel must carry the endless predicate — a generated level is not in DATA.LEVELS");
 });
 
+test("guardrail: \"has this level been beaten\" has exactly ONE owner", () => {
+  // The grid's unlock rule, the count under each difficulty chip and the
+  // victory screen's "🔓 unlocked!" claim all ask the same question, and the
+  // third one used to answer it with "does a next level exist" — so replaying a
+  // beaten level announced its unlock all over again. A second copy of this
+  // predicate is how the count under a chip could advertise a number the grid
+  // then contradicts.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((ui.match(/const beatenOn = /g) || []).length, 1, "the predicate is defined once");
+  assert.match(ui, /UI\.levelBeaten = beatenOn/, "…and exported rather than re-implemented");
+  // the star-count comparison itself must live in that one place
+  assert.equal((ui.match(/\| 0\) >= 1/g) || []).length, 1,
+    "a second copy of \"beaten means at least one star\" is how two surfaces disagree");
+  const main = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.match(main, /UI\.levelBeaten\(save, st\.difficulty, st\.levelId\)/,
+    "the win path asks the owner whether the next level was ALREADY open");
+  assert.match(main, /nextIsNew:/, "…and passes the answer to the victory screen");
+});
+
 test("guardrail: the stale-clone SessionStart hook exists AND is wired", () => {
   // This container restores its writable disk from a SNAPSHOT, so a session can
   // begin with the repo rolled back to an old commit while `git status` reads

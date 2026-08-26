@@ -1410,6 +1410,118 @@ test("AUDIT progression: beating a level UNLOCKS the next (the 'level 2 never un
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("QoL: ▶ Next names where it goes, and only claims an unlock that just happened", async () => {
+  // ▶ Next is the ONE entry into a level that skips the fort home — where the
+  // ⭐ loadout, 🎒 powers and 🎖️ chips are chosen and where the card says what
+  // the level DOES to you — and it said only "Next level". And the
+  // "🔓 unlocked!" line was gated on "does a next level exist", so replaying a
+  // level you beat hours ago announced its unlock all over again.
+  const next2 = await page.evaluate(() => window.TDData.LEVELS.find((l) => l.id === 2).name);
+  const win = async () => {
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible", timeout: 8000 });
+    const r = await page.evaluate(() => window.__TD.winL1(7));
+    assert.equal(r, "won", "fixture: the shipped plan beats L1");
+    await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 6000 });
+    return page.evaluate(() => {
+      const b = document.querySelector('.td-overlay--win [data-act="next"]');
+      const w = document.querySelector(".td-overlay--win .td-overlay__warn");
+      return { label: b ? b.textContent : null, aria: b ? b.getAttribute("aria-label") : null,
+        unlock: w ? w.textContent : "" };
+    });
+  };
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#__renav"; });
+  await page.waitForTimeout(50);
+
+  const first = await win();
+  assert.ok(first.label && first.label.includes("2") && first.label.includes(next2),
+    `▶ Next must name the level it goes to (saw ${JSON.stringify(first.label)}, expected "${next2}")`);
+  assert.ok(first.aria && first.aria.includes(next2),
+    `…and say it in WORDS for a screen reader, not only in icons (saw ${JSON.stringify(first.aria)})`);
+  assert.match(first.unlock, /unlocked/,
+    "a FIRST win really does unlock the next level, so it says so");
+
+  // …and the same win, replayed. Nothing new is unlocked this time.
+  await page.locator('.td-overlay--win [data-act="continue"]').click();
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+  const again = await win();
+  assert.ok(again.label && again.label.includes(next2),
+    "…the button still names where it goes on a replay");
+  assert.ok(!/unlocked/.test(again.unlock),
+    `replaying a level you already beat must NOT announce its unlock again (saw ${JSON.stringify(again.unlock)})`);
+  await page.locator('.td-overlay--win [data-act="continue"]').click();
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+
+  // The trick strip is DERIVED, so it must appear for a level that HAS one.
+  // Rendered directly, because legitimately winning the level BEFORE a
+  // gimmick level costs a bespoke winning plan for one string.
+  const tricky = await page.evaluate(() => {
+    const lv = window.TDData.LEVELS.find((l) => window.TDLogic.levelGimmicks(l).length);
+    if (!lv) return null;
+    window.TDUI.showVictory(3, 20, 20, null, { nextLevel: lv.id, nextIsNew: false, continueOn: () => {}, onNext: () => {} }, null, []);
+    const b = document.querySelector('.td-overlay--win [data-act="next"]');
+    const g = window.TDLogic.levelGimmicks(lv);
+    const out = { label: b ? b.textContent : null, aria: b ? b.getAttribute("aria-label") : null,
+      icons: g.map((x) => x.icon), names: g.map((x) => x.name), name: lv.name };
+    window.TDUI.closeOverlay();
+    return out;
+  });
+  assert.ok(tricky, "fixture: some level carries a gimmick");
+  for (const ic of tricky.icons) {
+    assert.ok(tricky.label.includes(ic),
+      `▶ Next must carry the same derived trick strip the level card does (missing ${ic} for "${tricky.name}")`);
+  }
+  for (const nm of tricky.names) {
+    assert.ok(tricky.aria.includes(nm), `…and name it in words (missing "${nm}")`);
+  }
+
+  // THE FOLD. This overlay is the one a third tier-4 branch row was rejected
+  // for (+111px, past the fold at 320x480), and the label just grew: measured,
+  // the longest possible ▶ Next wraps the button 56 -> 66px and the box
+  // 439 -> 449, leaving 15px of a 480-tall screen. Worst case is DERIVED — the
+  // level with the longest label, a 2-star finish so the star-goal line is
+  // present, a full run summary and a badge — so a new gimmick or a long level
+  // name in world 11 turns this red instead of quietly pushing a button off.
+  await page.setViewportSize({ width: 320, height: 480 });
+  await page.waitForTimeout(60);
+  const fold = await page.evaluate(() => {
+    const L = window.TDData.LEVELS, G = window.TDLogic.levelGimmicks;
+    let best = null, bl = -1;
+    for (const lv of L) {
+      const n = ("" + lv.id + lv.name).length + (lv.waves.some((x) => x.boss) ? 2 : 0) + G(lv).length * 2;
+      if (n > bl) { bl = n; best = lv; }
+    }
+    window.TDUI.showVictory(2, 14, 20, { need: 18, stars: 3 },
+      { nextLevel: best.id, nextIsNew: true, continueOn: () => {}, onNext: () => {} },
+      { rows: [{ label: "🎯 Dart", pct: 62 }, { label: "💥 Mortar", pct: 38 }], kills: 431, gold: 2210, towers: 11, spent: 1980, best: 17 },
+      [{ icon: "🏅", html: "<b>Badge earned!</b><br>Doorman" }]);
+    const box = document.querySelector(".td-overlay--win .td-overlay__box");
+    const r = box.getBoundingClientRect();
+    const out = { scrollH: box.scrollHeight, clientH: box.clientHeight,
+      scrolls: box.scrollHeight > box.clientHeight,
+      level: best.name };
+    window.TDUI.closeOverlay();
+    return out;
+  });
+  // Measure the CONTENT against the box, not the box against the screen. The
+  // box is centred and capped at `calc(100dvh - 24px)`, so its BOTTOM can never
+  // pass the viewport however tall the content gets — it just recentres and then
+  // scrolls. A `bottom <= innerHeight` clause is therefore a quantity the CSS
+  // guarantees rather than the property, and it survived a 60px mutation
+  // (455 -> 468 of 480, still passing). The real claim is that the whole thing
+  // is VISIBLE at once here: content 425 of a 456 cap, 31px of headroom.
+  assert.ok(!fold.scrolls,
+    `the worst-case victory screen must fit 320x480 without scrolling — "${fold.level}" needs ` +
+    `${fold.scrollH}px in a ${fold.clientH}px box`);
+  // NOT asserted here: that the wrapped button keeps its siblings' width. It is
+  // a DIRECT child of a column flex box, so `align-items: stretch` guarantees it
+  // — a `width: fit-content` mutation changes nothing — and an unfalsifiable
+  // clause is worse than none. The real risk (a NESTED button escaping the
+  // column) is owned by "every stacked button in an overlay shares a width".
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+});
+
 test("kid-world isolation: the registry, home grid and 华丽 are untouched by the fort", async () => {
   const reg = await page.evaluate(() => ({
     total: (window.JoshGames || []).length,
