@@ -3796,8 +3796,13 @@ clause is really protecting, which is now written beside it.
 **A GREEN LOCAL GATE SHIPPED A 1-IN-200 COIN FLIP, AND THE CLAIM THAT IT WAS
 "SAFE BY MEASUREMENT" WAS THE DEFECT.** CI run #380 failed the 🏃 Marathoner
 badge test with `fixture precondition: the board must actually survive to wave
-20 (reached 3)` — and because `test` gates `deploy`, that one flake held THREE
-finished commits off the live site. The test seeds its endless run from
+20 (reached 3)`, and because `test` gates `deploy`, that run shipped nothing.
+**Corrected on checking rather than assuming: the NEXT push's run carried both
+commits and deployed them ~50 minutes later, so the flake cost a deploy CYCLE,
+not the commits** — on a linear `main` the tip run carries whatever the failed
+run was holding. The first draft of this entry (and of its commit message) said
+it "held three finished commits off the live site", which was the alarming
+reading rather than the measured one. The test seeds its endless run from
 `Date.now()`, which is the only non-deterministic input in an otherwise
 deterministic suite, and its own comment (and this file) recorded it as safe
 because **8 seeds × 2 arenas** had all survived. Swept properly over **1200
