@@ -1212,8 +1212,20 @@
     const cells = ACHS().map((a) => {
       const has = got.has(a.id);
       const p = !has && progress[a.id];
-      return '<div class="td-ach' + (has ? " td-ach--on" : "") + '">' +
-        '<span class="td-ach__icon">' + (has ? a.icon : "🔒") + "</span>" +
+      // A GHOST of the badge you will win, not a padlock. 16 of the 19 cells wore
+      // the identical 🔒, so the grid showed no hint of what any of them IS until
+      // you had it — the same defect Josh's Sticker Book already fixed ("170 of
+      // 200 slots were the identical ❓"), never carried across to the fort. The
+      // earned state is still unmistakable without the lock (gold border, green
+      // fill), and OPACITY does the dimming: a CSS `filter` on art rendered in
+      // bulk is this project's documented WebKit rasterization cliff.
+      //   …and because the lock was also the only thing SAYING "locked", the
+      // card gets an explicit accessible name — dropping a glyph that carried
+      // meaning without replacing it is how the level cards' own label went
+      // wrong, one screen over.
+      return '<div class="td-ach' + (has ? " td-ach--on" : "") + '" aria-label="' +
+        a.name + (has ? ", earned" : ", locked") + ". " + (starDesc[a.id] || a.desc) + '">' +
+        '<span class="td-ach__icon' + (has ? "" : " td-ach__icon--ghost") + '">' + a.icon + "</span>" +
         '<span class="td-ach__name">' + a.name + "</span>" +
         '<span class="td-ach__desc">' + (starDesc[a.id] || a.desc) +
         // no new colour: it inherits the description's, so it adds no AA risk to

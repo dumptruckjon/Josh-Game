@@ -824,6 +824,11 @@ body.td-mode #screens { padding: 0; }
 }
 .td-ach--on { border-color: #ffd94a; background: #22301c; }
 .td-ach__icon { font-size: 1.6rem; }
+/* An unearned badge is a GHOST of itself, so the grid reads as a collection to
+   fill rather than 16 identical padlocks. OPACITY only — a `filter` on art
+   rendered in bulk is the documented WebKit rasterization cliff that once
+   stalled CI for over an hour on the Sticker Book's 200 grayscale()d slots. */
+.td-ach__icon--ghost { opacity: 0.3; }
 .td-ach__name { font-weight: 800; font-size: 0.82rem; color: #e8eefc; }
 .td-ach__desc { font-size: 0.68rem; color: #9db4dd; line-height: 1.15; }
 

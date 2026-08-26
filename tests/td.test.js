@@ -1456,6 +1456,66 @@ test("QoL: the fort-home blurb DERIVES its roster claim instead of listing it", 
     `${before.tricks - 1} — saw ${JSON.stringify(moved.shrunk)}`);
 });
 
+test("QoL: an unearned badge is a GHOST of itself, not one of 16 identical padlocks", async () => {
+  // 16 of the 19 cells wore the same 🔒, so the grid gave no hint of what any
+  // badge IS until you had it — the defect Josh's Sticker Book already fixed
+  // ("170 of 200 slots were the identical ❓") and never carried across.
+  await page.evaluate(() => {
+    const st = {}; for (let i = 1; i <= 16; i++) st[i] = 3;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1,
+      stars: { normal: st, casual: {}, heroic: {} }, settings: {}, difficulty: "normal",
+      meta: [], ach: ["doorman", "firstblood"], endlessBest: {}, midRun: null }));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+  await page.evaluate(() => window.TDUI.showAchievements(JSON.parse(localStorage.getItem("jon-td-save-v1"))));
+  await page.waitForSelector(".td-achs", { timeout: 5000 });
+  const m = await page.evaluate(() => {
+    const names = {};
+    for (const a of window.TDData.ACHIEVEMENTS) names[a.name] = a;
+    const cells = [...document.querySelectorAll(".td-ach")].map((c) => {
+      const ic = c.querySelector(".td-ach__icon");
+      const def = names[c.querySelector(".td-ach__name").textContent];
+      return { id: def && def.id, icon: def && def.icon, shown: ic.textContent,
+        ghost: ic.classList.contains("td-ach__icon--ghost"),
+        on: c.classList.contains("td-ach--on"),
+        opacity: parseFloat(getComputedStyle(ic).opacity),
+        filter: getComputedStyle(ic).filter,
+        aria: c.getAttribute("aria-label") };
+    });
+    return { cells, locks: [...document.querySelectorAll(".td-achs")].map((g) => g.textContent).join("").split("🔒").length - 1 };
+  });
+  assert.ok(m.cells.length >= 12, `fixture: the whole grid rendered (${m.cells.length})`);
+  const on = m.cells.filter((c) => c.on), off = m.cells.filter((c) => !c.on);
+  assert.ok(on.length >= 1 && off.length >= 5, `fixture: a MIX of earned and locked (${on.length}/${off.length})`);
+  assert.equal(m.locks, 0, "no badge cell may fall back to a padlock — every one shows its own icon");
+  for (const c of m.cells) {
+    assert.equal(c.shown, c.icon, `"${c.id}" must show its OWN icon, earned or not (saw ${JSON.stringify(c.shown)})`);
+    // A `filter` on art rendered in bulk is this project's documented WebKit
+    // rasterization cliff — the Sticker Book's 200 grayscale()d slots stalled CI
+    // for over an hour. Opacity does the dimming.
+    assert.ok(!c.filter || c.filter === "none",
+      `"${c.id}"'s icon must not use a CSS filter (saw ${c.filter}) — that is the WebKit rasterization cliff`);
+    // …and dropping the padlock dropped the only thing SAYING "locked", so the
+    // state has to be in the accessible name instead.
+    assert.ok(c.aria && new RegExp(c.on ? "earned" : "locked").test(c.aria),
+      `"${c.id}" must say it is ${c.on ? "earned" : "locked"} (saw ${JSON.stringify(c.aria)})`);
+  }
+  // A separation, not a pinned constant: a ghost is clearly dimmer than an
+  // earned icon and still visible.
+  const ghostOp = off[0].opacity, onOp = on[0].opacity;
+  assert.ok(off.every((c) => c.ghost) && on.every((c) => !c.ghost),
+    "exactly the unearned icons are ghosted");
+  assert.ok(ghostOp > 0.1, `a ghost must still be visible (opacity ${ghostOp})`);
+  assert.ok(ghostOp < onOp * 0.6,
+    `…and clearly secondary to an earned icon (${ghostOp} vs ${onOp})`);
+  await page.evaluate(() => { window.TDUI.closeOverlay(); window.__TD.resetSave(); });
+  await page.waitForTimeout(60);
+});
+
 test("QoL: a countable badge says how CLOSE you are, and its bar is the award site's", async () => {
   // Three of the 19 badges have a countable target, and the grid showed a
   // player at 58 of 60 stars exactly what it showed one at 3. Same law as the

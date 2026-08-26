@@ -3622,6 +3622,28 @@ while writing it: the first cut banned the ternary outright and flagged
 `lanesOf`'s own body, so it counts occurrences and requires the single survivor
 to be inside the owner.
 
+**16 OF THE FORT'S 19 BADGES WORE THE IDENTICAL 🔒 — the Sticker Book's defect,
+fixed in Josh's world and never carried across.** This file already records
+*"170 of 200 slots were the identical ❓; an unearned slot is now a faint grey
+GHOST of the sticker you will win, so the book reads as a collection to fill"* —
+and the fort's 🏅 grid, built later, hid every badge's own icon behind a padlock
+until it was earned. That is the recurring shape: a fix recorded as a one-off
+instead of asked *what else has this?*. An unearned badge now shows its own icon
+dimmed, so 🛡️, 🎯, 🧊, 🌪️ and ⚡ are legible from the first visit and the grid
+reads as a collection. Three things kept it honest. **OPACITY, never a filter** —
+a CSS `filter` on art rendered in bulk is this project's documented WebKit
+rasterization cliff (the 200 `grayscale(1)`ed slots that stalled CI for over an
+hour), and the guardrail asserts `filter: none` on every badge icon rather than
+trusting the comment. **The bar is a SEPARATION, not the shipped 0.3** — a ghost
+must be visible (>0.1) and clearly secondary (<0.6x the earned icon), so a
+future re-tune inside that band is free and a value outside it is not.
+**And dropping the padlock dropped the only thing SAYING "locked"** — a badge
+cell has no other state text, so its accessible name would have gone from
+"🔒 No Leaks…" to "🛡️ No Leaks…" with the state silently lost. That is the exact
+regression the level cards had just been fixed for, one screen over, so the cell
+gained an explicit label naming earned-or-locked in the same change. **When you
+remove a glyph, check what it was carrying besides decoration.**
+
 ---
 
 ## Repository Structure
