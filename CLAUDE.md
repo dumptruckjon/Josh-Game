@@ -3593,6 +3593,35 @@ trick with exactly one carrier (14 of the 24 qualify), delete that enemy, and
 require the count to fall. **When a self-proving injection cannot move a number,
 check whether the quantity is saturated and falsify it from the other side.**
 
+**"WHICH LANES, AND WHICH IS LANE 0" HAD THREE OWNERS, AND THE GUARDRAIL OVER
+THEM SILENTLY EXEMPTED 40% OF ITS POPULATION.** Enumerating `DATA.LEVELS` found
+`(levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path])`
+written out three times — in `createEngine`, in `laneCoverage` and in
+`propCells` — and all three have to agree, because the engine positions every
+enemy along lane 0, the `% road` figure measures a pad against it, and the prop
+scatter keeps clear of it. A disagreement is not cosmetic: an enemy drawn on the
+wrong track is the near-miss TD-7 already records. One `lanesOf()` owner now,
+which also drops falsy entries so a level one field short degrades instead of
+handing `undefined` to `buildPath` — and that it never HAPPENS is a guardrail's
+job, not a runtime throw's (all 40 levels and all 10 arenas resolve lane 0
+identically, asserted).
+**The sibling finding is the sharper one.** The fork test's default-noop clause —
+*"lane 0 is exactly the level's original single path"* — is guarded on
+`if (l.path)`, and **four of the ten fork levels (L10, L19, L27, L31) were
+authored with `paths` and no `path` at all**, so for them it checks nothing.
+That is correct as DATA (they never had a single-lane original) and wrong as a
+guardrail, because deleting `path` from a retrofitted level is then a way to
+silence its own proof. **The obvious repair does not work**: a bar like
+`checkedNoop >= 3` is satisfied by exactly the dodge, since removing one field
+takes 6 to 5. It needs a CONSCIOUS exemption list plus an exact count, and the
+mutation that proves it is the real thing — rename L3's `path` and it reports
+*"fork level(s) 3 declare paths[] with no `path`"*. **A count-based floor is not
+a substitute for naming the exemption: the floor tolerates the first step of the
+very drift it is guarding.** One more instance of the scan-matches-itself trap
+while writing it: the first cut banned the ternary outright and flagged
+`lanesOf`'s own body, so it counts occurrences and requires the single survivor
+to be inside the owner.
+
 ---
 
 ## Repository Structure

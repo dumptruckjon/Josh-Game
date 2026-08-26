@@ -4293,6 +4293,14 @@ test("TD-13 tallies: they survive a wave WITHOUT draining events (the 400-cap tr
 test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a DEFAULT-NOOP", () => {
   const forked = DATA.LEVELS.filter((l) => l.paths && l.paths.length > 1);
   assert.ok(forked.length >= 3, `the lane subsystem ships on several levels, not just one (${forked.length})`);
+  // The default-noop clause below is guarded on `l.path`, and FOUR of the ten
+  // fork levels (L10, L19, L27, L31) were authored with `paths` and no `path`
+  // at all — so for them it silently checks nothing. That is fine as data (they
+  // never had a single-lane original to be identical to) and NOT fine as a
+  // guardrail, because deleting `path` from a retrofitted level is then a way to
+  // silence the check. Count what it actually verifies and require a real
+  // population, so the exemption cannot quietly grow to cover everything.
+  let checkedNoop = 0;
   for (const l of forked) {
     assert.ok(l.fork && typeof l.fork.at === "number", `L${l.id} declares its fork distance`);
     assert.ok(l.lever && typeof l.lever.cx === "number", `L${l.id} has a lever to throw`);
@@ -4309,7 +4317,7 @@ test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a D
     assert.ok(b.total > a.total * 1.15, `L${l.id}'s long route must be meaningfully longer (${(b.total / a.total).toFixed(2)}×)`);
     // DEFAULT-NOOP: lane 0 is exactly the level's original single path, so every
     // winnability sim (which never pulls the lever) is untouched by the retrofit.
-    if (l.path) assert.deepEqual(l.paths[0], l.path, `L${l.id}'s default lane must BE the original path`);
+    if (l.path) { checkedNoop++; assert.deepEqual(l.paths[0], l.path, `L${l.id}'s default lane must BE the original path`); }
     // …and no pad may sit on EITHER lane (the shipped pad-geometry law).
     // MEASURED IN CELL-INDEX SPACE, like `AUDIT pad geometry` and like the
     // engine itself: a tower stores `cx: pad.cx` and targets against posAt's
@@ -4334,6 +4342,37 @@ test("TD-11 forks: every fork level keeps the shared-prefix invariant and is a D
       }
     }
   }
+  // A bar like `checkedNoop >= 3` would not catch the dodge it is written for:
+  // deleting `path` from ONE retrofitted level takes 6 to 5 and sails through.
+  // The exemption has to be CONSCIOUS instead — these four were authored with
+  // `paths` from the start and never had a single-lane original to be identical
+  // to, so there is nothing for the clause to check. Any OTHER fork level that
+  // loses its `path` is a retrofit quietly silencing its own noop proof.
+  const PATHLESS_FORKS = new Set([10, 19, 27, 31]);
+  const surprises = forked.filter((l) => !l.path && !PATHLESS_FORKS.has(l.id)).map((l) => l.id);
+  assert.deepEqual(surprises, [],
+    `fork level(s) ${surprises.join(", ")} declare paths[] with no \`path\` — either they were authored that ` +
+    "way (say so here) or a retrofit has deleted the field its default-noop proof is guarded on");
+  assert.equal(checkedNoop, forked.length - PATHLESS_FORKS.size,
+    `the default-noop clause verified ${checkedNoop} of ${forked.length} fork levels, expected ` +
+    `${forked.length - PATHLESS_FORKS.size} — the exemption list must not grow silently`);
+
+  // …and the ONE owner of "which lanes, and which is lane 0". Three consumers
+  // must agree on that (createEngine's positioning, laneCoverage's % road,
+  // propCells' clearance) and it used to be three copies of one ternary.
+  for (const l of DATA.LEVELS) {
+    const ls = TD.lanesOf(l);
+    assert.ok(ls.length >= 1, `L${l.id} must resolve at least one lane`);
+    assert.deepEqual(ls[0], l.paths ? l.paths[0] : l.path, `L${l.id}: lane 0 is the level's own primary lane`);
+    assert.equal(ls.length, (l.paths || [l.path]).length, `L${l.id}: no declared lane may be dropped`);
+  }
+  for (const [w, a2] of Object.entries(DATA.ENDLESS.arenas)) {
+    assert.ok(TD.lanesOf(a2).length >= 1, `the ${w} arena must resolve a lane — it is a level like any other here`);
+  }
+  // a level one field short DEGRADES rather than handing undefined to buildPath
+  assert.deepEqual(TD.lanesOf({}), [], "a level with no lane at all resolves to none, instead of [undefined]");
+  assert.deepEqual(TD.lanesOf({ paths: [], path: [[0, 0], [1, 0]] }), [[[0, 0], [1, 0]]],
+    "an EMPTY paths[] falls back to the single lane, exactly as the ternary it replaced did");
 });
 
 // Every world must OFFER the lever, or the subsystem quietly stops being part of

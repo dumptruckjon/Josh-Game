@@ -2796,6 +2796,28 @@ test("guardrail: throwing a live battle away has exactly ONE confirm owner", () 
   }
 });
 
+test("guardrail: \"which lanes, and which is lane 0\" has exactly ONE owner", () => {
+  // Three consumers must agree: createEngine positions every enemy along lane 0,
+  // laneCoverage measures a pad's `% road` against it, and propCells keeps the
+  // scenery clear of it. It was three byte-identical copies of one ternary, and
+  // a disagreement is not cosmetic — an enemy rendered on the wrong track is the
+  // near-miss TD-7 already records.
+  const eng = read("scripts/td-logic.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((eng.match(/function lanesOf\(/g) || []).length, 1, "lanesOf is defined exactly once");
+  // Exactly ONE ternary, and it is the owner's own body — the first cut banned
+  // it outright and flagged `lanesOf` itself, which is the scan matching the
+  // thing it exists to protect.
+  const terns = (eng.match(/levelDef\.paths && levelDef\.paths\.length \?/g) || []).length;
+  assert.equal(terns, 1, `the lane-selection ternary must exist exactly once (saw ${terns})`);
+  const at = eng.indexOf("function lanesOf(");
+  const end = eng.indexOf("\n  function ", at + 10);
+  assert.ok(at >= 0 && end > at, "the scan must find a real region to slice, not the rest of the file");
+  assert.match(eng.slice(at, end), /levelDef\.paths && levelDef\.paths\.length \?/,
+    "…and that one lives inside the owner, not at a call site");
+  assert.ok((eng.match(/lanesOf\(levelDef\)/g) || []).length >= 3,
+    "…and all three consumers read it");
+});
+
 test("guardrail: the fort-home blurb reads the roster OWNER, not its own numbers", () => {
   // The browser half proves the numbers are derived and that the rendered note
   // contains what UI.rosterBlurb() builds — but the note lives in the screen

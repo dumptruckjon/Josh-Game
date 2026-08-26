@@ -221,7 +221,7 @@
     // TD-7: a level may define multiple lanes (`paths[]`) — a fork/merge or a
     // lever-switched track. Single-path levels are exactly `[levelDef.path]`, so
     // every enemy stays `pathIdx` 0 and behaviour is byte-identical to before.
-    const paths = (levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path]).map(buildPath);
+    const paths = lanesOf(levelDef).map(buildPath);
     const path = paths[0]; // primary lane: rendering default + single-path reference
     const epath = (e) => paths[e.pathIdx || 0]; // the lane an enemy is travelling
     const epos = (e) => posAt(epath(e), e.dist); // its world position on that lane
@@ -2558,8 +2558,25 @@
   //
   // rangeMin is the Mortar's dead zone — the one stat that makes two pads at
   // equal distance genuinely different — so it is subtracted, not ignored.
+  // ONE owner of "which lanes does this level have, and which one is lane 0".
+  // THREE consumers have to agree on that — createEngine positions every enemy
+  // along it, laneCoverage measures a pad's `% road` against it, and propCells
+  // keeps the scenery clear of it — and it was three byte-identical copies of
+  // the same ternary. A disagreement would not be cosmetic: an enemy rendered
+  // on the wrong track is the near-miss TD-7 already records.
+  //   Falsy entries are dropped rather than handed to buildPath, so a level one
+  // field short degrades instead of throwing inside createEngine. That it never
+  // happens on shipped data is a GUARDRAIL's job — a level with no lane at all
+  // is an authoring error, and a runtime throw is a worse way to learn it than
+  // a red test.
+  function lanesOf(levelDef) {
+    const ls = levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path];
+    return ls.filter(Boolean);
+  }
   function laneCoverage(levelDef, cx, cy, range, rangeMin) {
-    const lane = buildPath((levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path])[0]);
+    const ls = lanesOf(levelDef);
+    if (!ls.length) return 0;
+    const lane = buildPath(ls[0]);
     if (!lane.total) return 0;
     const lo = (rangeMin || 0) * (rangeMin || 0), hi = (range || 0) * (range || 0);
     if (hi <= 0) return 0;
@@ -2580,7 +2597,7 @@
     const PAD = o.pad == null ? 1.4 : o.pad;      // nor crowd a build socket
     const want = o.count == null ? 7 : o.count;
     const G = grid || DATA.GRID;
-    const lanes = (levelDef.paths && levelDef.paths.length ? levelDef.paths : [levelDef.path]).map(buildPath);
+    const lanes = lanesOf(levelDef).map(buildPath);
     const pads = levelDef.pads || [];
     // distance from a point to a polyline, in CELL-INDEX space — the same space
     // pads and path points are stored in (the documented "two coordinate spaces
@@ -2719,7 +2736,7 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, musicStep, DT };
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, musicStep, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);
