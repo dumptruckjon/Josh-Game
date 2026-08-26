@@ -1841,6 +1841,46 @@ test("TD6 events carry render metadata: shoot→tower (distinct sfx), hit→dmg/
   assert.ok(sawHitDmg, "a hit event carries its damage (for the opt-in damage-number fx)");
 });
 
+test("no two things you PICK BETWEEN wear the same icon (the tile-icon law, in the fort)", () => {
+  // Josh's world has this law and the fort never inherited it: a picker's icon
+  // is its scanning cue, and 240 of his tiles were audited for exactly this
+  // (45 shared a picture with a sibling on the same screen). Measured here, the
+  // star tree had FOUR nodes wearing 🎯 — and one of them, Close Quarters, is a
+  // MORTAR skill wearing the DART line's own icon, which is not a duplicate but
+  // a wrong picture, the `cheap`/"Weakest" class one layer out.
+  const dup = (label, items) => {
+    const by = {};
+    for (const it of items) (by[it.icon] = by[it.icon] || []).push(it);
+    return Object.entries(by).filter(([, v]) => v.length > 1)
+      .map(([icon, v]) => ({ label, icon, names: v.map((x) => x.name || x.id), items: v }));
+  };
+  for (const [label, items] of [
+    ["badges", DATA.ACHIEVEMENTS],
+    ["chips", DATA.CHIPS],
+    ["powers", DATA.ABILITIES],
+    ["tower lines", Object.entries(DATA.TOWERS).map(([id, t]) => ({ icon: t.icon, name: t.name || id }))],
+    ["worlds", Object.entries(DATA.WORLDS).map(([id, w]) => ({ icon: (w.label.match(/^\S+/) || [""])[0], name: id }))],
+  ]) {
+    const bad = dup(label, items);
+    assert.deepEqual(bad.map((b) => b.icon + " " + b.names.join("/")), [],
+      `two ${label} you pick between share an icon — the picker's icon is its scanning cue`);
+  }
+  // The star tree is the one surface with a LEGITIMATE duplicate: a rank II node
+  // deliberately wears its rank I icon, which is how you see they are the same
+  // skill. Anything else sharing one is a collision. Derived from `req`, so a
+  // rank III inherits the exemption and a new skill does not.
+  const treeDup = dup("star-tree nodes", DATA.META_NODES);
+  assert.ok(treeDup.length >= 3, `fixture: the ranked pairs must still exist (saw ${treeDup.length})`);
+  for (const g of treeDup) {
+    const [a2, b2] = g.items;
+    assert.equal(g.items.length, 2,
+      `${g.icon} is worn by ${g.items.length} tree nodes (${g.names.join(", ")}) — only a rank PAIR may share one`);
+    assert.ok(a2.req === b2.id || b2.req === a2.id,
+      `${g.icon} is worn by "${g.names[0]}" and "${g.names[1]}", which are not ranks of one skill — ` +
+      "a shared icon there says they are the same thing when they are not");
+  }
+});
+
 test("TD5 achievements data-shape: unique ids with names + descriptions, icons ≤ Emoji 13.0, one badge per boss", () => {
   assert.ok(DATA.ACHIEVEMENTS.length >= 12, `at least the shipped badges exist (${DATA.ACHIEVEMENTS.length})`);
   // EVERY boss must have a badge. World 4's Tickmaster shipped without one, and

@@ -2191,7 +2191,7 @@
     // finale on their own. Under a 6-slot pack, more KINDS is more choice.
     // Every one of these is deliberately SITUATIONAL — dead weight on the wrong
     // level, which is what makes packing it a decision rather than an upgrade.
-    { id: "deepfreeze",   branch: "fire", icon: "🧊", name: "Deep Freeze",   desc: "Slows last 40% longer",              cost: 4 },
+    { id: "deepfreeze",   branch: "fire", icon: "🥶", name: "Deep Freeze",   desc: "Slows last 40% longer",              cost: 4 },
     { id: "ricochet",     branch: "fire", icon: "🪃", name: "Ricochet",      desc: "The Fan's chain jumps one more",     cost: 5 },
     { id: "widerblast",   branch: "fire", icon: "💣", name: "Wider Blast",   desc: "Tap-anywhere powers cover +25%",     cost: 4 },
     { id: "sparebattery", branch: "econ", icon: "🔋", name: "Spare Battery", desc: "+1 toy energy every wave",           cost: 5 },
@@ -2205,7 +2205,7 @@
     // only choices make the tree interesting. Each is consumed at exactly ONE
     // engine site and none of them is raw damage.
     { id: "quickhands",   branch: "fire", icon: "⏱️", name: "Fast Hands",    desc: "Powers come back 20% sooner",        cost: 4 },
-    { id: "closequarters", branch: "fire", icon: "🎯", name: "Close Quarters", desc: "The Mortar's dead zone shrinks 40%", cost: 3 },
+    { id: "closequarters", branch: "fire", icon: "🤏", name: "Close Quarters", desc: "The Mortar's dead zone shrinks 40%", cost: 3 },
     { id: "handyman",     branch: "econ", icon: "🔧", name: "Handyman",      desc: "Tier 1-3 upgrades cost 10% less",    cost: 4 },
     { id: "warmedup",     branch: "econ", icon: "🔌", name: "Warmed Up",     desc: "Start each level with a full battery", cost: 3 },
     { id: "softlanding",  branch: "fort", icon: "🛬", name: "Soft Landing",  desc: "Big leaks cost 2 fewer stickers",    cost: 4 },
@@ -2216,9 +2216,9 @@
     // tier-4 branch or the crit line, Coin Magnet needs piñatas, and both
     // squad nodes are dead weight unless you build a camp.
     { id: "livewire",     branch: "fire", icon: "🔗", name: "Live Wire",     desc: "The Fan's chain keeps more punch each jump", cost: 4 },
-    { id: "steadyaim",    branch: "fire", icon: "🎯", name: "Steady Aim",    desc: "Critical hits do 25% more damage",           cost: 3 },
+    { id: "steadyaim",    branch: "fire", icon: "✨", name: "Steady Aim",    desc: "Critical hits do 25% more damage",           cost: 3 },
     { id: "coinmagnet",   branch: "econ", icon: "🧲", name: "Coin Magnet",   desc: "Piñatas burst 60% more gold",                cost: 3 },
-    { id: "padding",      branch: "fort", icon: "🧱", name: "Padding",       desc: "Soldiers take 25% less melee damage",        cost: 4 },
+    { id: "padding",      branch: "fort", icon: "🛡️", name: "Padding",       desc: "Soldiers take 25% less melee damage",        cost: 4 },
     { id: "drillsergeant", branch: "fort", icon: "🥁", name: "Drill Sergeant", desc: "Soldiers hit 25% harder",                  cost: 3 },
   ];
 

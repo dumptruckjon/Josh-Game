@@ -3644,6 +3644,28 @@ regression the level cards had just been fixed for, one screen over, so the cell
 gained an explicit label naming earned-or-locked in the same change. **When you
 remove a glyph, check what it was carrying besides decoration.**
 
+**THE TILE-ICON LAW NEVER REACHED THE FORT, AND THE WORST OFFENDER WAS NOT A
+DUPLICATE — IT WAS A WRONG PICTURE.** Josh's world audits every screen for two
+tiles sharing a glyph (45 of his 240 did); the fort, built later, was never
+asked. Measured across its five pickers, badges / chips / powers / tower lines /
+worlds are all clean, and **the 40-node star tree had FOUR nodes wearing 🎯** —
+of which only two are a rank pair. The genuinely wrong one is 🎯 **Close
+Quarters**, whose description is *"The Mortar's dead zone shrinks 40%"*: a
+MORTAR skill wearing the DART line's own icon, which is the `cheap`/"Weakest"
+class one layer out — not a collision but a picture that says the wrong thing.
+Fixed to 🤏; ✨ Steady Aim takes the sparkle the game already uses as its crit
+cue; 🥶 Deep Freeze stops impersonating 🧊 Cold Front, a different skill and not
+a rank of it; and 🛡️ Padding stops wearing the brick that belongs to the
+Mortar's crates. **The law is derived with ONE exemption, and the exemption is
+the interesting part**: a rank II node *should* wear its rank I icon — that is
+how you see they are one skill — so the pair is legal exactly when `req` links
+them, which means a rank III inherits the exemption and a brand-new skill never
+does. Three mutations across three different surfaces go red (a tree node
+re-taking 🎯, two badges sharing one, two powers sharing one). **When a fix is
+recorded in one world, the next question is which other world has the same
+surface** — this is the second such carry-over in a row, after the Sticker
+Book's ghost.
+
 ---
 
 ## Repository Structure
