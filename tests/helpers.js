@@ -92,29 +92,90 @@ async function startServer(root = ROOT) {
   return { server, baseURL: `http://localhost:${port}/`, pause, resume, setHijack };
 }
 
+// A page navigation is the ONE place these tests touch a network they do not
+// control. Against a local server that is in-process and reliable; against the
+// LIVE site (JOSH_BASE_URL, the verify-live job) it is a CDN, and a CDN resets
+// sockets. Run #365 died on
+//   "page.goto: Peer failed to perform TLS handshake: Connection reset by peer"
+// in the two heaviest live tests — the ones that walk 240 games at two viewports,
+// so they make hundreds of navigations and are the first to be hit. `test` and
+// `deploy` had both passed, so the site was live and correct and the red said
+// otherwise.
+//   That erodes what a red verify-live MEANS, which is the same argument the
+// bounded `playwright install` retry was built on: a transient becomes a retry, a
+// real failure stays a fast, visible red. Every attempt is announced, so a retry
+// is never silent, and the error is re-thrown unchanged once the attempts are
+// spent — a site that is genuinely down still fails, and fails saying why.
+const NAV_ATTEMPTS = 3;
+// Only transport-level failures are retried. An assertion, a page error, a 404
+// or a timeout waiting for content is a REAL failure and must not be masked —
+// retrying those would turn this from a flake filter into a bug filter.
+const TRANSIENT = /TLS handshake|Connection reset|ECONNRESET|ECONNREFUSED|EPIPE|socket hang up|net::ERR_(CONNECTION|NETWORK|SOCKET|EMPTY_RESPONSE)/i;
+
+function retryNavigation(page) {
+  const real = page.goto.bind(page);
+  page.goto = async function (url, opts) {
+    let last;
+    for (let i = 1; i <= NAV_ATTEMPTS; i++) {
+      try {
+        return await real(url, opts);
+      } catch (err) {
+        last = err;
+        if (!TRANSIENT.test(String(err && err.message))) throw err;   // a real failure, unmasked
+        if (i === NAV_ATTEMPTS) break;
+        console.warn(`  ⚠️  navigation to ${url} failed (${String(err.message).split("\n")[0]}) — ` +
+          `attempt ${i} of ${NAV_ATTEMPTS}, retrying`);
+        await new Promise((r) => setTimeout(r, 1000 * i));
+      }
+    }
+    throw last;
+  };
+  return page;
+}
+
+// Wrap the BROWSER, not the call sites: there are 14 `page.goto`s across four
+// files and six places that build a page, so a per-call-site helper is a list
+// someone forgets to join. A page made from a wrapped browser inherits the retry
+// however it was made.
+function withNavRetries(browser) {
+  if (!browser || browser.__navRetries) return browser;
+  browser.__navRetries = true;
+  const newPage = browser.newPage.bind(browser);
+  browser.newPage = async (...a) => retryNavigation(await newPage(...a));
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (...a) => {
+    const ctx = await newContext(...a);
+    const ctxNewPage = ctx.newPage.bind(ctx);
+    ctx.newPage = async (...b) => retryNavigation(await ctxNewPage(...b));
+    return ctx;
+  };
+  return browser;
+}
+
 async function launchBrowser() {
   const executablePath = findChromium();
-  return chromium.launch({
+  return withNavRetries(await chromium.launch({
     args: ["--no-sandbox", "--use-gl=swiftshader"],
     ...(executablePath ? { executablePath } : {}),
-  });
+  }));
 }
 
 // For mobile tests: real WebKit (Safari engine) when installed, else Chromium.
 async function launchMobileBrowser() {
   if (webkitAvailable()) {
-    return { browser: await webkit.launch(), engine: "webkit" };
+    return { browser: withNavRetries(await webkit.launch()), engine: "webkit" };
   }
   const executablePath = findChromium();
   return {
-    browser: await chromium.launch({
+    browser: withNavRetries(await chromium.launch({
       args: ["--no-sandbox", "--use-gl=swiftshader"],
       ...(executablePath ? { executablePath } : {}),
-    }),
+    })),
     engine: "chromium",
   };
 }
 
 module.exports = {
   findChromium, webkitAvailable, startServer, launchBrowser, launchMobileBrowser, ROOT,
+  withNavRetries, NAV_ATTEMPTS, TRANSIENT,
 };

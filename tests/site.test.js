@@ -2867,6 +2867,86 @@ test("guardrail: every ARMED field control explains a refusal", () => {
   });
 });
 
+test("guardrail: a live navigation retries a socket reset, and NOTHING else", async () => {
+  // verify-live is the only job that talks to a network nobody here controls, and
+  // a CDN resets sockets: run #365 died on "Peer failed to perform TLS handshake"
+  // in the two heaviest live tests, while `test` and `deploy` had both passed —
+  // so the site was live and correct and the red said otherwise. A red
+  // verify-live has to keep meaning "the deploy is broken".
+  //   The danger of a retry is that it becomes a bug filter, so the interesting
+  // clauses here are the ones about what must NOT be retried.
+  const H = require("./helpers.js");
+  const made = [];
+  // The fixture carries its OWN hard cap. Without it an unbounded retry does not
+  // fail this test, it HANGS — and a hang is not a proof, it is a stuck gate. The
+  // cap turns a runaway into a distinctive rejection a clause can name.
+  const RUNAWAY = 8;
+  const fakePage = (fails, msg) => {
+    let n = 0;
+    return {
+      goto: async () => {
+        if (++n > RUNAWAY) throw new Error("RUNAWAY: retried past any sane bound");
+        if (n <= fails) throw new Error(msg);
+        return { ok: true, tries: n };
+      },
+      tries: () => n,
+    };
+  };
+  const fakeBrowser = (page) => ({
+    newPage: async () => { made.push("direct"); return page; },
+    newContext: async () => ({ newPage: async () => { made.push("context"); return page; } }),
+  });
+  const RESET = "page.goto: Peer failed to perform TLS handshake: Error sending data: Connection reset by peer";
+
+  // 1. a transient reset is retried and the run carries on
+  let pg = fakePage(2, RESET);
+  let b = H.withNavRetries(fakeBrowser(pg));
+  let p = await b.newPage();
+  const warn = console.warn; const said = []; console.warn = (m) => said.push(String(m));
+  try {
+    const res = await p.goto("https://example.test/");
+    assert.ok(res && res.ok, "a socket reset that clears must not fail the run");
+    assert.equal(pg.tries(), 3, "…and it must be the SAME navigation retried, not a new one");
+  } finally { console.warn = warn; }
+  assert.ok(said.length >= 2 && /retrying/.test(said[0]),
+    "every retry must be announced — a silent retry hides a degrading network");
+
+  // 2. bounded: a reset that never clears still fails, with the real error
+  pg = fakePage(99, RESET);
+  b = H.withNavRetries(fakeBrowser(pg));
+  p = await b.newPage();
+  console.warn = () => {};
+  try {
+    await assert.rejects(() => p.goto("https://example.test/"), /Connection reset/,
+      "a site that is genuinely unreachable must still go red, saying why");
+  } finally { console.warn = warn; }
+  assert.ok(pg.tries() <= RUNAWAY,
+    "an unbounded retry is a HANG, not a guard — this must stop on its own");
+  assert.equal(pg.tries(), H.NAV_ATTEMPTS,
+    `it must stop at exactly ${H.NAV_ATTEMPTS} attempts`);
+
+  // 3. THE CLAUSE THAT MATTERS: a real failure is not retried at all. Masking a
+  //    404, a timeout or a page error would turn this from a flake filter into a
+  //    bug filter, which is far worse than the flake.
+  for (const real of ["Timeout 30000ms exceeded", "net::ERR_ABORTED", "expected 3 to equal 4"]) {
+    const rp = fakePage(99, real);
+    const rb = H.withNavRetries(fakeBrowser(rp));
+    const page = await rb.newPage();
+    await assert.rejects(() => page.goto("https://example.test/"), new RegExp(real.split(" ")[0]));
+    assert.equal(rp.tries(), 1, `"${real}" is a REAL failure and must fail on the first attempt`);
+  }
+
+  // 4. both ways a page is built inherit it — there are six such places across
+  //    the suite, so wrapping the call sites would be a list someone forgets.
+  const ctxPage = fakePage(1, RESET);
+  const cb = H.withNavRetries(fakeBrowser(ctxPage));
+  const viaCtx = await (await cb.newContext()).newPage();
+  console.warn = () => {};
+  try { await viaCtx.goto("https://example.test/"); } finally { console.warn = warn; }
+  assert.equal(ctxPage.tries(), 2, "a page made through newContext() must retry too");
+  assert.deepEqual(made.slice(-1), ["context"], "fixture: that page really came the context route");
+});
+
 test("guardrail: a badge announcement has ONE owner", () => {
   // Badges are announced by `announce()`, which routes by the run's PHASE — into
   // the outcome box when one is on screen, as a toast otherwise — because a toast

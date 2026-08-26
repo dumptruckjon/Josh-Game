@@ -3276,6 +3276,34 @@ dead-code scan must search tests with the SAME patterns it searches source, and
 when deleting something a test names, expect to re-point that test at the
 property rather than to drop it.
 
+**A RED `verify-live` STOPPED MEANING "THE DEPLOY IS BROKEN".** Run #365 failed
+on `page.goto: Peer failed to perform TLS handshake: Error sending data:
+Connection reset by peer` — while its own `test` and `deploy` jobs had BOTH
+passed, so the site was live, correct, and serving the commit. The two casualties
+were the heaviest live tests in the suite (the ones that walk 240 games at two
+viewports, so they make hundreds of navigations against the CDN and are the first
+to be hit). That is the same shape as the `playwright install` stall: an external
+dependency sitting on the critical path with no retry, where a transient produces
+the identical signal to a real failure and quietly devalues it. A navigation is
+now retried through ONE owner. Four things worth keeping. (1) **The interesting
+clauses are the ones about what must NOT be retried** — a timeout, a 404, an
+aborted load or an assertion is a REAL failure, and retrying those would turn a
+flake filter into a BUG filter, which is far worse than the flake it fixes; the
+transient set is an explicit transport-level pattern and the mutation that
+retries everything goes red naming the timeout. (2) **Wrap the BROWSER, not the
+call sites** — there are 14 `page.goto`s across four files and six places that
+build a page, so a per-site helper is a list someone forgets to join; a page made
+from a wrapped browser inherits the retry however it was made, and a mutation
+that un-wraps the `newContext` route alone is caught. (3) **Every retry is
+announced and the original error is re-thrown unchanged** once the attempts are
+spent, so a degrading network is visible and a site that is genuinely down still
+fails saying why. (4) **The FIXTURE needed its own hard cap**: the first
+boundedness clause could not fail against an unbounded retry, it HUNG — the same
+`while` hazard recorded two entries above, now met in the test that was written to
+police it. A fake page that throws a distinctive `RUNAWAY` past any sane bound
+turns the hang into a named red. **A mutation that hangs has not been proven;
+give the fixture a bound so it can fail.**
+
 ---
 
 ## Repository Structure
