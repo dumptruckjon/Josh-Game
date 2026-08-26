@@ -3304,6 +3304,58 @@ police it. A fake page that throws a distinctive `RUNAWAY` past any sane bound
 turns the hang into a named red. **A mutation that hangs has not been proven;
 give the fixture a bound so it can fail.**
 
+**THE TOYBOX GUIDE ASKED THE PLAYER TO LEARN 56 ENEMIES WHEN THERE ARE 35 — and
+the field that proves it was classified as "presentation" by the very guardrail
+that exists to stop a mechanic shipping invisible.** 21 of the roster's 56 cards
+are backbone SKINS, and `td-logic.test.js` already asserts every one is
+stat-identical to its ancestor ("a skin is a costume, not a balance change") —
+so the guide's longest section, 77% of a 15,663px dialog, rendered ten separate
+cards all reading `❤️ 34 · 🏃 0.8 · 🪙 5 · Can be hit by: 🎯 💥 ❄️ 🪖 · No tricks`
+with **nothing tying them together**. A player who meets 🍬 Loose Sweet on L38
+and looks it up learned nothing about the 🔵 Speedy Marble they already know how
+to kill. Four things worth keeping. (1) **The guardrail was on the wrong side of
+its own question**: `skinOf` sat on `NOT_A_TRAIT`, and that classification WAS
+the defect — being a costume is exactly the fact a reader needs told, so it is a
+trait like any other mechanic. Moving it into `FIELD_TRAIT` makes the derived
+coverage law enforce it, which is why a single mutation now turns TWO tests red.
+(2) **Both directions are stated because they answer different questions** — the
+skin's card answers *"what is this thing that just killed me"* (the defeat screen
+deep-links straight to it) and the ancestor's answers *"how many of these do I
+actually have to learn"*, and the reverse relation is not a FIELD, so it is
+derived by identity exactly as `homeWorld()` matches a world's backbone. (3) **An
+earlier pass had already made this diagnosis and stopped halfway** — the `home`
+line's own comment says in as many words that it exists so ten "no tricks" cards
+"stop reading as ten copies of the same enemy", and it says WHERE you meet one
+while never saying it IS one. When a comment states the problem you are looking
+at, read what it actually fixed before assuming it is covered. (4) **FOLDING the
+skins was considered and rejected on the lookup case**: dropping their stat block
+would regress the defeat screen's diagnosis, which sends you to the SKIN's card
+to be told what can reach it. So the change is purely additive and its cost is
+measured rather than waved through — the guide grows 15,663 → 16,651px (+6.3%),
+and the first draft's longer copy wrapped to +9%, which is the argument for terse
+trait text. Ordering matters and is pinned: the line is pushed AFTER the
+`!out.length` fallback, or a plain skin silently loses "anything can hit it" —
+the mutation that moves it reports exactly that. Six mutations red, including one
+proving the CARD's render loop puts it on the page (a structural scan proves
+`enemyTraits` emits the line; only opening the guide proves it is rendered).
+
+**Two QoL candidates from the same sweep were REJECTED by measurement, recorded
+so nobody re-opens them.** (1) **Naming the tower LINES in the build menu** — the
+menu shows icon + role + price + `% road` and the names (`Dart Blaster`, `Block
+Mortar`, `Freeze-Pop Fan`, `Army Guys Camp`) appear nowhere, not even in an
+aria-label. The premise was that a 🎖️ chip constrains by NAME so the player
+cannot link the ban to the card; measured, that is false — with 🥵 Heat Wave armed
+the Fan card renders `🧊 OFF FOR THIS CHALLENGE 🎖️`, `disabled`, at 0.72 opacity,
+so the ban is already unmistakable on the card itself and a name would be
+decoration. (2) **Shrinking the fort's 60px top bar in landscape** — measured, it
+costs the field nothing worth having: 844×390 leaves 28px below the canvas and
+667×375 leaves 27, so only short landscape is height-limited at all, while
+1024×768 leaves 350px (not height-limited, so the bar cannot be what binds it)
+and PORTRAIT is width-limited, so the bar is free there already. CLAUDE.md's own
+law settles the rest — landscape must keep WORKING but is explicitly not a design
+target — so this would buy a few pixels on the one orientation the project
+deprioritises.
+
 ---
 
 ## Repository Structure

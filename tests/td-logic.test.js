@@ -4172,11 +4172,18 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
   const FIELD_TRAIT = { flier: "flier", shield: "shield", splashResist: "splash", slowHeal: "slowheal",
     sap: "sap", phase: "phase", tunnel: "tunnel", split: "split", heal: "heal", charge: "charge", goldBurst: "gold", boss: "boss",
     bonkResist: "bonkresist", zapResist: "zapresist", hurry: "hurry", slowImmune: "slowimmune", spawner: "spawner",
-    stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases", spill: "spill", jamBurst: "jamburst" };
+    stomp: "stomp", suck: "suck", enrage: "enrage", phases: "phases", spill: "spill", jamBurst: "jamburst",
+    // `skinOf` sat on NOT_A_TRAIT as "presentation", and that classification WAS
+    // the defect: a costume is stat-identical to its ancestor (asserted below in
+    // "P2 skins"), so the roster asked the player to learn 56 bodies when there
+    // are 35 — ten cards all reading "34 hp · 0.8 · no tricks · anything can hit
+    // it" with nothing tying them together. Being a costume is exactly the fact
+    // a reader needs told, so it is a trait like any other mechanic.
+    skinOf: "skin" };
   // Plain stats (spoken by the card's own stat line), presentation, or fields
   // asserted separately below. Everything else MUST be a trait.
   const NOT_A_TRAIT = new Set(["hp", "speed", "icon", "name", "bounty", "size", "meleeDmg", "meleeRate",
-    "shieldRegen", "skinOf", "sortKey", "armor", "lives"]);
+    "shieldRegen", "sortKey", "armor", "lives"]);
   const ALL_FIELDS = new Set();
   for (const def of Object.values(DATA.ENEMIES)) for (const f of Object.keys(def)) ALL_FIELDS.add(f);
   for (const f of ALL_FIELDS) {
@@ -4194,6 +4201,45 @@ test("TD-12 guide truth: reachedBy and enemyTraits are read off the enemy's own 
     // stickers" is a rule the player can only learn by losing.
     if (def.lives > 1) assert.ok(keys.includes("toll"), `${k} costs ${def.lives} lives but the guide never says so`);
   }
+});
+
+// A costume must be NAMED as one, in BOTH directions — the two lines answer
+// different questions and neither substitutes for the other: the skin's card
+// answers "what is this thing that just killed me" (the defeat screen deep-links
+// straight to it), and the ancestor's answers "how many of these do I actually
+// have to learn". Both are DERIVED from `skinOf`, so a world 11 whose backbone
+// wears three new costumes documents itself.
+test("TD-12 guide truth: a skin is NAMED as a costume, and its ancestor lists what it wears", () => {
+  const E = DATA.ENEMIES;
+  const skins = Object.keys(E).filter((k) => E[k].skinOf);
+  assert.ok(skins.length >= 15, `expected the shipped skin roster, saw ${skins.length}`);
+  const worn = new Map();      // ancestor id -> [skin ids]
+  for (const k of skins) {
+    const anc = E[E[k].skinOf];
+    assert.ok(anc, `skin "${k}" names an ancestor that does not exist`);
+    worn.set(E[k].skinOf, (worn.get(E[k].skinOf) || []).concat(k));
+    const line = TD.enemyTraits(E[k]).find((t) => t.key === "skin");
+    assert.ok(line, `skin "${k}" never says it IS one — its card repeats the ancestor's stats with nothing tying them together`);
+    assert.ok(line.text.includes(anc.name) && line.text.includes(anc.icon),
+      `"${k}" must name the ${anc.name} it is a costume on, saw "${line.text}"`);
+  }
+  assert.ok(worn.size >= 3, `expected several ancestors to wear costumes, saw ${worn.size}`);
+  for (const [ancId, mine] of worn) {
+    const line = TD.enemyTraits(E[ancId]).find((t) => t.key === "costumes");
+    assert.ok(line, `"${ancId}" is worn as ${mine.length} costumes and its card never says so`);
+    for (const k of mine) {
+      assert.ok(line.text.includes(E[k].icon),
+        `"${ancId}" does not list its costume "${k}" (${E[k].icon}) — the list must be DERIVED, not typed`);
+    }
+    // and the two directions must not BOTH land on one card
+    assert.ok(!TD.enemyTraits(E[ancId]).some((t) => t.key === "skin"),
+      `"${ancId}" is an ancestor, not a costume`);
+  }
+  // A costume line must never eat the counters: a plain skin still has to say
+  // that anything can hit it, which is what the defeat screen sends you here for.
+  const plainSkin = skins.find((k) => !E[k].flier && !E[k].armor);
+  const pk = TD.enemyTraits(E[plainSkin]).map((t) => t.key);
+  assert.ok(pk.includes("plain"), `"${plainSkin}" lost its "anything can hit it" line to the costume line`);
 });
 
 // ---- TD-13: run tallies live in STATE (exact, cap-proof, sim-readable) ----

@@ -2339,6 +2339,32 @@ test("TD-12 guide: 📖 opens a card for every enemy, naming what can hit it", a
   const plane = await page.evaluate(() => document.querySelector('.td-guide__card[data-enemy="tinplane"]').textContent);
   assert.match(plane, /Armored/, "the Tin Plane's armor is explained");
   assert.match(plane, /zap ignores armor/, "…including the counter-play that answers it");
+  // A COSTUME must say so on the rendered page, both ways round. A structural
+  // scan proves enemyTraits emits the line; only opening the guide proves the
+  // card's own render loop puts it there — and 21 of the 56 cards are costumes,
+  // so this is the roster's single biggest source of apparent duplication.
+  // DERIVED, so a world 11's new skins are covered without editing this.
+  const costume = await page.evaluate(() => {
+    const E = window.TDData.ENEMIES;
+    const id = Object.keys(E).find((k) => E[k].skinOf);
+    const anc = E[id].skinOf;
+    const txt = (k) => {
+      const c = document.querySelector('.td-guide__card[data-enemy="' + k + '"]');
+      return c ? c.textContent.replace(/\s+/g, " ") : "";
+    };
+    return { id, anc, ancName: E[anc].name, ancIcon: E[anc].icon,
+      skinIcons: Object.keys(E).filter((k) => E[k].skinOf === anc).map((k) => E[k].icon),
+      skin: txt(id), ancestor: txt(anc) };
+  });
+  assert.ok(costume.id && costume.anc, "the roster ships skins to check");
+  assert.ok(costume.skin.includes(costume.ancIcon + " " + costume.ancName),
+    `the "${costume.id}" card must name the ${costume.ancName} it is a costume on, saw "${costume.skin}"`);
+  assert.ok(/anything can hit it|Flies|Armored/.test(costume.skin),
+    "…without losing the counters the defeat screen sends you here for");
+  for (const ic of costume.skinIcons) {
+    assert.ok(costume.ancestor.includes(ic),
+      `the "${costume.anc}" card must list every costume it is worn as (missing ${ic})`);
+  }
   // Every STAR-TREE node must appear too. The tree grew to 30 nodes across three
   // branches and was documented NOWHERE outside its own buy screen — the same
   // condition that made TD-12 write this guide for the enemies, and that TD-16's

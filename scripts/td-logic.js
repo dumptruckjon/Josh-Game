@@ -2417,6 +2417,28 @@
     // of these reach the door is not the same as letting a sock through.
     if (def.lives > 1) out.push({ key: "toll", icon: "💔", text: "Costs " + def.lives + " stickers if it reaches the door" });
     if (!out.length) out.push({ key: "plain", icon: "•", text: "No tricks — anything can hit it" });
+    // A SKIN is a costume, not a new enemy — `td-logic.test.js` proves every
+    // one is stat-identical to its ancestor, differing only in name and icon.
+    // The guide never said so, so its longest section asked the player to learn
+    // 56 bodies when there are 35: ten separate cards all reading "34 hp, 0.8
+    // speed, no tricks, anything can hit it" with nothing tying them together.
+    // The `home` line below was an earlier half-step at the same problem (its
+    // own comment says ten "no tricks" cards "stop reading as ten copies of the
+    // same enemy") — it says WHERE you meet one and never that it IS one.
+    // Both directions are stated, because they answer different questions: the
+    // skin's card answers "what is this thing that just killed me", and the
+    // ancestor's answers "how many of these do I actually have to learn".
+    if (def.skinOf) {
+      const anc = DATA.ENEMIES[def.skinOf];
+      if (anc) out.push({ key: "skin", icon: "🎭",
+        text: "A " + anc.icon + " " + anc.name + " in local colours — same stats, same counters" });
+    } else {
+      // The reverse relation is not a FIELD on this def, so it is derived by
+      // identity exactly as homeWorld() matches a world's own backbone.
+      const worn = Object.values(DATA.ENEMIES).filter((k) => k.skinOf && DATA.ENEMIES[k.skinOf] === def);
+      if (worn.length) out.push({ key: "costumes", icon: "🎭",
+        text: "Turns up as " + worn.map((k) => k.icon).join(" ") + " — same body, same counters" });
+    }
     // Phase 2: a world's EXCLUSIVE backbone shapes are its regulars, and the
     // guide never said where you meet anything. Derived by matching the def
     // against WORLDS[].backbone, so a new world's crowd documents itself and
