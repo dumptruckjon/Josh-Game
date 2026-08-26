@@ -1166,12 +1166,36 @@
     // the moment World 4 raised the ceiling to 48.
     const cap = global.TDData.LEVELS.length * 3;
     const starDesc = { starcollector: "Earn " + Math.round(cap / 2) + " stars", fullfort: "Earn all " + cap + " stars" };
+    // HOW CLOSE AM I? Three of the badges have a COUNTABLE target and the grid
+    // showed a player at 58 of 60 stars exactly what it showed one at 3 — the
+    // same law as the victory screen's star goal and the ⬆ preview: a number you
+    // are being scored on should be visible rather than inferred. The
+    // DENOMINATORS are the award site's own thresholds, derived from the shipped
+    // level count, so the readout cannot promise a bar the code does not use.
+    // Only while UNEARNED: once you have it the count is noise, which is the
+    // same signal-not-decoration rule the meta-row badges follow.
+    const earnedStars = starTotals(save).earned;
+    const bestWave = Math.max(0, ...Object.values(save.endlessBest || {}).map((v) => v | 0));
+    const marathonAt = 20;                       // the bar earnAch("marathoner") uses
+    const progress = {
+      starcollector: [earnedStars, Math.round(cap / 2)],
+      fullfort: [earnedStars, cap],
+      // only once there IS an endless run to measure — "0 of 20" before you have
+      // ever opened an arena is a bar, not progress.
+      marathoner: bestWave > 0 ? [bestWave, marathonAt] : null,
+    };
     const cells = ACHS().map((a) => {
       const has = got.has(a.id);
+      const p = !has && progress[a.id];
       return '<div class="td-ach' + (has ? " td-ach--on" : "") + '">' +
         '<span class="td-ach__icon">' + (has ? a.icon : "🔒") + "</span>" +
         '<span class="td-ach__name">' + a.name + "</span>" +
-        '<span class="td-ach__desc">' + (starDesc[a.id] || a.desc) + "</span></div>";
+        '<span class="td-ach__desc">' + (starDesc[a.id] || a.desc) +
+        // no new colour: it inherits the description's, so it adds no AA risk to
+        // an overlay the contrast audit already walks. The class is the test's
+        // handle, nothing more.
+        (p ? ' · <b class="td-ach__prog">' + p[0] + "/" + p[1] + "</b>" : "") +
+        "</span></div>";
     }).join("");
     const el = metaOverlay("td-achgrid", '<h3>🏅 Badges</h3>' +
       '<p class="td-overlay__stars">' + got.size + " / " + ACHS().length + "</p>" +

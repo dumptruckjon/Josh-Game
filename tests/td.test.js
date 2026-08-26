@@ -1381,6 +1381,71 @@ test("AUDIT UX: 🏠 mid-level asks before leaving — Keep playing stays, Leave
   assert.equal(await page.evaluate(() => location.hash), "#td-home", "Leave returns to the fort");
 });
 
+test("QoL: a countable badge says how CLOSE you are, and its bar is the award site's", async () => {
+  // Three of the 19 badges have a countable target, and the grid showed a
+  // player at 58 of 60 stars exactly what it showed one at 3. Same law as the
+  // victory screen's star goal: a number you are being scored on should be
+  // visible rather than inferred. The DENOMINATORS have to be the award site's
+  // own thresholds, derived from the shipped level count — a literal 60/120
+  // went stale the moment World 4 raised the ceiling.
+  const open = async (beat, best, ach) => {
+    await page.evaluate((arg) => {
+      const stars = {};
+      for (let i = 1; i <= arg.beat; i++) stars[i] = 3;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify({ v: 1,
+        stars: { normal: stars, casual: {}, heroic: {} }, settings: {}, difficulty: "normal",
+        meta: [], ach: arg.ach, endlessBest: arg.best, midRun: null }));
+    }, { beat, best, ach: ach || ["doorman"] });
+    await page.reload({ waitUntil: "load" });
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.waitForTimeout(40);
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible", timeout: 8000 });
+    await page.evaluate(() => window.TDUI.showAchievements(JSON.parse(localStorage.getItem("jon-td-save-v1"))));
+    await page.waitForSelector(".td-achs", { timeout: 5000 });
+    const out = await page.evaluate(() => {
+      const by = {};
+      const names = {};
+      for (const a of window.TDData.ACHIEVEMENTS) names[a.name] = a.id;
+      for (const c of document.querySelectorAll(".td-ach")) {
+        const id = names[c.querySelector(".td-ach__name").textContent];
+        const prog = c.querySelector(".td-ach__prog");
+        by[id] = { prog: prog ? prog.textContent : null, on: c.classList.contains("td-ach--on") };
+      }
+      return { by, cap: window.TDData.LEVELS.length * 3 };
+    });
+    await page.evaluate(() => window.TDUI.closeOverlay());
+    return out;
+  };
+
+  const a = await open(16, { bedroom: 14 });
+  const half = Math.round(a.cap / 2);
+  assert.equal(a.by.starcollector.prog, 16 * 3 + "/" + half,
+    `Star Collector must count the stars you actually have against the award's own bar (saw ${a.by.starcollector.prog})`);
+  assert.equal(a.by.fullfort.prog, 16 * 3 + "/" + a.cap,
+    `Full Fort's bar is the derived ceiling, never a literal (saw ${a.by.fullfort.prog})`);
+  assert.equal(a.by.marathoner.prog, "14/20",
+    `Marathoner counts your best endless wave (saw ${a.by.marathoner.prog})`);
+  // A SECOND seed, because a hard-coded "48/60" satisfies every clause above.
+  // It also seeds a COUNTABLE badge as earned, which is the only way to test
+  // that an earned one drops its count: the first version of this clause used
+  // Doorman, which is not countable at all, so `progress[id]` was undefined
+  // whether or not the earned check existed and the mutation sailed through.
+  const b = await open(7, {}, ["doorman", "fullfort"]);
+  assert.ok(b.by.fullfort.on, "fixture: a COUNTABLE badge is seeded as earned");
+  assert.equal(b.by.fullfort.prog, null,
+    "an earned badge must not wear a progress count — once you have it the number is noise");
+  assert.equal(b.by.starcollector.prog, 7 * 3 + "/" + half,
+    `the count must MOVE with the save (saw ${b.by.starcollector.prog})`);
+  assert.notEqual(b.by.starcollector.prog, a.by.starcollector.prog, "…and the two seeds must differ");
+  // No endless run at all: "0 of 20" before you have opened an arena is a bar,
+  // not progress.
+  assert.equal(b.by.marathoner.prog, null,
+    `with no endless run recorded, Marathoner shows no progress (saw ${b.by.marathoner.prog})`);
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  await page.waitForTimeout(60);
+});
+
 test("QoL: a level card SAYS what it is — and its star count is the save's, not the glyphs'", async () => {
   // A button with no aria-label is announced as its concatenated textContent,
   // and here that was "1🕳️Under the Bed●●●⭐⭐⭐🥵" for all 40 cards. That is not

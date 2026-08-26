@@ -3533,6 +3533,34 @@ mention, so a second gated badge inherits the rule — proven by giving
 🎯 Pea Purist a `lines: 1` it never says out loud. **When a badge is gated, the
 gate is player copy, not an implementation detail.**
 
+**THE 🏅 BADGE GRID SHOWED A PLAYER AT 58 OF 60 STARS EXACTLY WHAT IT SHOWED ONE
+AT 3.** Three of the 19 badges have a COUNTABLE target — ⭐ Star Collector,
+👑 Full Fort and 🏃 Marathoner — and the overlay rendered only earned-or-locked,
+so the two that measure the campaign's whole long game were the two you could
+not track. Fifth surface for the law that shipped the ⬆ preview, the `% road`
+figure, the star goal and the RUSH preview. Two things keep it honest. **The
+DENOMINATORS are the award site's own thresholds** (`round(cap/2)` and `cap`,
+derived from `LEVELS.length * 3`), because a literal 60/120 goes stale the
+moment an eleventh world lands — the exact defect the star ceiling already
+records. And **it renders only while UNEARNED**: once you have the badge the
+count is noise, which is the same signal-not-decoration rule the fort-home meta
+badges follow. 🏃 Marathoner shows nothing at all until there IS an endless run,
+because "0 of 20" before you have opened an arena is a bar, not progress.
+Measured cost: the grid grows 990 → 1002px (one description wraps) on a dialog
+that already scrolls and has a sticky ✕. No new colour — the count inherits the
+description's, so it adds no AA risk to an overlay the contrast audit already
+walks, and its class is only the test's handle.
+**The lesson is the clause that could not fail.** "An earned badge must not wear
+a count" was written against 🚪 Doorman — which is not a countable badge at all,
+so `progress[id]` is `undefined` whether or not the earned check exists, and the
+mutation that drops the check sailed straight through. Re-pointed at a COUNTABLE
+badge seeded as earned, it goes red. Same family as the ratio net that passed its
+own mutation and the `bottom <= innerHeight` proxy: **a clause has to be aimed at
+an input the defect can actually reach**, and the way to find out is to run the
+mutation rather than to admire the assertion. The second seed exists for the
+sibling reason — a hard-coded "48/60" satisfies every other clause, so the test
+opens the grid twice and requires the number to MOVE.
+
 ---
 
 ## Repository Structure
