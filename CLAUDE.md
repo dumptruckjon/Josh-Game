@@ -4030,6 +4030,26 @@ carried the number for the 300-gold ultimate you may never buy and omitted it fo
 the 70-gold purchase you make first, ten times a level. Read from the tier-1 stat
 block, never re-typed.
 
+**EVERY BALANCE CLAIM IN THIS FILE RESTS ON EIGHT TOOLS THAT NOTHING RAN.** They
+are referenced six times in `td-logic.test.js` — *"sweep it with
+tools/td-fork-search.js"*, *"run `node tools/td-sim.js 38 --lever`"* — and every
+one of those references is a COMMENT. That is the standing pairing inverted: a
+comment proves a tool was used once; only running it proves it still loads the
+engine and the data it reads. A bit-rotted tool (a renamed export, a moved
+field) is otherwise found mid-investigation, where the natural reading is that
+the GAME changed rather than the instrument broke — and this file already
+records four separate occasions where a broken instrument produced a confident
+wrong answer about the product. Measured first: **all eight run clean on today's
+data**, so this is coverage rather than a fix, which is the honest half to write
+down. A smoke test now drives each at the smallest scope that still does real
+work — **1.8 seconds for all eight** — and asserts it exits clean, prints
+something, and prints a NUMBER, because a measuring tool that measured nothing
+is the failure that looks most like success. The population is DERIVED from
+`tools/` and the per-tool scope is a NAMED map (a minimal invocation cannot be
+derived — they take different knobs), with the two tied together so a ninth tool
+is red until somebody gives it one. Mutation-proven three ways: point a tool at
+a renamed module, add a tool with no scope, and make a tool exit silently.
+
 ---
 
 ## Repository Structure

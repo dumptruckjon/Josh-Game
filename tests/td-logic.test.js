@@ -7089,6 +7089,52 @@ test("P4.3 tree: it costs more than a 32-level campaign can earn", () => {
   for (const n of DATA.META_NODES) assert.ok(branches.has(n.branch), `node ${n.id} names a real branch`);
 });
 
+test("tools: every research tool still RUNS against today's data", () => {
+  // Every balance claim in CLAUDE.md rests on these eight, and they were named
+  // only in COMMENTS — the tests point a future author at `tools/td-sim.js` and
+  // nothing checks it still works. That is the standing pairing inverted: a
+  // comment proves a tool was USED once, only running it proves it still loads
+  // the engine and the data it reads. A tool that has bit-rotted (a renamed
+  // export, a moved field) is otherwise discovered mid-investigation, where the
+  // natural reading is that the GAME changed rather than the instrument broke.
+  //
+  // Each entry is the smallest scope that still does real work — measured, all
+  // eight together run in about two seconds. The map is NAMED rather than
+  // derived because a tool's minimal invocation cannot be: they take different
+  // knobs. What IS derived is the population, so a ninth tool fails here until
+  // somebody gives it a smoke scope.
+  const { execFileSync } = require("node:child_process");
+  const { readdirSync } = require("node:fs");
+  const SMOKE = {
+    "td-sim.js": { args: ["1"], env: { SEEDS: "1", DIFFS: "normal" } },
+    "td-wave-gen.js": { args: ["--check"], env: {} },
+    "td-gold.js": { args: ["1"], env: {} },
+    "td-fork-search.js": { args: ["1"], env: {} },
+    "td-map-search.js": { args: [], env: {} },
+    "td-miniboss.js": { args: ["1"], env: { SEEDS: "1", HP: "0", DIFFS: "normal" } },
+    "td-elite.js": { args: [], env: { LEVELS: "1", FRACS: "0", TAIL: "1" } },
+    "td-threat.js": { args: ["1"], env: { DOSES: "2" } },
+  };
+  const found = readdirSync("tools").filter((f) => f.endsWith(".js")).sort();
+  assert.ok(found.length >= 8, `the tools must be found (${found.length})`);
+  assert.deepEqual(found.filter((f) => !SMOKE[f]), [],
+    "every tool needs a smoke scope here — a new one is unverified until it has one");
+  for (const f of found) {
+    const { args, env } = SMOKE[f];
+    let out = "";
+    try {
+      out = execFileSync(process.execPath, ["tools/" + f].concat(args),
+        { env: Object.assign({}, process.env, env), timeout: 60000, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) {
+      assert.fail(`tools/${f} no longer runs: ${(e && e.message || e).toString().slice(0, 300)}`);
+    }
+    // …and it must have done something, not just printed a usage banner. These
+    // are measuring tools, so real output carries numbers.
+    assert.ok(out.trim().length > 20, `tools/${f} produced no real output (${JSON.stringify(out.slice(0, 60))})`);
+    assert.match(out, /\d/, `tools/${f} printed no numbers — a measuring tool that measured nothing`);
+  }
+});
+
 test("guide: the roster's speed range is DERIVED, and bosses are off it", () => {
   // The cards print `🏃 0.8` and nothing said what that is. It is cells a second
   // (`dist += effSpeed(e) * DT`), and a bare number has no anchor until you have
