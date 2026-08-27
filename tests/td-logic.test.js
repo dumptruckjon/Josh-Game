@@ -7089,6 +7089,31 @@ test("P4.3 tree: it costs more than a 32-level campaign can earn", () => {
   for (const n of DATA.META_NODES) assert.ok(branches.has(n.branch), `node ${n.id} names a real branch`);
 });
 
+test("guide: the roster's speed range is DERIVED, and bosses are off it", () => {
+  // The cards print `🏃 0.8` and nothing said what that is. It is cells a second
+  // (`dist += effSpeed(e) * DT`), and a bare number has no anchor until you have
+  // read several cards — so the guide states the range the crowd runs at, and it
+  // has to come from the roster rather than being typed once and left to rot.
+  const r = TD.rosterSpeeds();
+  const crowd = Object.values(DATA.ENEMIES).filter((e) => !e.boss && typeof e.speed === "number");
+  assert.ok(crowd.length > 20, `the crowd must be a real population (${crowd.length})`);
+  assert.equal(r.min, Math.min(...crowd.map((e) => e.speed)), "the low end is the roster's own");
+  assert.equal(r.max, Math.max(...crowd.map((e) => e.speed)), "…and so is the high end");
+  // BOSSES are deliberately off the scale the crowd sets, so they must not widen
+  // it — otherwise one outlier makes the range useless as an anchor.
+  const bosses = Object.values(DATA.ENEMIES).filter((e) => e.boss && typeof e.speed === "number");
+  assert.ok(bosses.length >= 5, `there must be bosses to exclude (${bosses.length})`);
+  const withBosses = Math.min(...bosses.concat(crowd).map((e) => e.speed));
+  if (withBosses < r.min) assert.ok(true, "a boss is slower than the whole crowd, and is excluded");
+  // …and it MOVES with the data: comparing against the same field the owner
+  // reads is satisfied by a literal, so inject a body the range cannot know.
+  DATA.ENEMIES.__fast = { name: "Test", icon: "⚡", hp: 1, speed: 99, bounty: 1 };
+  let grown;
+  try { grown = TD.rosterSpeeds(); } finally { delete DATA.ENEMIES.__fast; }
+  assert.equal(grown.max, 99, "a faster body must widen the range — otherwise the number is a literal");
+  assert.equal(TD.rosterSpeeds().max, r.max, "fixture: the injected body is removed again");
+});
+
 test("P4.4 tree: a node GATED on something a run may not have says so", () => {
   // Two of the forty are conditional and the tree said nothing. 🦉 Night Owl
   // halves the NIGHT reach penalty, and `night` is on exactly one campaign level

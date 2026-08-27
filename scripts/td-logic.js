@@ -2664,6 +2664,15 @@
     return moved.length === 1 ? moved[0] : "";
   }
   function nodeGate(nodeId) { return gateOfMod(nodeModKey(nodeId)); }
+  // The speed range the ordinary crowd runs at, derived. The guide's enemy cards
+  // print `🏃 0.8` and nothing anywhere says what that is — it is cells a
+  // second (`dist += effSpeed(e) * DT`), and a bare 0.8 has no anchor at all
+  // until you have read several cards. A measured range gives it one. Bosses are
+  // excluded: they are deliberately off the scale the crowd sets.
+  function rosterSpeeds() {
+    const v = Object.values(DATA.ENEMIES || {}).filter((e) => !e.boss && typeof e.speed === "number").map((e) => e.speed);
+    return v.length ? { min: Math.min(...v), max: Math.max(...v) } : { min: 0, max: 0 };
+  }
   function laneCoverage(levelDef, cx, cy, range, rangeMin) {
     const ls = lanesOf(levelDef);
     if (!ls.length) return 0;
@@ -2827,7 +2836,7 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, worldOrder, byWorldOrder, rosterTricks, NOT_A_TRICK, nodeGate, nodeModKey, musicStep, DT };
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, worldOrder, byWorldOrder, rosterTricks, NOT_A_TRICK, nodeGate, nodeModKey, rosterSpeeds, musicStep, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

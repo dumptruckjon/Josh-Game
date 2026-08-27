@@ -3993,6 +3993,28 @@ body column reads left and the chrome — the dialog title, the contents row —
 stays centred. The guardrail is derived over every body run rather than a named
 list, with a clause that long-form prose actually EXISTS, or the claim is moot.
 
+**56 ENEMY CARDS PRINTED `❤️ 34 · 🏃 0.8 · 🪙 5` AND NOTHING ANYWHERE SAID WHAT
+ANY OF IT WAS.** ❤️ and 🪙 are guessable; **🏃 is not** — it is cells a second
+(`dist += effSpeed(e) * DT`), a unit no surface states, and a bare 0.8 has no
+anchor at all until you have read several cards. Same class as ⚙️ Toy Energy
+shipping as a bare numeral, now on the biggest reference surface in the game.
+The section that introduces the cards names each figure, and the anchor is a
+DERIVED range (`rosterSpeeds()`, bosses excluded because they are deliberately
+off the scale the crowd sets). 🛡️ armour and 🔋 shield need no gloss there —
+they appear only where a toy has them and that card's own trait line already
+says what they do — so the legend only says they are conditional.
+**Both of the first two mutations PASSED, and each was a different way of
+sampling too little.** The glyph loop derived its set from the FIRST card's stat
+row — and the first card has no armour and no shield, so the two CONDITIONAL
+figures were silently exempt and deleting them from the legend went green; it
+walks the union of all 56 rows now. And the range clause compared the rendered
+text against the very values the owner returns, so a typed `0.45–2` satisfied
+it — the flattening trap, committed again two entries after writing it down.
+Only a roster the literal cannot know falsifies it: inject a 99-speed body, re-
+render, and require the number to follow. **When a mutation passes, the question
+is not "is the assertion strong enough" but "what did the fixture never show
+it".**
+
 ---
 
 ## Repository Structure

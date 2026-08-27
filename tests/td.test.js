@@ -6384,6 +6384,60 @@ test("P6 loadout: the strip IS the pack — a power you left behind is not on it
   await page.evaluate(() => { location.hash = ""; });
 });
 
+test("QoL: the enemy cards' numbers are NAMED", async () => {
+  // 56 cards print `❤️ 34 · 🏃 0.8 · 🪙 5` and nothing anywhere said what any of
+  // it was. ❤️ and 🪙 are guessable; 🏃 is not — it is cells a second, which no
+  // surface states, and a bare 0.8 has no anchor at all until you have read
+  // several cards. Same class as ⚙️ Toy Energy shipping as a bare numeral, on
+  // the biggest reference surface in the game.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.click("#screen-td-home .td-guide-open");
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+  try {
+    const out = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay--guide .td-overlay__box");
+      const head = [...box.querySelectorAll("[data-sec]")].find((h) => /Enemies/.test(h.dataset.sec));
+      const intro = head && head.nextElementSibling ? (head.nextElementSibling.textContent || "") : "";
+      // the UNION over every card, not the first one: the first card has no
+      // armour and no shield, so sampling it alone silently exempts exactly the
+      // two conditional figures — the mutation that drops them from the legend
+      // passed until this walked all 56 rows.
+      const rows = [...box.querySelectorAll(".td-guide__stats")].map((el) => (el.textContent || "").trim());
+      return { intro, rows, speeds: window.TDLogic.rosterSpeeds() };
+    });
+    assert.ok(out.rows.length > 30, `every card renders a stat row (${out.rows.length})`);
+    // DERIVED: every glyph any row can print must be named where the section
+    // introduces the cards, so a sixth stat cannot ship unexplained.
+    const glyphs = [...new Set(out.rows.join(" ").match(/\p{Extended_Pictographic}\uFE0F?/gu) || [])];
+    assert.ok(glyphs.length >= 5, `the rows must print the full stat set (${glyphs.join(" ")})`);
+    for (const g of glyphs) {
+      assert.ok(out.intro.includes(g), `the legend names ${g}, which a card's stat row prints`);
+    }
+    assert.match(out.intro, /cells a second/, "…and says what the speed figure IS, since nothing else does");
+    assert.ok(out.intro.includes(String(out.speeds.min)) && out.intro.includes(String(out.speeds.max)),
+      `the stated range must be the roster's own (${out.speeds.min}–${out.speeds.max}, saw "${out.intro}")`);
+    // …and that clause alone is satisfied by a typed "0.45–2", because it
+    // compares the text against the very values the owner returns. Only a
+    // roster the literal cannot know falsifies it.
+    const grown = await page.evaluate(() => {
+      window.TDUI.closeOverlay();
+      window.TDData.ENEMIES.__fast = { name: "Test Sprinter", icon: "⚡", hp: 1, speed: 99, bounty: 1 };
+      window.TDUI.showGuide();
+      const box = document.querySelector(".td-overlay--guide .td-overlay__box");
+      const head = [...box.querySelectorAll("[data-sec]")].find((h) => /Enemies/.test(h.dataset.sec));
+      const txt = head && head.nextElementSibling ? (head.nextElementSibling.textContent || "") : "";
+      delete window.TDData.ENEMIES.__fast;
+      return txt;
+    });
+    assert.ok(grown.includes("99"),
+      `a faster body must move the stated range (saw "${grown}") — otherwise it is a typed literal`);
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+  await page.evaluate(() => { location.hash = ""; });
+});
+
 test("QoL: the guide's sections LOOK like sections", async () => {
   // The guide is 17,000px — two dozen screenfuls over nine topics — and its
   // section headings were the section's own prose wearing the dialog-subtitle

@@ -954,7 +954,17 @@
       '<ul class="td-guide__towers td-guide__tree">' + treeRow + "</ul>" +
       // The roster is 77% of this dialog and had NO heading of its own, so the
       // guide's longest stretch was also its least navigable.
-      sec("👾 Enemies") + '<p class="td-overlay__sub">Every toy that comes for you.</p>' +
+      sec("👾 Enemies") + '<p class="td-overlay__sub">Every toy that comes for you. Each card reads '
+      // A NUMBER SHIPPED WITH NO NAME, on the biggest reference surface in the
+      // game: 56 cards print `❤️ 34 · 🏃 0.8 · 🪙 5` and nothing anywhere said
+      // what any of it was. ❤️ and 🪙 are guessable; 🏃 is not — it is cells a
+      // second, and a bare 0.8 has no anchor until you have read several cards,
+      // so the range the crowd actually runs at is DERIVED and stated. 🛡️ and 🔋
+      // need no gloss here: they appear only where a toy has them, and that
+      // toy's own trait line already says what they do.
+      + '<b>❤️ hearts</b> · <b>🏃 cells a second</b> (the crowd runs ' +
+      L.rosterSpeeds().min + '–' + L.rosterSpeeds().max + ') · <b>🪙 gold when it pops</b>. ' +
+      '🛡️ armour and 🔋 shield show only on the toys that have them.</p>' +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
     el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);
