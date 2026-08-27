@@ -213,7 +213,7 @@
   // dmgType "bonk" is reduced by armor; "zap" ignores armor, shields absorb it.
   const TOWERS = {
     dart: {
-      name: "Dart Blaster", icon: "🎯", kind: "dart", role: "single-shot", hitsFliers: true,
+      name: "Dart Blaster", short: "Dart", icon: "🎯", kind: "dart", role: "single-shot", hitsFliers: true,
       projectileSpeed: 9,
       tiers: [
         { name: "Pea Shooter", cost: 70, dmg: 6, dmgType: "bonk", rate: 0.8, range: 2.6 },
@@ -234,7 +234,7 @@
       },
     },
     mortar: {
-      name: "Block Mortar", icon: "🧱", kind: "mortar", role: "splash", hitsFliers: false,
+      name: "Block Mortar", short: "Mortar", icon: "🧱", kind: "mortar", role: "splash", hitsFliers: false,
       shellSpeed: 5, defaultTargeting: "strong",
       tiers: [
         { name: "Block Lobber", cost: 110, dmg: 16, dmgType: "bonk", rate: 3.2, rangeMin: 1.5, range: 3.6, splash: 1.4 },
@@ -247,7 +247,7 @@
       },
     },
     fan: {
-      name: "Freeze-Pop Fan", icon: "🧊", kind: "fan", role: "slows", hitsFliers: true,
+      name: "Freeze-Pop Fan", short: "Fan", icon: "🧊", kind: "fan", role: "slows", hitsFliers: true,
       tiers: [
         { name: "Cool Breeze", cost: 100, slow: 0.3, auraRange: 1.8, zapDps: 6, zapRange: 2.2 },
         { name: "Frost Fan", cost: 160, slow: 0.4, auraRange: 2.1, zapDps: 11, zapRange: 2.4 },
@@ -273,7 +273,7 @@
       },
     },
     camp: {
-      name: "Army Guys Camp", icon: "🪖", kind: "camp", role: "blocks path", hitsFliers: false,
+      name: "Army Guys Camp", short: "Camp", icon: "🪖", kind: "camp", role: "blocks path", hitsFliers: false,
       // 3.05 is MEASURED, not chosen: pad-to-nearest-lane distance across all
       // 501 camp-able pads is p90 2.00 and max 3.000, so this is the smallest
       // value under which EVERY camp-able pad can post its wall on the road.

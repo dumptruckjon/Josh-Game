@@ -1959,6 +1959,97 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
 });
 
+test("QoL: a tower line looks and reads the SAME on every screen", async () => {
+  // One player-facing thing — what a line looks like and what it is called —
+  // had THREE owners, and they disagreed on two of the four lines. The build
+  // menu paints DATA.TOWERS[id].icon (🧱 mortar, 🧊 fan); the 📖 Guide kept its
+  // own `{ dart: "🎯", mortar: "💥", fan: "❄️", camp: "🪖" }`, teaching two
+  // glyphs that appear NOWHERE else in the game; and the run summary kept a
+  // third map with the same wrong icons and its own short names. Look a line up
+  // in the manual, then fail to find it on the menu.
+  const lines = await page.evaluate(() => Object.entries(window.TDData.TOWERS)
+    .map(([id, t]) => ({ id, icon: t.icon, name: t.name, short: t.short })));
+  assert.ok(lines.length >= 4, `every shipped line (${lines.length})`);
+  for (const l of lines) {
+    assert.ok(l.icon && l.name && l.short, `${l.id} declares an icon, a name and a short name`);
+  }
+
+  // 1. the GUIDE shows each line's own icon beside its own name
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.locator("#screen-td-home .td-guide-open").click();
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+  try {
+    const guide = await page.textContent(".td-overlay--guide .td-overlay__box");
+    for (const l of lines) {
+      assert.ok(guide.includes(l.icon + l.name) || guide.includes(l.icon + " " + l.name),
+        `the guide pairs ${l.id}'s own icon with its name (wanted "${l.icon}${l.name}")`);
+    }
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+
+  // 2. the BUILD MENU paints the same glyph on the button you are sent to press
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const menuIcons = await page.evaluate(() => {
+    window.__TD.resetSave(); window.__TD.newGame(7, { seed: 11 });
+    const L = window.TDData.LEVELS.find((l) => l.id === 7), p = L.pads[0];
+    const s = window.__TD.w2s(p.cx + 0.5, p.cy + 0.5);
+    const cv = document.querySelector("#screen-td-play canvas");
+    const c = cv.getBoundingClientRect();
+    for (const t of ["pointerdown", "pointerup", "click"]) {
+      cv.dispatchEvent(new MouseEvent(t, { clientX: c.left + s.x, clientY: c.top + s.y, bubbles: true }));
+    }
+    const out = {};
+    for (const b of document.querySelectorAll(".td-buy")) {
+      const ic = b.querySelector(".td-buy__icon");
+      if (b.dataset.line && ic) out[b.dataset.line] = ic.textContent.trim();
+    }
+    return out;
+  });
+  for (const l of lines) {
+    assert.equal(menuIcons[l.id], l.icon, `the build menu paints ${l.id}'s own icon`);
+  }
+
+  // 3. …and a DEFEAT names the lines it sends you to, with those same glyphs —
+  //    it used to print the engine's own keys ("Try: dart or fan"), which is an
+  //    identifier shipped as player copy for something no screen ever shows.
+  const lost = await page.evaluate(() => {
+    window.__TD.resetSave(); window.__TD.newGame(7, { seed: 5 });
+    const L = window.TDData.LEVELS.find((l) => l.id === 7);
+    window.__TD.script(L.pads.slice(0, 4).map((p) => ["place", "mortar", p.id]));   // no answer to air
+    for (let i = 0; i < 20 && window.__TD.state().phase !== "lost"; i++) {
+      window.__TD.script([["call"], ["untilPhase", "build", 200000]]);
+    }
+    const box = document.querySelector(".td-overlay:not([hidden]) .td-overlay__box");
+    return { phase: window.__TD.state().phase, txt: box ? box.textContent : "" };
+  });
+  assert.equal(lost.phase, "lost", "fixture: a mortar-only board must lose to the air wave");
+  assert.match(lost.txt, /could even reach/, `fixture: the counter-matrix advice must fire (saw ${JSON.stringify(lost.txt.slice(0, 120))})`);
+  const air = lines.filter((l) => ["dart", "fan"].includes(l.id));
+  for (const l of air) {
+    assert.ok(lost.txt.includes(l.icon + " " + l.name),
+      `the advice names ${l.id} as "${l.icon} ${l.name}" (saw ${JSON.stringify(lost.txt.slice(0, 200))})`);
+  }
+  for (const l of lines) {
+    assert.ok(!new RegExp("Try:[^.]*\\b" + l.id + "\\b").test(lost.txt),
+      `…and never as the bare engine key "${l.id}"`);
+  }
+  // 4. the run summary's bars use the same glyph, in the compact form
+  const sum = await page.evaluate(() => {
+    // the per-LINE bars, not the stats line beside them
+    return [...document.querySelectorAll(".td-sum__label")].map((r) => r.textContent.trim()).join(" | ");
+  });
+  const mortar = lines.find((l) => l.id === "mortar");
+  assert.ok(sum.length > 0, `fixture: the summary must have per-line bars (saw ${JSON.stringify(sum)})`);
+  assert.ok(sum.includes(mortar.icon + " " + mortar.short),
+    `the run summary uses ${mortar.id}'s own icon, in the compact form (saw ${JSON.stringify(sum.slice(0, 160))})`);
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = ""; });
+});
+
 test("QoL: a badge toast sits ABOVE the controls, never on them", async () => {
   // The toast is fixed 24px from the bottom, which in portrait is exactly where
   // the power strip and ▶ CALL live. Measured before the fix: at 320px a mid-run

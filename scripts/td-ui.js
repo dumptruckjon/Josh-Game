@@ -296,6 +296,32 @@
   // two numbers instead, and the enumeration is delegated to the ONE surface
   // that already derives it — 📖 the Toybox Guide. The body count is the
   // costume fact this file just taught the guide: 35 toys wearing 56 names.
+  // ONE owner of what a tower LINE looks and reads like. The guide kept its own
+  // literal map — `{ dart: "🎯", mortar: "💥", fan: "❄️", camp: "🪖" }` — and it
+  // had drifted from the data on TWO of the four lines: the build menu paints
+  // DATA.TOWERS[id].icon, so the shipped mortar is 🧱 and the fan is 🧊, while
+  // the guide was teaching 💥 and ❄️ — two glyphs that appear NOWHERE else in
+  // the game. Look a line up in the manual, then fail to find it on the menu.
+  UI.lineIcon = function (id) {
+    const d = (global.TDData.TOWERS || {})[id];
+    return (d && d.icon) || "•";
+  };
+  // …and how to NAME one in a sentence. The defeat post-mortem's advice — the
+  // single most actionable line in the game — used to print the engine's own
+  // keys ("Try: dart or fan"), which is the `cheap` class: an identifier shipped
+  // as player copy, naming things no screen has ever shown. The icon is what
+  // carries it, because the icon is exactly what the build menu paints.
+  // `short` gives the compact form the run-summary bars need — the same shape as
+  // ABILITIES[].short — so a tight row can stay tight without minting a THIRD
+  // spelling of the line. It had exactly that: the summary carried its own
+  // `{ dart: "🎯 Dart", mortar: "💥 Mortar", … }`, so one line had three names
+  // and two icons across three screens.
+  UI.lineLabel = function (id, short) {
+    const d = (global.TDData.TOWERS || {})[id];
+    if (!d) return id;
+    return UI.lineIcon(id) + " " + ((short && d.short) || d.name);
+  };
+
   UI.rosterBlurb = function () {
     const E = global.TDData.ENEMIES, L = global.TDLogic;
     const ids = Object.keys(E);
@@ -733,12 +759,12 @@
   // the guide can never drift from the engine.
   UI.showGuide = function (focusType) {
     const L = global.TDLogic, E = global.TDData.ENEMIES, T = global.TDData.TOWERS;
-    const LINE = { dart: "🎯", mortar: "💥", fan: "❄️", camp: "🪖" };
+    const LINE = (k) => UI.lineIcon(k);
     const order = Object.keys(E);
     const card = (type) => {
       const d = E[type];
       if (!d) return "";
-      const reach = L.reachedBy(d).map((k) => LINE[k] || k).join(" ");
+      const reach = L.reachedBy(d).map((k) => LINE(k)).join(" ");
       const traits = L.enemyTraits(d).map((t) => '<li><span class="td-guide__tico">' + t.icon + "</span>" + t.text + "</li>").join("");
       return '<div class="td-guide__card' + (focusType === type ? " td-guide__card--focus" : "") + '" data-enemy="' + type + '">' +
         '<div class="td-guide__head"><span class="td-guide__icon">' + d.icon + "</span>" +
@@ -760,7 +786,7 @@
         " <i>(" + b.cost + "🪙)</i></li>";
     }).join("");
     const towerRow = Object.keys(T).map((k) =>
-      '<li><span class="td-guide__tico">' + (LINE[k] || "•") + "</span><b>" + T[k].name + "</b> — " + (T[k].role || "") +
+      '<li><span class="td-guide__tico">' + LINE(k) + "</span><b>" + T[k].name + "</b> — " + (T[k].role || "") +
       (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") + "</li>" + branchRow(k)).join("");
     // Abilities were explained NOWHERE — the button showed only an icon and a
     // price. They belong in the guide beside the towers.

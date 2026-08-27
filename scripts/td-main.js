@@ -719,9 +719,14 @@
     // would have credited splash/zap/melee to nobody.
     const dmg = st.dmgBy || {};
     const total = Object.keys(dmg).reduce((a, k) => a + dmg[k], 0);
-    const NAME = { dart: "🎯 Dart", mortar: "💥 Mortar", fan: "❄️ Fan", camp: "🪖 Camp", ability: "🧨 Abilities" };
+    // Labels come from the ONE owner. This map was the third spelling of the
+    // same four lines (and the second wrong icon set): the guide said 💥/❄️,
+    // the build menu paints 🧱/🧊 off the data, and this said 💥/❄️ again.
+    // `ability` is the one row that is NOT a tower line — it is the damage
+    // BUCKET the powers pour into — so it keeps an explicit label here.
+    const BUCKET = { ability: "🧨 Abilities" };
     const rows = Object.keys(dmg).sort((a, b) => dmg[b] - dmg[a]).map((k) => ({
-      line: k, label: NAME[k] || k, dmg: Math.round(dmg[k]),
+      line: k, label: BUCKET[k] || UI.lineLabel(k, true), dmg: Math.round(dmg[k]),
       pct: total ? Math.round((dmg[k] / total) * 100) : 0,
     }));
     const spent = st.towers.reduce((a, t) => a + (t.spent || 0), 0);
@@ -750,7 +755,13 @@
       if (!def) continue;
       const reach = TD.reachedBy(def);
       if (built.length && !reach.some((r) => lines[r])) {
-        advice = "Nothing you built could even reach the " + def.name + ". Try: " + reach.join(" or ") + ".";
+        // NAME the lines the way the player will recognise them. This printed
+        // the engine's own keys ("Try: dart or fan") — identifiers as player
+        // copy, for things no screen shows: the build menu paints an ICON and a
+        // ROLE, never a key. One owner in UI.lineLabel, so the glyph here is the
+        // glyph on the button you are being sent to press.
+        advice = "Nothing you built could even reach the " + def.name + ". Try: " +
+          reach.map((k) => UI.lineLabel(k)).join(" or ") + ".";
         focus = t; break;
       }
       if (def.splashResist && built.length === 1 && built[0] === "mortar") { advice = "The " + def.name + " soaks splash — bring single-target damage."; focus = t; break; }

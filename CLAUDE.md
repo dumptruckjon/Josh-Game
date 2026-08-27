@@ -3857,6 +3857,34 @@ different viewports, which no per-viewport derivation could produce. The test
 clears toasts, reads the LAST one, and asserts there is exactly ONE, so a stale
 toast can never be what it measures.
 
+**ONE TOWER LINE HAD THREE NAMES AND TWO ICONS ACROSS THREE SCREENS.** Found by
+screenshotting the DEFEAT screen, which nothing had ever done. Its one piece of
+actionable advice — the counter-matrix line, the only place the game tells you
+what to build — read **"Try: dart or fan."**: `reachedBy` returns engine KEYS
+and they were being joined raw into player copy. That is the `cheap` class
+again (an identifier shipped as a sentence), and worse than usual, because the
+build menu shows an ICON and a ROLE and no name at all, so the advice named
+things that appear on no screen. Chasing it found the bigger half: the 📖 Guide
+kept its own `{ dart: "🎯", mortar: "💥", fan: "❄️", camp: "🪖" }` and the run
+summary a third map with the same wrong glyphs — while the build menu paints
+`DATA.TOWERS[id].icon`, which is **🧱 for the mortar and 🧊 for the fan**. So
+the manual and the post-mortem were teaching two symbols that appear NOWHERE
+else in the game: look a line up, then fail to find it on the menu.
+Three things worth keeping. **The data is the owner and the UI gets a
+FORMATTER, not a table** — `UI.lineIcon`/`UI.lineLabel` read `DATA.TOWERS`, and
+a `short` field (the `ABILITIES[].short` precedent) lets the summary's tight
+bars stay tight without minting a third spelling. **The structural scan is
+derived from the ids**, so it bans a *fifth* line's map too, and it is the half
+that stops a fourth table appearing; the browser test beside it is the half that
+proves the three surfaces actually agree, which a scan cannot. **And the
+screenshot is what found it** — every one of these strings is produced by code
+that reads fine in isolation, and the disagreement only exists between screens.
+One finding from the same pass was REJECTED after looking properly: the L10-style
+lever renders as a red disc with a white diagonal, which at phone size reads
+like a "forbidden" sign on a control labelled TAP — but at 4× it is plainly a
+switch handle with a knob, and the bar stops short of the disc edge rather than
+crossing it corner to corner as a prohibition mark does. Working art; no change.
+
 ---
 
 ## Repository Structure

@@ -1977,6 +1977,39 @@ test("guardrail: \"how far into this run\" has exactly ONE owner", () => {
     "waveLabel must carry the endless predicate — a generated level is not in DATA.LEVELS");
 });
 
+test("guardrail: a tower LINE's icon and name have exactly one owner", () => {
+  // What a line looks like and what it is called is player-facing, and it had
+  // THREE owners disagreeing on two of four lines: DATA.TOWERS (what the build
+  // menu paints), a `LINE` map in the guide, and a `NAME` map in the run
+  // summary — the last two both teaching 💥 and ❄️, glyphs that appear nowhere
+  // else in the game. A scan is the half that stops a fourth map appearing; the
+  // browser test beside it proves the surfaces actually agree.
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const data = require("../scripts/td-data.js");
+  const ids = Object.keys(data.TOWERS);
+  assert.ok(ids.length >= 4, `the arsenal is real (${ids.length})`);
+  for (const id of ids) {
+    const t = data.TOWERS[id];
+    assert.ok(t.icon && t.name && t.short, `${id} declares icon, name and short in the DATA`);
+  }
+  // No other source file may map a line id to a quoted glyph. Derived from the
+  // ids, so a fifth line inherits the ban.
+  for (const f of ["scripts/td-ui.js", "scripts/td-main.js", "scripts/td-render.js"]) {
+    const src = strip(read(f));
+    for (const id of ids) {
+      const re = new RegExp("\\b" + id + "\\s*:\\s*[\"'][^\x00-\x7F]");
+      assert.ok(!re.test(src), `${f} maps ${id} to its own glyph — DATA.TOWERS is the owner`);
+    }
+  }
+  // …and the one formatter both surfaces read is defined exactly once.
+  const ui = strip(read("scripts/td-ui.js"));
+  assert.equal((ui.match(/UI\.lineIcon = function/g) || []).length, 1, "lineIcon is defined once");
+  assert.equal((ui.match(/UI\.lineLabel = function/g) || []).length, 1, "lineLabel is defined once");
+  assert.match(ui, /TOWERS \|\| \{\}\)\[id\]/, "…and it reads the tower data rather than a table of its own");
+  assert.match(strip(read("scripts/td-main.js")), /UI\.lineLabel\(/,
+    "the defeat advice and the run summary go through the owner");
+});
+
 test("guardrail: a world LIST is ordered by the campaign, and the daily's raw order is deliberate", () => {
   // The order the worlds come in is a campaign fact, and it had two owners:
   // DATA.LEVELS and whoever typed the keys of ENDLESS.worlds. They drifted, and
