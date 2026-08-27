@@ -3980,6 +3980,18 @@ of matching everything. Both now slice on the SECTION MARKER the contents row
 also derives from, with an explicit non-empty check, and both were re-proven
 against their own defects (re-typing the per-wave grant as a literal, and
 deleting the section) rather than merely made green.
+**And the same pass found its sibling: the guide's PROSE was centred.** Its
+lists and enemy cards already carry `text-align: left` — somebody fixed the
+long-form content there and the paragraphs around them were missed, which is the
+shape this file keeps recording. Measured centred, the Powers paragraph runs
+**14 lines at 320px** and the Chips one 7, ragged on both edges; every other
+paragraph is 1-2 lines, where centring reads as a subtitle and is fine. A
+length-based rule is not available (CSS cannot see it, and a JS threshold is the
+invented-threshold trap), so the honest form is the surface-level one: the guide
+is the one dialog that is a DOCUMENT rather than a row of controls, so its whole
+body column reads left and the chrome — the dialog title, the contents row —
+stays centred. The guardrail is derived over every body run rather than a named
+list, with a clause that long-form prose actually EXISTS, or the claim is moot.
 
 ---
 

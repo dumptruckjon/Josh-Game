@@ -6432,6 +6432,22 @@ test("QoL: the guide's sections LOOK like sections", async () => {
       // follows the dialog title and needs no rule to separate it.
       if (!r.first) assert.ok(r.gap >= 12, `"${r.label}" needs real separation above it (${r.gap}px)`);
     }
+    // …and the guide is the one dialog that is a DOCUMENT rather than a row of
+    // controls, so its column reads left. Its lists and enemy cards already did;
+    // the prose around them was missed, and measured centred the Powers
+    // paragraph runs 14 lines at 320px ragged on BOTH edges. The dialog title
+    // and the contents row are chrome and stay centred, so this asks only about
+    // the body.
+    const prose = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay--guide .td-overlay__box");
+      const els = [...box.querySelectorAll("[data-sec], p.td-overlay__sub, .td-guide__towers, .td-guide__card")];
+      return els.map((el) => ({ align: getComputedStyle(el).textAlign, len: (el.textContent || "").trim().length }));
+    });
+    assert.ok(prose.length >= 15, `the guide's body must be a real population (${prose.length})`);
+    assert.ok(prose.some((x) => x.len > 200), "…and it must actually contain long-form prose, or alignment is moot");
+    const centred = prose.filter((x) => x.align !== "left" && x.align !== "start");
+    assert.equal(centred.length, 0,
+      `every run in the guide's body reads left — ${centred.length} of ${prose.length} do not`);
   } finally {
     await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
   }

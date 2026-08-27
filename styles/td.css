@@ -933,6 +933,16 @@ body.td-mode #screens { padding: 0; }
   color: #ffe27a; font-size: 1.05rem; font-weight: 800;
   margin: 22px 0 6px; padding-top: 14px; border-top: 1px solid #2c3f5c;
 }
+/* The guide is the one dialog that is a READING surface rather than a row of
+   controls, and its lists and enemy cards were already left-aligned for exactly
+   that reason — the prose around them was missed. Measured centred: the Powers
+   paragraph runs 14 lines at 320px and the Chips one 7, ragged on BOTH edges,
+   which is where a centred column stops being a subtitle and becomes hard to
+   read. Headings go left too, so they line up with the list items beneath them
+   instead of floating over a left-aligned block. The dialog TITLE and the
+   contents row stay centred — they are chrome, not the document. */
+.td-overlay--guide .td-guide__sec,
+.td-overlay--guide p.td-overlay__sub { text-align: left; }
 /* …except the first, which follows the dialog title and needs no rule to
    separate it from anything. */
 .td-overlay--guide .td-guide__sec:first-of-type { margin-top: 6px; padding-top: 0; border-top: 0; }
