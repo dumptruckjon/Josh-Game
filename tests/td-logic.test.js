@@ -7089,6 +7089,70 @@ test("P4.3 tree: it costs more than a 32-level campaign can earn", () => {
   for (const n of DATA.META_NODES) assert.ok(branches.has(n.branch), `node ${n.id} names a real branch`);
 });
 
+test("P4.4 tree: a node GATED on something a run may not have says so", () => {
+  // Two of the forty are conditional and the tree said nothing. 🦉 Night Owl
+  // halves the NIGHT reach penalty, and `night` is on exactly one campaign level
+  // (it is measured as a brutal knob and deliberately confined), so a ⭐2 node is
+  // inert on 39 of 40. 🪃 Ricochet and 🔗 Live Wire describe "the Fan's chain",
+  // which the Fan does not have below tier 4 — `chain` is on ONE stat block in
+  // the game. Both are TRUE sentences that silently assume something, which
+  // reads, to the person spending the stars, exactly like the `cheap` entry that
+  // was outright wrong.
+  const gated = DATA.META_NODES.filter((n) => TD.nodeGate(n.id));
+  assert.ok(gated.length >= 3, `the gated nodes must be found (saw ${gated.length})`);
+  assert.ok(gated.length < DATA.META_NODES.length / 2,
+    "…and a gate on most rows would be decoration rather than a signal " +
+    `(${gated.length} of ${DATA.META_NODES.length})`);
+
+  // 1. the key is the ENGINE's own name for the effect, not the node id, so a
+  //    renamed node cannot silently lose its gate. Exactly one key per node.
+  const UI_ONLY = new Set(["scoutreport"]);   // pure information, moves no mod
+  for (const n of DATA.META_NODES) {
+    const k = TD.nodeModKey(n.id);
+    if (UI_ONLY.has(n.id)) { assert.equal(k, "", `${n.id} is UI-only, so it moves no mod key`); continue; }
+    assert.ok(k, `${n.id} must move exactly one metaMods key (the gate is keyed on it)`);
+  }
+
+  // 2. DEAD-CONTENT law: a gate whose subject does not exist means the node can
+  //    never do anything at all. Drop `night` from the campaign and 🦉 Night Owl
+  //    is not merely situational, it is unreachable — the same class as heroic
+  //    shipping with no selector and World 4's levels shipping with no card.
+  const nights = DATA.LEVELS.filter((l) => l.night).length;
+  assert.ok(nights >= 1, "🦉 Night Owl needs at least one night level to matter at all");
+  const chainOwners = [];
+  for (const [lineId, line] of Object.entries(DATA.TOWERS)) {
+    for (const [bId, b] of Object.entries(line.branches || {})) if (b.chain) chainOwners.push(lineId + "." + bId);
+  }
+  assert.equal(chainOwners.length, 1,
+    `🪃/🔗 name ONE chain owner, so exactly one stat block may carry \`chain\` (saw ${chainOwners.join(", ") || "none"})`);
+
+  // 3. …and the numbers are DERIVED. A clause comparing the text against the
+  //    same data the owner reads is satisfied by a literal equal to today's
+  //    value, so both halves are proven by moving the data underneath it.
+  const owl = DATA.META_NODES.find((n) => TD.nodeModKey(n.id) === "nightOwl");
+  assert.ok(owl, "a node moves the nightOwl mod");
+  assert.match(TD.nodeGate(owl.id), new RegExp(nights + " of " + DATA.LEVELS.length),
+    "the night gate states the count it can actually apply to");
+  DATA.LEVELS.push({ id: -7, world: "__w", night: true, path: [[0, 0], [1, 0]], pads: [], waves: [] });
+  let grown;
+  try { grown = TD.nodeGate(owl.id); } finally { DATA.LEVELS.pop(); }
+  assert.match(grown, new RegExp((nights + 1) + " of " + (DATA.LEVELS.length + 1)),
+    `a second night level must move the count (saw "${grown}") — a hard-coded "1 of 40" passes the clause above`);
+  assert.match(TD.nodeGate(owl.id), new RegExp(nights + " of " + DATA.LEVELS.length), "fixture: the injected level is removed again");
+
+  const rico = DATA.META_NODES.find((n) => TD.nodeModKey(n.id) === "chainPlus");
+  assert.ok(rico, "a node moves the chainPlus mod");
+  const [line0, br0] = chainOwners[0].split(".");
+  const realName = DATA.TOWERS[line0].branches[br0].name;
+  assert.ok(TD.nodeGate(rico.id).includes(realName),
+    `the chain gate names the branch that actually carries it (saw "${TD.nodeGate(rico.id)}")`);
+  DATA.TOWERS[line0].branches[br0].name = "__Renamed Branch";
+  let renamed;
+  try { renamed = TD.nodeGate(rico.id); } finally { DATA.TOWERS[line0].branches[br0].name = realName; }
+  assert.ok(renamed.includes("__Renamed Branch"),
+    `renaming the branch must move the gate (saw "${renamed}") — otherwise the name is a literal`);
+});
+
 test("P4.3 tree: every node CHANGES something — no node is decoration", () => {
   // A node that produces no engine difference is a star you spent on nothing.
   // metaMods is pure, so this is exact: flip one node on and require the mods

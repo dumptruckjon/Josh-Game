@@ -3907,6 +3907,39 @@ daily's, which has no seed at all and fails for the wrong reason; `retrynew:` is
 unique, so the scan anchors on it and walks back, asserting the gap is small
 enough to BE the same handler pair.
 
+**TWO STAR-TREE NODES DESCRIBED A MECHANIC YOU MAY NEVER OWN, AND ONE IS INERT
+ON 39 OF 40 LEVELS.** Found by enumerating every field of `DATA.LEVELS` against
+its readers — the one big config surface never swept — which reported `night` on
+**exactly one level of forty**. 🦉 Night Owl (⭐2) halves the night reach penalty,
+so it is a node whose entire value applies once in a campaign, in a 6-slot
+loadout economy, with nothing saying so; and the confinement is deliberate rather
+than an oversight, since this file already records night as untunable (a −15%
+reach cut held a world's mid level at heroic 0/3 across a 600→1500 gold sweep).
+The same sweep found the sharper pair: **🪃 Ricochet (⭐5) and 🔗 Live Wire (⭐4)
+both describe "the Fan's chain", and the Fan does not have one** — `chain`
+appears on exactly ONE stat block in the game, the tier-4 Static Zap branch — so
+⭐9 of tree explains a mechanic you only own after a 300-gold purchase you may
+never make. This is the `cheap` lesson one layer out: there a description
+MISNAMED a mechanic, here each is TRUE and silently conditional, which reads the
+same way to the person spending the stars. Four things worth keeping. **The gate
+is keyed on the MOD KEY the node moves, not on its id**, and that key is obtained
+by diffing `metaMods([id])` against `metaMods([])` — the engine's own answer
+rather than a second table — so renaming a node cannot silently drop its gate.
+**Every number in the text is derived**, and the clause that proves it had to
+move the data underneath: comparing the rendered string against the same
+`LEVELS.filter(l => l.night).length` the owner reads is satisfied by a literal
+`"1 of 40"`, so the test injects a second night level and requires the count to
+follow (and renames the branch and requires the name to follow). **It is shown
+only where there IS a gate** — a line on all forty rows would be decoration,
+which is the fort's own rule for the meta-row badges, and the mutation that
+renders one everywhere goes red on exactly that clause. And **the dead-content
+law rides along**: if `night` ever left the campaign, Night Owl would not be
+merely situational but unreachable, so the guardrail asserts the gate's subject
+exists at all — the same class as heroic shipping with no selector. One method
+note: a fifth mutation reported `SETUP FAILED` rather than a false pass, because
+the harness asserts its anchor matches exactly once and that the byte count
+moved. That check is the only reason it was not read as a passing clause.
+
 ---
 
 ## Repository Structure

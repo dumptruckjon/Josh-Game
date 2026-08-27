@@ -2620,6 +2620,50 @@
     const rank = (w) => { const i = order.indexOf(w); return i < 0 ? order.length : i; };
     return worlds.slice().map((w, i) => [w, i]).sort((a, b) => (rank(a[0]) - rank(b[0])) || (a[1] - b[1])).map((p) => p[0]);
   }
+  // What a star-tree node is GATED on, derived. Two of the forty are conditional
+  // on something a run may simply not have, and the tree said nothing:
+  //   🦉 Night Owl halves the NIGHT reach penalty — and `night` is on exactly ONE
+  //     of the campaign's levels (it is measured as a brutal knob: a −15% reach
+  //     cut held a whole world's mid level at heroic 0/3 across a 600→1500 gold
+  //     sweep, so it is deliberately confined). A ⭐2 node that is inert on 39 of
+  //     40 levels is not a choice, it is a trap, and nothing said so.
+  //   🪃 Ricochet and 🔗 Live Wire both describe "the Fan's chain" — which the
+  //     Fan does NOT have. `chain` appears on exactly one stat block in the whole
+  //     game, the tier-4 Static Zap branch, so ⭐9 of tree describes a mechanic
+  //     you only own after a 300-gold purchase you may never make.
+  // The gate is keyed on the MOD KEY the node moves (the engine's own name for
+  // the effect), not on the node id, so renaming a node cannot silently drop it;
+  // and every number in the text is read from the data, so an eleventh world or
+  // a renamed branch cannot leave it stale. This is the `cheap` lesson one layer
+  // out: there a description MISNAMED a mechanic; here it is true and silently
+  // conditional, which reads the same way to the person spending the stars.
+  function chainOwner() {
+    for (const line of Object.values(DATA.TOWERS || {})) {
+      for (const b of Object.values(line.branches || {})) {
+        if (b && b.chain) return { icon: line.icon || "", name: b.name || "" };
+      }
+    }
+    return null;
+  }
+  function gateOfMod(key) {
+    if (key === "nightOwl") {
+      const n = DATA.LEVELS.filter((l) => l.night).length;
+      return "🌙 only on night levels — " + n + " of " + DATA.LEVELS.length;
+    }
+    if (key === "chainPlus" || key === "chainDecayPlus") {
+      const o = chainOwner();
+      return o ? "needs " + o.icon + " " + o.name : "";
+    }
+    return "";
+  }
+  // Which single metaMods key does this node move? Diffed against an empty
+  // loadout, so it is the ENGINE's answer rather than a second table to drift.
+  function nodeModKey(nodeId) {
+    const base = metaMods([]), one = metaMods([nodeId]);
+    const moved = Object.keys(one).filter((k) => JSON.stringify(one[k]) !== JSON.stringify(base[k]));
+    return moved.length === 1 ? moved[0] : "";
+  }
+  function nodeGate(nodeId) { return gateOfMod(nodeModKey(nodeId)); }
   function laneCoverage(levelDef, cx, cy, range, rangeMin) {
     const ls = lanesOf(levelDef);
     if (!ls.length) return 0;
@@ -2783,7 +2827,7 @@
     return out;
   }
 
-  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, worldOrder, byWorldOrder, rosterTricks, NOT_A_TRICK, musicStep, DT };
+  const API = { createEngine, computeHit, hashState, buildPath, posAt, mulberry32, hashSeed, metaMods, generateEndlessWave, enemyTraits, reachedBy, levelGimmicks, propCells, laneCoverage, lanesOf, worldOrder, byWorldOrder, rosterTricks, NOT_A_TRICK, nodeGate, nodeModKey, musicStep, DT };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (global && typeof global === "object") global.TDLogic = API;
 })(typeof window !== "undefined" ? window : globalThis);

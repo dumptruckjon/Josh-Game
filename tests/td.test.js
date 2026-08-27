@@ -6384,6 +6384,46 @@ test("P6 loadout: the strip IS the pack — a power you left behind is not on it
   await page.evaluate(() => { location.hash = ""; });
 });
 
+test("QoL: the star tree says when a node is GATED on something you may not have", async () => {
+  // A scan proves the owner emits the line; only opening the dialog proves the
+  // render loop puts it on the page — the standing pairing.
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.click("#screen-td-home .td-tree-open");
+  await page.locator(".td-tree").waitFor({ state: "visible" });
+  try {
+    const want = await page.evaluate(() => (window.TDData.META_NODES || [])
+      .map((n) => ({ id: n.id, gate: window.TDLogic.nodeGate(n.id) })).filter((x) => x.gate));
+    assert.ok(want.length >= 3, `the gated nodes must be found (saw ${want.length})`);
+    for (const w of want) {
+      const line = page.locator(`.td-tree .td-node[data-node="${w.id}"] .td-node__gate`);
+      assert.equal(await line.count(), 1, `${w.id} renders its gate line`);
+      assert.equal((await line.textContent()).trim(), w.gate, `${w.id} renders the OWNER's text`);
+    }
+    // …and it stays a SIGNAL: a node with no gate must not grow an empty line,
+    // which is the fort's own rule for the meta-row badges (a mark that is
+    // always there is decoration).
+    const bare = await page.evaluate((ids) => {
+      const rows = [...document.querySelectorAll(".td-tree .td-node")].filter((n) => ids.indexOf(n.dataset.node) < 0);
+      return { total: rows.length, withLine: rows.filter((n) => n.querySelector(".td-node__gate")).map((n) => n.dataset.node) };
+    }, want.map((w) => w.id));
+    assert.ok(bare.total > 20, `the ungated rows must be a real population (${bare.total})`);
+    assert.deepEqual(bare.withLine, [], "an ungated node must carry NO gate line");
+    // A LOCKED row already spends this line on its requirement, so it keeps that
+    // rather than showing both.
+    const locked = await page.evaluate(() => {
+      const n = document.querySelector(".td-tree .td-node--locked");
+      return n ? { id: n.dataset.node, desc: (n.querySelector(".td-node__desc") || {}).textContent || "",
+                   gate: !!n.querySelector(".td-node__gate") } : null;
+    });
+    assert.ok(locked, "the fresh save must show at least one locked node");
+    assert.match(locked.desc, /🔒/, "a locked row states its requirement");
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = ""; });
+});
+
 test("QoL: the Powers Pack says how OFTEN a power comes back", async () => {
   // The pack is a trade of 4 for 5, and the cooldown is most of what separates
   // them — 20s to 30s across the pool. It was stated in the 📖 Guide and NOT on

@@ -830,6 +830,12 @@ body.td-mode #screens { padding: 0; }
    new pair to the fort's contrast surface, and size plus weight carry the
    hierarchy instead. */
 .td-node__cd { display: block; font-size: 0.78rem; font-weight: 600; }
+/* What a star-tree node's effect is GATED on — its own line under the
+   description, and only present when there IS a gate. Dimmer than the desc
+   because it is a caveat rather than the offer. Measured 5.46:1 on an unowned
+   node and 5.09:1 on an owned one, and the fort contrast audit walks this
+   dialog, so a future re-tint cannot quietly drop it under AA. */
+.td-node__gate { display: block; font-size: 0.72rem; font-weight: 700; color: #7f9ac4; }
 
 /* badges grid */
 .td-achs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }

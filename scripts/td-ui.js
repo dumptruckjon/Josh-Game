@@ -642,6 +642,17 @@
 
   // ---- TD-5 META: star accounting, resume banner, star tree, badges, endless ----
   const NODES = () => global.TDData.META_NODES;
+  // Cached because the tree re-renders on every buy/refund and nodeGate diffs a
+  // metaMods pair per node — 40 diffs a keystroke is pointless work for an answer
+  // that only moves when the DATA does.
+  let gateCache = null;
+  const gateOf = (id) => {
+    if (!gateCache) {
+      gateCache = {};
+      for (const n of NODES()) gateCache[n.id] = global.TDLogic.nodeGate(n.id);
+    }
+    return gateCache[id] || "";
+  };
   const ACHS = () => global.TDData.ACHIEVEMENTS;
   // Best stars per level across the three difficulty ladders — the star-tree /
   // endless economy is deliberately difficulty-AGNOSTIC (ceiling stays 36), so
@@ -1083,7 +1094,19 @@
           ' data-node="' + n.id + '">' +
           '<span class="td-node__icon">' + n.icon + "</span>" +
           '<span class="td-node__body"><span class="td-node__name">' + n.name + (n.reqSpend ? " 👑" : "") + "</span>" +
-          '<span class="td-node__desc">' + (locked ? "🔒 " + locked : n.desc) + "</span></span>" +
+          '<span class="td-node__desc">' + (locked ? "🔒 " + locked : n.desc) + "</span>" +
+          // …and what the effect is GATED on, when it is gated on something a run
+          // may simply not have. 🦉 Night Owl is inert on 39 of 40 levels and 🪃/🔗
+          // describe a chain only one tier-4 branch has — both true sentences that
+          // silently assume something, which reads to the person spending the
+          // stars exactly like the `cheap` description that was outright wrong.
+          // Derived (TDLogic.nodeGate), so a renamed branch or an eleventh world
+          // cannot leave it stale, and shown only when there IS a gate — a line on
+          // every row would be decoration, and the fort's own rule is that a mark
+          // which is always there stops being a signal. A LOCKED row already
+          // spends this line on its requirement, so it keeps that.
+          (!locked && gateOf(n.id) ? '<span class="td-node__gate">' + gateOf(n.id) + "</span>" : "") +
+          "</span>" +
           '<span class="td-node__cost">' + (has ? "✓" : "⭐" + n.cost) + "</span></button>" + equipBtn + "</div>";
       }).join("");
       return '<p class="td-tree__branch">' + br.icon + " " + br.name +
