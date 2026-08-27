@@ -6384,6 +6384,60 @@ test("P6 loadout: the strip IS the pack — a power you left behind is not on it
   await page.evaluate(() => { location.hash = ""; });
 });
 
+test("QoL: the guide's sections LOOK like sections", async () => {
+  // The guide is 17,000px — two dozen screenfuls over nine topics — and its
+  // section headings were the section's own prose wearing the dialog-subtitle
+  // class: measured at 14.72px / weight 400 / #cfe2ff with margin 0 against a
+  // 16px body, i.e. SMALLER and quieter than the paragraphs they introduced,
+  // with zero separation. The contents row could jump to them; a reader
+  // scrolling had no landmark at all. Derived over every [data-sec], so a tenth
+  // section inherits this rather than needing the test edited.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.click("#screen-td-home .td-guide-open");
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+  try {
+    const out = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay--guide .td-overlay__box");
+      const secs = [...box.querySelectorAll("[data-sec]")];
+      const num = (v) => parseFloat(v) || 0;
+      return {
+        height: box.scrollHeight,
+        rows: secs.map((el, i) => {
+          const c = getComputedStyle(el);
+          let p = el.previousElementSibling;
+          while (p && !(p.textContent || "").trim()) p = p.previousElementSibling;
+          const pc = p ? getComputedStyle(p) : null;
+          return {
+            label: el.dataset.sec, text: (el.textContent || "").trim(), first: i === 0,
+            fs: num(c.fontSize), fw: num(c.fontWeight), col: c.color,
+            bodyFs: pc ? num(pc.fontSize) : 0, bodyFw: pc ? num(pc.fontWeight) : 0, bodyCol: pc ? pc.color : "",
+            gap: p ? Math.round(el.getBoundingClientRect().top - p.getBoundingClientRect().bottom) : 0,
+          };
+        }),
+      };
+    });
+    assert.ok(out.rows.length >= 6, `the guide must have real sections (saw ${out.rows.length})`);
+    assert.ok(out.height > 5000, `…in a document long enough to need them (${out.height}px)`);
+    for (const r of out.rows) {
+      // ONE owner: the heading you land on says the same thing as the button
+      // that took you there, because both read the same attribute.
+      assert.equal(r.text, r.label, `the "${r.label}" heading shows the label the contents row jumps by`);
+      assert.ok(r.fs > r.bodyFs,
+        `"${r.label}" must be BIGGER than the body it introduces (${r.fs}px vs ${r.bodyFs}px)`);
+      assert.ok(r.fw >= 700 && r.fw > r.bodyFw,
+        `"${r.label}" must be bolder than the body (${r.fw} vs ${r.bodyFw})`);
+      assert.notEqual(r.col, r.bodyCol, `"${r.label}" must not be the body's own colour (${r.col})`);
+      // …and it needs AIR, or a bigger word is still a wall of text. The first
+      // follows the dialog title and needs no rule to separate it.
+      if (!r.first) assert.ok(r.gap >= 12, `"${r.label}" needs real separation above it (${r.gap}px)`);
+    }
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+  await page.evaluate(() => { location.hash = ""; });
+});
+
 test("QoL: the star tree says when a node is GATED on something you may not have", async () => {
   // A scan proves the owner emits the line; only opening the dialog proves the
   // render loop puts it on the page — the standing pairing.
@@ -9949,12 +10003,21 @@ test("QoL: the 21-screen Toybox Guide has contents you can jump with", async () 
           if (!list) return false;
           let p = list.previousElementSibling;
           while (p && !p.hasAttribute("data-sec")) {
-            if (p.classList.contains("td-guide__list")) return false;   // another block came first
+            // Nothing from ANOTHER section may sit between the roster and the
+            // heading that introduces it: a list of any kind is another
+            // section's content, so hitting one means the nearest heading
+            // belongs to that section and not to this one. (Before the roster
+            // had a heading of its own, the walk-back met the ⭐ Tree section's
+            // own <ul> on the way — which is exactly the defect this catches.)
+            if (p.tagName === "UL" || p.classList.contains("td-guide__list")) return false;
             p = p.previousElementSibling;
           }
-          // it must be the heading DIRECTLY introducing the roster, not one from
-          // an earlier section several blocks back
-          return !!p && list.previousElementSibling === p;
+          // …and the section's OWN intro prose may sit there, which is why this
+          // no longer demands the heading be the immediately-previous sibling:
+          // that was a proxy for "introduced by its own section" and stopped
+          // tracking it the moment a section became a heading plus a paragraph
+          // rather than one element doing both jobs.
+          return !!p;
         })() };
     });
 

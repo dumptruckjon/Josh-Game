@@ -922,6 +922,20 @@ body.td-mode #screens { padding: 0; }
 .td-guide__towers { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: row; gap: 6px; text-align: left; }
 .td-guide__towers li { color: #cfe2ff; font-size: 0.92rem; }
 .td-guide__towers b { color: #ffe27a; }
+/* A SECTION HEADING in the guide. `data-sec` is the marker the contents row
+   already derives from, so this is every section and a tenth inherits it.
+   Measured before: 14.72px / weight 400 / #cfe2ff with margin 0, against a 16px
+   body — so each of the nine headings was SMALLER and QUIETER than the
+   paragraphs it introduced, with zero separation, in a 17,230px document. The
+   contents row could jump to them; a reader scrolling had no landmarks at all.
+   Gold is the h3's own #ffe27a, a pair the fort contrast audit already walks. */
+.td-overlay--guide .td-guide__sec {
+  color: #ffe27a; font-size: 1.05rem; font-weight: 800;
+  margin: 22px 0 6px; padding-top: 14px; border-top: 1px solid #2c3f5c;
+}
+/* …except the first, which follows the dialog title and needs no rule to
+   separate it from anything. */
+.td-overlay--guide .td-guide__sec:first-of-type { margin-top: 6px; padding-top: 0; border-top: 0; }
 .td-guide__list { display: grid; grid-auto-flow: row; gap: 10px; }
 .td-guide__card {
   border: 2px solid #33456d; border-radius: 14px; background: #101c33;

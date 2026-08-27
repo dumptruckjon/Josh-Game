@@ -543,7 +543,15 @@ test("the fort's ⚙️ Toy Energy actually says what it is", () => {
     "the HUD's ⚙️ chip must name Toy Energy on hover");
   assert.match(ui, /setAttribute\("aria-label", *\(state\.charge[^)]*\)[^;]*toy energy/i,
     "…and to a screen reader, with the live value");
-  const guide = ui.slice(ui.indexOf("Powers — usable during a wave only"), ui.indexOf("The wave button"));
+  // Sliced on the SECTION MARKERS, not on prose. This used to bound the region
+  // with two sentences from the copy, so a wording edit silently made both
+  // indexOf calls -1 and the region the empty string — a region bound must be
+  // asserted to BE a region, and now it is one the contents row also derives
+  // from, which cannot drift with a copy edit.
+  const from = ui.indexOf('sec("🎒 Powers")'), to = ui.indexOf('sec("▶ Waves")');
+  assert.ok(from >= 0 && to > from, "the scan must find the Powers section to slice");
+  const guide = ui.slice(from, to);
+  assert.ok(guide.length > 200, `…and a real region, not an empty slice (${guide.length} chars)`);
   assert.match(guide, /Toy Energy/, "the guide's Powers section must define ⚙️, not just spend it");
   assert.match(guide, /RULES\.chargePerWave/, "…quoting the engine's own per-wave grant, never a re-typed number");
   assert.match(guide, /RULES\.chargeMax/, "…and its own cap");
@@ -1305,7 +1313,8 @@ test("guardrail: every ability names itself on its button and in the guide", () 
   }
   const tdu = read("scripts/td-ui.js");
   assert.match(tdu, /td-abil__name">' \+ \(a\.short \|\| a\.name\)/, "the button shows the name, not just an icon and a price");
-  assert.match(tdu, /Powers — usable during a wave only/, "the guide has an abilities section");
+  // the SECTION marker, not a sentence of its copy — the prose is free to change
+  assert.match(tdu, /sec\("🎒 Powers"\)/, "the guide has an abilities section");
   assert.match(tdu, /UI\.abilityHint = function/, "there is a hint line for armed/refused taps");
   const tdm = read("scripts/td-main.js");
   assert.match(tdm, /function abilityWhy\(/, "a refusal is explained in plain English");

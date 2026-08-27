@@ -795,6 +795,17 @@
   // enemy's own data fields — so a new enemy or a new trait explains itself and
   // the guide can never drift from the engine.
   UI.showGuide = function (focusType) {
+    // A section HEADING, and the ONE place its text comes from: the same
+    // `data-sec` label the contents row derives its buttons from, so the jump
+    // target and the thing you land on can never disagree. Before this the label
+    // lived only in the attribute and the visible "heading" was the section's
+    // prose wearing `.td-overlay__sub` — measured at 14.72px / weight 400 /
+    // #cfe2ff with margin 0, i.e. SMALLER and quieter than the 16px body it
+    // introduced, with zero separation. Nine topics over 17,000px and no
+    // landmark anywhere. Two of them were whole explainers besides, which is why
+    // the label had to become its own element rather than the prose being
+    // restyled in place.
+    const sec = (label) => '<h4 class="td-guide__sec" data-sec="' + label + '">' + label + "</h4>";
     const L = global.TDLogic, E = global.TDData.ENEMIES, T = global.TDData.TOWERS;
     const LINE = (k) => UI.lineIcon(k);
     const order = Object.keys(E);
@@ -875,7 +886,7 @@
 
     const el = metaOverlay("td-overlay--guide",
       "<h3>📖 Toybox Guide</h3>" +
-      '<p class="td-overlay__sub" data-sec="🧸 Toys">What each toy does — and what can actually hit it.</p>' +
+      sec("🧸 Toys") + '<p class="td-overlay__sub">What each toy does — and what can actually hit it.</p>' +
       '<ul class="td-guide__towers">' + towerRow + "</ul>" +
       // WHERE you build is worth as much as WHAT you build: a sweep of every pad
       // on a boss finale moved the result by up to 5 lives with the same tower
@@ -883,7 +894,7 @@
       // so, and nothing could be read off the board. Hence the figure on every
       // build button and tower panel — and hence this paragraph, because a
       // number the player cannot interpret is the ⚙️ mistake again.
-      '<p class="td-overlay__sub" data-sec="📍 Placement">Placement — <b>% road</b></p>' +
+      sec("📍 Placement") + '<p class="td-overlay__sub">Every build button and tower panel shows a <b>% road</b> figure.</p>' +
       '<ul class="td-guide__towers"><li><span class="td-guide__tico">🛣️</span>Every build button and tower panel says how much of the ' +
       "road that socket reaches. The same tower is worth several times more from one pad than another, so the figure — not the price — " +
       "is usually the choice. A 🪖 Army Guys camp shows none: it blocks the lane rather than shooting down it.</li>" +
@@ -897,7 +908,7 @@
       // 4-9 lives and the winner differs per level, which is exactly the kind
       // of lever that is worthless if the player cannot read it. DERIVED from
       // DATA.TARGETING, so a sixth mode documents itself.
-      '<p class="td-overlay__sub" data-sec="🎯 Aiming">Aiming — the 🎯 button</p>' +
+      sec("🎯 Aiming") + '<p class="td-overlay__sub">What the 🎯 button on a tower panel does.</p>' +
       '<ul class="td-guide__towers"><li><span class="td-guide__tico">🎯</span>Every gun aims on its OWN setting; tap 🎯 on its panel to ' +
       "cycle. It is worth real lives — on a boss level the best setting can be several lives better than the worst, and which one wins " +
       "differs from level to level, so it is worth a try when a wave keeps getting through. Your last choice is remembered per " +
@@ -911,7 +922,7 @@
       // anywhere in the app — the symbol appeared in the HUD, on every ability
       // button and here, and nothing said what it was. Numbers quoted from RULES
       // so they cannot drift from the engine.
-      '<p class="td-overlay__sub" data-sec="🎒 Powers">Powers — usable during a wave only. Each costs gold 🪙 <b>and</b> ⚙️ Toy Energy: you get ' +
+      sec("🎒 Powers") + '<p class="td-overlay__sub">Usable during a wave only. Each costs gold 🪙 <b>and</b> ⚙️ Toy Energy: you get ' +
         global.TDData.RULES.chargePerWave + " more ⚙️ every wave you send, banked up to " +
         global.TDData.RULES.chargeMax + ". That is what stops late-game gold making the powers free. " +
         "The strip holds " + global.TDData.RULES.abilitySlots + " of the " + (global.TDData.ABILITIES || []).length +
@@ -921,29 +932,29 @@
         "🪙 — once per wave, so an overflowing purse buys options, never a free win.</p>" +
       '<ul class="td-guide__towers td-guide__abils">' + abilRow + "</ul>" +
       // The wave button does two different jobs; say so, or ⏩ RUSH is a mystery.
-      '<p class="td-overlay__sub" data-sec="▶ Waves">The wave button</p>' +
+      sec("▶ Waves") + '<p class="td-overlay__sub">What the button under the field does.</p>' +
       '<ul class="td-guide__towers"><li><b>▶ CALL</b> — start the next wave early. The sooner you call, the more gold.</li>' +
       "<li><b>⏩ RUSH</b> — send the NEXT wave on top of the one already walking, for the same bonus. Up to " +
       (global.TDData.RULES.maxWavesInFlight || 2) + " waves at once. Big gold, big risk — and the " +
       "<b>Next:</b> strip over the field stays up whenever RUSH is on offer, so you can see what you would " +
       "be sending.</li></ul>" +
-      '<p class="td-overlay__sub" data-sec="🕳️ Tricks">Level tricks — the board itself fights back.</p>' +
+      sec("🕳️ Tricks") + '<p class="td-overlay__sub">The board itself fights back.</p>' +
       '<ul class="td-guide__towers td-guide__gimmicks">' + gimRow + "</ul>" +
       // TD-18: a resource shipped without a name was this guide's founding
       // defect (⚙️), so the chips explain themselves here from their own data.
-      '<p class="td-overlay__sub" data-sec="🎖️ Chips">🎖️ Challenges — arm a chip, win with it on, and it stamps that level’s card. ' +
+      sec("🎖️ Chips") + '<p class="td-overlay__sub">Arm a chip, win with it on, and it stamps that level’s card. ' +
       "A chip only ever takes a tool away, so it never makes a run easier — and every one is beatable " +
       "on every level (measured on casual with the tools that remain, not assumed).</p>" +
       '<ul class="td-guide__towers td-guide__chips">' +
       (global.TDData.CHIPS || []).map((c) =>
         '<li><span class="td-guide__tico">' + c.icon + "</span><b>" + c.name + "</b> — " + c.desc + "</li>").join("") +
       "</ul>" +
-      '<p class="td-overlay__sub" data-sec="⭐ Tree">⭐ Star Tree — spend the stars you earn, then bring ' +
+      sec("⭐ Tree") + '<p class="td-overlay__sub">Spend the stars you earn, then bring ' +
       (global.TDData.RULES.metaSlots || 6) + " into a run.</p>" +
       '<ul class="td-guide__towers td-guide__tree">' + treeRow + "</ul>" +
       // The roster is 77% of this dialog and had NO heading of its own, so the
       // guide's longest stretch was also its least navigable.
-      '<p class="td-overlay__sub" data-sec="👾 Enemies">Every toy that comes for you.</p>' +
+      sec("👾 Enemies") + '<p class="td-overlay__sub">Every toy that comes for you.</p>' +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
     el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);

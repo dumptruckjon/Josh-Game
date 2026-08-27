@@ -3940,6 +3940,47 @@ note: a fifth mutation reported `SETUP FAILED` rather than a false pass, because
 the harness asserts its anchor matches exactly once and that the byte count
 moved. That check is the only reason it was not read as a passing clause.
 
+**THE 📖 GUIDE'S NINE SECTION HEADINGS WERE SMALLER AND QUIETER THAN THE BODY
+THEY INTRODUCED.** Found by screenshotting the guide section by section, which
+nothing does — every guide test asserts derived CONTENT (a trait line, a mode's
+name, one entry per section) and none had ever looked at the page. Measured, each
+heading rendered at **14.72px / weight 400 / #cfe2ff with margin 0** against a
+**16px** body, because a section marker was just the section's own prose wearing
+`.td-overlay__sub`, the class every dialog uses for its subtitle. So a 17,000px
+document — two dozen screenfuls over nine topics — had no landmark anywhere: the
+contents row shipped earlier can JUMP to a section, and a reader scrolling had
+nothing at all. Three things worth keeping. **Styling the existing element was
+not enough, and the screenshot is what showed it**: two of the nine "headings"
+are whole explainers (Powers is 745 characters), so making them gold and bold
+produced a three-line shouting paragraph. The label had to become its OWN
+element — and its text comes from the same `data-sec` attribute the contents row
+derives its buttons from, so the thing you land on and the button that took you
+there cannot disagree. **The heading needs AIR as well as weight**, which is a
+separate clause because a bigger word in an unbroken column is still a wall: the
+mutation that keeps the gold and removes the margin fires only that one.
+**And a shipped guardrail went red, correctly, on a PROXY.** `rosterHasSection`
+demanded the heading be the roster's *immediately previous sibling* — true while
+a section was one element doing both jobs, and false the moment a section became
+a heading plus a paragraph. The property it means is *nothing from another
+section sits between*, so it walks back to the nearest heading and fails on an
+intervening list. **Isolating that repair took a second mutation**: deleting the
+Enemies heading outright fires the even-fill law first (8 entries in 3 columns),
+so it proves nothing about this clause — the honest mutation keeps all nine
+sections and slips another section's `<ul>` between the heading and the roster,
+which is the original defect's exact shape.
+**And TWO MORE shipped scans went red on the copy edit, for the same reason one
+level down**: both bounded the guide's Powers section with a SENTENCE of its
+prose (`ui.slice(indexOf("Powers — usable during a wave only"), indexOf("The
+wave button"))`), so a wording change made both `indexOf` calls -1 and the
+region the empty string — every assertion inside it then failed at once. This
+file already records that a region bound must be asserted to BE a region, from
+the case where a bad slice handed back the rest of the FILE; the empty slice is
+its mirror, and it is the friendlier of the two because it fails loudly instead
+of matching everything. Both now slice on the SECTION MARKER the contents row
+also derives from, with an explicit non-empty check, and both were re-proven
+against their own defects (re-typing the per-wave grant as a literal, and
+deleting the section) rather than merely made green.
+
 ---
 
 ## Repository Structure
