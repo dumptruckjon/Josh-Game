@@ -3885,6 +3885,28 @@ like a "forbidden" sign on a control labelled TAP — but at 4× it is plainly a
 switch handle with a knob, and the bar stops short of the disc edge rather than
 crossing it corner to corner as a prohibition mark does. Working art; no change.
 
+**AND THE SAME DEFEAT SCREEN OFFERED TWO WAYS BACK IN WITHOUT SAYING WHICH WAS
+WHICH.** 🔁 Try again replays the run's OWN seed — the identical wave order you
+just lost to, so you can answer the puzzle you actually met — and 🎲 New shuffle
+rolls a fresh one. That is a real choice, and it was presented as two buttons
+that look like the same button. Each carries a second line now ("the same
+waves" / "a different roll"), as ink rather than a `title`, which is hover-only
+on a phone. Measured cost: the box grows 6px at 390 and nothing at 320.
+Three things worth keeping. **Player copy that describes behaviour is a CLAIM,
+so it is driven rather than merely rendered**: the test clicks Try again and
+asserts the new run carries the same seed, and the mutation that gives it a
+fresh one reports `seed 90146 vs 5` — the words becoming a lie is what goes red.
+**The other half is pinned STRUCTURALLY on purpose** — comparing two
+clock-derived seeds would be a 1-in-100000 flake, and this session has already
+paid for a 1-in-200 one. **And ENDLESS must NOT grow the line**: its run is
+generated fresh either way, so there is no distinction to explain, and the
+mutation that adds one there is red too — a label explaining a difference that
+does not exist is its own defect. One scan note: there are THREE `retry:`
+handlers (daily, endless, campaign) and an unanchored `indexOf` finds the
+daily's, which has no seed at all and fails for the wrong reason; `retrynew:` is
+unique, so the scan anchors on it and walks back, asserting the gap is small
+enough to BE the same handler pair.
+
 ---
 
 ## Repository Structure

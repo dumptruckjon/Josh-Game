@@ -1977,6 +1977,30 @@ test("guardrail: \"how far into this run\" has exactly ONE owner", () => {
     "waveLabel must carry the endless predicate — a generated level is not in DATA.LEVELS");
 });
 
+test("guardrail: the two ways back into a lost level really differ", () => {
+  // The defeat screen now SAYS which is which ("the same waves" / "a different
+  // roll"), so the words are a claim about behaviour. That 🔁 Try again reuses
+  // the seed is driven in the browser; that 🎲 New shuffle does NOT is pinned
+  // here, because comparing two clock-derived seeds would be a 1-in-100000
+  // flake and this suite has already paid for one of those.
+  const main = read("scripts/td-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  // There are THREE `retry:` handlers (daily, endless, campaign) and only the
+  // campaign one is under discussion — an unanchored indexOf finds the daily's,
+  // which has no seed at all and fails for the wrong reason. `retrynew:` is
+  // unique and sits immediately after the campaign's, so anchor on it and walk
+  // back.
+  const newAt = main.indexOf("retrynew: () =>");
+  assert.ok(newAt > 0, "the campaign defeat must offer a fresh roll");
+  const retryAt = main.lastIndexOf("retry: () =>", newAt);
+  assert.ok(retryAt > 0 && newAt - retryAt < 400,
+    `the campaign retry must sit just before it (gap ${newAt - retryAt})`);
+  const line = (at) => main.slice(at, main.indexOf("\n", at));
+  const retry = line(retryAt), fresh = line(newAt);
+  assert.match(retry, /seed: st\.seed/, "🔁 Try again replays the run's OWN seed");
+  assert.ok(!/seed: st\.seed/.test(fresh), "🎲 New shuffle must not reuse it — it would be the same button twice");
+  assert.match(fresh, /seed: \(Date\.now\(\)/, "…it rolls a fresh one from the clock");
+});
+
 test("guardrail: a tower LINE's icon and name have exactly one owner", () => {
   // What a line looks like and what it is called is player-facing, and it had
   // THREE owners disagreeing on two of four lines: DATA.TOWERS (what the build

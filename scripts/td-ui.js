@@ -1961,8 +1961,16 @@
         "</div>" : "") + summaryHtml(rs) + earnedHtml(earned);
     const el = overlay("td-overlay--lose",
       head +
-      '<button class="td-btn" data-act="retry" type="button">🔁 ' + (endless ? "Again" : "Try again") + "</button>" +
-      (endless ? "" : '<button class="td-btn" data-act="retrynew" type="button">🎲 New shuffle</button>') +
+      // TWO ways to play it again, and nothing said what differed: Try again
+      // replays the SAME seed — the identical wave order you just lost to, so
+      // you can answer the puzzle you actually met — while New shuffle rolls a
+      // fresh one. That is a real choice presented as two buttons that look
+      // like the same button. Each says which it is, on its own line, because a
+      // `title` is hover-only on a phone.
+      '<button class="td-btn" data-act="retry" type="button">🔁 ' + (endless ? "Again" : "Try again") +
+        (endless ? "" : '<span class="td-btn__sub">the same waves</span>') + "</button>" +
+      (endless ? "" : '<button class="td-btn" data-act="retrynew" type="button">🎲 New shuffle' +
+        '<span class="td-btn__sub">a different roll</span></button>') +
       '<button class="td-btn" data-act="quit" type="button">🏰 Back to the fort</button>');
     el.addEventListener("click", (ev) => {
       const act = ev.target && ev.target.dataset && ev.target.dataset.act;

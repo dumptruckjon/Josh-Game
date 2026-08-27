@@ -1959,6 +1959,64 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
 });
 
+test("QoL: the two ways to play a level again say which is which", async () => {
+  // A defeat offers 🔁 Try again and 🎲 New shuffle, and nothing said what
+  // differed: one replays the SAME seed — the identical wave order you just
+  // lost to, so you can answer the puzzle you actually met — and the other
+  // rolls a fresh one. A real choice presented as two buttons that look like
+  // the same button. A `title` would be hover-only on a phone, so it is ink.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const lose = () => page.evaluate(() => {
+    window.__TD.resetSave(); window.__TD.newGame(7, { seed: 5 });
+    const L = window.TDData.LEVELS.find((l) => l.id === 7);
+    window.__TD.script(L.pads.slice(0, 4).map((p) => ["place", "mortar", p.id]));
+    for (let i = 0; i < 20 && window.__TD.state().phase !== "lost"; i++) {
+      window.__TD.script([["call"], ["untilPhase", "build", 200000]]);
+    }
+    const box = document.querySelector(".td-overlay--lose");
+    const btn = (act) => box && box.querySelector('[data-act="' + act + '"]');
+    const sub = (act) => { const b = btn(act); const x = b && b.querySelector(".td-btn__sub"); return x ? x.textContent.trim() : null; };
+    return { phase: window.__TD.state().phase, seed: window.__TD.state().seed,
+      hasNew: !!btn("retrynew"), retrySub: sub("retry"), newSub: sub("retrynew") };
+  });
+  const d = await lose();
+  assert.equal(d.phase, "lost", "fixture: the board must actually lose");
+  assert.ok(d.hasNew, "a campaign defeat offers both ways back in");
+  assert.ok(d.retrySub && d.newSub, `both buttons say which they are (${JSON.stringify([d.retrySub, d.newSub])})`);
+  assert.notEqual(d.retrySub, d.newSub, "…and they must say DIFFERENT things — the difference is the whole point");
+
+  // …and the words are TRUE: Try again really replays the same seed.
+  const again = await page.evaluate(() => {
+    document.querySelector('.td-overlay--lose [data-act="retry"]').click();
+    return { seed: window.__TD.state().seed, level: window.__TD.state().levelId };
+  });
+  assert.equal(again.seed, d.seed, `🔁 Try again replays the SAME waves (seed ${again.seed} vs ${d.seed})`);
+  assert.equal(again.level, 7, "…on the same level");
+
+  // (That New shuffle must NOT reuse the seed is pinned structurally in
+  // site.test.js — comparing two clock-derived seeds here would be a
+  // 1-in-100000 flake, and this suite has already paid for one of those.)
+
+  // ENDLESS has one way back in — its run is generated fresh either way — so it
+  // must NOT grow a sub-line explaining a distinction that does not exist there.
+  const endless = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.startEndless("bedroom", { seed: 1066 });
+    for (let i = 0; i < 40 && window.__TD.state().phase !== "lost"; i++) {
+      window.__TD.script([["call"], ["untilPhase", "build", 200000]]);   // neglect: no towers
+    }
+    const box = document.querySelector(".td-overlay--lose");
+    const b = box && box.querySelector('[data-act="retry"]');
+    return { phase: window.__TD.state().phase, hasNew: !!(box && box.querySelector('[data-act="retrynew"]')),
+      sub: b ? !!b.querySelector(".td-btn__sub") : null, label: b ? b.textContent.trim() : null };
+  });
+  assert.equal(endless.phase, "lost", "fixture: neglecting endless must lose it");
+  assert.equal(endless.hasNew, false, "endless offers no 'New shuffle' — every run is a fresh roll");
+  assert.equal(endless.sub, false, `…so its Again button explains no distinction (saw ${JSON.stringify(endless.label)})`);
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = ""; });
+});
+
 test("QoL: a tower line looks and reads the SAME on every screen", async () => {
   // One player-facing thing — what a line looks like and what it is called —
   // had THREE owners, and they disagreed on two of the four lines. The build
