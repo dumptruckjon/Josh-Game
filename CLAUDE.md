@@ -4049,6 +4049,24 @@ is the failure that looks most like success. The population is DERIVED from
 derived — they take different knobs), with the two tied together so a ninth tool
 is red until somebody gives it one. Mutation-proven three ways: point a tool at
 a renamed module, add a tool with no scope, and make a tool exit silently.
+**And the first version of that test had its own gap, one level down: it ran
+each tool's DEFAULT arm.** `td-sim.js` has six flag arms (`--lever`, `--boss`,
+`--gold`, `--branch`, `--priority`, `--swap`) and `td-wave-gen.js` has `--emit`,
+and most of the findings in this file came from them — so seven of nine
+documented arms were unverified by the very test written to close that gap. The
+flag list is DERIVED from the sources now (`argv.includes("--x")`) and every one
+must have an arm, with `--focus` named as an OPTION of `--priority` rather than
+an arm of its own. **The sharper half is that "exits 0 and prints a digit" is not
+enough, and it was measured rather than argued**: `--swap` reads its two operands
+as backbone SLOT INDICES, so passing enemy type NAMES makes them NaN and the arm
+prints `undefined → undefined … (0 groups, budget drift 0.00%)` — clean exit,
+digits and all, having done nothing. Each arm names a phrase a WORKING run
+prints. **And my first such signature let the no-op straight through**, because
+`\d+ groups` matches `0 groups`: a count that accepts zero accepts nothing
+happening. Two of my own expectations were also simply wrong (`td-gold.js` prints
+`maxed-board gold`, not the `--gold` arm's `startGold`; and pinning `DIFFS=normal`
+removed the heroic column the signature asked for), which is the signature doing
+its job before the test ever shipped.
 
 ---
 

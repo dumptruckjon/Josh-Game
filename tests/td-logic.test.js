@@ -7105,34 +7105,68 @@ test("tools: every research tool still RUNS against today's data", () => {
   // somebody gives it a smoke scope.
   const { execFileSync } = require("node:child_process");
   const { readdirSync } = require("node:fs");
+  // Each entry names what a WORKING run prints. "exits 0 and contains a digit"
+  // is not enough, and that is measured rather than assumed: `--swap` reads its
+  // two operands as backbone SLOT INDICES, so passing enemy type NAMES makes
+  // them NaN and the arm prints "nothing to swap … budget drift 0.00%" — clean
+  // exit, digits and all, having done nothing. A no-op that looks like a pass is
+  // the failure mode a smoke test is most likely to have.
   const SMOKE = {
-    "td-sim.js": { args: ["1"], env: { SEEDS: "1", DIFFS: "normal" } },
-    "td-wave-gen.js": { args: ["--check"], env: {} },
-    "td-gold.js": { args: ["1"], env: {} },
-    "td-fork-search.js": { args: ["1"], env: {} },
-    "td-map-search.js": { args: [], env: {} },
-    "td-miniboss.js": { args: ["1"], env: { SEEDS: "1", HP: "0", DIFFS: "normal" } },
-    "td-elite.js": { args: [], env: { LEVELS: "1", FRACS: "0", TAIL: "1" } },
-    "td-threat.js": { args: ["1"], env: { DOSES: "2" } },
+    "td-sim.js": { args: ["1"], env: { SEEDS: "1" }, must: /normal .*heroic .*neglect/ },
+    "td-wave-gen.js": { args: ["--check"], env: {}, must: /L1 .*: \d+ waves/ },
+    "td-gold.js": { args: ["1"], env: {}, must: /maxed-board gold/ },
+    "td-fork-search.js": { args: ["1"], env: {}, must: /candidate\(s\)|no candidate/ },
+    "td-map-search.js": { args: [], env: {}, must: /\d+ pads · lanes/ },
+    "td-miniboss.js": { args: ["1"], env: { SEEDS: "1", HP: "0", DIFFS: "normal" }, must: /median/ },
+    "td-elite.js": { args: [], env: { LEVELS: "1", FRACS: "0", TAIL: "1" }, must: /wave-HP drift/ },
+    "td-threat.js": { args: ["1"], env: { DOSES: "2" }, must: /safe \(wave,dose\)|PASS/ },
   };
+  // …and the FLAG arms, which are separate code paths and are where most of the
+  // findings in CLAUDE.md came from. Running only a tool's default arm is the
+  // same gap this whole test exists to close, one level down.
+  const ARMS = [
+    { f: "td-sim.js", args: ["3", "--lever"], env: { SEEDS: "1" }, must: /short|lever/i },
+    { f: "td-sim.js", args: ["4", "--boss"], env: { SEEDS: "1", BOSS_HP: "2400" }, must: /shipped hp/ },
+    { f: "td-sim.js", args: ["1", "--gold"], env: { SEEDS: "1" }, must: /shipped startGold/ },
+    { f: "td-sim.js", args: ["1", "--branch"], env: { SEEDS: "1", CAP: "1" }, must: /convert up to/ },
+    { f: "td-sim.js", args: ["1", "--priority"], env: { SEEDS: "1" }, must: /DECISION-AWARE/ },
+    { f: "td-sim.js", args: ["1", "--swap"], env: { SEEDS: "1", SWAP_FROM: "0", SWAP_TO: "3", SWAP_AT: "0.5" },
+      // NON-zero on purpose: the broken invocation prints "0 groups, budget drift
+      // 0.00%", so a plain \d+ accepts the very no-op this signature exists to
+      // catch. A count that accepts zero accepts nothing happening.
+      must: /[1-9]\d* groups, budget drift/ },
+    { f: "td-wave-gen.js", args: ["--emit", "1"], env: {}, must: /regenerated/ },
+  ];
   const found = readdirSync("tools").filter((f) => f.endsWith(".js")).sort();
   assert.ok(found.length >= 8, `the tools must be found (${found.length})`);
   assert.deepEqual(found.filter((f) => !SMOKE[f]), [],
     "every tool needs a smoke scope here — a new one is unverified until it has one");
+  // every FLAG a tool accepts must have an arm here, derived from the sources
+  const flags = new Set();
   for (const f of found) {
-    const { args, env } = SMOKE[f];
+    for (const m of readSrc("tools/" + f).matchAll(/argv\.includes\("(--[a-z]+)"\)/g)) flags.add(f + " " + m[1]);
+  }
+  assert.ok(flags.size >= 7, `the flag arms must be found (${flags.size})`);
+  const covered = new Set(ARMS.map((a2) => a2.f + " " + a2.args.find((x) => x.startsWith("--")))
+    .concat(Object.entries(SMOKE).map(([f, c]) => f + " " + (c.args.find((x) => x.startsWith("--")) || ""))));
+  // --focus is an OPTION of --priority, not an arm of its own
+  const OPTION_NOT_ARM = new Set(["td-sim.js --focus"]);
+  const missed = [...flags].filter((k) => !covered.has(k) && !OPTION_NOT_ARM.has(k));
+  assert.deepEqual(missed, [], `these flag arms are never run: ${missed.join(", ")}`);
+
+  const drive = (f, args, env, must, label) => {
     let out = "";
     try {
       out = execFileSync(process.execPath, ["tools/" + f].concat(args),
         { env: Object.assign({}, process.env, env), timeout: 60000, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
     } catch (e) {
-      assert.fail(`tools/${f} no longer runs: ${(e && e.message || e).toString().slice(0, 300)}`);
+      assert.fail(`${label} no longer runs: ${(e && e.message || e).toString().slice(0, 300)}`);
     }
-    // …and it must have done something, not just printed a usage banner. These
-    // are measuring tools, so real output carries numbers.
-    assert.ok(out.trim().length > 20, `tools/${f} produced no real output (${JSON.stringify(out.slice(0, 60))})`);
-    assert.match(out, /\d/, `tools/${f} printed no numbers — a measuring tool that measured nothing`);
-  }
+    assert.ok(out.trim().length > 20, `${label} produced no real output (${JSON.stringify(out.slice(0, 60))})`);
+    assert.match(out, must, `${label} ran but did not do its work — output was ${JSON.stringify(out.slice(0, 160))}`);
+  };
+  for (const f of found) drive(f, SMOKE[f].args, SMOKE[f].env, SMOKE[f].must, "tools/" + f);
+  for (const a2 of ARMS) drive(a2.f, a2.args, a2.env, a2.must, "tools/" + a2.f + " " + a2.args.join(" "));
 });
 
 test("guide: the roster's speed range is DERIVED, and bosses are off it", () => {
