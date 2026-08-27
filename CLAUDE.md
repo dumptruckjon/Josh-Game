@@ -4015,6 +4015,21 @@ render, and require the number to follow. **When a mutation passes, the question
 is not "is the assertion strong enough" but "what did the fixture never show
 it".**
 
+**THE GATE LINES SHIPPED TO THE ⭐ DIALOG AND NOT TO THE 📖 GUIDE, WHICH LISTS
+THE SAME FORTY NODES.** Caught by screenshotting the guide's Tree section an hour
+after shipping the gates: `Ricochet — The Fan's chain jumps one more (5⭐)` was
+still bare there, so the reference and the buy screen said different things about
+the same star. That is the sibling-surface shape this file keeps recording (the
+Sticker Book's ghost, the tile-icon law, the tablet clamp pass) — a fix applied
+where it was found and not where the same fact also appears. Both read
+`TDLogic.nodeGate` now, and the guardrail checks BOTH from the one owner rather
+than the surface it was written against. **The same screenshot found the
+reference incomplete in the other direction**: every tier-4 branch under the four
+tower lines states its price and the LINES themselves did not — so the guide
+carried the number for the 300-gold ultimate you may never buy and omitted it for
+the 70-gold purchase you make first, ten times a level. Read from the tier-1 stat
+block, never re-typed.
+
 ---
 
 ## Repository Structure

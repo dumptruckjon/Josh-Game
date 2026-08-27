@@ -835,7 +835,13 @@
     }).join("");
     const towerRow = Object.keys(T).map((k) =>
       '<li><span class="td-guide__tico">' + LINE(k) + "</span><b>" + T[k].name + "</b> — " + (T[k].role || "") +
-      (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") + "</li>" + branchRow(k)).join("");
+      (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") +
+      // …and what it COSTS. Every tier-4 branch under these four lines states
+      // its price and the lines themselves did not — so the reference carried
+      // the number for the 300-gold ultimate you may never buy and omitted it
+      // for the 70-gold purchase you make first, ten times a level. Read from
+      // the tier-1 stat block, never re-typed.
+      ' <i>(' + T[k].tiers[0].cost + "🪙)</i></li>" + branchRow(k)).join("");
     // Abilities were explained NOWHERE — the button showed only an icon and a
     // price. They belong in the guide beside the towers.
     // Which powers are PACKED — read through the one owner in td-main (the same
@@ -880,7 +886,16 @@
         mine.map((n) => '<li><span class="td-guide__tico">' + n.icon + "</span>" + n.name +
           " — " + n.desc + " <i>(" + n.cost + "⭐" +
           (n.req ? ", after " + ((nodes.find((x) => x.id === n.req) || {}).name || n.req) : "") +
-          (n.reqSpend ? ", needs " + n.reqSpend + "⭐ spent in this branch" : "") + ")</i></li>").join("") +
+          (n.reqSpend ? ", needs " + n.reqSpend + "⭐ spent in this branch" : "") + ")</i>" +
+          // …and what the effect is GATED on, from the SAME owner the ⭐ Star Tree
+          // dialog reads. This list and that dialog show the same forty nodes, and
+          // the gate shipped to the dialog alone — a fix applied to one surface and
+          // not its sibling, which is the shape this project keeps recording (the
+          // Sticker Book's ghost, the tile-icon law, the tablet clamp pass). Both
+          // read TDLogic.nodeGate now, so they cannot say different things about
+          // the same star.
+          (global.TDLogic.nodeGate(n.id) ? ' <i class="td-guide__gate">— ' + global.TDLogic.nodeGate(n.id) + "</i>" : "") +
+          "</li>").join("") +
         "</ul></li>";
     }).join("");
 

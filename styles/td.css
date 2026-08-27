@@ -836,6 +836,10 @@ body.td-mode #screens { padding: 0; }
    node and 5.09:1 on an owned one, and the fort contrast audit walks this
    dialog, so a future re-tint cannot quietly drop it under AA. */
 .td-node__gate { display: block; font-size: 0.72rem; font-weight: 700; color: #7f9ac4; }
+/* the same caveat in the GUIDE's tree list — inline there, because that list
+   is one line per node rather than a card. Same colour, already contrast-
+   audited on this box. */
+.td-guide__gate { color: #7f9ac4; font-weight: 700; }
 
 /* badges grid */
 .td-achs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }

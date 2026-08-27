@@ -6432,6 +6432,35 @@ test("QoL: the enemy cards' numbers are NAMED", async () => {
     });
     assert.ok(grown.includes("99"),
       `a faster body must move the stated range (saw "${grown}") — otherwise it is a typed literal`);
+
+    // The guide is a REFERENCE, so what it states about a node must match what
+    // the ⭐ Star Tree dialog states — they list the same forty. The gate shipped
+    // to the dialog alone at first, which is the sibling-surface shape this
+    // project keeps recording, so both are checked from the one owner.
+    const both = await page.evaluate(() => {
+      window.TDUI.closeOverlay();
+      window.TDUI.showGuide();
+      const box = document.querySelector(".td-overlay--guide .td-overlay__box");
+      const tree = box.querySelector(".td-guide__tree");
+      const txt = tree ? (tree.textContent || "") : "";
+      const gated = (window.TDData.META_NODES || [])
+        .map((n) => ({ name: n.name, gate: window.TDLogic.nodeGate(n.id) })).filter((x) => x.gate);
+      // …and every tower LINE states its own price, as its branches already do
+      const lines = [...box.querySelectorAll(".td-guide__towers > li")].map((li) => (li.textContent || "").trim());
+      const towers = Object.entries(window.TDData.TOWERS).map(([k, t]) => ({ name: t.name, cost: t.tiers[0].cost }));
+      return { txt, gated, lines, towers };
+    });
+    assert.ok(both.gated.length >= 3, `the gated nodes must be found (${both.gated.length})`);
+    for (const g of both.gated) {
+      assert.ok(both.txt.includes(g.gate),
+        `the guide's tree list states "${g.name}"'s gate too, not just the ⭐ dialog (missing "${g.gate}")`);
+    }
+    for (const t of both.towers) {
+      const li = both.lines.find((x) => x.includes(t.name));
+      assert.ok(li, `the guide lists ${t.name}`);
+      assert.ok(li.includes(String(t.cost) + "🪙"),
+        `${t.name} states what it costs (${t.cost}🪙) — every branch under it already does (saw "${li}")`);
+    }
   } finally {
     await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
   }
