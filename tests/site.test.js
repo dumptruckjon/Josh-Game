@@ -2043,6 +2043,38 @@ test("guardrail: a tower LINE's icon and name have exactly one owner", () => {
     "the defeat advice and the run summary go through the owner");
 });
 
+test("guardrail: a file that declares a shebang is executable", () => {
+  // A `#!` line exists for exactly one purpose — to let you run the file
+  // directly — so on a non-executable file it is a declaration that does
+  // nothing. All eight research tools carried `#!/usr/bin/env node` and mode
+  // 644, which is why CLAUDE.md's own `W9=1 tools/td-map-search.js` could not be
+  // copy-pasted: it dies with "Permission denied" while the identical command
+  // with `node` in front works. The repo's own convention already said so —
+  // .claude/resync-main.sh has always been executable — so the tools were the
+  // exception, not the rule.
+  //
+  // DERIVED over every tracked file, so a ninth tool inherits it. It reads the
+  // INDEX rather than the working tree, because that is what a fresh clone gets:
+  // a local chmod that was never committed would otherwise pass here and fail
+  // for everybody else.
+  const { execFileSync } = require("node:child_process");
+  const rows = execFileSync("git", ["ls-files", "-s"], { encoding: "utf8" }).trim().split("\n");
+  const shebang = [];
+  for (const row of rows) {
+    const m = row.match(/^(\d{6}) \w+ \d+\t(.+)$/);
+    if (!m) continue;
+    const [, mode, file] = m;
+    if (!fs.existsSync(path.join(root, file))) continue;
+    let head = "";
+    try { head = read(file).slice(0, 2); } catch (e) { continue; }   // binary or unreadable
+    if (head === "#!") shebang.push({ file, mode });
+  }
+  assert.ok(shebang.length >= 9, `the shebang files must be found (saw ${shebang.length})`);
+  const notExec = shebang.filter((x) => x.mode !== "100755").map((x) => x.file);
+  assert.deepEqual(notExec, [],
+    `these declare a shebang and are not executable, so running them directly fails: ${notExec.join(", ")}`);
+});
+
 test("guardrail: a world LIST is ordered by the campaign, and the daily's raw order is deliberate", () => {
   // The order the worlds come in is a campaign fact, and it had two owners:
   // DATA.LEVELS and whoever typed the keys of ENDLESS.worlds. They drifted, and

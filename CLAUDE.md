@@ -4068,6 +4068,28 @@ happening. Two of my own expectations were also simply wrong (`td-gold.js` print
 removed the heroic column the signature asked for), which is the signature doing
 its job before the test ever shipped.
 
+**A SHEBANG ON A NON-EXECUTABLE FILE IS A DECLARATION THAT DOES NOTHING**, and
+all eight research tools carried `#!/usr/bin/env node` at mode 644 — which is
+why this file's own `W9=1 tools/td-map-search.js` could not be copy-pasted: it
+dies with "Permission denied" while the identical line with `node` in front
+works. The repo already had the convention (`.claude/resync-main.sh` has always
+been executable), so the tools were the exception rather than the rule; they are
+755 now and both documented forms run. The guardrail is DERIVED over every
+tracked file, so a ninth tool inherits it, and it reads the **git INDEX rather
+than the working tree** — that is what a fresh clone gets, so a local `chmod`
+nobody committed must not make it pass. That is a control rather than a
+mutation, and it is stated because the natural reading of "it passed" is that
+the check is weak.
+**And the finding that started this was a FALSE one I nearly acted on.** Scanning
+the tools for env knobs with `process\.env\.[A-Z_]+` reported `W` for
+td-map-search, so `W9=1` looked like a documented invocation reading a knob that
+does not exist — a stale-command finding of exactly the class this file records
+ten times. It is not: the character class has no digits, so `W9` and `W10`
+TRUNCATED to `W`. Running it is what settled it (`W9=1` correctly prints L33/L34).
+A scan's own pattern is part of the scan, for the eighth recorded time, and this
+one produced a plausible defect report about the documentation rather than a
+missed one — the failure mode that wastes a fix rather than hiding a bug.
+
 ---
 
 ## Repository Structure
