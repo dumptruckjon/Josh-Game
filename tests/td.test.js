@@ -1959,6 +1959,93 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
 });
 
+test("QoL: the backup dialog can actually COPY the thing it tells you to copy", async () => {
+  // Its own first instruction is "Copy this text somewhere safe" and there was
+  // no way to copy it — hand-selecting a scrolling textarea on a phone is
+  // exactly the fiddle this removes. And on THIS dialog "did that work?" is the
+  // difference between having a backup and believing you have one, so the copy
+  // has to confirm.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.click("#screen-td-home .td-backup-open");
+  await page.locator(".td-overlay--backup").waitFor({ state: "visible" });
+  try {
+    // 1. the Clipboard API path: the SAVE text reaches it, verbatim
+    const api = await page.evaluate(async () => {
+      const seen = [];
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: (t) => { seen.push(t); return Promise.resolve(); } },
+      });
+      const box = document.querySelector(".td-backup__box");
+      document.querySelector(".td-backup-copy").click();
+      await new Promise((r) => setTimeout(r, 30));
+      const msg = document.querySelector(".td-backup__msg");
+      return { wrote: seen, want: box.value, msg: msg.hidden ? null : msg.textContent.trim(),
+        cls: msg.className };
+    });
+    assert.equal(api.wrote.length, 1, "one copy per tap");
+    assert.ok(api.want.length > 20 && api.want.startsWith("{"), `fixture: the box holds a real save (${api.want.slice(0, 30)}…)`);
+    assert.equal(api.wrote[0], api.want, "what is copied is exactly what the box shows");
+    assert.ok(api.msg && /copied/i.test(api.msg), `…and it says so (saw ${JSON.stringify(api.msg)})`);
+    assert.match(api.cls, /--ok/, "…as a success, not a warning");
+
+    // 2. the FALLBACK path, for an older WebKit or a non-secure context where
+    //    navigator.clipboard simply is not there. Josh's iPad floor is exactly
+    //    the sort of place that matters.
+    const fb = await page.evaluate(async () => {
+      // NOT `delete`: that removes the own property and reveals
+      // Navigator.prototype.clipboard, which is the real one — so the API path
+      // runs again and this reads exactly like a missing fallback.
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+      const calls = [];
+      const real = document.execCommand;
+      document.execCommand = function (c) { calls.push(c); return true; };
+      const msgEl = document.querySelector(".td-backup__msg");
+      msgEl.hidden = true; msgEl.textContent = "";
+      document.querySelector(".td-backup-copy").click();
+      await new Promise((r) => setTimeout(r, 30));
+      const out = { calls, msg: msgEl.hidden ? null : msgEl.textContent.trim(),
+        sel: [document.querySelector(".td-backup__box").selectionStart,
+              document.querySelector(".td-backup__box").selectionEnd] };
+      document.execCommand = real;
+      return out;
+    });
+    assert.deepEqual(fb.calls, ["copy"], "with no Clipboard API it falls back to the selection copy");
+    assert.ok(fb.sel[1] > fb.sel[0], `…having selected the whole box first (${fb.sel.join("..")})`);
+    assert.ok(fb.msg && /copied/i.test(fb.msg), `…and it still confirms (saw ${JSON.stringify(fb.msg)})`);
+  } finally {
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+
+  // 3. three buttons in that row must still clear the fort's ADULT floor on the
+  //    narrowest phone, and the dialog must stay on screen.
+  for (const [w, h] of [[320, 568], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(60);
+    await page.click("#screen-td-home .td-backup-open");
+    await page.locator(".td-overlay--backup").waitFor({ state: "visible" });
+    const m = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay--backup .td-overlay__box").getBoundingClientRect();
+      const bs = [...document.querySelectorAll(".td-overlay--backup .td-overlay__row .td-btn")]
+        .map((b) => ({ t: b.textContent.trim(), w: Math.round(b.getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height) }));
+      return { bs, onScreen: box.top >= 0 && box.bottom <= window.innerHeight + 1,
+        ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    });
+    assert.equal(m.bs.length, 3, `all three actions are offered at ${w}px`);
+    for (const b of m.bs) {
+      assert.ok(b.w >= 44 && b.h >= 44, `"${b.t}" clears the adult 44px floor at ${w}px (${b.w}x${b.h})`);
+    }
+    assert.ok(m.onScreen, `the backup dialog lands on screen at ${w}px`);
+    assert.equal(m.ovf, 0, `…and the page does not scroll sideways at ${w}px`);
+    await page.evaluate(() => { try { window.TDUI.closeOverlay(); } catch (e) { /* nothing open */ } });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { location.hash = ""; });
+});
+
 test("QoL: the two ways to play a level again say which is which", async () => {
   // A defeat offers 🔁 Try again and 🎲 New shuffle, and nothing said what
   // differed: one replays the SAME seed — the identical wave order you just

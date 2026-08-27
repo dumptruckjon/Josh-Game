@@ -700,6 +700,10 @@
       '<textarea class="td-backup__box" rows="4" spellcheck="false" aria-label="Fort save data"></textarea>' +
       '<p class="td-backup__msg" hidden></p>' +
       '<div class="td-overlay__row">' +
+        // The dialog's own first instruction is "copy this text", and there was
+        // no way to copy it: hand-selecting a scrolling textarea on a phone is
+        // exactly the fiddle this button exists to remove.
+        '<button class="td-btn td-backup-copy" type="button">📋 Copy</button>' +
         '<button class="td-btn td-backup-load" type="button">📥 Restore</button>' +
         '<button class="td-btn td-backup-done" type="button">Done</button>' +
       "</div>");
@@ -712,6 +716,28 @@
       msg.hidden = false;
       msg.textContent = r.ok ? "✅ Restored — your fort is back." : "⚠️ That doesn't look like a fort save. Nothing was changed.";
       msg.className = "td-backup__msg " + (r.ok ? "td-backup__msg--ok" : "td-backup__msg--bad");
+    });
+    // A copy with no confirmation leaves you unsure whether it worked — and on
+    // this dialog "did that work?" is the difference between having a backup and
+    // believing you have one. Two paths: the Clipboard API where it exists, and
+    // the selection + execCommand fallback for an older WebKit or a non-secure
+    // context, where the API is simply absent.
+    el.querySelector(".td-backup-copy").addEventListener("click", () => {
+      const say = (ok) => {
+        msg.hidden = false;
+        msg.textContent = ok ? "✅ Copied — paste it somewhere safe." : "⚠️ Couldn't copy. Select the text and copy it by hand.";
+        msg.className = "td-backup__msg " + (ok ? "td-backup__msg--ok" : "td-backup__msg--bad");
+      };
+      const fallback = () => {
+        try {
+          box.focus();
+          box.setSelectionRange(0, box.value.length);   // iOS ignores a bare select() on some builds
+          say(!!doc.execCommand("copy"));
+        } catch (e) { say(false); }
+      };
+      const cb = global.navigator && global.navigator.clipboard;
+      if (cb && cb.writeText) cb.writeText(box.value).then(() => say(true), fallback);
+      else fallback();
     });
     el.querySelector(".td-backup-done").addEventListener("click", UI.closeOverlay);
     el.addEventListener("click", (ev) => { if (ev.target === el) UI.closeOverlay(); });
