@@ -1959,6 +1959,62 @@ test("TD5 badges + endless: every badge, and every WORLD gets an endless row", a
   assert.deepEqual(st.path, want, `${last} endless runs on its OWN arena`);
 });
 
+test("QoL: a badge toast sits ABOVE the controls, never on them", async () => {
+  // The toast is fixed 24px from the bottom, which in portrait is exactly where
+  // the power strip and ▶ CALL live. Measured before the fix: at 320px a mid-run
+  // badge covered TWO power tiles COMPLETELY plus 1368px² of CALL, and 74/74/60%
+  // at 390. 🩸 First Blood fires on your first kill — wave 1 of every level — so
+  // it happened at the start of every run. It cannot steal the tap
+  // (pointer-events: none) but it hides the thing you are reaching for.
+  const earn = async () => page.evaluate(() => {
+    // Clear first, and read the LAST toast: they are APPENDED, so querySelector
+    // returns the OLDEST one — which at the next viewport is still carrying the
+    // previous layout's absolute position, and reads exactly like the product
+    // failing to lift. (The buddy test records this same trap for `.win-hero`.)
+    window.TDUI.clearToasts();
+    window.__TD.resetSave();
+    window.__TD.newGame(7, { seed: 11 });
+    const L = window.TDData.LEVELS.find((l) => l.id === 7);
+    window.__TD.script(L.pads.slice(0, 6).map((p, i) => ["place", ["dart", "mortar", "fan", "dart"][i % 4], p.id]));
+    window.__TD.script([["call"], ["tick", 260]]);          // First Blood, mid-wave
+    const all = document.querySelectorAll(".td-toast");
+    const t = all[all.length - 1];
+    if (!t) return { none: true };
+    const tr = t.getBoundingClientRect();
+    const over = (r) => Math.max(0, Math.min(tr.right, r.right) - Math.max(tr.left, r.left)) *
+                        Math.max(0, Math.min(tr.bottom, r.bottom) - Math.max(tr.top, r.top));
+    const ctrls = [...document.querySelectorAll(".td-abil, .td-call")].filter((c) => c.offsetParent);
+    return { top: Math.round(tr.top), bottom: Math.round(tr.bottom), ctrls: ctrls.length, toasts: all.length,
+      worst: Math.round(Math.max(0, ...ctrls.map((c) => over(c.getBoundingClientRect())))) };
+  });
+
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  let landscapeTop = 0;
+  for (const [w, h] of [[320, 568], [390, 844], [768, 1024], [834, 1112], [844, 390]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(80);
+    const m = await earn();
+    assert.ok(!m.none, `fixture: a badge must actually toast at ${w}x${h}`);
+    assert.ok(m.ctrls >= 4, `fixture: the controls must be on screen at ${w}x${h} (${m.ctrls})`);
+    assert.equal(m.toasts, 1, `fixture: exactly one toast, so this measures a FRESH one at ${w}x${h} (${m.toasts})`);
+    assert.equal(m.worst, 0, `no control may be covered by a toast at ${w}x${h} (worst ${m.worst}px²)`);
+    assert.ok(m.top >= 0, `…and the toast must stay on screen at ${w}x${h} (top ${m.top})`);
+    if (w === 844) landscapeTop = m.top;
+  }
+  // The lift is CONDITIONAL — derived from where the controls actually are — so
+  // landscape, where the strip is a side gutter and nothing overlaps, keeps the
+  // low position. An unconditional lift would push it into the field instead.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(80);
+  const low = await page.evaluate(() => (window.innerHeight - 24 - 80));
+  assert.ok(landscapeTop > low,
+    `in landscape the toast must stay low, since nothing overlaps there (top ${landscapeTop}, floor ${low})`);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { window.__TD.resetSave(); location.hash = ""; });
+});
+
 test("QoL: the difficulty chips say what the ladder DOES to a run", async () => {
   // The three chips said "😌 Easy / ⚔️ Normal / 💀 Hard" and their per-ladder
   // progress, and nothing anywhere — not the chips, not the guide, not one line

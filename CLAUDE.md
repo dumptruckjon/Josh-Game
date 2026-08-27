@@ -3830,6 +3830,33 @@ return to build — calling again while one is still walking STACKS waves (TD-15
 failure message now names phase, lives, seed and difficulty so the next
 occurrence is diagnosable in one look instead of five probes.
 
+**A BADGE TOAST SAT ON THE POWER STRIP AT THE START OF EVERY SINGLE RUN.** Found
+by screenshotting the fort's BATTLEFIELD at tablet size, which nothing had ever
+done — every play-screen test measures the canvas or a control, none looks at
+the picture. The toast is `position: fixed` 24px from the bottom, which in
+portrait is exactly where the power strip and ▶ CALL live. Measured before the
+fix: at 320px a mid-run badge covered **two power tiles completely plus 1368px²
+of CALL**, and 74%/74%/60% at 390 — and 🩸 First Blood fires on your first kill,
+i.e. in wave 1 of every level, so this happened at the start of every run. It
+could never steal the tap (`pointer-events: none`, an earlier audit's call) but
+it hid the thing you were reaching for. The lift is DERIVED from where the
+controls actually are rather than being a constant, which is what lets landscape
+— where the strip is a side gutter and the measured overlap is zero — keep the
+low position; the mutation that makes the lift unconditional pushes the toast to
+`top 11`, into the field. Note the shape of the find: the screenshot showed the
+tablet, where one tile was 51% covered, and MEASURING then showed the phone was
+far worse. **Look at the picture to find it, measure every size to size it.**
+**And the first two failures were my own FIXTURE, twice over.** A `querySelector
+(".td-toast")` returns the OLDEST toast, because they are appended — so at the
+next viewport I was measuring the PREVIOUS layout's toast, still carrying its
+stale absolute position, which reads exactly like the product failing to lift.
+That is the `.win-hero` trap this file already records for the buddy test,
+committed again by the person who wrote it down. The tell was in the
+diagnostic: the computed `bottom` was byte-identical (`calc(108px …)`) at five
+different viewports, which no per-viewport derivation could produce. The test
+clears toasts, reads the LAST one, and asserts there is exactly ONE, so a stale
+toast can never be what it measures.
+
 ---
 
 ## Repository Structure

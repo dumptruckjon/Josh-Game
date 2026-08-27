@@ -1353,9 +1353,34 @@
     const stackIdx = host.querySelectorAll(".td-toast").length;
     const el = doc.createElement("div");
     el.className = "td-toast";
-    if (stackIdx) el.style.bottom = "calc(24px + env(safe-area-inset-bottom) + " + (stackIdx * 64) + "px)";
     el.innerHTML = '<span class="td-toast__icon">' + icon + '</span><span class="td-toast__txt">' + html + "</span>";
     host.appendChild(el);
+    // SIT ABOVE THE CONTROLS, never on them. The toast is fixed 24px from the
+    // bottom, which is exactly where the power strip and ▶ CALL live in
+    // portrait — measured, a mid-run badge covered TWO power tiles completely
+    // plus part of CALL at 320px, and 74%/74%/60% at 390. 🩸 First Blood fires
+    // on your first kill, i.e. in wave 1 of every level, so this happened at the
+    // start of every single run. It cannot steal the tap (pointer-events: none)
+    // but it hides what you are reaching for. Derived from where the controls
+    // ACTUALLY are rather than a fixed lift, so landscape — where the strip is a
+    // side gutter and there is no overlap at all — keeps the low position, and a
+    // future control layout is handled without a second rule here.
+    let lift = 0;
+    const ctrls = [...host.querySelectorAll(".td-abil, .td-call")].filter((c) => c.offsetParent);
+    if (ctrls.length) {
+      const r = el.getBoundingClientRect();
+      let top = Infinity, hits = false;
+      for (const c of ctrls) {
+        const cr = c.getBoundingClientRect();
+        if (cr.width <= 0 || cr.height <= 0) continue;
+        if (cr.left < r.right && cr.right > r.left && cr.top < r.bottom && cr.bottom > r.top) hits = true;
+        if (cr.top < top) top = cr.top;
+      }
+      if (hits && top < Infinity) lift = Math.max(0, Math.round((global.innerHeight || 0) - top + 8));
+    }
+    if (lift || stackIdx) {
+      el.style.bottom = "calc(" + (24 + lift) + "px + env(safe-area-inset-bottom) + " + (stackIdx * 64) + "px)";
+    }
     setTimeout(() => { el.remove(); }, 2800);
     return el;
   };
