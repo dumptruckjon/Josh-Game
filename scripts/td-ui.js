@@ -1669,7 +1669,16 @@
         buyEl.hidden = !priceable;
         buyEl.textContent = priceable ? price + "🪙" : "";
       }
-      charge.disabled = !r.ok;
+      // aria-disabled, NOT `disabled`. A disabled button dispatches no click, so
+      // the whole refusal branch of the buyCharge handler — four hint strings
+      // and a deny cue, already written and already correct — could never run:
+      // every reason this control can give lived only in `title` (hover-only on
+      // a phone) and `aria-label`. This test's own sibling says the refusal
+      // "must be readable — not a silent no-op, which is what a broken button
+      // looks like", and on a touch device it was exactly that. The ENGINE stays
+      // the authority: the click still asks buyCharge(), which refuses and hands
+      // back the reason.
+      charge.setAttribute("aria-disabled", r.ok ? "false" : "true");
       charge.classList.toggle("is-buyable", !!r.ok);
       charge.title = why;
       charge.setAttribute("aria-label", (state.charge || 0) + " toy energy. " + why);

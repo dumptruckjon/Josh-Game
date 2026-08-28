@@ -4540,6 +4540,44 @@ the call-site count) stays, and the general one is not built. The scan also
 missed two hooks that were present until it was comment-stripped, because a
 comment sitting between two hooks broke its preceding-character class — a scan
 must not count, or be blinded by, its own documentation, for the eighth time.
+**THE ⚙️ EXCHANGE HAD FOUR WELL-WRITTEN REFUSAL REASONS AND A DENY CUE, ALL OF
+IT UNREACHABLE — because the button that would fire them was `disabled`.** The
+handler already did the right thing: on a refused `buyCharge()` it plays
+`sfx("deny")` and writes one of four strings to the shared hint line over the
+field ("⚙️ Buy energy once the wave is walking", "⚙️ Only one extra energy per
+wave", "⚙️ Your energy is already full", "⚙️ Not enough gold for another energy
+(450🪙)"). But the HUD painted `charge.disabled = !r.ok` every frame, and a
+disabled button dispatches no click — so that entire branch was dead code, and
+every reason this control can give lived only in `title` (hover-only on a phone)
+and `aria-label`. Verified rather than reasoned: a DOM `el.click()` on the
+disabled chip fires nothing and `.td-abilhint` is never even created. It is the
+documented `el.click()`-on-a-disabled-control law (the Worry Box's stranded
+`[data-toy]`) meeting the `title`-is-a-hover-affordance law, on the resource
+this file already records shipping as a bare unexplained numeral. Fixed with
+`aria-disabled` plus the existing dim, so the tap reaches the handler and the
+ENGINE stays the authority — the click still asks `buyCharge()`, which refuses
+and hands back the reason.
+Four things worth keeping. (1) **The shipped test's own COMMENT stated the
+property its assertion did not.** It reads *"the refusal must be readable — not
+a silent no-op, which is what a broken button looks like"* and then asserted
+`title` and `aria-label`: a hover channel and an AT channel, on a game played
+with a thumb. Re-pointed at the ink, which is what "readable" meant. (2)
+**Playwright's actionability check treats `aria-disabled="true"` as not-enabled
+and refuses to click it, while a real finger is unaffected** — so the test drives
+a DOM `el.click()`, which is this suite's documented way to drive a tap anyway.
+Worth knowing before concluding a control is unclickable because the harness
+said so. (3) **The obvious mutation does NOT isolate the claim**: restoring
+`disabled` also removes the aria attribute, so it fires the earlier
+state clause. The faithful reproduction sets BOTH — correct ARIA, blocked
+clicks — and then only the hint clause goes red, `saw ""`. Earlier-clause trap,
+again. (4) **"What else has this shape?" was MEASURED, and the answer is
+nothing** — the two neighbouring controls that also set `.disabled` beside a
+refusal hint are both correct, for different reasons: an ability tile is not
+disabled by affordability at all (it arms and hints), and ▶ CALL is disabled but
+carries its reason as INK in its own label ("⏩ RUSH steady… · 6 left"), so its
+unreachable hint is a redundant second channel rather than the only one. A
+general "a control with a refusal hint must not be disabled" law would therefore
+be a fence around one case; the specific behavioural test stays instead.
 ---
 
 ## Repository Structure

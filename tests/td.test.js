@@ -4567,10 +4567,23 @@ test("⚙️ exchange: the BUTTON buys energy, and says why when it won't", asyn
   // silent no-op, which is what a broken button looks like.
   const build = await page.evaluate(() => {
     const b = document.querySelector("#screen-td-play .td-hud__charge");
-    return { disabled: b.disabled, title: b.title, label: b.getAttribute("aria-label") };
+    // A DOM click, not a Playwright one: aria-disabled makes Playwright's
+    // actionability check refuse, while a real finger is unaffected — and a DOM
+    // click is this suite's documented way to drive a tap anyway.
+    b.click();
+    const hint = document.querySelector("#screen-td-play .td-abilhint");
+    return { refused: b.getAttribute("aria-disabled") === "true",
+             title: b.title, label: b.getAttribute("aria-label"),
+             hint: hint && !hint.hidden ? hint.textContent : "" };
   });
-  assert.ok(build.disabled, "during build the exchange is refused (it is wave-only, like every timed effect)");
+  assert.ok(build.refused, "during build the exchange is refused (it is wave-only, like every timed effect)");
   assert.match(build.title + " " + build.label, /wave/i, "…and it SAYS the wave is why");
+  // READABLE means readable ON THE SCREEN. This used to assert only title and
+  // aria-label — a hover affordance and an AT one — on a game played with a
+  // thumb, while the control was `disabled` so its click never fired and the
+  // handler's four hint strings were unreachable dead code.
+  assert.match(build.hint, /wave/i,
+    `tapping the refused chip must SAY why on the field, not only on hover (saw "${build.hint}")`);
 
   // WAVE phase with gold: one purchase works, the second is refused BY THE CAP.
   const out = await page.evaluate(async () => {
@@ -4583,20 +4596,30 @@ test("⚙️ exchange: the BUTTON buys energy, and says why when it won't", asyn
     window.__TD.script([["call"], ["tick", 1]]);
     await new Promise((r) => setTimeout(r, 40));
     const b = document.querySelector("#screen-td-play .td-hud__charge");
-    const before = { charge: st.charge, gold: st.gold, disabled: b.disabled, buyable: b.classList.contains("is-buyable") };
+    const refused = () => b.getAttribute("aria-disabled") === "true";
+    const before = { charge: st.charge, gold: st.gold, refused: refused(), buyable: b.classList.contains("is-buyable") };
     b.click();
     await new Promise((r) => setTimeout(r, 60));
-    const after = { charge: st.charge, gold: st.gold, disabled: b.disabled, title: b.title };
+    const hintAfterBuy = document.querySelector("#screen-td-play .td-abilhint");
+    const after = { charge: st.charge, gold: st.gold, refused: refused(), title: b.title,
+                    hint: hintAfterBuy && !hintAfterBuy.hidden ? hintAfterBuy.textContent : "" };
     b.click();                                  // the capped second tap
     await new Promise((r) => setTimeout(r, 60));
-    return { before, after, capped: { charge: st.charge, gold: st.gold }, price: window.TDData.RULES.chargeBuyBase };
+    const cappedHint = document.querySelector("#screen-td-play .td-abilhint");
+    return { before, after, capped: { charge: st.charge, gold: st.gold,
+               hint: cappedHint && !cappedHint.hidden ? cappedHint.textContent : "" },
+             price: window.TDData.RULES.chargeBuyBase };
   });
-  assert.ok(!out.before.disabled && out.before.buyable,
+  assert.ok(!out.before.refused && out.before.buyable,
     "mid-wave with gold the chip is live and looks it");
   assert.equal(out.after.charge, out.before.charge + 1, "the tap actually grants the energy");
   assert.equal(out.after.gold, out.before.gold - out.price, "…and charges exactly the quoted price");
-  assert.ok(out.after.disabled, "a second tap in the same wave is refused — the cap is the safety property");
+  assert.ok(out.after.refused, "a second tap in the same wave is refused — the cap is the safety property");
   assert.match(out.after.title, /wave/i, "…and the chip says the per-wave limit is why");
+  assert.equal(out.after.hint, "",
+    "a SUCCESSFUL buy clears the hint — a stale refusal left on screen is its own lie");
+  assert.match(out.capped.hint, /wave/i,
+    `…and the capped tap says the per-wave limit on the field (saw "${out.capped.hint}")`);
   assert.equal(out.capped.charge, out.after.charge, "the capped tap grants nothing");
   assert.equal(out.capped.gold, out.after.gold, "…and, crucially, takes NO gold for it");
 });

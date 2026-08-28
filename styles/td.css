@@ -233,7 +233,7 @@ body.td-mode #screens { padding: 0; }
   background: rgba(255, 214, 80, 0.22);
   border-color: rgba(255, 214, 80, 0.7);
 }
-.td-hud__charge[disabled] { opacity: 0.75; cursor: default; }
+.td-hud__charge[aria-disabled="true"] { opacity: 0.75; cursor: default; }
 
 .td-canvas-wrap { position: relative; width: 100%; }
 .td-canvas {
