@@ -11967,3 +11967,54 @@ test("QoL: a locked level says WHICH LEVEL opens it, not a number of stars", asy
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(60);
 });
+
+test("QoL: a first win shows no 'best', because there isn't one yet", async () => {
+  // The victory path WRITES the new best a few lines before the summary was
+  // built, and the summary read the save — so a first-ever win rendered
+  // "Best here: 16 stickers kept" directly beneath its own "16 of 20 stickers
+  // kept safe": a record restated from the run you are looking at, when no
+  // record existed. Same class as the endless picker's bare "🏆 12" and
+  // Marathoner's "0 of 20" — a number shown before there is anything to show —
+  // and it fired on every first clear, which is 40 levels x 3 ladders.
+  //
+  // `wasBeaten` three lines above it already carried the fix's own comment:
+  // captured BEFORE the write, "the only moment the question is answerable".
+  const read = () => page.evaluate(() => {
+    const box = document.querySelector(".td-overlay--win .td-overlay__box");
+    const pb = box.querySelector(".td-sum__pb");
+    const lines = [...box.querySelectorAll(".td-sum__line")].map((e) => e.textContent.trim());
+    return { pb: pb ? pb.textContent.trim() : null,
+             best: lines.find((t) => /Best here/.test(t)) || null,
+             lives: Number((box.textContent.match(/(\d+) of \d+ stickers/) || [])[1]) };
+  });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  await page.evaluate(() => { window.__TD.resetSave(); window.__TD.winL1(); });
+  await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 25000 });
+  const first = await read();
+  assert.ok(first.lives > 0, `fixture precondition: the run finished with lives (${first.lives})`);
+  assert.equal(first.best, null,
+    `a first-ever win has no record to report (saw "${first.best}")`);
+
+  // A record that is HIGHER than this run: the line must quote the RECORD, not
+  // the run — which is what catches a summary that reports the current score.
+  await page.evaluate(() => window.TDUI.closeOverlay());
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    s.bests["1:normal"] = { lives: 19, stars: 3 };
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(s));
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.winL1(); });
+  await page.locator(".td-overlay--win").waitFor({ state: "visible", timeout: 25000 });
+  const worse = await read();
+  assert.ok(worse.lives < 19, `fixture precondition: this run is worse than the seeded record (${worse.lives})`);
+  assert.ok(worse.best && /19/.test(worse.best),
+    `the line quotes the RECORD that stood before this run, not this run (saw "${worse.best}")`);
+  assert.equal(worse.pb, null, "…and a worse run is not a personal best");
+  await page.evaluate(() => window.TDUI.closeOverlay());
+});

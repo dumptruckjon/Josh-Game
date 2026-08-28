@@ -4578,6 +4578,41 @@ carries its reason as INK in its own label ("⏩ RUSH steady… · 6 left"), so 
 unreachable hint is a redundant second channel rather than the only one. A
 general "a control with a refusal hint must not be disabled" law would therefore
 be a fence around one case; the specific behavioural test stays instead.
+**A FIRST-EVER WIN REPORTED A RECORD THAT DID NOT EXIST — and the fix's own
+justification was already written three lines above the bug.** The victory
+screen's run summary rendered *"Best here: 16 stickers kept"* directly beneath
+its own *"16 of 20 stickers kept safe"*: the same number twice, the second one
+labelled as a historical best, on a save that had never cleared the level. The
+cause is ordering, not arithmetic — `save.bests` is WRITTEN a few lines before
+the summary is built, and the summary read the save, so by then the record it
+asked for was this run. `pb` is correct and deliberately stays so ("New personal
+best" fires only when you BEAT a record, and a first win beats nothing), which
+is exactly why the fallback line ran and had nothing true to say. It fired on
+every first clear: 40 levels x 3 ladders.
+Three things worth keeping. (1) **The precedent was RIGHT THERE**: `wasBeaten`,
+captured three lines earlier, carries the comment *"captured BEFORE the write
+below, which is the only moment the question is answerable"* — the identical
+shape, already solved, for the identical reason. One question captured before
+the write and its sibling read after it is this file's most reliable tell, and
+here both lived in the same twenty lines. `priorBestLives(st)` is now the one
+owner, called before the write on the victory path and directly on the three
+defeat paths, where nothing is written. (2) **Endless returns null
+deliberately** — its record is WAVES, not lives, and the headline already owns
+it, so a lives-based "best" there would be a second, wrong answer to a question
+the screen has already answered. (3) **The separating input is the FIRST win,
+and only it.** A run that is WORSE than a standing record reads identically
+before and after the fix (nothing is written, so the save still holds the
+prior), and a run that BEATS one shows the personal-best line instead — so a
+test seeded with any existing record proves nothing. The clause that catches
+it is a fresh save, and the mutation that restores the old read reports the
+shipped string verbatim, *"Best here: 16 stickers kept"*. A second clause
+seeds a HIGHER record and requires the line to quote 19 rather than the run's
+16, which is what catches a summary reporting the current score.
+One method note: the patch script asserted its anchor matched exactly once and
+caught ME — `runSummary(false)` appeared five times, because two of them were
+in the comments I had just written explaining the change. A scan must not count
+its own documentation, now committed inside a patch script rather than a test,
+and the assert is the only reason it was not applied to the wrong sites.
 ---
 
 ## Repository Structure

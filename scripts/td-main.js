@@ -654,6 +654,7 @@
       // TD-13: a personal best per level PER DIFFICULTY (they are independent
       // ladders, so a casual clear must never overwrite a heroic one).
       let pb = false;
+      const priorBest = priorBestLives(st);   // BEFORE the write below
       if (!st.cheated && !st.endless) {
         const bk = st.levelId + ":" + st.difficulty;
         const prev = save.bests[bk];
@@ -669,7 +670,7 @@
         onNext: nextExists && !st.cheated
           ? () => { UI.closeOverlay(); location.hash = "#td-play"; startLevel(nextId, continueOpts(st)); }
           : null,
-      }, runSummary(pb), drainEarned());
+      }, runSummary(pb, priorBest), drainEarned());
     } else if (st.phase === "lost") {
       stopLoop();
       clearMidRun();
@@ -692,7 +693,7 @@
         // "build differently" is the only way to do better. runSummary(false)
         // deliberately: the headline above already owns "🏆 New best!", and a
         // personal-best line here would print it twice.
-        }, { score, best: save.daily.best | 0 }, postMortem(), runSummary(false), drainEarned());
+        }, { score, best: save.daily.best | 0 }, postMortem(), runSummary(false, priorBestLives(st)), drainEarned());
       } else if (st.endless) {
         const world = cur.levelDef.world, score = st.waveIdx;
         const best = (save.endlessBest[world] || 0);
@@ -708,14 +709,14 @@
         // "build differently" is the only way to do better. runSummary(false)
         // deliberately: the headline above already owns "🏆 New best!", and a
         // personal-best line here would print it twice.
-        }, { score, best: Math.max(best, score) }, postMortem(), runSummary(false), drainEarned());
+        }, { score, best: Math.max(best, score) }, postMortem(), runSummary(false, priorBestLives(st)), drainEarned());
       } else {
         UI.showDefeat({
           retry: () => { UI.closeOverlay(); startLevel(st.levelId, Object.assign(continueOpts(st), { seed: st.seed })); },
           retrynew: () => { UI.closeOverlay(); startLevel(st.levelId, Object.assign(continueOpts(st), { seed: (Date.now() % 100000) })); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
           guide: (type) => { UI.closeOverlay(); UI.showGuide(type); },
-        }, null, postMortem(), runSummary(false), drainEarned());
+        }, null, postMortem(), runSummary(false, priorBestLives(st)), drainEarned());
       }
     }
   }
@@ -728,7 +729,21 @@
   // from events the engine already emits, so nothing here can disagree with the
   // simulation — and damage-by-line is the number that makes "which towers are
   // carrying?" answerable for the first time.
-  function runSummary(isPersonalBest) {
+  // The best that existed BEFORE this run. Captured for the same reason
+  // `wasBeaten` is, and its comment says it best: the victory path WRITES the
+  // new best a few lines above, so after that write the save can no longer
+  // answer "what was the record?". This read it afterwards, so a first-ever win
+  // rendered "Best here: 16 stickers kept" directly under its own "16 of 20
+  // stickers kept safe" — a record restated from the run you are looking at,
+  // when there was no record. That is the "🏆 12 — twelve of WHAT" class: a
+  // number shown before there is anything to show. Endless returns null
+  // deliberately — its record is WAVES and the headline already owns it.
+  function priorBestLives(st) {
+    if (st.cheated || st.endless || typeof st.levelId !== "number") return null;
+    const prev = save.bests[st.levelId + ":" + st.difficulty];
+    return prev ? (prev.lives | 0) : null;
+  }
+  function runSummary(isPersonalBest, priorBest) {
     if (!cur) return null;
     const st = cur.engine.state;
     // Read straight off engine STATE (exact, cap-proof) rather than the event
@@ -747,12 +762,10 @@
       pct: total ? Math.round((dmg[k] / total) * 100) : 0,
     }));
     const spent = st.towers.reduce((a, t) => a + (t.spent || 0), 0);
-    const bk = st.levelId + ":" + st.difficulty;
-    const best = save.bests[bk];
     return {
       rows, kills: st.kills || 0, gold: st.goldEarned || 0, spent,
       towers: st.towers.length,
-      best: best ? best.lives : null,
+      best: priorBest == null ? null : priorBest,
       personalBest: !!isPersonalBest,
     };
   }
