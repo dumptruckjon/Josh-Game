@@ -11882,3 +11882,65 @@ test("QoL: an endless run's LAST screen says what beat you — and names the bad
   await page.locator(".td-overlay--guide").waitFor({ state: "visible", timeout: 5000 });
   await page.locator(".td-guide-done").click();
 });
+
+test("QoL: a locked level says WHICH LEVEL opens it, not a number of stars", async () => {
+  // The visible label read "win 8 ⭐" while the rule one line above it is
+  // `beatenOn(save, selDiff, n - 1)` — beat the PREVIOUS LEVEL. Those are not
+  // the same claim and they genuinely diverge: 3★ + 3★ + 2★ is eight stars from
+  // three levels, and level 9 stays shut. The aria-label beside it had ALREADY
+  // been corrected to "Win level 8 to open it" — its own comment says why — so
+  // the ink and the spoken name were making different claims about the same
+  // card. The fix had been applied where it was found and not where the same
+  // fact also appears.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.resetSave());
+  // A reload keeps the hash, and setting it to what it already is is a no-op —
+  // hop away first or route() never runs.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  const cards = await page.evaluate(() => {
+    return [...document.querySelectorAll(".td-level__need")].map((el) => {
+      const card = el.closest(".td-level");
+      const n = parseInt(card.querySelector(".td-level__n").textContent, 10);
+      const rng = document.createRange(); rng.selectNodeContents(el);
+      return { n, text: el.textContent, aria: card.getAttribute("aria-label") || "",
+               inkW: rng.getBoundingClientRect().width,
+               cardW: card.getBoundingClientRect().width };
+    });
+  });
+  assert.ok(cards.length >= 10,
+    `fixture precondition: a fresh save leaves most levels locked (saw ${cards.length})`);
+  for (const c of cards) {
+    assert.ok(!/⭐/.test(c.text),
+      `level ${c.n}'s locked label must not price the unlock in stars — it is not the rule (saw "${c.text}")`);
+    // It must name the LEVEL that opens it, and name the same one the
+    // accessible name does: one number, one unit, two surfaces.
+    const m = /win level (\d+)/i.exec(c.text);
+    assert.ok(m, `level ${c.n}'s locked label names the level that opens it (saw "${c.text}")`);
+    assert.equal(Number(m[1]), c.n - 1,
+      `level ${c.n} opens by winning level ${c.n - 1} (label says ${m[1]})`);
+    const a = /Win level (\d+) to open it/i.exec(c.aria);
+    assert.ok(a && Number(a[1]) === Number(m[1]),
+      `the ink and the spoken name must name the SAME level (ink "${c.text}" vs aria "${c.aria}")`);
+  }
+  // The longest label is a two-digit one ("win level 10"); digits are tabular,
+  // so every two-digit card ties. It must still fit the narrowest card.
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.waitForTimeout(60);
+  const fit = await page.evaluate(() => {
+    let worst = null;
+    for (const el of document.querySelectorAll(".td-level__need")) {
+      const rng = document.createRange(); rng.selectNodeContents(el);
+      const w = rng.getBoundingClientRect().width;
+      const cw = el.closest(".td-level").getBoundingClientRect().width;
+      if (!worst || w > worst.w) worst = { w, cw, text: el.textContent };
+    }
+    return worst;
+  });
+  assert.ok(fit.w <= fit.cw - 8,
+    `the widest locked label fits a 320px card ("${fit.text}" is ${Math.round(fit.w)}px of ${Math.round(fit.cw)}px)`);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+});

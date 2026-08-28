@@ -530,8 +530,15 @@
         card.disabled = true;
         card.innerHTML = '<span class="td-level__n">' + n + "</span>" +
           '<span class="td-level__name">🔒</span>' +
-          '<span class="td-level__stars td-level__need">win ' + (n - 1) + " ⭐</span>";
-        // "9🔒win 8 ⭐" reads as "nine, locked, win eight star". Say the rule.
+          '<span class="td-level__stars td-level__need">win level ' + (n - 1) + "</span>";
+        // The visible label used to read "win 8 ⭐", and the UNIT was wrong: the
+        // rule right above is `beatenOn(save, selDiff, n - 1)` — beat the
+        // PREVIOUS LEVEL — not accumulate stars, and the two genuinely differ
+        // (3★+3★+2★ is eight stars from three levels, and level 9 stays shut).
+        // The aria-label beside it had already been corrected to say "Win level
+        // 8 to open it", so the ink and the spoken name were making different
+        // claims: the fix was applied where it was found and not where the same
+        // fact also appears. Both say `level` now, from the one number.
         card.setAttribute("aria-label",
           "Level " + n + ", locked. Win level " + (n - 1) + " to open it.");
       } else {

@@ -4496,6 +4496,50 @@ on its own, because anything shaped that way also drops the panelled count
 asserted above it — proven by a mutation that adds a fourth nulled call site and
 still reports "only 3 of 4". A clause that cannot fail independently is
 decoration, which this file has now deleted for the fourth time.
+**A LOCKED LEVEL CARD PRICED ITS UNLOCK IN THE WRONG CURRENCY — and the code's
+own comment shows the fix had already been made, on the other half of the same
+card.** The visible label read **"win 8 ⭐"** while the rule two lines above it is
+`beatenOn(save, selDiff, n - 1)` — beat the PREVIOUS LEVEL. Those are different
+claims and they diverge on ordinary saves: 3★ + 3★ + 2★ is eight stars from three
+levels, and level 9 stays shut while its card says you have paid. The
+`aria-label` beside it already said the right thing — *"Level 9, locked. Win
+level 8 to open it."* — under a comment reading *"9🔒win 8 ⭐ reads as nine,
+locked, win eight star. Say the rule."* So somebody had seen exactly this defect,
+corrected the SPOKEN name, and left the ink making the other claim: the `cheap`
+class (an identifier or unit shipped as player copy) meeting the recurring
+fix-it-where-you-found-it class, on one element. Both say `level` now, from the
+one number, and the test asserts the ink and the accessible name name the SAME
+level rather than checking either alone. Measured rather than eyeballed: the
+widest label is a TWO-DIGIT one and every two-digit card ties, because the digits
+are tabular — "win level 10" is 64px in a 142px card at 320, one line, card
+heights byte-identical at 88px, no overflow at 320/390/834. Both mutations red —
+restoring the stars label reports *saw "win 1 ⭐"*, and pointing the ink at a
+different level reports *label says 2*.
+**The same pass derived a cue law whose population was a hand-written SIX against
+a table of TWENTY-FIVE** — so nineteen cues sat outside it, `buycharge` among
+them, which is the very cue whose absence was the defect the law was written for.
+`sfx()` is an if/else chain, so a name with no branch falls through and plays
+NOTHING, and the mutation that renames the branch now reports exactly that.
+Measured clean in both directions before the change (25 defined, 25 fired), so
+this is coverage rather than a fix — the honest half to write down. Two
+extraction subtleties are what make it derivable at all, and each is a false
+result avoided: a cue can be raised through a TERNARY
+(`sfx(e.shielded ? "shielded" : "leak")`), so a first-argument-literal scan
+reports two live cues as dead; and a COMPARISON operand is not a cue
+(`sfx(id === "drop" ? "splash" : "build")`), so the literals are taken only after
+the comparisons are stripped, or `"drop"` is reported as a cue with no branch.
+**And a tempting generalization was MEASURED and REFUSED.** The endless-defeat
+defect was a call site missing a hook the UI can dispatch, so the obvious law is
+"every `data-act` a dialog renders has a hook at every call site". Run over the
+two dynamic-dispatch dialogs it reports `retrynew` MISSING on the endless and
+daily call sites — and that is CORRECT code, because `showDefeat` renders that
+button only for the campaign. Two of three call sites "fail" while being right,
+and the honest version needs conditional-render analysis, so there is no clean
+universal neighbour: the specific shipped clause (the `guide:` hook count equals
+the call-site count) stays, and the general one is not built. The scan also
+missed two hooks that were present until it was comment-stripped, because a
+comment sitting between two hooks broke its preceding-character class — a scan
+must not count, or be blinded by, its own documentation, for the eighth time.
 ---
 
 ## Repository Structure

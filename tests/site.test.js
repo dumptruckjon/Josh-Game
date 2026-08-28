@@ -1537,10 +1537,34 @@ test("guardrail: haptics and wake lock are feature-checked, never assumed", () =
     "one composed owner, so a future state cannot remember the lock and forget the music");
   const strayWakeOwner = (mCode.match(/(?<!function )\bsyncWake\(\)/g) || []).length;
   assert.equal(strayWakeOwner, 1, `syncWake() must be reached only through syncRun (found ${strayWakeOwner})`);
-  // Every new cue is real: it must exist in sfx() AND be fired from somewhere.
-  for (const k of ["ability", "arm", "cleared", "phase", "lowlives", "tier"]) {
-    assert.ok(m.includes('kind === "' + k + '"'), `sfx() defines the "${k}" cue`);
-    assert.ok(m.includes('sfx("' + k + '")'), `…and something actually fires "${k}" (a cue nothing plays is dead)`);
+  // Every cue is real, in BOTH directions. This was a hand-written list of six
+  // against a table of twenty-five — so nineteen cues were outside the law,
+  // including `buycharge`, the very cue whose absence was the defect it was
+  // written for (sfx() is an if/else chain, so a name with no branch falls
+  // straight through and plays NOTHING). Derived now, so a new cue inherits it.
+  const sfxBody = (() => {
+    const i = mCode.indexOf("function sfx(kind, arg)");
+    const j = mCode.indexOf("\n  function ", i + 10);
+    assert.ok(i > 0 && j > i, "the sfx() body is one region");   // a bad slice must not pass vacuously
+    return mCode.slice(i, j);
+  })();
+  const cueDefined = new Set([...sfxBody.matchAll(/kind === "([a-z-]+)"/g)].map((x) => x[1]));
+  const cueFired = new Set();
+  for (const call of mCode.matchAll(/\bsfx\(([^)]*)\)/g)) {
+    // A cue can be raised through a ternary — sfx(e.shielded ? "shielded" : "leak")
+    // — so a first-argument-literal scan would report two LIVE cues as dead. And
+    // a comparison operand is not a cue: sfx(id === "drop" ? "splash" : "build")
+    // must not offer up "drop".
+    const cleaned = call[1].replace(/[!=]==?\s*"[^"]*"/g, "");
+    for (const lit of cleaned.matchAll(/"([a-z-]+)"/g)) cueFired.add(lit[1]);
+  }
+  assert.ok(cueDefined.size >= 20, `the cue table was found (saw ${cueDefined.size})`);
+  for (const k of cueFired) {
+    assert.ok(cueDefined.has(k),
+      `sfx("${k}") has no branch in the cue table — an if/else chain falls through and plays NOTHING`);
+  }
+  for (const k of cueDefined) {
+    assert.ok(cueFired.has(k), `nothing fires the "${k}" cue (a cue nothing plays is dead)`);
   }
 });
 
