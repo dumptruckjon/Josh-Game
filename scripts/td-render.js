@@ -113,6 +113,17 @@
       canvas.width = cssW * dpr;
       canvas.height = cssH * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Publish the FIELD's real width so the control row can sit under the
+      // thing it controls. In portrait the board is HEIGHT-limited on anything
+      // bigger than a phone, so the canvas is narrower than its screen — 546px
+      // inside 834 — while the row is laid out against the screen: measured, ▶
+      // CALL sat ENTIRELY outside the battlefield (x 69..161 against a field
+      // starting at 144, and worse at 768) with the power strip overhanging
+      // 75px the other way. CSS cannot know this width; only resize() computes
+      // it. Set on the SCREEN because custom properties inherit downward and
+      // `.td-controls` is a SIBLING of the canvas wrap, not a child.
+      const screen = parent && parent.parentElement;
+      if (screen && screen.style) screen.style.setProperty("--td-field", cssW + "px");
       bg = null;
     }
 

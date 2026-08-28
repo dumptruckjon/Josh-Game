@@ -569,6 +569,34 @@ body.td-mode #screens { padding: 0; }
     grid-auto-flow: column;
     grid-template-columns: minmax(76px, 92px) minmax(0, 1fr);
     align-items: center;
+    /* Never wider than the FIELD it controls. On a phone the two already
+       coincide (378px canvas, 366px row) so this changes nothing; above it the
+       board is height-limited and the canvas narrows while the row does not —
+       at 834 the row ran 69..765 against a field of 144..690, putting ▶ CALL
+       entirely outside the battlefield and the power strip 75px past its far
+       edge. `--td-field` is published by the renderer, which is the only thing
+       that knows the number; the fallback keeps this inert if it is ever
+       missing. LANDSCAPE is deliberately untouched — there the row is an
+       absolutely-positioned side gutter, and capping it to the field would be
+       meaningless. */
+    max-width: var(--td-field, 100%);
+    /* …with a FLOOR, because a SHORT phone is height-limited too: 320x480 gives
+       a 168px field and 320x568 a 224px one, and the row genuinely needs ~344px
+       for ▶ CALL plus its tiles — capping it there squeezed the tiles into each
+       OTHER (measured gaps of -25px and -11px, which is what the shipped
+       overlap guardrail caught). `min-content` cannot express this: the strip's
+       track is `minmax(0, 1fr)` BY DESIGN (a wide child would otherwise inflate
+       it — the documented 360px cliff), so the grid's min-content is ~0 and it
+       squeezes anyway. The number is derived from the row's own constants: ▶
+       CALL's 92px track + an 8px gap + five 44px tiles + four 8px gaps = 344.
+       `min-width` beats `max-width` in the cascade, so on a screen too small to
+       hold both the row overhangs the field rather than overlapping itself —
+       the right trade, and the one a phone already made before this. Measured,
+       every phone width keeps its exact shipped row (296 at 320, 336 at 360,
+       366 at 390), so this is inert below tablet size. A media-query scope was
+       tried first and DELETED: the floor alone gives identical results at every
+       width, which made both unfalsifiable. */
+    min-width: min(100%, 344px);
   }
   /* RESERVED for the tallest thing this button ever says. The meta line carries
      two facts joined by "·" — during build the bonus and the clock, during a

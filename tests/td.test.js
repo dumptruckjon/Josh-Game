@@ -3179,6 +3179,77 @@ test("QoL: the level grid uses a WIDE screen instead of stretching two cards", a
     `a world heading must span the whole grid (${tablet.headW}px of ${tablet.gridW}px)`);
 });
 
+test("QoL: the control row sits under the FIELD, not beside it", async () => {
+  // In portrait the board is HEIGHT-limited on anything bigger than a phone, so
+  // the canvas narrows while the control row is laid out against the SCREEN.
+  // Measured at 834: the row ran x 69..765 against a field of 144..690, which
+  // put ▶ CALL — the button the build phase is about — entirely outside the
+  // battlefield, with the power strip overhanging 75px the other way. 768 was
+  // worse (CALL 36..128, field starting at 132).
+  //
+  // Fresh contexts per size, and the sizes are the ones that can SEPARATE: a
+  // phone's field already fills its screen, so 390 is the control that must not
+  // move, and landscape is a different layout entirely (an absolutely
+  // positioned side gutter) which the cap deliberately does not touch.
+  const read = async (w, h) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx.newPage();
+    try {
+      await p2.goto(baseURL, { waitUntil: "load" });
+      await p2.evaluate(() => { location.hash = "#td-play"; });
+      await p2.locator("#screen-td-play").waitFor({ state: "visible" });
+      await p2.evaluate(() => { window.__TD.resetSave(); window.__TD.newGame(7, { seed: 3 }); });
+      await p2.evaluate(() => { location.hash = "#__renav"; });
+      await p2.waitForTimeout(50);
+      await p2.evaluate(() => { location.hash = "#td-play"; });
+      await p2.waitForTimeout(300);
+      return await p2.evaluate(() => {
+        const box = (sel) => {
+          const e = document.querySelector("#screen-td-play " + sel);
+          if (!e) return null;
+          const r = e.getBoundingClientRect();
+          return { l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) };
+        };
+        return { canvas: box(".td-canvas"), controls: box(".td-controls"), call: box(".td-call"),
+                 portrait: window.innerHeight > window.innerWidth };
+      });
+    } finally { await ctx.close(); }
+  };
+
+  for (const [w, h] of [[768, 1024], [834, 1112]]) {
+    const m = await read(w, h);
+    assert.ok(m.canvas && m.controls && m.call, `fixture: the play screen must render its field and controls at ${w}x${h}`);
+    assert.ok(m.portrait, `fixture: ${w}x${h} must be portrait`);
+    // The field must actually be NARROWER than the screen here, or there is
+    // nothing for the cap to do and the clause below is vacuous.
+    assert.ok(m.canvas.w < w - 40,
+      `fixture: at ${w}x${h} the board must be height-limited (canvas ${m.canvas.w}px of ${w}px), or this proves nothing`);
+    assert.ok(m.controls.l >= m.canvas.l - 1 && m.controls.r <= m.canvas.r + 1,
+      `the control row must sit within the battlefield at ${w}x${h} — row ${m.controls.l}..${m.controls.r}, ` +
+      `field ${m.canvas.l}..${m.canvas.r}`);
+    assert.ok(m.call.l >= m.canvas.l - 1 && m.call.r <= m.canvas.r + 1,
+      `…and ▶ CALL especially, since it is what the build phase is about (button ${m.call.l}..${m.call.r}, ` +
+      `field ${m.canvas.l}..${m.canvas.r})`);
+  }
+
+  // ---- the PHONE is the control: there the field already fills the screen, so
+  // the cap must change nothing. A `max-width` cannot force growth, and this
+  // pins that.
+  const phone = await read(390, 844);
+  assert.ok(phone.controls.w >= 360,
+    `a phone's control row must keep its full width (${phone.controls.w}px)`);
+  assert.ok(phone.controls.l >= phone.canvas.l - 1 && phone.controls.r <= phone.canvas.r + 1,
+    `…and still sit within the field (row ${phone.controls.l}..${phone.controls.r}, field ${phone.canvas.l}..${phone.canvas.r})`);
+
+  // ---- LANDSCAPE is a different layout — the row is an absolutely positioned
+  // side gutter beside the board, which is correct and must not be dragged
+  // under it.
+  const land = await read(844, 390);
+  assert.ok(!land.portrait, "fixture: 844x390 must be landscape");
+  assert.ok(land.controls.l >= land.canvas.r,
+    `landscape keeps its side gutter (row ${land.controls.l}..${land.controls.r}, field ${land.canvas.l}..${land.canvas.r})`);
+});
+
 test("TD6 fx juice: a Mortar splash shakes the screen, and prefers-reduced-motion disables it", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); });
   // motion ALLOWED → a splash triggers a (small, ≤4px) shake at some point

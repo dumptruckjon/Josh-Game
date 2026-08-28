@@ -4342,6 +4342,60 @@ beats a dense one. **The general point: a layout change is not finished when its
 own numbers are right; look at the screen, because the thing it broke is usually
 a NEIGHBOUR that no clause was watching.**
 
+**AND THE PLAY SCREEN HAD THE SAME SHAPE OF DEFECT, one layer further out: the
+control row was laid out against the SCREEN while the battlefield is sized by the
+RENDERER.** In portrait the board is height-limited on anything bigger than a
+phone, so the canvas narrows and the row does not. Measured at 834x1112 the row
+ran **x 69..765 against a field of 144..690** — which puts **▶ CALL, the button
+the entire build phase is about, completely outside the battlefield**, with the
+power strip overhanging 75px the other way; 768 was worse (CALL 36..128, field
+starting at 132). On a phone the two coincide (378px canvas, 366px row), which is
+why nothing had ever noticed.
+**CSS cannot know that width — only `resize()` computes it** — so the renderer
+publishes it as `--td-field` and the portrait row takes `max-width:
+var(--td-field, 100%)`. Three details worth keeping: the property is set on the
+SCREEN rather than the canvas wrap, because custom properties inherit downward
+and `.td-controls` is a SIBLING of the wrap; a `max-width` cannot force growth, so
+the phone is provably untouched (its row keeps all 366px); and LANDSCAPE is
+deliberately excluded, because there the row is an absolutely-positioned side
+gutter beside the board and dragging it under the field would be meaningless —
+its mutation is red on exactly that clause.
+**The fixture clause is the one that makes the rest mean anything**: it asserts
+the field really is narrower than the screen at each size, because if the board
+ever filled a tablet the containment check would pass with nothing to contain.
+Same lesson as the vacuous wrap count one entry up — assert the condition the
+defect needs before believing the assertion about it.
+**AND THE FIRST CUT BROKE THREE SHIPPED TESTS, of which only ONE was a real
+defect — the other two were CASCADE, which is worth as much as the fix.** The
+premise "on a phone the field fills the screen" is false: a SHORT phone is
+height-limited too, so 320x480 gives a **168px** field and 320x568 a **224px**
+one, and capping the row to that squeezed the power tiles into each other
+(measured gaps of **-25px** and **-11px**). The shipped overlap guardrail caught
+it. The other two failures were the ART corpse tests, which do not touch the
+control row at all: the overlap test drives the SHARED page through
+`setViewportSize(320, …)`, and because it FAILED it never restored the viewport,
+so every later test in that file ran on a 320-wide page with a tiny canvas and
+read "the death drew only 124 pixels". **When several tests fail at once, check
+whether the later ones share global state with the first** — three red lines were
+one bug.
+**The fix then had to be collapsed from two mechanisms to one, because neither
+was falsifiable while both were present.** A `min-width: 600px` scope and a
+`min-width: min(100%, 344px)` floor each fixed it, so removing EITHER left the
+suite green — the redundant-fix trap this file has already deleted lines for
+twice. Measured, the floor alone gives identical results at every width (296 at
+320, 336 at 360, 366 at 390 — each the exact shipped natural width, so phones are
+inert; 504 at 768, 546 at 834 — capped), so the scope was deleted. `min-content`
+was tried and does not express the floor: the strip's track is `minmax(0, 1fr)`
+BY DESIGN (a wide child would otherwise inflate it — the documented 360px
+cliff), so the grid's min-content is ~0 and it squeezes anyway. The number is
+derived from the row's own constants — ▶ CALL's 92px track + an 8px gap + five
+44px tiles + four 8px gaps = 344 — and `min-width` beating `max-width` in the
+cascade is the point: on a screen too small for both, the row overhangs the
+field rather than overlapping itself, which is the trade a phone already made.
+All three parts are now individually red under mutation (drop the floor → the
+shipped overlap test; drop the cap OR the published width → the containment
+test).
+
 ---
 
 ## Repository Structure
