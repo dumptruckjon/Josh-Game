@@ -12018,3 +12018,87 @@ test("QoL: a first win shows no 'best', because there isn't one yet", async () =
   assert.equal(worse.pb, null, "…and a worse run is not a personal best");
   await page.evaluate(() => window.TDUI.closeOverlay());
 });
+
+test("a hostile save still boots and plays — every persisted field, wrong-typed", async () => {
+  // The boot loader's coercions have a DERIVED structural law already: every
+  // field it coerces must also appear in freshSave(). That proves the coercion
+  // exists; it cannot prove the coercion WORKS. This is the standing pairing —
+  // a scan proves a call site exists, only driving it proves the call does
+  // anything — on the highest-recidivism defect class in this codebase: a
+  // persisted field read without a default has crashed the fort three times
+  // (save.ach on a legacy save, then save.stars on the first win, then
+  // settings.music inside the restore window).
+  //
+  // The POPULATION is derived from the loader itself, with the same patterns
+  // the structural law uses, so a new persisted field inherits a hostile case
+  // the moment it is coerced. Measured clean when written — this is coverage,
+  // not a fix.
+  const fs = require("node:fs"), path = require("node:path");
+  const tdm = fs.readFileSync(path.join(__dirname, "..", "scripts", "td-main.js"), "utf8");
+  const fields = new Set();
+  for (const line of tdm.split("\n")) {
+    let m = /^\s*if \(.*\bsave\.([A-Za-z]+)\b.*\)\s*save\.\1 =/.exec(line);
+    if (!m) m = /^\s*if \(!\("([A-Za-z]+)" in save\)\)\s*save\.\1 =/.exec(line);
+    if (m) fields.add(m[1]);
+  }
+  assert.ok(fields.size >= 8,
+    `the loader's coercions must be findable (found ${fields.size}: ${[...fields].join(", ")})`);
+
+  // Wrong-typed per derived field, plus NESTED shapes the top-level derivation
+  // structurally cannot reach — settings.music is exactly the one that threw
+  // "Cannot read properties of undefined (reading 'music')".
+  const cases = [];
+  for (const f of fields) cases.push([`${f} = 7`, { v: 1, stars: {}, [f]: 7 }]);
+  for (const f of fields) cases.push([`${f} = "x"`, { v: 1, stars: {}, [f]: "x" }]);
+  cases.push(["settings has no keys", { v: 1, stars: {}, settings: {} }]);
+  cases.push(["settings wrong types", { v: 1, stars: {}, settings: { sfx: "yes", music: 7, speed: "fast" } }]);
+  cases.push(["a star ladder is null", { v: 1, stars: { normal: null, casual: 3 } }]);
+  cases.push(["arrays full of null", { v: 1, stars: {}, ach: [null], meta: [null], powers: [null], chipsArmed: [null] }]);
+  cases.push(["difficulty is unknown", { v: 1, stars: {}, difficulty: "impossible" }]);
+
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const p = await ctx.newPage();
+  let errs = [];
+  p.on("pageerror", (e) => errs.push(String(e).split("\n")[0]));
+  const bad = [];
+  try {
+    await p.goto(baseURL, { waitUntil: "load" });
+    for (const [name, blob] of cases) {
+      errs = [];
+      await p.evaluate((b) => localStorage.setItem("jon-td-save-v1", JSON.stringify(b)), blob);
+      await p.reload({ waitUntil: "load" });
+      await p.evaluate(() => { location.hash = "#td-home"; });
+      let cards = -1, played = "";
+      try {
+        await p.locator("#screen-td-home").waitFor({ state: "visible", timeout: 5000 });
+        cards = await p.locator(".td-level").count();
+        // Nothing corrupt may reach the player as NaN. `midRun: 7` — or even
+        // `{}` — used to render "▶ Resume: ♾️ Endless · wave NaN ♾️": a run that
+        // does not exist, mislabelled Endless because an absent levelId falls
+        // through to runLabel's endless branch.
+        const nan = await p.evaluate(() => {
+          const el = document.querySelector("#screen-td-home");
+          return /NaN|undefined/.test(el ? el.textContent : "");
+        });
+        if (nan) { bad.push(`${name}: the fort home shows NaN/undefined to the player`); }
+        await p.evaluate(() => { location.hash = "#td-play"; });
+        await p.locator("#screen-td-play").waitFor({ state: "visible", timeout: 5000 });
+        // Play for real: place, call, tick. A save that boots and then throws on
+        // the first wave is the shape that actually shipped.
+        played = await p.evaluate(() => {
+          window.__TD.newGame(1, { seed: 5 });
+          window.__TD.script([["place", "dart", "p1"], ["call"], ["tick", 120]]);
+          const st = window.__TD.state();
+          return st ? "wave " + st.waveIdx + " lives " + st.lives : "NO STATE";
+        });
+      } catch (e) { played = "THREW " + String(e).split("\n")[0].slice(0, 60); }
+      if (errs.length || cards <= 0 || !/^wave /.test(played)) {
+        bad.push(`${name}: cards=${cards} play=${played}${errs.length ? " ERR=" + errs[0] : ""}`);
+      }
+    }
+  } finally {
+    await ctx.close();
+  }
+  assert.deepEqual(bad, [],
+    `a corrupt or hand-edited save must degrade, never crash — the fort has to boot AND play:\n  ${bad.join("\n  ")}`);
+});

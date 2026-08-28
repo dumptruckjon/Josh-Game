@@ -4645,6 +4645,43 @@ was proven independently by a generator that floors the exponent — smaller, an
 at the wrong rate — which fires only the tracking clause at
 `1.261..1.501 of growth^15`. A clause that cannot fail on its own is decoration,
 and this file has deleted four of those; this one earns its place.
+**A HAND-WRITTEN LIST OF HOSTILE SAVES SAID THE FORT WAS BULLETPROOF; DERIVING
+THE LIST FOUND A REAL DEFECT IN ONE PASS.** The boot loader's coercions already
+had a derived STRUCTURAL law — every field it coerces must also appear in
+`freshSave()` — and that proves the coercion EXISTS while saying nothing about
+whether it WORKS. The standing pairing, on the highest-recidivism defect class
+in this codebase: a persisted field read without a default has crashed the fort
+three times (`save.ach` on a legacy save, `save.stars` on the first win, and
+`settings.music` inside the restore window, which is NESTED and structurally
+invisible to a top-level derivation). My first probe was 14 hand-picked blobs
+and reported 14/14 clean. Deriving the population from the loader itself — every
+coerced field, wrong-typed — immediately failed on `midRun`.
+**The defect: `midRun` was the one field coerced on KEY PRESENCE rather than on
+shape** (`if (!("midRun" in save)) save.midRun = null`), so a hand-edited or
+truncated 💾 Backup carrying `midRun: 7` — or even `{}` — is truthy and survives
+boot. The fort home then rendered **"▶ Resume: ♾️ Endless · wave NaN ♾️"**:
+a run that does not exist, showing NaN to the player, and mislabelled ENDLESS
+because an absent `levelId` falls through to `runLabel`'s endless branch. The
+banner's own code guards `lives` under a comment saying *"a field one short must
+degrade"* — its two siblings never got the same treatment, which is the
+fix-applied-where-it-was-found shape one more time, inside a single expression.
+Three things worth keeping. (1) **The fix is SHAPE, and shape only, because that
+is the half the banner reads** — `midRunShape` is the one owner, called at boot
+and again in `resumeMidRun`, where the comment says plainly that the second call
+is defence-in-depth (a checkpoint written during a session is well-formed by
+construction), rather than implying both halves are load-bearing. The RANGE
+checks stay in `resumeMidRun`, which is the only place that has the levelDef.
+(2) **My first cut was a REGRESSION and a shipped test caught it**: nulling
+`midRun` in memory left the junk in STORAGE, and the shipped clause *"the
+unreadable checkpoint must be cleared, or the fort offers Resume for ever"* went
+red. The user-visible property held — no banner — but the stored contract did
+not, so the coercion now persists, and only when a checkpoint was actually
+present so an ordinary boot writes nothing. When a correct-looking change turns
+a shipped test red, read what the test was protecting before re-pointing it;
+here it was protecting something real. (3) **The generic clause is the one worth
+copying: no corrupt save may put NaN or "undefined" in front of the player.**
+It is derived over every hostile case rather than aimed at this banner, and the
+mutation that restores the key-presence coercion reports both symptoms by name.
 ---
 
 ## Repository Structure

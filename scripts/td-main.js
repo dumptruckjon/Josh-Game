@@ -144,7 +144,23 @@
   if (!Array.isArray(save.powers)) save.powers = DATA.ABILITIES.slice(0, DATA.RULES.abilitySlots).map((a) => a.id);
   if (!Array.isArray(save.ach)) save.ach = [];     // TD-5 achievement ids earned
   if (!save.endlessBest) save.endlessBest = {};    // TD-5 best endless wave per world
-  if (!("midRun" in save)) save.midRun = null;     // TD-5 resume checkpoint
+  // TD-5 resume checkpoint. Coerced on SHAPE, not merely on the key being
+  // absent: a hand-edited or truncated 💾 Backup carrying `midRun: 7` — or even
+  // `{}` — rendered a resume banner reading "▶ Resume: ♾️ Endless · wave NaN ♾️",
+  // advertising a run that does not exist and mislabelling it Endless, because
+  // an absent levelId falls through to runLabel's endless branch. The banner
+  // already guarded `lives` under a comment saying a field one short must
+  // degrade; its siblings never got the same treatment.
+  // Dropped from STORAGE too, not merely from memory: the shipped contract is
+  // that an unreadable checkpoint is cleared, "or the fort offers Resume for
+  // ever". Only when one was actually present, so an ordinary boot writes
+  // nothing.
+  if (!midRunShape(save.midRun)) {
+    const had = save.midRun != null;
+    save.midRun = null;
+    if (had) persist(save);
+  }
+
   if (!save.bests || typeof save.bests !== "object") save.bests = {}; // TD-13 best run per level+difficulty
   // TD-18 challenge chips: what is ARMED for the next run (a preference, like
   // the loadout) and what has been WON per level (progress, per-level id lists).
@@ -1182,9 +1198,21 @@
     if (cur.render) cur.render.setSelection(null);
   }
 
+  // Can this checkpoint DESCRIBE itself? SHAPE only — the range checks need the
+  // levelDef and stay in resumeMidRun, which is the one place that has it.
+  // Called at boot (where a corrupt save arrives) and again on resume, where it
+  // is deliberately defence-in-depth: a checkpoint written during this session
+  // is well-formed by construction, so only the boot call can fire on a real
+  // save. Saying which half is load-bearing beats implying both are.
+  function midRunShape(mr) {
+    if (!mr || typeof mr !== "object" || Array.isArray(mr)) return false;
+    if (typeof mr.waveIdx !== "number" || !Number.isFinite(mr.waveIdx)) return false;
+    return mr.endless ? typeof mr.world === "string" : typeof mr.levelId === "number";
+  }
   function resumeMidRun() {
     const mr = save.midRun;
     if (!mr) { location.hash = "#td-home"; return; }
+    if (!midRunShape(mr)) { clearMidRun(); location.hash = "#td-home"; return; }
     const levelDef = mr.endless ? endlessLevelDef(mr.world) : DATA.LEVELS.find((l) => l.id === mr.levelId);
     if (!levelDef) { clearMidRun(); location.hash = "#td-home"; return; }
     // The towers array below is coerced (`Array.isArray(mr.towers) ? … : []`)
