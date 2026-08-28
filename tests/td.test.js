@@ -3081,6 +3081,10 @@ test("QoL: the level grid uses a WIDE screen instead of stretching two cards", a
         const heads = Array.prototype.slice.call(document.querySelectorAll("#screen-td-home .td-worldhead"));
         return {
           cols: getComputedStyle(g).gridTemplateColumns.split(/\s+/).filter(Boolean).length,
+          meta: (function () {
+            const bs = Array.prototype.slice.call(document.querySelectorAll("#screen-td-home .td-metabtn"));
+            return bs.length ? Math.round(Math.min.apply(null, bs.map(function (b) { return b.getBoundingClientRect().width; }))) : 0;
+          }()),
           gridH: Math.round(g.getBoundingClientRect().height),
           gridW: Math.round(g.getBoundingClientRect().width),
           headW: heads.length ? Math.round(heads[0].getBoundingClientRect().width) : 0,
@@ -3154,6 +3158,18 @@ test("QoL: the level grid uses a WIDE screen instead of stretching two cards", a
   assert.ok(belowBreak.cardW >= phone.cardW,
     `at 740px the card is ${belowBreak.cardW}px against the phone's ${phone.cardW}px — four columns ` +
     "do not fit until 768, so the breakpoint must not reach down here");
+
+  // ---- 5. the META ROW must not step BACKWARDS as the screen widens. Giving
+  // this screen its 900px container is what exposed it: `auto-fit` then finds
+  // room for five tracks for seven buttons, so it laid them out 5+2 — three
+  // empty cells, a stranded pair, and buttons that went 180px at 768 -> 156 at
+  // 834 -> 169 at 1024. The shipped sibling law deliberately allows a wrapping
+  // grid to step, so it cannot see this; above the breakpoint the column count
+  // is FIXED, which makes monotonicity true and therefore assertable.
+  const metaAt = {};
+  for (const w of [768, 834, 1024]) metaAt[w] = (await measure(w, 1024)).meta;
+  assert.ok(metaAt[834] >= metaAt[768] && metaAt[1024] >= metaAt[834],
+    `a wider screen must not shrink the meta buttons (768:${metaAt[768]}px, 834:${metaAt[834]}px, 1024:${metaAt[1024]}px)`);
 
   // ---- 4. the world headings follow the column count. They span `1 / -1`, so
   // this is structural — but a heading that stopped spanning would read as a

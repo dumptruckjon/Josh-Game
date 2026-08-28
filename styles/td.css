@@ -723,6 +723,20 @@ body.td-mode #screens { padding: 0; }
 @media (min-width: 600px) {
   .td-meta { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 }
+/* Above the level grid's own breakpoint this row has room for five tracks and
+   holds SEVEN buttons, so `auto-fit` lays them out 5+2 — three empty cells and
+   a stranded pair. Pinning four columns is better on every axis at once, and
+   all of it is measured: 4+3 with ONE empty cell, and the buttons GROW rather
+   than step down (auto-fit gave 180px at 768, 156 at 834 and 169 at 1024 — a
+   wider screen handing back a narrower control, which is the law this screen
+   already has; fixed four gives 180 / 197 / 213). Seven across was measured too
+   and is worse: one row, but 99-118px buttons with labels wrapping.
+   The same even-fill reasoning as the 📖 Guide's contents row and the level
+   grid — when the item count is FIXED and small, an even grid beats a dense
+   one. An eighth meta button would fill the row exactly. */
+@media (min-width: 768px) {
+  .td-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .td-metabtn {
   /* positioned so the count badge below can ride the corner without joining the
      text flow — at 320px this button already wraps to two lines, and an inline

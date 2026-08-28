@@ -4324,6 +4324,23 @@ at or above 768 is wide enough whichever value the query carries, so moving it
 back to 720 passed every clause. The separating input is a width *between* them:
 at 740 a four-column grid is 170px, under the phone's 177. The clause asserts the
 property at that width rather than pinning the number, and reports exactly that.
+**AND LOOKING AT THE RESULT — rather than only measuring it — found that the same
+change had made the META ROW ragged.** With the screen at 900px `auto-fit` finds
+room for five tracks and the row holds SEVEN buttons, so it laid them out **5+2**:
+three empty cells, a stranded 📅/📖 pair, and buttons that went **180px at 768 →
+156 at 834 → 169 at 1024**, i.e. a wider screen handing back a narrower control —
+the very defect this screen's own law exists for, reintroduced by widening it.
+The shipped law could not see it, and correctly so: its comment says in as many
+words that it is deliberately NOT strict monotonicity, because a wrapping grid
+STEPS when it gains a column. Pinning four columns above the same breakpoint
+removes the stepping, which makes monotonicity true and therefore assertable —
+and is better on every axis at once (**4+3 with one empty cell, 180 / 197 /
+213px**). Seven across was measured too and is worse: one row, but 99-118px
+buttons with labels wrapping. Same even-fill reasoning as the 📖 Guide's contents
+row and the level grid — when the item count is FIXED and small, an even grid
+beats a dense one. **The general point: a layout change is not finished when its
+own numbers are right; look at the screen, because the thing it broke is usually
+a NEIGHBOUR that no clause was watching.**
 
 ---
 
