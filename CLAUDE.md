@@ -4254,7 +4254,24 @@ obvious one (previewSave re-deriving the check inline) also drops a call site, s
 the COUNT clause fires first and leaves it unproven — it takes a mutation that
 adds a redundant check while keeping both call sites, which is the earlier-clause
 trap once more.
-
+**AND THE NEW TEST IMMEDIATELY FOUND A PRE-EXISTING DEFECT IN THE PATH IT WAS
+WRITTEN AROUND — because it was the first thing ever to paste a MINIMAL blob.**
+The gate went red on `no uncaught page errors in the fort run` with *"Cannot read
+properties of undefined (reading 'music')"*. Cause: **a reload is not
+synchronous.** `importSave` did `save = incoming; persist(); location.reload()`,
+and the page keeps running until the navigation commits — so a partially-shaped
+blob installed as the module's live save is read by whatever fires in that
+window, here the music predicate reaching for `save.settings.music` on a backup
+that carries no `settings` (a hand-edited one, or an older export). The fix is to
+never install it at all: `persist(r.save, {force:true})` writes the blob and the
+reload boots it, so **the boot loader is the only place a restored save is ever
+met** — which is what the loader's coercions are for. Two method notes. It was
+**verified rather than asserted to be pre-existing**: a `git worktree` at the
+previous commit reproduces the identical throw with no confirm dialog present at
+all, which is what makes "my change did not cause this" a measurement instead of
+a story. And the clause that pins it is a `pageerror` listener scoped to the
+test with `page.off` in the `finally`, because a shared page's error listener
+that outlives its test turns the next failure into someone else's.
 ---
 
 ## Repository Structure

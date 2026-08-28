@@ -1944,9 +1944,18 @@
     importSave: (text) => {
       const r = readSave(text);
       if (!r.ok) return r;
-      save = r.save;
-      persist(save, { force: true }); // a deliberate restore, like a reset
-      global.location.reload();       // re-boot so every field gets its coercion
+      // Write it and RELOAD — never assign it to the live `save` first. A
+      // reload is not synchronous: the page keeps running until the navigation
+      // commits, so a partially-shaped blob installed as the module's save is
+      // read by whatever fires in that window. A backup with no `settings` (a
+      // hand-edited one, or an older export) threw
+      // "Cannot read properties of undefined (reading 'music')" out of the
+      // music predicate — verified on the pre-change build, so this is a real
+      // defect the restore path always had and nothing had ever pasted a
+      // minimal blob to find. The boot loader coerces every field, and that is
+      // the ONLY place a restored save should be met.
+      persist(r.save, { force: true }); // a deliberate restore, like a reset
+      global.location.reload();         // re-boot so every field gets its coercion
       return { ok: true };
     },
     resetFort: () => {

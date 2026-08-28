@@ -2962,6 +2962,9 @@ test("QoL: 📥 Restore confirms, and the confirm NAMES what you are trading", a
   await page.evaluate(() => { location.hash = "#td-home"; });
   await page.locator("#screen-td-home").waitFor({ state: "visible" });
   await page.evaluate(() => { window.__TD.resetSave(); });
+  const pageErrors = [];
+  const onErr = (e) => pageErrors.push(String(e));
+  page.on("pageerror", onErr);
   try {
     await seedFat();
     const before = await page.evaluate(() => localStorage.getItem("jon-td-save-v1"));
@@ -3018,7 +3021,19 @@ test("QoL: 📥 Restore confirms, and the confirm NAMES what you are trading", a
     const after = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")));
     assert.deepEqual(after.stars.normal, { "1": 3 },
       `Replace must actually restore the pasted save (stars ${JSON.stringify(after.stars.normal)})`);
+    // ---- 6. …and restoring a MINIMAL backup must not throw on the way out.
+    // A reload is not synchronous — the page keeps running until the navigation
+    // commits — so a partially-shaped blob installed as the live save is read by
+    // whatever fires in that window. THIN carries no `settings`, and on the
+    // pre-fix build that threw "Cannot read properties of undefined (reading
+    // 'music')" out of the music predicate, which is the defect this clause
+    // exists for. The blob is written and the page reloaded; the live save is
+    // never replaced, because the boot loader is the only place a restored save
+    // should be met.
+    assert.deepEqual(pageErrors, [],
+      `restoring a minimal backup must not throw before the reload (${pageErrors.join(" | ")})`);
   } finally {
+    page.off("pageerror", onErr);
     await page.evaluate(() => { if (window.TDUI && window.TDUI.closeOverlay) window.TDUI.closeOverlay(); });
     await page.evaluate(() => { location.hash = "#td-home"; });
     await page.evaluate(() => { window.__TD.resetSave(); });
