@@ -530,6 +530,9 @@
         // Same gate as leaving: this discards a live board with no undo.
         promptDiscard(() => startLevel(id, opts), RESTART_COPY);
       },
+      // Replaces the pause menu and comes BACK to it — the run stays paused
+      // throughout, so reading the guide never costs you the board.
+      guide: () => { UI.showGuide(null, openPause); },
       // Toggling Sounds must NOT touch the music — that coupling is the bug.
       sfx: () => { save.settings.sfx = !save.settings.sfx; persist(save); openPause(); },
       music: () => { save.settings.music = !save.settings.music; persist(save); syncMusic(); openPause(); },

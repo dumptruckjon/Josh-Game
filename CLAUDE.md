@@ -4178,6 +4178,50 @@ a false pass. Also swept up: `.td-tree__avail` was declared TWICE with identical
 values — benign today, and the "a size declared twice has no owner" class, where
 the next edit to one of them silently disagrees with the other.
 
+**THE GAME'S OWN MANUAL WAS UNREACHABLE FROM INSIDE A BATTLE — and the metric
+written to prove the fix was safe could not fail.** The 📖 Toybox Guide holds the
+counter matrix (only two lines reach air, armour halves a dart's bonk, a shield
+eats the Fan's zap), which this file calls the heart of the game, and it opened
+only from the fort home. So the moment you most need it — an unfamiliar body is
+walking and you are deciding what to build — reading it cost you the run. The
+DEFEAT screen already links to it, i.e. the game already believed *when you are
+stuck, read this*; it just offered it one wave too late. Same law as the ⬆
+upgrade preview, the `% road` figure and the ⭐ star goal, now on the play screen.
+Three things made it nearly free: `metaOverlay` already picks the unhidden screen
+(the fix that let the guide open from the defeat overlay), the pause menu already
+existed, and the run is already paused — so the only new machinery is an `onDone`.
+**That `onDone` is the whole safety argument, not a nicety.** The guide REPLACES
+the pause menu, and closing it without re-opening strands you on a paused
+battlefield whose only obvious control (⏸) **RESUMES** — so the way out of the
+manual would be to lose your pause. Both exits carry it, the ✕ included, and both
+are driven.
+**The measurement that mattered was the one that said the change COSTS
+something.** A/B at five sizes: the 7th button separates 6 from 7 at exactly ONE
+of them — 320x568, where the menu goes from all-visible to needs-a-scroll (box
+524 → 544 against a 544 cap) — while 320x480, 844x390 and 667x375 already
+scrolled at six and 390x844 has slack either way. Written into the test, because
+"a size earns its place only if it can SEPARATE the two states" cuts both ways:
+listing four sizes while only one can catch this would imply four protections
+where there is one. The cost is accepted rather than designed away (this dialog's
+answer to not fitting has always been to scroll, every button stays at the adult
+44px floor), and the two alternatives are named so nobody re-opens them:
+tightening the gap between two DESTRUCTIVE buttons, or turning three labelled
+toggles into icons, each trade away more than they buy.
+**AND THE SHARPEST FINDING IS A PREDICATE THIS REPO HAS BEEN USING FOR
+REACHABILITY ALL ALONG: `box.scrollHeight > box.clientHeight` IS NOT
+SCROLLABILITY.** It is content OVERFLOW, and a box that CLIPS — or spills
+visibly — reports it identically. Proven rather than reasoned: deleting
+`overflow-y: auto` from `.td-overlay__box`, which is the exact defect that dialog
+was fixed for (a 390-tall landscape viewport clipping the title above and the
+quit button below), left the predicate TRUE and the mutation PASSED. The honest
+form is to scroll the box for real and ask whether the button arrived; it then
+reports *"it sits at 515..571 in a 480px viewport, and scrolling the box is not
+possible"*. The same predicate was live in the SHIPPED pause test, so it was
+corrected there too — with a note that its half is currently VACUOUS at that
+test's own 390x844 viewport, where the menu fits outright and the fits-branch
+short-circuits it, so the clip mutation is carried by the short-size sibling.
+Say which half is load-bearing rather than implying both are.
+
 ---
 
 ## Repository Structure

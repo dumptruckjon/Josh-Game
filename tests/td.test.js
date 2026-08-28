@@ -116,9 +116,23 @@ test("QoL: the pause menu says WHICH level you are in, endless included", async 
       const btns = [...box.querySelectorAll("button")];
       const last = btns[btns.length - 1].getBoundingClientRect();
       const b = box.getBoundingClientRect();
+      // NOT `scrollHeight > clientHeight`: that is content OVERFLOW, not
+      // scrollability, and a box that clips reports it identically — measured,
+      // the mutation that deletes `overflow-y: auto` passed against it. Scroll
+      // the box for real and see whether the button arrives. Note this half is
+      // currently VACUOUS at this test's own 390x844 viewport, where the menu
+      // fits outright and `fits` short-circuits it; the clip mutation is caught
+      // by the sibling test that runs the SHORT sizes. It is corrected here
+      // anyway so the predicate cannot mislead a future reader — or quietly
+      // become the only check after a layout change.
+      const fits = last.bottom <= window.innerHeight + 1;
+      box.scrollTop = box.scrollHeight;
+      const after = btns[btns.length - 1].getBoundingClientRect();
+      const scrolledTo = box.scrollTop > 0 && after.top >= -1 && after.bottom <= window.innerHeight + 1;
+      box.scrollTop = 0;
       return { where: w ? w.textContent.trim() : null,
         boxInView: b.top >= -1 && b.bottom <= window.innerHeight + 1,
-        lastReachable: last.bottom <= window.innerHeight + 1 || box.scrollHeight > box.clientHeight };
+        lastReachable: fits || scrolledTo };
     });
   };
   const enter = async (fn) => {
@@ -2775,6 +2789,145 @@ test("QoL: the tree's PACK budget is sticky, and a full rack says why", async ()
   } finally {
     await page.evaluate(() => { if (window.TDUI && window.TDUI.closeOverlay) window.TDUI.closeOverlay(); });
     await page.evaluate(() => { window.__TD.resetSave(); });
+  }
+});
+
+test("QoL: the 📖 guide is reachable MID-RUN, and reading it costs you nothing", async () => {
+  // The guide is where the counter matrix lives — only two lines reach air,
+  // armour halves a dart's bonk, a shield eats the Fan's zap — and it was
+  // reachable only from the fort home. The DEFEAT screen already links to it,
+  // so the game already believed "when you are stuck, read this"; it just
+  // offered it one wave too late. Same law as the ⬆ upgrade preview and the
+  // % road figure: the information belongs where the decision is made.
+  // newGame leaves the run PAUSED, so the first ⏸ RESUMES rather than opening
+  // the menu — the documented trap. Re-entering the screen is how this file's
+  // other pause tests get a live run.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); window.__TD.newGame(1, { seed: 7 }); });
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(50);
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.waitForTimeout(300);
+  try {
+    await page.locator("#screen-td-play .td-pause").click();
+    await page.locator(".td-overlay--pause").waitFor({ state: "visible" });
+
+    // ---- 1. the guide opens from the pause menu at all
+    const btn = page.locator('.td-overlay--pause [data-act="guide"]');
+    assert.equal(await btn.count(), 1, "the pause menu must offer the guide");
+    await btn.click();
+    await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+    const hasRoster = await page.evaluate(() =>
+      document.querySelectorAll(".td-overlay--guide .td-guide__sec").length);
+    assert.ok(hasRoster >= 6, `…and it renders its real sections (saw ${hasRoster})`);
+
+    // ---- 2. the run is STILL PAUSED while you read. Asserted on the ENGINE's
+    // own tick, not on a flag: a guide that quietly let the wave walk while you
+    // looked something up would be worse than no guide at all.
+    const t0 = await page.evaluate(() => window.__TD.state().tick);
+    await page.waitForTimeout(400);
+    const t1 = await page.evaluate(() => window.__TD.state().tick);
+    assert.equal(t1, t0, `the battle must not advance while the guide is open (tick ${t0} → ${t1})`);
+
+    // ---- 3. closing the guide RETURNS to the pause menu. Without this you are
+    // stranded on a paused battlefield whose only obvious control (⏸) RESUMES,
+    // so the way out of the guide would be to lose your pause.
+    await page.locator(".td-guide-done").click();
+    await page.locator(".td-overlay--pause").waitFor({ state: "visible", timeout: 3000 });
+    assert.equal(await page.locator('.td-overlay--pause [data-act="resume"]').count(), 1,
+      "closing the guide must come back to the pause menu, not to a bare paused screen");
+
+    // ---- 4. …and the ✕ does the same, because it is the other exit and a
+    // player will use whichever is nearer.
+    await page.locator('.td-overlay--pause [data-act="guide"]').click();
+    await page.locator(".td-overlay--guide").waitFor({ state: "visible" });
+    await page.locator(".td-overlay--guide .td-overlay__x").click();
+    await page.locator(".td-overlay--pause").waitFor({ state: "visible", timeout: 3000 });
+
+    // ---- 5. Resume still resumes, so the added button did not break the menu.
+    await page.locator('.td-overlay--pause [data-act="resume"]').click();
+    await page.waitForTimeout(300);
+    const t2 = await page.evaluate(() => window.__TD.state().tick);
+    await page.waitForTimeout(300);
+    const t3 = await page.evaluate(() => window.__TD.state().tick);
+    assert.ok(t3 > t2, `resuming must actually restart the battle (tick ${t2} → ${t3})`);
+  } finally {
+    await page.evaluate(() => { if (window.TDUI && window.TDUI.closeOverlay) window.TDUI.closeOverlay(); });
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.evaluate(() => { window.__TD.resetSave(); });
+  }
+});
+
+test("QoL: a 7-button pause menu still fits", async () => {
+  // This dialog is the documented one that once overflowed a 390-tall landscape
+  // viewport with NO scroll (title clipped above, quit below), which is why the
+  // base box carries max-height + overflow-y. It has since gained a run label
+  // and now a 📖 button, so the cost is MEASURED rather than assumed — and the
+  // measurement is written down because only one of these sizes can separate a
+  // 6-button menu from a 7-button one: at 320x568 the extra row takes it from
+  // all-visible to needs-a-scroll (box 524 -> 544 against a 544 cap), while
+  // 320x480, 844x390 and 667x375 already scrolled at SIX and 390x844 has slack
+  // at both. That cost is accepted rather than designed away: this dialog's own
+  // answer to not fitting has always been to scroll, every button stays at the
+  // fort's adult floor, and the alternative (tightening the gap between two
+  // DESTRUCTIVE buttons, or turning three labelled toggles into icons) trades
+  // away more than it buys. The other sizes stay because they pin the
+  // short-viewport behaviour this dialog has a history of breaking, which the
+  // shipped 390-only pause test cannot see. FRESH CONTEXTS, never
+  // setViewportSize — a resize does not reproduce this class.
+  for (const [w, h] of [[320, 480], [320, 568], [390, 844], [844, 390]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx.newPage();
+    try {
+      await p2.goto(baseURL, { waitUntil: "load" });
+      await p2.evaluate(() => { location.hash = "#td-play"; });
+      await p2.locator("#screen-td-play").waitFor({ state: "visible" });
+      await p2.evaluate(() => { window.__TD.resetSave(); window.__TD.newGame(1, { seed: 7 }); });
+      await p2.evaluate(() => { location.hash = "#__renav"; });
+      await p2.waitForTimeout(50);
+      await p2.evaluate(() => { location.hash = "#td-play"; });
+      await p2.waitForTimeout(300);
+      await p2.locator("#screen-td-play .td-pause").click();
+      await p2.locator(".td-overlay--pause").waitFor({ state: "visible" });
+      const m = await p2.evaluate(() => {
+        const box = document.querySelector(".td-overlay--pause .td-overlay__box");
+        const r = box.getBoundingClientRect();
+        const btns = [...box.querySelectorAll(".td-btn")];
+        const lastEl = btns[btns.length - 1];
+        const last = lastEl.getBoundingClientRect();
+        // `scrollHeight > clientHeight` is NOT scrollability — it is content
+        // overflow, and a box that CLIPS (or spills visibly) reports exactly the
+        // same. Measured: deleting `overflow-y: auto` left that predicate true
+        // and the mutation passed. The honest test is to actually scroll and see
+        // whether the button arrives.
+        box.scrollTop = box.scrollHeight;
+        const scrolled = box.scrollTop > 0;
+        const afterScroll = lastEl.getBoundingClientRect();
+        box.scrollTop = 0;
+        return { n: btns.length, top: Math.round(r.top), bottom: Math.round(r.bottom),
+                 vh: window.innerHeight, scrolls: scrolled,
+                 lastAfterScrollIn: afterScroll.top >= -1 && afterScroll.bottom <= window.innerHeight + 1,
+                 lastBottom: Math.round(last.bottom), lastTop: Math.round(last.top),
+                 minH: Math.min(...btns.map((b) => Math.round(b.getBoundingClientRect().height))),
+                 wide: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+      });
+      assert.ok(m.n >= 7, `fixture: the menu must carry the new button at ${w}x${h} (saw ${m.n})`);
+      assert.ok(m.top >= 0 && m.bottom <= m.vh + 1,
+        `the pause box must land ON SCREEN at ${w}x${h} (${m.top}..${m.bottom} of ${m.vh})`);
+      assert.ok(!m.wide, `…and the page must not scroll sideways at ${w}x${h}`);
+      assert.ok(m.minH >= 44, `…and every button stays at the fort's adult floor at ${w}x${h} (${m.minH}px)`);
+      // The last button must be REACHABLE: on screen already, or inside a box
+      // that scrolls to it. Both are acceptable — the pause menu's answer for a
+      // short viewport has always been to scroll — but "off screen with no
+      // scroll" is the defect this dialog was fixed for.
+      const fitsAlready = m.lastTop >= 0 && m.lastBottom <= m.vh + 1;
+      assert.ok(fitsAlready || (m.scrolls && m.lastAfterScrollIn),
+        `the last pause button must be reachable at ${w}x${h} — it sits at ${m.lastTop}..${m.lastBottom} ` +
+        `in a ${m.vh}px viewport, and scrolling the box ${m.scrolls ? "did not bring it into view" : "is not possible"}`);
+    } finally {
+      await ctx.close();
+    }
   }
 });
 

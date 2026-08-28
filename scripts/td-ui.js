@@ -804,7 +804,11 @@
   // Every enemy card is BUILT from TDLogic.enemyTraits/reachedBy, which read the
   // enemy's own data fields — so a new enemy or a new trait explains itself and
   // the guide can never drift from the engine.
-  UI.showGuide = function (focusType) {
+  // `onDone` matters more than it looks: opened from the PAUSE menu, this
+  // overlay replaces it, and closing without re-opening strands you on a paused
+  // battlefield whose only obvious control (⏸) RESUMES — so the way out of the
+  // guide would be to lose your pause. Both exits carry it, the ✕ included.
+  UI.showGuide = function (focusType, onDone) {
     // A section HEADING, and the ONE place its text comes from: the same
     // `data-sec` label the contents row derives its buttons from, so the jump
     // target and the thing you land on can never disagree. Before this the label
@@ -992,7 +996,10 @@
       '🛡️ armour and 🔋 shield show only on the toys that have them.</p>' +
       '<div class="td-guide__list">' + order.map(card).join("") + "</div>" +
       '<button class="td-btn td-guide-done" type="button">Done</button>');
-    el.querySelector(".td-guide-done").addEventListener("click", UI.closeOverlay);
+    const finish = () => { UI.closeOverlay(); if (onDone) onDone(); };
+    el.querySelector(".td-guide-done").addEventListener("click", finish);
+    // metaOverlay already wired the ✕ to closeOverlay; this runs after it.
+    if (onDone) el.querySelector(".td-overlay__x").addEventListener("click", onDone);
     // CONTENTS. This dialog is 15,490px tall — 21 screens — and had no way to
     // jump at all: reaching the star-tree section meant scrolling 3,342px, and
     // the 56-enemy roster runs to the end. The row is DERIVED from the sections'
@@ -1993,6 +2000,14 @@
       '<h3>Paused</h3>' +
       (label ? '<p class="td-overlay__sub td-pause__where">' + label + "</p>" : "") +
       '<button class="td-btn" data-act="resume" type="button">▶ Resume</button>' +
+      // The guide explains the counter matrix — only two lines reach air, armour
+      // halves a dart's bonk, a shield eats the Fan's zap — which is the heart of
+      // this game, and it was reachable ONLY from the fort home. So the moment you
+      // most need it (a wave you cannot kill is walking, and you are deciding what
+      // to build) it cost you the run to read. The DEFEAT screen already links to
+      // it, i.e. the game already believes "when you are stuck, read this" — it
+      // just offered it one wave too late.
+      '<button class="td-btn" data-act="guide" type="button">📖 Toybox Guide</button>' +
       '<button class="td-btn" data-act="restart" type="button">🔁 Restart level</button>' +
       '<button class="td-btn" data-act="sfx" type="button">' + (settings.sfx ? "🔔 Sounds on" : "🔕 Sounds off") + "</button>" +
       '<button class="td-btn" data-act="music" type="button">' + (settings.music ? "🎵 Music on" : "🎵 Music off") + "</button>" +
