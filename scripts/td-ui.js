@@ -1879,14 +1879,38 @@
     const place = () => {
       const wrap = b.parentElement;
       const wrapW = wrap.clientWidth, wrapH = wrap.clientHeight;
-      // The dialog can never be wider than the field itself.
+      // The FIELD is the CANVAS, not its wrapper — and a missing canvas falls
+      // back to the wrap so this can only ever be inert, never throw.
+      const cv = UI.canvas;
+      const fl = cv ? cv.offsetLeft : 0, ft = cv ? cv.offsetTop : 0;
+      const fw = cv && cv.clientWidth ? cv.clientWidth : wrapW;
+      const fh = cv && cv.clientHeight ? cv.clientHeight : wrapH;
+      // maxWidth stays on the WRAP: its job is "never run off SCREEN", and the
+      // wrap is the on-screen bound. Capping it to the field instead was tried
+      // and REVERTED — on a 320x568 phone the field is only 224px, and squeezing
+      // a tier-3 panel from 304px to 208px broke its three branch cards into
+      // one-word lines. Fixing a tablet by cramping the smallest phone is the
+      // wrong trade.
       b.style.maxWidth = Math.max(140, wrapW - 16) + "px";
       const dw = b.offsetWidth, dh = b.offsetHeight;
-      let left = xPx - dw / 2;                               // centred on the pad…
-      left = Math.max(8, Math.min(left, wrapW - dw - 8));    // …then clamped inside the field
-      let top = yPx - dh - 14;                               // above the pad…
-      if (top < 8) top = yPx + 22;                           // …or below if it would clip the top
-      top = Math.max(8, Math.min(top, wrapH - dh - 8));
+      // …but the POSITION prefers the FIELD, which is the canvas and not its
+      // wrapper. Those coincide on a phone and stop coinciding above it: in
+      // portrait the board is height-limited, so at 768 the canvas is 504px
+      // inside a 720px wrap and sits 108px in. Clamping to the wrap let a dialog
+      // run past the battlefield onto the bare background — measured, a tier-3
+      // panel overhung the field's right edge by 80px at 768 and 73px at 834.
+      // When the dialog is WIDER than the field there is nothing to prefer, so
+      // it falls back to the wrap rather than being shoved off-centre for no
+      // gain; that is what keeps the small phone byte-identical.
+      const fitsW = dw + 16 <= fw, fitsH = dh + 16 <= fh;
+      let left = xPx - dw / 2;                                        // centred on the pad…
+      left = fitsW
+        ? Math.max(fl + 8, Math.min(left, fl + fw - dw - 8))          // …clamped inside the field
+        : Math.max(8, Math.min(left, wrapW - dw - 8));                // …or the wrap when it cannot fit
+      let top = yPx - dh - 14;                                        // above the pad…
+      const tLo = fitsH ? ft + 8 : 8, tHi = fitsH ? ft + fh - dh - 8 : wrapH - dh - 8;
+      if (top < tLo) top = yPx + 22;                                  // …or below if it would clip the top
+      top = Math.max(tLo, Math.min(top, tHi));
       b.style.left = Math.round(left) + "px";
       b.style.top = Math.round(top) + "px";
     };

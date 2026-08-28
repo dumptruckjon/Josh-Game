@@ -3250,6 +3250,85 @@ test("QoL: the control row sits under the FIELD, not beside it", async () => {
     `landscape keeps its side gutter (row ${land.controls.l}..${land.controls.r}, field ${land.canvas.l}..${land.canvas.r})`);
 });
 
+test("QoL: a field dialog is clamped to the BOARD, not to its wrapper", async () => {
+  // The bubble's anchor was already right (`canvas.offsetLeft +
+  // worldToScreen(...)`), but its CLAMP used the wrapper. Those coincide on a
+  // phone and stop coinciding above it: in portrait the board is height-limited,
+  // so at 768 the canvas is 504px inside a 720px wrap and sits 108px in.
+  // Measured, a tier-3 tower panel on the rightmost pad overhung the field's
+  // right edge by 80px at 768 and 73px at 834 — out over the bare background.
+  // `wrapW` is a quantity that CORRELATES with the field width on a phone and
+  // stops tracking it on a tablet, which is the proxy trap this file keeps
+  // recording.
+  const open = async (w, h) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx.newPage();
+    try {
+      await p2.goto(baseURL, { waitUntil: "load" });
+      await p2.evaluate(() => { location.hash = "#td-play"; });
+      await p2.locator("#screen-td-play").waitFor({ state: "visible" });
+      await p2.evaluate(() => { window.__TD.resetSave(); window.__TD.newGame(7, { seed: 3 }); window.__TD.grantGold(9000); });
+      await p2.evaluate(() => { location.hash = "#__renav"; });
+      await p2.waitForTimeout(50);
+      await p2.evaluate(() => { location.hash = "#td-play"; });
+      await p2.waitForTimeout(300);
+      // A TIER-3 panel on the pad furthest RIGHT on screen: the widest dialog at
+      // the position that can actually overhang.
+      await p2.evaluate(() => {
+        const e = window.__TD.engine();
+        let best = null;
+        for (const p of e.levelDef.pads) {
+          const sp = window.__TD.w2s(p.cx + 0.5, p.cy + 0.5);
+          if (!best || sp.x > best.s.x) best = { p: p, s: sp };
+        }
+        window.__TD.script([["place", "dart", best.p.id]]);
+        const i = e.state.towers.length - 1;
+        window.__TD.script([["upgrade", i], ["upgrade", i]]);
+        const cv = document.querySelector("#screen-td-play .td-canvas");
+        const r = cv.getBoundingClientRect();
+        cv.dispatchEvent(new MouseEvent("click", { clientX: r.left + best.s.x, clientY: r.top + best.s.y, bubbles: true }));
+      });
+      await p2.waitForTimeout(300);
+      return await p2.evaluate(() => {
+        const b = window.TDUI.bubble, cv = document.querySelector("#screen-td-play .td-canvas");
+        if (!b || b.hidden) return null;
+        const br = b.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+        return { w: Math.round(br.width),
+                 outR: Math.round(Math.max(0, br.right - cr.right)),
+                 outL: Math.round(Math.max(0, cr.left - br.left)),
+                 fieldW: Math.round(cr.width), inset: cv.offsetLeft,
+                 onScreen: br.left >= -1 && br.right <= window.innerWidth + 1 };
+      });
+    } finally { await ctx.close(); }
+  };
+
+  for (const [w, h] of [[768, 1024], [834, 1112]]) {
+    const m = await open(w, h);
+    assert.ok(m, `fixture: the tower panel must open at ${w}x${h}`);
+    // Both fixture clauses matter: without an INSET canvas there is no gap for a
+    // dialog to escape into, and if the panel were wider than the field the code
+    // deliberately falls back to the wrap and clause 1 would be wrong to assert.
+    assert.ok(m.inset > 0, `fixture: at ${w}x${h} the canvas must be inset in its wrap (offsetLeft ${m.inset})`);
+    assert.ok(m.w + 16 <= m.fieldW,
+      `fixture: the panel (${m.w}px) must fit the field (${m.fieldW}px) here, or the wrap fallback applies`);
+    assert.equal(m.outR, 0, `the panel must not overhang the board's right edge at ${w}x${h} (${m.outR}px out)`);
+    assert.equal(m.outL, 0, `…nor its left (${m.outL}px out)`);
+  }
+
+  // ---- the SMALL phone is the control, and it is the reason the clamp falls
+  // back rather than always preferring the field. At 320x568 the board is only
+  // 224px wide and the panel needs ~304px; forcing it inside was tried and
+  // REVERTED, because it squeezed the three branch cards into one-word columns.
+  // Here the panel must keep its full width and stay on screen — which is
+  // exactly the shipped behaviour, unchanged.
+  const small = await open(320, 568);
+  assert.ok(small, "fixture: the tower panel must open at 320x568");
+  assert.ok(small.w > small.fieldW,
+    `fixture: at 320x568 the panel (${small.w}px) must be wider than the board (${small.fieldW}px), or this proves nothing`);
+  assert.ok(small.w >= 290, `a small phone must not have its panel squeezed to fit the board (${small.w}px)`);
+  assert.ok(small.onScreen, "…and it must still sit fully on screen");
+});
+
 test("TD6 fx juice: a Mortar splash shakes the screen, and prefers-reduced-motion disables it", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); });
   // motion ALLOWED → a splash triggers a (small, ≤4px) shake at some point

@@ -4396,6 +4396,40 @@ All three parts are now individually red under mutation (drop the floor → the
 shipped overlap test; drop the cap OR the published width → the containment
 test).
 
+**THE SAME PROXY WAS ONE LAYER DEEPER: a field dialog was clamped to the canvas's
+WRAPPER, and its own comment claimed that was the field.** `showBubble` positions
+in the wrap's offset coordinates — deliberately, because iOS can report
+`documentElement.clientWidth` wider than the visible viewport — and its clamp
+reads `wrap.clientWidth`. That IS the field on a phone and stops being it above
+one: in portrait the board is height-limited, so at 768 the canvas is **504px
+inside a 720px wrap and sits 108px in**. Measured, a tier-3 tower panel opened on
+the rightmost pad overhung the board's right edge by **80px at 768 and 73px at
+834**, out over the bare background, and `maxWidth` was being set to **704px
+against a 504px field** — so the line `// The dialog can never be wider than the
+field itself` was false exactly where it mattered. The ANCHOR was already correct
+(`canvas.offsetLeft + worldToScreen(...)`); only the bounds were wrong. Third
+instance in two days of *a quantity that correlates with the property until the
+screen gets big*, after `wrapW >= viewport.width` and the control row.
+**The first fix was a REGRESSION and the screenshot is what caught it.** Capping
+`maxWidth` to the field as well looks like the tidy version, and on a 320x568
+phone the board is only **224px** wide: the tier-3 panel went 304px → 208px and
+its three branch cards broke into one-word columns ("one big / far shot / — most
+/ of it is"). Fixing a tablet by cramping the smallest phone is the wrong trade,
+so `maxWidth` stays on the WRAP (its job is "never run off SCREEN", and the wrap
+is the on-screen bound) and only the POSITION prefers the field — **with a
+fallback**: when the dialog is wider than the board there is nothing to prefer,
+so it clamps to the wrap exactly as before. That fallback is what keeps every
+phone byte-identical, and it is the same shape as the control row's floor one
+entry up: prefer the tighter bound, but never let it squeeze.
+**And I broke it mid-edit in the way `node --check` cannot see.** Replacing the
+block deleted `const wrapW = wrap.clientWidth, wrapH = …` while the new code
+still referenced them — a ReferenceError thrown inside `place()`, the same class
+as the `w2s`-not-in-scope bug that once blanked the whole board. Syntax-checking
+passed. What caught it instantly was the probe: `maxW: ""` (a style that was
+never set) with every dialog pinned to the wrap's origin. **A measurement whose
+numbers are ABSURD is diagnosing your edit, not the product** — read it before
+re-reasoning about the feature.
+
 ---
 
 ## Repository Structure
