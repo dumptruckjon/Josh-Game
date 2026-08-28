@@ -3381,3 +3381,46 @@ test("guardrail: a pasted backup has ONE validator, shared by the preview and th
     assert.ok(main.indexOf(hook) >= 0, `td-main must still expose ${hook}`);
   }
 });
+
+test("guardrail: every defeat screen is handed the same three panels", () => {
+  // showDefeat's head ternary rendered the post-mortem, the run summary AND the
+  // earned-badge line only on the campaign side, and both non-campaign call
+  // sites passed `null, null`. So endless and daily — modes that end ONLY in
+  // defeat, i.e. this is the one outcome screen they have — showed a score and
+  // nothing else, with no next level and no same-seed retry to learn from.
+  //
+  // The earned line made it a defect rather than a gap: announce() DEFERS while
+  // the phase is won/lost, drainEarned() hands the list to showDefeat, and the
+  // endless arm dropped it — so 🏃 Marathoner, the ONE badge whose only award
+  // path is an endless run, was earned in silence. Quitting at wave 20+ DID
+  // announce it (leavingPlay awards while the phase is not an outcome, so
+  // announce toasts), which is the two-paths-disagree tell.
+  //
+  // The endless path is driven end to end in td.test.js. This is the half that
+  // is not cheap to drive — a DAILY needs a pinned calendar AND a 20-wave board
+  // — and it is the standing pairing: a scan proves the call site passes them,
+  // the browser test proves the call does something.
+  const m = read("scripts/td-main.js");
+  const calls = (m.match(/UI\.showDefeat\(/g) || []).length;
+  assert.ok(calls >= 3, `every run mode ends somewhere (found ${calls} showDefeat call sites)`);
+  const panelled = (m.match(/postMortem\(\), runSummary\(/g) || []).length;
+  assert.equal(panelled, calls,
+    `every showDefeat call hands over the post-mortem AND the run summary (only ${panelled} of ${calls} do)`);
+  // A `, null, null, drainEarned())` clause was written here and DELETED: it is
+  // strictly dominated, because any call site shaped that way also drops the
+  // panelled count above, so it can never fail on its own. Measured, not
+  // assumed — a mutation adding a fourth nulled call site still reports
+  // "only 3 of 4", never the null clause.
+  // The 📖 button is rendered by the post-mortem block itself, and showDefeat's
+  // click handler early-returns on a missing hook — so a call site that passes
+  // a post-mortem without wiring `guide` renders a DEAD button, which is worse
+  // than offering none. Sliced rather than counted file-wide because the pause
+  // menu has a guide hook of its own; the bounds are asserted to BE a region,
+  // since a bad slice hands back either the rest of the file or nothing.
+  const lo = m.indexOf("UI.showDefeat("), hi = m.lastIndexOf("drainEarned())");
+  assert.ok(lo > 0 && hi > lo && hi - lo < 4000,
+    `the defeat call sites form one region (${lo}..${hi})`);
+  const guides = (m.slice(lo, hi).match(/guide:/g) || []).length;
+  assert.equal(guides, calls,
+    `every defeat screen wires the 📖 hook (${guides} of ${calls}) — without it its own button is dead`);
+});

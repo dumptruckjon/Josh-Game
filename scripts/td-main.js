@@ -684,8 +684,15 @@
         if (!st.cheated && score >= 20) earnAch("marathoner");
         UI.showDefeat({
           retry: () => { UI.closeOverlay(); startDaily(day); },
+          guide: (type) => { UI.closeOverlay(); UI.showGuide(type); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
-        }, { score, best: save.daily.best | 0 }, null, null, drainEarned());
+        // The SAME three panels the campaign gets. An endless run ends only in
+        // defeat, so this is not one outcome screen of two — it is the mode's
+        // whole feedback surface, and with no next level and no same-seed retry
+        // "build differently" is the only way to do better. runSummary(false)
+        // deliberately: the headline above already owns "🏆 New best!", and a
+        // personal-best line here would print it twice.
+        }, { score, best: save.daily.best | 0 }, postMortem(), runSummary(false), drainEarned());
       } else if (st.endless) {
         const world = cur.levelDef.world, score = st.waveIdx;
         const best = (save.endlessBest[world] || 0);
@@ -693,8 +700,15 @@
         if (!st.cheated && score >= 20) earnAch("marathoner");
         UI.showDefeat({
           retry: () => { UI.closeOverlay(); startEndless(world, continueOpts(st)); },
+          guide: (type) => { UI.closeOverlay(); UI.showGuide(type); },
           quit: () => { UI.closeOverlay(); location.hash = "#td-home"; },
-        }, { score, best: Math.max(best, score) }, null, null, drainEarned());
+        // The SAME three panels the campaign gets. An endless run ends only in
+        // defeat, so this is not one outcome screen of two — it is the mode's
+        // whole feedback surface, and with no next level and no same-seed retry
+        // "build differently" is the only way to do better. runSummary(false)
+        // deliberately: the headline above already owns "🏆 New best!", and a
+        // personal-best line here would print it twice.
+        }, { score, best: Math.max(best, score) }, postMortem(), runSummary(false), drainEarned());
       } else {
         UI.showDefeat({
           retry: () => { UI.closeOverlay(); startLevel(st.levelId, Object.assign(continueOpts(st), { seed: st.seed })); },

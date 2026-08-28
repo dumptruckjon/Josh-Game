@@ -11757,3 +11757,128 @@ test("QoL: a full Powers pack refuses the CARD you tap, not just the ＋ beside 
   await page.evaluate(() => window.__TD.resetSave());
   await page.waitForTimeout(60);
 });
+
+test("QoL: an endless run's LAST screen says what beat you — and names the badge it just earned", async () => {
+  // showDefeat rendered the post-mortem, the run summary and the earned-badge
+  // line ONLY inside the campaign arm of its head ternary. Endless and daily
+  // passed `null, null` and wired no guide hook, so the ONE outcome screen
+  // those modes ever show carried a score and nothing else. That is backwards:
+  // an endless run ends ONLY in defeat, and with no next level and no
+  // same-seed retry, building differently is the only way to do better — which
+  // is exactly what the post-mortem and the "which towers carried?" summary
+  // are for.
+  //
+  // The badge half was a real defect rather than a coverage gap. announce()
+  // DEFERS while the phase is won/lost, drainEarned() hands the list to
+  // showDefeat, and the endless arm dropped it on the floor — so 🏃 Marathoner,
+  // the one badge whose only award path is an endless run, was earned in total
+  // silence: no toast (deferred) and no line (discarded). The two paths
+  // disagreed, which is the tell: QUITTING at wave 20+ announces it, because
+  // leavingPlay awards it while the phase is NOT an outcome and announce then
+  // toasts, while playing on until you die announced nothing.
+  //
+  // Seed 1066 is the pinned board from the Marathoner fixture — a clock-seeded
+  // endless run is the one non-deterministic input in this suite and shipped a
+  // 1-in-200 cliff once. Reaching wave 20 needs a real board; DYING then needs
+  // that board gone, because a maxed one survives past 400k ticks.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const out = await page.evaluate(() => {
+    window.__TD.resetSave();
+    window.__TD.startEndless("bedroom", { seed: 1066 });
+    const pads = window.TDData.ENDLESS.arenas.bedroom.pads;
+    const LINES = ["dart", "mortar", "fan", "dart"];
+    let stalled = "";
+    for (let w = 0; w < 24; w++) {
+      const st = window.__TD.state();
+      if (!st || st.phase === "lost" || st.waveIdx >= 21) break;
+      window.__TD.script(pads.map((p, i) => ["place", LINES[i % LINES.length], p.id]));
+      const ups = [];
+      for (let i = 0; i < window.__TD.state().towers.length; i++) ups.push(["upgrade", i], ["upgrade", i]);
+      window.__TD.script(ups);
+      window.__TD.script([["call"], ["untilPhase", "build", 400000]]);
+      const after = window.__TD.state();
+      if (after.phase !== "build" && after.phase !== "lost") { stalled = "wave " + w + " never returned to build (phase " + after.phase + ")"; break; }
+    }
+    const reached = window.__TD.state().waveIdx;
+    // Read BEFORE the run ends: the badge must still be unearned here, or the
+    // announcement clause below proves nothing about the defeat screen.
+    const hadAch = window.__TD.ach().indexOf("marathoner") >= 0;
+    // Tear the board down so the run can actually END. `sell` takes an INDEX,
+    // and selling compacts the list, so this sells index 0 N times.
+    const sold = window.__TD.state().towers.length;
+    window.__TD.script(new Array(sold).fill(0).map(() => ["sell", 0]));
+    for (let i = 0; i < 40 && window.__TD.state().phase !== "lost"; i++) {
+      window.__TD.script([["call"], ["untilPhase", "build", 60000]]);
+    }
+    const st = window.__TD.state();
+    return { reached, hadAch, sold, phase: st.phase, lives: st.lives, stalled, cheated: !!st.cheated };
+  });
+
+  assert.equal(out.cheated, false, "fixture precondition: an honest run, or every award is suppressed");
+  assert.equal(out.stalled, "", `fixture precondition: every wave must finish (${out.stalled})`);
+  assert.ok(out.reached >= 20,
+    `fixture precondition: the board must survive to wave 20 to earn Marathoner (reached ${out.reached})`);
+  assert.equal(out.hadAch, false,
+    "fixture precondition: 🏃 Marathoner must still be unearned here — it is earned AT the defeat");
+  assert.ok(out.sold > 0, `fixture precondition: there was a board to tear down (sold ${out.sold})`);
+  assert.equal(out.phase, "lost",
+    `fixture precondition: the run must actually END (phase ${out.phase}, ${out.lives} lives)`);
+  await page.locator(".td-overlay--lose").waitFor({ state: "visible", timeout: 10000 });
+
+  const pm = page.locator(".td-overlay--lose .td-pm");
+  assert.equal(await pm.count(), 1,
+    "an endless defeat carries the post-mortem, not just a score — it is the mode's only feedback");
+  assert.ok((await page.locator(".td-overlay--lose .td-pm__list li").count()) >= 1,
+    "…and names the toys that got past you");
+  // A SEPARATE clause: the summary and the post-mortem are two blocks, and a
+  // mutation can drop either one alone.
+  assert.equal(await page.locator(".td-overlay--lose .td-sum").count(), 1,
+    "…and the run summary, which in endless is the only 'which towers carried?' there is");
+  const earnedLines = await page.locator(".td-overlay--lose .td-earned__line").allTextContents();
+  assert.ok(earnedLines.some((t) => /Marathoner/.test(t)),
+    "🏃 Marathoner is earned by THIS run's defeat, so it must be announced on THIS screen — " +
+    `saw ${JSON.stringify(earnedLines)}`);
+
+  // The box grew by three panels, so prove the way OUT is still reachable. Two
+  // proxies had to be discarded to get here. `scrollHeight > clientHeight` is
+  // content OVERFLOW, which a box that CLIPS reports identically to one that
+  // scrolls. And setting scrollTop is a proxy too — `overflow-y: hidden` is
+  // still PROGRAMMATICALLY scrollable, so a box the player cannot move at all
+  // happily hands the button over to a test. Measured: the box really does
+  // overflow at 320x480 (530 into 452) and in short landscape (503 into 362),
+  // so this is a live check, not a formality. The honest property is that a
+  // PERSON can reach it: either it is already in view, or the box is
+  // user-scrollable AND scrolling brings it in.
+  for (const size of [[320, 480], [320, 568], [844, 390]]) {
+    await page.setViewportSize({ width: size[0], height: size[1] });
+    await page.waitForTimeout(60);
+    const reach = await page.evaluate(() => {
+      const box = document.querySelector(".td-overlay--lose .td-overlay__box");
+      const oy = getComputedStyle(box).overflowY;
+      const inView = () => {
+        const r = box.querySelector('[data-act="quit"]').getBoundingClientRect();
+        return { ok: r.top >= -1 && r.bottom <= window.innerHeight + 1, top: r.top, bottom: r.bottom };
+      };
+      box.scrollTop = 0;
+      const unscrolled = inView();
+      box.scrollTop = box.scrollHeight;
+      const scrolled = inView();
+      return { userScrollable: oy === "auto" || oy === "scroll", unscrolled, scrolled, vh: window.innerHeight };
+    });
+    assert.ok(reach.unscrolled.ok || (reach.userScrollable && reach.scrolled.ok),
+      `🏰 Back to the fort stays reachable at ${size[0]}x${size[1]} — it sits ` +
+      `${Math.round(reach.unscrolled.top)}..${Math.round(reach.unscrolled.bottom)} of ${reach.vh} unscrolled, ` +
+      `${Math.round(reach.scrolled.top)}..${Math.round(reach.scrolled.bottom)} scrolled, ` +
+      `and the box is ${reach.userScrollable ? "" : "NOT "}user-scrollable`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(60);
+
+  // LAST, because the guide hook closes the defeat overlay to open the guide:
+  // without the hook the click handler early-returns on a missing key and the
+  // button is simply DEAD, which is worse than not offering one.
+  await page.locator(".td-overlay--lose .td-pm__guide").click();
+  await page.locator(".td-overlay--guide").waitFor({ state: "visible", timeout: 5000 });
+  await page.locator(".td-guide-done").click();
+});

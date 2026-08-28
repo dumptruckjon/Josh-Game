@@ -4430,6 +4430,72 @@ never set) with every dialog pinned to the wrap's origin. **A measurement whose
 numbers are ABSURD is diagnosing your edit, not the product** — read it before
 re-reasoning about the feature.
 
+**THE ONE SCREEN AN ENDLESS RUN EVER SHOWS YOU CARRIED NO DIAGNOSIS — and the
+badge half was a real defect, silent in exactly the case where it was earned
+honestly.** `showDefeat` builds its head as a ternary, and the post-mortem, the
+run summary and the earned-badge line all sat inside the CAMPAIGN arm; both
+other call sites passed `null, null` and wired no `guide` hook. So an endless or
+daily defeat printed a score and stopped. That is backwards on every axis: an
+endless run ends ONLY in defeat, so this is not one outcome screen of two but
+the mode's whole feedback surface, and with no next level and no same-seed retry
+the only way to do better is to build differently — which is precisely what
+"what got past you" and "which towers carried" are for. Four things worth
+keeping. (1) **The defect was `earnedHtml`, and the two award paths disagreed**
+— the tell this file trusts most. `announce()` DEFERS a badge while the phase is
+won/lost (so it lands in the outcome box rather than as a toast dimmed under the
+scrim, an earlier audit's fix), `drainEarned()` hands the list to `showDefeat`,
+and the endless arm dropped it on the floor. 🏃 Marathoner is the ONE badge whose
+only award path is an endless run, so it was earned in total silence: no toast
+because it was deferred, no line because it was discarded. Meanwhile QUITTING at
+wave 20+ announced it perfectly, because `leavingPlay()` awards it while the
+phase is explicitly NOT an outcome and `announce` then toasts — so the badge
+appeared if you walked away and vanished if you played to the end. (2) **The fix
+is a MOVE, not new code, and both helpers already guarded** (`summaryHtml`
+returns "" on no rows, `earnedHtml` on an empty list), so lifting the three
+blocks out of the ternary leaves the campaign byte-identical and needs nothing
+mode-specific. `postMortem()` and `runSummary(false)` are already mode-agnostic:
+the first reads recorded leaks and the towers on the board and guards its wave
+lookup with `|| []`, the second reads engine state and correctly yields
+`best: null` for endless, whose ids are strings and never in `save.bests` — the
+headline already owns "🏆 New best!", so `false` is right and a `true` would
+print it twice. (3) **A `guide` hook is not optional once a post-mortem
+renders** — the 📖 button is drawn by the post-mortem block itself and the click
+handler early-returns on a missing hook, so a call site that passes `pm` without
+wiring `guide` renders a DEAD button, which is worse than offering none.
+(4) **The coverage gap had a shape worth naming: a shipped test asserts
+Marathoner is EARNED (it reads `__TD.ach()`), and nothing asserted the player is
+ever told.** A test that proves a thing is recorded is not a test that it is
+communicated — the same distance as "a scan proves a call site exists, only
+driving it proves the call does anything", one layer out. The browser test now
+drives an endless run to wave 20 on the pinned seed, SELLS the board so the run
+can actually end (a maxed board survives past 400k ticks, so "play until you
+die" is not a runnable fixture), and reads the defeat screen; the daily arm,
+which would need a pinned calendar AND a 20-wave board, is covered by the
+structural half instead, which is the standing pairing rather than a shortcut.
+The fold is proven by SCROLLING the box and asking whether the quit button
+arrived, never by `scrollHeight > clientHeight`, which a clipping box reports
+identically.
+(5) **And the fold clause needed TWO proxies
+discarded, the second of which is new here: `overflow-y: hidden` is still
+PROGRAMMATICALLY scrollable.** The known trap is that `scrollHeight >
+clientHeight` is content OVERFLOW, which a clipping box reports identically to a
+scrolling one — so this was written to scroll the box for real instead. The
+mutation that makes the box CLIP then still PASSED, because setting `scrollTop`
+works fine on an `overflow: hidden` box: the test could reach a button no PERSON
+could. Rather than widen the tolerance, print what moved — the box genuinely
+overflows at 320x480 (530 into 452) and short landscape (503 into 362), so the
+clause was live, it was simply asserting the wrong actor. The honest property is
+that a person can reach it: already in view, OR the box is USER-scrollable and
+scrolling brings it in. It now fails naming exactly that ("it sits 466..522 of
+480 unscrolled ... and the box is NOT user-scrollable"). Two of this session's
+findings are now the same shape one level apart — assert the property, not a
+quantity that correlates with it, and when a mutation passes, go and find what
+actually moved. (6) **A dominated clause was written and DELETED, on a
+measurement**: a "no call site may be handed `null, null`" check can never fail
+on its own, because anything shaped that way also drops the panelled count
+asserted above it — proven by a mutation that adds a fourth nulled call site and
+still reports "only 3 of 4". A clause that cannot fail independently is
+decoration, which this file has now deleted for the fourth time.
 ---
 
 ## Repository Structure

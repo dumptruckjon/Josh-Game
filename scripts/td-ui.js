@@ -2181,10 +2181,21 @@
   UI.showDefeat = function (hooks, endless, pm, rs, earned) {
     // endless: { score, best } — an endless run ends only in defeat, so its
     // "score" (waves survived) is the headline, not a failure.
-    const head = endless ? '<h3>♾️ Run over!</h3>' +
+    //
+    // The head ternary chooses only the HEADLINE. It used to enclose the
+    // post-mortem, the run summary and the earned-badge line too, which left
+    // endless and daily with a score and nothing else — and made 🏃 Marathoner,
+    // the one badge whose sole award path is an endless run, UNANNOUNCEABLE:
+    // announce() defers while the phase is won/lost, drainEarned() hands the
+    // list here, and this arm dropped it. Quitting at wave 20+ announced it
+    // fine (leavingPlay awards while the phase is not an outcome, so it
+    // toasts), so the badge appeared if you walked away and vanished if you
+    // played to the end. Both helpers already return "" when empty, so the
+    // three blocks belong to every outcome.
+    const head = (endless ? '<h3>♾️ Run over!</h3>' +
         '<p class="td-overlay__stars">🏁 wave ' + endless.score + "</p>" +
         "<p>" + (endless.score >= endless.best ? "🏆 New best!" : "Best: wave " + endless.best) + "</p>"
-      : '<h3>The toys got sleepy… 😴</h3><p>The fort door ran out of stickers this time.</p>' +
+      : '<h3>The toys got sleepy… 😴</h3><p>The fort door ran out of stickers this time.</p>') +
         // TD-12 post-mortem: the defeat screen used to be flavour ONLY — no
         // diagnosis at all, even though the engine emits every leak. Now it
         // names the wave, what got through, and (when the board had a real
