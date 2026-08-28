@@ -2689,6 +2689,95 @@ test("TD8 audit: EVERY star-tree node is reachable + scroll-stable on a SHORT vi
   await page.evaluate(() => { window.__TD.resetSave(); });
 });
 
+test("QoL: the tree's PACK budget is sticky, and a full rack says why", async () => {
+  // Two halves of one gap, both already fixed once next door and not here.
+  // (a) 🎒 N/6 lived in a paragraph at the very top of a 2900px dialog, so it
+  //     scrolled away — the identical argument that moved the ⭐ budget onto the
+  //     sticky strip a release earlier, and sharper, because at 6/6 every
+  //     un-equipped ＋ goes `disabled` and this count is the explanation.
+  // (b) that ＋ refused SILENTLY. The 🎒 Powers picker was fixed for exactly
+  //     this ("a control that cannot be used says why"); the tree was not.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  try {
+    // Own enough to overfill the rack. Seeded through the save + a reload, since
+    // the module holds its own copy and a bare write is invisible to it.
+    const need = await page.evaluate(() => window.TDData.RULES.metaSlots);
+    assert.ok(need >= 2, "fixture: the rack must have more than one slot");
+    const ids = await page.evaluate((n) => window.TDData.META_NODES
+      .filter((x) => !x.req && !x.reqSpend).slice(0, n + 2).map((x) => x.id), need);
+    assert.ok(ids.length > need, `fixture: need more owned nodes (${ids.length}) than slots (${need}) or nothing can be refused`);
+    await page.evaluate((o) => {
+      const s2 = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+      s2.meta = o.ids; s2.loadout = o.ids.slice(0, o.need); s2.midRun = null;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify(s2));
+    }, { ids, need });
+    await page.reload({ waitUntil: "load" });
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible" });
+    await page.locator(".td-tree-open").click();
+    await page.locator(".td-tree").waitFor({ state: "visible" });
+
+    // ---- (a) the count is on screen AFTER scrolling to the bottom of the tree.
+    // Asserting the PROPERTY (still visible once you are deep in the list), not
+    // a `position: sticky` declaration that correlates with it.
+    const box = page.locator("#screen-td-home .td-overlay__box");
+    await box.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    const m = await page.evaluate(() => {
+      const box2 = document.querySelector("#screen-td-home .td-overlay__box");
+      const b = box2.getBoundingClientRect();
+      // ALL matches, not querySelector's first: a second copy elsewhere would
+      // let this read the good one and pass — which is exactly how the "put it
+      // back in the scrolling header" mutation first came back green.
+      const all = [...document.querySelectorAll(".td-tree__packed")];
+      if (all.length !== 1) return { count: all.length };
+      const r = all[0].getBoundingClientRect();
+      return { count: 1, text: all[0].textContent, scrolled: box2.scrollTop,
+               inBox: r.top >= b.top - 1 && r.bottom <= b.bottom + 1 && r.height > 0,
+               inView: r.top >= 0 && r.bottom <= window.innerHeight };
+    });
+    assert.equal(m.count, 1, `the tree must state how many slots are packed, exactly once (saw ${m.count})`);
+    assert.ok(m.scrolled > 0, "fixture: the tree must really be scrolled, or 'still visible' proves nothing");
+    assert.ok(m.inBox && m.inView,
+      `the packed count must survive scrolling to the bottom of the tree (scrolled ${m.scrolled}px, count at ${JSON.stringify(m.text)})`);
+    assert.ok(m.text.indexOf("/" + need) >= 0, `…and it must state the real cap (saw ${JSON.stringify(m.text)})`);
+
+    // ---- (b) a full rack refuses the ＋, and SAYS SO. The refused node is one
+    // the fixture owns but did not pack, so the state is reachable by construction.
+    const spare = ids[need];
+    const ref = await page.evaluate((id) => {
+      const b = document.querySelector('.td-node__equip[data-equip="' + id + '"]');
+      if (!b) return { missing: true };
+      return { disabled: b.disabled, title: b.getAttribute("title") || "",
+               aria: b.getAttribute("aria-label") || "" };
+    }, spare);
+    assert.ok(!ref.missing, `fixture: the spare node (${spare}) must render an equip button`);
+    assert.ok(ref.disabled, "a full rack must refuse an un-packed node's ＋");
+    assert.ok(/full/i.test(ref.title), `…and say why on hover (title: ${JSON.stringify(ref.title)})`);
+    assert.ok(/full/i.test(ref.aria),
+      `…and to a screen reader, where a bare "Equip X" on a dead button is worse than useless (aria: ${JSON.stringify(ref.aria)})`);
+
+    // ---- (c) both racks say the SAME thing. The two spellings had already come
+    // apart inside one expression (a comma against a dash), which is why the
+    // wording has one owner; compare the rendered strings rather than the source.
+    await page.locator(".td-tree-done").click();
+    await page.locator(".td-powers-open").click();
+    await page.locator(".td-powers").waitFor({ state: "visible" });
+    const pw = await page.evaluate(() => {
+      const b = [...document.querySelectorAll(".td-node__equip[data-equippow]")].find((x) => x.disabled);
+      return b ? { title: b.getAttribute("title") || "", aria: b.getAttribute("aria-label") || "" } : null;
+    });
+    assert.ok(pw, "fixture: a default pack is full, so some power's ＋ must be refused");
+    assert.equal(pw.title, ref.title, "both racks refuse in the same words");
+    assert.ok(pw.aria.indexOf(pw.title) === 0 && ref.aria.indexOf(ref.title) === 0,
+      `…and the spoken label leads with those same words (powers: ${JSON.stringify(pw.aria)}, tree: ${JSON.stringify(ref.aria)})`);
+  } finally {
+    await page.evaluate(() => { if (window.TDUI && window.TDUI.closeOverlay) window.TDUI.closeOverlay(); });
+    await page.evaluate(() => { window.__TD.resetSave(); });
+  }
+});
+
 test("TD6 fx juice: a Mortar splash shakes the screen, and prefers-reduced-motion disables it", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); });
   // motion ALLOWED → a splash triggers a (small, ≤4px) shake at some point
@@ -7998,6 +8087,163 @@ test("TD-18 daily: the same day is the same puzzle, scored on ITS OWN ladder", a
   assert.equal(out.daily.allTime | 0, out.daily.best | 0, "…and the all-time daily best tracks it");
   assert.deepEqual(out.endlessBest, {},
     "a daily score must NEVER write the endless grid — separate ladders, and the daily can visit arenas endless has not unlocked");
+});
+
+test("QoL: the 📅 Daily card states the day's RULES before you commit", async () => {
+  // The card's own comment enumerates what it exists to say — "which arena,
+  // which chip (if any), and both bests" — and a daily is ALSO pinned to one
+  // ladder, which it never mentioned. So a player sitting on the 💀 Hard chip
+  // pressed Play and got Normal with nothing said: a rule of the run, stated
+  // nowhere, on the screen whose whole job is stating the run's rules. Same law
+  // as the ⬆ upgrade preview and the % road figure — the information belongs
+  // where the decision is made.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  try {
+    // Put the fort on HARD. Without this the "card must not follow the chip"
+    // clause is vacuous, because Normal is the pinned answer anyway.
+    await page.locator('#screen-td-home .td-diffbtn[data-diff="heroic"]').click();
+    const chip = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).difficulty);
+    assert.equal(chip, "heroic", "fixture: the fort chip must really be on Hard, or the next clause proves nothing");
+
+    await page.locator(".td-daily-open").click();
+    await page.locator(".td-daily__card").waitFor({ state: "visible" });
+    const card = await page.evaluate(() => {
+      const box = document.querySelector(".td-daily__card").closest(".td-overlay");
+      return { text: box.innerText, spike: (document.querySelector(".td-daily__spike") || {}).textContent || "",
+               rules: (document.querySelector(".td-daily__rules") || {}).textContent || "" };
+    });
+    const pick = await page.evaluate(() => window.__TD.dailyInfo());
+    const hardLabel = await page.evaluate(() => window.TDUI.difficultyLabel("heroic"));
+
+    // ---- 1. an unplayed board does not report "wave 0" — a bar, not progress.
+    assert.ok(/unplayed/i.test(card.text),
+      `a board nobody has played must say so, not score it (card said: ${JSON.stringify(card.text)})`);
+    // All-time BEFORE the zero-score clause: the mutation that makes the
+    // all-time line unconditional prints "All-time daily best: wave 0", which
+    // trips the zero-score clause first and leaves this one unproven — the
+    // earlier-clause trap. Ordered this way each mutation fires its own.
+    assert.ok(card.text.indexOf("All-time") < 0, "…nor an all-time best before there is one");
+    assert.ok(card.text.indexOf("wave 0") < 0, "…and must never print a zero score");
+
+    // ---- 2. the card must NOT follow the fort-home chip, which is the defect
+    // the rules line exists to prevent being invisible.
+    assert.ok(card.rules, `the card must carry a rules line at all (text: ${JSON.stringify(card.text)})`);
+    assert.ok(card.rules.indexOf(hardLabel) < 0,
+      `the fort chip is on ${hardLabel} and the daily is pinned, so the card must not advertise it (rules line: "${card.rules}")`);
+
+    // ---- 3. the arena's SPIKE, compared against the ENDLESS PICKER'S OWN ROW
+    // for the same arena rather than against the shared helper. Both surfaces
+    // describe one fact, so the claim worth pinning is that they AGREE — reading
+    // the helper at both ends would flatten the moment somebody re-inlines the
+    // phrase at one site and drifts it.
+    await page.evaluate(() => window.TDUI.closeOverlay());
+    await page.locator(".td-endless-open").click();
+    await page.locator(".td-endlessrows").waitFor({ state: "visible" });
+    const rowSpike = await page.evaluate((w) => {
+      const row = document.querySelector('.td-endless[data-world="' + w + '"]');
+      return row ? ((row.querySelector(".td-endless__spike") || {}).textContent || "") : null;
+    }, pick.world);
+    await page.evaluate(() => window.TDUI.closeOverlay());
+    assert.ok(rowSpike, `fixture: today's arena (${pick.world}) must have a picker row naming a spike, or clause 3 is vacuous`);
+    assert.equal(card.spike, rowSpike,
+      "the daily card and the endless picker describe the same arena, so they must name the same spike");
+
+    // ---- 4. the ladder the card NAMES is the ladder the run actually gets.
+    // Behavioural on purpose: reading it off `pick` at both ends would flatten
+    // (both would move together), so the run is DRIVEN and the card compared
+    // against what the engine really did. Point startDaily at the save and the
+    // run comes out Hard while the card still says Normal. Last, because it
+    // navigates away from the fort home.
+    const ran = await page.evaluate(() => {
+      const d = window.__TD.dailyInfo().day;
+      window.__TD.playDaily(d);
+      return window.__TD.state().difficulty;
+    });
+    const ranLabel = await page.evaluate((d) => window.TDUI.difficultyLabel(d), ran);
+    assert.ok(card.rules.indexOf(ranLabel) >= 0,
+      `the daily card must name the ladder the run is actually on — the run came out ${ran} ` +
+      `("${ranLabel}") and the card's rules line reads "${card.rules}"`);
+  } finally {
+    await page.evaluate(() => { if (window.TDUI && window.TDUI.closeOverlay) window.TDUI.closeOverlay(); });
+  }
+
+  // ---- 5. once there IS a best, the card reports it. Seeded + RELOADED,
+  // because the module holds its own `save` object and a bare localStorage
+  // write is invisible to it (the documented same-document trap); midRun is
+  // cleared with it, or a parked run bounces #td-play back to the fort home.
+  const day = await page.evaluate(() => window.__TD.dailyInfo().day);
+  await page.evaluate((d) => {
+    const s = JSON.parse(localStorage.getItem("jon-td-save-v1"));
+    s.daily = { day: d, best: 7, allTime: 9 };
+    s.midRun = null;
+    localStorage.setItem("jon-td-save-v1", JSON.stringify(s));
+  }, day);
+  await page.reload();
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  try {
+    const seeded = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")).daily);
+    assert.equal(seeded.best, 7, "fixture: the seed must survive the reload, or clause 5 measures the old state");
+    await page.locator(".td-daily-open").click();
+    await page.locator(".td-daily__card").waitFor({ state: "visible" });
+    const txt = await page.evaluate(() => document.querySelector(".td-daily__card").innerText);
+    assert.ok(txt.indexOf("wave 7") >= 0, `a played board reports today's best (card said: ${JSON.stringify(txt)})`);
+    assert.ok(txt.indexOf("wave 9") >= 0, "…and the all-time line appears once there is an all-time");
+  } finally {
+    await page.evaluate(() => { if (window.TDUI && window.TDUI.closeOverlay) window.TDUI.closeOverlay(); });
+    await page.evaluate(() => { window.__TD.resetSave(); });
+  }
+});
+
+test("QoL: the 📅 Daily card keeps ▶ Play above the fold", async () => {
+  // Adding the ladder and the spike to this card is exactly the shape that has
+  // pushed a fort control past the fold before, so the cost is measured rather
+  // than assumed. FRESH CONTEXTS, never setViewportSize: a resize does not
+  // reproduce this class (the 834 comparison-game defect survived its own
+  // mutation for precisely that reason) — a real device loads the page at its
+  // size. The two sizes here are the SEPARATING ones, measured: at 844x390 the
+  // first cut cost +38px and took ▶ Play from in-view to out, and 320x480 is
+  // the shortest portrait phone, where this box is already at its cap. 390x844
+  // has slack at both states and is carried only as the ordinary case.
+  const SIZES = [[844, 390], [320, 480], [390, 844]];
+  for (const [w, h] of SIZES) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx.newPage();
+    try {
+      await p2.goto(baseURL, { waitUntil: "load" });
+      await p2.evaluate(() => { location.hash = "#td-home"; });
+      await p2.locator("#screen-td-home").waitFor({ state: "visible" });
+      await p2.evaluate(() => { window.__TD.resetSave(); });
+      await p2.locator(".td-daily-open").click();
+      await p2.locator(".td-daily__card").waitFor({ state: "visible" });
+      const m = await p2.evaluate(() => {
+        const b = document.querySelector(".td-daily-play").getBoundingClientRect();
+        const box = document.querySelector(".td-overlay__box").getBoundingClientRect();
+        return { top: Math.round(b.top), bottom: Math.round(b.bottom), vh: window.innerHeight,
+                 boxW: Math.round(box.width), h: Math.round(b.height),
+                 wide: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+      });
+      assert.ok(m.h >= 44, `fixture: the play button must have real size at ${w}x${h} (${m.h}px)`);
+      assert.ok(m.top >= 0 && m.bottom <= m.vh,
+        `▶ Play must be reachable without scrolling the dialog at ${w}x${h} — it sits at ` +
+        `${m.top}..${m.bottom} in a ${m.vh}px viewport (box ${m.boxW}px wide)`);
+      assert.ok(!m.wide, `…and the page must not scroll sideways at ${w}x${h}`);
+      // Short LANDSCAPE is height-constrained with width to spare, which is why
+      // the wide overlay takes the spare axis there. Assert the HEADROOM, not
+      // the width that buys it: a box-width clause would be a quantity that
+      // merely correlates with the property, and this file has already been
+      // caught doing that. The bar is a MEASURED separation — 38px of clearance
+      // with the landscape width, 1px without it (which is luck, not headroom) —
+      // so it sits between the two states rather than beside either.
+      if (w > h) assert.ok(m.vh - m.bottom >= 15,
+        `▶ Play must clear a short landscape viewport with real room, not by a pixel — ` +
+        `${m.vh - m.bottom}px of clearance at ${w}x${h} (box ${m.boxW}px wide)`);
+    } finally {
+      await ctx.close();
+    }
+  }
 });
 
 test("TD-18 chips: armed in the picker, locked on the menu, stamped by the WIN", async () => {

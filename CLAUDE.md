@@ -4090,6 +4090,94 @@ A scan's own pattern is part of the scan, for the eighth recorded time, and this
 one produced a plausible defect report about the documentation rather than a
 missed one — the failure mode that wastes a fix rather than hiding a bug.
 
+**THE 📅 DAILY CARD STATED THE DAY'S ARENA, ITS CHIP AND BOTH BESTS — and hid
+that a daily is PINNED TO NORMAL, which is the one rule on it a player can be
+wrong about.** The card's own comment enumerates what it exists to say ("which
+arena, which chip (if any), and both bests") and `startDaily` quietly passed
+`difficulty: "normal"` as a literal, so a player sitting on the 💀 Hard chip
+pressed ▶ Play and got Normal with nothing said. The pin is right — a daily is
+one shared puzzle — but a rule stated nowhere is the `cheap` class one layer
+out. Fixed by making the ladder part of the PICK: `dailyPick` returns it, and
+both the start site and the card read that one owner, so the card cannot say one
+thing while the engine does another. Two smaller defects on the same card: it
+printed **"Today's best: wave 0"** before you had played (a bar, not progress —
+the 🏃 Marathoner rule, and the sibling of the "🏆 12 — twelve of WHAT" defect
+the endless picker was fixed for), and it named the arena without its **spike**,
+which the sibling picker had just learned to name — so `UI.arenaSpike` is now
+the one owner and the test compares the two SURFACES rather than both reading
+the helper, because the claim worth pinning is that they agree.
+**The clause that matters is behavioural and cannot flatten**: reading the
+ladder off `pick` at both ends would move together, so the run is DRIVEN and the
+card compared against `state.difficulty`. One clause catches the mutation in
+either direction — point the card at the save and it advertises Hard while the
+run is Normal; point `startDaily` at the save and the run is Hard while the card
+says Normal. It is falsifiable only because the fixture puts the fort chip on
+Hard first, which is asserted.
+**AND THE FIRST CUT WAS A REGRESSION I INTRODUCED AND MEASURED — two extra lines
+cost +67px and pushed ▶ Play below the fold at 320×480 and in landscape.** The
+A/B is the honest one (the same page with the new lines `display:none`, not a
+different save state). The fix is where the fact BELONGS rather than a trim: the
+card holds what changes daily, and the pin is true every day and is the second
+half of the sentence the blurb already makes — same seed *and same rules* is
+what makes a best a fair best — so it is a `<b>` inside a paragraph that already
+exists and costs zero rows.
+**The last 38px came from trading the axis that was spare.** Short landscape is
+HEIGHT-constrained and had 484px of unused WIDTH (`.td-overlay__box--wide` is
+`min(360px, 92vw)` at every size), so every paragraph wrapped more than it
+needed to; a landscape-only width bump buys headroom for all nine dialogs there
+and cannot touch portrait, because `orientation: landscape` never matches a
+portrait tablet. Result: landscape costs **+1px instead of +38**, with 38px of
+clearance rather than 1px.
+**Three testing notes.** A `boxW > 400` clause was written and REPLACED: box
+width is a quantity that *correlates* with headroom, and this file has already
+been caught asserting a proxy (`wrapW >= viewport.width`) — the clause asserts
+the clearance itself now, with a bar (15px) that is a measured separation
+between the two states rather than a number beside either. The fold guardrail
+uses FRESH CONTEXTS per size, never `setViewportSize`, which is the documented
+reason the 834 comparison-game check once survived its own mutation. And the
+all-time clause had to be moved ABOVE the zero-score clause to be provable at
+all: the mutation that makes the all-time line unconditional prints "All-time
+daily best: wave 0", which trips the zero-score clause first — the
+earlier-clause trap, caught only by running the mutation and reading which
+assertion fired.
+
+**THE STAR TREE'S OTHER BUDGET SCROLLED AWAY, AND ITS ＋ REFUSED IN SILENCE —
+both already fixed once, next door, and never carried across.** The ⭐ budget was
+moved onto the sticky strip a release earlier because it is the number all 40
+nodes are judged against and the dialog is 2900px tall; **🎒 N/6 packed is the
+second such number and was still in a paragraph at the very top**, so it was gone
+the moment you began browsing. It is the sharper of the two: at 6/6 every
+un-equipped ＋ goes `disabled`, so the count is the *explanation for a control
+that just refused you* — and that ＋ carried no reason at all, no `title` and a
+bare "Equip X" aria-label on a dead button, which is precisely the law the 🎒
+Powers picker was fixed for one dialog over ("a control that cannot be used says
+why"). The SENTENCE stays at the top (it explains the mechanic and is read once);
+only the NUMBER moves. Measured free: the strip is **70px in both arms at 320,
+390 and landscape** — the note wraps to a second line and the strip does not
+grow, because its height is already set by the 44px ✕ — and the note never
+reaches the ✕ (a flex row cannot overlap).
+**The refusal wording now has one owner, and the drift was already there to
+find**: inside ONE expression the `title` read *"Pack is full — take one out
+first"* and the aria-label *"Pack is full, take one out first —"*, i.e. the
+sighted and the spoken copy had come apart by a comma and a dash before anyone
+copied either of them anywhere. The test compares the two racks' RENDERED
+strings rather than reading the shared constant at both ends, so the mutation
+that moves the shared wording correctly stays GREEN (both follow) while
+re-inlining a drifted copy at one site goes red. Note one deliberate asymmetry,
+written into the code: the Powers picker disables the whole ROW as well, and the
+tree must not — there the row BUYS and refunds.
+**And the mutation that "proved" the sticky half PASSED, because I wrote a
+mutation that did not mutate the thing under test.** It ADDED the count back to
+the header while leaving the sticky one in place, so `querySelector` found the
+good one first and the test was satisfied. Two lessons, and the second is the
+one worth keeping: a MOVE has two halves and a mutation that performs one of
+them is not that move; and the test was reading `querySelector`, so a duplicate
+anywhere would have let it grade the wrong element — it asserts **exactly one**
+match now, which is what turns a bad mutation into a visible failure instead of
+a false pass. Also swept up: `.td-tree__avail` was declared TWICE with identical
+values — benign today, and the "a size declared twice has no owner" class, where
+the next edit to one of them silently disagrees with the other.
+
 ---
 
 ## Repository Structure

@@ -1000,15 +1000,21 @@
     const mods = [null].concat((DATA.CHIPS || []).map((c) => c.id));
     const chip = mods[dayHash(day, 0x9e3779b1) % mods.length];
     const seed = dayHash(day, 0x85ebca6b) % 100000;
-    return { day, world, chip, seed };
+    // Difficulty is PART OF THE PICK, not a literal at the start site: it is a
+    // rule of the day's run exactly like the arena and the chip, and the card
+    // that states those before you commit has to state this one too. It was a
+    // bare "normal" in startDaily, so the card could not name it without typing
+    // the word a second time — two owners of one rule, which is how the sell
+    // refund came to show 272 while the engine paid 306.
+    return { day, world, chip, seed, difficulty: "normal" };
   }
   function startDaily(dayOverride) {
     const pick = dailyPick(dayOverride || dayKey());
     location.hash = "#td-play";
-    // Difficulty pinned to NORMAL so the day's board is the same board no
-    // matter where the fort-home chip sits — a daily is one shared puzzle.
+    // Pinned to NORMAL so the day's board is the same board no matter where the
+    // fort-home chip sits — a daily is one shared puzzle.
     startLevel(null, { levelDef: endlessLevelDef(pick.world), seed: pick.seed,
-      difficulty: "normal", chips: pick.chip ? [pick.chip] : [] });
+      difficulty: pick.difficulty, chips: pick.chip ? [pick.chip] : [] });
     if (cur) cur.dailyDay = pick.day;
   }
   // Score a finished/abandoned daily. ONE owner called from both exits (the

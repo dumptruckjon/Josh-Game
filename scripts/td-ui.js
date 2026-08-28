@@ -641,6 +641,16 @@
   };
 
   // ---- TD-5 META: star accounting, resume banner, star tree, badges, endless ----
+  // Both racks refuse the same way, so they say the same thing. The ⭐ tree and
+  // the 🎒 Powers pack each cap what a run may bring, and the Powers picker was
+  // fixed a release earlier for exactly this — a control that cannot be used
+  // must say why — while the tree's ＋ went `disabled` with no reason at all.
+  // One string rather than two, and the drift was already there to find: inside
+  // ONE expression the `title` read "Pack is full — take one out first" and the
+  // aria-label "Pack is full, take one out first —", i.e. the sighted and the
+  // spoken copy had already come apart by a comma and a dash.
+  const PACK_FULL = "Pack is full — take one out first";
+
   const NODES = () => global.TDData.META_NODES;
   // Cached because the tree re-renders on every buy/refund and nodeGate diffs a
   // metaMods pair per node — 40 diffs a keystroke is pointless work for an answer
@@ -1120,10 +1130,18 @@
         const on = eq.has(n.id);
         // the equip toggle only exists once you own the node; a full rack still
         // lets you UN-equip, or the last slot would be a trap
+        // A full rack refuses this ＋, and it used to refuse SILENTLY — you tap a
+        // node deep in a 2900px tree, nothing happens, and the only thing that
+        // explains it is the slot count, which was not on screen either (see the
+        // sticky strip below). Note the deliberate difference from the Powers
+        // picker, where the whole ROW is disabled too: here the row BUYS and
+        // refunds, so it must stay live.
+        const packFull = has && !on && eq.size >= SLOTS;
         const equipBtn = has
           ? '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' +
-            (!on && eq.size >= SLOTS ? " disabled" : "") +
-            ' data-equip="' + n.id + '" aria-label="' + (on ? "Unequip " : "Equip ") + n.name + '">' + (on ? "🎒" : "＋") + "</button>"
+            (packFull ? ' disabled title="' + PACK_FULL + '"' : "") +
+            ' data-equip="' + n.id + '" aria-label="' +
+            (on ? "Unequip " : packFull ? PACK_FULL + " — " : "Equip ") + n.name + '">' + (on ? "🎒" : "＋") + "</button>"
           : "";
         return '<div class="td-node-row">' +
           '<button class="td-node' + (has ? " td-node--on" : "") + (locked ? " td-node--locked" : "") + '"' + (buyable ? "" : " disabled") +
@@ -1157,12 +1175,19 @@
     // 488px box at 320px, so HALF the dialog was header and 3 of 40 nodes were
     // visible.
     const el = metaOverlay("td-tree", '<h3>⭐ Star Tree</h3>' +
-      '<p class="td-overlay__sub td-tree__slots">🎒 ' + equipped.length + " / " + SLOTS +
-      " equipped — a run brings only what is packed, so the tree is a choice every battle.</p>" +
+      // The SENTENCE stays at the top — it explains the mechanic and is read
+      // once — while the NUMBER moves to the sticky strip, because every one of
+      // the 40 ＋ buttons is judged against it and this dialog is 2900px tall.
+      // Identical argument to the star budget's own move a release earlier, and
+      // sharper here: at 6/6 every un-equipped ＋ goes disabled, so the count is
+      // the explanation for a control that just refused you.
+      '<p class="td-overlay__sub td-tree__slots">A run brings only what is packed, ' +
+      "so the tree is a choice every battle.</p>" +
       branches +
       '<div class="td-overlay__row"><button class="td-btn td-tree-respec" type="button">↺ Refund all</button>' +
       '<button class="td-btn td-btn--call td-tree-done" type="button">Done</button></div>',
-      '<b class="td-tree__avail">⭐ ' + t.avail + "</b> to spend · " + t.spent + " used");
+      '<b class="td-tree__avail">⭐ ' + t.avail + "</b> to spend · " + t.spent + " used · " +
+      '<b class="td-tree__packed">🎒 ' + equipped.length + "/" + SLOTS + "</b> packed");
     // Buying/refunding rebuilds the whole overlay (metaOverlay removes + re-appends),
     // which would reset scrollTop to 0 — on a real phone the 23-node tree is far
     // taller than its 86dvh box, so a tap near the bottom (Fortification branch)
@@ -1215,9 +1240,7 @@
       // used says why" law inverted: the tiny control showed the refusal and the
       // big one swallowed it. Both now carry the same state and the same reason.
       const refused = !on && eq.size >= SLOTS;
-      const why = refused
-        ? ' title="Pack is full — take one out first" disabled'
-        : "";
+      const why = refused ? ' title="' + PACK_FULL + '" disabled' : "";
       return '<div class="td-node-row">' +
         '<button class="td-node' + (on ? " td-node--on" : "") + '" data-power="' + a.id + '" type="button"' + why + ">" +
         '<span class="td-node__icon">' + a.icon + "</span>" +
@@ -1234,7 +1257,7 @@
         '<span class="td-node__cost">' + a.gold + "🪙 ·" + (a.charges === undefined ? 1 : a.charges) + "⚙️" +
         '<span class="td-node__cd">every ' + a.cooldown + 's</span></span></button>' +
         '<button class="td-node__equip' + (on ? " td-node__equip--on" : "") + '" type="button"' + why +
-        ' data-equippow="' + a.id + '" aria-label="' + (on ? "Leave behind " : refused ? "Pack is full, take one out first — " : "Pack ") + a.name + '">' + (on ? "🎒" : "＋") + "</button></div>";
+        ' data-equippow="' + a.id + '" aria-label="' + (on ? "Leave behind " : refused ? PACK_FULL + " — " : "Pack ") + a.name + '">' + (on ? "🎒" : "＋") + "</button></div>";
     }).join("");
     const el = metaOverlay("td-powers", "<h3>🎒 Powers Pack</h3>" +
       '<p class="td-overlay__sub">' + eq.size + " / " + SLOTS +
@@ -1262,13 +1285,42 @@
     const chip = pick.chip ? (global.TDData.CHIPS || []).find((c) => c.id === pick.chip) : null;
     const d = save.daily || { day: "", best: 0, allTime: 0 };
     const today = d.day === pick.day ? (d.best | 0) : 0;
+    // The arena's signature body, from the same owner the endless picker reads:
+    // the day's board IS one of those arenas, and which spike it brings is the
+    // fact that separates today's puzzle from yesterday's.
+    const spike = UI.arenaSpike(pick.world);
+    // A daily is pinned to ONE ladder, and the card that exists to state the
+    // day's rules before you commit did not state that one — so a player sitting
+    // on the 💀 Hard chip pressed Play and got Normal with nothing said. Read
+    // from the PICK (the one owner) rather than re-typed here.
+    //
+    // It goes in the BLURB, not the card, for two reasons. The card holds what
+    // changes daily (arena, chip, bests); the pin is true every day, and it is
+    // the second half of the sentence the blurb is already making — same seed
+    // AND same rules is what makes a best a fair best. And it is free there:
+    // measured, its own line cost +67px (the sentence wrapped to two), which at
+    // 320x480 and in landscape — where this box already scrolls — pushed ▶ Play
+    // below the fold. Shown ALWAYS, unlike the fort-home badges: the message is
+    // that this is FIXED, so hiding it whenever the chip agrees would destroy
+    // exactly the case it explains.
+    const ladder = pick.difficulty ? UI.difficultyLabel(pick.difficulty) : "";
+    // "wave 0" before you have played is a bar, not progress — the 🏃 Marathoner
+    // rule, and the sibling of the "🏆 12 — twelve of WHAT" defect the endless
+    // picker was fixed for. Say the state instead, and drop the all-time line
+    // until there is an all-time.
+    const bests = today
+      ? "Today’s best: <b>wave " + today + "</b>"
+      : "Today’s board is unplayed";
     metaOverlay("td-daily", "<h3>📅 Daily Toybox</h3>" +
-      '<p class="td-overlay__sub">One endless board a day — same seed all day, so every attempt is the ' +
-      "same puzzle and your best is a fair best. It rolls over at midnight.</p>" +
+      '<p class="td-overlay__sub">One endless board a day' +
+      (ladder ? ', <b class="td-daily__rules">always ' + ladder + "</b>" : "") +
+      " — same seed and rules for everyone, so a best is a fair best. " +
+      "New board at midnight.</p>" +
       '<div class="td-daily__card">' +
-        '<p class="td-daily__arena">' + arena + "</p>" +
+        '<p class="td-daily__arena">' + arena + (spike ? '<span class="td-daily__spike">' + spike + "</span>" : "") + "</p>" +
         '<p class="td-daily__mod">' + (chip ? chip.icon + " " + chip.name + " — " + chip.desc : "🙂 No twist today — full toybox") + "</p>" +
-        '<p class="td-daily__best">Today’s best: <b>wave ' + today + "</b> · All-time daily best: <b>wave " + (d.allTime | 0) + "</b></p>" +
+        '<p class="td-daily__best">' + bests +
+          ((d.allTime | 0) ? " · All-time daily best: <b>wave " + (d.allTime | 0) + "</b>" : "") + "</p>" +
       "</div>" +
       '<div class="td-overlay__row">' +
         '<button class="td-btn td-btn--call td-daily-play" type="button">▶ Play today’s board</button>' +
@@ -1386,6 +1438,19 @@
   };
 
   // Endless picker: one button per world, unlocked once its 4 levels are 3⭐.
+  // WHAT MAKES AN ARENA DIFFERENT, in one place. TD-18 gave every world its own
+  // every-Nth-wave spike precisely so ten endless runs ask ten different
+  // questions, and `miniBoss` was read by the wave generator and by NOTHING
+  // else. Two surfaces now name it — the endless picker's rows and the 📅 Daily
+  // card — and a phrase written twice is a phrase that drifts, so it is derived
+  // here from the world's own entry. An eleventh arena names itself; one with no
+  // miniBoss says nothing rather than "spikes with undefined".
+  UI.arenaSpike = function (world) {
+    const w = (global.TDData.ENDLESS.worlds || {})[world] || {};
+    const mb = (global.TDData.ENEMIES || {})[w.miniBoss];
+    return mb ? "spikes with " + mb.icon + " " + mb.name : "";
+  };
+
   UI.showEndless = function (save, onPick) {
     // DERIVED from the data, never a literal list — World 4's attic arena
     // existed in ENDLESS.worlds and could not be reached because this line
@@ -1417,12 +1482,11 @@
       // NOTHING else, so the one fact that separates these ten identical-looking
       // rows was learnable only by playing one to wave 5. Derived from the
       // world's own entry, so an eleventh arena names itself.
-      const mb = global.TDData.ENEMIES[(W[w] || {}).miniBoss];
       // Only the BODY goes on the row: the cadence is the same 5 for every
       // arena, so ten rows repeating it carry no per-arena information at all —
       // it is stated once in the blurb instead, and the enemy's own guide card
       // says it too.
-      const spike = mb ? "spikes with " + mb.icon + " " + mb.name : "";
+      const spike = UI.arenaSpike(w);
       // An explicit name, because the parts CONCATENATE otherwise — this row
       // already announced "🔧 Garagenew!", the same defect the difficulty chips
       // and the level cards were fixed for, and a second line makes it worse.

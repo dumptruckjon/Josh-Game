@@ -735,6 +735,14 @@ body.td-mode #screens { padding: 0; }
 
 /* wide overlay box for the tree/badges/endless lists (scrolls if tall) */
 .td-overlay__box--wide { width: min(360px, 92vw); max-height: 86vh; max-height: 86dvh; overflow-y: auto; overscroll-behavior: contain; } /* vh first: Safari 14 fallback */
+/* Short landscape is HEIGHT-constrained and has width to spare — an 844-wide
+   phone lands this box at 360px with 484px unused, so every paragraph wraps
+   more than it needs to and the action row is pushed past the fold. Trading the
+   spare axis buys real headroom for all nine dialogs there. `orientation:
+   landscape` can never match a portrait tablet, so portrait is untouched. */
+@media (orientation: landscape) and (min-width: 700px) {
+  .td-overlay__box--wide { width: min(460px, 92vw); }
+}
 /* ✕ close, injected by metaOverlay so EVERY meta dialog has one. The star tree
    is far taller than its box, so the bottom "Done" meant scrolling the whole
    tree just to shut it. Sticky, so it rides the top edge while the content
@@ -769,7 +777,11 @@ body.td-mode #screens { padding: 0; }
   min-width: 0; text-align: left; color: #9db4dd; font-size: 0.86rem; font-weight: 700;
   line-height: 1.15; margin-right: 10px;    /* never flex `gap` — dropped on iOS 14.0 */
 }
-.td-tree__avail { color: #ffe27a; }
+/* The two budgets every node in the tree is judged against. Same treatment,
+   because they are the same kind of fact: what you can still spend, and what you
+   can still bring. No new colour — both take the strip's existing gold, so the
+   fort contrast audit has no new pair to score. */
+.td-tree__avail, .td-tree__packed { color: #ffe27a; }
 .td-overlay__x {
   width: 44px; height: 44px; min-width: 44px; min-height: 44px;
   border-radius: 50%; border: 2px solid #3a548a; background: #1d2c4a;
@@ -787,9 +799,19 @@ body.td-mode #screens { padding: 0; }
 .td-daily__card > * + * { margin-top: 6px; }  /* grid gap survives iOS 14.0, but margins need no allowlist entry */
 .td-daily__arena { margin: 0; font-weight: 800; font-size: 1.05rem; color: #ffe27a; }
 .td-daily__mod { margin: 0; color: #cfdcf5; font-size: 0.92rem; }
+/* Wraps rather than forcing its own row: on a narrow phone it lands on a second
+   line anyway (identical to a block), and in LANDSCAPE — where this box is
+   already at its max-height and scrolling — a forced row pushed ▶ Play out of
+   the visible scrollport. The picker's own spike keeps `display: block`; there
+   its rows are narrow and it always needs the line. */
+.td-daily__spike { font-weight: 700; font-size: 0.78rem; color: #d9c2e8; margin-left: 8px; }
+/* The day's fixed ladder, inline in the blurb where its reason lives. No new
+   colour and no new box — it is a <b> inside a paragraph that already exists, so
+   it costs zero rows (its own line measured +67px and pushed ▶ Play below the
+   fold on a short screen) and gives the fort contrast audit no new pair. */
+.td-daily__rules { color: #ffe27a; }
 .td-daily__best { margin: 0; color: #9db4dd; font-size: 0.85rem; }
 .td-daily__best b { color: #ffe27a; }
-.td-tree__avail { color: #ffe27a; }
 
 /* star tree nodes */
 .td-tree__branch { margin: 14px 0 6px; font-weight: 800; color: #ffe27a; text-align: left; }
