@@ -8277,3 +8277,67 @@ test("each 🎯 mode PICKS what its description claims", () => {
   assert.ok(!/gold|payday|worth the most/i.test(d.desc),
     `"cheap" has nothing to do with price — the id is misleading and the description must not repeat it: "${d.desc}"`);
 });
+
+test("TD5 endless: the RAMP is the declared growth, not merely 'it gets harder'", () => {
+  // ENDLESS.growth is the number that defines the whole mode's pacing, and it
+  // was named in no test. The one assertion that touched it read
+  // `late > early * 2` — an INEQUALITY where the declared value implies a
+  // ratio of growth^15 ≈ 9.3. Measured, that bar passes for every growth from
+  // 1.05 to 1.50, i.e. 20-wave ratios of 2.1x to 407x: it ruled out "no
+  // escalation at all" and nothing else. Same class as brittleBonus — a test
+  // that proves a multiplier EXISTS is not a test that it is the multiplier you
+  // declared.
+  //
+  // The window means make this exact: mean(g^15..g^19) / mean(g^0..g^4) is
+  // g^15, whatever the composition does, and each window holds exactly one
+  // mini-boss wave so they cannot skew against each other.
+  const cfg = DATA.ENDLESS;
+  const worlds = Object.keys(cfg.worlds);
+  const SEEDS = [1, 7, 13, 23, 101, 555, 999];
+  const ratios = () => {
+    const out = [];
+    for (const w of worlds) for (const s of SEEDS) {
+      const r = TD.mulberry32(s); const hp = [];
+      for (let n = 0; n < 20; n++) {
+        const wave = TD.generateEndlessWave(w, n, r);
+        hp.push(wave.groups.reduce((a, g) => a + DATA.ENEMIES[g.type].hp * g.count, 0));
+      }
+      const early = hp.slice(0, 5).reduce((a, b) => a + b) / 5;
+      const late = hp.slice(15).reduce((a, b) => a + b) / 5;
+      out.push(late / early);
+    }
+    out.sort((a, b) => a - b);
+    return { min: out[0], max: out[out.length - 1], n: out.length };
+  };
+
+  // MAGNITUDE, and it cannot flatten: an absolute band, so a drift in `growth`
+  // itself moves the measurement out of it. Measured across 10 worlds x 7 seeds
+  // the shipped value spans 7.78..9.14; the band admits 1.14..1.18 and rejects
+  // 1.13 (5.27..6.27) and 1.19 (11.61..13.27). Re-tuning the ramp is therefore a
+  // conscious act that updates this, which is the point.
+  const shipped = ratios();
+  assert.ok(shipped.n >= 60, `the sweep ran (saw ${shipped.n} world x seed samples)`);
+  assert.ok(shipped.min >= 6 && shipped.max <= 13,
+    `endless must ramp at its declared rate — 20 waves span ${shipped.min.toFixed(2)}..${shipped.max.toFixed(2)}x, ` +
+    "outside the 6..13 the shipped growth produces");
+
+  // WIRING, self-proving: the clause above is satisfied by a generator that
+  // ignores cfg.growth and hard-codes the exponent, because at shipped data the
+  // two are identical. So MOVE the number and require the ramp to follow. This
+  // deliberately does NOT compare against growth^15 read from the data at the
+  // shipped value — that expectation flattens with the field it is testing.
+  const orig = cfg.growth;
+  try {
+    cfg.growth = 1.10;
+    const moved = ratios();
+    const theo = Math.pow(1.10, 15);
+    assert.ok(moved.max < shipped.min,
+      `a smaller growth must produce a smaller ramp (${moved.max.toFixed(2)} vs ${shipped.min.toFixed(2)})`);
+    assert.ok(moved.min / theo > 0.78 && moved.max / theo < 1.08,
+      "…and the ramp must TRACK the declared exponent, not a hard-coded one " +
+      `(${(moved.min / theo).toFixed(3)}..${(moved.max / theo).toFixed(3)} of growth^15)`);
+  } finally {
+    cfg.growth = orig;                 // shared DATA: restore even on failure
+  }
+  assert.equal(cfg.growth, orig, "the fixture restored the shipped growth");
+});

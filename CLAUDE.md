@@ -4613,6 +4613,38 @@ caught ME — `runSummary(false)` appeared five times, because two of them were
 in the comments I had just written explaining the change. A scan must not count
 its own documentation, now committed inside a patch script rather than a test,
 and the assert is the only reason it was not applied to the wrong sites.
+**ENDLESS'S RAMP CONSTANT DEFINES THE WHOLE MODE'S PACING AND WAS DEFENDED BY AN
+INEQUALITY THAT PASSED FROM 1.05 TO 1.50.** Sweeping `DATA.ENDLESS` — the one
+config surface never enumerated — found `growth` with a single read site and no
+test naming it. The one assertion that touched it read `late > early * 2`, while
+the declared 1.16 implies a 20-wave ratio of `growth^15` ≈ 9.3. Measured, that
+bar is cleared by every growth from **1.05 (ratio 2.1) to 1.50 (ratio 407)**: it
+ruled out "no escalation at all" and nothing else, on the number that decides how
+fast endless escalates. Same class as `brittleBonus` — a test that proves a
+multiplier EXISTS is not a test that it is the multiplier you declared — and the
+same shape as `buildCountdownFirst`, a load-bearing constant nothing named.
+Four things worth keeping. (1) **The window means make the expectation exact**:
+`mean(g^15..g^19) / mean(g^0..g^4)` is `g^15` whatever the composition does, and
+each window contains exactly one mini-boss wave, so they cannot skew against each
+other. (2) **Comparing that ratio against `growth^15` READ FROM THE DATA is the
+flattening trap, and the measurement proves it**: the quotient sits at 0.82-1.03
+at EVERY growth from 1.10 to 1.22, so it is a genuine WIRING check and is
+worthless as a magnitude one. The partner clause is therefore an ABSOLUTE band —
+measured across 10 worlds x 7 seeds the shipped value spans 7.78..9.14, and
+[6, 13] admits 1.14-1.18 while rejecting 1.13 (5.27..6.27) and 1.19
+(11.61..13.27). (3) **The magnitude clause alone is satisfied by a generator that
+ignores the field**, because at shipped data a hard-coded exponent is
+indistinguishable — so the wiring half is SELF-PROVING: it moves `growth` to 1.10
+at runtime and requires the ramp to follow, restoring in a `finally` because
+`DATA` is shared. Its mutation reports the giveaway directly, "a smaller growth
+must produce a smaller ramp (9.14 vs 7.78)" — the injected run measuring
+identically to the shipped one. (4) **The third clause was checked for
+DOMINANCE rather than assumed useful**: "the ramp must track the declared
+exponent" could have been satisfied by the "smaller ramp" clause above it, so it
+was proven independently by a generator that floors the exponent — smaller, and
+at the wrong rate — which fires only the tracking clause at
+`1.261..1.501 of growth^15`. A clause that cannot fail on its own is decoration,
+and this file has deleted four of those; this one earns its place.
 ---
 
 ## Repository Structure
