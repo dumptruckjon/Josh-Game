@@ -4682,6 +4682,49 @@ here it was protecting something real. (3) **The generic clause is the one worth
 copying: no corrupt save may put NaN or "undefined" in front of the player.**
 It is derived over every hostile case rather than aimed at this banner, and the
 mutation that restores the key-presence coercion reports both symptoms by name.
+**A DIALOG LANDED ON SCREEN AND ITS BUTTON DID NOT — the box-versus-contents
+proxy, in the audit written to catch exactly this.** Running the one-pass
+auditor after this session's three layout changes (the documented habit) found
+💾 Backup's Done button at **241..333 on a 320px viewport**, 13px off the right
+edge, with the dialog scrolling SIDEWAYS — which no other fort dialog does. The
+cause is a flex subtlety worth keeping: `.td-overlay__row .td-btn` declares
+`flex: 1`, and a flex item's automatic minimum is its CONTENT width, so
+`flex: 1` could not actually shrink anything — three buttons held 92px each
+against a ~246px content box. `min-width: 0` is what lets the declared flex
+happen. Measured, the fix is scoped exactly where it was needed: 390 is
+byte-identical, 360 now ALIGNS with the textarea instead of overhanging it by
+12px, and 320 goes from overflowing to three 75px buttons, all above the 44px
+adult floor. Wrapping was rejected on a documented law rather than taste — this
+row's spacing is a `* + *` margin because flex `gap` is dropped on iOS 14.0, and
+that pattern gives a wrapped row's first item a stray left margin and no
+vertical gap at all.
+**The guardrail lesson is the sharper half: `AUDIT: every fort overlay lands ON
+SCREEN` measured only the BOX**, and here the box was a perfectly on-screen
+13..307 while its child escaped to 333. A box landing on screen does not mean
+its contents do — assert the property, not a quantity that correlates with it,
+for the fourth time in this file. It now walks every control inside each dialog
+and flags a sideways-scrolling box, both derived over the SAME opener list, so
+a seventh dialog inherits them; the mutation that restores the shipped CSS
+names both symptoms. The blast radius of the shared rule was enumerated rather
+than assumed — six consumers, of which five are one- or two-button rows that
+fit at 320 — and `UI.confirm` turns out not to use the row at all, so
+`min-width: 0` can only change behaviour where a row would otherwise overflow.
+**Three measurements from the same pass, recorded so they are not re-derived.**
+(1) The 💰 sell button sits 8px from 🎯 targeting on the tower panel — the
+fort's standard gap, both 48px tall, sell states its refund — so the
+"destructive button beside a harmless one" worry is a design change, not a
+defect, and is declined on the same grounds as this session's other two
+rejected inventions. (2) **The daily defeat screen was covered only
+structurally and is now verified behaviourally by hand**: a neglect run reaches
+defeat in 2 waves and renders the post-mortem (4 rows) and the 📖 button, with
+the run summary correctly ABSENT because a neglect run built nothing and
+`summaryHtml` guards on empty rows. (3) **A CI heuristic in this file needs a
+correction**: it records a `concurrency: pages` queue collapse as having "a
+~2-minute duration", and measured here the evicted runs sat at **32-34 minutes**
+— same mechanism (a pending run displaced by a newer push), but long because
+each run takes ~35 minutes, so the duration test alone would read as a stall.
+The reliable tell is that the cancelled commit is an ANCESTOR of a later
+successful one, not its elapsed time.
 ---
 
 ## Repository Structure

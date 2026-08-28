@@ -4846,8 +4846,25 @@ test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () =>
         const box = document.querySelector(".td-overlay__box");
         if (!box) return null;
         const b = box.getBoundingClientRect();
+        // The BOX landing on screen does not mean its CONTENTS do — assert the
+        // property, not a quantity that correlates with it. 💾 Backup's three
+        // buttons (📋 Copy · 📥 Restore · Done) are a flex row whose items carry
+        // the default `min-width: auto`, so `flex: 1` could not actually shrink
+        // them: at 320 they held 92px each and Done sat 13px past the right edge
+        // while the box itself measured a perfectly on-screen 13..307.
+        const strays = [];
+        for (const el of box.querySelectorAll("button, a, [role=button], textarea, input")) {
+          if (el.hidden || el.offsetParent === null) continue;
+          const c = el.getBoundingClientRect();
+          if (c.width < 1 || c.height < 1) continue;
+          if (c.left < -1 || c.right > window.innerWidth + 1) {
+            strays.push(((el.className || el.tagName) + "").trim().slice(0, 34) +
+              ` at ${Math.round(c.left)}..${Math.round(c.right)}`);
+          }
+        }
         return { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right),
-          vw: window.innerWidth, vh: window.innerHeight,
+          vw: window.innerWidth, vh: window.innerHeight, strays,
+          boxScrollsX: box.scrollWidth > box.clientWidth + 1,
           overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth };
       });
       const tag = `${vp.width}x${vp.height} ${name}`;
@@ -4856,6 +4873,10 @@ test("AUDIT: every fort overlay lands ON SCREEN, at every viewport", async () =>
       if (r.bottom > r.vh + 1) bad.push(`${tag}: bottom ${r.bottom} below the ${r.vh}px viewport`);
       if (r.left < -1 || r.right > r.vw + 1) bad.push(`${tag}: ${r.left}..${r.right} outside the ${r.vw}px viewport`);
       if (r.overflow) bad.push(`${tag}: the page overflows horizontally`);
+      for (const stray of r.strays) bad.push(`${tag}: a control escapes the viewport — ${stray}`);
+      // A dialog that scrolls SIDEWAYS is its own tell: no fort dialog should,
+      // and it is what a row too wide for its box produces.
+      if (r.boxScrollsX) bad.push(`${tag}: the dialog scrolls sideways`);
       await page.evaluate(() => { const c = document.querySelector(".td-overlay"); if (c) c.click(); });
     }
   }

@@ -856,7 +856,15 @@ body.td-mode #screens { padding: 0; }
 .td-overlay__x:active { transform: scale(0.94); }
 .td-overlay__row { display: flex; }
 .td-overlay__row > * + * { margin-left: 10px; } /* flex-gap is dropped on iOS 14.2 */
-.td-overlay__row .td-btn { flex: 1; }
+/* `flex: 1` cannot shrink a button on its own: a flex item's automatic
+   minimum is its CONTENT width, so a three-button row (📋 Copy · 📥 Restore ·
+   Done) held 92px each and overflowed a 320px dialog — Done sat 13px off the
+   right edge and the box scrolled sideways, which no other fort dialog does.
+   min-width: 0 is what lets the declared flex actually happen. NOT wrapping:
+   this row's spacing is a `* + *` margin (flex gap is dropped on iOS 14.0), and
+   that pattern gives a wrapped row's first item a stray left margin and no
+   vertical gap at all. */
+.td-overlay__row .td-btn { flex: 1; min-width: 0; }
 .td-overlay__sub { color: #9db4dd; margin: 0; font-size: 0.92rem; }
 /* TD-18 Daily Toybox card — colors reuse the overlay's proven-AA pairs
    (#9db4dd body, #ffe27a highlight on the #16233d box). */
