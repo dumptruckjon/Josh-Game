@@ -103,7 +103,7 @@
     home.querySelector(".td-daily-open").addEventListener("click", hooks.openDaily);
     home.querySelector(".td-guide-open").addEventListener("click", () => UI.showGuide());
     home.querySelector(".td-reset-open").addEventListener("click", () => UI.showResetGate(hooks.resetFort));
-    home.querySelector(".td-backup-open").addEventListener("click", () => UI.showBackup(hooks.exportSave, hooks.importSave));
+    home.querySelector(".td-backup-open").addEventListener("click", () => UI.showBackup(hooks.exportSave, hooks.importSave, null, hooks.previewSave));
 
     // Play screen
     const play = doc.createElement("section");
@@ -714,7 +714,21 @@
   // takes it with no warning. This hands you the save as text to keep, and takes
   // it back. Import validates before replacing anything — a bad paste must never
   // destroy a good save.
-  UI.showBackup = function (onExport, onImport) {
+  // What a save is WORTH, in the two numbers a player recognises. Used for both
+  // sides of the restore confirm, so "what you have" and "what is arriving" are
+  // measured the same way and can be compared at a glance. Defensive on every
+  // field: the incoming blob has only been checked far enough to know it parses
+  // and carries a `stars` object, so a missing `ach` must read 0 rather than
+  // throw inside a dialog whose whole job is preventing data loss.
+  UI.saveSummary = function (sv) {
+    if (!sv || typeof sv !== "object") return "—";
+    let stars = 0;
+    try { stars = starTotals(sv).earned; } catch (e) { stars = 0; }
+    const badges = Array.isArray(sv.ach) ? sv.ach.length : 0;
+    return "⭐ " + stars + " · 🏅 " + badges;
+  };
+
+  UI.showBackup = function (onExport, onImport, prefill, onPreview) {
     const el = metaOverlay("td-overlay--backup",
       "<h3>💾 Fort backup</h3>" +
       '<p class="td-overlay__sub">Copy this text somewhere safe. Paste it back here to restore your fort on any device.</p>' +
@@ -730,13 +744,48 @@
       "</div>");
     const box = el.querySelector(".td-backup__box");
     const msg = el.querySelector(".td-backup__msg");
-    box.value = onExport ? onExport() : "";
+    // A cancelled restore must not cost you the paste — re-opening the dialog
+    // from the confirm carries the text back in rather than silently replacing
+    // it with the CURRENT save, which is the one thing you were about to
+    // overwrite.
+    box.value = typeof prefill === "string" ? prefill : (onExport ? onExport() : "");
     box.addEventListener("focus", () => { try { box.select(); } catch (e) { /* ignore */ } });
-    el.querySelector(".td-backup-load").addEventListener("click", () => {
-      const r = onImport ? onImport(box.value) : { ok: false, reason: "unavailable" };
+    const fail = () => {
       msg.hidden = false;
-      msg.textContent = r.ok ? "✅ Restored — your fort is back." : "⚠️ That doesn't look like a fort save. Nothing was changed.";
-      msg.className = "td-backup__msg " + (r.ok ? "td-backup__msg--ok" : "td-backup__msg--bad");
+      msg.textContent = "⚠️ That doesn't look like a fort save. Nothing was changed.";
+      msg.className = "td-backup__msg td-backup__msg--bad";
+    };
+    // 📥 Restore is the most destructive thing in the fort — it replaces every
+    // star ladder, the tree, the badges and the endless bests, with no undo, and
+    // the save it overwrites may be the only copy. It shipped as ONE TAP, while
+    // ⚙️ Reset fort — which does strictly LESS damage (it keeps preferences, and
+    // a backup can undo it) — sits behind a type-the-word gate. Two destructive
+    // buttons in the same admin row with opposite policies is this project's
+    // most repeated tell, and it is the pause menu's 🔁 Restart all over again.
+    // It goes through UI.confirm, the fort's ONE owner for this.
+    //
+    // The confirm NAMES BOTH SIDES rather than being a speed bump: the danger
+    // here is not a mis-tap (restoring your own save is a no-op) but pasting an
+    // OLDER backup over newer progress, which is invisible until it is gone. A
+    // player who sees "⭐ 27 · 🏅 12  →  ⭐ 9 · 🏅 3" can catch that; "are you
+    // sure?" cannot.
+    el.querySelector(".td-backup-load").addEventListener("click", () => {
+      const text = box.value;
+      const peek = onPreview ? onPreview(text) : null;
+      if (!peek || !peek.ok) { fail(); return; }
+      UI.confirm({
+        title: "Replace your fort?",
+        msg: "Now: <b>" + UI.saveSummary(peek.current) + "</b><br>Backup: <b>" + UI.saveSummary(peek.incoming) +
+             "</b><br>This cannot be undone.",
+        yes: "📥 Replace", no: "↩ Keep my fort",
+        onYes: () => {
+          UI.closeOverlay();
+          const r = onImport ? onImport(text) : { ok: false };
+          if (!r.ok) { UI.showBackup(onExport, onImport, text, onPreview); fail(); }
+          // on success importSave reloads, so there is nothing to render here
+        },
+        onNo: () => { UI.closeOverlay(); UI.showBackup(onExport, onImport, text, onPreview); },
+      });
     });
     // A copy with no confirmation leaves you unsure whether it worked — and on
     // this dialog "did that work?" is the difference between having a backup and

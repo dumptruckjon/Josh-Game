@@ -2931,6 +2931,100 @@ test("QoL: a 7-button pause menu still fits", async () => {
   }
 });
 
+test("QoL: 📥 Restore confirms, and the confirm NAMES what you are trading", async () => {
+  // Restore replaces every star ladder, the tree, the badges and the endless
+  // bests, with no undo, and the save it overwrites may be the only copy — and
+  // it shipped as ONE TAP, while ⚙️ Reset fort (strictly less damage, and a
+  // backup can undo it) sits behind a type-the-word gate. Two destructive
+  // buttons in one admin row with opposite policies, which is the pause menu's
+  // 🔁 Restart defect again.
+  const THIN = JSON.stringify({ v: 1, stars: { casual: {}, normal: { "1": 3 }, heroic: {} }, ach: ["doorman"] });
+  const seedFat = async () => {
+    await page.evaluate(() => {
+      const s2 = JSON.parse(localStorage.getItem("jon-td-save-v1") || '{"v":1}');
+      s2.v = 1; s2.stars = { casual: {}, normal: {}, heroic: {} };
+      for (let i = 1; i <= 9; i++) s2.stars.normal[i] = 3;
+      s2.ach = ["doorman", "firstblood", "noleaks"]; s2.midRun = null;
+      localStorage.setItem("jon-td-save-v1", JSON.stringify(s2));
+    });
+    await page.reload({ waitUntil: "load" });
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  };
+  const openWith = async (text) => {
+    await page.locator(".td-backup-open").click();
+    await page.locator(".td-backup__box").waitFor({ state: "visible" });
+    await page.evaluate((t) => { document.querySelector(".td-backup__box").value = t; }, text);
+    await page.locator(".td-backup-load").click();
+    await page.waitForTimeout(150);
+  };
+
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { window.__TD.resetSave(); });
+  try {
+    await seedFat();
+    const before = await page.evaluate(() => localStorage.getItem("jon-td-save-v1"));
+    await openWith(THIN);
+
+    // ---- 1. it does NOT write on the tap; it asks.
+    assert.equal(await page.locator(".td-overlay--confirm").count(), 1,
+      "📥 Restore must confirm before replacing the fort");
+    assert.equal(await page.evaluate(() => localStorage.getItem("jon-td-save-v1")), before,
+      "…and must not have written anything yet");
+
+    // ---- 2. the confirm names BOTH sides, and they differ. A speed bump would
+    // not help here: the danger is not a mis-tap (restoring your own save is a
+    // no-op) but pasting an OLDER backup over newer progress, which is invisible
+    // until it is gone. Seeing 27 stars become 3 is what catches that.
+    const c = await page.evaluate(() => document.querySelector(".td-overlay--confirm").innerText);
+    const want = await page.evaluate((t) => ({
+      now: window.TDUI.saveSummary(JSON.parse(localStorage.getItem("jon-td-save-v1"))),
+      inc: window.TDUI.saveSummary(JSON.parse(t)),
+    }), THIN);
+    assert.notEqual(want.now, want.inc,
+      `fixture: the two saves must summarise differently or clause 2 proves nothing (${want.now} vs ${want.inc})`);
+    assert.ok(c.indexOf(want.now) >= 0, `the confirm must state what you have now (${want.now}) — saw ${JSON.stringify(c)}`);
+    assert.ok(c.indexOf(want.inc) >= 0, `…and what the backup holds (${want.inc}) — saw ${JSON.stringify(c)}`);
+
+    // ---- 3. cancelling keeps the fort AND the paste. Re-opening with the
+    // CURRENT save would silently discard the very text you were weighing up.
+    await page.locator('.td-overlay--confirm [data-act="no"]').click();
+    await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(() => localStorage.getItem("jon-td-save-v1")), before,
+      "keeping your fort must change nothing");
+    assert.equal(await page.evaluate(() => (document.querySelector(".td-backup__box") || {}).value), THIN,
+      "…and must not throw away what you pasted");
+
+    // ---- 4. a paste that is NOT a fort save is refused with no confirm at all,
+    // so the dialog can never promise a restore the write would then reject.
+    await page.evaluate(() => { window.TDUI.closeOverlay(); });
+    await openWith("not a save");
+    assert.equal(await page.locator(".td-overlay--confirm").count(), 0,
+      "a junk paste must be refused outright, never confirmed");
+    assert.ok(await page.evaluate(() => {
+      const m = document.querySelector(".td-backup__msg");
+      return m && !m.hidden && /doesn.t look like/i.test(m.textContent);
+    }), "…and must say so");
+    assert.equal(await page.evaluate(() => localStorage.getItem("jon-td-save-v1")), before,
+      "…and must not have touched the save");
+
+    // ---- 5. Replace really does replace. importSave reloads, so wait it out.
+    await page.evaluate(() => { window.TDUI.closeOverlay(); });
+    await openWith(THIN);
+    await page.locator('.td-overlay--confirm [data-act="yes"]').click();
+    await page.waitForLoadState("load");
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => JSON.parse(localStorage.getItem("jon-td-save-v1")));
+    assert.deepEqual(after.stars.normal, { "1": 3 },
+      `Replace must actually restore the pasted save (stars ${JSON.stringify(after.stars.normal)})`);
+  } finally {
+    await page.evaluate(() => { if (window.TDUI && window.TDUI.closeOverlay) window.TDUI.closeOverlay(); });
+    await page.evaluate(() => { location.hash = "#td-home"; });
+    await page.evaluate(() => { window.__TD.resetSave(); });
+  }
+});
+
 test("TD6 fx juice: a Mortar splash shakes the screen, and prefers-reduced-motion disables it", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); });
   // motion ALLOWED → a splash triggers a (small, ≤4px) shake at some point

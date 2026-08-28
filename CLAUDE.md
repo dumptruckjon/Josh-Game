@@ -4222,6 +4222,39 @@ test's own 390x844 viewport, where the menu fits outright and the fits-branch
 short-circuits it, so the clip mutation is carried by the short-size sibling.
 Say which half is load-bearing rather than implying both are.
 
+**THE MOST DESTRUCTIVE ACTION IN THE FORT WAS ITS ONLY UNGUARDED ONE.** Found by
+screenshotting the 💾 Backup dialog, which nothing had ever looked at. 📥 Restore
+replaces every star ladder, the star tree, the badges and the endless bests, with
+no undo — and the save it overwrites may be the only copy — and it shipped as ONE
+TAP, while **⚙️ Reset fort, which does strictly LESS damage (it keeps preferences,
+and a backup can undo it), sits behind a type-the-word gate**. Two destructive
+buttons in the same admin row with opposite policies is this project's most
+repeated tell, and it is the pause menu's 🔁 Restart defect exactly: there too the
+sibling had the confirm and the worse action did not. It goes through `UI.confirm`,
+the fort's ONE owner for this.
+**The confirm NAMES BOTH SIDES, and that is the design rather than a flourish.**
+The danger here is not a mis-tap — restoring your own save is a no-op — it is
+pasting an OLDER backup over newer progress, which is invisible until it is gone.
+"Are you sure?" cannot catch that; *"Now: ⭐ 27 · 🏅 3 → Backup: ⭐ 3 · 🏅 1"* can.
+Both summaries come from one `UI.saveSummary`, so the two sides are measured the
+same way, and it is defensive on every field because the incoming blob has only
+been checked far enough to know it parses and carries a `stars` object — a
+missing `ach` must read 0 rather than throw inside the dialog whose whole job is
+preventing data loss.
+**Two smaller things the shape forced.** A cancelled restore must not cost you the
+paste: `UI.confirm` builds an overlay, which REPLACES the backup dialog, so
+re-opening it has to carry the pasted text back in — re-reading the CURRENT save
+there would silently discard the very text you were weighing up (its mutation
+reports *"must not throw away what you pasted"*). And the preview gives one
+question two askers, so the shape check became `readSave`, with a structural
+guardrail that it is defined once, called exactly twice, and that **no second
+copy of `.v !== 1` exists** — otherwise the dialog could confirm a blob the write
+then refuses. That last clause needed its own mutation to be provable: the
+obvious one (previewSave re-deriving the check inline) also drops a call site, so
+the COUNT clause fires first and leaves it unproven — it takes a mutation that
+adds a redundant check while keeping both call sites, which is the earlier-clause
+trap once more.
+
 ---
 
 ## Repository Structure

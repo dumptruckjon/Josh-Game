@@ -975,6 +975,19 @@
     startLevel(null, Object.assign({ levelDef: endlessLevelDef(world) }, opts || {}));
   }
 
+  // The ONE reader of a pasted backup. A bad paste must never destroy a good
+  // save, so nothing is written until it parses AND looks like a fort save —
+  // and because the 📥 confirm PREVIEWS what is arriving, the same predicate has
+  // to answer both questions or the dialog could promise a restore the write
+  // then refuses.
+  function readSave(text) {
+    let incoming = null;
+    try { incoming = JSON.parse(String(text || "").trim()); } catch (e) { return { ok: false, reason: "parse" }; }
+    if (!incoming || typeof incoming !== "object" || incoming.v !== 1) return { ok: false, reason: "shape" };
+    if (typeof incoming.stars !== "object" || incoming.stars === null) return { ok: false, reason: "shape" };
+    return { ok: true, save: incoming };
+  }
+
   // ---- TD-18 DAILY TOYBOX ----
   // A fresh puzzle every day, for free, because the engine is deterministic by
   // seed — the same property the whole test strategy rests on. The SHELL reads
@@ -1918,13 +1931,20 @@
     // never destroy a good save, so nothing is written until it parses AND looks
     // like a fort save; the restored blob then goes through the same boot
     // coercion as a normal load (via reload) so a stale shape can't crash a win.
+    // (The check itself lives in readSave, above.)
     exportSave: () => JSON.stringify(save),
+    // ONE validator, so the dialog's preview and the write itself can never
+    // disagree about what counts as a fort save — a confirm that says "this is
+    // a valid backup" and a write that then refuses it would be worse than no
+    // confirm at all.
+    previewSave: (text) => {
+      const r = readSave(text);
+      return r.ok ? { ok: true, incoming: r.save, current: save } : r;
+    },
     importSave: (text) => {
-      let incoming = null;
-      try { incoming = JSON.parse(String(text || "").trim()); } catch (e) { return { ok: false, reason: "parse" }; }
-      if (!incoming || typeof incoming !== "object" || incoming.v !== 1) return { ok: false, reason: "shape" };
-      if (typeof incoming.stars !== "object" || incoming.stars === null) return { ok: false, reason: "shape" };
-      save = incoming;
+      const r = readSave(text);
+      if (!r.ok) return r;
+      save = r.save;
       persist(save, { force: true }); // a deliberate restore, like a reset
       global.location.reload();       // re-boot so every field gets its coercion
       return { ok: true };

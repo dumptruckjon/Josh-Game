@@ -3354,3 +3354,30 @@ test("guardrail: every 'continue this run' start goes through the one rules owne
       "forgets inherits the fort home's difficulty and chips instead of the ones you were playing");
   }
 });
+
+
+test("guardrail: a pasted backup has ONE validator, shared by the preview and the write", () => {
+  // 📥 Restore now PREVIEWS what is arriving so the confirm can name both sides.
+  // That gives the same question two askers, and if they ever disagree the
+  // dialog promises a restore the write refuses (or worse, confirms a blob the
+  // write then half-applies). One predicate, two callers.
+  const main = fs.readFileSync(path.join(root, "scripts/td-main.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const defs = (main.match(/function readSave\s*\(/g) || []).length;
+  assert.equal(defs, 1, `readSave must be defined exactly once (saw ${defs})`);
+  const calls = (main.match(/readSave\(/g) || []).length - defs;
+  assert.equal(calls, 2, `exactly the preview and the write may read a pasted save (saw ${calls} call sites)`);
+  // …and NEITHER may re-derive the check itself. `incoming.v !== 1` is the
+  // shape test; it belongs to the validator alone.
+  const owner = main.slice(main.indexOf("function readSave("));
+  const ownerEnd = owner.indexOf("\n  }");
+  const body = owner.slice(0, ownerEnd);
+  const outside = main.replace(body, "");
+  assert.ok(!/\.v !== 1/.test(outside),
+    "the shape check must live in readSave alone — a second copy is how a preview and a write come apart");
+  // Both consumers must exist, or the count above could be satisfied by one
+  // function calling it twice.
+  for (const hook of ["previewSave:", "importSave:"]) {
+    assert.ok(main.indexOf(hook) >= 0, `td-main must still expose ${hook}`);
+  }
+});
