@@ -4725,6 +4725,45 @@ correction**: it records a `concurrency: pages` queue collapse as having "a
 each run takes ~35 minutes, so the duration test alone would read as a stall.
 The reliable tell is that the cancelled commit is an ANCESTOR of a later
 successful one, not its elapsed time.
+**THE SNAPSHOT ROLLBACK RESTORES A *DIRTY* TREE, WHICH IS EXACTLY THE ONE CASE
+`.claude/resync-main.sh` REFUSES TO HEAL — so it can never auto-recover this
+image, and that is the hook working as designed rather than a bug in it.**
+Observed three times in one session: the clone came back at a commit **23 behind
+origin/main** with the SAME six files modified, and the second rollback also wiped
+the `git stash` made during the first recovery. The hook fast-forwards only when
+the tree is CLEAN and HEAD is an ancestor of origin/main, on the stated grounds
+that "uncommitted work is the only thing the remote cannot restore" — a rule that
+is right in general and cannot fire here, because the dirtiness is an artefact of
+the IMAGE rather than real work. So the SessionStart warning is the whole of the
+automation on this path, and recovery is manual every time. The safe sequence,
+which is the part worth copying: back the diff up, then **prove the dirty files
+are superseded before discarding them** — every added line the working tree held
+that origin lacked was the PRE-FIX version of code fixed later the same session
+(the old `win N ⭐` label, the old `wrapW` clamp comment, `charge.disabled =
+!r.ok`, the campaign-only defeat ternary, `.td-btn { flex: 1 }` with no
+`min-width`), which is a positive identification rather than an assumption — then
+`git reset --hard origin/main` and verify by grepping for a fix you know shipped.
+A telltale line is a better check than `git status`, for the reason this file
+already records: on this runner a clean status is not evidence your work is
+present. **Corollary, paid for twice: a `git stash` is NOT a backup here.** It
+lives in the same `.git` the rollback replaces, so it vanishes with everything
+else; only a PUSH is durable, and the practical consequence is to gate and push
+each item as it finishes rather than batching several behind one gate.
+**A measured NON-CHANGE, recorded so it is not re-derived or, worse, built:
+naming the record an ENDLESS run is chasing.** A campaign HUD reads `wave 7/12`
+and an endless one reads `wave 7 ♾️` — no total and no best — so the number the
+run is scored against is invisible until the 🏆 banner fires on passing it, which
+is the side-door shape (the cue arrives when the information stops being
+actionable). It is still declined, on two grounds. The HUD is this project's
+documented reflow-sensitive surface — its column widths were reserved to stop the
+⚙️ hopping rows, and a star-goal readout was already rejected there for the same
+reason — and, unlike the star goal, knowing your endless best changes NO decision:
+you cannot play safe in endless, you build and survive, so it is motivation rather
+than information. The honest alternative is the run label in the pause menu, which
+has room and no reflow risk, and it was not built because the same "changes no
+decision" objection applies. Measured while there: the HUD is stable at 320/360/
+390/landscape across fresh, 5-digit gold, 24-life and two-wave-RUSH states — the ⚙️
+sits at an identical y in all of them — so the reservation is holding.
 ---
 
 ## Repository Structure
