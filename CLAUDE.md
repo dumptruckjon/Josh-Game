@@ -4272,6 +4272,59 @@ all, which is what makes "my change did not cause this" a measurement instead of
 a story. And the clause that pins it is a `pageerror` listener scoped to the
 test with `page.off` in the `finally`, because a shared page's error listener
 that outlives its test turns the next failure into someone else's.
+**THE 40-CARD LEVEL GRID STAYED TWO COLUMNS AT EVERY WIDTH, so a tablet scrolled
+exactly as far as a phone.** The 3→2 change was made for a 390px phone and was
+right there; above it, it stops being a layout and becomes a waste. Measured
+across six widths: the cards go **177px → 342px** — a nearly 4:1 letterbox
+holding a number, a name and three pips — while the grid stays **2452px tall at
+every size**, with 328px of width unused at 1024. Four columns above 720px takes
+the grid to **1458px** (about a thousand pixels less scrolling to reach world 10)
+at a 165px card, which is the phone's own 177px, so the card design is unchanged
+in character. The phone is byte-identical, because the rule is a `min-width`.
+**Three things decided it, and all three were measured rather than reasoned.**
+FOUR, not three: `levelsPerWorld % columns === 0` is the shipped orphan law, and
+separately **three columns costs the SAME number of rows as two** — four cards
+still take two rows either way, so the grid stays 2452px while every card gets
+narrower, i.e. strictly worse than what it replaces. And **720 is a crossover,
+not a round number**: at four columns a 720px screen gives a 165px card with 1 of
+40 names wrapping, 600px gives 135px and 15 wrap, and 390px gives 83px and 39
+wrap — which is exactly why the phone keeps two.
+**The measurement was VACUOUS on its first run, in the way this file keeps
+recording.** A LOCKED level card renders no name (it shows "win N ⭐"), so on a
+fresh save only one card in forty has a `.td-level__name` — and the wrap count
+that decides the whole column choice came back `0/40` at 83px, which is
+impossible. The fixture now unlocks the campaign, and the test asserts
+`named === cards` before believing any wrap number. **When a count comes back
+zero, check that the fixture ever produced the thing being counted.**
+**And the orphan clause needed a third mutation to be proven at all.** Removing
+the rule fires the column clause; three columns fires the *height* clause first
+(because of the same-rows result above), so neither reaches the `% columns`
+assertion. Only FIVE columns — shorter grid, column count up, but 4 % 5 ≠ 0 —
+isolates it, reporting *"5 columns orphans a card in every world of 4"*. The
+earlier-clause trap again: a mutation that fires an earlier clause has not proven
+the later one, and finding the input that separates them is the work.
+**THE FIRST CUT WAS WRONG AND A SHIPPED GUARDRAIL CAUGHT IT — the very law I had
+quoted while reasoning.** At a 720px breakpoint the tablet card is **165px
+against the phone's 177px**, and *"a bigger screen gives the fort BIGGER
+controls, never more cramped ones"* went red naming both numbers. The lesson is
+not that the law is too strict; it is that **the cause was one layer down**.
+`main.css` widens `#screens` to 900px above 600 and then caps every
+NON-navigation `.screen` back to 720 — and that exemption list names Josh's and
+华丽's nav screens while omitting the fort's, because the fort was built after
+the list. The fort home is a level PICKER, not a game stage. Adding `.td-home`
+to the list is the actual fix: four columns then give **177px at 768, 194 at 834
+and 210 at 1024**, so the card only ever grows. Ninth instance of a hand-written
+scope going stale, and the first where the stale list was in a *different
+world's* stylesheet.
+**The breakpoint is then ARITHMETIC, not taste**: a phone's card is
+`(366 − 12) / 2 = 177`, so four columns need `4×177 + 3×12 = 744px` of grid,
+which is exactly a 768px viewport once its padding is taken. 720 was simply too
+eager. **And that number was UNPINNED until a fourth mutation** — every viewport
+at or above 768 is wide enough whichever value the query carries, so moving it
+back to 720 passed every clause. The separating input is a width *between* them:
+at 740 a four-column grid is 170px, under the phone's 177. The clause asserts the
+property at that width rather than pinning the number, and reports exactly that.
+
 ---
 
 ## Repository Structure

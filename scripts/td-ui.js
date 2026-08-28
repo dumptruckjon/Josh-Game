@@ -48,7 +48,12 @@
     // Fort home
     const home = doc.createElement("section");
     home.id = "screen-td-home";
-    home.className = "screen td-screen";
+    // `td-home` is not decoration: main.css caps every NON-navigation .screen at
+    // 720px inside a 900px container, and that exemption list names Josh's and
+    // 华丽's nav screens while omitting the fort's, because the fort was built
+    // separately. This screen is a level PICKER — the fort's own home — so it
+    // belongs with them rather than with the in-game stages the cap is for.
+    home.className = "screen td-screen td-home";
     home.hidden = true;
     home.innerHTML =
       '<div class="td-bar">' +

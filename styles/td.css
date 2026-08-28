@@ -47,6 +47,29 @@ body.td-mode #screens { padding: 0; }
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+/* On anything wider than a phone the two-column grid stops being a layout and
+   becomes a waste: measured, the cards go 177px -> 342px (a nearly 4:1
+   letterbox holding a number, a name and three pips) while the grid stays
+   2452px tall, so a tablet scrolls exactly as far as a phone to reach world 10
+   and leaves 328px of width unused at 1024.
+   FOUR columns, not three: `levelsPerWorld % columns === 0` is a shipped law —
+   every world is four levels, so 3 would orphan one card per world, ten times.
+   And measured, 3 costs the SAME NUMBER OF ROWS as 2 (four cards still take two
+   rows either way, so the grid stays 2452px) while making every card narrower —
+   it is strictly worse than what it replaces.
+   768px is the ARITHMETIC minimum, not a round number, and the first cut got it
+   wrong at 720. The fort's own shipped law is that a bigger screen must never
+   hand you a more cramped control, and a phone's card is 177px — (366 - 12) / 2.
+   Four columns therefore need a grid of at least 4*177 + 3*12 = 744px, which is
+   exactly a 768px viewport once its padding is taken. At 720 the card would be
+   165px, NARROWER than the phone's, and that guardrail caught it. Above the
+   breakpoint the card only grows: 177px at 768, 194 at 834, 210 at 1024.
+   The grid halves, 2452px -> 1452px, 1 of 40 names wraps (15 would at 600px and
+   39 at 390px, which is why the phone keeps two), and `.td-worldhead` spans
+   `1 / -1`, so the world headings follow the column count by construction. */
+@media (min-width: 768px) {
+  .td-levels { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .td-level {
   min-height: 88px; border-radius: 16px; border: 2px solid #3a548a;
   background: #182a4a; color: #e8eefc;

@@ -2594,9 +2594,15 @@ body.hl-mode .brand { color: #ffe9b0; }
   #screens { max-width: 900px; }
   /* …but every GAME screen keeps the old 720px measure. A child cannot exceed
      its parent's cap, so the container has to widen and the games narrow back;
-     the nav screens (.start / .home / .category / .stickers, in either world)
-     are the ones that get the room. */
-  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers) {
+     the nav screens (.start / .home / .category / .stickers, in either world,
+     plus the fort's own .td-home) are the ones that get the room.
+     The fort home was missing from this list for the same reason its siblings
+     keep being found missing from a hand-written scope: it was built after the
+     list. It is a level PICKER, not a game stage — and inside the 720px cap its
+     40-card grid could only ever be two stretched columns or four cards
+     NARROWER than a phone's, which is the "a tablet must never be stingier"
+     law it was caught breaking. */
+  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home) {
     /* `width: 100%` is load-bearing, not decoration: `#screens` becomes a
        COLUMN FLEX container in a game (main.css `body.in-game #screens`), and
        an auto cross-axis margin on a flex item cancels the stretch and

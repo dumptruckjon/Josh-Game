@@ -3040,6 +3040,129 @@ test("QoL: 📥 Restore confirms, and the confirm NAMES what you are trading", a
   }
 });
 
+test("QoL: the level grid uses a WIDE screen instead of stretching two cards", async () => {
+  // Two columns is right on a phone and a waste above it: measured, the cards
+  // went 177px -> 342px (a nearly 4:1 letterbox) while the grid stayed 2452px
+  // tall, so a tablet scrolled exactly as far as a phone to reach world 10.
+  // FRESH CONTEXTS per size — a resize does not reproduce this class — and every
+  // level UNLOCKED, because a locked card renders no NAME and the wrap count
+  // that decides the column choice would measure ~1 card instead of 40. That
+  // vacuous zero is what the first version of this measurement reported.
+  const seed = () => {
+    const s2 = JSON.parse(localStorage.getItem("jon-td-save-v1") || '{"v":1}');
+    s2.v = 1; s2.stars = { casual: {}, normal: {}, heroic: {} };
+    for (let i = 1; i <= 40; i++) s2.stars.normal[i] = 3;
+    s2.midRun = null; localStorage.setItem("jon-td-save-v1", JSON.stringify(s2));
+  };
+  const measure = async (w, h) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx.newPage();
+    try {
+      await p2.goto(baseURL, { waitUntil: "load" });
+      await p2.evaluate(() => { location.hash = "#td-home"; });
+      await p2.locator("#screen-td-home").waitFor({ state: "visible" });
+      await p2.evaluate(seed);
+      await p2.reload({ waitUntil: "load" });
+      await p2.evaluate(() => { location.hash = "#td-home"; });
+      await p2.locator("#screen-td-home").waitFor({ state: "visible" });
+      return await p2.evaluate(() => {
+        const g = document.querySelector("#screen-td-home .td-levels");
+        const cards = Array.prototype.slice.call(document.querySelectorAll("#screen-td-home .td-level"));
+        let named = 0, wrapped = 0, minW = 1e9;
+        for (const c of cards) {
+          minW = Math.min(minW, c.getBoundingClientRect().width);
+          const n = c.querySelector(".td-level__name");
+          if (!n) continue;
+          named++;
+          const cs = getComputedStyle(n);
+          const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+          if (n.getBoundingClientRect().height > lh * 1.6) wrapped++;
+        }
+        const heads = Array.prototype.slice.call(document.querySelectorAll("#screen-td-home .td-worldhead"));
+        return {
+          cols: getComputedStyle(g).gridTemplateColumns.split(/\s+/).filter(Boolean).length,
+          gridH: Math.round(g.getBoundingClientRect().height),
+          gridW: Math.round(g.getBoundingClientRect().width),
+          headW: heads.length ? Math.round(heads[0].getBoundingClientRect().width) : 0,
+          heads: heads.length, cards: cards.length, named, wrapped, cardW: Math.round(minW),
+          sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        };
+      });
+    } finally { await ctx.close(); }
+  };
+  const perWorld = await page.evaluate(() => {
+    const n = {}; for (const l of window.TDData.LEVELS) n[l.world] = (n[l.world] || 0) + 1;
+    return Object.values(n);
+  });
+  const phone = await measure(390, 844);
+  const tablet = await measure(834, 1112);
+
+  // ---- fixture: every card must actually carry a name, or `wrapped` is a
+  // vacuous zero and the column choice rests on nothing.
+  for (const [what, m] of [["phone", phone], ["tablet", tablet]]) {
+    assert.equal(m.named, m.cards, `fixture: every ${what} card must render a name (${m.named} of ${m.cards})`);
+    assert.ok(m.cards >= 40, `fixture: the whole campaign must be on screen (${m.cards} cards)`);
+    assert.ok(!m.sideways, `the fort home must not scroll sideways on ${what}`);
+  }
+
+  // ---- 1. a wide screen gets MORE columns, not wider cards.
+  assert.ok(tablet.cols > phone.cols,
+    `a tablet must use its width for more columns (phone ${phone.cols}, tablet ${tablet.cols})`);
+  assert.ok(tablet.gridH < phone.gridH * 0.75,
+    `…which must actually shorten the grid (phone ${phone.gridH}px, tablet ${tablet.gridH}px)`);
+
+  // ---- 2. the column count must still divide a world evenly, or every world
+  // ends on a ragged half-row — the shipped orphan law, derived from the data
+  // so an eleventh world of a different size inherits it.
+  assert.ok(perWorld.length >= 2 && new Set(perWorld).size === 1,
+    `fixture: this law assumes worlds of equal size (saw ${JSON.stringify(perWorld)})`);
+  for (const [what, m] of [["phone", phone], ["tablet", tablet]]) {
+    assert.equal(perWorld[0] % m.cols, 0,
+      `${what}: ${m.cols} columns orphans a card in every world of ${perWorld[0]}`);
+  }
+
+  // ---- 3. the extra columns must not squeeze the NAME. This is part of why the
+  // breakpoint sits where it does: at four columns a 600px screen gives a 135px
+  // card and 15 of 40 names wrap.
+  assert.ok(tablet.wrapped <= 2,
+    `narrowing the cards must not start wrapping level names (${tablet.wrapped} of ${tablet.named} wrap at ${tablet.cardW}px)`);
+
+  // ---- 3b. …and the card must never end up NARROWER than the phone's, which
+  // is the fort's own shipped law and is what the first cut of this change
+  // broke. The breakpoint is arithmetic, not taste: four columns need
+  // 4*177 + 3*12 = 744px of grid, so 768 is the smallest viewport that can
+  // carry them. The sibling law asserts this for every fort control; it is
+  // repeated here so THIS test fails on its own terms when the breakpoint moves
+  // rather than pointing at a test three hundred lines away.
+  assert.ok(tablet.cardW >= phone.cardW,
+    `a tablet card must not be narrower than a phone's (${tablet.cardW}px vs ${phone.cardW}px) — ` +
+    "four columns need 744px of grid, so the breakpoint cannot go below 768");
+  // The SMALLEST four-column width is the one that can fail; above it the card
+  // only grows (194px at 834, 210px at 1024), so a roomier size proves nothing.
+  const narrowest = await measure(768, 1024);
+  assert.equal(narrowest.cols, tablet.cols,
+    `768px must already be a ${tablet.cols}-column screen (saw ${narrowest.cols})`);
+  assert.ok(narrowest.cardW >= phone.cardW,
+    `at the narrowest four-column width the card is ${narrowest.cardW}px against the phone's ${phone.cardW}px`);
+  // JUST BELOW it is the input that separates a correct breakpoint from a
+  // too-eager one, and nothing else here can: every size at or above 768 stays
+  // wide enough whichever value the media query carries, so moving it to 720
+  // passed every other clause. At 740 a four-column grid would be 165px — the
+  // defect — so this asserts the PROPERTY (never stingier than a phone) at the
+  // one width that can still exhibit it, rather than pinning the number.
+  const belowBreak = await measure(740, 1000);
+  assert.ok(belowBreak.cardW >= phone.cardW,
+    `at 740px the card is ${belowBreak.cardW}px against the phone's ${phone.cardW}px — four columns ` +
+    "do not fit until 768, so the breakpoint must not reach down here");
+
+  // ---- 4. the world headings follow the column count. They span `1 / -1`, so
+  // this is structural — but a heading that stopped spanning would read as a
+  // card and silently break the section rhythm on exactly one viewport.
+  assert.ok(tablet.heads >= 2, `fixture: the grid must carry world headings (${tablet.heads})`);
+  assert.ok(tablet.headW > tablet.gridW - 12,
+    `a world heading must span the whole grid (${tablet.headW}px of ${tablet.gridW}px)`);
+});
+
 test("TD6 fx juice: a Mortar splash shakes the screen, and prefers-reduced-motion disables it", async () => {
   await page.evaluate(() => { window.__TD.resetSave(); });
   // motion ALLOWED → a splash triggers a (small, ≤4px) shake at some point
