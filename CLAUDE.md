@@ -4843,10 +4843,21 @@ Four things worth keeping. **The shape carries the meaning, not a fourth colour*
 — a filled disc is the slow, a broken ring AROUND is the armour strip, so brittle
 gets FRACTURES ON the body and hurry a CHEVRON TRAIL BEHIND it, which is what
 keeps four states apart at a 27px cell. **A white mark on this roster is the
-documented hit-flash failure**: the bodies are deliberately pale (the whole reason
-the ink line exists), so the fractures are drawn twice, dark under light, and the
-first cut measured 101px before that backing went on (171 after); the same
-reasoning took a flat hurry tick from 65px to a chevron's 235. **The trail asks
+documented hit-flash failure**, so both cues are drawn twice, dark under bright —
+but the FIRST version of that claim was wrong and a passing mutation is what
+caught it. I wrote that a white mark alone "vanishes" on a pale body, citing
+101px against 171; those two numbers changed the radius AND added the second
+pass, so the gain was attributed to one of two variables. Measured properly at a
+fixed radius the backing is worth 56.0 → 63.1 mean per-pixel delta on the palest
+body, which is not a vanishing. What it actually buys is UNIFORMITY — white-only
+reads **1.51× stronger on a knight than on a sock** (84.8 vs 56.0) against
+**1.17×** with the backing — i.e. one cue that works the same on every body
+rather than one that is loud on the dark half of the roster and faint on the pale
+half. A pixel COUNT cannot see this at all (it is pure geometry: 171 on all four
+bodies tested, identical), which is exactly why the mutation that removed the
+backing passed; the metric had to become MAGNITUDE before the claim was
+falsifiable. The same double-pass reasoning took a flat hurry tick from 65px to a
+chevron's 235. **The trail asks
 the ENGINE where the body was** (`posOn` along its own lane) rather than guessing
 a screen direction, because the floor rotates 90° in portrait and a guessed vector
 points sideways there. And **the cost was measured, not assumed** (the TD-6 rule):
@@ -4899,6 +4910,46 @@ the right response is to push the moment it goes green rather than batching a
 report first. And **the SessionStart hook cannot save this image**: it heals a
 clone that is strictly BEHIND with a CLEAN tree, and the restored snapshot is
 behind AND dirty, which it correctly refuses to touch.
+
+**THE AIMING DECISION HAD NO PICTURE — and building its test hit FIVE fixture
+traps in a row, every one of which produced a confident wrong answer.**
+`AUDIT targeting is a LIVE lever` measures the best 🎯 mode at 4-9 lives on a
+boss finale with a different winner per level, and the only thing the game ever
+showed was the mode's NAME — while *"first"* (furthest along the lane) against
+*"close"* (nearest the gun) is exactly the pair a name cannot settle. All three
+shooting lines have kept `t.targetId` current every tick since the P6 work and
+only the Fan's beam drew it, so the answer sat in the state and never on the
+field. A selected tower now dashes a line to the body it has chosen, in the
+range ring's own blue (same selection language, no new colour on a field that
+already carries four body states), read off `lerped` so it lands on the
+interpolated position rather than stuttering against a smoothed sprite.
+**The five traps, in the order they fired.** (1) **Bodies placed by guess were
+out of range** — `pads[0]` with bodies at dist 3 and 5 reported `both 0`, and
+the fixture precondition is the only reason that read as a broken FIXTURE rather
+than a broken feature. The pad and the two lane points are DERIVED now: walk
+every pad, keep the one with the widest in-range window, then take the point
+furthest ALONG and the point nearest the GUN. (2) **Most pads cannot separate the
+two modes at all** — this level's typical window is 3 cells and the lane arcs
+around the pad so both ends sit the SAME distance from it; only one pad of eight
+has a 7-cell window, which is why the choice has to be derived rather than
+picked. (3) **`tick()` returns early in the BUILD phase**, so the targeting code
+never ran and every mode still reported 0 — the trap this file already records
+from the Sparkler, met again; the fixture calls a wave and now ASSERTS the phase.
+(4) **A live wave leaves fx ageing**, so the three-draw settle that works on a
+paused board read 6986px between two identical captures; it ages the board empty
+first. (5) **And the isolation was wrong in two ways at once, which all three
+mutations passed**: comparing *no selection* against *selected* measures the
+RANGE RING, which selection has always drawn, and the two mode captures had a
+TICK between them, so that diff measured the whole board moving. Both captures
+now share one selection and one state with no tick, so the only thing that can
+differ is the line.
+**The claim is deliberately split in two, and that is what makes it end-to-end
+without constructing its own answer**: the ENGINE half asserts the two modes
+really pick different bodies (which is the producer, separately covered by the
+targeting audit), and the RENDER half asserts the line follows whatever
+`targetId` says. A single test that set the mode and looked at pixels would have
+been measuring a tick; a single test that set `targetId` and looked at pixels
+cannot see the producer break. Two clauses, one chain.
 
 ---
 

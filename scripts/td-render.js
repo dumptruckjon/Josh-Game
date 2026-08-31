@@ -3741,12 +3741,17 @@
         if (e.brittleUntil && st.tick < e.brittleUntil) {
           const rr = cell * 0.36, hh = (e.id * 2654435761) >>> 0;
           ctx.lineCap = "round";
-          // Drawn TWICE, dark under light, and that is the pale-roster lesson
-          // this file already paid for on the hit flash: the bodies are
-          // deliberately pale (it is the whole reason the ink line exists), so a
-          // white mark alone lands on a white sock and vanishes — measured at
-          // 101px before this backing went on, 171 after. The dark pass is what
-          // makes one cue work on every body in the game.
+          // Drawn TWICE, dark under light. The first version of this comment
+          // said a white mark alone "vanishes" on a pale body, and MEASURING it
+          // refuted that — at a fixed radius the mean per-pixel delta on the
+          // palest body (a sock) is 56.0 white-only against 63.1 with the
+          // backing, which is not a vanishing. What the backing actually buys is
+          // UNIFORMITY: without it the cue reads 1.51x stronger on a knight than
+          // on a sock (84.8 vs 56.0) and with it 1.17x (74.0 vs 63.1), so one
+          // cue works the same on every body instead of being loud on the dark
+          // half of the roster and faint on the pale half. That is the property
+          // the test pins; the earlier claim was two variables changed at once
+          // (radius AND the second pass) attributed to one of them.
           for (const pen of [["rgba(12,20,32,0.85)", 0.085], ["rgba(240,252,255,0.95)", 0.05]]) {
             ctx.strokeStyle = pen[0];
             ctx.lineWidth = Math.max(1.2, cell * pen[1]);
@@ -3948,6 +3953,34 @@
         // old `- 0.5` cancelled glyph()'s centring and planted the flag half a
         // cell up-left of the soldiers actually standing on it.
         if (selT && selT.lineId === "camp") glyph(selT.rallyX, selT.rallyY, "🚩", 0.8);
+        // 🎯 WHICH BODY IS IT AIMING AT? The targeting mode is measured at 4-9
+        // lives on a boss finale with a different winner per level, and until now
+        // the only thing the game showed you was the mode's NAME — while "first"
+        // (furthest along the lane) against "close" (nearest the gun) is exactly
+        // the pair a name cannot settle. All three shooting lines already keep
+        // `t.targetId` current every tick and only the Fan's beam drew it, so the
+        // answer was in the state and never on the field. Now: select a tower,
+        // cycle 🎯, watch the line jump to a different body.
+        // SELECTION-ONLY, so it costs one line and adds no clutter to a board of
+        // fourteen guns — and it takes the range ring's own blue, because it
+        // belongs to the same "this is the tower you are holding" language rather
+        // than being a new colour on a field that already carries four body
+        // states. Read off `lerped`, so it lands on the body's INTERPOLATED
+        // position and does not stutter against a sprite that is being smoothed.
+        if (selT && selT.targetId) {
+          const aim = lerped.find((L) => L.e.id === selT.targetId);
+          if (aim) {
+            const tp = worldToScreen(selT.cx + 0.5, selT.cy + 0.5);
+            ctx.save();
+            ctx.setLineDash([cell * 0.16, cell * 0.12]);
+            ctx.strokeStyle = "rgba(110,200,255,0.75)";
+            ctx.lineWidth = Math.max(1.5, cell * 0.05); ctx.lineCap = "round";
+            ctx.beginPath(); ctx.moveTo(tp.x, tp.y); ctx.lineTo(aim.x, aim.y); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.arc(aim.x, aim.y, cell * 0.42, 0, 7); ctx.stroke();
+            ctx.restore();
+          }
+        }
       }
       // enemy hp bars (upright). A boss draws at its `size` scale, so a bar
       // pinned 0.6 cells above the CENTRE was painted inside the body of every

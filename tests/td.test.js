@@ -6328,6 +6328,144 @@ test("ART: both new mechanics actually PAINT — 'does it work' and 'can you see
     `a HURRIED body must look different from a normal one (only ${chill.hurry} px changed)`);
   assert.ok(chill.hurryVsSlow > 120,
     `hurried and slowed are OPPOSITE states and must not look alike (only ${chill.hurryVsSlow} px apart)`);
+
+  // 🎯 And the AIMING DECISION had no picture either. `AUDIT targeting is a LIVE
+  // lever` measures the best mode at 4-9 lives on a boss finale with a different
+  // winner per level, and the only thing the game ever showed you was the mode's
+  // NAME — while "first" (furthest along the lane) against "close" (nearest the
+  // gun) is exactly the pair a name cannot settle. All three shooting lines keep
+  // `t.targetId` current every tick and only the Fan's beam drew it, so the
+  // answer sat in the state and never on the field.
+  const aim = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });
+    const e = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    window.__TD.grantGold(9999);
+    // DERIVE the pad and the two lane points instead of guessing them. The first
+    // cut used pads[0] with bodies at dist 3 and 5 and the fixture precondition
+    // reported "both 0" — nothing was in range at all. Most of this level's pads
+    // see only a 3-cell window of lane, and the lane arcs around them so both
+    // ends sit the SAME distance from the gun, which cannot separate "furthest
+    // along" from "nearest the gun". Pick the pad with the widest window, then
+    // take the point furthest ALONG and the point nearest the TOWER.
+    let best = null;
+    for (const pad of e.levelDef.pads) {
+      st.towers.length = 0;
+      if (!e.place("dart", pad.id).ok) continue;
+      const t0 = st.towers[st.towers.length - 1];
+      const reach = e.towerReach(t0.id);
+      const hits = [];
+      for (let d = 0; d < 60; d += 0.25) {
+        const q = e.posOn(0, d);
+        const dd = Math.hypot(q.x - t0.cx, q.y - t0.cy);
+        if (dd <= reach) hits.push({ d, dd });
+      }
+      if (hits.length && (!best || hits.length > best.hits.length)) best = { pad, hits };
+    }
+    st.towers.length = 0;
+    e.place("dart", best.pad.id);
+    const t = st.towers[st.towers.length - 1];
+    const far = best.hits[best.hits.length - 1].d;                       // furthest ALONG the lane
+    const near = best.hits.reduce((a, b) => (b.dd < a.dd ? b : a)).d;    // nearest the GUN
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c = canvas.getContext("2d");
+    // The wave is LIVE here, so a tick leaves muzzle flashes and hit pops in the
+    // fx queue and draw() ages them one frame at a time — three draws is not
+    // enough to settle and the control read 6986 px. Age the board empty first;
+    // nothing ticks between draws, so the picture becomes stable.
+    const shot = () => { for (let i = 0; i < 70; i++) r.draw(0);
+      return c.getImageData(0, 0, canvas.width, canvas.height).data; };
+    const diff = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4)
+      if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) n++; return n; };
+    // Two bodies inside the gun's reach at different points on the lane, so
+    // "furthest along" and "nearest the gun" are DIFFERENT answers. Without an
+    // input that separates them the picture cannot be shown to follow the mode.
+    const body = (id, dist) => ({ id, type: "sock", alive: true, hp: 999, maxHp: 999, shield: 0,
+      dist, pathIdx: 0, speed: 0.6, speedMult: 1, hurriedUntil: 0, hurriedMult: 1,
+      slowPct: 0, slowUntil: 0, stripUntil: 0, stripAmt: 0, stripped: false,
+      brittle: false, brittleUntil: 0, blockedBy: 0, stunnedUntil: 0 });
+    // tick() RETURNS EARLY in the build phase, so a fixture that never calls a
+    // wave runs none of the per-tick targeting code and every mode reports 0.
+    // Anything the wave spawns arrives at dist ~0, far outside this pad's
+    // window, so it cannot confound the two answers.
+    window.__TD.script([["call"]]);
+    const phase = st.phase;
+    const seed = () => { st.enemies.length = 0; st.enemies.push(body(901, near), body(902, far)); };
+    const aimAt = (mode) => { seed(); e.setTargeting(t.id, mode); e.tick(); return t.targetId; };
+    // ENGINE half: the two modes really do choose different bodies here.
+    const first = aimAt("first"), close = aimAt("close");
+    // RENDER half, isolated. The first cut compared "no selection" against
+    // "selected", and selection ALREADY draws the range ring — so the diff
+    // measured the ring and every mutation of the line passed. It also ticked
+    // between the two mode captures, so that diff measured a whole tick of the
+    // board moving. Both captures below share one selection and one state, with
+    // NO tick between them, so the only thing that can differ is the line.
+    seed();
+    r.setSelection({ tower: t.id });
+    t.targetId = 0;      const noAim = shot();
+    t.targetId = 0;      const ctrl = shot();
+    t.targetId = 901;    const aimNear = shot();
+    t.targetId = 902;    const aimFar = shot();
+    r.setSelection(null);
+    return { first, close, phase, near, far, control: diff(noAim, ctrl),
+      paints: diff(noAim, aimNear), followsTarget: diff(aimNear, aimFar) };
+  });
+  assert.equal(aim.phase, "wave",
+    `fixture: tick() no-ops in the build phase, so the wave must be walking (phase ${aim.phase})`);
+  assert.equal(aim.control, 0, `fixture: two identical draws must match (${aim.control} px)`);
+  assert.notEqual(aim.first, aim.close,
+    `fixture: the two modes must pick DIFFERENT bodies, or the picture cannot be shown to follow them (both ${aim.first})`);
+  assert.ok(aim.paints > 120,
+    `a selected tower must SHOW what it is aiming at (only ${aim.paints} px changed against the ` +
+    "same selected tower with no target — the range ring is in BOTH, so this is the line alone)");
+  assert.ok(aim.followsTarget > 120,
+    `the line must go to the body the engine actually chose (only ${aim.followsTarget} px between ` +
+    "the two targets) — with the modes proven above to pick different bodies, that is the whole chain");
+  // The dark backing under the fractures needs its own clause, and a pixel COUNT
+  // structurally cannot provide one: the count is pure GEOMETRY and comes out at
+  // exactly 171 on a sock, a knight, a marble and a balloon alike — which is why
+  // the mutation that removed the backing PASSED. The metric has to be
+  // MAGNITUDE. Measured, the backing does not rescue the mark from vanishing (a
+  // sock reads 56.0 white-only against 63.1); what it buys is UNIFORMITY across
+  // a roster that is deliberately pale in places and dark in others — 1.51x
+  // knight-over-sock without it, 1.17x with. The bar is a measured separation
+  // between those two, not a round number.
+  const evenness = await page.evaluate(() => {
+    const st = window.__TD.state(), r = window.__TD.render();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c = canvas.getContext("2d");
+    const put = (type, brittle) => {
+      st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
+      st.enemies.push({ id: 1, type, alive: true, hp: 90, maxHp: 90, shield: 0,
+        dist: 6, pathIdx: 0, speed: 0.6, speedMult: 1, hurriedUntil: 0, hurriedMult: 1,
+        slowPct: 0, slowUntil: 0, stripUntil: 0, stripAmt: 0, stripped: false,
+        brittle: !!brittle, brittleUntil: brittle ? st.tick + 90 : 0,
+        blockedBy: 0, stunnedUntil: 0 });
+      r.draw(0); r.draw(0); r.draw(0);
+      return c.getImageData(0, 0, canvas.width, canvas.height).data;
+    };
+    const mag = (type) => {
+      const a = put(type, false), b = put(type, true);
+      let n = 0, sum = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
+        if (d) { n++; sum += d; }
+      }
+      return n ? sum / n / 3 : 0;
+    };
+    // The palest body in the game against a mid-tone one — the pair the backing
+    // exists to bring together.
+    return { sock: mag("sock"), knight: mag("knight") };
+  });
+  assert.ok(evenness.sock > 20 && evenness.knight > 20,
+    `fixture: the cue must register on BOTH bodies before their ratio means anything ` +
+    `(sock ${evenness.sock.toFixed(1)}, knight ${evenness.knight.toFixed(1)})`);
+  const spread = Math.max(evenness.sock, evenness.knight) / Math.min(evenness.sock, evenness.knight);
+  assert.ok(spread < 1.3,
+    `the brittle mark must read the SAME on a pale body as on a dark one — measured ` +
+    `${spread.toFixed(2)}x (sock ${evenness.sock.toFixed(1)}, knight ${evenness.knight.toFixed(1)}); ` +
+    "1.17x with the dark backing under the white, 1.51x without it");
+
   // A `hurried vs brittle` clause was written and then DELETED as unfalsifiable:
   // the two cues differ in colour as well as placement, so a pixel diff clears
   // 120 even when the geometry is made identical — proven by a mutation that
