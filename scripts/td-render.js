@@ -3719,6 +3719,87 @@
             ctx.beginPath(); ctx.arc(p.x, p.y + bob, rr, a0, a0 + 0.72); ctx.stroke();
           }
         }
+        // 🧊 BRITTLE: chilled, so it takes +20% from EVERY source. The paragraph
+        // above states exactly why the strip cue has to exist, and `brittle` was
+        // its sibling case that nobody wrote — zero references in this whole file
+        // — so ❄️ Blizzard Cone's 300-gold headline ("chilled bodies take extra
+        // damage") was a sentence on a card and nothing else. It cannot ride the
+        // frost tint below: EVERY fan tier slows, so a tint means "slowed" and
+        // says nothing about brittle, and a tier-3 Fan standing beside a Blizzard
+        // paints an identical body. The two states genuinely diverge as well — a
+        // slow lasts 0.5s and the brittle mark 3s, so a body that walks out of the
+        // cone stays soft for seconds with the tint already gone.
+        // SHARP WHITE FRACTURES, deliberately: a filled disc is the slow tint and
+        // a broken ring is the armour strip, so the third state gets the third
+        // SHAPE rather than a third shade of the first two. Persistent and
+        // un-animated for the reason the strip cue gives — the STATE is what you
+        // play around, and a burst at the moment of the hit tells you nothing a
+        // second later. Angles come from the body's own id, so each one cracks
+        // consistently instead of shimmering frame to frame.
+        // Outside withInk (inkDepth 0, and its finally has already zeroed the
+        // budget), so no noInk() — the same measurement the strip cue records.
+        if (e.brittleUntil && st.tick < e.brittleUntil) {
+          const rr = cell * 0.36, hh = (e.id * 2654435761) >>> 0;
+          ctx.lineCap = "round";
+          // Drawn TWICE, dark under light, and that is the pale-roster lesson
+          // this file already paid for on the hit flash: the bodies are
+          // deliberately pale (it is the whole reason the ink line exists), so a
+          // white mark alone lands on a white sock and vanishes — measured at
+          // 101px before this backing went on, 171 after. The dark pass is what
+          // makes one cue work on every body in the game.
+          for (const pen of [["rgba(12,20,32,0.85)", 0.085], ["rgba(240,252,255,0.95)", 0.05]]) {
+            ctx.strokeStyle = pen[0];
+            ctx.lineWidth = Math.max(1.2, cell * pen[1]);
+            for (let i = 0; i < 3; i++) {
+              const a0 = ((hh >>> (i * 5)) & 31) / 32 * Math.PI + (i / 3) * Math.PI;
+              const kx = Math.cos(a0 + 0.6) * rr * 0.36, ky = Math.sin(a0 + 0.6) * rr * 0.36;
+              ctx.beginPath();
+              ctx.moveTo(p.x - Math.cos(a0) * rr, p.y + bob - Math.sin(a0) * rr);
+              ctx.lineTo(p.x + kx, p.y + bob + ky);
+              ctx.lineTo(p.x + Math.cos(a0) * rr, p.y + bob + Math.sin(a0) * rr);
+              ctx.stroke();
+            }
+          }
+        }
+        // 🏃 HURRIED: the exact OPPOSITE of the frost tint, and it had no picture
+        // at all. Three mechanics write it — 📻 Boom Box's aura, 🛢️ Oil Drum's
+        // slick and 🎁 The Big Present, whose whole design is that it never hits
+        // you and makes the party ARRIVE FASTER — so the campaign's own finale
+        // did its one trick invisibly. You could see your Fan working and could
+        // not see the same thing being done back to you.
+        // SPEED LINES BEHIND the body, not a mark on it: the shape carries the
+        // meaning (the strip is a ring AROUND, the fractures are ON, this is a
+        // trail BEHIND), which is what keeps four body states apart at a 27px
+        // cell without inventing a fourth colour of the same disc. The trail is
+        // placed by asking the ENGINE where the body was — posOn along its OWN
+        // lane — never a screen-space guess, because the floor rotates 90° in
+        // portrait and a guessed direction would point sideways there.
+        if (e.hurriedUntil && st.tick < e.hurriedUntil) {
+          ctx.lineCap = "round"; ctx.lineJoin = "round";
+          for (let i = 1; i <= 3; i++) {
+            const b = engine.posOn(e.pathIdx, Math.max(0, e.dist - i * 0.32));
+            const bp = worldToScreen(b.x + 0.5, b.y + 0.5);
+            const dx = p.x - bp.x, dy = p.y + bob - bp.y, m = Math.hypot(dx, dy) || 1;
+            const fx = dx / m, fy = dy / m, nx = -fy, ny = fx;
+            const len = cell * (0.3 - i * 0.05), a = 1 - i * 0.22;
+            // A CHEVRON pointing the way it is going, not a flat tick: on a floor
+            // that can be pale tan or dark grating the shape has to carry the
+            // meaning, and a bare tick measured at 65px against the frost tint's
+            // 320. Dark under bright for the same pale-surface reason the
+            // fractures above are drawn twice.
+            for (const dark of [true, false]) {
+              ctx.strokeStyle = dark
+                ? "rgba(12,20,32," + (a * 0.6).toFixed(2) + ")"
+                : "rgba(255,110,64," + a.toFixed(2) + ")";
+              ctx.lineWidth = Math.max(1.2, cell * (dark ? 0.115 : 0.07));
+              ctx.beginPath();
+              ctx.moveTo(bp.x - fx * len * 0.5 - nx * len, bp.y - fy * len * 0.5 - ny * len);
+              ctx.lineTo(bp.x + fx * len * 0.5, bp.y + fy * len * 0.5);
+              ctx.lineTo(bp.x - fx * len * 0.5 + nx * len, bp.y - fy * len * 0.5 + ny * len);
+              ctx.stroke();
+            }
+          }
+        }
         lerped.push({ e, x: p.x, y: p.y + bob });
       }
       // Projectiles (upright, on top of enemies). These used to be drawn from RAW

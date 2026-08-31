@@ -6268,6 +6268,74 @@ test("ART: both new mechanics actually PAINT — 'does it work' and 'can you see
     `a STRIPPED body must look different from an unstripped one (only ${strip} px changed) — ` +
     "which bodies are currently soft is the entire reason to own a Rust Ray");
 
+  // ❄️ Blizzard Cone's headline is "chilled bodies take extra damage", and
+  // `brittle` had ZERO references in the whole renderer — the exact sibling of
+  // the defect the paragraph above fixes, left unwritten. It cannot ride the
+  // frost tint: EVERY fan tier slows, so a tint means "slowed" and says nothing
+  // about brittle, and the two states genuinely diverge (a slow lasts 0.5s, the
+  // brittle mark 3s, so a body leaving the cone stays soft for ~2.5s with the
+  // tint gone). 🏃 HURRIED had no picture either and is the LOUDER omission:
+  // three mechanics write it, one of them 🎁 The Big Present, whose whole design
+  // is that it never hits you and makes the party arrive FASTER — so the
+  // campaign's finale did its one trick invisibly. You could see your Fan
+  // working and could not see the same thing being done back to you.
+  // Measured on this fixture: brittle 171px, hurry 235px, the shipped frost tint
+  // 320px, every pairwise separation >= 341 — so 120 is a bar all three clear
+  // comfortably and no absent cue can.
+  const chill = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });
+    const st = window.__TD.state(), r = window.__TD.render();
+    r.resize();
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c = canvas.getContext("2d");
+    // Every field the hot loop reads — a hand-built body one field short is this
+    // project's most-repeated fixture bug.
+    const put = (opts) => {
+      st.towers.length = 0; st.soldiers.length = 0; st.enemies.length = 0;
+      st.enemies.push({ id: 1, type: "knight", alive: true, hp: 90, maxHp: 90, shield: 0,
+        dist: 6, pathIdx: 0, speed: 0.6, speedMult: 1,
+        hurriedUntil: opts.hurry ? st.tick + 90 : 0, hurriedMult: opts.hurry ? 1.35 : 1,
+        slowPct: opts.slow ? 0.5 : 0, slowUntil: opts.slow ? st.tick + 90 : 0,
+        stripUntil: 0, stripAmt: 0, stripped: false,
+        brittle: !!opts.brittle, brittleUntil: opts.brittle ? st.tick + 90 : 0,
+        blockedBy: 0, stunnedUntil: 0 });
+      // SETTLE first: draw() ages every screen fx by one and seeds the lerp's
+      // prevPos, so the very first frame after a state swap is not the same
+      // picture as the second. Measured at 4px of drift, which is small enough
+      // to look like a passing control and big enough to be mistaken for a cue.
+      r.draw(0); r.draw(0); r.draw(0);
+      return c.getImageData(0, 0, canvas.width, canvas.height).data;
+    };
+    const diff = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4)
+      if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) n++; return n; };
+    const plain = put({});
+    const control = put({});                       // the board must be quiet between draws
+    const brittle = put({ brittle: true });
+    const slowed = put({ slow: true });
+    const hurried = put({ hurry: true });
+    return { control: diff(plain, control), paints: diff(plain, brittle), vsSlow: diff(slowed, brittle),
+      hurry: diff(plain, hurried), hurryVsSlow: diff(slowed, hurried) };
+  });
+  assert.equal(chill.control, 0,
+    `fixture: two identical draws must be identical, or every number below is noise (${chill.control} px)`);
+  assert.ok(chill.paints > 120,
+    `a BRITTLE body must look different from a plain one (only ${chill.paints} px changed) — ` +
+    "which bodies are currently soft is the entire reason to own a Blizzard Cone");
+  assert.ok(chill.vsSlow > 120,
+    `a BRITTLE body must not read as merely SLOWED (only ${chill.vsSlow} px apart) — every fan tier ` +
+    "slows, so the frost tint cannot be the brittle cue");
+  assert.ok(chill.hurry > 120,
+    `a HURRIED body must look different from a normal one (only ${chill.hurry} px changed)`);
+  assert.ok(chill.hurryVsSlow > 120,
+    `hurried and slowed are OPPOSITE states and must not look alike (only ${chill.hurryVsSlow} px apart)`);
+  // A `hurried vs brittle` clause was written and then DELETED as unfalsifiable:
+  // the two cues differ in colour as well as placement, so a pixel diff clears
+  // 120 even when the geometry is made identical — proven by a mutation that
+  // draws the chevrons ON the body at the fracture radius and still passes. The
+  // claim it was reaching for (four states, four readable pictures) is not
+  // something a pixel count can express, and this project deletes a clause that
+  // cannot fail rather than shipping it as reassurance.
+
   const linkPx = await page.evaluate(() => {
     window.__TD.newGame(1, { seed: 7 });
     const e = window.__TD.engine(), st = window.__TD.state(), r = window.__TD.render();
@@ -10214,7 +10282,9 @@ test("QoL: the next-wave preview stays up while ⏩ RUSH is on offer", async () 
     const nw = document.querySelector("#screen-td-play .td-nextwave");
     const call = document.querySelector("#screen-td-play .td-call");
     const s = window.__TD.state();
+    const next = nw && nw.querySelector(".td-nextwave__next");
     return { shown: !!(nw && !nw.hidden), text: nw ? nw.textContent : "",
+      preview: next ? next.textContent : "",
       callOff: !!(call && call.disabled), phase: s.phase,
       wave: s.waveIdx, sent: s.sentIdx == null ? s.waveIdx : s.sentIdx };
   });
@@ -10234,7 +10304,14 @@ test("QoL: the next-wave preview stays up while ⏩ RUSH is on offer", async () 
   r = await look();
   assert.equal(r.phase, "wave", "fixture: the wave really started");
   assert.ok(r.callOff, "fixture: RUSH is refused during the settle window");
-  assert.ok(!r.shown, "while RUSH is refused there is no decision, so no preview");
+  // Assert the PREVIEW, not the pill's visibility. Those were the same thing
+  // while the preview was the pill's only occupant; the pill now also carries
+  // the live bodies-left count, which is a different readout with its own
+  // reason to be up — so `nw.hidden` had become a proxy that no longer tracks
+  // the property this clause is named for.
+  assert.equal(r.preview, "", `while RUSH is refused there is no decision, so no preview (saw "${r.preview}")`);
+  assert.match(r.text, /\d+ left/,
+    "…and the pill itself stays up for the live count, which is not the preview");
 
   // 3. Once RUSH is on offer the preview comes back, naming the wave a tap would
   //    send — and it is the NEXT unsent one, not the one already walking.
@@ -10245,7 +10322,7 @@ test("QoL: the next-wave preview stays up while ⏩ RUSH is on offer", async () 
   await page.waitForTimeout(120);
   r = await look();
   assert.ok(r.shown, "the preview must be up exactly when ⏩ RUSH is on offer");
-  assert.ok(/Next/.test(r.text), `…and it must name what a RUSH would send (saw "${r.text}")`);
+  assert.ok(/Next/.test(r.preview), `…and it must name what a RUSH would send (saw "${r.text}")`);
   const expected = await page.evaluate(() => {
     const s = window.__TD.state();
     const L = window.TDData.LEVELS.find((l) => l.id === s.levelId);
@@ -10361,7 +10438,12 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
   const anchorOf = (id) => page.evaluate((lv) => {
     window.__TD.newGame(lv, { seed: 3 });
     const nw = document.querySelector("#screen-td-play .td-nextwave");
-    return { cls: [...nw.classList].filter((c) => c.startsWith("td-nextwave--")).join(",") || "center",
+    // The two ANCHOR classes by name, not any `td-nextwave--` prefix: the pill
+    // also carries `--split` when the live count is stacked above the preview,
+    // and a clause about the anchor must not be satisfiable by a class that is
+    // not one. (It cannot be set in the build phase this measures, which is
+    // exactly why a prefix filter would go stale silently.)
+    return { cls: ["td-nextwave--left", "td-nextwave--right"].filter((c) => nw.classList.contains(c)).join(",") || "center",
       text: nw.textContent };
   }, id);
   const a = await anchorOf(39);
@@ -10430,6 +10512,139 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(150);
 
+});
+
+test("QoL: the field says how much of the wave is LEFT", async () => {
+  // The number existed and was unreadable: 11.5px in the CALL button's meta
+  // line, in the bottom corner, which is not where your eyes are while bodies
+  // are walking. The HUD was ruled out by measurement — it is already three rows
+  // at every phone width with 34px free on the wave label's row at 320 and 360,
+  // so a fifth readout forces a fourth on the height-limited phones — so it goes
+  // in the next-wave pill, which floats at the top of the FIELD and was showing
+  // nothing at all through most of a wave.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  const read = () => page.evaluate(() => {
+    const nw = document.querySelector("#screen-td-play .td-nextwave");
+    const meta = document.querySelector("#screen-td-play .td-call__meta");
+    const e = window.__TD.engine && window.__TD.engine();
+    return {
+      hidden: nw.hidden, text: nw.textContent, aria: nw.getAttribute("aria-live"),
+      meta: meta ? meta.textContent : "",
+      phase: e && e.state.phase, bodies: e && e.bodiesLeft ? e.bodiesLeft() : null,
+    };
+  });
+  const shown = (r) => { const m = /(\d+) left/.exec(r.hidden ? "" : r.text); return m ? +m[1] : null; };
+
+  // BUILD: no count. A wave cannot be walking here (the phase only starts once
+  // bodiesLeft is 0), so "0 left" would be pure noise over an empty road — and
+  // this is also what keeps the shipped lane-dodge budgets above untouched,
+  // since they are all measured in the build phase.
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 3 }));
+  await page.waitForTimeout(150);
+  let r = await read();
+  assert.equal(r.phase, "build", "fixture: newGame lands in the build phase");
+  assert.equal(shown(r), null, `the build phase shows the preview, not a count (got "${r.text}")`);
+  assert.match(r.text, /^Next: /, "…and the preview itself is unchanged");
+  assert.equal(r.aria, "polite", "a preview changes once per wave, so it is still announced");
+
+  // WAVE: the count is on the field, and it is the ENGINE's own quantity. Most
+  // of a fresh wave is still QUEUED rather than on screen, so a UI-side recount
+  // from state.enemies understates it at exactly the moment you look.
+  await page.evaluate(() => window.__TD.script([["call"], ["tick", 4]]));
+  await page.waitForTimeout(150);
+  r = await read();
+  assert.equal(r.phase, "wave", "fixture: the wave is walking");
+  assert.ok(r.bodies > 0, `fixture: a called wave owes the player bodies (got ${r.bodies})`);
+  assert.equal(shown(r), r.bodies,
+    `the pill must show the engine's own bodiesLeft (pill "${r.text}" vs engine ${r.bodies})`);
+  const onScreen = await page.evaluate(() => window.__TD.engine().state.enemies.filter((e) => e.alive).length);
+  assert.ok(onScreen < r.bodies,
+    `fixture: most of a fresh wave is QUEUED (${onScreen} on screen of ${r.bodies}) — otherwise a UI-side recount would be indistinguishable`);
+  // The CALL meta shows the same fact. Both read ONE hoisted engine call, so
+  // they cannot disagree by a frame, and they are deliberately spelled the same
+  // way — two wordings for one fact is a second owner of the copy.
+  const metaLeft = /(\d+) left/.exec(r.meta);
+  assert.ok(metaLeft && +metaLeft[1] === r.bodies,
+    `the CALL meta and the field pill must agree (meta "${r.meta}" vs ${r.bodies})`);
+  // A count that moves on every kill must not be ANNOUNCED on every kill.
+  assert.equal(r.aria, "off", "a live count is not a live region — it would announce on every kill");
+
+  // ENDLESS is the case this strip could not serve AT ALL: its runs are not in
+  // DATA.LEVELS, so there is no wave table to preview and the pill was simply
+  // hidden for the whole run.
+  await page.evaluate(() => { window.__TD.startEndless("bedroom", { seed: 1066 }); });
+  await page.waitForTimeout(250);
+  r = await read();
+  assert.ok(r.hidden, "fixture: an endless build phase still has no preview to show");
+  await page.evaluate(() => window.__TD.script([["call"], ["tick", 4]]));
+  await page.waitForTimeout(150);
+  r = await read();
+  assert.ok(r.bodies > 0, "fixture: the endless wave is walking");
+  assert.equal(shown(r), r.bodies,
+    `endless must show the count too (pill ${r.hidden ? "HIDDEN" : JSON.stringify(r.text)} vs engine ${r.bodies})`);
+
+  // The count takes its OWN LINE, and that is a measurement rather than a taste.
+  // This pill has a whole anchor system whose job is to keep it off the lane's
+  // first cells; joined onto the preview's line it becomes 212px of a 378px
+  // canvas and covers them on 9 maps at 390 and 16 at 320, against the shipped
+  // 1 and 7. Stacked it is never WIDER than the preview it already showed, so
+  // the anchor has exactly the room it had before — measured across all 40 maps
+  // at 390, 320 and narrow landscape, the covered-map LISTS are byte-identical
+  // with the count line and without it.
+  const widths = await page.evaluate(() => {
+    const out = [];
+    const nw = document.querySelector("#screen-td-play .td-nextwave");
+    const left = nw.querySelector(".td-nextwave__left");
+    for (const L of window.TDData.LEVELS.slice(0, 12)) {
+      window.__TD.newGame(L.id, { seed: 3 });
+      window.__TD.script([["call"], ["tick", 75]]);   // past RULES.rushSettle, so RUSH is on offer
+      if (nw.hidden || !left.textContent) continue;
+      const withC = nw.getBoundingClientRect().width;
+      const keep = left.textContent;
+      left.textContent = ""; nw.classList.remove("td-nextwave--split");
+      const withoutC = nw.getBoundingClientRect().width;
+      left.textContent = keep; nw.classList.add("td-nextwave--split");
+      out.push({ id: L.id, withC: Math.round(withC), withoutC: Math.round(withoutC) });
+    }
+    return out;
+  });
+  assert.ok(widths.length >= 8,
+    `fixture: the count and the preview must actually CO-OCCUR here, or this proves nothing (saw ${widths.length})`);
+  const wider = widths.filter((x) => x.withC > x.withoutC);
+  assert.equal(wider.length, 0,
+    "the count must not widen the pill — it stacks above the preview: " +
+    wider.map((x) => `L${x.id} ${x.withoutC}→${x.withC}px`).join(", "));
+
+  // The pill is CENTRED and dodges the lanes, so re-deriving its corner on every
+  // kill would make it hop from side to side while you watch it. The anchor key
+  // therefore takes the count's DIGIT COUNT and never its value — the pill is
+  // tabular-nums, so 23 and 22 are the same width. Measured over one wave of
+  // L12 with a maxed board: 3 keys against 19 distinct texts.
+  const churn = await page.evaluate(() => {
+    window.__TD.newGame(12, { seed: 3 });
+    const e = window.__TD.engine();
+    window.__TD.grantGold(90000);
+    for (const p of e.levelDef.pads) { try { e.place("dart", p.id); e.upgrade(p.id); e.upgrade(p.id); } catch (x) {} }
+    window.__TD.script([["call"]]);
+    const nw = document.querySelector("#screen-td-play .td-nextwave");
+    const keys = new Set(), texts = new Set();
+    for (let i = 0; i < 220; i++) {
+      window.__TD.script([["tick", 6]]);
+      if (nw.hidden) continue;
+      keys.add(nw.dataset.anchorKey);
+      texts.add(nw.textContent);
+    }
+    return { keys: keys.size, texts: texts.size };
+  });
+  assert.ok(churn.texts >= 10,
+    `fixture: the count must actually MOVE over this wave, or the key cannot be shown to ignore it (saw ${churn.texts} texts)`);
+  assert.ok(churn.keys <= 5,
+    `the anchor must not be re-derived on every kill: ${churn.keys} keys for ${churn.texts} texts`);
+
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
 });
 
 test("QoL: a corner badge never sits on its own label, and the grid never orphans a card", async () => {

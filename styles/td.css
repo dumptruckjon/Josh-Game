@@ -437,6 +437,11 @@ body.td-mode #screens { padding: 0; }
      nothing, whereas spilling off the right is a shipped layout bug. */
   max-width: calc(100% - 16px); white-space: normal; text-align: center;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  /* The live bodies-left count changes on every kill, so proportional digits
+     would make a centred pill shimmy sideways all wave. Tabular digits make the
+     pill's width depend only on the digit COUNT, which is exactly what the
+     anchor key keys on. */
+  font-variant-numeric: tabular-nums;
 }
 /* Derived anchors — the pill dodges the lanes rather than always sitting
    top-centre, which measured as covering the incoming bodies on 10 of 40 maps
@@ -447,6 +452,15 @@ body.td-mode #screens { padding: 0; }
 @media (max-width: 359px) {
   .td-nextwave { font-size: 0.76rem; padding: 3px 8px; }
 }
+/* The live bodies-left count stacks ABOVE the preview instead of joining it on
+   one line: combined, the pill grew to 212px of a 378px canvas and covered the
+   lane's first cells on 9 maps at 390 and 16 at 320, against the shipped 1 and
+   7. Stacked, the pill is never wider than the preview alone — and 1.12 is the
+   MEASURED line-height at which the two-line pill lands on byte-identical map
+   lists at 390, 320 and narrow landscape (at the default 1.4 it costs one extra
+   map at 320). */
+.td-nextwave--split { line-height: 1.12; }
+.td-nextwave--split .td-nextwave__left { display: block; }
 .td-nextwave--left { left: 8px; transform: none; }
 .td-nextwave--right { left: auto; right: 8px; transform: none; }
 .td-nextwave[hidden] { display: none; }

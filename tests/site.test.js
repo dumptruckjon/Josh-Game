@@ -1917,6 +1917,58 @@ test("the fort UI never re-derives a number the META moves", () => {
   }
 });
 
+test("every timed STATE the engine puts on a body has a picture", () => {
+  // Enumerating the enemy's own state fields against the renderer is how
+  // `brittleUntil` was found: ZERO references in the whole of td-render.js, so
+  // ❄️ Blizzard Cone's 300-gold headline ("chilled bodies take extra damage")
+  // was a sentence on a card and nothing on the field — the exact sibling of the
+  // defect 🎯 Rust Ray's own cue was written for, left unwritten. `hurriedUntil`
+  // was the same, and worse: three mechanics write it, one of them 🎁 The Big
+  // Present, whose entire design is that it never hits you and makes the party
+  // arrive FASTER, so the campaign's finale did its one trick invisibly.
+  // `<name>Until` is this engine's own convention for a timed mark, so the
+  // population DERIVES and a twelfth state inherits the rule.
+  const logic = read("scripts/td-logic.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const render = read("scripts/td-render.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const fields = [...new Set(logic.match(/\b[a-zA-Z]+Until\b/g) || [])].sort();
+  // Each exemption NAMES the picture that already exists, because "it has no
+  // mark" and "its mark is somewhere else" are different things and only the
+  // second is allowed. Both were verified by reading the code, not assumed.
+  const DRAWN_ELSEWHERE = {
+    leverUntil: "the thrown route is lit along the lane and the button reads SHORT WAY / LONG WAY",
+    stunnedUntil: "only ever set while blockedBy a soldier, so the RC car is drawn on top of it, " +
+      "and the engine emits a `stun` event the renderer already bursts as stars",
+  };
+  assert.ok(fields.length >= 8,
+    `the state-field scan must find the marks (saw ${fields.length}) — a derivation fails OPEN`);
+  const blind = fields.filter((f) => !DRAWN_ELSEWHERE[f] && !render.includes(f));
+  assert.deepEqual(blind, [],
+    "a timed state with no renderer reference is a mechanic the player cannot see: " + blind.join(", "));
+  // …and an exemption may not outlive the field it excuses.
+  for (const f of Object.keys(DRAWN_ELSEWHERE)) {
+    assert.ok(fields.includes(f), `${f} is exempted here but the engine no longer has it`);
+  }
+});
+
+test("the wave's bodies-left count is read from the engine ONCE", () => {
+  // Two surfaces show it — the CALL button's meta line and the field pill — and
+  // their comments claim they cannot disagree by a frame. A comment cannot go
+  // red, so the claim is the assertion: one `bodiesLeft()` call, hoisted above
+  // both readers. Two calls would be two answers whenever a kill lands between
+  // them, which is the class that gave `hurriedMult` two writers.
+  const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const calls = (ui.match(/\.bodiesLeft\(\)/g) || []).length;
+  assert.equal(calls, 1,
+    `td-ui calls bodiesLeft() ${calls} time(s) — the CALL meta and the field pill must share ONE read`);
+  // And it must be the ENGINE's quantity, not a recount: most of a fresh wave is
+  // still QUEUED rather than on screen, so a UI-side `state.enemies` tally
+  // understates it at exactly the moment the player looks. Behaviour is pinned
+  // in `QoL: the field says how much of the wave is LEFT`; this stops a future
+  // edit quietly swapping the source.
+  assert.equal((ui.match(/enemies\.filter\(/g) || []).length, 0,
+    "td-ui must not tally live enemies itself — bodiesLeft() counts the spawn queue too");
+});
+
 test("the camp's rally REACH has exactly ONE owner", () => {
   // rally() gates the player's flag and defaultRally() picks the opening one.
   // While they each measured reach for themselves they disagreed — and not

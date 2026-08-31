@@ -154,7 +154,8 @@
       "</div>" +
       '<div class="td-canvas-wrap">' +
         '<canvas class="td-canvas" aria-label="Toybox Defense battlefield"></canvas>' +
-        '<div class="td-nextwave" aria-live="polite" hidden></div>' +
+        '<div class="td-nextwave" aria-live="polite" hidden>' +
+        '<span class="td-nextwave__left"></span><span class="td-nextwave__next"></span></div>' +
         '<div class="td-banner" aria-live="assertive" hidden></div>' +
       "</div>" +
       // ALL controls live OUTSIDE the canvas wrap — a real layout block under
@@ -1687,6 +1688,15 @@
     const endless = state.endless || !level; // endless runs aren't in DATA.LEVELS
     const total = level ? level.waves.length : 0;
     if (wave) wave.textContent = UI.waveLabel(state.levelId, state.endless, state.waveIdx, state.sentIdx);
+    // ONE read of the engine's own wave-end quantity. It is the number
+    // `finishIfWaveDone` itself tests, so a readout saying "0 left" while the
+    // wave grinds on is not a state this engine can reach — and most of a fresh
+    // wave is still QUEUED rather than on screen, so a UI-side recount from
+    // state.enemies would understate it at exactly the moment you look. Read
+    // once, because the ⏩ RUSH meta and the field readout both show it and two
+    // reads could disagree by a frame.
+    const engNow = hudEngine && hudEngine();
+    const bodiesLeft = engNow && engNow.bodiesLeft ? engNow.bodiesLeft() : null;
     const call = q(".td-call");
     if (call) {
       // The CALL button lives in BOTH phases now: during build it starts the
@@ -1728,8 +1738,7 @@
         // is one that already ships: no new element, and none of the HUD reflow
         // risk that once had the ⚙️ hopping between rows. Most of a fresh wave is
         // still QUEUED rather than on screen, which is the half you cannot see.
-        const eng2 = hudEngine && hudEngine();
-        const left = eng2 && eng2.bodiesLeft ? eng2.bodiesLeft() : null;
+        const left = bodiesLeft;
         const why = ok ? "+" + info.bonus + "🪙"
           : info.reason === "too-soon" ? "steady…"
             : info.reason === "too-many-waves" ? info.max + " waves out"
@@ -1740,7 +1749,9 @@
     // Next-wave preview: during the build phase, show WHAT is coming (enemy icons
     // + counts) so the player can plan their build — a premium-TD staple.
     const nw = q(".td-nextwave");
-    if (nw) {
+    const nwLeft = nw && nw.querySelector(".td-nextwave__left");
+    const nwNext = nw && nw.querySelector(".td-nextwave__next");
+    if (nw && nwLeft && nwNext) {
       // What's coming is the next UNSENT wave (sentIdx), which equals waveIdx at
       // every build boundary but not while a rushed wave is still walking.
       const nextIdx = state.sentIdx == null ? state.waveIdx : state.sentIdx;
@@ -1756,6 +1767,7 @@
       // the spawn end of the field.
       const rush = UI._callInfo ? UI._callInfo() : null;
       const rushable = state.phase !== "build" && !!(rush && rush.ok);
+      let preview = "";
       if (!endless && (state.phase === "build" || rushable) && nextIdx < total) {
         // 🧭 Scout Report is the tree's one PURE-INFORMATION node: it changes no
         // engine number at all (so it carries exactly zero balance risk) and
@@ -1778,16 +1790,48 @@
         // fine here and spills off a real 320px phone (the tower-panel lesson).
         // The field marker says WHERE; this says a flank is coming at all.
         const flank = groups.filter((g) => g.at > 0).reduce((n, g) => n + g.count, 0);
-        const txt = (scouting ? "Next 2: " : "Next: ") + parts.join("  ") + (flank ? "   🚪" + flank : "");
-        // Re-anchor on the TEXT, the LEVEL and the canvas WIDTH together. Keying
+        preview = (scouting ? "Next 2: " : "Next: ") + parts.join("  ") + (flank ? "   🚪" + flank : "");
+      }
+      // How much of the wave you are IN is the question this strip never
+      // answered. The number did exist — at 11.5px in the CALL button's meta
+      // line, in the bottom corner, which is not where your eyes are while bodies
+      // are walking. It reads the SAME hoisted bodiesLeft the meta reads (one
+      // engine call, so the two can never disagree by a frame) and is spelled
+      // "N left" exactly as the meta spells it, because two wordings for one fact
+      // is a second owner of the copy. It covers OVERLAPPING waves for free:
+      // bodiesLeft is the whole board plus the whole queue, so a ⏩ RUSH shows
+      // one honest total rather than two half-answers — and it is the only thing
+      // this strip shows at all in ENDLESS, where the preview cannot exist.
+      const live = state.phase !== "build" && bodiesLeft > 0 ? bodiesLeft + " left" : "";
+      if (live || preview) {
+        // Re-anchor on the LEVEL, the canvas WIDTH and the preview TEXT. Keying
         // on the text alone was a real staleness bug, found by a probe
         // disagreeing with its own prediction: two levels whose wave-1 preview
         // reads the same leave the previous level's corner in place, and a
-        // rotation moves every lane without changing a character.
-        const key = state.levelId + ":" + (UI.canvas ? UI.canvas.clientWidth : 0) + ":" + txt;
+        // rotation moves every lane without changing a character. The live count
+        // contributes its DIGIT COUNT and never its value — the pill is
+        // tabular-nums, so 23 and 22 are the same width, and re-anchoring on every
+        // kill would make it hop corners while you watch it.
+        const key = state.levelId + ":" + (UI.canvas ? UI.canvas.clientWidth : 0)
+          + ":" + (live ? String(bodiesLeft).length : 0) + ":" + preview;
         const fresh = nw.dataset.anchorKey !== key || nw.hidden;
         nw.dataset.anchorKey = key;
-        nw.textContent = txt;
+        // The count takes its OWN LINE rather than joining the preview, and that
+        // is a measurement, not a taste. Combined on one line the pill is 212px
+        // of a 378px canvas and covers the lane's first cells on 9 maps at 390
+        // and 16 at 320 — against the shipped 1 and 7 — which is exactly what
+        // this pill's whole anchor system exists to prevent. STACKED it is never
+        // WIDER than the preview it already showed, and with the split
+        // line-height tightened it lands on byte-identical map lists at 390, 320
+        // and narrow landscape. Two persistent spans rather than a rebuild: this
+        // runs every frame.
+        nwLeft.textContent = live ? live + "\n" : "";
+        nwNext.textContent = preview;
+        nw.classList.toggle("td-nextwave--split", !!(live && preview));
+        // A count that changes on every kill must not be ANNOUNCED on every kill.
+        // The preview still is: it changes once per wave and is what a decision
+        // gets made on.
+        nw.setAttribute("aria-live", live ? "off" : "polite");
         nw.hidden = false;
         // Pick the corner that sits CLEAREST of the lanes. Measured across all 40
         // maps, the fixed centre anchor lands on a lane's first cells on 10 of
@@ -1795,10 +1839,19 @@
         // a real cost now that it stays up through a wave, with bodies walking
         // underneath it. Best-of-three clears 39; L7's lane spans the whole band
         // at this height, so it keeps the centre and is no worse than before.
-        // Recomputed only when the TEXT changes (a wave boundary), never per
-        // frame — it costs one layout read.
+        // Recomputed only when the KEY changes, never per frame — one layout
+        // read.
         if (fresh) UI.anchorPreview(nw);
-      } else nw.hidden = true;
+      } else {
+        // Clear the spans as well as hiding the box. A hidden element holding
+        // last frame's message is the stale-`.win-hero` class: the next reader
+        // of this DOM sees a preview for a level it is no longer on. Found by a
+        // mutation firing the WRONG clause — the probe read a preview that had
+        // been hidden three levels earlier.
+        nwLeft.textContent = "";
+        nwNext.textContent = "";
+        nw.hidden = true;
+      }
     }
     UI.abilities(state);
     UI.prices(state.gold); // an open build/upgrade dialog re-colours as gold arrives

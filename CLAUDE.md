@@ -4764,6 +4764,108 @@ has room and no reflow risk, and it was not built because the same "changes no
 decision" objection applies. Measured while there: the HUD is stable at 320/360/
 390/landscape across fresh, 5-digit gold, 24-life and two-wave-RUSH states — the ⚙️
 sits at an identical y in all of them — so the reservation is holding.
+**THE COUNT THAT ANSWERS "AM I NEARLY THROUGH THIS?" EXISTED AND WAS 11.5px IN A
+CORNER — and the interesting half is that moving it cost a measured regression I
+only found by looking at the picture.** `bodiesLeft()` has been on the CALL
+button's meta line since the RUSH work, at 11.52px in a 71x14 box at the bottom
+left, which is not where your eyes are while bodies are walking. Two homes were
+ruled out by MEASUREMENT before the third was built: the HUD is already three
+rows at every phone width with **34px free on the wave label's row at 320 and
+360**, so a fifth readout forces a fourth row on the height-limited phones (320
+has 384px of canvas — the documented reflow-sensitive surface, and the one whose
+⚙️ once hopped between rows); and a per-enemy hp bar is already drawn for every
+damaged body, so that candidate was already shipped. It goes in the
+`.td-nextwave` pill, which floats at the top of the FIELD and — outside a build
+phase or a RUSH window — was showing nothing at all, including for **the whole of
+every endless run**, whose levels are not in `DATA.LEVELS` so there is no wave
+table to preview.
+**Then the screenshot showed it sitting on the incoming bodies, and the numbers
+said the same thing.** Joined onto the preview's line the pill goes 144 -> 212px
+of a 378px canvas and covers a lane's first cells on **9 maps at 390 and 16 at
+320, against the shipped 1 and 7** — i.e. one line of new text undid the entire
+anchor system that exists to keep this pill off the road. Four layouts were
+measured against the same texts: one line 9/16, one line at a smaller font 1/16
+(the narrow media query already shrinks it, so there is nothing left to give at
+320), count-only 0/1 (best, but it deletes the shipped RUSH preview, which is a
+regression), and **stacked on its own line 1/8** — the +1 at 320 being pure
+height. Tightening the split pill's `line-height` to **1.12** takes it to
+**1/7/1, the byte-identical map LISTS** (L7 · L7,10,12,19,31,32,35 · L19), so
+1.12 is a measured constant and not a taste. Stacked, the pill is never WIDER
+than the preview it already showed, which is the property the test pins: same
+level, same tick, same preview, with the count line and without it — zero maps
+differ. Three smaller things worth keeping. **The value must come from the ENGINE
+and be read ONCE**: most of a fresh wave is still QUEUED, so a UI-side
+`state.enemies` tally reads 1 where the engine says 6 (the mutation prints
+exactly that), and two `bodiesLeft()` calls would be two answers whenever a kill
+lands between them — the CALL meta and the pill now share one hoisted read, with
+a structural scan pinning the count at one. **The anchor key takes the count's
+DIGIT COUNT and never its value** (the pill is `tabular-nums`, so 23 and 22 are
+the same width): measured over one wave of a maxed L12 board that is **3 keys
+against 19 distinct texts**, where keying on the text re-derives the corner on
+every kill and the pill hops sides while you watch. And **a readout that changes
+on every kill must not be a live region** — the pill is `aria-live="polite"` for
+the preview, so it drops to `off` while a count is showing and a screen reader
+is not announced at on every death.
+**Two things fell out of the mutations rather than the design.** Hiding the pill
+left STALE TEXT in its spans — a hidden element holding last frame's message is
+the `.win-hero` class, and it surfaced as a mutation firing the WRONG clause
+because the probe read a preview hidden three levels earlier; the hide path
+clears them now. And a shipped clause asserted `nw.hidden` as a proxy for "no
+preview", which was the same thing only while the preview was the pill's sole
+occupant — **when a check asserts X, assert X**, so it reads the preview span and
+the pill's own visibility is pinned as a second clause.
+
+**ENUMERATING THE ENEMY'S OWN TIMED STATES AGAINST THE RENDERER FOUND TWO
+MECHANICS WITH NO PICTURE — one of them the campaign FINALE's entire kit.** The
+method is the export/hook enumeration this file already records, applied one
+level down: `<name>Until` is this engine's convention for a timed mark, so the
+population derives. Eleven exist; **eight are drawn and three were not.**
+(1) **`brittleUntil` had ZERO references in the whole of `td-render.js`**, so
+❄️ Blizzard Cone's 300-gold headline — *"chilled bodies take extra damage"* — was
+a sentence on a card and nothing on the field. That is the exact sibling of the
+defect 🎯 Rust Ray's own cue was written for, and the comment beside that cue
+states the reasoning in as many words (*"which bodies are currently soft is the
+entire reason to own a Rust Ray"*) while the neighbouring case went unwritten.
+It cannot ride the frost tint: EVERY fan tier slows, so a tint means "slowed"
+and says nothing about brittle, and the states genuinely diverge — a slow lasts
+0.5s against the brittle mark's 3s, so a body that walks out of the cone stays
+soft for seconds with the tint already gone. (2) **`hurriedUntil` was the louder
+omission**: three mechanics write it — 📻 Boom Box's aura, 🛢️ Oil Drum's slick,
+and 🎁 The Big Present, *whose whole design is that it never hits you and makes
+the party ARRIVE FASTER* — so the campaign's own finale did its one trick
+invisibly. You could see your Fan working and could not see the same thing being
+done back to you. (3) **`stunnedUntil` looked like the third and is NOT**, and
+checking rather than assuming is the point: it is only ever set while the body is
+`blockedBy` a soldier, so a drawn RC car is standing on top of it, and the engine
+already emits a `stun` event the renderer bursts as stars. A second persistent
+mark there would be the near-duplicate paint this project has twice deleted.
+Four things worth keeping. **The shape carries the meaning, not a fourth colour**
+— a filled disc is the slow, a broken ring AROUND is the armour strip, so brittle
+gets FRACTURES ON the body and hurry a CHEVRON TRAIL BEHIND it, which is what
+keeps four states apart at a 27px cell. **A white mark on this roster is the
+documented hit-flash failure**: the bodies are deliberately pale (the whole reason
+the ink line exists), so the fractures are drawn twice, dark under light, and the
+first cut measured 101px before that backing went on (171 after); the same
+reasoning took a flat hurry tick from 65px to a chevron's 235. **The trail asks
+the ENGINE where the body was** (`posOn` along its own lane) rather than guessing
+a screen direction, because the floor rotates 90° in portrait and a guessed vector
+points sideways there. And **the cost was measured, not assumed** (the TD-6 rule):
+interleaved medians over a 160-body board with EVERY body simultaneously brittle
+and hurried — a state that cannot occur — read 2.83 → 4.70 ms against a 16.7 ms
+budget, so no optimisation shipped.
+**Two test lessons, and the second cost a clause.** The self-verifying control
+("two identical draws must be identical") caught a **4px** drift immediately —
+`draw()` ages every screen fx by one and seeds the lerp's `prevPos`, so the first
+frame after a state swap is not the same picture as the second — which is small
+enough to look like a passing control and big enough to be mistaken for a cue;
+the fixture settles with three draws now. And a `hurried vs brittle` clause was
+written and then **DELETED as unfalsifiable**: the two cues differ in COLOUR as
+well as placement, so a pixel diff clears any sane bar even when the geometry is
+made identical — proven by a mutation that draws the chevrons ON the body at the
+fracture radius and still passes. "Four states, four readable pictures" is not
+something a pixel count can express, and a clause that cannot fail is worse than
+none.
+
 ---
 
 ## Repository Structure
