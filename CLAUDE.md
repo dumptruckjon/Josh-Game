@@ -4866,6 +4866,40 @@ fracture radius and still passes. "Four states, four readable pictures" is not
 something a pixel count can express, and a clause that cannot fail is worse than
 none.
 
+**THE SNAPSHOT ROLLBACK TOOK A WHOLE SESSION'S WORK MID-GATE, AND THE RECOVERY
+IS ONLY CHEAP BECAUSE THE PATCHES WERE PRINTED INTO THE CONVERSATION.** This
+file already records the mechanism (the writable disk is restored from a pinned
+image, so the repo and `/tmp` die together) and the rule (only a PUSH is
+durable). What this instance adds is the SHAPE of the damage and the drill.
+The clone came back at a commit **24 behind `origin/main`**, carrying **six
+uncommitted files that were not mine** — a much older session's work, including
+two files this session never touched — while `git status` read perfectly
+normally. A full `npm test` had just gone **840/840 green on a tree that no
+longer existed**, which is the worst possible signal: a verdict about nothing.
+**The drill, in order, and every step earned its place.** (1) **Do not trust the
+dirty files.** Verify before discarding: extract every substantive added line
+from `git diff` and `git grep` each one in `origin/main`. Here **170 of 171 were
+already upstream** and the one that was not turned out to be an export list that
+`origin/main` had a strict SUPERSET of — so the tree was provably superseded and
+nothing was lost by resetting. A sample is not enough; the one line that
+differed was in the last 30. (2) **Check what survived before re-deriving.**
+Grep the working tree for a marker from each change; here all six files came
+back clean, and the scratchpad had rolled back to the same date, so the patch
+scripts were gone too. (3) **Reset to `origin/main` and re-apply from the
+TRANSCRIPT**, which is the only store the restore cannot reach — this is the
+real argument for pasting patch bodies into the conversation rather than only
+into a scratch file. (4) **Re-verify targeted before re-running the 25-minute
+gate**, so a faithful re-application is confirmed in a minute rather than
+assumed. (5) **Check the remote is where you think it is**: CI run #410 on
+`origin/main` was green, which is what established that the ONLY unshipped work
+was the part being re-applied.
+Two corollaries. **A local commit is not a backup here** — the restore replaces
+the whole `.git` — so the exposure window is "gate start" to "push landed", and
+the right response is to push the moment it goes green rather than batching a
+report first. And **the SessionStart hook cannot save this image**: it heals a
+clone that is strictly BEHIND with a CLEAN tree, and the restored snapshot is
+behind AND dirty, which it correctly refuses to touch.
+
 ---
 
 ## Repository Structure
