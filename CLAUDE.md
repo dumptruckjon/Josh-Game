@@ -5014,6 +5014,16 @@ two differ by however far the canvas is inset, and that is not a rounding error:
 108 at 768.** So every span was judged at a place the pill would not land. This
 engine's two-coordinate-space trap — recorded six times in the ENGINE — showing
 up in the LAYOUT layer.
+**And the fix already existed, twenty lines away, for the OTHER thing that floats
+over the field.** `showBubble`'s clamp was corrected for exactly this in an
+earlier pass and its comment states the identical measurement — *"at 768 the
+canvas is 504px inside a 720px wrap and sits 108px in … a tier-3 panel overhung
+the field's right edge by 80px at 768 and 73px at 834"* — so the panel prefers
+the FIELD's box and falls back to the wrap only when it cannot fit. The pill's
+anchor is the sibling nobody asked about, which is this project's most repeated
+shape: a fix recorded as a one-off instead of asked *what else has this?* When a
+comment in one function names a layout inset in pixels, grep for every other
+element positioned in the same parent.
 Scoring in the space the pill is actually positioned in takes the measured
 budgets to **390: 1 (unchanged) · 320: 7 → 3 · narrow landscape: 1 (unchanged) ·
 768 and 834: 0** — a real improvement exactly where the pill has least room to
