@@ -5248,6 +5248,45 @@ things about everything. One fixture note: the first cut opened the guide with
 `Cannot read properties of null`, which reads like a broken feature rather than a
 broken probe.
 
+**FOUR IN-GAME CUES WERE PROPOSED, MEASURED AND REJECTED IN ONE PASS — recorded
+because each one is the obvious next idea and each has a number against it.**
+(1) **"This body is past every gun" cannot fire on a board worth playing.** The
+engine knows the furthest lane point any tower covers, so a body beyond it can
+never be hit again — which sounds like the perfect in-wave cue, and is the one
+moment a 130🪙 🧨 earns its price. Driven headless over four boss finales × 8
+waves on a full tier-3 board: **0 of 2964 sampled frames had a single unhittable
+body.** The maps' pads genuinely hug the whole lane, exactly as the wave
+generator's own comment claims, so the state effectively does not arise once you
+have built. Its proxy measures the same way from the other side: the lane beyond
+the last gun is **5.8% at full build (3 of 40 levels above 20%) and 30.1% on a
+3-tower board (16 of 40 above 20%)** — so a lane TINT would be loud at wave 1,
+when it tells you only that you have built two towers, and silent afterwards.
+The spread runs smoothly from 0% to 49% with no separation anywhere, so any
+threshold would be invented. (2) **A board-level "% road" total is decoration.**
+The per-pad figure is deliberately a stable property of the PAD, comparable
+across a level; an aggregate would read 60-95% for the whole run with no decision
+attached, which is the ever-present badge this project already refuses. Measured
+alongside it: a pad's own figure is a fair proxy for what it ADDS to the board —
+mean delta/solo **0.831** on a half-built board — though 10 of 72 pads add under
+half what they read and 4 add under a fifth (worst: a pad reading 7% that adds
+0%). Not enough to trade a stable number for a board-dependent one that moves
+whenever you build elsewhere. (3) **A per-LINE build ghost is hidden at the
+moment it would matter.** The ring drawn when you tap an empty pad is a tier-1
+DART's, which understates the mortar by a whole cell — the same
+ring-that-lies class just fixed for built towers. But screenshotting it shows the
+build MENU sits over the pad it belongs to, so a line-specific ring would be
+occluded exactly when you are choosing; and each card already carries its own
+honest `% road`. (4) **The refusal surface is COMPLETE.** Enumerating every
+`{ ok: false, reason }` the engine can return gives 20 reasons; 13 are
+unreachable from the UI by construction (a built pad opens the tower panel rather
+than the build menu, the lever button only exists on fork levels, the strip only
+shows equipped powers, an outcome overlay covers the field), and every one of the
+seven a player can actually hit names itself on screen. One scan note, for the
+umpteenth time: the first sweep searched for `"reason"` as a quoted string and
+reported `full` and `charge` as unexplained — they are keys in the ⚙️ button's
+own `why` map, written `full:` without quotes. **A scan's own pattern is part of
+the scan**, and this one flagged working code until it matched object keys too.
+
 ---
 
 ## Repository Structure
