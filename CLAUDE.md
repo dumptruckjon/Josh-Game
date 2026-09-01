@@ -5042,6 +5042,19 @@ measures IDENTICAL at every shipped width, so a mutation swapping them passes �
 it is the expression that stays correct if the canvas ever stops being centred,
 not a distinction any clause can fail on. Saying which half is vacuous beats
 implying two protections where there is one.
+**The four body cues were then checked under simulated colour blindness, and the
+result is clean for the reason the design intended.** The roster's own CVD sweep
+already concluded that hue was never doing the separating work and the silhouette
+law was; the same question applies to four state marks that sit ON the bodies.
+Measured with LMS simulation over deuteranopia, protanopia and tritanopia, the
+CLOSEST pair (strip vs brittle) moves 262 → 254 changed pixels and the faintest
+cue against a plain body (strip) 116 → 106 — i.e. at most a 9% loss, because a
+filled disc, a broken ring AROUND, fractures ON and a chevron trail BEHIND are
+four different SHAPES rather than four hues. **No guardrail was added, and that
+is the point of measuring rather than asserting**: the shipped clauses already
+require each cue to clear 120 under normal vision, CVD costs under a tenth of
+that, so a CVD clause would fire on exactly the same mutations and is the
+near-duplicate this project calls noise rather than coverage.
 
 ---
 
