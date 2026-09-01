@@ -620,7 +620,7 @@
     // The power strip is wave-only, so a wave ending must DISARM — otherwise a
     // half-armed power survives into the build phase (where its strip is hidden)
     // and silently eats the first pad tap. Same class as the stale rally arm.
-    if (st.phase !== "wave" && cur.abilArmId) { cur.abilArmId = null; UI.abilityHint(""); }
+    if (st.phase !== "wave" && cur.abilArmId) { cur.abilArmId = null; UI.abilityHint(""); cur.render.setAimPreview(null); }
     // …and the MIRROR of it: a wave STARTING must close the tower panel / build
     // menu. That bubble is absolutely positioned over the field with
     // pointer-events: auto, so left open it both hides and BLOCKS TAPS on a
@@ -1195,6 +1195,7 @@
       if (score >= 20) earnAch("marathoner"); // earnAch de-dupes + persists
     }
     cur.rallyArmId = 0; cur.abilArmId = null; cur.selPadId = null; cur.selTowerId = null;
+    cur.render.setAimPreview(null);   // a half-aimed blast must not survive a leave
     if (cur.render) cur.render.setSelection(null);
   }
 
@@ -1438,6 +1439,30 @@
     return ((DATA.TARGETING || {})[mode] || {}).name || mode;
   }
 
+  // 🧨 While a POINT power is armed and a finger is down, show where the blast
+  // will land and how big it will be. Deliberately additive: the power still
+  // fires on CLICK exactly as before, so this changes nothing about WHEN a tap
+  // resolves — press and release on one spot is the same tap it always was, and
+  // the toddler-chaos guardrails drive `el.click()`, which dispatches no pointer
+  // events at all. A drag simply moves the ring before you let go.
+  // The radius comes from the ENGINE (abilityRadiusOf), never from
+  // DATA.ABILITIES: 💣 Wider Blast moves it, and a ring the engine will not
+  // honour is worse than no ring — the sell-refund defect with a radius instead
+  // of a price. A tower or instant power returns 0 and so shows nothing, which
+  // is how the caller knows there is nothing to aim.
+  function fieldAim(ev) {
+    if (!cur || !cur.abilArmId) return;
+    const r = cur.engine.abilityRadiusOf(cur.abilArmId);
+    if (!r) return;                       // instant / tower power: nothing to aim
+    const rect = UI.canvas.getBoundingClientRect();
+    const w = cur.render.screenToWorld(ev.clientX - rect.left, ev.clientY - rect.top);
+    // screenToWorld gives WORLD units and the engine measures in CELL-INDEX
+    // space — the same -0.5 the point-ability tap applies, so the ring is drawn
+    // exactly where the blast will be centred rather than 0.7 cells down-right.
+    cur.render.setAimPreview({ x: w.x - 0.5, y: w.y - 0.5, r });
+  }
+  function fieldAimEnd() { if (cur) cur.render.setAimPreview(null); }
+
   function fieldTap(ev) {
     if (!cur) return;
     const rect = UI.canvas.getBoundingClientRect();
@@ -1467,7 +1492,8 @@
         // the finger and an enemy visibly inside the puddle isn't slowed.
         r = cur.engine.useAbility(id, { x: gx - 0.5, y: gy - 0.5 });
       }
-      UI.hideBubble(); cur.render.setSelection(null);
+      // the blast has landed, so the ring it was aimed with goes with it
+      UI.hideBubble(); cur.render.setSelection(null); cur.render.setAimPreview(null);
       if (r.ok) { sfx(id === "drop" ? "splash" : "build"); UI.hud(cur.engine.state); UI.abilityHint(""); }
       else { sfx("deny"); UI.abilityHint(abilityWhy(r.reason, def)); }
       UI.abilities(cur.engine.state, null);
@@ -1959,7 +1985,7 @@
       }
       UI.hud(cur.engine.state);
     },
-    fieldTap,
+    fieldTap, fieldAim, fieldAimEnd,
     // TD-5 meta screens (opened from the fort home)
     openTree: () => UI.showStarTree(save, (newMeta, newLoadout) => {
       save.meta = newMeta;

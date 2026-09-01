@@ -4951,6 +4951,45 @@ targeting audit), and the RENDER half asserts the line follows whatever
 been measuring a tick; a single test that set `targetId` and looked at pixels
 cannot see the producer break. Two clauses, one chain.
 
+**THE MOST EXPENSIVE CONTROL IN THE GAME PREVIEWED NOTHING — and the engine's own
+comment had been describing the missing feature all along.** Every other armed or
+aimed control in the fort shows its reach: a selected camp draws its rally range,
+a build ghost draws the tower's. 🧨 Toy Box Drop costs 130 gold, two ⚙️ and a
+cooldown, lands a 2.4-cell blast, and drew **nothing** — the renderer had ZERO
+references to an armed ability, so a point power was aimed from a number in the
+Toybox Guide. `abilityRadius()`'s own comment says it is read once "so the blast,
+the reveal, the puddle **and the ring the player sees**" agree; there was no ring.
+**When a comment describes a thing you cannot find, check whether it was ever
+built.**
+**Additive by construction, which is what makes it safe.** The power still fires
+on `click` exactly as before — the ring is a SEPARATE `pointerdown` /
+`pointermove` / `pointerup` listener that only draws. Nothing about WHEN a tap
+resolves changed, a plain tap is still a plain tap, and the toddler-chaos
+guardrails drive `el.click()`, which dispatches no pointer events at all, so they
+are untouched. The radius is asked of the engine (`abilityRadiusOf`) and never
+read from `DATA.ABILITIES`, because 💣 Wider Blast moves it and a ring the engine
+will not honour is worse than no ring — the sell-refund defect with a radius
+instead of a price, and its mutation reports `drew 2.4, engine says 3`.
+**Two of six mutations PASSED, and each named a clause testing a NEIGHBOURING
+branch under this one's name.** (1) *"The ring goes when the finger does"*
+survived deleting every `pointerup`/`cancel`/`leave` listener — because resolving
+the power CLEARS the ring itself, so the clause only ever exercised the FIRE
+path. Those listeners exist for the ABORT path: press, change your mind, release
+OFF the field, where no click lands and nothing else can clean up. The separating
+input is a drag that leaves the canvas. (2) *"An instant power draws no ring"*
+survived deleting the radius guard — because 📣 Rally Horn is INSTANT: its tile
+fires on the spot and never arms, so `abilArmId` stays null and the guard is
+never reached. Measured, three of four tiles arm (`drop`, `sticky`, `overclock`)
+and the horn does not, so ⚡ **Overclock** — which arms, waits for a TOWER tap and
+has no radius — is the one input that reaches the guard with nothing to draw.
+**And the screenshot lied three times before it told the truth**, which nearly
+became a bug hunt: the ring measured **13,663 changed pixels** in a canvas diff
+while three successive screenshots showed empty floor. The cause was my CROP, not
+the feature — in portrait the floor is rotated, so `screen_y = world_x × cell`,
+and a ring parked at world x=20 sits 540px down a canvas I was cropping at 400.
+**When a pixel diff and a screenshot disagree, believe the diff and check the
+crop.**
+
 ---
 
 ## Repository Structure

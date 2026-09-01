@@ -10652,6 +10652,142 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
 
 });
 
+test("QoL: an armed blast shows WHERE it will land and HOW BIG", async () => {
+  // Every other armed or aimed control in the fort previews its reach — a
+  // selected camp draws its rally range, a build ghost draws the tower's — and
+  // the one that costs the most (130 gold, two ⚙️ and a cooldown) drew nothing,
+  // so a point power was aimed from a number in the Toybox Guide. The renderer
+  // had ZERO references to an armed ability. The engine's own abilityRadius()
+  // comment already said "the ring the player sees", written for a ring that did
+  // not exist.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  // 1. Driven through REAL pointer events, because a scan proves a call site
+  //    exists and only driving it proves the call does anything — and this
+  //    feature IS its input wiring.
+  const live = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });
+    window.__TD.grantGold(9999);
+    window.__TD.script([["call"]]);
+    document.querySelector('#screen-td-play [data-abil="drop"]').click();
+    return !!document.querySelector('#screen-td-play [data-abil="drop"]');
+  });
+  assert.ok(live, "fixture: the 🧨 power tile must exist to arm");
+  const rect = await page.locator("#screen-td-play .td-canvas").boundingBox();
+  const ring = () => page.evaluate(() => window.__TD.render().aimPreviewInfo());
+  assert.equal(await ring(), null, "arming alone shows nothing — there is no finger yet");
+  await page.mouse.move(rect.x + rect.width * 0.4, rect.y + rect.height * 0.3);
+  await page.mouse.down();
+  const down = await ring();
+  assert.ok(down && down.r > 0, `pressing with a power armed must show the blast (got ${JSON.stringify(down)})`);
+  await page.mouse.move(rect.x + rect.width * 0.7, rect.y + rect.height * 0.6);
+  const moved = await ring();
+  assert.ok(moved && (moved.x !== down.x || moved.y !== down.y),
+    "the ring must follow the finger, or it is a decoration rather than an aim");
+  await page.mouse.up();
+  assert.equal(await ring(), null,
+    "the ring must go when the finger does — a preview that outlives its press is the stale-.win-hero class");
+
+  // …and the clause above passes on the FIRE path alone, because resolving the
+  // power clears the ring itself. The pointerup/cancel/leave listeners exist for
+  // the ABORT path: press, change your mind, release OFF the field. There is no
+  // click on the canvas then, so nothing else can clean up — measured, removing
+  // those listeners leaves the ring on screen for ever.
+  await page.evaluate(() => {
+    document.querySelector('#screen-td-play [data-abil="drop"]').click();
+  });
+  await page.mouse.move(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+  await page.mouse.down();
+  assert.ok(await ring(), "fixture: the ring must be up before the abort can be observed");
+  await page.mouse.move(rect.x + rect.width * 0.5, rect.y - 40);   // drag off the field
+  await page.mouse.up();
+  assert.equal(await ring(), null,
+    "a press abandoned OFF the field must take its ring with it — no click lands, so nothing else clears it");
+
+  // 2. The radius comes from the ENGINE. 💣 Wider Blast moves it, so a UI that
+  //    read DATA.ABILITIES would draw a circle the engine will not honour —
+  //    the sell-refund defect with a radius instead of a price. Two runs,
+  //    because comparing the ring against the same accessor it was fed FLATTENS:
+  //    the clause that cannot flatten is that owning the node makes it bigger.
+  const radii = await page.evaluate(async () => {
+    const arm = () => {
+      window.__TD.grantGold(9999);
+      window.__TD.script([["call"]]);
+      document.querySelector('#screen-td-play [data-abil="drop"]').click();
+    };
+    const out = {};
+    window.__TD.newGame(1, { seed: 7 });
+    arm();
+    out.engineBase = window.__TD.engine().abilityRadiusOf("drop");
+    window.__TD.newGame(1, { seed: 7, meta: ["widerblast"] });
+    arm();
+    out.engineWide = window.__TD.engine().abilityRadiusOf("drop");
+    return out;
+  });
+  assert.ok(radii.engineWide > radii.engineBase,
+    `fixture: 💣 Wider Blast must actually move the radius (${radii.engineBase} vs ${radii.engineWide})`);
+  // …and the ring drawn for that run must carry the widened number, not the base.
+  await page.mouse.move(rect.x + rect.width * 0.4, rect.y + rect.height * 0.3);
+  await page.mouse.down();
+  const wide = await ring();
+  await page.mouse.up();
+  assert.ok(wide && Math.abs(wide.r - radii.engineWide) < 0.001,
+    `the ring must be the ENGINE's radius for THIS run (drew ${wide && wide.r}, engine says ${radii.engineWide})`);
+
+  // 3. A power with nothing to aim shows nothing — and the separating input is
+  //    ⚡ Overclock, not 📣 Rally Horn. The horn is INSTANT: its tile fires it on
+  //    the spot and never arms, so `abilArmId` stays null and the radius guard
+  //    is never reached, which makes a horn-based clause a test of a different
+  //    branch wearing this one's name (measured: the mutation that removes the
+  //    guard passes against the horn and fails against Overclock). Overclock
+  //    arms and waits for you to tap a TOWER, so it is the case that reaches the
+  //    guard with nothing to draw.
+  const towerKind = await page.evaluate(async () => {
+    window.__TD.newGame(1, { seed: 7 });
+    window.__TD.grantGold(9999);
+    window.__TD.script([["call"]]);
+    const b = document.querySelector('#screen-td-play [data-abil="overclock"]');
+    if (!b) return { err: "no overclock tile" };
+    b.click();
+    return { armed: !!document.querySelector(".td-abil--armed"),
+      radius: window.__TD.engine().abilityRadiusOf("overclock") };
+  });
+  assert.ok(towerKind.armed, "fixture: ⚡ Overclock must ARM and wait, or it cannot reach the radius guard");
+  assert.equal(towerKind.radius, 0, `a tower-aimed power has no radius (got ${towerKind.radius})`);
+  await page.mouse.move(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+  await page.mouse.down();
+  const none = await ring();
+  await page.mouse.up();
+  assert.equal(none, null, "a power with no radius must draw no aiming ring");
+
+  // 4. And it PAINTS — the hook could report a ring nothing renders.
+  const px = await page.evaluate(() => {
+    window.__TD.newGame(1, { seed: 7 });
+    const st = window.__TD.state(), r = window.__TD.render();
+    r.resize(); st.enemies.length = 0;
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c = canvas.getContext("2d");
+    const shot = () => { for (let i = 0; i < 40; i++) r.draw(0);
+      return c.getImageData(0, 0, canvas.width, canvas.height).data; };
+    const diff = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4)
+      if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) n++; return n; };
+    r.setAimPreview(null); const off = shot();
+    r.setAimPreview(null); const ctrl = shot();
+    r.setAimPreview({ x: 7, y: 7, r: 2.4 }); const on = shot();
+    r.setAimPreview({ x: 7, y: 7, r: 1.0 }); const small = shot();
+    r.setAimPreview(null);
+    return { control: diff(off, ctrl), paints: diff(off, on), sizeMatters: diff(on, small) };
+  });
+  assert.equal(px.control, 0, `fixture: two identical draws must match (${px.control} px)`);
+  assert.ok(px.paints > 500, `the aiming ring must actually paint (only ${px.paints} px changed)`);
+  assert.ok(px.sizeMatters > 500,
+    `the ring must be drawn at the radius it was given, not a fixed size (only ${px.sizeMatters} px between r=2.4 and r=1.0)`);
+
+  await page.evaluate(() => window.__TD.resetSave());
+  await page.waitForTimeout(60);
+});
+
 test("QoL: the field says how much of the wave is LEFT", async () => {
   // The number existed and was unreadable: 11.5px in the CALL button's meta
   // line, in the bottom corner, which is not where your eyes are while bodies

@@ -271,7 +271,24 @@
     UI.bubble = bubble;
 
     UI.canvas = play.querySelector(".td-canvas");
-    play.querySelector(".td-canvas").addEventListener("click", (ev) => hooks.fieldTap(ev));
+    const fieldEl = play.querySelector(".td-canvas");
+    fieldEl.addEventListener("click", (ev) => hooks.fieldTap(ev));
+    // 🧨 The aiming ring, and it is deliberately a SEPARATE listener from the
+    // one that fires: `click` still resolves an armed power exactly as before,
+    // so nothing about WHEN a tap lands has changed and the toddler-chaos
+    // guardrails (which drive `el.click()` and dispatch no pointer events) are
+    // untouched. Press shows the ring, drag moves it, release fires — and a
+    // plain tap is still a plain tap.
+    fieldEl.addEventListener("pointerdown", (ev) => hooks.fieldAim(ev));
+    fieldEl.addEventListener("pointermove", (ev) => { if (ev.buttons || ev.pointerType === "touch") hooks.fieldAim(ev); });
+    // Every way a press can END, or the ring outlives the finger — the
+    // stale-`.win-hero` class, which this project has now paid for twice. These
+    // matter on the ABORT path specifically: resolving the power clears the ring
+    // itself, so a press released OFF the field is the only case with no click
+    // to clean up after it.
+    for (const done of ["pointerup", "pointercancel", "pointerleave"]) {
+      fieldEl.addEventListener(done, () => hooks.fieldAimEnd());
+    }
   };
 
   // "Beaten" has exactly ONE definition — >= 1 star on that ladder — and both the

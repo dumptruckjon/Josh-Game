@@ -19,6 +19,10 @@
     const GRID = global.TDData.GRID;
     let cell = 16, dpr = 1, rotated = false, cssW = 0, cssH = 0;
     let selection = null; // {pad?, ghostRange?, tower?}
+    // {x, y, r} in CELL-INDEX space while a point power is armed and a finger is
+    // down. Transient aiming UI, never engine state, so it is a module local for
+    // the same reason `lastBuild` is: nothing about it belongs in a checkpoint.
+    let aimPreview = null;
     const fx = [];        // {kind, x, y, ttl, max, text?} (world coords)
     const prevPos = new Map();
     const prevProj = new Map();
@@ -3982,6 +3986,33 @@
           }
         }
       }
+      // 🧨 THE AIMING RING. Every other armed or aimed control in the fort
+      // previews its reach — a selected camp draws its rally range, a build
+      // ghost draws the tower's — and the one that costs the most (130 gold, two
+      // ⚙️ and a cooldown) drew nothing, so a point power was aimed from a
+      // number in the manual. The renderer had ZERO references to an armed
+      // ability. Drawn ON TOP, because the whole question it answers is which
+      // BODIES the blast will catch, and it must not hide them: a light fill and
+      // a dashed rim, not a disc. Amber against the range ring's blue, so "how
+      // far this gun reaches" and "where this blast will land" never read as the
+      // same statement.
+      if (aimPreview) {
+        const ap = worldToScreen(aimPreview.x + 0.5, aimPreview.y + 0.5);
+        const ar = aimPreview.r * cell;
+        ctx.save();
+        ctx.fillStyle = "rgba(255,196,90,0.16)";
+        ctx.beginPath(); ctx.arc(ap.x, ap.y, ar, 0, 7); ctx.fill();
+        ctx.strokeStyle = "rgba(255,196,90,0.95)";
+        ctx.lineWidth = Math.max(2, cell * 0.06);
+        ctx.setLineDash([cell * 0.22, cell * 0.15]);
+        ctx.beginPath(); ctx.arc(ap.x, ap.y, ar, 0, 7); ctx.stroke();
+        ctx.setLineDash([]);
+        // a crosshair dot, so a tiny radius still shows WHERE as well as how big
+        ctx.fillStyle = "rgba(255,196,90,0.95)";
+        ctx.beginPath(); ctx.arc(ap.x, ap.y, Math.max(2, cell * 0.07), 0, 7); ctx.fill();
+        ctx.restore();
+      }
+
       // enemy hp bars (upright). A boss draws at its `size` scale, so a bar
       // pinned 0.6 cells above the CENTRE was painted inside the body of every
       // boss in the game — exactly the enemy whose health you most need to read.
@@ -4010,6 +4041,12 @@
     return {
       draw, resize, pushFx, afterTick,
       setSelection: (s) => { selection = s; },
+      // The aiming ring for a point power. The caller passes the radius the
+      // ENGINE gave it — this never reaches into DATA, because 💣 Wider Blast
+      // moves the number and a ring the engine will not honour is worse than no
+      // ring at all.
+      setAimPreview: (a) => { aimPreview = a || null; },
+      aimPreviewInfo: () => (aimPreview ? { x: aimPreview.x, y: aimPreview.y, r: aimPreview.r } : null),
       setDamageNumbers: (on) => { showDmg = !!on; }, // TD-6 opt-in
       shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
       decorInfo: () => decorErrors.slice(), // test hook: what a decorative layer threw (see the catch in draw)

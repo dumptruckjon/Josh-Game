@@ -2331,6 +2331,18 @@
       maxLives, starGoal,
       callInfo: () => callInfo(), // what a CALL right now would pay, and whether it is allowed
       pullLever, useAbility, abilityReady: (id) => abilityReady(id),
+      // How big the blast WILL be, for the ring the player aims with. This is
+      // the same abilityRadius() the blast, the reveal and the puddle read —
+      // whose own comment already said "the ring the player sees", written for
+      // a ring that did not exist yet. It has to be asked rather than read off
+      // DATA.ABILITIES, because 💣 Wider Blast moves it and a UI that re-derives
+      // it draws a circle the engine will not honour: the sell-refund defect
+      // with a radius instead of a price. 0 for an instant or tower-aimed power,
+      // which is how the caller knows there is nothing to aim.
+      abilityRadiusOf: (id) => {
+        const def = (DATA.ABILITIES || []).find((a) => a.id === id);
+        return def ? abilityRadius(def) : 0;
+      },
       // TD-18: may this run build this line? The build menu asks the ENGINE
       // rather than re-deriving the ban from save + DATA (the price-flash law).
       lineAllowed: (id) => !chipLineBans.has(id),
