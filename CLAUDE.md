@@ -5056,6 +5056,58 @@ require each cue to clear 120 under normal vision, CVD costs under a tenth of
 that, so a CVD clause would fire on exactly the same mutations and is the
 near-duplicate this project calls noise rather than coverage.
 
+**THE RANGE RING DREW A SHAPE THE MORTAR DOES NOT HAVE — a filled DISC where the
+truth is an ANNULUS — and the honest figure printed two lines below it on the
+same panel was already computed from the very number the picture was missing.**
+The Mortar is the only line with a minimum range (1.5 cells at every tier and
+both branches; a derived guardrail already pinned that it declares one
+everywhere), and nothing on the field has ever drawn the hole under the tube.
+Measured across the campaign: **152 of 501 pads lose lane coverage to that dead
+zone, 15 of them lose ≥30% of what the disc implies, worst L15/p4 at 47%** —
+while `% road`, which sits on the same tower panel, is computed by
+`laneCoverage(levelDef, cx, cy, reach, dead)` and has always told the truth. So
+a player reading the number got 13% and a player reading the picture saw a solid
+blue disc over the lane. Two surfaces on one panel disagreeing is this project's
+most reliable tell, and this time the PICTURE was the wrong one. It is the
+recorded *"a ring that understates reach is worse than no ring — it IS the
+placement cue, and it was lying"* finding, one radius over and pointing the other
+way: this one overstated, which is the direction that costs you the tower.
+**The value existed and the ACCESSOR threw it away**, which is why no surface
+could ask for it: `reachInfo` has always returned `{ reach, dead }`, `coverageOf`
+reads both, and `towerReach`/`reachAt` each did `return r.reach` and dropped the
+other half. `towerDead` is the missing half of the same owner, never a second
+computation — the ask-the-engine law that already fixed the sell refund, the
+per-wave charge and the panel's own stat line. It also gives 🎯 **Close Quarters**
+its first visible effect anywhere: a 3⭐ node whose entire mechanic is shrinking
+this radius by 40%, previously invisible on the field.
+Three implementation notes. **The hole is a default-noop**: the tint is filled as
+one path with the outer arc clockwise and the inner anticlockwise, so non-zero
+winding punches it — and with `dead: 0` the second arc is never added and every
+other line's ring is byte-identical to the disc it replaces. **`setLineDash`
+mutates shared canvas state**, which is exactly how a decorative overlay once
+aborted the whole frame (the Tail Wind `w2s` slip), so the dashed inner rim is
+set inside a `save()`/`restore()` **and** cleared explicitly. And **the dead zone
+deliberately does NOT take the ⚡ pad boost or the 🧊 Tail Wind multiplier** —
+`reachInfo`'s own comment says the engine's mortar call passes `rangeMin` raw and
+wraps only the max, so scaling it here would make this surface disagree with the
+engine about the one thing it exists to report.
+Four testing notes. **`place` is `(lineId, padId)`** — the argument ORDER, not
+just the pad-id trap, and a swapped pair returns `{ ok: false }` leaving both
+towers `undefined`, which presents as a broken engine. **The metric is the ring's
+OWN CONTRIBUTION** — the same eight points drawn with the selection off and on,
+so the floor, the props and the tower sprite all cancel and only the tint is
+left; a raw sample would be reading the floor. **The bar is a measured
+SEPARATION, not a slack**: the shipped hole reads exactly 0 and the disc it
+replaces reads 292 at the same points. And **the control clause is what stops the
+claim passing vacuously** — a dart's ring must reach its own feet, or "the ring
+does not paint near a tower at all" would satisfy the hole clause; it is
+mutation-proven separately by giving every ring a hole, which reports
+`a dart has no dead zone, so its ring must reach its own feet (got 0)`. The
+engine clause asserts against DATA's raw `rangeMin` rather than against
+`mods.mortarMinMul`, because deriving the expectation from the mod under test is
+the flattening trap, and its non-flattening partner is that the ⭐ node must
+genuinely move the number.
+
 ---
 
 ## Repository Structure

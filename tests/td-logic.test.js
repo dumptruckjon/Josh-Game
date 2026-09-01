@@ -8341,3 +8341,64 @@ test("TD5 endless: the RAMP is the declared growth, not merely 'it gets harder'"
   }
   assert.equal(cfg.growth, orig, "the fixture restored the shipped growth");
 });
+
+
+test("the range ring's dead zone comes from the ENGINE, and 🎯 Close Quarters moves it", () => {
+  // The Mortar is the only line with a minimum range, and until now nothing on
+  // the field drew it: `drawRange` painted a filled DISC. Measured across the
+  // campaign, 152 of 501 pads lose lane coverage to that hole and 15 lose ≥30%
+  // of what the ring implies (worst L15/p4 at 47%) — while the `% road` figure
+  // on the SAME panel has always been honest about it, because it is computed
+  // from this very number. Two surfaces on one panel disagreeing is this
+  // project's most reliable tell, and the picture was the one that was wrong.
+  //
+  // `reachInfo` already computed it and BOTH accessors threw it away, so the
+  // renderer had nothing to ask. `towerDead` is the missing half of the reach
+  // owner — never a second computation, for the same reason the panel's prices
+  // read the engine.
+  const L1 = DATA.LEVELS[0];
+  const build = (meta) => {
+    const e = TD.createEngine(L1, { seed: 7, meta: meta || [] });
+    e.state.gold = 9999;
+    const pads = L1.pads;
+    assert.ok(e.place("mortar", pads[0].id).ok, "fixture: the mortar must build");
+    assert.ok(e.place("dart", pads[1].id).ok, "fixture: the dart must build");
+    const m = e.state.towers.find((t) => t.lineId === "mortar");
+    const d = e.state.towers.find((t) => t.lineId === "dart");
+    return { e, m, d };
+  };
+
+  // 1. Against the DATA, not against `mods` — deriving the expectation from
+  //    mortarMinMul is the flattening trap: neuter the mod and the expectation
+  //    neuters with it.
+  const raw = DATA.TOWERS.mortar.tiers[0].rangeMin;
+  assert.ok(raw > 0, "fixture: the shipped Mortar declares a dead zone at tier 1");
+  const plain = build([]);
+  assert.equal(plain.e.towerDead(plain.m.id), raw,
+    "a mortar with no meta reports exactly the dead zone its stat block declares");
+
+  // 2. The control. Only the Mortar has one, so every other line must report a
+  //    hole of ZERO — a ring that punched a hole in a dart would be the same
+  //    defect pointing the other way.
+  assert.equal(plain.e.towerDead(plain.d.id), 0,
+    "a dart has no dead zone, so its ring must stay a full disc");
+
+  // 3. …and the clause that cannot flatten: the ⭐ node whose entire effect is
+  //    this number must genuinely move it. 🎯 Close Quarters was previously
+  //    invisible on the field — you spent 3⭐ and nothing you could see changed.
+  const cq = build(["closequarters"]);
+  const shrunk = cq.e.towerDead(cq.m.id);
+  assert.ok(shrunk > 0 && shrunk < raw,
+    `🎯 Close Quarters must shrink the drawn dead zone (raw ${raw}, with the node ${shrunk})`);
+
+  // 4. The hole can never swallow the ring. `reachInfo` deliberately does NOT
+  //    scale the dead zone by a ⚡ power pad or 🧊 Tail Wind — the engine's own
+  //    mortar call passes rangeMin raw and wraps only the max — so the outer
+  //    radius can grow while the hole stands still, and the invariant that
+  //    matters is that an annulus is left to draw.
+  for (const t of plain.e.state.towers) {
+    const reach = plain.e.towerReach(t.id), dead = plain.e.towerDead(t.id);
+    if (reach == null) continue;
+    assert.ok(dead < reach, `${t.lineId}: the dead zone (${dead}) must stay inside the reach (${reach})`);
+  }
+});

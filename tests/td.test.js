@@ -12672,3 +12672,83 @@ test("a hostile save still boots and plays — every persisted field, wrong-type
   assert.deepEqual(bad, [],
     `a corrupt or hand-edited save must degrade, never crash — the fort has to boot AND play:\n  ${bad.join("\n  ")}`);
 });
+
+
+test("QoL: the range ring draws the mortar's DEAD ZONE, not a filled disc", async () => {
+  // The ring is the placement cue, and for the one line with a minimum range it
+  // was drawing a shape the gun does not have: a filled disc where the truth is
+  // an annulus with a hole under the tube. Measured over the campaign, 152 of
+  // 501 pads lose lane coverage to that hole and 15 lose ≥30% of what the disc
+  // implies (worst L15/p4, 47%) — and the `% road` figure printed on the SAME
+  // panel was already honest, because it is computed from the same number. The
+  // picture contradicted the figure beside it.
+  //
+  // Measured as the ring's OWN contribution: the identical pixels drawn with the
+  // selection off and on, so the lane, the props and the tower sprite all cancel
+  // and only the tint is left. (A raw sample would be reading the floor.)
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  const r = await page.evaluate(() => {
+    const R = () => window.__TD.render();
+    window.__TD.newGame(1, { seed: 7 });
+    window.__TD.grantGold(9999);
+    const e = window.__TD.engine();
+    const pads = e.levelDef.pads;
+    // `place` is (lineId, padId) — the argument ORDER is a fixture trap of the
+    // same family as the pad-id one; a swapped pair returns { ok:false }.
+    const built = [e.place("mortar", pads[0].id), e.place("dart", pads[1].id)];
+    const tM = e.state.towers.find((t) => t.lineId === "mortar");
+    const tD = e.state.towers.find((t) => t.lineId === "dart");
+    if (!tM || !tD) return { fixture: built };
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const c2 = cv.getContext("2d");
+    const sx = cv.width / cv.clientWidth, sy = cv.height / cv.clientHeight;
+    // Eight points on a circle at `cells` from the tower, mapped through the
+    // renderer's OWN transform — portrait rotates the floor, so recomputing the
+    // mapping here would be the two-coordinate-space trap in a test.
+    const ring = (t, cells) => {
+      const pts = [];
+      for (let k = 0; k < 8; k++) {
+        const a = (Math.PI / 4) * k;
+        pts.push(R().worldToScreen(t.cx + 0.5 + Math.cos(a) * cells, t.cy + 0.5 + Math.sin(a) * cells));
+      }
+      return pts;
+    };
+    const grab = (pts) => pts.map((p) => {
+      const d = c2.getImageData(Math.round(p.x * sx), Math.round(p.y * sy), 1, 1).data;
+      return [d[0], d[1], d[2]];
+    });
+    const delta = (a, b) => a.reduce((n, px, i) => n + Math.abs(px[0] - b[i][0]) + Math.abs(px[1] - b[i][1]) + Math.abs(px[2] - b[i][2]), 0);
+    const contribution = (t, cells) => {
+      const pts = ring(t, cells);
+      R().setSelection(null); R().draw(0); const off = grab(pts);
+      R().setSelection({ tower: t.id }); R().draw(0); const on = grab(pts);
+      R().setSelection(null); R().draw(0);
+      return delta(off, on);
+    };
+    return {
+      dead: e.towerDead(tM.id), reach: e.towerReach(tM.id), dartDead: e.towerDead(tD.id),
+      mortInner: contribution(tM, 1.0),   // inside the 1.5-cell hole
+      mortOuter: contribution(tM, 2.5),   // in the annulus the gun really covers
+      dartInner: contribution(tD, 1.0),   // control: no dead zone, so tinted
+    };
+  });
+  assert.ok(!r.fixture, `fixture: both towers must build (${JSON.stringify(r.fixture)})`);
+  // The fixture only means anything if the mortar really has a hole to draw and
+  // the sample points straddle it.
+  assert.ok(r.dead >= 1.2 && r.reach > 2.5,
+    `fixture: the mortar must carry a dead zone the samples straddle (dead ${r.dead}, reach ${r.reach})`);
+  assert.equal(r.dartDead, 0, "fixture: the dart is the control — it has no dead zone");
+
+  // The claim. Not a slack: the shipped hole measures EXACTLY 0 and the disc it
+  // replaced measures 292 at the same points, so the bar sits between two
+  // states rather than beside one of them.
+  assert.ok(r.mortOuter > 60,
+    `fixture: the ring must actually paint where the mortar can shoot (got ${r.mortOuter})`);
+  assert.ok(r.mortInner < 30,
+    `the ring must be a HOLE inside the mortar's dead zone — it cannot shoot there (contribution ${r.mortInner}, shipped 0, disc 292)`);
+  // …and the control, which is what stops the clause passing by the ring simply
+  // not painting near a tower at all.
+  assert.ok(r.dartInner > 60,
+    `a dart has no dead zone, so its ring must reach its own feet (got ${r.dartInner})`);
+});

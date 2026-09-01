@@ -2884,12 +2884,40 @@
       }
     }
 
-    function drawRange(cx, cy, range, ok) {
+    // `dead` is the Mortar's minimum range — the hole UNDER the tube it cannot
+    // shoot into. It used to be drawn as a filled disc, i.e. the ring claimed
+    // ground the gun cannot reach, on 152 of the campaign's 501 pads (worst:
+    // L15/p4, where the disc implies 47% more lane than the mortar actually
+    // covers). The `% road` figure on the same panel has always been honest
+    // about it — it is computed from this very number — so the picture and the
+    // figure beside it disagreed, which is this project's most reliable tell.
+    function drawRange(cx, cy, range, ok, dead) {
+      const px = (cx + 0.5) * cell, py = (cy + 0.5) * cell;
+      const hole = Math.max(0, Math.min(dead || 0, range)) * cell;
+      ctx.save();
       ctx.fillStyle = ok ? "rgba(110,200,255,0.10)" : "rgba(255,120,120,0.10)";
       ctx.strokeStyle = ok ? "rgba(110,200,255,0.55)" : "rgba(255,120,120,0.55)";
       ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc((cx + 0.5) * cell, (cy + 0.5) * cell, range * cell, 0, 7);
-      ctx.fill(); ctx.stroke();
+      // The tint fills an ANNULUS: outer arc clockwise, inner arc anticlockwise,
+      // so non-zero winding punches the hole. With dead = 0 the second arc is
+      // never added and this is byte-identical to the disc it replaces.
+      ctx.beginPath();
+      ctx.arc(px, py, range * cell, 0, 7);
+      if (hole > 0) ctx.arc(px, py, hole, 0, 7, true);
+      ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, range * cell, 0, 7); ctx.stroke();
+      if (hole > 0) {
+        // The inner rim is DASHED and warm — the same "you cannot act here"
+        // language the refused states already use — so the hole reads as a rule
+        // rather than as a gap in the drawing. setLineDash mutates shared canvas
+        // state, which is exactly how a decorative overlay once aborted the
+        // whole frame, so it is set inside a save/restore and cleared anyway.
+        ctx.setLineDash([Math.max(3, cell * 0.16), Math.max(3, cell * 0.12)]);
+        ctx.strokeStyle = "rgba(255,140,110,0.85)";
+        ctx.beginPath(); ctx.arc(px, py, hole, 0, 7); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
     }
 
     // EVERY fx coordinate is stored in SPRITE space (cell centres), because that
@@ -3555,7 +3583,10 @@
           const ring = t.lineId === "camp"
             ? global.TDData.TOWERS.camp.rallyRange   // a Camp posts soldiers; it does not shoot
             : engine.towerReach(t.id);
-          if (ring) drawRange(t.cx, t.cy, ring, true);
+          // The dead zone comes from the same reach owner, for the same reason:
+          // 🎯 Close Quarters shrinks it by 40% and a hole the engine will not
+          // honour is as wrong as a radius it will not honour.
+          if (ring) drawRange(t.cx, t.cy, ring, true, engine.towerDead ? engine.towerDead(t.id) : 0);
         }
       }
       drawWorldFx();

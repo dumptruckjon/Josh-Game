@@ -1712,6 +1712,20 @@
       const r = reachInfo(statOf(t.lineId, t.tier, t.branch), t.cx, t.cy, t.supRange);
       return r ? r.reach : null;
     }
+    // …and the INNER radius the same reach owner already computes and both
+    // accessors used to throw away. The Mortar is the only line with a dead
+    // zone (a derived guardrail asserts it declares one at every tier and both
+    // branches), 🎯 Close Quarters shrinks it, and until now nothing on the
+    // field drew it: the range ring painted a filled DISC where the real shape
+    // is an ANNULUS. Same class as the ring understating reach — a ring that
+    // lies is worse than no ring, because it IS the placement cue — except this
+    // one lied in the direction that costs you the tower.
+    function towerDead(towerId) {
+      const t = state.towers.find((x) => x.id === towerId);
+      if (!t) return 0;
+      const r = reachInfo(statOf(t.lineId, t.tier, t.branch), t.cx, t.cy, t.supRange);
+      return r ? r.dead : 0;
+    }
     // The stat block a built tower ACTUALLY fights with — its tier/branch stats
     // with this run's meta and this level applied. The tower panel prints these.
     //
@@ -2315,7 +2329,7 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, undoLast, undoInfo, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, towerStats, reachAt,
+      state, events, tick, place, upgrade, branch, sell, undoLast, undoInfo, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, towerDead, towerStats, reachAt,
       applyStrip, // 🎯 exposed like isHidden/dealDamage: a guardrail must drive the seam, not infer it
       chargePrice, buyCharge, buyChargeReady,
       // What THIS run banks per wave sent. 🔋 Spare Battery adds to it, so a UI
