@@ -5000,6 +5000,39 @@ silently). The mutation that matters is the one the hand list could never
 catch: restricting the ring to `drop` alone leaves 🧨 and ⚡ both correct and is
 caught on **🍯 Sticky**.
 
+**A VISUAL PASS AT A SIZE NOTHING LOOKS AT FOUND THE ANCHOR SCORING POSITIONS
+THE PILL NEVER TAKES — at every width, and worst on the narrowest phone.** The
+fort's battlefield had been screenshotted at 390 and 320; TABLET portrait had
+only ever been reached by NUMBER audits (the portrait law, the pad-burial
+sweep). Looking at it found nothing wrong with the picture — all four body-state
+cues, the aim line and the aiming ring render correctly at cell 39, no overflow,
+no page errors at 390 / 768 / 834 / 1024x768 — but measuring the pill's box did.
+`UI.anchorPreview` computes its three candidate SPANS from `cv.clientWidth`,
+while the CSS positions the pill against its offsetParent, the canvas WRAP. The
+two differ by however far the canvas is inset, and that is not a rounding error:
+**48px at 320 (21% of a 224px field), 36 in a narrow landscape, 87 at 834 and
+108 at 768.** So every span was judged at a place the pill would not land. This
+engine's two-coordinate-space trap — recorded six times in the ENGINE — showing
+up in the LAYOUT layer.
+Scoring in the space the pill is actually positioned in takes the measured
+budgets to **390: 1 (unchanged) · 320: 7 → 3 · narrow landscape: 1 (unchanged) ·
+768 and 834: 0** — a real improvement exactly where the pill has least room to
+move, and no regression anywhere. The mutation that restores canvas-space
+scoring reports the old seven maps by name.
+Three things worth keeping. **The tablet sizes EARN their place in that test by
+the rule that rejected two landscape sizes from it**: a size is only worth
+pinning if it can SEPARATE the two states, and fixed-centre vs anchored measures
+9 vs 0 at 768 — a wider gap than the phone's 10 vs 1 — because the cell grows
+with the viewport, so the pill covers more lane at the centre and has more room
+to dodge to. **A clean visual result is still a result**: the pass is written up
+even though the picture was fine, because that closes the question rather than
+leaving it to be re-asked. And **one half of the fix is deliberately unproven and
+says so in the comment**: `cv.offsetLeft` versus assuming the canvas is centred
+measures IDENTICAL at every shipped width, so a mutation swapping them passes —
+it is the expression that stays correct if the canvas ever stops being centred,
+not a distinction any clause can fail on. Saying which half is vacuous beats
+implying two protections where there is one.
+
 ---
 
 ## Repository Structure

@@ -10625,14 +10625,18 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
     `at 390px the pill must dodge the lanes on all but the one map that cannot (covered on L${hit.join(", L")})`);
 
   // 320: the pill is ~47% of the canvas here, so there is far less room to move
-  // — measured 12 of 40 before the narrow-width shrink and 7 after. Pinned at
-  // the measured value so a wider pill, or a new map, cannot quietly regress it.
+  // — measured 12 of 40 before the narrow-width shrink, then 7, and 3 once the
+  // anchor was scored in the space the pill is POSITIONED in rather than the
+  // canvas's. This is the width where that mattered most: the canvas is inset
+  // 48px inside the wrap here, which is 21% of a 224px field, so every span was
+  // being judged at a place the pill would not land. Pinned at the measured
+  // value so a wider pill, or a new map, cannot quietly regress it.
   await page.setViewportSize({ width: 320, height: 568 });
   await page.waitForTimeout(150);
   rows = await measure();
   hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
-  assert.ok(hit.length <= 7,
-    `at 320px the pill covers a lane on ${hit.length} maps, over the measured budget of 7 (L${hit.join(", L")})`);
+  assert.ok(hit.length <= 3,
+    `at 320px the pill covers a lane on ${hit.length} maps, over the measured budget of 3 (L${hit.join(", L")})`);
 
   // LANDSCAPE, and the SIZE is the test. The renderer rotates the floor 90° for
   // portrait, so every lane moves on screen and the anchor is re-derived from
@@ -10647,6 +10651,22 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
   hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
   assert.ok(hit.length <= 1,
     `in a narrow landscape the pill covers a lane on ${hit.length} maps, over the measured budget of 1 (L${hit.join(", L")})`);
+
+  // TABLET PORTRAIT, and it earns its place by the same rule the two dead
+  // landscape sizes above were REJECTED under: it has to SEPARATE the two
+  // states. Measured at 768x1024, fixed-centre vs anchored is 9 vs 0 — a wider
+  // gap than the phone's 10 vs 1 — because the cell grows with the viewport, so
+  // the pill covers more lane at the centre and has more room to dodge to. The
+  // aspect also relocates every lane on screen (the renderer rotates the floor
+  // in portrait and derives the cell from the viewport), so a budget proven at
+  // three phone shapes says nothing about a fourth aspect.
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.waitForTimeout(150);
+  rows = await measure();
+  assert.ok(rows.length >= 40, `fixture: every level must show a preview at tablet size (saw ${rows.length})`);
+  hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
+  assert.equal(hit.length, 0,
+    `on a tablet the pill must clear every lane — it has the whole margin beside a height-limited board to dodge into (covered on L${hit.join(", L")})`);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(150);
 

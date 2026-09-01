@@ -1890,15 +1890,30 @@
     if (!pts.length || !cv || !cv.clientWidth) return "center";
     const w = nw.offsetWidth, cw = cv.clientWidth;
     if (!w || w >= cw - 16) return "center";
+    // Score in the space the pill is actually POSITIONED in. The CSS places it
+    // against its offsetParent (the canvas WRAP) while the lane points arrive in
+    // CANVAS coordinates, and the two differ by however far the canvas is inset:
+    // measured 48px at 320, 36 in a narrow landscape and 87-108 on a tablet, so
+    // every span here was being scored at a position the pill would not take.
+    // This engine's two-coordinate-space trap, in the layout layer.
+    // `cv.offsetLeft` is read rather than `(boxW - cw) / 2` assumed, and that
+    // half is DELIBERATELY unproven: the canvas is centred in the wrap at every
+    // shipped width, so a mutation swapping one for the other passes. It is the
+    // cheaper of two equal expressions to keep correct if the canvas ever stops
+    // being centred, not a distinction any clause below can fail on. What IS
+    // proven is the space itself — scoring in canvas coordinates reports 7 maps
+    // at 320 against this one's 3.
+    const boxW = nw.offsetParent ? nw.offsetParent.clientWidth : cw;
+    const dx = cv.offsetLeft;
     const top = nw.offsetTop, bot = top + nw.offsetHeight;
     const band = pts.filter((q) => q.y >= top - 14 && q.y <= bot + 14);
     if (!band.length) return "center";
-    const spans = { left: [8, 8 + w], center: [(cw - w) / 2, (cw + w) / 2], right: [cw - w - 8, cw - 8] };
+    const spans = { left: [8, 8 + w], center: [(boxW - w) / 2, (boxW + w) / 2], right: [boxW - w - 8, boxW - 8] };
     let best = "center", bestGap = -1;
     for (const k of ["center", "left", "right"]) {
       const [a, b] = spans[k];
       let gap = Infinity;
-      for (const q of band) gap = Math.min(gap, Math.max(a - q.x, 0, q.x - b));
+      for (const q of band) { const qx = q.x + dx; gap = Math.min(gap, Math.max(a - qx, 0, qx - b)); }
       if (gap > bestGap) { bestGap = gap; best = k; }
     }
     if (best !== "center") nw.classList.add("td-nextwave--" + best);
