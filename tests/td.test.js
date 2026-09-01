@@ -8754,6 +8754,80 @@ test("UX: a price is the ENGINE's, and its colour is right on the FIRST paint", 
     "otherwise this test cannot tell a DATA-derived price from an engine-derived one");
 });
 
+test("the guide's tower lines DERIVE what they cannot do — air, and the dead zone", async () => {
+  // Two facts on one sentence, and both were wrong in a different way.
+  //
+  // "cannot hit fliers" was a hand-written line list — `k === "mortar" || k ===
+  // "camp"` — while `hitsFliers` is a real data field that `reachedBy` already
+  // derives from, so a fifth line would have been silently promised air it
+  // cannot reach. That is the population-by-hand failure this project pays for
+  // more often than any other.
+  //
+  // The DEAD ZONE was simply missing. It is the one structural fact behind the
+  // documented mortar-mono loss (a tube cannot fire at what is under it), the
+  // range ring now draws that hole, and the only place it had EVER been stated
+  // was 🤏 Close Quarters' description inside a star tree you may never open —
+  // a picture the player cannot decode is the ⚙️ mistake again.
+  await page.evaluate(() => { location.hash = "#td-home"; });
+  await page.locator("#screen-td-home").waitFor({ state: "visible" });
+
+  const read = () => page.evaluate(() => {
+    document.querySelector("#screen-td-home .td-guide-open").click();
+    const out = {};
+    for (const li of document.querySelectorAll(".td-guide__towers li")) {
+      const b = li.querySelector("b");
+      if (b) out[b.textContent.trim()] = li.textContent.replace(/\s+/g, " ").trim();
+    }
+    const close = document.querySelector(".td-overlay .td-overlay__x, .td-overlay button");
+    if (close) close.click();
+    return out;
+  });
+
+  const D = await page.evaluate(() => {
+    const T = window.TDData.TOWERS;
+    return Object.keys(T).map((k) => ({ k, name: T[k].name, air: !!T[k].hitsFliers, dead: T[k].tiers[0].rangeMin || 0 }));
+  });
+  const mortar = D.find((d) => d.k === "mortar"), dart = D.find((d) => d.k === "dart");
+  assert.ok(mortar.dead > 0 && dart.dead === 0 && dart.air && !mortar.air,
+    "fixture: the shipped data must separate the two cases (mortar: dead zone, no air; dart: neither)");
+
+  const rows = await read();
+  assert.ok(rows[mortar.name], `fixture: the guide must render a row for ${mortar.name} (saw ${Object.keys(rows).join(", ")})`);
+  assert.match(rows[mortar.name], /cannot hit fliers/, "the Mortar's row must say it cannot reach air");
+  assert.ok(rows[mortar.name].includes(String(mortar.dead) + " cells"),
+    `the Mortar's row must name its dead zone in the engine's own number (saw "${rows[mortar.name]}")`);
+  // The control, which is what stops the clauses above passing on a row that
+  // says both things about everything.
+  assert.ok(!/cannot hit fliers/.test(rows[dart.name]), `the Dart reaches air, so its row must not say otherwise (saw "${rows[dart.name]}")`);
+  assert.ok(!/cells\)/.test(rows[dart.name]), `the Dart has no dead zone, so its row must not invent one (saw "${rows[dart.name]}")`);
+
+  // SELF-PROVING. A fifth line, injected at runtime — which a hand-written list
+  // structurally cannot serve, and a hard-coded 1.5 cannot either.
+  const injected = await page.evaluate(() => {
+    const T = window.TDData.TOWERS;
+    const base = JSON.parse(JSON.stringify(T.mortar));
+    base.name = "Test Catapult"; base.hitsFliers = false; base.branches = {};
+    base.tiers = base.tiers.map((t) => Object.assign({}, t, { rangeMin: 2.5 }));
+    T.__probe = base;
+    document.querySelector("#screen-td-home .td-guide-open").click();
+    let row = "";
+    for (const li of document.querySelectorAll(".td-guide__towers li")) {
+      const b = li.querySelector("b");
+      if (b && b.textContent.trim() === "Test Catapult") row = li.textContent.replace(/\s+/g, " ").trim();
+    }
+    const close = document.querySelector(".td-overlay .td-overlay__x, .td-overlay button");
+    if (close) close.click();
+    delete T.__probe;                    // shared DATA: restore before returning
+    return row;
+  });
+  assert.ok(injected, "fixture: the injected line must reach the guide at all — the section walks Object.keys(TOWERS)");
+  assert.match(injected, /cannot hit fliers/,
+    "a fifth line that cannot reach air must be told so — a hand-written line list cannot do this");
+  assert.ok(injected.includes("2.5 cells"),
+    `a fifth line's dead zone must come from ITS data, not a constant (saw "${injected}")`);
+  assert.ok(await page.evaluate(() => !window.TDData.TOWERS.__probe), "the fixture restored the shipped arsenal");
+});
+
 test("TD-12 guide: every DERIVED section actually reaches the page", async () => {
   // The guide builds six sections from data. Two are asserted on the rendered
   // page (enemy cards, star tree) and four were only ever tested as

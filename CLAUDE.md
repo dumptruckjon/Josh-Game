@@ -5219,6 +5219,35 @@ times surfacing as `selecting a camp must draw its reach ring`, which has nothin
 to do with it. Moved into a `finally`, and proven: the same mutation now reports
 `# fail 1` where it used to report 2.
 
+**THE RING NOW DREW A HOLE AND NOTHING IN THE GAME SAID WHAT IT MEANT — the ⚙️
+mistake one commit after shipping the picture.** The Mortar's dead zone is the
+single structural fact behind the documented mortar-mono loss (a tube cannot fire
+at what is under it, so a mortar hugging the lane leaks whatever walks beneath),
+and the ONLY player-facing mention of it anywhere was 🤏 Close Quarters'
+description inside a ⭐ tree you may never open. The 📖 Toybox Guide has a tower
+section whose whole job is "what each toy does", and it did not say it. Now it
+does, DERIVED from `tiers[0].rangeMin`, so a second line with a minimum range
+documents itself.
+**And the same sentence was carrying a hand-written line list.** "cannot hit
+fliers" read `k === "mortar" || k === "camp"` — while `hitsFliers` is a real data
+field that `reachedBy` already derives from, and the truth "exactly two lines
+reach air" is separately guardrailed. A fifth line would have been silently
+promised air it cannot reach, in the manual, which is the population-by-hand
+failure this file records more often than any other. It reads `!T[k].hitsFliers`
+now.
+**The guardrail is SELF-PROVING rather than a restatement**: it injects a fifth
+tower line at runtime carrying `hitsFliers: false` and `rangeMin: 2.5`, opens the
+real guide, and reads its row off the rendered page. A hand-written list
+structurally cannot serve that line and a hard-coded 1.5 cannot either — both
+mutations report the exact wrong sentence, `Test Catapult — splash (110🪙)` with
+no flier warning, and `… nothing within 1.5 cells` on a line whose data says 2.5.
+The Dart is the control that stops the clauses passing on a row that says both
+things about everything. One fixture note: the first cut opened the guide with
+`[data-act="guide"]`, which is the PAUSE MENU's selector — the fort home's is
+`.td-guide-open`, and a selector borrowed from the wrong surface fails as
+`Cannot read properties of null`, which reads like a broken feature rather than a
+broken probe.
+
 ---
 
 ## Repository Structure

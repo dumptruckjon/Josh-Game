@@ -928,7 +928,22 @@
     }).join("");
     const towerRow = Object.keys(T).map((k) =>
       '<li><span class="td-guide__tico">' + LINE(k) + "</span><b>" + T[k].name + "</b> — " + (T[k].role || "") +
-      (k === "mortar" || k === "camp" ? " <i>(cannot hit fliers)</i>" : "") +
+      // DERIVED, not a line list. This read `k === "mortar" || k === "camp"`,
+      // which is the same hand-written population this project keeps paying for:
+      // `hitsFliers` is a real field that `reachedBy` already derives from, and
+      // a fifth line would have been silently promised air it cannot reach.
+      (!T[k].hitsFliers ? " <i>(cannot hit fliers)</i>" : "") +
+      // …and the DEAD ZONE, which is the one structural fact behind the
+      // documented mortar-mono loss: a tube cannot fire at what is under it, so
+      // a mortar hugging the lane leaks whatever walks beneath. The range ring
+      // now draws that hole, and a picture nobody can decode is the ⚙️ mistake
+      // again — the only place this was ever stated was 🤏 Close Quarters'
+      // description in a star tree you may never open. Read from the tier-1
+      // block, so a second line with a minimum range documents itself.
+      (T[k].tiers[0].rangeMin
+        ? " <i>(and nothing within " + T[k].tiers[0].rangeMin +
+          " cells — its range ring shows that hole)</i>"
+        : "") +
       // …and what it COSTS. Every tier-4 branch under these four lines states
       // its price and the lines themselves did not — so the reference carried
       // the number for the 300-gold ultimate you may never buy and omitted it
