@@ -1746,21 +1746,19 @@
         meta.textContent = !ok ? "" : info ? "+" + info.bonus + "🪙 · " + secs + "s" : secs + "s";
       } else if (!over) {
         label.textContent = "⏩ RUSH";
-        // HOW MUCH OF THIS WAVE IS LEFT. The build phase has a countdown and the
-        // wave phase had nothing at all, so the most-asked in-wave question —
-        // "am I nearly through this, or do I hold my gold?" — was unanswerable,
-        // and it is exactly the question ⏩ RUSH is a bet against. It rides this
-        // meta line because the line ALREADY carries a "· "-joined pair during
-        // build (bonus · seconds), so the widest string this button ever renders
-        // is one that already ships: no new element, and none of the HUD reflow
-        // risk that once had the ⚙️ hopping between rows. Most of a fresh wave is
-        // still QUEUED rather than on screen, which is the half you cannot see.
-        const left = bodiesLeft;
-        const why = ok ? "+" + info.bonus + "🪙"
+        // This line states the button's OWN offer or refusal, and nothing else.
+        // It used to append "· N left" as well — the same count the field pill
+        // renders — and the duplication cost more than it looked: measured with
+        // a Range per character, the combined string wraps BETWEEN the number
+        // and its unit at 320, 360, 390 and 414, so every phone rendered
+        // "steady… · 18" above an orphaned "left" while the identical fact sat
+        // large and unbroken in the pill. Dropping it also takes the button from
+        // two lines to one (74.6 → 62.6px at 390), and in portrait a shorter
+        // control is a bigger battlefield.
+        meta.textContent = ok ? "+" + info.bonus + "🪙"
           : info.reason === "too-soon" ? "steady…"
             : info.reason === "too-many-waves" ? info.max + " waves out"
               : "last wave";
-        meta.textContent = left == null ? why : why + " · " + left + " left";
       }
     }
     // Next-wave preview: during the build phase, show WHAT is coming (enemy icons

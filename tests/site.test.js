@@ -1951,11 +1951,12 @@ test("every timed STATE the engine puts on a body has a picture", () => {
 });
 
 test("the wave's bodies-left count is read from the engine ONCE", () => {
-  // Two surfaces show it — the CALL button's meta line and the field pill — and
-  // their comments claim they cannot disagree by a frame. A comment cannot go
-  // red, so the claim is the assertion: one `bodiesLeft()` call, hoisted above
-  // both readers. Two calls would be two answers whenever a kill lands between
-  // them, which is the class that gave `hurriedMult` two writers.
+  // ONE surface shows it — the field pill — and it stays one call. It was two
+  // for a while (the CALL button's meta line repeated it), and that duplicate is
+  // gone because it wrapped away from its unit on every phone width; but the
+  // pin is worth keeping either way, because the moment a second reader appears
+  // it must share this hoisted call. Two calls would be two answers whenever a
+  // kill lands between them, the class that gave `hurriedMult` two writers.
   const ui = read("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   const calls = (ui.match(/\.bodiesLeft\(\)/g) || []).length;
   assert.equal(calls, 1,

@@ -5167,6 +5167,58 @@ worse than a red. With RUNAWAY it reports `retried past any sane bound`. Finally
 the fourth instance of the alias trap, after `const L = global.TDLogic` inside
 the guide function.
 
+**THE WAVE'S REMAINING-BODY COUNT WAS RENDERED TWICE, AND THE COPY NOBODY NEEDED
+WAS BREAKING THE NUMBER AWAY FROM ITS UNIT ON EVERY PHONE.** It shipped on the
+field pill AND on the ⏩ RUSH button's meta line, deliberately — the test's own
+comment defended the pair on the grounds that both read ONE hoisted
+`bodiesLeft()` so they cannot disagree by a frame. What that reasoning never
+checked was how the second one RENDERS. Measured with a `Range` per character,
+`steady… · 18 left` wraps **between the number and its unit at 320, 360, 390 AND
+414** — every portrait width drew `steady… · 18` above an orphaned `left`, while
+the identical fact sat large and unbroken in the pill 700px up the screen. Only
+landscape happened to break in a sensible place. So the button now states its own
+offer or refusal and nothing else, which is what a button's meta line is for;
+it drops from two lines to one (74.6 → 62.6px at 390), and in portrait a shorter
+control is a bigger battlefield.
+**Two shipped tests encoded the duplication and were RE-POINTED rather than
+deleted**, because their real claims are about the COUNT and not about which
+surface carries it: that it includes the still-QUEUED half of a fresh wave (a
+readout built from `state.enemies` understates every wave at exactly the moment
+you look), that it drains monotonically, and that it reaches 0 exactly when the
+phase ends. They read the pill now, and each gained the clause that keeps the
+duplicate from coming back — the button must not repeat it.
+**The interesting consequence was the third test.** `QoL: the CALL button
+reserves its tallest line` measured a hand-written list of strings, and three of
+them were `· N left` variants the UI can no longer emit — leaving them would have
+been exactly the *"a string nothing can emit is not an upper bound, it is an
+arbitrary monster"* trap its own comment warns about. Derived from `RULES` now
+(the bonus bounded by the first countdown × the rate × ⏩ Early Bird's 1.5, the
+clock by that countdown, the refusal by `maxWavesInFlight`). And deriving it made
+the test's own non-vacuity clause FIRE: **with the count gone, no emittable
+string wraps at 320 at all**, because the meta drops to 0.62rem there, so no
+reservation can be exercised at that width. The clause is now asserted over the
+WHOLE sweep instead of per width, and the comment says which size actually binds
+— landscape, where the control column is a narrow gutter.
+**And the method note is the sharpest thing here: my own probe disagreed with a
+shipped green test, and the PROBE was wrong.** Measuring with a fresh browser
+context per viewport reported the button at 63/65/77 across strings, i.e. a
+reservation that was not binding at all; measuring the way the test does — one
+page, `setViewportSize` — reports a uniform 57/57/65. I nearly wrote up a
+regression on the strength of the first number. **When a probe contradicts a
+green test, reproduce the test's exact method before believing the probe.**
+Two tooling lessons, both about a failure surviving. **A mutation loop killed by
+a tool timeout STRANDS its mutation** — this file already records that for
+`git stash`; here it was `cp`, the 10-minute cap fired between the mutation and
+its restore, and `tests/td.test.js` sat mutated in a clean-looking tree. Run
+mutations in the background so they cannot be truncated, and put the restore in a
+`trap ... EXIT TERM INT` so a kill still restores. **And a fixture owns its
+cleanup EVEN WHEN IT FAILS**: this test changes the VIEWPORT and restored it on
+the happy path only, so every failure inside it left the page in landscape and
+took the next test down with it — observed twice while mutation-testing, both
+times surfacing as `selecting a camp must draw its reach ring`, which has nothing
+to do with it. Moved into a `finally`, and proven: the same mutation now reports
+`# fail 1` where it used to report 2.
+
 ---
 
 ## Repository Structure

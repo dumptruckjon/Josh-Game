@@ -10896,12 +10896,17 @@ test("QoL: the field says how much of the wave is LEFT", async () => {
   const onScreen = await page.evaluate(() => window.__TD.engine().state.enemies.filter((e) => e.alive).length);
   assert.ok(onScreen < r.bodies,
     `fixture: most of a fresh wave is QUEUED (${onScreen} on screen of ${r.bodies}) — otherwise a UI-side recount would be indistinguishable`);
-  // The CALL meta shows the same fact. Both read ONE hoisted engine call, so
-  // they cannot disagree by a frame, and they are deliberately spelled the same
-  // way — two wordings for one fact is a second owner of the copy.
-  const metaLeft = /(\d+) left/.exec(r.meta);
-  assert.ok(metaLeft && +metaLeft[1] === r.bodies,
-    `the CALL meta and the field pill must agree (meta "${r.meta}" vs ${r.bodies})`);
+  // …and it is rendered in exactly ONE place. The CALL button's meta line used
+  // to repeat it, and the duplicate cost more than it looked: measured with a
+  // Range per character, "steady… · 18 left" wraps BETWEEN the number and its
+  // unit at 320, 360, 390 AND 414, so every phone drew an orphaned "left" on
+  // its own line under a bare "18" — while the identical fact sat large and
+  // unbroken up here. Dropping it also took the button from two lines to one
+  // (74.6 → 62.6px at 390), and in portrait a shorter control is a bigger
+  // battlefield. The button now states its own offer or refusal and nothing
+  // else, which is what a button's meta line is for.
+  assert.ok(!/left/.test(r.meta),
+    `the count belongs to the pill alone — the CALL button must not repeat it (saw "${r.meta}")`);
   // A count that moves on every kill must not be ANNOUNCED on every kill.
   assert.equal(r.aria, "off", "a live count is not a live region — it would announce on every kill");
 
@@ -11709,19 +11714,28 @@ test("QoL: each difficulty chip says how far that LADDER has got", async () => {
   await page.waitForTimeout(60);
 });
 
-test("QoL: during a wave the button says how much of it is LEFT", async () => {
+test("QoL: the wave's remaining-body count counts the QUEUE, and drains to zero", async () => {
   // The build phase has a countdown; the wave phase had no progress readout at
   // all — so "am I nearly through this, or do I hold my gold?", the most-asked
   // in-wave question and the exact bet ⏩ RUSH is against, was unanswerable. The
   // count is the engine's OWN wave-end quantity (bodies walking + bodies still
-  // queued), so a button reading "0 left" during a wave that is still going is
+  // queued), so a readout showing "0 left" during a wave that is still going is
   // not a state the engine can be in.
+  //   It is read off the FIELD PILL, which is the one place it is rendered. It
+  // used to be on the CALL button's meta line as well, and the duplicate was
+  // removed on a measurement: a Range per character showed the combined string
+  // wrapping BETWEEN the number and its unit at 320, 360, 390 and 414, so every
+  // phone drew "steady… · 18" above an orphaned "left".
   await page.evaluate(() => { location.hash = "#td-play"; });
   await page.locator("#screen-td-play").waitFor({ state: "visible" });
   await page.evaluate(() => window.__TD.newGame(1, { seed: 3 }));
   await page.waitForTimeout(120);
 
-  const meta = () => page.evaluate(() =>
+  const meta = () => page.evaluate(() => {
+    const nw = document.querySelector("#screen-td-play .td-nextwave");
+    return !nw || nw.hidden ? "" : nw.textContent;
+  });
+  const callMeta = () => page.evaluate(() =>
     (document.querySelector("#screen-td-play .td-call__meta") || {}).textContent || "");
   const phase = () => page.evaluate(() => window.__TD.state().phase);
 
@@ -11729,7 +11743,7 @@ test("QoL: during a wave the button says how much of it is LEFT", async () => {
   // (there are none) — so the wave readout must not appear here.
   assert.equal(await phase(), "build", "fixture: a fresh level opens in the build phase");
   const inBuild = await meta();
-  assert.ok(/\d+s/.test(inBuild), `the build phase still shows its countdown (saw "${inBuild}")`);
+  assert.ok(/\d+s/.test(await callMeta()), `the build phase still shows its countdown (saw "${await callMeta()}")`);
   assert.ok(!/left/.test(inBuild), `…and no body count before any body exists (saw "${inBuild}")`);
 
   // The moment the wave is CALLED, almost all of it is still queued rather than
@@ -11752,7 +11766,11 @@ test("QoL: during a wave the button says how much of it is LEFT", async () => {
     "the readout must count the QUEUE too, or it understates every fresh wave");
   const started = await meta();
   assert.ok(new RegExp("\\b" + at.left + " left\\b").test(started),
-    `the button must show the wave's remaining bodies (saw "${started}", expected ${at.left})`);
+    `the pill must show the wave's remaining bodies (saw "${started}", expected ${at.left})`);
+  // …and the button says only its OWN offer or refusal. A number shown twice is
+  // two readers of one fact, and this one wrapped away from its unit.
+  assert.ok(!/left/.test(await callMeta()),
+    `the CALL button must not repeat the count (saw "${await callMeta()}")`);
 
   // …and it must DRAIN. Run the wave out and read the count on the way.
   // Wave 1 of L1 runs ~1560 ticks with nothing built, and the whole drain happens
@@ -11806,9 +11824,32 @@ test("QoL: the CALL button reserves its tallest line, so the field never moves u
   await page.evaluate(() => window.__TD.newGame(1, { seed: 3 }));
   await page.waitForTimeout(120);
 
-  const STRINGS = ["+135🪙 · 45s", "2 waves out", "last wave", "steady…",
-    "+60🪙 · 6 left", "steady… · 6 left", "2 waves out · 148 left",
-    "+9999🪙 · 9999 left", "2 waves out · 9999 left"];
+  // Every string this line can emit, DERIVED. The "· N left" variants are gone
+  // with the duplicated count, and re-typing them — or reaching for a 9999
+  // monster — would be exactly what the comment above warns against: a string
+  // nothing can produce demanding a reservation nothing needs. The bonus is
+  // bounded by the first countdown x the rate x ⏩ Early Bird's 1.5, the clock
+  // by that same countdown, and the refusal by RULES.maxWavesInFlight.
+  const STRINGS = await page.evaluate(() => {
+    const R = window.TDData.RULES;
+    const bonus = Math.ceil(R.buildCountdownFirst * R.earlyCallRate * 1.5);
+    return ["+" + bonus + "🪙 · " + R.buildCountdownFirst + "s", "+9🪙 · 1s",
+      R.maxWavesInFlight + " waves out", "last wave", "steady…"];
+  });
+  // Non-vacuity is asserted over the WHOLE sweep rather than per width, and that
+  // is a measurement, not a convenience: at 320 the meta drops to 0.62rem and
+  // every string it can emit fits on one line, so no reservation can be
+  // exercised there. Landscape is where it binds — the control column is a
+  // narrow gutter, so the bonus string and the refusal both take two lines.
+  let wrapped = 0;
+  // The viewport is restored in a `finally`, and that is not tidiness: without
+  // it a failure inside this loop leaves the page in LANDSCAPE, and the next
+  // test — which measures a camp's reach ring in ink — fails for a reason that
+  // has nothing to do with it. Observed twice while mutation-testing this very
+  // test, both times reported as `selecting a camp must draw its reach ring`.
+  // Same class as a test that opens a dialog and only closes it on the happy
+  // path: a fixture owns its cleanup EVEN WHEN IT FAILS.
+  try {
   for (const [w, h] of [[320, 568], [390, 844], [844, 390]]) {
     await page.setViewportSize({ width: w, height: h });
     await page.waitForTimeout(150);
@@ -11826,8 +11867,7 @@ test("QoL: the CALL button reserves its tallest line, so the field never moves u
       meta.textContent = keep;
       return { hs, lines, ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth };
     }, STRINGS);
-    assert.ok(r.lines.some((n) => n > 1),
-      `fixture: at ${w}px something in this list must actually wrap, or the reservation is untested`);
+    wrapped += r.lines.filter((n) => n > 1).length;
     assert.equal(new Set(r.hs).size, 1,
       `at ${w}px the CALL button changes height with what it says (${r.hs.join(", ")}) — ` +
       "in portrait that resizes the battlefield under the player's thumb, and in " +
@@ -11835,8 +11875,13 @@ test("QoL: the CALL button reserves its tallest line, so the field never moves u
     assert.ok(r.hs[0] >= 44, `at ${w}px the CALL button is under the adult 44px floor (${r.hs[0]}px)`);
     assert.ok(r.ovf <= 1, `at ${w}px the CALL button scrolls the page sideways (${r.ovf}px)`);
   }
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(60);
+  assert.ok(wrapped > 0,
+    "fixture: nothing wrapped at ANY tested width, so the reservation is untested — " +
+    "either a size that binds has been dropped or the strings no longer reach two lines");
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(60);
+  }
 });
 
 test("QoL: a shielded leak reads as a SAVE, not as a loss", async () => {
