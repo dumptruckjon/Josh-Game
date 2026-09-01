@@ -5108,6 +5108,65 @@ engine clause asserts against DATA's raw `rangeMin` rather than against
 the flattening trap, and its non-flattening partner is that the ⭐ node must
 genuinely move the number.
 
+**A LIVE RUN WENT RED ON FIVE ASSERTIONS THAT ALL SAID 华丽 HAD 20 GAMES INSTEAD
+OF 40, AND NOT ONE OF THEM NAMED A SCRIPT.** Run #415's `verify-live` failed
+5 of 841 — a category screen with too few tiles, her world registering 20, her
+book rendering 20 slots, 诗词's screen never appearing, her sticker meter
+stopping at 20 — while `test` and `deploy` were both green and the site was
+serving the right commit. One cause: her 40 games live in TWO files, and
+`games-hl-a.js` never arrived from the CDN edge. **`page.goto` resolves on
+`load`, and a `<script defer>` whose fetch failed fires no error anybody is
+listening for**, so the page boots complete-looking with that file's globals
+simply absent and the suite reports the downstream symptoms. Reproduced exactly
+by routing that one file to `abort()`: her count is 20, the same number the live
+run printed. This is the run-#365 transport class one layer DOWN — there the
+navigation itself was reset and a retry was shipped for it; here the navigation
+SUCCEEDS and a sub-resource is what went missing.
+**The deploy's own pre-flight is not the answer and was not at fault.** It
+already fetches every `?v=<sha>` asset and requires a 200 before the browser
+starts — it passed in 2 seconds, seconds before the browser missed the file —
+because curl and Playwright open different connections to different edges. A
+pre-flight can only prove the file was servable *then, there*.
+So the check lives where the retry already does: **wrap the BROWSER, not the
+call sites**, in the same `withNavRetries` owner, because there are 14 `goto`s
+across four files and six places that build a page. After a successful `goto`,
+any same-origin `<script src>` with no Resource Timing entry carrying a decoded
+body is treated as the transport shape it is — retried, announced, and on
+exhaustion thrown as `the page loaded but these scripts did not run:
+scripts/games-hl-a.js`. The script list is DERIVED from the page's own tags, the
+size is read as `decodedBodySize` (cache hits still report it, so a warm load is
+not a false positive), and a page that cannot be asked at all — a closed context,
+or the fake pages the retry harness itself uses — is treated as "nothing to
+report" rather than as a failure. Measured on the real page: 26 scripts, 0
+reported missing.
+**And the guard that decides whether this is safe to ship at all is the FAILURE
+DIRECTION.** Resource Timing body sizes are an engine feature, and WebKit is not
+installed in the dev sandbox — so "it works in Chromium" says nothing about the
+browser CI actually runs `verify-live` against. If nothing at all reports a body,
+the mechanism is unavailable and the check goes SILENT rather than flagging
+everything; the mutation that removes that one clause reports **all 26 scripts
+missing** and would have failed every run three retries deep. A check whose
+unavailable-API behaviour is "flag everything" is the false-positive machine this
+file keeps refusing, and the only way to know which way it falls is to simulate
+the engine that lacks it.
+Four testing notes. **The two halves need different fixtures and both are
+required**: a fake page proves the POLICY (does it retry, does it stop, does it
+name the file) and cannot tell you whether the DOM read works, so the DETECTION
+is proven separately in a real browser by blocking that exact file — with the
+fixture self-verifying, since it asserts the block really does reproduce the
+live symptom. **A mutation that alters nothing proves nothing, for the second
+time in this file**: raising the loop's `for` cap passed, because the `break`
+bounds the loop independently — and raising the `break` passed too, because the
+`for` cap does. It is an outcome TWO guards deliver, so only removing BOTH turns
+it red, and the test now says so instead of implying one protection. **And that
+same redundancy is why the fixture needs a RUNAWAY counter**: this fake page's
+`goto` always SUCCEEDS, so with both bounds gone the loop spins for ever and the
+test HANGS rather than fails — a hang reads as broken infrastructure, which is
+worse than a red. With RUNAWAY it reports `retried past any sane bound`. Finally,
+**`const H = require("./helpers.js")` is scoped to the test that declares it** —
+the fourth instance of the alias trap, after `const L = global.TDLogic` inside
+the guide function.
+
 ---
 
 ## Repository Structure

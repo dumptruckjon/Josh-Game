@@ -3311,6 +3311,84 @@ test("guardrail: a live navigation retries a socket reset, and NOTHING else", as
   assert.deepEqual(made.slice(-1), ["context"], "fixture: that page really came the context route");
 });
 
+test("a page that loads WITHOUT one of its scripts is retried, then named", async () => {
+  // The sibling failure to a navigation that never connects, and the one that
+  // actually cost a live run: `goto` resolves on `load`, so a `<script defer>`
+  // whose fetch failed leaves the page booted and that file's globals simply
+  // absent. Nothing throws, nothing is logged, and the suite reports the
+  // DOWNSTREAM symptoms — five assertions saying 华丽 had 20 games instead of
+  // 40, none of which named a script. Reproduced exactly by blocking
+  // `games-hl-a.js`: her count drops to 20.
+  //
+  // Here the POLICY is driven with a fake page (does it retry, does it stop,
+  // does it name the file); the DETECTION — that a script which never arrived
+  // is actually noticed in a real DOM — is proven in e2e.test.js, because a
+  // fake page cannot tell you whether the Resource Timing read works.
+  // `H` is scoped to the test that declares it — the alias trap this file
+  // already records for `const L = global.TDLogic` inside the guide function.
+  const H = require("./helpers.js");
+  // RUNAWAY is not decoration. This fake page's `goto` always SUCCEEDS, so if
+  // the bound were ever removed the loop would spin for ever and this test
+  // would HANG rather than fail — and a hang reads as broken infrastructure,
+  // which is worse than a red. It turns that into a named failure.
+  const RUNAWAY = 20;
+  let n = 0;
+  const fakePage = (badFor, missing) => ({
+    goto: async () => {
+      if (++n > RUNAWAY) throw new Error("RUNAWAY: retried past any sane bound");
+      return { ok: true };
+    },
+    evaluate: async () => (n <= badFor ? missing : []),
+  });
+  const fakeBrowser = (page) => ({ newPage: async () => page, newContext: async () => ({ newPage: async () => page }) });
+  const warn = console.warn; const said = [];
+
+  // 1. A transient miss recovers, silently for the run and loudly in the log.
+  n = 0;
+  let p1 = await H.withNavRetries(fakeBrowser(fakePage(1, ["/scripts/games-hl-a.js"]))).newPage();
+  console.warn = (m) => said.push(String(m));
+  try {
+    const res = await p1.goto("https://example.test/");
+    assert.ok(res && res.ok, "a script that arrives on the retry must not fail the run");
+  } finally { console.warn = warn; }
+  assert.equal(n, 2, "…and it must be the SAME navigation retried");
+  assert.ok(said.some((m) => /games-hl-a\.js/.test(m)),
+    `the retry must NAME the file, or the log says nothing the five downstream assertions did not (${said.join(" | ")})`);
+
+  // 2. Bounded, and the failure names the script rather than a symptom.
+  n = 0;
+  const p2 = await H.withNavRetries(fakeBrowser(fakePage(99, ["/scripts/games-hl-a.js"]))).newPage();
+  console.warn = () => {};
+  try {
+    await assert.rejects(() => p2.goto("https://example.test/"), /did not run: \/scripts\/games-hl-a\.js/,
+      "a script genuinely missing from the build must go red, saying WHICH");
+  } finally { console.warn = warn; }
+  // This pins an OUTCOME that TWO guards deliver — the loop's own cap and the
+  // `break` — so removing either alone changes nothing and only removing BOTH
+  // turns it red, which is what the RUNAWAY fixture converts from a hang into
+  // this named failure. Measured, not implied.
+  assert.ok(n <= RUNAWAY, "an unbounded retry is a HANG, not a guard — this must stop on its own");
+  assert.equal(n, H.NAV_ATTEMPTS, `it must stop at exactly ${H.NAV_ATTEMPTS} attempts, not hang`);
+
+  // 3. The control, and the reason this is not a false-positive machine: a page
+  //    whose scripts all ran is not retried even once.
+  n = 0;
+  const p3 = await H.withNavRetries(fakeBrowser(fakePage(99, []))).newPage();
+  const ok = await p3.goto("https://example.test/");
+  assert.ok(ok && ok.ok, "a healthy page must pass straight through");
+  assert.equal(n, 1, "a healthy page must not be navigated twice");
+
+  // 4. A page with no `evaluate` at all (a closed context, or the fake pages the
+  //    navigation-retry test uses) must be treated as "nothing to report" rather
+  //    than as a missing script — otherwise this guard would fail every one of
+  //    those, which is a false positive on the harness itself.
+  n = 0;
+  const p4 = await H.withNavRetries(fakeBrowser({ goto: async () => { n++; return { ok: true }; } })).newPage();
+  const bare = await p4.goto("https://example.test/");
+  assert.ok(bare && bare.ok, "a page that cannot be asked must not be failed");
+  assert.equal(n, 1, "…and must not be retried");
+});
+
 test("guardrail: a badge announcement has ONE owner", () => {
   // Badges are announced by `announce()`, which routes by the run's PHASE — into
   // the outcome box when one is on screen, as a toast otherwise — because a toast

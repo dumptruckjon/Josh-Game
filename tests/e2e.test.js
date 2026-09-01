@@ -1394,6 +1394,68 @@ test("AUDIO: every voice goes through the limiter, and the voice cap holds AND r
     `the voice cap must RELEASE — after the burst finished, 5 fresh tones produced only ${out.afterRelease} notes, so the game would go quieter and quieter`);
 });
 
+test("a script that never arrives is NOTICED, not left to five downstream failures", async () => {
+  // The half a fake page cannot prove. A live run went red on five assertions
+  // about 华丽's world — all of them saying she had 20 games instead of 40 —
+  // because exactly one of her two game files never arrived from the CDN edge.
+  // Not one of the five named a script, and the deploy's own pre-flight had
+  // fetched every versioned asset and got 200 for each seconds earlier, from a
+  // different connection. `goto` resolves on `load`, and a `<script defer>`
+  // whose fetch failed fires no error anybody is listening for.
+  //
+  // The RETRY POLICY is driven with a fake page in site.test.js; this is the
+  // DETECTION: does a real DOM actually notice.
+  const { missingScripts } = require("./helpers.js");
+
+  // 1. The control, and the reason this is not a false-positive machine. It
+  //    must be silent on the very page every other test in this file uses.
+  const clean = await missingScripts(page);
+  const total = await page.evaluate(() => document.querySelectorAll("script[src]").length);
+  assert.ok(total >= 20, `fixture: the page must carry its real script set (saw ${total})`);
+  assert.deepEqual(clean, [], `a healthy page must report nothing missing (got ${clean.join(", ")})`);
+
+  // 2. The real failure, reproduced by blocking exactly the file that vanished.
+  //    Its own context, so nothing else in this file inherits the route.
+  const ctx = await browser.newContext();
+  try {
+    await ctx.route("**/games-hl-a.js*", (r) => r.abort());
+    const p2 = await ctx.newPage();
+    let threw = "";
+    const warn = console.warn; console.warn = () => {};
+    try { await p2.goto(baseURL, { waitUntil: "load" }); } catch (e) { threw = String(e.message); }
+    finally { console.warn = warn; }
+    assert.match(threw, /games-hl-a\.js/,
+      `a script that never arrived must be named, not inferred (threw: ${threw || "nothing"})`);
+    // …and the fixture is self-verifying: this really does produce the live
+    // symptom, so the clause above is aimed at the defect rather than beside it.
+    const hl = await p2.evaluate(() => (window.JoshGames || []).filter((g) => g.hl).length);
+    assert.ok(hl > 0 && hl < 40,
+      `fixture: blocking one of her two files must reproduce the live symptom (saw ${hl} of 40)`);
+  } finally { await ctx.close(); }
+
+  // 3. THE FAILURE DIRECTION, which decides whether this is safe to ship at all.
+  //    Resource Timing body sizes are an engine feature and WebKit is not
+  //    installed in the dev sandbox, so "it works in Chromium" proves nothing
+  //    about the browser CI actually runs this against. An engine that reports
+  //    no body for ANYTHING must make the check a no-op — never a machine that
+  //    flags all 26 scripts and fails the run three retries later.
+  const blind = await browser.newContext();
+  try {
+    await blind.addInitScript(() => {
+      const real = performance.getEntriesByType.bind(performance);
+      performance.getEntriesByType = (t) => real(t).map((e) => (t !== "resource" ? e
+        : { name: e.name, initiatorType: e.initiatorType, decodedBodySize: 0 }));
+    });
+    const p3 = await blind.newPage();
+    await p3.goto(baseURL, { waitUntil: "load" });
+    const none = await missingScripts(p3);
+    const n3 = await p3.evaluate(() => document.querySelectorAll("script[src]").length);
+    assert.ok(n3 >= 20, `fixture: the blind page still carries its scripts (saw ${n3})`);
+    assert.deepEqual(none, [],
+      `an engine with no Resource Timing sizes must silence this check, not fail every script (flagged ${none.length} of ${n3})`);
+  } finally { await blind.close(); }
+});
+
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
