@@ -4989,6 +4989,16 @@ the feature — in portrait the floor is rotated, so `screen_y = world_x × cell
 and a ring parked at world x=20 sits 540px down a canvas I was cropping at 400.
 **When a pixel diff and a screenshot disagree, believe the diff and check the
 crop.**
+**The first version of the test then named TWO powers, which is this file's
+most-repeated failure written by the person who keeps writing it down.**
+`fieldAim` has no per-id branching, so the rule is a property of the ability's
+KIND — a point power gets a ring, anything else does not — and a clause that
+drives 🧨 and ⚡ is a two-item hand list, not that property. It walks the strip
+now and holds every tile to the rule, with a floor asserting both kinds were
+actually offered (a derivation fails OPEN, and an empty walk would pass
+silently). The mutation that matters is the one the hand list could never
+catch: restricting the ring to `drop` alone leaves 🧨 and ⚡ both correct and is
+caught on **🍯 Sticky**.
 
 ---
 

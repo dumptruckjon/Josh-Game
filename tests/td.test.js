@@ -10761,6 +10761,46 @@ test("QoL: an armed blast shows WHERE it will land and HOW BIG", async () => {
   await page.mouse.up();
   assert.equal(none, null, "a power with no radius must draw no aiming ring");
 
+  // 3b. …and the two clauses above name TWO powers, which is a hand-written
+  //     population — the failure this project names more often than any other.
+  //     `fieldAim` has no per-id branching, so the rule is a property of the
+  //     ability's KIND: a point power gets a ring, anything else does not. Walk
+  //     the strip and hold every tile to it, so a sixth power inherits the check
+  //     rather than needing this test edited.
+  const byKind = await page.evaluate(async () => {
+    window.__TD.newGame(1, { seed: 7 });
+    window.__TD.grantGold(9999);
+    window.__TD.script([["call"]]);
+    const kinds = {};
+    for (const a of window.TDData.ABILITIES) kinds[a.id] = a.kind;
+    return [...document.querySelectorAll("#screen-td-play [data-abil]")]
+      .map((b) => ({ id: b.dataset.abil, kind: kinds[b.dataset.abil] }));
+  });
+  const seen = { point: 0, other: 0 };
+  for (const tile of byKind) {
+    await page.evaluate((id) => {
+      // clear any previous arm, then arm THIS one
+      const armedNow = document.querySelector(".td-abil--armed");
+      if (armedNow) armedNow.click();
+      document.querySelector(`#screen-td-play [data-abil="${id}"]`).click();
+    }, tile.id);
+    await page.mouse.move(rect.x + rect.width * 0.45, rect.y + rect.height * 0.45);
+    await page.mouse.down();
+    const r = await ring();
+    await page.mouse.up();
+    if (tile.kind === "point") {
+      seen.point++;
+      assert.ok(r && r.r > 0,
+        `every POINT power must show where its blast lands — ${tile.id} showed ${JSON.stringify(r)}`);
+    } else {
+      seen.other++;
+      assert.equal(r, null,
+        `a ${tile.kind} power has nothing to aim, so it must draw no ring — ${tile.id} showed ${JSON.stringify(r)}`);
+    }
+  }
+  assert.ok(seen.point >= 2 && seen.other >= 1,
+    `fixture: the strip must offer both kinds for this to mean anything (${seen.point} point, ${seen.other} other)`);
+
   // 4. And it PAINTS — the hook could report a ring nothing renders.
   const px = await page.evaluate(() => {
     window.__TD.newGame(1, { seed: 7 });
