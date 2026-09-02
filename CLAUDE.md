@@ -5468,6 +5468,78 @@ signature no longer matched, and the diff was compared against what the patch
 script had produced. **A restore is a change like any other — verify it, do not
 assume it.** Use `cp` before mutating and restore from that copy.
 
+**THE MOST FREQUENT DECISION IN THE GAME HAD THE LEAST INFORMATION BEHIND IT —
+the tower panel said what a pad COULD cover and what an upgrade WOULD buy, and
+nothing at all about what the gun in front of you had actually done.** `% road`
+is potential and the ⬆ preview is a promise; "is this one earning its pad" had
+no answer anywhere, and the branch audit measured PLACEMENT at up to 5 lives, so
+it is a decision worth informing. The panel now carries a fourth line —
+`this run: 94 dmg · 23% of all tower damage`. Six things worth keeping.
+(1) **It is tallied in the ONE damage path beside the per-LINE tally and reuses
+its `eff`** — what LANDED, not what was swung, the distinction that already
+stopped a 300-damage Toy Box Drop on a 6hp sock scoring 300. Sharing `eff` is
+what makes the two tallies reconcile EXACTLY, which is the test's sharpest
+clause. (2) **Keyed by PAD, not by tower id, and that is a correctness fix rather
+than a style choice**: a resumed run rebuilds towers through `place()` and ids
+come from a `nextId` counter that enemies, soldiers and projectiles also consume,
+so a restored tower does NOT get its old id and a tally keyed on one would credit
+the wrong gun. A pad id is level data and cannot move. The cost of that choice is
+one line in `removeTower` — without it a tower built on a pad you sold inherits
+the previous one's work and reads as the best gun on the board on its first tick.
+(3) **It rides the checkpoint**, because a resumed run reporting only its
+post-resume damage is a defect this file already records for the per-line tally.
+(4) **An ability is deliberately UNCOUNTED** — it is not a tower, and crediting
+it to one is the overkill-attribution defect again; so the share reads out of the
+TOWERS' own total, the denominator that makes every tower's share sum to 100.
+(5) **THE MUTATION THAT PASSED IS THE WHOLE LESSON: dropping the splash source
+left both engine tests GREEN**, because the fixture built darts only — so the
+reconciliation was vacuous for four of the five damage families while looking
+rigorous. The fixture is a MIX now (dart/mortar/fan/camp round-robin on L6) with
+a precondition asserting every line actually dealt damage, and all four sources
+are individually mutation-proven. The fifth, the Fan's CHAIN, lives only on a
+tier-4 branch that no tier-1 board reaches, and it needed its OWN test: adding a
+chain fan to the mix fixture killed the camp's melee damage (it kills before
+soldiers engage), so covering the fifth source silently uncovered the fourth —
+which the fixture's own precondition caught. **One test per claim.** (6) A copy
+fix worth the words: `23% of your towers'` — a possessive with no noun after it —
+reads as a COUNT of towers, a different and wrong sentence; it is `of all tower
+damage`. Measured cost: 18px, panel height and fold identical at 320x480,
+320x568, 390x844 and landscape 844x390.
+**THE GUARDRAIL THAT CAUGHT IT WAS ITSELF THE DEFECT — a law about WHERE the run
+tallies live, pinned as an exact literal LINE.** `assert.match(tdl, /dmgBy: \{\},
+kills: 0, goldEarned: 0,/)` says "the run tallies live in engine state, not the
+capped event stream", and that claim is untouched by a FOURTH tally — but the
+regex pins their adjacency, so adding one turned a law about tally location into
+a law about tally order. That is the whole-object-`deepEqual` defect this file
+records for the reset guardrail (which went red naming a setting whose addition
+changed no behaviour), in regex form. Each tally is asserted on its own now, and
+the replacement was proven against the mutation its predecessor caught — removing
+`kills` from the state init still fires it. The same pass widened the law to the
+new field at all three sites it must exist at (the one damage path, the
+checkpoint write, the resume restore), because a run tally that does not ride the
+checkpoint is a defect this file already records for its per-line sibling.
+**And one clause was checked for being decorative rather than assumed**: the ban
+on keying by tower id fires the ATTRIBUTION clause when you re-key, so it looked
+like a near-duplicate — isolated by ADDING a stray id-keyed write beside the
+correct one, it goes red on its own, which is what makes it load-bearing rather
+than a second spelling of its neighbour.
+**`pgrep -f "tests/site.test.js"` matched its OWN command line**, so a waiter for
+that file reported it running for ever while `ps` showed it finished minutes
+earlier — the self-watching trap this file documents for `pgrep -f "node --test"`,
+hit again by the person who wrote it down. Watch the process table, never a
+pattern your own command line contains.
+
+**And the container rolled back 41 commits MID-EDIT while this was being written,
+which is the fifth occurrence and the first that cost real work.** Nothing pushed
+was lost — three commits were already on origin — but the uncommitted engine
+thread was, and had to be re-derived. Two things made the recovery safe rather
+than a guess: the stale tree it came back with had 6 modified files that were NOT
+mine, and every function in them was verified to already exist on `origin/main`
+before anything was discarded; and the diff was saved first anyway. **A clean
+`git status` after a restart is not evidence your work is present, and the files
+a rollback hands you may be someone else's unfinished work — identify it before
+you throw it away.**
+
 ---
 
 ## Repository Structure

@@ -8402,3 +8402,98 @@ test("the range ring's dead zone comes from the ENGINE, and 🎯 Close Quarters 
     assert.ok(dead < reach, `${t.lineId}: the dead zone (${dead}) must stay inside the reach (${reach})`);
   }
 });
+
+test("QoL: damage is tallied per PAD, and the two tallies reconcile", () => {
+  // The panel could say what a pad COULD cover (% road) and what an upgrade
+  // WOULD buy, and nothing about what the tower in front of you has actually
+  // done — so the most frequent decision in the game had the least information
+  // behind it. The tally rides the ONE damage path beside the per-LINE one and
+  // reuses its `eff` (what LANDED, not what was swung), which is what makes the
+  // reconciliation below exact rather than approximate.
+  //
+  // The board is deliberately a MIX, and that is the whole strength of the test:
+  // with darts only, dropping the SOURCE from the splash / zap / melee sites
+  // changes nothing measurable and the reconciliation passes on a broken engine —
+  // which is exactly what the first version of this did. Each of the four lines
+  // reaches dealDamage by its own `how`, so all four must be proven to land.
+  const lv = DATA.LEVELS.find((l) => l.id === 6);
+  const e = TD.createEngine(lv, { seed: 5, difficulty: "normal" });
+  const LINES = ["dart", "mortar", "fan", "camp"];
+  const built = [];
+  let i = 0;
+  for (const pad of lv.pads) { const r = e.place(LINES[i % 4], pad.id); if (r.ok) { built.push(pad.id); i++; } }
+  assert.ok(built.length >= 2, "fixture: need at least two towers to compare shares");
+  e.callWave();
+  for (let k = 0; k < 6000 && e.state.phase === "wave"; k++) e.tick();
+
+  const byPad = e.state.dmgByPad, byLine = e.state.dmgBy;
+  for (const line of LINES) {
+    assert.ok(byLine[line] > 0,
+      `fixture: the ${line} line dealt no damage, so this test cannot see its source ` +
+      "being dropped — the reconciliation below would pass on a broken engine");
+  }
+  const padTotal = Object.values(byPad).reduce((a, b) => a + b, 0);
+  const lineTotal = Object.values(byLine).reduce((a, b) => a + b, 0);
+  assert.ok(padTotal > 0, "no damage was attributed to any pad — the tally is dead");
+  // An ABILITY has no tower, so it is deliberately uncounted per pad. Nothing in
+  // this fixture uses one, so the two totals must match EXACTLY: any drift means
+  // a damage site is landing hits the per-pad tally cannot see.
+  assert.equal(byLine.ability, undefined, "fixture: no ability damage, so the totals must match exactly");
+  assert.equal(padTotal, lineTotal,
+    `the per-pad tally sums to ${padTotal} against the per-line tally's ${lineTotal} — ` +
+    "a damage source is reaching one and not the other");
+  // …and it must be keyed by PAD, not by tower id: a resumed run rebuilds towers
+  // through place() and ids come from a counter enemies also consume, so a tally
+  // keyed on an id would credit the wrong gun after a restore.
+  for (const k of Object.keys(byPad)) {
+    assert.ok(built.includes(k), `the tally is keyed on "${k}", which is not a pad id`);
+  }
+  // more than one gun contributed, or the share the panel prints is meaningless
+  assert.ok(Object.keys(byPad).length >= 2,
+    "only one pad ever dealt damage, so a share out of the towers' total cannot be checked");
+});
+
+test("QoL: selling a tower takes its damage tally with it", () => {
+  // The tally is keyed by PAD so it can survive a resume, and this is the cost of
+  // that choice: without the clear, a tower built on a pad you sold inherits the
+  // previous one's work and reads as the best gun on the board on its first tick.
+  const lv = DATA.LEVELS[0];
+  const e = TD.createEngine(lv, { seed: 5, difficulty: "normal" });
+  const pad = lv.pads[0].id;
+  assert.ok(e.place("dart", pad).ok, "fixture: the first pad must take a dart");
+  e.callWave();
+  for (let i = 0; i < 4000 && e.state.phase === "wave" && !(e.state.dmgByPad[pad] > 0); i++) e.tick();
+  assert.ok(e.state.dmgByPad[pad] > 0, "fixture: the tower must have dealt damage before it is sold");
+  e.sell(e.state.towers[0].id);
+  assert.equal(e.state.dmgByPad[pad], undefined,
+    "the sold tower's damage stayed on its pad — whatever is built there next " +
+    "would inherit work it never did");
+});
+
+test("QoL: the Fan's CHAIN is attributed too — a fifth damage source", () => {
+  // The chain lives only on the Fan's tier-4 Static Zap, so a board of tier-1
+  // towers never reaches it and its source could be dropped with the mix test
+  // above still green. It gets its own test rather than joining that fixture,
+  // because a chain fan kills fast enough that the camp's soldiers never engage —
+  // covering the fifth source there silently uncovered the fourth.
+  const lv = DATA.LEVELS.find((l) => l.id === 6);
+  const e = TD.createEngine(lv, { seed: 5, difficulty: "normal" });
+  const chainBranch = Object.keys(DATA.TOWERS.fan.branches).find(
+    (k) => DATA.TOWERS.fan.branches[k].chain);
+  assert.ok(chainBranch, "fixture: the fan must have a branch that chains");
+  // gold set directly: this is a node sim with no run to cheat
+  e.state.gold = 99999;
+  const pad = lv.pads[0].id;
+  assert.ok(e.place("fan", pad).ok, "fixture: the first pad must take a fan");
+  const id = e.state.towers[0].id;
+  assert.ok(e.upgrade(id).ok && e.upgrade(id).ok, "fixture: the fan must reach tier 3");
+  assert.ok(e.branch(id, chainBranch).ok, "fixture: the chain branch must be bought");
+  assert.ok(e.state.towers[0].tier === 4, "fixture: the fan must actually be tier 4");
+  e.callWave();
+  for (let k = 0; k < 6000 && e.state.phase === "wave"; k++) e.tick();
+
+  assert.ok(e.state.dmgBy.fan > 0, "fixture: the chain fan must have dealt damage");
+  assert.equal(e.state.dmgByPad[pad], e.state.dmgBy.fan,
+    `the chain dealt ${e.state.dmgBy.fan} but its pad was credited ` +
+    `${e.state.dmgByPad[pad] || 0} — the chain's own dealDamage site is not passing a source`);
+});

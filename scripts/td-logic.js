@@ -305,7 +305,7 @@
       // event buffer is capped at 400, so a scripted/headless run that
       // simulates a whole wave before draining would silently lose most of it.
       // In state they are exact, deterministic, and readable by a node sim.
-      dmgBy: {}, kills: 0, goldEarned: 0,
+      dmgBy: {}, dmgByPad: {}, kills: 0, goldEarned: 0,
       enemies: [],
       towers: [],
       soldiers: [],
@@ -841,7 +841,7 @@
     // `preScaled` = the caller already applied the damage multipliers (the Fan's
     // beam has to, because it delivers 1 damage per tick and rounding here would
     // erase every percentage). Everything else passes it undefined.
-    function dealDamage(e, hpDmg, shieldDmg, how, preScaled) {
+    function dealDamage(e, hpDmg, shieldDmg, how, preScaled, srcId) {
       // 👊 Boss Bonker: bosses take +15% of EVERYTHING (hp + shield), applied in
       // the ONE damage path so every tower/soldier hit benefits alike.
       if (!preScaled && mods.bossDmg > 1 && enemyDef(e).boss) {
@@ -914,6 +914,23 @@
         const eff = Math.min(Math.max(0, hpDmg), Math.max(0, hpBefore))
           + Math.min(Math.max(0, shieldDmg), shieldBefore);
         state.dmgBy[src] = (state.dmgBy[src] || 0) + eff;
+        // …and by TOWER. "Which of my guns is actually earning its pad" is the
+        // question the tower panel could not answer: it showed what a pad COULD
+        // cover (% road) and what an upgrade WOULD buy, and nothing about what
+        // this tower has actually done. Same `eff` — what LANDED, not what was
+        // swung — so the two tallies can never disagree about a hit.
+        //   Keyed by PAD, not by tower id, and that is a correctness fix rather
+        // than a style choice: a resumed run rebuilds its towers through place()
+        // and ids come from a `nextId` counter that enemies, soldiers and
+        // projectiles also consume, so a restored tower does NOT get its old id
+        // and a tally keyed on one would credit the wrong gun. A pad id is level
+        // data and cannot move. removeTower clears the entry, so selling does not
+        // leave its damage on the pad for whatever is built there next.
+        //   An ability passes no source and is deliberately uncounted: it is not
+        // a tower, and crediting it to one would be the overkill-attribution
+        // defect again. The panel's share therefore reads out of the TOWERS'
+        // own total, the denominator that makes the shares sum to 100.
+        if (srcId) state.dmgByPad[srcId] = (state.dmgByPad[srcId] || 0) + eff;
       }
       if (e.hp <= 0) killEnemy(e, how);
     }
@@ -1294,7 +1311,7 @@
             // shoots, so the three cooldown sites never reached it).
             sol.meleeCd = Math.round(cs.rate * DATA.TICK_RATE / boostOf(camp));
             const hit = computeHit(cs.dmg * mods.soldierDmg, "bonk", foe); // 🥁 Drill Sergeant
-            dealDamage(foe, hit.hpDmg, 0, "melee");
+            dealDamage(foe, hit.hpDmg, 0, "melee", false, camp && camp.padId);
             if (!foe.alive) { sol.engagedId = 0; continue; }
           }
           // foe swings back (unless stunned)
@@ -1374,7 +1391,7 @@
             const critChance = (s.crit || 0) + mods.critBonus;
             if (critChance > 0 && rng() < critChance) { dmg = Math.round(dmg * (s.critMult || 1.5) * mods.critMul); crit = true; }
             state.projectiles.push({
-              id: nextId++, x: t.cx, y: t.cy, targetId: t.targetId,
+              id: nextId++, x: t.cx, y: t.cy, targetId: t.targetId, src: t.padId,
               dmg, dmgType: s.dmgType, speed: def.projectileSpeed, crit,
               strip: s.strip || null, // 🎯 the debuff rides the dart, applied where it LANDS
             });
@@ -1407,7 +1424,7 @@
             const flight = Math.sqrt((p.x - t.cx) ** 2 + (p.y - t.cy) ** 2) / def.shellSpeed;
             const lead = posAt(epath(target), target.dist + effSpeed(target) * flight);
             state.shells.push({
-              id: nextId++, sx: t.cx, sy: t.cy, x: t.cx, y: t.cy,
+              id: nextId++, sx: t.cx, sy: t.cy, x: t.cx, y: t.cy, src: t.padId,
               tx: lead.x, ty: lead.y, t: 0, T: Math.max(1, Math.round(flight * DATA.TICK_RATE)),
               dmg: s.dmg, splash: s.splash * mods.mortarSplash, goo: s.goo || null, // TD-5 Big Booms
             });
@@ -1434,7 +1451,7 @@
                   const p = epos(cur2);
                   points.push({ x: p.x, y: p.y });
                   const hit = computeHit(Math.round(dmg), "zap", cur2);
-                  dealDamage(cur2, hit.hpDmg, hit.shieldDmg, "zap");
+                  dealDamage(cur2, hit.hpDmg, hit.shieldDmg, "zap", false, t.padId);
                   dmg *= Math.min(0.95, s.chain.decay + mods.chainDecayPlus); // 🔗 Live Wire, capped so a chain always weakens
                   // jump: nearest alive enemy within jump range of the last hit
                   let next = null, bestD = s.chain.jump * s.chain.jump;
@@ -1489,7 +1506,7 @@
                 t.zapAcc -= whole;
                 // a shield soaks zap first — the same split computeHit does
                 const sh = Math.min(whole, beamTarget.shield || 0);
-                dealDamage(beamTarget, whole - sh, sh, "zap", true);
+                dealDamage(beamTarget, whole - sh, sh, "zap", true, t.padId);
               }
             }
           }
@@ -1537,7 +1554,7 @@
               const factor = d <= 0.5 ? 1 : Math.max(0.25, 1 - ((d - 0.5) / (sh.splash - 0.5)) * 0.75);
               const hit = computeHit(sh.dmg * factor, "bonk", e);
               if (sh.goo) applySlow(e, sh.goo.slow, sh.goo.seconds);
-              dealDamage(e, hit.hpDmg, hit.shieldDmg, "splash");
+              dealDamage(e, hit.hpDmg, hit.shieldDmg, "splash", false, sh.src);
             }
           }
         }
@@ -1636,7 +1653,7 @@
           // 🎯 the strip lands where the dart LANDS, and BEFORE the damage, so
           // this very shot already benefits from the armour it just peeled.
           if (pr.strip) applyStrip(target, pr.strip.amount, pr.strip.seconds);
-          dealDamage(target, hit.hpDmg, hit.shieldDmg, "dart");
+          dealDamage(target, hit.hpDmg, hit.shieldDmg, "dart", false, pr.src);
           pr.dead = true;
         } else {
           pr.x += (dx / d) * step;
@@ -1978,6 +1995,11 @@
         }
       }
       emit({ type: how, x: t.cx, y: t.cy, refund });
+      // The pad's damage tally goes with the tower. It is keyed by PAD so it can
+      // survive a resume, and the cost of that is exactly this: without the
+      // clear, a tower built on a pad you sold would inherit the previous one's
+      // work and read as the best gun on the board on its first tick.
+      delete state.dmgByPad[t.padId];
       state.towers.splice(i, 1);
       if (lastBuild && lastBuild.id === t.id) lastBuild = null;
       return refund;

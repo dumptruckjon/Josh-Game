@@ -1296,10 +1296,34 @@ test("guardrail: TD-13 per-level bests are covered by loader, reset and merge", 
   assert.match(tdm, /st\.levelId \+ ":" \+ st\.difficulty/, "a best is keyed by level AND difficulty — the ladders are independent");
   // The run tallies live in ENGINE STATE, not the capped event stream.
   const tdl = read("scripts/td-logic.js");
-  assert.match(tdl, /dmgBy: \{\}, kills: 0, goldEarned: 0,/, "the run tallies live in state");
+  // Each tally is asserted on its OWN, not as one literal line: pinning their
+  // exact adjacency makes ADDING a tally break a law about where tallies live,
+  // which is the whole-object-deepEqual defect in regex form (the reset guardrail
+  // learned it the same way when a new setting landed). The claim is that they
+  // live in engine state rather than the capped event stream, and a fourth tally
+  // does not violate it.
+  for (const [field, init] of [["dmgBy", "{}"], ["dmgByPad", "{}"], ["kills", "0"], ["goldEarned", "0"]]) {
+    assert.match(tdl, new RegExp(field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ": " +
+      init.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[,\\s]"),
+      `the ${field} run tally must be initialised in engine state`);
+  }
   assert.match(tdl, /const HOW_LINE = \{ dart: "dart", splash: "mortar", zap: "fan", melee: "camp"/,
     "one table maps the damage source to its tower line");
   assert.match(tdl, /state\.dmgBy\[src\] = \(state\.dmgBy\[src\] \|\| 0\)/, "attribution happens in the ONE damage path");
+  // …and so does the PER-PAD attribution, in the same place, off the same `eff`.
+  // Keyed by pad and not by tower id on purpose: a resumed run rebuilds towers
+  // through place() and ids come from a counter enemies also consume, so a tally
+  // keyed on an id credits the wrong gun after a restore.
+  assert.match(tdl, /state\.dmgByPad\[srcId\] = \(state\.dmgByPad\[srcId\] \|\| 0\)/,
+    "the per-pad tally is attributed in the ONE damage path too");
+  assert.ok(!/dmgByPad\[[a-z]*\.?id\]/.test(tdl),
+    "the per-pad tally must never be keyed on a tower id — those are reassigned on resume");
+  assert.match(tdl, /delete state\.dmgByPad\[t\.padId\];/,
+    "removeTower clears the pad's tally, or the next tower there inherits its work");
+  // it rides the checkpoint, like the per-line tally beside it
+  assert.match(tdm, /dmgByPad: Object\.assign\(\{\}, st\.dmgByPad\)/, "the checkpoint carries the per-pad tally");
+  assert.match(tdm, /if \(mr\.dmgByPad\) e\.state\.dmgByPad = Object\.assign\(\{\}, mr\.dmgByPad\)/,
+    "…and the resume restores it");
   assert.ok(!/cur\.stats\.dmg/.test(tdm), "no parallel event-based damage accounting (only the dart ever emitted a hit event)");
 });
 

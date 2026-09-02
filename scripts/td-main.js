@@ -1143,7 +1143,8 @@
       // The run tallies the summary screen reports. Rebuilding towers through
       // engine.place() re-earns nothing, so without these a resumed run showed
       // only its post-resume damage and called it the whole run.
-      dmgBy: Object.assign({}, st.dmgBy), kills: st.kills, goldEarned: st.goldEarned,
+      dmgBy: Object.assign({}, st.dmgBy), dmgByPad: Object.assign({}, st.dmgByPad),
+      kills: st.kills, goldEarned: st.goldEarned,
       towers: st.towers.map((t) => ({ lineId: t.lineId, tier: t.tier, branch: t.branch, padId: t.padId, targeting: t.targeting, rallyX: t.rallyX, rallyY: t.rallyY })),
     };
     persist(save);
@@ -1310,6 +1311,12 @@
     // a zeroed tally), which is exactly what a pre-fix resume already did
     if (typeof mr.countdown === "number") e.state.countdown = mr.countdown;
     if (mr.dmgBy) e.state.dmgBy = Object.assign({}, mr.dmgBy);
+    // The per-tower tally rides the checkpoint for the same reason the per-line
+    // one does: a resumed run that reported only its post-resume damage was a
+    // shipped defect, and this is the surface that answers "is this gun earning
+    // its pad". A PAD id is level data, so it survives a restore that rebuilds
+    // towers through engine.place() and reassigns every tower id.
+    if (mr.dmgByPad) e.state.dmgByPad = Object.assign({}, mr.dmgByPad);
     if (typeof mr.kills === "number") e.state.kills = mr.kills;
     if (typeof mr.goldEarned === "number") e.state.goldEarned = mr.goldEarned;
     e.state.phase = "build"; e.state.cheated = false; // restored progress is honest
@@ -1508,6 +1515,26 @@
     // branch). Opening the build menu or the tower panel is silent, and looking
     // at a body is looking, not doing.
     UI.bubble.classList.add("td-bubble--hint");
+  }
+
+  // "this run" is stated in the label rather than implied, because the number is
+  // honestly confounded by WHEN you built the tower — a gun placed last wave has
+  // done less than one placed at wave one, and only the player knows which. What
+  // it cannot be confounded by is the thing it is for: a tower that has been up
+  // for waves and done nothing is a pad you should re-spend.
+  function workLine(t) {
+    const st = cur.engine.state;
+    const by = st.dmgByPad || {};
+    const mine = by[t.padId] || 0;
+    let total = 0;
+    for (const k in by) total += by[k];
+    if (!total) return '<span class="td-panel__work">this run: no damage yet</span>';
+    const pct = Math.round((mine / total) * 100);
+    // "of all tower damage", not "of your towers'": the possessive with no noun
+    // after it reads as a COUNT of towers ("23% of your towers"), which is a
+    // different and wrong sentence.
+    return '<span class="td-panel__work">this run: ' + mine.toLocaleString() +
+      " dmg · " + pct + "% of all tower damage</span>";
   }
 
   function fieldTap(ev) {
@@ -1791,6 +1818,14 @@
             (t.tier < 3
               ? '<span class="td-panel__next">→ ' + statLine(t, t.tier + 1) + "</span>"
               : "") +
+            // WHAT THIS GUN HAS ACTUALLY DONE. The panel told you what a pad
+            // COULD cover (% road) and what an upgrade WOULD buy, and nothing at
+            // all about the tower in front of you — so "which of these is worth
+            // the next 110 gold" was the most frequent decision in the game with
+            // the least information behind it. The share is out of the TOWERS'
+            // own total (abilities are not towers and are uncounted), so the
+            // shares across your board sum to 100.
+            workLine(t) +
             middle + control +
             // ↩ UNDO takes the SELL slot rather than sitting beside it. Same
             // button, same place, same size — so offering it costs no layout,

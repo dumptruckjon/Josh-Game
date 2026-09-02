@@ -13309,3 +13309,60 @@ test("QoL: tapping a body says what it IS and what of yours can reach it", async
     `the card ran to ${Math.max(out.one.right, out.two.right)}px of a ${out.fieldRight}px ` +
     "field — a body can be tapped at the very edge, so the card has to clamp");
 });
+
+test("QoL: the tower panel says what THIS gun has done, and the shares sum", async () => {
+  // The panel stated potential (% road) and the next tier's stats, and nothing
+  // about the tower in front of you — so "which of these deserves the next 110
+  // gold" was the game's most frequent decision with the least behind it.
+  //
+  // The two clauses are different claims: one that the line appears and carries
+  // the ENGINE's number, and one that the SHARE is out of the towers' own total.
+  // A share is the half a hard-coded string satisfies, so it is checked across
+  // two towers whose damage genuinely differs.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 5 }));
+  await page.waitForTimeout(160);
+
+  const out = await page.evaluate(async () => {
+    const eng = window.__TD.engine();
+    const pads = [];
+    for (const pad of eng.levelDef.pads) { const r = eng.place("dart", pad.id); if (!r.ok) break; pads.push(pad.id); }
+    eng.callWave();
+    for (let i = 0; i < 4000 && eng.state.phase === "wave"; i++) eng.tick();
+    const by = eng.state.dmgByPad;
+    const total = Object.values(by).reduce((a, b) => a + b, 0);
+    const read = (padId) => {
+      const t = eng.state.towers.find((x) => x.padId === padId);
+      const sp = window.__TD.w2s(t.cx + 0.5, t.cy + 0.5);
+      const cv = document.querySelector("#screen-td-play .td-canvas");
+      const rect = cv.getBoundingClientRect();
+      cv.dispatchEvent(new MouseEvent("click", { bubbles: true,
+        clientX: rect.left + sp.x, clientY: rect.top + sp.y }));
+      const el = document.querySelector("#screen-td-play .td-bubble .td-panel__work");
+      return el ? el.textContent : null;
+    };
+    // the two pads whose damage differs most, so a share can separate them
+    const sorted = pads.slice().sort((a, b) => (by[a] || 0) - (by[b] || 0));
+    const lo = sorted[0], hi = sorted[sorted.length - 1];
+    return { by, total, lo, hi, loText: read(lo), hiText: read(hi),
+             loDmg: by[lo] || 0, hiDmg: by[hi] || 0, pads };
+  });
+
+  assert.ok(out.pads.length >= 2, "fixture: need two towers to compare");
+  assert.ok(out.total > 0, "fixture: the wave must have taken damage for a share to exist");
+  assert.notEqual(out.loDmg, out.hiDmg,
+    `fixture: both towers dealt ${out.loDmg} — a share cannot separate them, so the ` +
+    "clause below would pass on a hard-coded string");
+  assert.ok(out.hiText && out.loText, "the panel must carry the work line");
+  assert.match(out.hiText, new RegExp(out.hiDmg.toLocaleString().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    `the panel said "${out.hiText}" where the engine tallied ${out.hiDmg} — the number ` +
+    "must be the engine's, not the panel's own arithmetic");
+  const pctOf = (s) => Number((s.match(/(\d+)%/) || [])[1]);
+  assert.equal(pctOf(out.hiText), Math.round((out.hiDmg / out.total) * 100),
+    `the share must be out of the TOWERS' own total (${out.total}), the denominator ` +
+    "that makes every tower's share sum to 100");
+  assert.ok(pctOf(out.hiText) > pctOf(out.loText),
+    `the busier gun read ${pctOf(out.hiText)}% and the quieter one ${pctOf(out.loText)}% — ` +
+    "the share does not follow the tower it is shown on");
+});

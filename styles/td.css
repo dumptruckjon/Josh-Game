@@ -393,6 +393,10 @@ body.td-mode #screens { padding: 0; }
    so it is legible at full strength and needs no dimming (this panel's build
    button taught that lesson the hard way — there was no headroom to dim on). */
 .td-panel__next { width: 100%; font-size: 0.72rem; color: #8fe3a8; padding: 0 4px 4px; white-space: normal; }
+/* what this gun has DONE this run. Muted like the stats line above it — this is
+   context for the upgrade decision, not the decision itself — and it inherits
+   the panel's own #16233d, so it adds no new pair to the fort's contrast audit. */
+.td-panel__work { width: 100%; font-size: 0.72rem; color: #9db4dd; padding: 0 4px 4px; white-space: normal; }
 
 /* difficulty selector (fort home) */
 .td-diff { display: flex; justify-content: center; margin: 0 0 6px; }
