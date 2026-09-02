@@ -5416,6 +5416,19 @@ alive-with-a-pending-respawn is not a state the engine can reach on its own.
 One fixture note: a soldier SPAWNS at its camp and marches, so the living-body
 control has to be walked to its post first — sampled before it arrives it reads
 zero ink, which looks exactly like a working comparison and is not.
+**The SIBLING check came back clean and that is worth writing down, so nobody
+re-runs it**: the same enumeration over the TOWER side found `disabledUntil`,
+`boostUntil` and `crashUntil` all already drawn — a jammed gun gets a pulsing red
+crackle ring, an overclocked one a pulsing gold ring, a crashed one a blue-grey
+ring with a drooping arc. Only `respawnAt` had no reader. What those three do NOT
+have is a COUNTDOWN, unlike the downed post's drain, and that was considered and
+NOT built: the totals live in three different places (an ability's `seconds`, a
+crash's own field, and the JAMMER's `sap.seconds` — which the tower cannot know
+after the fact, since a Screw, a Sparkler and a boss jam for different lengths),
+so a fraction would need either a new state field on every jam or the renderer
+re-deriving a duration the engine owns. The states are short and the pulse
+already says "this is down"; precision that changes no decision is not worth a
+hot-path field.
 
 **THE COUNTER MATRIX IS THE HEART OF THIS GAME AND YOU COULD NOT ASK THE FIELD
 ABOUT IT.** Only two lines reach air, armour halves a dart's bonk, a shield eats
