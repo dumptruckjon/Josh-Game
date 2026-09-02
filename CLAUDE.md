@@ -5333,6 +5333,90 @@ why the constraint gets its own clause, with a non-vacuity check that at least
 one tested size genuinely insets the canvas — on a width-limited board every
 anchor is on the field for free.
 
+**A PAUSED BATTLE HELD ITS FRAME LOOP STILL AND ACCEPTED PLAY INPUT ANYWAY — the
+scrim stops a finger, and that is ALL it stops.** Found by looking at the pause
+menu and noticing the field dimmed while the top bar and power tiles did not.
+Measured: with the menu open, `elementFromPoint` correctly returns the overlay at
+the centre of every play control, so a real tap is blocked — and Tab reaches
+**8 controls behind the dialog**, where a keyboard user can change the ⏩ speed,
+arm a power, spend **450🪙** on ⚙️ energy (10894 → 10444) and **BUILD A TOWER**,
+all while `cur.paused` faithfully freezes the simulation. `aria-hidden` was never
+set on the play screen, so a screen reader or switch access reaches them the same
+way. The engine has no notion of pause (it is a td-main session flag), so
+`buyCharge` could not have refused on its own.
+**The fix is on the ACTION, not on one input channel's reachability.** A focus
+trap would have fixed keyboard and left the next channel open; gating the action
+covers pointer, keyboard, AT and anything future in one place, and is testable by
+a DOM `el.click()`, which ignores the scrim entirely — the same way this suite
+already drives every tap.
+**It is ONE capture-phase listener on the play screen, and the first cut was a
+per-listener wrapper that was already a list somebody forgets to join** —
+wrapping the seven named controls left the BUILD MENU's own buttons open, so a
+menu left up behind the pause dialog still built towers. My own probe missed
+that (it never had a bubble open) and the guardrail's own clause caught it,
+which is the test doing its job. Capture on the screen covers every control on
+it, bubbles and any control added later, with events inside `.td-overlay`
+exempt because the dialog is appended to that very screen.
+Three things are deliberate and each is mutation-proven. **`.td-bubble` is NOT a
+modal** — the build menu and the tower panel are field dialogs, and building and
+inspecting mid-wave is legal, which is the whole reason they are not overlays; a
+mutation that gates them too turns four shipped tests red. **The dialog exemption
+is load-bearing** — gating everything breaks the pause menu itself. And **the
+CONTROL clause comes FIRST in the test**: with no modal open every one of these
+controls must still act, or a guard that simply blocked everything would pass the
+clause it exists for. **`fieldAimEnd` stays unguarded on purpose**, because it
+only clears the aim ring and blocking it could strand a preview on screen —
+that one is stated rather than proven, since no shipped path opens a modal
+mid-drag.
+
+**A DOWNED SOLDIER WAS INVISIBLE FOR SEVEN AND A HALF OF ITS EIGHT SECONDS — and
+the same enumeration that found the two undrawn body states never ran on the
+TOWER side.** The method is the recorded one (`<name>Until`/`<name>At` is this
+engine's convention for a timed mark, so the population derives): eleven exist,
+and the only one with ZERO references in `td-render.js` was `respawnAt`. A camp's
+whole job is a wall, `respawn` is **8 seconds on every camp tier** (4 on RC
+Racers), and the field gave it a 0.6s dust puff and then nothing at all — so a
+hole in your wall was indistinguishable from a post you never manned, and
+📣 Rally Horn, whose entire value is standing the squad straight back up, was an
+80🪙 purchase you had to make blind. It is a dashed ring with a draining arc now:
+the shape says *one of yours is missing here*, the arc says *and it is nearly
+back*. Six things worth keeping. (1) **The engine had to grow an accessor,
+because the obvious field LIES.** `rally()` deliberately updates only LIVING
+soldiers' posts (a downed one is re-slotted when it stands up), so a marker drawn
+at `sol.tx/ty` points at the wall you just moved away from. `soldierReturn` reads
+the same `postOf` the respawn reads, so the marker cannot disagree with the
+respawn it predicts — and that is the clause the whole test hangs on. (2) **The
+first cut was the Sparkler defect again**: measured at the real 27px cell, one
+pass gave **54 ink px at mean delta 54 against a living soldier's 136 at 181** —
+the mark for a missing body was the faintest thing in its own neighbourhood.
+Dark-under-bright takes it to 193/143, and the bar is a COMPARISON against a
+living soldier on the same floor rather than a pixel constant, because ten worlds
+run from a near-black attic to a bright party carpet (measured mark-vs-body
+contrast 0.80 / 1.17 / 0.91 on bedroom / attic / party). (3) **The SCREENSHOT
+found what every number missed.** At radius 0.30 a single downed post is perfect
+and a WIPED squad — the case the marker exists for — drew one tangled chain,
+because `rallySlots` spaces posts 0.52 cells apart with a ±0.1 stagger (0.557
+centre to centre) and a 0.60 ring must merge. So the radius is DERIVED from the
+squad's own spacing (`postOf` now reports `gap`; the marker takes 40% of it), and
+a fixed constant cannot come back. (4) **A centre-line profile could not express
+"separate"** — the drain arcs cross the axis, so it reported one continuous run
+on markers that are plainly three; the falsifiable form is the geometric one,
+read off a `postMarkInfo()` hook (the `leverInfo` precedent) rather than
+re-derived in the test, where the expectation would move with the formula under
+test. (5) **Two mutations fired the WRONG clause first**, the recurring
+earlier-clause trap: freezing `left` to fake a stale post tripped the DRAIN
+check, so the rally clause was still unproven, and making the engine answer for a
+living soldier put a marker into the bare-floor CONTROL frame and tripped the ink
+check. Isolating them meant a mutation that keeps the drain honest and moves only
+the position, and reading the living-soldier answer FIRST, before any drawing can
+confound it. (6) **One clause is an outcome TWO guards deliver, and the comment
+says so**: `alive` and `respawnAt` both make the answer null, so dropping either
+alone stays green (proven — M6 passes) and only dropping both turns it red;
+alive-with-a-pending-respawn is not a state the engine can reach on its own.
+One fixture note: a soldier SPAWNS at its camp and marches, so the living-body
+control has to be walked to its post first — sampled before it arrives it reads
+zero ink, which looks exactly like a working comparison and is not.
+
 ---
 
 ## Repository Structure

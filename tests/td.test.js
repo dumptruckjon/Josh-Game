@@ -12801,6 +12801,96 @@ test("a hostile save still boots and plays — every persisted field, wrong-type
 });
 
 
+test("a paused battle does not accept play input, whatever channel finds it", async () => {
+  // `cur.paused` holds the frame loop still and nothing held the INPUT. The
+  // scrim stops a finger and that is all it stops: measured with the pause menu
+  // open, Tab reaches 8 controls behind it, and driving them changed the speed,
+  // armed a power, spent 450🪙 on ⚙️ energy and BUILT A TOWER — all while the
+  // menu was up and the battle frozen. A screen reader or switch access reaches
+  // them the same way.
+  //
+  // So the rule is on the ACTION, not on one input channel's reachability, and
+  // this test drives it the way that channel does: a DOM click, which ignores
+  // the scrim entirely.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+
+  const drive = () => page.evaluate(() => {
+    const e = window.__TD.engine();
+    const q = (s) => document.querySelector("#screen-td-play " + s);
+    const cv = q(".td-canvas"), c = cv.getBoundingClientRect();
+    const before = { towers: e.state.towers.length, gold: e.state.gold, speed: q(".td-speed").textContent };
+    // a real field tap on an empty pad, through the shipped listener
+    const pad = e.levelDef.pads.find((p) => !e.state.towers.some((t) => t.padId === p.id));
+    const s = window.__TD.w2s(pad.cx + 0.5, pad.cy + 0.5);
+    cv.dispatchEvent(new MouseEvent("click", { clientX: c.left + s.x, clientY: c.top + s.y, bubbles: true }));
+    const menu = q(".td-buildmenu");
+    if (menu && menu.querySelector("button")) menu.querySelector("button").click();
+    q(".td-hud__charge").click();
+    const tile = q(".td-abil");
+    if (tile) tile.click();
+    q(".td-speed").click();
+    const after = { towers: e.state.towers.length, gold: e.state.gold, speed: q(".td-speed").textContent };
+    return { built: after.towers !== before.towers, spent: after.gold !== before.gold,
+      armed: !!q(".td-abil--armed"), speedMoved: after.speed !== before.speed };
+  });
+
+  const openPause = () => page.evaluate(() => {
+    const p = document.querySelector("#screen-td-play .td-pause");
+    p.click(); p.click();          // newGame leaves the run PAUSED, so the first tap resumes
+    return !!document.querySelector(".td-overlay--pause");
+  });
+  const resume = () => page.evaluate(() => {
+    const b = [...document.querySelectorAll(".td-overlay .td-btn")].find((x) => /Resume/.test(x.textContent));
+    if (b) b.click();
+    return !document.querySelector(".td-overlay");
+  });
+
+  // 1. THE CONTROL, and it comes first: with no modal open every one of these
+  //    must WORK, or a guard that simply blocked everything would pass the
+  //    clause below without anyone noticing.
+  await page.evaluate(() => { window.__TD.newGame(12, { seed: 7 }); window.__TD.grantGold(99999); window.__TD.script([["call"], ["tick", 30]]); });
+  await page.waitForTimeout(120);
+  const live = await drive();
+  assert.deepEqual(live, { built: true, spent: true, armed: true, speedMoved: true },
+    `with no modal open the play controls must all act (${JSON.stringify(live)})`);
+
+  // 2. …and with the pause menu up, none of them does.
+  await page.evaluate(() => { window.__TD.newGame(12, { seed: 7 }); window.__TD.grantGold(99999); window.__TD.script([["call"], ["tick", 30]]); });
+  await page.waitForTimeout(120);
+  assert.ok(await openPause(), "fixture: the pause menu must open");
+  const paused = await drive();
+  assert.deepEqual(paused, { built: false, spent: false, armed: false, speedMoved: false },
+    `a paused battle must accept no play input (${JSON.stringify(paused)})`);
+  assert.ok(await page.evaluate(() => !!document.querySelector(".td-overlay--pause")),
+    "…and it must still be paused afterwards");
+  assert.ok(await resume(), "fixture: Resume must close the menu");
+
+  // 3. A `.td-bubble` is NOT a modal. The build menu and the tower panel are
+  //    field dialogs — building and inspecting mid-wave is legal, which is the
+  //    whole reason they are not overlays — so the guard must not swallow input
+  //    while one is open. This is what stops it being over-broad.
+  const withBubble = await page.evaluate(() => {
+    const q = (s) => document.querySelector("#screen-td-play " + s);
+    const e = window.__TD.engine();
+    const cv = q(".td-canvas"), c = cv.getBoundingClientRect();
+    // A tower to open a panel ON. Clause 2 correctly built none — which is what
+    // it asserts — so this fixture has to make its own.
+    if (!e.state.towers.length) e.place("dart", e.levelDef.pads[0].id);
+    const t = e.state.towers[0];
+    const s = window.__TD.w2s(t.cx + 0.5, t.cy + 0.5);
+    cv.dispatchEvent(new MouseEvent("click", { clientX: c.left + s.x, clientY: c.top + s.y, bubbles: true }));
+    const bubble = !!q(".td-bubble");
+    const was = q(".td-speed").textContent;
+    q(".td-speed").click();
+    return { bubble, moved: q(".td-speed").textContent !== was, overlay: !!document.querySelector(".td-overlay") };
+  });
+  assert.ok(withBubble.bubble && !withBubble.overlay,
+    `fixture: tapping a built tower must open a BUBBLE and no overlay (${JSON.stringify(withBubble)})`);
+  assert.ok(withBubble.moved,
+    "a field bubble is not a modal — the play controls must still act while the tower panel is open");
+});
+
 test("QoL: the wave pill lands ON the battlefield, not beside it", async () => {
   // The pill is scored in CANVAS coordinates and used to be POSITIONED by the
   // stylesheet, which anchors to its offsetParent — the canvas WRAP. Wherever
@@ -12930,4 +13020,168 @@ test("QoL: the range ring draws the mortar's DEAD ZONE, not a filled disc", asyn
   // not painting near a tower at all.
   assert.ok(r.dartInner > 60,
     `a dart has no dead zone, so its ring must reach its own feet (got ${r.dartInner})`);
+});
+
+test("QoL: a downed soldier leaves a MARKED post, and it follows the rally", async () => {
+  // A camp's whole job is a wall, and `respawn` is EIGHT seconds on every camp
+  // tier (four on RC Racers). The field showed a 0.6s dust puff and then nothing
+  // at all for the remaining 7.4: a hole in the wall was indistinguishable from a
+  // post you never manned, and 📣 Rally Horn — 80🪙 to stand the squad straight
+  // back up — was a purchase you had to make blind.
+  //
+  // ISOLATION: both frames have NO body (the soldier is dead in each) and differ
+  // only by whether the engine reports a return — clearing respawnAt makes
+  // soldierReturn null, which draws nothing. So the diff is the marker's own ink,
+  // with no fx ageing to confound it. The frames are proven comparable first by
+  // drawing the SAME state twice and requiring ~0 difference.
+  //
+  // The BAR is a comparison, never a pixel constant: the marker must read about
+  // as strongly as a living soldier standing on the same floor. An absolute floor
+  // would be dishonest across ten worlds that run from a near-black attic to a
+  // bright party carpet — and measured on those three, mark-vs-body contrast is
+  // 0.89 / 1.15 / 0.96, which is what the dark-under-bright double pass buys.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 5 }));
+  await page.waitForTimeout(160);
+
+  const out = await page.evaluate(() => {
+    const eng = window.__TD.engine(), r = window.__TD.render();
+    // A camp the engine will actually accept — place() takes (lineId, padId), and
+    // not every pad can post a squad on the lane.
+    let camp = null;
+    for (const pad of eng.levelDef.pads) {
+      const res = eng.place("camp", pad.id);
+      if (res && res.ok) { camp = eng.state.towers[eng.state.towers.length - 1]; break; }
+    }
+    if (!camp) return { err: "no camp could be placed" };
+    const sol = eng.state.soldiers.find((s) => s.campId === camp.id);
+    if (!sol) return { err: "the camp fielded no soldiers" };
+    // Read this FIRST, while the soldier is up and untouched: a mutation that
+    // makes the engine answer for a living soldier also puts a marker into the
+    // bare-floor control frame, so measured later it would trip a pixel clause
+    // instead of this one. (The null is an outcome TWO guards deliver — `alive`
+    // and `respawnAt` — so only removing both turns this red; alive+respawnAt is
+    // not a state the engine can reach on its own.)
+    const whileUp = eng.soldierReturn(sol.id);
+
+    const canvas = document.querySelector("#screen-td-play .td-canvas");
+    const c2 = canvas.getContext("2d");
+    const dpr = canvas.width / canvas.clientWidth;
+    const R = Math.round(22 * dpr);
+    const grab = (wx, wy) => {
+      const s = window.__TD.w2s(wx + 0.5, wy + 0.5);
+      return c2.getImageData(
+        Math.round(s.x * dpr) - R, Math.round(s.y * dpr) - R, R * 2, R * 2).data;
+    };
+    const stat = (a, b) => {
+      let n = 0, sum = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
+        if (d > 24) { n++; sum += d; }
+      }
+      return { n, mean: Math.round(n ? sum / n : 0) };
+    };
+
+    // A soldier SPAWNS at its camp and marches, so the control has to be walked
+    // to its post before it can be sampled there — otherwise the "living body"
+    // bar is measured on bare floor and reads zero, which looks like a working
+    // comparison and is not.
+    for (let i = 0; i < 400 && Math.hypot(sol.x - sol.tx, sol.y - sol.ty) > 0.05; i++) eng.tick();
+    const walked = Math.hypot(sol.x - sol.tx, sol.y - sol.ty);
+    r.afterTick(); r.draw(0);
+    const live = grab(sol.tx, sol.ty);
+    sol.alive = false; sol.respawnAt = 0; r.draw(0);
+    const bare = grab(sol.tx, sol.ty);
+    const body = stat(bare, live);
+
+    // --- the marker, at two points of its drain ---
+    const at = (left) => {
+      sol.respawnAt = eng.state.tick + left;
+      const q = eng.soldierReturn(sol.id);
+      r.draw(0);
+      return { q, px: grab(q.x, q.y) };
+    };
+    const down = at(150);
+    r.draw(0);
+    const again = grab(down.q.x, down.q.y);          // self-verifying: same state, same picture
+    const nearlyBack = at(10).px, justDown = at(239).px;
+    const mark = stat(bare, down.px);
+    const drain = stat(nearlyBack, justDown);
+
+    // --- the marker must follow a RALLY, not the soldier's stale post ---
+    const stale = { x: sol.tx, y: sol.ty };
+    let moved = null;
+    for (let d = 3; d >= 1 && !moved; d -= 0.25) {
+      for (const [dx, dy] of [[d, 0], [-d, 0], [0, d], [0, -d]]) {
+        const res = eng.rally(camp.id, camp.cx + dx, camp.cy + dy);
+        if (res && res.ok) {
+          const now = eng.soldierReturn(sol.id);
+          if (Math.hypot(now.x - stale.x, now.y - stale.y) > 1.2) { moved = now; break; }
+        }
+      }
+    }
+    if (!moved) return { err: "no accepted rally moved the post far enough to sample" };
+    sol.respawnAt = eng.state.tick + 150; r.draw(0);
+    const atNew = stat(bare, grab(moved.x, moved.y)).n;
+    sol.respawnAt = 0; r.draw(0);
+    const oldBare = grab(stale.x, stale.y);
+    sol.respawnAt = eng.state.tick + 150; r.draw(0);
+    const atOld = stat(oldBare, grab(stale.x, stale.y)).n;
+
+    // The marker has to FIT between two posts of the same squad. Read off the
+    // last draw (the leverInfo precedent — so the draw must happen first, which
+    // it just has), never re-derived here, or the expectation would move with the
+    // formula under test.
+    const fit = r.postMarkInfo();
+    sol.alive = true; sol.respawnAt = 0;
+    return {
+      walked, body, mark, drain: drain.n, atNew, atOld, whileUp, fit,
+      residue: stat(down.px, again).n,
+      gap: Math.hypot(moved.x - stale.x, moved.y - stale.y),
+      left: down.q.left, total: down.q.total,
+    };
+  });
+
+  assert.ok(!out.err, "fixture: " + out.err);
+  assert.equal(out.whileUp, null,
+    "a soldier who is standing up has no return to predict, so the engine must say so");
+  assert.ok(out.walked < 0.05,
+    `fixture: the control soldier never reached its post (${out.walked}), so the ` +
+    "living-body bar below would be measured on bare floor");
+  assert.ok(out.residue < 20,
+    `drawing the SAME state twice moved ${out.residue} pixels — the frames are not ` +
+    "comparable, so every measurement below would be confounded");
+  assert.ok(out.body.n > 60 && out.body.mean > 80,
+    `fixture: a living soldier only inks ${out.body.n}px at ${out.body.mean} — the ` +
+    "comparison below would pass vacuously against a body nobody can see either");
+  assert.ok(out.mark.n > out.body.n * 0.8 && out.mark.mean > out.body.mean * 0.7,
+    `the downed post inked ${out.mark.n}px at mean delta ${out.mark.mean} against a ` +
+    `living soldier's ${out.body.n} at ${out.body.mean} — the mark for a missing ` +
+    "body must read about as strongly as a body, or it is the faintest thing on " +
+    "the field at exactly the moment it matters");
+  assert.ok(out.fit && out.fit.gap > 0.3 && out.fit.gap < 2,
+    `fixture: the squad's post spacing read back as ${out.fit && out.fit.gap} cells, ` +
+    "which is not a spacing the clause below can say anything about");
+  assert.ok(out.fit.rad * 2 < out.fit.gap,
+    `the downed-post marker is ${(out.fit.rad * 2).toFixed(3)} cells across against a ` +
+    `${out.fit.gap.toFixed(3)}-cell gap between posts — at that size a wiped squad ` +
+    "draws one tangled chain instead of one countable marker per missing soldier, " +
+    "which is the exact case the marker exists for");
+  assert.ok(out.drain > 80,
+    `the marker changed only ${out.drain} pixels between a fresh KO and a nearly-` +
+    "finished respawn — the ring must DRAIN, or it says a soldier is gone and " +
+    "never says for how much longer");
+  assert.ok(out.gap > 1.2,
+    `fixture: the rally only moved the post ${out.gap.toFixed(2)} cells, so the two ` +
+    "sample boxes overlap and the clause below cannot separate them");
+  assert.ok(out.atNew > out.body.n * 0.8,
+    `after a rally the marker drew ${out.atNew} pixels at the post the soldier will ` +
+    "ACTUALLY return to — it must follow the squad, not the post it held before");
+  assert.ok(out.atOld < 60,
+    `after a rally the marker still drew ${out.atOld} pixels at the OLD post — it is ` +
+    "reading the soldier's stale tx/ty instead of asking the engine where it returns");
+  assert.ok(out.left > 0 && out.left <= out.total,
+    `the respawn read back as ${out.left} of ${out.total} ticks — the marker's drain ` +
+    "needs a fraction the engine owns, not one the renderer re-derives");
 });

@@ -1163,6 +1163,26 @@
       }
       return out;
     }
+    // The ONE owner of "which post does this soldier hold". A respawn recomputes
+    // it from the camp's CURRENT rally — rally() deliberately updates only LIVING
+    // soldiers, since a downed one is re-slotted when it stands up — so a downed
+    // soldier's stored tx/ty can be STALE, and anything predicting where it will
+    // come back must ask here rather than read the field.
+    // Returns the post AND `gap` — the distance to this camp's nearest other post,
+    // which is what a field marker for the post has to fit inside. It is the
+    // squad's own spacing rather than a constant, so a marker sized from it can
+    // never merge with its neighbour if rallySlots is ever re-spaced. Infinity
+    // for a one-soldier squad, which has no neighbour to collide with.
+    function postOf(t, sol) {
+      const slots = rallySlots(t);
+      const i = sol.slot % slots.length;
+      let gap = Infinity;
+      for (let k = 0; k < slots.length; k++) {
+        if (k === i) continue;
+        gap = Math.min(gap, Math.hypot(slots[k].x - slots[i].x, slots[k].y - slots[i].y));
+      }
+      return { x: slots[i].x, y: slots[i].y, gap };
+    }
     function spawnSoldiers(t) {
       const s = statsOf(DATA.TOWERS.camp, t);
       const slots = rallySlots(t);
@@ -1228,8 +1248,8 @@
           if (!sol.alive && sol.respawnAt && state.tick >= sol.respawnAt) {
             sol.alive = true; sol.hp = Math.round(s.hp * mods.soldierHp); sol.maxHp = sol.hp;
             sol.x = t.cx; sol.y = t.cy; sol.engagedId = 0; sol.respawnAt = 0;
-            const slots = rallySlots(t);
-            sol.tx = slots[sol.slot % slots.length].x; sol.ty = slots[sol.slot % slots.length].y;
+            const post = postOf(t, sol);
+            sol.tx = post.x; sol.ty = post.y;
           }
         }
       }
@@ -1725,6 +1745,29 @@
       if (!t) return 0;
       const r = reachInfo(statOf(t.lineId, t.tier, t.branch), t.cx, t.cy, t.supRange);
       return r ? r.dead : 0;
+    }
+    // Where a downed soldier will come BACK, and how long that takes.
+    //
+    // A camp's whole job is a wall, and a soldier is down for `respawn` seconds —
+    // EIGHT on every camp tier and four on RC Racers. The field showed a 0.6s dust
+    // puff and then nothing at all for the remaining 7.4: no marker, no timer, so
+    // a hole in the wall was indistinguishable from a post you never manned, and
+    // 📣 Rally Horn — whose entire value is standing your squad straight back up —
+    // was a purchase you had to make blind.
+    //
+    // Both numbers come from the engine's own owners (postOf and respawnTicks) so
+    // the marker cannot disagree with the respawn it is predicting. Reading the
+    // soldier's stored tx/ty instead would draw the ghost at the post it held
+    // BEFORE a rally, i.e. it would point at the old wall while the squad reforms
+    // on the new one. Returns null while the soldier is up.
+    function soldierReturn(solId) {
+      const sol = state.soldiers.find((s) => s.id === solId);
+      if (!sol || sol.alive || !sol.respawnAt) return null;
+      const t = towerById(sol.campId);
+      if (!t || t.lineId !== "camp") return null;
+      const post = postOf(t, sol);
+      const total = Math.max(1, respawnTicks(statsOf(DATA.TOWERS.camp, t)));
+      return { x: post.x, y: post.y, gap: post.gap, left: Math.max(0, sol.respawnAt - state.tick), total };
     }
     // The stat block a built tower ACTUALLY fights with — its tier/branch stats
     // with this run's meta and this level applied. The tower panel prints these.
@@ -2329,7 +2372,7 @@
     }
 
     return {
-      state, events, tick, place, upgrade, branch, sell, undoLast, undoInfo, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, towerDead, towerStats, reachAt,
+      state, events, tick, place, upgrade, branch, sell, undoLast, undoInfo, setTargeting, targetingModes, rally, callWave, priceOf, refundOf, coverageOf, towerReach, towerDead, soldierReturn, towerStats, reachAt,
       applyStrip, // 🎯 exposed like isHidden/dealDamage: a guardrail must drive the seam, not infer it
       chargePrice, buyCharge, buyChargeReady,
       // What THIS run banks per wave sent. 🔋 Spare Battery adds to it, so a UI

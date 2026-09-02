@@ -2884,6 +2884,74 @@
       }
     }
 
+    // A POST WITH NOBODY ON IT. A downed soldier is gone for eight seconds (four
+    // on RC Racers) and the field said so for 0.6 of them — one dust puff, then a
+    // silent gap in the wall you could not tell from a post you never manned.
+    //
+    // It is drawn as an empty helmet outline standing in a dashed ring, with the
+    // ring DRAINING as the respawn runs down: the shape says "one of yours is
+    // missing here", the arc says "and it is nearly back". Both facts come off
+    // engine.soldierReturn, never off the soldier's own tx/ty, which is the post
+    // it held before the last rally.
+    //
+    // The drain is a progress read-out, not decoration, so it is deliberately NOT
+    // reduced-motion gated — the same call as the ability tile's cooldown scrim
+    // and the lever's countdown numeral. It is frozen while paused for free,
+    // since it is derived from state.tick.
+    let lastPostMark = null;
+    function drawDownedPost(r) {
+      // +0.5 like drawSoldier: a post is a corner-based lane coordinate, and the
+      // squad once drew half a cell off the road for want of this.
+      const p = worldToScreen(r.x + 0.5, r.y + 0.5);
+      // The radius is bounded by the SQUAD'S OWN SPACING, not by taste: rallySlots
+      // posts soldiers 0.52 cells apart along the lane with a ±0.1 perpendicular
+      // stagger, i.e. 0.557 centre to centre, so anything at or over that diameter
+      // MERGES. At 0.30 a wiped squad drew one tangled chain — unreadable in the
+      // exact case the marker exists for — so 0.22 leaves a clear gap between
+      // three of them, and the strokes thicken to hold the ink the smaller ring
+      // would otherwise lose.
+      const x = p.x, y = p.y, u = cell;
+      // DERIVED, not chosen: the marker must fit between two posts of the same
+      // squad, and at 0.30 cells a wiped squad drew one tangled chain — three
+      // rings merged, so you could not count how many of your wall was gone in
+      // the exact case the marker exists for. `gap` is rallySlots' own spacing
+      // (0.557 cells today: 0.52 along the lane plus a ±0.1 stagger), so taking
+      // 40% of it leaves a fifth of the gap clear however the squad is re-spaced.
+      const rad = Math.min(u * 0.26, (isFinite(r.gap) ? r.gap : 1) * u * 0.4);
+      lastPostMark = { rad: rad / u, gap: isFinite(r.gap) ? r.gap : Infinity };
+      const frac = Math.max(0, Math.min(1, 1 - r.left / r.total));
+      // Drawn DARK-UNDER-BRIGHT, the same two-pass rule the body-state cues use:
+      // ten worlds run from a near-black attic to a bright party carpet, and one
+      // pass reads three times louder on the dark half than the light. Measured
+      // at the real 27px cell, one pass gave 54 ink px at mean delta 54 against a
+      // living soldier's 136 at 181 — the marker for a missing body was the
+      // faintest thing in its own neighbourhood, which is the whole defect the
+      // Sparkler's art already had to be fixed for.
+      const pass = (ink, wide) => {
+        ctx.strokeStyle = ink;
+        // the empty post: dashed, so it can never be mistaken for a live body
+        ctx.setLineDash([Math.max(3, u * 0.11), Math.max(2, u * 0.08)]);
+        ctx.lineWidth = Math.max(1.5, u * 0.07) + wide;
+        ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.stroke();
+        ctx.setLineDash([]);
+      };
+      const drain = (ink, wide) => {
+        ctx.strokeStyle = ink;
+        ctx.lineWidth = Math.max(2, u * 0.115) + wide;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(x, y, rad, -Math.PI / 2, -Math.PI / 2 + Math.max(0.06, frac * Math.PI * 2));
+        ctx.stroke();
+      };
+      ctx.save();
+      pass("rgba(20,16,10,0.75)", 1.5);
+      pass("rgba(236,222,180,0.9)", 0);
+      drain("rgba(20,16,10,0.75)", 1.5);
+      drain("rgba(255,206,90,0.98)", 0);
+      ctx.restore();
+      ctx.setLineDash([]);
+    }
+
     // `dead` is the Mortar's minimum range — the hole UNDER the tube it cannot
     // shoot into. It used to be drawn as a filled disc, i.e. the ring claimed
     // ground the gun cannot reach, on 152 of the campaign's 501 pads (worst:
@@ -3665,7 +3733,11 @@
         if (decorErrors.length < 8) decorErrors.push(String(err));
       } finally { ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.restore(); }
       for (const t of st.towers) withInk(() => drawTower(t), true, 0, towerPens);
-      for (const s of st.soldiers) if (s.alive) drawSoldier(s);
+      for (const s of st.soldiers) {
+        if (s.alive) { drawSoldier(s); continue; }
+        const back = engine.soldierReturn ? engine.soldierReturn(s.id) : null;
+        if (back) drawDownedPost(back);
+      }
       // mortar shells arc between launch and impact
       for (const sh of st.shells) {
         const f = Math.min(1, sh.t / sh.T);
@@ -4082,6 +4154,9 @@
       shakeInfo: () => ({ ttl: shakeTtl, mag: shakeMag, reduced: reduceMotion }), // test hook
       decorInfo: () => decorErrors.slice(), // test hook: what a decorative layer threw (see the catch in draw)
       leverInfo: () => ({ hasSeg: !!leverSeg, lit: lastLitLane }), // test hook: which lane the route overlay lit last draw
+      // test hook (the leverInfo precedent): the downed-post marker's radius and
+      // the squad spacing it was sized against, both in CELLS, as of the last draw
+      postMarkInfo: () => lastPostMark,
       markerInfo: () => ({ spawn: markers.spawn, exit: markers.exit, spawnW: markers.spawnW, exitW: markers.exitW, cell }), // test hook: where the spawn/exit markers were drawn
       // test hook (the leverInfo precedent): which side doors are lit right now
       // and what picture marks them. Reported from real play as invisible —
