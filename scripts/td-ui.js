@@ -206,6 +206,34 @@
     };
 
     screens.appendChild(play);
+    // A MODAL is open, so the battle underneath is not playable — whatever input
+    // finds these controls. The scrim stops a finger and that is ALL it stops:
+    // measured with the pause menu open, a keyboard reaches 8 controls behind it
+    // and can change the speed, arm a power, spend 450🪙 on ⚙️ energy and BUILD A
+    // TOWER, while `cur.paused` faithfully holds the frame loop still. Gating the
+    // ACTION rather than one input channel's reachability fixes it for keyboard,
+    // switch access and a screen reader at once, and cannot be defeated by a
+    // future input path.
+    //   `.td-bubble` — the build menu and the tower panel — is a FIELD dialog
+    // rather than a modal and is deliberately not covered: building and
+    // inspecting mid-wave is legal, which is the whole reason those two are not
+    // overlays. And `fieldAimEnd` below stays UNGUARDED on purpose: it only
+    // clears the aim ring, so blocking it could strand a preview on screen.
+    //   ONE capture-phase gate rather than a wrapper per listener, because a
+    // per-listener list is a list somebody forgets to join — and it already was:
+    // wrapping the seven named controls left the BUILD MENU's own buttons open,
+    // so a menu left up behind the pause dialog still built towers. Capture on
+    // the screen covers every control on it, including the bubbles and any
+    // control added later. Events inside the dialog are exempt, since the
+    // overlay is appended to this very screen.
+    for (const type of ["click", "pointerdown", "pointermove"]) {
+      play.addEventListener(type, (ev) => {
+        if (!doc.querySelector(".td-overlay")) return;
+        if (ev.target && ev.target.closest && ev.target.closest(".td-overlay")) return;
+        ev.stopPropagation();
+        ev.preventDefault();
+      }, true);
+    }
     play.querySelector(".td-quit").addEventListener("click", hooks.quitToFort);
     play.querySelector(".td-pause").addEventListener("click", hooks.togglePause);
     play.querySelector(".td-speed").addEventListener("click", hooks.toggleSpeed);
