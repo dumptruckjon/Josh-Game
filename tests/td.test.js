@@ -10699,18 +10699,22 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
     `at 390px the pill must dodge the lanes on all but the one map that cannot (covered on L${hit.join(", L")})`);
 
   // 320: the pill is ~47% of the canvas here, so there is far less room to move
-  // — measured 12 of 40 before the narrow-width shrink, then 7, and 3 once the
-  // anchor was scored in the space the pill is POSITIONED in rather than the
-  // canvas's. This is the width where that mattered most: the canvas is inset
-  // 48px inside the wrap here, which is 21% of a 224px field, so every span was
-  // being judged at a place the pill would not land. Pinned at the measured
-  // value so a wider pill, or a new map, cannot quietly regress it.
+  // — 12 of 40 before the narrow-width shrink, then 7.
+  //
+  // It briefly read 3, and that number was BOUGHT BY A BUG. Scoring the anchor
+  // against the pill's offsetParent (the canvas WRAP) let it choose a position
+  // 40px off the right of a 224px field, and off the field is further from
+  // every lane, so the metric rewarded leaving the battlefield: the screenshot
+  // shows the pill straddling the field's edge, half on the board and half on
+  // the page background. Constrained to the canvas it is 7 again, which is the
+  // honest figure and still far better than the 16 a fixed centre gives here.
+  // The sibling test above pins the constraint itself.
   await page.setViewportSize({ width: 320, height: 568 });
   await page.waitForTimeout(150);
   rows = await measure();
   hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
-  assert.ok(hit.length <= 3,
-    `at 320px the pill covers a lane on ${hit.length} maps, over the measured budget of 3 (L${hit.join(", L")})`);
+  assert.ok(hit.length <= 7,
+    `at 320px the pill covers a lane on ${hit.length} maps, over the measured budget of 7 (L${hit.join(", L")})`);
 
   // LANDSCAPE, and the SIZE is the test. The renderer rotates the floor 90° for
   // portrait, so every lane moves on screen and the anchor is re-derived from
@@ -10739,8 +10743,12 @@ test("QoL: the next-wave pill dodges the lanes instead of sitting on the incomin
   rows = await measure();
   assert.ok(rows.length >= 40, `fixture: every level must show a preview at tablet size (saw ${rows.length})`);
   hit = rows.filter((r) => r.covered > 0).map((r) => r.id);
+  // …and it clears them WITHOUT leaving the field. This comment used to credit
+  // "the whole margin beside a height-limited board" — which is exactly where
+  // the pill was going, and wrongly: measured on the canvas alone it is still 0
+  // here (against 9 for a fixed centre), so the margin was never what earned it.
   assert.equal(hit.length, 0,
-    `on a tablet the pill must clear every lane — it has the whole margin beside a height-limited board to dodge into (covered on L${hit.join(", L")})`);
+    `on a tablet the pill must clear every lane while staying on the canvas (covered on L${hit.join(", L")})`);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(150);
 
@@ -12792,6 +12800,58 @@ test("a hostile save still boots and plays — every persisted field, wrong-type
     `a corrupt or hand-edited save must degrade, never crash — the fort has to boot AND play:\n  ${bad.join("\n  ")}`);
 });
 
+
+test("QoL: the wave pill lands ON the battlefield, not beside it", async () => {
+  // The pill is scored in CANVAS coordinates and used to be POSITIONED by the
+  // stylesheet, which anchors to its offsetParent — the canvas WRAP. Wherever
+  // the board is HEIGHT-limited the canvas is narrower than that wrap, so the
+  // pill sat beside the battlefield on the page background: measured 40px off
+  // at 320, 46 at 360, 100 at 768 and 79 at 834, while 390 and 414 (canvas
+  // inset 6px and 4px) looked perfect.
+  //
+  // The dodge metric could never catch it, and in fact REWARDED it: off the
+  // field is further from every lane point, so the anchor scored a position it
+  // could not legally take and called it the best one. This is the property
+  // that metric cannot express.
+  // 320 and 360 (canvas inset 48 and 54) and 834 (inset 87) are the sizes that
+  // SEPARATE the two states; 390 is the control that measured clean either way,
+  // and is here so a regression that only appears on a roomy phone is visible.
+  const sizes = [[320, 568], [360, 640], [834, 1112], [390, 844]];
+  const rows = [];
+  try {
+    for (const [w, h] of sizes) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.waitForTimeout(120);
+      rows.push(await page.evaluate(() => {
+        window.__TD.newGame(12, { seed: 7 });
+        window.__TD.script([["call"], ["tick", 4]]);
+        const cv = document.querySelector("#screen-td-play .td-canvas");
+        const nw = document.querySelector("#screen-td-play .td-nextwave");
+        const c = cv.getBoundingClientRect(), p = nw.getBoundingClientRect();
+        return {
+          w: window.innerWidth, hidden: nw.hidden, text: nw.textContent.trim(),
+          inset: cv.offsetLeft,
+          off: Math.round(Math.max(0, c.left - p.left) + Math.max(0, p.right - c.right)),
+        };
+      }));
+    }
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(60);
+  }
+
+  // The fixture only means anything if the pill is actually SHOWING and if at
+  // least one size has a canvas genuinely inset inside its wrap — on a
+  // width-limited board the two coincide and every anchor is on the field for
+  // free, which would make this pass without testing anything.
+  for (const r of rows) assert.ok(!r.hidden && /left/.test(r.text), `fixture: the pill must be up at ${r.w}px (saw "${r.text}")`);
+  assert.ok(rows.some((r) => r.inset > 20),
+    `fixture: at least one size must inset the canvas inside its wrap, or this cannot fail (insets ${rows.map((r) => r.inset).join(", ")})`);
+
+  const bad = rows.filter((r) => r.off > 0);
+  assert.deepEqual(bad.map((r) => r.w + "px:" + r.off), [],
+    "the pill must sit entirely on the canvas — beside it, it is a readout on the page background");
+});
 
 test("QoL: the range ring draws the mortar's DEAD ZONE, not a filled disc", async () => {
   // The ring is the placement cue, and for the one line with a minimum range it

@@ -1898,6 +1898,10 @@
   // than the fixed anchor it replaces.
   UI.anchorPreview = function (nw) {
     nw.classList.remove("td-nextwave--left", "td-nextwave--right");
+    // Cleared, so every early return below falls back to the stylesheet's
+    // top-centre — which is centred in the WRAP, and the canvas is centred in
+    // the wrap at every shipped width, so the fallback still lands on the field.
+    nw.style.left = ""; nw.style.right = ""; nw.style.transform = "";
     const pts = UI._lanePts ? UI._lanePts() : [];
     const cv = UI.canvas;
     if (!pts.length || !cv || !cv.clientWidth) return "center";
@@ -1916,19 +1920,34 @@
     // being centred, not a distinction any clause below can fail on. What IS
     // proven is the space itself — scoring in canvas coordinates reports 7 maps
     // at 320 against this one's 3.
-    const boxW = nw.offsetParent ? nw.offsetParent.clientWidth : cw;
+    // …and POSITIONED in that same space, which is the half this got wrong. The
+    // scoring was moved into canvas coordinates and the placement was left to
+    // the CSS, which anchors to the offsetParent — the canvas WRAP. Wherever
+    // the board is HEIGHT-limited the canvas is narrower than its wrap and the
+    // pill lands beside the battlefield rather than on it: measured 40px off at
+    // 320, 46 at 360, 100 at 768 and 79 at 834, while 390 and 414 (inset 6 and
+    // 4px) looked perfect. Worse, the dodge metric REWARDED it — off the field
+    // is further from every lane — so the anchor was scoring a position it
+    // could not legally take and calling it the best one. Both halves live in
+    // canvas coordinates now and `dx` is applied exactly once, at the end.
     const dx = cv.offsetLeft;
     const top = nw.offsetTop, bot = top + nw.offsetHeight;
     const band = pts.filter((q) => q.y >= top - 14 && q.y <= bot + 14);
     if (!band.length) return "center";
-    const spans = { left: [8, 8 + w], center: [(boxW - w) / 2, (boxW + w) / 2], right: [boxW - w - 8, boxW - 8] };
+    const at = { left: 8, center: (cw - w) / 2, right: cw - w - 8 };
     let best = "center", bestGap = -1;
     for (const k of ["center", "left", "right"]) {
-      const [a, b] = spans[k];
+      const a = at[k], b = a + w;
       let gap = Infinity;
-      for (const q of band) { const qx = q.x + dx; gap = Math.min(gap, Math.max(a - qx, 0, qx - b)); }
+      for (const q of band) gap = Math.min(gap, Math.max(a - q.x, 0, q.x - b));
       if (gap > bestGap) { bestGap = gap; best = k; }
     }
+    // Placed explicitly rather than by class, because the class rules anchor to
+    // the wrap. They stay on as the state marker the tests read, and the inline
+    // left/right/transform override their positioning in all three cases.
+    nw.style.left = Math.round(at[best] + dx) + "px";
+    nw.style.right = "auto";
+    nw.style.transform = "none";
     if (best !== "center") nw.classList.add("td-nextwave--" + best);
     return best;
   };

@@ -5287,6 +5287,52 @@ reported `full` and `charge` as unexplained — they are keys in the ⚙️ butt
 own `why` map, written `full:` without quotes. **A scan's own pattern is part of
 the scan**, and this one flagged working code until it matched object keys too.
 
+**THE WAVE PILL WAS LANDING BESIDE THE BATTLEFIELD, THE METRIC GUARDING IT
+REWARDED THAT, AND A BUDGET HAD ALREADY BEEN TIGHTENED ON THE STRENGTH OF IT.**
+The pill is scored in CANVAS coordinates and was POSITIONED by the stylesheet,
+which anchors to its offsetParent — the canvas WRAP. Wherever the board is
+HEIGHT-limited the canvas is narrower than that wrap, so the pill sat off the
+field on the page background: measured **40px off at 320, 46 at 360, 100 at 768
+and 79 at 834**, while 390 and 414 (canvas inset 6px and 4px) and both landscapes
+looked perfect. The Y axis is clean — `cv.offsetTop` is 0 at all nine sizes —
+so only one axis mixed.
+**This is a half-fix of my own, from earlier the same day.** That commit moved
+the SCORING into canvas coordinates and left the PLACEMENT to the CSS, and its
+own comment congratulated the change for taking 320 from 7 covered maps to 3.
+Measured now: the 3 was bought by letting the pill hang 40px off a 224px field.
+**Off the field is further from every lane, so the dodge metric actively
+rewarded leaving the battlefield** — the anchor was scoring a position it could
+not legally take and calling it the best one. Constrained to the canvas it is 7
+again, which is the honest number and still far better than the 16 a fixed centre
+gives there. Every other budget is unchanged (390 → 1, narrow landscape → 1, both
+tablets → 0), so only the one that the bug had flattered moves.
+**And the tablet clause's comment had written the bug down as the feature**: it
+credited "the whole margin beside a height-limited board to dodge into". Measured
+on the canvas alone it is still 0 against a fixed centre's 9, so the margin was
+never what earned it. A comment cannot go red, and this one was describing a
+defect approvingly.
+Three lessons. **A coordinate-space fix must move every consumer of the space,
+not the one that motivated it** — this engine's `+0.5` trap has now appeared in
+the LAYOUT layer twice, the second time inside the fix for the first. **Look at
+the picture to find it, measure every size to size it**: the defect was found by
+screenshotting tablet portrait (the size that once surfaced the toast overlap),
+and measuring then showed the two NARROWEST PHONES were worse-hit than the tablet
+I was looking at. And the design question was settled by the screenshot rather
+than by argument — a pill sitting fully in the margin covers no lane, but at 320
+it STRADDLES the field's edge, half on the board and half on the page, which
+reads as a rendering error; covering a lane's first cells on 7 of 40 maps at the
+narrowest size is the lesser cost.
+**My own probes were wrong twice while measuring this, in the same way as the
+last one.** The first scored every waypoint instead of the shipped test's first
+six, and measured the WAVE-phase pill where the test measures the BUILD-phase
+one — two different elements — and reported 1 covered map at 320 where the test
+reported 7. When a probe disagrees with a green test, copy the test's measure
+verbatim rather than writing a new one. Note also that the dodge budget CANNOT
+catch a regression here (off-field scores under the ceiling), which is exactly
+why the constraint gets its own clause, with a non-vacuity check that at least
+one tested size genuinely insets the canvas — on a width-limited board every
+anchor is on the field for free.
+
 ---
 
 ## Repository Structure
