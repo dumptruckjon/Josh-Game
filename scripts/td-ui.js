@@ -357,6 +357,24 @@
     const d = (global.TDData.TOWERS || {})[id];
     return (d && d.icon) || "•";
   };
+  // The ONE owner of what the game SAYS about a body — its stat line, what can
+  // reach it, and its tricks — all derived from TDLogic rather than re-typed.
+  // TWO surfaces read it now (the 📖 Guide's card and the field's tap-to-inspect
+  // bubble), and a second copy of a derived string is exactly how the tower panel
+  // came to print a price the engine did not charge.
+  UI.enemyBrief = function (type) {
+    const d = ((global.TDData || {}).ENEMIES || {})[type];
+    if (!d) return null;
+    const L = global.TDLogic;
+    return {
+      icon: d.icon, name: d.name,
+      stats: "❤️ " + d.hp + " · 🏃 " + d.speed +
+        (d.armor ? " · 🛡️ " + Math.round(d.armor * 100) + "%" : "") +
+        (d.shield ? " · 🔋 " + d.shield : "") + " · 🪙 " + d.bounty,
+      reach: L.reachedBy(d).map((k) => UI.lineIcon(k)).join(" "),
+      traits: L.enemyTraits(d),
+    };
+  };
   // …and how to NAME one in a sentence. The defeat post-mortem's advice — the
   // single most actionable line in the game — used to print the engine's own
   // keys ("Try: dart or fan"), which is the `cheap` class: an identifier shipped
@@ -931,15 +949,14 @@
     const LINE = (k) => UI.lineIcon(k);
     const order = Object.keys(E);
     const card = (type) => {
-      const d = E[type];
-      if (!d) return "";
-      const reach = L.reachedBy(d).map((k) => LINE(k)).join(" ");
-      const traits = L.enemyTraits(d).map((t) => '<li><span class="td-guide__tico">' + t.icon + "</span>" + t.text + "</li>").join("");
+      const b = UI.enemyBrief(type);
+      if (!b) return "";
+      const traits = b.traits.map((t) => '<li><span class="td-guide__tico">' + t.icon + "</span>" + t.text + "</li>").join("");
       return '<div class="td-guide__card' + (focusType === type ? " td-guide__card--focus" : "") + '" data-enemy="' + type + '">' +
-        '<div class="td-guide__head"><span class="td-guide__icon">' + d.icon + "</span>" +
-          '<span class="td-guide__name">' + d.name + "</span></div>" +
-        '<p class="td-guide__stats">❤️ ' + d.hp + " · 🏃 " + d.speed + (d.armor ? " · 🛡️ " + Math.round(d.armor * 100) + "%" : "") + (d.shield ? " · 🔋 " + d.shield : "") + " · 🪙 " + d.bounty + "</p>" +
-        '<p class="td-guide__reach">Can be hit by: ' + reach + "</p>" +
+        '<div class="td-guide__head"><span class="td-guide__icon">' + b.icon + "</span>" +
+          '<span class="td-guide__name">' + b.name + "</span></div>" +
+        '<p class="td-guide__stats">' + b.stats + "</p>" +
+        '<p class="td-guide__reach">Can be hit by: ' + b.reach + "</p>" +
         "<ul class=\"td-guide__traits\">" + traits + "</ul></div>";
     };
     // Each line names its role, and — MEASURED 2026-08 — so does each of its two

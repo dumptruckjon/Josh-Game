@@ -13185,3 +13185,127 @@ test("QoL: a downed soldier leaves a MARKED post, and it follows the rally", asy
     `the respawn read back as ${out.left} of ${out.total} ticks — the marker's drain ` +
     "needs a fraction the engine owns, not one the renderer re-derives");
 });
+
+test("QoL: tapping a body says what it IS and what of yours can reach it", async () => {
+  // The counter matrix — only two lines reach air, armour halves a dart's bonk,
+  // a shield eats the Fan's zap — is the heart of this game, and it was reachable
+  // from exactly two places: the fort home's 📖 Guide, and the DEFEAT screen,
+  // which is the right diagnosis arriving one wave too late (the side-door
+  // shape). Meanwhile a field tap that hit no pad, tower, lever or armed power
+  // did nothing at all — so the body walking past you was the one thing on the
+  // field you could not ask about.
+  //
+  // L7 wave 2 is the SEPARATING input and the reason this test is not on L1:
+  // it fields exactly two types whose answers genuinely differ — 🪁 Kite Hawk
+  // flies (dart + fan only) and 🌰 the ground body does not (all four lines). On
+  // a wave of one type every clause below passes on a hard-coded string.
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(7, { seed: 5 }));
+  await page.waitForTimeout(160);
+
+  const out = await page.evaluate(() => {
+    const eng = window.__TD.engine();
+    const distinct = () => {
+      const t = {};
+      for (const e of eng.state.enemies) if (e.alive) (t[e.type] = t[e.type] || []).push(e);
+      return t;
+    };
+    const reachOf = (type) => window.TDLogic.reachedBy(window.TDData.ENEMIES[type]).join("+");
+    // Two KINDS is not enough — wave 1 fields acorn + ant, which are hit by the
+    // same four lines, and every clause below would then pass on a hard-coded
+    // string. Walk until two bodies with genuinely DIFFERENT answers are up.
+    const pair = () => {
+      const by = distinct(), ks = Object.keys(by);
+      for (const a of ks) for (const b of ks) if (reachOf(a) !== reachOf(b)) return { by, kinds: [a, b] };
+      return null;
+    };
+    // A board first: with nothing built, wave 1 leaks the run out before the wave
+    // that mixes types ever arrives, so the walk below finds nothing and the
+    // fixture looks like a broken feature.
+    for (const pad of eng.levelDef.pads) eng.place("dart", pad.id);
+    let found = pair();
+    for (let w = 0; w < 6 && !found; w++) {
+      if (eng.state.phase === "lost" || eng.state.phase === "won") break;
+      eng.callWave();
+      for (let i = 0; i < 2400 && !(found = pair()); i++) eng.tick();
+      if (!found) for (let i = 0; i < 900 && !(found = pair()); i++) eng.tick();
+    }
+    if (!found) return { err: "no two bodies with different answers were ever up together" +
+      " (phase " + eng.state.phase + ", wave " + eng.state.waveIdx + ", lives " + eng.state.lives + ")" };
+    const by = found.by, kinds = found.kinds;
+
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const rect = cv.getBoundingClientRect();
+    const tapAt = (x, y) => cv.dispatchEvent(new MouseEvent("click",
+      { bubbles: true, clientX: rect.left + x, clientY: rect.top + y }));
+    const readCard = () => {
+      const b = document.querySelector("#screen-td-play .td-bubble");
+      const c = b && !b.hidden ? b.querySelector(".td-inspect") : null;
+      return c ? {
+        enemy: c.dataset.enemy,
+        name: c.querySelector(".td-inspect__name").textContent,
+        reach: c.querySelector(".td-inspect__reach").textContent,
+        traits: c.querySelectorAll(".td-inspect__traits li").length,
+        hint: b.classList.contains("td-bubble--hint"),
+        right: Math.round(b.getBoundingClientRect().right),
+      } : null;
+    };
+    const inspect = (e) => {
+      const p = eng.posOn(e.pathIdx, e.dist);
+      const s = window.__TD.w2s(p.x + 0.5, p.y + 0.5);
+      tapAt(s.x, s.y);
+      return readCard();
+    };
+    const one = inspect(by[kinds[0]][0]);
+    const two = inspect(by[kinds[1]][0]);
+    tapAt(4, 4);                                   // bare ground, far from any body
+    const afterGround = readCard();
+    // what the ENGINE says each body's traits are, split into the MECHANICS the
+    // field card should carry and the reference lines it should not
+    const split = (t) => {
+      const all = window.TDLogic.enemyTraits(window.TDData.ENEMIES[t]);
+      return { all: all.length, tricks: all.filter((x) => !window.TDLogic.NOT_A_TRICK.has(x.key)).length };
+    };
+    return {
+      kinds, one, two, afterGround, splitA: split(kinds[0]), splitB: split(kinds[1]),
+      // the field's RIGHT EDGE in viewport coordinates — its WIDTH is a different
+      // quantity, and comparing against it was wrong by however far the canvas is
+      // inset (6px at 390, 48px at 320)
+      fieldRight: Math.round(rect.right),
+      // what the ENGINE says each of the two can be hit by, for the fixture clause
+      reachA: window.TDLogic.reachedBy(window.TDData.ENEMIES[kinds[0]]).join("+"),
+      reachB: window.TDLogic.reachedBy(window.TDData.ENEMIES[kinds[1]]).join("+"),
+    };
+  });
+
+  assert.ok(!out.err, "fixture: " + out.err);
+  assert.notEqual(out.reachA, out.reachB,
+    `fixture: both bodies on the field (${out.kinds.join(", ")}) can be hit by the ` +
+    "same lines, so a hard-coded reach line would satisfy every clause below");
+  assert.ok(out.one && out.two, "tapping a body must open its card");
+  assert.equal(out.one.enemy, out.kinds[0],
+    "the card must name the body under the FINGER, not whichever body is first in state");
+  assert.equal(out.two.enemy, out.kinds[1],
+    "tapping a second, different body must re-read it rather than keep the first card");
+  assert.notEqual(out.one.reach, out.two.reach,
+    `both cards said "${out.one.reach}" — the line that says what can reach this body ` +
+    "is the whole point of the card, and it is not derived from the body");
+  assert.ok(out.one.hint && out.two.hint,
+    "the card must be click-transparent (.td-bubble--hint), or it swallows a tap on " +
+    "a pad behind it — it is information, not a control");
+  assert.ok(out.splitA.all > out.splitA.tricks || out.splitB.all > out.splitB.tricks,
+    `fixture: neither body carries a reference trait line (${out.kinds.join(", ")}), so ` +
+    "the clause below would pass without the filter doing anything");
+  assert.equal(out.one.traits, out.splitA.tricks,
+    `the card listed ${out.one.traits} lines where ${out.kinds[0]} has ${out.splitA.tricks} ` +
+    `MECHANICS of ${out.splitA.all} traits — on the battlefield a reference line like ` +
+    '"same body, same counters" is the longest thing on the card and says nothing you can act on');
+  assert.equal(out.two.traits, out.splitB.tricks,
+    `the card listed ${out.two.traits} lines where ${out.kinds[1]} has ${out.splitB.tricks} mechanics`);
+  assert.equal(out.afterGround, null,
+    "a tap on bare ground must clear the card, the way every other field tap does");
+  assert.ok(out.one.right <= out.fieldRight + 1 && out.two.right <= out.fieldRight + 1,
+    `the card ran to ${Math.max(out.one.right, out.two.right)}px of a ${out.fieldRight}px ` +
+    "field — a body can be tapped at the very edge, so the card has to clamp");
+});

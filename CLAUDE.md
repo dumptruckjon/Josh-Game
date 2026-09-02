@@ -5417,6 +5417,57 @@ One fixture note: a soldier SPAWNS at its camp and marches, so the living-body
 control has to be walked to its post first — sampled before it arrives it reads
 zero ink, which looks exactly like a working comparison and is not.
 
+**THE COUNTER MATRIX IS THE HEART OF THIS GAME AND YOU COULD NOT ASK THE FIELD
+ABOUT IT.** Only two lines reach air, armour halves a dart's bonk, a shield eats
+the Fan's zap — and that was reachable from exactly two places: the fort home's
+📖 Guide, and the DEFEAT screen, which is the right diagnosis arriving one wave
+too late (the side-door shape, for the sixth time). Meanwhile a field tap that
+hit no pad, no tower, no lever and no armed power **did nothing at all** — so the
+body walking past you was the one thing on the battlefield you could not
+interrogate. Tapping a body now names it and says what of yours can reach it.
+Six things worth keeping. (1) **It is a `--hint` bubble, which already existed
+for the rally flag** — `pointer-events: none`, so the card can never swallow a
+tap on a pad behind it, and the next field tap clears it like any other. A pure
+readout that behaves like a control is the Worry Box defect. (2) **No cue**: in
+this game a sound means an ACTION happened (build, upgrade, branch) and opening
+the build menu or the tower panel is silent, so the first cut's `sfx("build")`
+was both the wrong sound and the wrong grammar — looking is not doing. (3) **The
+field card carries only the ACTIONABLE half, filtered through a SHIPPED owner
+rather than a new rule**: `NOT_A_TRICK` already decides which trait keys are
+MECHANICS (the fort home's roster blurb counts through it), and `skin`/`home`/
+`arena` are exactly the reference lines. Measured at 320, dropping them took the
+card from covering most of a 224px field to about half — and *"Turns up as 📄 🌀
+🎏 — same body, same counters"* was both the longest line on the card and the
+one saying nothing changes. The 📖 Guide still shows every line, because there
+you are browsing 56 cards; a mutation proves the filter is field-only. (4) **The
+stat line got ONE owner** (`UI.enemyBrief`) the moment a second surface wanted
+it, and the scan that pins it had to be narrow to be honest: `❤️` legitimately
+appears in the HUD's lives, the resume banner and the guide's legend, and
+`reachedBy` has a second CORRECT user in the defeat post-mortem — so the needle
+is the stat line's own ` · 🏃 ` signature, and **comment-stripping is
+load-bearing for the eighth recorded time**, because the guide's legend explains
+the format by quoting `❤️ 34 · 🏃 0.8 · 🪙 5` and the raw file scores 2.
+(5) **The fixture is the whole test.** L1 wave 1 is all socks and wave 1 of L7 is
+acorn + ant — two KINDS, hit by the same four lines — so every clause passes on a
+hard-coded string; the walk now requires two bodies whose `reachedBy` genuinely
+DIFFERS (🪁 Kite Hawk flies, the ground body does not) and says so in its own
+failure message, which is how it caught itself. It also has to BUILD A BOARD
+first: with nothing placed, wave 1 leaks the run out before the mixed wave ever
+arrives, and the search then reports nothing, which reads exactly like a broken
+feature. (6) **My clamp clause compared the wrong quantity** — the card's
+viewport `right` against the field's *width* rather than its right edge, wrong by
+however far the canvas is inset (6px at 390, 48px at 320). It passed only by
+luck. *Assert X, not something that correlates with X*, now on a check I wrote
+minutes earlier.
+**And I discarded a finished change with `git checkout -- <file>` to undo a
+mutation — the exact command this file already warns about — one paragraph after
+writing about scans that match their own documentation.** What saved it was that
+the restore was then checked rather than assumed: I re-typed the stat string with
+`\u` escapes, the new one-owner guardrail went red because the literal ` · 🏃 `
+signature no longer matched, and the diff was compared against what the patch
+script had produced. **A restore is a change like any other — verify it, do not
+assume it.** Use `cp` before mutating and restore from that copy.
+
 ---
 
 ## Repository Structure

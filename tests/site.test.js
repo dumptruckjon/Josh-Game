@@ -3579,3 +3579,41 @@ test("guardrail: every defeat screen is handed the same three panels", () => {
   assert.equal(guides, calls,
     `every defeat screen wires the 📖 hook (${guides} of ${calls}) — without it its own button is dead`);
 });
+
+test("what the game SAYS about a body has exactly one owner", () => {
+  // Two surfaces describe an enemy now — the 📖 Guide's card and the field's
+  // tap-to-inspect bubble — and a second copy of a derived string is exactly how
+  // the tower panel came to print 110 while the engine charged 99, and how the
+  // sell refund came to show 272 while sell() paid 306. So the stat line is
+  // composed in ONE place (UI.enemyBrief) and both surfaces read it.
+  //
+  // The needle is the stat line's own signature rather than the word "bounty" or
+  // a bare ❤️: ❤️ legitimately appears in the HUD's lives, the resume banner and
+  // the guide's legend, and `reachedBy` has a second, CORRECT user in the defeat
+  // post-mortem (whose own comment says it reads the matrix the way the guide
+  // does). A scan that flagged those would be the false-positive machine this
+  // repo refuses to ship.
+  const strip = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const SIG = / · 🏃 /g;
+  let total = 0, where = [];
+  for (const f of ["scripts/td-ui.js", "scripts/td-main.js", "scripts/td-render.js", "scripts/td-logic.js"]) {
+    const n = (strip(f).match(SIG) || []).length;
+    total += n;
+    if (n) where.push(f + " ×" + n);
+  }
+  // Comment-stripping is load-bearing here for the eighth recorded time: td-ui's
+  // guide legend explains the format by quoting `❤️ 34 · 🏃 0.8 · 🪙 5`, so the
+  // raw file scores 2 and a scan that counts its own documentation reports a
+  // second owner that does not exist.
+  assert.equal(total, 1,
+    `the enemy stat line is composed in ${total} places (${where.join(", ") || "none"}) — ` +
+    "it must have exactly one owner, or the field card and the guide will drift");
+  // …and it must be the owner, not some other file that happens to build one.
+  assert.match(strip("scripts/td-ui.js"), /UI\.enemyBrief\s*=\s*function/,
+    "UI.enemyBrief is that owner and must exist");
+  for (const f of ["scripts/td-main.js", "scripts/td-render.js"]) {
+    assert.ok(!SIG.test(strip(f)),
+      `${f} builds an enemy stat line of its own — read UI.enemyBrief instead`);
+    SIG.lastIndex = 0;
+  }
+});

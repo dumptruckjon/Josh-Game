@@ -1463,6 +1463,53 @@
   }
   function fieldAimEnd() { if (cur) cur.render.setAimPreview(null); }
 
+  // Name the body under the finger, and say what of yours can reach it. It is a
+  // `--hint` bubble on purpose: click-transparent, so it can never swallow a tap
+  // on a pad behind it, and the next field tap clears it like any other.
+  function inspectEnemyAt(gx, gy) {
+    if (!cur || !cur.engine || !UI.canvas) return;
+    // gx/gy are WORLD units (centre-based) and posOn returns CELL INDICES
+    // (corner-based) — this engine's two spaces, one +0.5 apart, which have now
+    // cost six bugs. The pad search directly above converts the same way.
+    let best = 0.9 * 0.9, hit = null, at = null;
+    for (const e of cur.engine.state.enemies) {
+      if (!e.alive) continue;
+      const p = cur.engine.posOn(e.pathIdx, e.dist);
+      const d = (p.x + 0.5 - gx) ** 2 + (p.y + 0.5 - gy) ** 2;
+      if (d < best) { best = d; hit = e; at = p; }
+    }
+    if (!hit) return;
+    const b = UI.enemyBrief(hit.type);
+    if (!b) return;
+    // Only the ACTIONABLE half. The 📖 Guide shows every trait line because you
+    // are browsing 56 cards there; on the battlefield the reference lines are
+    // pure cost — "Turns up as 📄 🌀 🎏 — same body, same counters" is the
+    // longest line on the card and says that nothing changes. `NOT_A_TRICK` is
+    // already the shipped owner of which keys are MECHANICS (the fort home's
+    // roster blurb counts through it), so this filters through that rather than
+    // inventing a second rule. Measured at 320, dropping them takes the card
+    // from covering most of a 224px field to about half of it.
+    const notTrick = (global.TDLogic && global.TDLogic.NOT_A_TRICK) || new Set();
+    const tricks = b.traits.filter((t) => !notTrick.has(t.key));
+    const sp = cur.render.worldToScreen(at.x + 0.5, at.y + 0.5);
+    UI.showBubble(
+      '<div class="td-inspect" data-enemy="' + hit.type + '">' +
+        '<div class="td-inspect__head"><span class="td-inspect__icon">' + b.icon +
+          '</span><span class="td-inspect__name">' + b.name + "</span></div>" +
+        '<p class="td-inspect__stats">' + b.stats + "</p>" +
+        '<p class="td-inspect__reach">Can be hit by: ' + b.reach + "</p>" +
+        (tricks.length
+          ? '<ul class="td-inspect__traits">' + tricks.map((t) =>
+              '<li><span class="td-guide__tico">' + t.icon + "</span>" + t.text + "</li>").join("") + "</ul>"
+          : "") +
+      "</div>",
+      UI.canvas.offsetLeft + sp.x, UI.canvas.offsetTop + sp.y);
+    // No cue: in this game a sound means an ACTION happened (build, upgrade,
+    // branch). Opening the build menu or the tower panel is silent, and looking
+    // at a body is looking, not doing.
+    UI.bubble.classList.add("td-bubble--hint");
+  }
+
   function fieldTap(ev) {
     if (!cur) return;
     const rect = UI.canvas.getBoundingClientRect();
@@ -1558,7 +1605,14 @@
     UI.hideBubble();
     cur.render.setSelection(null);
     cur.selPadId = null; cur.selTowerId = null;
-    if (!pad) { UI.hud(cur.engine.state); return; }
+    // TAP A BODY TO IDENTIFY IT. The counter matrix — only two lines reach air,
+    // armour halves a dart's bonk, a shield eats the Fan's zap — is the heart of
+    // this game, and it was reachable from exactly two places: the fort home's
+    // 📖 Guide, and the DEFEAT screen, which is the right diagnosis arriving one
+    // wave too late (the side-door shape). A tap that hit no pad, tower, lever or
+    // armed power did nothing at all, so the body walking past you was the one
+    // thing on the field you could not ask about.
+    if (!pad) { inspectEnemyAt(gx, gy); UI.hud(cur.engine.state); return; }
 
     const tower = cur.engine.state.towers.find((t) => t.padId === pad.id);
     const sp = cur.render.worldToScreen(pad.cx + 0.5, pad.cy + 0.5);
