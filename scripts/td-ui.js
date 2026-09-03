@@ -670,6 +670,15 @@
   // decides "which daily is this" keeps a single owner instead of being
   // re-derived here. Absent (a bare UI test) → no daily badge, never a crash.
   UI.today = null;
+  // WHICH POWER IS ARMED HAS ONE OWNER, and it is td-main's `cur.abilArmId`.
+  // It used to be PASSED in — 6 call sites supplying it and UI.hud's own tail
+  // omitting it — so the ~4Hz HUD refresh called UI.abilities(state) with
+  // armedId `undefined` and stripped the gold ring off a power that was still
+  // armed. Measured: the ring was present at 0 and 120ms and GONE by 420ms
+  // while the hint line went on saying "Tap the field" for as long as you
+  // aimed. Injected like UI.today, so the strip ASKS rather than being told and
+  // a caller cannot hand it a stale answer.
+  UI.armed = null;
   // The ONE owner of the meta row's badges. It marks only what a player can ACT
   // on: stars waiting to be spent, challenge chips armed for the next run, and a
   // daily that today has not touched. The other four buttons are deliberately
@@ -2014,7 +2023,8 @@
     UI._hintT = setTimeout(() => { el.hidden = true; }, 2200);
   };
 
-  UI.abilities = function (state, armedId) {
+  UI.abilities = function (state) {
+    const armedId = UI.armed ? UI.armed() : null;
     const wrap = doc.querySelector("#screen-td-play .td-abils");
     if (!wrap) return;
     const over = state.phase === "won" || state.phase === "lost";

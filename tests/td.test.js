@@ -13663,3 +13663,78 @@ test("QoL: the power strip SIZES its tiles on a big screen, it does not just spr
   assert.equal(tablet.tileH, phone.tileH,
     `the tile is ${tablet.tileH}px tall on a tablet against ${phone.tileH}px on a phone — width only`);
 });
+
+test("QoL: an ARMED power keeps its ring while you aim", async () => {
+  // The gold ring is the ONLY thing on the strip that says "this control is
+  // armed and waiting for your tap on the field". `armedId` used to be PASSED
+  // into UI.abilities — six call sites supplying it and UI.hud's own tail
+  // omitting it — so the ~4Hz HUD refresh called it with armedId `undefined`
+  // and stripped the ring off a power that was still armed. Measured on a live
+  // board: present at 0ms and 120ms, GONE by 420ms, while the hint line went on
+  // saying "Tap the field" for as long as you aimed. Two surfaces disagreeing
+  // about one fact, which is this project's most reliable tell.
+  //
+  // Every shipped test that asserts this class reads SYNCHRONOUSLY after the
+  // tap — inside the 250ms window — so none of them could see it. This one runs
+  // real frames, which is the whole point.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => {
+    window.__TD.newGame(20, { seed: 5 });
+    const e = window.__TD.engine();
+    e.state.gold = 9000;
+    const lines = ["dart", "mortar", "fan", "camp"];
+    e.levelDef.pads.forEach((p, i) => e.place(lines[i % 4], p.id));
+  });
+  // newGame leaves the run PAUSED, so the first ⏸ tap RESUMES it — drive the
+  // real controls until a wave is genuinely walking, or the frame loop that
+  // causes the defect never runs.
+  await page.locator("#screen-td-play .td-pause").click().catch(() => {});
+  await page.waitForTimeout(150);
+  await page.locator('#screen-td-play [data-act="resume"]').click().catch(() => {});
+  await page.waitForTimeout(200);
+  await page.locator("#screen-td-play .td-call").click().catch(() => {});
+  await page.waitForTimeout(2000);
+
+  const state = () => page.evaluate(() => {
+    const h = document.querySelector("#screen-td-play .td-abilhint");
+    return {
+      ring: !!document.querySelector("#screen-td-play .td-abil--armed"),
+      hint: !!(h && !h.hidden && h.textContent.trim()),
+      phase: window.__TD.engine().state.phase,
+      tick: window.__TD.engine().state.tick,
+    };
+  });
+
+  const before = await state();
+  assert.equal(before.phase, "wave",
+    `fixture: the run must be in a live WAVE (saw "${before.phase}") — paused, the ~4Hz ` +
+    "HUD refresh that causes this never runs and the clause below cannot fail");
+  assert.equal(before.ring, false, "nothing should be armed before the tap");
+
+  await page.evaluate(() => document.querySelector('#screen-td-play .td-abil[data-abil="drop"]').click());
+  const armed = await state();
+  assert.ok(armed.ring && armed.hint, "the tap must arm the power and light its tile");
+
+  // …now let REAL FRAMES run, well past the 250ms refresh that used to wipe it.
+  await page.waitForTimeout(900);
+  const later = await state();
+  assert.ok(later.tick > armed.tick,
+    `fixture: the engine must actually be ticking (${armed.tick} -> ${later.tick}), or nothing ` +
+    "has refreshed the HUD and this proves nothing");
+  assert.ok(later.ring,
+    "the armed ring was stripped while the power was STILL armed — the tile and the hint line " +
+    `disagree (hint up: ${later.hint}), so the one cue that says "waiting for your tap" lasts ` +
+    "a quarter of a second and then the control looks idle while you aim");
+  assert.ok(later.hint, "the hint line must still say what the armed power is waiting for");
+
+  // …and it must still GO. A ring that never clears would satisfy the clause
+  // above while being a worse defect than the one it replaced.
+  await page.evaluate(() => document.querySelector('#screen-td-play .td-abil[data-abil="drop"]').click());
+  await page.waitForTimeout(500);
+  const off = await state();
+  assert.equal(off.ring, false,
+    "tapping an armed power again must disarm it and clear the ring — a ring that cannot be " +
+    "turned off is worse than one that vanishes");
+});

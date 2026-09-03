@@ -1579,7 +1579,7 @@
       UI.hideBubble(); cur.render.setSelection(null); cur.render.setAimPreview(null);
       if (r.ok) { sfx(id === "drop" ? "splash" : "build"); UI.hud(cur.engine.state); UI.abilityHint(""); }
       else { sfx("deny"); UI.abilityHint(abilityWhy(r.reason, def)); }
-      UI.abilities(cur.engine.state, null);
+      UI.abilities(cur.engine.state);
       return;
     }
     // rally mode: this tap plants the camp's flag instead of selecting
@@ -2005,6 +2005,8 @@
   // rather than re-deriving the date in the UI — a second copy of that rule is
   // how two owners of one string always start.
   UI.today = dayKey;
+  // the ONE owner of "which power is armed" — see UI.armed in td-ui.js
+  UI.armed = () => (cur ? cur.abilArmId : null);
   UI.buildScreens({
     exitFort: () => { location.hash = ""; },
     quitToFort: () => { promptDiscard(() => { location.hash = "#td-home"; }, LEAVE_COPY); },
@@ -2032,18 +2034,18 @@
         UI.abilityHint("");
       }
       UI.hud(cur.engine.state);
-      UI.abilities(cur.engine.state, cur.abilArmId);
+      UI.abilities(cur.engine.state);
     },
     useAbility: (id) => {
       if (!cur) return;
       const def = (DATA.ABILITIES || []).find((a) => a.id === id);
       if (!def) return;
-      if (cur.abilArmId === id) { cur.abilArmId = null; UI.abilities(cur.engine.state, null); return; }
+      if (cur.abilArmId === id) { cur.abilArmId = null; UI.abilities(cur.engine.state); return; }
       const ready = cur.engine.abilityReady(id);
       if (!ready.ok) {
         sfx("deny");
         UI.abilityHint(abilityWhy(ready.reason, def));
-        UI.abilities(cur.engine.state, cur.abilArmId);
+        UI.abilities(cur.engine.state);
         return;
       }
       if (def.kind === "instant") {
@@ -2052,7 +2054,7 @@
         const r = cur.engine.useAbility(id, {});
         if (r.ok) { sfx("build"); UI.hud(cur.engine.state); UI.abilityHint(""); }
         else { sfx("deny"); UI.abilityHint(abilityWhy(r.reason, def)); }
-        UI.abilities(cur.engine.state, null);
+        UI.abilities(cur.engine.state);
         return;
       }
       cur.abilArmId = id;
@@ -2060,7 +2062,7 @@
       UI.hideBubble(); cur.render.setSelection(null);
       sfx("arm");
       UI.abilityHint(def.kind === "tower" ? "⚡ Tap one of your towers" : def.icon + " Tap the field — " + def.role);
-      UI.abilities(cur.engine.state, id);
+      UI.abilities(cur.engine.state);
     },
     togglePause: () => {
       if (!cur) return;

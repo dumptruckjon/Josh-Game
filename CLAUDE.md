@@ -5698,6 +5698,44 @@ keeps the gaps small and still hands a 1024px screen a smaller control than an
 clauses for being unfalsifiable, and the difference between deleting this one
 and keeping it was one more mutation.
 
+**AND THE SAME SCREENSHOT PASS FOUND THE ARMED RING LASTING A QUARTER OF A
+SECOND — the one cue that says "this control is waiting for your tap".** Arming
+a power puts `.td-abil--armed` on its tile (a gold ring, one of the strip's
+three state modifiers) and raises a hint line saying what it is waiting for.
+Measured on a live board: the ring is present at **0ms and 120ms and GONE by
+420ms**, while the hint goes on saying *"🧨 Tap the field"* for as long as you
+aim. So for the whole of the aiming — seconds, under fire — the control you just
+armed looks idle, and the two surfaces disagree about one fact, which is this
+project's most reliable tell.
+The cause is the recurring one: **`armedId` was PASSED IN**, at six call sites,
+and `UI.hud`'s own tail called `UI.abilities(state)` with it omitted — so the
+~4Hz HUD refresh evaluated `armedId === def.id` against `undefined` and stripped
+the ring off a power that was still armed. Six writers and one that forgets is
+the shape that gave `hurriedMult` two writers and drifted the wake lock's
+acquire and release apart. Fixed by INJECTION, the `UI.today` precedent: `cur
+.abilArmId` is the one owner, `UI.armed` is installed once by td-main, the strip
+ASKS rather than being told, and the parameter is DELETED so no caller can hand
+it a stale answer. It also silently repairs a second disagreement — arming A and
+then firing an instant power B used to clear the ring while `cur.abilArmId` was
+still A.
+**Why nothing caught it: every shipped test of this class reads the class
+SYNCHRONOUSLY after the tap, inside the 250ms window.** A test that drives a
+control and reads immediately cannot see a per-frame refresh undo it — the
+sibling of "a hook that stands in for the main loop must reproduce its SIDE
+EFFECTS", one layer out. The new test runs REAL FRAMES and asserts the engine
+actually ticked (`tick` moved) and that the phase is a live wave, because paused
+the offending refresh never runs and the clause could not fail.
+**Two of the three mutations first fired an EARLIER clause**, which is the trap
+this file keeps paying for: forcing `armedId = null` kills the ring outright and
+trips *"the tap must arm the power"*, and a permanently-true toggle trips
+*"nothing should be armed before the tap"* — neither reaches the clause about
+the ring SURVIVING. The faithful reproduction was to check out the shipped
+files from `HEAD` (the fix being uncommitted, they were right there), which
+fires the intended clause verbatim; the disarm clause needed a STICKY ring
+(`armedId === def.id || already has the class`) rather than an always-on one.
+When a mutation goes red, read WHICH assertion fired before believing the clause
+you aimed at is proven.
+
 ---
 
 ## Repository Structure

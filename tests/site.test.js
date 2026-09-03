@@ -3641,3 +3641,22 @@ test("what the game SAYS about a body has exactly one owner", () => {
     SIG.lastIndex = 0;
   }
 });
+
+test("QoL: which power is armed has ONE owner", async () => {
+  // Structural half of the pair: a scan proves the call sites cannot pass a
+  // stale answer, and the behavioural test above proves the answer is right.
+  const ui = read("scripts/td-ui.js"), main = read("scripts/td-main.js");
+  const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const uiC = strip(ui), mainC = strip(main);
+
+  assert.match(uiC, /UI\.abilities = function \(state\) \{/,
+    "UI.abilities must take no armedId — it is what let UI.hud's own tail pass `undefined` " +
+    "and strip the ring off a power that was still armed");
+  assert.equal((mainC.match(/UI\.abilities\([^)]*,/g) || []).length, 0,
+    "no call site may hand UI.abilities an armed id; it asks UI.armed() instead");
+  assert.equal((mainC.match(/UI\.armed\s*=/g) || []).length, 1,
+    "UI.armed must be injected exactly once — two writers is how this state drifted apart " +
+    "in the first place");
+  assert.match(uiC, /const armedId = UI\.armed \? UI\.armed\(\) : null;/,
+    "the strip must ASK for the armed id rather than be told it");
+});
