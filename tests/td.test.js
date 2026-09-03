@@ -6000,6 +6000,23 @@ test("CONTRAST: every ACTIVE text run on every fort surface clears AA", async ()
   await add("tower panel (tier 3)", 5);   // opened-proof is its own selector, waited for above
   await dismiss();
 
+  // ...and the MAXED panel, a surface this audit has never walked. Until a
+  // maxed tower started stating its branch's ROLE its runs were a strict subset
+  // of the tier-3 ones, so adding it then could have caught nothing — the rule
+  // that a surface earns its place only if it can SEPARATE the two states. That
+  // run is what makes it separable, and a brand new text run in a dialog is
+  // exactly what an audit scoped to known surfaces misses.
+  // __TD.script has no branch op, so the engine is driven directly; branch "a"
+  // is Sniper Scope, whose role is the longest in the game — the worst case.
+  await page.evaluate(() => {
+    const e = window.__TD.engine();
+    e.branch(e.state.towers[0].id, Object.keys(window.TDData.TOWERS.dart.branches)[0]);
+  });
+  await tapPad();
+  await page.locator(".td-panel__role").waitFor({ state: "visible", timeout: 4000 });
+  await add("tower panel (tier 4, maxed)", 5);
+  await dismiss();
+
   // __TD.newGame leaves the run PAUSED, so the first tap RESUMES rather than
   // opening the menu — drive it until the overlay is really there.
   await page.evaluate(() => document.querySelector("#screen-td-play .td-pause").click());
@@ -13458,4 +13475,105 @@ test("QoL: the stat line says how much CRIT, not just that there is some", async
     "🍀 Lucky Darts and ✨ Steady Aim are ⭐3 each and must be visible on the panel they buy");
   assert.ok(/3% crit/.test(plain.find((r) => r.loadout === "🍀 Lucky Darts").printed),
     "a plain dart granted crit only by 🍀 Lucky Darts must show the 3% that node buys");
+});
+
+test("QoL: a maxed tower still says what its branch is FOR", async () => {
+  // The tier-3 cards state each branch's ROLE prominently — including the
+  // game's only overkill warning ("most of it is WASTED on small bodies") — and
+  // the instant you spend 300 gold the sentence is gone and the slot is EMPTY.
+  // So the one place the game explains a Sniper Scope is a card you can no
+  // longer open, on the most expensive object on the board.
+  //
+  // DERIVED over every line x every branch, so an eleventh branch inherits the
+  // check rather than needing this test edited — the counting law.
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(20, { seed: 5 }));
+  await page.waitForTimeout(140);
+
+  const out = await page.evaluate(() => {
+    const eng = window.__TD.engine();
+    const T = window.TDData.TOWERS;
+    const cv = document.querySelector("#screen-td-play .td-canvas");
+    const pad = eng.levelDef.pads[0];
+    const open = (t) => {
+      // SELF-VERIFYING: drop any previous panel FIRST, so a click that fails to
+      // re-render cannot be read as this tower's answer. Reading whatever
+      // `.td-bubble` happens to hold is the stale-element trap that made the
+      // buddy test flake on a previous round's `.win-hero`.
+      const prev = document.querySelector("#screen-td-play .td-bubble");
+      if (prev) prev.hidden = true;
+      const sp = window.__TD.w2s(t.cx + 0.5, t.cy + 0.5);
+      const rc = cv.getBoundingClientRect();
+      cv.dispatchEvent(new MouseEvent("click", { bubbles: true,
+        clientX: rc.left + sp.x, clientY: rc.top + sp.y }));
+      const box = document.querySelector("#screen-td-play .td-bubble");
+      const opened = !!(box && !box.hidden);
+      const role = opened ? box.querySelector(".td-panel__role") : null;
+      return { opened, role: role ? role.textContent.trim() : null,
+               h: opened ? Math.round(box.getBoundingClientRect().height) : 0 };
+    };
+    const rows = [];
+    const heights = {};
+    for (const line of Object.keys(T)) {
+      for (const k of Object.keys(T[line].branches || {})) {
+        eng.state.gold = 90000;
+        eng.place(line, pad.id);
+        const t = eng.state.towers[eng.state.towers.length - 1];
+        eng.upgrade(t.id); eng.upgrade(t.id);
+        // the TIER-3 panel is the one already pinned against the fold, so its
+        // height is the bar the maxed panel must not exceed
+        const at3 = open(t);
+        eng.branch(t.id, k);
+        const at4 = open(t);
+        rows.push({ line, k, declared: T[line].branches[k].role,
+                    shown3: at3.role, shown4: at4.role,
+                    opened3: at3.opened, opened4: at4.opened });
+        heights[line + ":" + k] = { h3: at3.h, h4: at4.h };
+        eng.sell(t.id);
+      }
+    }
+    // ...and a tower that is NOT maxed must say nothing — a line that is always
+    // there is decoration, which is the fort's own rule for the meta badges.
+    eng.state.gold = 90000;
+    eng.place("dart", pad.id);
+    const t1 = eng.state.towers[eng.state.towers.length - 1];
+    const tier1 = open(t1);
+    eng.upgrade(t1.id);
+    const tier2 = open(t1);
+    eng.sell(t1.id);
+    return { rows, heights, tier1: tier1.role, tier2: tier2.role };
+  });
+
+  assert.ok(out.rows.length >= 8,
+    `only ${out.rows.length} branches were walked — the derivation found almost ` +
+    "nothing, so every clause below would pass vacuously");
+
+  for (const r of out.rows) {
+    assert.ok(r.opened3 && r.opened4,
+      `the panel did not re-open for ${r.line}/${r.k} (tier3 ${r.opened3}, tier4 ${r.opened4}) — ` +
+      "every clause below would be reading a stale panel");
+    // ONE OWNER: the panel reads the same stat block the card does, so the two
+    // can never drift and nothing is retyped here either.
+    assert.equal(r.shown4, r.declared,
+      `a maxed ${r.line}/${r.k} panel showed ${JSON.stringify(r.shown4)} but the ` +
+      `branch declares ${JSON.stringify(r.declared)} — the sentence that explains a ` +
+      "300-gold ultimate must survive buying it");
+    assert.equal(r.shown3, null,
+      `a tier-3 ${r.line} already shows every branch's role on its CARDS, and the ` +
+      `panel added a second copy (${JSON.stringify(r.shown3)}) — say it once`);
+  }
+
+  assert.equal(out.tier1, null, "a tier-1 tower has no branch and must claim none");
+  assert.equal(out.tier2, null, "a tier-2 tower has no branch and must claim none");
+
+  // FOLD: the maxed panel replaces a whole branch ROW with one line, so it must
+  // be no taller than the tier-3 panel — which is the one already measured
+  // against the fold at 320x480, 320x568 and landscape.
+  for (const [id, h] of Object.entries(out.heights)) {
+    assert.ok(h.h4 <= h.h3,
+      `the maxed ${id} panel is ${h.h4}px against the tier-3 panel's ${h.h3}px — ` +
+      "it swaps a branch row for one line, so it must not grow");
+  }
 });

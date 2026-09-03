@@ -1803,6 +1803,25 @@
               '<span class="td-branch__name">' + b.name + " " + c + "🪙</span>" +
               '<span class="td-branch__role">' + b.role + road + "</span></button>";
           }).join("") + "</div>";
+        } else if (t.branch && s.role) {
+          // A TIER-4 BRANCH'S ROLE IS STATED AT THE MOMENT YOU BUY IT AND NEVER
+          // AGAIN. The tier-3 cards say it prominently — including the game's
+          // ONLY overkill warning, "most of it is WASTED on small bodies" — and
+          // the instant you commit 300 gold the sentence is gone, leaving this
+          // slot EMPTY where the upgrade row used to be. So the one place the
+          // game explains a Sniper Scope is a card you can no longer open, and
+          // the panel of the most expensive object on the board reads as a
+          // rendering failure rather than as a finished tower.
+          //
+          // It is not merely reference. Selling is one tap below at 80-90%, and
+          // the % road figure sits in the line above, so "this branch is wasted
+          // on this pad" is a real decision this sentence informs — the same
+          // reason the branch audit's placement finding shipped as information.
+          //
+          // Read from the SAME `s` the stat line reads (already
+          // `def.branches[t.branch]` at tier 4), so the card and the panel
+          // cannot drift and an eleventh branch documents itself.
+          middle = '<span class="td-panel__role">' + s.role + "</span>";
         }
         // ASK THE ENGINE: it owns whether this tower is still un-acted-upon.
         const undo = cur.engine.undoInfo && cur.engine.undoInfo();

@@ -397,6 +397,13 @@ body.td-mode #screens { padding: 0; }
    context for the upgrade decision, not the decision itself — and it inherits
    the panel's own #16233d, so it adds no new pair to the fort's contrast audit. */
 .td-panel__work { width: 100%; font-size: 0.72rem; color: #9db4dd; padding: 0 4px 4px; white-space: normal; }
+/* what a MAXED tower's branch is for — the sentence the tier-3 card states and
+   then throws away on purchase. Deliberately the SAME values as the work line
+   above rather than a new colour: #9db4dd on the panel's #16233d is already
+   walked by the fort contrast audit, so this adds no new pair to it. Its own
+   selector, not a second .td-panel__work, because the two say different things
+   and a class used twice in one panel is a handle nobody can trust. */
+.td-panel__role { width: 100%; font-size: 0.72rem; color: #9db4dd; padding: 0 4px 4px; white-space: normal; }
 
 /* difficulty selector (fort home) */
 .td-diff { display: flex; justify-content: center; margin: 0 0 6px; }

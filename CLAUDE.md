@@ -5613,6 +5613,53 @@ which is BOTH the fx dispatcher and the 56-branch enemy sprite switch, so it
 reported every enemy name as a handled event type and nearly hid the question it
 was asked.
 
+**AND THE PANEL THE CRIT PASS PASSED OVER TURNED OUT TO BE THROWING AWAY THE ONE
+SENTENCE THAT WARNS A 300-GOLD PURCHASE CAN BE WRONG.** A tier-3 tower's panel
+states each branch's ROLE prominently on its cards — including the game's only
+overkill warning, *"most of it is WASTED on small bodies"*, which exists because
+converting every Dart to Sniper Scope LOSES L22/L26/L31 and 5 of 9 boss finales.
+The `middle` slot's chain is `if (tier < 3) … else if (tier === 3) …` with **no
+else**, so the instant you commit the gold the sentence is gone and the slot is
+EMPTY: the panel of the most expensive object on the board reads as a rendering
+failure rather than as a finished tower, and the one place the game explains a
+Sniper Scope is a card you can no longer open. It is not merely reference —
+selling is one tap below at 80-90% and the `% road` figure sits in the line
+above, so *"this branch is wasted on this pad"* is a live decision the sentence
+informs, which is exactly the shape the branch audit's placement finding shipped
+as information. Read from the SAME `s` the stat line already reads (`s` is
+`def.branches[t.branch]` at tier 4), so the card and the panel cannot drift and
+an eleventh branch documents itself.
+**The sharper half is the guardrail next door: the fort contrast audit walks
+`"tower panel (tier 3)"` and has never opened a tier-4 one.** Adding that surface
+EARLIER could have caught nothing — a maxed panel's text runs were a strict
+SUBSET of tier-3's, and this file's own rule is that a surface earns its place
+only if it can SEPARATE the two states (the same rule that rejected tablet
+portrait from the overlay audit). This run is what makes it separable, so the
+surface joins the audit in the same commit — a brand new text run in a dialog is
+precisely what an audit scoped to known surfaces misses. It measures clean, and
+the line deliberately reuses `.td-panel__work`'s colour pair (`#9db4dd` on
+`#16233d`) rather than inventing one, so it adds nothing new to that audit; it
+takes its OWN selector rather than a second `.td-panel__work` because the two say
+different things and a class used twice in one panel is a handle nobody can
+trust. Measured cost with fresh contexts per size: inside the fold at 390x844,
+320x568, 320x480 and landscape 844x390 — worst 354/390, 36px clear — wrapping to
+at most 2 lines, and the fold clause is stated as a RATIO to the tier-3 panel it
+replaces (it swaps a whole branch row for one line, so it must not grow), which
+is falsifiable without a viewport dance and reports `589px against 263px` under
+mutation. Four mutations red: the shipped empty middle (reports `showed null`,
+the defect verbatim), a hard-coded role string (caught on the SECOND branch,
+which is what proves it is derived), the same sentence repeated on the tier-3
+panel where the cards already say it, and a maxed panel that outgrows tier 3.
+**Two fixture lessons.** The probe read `.td-bubble` after a click, which is the
+`.win-hero` stale-element trap — a click that fails to re-render is then read as
+this tower's answer — so `open()` hides any previous panel FIRST and returns an
+`opened` flag every clause asserts. And the measurement harness hit the
+suspect-the-fixture rule twice in two minutes: `launchBrowser()` returns the
+browser DIRECTLY (not `{browser}`) and `startServer()` returns `{server,
+baseURL}` (not `{url}`), each producing a confident failure that looked like a
+broken product — `Cannot read properties of undefined` and a navigation to the
+literal string `"undefined#td-play"`.
+
 ---
 
 ## Repository Structure
