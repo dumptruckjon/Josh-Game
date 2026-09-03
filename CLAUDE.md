@@ -5736,6 +5736,70 @@ fires the intended clause verbatim; the disarm clause needed a STICKY ring
 When a mutation goes red, read WHICH assertion fired before believing the clause
 you aimed at is proven.
 
+**THE GAME'S TWO LOUDEST IN-PLAY WARNINGS WERE DRIVEN BY NOTHING — and measuring
+first is what kept this a coverage entry rather than a bug report.** A boss wave
+raises `⚠️ <name> incoming!` and each hp band it crosses raises `<name> is
+getting angrier!`; both go through the same event dispatch in td-main. The only
+occurrence of "incoming" anywhere in the suite is a banner a test SETS ON THE DOM
+ITSELF, to check a fresh level clears it — so the dispatch that raises it could
+have died silently and the finale would simply have arrived unannounced. This is
+the exact distance `AUDIT boss kits` leaves open: it forces every boss into every
+band and proves the KIT fires, which is not a proof that the PLAYER IS TOLD — the
+same gap already recorded for 🏃 Marathoner, where a badge was provably earned and
+provably never announced. Measured before writing a line: both fire correctly
+(the klaxon exactly once, visible 200ms->2000ms and auto-hidden by 3000; the
+Static's two bands warning once each), so this is COVERAGE, not a fix, which is
+the honest half to write down. Three things worth keeping. The band count is
+DERIVED from the boss's own `phases`, so a boss with three inherits the check
+rather than needing the test edited. The klaxon is asserted ON SCREEN with a SIZE,
+not merely dispatched — a call site existing is not the player seeing it, and a
+collapsed 1x1 box is "visible" to every naive predicate. And the phase bands are
+FORCED by writing `boss.hp`, because a real board may never drop a boss there, so
+the warning could ship dead-untested exactly as its kit once could. Three
+mutations red: silence the klaxon, silence the phase warning (reports *"declares
+2 hp bands below full, so crossing them must warn 2 times — saw 0"*), and make
+`showBanner` return without painting.
+**And the gate caught the new test itself FOUR TIMES, each with a different
+cause, and every wrong diagnosis was corrected by PRINTING STATE rather than by
+reasoning.** It passed alone and failed the full suite; "passed in isolation" is
+exactly how such a test ships, and this repo has already paid for one 1-in-200
+coin flip. The four, in order. (1) **A fixed-delay DOM sample against a
+self-hiding element is a flake**: it clicked ▶ CALL, slept 700ms and read
+`.td-banner`, and under a parallel run the clicks before the sample outlasted the
+banner's own ~2.6s auto-hide. Fixed by removing the timing rather than widening
+it — the spy records the RENDERED SIZE inside the wrapper, atomically at show
+time, so "it fired" and "it painted" are one observation (the buddy test's
+read-the-pop-atomically lesson, applied to a transient). (2) Then the PHASE
+clause failed "saw 0", which I again diagnosed as timing and was WRONG: an
+in-loop trace printed `ticked: 0, phase: "lost"` — jumping to the finale with an
+empty board leaks everything, so **the run was already over and the engine had
+stopped ticking**, which reads exactly like a warning that never fired. Fixed by
+giving the fixture a board and lives it cannot lose, because survival is not what
+the test is about. (3) Then "no boss on the field": **the klaxon fires when the
+wave is CALLED and the boss arrives after its group's own delay**, so looking
+once races the spawn — it polls now. (4) And still "never spawned", until a
+widened diagnostic printed `phase=won waveIdx=14 tick=5382`: **⏩ SPEED IS
+PERSISTED IN THE SAVE** and read at `startLevel`, so the test inherited whatever
+the last speed test left, and at 3x the engine ran ~179 SECONDS of game time
+during ~10s of wall clock — finishing the entire finale before the first sample.
+A fresh save is 1x, which is the whole isolation-versus-suite split. It now puts
+the speed back through the real control and asserts it.
+**Three things generalise.** A PERSISTED PREFERENCE IS INHERITED STATE between
+tests — the save is shared, so anything `settings` holds is a hidden fixture
+input, and speed is the one that silently rescales every timing assumption in a
+test. A PAUSED RUN STILL DRAINS EVENTS, so a banner can fire perfectly while the
+engine never ticks and nothing spawns; the fixture now clicks until the engine is
+demonstrably advancing and asserts it, instead of racing a fixed click sequence.
+And each of these was invisible to reasoning and obvious the moment the failure
+printed the state — a fixture precondition should say WHY it failed (`the run was
+lost`, `the boss never spawned`, `phase=won`), or every one of them reads as the
+same "the feature is broken". One smaller note, because a repair regressed it: a
+bare `page.waitForFunction` timeout reports *"Timeout 20000ms exceeded"*, which
+sends the next reader hunting a slow page rather than a dead dispatch, so the
+timeout is caught and turned into a named assertion. **When a test's own failure
+message stops naming the cause, that is a regression in the test even though it
+is still red.**
+
 ---
 
 ## Repository Structure

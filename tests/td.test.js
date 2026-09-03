@@ -13738,3 +13738,170 @@ test("QoL: an ARMED power keeps its ring while you aim", async () => {
     "tapping an armed power again must disarm it and clear the ring — a ring that cannot be " +
     "turned off is worse than one that vanishes");
 });
+
+test("the boss klaxon and its phase warnings actually reach the player", async () => {
+  // `AUDIT boss kits` forces every boss into every hp band and proves the KIT
+  // fires. Nothing proved the PLAYER IS TOLD — the same distance as "a test
+  // that proves a badge is recorded is not a test that it is communicated",
+  // and the two loudest in-play warnings in the game were on the wrong side of
+  // it. The only "incoming!" anywhere in the suite is a banner a test SET on
+  // the DOM itself to check it gets cleared, so the dispatch that raises it
+  // could have died silently.
+  //
+  // Measured before writing: both fire correctly. This is coverage, not a fix.
+  const DATA = require("../scripts/td-data.js");
+  const BOSS_LEVEL = 12;                      // The Static — the only boss with TWO hp bands
+  const bossId = "thestatic";
+  const bands = DATA.ENEMIES[bossId].phases.filter((p) => p.upTo < 1).length;
+  assert.ok(bands >= 2, `fixture: ${bossId} must declare at least two hp bands (saw ${bands})`);
+
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate((lv) => {
+    window.__banners = [];
+    const real = window.TDUI.showBanner;
+    // Record the RENDERED SIZE inside the wrapper, atomically at show time. The
+    // banner auto-hides after ~2.6s, so a fixed-delay DOM sample is a race: this
+    // test passed alone and FAILED in the full suite at 61s, because under a
+    // parallel run the clicks before the sample outlasted the auto-hide. Reading
+    // the paint at the moment it is painted has no timing to lose — the same
+    // reason the buddy test reads the LAST pop atomically with the won flag.
+    window.TDUI.showBanner = function (t) {
+      const out = real.call(this, t);
+      const el = document.querySelector("#screen-td-play .td-banner");
+      const r = el ? el.getBoundingClientRect() : null;
+      window.__banners.push({ text: String(t), shown: !!(el && !el.hidden),
+                              w: r ? Math.round(r.width) : 0, h: r ? Math.round(r.height) : 0 });
+      return out;
+    };
+    window.__TD.newGame(lv, { seed: 5 });
+    const e = window.__TD.engine();
+    e.state.gold = 90000;
+    // A BOARD, and lives that cannot run out. Jumping to the finale with an
+    // empty board means everything leaks: the first cut lost the run before the
+    // hp bands were forced, the engine stopped ticking, and the failure read
+    // "saw 0" as though the warning were broken. Survival is not what this test
+    // is about, so it is removed as a failure mode rather than raced against.
+    const L = ["dart", "mortar", "fan", "camp"];
+    e.levelDef.pads.forEach((p, i) => e.place(L[i % 4], p.id));
+    e.state.lives = 9999;
+    const bossIdx = e.levelDef.waves.findIndex((w) => w.boss);
+    e.state.waveIdx = bossIdx; e.state.sentIdx = bossIdx;   // jump to the finale
+  }, BOSS_LEVEL);
+  // MAKE THE RUN LIVE, AND PROVE IT. newGame leaves it PAUSED, and a paused run
+  // still DRAINS EVENTS — so the klaxon fires perfectly while the engine never
+  // ticks and nothing spawns, which is precisely how the first cut failed:
+  // "The Static incoming!" recorded, then no boss on the field. Racing a fixed
+  // click sequence is what made that intermittent, so this clicks until the
+  // engine is demonstrably advancing and asserts that it is.
+  // ⏩ SPEED IS PERSISTED IN THE SAVE and read at startLevel, so this test
+  // inherits whatever the last speed test left. That is what made it pass alone
+  // and fail behind 203 others: at 3x the engine ran ~179s of game time during
+  // ~10s of wall clock, finished the whole finale and reported `phase=won` with
+  // an empty field, which reads exactly like a warning that never fired. Put it
+  // back to 1x through the real control before starting anything.
+  const speedBtn = page.locator("#screen-td-play .td-speed");
+  for (let i = 0; i < 4 && (await speedBtn.textContent()).trim() !== "1×"; i++) await speedBtn.click();
+  assert.equal((await speedBtn.textContent()).trim(), "1×",
+    "fixture: the run must be at 1x — a fast-forwarded engine finishes the finale before the " +
+    "bands can be forced, and the failure then looks like a dead warning");
+  const tickNow = () => page.evaluate(() => window.__TD.engine().state.tick);
+  let ticking = false;
+  for (let i = 0; i < 8 && !ticking; i++) {
+    const t0 = await tickNow();
+    await page.waitForTimeout(250);
+    if (await tickNow() > t0) { ticking = true; break; }
+    await page.locator("#screen-td-play .td-pause").click().catch(() => {});
+    await page.waitForTimeout(120);
+    await page.locator('#screen-td-play [data-act="resume"]').click().catch(() => {});
+  }
+  assert.ok(ticking,
+    "fixture: the engine never started ticking — a PAUSED run still drains events, so the " +
+    "klaxon would fire while nothing spawned and every clause below would test a frozen board");
+  await page.locator("#screen-td-play .td-call").click().catch(() => {});
+  // WAIT for the record rather than sampling at a fixed offset — see the spy.
+  // The timeout is turned into a NAMED failure: a bare "Timeout 20000ms
+  // exceeded" sends the next reader hunting a slow page rather than a dead
+  // dispatch, which is what silencing the klaxon actually looks like here.
+  const raised = await page.waitForFunction(() => window.__banners.length > 0, null, { timeout: 20000 })
+    .then(() => true, () => false);
+  assert.ok(raised,
+    "a boss wave raised NO banner within 20s — the klaxon dispatch never fired, so the " +
+    "finale arrives unannounced");
+
+  // …and it must be ON SCREEN, not merely dispatched: a call site existing is
+  // not the same as the player seeing it. Size included, because a collapsed
+  // 1x1 box is `visible` to every naive predicate.
+  const shown = await page.evaluate(() => window.__banners[0]);
+  assert.ok(shown.shown, "a boss wave must raise the klaxon on screen, not just call showBanner");
+  assert.ok(shown.w > 40 && shown.h > 12,
+    `the klaxon rendered ${shown.w}x${shown.h} — a collapsed box is "visible" to every naive check`);
+  assert.match(shown.text, /incoming/, `the klaxon must name the arrival, saw ${JSON.stringify(shown.text)}`);
+
+  // FORCE each hp band, exactly as AUDIT boss kits does: a real board may never
+  // drop the boss there, so the warning could ship dead-untested.
+  const out = await page.evaluate(async (id) => {
+    const e = window.__TD.engine();
+    // WAIT for the boss to SPAWN. The klaxon fires when the wave is CALLED,
+    // while the boss arrives after its group's own delay — so looking once
+    // races the spawn and reports "no boss on the field" on a working game.
+    const findBoss = () => e.state.enemies.find((x) => x.alive && x.type === id);
+    let boss = null;
+    for (let i = 0; i < 200 && !boss; i++) {
+      boss = findBoss();
+      if (!boss) await new Promise((r) => setTimeout(r, 50));
+    }
+    if (!boss) {
+      const types = {};
+      for (const x of e.state.enemies) if (x.alive) types[x.type] = (types[x.type] || 0) + 1;
+      return { err: `the ${id} never spawned within 10s of its wave being called. ` +
+        `phase=${e.state.phase} waveIdx=${e.state.waveIdx} sentIdx=${e.state.sentIdx} ` +
+        `tick=${e.state.tick} lives=${e.state.lives} levelId=${e.state.levelId} ` +
+        `alive=${JSON.stringify(types)} totalEnemies=${e.state.enemies.length}` };
+    }
+    const max = boss.maxHp || boss.hp;
+    const wait = (n, ms) => new Promise((res) => {          // poll, never a fixed sleep
+      const t0 = Date.now();
+      (function spin() {
+        if (window.__banners.length >= n || Date.now() - t0 > ms) return res();
+        setTimeout(spin, 50);
+      })();
+    });
+    const trace = [];
+    let want = window.__banners.length;
+    for (const frac of [0.60, 0.30]) {
+      const t0 = e.state.tick;
+      // SELF-VERIFYING PRECONDITION: a band can only be crossed while the run is
+      // live and ticking. Without this the failure reads "saw 0" and looks like
+      // a dead warning when the truth is a dead RUN.
+      if (e.state.phase !== "wave" || !boss.alive) {
+        return { err: `the run was ${e.state.phase} (boss alive: ${boss.alive}) before band ` +
+                      `${frac} could be forced — the fixture died, not the warning` };
+      }
+      boss.hp = max * frac;
+      want += 1;
+      await wait(want, 8000);   // let real frames + phaseWatch run
+      // DIAGNOSTIC: a bare "saw 0" cannot say whether the loop stopped, the run
+      // ended, or the body died — print what happened INSIDE the loop.
+      trace.push({ frac, ticked: e.state.tick - t0, phase: e.state.phase,
+                   lives: e.state.lives, alive: boss.alive, hp: Math.round(boss.hp),
+                   got: window.__banners.length });
+    }
+    return { banners: window.__banners.map((b) => b.text), trace, max };
+  }, bossId);
+
+  assert.ok(!out.err, `fixture: ${out.err} — every clause below would pass on nothing`);
+  const name = DATA.ENEMIES[bossId].name;
+  const klaxons = out.banners.filter((b) => b.indexOf("incoming") >= 0);
+  const angrier = out.banners.filter((b) => b.indexOf("angrier") >= 0);
+  assert.equal(klaxons.length, 1,
+    `the boss wave must announce itself exactly once, saw ${JSON.stringify(out.banners)}`);
+  assert.ok(klaxons[0].indexOf(name) >= 0,
+    `the klaxon must NAME the boss ("${name}"), saw ${JSON.stringify(klaxons[0])}`);
+  // DERIVED from the boss's own declared bands, so a boss with three inherits it
+  assert.equal(angrier.length, bands,
+    `${name} declares ${bands} hp bands below full, so crossing them must warn ${bands} times — ` +
+    `saw ${angrier.length}: ${JSON.stringify(out.banners)}. A boss whose kit escalates in silence ` +
+    `is a difficulty spike the player cannot read. trace=${JSON.stringify(out.trace)} max=${out.max}`);
+});
