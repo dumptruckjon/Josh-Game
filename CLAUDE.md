@@ -5660,6 +5660,44 @@ baseURL}` (not `{url}`), each producing a confident failure that looked like a
 broken product — `Cannot read properties of undefined` and a navigation to the
 literal string `"undefined#td-play"`.
 
+**THE IN-PLAY POWER STRIP STOPPED SIZING ITS TILES AND STARTED SPREADING THEM,
+and the ceiling that caused it was a PHONE constraint nobody re-scoped.** Found
+by screenshotting a live battle at tablet size — a state nothing had looked at,
+the same method that found the toast overlap. The portrait block caps
+`.td-abil` at `max-width: 60px` with `width: auto`, and its own comment says why:
+the row must fit the wave button plus four powers on a 320px screen. Measured
+across eight widths, the row grows **296 -> 696px** from a 320 phone to a 1024
+tablet **while the tile stays 44px at every single one of them** — the entire
+gain goes into dead space, with inter-tile gaps of 59 / 70 / 107px against a
+44px tile and only **38% of the row tappable** at 1024. That is the fort home's
+meta-row defect one screen over, landing on the four buttons you arm, aim and
+spend under fire, sitting at the bare adult 44px floor while the row has 245px
+going spare. Fixed with a `min-width: 600px` portrait query: 44 -> **92px** at
+768/834/1024, gaps 59/70/107 -> 11/22/59, every phone width and landscape
+**byte-identical**, and the field unchanged at every size (224/252/378/406/434/
+504/546/700). Three things worth keeping. **The ceiling is DERIVED, not picked**
+— a power tile may grow to the wave button's own `minmax(76px, 92px)` track and
+no further, so it is never wider than the primary action beside it. **Width
+only**, because the base rule sets an explicit 62px height and the row is IN
+FLOW under the canvas, so a taller row would take the battlefield with it (the
+mutation that grows the height reports exactly that). And **the catching clause
+is a RATIO between two quantities measured in the same layout** — a gap wider
+than the control it separates means the row is spreading rather than sizing —
+never an invented pixel threshold, which is what makes it honest on a surface
+whose right size is a judgement call.
+**The sharp part is the clause that nearly shipped as decoration.** "A wider
+screen must never hand back a smaller control" is the fort-home law and it reads
+like the obvious guard here — but it CANNOT catch this defect (44px at every
+width is perfectly monotonic), and it is DOMINATED by the gap clause for the
+obvious mutations, because in a fixed-width row a smaller tile necessarily
+widens the gaps past it: shrinking the tile fires the gap clause first, the
+earlier-clause trap again. Isolating it needs a mutation that narrows the ROW as
+well (`.td-controls { max-width: 300px }` with a 44px cap above 1000px), which
+keeps the gaps small and still hands a 1024px screen a smaller control than an
+834px one. Proven that way rather than assumed — this repo has deleted four
+clauses for being unfalsifiable, and the difference between deleting this one
+and keeping it was one more mutation.
+
 ---
 
 ## Repository Structure

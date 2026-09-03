@@ -13577,3 +13577,89 @@ test("QoL: a maxed tower still says what its branch is FOR", async () => {
       "it swaps a branch row for one line, so it must not grow");
   }
 });
+
+test("QoL: the power strip SIZES its tiles on a big screen, it does not just spread them", async () => {
+  // The 60px ceiling in the portrait block is a PHONE constraint — it exists so
+  // the wave button and four powers fit a 320px row — and it was never
+  // re-scoped. Measured before the fix, the row grew 296 -> 696px from a 320
+  // phone to a 1024 tablet while the tile stayed 44px at EVERY one of them, so
+  // the whole gain went into dead space: gaps of 59/70/107px against a 44px
+  // tile, with only 38% of the row tappable. Same shape as the fort home's
+  // meta-row defect, on the four buttons you arm, aim and spend under fire.
+  //
+  // The catching clause is a RATIO between two quantities measured in the same
+  // layout — a gap wider than the control it separates means the row is
+  // SPREADING rather than SIZING — never an invented pixel threshold.
+  const SIZES = [[320, 568], [360, 640], [390, 844], [414, 896],
+                 [600, 900], [768, 1024], [834, 1112], [1024, 1366]];
+  const rows = [];
+  for (const [w, h] of SIZES) {
+    // a FRESH context per size, which is how a real device loads the page — a
+    // setViewportSize resize is what once let a layout check survive its own
+    // mutation.
+    const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p = await c.newPage();
+    await p.goto(baseURL, { waitUntil: "load" });
+    await p.evaluate(() => { location.hash = "#td-play"; });
+    await p.locator("#screen-td-play").waitFor({ state: "visible" });
+    await p.evaluate(() => window.__TD.newGame(20, { seed: 5 }));
+    await p.waitForTimeout(150);
+    rows.push(await p.evaluate(() => {
+      const tiles = [...document.querySelectorAll("#screen-td-play .td-abil")];
+      const r = (e) => e.getBoundingClientRect();
+      const b = tiles.map(r);
+      const gaps = [];
+      for (let i = 1; i < b.length; i++) gaps.push(b[i].left - b[i - 1].right);
+      const row = r(document.querySelector("#screen-td-play .td-controls"));
+      return { n: tiles.length,
+               tile: b.length ? Math.round(b[0].width) : 0,
+               tileH: b.length ? Math.round(b[0].height) : 0,
+               gap: gaps.length ? Math.round(Math.max(...gaps)) : 0,
+               rowH: Math.round(row.height) };
+    }));
+    await c.close();
+  }
+
+  // NON-VACUOUS: a strip that rendered nothing would satisfy every ratio below.
+  for (let i = 0; i < SIZES.length; i++) {
+    assert.ok(rows[i].n >= 4 && rows[i].tile > 0,
+      `only ${rows[i].n} power tiles rendered at ${SIZES[i][0]}px — every clause below would pass on nothing`);
+  }
+
+  for (let i = 0; i < SIZES.length; i++) {
+    const [w] = SIZES[i], r = rows[i];
+    assert.ok(r.gap <= r.tile,
+      `at ${w}px the gap between two power tiles is ${r.gap}px against a ${r.tile}px tile — ` +
+      "the row is SPREADING its tiles instead of SIZING them, so a bigger screen buys dead space " +
+      "rather than a bigger target on the buttons you arm and spend under fire");
+    // the fort is Jon's space: the ADULT floor, not Josh's 75px kid law
+    assert.ok(r.tile >= 44,
+      `a power tile is ${r.tile}px at ${w}px — below the adult 44px floor`);
+  }
+
+  // A WIDER SCREEN MUST NEVER HAND BACK A SMALLER CONTROL. It cannot catch the
+  // defect above — a tile that is 44px at every width is perfectly monotonic —
+  // and it is DOMINATED by the gap clause for most mutations, because in a
+  // fixed-width row a smaller tile necessarily widens the gaps past it: simply
+  // shrinking the tile fires the clause above instead. Isolating it takes a
+  // mutation that narrows the ROW as well (`.td-controls { max-width: 300px }`
+  // with a 44px cap at >=1000px), which keeps gaps small and still hands a
+  // 1024px screen a smaller control than an 834px one. Proven that way rather
+  // than assumed, so this is load-bearing and not decoration.
+  for (let i = 1; i < rows.length; i++) {
+    assert.ok(rows[i].tile >= rows[i - 1].tile,
+      `the tile is ${rows[i].tile}px at ${SIZES[i][0]}px but ${rows[i - 1].tile}px at the narrower ` +
+      `${SIZES[i - 1][0]}px — a bigger screen must not give the fort a smaller control`);
+  }
+
+  // THE BATTLEFIELD MUST NOT PAY FOR IT. In portrait the row is IN FLOW below
+  // the canvas and resize() subtracts it, so a row that grew TALLER would take
+  // the field with it. The tiles grow in width only.
+  const phone = rows[SIZES.findIndex(([w]) => w === 390)];
+  const tablet = rows[SIZES.findIndex(([w]) => w === 834)];
+  assert.equal(tablet.rowH, phone.rowH,
+    `the control row is ${tablet.rowH}px tall on a tablet against ${phone.rowH}px on a phone — ` +
+    "the row is in flow under the canvas, so growing it TALLER shrinks the battlefield");
+  assert.equal(tablet.tileH, phone.tileH,
+    `the tile is ${tablet.tileH}px tall on a tablet against ${phone.tileH}px on a phone — width only`);
+});

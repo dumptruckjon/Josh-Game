@@ -649,6 +649,26 @@ body.td-mode #screens { padding: 0; }
   .td-hud { font-size: 0.86rem; }
 }
 
+/* ABOVE TABLET WIDTH THE ROW STOPPED SIZING THE TILES AND STARTED SPREADING
+   THEM. The 60px ceiling above is a PHONE constraint — it exists so the wave
+   button and four powers fit a 320px row — and it was never re-scoped, so the
+   row grows 296 -> 696px from a 320 phone to a 1024 tablet while the tile stays
+   44px at EVERY one of them. Measured, the whole gain went into dead space: the
+   gap between two tiles is 7px at 320, 25 at 390, then 70 at 834 and 107 at
+   1024 — a gap two and a half times the tile it separates, with only 38% of the
+   row tappable. That is the fort home's meta-row defect one screen over (a
+   bigger screen must not hand back the same cramped control), and here it lands
+   on the four buttons you arm, aim and spend under fire, sitting at the bare
+   adult 44px floor while the row has 245px going spare.
+   The ceiling is DERIVED, not picked: a power tile may grow to the wave
+   button's own `minmax(76px, 92px)` track and no further, so it is never wider
+   than the primary action beside it. WIDTH ONLY — the base rule sets an
+   explicit 62px height, so the battlefield cannot lose a pixel to this. And it
+   is a `min-width` query, so every phone keeps its exact shipped row. */
+@media (orientation: portrait) and (min-width: 600px) {
+  .td-abil { width: 100%; max-width: 92px; }
+}
+
 /* Landscape: the field is HEIGHT-limited, so a row under it would shrink the
    battlefield. It has wide empty side gutters instead (a 24×14 board is far
    wider than tall), so the block becomes a column parked in the right gutter —
