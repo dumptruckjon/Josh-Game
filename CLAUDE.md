@@ -5553,6 +5553,66 @@ before anything was discarded; and the diff was saved first anyway. **A clean
 a rollback hands you may be someone else's unfinished work — identify it before
 you throw it away.**
 
+**THE TOWER PANEL SAID "crit" AND NEVER SAID HOW MUCH — the only figure on that
+line with no number, and it hid a 25× span.** Every sibling carries one — `39
+dps`, `5.5 rng`, `💥1.92`, `50% slow`, `2.7 aura`, `29% road` — and this printed a
+bare flag, so ONE word covered a plain dart granted crit by 🍀 Lucky Darts (**3%
+at 1.5×**, i.e. +1.5% expected damage a shot) and a Sniper Scope with 🍀 and ✨
+Steady Aim (**18% at 3.125×**, +38.3%). The engine rolls `(s.crit +
+mods.critBonus)` and multiplies by `(s.critMult || 1.5) * mods.critMul`, so both
+figures move with the loadout — and the consequence is the sharp half: **the two
+⭐3 nodes that BUY crit were invisible everywhere in the game**, so six stars
+bought a panel that said exactly what it said before. Same class as 🦉 Night Owl
+applying once in a campaign with nothing saying so, and it is the UI half of a
+defect this file already records on the TEST side (*"the existing 🎯 Steady Aim
+test asserts only that the biggest hit RISES — which a 1.05× crit satisfies"* —
+an inequality is not a magnitude, now met one layer out). Three things worth
+keeping. (1) **The number was already there and the formatter threw it away** —
+`towerStats` has folded `mods.critBonus` into `out.crit` since the ask-the-engine
+pass; the multiplier just needed the same treatment its sibling already had,
+keyed on `def.kind === "dart"` so a fifth line of a known kind inherits it. (2)
+**The `1.5` default now has ONE owner, in the engine rather than the UI**, and is
+coerced for the recorded reason: this value is PRINTED, so a stat block one field
+short renders `NaN` on the panel — the `mult`-less zone and the `delay`-less wave
+group, third instance. (3) **The clause comparing the panel against `towerStats`
+CANNOT catch an engine regression, because both sides move together** — the
+flattening trap. What catches it is the separate clause that the three loadouts
+must produce three DISTINCT crit profiles, and I first labelled that one
+`fixture:`, which would have made a real product failure read as a broken test.
+That is the second time in one session I mislabelled a product claim as a
+fixture check; **if a clause can fail because the PRODUCT is wrong, word it as a
+product failure.** Measured: one line, no wrap, panel bottom inside the fold at
+390×844, 320×568, 320×480 and landscape 844×390, and all 24 loadout × tower ×
+size combinations match the engine exactly.
+**Four candidates from the same pass were REFUTED by measurement, recorded so
+nobody re-opens them.** The ⚙️ energy exchange DOES signal unaffordability — six
+ways at once (aria-label, title, aria-disabled, opacity, background, border), and
+the eyeball impression that it did not was simply wrong. The `stun` event DOES
+have a picture (a stars burst); re-deriving the whole emitted-event-versus-consumer
+diff shows every type is covered, with the documented exemptions, so that audit is
+genuinely closed. Every pad and every lane waypoint projects INSIDE the canvas on
+all 40 levels at nine viewports (501 pads, 0 outside) — a sprite sitting at the
+board's edge reads as clipped and is not. And a tier-4 tower's panel renders no
+"maxed" statement where ⬆ used to be, which is real but modest and was passed over
+for the crit finding rather than shipped as filler.
+**Four METHOD failures in the same session, three of them recorded traps.**
+(1) **A Workflow fan-out died 8-of-8 on a subagent session limit**, burning 641k
+tokens for zero results, and a second attempt stalled with 2 of 8 finders started
+— so the systematic sweep contributed nothing and every finding here came from
+reading and measuring directly. A parallel harness is only useful if its agents
+can actually run; check the failure list before believing an empty result.
+(2) **The first battlefield screenshot was a STALE FRAME**: `newGame` leaves the
+run PAUSED, so the rAF loop never drew — 12 towers placed and none rendered, the
+engine mid-wave while the DOM still showed the build-phase CALL button. Drive the
+real ⏸ and ▶ CALL controls and let real frames run. (3) **A wrong selector
+produced a confident null** — `.td-charge` does not exist (`.td-hud__charge`
+does), and the probe cheerfully reported that nothing about the button changes
+with affordability. Suspect the fixture. (4) **A scan's own pattern, again**: my
+emitted-event-versus-consumer grep matched `e.type === "..."` in the renderer,
+which is BOTH the fx dispatcher and the 56-branch enemy sprite switch, so it
+reported every enemy name as a handled event type and nearly hid the question it
+was asked.
+
 ---
 
 ## Repository Structure

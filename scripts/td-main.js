@@ -1352,7 +1352,16 @@
     const dps = s.dmg / s.rate; // dart / mortar
     let str = dps.toFixed(0) + " dps · " + num(s.range) + " rng";
     if (s.splash) str += " · 💥" + num(s.splash);
-    if (s.crit) str += " · crit";
+    // CRIT WAS THE ONE STAT ON THIS LINE WITH NO NUMBER. Every sibling carries
+    // one — 39 dps, 5.5 rng, 💥1.92, 50% slow, 2.7 aura, 29% road — and this
+    // printed a bare flag, so the same word covered a plain dart with 🍀 Lucky
+    // Darts (3% at 1.5×, i.e. +1.5% expected damage a shot) and a Sniper Scope
+    // with 🍀 and ✨ Steady Aim (18% at 3.125×, +38.3%). A 25× span on one word,
+    // on the line whose whole job is to equal what the engine actually does —
+    // and it meant the two ⭐3 nodes that BUY crit could not be seen anywhere in
+    // the game, so six stars bought a panel that said exactly what it said before.
+    // Both figures come from towerStats, which already folds the meta into each.
+    if (s.crit) str += " · " + Math.round(s.crit * 100) + "% crit ×" + num(s.critMult);
     return str + roadTxt(t, tier);
   }
 

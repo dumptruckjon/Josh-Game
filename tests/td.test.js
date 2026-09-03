@@ -13366,3 +13366,96 @@ test("QoL: the tower panel says what THIS gun has done, and the shares sum", asy
     `the busier gun read ${pctOf(out.hiText)}% and the quieter one ${pctOf(out.loText)}% — ` +
     "the share does not follow the tower it is shown on");
 });
+
+test("QoL: the stat line says how much CRIT, not just that there is some", async () => {
+  // `crit` was the one figure on this line with no number. Every sibling carries
+  // one — 39 dps, 5.5 rng, 💥1.92, 50% slow, 2.7 aura, 29% road — and this printed
+  // a bare flag, so ONE word covered a plain dart with 🍀 Lucky Darts (3% at 1.5×,
+  // i.e. +1.5% expected damage a shot) and a Sniper Scope with 🍀 and ✨ Steady Aim
+  // (18% at 3.125×, +38.3%). A 25× span, on the line whose whole job is to equal
+  // what the engine actually does — and it meant the two ⭐3 nodes that BUY crit
+  // were invisible everywhere in the game.
+  //
+  // The engine rolls `(s.crit + mods.critBonus)` and multiplies by
+  // `(s.critMult || 1.5) * mods.critMul`, so BOTH figures move with the loadout
+  // and both are asked of towerStats rather than re-derived here.
+  const LOADOUTS = [
+    { meta: [], label: "no meta" },
+    { meta: ["critchance"], label: "🍀 Lucky Darts" },
+    { meta: ["critchance", "steadyaim"], label: "🍀 + ✨ Steady Aim" },
+  ];
+  const seen = [];
+  for (const L of LOADOUTS) {
+    await page.evaluate(() => { location.hash = "#__renav"; });
+    await page.evaluate(() => { location.hash = "#td-play"; });
+    await page.locator("#screen-td-play").waitFor({ state: "visible" });
+    await page.evaluate((meta) => window.__TD.newGame(20, { seed: 5, meta }), L.meta);
+    await page.waitForTimeout(140);
+
+    const out = await page.evaluate(() => {
+      const eng = window.__TD.engine();
+      eng.state.gold = 9000;
+      const rows = [];
+      // a PLAIN tier-3 dart (crit only if a node grants it) and a SNIPER SCOPE
+      // (the only stat block in the game that declares crit natively)
+      for (const [which, takeBranch] of [["plain", false], ["sniper", true]]) {
+        const pad = eng.levelDef.pads[takeBranch ? 1 : 0];
+        eng.place("dart", pad.id);
+        const t = eng.state.towers[eng.state.towers.length - 1];
+        eng.upgrade(t.id); eng.upgrade(t.id);
+        if (takeBranch) eng.branch(t.id, Object.keys(window.TDData.TOWERS.dart.branches)[0]);
+        const st = eng.towerStats(t.id);
+        const sp = window.__TD.w2s(t.cx + 0.5, t.cy + 0.5);
+        const cv = document.querySelector("#screen-td-play .td-canvas");
+        const rc = cv.getBoundingClientRect();
+        cv.dispatchEvent(new MouseEvent("click", { bubbles: true,
+          clientX: rc.left + sp.x, clientY: rc.top + sp.y }));
+        const el = document.querySelector("#screen-td-play .td-bubble .td-panel__stats");
+        rows.push({ which, printed: el ? el.textContent.trim() : null,
+                    crit: st.crit, critMult: st.critMult });
+      }
+      return rows;
+    });
+    for (const r of out) seen.push({ ...r, loadout: L.label });
+  }
+
+  const sniper = seen.filter((r) => r.which === "sniper");
+  const plain = seen.filter((r) => r.which === "plain");
+
+  // The two ⭐3 nodes must MOVE the numbers. This is a product claim, not a
+  // fixture check, and the distinction matters: the clause below compares the
+  // panel against towerStats, so an engine that stopped folding the meta in
+  // would move BOTH sides and stay green — the flattening trap. This is what
+  // catches that, and it is deliberately worded as a product failure so a
+  // regression does not read as a broken test.
+  const critKeys = new Set(sniper.map((r) => `${r.crit}/${r.critMult}`));
+  assert.ok(critKeys.size === 3,
+    `🍀 Lucky Darts and ✨ Steady Aim are ⭐3 each and must each change what the ` +
+    `Sniper rolls, but the three loadouts produced only ${critKeys.size} distinct ` +
+    `crit profiles (${[...critKeys].join(", ")}) — a node you cannot see is a node you cannot value`);
+
+  for (const r of seen) {
+    assert.ok(r.printed, `no stat line rendered for the ${r.which} on ${r.loadout}`);
+    if (r.crit > 0) {
+      // ASK THE ENGINE: the printed figures must be the ones it will actually roll.
+      const want = `${Math.round(r.crit * 100)}% crit ×${Math.round(r.critMult * 100) / 100}`;
+      assert.ok(r.printed.includes(want),
+        `the ${r.which} on ${r.loadout} printed "${r.printed}" but the engine rolls ${want} — ` +
+        "the panel must state the crit the engine actually uses, not a bare flag");
+    } else {
+      assert.ok(!/crit/.test(r.printed),
+        `the ${r.which} on ${r.loadout} printed "${r.printed}" — a tower that cannot crit ` +
+        "must say nothing about crit");
+    }
+  }
+
+  // NON-FLATTENING: both figures must MOVE with the loadout, or a hard-coded
+  // string satisfies every clause above.
+  const bare = sniper.find((r) => r.loadout === "no meta").printed;
+  const full = sniper.find((r) => r.loadout === "🍀 + ✨ Steady Aim").printed;
+  assert.notEqual(bare, full,
+    `the Sniper read "${bare}" with no meta and the same with both crit nodes owned — ` +
+    "🍀 Lucky Darts and ✨ Steady Aim are ⭐3 each and must be visible on the panel they buy");
+  assert.ok(/3% crit/.test(plain.find((r) => r.loadout === "🍀 Lucky Darts").printed),
+    "a plain dart granted crit only by 🍀 Lucky Darts must show the 3% that node buys");
+});

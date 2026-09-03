@@ -1834,6 +1834,14 @@
       if (def.kind === "dart") {
         out.dmg = n(out.dmg, 0) * mods.dartDmg;
         out.crit = n(out.crit, 0) + mods.critBonus;
+        // The crit MULTIPLIER gets the same treatment as the chance beside it,
+        // because the panel prints both and the engine multiplies both: the roll
+        // is `(s.crit + mods.critBonus)` and the damage `(s.critMult || 1.5) *
+        // mods.critMul`, so ✨ Steady Aim moves this exactly as 🍀 Lucky Darts
+        // moves the line above. The `1.5` is the engine's own default, written
+        // here rather than in the UI so the fallback has ONE owner — and coerced,
+        // because this value is PRINTED and `undefined * 1.25` renders "NaN".
+        out.critMult = n(out.critMult, 1.5) * mods.critMul;
       } else if (def.kind === "mortar") {
         out.splash = n(out.splash, 0) * mods.mortarSplash;
       } else if (def.kind === "fan") {
