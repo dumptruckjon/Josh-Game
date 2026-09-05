@@ -30,6 +30,15 @@ const PAGES = fs.readdirSync(root).filter((f) => /\.html$/.test(f)).sort();
 // it links. That is what makes a page-scoped law true for index.html (whose
 // rules live in styles/main.css) and for a standalone page (whose rules are
 // inline) by ONE mechanism, instead of exempting one of them.
+// Every FORT source the page loads. Several one-owner BANS below counted a
+// needle across a hand-typed subset of these five — and a ban scoped to some of
+// the files it applies to is barely a ban: it is meaningless in the files it
+// never reads. Note the distinction from a CONDITIONAL law (the inner-scroller
+// check), which is only worth widening where its subject is actually present: a
+// ban is worth widening precisely to the files where the banned thing does NOT
+// yet exist, because that is the whole point of banning it.
+const TD_SOURCES = SCRIPTS.filter((f) => /^scripts\/td-/.test(f)).sort();
+
 const pageCss = (f) => {
   const src = fs.readFileSync(path.join(root, f), "utf8");
   let css = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
@@ -245,6 +254,17 @@ test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch
   // boot; this locks the mechanism so it can't silently regress in a refactor.
   const sw = read("sw.js");
   assert.match(sw, /ignoreSearch\s*:\s*true/, "SW offline fallback must retry cache with { ignoreSearch: true } so ?v= assets still resolve offline");
+});
+
+test("the fort-source population is derived, not typed", () => {
+  // TD_SOURCES feeds three one-owner BANS below, so a derivation that narrows
+  // makes all three quietly weaker while staying green — the failure mode the
+  // animated-background law had to learn twice. Pinned as the population itself
+  // rather than a count, because a count cannot separate "narrowed" from "went
+  // quiet".
+  assert.deepEqual(TD_SOURCES,
+    ["scripts/td-data.js", "scripts/td-logic.js", "scripts/td-main.js", "scripts/td-render.js", "scripts/td-ui.js"],
+    "every fort script the page loads must be in TD_SOURCES");
 });
 
 test("games self-register into the framework registry", () => {
@@ -867,7 +887,17 @@ test("the front door: three world tiles open Josh's / 华丽's / the fort DIRECT
 
 test("华丽: every hidden game registers through reg() with hl/zh flags and an hl- id", () => {
   let total = 0;
-  for (const f of ["scripts/games-hl-a.js", "scripts/games-hl-b.js"]) {
+  // Derived, for the same reason Josh's ten-file list was: a THIRD games-hl-*.js
+  // escapes a hand-typed pair entirely, and this law is what makes her games
+  // register with the hl/zh flags that keep them out of his menus and book.
+  // Both directions, so a file on disk the page never loads is caught too.
+  const hlLoaded = SCRIPTS.filter((f) => /^scripts\/games-hl-.*\.js$/.test(f)).sort();
+  const hlDisk = fs.readdirSync(path.join(root, "scripts"))
+    .filter((f) => /^games-hl-.*\.js$/.test(f)).map((f) => `scripts/${f}`).sort();
+  assert.deepEqual(hlLoaded, hlDisk,
+    "every scripts/games-hl-*.js must be loaded by index.html, and vice versa");
+  assert.ok(hlLoaded.length >= 2, `only ${hlLoaded.length} 华丽 games files found — the scan failed OPEN`);
+  for (const f of hlLoaded) {
     const src = read(f);
     assert.ok(/def\.hl = true/.test(src) && /def\.lang = "zh"/.test(src) && /def\.hlCat = cat/.test(src) && /def\.homeHash/.test(src),
       f + " must funnel every def through reg() (hl + zh + her category + her Home)");
@@ -1735,11 +1765,18 @@ test("the Sticker Book's DOM has ONE owner — both books build through JoshStic
     const src = read(f);
     assert.ok(/ST\.meter\(\)/.test(src), `${f} must build its meter through JoshStickers.meter()`);
     assert.ok(/ST\.slot\(def,/.test(src), `${f} must build its slots through JoshStickers.slot()`);
-    // …and must not hand-roll them any more.
+  }
+  // …and the hand-roll BAN runs over every script the page loads, not just the
+  // two known books. A ban scoped to its known consumers cannot see a THIRD one
+  // — and a third world with a third book is exactly how this app has grown
+  // twice. stickers.js is exempt because it IS the owner: it is the one file
+  // that must contain these structures.
+  for (const f of SCRIPTS.filter((f) => f !== "scripts/stickers.js")) {
+    const src = read(f);
     assert.ok(!/className = "sticker-meter"/.test(src),
-      `${f} still builds a sticker-meter by hand — JoshStickers.meter() is the one owner`);
+      `${f} builds a sticker-meter by hand — JoshStickers.meter() is the one owner`);
     assert.ok(!/className = "sticker-slot tap"/.test(src),
-      `${f} still builds a sticker-slot by hand — JoshStickers.slot() is the one owner`);
+      `${f} builds a sticker-slot by hand — JoshStickers.slot() is the one owner`);
   }
 });
 
@@ -2255,7 +2292,12 @@ test("guardrail: a tower LINE's icon and name have exactly one owner", () => {
   }
   // No other source file may map a line id to a quoted glyph. Derived from the
   // ids, so a fifth line inherits the ban.
-  for (const f of ["scripts/td-ui.js", "scripts/td-main.js", "scripts/td-render.js"]) {
+  // Every fort source EXCEPT td-data.js, which is the owner and legitimately
+  // holds the glyphs. td-logic.js was outside the old list and is exactly where
+  // a second table would land — `reachedBy` returns line KEYS, and the defeat
+  // screen's bug was joining those raw, so an author "fixing" that in the engine
+  // is the plausible route to a second owner.
+  for (const f of TD_SOURCES.filter((f) => f !== "scripts/td-data.js")) {
     const src = strip(read(f));
     for (const id of ids) {
       const re = new RegExp("\\b" + id + "\\s*:\\s*[\"'][^\x00-\x7F]");
@@ -3615,7 +3657,7 @@ test("guardrail: a badge announcement has ONE owner", () => {
   // it, which is worse rather than better: it is the name a future author would
   // reach for, and reaching for it silently reinstates the defect of announcing
   // a badge behind the screen it was earned on.
-  const files = ["scripts/td-ui.js", "scripts/td-main.js"];
+  const files = TD_SOURCES;   // a ban belongs in every file the string could appear in
   const owners = [];
   for (const f of files) {
     const src = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
@@ -3812,7 +3854,7 @@ test("what the game SAYS about a body has exactly one owner", () => {
   const strip = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   const SIG = / · 🏃 /g;
   let total = 0, where = [];
-  for (const f of ["scripts/td-ui.js", "scripts/td-main.js", "scripts/td-render.js", "scripts/td-logic.js"]) {
+  for (const f of TD_SOURCES) {
     const n = (strip(f).match(SIG) || []).length;
     total += n;
     if (n) where.push(f + " ×" + n);
@@ -3827,7 +3869,7 @@ test("what the game SAYS about a body has exactly one owner", () => {
   // …and it must be the owner, not some other file that happens to build one.
   assert.match(strip("scripts/td-ui.js"), /UI\.enemyBrief\s*=\s*function/,
     "UI.enemyBrief is that owner and must exist");
-  for (const f of ["scripts/td-main.js", "scripts/td-render.js"]) {
+  for (const f of TD_SOURCES.filter((f) => f !== "scripts/td-ui.js")) {
     assert.ok(!SIG.test(strip(f)),
       `${f} builds an enemy stat line of its own — read UI.enemyBrief instead`);
     SIG.lastIndex = 0;

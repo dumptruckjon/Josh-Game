@@ -6101,6 +6101,41 @@ since the touch-hygiene commit, and for a minute that looked like a real defect
 in shipped code. **Copy the shipped law's own pattern instead of writing a fresh
 one** — the law had `/overscroll-behavior:\s*contain/` sitting right there.
 
+**AND THE SWEEP'S LAST ROUND PRODUCED THE RULE THAT SHOULD HAVE COME FIRST: a
+BAN and a CONDITIONAL law want OPPOSITE widening tests.** The scroller
+finding had just established that a law is only worth widening where its
+SUBJECT is present — and applying that to the remaining hand-written lists
+would have been exactly wrong, because those are one-owner BANS (*this string /
+this glyph table / this hand-rolled DOM node may exist in exactly one place*).
+A ban's normal state in any given file is that the banned thing is NOT there;
+that is the point of banning it. So **a ban is worth widening precisely to the
+files where its subject is absent**, and a ban scoped to a hand-typed subset is
+barely a ban at all — it is meaningless in the files it never reads. Four of
+them were counting a needle across 2-4 named fort sources of the five the page
+loads: the tower-line glyph table, the *"Badge earned!"* string, the enemy stat
+line, and (over all scripts) the Sticker Book's hand-rolled meter/slot. They
+share ONE derived owner now, `TD_SOURCES`, with the DATA file exempt where it
+is the legitimate holder — and the exemption is named rather than implied.
+**The control is what separates this from tidying.** Plant a second glyph table
+in `td-logic.js` — the file that was outside the old list, and exactly where a
+second one would land, since `reachedBy` returns line KEYS and the defeat
+screen's shipped bug was joining those raw — and the widened ban goes red naming
+it, while the SAME defect with the ban restored to its old three files passes
+untouched. The other three are each proven the same way, in the file each old
+list omitted (`td-render.js`, `td-data.js`, `framework.js`). And `TD_SOURCES`
+carries its own population `deepEqual`, because it now feeds three bans at once:
+a derivation that narrows would weaken all three while staying green.
+**Two smaller things from the same round.** 华丽's game files were a hand-typed
+PAIR guarding the law that keeps her games out of Josh's menus, book and star
+count — so a third `games-hl-*.js` would have registered with none of the
+hl/zh flags and nothing would have said so; derived both ways, exactly as
+Josh's ten were an hour earlier. And **five mutations in a row failed on their
+ANCHOR** (I guessed `const TDLogic` / `const F = {` for files that all open
+`(function (global) {`), each reporting SETUP FAILED rather than a false pass —
+which is the whole reason the harness asserts its anchor matches exactly once
+before believing any result. Note what that discipline is worth here: without
+it, five "GREEN"s would have read as five weak clauses.
+
 ---
 
 ## Repository Structure
