@@ -6018,6 +6018,56 @@ back. The false failure was indistinguishable from the real defect I was hunting
 which is precisely what made it convincing; suspect the fixture first, especially
 when a probe confirms the thing you already expected.
 
+**TWO MORE HAND-WRITTEN POPULATIONS DERIVED — and the sharper half is that my
+own note saying one of them COULD NOT be derived was simply under-measured.**
+The `games self-register` law iterated a hand-typed ten-file list, and it had
+TWO holes rather than one: an ELEVENTH games file escapes it outright, and a
+games file that exists on disk but is never LOADED is invisible to it as well —
+the repo-tree walk proves a file is NAMED in CLAUDE.md and never that
+`index.html` loads it, so a whole set of games could ship documented, pass every
+scan and simply never register. Both are closed by comparing two INDEPENDENTLY
+derived lists (`SCRIPTS`-filtered against a `scripts/` directory read), which is
+one clause carrying both protections; the floor stays a SEPARATE clause, because
+`deepEqual([], [])` is exactly how both halves break at once.
+**`UI_FILES` was the one I had written off.** The note said it was 4 of 26
+scripts "with no derivable rule" and should be left alone — measured, that is
+false in both directions: widening it to every script the page loads plus each
+page's inline `<script>` is 0 hits across all 28 sources, and the law is about
+PLAYER-FACING COPY while `content.js` (this repo's "ALL editable content" file)
+and `hl-content.js` (every Chinese string) sat OUTSIDE it. It had been scoped to
+where the defect was FOUND — a fort dialog — not to what the law is about, which
+is the same shape as the animated-background law an hour earlier. *A scoping
+verdict is a claim like any other*, and this file already records that lesson
+costing two shipped defects when a note looked authoritative.
+**AND THE MEASUREMENT THAT DECIDED THE IMPLEMENTATION: widening it naively would
+have shipped a FALSE-POSITIVE MACHINE.** The old scan asked "does this LINE hold
+a quote AND a banned word", stripping only a FULL-LINE comment — and this
+vocabulary saturates these very files' comments: **81 occurrences in full-line
+comments, plus one already sitting in a TRAILING comment** (`td-logic.js:2406`),
+which fails to fire today only because that line happens to carry no quote. So
+the trailing comment is a live vector, not a hypothetical, and going from 4
+sources to 28 multiplies its surface. The honest form is to scan the STRING
+LITERALS rather than the lines — **a comment is never inside a string literal,
+so the entire class stops existing instead of being stripped for the ninth
+time.** It is proven by a CONTROL rather than argued: plant a banned word in a
+trailing comment on a line that does hold a quote, and the new scan stays GREEN
+while the old form fires on that exact line. The extractor then IS the scan, so
+it carries its own floor (20,535 literals today) — a desync or a broken walk
+would otherwise make every clause above it vacuous while staying green.
+**Three method notes, all recorded traps, all mine.** A line number relative to
+an EXTRACTED block is a wrong line — the first cut joined each page's inline
+scripts and reported `wordcards.html:2` for a string on line 159, which sends
+the next person to the wrong place; the blocks are spliced back at their real
+offsets with everything else blanked out, newlines preserved. **Two mutations
+failed on their ANCHOR** (index.html writes `<script src=… defer>`, not
+`<script defer src=…>`; `content.js` has `CHEERS:` inside an object, not
+`const CHEERS`) and each reported SETUP FAILED rather than a false pass — the
+assert-it-matched-exactly-once discipline earning its keep, and note that M7's
+first "GREEN" was meaningless precisely because the mutation never applied.
+And `--test-name-pattern="player-facing"` matched an ADJACENT test (*a
+difficulty's player-facing NAME has exactly one owner*) rather than the one I
+had edited; the tell was `# tests` — check the COUNT, never just the `ok` line.
+
 ---
 
 ## Repository Structure

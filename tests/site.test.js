@@ -248,7 +248,28 @@ test("guardrail: the SW offline fallback is version-query tolerant (ignoreSearch
 });
 
 test("games self-register into the framework registry", () => {
-  for (const f of ["scripts/games-toys.js", "scripts/games-math.js", "scripts/games-logic.js", "scripts/games-literacy.js", "scripts/games-science.js", "scripts/games-calm.js", "scripts/games-fun.js", "scripts/games-find.js", "scripts/games-hl-a.js", "scripts/games-hl-b.js"]) {
+  // The population was a hand-typed ten-file list, and it had TWO holes rather
+  // than one. An ELEVENTH games file escapes it outright — and a games file that
+  // exists on disk but is never LOADED is invisible to it as well, because the
+  // repo-tree walk proves a file is NAMED in CLAUDE.md and never that index.html
+  // loads it. So a whole set of games could ship documented, pass every scan and
+  // simply never register: dead content, the class already paid for by heroic
+  // shipping with no selector and World 4 shipping with no cards. Measured
+  // identical today (10 loaded, 10 on disk), so this is COVERAGE, not a fix.
+  const loaded = SCRIPTS.filter((f) => /^scripts\/games-.*\.js$/.test(f)).sort();
+  const onDisk = fs.readdirSync(path.join(root, "scripts"))
+    .filter((f) => /^games-.*\.js$/.test(f)).map((f) => `scripts/${f}`).sort();
+  // ONE clause carrying both protections, because the two lists are derived
+  // INDEPENDENTLY: a games file the page never loads is dead content, and a
+  // derivation that NARROWS can no longer pass by agreeing with a stale literal.
+  assert.deepEqual(loaded, onDisk,
+    "every scripts/games-*.js must be loaded by index.html, and every games script the page loads must exist on disk");
+  // A derivation fails OPEN, and deepEqual([], []) is exactly how both halves
+  // break at once — so the floor is a SEPARATE clause from the comparison, for
+  // the reason the animated-background law had to learn twice: a count cannot
+  // carry two failure modes.
+  assert.ok(loaded.length >= 8, `only ${loaded.length} games files found — the scan failed OPEN`);
+  for (const f of loaded) {
     assert.match(read(f), /F\.register\(|JoshFramework\.register\(/, `${f} should register a game`);
   }
   assert.match(read("scripts/main.js"), /serviceWorker\.register/, "main.js should register the SW");
@@ -3010,20 +3031,81 @@ test("player copy is written for the PLAYER, not for the next engineer", () => {
     "measured, not hoped", "guardrail", "mutation-proven", "byte-identical",
     "the oracle", "auto-solver", "the sim ", "regression test", "test suite",
   ];
-  const UI_FILES = ["scripts/td-ui.js", "scripts/td-main.js", "scripts/hl-main.js", "scripts/main.js"];
-  const hits = [];
-  for (const f of UI_FILES) {
-    const src = require("fs").readFileSync(f, "utf8");
-    src.split("\n").forEach((line, i) => {
-      const code = line.replace(/^\s*\/\/.*$/, "");        // a scan must not read its own docs
-      if (!/["'`]/.test(code)) return;
-      for (const b of BANNED) {
-        if (code.toLowerCase().includes(b.toLowerCase())) hits.push(`${f}:${i + 1} — "${b}"`);
+  // The population was FOUR hand-picked files of the twenty-six the page loads —
+  // scoped to where the defect was FOUND (a fort dialog), not to what the law is
+  // ABOUT. content.js is this repo's "ALL editable content" file and
+  // hl-content.js holds every Chinese string, and BOTH sat outside a law about
+  // player-facing copy. It is now every script the page loads PLUS each shipped
+  // page's own inline <script>, which no SCRIPTS-derived scan can see (Word Cards
+  // is 493 cards of player copy in one inline block). tools/ and tests/ stay out
+  // for free — the page does not load them, and they use this vocabulary
+  // constantly. Measured 0 hits across all 28 sources first, so this is a
+  // tightening of a passing check rather than a newly-blocked build.
+  const SOURCES = [
+    ...SCRIPTS.map((f) => [f, read(f)]),
+    // Each page's inline <script> bodies, spliced back in at their real offsets
+    // with everything else blanked out (newlines preserved). Joining the blocks
+    // instead would renumber every line, and a failure naming the wrong line
+    // sends the next person to the wrong place.
+    ...PAGES.map((f) => {
+      const src = read(f);
+      let out = src.replace(/[^\n]/g, " ");
+      for (const m of src.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)) {
+        const at = m.index + m[0].indexOf(m[1]);
+        out = out.slice(0, at) + m[1] + out.slice(at + m[1].length);
       }
-    });
+      return [f, out];
+    }),
+  ];
+  // …and it reads the STRING LITERALS, not the lines. The old form asked "does
+  // this LINE hold a quote AND a banned word", stripping only a FULL-LINE
+  // comment — so a TRAILING comment was a live false-positive vector, and not
+  // hypothetically: this vocabulary saturates these very files' comments (81
+  // occurrences in full-line comments, and one already sitting in a trailing
+  // comment at td-logic.js:2406, a single quote away from firing). Widening 4
+  // sources to 28 multiplies that surface, so the scan now reads exactly what it
+  // claims to police — text that reaches the screen. A comment is never inside a
+  // string literal, so the whole class stops existing rather than being stripped.
+  const stringLiterals = (src) => {
+    const out = [];
+    for (let i = 0; i < src.length; ) {
+      const c = src[i];
+      if (c === "/" && src[i + 1] === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
+      if (c === "/" && src[i + 1] === "*") { i += 2; while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++; i += 2; continue; }
+      if (c === '"' || c === "'" || c === "`") {
+        let j = i + 1, buf = "";
+        for (; j < src.length; j++) {
+          if (src[j] === "\\") { buf += src[j + 1] || ""; j++; continue; }
+          if (src[j] === c) break;
+          if (c !== "`" && src[j] === "\n") break;   // unterminated: bail rather than swallow the rest of the file
+          buf += src[j];
+        }
+        out.push({ text: buf, line: src.slice(0, i).split("\n").length });
+        i = j + 1; continue;
+      }
+      i++;
+    }
+    return out;
+  };
+  const hits = [];
+  let literals = 0;
+  for (const [f, src] of SOURCES) {
+    for (const lit of stringLiterals(src)) {
+      literals += 1;
+      for (const b of BANNED) {
+        if (lit.text.toLowerCase().includes(b.toLowerCase())) hits.push(`${f}:${lit.line} — "${b}"`);
+      }
+    }
   }
+  // The DEFECT clause first, then the non-vacuity floor — a mutation must fire
+  // the claim rather than the guard.
   assert.deepEqual(hits, [],
     "these are test-suite words in a string that reaches the screen — say what the feature DOES:\n  " + hits.join("\n  "));
+  // The extractor IS the scan now, so it needs its own floor: a desync or a
+  // broken walk makes every clause above vacuous while staying green. 20535
+  // today across 28 sources, so this separates working from silent, and does not
+  // sit on the value it must separate from.
+  assert.ok(literals > 5000, `only ${literals} string literals extracted — the scan failed OPEN`);
 });
 
 test("the game stage centres its play on the axis it actually has", () => {
