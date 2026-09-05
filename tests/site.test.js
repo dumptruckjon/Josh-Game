@@ -26,6 +26,19 @@ const SCRIPTS = [...read("index.html").matchAll(/<script[^>]+src="([^"?]+)/g)].m
 // Every shipped HTML PAGE, derived the same way. A page with an inline
 // <script> carries emoji and CSS that no SCRIPTS-derived scan can see.
 const PAGES = fs.readdirSync(root).filter((f) => /\.html$/.test(f)).sort();
+// The CSS a PAGE actually loads: its inline <style> blocks PLUS every stylesheet
+// it links. That is what makes a page-scoped law true for index.html (whose
+// rules live in styles/main.css) and for a standalone page (whose rules are
+// inline) by ONE mechanism, instead of exempting one of them.
+const pageCss = (f) => {
+  const src = fs.readFileSync(path.join(root, f), "utf8");
+  let css = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
+  for (const m of src.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"?]+)/g)) {
+    const abs = path.join(root, m[1]);
+    if (fs.existsSync(abs)) css += "\n" + fs.readFileSync(abs, "utf8");
+  }
+  return css;
+};
 
 test("the script list is DERIVED from index.html, and is not empty", () => {
   // Guards the derivation itself: a regex that stops matching would silently
@@ -441,7 +454,16 @@ test("an absolutely-positioned ::after has a POSITIONED parent, and new animatio
   // hand-listed nine files, the live-verify probe hit only index.html,
   // FIELD_TRAIT hand-listed twelve fields, the overlay audit hand-listed six
   // dialogs. When a list can go stale, derive it.
-  const SHEETS = ["styles/main.css", "styles/td.css"];
+  // …and SIXTH: a page's INLINE <style> is a stylesheet nothing was scanning
+  // either. Deliberately the inline block ALONE, not pageCss() — this law is a
+  // per-FILE property ("nothing in THAT file's reduced-motion block turns it
+  // off"), so concatenating a page with the sheets it links would let a
+  // keyframe in one file be gated by another and weaken it.
+  const SHEETS = [
+    ["styles/main.css", read("styles/main.css")],
+    ["styles/td.css", read("styles/td.css")],
+    ...PAGES.map((f) => [f, [...read(f).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n")]),
+  ];
   let kfChecked = 0;
   // Collect the CONTENTS of every reduced-motion at-rule, not a slice from the
   // first one. main.css keeps a single block at the end, so slicing worked
@@ -451,8 +473,14 @@ test("an absolutely-positioned ::after has a POSITIONED parent, and new animatio
   // td-toastpop's off switch left the slice version green.)
   const reducedBlocks = (css) => {
     let out = "";
-    const needle = "@media (prefers-reduced-motion: reduce)";
-    for (let i = css.indexOf(needle); i >= 0; i = css.indexOf(needle, i + 1)) {
+    // WHITESPACE-TOLERANT, not a literal. `prefers-reduced-motion:reduce` with
+    // no space is valid CSS and the literal needle could not see it — so the
+    // law reported "nothing turns it off" about a page that gates correctly.
+    // Found by widening the scope; a scan's own PATTERN is part of the scan.
+    const needle = /@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/g;
+    let hit;
+    while ((hit = needle.exec(css))) {
+      const i = hit.index;
       const open = css.indexOf("{", i);
       if (open < 0) break;
       let depth = 0, j = open;
@@ -461,11 +489,12 @@ test("an absolutely-positioned ::after has a POSITIONED parent, and new animatio
         else if (css[j] === "}") { depth--; if (!depth) break; }
       }
       out += css.slice(open, j) + "\n";
+      needle.lastIndex = j;
     }
     return out;
   };
-  for (const sheet of SHEETS) {
-    const css = read(sheet);
+  for (const [sheet, css] of SHEETS) {
+    if (!css.trim()) continue;                          // a page with no inline CSS
     const reduced = reducedBlocks(css);
     for (const kf of (css.match(/@keyframes\s+([\w-]+)/g) || []).map((k) => k.split(/\s+/)[1])) {
       const users = (css.match(new RegExp("[^{}]+\\{[^{}]*animation[^;}]*" + kf + "\\b[^;}]*", "g")) || [])
@@ -3703,7 +3732,12 @@ test("every shipped PAGE obeys the iOS 14.2 floors", () => {
   assert.ok(PAGES.includes("index.html") && PAGES.length >= 2,
     `PAGES looks wrong (${PAGES.join(", ")}) — the derivation failed OPEN and every clause below is vacuous`);
   for (const f of PAGES) {
-    const src = read(f);
+    // Comment-stripped, for the EIGHTH recorded time in this repo: this scan
+    // reads raw source, and a page whose comment legitimately QUOTES the rule
+    // it obeys ("never user-scalable=no") makes the law fire on working code.
+    // Strip HTML and CSS comments; `//` is left alone because a URL is not a
+    // comment in either language.
+    const src = read(f).replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
     const css = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
 
     // Safari 14 has NO flex gap, and on this page gap IS the only spacing, so
@@ -3727,6 +3761,77 @@ test("every shipped PAGE obeys the iOS 14.2 floors", () => {
       `${f}: user-scalable=no removes pinch-zoom for low-vision users, and iOS has ignored it since iOS 10`);
     assert.doesNotMatch(src, /maximum-scale\s*=\s*1/, `${f}: maximum-scale=1 blocks zooming`);
   }
+});
+
+test("every shipped PAGE carries the app's touch hygiene", () => {
+  // These laws lived in styles/main.css, which a STANDALONE page does not load.
+  // Word Cards is the first such page and it arrived with none of them — on the
+  // most tap-dense surface in the app, where you tap the card, then Next, then
+  // Next, fast, with a four-year-old's hands.
+  //
+  // The population is PAGES and the source is pageCss(), i.e. what the page
+  // ACTUALLY loads — so index.html passes because main.css carries these, and a
+  // standalone page passes because its own <style> does. One mechanism, no
+  // exemption for either. Comment-stripped: a page that quotes the rule it
+  // obeys must not fire the law (this repo's most-repeated own goal).
+  assert.ok(PAGES.length >= 2, `PAGES looks wrong (${PAGES.join(", ")}) — every clause below is vacuous`);
+  let checked = 0;
+  for (const f of PAGES) {
+    const src = read(f).replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    const css = pageCss(f).replace(/\/\*[\s\S]*?\*\//g, "");
+    // `[^{}]+\{[^{}]*\}` skips at-rule wrappers naturally and yields the inner rules.
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]]);
+    assert.ok(rules.length > 5, `${f}: found only ${rules.length} CSS rules — the scan failed OPEN`);
+    const onRoot = (re) => rules.some(([sel, body]) =>
+      sel.split(",").some((one) => /^(html|body|:root|\*)$/.test(one.trim())) && re.test(body));
+
+    // (1) The double-tap zoom the owner reported from real play. `touch-action`
+    //     INTERSECTS down the ancestor chain, so one root declaration covers the
+    //     whole page — including the GAPS between controls, which is exactly
+    //     where a fumbled second tap lands. It cannot ban pinch-zoom.
+    assert.ok(onRoot(/touch-action\s*:\s*manipulation/),
+      `${f}: nothing on html/body declares touch-action: manipulation, so a fumbled double-tap zooms the page and is hard to undo (reported from real play). Never fix this with user-scalable, which iOS ignores and which bans zooming for low-vision users.`);
+
+    // (2) The other half: rubber-band, pull-to-refresh (which RELOADS mid-play
+    //     and loses your place) and scroll chaining out of an inner scroller.
+    assert.ok(onRoot(/overscroll-behavior\s*:\s*none/),
+      `${f}: nothing on html/body declares overscroll-behavior: none — a drag past the top rubber-bands, and pull-to-refresh can reload the page mid-play`);
+    for (const [sel, body] of rules) {
+      if (!/overflow-y\s*:\s*(auto|scroll)/.test(body)) continue;
+      assert.match(body, /overscroll-behavior\s*:\s*contain/,
+        `${f}: "${sel}" scrolls internally, so it must contain its own overscroll — otherwise reaching its end hands the rest of the gesture to the page behind it`);
+    }
+
+    // (3) PAIRING LAW, and this one caught a regression I introduced: adding
+    //     `viewport-fit=cover` to match the repo's convention extends the layout
+    //     UNDER the notch and the home indicator, so consuming the insets is not
+    //     optional — it is the other half of that flag. Word Cards shipped with a
+    //     26px bottom pad against a ~34px home indicator, so its ◀ ▶ row sat
+    //     under it. Same shape as the dvh/vh pairing above.
+    if (/viewport-fit\s*=\s*cover/.test(src)) {
+      assert.match(css, /env\(\s*safe-area-inset-/,
+        `${f}: declares viewport-fit=cover, which pushes the layout under the notch and the home indicator, but consumes no env(safe-area-inset-*) — so content sits under them`);
+    }
+
+    // (4) The long-press callout bubble is the other half of "touch and hold
+    //     highlights it as if it were text", so a page that suppresses selection
+    //     must suppress the callout too, or it fixed half the report.
+    if (/[^-]user-select\s*:\s*none/.test(css)) {
+      assert.match(css, /-webkit-touch-callout\s*:\s*none/,
+        `${f}: suppresses text selection but not the long-press callout bubble — the two halves of one reported defect`);
+    }
+    // (5) …and a real text field keeps every default, or the iOS paste menu is
+    //     gone from the only places the app wants one (the fort's 💾 Backup box
+    //     and the type-the-word reset gates). VACUOUS on a page with no field —
+    //     said plainly rather than implying it guards something here.
+    if (/<(input|textarea)\b/.test(src) && /[^-]user-select\s*:\s*none/.test(css)) {
+      assert.match(css, /user-select\s*:\s*text/,
+        `${f}: has a text field but no rule restoring user-select: text — losing the caret and the paste menu there is worse than the bug the blanket none fixes`);
+    }
+    assert.match(css, /-webkit-tap-highlight-color/, `${f}: no -webkit-tap-highlight-color — iOS paints a grey box on every tap`);
+    checked += 1;
+  }
+  assert.equal(checked, PAGES.length, `only ${checked} of ${PAGES.length} pages were audited`);
 });
 
 test("Word Cards states no card count it has to keep up to date", () => {

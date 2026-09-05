@@ -7,21 +7,35 @@
 <style>
   :root{ --ground:#1B1035; --ink:#21123F; --card:#FFC93C; }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;margin:0;}
+  /* iOS touch hygiene — the same page-wide rule styles/main.css carries, which
+     this standalone page does not load. `touch-action` INTERSECTS down the
+     ancestor chain, so declaring it once on the root stops the ACCIDENTAL
+     double-tap zoom everywhere (reported from real play) while leaving panning
+     AND pinch-zoom alone — never `user-scalable=no`, which bans zooming.
+     `overscroll-behavior` is the other half: it stops the rubber-band bounce and
+     pull-to-refresh, which on a flash-card deck RELOADS the page and loses your
+     place. Honest floor: Safari added it in 16, so Josh's iOS 14.2 iPad ignores
+     it — it is the whole fix everywhere else and regresses nothing there. */
+  html,body{height:100%;margin:0;
+    touch-action:manipulation;overscroll-behavior:none;-webkit-overflow-scrolling:touch;}
   body{
     background:var(--ground);
     font-family:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",Nunito,Verdana,system-ui,sans-serif;
     display:flex;justify-content:center;
-    user-select:none;-webkit-user-select:none;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
   }
-  .wrap{width:100%;max-width:560px;height:100%;min-height:100vh;min-height:100dvh;padding:18px 18px 26px;
+  .wrap{width:100%;max-width:560px;height:100%;min-height:100vh;min-height:100dvh;
+        padding:calc(env(safe-area-inset-top, 0px) + 18px)
+                calc(env(safe-area-inset-right, 0px) + 18px)
+                calc(env(safe-area-inset-bottom, 0px) + 26px)
+                calc(env(safe-area-inset-left, 0px) + 18px);
         display:grid;grid-template-columns:minmax(0,100%);gap:16px;}
   #deck{grid-template-rows:auto auto 1fr auto;}
   #menu{grid-auto-rows:min-content;align-content:start;}
   .hidden{display:none !important;}
 
   /* ---------- menu ---------- */
-  #menu{overflow-y:auto;}
+  #menu{overflow-y:auto;overscroll-behavior:contain;}
   .title{color:#fff;font-size:30px;font-weight:800;margin:6px 0 2px;letter-spacing:.01em;}
   .sub{color:rgba(255,255,255,.5);font-size:16px;font-weight:600;margin-bottom:18px;}
   .all{

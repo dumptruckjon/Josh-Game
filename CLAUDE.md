@@ -5871,6 +5871,73 @@ both shots had caught the `pop` keyframe mid-flight (`opacity: .3 → 1` over
 0.32s). *Look at the picture, then measure the thing you think you saw* — and
 when a probe screenshots straight after an action, expect the animation.
 
+**THE APP'S TOUCH LAWS LIVED IN A STYLESHEET THE NEW PAGE DOES NOT LOAD — and
+one of the four gaps was a REGRESSION I introduced in the very commit that fixed
+that class.** `wordcards.html` is the first standalone PAGE this app has ever
+had, and measured against `styles/main.css` it carried **`touch-action`: 0
+occurrences against 15** — on the most tap-dense surface in the game, where you
+tap the card, then Next, then Next, fast, with a four-year-old's hands, and where
+a fumbled second tap lands on the gaps the page-wide rule exists to cover. Also
+missing: `overscroll-behavior` (pull-to-refresh RELOADS a flash-card deck and
+loses your place), and `-webkit-touch-callout`, which is the other half of the
+two-half report the page only answered one half of (`user-select: none` was
+there). **The fourth is mine**: I gave the page `viewport-fit=cover` to match
+this repo's convention and did not bring the convention's other half. That flag's
+entire function is to push the layout UNDER the notch and the home indicator, so
+consuming `env(safe-area-inset-*)` is not optional — and the page's bottom pad
+was 26px against a ~34px home indicator, so its ◀ ▶ row sat under it. **Half a
+convention is worse than none here, because the original page had no
+`viewport-fit` at all and was therefore safe by default: I added the hazard and
+not the guard.** The fix is unchanged BY CONSTRUCTION where there is no inset —
+`env()` resolves to its `0px` fallback, and the padding measures a byte-identical
+`18px 18px 26px 18px` at 390, 320 and 834 — so only a device with a real inset
+gains anything.
+**The systemic half is the embarrassing one: I widened three iOS-floor laws to a
+derived `PAGES` list in that same commit and STOPPED AT THREE.** The touch,
+overscroll and safe-area laws had the identical scope bug and were left behind —
+fix-applied-where-found, committed inside the fix for fix-applied-where-found.
+All three are laws now, and each was RED on the shipped page, so they are
+load-bearing rather than coverage. Three notes on their construction. **The
+source is `pageCss(f)` — what the page ACTUALLY loads** (its inline `<style>`
+plus every stylesheet it links) — so `index.html` passes because `main.css`
+carries these and a standalone page passes because its own `<style>` does: one
+mechanism, no exemption for either. **The reduced-motion law deliberately does
+NOT use it** and takes the inline block ALONE, because that law is a per-FILE
+property ("nothing in THAT file's reduced-motion block turns it off") and
+concatenating a page with the sheets it links would let a keyframe in one file be
+gated by another and quietly weaken it. Two laws, two different correct sources;
+say which and why rather than reusing one helper everywhere.
+**And widening the SCOPE is what exposed the PATTERN.** The reduced-motion
+extractor's needle was the LITERAL string `"@media (prefers-reduced-motion:
+reduce)"`, and the new page writes it **without the space** — valid CSS the scan
+cannot see, so the law reported *"@keyframes pop animates .pop but nothing turns
+it off"* about a page that gates it correctly on line 104. Without the
+whitespace fix the widening would have shipped as a false-positive machine, which
+its control mutation proves by restoring the literal and reproducing exactly that
+message. A scan's own pattern is part of the scan, Nth time — and the new part is
+that a scan can be *accidentally correct for its original input* and structurally
+wrong for the next one.
+**Three method failures, all recorded traps, all mine.** (1) **The
+comment-strip, for the EIGHTH time, by the person who has now written that
+sentence seven times**: my new code comment in the page quoting *"never
+`user-scalable=no`"* fired the floor law on working code. Stripped — and the
+control that matters is not that the comment stops firing it but that a REAL
+`user-scalable=no` in the viewport meta is still caught, or the strip would have
+traded a false positive for a vacuous law. (2) **A mutation that does not remove
+the thing under test proves nothing, and it passed looking like a weak clause**:
+the safe-area `padding` is FOUR lines and my mutation replaced only the first, so
+three `env(safe-area-inset-*)` stayed in the file and satisfied the very clause I
+was trying to falsify. Assert the anchor matched once AND that the file changed —
+both of which I did — and then check the change removed the *property*, not just
+some text. (3) **Do not read the working tree while a mutation run is up**: a
+`git diff` taken mid-run showed `overscroll-behavior:none` missing from the page
+and looked precisely like a real defect; it was M2 in flight between its restore
+points. And a smaller one worth keeping: **`nohup … &` inside an
+already-backgrounded call returns instantly**, so the harness reported the
+wrapper's exit 0 while the script ran on, and the log was **0 bytes** — which
+reads exactly like "every mutation passed silently". Assert a result file is
+non-empty before believing it, in either direction.
+
 ---
 
 ## Repository Structure
@@ -5886,8 +5953,12 @@ tooling.
 │                               #   spacer). Self-contained page, kept as-is apart from this repo's
 │                               #   iOS-14.2 floors: 10 emoji > Emoji 13.0 (tofu on Josh's iPad,
 │                               #   and on a flash card the PICTURE IS THE ANSWER), flex-gap, the
-│                               #   `inset:` shorthand, user-scalable=no, bare 100vh, sub-75px taps.
-│                               #   Every card count is DERIVED from WORDS. Precached in sw.js.
+│                               #   `inset:` shorthand, user-scalable=no, bare 100vh, sub-75px taps,
+│                               #   and the touch hygiene main.css carries page-wide but a
+│                               #   standalone page never loads (touch-action / overscroll /
+│                               #   callout, plus the env(safe-area-inset-*) that viewport-fit=cover
+│                               #   makes mandatory). Every card count is DERIVED from WORDS.
+│                               #   Precached in sw.js.
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
