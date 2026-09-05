@@ -39,6 +39,16 @@ const pageCss = (f) => {
   }
   return css;
 };
+// Every CSS source the app ships, kept PER FILE. Two laws below are per-file
+// properties ("nothing in THAT file turns this off"), so they must NOT use
+// pageCss(), which concatenates a page with the sheets it links and would let a
+// keyframe in one file be gated by another. One owner, because two copies of
+// "what CSS ships" is exactly how a scope goes stale in one of them.
+const SHEETS = [
+  ["styles/main.css", read("styles/main.css")],
+  ["styles/td.css", read("styles/td.css")],
+  ...PAGES.map((f) => [f, [...read(f).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n")]),
+];
 
 test("the script list is DERIVED from index.html, and is not empty", () => {
   // Guards the derivation itself: a regex that stops matching would silently
@@ -290,15 +300,60 @@ test("game data is well-formed (animals, eaters, snacks, odd groups, patterns)",
 
 // ---------- Mobile / kid guardrails ----------
 test("background is static; nothing animates the full-page background", () => {
-  const css = read("styles/main.css");
-  assert.match(css, /linear-gradient\(/, "should have a gradient background");
-  // No @keyframes may animate a background property (that's the iOS-repaint bug).
-  const kfBlocks = css.match(/@keyframes[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g) || [];
-  for (const b of kfBlocks) {
-    assert.ok(!/background/i.test(b), "a @keyframes animates 'background' — animated backgrounds are banned");
+  // RULE 5: no animated full-page background — iOS repaints on scroll and it
+  // flashes. Static gradient + small animated elements only.
+  //
+  // SCOPE, and the confession is in the previous commit's own message: that
+  // pass widened three iOS-floor laws to the derived PAGES list and STOPPED AT
+  // THREE. This one still read `styles/main.css` alone — one of four CSS
+  // sources the app ships — so the fort's stylesheet and every standalone
+  // page's inline <style> sat outside it. A page's own body IS the full-page
+  // background (Word Cards' sets one), so a shimmering gradient there is
+  // precisely the banned defect, on a surface nothing was scanning.
+  //
+  // …and its PATTERN was part of the scan too: `\bbody\s*\{` cannot see
+  // `body.hl-mode{…}`, and every body rule in this app EXCEPT the bare one
+  // carries a class (hl-mode / in-game), so the clause was evadable by writing
+  // the rule the way the app already writes them. Both holes measured CLEAN on
+  // all four sources — coverage, not a fix, which is the honest half.
+  assert.match(read("styles/main.css"), /linear-gradient\(/, "should have a gradient background");
+  let rootRules = 0;
+  for (const [sheet, raw] of SHEETS) {
+    if (!raw.trim()) continue;                        // a page with no inline CSS
+    const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const b of css.match(/@keyframes[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g) || []) {
+      assert.ok(!/background/i.test(b),
+        `${sheet}: a @keyframes animates 'background' — an animated full-page background repaints on every iOS scroll and flashes`);
+    }
+    // The full-page surfaces themselves, however the selector is spelled: bare,
+    // classed (body.hl-mode), pseudo (body::before) or html.
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const isRoot = m[1].split(",").map((one) => one.trim())
+        .some((one) => /(^|[\s>+~])(html|body)([.#:\[][^\s>+~]*)?$/.test(one));
+      if (!isRoot) continue;
+      rootRules += 1;
+      // Read the VALUE, because `animation: none` is the reset a reduced-motion
+      // block legitimately writes on a body rule and matching the property alone
+      // flags correct CSS. A negative lookahead does NOT do this: `\s*(?!none)`
+      // is defeated by backtracking — `\s*` gives back the space, the lookahead
+      // then sits on " none" rather than "none", and it matches anyway. Its own
+      // false-positive control is what caught that, still red after the "fix".
+      const anims = [...m[2].matchAll(/(?:^|[;\s{])animation(?:-name)?\s*:([^;}]*)/g)]
+        .map((a) => a[1].trim()).filter((v) => v && v !== "none");
+      assert.deepEqual(anims, [],
+        `${sheet}: "${m[1].trim()}" animates a full-page surface (${anims.join("; ")}) — iOS repaints it on every scroll`);
+    }
   }
-  // The body itself must not be animated.
-  assert.ok(!/\bbody\s*\{[^}]*animation\s*:/.test(css.replace(/\s+/g, " ")), "body must not be animated");
+  // A derivation fails OPEN, and the two failure modes need DIFFERENT clauses —
+  // saying which carries which, because a count cannot carry both. The POPULATION
+  // clause is the one that catches a narrowed source list: main.css alone has 7
+  // root rules and main+td have 8 against a measured 10, so ANY count-based floor
+  // near the real value is satisfied by exactly the failure it is meant to catch
+  // (proven — dropping PAGES from SHEETS sailed through a `>= 8` floor). The
+  // count clause carries the other one: the rule-matching regex going quiet.
+  assert.deepEqual(SHEETS.map((x) => x[0]), ["styles/main.css", "styles/td.css", ...PAGES],
+    "the CSS-source population must be every stylesheet AND every shipped page");
+  assert.ok(rootRules >= 8, `only ${rootRules} html/body rules were audited — the rule scan failed OPEN`);
 });
 
 test("mobile / iOS Safari optimizations are in place", () => {
@@ -455,15 +510,10 @@ test("an absolutely-positioned ::after has a POSITIONED parent, and new animatio
   // FIELD_TRAIT hand-listed twelve fields, the overlay audit hand-listed six
   // dialogs. When a list can go stale, derive it.
   // …and SIXTH: a page's INLINE <style> is a stylesheet nothing was scanning
-  // either. Deliberately the inline block ALONE, not pageCss() — this law is a
-  // per-FILE property ("nothing in THAT file's reduced-motion block turns it
-  // off"), so concatenating a page with the sheets it links would let a
-  // keyframe in one file be gated by another and weaken it.
-  const SHEETS = [
-    ["styles/main.css", read("styles/main.css")],
-    ["styles/td.css", read("styles/td.css")],
-    ...PAGES.map((f) => [f, [...read(f).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n")]),
-  ];
+  // either. The population is the module-level SHEETS owner, which keeps each
+  // source PER FILE for the reason stated there — this law is a per-file
+  // property ("nothing in THAT file's reduced-motion block turns it off"), so
+  // pageCss() would let a keyframe in one file be gated by another.
   let kfChecked = 0;
   // Collect the CONTENTS of every reduced-motion at-rule, not a slice from the
   // first one. main.css keeps a single block at the end, so slicing worked
@@ -511,7 +561,7 @@ test("an absolutely-positioned ::after has a POSITIONED parent, and new animatio
   // …and the sweep is not vacuous — the fort's own animations must be among
   // what it checked, or a refactor that moved them elsewhere would silently
   // shrink the scan back to one file.
-  assert.ok(kfChecked >= 30, `only ${kfChecked} animated keyframes were checked across ${SHEETS.join(" + ")}`);
+  assert.ok(kfChecked >= 30, `only ${kfChecked} animated keyframes were checked across ${SHEETS.map((x) => x[0]).join(" + ")}`);
   assert.ok(/@keyframes\s+td-/.test(read("styles/td.css")), "the fort stylesheet must be in the scan's scope");
   const css = read("styles/main.css");   // the tile-gradient law below is Josh's world only
   // A gradient with a TRANSLUCENT stop, laid on a tile with the `background`

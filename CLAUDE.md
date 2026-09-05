@@ -5800,6 +5800,63 @@ timeout is caught and turned into a named assertion. **When a test's own failure
 message stops naming the cause, that is a regression in the test even though it
 is still red.**
 
+**RULE 5's OWN "NO ANIMATED FULL-PAGE BACKGROUND" LAW READ ONE OF THE FOUR CSS
+SOURCES THIS APP SHIPS — and its `body` clause could not see the way this app
+actually writes body rules.** Found by asking the obvious follow-up to the
+previous commit, whose own message confesses that it widened three iOS-floor
+laws to the derived `PAGES` list and STOPPED AT THREE. Two holes, both latent,
+so this is COVERAGE rather than a fix — the honest half to write down. (1)
+**SCOPE**: the law read `styles/main.css` alone, so the fort's stylesheet and
+every standalone page's inline `<style>` were outside it. That matters because a
+page's own `body` IS the full-page background — Word Cards' sets one — so a
+shimmering gradient there is exactly the iOS repaint-flash this rule bans, on a
+surface nothing was scanning. (2) **PATTERN**: `\bbody\s*\{` cannot match
+`body.hl-mode{…}`, and **every body rule in this app except the bare one carries
+a class** (`hl-mode`, `in-game`), so the clause was evadable simply by writing
+the rule the way the app already writes them — a scan's own PATTERN is part of
+the scan, for the Nth time, and here it was blind to the majority spelling
+rather than to an exotic one. The population is now ONE module-level owner
+(`SHEETS`, main + td + every page's inline block), shared with the
+reduced-motion law that had already needed exactly this list, because two copies
+of "what CSS ships" is how a scope goes stale in one of them.
+**THE LESSON IS THE FLOOR I WROTE AND HAD TO THROW AWAY.** A derivation fails
+OPEN, so it needs a non-vacuity clause, and I reached for a count: measured 10
+root-surface rules (main 7, td 1, Word Cards 2), so `>= 8`. The mutation that
+drops `PAGES` from the population **PASSED** — main+td alone is exactly 8, so
+the bar sat ON the value it had to separate from and was satisfied by precisely
+the failure it existed to catch. **A count cannot carry two different failure
+modes**, so they are two clauses now, and the comment says which carries which:
+a `deepEqual` on the source list catches a NARROWED population (red on dropping
+the pages AND on dropping td.css), while the count catches the rule-matching
+regex going quiet (red at `only 0 html/body rules`). Nine mutations, each
+naming its own failure — including a control that the ORIGINAL bare-`body` case
+is still caught, so the rewrite did not trade the old coverage for the new.
+**AND THE WIDENED CLAUSE WAS ITSELF A FALSE-POSITIVE MACHINE FOR TWO ROUNDS,
+which is the sharpest thing here.** Matching `animation\s*:` on a root rule
+flags `animation: none` — the RESET a `prefers-reduced-motion` block
+legitimately writes on a body — so the law would have failed the very CSS RULE 5
+demands. I "fixed" it with a negative lookahead, `\s*(?!none\b)`, and **its own
+false-positive control was still red**: `\s*` gives the space back under
+backtracking, the lookahead then sits on `" none"` rather than `"none"`, and it
+matches anyway. **A negative lookahead placed after a variable-width matcher is
+not a negative lookahead** — the engine will find the one alignment that
+satisfies you. Reading the VALUE settles it (`animation(-name)?:` → capture to
+`;` → drop empty and `none`), and it makes the failure message quote the
+offending declaration. The general rule this repo already runs on both halves:
+write the control that proves your law does NOT fire on correct code, and
+believe it over the fix you just wrote.
+
+**And one sibling law was measured and deliberately NOT widened, on a number
+that is closer than it looks**: the fixed-vs-absolute modal-scrim check is also
+`main+td`-scoped, and Word Cards' `.face` carries THREE of its four signature
+parts — four zeroed offsets, `display:flex`, `align-items:center` — missing only
+the modal `z-index`, which it correctly has none of because it is a card face
+inside a card rather than a dialog over a screen. So the law would not fire, and
+widening it today adds a clause that cannot fail — the fence this file keeps
+refusing. Worth stating as "the discriminating field is absent" rather than
+"nothing is close", because the next page that puts a real modal on itself will
+be one declaration away from needing it.
+
 **AN OWNER-SUPPLIED GAME WAS ASKED FOR "AS-IS", AND MEASURING IT AGAINST THIS
 FILE'S OWN PLATFORM FLOORS FOUND SIX BREACHES — one of them caught by a
 guardrail I wrote ten minutes earlier, in the same change.** 🃏 Word Cards is a
