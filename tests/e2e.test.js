@@ -1459,3 +1459,119 @@ test("a script that never arrives is NOTICED, not left to five downstream failur
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });
+
+test("Word Cards: the home button opens it, it plays, and it comes back", async () => {
+  // A structural scan proves the link and the precache EXIST; only following it
+  // proves the button is not a dead end. Driven at 320 as well as 390 because
+  // the deck bar is the tightest row and 320 is the narrowest audited width.
+  for (const [w, h] of [[390, 844], [320, 568]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const pg = await ctx.newPage();
+    const errs = [];
+    pg.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await pg.goto(baseURL, { waitUntil: "load" });
+      await pg.evaluate(() => { location.hash = "#home"; });
+      await pg.locator("#screen-home").waitFor({ state: "visible" });
+
+      const btn = await pg.evaluate(() => {
+        const a = document.getElementById("home-cards");
+        if (!a) return null;
+        const r = a.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height) };
+      });
+      assert.ok(btn, `${w}px: no Word Cards button on Josh's home`);
+      assert.ok(btn.w >= 75 && btn.h >= 75,
+        `${w}px: the Word Cards button is ${btn.w}x${btn.h} — RULE 5 wants >= 75px for little hands`);
+      // …and the glyph must sit IN the circle. A <button> centres its content by
+      // UA default and an <a> does not, so this shipped with 🃏 jammed in the
+      // top-left (offsets L0/T-3, 43px empty to the right) beside a 🚪 door that
+      // looked identical in every box measurement. Centring now lives on
+      // .btn-round itself, so the door is the control: both must agree.
+      const ink = await pg.evaluate(() => {
+        const off = (sel) => {
+          const el = document.querySelector(sel), b = el.getBoundingClientRect();
+          const r = document.createRange(); r.selectNodeContents(el);
+          const t = r.getBoundingClientRect();
+          return { lr: Math.round((t.left - b.left) - (b.right - t.right)),
+                   tb: Math.round((t.top - b.top) - (b.bottom - t.bottom)) };
+        };
+        return { cards: off("#home-cards"), door: off("#home-door") };
+      });
+      for (const [who, o] of Object.entries(ink)) {
+        assert.ok(Math.abs(o.lr) <= 4 && Math.abs(o.tb) <= 4,
+          `${w}px: the ${who} glyph is off-centre in its circle (h ${o.lr}px, v ${o.tb}px) — ` +
+          "a round button with its picture in the corner reads as broken");
+      }
+
+      await pg.locator("#home-cards").click();          // FOLLOW the real link
+      await pg.waitForLoadState("load");
+      const menu = await pg.evaluate(() => ({
+        path: location.pathname,
+        total: document.querySelector("#allBtn small").textContent.trim(),
+        chips: [...document.querySelectorAll(".chip")].map((c) => c.querySelector(".ct").textContent.trim()),
+        home: !!document.querySelector(".home"),
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+      }));
+      assert.match(menu.path, /wordcards\.html$/, `${w}px: the button did not open the game (${menu.path})`);
+      assert.ok(menu.home, `${w}px: no way back to Josh's home from the game`);
+      assert.ok(menu.chips.length >= 10, `${w}px: only ${menu.chips.length} decks rendered`);
+      assert.ok(menu.overflow <= 0, `${w}px: the menu scrolls sideways by ${menu.overflow}px`);
+
+      // The counts must be COUNTED, not stored: every rendered figure has to
+      // equal what the page's own data holds. A stale literal fails here.
+      const truth = await pg.evaluate(() => {
+        const by = {};
+        for (const c of CATS) by[c.label] = WORDS.filter((x) => x[2] === c.key).length;
+        return { total: WORDS.length, by, labels: CATS.map((c) => c.label) };
+      });
+      assert.equal(menu.total, truth.total + " cards",
+        `${w}px: the deck says "${menu.total}" but holds ${truth.total} cards`);
+      menu.chips.forEach((txt, i) => {
+        assert.equal(txt, truth.by[truth.labels[i]] + " cards",
+          `${w}px: "${truth.labels[i]}" says "${txt}" but holds ${truth.by[truth.labels[i]]}`);
+      });
+
+      // …and it PLAYS: open a deck, flip a card, step on.
+      await pg.locator(".chip").first().click();
+      await pg.locator("#deck").waitFor({ state: "visible" });
+      const play = await pg.evaluate(() => {
+        const g = (s) => document.querySelector(s);
+        const first = g("#word").textContent;
+        g("#card").click();
+        const flipped = g("#card").classList.contains("flipped");
+        const pic = g("#pic").textContent.trim();
+        g("#next").click();
+        return {
+          first, flipped, pic, second: g("#word").textContent, count: g("#count").textContent,
+          taps: [...document.querySelectorAll("#deck button")].map((b) => {
+            const r = b.getBoundingClientRect();
+            return Math.round(Math.min(r.width, r.height));
+          }),
+          overflow: document.documentElement.scrollWidth - window.innerWidth,
+        };
+      });
+      assert.ok(play.flipped, `${w}px: tapping the card did not turn it over`);
+      assert.ok(play.pic.length > 0, `${w}px: the card's back is empty — the picture IS the answer`);
+      assert.notEqual(play.second, play.first, `${w}px: Next did not move on (still "${play.first}")`);
+      assert.match(play.count, /^2 \/ \d+$/, `${w}px: the counter reads "${play.count}" after one step`);
+      const small = play.taps.filter((t) => t < 75);
+      assert.deepEqual(small, [], `${w}px: deck controls below the 75px floor: ${small.join(", ")}`);
+      assert.ok(play.overflow <= 0, `${w}px: the deck scrolls sideways by ${play.overflow}px`);
+
+      // …and the way OUT works, or the button is a trap on a kid's tablet.
+      await pg.locator("#back").click();
+      await pg.locator(".home").click();
+      await pg.waitForLoadState("load");
+      const back = await pg.evaluate(() => ({
+        hash: location.hash,
+        homeVisible: !document.getElementById("screen-home").hidden,
+      }));
+      assert.equal(back.hash, "#home", `${w}px: the game's home button landed on "${back.hash}"`);
+      assert.ok(back.homeVisible, `${w}px: Josh's launcher is not showing after coming back`);
+      assert.deepEqual(errs, [], `${w}px: uncaught page errors: ${errs.join(" | ")}`);
+    } finally {
+      await ctx.close();      // a test that opens a context owns closing it, even on failure
+    }
+  }
+});

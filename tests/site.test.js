@@ -23,6 +23,9 @@ const content = require("../scripts/content.js");
 // off the artefact. What the page loads IS what ships, so a script removed
 // from index.html correctly drops out of every scan with it.
 const SCRIPTS = [...read("index.html").matchAll(/<script[^>]+src="([^"?]+)/g)].map((m) => m[1].replace(/^\.\//, ""));
+// Every shipped HTML PAGE, derived the same way. A page with an inline
+// <script> carries emoji and CSS that no SCRIPTS-derived scan can see.
+const PAGES = fs.readdirSync(root).filter((f) => /\.html$/.test(f)).sort();
 
 test("the script list is DERIVED from index.html, and is not empty", () => {
   // Guards the derivation itself: a regex that stops matching would silently
@@ -787,7 +790,11 @@ const EMOJI_ABOVE_13 = [
   [0x1FA7B, 0x1FA7F], // x-ray, crutch (14.0) + later
   [0x1FAA9, 0x1FAAF], // mirror ball, ID card, low battery, hamsa, folding fan, hair pick, khanda (14.0/15.0)
   [0x1FAB7, 0x1FABF], // lotus, coral, empty nest, nest w/ eggs, hyacinth (14.0/15.0)
-  [0x1FAC3, 0x1FAC6], // pregnant man/person, person with crown (14.0/15.0)
+  [0x1FAC3, 0x1FACF], // pregnant man/person, person with crown (14.0/15.0), moose + donkey (15.0)
+  //   ^ was [0x1FAC3, 0x1FAC6]: the table jumped straight to 0x1FAD7, so 🫎 U+1FACE and
+  //   🫏 U+1FACF fell through the gap. Everything below 0x1FAD7 that IS Emoji 13.0 —
+  //   🫐 blueberries, 🫒 olive, 🫓 flatbread, 🫔 tamale, 🫕 fondue, 🫖 teapot — sits at
+  //   0x1FAD0-0x1FAD6 and stays allowed.
   [0x1FAD7, 0x1FADF], // pouring liquid, beans, jar (14.0) + later
   [0x1FAE0, 0x1FAEF], // melting/saluting/… faces, bubbles (14.0) + later
   [0x1FAF0, 0x1FAF8], // hand gestures — palm up, index pointing at viewer, etc. (14.0) + later
@@ -798,7 +805,7 @@ const EMOJI_ABOVE_13 = [
 test("guardrail: no emoji newer than Emoji 13.0 (iOS 14.2 floor — no tofu on Josh's iPad)", () => {
   const blocked = (cp) => EMOJI_ABOVE_13.some(([a, b]) => cp >= a && cp <= b);
   const offenders = [];
-  for (const f of SCRIPTS) {
+  for (const f of [...SCRIPTS, ...PAGES]) {
     read(f).split("\n").forEach((line, i) => {
       for (const ch of line) {
         const cp = ch.codePointAt(0);
@@ -1056,7 +1063,7 @@ test("guardrail: a PICTURE emoji must carry VS16 (text-default ones render monoc
   // Cushion's 🛋 were re-introduced without VS16 and shipped past a green scan.
   // Exactly the "a stylesheet-scoped guardrail only guards that stylesheet"
   // lesson, one directory over. A scan's FILE LIST is part of the scan.
-  const files = ["index.html", ...SCRIPTS];
+  const files = [...PAGES, ...SCRIPTS];
   const bad = [];
   for (const f of files) {
     const cps = Array.from(strip(read(f)));
@@ -2426,6 +2433,10 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
     if (/\.(sh|json)$/.test(f)) real.push(`.claude/${f}`);
   }
   for (const f of fsx.readdirSync(root)) if (/^PLAN_.*\.md$/.test(f)) real.push(f);
+  // …and every shipped PAGE. wordcards.html is a whole game living in one
+  // root .html, and the walk covered scripts/tests/tools/styles but no HTML,
+  // so a second page could ship undocumented.
+  for (const f of fsx.readdirSync(root)) if (/\.html$/.test(f)) real.push(f);
   assert.ok(real.length > 30, `expected to find the repo's files, saw ${real.length}`);
   const unnamed = real.filter((f) => !tree.includes(f.split("/").pop()));
   assert.deepEqual(unnamed, [],
@@ -3659,4 +3670,73 @@ test("QoL: which power is armed has ONE owner", async () => {
     "in the first place");
   assert.match(uiC, /const armedId = UI\.armed \? UI\.armed\(\) : null;/,
     "the strip must ASK for the armed id rather than be told it");
+});
+
+test("Word Cards: the page ships, is reachable from Josh's home, and works offline", () => {
+  // A flash-card game the OWNER supplied, kept as-is apart from this project's
+  // documented platform floors (see the iOS laws below). Three wirings have to
+  // hold together or the button is a dead end.
+  assert.ok(fs.existsSync(path.join(root, "wordcards.html")), "wordcards.html is missing");
+
+  const html = read("index.html");
+  // (1) the control exists, in the home bar's third grid column (which was an
+  //     empty spacer, so it costs no layout), and is CACHE-BUSTED like every
+  //     other asset — the deploy rewrites __BUILD__ in index.html.
+  const a = html.match(/<a[^>]*id="home-cards"[^>]*>/);
+  assert.ok(a, "no #home-cards control in index.html");
+  assert.match(a[0], /href="wordcards\.html\?v=__BUILD__"/,
+    "the Word Cards link must point at the page AND carry ?v=__BUILD__, or a stale copy is served forever");
+  assert.match(a[0], /aria-label="/, "the control needs an accessible name — its label is an emoji");
+
+  // (2) PRECACHED. index.html requests it with ?v=<sha>; the SW stores the
+  //     unversioned path and its ignoreSearch fallback resolves the query, which
+  //     is the documented mechanism. Without this the button is dead offline —
+  //     exactly how a car-ride PWA gets used.
+  const core = JSON.parse(read("sw.js").match(/const CORE = (\[[^\]]*\])/)[1].replace(/,(\s*])/, "$1"));
+  assert.ok(core.includes("./wordcards.html"), "wordcards.html is not precached — the button dies offline");
+});
+
+test("every shipped PAGE obeys the iOS 14.2 floors", () => {
+  // The CSS floors already guarded styles/*.css; a page with an INLINE <style>
+  // is a stylesheet nothing was scanning. Same class as "a stylesheet-scoped
+  // guardrail only guards that stylesheet", one file type over.
+  assert.ok(PAGES.includes("index.html") && PAGES.length >= 2,
+    `PAGES looks wrong (${PAGES.join(", ")}) — the derivation failed OPEN and every clause below is vacuous`);
+  for (const f of PAGES) {
+    const src = read(f);
+    const css = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
+
+    // Safari 14 has NO flex gap, and on this page gap IS the only spacing, so
+    // the controls would touch on Josh's actual iPad. grid gap DOES work there.
+    for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const body = m[2];
+      if (!/(^|[;\s])gap\s*:/.test(body)) continue;
+      const disp = (body.match(/display\s*:\s*([\w-]+)/) || [])[1] || "";
+      assert.notEqual(disp, "flex",
+        `${f}: "${m[1].trim()}" spaces with flex gap, which Safari 14.0 DROPS — use a grid`);
+    }
+    // A dvh line must be PAIRED with a vh fallback (14.0 drops the dvh one).
+    for (const m of css.matchAll(/([\w-]+)\s*:\s*[^;]*dvh[^;]*;/g)) {
+      const before = css.slice(0, m.index);
+      assert.match(before, new RegExp(m[1] + "\\s*:\\s*[^;]*vh[^;]*;\\s*$"),
+        `${f}: "${m[0].trim()}" has no same-property vh fallback immediately before it`);
+    }
+    assert.doesNotMatch(css, /(^|[;\s{])inset\s*:/, `${f}: the "inset:" shorthand is dropped by Safari 14 — use longhands`);
+    // Stopping the ACCIDENTAL double-tap zoom is right; banning zoom is not.
+    assert.doesNotMatch(src, /user-scalable\s*=\s*no/,
+      `${f}: user-scalable=no removes pinch-zoom for low-vision users, and iOS has ignored it since iOS 10`);
+    assert.doesNotMatch(src, /maximum-scale\s*=\s*1/, `${f}: maximum-scale=1 blocks zooming`);
+  }
+});
+
+test("Word Cards states no card count it has to keep up to date", () => {
+  // The deck shipped with `"n": 80` per category and a literal "500 cards".
+  // Both go stale the moment a card is added or removed — this repo's most
+  // repeated defect class, in miniature. Every count is derived from WORDS.
+  const src = read("wordcards.html");
+  const markup = src.slice(0, src.indexOf("<script>"));
+  assert.doesNotMatch(markup, /\d+\s*cards/, "a literal card count is a claim that goes stale");
+  assert.doesNotMatch(src, /"n":\s*\d+/, "the per-category counts must not be stored, they must be counted");
+  assert.match(src, /WORDS\.length \+ " cards"/, "the total must be read off WORDS");
+  assert.match(src, /list\.length\s*\+\s*' cards/, "each category count must be read off WORDS");
 });

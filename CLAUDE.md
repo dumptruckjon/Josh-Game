@@ -5800,6 +5800,77 @@ timeout is caught and turned into a named assertion. **When a test's own failure
 message stops naming the cause, that is a regression in the test even though it
 is still red.**
 
+**AN OWNER-SUPPLIED GAME WAS ASKED FOR "AS-IS", AND MEASURING IT AGAINST THIS
+FILE'S OWN PLATFORM FLOORS FOUND SIX BREACHES — one of them caught by a
+guardrail I wrote ten minutes earlier, in the same change.** 🃏 Word Cards is a
+self-contained flash-card deck dropped into the 76px slot in Josh's home bar
+that was an empty `<span aria-hidden>` spacer (`.game__bar` is
+`grid-template-columns: var(--tap) 1fr var(--tap)`, so the column was already
+reserved and the control costs no layout). "As-is" was honoured for structure,
+design and content; what could not be honoured is anything the iOS 14.2 floor
+forbids, and the file breached it six ways. (1) **10 emoji newer than Emoji
+13.0 across 11 cards** — and on a FLASH CARD the picture IS the answer, so those
+cards would have been a word above a blank tofu box. Four had an honest ≤13.0
+substitute (bubble took 🔵, this project's own icon for "Pop the Bubbles"); the
+other seven — swing, slide, bean, fan, nest, wheel, donkey — have none, and a
+WRONG picture on a flash card teaches a wrong word, so they were dropped rather
+than approximated. (2) **`user-scalable=no, maximum-scale=1`**, which this file
+already records as the wrong fix twice over: iOS has ignored it since iOS 10 and
+it removes pinch-zoom for low-vision users. (3) a bare **`100vh`** with no dvh
+twin. (4) **six flex+gap rules** — and gap was this page's ONLY spacing, so on
+Josh's actual iPad every control would have touched; each became a grid, where
+gap works on 14.0. (5) taps at **74px and 44px** against the ≥75px law. (6) no
+way back to Josh's home, and no precache, so the button would have been a dead
+end offline — which is exactly how a car-ride PWA is used.
+**The sharpest part is that a scan I extended in this same commit caught a
+seventh I had missed**: `.face{position:absolute;inset:0}` — Safari 14 DROPS the
+`inset:` shorthand, so the card faces would have shrink-wrapped instead of
+filling the card, and the whole game is that card. It was found because the
+iOS-floor laws were widened from `styles/*.css` to every shipped PAGE's inline
+`<style>`, which is *"a stylesheet-scoped guardrail only guards that
+stylesheet"* one file TYPE over.
+**Three derivations came out of it, all the same law.** `PAGES` (root `*.html`)
+now feeds both emoji scans, because a page with an INLINE script is invisible to
+`SCRIPTS` — which reads `index.html`'s `<script src>` tags — so the new page
+would have escaped every emoji law at once; the ≤13.0 scan did not even cover
+`index.html` before. The repo-tree walk gained root `*.html` for the same reason
+(it covered scripts/tests/tools/styles and no HTML). And every card COUNT is now
+counted rather than stored: the deck shipped `"n": 80` per category plus a
+literal `500 cards`, both of which go stale the instant a card moves — which is
+this repo's most-repeated defect class in miniature, and which the seven drops
+would have triggered immediately. Its mutation reports the defect verbatim:
+*the deck says "500 cards" but holds 493*.
+**And widening the ≤13.0 range table found a real hole in it.** The list jumped
+from `0x1FAC6` straight to `0x1FAD7`, so **🫎 moose and 🫏 donkey (both Emoji
+15.0) fell through the gap** — the donkey being in this very deck. Everything
+else in that span is genuinely Emoji 13.0 (🫐 blueberries, 🫒 olive, 🫓
+flatbread, 🫔 tamale, 🫕 fondue, 🫖 teapot at `0x1FAD0-0x1FAD6`) and stays
+allowed, so the fix is `[0x1FAC3, 0x1FACF]`, mutation-proven by putting the
+donkey back: *wordcards.html:143 U+1FACF 🫏*.
+**And an EIGHTH, found only because "triple check" meant screenshotting the
+button rather than trusting its box.** Every measurement said it was right —
+76x76, the correct href, in the reserved column — and the 🃏 was sitting in the
+TOP-LEFT CORNER of its circle, at glyph offsets L0/T-3 with 43px empty to the
+right and 41px below, beside a 🚪 door measuring a perfect 18/19/18/19. The
+cause: `.btn-round` sets a size and no centring, and every existing user is a
+`<button>`, which centres its content by UA default — an `<a>` does not. So the
+class had been silently relying on the element TYPE for half of what it looks
+like. The centring moved onto the class itself (`display:grid; place-items:
+center`), verified to move NOTHING for the existing users (door, sound toggle
+and the fort's exit all measure byte-identical), and the clause that pins it
+compares the new control against the door rather than against a constant. Its
+mutation reports the shipped defect verbatim: *h -43px, v -44px*. **A box
+measurement is not a picture** — width, height and position were all correct
+while the thing inside was in the corner, and only a `Range` over the glyph, or
+an eyeball, can tell the difference.
+One measurement worth keeping because it nearly became a false finding: the
+card's word looked washed-out in the first two screenshots, which reads exactly
+like a contrast defect on the one piece of text the whole game exists to show.
+Measured across the colour cycle it is **5.01-11.18:1**, comfortably above AA —
+both shots had caught the `pop` keyframe mid-flight (`opacity: .3 → 1` over
+0.32s). *Look at the picture, then measure the thing you think you saw* — and
+when a probe screenshots straight after an action, expect the animation.
+
 ---
 
 ## Repository Structure
@@ -5810,6 +5881,13 @@ tooling.
 ```
 .
 ├── index.html                  # The whole site: front door (#screen-start, 3 world tiles) + Josh's launcher shell; all other screens injected. Also carries the ONE shared `.jart-defs` block — 3 ALPHA-ONLY shading gradients (jart-lit/dome/ground) that every JoshArt picture references by stable id (per-picture defs collapse — see the learnings)
+├── wordcards.html              # 🃏 Word Cards — a 493-card flash-card deck (owner-supplied,
+│                               #   opened from the 76px slot in Josh's home bar that was an empty
+│                               #   spacer). Self-contained page, kept as-is apart from this repo's
+│                               #   iOS-14.2 floors: 10 emoji > Emoji 13.0 (tofu on Josh's iPad,
+│                               #   and on a flash card the PICTURE IS THE ANSWER), flex-gap, the
+│                               #   `inset:` shorthand, user-scalable=no, bare 100vh, sub-75px taps.
+│                               #   Every card count is DERIVED from WORDS. Precached in sw.js.
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)

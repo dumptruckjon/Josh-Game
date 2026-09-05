@@ -9,6 +9,7 @@ const CACHE = `josh-${VERSION}`;
 const CORE = [
   "./",
   "./index.html",
+  "./wordcards.html",
   "./styles/main.css",
   "./scripts/content.js",
   "./scripts/logic.js",

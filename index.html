@@ -88,7 +88,12 @@
       <div class="game__bar">
         <button id="home-door" class="btn-round game__home" type="button" aria-label="Back to the front door">🚪</button>
         <h1 class="game__title home__title">Pick a game! 👇</h1>
-        <span aria-hidden="true"></span>
+        <!-- Word Cards. The bar is a 3-column grid whose third column is already
+             var(--tap) wide, so this fills a slot that was an empty spacer and
+             costs no layout. A real <a> because it is a real navigation; it is
+             same-origin, so PWA standalone never shows a URL bar for it, and
+             sw.js precaches it so it works offline like the rest of the site. -->
+        <a id="home-cards" class="btn-round game__home" href="wordcards.html?v=__BUILD__" aria-label="Word cards">&#127183;</a>
       </div>
       <div id="home-grid" class="home-grid" role="list" aria-label="Games"></div>
     </section>

@@ -106,6 +106,16 @@ body {
   border-radius: 50%;
   font-size: 2rem;
   line-height: 1;
+  /* Centre the glyph HERE rather than relying on the element type. A <button>
+     centres its content by UA default and an <a> does not, so the Word Cards
+     link rendered its 🃏 jammed in the top-left of the circle — measured at
+     offsets L0/T-3 with 43px empty to the right — while the identical-looking
+     🚪 door beside it sat at a perfect 18/19/18/19. Putting it on the class
+     means any element wearing it is centred, instead of only the ones that
+     happen to be buttons. */
+  display: grid;
+  place-items: center;
+  text-decoration: none;
   background: rgba(255, 255, 255, 0.78);
   -webkit-backdrop-filter: blur(6px); /* Safari needs the prefix */
   backdrop-filter: blur(6px);
