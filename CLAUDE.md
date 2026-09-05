@@ -6258,6 +6258,23 @@ its bug was found on AND currently guards an empty population. The honest genera
 form is local rather than cascade-resolving ("a rule that sets `gap` must declare
 its own `display`, or be allowlisted with the reason"), and it is the next item
 rather than a rider on a product fix.
+**AND IT SHIPPED THE NEXT HOUR, better than the allowlist that was planned,
+because the inherited display turned out to be DERIVABLE FROM THE TEXT.** Some
+properties exist under only one display: `flex-direction`/`flex-wrap`/`flex-flow`
+are flex-only, `grid-template-*`/`grid-auto-*` are grid-only. Measured against
+the seven, that classifies **all of them with no hand-listing** — the two grid
+ones (`.hl-pond`, `.hl-strings`) exempt themselves because grid gap WORKS on
+Safari 14, and the five flex ones are named on a five-entry decorative list with
+their px and their card. A rule with NEITHER signal is genuinely unanalyzable
+from the text, so the law's third branch simply requires it to declare its own
+display. **No cascade resolution, no browser, and the allowlist shrank from the
+seven I expected to five.** The lesson generalises past CSS: before reaching for
+an exemption list, look for a property of the artefact that already
+distinguishes the cases — an allowlist is what you write when nothing does.
+Seven mutations, and the two that justify the DELETION are the last: the old
+`.td-bar` fence's own case is still caught (so nothing was traded away) and a
+PAGE gaining such a rule is caught too, which the fence, reading one stylesheet,
+never could.
 
 ---
 

@@ -1158,15 +1158,41 @@ test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has 
   // …and a `gap` on a selector that INHERITS display:flex is the same bug with
   // no `display` to spot it. td.css's `.td-bar--play` carried one: 8px that a
   // modern browser ADDED to the child margins and iOS 14.2 dropped entirely.
-  const tdRaw = read("styles/td.css").replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const rule of tdRaw.match(/[^{}]+\{[^{}]*\}/g) || []) {
-    const sel = rule.slice(0, rule.indexOf("{")).trim().replace(/\s+/g, " ");
-    const body = rule.slice(rule.indexOf("{"));
-    if (!/[^-a-z]gap:/.test(body) || /display:\s*(grid|inline-grid)/.test(body)) continue;
-    if (/display:\s*(inline-)?flex/.test(body)) continue; // handled above
-    assert.ok(!/^\.td-bar/.test(sel),
-      `"${sel}" sets gap but inherits display:flex — iOS 14.2 drops it; use child margins`);
+  // The clause written for it was fenced to selectors starting `.td-bar`, in ONE
+  // stylesheet — and td.css now carries no such rule at all, so that fence guarded
+  // an EMPTY population while main.css carried seven of exactly this shape.
+  //
+  // The inherited display IS derivable without resolving the cascade, because
+  // some properties exist under only one of them: flex-direction/flex-wrap/
+  // flex-flow are flex-only, and grid-template-*/grid-auto-* are grid-only. Grid
+  // gap WORKS on Safari 14, so only the flex ones are dropped — and each of those
+  // must be decoration, exactly like the same-rule allowlist above. A rule with
+  // NEITHER signal is unanalyzable from the text, so it must declare its display.
+  const INHERITED_FLEX_GAP = new Set([
+    ".nm__group",   // 3px between the number-friend's cubes, inside ONE .choice
+    ".cater__row",  // 2px between the emoji inside one caterpillar card
+    ".mt__choice",  // 2px, icon above its abbreviation, inside one .choice
+    ".af__bin",     // 4px, bin icon above its label, inside one .choice
+    ".tidy__bin",   // 2px, bin icon above its label, inside one .choice
+  ]);
+  let inherited = 0;
+  for (const [file, raw] of SHEETS) {
+    for (const m of raw.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const sel = m[1].trim().replace(/\s+/g, " "), body = m[2];
+      if (!/(^|[^-a-z])gap\s*:/.test(body)) continue;
+      if (/display\s*:\s*[\w-]+/.test(body)) continue; // declared: handled above
+      inherited += 1;
+      const isFlex = /flex-(direction|wrap|flow)\s*:/.test(body);
+      const isGrid = /grid-(template|auto|area)/.test(body);
+      assert.ok(isFlex || isGrid,
+        `${file}: "${sel}" sets gap and declares no display, and nothing in it says whether it inherits flex (iOS 14.2 DROPS the gap) or grid (fine) — declare the display`);
+      if (isFlex) {
+        assert.ok(INHERITED_FLEX_GAP.has(sel),
+          `${file}: "${sel}" sets gap and inherits display:flex — iOS 14.2 DROPS it; use child margins, or allowlist it if purely decorative`);
+      }
+    }
   }
+  assert.ok(inherited >= 5, `only ${inherited} gap-without-display rules found — the scan failed OPEN`);
 });
 
 test("guardrail: a PICTURE emoji must carry VS16 (text-default ones render monochrome)", () => {
