@@ -6136,6 +6136,24 @@ which is the whole reason the harness asserts its anchor matches exactly once
 before believing any result. Note what that discipline is worth here: without
 it, five "GREEN"s would have read as five weak clauses.
 
+**AND THERE WAS A FOURTH BAN OF THAT SHAPE, WHICH I LEFT BEHIND IN THE VERY
+COMMIT THAT MOVED THE OTHER THREE.** *A difficulty's player-facing NAME has
+exactly one owner* scans `td-ui` / `td-main` / `td-render` / `index.html` and
+omits **`td-logic.js`** — so it is fix-it-where-you-found-it committed inside
+the fix for fix-it-where-you-found-it, which is the second time in three
+commits this has happened (the touch-hygiene pass widened three iOS-floor laws
+and stopped at three). It now takes the same `TD_SOURCES` minus the DATA owner,
+plus the markup. Measured first: `td-logic.js` is clean and `td-data.js`
+legitimately holds all three labels, which is why it stays exempt — and that
+exemption is the test's own false-positive control, since a ban that flagged
+its owner would fire on correct code. Mutation-proven the same way as its three
+siblings: a stray `"⚔️ Normal"` in `td-logic.js` goes red naming the file, and
+the identical stray with the list restored to its old four passes untouched.
+**The reusable habit here is small and cheap: after widening a law, grep for
+its SIBLINGS before committing** — every one of these was found by the same
+one-line search for a hand-written path array, and the ones I missed were
+missed because I stopped at the first batch rather than re-running the search.
+
 ---
 
 ## Repository Structure

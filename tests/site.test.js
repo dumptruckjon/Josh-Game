@@ -3383,7 +3383,12 @@ test("guardrail: a difficulty's player-facing NAME has exactly one owner", () =>
     .replace(/\/\*[\s\S]*?\*\//g, "")     // block comments
     .replace(/<!--[\s\S]*?-->/g, "")      // …and HTML ones, for index.html
     .replace(/^\s*\/\/.*$/gm, "");       // line comments, anchored so a URL survives
-  const files = ["scripts/td-ui.js", "scripts/td-main.js", "scripts/td-render.js", "index.html"];
+  // Every fort source EXCEPT td-data.js (the owner that declares the labels),
+  // plus the markup. This was the FOURTH ban of this shape and the one I left
+  // behind when the other three moved to TD_SOURCES an hour earlier — it omitted
+  // td-logic.js, which is fix-it-where-you-found-it committed inside the fix for
+  // fix-it-where-you-found-it. Measured clean there first.
+  const files = [...TD_SOURCES.filter((f) => f !== "scripts/td-data.js"), "index.html"];
   for (const id of ids) {
     const label = DATA.DIFFICULTIES[id].label;
     for (const f of files) {
