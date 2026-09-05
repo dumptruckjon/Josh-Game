@@ -477,17 +477,37 @@ test("mobile / iOS Safari optimizations are in place", () => {
   // …and every INNER scroller must contain its own overscroll, or reaching its
   // end hands the rest of the gesture to the page and slides the whole screen
   // behind the dialog you are reading.
-  for (const file of ["styles/main.css", "styles/td.css"]) {
-    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+  //
+  // SCOPE: this reads SHEETS, not the two stylesheets it was written against —
+  // a page's own inline <style> is a stylesheet nothing was scanning, and Word
+  // Cards HAS an inner scroller (#menu), so the law's subject is genuinely
+  // present rather than hypothetical. That is the test the animated-background
+  // widening had to pass, and it is why FIVE sibling clauses in this file were
+  // measured and deliberately LEFT at main+td: the dvh-twin and `inset:` laws
+  // are already covered for pages by "every shipped PAGE obeys the iOS 14.2
+  // floors" (a near-duplicate is noise, not coverage), while the bulk-art
+  // `filter` ban is keyed on Josh-world class names, the modal-scrim check
+  // needs a modal z-index no page sets, and no page has an absolutely-
+  // positioned pseudo — so widening any of those adds a clause that cannot
+  // fail. Measured clean here too, so this one is coverage, not a fix.
+  let scrollers = 0;
+  for (const [file, raw] of SHEETS) {
+    const body = raw.replace(/\/\*[\s\S]*?\*\//g, "");
     for (const rule of body.split("}")) {
       const parts = rule.split("{");
       if (parts.length < 2) continue;
       const sel = parts[0], decls = parts[1] || "";
       if (!/overflow-y:\s*(auto|scroll)/.test(decls)) continue;
+      scrollers += 1;
       assert.match(decls, /overscroll-behavior:\s*contain/,
         `${file}: "${sel.trim()}" scrolls internally, so it must also declare overscroll-behavior: contain — otherwise scrolling to its end drags the page behind it`);
     }
   }
+  // This law is CONDITIONAL ("if a scroller exists…"), so it fails OPEN: a
+  // regex that stops matching leaves it green with nothing checked. 4 today
+  // (.buddyc__box, both .td-overlay__box variants, #menu), so the floor
+  // separates working from silent without sitting on the value.
+  assert.ok(scrollers >= 3, `only ${scrollers} inner scrollers found — the scan failed OPEN`);
 });
 
 test("an absolutely-positioned ::after has a POSITIONED parent, and new animations honour reduced motion", () => {

@@ -6068,6 +6068,39 @@ And `--test-name-pattern="player-facing"` matched an ADJACENT test (*a
 difficulty's player-facing NAME has exactly one owner*) rather than the one I
 had edited; the tell was `# tests` — check the COUNT, never just the `ok` line.
 
+**SWEEPING FOR THAT SAME SCOPE BUG FOUND SIX MORE CSS LAWS STILL READING TWO
+STYLESHEETS — AND MEASURING CUT IT TO ONE, which is the useful half.** The
+tempting move after fixing one scope hole is to widen every sibling; five of
+these six would have been FENCES. The test that decides it is the one the
+animated-background widening passed: **is the law's SUBJECT actually present on
+a page?** — there it was, because a page's own `body` IS the full-page
+background. Applied here: the dvh-twin and `inset:` clauses are **already**
+covered for pages by *every shipped PAGE obeys the iOS 14.2 floors* (that is how
+Word Cards' `.face{inset:0}` was caught), so widening them adds a near-duplicate
+— noise, not coverage; the bulk-art `filter` ban is keyed on Josh-world class
+names no page carries; the modal-scrim check needs a modal `z-index` no page
+sets; and no page has an absolutely-positioned pseudo. Each of those five is
+recorded with its measured reason so nobody re-opens them. **The one that
+survived is the inner-scroller law** — *a scroller must declare
+`overscroll-behavior: contain`, or reaching its end drags the page behind it* —
+because Word Cards genuinely HAS one (`#menu`), it is correct today, and nothing
+else checks it for a page. **The control mutation is what proves that is real
+rather than tidy**: strip `contain` from `#menu` and the widened law goes red
+naming it, while the SAME defect with the law put back at main+td survives
+untouched. A third mutation confirms the rewrite did not trade the old coverage
+for the new (an existing `main.css` scroller losing `contain` is still caught),
+and the clause gained its own floor, because a CONDITIONAL law fails open in a
+second way — a regex that stops matching leaves it green with nothing checked
+(`only 0 inner scrollers found`).
+**And the fixture lied once more, in the way that is hardest to spot: it
+reported a WORKING rule as broken.** My first probe asked whether each scroller
+declared `contain`, testing `/contain\s*:/` — the CSS `contain` PROPERTY —
+while the declaration in question is `overscroll-behavior: contain`, where
+`contain` is the VALUE. So it flagged `#menu`, which is correct and has been
+since the touch-hygiene commit, and for a minute that looked like a real defect
+in shipped code. **Copy the shipped law's own pattern instead of writing a fresh
+one** — the law had `/overscroll-behavior:\s*contain/` sitting right there.
+
 ---
 
 ## Repository Structure
