@@ -8,7 +8,7 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const TD = require("../scripts/td-logic.js");
 const DATA = require("../scripts/td-data.js");
-const { readFileSync } = require("node:fs");
+const { readFileSync, readdirSync } = require("node:fs");
 const { join } = require("node:path");
 // Structural claims (one owner, one read site) need the SOURCE, not the API.
 const readSrc = (f) => readFileSync(join(__dirname, "..", f), "utf8");
@@ -4451,12 +4451,27 @@ test("TD5 endless: an arena's own SPIKE is derived onto the body that headlines 
   // …and that classification has ONE owner: it used to be a literal in td-ui and
   // a second copy inside the browser test, so classifying this line correctly in
   // the product turned a passing test red for being right.
-  const ui = readSrc("scripts/td-ui.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  const td = readSrc("tests/td.test.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  for (const [name, src] of [["scripts/td-ui.js", ui], ["tests/td.test.js", td]]) {
-    assert.ok(!/NOT_A_TRICK\s*=\s*new Set/.test(src),
-      `${name} must READ the trick classification, not keep its own copy`);
-    assert.match(src, /rosterTricks\(\)/, `${name} reads the owner`);
+  //
+  // The two clauses want OPPOSITE populations, which is why they are no longer
+  // one loop. The first is a BAN — a second copy of the classification may exist
+  // in exactly ONE place — and a ban scoped to the files where the defect was
+  // FOUND is barely a ban: it is meaningless in every file it never reads. So it
+  // covers every script the page loads AND every suite, minus td-logic.js, which
+  // is the legitimate owner. The second is the mirror: only the two known
+  // consumers must READ the owner, and demanding that of every file would fire on
+  // the thirty-odd that have no business knowing what a trick is.
+  const noComments = (f) => readSrc(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const loaded = [...readSrc("index.html").matchAll(/<script src="([^"?]+)/g)].map((m) => m[1].replace(/^\.\//, ""));
+  const suites = readdirSync(__dirname).filter((f) => /\.js$/.test(f)).map((f) => "tests/" + f);
+  assert.ok(loaded.length >= 20 && suites.length >= 8,
+    `the ban's population is DERIVED, so it must not fail OPEN (${loaded.length} scripts, ${suites.length} suites)`);
+  for (const f of [...loaded, ...suites]) {
+    if (f === "scripts/td-logic.js") continue; // the owner is where it is declared
+    assert.ok(!/NOT_A_TRICK\s*=\s*new Set/.test(noComments(f)),
+      `${f} keeps its own copy of the trick classification — TDLogic.NOT_A_TRICK is the one owner`);
+  }
+  for (const f of ["scripts/td-ui.js", "tests/td.test.js"]) {
+    assert.match(noComments(f), /rosterTricks\(\)/, `${f} reads the owner`);
   }
 });
 

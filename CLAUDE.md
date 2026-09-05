@@ -6154,6 +6154,62 @@ its SIBLINGS before committing** — every one of these was found by the same
 one-line search for a hand-written path array, and the ones I missed were
 missed because I stopped at the first batch rather than re-running the search.
 
+**AND RE-RUNNING IT FOUND A FIFTH BAN OF THAT SHAPE, because THE SWEEP'S OWN
+FILE SCOPE WAS A LIST OF ONE.** The previous commit's message ends "the sweep is
+complete"; it was a grep over `site.test.js` alone, so it could not see
+`tests/td-logic.test.js`, which carries two hand-written populations of its own.
+That is the defect this whole batch is about, committed inside the commit that
+declared the batch finished — and the fix is the same one every time: derive the
+scope. Swept properly (every suite, every literal path handed to a file reader),
+the whole test tree holds exactly two more, and only one is a defect.
+**The defect is the `NOT_A_TRICK` ban.** `TDLogic.NOT_A_TRICK` is the one owner
+of "which trait keys are MECHANICS" — the fort home's roster blurb counts through
+it — and the ban keeping it that way read `scripts/td-ui.js` and
+`tests/td.test.js`, precisely the two files where the duplicate historically
+lived. Measured, no second copy exists anywhere today (`td-main.js` and
+`td.test.js` both correctly READ it), so this is COVERAGE rather than a fix; but a
+copy in `td-main.js`, `td-render.js` or any of the other nine suites was
+invisible to it. It now covers every script the page loads plus every suite,
+minus `td-logic.js`, which declares it. **The control is the entire argument**:
+plant the copy in `td-main.js` and the widened ban goes red naming the file,
+while the SAME defect with the ban restored to its old two files passes
+untouched.
+**AND THE ROUND PRODUCED THE THIRD POPULATION RULE, which completes the two
+already here.** The sibling finding — `star-tree nodes no test ever names`,
+searching a hand-typed `["tests/td-logic.test.js", "tests/td.test.js"]` — looks
+identical and is the opposite case, because that list is an EVIDENCE set rather
+than a subject set: it is where PROOF may be found, so widening it makes the law
+WEAKER (more places for a node id to appear coincidentally) while narrowing it
+makes the law stricter and fails CLOSED. So: **a BAN wants every file its subject
+could appear in; a CONDITIONAL law wants only the files where its subject IS
+present; an EVIDENCE set wants to stay as small as it can honestly be.** Measured,
+all 40 nodes are named under the hand list, under a derived `tests/td*.test.js`,
+and under all eleven suites — so widening would have been a no-op that traded a
+self-correcting false positive (a third fort suite goes red once, one line to
+fix) for a real weakening. Left alone WITH the measurement, so nobody "finishes
+the sweep" by widening it. And **the two clauses in that one loop wanted OPPOSITE
+populations**, which is why they are no longer one loop: the ban goes wide while
+"must READ `rosterTricks()`" correctly names the two known consumers — demanding
+that of all 37 files would fire on the thirty-odd with no business knowing what a
+trick is. The same asymmetry as the Sticker Book's positive check beside its ban.
+**METHOD, and it is the sharpest part: `--test-name-pattern` matched an ADJACENT
+test and silently invalidated an ENTIRE mutation run.** The block I edited lives
+in *"TD5 endless: an arena's own SPIKE…"*; I ran `--test-name-pattern="mini-boss"`
+and then `"each world's mini-boss"`, which match the two tests either side of it.
+So my "it passes" check exercised code I had not touched, and all seven mutation
+verdicts were about a test that cannot fail on any of them. This file already
+records the trap twice and names the tell — **`# tests` is the number to read,
+never the `ok` line** — and the second tell was statistical: *three unexpected
+GREENs in a row is a harness measuring nothing, not three weak clauses.* The
+harness now asserts `# tests === 1` and refuses to report a verdict otherwise, so
+the trap converts into a named failure instead of a page of false results. Two
+smaller ones: three anchors failed on the first attempt (`const L1 = DATA
+.LEVELS[0];` matches 7 times, not 1) and each reported SETUP FAILED rather than a
+false pass; and the comment-strip control is load-bearing rather than
+precautionary, because the change itself adds a comment explaining the rule — the
+tenth recorded instance of a scan matching its own documentation, avoided this
+time by writing the control before the comment.
+
 ---
 
 ## Repository Structure
