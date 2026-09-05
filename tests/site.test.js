@@ -1073,7 +1073,6 @@ test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has 
     ".find__target",
     ".fs__plate",
     ".game__prompt",
-    ".glue__parts",
     ".graph__col",
     ".gw__model, .gw__ask",
     ".hl-lineup",

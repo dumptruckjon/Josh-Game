@@ -1456,6 +1456,48 @@ test("a script that never arrives is NOTICED, not left to five downstream failur
   } finally { await blind.close(); }
 });
 
+test("Two Words Make One GLUES — and not with a flex gap (Safari 14 has none)", async () => {
+  // The two halves sliding together IS this game's payoff, and it was animated
+  // with flex `gap: 12px -> 0`. Safari 14 has no flex gap, so on Josh's actual
+  // iPad the halves never parted and nothing ever moved: the whole point of the
+  // game was invisible on the one device it is played on. It hid behind the
+  // flex-gap law's DECORATIVE allowlist, exactly the way `.td-hud`'s "readouts,
+  // not tappable" entry hid a gap that had become a button's spacing.
+  //
+  // A Chromium test cannot see that by playing normally, because Chromium HAS
+  // flex gap — so the drop is SIMULATED: forcing `gap: normal` is precisely what
+  // Safari 14 does with the declaration. That is what makes this test able to
+  // FAIL on the shipped defect rather than merely describe the fix.
+  //
+  // Reduced motion is emulated so the join lands instantly: the game rebuilds
+  // the round 850ms after a correct tap, and racing that timer is how this test
+  // would go flaky.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const drop = await page.addStyleTag({ content: ".glue__parts { gap: normal !important; }" });
+  try {
+    await page.evaluate(() => { location.hash = "#word-glue"; });
+    await page.waitForTimeout(220);
+    const split = () => page.evaluate(() => {
+      const w = document.querySelectorAll(".glue__parts .glue__word");
+      return Math.round(w[1].getBoundingClientRect().left - w[0].getBoundingClientRect().right);
+    });
+    const apart = await split();
+    assert.ok(apart > 20,
+      `the halves must start APART even with flex gap dropped — got ${apart}px, so nothing can slide`);
+    await page.locator(".choices [data-correct]").first().click();
+    await page.waitForTimeout(80);
+    const joined = await split();
+    assert.ok(apart - joined >= 20,
+      `tapping the answer must GLUE the halves together — measured ${apart}px -> ${joined}px`);
+  } finally {
+    // A style tag and a media emulation both outlive the test on a shared page,
+    // and this suite has already been bitten by a fixture that left the viewport
+    // rotated and took the NEXT test down with it.
+    await drop.evaluate((n) => n.remove());
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+  }
+});
+
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

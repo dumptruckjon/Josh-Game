@@ -2455,11 +2455,10 @@ body.hl-mode .brand { color: #ffe9b0; }
 .pond__actor { font-size: clamp(2rem, 11vw, 2.8rem); line-height: 1; }
 
 /* Two Words Make One — two picture halves that slide together on a win. */
-.glue__parts { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0 14px; font-size: clamp(2.4rem, 13vw, 3.4rem); transition: gap 0.4s ease; }
-.glue__parts--join { gap: 0; }
+.glue__parts { display: flex; align-items: center; justify-content: center; margin: 10px 0 14px; font-size: clamp(2.4rem, 13vw, 3.4rem); }
 .glue__word { line-height: 1; }
-.glue__plus { font-size: 1.6rem; color: #7a5cd6; font-weight: 800; }
-.glue__parts--join .glue__plus { opacity: 0; }
+.glue__plus { font-size: 1.6rem; color: #7a5cd6; font-weight: 800; margin: 0 12px; transition: margin 0.4s ease, opacity 0.4s ease; }
+.glue__parts--join .glue__plus { margin: 0; opacity: 0; }
 
 /* This Goes With That — a model pair row + the C→? row. */
 .gw__model, .gw__ask { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 4px 0; font-size: clamp(2rem, 11vw, 2.8rem); }
@@ -2499,7 +2498,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .truck__lever { margin: 8px auto 0; display: block; background: linear-gradient(180deg, #ffd24d, #ffb020); }
 
 @media (prefers-reduced-motion: reduce) {
-  .glue__parts, .gw__cell--filled, .fix__card--fixed, .truck__rig, .truck__rock--gone { transition: none !important; }
+  .glue__parts, .glue__plus, .gw__cell--filled, .fix__card--fixed, .truck__rig, .truck__rock--gone { transition: none !important; }
 }
 
 /* ================= Road to 200 — Set 3, Wave 10 ================= */

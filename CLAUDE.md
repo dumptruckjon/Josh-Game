@@ -6210,6 +6210,55 @@ precautionary, because the change itself adds a comment explaining the rule — 
 tenth recorded instance of a scan matching its own documentation, avoided this
 time by writing the control before the comment.
 
+**AND THE SAME PULL FOUND A LIVE PRODUCT DEFECT: "Two Words Make One" HAS NEVER
+GLUED ANYTHING ON JOSH'S IPAD.** The game's payoff is two picture-halves sliding
+together — sun + flower — and it was animated with flex `gap: 12px -> 0` plus a
+`transition: gap 0.4s ease`. **Safari 14 has no flex gap**, this project's most
+frequently applied platform law, so on the one device the game is played on the
+halves never parted, the join changed nothing, and the whole mechanic was
+invisible. Measured by simulating the drop: shipped it reads **21px -> 21px**
+(the `+` glyph's own width, and no movement at all), fixed it reads **45px ->
+21px**. The spacing now lives on `.glue__plus`'s horizontal MARGIN, which
+animates on every engine we ship to, and `.glue__plus` joins the
+`prefers-reduced-motion` block the transition moved out of.
+**It hid behind an ALLOWLIST, which is the third time that has happened here.**
+The flex-gap ban's exemption list is for rules whose gap is "purely decorative",
+and `.glue__parts` was on it — but this gap is not decoration, it is the ANSWER
+ANIMATION. Same shape as `.td-hud`, whose "readouts, not tappable" entry stopped
+being true the moment the ⚙️ became a button, and as the Sparkler's own sibling
+list. **An allowlist entry is a CLAIM about the code, and it goes stale exactly
+like a comment does — with the difference that the guardrail then actively looks
+away.** The entry is deleted rather than re-justified, so the shipped ban now
+covers the rule (mutation: put flex gap back and it fires).
+**THE TEST DESIGN IS THE TRANSFERABLE PART: Chromium HAS flex gap, so no amount
+of playing the game normally can see this.** A test that merely drives the fix
+would describe it, never fail on the defect — the unfalsifiable-clause trap this
+file has already deleted four clauses for. So the test SIMULATES the platform:
+forcing `gap: normal` on the row is exactly what Safari 14 does with the
+declaration, and only then does the measurement separate the two states. That is
+the "find an input that makes the mechanism observable" rule from the ink-centring
+pass, applied to a whole missing CSS feature rather than to a metric. Reduced
+motion is emulated so the join lands instantly, because the game rebuilds its
+round 850ms after a correct tap and racing that timer is how the test would go
+flaky — and that emulation turned out to guard a second thing for free: dropping
+`.glue__plus` from the reduced-motion block makes the transition run, the 80ms
+read catches it mid-flight, and the test goes red.
+**Two measurements from the same sweep, recorded so they are not re-derived.**
+`main.css` has **8 rules that set `gap` while declaring no `display` at all** —
+the shape whose flex half is invisible to the ban, since there is no `display` to
+match on. Checked one by one: two inherit GRID (`.hl-pond`, `.hl-strings` — grid
+gap works on 14, so they are correct), one is `gap: 0` (moot), and five
+(`.nm__group`, `.cater__row`, `.mt__choice`, `.af__bin`, `.tidy__bin`) do inherit
+flex and their 2-4px IS dropped on Josh's iPad — harmlessly, because every one of
+them spaces an icon above a label INSIDE a single `.choice` card, which is the
+decorative category the allowlist exists for. So no second defect. And `td.css`
+has **zero** such rules, which means the clause guarding them —
+`assert.ok(!/^\.td-bar/.test(sel))` — is a fence around the one selector prefix
+its bug was found on AND currently guards an empty population. The honest general
+form is local rather than cascade-resolving ("a rule that sets `gap` must declare
+its own `display`, or be allowlisted with the reason"), and it is the next item
+rather than a rider on a product fix.
+
 ---
 
 ## Repository Structure
