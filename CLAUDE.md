@@ -5937,6 +5937,29 @@ already-backgrounded call returns instantly**, so the harness reported the
 wrapper's exit 0 while the script ran on, and the log was **0 bytes** — which
 reads exactly like "every mutation passed silently". Assert a result file is
 non-empty before believing it, in either direction.
+**And the OFFLINE half of that page was a structural claim with nothing driving
+it — measured CLEAN, which is the honest half to write down.** The commit
+precached `./wordcards.html` and its message said the button "would have been a
+dead end offline, which is exactly how a car-ride PWA is used"; `site.test.js`
+proves the path is in `CORE`, and `offline.test.js` navigated only to `baseURL`
+and contained zero references to the page. The standing pairing again — a scan
+proves a call site exists, only driving it proves the call does anything — and
+here the failure it guards is SILENT: the SW falls back to `index.html` for a
+NAVIGATION, so a page missing from the precache does not 404 offline, it serves
+**Josh's launcher under the game's own URL**. No error, no blank screen, just the
+wrong page, on a car ride. Driven with the plug genuinely pulled (the recorded
+`pause()` hard-offline, since `setOffline` does not gate SW fetches) the page
+boots correctly — title, all 14 decks, `WORDS.length === 493` — so this is
+coverage rather than a fix; the guardrail is derived over the repo's own pages
+and asserts each page's OWN `<title>` read from disk, so a third page inherits
+it, and the mutation that drops one line from `CORE` reports the defect verbatim
+(*offline it served "Josh's Games 🎈" instead of itself*). **The method note is
+the one worth keeping: my first probe reported exactly that catastrophic result
+on a WORKING product**, because `baseURL` ends in `/` and `baseURL + "/" + f`
+asks for `//wordcards.html` — a different path, which misses the cache and falls
+back. The false failure was indistinguishable from the real defect I was hunting,
+which is precisely what made it convincing; suspect the fixture first, especially
+when a probe confirms the thing you already expected.
 
 ---
 
@@ -6000,7 +6023,7 @@ tooling.
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
 │   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness plays EVERY game + toddler-chaos double-tap guardrail
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
-│   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell)
+│   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)

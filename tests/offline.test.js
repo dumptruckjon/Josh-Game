@@ -11,6 +11,8 @@
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
 const { startServer, launchBrowser } = require("./helpers");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const LIVE = !!process.env.JOSH_BASE_URL;
 
@@ -104,4 +106,59 @@ test("offline: a captive portal cannot poison the runtime cache (audit guardrail
   await reloadOfflineAndAssertBoot("post-portal");
   const effectsAlive = await page.evaluate(() => !!(window.JoshEffects && window.JoshEffects.confetti)).catch(() => false);
   assert.ok(effectsAlive, "post-portal: effects.js must load from the healthy cache, not the portal HTML");
+});
+
+test("offline: every shipped PAGE serves ITSELF, not the index.html fallback", async () => {
+  if (LIVE) return;
+  // The site advertises "works offline (great for car rides)", and the 🃏 Word
+  // Cards button is a real navigation to a SECOND page. Its precache entry was
+  // a STRUCTURAL claim only — site.test.js proves "./wordcards.html" is in CORE
+  // and nothing had ever driven the page with the plug pulled. That is the
+  // standing pairing: a scan proves a call site exists, only driving it proves
+  // the call does anything.
+  //
+  // The failure this catches is SILENT, which is what makes it worth a test.
+  // The SW falls back to index.html for NAVIGATIONS, so a page missing from the
+  // precache does not 404 offline — it serves Josh's launcher under the game's
+  // own URL. No error, no blank screen, just the wrong page, on a car ride.
+  //
+  // Derived from the repo's own pages so a third one inherits it, and the
+  // assertion is each page's OWN <title> read from disk rather than a literal.
+  const root = path.join(__dirname, "..");
+  const titleOf = (f) => (fs.readFileSync(path.join(root, f), "utf8").match(/<title[^>]*>([^<]*)<\/title>/) || [])[1];
+  const pages = fs.readdirSync(root).filter((f) => /\.html$/.test(f) && f !== "index.html").sort();
+  assert.ok(pages.length >= 1, `no secondary pages found — this test is vacuous (saw ${pages.join(", ")})`);
+  const shell = titleOf("index.html");
+
+  await context.setOffline(true);
+  await pause();                       // HARD offline — setOffline does not gate SW fetches
+  try {
+    for (const f of pages) {
+      pageErrors.length = 0;
+      const want = titleOf(f);
+      assert.ok(want && want !== shell, `${f}: needs its own <title> for this check to mean anything`);
+      // NOTE the trailing-slash trim: baseURL ends in "/", and "//wordcards.html"
+      // is a DIFFERENT path from the precached one — it misses the cache, falls
+      // back to index.html, and reports the exact defect this test hunts. The
+      // false failure looked identical to the real one, which is why it is
+      // written down here rather than silently fixed.
+      const url = baseURL.replace(/\/$/, "") + "/" + f;
+      await page.goto(url, { waitUntil: "load", timeout: 20000 });
+      const got = await page.evaluate(() => ({
+        title: document.title,
+        shell: !!document.getElementById("screen-start"),
+        path: location.pathname,
+      }));
+      assert.equal(got.path, "/" + f, `${f}: probe asked for the wrong path (${got.path})`);
+      assert.equal(got.title, want,
+        `${f}: offline it served "${got.title}" instead of itself — a page missing from the SW precache falls back to index.html for a NAVIGATION, so the button silently opens the wrong screen`);
+      assert.ok(!got.shell, `${f}: offline it served Josh's launcher shell under the game's own URL`);
+      const syntax = pageErrors.filter((e) => /Unexpected token '<'|SyntaxError/.test(e));
+      assert.equal(syntax.length, 0, `${f}: offline script errors: ${syntax.join("; ")}`);
+    }
+  } finally {
+    await resume();
+    await context.setOffline(false);
+    await page.goto(baseURL, { waitUntil: "load", timeout: 20000 }).catch(() => {});
+  }
 });
