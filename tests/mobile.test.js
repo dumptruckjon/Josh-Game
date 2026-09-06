@@ -287,7 +287,25 @@ test("no tap spacing may depend on a flex GAP — Safari 14.0 drops it (simulate
   // RESTORE_FLEX_GAP is hygiene, not a proven clause: measured, neutering it
   // leaves the next audited screen green, because the simulation only ever
   // touches elements inside the VISIBLE screen. Said plainly rather than implied.
+  //
+  // REDUCED MOTION IS LOAD-BEARING, and it cost a red verify-live to learn.
+  // Run #445 failed here with `#copy-beat: tightest 12.0px [cb__drum tap
+  // cb__drum--hit | cb__drum tap]` — the `--hit` class naming a 300ms
+  // `cbHit` bounce to scale(1.18) that had eaten 4px of a 16px GRID gap. That
+  // is not this test's subject (grid gap works on Safari 14, and the sim never
+  // touches a grid container): it is a transient animation frame, and this repo
+  // has already REJECTED exactly that as a finding on 照样敲 — "the documented
+  // law is about a PERSISTENT lit pad she has to aim around; a 300ms feedback
+  // bounce is not the same thing". Sampling it is noise, and it only ever
+  // reproduced under the live site's latency. Emulating reduced motion turns
+  // the animation off (main.css already gates `.cb__drum--hit` there) so this
+  // measures the STATIC layout, which is the only thing a platform-feature
+  // question is about. NOTE the shipped audit above samples at an arbitrary
+  // moment too and has the same latent exposure; it has never been observed to
+  // hit it, and blanket-disabling motion there would hide a persistent lit
+  // state implemented as an animation, so it is left alone deliberately.
   const ids = await gameIds();
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
   let moved = 0, containers = 0;
   const tight = [];
@@ -305,6 +323,7 @@ test("no tap spacing may depend on a flex GAP — Safari 14.0 drops it (simulate
       await page.evaluate(RESTORE_FLEX_GAP);
     }
   }
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   assert.deepEqual(tight, [],
     `these screens lose their tap spacing when flex gap is dropped, so they are flush on Josh's iPad while every headless browser shows them fine:\n  ${tight.join("\n  ")}`);
   // NON-VACUITY: a simulation that changes nothing would report a clean sweep
@@ -351,7 +370,12 @@ test("no tap SIZE may depend on aspect-ratio — Safari 14.0 has none (simulated
   // patches — the game's only tap targets — render 56x84 at every width, under
   // the 75px law, with every shipped test green. Fixed by giving the grid fixed
   // 84px tracks; this asks the question that found it.
+  //
+  // Reduced motion for the same reason as its flex-gap sibling: a transient
+  // `scale()` cue moves a SIZE as readily as it moves a gap, and an animation
+  // frame is not what a platform-feature question is asking about.
   const ids = await gameIds();
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
   let cells = 0, screens = 0;
   const bad = [];
@@ -378,6 +402,7 @@ test("no tap SIZE may depend on aspect-ratio — Safari 14.0 has none (simulated
       await page.evaluate(RESTORE_ASPECT_RATIO);
     }
   }
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   assert.deepEqual(bad, [],
     `these collapse on Josh's iPad, where aspect-ratio does nothing:\n  ${bad.join("\n  ")}`);
   // NON-VACUITY: measured, 358 aspect-ratio elements exist across 17 screens.

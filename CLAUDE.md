@@ -6412,6 +6412,49 @@ the "before" value — which made the geometry look impossible and sent me
 hunting an overlap that did not exist. Read the numbers you need out of it
 BEFORE you change anything, or copy them into plain values.
 
+**AND THE FIRST OF THOSE SIMULATIONS TURNED verify-live RED — on a TRANSIENT
+ANIMATION FRAME, not on the thing it was measuring.** Run #445 passed `test`
+(same suite, real WebKit, local server) and failed `verify-live` with
+`#copy-beat: tightest 12.0px [cb__drum tap cb__drum--hit | cb__drum tap]`. The
+`--hit` in that class list is the whole diagnosis: `cbHit` bounces a drum to
+`scale(1.18)` for 300ms, and the sample landed inside it. It has **nothing to do
+with flex gap** — `.cb__pad` is `display: grid`, its own comment says so, and
+the simulation only ever touches computed-FLEX containers. Reproduced locally
+once I stopped sampling at an arbitrary moment and forced the frame: resting
+16px, **mid-bounce 7.7px**, and with `prefers-reduced-motion` emulated it is
+16px at both. Both halves proven, which is what makes the fix load-bearing
+rather than hopeful.
+**The fix is to measure the STATIC layout, and the reason is a judgement this
+file had already made.** A platform-feature question asks what the layout is
+without that feature — an animation frame is not part of the answer — and the
+transient case was explicitly REJECTED as a finding once before, on 照样敲:
+*"the documented law is about a PERSISTENT lit pad she has to aim around; a
+300ms feedback bounce is not the same thing."* So both simulations now emulate
+reduced motion (main.css already gates `.cb__drum--hit` there) and restore it
+after. The shipped `auditActiveScreen` samples at an arbitrary moment too and
+has the same latent exposure; it is deliberately left alone, because
+blanket-disabling motion there would hide a persistent lit state implemented as
+an animation — and that asymmetry is written into the test rather than left as
+an inconsistency.
+**Two things generalise.** A test that passes on a local server and fails
+against the LIVE URL is not automatically a transport flake: here the only
+difference that mattered was TIMING, and latency is what made an
+otherwise-invisible race reproducible — *a green `test` job beside a red
+`verify-live` narrows the cause to what the network changes, which is usually
+when you sampled, not what you sampled.* And a simulation must control every
+input that is not its subject; mine controlled the platform feature and left the
+animation clock running.
+**Recorded, measured, NOT acted on: 19 keyframes in this app scale above 1**
+(fwBurst 1.9, lhPop 1.25, khHeart/heartFloat 1.2, stickerPlop/cbHit/chomp 1.18,
+down to 1.06), so "a transient scale cue transiently narrows a gap" is a
+19-item design language, not a one-off — and fixing only `cbHit` because that is
+where the red landed would be the fix-it-where-you-found-it class this file
+keeps naming. The honest form is a measured pass over all 19 asking which sit in
+a gapped grid of TAP TARGETS the child taps in immediate succession (copy-beat
+is the one case where the surface is NOT disabled during the bounce, unlike
+照样敲's), and that is its own piece of work rather than a rider on a
+stop-the-line fix.
+
 ---
 
 ## Repository Structure
