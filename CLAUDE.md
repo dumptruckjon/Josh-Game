@@ -6276,6 +6276,68 @@ Seven mutations, and the two that justify the DELETION are the last: the old
 PAGE gaining such a rule is caught too, which the fence, reading one stylesheet,
 never could.
 
+**AND ALL THREE OF THOSE GAP LAWS WERE BLIND TO THE LONGHANDS — the same defect
+one property name over, in the scan that had just caught it.** Safari 14 drops
+`row-gap` and `column-gap` (and the legacy `grid-gap`) inside a FLEX container
+exactly as it drops the shorthand, and every one of the three laws asked "does
+this rule set a gap?" with a pattern that structurally cannot match them:
+`[^-a-z]gap:` excludes the `-` in `row-gap:`. Two of the three also missed
+`gap : 8px`. A scan's own PATTERN is part of the scan, for the eleventh recorded
+time. **Measured: ZERO shipped rules use a longhand today, so this is COVERAGE,
+not a fix** — the honest half to write down. `GAP_DECL` is now the one owner all
+three read, which is the right shape for the reason this repo keeps paying for:
+they were three copies that had to agree, and they did not.
+**THE INTERESTING PART IS THAT SHIPPED DATA CANNOT FALSIFY THE WIDENING.** With
+no longhand anywhere in the app, reverting the regex leaves every clause green,
+so the fix would have shipped as the unfalsifiable change this file has deleted
+four clauses for. It is proven on SYNTHETIC declarations instead — the same move
+the Two Words Make One test makes when it forces `gap: normal` to reproduce a
+platform the sandbox does not have. Eight mutations: the reverted predicate, a
+planted `display:flex; column-gap` in main.css and in a PAGE's inline `<style>`,
+an inherited `row-gap` beside a `flex-wrap`, a second gap regex inlined at one
+call site — all RED; an inherited `row-gap` beside a `grid-template` and the
+banned pattern inside a COMMENT — GREEN.
+**And my own control fired an EARLIER clause, which is the trap this file names
+most often.** "The old scope genuinely could not see it" was written as *revert
+the predicate, keep the planted CSS* — and reverting the predicate trips the new
+predicate clause, so it went red for the wrong reason and proved nothing. The
+honest control is the actual PRE-CHANGE FILE plus the defect, which passes on
+both the stylesheet and the page: `ok 1` twice, with `display: flex; column-gap`
+sitting in main.css and in `wordcards.html`.
+**Two measured NON-changes from the same pass, so nobody widens them.** The
+same-rule ban's population is a hand-written two-file list and is CORRECT: pages
+are covered by *every shipped PAGE obeys the iOS 14.2 floors*, whose own clause
+is stricter (it bans flex+gap outright, with no allowlist), so widening the ban
+to pages adds the near-duplicate this file calls noise rather than coverage. And
+the longhand widening has no false-positive surface because **no shipped rule
+uses multi-column layout at all** — `column-gap` under `columns:` is supported on
+Safari 14 and would have been a false fire; measured before writing, not after.
+
+**AND THE SEED-SET SWEEP THAT STARTED IT CAME BACK CLEAN, which is worth as much
+as a finding because it closes a question that had already been re-opened
+twice.** Sweeping every seed set in the test tree (the class that hid three
+single-seed cliffs and an erased L32) found three bespoke sets, and both audits
+worth measuring are robust. `AUDIT targeting is a LIVE lever` means over a
+bespoke `[1,2,3,4]` and pins one of its two clauses on **L16, a documented
+QUANTIZED finale** — the exact shape where a small-sample mean is unstable.
+Measured over 12 seeds it does not move: L4 first-vs-last is 9.00 / 9.00 / 9.00 /
+9.17 across the shipped set, the standard `{1,7,13,23}`, `[1..8]` and all 12, and
+L16 strong-vs-close is 8.50 / 7.75 / 8.00 / 7.25 — and **the WORST 4-seed window
+of all 495 combinations still clears the bar** (L4 8.00, L16 5.00 against 4). Its
+quoted measurement table is still accurate to a decimal, and `cheap` — the one
+gated mode its legality clause never sees — is separately driven three ways
+elsewhere. `AUDIT boss tension` uses `[1..8]` while the SIBLING it sits beside
+was moved off a bespoke set for a real reason, so it looked like the same
+fix-applied-where-found shape; measured, every one of the ten finales gives the
+same verdict under all three sets (medians `[1..8]` / standard / 12: L4 14/14/14,
+L8 11/11/11, L12 7/7/7, L16 17/14/17, L20 9/10/9, L24 14/14/13, L28 12/14/12,
+L32 14/14/14, L36 14/13/14, L40 12/12/12). One number is worth keeping: **L16's
+median is exactly 17 against a `<= 17` bar on the shipped set** — it passes by
+zero, deterministically, and the wide `[10,6,20,15,20,17,14,17,6,17,17,13]` is
+the boss-decides-it shape this file already records for that level. No change
+shipped: adding seeds that cannot separate the two states is the fence around the
+residual this project keeps refusing.
+
 ---
 
 ## Repository Structure

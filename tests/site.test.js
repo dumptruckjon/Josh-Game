@@ -59,6 +59,18 @@ const SHEETS = [
   ...PAGES.map((f) => [f, [...read(f).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n")]),
 ];
 
+// "Does this rule set a gap?" is asked by THREE separate iOS-14.2 laws below,
+// and all three asked it with a pattern that structurally cannot match the
+// LONGHANDS: `[^-a-z]gap:` excludes the `-` in `row-gap:`. Safari 14 drops
+// `row-gap` / `column-gap` (and the legacy `grid-gap`) inside a FLEX container
+// exactly as it drops the shorthand, so a rule written either of those ways
+// ships green and is silently dropped on the one device that matters — the
+// same defect that left "Two Words Make One" unable to glue anything, one
+// property name over. Measured: ZERO shipped rules use a longhand today, so
+// this is coverage rather than a fix. It is ONE owner because it was three
+// copies that had to agree, and because a fourth law should inherit it.
+const GAP_DECL = /(^|[^-a-z])(grid-)?((row|column)-)?gap\s*:/;
+
 test("the script list is DERIVED from index.html, and is not empty", () => {
   // Guards the derivation itself: a regex that stops matching would silently
   // make every scan above it vacuous, which is worse than the hand list it
@@ -1039,6 +1051,35 @@ test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has 
   // (emoji piles, scenes, non-tap art). Adding a new flex+gap rule fails this
   // test: use display:grid (grid-auto-flow: column for a row) or child margins
   // if the children are tappable, else add the selector here with care.
+  //
+  // THE PREDICATE FIRST, because shipped data cannot falsify it: no rule in the
+  // app uses a gap LONGHAND today, so reverting GAP_DECL to the old
+  // `[^-a-z]gap:` leaves every clause below green while the law goes blind to
+  // `row-gap` / `column-gap` / `grid-gap` — which Safari 14 drops in flex
+  // exactly as it drops the shorthand. So the widening is proven on synthetic
+  // declarations, the same move the "Two Words Make One" test makes when it
+  // forces `gap: normal` to reproduce a platform that is not in the sandbox.
+  for (const decl of ["gap: 8px", "gap:8px", "gap : 8px", "row-gap: 8px", "column-gap: 8px",
+                      "grid-gap: 8px", "grid-row-gap: 8px", "grid-column-gap: 8px"]) {
+    assert.ok(GAP_DECL.test("{" + decl + ";}"), `GAP_DECL misses "${decl}" — iOS 14.2 drops it in flex just like the shorthand`);
+    assert.ok(GAP_DECL.test("{color:red;" + decl + ";}"), `GAP_DECL misses "${decl}" mid-rule`);
+  }
+  for (const decl of ["background: red", "-webkit-column-gap: 8px", "gap-thing: 8px", "grid-template-columns: 1fr"]) {
+    assert.ok(!GAP_DECL.test("{" + decl + ";}"), `GAP_DECL fires on "${decl}", which is not a gap declaration`);
+  }
+  // …and it must have ONE owner: three laws asked this question with three
+  // different patterns, which is how two of them stayed blind to `gap : 8px`
+  // as well. Derived over every regex literal in this file rather than banning
+  // the three spellings that happened to exist (comment-stripped, for the
+  // NINTH recorded time — the comment above quotes the pattern it replaced).
+  const selfSrc = read("tests/site.test.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const literals = selfSrc.match(/\/(?:\\.|\[[^\]]*\]|[^/\n\\])+\/[gimsuy]*/g) || [];
+  assert.ok(literals.length >= 100, `only ${literals.length} regex literals found in this file — the one-owner scan failed OPEN`);
+  const gapPatterns = literals.filter((r) => /gap(\\s\*)?:/.test(r));
+  assert.equal(gapPatterns.length, 1,
+    `${gapPatterns.length} regex literals test for a gap declaration (${gapPatterns.join(" | ")}) — GAP_DECL is the one owner, so a second copy can (and did) go blind to a spelling the others catch`);
+  assert.ok(selfSrc.split("GAP_DECL").length - 1 >= 4, "the three gap laws must READ the owner, not re-derive it");
+
   const ALLOWED = new Set([
     ".add__group",
     ".add__pile",
@@ -1149,7 +1190,7 @@ test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has 
     for (const rule of rules) {
       const sel = rule.slice(0, rule.indexOf("{")).trim().replace(/\s+/g, " ");
       const body = rule.slice(rule.indexOf("{"));
-      if (/display:\s*(inline-)?flex/.test(body) && /[^-a-z]gap:/.test(body)) {
+      if (/display:\s*(inline-)?flex/.test(body) && GAP_DECL.test(body)) {
         assert.ok(allow.has(sel),
           `new flex+gap rule "${sel}" in ${file} — flex-gap is DROPPED on iOS 14.2; use grid (gap works) or child margins for tappable children, or allowlist it if purely decorative`);
       }
@@ -1179,7 +1220,7 @@ test("guardrail: no NEW flex+gap rule may space tappable children (iOS 14.2 has 
   for (const [file, raw] of SHEETS) {
     for (const m of raw.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const sel = m[1].trim().replace(/\s+/g, " "), body = m[2];
-      if (!/(^|[^-a-z])gap\s*:/.test(body)) continue;
+      if (!GAP_DECL.test(body)) continue;
       if (/display\s*:\s*[\w-]+/.test(body)) continue; // declared: handled above
       inherited += 1;
       const isFlex = /flex-(direction|wrap|flow)\s*:/.test(body);
@@ -3968,7 +4009,7 @@ test("every shipped PAGE obeys the iOS 14.2 floors", () => {
     // the controls would touch on Josh's actual iPad. grid gap DOES work there.
     for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
       const body = m[2];
-      if (!/(^|[;\s])gap\s*:/.test(body)) continue;
+      if (!GAP_DECL.test(body)) continue;
       const disp = (body.match(/display\s*:\s*([\w-]+)/) || [])[1] || "";
       assert.notEqual(disp, "flex",
         `${f}: "${m[1].trim()}" spaces with flex gap, which Safari 14.0 DROPS — use a grid`);
