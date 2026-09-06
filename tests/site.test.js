@@ -1021,13 +1021,21 @@ test("guardrail: a Safari-16+ canvas call is feature-checked (iOS 14.2 floor)", 
 // with `min-height: 0` and rendered as invisible untappable strips on the real
 // device; this scans every CSS rule so no future cell can regress the same way.
 test("guardrail: every aspect-ratio cell has a real height fallback (iOS 14.2 has no aspect-ratio)", () => {
-  const css = read("styles/main.css");
+  // POPULATION: every stylesheet the app ships, not just main.css. Measured, no
+  // other sheet declares aspect-ratio today, so this is coverage — but a fort
+  // dialog or a standalone PAGE would have been outside the law that exists for
+  // exactly this collapse. (And what this law CANNOT check is that the fallback
+  // leaves a TAPPABLE box: a min-height fixes the HEIGHT and can do nothing
+  // about the width. `.dig__patch` was 56x84 on Josh's iPad with this green —
+  // that half is pinned behaviourally in mobile.test.js by dropping
+  // aspect-ratio for real.)
   const offenders = [];
+  for (const [file, css] of SHEETS) {
   // Split into rule blocks "selector { decls }".
   const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
   let m;
   while ((m = ruleRe.exec(css)) !== null) {
-    const sel = m[1].trim(), decls = m[2];
+    const sel = file + ": " + m[1].trim(), decls = m[2];
     if (!/aspect-ratio\s*:/.test(decls)) continue;
     const minH = /min-height\s*:\s*([^;]+)/.exec(decls);
     const h = /(?:^|;|\s)height\s*:\s*([^;]+)/.exec(decls);
@@ -1035,6 +1043,7 @@ test("guardrail: every aspect-ratio cell has a real height fallback (iOS 14.2 ha
     const isZero = (v) => v && /^0(\D|$)/.test(v); // "0", "0px", "0 !important"
     const hasReal = (val(minH) && !isZero(val(minH))) || (val(h) && !isZero(val(h)) && val(h) !== "auto");
     if (!hasReal) offenders.push(sel);
+  }
   }
   assert.deepEqual(offenders, [], `aspect-ratio cells with no height fallback (collapse on iOS 14.2): ${offenders.join(" | ")}`);
 });

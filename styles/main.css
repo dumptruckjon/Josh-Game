@@ -2551,7 +2551,13 @@ body.hl-mode .brand { color: #ffe9b0; }
 .dig__site { min-height: 120px; }
 .dig__found { text-align: center; font-size: clamp(3.4rem, 20vw, 5rem); min-height: 5rem; }
 .dig__found--up { animation: pop 500ms ease-out; }
-.dig__patches { max-width: 300px; margin: 4px auto; }
+/* FIXED 84px tracks, not `1fr`: the patch is square only because
+   `aspect-ratio` transfers its 84px min-height into a min-WIDTH, and Safari 14
+   (Josh's iPad) has no aspect-ratio — so on the real device the tracks fell back
+   to 56px and the game's ONLY tap targets rendered 56x84, under the 75px law.
+   The min-height fallback the aspect-ratio guardrail asks for fixes the HEIGHT
+   and can do nothing about the WIDTH. 3x84 + 2x16 = 284px, inside the 300 cap. */
+.dig__patches { max-width: 300px; margin: 4px auto; grid-template-columns: repeat(3, 84px); justify-content: center; }
 .dig__patch { min-height: 84px; aspect-ratio: 1 / 1; border-radius: 12px; font-size: 2rem; background: #e6c88a; border: 2px solid #cba965; }
 .dig__patch--clear { opacity: 0; transform: scale(0.4); transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }
 .dig__chips { max-width: 320px; margin: 6px auto 0; }

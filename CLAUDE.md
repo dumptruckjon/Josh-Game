@@ -6377,6 +6377,41 @@ this walk — its spacing standard is an adult 8px, and it measured 8.0 → 8.0
 under the same simulation, i.e. its spacing does not depend on a flex gap
 either, so a clause there could only fire on its floor.
 
+**AND APPLYING THE SAME TRICK TO THE NEXT PLATFORM GAP FOUND A REAL DEFECT ON
+JOSH'S IPAD: Dino Dig's NINE tap targets are 56px wide there, and every shipped
+test is green.** Safari 14 has no `aspect-ratio` (it arrived in Safari 15), and
+the shipped law requires every aspect-ratio cell to pair a real height fallback
+— written after `.tg__cell` shipped `min-height: 0` and rendered as invisible
+untappable strips. **That law checks a fallback EXISTS, and a min-height can
+only ever fix the HEIGHT.** `.dig__patch` declares `aspect-ratio: 1/1;
+min-height: 84px` inside a `repeat(3, minmax(0,1fr))` grid, and it is square
+only because the aspect-ratio TRANSFERS that 84px minimum into a min-WIDTH,
+which inflates the tracks from 55.94px to 84px. Drop aspect-ratio and the
+transfer goes with it: the tracks fall back to 56px and the patches render
+**56x84 at 390, 320, 414 AND 768** — under the 75px kid law, on the only thing
+that game asks a four-year-old to tap. Fixed with FIXED 84px tracks
+(3x84 + 2x16 = 284px, inside the 300px cap), so the width no longer depends on
+a feature the device does not have; the modern rendering is byte-identical
+(grid 284px, patches 84x84). Mutation-proven the same way as its sibling:
+reverting the fix turns the new simulation RED naming `dig__patch tap:56x84`,
+while **both** the shipped every-game audit and the shipped aspect-ratio text
+law stay GREEN. Non-vacuity: 358 aspect-ratio cells across 17 screens.
+**The generalisable rule: for every platform feature the sandbox HAS and the
+target device does not, a text law can prove the fallback is DECLARED and only
+a simulation can prove the fallback is USABLE.** Two down (flex gap,
+aspect-ratio); the remaining floors — `inset:`, the `dvh` twin, `user-scalable`
+— are settled by text alone, because each is an outright BAN or a required
+pairing with nothing left to measure once it is present. The aspect-ratio text
+law's population was widened from `styles/main.css` to every shipped stylesheet
+in the same pass (measured: nothing else declares one today, so coverage), and
+its own mutation confirms a PAGE gaining a fallback-less cell is now caught.
+**One fixture note worth keeping: a `CSSStyleDeclaration` from
+`getComputedStyle` is LIVE.** My first probe captured `gcs` before mutating and
+read `gcs.gridTemplateColumns` after, and reported the post-mutation tracks as
+the "before" value — which made the geometry look impossible and sent me
+hunting an overlap that did not exist. Read the numbers you need out of it
+BEFORE you change anything, or copy them into plain values.
+
 ---
 
 ## Repository Structure

@@ -315,6 +315,78 @@ test("no tap spacing may depend on a flex GAP — Safari 14.0 drops it (simulate
     `the simulation must actually reproduce the platform \u2014 only ${moved} screens moved and ${containers} gapped flex containers were seen; it is measuring nothing`);
 });
 
+// Safari 14.0 has NO `aspect-ratio` (it arrived in Safari 15). Forcing it to
+// `auto` on every element is exactly that.
+const DROP_ASPECT_RATIO = () => {
+  const scr = [...document.querySelectorAll(".screen")].find((x) => !x.hidden);
+  if (!scr) return 0;
+  let n = 0;
+  for (const el of scr.querySelectorAll("*")) {
+    const cs = getComputedStyle(el);
+    if (!cs.aspectRatio || cs.aspectRatio === "auto") continue;
+    el.dataset.arsim = "1";
+    el.style.setProperty("aspect-ratio", "auto", "important");
+    n += 1;
+  }
+  return n;
+};
+
+const RESTORE_ASPECT_RATIO = () => {
+  for (const el of document.querySelectorAll("[data-arsim]")) {
+    el.style.removeProperty("aspect-ratio");
+    delete el.dataset.arsim;
+  }
+};
+
+test("no tap SIZE may depend on aspect-ratio — Safari 14.0 has none (simulated)", async () => {
+  // The shipped text law requires every aspect-ratio cell to pair a real height
+  // fallback, because `.tg__cell` once shipped `min-height: 0` and rendered as
+  // invisible untappable strips on the real device. That law checks a fallback
+  // EXISTS. It cannot check the fallback leaves a TAPPABLE box — and a
+  // min-height fallback can only ever fix the HEIGHT.
+  //
+  // Measured, that gap was live: `.dig__patch` is square only because
+  // aspect-ratio transfers its 84px min-height into a min-WIDTH, which inflates
+  // its grid tracks from 56px to 84px. Drop aspect-ratio and Dino Dig's NINE
+  // patches — the game's only tap targets — render 56x84 at every width, under
+  // the 75px law, with every shipped test green. Fixed by giving the grid fixed
+  // 84px tracks; this asks the question that found it.
+  const ids = await gameIds();
+  await page.setViewportSize({ width: 390, height: 844 });
+  let cells = 0, screens = 0;
+  const bad = [];
+  for (const hash of ["#home", "#stickers", "#hl-home", ...ids.map((i) => "#" + i)]) {
+    await showScreen(page, hash, "#screen" + hash.replace("#", "-"));
+    try {
+      const n = await page.evaluate(DROP_ASPECT_RATIO);
+      cells += n;
+      if (n > 0) screens += 1;
+      if (n === 0) continue;
+      const small = await page.evaluate((min) => {
+        const out = [];
+        for (const el of document.querySelectorAll("button, a[href], [role='button']")) {
+          if (el.hidden || el.closest("[hidden]") || el.closest("[data-adult]") || el.offsetParent === null) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) continue;
+          if (r.width < min || r.height < min) out.push(((el.id || el.className) + "").slice(0, 32) + ":" + Math.round(r.width) + "x" + Math.round(r.height));
+        }
+        return out;
+      }, MIN_TAP);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (small.length || overflow > 1) bad.push(`${hash}: ${n} aspect-ratio cells, overflow ${overflow}, under ${MIN_TAP}px: ${small.slice(0, 5).join(", ")}`);
+    } finally {
+      await page.evaluate(RESTORE_ASPECT_RATIO);
+    }
+  }
+  assert.deepEqual(bad, [],
+    `these collapse on Josh's iPad, where aspect-ratio does nothing:\n  ${bad.join("\n  ")}`);
+  // NON-VACUITY: measured, 358 aspect-ratio elements exist across 17 screens.
+  // The FORT is not walked because it declares none at all, so a clause there
+  // could not fire.
+  assert.ok(cells >= 100 && screens >= 8,
+    `the simulation must actually reproduce the platform — only ${cells} aspect-ratio cells on ${screens} screens; it is measuring nothing`);
+});
+
 test("the Sticker Book: no overflow + >=75px well-spaced slots at phone AND tablet sizes", async () => {
   for (const w of [390, 320, 768, 1024]) {
     await page.setViewportSize({ width: w, height: 780 });
