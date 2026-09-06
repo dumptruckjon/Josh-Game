@@ -1838,7 +1838,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .hl-fumark {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
   font-size: 300px; line-height: 1; color: rgba(255, 248, 236, 0.58); font-weight: 900;
-  pointer-events: none; user-select: none;
+  pointer-events: none; -webkit-user-select: none; user-select: none;
 }
 .hl-fumark--done { color: rgba(255, 233, 176, 0.85); text-shadow: 0 4px 14px rgba(80, 0, 0, 0.5); }
 .hl-fudot {
@@ -2342,11 +2342,11 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* Who's Behind the Curtain? — progressive bottom-up reveal. */
 .curtain__stage { width: 150px; height: 190px; margin: 6px auto 10px; border-radius: 16px 16px 8px 8px; background: linear-gradient(180deg,#7a1f2b,#54121a); display: flex; align-items: flex-end; justify-content: center; overflow: hidden; box-shadow: inset 0 0 0 4px #b8860b; }
-.curtain__who { font-size: 6rem; line-height: 1; transition: clip-path 0.25s ease; }
-.curtain__stage--s0 .curtain__who { clip-path: inset(100% 0 0 0); }
-.curtain__stage--s1 .curtain__who { clip-path: inset(68% 0 0 0); }
-.curtain__stage--s2 .curtain__who { clip-path: inset(42% 0 0 0); }
-.curtain__stage--s3 .curtain__who { clip-path: inset(0 0 0 0); }
+.curtain__who { font-size: 6rem; line-height: 1; transition: -webkit-clip-path 0.25s ease, clip-path 0.25s ease; }
+.curtain__stage--s0 .curtain__who { -webkit-clip-path: inset(100% 0 0 0); clip-path: inset(100% 0 0 0); }
+.curtain__stage--s1 .curtain__who { -webkit-clip-path: inset(68% 0 0 0); clip-path: inset(68% 0 0 0); }
+.curtain__stage--s2 .curtain__who { -webkit-clip-path: inset(42% 0 0 0); clip-path: inset(42% 0 0 0); }
+.curtain__stage--s3 .curtain__who { -webkit-clip-path: inset(0 0 0 0); clip-path: inset(0 0 0 0); }
 .curtain__open { display: block; margin: 0 auto 10px; width: 190px; min-height: 78px; font-size: 1.2rem; font-weight: 800; border-radius: 18px; border: 2px solid rgba(120,170,255,0.3); background: linear-gradient(180deg,#fff,#f6eeff); }
 
 /* Little Letter Maker — a lowercase ghost guide. */
@@ -2472,8 +2472,8 @@ body.hl-mode .brand { color: #ffe9b0; }
 .fix__grid { max-width: 340px; margin: 8px auto; }
 .fix__card { overflow: hidden; }
 .fix__glyph { font-size: clamp(2.4rem, 13vw, 3.4rem); line-height: 1; display: block; }
-.fix__card--l .fix__glyph { clip-path: inset(0 0 0 50%); transform: translateX(-25%); } /* show the toy's LEFT part */
-.fix__card--r .fix__glyph { clip-path: inset(0 50% 0 0); transform: translateX(25%); } /* show the toy's RIGHT part */
+.fix__card--l .fix__glyph { -webkit-clip-path: inset(0 0 0 50%); clip-path: inset(0 0 0 50%); transform: translateX(-25%); } /* show the toy's LEFT part */
+.fix__card--r .fix__glyph { -webkit-clip-path: inset(0 50% 0 0); clip-path: inset(0 50% 0 0); transform: translateX(25%); } /* show the toy's RIGHT part */
 .fix__card--fixed { opacity: 0; transform: scale(0.6); transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: none; }
 
 /* Tidy Up Time — a row of home bins + a row of toys (mechanic A, shared .held). */

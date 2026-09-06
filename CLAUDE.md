@@ -6455,6 +6455,47 @@ is the one case where the surface is NOT disabled during the bounce, unlike
 照样敲's), and that is its own piece of work rather than a rider on a
 stop-the-line fix.
 
+**TWO GAMES' WHOLE MECHANIC IS A `clip-path`, AND IT WAS THE ONE SAFARI-PREFIXABLE
+PROPERTY IN THIS APP WITH NO `-webkit-` TWIN.** `.curtain__who`'s graded
+100/68/42/0 reveal IS the puzzle of Who's Behind the Curtain?, and `.fix__glyph`
+shows each card's clipped HALF of a toy in Fix the Toys — six declarations, all
+unprefixed, while the app already prefixes NINE other properties (appearance,
+backdrop-filter, backface-visibility, font-feature-settings, overflow-scrolling,
+tap-highlight-color, text-size-adjust, touch-callout, user-select). RULE 5 says
+"`-webkit-` prefixes where Safari needs them" and this was the gap in it.
+**The sandbox cannot answer "does Safari 14.2 need the prefix for clip-path",
+so the law is a CONSISTENCY one instead** — a property this app prefixes
+SOMEWHERE must carry the twin EVERYWHERE. That needs no version table, is
+falsifiable, and grows by itself: adding the first `-webkit-clip-path` is what
+puts clip-path under the law for good. Derived over every shipped stylesheet it
+found exactly ONE violation, which is the argument for it: `.hl-fumark` set
+`user-select` bare, saved today only by the root rule's `-webkit-user-select`
+inheriting down.
+**And the mechanics are proven load-bearing WITHOUT decoding a single pixel,
+because `clip-path` affects HIT TESTING.** A point inside the element's box but
+outside its clip does not hit the element — so the closed curtain has NO
+hittable point (centre, top-left and bottom-right all miss) while with the clip
+removed every point hits, and a half-card hits on one quarter and misses the
+opposite one. That is crisper than a pixel diff, needs no PNG library, and
+states the property in the game's own terms: without the clip the curtain shows
+its answer from the first frame. The first probe reached for a screenshot diff
+and died on a missing `pngjs`; the hit-test formulation is better than the thing
+it replaced, which is worth remembering when a dependency is missing — ask
+whether the property has a non-visual consequence before installing a decoder.
+Five mutations red, and **P1 fired the WRONG clause**, the trap this file names
+most: dropping ALL the twins takes `clip-path` out of the derived set, so the
+non-vacuity clause fires rather than the bare-declaration one. Isolating it
+needs a mutation that removes ONE twin and keeps another, which then reports
+`.fix__card--r .fix__glyph sets clip-path with no -webkit-clip-path`.
+**Two smaller results from the same sweep, recorded so they are not re-derived.**
+The gate's `#curtain` hash does not exist — the game is `curtain-peek` — and a
+selector-not-found came back as a polite `null` rather than a failure, which is
+how a probe reports nothing at all while looking like it ran. And the sweep for
+anything ELSE past the iOS 14.2 floor is clean: no CSS feature newer than 14.2
+except `backdrop-filter` (twinned), all six vh/dvh pairs numerically identical
+(so a dvh simulation is vacuous by construction), and no JS API past the floor
+across all 28 shipped sources.
+
 ---
 
 ## Repository Structure

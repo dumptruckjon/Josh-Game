@@ -1498,6 +1498,62 @@ test("Two Words Make One GLUES — and not with a flex gap (Safari 14 has none)"
   }
 });
 
+test("two games' MECHANIC is a clip-path, and it must actually clip", async () => {
+  // `.curtain__who`'s graded 100/68/42/0 reveal IS the puzzle of Who's Behind
+  // the Curtain?, and `.fix__glyph` shows each card's clipped HALF of a toy in
+  // Fix the Toys. Both were shipped as UNPREFIXED `clip-path` while this app
+  // prefixes nine other properties (styles/main.css now carries the twin, and
+  // site.test.js keeps every prefixed property consistent). This is the other
+  // half: proof that the property is load-bearing, so the twin is insurance for
+  // a real mechanic and a future refactor cannot quietly drop the clip.
+  //
+  // NO IMAGE DECODING IS NEEDED, because clip-path affects HIT TESTING: a point
+  // inside the element's BOX but outside its clip does not hit the element.
+  // That is crisper than a pixel diff and needs no PNG decoder.
+  const hits = (sel) => page.evaluate((s) => {
+    const el = document.querySelector(s);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const at = (fx, fy) => {
+      const h = document.elementFromPoint(Math.round(r.left + r.width * fx), Math.round(r.top + r.height * fy));
+      return h === el || (h ? el.contains(h) : false);
+    };
+    return { clip: getComputedStyle(el).clipPath, centre: at(0.5, 0.5), tl: at(0.25, 0.25), br: at(0.75, 0.75) };
+  }, sel);
+
+  // The curtain opens CLOSED: inset(100%) clips everything away, so nothing in
+  // the box is hittable. Without the clip the whole character is simply there —
+  // which is the game giving its own answer away.
+  await openGame("curtain-peek");
+  const shut = await hits(".curtain__who");
+  assert.ok(shut, "the curtain stage must render its hidden character");
+  assert.match(shut.clip, /inset\(\s*100%/, `the closed curtain must clip everything away — got "${shut.clip}"`);
+  assert.deepEqual([shut.centre, shut.tl, shut.br], [false, false, false],
+    `no point of the closed curtain may be hittable, or the answer is on screen from the first frame: ${JSON.stringify(shut)}`);
+
+  // Fix the Toys shows the LEFT or the RIGHT half — one quarter hits, the
+  // opposite one must not, which is the half-toy geometry itself.
+  await openGame("fix-toys");
+  const half = await page.evaluate(() => {
+    const el = document.querySelector(".fix__card--l .fix__glyph, .fix__card--r .fix__glyph");
+    return el ? el.parentElement.className : null;
+  });
+  assert.ok(half, "Fix the Toys must render a clipped half-card");
+  const cut = await hits(".fix__card--l .fix__glyph, .fix__card--r .fix__glyph");
+  assert.match(cut.clip, /inset\(.*50%/, `a half-card must clip half its glyph away — got "${cut.clip}"`);
+  assert.notEqual(cut.tl, cut.br,
+    `a half-card must be hittable on ONE side only, or both cards show the whole toy: ${JSON.stringify(cut)} on ${half}`);
+
+  // CONTROL: both readings are caused by the clip, not by the layout. With
+  // clip-path forced off, every point hits — which is exactly what an engine
+  // without clip-path would render.
+  await page.addStyleTag({ content: "* { -webkit-clip-path: none !important; clip-path: none !important; }" });
+  const open = await hits(".fix__card--l .fix__glyph, .fix__card--r .fix__glyph");
+  assert.deepEqual([open.centre, open.tl, open.br], [true, true, true],
+    `with clip-path off the whole glyph must be hittable, or this test is measuring something else: ${JSON.stringify(open)}`);
+  await page.evaluate(() => { const t = [...document.querySelectorAll("style")].pop(); if (t) t.remove(); });
+});
+
 test("no uncaught page errors during the whole run", () => {
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join("; ")}`);
 });

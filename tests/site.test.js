@@ -1020,6 +1020,49 @@ test("guardrail: a Safari-16+ canvas call is feature-checked (iOS 14.2 floor)", 
 // (min-height/height > 0). copy-grid/mirror-half/peek-copy's `.tg__cell` shipped
 // with `min-height: 0` and rendered as invisible untappable strips on the real
 // device; this scans every CSS rule so no future cell can regress the same way.
+// RULE 5 says "-webkit- prefixes where Safari needs them", and this app already
+// prefixes NINE properties. clip-path was the tenth kind and carried none — on
+// six declarations that ARE two games' mechanics: `.curtain__who`'s graded
+// 100/68/42/0 reveal IS the puzzle of Who's Behind the Curtain?, and
+// `.fix__glyph` shows each card's clipped HALF of a toy in Fix the Toys. Both
+// are proven to depend on it next door in e2e.test.js (clip-path affects HIT
+// TESTING, so it needs no image decoding: with the clip, no point in the
+// curtain's box hits it; without, every point does).
+//
+// The law is DERIVED and is a CONSISTENCY one, which is the only honest form
+// available here — this sandbox cannot run Safari 14, so "does that engine need
+// the prefix for property X" is not a question it can answer. What it CAN say
+// is that a property this app prefixes SOMEWHERE must carry the twin
+// EVERYWHERE, and that is falsifiable, needs no version table, and grows by
+// itself: adding the first `-webkit-clip-path` is what puts clip-path under the
+// law for good. It found exactly one violation when written — `.hl-fumark` set
+// `user-select` bare, saved only by the root rule's `-webkit-user-select`
+// inheriting.
+test("guardrail: a property this app prefixes SOMEWHERE carries its -webkit- twin EVERYWHERE", () => {
+  const rules = [];
+  for (const [file, raw] of SHEETS) {
+    for (const m of raw.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      rules.push([file, m[1].trim().replace(/\s+/g, " "), m[2]]);
+    }
+  }
+  const prefixed = new Set();
+  for (const [, , decls] of rules) for (const m of decls.matchAll(/-webkit-([a-z-]+)\s*:/g)) prefixed.add(m[1]);
+  // A derivation fails OPEN: an empty set would make every clause below vacuous.
+  assert.ok(prefixed.size >= 8 && prefixed.has("clip-path") && prefixed.has("user-select"),
+    `only ${prefixed.size} prefixed properties found (${[...prefixed].join(", ")}) — the scan failed OPEN`);
+  const bare = [];
+  for (const prop of prefixed) {
+    const plain = new RegExp("(^|[;{\\s])" + prop + "\\s*:");
+    const twin = new RegExp("-webkit-" + prop + "\\s*:");
+    for (const [file, sel, decls] of rules) {
+      if (!plain.test(decls) || twin.test(decls)) continue;
+      bare.push(`${file}: "${sel}" sets ${prop} with no -webkit-${prop}`);
+    }
+  }
+  assert.deepEqual(bare, [],
+    `this app prefixes these properties elsewhere, so Safari needs the twin here too:\n  ${bare.join("\n  ")}`);
+});
+
 test("guardrail: every aspect-ratio cell has a real height fallback (iOS 14.2 has no aspect-ratio)", () => {
   // POPULATION: every stylesheet the app ships, not just main.css. Measured, no
   // other sheet declares aspect-ratio today, so this is coverage — but a fort
