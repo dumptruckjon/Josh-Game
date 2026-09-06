@@ -6338,6 +6338,45 @@ the boss-decides-it shape this file already records for that level. No change
 shipped: adding seeds that cannot separate the two states is the fence around the
 residual this project keeps refusing.
 
+**AND THE ALLOWLIST ITSELF WAS NEVER A MEASUREMENT — now it is, and the sweep
+came back CLEAN across all 243 screens.** ~50 selectors are exempt from the
+flex-gap ban as *"purely decorative — the children are not tappable"*, and TWO
+of those claims have already gone stale and shipped a real defect (`.td-hud`
+stopped being "readouts, not tappable" the moment the ⚙️ became a button;
+`.glue__parts` was the ANSWER ANIMATION). The reason a stale entry survives is
+structural: **every audit that could contradict it runs in a browser where flex
+gap WORKS**, so it is green in CI and flush on the real device. The new
+guardrail asks the tap-spacing audit's own question with the platform simulated
+— `row-gap`/`column-gap` forced to `normal` on every computed-flex element in
+the visible screen, grid left alone because grid gap works on 14 — and it costs
+**8 seconds** for 243 screens, because it needs no reload and no waits.
+**The non-vacuity clause is the one that makes the clean result mean anything**:
+measured, **401 gapped flex containers exist and 241 of 243 screens genuinely
+MOVE** under the simulation (worst shrink 82px), so "nothing fell below the
+floor" is a result rather than a probe that did nothing. It also covers a shape
+BOTH text laws are structurally blind to — **a modifier that flips `display` to
+flex while the gap lives in its BASE rule**: `.find__field--dense` is exactly
+that (derived, it is the only one in the app), and it is safe only because
+`.find__dot` carries child margins.
+**MUTATION-PROVEN, and the first mutation was CONFOUNDED, which is the lesson.**
+Turning `.choices` from grid to flex fired the new test AND the shipped 75px
+size clause — flex items shrink to content where grid tracks do not — so it
+proved nothing about SCOPE. The clean mutation changes only the spacing
+MECHANISM: `.sb__tiles`' child margins become an allowlisted `gap: 16px`, which
+is byte-identical on a modern browser. The new test then reports
+`#sentence-build: tightest 0.0px [choice sb__tile tap | choice sb__tile tap]`
+while **both shipped laws stay green** — the audit because Chromium honours the
+gap, the ban because the entry is allowlisted. **A mutation that fires a second
+clause has not proven the first; change one mechanism at a time.** Two smaller
+notes: the extraction of `TAP_BOXES`/`tightestGap` into one owner is what stops
+the simulation and the audit disagreeing about what a tap target IS; and the
+restore step is stated as HYGIENE rather than a proven clause, because
+neutering it leaves the next audited screen green (the simulation only ever
+touches elements inside the visible screen). The FORT is deliberately outside
+this walk — its spacing standard is an adult 8px, and it measured 8.0 → 8.0
+under the same simulation, i.e. its spacing does not depend on a flex gap
+either, so a clause there could only fire on its floor.
+
 ---
 
 ## Repository Structure

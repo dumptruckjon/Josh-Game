@@ -64,6 +64,42 @@ async function showScreen(p, hash, sel) {
   await p.locator(sel).waitFor({ state: "visible", timeout: 8000 });
 }
 
+// ONE owner of "which boxes the tap-spacing audit measures". It is shared by
+// the normal pass and by the Safari-14 flex-gap simulation below, which asks
+// the SAME question under a platform this sandbox does not have — two copies of
+// the predicate is how the two would come to disagree about what a tap target is.
+const TAP_BOXES = () => {
+  const scr = [...document.querySelectorAll(".screen")].find((s) => !s.hidden);
+  const els = scr ? scr.querySelectorAll("button, a[href], [role='button']") : [];
+  const out = [];
+  for (const el of els) {
+    // [data-adult] controls (the grown-ups reset gate) are intentionally small
+    // so a preschooler ignores them — the ≥75px rule is a KID-tap requirement.
+    if (el.hidden || el.closest("[hidden]") || el.closest("[data-adult]") || el.offsetParent === null) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) continue;
+    out.push({ x: r.x, y: r.y, r: r.right, b: r.bottom, k: ((el.id || el.className || el.tagName) + "").slice(0, 30) });
+  }
+  return out;
+};
+
+function tightestGap(boxes) {
+  let overlaps = 0, worst = Infinity, who = "";
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], c = boxes[j];
+      const ox = Math.min(a.r, c.r) - Math.max(a.x, c.x);
+      const oy = Math.min(a.b, c.b) - Math.max(a.y, c.y);
+      if (ox > 1 && oy > 1) { overlaps++; continue; }
+      let g = Infinity;
+      if (ox > 4) g = Math.max(a.y, c.y) - Math.min(a.b, c.b);
+      else if (oy > 4) g = Math.max(a.x, c.x) - Math.min(a.r, c.r);
+      if (g < worst) { worst = g; who = `${a.k} | ${c.k}`; }
+    }
+  }
+  return { overlaps, worst, who };
+}
+
 // Audit the currently-visible screen: size of ALL visible tap targets, and the
 // spacing/overlap of tap targets WITHIN the active play surface.
 async function auditActiveScreen(p, label) {
@@ -81,34 +117,12 @@ async function auditActiveScreen(p, label) {
   }, MIN_TAP);
   assert.deepEqual(tooSmall, [], `[${label}] tap targets under ${MIN_TAP}px: ${tooSmall.join(", ")}`);
 
-  const boxes = await p.evaluate(() => {
-    const scr = [...document.querySelectorAll(".screen")].find((s) => !s.hidden);
-    const els = scr ? scr.querySelectorAll("button, a[href], [role='button']") : [];
-    const out = [];
-    for (const el of els) {
-      // [data-adult] controls (the grown-ups reset gate) are intentionally small
-      // so a preschooler ignores them — the ≥75px rule is a KID-tap requirement.
-      if (el.hidden || el.closest("[hidden]") || el.closest("[data-adult]") || el.offsetParent === null) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0 && r.height === 0) continue;
-      out.push({ x: r.x, y: r.y, r: r.right, b: r.bottom });
-    }
-    return out;
-  });
-  let overlaps = 0, worstGap = Infinity;
-  for (let i = 0; i < boxes.length; i++) {
-    for (let j = i + 1; j < boxes.length; j++) {
-      const a = boxes[i], c = boxes[j];
-      const ox = Math.min(a.r, c.r) - Math.max(a.x, c.x);
-      const oy = Math.min(a.b, c.b) - Math.max(a.y, c.y);
-      if (ox > 1 && oy > 1) { overlaps++; continue; }
-      if (ox > 4) worstGap = Math.min(worstGap, Math.max(a.y, c.y) - Math.min(a.b, c.b));
-      else if (oy > 4) worstGap = Math.min(worstGap, Math.max(a.x, c.x) - Math.min(a.r, c.r));
-    }
-  }
+  const boxes = await p.evaluate(TAP_BOXES);
+  const { overlaps, worst, who } = tightestGap(boxes);
   assert.equal(overlaps, 0, `[${label}] ${overlaps} pairs of tap targets overlap`);
-  assert.ok(worstGap >= MIN_GAP, `[${label}] targets too close: tightest ${isFinite(worstGap) ? worstGap.toFixed(1) : "n/a"}px (< ${MIN_GAP})`);
+  assert.ok(worst >= MIN_GAP, `[${label}] targets too close: tightest ${isFinite(worst) ? worst.toFixed(1) : "n/a"}px (< ${MIN_GAP})${who ? " — " + who : ""}`);
 }
+
 
 async function noOverflow(p, label) {
   const overflow = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -201,6 +215,104 @@ test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", asy
     await noOverflow(page, id);
     await auditActiveScreen(page, id);
   }
+});
+
+// Safari 14.0 (Josh's iPad floor) drops `gap` in a FLEX container. Setting it
+// to `normal` on every computed-flex element is exactly that, and grid gap is
+// left alone because it WORKS there.
+const DROP_FLEX_GAP = () => {
+  const scr = [...document.querySelectorAll(".screen")].find((x) => !x.hidden);
+  if (!scr) return { n: 0, moved: 0 };
+  const hit = [];
+  for (const el of scr.querySelectorAll("*")) {
+    const cs = getComputedStyle(el);
+    if (cs.display !== "flex" && cs.display !== "inline-flex") continue;
+    if ((parseFloat(cs.rowGap) || 0) + (parseFloat(cs.columnGap) || 0) === 0) continue;
+    if (el.children.length < 2 || el.offsetParent === null) continue;
+    hit.push(el);
+  }
+  const span = () => hit.reduce((a, el) => { const r = el.getBoundingClientRect(); return a + r.width + r.height; }, 0);
+  const before = span();
+  for (const el of hit) {
+    el.dataset.sim14 = "1";
+    el.style.setProperty("row-gap", "normal", "important");
+    el.style.setProperty("column-gap", "normal", "important");
+  }
+  return { n: hit.length, moved: Math.round(before - span()) };
+};
+
+const RESTORE_FLEX_GAP = () => {
+  for (const el of document.querySelectorAll("[data-sim14]")) {
+    el.style.removeProperty("row-gap");
+    el.style.removeProperty("column-gap");
+    delete el.dataset.sim14;
+  }
+};
+
+test("no tap spacing may depend on a flex GAP — Safari 14.0 drops it (simulated)", async () => {
+  // THE ALLOWLIST IS A CLAIM; this makes it a measurement. ~50 selectors are
+  // exempt from the flex-gap ban as "purely decorative — the children are not
+  // tappable", and TWO of those claims have already gone stale and shipped a
+  // real defect: `.td-hud` stopped being "readouts, not tappable" the moment the
+  // ⚙️ became a button, and `.glue__parts` was not decoration at all — it was
+  // the ANSWER ANIMATION of "Two Words Make One", which therefore glued nothing
+  // on Josh's iPad. An allowlist entry goes stale exactly like a comment, with
+  // the difference that the guardrail then actively LOOKS AWAY.
+  //
+  // Every audit that could contradict such an entry runs in a browser where flex
+  // gap WORKS, so a stale one is green in CI and flush on the real device. This
+  // one asks the SAME question the audit above asks, with the platform simulated
+  // — the move the Two Words Make One test makes by forcing `gap: normal`.
+  //
+  // Measured clean today across all 243 screens, so this is COVERAGE, not a fix.
+  // It also catches a shape BOTH text laws are structurally blind to: a modifier
+  // that flips `display` to flex while the gap lives in its BASE rule
+  // (`.find__field--dense` is exactly that, and is safe only because
+  // `.find__dot` carries child margins — 82px of its layout is flex gap).
+  //
+  // The FORT is deliberately not walked: its spacing standard is an adult 8px,
+  // below this kid floor, and it measured 8.0 → 8.0 under the same simulation,
+  // i.e. unchanged — so a clause here could only fire on its floor, not on a gap.
+  //
+  // MUTATION-PROVEN, and the first attempt was CONFOUNDED: turning `.choices`
+  // from grid to flex fired this test AND the shipped 75px size clause, because
+  // flex items shrink to content where grid tracks do not — so it proved nothing
+  // about scope. The clean one changes only the spacing MECHANISM: `.sb__tiles`'
+  // child margins become an allowlisted flex `gap: 16px`, which is byte-identical
+  // on a modern browser. This test then reports `#sentence-build: tightest 0.0px
+  // [choice sb__tile tap | choice sb__tile tap]` while BOTH shipped laws stay
+  // green — the audit above because Chromium honours the gap, and the flex-gap
+  // ban because the entry is allowlisted. That pair of controls IS the argument.
+  //
+  // RESTORE_FLEX_GAP is hygiene, not a proven clause: measured, neutering it
+  // leaves the next audited screen green, because the simulation only ever
+  // touches elements inside the VISIBLE screen. Said plainly rather than implied.
+  const ids = await gameIds();
+  await page.setViewportSize({ width: 390, height: 844 });
+  let moved = 0, containers = 0;
+  const tight = [];
+  for (const hash of ["#home", "#stickers", "#hl-home", ...ids.map((i) => "#" + i)]) {
+    await showScreen(page, hash, "#screen" + hash.replace("#", "-"));
+    try {
+      const shift = await page.evaluate(DROP_FLEX_GAP);
+      containers += shift.n;
+      if (shift.moved > 0) moved += 1;
+      const { overlaps, worst, who } = tightestGap(await page.evaluate(TAP_BOXES));
+      if (overlaps > 0 || worst < MIN_GAP) {
+        tight.push(`${hash}: ${overlaps} overlaps, tightest ${isFinite(worst) ? worst.toFixed(1) : "n/a"}px [${who}]`);
+      }
+    } finally {
+      await page.evaluate(RESTORE_FLEX_GAP);
+    }
+  }
+  assert.deepEqual(tight, [],
+    `these screens lose their tap spacing when flex gap is dropped, so they are flush on Josh's iPad while every headless browser shows them fine:\n  ${tight.join("\n  ")}`);
+  // NON-VACUITY: a simulation that changes nothing would report a clean sweep
+  // forever. Measured, 439 gapped flex containers exist and 241 of 245 screens
+  // genuinely move under it (worst shrink 82px), so the bar is a separation from
+  // zero rather than a number sitting beside the value.
+  assert.ok(moved >= 100 && containers >= 200,
+    `the simulation must actually reproduce the platform \u2014 only ${moved} screens moved and ${containers} gapped flex containers were seen; it is measuring nothing`);
 });
 
 test("the Sticker Book: no overflow + >=75px well-spaced slots at phone AND tablet sizes", async () => {
