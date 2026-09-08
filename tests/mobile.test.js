@@ -8,6 +8,8 @@
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
 const { startServer, launchMobileBrowser } = require("./helpers");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const MIN_TAP = 75;
 const MIN_GAP = 14; // design target is 16px; 2px slack absorbs sub-pixel measurement
@@ -410,6 +412,159 @@ test("no tap SIZE may depend on aspect-ratio — Safari 14.0 has none (simulated
   // could not fire.
   assert.ok(cells >= 100 && screens >= 8,
     `the simulation must actually reproduce the platform — only ${cells} aspect-ratio cells on ${screens} screens; it is measuring nothing`);
+});
+
+// DERIVED: every @keyframes whose peak scale exceeds 1, and every rule that
+// plays it. 19 of them ship, from fwBurst's 1.9 down to mbNuzzle's 1.06 — so
+// "a transient cue transiently grows a tap target" is a design LANGUAGE, not a
+// one-off, and it must be asked as a question over the whole language.
+//
+// NO cue is exempt, deliberately. `pointer-events: none` looks like the obvious
+// exemption — `.lh__balloon--pop` is the widest cue in the app (1.25, taking
+// Letter Hunt's 16px gap to 3.2px) and is inert for its whole life — but it
+// clears the law on its own, so exempting it would add a branch no mutation can
+// fire. The inertness is why 3.2px is not alarming, not why it passes.
+function scaleCues() {
+  const cues = [];
+  for (const file of ["styles/main.css", "styles/td.css"]) {
+    const css = fs.readFileSync(path.join(__dirname, "..", file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const peaks = new Map();
+    const kf = /@keyframes\s+([A-Za-z0-9_-]+)\s*\{/g;
+    let m;
+    while ((m = kf.exec(css))) {
+      let i = kf.lastIndex, depth = 1;
+      while (i < css.length && depth > 0) { if (css[i] === "{") depth++; else if (css[i] === "}") depth--; i++; }
+      let peak = 0;
+      for (const fn of css.slice(kf.lastIndex, i - 1).match(/\bscale(?:3d|X|Y)?\([^)]*\)/g) || [])
+        for (const n of fn.match(/[-\d.]+/g) || []) { const v = parseFloat(n); if (Number.isFinite(v) && v > peak) peak = v; }
+      if (peak > 1) peaks.set(m[1], peak);
+    }
+    const rule = /([^{}]+)\{([^{}]*)\}/g;
+    while ((m = rule.exec(css))) {
+      const raw = m[1].trim().replace(/\s+/g, " "), body = m[2];
+      if (raw.startsWith("@") || /^(\d+%|from|to)\b/.test(raw)) continue;
+      const use = body.match(/animation(?:-name)?\s*:\s*([^;]*)/);
+      if (!use) continue;
+      for (const [name, peak] of peaks) {
+        if (!new RegExp("\\b" + name + "\\b").test(use[1])) continue;
+        for (const sel of raw.split(",")) cues.push({ sel: sel.trim(), peak, name });
+      }
+    }
+  }
+  // the element a cue is ADDED to: the last compound, each class with its
+  // `--modifier` stripped (`.cb__drum--hit` is put on a `.cb__drum`).
+  for (const c of cues)
+    c.base = "." + c.sel.split(/\s+/).pop().split(".").filter(Boolean)
+      .map((x) => x.replace(/--[a-z0-9-]+$/i, "")).join(".");
+  return cues;
+}
+
+test("no transient scale cue may make two tap targets OVERLAP", async () => {
+  // MEASURED FIRST, and the result is why this asserts OVERLAP and not the 14px
+  // spacing floor. NINE cues land on a live tap target in a gapped grid and
+  // every one of them crosses that floor while it plays:
+  //
+  //   .lh__balloon--pop 3.2px · .cb__drum--hit 7.7 · .plant__supply--use 10.3
+  //   .sort__bin--hit 10.9 · .song__note--play 11.9 · .grandma__cell--found 12.2
+  //   .mb__mama--nuzzle 12.7 · .body__zone--hit 12.8 · .ord__animal--hop 12.9
+  //                                          (all from 16.0, across 24 screens)
+  //
+  // That is NOT a defect, and the mechanism is the whole reason: the spacing
+  // floor exists so a finger aimed at B cannot land on A, and a grow moves only
+  // A — B's box never moves, so a tap aimed at B still lands on B. The grown
+  // element claims DEAD GAP, nothing else. Verified per handler that a stray tap
+  // in that dead space is harmless: the popped balloon is `pointer-events: none`,
+  // the drum forgives a re-hit within 350ms, the sort bin and the body zone are
+  // rebuilt in the same tick (their cue never even paints), grandma-helper
+  // returns early on a consumed cell, and team-song / plant-care / ordinal-line
+  // / mama-baby answer with api.tryAgain, which RULE 5 makes a no-loss bump.
+  //
+  // An OVERLAP is the different thing: there a finger aimed at B's edge really
+  // does land on A. It measures clean on all 26 checks, with the closest cue
+  // 3.2px short of it (lhPop would have to go 1.25 -> ~1.32, cbHit 1.18 ->
+  // ~1.35), so this is the neighbouring law that measures true-for-all — and
+  // the population is DERIVED, so a 20th keyframe, or a cue added to a tighter
+  // grid than any that ships today, inherits it without this test being edited.
+  //
+  // Its two sibling simulations emulate reduced motion because they sample the
+  // layout at an arbitrary moment; this one does NOT need to, and the reason is
+  // worth stating rather than leaving as an inconsistency: it kills transitions
+  // outright, and it takes the before and after reads inside ONE synchronous
+  // evaluate, where the animation clock cannot advance between them.
+  const cues = scaleCues();
+  assert.ok(cues.length >= 15,
+    `the cue derivation must find the app's scale keyframes — saw ${cues.length}`);
+  const ids = await gameIds();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const bad = [];
+  let checks = 0, matched = 0, moved = 0;
+  for (const hash of ["#home", "#stickers", "#hl-home", ...ids.map((i) => "#" + i)]) {
+    await showScreen(page, hash, "#screen" + hash.replace("#", "-"));
+    const r = await page.evaluate(({ cues, boxFn }) => {
+      // eslint-disable-next-line no-new-func
+      const TAP = new Function("return (" + boxFn + ")")();
+      const scr = [...document.querySelectorAll(".screen")].find((s) => !s.hidden);
+      if (!scr) return { checks: 0, matched: 0, rows: [] };
+      const tapSet = new Set(scr.querySelectorAll("button, a[href], [role='button']"));
+      const out = { checks: 0, matched: 0, rows: [] };
+      // Every `.choice` declares `transition: transform 0.08s`, and a transition
+      // makes a geometry read return the value it is coming FROM — so setting
+      // the scale reads as a no-op, and restoring it reads as still-scaled. Both
+      // halves of that bit: the first hid five of the nine cues below, and the
+      // second made a "before" captured after the loop report the SCALED box.
+      // Killing transitions for the whole screen removes the class.
+      const off = document.createElement("style");
+      off.textContent = "*{transition:none!important}";
+      document.head.appendChild(off);
+      try {
+        const base = TAP(); // measured BEFORE anything is scaled
+        for (const c of cues) {
+          let els;
+          try { els = [...scr.querySelectorAll(c.base)].filter((e) => tapSet.has(e) && e.offsetParent); } catch (e) { continue; }
+          if (!els.length) continue;
+          out.checks += 1; out.matched += els.length;
+          const frames = [];
+          for (const el of els) {
+            const own = getComputedStyle(el).transform;
+            const prev = el.style.transform;
+            // COMPOSE, never replace: `.body__zone` carries its own
+            // translate(-50%,-50%), and clobbering it moves the element 40px.
+            el.style.transform = (own && own !== "none" ? own + " " : "") + "scale(" + c.peak + ")";
+            frames.push(TAP());
+            el.style.transform = prev;
+          }
+          out.rows.push({ sel: c.sel, peak: c.peak, n: els.length, base, frames });
+        }
+      } finally { off.remove(); }
+      return out;
+    }, { cues, boxFn: TAP_BOXES.toString() });
+    checks += r.checks; matched += r.matched;
+    for (const row of r.rows) {
+      const b = tightestGap(row.base);
+      let worst = Infinity, ov = b.overlaps, who = "";
+      for (const f of row.frames) {
+        const g = tightestGap(f);
+        if (g.worst < worst) { worst = g.worst; who = g.who; }
+        if (g.overlaps > ov) { ov = g.overlaps; who = g.who; }
+      }
+      if (worst < b.worst - 0.5) moved += 1;
+      if (ov > b.overlaps)
+        bad.push(`${hash}: ${row.sel} x${row.peak} makes ${ov - b.overlaps} tap target(s) OVERLAP (gap was ${b.worst.toFixed(1)}px) [${who}]`);
+    }
+  }
+  assert.deepEqual(bad, [],
+    `a cue that grows a tap target ONTO its neighbour steals a tap aimed at the neighbour:\n  ${bad.join("\n  ")}`);
+  // NON-VACUITY, and the second clause is the load-bearing one: if the scale
+  // stops applying (a transition left on, a `transform: none !important`), every
+  // check passes forever while measuring nothing, and BOTH halves of that bit
+  // here — a stray `transition` made the set read as a no-op AND made a restore
+  // read as still-scaled. Measured: 26 checks over 93 tap targets, of which 24
+  // narrow a gap (the 2 that do not are single-control screens). Without the
+  // transition kill it reads 19, so 22 is a separation, not a slack.
+  assert.ok(checks >= 15 && matched >= 40,
+    `the sweep must find the cues on real tap targets — only ${checks} checks over ${matched} targets`);
+  assert.ok(moved >= 22,
+    `the simulation must actually move the geometry — only ${moved} of ${checks} cue-checks narrowed a gap; it is measuring nothing`);
 });
 
 test("the Sticker Book: no overflow + >=75px well-spaced slots at phone AND tablet sizes", async () => {

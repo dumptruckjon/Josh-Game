@@ -6496,6 +6496,62 @@ except `backdrop-filter` (twinned), all six vh/dvh pairs numerically identical
 (so a dvh simulation is vacuous by construction), and no JS API past the floor
 across all 28 shipped sources.
 
+**THE 19 SCALE CUES ARE NOT A DEFECT, AND PROVING THAT TOOK FOUR FIXTURE BUGS —
+TWO OF WHICH CANCELLED EACH OTHER OUT SO CLEANLY THAT THE NON-VACUITY CLAUSE
+WRITTEN TO CATCH EXACTLY THIS PASSED IN BOTH BROKEN STATES.** The open question
+was the one a red `verify-live` raised: 19 keyframes in this app scale above 1,
+so "a transient cue transiently narrows a gap" is a design LANGUAGE rather than
+the one-off `cbHit` the failure happened to land on. Derived and measured, NINE
+of them play on a live tap target in a gapped grid and every one crosses the
+14px spacing floor while it runs — `.lh__balloon--pop` 3.2px, `.cb__drum--hit`
+7.7, `.plant__supply--use` 10.3, `.sort__bin--hit` 10.9, `.song__note--play`
+11.9, `.grandma__cell--found` 12.2, `.mb__mama--nuzzle` 12.7, `.body__zone--hit`
+12.8, `.ord__animal--hop` 12.9, all from 16.0, across 24 screens.
+**It is still not a defect, and the mechanism is the whole answer: the spacing
+floor exists so a finger aimed at B cannot land on A, and a grow moves only A.**
+B's box never moves, so a tap aimed at B still lands on B; the grown element
+claims DEAD GAP and nothing else, and there are ZERO overlaps anywhere. Verified
+per handler rather than argued: the popped balloon is `pointer-events: none`,
+the drum forgives a re-hit within 350ms (the toddler-chaos work already covering
+this exact case), the sort bin and body zone are rebuilt in the same tick, and
+the other four answer a stray re-tap with `api.tryAgain`, which RULE 5 makes a
+no-loss bump. So the law that ships is the neighbouring one that measures
+true-for-all — **no cue may make two tap targets OVERLAP** — derived over every
+keyframe so a 20th inherits it, and mutation-proven five ways (lhPop 1.25→1.40
+and cbHit 1.18→1.45 each name their games; the derivation going blind, the
+transition kill removed, and replace-instead-of-compose each fire their own
+clause).
+**The four fixture bugs are worth more than the result.** (1) **A `transition:
+transform` makes a geometry read return the value it is coming FROM**, so
+setting an inline scale reads as a NO-OP — `.choice` declares one, so five of
+the nine cues reported `16.0 -> 16.0` on working code and my first sweep called
+them clean. (2) **The same transition confounds the RESTORE**, so a "before"
+captured after the loop reported the still-SCALED box — five rows read
+`9.8 -> 9.8`, and plant-care looked like 4.6px when it is 10.3. *A before
+measured after is not a before.* (3) **Those two CANCELLED**: the moved-checks
+counter read 19 with both bugs, 19 with neither, and 24 only when both were
+fixed, so the non-vacuity clause could not see it and both mutations came back
+GREEN. **Two compensating bugs are invisible to a single-number vacuity check —
+when a mutation passes, print the ROWS, not the count.** (4) **Scaling every
+match at once is not the play state**: one element bounces at a time, and
+scaling a whole grid closes each gap from both sides, which invented 20
+overlaps on Letter Hunt that do not exist.
+**And a product law came out of it: a scale-only keyframe REPLACES an element's
+own transform.** `.body__zone` carries `translate(-50%, -50%)`, so `animation:
+pop` displaces it by 40px in each axis — latent today only because that cue is
+removed in the same tick it is added. The simulation therefore COMPOSES onto the
+computed transform, and its mutation (replace instead of compose) is what proves
+that line load-bearing. **An exemption was written and then DELETED for being
+unfalsifiable**: `pointer-events: none` looks like the obvious carve-out for the
+balloon, and the balloon clears the law on its own, so the branch could never
+fire. Recorded and deliberately NOT changed: `.sort__bin--hit` (13 games) and
+`.body__zone--hit` never paint on a non-final round, because the handler rebuilds
+the DOM synchronously — they fire once per game, on the winning tap. Making them
+visible means deferring the round advance in 14 games, which is a pacing change
+carrying the documented "a game that DEFERS its next round must clear
+`data-correct` before the timer" hazard, so it is its own piece of work rather
+than a rider on a test-only commit.
+
 ---
 
 ## Repository Structure
@@ -6557,7 +6613,10 @@ tooling.
 │   ├── hl-content.test.js      # 华丽 CORRECTNESS: poems/idioms/zodiac/量词/festivals/dishes/seasons truth tables + no-gate lock + FU_PATH tap geometry
 │   ├── logic.test.js           # deep unit tests of scripts/logic.js (seeded RNG, exhaustive)
 │   ├── e2e.test.js             # Playwright (Chromium) — GENERIC harness plays EVERY game + toddler-chaos double-tap guardrail
-│   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game
+│   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game,
+│   │                           #   plus three SIMULATIONS of what the sandbox has and Josh's iOS 14.2 iPad does not:
+│   │                           #   flex `gap` dropped, `aspect-ratio` forced to auto, and every scale-above-1 keyframe
+│   │                           #   applied to the tap target it lands on (a cue may claim the gap, never the neighbour)
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
