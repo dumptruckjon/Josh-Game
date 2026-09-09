@@ -6772,6 +6772,65 @@ because a chip palette of its own would have put every `.chip .ct` number
 against the wrong background. Suspect the fixture, including when the fixture is
 your own reading of the data.
 
+**AND THE SCREENSHOT THAT I "REFUTED" THIS MORNING WAS RIGHT ALL ALONG — I had
+measured the wrong ratio.** The recorded finding above says a tablet screenshot
+made the picture look adrift, that picture ÷ card WIDTH measures a constant
+24.8 / 24.2 / 24.1 / 24.4% at 320, 390, 414 and every tablet, and that the whole
+picture change was therefore reverted. Every one of those numbers is correct.
+The conclusion was not, and the reason is worth more than either fix:
+**a ratio that holds while BOTH of its terms are frozen tells you nothing about
+either.** `.wrap` caps at 560px and `.pic` caps at 8rem, and both caps engage at
+the same ~600px breakpoint — so above it the picture and the card stop growing
+*together*, the ratio stays flat by construction, and the question it appeared
+to answer (is the picture shortchanged?) was never the question. The one that
+matters is what the CARD does against the SCREEN: **89-91% of the width on every
+phone, then 68 / 63 / 51% at 768 / 834 / 1024.**
+**Stated at its sharpest: THE WORD HE READS WAS EXACTLY 132px ON A 390px PHONE
+AND ON AN 834px IPAD** — a literal `Math.min(cardH * 0.40, 132)` where the 132
+binds from 390 up — so the core content of a reading tool was the same size on a
+screen with four times the area. The picture likewise sat pinned at its 128px
+cap on every tablet while `22vmin` wanted 169-192. Fixed by raising all three
+caps: the deck to 820px, the picture's clamp to 12rem, and the word's literal to
+a vw-derived cap floored at 132. Measured, the card goes **63% → 94%** of an
+834px screen, the word **132 → 234**, the picture **128 → 183**, and every phone
+width (320 / 360 / 390 / 414) is **byte-identical**.
+**The phone is unchanged BY CONSTRUCTION rather than by hope, three different
+ways, and each is the point of its own line.** The word's vw track crosses 132
+only at 471px, above every phone; the picture's `22vmin` is 70-91px on a phone
+and so reaches neither the old cap nor the new; and a `max-width` on a
+`width: 100%` box can only ever cap, never expand.
+**That last one is why the media query I first wrapped the deck cap in was
+DELETED — and a passing mutation is what found it.** Moving its breakpoint from
+600px to 360px changed nothing at any tested width, which read like a weak
+clause and was really a redundant line: `#deck` outranks `.wrap` on specificity,
+so an unconditional rule measures byte-identical at all eight widths. This
+project has already deleted a redundant paint and a dead `noInk` wrap for the
+same reason — a line whose removal changes nothing makes its own guardrail
+unfalsifiable — and the general habit is the one that keeps paying: **when a
+mutation passes, do not widen the assertion; go and find out what the line
+actually does.**
+**Three more things worth keeping.**
+(1) **MONOTONICITY CANNOT CATCH THIS DEFECT, and saying so is part of the test.**
+The obvious law is the fort's — *a bigger screen must never hand back a smaller
+control* — and the old values were `284, 324, 354, 378, 524, 524, 524, 524`:
+flat, never decreasing, perfectly monotonic while being exactly the bug. The
+clause that catches it is a GROWTH ratio against the phone (card ×1.48 → ×2.21,
+word ×1.00 → ×1.77, picture ×1.49 → ×2.13, with bars measured between the two
+states); the monotonic sweep is kept beside it for the OPPOSITE regression — a
+cap that starts binding too early — and the comment says which does which rather
+than implying two protections.
+(2) **The MENU is a deliberate non-change, and it is pinned so nobody "finishes
+the job".** Its chips already measure 255px at 834, and 14 categories fill
+EVENLY only at two columns — three and four both orphan a card, which is the
+same even-fill law the fort's contents row is held to — so widening it buys a
+ragged grid and nothing else. A mutation that widens the menu alongside the deck
+goes red.
+(3) **A screenshot that still looks wrong after you have refuted it deserves a
+SECOND, DIFFERENT measurement.** The picture was proportionally correct and the
+card was two-thirds the size it should have been, and both facts were visible in
+the same image. The refutation was sound; it just answered the narrower of the
+two questions the picture was asking.
+
 ---
 
 ## Repository Structure

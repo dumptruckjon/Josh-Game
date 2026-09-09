@@ -2167,3 +2167,104 @@ test("Word Cards: the strip stays LARGE text, so its .7 ink keeps the 3.0 bar", 
     await ctx.close();
   }
 });
+
+test("Word Cards: the card grows with the screen, and the MENU deliberately does not", async () => {
+  // The strip test one above proved the SOUND STRIP scales. It did not ask
+  // whether the CARD does, and measured, it did not: `.wrap` capped at 560px,
+  // so from 600px up the card froze at 524 while the viewport grew to 1024 —
+  // 89-91% of the width on every phone, then 68 / 63 / 51%. Its contents froze
+  // with it: the picture pinned to its 8rem cap and the word to a literal 132,
+  // so THE WORD HE READS WAS EXACTLY THE SAME SIZE on a 390px phone and an
+  // 834px iPad. That is "a tablet must never be stingier than a phone" on the
+  // one page no audit reaches.
+  //
+  // Note why the earlier pass missed it, because the shape recurs: it measured
+  // picture / card WIDTH, found a constant 24% at every size, and concluded the
+  // picture was not shortchanged. True — and useless, because BOTH terms capped
+  // at the same 600px breakpoint. A ratio that holds while both of its terms
+  // are frozen tells you nothing about either.
+  const read = async (w, h) => {
+    const c = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce" });
+    const pg = await c.newPage();
+    try {
+      await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      const menu = await pg.evaluate(() => document.getElementById("menu").clientWidth);
+      await pg.click("#allBtn");
+      await pg.waitForSelector(".card");
+      await pg.click(".card");                       // the picture lives on the back
+      const r = await pg.evaluate(() => {
+        const card = document.querySelector(".card");
+        const px = (el) => parseFloat(getComputedStyle(el).fontSize);
+        return {
+          card: card.clientWidth,
+          word: px(document.querySelector(".word")),
+          pic: px(document.querySelector(".back-face .pic")),
+          overflow: document.documentElement.scrollWidth - window.innerWidth,
+        };
+      });
+      return { ...r, menu };
+    } finally {
+      await c.close();
+    }
+  };
+
+  const sizes = [[320, 568], [390, 844], [414, 896], [768, 1024], [834, 1112], [1024, 1366]];
+  const got = [];
+  for (const [w, h] of sizes) got.push({ w, ...(await read(w, h)) });
+  const at = (w) => got.find((g) => g.w === w);
+  const phone = at(390), tablet = at(834);
+
+  // Nothing may spill sideways at any of them — a wider card is only an
+  // improvement if it still fits.
+  for (const g of got) assert.equal(g.overflow, 0, `${g.w}px overflows by ${g.overflow}px`);
+
+  // THE PHONE IS UNCHANGED BY CONSTRUCTION, and pinned so it stays a conscious
+  // decision. Not by a breakpoint — the deck's cap is UNCONDITIONAL, because a
+  // `max-width` on a `width: 100%` box can only cap and never expand, so it is
+  // inert at every phone width on its own. The picture's clamp never reaches
+  // either cap on a phone (22vmin is 70-91px), and the word's vw track crosses
+  // 132 only at 471px, above every phone.
+  assert.deepEqual(
+    { card: at(320).card, word: at(320).word, pic: Math.round(at(320).pic) },
+    { card: 284, word: 123, pic: 70 }, "320px must render exactly as it shipped");
+  assert.deepEqual(
+    { card: phone.card, word: phone.word, pic: Math.round(phone.pic) },
+    { card: 354, word: 132, pic: 86 }, "390px must render exactly as it shipped");
+  assert.equal(at(414).word, 132, "414px is still a phone and must not gain");
+
+  // ...and a tablet must genuinely GAIN. The bars are measured separations
+  // between the two states, not slacks: on the shipped-before code these read
+  // card x1.48, word x1.00 and picture x1.49, and they now read x2.21, x1.77
+  // and x2.13. The WORD is the sharpest — it was literally the same number.
+  const grew = (k) => tablet[k] / phone[k];
+  assert.ok(grew("word") >= 1.4,
+    `the word he READS must be bigger on a tablet: ${phone.word}px at 390 vs ` +
+    `${tablet.word}px at 834 (x${grew("word").toFixed(2)}, need x1.4)`);
+  assert.ok(grew("card") >= 1.8,
+    `the card must grow with the screen: ${phone.card}px vs ${tablet.card}px ` +
+    `(x${grew("card").toFixed(2)}, need x1.8)`);
+  assert.ok(grew("pic") >= 1.8,
+    `the picture must grow with the screen: ${Math.round(phone.pic)}px vs ` +
+    `${Math.round(tablet.pic)}px (x${grew("pic").toFixed(2)}, need x1.8)`);
+
+  // No width may hand back LESS than a narrower one. This cannot catch the
+  // defect above (the old values were flat, never decreasing) — it is here for
+  // the opposite regression, a cap that starts binding too early.
+  for (let k = 1; k < got.length; k++) {
+    for (const f of ["card", "word", "pic"]) {
+      assert.ok(got[k][f] >= got[k - 1][f] - 0.01,
+        `${f} shrinks from ${got[k - 1].w}px to ${got[k].w}px ` +
+        `(${Math.round(got[k - 1][f])} -> ${Math.round(got[k][f])})`);
+    }
+  }
+
+  // AND THE MENU IS A DELIBERATE NON-CHANGE, pinned so nobody "finishes the
+  // job" by widening it too. Its chips already measure 255px at 834, and 14
+  // categories fill EVENLY only at two columns — 3 and 4 both orphan a card,
+  // which is the same even-fill law the fort's contents row is held to. So the
+  // menu keeps the 560 cap while the deck leaves it.
+  assert.equal(tablet.menu, at(390).menu > 560 ? tablet.menu : 560,
+    `the menu must keep its 560px cap (saw ${tablet.menu})`);
+  assert.ok(tablet.card > tablet.menu,
+    `the deck must be the one that grew: card ${tablet.card} vs menu ${tablet.menu}`);
+});
