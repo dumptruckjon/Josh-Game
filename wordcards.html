@@ -46,7 +46,12 @@
     display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;
     box-shadow:0 10px 0 rgba(0,0,0,.22);margin-bottom:20px;
   }
-  .all small{font-size:16px;font-weight:700;opacity:.5;}
+  /* No dimming on a light fill. Dark ink on this card's eight hues is only
+     5.01:1 at its WORST, so there is no headroom to spend: measured, even
+     opacity .90 breaches AA (4.39) and only full ink clears it on all eight.
+     These counts were .5 and .55 — 3.35:1 on white and 2.46:1 on purple.
+     Hierarchy comes from SIZE and WEIGHT instead, which it already did. */
+  .all small{font-size:16px;font-weight:700;}
   .all:active{transform:translateY(4px);box-shadow:0 6px 0 rgba(0,0,0,.22);}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:20px;}
   .chip{
@@ -56,7 +61,7 @@
   }
   .chip .ic{font-size:30px;line-height:1;}
   .chip .nm{font-size:18px;font-weight:800;line-height:1.15;}
-  .chip .ct{font-size:14px;font-weight:700;opacity:.55;}
+  .chip .ct{font-size:14px;font-weight:700;}
   .chip:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
   .chip:focus-visible,.all:focus-visible{outline:4px solid #fff;outline-offset:3px;}
 
@@ -104,7 +109,10 @@
         box-shadow:0 16px 0 rgba(0,0,0,.22);transition:background .35s ease;}
   .back-face{transform:rotateY(180deg);}
   .word{font-size:64px;font-weight:800;color:var(--ink);letter-spacing:.02em;line-height:1;white-space:nowrap;}
-  .hint{position:absolute;bottom:24px;color:rgba(33,18,63,.42);font-size:15px;font-weight:700;}
+  /* 1.95..2.49:1 at .42 — the one instruction on the front of a card, and the
+     faintest thing on it. Full ink is 15px against the word's 64px, so the
+     hierarchy is a 4x size step and needs no dimming to carry it. */
+  .hint{position:absolute;bottom:24px;color:var(--ink);font-size:15px;font-weight:700;}
   .pic{font-size:clamp(3.6rem,22vmin,8rem);line-height:1;}
   .pic.sentence{font-size:clamp(1.5rem,7vmin,2.6rem);font-weight:800;color:var(--ink);
                 line-height:1.35;max-width:82%;text-align:center;}
@@ -113,8 +121,17 @@
   .letters span{padding:0 .22em;}
   /* a two-letter SOUND is one tile, not two letters: sh-i-p, never s-h-i-p.
      Spacing is a child margin, never a flex `gap` — Safari 14 drops gap in a
-     flex row and every tile would touch on Josh's iPad. */
-  .letters span.team{background:rgba(33,18,63,.14);border-radius:.3em;
+     flex row and every tile would touch on Josh's iPad.
+
+     The plate is WHITE, not ink. A dark plate under already-dark ink darkens
+     the background it sits on, so the highlighted tile came out FAINTER than
+     its plain siblings — 2.78:1 on the purple card against their 3.18..5.33,
+     below even the 3.0 large-text bar, on sh/ch/th, which is his working
+     edge. A highlight must be the clearest mark on the strip, not the
+     faintest. .55 is one step past the measured crossover (.50) at which a
+     white plate becomes as visible against the card as the ink one it
+     replaces; at .55 the tile reads 4.93..5.92 and the plate 1.26..2.04. */
+  .letters span.team{background:rgba(255,255,255,.55);border-radius:.3em;
                      padding:0 .16em;margin:0 .06em;}
   /* the shared ending in the families deck. An underline rather than a colour:
      the card background cycles through eight hues and a second ink colour

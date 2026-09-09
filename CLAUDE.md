@@ -6685,6 +6685,93 @@ is the load-bearing one — disabling the shrink loop reports *"the strip left t
 card at 320px (2 of 82 cards)"* — and the 390/834 ones are defence-in-depth.
 The comment says which is which rather than implying three protections.
 
+**WORD CARDS HAD NEVER HAD A CONTRAST PASS — it is the one standalone PAGE in
+this app, with its own inline CSS, so every audit scoped to `styles/*.css`
+looked straight past it. Four runs below AA, and every one of them on a LIGHT
+fill, which is the mechanism rather than a coincidence.** Dark ink on this
+card's eight hues is only **5.01:1 at its worst**, so there is no headroom to
+spend: measured, even `opacity: .90` breaches AA (4.39) and ONLY full ink clears
+it on all eight. On the dark ground the same trick is fine — white at `.50`
+there is 5.22 — which is exactly why the failures cluster on the card and the
+chips. `.all small` (the 503-card count) 3.35:1 on white, `.chip .ct` (each
+deck's count) 2.46..3.51, `.hint` — the one instruction on the front of a card —
+**1.95..2.49**. All three go to full ink, with hierarchy from SIZE and WEIGHT,
+which they already had (15px against the word's 64px is a 4x step).
+**The fourth is a different defect and the sharpest: a DARK plate under
+already-dark ink DARKENS the background it sits on, so the highlighted tile
+rendered FAINTER than its plain siblings.** `.letters span.team` is the digraph
+— sh / ch / th, the skill his June 2026 report lists as his working edge — and
+at `rgba(33,18,63,.14)` it measured **2.78:1 on the purple card against the
+plain tiles' 3.18..5.33**, below even the 3.0 large-text bar. An inverted
+highlight: the mark whose job is to say *these two letters are ONE sound* was
+the least legible thing on the strip. The plate is white now, and its alpha is a
+**measured crossover rather than a taste**: it must be at least as legible as a
+plain tile's worst AND at least as visible against the card as the plate it
+replaces, and those two bounds first both hold at **.50**, so it ships at .55 —
+one step past the crossover, because a bound sitting exactly on the value it
+must separate from is a coin flip. Result 4.93..5.92 with the plate at
+1.26..2.04. Keeping it a PLATE (rather than borrowing the rime's underline) is
+deliberate: `.word .rime` already means *shared ending* in the families deck and
+both can appear on one card, so one mark must not carry two meanings.
+**Eight things worth keeping, and five are about the test.**
+(1) **The guardrail reads the CASCADE, not a list of selectors** — it walks
+every text node on screen and composites the real backdrop up the ancestor
+chain, which is what a translucent plate on a card requires and what a
+rule-by-rule scan cannot do. Its ART exemption is *"has a letter or a digit"* and
+explicitly NOT an emoji property, because `\p{Emoji_Component}` **matches the
+ASCII digits** (they are keycap bases) — the trap that once made the fort's own
+audit skip every price, gold and lives figure.
+(2) **`reducedMotion` is load-bearing, not hygiene**: `.face` carries
+`transition: background .35s ease`, so sampling right after a Next click reads a
+card colour still BLENDING between two hues rather than either of them, and
+`.pop` ramps the word's opacity from .3. Both are gated under reduce — the fix a
+red `verify-live` already taught this repo, applied before it could bite.
+(3) **The eight-hue clause was a PROXY and its mutation exposed it.** It counted
+distinct backgrounds seen anywhere, and the MENU shows eight chips in the eight
+hues — so *"never advance the card"* still measured 8 and passed. It reads
+`.face`'s own fill now and asserts `=== 8`. *When a check asserts X, assert X*,
+for the fifth time in this file and the first inside a test written the same
+hour.
+(4) **Two mutations failed to prove anything, each in a different way.** The
+hue mutation first fired the run-COUNT floor (the earlier-clause trap), so the
+isolation had to keep the run count high while collapsing the hues. And
+`Math.max(30, …)` -> `Math.max(16, …)` **changed nothing at all**, because the
+computed value was already above 16 and the floor only binds from below — a
+mutation that does not reach the code path it names is the em-dash trap wearing
+arithmetic. Driving the rendered size genuinely below the threshold reports
+`shrank to 11px`.
+(5) **One clause is honestly NOT load-bearing and the comment says so.**
+Removing the occlusion check leaves the audit green, because the card's two
+faces share one backdrop so the unpainted one scores identically, and the
+menu-behind-a-deck case is already handled by `display:none`. It stays because
+it keeps the audit measuring what is PAINTED, and it earns its place the moment
+a covered run sits on a different backdrop — but saying that beats implying a
+protection that measures at zero.
+(6) **A new hazard fell out of it and is now pinned: a text run's WCAG BAR can
+move under it.** `fit()` shrinks the sound strip per word, and at 26px/800 it is
+LARGE text (bar 3.0) where its `.7` ink measures 3.18..5.33 and passes on every
+hue — but below **18.66px bold** it becomes NORMAL text at bar 4.5, where that
+same ink fails on six of the eight. So a long enough word would turn into a
+contrast failure **with no colour changed anywhere**. Measured, the shipped floor
+is 24px (helicopter, at 320) against a `fit()` minimum of 13, so it is latent
+rather than live. **320 earns its place as a second viewport by the rule that
+rejected sizes elsewhere** — it is the ONLY width where the shrink loop engages
+at all, so it is where the two states can separate; 390 and 834 never leave their
+start size.
+(7) **A scripted edit produced BROKEN CSS and only reading it back caught it.**
+My new paragraph landed after the existing comment's `*/`, leaving prose as a
+bare selector — which would have swallowed the `.letters span.team` rule
+entirely and shipped the defect I was fixing. The recorded rule is *"verify the
+change is PRESENT, not just that the script exited 0"*; extend it to *and that
+the result is well-formed* — a comment-balance count is two lines and would have
+said so without my eyes.
+(8) **I assumed the chips used the card's eight COLORS and checked before
+trusting it.** They do — every `CATS[].color` and `READING[][2]` is drawn from
+that same set — but the measurement was worthless until that was verified,
+because a chip palette of its own would have put every `.chip .ct` number
+against the wrong background. Suspect the fixture, including when the fixture is
+your own reading of the data.
+
 ---
 
 ## Repository Structure

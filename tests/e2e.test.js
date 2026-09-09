@@ -1916,3 +1916,254 @@ test("Word Cards: the sound-out strip scales with the card", async () => {
   assert.equal(tablet.over, 0, `the strip left the card on a tablet (${tablet.over} of ${tablet.cards} cards)`);
   assert.equal(narrow.first, 30, `320px must also sit on the floor, saw ${narrow.first}`);
 });
+
+// Page-side auditor. The population is DERIVED — every text node actually on
+// screen — never a list of selectors, because a list is what the next author
+// forgets to join, and because the runs this found that I had NOT enumerated
+// are the whole reason it exists.
+function auditContrast() {
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (p) => 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2]);
+  const ratio = (a, b) => {
+    const x = lum(a), y = lum(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  };
+  const parse = (v) => {
+    const m = String(v).match(/rgba?\(([^)]+)\)/);
+    if (!m) return null;
+    const q = m[1].split(",").map(parseFloat);
+    return { rgb: [q[0], q[1], q[2]], a: q.length > 3 ? q[3] : 1 };
+  };
+  const over = (fg, a, bg) => [0, 1, 2].map((i) => a * fg[i] + (1 - a) * bg[i]);
+
+  // Composite the REAL backdrop: every translucent background layer from the
+  // element up to the first opaque one. That is the cascade rather than a guess
+  // about which rule won — the digraph tile is a translucent plate sitting on
+  // the card, and getting that one wrong is the entire finding this pins.
+  const backdrop = (el) => {
+    const stack = [];
+    for (let n = el; n; n = n.parentElement) {
+      const bg = parse(getComputedStyle(n).backgroundColor);
+      if (!bg || !bg.a) continue;
+      stack.push(bg);
+      if (bg.a >= 1) break;
+    }
+    if (!stack.length || stack[stack.length - 1].a < 1) stack.push({ rgb: [255, 255, 255], a: 1 });
+    let base = stack[stack.length - 1].rgb;
+    for (let k = stack.length - 2; k >= 0; k--) base = over(stack[k].rgb, stack[k].a, base);
+    return base;
+  };
+
+  const name = (el) => el.tagName.toLowerCase() +
+    (el.id ? "#" + el.id : "") +
+    (typeof el.className === "string" && el.className.trim()
+      ? "." + el.className.trim().split(/\s+/).join(".") : "");
+
+  const out = [];
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    const txt = (n.nodeValue || "").trim();
+    if (!txt) continue;
+    // ART, not text — a picture has no contrast requirement. Deliberately "has
+    // a letter or a digit" and NOT an emoji property: \p{Emoji_Component}
+    // MATCHES THE ASCII DIGITS (they are keycap bases), so an emoji test would
+    // silently exempt every number on the page, which is how the fort's own
+    // audit once skipped its prices, gold and lives.
+    if (!/[\p{L}\p{Nd}]/u.test(txt)) continue;
+    const el = n.parentElement;
+    if (!el) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) continue;
+
+    // Occlusion — the audit must score what is PAINTED. Measured, removing this
+    // changes no verdict today and the comment says so rather than implying a
+    // protection: the card's two faces share one backdrop, so the unpainted one
+    // scores identically, and the menu-behind-a-deck case is already handled by
+    // `.hidden{display:none}`. It earns its place the moment a covered run sits
+    // on a DIFFERENT backdrop, which is exactly how the fort's own audit once
+    // scored the screen behind a dialog.
+    const cx = Math.min(Math.max(r.left + r.width / 2, 1), window.innerWidth - 1);
+    const cy = Math.min(Math.max(r.top + r.height / 2, 1), window.innerHeight - 1);
+    const top = document.elementFromPoint(cx, cy);
+    if (!top || !(el === top || el.contains(top) || top.contains(el))) continue;
+
+    // This model folds `opacity` into the TEXT, which is exact for a run that
+    // dims itself and WRONG for one dimmed by a parent (a parent dims its own
+    // background too). Report that rather than compute a wrong number — and it
+    // doubles as the mid-animation guard, since .pop ramps opacity .3 -> 1.
+    let ancestorOpacity = 1;
+    for (let q = el.parentElement; q; q = q.parentElement) {
+      ancestorOpacity *= parseFloat(getComputedStyle(q).opacity || "1");
+    }
+
+    const col = parse(cs.color) || { rgb: [0, 0, 0], a: 1 };
+    const bg = backdrop(el);
+    const fg = over(col.rgb, col.a * parseFloat(cs.opacity || "1"), bg);
+    const size = parseFloat(cs.fontSize);
+    const weight = parseInt(cs.fontWeight, 10) || 400;
+    // WCAG AA: large text is >= 24px, or >= 18.66px when bold.
+    const large = size >= 24 || (size >= 18.66 && weight >= 700);
+    out.push({
+      sel: name(el), text: txt.slice(0, 22), size, weight,
+      onCard: !!el.closest(".face"),
+      bar: large ? 3.0 : 4.5,
+      ratio: ratio(fg, bg),
+      bg: bg.map(Math.round).join(","),
+      ancestorOpacity,
+    });
+  }
+  return out;
+}
+
+test("Word Cards: every text run clears WCAG AA on all eight card colours", async () => {
+  // wordcards.html is the one standalone PAGE in this app — its own inline CSS,
+  // it never loads main.css — so no contrast pass had ever reached it. Measured
+  // from the shipped literals, four runs were below AA and every one of them was
+  // on a LIGHT fill, which is the mechanism: dark ink on this card's eight hues
+  // is only 5.01:1 at its WORST, so there is no headroom to dim on and even
+  // opacity .90 breaches (4.39). On the dark ground the same trick is fine —
+  // white at .50 there is 5.22 — which is why the failures cluster.
+  //
+  //   .all small       16px/700 ink .50   3.35:1 on white   (the 503-card count)
+  //   .chip .ct        14px/700 ink .55   2.46..3.51        (each deck's count)
+  //   .hint            15px/700 ink .42   1.95..2.49        ("tap me")
+  //   .letters .team   on a .14 INK plate 2.78 on purple    (sh / ch / th)
+  //
+  // The last is the sharpest and is a different defect from the other three: a
+  // dark plate under already-dark ink DARKENS the background it sits on, so the
+  // highlighted tile rendered fainter than its plain siblings (3.18..5.33) —
+  // below even the 3.0 large-text bar — on the digraph skill his June 2026
+  // report lists as his working edge. A highlight has to be the clearest mark
+  // on the strip, not the faintest.
+  //
+  // reducedMotion is LOAD-BEARING, not precautionary: `.face` carries
+  // `transition: background .35s ease`, so sampling after a Next click would
+  // read a card colour still BLENDING between two hues rather than either of
+  // them — and `.pop` ramps the word's opacity from .3. Both are gated under
+  // reduce, which is the fix a red verify-live already taught this repo.
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 }, reducedMotion: "reduce",
+  });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    const runs = [];
+    const cardHues = new Set();
+    const sweep = async () => {
+      for (const r of await pg.evaluate(auditContrast)) runs.push(r);
+    };
+    // The card's OWN fill, read off `.face`. Counting distinct backgrounds
+    // across all runs looked like the same thing and is not: the menu shows
+    // eight chips in the eight hues, so that count sits at 8 even if the card
+    // never advances past its first colour. Assert the property.
+    const noteHue = async () => cardHues.add(
+      await pg.evaluate(() => getComputedStyle(document.querySelector(".face")).backgroundColor));
+    const openDeck = async (label) => {
+      await pg.evaluate((l) => {
+        const b = [...document.querySelectorAll(".chip")].find((x) => x.textContent.includes(l));
+        if (b) b.click();
+      }, label);
+      await pg.waitForSelector(".card");
+    };
+
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await sweep();                                   // the MENU: chips, counts, headings
+
+    // Eight cards, because `--card` cycles COLORS[i % 8] — so a walk of eight
+    // is what scores every hue the card can take. Both FACES of each: the front
+    // carries the word and the hint, the back the picture and the sound strip.
+    await openDeck("Sound Teams");                   // the deck that has team tiles
+    for (let k = 0; k < 8; k++) {
+      await noteHue();
+      await sweep();
+      await pg.click(".card");                       // flip
+      await sweep();
+      await pg.click("#next");
+    }
+    await pg.click("#back");
+    await pg.waitForSelector("#grid .chip");
+    await openDeck("Sight Words");                   // the deck that renders .pic.sentence
+    for (let k = 0; k < 4; k++) {
+      await sweep();
+      await pg.click(".card");
+      await sweep();
+      await pg.click("#next");
+    }
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+
+    // FIXTURE FLOOR. A derived population fails OPEN — a walker that stopped
+    // matching would audit nothing and report a clean sweep, which is exactly
+    // how a contrast pass can pass while measuring the screen behind it.
+    assert.ok(runs.length >= 120, `the audit must find real text (saw ${runs.length} runs)`);
+    assert.equal(cardHues.size, 8,
+      `the card cycles eight hues and each must be scored (saw ${cardHues.size}: ` +
+      `${[...cardHues].join(" ")})`);
+    assert.ok(runs.some((r) => r.onCard), "fixture: no run was scored on a card at all");
+    const saw = (s) => runs.some((r) => r.sel.includes(s));
+    assert.ok(saw(".team"), "fixture: no digraph tile was audited — it is the point of this test");
+    assert.ok(saw(".hint"), "fixture: the front-of-card hint was never audited");
+    assert.ok(saw(".ct"), "fixture: the deck chips' card counts were never audited");
+    assert.ok(saw("small"), "fixture: the Every-word card count was never audited");
+
+    // The compositing model's own precondition, asserted rather than assumed.
+    const dimmed = [...new Set(runs.filter((r) => r.ancestorOpacity < 0.999).map((r) => r.sel))];
+    assert.deepEqual(dimmed, [],
+      `an ancestor dims its whole subtree, so this model would score these wrong: ${dimmed.join(", ")}`);
+
+    const fails = runs.filter((r) => r.ratio < r.bar);
+    const worst = [...new Map(fails.map((f) =>
+      [f.sel + f.bg, `${f.sel} "${f.text}" ${f.ratio.toFixed(2)}:1 on rgb(${f.bg}) (bar ${f.bar})`],
+    )).values()];
+    assert.equal(fails.length, 0,
+      `${fails.length} text run(s) below WCAG AA: ${worst.slice(0, 8).join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: the strip stays LARGE text, so its .7 ink keeps the 3.0 bar", async () => {
+  // The strip is the one run whose WCAG bar can move under it. `fit()` shrinks
+  // per word down to a floor of 13px, and at 26px/800 the strip is LARGE text
+  // (bar 3.0), where ink at .7 measures 3.18..5.33 and passes on every card.
+  // Below 18.66px bold it becomes NORMAL text, bar 4.5, and that same ink fails
+  // on six of the eight hues — a contrast failure caused by a LENGTH, with no
+  // colour changed anywhere.
+  //
+  // 320 is the viewport that can separate those two states and the only one:
+  // measured, the shrink loop engages ONLY there (helicopter takes it to 24px)
+  // while 390 and 834 never leave their start size. So this is a real second
+  // size rather than a fence — the bar is a property of the rendered font size,
+  // and 320 is where that size is smallest.
+  const ctx = await browser.newContext({
+    viewport: { width: 320, height: 568 }, reducedMotion: "reduce",
+  });
+  const pg = await ctx.newPage();
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.click("#allBtn");
+    await pg.waitForSelector(".card");
+    const r = await pg.evaluate(() => {
+      const L = document.querySelector(".letters");
+      const next = document.getElementById("next");
+      let min = Infinity, worst = "", n = 0;
+      while (next && !next.disabled && n++ < 700) {
+        const s = parseFloat(getComputedStyle(L).fontSize);
+        if (s < min) { min = s; worst = document.getElementById("word").textContent; }
+        next.click();
+      }
+      return { min, worst, n, weight: parseInt(getComputedStyle(L).fontWeight, 10) };
+    });
+    assert.ok(r.n > 400, `fixture: the walk must cover the whole deck (saw ${r.n})`);
+    assert.ok(r.weight >= 700, `fixture: the large-text threshold assumes bold (saw ${r.weight})`);
+    assert.ok(r.min >= 18.66,
+      `the sound strip shrank to ${r.min}px on "${r.worst}", which is NORMAL text — ` +
+      `its .7 ink is 3.18:1 at worst and needs 4.5 there, so a long word would ` +
+      `become a contrast failure with no colour changed`);
+  } finally {
+    await ctx.close();
+  }
+});
