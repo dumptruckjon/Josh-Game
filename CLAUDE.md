@@ -6635,6 +6635,56 @@ promises something its membership rule does not deliver — and the tell was the
 same, reading the shipped contents rather than the definition that produced
 them.
 
+**I SCREENSHOTTED WORD CARDS AT IPAD SIZE, SAW A TINY ELEPHANT ADRIFT IN A HUGE
+YELLOW CARD, BUILT THE FIX — AND THE RATIO REFUTED IT.** `wordcards.html` is the
+one standalone PAGE in this app: it has its own inline CSS and never loads
+`main.css`, so none of the tablet work done for Josh's launcher reaches it, and
+nothing had ever measured it at the size he actually reads flash cards on. The
+picture is `clamp(3.6rem, 22vmin, 8rem)` — a VIEWPORT unit — while the word
+beside it is `fit(wordEl, min(card.clientHeight * 0.40, 132), 26)`, derived from
+the CARD. Two owners for one question, one of which ignores the card, which is
+this file's most reliable tell. So I sized the picture off the card, measured
+it 128 -> 346px, screenshotted a card that finally looked like a flash card, and
+then checked the thing I should have checked first: **picture / card WIDTH is
+24.8 / 24.2 / 24.1 / 24.4 % at 320, 390, 414 and every tablet — constant.** The
+`vmin` track happens to follow the card's width exactly, because the wrap's
+560px cap and `vmin` bind together. The picture was never being shortchanged;
+I was reading absolute emptiness off a 1668px-wide screenshot instead of a
+proportion, which is the same viewing artifact as judging a sprite by a 4x crop.
+The whole picture change was reverted. **Look at the picture to find a
+candidate, then measure the RATIO before believing it** — and a two-owner smell
+is a reason to go and measure, not a finding on its own.
+**What survived is the one element on the card that scaled by nothing at all**:
+the sound-out strip was `fit(lettersEl, 30, 13)`, a flat 30px whether the card
+was 284px wide or 524 — on the phonics tiles the profile lists as his working
+edge. It comes off the card now with 30 as the FLOOR, so 320 / 360 / 390 / 414
+render exactly as they shipped (measured byte-identical) and only a bigger card
+gains: 30 -> 42 at 600px and up, +2px at 430 (measured and accepted, the
+`.house__piece` precedent). Room measured before and after: the widest split had
+42 / 46 / 66px of headroom at 390 / 414 / tablet and was using 30.
+**Four method notes, three of them my own errors.** (1) **My probe measured a
+HIDDEN element and reported 0**: `querySelector(".wrap")` matched `#deck`, which
+is `display:none` while the menu is up, so the page width read as zero — the
+degenerate-reading class, and the tell was that the number was absurd rather
+than merely surprising. (2) **The blur metric was CONFOUNDED and I nearly
+shipped a cap because of it.** Wondering whether a 346px emoji is soft, I
+counted partial-alpha pixels and found a flat 10.0% of ink at 64 / 128 / 256 /
+400 — which looks exactly like a fixed-resolution source being upsampled. The
+control refutes it: plain text falls 27 -> 13.7 -> 7.4 -> 4.6% over the same
+sizes, because for TEXT a partial-alpha pixel is an edge, while for an emoji it
+is mostly internal soft shading. **A metric that separates on one kind of glyph
+can measure something else entirely on another** — and the sandbox's emoji font
+is not iOS's anyway, so the sharpness question was never answerable here. (3)
+**The earlier-clause trap, again**: the mutation meant to prove the overflow
+clause (let the strip grow unbounded) fired the phone-floor clause instead, so
+it proved nothing about overflow. (4) **And isolating it needed the size where
+the mechanism actually engages.** Measured, `fit()`'s shrink only ever runs at
+**320**, where strawberry and helicopter drop 30 -> 24 against a ~32px ceiling;
+at 390 and 834 the start already fits every word in the deck. So the 320 clause
+is the load-bearing one — disabling the shrink loop reports *"the strip left the
+card at 320px (2 of 82 cards)"* — and the 390/834 ones are defence-in-depth.
+The comment says which is which rather than implying three protections.
+
 ---
 
 ## Repository Structure

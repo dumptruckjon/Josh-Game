@@ -402,7 +402,14 @@ function render(animate){
   }
 
   fit(wordEl, Math.min(Math.round(card.clientHeight * 0.40), 132), 26);
-  fit(lettersEl, 30, 13);
+
+  // The strip is the only thing on the card that never scaled. The word derives
+  // from the card's height and the picture from its width (a constant 24% at
+  // every portrait size — measured, and the reason the picture is NOT touched
+  // here), while these tiles were a flat 30px whether the card was 284 wide or
+  // 524. They come off the card now too. 30 is the FLOOR, so every phone width
+  // renders exactly as it did and only a tablet gains.
+  fit(lettersEl, Math.max(30, Math.min(Math.round(card.clientWidth * 0.08), 52)), 13);
 
   document.documentElement.style.setProperty("--card", COLORS[i % COLORS.length]);
   countEl.textContent = (i + 1) + " / " + deck.length;

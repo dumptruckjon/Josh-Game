@@ -1838,3 +1838,81 @@ test("Word Cards: he cannot guess the next card, and the sounds are right", asyn
     await ctx.close();      // a test that opens a context owns closing it, even on failure
   }
 });
+
+test("Word Cards: the sound-out strip scales with the card", async () => {
+  // wordcards.html is a standalone PAGE with its own inline CSS — it never
+  // loads main.css, so none of the tablet work done for Josh's launcher reaches
+  // it, and nothing had ever measured it at the size he actually reads on.
+  //
+  // Measured there: the word derives from the card's HEIGHT and the picture
+  // from its WIDTH — a constant 24.8 / 24.2 / 24.1 / 24.4 % of the card at 320,
+  // 390, 414 and every tablet — so the picture is NOT shortchanged, which a
+  // screenshot made me believe until that ratio refuted it. The strip was the
+  // one thing on the card that never scaled at all: a flat 30px whether the
+  // card was 284 wide or 524, on the phonics content his June 2026 report lists
+  // as his working edge. 30 is the FLOOR now, so a phone renders exactly as it
+  // always did and only a bigger card gains.
+  //
+  // Fresh CONTEXT per size, never setViewportSize — the documented reason a
+  // tablet check once survived its own mutation.
+  const read = async (w, h) => {
+    const c = await browser.newContext({ viewport: { width: w, height: h } });
+    const pg = await c.newPage();
+    const errs = [];
+    pg.on("pageerror", (e) => errs.push(e.message));
+    try {
+      await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      await pg.click("#grid .chip");
+      await pg.waitForSelector(".card");
+      // Walk the WHOLE deck: fit() shrinks per word, so the widest split is
+      // what actually has to stay inside the card.
+      const r = await pg.evaluate(() => {
+        const card = document.querySelector(".card");
+        const L = document.querySelector(".letters");
+        const face = L.parentElement;
+        const next = document.getElementById("next");
+        const first = parseFloat(getComputedStyle(L).fontSize);
+        let over = 0, n = 0;
+        while (next && !next.disabled && n++ < 600) {
+          // layout-only, so the back face's 3D transform cannot skew it
+          if (L.scrollWidth > card.clientWidth - 44) over += 1;
+          if (face.scrollHeight > face.clientHeight) over += 1;
+          next.click();
+        }
+        return { first, cardW: card.clientWidth, over, cards: n };
+      });
+      assert.deepEqual(errs, [], `${w}px: uncaught page errors: ${errs.join(" | ")}`);
+      return r;
+    } finally {
+      await c.close();
+    }
+  };
+
+  const narrow = await read(320, 568);
+  const phone = await read(390, 844);
+  const tablet = await read(834, 1112);
+
+  assert.ok(phone.cards > 40, `fixture: the walk must cover a real deck (saw ${phone.cards})`);
+  assert.ok(tablet.cardW > phone.cardW * 1.4,
+    `fixture: the tablet card must really be wider (${phone.cardW} -> ${tablet.cardW})`);
+
+  // 30 is the floor, so every phone width renders exactly as it shipped.
+  assert.equal(phone.first, 30, `a phone's strip must stay at its shipped 30px, saw ${phone.first}`);
+
+  // A card half again as wide must carry a bigger strip. The bar is a MEASURED
+  // separation rather than a slack: the flat version is x1.00 and this is x1.40.
+  const grew = tablet.first / phone.first;
+  assert.ok(grew >= 1.3,
+    `the strip must scale with the card: ${phone.first}px on a ${phone.cardW}px card vs ` +
+    `${tablet.first}px on a ${tablet.cardW}px one (x${grew.toFixed(2)}, need x1.3)`);
+
+  // ... and it must still fit, on every word in the deck, at every width. 320 is
+  // the clause that can actually FAIL: measured, fit()'s shrink only ever
+  // engages there (strawberry and helicopter drop 30 -> 24 against a ~32px
+  // ceiling), so at 390 and 834 the start already fits every word and those two
+  // are defence-in-depth rather than load-bearing. Say which is which.
+  assert.equal(narrow.over, 0, `the strip left the card at 320px (${narrow.over} of ${narrow.cards} cards)`);
+  assert.equal(phone.over, 0, `the strip left the card on a phone (${phone.over} of ${phone.cards} cards)`);
+  assert.equal(tablet.over, 0, `the strip left the card on a tablet (${tablet.over} of ${tablet.cards} cards)`);
+  assert.equal(narrow.first, 30, `320px must also sit on the floor, saw ${narrow.first}`);
+});
