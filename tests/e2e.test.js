@@ -1607,14 +1607,27 @@ test("Word Cards: the home button opens it, it plays, and it comes back", async 
       const menu = await pg.evaluate(() => ({
         path: location.pathname,
         total: document.querySelector("#allBtn small").textContent.trim(),
-        chips: [...document.querySelectorAll(".chip")].map((c) => c.querySelector(".ct").textContent.trim()),
+        chips: [...document.querySelectorAll("#grid .chip")].map((c) => c.querySelector(".ct").textContent.trim()),
+        reading: [...document.querySelectorAll("#readGrid .chip")].map((c) => c.querySelector(".nm").textContent.trim()),
         home: !!document.querySelector(".home"),
         overflow: document.documentElement.scrollWidth - window.innerWidth,
       }));
       assert.match(menu.path, /wordcards\.html$/, `${w}px: the button did not open the game (${menu.path})`);
       assert.ok(menu.home, `${w}px: no way back to Josh's home from the game`);
-      assert.ok(menu.chips.length >= 10, `${w}px: only ${menu.chips.length} decks rendered`);
+      assert.ok(menu.chips.length >= 10, `${w}px: only ${menu.chips.length} picture decks rendered`);
+      // The reading decks are the point of the thing: he is learning to read,
+      // and the deck already held the whole phonics spine without exposing it.
+      assert.deepEqual(menu.reading, ["First Words", "Word Families", "Sound Teams", "Sight Words"],
+        `${w}px: the reading decks are missing from the menu`);
       assert.ok(menu.overflow <= 0, `${w}px: the menu scrolls sideways by ${menu.overflow}px`);
+      // …and the MENU's taps are audited too. Only the deck's were, which is how
+      // "Every word" shipped at 354x70 against the 75px floor.
+      const menuTaps = await pg.evaluate(() => [...document.querySelectorAll("#menu .chip, #menu .all, #menu .home")]
+        .map((el) => { const b = el.getBoundingClientRect();
+          return { n: (el.querySelector(".nm") || el).textContent.trim().slice(0, 20),
+                   s: Math.round(Math.min(b.width, b.height)) }; })
+        .filter((t) => t.s < 75));
+      assert.deepEqual(menuTaps, [], `${w}px: menu controls below the 75px floor`);
 
       // The counts must be COUNTED, not stored: every rendered figure has to
       // equal what the page's own data holds. A stale literal fails here.
@@ -1671,5 +1684,157 @@ test("Word Cards: the home button opens it, it plays, and it comes back", async 
     } finally {
       await ctx.close();      // a test that opens a context owns closing it, even on failure
     }
+  }
+});
+
+test("Word Cards: he cannot guess the next card, and the sounds are right", async () => {
+  // The owner's report, measured on the deck as supplied: 12 of 14 categories
+  // were sorted short -> long (animals ran 3 to 8 letters), numbers ran
+  // zero..ten in counting order, and opposites sat back to back — wet/dry,
+  // old/new, fast/slow, cold/warm, dirty/clean, mom/dad, grandma/grandpa.
+  // All three let him predict the next card instead of READING it.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+
+    const r = await pg.evaluate(() => {
+      const NUM = ["zero","one","two","three","four","five","six","seven","eight","nine","ten"];
+      const decks = [];
+      const look = (name, list) => {
+        const len = list.map((c) => c[0].length);
+        let clashes = 0, sorted = true;
+        for (let k = 1; k < list.length; k++) {
+          if (clash(list[k - 1], list[k])) clashes += 1;
+          if (len[k] < len[k - 1]) sorted = false;
+        }
+        // a deck whose words are ALL one length (First Words is 3-letter CVC)
+        // is trivially "sorted"; only a real spread can be sorted by length.
+        const spread = new Set(len).size > 1;
+        decks.push({ name, n: list.length, clashes, rampedByLength: sorted && spread });
+      };
+      for (const c of CATS) look(c.label, teachingOrder(WORDS.filter((x) => x[2] === c.key), c.label));
+      look("All words", teachingOrder(WORDS.slice(), "All words"));
+      look("First Words", teachingOrder(firstWords(), "First Words"));
+      const nums = teachingOrder(WORDS.filter((x) => x[2] === "numbers"), "Numbers").map((x) => x[0]);
+      let counting = 0;
+      for (let k = 1; k < nums.length; k++) {
+        const a = NUM.indexOf(nums[k - 1]);
+        if (a >= 0 && NUM.indexOf(nums[k]) === a + 1) counting += 1;
+      }
+      // the same seed must give the same order every time, or a grown-up
+      // cannot tell where he got to
+      const twice = teachingOrder(WORDS.filter((x) => x[2] === "animals"), "Animals").map((x) => x[0]);
+      const again = teachingOrder(WORDS.filter((x) => x[2] === "animals"), "Animals").map((x) => x[0]);
+      return {
+        decks, counting, nums,
+        stable: twice.join() === again.join(),
+        joinFails: WORDS.filter((x) => sounds(x[0]).join("") !== x[0]).map((x) => x[0]),
+        firsts: firstWords().map((c) => c[0]), teams: teamDeck().map((c) => c[0]),
+        ship: sounds("ship"), duck: sounds("duck"), sing: sounds("sing"),
+        penguin: sounds("penguin"), koala: sounds("koala"), cat: sounds("cat"),
+      };
+    });
+
+    for (const d of r.decks) {
+      assert.equal(d.clashes, 0,
+        `"${d.name}": ${d.clashes} places where the next card gives itself away ` +
+        "(same picture, or an opposite he can guess from the one before)");
+      assert.ok(!d.rampedByLength, `"${d.name}" is still sorted short -> long, so the deck is predictable`);
+      assert.ok(d.n > 0, `"${d.name}" is empty`);
+    }
+    assert.equal(r.counting, 0, `the numbers still run in counting order: ${r.nums.join(" ")}`);
+    assert.ok(r.stable, "the same deck must come out in the same order every time");
+
+    // A deck's LABEL is a claim: First Words promises you can blend it, so a
+    // final w/y/r is disqualifying (k-e-y blends to nothing), and Sound Teams
+    // must not hand him the two words where ch is NOT the sound it teaches.
+    assert.ok(r.firsts.length >= 40, `only ${r.firsts.length} First Words`);
+    const unblendable = r.firsts.filter((w) => /[wyr]$/.test(w));
+    assert.deepEqual(unblendable, [], "First Words holds words he cannot sound out");
+    assert.ok(r.teams.length >= 30, `only ${r.teams.length} Sound Teams words`);
+    for (const w of ["anchor", "parachute"])
+      assert.ok(!r.teams.includes(w), `"${w}" is in Sound Teams but its ch is a different sound`);
+
+    // …and the sound strip splits by SOUND. "ship" is three sounds, not four.
+    assert.deepEqual(r.joinFails, [], "a sound split that does not spell its own word");
+    assert.deepEqual(r.ship, ["sh", "i", "p"], "ship is sh-i-p, not s-h-i-p");
+    assert.deepEqual(r.duck, ["d", "u", "ck"], "duck is d-u-ck, not d-u-c-k");
+    assert.deepEqual(r.sing, ["s", "i", "ng"], "sing is s-i-ng");
+    assert.deepEqual(r.cat, ["c", "a", "t"], "a word with no letter team is still one tile per letter");
+    // the exceptions are the whole reason this is data and not a regex
+    assert.deepEqual(r.penguin, ["p","e","n","g","u","i","n"], "penguin's n and g are SEPARATE sounds");
+    assert.deepEqual(r.koala, ["k","o","a","l","a"], "koala's o and a are separate sounds");
+
+    // the tiles must SHOW a letter team as one tile, or the split is invisible
+    await pg.evaluate(() => document.querySelectorAll("#readGrid .chip")[2].click());
+    const tiles = await pg.evaluate(() => {
+      document.getElementById("card").click();
+      return [...document.querySelectorAll("#letters span")]
+        .map((el) => ({ t: el.textContent, team: el.classList.contains("team") }));
+    });
+    const teams = tiles.filter((t) => t.team);
+    assert.ok(teams.length >= 1 && teams.every((t) => t.t.length > 1),
+      `a Sound Teams card drew no multi-letter tile: ${JSON.stringify(tiles)}`);
+
+    // …and it can SAY the word: control of error with no grown-up in the room.
+    const audio = await pg.evaluate(() => {
+      const said = [];
+      // `window.speechSynthesis` is a read-only accessor, so a plain assignment
+      // silently does nothing and the real (silent) engine answers instead —
+      // which is a stub that never installed, not a feature that never fired.
+      Object.defineProperty(window, "speechSynthesis", {
+        configurable: true, value: { speak: (u) => said.push(u.text), cancel() {} },
+      });
+      window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+      // self-verifying, or the clause below cannot tell "the stub never
+      // installed" from "the feature never fired" — which is the bug it
+      // just caught. `!said.push` was dead: said is always an array.
+      window.speechSynthesis.speak({ text: "__probe__" });
+      if (said.join() !== "__probe__") throw new Error("the speech stub did not install");
+      said.length = 0;
+      const btn = document.getElementById("sound");
+      const before = btn.getAttribute("aria-pressed");
+      document.getElementById("card").click();          // flip back, muted
+      const whileOff = said.length;
+      btn.click();                                       // turn sound on
+      document.getElementById("card").click();           // flip to the picture
+      return { before, on: btn.getAttribute("aria-pressed"), whileOff, said,
+               stored: localStorage.getItem("wc-sound") };
+    });
+    assert.equal(audio.before, "false", "sound must start OFF (RULE 5)");
+    assert.equal(audio.whileOff, 0, "nothing may be spoken while sound is off");
+    assert.equal(audio.on, "true", "the sound button did not turn on");
+    assert.equal(audio.stored, "1", "the sound choice is not remembered");
+    assert.ok(audio.said.length >= 1, "with sound on, turning a card over must say the word");
+
+    // …and it remembers where he got to. The seeded order is only worth having
+    // if you can carry on: a five-minute session is about twenty cards, so
+    // without this the back of a 503-card deck is never reached.
+    const place = await pg.evaluate(() => {
+      const cats = [...document.querySelectorAll("#grid .chip")];
+      document.getElementById("back").click();
+      cats[0].click();
+      for (let k = 0; k < 3; k++) document.getElementById("next").click();
+      const at = document.getElementById("count").textContent;
+      const word = document.getElementById("word").textContent;
+      document.getElementById("back").click();
+      cats[0].click();                                   // come back to it
+      const resumed = document.getElementById("count").textContent;
+      const resumedWord = document.getElementById("word").textContent;
+      document.getElementById("back").click();
+      cats[1].click();                                   // a DIFFERENT deck
+      return { at, word, resumed, resumedWord, other: document.getElementById("count").textContent };
+    });
+    assert.equal(place.resumed, place.at, "coming back to a deck must not start it over");
+    assert.equal(place.resumedWord, place.word, `resumed on "${place.resumedWord}", left on "${place.word}"`);
+    assert.match(place.at, /^4 \//, `stepping three times landed on "${place.at}"`);
+    assert.match(place.other, /^1 \//, "each deck keeps its OWN place, not a shared one");
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();      // a test that opens a context owns closing it, even on failure
   }
 });

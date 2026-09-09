@@ -6552,6 +6552,89 @@ carrying the documented "a game that DEFERS its next round must clear
 `data-correct` before the timer" hazard, so it is its own piece of work rather
 than a rider on a test-only commit.
 
+**THE FLASH-CARD DECK'S BACK IS THE ANSWER, AND 188 OF 493 CARDS COULD NOT GIVE
+IT — plus a rhyme family that does not rhyme, and a digraph that is not one.**
+Asked to make Word Cards harder and better ("numbers is ordered by number …
+other categories are ordered back to back with opposites"), the reported defect
+was real and measured exactly: **12 of 14 categories were sorted short → long**
+(animals ran 3 → 8 letters), numbers ran `zero…ten` in counting order, and
+**12 adjacent opposite pairs** shipped (wet/dry, old/new, soft/hard, fast/slow,
+cold/warm, tiny/huge, dirty/clean, mom/dad, grandma/grandpa). All three let him
+predict the next card instead of READING it, which is the entire point of the
+tool. Fixed with a SEEDED order — stable, so a grown-up can track where he got
+to — plus a repair pass, and the property is the guardrail rather than the
+algorithm: zero adjacent clashes on all 19 decks, and no deck ramps by length.
+**The bigger find was underneath it, and it is a correctness one.** JOSH_PROFILE
+states the law — *"the picture's natural 4-year-old name must BE the answer"* —
+and the deck broke it 188 times: **🍽️ meant eat, full, hungry, dish AND plate**,
+so it named none of them, and *full* and *hungry* are near-opposites wearing one
+picture. Twenty more pictures were simply WRONG — plum was drawn as GRAPES,
+table as a chair, neck as a scarf, pond as a duck, garage as a car, dentist as a
+tooth, jam as a honey pot, sugar as rice, wagon as a pickup, belt as a reminder
+ribbon, rug as yarn, towel as a toilet roll — and *thumb* was the thumbs-up the
+profile names BY NAME as a bad picture. The rule that resolved all of it, in
+precedence order: **the picture must truly depict the word (this beats
+everything); no two cards may share one; when two words compete, keep the one
+the picture actually NAMES; and a word with no true picture at Emoji ≤13.0 is
+DROPPED, never approximated.** 135 cards dropped, 147 added — a bigger deck, and
+every picture unique.
+**A RHYME FAMILY DERIVED FROM SPELLING CAN BE WRONG, which is why the families
+are data and not a regex.** The obvious build is to group by the last letters;
+run it and you get `-ove` = dove/glove/**stove**, `-oot` = boot/**foot**, `-ow` =
+crow/snow/**cow**, `-ood` = food/**good**, `-ear` = bear/pear/**ear** — five
+families each containing a word that does not rhyme with the rest, in a tool
+whose job is teaching rhyme. 28 families are hand-verified instead, and the
+guardrail names the traps so a future edit cannot quietly re-add one.
+**AND `ng` IS NOT ALWAYS ONE SOUND.** The strip spelled one tile per LETTER, so
+"ship" showed four tiles for three sounds and "duck" four for three — wrong on
+**67 words**, on exactly the digraph skill his June 2026 report lists as his
+working edge. But an algorithm alone is not safe: `ng` is one sound in *sing* and
+*ring* and is plain n+g in **penguin, kangaroo, mango, orange, finger, sponge and
+flamingo**; `oa` spans a syllable in *koala*; `igh` is really `eigh` in *eight*.
+Every rule therefore carries a verified exception list, and the split is proven
+two ways — a scan that the exceptions are present, and a browser test that drives
+the real function (`ship → sh-i-p`, `penguin → p-e-n-g-u-i-n`).
+**Three method notes, and the first cost a whole verdict.** **A mutation that
+does not mutate proves nothing, for the fourth recorded time** — I removed the
+first `"penguin",` in the file, and `penguin` appears TWICE (a card, and the
+exception), so I mutated a CARD and read the resulting green as a weak clause.
+Assert the anchor matches once, target the region, and check the bytes moved.
+**The failed mutation then found a real hole**: the card it damaged parsed as
+`["🐧","animals"]` and passed every check, because a malformed row still has a
+unique "picture" — so a card one field short would render a category name as its
+answer. A shape check now closes it. And **do not run a mutation job while a
+browser gate is serving the file it rewrites**: two e2e runs produced empty
+output against a file that was being edited underneath them, and their verdict
+was unattributable either way — the documented contention lesson, met from the
+other side.
+**And two smaller ones from the same batch.** A SEEDED order is only worth
+having if you can carry on from it: a five-minute session is about twenty
+cards, so without a remembered position the back of a 503-card deck is never
+reached — the deck now keeps a place per deck, guarded for private mode, and
+finishing one wraps back to the start rather than parking on a dead Next
+button. And **`window.speechSynthesis` is a READ-ONLY accessor**, so the
+obvious `window.speechSynthesis = stub` silently does nothing and the real
+(silent, headless) engine answers — which looks exactly like a feature that
+never fired rather than a stub that never installed; `Object.defineProperty`
+is what installs it. The precondition I first wrote for that (`if (!said.push)
+throw`) was itself DEAD — `said` is always an array — so it now probes the
+stub and asserts the probe came back, which is the self-verifying-fixture rule
+applied to the fixture I had just written to catch the same class.
+**AND A DECK'S LABEL IS A CLAIM, which is how reading the finished decks found
+two more.** *First Words* was derived as `[consonant][vowel][consonant]`, which
+is LETTER-CVC and not SOUND-CVC: it admitted **cow, key, boy, saw and car**,
+where a final w/y/r marks a vowel team or an r-controlled vowel, so the word is
+not blendable and a child sounding out k-e-y gets nothing — in the one deck
+whose whole promise is that you can sound it out. And *Sound Teams*, which
+teaches the ch sound, contained **anchor** (ch = /k/) and **parachute** (ch =
+/ʃ/) — the exact counter-examples to the rule the deck exists for, so a child
+applying it correctly would read both wrong. Both are excluded now with the
+reason in the data, and both are mutation-proven. The class is the `cheap` one
+a level up: there a mechanic's NAME misdescribed it, here a deck's name
+promises something its membership rule does not deliver — and the tell was the
+same, reading the shipped contents rather than the definition that produced
+them.
+
 ---
 
 ## Repository Structure
@@ -6562,17 +6645,19 @@ tooling.
 ```
 .
 ├── index.html                  # The whole site: front door (#screen-start, 3 world tiles) + Josh's launcher shell; all other screens injected. Also carries the ONE shared `.jart-defs` block — 3 ALPHA-ONLY shading gradients (jart-lit/dome/ground) that every JoshArt picture references by stable id (per-picture defs collapse — see the learnings)
-├── wordcards.html              # 🃏 Word Cards — a 493-card flash-card deck (owner-supplied,
-│                               #   opened from the 76px slot in Josh's home bar that was an empty
-│                               #   spacer). Self-contained page, kept as-is apart from this repo's
-│                               #   iOS-14.2 floors: 10 emoji > Emoji 13.0 (tofu on Josh's iPad,
-│                               #   and on a flash card the PICTURE IS THE ANSWER), flex-gap, the
-│                               #   `inset:` shorthand, user-scalable=no, bare 100vh, sub-75px taps,
-│                               #   and the touch hygiene main.css carries page-wide but a
-│                               #   standalone page never loads (touch-action / overscroll /
-│                               #   callout, plus the env(safe-area-inset-*) that viewport-fit=cover
-│                               #   makes mandatory). Every card count is DERIVED from WORDS.
-│                               #   Precached in sw.js.
+├── wordcards.html              # 🃏 Word Cards — a 503-card flash-card deck and the
+│                               #   reading tool Josh actually practises on. Self-contained page,
+│                               #   opened from the 76px slot in Josh's home bar. Four DERIVED
+│                               #   reading decks (First Words = 3-letter CVC · Word Families =
+│                               #   hand-verified rimes · Sound Teams = sh/ch/th · Sight Words) sit
+│                               #   above the 14 picture categories. Every card's picture is UNIQUE
+│                               #   (the back is the ANSWER); the sound strip splits by SOUND, not
+│                               #   letter (sh-i-p, with verified exceptions — penguin's n+g are
+│                               #   separate); picture decks are dealt in a SEEDED order that can
+│                               #   carry no adjacent opposite, shared picture or counting run; it
+│                               #   REMEMBERS where he got to in each deck (a seeded order is only
+│                               #   worth having if you can carry on); and it can SAY the word (off
+│                               #   by default, remembered). Every count is counted. Precached in sw.js.
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)

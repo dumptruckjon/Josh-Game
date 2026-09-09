@@ -4160,5 +4160,155 @@ test("Word Cards states no card count it has to keep up to date", () => {
   assert.doesNotMatch(markup, /\d+\s*cards/, "a literal card count is a claim that goes stale");
   assert.doesNotMatch(src, /"n":\s*\d+/, "the per-category counts must not be stored, they must be counted");
   assert.match(src, /WORDS\.length \+ " cards"/, "the total must be read off WORDS");
-  assert.match(src, /list\.length\s*\+\s*' cards/, "each category count must be read off WORDS");
+  assert.match(src, /'<\/span><span class="ct">'\+count\+' cards/,
+    "every deck count must come from the list that deck actually holds");
+});
+
+// ---------------------------------------------------------------------------
+// Word Cards is a READING tool, so the back of a card is the ANSWER. These are
+// content-truth tests in the sense content.test.js means it: they restate what
+// is true so an answer cannot silently go wrong.
+// ---------------------------------------------------------------------------
+const wcWords = () => JSON.parse(read("wordcards.html").match(/const WORDS = (\[.*?\]);/s)[1]);
+
+test("Word Cards: no two cards share a picture — the back IS the answer", () => {
+  // Measured on the deck as supplied: 188 of 493 cards shared a picture with
+  // another card. 🍽️ meant eat, full, hungry, dish AND plate — so it named
+  // none of them, and full/hungry are near-opposites wearing one picture.
+  // A shared picture cannot confirm a word, which is the card's whole job.
+  const by = new Map();
+  for (const [w, pic, cat] of wcWords()) {
+    if (cat === "sight") continue;              // the back is a sentence, not a picture
+    if (!by.has(pic)) by.set(pic, []);
+    by.get(pic).push(w);
+  }
+  const shared = [...by.entries()].filter(([, l]) => l.length > 1);
+  assert.deepEqual(shared.map(([p, l]) => p + " = " + l.join("/")), [],
+    "these cards cannot tell you which word you turned over");
+  assert.ok(by.size > 300, `only ${by.size} pictures scanned — the parse failed open`);
+});
+
+test("Word Cards: every word appears exactly once", () => {
+  const seen = new Set(), dup = [];
+  for (const [w] of wcWords()) { if (seen.has(w)) dup.push(w); seen.add(w); }
+  assert.deepEqual(dup, [], "a word on two cards teaches two answers");
+  assert.ok(seen.size > 400, `only ${seen.size} words — the parse failed open`);
+
+  // …and every card is the shape the page reads. Found while mutation-testing:
+  // a card that had lost a field parsed as ["\u{1F427}", "animals"] and sailed
+  // through every other check, because a malformed row still has a unique
+  // "picture". A card one field short renders a category name as its answer.
+  const cats = new Set(JSON.parse(read("wordcards.html").match(/const CATS  = (\[.*?\]);/s)[1]).map((c) => c.key));
+  cats.add("sight");
+  const malformed = wcWords().filter(
+    (c) => !Array.isArray(c) || c.length !== 3 || !c.every((x) => typeof x === "string" && x) || !cats.has(c[2]));
+  assert.deepEqual(malformed, [], "a card is not [word, picture, category]");
+});
+
+test("Word Cards: the pictures that showed the WRONG thing are gone", () => {
+  // Every pair below shipped, and every one of them teaches something false.
+  // The rule is not "find a closer picture" — it is that a word with no true
+  // picture at Emoji <= 13.0 is dropped rather than approximated.
+  const WRONG = [
+    ["plum", "\u{1F347}"],   // grapes
+    ["table", "\u{1FA91}"],  // a chair
+    ["neck", "\u{1F9E3}"],   // a scarf
+    ["pond", "\u{1F986}"],   // a duck
+    ["garage", "\u{1F697}"], // a car
+    ["dentist", "\u{1F9B7}"],// a tooth
+    ["jam", "\u{1F36F}"],    // a honey pot
+    ["sugar", "\u{1F35A}"],  // a bowl of rice
+    ["wagon", "\u{1F6FB}"],  // a pickup truck
+    ["belt", "\u{1F397}\u{FE0F}"], // a reminder ribbon
+    ["rug", "\u{1F9F6}"],    // a ball of yarn
+    ["towel", "\u{1F9FB}"],  // a toilet roll
+    ["root", "\u{1F331}"],   // a seedling
+    ["gray", "\u{1F418}"],   // an elephant
+    ["thumb", "\u{1F44D}"],  // JOSH_PROFILE names this one by name
+    ["zipper", "\u{1F910}"], // a zipper-MOUTH face
+  ];
+  const deck = wcWords();
+  const bad = WRONG.filter(([w, pic]) => deck.some(([dw, dp]) => dw === w && dp === pic));
+  assert.deepEqual(bad.map(([w, p]) => w + " = " + p), [], "a card is teaching the wrong picture");
+});
+
+test("Word Cards: every word family really rhymes", () => {
+  // A family derived from SPELLING can be wrong, and this is a reading tool:
+  // dove/glove rhyme and STOVE does not; boot/hoot rhyme and FOOT does not;
+  // crow/snow rhyme and COW does not; food/mood rhyme and GOOD does not;
+  // bear/pear rhyme and EAR does not. So the families are hand-verified data,
+  // and the traps are named here so a future edit cannot quietly re-add one.
+  const src = read("wordcards.html");
+  const fams = JSON.parse(src.match(/const FAMILIES = (\[.*?\]);/s)[1]);
+  const have = new Set(wcWords().map((w) => w[0]));
+  const TRAPS = { ove: ["stove"], oot: ["foot"], ow: ["cow"], ood: ["good"], ear: ["ear"] };
+  assert.ok(fams.length >= 20, `only ${fams.length} families — the parse failed open`);
+  let members = 0;
+  for (const [rime, list] of fams) {
+    assert.ok(list.length >= 2, `-${rime} has only ${list.length} member(s); a family of one teaches no pattern`);
+    for (const w of list) {
+      members += 1;
+      assert.ok(have.has(w), `-${rime} lists "${w}", which is not a card in the deck`);
+      assert.ok(w.endsWith(rime), `"${w}" does not even end in -${rime}`);
+      assert.ok(!(TRAPS[rime] || []).includes(w),
+        `"${w}" is in -${rime} but does NOT rhyme with the rest of it`);
+    }
+  }
+  assert.ok(members >= 50, `only ${members} family words — the walk failed open`);
+});
+
+test("Word Cards: every sight card's sentence contains its own word", () => {
+  // The back of a sight card is a SENTENCE, not a picture, so the sentence IS
+  // the control of error — "the dog ran" is what tells him he read "the". A
+  // sentence missing its own word confirms nothing, and one built from words
+  // he cannot read is not a sentence he can check himself against.
+  const cards = wcWords().filter((c) => c[2] === "sight");
+  assert.ok(cards.length >= 40, `only ${cards.length} sight cards — the parse failed open`);
+  for (const [w, sentence] of cards) {
+    const parts = sentence.toLowerCase().split(/[^a-z']+/).filter(Boolean);
+    assert.ok(parts.includes(w.toLowerCase()),
+      `"${sentence}" does not contain the word "${w}" it is meant to show`);
+    assert.ok(parts.length <= 5, `"${sentence}" is ${parts.length} words — too long to read at four`);
+    const hard = parts.filter((t) => t.length > 6);
+    assert.deepEqual(hard, [], `"${sentence}" leans on words he cannot decode: ${hard.join(", ")}`);
+  }
+});
+
+test("Word Cards: the two teaching decks keep their promise", () => {
+  // A deck's LABEL is a claim. "First Words" promises you can sound the word
+  // out, so a final w, y or r disqualifies it — those mark a vowel team or an
+  // r-controlled vowel, and cow, key, boy, saw and car are not blendable: a
+  // child sounding out k-e-y gets nothing. And a deck teaching the ch SOUND
+  // must not hand him anchor (/k/) or parachute (/sh/), which are exactly the
+  // counter-examples to the rule it is for.
+  const src = read("wordcards.html");
+  const cvc = src.match(/const CVC = \/(\S+?)\/;/);
+  assert.ok(cvc, "the First Words rule is gone");
+  const tail = cvc[1].match(/\[aeiou\]\[([a-z]+)\]\$$/);
+  assert.ok(tail, `the First Words rule no longer ends in a consonant class: ${cvc[1]}`);
+  for (const bad of ["w", "y", "r"])
+    assert.ok(!tail[1].includes(bad),
+      `"${bad}" is allowed to end a First Word, so the deck holds words he cannot blend`);
+  const team = src.match(/const NOT_A_TEAM = (\[.*?\]);/);
+  assert.ok(team, "the Sound Teams exclusions are gone");
+  for (const w of ["anchor", "parachute"])
+    assert.ok(team[1].includes('"' + w + '"'),
+      `"${w}" must be kept out of Sound Teams — its ch is not the sound the deck teaches`);
+});
+
+test("Word Cards: the sound split keeps its verified exceptions", () => {
+  // "ship" is three sounds, not four, and the strip used to show four on 67
+  // words — on exactly the digraph skill Josh's report lists as his working
+  // edge. An algorithm alone is NOT safe: "ng" is one sound in sing and ring
+  // and is plain n+g in these seven, which is why they are named in the data.
+  const src = read("wordcards.html");
+  const rules = src.match(/const SOUND_RULES = \[([\s\S]*?)\n\];/);
+  assert.ok(rules, "the sound rules are gone — the strip is back to one tile per letter");
+  for (const w of ["penguin", "kangaroo", "mango", "orange", "finger", "sponge", "flamingo"])
+    assert.ok(rules[1].includes('"' + w + '"'),
+      `"${w}" must be excepted from the ng rule — its n and g are separate sounds`);
+  assert.ok(rules[1].includes('"koala"'), "koala must be excepted from the oa rule");
+  assert.ok(rules[1].includes('"eight"'), "eight must be excepted from the igh rule (it is ei-gh)");
+  for (const pat of ["sh", "ch", "th", "ck", "qu", "ph", "wh"])
+    assert.ok(new RegExp('\\["' + pat + '"').test(rules[1]), `the ${pat} rule is missing`);
 });
