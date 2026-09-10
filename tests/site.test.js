@@ -4188,6 +4188,56 @@ test("Word Cards: no two cards share a picture — the back IS the answer", () =
   assert.ok(by.size > 300, `only ${by.size} pictures scanned — the parse failed open`);
 });
 
+test("Word Cards: no card wears another card's picture with the gender swapped", () => {
+  // The sibling test above compares CODEPOINTS, so it cannot see a near-twin —
+  // exactly the hole the fort's enemy roster had, where two sprites could be
+  // 98% alike and pass an exact-hash check. Measured here it was real: `baker`
+  // shipped as 👨‍🍳 and `cook` as 👩‍🍳, the same chef in the same white hat,
+  // and a four-year-old does not read gender as the difference between a cook
+  // and a baker. The card confirmed the WRONG word.
+  //
+  // The law is a SKELETON: strip the presentation selector, skin tone, ZWJ and
+  // the interchangeable person bases, then two cards may not collide.
+  //
+  // The exemption is not a fence — it is the one case where the gender IS the
+  // answer, so each card still confirms its own word. Both groups are gender
+  // words themselves, which is what makes the carve-out principled rather than
+  // a list of whatever happened to fail.
+  const GENDER_IS_THE_WORD = [["mom", "dad"], ["boy", "girl", "kid"]];
+  const skel = (pic) => [...pic].filter((ch) => {
+    const cp = ch.codePointAt(0);
+    return cp !== 0xfe0f && cp !== 0x200d && !(cp >= 0x1f3fb && cp <= 0x1f3ff) &&
+           ch !== "\u2640" && ch !== "\u2642";
+  }).map((ch) => (/[\u{1F468}\u{1F469}\u{1F9D1}]/u.test(ch) ? "P"
+               : /[\u{1F466}\u{1F467}\u{1F9D2}]/u.test(ch) ? "C" : ch)).join("");
+
+  const by = new Map();
+  for (const [w, pic, cat] of wcWords()) {
+    if (cat === "sight") continue;
+    const k = skel(pic);
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(w);
+  }
+  const legal = (l) => GENDER_IS_THE_WORD.some((g) => l.every((w) => g.includes(w)));
+  const bad = [...by.values()].filter((l) => l.length > 1 && !legal(l));
+  assert.deepEqual(bad.map((l) => l.join("/")), [],
+    "one picture, two words — the gender is not what tells these words apart");
+  assert.ok(by.size > 300, `only ${by.size} skeletons scanned — the parse failed open`);
+  // …and the exemption must stay load-bearing rather than decorative: if these
+  // groups ever stop colliding, the carve-out is protecting nothing and should
+  // go, so that a future gendered pair cannot slip in under a dead clause.
+  //
+  // Both clauses read the same skeleton, so ANY change to it also stops mom/dad
+  // colliding and fires the clause below rather than the one above — measured,
+  // not assumed. Only restoring a real gendered twin isolates the collision
+  // clause (baker 👨‍🍳 beside cook 👩‍🍳 reports "cook/baker"); a third exempt
+  // group that never collides is what isolates this one.
+  const collides = GENDER_IS_THE_WORD.filter((g) =>
+    [...by.values()].some((l) => l.length > 1 && l.every((w) => g.includes(w))));
+  assert.equal(collides.length, GENDER_IS_THE_WORD.length,
+    "an exempted group no longer collides — delete the exemption instead of keeping a dead one");
+});
+
 test("Word Cards: every word appears exactly once", () => {
   const seen = new Set(), dup = [];
   for (const [w] of wcWords()) { if (seen.has(w)) dup.push(w); seen.add(w); }
@@ -4226,6 +4276,9 @@ test("Word Cards: the pictures that showed the WRONG thing are gone", () => {
     ["gray", "\u{1F418}"],   // an elephant
     ["thumb", "\u{1F44D}"],  // JOSH_PROFILE names this one by name
     ["zipper", "\u{1F910}"], // a zipper-MOUTH face
+    ["hair", "\u{1F487}"],   // a person getting a HAIRCUT
+    ["button", "\u{1F518}"], // a RADIO button — a grey circle
+    ["cave", "\u{1F573}\u{FE0F}"], // literally "hole" on every platform
   ];
   const deck = wcWords();
   const bad = WRONG.filter(([w, pic]) => deck.some(([dw, dp]) => dw === w && dp === pic));

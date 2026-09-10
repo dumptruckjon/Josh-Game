@@ -6972,6 +6972,60 @@ destroyed the uncommitted private-mode test and four metric fixes in that file.
 They were recovered only because the mutation harness `cp`s before it mutates,
 so the pre-mutation copy was still in the scratchpad — and the reconstruction
 was verified by DIFF (exactly 106 insertions, nothing else) rather than assumed.
+**READING ALL 503 WORD CARDS FOUND FOUR WHOSE PICTURE NAMES A DIFFERENT WORD —
+and the sharpened test that found them also REFUTED two of my own first
+findings, which is the more useful half.** No guardrail can ask "does this
+emoji depict this word"; the shipped `WRONG` list is a record of the sixteen
+pairs that already shipped, and a list of known-bad pairs structurally cannot
+catch a new one. So the deck was read card by card, and the first pass produced
+a list that was too long. What cut it down is the precise question: **does each
+card's picture confirm ITS OWN word?** — not "could this picture be confused
+with another card's". Under that test `mom` 👩 / `dad` 👨 and `boy` 👦 /
+`girl` 👧 / `kid` 🧒 are all CORRECT (each confirms its own word, and the gender
+IS the difference), while `baker` 👨‍🍳 is not: it is the same chef in the same
+white hat as `cook` 👩‍🍳, and a four-year-old does not read gender as the
+difference between a cook and a baker. The weaker form of the question would
+have condemned five cards and fixed one.
+The four: **`baker` 👨‍🍳 → `firefighter` 👨‍🚒** (a gender-swapped twin of
+`cook`); **`hair` 💇 → `feet` 👣** (💇 is "person getting haircut" — a child
+names it *haircut*, and nothing at ≤13.0 plainly means hair); **`button` 🔘 →
+`shorts` 🩳** (🔘 is a RADIO button, i.e. a grey circle); and **`cave` 🕳️ →
+`hole` 🕳️** — that last one is the cheapest correctness fix available, because
+🕳️ is literally *hole* on every platform, so the PICTURE was right and the WORD
+was wrong and the card keeps its art. Deck stays at 503, and `shorts` earns its
+place twice over by joining the derived Sound Teams deck (its `sh` really is
+/ʃ/, unlike the excluded anchor and parachute).
+**The derivable half became a law, and the exemption is principled rather than a
+fence.** The shipped uniqueness test compares CODEPOINTS, so it is blind to a
+near-twin — the exact hole the fort's enemy roster had, where two sprites could
+be 98% alike and pass an exact-hash check. The new law strips the presentation
+selector, skin tone, ZWJ and the interchangeable person bases, then forbids a
+collision, with the two gender-word groups exempt because there the gender IS
+the answer. It carries a clause asserting the exemption still COLLIDES, so a
+carve-out cannot rot into a hole a future gendered pair slips through.
+**Three method notes.** (1) **A mutation fired the clause next door, and saying
+so is part of the test**: neutering the skeleton so it stops folding person
+bases also stops `mom`/`dad` colliding, so it fires the load-bearing clause
+rather than the collision clause — measured, and now written beside both, since
+only restoring a real gendered twin isolates the first and only a
+never-colliding third group isolates the second. (2) **My planned replacement
+for a fifth card was already IN the deck** — I had `river` 🏞️ down as a defect
+and `shell` 🐚 as its replacement, and `shell` is an existing animals card;
+checking the deck before editing is what caught it, not the suite. (3) The
+emoji version ban and the VS16 law were run against the four new pictures
+BEFORE the edit rather than reasoned from memory.
+**And five candidates were REJECTED on inspection, recorded so nobody re-opens
+them.** `river` 🏞️ — the CLDR name is "national park", but Apple's own art
+centres a blue river and Josh's device is Apple, and this file already records
+that vendor art is part of correctness (the 🚜 tractor that renders RED). `jet`
+✈️ — a jet IS an airplane, so this is a synonym, not a wrong answer. `pink` 🎀 —
+a COLOUR card's picture must BE the colour, and 🎀 is pink on Apple; every other
+colour is a swatch, and this is the one word with no swatch at ≤13.0. `maple`
+🍁 — it is literally a maple leaf. And the eight-smiling-face cluster
+(😀 face / 😄 happy / 😊 smile / 😂 laugh / 🤣 funny) — each confirms its own
+word, and adjudicating *laugh* against *funny* is a synonym question, not a
+wrong-answer one. **Inventing a defect to look thorough is worse than leaving
+it** — the 大雁/秋 precedent, applied to a second world.
 
 ---
 
