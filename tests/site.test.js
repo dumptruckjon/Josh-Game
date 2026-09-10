@@ -4312,3 +4312,49 @@ test("Word Cards: the sound split keeps its verified exceptions", () => {
   for (const pat of ["sh", "ch", "th", "ck", "qu", "ph", "wh"])
     assert.ok(new RegExp('\\["' + pat + '"').test(rules[1]), `the ${pat} rule is missing`);
 });
+
+test("no test may measure page overflow against window.innerWidth", () => {
+  // FOUND BY CHASING A MUTATION THAT PASSED. A deliberately broken layout —
+  // `.wrap { min-width: 900px }` on a 390px viewport — sailed through a
+  // brand-new "the deck must not scroll sideways" clause. It was not the
+  // clause that was weak; it was the QUANTITY.
+  //
+  // Under `isMobile: true` (which most of this suite's contexts use, because
+  // the app is a phone app) Chromium honours the meta-viewport and ZOOMS OUT
+  // to fit overflowing content, so `window.innerWidth` follows the LAYOUT
+  // width rather than the device. Measured on the fort's own page, in the
+  // exact context tests/td.test.js builds, with a 1200px div appended:
+  //
+  //                     scrollWidth  innerWidth  clientWidth   ovf(inner)  ovf(client)
+  //   plain                    1200         390          390         810          810
+  //   hasTouch + isMobile      1200        1200          390           0          810
+  //
+  // So the metric reads ZERO on a page overflowing by 810px, and it does it
+  // silently. `document.documentElement.clientWidth` is the device's own
+  // width in BOTH cases and cannot be fooled that way.
+  //
+  // Four SHIPPED assertions were vacuous when this was written — the Word
+  // Cards menu and deck (e2e, isMobile) and two in the fort's shared context —
+  // and mobile.test.js was already correct at all three of its sites, which is
+  // why the 240-game audits were never in doubt. This is the "assert X, not a
+  // quantity that correlates with X" law landing on the suite itself.
+  const dir = path.join(root, "tests");
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".test.js") || f === "helpers.js");
+  assert.ok(files.length >= 6, `only ${files.length} test files found — the scan narrowed`);
+  const bad = [];
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(dir, f), "utf8");
+    src.split("\n").forEach((line, k) => {
+      // comment-stripped: this very test quotes the banned expression above,
+      // and a scan must not count its own documentation.
+      const code = line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
+      if (/scrollWidth\s*[-<>]=?\s*window\.innerWidth/.test(code) ||
+          /window\.innerWidth\s*[-<>]=?\s*[\w.]*scrollWidth/.test(code))
+        bad.push(`${f}:${k + 1}  ${line.trim().slice(0, 90)}`);
+    });
+  }
+  assert.deepEqual(bad, [],
+    "page overflow must be measured against documentElement.clientWidth — under isMobile the\n" +
+    "browser zooms out to fit, so innerWidth follows the overflow and the check reads 0:\n  " +
+    bad.join("\n  "));
+});

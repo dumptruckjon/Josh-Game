@@ -6907,6 +6907,71 @@ completed `success` at 00:31. Nothing was hung and nothing was queued; the
 listing simply had not caught up. This file already says to read the job before
 touching a timing constant; the wider rule is that the run object answers "what
 did the listing last hear", and only the JOBS answer "what happened".
+**A SHIPPED OVERFLOW GUARDRAIL REPORTED ZERO ON A PAGE OVERFLOWING BY 810px —
+the metric was measuring the browser's own zoom-out, and it took SEVEN sites
+across four suites.** Found the way this file keeps recommending: a mutation
+PASSED. I widened a Word Cards nav button to force a page overflow, expected the
+sideways-scroll clause to fire, and it did not. Rather than widen the assertion
+I printed what the metric reports, and the mechanism is exact: **under
+`isMobile: true` Chromium honours `width=device-width` and ZOOMS OUT to fit
+overflowing content**, so `window.innerWidth` follows the LAYOUT width rather
+than the device width. Measured on a deliberately 1200px-wide page in a 390px
+viewport — plain context `innerWidth 390`, isMobile context `innerWidth 1200` —
+so `scrollWidth - window.innerWidth` computes `1200 - 1200 = 0`. The same probe
+against the FORT's own page in the exact context `td.test.js` builds reports
+**an 810px overflow as ZERO**. `document.documentElement.clientWidth` stays
+honest at 390 in both.
+Four things worth keeping. (1) **Every mobile-emulating suite in this repo runs
+`isMobile: true`**, because that is what makes a tap a tap — so the defect was
+live in `e2e`, `mobile` and `td` simultaneously, and the checks that DID fire
+over the years fired on pages whose overflow was small enough not to trigger a
+zoom-out. A guardrail that works on small breakages and silently passes on large
+ones is worse than one that never worked, because its greens were read as
+evidence. (2) **The fix is one identifier in seven places, and the LAW is what
+stops it coming back** — a structural scan over every file in `tests/` bans
+`scrollWidth … window.innerWidth` in either operand order, derived from the
+directory with a `>= 6` floor so a narrowed walk cannot make it vacuous.
+(3) **This is the proxy law landing on a metric rather than a layout property**:
+`innerWidth` correlates with the device width right up until the page overflows,
+which is precisely the condition the check exists to detect — *the quantity stops
+tracking the property exactly where the property becomes interesting.*
+(4) **My own instinct was to raise the mutation's magnitude**, and a bigger
+overflow makes this metric read a bigger zero. When a mutation passes, print what
+moved.
+**Three of the four mutations in the same batch passed for reasons that are each
+a small law.** `clamp()`'s third argument is the MAX, so raising the picture's
+`22vmin` middle track to `200vmin` clamps straight back to the cap and renders
+byte-identically — the mutation has to raise the CAP (`clamp(3.6rem, 200vmin,
+40rem)` → RED on 458 cards). A `Math.max` floor only binds FROM BELOW, so
+raising the sound strip's minimum from 13 to 90 changes nothing while raising its
+START (`Math.max(30, …)` → `Math.max(300, …)`) turns it red on 501. And an
+injected CSS rule at EQUAL specificity placed BEFORE the existing one loses on
+source order — mutate the shipped rule, never prepend a competitor.
+**The batch's other two items are coverage rather than fixes, which is the
+honest half to write down.** (a) **Word Cards boots and plays with storage fully
+BLOCKED** — all four of its `localStorage` touches are already inside try/catch,
+so private mode works; what was missing was anything proving it, on the one page
+whose whole value is remembering where he got to. The fixture needed
+`Object.defineProperty`, because **`localStorage` is a READ-ONLY accessor** and a
+plain assignment silently no-ops while the real store answers — the same trap as
+`window.speechSynthesis`, and it presents as a feature that never fired rather
+than a stub that never installed. Its failure message went through two rounds:
+a bare `waitForSelector` reports `Timeout 5000ms exceeded`, which sends the next
+reader hunting a slow page; and my first replacement asserted "a real hang",
+a diagnosis it could not support, since `main.js` swallows a boot throw into
+`console.error`. It captures console errors now and names the SecurityError.
+(b) **All 503 cards are walked at three widths for a CLIPPED word, picture or
+sound strip** — and the claim is deliberately NOT "the page does not scroll
+sideways", because the card faces carry `overflow: hidden`, so a card too wide
+for its face is clipped INSIDE the card where no page-level assertion can see
+it. Every existing Word Cards test samples a handful of cards; the longest word
+in a 503-card deck is the one that breaks, so the walk is the test.
+**And I ran `git checkout tests/e2e.test.js` to undo a mutation — the exact
+command this file warns against, by the person who wrote the warning down.** It
+destroyed the uncommitted private-mode test and four metric fixes in that file.
+They were recovered only because the mutation harness `cp`s before it mutates,
+so the pre-mutation copy was still in the scratchpad — and the reconstruction
+was verified by DIFF (exactly 106 insertions, nothing else) rather than assumed.
 
 ---
 

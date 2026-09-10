@@ -325,7 +325,7 @@ test("QoL: the fort home says how many stars are waiting to be spent", async () 
       aria: b.getAttribute("aria-label"),
       inside: !!(nb && nb.top >= bb.top && nb.right <= bb.right && nb.bottom <= bb.bottom && nb.left >= bb.left),
       btnH: Math.round(bb.height),
-      pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     };
   });
   const seedStars = async (levels) => {
@@ -1838,7 +1838,7 @@ test("mobile sanity: fort screens fit EVERY device — no horizontal overflow, n
     for (const hash of ["#td-home", "#td-play"]) {
       await page.evaluate((h) => { location.hash = h; }, hash);
       await page.waitForTimeout(300);
-      const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(over <= 1, `${hash} overflows by ${over}px at ${width}w`);
     }
   }

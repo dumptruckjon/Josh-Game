@@ -985,3 +985,89 @@ test("a card that grows must not keep a phone-sized picture (derived, no lists)"
       `${Math.round(phone[id].f)}->${Math.round(tablet[id].f)}px, keeping ${kept.toFixed(2)} of its share of the card`);
   }
 });
+
+test("Word Cards on the real engine: no card is clipped, at any width", async () => {
+  // THE PAGE JOSH ACTUALLY READS ON HAD NEVER BEEN RENDERED BY THIS FILE. All
+  // seven of its tests live in e2e.test.js, which launches Chromium; this is
+  // the file that runs on REAL WebKit in CI, and it did not mention
+  // wordcards.html at all. That gap matters here more than almost anywhere:
+  // the card is MADE of emoji, up to 12rem of it, and both of its text runs
+  // are sized by a shrink loop measured against `card.clientWidth` — and this
+  // repo has been bitten three separate times by iOS rendering emoji WIDER
+  // than headless Chromium (the tower panel's stat line, the next-wave pill,
+  // the ability tile), every time with the headless measure saying it fit.
+  //
+  // THE CLAIM IS NOT "the page does not scroll sideways", which is already
+  // asserted twice on Chromium. The faces carry `overflow: hidden`, so a
+  // metric difference does not overflow the PAGE — it CLIPS the word or the
+  // picture inside the card, where no page-level assertion can see it. Nothing
+  // anywhere checks that: the Chromium test measures the sound-out strip and
+  // neither the word nor the picture, and the picture's 12rem cap is the
+  // newest and least-measured value on the page.
+  //
+  // Measured clean on Chromium at all three widths, so this half is COVERAGE
+  // rather than a fix — the honest half to say out loud. It is non-vacuous by
+  // construction (it walks the whole 500-card deck and asserts it did) and
+  // mutation-proven by shrinking the card.
+  const WIDTHS = [
+    [390, 844],   // his phone size
+    [320, 568],   // the narrowest audited width, and the ONLY one where the
+                  // word's shrink loop actually engages
+    [834, 1112],  // the iPad: where the picture's 12rem cap binds and the
+                  // emoji is at its largest, so it is the width a wider glyph
+                  // would clip first
+  ];
+  for (const [w, h] of WIDTHS) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      await p2.waitForSelector(".chip");
+
+      const r = await p2.evaluate((MIN) => {
+        // "All words" is every card in the deck, so the walk needs no list.
+        for (const b of document.querySelectorAll("#menu .all")) b.click();
+        const face = document.getElementById("frontFace");
+        const backF = document.getElementById("backFace");
+        const wd = document.getElementById("word");
+        const pic = document.getElementById("pic");
+        const ltr = document.getElementById("letters");
+        const over = (el, box) => el.scrollWidth > box.clientWidth + 1;
+        const bad = { word: [], pic: [], strip: [] };
+        for (let k = 0; k < deck.length; k++) {
+          i = k; unflipInstantly(); render(false);
+          if (over(wd, face)) bad.word.push(deck[k][0]);
+          if (over(pic, backF)) bad.pic.push(deck[k][0]);
+          if (over(ltr, backF)) bad.strip.push(deck[k][0]);
+        }
+        return {
+          bad, cards: deck.length,
+          cardW: document.getElementById("card").clientWidth,
+          ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          taps: [...document.querySelectorAll("#deck button")]
+            .map((b) => { const q = b.getBoundingClientRect();
+                          return { id: b.id, s: Math.round(Math.min(q.width, q.height)) }; })
+            .filter((t) => t.s < MIN),
+        };
+      }, MIN_TAP);
+
+      // NON-VACUITY: a walk that measured nothing passes every clause below.
+      assert.ok(r.cards >= 500, `${w}px: the walk only saw ${r.cards} cards`);
+      for (const [what, list] of Object.entries(r.bad))
+        assert.deepEqual(list.slice(0, 6), [],
+          `${w}px (card ${r.cardW}px): ${list.length} card(s) clip their ${what} — ` +
+          `e.g. ${list.slice(0, 6).join(", ")}`);
+
+      // …and the deliberate DUPLICATES: the tap floor and the page not moving
+      // sideways are both asserted on Chromium already, and they are here for
+      // the one reason this whole file exists — a different engine.
+      assert.deepEqual(r.taps, [], `${w}px: deck controls below the 75px floor`);
+      assert.ok(r.ovf <= 0, `${w}px: the deck scrolls sideways by ${r.ovf}px`);
+      assert.deepEqual(errs, [], `${w}px: page errors`);
+    } finally {
+      await ctx2.close();
+    }
+  }
+});

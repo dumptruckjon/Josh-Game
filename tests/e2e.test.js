@@ -1610,7 +1610,7 @@ test("Word Cards: the home button opens it, it plays, and it comes back", async 
         chips: [...document.querySelectorAll("#grid .chip")].map((c) => c.querySelector(".ct").textContent.trim()),
         reading: [...document.querySelectorAll("#readGrid .chip")].map((c) => c.querySelector(".nm").textContent.trim()),
         home: !!document.querySelector(".home"),
-        overflow: document.documentElement.scrollWidth - window.innerWidth,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       }));
       assert.match(menu.path, /wordcards\.html$/, `${w}px: the button did not open the game (${menu.path})`);
       assert.ok(menu.home, `${w}px: no way back to Josh's home from the game`);
@@ -1659,7 +1659,7 @@ test("Word Cards: the home button opens it, it plays, and it comes back", async 
             const r = b.getBoundingClientRect();
             return Math.round(Math.min(r.width, r.height));
           }),
-          overflow: document.documentElement.scrollWidth - window.innerWidth,
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         };
       });
       assert.ok(play.flipped, `${w}px: tapping the card did not turn it over`);
@@ -2199,7 +2199,7 @@ test("Word Cards: the card grows with the screen, and the MENU deliberately does
           card: card.clientWidth,
           word: px(document.querySelector(".word")),
           pic: px(document.querySelector(".back-face .pic")),
-          overflow: document.documentElement.scrollWidth - window.innerWidth,
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         };
       });
       return { ...r, menu };
@@ -2278,7 +2278,7 @@ test("Word Cards: the card grows with the screen, and the MENU deliberately does
       return await pg.evaluate(() => ({
         px: parseFloat(getComputedStyle(document.querySelector(".back-face .pic")).fontSize),
         card: document.querySelector(".card").clientWidth,
-        overflow: document.documentElement.scrollWidth - window.innerWidth,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       }));
     } finally {
       await c.close();
@@ -2475,5 +2475,103 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
     assert.deepEqual(errs, [], "no page errors");
   } finally {
     await ctx.close();
+  }
+});
+
+test("private mode: the app boots and plays with storage BLOCKED", async () => {
+  // NOTHING IN THIS SUITE HAS EVER BLOCKED STORAGE. CLAUDE.md records
+  // "storage-BLOCKED Safari (private mode) still boots and plays" as an audit
+  // finding, and an audit is a measurement taken once — the standing pairing
+  // says a scan proves a call site exists and only driving it proves the call
+  // does anything, and here the "call site" is a try/catch nobody drives.
+  //
+  // Measured clean before this was written, so it is COVERAGE and not a fix:
+  // all four of Word Cards' storage touches are already guarded, and so is the
+  // launcher's. What it protects against is the NEXT unguarded access, whose
+  // failure is silent and total — a throw at boot hands Josh a blank page on a
+  // car ride, which is the same class the offline dead-shell test exists for.
+  // Word Cards has the most to lose: storage carries his place in the deck,
+  // and its own design note says a seeded order is only worth having if you
+  // can carry on.
+  const BLOCK = () => {
+    // `localStorage` is a READ-ONLY accessor on window, so a plain assignment
+    // silently does nothing and the real store answers — which reads exactly
+    // like a feature that never fired rather than a stub that never installed.
+    // (The same trap as window.speechSynthesis, recorded when a Word Cards
+    // speech test stubbed nothing and passed.)
+    const boom = () => { throw new DOMException("The operation is insecure.", "SecurityError"); };
+    Object.defineProperty(window, "localStorage", { get: boom, configurable: true });
+  };
+
+  for (const who of ["cards", "launcher"]) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(BLOCK);
+    const pg = await ctx.newPage();
+    const errs = [];
+    pg.on("pageerror", (e) => errs.push(String(e).split("\n")[0]));
+    // …and the CONSOLE too, because main.js deliberately isolates each feature
+    // (`try { init(); } catch (e) { console.error("Josh: init failed:", e) }`),
+    // so on the launcher a storage throw never reaches `pageerror` at all — it
+    // is swallowed and logged, and a message that guessed "a real hang" would
+    // point the next reader at the wrong thing.
+    const logged = [];
+    pg.on("console", (m) => { if (m.type() === "error") logged.push(m.text().split("\n")[0]); });
+    try {
+      await pg.goto(baseURL + (who === "cards" ? "wordcards.html" : ""), { waitUntil: "load" });
+
+      // SELF-VERIFYING FIXTURE: if the block did not install, every clause
+      // below passes against a perfectly ordinary browser and proves nothing.
+      const blocked = await pg.evaluate(() => {
+        try { localStorage.getItem("x"); return false; } catch (e) { return true; }
+      });
+      assert.ok(blocked, `${who}: the storage block did not install — the run would be vacuous`);
+
+      // A boot throw kills the page and every wait below then reports a bare
+      // "Timeout 5000ms exceeded", which sends the next reader hunting a slow
+      // page instead of an unguarded storage access. Name the cause.
+      const appear = async (sel, what) => {
+        try { await pg.waitForSelector(sel, { state: "visible", timeout: 5000 }); }
+        catch (e) {
+          const why = errs.length ? `the page threw at boot: ${errs.join(" | ")}`
+            : logged.length ? `something swallowed a throw and logged: ${logged.join(" | ")}`
+            : "and nothing threw or logged, so look for a hang rather than a storage guard";
+          assert.fail(`private mode: ${what} never appeared — ${why}`);
+        }
+      };
+
+      if (who === "cards") {
+        await appear(".chip", "the deck menu");
+        await pg.evaluate(() => { document.querySelector("#grid .chip").click(); });
+        await pg.locator("#deck").waitFor({ state: "visible" });
+        await pg.click("#card");
+        await pg.waitForTimeout(400);
+        await pg.click("#next");
+        await pg.waitForTimeout(150);
+        await pg.click("#sound");                      // the one write it makes on purpose
+        const r = await pg.evaluate(() => ({
+          word: document.getElementById("word").textContent,
+          count: document.getElementById("count").textContent,
+          sound: document.getElementById("sound").getAttribute("aria-pressed"),
+          flipped: document.getElementById("card").classList.contains("flipped"),
+        }));
+        assert.ok(r.word.length > 0, "private mode: the card is blank");
+        assert.match(r.count, /^2 \/ \d+$/, `private mode: Next did not move on (counter "${r.count}")`);
+        assert.equal(r.sound, "true", "private mode: the sound toggle did not take");
+        assert.equal(r.flipped, false, "private mode: Next must leave the next card word-side up");
+      } else {
+        await pg.evaluate(() => { location.hash = "#home"; });
+        await appear("#screen-home", "Josh's launcher");
+        const r = await pg.evaluate(() => ({
+          games: (window.JoshGames || []).length,
+          tiles: document.querySelectorAll("#screen-home .tile").length,
+        }));
+        // the dead-shell signature: the page paints and no script ran
+        assert.ok(r.games >= 200, `private mode: only ${r.games} games registered`);
+        assert.ok(r.tiles >= 8, `private mode: only ${r.tiles} tiles on the launcher`);
+      }
+      assert.deepEqual(errs, [], `${who}: uncaught page errors in private mode`);
+    } finally {
+      await ctx.close();
+    }
   }
 });
