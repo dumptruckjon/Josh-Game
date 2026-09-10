@@ -2303,3 +2303,177 @@ test("Word Cards: the card grows with the screen, and the MENU deliberately does
   assert.ok(tablet.card > tablet.menu,
     `the deck must be the one that grew: card ${tablet.card} vs menu ${tablet.menu}`);
 });
+
+test("Word Cards: every control SAYS what it is, and the answer stays off the tree", async () => {
+  // The axis this page had never been measured on. Josh's world, 华丽's world
+  // and the fort have all had an accessible-name pass; the one standalone PAGE
+  // in the app had not — the same scope hole its contrast pass turned out to
+  // have. Measured on the shipped page, three defects, all the recorded class:
+  //
+  //   18 of 18 menu chips carried NO aria-label, so each announced its icon,
+  //     its name and its count run together — "First Words46 cards" — exactly
+  //     as the fort's difficulty chips read "Normal24/40" before their fix;
+  //   the card's name was a STATIC "Flip the card", byte-identical before and
+  //     after the flip, so the one control this page exists for never said
+  //     which card it was nor what had just happened; and
+  //   `backface-visibility` hides a face from the EYE and not from assistive
+  //     tech, so both faces sat in the tree at once and the card read
+  //     "elephanttap me [picture]elephant" — the ANSWER, before it was turned.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.waitForSelector(".chip");
+
+    // ── the menu ────────────────────────────────────────────────────────────
+    const menu = await pg.evaluate(() => {
+      const out = [];
+      for (const b of document.querySelectorAll("#menu .chip")) {
+        out.push({
+          label: b.getAttribute("aria-label"),
+          nm: b.querySelector(".nm").textContent.trim(),
+          // DERIVED from what the chip actually PRINTS, never a literal here:
+          // a hard-coded count in the label is then caught on the first deck
+          // whose size differs from it.
+          ct: b.querySelector(".ct").textContent.trim(),
+          raw: b.textContent.replace(/\s+/g, " ").trim(),
+        });
+      }
+      const all = document.getElementById("allBtn");
+      const title = document.querySelector(".title");
+      const tcs = getComputedStyle(title);
+      return {
+        chips: out,
+        allName: (all.getAttribute("aria-label") || all.textContent).replace(/\s+/g, " ").trim(),
+        outline: [...document.querySelectorAll("h1,h2,h3,h4")].map((h) => h.tagName + ":" + h.textContent.trim()),
+        titleTag: title.tagName,
+        titleMargin: tcs.marginTop + " " + tcs.marginBottom,
+      };
+    });
+
+    // FIXTURE, and it is what makes the count clause falsifiable: the decks are
+    // genuinely different sizes, so a label that prints one fixed number is
+    // wrong on all but one of them. A suite where every deck held the same
+    // count could not tell a derived label from a typed one.
+    assert.ok(menu.chips.length >= 15, `expected the full deck menu, saw ${menu.chips.length} chips`);
+    const sizes = new Set(menu.chips.map((c) => c.ct));
+    assert.ok(sizes.size >= 3,
+      `fixture: the decks must differ in size or a hard-coded count would pass (saw ${sizes.size} distinct)`);
+
+    for (const c of menu.chips) {
+      assert.ok(c.label, `the "${c.nm}" chip has no aria-label, so it announces ${JSON.stringify(c.raw)}`);
+      assert.ok(c.label.includes(c.nm), `the "${c.nm}" chip must be announced by NAME (saw ${JSON.stringify(c.label)})`);
+      const n = c.ct.match(/\d+/)[0];
+      assert.ok(new RegExp("(^|\\D)" + n + "(\\D|$)").test(c.label),
+        `the "${c.nm}" chip prints ${c.ct} and announces ${JSON.stringify(c.label)} — the two must agree`);
+      // the defect itself: name and number colliding into one spoken word
+      assert.ok(!c.label.includes(c.nm + n),
+        `the "${c.nm}" chip runs its name into its count: ${JSON.stringify(c.label)}`);
+    }
+
+    // A RECORDED NON-CHANGE: "Every word" needs no aria-label, because its two
+    // parts are already separate text nodes and it announces "Every word 503
+    // cards". Pinned as the property (both parts, not run together) rather than
+    // as an absence, so it stays true whichever way a future edit takes it.
+    assert.ok(/Every word\s+\d+ cards/.test(menu.allName),
+      `the all-words button must announce both parts (saw ${JSON.stringify(menu.allName)})`);
+
+    // ── the document's own outline ─────────────────────────────────────────
+    // It began at h2 with no h1, so the page's NAME was in no heading at all
+    // and a reader navigating by heading landed straight in "Learning to read".
+    // The swap is free ONLY because `.title` overrides all three properties an
+    // h1 differs by — measured byte-identical at 320, 390 and 834 (same box,
+    // same first chip, same document height) — so the margin is pinned here:
+    // drop it from `.title` and the UA's own 0.67em would move the whole menu.
+    assert.equal(menu.titleTag, "H1", `the page's name must be its top-level heading (saw <${menu.titleTag}>)`);
+    assert.equal(menu.titleMargin, "6px 2px",
+      `.title must keep declaring its own margin, or an h1 takes the UA's (saw ${menu.titleMargin})`);
+    assert.deepEqual(menu.outline.map((h) => h.split(":")[0]), ["H1", "H2", "H2"],
+      `the outline must not skip a level: ${JSON.stringify(menu.outline)}`);
+
+    // ── the card ────────────────────────────────────────────────────────────
+    const openDeck = async (host, name) => {
+      await pg.evaluate(({ host, name }) => {
+        for (const b of document.querySelectorAll(host + " .chip"))
+          if (b.querySelector(".nm").textContent.trim() === name) b.click();
+      }, { host, name });
+      await pg.waitForTimeout(250);
+    };
+    const readCard = () => pg.evaluate(() => {
+      const card = document.getElementById("card");
+      return {
+        flipped: card.classList.contains("flipped"),
+        label: card.getAttribute("aria-label"),
+        word: document.getElementById("word").textContent,
+        // the sound tiles as the STRIP renders them — the label must read the
+        // same split, or the two have drifted
+        parts: [...document.querySelectorAll("#letters span")].map((s) => s.textContent),
+        back: document.getElementById("pic").textContent,
+        frontHidden: document.getElementById("frontFace").getAttribute("aria-hidden"),
+        backHidden: document.getElementById("backFace").getAttribute("aria-hidden"),
+        backLabel: document.getElementById("back").getAttribute("aria-label"),
+      };
+    });
+
+    await openDeck("#grid", "Animals");
+    let c = await readCard();
+
+    assert.notEqual(c.label, "Flip the card",
+      "the card's name must say WHICH card it is, not a fixed instruction");
+    assert.ok(c.label.includes(c.word), `the card must be announced by its word (saw ${JSON.stringify(c.label)})`);
+    assert.match(c.label, /picture/i, `an unflipped picture card must say what tapping shows (saw ${JSON.stringify(c.label)})`);
+    assert.equal(c.frontHidden, "false", "the face you can SEE must be in the accessibility tree");
+    assert.equal(c.backHidden, "true",
+      `the turned-away face must NOT be — it holds the answer (${JSON.stringify(c.back)})`);
+
+    // and the deck's own back button: "Animals" does not say it LEAVES Animals
+    assert.ok(c.backLabel && /back/i.test(c.backLabel),
+      `the deck's back button must name where it goes (saw ${JSON.stringify(c.backLabel)})`);
+
+    const before = c.label;
+    await pg.click("#card");
+    await pg.waitForTimeout(650);
+    c = await readCard();
+
+    assert.ok(c.flipped, "fixture: the tap must have flipped the card");
+    assert.notEqual(c.label, before, "the name must change when the card turns over — it is a different side");
+    assert.ok(c.label.includes(c.word), `the flipped card must still name its word (saw ${JSON.stringify(c.label)})`);
+    // The tiles are separate boxes on screen and run together as text, so the
+    // split has to be spoken one sound at a time or the strip's whole point is
+    // lost on the channel it matters most for.
+    assert.ok(c.parts.length >= 2, `fixture: "${c.word}" must split into tiles (saw ${c.parts.length})`);
+    assert.ok(c.label.includes(c.parts.join(", ")),
+      `the label must read the SAME split the strip renders (${c.parts.join("-")} vs ${JSON.stringify(c.label)})`);
+    assert.equal(c.frontHidden, "true", "the turned-away front must leave the tree in its turn");
+    assert.equal(c.backHidden, "false", "the face you can now SEE must be in the tree");
+
+    // ── moving on resets it ────────────────────────────────────────────────
+    await pg.click("#next");
+    await pg.waitForTimeout(250);
+    const d = await readCard();
+    assert.notEqual(d.word, c.word, "fixture: Next must reach a different card");
+    assert.ok(d.label.includes(d.word), `the name must follow the NEW word (saw ${JSON.stringify(d.label)})`);
+    assert.match(d.label, /picture/i, "a fresh card is unflipped, so its name must offer the picture again");
+    assert.equal(d.backHidden, "true", "a fresh card hides its answer again");
+
+    // ── the sight deck asks a different question ───────────────────────────
+    await pg.click("#back");
+    await pg.waitForTimeout(200);
+    await openDeck("#readGrid", "Sight Words");
+    let s = await readCard();
+    assert.match(s.label, /sentence/i,
+      `a sight card shows a SENTENCE, not a picture (saw ${JSON.stringify(s.label)})`);
+    assert.doesNotMatch(s.label, /picture/i, "a sight card must not promise a picture it does not have");
+    await pg.click("#card");
+    await pg.waitForTimeout(650);
+    s = await readCard();
+    assert.ok(s.label.includes(s.back),
+      `a flipped sight card must read its sentence (${JSON.stringify(s.back)} vs ${JSON.stringify(s.label)})`);
+
+    assert.deepEqual(errs, [], "no page errors");
+  } finally {
+    await ctx.close();
+  }
+});

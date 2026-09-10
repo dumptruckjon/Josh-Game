@@ -184,7 +184,7 @@
 
 <div class="wrap hidden" id="deck">
   <div class="bar">
-    <button class="back" id="back">&lsaquo;&nbsp; All words</button>
+    <button class="back" id="back" aria-label="Back to all the decks">&lsaquo;&nbsp; All words</button>
     <button class="icon" id="sound" aria-pressed="false" aria-label="Say each word out loud">&#128263;</button>
     <button class="icon" id="shuffle" aria-label="Shuffle these cards">&#128256;</button>
   </div>
@@ -194,8 +194,8 @@
   </div>
   <div class="scene">
     <button class="card" id="card" aria-label="Flip the card">
-      <div class="face"><div class="word" id="word">cat</div><div class="hint">tap me</div></div>
-      <div class="face back-face"><div class="pic" id="pic">&#128049;</div><div class="letters" id="letters"></div></div>
+      <div class="face" id="frontFace"><div class="word" id="word">cat</div><div class="hint">tap me</div></div>
+      <div class="face back-face" id="backFace" aria-hidden="true"><div class="pic" id="pic">&#128049;</div><div class="letters" id="letters"></div></div>
     </button>
   </div>
   <div class="nav">
@@ -208,7 +208,7 @@
   <div class="mhead">
     <a class="home" href="./#home" aria-label="Back to Josh's Games">&#127968;</a>
     <div>
-      <div class="title">Word Cards</div>
+      <h1 class="title">Word Cards</h1>
       <div class="sub">Read the word, then tap to see it.</div>
     </div>
   </div>
@@ -341,7 +341,8 @@ function speak(text){
 const $ = id => document.getElementById(id);
 const menu=$("menu"), deckEl=$("deck"), card=$("card"), wordEl=$("word"), picEl=$("pic"),
       lettersEl=$("letters"), countEl=$("count"), fillEl=$("fill"),
-      prevBtn=$("prev"), nextBtn=$("next"), backBtn=$("back"), soundBtn=$("sound");
+      prevBtn=$("prev"), nextBtn=$("next"), backBtn=$("back"), soundBtn=$("sound"),
+      frontFace=$("frontFace"), backFace=$("backFace");
 
 let deck = [], i = 0, deckKind = "";
 
@@ -365,8 +366,14 @@ function saveAt(){ try { localStorage.setItem(atKey(), String(i)); } catch (e) {
 function chip(host, icon, label, count, color, onGo){
   const b = document.createElement("button");
   b.className = "chip"; b.style.background = color;
-  b.innerHTML = '<span class="ic">'+icon+'</span><span class="nm">'+label+
+  b.innerHTML = '<span class="ic" aria-hidden="true">'+icon+'</span><span class="nm">'+label+
                 '</span><span class="ct">'+count+' cards</span>';
+  // Three visual lines concatenate into ONE run, so without this the chip
+  // announces its icon, its name and its count as one word — the same class as
+  // the fort's difficulty chips and its level cards, whose two lines ran
+  // together in exactly this way. The count is the SAME number the chip PRINTS,
+  // so the spoken label can never drift from what is on the screen.
+  b.setAttribute("aria-label", label + ", " + count + " cards");
   b.addEventListener("click", onGo);
   host.appendChild(b);
 }
@@ -469,7 +476,40 @@ function render(animate){
   prevBtn.disabled = i === 0;
   nextBtn.disabled = i === deck.length - 1;
 
+  paintCardLabel();
+
   if (animate){ wordEl.classList.remove("pop"); void wordEl.offsetWidth; wordEl.classList.add("pop"); }
+}
+
+/* ONE owner for what the card SAYS, because three defects here were really
+   one. The name was a static "Flip the card", identical before and after the
+   flip — so the control this whole page exists for never said WHICH card it
+   was, nor what had just happened, on a tool whose entire content is that one
+   word. And `backface-visibility` hides a face from the EYE and NOT from
+   assistive tech, so both faces sat in the tree at once and the card read
+   "elephanttap me [picture]elephant": the ANSWER, before it was turned over.
+
+   An explicit label REPLACES the content for the name computation, so
+   everything meaningful has to be IN it (the fort's level-card precedent) —
+   and the face that is turned away is aria-hidden so browse mode cannot reach
+   it either. Nothing here is visual, so it costs no pixel and no contrast. */
+function paintCardLabel(){
+  if (!deck.length) return;
+  const word = deck[i][0], back = deck[i][1], isSentence = deck[i][2] === "sight";
+  const shown = card.classList.contains("flipped");
+  frontFace.setAttribute("aria-hidden", shown ? "true" : "false");
+  backFace.setAttribute("aria-hidden", shown ? "false" : "true");
+  card.setAttribute("aria-label", shown
+    // Turned over, the back shows the picture (or, in the sight deck, the
+    // sentence) and the sound-out tiles. The tiles are separate boxes on
+    // screen and run together as text, so they are read out one at a time —
+    // splitting the word is the whole point of that strip.
+    ? word + ". " + (isSentence ? back + ". " : "")
+      + "Sounds: " + sounds(word).join(", ") + ". Tap to see the word again."
+    // The picture's own name IS the word (the deck's law: the natural
+    // four-year-old name of the picture must BE the answer), so saying the
+    // word covers what is about to appear without giving it away.
+    : word + ". Tap to see " + (isSentence ? "a sentence." : "the picture."));
 }
 
 function unflipInstantly(){
@@ -487,6 +527,7 @@ function go(step){
 
 card.addEventListener("click", () => {
   card.classList.toggle("flipped");
+  paintCardLabel();
   if (card.classList.contains("flipped")) speak(deck[i][0]);
 });
 nextBtn.addEventListener("click", () => go(1));

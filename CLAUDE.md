@@ -6850,6 +6850,64 @@ defect; the round controls stay 76px at every width, so the kid tap floor is
 untouched. Recorded as a closed question rather than a taste-driven change,
 because inventing a bar for chrome is the fence this file keeps refusing.
 
+**WORD CARDS' CONTROLS ANNOUNCED THEIR OWN CONCATENATED CONTENT — INCLUDING THE
+ANSWER — and the mechanism behind the worst of the three is a property of CSS
+that no visual test can see.** It is the one standalone PAGE in this app, so
+every accessible-name pass ever run here (the fort's level cards, its difficulty
+chips, 华丽's world) looked straight past it, which is the identical scope hole
+its contrast pass turned out to have. Measured on the shipped page:
+
+  18 of 18 menu chips carried NO `aria-label`, so each announced its icon, its
+    name and its count run together — `"First Words46 cards"` — exactly as the
+    fort's chips read `"Normal24/40"` before their fix;
+  the card's name was a STATIC `"Flip the card"`, byte-identical before and
+    after the flip, so the one control this page exists for never said WHICH
+    card it was nor what had just happened; and
+  **`backface-visibility: hidden` hides a face from the EYE and NOT from
+    assistive tech**, so both faces sat in the tree at once and the card read
+    `"elephanttap me [picture]elephant"` — the ANSWER, before it was turned.
+
+That third one is the general law worth carrying: **only `display: none`,
+`visibility: hidden` and `aria-hidden` take an element out of the accessibility
+tree.** A transform, a clip, a zero opacity or a backface flip are all
+*paint* instructions — the element is still there to be read, and on a flash
+card "still there to be read" is the whole game given away. All six of its
+existing tests pass on it — content truth, deck order, scale at six widths,
+contrast on all eight card hues — because the PICTURE is correct and only the
+TREE is wrong.
+Six things worth keeping. (1) **The card's name is ONE owner** called from
+`render()` and from the flip — the only two things that move that state — and an
+explicit label REPLACES the content for the name computation, so everything
+meaningful has to be IN it (the fort's level-card precedent). (2) **The label
+reads the sound-out split one tile at a time**, and that is pinned against the
+tiles the strip actually RENDERS rather than against a second call to
+`sounds()`: the tiles are separate boxes on screen and run together as text, so
+`sh-i-p` spoken as "ship" loses exactly the thing the strip exists for. (3) **The
+count clause is falsifiable only because the decks differ in size** — a
+hard-coded `", 46 cards"` is caught on the SECOND chip (Word Families, 74), and
+a suite where every deck held the same count could not tell a derived label from
+a typed one. (4) **`.all` is a recorded NON-change**, pinned as a property (both
+parts announced, not run together) rather than as an absence, so it stays true
+whichever way a future edit takes it. (5) **The page's own outline began at h2
+with no h1**, so its NAME was in no heading at all — and swapping `div.title` for
+`h1.title` is provably free ONLY because `.title` overrides all three properties
+an h1 differs by (font-size, weight, margin): measured byte-identical at 320, 390
+and 834 on box, font, first-chip position and document height. That reasoning is
+what the guardrail pins rather than the swap — **M10 removes the margin from
+`.title` and reports the UA's own `20.1px`**, which would move the whole menu, so
+the clause protects the mechanism instead of restating the result. (6) The hidden
+panel was checked rather than assumed: `.hidden{display:none}`, so the menu's 20
+controls really do leave the tree when the deck opens (6 remain), and every one
+of both sets now has a real name.
+**And a CI reading correction, a sibling of the recorded "an in-progress run's
+age is not its RUN time": the run-level object can be STALE OUTRIGHT.** Run #452
+listed as `status: in_progress` with an `updated_at` of 00:09 when queried at
+04:41 — while its three JOB objects showed `test`, `deploy` and `verify-live` all
+completed `success` at 00:31. Nothing was hung and nothing was queued; the
+listing simply had not caught up. This file already says to read the job before
+touching a timing constant; the wider rule is that the run object answers "what
+did the listing last hear", and only the JOBS answer "what happened".
+
 ---
 
 ## Repository Structure
@@ -6872,7 +6930,10 @@ tooling.
 │                               #   carry no adjacent opposite, shared picture or counting run; it
 │                               #   REMEMBERS where he got to in each deck (a seeded order is only
 │                               #   worth having if you can carry on); and it can SAY the word (off
-│                               #   by default, remembered). Every count is counted. Precached in sw.js.
+│                               #   by default, remembered). Every count is counted, and every control
+│                               #   SAYS what it is — the chips name their deck and its size, the card
+│                               #   names its word and its side, and the face turned away is aria-hidden
+│                               #   so the answer is not in the tree before the flip. Precached in sw.js.
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
