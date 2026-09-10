@@ -493,7 +493,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .pattern__q { background: #fff3b0; }
 
 /* ---------- Numbers on choice tiles ---------- */
-.choice--num { font-weight: 900; color: #2b5; }
+.choice--num { font-weight: 900; color: #1d9d47; }
 
 /* ---------- Build a Number ---------- */
 .build__target { font-size: 3.4rem; font-weight: 900; color: #6a4bd6; line-height: 1; }
@@ -519,7 +519,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .take__scene { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: 2.2rem; }
 .take__obj { transition: opacity 0.25s; }
 .take__obj--gone { opacity: 0.16; filter: grayscale(1); }
-.take__eq { font-size: 1.1rem; font-weight: 700; color: #777; }
+.take__eq { font-size: 1.1rem; font-weight: 700; color: #5e5e5e; }
 
 /* ---------- Which Has More ---------- */
 .more__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--pad); width: 100%; }
@@ -624,7 +624,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .breathe--big { transform: scale(1.35); }
 .breathe__star--art { background: none; box-shadow: none; }
 .breathe__star--art svg { width: 100%; height: 100%; }
-.breathe__label { font-size: 1.1rem; font-weight: 700; color: #4a8a6a; }
+.breathe__label { font-size: 1.1rem; font-weight: 700; color: #386850; }
 
 /* ---------- "I Did It!" Certificate ---------- */
 .cert {
@@ -722,7 +722,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 /* ---------- What Changed (spot the difference) ---------- */
 .spot__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .spot__cell { display: flex; align-items: center; justify-content: center; font-size: 2.6rem; min-height: 70px; background: rgba(255, 255, 255, 0.5); border-radius: 16px; }
-.spot__label { font-size: 0.9rem; color: #888; text-align: center; }
+.spot__label { font-size: 0.9rem; color: #5e5e5e; text-align: center; }
 
 /* ---------- Pop the Bubbles ---------- */
 .bub__field { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
@@ -1038,7 +1038,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .story__slot {
   /* min-height = iOS-14.2 fallback (no aspect-ratio); < the ~90px slot width. */
   aspect-ratio: 1 / 1; min-height: var(--tap); background: var(--card); border: 3px dashed #cdd6e0; border-radius: 16px;
-  display: flex; align-items: center; justify-content: center; font-size: clamp(1.8rem, 10vw, 2.6rem); font-weight: 800; color: #9aa7b6;
+  display: flex; align-items: center; justify-content: center; font-size: clamp(1.8rem, 10vw, 2.6rem); font-weight: 800; color: #86919e;
 }
 
 /* ---------- The Big One (color × shape conjunction) ---------- */
@@ -1901,7 +1901,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   min-width: 58px; min-height: 72px; border-radius: 14px; padding: 4px;
   background: linear-gradient(180deg, #fff, #eef4ff); border: 2px solid rgba(120, 170, 255, 0.28);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.9rem; font-weight: 900; color: #2b5;
+  font-size: 1.9rem; font-weight: 900; color: #1d9d47;
 }
 .line__tile--blank { position: relative; background: #eafff0; border-style: dashed; }
 .line__frog { font-size: 1.9rem; }
@@ -2254,7 +2254,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .ord__line { display: grid; gap: 16px; max-width: 340px; margin: 6px auto; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .ord__stand { text-align: center; font-size: 2.6rem; }
 .ord__animal { display: grid; grid-auto-flow: column; align-items: center; justify-content: center; gap: 14px; min-height: 78px; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */ }
-.ord__badge { font-weight: 900; font-size: 1.1rem; color: #7a5cd6; background: #efeaff; border-radius: 999px; padding: 4px 10px; }
+.ord__badge { font-weight: 900; font-size: 1.1rem; color: #7055c5; background: #efeaff; border-radius: 999px; padding: 4px 10px; }
 .ord__face { font-size: 2.2rem; }
 .ord__animal--hop { animation: pop 360ms ease-out; }
 
@@ -2480,7 +2480,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .tidy__bins { max-width: 340px; margin: 4px auto 10px; }
 .tidy__bin { flex-direction: column; gap: 2px; }
 .tidy__binIcon { font-size: clamp(1.8rem, 10vw, 2.6rem); line-height: 1; }
-.tidy__binLabel { font-size: 0.72rem; color: #6b7a8d; font-weight: 700; }
+.tidy__binLabel { font-size: 0.72rem; color: #535f6e; font-weight: 700; }
 .tidy__bin--filled { background: #eafbe8; border-color: #7be08a; }
 .tidy__toys { max-width: 340px; margin: 0 auto; }
 .tidy__toy { font-size: clamp(2rem, 11vw, 2.8rem); }
@@ -2495,7 +2495,10 @@ body.hl-mode .brand { color: #ffe9b0; }
 .truck__rocks { max-width: 320px; margin: 0 auto; }
 .truck__rock { font-size: clamp(2rem, 11vw, 2.8rem); }
 .truck__rock--gone { opacity: 0; transform: scale(0.4); transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }
-.truck__lever { margin: 8px auto 0; display: block; background: linear-gradient(180deg, #ffd24d, #ffb020); }
+/* .btn-big promises "AA >=3:1 for the white label across the gradient"; this
+   child replaces the gradient with YELLOW and inherited the promise without
+   the property (white on #ffb020 is 1.44:1), so it must bring its own ink. */
+.truck__lever { margin: 8px auto 0; display: block; color: #3a2600; background: linear-gradient(180deg, #ffd24d, #ffb020); }
 
 @media (prefers-reduced-motion: reduce) {
   .glue__parts, .glue__plus, .gw__cell--filled, .fix__card--fixed, .truck__rig, .truck__rock--gone { transition: none !important; }
@@ -2590,7 +2593,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 /* Shape Spy — the visible target swatch (sound-off channel). */
 .spy__target { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0 8px; }
 .spy__targetGlyph { font-size: 2.4rem; line-height: 1; }
-.spy__targetLabel { font-size: 0.8rem; color: #6b7a8d; font-weight: 700; }
+.spy__targetLabel { font-size: 0.8rem; color: #535f6e; font-weight: 700; }
 
 /* ---------- Tablet: scale the TRACK, not the column count ----------
    Josh's real device is an iPad, and the launcher grew only in COLUMNS:

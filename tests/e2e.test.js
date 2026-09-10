@@ -2056,6 +2056,155 @@ function auditContrast() {
   return out;
 }
 
+test("CONTRAST: every ACTIVE text run in Josh's and 华丽's worlds clears AA", async () => {
+  // Both worlds had a ONE-OFF contrast pass and neither left a guardrail: the
+  // fort's audit is scoped to fort surfaces and Word Cards' to its own page, so
+  // 240 + 40 game screens had nothing checking them and a new game inherits no
+  // protection at all. The recorded objection was cost — the 华丽 pass decoded
+  // screenshots and took 77s — and it is obsolete: compositing COMPUTED styles
+  // measures the same thing in ~13s for 245 surfaces, which is why this can be
+  // a test rather than a memory.
+  //
+  // It found 80 real sub-AA runs across NINE css rules, led by `color: #2b5`
+  // on the white answer card — the big tappable numeral in 50+ games, at
+  // 2.29:1 — and .truck__lever, which replaced .btn-big's audited pink
+  // gradient with YELLOW while inheriting its white ink (1.44:1), i.e. it
+  // inherited the parent's promise without the property.
+  //
+  // THREE THINGS IT DELIBERATELY DOES NOT JUDGE, each because the metric
+  // cannot model them, and each measured rather than assumed:
+  //
+  //  positional — a run over a GRADIENT is scored at every stop. If they all
+  //    fail, position cannot save it and it is a finding ("tight"); if any
+  //    passes, where the run sits decides. That is not hypothetical: 华丽's
+  //    poem line is cream on a body gradient running #8E1414 -> #E0A339 and
+  //    scores 1.92 against the gold END, while the line sits at 41% of the
+  //    screen over the dark red. Scoring the worst stop alone contradicted her
+  //    painted (screenshot) pass, which reported zero, on 9 runs.
+  //  shadowed — a text-shadow is a real legibility device that a ratio cannot
+  //    see. 44 runs carry one (white 900-weight numerals on saturated cards:
+  //    .dt__car, .song__note, .cbn__swatch, .mt__abbr).
+  //  inactive — WCAG 1.4.3 exempts an inactive component, and dimming IS the
+  //    signal for .coin--off (a coin that would overshoot) exactly as it is
+  //    for the fort's locked star-tree nodes.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pg = await ctx.newPage();
+  try {
+    await pg.goto(baseURL, { waitUntil: "load" });
+
+    const AUDIT = (lbl) => {
+      const px = (t) => (t.match(/-?[\d.]+/g) || []).slice(0, 4).map(Number);
+      const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+      const ratio = (a, b) => { const [h, l] = [lum(a), lum(b)].sort((x, y) => y - x); return (h + 0.05) / (l + 0.05); };
+      const mix = (fg, bg, a) => [0, 1, 2].map((i) => Math.round(fg[i] * a + bg[i] * (1 - a)));
+      // Composite the PAINTED backdrop from the bottom up. The first cut treated
+      // a gradient as opaque and reported 200 false failures on .game__promptText:
+      // .screen.game carries a TRANSLUCENT rgba(120,214,140,..) "floor" over the
+      // body gradient, so the raw green stop is a colour never actually painted.
+      const bgOf = (el) => {
+        const layers = []; let n = el;
+        while (n && n !== document.documentElement) {
+          const cs = getComputedStyle(n);
+          if (/gradient/.test(cs.backgroundImage)) {
+            const st = (cs.backgroundImage.match(/rgba?\([^)]*\)/g) || []).map(px).filter((c) => c.length >= 3);
+            if (st.length) layers.push({ grad: st });
+          }
+          const c = px(cs.backgroundColor);
+          const al = c[3] === undefined ? 1 : c[3];
+          if (al > 0) layers.push({ c: c.slice(0, 3), a: al });
+          if (al === 1) { n = null; break; }   // opaque: nothing beneath is painted
+          n = n.parentElement;
+        }
+        layers.push({ c: [255, 255, 255], a: 1 });
+        let out = [[255, 255, 255]];
+        for (let i = layers.length - 1; i >= 0; i--) {
+          const L = layers[i];
+          if (L.grad) {
+            const next = [];
+            for (const base of out) for (const st of L.grad)
+              next.push(mix(st.slice(0, 3), base, st[3] === undefined ? 1 : st[3]));
+            out = next.slice(0, 24);
+          } else out = out.map((base) => mix(L.c, base, L.a));
+        }
+        return { bgs: out, grad: layers.some((L) => L.grad) };
+      };
+      // ART is "no letter and no digit". The obvious spelling is a trap:
+      // \p{Emoji_Component} MATCHES THE ASCII DIGITS, which once made the fort's
+      // own audit skip every price and score in the game.
+      const isArt = (t) => !/[\p{L}\p{Nd}]/u.test(t);
+      const out = { runs: 0, judged: 0, shadowed: 0, exempt: 0, positional: 0, fails: [] };
+      const seen = new Set();
+      for (const el of document.querySelectorAll("*")) {
+        if (!el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
+        const txt = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
+        if (!txt) continue;
+        out.runs += 1;
+        if (isArt(txt)) continue;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === "hidden" || Number(cs.opacity) === 0) continue;
+        const cx = Math.min(innerWidth - 1, Math.max(1, r.left + Math.min(6, r.width / 2)));
+        const cy = Math.min(innerHeight - 1, Math.max(1, r.top + r.height / 2));
+        const top = document.elementFromPoint(cx, cy);
+        if (top && top !== el && !el.contains(top) && !top.contains(el)) continue;   // occluded
+        if (el.closest('[disabled], [aria-disabled="true"], [class*="--locked"], [class*="__dim"], [class*="--dim"], [class*="--off"]')) { out.exempt += 1; continue; }
+        if (cs.textShadow && cs.textShadow !== "none") { out.shadowed += 1; continue; }
+        const c = px(cs.color);
+        const { bgs, grad } = bgOf(el);
+        const size = parseFloat(cs.fontSize), weight = Number(cs.fontWeight);
+        const bar = (size >= 24 || (size >= 18.66 && weight >= 700)) ? 3 : 4.5;
+        let worst = Infinity, best = -Infinity, worstBg = null;
+        for (const bg of bgs) {
+          const ink = mix(c.slice(0, 3), bg, (c[3] === undefined ? 1 : c[3]) * Number(cs.opacity));
+          const rr = ratio(ink, bg);
+          if (rr < worst) { worst = rr; worstBg = bg; }
+          if (rr > best) best = rr;
+        }
+        out.judged += 1;
+        if (worst >= bar) continue;
+        if (grad && best >= bar) { out.positional += 1; continue; }   // position decides — not a finding
+        const key = String(el.className) + "|" + txt.slice(0, 24);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.fails.push(`${lbl}: .${String(el.className).slice(0, 40)} "${txt.slice(0, 24)}" is ` +
+          `${worst.toFixed(2)}:1 on rgb(${worstBg}) at ${size}px/w${weight}, below AA's ${bar}:1`);
+      }
+      return out;
+    };
+
+    const fails = [];
+    let surfaces = 0, runs = 0, judged = 0;
+    const look = async (hash, sel, lbl) => {
+      await pg.evaluate((h) => { location.hash = "#__x"; location.hash = h; }, hash);
+      try { await pg.locator(sel).waitFor({ state: "visible", timeout: 5000 }); }
+      catch { assert.fail(`${lbl}: ${sel} never became visible`); }
+      const o = await pg.evaluate(AUDIT, lbl);   // IN THE PAGE, not in node
+      surfaces += 1; runs += o.runs; judged += o.judged; fails.push(...o.fails);
+    };
+
+    await look("#home", "#screen-home", "josh home");
+    await look("", "#screen-start", "front door");
+    await look("#stickers", "#screen-stickers", "sticker book");
+    await look("#hl-home", "#screen-hl-home", "hl home");
+    await look("#hl-stickers", "#screen-hl-stickers", "hl book");
+    // DERIVED from the live registry, so a 241st game is audited the day it lands
+    const ids = await pg.evaluate(() => (window.JoshGames || []).map((g) => g.id));
+    assert.ok(ids.length >= 200, `only ${ids.length} games registered — the walk would be near-vacuous`);
+    for (const id of ids) await look("#" + id, "#screen-" + id, id);
+
+    assert.deepEqual(fails.slice(0, 8), [],
+      `${fails.length} text run(s) below WCAG AA (first 8 shown; grouped by CSS rule they are usually far fewer)`);
+    // A derivation fails OPEN: a broken walk, a blinded text scan or a bgOf that
+    // returns nothing all pass on an empty set, so the population is asserted.
+    assert.ok(surfaces >= 240, `only ${surfaces} surfaces audited`);
+    assert.ok(runs >= 2000, `only ${runs} text runs seen — the scan went blind`);
+    assert.ok(judged >= 500, `only ${judged} runs were actually SCORED — the exemptions swallowed the audit`);
+  } finally { await ctx.close(); }
+});
+
 test("Word Cards: every text run clears WCAG AA on all eight card colours", async () => {
   // wordcards.html is the one standalone PAGE in this app — its own inline CSS,
   // it never loads main.css — so no contrast pass had ever reached it. Measured

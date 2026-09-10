@@ -7078,6 +7078,62 @@ the one failure that also blocks the FIX** — `git commit` needs the same
 service — so the first thing checked was whether a commit could be made at all
 (it could; the 503 had already cleared), because a batch that cannot be
 committed is a different problem from a batch that is wrong.
+**BOTH KID WORLDS HAD A ONE-OFF CONTRAST PASS AND NEITHER LEFT A GUARDRAIL — so
+240 + 40 game screens had nothing checking them, and building the check found 80
+sub-AA runs across NINE css rules.** The fort's audit is scoped to fort surfaces
+and Word Cards' to its own page; Josh's games and 华丽's were the gap, and a new
+game inherited no protection at all. The recorded objection was COST — her
+painted pass decoded screenshots and took 77s, explicitly "kept out of CI" — and
+it is obsolete: compositing COMPUTED styles measures the same thing in **13s for
+245 surfaces**, which is the whole difference between a memory and a test.
+The finding set is led by **`color: #2b5` on the white answer card at 2.29:1 —
+the big tappable numeral in 50+ games**, i.e. the most-rendered piece of content
+text in the app — plus `.line__tile`, `.order__item`, `.story__slot`,
+`.ord__badge` and four grey labels. The sharpest single one is
+**`.truck__lever`, which replaced `.btn-big`'s pink gradient with YELLOW while
+inheriting its white ink** (1.44:1) — and `.btn-big`'s own rule carries the
+comment *"AA >=3:1 for the white label across the gradient (audit)"*, so the
+child inherited the parent's PROMISE without the PROPERTY. Every replacement
+colour is computed by darkening the shipped hue until it clears its bar with
+margin, never picked by eye. 80 -> 0.
+**THE INSTRUMENT WAS WRONG THREE TIMES BEFORE IT WAS RIGHT, and each correction
+is the real deliverable.** (1) It reported **344** failures, of which 200 were
+`.game__promptText`: `.screen.game` carries a TRANSLUCENT
+`rgba(120,214,140,.18)` radial floor over the body gradient, and treating a
+gradient as opaque scores against a colour that is never painted. Compositing
+every layer bottom-up took it to 117. (2) Then EVERY run read as a bound,
+because the walk continued past an opaque background six ancestors up — an
+opaque `background-color` ends the walk, or a body gradient decides answers it
+cannot reach. (3) **The decisive one: a run over a gradient must be scored at
+BOTH ends.** 华丽's poem line is cream on a body gradient running
+`#8E1414 -> #E0A339`; against the gold END it is 1.92:1, and the line sits at
+41% of the screen, over the dark red. Her painted pass had reported ZERO, so my
+worst-stop reading CONTRADICTED a screenshot audit on 9 runs — and when a
+computed metric disagrees with pixels, the pixels are right. So a gradient run
+is a finding only when EVERY stop fails (`tight`); if any stop passes, position
+decides and the instrument declines (`positional`).
+**IT ALSO DECLINES TWO THINGS IT CANNOT MODEL, and saying which is what keeps it
+from being a false-positive machine.** A **text-shadow** is a real legibility
+device a ratio cannot see: 44 runs carry `0 1px 2px rgba(0,0,0,.4)` — white
+900-weight numerals on saturated cards (`.dt__car`, `.song__note`,
+`.cbn__swatch`, `.mt__abbr`) — which score ~1.5:1 and render perfectly legibly,
+so scoring them would have condemned a deliberate and effective pattern. And an
+**inactive component** is exempt under WCAG 1.4.3: `.coin--off` is a coin that
+would overshoot, where dimming IS the signal, exactly as it is for the fort's
+locked star-tree nodes. Both are the same call as `positional` — decline to
+judge what the metric cannot model, and count what was declined.
+**Three method notes.** The population is DERIVED from the live registry, so a
+241st game is audited the day it lands, and three floors guard it (a derivation
+fails OPEN, so `surfaces >= 240`, `runs >= 2000` and — the one that matters —
+`judged >= 500`, because three exemptions could otherwise swallow the audit
+while it reported success). The fixture bug worth recording is that the first
+run threw **`document is not defined`**: I called the audit function in NODE
+instead of `pg.evaluate`-ing it into the page — a whole-audit no-op that failed
+loudly only because the function touches the DOM on its first line. And the
+mutations name the defects verbatim rather than merely going red: reverting the
+numeral reports `.choice--num ... 2.29:1 ... below AA's 3:1`, reverting the
+lever reports `⬇️ DUMP! is 1.44:1`, and blinding the text walk reports
+`only 0 runs were actually SCORED`.
 
 ---
 
