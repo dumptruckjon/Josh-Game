@@ -2258,6 +2258,41 @@ test("Word Cards: the card grows with the screen, and the MENU deliberately does
     }
   }
 
+  // THE SIGHT DECK'S SENTENCE IS THE SIBLING CAP, and it is checked here rather
+  // than in a test of its own because it is the same claim: `.pic.sentence` had
+  // the identical 2.6rem ceiling and went the WRONG way against the card — 60%
+  // of its width on a phone and 41% on an 834 tablet. Raising one cap and
+  // leaving its neighbour one CSS line below is the fix-it-where-you-found-it
+  // class this project keeps paying for.
+  const sentence = async (w, h) => {
+    const c = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce" });
+    const pg = await c.newPage();
+    try {
+      await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      await pg.evaluate(() => {
+        const b = [...document.querySelectorAll(".chip")].find((x) => x.textContent.includes("Sight Words"));
+        if (b) b.click();
+      });
+      await pg.waitForSelector(".card");
+      await pg.click(".card");
+      return await pg.evaluate(() => ({
+        px: parseFloat(getComputedStyle(document.querySelector(".back-face .pic")).fontSize),
+        card: document.querySelector(".card").clientWidth,
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+      }));
+    } finally {
+      await c.close();
+    }
+  };
+  const sPhone = await sentence(390, 844), sTablet = await sentence(834, 1112);
+  assert.equal(sPhone.overflow, 0, "the sight deck overflows on a phone");
+  assert.equal(sTablet.overflow, 0, "the sight deck overflows on a tablet");
+  assert.equal(Math.round(sPhone.px), 27, `the phone's sentence must stay 27px (saw ${sPhone.px})`);
+  const sGrew = sTablet.px / sPhone.px;
+  assert.ok(sGrew >= 1.7,
+    `the sight sentence must grow with the card too: ${Math.round(sPhone.px)}px at 390 vs ` +
+    `${Math.round(sTablet.px)}px at 834 (x${sGrew.toFixed(2)}, need x1.7 — it was x1.52 while capped)`);
+
   // AND THE MENU IS A DELIBERATE NON-CHANGE, pinned so nobody "finishes the
   // job" by widening it too. Its chips already measure 255px at 834, and 14
   // categories fill EVENLY only at two columns — 3 and 4 both orphan a card,

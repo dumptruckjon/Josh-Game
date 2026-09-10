@@ -6830,6 +6830,25 @@ SECOND, DIFFERENT measurement.** The picture was proportionally correct and the
 card was two-thirds the size it should have been, and both facts were visible in
 the same image. The refutation was sound; it just answered the narrower of the
 two questions the picture was asking.
+(4) **AND I COMMITTED THE FIX-IT-WHERE-YOU-FOUND-IT CLASS INSIDE THE FIX FOR
+IT.** `.pic` and `.pic.sentence` are one CSS line apart, I raised the first cap
+and left the second, and the sibling had the identical defect pointing the same
+way: at `2.6rem` the sight-word SENTENCE capped from ~600px up and went
+BACKWARDS against the card — 60% of its width on a 390 phone, 41% on an 834
+tablet. Raised to 3.9rem, which is where a tablet lands back on the phone's own
+proportion (57 / 58 / 62% at 768 / 834 / 1024), and folded into the same test
+rather than a near-duplicate of its own, because it is the same claim.
+(5) **So the population was then DERIVED instead of screenshotted one at a
+time**, which is the move that should have come first: render every element that
+carries ink at 390 and at 834 and report anything whose size does not move.
+Exactly five things scale — the strip, the digraph tile, the word, the picture
+and the sentence, at x1.73 to x2.14 — and they are precisely the CARD'S CONTENT.
+Everything the sweep calls frozen is CHROME (the back label, the sound and
+shuffle glyphs, the progress counter, the whole menu), which is 16px on both
+rather than smaller on the tablet, so it breaches no law and has no measured
+defect; the round controls stay 76px at every width, so the kid tap floor is
+untouched. Recorded as a closed question rather than a taste-driven change,
+because inventing a bar for chrome is the fence this file keeps refusing.
 
 ---
 
