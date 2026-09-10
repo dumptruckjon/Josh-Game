@@ -1724,12 +1724,40 @@ test("Word Cards: he cannot guess the next card, and the sounds are right", asyn
         const a = NUM.indexOf(nums[k - 1]);
         if (a >= 0 && NUM.indexOf(nums[k]) === a + 1) counting += 1;
       }
+      // Two cards in one PICTURE deck can be linked by GRAMMAR rather than by
+      // meaning — a cardinal and its ordinal, a singular and its plural — and
+      // those give the next card away exactly as an opposite does. The counting
+      // chain and the ordinal chain were each in PAIRS and the links BETWEEN
+      // them were not, which is how "first one" and "second two" came to sit
+      // side by side in the numbers deck. Derived rather than listed, so a
+      // sixth link is covered when the deck grows. Sight cards are excluded on
+      // purpose: they carry no picture, so there is nothing to give away, and
+      // telling two similar sight words apart (a / as) IS the skill.
+      const ORD = { one: "first", two: "second", three: "third" };
+      const IRREG = [["foot", "feet"], ["tooth", "teeth"], ["mouse", "mice"]];
+      const byW = {}; for (const x of WORDS) byW[x[0]] = x;
+      const morphGaps = [], morphSeen = [];
+      for (const c of [...new Set(WORDS.map((x) => x[2]))]) {
+        if (c === "sight") continue;
+        const words = WORDS.filter((x) => x[2] === c).map((x) => x[0]);
+        const S = new Set(words), link = [];
+        for (const a of words) {
+          for (const suf of ["s", "es"]) if (S.has(a + suf)) link.push([a, a + suf]);
+          if (ORD[a] && S.has(ORD[a])) link.push([a, ORD[a]]);
+          for (const ir of IRREG) if (a === ir[0] && S.has(ir[1])) link.push(ir);
+        }
+        for (const q of link) {
+          morphSeen.push(c + ": " + q.join("/"));
+          if (!clash(byW[q[0]], byW[q[1]])) morphGaps.push(c + ": " + q.join("/"));
+        }
+      }
+
       // the same seed must give the same order every time, or a grown-up
       // cannot tell where he got to
       const twice = teachingOrder(WORDS.filter((x) => x[2] === "animals"), "Animals").map((x) => x[0]);
       const again = teachingOrder(WORDS.filter((x) => x[2] === "animals"), "Animals").map((x) => x[0]);
       return {
-        decks, counting, nums,
+        decks, counting, nums, morphGaps, morphSeen,
         stable: twice.join() === again.join(),
         joinFails: WORDS.filter((x) => sounds(x[0]).join("") !== x[0]).map((x) => x[0]),
         firsts: firstWords().map((c) => c[0]), teams: teamDeck().map((c) => c[0]),
@@ -1747,6 +1775,17 @@ test("Word Cards: he cannot guess the next card, and the sounds are right", asyn
     }
     assert.equal(r.counting, 0, `the numbers still run in counting order: ${r.nums.join(" ")}`);
     assert.ok(r.stable, "the same deck must come out in the same order every time");
+
+    // The clause above (clashes === 0) is satisfied trivially if a pair is
+    // DELETED from the avoid list, so it cannot protect the list's contents.
+    // This one asserts the relation itself: every grammatical link inside a
+    // picture deck must be something clash() refuses to place side by side.
+    assert.deepEqual(r.morphGaps, [],
+      "a cardinal beside its own ordinal, or a singular beside its plural, gives the next card " +
+      "away as surely as an opposite does — but clash() would allow it");
+    assert.ok(r.morphSeen.length >= 5,
+      `only ${r.morphSeen.length} grammatical links were derived — the scan found nothing to check, ` +
+      "so the clause above passed on an empty set");
 
     // A deck's LABEL is a claim: First Words promises you can blend it, so a
     // final w/y/r is disqualifying (k-e-y blends to nothing), and Sound Teams

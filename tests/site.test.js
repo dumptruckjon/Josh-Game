@@ -2584,7 +2584,20 @@ test("guardrail: the stale-clone hook BEHAVES — all six branches driven in thr
   try {
     sh("git init -q --bare origin.git && git clone -q origin.git work", tmp);
     const work = path.join(tmp, "work");
-    sh("git config user.email t@t && git config user.name t && mkdir -p .claude", work);
+    // commit.gpgsign is TRUE in this sandbox, globally, so a throwaway clone
+    // inherits it and every commit below calls out to a code-signing service.
+    // A 503 there once turned this test — whose subject is a shell script's
+    // branch logic — red, and cost a full gate. Nothing here asserts anything
+    // about a signature, so the dependency is simply removed: same class as the
+    // verify-live transport retry, where an external service on the critical
+    // path makes a transient indistinguishable from a real failure.
+    sh("git config user.email t@t && git config user.name t && git config commit.gpgsign false && mkdir -p .claude", work);
+    // Read back what git will ACTUALLY do, rather than trusting the line above:
+    // if the setting is ever dropped, this clone silently inherits the global
+    // `true` and every commit below goes back to needing the signing service.
+    assert.equal(sh("git config --get commit.gpgsign", work).trim(), "false",
+      "the throwaway clone must not sign its commits — a signing outage would then redden " +
+      "this test, whose subject is a shell script and which asserts nothing about signatures");
     fs.copyFileSync(path.join(root, ".claude/resync-main.sh"), path.join(work, ".claude/resync-main.sh"));
     fs.chmodSync(path.join(work, ".claude/resync-main.sh"), 0o755);
     sh("echo A > f.txt && git add -A && git commit -qm A && git branch -M main && git push -q origin main", work);

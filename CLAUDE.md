@@ -7026,6 +7026,58 @@ colour is a swatch, and this is the one word with no swatch at ≤13.0. `maple`
 word, and adjudicating *laugh* against *funny* is a synonym question, not a
 wrong-answer one. **Inventing a defect to look thorough is worse than leaving
 it** — the 大雁/秋 precedent, applied to a second world.
+**AND RE-READING THE ORDER THE FIX PRODUCED FOUND THE OWNER'S OWN COMPLAINT
+STILL LIVE, ONE RELATION OVER.** The seeded order was shipped because the deck
+"is ordered back to back with opposites which is too easy to guess", and
+`PAIRS` duly covers the counting chain (zero/one … nine/ten) and the ordinal
+chain (first/second, second/third, first/third). It does NOT cover the links
+BETWEEN those two chains — so the numbers deck came out reading **`first one
+second two ten …`**, an ordinal sitting beside its own cardinal, twice in the
+first four cards. Two lists that each cover half a relation is the same shape
+as `hurriedMult`'s two writers and `writeMidRun`'s three fields with two
+policies: **when a list covers a relation, ask what the relation's OTHER axis
+is.** Derived across every deck, the same class turned up `eye`/`eyes` and
+`foot`/`feet` in the body deck — a singular and its plural, two cards for one
+body part whose PICTURES give each other away — both separated today only by
+luck of the shuffle, and **one of them (`foot`/`feet`) introduced by the very
+commit that fixed the four wrong pictures**, since `feet` was `hair`'s
+replacement. Five entries in `PAIRS` close it, using machinery that already
+existed; all decks still converge clash-free and the body deck does not even
+reorder, which is what "latent" means measured rather than asserted.
+**`a`/`as` is the case that is NOT in the class, and saying why is what keeps
+the rule from being a fence.** It is the only other pair the derivation finds,
+and sight cards carry no picture at all — there is nothing to give away, and
+telling two similar sight words apart is precisely the skill that deck teaches.
+So the law is scoped to PICTURE decks by mechanism, not by an exemption list.
+**The guardrail had to be a different clause from the one already there.** The
+shipped order test asserts `clashes === 0`, which is satisfied trivially by
+DELETING a pair from the avoid list — it protects the ORDER and cannot protect
+the list's contents. The new clause asserts the relation itself: every
+grammatical link inside a picture deck must be something `clash()` refuses,
+derived from the deck so a sixth link is covered when the deck grows, with a
+non-vacuity floor because a derivation that stops matching passes on an empty
+set. Same pairing as everywhere else here — one clause for the artefact, one
+for the rule that produced it.
+**AND THE GATE THAT PROVED IT WENT RED ON A SERVICE OUTAGE, IN A TEST ABOUT A
+SHELL SCRIPT.** `guardrail: the stale-clone hook BEHAVES` builds throwaway git
+clones and commits in them; this sandbox sets `commit.gpgsign = true` GLOBALLY,
+so each of those commits calls out to a code-signing service, and a 503 there
+reported `fatal: failed to write commit object` — a red test whose subject is
+`.claude/resync-main.sh`'s branch logic, and a lost 25-minute gate. Nothing in
+that test asserts anything about a signature, so the dependency is removed
+rather than retried (`git config commit.gpgsign false` on the throwaway clone,
+one line, covering every commit site because they all use the same clone). Same
+class as the `verify-live` transport finding — **an external service sitting on
+a test's critical path makes a transient indistinguishable from a real
+failure** — and the same resolution the flex-gap and aspect-ratio simulations
+use: when the environment is not the subject, take it out of the measurement.
+Two things worth keeping. **A red gate is a claim like any other**: the failure
+was diagnosed by reading the error rather than by re-running, and the tell was
+that it named a signing server and not an assertion. And **a signing outage is
+the one failure that also blocks the FIX** — `git commit` needs the same
+service — so the first thing checked was whether a commit could be made at all
+(it could; the 503 had already cleared), because a batch that cannot be
+committed is a different problem from a batch that is wrong.
 
 ---
 
