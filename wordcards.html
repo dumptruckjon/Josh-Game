@@ -230,6 +230,8 @@
   <div class="grid" id="readGrid"></div>
   <h2 class="sect">Letter teams</h2>
   <div class="grid" id="teamGrid"></div>
+  <h2 class="sect">Bossy R</h2>
+  <div class="grid" id="bossyGrid"></div>
   <h2 class="sect">Words and pictures</h2>
   <button class="all" id="allBtn">Every word <small></small></button>
   <div class="grid" id="grid"></div>
@@ -257,9 +259,17 @@ const COLORS = ["#FFC93C","#FF6B57","#3FBFEF","#57C64A","#FF7BB0","#FF9F1C","#2E
    counter-example that deck exists to avoid, handed over by the other half of
    the same feature.
 
-   The order is the order he MEETS them — consonant teams, then vowel teams —
-   with one matching constraint: tch must come before ch, or watch splits as
-   w-a-t-ch. */
+   The order is the order he MEETS them — consonant teams, then vowel teams,
+   then bossy r — and it is MOSTLY free: measured, moving er or ur to the front
+   of the table changes not one of the 503 strips. It is also the matching
+   precedence, and exactly TWO rules need that, because they are the only pairs
+   that can match at the SAME letter: air must beat ai (or chair splits ch-ai-r)
+   and oar must beat oa (or skateboard splits b-oa-r-d).
+
+   tch LOOKS like a third and is not. ch can never match where tch does — no
+   string starts with both — so their order is free as well, measured; what
+   watch needs is for tch to be PRESENT, or it splits w-a-t-ch. Presence is the
+   guarantee there and order is the guarantee for the other two. */
 const SOUND_RULES = [
   ["tch", []],                          // first: watch is wa-tch, not wat-ch
   ["sh", []],
@@ -270,16 +280,30 @@ const SOUND_RULES = [
   ["ph", []],
   ["qu", []],
   ["wh", []],
+  ["air", []],                          // must beat ai: chair is ch-air
+  ["oar", []],                          // must beat oa: skateboard is b-oar-d
   ["ee", []],
   ["oo", ["door"]],                     // door is "dor" — that oo is not the team
   ["oa", ["koala"]],                    // koala is k-o-a-la across a syllable
-  ["ai", ["chair","fairy","mountain"]], // chair/fairy are -air; mountain's ai is a schwa
+  ["ai", ["mountain"]],                 // mountain's ai is a schwa, not the team
   ["ay", []],
   ["igh", ["eight"]],                   // eight is ei-gh, not igh
   ["ow", []],
   ["ou", ["soup","four"]],              // soup is /oo/ and four is /or/
   ["oi", []],
   ["oy", ["yoyo"]],                     // yo-yo: the o and y are different syllables
+  /* BOSSY R, last for TEACHING order rather than for matching — measured,
+     these five can sit anywhere. Each exception list is a word whose letters
+     say something else, and they are the reason this could not be a substring
+     match: bear/pear/hare are the /air/ sound, earth is /er/, heart is /ar/
+     but SPELLED ear, parrot and carrot are a short a, lizard and wizard end
+     in /erd/, and worm says "werm". Sorting those out by hand is the work. */
+  ["ar", ["bear","pear","ear","heart","earth","beard","hare","scared",
+          "parrot","carrot","parachute","lizard","wizard","kangaroo"]],
+  ["er", ["zero","berry","cherry","ferry","strawberry"]],
+  ["ir", ["giraffe","mirror","fire","firefighter","siren"]],
+  ["or", ["worm","mirror","tractor","doctor","scissors","anchor","motorbike","door"]],
+  ["ur", ["four","dinosaur","burrito"]],
 ];
 const DOUBLE = /^(bb|cc|dd|ff|gg|ll|mm|nn|pp|rr|ss|tt|zz)/;
 function sounds(word){
@@ -354,7 +378,8 @@ function familyDeck(){
    the deck it names, so it cannot drift out of the data underneath it. */
 const TEAM_LIKE = { sh:"ship", ch:"chick", th:"tooth", ck:"duck", ng:"ring",
                     ph:"phone", qu:"squid", ee:"bee", oo:"moon", oa:"boat",
-                    ai:"rain", ow:"cow", ou:"house" };
+                    ai:"rain", ow:"cow", ou:"house",
+                    ar:"car", er:"tiger", ir:"bird", or:"corn", ur:"turtle" };
 function teamWords(pg){
   const hit = WORDS.filter(w => w[2] !== "sight" &&
     sounds(w[0]).some(t => t.toLowerCase() === pg));
@@ -377,11 +402,22 @@ function teamDeck(){
 }
 // A deck is a lesson; two cards is not. The bar is DERIVED, so a team that
 // reaches it when a card is added gets its chip with no code change — and the
-// thin ones (tch, wh, ay, igh, oi, oy) are named by nothing, they simply do not
-// clear it. igh is the one worth knowing about: light, firefighter and
-// lightning are all it has, and night has no picture a four-year-old names
-// "night" at Emoji <= 13.0, so it is short by one word rather than by design.
+// thin ones (tch, air, oar, wh, ay, igh, oi, oy) are named by nothing, they
+// simply do not clear it. igh is the one worth knowing about: light,
+// firefighter and lightning are all it has, and night has no picture a
+// four-year-old names "night" at Emoji <= 13.0, so it is short by one word
+// rather than by design. air and oar are in the table to fix a SPLIT rather
+// than to teach a deck — chair and skateboard — and would get a chip on their
+// own if the deck ever grew to four.
 const TEAM_MIN = 4;
+/* Bossy R gets its own section because it is its own lesson and its own name
+   in every phonics book: a vowel with an r after it stops saying its own name.
+   The split is DERIVED from the pattern — a single vowel then r IS the
+   definition — rather than listed, so the two grids cannot drift from the
+   table, and it deliberately does NOT claim air/ear/oar, which are vowel TEAMS
+   with an r and are taught separately. It also keeps each grid readable:
+   thirteen chips and five, rather than one run of eighteen. */
+const BOSSY = /^[aeiou]r$/;
 function teamDecks(){
   const out = [];
   for (const r of SOUND_RULES){
@@ -472,7 +508,8 @@ for (const r of READING){
 let teamIdx = 0;
 for (const t of teamDecks()){
   const pg = t[0], list = t[1], like = "like " + list[0][0];
-  chip($("teamGrid"), pg, like, list.length, COLORS[teamIdx++ % COLORS.length],
+  chip($(BOSSY.test(pg) ? "bossyGrid" : "teamGrid"), pg, like, list.length,
+       COLORS[teamIdx++ % COLORS.length],
        () => start(list, pg + " team", "team:" + pg, "grouped"), pg + ", " + like)
     .classList.add("team");
 }

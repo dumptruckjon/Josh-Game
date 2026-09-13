@@ -4388,17 +4388,68 @@ test("Word Cards: the sound split keeps its verified exceptions", () => {
   // Each of these is a word where the letters are NOT that team, and each was
   // splitting WRONG before it was named: door showed d-OO-r for a word that
   // says "dor", and tongue showed t-o-NG-u-e.
-  for (const [w, rule] of [["door", "oo"], ["tongue", "ng"], ["chair", "ai"],
-                           ["fairy", "ai"], ["mountain", "ai"], ["soup", "ou"],
-                           ["four", "ou"], ["yoyo", "oy"]])
-    assert.ok(rules[1].includes('"' + w + '"'),
-      `"${w}" must be excepted from the ${rule} rule — those letters are not that team in it`);
-  for (const pat of ["sh", "ch", "th", "ck", "qu", "ph", "wh", "ee", "oo", "oa", "ai", "ow", "ou", "ng"])
+  //
+  // Read PER RULE rather than anywhere in the table. The looser form is a false
+  // pass waiting to happen and one of the entries below proves it: "four" is
+  // excepted from BOTH ou and ur, and a whole-table `includes` is satisfied by
+  // either, so it would report the ur exception present while it was missing.
+  const ruleList = (pat) => {
+    const m = rules[1].match(new RegExp('\\["' + pat + '", (\\[[\\s\\S]*?\\])\\]'));
+    return m ? m[1] : null;
+  };
+  for (const [w, rule] of [["door", "oo"], ["tongue", "ng"], ["mountain", "ai"],
+                           ["soup", "ou"], ["four", "ou"], ["yoyo", "oy"],
+                           // BOSSY R could not be a substring match, and these
+                           // are the words that prove it: bear/pear/hare say
+                           // /air/, earth says /er/, heart says /ar/ but is
+                           // SPELLED ear, parrot is a short a, lizard ends in
+                           // /erd/, worm says "werm", and four/dinosaur are
+                           // ou/au that happen to be followed by an r.
+                           ["bear", "ar"], ["pear", "ar"], ["hare", "ar"],
+                           ["heart", "ar"], ["earth", "ar"], ["parrot", "ar"],
+                           ["lizard", "ar"], ["kangaroo", "ar"],
+                           ["berry", "er"], ["cherry", "er"], ["zero", "er"],
+                           ["fire", "ir"], ["giraffe", "ir"], ["siren", "ir"],
+                           ["worm", "or"], ["doctor", "or"], ["anchor", "or"],
+                           ["four", "ur"], ["dinosaur", "ur"]]) {
+    const list = ruleList(rule);
+    assert.ok(list, `the ${rule} rule is gone from SOUND_RULES`);
+    assert.ok(list.includes('"' + w + '"'),
+      `"${w}" must be excepted from the ${rule} rule — those letters do not say that team in it`);
+  }
+  // chair and fairy USED to be ai exceptions and are deliberately not any more.
+  // `air` out-ranks `ai` now, so it takes those letters first and the two
+  // entries were provably dead — measured, dropping both moves ZERO of the 503
+  // strips. Two mechanisms for one truth is exactly how the ch rule and
+  // NOT_A_TEAM came to disagree, so the guarantee is the ORDER, pinned below.
+  for (const w of ["chair", "fairy"])
+    assert.ok(!ruleList("ai").includes('"' + w + '"'),
+      `"${w}" is back in the ai exceptions — air out-ranks ai, so that entry is dead weight`);
+  for (const pat of ["tch", "sh", "ch", "th", "ck", "qu", "ph", "wh", "ee", "oo", "oa", "ai",
+                     "ow", "ou", "ng", "air", "oar", "ar", "er", "ir", "or", "ur"])
     assert.ok(new RegExp('\\["' + pat + '"').test(rules[1]), `the ${pat} rule is missing`);
-  // tch must be matched BEFORE ch or "watch" splits as w-a-t-ch, which is the
-  // one ordering constraint in the table — everything else is teaching order.
-  assert.ok(rules[1].indexOf('["tch"') < rules[1].indexOf('["ch"'),
-    "tch must come before ch in SOUND_RULES, or watch splits as w-a-t-ch");
+  // Exactly TWO rules have to out-rank another, and they are the only pairs in
+  // the table that can match at the SAME letter. Everything else is teaching
+  // order: measured, moving er or ur to the front changes none of the 503 strips.
+  //
+  // "tch before ch" was pinned here too, and is REMOVED, because that clause
+  // could never fail — ch cannot match a string starting "tch", so no ordering
+  // of the two changes anything, and demoting tch below ch moves zero strips.
+  // What watch actually needs is for tch to EXIST, which the presence loop
+  // above now covers and nothing did before: the order was guarded by an
+  // unfalsifiable clause while the thing that mattered was guarded by nothing.
+  for (const [first, second, breaks] of [["air", "ai", "chair splits as ch-ai-r"],
+                                         ["oar", "oa", "skateboard splits as b-oa-r-d"]])
+    assert.ok(rules[1].indexOf('["' + first + '"') < rules[1].indexOf('["' + second + '"'),
+      `${first} must come before ${second} in SOUND_RULES, or ${breaks}`);
+  // The Bossy R section's membership is DERIVED — a single vowel then r IS the
+  // phonics definition — so a hand-written list of the five cannot come back
+  // and drift from the table. It deliberately does not claim air/oar/ear, which
+  // are vowel TEAMS with an r and are a different lesson.
+  assert.ok(/const BOSSY = \/[^/]+\/;/.test(src),
+    "the Bossy R partition is gone, or is no longer a pattern");
+  assert.ok(!/\[\s*"ar"\s*,\s*"er"\s*,\s*"ir"\s*,\s*"or"\s*,\s*"ur"\s*\]/.test(src),
+    "the Bossy R teams are back as a hand-written list; the partition must derive from the pattern");
 });
 
 test("no test may measure page overflow against window.innerWidth", () => {

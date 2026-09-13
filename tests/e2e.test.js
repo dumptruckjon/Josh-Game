@@ -2733,12 +2733,19 @@ test("Word Cards: every letter team he is learning has its own deck", async () =
     await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
 
     const r = await pg.evaluate(() => {
-      const chips = [...document.querySelectorAll("#teamGrid .chip")].map((b) => ({
+      // The chips live in TWO grids now — Letter teams and Bossy R — so the
+      // population claim below has to read both. This test caught the split
+      // itself when bossy r shipped, which is the right failure: its claim is
+      // "every team that clears the bar has a deck", and reading one CONTAINER
+      // quietly narrowed that to "...and is in this grid". Which grid a team
+      // lands in is the bossy-r test's business, not this one's.
+      const grab = (id) => [...document.querySelectorAll("#" + id + " .chip")].map((b) => ({
         pg: b.querySelector(".ic").textContent,
         nm: b.querySelector(".nm").textContent,
         ct: b.querySelector(".ct").textContent,
         say: b.getAttribute("aria-label"),
       }));
+      const teamChips = grab("teamGrid"), chips = [...teamChips, ...grab("bossyGrid")];
       // What the DATA says a chip should exist for, computed the same way the
       // page does but read back out, so the two can be compared.
       const eligible = SOUND_RULES.map((x) => x[0]).filter((p) => teamWords(p).length >= TEAM_MIN);
@@ -2749,7 +2756,8 @@ test("Word Cards: every letter team he is learning has its own deck", async () =
       for (const p of eligible)
         for (const w of decks[p])
           if (!sounds(w).some((t) => t.toLowerCase() === p)) strays.push(p + ":" + w);
-      return { chips, eligible, decks, strays, min: TEAM_MIN, like: TEAM_LIKE,
+      return { chips, teamChips, eligible, decks, strays, min: TEAM_MIN, like: TEAM_LIKE,
+               plain: eligible.filter((p) => !BOSSY.test(p)),
                sh: decks.sh, ck: decks.ck };
     });
 
@@ -2762,8 +2770,10 @@ test("Word Cards: every letter team he is learning has its own deck", async () =
     //    the chips FOLLOW the data and nothing about how many there are — the
     //    two clauses under it are what cannot flatten, and what a hard-coded
     //    list of three fires on.
-    assert.deepEqual(r.chips.map((c) => c.pg), r.eligible,
-      "the Letter teams chips are not the teams the data says clear the bar");
+    assert.deepEqual([...r.chips.map((c) => c.pg)].sort(), [...r.eligible].sort(),
+      "a team that clears the bar has no chip in either grid");
+    assert.deepEqual(r.teamChips.map((c) => c.pg), r.plain,
+      "the Letter teams grid is not the non-bossy teams the data says clear the bar");
     assert.ok(r.eligible.length >= 10,
       `only ${r.eligible.length} letter teams have a deck — the section is barely a section`);
     for (const p of ["sh", "ch", "th", "ck", "ng", "ee", "oo", "ow"])
@@ -2840,6 +2850,156 @@ test("Word Cards: every letter team he is learning has its own deck", async () =
     }
     assert.ok(mark.some((m) => m.text === "backpack" && m.marked.length === 2),
       "backpack carries two ck tiles and both must be marked");
+
+    assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: bossy r is its own lesson, and not a substring match", async () => {
+  // The letter-teams pass measured bossy r as the single biggest win left for
+  // two-syllable words — er alone carries 42 substring hits, ar 27, or 16, ir
+  // 13, ur 8 — and deliberately scoped it OUT, because "substring matching is
+  // about half wrong". That is the whole difficulty and it is a content
+  // problem, not a code one: bear, hare and pear carry "ar" and say /air/;
+  // earth says /er/; heart says /ar/ but is SPELLED ear; parrot and carrot are
+  // a short a; lizard and wizard end in /erd/; worm says "werm"; and doctor,
+  // tractor and anchor end in the /er/ sound while being spelled -or.
+  //
+  // So the deck is derived from the SPLITTER, exactly like every other team,
+  // and the judgement lives in the splitter's own exception lists. The clauses
+  // that matter here are the ones that drive those exclusions, because a
+  // substring implementation passes everything else in this test.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+
+    const r = await pg.evaluate(() => {
+      const grab = (id) => [...document.querySelectorAll("#" + id + " .chip")].map((b) => ({
+        pg: b.querySelector(".ic").textContent,
+        nm: b.querySelector(".nm").textContent,
+        ct: b.querySelector(".ct").textContent,
+        say: b.getAttribute("aria-label"),
+      }));
+      const eligible = SOUND_RULES.map((x) => x[0]).filter((p) => teamWords(p).length >= TEAM_MIN);
+      const decks = {};
+      for (const p of eligible) decks[p] = teamWords(p).map((w) => w[0]);
+      return {
+        bossy: grab("bossyGrid"), team: grab("teamGrid"), eligible, decks, like: TEAM_LIKE,
+        // The predicate itself, read back so it can be held to the DEFINITION
+        // rather than to today's five answers.
+        isPattern: typeof BOSSY === "object" && BOSSY instanceof RegExp,
+        vowelR: ["ar", "er", "ir", "or", "ur"].filter((x) => BOSSY.test(x)),
+        teamR: ["air", "oar", "ear"].filter((x) => BOSSY.test(x)),
+        notR: ["sh", "ow", "ee", "oo"].filter((x) => BOSSY.test(x)),
+        splits: { chair: sounds("chair").join("-"), skateboard: sounds("skateboard").join("-"),
+                  squirrel: sounds("squirrel").join("-"), bear: sounds("bear").join("-"),
+                  four: sounds("four").join("-"), door: sounds("door").join("-"),
+                  watch: sounds("watch").join("-") },
+      };
+    });
+
+    // 1. THE PARTITION IS DERIVED, AND IT IS THE PHONICS DEFINITION. A vowel
+    //    with an r after it stops saying its own name; air/oar/ear are vowel
+    //    TEAMS with an r and are a different lesson, which is why the pattern
+    //    is a single vowel rather than one-or-more.
+    assert.ok(r.isPattern, "the Bossy R partition is no longer a pattern");
+    assert.deepEqual(r.vowelR, ["ar", "er", "ir", "or", "ur"],
+      "a single vowel followed by r must be bossy r — that is the definition");
+    assert.deepEqual(r.teamR, [], `${r.teamR.join(", ")} is a vowel TEAM with an r, not bossy r`);
+    assert.deepEqual(r.notR, [], `${r.notR.join(", ")} has no r in it at all`);
+
+    // 2. THE TWO GRIDS SPLIT THE SAME POPULATION AND LOSE NOTHING. This is a
+    //    wiring check and it FLATTENS — both sides read BOSSY — so it proves
+    //    the grids FOLLOW the pattern and nothing about which teams are in it.
+    //    Clause 1 is what cannot flatten; the structural half (no hand-written
+    //    list of the five) lives in site.test.js.
+    const bossyPgs = r.bossy.map((c) => c.pg), teamPgs = r.team.map((c) => c.pg);
+    assert.deepEqual([...teamPgs, ...bossyPgs].sort(), [...r.eligible].sort(),
+      "a team that clears the bar landed in neither grid, or in both");
+    assert.deepEqual(bossyPgs, r.eligible.filter((p) => /^[aeiou]r$/.test(p)),
+      "the Bossy R grid is not the vowel+r teams that clear the bar");
+    assert.equal(bossyPgs.length, 5, `Bossy R shows ${bossyPgs.length} chips, not the five`);
+    assert.ok(teamPgs.every((p) => !/^[aeiou]r$/.test(p)),
+      "a bossy r team is still sitting in the Letter teams grid");
+
+    // 3. THE EXCLUSIONS — the whole reason this took a content pass. Every word
+    //    below carries its team's letters and does NOT say that team, and a
+    //    substring implementation puts every one of them in the deck.
+    const OUT = {
+      ar: ["bear", "pear", "hare", "heart", "earth", "beard", "scared",
+           "parrot", "carrot", "parachute", "lizard", "wizard", "kangaroo"],
+      er: ["berry", "cherry", "ferry", "strawberry", "zero", "deer"],
+      ir: ["fire", "firefighter", "giraffe", "siren", "mirror", "chair", "fairy"],
+      or: ["worm", "doctor", "tractor", "anchor", "scissors", "mirror", "motorbike", "door"],
+      ur: ["four", "dinosaur", "burrito"],
+    };
+    for (const p of Object.keys(OUT))
+      for (const w of OUT[p])
+        assert.ok(!r.decks[p].includes(w),
+          `"${w}" is in the ${p} deck — its letters do not say that team, so the deck teaches a lie`);
+
+    // 4. AND THE POSITIVES ARE REALLY THERE, or clause 3 is satisfied by an
+    //    empty deck. These are the words the lesson is built on.
+    const IN = {
+      ar: ["car", "star", "shark", "farmer", "guitar"],
+      er: ["tiger", "water", "butter", "mermaid", "helicopter"],
+      ir: ["bird", "girl", "shirt", "squirrel", "third"],
+      or: ["corn", "fork", "storm", "horse", "unicorn"],
+      ur: ["turtle", "purple", "surf", "burger"],
+    };
+    for (const p of Object.keys(IN))
+      for (const w of IN[p])
+        assert.ok(r.decks[p].includes(w), `"${w}" is missing from the ${p} deck`);
+
+    // 5. THE SPLITTER'S PRECEDENCE, driven rather than read. air has to beat ai
+    //    and oar has to beat oa, or chair and skateboard split through the
+    //    middle of the sound. squirrel is the one that shows the split is
+    //    syllable-honest: squir|rel, so ir takes the first r and the second
+    //    starts the next syllable rather than the pair collapsing to "rr".
+    assert.equal(r.splits.chair, "ch-air", "chair must split ch-air — air out-ranks ai");
+    assert.equal(r.splits.skateboard, "s-k-a-t-e-b-oar-d",
+      "skateboard must split with an oar tile — oar out-ranks oa");
+    assert.equal(r.splits.squirrel, "s-qu-ir-r-e-l", "squirrel splits squir|rel");
+    assert.equal(r.splits.bear, "b-e-a-r", "bear must not take an ar tile — it says /air/");
+    assert.equal(r.splits.four, "f-o-u-r", "four must not take a ur tile — it says /or/");
+    assert.equal(r.splits.door, "d-o-o-r", "door must not take an or tile — its /or/ is spelled oor");
+    //    tch is in this clause because its guarantee is PRESENCE and not order:
+    //    ch cannot match a string starting "tch", so the two can never compete,
+    //    and the "tch before ch" pin that used to stand in site.test.js could
+    //    not fail. This one can — delete the rule and watch splits w-a-t-ch.
+    assert.equal(r.splits.watch, "w-a-tch", "watch must take a tch tile, or the tch rule is gone");
+
+    // 6. EACH DECK OPENS ON THE NAME EVERYBODY USES FOR IT, and that name is a
+    //    real member of the deck it names. ar/er/ir/or/ur are traditionally
+    //    taught as car / her / bird / corn / hurt, and three of those five have
+    //    no picture at Emoji <= 13.0 — so the exemplars are the picture words
+    //    closest to them, which is a judgement and therefore declared.
+    for (const p of bossyPgs) {
+      assert.ok(r.like[p], `the ${p} deck has no declared exemplar`);
+      assert.ok(r.decks[p].includes(r.like[p]),
+        `the ${p} deck is taught as "${r.like[p]}", which is not one of its own cards`);
+      assert.equal(r.decks[p][0], r.like[p],
+        `the ${p} deck opens on ${r.decks[p][0]}, not on its own exemplar ${r.like[p]}`);
+    }
+    assert.equal(r.like.ar, "car", "ar is taught as car");
+    assert.equal(r.like.ir, "bird", "ir is taught as bird");
+
+    // 7. THE CHIP SAYS ITS TEAM AND COUNTS ITS OWN CARDS. Falsifiable only
+    //    because the five decks differ in size: a typed count is caught on
+    //    whichever chip is not that number.
+    for (const c of r.bossy) {
+      assert.equal(c.ct, r.decks[c.pg].length + " cards",
+        `the ${c.pg} chip prints ${c.ct} for a deck of ${r.decks[c.pg].length}`);
+      assert.equal(c.say, c.pg + ", " + c.nm + ", " + c.ct,
+        `the ${c.pg} chip announces ${JSON.stringify(c.say)}`);
+    }
+    assert.ok(new Set(r.bossy.map((c) => c.ct)).size >= 4,
+      "the bossy decks are all the same size, so a typed count could not be caught");
 
     assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
   } finally {

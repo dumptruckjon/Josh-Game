@@ -7232,6 +7232,117 @@ fourth section inherits it; both an `h4` in place of an `h2` and a stray `h3`
 before the first `h2` turn it red, and neither could have been caught by the
 literal.
 
+**BOSSY R SHIPPED, AND THE ENTRY THAT SAID IT WOULD NOT WAS THE THING TO ACT
+ON.** The letter-teams pass recorded it as *"the single biggest win for
+two-syllable words and deliberately NOT here … a content pass with its own
+verification, scoped out loud"* — and RULE 0 says that phrasing is a DEFERRAL
+unless the owner has declined the work. The owner had asked for *more*
+phonogram practice, so the note was not a boundary, it was the next task.
+Five decks (ar 12 · er 36 · ir 6 · or 8 · ur 5), in their own section, with 72
+of the 503 sound strips corrected as a side effect.
+**THE CONTENT WORK IS THE WHOLE DELIVERABLE, and the recorded reason it could
+not be an algorithm is exactly right — measured, it is worse than "about half
+wrong".** `ar` has **27 substring hits and 12 real members**: bear, pear and
+hare say /air/; earth says /er/; **heart says /ar/ and is SPELLED ear**;
+parrot, carrot and parachute are a short a; lizard and wizard end in /erd/;
+kangaroo spans a syllable. `or` has 16 hits and 8 members — **worm says
+"werm"**, and doctor, tractor, anchor, scissors and motorbike are the -or
+AGENT suffix, which says /er/. Every one of those is a per-word exception in
+the splitter, which is the mechanism that already existed, so the deck derives
+from `sounds()` and the judgement lives in one place.
+**TWO RULES WERE DELETED BY MEASUREMENT RATHER THAN ADDED.** `ear` looks like
+the obvious sixth team and is six words carrying **FOUR different sounds**
+(bear/pear /air/, ear/beard /eer/, earth /er/, heart /ar/), so a deck of it
+would teach a false generalisation — and adding it as a splitter rule with no
+deck would need a second list saying which teams are splittable but not
+teachable, which is `NOT_A_TEAM` coming back under a new name. `are` is the
+same shape (hare is /air/, the sight word "are" is /ar/). Both are handled by
+`ar` exceptions instead: no new mechanism, and the six words keep the
+single-letter splits they ship with today.
+**AND THE ONE-MECHANISM RULE PAID OUT IMMEDIATELY: two shipped exceptions were
+PROVABLY DEAD and are gone.** `air` now out-ranks `ai`, so it consumes chair
+and fairy first — measured, dropping both from `ai`'s exception list moves
+**ZERO of the 503 strips**, with a control showing exactly what breaks without
+the ordering (`ch-ai-r`). So the guarantee is the ORDER, pinned like tch-before-
+ch, rather than two mechanisms for one truth — which is how the ch rule and
+NOT_A_TEAM came to disagree in the first place. Three rules now out-rank a rule
+whose letters they contain (tch<ch, air<ai, oar<oa) and that is the whole of
+the table's ordering contract.
+**THE SHARPEST FINDING IS ABOUT THE SHIPPED ASSERTION FORM, and it is
+DEMONSTRATED rather than argued: a membership test must name its container.**
+The exceptions guardrail read `rules.includes('"word"')` — anywhere in the
+whole table — and `four` is excepted from BOTH `ou` and `ur`. So dropping it
+from `ur` leaves the old form **satisfied by the `ou` occurrence**: printed
+side by side, `old whole-table -> PASSES (blind)` against `new per-rule ->
+catches it`. Every exception is read per-rule now, which is a strengthening of
+a check that was already green, and M10 is the mutation that proves it.
+**A PARTITION MUST BE DERIVED, AND ITS PREDICATE TESTED AGAINST THE DEFINITION
+RATHER THAN TODAY'S ANSWERS.** `BOSSY = /^[aeiou]r$/` is the phonics definition
+(a single vowel then r), and it deliberately does NOT claim air/oar/ear, which
+are vowel TEAMS with an r and are a different lesson. The clause that catches a
+"tidy-up" to `/^[aeiou]+r$/` is the one that tests the PREDICATE — because air
+and oar have only 2 and 1 words, clear no chip, and so **the rendered grids do
+not move at all** under that mutation. When a derivation's edge cases are
+invisible in the output, assert the rule, not the render. The grid clause
+beside it flattens (both sides read `BOSSY`) and says so.
+**Three measurement notes.** My extractor's lazy `\[[\s\S]*?\n\]` swallowed
+`SOUND_RULES` into `WORDS`, because `WORDS` is one 50KB LINE — it failed loudly
+as a duplicate declaration, which is the good kind of fixture bug. Then the
+probe reimplemented `sounds()` from memory and **omitted `DOUBLE` entirely**,
+so every baseline for a doubled-consonant word was wrong (`b-u-t-t-er` against
+the real `b-u-tt-er`); the diff's SHAPE was right and its strings were not, and
+the fix was to copy the shipped implementation rather than re-derive it. And
+`pgrep -f "chrom|playwright"` reported **"BROWSER PROCESSES PRESENT" with zero
+browsers running**, having matched its own `bash -c` wrapper — the
+self-watching trap this file already records for `pgrep -f "node --test"`,
+hit again by the person who wrote it down.
+**AND CHECKING MY OWN NEW COMMENT REFUTED A SHIPPED ASSERTION: `tch before ch`
+COULD NEVER FAIL, while the thing it was protecting was guarded by nothing.**
+The comment I had just written said three rules "out-rank a rule they contain";
+before committing that I measured each one by moving it and diffing all 503
+strips, and only two move anything (`air` below `ai` costs chair and fairy,
+`oar` below `oa` costs skateboard). **Demoting `tch` below `ch` moves ZERO
+strips** — and it is unfalsifiable in PRINCIPLE, not just on this data: the two
+rules can only compete at the same letter, and no string starts with both
+"tch" and "ch", so their relative order can never decide anything. What `watch`
+actually needs is for `tch` to be PRESENT (drop the rule and it splits
+`w-a-t-ch`) — and `tch` was the one team missing from the rule-presence loop.
+So the order was pinned by a clause that could not go red while the real
+guarantee had no clause at all. The pin is deleted, `tch` joins the presence
+list, and a behavioural clause asserts `watch` takes a tch tile. **The control
+is what makes this a finding rather than a tidy-up**: M12 (delete the rule)
+is RED on both halves, and M13 (demote it below ch) is GREEN on both — which is
+the old assertion's own defect, reproduced. Same family as the `% road` proxy
+and `wrapW >= viewport.width`: *when a check asserts X, assert X* — here X was
+presence and the check was about order. Measured while there: the five bossy-r
+rules can sit ANYWHERE in the table (moving `er` or `ur` to the front moves no
+strip), so their position is teaching order, and the comment says so rather
+than inventing a reason.
+**AND THE GATE CAUGHT THE SIBLING OF THAT SAME DEFECT, IN A SHIPPED TEST, ONE
+LEVEL UP: a population claim whose scope was a CONTAINER.** *"every letter team
+he is learning has its own deck"* asserts the chips are exactly the teams that
+clear the bar — and read the chips out of `#teamGrid` alone. That was the same
+statement while there was one grid; the moment Bossy R got its own section it
+quietly became *"…and is in this particular grid"*, so a correct product change
+turned it red. Widened to read both grids for the POPULATION claim (sorted, so
+a future author moving a bossy rule in the table cannot break it for a
+non-reason) with the per-grid ORDER pinned separately, and which grid a team
+lands in left to the bossy test that owns that question. Mutation-proven by
+reproducing the gate's own failure (read one grid → *"a team that clears the
+bar has no chip in either grid"*). Third instance of the family that includes
+*"a guardrail folded into an existing walk inherits that walk's FILTER"* and the
+ratio net that silently covered 104 of 240 games — **when a feature grows a
+second container, every check scoped to the first one has quietly narrowed its
+claim.** Note the cost of finding it this way: the batch's own targeted runs
+were all green, and only the full suite could see it, which is the argument for
+gating rather than re-running the files you think you touched.
+**One number worth keeping: `oa` now sits EXACTLY on the 4-word bar.**
+skateboard left it for `oar` (correctly — board is /or/, not the /oh/ of boat),
+taking it 5 -> 4, so one further removal silently costs that chip. That is the
+bar working as designed, and it is written down because the failure is a chip
+quietly disappearing rather than anything going red.
+
+
 ---
 
 ## Repository Structure
@@ -7250,7 +7361,9 @@ tooling.
 │                               #   then a LETTER TEAMS section of one derived deck per phonogram
 │                               #   (13 of them at a 4-word bar — the profile's [W] challenge
 │                               #   edge, and where a rime stops helping: -ock only reaches rock
-│                               #   and sock, ck reaches bucket and backpack too), above the 14
+│                               #   and sock, ck reaches bucket and backpack too), then BOSSY R
+│                               #   (ar/er/ir/or/ur, partitioned by /^[aeiou]r$/ — the phonics
+│                               #   definition, derived rather than listed), above the 14
 │                               #   picture categories. Every card's picture is UNIQUE
 │                               #   (the back is the ANSWER); the sound strip splits by SOUND, not
 │                               #   letter (sh-i-p, with verified exceptions — penguin's n+g are
