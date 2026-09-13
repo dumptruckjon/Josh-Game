@@ -2758,6 +2758,7 @@ test("Word Cards: every letter team he is learning has its own deck", async () =
           if (!sounds(w).some((t) => t.toLowerCase() === p)) strays.push(p + ":" + w);
       return { chips, teamChips, eligible, decks, strays, min: TEAM_MIN, like: TEAM_LIKE,
                plain: eligible.filter((p) => !BOSSY.test(p)),
+               count: Object.fromEntries(SOUND_RULES.map((x) => [x[0], teamWords(x[0]).length])),
                sh: decks.sh, ck: decks.ck };
     });
 
@@ -2810,6 +2811,23 @@ test("Word Cards: every letter team he is learning has its own deck", async () =
         `the ${p} deck opens on ${r.decks[p][0]}, not on its own exemplar ${r.like[p]}`);
     }
     assert.equal(r.like.oo, "moon", "oo is taught as moon, not as one of its other sound's words");
+    //    ...and the MIRROR of that, which is the half that was missing. Every
+    //    DECLARED exemplar must still HAVE a deck. Clause 1's deepEqual
+    //    FLATTENS (chips and eligible both read TEAM_MIN and teamWords), so a
+    //    deck falling below the bar removes the chip from the page AND from
+    //    the expectation and stays green; the floor beside it tolerates losing
+    //    EIGHT decks. Measured, three decks sit at EXACTLY the bar (oa, ph, qu
+    //    at 4 cards), so one card leaving any of them — re-split by a new
+    //    splitter exception, say — silently deletes a lesson from the section.
+    //    This needs no count of its own: TEAM_LIKE declares which teams are
+    //    LESSONS, the bar is the MECHANISM, and the two must agree. The upward
+    //    direction is already the clause above (a 19th deck is red until its
+    //    exemplar is declared), so the two halves together are two-sided.
+    const orphan = Object.keys(r.like).filter((p) => !r.eligible.includes(p));
+    assert.deepEqual(orphan, [],
+      "a team is taught in TEAM_LIKE but no longer clears the " + r.min + "-card bar, so its "
+      + "chip silently vanished from the page: "
+      + orphan.map((p) => p + " (" + r.count[p] + " cards)").join(", "));
 
     // 6. SCAFFOLDED SHORT WORD FIRST — after the exemplar a deck never steps
     //    back down in length, so it opens on the 3- and 4-letter words he

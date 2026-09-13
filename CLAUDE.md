@@ -7341,6 +7341,64 @@ skateboard left it for `oar` (correctly — board is /or/, not the /oh/ of boat)
 taking it 5 -> 4, so one further removal silently costs that chip. That is the
 bar working as designed, and it is written down because the failure is a chip
 quietly disappearing rather than anything going red.
+**CORRECTED, MEASURED AND CLOSED THE SAME DAY: that note named ONE deck and
+THREE sit on the bar, and the hole it describes was real — the clause set could
+not see a lesson disappear at all.** Swept properly, `oa`, `ph` and `qu` each
+hold exactly 4 cards, and **10 of the 18 decks are named by no clause**, so one
+card leaving any of three decks deletes a lesson from the Letter Teams section
+with the suite green. *A scoping verdict is a claim like any other* — second
+time that lesson has landed on one of my own notes, and the correction cost one
+measurement I could have run when I wrote the sentence.
+**The mechanism is a FLATTEN that hides a SHRINKING population, which is a shape
+worth naming on its own.** Clause 1 is `deepEqual(chips, eligible)` and both
+sides read `TEAM_MIN` and `teamWords`, so a deck falling below the bar removes
+the chip from the PAGE *and* from the EXPECTATION and the assertion is perfectly
+happy. The floor beside it (`eligible.length >= 10` against 18 shipped) reads as
+the protection and **tolerates losing EIGHT decks**. A flatten normally makes a
+clause unfalsifiable on its own value; this one also makes it unfalsifiable on
+the SIZE of the thing it compares.
+**The fix needs no count, because the two sources are already independent:**
+`TEAM_LIKE` declares which teams are LESSONS and the bar is the MECHANISM, so
+*every declared exemplar must still have a deck* is derived on both sides and a
+19th deck is a conscious act (it stays red until its exemplar is declared, by
+the clause this one mirrors). That is the badge-audit shape exactly — *"it
+checked that every boss finale awards a badge, but never that every DECLARED
+badge is awarded"* — so when a clause walks a population one way, the question
+is always whether the other way is anybody's job.
+**Four proofs, and the two that are not mutations are the ones that matter.**
+M1 (a splitter exception re-splits one `oa` card, 4 -> 3) reports `oa (3 cards)`;
+M2 (a lesson declared for a team below the bar) reports `igh (3 cards)`; **M3 is
+a CONTROL that must fire a DIFFERENT clause** — dropping the bar to 3 brings
+`igh` and `oi` in with no exemplars and fires clause 5, which is what makes the
+"two halves, two directions" claim in the comment measured rather than asserted;
+and the **hole control** — the pre-change test file against the live defect —
+comes back **GREEN**, which is the only thing that proves the clause is
+load-bearing rather than a restatement of its neighbour.
+**Two fixture traps on the way, one recorded and one new.** The recorded one bit
+again: `WORDS` is ONE long line, so a lazy `/const WORDS = \[[\s\S]*?\n\];/`
+swallows `SOUND_RULES` whole and the file fails to eval as a duplicate
+declaration — anchor it single-line (`/^const WORDS\s*=\s*\[.*\];$/m`). The new
+one: **a direct `eval` of `const X = …` is BLOCK-SCOPED to the eval**, so the
+surrounding module sees nothing and every derived number reads `undefined` —
+hand the values back out of a `new Function(src + "return {…}")()` instead. And
+a smaller one that reads as a product error: naming the holder variable `sounds`
+for the source of `function sounds(){}` throws *"Identifier 'sounds' has already
+been declared"* from the eval, which looks like the page declaring it twice.
+**And the RULE 7 question — what else on that page pairs a hand-written
+DECLARATION with a derived population? — has two answers and neither is a
+change.** `FAMILIES` is already guarded in the mirror direction (every word a
+family lists must still be a card, so a card leaving turns its rime red), and
+`CATS` is measured as NOT worth a clause: its chip count is derived the same
+flattening way, but the smallest category is **magic at 9 cards** against a team
+deck's 4, and — the part that actually decides it — **a card's category is
+written ON the card, so there is no INDIRECT way to empty one.** The team decks
+are exposed precisely because a splitter exception added for an unrelated word
+silently re-splits a card out of a deck, which is the mechanism that produced
+this session's own `ch` and `ng` fixes. A `> 0` clause on categories would guard
+a nine-card distance with no mechanism behind it — the same call as declining to
+add tablet portrait to the fort overlay audit, where the extra size could catch
+nothing. *Exposure is a mechanism times a distance; measure both before writing
+the neighbouring law.*
 
 
 ---
