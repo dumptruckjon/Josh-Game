@@ -4173,6 +4173,7 @@ test("Word Cards states no card count it has to keep up to date", () => {
   assert.doesNotMatch(markup, /\d+\s*cards/, "a literal card count is a claim that goes stale");
   assert.doesNotMatch(src, /"n":\s*\d+/, "the per-category counts must not be stored, they must be counted");
   assert.match(src, /WORDS\.length \+ " cards"/, "the total must be read off WORDS");
+  assert.match(src, /HANZI\.length \+ " cards"/, "the Chinese count must be read off HANZI too");
   assert.match(src, /'<\/span><span class="ct">'\+count\+' cards/,
     "every deck count must come from the list that deck actually holds");
 });
@@ -4450,6 +4451,157 @@ test("Word Cards: the sound split keeps its verified exceptions", () => {
     "the Bossy R partition is gone, or is no longer a pattern");
   assert.ok(!/\[\s*"ar"\s*,\s*"er"\s*,\s*"ir"\s*,\s*"or"\s*,\s*"ur"\s*\]/.test(src),
     "the Bossy R teams are back as a hand-written list; the partition must derive from the pattern");
+});
+
+// ---------------------------------------------------------------------------
+// 中文 — the 120 characters of the 第2级总字表 the owner supplied as a photo of
+// the printed table. Same content-truth discipline as the English half: the
+// back of the card is the ANSWER, so what it claims is restated here, where it
+// can go red. The deck is a second WRITING SYSTEM rather than a fifteenth
+// category, which is why it lives in its own array — see the guardrail below
+// that keeps it out of every English derivation.
+// ---------------------------------------------------------------------------
+const wcHanzi = () => JSON.parse(
+  read("wordcards.html").match(/const HANZI = (\[[\s\S]*?\n\]);/)[1].replace(/,(\s*\])$/, "$1"));
+
+test("Word Cards: the Chinese deck IS the printed 第2级 table, all 120 in order", () => {
+  // Transcribed from the photo, ten rows of twelve — and transcribed rather
+  // than derived from the deck, which is the whole point of a truth test: a
+  // character that drifts out of the data has something to disagree with.
+  const TABLE = [
+    "一二三四五六七八九十两只",
+    "头又了不大小上下多少白天",
+    "云山太阳月亮星马牛羊兔虫",
+    "鸟花草树地吃看走笑来飞爱",
+    "是跑跳高兴快乐好的爸妈我",
+    "人儿子口几个中牙门手心什",
+    "么开可回出去里床车家爷奶",
+    "你水饭有找坐听玩哭起喝到",
+    "河海风雨雪春夏秋冬鱼狼猫",
+    "狗蝴蝶蜜蜂谢睡红蓝绿美丽",
+  ];
+  const want = TABLE.join("");
+  // The transcription's own arithmetic, or a dropped character would quietly
+  // move the bar it is being compared against.
+  assert.equal(TABLE.length, 10, `the printed table is ten rows, not ${TABLE.length}`);
+  for (const row of TABLE) assert.equal([...row].length, 12, `"${row}" is not twelve characters`);
+  assert.equal([...want].length, 120, "the transcription is not 120 characters");
+
+  const deck = wcHanzi();
+  assert.equal(deck.map((c) => c[0]).join(""), want,
+    "the Chinese deck no longer matches the printed character table");
+  assert.equal(new Set(deck.map((c) => c[0])).size, 120, "a character is on two cards");
+  // The table's own order is kept in the DATA (it is the order they are taught
+  // in, and it is how the next author checks it against the photo); the deck is
+  // shuffled by teachingOrder at open time, exactly like a picture category.
+  for (const c of deck)
+    assert.ok(/^[一-鿿]$/.test(c[0]), `"${c[0]}" is not a single han character`);
+});
+
+test("Word Cards: every Chinese card carries all six of its parts, in the right script", () => {
+  const deck = wcHanzi();
+  assert.equal(deck.length, 120, `only ${deck.length} cards — the parse failed open`);
+  for (const c of deck) {
+    assert.ok(Array.isArray(c) && c.length === 7 && c.every((x) => typeof x === "string" && x),
+      `not [character, picture, "hanzi", pinyin, meaning, sentence, translation]: ${JSON.stringify(c)}`);
+    assert.equal(c[2], "hanzi", `${c[0]} is not filed under hanzi, so render() would treat it as English`);
+    const [ch, , , py, gloss, sent, tr] = c;
+    // Pinyin is a ROMANISATION: latin letters, tone marks and ü, nothing else.
+    // A han character in this field means the reading was never written.
+    assert.match(py, /^[a-züĀ-ǿà-ü]+$/i, `${ch}: "${py}" is not pinyin`);
+    // The meaning and the translation are what a grown-up who reads no Chinese
+    // uses, so each must actually contain English. (A meaning may name the
+    // compound the character lives in — "sun (太阳)" — so han is allowed there
+    // and banned in the translation, which is a whole English sentence.)
+    assert.match(gloss, /[a-z]/i, `${ch}: the meaning "${gloss}" has no English in it`);
+    assert.match(tr, /[a-z]/i, `${ch}: the translation "${tr}" has no English in it`);
+    assert.doesNotMatch(tr, /[一-鿿]/, `${ch}: the translation "${tr}" still has Chinese in it`);
+    // The sentence is Chinese and only Chinese — latin or a digit in it means a
+    // placeholder survived.
+    assert.doesNotMatch(sent, /[a-z0-9]/i, `${ch}: the sentence "${sent}" is not all Chinese`);
+    // The sight deck's law, in the other language: the sentence IS the control
+    // of error, so one that does not contain its own character confirms nothing.
+    assert.ok(sent.indexOf(ch) >= 0, `${ch}: "${sent}" does not contain the character it is meant to show`);
+    const n = [...sent].filter((x) => /[一-鿿]/.test(x)).length;
+    assert.ok(n >= 2 && n <= 6, `${ch}: "${sent}" is ${n} characters — too long to read at four`);
+  }
+});
+
+test("Word Cards: no two Chinese cards share a picture, except the one bound pair", () => {
+  // The English law, with one difference stated rather than assumed: there the
+  // picture IS the answer, here the answer is how you SAY the character and the
+  // picture is a meaning cue. It still has to be distinct — a cue two cards
+  // share tells you nothing about either — with ONE exemption, and it is
+  // principled rather than a fence: 蝴 and 蝶 have no meaning apart, they mean
+  // butterfly only together, so one picture is the truth for both.
+  const BOUND = [["蝴", "蝶"]];
+  const by = new Map();
+  for (const c of wcHanzi()) {
+    if (!by.has(c[1])) by.set(c[1], []);
+    by.get(c[1]).push(c[0]);
+  }
+  const legal = (l) => BOUND.some((g) => l.every((ch) => g.includes(ch)));
+  const bad = [...by.entries()].filter(([, l]) => l.length > 1 && !legal(l));
+  assert.deepEqual(bad.map(([p, l]) => p + " = " + l.join("/")), [],
+    "two Chinese cards wear the same picture");
+  assert.ok(by.size >= 119, `only ${by.size} pictures — the parse failed open`);
+  // …and the exemption stays load-bearing rather than decorative, so a future
+  // pair cannot slip in under a dead clause.
+  const collides = BOUND.filter((g) => [...by.values()].some((l) => l.length > 1 && l.every((ch) => g.includes(ch))));
+  assert.equal(collides.length, BOUND.length,
+    "an exempted pair no longer shares a picture — delete the exemption instead of keeping a dead one");
+});
+
+test("Word Cards: the Chinese characters stay OUT of every English derivation", () => {
+  // SIX derivations read WORDS — First Words, the word families, teamWords and
+  // so every letter-team and bossy-r deck, the fourteen categories, and "Every
+  // word" — and a han character satisfies the rules of none of them. Folding
+  // the 120 into WORDS to save an array would have polluted all six at once;
+  // keeping them apart is what makes that impossible rather than unlikely.
+  const src = read("wordcards.html");
+  for (const [w, pic] of wcWords()) {
+    assert.doesNotMatch(w, /[一-鿿]/, `"${w}" is a han character sitting in WORDS`);
+    assert.ok(typeof pic === "string", `${w} has no picture`);
+  }
+  const zh = new Set(wcHanzi().map((c) => c[0]));
+  assert.ok(zh.size === 120 && wcWords().length > 400, "one of the two decks failed to parse");
+
+  // …and the ONE-WAY rule in code: HANZI is read where its own deck is opened
+  // and nowhere else. Comment-stripped, because the block above this array
+  // explains the rule using its own name — this repo's most-repeated own goal.
+  const bare = src.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
+                  .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const uses = (bare.match(/\bHANZI\b/g) || []).length;
+  assert.equal(uses, 3,
+    `HANZI is referenced ${uses} times; it may only be declared, counted for its own ` +
+    "button, and handed to that button's start() — a seventh derivation reading it is " +
+    "how a han character gets into a phonics deck");
+});
+
+test("Word Cards: simplified Chinese is asked for BY NAME, never inherited", () => {
+  // This page's own family opens `ui-rounded, "SF Pro Rounded", "Hiragino Maru
+  // Gothic ProN"`, and Hiragino Maru Gothic is a JAPANESE face sitting BEFORE
+  // system-ui. So every han codepoint it covers would have rendered in Japanese
+  // forms — 花, 海, 直 and 兔 all differ — while the simplified-only ones it does
+  // not cover (车 门 鸟 马 红 绿 蓝) fell through it to whatever came next.
+  //
+  // This is the STRUCTURAL half: the face is declared and the JS marks the
+  // language. What each element actually COMPUTES to is driven in e2e, because
+  // a declaration proves nothing about which rule wins the cascade.
+  const src = read("wordcards.html");
+  const face = src.match(/--hz-face:\s*([^;]+);/);
+  assert.ok(face, "the page declares no Simplified Chinese face, so han text inherits a Japanese one");
+  const first = face[1].split(",")[0].replace(/"/g, "").trim();
+  assert.ok(/\b(SC|GB|CN)\b/.test(first) || /PingFang|Heiti|YaHei/.test(first),
+    `the first family in --hz-face is "${first}", which is not a Simplified Chinese face`);
+  assert.doesNotMatch(face[1], /Hiragino Maru Gothic|Hiragino Kaku Gothic|Yu Gothic|Meiryo/,
+    "--hz-face names a JAPANESE face — that is the defect it exists to avoid");
+  // …and the language travels with the text, which is what gives VoiceOver a
+  // Chinese voice on it as well as the right glyphs.
+  assert.match(src, /setAttribute\("lang", "zh-CN"\)/,
+    "nothing marks the character as Chinese, so the platform has to guess the script");
+  assert.match(src, /u\.lang = lang \|\| "en-US"/,
+    "speak() no longer takes a language, so a Chinese line is read with an English voice");
 });
 
 test("no test may measure page overflow against window.innerWidth", () => {

@@ -1027,8 +1027,19 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
       await p2.waitForSelector(".chip");
 
       const r = await p2.evaluate((MIN) => {
-        // "All words" is every card in the deck, so the walk needs no list.
-        for (const b of document.querySelectorAll("#menu .all")) b.click();
+        // Each full-width button opens a WHOLE deck — "Every word", and the 120
+        // characters of the 第2級總字表 — so walking every one of them needs no
+        // list and picks a new deck up on the day it lands. (It used to click
+        // them all and walk whichever happened to be last, which was the same
+        // thing only while there was one.)
+        //
+        // The Chinese half is where this file earns its keep twice over: those
+        // glyphs come from a DIFFERENT FONT (PingFang SC on iOS, whatever this
+        // engine has otherwise) and a han character carries several times the
+        // stroke detail of a four-letter word at the same point size, so a
+        // width the headless measure calls a fit is precisely the claim a real
+        // engine is needed to check.
+        const buttons = [...document.querySelectorAll("#menu .all")];
         const face = document.getElementById("frontFace");
         const backF = document.getElementById("backFace");
         const wd = document.getElementById("word");
@@ -1036,14 +1047,22 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
         const ltr = document.getElementById("letters");
         const over = (el, box) => el.scrollWidth > box.clientWidth + 1;
         const bad = { word: [], pic: [], strip: [] };
-        for (let k = 0; k < deck.length; k++) {
-          i = k; unflipInstantly(); render(false);
-          if (over(wd, face)) bad.word.push(deck[k][0]);
-          if (over(pic, backF)) bad.pic.push(deck[k][0]);
-          if (over(ltr, backF)) bad.strip.push(deck[k][0]);
+        let cards = 0, decks = 0;
+        for (const b of buttons) {
+          b.click();
+          decks += 1;
+          for (let k = 0; k < deck.length; k++) {
+            i = k; unflipInstantly(); render(false);
+            if (over(wd, face)) bad.word.push(deck[k][0]);
+            if (over(pic, backF)) bad.pic.push(deck[k][0]);
+            if (over(ltr, backF)) bad.strip.push(deck[k][0]);
+          }
+          cards += deck.length;
+          document.getElementById("back").click();
         }
+        buttons[0].click();                 // leave a deck open for the tap audit
         return {
-          bad, cards: deck.length,
+          bad, cards, decks, buttons: buttons.length,
           cardW: document.getElementById("card").clientWidth,
           ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           taps: [...document.querySelectorAll("#deck button")]
@@ -1054,7 +1073,12 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
       }, MIN_TAP);
 
       // NON-VACUITY: a walk that measured nothing passes every clause below.
-      assert.ok(r.cards >= 500, `${w}px: the walk only saw ${r.cards} cards`);
+      // Both halves — every full-width deck was entered, and together they hold
+      // the whole library. A derived count rather than a per-deck literal, so a
+      // card added or a third deck shipped needs no edit here.
+      assert.equal(r.decks, r.buttons, `${w}px: only ${r.decks} of ${r.buttons} whole-library decks were walked`);
+      assert.ok(r.decks >= 2, `${w}px: ${r.decks} deck(s) — the English words and the Chinese characters are both whole decks`);
+      assert.ok(r.cards >= 600, `${w}px: the walk only saw ${r.cards} cards`);
       for (const [what, list] of Object.entries(r.bad))
         assert.deepEqual(list.slice(0, 6), [],
           `${w}px (card ${r.cardW}px): ${list.length} card(s) clip their ${what} — ` +

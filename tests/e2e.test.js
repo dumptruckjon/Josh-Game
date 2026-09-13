@@ -2315,6 +2315,22 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
       await sweep();
       await pg.click("#next");
     }
+    await pg.click("#back");
+    await pg.waitForSelector("#grid .chip");
+    // …and the Chinese deck, whose back is THREE runs where every other card's
+    // is one picture or one sentence. Those runs take the 4.5 bar rather than
+    // the strip's 3.0 — they are not large text — and on a light fill there is
+    // no headroom to dim, which is the mechanism behind every finding this test
+    // was written for. A brand-new set of runs is exactly what an audit scoped
+    // to the surfaces it was written against misses.
+    await pg.click("#hanziBtn");
+    await pg.waitForSelector(".card");
+    for (let k = 0; k < 4; k++) {
+      await sweep();
+      await pg.click(".card");
+      await sweep();
+      await pg.click("#next");
+    }
 
     assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
 
@@ -2337,6 +2353,8 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     assert.ok(saw(".hint"), "fixture: the front-of-card hint was never audited");
     assert.ok(saw(".ct"), "fixture: the deck chips' card counts were never audited");
     assert.ok(saw("small"), "fixture: the Every-word card count was never audited");
+    for (const run of ["hz__key", "hz__zh", "hz__en"])
+      assert.ok(saw(run), `fixture: the Chinese card's ${run} run was never audited`);
 
     // The compositing model's own precondition, asserted rather than assumed.
     const dimmed = [...new Set(runs.filter((r) => r.ancestorOpacity < 0.999).map((r) => r.sel))];
@@ -3020,6 +3038,234 @@ test("Word Cards: bossy r is its own lesson, and not a substring match", async (
       "the bossy decks are all the same size, so a typed count could not be caught");
 
     assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+
+test("Word Cards: the Chinese deck teaches a CHARACTER, and says so in Chinese", async () => {
+  // The owner asked for the 120 characters of the 第2級總字表 as their own
+  // button, working "just like the English game": flip it, hear it, see a
+  // picture and a sentence. Everything below is that promise, driven.
+  //
+  // The card's shape is genuinely different from every other deck here, which
+  // is why it needs its own test: the front is ONE character rather than a
+  // word, and the back answers three questions (how do I say it, what does it
+  // mean, what does it look like in use) where every other back is one picture
+  // or one sentence.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    const SC = /PingFang|Hiragino Sans GB|Heiti|Source Han Sans SC|Noto Sans CJK SC|Microsoft YaHei/;
+
+    const r = await pg.evaluate(() => {
+      const btn = document.getElementById("hanziBtn");
+      const label = btn.getAttribute("aria-label") || btn.textContent;
+      const count = btn.querySelector("small").textContent;
+      btn.click();
+      const cd = document.getElementById("card"), wd = document.getElementById("word"),
+            pic = document.getElementById("pic"), L = document.getElementById("letters");
+      const fam = (el) => getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim();
+      const read = () => {
+        const c = deck[i];
+        const front = cd.getAttribute("aria-label");
+        cd.click();                                   // flip
+        const back = cd.getAttribute("aria-label");
+        const out = {
+          card: c, front, back,
+          ch: wd.textContent, chLang: wd.getAttribute("lang"), chFam: fam(wd),
+          chPx: parseFloat(getComputedStyle(wd).fontSize),
+          pic: pic.textContent, picCls: pic.className,
+          frontHidden: document.getElementById("frontFace").getAttribute("aria-hidden"),
+          backHidden: document.getElementById("backFace").getAttribute("aria-hidden"),
+          teamTiles: L.querySelectorAll("span.team").length,
+          kids: [...L.children].map((el) => ({
+            cls: el.className, text: el.textContent,
+            lang: el.getAttribute("lang"), fam: fam(el),
+          })),
+        };
+        cd.click();                                   // and back to the front
+        return out;
+      };
+      const first = read();
+      i = 7; unflipInstantly(); render(false);
+      const later = read();
+      return { label, count, n: deck.length, first, later,
+               kind: (function(){ try { return atKey(); } catch (e) { return null; } })() };
+    });
+    assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
+
+    // (1) The button. Its printed count and the deck it actually opens are two
+    //     independent quantities, so a typed label cannot satisfy this.
+    assert.equal(r.n, 120, `the Chinese deck holds ${r.n} cards, not the 120 of the printed table`);
+    assert.equal(r.count, r.n + " cards",
+      `the button says "${r.count}" and opens ${r.n} cards`);
+    assert.match(r.label, /Chinese/i, "the button never says what it opens");
+    assert.equal(r.kind, "wc-at-hanzi",
+      "the Chinese deck shares its saved place with another deck, so finishing one moves the other");
+
+    for (const [when, c] of [["first card", r.first], ["card 8", r.later]]) {
+      const [ch, picture, , py, gloss, sentence, translation] = c.card;
+
+      // (2) The FRONT is the character, in a Simplified Chinese face and marked
+      //     as Chinese — this page's own family opens with a JAPANESE font, so
+      //     inheriting it would have drawn Japanese forms and dropped the
+      //     simplified-only characters entirely.
+      assert.equal(c.ch, ch, `${when}: the front shows "${c.ch}" and the card is ${ch}`);
+      assert.equal(c.chLang, "zh-CN", `${when}: the character is not marked as Chinese`);
+      assert.match(c.chFam, SC, `${when}: the character renders in "${c.chFam}", not a Simplified Chinese face`);
+      assert.ok(c.chPx >= 90, `${when}: the character is only ${c.chPx}px — a han glyph carries far more stroke detail than a word`);
+
+      // (3) The BACK: the picture, then how to SAY it, what it MEANS, and the
+      //     sentence with its translation.
+      assert.equal(c.pic, picture, `${when}: the back shows the wrong picture`);
+      assert.match(c.picCls, /\bhz\b/, `${when}: the picture is not sized for a card that also carries three lines of text`);
+      assert.deepEqual(c.kids.map((k) => k.cls), ["hz__key", "hz__zh", "hz__en"],
+        `${when}: the back is not [how to say it, the sentence, the translation]`);
+      assert.equal(c.kids[0].text, py + " · " + gloss, `${when}: the reading and the meaning are wrong`);
+      assert.equal(c.kids[1].text, sentence, `${when}: the sentence is wrong`);
+      assert.equal(c.kids[2].text, translation, `${when}: the translation is wrong`);
+      assert.equal(c.kids[1].lang, "zh-CN", `${when}: the sentence is not marked as Chinese`);
+      assert.match(c.kids[1].fam, SC, `${when}: the sentence renders in "${c.kids[1].fam}", not a Simplified Chinese face`);
+      assert.equal(c.kids[0].lang, null, `${when}: the pinyin line is marked Chinese, so it would be read as han`);
+
+      // (4) sounds() splits ENGLISH letters. Run on a character it returns one
+      //     tile of noise, and a strip of noise under the answer is worse than
+      //     no strip, so a hanzi card has none.
+      assert.equal(c.teamTiles, 0, `${when}: a sound-out tile appeared on a Chinese card`);
+
+      // (5) The card's own name. The front must not give the answer away — the
+      //     character IS the question — so it names the CARD and nothing else;
+      //     the back carries the reading, the meaning and the translation,
+      //     because that IS the answer.
+      assert.ok(!c.front.includes(sentence) && !c.front.includes(translation),
+        `${when}: the front of the card announces the answer: "${c.front}"`);
+      for (const part of [py, gloss, translation])
+        assert.ok(c.back.includes(part), `${when}: the back never says "${part}": "${c.back}"`);
+      // …and the face that is turned away stays off the tree, or both are read.
+      assert.equal(c.frontHidden, "true", `${when}: the front is still readable once flipped`);
+      assert.equal(c.backHidden, "false", `${when}: the back is hidden while it is showing`);
+    }
+    // The two cards must genuinely differ, or every clause above could be
+    // satisfied by one hard-coded card.
+    assert.notEqual(r.first.card[0], r.later.card[0], "fixture: both reads landed on the same card");
+    assert.equal(r.first.front.replace(/\d+/g, "#"), r.later.front.replace(/\d+/g, "#"),
+      "the front label differs between cards, so something about the answer is leaking into it");
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: a Chinese card is SPOKEN in Chinese, character and sentence", async () => {
+  // A character is one syllable and its tone is most of what makes it a word,
+  // so the card says the SENTENCE too — which is also the only thing on the
+  // card a grown-up who reads no Chinese can use. And the language has to
+  // travel with the text: left on the page's en-US voice, 我有五个手指 is read
+  // as letter noise, which sounds exactly like a broken feature.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    // speechSynthesis is a READ-ONLY accessor, so a plain assignment silently
+    // no-ops and the real (silent, headless) engine answers — which reads as a
+    // feature that never fired rather than a stub that never installed. Same
+    // trap as localStorage in the private-mode test, so the stub verifies
+    // itself before anything is measured.
+    const ok = await pg.evaluate(() => {
+      window.__said = [];
+      Object.defineProperty(window, "speechSynthesis", {
+        configurable: true,
+        value: {
+          __stub: true, cancel() {}, getVoices() { return []; },
+          speak(u) { window.__said.push({ text: u.text, lang: u.lang }); },
+        },
+      });
+      return !!window.speechSynthesis.__stub;
+    });
+    assert.ok(ok, "fixture: the speech stub never installed, so nothing below measures anything");
+
+    // The sound toggle lives on the DECK screen, not the menu, so a deck has to
+    // be open before it can be turned on — and it is remembered from there.
+    await pg.click("#hanziBtn");
+    await pg.waitForSelector(".card");
+    await pg.click("#sound");                            // RULE 5: off by default
+    const say = async (open) => pg.evaluate((sel) => {
+      window.__said.length = 0;
+      if (sel) document.querySelector(sel).click();
+      document.getElementById("card").click();          // flip -> speak
+      const c = deck[i];
+      return { said: window.__said.slice(), card: c };
+    }, open);
+
+    const zh = await say(null);
+    assert.equal(zh.said.length, 1, `a flip must speak exactly once (spoke ${zh.said.length} times)`);
+    assert.equal(zh.said[0].lang, "zh-CN",
+      `a Chinese card is spoken as "${zh.said[0].lang}", so an English voice reads the characters as letters`);
+    assert.ok(zh.said[0].text.includes(zh.card[0]),
+      `the spoken line "${zh.said[0].text}" does not contain the character ${zh.card[0]}`);
+    assert.ok(zh.said[0].text.includes(zh.card[5]),
+      `the spoken line "${zh.said[0].text}" does not contain the card's sentence, which is the only place its tone lives in a word`);
+
+    // THE CONTROL, and the clause that makes the one above mean anything: a
+    // page that always said zh-CN would pass every assertion so far.
+    await pg.click("#back");
+    await pg.waitForSelector("#grid .chip");
+    const en = await say("#allBtn");
+    assert.equal(en.said[0].lang, "en-US", `an English card is now spoken as "${en.said[0].lang}"`);
+    assert.equal(en.said[0].text, en.card[0],
+      `an English card speaks "${en.said[0].text}" rather than just its word`);
+    assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: the Chinese deck keeps its OWN place in the deck", async () => {
+  // A seeded order is only worth having if you can carry on from it, and a
+  // 120-card deck is six sittings at a four-year-old's pace. The place is keyed
+  // on the deck, so working through the Chinese must not move where he is in
+  // the English — driven, because the two decks sharing a key would look
+  // exactly like this feature working right up until it lost his place.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.click("#allBtn");
+    await pg.waitForSelector(".card");
+    for (let k = 0; k < 2; k++) await pg.click("#next");
+    await pg.click("#back");
+    await pg.click("#hanziBtn");
+    await pg.waitForSelector(".card");
+    // FIRST, before advancing: a deck he has never opened starts at its first
+    // card whatever he has done in another one. This clause comes first because
+    // a shared key lands here — it opens at the OTHER deck's place — and would
+    // otherwise trip the advance check below with a message about the fixture
+    // rather than about the defect.
+    const opened = await pg.evaluate(() => i);
+    assert.equal(opened, 0,
+      `the Chinese deck opened at card ${opened + 1} of a deck he has never seen — it is reading the English deck's saved place`);
+    for (let k = 0; k < 5; k++) await pg.click("#next");
+    const at = await pg.evaluate(() => ({ zh: i, keys: Object.keys(localStorage).filter((k) => k.startsWith("wc-at-")).sort() }));
+    assert.equal(at.zh, 5, "fixture: the walk did not advance five cards");
+    assert.deepEqual(at.keys, ["wc-at-all", "wc-at-hanzi"],
+      `the two decks do not keep separate places: ${at.keys.join(", ")}`);
+
+    await pg.reload({ waitUntil: "load" });
+    const back = await pg.evaluate(() => {
+      document.getElementById("hanziBtn").click();
+      const zh = i;
+      document.getElementById("back").click();
+      document.getElementById("allBtn").click();
+      return { zh, en: i };
+    });
+    assert.equal(back.zh, 5, `the Chinese deck reopened at card ${back.zh + 1}, not where he stopped`);
+    assert.equal(back.en, 2, `working through the Chinese moved his place in the English deck to ${back.en}`);
   } finally {
     await ctx.close();
   }

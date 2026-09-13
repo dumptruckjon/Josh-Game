@@ -177,6 +177,32 @@
      way. Full-strength ink on a .55 plate, where the strip already measures
      4.93..5.92 on these eight card colours at .7 ink. */
   .word .team{background:rgba(255,255,255,.55);border-radius:.18em;padding:0 .05em;}
+  /* ---------- 中文 ----------
+     The font stack is the load-bearing line here, not the sizes. This page's
+     own family opens `ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic
+     ProN"` — and Hiragino Maru Gothic is a JAPANESE face sitting BEFORE
+     system-ui, so every han codepoint it covers would render in Japanese
+     forms (花, 海, 直 and 兔 all differ) while the simplified-only ones it does
+     not cover — 车 门 鸟 马 红 绿 蓝 们 — fell through it to whatever came
+     after. Simplified Chinese has to be asked for BY NAME; iOS answers with
+     PingFang SC. Everything that paints a han character carries this face and
+     a lang="zh-CN", which is also what gives VoiceOver a Chinese voice on it. */
+  :root{ --hz-face:"PingFang SC","Hiragino Sans GB","Heiti SC","Source Han Sans SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif; }
+  .word.hz,.hz__zh,.all.hz b{font-family:var(--hz-face);}
+  .all.hz{background:#FF5A5A;}
+  /* The back of a hanzi card is THREE runs, not one picture, so the cue shrinks
+     to leave them room — and every run is FULL ink. The .7 the sound strip uses
+     is only safe because that strip is LARGE text (bar 3.0); these are not, so
+     they take the 4.5 bar, where dark ink on this card's eight hues measures
+     5.01:1 at its worst and has nothing left to dim. Hierarchy is size and
+     weight, exactly as it is on the front. */
+  .pic.hz{font-size:clamp(3.2rem,20vmin,10rem);}
+  .letters.hz{display:grid;grid-template-columns:minmax(0,100%);gap:.3em;
+              justify-items:center;white-space:normal;text-align:center;
+              max-width:88%;margin-top:16px;color:var(--ink);}
+  .hz__key{font-size:clamp(1.15rem,5.6vmin,2.6rem);font-weight:800;}
+  .hz__zh {font-size:clamp(1.4rem,7vmin,3.4rem);font-weight:800;line-height:1.35;}
+  .hz__en {font-size:clamp(.95rem,4.2vmin,2rem);font-weight:700;line-height:1.3;}
   .sect{color:rgba(255,255,255,.62);font-size:14px;font-weight:800;
         letter-spacing:.12em;text-transform:uppercase;margin:2px 0 12px;}
   .pop{animation:pop .32s cubic-bezier(.2,.9,.3,1);}
@@ -228,6 +254,12 @@
        that goes stale the moment a card is added or removed. -->
   <h2 class="sect">Learning to read</h2>
   <div class="grid" id="readGrid"></div>
+  <!-- One button, not a grid: a single chip in a two-column grid orphans its
+       row, which is the same even-fill reasoning the fort's contents row is
+       held to. The count is written by the script, like every other count on
+       this page. -->
+  <h2 class="sect">Chinese</h2>
+  <button class="all hz" id="hanziBtn"><span><b lang="zh-CN">&#20013;&#25991;</b> Chinese Characters</span><small></small></button>
   <h2 class="sect">Letter teams</h2>
   <div class="grid" id="teamGrid"></div>
   <h2 class="sect">Bossy R</h2>
@@ -241,7 +273,155 @@
 const WORDS = [["cat","🐱","animals"],["dog","🐶","animals"],["pig","🐷","animals"],["cow","🐄","animals"],["hen","🐔","animals"],["fox","🦊","animals"],["bug","🐛","animals"],["bee","🐝","animals"],["owl","🦉","animals"],["bat","🦇","animals"],["ant","🐜","animals"],["rat","🐀","animals"],["ram","🐏","animals"],["ape","🦍","animals"],["pup","🐕","animals"],["fish","🐟","animals"],["frog","🐸","animals"],["duck","🦆","animals"],["bird","🐦","animals"],["bear","🐻","animals"],["lion","🦁","animals"],["goat","🐐","animals"],["crab","🦀","animals"],["wolf","🐺","animals"],["deer","🦌","animals"],["swan","🦢","animals"],["seal","🦭","animals"],["worm","🪱","animals"],["dove","🕊️","animals"],["bull","🐂","animals"],["hare","🐇","animals"],["horse","🐴","animals"],["mouse","🐭","animals"],["sheep","🐑","animals"],["tiger","🐯","animals"],["whale","🐳","animals"],["snake","🐍","animals"],["zebra","🦓","animals"],["panda","🐼","animals"],["koala","🐨","animals"],["camel","🐫","animals"],["llama","🦙","animals"],["otter","🦦","animals"],["skunk","🦨","animals"],["sloth","🦥","animals"],["shark","🦈","animals"],["snail","🐌","animals"],["eagle","🦅","animals"],["chick","🐤","animals"],["monkey","🐵","animals"],["rabbit","🐰","animals"],["turtle","🐢","animals"],["spider","🕷️","animals"],["parrot","🦜","animals"],["beaver","🦫","animals"],["lizard","🦎","animals"],["penguin","🐧","animals"],["dolphin","🐬","animals"],["giraffe","🦒","animals"],["hamster","🐹","animals"],["peacock","🦚","animals"],["octopus","🐙","animals"],["elephant","🐘","animals"],["kangaroo","🦘","animals"],["squirrel","🐿️","animals"],["egg","🥚","food"],["pie","🥧","food"],["tea","🍵","food"],["ham","🍖","food"],["nut","🥜","food"],["cup","🥤","food"],["cake","🍰","food"],["milk","🥛","food"],["corn","🌽","food"],["rice","🍚","food"],["soup","🍲","food"],["meat","🥩","food"],["pear","🍐","food"],["salt","🧂","food"],["taco","🌮","food"],["apple","🍎","food"],["bread","🍞","food"],["grape","🍇","food"],["lemon","🍋","food"],["peach","🍑","food"],["pizza","🍕","food"],["candy","🍬","food"],["juice","🧃","food"],["honey","🍯","food"],["salad","🥗","food"],["melon","🍈","food"],["mango","🥭","food"],["olive","🫒","food"],["donut","🍩","food"],["water","💧","food"],["onion","🧅","food"],["berry","🫐","food"],["cherry","🍒","food"],["banana","🍌","food"],["carrot","🥕","food"],["tomato","🍅","food"],["cookie","🍪","food"],["potato","🥔","food"],["cheese","🧀","food"],["butter","🧈","food"],["garlic","🧄","food"],["waffle","🧇","food"],["noodle","🍜","food"],["pepper","🌶️","food"],["cupcake","🧁","food"],["popcorn","🍿","food"],["pancake","🥞","food"],["pretzel","🥨","food"],["red","🟥","colors"],["blue","🟦","colors"],["pink","🎀","colors"],["green","🟩","colors"],["black","⬛","colors"],["white","⬜","colors"],["brown","🟫","colors"],["orange","🟧","colors"],["yellow","🟨","colors"],["purple","🟪","colors"],["rainbow","🌈","colors"],["zero","0️⃣","numbers"],["one","1️⃣","numbers"],["two","2️⃣","numbers"],["three","3️⃣","numbers"],["four","4️⃣","numbers"],["five","5️⃣","numbers"],["six","6️⃣","numbers"],["seven","7️⃣","numbers"],["eight","8️⃣","numbers"],["nine","9️⃣","numbers"],["ten","🔟","numbers"],["first","🥇","numbers"],["second","🥈","numbers"],["third","🥉","numbers"],["ear","👂","body"],["eye","👁️","body"],["leg","🦵","body"],["hand","✋","body"],["foot","🦶","body"],["nose","👃","body"],["feet","👣","body"],["face","😀","body"],["bone","🦴","body"],["tooth","🦷","body"],["tongue","👅","body"],["finger","👆","body"],["mouth","👄","body"],["brain","🧠","body"],["heart","❤️","body"],["bed","🛏️","home"],["box","📦","home"],["mug","☕","home"],["key","🔑","home"],["pan","🍳","home"],["tub","🛁","home"],["door","🚪","home"],["bell","🔔","home"],["sofa","🛋️","home"],["sink","🚰","home"],["soap","🧼","home"],["fork","🍴","home"],["bowl","🥣","home"],["wall","🧱","home"],["plate","🍽️","home"],["spoon","🥄","home"],["knife","🔪","home"],["chair","🪑","home"],["clock","🕐","home"],["house","🏠","home"],["broom","🧹","home"],["phone","📱","home"],["light","💡","home"],["window","🪟","home"],["mirror","🪞","home"],["ladder","🪜","home"],["candle","🕯️","home"],["bucket","🪣","home"],["hammer","🔨","home"],["sun","☀️","nature"],["ice","🧊","nature"],["log","🪵","nature"],["web","🕸️","nature"],["star","⭐","nature"],["moon","🌙","nature"],["tree","🌳","nature"],["leaf","🍃","nature"],["rain","🌧️","nature"],["snow","❄️","nature"],["fire","🔥","nature"],["rock","🪨","nature"],["wind","🌬️","nature"],["wave","🌊","nature"],["seed","🌱","nature"],["hole","🕳️","nature"],["cloud","☁️","nature"],["grass","🌿","nature"],["beach","🏖️","nature"],["river","🏞️","nature"],["storm","⛈️","nature"],["plant","🪴","nature"],["earth","🌍","nature"],["flower","🌸","nature"],["island","🏝️","nature"],["desert","🏜️","nature"],["bus","🚌","vehicles"],["car","🚗","vehicles"],["jet","✈️","vehicles"],["van","🚐","vehicles"],["bike","🚲","vehicles"],["boat","⛵","vehicles"],["ship","🚢","vehicles"],["sled","🛷","vehicles"],["cart","🛒","vehicles"],["taxi","🚕","vehicles"],["train","🚂","vehicles"],["truck","🚚","vehicles"],["canoe","🛶","vehicles"],["ferry","⛴️","vehicles"],["rocket","🚀","vehicles"],["subway","🚇","vehicles"],["scooter","🛴","vehicles"],["tractor","🚜","vehicles"],["trolley","🚋","vehicles"],["ambulance","🚑","vehicles"],["run","🏃","verbs"],["cry","😢","verbs"],["hug","🤗","verbs"],["jump","🤸","verbs"],["walk","🚶","verbs"],["swim","🏊","verbs"],["read","📖","verbs"],["sing","🎤","verbs"],["ride","🚴","verbs"],["cook","👩‍🍳","verbs"],["talk","💬","verbs"],["help","🤝","verbs"],["hold","🤲","verbs"],["stop","🛑","verbs"],["clap","👏","verbs"],["find","🔍","verbs"],["climb","🧗","verbs"],["dance","💃","verbs"],["sleep","😴","verbs"],["laugh","😂","verbs"],["write","✍️","verbs"],["paint","🎨","verbs"],["hot","🥵","describe"],["sad","☹️","describe"],["mad","😠","describe"],["fun","🎉","describe"],["fast","🏎️","describe"],["loud","📢","describe"],["cold","🥶","describe"],["dark","🌑","describe"],["good","👍","describe"],["kind","💗","describe"],["quiet","🤫","describe"],["happy","😄","describe"],["funny","🤣","describe"],["sleepy","🥱","describe"],["strong","💪","describe"],["mom","👩","people"],["dad","👨","people"],["boy","👦","people"],["kid","🧒","people"],["girl","👧","people"],["baby","👶","people"],["firefighter","👨‍🚒","people"],["family","👨‍👩‍👧","people"],["doctor","👩‍⚕️","people"],["farmer","👩‍🌾","people"],["people","👥","people"],["grandma","👵","people"],["grandpa","👴","people"],["teacher","👩‍🏫","people"],["hat","🎩","clothes"],["cap","🧢","clothes"],["tie","👔","clothes"],["sock","🧦","clothes"],["shoe","👟","clothes"],["coat","🧥","clothes"],["boot","🥾","clothes"],["ring","💍","clothes"],["vest","🦺","clothes"],["shirt","👕","clothes"],["pants","👖","clothes"],["dress","👗","clothes"],["scarf","🧣","clothes"],["glove","🧤","clothes"],["shorts","🩳","clothes"],["sandals","🩴","clothes"],["pen","🖊️","play"],["ball","⚽","play"],["book","📕","play"],["game","🎮","play"],["doll","🪆","play"],["kite","🪁","play"],["drum","🥁","play"],["teddy","🧸","play"],["robot","🤖","play"],["paper","📄","play"],["ruler","📏","play"],["puzzle","🧩","play"],["crayon","🖍️","play"],["pencil","✏️","play"],["guitar","🎸","play"],["bubble","🔵","play"],["castle","🏰","play"],["balloon","🎈","play"],["a","a big dog","sight"],["I","I can run","sight"],["is","the sun is hot","sight"],["it","it is fun","sight"],["in","in the box","sight"],["at","at my house","sight"],["on","on the bed","sight"],["to","go to bed","sight"],["up","jump up high","sight"],["we","we can play","sight"],["he","he is my dad","sight"],["be","be my friend","sight"],["do","do it now","sight"],["go","go and play","sight"],["no","no more cake","sight"],["so","so much fun","sight"],["of","a cup of milk","sight"],["or","red or blue","sight"],["as","as big as me","sight"],["an","an old hat","sight"],["if","if you want","sight"],["us","come with us","sight"],["am","I am four","sight"],["by","sit by me","sight"],["my","my little cat","sight"],["me","give it to me","sight"],["the","the dog ran","sight"],["and","you and me","sight"],["was","it was fun","sight"],["are","we are happy","sight"],["you","you can do it","sight"],["for","for my mom","sight"],["all","all the toys","sight"],["but","small but strong","sight"],["not","not too hot","sight"],["had","I had one","sight"],["his","his blue hat","sight"],["her","her red shoe","sight"],["has","she has a dog","sight"],["him","play with him","sight"],["she","she is kind","sight"],["they","they are here","sight"],["this","this is mine","sight"],["that","that one","sight"],["with","with my dad","sight"],["hut","🛖","home"],["lock","🔒","home"],["hook","🪝","home"],["bolt","🔩","home"],["saw","🪚","home"],["axe","🪓","home"],["wrench","🔧","home"],["magnet","🧲","home"],["sponge","🧽","home"],["shower","🚿","home"],["basket","🧺","home"],["trash","🗑️","home"],["battery","🔋","home"],["compass","🧭","home"],["scissors","✂️","home"],["pin","📌","home"],["envelope","✉️","home"],["mailbox","📫","home"],["cucumber","🥒","food"],["strawberry","🍓","food"],["kiwi","🥝","food"],["pineapple","🍍","food"],["coconut","🥥","food"],["avocado","🥑","food"],["mushroom","🍄","food"],["bagel","🥯","food"],["burger","🍔","food"],["fries","🍟","food"],["sandwich","🥪","food"],["pasta","🍝","food"],["sushi","🍣","food"],["chocolate","🍫","food"],["broccoli","🥦","food"],["lettuce","🥬","food"],["lollipop","🍭","food"],["butterfly","🦋","animals"],["ladybug","🐞","animals"],["beetle","🪲","animals"],["cricket","🦗","animals"],["mosquito","🦟","animals"],["flamingo","🦩","animals"],["rooster","🐓","animals"],["turkey","🦃","animals"],["shrimp","🦐","animals"],["lobster","🦞","animals"],["squid","🦑","animals"],["shell","🐚","animals"],["hedgehog","🦔","animals"],["badger","🦡","animals"],["crocodile","🐊","animals"],["dinosaur","🦕","animals"],["bison","🦬","animals"],["feather","🪶","animals"],["cactus","🌵","nature"],["sunflower","🌻","nature"],["rose","🌹","nature"],["clover","🍀","nature"],["tulip","🌷","nature"],["volcano","🌋","nature"],["umbrella","☂️","nature"],["planet","🪐","nature"],["comet","☄️","nature"],["lightning","⚡","nature"],["snowman","⛄","nature"],["tent","⛺","nature"],["helicopter","🚁","vehicles"],["anchor","⚓","vehicles"],["flag","🚩","vehicles"],["glasses","👓","clothes"],["backpack","🎒","clothes"],["crown","👑","clothes"],["gift","🎁","play"],["dice","🎲","play"],["camera","📷","play"],["piano","🎹","play"],["trumpet","🎺","play"],["violin","🎻","play"],["skateboard","🛹","play"],["basketball","🏀","play"],["tennis","🎾","play"],["bowling","🎳","play"],["trophy","🏆","play"],["ticket","🎫","play"],["telescope","🔭","play"],["gem","💎","play"],["prince","🤴","magic"],["wizard","🧙","magic"],["elf","🧝","magic"],["fairy","🧚","magic"],["mermaid","🧜","magic"],["ghost","👻","magic"],["alien","👽","magic"],["dragon","🐉","magic"],["unicorn","🦄","magic"],["money","💵","play"],["coin","🪙","play"],["bandage","🩹","body"],["eyes","👀","body"],["map","🗺️","play"],["bag","👜","clothes"],["can","🥫","food"],["police","👮","people"],["pilot","👨‍✈️","people"],["artist","👨‍🎨","people"],["singer","👩‍🎤","people"],["astronaut","👨‍🚀","people"],["builder","👷","people"],["ninja","🥷","people"],["beard","🧔","body"],["lungs","🫁","body"],["scared","😨","describe"],["silly","🤪","describe"],["sick","🤒","describe"],["cool","😎","describe"],["smile","😊","verbs"],["wink","😉","verbs"],["point","👉","verbs"],["think","🤔","verbs"],["kiss","😘","verbs"],["lift","🏋️","verbs"],["surf","🏄","verbs"],["ski","⛷️","verbs"],["skate","⛸️","verbs"],["juggle","🤹","verbs"],["motorbike","🏍️","vehicles"],["ufo","🛸","vehicles"],["parachute","🪂","vehicles"],["siren","🚨","vehicles"],["toilet","🚽","home"],["radio","📻","home"],["tv","📺","home"],["laptop","💻","home"],["watch","⌚","home"],["thread","🧵","home"],["yarn","🧶","home"],["chain","⛓️","home"],["knot","🪢","home"],["darts","🎯","play"],["yoyo","🪀","play"],["medal","🏅","play"],["mountain","⛰️","nature"],["maple","🍁","nature"],["burrito","🌯","food"],["bacon","🥓","food"],["pudding","🍮","food"]];
 const CATS  = [{"key":"animals","label":"Animals","icon":"🐶","color":"#FF9F1C"},{"key":"food","label":"Food","icon":"🍎","color":"#FF6B57"},{"key":"colors","label":"Colors","icon":"🎨","color":"#A46BFF"},{"key":"numbers","label":"Numbers","icon":"🔢","color":"#3FBFEF"},{"key":"body","label":"My Body","icon":"✋","color":"#FF7BB0"},{"key":"home","label":"At Home","icon":"🏠","color":"#2EC4A6"},{"key":"nature","label":"Outside","icon":"🌳","color":"#57C64A"},{"key":"vehicles","label":"Things That Go","icon":"🚗","color":"#FFC93C"},{"key":"verbs","label":"Doing Words","icon":"🏃","color":"#FF6B57"},{"key":"describe","label":"Describing Words","icon":"🌈","color":"#3FBFEF"},{"key":"people","label":"People","icon":"👩‍🏫","color":"#A46BFF"},{"key":"clothes","label":"Clothes","icon":"👕","color":"#FF7BB0"},{"key":"play","label":"Play & School","icon":"🧸","color":"#57C64A"},{"key":"magic","label":"Make Believe","icon":"🦄","color":"#FF9F1C"}];
 const FAMILIES = [["at",["cat","bat","rat","hat"]],["an",["van","can","pan"]],["ap",["cap","map","clap"]],["ag",["bag","flag"]],["ad",["sad","dad"]],["am",["ram","ham"]],["ug",["bug","mug","hug"]],["un",["sun","run","fun"]],["ut",["nut","hut"]],["og",["dog","frog","log"]],["ed",["red","bed","sled"]],["en",["hen","pen","ten"]],["ell",["bell","shell"]],["all",["ball","wall"]],["ock",["rock","clock","sock","lock","peacock"]],["uck",["duck","truck"]],["ick",["chick","sick"]],["ing",["sing","ring"]],["ake",["cake","snake"]],["ar",["car","star"]],["one",["bone","phone"]],["oat",["goat","boat","coat"]],["ain",["rain","train","chain","brain"]],["oon",["moon","spoon","balloon"]],["ook",["book","hook","cook"]],["eep",["sheep","sleep"]],["ear",["bear","pear"]],["ee",["bee","tree","three"]]];
-const PAIRS = [["mom","dad"],["grandma","grandpa"],["boy","girl"],["hot","cold"],["sun","moon"],["cat","dog"],["black","white"],["first","second"],["second","third"],["first","third"],["day","night"],["sad","happy"],["stop","go"],["prince","princess"],["zero","one"],["one","two"],["two","three"],["three","four"],["four","five"],["five","six"],["six","seven"],["seven","eight"],["eight","nine"],["nine","ten"],["one","first"],["two","second"],["three","third"],["eye","eyes"],["foot","feet"]];
+const PAIRS = [["mom","dad"],["grandma","grandpa"],["boy","girl"],["hot","cold"],["sun","moon"],["cat","dog"],["black","white"],["first","second"],["second","third"],["first","third"],["day","night"],["sad","happy"],["stop","go"],["prince","princess"],["zero","one"],["one","two"],["two","three"],["three","four"],["four","five"],["five","six"],["six","seven"],["seven","eight"],["eight","nine"],["nine","ten"],["one","first"],["two","second"],["three","third"],["eye","eyes"],["foot","feet"],
+  // …and the Chinese links, in the SAME list, because "these two cards must not
+  // sit together" is one question with one reader (clash). 蝴/蝶 needs no entry:
+  // they share a picture, which clash() already refuses.
+  ["一","二"],["二","三"],["三","四"],["四","五"],["五","六"],["六","七"],["七","八"],["八","九"],["九","十"],["大","小"],["上","下"],["多","少"],["来","去"],["哭","笑"],["太","阳"],["月","亮"],["白","天"],["高","兴"],["快","乐"],["什","么"],["儿","子"],["美","丽"],["蜜","蜂"],["牛","奶"],["起","床"],["爸","妈"],["爷","奶"],["春","夏"],["夏","秋"],["秋","冬"],["冬","春"],["白","红"],["白","蓝"],["白","绿"],["红","蓝"],["红","绿"],["蓝","绿"],["猫","狗"],["狼","狗"]];
+/* ---------- 中文: the 120 characters of the 第2级总字表 ----------
+   A whole second WRITING SYSTEM, so these live in their own array and never
+   join WORDS. Every English-side derivation reads WORDS — First Words, the
+   word families, all eighteen letter-team decks, "Every word" — and a han
+   character satisfies none of their rules, so folding them in would have
+   quietly polluted six derivations to save one array.
+
+   [character, picture, "hanzi", pinyin, meaning, sentence, translation]
+
+   The picture is a MEANING CUE here, not the answer: the answer to "what is
+   this character" is how you SAY it, which the card speaks. That is why an
+   abstract character may picture its SENTENCE instead of itself — 了 gets a
+   chequered flag, 的 a link — while a concrete one pictures itself. The
+   meaning is carried in words either way, so the cue can never be the only
+   thing saying what the card means.
+
+   Every sentence CONTAINS its own character (control of error, the sight
+   deck's law), is at most six characters long, and is built almost entirely
+   from the 120 themselves — measured, fourteen helper characters in all, and
+   only 很 and 在 appear more than six times.
+*/
+const HANZI = [
+["一","1️⃣","hanzi","yī","one","一只小鸟。","One little bird."],
+["二","2️⃣","hanzi","èr","two","二月有雪。","February has snow."],
+["三","3️⃣","hanzi","sān","three","三个人。","Three people."],
+["四","4️⃣","hanzi","sì","four","四只小猫。","Four little cats."],
+["五","5️⃣","hanzi","wǔ","five","我有五个手指。","I have five fingers."],
+["六","6️⃣","hanzi","liù","six","六只兔子。","Six rabbits."],
+["七","7️⃣","hanzi","qī","seven","七朵花。","Seven flowers."],
+["八","8️⃣","hanzi","bā","eight","八只蝴蝶。","Eight butterflies."],
+["九","9️⃣","hanzi","jiǔ","nine","九只小虫。","Nine little bugs."],
+["十","🔟","hanzi","shí","ten","十只蜜蜂。","Ten bees."],
+["两","✌️","hanzi","liǎng","two","两只小狗。","Two little dogs."],
+["只","🐾","hanzi","zhī","(counts animals)","一只白羊。","One white sheep."],
+["头","👤","hanzi","tóu","head","我的头很大。","My head is big."],
+["又","🔁","hanzi","yòu","again","小狗又跑了。","The dog ran off again."],
+["了","🏁","hanzi","le","(all done)","我吃完了。","I have finished eating."],
+["不","🚫","hanzi","bù","no; not","小猫不喝水。","The kitten will not drink."],
+["大","🐘","hanzi","dà","big","这只狗很大。","This dog is big."],
+["小","🐜","hanzi","xiǎo","little","小虫很小。","The bug is tiny."],
+["上","⬆️","hanzi","shàng","up; on","猫在树上。","The cat is up the tree."],
+["下","⬇️","hanzi","xià","down; under","狗在床下。","The dog is under the bed."],
+["多","🍇","hanzi","duō","many","星星很多。","There are so many stars."],
+["少","🤏","hanzi","shǎo","few; a little","水很少。","There is very little water."],
+["白","⚪","hanzi","bái","white","雪是白的。","Snow is white."],
+["天","📅","hanzi","tiān","day; sky","白天很亮。","The daytime is bright."],
+["云","☁️","hanzi","yún","cloud","天上有白云。","White clouds are in the sky."],
+["山","⛰️","hanzi","shān","mountain","山很高。","The mountain is tall."],
+["太","❗","hanzi","tài","too; very","太大了！","Too big!"],
+["阳","☀️","hanzi","yáng","sun (太阳)","太阳很大。","The sun is big."],
+["月","🌙","hanzi","yuè","moon; month","月亮在天上。","The moon is in the sky."],
+["亮","💡","hanzi","liàng","bright","月亮很亮。","The moon is bright."],
+["星","⭐","hanzi","xīng","star","我看星星。","I look at the stars."],
+["马","🐴","hanzi","mǎ","horse","马在草地上。","The horse is on the grass."],
+["牛","🐮","hanzi","niú","cow","牛奶很白。","Milk is white."],
+["羊","🐑","hanzi","yáng","sheep","羊在山上。","The sheep are on the mountain."],
+["兔","🐰","hanzi","tù","rabbit","兔子在跳。","The rabbit is hopping."],
+["虫","🐛","hanzi","chóng","bug","花上有一只虫。","A bug is on the flower."],
+["鸟","🐦","hanzi","niǎo","bird","树上有小鸟。","Birds are in the tree."],
+["花","🌸","hanzi","huā","flower","花很美。","The flower is pretty."],
+["草","🌿","hanzi","cǎo","grass","羊在吃草。","The sheep is eating grass."],
+["树","🌳","hanzi","shù","tree","树上有花。","The tree has flowers."],
+["地","🌍","hanzi","dì","ground; earth","花在地上。","The flowers are on the ground."],
+["吃","😋","hanzi","chī","eat","小猫在吃鱼。","The kitten is eating fish."],
+["看","👀","hanzi","kàn","look","我看月亮。","I look at the moon."],
+["走","🚶","hanzi","zǒu","walk","我走回家。","I walk home."],
+["笑","😄","hanzi","xiào","laugh; smile","妈妈笑了。","Mom smiled."],
+["来","🤗","hanzi","lái","come","你来我家。","You come to my house."],
+["飞","✈️","hanzi","fēi","fly","鸟在天上飞。","Birds fly in the sky."],
+["爱","❤️","hanzi","ài","love","我爱爸爸妈妈。","I love Mom and Dad."],
+["是","✅","hanzi","shì","is; am; are","这是一只猫。","This is a cat."],
+["跑","🏃","hanzi","pǎo","run","小狗在跑。","The dog is running."],
+["跳","🦘","hanzi","tiào","jump","小兔跳来跳去。","The rabbit hops about."],
+["高","🦒","hanzi","gāo","tall; high","爸爸很高。","Dad is tall."],
+["兴","🎉","hanzi","xìng","glad (高兴 = happy)","我很高兴。","I am happy."],
+["快","⚡","hanzi","kuài","fast (快乐 = happy)","小车很快。","The little car is fast."],
+["乐","🎂","hanzi","lè","happy (快乐)","生日快乐！","Happy birthday!"],
+["好","👍","hanzi","hǎo","good","你好！","Hello!"],
+["的","🔗","hanzi","de","'s; of","爸爸的车。","Dad's car."],
+["爸","👨","hanzi","bà","dad","爸爸爱我。","Dad loves me."],
+["妈","👩","hanzi","mā","mom","妈妈在家。","Mom is at home."],
+["我","🙋","hanzi","wǒ","I; me","我爱妈妈。","I love Mom."],
+["人","🧍","hanzi","rén","person","家里有四个人。","Four people live at home."],
+["儿","👶","hanzi","ér","child; son (儿子)","妈妈爱儿子。","Mom loves her son."],
+["子","👦","hanzi","zǐ","child; son (儿子)","儿子在玩。","The son is playing."],
+["口","👄","hanzi","kǒu","mouth","我的口很小。","My mouth is small."],
+["几","❓","hanzi","jǐ","how many","你有几只猫？","How many cats do you have?"],
+["个","☝️","hanzi","gè","(counts things)","我有一个家。","I have a home."],
+["中","🎯","hanzi","zhōng","middle; China (中国)","我爱中国。","I love China."],
+["牙","🦷","hanzi","yá","tooth","我的牙很白。","My teeth are white."],
+["门","🚪","hanzi","mén","door","门开了。","The door opened."],
+["手","✋","hanzi","shǒu","hand","我有两只手。","I have two hands."],
+["心","💗","hanzi","xīn","heart","我的心在跳。","My heart is beating."],
+["什","🤔","hanzi","shén","what (什么)","这是什么？","What is this?"],
+["么","🤷","hanzi","me","what (什么)","这是什么花？","What flower is this?"],
+["开","🔓","hanzi","kāi","open","花开了。","The flowers opened."],
+["可","👌","hanzi","kě","can; may (可以)","你可以来我家。","You can come to my house."],
+["回","↩️","hanzi","huí","go back","我回家了。","I went home."],
+["出","🌅","hanzi","chū","come out","太阳出来了。","The sun came out."],
+["去","➡️","hanzi","qù","go","我去爷爷家。","I am going to Grandpa's."],
+["里","📦","hanzi","lǐ","inside","猫在家里。","The cat is inside the house."],
+["床","🛏️","hanzi","chuáng","bed","床上有一只猫。","A cat is on the bed."],
+["车","🚗","hanzi","chē","car","爸爸开车。","Dad drives the car."],
+["家","🏠","hanzi","jiā","home; family","这是我家。","This is my home."],
+["爷","👴","hanzi","yé","grandpa","爷爷很好。","Grandpa is kind."],
+["奶","👵","hanzi","nǎi","grandma; milk (牛奶)","奶奶爱我。","Grandma loves me."],
+["你","👉","hanzi","nǐ","you","你笑了。","You smiled."],
+["水","💧","hanzi","shuǐ","water","我喝水。","I drink water."],
+["饭","🍚","hanzi","fàn","rice; a meal","吃饭了！","Dinner time!"],
+["有","🤲","hanzi","yǒu","have","我有一只小狗。","I have a little dog."],
+["找","🔍","hanzi","zhǎo","look for","我在找我的猫。","I am looking for my cat."],
+["坐","🪑","hanzi","zuò","sit","你坐下。","You sit down."],
+["听","👂","hanzi","tīng","listen","你听！","Listen!"],
+["玩","🧸","hanzi","wán","play","我爱玩水。","I love playing in the water."],
+["哭","😭","hanzi","kū","cry","我不哭。","I do not cry."],
+["起","⏰","hanzi","qǐ","get up; rise","起床了！","Time to get up!"],
+["喝","🥛","hanzi","hē","drink","我喝牛奶。","I drink milk."],
+["到","📍","hanzi","dào","arrive","爷爷到了。","Grandpa has arrived."],
+["河","🏞️","hanzi","hé","river","河里有鱼。","There are fish in the river."],
+["海","🌊","hanzi","hǎi","sea","我爱大海。","I love the sea."],
+["风","💨","hanzi","fēng","wind","风很大。","The wind is strong."],
+["雨","☔","hanzi","yǔ","rain","下雨了。","It is raining."],
+["雪","❄️","hanzi","xuě","snow","下雪了！","It is snowing!"],
+["春","🌷","hanzi","chūn","spring","春天花开。","In spring the flowers open."],
+["夏","🍉","hanzi","xià","summer","夏天很热。","Summer is hot."],
+["秋","🍁","hanzi","qiū","autumn","秋天风很大。","In autumn the wind is strong."],
+["冬","⛄","hanzi","dōng","winter","冬天下雪。","In winter it snows."],
+["鱼","🐟","hanzi","yú","fish","鱼在水里。","The fish is in the water."],
+["狼","🐺","hanzi","láng","wolf","狼在山里。","The wolf is in the mountains."],
+["猫","🐱","hanzi","māo","cat","我家有一只猫。","We have a cat at home."],
+["狗","🐶","hanzi","gǒu","dog","狗爱玩球。","The dog loves to play ball."],
+["蝴","🦋","hanzi","hú","butterfly (蝴蝶)","蝴蝶在花上。","The butterfly is on the flower."],
+["蝶","🦋","hanzi","dié","butterfly (蝴蝶)","蝴蝶会飞。","Butterflies can fly."],
+["蜜","🍯","hanzi","mì","honey","蜂蜜很甜。","Honey is sweet."],
+["蜂","🐝","hanzi","fēng","bee","蜜蜂爱花。","Bees love flowers."],
+["谢","🙏","hanzi","xiè","thank","谢谢你！","Thank you!"],
+["睡","😴","hanzi","shuì","sleep","我在床上睡觉。","I sleep in my bed."],
+["红","🔴","hanzi","hóng","red","花是红的。","The flower is red."],
+["蓝","🔵","hanzi","lán","blue","海是蓝的。","The sea is blue."],
+["绿","🟢","hanzi","lǜ","green","树是绿的。","The tree is green."],
+["美","✨","hanzi","měi","beautiful","妈妈很美。","Mom is beautiful."],
+["丽","🌈","hanzi","lì","beautiful (美丽)","这朵花很美丽。","This flower is beautiful."],
+];
+
 const COLORS = ["#FFC93C","#FF6B57","#3FBFEF","#57C64A","#FF7BB0","#FF9F1C","#2EC4A6","#A46BFF"];
 
 /* ---------- sounds, not letters ----------
@@ -437,14 +617,37 @@ function rimeOf(word){
    only ever spoken from inside a tap, which is what iOS requires. */
 let soundOn = false;
 try { soundOn = localStorage.getItem("wc-sound") === "1"; } catch (e) {}
-function speak(text){
+function voiceFor(lang){
+  // getVoices() is empty until the platform has loaded them, and a Linux CI box
+  // may have no Chinese voice at all — both simply fall back to the lang TAG,
+  // which is what iOS honours anyway (it ships Ting-Ting for zh-CN).
+  try {
+    const want = lang.slice(0, 2).toLowerCase();
+    return (speechSynthesis.getVoices() || []).find(
+      (v) => (v.lang || "").slice(0, 2).toLowerCase() === want) || null;
+  } catch (e) { return null; }
+}
+function speak(text, lang){
   try {
     if (!soundOn || !window.speechSynthesis) return;
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US"; u.rate = 0.75; u.pitch = 1.05;
+    // A Chinese line left on the page's own en-US voice is read as letter
+    // noise, so the LANGUAGE travels with the text rather than being a
+    // property of the page.
+    u.lang = lang || "en-US";
+    const v = voiceFor(u.lang);
+    if (v) u.voice = v;
+    u.rate = 0.75; u.pitch = 1.05;
     speechSynthesis.speak(u);
   } catch (e) {}
+}
+// ONE owner for "what does this card sound like, and in what language" — the
+// flip, the sound toggle's preview and anything later all ask it, so they
+// cannot come to disagree. A character is ONE syllable: the sentence is what
+// makes its tone and the word it lives in audible, so a hanzi card says both.
+function cardSpeech(c){
+  return c[2] === "hanzi" ? [c[0] + "\u3002" + c[5], "zh-CN"] : [c[0], null];
 }
 
 const $ = id => document.getElementById(id);
@@ -519,6 +722,8 @@ for (const c of CATS){
 }
 $("allBtn").querySelector("small").textContent = WORDS.length + " cards";
 $("allBtn").addEventListener("click", () => start(WORDS.slice(), "All words", "all", "shuffle"));
+$("hanziBtn").querySelector("small").textContent = HANZI.length + " cards";
+$("hanziBtn").addEventListener("click", () => start(HANZI.slice(), "Chinese", "hanzi", "shuffle"));
 
 function start(list, name, kind, mode){
   // A picture deck is SHUFFLED so it cannot be guessed. The two teaching decks
@@ -556,12 +761,21 @@ function fit(el, startPx, minPx){
   }
 }
 
+/* One CHARACTER carries far more stroke detail than a four-letter word — 蝴 has
+   fifteen strokes in the space "cat" spends on three letters — so it starts
+   LARGER than a word does, and fit() still shrinks it if the card is narrow. */
+function hanziCap(){ return Math.min(Math.round(card.clientHeight * 0.44), Math.round(wordCap() * 1.3)); }
+
 function render(animate){
-  const word = deck[i][0], backText = deck[i][1], cat = deck[i][2];
+  const c = deck[i];
+  const word = c[0], backText = c[1], cat = c[2];
+  const isHanzi = cat === "hanzi";
 
   // In the families deck the shared ending is underlined: seeing -at in cat,
   // bat, rat and hat is exactly how the pattern is taught.
   wordEl.textContent = "";
+  wordEl.classList.toggle("hz", isHanzi);
+  if (isHanzi) wordEl.setAttribute("lang", "zh-CN"); else wordEl.removeAttribute("lang");
   const rime = deckKind === "family" ? rimeOf(word) : "";
   const team = deckKind.indexOf("team:") === 0 ? deckKind.slice(5) : "";
   if (team){
@@ -594,19 +808,38 @@ function render(animate){
 
   const isSentence = cat === "sight";
   picEl.classList.toggle("sentence", isSentence);
+  picEl.classList.toggle("hz", isHanzi);
   picEl.textContent = backText;
   if (isSentence) picEl.style.fontSize = "";
 
   lettersEl.innerHTML = "";
-  const parts = sounds(word);
-  for (const p of parts){
-    const s = document.createElement("span");
-    if (p.length > 1) s.className = "team";
-    s.textContent = p;
-    lettersEl.appendChild(s);
+  lettersEl.classList.toggle("hz", isHanzi);
+  if (isHanzi){
+    // The back of a hanzi card answers three different questions — how do I SAY
+    // it, what does it MEAN, and what does it look like in use — so the sound
+    // strip's slot carries them instead. sounds() is never called on a
+    // character: it splits ENGLISH letters and would return one tile of noise.
+    const line = (cls, text, zh) => {
+      const el = document.createElement("span");
+      el.className = cls; el.textContent = text;
+      if (zh) el.setAttribute("lang", "zh-CN");
+      lettersEl.appendChild(el);
+    };
+    line("hz__key", c[3] + " \u00b7 " + c[4]);
+    line("hz__zh", c[5], true);
+    line("hz__en", c[6]);
+    lettersEl.style.fontSize = "";
+  } else {
+    const parts = sounds(word);
+    for (const p of parts){
+      const s = document.createElement("span");
+      if (p.length > 1) s.className = "team";
+      s.textContent = p;
+      lettersEl.appendChild(s);
+    }
   }
 
-  fit(wordEl, Math.min(Math.round(card.clientHeight * 0.40), wordCap()), 26);
+  fit(wordEl, isHanzi ? hanziCap() : Math.min(Math.round(card.clientHeight * 0.40), wordCap()), 26);
 
   // The strip is the only thing on the card that never scaled. The word derives
   // from the card's height and the picture from its width (a constant 24% at
@@ -614,7 +847,7 @@ function render(animate){
   // here), while these tiles were a flat 30px whether the card was 284 wide or
   // 524. They come off the card now too. 30 is the FLOOR, so every phone width
   // renders exactly as it did and only a tablet gains.
-  fit(lettersEl, Math.max(30, Math.min(Math.round(card.clientWidth * 0.08), 52)), 13);
+  if (!isHanzi) fit(lettersEl, Math.max(30, Math.min(Math.round(card.clientWidth * 0.08), 52)), 13);
 
   document.documentElement.style.setProperty("--card", COLORS[i % COLORS.length]);
   countEl.textContent = (i + 1) + " / " + deck.length;
@@ -641,10 +874,27 @@ function render(animate){
    it either. Nothing here is visual, so it costs no pixel and no contrast. */
 function paintCardLabel(){
   if (!deck.length) return;
-  const word = deck[i][0], back = deck[i][1], isSentence = deck[i][2] === "sight";
+  const c = deck[i];
+  const word = c[0], back = c[1], isSentence = c[2] === "sight";
   const shown = card.classList.contains("flipped");
   frontFace.setAttribute("aria-hidden", shown ? "true" : "false");
   backFace.setAttribute("aria-hidden", shown ? "false" : "true");
+  if (c[2] === "hanzi"){
+    // An explicit label is ONE string, so it cannot carry a lang per part —
+    // a Chinese sentence inside it would be read with an English voice. So
+    // the label is English throughout and the han text keeps its own lang on
+    // the ELEMENTS, where VoiceOver reads it in Chinese.
+    //
+    // The front deliberately does not name the character: the character IS
+    // the question, and its reading is the answer on the other side. It names
+    // the CARD instead, so the twenty you have seen are told apart.
+    card.setAttribute("aria-label", shown
+      ? c[3] + ", meaning " + c[4] + ". For example: " + c[6]
+        + " Tap to see the character again."
+      : "Chinese character " + (i + 1) + " of " + deck.length
+        + ". Tap to hear it and see what it means.");
+    return;
+  }
   card.setAttribute("aria-label", shown
     // Turned over, the back shows the picture (or, in the sight deck, the
     // sentence) and the sound-out tiles. The tiles are separate boxes on
@@ -674,7 +924,7 @@ function go(step){
 card.addEventListener("click", () => {
   card.classList.toggle("flipped");
   paintCardLabel();
-  if (card.classList.contains("flipped")) speak(deck[i][0]);
+  if (card.classList.contains("flipped")) speak.apply(null, cardSpeech(deck[i]));
 });
 nextBtn.addEventListener("click", () => go(1));
 prevBtn.addEventListener("click", () => go(-1));
@@ -683,7 +933,7 @@ soundBtn.addEventListener("click", () => {
   soundOn = !soundOn;
   try { localStorage.setItem("wc-sound", soundOn ? "1" : "0"); } catch (e) {}
   paintSound();
-  if (soundOn) speak(deck.length ? deck[i][0] : "hello");
+  if (soundOn) speak.apply(null, deck.length ? cardSpeech(deck[i]) : ["hello", null]);
   else try { speechSynthesis.cancel(); } catch (e) {}
 });
 function paintSound(){

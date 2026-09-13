@@ -7401,6 +7401,92 @@ nothing. *Exposure is a mechanism times a distance; measure both before writing
 the neighbouring law.*
 
 
+
+**THE OWNER ASKED FOR 120 CHINESE CHARACTERS AS A SECOND DECK IN WORD CARDS,
+AND THE LOAD-BEARING LINE TURNED OUT TO BE A FONT STACK THAT WAS ALREADY
+THERE.** The page's own family opens `ui-rounded, "SF Pro Rounded", "Hiragino
+Maru Gothic ProN", Nunito, Verdana, system-ui` — and **Hiragino Maru Gothic is
+a JAPANESE face sitting BEFORE system-ui**, so every han codepoint it covers
+would have rendered in Japanese forms (花, 海, 直 and 兔 all differ between the
+two) while the simplified-only ones it does not cover — 车 门 鸟 马 红 绿 蓝 —
+fell through it to whatever came next. Simplified Chinese has to be asked for
+BY NAME. This is the iOS-14.2-floor class one layer over, and worse in one
+respect: the dev sandbox and CI resolve that stack against Linux fonts, so the
+picture on the real iPad is the one thing no test here can see. Guardrailed as
+the standing PAIRING — a structural clause that the SC face is declared first
+and that `lang="zh-CN"` is set, and a behavioural one in a browser that the
+character's and the sentence's COMPUTED family is an SC face, because a
+declaration proves nothing about which rule wins the cascade. Mutation-proven
+both ways (drop `--hz-face`; put the Japanese face first; drop `.hz__zh` from
+the rule → *renders in "Arial"*).
+**THE PICTURE IS A MEANING CUE HERE, NOT THE ANSWER, and saying that out loud is
+what makes the abstract characters shippable at all.** The English deck's law is
+*"the picture's natural four-year-old name must BE the answer"*, and a word with
+no true picture at Emoji ≤13.0 is DROPPED rather than approximated. That rule
+cannot survive a FIXED set of 120 in which 的, 了, 么, 什, 太 and 可 have no
+picture at all and dropping is not available, because the owner supplied the
+list. The resolution is that for a character the answer to *"what is this"* is
+how you SAY it — which the card speaks — so an abstract character may picture
+its SENTENCE instead of itself (了 a chequered flag, 的 a link, 出 a sunrise for
+日出) while a concrete one pictures itself. The MEANING is carried in words on
+every card either way, so the cue is never the only thing saying what the card
+means, and that is the property that keeps it honest. One shared picture ships —
+🦋 for 蝴 and 蝶 — and it is principled rather than a fence, because those two
+characters have no meaning APART; it carries the exemption-must-still-collide
+clause so a future pair cannot slip in under a dead carve-out.
+**READING THE SENTENCES AGAINST THE GRAMMAR FOUND SIX THAT SCAN PERFECTLY AND
+ARE WRONG.** A flash card's sentence is the control of error, so it has to be
+correct Chinese, and every error was the same kind: **马 takes 匹, not 只**; 鱼
+takes 条; 星星 takes 颗, not 个; 蜜 alone is bookish where 蜂蜜 is the word; and
+睡 wants 觉 after it. No scan can see any of that — it is the rhyme-family
+lesson in a second language, where a family derived from SPELLING puts stove
+with dove, so the families are hand-verified data and the traps are named.
+**A SECOND WHOLE-LIBRARY DECK BROKE A TEST WHOSE OWN COMMENT SAID IT NEEDED NO
+LIST.** `mobile.test.js` walked every card with `for (const b of
+document.querySelectorAll("#menu .all")) b.click();` under the comment *"'All
+words' is every card in the deck, so the walk needs no list"* — true while there
+was ONE such button, and the moment there were two it clicked both and walked
+whichever was last, taking a 500-card floor to 120. Third instance of *when a
+feature grows a second container, every check scoped to the first one has
+quietly narrowed its claim*. It walks each button's deck now and asserts it
+entered **all** of them (`decks === buttons`, derived), so a third inherits it —
+and the Chinese half is where a real-WebKit test earns its keep twice over,
+since those glyphs come from a different FONT and a han character carries
+several times the stroke detail of a four-letter word at the same point size.
+Measured clean: 623 cards, three widths, nothing clipped.
+**THE LANGUAGE HAS TO TRAVEL WITH THE TEXT, NOT SIT ON THE PAGE.** `speak()`
+hard-coded `u.lang = "en-US"`, so a Chinese line would have been read as letter
+noise — indistinguishable from a broken feature. One `cardSpeech(card)` owner
+returns `[text, lang]` and every caller (the flip, the sound toggle's preview)
+asks it, so they cannot drift. **The clause that makes the zh-CN assertion mean
+anything is the CONTROL**: an English card must still be spoken `en-US`, or a
+page that always said Chinese would pass every clause above it. A hanzi card
+speaks the character AND its sentence, because a character is one syllable and
+its tone is most of what makes it a word — proven by a mutation that speaks the
+character alone.
+**AN EXPLICIT `aria-label` IS ONE STRING AND CANNOT CARRY A LANGUAGE PER PART**,
+so a mixed English/Chinese label is read entirely with an English voice. The
+label is English throughout and the han text keeps its own `lang` on the
+ELEMENTS, where VoiceOver reads it in Chinese. And the FRONT deliberately does
+not name the character — the character IS the question and its reading is the
+answer on the other side — so it names the CARD ("Chinese character 7 of 120"),
+the only thing that both distinguishes the cards and gives nothing away. The
+clause that pins it is that two different cards must produce the SAME front
+label once the number is stripped, which is what catches a pinyin leaking into
+it; a separate clause catches the sentence or the translation leaking in, and
+the two fire on different mutations.
+**Three smaller ones.** The Chinese adjacency pairs went into the EXISTING
+`PAIRS` list rather than a second one, because *"these two cards must not sit
+together"* is one question with one reader (`clash`) — a counting run, an
+opposite pair and two halves of one WORD (太/阳, 高/兴, 什/么) give the next card
+away in Chinese exactly as they did in English, and 蝴/蝶 needs no entry because
+they share a picture, which `clash` already refuses. **ONE button, not a grid**:
+a single chip in a two-column grid orphans its row, which is the even-fill law
+the fort's contents row is held to, one menu over. And the fixture note that
+cost the first red run — **the sound toggle lives on the DECK screen, not the
+menu**, so a test that turns sound on before opening a deck waits forever on a
+`display:none` button; the tell is a `TimeoutError` rather than an assertion.
+
 ---
 
 ## Repository Structure
@@ -7430,7 +7516,15 @@ tooling.
 │                               #   carry no adjacent opposite, shared picture or counting run; it
 │                               #   REMEMBERS where he got to in each deck (a seeded order is only
 │                               #   worth having if you can carry on); and it can SAY the word (off
-│                               #   by default, remembered). Every count is counted, and every control
+│                               #   by default, remembered).
+│                               #   Then 中文 — one button, the 120 characters of the 第2级总字表 the
+│                               #   owner supplied as a photo of the printed table. A second WRITING
+│                               #   SYSTEM, so HANZI is its own array and joins none of the six English
+│                               #   derivations; the front is the character (in a Simplified Chinese
+│                               #   face, asked for BY NAME because this page's own stack opens with a
+│                               #   JAPANESE one) and the back is a picture, the pinyin, the meaning,
+│                               #   a sentence and its translation — spoken in zh-CN, character AND
+│                               #   sentence. Every count is counted, and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card
 │                               #   names its word and its side, and the face turned away is aria-hidden
 │                               #   so the answer is not in the tree before the flip. Precached in sw.js.
