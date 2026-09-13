@@ -4355,11 +4355,20 @@ test("Word Cards: the two teaching decks keep their promise", () => {
   for (const bad of ["w", "y", "r"])
     assert.ok(!tail[1].includes(bad),
       `"${bad}" is allowed to end a First Word, so the deck holds words he cannot blend`);
-  const team = src.match(/const NOT_A_TEAM = (\[.*?\]);/);
-  assert.ok(team, "the Sound Teams exclusions are gone");
+  // That exclusion USED to live in its own list, NOT_A_TEAM, and the two halves
+  // of one truth disagreed: the deck dropped anchor and parachute while the
+  // card's own sound strip still showed both of them an a-n-CH-o-r tile — the
+  // very counter-example the deck is careful about, delivered by the other half
+  // of the same feature. It is a SOUND_RULES exception now, which is the ONE
+  // owner both the strip and every team deck read, so a second list may not
+  // come back to disagree with it again.
+  const ch = src.match(/\["ch", (\[[^\]]*\])\]/);
+  assert.ok(ch, "the ch rule is gone from SOUND_RULES");
   for (const w of ["anchor", "parachute"])
-    assert.ok(team[1].includes('"' + w + '"'),
-      `"${w}" must be kept out of Sound Teams — its ch is not the sound the deck teaches`);
+    assert.ok(ch[1].includes('"' + w + '"'),
+      `"${w}" must be excepted from the ch rule — its ch is not the sound that team makes`);
+  assert.ok(!src.includes("NOT_A_TEAM"),
+    "a second list of team exclusions is back beside SOUND_RULES; there may be only one");
 });
 
 test("Word Cards: the sound split keeps its verified exceptions", () => {
@@ -4375,8 +4384,21 @@ test("Word Cards: the sound split keeps its verified exceptions", () => {
       `"${w}" must be excepted from the ng rule — its n and g are separate sounds`);
   assert.ok(rules[1].includes('"koala"'), "koala must be excepted from the oa rule");
   assert.ok(rules[1].includes('"eight"'), "eight must be excepted from the igh rule (it is ei-gh)");
-  for (const pat of ["sh", "ch", "th", "ck", "qu", "ph", "wh"])
+  // Same discipline for the teams that arrived with the Letter teams section.
+  // Each of these is a word where the letters are NOT that team, and each was
+  // splitting WRONG before it was named: door showed d-OO-r for a word that
+  // says "dor", and tongue showed t-o-NG-u-e.
+  for (const [w, rule] of [["door", "oo"], ["tongue", "ng"], ["chair", "ai"],
+                           ["fairy", "ai"], ["mountain", "ai"], ["soup", "ou"],
+                           ["four", "ou"], ["yoyo", "oy"]])
+    assert.ok(rules[1].includes('"' + w + '"'),
+      `"${w}" must be excepted from the ${rule} rule — those letters are not that team in it`);
+  for (const pat of ["sh", "ch", "th", "ck", "qu", "ph", "wh", "ee", "oo", "oa", "ai", "ow", "ou", "ng"])
     assert.ok(new RegExp('\\["' + pat + '"').test(rules[1]), `the ${pat} rule is missing`);
+  // tch must be matched BEFORE ch or "watch" splits as w-a-t-ch, which is the
+  // one ordering constraint in the table — everything else is teaching order.
+  assert.ok(rules[1].indexOf('["tch"') < rules[1].indexOf('["ch"'),
+    "tch must come before ch in SOUND_RULES, or watch splits as w-a-t-ch");
 });
 
 test("no test may measure page overflow against window.innerWidth", () => {

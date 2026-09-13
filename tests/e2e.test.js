@@ -2257,8 +2257,29 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
       await pg.waitForSelector(".card");
     };
 
+    // THE MENU IS AN INNER SCROLLER AND THE AUDIT ONLY SCORES WHAT IS PAINTED,
+    // so a single sweep saw one screenful of it and silently dropped the rest.
+    // It passed for as long as `.all` happened to sit above the fold; adding a
+    // section pushed it below and the fixture floor caught it. Walk the whole
+    // scroller instead, which also means every deck chip is audited rather than
+    // the first four.
+    const sweepMenu = async () => {
+      await sweep();
+      let more = true;
+      while (more) {
+        more = await pg.evaluate(() => {
+          const m = document.querySelector("#menu");
+          const at = m.scrollTop;
+          m.scrollTop = Math.min(at + m.clientHeight * 0.85, m.scrollHeight);
+          return m.scrollTop > at + 1;
+        });
+        if (more) await sweep();
+      }
+      await pg.evaluate(() => { document.querySelector("#menu").scrollTop = 0; });
+    };
+
     await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
-    await sweep();                                   // the MENU: chips, counts, headings
+    await sweepMenu();                               // the MENU: chips, counts, headings
 
     // Eight cards, because `--card` cycles COLORS[i % 8] — so a walk of eight
     // is what scores every hue the card can take. Both FACES of each: the front
@@ -2268,6 +2289,20 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
       await noteHue();
       await sweep();
       await pg.click(".card");                       // flip
+      await sweep();
+      await pg.click("#next");
+    }
+    await pg.click("#back");
+    await pg.waitForSelector("#grid .chip");
+    // A letter-team deck marks the team on the FRONT of the card too, on the
+    // same .55 white plate the strip gives a team tile — and the front word is
+    // FULL ink where the strip is .7, so it is the lighter case of a pair this
+    // test already scores. Walked anyway rather than argued: a new text run on
+    // a new plate is exactly what an audit scoped to known surfaces misses.
+    await openDeck("like duck");                     // the ck deck
+    for (let k = 0; k < 4; k++) {
+      await sweep();
+      await pg.click(".card");
       await sweep();
       await pg.click("#next");
     }
@@ -2293,6 +2328,12 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     assert.ok(runs.some((r) => r.onCard), "fixture: no run was scored on a card at all");
     const saw = (s) => runs.some((r) => r.sel.includes(s));
     assert.ok(saw(".team"), "fixture: no digraph tile was audited — it is the point of this test");
+    // The front-of-card mark shares the .team class with the strip's tile (that
+    // is the point — one mark, two surfaces), so `sel` cannot tell them apart.
+    // A SPLIT word can: `duck` yields the text run "du" beside a marked "ck"
+    // only when the front is marked at all, so this is the front one.
+    assert.ok(runs.some((r) => r.sel.includes("word") && r.text === "du"),
+      "fixture: the front of the card never showed a split word, so its team mark went unaudited");
     assert.ok(saw(".hint"), "fixture: the front-of-card hint was never audited");
     assert.ok(saw(".ct"), "fixture: the deck chips' card counts were never audited");
     assert.ok(saw("small"), "fixture: the Every-word card count was never audited");
@@ -2578,8 +2619,17 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
     assert.equal(menu.titleTag, "H1", `the page's name must be its top-level heading (saw <${menu.titleTag}>)`);
     assert.equal(menu.titleMargin, "6px 2px",
       `.title must keep declaring its own margin, or an h1 takes the UA's (saw ${menu.titleMargin})`);
-    assert.deepEqual(menu.outline.map((h) => h.split(":")[0]), ["H1", "H2", "H2"],
-      `the outline must not skip a level: ${JSON.stringify(menu.outline)}`);
+    // The claim is "never skips a level", and this was a LITERAL ["H1","H2","H2"]
+    // — which cannot express that and breaks the moment a section is added, as
+    // the Letter teams section did. Asserted as the property instead, so a
+    // fourth section inherits it, with a floor because a walk that stopped
+    // matching would pass on an empty outline.
+    const levels = menu.outline.map((h) => parseInt(h.split(":")[0].slice(1), 10));
+    assert.ok(levels.length >= 3, `the menu's outline is missing (saw ${levels.length} headings)`);
+    assert.equal(levels[0], 1, `the outline must open at h1 (saw h${levels[0]})`);
+    for (let k = 1; k < levels.length; k++)
+      assert.ok(levels[k] <= levels[k - 1] + 1,
+        `the outline skips a level: ${JSON.stringify(menu.outline)}`);
 
     // ── the card ────────────────────────────────────────────────────────────
     const openDeck = async (host, name) => {
@@ -2665,6 +2715,138 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
     await ctx.close();
   }
 });
+
+test("Word Cards: every letter team he is learning has its own deck", async () => {
+  // Josh's profile puts phonograms / digraphs on the WORKING list — his
+  // challenge edge, the thing to practise. The splitter already knew fourteen
+  // letter teams and exactly THREE of them (sh, ch, th) had a deck: measured on
+  // the deck as supplied, ck carried 15 words, oo 18, ow 14, ee 12 and not one
+  // was reachable as a lesson. A phonogram also generalises where a rime does
+  // not — -ock only ever helps with rock and sock, while ck helps with bucket,
+  // ticket and backpack too, which is exactly the step from decoding a 3-letter
+  // word (his MASTERED) to reading a two-syllable one.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+
+    const r = await pg.evaluate(() => {
+      const chips = [...document.querySelectorAll("#teamGrid .chip")].map((b) => ({
+        pg: b.querySelector(".ic").textContent,
+        nm: b.querySelector(".nm").textContent,
+        ct: b.querySelector(".ct").textContent,
+        say: b.getAttribute("aria-label"),
+      }));
+      // What the DATA says a chip should exist for, computed the same way the
+      // page does but read back out, so the two can be compared.
+      const eligible = SOUND_RULES.map((x) => x[0]).filter((p) => teamWords(p).length >= TEAM_MIN);
+      const decks = {};
+      for (const p of eligible) decks[p] = teamWords(p).map((w) => w[0]);
+      // Is every card in a team's deck a card the SPLITTER puts that team in?
+      const strays = [];
+      for (const p of eligible)
+        for (const w of decks[p])
+          if (!sounds(w).some((t) => t.toLowerCase() === p)) strays.push(p + ":" + w);
+      return { chips, eligible, decks, strays, min: TEAM_MIN, like: TEAM_LIKE,
+               sh: decks.sh, ck: decks.ck };
+    });
+
+    // 1. THE POPULATION IS DERIVED. A chip exists for exactly the teams that
+    //    clear the bar — so a team that reaches it when a card is added gets a
+    //    deck with no code change, and a thin one (tch, wh, ay, igh, oi, oy) is
+    //    excluded by the count rather than by being left off a list.
+    //    That deepEqual is a WIRING check and it FLATTENS: both sides read
+    //    TEAM_MIN, so moving the bar moves both and it stays green. It proves
+    //    the chips FOLLOW the data and nothing about how many there are — the
+    //    two clauses under it are what cannot flatten, and what a hard-coded
+    //    list of three fires on.
+    assert.deepEqual(r.chips.map((c) => c.pg), r.eligible,
+      "the Letter teams chips are not the teams the data says clear the bar");
+    assert.ok(r.eligible.length >= 10,
+      `only ${r.eligible.length} letter teams have a deck — the section is barely a section`);
+    for (const p of ["sh", "ch", "th", "ck", "ng", "ee", "oo", "ow"])
+      assert.ok(r.eligible.includes(p), `${p} has no deck of its own`);
+
+    // 2. EVERY DECK IS DERIVED FROM THE SPLITTER, which is what stops a chip
+    //    promising a team the card then splits some other way. anchor and
+    //    parachute leave the ch deck by the splitter excepting them, not by a
+    //    second list remembering to.
+    assert.deepEqual(r.strays, [],
+      `a team deck holds a card whose own sound strip does not show that team: ${r.strays.join(", ")}`);
+    for (const w of ["anchor", "parachute"])
+      assert.ok(!r.decks.ch.includes(w), `"${w}" is in the ch deck but its ch is a different sound`);
+
+    // 3. THE COUNT IS COUNTED. Falsifiable only because the decks differ in
+    //    size: a typed "15 cards" is caught on whichever chip is not 15.
+    for (const c of r.chips)
+      assert.equal(c.ct, r.decks[c.pg].length + " cards",
+        `the ${c.pg} chip prints ${c.ct} for a deck of ${r.decks[c.pg].length}`);
+
+    // 4. THE CHIP SAYS ITS TEAM. The team is printed in the icon slot and an
+    //    icon slot is aria-hidden, so without an explicit label the one thing
+    //    the chip is about is the one thing it never announces.
+    for (const c of r.chips)
+      assert.equal(c.say, c.pg + ", " + c.nm + ", " + c.ct,
+        `the ${c.pg} chip announces ${JSON.stringify(c.say)}`);
+
+    // 5. THE EXEMPLAR LEADS ITS OWN DECK AND IS A REAL MEMBER OF IT. Picked by
+    //    length alone the oo deck led with "hook", which teaches one of oo's
+    //    two sounds while the name everybody knows is "oo like MOON".
+    for (const p of r.eligible) {
+      assert.ok(r.like[p], `the ${p} deck has no declared exemplar`);
+      assert.equal(r.decks[p][0], r.like[p],
+        `the ${p} deck opens on ${r.decks[p][0]}, not on its own exemplar ${r.like[p]}`);
+    }
+    assert.equal(r.like.oo, "moon", "oo is taught as moon, not as one of its other sound's words");
+
+    // 6. SCAFFOLDED SHORT WORD FIRST — after the exemplar a deck never steps
+    //    back down in length, so it opens on the 3- and 4-letter words he
+    //    already decodes and walks out to the two-syllable ones.
+    for (const p of r.eligible) {
+      const len = r.decks[p].slice(1).map((w) => w.length);
+      for (let k = 1; k < len.length; k++)
+        assert.ok(len[k] >= len[k - 1],
+          `the ${p} deck steps back down in length at ${r.decks[p][k + 1]}`);
+    }
+    assert.equal(r.ck[r.ck.length - 1], "backpack", "the ck deck should end on its longest word");
+
+    // 7. THE TEAM IS MARKED ON THE FRONT OF THE CARD, on exactly the tiles the
+    //    strip will show a moment later — never on a substring that merely
+    //    looks like the team. backpack is what makes that falsifiable: it
+    //    carries TWO ck tiles, so a mark built with indexOf finds one.
+    const mark = await pg.evaluate(() => {
+      [...document.querySelectorAll("#teamGrid .chip")]
+        .find((b) => b.querySelector(".ic").textContent === "ck").click();
+      const out = [];
+      const word = document.querySelector(".word");
+      for (let k = 0; k < teamWords("ck").length; k++) {
+        out.push({
+          text: word.textContent,
+          marked: [...word.querySelectorAll(".team")].map((s) => s.textContent),
+          tiles: sounds(word.textContent).filter((t) => t.toLowerCase() === "ck").length,
+        });
+        document.querySelector("#next").click();
+      }
+      return out;
+    });
+    for (const m of mark) {
+      assert.ok(m.marked.length > 0, `"${m.text}" is in the ck deck with no ck marked on it`);
+      assert.equal(m.marked.length, m.tiles,
+        `"${m.text}" has ${m.tiles} ck tiles but ${m.marked.length} marked`);
+      for (const t of m.marked)
+        assert.equal(t.toLowerCase(), "ck", `the ck deck marked ${JSON.stringify(t)}`);
+    }
+    assert.ok(mark.some((m) => m.text === "backpack" && m.marked.length === 2),
+      "backpack carries two ck tiles and both must be marked");
+
+    assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
 
 test("private mode: the app boots and plays with storage BLOCKED", async () => {
   // NOTHING IN THIS SUITE HAS EVER BLOCKED STORAGE. CLAUDE.md records

@@ -80,6 +80,12 @@
   .chip .ic{font-size:30px;line-height:1;}
   .chip .nm{font-size:18px;font-weight:800;line-height:1.15;}
   .chip .ct{font-size:14px;font-weight:700;}
+  /* A letter-team chip's "icon" is the TEAM itself — the thing he is learning
+     to recognise — so it is set in the page's own face rather than an emoji,
+     and a little larger, because two or three letters carry less ink than a
+     glyph does. It stays aria-hidden like every other chip icon; the team is
+     spoken by the chip's own label instead. */
+  .chip.team .ic{font-size:34px;font-weight:900;letter-spacing:.03em;}
   .chip:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
   .chip:focus-visible,.all:focus-visible{outline:4px solid #fff;outline-offset:3px;}
 
@@ -165,6 +171,12 @@
      the card background cycles through eight hues and a second ink colour
      could not stay above AA contrast on all of them. */
   .word .rime{border-bottom:.09em solid rgba(33,18,63,.45);padding-bottom:.02em;}
+  /* In a letter-team deck the team is marked on the FRONT as well, on the same
+     white plate the sound strip gives a team tile — so "bucket" shows him the
+     ck before he flips, and the two surfaces mark the same letters the same
+     way. Full-strength ink on a .55 plate, where the strip already measures
+     4.93..5.92 on these eight card colours at .7 ink. */
+  .word .team{background:rgba(255,255,255,.55);border-radius:.18em;padding:0 .05em;}
   .sect{color:rgba(255,255,255,.62);font-size:14px;font-weight:800;
         letter-spacing:.12em;text-transform:uppercase;margin:2px 0 12px;}
   .pop{animation:pop .32s cubic-bezier(.2,.9,.3,1);}
@@ -216,6 +228,8 @@
        that goes stale the moment a card is added or removed. -->
   <h2 class="sect">Learning to read</h2>
   <div class="grid" id="readGrid"></div>
+  <h2 class="sect">Letter teams</h2>
+  <div class="grid" id="teamGrid"></div>
   <h2 class="sect">Words and pictures</h2>
   <button class="all" id="allBtn">Every word <small></small></button>
   <div class="grid" id="grid"></div>
@@ -233,16 +247,39 @@ const COLORS = ["#FFC93C","#FF6B57","#3FBFEF","#57C64A","#FF7BB0","#FF9F1C","#2E
    wrong on 67 words, on exactly the skill Josh is working on. An algorithm
    alone is not safe, so each rule carries a verified exception list: "ng" is
    one sound in sing and ring and is plain n+g in penguin, kangaroo, mango,
-   orange, finger, sponge and flamingo. A doubled consonant is always one. */
+   orange, finger, sponge and flamingo. A doubled consonant is always one.
+
+   The table is also the ONE owner of "these letters are a TEAM": the strip
+   splits on it AND every deck in the Letter teams section is derived from it,
+   so a deck can never claim a team the card then contradicts. It could —
+   anchor and parachute were kept out of the Sound Teams deck by a SECOND list
+   while the strip still showed both of them a ch tile, which is the very
+   counter-example that deck exists to avoid, handed over by the other half of
+   the same feature.
+
+   The order is the order he MEETS them — consonant teams, then vowel teams —
+   with one matching constraint: tch must come before ch, or watch splits as
+   w-a-t-ch. */
 const SOUND_RULES = [
-  ["tch", []],
-  ["igh", ["eight"]],                 // eight is ei-gh, not igh
-  ["sh", []], ["ch", []], ["th", []], ["ck", []], ["ph", []], ["wh", []],
+  ["tch", []],                          // first: watch is wa-tch, not wat-ch
+  ["sh", []],
+  ["ch", ["anchor","parachute"]],       // anchor's ch is /k/, parachute's is /sh/
+  ["th", []],
+  ["ck", []],
+  ["ng", ["penguin","kangaroo","mango","orange","finger","sponge","flamingo","tongue"]],
+  ["ph", []],
   ["qu", []],
-  ["ng", ["penguin","kangaroo","mango","orange","finger","sponge","flamingo"]],
-  ["ee", []], ["oo", []],
-  ["oa", ["koala"]],                  // koala is k-o-a-la across a syllable
+  ["wh", []],
+  ["ee", []],
+  ["oo", ["door"]],                     // door is "dor" — that oo is not the team
+  ["oa", ["koala"]],                    // koala is k-o-a-la across a syllable
+  ["ai", ["chair","fairy","mountain"]], // chair/fairy are -air; mountain's ai is a schwa
   ["ay", []],
+  ["igh", ["eight"]],                   // eight is ei-gh, not igh
+  ["ow", []],
+  ["ou", ["soup","four"]],              // soup is /oo/ and four is /or/
+  ["oi", []],
+  ["oy", ["yoyo"]],                     // yo-yo: the o and y are different syllables
 ];
 const DOUBLE = /^(bb|cc|dd|ff|gg|ll|mm|nn|pp|rr|ss|tt|zz)/;
 function sounds(word){
@@ -305,16 +342,52 @@ function familyDeck(){
   for (const f of FAMILIES) for (const w of f[1]) if (byWord[w]) out.push(byWord[w]);
   return out;
 }
-// …and a deck that teaches the ch SOUND must not hand him counter-examples:
-// anchor's ch is /k/ and parachute's is /sh/, so a child applying exactly the
-// rule this deck is for would sound both of them out wrong.
-const NOT_A_TEAM = ["anchor","parachute"];
+// A team deck is DERIVED from sounds(): a word is in the ck deck exactly when
+// the card's own strip shows it a ck tile. That is what keeps the chip and the
+// card honest with each other, and it is how anchor and parachute leave the ch
+// deck now — by the splitter excepting them, not by a second list agreeing to.
+/* Which word best TEACHES a team is an editorial call and not a length. Picked
+   by length alone the oo deck led with "hook", which teaches one of oo's two
+   sounds while everybody's name for that team is "oo like MOON" — so the
+   exemplar is declared, it leads its own deck (the chip and the first card he
+   meets then agree), and a guardrail requires every one to be a real member of
+   the deck it names, so it cannot drift out of the data underneath it. */
+const TEAM_LIKE = { sh:"ship", ch:"chick", th:"tooth", ck:"duck", ng:"ring",
+                    ph:"phone", qu:"squid", ee:"bee", oo:"moon", oa:"boat",
+                    ai:"rain", ow:"cow", ou:"house" };
+function teamWords(pg){
+  const hit = WORDS.filter(w => w[2] !== "sight" &&
+    sounds(w[0]).some(t => t.toLowerCase() === pg));
+  const lead = TEAM_LIKE[pg];
+  // Scaffolded SHORT WORD FIRST — duck and rock before bucket and backpack — so
+  // a deck opens on the 3- and 4-letter words he already decodes and walks out
+  // to the two-syllable ones, which is the whole reason a phonogram beats a
+  // rime: -ock only ever helps with rock and sock, ck helps with bucket too.
+  // That is the opposite of a picture deck, where a length ramp was a way to
+  // GUESS the next card; here every card carries the same team, so length gives
+  // nothing away and the ramp IS the lesson. Ties keep the seeded order and
+  // sort is stable, so a deck reads the same every time.
+  return teachingOrder(hit, "team " + pg)
+    .sort((a, b) => (b[0] === lead) - (a[0] === lead) || a[0].length - b[0].length);
+}
 function teamDeck(){
   const out = [];
-  for (const t of ["sh","ch","th"])
-    for (const w of WORDS)
-      if (w[2] !== "sight" && w[0].indexOf(t) >= 0 &&
-          NOT_A_TEAM.indexOf(w[0]) < 0 && out.indexOf(w) < 0) out.push(w);
+  for (const t of ["sh","ch","th"]) for (const w of teamWords(t)) if (out.indexOf(w) < 0) out.push(w);
+  return out;
+}
+// A deck is a lesson; two cards is not. The bar is DERIVED, so a team that
+// reaches it when a card is added gets its chip with no code change — and the
+// thin ones (tch, wh, ay, igh, oi, oy) are named by nothing, they simply do not
+// clear it. igh is the one worth knowing about: light, firefighter and
+// lightning are all it has, and night has no picture a four-year-old names
+// "night" at Emoji <= 13.0, so it is short by one word rather than by design.
+const TEAM_MIN = 4;
+function teamDecks(){
+  const out = [];
+  for (const r of SOUND_RULES){
+    const list = teamWords(r[0]);
+    if (list.length >= TEAM_MIN) out.push([r[0], list]);
+  }
   return out;
 }
 function rimeOf(word){
@@ -363,7 +436,7 @@ function loadAt(n){
 function saveAt(){ try { localStorage.setItem(atKey(), String(i)); } catch (e) {} }
 
 /* ---------- menu ---------- */
-function chip(host, icon, label, count, color, onGo){
+function chip(host, icon, label, count, color, onGo, say){
   const b = document.createElement("button");
   b.className = "chip"; b.style.background = color;
   b.innerHTML = '<span class="ic" aria-hidden="true">'+icon+'</span><span class="nm">'+label+
@@ -373,9 +446,13 @@ function chip(host, icon, label, count, color, onGo){
   // the fort's difficulty chips and its level cards, whose two lines ran
   // together in exactly this way. The count is the SAME number the chip PRINTS,
   // so the spoken label can never drift from what is on the screen.
-  b.setAttribute("aria-label", label + ", " + count + " cards");
+  // A letter-team chip PRINTS the team in the icon slot, and an icon slot is
+  // aria-hidden — so without `say` the one thing the chip is about would be the
+  // one thing it never announced ("like duck, 16 cards").
+  b.setAttribute("aria-label", (say || label) + ", " + count + " cards");
   b.addEventListener("click", onGo);
   host.appendChild(b);
+  return b;
 }
 const READING = [
   ["🔤","First Words", "#2EC4A6", firstWords,  "first",  "shuffle"],
@@ -386,6 +463,18 @@ const READING = [
 for (const r of READING){
   const list = r[3]();
   chip($("readGrid"), r[0], r[1], list.length, r[2], () => start(list, r[1], r[4], r[5]));
+}
+/* Josh's profile puts phonograms on the WORKING list — his challenge edge —
+   and the splitter already knew every one of these while exactly three (sh, ch
+   and th) had a deck to practise on. One chip per team, in the order he meets
+   them, each deck derived from the splitter so the chip cannot promise a team
+   the card then splits some other way. */
+let teamIdx = 0;
+for (const t of teamDecks()){
+  const pg = t[0], list = t[1], like = "like " + list[0][0];
+  chip($("teamGrid"), pg, like, list.length, COLORS[teamIdx++ % COLORS.length],
+       () => start(list, pg + " team", "team:" + pg, "grouped"), pg + ", " + like)
+    .classList.add("team");
 }
 for (const c of CATS){
   const list = WORDS.filter(w => w[2] === c.key);
@@ -437,7 +526,27 @@ function render(animate){
   // bat, rat and hat is exactly how the pattern is taught.
   wordEl.textContent = "";
   const rime = deckKind === "family" ? rimeOf(word) : "";
-  if (rime && word.slice(-rime.length) === rime){
+  const team = deckKind.indexOf("team:") === 0 ? deckKind.slice(5) : "";
+  if (team){
+    // Built from sounds() itself, so the mark lands on exactly the tile the
+    // strip will show a moment later and never on a substring that merely
+    // LOOKS like the team — anchor's c-h, mountain's a-i.
+    // Runs of un-marked tiles are joined back into ONE text node rather than
+    // appended one per tile: a browser may shape and kern across a text node
+    // boundary differently, and "duck" must look the same here as it does in
+    // every other deck.
+    let plain = "";
+    const flush = () => { if (plain){ wordEl.appendChild(document.createTextNode(plain)); plain = ""; } };
+    for (const p of sounds(word)){
+      if (p.toLowerCase() === team){
+        flush();
+        const b = document.createElement("span");
+        b.className = "team"; b.textContent = p;
+        wordEl.appendChild(b);
+      } else plain += p;
+    }
+    flush();
+  } else if (rime && word.slice(-rime.length) === rime){
     wordEl.appendChild(document.createTextNode(word.slice(0, -rime.length)));
     const b = document.createElement("span");
     b.className = "rime"; b.textContent = rime;

@@ -7134,6 +7134,103 @@ mutations name the defects verbatim rather than merely going red: reverting the
 numeral reports `.choice--num ... 2.29:1 ... below AA's 3:1`, reverting the
 lever reports `⬇️ DUMP! is 1.44:1`, and blinding the text walk reports
 `only 0 runs were actually SCORED`.
+**THE ENGINE ALREADY KNEW FOURTEEN LETTER TEAMS AND EXACTLY THREE HAD A DECK —
+on the one skill Josh's profile names as his working edge.** Asked whether Word
+Cards should have a category for phonograms, the answer is a number rather than
+a taste: `SOUND_RULES` has always kept `tch igh sh ch th ck ph wh qu ng ee oo oa
+ay` as ONE tile on the card's sound strip, so the app already knew what a letter
+team is — and `Sound Teams` gathered sh, ch and th while **ck (15 words), oo
+(18), ow (14), ee (12) and ng (8) were unreachable as a lesson.** That is the
+data-field-with-no-reader class landing on JOSH_PROFILE.md's `[W] CHALLENGE`
+line. Thirteen teams clear a four-word bar now, one chip each.
+**The design argument is that a PHONOGRAM generalises where a RIME does not.**
+Word Families already teaches 28 rimes, so the obvious objection is duplication —
+but `-ock` only ever helps with rock, sock and lock, while `ck` helps with
+bucket, ticket, cricket and backpack. That is exactly the step from his MASTERED
+(decodes 3- and 4-letter phonetic words) to his WORKING (reading longer words),
+which is why each deck is scaffolded SHORT WORD FIRST: ck opens duck, sick,
+lock, rock … and ends on backpack.
+**ASKING THE QUESTION FOUND THREE LIVE DEFECTS IN THE SHIPPED SOUND STRIP, and
+the first is two owners for one truth INSIDE one feature.** `NOT_A_TEAM` kept
+anchor and parachute out of the Sound Teams deck — with a comment explaining
+that anchor's ch is /k/ and parachute's is /ʃ/, so "a child applying exactly the
+rule this deck is for would sound both of them out wrong" — while
+`SOUND_RULES.ch` was `[]`, so the CARD still split them `a-n-ch-o-r` and
+`p-a-r-a-ch-u-t-e`. The deck was careful and the strip handed him the
+counter-example anyway. Two more of the same shape: `door` split `d-oo-r` for a
+word that says "dor", and `tongue` split `t-o-ng-u-e`. All three are
+`SOUND_RULES` exceptions now, every team deck DERIVES from `sounds()` itself,
+and `NOT_A_TEAM` is deleted rather than left beside it — a second list is banned
+by a guardrail, because that list existing at all is what let the two halves
+disagree. Five more teams were added to the splitter in the same pass (`ow`,
+`ai`, `ou`, `oi`, `oy`), which fixes **36 existing cards' strips** as a side
+effect — `cow` was `c-o-w`, `rainbow` was `r-a-i-n-b-o-w`.
+**A CSS RULE FOR A CLASS NOBODY ADDS IS DEAD, AND ONLY THE PICTURE SHOWED IT.**
+`.chip.team .ic { font-size: 34px; font-weight: 900 }` shipped in the same edit
+as the chips, and `chip()` sets `className = "chip"` — I never added `team`.
+Every measurement passed: 13 chips, correct counts, correct labels, 111px tall,
+zero overflow at 320/390/834. The screenshot is what showed the letters
+rendering at the base 30px regular, lighter than the "like duck" line under
+them. **A box measurement is not a picture**, for the second time in this file.
+**THE EXEMPLAR HAD TO BE DECLARED, NOT DERIVED FROM LENGTH.** The chip reads
+`ck / like duck`, and taking the shortest word gave **"oo like hook"** — which
+teaches one of oo's two sounds while the name everybody knows is "oo like
+MOON". Which word best TEACHES a team is an editorial call, like FAMILIES and
+PAIRS, so `TEAM_LIKE` declares it, the exemplar LEADS its own deck (so the chip
+and the first card he meets agree), and a guardrail requires every one to be a
+real member of the deck it names so it cannot drift out of the data underneath
+it.
+**`backpack` IS WHAT MAKES THE FRONT-MARK CLAUSE FALSIFIABLE.** The team is
+marked on the front of the card on the same white plate the strip gives a team
+tile, built by walking `sounds(word)` — so it can never land on a substring that
+merely looks like the team. Proving that needs a word carrying the team TWICE:
+`backpack` has two `ck` tiles, so a mark written with `indexOf` finds one, and
+the clause asserts the marked count equals the tile count rather than merely
+being non-zero.
+**And clause 1 is a WIRING check that FLATTENS, which the test says out loud.**
+"The chips are exactly the teams that clear the bar" reads `TEAM_MIN` on both
+sides, so moving the bar moves both and the clause is satisfied — it proves the
+chips FOLLOW the data and nothing about how many there are. The magnitude is
+carried by two separate clauses that cannot flatten: at least ten teams have a
+deck, and eight named ones are among them.
+**Measured and REJECTED, recorded so nobody re-derives them.** `ea` is the
+biggest gap by raw count (21 words) and is not a first deck: it carries THREE
+sounds — seal /iː/, bread /ɛ/, bear /ɛə/ — at roughly a 50% counter-example
+rate. **Bossy-r is the single biggest win available for two-syllable words** (er
+42 words, ar 27, or 16, ir 13, ur 8) and is deliberately NOT in this pass:
+substring matching is about half wrong (bear, hare, pear, heart, earth all carry
+"ar"), and doing it properly means teaching `ear`, `air` and `oar` as teams too
+— a content pass with its own verification, scoped out loud rather than
+half-built. `igh` is one word short of a deck (light, firefighter, lightning)
+and stays short by DATA rather than by design: night has no picture a
+four-year-old names "night" at Emoji ≤ 13.0, since 🌃 is a city skyline. `wh`
+(2), `ay` (2), `oi` (3), `oy` (1) and `tch` (1) are all correct in the splitter
+and simply below the bar — named by nothing, so a card added later creates the
+chip with no code change.
+**Two fixture notes.** `#backBtn` does not exist — the id is `#back` — and the
+probe reported a confident `null` for the deck name rather than failing, which
+reads like a broken feature; suspect the fixture, for the Nth time. And my first
+phonogram count read `ck` as 16 against the real 15, because it pushed a word
+once per TILE and `backpack` has two — the same word that later made the
+front-mark clause falsifiable was inflating the count that motivated the work.
+**AND THE CHANGE EXPOSED TWO MORE HAND-WRITTEN LISTS IN THE TESTS THAT GUARD
+THIS PAGE, both of which had been passing for the wrong reason.** (1) **The
+Word Cards contrast audit only ever saw ONE SCREENFUL of the menu.** It swept
+once after load, and the audit scores what is PAINTED — its occlusion check
+clamps a sample point into the viewport, so anything below the fold in the
+`#menu` inner scroller is silently dropped. It passed for as long as `.all`
+happened to sit above the fold; adding a section pushed it down and the
+fixture floor fired (`the Every-word card count was never audited`). It walks
+the whole scroller now, which also takes it from auditing four deck chips to
+auditing all thirty-one. The floor is what caught it, which is the argument
+for a fixture floor on any audit whose population is "what is on screen".
+(2) **The heading-outline clause was the literal `["H1","H2","H2"]` under a
+message reading "the outline must not skip a level"** — an array of tags cannot
+express that claim and breaks the moment a section is added. It asserts the
+property now (opens at h1, never jumps more than one level), derived, so a
+fourth section inherits it; both an `h4` in place of an `h2` and a stray `h3`
+before the first `h2` turn it red, and neither could have been caught by the
+literal.
 
 ---
 
@@ -7149,11 +7246,16 @@ tooling.
 │                               #   reading tool Josh actually practises on. Self-contained page,
 │                               #   opened from the 76px slot in Josh's home bar. Four DERIVED
 │                               #   reading decks (First Words = 3-letter CVC · Word Families =
-│                               #   hand-verified rimes · Sound Teams = sh/ch/th · Sight Words) sit
-│                               #   above the 14 picture categories. Every card's picture is UNIQUE
+│                               #   hand-verified rimes · Sound Teams = sh/ch/th · Sight Words),
+│                               #   then a LETTER TEAMS section of one derived deck per phonogram
+│                               #   (13 of them at a 4-word bar — the profile's [W] challenge
+│                               #   edge, and where a rime stops helping: -ock only reaches rock
+│                               #   and sock, ck reaches bucket and backpack too), above the 14
+│                               #   picture categories. Every card's picture is UNIQUE
 │                               #   (the back is the ANSWER); the sound strip splits by SOUND, not
 │                               #   letter (sh-i-p, with verified exceptions — penguin's n+g are
-│                               #   separate); picture decks are dealt in a SEEDED order that can
+│                               #   separate), and SOUND_RULES is the ONE owner of "these letters
+│                               #   are a team" that both the strip and every team deck read; picture decks are dealt in a SEEDED order that can
 │                               #   carry no adjacent opposite, shared picture or counting run; it
 │                               #   REMEMBERS where he got to in each deck (a seeded order is only
 │                               #   worth having if you can carry on); and it can SAY the word (off
