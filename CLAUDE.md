@@ -7487,6 +7487,45 @@ cost the first red run — **the sound toggle lives on the DECK screen, not the
 menu**, so a test that turns sound on before opening a deck waits forever on a
 `display:none` button; the tell is a `TimeoutError` rather than an assertion.
 
+**A SECOND DECK BUTTON SHIPPED WITH ITS NAME AND ITS COUNT RUN TOGETHER IN THE
+DOM, AND THE LAW THAT EXISTS FOR EXACTLY THAT WAS PINNED TO THE FIRST BUTTON BY
+ID.** Word Cards' accessible-name pass fixed 18 chips reading `"First Words46
+cards"` and recorded `.all` as a NON-change, *"pinned as the property (both parts
+announced, not run together) rather than as an absence, so it stays true
+whichever way a future edit takes it"*. It read `document.getElementById
+("allBtn")`. The 中文 deck is the second `.all`, so the moment it landed that
+property held for one button and nothing checked the other — the FOURTH
+instance of *when a feature grows a second container, every check scoped to the
+first one has quietly narrowed its claim*, after the ratio net, the letter-team
+grid and `mobile.test.js`'s `.all` walk. (I first wrote "third" here, because
+the two entries above both say third; counting them is what caught it. A tally
+in this file is a claim like any other.)
+**The defect it hid is a bet on the ENGINE, which is why the accessible name is
+the wrong thing to assert.** `allBtn` is `Every word <small>` — a literal space,
+a real DOM text node, so `textContent` reads `"Every word 503 cards"` on every
+engine. The new one was `</span><small>` with nothing between, i.e. **"…
+Characters120 cards" in the DOM** — and Chromium's accname algorithm inserts a
+space at the grid-item boundary, so `ariaSnapshot()` read back a perfect `"中文
+Chinese Characters 120 cards"` **with the defect present**. An accname assertion
+could not have failed on it. The clause asserts the DOM text instead, and the fix
+is the same mechanism the English button already had: one literal space, measured
+**byte-identical at 320 / 390 / 834** (button, span and count boxes, document
+height and overflow all unchanged), because a whitespace-only text node between
+two grid items generates no anonymous grid item but is still in `textContent`.
+That matters beyond this page: the engine Josh's iPad speaks with is **WebKit**,
+which this sandbox does not have, so "Chromium computed the right name" is not
+evidence about the device — the same standing limit as the flex-gap and
+aspect-ratio simulations, met on the accessibility tree rather than on layout.
+Three mutations, and **M2 is the one that makes the replacement honest**: a
+widened law must be re-proven against the mutation its predecessor caught, so
+removing the ENGLISH button's space goes red too (`"Every word503 cards"`), and
+the floor (`>= 2` deck buttons) goes red on re-narrowing the walk — the defect
+that let this through, asserted directly rather than hoped for. One method note:
+my first run used `--test-name-pattern="every control on the flash-card page SAYS
+what it is"` against a test called *"Word Cards: every control SAYS what it is,
+…"* — the pattern-matches-nothing trap, caught by the `# tests` count, which is
+the number to read and not the `ok` line.
+
 ---
 
 ## Repository Structure

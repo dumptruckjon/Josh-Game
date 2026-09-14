@@ -2588,12 +2588,25 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
           raw: b.textContent.replace(/\s+/g, " ").trim(),
         });
       }
-      const all = document.getElementById("allBtn");
+      // DERIVED over every deck button. This read `getElementById("allBtn")`,
+      // and the moment a SECOND one landed (the 中文 deck) the law quietly
+      // narrowed to the one button it was written against.
+      const alls = [...document.querySelectorAll("#menu .all")].map((b) => {
+        const small = b.querySelector("small");
+        const ct = small.textContent.trim();
+        return {
+          id: b.id,
+          // the name half is whatever the button says BESIDES its count
+          lbl: b.textContent.replace(small.textContent, "").replace(/\s+/g, " ").trim(),
+          ct,
+          name: (b.getAttribute("aria-label") || b.textContent).replace(/\s+/g, " ").trim(),
+        };
+      });
       const title = document.querySelector(".title");
       const tcs = getComputedStyle(title);
       return {
         chips: out,
-        allName: (all.getAttribute("aria-label") || all.textContent).replace(/\s+/g, " ").trim(),
+        alls,
         outline: [...document.querySelectorAll("h1,h2,h3,h4")].map((h) => h.tagName + ":" + h.textContent.trim()),
         titleTag: title.tagName,
         titleMargin: tcs.marginTop + " " + tcs.marginBottom,
@@ -2620,12 +2633,36 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
         `the "${c.nm}" chip runs its name into its count: ${JSON.stringify(c.label)}`);
     }
 
-    // A RECORDED NON-CHANGE: "Every word" needs no aria-label, because its two
+    // A RECORDED NON-CHANGE: a deck button needs no aria-label, because its two
     // parts are already separate text nodes and it announces "Every word 503
     // cards". Pinned as the property (both parts, not run together) rather than
     // as an absence, so it stays true whichever way a future edit takes it.
-    assert.ok(/Every word\s+\d+ cards/.test(menu.allName),
-      `the all-words button must announce both parts (saw ${JSON.stringify(menu.allName)})`);
+    //
+    // THE CLAIM IS ABOUT THE DOM TEXT, NOT THE ACCESSIBLE NAME, and that is the
+    // whole point of this clause. The 中文 button shipped as `</span><small>`
+    // with no whitespace between them, i.e. "…Characters120 cards" in the DOM —
+    // and Chromium's accname algorithm inserts a space at the grid-item
+    // boundary, so it read back perfectly here with the defect present. An
+    // accname assertion could not have failed on it. A literal space in the
+    // markup makes the separation true on every engine, which matters because
+    // the engine Josh's iPad speaks with is WebKit and this sandbox has none.
+    //
+    // Floor first: this is exactly how the law was lost. Narrow the walk back
+    // to one button and the second deck is checked by nothing.
+    assert.ok(menu.alls.length >= 2,
+      `expected every deck button, saw ${menu.alls.length} — a narrowed walk checks nothing`);
+    for (const a of menu.alls) {
+      assert.ok(a.lbl, `a deck button announces no name at all (${a.id})`);
+      assert.ok(/\d/.test(a.ct), `the "${a.lbl}" deck button prints no count (saw ${JSON.stringify(a.ct)})`);
+      const n = a.ct.match(/\d+/)[0];
+      assert.ok(a.name.includes(a.lbl),
+        `the "${a.lbl}" deck button must be announced by NAME (saw ${JSON.stringify(a.name)})`);
+      assert.ok(new RegExp("(^|\\D)" + n + "(\\D|$)").test(a.name),
+        `the "${a.lbl}" deck button prints ${a.ct} and announces ${JSON.stringify(a.name)} — the two must agree`);
+      // the defect itself: the deck's name and its size colliding into one word
+      assert.ok(!a.name.includes(a.lbl + n),
+        `the "${a.lbl}" deck button runs its name into its count: ${JSON.stringify(a.name)}`);
+    }
 
     // ── the document's own outline ─────────────────────────────────────────
     // It began at h2 with no h1, so the page's NAME was in no heading at all
