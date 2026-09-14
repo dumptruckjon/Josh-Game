@@ -7707,6 +7707,37 @@ twelve, transcribed independently in `site.test.js` and asserted to match
 exactly, with nothing excluded. A claim in my own status notes is a claim like
 any other, and the cheapest way to check one is to go and read the data.
 
+**THE APP NOW TEACHES CHINESE IN TWO PLACES, AND NOTHING CHECKED THAT THEY
+AGREE.** 华丽's 量词搭配 quiz marks a wrong measure word WRONG, and the Word
+Cards 中文 deck uses one 22 times in its sentences with nothing checking any of
+them — two owners of one truth, this repo's most repeated defect shape, across
+two worlds this time rather than two files. Measured before writing anything:
+the deck uses 14 distinct measure-word/noun pairs, **3 uses touch a noun her
+table also teaches (鸟→只, 花→朵 twice) and all three AGREE**, so this is
+coverage rather than a fix. The SHARED half now READS her file instead of
+re-declaring it, which is what makes a contradiction unwritable; the 11
+deck-only pairs are a declared truth table, the same restatement the sentence
+law next door uses.
+**The near-miss is what justifies it, and it was mine.** Choosing 牛's new
+sentence hours earlier, 一头牛 is right and 一只牛 is wrong — and 牛 IS in her
+table, so that edit would have contradicted grandma's quiz two screens away with
+every test green. Mutation M1 writes exactly that and reports *"counts 牛 with
+只, but 华丽's world teaches 牛 → 头 — the two worlds must not disagree"*. **M6 is
+the one that proves the link is real rather than a copy**: changing HER file
+(鸟 → 条) turns the WORD CARDS test red.
+**A measure word only counts in MEASURE-WORD POSITION, and the first cut of the
+scan did not know that** — it read 头 in 我的头很大 as the measure word for
+cattle instead of the noun *head*. Requiring a number or 这/那/几 immediately
+before it fixes that, and deleting the clause is mutation M5, which reports the
+old false positive verbatim. **And a mutation that PASSED was worth chasing
+rather than shrugging at**: 八只猫头鹰 came back green because 猫 is in the deck
+table and the scan scored the PREFIX of a longer compound. The heuristic's limit
+is now stated in the test rather than hidden — it can name the wrong noun on a
+word neither table lists, which is precisely why the law's teeth are the SHARED
+half, where the noun is one her file actually declares. Proven separately with
+八只青蛙, which no table covers and which reports *"no table says which measure
+word that noun takes"*.
+
 ---
 
 ## Repository Structure

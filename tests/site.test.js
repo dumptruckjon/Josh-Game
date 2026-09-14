@@ -4602,6 +4602,85 @@ test("Word Cards: no two Chinese cards share a picture, except the one bound pai
     "an exempted pair no longer shares a picture — delete the exemption instead of keeping a dead one");
 });
 
+test("Word Cards: a Chinese measure word agrees with the one 华丽's world teaches", () => {
+  // Measure words are the most error-prone thing in elementary Chinese — this
+  // repo already shipped one defect over them (只 offered as a WRONG answer for
+  // 鞋, when one shoe really is 一只鞋) — and the app now teaches them in TWO
+  // places: 华丽's 量词搭配 quiz, where picking the wrong one is marked WRONG,
+  // and these 120 cards, which use one 22 times with nothing checking any of
+  // them. Two owners of one truth is this repo's most repeated defect shape, so
+  // the SHARED nouns are READ from her file instead of re-declared here: a
+  // contradiction between the two worlds cannot be written.
+  //
+  // The near-miss that motivated it is real. Choosing 牛's sentence, 一头牛 is
+  // right and 一只牛 is wrong — and 牛 IS in her table, so that edit now goes
+  // red instead of quietly contradicting grandma's quiz two screens away.
+  const hl = read("scripts/hl-content.js");
+  const her = {};
+  for (const m of hl.matchAll(/\{ noun: "([^"]+)", emoji: "[^"]*", mw: "([^"]+)"(?:, alsoOk: \[([^\]]*)\])? \}/g))
+    her[m[1]] = { mw: m[2], also: (m[3] || "").split(",").map((x) => x.replace(/["\s]/g, "")).filter(Boolean) };
+  for (const m of hl.matchAll(/\{ emoji: "[^"]*", name: "([^"]+)", mw: "([^"]+)" \}/g))
+    her[m[1]] = { mw: m[2], also: [] };
+  assert.ok(Object.keys(her).length >= 10,
+    `only ${Object.keys(her).length} nouns read from 华丽's tables — the scan failed open`);
+
+  // The nouns the deck uses that her world does not teach. Declared, because
+  // there is no other owner for them — the same truth-restatement the sentence
+  // law next door uses.
+  const DECK_ONLY = {
+    人: "个", 手指: "个", 家: "个",
+    猫: "只", 狗: "只", 羊: "只", 手: "只",
+    兔子: "只", 蝴蝶: "只", 蜜蜂: "只", 虫: "只",
+  };
+
+  // A measure word only counts in MEASURE-WORD POSITION — directly after a
+  // number or 这/那/几. Without that clause 头 in 我的头很大 reads as the measure
+  // word for cattle instead of the noun "head", which is exactly what the first
+  // cut of this scan reported. A modifier (小鸟, 白羊) may sit in between.
+  const NUM = /[一二三四五六七八九十两几这那]/;
+  const MOD = /[小大白红老好]/;
+  const MWS = /[只个朵条头匹本把辆件双]/;
+  const known = (n) => Object.prototype.hasOwnProperty.call(her, n) ||
+                       Object.prototype.hasOwnProperty.call(DECK_ONLY, n);
+
+  let uses = 0, shared = 0;
+  for (const card of wcHanzi()) {
+    const sent = card[5];
+    for (let i = 1; i < sent.length; i++) {
+      if (!MWS.test(sent[i]) || !NUM.test(sent[i - 1])) continue;
+      let j = i + 1;
+      while (j < sent.length && MOD.test(sent[j])) j++;
+      // Prefer a KNOWN two-character noun (手指, 兔子, 金鱼); otherwise the
+      // single character — never a blind two-char slice, which turned 这只狗很大
+      // into the noun "狗很". KNOWN LIMIT, measured: a longer compound that
+      // BEGINS with a known noun is scored on that prefix (八只猫头鹰 is read as
+      // 猫), so the heuristic can name the wrong noun on a word neither table
+      // lists. That is why the law's teeth are the SHARED half, which is exact:
+      // it matches a noun 华丽's file actually declares.
+      const two = sent.slice(j, j + 2);
+      const noun = known(two) ? two : sent.slice(j, j + 1);
+      uses += 1;
+      const mine = her[noun];
+      if (mine) {
+        shared += 1;
+        assert.ok(mine.mw === sent[i] || mine.also.indexOf(sent[i]) >= 0,
+          `${card[0]}: "${sent}" counts ${noun} with ${sent[i]}, but 华丽's world ` +
+          `teaches ${noun} → ${mine.mw} — the two worlds must not disagree`);
+      } else {
+        assert.ok(DECK_ONLY[noun],
+          `${card[0]}: "${sent}" counts ${noun} with ${sent[i]}, and no table says ` +
+          "which measure word that noun takes");
+        assert.equal(DECK_ONLY[noun], sent[i],
+          `${card[0]}: "${sent}" counts ${noun} with ${sent[i]}, not ${DECK_ONLY[noun]}`);
+      }
+    }
+  }
+  assert.ok(uses >= 15, `only ${uses} measure words found — the scan failed open`);
+  assert.ok(shared >= 2,
+    `only ${shared} of the deck's measure words touch a noun 华丽's world also ` +
+    "teaches — the cross-world half of this law is guarding nothing");
+});
+
 test("Word Cards: every 多音字 carries the reading its own card teaches", () => {
   // The shipped clause checks a pinyin's SHAPE — "latin letters, tone marks and
   // ü, nothing else" — which cannot see a WRONG reading, on a card the app
