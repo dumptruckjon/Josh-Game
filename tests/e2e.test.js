@@ -1716,7 +1716,14 @@ test("Word Cards: he cannot guess the next card, and the sounds are right", asyn
         decks.push({ name, n: list.length, clashes, rampedByLength: sorted && spread });
       };
       for (const c of CATS) look(c.label, teachingOrder(WORDS.filter((x) => x[2] === c.key), c.label));
-      look("All words", teachingOrder(WORDS.slice(), "All words"));
+      // Every whole-library deck, CHECKED against the page's own buttons
+      // rather than merely listed: this page's `.all` walk has already been
+      // narrowed once by a second deck arriving (mobile.test.js clicked both
+      // buttons and walked whichever was last), so a list here is how the
+      // Chinese deck's dealt order goes unguarded. The seed must be the one
+      // the BUTTON passes, or this measures a deal no player is ever dealt.
+      const whole = [["All words", WORDS.slice()], ["Chinese", HANZI.slice()]];
+      for (const [name, list] of whole) look(name, teachingOrder(list, name));
       look("First Words", teachingOrder(firstWords(), "First Words"));
       const nums = teachingOrder(WORDS.filter((x) => x[2] === "numbers"), "Numbers").map((x) => x[0]);
       let counting = 0;
@@ -1758,6 +1765,8 @@ test("Word Cards: he cannot guess the next card, and the sounds are right", asyn
       const again = teachingOrder(WORDS.filter((x) => x[2] === "animals"), "Animals").map((x) => x[0]);
       return {
         decks, counting, nums, morphGaps, morphSeen,
+        whole: whole.map((w) => w[0]),
+        allButtons: [...document.querySelectorAll("#menu .all")].length,
         stable: twice.join() === again.join(),
         joinFails: WORDS.filter((x) => sounds(x[0]).join("") !== x[0]).map((x) => x[0]),
         firsts: firstWords().map((c) => c[0]), teams: teamDeck().map((c) => c[0]),
@@ -1773,6 +1782,9 @@ test("Word Cards: he cannot guess the next card, and the sounds are right", asyn
       assert.ok(!d.rampedByLength, `"${d.name}" is still sorted short -> long, so the deck is predictable`);
       assert.ok(d.n > 0, `"${d.name}" is empty`);
     }
+    assert.equal(r.whole.length, r.allButtons,
+      `${r.allButtons} whole-library deck button(s) on the page but ${r.whole.length} walked ` +
+      `(${r.whole.join(", ")}) — a deck nobody deals-tests is a deck that can give itself away`);
     assert.equal(r.counting, 0, `the numbers still run in counting order: ${r.nums.join(" ")}`);
     assert.ok(r.stable, "the same deck must come out in the same order every time");
 

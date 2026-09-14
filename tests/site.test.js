@@ -4184,6 +4184,20 @@ test("Word Cards states no card count it has to keep up to date", () => {
 // is true so an answer cannot silently go wrong.
 // ---------------------------------------------------------------------------
 const wcWords = () => JSON.parse(read("wordcards.html").match(/const WORDS = (\[.*?\]);/s)[1]);
+const wcHanzi = () => JSON.parse(
+  read("wordcards.html").match(/const HANZI = (\[[\s\S]*?\n\]);/)[1].replace(/,(\s*\])$/, "$1"));
+
+// The SKELETON is this page's ONE definition of "these two pictures are the
+// same thing": strip the presentation selector, skin tone, ZWJ and the
+// interchangeable person bases. It is shared rather than copied because two
+// definitions of one truth that must agree is the shape that has already
+// produced a real disagreement here (the ch rule against NOT_A_TEAM).
+const wcSkel = (pic) => [...pic].filter((ch) => {
+  const cp = ch.codePointAt(0);
+  return cp !== 0xfe0f && cp !== 0x200d && !(cp >= 0x1f3fb && cp <= 0x1f3ff) &&
+         ch !== "\u2640" && ch !== "\u2642";
+}).map((ch) => (/[\u{1F468}\u{1F469}\u{1F9D1}]/u.test(ch) ? "P"
+             : /[\u{1F466}\u{1F467}\u{1F9D2}]/u.test(ch) ? "C" : ch)).join("");
 
 test("Word Cards: no two cards share a picture — the back IS the answer", () => {
   // Measured on the deck as supplied: 188 of 493 cards shared a picture with
@@ -4202,54 +4216,93 @@ test("Word Cards: no two cards share a picture — the back IS the answer", () =
   assert.ok(by.size > 300, `only ${by.size} pictures scanned — the parse failed open`);
 });
 
-test("Word Cards: no card wears another card's picture with the gender swapped", () => {
-  // The sibling test above compares CODEPOINTS, so it cannot see a near-twin —
-  // exactly the hole the fort's enemy roster had, where two sprites could be
-  // 98% alike and pass an exact-hash check. Measured here it was real: `baker`
-  // shipped as 👨‍🍳 and `cook` as 👩‍🍳, the same chef in the same white hat,
-  // and a four-year-old does not read gender as the difference between a cook
-  // and a baker. The card confirmed the WRONG word.
-  //
-  // The law is a SKELETON: strip the presentation selector, skin tone, ZWJ and
-  // the interchangeable person bases, then two cards may not collide.
-  //
-  // The exemption is not a fence — it is the one case where the gender IS the
-  // answer, so each card still confirms its own word. Both groups are gender
-  // words themselves, which is what makes the carve-out principled rather than
-  // a list of whatever happened to fail.
-  const GENDER_IS_THE_WORD = [["mom", "dad"], ["boy", "girl", "kid"]];
-  const skel = (pic) => [...pic].filter((ch) => {
-    const cp = ch.codePointAt(0);
-    return cp !== 0xfe0f && cp !== 0x200d && !(cp >= 0x1f3fb && cp <= 0x1f3ff) &&
-           ch !== "\u2640" && ch !== "\u2642";
-  }).map((ch) => (/[\u{1F468}\u{1F469}\u{1F9D1}]/u.test(ch) ? "P"
-               : /[\u{1F466}\u{1F467}\u{1F9D2}]/u.test(ch) ? "C" : ch)).join("");
+// The picture law, DERIVED over every deck. The English half is the original:
+// `baker` shipped as 👨‍🍳 and `cook` as 👩‍🍳 — the same chef in the same white
+// hat — and a four-year-old does not read gender as the difference between a
+// cook and a baker, so the card confirmed the WRONG word. The exact sibling
+// laws compare CODEPOINTS and cannot see a near-twin at all.
+//
+// It is derived because 中文 arrived as a SECOND deck and inherited none of it:
+// measured, nothing checked the 120 for a near-twin, so a 👨‍🍳/👩‍🍳 pair would
+// have shipped there with the suite green. That is this repo's most-repeated
+// defect class — when a feature grows a second container, every check scoped to
+// the first one has quietly narrowed its claim — applied BEFORE the third deck
+// rather than after it.
+const WC_DECKS = [
+  {
+    name: "English", array: "WORDS", floor: 400,
+    // A sight card's second field is a SENTENCE, not a picture: that deck
+    // teaches the words you cannot sound out, so there is nothing to collide.
+    cards: () => wcWords().filter((c) => c[2] !== "sight"),
+    // The one case where the gender IS the answer, so each card still confirms
+    // its own word. Both groups are gender words themselves, which is what
+    // makes the carve-out principled rather than a list of whatever failed.
+    exempt: [["mom", "dad"], ["boy", "girl", "kid"]],
+  },
+  {
+    name: "Chinese", array: "HANZI", floor: 110,
+    cards: () => wcHanzi(),
+    // 爸 and 妈 ARE dad and mom, wearing those same two pictures — the English
+    // exemption in a second writing system, measured rather than assumed. 蝴
+    // and 蝶 mean butterfly only together, so one picture is the truth for
+    // both. Both pairs are held to the TIGHTER exact law next door as well,
+    // and the two clauses say different things: may not be the SAME picture,
+    // versus may not differ only by gender.
+    exempt: [["爸", "妈"], ["蝴", "蝶"]],
+  },
+];
 
-  const by = new Map();
-  for (const [w, pic, cat] of wcWords()) {
-    if (cat === "sight") continue;
-    const k = skel(pic);
-    if (!by.has(k)) by.set(k, []);
-    by.get(k).push(w);
+test("Word Cards: no card wears another card's picture with the gender swapped", () => {
+  const src = read("wordcards.html");
+  // The deck table is DERIVED against the page rather than trusted: every
+  // top-level ALL-CAPS array is either a walked DECK or a consciously named
+  // non-deck, so a third deck is red until somebody says which it is. A
+  // count-based floor would tolerate the first step of exactly the drift this
+  // guards — a deck arriving while another is renamed away.
+  const NOT_A_DECK = {
+    FAMILIES: "rimes, not cards",
+    PAIRS: "which two cards may not be dealt together",
+    COLORS: "the card palette",
+    SOUND_RULES: "how a word splits into sounds",
+    READING: "the derived decks' own definitions",
+  };
+  const declared = [...src.matchAll(/^\s*const ([A-Z][A-Z_0-9]*) = \[/gm)].map((m) => m[1]);
+  assert.ok(declared.length >= 5, `only ${declared.length} arrays found — the scan failed open`);
+  assert.deepEqual(
+    declared.filter((n) => !(n in NOT_A_DECK)).sort(), WC_DECKS.map((d) => d.array).sort(),
+    "a card array on the page is not walked by the picture law (or a walked deck is gone)");
+
+  assert.ok(WC_DECKS.length >= 2,
+    `only ${WC_DECKS.length} deck(s) walked — a narrowed walk checks nothing`);
+
+  for (const deck of WC_DECKS) {
+    const by = new Map();
+    for (const [word, pic] of deck.cards()) {
+      const k = wcSkel(pic);
+      if (!by.has(k)) by.set(k, []);
+      by.get(k).push(word);
+    }
+    const legal = (l) => deck.exempt.some((g) => l.every((w) => g.includes(w)));
+    const bad = [...by.values()].filter((l) => l.length > 1 && !legal(l));
+    assert.deepEqual(bad.map((l) => l.join("/")), [],
+      `${deck.name}: one picture, two cards — the gender is not what tells these apart`);
+    assert.ok(by.size >= deck.floor,
+      `${deck.name}: only ${by.size} skeletons scanned — the parse failed open`);
+    // …and every exemption stays load-bearing rather than decorative: if a
+    // group ever stops colliding, the carve-out is protecting nothing and
+    // should go, so a future pair cannot slip in under a dead clause.
+    //
+    // Both clauses read the same skeleton, so ANY change to it also stops
+    // mom/dad colliding and fires THIS clause rather than the one above —
+    // measured, not assumed. Only restoring a real gendered twin isolates the
+    // collision clause (baker 👨‍🍳 beside cook 👩‍🍳 reports "cook/baker"); a
+    // third exempt group that never collides is what isolates this one.
+    const collides = deck.exempt.filter((g) =>
+      [...by.values()].some((l) => l.length > 1 && l.every((w) => g.includes(w))));
+    assert.equal(collides.length, deck.exempt.length,
+      `${deck.name}: an exempted group no longer collides — delete the exemption ` +
+      "instead of keeping a dead one");
   }
-  const legal = (l) => GENDER_IS_THE_WORD.some((g) => l.every((w) => g.includes(w)));
-  const bad = [...by.values()].filter((l) => l.length > 1 && !legal(l));
-  assert.deepEqual(bad.map((l) => l.join("/")), [],
-    "one picture, two words — the gender is not what tells these words apart");
-  assert.ok(by.size > 300, `only ${by.size} skeletons scanned — the parse failed open`);
-  // …and the exemption must stay load-bearing rather than decorative: if these
-  // groups ever stop colliding, the carve-out is protecting nothing and should
-  // go, so that a future gendered pair cannot slip in under a dead clause.
-  //
-  // Both clauses read the same skeleton, so ANY change to it also stops mom/dad
-  // colliding and fires the clause below rather than the one above — measured,
-  // not assumed. Only restoring a real gendered twin isolates the collision
-  // clause (baker 👨‍🍳 beside cook 👩‍🍳 reports "cook/baker"); a third exempt
-  // group that never collides is what isolates this one.
-  const collides = GENDER_IS_THE_WORD.filter((g) =>
-    [...by.values()].some((l) => l.length > 1 && l.every((w) => g.includes(w))));
-  assert.equal(collides.length, GENDER_IS_THE_WORD.length,
-    "an exempted group no longer collides — delete the exemption instead of keeping a dead one");
 });
 
 test("Word Cards: every word appears exactly once", () => {
@@ -4461,9 +4514,6 @@ test("Word Cards: the sound split keeps its verified exceptions", () => {
 // category, which is why it lives in its own array — see the guardrail below
 // that keeps it out of every English derivation.
 // ---------------------------------------------------------------------------
-const wcHanzi = () => JSON.parse(
-  read("wordcards.html").match(/const HANZI = (\[[\s\S]*?\n\]);/)[1].replace(/,(\s*\])$/, "$1"));
-
 test("Word Cards: the Chinese deck IS the printed 第2级 table, all 120 in order", () => {
   // Transcribed from the photo, ten rows of twelve — and transcribed rather
   // than derived from the deck, which is the whole point of a truth test: a

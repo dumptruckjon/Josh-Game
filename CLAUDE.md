@@ -7526,6 +7526,98 @@ what it is"` against a test called *"Word Cards: every control SAYS what it is,
 …"* — the pattern-matches-nothing trap, caught by the `# tests` count, which is
 the number to read and not the `ok` line.
 
+**THE CHINESE DECK INHERITED THE PICTURE LAW THAT CATCHES A NEAR-TWIN — except
+it did not, because that law read `wcWords()`. Measured CLEAN, which is the
+honest half, and the sharpest finding is a mutation that PASSED for a reason
+nobody could have predicted.** The English deck's skeleton law exists because
+`baker` shipped as 👨‍🍳 and `cook` as 👩‍🍳 — the same chef in the same white hat,
+where *"a four-year-old does not read gender as the difference between a cook
+and a baker"* — and its sibling laws compare CODEPOINTS, so they cannot see a
+near-twin at all. 中文 arrived as a SECOND deck with 120 cards and an exact-match
+picture law only, so a 👨‍🍳/👩‍🍳 pair there would have shipped green. That is
+this file's most-repeated class — *when a feature grows a second container,
+every check scoped to the first one has quietly narrowed its claim* — and it is
+now applied BEFORE a third deck rather than after, which is the only version of
+that lesson worth anything.
+**The one collision the Chinese deck HAS is the legitimate exemption, and it was
+verified rather than argued**: `爸 👨` and `妈 👩` collide under the
+skeleton, and reading the cards shows 爸 is glossed *dad* and 妈 *mom* wearing
+the identical two pictures as the English `mom`/`dad` pair — the same carve-out
+("the one case where the gender IS the answer"), in a second writing system.
+`蝴/蝶` is the other, and it is held to the TIGHTER exact law next door as well,
+so the two clauses are not duplicates: *may not be the SAME picture* and *may
+not differ only by gender* are different claims, and the Chinese exact law is
+the stricter one for 爸/妈.
+**THE MUTATION THAT PASSED IS THE LESSON: a recorded mutation can stop
+reproducing because the DATA moved out from under it.** Re-proving the
+predecessor's own mutation — swap `cook`'s gender — came back GREEN, and
+widening the assertion would have been exactly wrong. `baker` was REPLACED by
+`firefighter` in the wrong-pictures fix, so there is no second chef left and a
+lone gender swap now collides with nothing. The faithful shape needs a PAIR, so
+the mutation makes `firefighter` a male cook; it then reports *"English: one
+picture, two cards"* while BOTH exact laws stay green, which is the control that
+proves the skeleton clause is not a restatement of its neighbours. When a
+mutation passes, go and find out what actually moved — here it was the deck.
+**Two construction notes.** The skeleton is ONE shared owner rather than a copy
+per deck, because two definitions of "these pictures are the same thing" that
+must agree is the shape that already produced a real disagreement here (the `ch`
+rule against `NOT_A_TEAM`). And the deck table is DERIVED against the page: every
+top-level ALL-CAPS array is either a walked DECK or a consciously named
+non-deck, so a third deck is red until somebody classifies it — a count-based
+floor would tolerate the first step of the very drift it guards, which is the
+`paths[]`-without-`path` lesson applied to a population rather than to a level.
+Six mutations, each firing its own clause, including one that declares HANZI
+not-a-deck and reports it by name.
+**And the neighbouring law was MEASURED and REFUSED, so nobody builds it: a
+CROSS-deck picture ban.** 83 of the 120 Chinese cards wear a picture some
+English card also wears, and 33 of those name a different word — 大 🐘 big
+against `elephant`, 小 🐜 little against `ant`, 高 🦒 tall against `giraffe`, 跳
+🦘 jump against `kangaroo`. Every one is correct: the two decks are never on
+screen together, and the asymmetry is the whole design — an English card's
+picture IS the answer, a Chinese card's is a meaning CUE for a word the card
+also states and speaks, so an elephant is a perfectly good cue for BIG. A
+cross-deck clause would fire on 83 correct cards, which is the false-positive
+machine this file keeps refusing. The law is per-deck by mechanism, not by
+oversight.
+**ENUMERATING THE REST OF THE WORD-CARDS LAWS FOUND THE SAME HOLE A SECOND
+TIME, in the DEAL.** Rather than keep spot-checking, every Word Cards law was
+listed against the decks it reads — and the deck-ORDER law (`teachingOrder`
+must place no card beside one that gives it away) walks `CATS`, "All words",
+"First Words", Numbers and Animals, every one of them out of `WORDS`. The
+Chinese deck is shuffled by the SAME `teachingOrder` with its pairs in the SAME
+`PAIRS` list, and nothing asserted its dealt order. Measured in node against the
+page's own extracted machinery — never a retyped copy — it is CLEAN (0 clashes,
+deterministic, genuinely shuffled), so this is coverage; but the mechanism is
+live on that deck, because 蝴/蝶 share 🦋 and `clash()` is what keeps them apart.
+Two things worth keeping. **The seed is part of the claim**: the button calls
+`start(HANZI.slice(), "Chinese", …)`, so a test that seeds `teachingOrder`
+differently measures a deal no player is ever dealt — checked for every deck
+before adding one. And the fix is a list CHECKED AGAINST THE PAGE rather than a
+longer list: the walk now compares its whole-library decks against
+`#menu .all`, which is the very selector `mobile.test.js` was narrowed by, so a
+third deck is red instead of silent.
+**And my own enumeration scan produced a FALSE POSITIVE I nearly acted on**: it
+sliced each test body up to the NEXT `test(` and so swallowed a module-level
+declaration sitting between two tests, reporting the English exact-picture law
+as reading both decks. A region bound must be asserted to BE a region — the
+recorded lesson, landing this time in a throwaway probe, where it is cheapest to
+catch and easiest to believe.
+Mutation-proven by dropping the Chinese deck from the walk, which reports
+*"2 whole-library deck button(s) on the page but 1 walked (All words)"* — and
+the 2 is what makes the clause non-vacuous rather than a comparison of two
+numbers that are both wrong.
+**Two method notes from the same run, and the first is a NEW face of an old
+trap.** `--test-name-pattern` matched nothing again — the test is called *"he
+cannot guess the next card"*, not *"dealt in an order"* — but this time the tell
+was NOT `# tests 1`, because my own `timeout 400` killed the run first and the
+only output was the word **Terminated**. A killed run and a passing run are both
+"no failure printed", so a mutation harness must read `# tests` and refuse to
+report a verdict when that line is absent, rather than inferring one from
+silence. And the restore survived it only because the mutation script carries
+`trap … EXIT TERM INT`: the harness moved the command to the background mid-run,
+so a restore written as the next statement would have been skipped and left the
+tree mutated under a clean-looking `git status`.
+
 ---
 
 ## Repository Structure
