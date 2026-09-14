@@ -7618,6 +7618,36 @@ silence. And the restore survived it only because the mutation script carries
 so a restore written as the next statement would have been skipped and left the
 tree mutated under a clean-looking `git status`.
 
+**THE CHINESE DECK'S PINYIN HAD ONLY EVER BEEN SHAPE-CHECKED, AND AUDITING IT
+CAME BACK CLEAN — but reading the SENTENCES beside it found two cards teaching
+the wrong word.** The shipped clause asserts a reading is "latin letters, tone
+marks and ü, nothing else", which cannot see a WRONG reading, and 多音字 make
+that a real exposure: 兴 is xīng or xìng, 乐 is lè or yuè, 地 is dì or de, 只 is
+zhī or zhǐ, 什 is shén or shí. All 120 are correct, including every one of those
+traps — the honest half to write down, since it is the deck's most falsifiable
+claim after the sentences.
+**The two real findings are both "the sentence teaches a different word from the
+card".** 牛 is glossed *cow* with 🐮 on the front and its sentence was 牛奶很白
+("Milk is white") — 牛奶 is MILK, so the one thing demonstrating the character
+demonstrated the wrong meaning. And 口's sentence was 我的口很小: 口 is not a
+modern free noun for mouth (that is 嘴), it survives in compounds (门口, 出口)
+and as a measure word (一口水). **How that one arose is the useful part** — the
+five body-part cards share ONE sentence pattern (我的头很大 · 我的牙很白 ·
+我的心在跳 · 我有两只手 · 我的口很小) and 口 is the single member where the
+analogy fails, because the other four ARE free nouns. Same bookish-standalone
+class as the already-shipped 蜜 → 蜂蜜 fix. Now 牛在吃草 and 我喝一口水 (whose
+five characters are all in the 120).
+**THE GUARDRAIL IS A TRUTH TABLE AND THE NEAR-MISSES ARE WHY.** The tempting
+derived law is *a card whose sentence uses its character inside a compound must
+name that compound in its gloss* — run it and it flags FOUR cards of which
+THREE are correct: 兔子 means rabbit, 蜂蜜 means honey, 蜜蜂 means bee, and 奶奶
+is the first sense 奶's own gloss states. **The discriminator is MEANING, not
+spelling**, so that scan is a fence around the residual rather than a law, and
+the three are NAMED in the test so nobody completes the pattern by rewriting
+them. Three mutations, each red with its own reason — reverting either sentence,
+and removing 口 from the deck entirely, which reports *"口 is no longer in the
+deck, so this law guards nothing"* rather than passing vacuously.
+
 ---
 
 ## Repository Structure

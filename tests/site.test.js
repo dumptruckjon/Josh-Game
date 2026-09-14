@@ -4602,6 +4602,47 @@ test("Word Cards: no two Chinese cards share a picture, except the one bound pai
     "an exempted pair no longer shares a picture — delete the exemption instead of keeping a dead one");
 });
 
+test("Word Cards: a Chinese sentence must teach the sense its card GLOSSES", () => {
+  // The back of a card is the ANSWER, and for 中文 the answer is the character's
+  // meaning and its reading. A sentence that scans perfectly can still teach the
+  // wrong word, which no scan can see — the rhyme-family lesson in a second
+  // language, and the reason six sentences were already rewritten by hand.
+  //
+  // NO MECHANICAL LAW IS AVAILABLE HERE, and the near-misses are why. FOUR cards
+  // use their character inside a compound their gloss does not name, and THREE
+  // of them are CORRECT: 兔子 means rabbit, 蜂蜜 means honey, 蜜蜂 means bee, and
+  // 奶奶 is the first sense 奶's own gloss states. The discriminator is MEANING,
+  // not spelling, so a "the gloss must name the compound" scan would flag four
+  // and be wrong on three — a fence around the residual, not a law. Those three
+  // are named here so nobody "completes the pattern" by rewriting them.
+  //
+  // These two are restated instead, each with the reason it was wrong:
+  const BANNED = [
+    // Glossed "cow", with 🐮 on the front — and 牛奶 is MILK, so the sentence
+    // demonstrated a different word from the one the card claims. It is the one
+    // compound in the deck whose meaning diverges from its card's gloss.
+    ["牛", "牛奶", "the card is glossed cow, but 牛奶 is milk"],
+    // 口 is not a modern free noun for mouth — that is 嘴. It survives in
+    // compounds (门口, 出口) and as a measure word (一口水). It shipped as
+    // 我的口很小 by analogy with its four body-part siblings (我的头很大,
+    // 我的牙很白, 我的心在跳, 我有两只手) and it is the one where the analogy
+    // fails, because those four ARE free nouns and 口 is not. Same bookish-
+    // standalone class as the 蜜 -> 蜂蜜 fix.
+    ["口", "我的口", "口 alone is not the modern word for mouth (嘴 is)"],
+  ];
+  const deck = wcHanzi();
+  for (const [ch, bad, why] of BANNED) {
+    const card = deck.find((c) => c[0] === ch);
+    assert.ok(card, `${ch} is no longer in the deck, so this law guards nothing`);
+    assert.ok(card[5].indexOf(bad) < 0,
+      `${ch}: the sentence "${card[5]}" is back to using ${bad} — ${why}`);
+    // …and the positive half, or "teaches the right sense" would be satisfied
+    // by a sentence that dropped the character altogether.
+    assert.ok(card[5].indexOf(ch) >= 0,
+      `${ch}: "${card[5]}" no longer contains the character it teaches`);
+  }
+});
+
 test("Word Cards: the Chinese characters stay OUT of every English derivation", () => {
   // SIX derivations read WORDS — First Words, the word families, teamWords and
   // so every letter-team and bossy-r deck, the fourteen categories, and "Every
