@@ -7648,6 +7648,38 @@ them. Three mutations, each red with its own reason — reverting either sentenc
 and removing 口 from the deck entirely, which reports *"口 is no longer in the
 deck, so this law guards nothing"* rather than passing vacuously.
 
+**FOUR MORE CONTENT AUDITS OF THE FLASH CARDS, ALL CLEAN — recorded so nobody
+re-derives them, and one of them turned into the deck's first pinyin
+guardrail.** Every remaining unchecked CLAIM on a 中文 card was read by hand:
+the 120 TRANSLATIONS all match their sentences (three are loose rather than
+wrong — 爷爷很好 as "Grandpa is kind" where 好 is *good*, 小猫不喝水 as "will not
+drink" dropping 水 — and inventing a defect to look thorough is worse than
+leaving it, the 大雁/秋 precedent); the 120 PICTURES all cue their gloss or, for
+an abstract character, their sentence, which is the documented design (了 a
+chequered flag, 的 a link, 出 a sunrise for 日出); and the 45 English SIGHT
+sentences are all grammatical and demonstrate their word. **One worry there was
+checked rather than assumed and is already covered**: `the` contains `he`,
+`this` contains `is`, `that` contains `at` — and the shipped clause tokenises
+(`split(/[^a-z']+/)` then `includes`) rather than substring-matching, so it
+already requires a standalone word.
+**THE ONE REAL GAP WAS THAT PINYIN HAD NO GUARDRAIL AT ALL.** The shipped clause
+checks a reading's SHAPE — "latin letters, tone marks and ü, nothing else" —
+which cannot see a WRONG reading, on the one field the app SPEAKS. The audit
+found all 120 correct, so this is coverage; what makes it worth a test is that
+多音字 make wrong a live possibility. **The list is scoped by a real property
+rather than by taste: a character is pinned when its other reading is a
+DIFFERENT WORD** (乐 lè happy vs yuè music, 兴 xìng glad vs xīng prosper, 只 zhī
+the measure vs zhǐ only, 地 dì ground vs the particle de, 好 hǎo good vs hào
+fond-of, 中/什/几/大/少/的/了) — which deliberately EXCLUDES 头 and 子, whose
+second form is a neutral-tone variant inside a compound (木头, 儿子) rather than
+another word, and a character card correctly gives the citation reading.
+**And the floor needed its own mutation, because the obvious one is a control
+that proves nothing**: lowering `POLYPHONIC.length >= 10` to `>= 0` stays GREEN
+with twelve entries present, which reads like a weak clause and is really just
+a floor that cannot bind from above. Gutting the LIST to two entries is the
+honest mutation, and it reports *"only 2 readings pinned — the list is not
+worth having"*. A floor guards the population, so mutate the population.
+
 ---
 
 ## Repository Structure

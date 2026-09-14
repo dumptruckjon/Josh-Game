@@ -4602,6 +4602,44 @@ test("Word Cards: no two Chinese cards share a picture, except the one bound pai
     "an exempted pair no longer shares a picture — delete the exemption instead of keeping a dead one");
 });
 
+test("Word Cards: every 多音字 carries the reading its own card teaches", () => {
+  // The shipped clause checks a pinyin's SHAPE — "latin letters, tone marks and
+  // ü, nothing else" — which cannot see a WRONG reading, on a card the app
+  // SPEAKS. All 120 were audited by hand and are correct; these are the ones
+  // where wrong is a live possibility, so they are restated where they can go
+  // red.
+  //
+  // The list is scoped by a real property rather than by taste: a character
+  // belongs here when its other reading is a DIFFERENT WORD. That deliberately
+  // excludes 头 and 子, whose second form is a neutral-tone variant inside a
+  // compound (木头, 儿子) rather than another word — the card gives the citation
+  // reading, which is what a character card is for.
+  const POLYPHONIC = [
+    ["只", "zhī", "zhǐ", "the measure word (一只白羊), not 只 = only"],
+    ["了", "le",  "liǎo", "the completion particle (我吃完了), not 了 = to finish"],
+    ["少", "shǎo", "shào", "few (水很少), not 少 = young as in 少年"],
+    ["地", "dì",  "de",   "ground (花在地上), not the adverbial particle"],
+    ["的", "de",  "dì",   "the possessive (爸爸的车), not 的 as in 目的"],
+    ["兴", "xìng", "xīng", "glad (高兴), not 兴 = to prosper"],
+    ["乐", "lè",  "yuè",  "happy (快乐), not 乐 = music as in 音乐"],
+    ["中", "zhōng", "zhòng", "middle (中国), not 中 = to hit as in 中奖"],
+    ["什", "shén", "shí",  "what (什么), not 什 as in 什锦"],
+    ["好", "hǎo", "hào",  "good (你好), not 好 = to be fond of"],
+    ["几", "jǐ",  "jī",   "how many (你有几只猫), not 几 as in 几乎"],
+    ["大", "dà",  "dài",  "big (这只狗很大), not 大 as in 大夫"],
+  ];
+  const deck = wcHanzi();
+  assert.ok(POLYPHONIC.length >= 10,
+    `only ${POLYPHONIC.length} readings pinned — the list is not worth having`);
+  for (const [ch, want, other, why] of POLYPHONIC) {
+    const card = deck.find((c) => c[0] === ch);
+    assert.ok(card, `${ch} is no longer in the deck, so this pin guards nothing`);
+    assert.equal(card[3], want,
+      `${ch}: the card teaches ${why} — so it is read "${want}", not "${card[3]}"` +
+      (card[3] === other ? ` (that is the OTHER word's reading)` : ""));
+  }
+});
+
 test("Word Cards: a Chinese sentence must teach the sense its card GLOSSES", () => {
   // The back of a card is the ANSWER, and for 中文 the answer is the character's
   // meaning and its reading. A sentence that scans perfectly can still teach the
