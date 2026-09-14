@@ -7412,7 +7412,9 @@ two) while the simplified-only ones it does not cover — 车 门 鸟 马 红 �
 fell through it to whatever came next. Simplified Chinese has to be asked for
 BY NAME. This is the iOS-14.2-floor class one layer over, and worse in one
 respect: the dev sandbox and CI resolve that stack against Linux fonts, so the
-picture on the real iPad is the one thing no test here can see. Guardrailed as
+picture on the real device is the one thing no test here can see — **and the
+owner CONFIRMED it renders correctly on the real iPhone (2026-09), so that
+question is closed; the sandbox limit stands, the doubt does not.** Guardrailed as
 the standing PAIRING — a structural clause that the SC face is declared first
 and that `lang="zh-CN"` is set, and a behavioural one in a browser that the
 character's and the sentence's COMPUTED family is an SC face, because a
@@ -7679,6 +7681,31 @@ with twelve entries present, which reads like a weak clause and is really just
 a floor that cannot bind from above. Gutting the LIST to two entries is the
 honest mutation, and it reports *"only 2 readings pinned — the list is not
 worth having"*. A floor guards the population, so mutate the population.
+
+**THE 中文 DECK'S OPEN QUESTIONS ARE CLOSED BY THE OWNER — written down because
+an item carried as "awaiting a decision" is the same defect as one carried as
+"not built", and my own status replies had repeated both for several turns.**
+The verdict (2026-09) is *keep everything as is*, so these four are DECIDED and
+must not be re-opened as though they were still live: (1) **the picture is a
+meaning CUE, not the answer** — about two dozen abstract characters illustrate
+their SENTENCE instead of themselves (了 🏁, 的 🔗, 出 🌅), which is the one
+place the deck deliberately departs from the English law that the picture IS
+the answer, and it exists because there is no picture of a possessive particle;
+(2) **蝴/蝶 share 🦋**, the deck's only shared picture; (3) **the deal is
+SHUFFLED rather than the printed table order** — the table order is kept in the
+DATA and the shuffle is seeded and resumable, and the owner's words were "shuffle
+order was good anyway", so the printed-order alternative is refused, not merely
+untried; (4) **the back carries four things** (picture · pinyin·meaning ·
+Chinese sentence · English translation), with the English line recorded as the
+first thing to drop if it ever needs trimming. Two smaller ones ride with them:
+the FRONT shows only the character, and the card speaks the character AND its
+sentence, because one syllable's tone is hard to catch alone.
+**And a correction to my own notes, which is the point of writing this down:** I
+had been reporting a fifth item — *"the 5 本册超纲字 excluded"* — and it is not
+substantiable anywhere in the repo. The deck is the FULL table: ten rows of
+twelve, transcribed independently in `site.test.js` and asserted to match
+exactly, with nothing excluded. A claim in my own status notes is a claim like
+any other, and the cheapest way to check one is to go and read the data.
 
 ---
 
