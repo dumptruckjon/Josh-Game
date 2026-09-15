@@ -4681,6 +4681,92 @@ test("Word Cards: a Chinese measure word agrees with the one 华丽's world teac
     "teaches — the cross-world half of this law is guarding nothing");
 });
 
+test("Word Cards: a Chinese sentence's COUNT agrees with its English", () => {
+  // The shipped clauses check that a translation HAS English and has no
+  // Chinese. Neither can see it stating a different NUMBER — on a deck whose
+  // first ten cards are 一..十, where being taught that six is seven is the
+  // exact defect the thing exists to prevent. 20 of the 120 sentences state a
+  // quantity, and nothing checked one of them.
+  //
+  // It is a live risk rather than a theoretical one: two of these sentences
+  // were rewritten by hand the day before this law was written, and one of
+  // them (口 -> 我喝一口水) carries a numeral.
+  //
+  // Which character is which number is read from 华丽's CN_NUM by INDEX, so the
+  // two Chinese worlds cannot disagree about it and the expectation cannot be
+  // derived from the thing under test.
+  const hl = read("scripts/hl-content.js");
+  const cn = JSON.parse(hl.match(/CN_NUM: (\[[^\]]*\])/)[1].replace(/'/g, '"'));
+  assert.equal(cn.length, 10, `CN_NUM read as ${cn.length} entries — the scan failed open`);
+  const DIGIT = {};
+  cn.forEach((ch, i) => { DIGIT[ch] = i + 1; });
+  // 两 is the form Chinese uses before a measure word (两只手, never 二只手).
+  // Her file has no entry for it, so it is declared here with its reason — and
+  // a floor below asserts the deck actually uses it, or this line guards
+  // nothing.
+  DIGIT["两"] = 2;
+
+  const WORD = ["one", "two", "three", "four", "five", "six", "seven", "eight",
+                "nine", "ten", "eleven", "twelve"];
+  const MONTH = ["january", "february", "march", "april", "may", "june", "july",
+                 "august", "september", "october", "november", "december"];
+  const has = (tr, w) => new RegExp(`\\b${w}\\b`, "i").test(tr);
+
+  // A maximal RUN, never a character at a time: 十二 is twelve, not ten then
+  // two, and reading it per character would report two spurious failures. A
+  // run this does not understand fails LOUDLY rather than being skipped.
+  const valueOf = (run) => {
+    const d = [...run].map((ch) => DIGIT[ch]);
+    if (d.length === 1) return d[0];
+    if (d.length === 2 && d[0] === 10) return 10 + d[1];
+    if (d.length === 2 && d[1] === 10) return d[0] * 10;
+    return null;
+  };
+
+  let counted = 0, article = 0, month = 0, liang = 0;
+  const seen = new Set();
+  for (const card of wcHanzi()) {
+    const sent = card[5], tr = card[6];
+    for (const m of sent.matchAll(/[一二三四五六七八九十两]+/g)) {
+      const run = m[0], v = valueOf(run);
+      assert.ok(v !== null,
+        `${card[0]}: "${sent}" — this scan does not understand the numeral ${run}`);
+      if (run.indexOf("两") >= 0) liang += 1;
+
+      // A numeral before 月 is a MONTH NAME, not a count (二月 is February).
+      // The same position rule the measure-word law next door needs — and it
+      // is CHECKED rather than skipped, so the exception is falsifiable.
+      if (sent[m.index + run.length] === "月") {
+        month += 1;
+        assert.ok(MONTH[v - 1] && has(tr, MONTH[v - 1]),
+          `${card[0]}: "${sent}" is month ${v} (${MONTH[v - 1]}), but the ` +
+          `translation "${tr}" does not name it`);
+        continue;
+      }
+
+      counted += 1;
+      seen.add(v);
+      if (WORD[v - 1] && (has(tr, WORD[v - 1]) || has(tr, String(v)))) continue;
+      // 一 + a measure word is normally "a"/"an" in English (一只猫 is "a cat",
+      // not "one cat"), which is grammar rather than a loophole — but only
+      // where the translation names no OTHER number, so it cannot swallow a
+      // real disagreement.
+      const other = WORD.some((w, i) => i + 1 !== v && has(tr, w));
+      assert.ok(v === 1 && !other && has(tr, "an?"),
+        `${card[0]}: "${sent}" counts ${v}, but the translation "${tr}" does ` +
+        `not say ${WORD[v - 1] || v}`);
+      article += 1;
+    }
+  }
+  assert.ok(counted >= 15, `only ${counted} counted quantities — the scan failed open`);
+  assert.ok(seen.size >= 8,
+    `the quantities seen were only ${[...seen].sort((a, b) => a - b).join(",")} — ` +
+    "a scan that only ever meets 一 proves almost nothing");
+  assert.ok(article >= 1, "no sentence rendered 一 as a/an — that exception is dead code");
+  assert.ok(month >= 1, "no month name was checked — that exception is dead code");
+  assert.ok(liang >= 1, "the deck never uses 两, so declaring it here guards nothing");
+});
+
 test("Word Cards: every 多音字 carries the reading its own card teaches", () => {
   // The shipped clause checks a pinyin's SHAPE — "latin letters, tone marks and
   // ü, nothing else" — which cannot see a WRONG reading, on a card the app

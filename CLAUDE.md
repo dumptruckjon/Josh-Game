@@ -7738,6 +7738,63 @@ half, where the noun is one her file actually declares. Proven separately with
 八只青蛙, which no table covers and which reports *"no table says which measure
 word that noun takes"*.
 
+**AND THE SIBLING SURFACE WAS WORSE: THE DECK'S TRANSLATIONS WERE CHECKED FOR
+SHAPE AND NEVER FOR CONTENT, so nothing anywhere noticed a sentence that counted
+differently from its own English.** Asking the RULE 7 question — *the two Chinese
+worlds now agree about measure words, what ELSE do they both teach?* — measured
+six shared surfaces: the numbers 一..十 (10/10 shared with her `CN_NUM`), the
+seasons (4/4), five of the twelve zodiac animals, three antonym pairs, two of her
+look-alike `CHAR_PAIRS`, and the measure words already covered. All of them
+AGREE, so the cross-world audit is coverage — but building it surfaced a real
+hole one layer down. The shipped clauses on a translation are *"has English"* and
+*"has no Chinese"*: both are about the SHAPE of the field, and **20 of the 120
+sentences state a quantity with nothing checking a single one of them**, on a
+deck whose first ten cards are 一..十, where being taught that six is seven is
+the exact defect the thing exists to prevent. It is a live risk rather than a
+theoretical one — two of these sentences were rewritten by hand the day before,
+and one of them (口 → 我喝一口水) carries a numeral.
+**Which character is which number is READ from her `CN_NUM` by INDEX**, so the
+expectation cannot be derived from the thing under test and the two worlds cannot
+disagree; M4 swaps 六 and 七 in HER file and the WORD CARDS test goes red, which
+is what proves the link is real rather than a copy.
+**Five things worth keeping, and four are about the instrument rather than the
+product.** (1) **A scan's own pattern, for the twelfth recorded time: 两 is not
+in `CN_NUM`.** It is the form Chinese uses before a measure word (两只手, never
+二只手), so a numeral map built from her array alone silently misses both of its
+uses — and it is declared here with its reason plus a floor asserting the deck
+actually uses it, or the line guards nothing (M8). (2) **AN EXCEPTION THAT SKIPS
+IS A HOLE.** A numeral before 月 is a month name, not a count, and the first cut
+simply `continue`d past it — so 二月 translated as *"March has snow"* would have
+sailed through. Converting the skip into a positive CHECK (the translation must
+name THAT month, derived by the same index) makes the exception falsifiable, and
+M3 fires on exactly that. (3) **An exception must be narrowed so it cannot
+swallow the defect it sits beside.** 一 + a measure word is normally *"a"/"an"*
+in English (7 of the 20), which is grammar rather than a loophole — but only
+where the translation names no OTHER number: with that guard, *"We have two cats
+and a dog at home"* for 一只猫 is caught, and M7b deletes it and the same
+sentence passes. (4) **A clause unfalsifiable on shipped data is proven by an
+input a future author could write.** Numerals are parsed as maximal RUNS, because
+十二 is twelve and not ten-then-two — and no shipped sentence has a two-character
+numeral, so the per-character mutation passed. Injecting 十二只虫 shows the run
+version GREEN and the per-character version RED at *"counts 10 … does not say
+ten"*, which is the find-an-input-that-makes-the-mechanism-observable rule rather
+than widening a tolerance. (5) **The earlier-clause trap again:** narrowing the
+scan to 一/两 fires the `counted >= 15` floor, not the distinct-VALUES floor it
+was aimed at; isolating that one needs a mutation that keeps the count high and
+collapses the values (rewriting four number cards to 一), which reports *"the
+quantities seen were only 1,2,3,4,5,10"*.
+**And two proposed cross-world laws were MEASURED and REFUSED, recorded so nobody
+builds them.** A **zodiac** law is available and is a fence: her `ZODIAC` carries
+an emoji per animal and all five shared characters already match the deck's
+picture exactly — but every one of them has two or three legitimate ≤13.0
+alternatives (牛 🐮/🐄/🐂, 马 🐴/🐎, 羊 🐑/🐐/🐏, 狗 🐶/🐕, 兔 🐰/🐇), so exact
+equality would fire on a correct change, and the weaker "the gloss names the
+animal" form needs a third English table for a surface with no defect. An
+**antonym** law is the same shape one step further out: her file declares the
+PAIRING (大/小) and no meanings, so checking that two glosses are opposites needs
+an English antonym table that exists nowhere — a third owner invented to check
+two that already agree.
+
 ---
 
 ## Repository Structure
