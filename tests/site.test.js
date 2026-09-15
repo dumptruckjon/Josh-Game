@@ -4375,6 +4375,15 @@ test("Word Cards: every word family really rhymes", () => {
     }
   }
   assert.ok(members >= 50, `only ${members} family words — the walk failed open`);
+  // And exactly ONE home each: rimeOf() returns the FIRST family that lists the
+  // word, so a word in two families would have the card underline whichever was
+  // typed first — goat taught as rhyming with cat. Measured clean today; the
+  // mechanism is what makes it worth pinning.
+  const homes = {};
+  for (const [rime, list] of fams) for (const w of list) (homes[w] = homes[w] || []).push(rime);
+  const twice = Object.entries(homes).filter(([, rs]) => rs.length > 1);
+  assert.deepEqual(twice, [],
+    `a word is taught in two families at once: ${twice.map(([w, rs]) => `${w} -> -${rs.join(" / -")}`).join(", ")}`);
 });
 
 test("Word Cards: every sight card's sentence contains its own word", () => {

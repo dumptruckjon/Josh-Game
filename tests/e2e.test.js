@@ -3093,6 +3093,120 @@ test("Word Cards: bossy r is its own lesson, and not a substring match", async (
 });
 
 
+
+test("Word Cards: the families deck underlines the ending it is teaching", async () => {
+  // The families deck's whole lesson is the MARK. Seeing -at in cat, bat, rat
+  // and hat IS the pattern, which is why that deck is grouped rather than
+  // shuffled, and the render's own comment says so. Its sibling — the letter
+  // team's mark — is driven and mutation-proven in the test above; this one was
+  // named by no test at all, so the underline could have stopped painting with
+  // the suite green and Word Families would have quietly become a plain list of
+  // words. Measured before writing: 74 cards, 28 rimes, exactly one correct
+  // mark on every one. So this is COVERAGE, not a fix.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+
+    // Walks a whole reading deck card by card, reporting what the word says,
+    // what is underlined on it, and which family the DATA declares it in.
+    const walk = (name) => pg.evaluate((want) => {
+      const chip = [...document.querySelectorAll("#readGrid .chip")]
+        .find((b) => b.querySelector(".nm").textContent.indexOf(want) >= 0);
+      if (!chip) return { err: `no "${want}" chip on the reading row` };
+      chip.click();
+      const declared = {};
+      for (const [rime, list] of FAMILIES) for (const w of list) declared[w] = rime;
+      const wordEl = document.getElementById("word");
+      const out = [];
+      for (let n = 0; n < deck.length; n++) {
+        const marks = [...wordEl.querySelectorAll(".rime")];
+        const text = wordEl.textContent;
+        out.push({
+          text,
+          marks: marks.map((s) => s.textContent),
+          declared: declared[text] || null,
+        });
+        document.getElementById("next").click();
+      }
+      return { out, members: Object.keys(declared).length, taught: FAMILIES.map((f) => f[0]) };
+    }, name);
+
+    const fam = await walk("Families");
+    assert.ok(!fam.err, fam.err);
+
+    // 1. NON-VACUITY. A walk that visited nothing, or a deck that lost most of
+    //    its rimes, must not read as a pass.
+    assert.ok(fam.out.length >= 50, `only ${fam.out.length} family cards walked`);
+    assert.equal(fam.out.length, fam.members,
+      `the deck deals ${fam.out.length} cards for ${fam.members} declared family words`);
+    const rimes = new Set(fam.out.map((c) => c.declared));
+    assert.ok(rimes.size >= 20, `only ${rimes.size} distinct rimes across the deck`);
+
+    for (const c of fam.out) {
+      assert.ok(c.declared, `"${c.text}" is in the families deck but in no family`);
+      // 2. EVERY card carries exactly one mark — the failure mode is silence.
+      assert.equal(c.marks.length, 1,
+        `"${c.text}" shows ${c.marks.length} underlined endings, not 1`);
+      // 3. And it is the family the word is DECLARED in, which is what
+      //    separates a membership lookup from a suffix match: FAMILIES lists
+      //    -at before -oat and -ar before -ear, so a suffix-first rimeOf marks
+      //    goat as -at and bear as -ar. (The expectation is read from FAMILIES,
+      //    as rimeOf is — that half cannot fail. What it pins is the RENDER,
+      //    and those two words are what make it falsifiable.)
+      assert.equal(c.marks[0], c.declared,
+        `"${c.text}" underlines -${c.marks[0]}, but it is taught in -${c.declared}`);
+    }
+    // (A fourth clause — that the mark is the word's last node — was written
+    // and DELETED: on this data it cannot fail on its own. The card's text is
+    // checked, the mark's text is checked, and a site.test.js clause already
+    // proves every family word ends with its rime, so any mutation that moves
+    // the mark trips one of the three above first. Every mutation tried fired
+    // an earlier clause, which is the definition of decoration here.)
+
+    // 4. GROUPED, not shuffled. The other half of the same lesson: cat-bat-rat
+    //    -hat sitting together is what makes the underline mean anything, and
+    //    start() branches on exactly that. Each family must be ONE unbroken run.
+    const runs = {};
+    let prev = null, order = [];
+    for (const c of fam.out) {
+      if (c.declared !== prev) { order.push(c.declared); prev = c.declared; }
+      runs[c.declared] = (runs[c.declared] || 0) + 1;
+    }
+    const split = [...new Set(order.filter((r, n) => order.indexOf(r) !== n))];
+    assert.deepEqual(split, [],
+      `the families deck is not grouped: -${split.slice(0, 5).join(", -")}` +
+      `${split.length > 5 ? ` and ${split.length - 5} more` : ""} dealt in more than one run`);
+    // ("one run per family" is implied by the clause above — order cannot repeat
+    //  and hold a duplicate — so instead pin the SEQUENCE, which grouping alone
+    //  does not: the families are taught short-a first and a reversed deal
+    //  passes every clause above it.)
+    assert.deepEqual(order, fam.taught,
+      "the families are not dealt in the order they are taught");
+    for (const w of ["goat", "bear"])
+      assert.ok(fam.out.some((c) => c.text === w),
+        `${w} is what makes clause 3 falsifiable and it is no longer in the deck`);
+
+    // 5. CONTROL. First Words is full of the same three-letter words, and must
+    //    show no underline at all — otherwise "mark the last two letters of
+    //    everything" would satisfy every clause above.
+    const first = await walk("First Words");
+    assert.ok(!first.err, first.err);
+    const shared = first.out.filter((c) => c.declared).length;
+    assert.ok(shared >= 3,
+      `only ${shared} First Words cards are family members, so this control proves nothing`);
+    const stray = first.out.filter((c) => c.marks.length);
+    assert.deepEqual(stray.map((c) => c.text), [],
+      "First Words is not a families deck and must underline nothing");
+
+    assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("Word Cards: the Chinese deck teaches a CHARACTER, and says so in Chinese", async () => {
   // The owner asked for the 120 characters of the 第2級總字表 as their own
   // button, working "just like the English game": flip it, hear it, see a

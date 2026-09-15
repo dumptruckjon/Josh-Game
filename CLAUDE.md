@@ -7795,6 +7795,73 @@ PAIRING (大/小) and no meanings, so checking that two glosses are opposites ne
 an English antonym table that exists nowhere — a third owner invented to check
 two that already agree.
 
+**EVERY "ISOLATED" MUTATION RUN IN THIS REPO HAS BEEN RUNNING THE WHOLE FILE —
+`--test-name-pattern` PLACED AFTER THE FILE PATH IS SWALLOWED AS A POSITIONAL
+ARGUMENT AND SILENTLY IGNORED.** Measured on node v22.22.2, on a two-test
+fixture and on the real 122-test `site.test.js`: `node --test file.js
+--test-name-pattern="X"` runs **every** test — a deliberately slow non-matching
+test executes in full, `# skipped 0`, and a non-matching test that FAILS still
+turns the run red — while `node --test --test-name-pattern="X" file.js` reports
+`# tests 1`. This file already records the trap from the other side (*"the
+mutations I ran to 'prove' the fix all passed against
+`--test-name-pattern="outlived"` … node ran the file with zero subtests and
+printed `# tests 1 / # pass 1`"*), which is the CORRECT placement matching
+nothing — so the same command shape has been used both ways here and neither
+announces itself. Three consequences. **No recorded mutation verdict is
+invalidated**, because a swallowed flag means MORE ran, not less — the cost was
+time and the risk was misattribution, so read the `not ok N - <name>` line and
+never infer isolation from the flag. **The tell is now a comparison, not a
+number**: `# tests` must come back SMALLER than the file's total, or the flag
+did not apply. And **for a fast loop, extract instead** — the mutation harness
+here copies the shipped test body out of `tests/e2e.test.js` programmatically,
+asserts it is byte-identical (`body in src`), and runs it in a scratch file
+whose only edit is repointing `require("./helpers")`; five mutations then cost
+seconds each instead of a ~10-minute full e2e run. Nothing shipped uses the
+flag, so this is a habit to fix rather than a code change.
+**What surfaced it: enumerating Word Cards' own functions against the tests
+found the FAMILIES deck's underline driven by nothing.** Thirteen of its 28
+functions are named in no test; twelve are covered behaviourally under another
+name (the name-scan is a PROXY, the `brittleBonus` lesson), and `rimeOf` was
+the one that was not. The families deck's whole lesson is that MARK — seeing
+-at in cat, bat, rat and hat — which is why the deck is grouped rather than
+shuffled, and the render's own comment says so; its sibling, the letter-team
+mark, is driven and mutation-proven one test up. Measured first: 74 cards, 28
+rimes, exactly one correct mark on each, so this is COVERAGE, not a fix.
+**A fourth clause was written and DELETED for being dominated**, which is the
+fifth time here. "The mark is the word's last node" cannot fail on this data:
+the card's text is checked, the mark's text is checked, and a `site.test.js`
+clause already proves every family word ends with its rime, so every mutation
+that moves the mark trips an earlier clause first — the one that reordered the
+DOM made `textContent` read `"atc"` and fired the distinct-rimes floor. It was
+replaced by a claim that CAN fail and that nothing anywhere tested: the deck is
+**GROUPED**, so each family must be dealt as ONE unbroken run — `start()`
+branches on exactly that, and making it shuffle scatters all 28
+families into more than one run each. **A SECOND dominated clause was caught
+the same way, minutes later** — "one run per family" (`order.length ===
+rimes.size`) cannot fail once "no family is split" holds, because a list with
+no duplicates has exactly as many entries as distinct values. It was replaced
+by the SEQUENCE, which grouping alone does not pin: the families are taught
+short-a first, and dealing them REVERSED keeps every run unbroken while
+changing the lesson. Each half is now proven by a mutation the other survives. **The separating inputs are what make the mark clause
+falsifiable at all**: FAMILIES lists -at before -oat and -ar before -ear, so a
+suffix-first `rimeOf` marks **goat** as -at and **bear** as -ar, and the test
+asserts both words are still in the deck so the proof cannot rot away. The
+expectation is read from FAMILIES exactly as `rimeOf` is, and the comment says
+plainly that THAT half cannot fail — what is pinned is the render. One data
+clause rode along, on a measured-clean property with a real mechanism: `rimeOf`
+returns the FIRST family listing a word, so a word declared in two families
+would underline whichever was typed first — goat taught as rhyming with cat.
+**Two neighbouring questions were MEASURED and closed with no change, so nobody
+re-derives them.** The grouping law has no sibling gap: Sound Teams, the 13
+Letter Teams and the 5 Bossy R decks are all `"grouped"` too, but their order is
+`teamWords`' own scaffolding and the letter-team test already pins it
+(`len[k] >= len[k-1]`, short word first) — families was the one grouped deck
+whose order nothing checked. And sweeping Word Cards' inline CSS classes against
+their users — the method that found the fort's `.td-abil--cool` — comes back
+**0 dead, 0 unstyled** across 39 declarations. Its three apparent orphans
+(`hz__key`/`hz__zh`/`hz__en`) are applied through a `line(cls, text)` helper, so
+the scan's own pattern was what reported them, for the thirteenth time.
+
 ---
 
 ## Repository Structure
