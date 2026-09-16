@@ -56,7 +56,7 @@
   #menu{overflow-y:auto;overscroll-behavior:contain;}
   .title{color:#fff;font-size:30px;font-weight:800;margin:6px 0 2px;letter-spacing:.01em;}
   .sub{color:rgba(255,255,255,.5);font-size:16px;font-weight:600;margin-bottom:18px;}
-  .all{
+  .all, .mode{
     /* 76px, not the 70px this shipped at: RULE 5 wants >= 75px for little
        hands, and nothing audited the MENU's taps — only the deck's. */
     width:100%;min-height:76px;border:0;border-radius:26px;background:#fff;color:var(--ink);
@@ -69,8 +69,8 @@
      opacity .90 breaches AA (4.39) and only full ink clears it on all eight.
      These counts were .5 and .55 — 3.35:1 on white and 2.46:1 on purple.
      Hierarchy comes from SIZE and WEIGHT instead, which it already did. */
-  .all small{font-size:16px;font-weight:700;}
-  .all:active{transform:translateY(4px);box-shadow:0 6px 0 rgba(0,0,0,.22);}
+  .all small,.mode small{font-size:16px;font-weight:700;}
+  .all:active,.mode:active{transform:translateY(4px);box-shadow:0 6px 0 rgba(0,0,0,.22);}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:20px;}
   .chip{
     border:0;border-radius:22px;padding:16px 14px;cursor:pointer;font-family:inherit;
@@ -87,7 +87,7 @@
      spoken by the chip's own label instead. */
   .chip.team .ic{font-size:34px;font-weight:900;letter-spacing:.03em;}
   .chip:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
-  .chip:focus-visible,.all:focus-visible{outline:4px solid #fff;outline-offset:3px;}
+  .chip:focus-visible,.all:focus-visible,.mode:focus-visible{outline:4px solid #fff;outline-offset:3px;}
 
   .mhead{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;}
   .home{
@@ -188,8 +188,8 @@
      PingFang SC. Everything that paints a han character carries this face and
      a lang="zh-CN", which is also what gives VoiceOver a Chinese voice on it. */
   :root{ --hz-face:"PingFang SC","Hiragino Sans GB","Heiti SC","Source Han Sans SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif; }
-  .word.hz,.hz__zh,.all.hz b{font-family:var(--hz-face);}
-  .all.hz{background:#FF5A5A;}
+  .word.hz,.hz__zh,.all.hz b,.mode.hz b{font-family:var(--hz-face);}
+  .all.hz,.mode.hz{background:#FF5A5A;}
   /* The back of a hanzi card is THREE runs, not one picture, so the cue shrinks
      to leave them room — and every run is FULL ink. The .7 the sound strip uses
      is only safe because that strip is LARGE text (bar 3.0); these are not, so
@@ -215,7 +215,56 @@
   .nav button:active{transform:scale(.9);background:rgba(255,255,255,.12);}
   .nav button:disabled{opacity:.25;}
 
-  @media (prefers-reduced-motion:reduce){ .card,.fill,.face{transition:none;} .pop{animation:none;} }
+  /* ---------- 写字: the writing pad ----------
+     A third screen rather than a third face of the card: writing is a
+     different task from reading and wants the whole viewport. It borrows the
+     deck's own bar, meter and nav, so every control is where his thumb already
+     expects it. */
+  #write{grid-template-rows:auto auto auto minmax(0,1fr) auto;}
+  .wlabel{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;
+          background:rgba(255,255,255,.10);border-radius:22px;padding:12px 16px;}
+  .wlabel .wpic{font-size:38px;line-height:1;}
+  .wsay{display:grid;grid-template-columns:minmax(0,100%);gap:2px;}
+  /* Full-strength ink, no dimming. This page's own contrast pass found every
+     dimmed run on it below AA, and a pinyin a grown-up reads aloud is no
+     different: hierarchy is size and weight. */
+  .wpy{color:#fff;font-size:21px;font-weight:800;line-height:1.15;}
+  .wmean{color:#fff;font-size:15px;font-weight:700;}
+  .wpadwrap{display:grid;place-items:center;min-height:0;}
+  /* aspect-ratio keeps it square where the browser has it; the min-height is
+     the iOS 14.2 fallback (Safari 14 has no aspect-ratio at all), and because
+     the pad is an SVG with a viewBox the glyph simply letterboxes there rather
+     than collapsing. max-height is what keeps a short landscape phone from
+     pushing the nav off the bottom. */
+  .wpad{width:100%;max-width:440px;aspect-ratio:1/1;min-height:200px;max-height:100%;
+        background:#fff;border-radius:34px;box-shadow:0 12px 0 rgba(0,0,0,.22);
+        touch-action:none;}
+  .wpad:focus-visible{outline:4px solid #fff;outline-offset:6px;}
+  .wguide{stroke:#EDE6F7;stroke-width:7;stroke-dasharray:26 22;}
+  .wghost{fill:rgba(33,18,63,.13);}
+  .wdone{fill:#21123F;}
+  .whintfill{fill:rgba(255,107,87,.20);}
+  /* The marching ants travel from the start of the stroke toward its end, so
+     the hint carries DIRECTION as well as position — half of stroke order. The
+     dot marks where the brush goes down, which is the same "numbered dot over a
+     faint guide" language Letter Maker and 描福字 already taught him. */
+  .wmed{fill:none;stroke:#FF6B57;stroke-width:22;stroke-linecap:round;stroke-linejoin:round;
+        stroke-dasharray:54 46;animation:wmarch 1.05s linear infinite;}
+  .wstart{fill:#FF6B57;}
+  .wtrail{fill:none;stroke:#3FBFEF;stroke-width:26;stroke-linecap:round;stroke-linejoin:round;}
+  .winkin{animation:winkin .42s ease-out;}
+  /* The finished cue greens the INK, not the ghost behind it: on a one-stroke
+     character the ghost is completely covered by the stroke he just wrote, so
+     greening that left 一 looking identical finished and unfinished. */
+  .wpad.done .wdone{fill:#2C7A3F;}
+  .wpad.done{animation:wpop .4s ease-out;}
+  .wpad.nudge{animation:wnudge .34s ease;}
+  @keyframes wmarch{to{stroke-dashoffset:-100;}}
+  @keyframes winkin{from{opacity:0;}to{opacity:1;}}
+  @keyframes wnudge{25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
+  @keyframes wpop{50%{transform:scale(1.03);}}
+  @media (prefers-reduced-motion:reduce){ .card,.fill,.face{transition:none;} .pop{animation:none;}
+    .wmed,.winkin,.wpad.nudge,.wpad.done{animation:none;} }
 </style>
 </head>
 <body>
@@ -242,6 +291,43 @@
   </div>
 </div>
 
+<div class="wrap hidden" id="write">
+  <div class="bar">
+    <button class="back" id="wback" aria-label="Back to all the decks">&lsaquo;&nbsp; Writing</button>
+    <button class="icon" id="wsound" aria-pressed="false" aria-label="Say each character out loud">&#128263;</button>
+    <button class="icon" id="wshow" aria-label="Show me how to write this stroke">&#9997;&#65039;</button>
+  </div>
+  <div class="meter">
+    <div class="track"><div class="fill" id="wfill"></div></div>
+    <span class="count" id="wcount">1 / 120</span>
+  </div>
+  <div class="wlabel">
+    <span class="wpic" id="wpic" aria-hidden="true">&#128049;</span>
+    <span class="wsay"><span class="wpy" id="wpy"></span><span class="wmean" id="wmean"></span></span>
+  </div>
+  <div class="wpadwrap">
+    <svg class="wpad" id="wpad" viewBox="0 0 1024 1024" role="img" aria-label="Writing pad">
+      <g class="wguide" aria-hidden="true">
+        <line x1="512" y1="44" x2="512" y2="980"/>
+        <line x1="44" y1="512" x2="980" y2="512"/>
+      </g>
+      <!-- The stroke data is authored in a 1024 box with y running UPWARD, so
+           ONE transform flips the whole glyph and every coordinate below stays
+           in the data's own space. Nothing hand-flips a number. -->
+      <g id="wglyph" transform="translate(0,900) scale(1,-1)">
+        <g id="wghost" class="wghost"></g>
+        <g id="wdone" class="wdone"></g>
+        <g id="whint"></g>
+        <path id="wtrail" class="wtrail"></path>
+      </g>
+    </svg>
+  </div>
+  <div class="nav">
+    <button id="wprev" aria-label="Character before">&lsaquo;</button>
+    <button id="wnext" aria-label="Next character">&rsaquo;</button>
+  </div>
+</div>
+
 <div class="wrap" id="menu">
   <div class="mhead">
     <a class="home" href="./#home" aria-label="Back to Josh's Games">&#127968;</a>
@@ -260,6 +346,10 @@
        this page. -->
   <h2 class="sect">Chinese</h2>
   <button class="all hz" id="hanziBtn"><span><b lang="zh-CN">&#20013;&#25991;</b> Chinese Characters</span> <small></small></button>
+  <!-- `.mode`, not `.all`: `.all` means "opens a whole-library card DECK" to two
+       derived test walks, and this opens the writing pad instead. It takes the
+       same style and none of the meaning. -->
+  <button class="mode hz" id="writeBtn"><span><b lang="zh-CN">&#20889;&#23383;</b> Write Characters</span> <small></small></button>
   <h2 class="sect">Letter teams</h2>
   <div class="grid" id="teamGrid"></div>
   <h2 class="sect">Bossy R</h2>
@@ -269,6 +359,7 @@
   <div class="grid" id="grid"></div>
 </div>
 
+<script src="scripts/hanzi-strokes.js?v=__BUILD__"></script>
 <script>
 const WORDS = [["cat","🐱","animals"],["dog","🐶","animals"],["pig","🐷","animals"],["cow","🐄","animals"],["hen","🐔","animals"],["fox","🦊","animals"],["bug","🐛","animals"],["bee","🐝","animals"],["owl","🦉","animals"],["bat","🦇","animals"],["ant","🐜","animals"],["rat","🐀","animals"],["ram","🐏","animals"],["ape","🦍","animals"],["pup","🐕","animals"],["fish","🐟","animals"],["frog","🐸","animals"],["duck","🦆","animals"],["bird","🐦","animals"],["bear","🐻","animals"],["lion","🦁","animals"],["goat","🐐","animals"],["crab","🦀","animals"],["wolf","🐺","animals"],["deer","🦌","animals"],["swan","🦢","animals"],["seal","🦭","animals"],["worm","🪱","animals"],["dove","🕊️","animals"],["bull","🐂","animals"],["hare","🐇","animals"],["horse","🐴","animals"],["mouse","🐭","animals"],["sheep","🐑","animals"],["tiger","🐯","animals"],["whale","🐳","animals"],["snake","🐍","animals"],["zebra","🦓","animals"],["panda","🐼","animals"],["koala","🐨","animals"],["camel","🐫","animals"],["llama","🦙","animals"],["otter","🦦","animals"],["skunk","🦨","animals"],["sloth","🦥","animals"],["shark","🦈","animals"],["snail","🐌","animals"],["eagle","🦅","animals"],["chick","🐤","animals"],["monkey","🐵","animals"],["rabbit","🐰","animals"],["turtle","🐢","animals"],["spider","🕷️","animals"],["parrot","🦜","animals"],["beaver","🦫","animals"],["lizard","🦎","animals"],["penguin","🐧","animals"],["dolphin","🐬","animals"],["giraffe","🦒","animals"],["hamster","🐹","animals"],["peacock","🦚","animals"],["octopus","🐙","animals"],["elephant","🐘","animals"],["kangaroo","🦘","animals"],["squirrel","🐿️","animals"],["egg","🥚","food"],["pie","🥧","food"],["tea","🍵","food"],["ham","🍖","food"],["nut","🥜","food"],["cup","🥤","food"],["cake","🍰","food"],["milk","🥛","food"],["corn","🌽","food"],["rice","🍚","food"],["soup","🍲","food"],["meat","🥩","food"],["pear","🍐","food"],["salt","🧂","food"],["taco","🌮","food"],["apple","🍎","food"],["bread","🍞","food"],["grape","🍇","food"],["lemon","🍋","food"],["peach","🍑","food"],["pizza","🍕","food"],["candy","🍬","food"],["juice","🧃","food"],["honey","🍯","food"],["salad","🥗","food"],["melon","🍈","food"],["mango","🥭","food"],["olive","🫒","food"],["donut","🍩","food"],["water","💧","food"],["onion","🧅","food"],["berry","🫐","food"],["cherry","🍒","food"],["banana","🍌","food"],["carrot","🥕","food"],["tomato","🍅","food"],["cookie","🍪","food"],["potato","🥔","food"],["cheese","🧀","food"],["butter","🧈","food"],["garlic","🧄","food"],["waffle","🧇","food"],["noodle","🍜","food"],["pepper","🌶️","food"],["cupcake","🧁","food"],["popcorn","🍿","food"],["pancake","🥞","food"],["pretzel","🥨","food"],["red","🟥","colors"],["blue","🟦","colors"],["pink","🎀","colors"],["green","🟩","colors"],["black","⬛","colors"],["white","⬜","colors"],["brown","🟫","colors"],["orange","🟧","colors"],["yellow","🟨","colors"],["purple","🟪","colors"],["rainbow","🌈","colors"],["zero","0️⃣","numbers"],["one","1️⃣","numbers"],["two","2️⃣","numbers"],["three","3️⃣","numbers"],["four","4️⃣","numbers"],["five","5️⃣","numbers"],["six","6️⃣","numbers"],["seven","7️⃣","numbers"],["eight","8️⃣","numbers"],["nine","9️⃣","numbers"],["ten","🔟","numbers"],["first","🥇","numbers"],["second","🥈","numbers"],["third","🥉","numbers"],["ear","👂","body"],["eye","👁️","body"],["leg","🦵","body"],["hand","✋","body"],["foot","🦶","body"],["nose","👃","body"],["feet","👣","body"],["face","😀","body"],["bone","🦴","body"],["tooth","🦷","body"],["tongue","👅","body"],["finger","👆","body"],["mouth","👄","body"],["brain","🧠","body"],["heart","❤️","body"],["bed","🛏️","home"],["box","📦","home"],["mug","☕","home"],["key","🔑","home"],["pan","🍳","home"],["tub","🛁","home"],["door","🚪","home"],["bell","🔔","home"],["sofa","🛋️","home"],["sink","🚰","home"],["soap","🧼","home"],["fork","🍴","home"],["bowl","🥣","home"],["wall","🧱","home"],["plate","🍽️","home"],["spoon","🥄","home"],["knife","🔪","home"],["chair","🪑","home"],["clock","🕐","home"],["house","🏠","home"],["broom","🧹","home"],["phone","📱","home"],["light","💡","home"],["window","🪟","home"],["mirror","🪞","home"],["ladder","🪜","home"],["candle","🕯️","home"],["bucket","🪣","home"],["hammer","🔨","home"],["sun","☀️","nature"],["ice","🧊","nature"],["log","🪵","nature"],["web","🕸️","nature"],["star","⭐","nature"],["moon","🌙","nature"],["tree","🌳","nature"],["leaf","🍃","nature"],["rain","🌧️","nature"],["snow","❄️","nature"],["fire","🔥","nature"],["rock","🪨","nature"],["wind","🌬️","nature"],["wave","🌊","nature"],["seed","🌱","nature"],["hole","🕳️","nature"],["cloud","☁️","nature"],["grass","🌿","nature"],["beach","🏖️","nature"],["river","🏞️","nature"],["storm","⛈️","nature"],["plant","🪴","nature"],["earth","🌍","nature"],["flower","🌸","nature"],["island","🏝️","nature"],["desert","🏜️","nature"],["bus","🚌","vehicles"],["car","🚗","vehicles"],["jet","✈️","vehicles"],["van","🚐","vehicles"],["bike","🚲","vehicles"],["boat","⛵","vehicles"],["ship","🚢","vehicles"],["sled","🛷","vehicles"],["cart","🛒","vehicles"],["taxi","🚕","vehicles"],["train","🚂","vehicles"],["truck","🚚","vehicles"],["canoe","🛶","vehicles"],["ferry","⛴️","vehicles"],["rocket","🚀","vehicles"],["subway","🚇","vehicles"],["scooter","🛴","vehicles"],["tractor","🚜","vehicles"],["trolley","🚋","vehicles"],["ambulance","🚑","vehicles"],["run","🏃","verbs"],["cry","😢","verbs"],["hug","🤗","verbs"],["jump","🤸","verbs"],["walk","🚶","verbs"],["swim","🏊","verbs"],["read","📖","verbs"],["sing","🎤","verbs"],["ride","🚴","verbs"],["cook","👩‍🍳","verbs"],["talk","💬","verbs"],["help","🤝","verbs"],["hold","🤲","verbs"],["stop","🛑","verbs"],["clap","👏","verbs"],["find","🔍","verbs"],["climb","🧗","verbs"],["dance","💃","verbs"],["sleep","😴","verbs"],["laugh","😂","verbs"],["write","✍️","verbs"],["paint","🎨","verbs"],["hot","🥵","describe"],["sad","☹️","describe"],["mad","😠","describe"],["fun","🎉","describe"],["fast","🏎️","describe"],["loud","📢","describe"],["cold","🥶","describe"],["dark","🌑","describe"],["good","👍","describe"],["kind","💗","describe"],["quiet","🤫","describe"],["happy","😄","describe"],["funny","🤣","describe"],["sleepy","🥱","describe"],["strong","💪","describe"],["mom","👩","people"],["dad","👨","people"],["boy","👦","people"],["kid","🧒","people"],["girl","👧","people"],["baby","👶","people"],["firefighter","👨‍🚒","people"],["family","👨‍👩‍👧","people"],["doctor","👩‍⚕️","people"],["farmer","👩‍🌾","people"],["people","👥","people"],["grandma","👵","people"],["grandpa","👴","people"],["teacher","👩‍🏫","people"],["hat","🎩","clothes"],["cap","🧢","clothes"],["tie","👔","clothes"],["sock","🧦","clothes"],["shoe","👟","clothes"],["coat","🧥","clothes"],["boot","🥾","clothes"],["ring","💍","clothes"],["vest","🦺","clothes"],["shirt","👕","clothes"],["pants","👖","clothes"],["dress","👗","clothes"],["scarf","🧣","clothes"],["glove","🧤","clothes"],["shorts","🩳","clothes"],["sandals","🩴","clothes"],["pen","🖊️","play"],["ball","⚽","play"],["book","📕","play"],["game","🎮","play"],["doll","🪆","play"],["kite","🪁","play"],["drum","🥁","play"],["teddy","🧸","play"],["robot","🤖","play"],["paper","📄","play"],["ruler","📏","play"],["puzzle","🧩","play"],["crayon","🖍️","play"],["pencil","✏️","play"],["guitar","🎸","play"],["bubble","🔵","play"],["castle","🏰","play"],["balloon","🎈","play"],["a","a big dog","sight"],["I","I can run","sight"],["is","the sun is hot","sight"],["it","it is fun","sight"],["in","in the box","sight"],["at","at my house","sight"],["on","on the bed","sight"],["to","go to bed","sight"],["up","jump up high","sight"],["we","we can play","sight"],["he","he is my dad","sight"],["be","be my friend","sight"],["do","do it now","sight"],["go","go and play","sight"],["no","no more cake","sight"],["so","so much fun","sight"],["of","a cup of milk","sight"],["or","red or blue","sight"],["as","as big as me","sight"],["an","an old hat","sight"],["if","if you want","sight"],["us","come with us","sight"],["am","I am four","sight"],["by","sit by me","sight"],["my","my little cat","sight"],["me","give it to me","sight"],["the","the dog ran","sight"],["and","you and me","sight"],["was","it was fun","sight"],["are","we are happy","sight"],["you","you can do it","sight"],["for","for my mom","sight"],["all","all the toys","sight"],["but","small but strong","sight"],["not","not too hot","sight"],["had","I had one","sight"],["his","his blue hat","sight"],["her","her red shoe","sight"],["has","she has a dog","sight"],["him","play with him","sight"],["she","she is kind","sight"],["they","they are here","sight"],["this","this is mine","sight"],["that","that one","sight"],["with","with my dad","sight"],["hut","🛖","home"],["lock","🔒","home"],["hook","🪝","home"],["bolt","🔩","home"],["saw","🪚","home"],["axe","🪓","home"],["wrench","🔧","home"],["magnet","🧲","home"],["sponge","🧽","home"],["shower","🚿","home"],["basket","🧺","home"],["trash","🗑️","home"],["battery","🔋","home"],["compass","🧭","home"],["scissors","✂️","home"],["pin","📌","home"],["envelope","✉️","home"],["mailbox","📫","home"],["cucumber","🥒","food"],["strawberry","🍓","food"],["kiwi","🥝","food"],["pineapple","🍍","food"],["coconut","🥥","food"],["avocado","🥑","food"],["mushroom","🍄","food"],["bagel","🥯","food"],["burger","🍔","food"],["fries","🍟","food"],["sandwich","🥪","food"],["pasta","🍝","food"],["sushi","🍣","food"],["chocolate","🍫","food"],["broccoli","🥦","food"],["lettuce","🥬","food"],["lollipop","🍭","food"],["butterfly","🦋","animals"],["ladybug","🐞","animals"],["beetle","🪲","animals"],["cricket","🦗","animals"],["mosquito","🦟","animals"],["flamingo","🦩","animals"],["rooster","🐓","animals"],["turkey","🦃","animals"],["shrimp","🦐","animals"],["lobster","🦞","animals"],["squid","🦑","animals"],["shell","🐚","animals"],["hedgehog","🦔","animals"],["badger","🦡","animals"],["crocodile","🐊","animals"],["dinosaur","🦕","animals"],["bison","🦬","animals"],["feather","🪶","animals"],["cactus","🌵","nature"],["sunflower","🌻","nature"],["rose","🌹","nature"],["clover","🍀","nature"],["tulip","🌷","nature"],["volcano","🌋","nature"],["umbrella","☂️","nature"],["planet","🪐","nature"],["comet","☄️","nature"],["lightning","⚡","nature"],["snowman","⛄","nature"],["tent","⛺","nature"],["helicopter","🚁","vehicles"],["anchor","⚓","vehicles"],["flag","🚩","vehicles"],["glasses","👓","clothes"],["backpack","🎒","clothes"],["crown","👑","clothes"],["gift","🎁","play"],["dice","🎲","play"],["camera","📷","play"],["piano","🎹","play"],["trumpet","🎺","play"],["violin","🎻","play"],["skateboard","🛹","play"],["basketball","🏀","play"],["tennis","🎾","play"],["bowling","🎳","play"],["trophy","🏆","play"],["ticket","🎫","play"],["telescope","🔭","play"],["gem","💎","play"],["prince","🤴","magic"],["wizard","🧙","magic"],["elf","🧝","magic"],["fairy","🧚","magic"],["mermaid","🧜","magic"],["ghost","👻","magic"],["alien","👽","magic"],["dragon","🐉","magic"],["unicorn","🦄","magic"],["money","💵","play"],["coin","🪙","play"],["bandage","🩹","body"],["eyes","👀","body"],["map","🗺️","play"],["bag","👜","clothes"],["can","🥫","food"],["police","👮","people"],["pilot","👨‍✈️","people"],["artist","👨‍🎨","people"],["singer","👩‍🎤","people"],["astronaut","👨‍🚀","people"],["builder","👷","people"],["ninja","🥷","people"],["beard","🧔","body"],["lungs","🫁","body"],["scared","😨","describe"],["silly","🤪","describe"],["sick","🤒","describe"],["cool","😎","describe"],["smile","😊","verbs"],["wink","😉","verbs"],["point","👉","verbs"],["think","🤔","verbs"],["kiss","😘","verbs"],["lift","🏋️","verbs"],["surf","🏄","verbs"],["ski","⛷️","verbs"],["skate","⛸️","verbs"],["juggle","🤹","verbs"],["motorbike","🏍️","vehicles"],["ufo","🛸","vehicles"],["parachute","🪂","vehicles"],["siren","🚨","vehicles"],["toilet","🚽","home"],["radio","📻","home"],["tv","📺","home"],["laptop","💻","home"],["watch","⌚","home"],["thread","🧵","home"],["yarn","🧶","home"],["chain","⛓️","home"],["knot","🪢","home"],["darts","🎯","play"],["yoyo","🪀","play"],["medal","🏅","play"],["mountain","⛰️","nature"],["maple","🍁","nature"],["burrito","🌯","food"],["bacon","🥓","food"],["pudding","🍮","food"]];
 const CATS  = [{"key":"animals","label":"Animals","icon":"🐶","color":"#FF9F1C"},{"key":"food","label":"Food","icon":"🍎","color":"#FF6B57"},{"key":"colors","label":"Colors","icon":"🎨","color":"#A46BFF"},{"key":"numbers","label":"Numbers","icon":"🔢","color":"#3FBFEF"},{"key":"body","label":"My Body","icon":"✋","color":"#FF7BB0"},{"key":"home","label":"At Home","icon":"🏠","color":"#2EC4A6"},{"key":"nature","label":"Outside","icon":"🌳","color":"#57C64A"},{"key":"vehicles","label":"Things That Go","icon":"🚗","color":"#FFC93C"},{"key":"verbs","label":"Doing Words","icon":"🏃","color":"#FF6B57"},{"key":"describe","label":"Describing Words","icon":"🌈","color":"#3FBFEF"},{"key":"people","label":"People","icon":"👩‍🏫","color":"#A46BFF"},{"key":"clothes","label":"Clothes","icon":"👕","color":"#FF7BB0"},{"key":"play","label":"Play & School","icon":"🧸","color":"#57C64A"},{"key":"magic","label":"Make Believe","icon":"🦄","color":"#FF9F1C"}];
@@ -936,10 +1027,15 @@ soundBtn.addEventListener("click", () => {
   if (soundOn) speak.apply(null, deck.length ? cardSpeech(deck[i]) : ["hello", null]);
   else try { speechSynthesis.cancel(); } catch (e) {}
 });
+// Two screens show a sound toggle and there is ONE piece of state behind them.
+// Painting both here is what stops the writing pad's button saying "off" while
+// the deck's says "on" — a second `soundOn` would be two owners of one fact.
 function paintSound(){
-  soundBtn.innerHTML = soundOn ? "&#128266;" : "&#128263;";
-  soundBtn.setAttribute("aria-pressed", soundOn ? "true" : "false");
-  soundBtn.classList.toggle("on", soundOn);
+  for (const b of [soundBtn, $("wsound")]){
+    b.innerHTML = soundOn ? "&#128266;" : "&#128263;";
+    b.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    b.classList.toggle("on", soundOn);
+  }
 }
 paintSound();
 
@@ -951,7 +1047,223 @@ $("shuffle").addEventListener("click", () => {
   i = 0; saveAt(); unflipInstantly(); render(true);
 });
 
+/* ---------- 写字: writing practice ----------
+   The flash deck teaches him to READ these 120 characters; this teaches him to
+   WRITE them, and in Chinese that means stroke ORDER — taught from the first
+   day of school, and a habit that has to be untaught if it is learned wrong.
+   So the order is not decoration: the pad refuses a stroke drawn out of turn,
+   backwards, or in the wrong place, and shows the hint again.
+
+   No-fail, per RULE 5. A refused stroke costs nothing, and after three tries
+   the pad simply writes it for him and moves on: there is no score, no timer
+   and no way to get stuck.
+
+   The data is scripts/hanzi-strokes.js — see its header for provenance and
+   licence. It is authored in a 1024 box with y running UPWARD, which is what
+   #wglyph's one transform handles; every coordinate here is in the DATA's
+   space, so nothing flips a number by hand. */
+const STROKES = window.HANZI_STROKES || {};
+
+/* Easiest first, DERIVED from the data rather than a hand-written ladder: 一
+   is one stroke and 蝴 is fifteen, so the printed table order would put a
+   15-stroke character in front of a four-year-old on card ten. A tie keeps the
+   table's own order, so the ladder is stable and a character cannot move
+   because two of them happen to compare equal. */
+function strokesOf(ch){ const d = STROKES[ch]; return d && d.s ? d.s.length : 0; }
+function writeDeck(){
+  return HANZI.map((row, n) => [row, n])
+              .sort((a, b) => strokesOf(a[0][0]) - strokesOf(b[0][0]) || a[1] - b[1])
+              .map((p) => p[0]);
+}
+
+/* How close is this finger path to that stroke? The mean distance from each
+   point of the stroke's centre-line to the nearest point he drew, plus the two
+   ENDPOINTS — and the endpoints are what make a stroke drawn backwards
+   expensive, because direction is half of stroke order. */
+function d2(a, b){ const x = a[0] - b[0], y = a[1] - b[1]; return x * x + y * y; }
+function traceCost(path, med){
+  if (!path.length || !med.length) return Infinity;
+  let sum = 0;
+  for (const m of med){
+    let best = Infinity;
+    for (const p of path){ const d = d2(m, p); if (d < best) best = d; }
+    sum += Math.sqrt(best);
+  }
+  return sum / med.length +
+    (Math.sqrt(d2(path[0], med[0])) + Math.sqrt(d2(path[path.length - 1], med[med.length - 1]))) / 2;
+}
+/* A stroke counts when it is BOTH near enough in absolute terms and a better
+   match than every other stroke in the same character. That comparison is what
+   makes the tolerance self-scaling — a character whose strokes crowd together
+   is judged tightly and one whose strokes are far apart loosely — so there is
+   no per-character constant to tune, and tracing stroke 2 while stroke 1 is
+   being asked for is refused however neatly it is drawn. */
+const TRACE_TOL = 210;
+function judgeStroke(path, meds, want){
+  const mine = traceCost(path, meds[want]);
+  if (!(mine <= TRACE_TOL)) return false;
+  for (let k = 0; k < meds.length; k++) if (k !== want && traceCost(path, meds[k]) < mine) return false;
+  return true;
+}
+
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs){
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+const writeEl = $("write"), wpad = $("wpad"), wglyph = $("wglyph"), wghost = $("wghost"),
+      wdoneEl = $("wdone"), whint = $("whint"), wtrail = $("wtrail");
+let wDeck = [], wi = 0, wStep = 0, wMiss = 0, wPath = [], wPid = null, wLock = false;
+
+function wCard(){ return wDeck[wi] || null; }
+function wData(){ const c = wCard(); return c ? STROKES[c[0]] : null; }
+function wSpeak(){ const c = wCard(); if (c) speak.apply(null, cardSpeech(c)); }
+
+function wRender(){
+  const c = wCard(), d = wData();
+  wghost.textContent = ""; wdoneEl.textContent = ""; whint.textContent = "";
+  wtrail.setAttribute("d", "");
+  wpad.classList.remove("done");
+  if (!c || !d) return;
+  for (const p of d.s) wghost.appendChild(svgEl("path", { d: p }));
+  for (let k = 0; k < wStep; k++) wdoneEl.appendChild(svgEl("path", { d: d.s[k] }));
+  if (wStep < d.s.length){
+    const med = d.m[wStep];
+    whint.appendChild(svgEl("path", { d: d.s[wStep], class: "whintfill" }));
+    whint.appendChild(svgEl("polyline", { class: "wmed", points: med.map((p) => p.join(",")).join(" ") }));
+    whint.appendChild(svgEl("circle", { class: "wstart", cx: med[0][0], cy: med[0][1], r: 28 }));
+  } else {
+    wpad.classList.add("done");
+  }
+  $("wpic").textContent = c[1];
+  $("wpy").textContent = c[3];
+  $("wmean").textContent = c[4];
+  $("wcount").textContent = (wi + 1) + " / " + wDeck.length;
+  $("wfill").style.width = Math.max(1, Math.round(((wi + 1) / wDeck.length) * 100)) + "%";
+  // An explicit label REPLACES the content for assistive tech, so everything
+  // that matters has to be IN it: which character this is and how far through
+  // it he is. The pad is a drawing surface, but ✍ completes a stroke on its
+  // own, so there is a real path through a character without dragging at all.
+  wpad.setAttribute("aria-label", c[0] + ", " + c[3] + ", " + c[4] + ". " +
+    (wStep >= d.s.length ? "finished — all " + d.s.length + " strokes written."
+                         : "stroke " + (wStep + 1) + " of " + d.s.length + "."));
+}
+
+function wInk(){
+  const d = wData(); if (!d) return;
+  wStep += 1; wMiss = 0; wPath = [];
+  wRender();
+  if (wStep >= d.s.length) wSpeak();
+}
+/* ONE owner for "write this stroke for him": the ✍ button, the three-miss
+   rescue, and the only way through a character for anyone who cannot drag. */
+function wShow(){
+  const d = wData();
+  if (!d || wLock || wStep >= d.s.length) return;
+  wLock = true;
+  wdoneEl.appendChild(svgEl("path", { d: d.s[wStep], class: "winkin" }));
+  whint.textContent = "";
+  setTimeout(() => {
+    wLock = false;
+    // route() only HIDES a screen, so a timer that fires after he has left
+    // would ink a stroke onto a character nobody is looking at.
+    if (!writeEl.classList.contains("hidden")) wInk();
+  }, 420);
+}
+function wGo(step){
+  if (!wDeck.length) return;
+  wi = (wi + step + wDeck.length) % wDeck.length;
+  wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false;
+  try { localStorage.setItem("wc-write-at", String(wi)); } catch (e) {}
+  wRender();
+  wSpeak();
+}
+
+function wPt(ev){
+  const m = wglyph.getScreenCTM();
+  if (!m) return null;
+  const p = wpad.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+  const q = p.matrixTransform(m.inverse());
+  return [q.x, q.y];
+}
+function wPaint(){
+  wtrail.setAttribute("d", wPath.length ? "M " + wPath.map((p) => p[0] + " " + p[1]).join(" L ") : "");
+}
+wpad.addEventListener("pointerdown", (ev) => {
+  const d = wData();
+  if (!d || wLock || wStep >= d.s.length) return;
+  if (wPid !== null) return;   // multi-touch forgiveness: the first finger decides
+  const pt = wPt(ev); if (!pt) return;
+  wPid = ev.pointerId;
+  try { wpad.setPointerCapture(wPid); } catch (e) {}
+  wPath = [pt]; wPaint();
+  ev.preventDefault();
+});
+wpad.addEventListener("pointermove", (ev) => {
+  if (wPid === null || ev.pointerId !== wPid) return;
+  const pt = wPt(ev); if (!pt) return;
+  const last = wPath[wPath.length - 1];
+  // ~20 units of a 1024 box. Fine enough to follow a curve, coarse enough that
+  // scoring stays cheap on a 15-stroke character.
+  if (last && d2(last, pt) < 400) return;
+  wPath.push(pt); wPaint();
+});
+function wEnd(ev){
+  if (wPid === null || ev.pointerId !== wPid) return;
+  try { wpad.releasePointerCapture(wPid); } catch (e) {}
+  wPid = null;
+  const d = wData();
+  const path = wPath; wPath = []; wPaint();
+  if (!d || wStep >= d.s.length) return;
+  if (judgeStroke(path, d.m, wStep)){ wInk(); return; }
+  wMiss += 1;
+  wpad.classList.remove("nudge");
+  wpad.getBoundingClientRect();          // restart the nudge on a doubled miss
+  wpad.classList.add("nudge");
+  setTimeout(() => wpad.classList.remove("nudge"), 420);
+  if (wMiss >= 3) wShow();
+}
+wpad.addEventListener("pointerup", wEnd);
+wpad.addEventListener("pointercancel", wEnd);
+
+$("wshow").addEventListener("click", wShow);
+$("wnext").addEventListener("click", () => wGo(1));
+$("wprev").addEventListener("click", () => wGo(-1));
+$("wsound").addEventListener("click", () => {
+  soundOn = !soundOn;
+  try { localStorage.setItem("wc-sound", soundOn ? "1" : "0"); } catch (e) {}
+  paintSound();
+  if (soundOn) wSpeak();
+  else try { speechSynthesis.cancel(); } catch (e) {}
+});
+$("wback").addEventListener("click", () => {
+  writeEl.classList.add("hidden");
+  menu.classList.remove("hidden");
+  try { speechSynthesis.cancel(); } catch (e) {}
+});
+$("writeBtn").querySelector("small").textContent = HANZI.length + " characters";
+$("writeBtn").addEventListener("click", () => {
+  wDeck = writeDeck();
+  // Same reasoning as the flash deck: a stable order is only worth having if
+  // you can carry on from where you stopped.
+  wi = 0;
+  try {
+    const v = parseInt(localStorage.getItem("wc-write-at"), 10);
+    if (v >= 0 && v < wDeck.length - 1) wi = v;
+  } catch (e) {}
+  wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false;
+  menu.classList.add("hidden");
+  writeEl.classList.remove("hidden");
+  wRender();
+});
+
 document.addEventListener("keydown", e => {
+  if (!writeEl.classList.contains("hidden")){
+    if (e.key === "ArrowRight") wGo(1);
+    if (e.key === "ArrowLeft")  wGo(-1);
+    return;
+  }
   if (deckEl.classList.contains("hidden")) return;
   if (e.key === "ArrowRight") go(1);
   if (e.key === "ArrowLeft")  go(-1);

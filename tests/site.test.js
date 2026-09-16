@@ -119,14 +119,25 @@ test("service worker precaches every script + css + index", () => {
   // the app booting as a dead shell offline. Every same-origin thing the page
   // links must be precached; measured at 30 entries with none missing, so this
   // is a tightening of a passing check rather than a newly-blocked build.
-  const linked = new Set([...read("index.html").matchAll(/(?:href|src)="(?!https?:|#|data:|\/\/)([^"?]+)/g)]
-    .map((m) => m[1].replace(/^\.\//, "")).filter((u) => u && !u.startsWith("#")));
+  // …and the population is EVERY shipped page, not index.html alone. That was
+  // complete only by accident: wordcards.html shipped for months with every
+  // asset inline, so a scan of index.html happened to cover the whole app — and
+  // went blind the moment a second page linked anything of its own. Same class
+  // as the VS16 scan's nine hand-listed files and the flex-gap law guarding one
+  // stylesheet, which is why the file list is derived here too.
+  const linked = new Set();
+  for (const f of PAGES) {
+    const hits = [...read(f).matchAll(/(?:href|src)="(?!https?:|#|data:|\/\/)([^"?]+)/g)]
+      .map((m) => m[1].replace(/^\.\//, "")).filter((u) => u && !u.startsWith("#"));
+    assert.ok(hits.length >= 1, `${f} links nothing at all — the page-asset scan cannot be right`);
+    for (const u of hits) linked.add(u);
+  }
   assert.ok(linked.size >= 25, `the page-asset scan must find the links (saw ${linked.size})`);
-  for (const u of [...linked, "index.html"]) {
+  for (const u of [...linked, ...PAGES]) {
     assert.ok(core.includes(u), `SW CORE is missing ${u} — offline it 404s to the HTML fallback and the app boots as a dead shell`);
   }
   // …and the derivation must still cover what the hand list covered.
-  for (const s of [...SCRIPTS, "styles/main.css", "styles/td.css"]) {
+  for (const s of [...SCRIPTS, "styles/main.css", "styles/td.css", "scripts/hanzi-strokes.js"]) {
     assert.ok(linked.has(s), `the derived link set lost ${s} — a broken regex here silently empties this whole check`);
   }
   assert.match(sw, /addEventListener\(\s*["']fetch["']/, "SW needs a fetch handler");
@@ -4875,10 +4886,126 @@ test("Word Cards: the Chinese characters stay OUT of every English derivation", 
   const bare = src.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
                   .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
   const uses = (bare.match(/\bHANZI\b/g) || []).length;
-  assert.equal(uses, 3,
+  assert.equal(uses, 5,
     `HANZI is referenced ${uses} times; it may only be declared, counted for its own ` +
-    "button, and handed to that button's start() — a seventh derivation reading it is " +
-    "how a han character gets into a phonics deck");
+    "reading button and handed to that button's start(), and counted for the WRITING " +
+    "button and handed to writeDeck() — a sixth derivation reading it is how a han " +
+    "character gets into a phonics deck. This count is the weak structural sibling of " +
+    "\"the Chinese characters stay OUT of every English derivation\", which is the claim; " +
+    "raise it only for a reader that is Chinese-only, and check that test still passes.");
+});
+
+test("Word Cards: every character he WRITES has real stroke-order data", () => {
+  // Writing a character in Chinese means writing its strokes in the right
+  // ORDER — taught from the first day of school, and a habit that has to be
+  // untaught if it is learned wrong. So the writing pad cannot invent this:
+  // it reads scripts/hanzi-strokes.js, and a character with no entry there
+  // would open a pad that can never be finished.
+  const src = read("scripts/hanzi-strokes.js");
+  const win = {};
+  new Function("window", src)(win);
+  const S = win.HANZI_STROKES;
+  assert.ok(S && typeof S === "object", "hanzi-strokes.js must set window.HANZI_STROKES");
+
+  const chars = wcHanzi().map((r) => r[0]);
+  assert.ok(chars.length >= 100, `only ${chars.length} characters parsed — this check would be vacuous`);
+
+  const missing = chars.filter((c) => !S[c]);
+  assert.deepEqual(missing, [],
+    `these characters are in the deck with no stroke data, so the writing pad could never finish them: ${missing.join(" ")}`);
+
+  // The file is GENERATED from the deck, so it must also hold nothing else: a
+  // stray character is 2KB of dead weight shipped to a phone, and a sign the
+  // generator and the deck have come apart.
+  const extra = Object.keys(S).filter((c) => !chars.includes(c));
+  assert.deepEqual(extra, [], `stroke data for characters the deck does not teach: ${extra.join(" ")}`);
+
+  let strokes = 0;
+  for (const c of chars) {
+    const d = S[c];
+    assert.ok(Array.isArray(d.s) && d.s.length, `${c} has no stroke outlines`);
+    // One median per outline, or the pad hints at a stroke it cannot judge.
+    assert.equal(d.m.length, d.s.length,
+      `${c} has ${d.s.length} outlines and ${d.m.length} centre-lines — the pad hints from m and inks from s, so they must pair`);
+    for (let k = 0; k < d.s.length; k++) {
+      assert.match(d.s[k], /^M[\s\d]/, `${c} stroke ${k + 1} is not an SVG path`);
+      assert.ok(d.m[k].length >= 1, `${c} stroke ${k + 1} has an empty centre-line`);
+      for (const pt of d.m[k]) {
+        assert.ok(Array.isArray(pt) && pt.length === 2 && pt.every((n) => Number.isFinite(n)),
+          `${c} stroke ${k + 1} has a malformed point ${JSON.stringify(pt)}`);
+        // The data is authored in a 1024 box with y running UPWARD and a little
+        // overshoot at the edges. A point far outside it means the file was
+        // re-derived under a different convention and every hint would be off
+        // the pad — the two-coordinate-spaces trap, one file over.
+        assert.ok(pt[0] >= -300 && pt[0] <= 1324 && pt[1] >= -300 && pt[1] <= 1324,
+          `${c} stroke ${k + 1} has a point outside the 1024 box: ${JSON.stringify(pt)}`);
+      }
+    }
+    strokes += d.s.length;
+  }
+  assert.ok(strokes >= 600, `only ${strokes} strokes across the deck — the parse looks wrong`);
+});
+
+test("Word Cards: the stroke data ships with the licence it is used under", () => {
+  // It is a 120-character subset of an open dataset, not something this repo
+  // authored, and the licence it arrives under requires the notice to travel
+  // with it. A data file whose provenance is only in a commit message is a
+  // licence obligation nobody can see.
+  const lic = read("ARPHICPL.TXT");
+  assert.ok(lic.length > 3000, `ARPHICPL.TXT is only ${lic.length} bytes — that is not the licence`);
+  assert.match(lic, /ARPHIC PUBLIC LICENSE/, "ARPHICPL.TXT must be the Arphic Public License");
+
+  const head = read("scripts/hanzi-strokes.js").slice(0, 2500);
+  for (const claim of ["ARPHICPL.TXT", "hanzi-writer-data", "makemeahanzi", "ARPHIC PUBLIC LICENSE"]) {
+    assert.ok(head.includes(claim),
+      `the stroke data's header must name ${claim} — provenance that lives only in a commit message is invisible to anyone reading the file`);
+  }
+});
+
+test("SHIP: every file that carries __BUILD__ is one the deploy rewrites", () => {
+  // __BUILD__ is rewritten to the commit SHA at deploy time, and that is what
+  // cache-busts an asset. A file that carries the token and is NOT in the sed
+  // list ships the literal string: the asset is never busted, and RULE 6 calls
+  // a stale cache the worst class of bug on a site like this. Derived, so a
+  // third page or a versioned stylesheet is covered the day it lands.
+  const fsx = require("node:fs");
+  const shipped = [];
+  for (const f of fsx.readdirSync(root)) if (/\.(html|js|webmanifest)$/.test(f)) shipped.push(f);
+  for (const d of ["scripts", "styles"]) {
+    for (const f of fsx.readdirSync(path.join(root, d))) if (/\.(js|css)$/.test(f)) shipped.push(`${d}/${f}`);
+  }
+  assert.ok(shipped.length >= 25, `only ${shipped.length} shipped files walked — this check would be vacuous`);
+
+  const carries = shipped.filter((f) => read(f).includes("__BUILD__"));
+  assert.ok(carries.length >= 2, `only ${carries.length} files carry __BUILD__ — the scan looks broken`);
+
+  const yml = read(".github/workflows/deploy.yml");
+  const sed = yml.match(/sed -i "s\/__BUILD__\/\$\{GITHUB_SHA::8\}\/g"([^\n]*)/);
+  assert.ok(sed, "deploy.yml must carry the __BUILD__ rewrite step");
+  const rewritten = sed[1].trim().split(/\s+/).filter(Boolean);
+  for (const f of carries) {
+    assert.ok(rewritten.includes(f),
+      `${f} carries __BUILD__ but the deploy never rewrites it — it would ship the literal token and never cache-bust`);
+  }
+});
+
+test("Word Cards: the writing ladder is DERIVED from the stroke count, not a list", () => {
+  // 一 is one stroke and 蝴 is fifteen, so the printed table order would put a
+  // 15-stroke character in front of a four-year-old on card ten. The ladder
+  // that fixes that must come from the data: a hand-written order is the
+  // "a list that outlives its contents" class, and it would go stale the first
+  // time the deck changed.
+  const page = read("wordcards.html");
+  const fn = page.match(/function writeDeck\(\)\{[\s\S]*?\n\}/);
+  assert.ok(fn, "wordcards.html must define writeDeck()");
+  assert.match(fn[0], /strokesOf/,
+    "the writing ladder must sort by the stroke COUNT — anything else is a hand-written order pretending to be derived");
+  assert.match(fn[0], /HANZI\b/,
+    "the writing ladder must be built from HANZI, so a character cannot be in one deck and missing from the other");
+  // A tie has to keep the table's own order, or the ladder is unstable and a
+  // card moves between visits for no reason the player can see.
+  assert.match(fn[0], /\|\|\s*a\[1\]\s*-\s*b\[1\]/,
+    "ties must fall back to the printed table's index, or the ladder is not stable");
 });
 
 test("Word Cards: simplified Chinese is asked for BY NAME, never inherited", () => {

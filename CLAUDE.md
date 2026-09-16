@@ -7862,6 +7862,109 @@ their users — the method that found the fort's `.td-abil--cool` — comes back
 (`hz__key`/`hz__zh`/`hz__en`) are applied through a `line(cls, text)` helper, so
 the scan's own pattern was what reported them, for the thirteenth time.
 
+**HE COULD READ HIS 120 CHARACTERS AND NOT WRITE ONE — and the feature was only
+buildable because the thing that decides it is DATA somebody else already
+derived.** The owner asked to expand his Chinese practice on the same 120
+characters, and writing was the gap: the deck taught recognition and nothing
+taught production. In Chinese, writing IS stroke order — taught from the first
+day of school, and a habit that has to be untaught if it is learned wrong — so
+the only versions worth building are ones that know the real order. Hand-
+authoring that is not available: 120 characters at up to 15 strokes each, and
+every wrong guess teaches a wrong habit. So 写字 ships a 120-character subset of
+hanzi-writer-data (from Make Me a Hanzi, Arphic Public License), 226 KB,
+`scripts/hanzi-strokes.js`, with ARPHICPL.TXT beside it and a guardrail that
+both the licence file and the provenance header keep shipping — a data file
+whose licence lives only in a commit message is an obligation nobody can see.
+Four things about the build. **It is a `<script src>`, not a `fetch`, and that
+is the whole reason it is safe**: the precache scan, the offline boot test and
+the page-asset walk all read the page's own `src` attributes and are blind to a
+fetch, so fetching it would have put the one asset the feature needs outside
+every offline law this repo has. **The ladder is derived** — 一 is one stroke
+and 蝴 is fifteen, so the printed table order puts a 15-stroke character on card
+ten; sorting by the data's own stroke count (ties keeping the table order, so it
+is stable) opens on 一 and closes on 蝶, guardrailed structurally so a hand-
+written order cannot replace it. **The judge is two clauses, and only one of
+them is obvious**: a trace must be near enough in absolute terms AND a better
+match for the stroke asked for than for any other stroke in the character, which
+is what makes the tolerance self-scaling with no per-character constant.
+**And ✍ has ONE owner** — the button, the three-miss rescue, and the only path
+through a character for anyone who cannot drag are the same function, so the
+no-fail law and the accessible path cannot come apart.
+
+**THE MUTATION THAT PASSED IS THE ENTRY: my "stroke order is enforced" clause
+was carried by the OTHER half of the judge, and measuring said so.** Deleting
+the better-match comparison left the test GREEN, which reads as a dead line —
+this repo has deleted three for exactly that. It is not dead. Swept over the
+whole deck, **82 stroke pairs across 28 characters sit closer together than the
+210-unit tolerance**, so for those the absolute gate alone would accept the
+wrong stroke and the comparison refuses all 82. The test was the problem: it
+used 二, whose two strokes are **439 units apart**, so the tolerance alone
+refuses the wrong one and the comparison is never reached. Re-pointed at 鸟 —
+whose third stroke lies entirely within 77 units of its second, so re-drawing the
+stroke he has just finished scores 112 against a 210 bar — the mutation goes red.
+**When a mutation passes, measure whether the line is dead before deleting it,
+and find the input where it is the only thing standing in the way.** The clause
+carries a self-verifying precondition (those two strokes must still be within
+260 units) so it cannot quietly stop separating the two states, and the comment
+now says which half of the judge carries which clause rather than implying both.
+
+**AND THE SCREENSHOT FOUND THREE THINGS NO ASSERTION DID, one of them the
+feature's own payoff.** (1) **The finished cue was invisible on the character it
+matters most for.** It greened the GHOST — and a finished character's ink covers
+its ghost path-for-path, so 一 finished looked exactly like 一 unfinished. It
+greens the INK now, and the guardrail is two clauses: the computed fill must
+differ when finished, and the inked count must equal the ghost count, which is
+what states WHY the ghost was the wrong element. (2) **The breadcrumb said "All
+words"** — the flash deck's own default, left behind on a screen that is not the
+flash deck. (3) **The button label wrapped to three lines** while its sibling
+took two, so the pair stopped reading as a pair; every box measurement passed.
+Fixed by shortening the label, and pinned as an EQUALITY between the two
+buttons rather than a pixel bound, which is the comparison-not-a-constant shape.
+
+**THE PRECACHE LAW WAS READING ONE PAGE, AND THAT WAS COMPLETE ONLY BY
+ACCIDENT.** The derivation that stops the app booting as a dead shell offline
+reads `<script src>`/`<link href>` off **index.html alone** — which covered the
+whole app right up until a second page linked anything of its own, because
+wordcards.html shipped for months with every asset inline. The moment it gained
+one, the law went blind. Widened to every PAGE, and the CONTROL is what makes
+that a finding rather than tidying: with the stroke data dropped from CORE, the
+old index.html-only scan passes and the derived one names the file. Same class
+as the VS16 scan's nine hand-listed files and the flex-gap law guarding one
+stylesheet — a scan's file list is part of the scan, for the Nth time.
+**Its sibling shipped as a new law**: the deploy rewrites `__BUILD__` in a
+hand-written file list (`index.html sw.js`), and a file carrying the token that
+is NOT in that list ships the literal string and is never cache-busted — which
+RULE 6 calls the worst class of bug on a site like this. Derived now: every
+shipped file containing the token must be one the sed touches, so a third page
+or a versioned stylesheet is covered the day it lands.
+**AND THE GATE CAUGHT A CLASS NAME DOING TWO JOBS — two red tests, one cause,
+and neither message named it.** `.all` is the full-width button STYLE and it is
+also the population two derived walks use for "a whole-library card DECK" (the
+deal-order test and the mobile clipping walk both do `#menu .all`). The writing
+button is full-width and opens the PAD, not `#deck` — so both walks clicked it,
+walked the previous deck's cards a second time, then pressed the flash deck's
+back button while `#write` was still showing. Two `.wrap` screens visible at
+once, body's flex splits the width between them, and **the deck's own back
+button measured 36px**. The failures read *"3 deck buttons but 2 walked"* and
+*"deck controls below the 75px floor: back, 36"* — both true, and neither
+diagnosable without reading the walk. Fixed by separating the two meanings
+(`.mode` takes the style, `.all` keeps its one job) rather than exempting the
+button in two tests, which would have left the class ambiguous and the next
+author to find it the same way. The new clause is what makes the trap name
+itself: every `#menu .all` must actually open `#deck`, mutation-proven by
+putting `.all` back. **A class that is both a style and a population is two
+owners of one name** — and the tell is a failure whose message is true and
+unrelated to what you changed.
+
+**And a shipped count had to be RE-POINTED rather than deleted**: `HANZI` may be
+referenced exactly N times, a structural proxy for "no English derivation reads
+it". The writing deck is a legitimate new Chinese-only reader, so the count goes
+3 → 5 with both new uses named in the message, and the comment says plainly that
+the COUNT is the weak sibling of the real claim next door ("the Chinese
+characters stay OUT of every English derivation") and may only be raised for a
+reader that is Chinese-only. A count that is raised without checking its own
+claim is how a proxy becomes a rubber stamp.
+
 ---
 
 ## Repository Structure
@@ -7899,7 +8002,15 @@ tooling.
 │                               #   face, asked for BY NAME because this page's own stack opens with a
 │                               #   JAPANESE one) and the back is a picture, the pinyin, the meaning,
 │                               #   a sentence and its translation — spoken in zh-CN, character AND
-│                               #   sentence. Every count is counted, and every control
+│                               #   sentence. Then 写字 — the same 120 characters, to WRITE: a pad
+│                               #   that hints one stroke at a time (marching ants that travel the
+│                               #   way the brush goes, a dot where it goes down), scores his finger
+│                               #   against that stroke's centre-line with big tolerance, and inks it
+│                               #   in. Wrong order, wrong direction and wrong place are all refused
+│                               #   — in Chinese that IS the skill — and after three tries the pad
+│                               #   writes it for him, so nothing can get stuck. Dealt easiest-first,
+│                               #   derived from the stroke count (一 to 蝶). Every count is counted,
+│                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card
 │                               #   names its word and its side, and the face turned away is aria-hidden
 │                               #   so the answer is not in the tree before the flip. Precached in sw.js.
@@ -7935,6 +8046,7 @@ tooling.
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
+│   ├── hanzi-strokes.js        # 写字: stroke-order data for the 120 characters Word Cards teaches — every stroke's OUTLINE and its CENTRE-LINE, so the pad can both draw a stroke and score his finger against it. GENERATED (a 120-character subset of hanzi-writer-data, from Make Me a Hanzi, under the Arphic Public License — see the file's own header and ARPHICPL.TXT); never hand-edit a path, re-derive it. Loaded with a <script src> deliberately: that is what puts it inside the precache scan, the offline boot test and the page-asset walk, every one of which reads the page's src attributes and is blind to a fetch()
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)

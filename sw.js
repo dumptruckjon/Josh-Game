@@ -38,6 +38,7 @@ const CORE = [
   "./scripts/td-main.js",
   "./styles/td.css",
   "./scripts/main.js",
+  "./scripts/hanzi-strokes.js",
   "./manifest.webmanifest",
   "./assets/apple-touch-icon.png",
   "./assets/icon-192.png",

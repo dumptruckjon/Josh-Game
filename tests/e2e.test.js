@@ -3389,6 +3389,274 @@ test("Word Cards: a Chinese card is SPOKEN in Chinese, character and sentence", 
   }
 });
 
+test("Word Cards: the writing pad teaches stroke ORDER, and cannot be got wrong", async () => {
+  // Writing a Chinese character IS its stroke order — taught from the first day
+  // of school, and a habit that has to be untaught if it is learned wrong. So
+  // the three refusals below are the feature, not a detail of it: a pad that
+  // accepted any stroke drawn anywhere would be finger-painting with extra
+  // steps. And the fourth clause is the other half of RULE 5: it must be
+  // impossible to get STUCK, so three tries and the pad writes it for him.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(String(e)));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    // The pad remembers where he got to, so a stale key from another test would
+    // open it on a different character and every clause below would measure
+    // something else.
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload();
+    await pg.click("#writeBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+
+    // Read everything off the real screen — the character from the pad's own
+    // accessible name, the stroke being asked for from the hint it is drawing.
+    const state = () => pg.evaluate(() => {
+      const pad = document.getElementById("wpad");
+      const lab = pad.getAttribute("aria-label") || "";
+      return {
+        ch: lab.split(",")[0],
+        lab,
+        inked: document.getElementById("wdone").children.length,
+        ghost: document.getElementById("wghost").children.length,
+        done: pad.classList.contains("done"),
+      };
+    });
+    // The median of the stroke the pad is currently hinting, in SCREEN pixels.
+    const hintPath = () => pg.evaluate(() => {
+      const pl = document.querySelector("#whint polyline");
+      if (!pl) return null;
+      const m = document.getElementById("wglyph").getScreenCTM();
+      return pl.getAttribute("points").split(" ").map((s) => {
+        const [x, y] = s.split(",").map(Number);
+        const p = new DOMPoint(x, y).matrixTransform(m);
+        return [p.x, p.y];
+      });
+    });
+    const drag = async (pts) => {
+      await pg.mouse.move(pts[0][0], pts[0][1]);
+      await pg.mouse.down();
+      for (const [x, y] of pts.slice(1)) await pg.mouse.move(x, y, { steps: 4 });
+      await pg.mouse.up();
+      await pg.waitForTimeout(40);
+    };
+
+    // 一 is one stroke, so the ladder has to be past it before there is a
+    // SECOND stroke to trace out of turn. 二 is the first character that can
+    // separate "it accepted a stroke" from "it accepted the RIGHT stroke".
+    await pg.click("#wnext");
+    const start = await state();
+    assert.equal(start.ch, "二", `fixture: the ladder's second card should be 二, got ${start.ch}`);
+    assert.equal(start.inked, 0, "a fresh character starts with nothing written");
+
+    // 1. WRONG ORDER, the easy case. 二 is two horizontal strokes and the top
+    //    one is written first; tracing the bottom one neatly must still be
+    //    refused, or stroke order is decoration. NOTE which half of the judge
+    //    carries this: 二's strokes are 439 units apart against a tolerance of
+    //    210, so the ABSOLUTE gate alone refuses it and the "is this really the
+    //    stroke I asked for" comparison is never reached. That comparison has
+    //    its own clause below, on a character where it is the only thing
+    //    standing between him and the wrong stroke — measured, it is what
+    //    refuses 82 stroke pairs across 28 characters, and a first draft that
+    //    tested only 二 passed with the comparison deleted.
+    const second = await pg.evaluate(() => {
+      const d = window.HANZI_STROKES["二"];
+      const m = document.getElementById("wglyph").getScreenCTM();
+      return d.m[1].map(([x, y]) => {
+        const p = new DOMPoint(x, y).matrixTransform(m);
+        return [p.x, p.y];
+      });
+    });
+    await drag(second);
+    assert.equal((await state()).inked, 0,
+      "tracing stroke 2 while stroke 1 is being asked for must be refused — that refusal IS the lesson");
+
+    // 2. BACKWARDS. Direction is the other half of stroke order: a Chinese
+    //    horizontal is written left to right, and right-to-left is a different
+    //    (wrong) stroke however neatly it lands on the same ink.
+    const first = await hintPath();
+    assert.ok(first && first.length >= 2, "the pad must hint the stroke it wants");
+    await drag(first.slice().reverse());
+    assert.equal((await state()).inked, 0, "a stroke drawn backwards must be refused");
+
+    // 3. …and the right stroke, the right way, is accepted.
+    await drag(first);
+    const afterOne = await state();
+    assert.equal(afterOne.inked, 1, "tracing the hinted stroke correctly must ink it");
+    assert.match(afterOne.lab, /stroke 2 of 2/, "and the pad must move on to the next stroke");
+
+    // 4. NO-FAIL (RULE 5). Three scribbles nowhere near it, and the pad simply
+    //    writes the stroke for him. There is no score and no way to be stuck.
+    const box = await pg.$eval("#wpad", (el) => {
+      const r = el.getBoundingClientRect();
+      return [r.left + r.width * 0.12, r.top + r.height * 0.12, r.width * 0.2];
+    });
+    for (let k = 0; k < 3; k++) {
+      await drag([[box[0], box[1]], [box[0] + box[2], box[1] + box[2] * 0.4], [box[0] + box[2] * 0.4, box[1] + box[2]]]);
+    }
+    await pg.waitForTimeout(600);
+    const end = await state();
+    assert.equal(end.inked, 2, "after three tries the pad writes the stroke for him — nothing here may get stuck");
+    assert.ok(end.done, "and the character is finished");
+
+    // 5. The finished character has to LOOK finished, and this is the one
+    //    clause a behaviour test would have missed: the cue first greened the
+    //    GHOST, which on a finished character is covered pixel-for-pixel by the
+    //    ink drawn over it — so 一 finished looked exactly like 一 unfinished.
+    //    Only a screenshot found it. It greens the INK now, and the second
+    //    clause is what says WHY the ghost was the wrong element.
+    const fin = await pg.evaluate(() => getComputedStyle(document.getElementById("wdone")).fill);
+    const idle = await pg.evaluate(() => {
+      const pad = document.getElementById("wpad");
+      pad.classList.remove("done");
+      const f = getComputedStyle(document.getElementById("wdone")).fill;
+      pad.classList.add("done");
+      return f;
+    });
+    assert.notEqual(fin, idle,
+      `a finished character must not be painted the same as an unfinished one (both ${fin}) — the cue has to land on something the player can see`);
+    const cover = await state();
+    assert.equal(cover.inked, cover.ghost,
+      "the finished ink covers every ghost stroke exactly, which is why greening the GHOST could never show");
+
+    // 6. WRONG ORDER, the case only the COMPARISON can refuse. 鸟's third
+    //    stroke sits inside its second — every point of it is within 77 units
+    //    of the second, against a 210 tolerance — so re-drawing the stroke he
+    //    has just finished scores 112 and the absolute gate waves it through.
+    //    Only "is this a better match for some OTHER stroke?" catches it.
+    const near = await pg.evaluate(() => {
+      const el = document.getElementById("wnext");
+      for (let k = 0; k < 200; k++) {
+        if (document.getElementById("wpad").getAttribute("aria-label").split(",")[0] === "鸟") break;
+        el.click();
+      }
+      const d = window.HANZI_STROKES["鸟"];
+      // Self-verifying precondition: the wrong stroke has to be near enough
+      // that the absolute gate would accept it, or this clause is vacuous and
+      // would silently stop separating the two states.
+      let worst = 0;
+      for (const p of d.m[1]) {
+        let best = Infinity;
+        for (const q of d.m[2]) { const dx = p[0] - q[0], dy = p[1] - q[1]; best = Math.min(best, dx * dx + dy * dy); }
+        worst = Math.max(worst, Math.sqrt(best));
+      }
+      return { ch: document.getElementById("wpad").getAttribute("aria-label").split(",")[0], strokes: d.s.length, worst: Math.round(worst) };
+    });
+    assert.equal(near.ch, "鸟", `fixture: could not reach 鸟 in the ladder (stopped on ${near.ch})`);
+    assert.ok(near.worst <= 260,
+      `fixture: 鸟's strokes 2 and 3 are ${near.worst} units apart — too far for the absolute gate to accept the wrong one, so this clause no longer separates the two states`);
+
+    // write the first two strokes with ✍, then offer stroke 2 again
+    await pg.click("#wshow");
+    await pg.waitForTimeout(520);
+    await pg.click("#wshow");
+    await pg.waitForTimeout(520);
+    const atThree = await state();
+    assert.match(atThree.lab, /stroke 3 of 5/, `fixture: expected to be on 鸟's third stroke, saw "${atThree.lab}"`);
+    const redo = await pg.evaluate(() => {
+      const m = document.getElementById("wglyph").getScreenCTM();
+      return window.HANZI_STROKES["鸟"].m[1].map(([x, y]) => {
+        const p = new DOMPoint(x, y).matrixTransform(m);
+        return [p.x, p.y];
+      });
+    });
+    await drag(redo);
+    assert.equal((await state()).inked, 2,
+      "re-drawing the stroke he has just finished must be refused even though it lands inside the tolerance — that is the whole job of the better-match comparison");
+
+    assert.deepEqual(errs, [], "the writing pad must raise no page errors");
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
+
+test("Word Cards: the writing ladder climbs from one stroke to fifteen", async () => {
+  // A four-year-old meeting the deck in its printed table order would hit 蝴
+  // (15 strokes) on card ten. The ladder is derived from the stroke data, so
+  // this walks what the pad actually deals rather than what a list says — and
+  // the layout audit rides along, because the pad is a new screen and RULE 5's
+  // floors apply to it like any other.
+  const ctx = await browser.newContext({ viewport: { width: 320, height: 568 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload();
+    // The two Chinese buttons are a PAIR — read them, write them — so they must
+    // read as one. The first label was "Write the Characters", which wraps to a
+    // third line at 320 and 390 while its sibling takes two, and only the
+    // screenshot showed it: every box measurement passed. Asserting the EQUALITY
+    // rather than a pixel bound is what keeps this honest if the type changes.
+    const pair = await pg.evaluate(() => [
+      Math.round(document.getElementById("hanziBtn").getBoundingClientRect().height),
+      Math.round(document.getElementById("writeBtn").getBoundingClientRect().height),
+    ]);
+    assert.equal(pair[1], pair[0],
+      `the writing button is ${pair[1]}px against the reading button's ${pair[0]}px — a label that wraps one line further makes the pair read as two unrelated things`);
+
+    // …and the writing button must NOT wear `.all`. That class means "opens a
+    // whole-library card DECK" to two derived walks — the deal-order test and
+    // the mobile clipping walk both take their population from `#menu .all` —
+    // so a full-width button that opens something else gets clicked by both,
+    // leaves two .wrap screens visible at once, and body's flex halves the
+    // width. It shipped that way for one gate: the failures read "3 deck
+    // buttons but 2 walked" and "the deck's back button is 36px", which are
+    // both true and neither of which names the cause. This clause does.
+    const meaning = await pg.evaluate(() => {
+      const out = [];
+      for (const b of document.querySelectorAll("#menu .all")) {
+        b.click();
+        out.push({ id: b.id, opensDeck: !document.getElementById("deck").classList.contains("hidden") });
+        document.getElementById("back").click();
+      }
+      return out;
+    });
+    assert.ok(meaning.length >= 2, `only ${meaning.length} .all buttons — this clause would be vacuous`);
+    const notDecks = meaning.filter((m) => !m.opensDeck).map((m) => m.id);
+    assert.deepEqual(notDecks, [],
+      `#${notDecks.join(", #")} wears .all but does not open the card deck — .all is the population two derived walks use, so give a non-deck button .mode instead`);
+
+    await pg.click("#writeBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+
+    const walk = await pg.evaluate(() => {
+      const out = [];
+      const total = Object.keys(window.HANZI_STROKES).length;
+      for (let k = 0; k < total; k++) {
+        const ch = document.getElementById("wpad").getAttribute("aria-label").split(",")[0];
+        out.push([ch, window.HANZI_STROKES[ch].s.length]);
+        document.getElementById("wnext").click();
+      }
+      return out;
+    });
+    assert.ok(walk.length >= 100, `only ${walk.length} cards dealt — this walk would be vacuous`);
+    assert.equal(new Set(walk.map((w) => w[0])).size, walk.length,
+      "every character appears exactly once in the writing deck");
+    const back = walk.findIndex((w, k) => k && w[1] < walk[k - 1][1]);
+    assert.equal(back, -1, back < 0 ? "" :
+      `the ladder goes backwards at card ${back + 1}: ${walk[back - 1][0]} has ${walk[back - 1][1]} strokes and ${walk[back][0]} has ${walk[back][1]}`);
+    assert.equal(walk[0][1], 1, `the ladder must open on the one-stroke character, got ${walk[0][0]}`);
+    assert.ok(walk[walk.length - 1][1] >= 12,
+      `the ladder must END on the hard ones, got ${walk[walk.length - 1][0]} at ${walk[walk.length - 1][1]} strokes`);
+
+    // RULE 5 on the narrowest phone: nothing under the 75px kid floor, and the
+    // page must not scroll sideways.
+    const lay = await pg.evaluate(() => ({
+      small: [...document.querySelectorAll("#write button")]
+        .map((b) => { const r = b.getBoundingClientRect(); return [b.id, Math.round(r.width), Math.round(r.height)]; })
+        .filter((t) => t[1] < 75 || t[2] < 75),
+      sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }));
+    assert.deepEqual(lay.small, [], `every control on the writing pad must clear 75px: ${JSON.stringify(lay.small)}`);
+    assert.equal(lay.sideways, 0, "the writing pad must not make the page scroll sideways at 320px");
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
+
 test("Word Cards: the Chinese deck keeps its OWN place in the deck", async () => {
   // A seeded order is only worth having if you can carry on from it, and a
   // 120-card deck is six sittings at a four-year-old's pace. The place is keyed

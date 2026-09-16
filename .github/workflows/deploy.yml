@@ -62,7 +62,7 @@ jobs:
       - name: Cache-bust assets with the commit SHA
         # Rewrites the __BUILD__ token -> <sha> so browsers never serve stale
         # JS/CSS, and the service worker's cache name changes each deploy.
-        run: sed -i "s/__BUILD__/${GITHUB_SHA::8}/g" index.html sw.js
+        run: sed -i "s/__BUILD__/${GITHUB_SHA::8}/g" index.html wordcards.html sw.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
