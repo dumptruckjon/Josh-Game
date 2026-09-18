@@ -7965,6 +7965,53 @@ characters stay OUT of every English derivation") and may only be raised for a
 reader that is Chinese-only. A count that is raised without checking its own
 claim is how a proxy becomes a rubber stamp.
 
+**THE WRITING PAD COULD NOT SAY THE CHARACTER, AND THE OBVIOUS GLYPH FOR THE
+BUTTON WAS ALREADY AN ANSWER IN THE SAME DECK.** 写字 spoke on exactly two
+occasions — when the character CHANGES and when it is FINISHED — so mid-character
+there was no way to hear it again, and the only repeat available was to navigate
+away and back, which throws away every stroke he has written. **The flash deck
+has no such gap and that is why this is scoped to the pad**: flipping a card back
+and forth re-speaks it, so the sibling surface already had its repeat gesture —
+worth checking before scoping, because the reflex here is to fix both.
+**THE SHARPEST FINDING IS THE GLYPH.** 👂 is the house idiom for "hear it again"
+and it is **听's own card picture**; 👄 is **口's**. Either one would have sat
+TWICE in the same row — once as the answer the child is being asked to produce,
+once as the control — which is the tile-icon law meeting the picture-is-the-answer
+law. 🔊 is free as a picture and collides with the sound toggle's own ON state
+instead, which is worse because both are then controls. Only walking all 120
+pictures AND both faces of the toggle found it; the shipped 🗣️ is free of all
+three, and takes VS16 because it is text-default. The guardrail compares through
+`wcSkel`, the page's existing ONE definition of "these two pictures are the same
+thing", rather than a second spelling of it — and it reads the toggle's ON face
+out of `paintSound` rather than the markup, since a scan of the HTML alone would
+have missed exactly the 🔊 case.
+**The bar could not take a fourth control, and that is arithmetic rather than
+taste**: three 76px icons plus their gaps are 276px of a 284px content box at
+320, leaving 8px for the back label. So the WORD became the button — which is
+the better answer anyway, being the bigger target and the plainer mapping (RULE
+5 asks for whole-card tap zones, not small buttons). It cost `min-height: 76px`,
+because a div may be 68px tall and a TAP TARGET may not, and the existing
+`#write button` walk catches that the moment the div becomes a button.
+**A control that silently does nothing is indistinguishable from a broken one**,
+and sound is OFF by default — so the tap turns sound ON rather than refusing.
+Sound off means *do not speak at me automatically*, and a tap on the word is not
+automatic; doing it this way keeps the toggle in the bar matching what the device
+is actually doing, which a force-speak-while-muted would not.
+**The cost was measured with the honest A/B** (the same page with the feature
+disabled, not a different state): 8px of pad at 320x568 and 360x640, and ZERO at
+320x480, 390x844 and 414x896 — the pad is width-limited on the tall phones, so
+only the short ones pay, and what they pay is the price of the control clearing
+the kid floor at all.
+**Two testing notes, both recorded traps.** A clause was written and DELETED as
+dominated: *"the two labels must differ"* cannot fail once each label names its
+own card's character and the characters differ — the load-bearing part is the
+two-card LOOP, proven by a mutation that hard-codes the label to card one and
+fails on card two. And **the earlier-clause trap again**: the mutation that makes
+the say-tap advance the card also makes it SPEAK twice, so it fires *"spoke
+exactly once"* and leaves *"must not disturb the round"* unproven; isolating it
+needs a mutation that disturbs the round WITHOUT speaking twice (reset the stroke
+counter), which then reports `inked 1 -> 0`.
+
 ---
 
 ## Repository Structure
@@ -8009,7 +8056,11 @@ tooling.
 │                               #   in. Wrong order, wrong direction and wrong place are all refused
 │                               #   — in Chinese that IS the skill — and after three tries the pad
 │                               #   writes it for him, so nothing can get stuck. Dealt easiest-first,
-│                               #   derived from the stroke count (一 to 蝶). Every count is counted,
+│                               #   derived from the stroke count (一 to 蝶). Tapping the WORD (🗣️)
+│                               #   says it again mid-character — the only other repeat was to
+│                               #   navigate away, which throws his strokes away; 👂 and 👄 could
+│                               #   not be the glyph because they are 听's and 口's own pictures.
+│                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card
 │                               #   names its word and its side, and the face turned away is aria-hidden

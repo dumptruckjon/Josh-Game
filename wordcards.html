@@ -221,9 +221,26 @@
      deck's own bar, meter and nav, so every control is where his thumb already
      expects it. */
   #write{grid-template-rows:auto auto auto minmax(0,1fr) auto;}
-  .wlabel{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;
-          background:rgba(255,255,255,.10);border-radius:22px;padding:12px 16px;}
+  /* The WORD is the say-it button. Everything else on this screen speaks only
+     when the character changes or is finished, so mid-character the only way to
+     hear it again was to navigate away — which throws the strokes away. It is
+     the word rather than a fourth bar icon because the bar cannot take one:
+     three 76px icons plus their gaps are 276px of a 284px content box at 320,
+     leaving 8px for the back label. Tapping the word to hear the word is also
+     the bigger target and the plainer mapping (RULE 5 wants whole-card tap
+     zones, not small buttons). 76px because it is now a TAP TARGET and the row
+     measured 68 as a div. */
+  .wlabel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;
+          background:rgba(255,255,255,.10);border-radius:22px;padding:12px 16px;
+          min-height:76px;width:100%;border:0;font:inherit;color:inherit;
+          text-align:left;cursor:pointer;}
+  .wlabel:active{transform:scale(.98);}
   .wlabel .wpic{font-size:38px;line-height:1;}
+  /* 🗣️ and not 👂 or 👄: BOTH of those are card pictures in this very deck
+     (听 listen, 口 mouth), so the ear would sit twice in one row — once as the
+     answer and once as the control. 🔊 is free as a picture and collides with
+     the sound toggle's own ON state, which is worse. Text-default, so VS16. */
+  .wear{font-size:30px;line-height:1;}
   .wsay{display:grid;grid-template-columns:minmax(0,100%);gap:2px;}
   /* Full-strength ink, no dimming. This page's own contrast pass found every
      dimmed run on it below AA, and a pinyin a grown-up reads aloud is no
@@ -301,10 +318,11 @@
     <div class="track"><div class="fill" id="wfill"></div></div>
     <span class="count" id="wcount">1 / 120</span>
   </div>
-  <div class="wlabel">
+  <button class="wlabel" id="wsaybtn" type="button">
     <span class="wpic" id="wpic" aria-hidden="true">&#128049;</span>
     <span class="wsay"><span class="wpy" id="wpy"></span><span class="wmean" id="wmean"></span></span>
-  </div>
+    <span class="wear" aria-hidden="true">&#128483;&#65039;</span>
+  </button>
   <div class="wpadwrap">
     <svg class="wpad" id="wpad" viewBox="0 0 1024 1024" role="img" aria-label="Writing pad">
       <g class="wguide" aria-hidden="true">
@@ -1137,6 +1155,9 @@ function wRender(){
     wpad.classList.add("done");
   }
   $("wpic").textContent = c[1];
+  // An explicit label REPLACES the content, so the character it will say has to
+  // be IN it — the picture is aria-hidden and the pinyin alone does not name it.
+  $("wsaybtn").setAttribute("aria-label", "Hear " + c[0] + ", " + c[3] + ", " + c[4]);
   $("wpy").textContent = c[3];
   $("wmean").textContent = c[4];
   $("wcount").textContent = (wi + 1) + " / " + wDeck.length;
@@ -1228,6 +1249,21 @@ wpad.addEventListener("pointerup", wEnd);
 wpad.addEventListener("pointercancel", wEnd);
 
 $("wshow").addEventListener("click", wShow);
+// Sound OFF means "do not speak at me automatically", and a tap on the word is
+// not automatic — it is the one unambiguous request for audio on the screen. So
+// it turns sound on rather than refusing: a control that silently does nothing
+// is indistinguishable from a broken one to a four-year-old, and this way the
+// toggle in the bar always matches what the device is actually doing. It says
+// it through wSpeak/cardSpeech like every other speech on the page, so the
+// character, its sentence and its LANGUAGE cannot drift from the flash deck's.
+$("wsaybtn").addEventListener("click", () => {
+  if (!soundOn){
+    soundOn = true;
+    try { localStorage.setItem("wc-sound", "1"); } catch (e) {}
+    paintSound();
+  }
+  wSpeak();
+});
 $("wnext").addEventListener("click", () => wGo(1));
 $("wprev").addEventListener("click", () => wGo(-1));
 $("wsound").addEventListener("click", () => {

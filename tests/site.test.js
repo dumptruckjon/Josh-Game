@@ -4946,6 +4946,41 @@ test("Word Cards: every character he WRITES has real stroke-order data", () => {
   assert.ok(strokes >= 600, `only ${strokes} strokes across the deck — the parse looks wrong`);
 });
 
+test("Word Cards: the say-it button's glyph is none of the deck's own pictures", () => {
+  // 👂 and 👄 are BOTH pictures in this very deck — 听 (listen) and 口 (mouth) —
+  // so either one as the say-it control would sit TWICE in the same row, once as
+  // the answer and once as the button, which is the tile-icon law. That is live
+  // rather than hypothetical: the ear was the first draft and only checking all
+  // 120 pictures caught it. 🔊 is free as a picture and collides with the sound
+  // toggle's own ON state instead, so the screen's other controls are checked
+  // too. The comparison is wcSkel, this page's ONE definition of "these two
+  // pictures are the same thing", rather than a second spelling of it.
+  const src = read("wordcards.html");
+  const ent = (t) => t.replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).trim();
+  const m = src.match(/<span class="wear"[^>]*>([\s\S]*?)<\/span>/);
+  assert.ok(m, "the writing screen must carry a say-it glyph");
+  const say = wcSkel(ent(m[1]));
+  assert.ok(say.length, `the say-it glyph did not parse: ${JSON.stringify(m[1])}`);
+
+  const cards = wcHanzi();
+  assert.ok(cards.length > 100, `only ${cards.length} cards read — this clause would be vacuous`);
+  const clash = cards.filter((c) => wcSkel(c[1]) === say).map((c) => c[0] + " " + c[1]);
+  assert.deepEqual(clash, [],
+    `the say-it button wears ${ent(m[1])}, which is also the card picture for ${clash.join(", ")} — on that character it appears twice in one row, once as the answer and once as the control`);
+
+  // …and not either face of the sound toggle, or the show-stroke button, which
+  // sit on the same screen. The toggle's ON face lives in paintSound, not the
+  // markup, so a scan that read only the HTML would miss exactly the 🔊 case.
+  const tog = src.match(/b\.innerHTML = soundOn \? "([^"]+)" : "([^"]+)";/);
+  assert.ok(tog, "the sound toggle's two faces must be readable from paintSound");
+  const show = src.match(/id="wshow"[^>]*>([\s\S]*?)<\/button>/);
+  assert.ok(show, "the show-stroke button must be readable");
+  const others = [ent(tog[1]), ent(tog[2]), ent(show[1])];
+  const dup = others.filter((g) => wcSkel(g) === say);
+  assert.deepEqual(dup, [],
+    `the say-it button wears ${ent(m[1])}, which is already a control on the same screen (${dup.join(" ")})`);
+});
+
 test("Word Cards: the stroke data ships with the licence it is used under", () => {
   // It is a 120-character subset of an open dataset, not something this repo
   // authored, and the licence it arrives under requires the notice to travel

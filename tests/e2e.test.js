@@ -3657,6 +3657,121 @@ test("Word Cards: the writing ladder climbs from one stroke to fifteen", async (
   }
 });
 
+test("Word Cards: the writing pad can SAY the character on demand", async () => {
+  // Everything else on this screen speaks only when the character CHANGES or is
+  // FINISHED, so mid-character there was no way to hear it again — and the only
+  // repeat available was to navigate away, which throws the strokes away. The
+  // flash deck has no such gap (flipping the card back and forth re-speaks it),
+  // which is why this is scoped to the pad rather than to both.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload();
+    // speechSynthesis is a READ-ONLY accessor, so a plain assignment silently
+    // no-ops and the real (silent, headless) engine answers — which reads as a
+    // feature that never fired rather than a stub that never installed. The
+    // stub verifies itself before anything below is measured.
+    const ok = await pg.evaluate(() => {
+      window.__said = [];
+      Object.defineProperty(window, "speechSynthesis", {
+        configurable: true,
+        value: {
+          __stub: true, cancel() {}, getVoices() { return []; },
+          speak(u) { window.__said.push({ text: u.text, lang: u.lang }); },
+        },
+      });
+      return !!window.speechSynthesis.__stub;
+    });
+    assert.ok(ok, "fixture: the speech stub never installed, so nothing below measures anything");
+
+    await pg.click("#writeBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    const muted = await pg.evaluate(() => document.getElementById("wsound").classList.contains("on"));
+    assert.equal(muted, false,
+      "fixture: sound must start OFF (RULE 5), or the while-muted clause below proves nothing");
+
+    // 1. It speaks, WHILE MUTED. Sound off means "do not speak at me
+    //    automatically" and a tap on the word is not automatic — it is the one
+    //    unambiguous request for audio on the screen. So it turns sound on
+    //    rather than refusing: a control that silently does nothing is
+    //    indistinguishable from a broken one to a four-year-old, and this way
+    //    the toggle in the bar always matches what the device is doing.
+    const first = await pg.evaluate(() => {
+      window.__said.length = 0;
+      document.getElementById("wsaybtn").click();
+      return {
+        said: window.__said.slice(),
+        on: document.getElementById("wsound").classList.contains("on"),
+        want: (() => { const c = wDeck[wi]; return { text: c[0] + "。" + c[5], ch: c[0] }; })(),
+      };
+    });
+    assert.equal(first.said.length, 1,
+      `the say-it button must speak exactly once, spoke ${first.said.length} times`);
+    assert.equal(first.on, true,
+      "a say-it tap while muted must turn sound ON, or the toggle claims silence while the device speaks");
+
+    // 2. It goes through the ONE owner (wSpeak -> cardSpeech), so the LANGUAGE
+    //    travels with the text and it says exactly what the flash card says. A
+    //    Chinese line left on the page's own en-US voice is read as letter
+    //    noise, which sounds precisely like a broken feature.
+    assert.equal(first.said[0].lang, "zh-CN",
+      `the character must be spoken in zh-CN, got ${first.said[0].lang}`);
+    assert.equal(first.said[0].text, first.want.text,
+      "the say-it button must say what the flash card says — the character AND its sentence, because one syllable's tone is most of what makes it a word");
+
+    // 3. It REPEATS mid-character without disturbing the round. This is the
+    //    whole point: the repeat that existed was to navigate away and back,
+    //    which resets every stroke he has written.
+    await pg.click("#wshow");
+    await pg.waitForFunction(() => document.querySelectorAll("#wdone path").length > 0, null, { timeout: 4000 });
+    const mid = await pg.evaluate(() => {
+      const state = () => ({
+        inked: document.querySelectorAll("#wdone path").length,
+        card: document.getElementById("wcount").textContent.trim(),
+        ch: wDeck[wi][0],
+      });
+      const was = state();
+      window.__said.length = 0;
+      document.getElementById("wsaybtn").click();
+      return { was, now: state(), said: window.__said.slice() };
+    });
+    assert.ok(mid.was.inked > 0, "fixture: a stroke must be written first, or this clause proves nothing");
+    assert.equal(mid.said.length, 1, `a mid-character tap must speak again, spoke ${mid.said.length} times`);
+    assert.deepEqual(mid.now, mid.was,
+      `saying the word must not disturb the round — it went from ${JSON.stringify(mid.was)} to ${JSON.stringify(mid.now)}`);
+
+    // 4. It names the character it will say. An explicit label REPLACES the
+    //    content for assistive tech, and the picture beside it is aria-hidden,
+    //    so the character has to be IN the label or it is announced by pinyin
+    //    alone. Two different cards, because a hard-coded string passes on one.
+    const labels = await pg.evaluate(() => {
+      const out = [];
+      for (let k = 0; k < 2; k++) {
+        out.push({ label: document.getElementById("wsaybtn").getAttribute("aria-label"), ch: wDeck[wi][0] });
+        document.getElementById("wnext").click();
+      }
+      return out;
+    });
+    // The two-card LOOP is what makes this falsifiable: a label hard-coded to
+    // one character passes on that card and fails on the next. A separate
+    // "the two labels must differ" clause was written and DELETED as dominated
+    // — if each label names its own card's character and the characters differ,
+    // the labels differ too, so it could never fail on its own.
+    for (const l of labels)
+      assert.ok(l.label && l.label.includes(l.ch),
+        `the say-it button must name the character it will say — ${l.ch} is not in ${JSON.stringify(l.label)}`);
+
+    assert.deepEqual(errs, [], "no uncaught page errors while saying a character");
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
+
 test("Word Cards: the Chinese deck keeps its OWN place in the deck", async () => {
   // A seeded order is only worth having if you can carry on from it, and a
   // 120-card deck is six sittings at a four-year-old's pace. The place is keyed
