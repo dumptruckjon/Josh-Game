@@ -8136,6 +8136,32 @@ that plainly declares it. Write the probe to a FILE. Finally, the verification
 grep that "proved" a CLAUDE.md phrase missing was searching for a string that
 **spans a line break** — a scan's own pattern is part of the scan, for the
 umpteenth time, this time inside the check written to verify the fix.
+**AND SWEEPING THE SHIPPED SOURCES FOR THE SAME CLASS CAME BACK CLEAN — every
+count in player-facing code is DERIVED, and the only literals are in COMMENTS,
+which is why no third law ships.** The obvious next move after fixing a doc is
+to widen the scan to the app, and measured over `index.html`, `wordcards.html`,
+`main.js`, `hl-main.js` and `td-ui.js` there is not one hard-coded count on a
+surface a player reads: `td-ui.js` alone matched six times and **all six are
+comments**, five of them explaining a derivation and the sixth recording the
+historical defect — `:84` is literally the note saying *"16 levels across 4
+worlds" was a literal*, with `TDData.LEVELS.length` on the line below. A scan
+matching its own documentation, for the ninth recorded time, and this time it
+produced the right answer for the wrong reason.
+**So the law would be a FALSE-POSITIVE MACHINE and is deliberately not built.**
+A count inside a comment is usually a HISTORICAL record — *"22 unique prizes"*
+before her sticker fix, *"16 of the 19 cells wore the identical 🔒"*, *"16
+levels across 4 worlds"* — so a scan over comment counts fires on correct
+writing, which is the same reason the header-line law above is scoped to the
+header line. The honest deliverable is the measurement plus the one number that
+was actually wrong.
+**The two comment claims that DO describe current data were checked rather than
+assumed, and one of them was stale**: her seal arithmetic is exact (`SEAL_MOTIFS`
+25 × 4 shapes × 8 colours = 800, as written), while the aria-label comment
+illustrated its format as *"like duck, 16 cards"* against a `ck` deck of **15**.
+That number is the exact off-by-one my own probe made an hour earlier — counting
+per-TILE, because `backpack` carries two `ck` tiles, rather than per-word — so
+the comment had inherited a measuring bug, not a typo. **A comment cannot go
+red; the only way to find one is to go and measure what it claims.**
 
 ---
 

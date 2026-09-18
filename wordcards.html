@@ -796,7 +796,7 @@ function chip(host, icon, label, count, color, onGo, say){
   // so the spoken label can never drift from what is on the screen.
   // A letter-team chip PRINTS the team in the icon slot, and an icon slot is
   // aria-hidden — so without `say` the one thing the chip is about would be the
-  // one thing it never announced ("like duck, 16 cards").
+  // one thing it never announced ("like duck, 15 cards").
   b.setAttribute("aria-label", (say || label) + ", " + count + " cards");
   b.addEventListener("click", onGo);
   host.appendChild(b);
