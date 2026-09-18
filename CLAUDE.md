@@ -6006,8 +6006,10 @@ NAVIGATION, so a page missing from the precache does not 404 offline, it serves
 **Josh's launcher under the game's own URL**. No error, no blank screen, just the
 wrong page, on a car ride. Driven with the plug genuinely pulled (the recorded
 `pause()` hard-offline, since `setOffline` does not gate SW fetches) the page
-boots correctly — title, all 14 decks, `WORDS.length === 493` — so this is
-coverage rather than a fix; the guardrail is derived over the repo's own pages
+boots correctly, so this is coverage rather than a fix — and note that the
+probe's own readings at the time ("14 decks", `WORDS.length === 493`) are
+history now that the deck is 503 + 120, which is why the SHIPPED clause asserts
+none of them; the guardrail is derived over the repo's own pages
 and asserts each page's OWN `<title>` read from disk, so a third page inherits
 it, and the mutation that drops one line from `CORE` reports the defect verbatim
 (*offline it served "Josh's Games 🎈" instead of itself*). **The method note is
@@ -8162,6 +8164,56 @@ That number is the exact off-by-one my own probe made an hour earlier — counti
 per-TILE, because `backpack` carries two `ck` tiles, rather than per-word — so
 the comment had inherited a measuring bug, not a typo. **A comment cannot go
 red; the only way to find one is to go and measure what it claims.**
+
+**AND THE SWEEP THAT DECLARED THE APP CLEAN HAD NOT LOOKED AT THE TESTS — where
+the same class was live, one line from a comment that is CORRECT.** The entry
+above says every count in player-facing code is derived and the only literals
+are in comments; that was measured over the five SHIPPED sources and stopped
+there. `site.test.js` carries three counts of this deck, and reading them shows
+exactly why no scan can do this job: *"Word Cards is 493 cards of player copy in
+one inline block"* is PRESENT TENSE and wrong (503 + 120 = 623), while *"Measured
+on the deck as supplied: 188 of 493 cards shared a picture"* is explicitly
+historical and right — one word apart in character, opposite in correctness, and
+a third in CLAUDE.md quoted a probe's *"all 14 decks, `WORDS.length === 493`"* as
+though it were what the shipped clause asserts, which it never was. Fixed by
+reading, which is the only instrument available, and recorded so the next author
+does not "complete the pattern" by rewriting the two correct ones.
+**The SCAN half was the sibling defect: `Word Cards states no card count it has
+to keep up to date` banned a literal count in the MARKUP, and every count the
+page actually renders is built in the SCRIPT** (`WORDS.length + " cards"`,
+`HANZI.length + " cards"`, the per-deck `count`), so the one region the ban
+covered was not the region its subject lives in — that scope was a coincidence
+of where the first defect sat, and the three correct call sites prove the shape
+is live. Measured clean in both halves, so this is coverage rather than a fix.
+**Widening it naively is the false-positive machine this file keeps refusing,
+and the proof was already in the tree**: `/\d+\s*cards/` over the whole script
+has exactly ONE hit and it is the comment fixed an hour earlier. So each half is
+comment-immune by the means its own syntax gives — HTML comments stripped from
+the markup (which carries four, so the trap was latent there too), and the script
+read as STRING LITERALS, where a comment can never appear at all. That extractor
+already existed inside the player-facing-copy law, so it is HOISTED to one owner
+rather than copied, and the hoist was proven behaviourally neutral before
+anything was built on it.
+**Three things worth keeping from the mutations.** (1) **The two GREEN controls
+are the point** — the same count planted in a script comment and in an HTML
+comment must both stay green, or the widening has traded a missed defect for a
+false-positive machine; and M4 re-proves the predecessor's own defect, so the
+markup's old coverage was not quietly given away. (2) **A floor was written and
+then DELETED as unfalsifiable, on a measurement.** The script half needs one (its
+extractor CAN return nothing: 3090 → 0, a clean separation) and the markup half
+does not, because all four HTML comments sit in the last 8% of the markup, so the
+realistic regex bug — a GREEDY `<!--[\s\S]*-->` — costs **1272 bytes of 22946**
+and a floor able to separate 21170 from 22125 would sit 125 bytes from the
+shipped value, which is a coin flip rather than a bound. The control that
+replaced it is better than the floor was: under the degraded strip the ban is
+driven and **still bites**. Sixth clause deleted here for being unable to fail.
+(3) **My first mutation for that floor did not mutate the thing it named** — it
+stripped all TAGS rather than making the comment strip greedy, which leaves 19017
+bytes and sails over any floor; when a mutation passes, measure what it actually
+did before touching the assertion. And the anchor for the honest one matched
+**7 times**, because that regex is written seven times in the file — the
+assert-once discipline reported `SETUP FAILED` instead of a false pass, which is
+the whole reason it exists.
 
 ---
 

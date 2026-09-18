@@ -39,6 +39,36 @@ const PAGES = fs.readdirSync(root).filter((f) => /\.html$/.test(f)).sort();
 // yet exist, because that is the whole point of banning it.
 const TD_SOURCES = SCRIPTS.filter((f) => /^scripts\/td-/.test(f)).sort();
 
+// A JS source's STRING LITERALS — the text that can actually reach a screen.
+// Two laws below need this, and both need it for the same reason: a comment is
+// never inside a string literal, so reading literals makes a scan comment-immune
+// BY CONSTRUCTION rather than stripping comments for the tenth recorded time.
+// One owner, because two definitions of "what is a string here" is the class
+// this repo keeps paying for. It bails on a newline inside a quoted string
+// rather than swallowing the rest of the file, so an unterminated literal
+// degrades instead of blinding the scan.
+const stringLiterals = (src) => {
+  const out = [];
+  for (let i = 0; i < src.length; ) {
+    const c = src[i];
+    if (c === "/" && src[i + 1] === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
+    if (c === "/" && src[i + 1] === "*") { i += 2; while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++; i += 2; continue; }
+    if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1, buf = "";
+      for (; j < src.length; j++) {
+        if (src[j] === "\\") { buf += src[j + 1] || ""; j++; continue; }
+        if (src[j] === c) break;
+        if (c !== "`" && src[j] === "\n") break;   // unterminated: bail rather than swallow the rest of the file
+        buf += src[j];
+      }
+      out.push({ text: buf, line: src.slice(0, i).split("\n").length });
+      i = j + 1; continue;
+    }
+    i++;
+  }
+  return out;
+};
+
 const pageCss = (f) => {
   const src = fs.readFileSync(path.join(root, f), "utf8");
   let css = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
@@ -3241,7 +3271,7 @@ test("player copy is written for the PLAYER, not for the next engineer", () => {
   // hl-content.js holds every Chinese string, and BOTH sat outside a law about
   // player-facing copy. It is now every script the page loads PLUS each shipped
   // page's own inline <script>, which no SCRIPTS-derived scan can see (Word Cards
-  // is 493 cards of player copy in one inline block). tools/ and tests/ stay out
+  // is 623 cards of player copy in one inline block). tools/ and tests/ stay out
   // for free — the page does not load them, and they use this vocabulary
   // constantly. Measured 0 hits across all 28 sources first, so this is a
   // tightening of a passing check rather than a newly-blocked build.
@@ -3270,27 +3300,6 @@ test("player copy is written for the PLAYER, not for the next engineer", () => {
   // sources to 28 multiplies that surface, so the scan now reads exactly what it
   // claims to police — text that reaches the screen. A comment is never inside a
   // string literal, so the whole class stops existing rather than being stripped.
-  const stringLiterals = (src) => {
-    const out = [];
-    for (let i = 0; i < src.length; ) {
-      const c = src[i];
-      if (c === "/" && src[i + 1] === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
-      if (c === "/" && src[i + 1] === "*") { i += 2; while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++; i += 2; continue; }
-      if (c === '"' || c === "'" || c === "`") {
-        let j = i + 1, buf = "";
-        for (; j < src.length; j++) {
-          if (src[j] === "\\") { buf += src[j + 1] || ""; j++; continue; }
-          if (src[j] === c) break;
-          if (c !== "`" && src[j] === "\n") break;   // unterminated: bail rather than swallow the rest of the file
-          buf += src[j];
-        }
-        out.push({ text: buf, line: src.slice(0, i).split("\n").length });
-        i = j + 1; continue;
-      }
-      i++;
-    }
-    return out;
-  };
   const hits = [];
   let literals = 0;
   for (const [f, src] of SOURCES) {
@@ -4179,9 +4188,50 @@ test("Word Cards states no card count it has to keep up to date", () => {
   // The deck shipped with `"n": 80` per category and a literal "500 cards".
   // Both go stale the moment a card is added or removed — this repo's most
   // repeated defect class, in miniature. Every count is derived from WORDS.
+  //
+  // The ban was MARKUP-ONLY, and that scope was a coincidence of where the
+  // FIRST defect sat. Every count the page actually renders is built in the
+  // SCRIPT — WORDS.length + " cards", HANZI.length + " cards", the per-deck
+  // `count` — so the one region the ban covered is not the region its subject
+  // lives in, and the three correct call sites prove that shape is live. A
+  // fourth one typed rather than counted was invisible. Measured clean in both
+  // halves today, so this is COVERAGE rather than a fix.
+  //
+  // Widening it NAIVELY is the false-positive machine this repo keeps refusing:
+  // measured, /\d+\s*cards/ over the whole script has exactly ONE hit and it is
+  // a COMMENT illustrating the aria-label format. So each half is comment-immune
+  // by the means its own syntax gives — HTML comments stripped from the markup
+  // (which carries four, so the same trap was latent on that side too), and the
+  // script read as STRING LITERALS, where a comment can never appear at all.
   const src = read("wordcards.html");
-  const markup = src.slice(0, src.indexOf("<script>"));
+  const cut = src.indexOf("<script>");
+  const markup = src.slice(0, cut).replace(/<!--[\s\S]*?-->/g, "");
   assert.doesNotMatch(markup, /\d+\s*cards/, "a literal card count is a claim that goes stale");
+  // NO floor on this half, deliberately, and the asymmetry with the script half
+  // below is measured rather than assumed. All four HTML comments sit in the
+  // last 8% of the markup, so the realistic regex bug — a GREEDY `<!--[\s\S]*-->`
+  // — costs 1272 bytes of 22946 and leaves the ban working on everything before
+  // them (proven: the planted-count mutation is still caught under it). A floor
+  // that could separate 21170 from 22125 would sit 125 bytes from the shipped
+  // value and go red the day anyone writes a comment, which is a coin flip, not
+  // a bound. The strip's OTHER failure — no longer matching — is self-announcing
+  // rather than silent, because it puts the comments back in scope and fires the
+  // ban. The script half genuinely needs its floor: its extractor CAN return
+  // nothing, which bans nothing and stays green.
+
+  const lits = stringLiterals(src.slice(cut));
+  const typed = lits.filter((l) => /\d+\s*cards?\b/.test(l.text))
+    .map((l) => `line ${l.line}: ${JSON.stringify(l.text.slice(0, 60))}`);
+  assert.deepEqual(typed, [],
+    "a card count that reaches the screen must be COUNTED, never typed:\n  " + typed.join("\n  "));
+  // The extractor IS this half of the scan, so it needs its own floor: a broken
+  // walk bans nothing and stays green. 3090 literals today. The " cards" anchor
+  // is the self-verifying half — it is the suffix the three derived counts below
+  // are built from, so finding it proves the walk reached the real strings
+  // rather than merely returning a plausible number.
+  assert.ok(lits.length > 1500, `only ${lits.length} string literals extracted — the scan failed OPEN`);
+  assert.ok(lits.some((l) => l.text === " cards"),
+    "the literal scan never reached the derived counts' own suffix");
   assert.doesNotMatch(src, /"n":\s*\d+/, "the per-category counts must not be stored, they must be counted");
   assert.match(src, /WORDS\.length \+ " cards"/, "the total must be read off WORDS");
   assert.match(src, /HANZI\.length \+ " cards"/, "the Chinese count must be read off HANZI too");
