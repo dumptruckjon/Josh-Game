@@ -4189,6 +4189,91 @@ test("Word Cards states no card count it has to keep up to date", () => {
     "every deck count must come from the list that deck actually holds");
 });
 
+test("Word Cards: the repo tree's headline card count is the deck's real size", () => {
+  // The sibling law above stops the PAGE stating a count it has to keep up to
+  // date; nothing stopped its DOCUMENTATION doing exactly that, and it had.
+  // CLAUDE.md introduced the file as "a 503-card flash-card deck" — written
+  // before the Chinese deck landed, never moved when 中文 was appended to the
+  // same entry — while its own mobile.test.js entry 88 lines below said "the
+  // whole 623-card library". Two counts for one page, in one document,
+  // disagreeing: this repo's most reliable tell, and its most repeated defect
+  // class (a list that outlives its contents), inside the reference doc that
+  // names that class ten times.
+  //
+  // Scoped to the HEADER LINE of the wordcards entry on purpose. That line
+  // introduces the file, so its count is the file's size — which is a PROPERTY,
+  // not a value, so it is not a fence around one number. A count elsewhere in
+  // the prose may legitimately describe one deck (503 English, 120 Chinese),
+  // and a law banning those would fire on correct writing.
+  const doc = read("CLAUDE.md");
+  const line = doc.split("\n").find((l) => l.startsWith("├── wordcards.html"));
+  assert.ok(line, "CLAUDE.md must still name wordcards.html in the repo tree");
+  const m = line.match(/(\d+)-card/);
+  assert.ok(m, `the wordcards tree entry must state its size — saw ${line.trim()}`);
+  const total = wcWords().length + wcHanzi().length;
+  assert.equal(Number(m[1]), total,
+    `CLAUDE.md introduces Word Cards as a ${m[1]}-card deck; the page holds ${total}`);
+  // Non-vacuous: the derivation must have actually read both decks, or a broken
+  // extractor would make this pass on an empty page.
+  assert.ok(total > 400, `the deck extraction found only ${total} cards`);
+});
+
+test("the repo tree's counts are the data's counts, derived with no pairing list", () => {
+  // The sibling above pins ONE count on ONE line, because wordcards.html is a
+  // page rather than a module and there is nothing to derive against. For a
+  // dual-export DATA module there is: a count in that file's own tree entry
+  // whose NOUN uppercases to one of that file's own exports must equal that
+  // export's size. No map from prose to field is written down, so a future
+  // export inherits the law the day the tree entry mentions it.
+  //
+  // It found a second instance of the stale-count class immediately: the
+  // td-data entry said "18 achievements" — 9 bosses + 9 cross-cutting, true
+  // until World 10's boss badge made it 19 — in an entry that HAD been updated
+  // for that world in every other respect ("10 bosses/40 levels (10 worlds")).
+  //
+  // Scoped to scripts/ deliberately: requiring a tools/ file RUNS a sim and
+  // requiring a tests/ file RUNS the suite (both hung a probe that tried).
+  const doc = read("CLAUDE.md");
+  const tree = doc.slice(doc.indexOf("## Repository Structure"), doc.indexOf("## Conventions"));
+
+  // A logical entry is the line naming a file plus its continuation comments.
+  const entries = [];
+  let cur = null;
+  for (const l of tree.split("\n")) {
+    const m = l.match(/[├└]── ([\w.\-]+)/);
+    if (m) { cur = { file: m[1], text: l }; entries.push(cur); }
+    else if (cur && /^\s*│?\s*│?\s*#/.test(l)) cur.text += "\n" + l;
+  }
+  assert.ok(entries.length > 20, `the tree walk found only ${entries.length} entries`);
+
+  let checked = 0;
+  const drift = [];
+  for (const e of entries) {
+    if (!/\.js$/.test(e.file)) continue;
+    const p = path.join(root, "scripts", e.file);
+    if (!fs.existsSync(p)) continue;
+    let mod;
+    try { mod = require(p); } catch (err) { continue; }
+    if (!mod || typeof mod !== "object") continue;
+    for (const m of e.text.matchAll(/(\d+)[\s-]([a-z]+)/g)) {
+      const key = Object.keys(mod).find((k) => k === m[2].toUpperCase());
+      if (!key) continue;
+      const v = mod[key];
+      const size = Array.isArray(v) ? v.length
+        : (v && typeof v === "object" ? Object.keys(v).length : null);
+      if (size === null) continue;
+      checked += 1;
+      if (Number(m[1]) !== size) {
+        drift.push(`${e.file}: the tree says "${m[1]} ${m[2]}" but ${key} holds ${size}`);
+      }
+    }
+  }
+  // A derivation fails OPEN, so the floor is what stops a broken walk or a
+  // renamed export making this pass by checking nothing.
+  assert.ok(checked >= 3, `only ${checked} tree count(s) were derivable — the law is guarding nothing`);
+  assert.deepEqual(drift, [], "a count in the tree entry disagrees with the data it describes");
+});
+
 // ---------------------------------------------------------------------------
 // Word Cards is a READING tool, so the back of a card is the ANSWER. These are
 // content-truth tests in the sense content.test.js means it: they restate what

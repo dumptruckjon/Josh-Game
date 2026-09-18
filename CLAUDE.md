@@ -8078,6 +8078,65 @@ button)**, with the nav bottom byte-identical in both arms — the pad's 200px i
 fallback against a 390-tall viewport, with everything still reachable, and
 landscape is explicitly not a design target.
 
+**THE PAGE WAS FORBIDDEN FROM STATING A STALE CARD COUNT AND ITS DOCUMENTATION
+WAS NOT — so CLAUDE.md gave two different sizes for one page, 88 lines apart.**
+`Word Cards states no card count it has to keep up to date` exists because the
+deck shipped with `"n": 80` per category and a literal `500 cards`; every count
+on the page is derived from `WORDS`/`HANZI` and that law pins it. Nothing
+pinned the PROSE. The repo tree introduced the file as *"a 623-card flash-card
+deck"* — correct when written, before 中文 was appended to the same entry — while
+the `mobile.test.js` entry below it said *"the whole 623-card library"*. Two
+owners of one number, disagreeing, inside the document that names that class ten
+times. Found by deriving the inventory to answer a status question rather than
+quoting the doc back.
+**The law is scoped to the HEADER LINE on purpose, and that is what keeps it
+from being a fence**: that line introduces the file, so its count is the file's
+SIZE — a property, not a value — while a count elsewhere in the prose may
+legitimately describe ONE deck (503 English, 120 Chinese), and a law banning
+those would fire on correct writing. Both sides derived, mutation-proven twice
+(restore 503 → *"introduces Word Cards as a 503-card deck; the page holds 623"*;
+delete the count → *"must state its size"*), with a non-vacuity floor because a
+broken extractor would otherwise make it pass on an empty page.
+**AND ASKING "WHAT ELSE HAS THIS?" FOUND A SECOND INSTANCE IN THE SAME
+DOCUMENT WITHIN THE MINUTE — which is the argument for the derived law rather
+than a second hand-written pin.** The td-data entry said **"18 achievements"**:
+9 bosses + 9 cross-cutting, true until World 10's boss badge made it 19, in an
+entry that HAD been updated for that world in every other respect ("10
+bosses/40 levels (10 worlds"). The doc's own learnings say 19 three times.
+**The law that covers it needs no pairing list at all**: in a tree entry
+describing a dual-export DATA module, a count whose NOUN uppercases to one of
+that module's own exports must equal that export's size — `40 levels` ↔
+`LEVELS`, `10 worlds` ↔ `WORLDS`, `18 achievements` ↔ `ACHIEVEMENTS`. Four
+counts checked today with nothing written down, so a future export inherits the
+law the day the tree mentions it, and the failure names the file, the prose, the
+export and the real size rather than being a wall. Both laws are kept because
+they cover different things and neither subsumes the other: `wordcards.html` is
+a PAGE, so there is no module to derive against, which is exactly why its count
+needed the header-line pin. Scoped to `scripts/` deliberately — **requiring a
+`tools/` file RUNS a sim and requiring a `tests/` file RUNS the suite**, which
+hung the first probe and, worse, put it in CPU contention with the gate this
+file already warns never to run a probe against.
+**Two counts were derived and came back CLEAN, which is the half worth writing
+down**: 200/40/240 games, 40 levels, 10 worlds, a 56-enemy roster, 10 bosses,
+40 star nodes at 140⭐ against a 120⭐ ceiling, 120 characters. So the tree is
+accurate everywhere else, and the two that drifted are both the same mechanism —
+a number written before a later addition, in an entry the addition otherwise
+updated.
+**Four probe bugs on the way, every one a recorded trap, and the last is the one
+worth keeping.** A lazy `[\s\S]*?\n\];` swallowed a later declaration (the
+`WORDS`-swallows-`SOUND_RULES` trap) — replaced by a balanced-delimiter scan,
+which then overran because **an apostrophe inside a COMMENT opens a fake string**,
+so the scanner has to skip comments as well as strings. `FAMILIES` and
+`SOUND_RULES` are ARRAYS, not objects, and the stroke fields are `s`/`m`, not
+`medians` — two guesses about shape that each produced a confident failure on
+working data. And `node -e` inside bash SINGLE quotes does not consume
+backslashes, so `\\s` reaches the regex as a literal backslash and every
+pattern silently matches nothing; the tell was `no decl for WORDS` on a file
+that plainly declares it. Write the probe to a FILE. Finally, the verification
+grep that "proved" a CLAUDE.md phrase missing was searching for a string that
+**spans a line break** — a scan's own pattern is part of the scan, for the
+umpteenth time, this time inside the check written to verify the fix.
+
 ---
 
 ## Repository Structure
@@ -8088,7 +8147,7 @@ tooling.
 ```
 .
 ├── index.html                  # The whole site: front door (#screen-start, 3 world tiles) + Josh's launcher shell; all other screens injected. Also carries the ONE shared `.jart-defs` block — 3 ALPHA-ONLY shading gradients (jart-lit/dome/ground) that every JoshArt picture references by stable id (per-picture defs collapse — see the learnings)
-├── wordcards.html              # 🃏 Word Cards — a 503-card flash-card deck and the
+├── wordcards.html              # 🃏 Word Cards — a 623-card flash-card deck and the
 │                               #   reading tool Josh actually practises on. Self-contained page,
 │                               #   opened from the 76px slot in Josh's home bar. Four DERIVED
 │                               #   reading decks (First Words = 3-letter CVC · Word Families =
@@ -8158,7 +8217,7 @@ tooling.
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
 │   ├── hl-main.js              # 华丽's shell: red-gold launcher + 🏮 sticker book (opens directly from the front door's 👵🏻 tile — no gate)
-│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/56-enemy roster (35 + 21 per-world backbone SKINS) + 10 bosses/40 levels (10 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35/L38)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 40 nodes/140⭐ (vs the 120⭐ ceiling 40 levels create — 20⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 18 achievements, one endless arena PER WORLD, each with its OWN mini-boss rather than ten Piñatas) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of) + TD-18 `CHIPS` (the 4 opt-in run constraints; a fifth banning the Dart was CUT by measurement — see the comment beside the list)
+│   ├── td-data.js              # 🏰 Fort Josh (Jon's TD): ALL balance/content truth (dual-export) — towers/56-enemy roster (35 + 21 per-world backbone SKINS) + 10 bosses/40 levels (10 worlds; one fork+lever per world: L3/L7/L10/L15/L19/L23/L27/L31/L35/L38)/gimmicks + WORLDS presentation map (label/spawnGlyph/`backbone` — the ONE declaration `BACKBONE_TYPES`, the generator and the composition audit all derive from) + meta (TD-8 deep star tree: 3 branches × 40 nodes/140⭐ (vs the 120⭐ ceiling 40 levels create — 20⭐ of headroom) against a 6-slot per-run `metaSlots` loadout, 19 achievements, one endless arena PER WORLD, each with its OWN mini-boss rather than ten Piñatas) + a per-world `floor` (pattern/palette/road tint/props triple) + P3 `chargePerWave`/`chargeMax` (⚙️ Toy Energy) + P6 `abilitySlots` (the 5-power pool the strip picks 4 of) + TD-18 `CHIPS` (the 4 opt-in run constraints; a fifth banning the Dart was CUT by measurement — see the comment beside the list)
 │   ├── td-logic.js             # 🏰 PURE deterministic engine (30Hz fixed-step, seeded RNG only, zero DOM; dual-export for node sims) — TD-7 lane-aware (paths[]/pathIdx, pullLever); TD-15 waveIdx=cleared vs sentIdx=sent, so waves can OVERLAP (callInfo/⏩ RUSH); guide truth DERIVED from data (enemyTraits/reachedBy/levelGimmicks) + pure floor-prop placement (propCells — a new enemy or gimmick documents itself or the coverage guardrail fails) + pure `laneCoverage` (what share of the lane a pad reaches, validated against real damage) behind the engine's `coverageOf(line, tier, cx, cy, branch)`, the ONE owner the build menu and tower panel read; P3 ⚙️ energy budget + 🧨's reveal rider through the ONE `isHidden` gate + ⚡'s crash (frozen across a build phase); P4 records the run's equipped loadout on `state.meta`; P6 records the run's equipped POWERS on `state.powers` (`abilityReady` refuses `not-equipped` first) and 📌's `markId`/`markUntil` override every mode through the ONE `pickByMode` + the dart's sticky-KEEP; TD-18 run CHIPS are pure input like meta/powers, refused in the FIRST clause of `place()`/`abilityReady()` (never in the UI), and `jamNearest` is the ONE owner the Loose Screw and the 🎇 Sparkler share; `rosterTricks`/`NOT_A_TRICK` are the ONE owner of "which trait keys are MECHANICS" (the fort home's blurb counts them, so it is a product decision — it used to be a literal in td-ui AND a copy in the test); `worldOrder`/`byWorldOrder` are the ONE owner of "what order do the worlds come in" (derived from the campaign — the endless picker sorts through it rather than rendering whatever order `ENDLESS.worlds` happens to be typed in)
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
