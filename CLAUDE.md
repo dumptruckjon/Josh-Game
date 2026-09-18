@@ -8012,6 +8012,72 @@ exactly once"* and leaves *"must not disturb the round"* unproven; isolating it
 needs a mutation that disturbs the round WITHOUT speaking twice (reset the stroke
 counter), which then reports `inked 1 -> 0`.
 
+**THE NEWEST SCREEN ON THE PAGE HAD NEVER BEEN RENDERED ON THE ENGINE JOSH USES
+— and the law already guarding it is STRUCTURALLY BLIND to the way it breaks.**
+`mobile.test.js` is the file that runs on real WebKit in CI, and its Word Cards
+test opens with *"THE PAGE JOSH ACTUALLY READS ON HAD NEVER BEEN RENDERED BY
+THIS FILE"* — written for the DECK, and 写字 shipped afterwards and was never
+added. It is opened by exactly three tests, all in `e2e.test.js` (Chromium), and
+not one of them measures a SIZE, so the ≥75px kid floor and the no-sideways-
+scroll law had never touched it. It is also the most emoji-dense control row in
+the app: `.wlabel` is `grid-template-columns: auto minmax(0,1fr) auto` with a
+38px emoji in the first track and a 30px one in the last, so the WORDS live in
+whatever the two pictures leave — the exact class that has bitten this repo
+three times (the tower panel's stat line, the next-wave pill, the ability tile).
+**Simulating a wider-emoji engine, the middle track goes 49.0% of the row →
+34.1% → 19.1% → 0.0% at 1×/1.5×/2×/3×, and horizontal overflow stays at ZERO the
+whole way**: `minmax(0,…)` means the pinyin VANISHES rather than the row
+spilling, so the shipped overflow law could never see it — the same shape as the
+card faces' `overflow: hidden` making a wide card clip instead of scroll, which
+is why that sibling test exists at all. The claim is therefore the PINYIN, which
+is one unbreakable word and so the only run that reports its own clipping (the
+meaning is several words and WRAPS, so its overflow is unobservable by
+construction). Measured clean at every width, so this is COVERAGE rather than a
+fix; mutation-proven by scaling the two emoji, which clips 17 of the 120 at 2×
+— and it fires at **320**, the width with least slack, not at the 390 the walk
+starts on.
+**THREE FIXTURE BUGS IN A ROW, each of which produced a confident wrong answer
+about working code.** (1) `scrollWidth > clientWidth` on the MEANING can never
+fire, because it wraps — so the probe reported `clipped: none` beside a
+**negative** slack, and a contradiction is the only reason I did not read it as
+a pass. (2) The replacement compared *the tightest track* against *the widest
+text* — **taken from DIFFERENT characters**, because the track varies per card
+(139px for one, 160px for 快) since every card's emoji has its own advance
+width. A max and a min gathered over a walk are not a pair. (3) The mutation was
+**HALF-APPLIED** — an unquoted `$m` split `"M1a M1b"` into one argument — and it
+SURVIVED; the tell was the log printing one `applied` line where there should
+have been two. Suspect the fixture, then read what it printed rather than what
+it concluded.
+**AND ONE CLAUSE WAS KEPT ONLY BECAUSE A SECOND MUTATION FOUND THE DIRECTION IT
+ACTUALLY GUARDS.** "The nav must stay reachable" survived a 900px pad
+`min-height`: `.wpadwrap` is `min-height: 0`, so an oversized pad OVERFLOWS its
+own wrap and displaces nothing — that whole direction is structurally
+impossible. Only an AUTO row growing can push it off (a 700px label reports
+*"the nav sits at 950 of 844"*). The comment says which of the two it guards,
+rather than implying both.
+**THE NEIGHBOURING AUDIT WAS MEASURED AND DELIBERATELY NOT EXTENDED, which is
+the other half of the same discipline.** The Word Cards contrast pass also never
+opens `#write` — but every finding it exists for was on a LIGHT card fill, where
+*"there is no headroom to dim on"* (dark ink is 5.01:1 at its worst there, and
+even `opacity: .90` breaches), while the writing screen is full-strength white
+on the page's DARKEST ground at **13.68:1 and 12.40:1**, i.e. structurally the
+roomiest case and the least able to catch what that audit is for. Adding it
+would be the fence-around-the-residual, the same call that kept tablet portrait
+out of the fort's overlay audit — and there the reasoning was structural too,
+not the clean number.
+**Two pre-existing measurements recorded rather than fixed, both attributed by a
+`git worktree` A/B at the parent commit rather than assumed.** At **320px, 5 of
+the 120 characters** (口 中 只 奶 兴) wrap their meaning to a second line, taking
+the row 76→87px and the pad 216→205px — so the square he traces on rescales
+between those characters (never during one). The documented fix, reserving the
+tallest line, costs 11px of pad on the other 115, which is the wrong trade; and
+shortening the glosses would trade teaching content for pixels, on a deck where
+a gloss has already been corrected once for naming the wrong word. And short
+LANDSCAPE leaves the page **44px scrollable (36px before the word became a
+button)**, with the nav bottom byte-identical in both arms — the pad's 200px iOS
+fallback against a 390-tall viewport, with everything still reachable, and
+landscape is explicitly not a design target.
+
 ---
 
 ## Repository Structure
@@ -8109,7 +8175,10 @@ tooling.
 │   ├── mobile.test.js          # Playwright iPhone (real WebKit in CI) — overflow + ≥75px audit on home AND every game,
 │   │                           #   plus three SIMULATIONS of what the sandbox has and Josh's iOS 14.2 iPad does not:
 │   │                           #   flex `gap` dropped, `aspect-ratio` forced to auto, and every scale-above-1 keyframe
-│   │                           #   applied to the tap target it lands on (a cue may claim the gap, never the neighbour)
+│   │                           #   applied to the tap target it lands on (a cue may claim the gap, never the neighbour).
+│   │                           #   Also the one file that renders 🃏 Word Cards on a real engine — the whole 623-card
+│   │                           #   library for clipping, and 写字's row, whose words sit in a `minmax(0,1fr)` between two
+│   │                           #   emoji tracks and so VANISH rather than overflow when a glyph is wider than here
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow

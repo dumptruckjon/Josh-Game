@@ -1095,3 +1095,111 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
     }
   }
 });
+
+test("Word Cards' WRITING pad on the real engine: nothing crushed, nothing small", async () => {
+  // THE NEWEST SCREEN ON THE PAGE HAD NEVER BEEN RENDERED BY THIS FILE. The
+  // test above it exists because "the page Josh actually reads on" was only
+  // ever launched in Chromium; 写字 shipped after it was written, so the deck
+  // got that coverage and the writing pad did not. It is opened by exactly
+  // three tests, all of them in e2e.test.js, and not one of them measures a
+  // SIZE — so the >= 75px kid floor and the no-sideways-scroll law have never
+  // been applied to it on the engine Josh's iPad actually uses.
+  //
+  // IT IS THE MOST EMOJI-DENSE CONTROL ROW IN THE APP, which is what makes the
+  // engine matter rather than being a formality: `.wlabel` is
+  // `grid-template-columns: auto minmax(0,1fr) auto` with a 38px emoji in the
+  // first track and a 30px one in the last, so the words sit in whatever the
+  // two pictures leave — and this repo has been bitten three separate times by
+  // iOS rendering emoji WIDER than headless Chromium (the tower panel's stat
+  // line, the next-wave pill, the ability tile), every time with the headless
+  // measure saying it fit.
+  //
+  // AND THE LAW ALREADY ON THIS FILE IS STRUCTURALLY BLIND TO THAT. Simulating
+  // a wider-emoji engine by scaling just those two glyphs, the middle track
+  // goes 49.0% of the row -> 34.1% -> 19.1% -> 0.0% at 1x / 1.5x / 2x / 3x,
+  // and the page's horizontal overflow stays at 0 the whole way: `minmax(0,…)`
+  // means the pinyin VANISHES rather than the row spilling, exactly as the
+  // faces' `overflow: hidden` means a wide card clips instead of scrolling.
+  // So the claim here is the pinyin itself, which is one unbreakable word and
+  // therefore the one run that reports its own clipping (the meaning WRAPS, so
+  // it never can — measured, its overflow is unobservable by construction).
+  //
+  // Measured clean on Chromium at every width, so this is COVERAGE rather than
+  // a fix — the honest half to say out loud — and mutation-proven by scaling
+  // the two emoji, which clips 17 of the 120 at 2x.
+  const WIDTHS = [
+    [390, 844],   // his phone
+    [320, 568],   // the narrowest audited width, where the row has least slack
+    [834, 1112],  // the iPad, where the emoji are largest
+  ];
+  for (const [w, h] of WIDTHS) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      // The pad REMEMBERS where he got to, so a key left by another test would
+      // open it part-way through the deck and the walk below would start there.
+      await p2.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+      await p2.reload();
+      await p2.click("#writeBtn");
+      await p2.waitForSelector("#write:not(.hidden)");
+
+      const r = await p2.evaluate((MIN) => {
+        const py = document.getElementById("wpy");
+        const pad = document.getElementById("wpad");
+        const total = Object.keys(window.HANZI_STROKES).length;
+        const clipped = [];
+        let seen = 0;
+        for (let k = 0; k < total; k++) {
+          const ch = pad.getAttribute("aria-label").split(",")[0];
+          // A single word cannot wrap, so a box narrower than the word is the
+          // one case this reports honestly. (`.wmean` is several words and
+          // reflows instead, which is why it is not asked the same question.)
+          if (py.scrollWidth > py.clientWidth + 1) clipped.push(ch + " " + py.textContent);
+          seen += 1;
+          document.getElementById("wnext").click();
+        }
+        return {
+          clipped, seen, total,
+          taps: [...document.querySelectorAll("#write button")]
+            .map((b) => { const q = b.getBoundingClientRect();
+                          return { id: b.id || b.className, s: Math.round(Math.min(q.width, q.height)) }; })
+            .filter((t) => t.s < MIN),
+          buttons: document.querySelectorAll("#write button").length,
+          ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          // The nav is the only way forward, so it has to be reachable. What
+          // that guards is an AUTO row growing — the pad cannot displace it at
+          // all, because `.wpadwrap` is `min-height: 0`, so an oversized pad
+          // overflows its own wrap instead of pushing anything (measured: a
+          // 900px pad min-height moves the nav by zero). Short LANDSCAPE does
+          // leave the page 44px scrollable here and always has (36px before
+          // the word became a button) — that same 200px iOS fallback against a
+          // 390-tall viewport — and the nav stays on screen through it, which
+          // is the property rather than the slack.
+          navBottom: Math.round(document.querySelector("#write .nav").getBoundingClientRect().bottom),
+          vh: window.innerHeight,
+        };
+      }, MIN_TAP);
+
+      // NON-VACUITY: a walk that opened nothing passes every clause below.
+      assert.equal(r.seen, r.total, `${w}px: walked ${r.seen} of ${r.total} characters`);
+      assert.ok(r.seen >= 100, `${w}px: the deck is 120 characters and the walk saw ${r.seen}`);
+      assert.ok(r.buttons >= 6, `${w}px: only ${r.buttons} controls on the writing screen — the walk found the wrong screen`);
+
+      assert.deepEqual(r.clipped.slice(0, 6), [],
+        `${w}px: ${r.clipped.length} character(s) have their pinyin clipped by the row's two emoji — ` +
+        `e.g. ${r.clipped.slice(0, 6).join(", ")}`);
+      assert.deepEqual(r.taps, [],
+        `${w}px: writing-pad controls below the ${MIN_TAP}px floor: ` +
+        `${r.taps.map((t) => t.id + "=" + t.s).join(", ")}`);
+      assert.ok(r.ovf <= 0, `${w}px: the writing pad scrolls sideways by ${r.ovf}px`);
+      assert.ok(r.navBottom <= r.vh,
+        `${w}px: the next/back nav sits at ${r.navBottom} of ${r.vh} — off the bottom, so there is no way on`);
+      assert.deepEqual(errs, [], `${w}px: page errors`);
+    } finally {
+      await ctx2.close();
+    }
+  }
+});
