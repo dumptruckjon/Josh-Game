@@ -8298,6 +8298,37 @@ guess whether that gap is inherited from a grid (Safari 14 keeps it) or a flex
 (dropped). Declaring `display:grid` is the law's own remedy and makes the rule
 say what it is instead of leaving the next reader to trace the cascade.
 
+**AND THE FIRST REAL-PLAY REPORT WAS A GAP I HAD BUILT IN: "I just did some
+testing and now can't get back to page 1."** True. The two sibling screens each
+carry a ◀ ▶ nav and the board cannot — four rows at the 76px tap floor already
+fill a 320x480 screen to within 2px, so there is no room for a nav row — which
+left CLEARING THIRTEEN MORE BOARDS as the only way off round 17. Measured, the
+bar's grid had a free third slot (the deck spends it on 🔀 and 写字 on ✍️), so
+⏮️ goes there and nothing else moves.
+**The cure needs its own gate or it is a second defect**, which is the part
+worth keeping: a bar button a four-year-old can reach is a button he WILL press,
+and on a plain tap he would live on round 1 for ever and the place memory would
+be pointless. So it takes a HOLD — the gate RULE 5 itself names — and it FILLS
+while held, so it teaches itself instead of being a secret the parent also
+cannot find. **A keyboard is not a four-year-old's finger**, so Enter and Space
+act at once; a hold-only control is operable by touch and mouse and by nothing
+else, which is not a gate but an exclusion. The fill is deliberately NOT gated
+under `prefers-reduced-motion`: it is a progress READOUT, and removing it leaves
+the control either silent or instantly full, which reads as done when nothing
+has happened (no `@keyframes` is involved, so that law has nothing to say).
+**Eight mutations, and the one that fired the WRONG clause is the lesson
+again**: dropping all three cancel listeners went red on *"letting go must reset
+the fill"* rather than on the slide-off clause, because without `pointerup` the
+fill never clears either. Dropping ONLY `pointerleave` isolates it and reports
+*"sliding off the button mid-hold must cancel it — expected 18 / 30, actual
+1 / 30"*. And the clause that matters most here is the NEGATIVE one — a short
+tap must do nothing — because that is the whole difference between a gate and a
+button. Two smaller measured notes: the back label clips at 320 on **all three**
+screens ("‹ Chi…", "‹ Wri…", "‹ Ma…"), so the third control introduced no
+regression; and ⏮️ was checked against all **540** card pictures on the page
+before being chosen, which is the 👂/👄 lesson (they are 听's and 口's own
+pictures) applied before rather than after.
+
 **Three smaller ones.** The picture column is a **DERANGEMENT**, not a shuffle:
 with four tiles a plain shuffle leaves a pair on its own row ~37% of the time
 and lines the whole board up 1 in 24, either of which lets POSITION answer the
@@ -8370,7 +8401,12 @@ tooling.
 │                               #   answers for one picture is unrepresentable rather than
 │                               #   unlikely, and the picture column is a DERANGEMENT so position
 │                               #   never answers the question. 30 rounds cover all 120 and it
-│                               #   remembers which one he was on.
+│                               #   remembers which one he was on — with ⏮️, the page's ONE
+│                               #   parent-gated control, to go back to round 1. It takes a HOLD
+│                               #   (RULE 5's own gate) and fills while held: the board has no
+│                               #   room for a ◀ ▶ nav, so without it the only way off round 17
+│                               #   was to clear thirteen more boards, and on a plain tap he
+│                               #   would simply live on round 1 for ever.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card

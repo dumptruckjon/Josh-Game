@@ -318,6 +318,22 @@
      green — a solid fill with FULL-STRENGTH ink, not a dim, because this
      page's own contrast pass found every dimmed run on it below AA. */
   .mtile.done{background:#B7E4C7;box-shadow:none;cursor:default;}
+  /* THE ONE PARENT-GATED CONTROL ON THIS PAGE, and the gate is a HOLD — which is
+     the mechanism RULE 5 names. Going back to round 1 throws away where he got
+     to, and a bar button a four-year-old can reach is a button he WILL press,
+     so on a plain tap he would simply live on round 1 for ever and the place
+     memory would be pointless. It FILLS while held, so it teaches itself
+     instead of being a secret the parent also cannot find.
+
+     The fill is deliberately NOT switched off under prefers-reduced-motion: it
+     is a progress READOUT, not decoration, and removing it would leave the
+     control either silent or — worse — instantly full, which reads as done when
+     nothing has happened. No @keyframes is involved, so the reduced-motion law
+     next door has nothing to say about it. */
+  .icon.hold{background-image:linear-gradient(var(--card),var(--card));
+             background-repeat:no-repeat;background-position:bottom;
+             background-size:100% 0;transition:background-size .8s linear;}
+  .icon.hold.holding{background-size:100% 100%;}
   .mtile.miss{animation:mnudge .34s ease;}
   .mtile.hintme{animation:mhint .9s ease 2;}
   /* Four rows at the 76px tap floor plus three 16px gaps is 352px of board, and
@@ -411,6 +427,7 @@
   <div class="bar">
     <button class="back" id="mback" aria-label="Back to all the decks">&lsaquo;&nbsp; Matching</button>
     <button class="icon snd" id="msound" aria-pressed="false" aria-label="Say each character out loud">&#128263;</button>
+    <button class="icon hold" id="mreset" aria-label="For a grown-up: hold this down to go back to round 1">&#9198;&#65039;</button>
   </div>
   <div class="meter">
     <div class="track"><div class="fill" id="mfill"></div></div>
@@ -1532,6 +1549,37 @@ function mFinish(){
     mGo(1);
   }, 950);
 }
+/* A HOLD, not a tap — see the CSS above for why. The two sibling screens each
+   carry a ◀ ▶ nav and this one cannot: four rows at the tap floor already fill
+   a 320x480 screen to within 2px, so there is no room for a nav row, and
+   without one the ONLY way off round 17 was to clear thirteen more boards.
+   That is the defect this fixes; the gate is what keeps the cure from becoming
+   a way to never leave round 1.
+
+   A keyboard is not a four-year-old's finger, so Enter and Space act at once —
+   a hold-only control would be operable by touch and mouse and by nothing
+   else. */
+const M_HOLD = 800;
+let mHoldT = null;
+function mHoldStop(){
+  if (mHoldT) clearTimeout(mHoldT);
+  mHoldT = null;
+  $("mreset").classList.remove("holding");
+}
+function mHoldStart(){
+  if (mHoldT || !mRounds.length) return;
+  $("mreset").classList.add("holding");
+  mHoldT = setTimeout(() => { mHoldStop(); mRestart(); }, M_HOLD);
+}
+function mRestart(){
+  if (!mRounds.length) return;
+  mr = 0; mLock = false;
+  // REMOVED, not set to "0": the loader already defaults to the first round, so
+  // a stored zero would be a second way of saying the same thing.
+  try { localStorage.removeItem("wc-match-at"); } catch (e) {}
+  mRender();
+}
+
 function mGo(step){
   if (!mRounds.length) return;
   mr = (mr + step + mRounds.length) % mRounds.length;
@@ -1545,6 +1593,16 @@ for (const col of [mcharsEl, mpicsEl]){
   });
 }
 $("msound").addEventListener("click", () => toggleSound(mSayHeld));
+$("mreset").addEventListener("pointerdown", mHoldStart);
+// pointerleave as well as up/cancel: holding and then sliding OFF the button is
+// how a grown-up changes their mind, and it must not still fire.
+for (const ev of ["pointerup", "pointercancel", "pointerleave"])
+  $("mreset").addEventListener(ev, mHoldStop);
+$("mreset").addEventListener("keydown", (ev) => {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  ev.preventDefault();
+  mRestart();
+});
 $("mback").addEventListener("click", () => {
   matchEl.classList.add("hidden");
   menu.classList.remove("hidden");

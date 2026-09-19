@@ -4052,6 +4052,112 @@ test("Word Cards: matching is no-fail — a wrong tap costs nothing and three mi
   }
 });
 
+test("Word Cards: matching can be sent back to round 1, but only by a grown-up", async () => {
+  // REPORTED FROM REAL PLAY: "I just did some testing and now can't get back to
+  // page 1." True, and my fault. The two sibling screens each carry a ◀ ▶ nav
+  // and this one cannot — four rows at the tap floor already fill a 320x480
+  // screen to within 2px, so there is no room for a nav row — which left
+  // clearing thirteen more boards as the only way off round 17.
+  //
+  // The cure needs its own gate or it becomes a second defect: a bar button a
+  // four-year-old can reach is a button he WILL press, and on a plain tap he
+  // would live on round 1 for ever and the place memory would be pointless. So
+  // it takes a HOLD, which is the gate RULE 5 names. The clause that matters
+  // here is therefore the NEGATIVE one — a short tap must do nothing — because
+  // that is the whole difference between a gate and a button.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    const park = async (n) => {
+      await pg.evaluate((v) => localStorage.setItem("wc-match-at", v), String(n));
+      await pg.reload({ waitUntil: "load" });
+      await pg.click("#matchBtn");
+      await pg.waitForSelector("#match:not(.hidden)");
+    };
+    const at = () => pg.evaluate(() => ({
+      round: document.getElementById("mcount").textContent.trim(),
+      stored: localStorage.getItem("wc-match-at"),
+      filling: document.getElementById("mreset").classList.contains("holding"),
+    }));
+    const press = async (ms, slideOff) => {
+      const box = await (await pg.$("#mreset")).boundingBox();
+      await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await pg.mouse.down();
+      await pg.waitForTimeout(ms);
+      if (slideOff) {
+        await pg.mouse.move(box.x + box.width / 2, box.y + box.height + 140);
+        await pg.waitForTimeout(900);
+      }
+      await pg.mouse.up();
+    };
+
+    // FIXTURE: he really is deep in the deck, or every clause below is moot.
+    await park(17);
+    let s = await at();
+    assert.equal(s.round, "18 / 30", `fixture: the board did not reopen where it was parked (${s.round})`);
+
+    // 1. A SHORT TAP DOES NOTHING. This is the gate.
+    await press(150);
+    s = await at();
+    assert.equal(s.round, "18 / 30", "a tap must not send him back — the control is a HOLD");
+    assert.equal(s.stored, "17", "a tap must not touch his saved place");
+
+    // …and it still SHOWS that something is happening, or a grown-up pressing
+    // it once learns only that the button is broken.
+    const box = await (await pg.$("#mreset")).boundingBox();
+    await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await pg.mouse.down();
+    await pg.waitForTimeout(150);
+    const mid = await at();
+    await pg.mouse.up();
+    assert.equal(mid.filling, true, "the button must fill while held, or the gate is a secret");
+    assert.equal((await at()).filling, false, "letting go must reset the fill");
+
+    // 2. SLIDING OFF mid-hold is how a grown-up changes their mind.
+    await press(300, true);
+    s = await at();
+    assert.equal(s.round, "18 / 30", "sliding off the button mid-hold must cancel it");
+    assert.equal(s.stored, "17", "a cancelled hold must not touch his saved place");
+
+    // 3. A REAL HOLD sends him back, and forgets the place so a fresh open
+    //    starts there too.
+    await press(1000);
+    s = await at();
+    assert.equal(s.round, "1 / 30", `holding must go back to round 1 — saw ${s.round}`);
+    assert.equal(s.stored, null, "going back to round 1 must forget the saved place");
+    const first = await pg.evaluate(() =>
+      [...document.querySelectorAll("#mchars .mtile")].map((t) => t.dataset.ch));
+    assert.equal(first.length, 4, "round 1 must deal a full board");
+    assert.deepEqual((await at()).round, "1 / 30");
+
+    // …and it really is the FIRST board, not just a relabelled one.
+    const dealt = await pg.evaluate(() => mRounds[0].map((c) => c[0]));
+    assert.deepEqual(first, dealt, "the board shown must be round 1's own cards");
+
+    // 4. A KEYBOARD is not a four-year-old's finger, so it acts at once — a
+    //    hold-only control would be operable by touch and mouse and nothing
+    //    else, which is not a gate, it is an exclusion.
+    await park(9);
+    assert.equal((await at()).round, "10 / 30", "fixture: the second park did not take");
+    await pg.evaluate(() => {
+      const el = document.getElementById("mreset");
+      el.focus();
+      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    s = await at();
+    assert.equal(s.round, "1 / 30", `Enter must work without a hold — saw ${s.round}`);
+    assert.equal(s.stored, null, "the keyboard path must forget the place too");
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
+
 test("private mode: the app boots and plays with storage BLOCKED", async () => {
   // NOTHING IN THIS SUITE HAS EVER BLOCKED STORAGE. CLAUDE.md records
   // "storage-BLOCKED Safari (private mode) still boots and plays" as an audit
