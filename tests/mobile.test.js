@@ -1096,6 +1096,97 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
   }
 });
 
+test("Word Cards' MATCHING board on the real engine: eight taps, nothing small, nothing cut off", async () => {
+  // The board is the one screen on this page made ENTIRELY of tap targets —
+  // eight of them, in a fixed grid — so it is where the kid tap floor and the
+  // 16px spacing law bind hardest, and where a wider emoji has nowhere to go.
+  // 4 rows of 76px plus three 16px gaps is 352px of board: both numbers are
+  // laws, so the page's own chrome is what yields on a short phone, and the
+  // clause below is what proves it yielded enough.
+  //
+  // And it is walked on REAL WebKit because a han character carries several
+  // times the stroke detail of a four-letter word at the same point size, and
+  // because grid `gap` is the one gap Safari 14 keeps — a flex row here would
+  // put every tile against its neighbour on the device and nowhere else.
+  const WIDTHS = [
+    [390, 844],   // his phone
+    [320, 480],   // the shortest audited screen, where the tile floor binds
+    [320, 568],   // the narrowest, where the columns have least slack
+    [834, 1112],  // the iPad, where the emoji are largest
+  ];
+  for (const [w, h] of WIDTHS) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      // The board REMEMBERS its round, so a key left by another test would open
+      // it part-way through and the walk would measure a different board.
+      await p2.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+      await p2.reload();
+      await p2.click("#matchBtn");
+      await p2.waitForSelector("#match:not(.hidden)");
+
+      const r = await p2.evaluate((MIN) => {
+        const tiles = [...document.querySelectorAll("#match .mtile")];
+        const box = tiles.map((t) => t.getBoundingClientRect());
+        // The tightest gap between ANY two tiles, which is the spacing law's
+        // own question — and it is measured rather than read off the CSS,
+        // because a dropped `gap` computes as zero and still parses.
+        let gap = Infinity;
+        for (let a = 0; a < box.length; a++) for (let b = a + 1; b < box.length; b++) {
+          const dx = Math.max(box[a].left, box[b].left) - Math.min(box[a].right, box[b].right);
+          const dy = Math.max(box[a].top, box[b].top) - Math.min(box[a].bottom, box[b].bottom);
+          if (dx > -1 || dy > -1) gap = Math.min(gap, Math.max(dx, dy));
+        }
+        // A character is ONE glyph and cannot wrap, so a tile narrower than it
+        // reports its own clipping honestly.
+        const clipped = tiles.filter((t) => {
+          const g = t.querySelector(".mchar") || t.querySelector(".mpic");
+          return g && g.scrollWidth > g.clientWidth + 1;
+        }).map((t) => t.dataset.ch);
+        return {
+          tiles: tiles.length, clipped,
+          gap: Math.round(gap),
+          taps: [...document.querySelectorAll("#match button")]
+            .map((b) => { const q = b.getBoundingClientRect();
+                          return { id: b.id || b.dataset.ch || b.className, s: Math.round(Math.min(q.width, q.height)) }; })
+            .filter((t) => t.s < MIN),
+          buttons: document.querySelectorAll("#match button").length,
+          ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          scrollY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+          bottom: Math.round(Math.max(...box.map((q) => q.bottom))),
+          vh: window.innerHeight,
+        };
+      }, MIN_TAP);
+
+      // NON-VACUITY: a walk that opened nothing passes every clause below.
+      assert.equal(r.tiles, 8, `${w}x${h}: a board is four pairs — saw ${r.tiles} tiles`);
+      assert.ok(r.buttons >= 10, `${w}x${h}: only ${r.buttons} controls — the walk found the wrong screen`);
+
+      assert.deepEqual(r.taps, [],
+        `${w}x${h}: matching controls below the ${MIN_TAP}px floor: ` +
+        `${r.taps.map((t) => t.id + "=" + t.s).join(", ")}`);
+      assert.ok(r.gap >= 14,
+        `${w}x${h}: the tightest gap between two tiles is ${r.gap}px — little hands need 16`);
+      assert.deepEqual(r.clipped, [],
+        `${w}x${h}: these tiles clip their own glyph: ${r.clipped.join(", ")}`);
+      assert.ok(r.ovf <= 0, `${w}x${h}: the board scrolls sideways by ${r.ovf}px`);
+      // PORTRAIT is the mode, and both sibling screens fit the shortest phone
+      // with zero scroll — so a board that did not would be this screen's own
+      // regression rather than an inherited limit. Measured: without the
+      // short-height rule it runs 14px past the fold at 320x480.
+      assert.ok(r.bottom <= r.vh,
+        `${w}x${h}: the last row sits at ${r.bottom} of ${r.vh} — the board runs past the fold`);
+      assert.equal(r.scrollY, 0, `${w}x${h}: the board makes the page scroll by ${r.scrollY}px`);
+      assert.deepEqual(errs, [], `${w}x${h}: page errors`);
+    } finally {
+      await ctx2.close();
+    }
+  }
+});
+
 test("Word Cards' WRITING pad on the real engine: nothing crushed, nothing small", async () => {
   // THE NEWEST SCREEN ON THE PAGE HAD NEVER BEEN RENDERED BY THIS FILE. The
   // test above it exists because "the page Josh actually reads on" was only

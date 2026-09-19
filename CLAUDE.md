@@ -8215,6 +8215,103 @@ did before touching the assertion. And the anchor for the honest one matched
 assert-once discipline reported `SETUP FAILED` instead of a false pass, which is
 the whole reason it exists.
 
+**A MATCHING BOARD ASKS A STRICTER QUESTION THAN A DECK DOES, AND THE PAGE
+ALREADY OWNED IT — the feature's whole correctness turned out to be a reuse plus
+six missing rows of data.** Asked for a third Chinese mode over the same 120
+characters, the design question was not the interaction but AMBIGUITY: four
+characters and four pictures is only a fair question if no two of them could
+answer for each other. `clash()` has always answered "may these two cards sit
+together" for the flash deck — it refuses a shared picture and every declared
+`PAIRS` row — so the board reuses it rather than growing a second ambiguity list
+beside it, which is the shape that let the `ch` rule and `NOT_A_TEAM` disagree.
+**A deck only needs NEIGHBOURS to differ; a board of four needs all SIX of its
+pairs to**, so the round builder pulls from the seeded order the next card that
+clashes with nothing already on the board. Measured on the shipped data: 30
+rounds of exactly 4, all 120 dealt once, **zero clashes across all 180 pairs**,
+deterministic. An ambiguous round is unrepresentable rather than unlikely.
+**Measuring first is what found the six real gaps.** Swept across all 7,140
+pairs of the 120, exactly six gloss the same idea and were NOT already refused —
+二/两 (both "two"), 小/少, 多/几, 看/找 ("look" against "look for"), 来/出,
+回/去. Put 看 and 找 on one board and a child who correctly knows 看 = look can
+reasonably tap 🔍. They go in `PAIRS`, so the flash deck's adjacency gets the fix
+free, which is the argument for putting them there rather than in a list the new
+mode owns. 蝴/蝶 needs no row: they share 🦋 and `clash()` catches it by picture.
+**The other design finding is that ~35 of the 120 are ABSTRACT** — the page's own
+comment says the picture may cue the SENTENCE rather than the character (了 🏁,
+的 🔗, 是 ✅, 只 🐾). That is what decides whether a matching mode is fair at all,
+and the answer is that the board uses the deck's OWN pictures, so it asks him to
+recall a pairing he has already met rather than to deduce one. Recorded because
+the tempting alternative — restricting the board to the concrete subset — would
+have quietly dropped a third of the characters the owner asked for.
+**THE TWO MUTATIONS THAT PASSED ARE WORTH MORE THAN THE EIGHTEEN THAT FAILED,
+and neither meant the clause was weak.** (1) The held-tile contrast mutation
+recoloured the fill to `#9a8f6a` and stayed GREEN — measured, that is **5.32:1**
+against ink, comfortably ABOVE AA, so the clause was never reached. A mutation
+that does not reach the code it names, for the fifth recorded time; `#3a2b5f`
+(1.38:1) turns it red naming the run and the ratio. **When a mutation passes,
+measure what it actually did before touching the assertion.** (2) Turning the
+board's grid into a FLEX column with the same `gap` also stayed green — and that
+is the rendered-gap test being structurally unable to see it, because the sandbox
+and CI both HONOUR flex gap while Safari 14 drops it. The protection is the
+shipped iOS-floor TEXT law, which fires immediately (*".mcol" spaces with flex
+gap, which Safari 14.0 DROPS*). That is this file's own rule confirming itself:
+for a platform feature the sandbox has and the device does not, a text law proves
+the declaration and only a simulation could prove the render — so point the
+mutation at the law that owns the claim.
+**A BOARD OF FIXED ROWS CANNOT YIELD, SO THE CHROME MUST — and the A/B found
+half my fix INERT.** Four rows at the 76px tap floor plus three 16px gaps is
+352px, and both numbers are laws, so the shortest phone had the board running
+14px past the fold while the deck and the writing pad both fit there with room
+to spare — my regression, not an inherited limit, and the comparison against
+the two SIBLING screens is what established that. Trimming the wrap's top
+padding and its row gap takes 320×480 to **zero**; a matching BOTTOM padding
+trim measured **byte-identical** and is not in the file, because the board's own
+height is fixed at the tap floor so only where it STARTS can move. Third line
+deleted here for changing nothing.
+**AND READING MY OWN DIFF — not any measurement — FOUND THE ONE REAL DEFECT IN
+THE FEATURE: the picture tile handed a screen-reader user the answer.** A tile's
+`aria-label` is the card's MEANING, because an emoji's announced name is a
+platform detail while the meaning is what the deck already taught — and **14 of
+the 120 gloss themselves with the word they live in** (阳 "sun (太阳)", 什 "what
+(什么)", 蝶 "butterfly (蝴蝶)"), so the raw meaning names the very character the
+tile matches. Invisible to a sighted player, invisible to every layout measure,
+and invisible to the round-fairness law — which is exactly how this page's own
+"the answer stays off the tree" law gets lost on a NEW screen. The parenthetical
+is stripped, with a fallback for the three meanings that are entirely
+parenthetical (只, 了, 个), none of which names its own character.
+**Its first guardrail PASSED its mutation, for the reason this file keeps
+recording**: the clause called `mMeaning()` on the data, so pointing the tile
+back at the raw `c[4]` changed nothing it could see — a test that asks the HELPER
+cannot see the CALL SITE break. Re-pointed at the RENDERED `aria-label`, walked
+across all 30 boards (a round is a sample, and 14 in 120 hides in one), it goes
+red. And the walk asserts it read 120 tiles, because a derivation fails open.
+**A second thing the diff review caught was a comment of my own that my own
+measurement had already refuted** — it claimed 352px of board "against roughly
+354 of play area at 320x480", which was the estimate I wrote BEFORE measuring,
+and the measurement said the board ran 14px past the fold. A comment cannot go
+red, so the only way to find one is to re-read it against what you later
+learned. Both fixes meant killing a gate seven minutes in rather than letting it
+produce a verdict about a tree I was about to change.
+**A shipped guardrail then caught the short-height rule itself**: it sets `gap`
+with no `display`, and the flex-gap law reads the TEXT and rightly refuses to
+guess whether that gap is inherited from a grid (Safari 14 keeps it) or a flex
+(dropped). Declaring `display:grid` is the law's own remedy and makes the rule
+say what it is instead of leaving the next reader to trace the cascade.
+
+**Three smaller ones.** The picture column is a **DERANGEMENT**, not a shuffle:
+with four tiles a plain shuffle leaves a pair on its own row ~37% of the time
+and lines the whole board up 1 in 24, either of which lets POSITION answer the
+question — its mutation flags 11 of 30 rounds. `paintSound()` looped a
+hand-written `[soundBtn, $("wsound")]`, so a third screen's toggle would simply
+have been forgotten and the symptom is the quietest kind there is (one button
+says "off" while the one piece of state says on) — derived now, with `toggleSound`
+as the single owner the three screens share. And **my own probe reported 117
+distinct pictures against a record saying 119**, which looked like a real defect
+for a minute: `HANZI` is `[char, pic, cat, pinyin, meaning, sentence, translation]`
+and I read index 3 as the picture, so the three "duplicates" were pinyin
+HOMOPHONES (下/夏 xià, 阳/羊 yáng, 风/蜂 fēng) — correct Chinese. Suspect the
+fixture, and check a number that disagrees with the record before believing it.
+
 ---
 
 ## Repository Structure
@@ -8263,6 +8360,17 @@ tooling.
 │                               #   says it again mid-character — the only other repeat was to
 │                               #   navigate away, which throws his strokes away; 👂 and 👄 could
 │                               #   not be the glyph because they are 听's and 口's own pictures.
+│                               #   Then 配对 — the same 120, to MATCH: four characters down the
+│                               #   left and their four pictures shuffled down the right, tap one
+│                               #   then the other, and the round ends when the board is clear.
+│                               #   Either side may be picked first, a wrong tap costs nothing and
+│                               #   keeps his pick, and three misses show him the partner (写字's
+│                               #   rescue). A round is dealt through clash() — the page's ONE
+│                               #   owner of "may these two sit together" — so a board holding two
+│                               #   answers for one picture is unrepresentable rather than
+│                               #   unlikely, and the picture column is a DERANGEMENT so position
+│                               #   never answers the question. 30 rounds cover all 120 and it
+│                               #   remembers which one he was on.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card

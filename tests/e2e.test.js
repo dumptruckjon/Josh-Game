@@ -2252,6 +2252,7 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
   try {
     const runs = [];
     const cardHues = new Set();
+    const boardFills = new Set();
     const sweep = async () => {
       for (const r of await pg.evaluate(auditContrast)) runs.push(r);
     };
@@ -2343,6 +2344,28 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
       await sweep();
       await pg.click("#next");
     }
+    // …AND THE MATCHING BOARD, whose character tile takes THREE different fills
+    // — white while it waits, the card yellow while it is held, green once it
+    // is matched — so one run is scored against three backgrounds that exist
+    // nowhere else on this page. That is exactly the case this audit's own
+    // comment above says it misses: a brand-new set of runs on new fills.
+    await pg.click("#back");
+    await pg.waitForSelector("#grid .chip");
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+    const noteTile = async () => boardFills.add(await pg.evaluate(() =>
+      getComputedStyle(document.querySelector("#mchars .mtile")).backgroundColor));
+    await noteTile();
+    await sweep();                                   // plain
+    await pg.evaluate(() => document.querySelector("#mchars .mtile").click());
+    await noteTile();
+    await sweep();                                   // held
+    await pg.evaluate(() => {
+      const ch = document.querySelector("#mchars .mtile").dataset.ch;
+      document.querySelector('#mpics [data-ch="' + ch + '"]').click();
+    });
+    await noteTile();
+    await sweep();                                   // matched
 
     assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
 
@@ -2367,6 +2390,11 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     assert.ok(saw("small"), "fixture: the Every-word card count was never audited");
     for (const run of ["hz__key", "hz__zh", "hz__en"])
       assert.ok(saw(run), `fixture: the Chinese card's ${run} run was never audited`);
+    assert.ok(saw("mchar"), "fixture: the matching board's character tile was never audited");
+    assert.equal(boardFills.size, 3,
+      "a board tile takes three fills — waiting, held and matched — and each is a " +
+      `different background the same run has to clear (saw ${boardFills.size}: ` +
+      `${[...boardFills].join(" ")})`);
 
     // The compositing model's own precondition, asserted rather than assumed.
     const dimmed = [...new Set(runs.filter((r) => r.ancestorOpacity < 0.999).map((r) => r.sel))];
@@ -3817,6 +3845,212 @@ test("Word Cards: the Chinese deck keeps its OWN place in the deck", async () =>
   }
 });
 
+
+test("Word Cards: the matching board deals all 120, and no round is ambiguous", async () => {
+  // The board's whole correctness lives in how a round is CHOSEN. Four
+  // characters and their four pictures is only a fair question if no two of
+  // them could answer for each other — 蝴 and 蝶 both mean butterfly and
+  // literally share 🦋, and 看 "look" beside 找 "look for" is the same defect
+  // one step subtler. clash() already owned that question for the deck, so the
+  // board reuses it, and this drives the SHIPPED builder rather than a copy.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    const r = await pg.evaluate(() => {
+      const rounds = matchRounds();
+      const seen = {};
+      for (const c of rounds.flat()) seen[c[0]] = (seen[c[0]] || 0) + 1;
+      const bad = [];
+      rounds.forEach((rd, n) => {
+        for (let a = 0; a < rd.length; a++) for (let b = a + 1; b < rd.length; b++)
+          if (clash(rd[a], rd[b])) bad.push(`round ${n + 1}: ${rd[a][0]} + ${rd[b][0]}`);
+      });
+      return {
+        rounds: rounds.length,
+        sizes: [...new Set(rounds.map((rd) => rd.length))],
+        dealt: rounds.flat().length,
+        dupes: Object.keys(seen).filter((k) => seen[k] > 1),
+        missing: HANZI.filter((c) => !seen[c[0]]).map((c) => c[0]),
+        bad,
+        stable: JSON.stringify(matchRounds()) === JSON.stringify(rounds),
+        // the picture column is a DERANGEMENT of the character column
+        lined: rounds.map((rd, n) => mPicOrder(rd, "pic" + n).filter((c, k) => c === rd[k]).length)
+                     .reduce((a, b) => a + b, 0),
+      };
+    });
+
+    assert.ok(r.rounds >= 25, `fixture: only ${r.rounds} rounds were dealt`);
+    assert.deepEqual(r.sizes, [4], `every round is four pairs — saw sizes ${r.sizes.join(", ")}`);
+    assert.deepEqual(r.dupes, [], `a character deals twice, so one round is unwinnable: ${r.dupes.join(" ")}`);
+    assert.deepEqual(r.missing, [], `never dealt at all: ${r.missing.join(" ")}`);
+    assert.equal(r.dealt, 120, `the board must walk all 120 characters, not ${r.dealt}`);
+    assert.deepEqual(r.bad, [],
+      `a round holds two cards that could answer for each other: ${r.bad.slice(0, 5).join(" | ")}`);
+    assert.ok(r.stable, "the same seed must deal the same board, or he cannot carry on from it");
+    // Position must never answer the question. A plain shuffle of four leaves a
+    // pair on its own row about 37% of the time and lines the whole board up 1
+    // time in 24, so the right column is a derangement and not merely shuffled.
+    assert.equal(r.lined, 0, `${r.lined} pair(s) sit on the same row, so position gives the answer away`);
+
+    // THE ANSWER MUST STAY OFF THE TREE. A picture tile is labelled with the
+    // card's MEANING, because an emoji's announced name is a platform detail
+    // while the meaning is what the deck already taught — and 14 of the 120
+    // gloss themselves with the word they live in (阳 "sun (太阳)", 什 "what
+    // (什么)", 蝶 "butterfly (蝴蝶)"), so the RAW meaning hands a screen-reader
+    // user the very character the tile matches. Invisible to a sighted player
+    // and invisible to every layout measure, which is exactly how this page's
+    // own law gets lost on a new screen. Walked over all 120 rather than the
+    // four on screen: a round is a sample, and 14 in 120 hides in one.
+    //
+    // Read off the RENDERED tile, walking every round. The first cut of this
+    // called mMeaning() on the data instead, and pointing the tile back at the
+    // raw c[4] left it GREEN: a clause that asks the helper cannot see the CALL
+    // SITE change. What a screen reader would actually be handed is the claim.
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+    const labels = await pg.evaluate(() => {
+      const out = { leak: [], mute: [], seen: 0 };
+      for (let n = 0; n < mRounds.length; n++) {
+        for (const t of document.querySelectorAll("#mpics .mtile")) {
+          const l = (t.getAttribute("aria-label") || "").trim();
+          out.seen += 1;
+          if (!l) out.mute.push(t.dataset.ch);
+          else if (l.includes(t.dataset.ch)) out.leak.push(t.dataset.ch + " → " + l);
+        }
+        mGo(1);                                    // the shipped way on to the next board
+      }
+      return out;
+    });
+    assert.equal(labels.seen, 120,
+      `fixture: the walk read ${labels.seen} picture tiles, not the whole deck`);
+    assert.deepEqual(labels.leak, [],
+      `a picture tile's label names the character it matches: ${labels.leak.slice(0, 6).join(", ")}`);
+    // …and the strip must never leave a tile with nothing to announce. Three
+    // meanings are ENTIRELY parenthetical (只, 了, 个), which is what the
+    // fallback is for, so this is the clause that keeps the fix honest.
+    assert.deepEqual(labels.mute, [],
+      `these picture tiles would announce nothing: ${labels.mute.join(", ")}`);
+
+    // Every screen that can speak carries a toggle, DERIVED — paintSound used
+    // to hold a list of two and this screen would simply have been missed.
+    const snd = await pg.evaluate(() => [...document.querySelectorAll(".wrap")]
+      .map((w) => ({ id: w.id, has: !!w.querySelector(".icon.snd") })));
+    const noToggle = snd.filter((w) => w.id !== "menu" && !w.has).map((w) => w.id);
+    assert.deepEqual(noToggle, [], `these screens speak with no sound toggle: ${noToggle.join(", ")}`);
+    assert.ok(snd.length >= 4, `fixture: only ${snd.length} screens found`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: matching is no-fail — a wrong tap costs nothing and three misses show him", async () => {
+  // RULE 5 does not allow a failure state, and a matching game is where one
+  // would naturally creep in. So a wrong tap bumps the tile he touched, keeps
+  // his pick, removes nothing and scores nothing; three of them and the board
+  // shows him the partner, which is the 写字 rescue one screen over. Driven
+  // through the real DOM, because every one of those is a claim about what
+  // happens on a tap rather than about what the code says.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+
+    const look = () => pg.evaluate(() => ({
+      chars: [...document.querySelectorAll("#mchars .mtile")].map((t) => t.dataset.ch),
+      pics: [...document.querySelectorAll("#mpics .mtile")].map((t) => t.dataset.ch),
+      held: [...document.querySelectorAll("#match .held")].map((t) => t.dataset.ch),
+      pressed: [...document.querySelectorAll('#match [aria-pressed="true"]')].map((t) => t.dataset.ch),
+      done: [...document.querySelectorAll("#match .done")].map((t) => t.dataset.ch),
+      round: document.getElementById("mcount").textContent.trim(),
+      tiles: document.querySelectorAll("#match .mtile").length,
+    }));
+    // A DOM click, which is how this suite drives every tap: it reaches the
+    // handler whatever the tile's state, so a consumed tile refusing the tap is
+    // the product's doing and not the harness's.
+    const tap = (sel) => pg.evaluate((s) => document.querySelector(s).click(), sel);
+
+    let s = await look();
+    assert.equal(s.tiles, 8, `a board is four pairs — saw ${s.tiles} tiles`);
+    assert.equal(s.chars.length, 4, "fixture: the character column did not deal");
+    assert.deepEqual([...s.chars].sort(), [...s.pics].sort(),
+      "the two columns must hold the same four cards, or a pair has no partner");
+    assert.notDeepEqual(s.chars, s.pics, "the picture column must not repeat the character column's order");
+
+    // 1. PICK — either side may be picked first, so this starts on the left.
+    await tap(`#mchars [data-ch="${s.chars[0]}"]`);
+    s = await look();
+    assert.deepEqual(s.held, [s.chars[0]], "tapping a character must pick it up");
+    assert.deepEqual(s.pressed, [s.chars[0]], "a picked tile must say so to a screen reader");
+
+    // 2. A DOUBLED tap KEEPS the hold. A four-year-old hammer-taps, and
+    //    un-picking on the second tap gives him a dead-feeling hand — the
+    //    documented pick-and-place defect, which cost six games a fix once.
+    await tap(`#mchars [data-ch="${s.chars[0]}"]`);
+    s = await look();
+    assert.deepEqual(s.held, [s.chars[0]], "a doubled tap must keep the pick, never cancel it");
+
+    // 3. WRONG — nothing is removed, nothing is scored, the pick survives.
+    const held = s.held[0];
+    const wrong = s.pics.filter((c) => c !== held);
+    await tap(`#mpics [data-ch="${wrong[0]}"]`);
+    s = await look();
+    assert.deepEqual(s.done, [], "a wrong tap must not consume anything");
+    assert.deepEqual(s.held, [held], "a wrong tap must not throw away his pick");
+    assert.equal(s.tiles, 8, "a wrong tap must not remove a tile from the board");
+
+    // 4. THREE misses and the board shows him the partner.
+    await tap(`#mpics [data-ch="${wrong[1]}"]`);
+    await tap(`#mpics [data-ch="${wrong[2]}"]`);
+    const hinted = await pg.evaluate(() => [...document.querySelectorAll("#match .hintme")].map((t) => t.dataset.ch));
+    assert.deepEqual(hinted, [held],
+      `three misses must show him the partner — hinted ${JSON.stringify(hinted)} for ${held}`);
+
+    // 5. RIGHT — both halves lock together and stop answering taps.
+    await tap(`#mpics [data-ch="${held}"]`);
+    s = await look();
+    assert.deepEqual(s.done.sort(), [held, held], "a correct match must consume BOTH halves");
+    assert.deepEqual(s.held, [], "a match must release the pick");
+    await tap(`#mchars [data-ch="${held}"]`);
+    s = await look();
+    assert.deepEqual(s.held, [], "a matched tile must not be pickable again");
+
+    // 6. CLEAR the board, and it deals the next round by itself.
+    for (const ch of s.chars) {
+      if (s.done.includes(ch)) continue;
+      await tap(`#mchars [data-ch="${ch}"]`);
+      await tap(`#mpics [data-ch="${ch}"]`);
+    }
+    const first = s.chars.slice();
+    await pg.waitForFunction(
+      (prev) => {
+        const now = [...document.querySelectorAll("#mchars .mtile")].map((t) => t.dataset.ch);
+        return now.length === 4 && now.join() !== prev.join();
+      }, first, { timeout: 5000 });
+    s = await look();
+    assert.deepEqual(s.done, [], "a fresh round must start with a clear board");
+    assert.equal(s.round, "2 / 30", `a cleared board deals the next round — saw ${JSON.stringify(s.round)}`);
+
+    // 7. …and it remembers where he got to, like the other two modes.
+    const at = await pg.evaluate(() => localStorage.getItem("wc-match-at"));
+    assert.equal(at, "1", `the board must keep its place — saw ${JSON.stringify(at)}`);
+    await pg.reload({ waitUntil: "load" });
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+    const back = await look();
+    assert.equal(back.round, "2 / 30", `it must reopen where he stopped — saw ${JSON.stringify(back.round)}`);
+    assert.deepEqual(back.chars, s.chars, "reopening must deal the same board he left");
+
+    assert.deepEqual(errs, [], `uncaught page errors on the matching board: ${errs.join(" | ")}`);
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
 
 test("private mode: the app boots and plays with storage BLOCKED", async () => {
   // NOTHING IN THIS SUITE HAS EVER BLOCKED STORAGE. CLAUDE.md records

@@ -4206,7 +4206,8 @@ test("Word Cards states no card count it has to keep up to date", () => {
   const src = read("wordcards.html");
   const cut = src.indexOf("<script>");
   const markup = src.slice(0, cut).replace(/<!--[\s\S]*?-->/g, "");
-  assert.doesNotMatch(markup, /\d+\s*cards/, "a literal card count is a claim that goes stale");
+  assert.doesNotMatch(markup, /\d+\s*(cards|rounds)/,
+    "a literal card or round count is a claim that goes stale");
   // NO floor on this half, deliberately, and the asymmetry with the script half
   // below is measured rather than assumed. All four HTML comments sit in the
   // last 8% of the markup, so the realistic regex bug — a GREEDY `<!--[\s\S]*-->`
@@ -4220,7 +4221,7 @@ test("Word Cards states no card count it has to keep up to date", () => {
   // nothing, which bans nothing and stays green.
 
   const lits = stringLiterals(src.slice(cut));
-  const typed = lits.filter((l) => /\d+\s*cards?\b/.test(l.text))
+  const typed = lits.filter((l) => /\d+\s*(cards?|rounds?)\b/.test(l.text))
     .map((l) => `line ${l.line}: ${JSON.stringify(l.text.slice(0, 60))}`);
   assert.deepEqual(typed, [],
     "a card count that reaches the screen must be COUNTED, never typed:\n  " + typed.join("\n  "));
@@ -4235,6 +4236,8 @@ test("Word Cards states no card count it has to keep up to date", () => {
   assert.doesNotMatch(src, /"n":\s*\d+/, "the per-category counts must not be stored, they must be counted");
   assert.match(src, /WORDS\.length \+ " cards"/, "the total must be read off WORDS");
   assert.match(src, /HANZI\.length \+ " cards"/, "the Chinese count must be read off HANZI too");
+  assert.match(src, /mDeck\(\)\.length \+ " rounds"/,
+    "the matching button's round count must be read off the rounds it will deal");
   assert.match(src, /'<\/span><span class="ct">'\+count\+' cards/,
     "every deck count must come from the list that deck actually holds");
 });
@@ -5021,13 +5024,79 @@ test("Word Cards: the Chinese characters stay OUT of every English derivation", 
   const bare = src.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
                   .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
   const uses = (bare.match(/\bHANZI\b/g) || []).length;
-  assert.equal(uses, 5,
+  assert.equal(uses, 6,
     `HANZI is referenced ${uses} times; it may only be declared, counted for its own ` +
-    "reading button and handed to that button's start(), and counted for the WRITING " +
-    "button and handed to writeDeck() — a sixth derivation reading it is how a han " +
+    "reading button and handed to that button's start(), counted for the WRITING " +
+    "button and handed to writeDeck(), and walked by matchRounds() — a seventh " +
+    "derivation reading it is how a han " +
     "character gets into a phonics deck. This count is the weak structural sibling of " +
     "\"the Chinese characters stay OUT of every English derivation\", which is the claim; " +
     "raise it only for a reader that is Chinese-only, and check that test still passes.");
+});
+
+test("Word Cards: a matching round cannot hold two answers for one picture", () => {
+  // A matching BOARD asks a stricter question of the deck than reading it does.
+  // A deck only needs NEIGHBOURS to differ; a board of four needs all SIX of
+  // its pairs to, because two cards glossing one idea are two defensible
+  // answers for one picture and the game has no way to accept the second.
+  //
+  // clash() already owned that question — it refuses a shared picture and every
+  // declared PAIR — so the board reuses it rather than growing a second
+  // ambiguity list next to it. Measured across all 7,140 pairs of the 120,
+  // exactly six cases gloss the same idea and were NOT already refused, and
+  // they go in PAIRS so the flash deck's adjacency gets the fix too. 蝴/蝶 needs
+  // no entry: they share 🦋, which clash() catches by picture, and the picture
+  // law next door holds them as a named exemption.
+  const src = read("wordcards.html");
+  const bare = src.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
+                  .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const lit = bare.match(/const PAIRS = ([\s\S]*?\]\];)/);
+  assert.ok(lit, "PAIRS could not be parsed — the scan failed open");
+  const pairs = new Function("return " + lit[1].slice(0, -1))();
+  assert.ok(pairs.length >= 60, `only ${pairs.length} pairs parsed — the scan failed open`);
+  const refused = new Set(pairs.flatMap(([a, b]) => [a + "|" + b, b + "|" + a]));
+
+  for (const [a, b] of [["二", "两"], ["小", "少"], ["多", "几"],
+                        ["看", "找"], ["来", "出"], ["回", "去"]])
+    assert.ok(refused.has(a + "|" + b),
+      `${a} and ${b} gloss the same idea, so a board holding both has two right answers`);
+
+  // …and the round builder asks THAT gate rather than carrying its own. One
+  // owner is the whole point: a second list is how the two come to disagree.
+  const at = bare.indexOf("function matchRounds()");
+  assert.ok(at > 0, "matchRounds() is gone — the board deals its rounds somewhere else now");
+  const body = bare.slice(at, bare.indexOf("\n}", at));
+  assert.ok(body.length > 80, "fixture: matchRounds' body was not sliced");
+  assert.match(body, /clash\(/, "the round builder must ask clash(), not its own rule");
+  assert.match(body, /teachingOrder\(HANZI/,
+    "a round must be dealt from the seeded order, so the board he comes back to is the one he left");
+});
+
+test("Word Cards: the sound toggle is DERIVED, so a new screen cannot be forgotten", () => {
+  // paintSound() looped a hand-written `[soundBtn, $("wsound")]`, which is the
+  // population-by-hand class this repo pays for most often — and here the
+  // symptom is the quietest kind there is: a third screen's button says "off"
+  // while the one piece of state behind it says on, and nothing goes red.
+  const src = read("wordcards.html");
+  const bare = src.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
+                  .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const at = bare.indexOf("function paintSound()");
+  assert.ok(at > 0, "paintSound() is gone");
+  const body = bare.slice(at, bare.indexOf("\n}", at));
+  assert.ok(body.length > 40 && body.length < 500, "fixture: paintSound's body was not sliced");
+  assert.match(body, /querySelectorAll\("\.icon\.snd"\)/,
+    "paintSound must DERIVE its buttons from the page, never hold a list of them");
+  assert.doesNotMatch(body, /\bsoundBtn\b|\$\("\w*sound"\)/,
+    "a named toggle inside paintSound is the hand-written list coming back");
+
+  // ONE owner for the state itself. The three screens differ only in what there
+  // is to SAY once sound is on, which is why that is the argument — a third
+  // copy of the storage write and the repaint is exactly how two of them drift.
+  assert.equal((bare.match(/localStorage\.setItem\("wc-sound"/g) || []).length, 2,
+    "the sound state has exactly two writers: toggleSound(), and the deliberate " +
+    "unmute when he taps the word on the writing pad");
+  assert.equal((bare.match(/toggleSound\(/g) || []).length, 4,
+    "toggleSound is declared once and called by each of the three screens' toggles");
 });
 
 test("Word Cards: every character he WRITES has real stroke-order data", () => {

@@ -188,7 +188,7 @@
      PingFang SC. Everything that paints a han character carries this face and
      a lang="zh-CN", which is also what gives VoiceOver a Chinese voice on it. */
   :root{ --hz-face:"PingFang SC","Hiragino Sans GB","Heiti SC","Source Han Sans SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif; }
-  .word.hz,.hz__zh,.all.hz b,.mode.hz b{font-family:var(--hz-face);}
+  .word.hz,.hz__zh,.mchar,.all.hz b,.mode.hz b{font-family:var(--hz-face);}
   .all.hz,.mode.hz{background:#FF5A5A;}
   /* The back of a hanzi card is THREE runs, not one picture, so the cue shrinks
      to leave them room — and every run is FULL ink. The .7 the sound strip uses
@@ -280,8 +280,69 @@
   @keyframes winkin{from{opacity:0;}to{opacity:1;}}
   @keyframes wnudge{25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
   @keyframes wpop{50%{transform:scale(1.03);}}
+  /* ---------- 配对: the matching board ----------
+     A BOARD, not a quiz: four characters down the left and the SAME four
+     pictures shuffled down the right, and the round ends when it is clear.
+     The board empties as he goes, so the last pair is free — a no-fail ramp
+     built into the shape rather than bolted on.
+
+     Four pairs is what the shortest phone holds at the kid tap floor: 4 rows
+     of 76px plus three 16px gaps is 352px of board, and BOTH numbers are laws.
+     So the rows are `1fr` over a 76px floor and neither the tile nor the gap is
+     what gives on a short screen — the page's own chrome does, in the media
+     query below, which is where the measurement lives. (An earlier draft of
+     this comment guessed the board fitted 320x480 outright; measured, it ran
+     14px past the fold, and a comment cannot go red.) */
+  #match{grid-template-rows:auto auto minmax(0,1fr);}
+  /* Grid gap, never flex: Safari 14 DROPS gap inside a flex container, and on
+     a matching board that is every tile touching its neighbours. */
+  .mboard{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0;}
+  .mcol{display:grid;grid-auto-rows:minmax(76px,1fr);gap:16px;min-height:0;}
+  .mtile{
+    min-height:76px;min-width:0;border:0;border-radius:22px;cursor:pointer;
+    font-family:inherit;color:var(--ink);background:#fff;padding:6px;
+    display:grid;place-items:center;box-shadow:0 8px 0 rgba(0,0,0,.22);
+    transition:background .25s ease,box-shadow .14s ease;
+  }
+  .mtile:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
+  .mtile:focus-visible{outline:4px solid #fff;outline-offset:3px;}
+  .mchar{font-weight:800;font-size:clamp(2.2rem,11vmin,4.4rem);line-height:1;}
+  .mpic{font-size:clamp(2rem,10vmin,4rem);line-height:1;}
+  /* The held tile is RINGED, never scaled. A scale cue on a gapped grid eats
+     the inter-tile gap and can drop it under the spacing floor — the
+     documented Copy Me! defect — while a ring paints outside layout, so the
+     measured gap is unchanged. */
+  .mtile.held{background:var(--card);box-shadow:0 0 0 5px #fff,0 8px 0 rgba(0,0,0,.22);}
+  /* A matched pair is CONSUMED, not removed: taking it out of the grid would
+     reflow the rows under his thumb mid-round. It keeps its box and goes
+     green — a solid fill with FULL-STRENGTH ink, not a dim, because this
+     page's own contrast pass found every dimmed run on it below AA. */
+  .mtile.done{background:#B7E4C7;box-shadow:none;cursor:default;}
+  .mtile.miss{animation:mnudge .34s ease;}
+  .mtile.hintme{animation:mhint .9s ease 2;}
+  /* Four rows at the 76px tap floor plus three 16px gaps is 352px of board, and
+     BOTH of those numbers are laws — so on the shortest phone the page's own
+     chrome is what yields, never the tile or the gap. Measured: 320x480 is the
+     one size where the tile floor binds, and without this the board runs 14px
+     past the fold while the deck and the writing pad both fit there with room
+     to spare. They each have a single flexible element that simply shrinks; a
+     board of fixed rows does not. The safe-area term stays, or a notched phone
+     would trade a scroll for a clipped control.
+
+     Both declarations are load-bearing and were A/B'd to find that out — the
+     top padding alone takes 320x480 from 14px of scroll to 6 and the wrap gap
+     closes it, while a matching BOTTOM padding trim measured byte-identical
+     and is not here: the board's own height is fixed at the tap floor, so only
+     where it STARTS can move. bar-to-tile stays 40px, well clear of the 16px
+     spacing law, because the meter sits between them. */
+  @media (max-height:520px){
+    #match{display:grid;padding-top:calc(env(safe-area-inset-top, 0px) + 10px);gap:12px;}
+  }
+  @keyframes mnudge{25%{transform:translateX(-7px);}75%{transform:translateX(7px);}}
+  @keyframes mhint{50%{box-shadow:0 0 0 5px #FF6B57,0 8px 0 rgba(0,0,0,.22);}}
   @media (prefers-reduced-motion:reduce){ .card,.fill,.face{transition:none;} .pop{animation:none;}
-    .wmed,.winkin,.wpad.nudge,.wpad.done{animation:none;} }
+    .wmed,.winkin,.wpad.nudge,.wpad.done{animation:none;}
+    .mtile{transition:none;} .mtile.miss,.mtile.hintme{animation:none;} }
 </style>
 </head>
 <body>
@@ -289,7 +350,7 @@
 <div class="wrap hidden" id="deck">
   <div class="bar">
     <button class="back" id="back" aria-label="Back to all the decks">&lsaquo;&nbsp; All words</button>
-    <button class="icon" id="sound" aria-pressed="false" aria-label="Say each word out loud">&#128263;</button>
+    <button class="icon snd" id="sound" aria-pressed="false" aria-label="Say each word out loud">&#128263;</button>
     <button class="icon" id="shuffle" aria-label="Shuffle these cards">&#128256;</button>
   </div>
   <div class="meter">
@@ -311,7 +372,7 @@
 <div class="wrap hidden" id="write">
   <div class="bar">
     <button class="back" id="wback" aria-label="Back to all the decks">&lsaquo;&nbsp; Writing</button>
-    <button class="icon" id="wsound" aria-pressed="false" aria-label="Say each character out loud">&#128263;</button>
+    <button class="icon snd" id="wsound" aria-pressed="false" aria-label="Say each character out loud">&#128263;</button>
     <button class="icon" id="wshow" aria-label="Show me how to write this stroke">&#9997;&#65039;</button>
   </div>
   <div class="meter">
@@ -346,6 +407,21 @@
   </div>
 </div>
 
+<div class="wrap hidden" id="match">
+  <div class="bar">
+    <button class="back" id="mback" aria-label="Back to all the decks">&lsaquo;&nbsp; Matching</button>
+    <button class="icon snd" id="msound" aria-pressed="false" aria-label="Say each character out loud">&#128263;</button>
+  </div>
+  <div class="meter">
+    <div class="track"><div class="fill" id="mfill"></div></div>
+    <span class="count" id="mcount"></span>
+  </div>
+  <div class="mboard">
+    <div class="mcol" id="mchars"></div>
+    <div class="mcol" id="mpics"></div>
+  </div>
+</div>
+
 <div class="wrap" id="menu">
   <div class="mhead">
     <a class="home" href="./#home" aria-label="Back to Josh's Games">&#127968;</a>
@@ -368,6 +444,7 @@
        derived test walks, and this opens the writing pad instead. It takes the
        same style and none of the meaning. -->
   <button class="mode hz" id="writeBtn"><span><b lang="zh-CN">&#20889;&#23383;</b> Write Characters</span> <small></small></button>
+  <button class="mode hz" id="matchBtn"><span><b lang="zh-CN">&#37197;&#23545;</b> Match Characters</span> <small></small></button>
   <h2 class="sect">Letter teams</h2>
   <div class="grid" id="teamGrid"></div>
   <h2 class="sect">Bossy R</h2>
@@ -386,7 +463,15 @@ const PAIRS = [["mom","dad"],["grandma","grandpa"],["boy","girl"],["hot","cold"]
   // …and the Chinese links, in the SAME list, because "these two cards must not
   // sit together" is one question with one reader (clash). 蝴/蝶 needs no entry:
   // they share a picture, which clash() already refuses.
-  ["一","二"],["二","三"],["三","四"],["四","五"],["五","六"],["六","七"],["七","八"],["八","九"],["九","十"],["大","小"],["上","下"],["多","少"],["来","去"],["哭","笑"],["太","阳"],["月","亮"],["白","天"],["高","兴"],["快","乐"],["什","么"],["儿","子"],["美","丽"],["蜜","蜂"],["牛","奶"],["起","床"],["爸","妈"],["爷","奶"],["春","夏"],["夏","秋"],["秋","冬"],["冬","春"],["白","红"],["白","蓝"],["白","绿"],["红","蓝"],["红","绿"],["蓝","绿"],["猫","狗"],["狼","狗"]];
+  ["一","二"],["二","三"],["三","四"],["四","五"],["五","六"],["六","七"],["七","八"],["八","九"],["九","十"],["大","小"],["上","下"],["多","少"],["来","去"],["哭","笑"],["太","阳"],["月","亮"],["白","天"],["高","兴"],["快","乐"],["什","么"],["儿","子"],["美","丽"],["蜜","蜂"],["牛","奶"],["起","床"],["爸","妈"],["爷","奶"],["春","夏"],["夏","秋"],["秋","冬"],["冬","春"],["白","红"],["白","蓝"],["白","绿"],["红","蓝"],["红","绿"],["蓝","绿"],["猫","狗"],["狼","狗"],
+  // 配对 asks a STRICTER question than deck adjacency: on a matching board a
+  // learner who correctly knows 看 = "look" can reasonably tap 🔍. Measured
+  // across all 7,140 pairs of the 120, these six are every remaining case
+  // where two cards gloss the same idea and clash() did not already refuse
+  // them. 蝴/蝶 needs no entry — they share 🦋, which clash() catches by
+  // picture. The flash deck gets the fix for free, which is the point of
+  // putting it here rather than in a second list the matching game owns.
+  ["二","两"],["小","少"],["多","几"],["看","找"],["来","出"],["回","去"]];
 /* ---------- 中文: the 120 characters of the 第2级总字表 ----------
    A whole second WRITING SYSTEM, so these live in their own array and never
    join WORDS. Every English-side derivation reads WORDS — First Words, the
@@ -1038,18 +1123,26 @@ card.addEventListener("click", () => {
 nextBtn.addEventListener("click", () => go(1));
 prevBtn.addEventListener("click", () => go(-1));
 
-soundBtn.addEventListener("click", () => {
+/* ONE toggle behind three screens. The only thing that differs between them is
+   what there is to SAY once it is on, so that is the argument — a third copy
+   of the storage write and the repaint is exactly how two of them come to
+   disagree. */
+function toggleSound(say){
   soundOn = !soundOn;
   try { localStorage.setItem("wc-sound", soundOn ? "1" : "0"); } catch (e) {}
   paintSound();
-  if (soundOn) speak.apply(null, deck.length ? cardSpeech(deck[i]) : ["hello", null]);
+  if (soundOn) say();
   else try { speechSynthesis.cancel(); } catch (e) {}
-});
-// Two screens show a sound toggle and there is ONE piece of state behind them.
-// Painting both here is what stops the writing pad's button saying "off" while
-// the deck's says "on" — a second `soundOn` would be two owners of one fact.
+}
+soundBtn.addEventListener("click", () => toggleSound(
+  () => speak.apply(null, deck.length ? cardSpeech(deck[i]) : ["hello", null])));
+// Every screen shows a sound toggle and there is ONE piece of state behind
+// them. Painting them here is what stops the writing pad's button saying "off"
+// while the deck's says "on" — a second `soundOn` would be two owners of one
+// fact. DERIVED from the page, never a list: this was `[soundBtn, $("wsound")]`
+// and a third screen's toggle would simply have been forgotten.
 function paintSound(){
-  for (const b of [soundBtn, $("wsound")]){
+  for (const b of document.querySelectorAll(".icon.snd")){
     b.innerHTML = soundOn ? "&#128266;" : "&#128263;";
     b.setAttribute("aria-pressed", soundOn ? "true" : "false");
     b.classList.toggle("on", soundOn);
@@ -1092,6 +1185,31 @@ function writeDeck(){
   return HANZI.map((row, n) => [row, n])
               .sort((a, b) => strokesOf(a[0][0]) - strokesOf(b[0][0]) || a[1] - b[1])
               .map((p) => p[0]);
+}
+
+/* A matching BOARD asks more of clash() than a deck does. A deck only needs
+   NEIGHBOURS to differ; a board of four needs all SIX of its pairs to, or a
+   round holds two defensible answers for one picture — 蝴 and 蝶 both mean
+   butterfly and literally share 🦋, and 看 "look" beside 找 "look for" is the
+   same defect one step subtler. So a round pulls from the seeded order the
+   next card that clashes with nothing already on the board, which makes an
+   ambiguous round unrepresentable rather than merely unlikely.
+
+   Its OWN seed, not the flash deck's: walking the 120 in the order he reads
+   them would let position do the remembering instead of the character. */
+const MATCH_SIZE = 4;
+function matchRounds(){
+  const pool = teachingOrder(HANZI, "Match");
+  const out = [];
+  while (pool.length){
+    const round = [];
+    for (let k = 0; k < pool.length && round.length < MATCH_SIZE; k++){
+      if (round.some((c) => clash(c, pool[k]))) continue;
+      round.push(pool.splice(k, 1)[0]); k -= 1;
+    }
+    out.push(round);
+  }
+  return out;
 }
 
 /* How close is this finger path to that stroke? The mean distance from each
@@ -1266,13 +1384,7 @@ $("wsaybtn").addEventListener("click", () => {
 });
 $("wnext").addEventListener("click", () => wGo(1));
 $("wprev").addEventListener("click", () => wGo(-1));
-$("wsound").addEventListener("click", () => {
-  soundOn = !soundOn;
-  try { localStorage.setItem("wc-sound", soundOn ? "1" : "0"); } catch (e) {}
-  paintSound();
-  if (soundOn) wSpeak();
-  else try { speechSynthesis.cancel(); } catch (e) {}
-});
+$("wsound").addEventListener("click", () => toggleSound(wSpeak));
 $("wback").addEventListener("click", () => {
   writeEl.classList.add("hidden");
   menu.classList.remove("hidden");
@@ -1292,6 +1404,166 @@ $("writeBtn").addEventListener("click", () => {
   menu.classList.add("hidden");
   writeEl.classList.remove("hidden");
   wRender();
+});
+
+/* ---------- 配对: match the character to its picture ----------
+   The pictures are the flash deck's OWN, so this mode teaches nothing new: it
+   asks him to recall a pairing he has already met. That is what makes an
+   abstract character fair game here — 了 🏁 and 的 🔗 picture their sentence
+   rather than themselves, and on a board that is the same cue it was on the
+   card rather than a riddle.
+
+   Either side may be picked first. A four-year-old reaches for whatever
+   catches his eye, and refusing one direction would be a failure state in a
+   game RULE 5 does not allow to have one. */
+const matchEl = $("match"), mcharsEl = $("mchars"), mpicsEl = $("mpics");
+let mRounds = [], mr = 0, mHeld = null, mMiss = 0, mDone = 0, mLock = false;
+
+function mDeck(){ if (!mRounds.length) mRounds = matchRounds(); return mRounds; }
+function mRound(){ return mRounds[mr] || []; }
+function mCard(ch){ return mRound().find((c) => c[0] === ch) || null; }
+function mSay(ch){ const c = mCard(ch); if (c) speak.apply(null, cardSpeech(c)); }
+function mSayHeld(){ mSay(mHeld ? mHeld.dataset.ch : (mRound()[0] || [])[0]); }
+
+/* The right-hand column is a DERANGEMENT of the left, not merely a shuffle:
+   with four tiles a plain shuffle leaves a pair on its own row about 37% of
+   the time and lines the whole board up 1 time in 24, either of which lets
+   POSITION answer the question instead of the character. Seeded, so the board
+   he comes back to is the board he left. */
+function mPicOrder(round, seed){
+  const r = rngFrom(seedOf(seed)), out = round.slice();
+  for (let guard = 0; guard < 60; guard++){
+    for (let k = out.length - 1; k > 0; k--){
+      const j = Math.floor(r() * (k + 1)); const t = out[k]; out[k] = out[j]; out[j] = t;
+    }
+    if (out.every((c, k) => c !== round[k])) break;
+  }
+  return out;
+}
+
+/* A picture tile is labelled with its card's MEANING — and the PARENTHETICAL
+   has to go, which is not tidying. 14 of the 120 gloss themselves with the word
+   they live in (阳 "sun (太阳)", 什 "what (什么)", 蝶 "butterfly (蝴蝶)"), so the
+   raw meaning would hand a screen-reader user the very character the tile
+   matches: this page's own "the answer stays off the tree" law, lost on a new
+   screen exactly the way it gets lost. Three meanings are entirely parenthetical
+   (只, 了, 个) and keep their full text, none of which names its own character. */
+function mMeaning(c){
+  const t = c[4].replace(/\s*\([^)]*\)/g, "").trim();
+  return t || c[4];
+}
+
+function mTile(side, c){
+  const b = document.createElement("button");
+  b.className = "mtile"; b.type = "button";
+  b.dataset.ch = c[0]; b.dataset.side = side;
+  const sp = document.createElement("span");
+  if (side === "char"){
+    // No explicit label: the character IS the name, and lang="zh-CN" is what
+    // gives VoiceOver a Chinese voice on it. A label would REPLACE it.
+    sp.className = "mchar"; sp.lang = "zh-CN"; sp.textContent = c[0];
+  } else {
+    // The picture is the ANSWER channel, so it has to reach a screen reader as
+    // words — an emoji's announced name is a platform detail, while the
+    // meaning is the card's own and is what the deck already taught.
+    sp.className = "mpic"; sp.textContent = c[1]; sp.setAttribute("aria-hidden", "true");
+    b.setAttribute("aria-label", mMeaning(c));
+  }
+  b.appendChild(sp);
+  return b;
+}
+
+function mRender(){
+  const round = mRound();
+  mcharsEl.textContent = ""; mpicsEl.textContent = "";
+  mHeld = null; mMiss = 0; mDone = 0;
+  for (const c of round) mcharsEl.appendChild(mTile("char", c));
+  for (const c of mPicOrder(round, "pic" + mr)) mpicsEl.appendChild(mTile("pic", c));
+  $("mcount").textContent = (mr + 1) + " / " + mRounds.length;
+  $("mfill").style.width = Math.max(1, Math.round(((mr + 1) / mRounds.length) * 100)) + "%";
+}
+
+function mPick(b){
+  if (mHeld){ mHeld.classList.remove("held"); mHeld.setAttribute("aria-pressed", "false"); }
+  mHeld = b; mMiss = 0;
+  b.classList.add("held"); b.setAttribute("aria-pressed", "true");
+  if (b.dataset.side === "char") mSay(b.dataset.ch);
+}
+function mPair(a, b){
+  for (const el of [a, b]){
+    el.classList.remove("held"); el.classList.add("done");
+    el.setAttribute("aria-disabled", "true");
+    el.removeAttribute("aria-pressed");
+  }
+  mHeld = null; mMiss = 0; mDone += 1;
+  mSay(a.dataset.ch);
+  if (mDone >= mRound().length) mFinish();
+}
+/* Three misses and the board shows him — the 写字 rescue, one screen over.
+   Nothing is removed, nothing is scored, and the pick survives: the only thing
+   a wrong tap costs is the tap. */
+function mBump(b){
+  b.classList.remove("miss"); void b.offsetWidth; b.classList.add("miss");
+  setTimeout(() => b.classList.remove("miss"), 420);
+  mMiss += 1;
+  if (mMiss < 3 || !mHeld) return;
+  const other = mHeld.dataset.side === "char" ? mpicsEl : mcharsEl;
+  const t = other.querySelector('[data-ch="' + mHeld.dataset.ch + '"]');
+  if (!t) return;
+  t.classList.remove("hintme"); void t.offsetWidth; t.classList.add("hintme");
+  setTimeout(() => t.classList.remove("hintme"), 1900);
+}
+function mTap(b){
+  if (mLock || b.getAttribute("aria-disabled") === "true") return;
+  // A doubled tap KEEPS the hold rather than cancelling it — a hammer-tapping
+  // four-year-old must never undo his own pick. Switching is tapping a
+  // DIFFERENT tile, which the same branch already does.
+  if (!mHeld || mHeld.dataset.side === b.dataset.side){ mPick(b); return; }
+  if (mHeld.dataset.ch === b.dataset.ch) mPair(mHeld, b);
+  else mBump(b);
+}
+function mFinish(){
+  mLock = true;
+  setTimeout(() => {
+    mLock = false;
+    // route() only HIDES a screen, so a timer that fires after he has left
+    // would deal a fresh board onto a screen nobody is looking at.
+    if (matchEl.classList.contains("hidden")) return;
+    mGo(1);
+  }, 950);
+}
+function mGo(step){
+  if (!mRounds.length) return;
+  mr = (mr + step + mRounds.length) % mRounds.length;
+  try { localStorage.setItem("wc-match-at", String(mr)); } catch (e) {}
+  mRender();
+}
+for (const col of [mcharsEl, mpicsEl]){
+  col.addEventListener("click", (ev) => {
+    const b = ev.target.closest(".mtile");
+    if (b) mTap(b);
+  });
+}
+$("msound").addEventListener("click", () => toggleSound(mSayHeld));
+$("mback").addEventListener("click", () => {
+  matchEl.classList.add("hidden");
+  menu.classList.remove("hidden");
+  try { speechSynthesis.cancel(); } catch (e) {}
+});
+$("matchBtn").querySelector("small").textContent = mDeck().length + " rounds";
+$("matchBtn").addEventListener("click", () => {
+  mDeck();
+  // Same reasoning as the other two modes: a stable order is only worth having
+  // if you can carry on from where you stopped.
+  mr = 0;
+  try {
+    const v = parseInt(localStorage.getItem("wc-match-at"), 10);
+    if (v >= 0 && v < mRounds.length) mr = v;
+  } catch (e) {}
+  mLock = false;
+  menu.classList.add("hidden");
+  matchEl.classList.remove("hidden");
+  mRender();
 });
 
 document.addEventListener("keydown", e => {
