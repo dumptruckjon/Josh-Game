@@ -2607,6 +2607,18 @@ so each polled the other for ever, and a third one would have made it permanent.
 The `pkill -f` trap in its polling form, and the tell was that the log had
 already printed its own `# duration_ms`. Match the binary (`pgrep -x node`) or
 watch the log's terminal line, never a pattern your own command line contains.
+**RECURRED (2026-09), FIVE TIMES IN ONE SESSION, IN THE EXACT BANNED FORM.**
+`until ! pgrep -f mut6.sh` was written five times while mutation-testing, and
+every one of them matched its OWN command line, so all five spun for **six to
+ten hours** after the scripts they were watching had finished — burning a
+`sleep` every few seconds and showing up as phantom running tasks. The tell was
+not the logs, which were complete and correct; it was that `pgrep -x sleep`
+returned five. **Count the CHILD process, not the command-line text** — a
+waiter's liveness is its `sleep`, and that is the one signal its own pattern
+cannot forge. And the third instance of the day landed in the detector: the scan
+written to FIND self-matching loops flagged a pid that turned out to be itself,
+because its `case` arms contained the very strings it was searching for. When a
+process scan reports a hit, resolve the pid before believing it.
 
 **THE 40-CARD LEVEL GRID NEVER NAMED A WORLD.** The fort gives each of its ten
 worlds a floor pattern, a road style, three backbone skins and a boss, and the
