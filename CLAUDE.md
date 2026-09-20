@@ -8355,6 +8355,134 @@ and I read index 3 as the picture, so the three "duplicates" were pinyin
 HOMOPHONES (下/夏 xià, 阳/羊 yáng, 风/蜂 fēng) — correct Chinese. Suspect the
 fixture, and check a number that disagrees with the record before believing it.
 
+**配对's THREE TILE STATES ARE SEPARATED BY HUE ALONE ON THE FILL — 1.09:1 — and
+the two structural cues carrying them were load-bearing and undeclared.** The
+board is this page's first colour-coded state machine (plain white, held gold,
+matched mint), and measured as LUMINANCE the two that matter are the same
+brightness: held `#FFC93C` L=0.634 against done `#B7E4C7` L=0.697, a contrast of
+**1.09:1**, so a viewer who cannot separate gold from green has nothing left on
+the fill at all. They survive because the held tile carries a 5px white ring and
+the matched tile has its drop shadow REMOVED — and nothing anywhere said those
+two were doing the work, so a tidy-up could have deleted either with every
+shipped test green. It is the fort roster's own finding (*hue was never doing
+the separating work; shape was*) landing on a UI state machine rather than on
+sprites. **The law is deliberately FLAT and carries no luminance bar**: for
+every PAIR of states the box-shadow must differ too. A threshold would sit
+beside the shipped 1.09 and be the invented fence this project keeps refusing,
+and the claim it approximates — *colour is never the only channel* — is
+checkable directly. Four mutations: give the matched tile plain's shadow → RED
+naming plain/done; drop the held ring → RED naming plain/held; make the matched
+fill white → RED on the separate distinct-fills clause (the hue filter
+structurally cannot see equal fills, which is what isolates it); and the
+**CONTROL, a different shade of green, stays GREEN**, so it is not a
+false-positive machine.
+**THE CVD INSTRUMENT WAS WRONG, AND THE TELL WAS ABSURDITY RATHER THAN
+SURPRISE.** The obvious way to ask this is an LMS simulation, and mine reported
+deuteranopia making the plain/held pair **more** separable than normal vision
+(Δ319 against Δ202) and dropping WHITE's ink contrast from 17.17 to 3.65. A
+simulation cannot increase separability and cannot darken white; the cause is
+that Vienot's coefficients belong to a specific LMS normalisation and I had
+pasted them onto a differently-scaled matrix. **The fix was not to debug the
+matrix but to notice the question had a matrix-free answer** — luminance is what
+every dichromacy preserves, so if two states separate on luminance they separate
+without hue, and if they do not, the burden falls on structure. Two numbers and
+no colour science. When a measurement needs a model you half-remember, look for
+the invariant first.
+**AND THE SCREENSHOT PRODUCED A FALSE CLIPPING FINDING, for the second time in
+this repo.** The iPad capture plainly showed the board's fourth row running off
+the bottom edge; measured at eight viewports the deepest tile clears the fold by
+**26px at every size except 320x480, where it clears by 2** — the rows are
+`minmax(76px, 1fr)` so they fill the height exactly, and what I was reading was
+a scaled-down image's bottom margin. *Look at the picture to find a candidate,
+then measure the thing you think you saw* — the same correction the Sparkler's
+"camouflage" diagnosis needed, and a screenshot displayed at 1500px wide from a
+2224px capture is exactly where it recurs.
+**Two measured NON-changes, recorded so nobody completes the pattern.** (1)
+**配对 must NOT inherit the deck's 820px cap.** `.wrap` caps at 560 and `#deck`
+raises itself to 820 (the tablet pass), so the natural tidy-up is to make the
+board match — and it is wrong: the board is two columns, so at 834 the tiles go
+from a near-square **254x224 to a 384x224 letterbox holding ONE GLYPH**, which
+is the fort level grid's own complaint. The 137px of dead gutter each side is
+what BUYS the square tile. Measured, the board already satisfies the ratio law
+it would have been "fixed" for: card 169 → 254 is 1.50x while the glyph 42.9 →
+70.4 is **1.64x**, so the picture grows faster than the card. (2) **All three
+Word Cards screens scroll in LANDSCAPE and all three genuinely work** — the deck
+scrolls 50-144px across the four phone-landscape sizes, 配对 64-158 and 写字
+20-114 — and the bar is RULE 5's "a rotation must never break anything", not
+"must fit". Driven rather than inferred, because `scrollHeight > clientHeight`
+is overflow and not reachability: a full round completes at 844x390, 667x375
+and 568x320, the deepest tile scrolls into view and is the top hit at its own
+centre, the page is genuinely user-scrollable and there are no page errors.
+写字's landscape scroll is already recorded and accepted, and it is the mildest
+of the three in the way that matters — its lowest CONTROL sits ABOVE the fold at
+844x390, 667x375 and 736x414 and clears it by 6px only at 568x320, so what
+scrolls there is content rather than a stranded button. 配对 is 14px worse than
+the deck for the structural reason that four rows at the 76px tap floor plus
+three 16px gaps is 352px. **Quote ONE metric**: the first draft of this
+paragraph read "写字 by 6-114", which is a lowest-control figure and a
+page-scroll figure from the same viewport welded into a range, and it was
+re-measured rather than recalled — a range built from two quantities describes
+neither. Landscape is explicitly not a design target, so this buys no portrait
+pixels.
+**AND THE BOARD'S SPEECH WAS DRIVEN BY NOTHING — enumerating 配对's 19 functions
+against the tests found `mSay`/`mSayHeld` named nowhere, and the clause I wrote
+for the one that matters was aimed at an input that cannot reach it.** The
+name-scan is a PROXY (17 of the 19 are covered behaviourally under other names —
+mTap by real clicks, mPair/mBump by the no-fail test, mRestart by the ⏮️ test),
+but speech was genuinely uncovered, and silence is the failure mode that reads
+exactly like a broken feature. Structurally `mSay` routes through `cardSpeech`,
+the ONE owner, so the language travels — and a structural scan proves a call
+site exists while only driving it proves the call does anything. Four branches,
+each a real claim: a CHARACTER tap speaks (zh-CN, character + sentence), a
+PICTURE tapped with nothing held stays SILENT, a wrong GUESS stays silent, and a
+MATCH confirms out loud.
+**THE SECOND OF THOSE IS THE SHARP ONE and its first mutation PASSED.** `mPick`
+speaks only `if (b.dataset.side === "char")`, and without that guard tapping a
+picture pronounces the character it matches — the board reading the answer aloud
+before he has chosen. I tested it by tapping a wrong picture while a character
+was held, which **never reaches `mPick` at all**: that is a guess, so `mTap`
+sends it to `mBump`, and deleting the guard changed nothing the clause could
+see. The input that reaches it is a picture tapped with NOTHING held, which the
+design explicitly allows as an opening move. Re-ordered so every clause is
+reached by an input that can get there (picture-first → pair → character →
+guess, on one continuous board), all five mutations go red and S1 reports the
+defect verbatim. Both silences are kept and asserted SEPARATELY, because they
+are different branches of the same law — and *when a mutation passes, find the
+input that separates the claims* rather than widening the assertion.
+**Two method notes.** I edited `tests/e2e.test.js` while a full gate was
+running, which this file already records as making that file's verdict
+unattributable — the honest move is to kill the gate rather than spend 25
+minutes on a number you cannot use, and it is cheaper to isolate the new test
+first and gate once at the end. And a mutation harness that greps its own
+message format can report `fail=1` with "(no assertion fired)": S4 was RED and
+my extractor simply missed the line. **Read the fail COUNT, not the message you
+hoped to find.**
+**AND THREE SIBLING PLACE-MEMORIES DISAGREE BY ONE, WITH TWO DIFFERENT CORRECT
+ANSWERS — which is the shape a later author harmonises into a bug.** Word Cards
+restores where you got to in three places and the conditions read `v < n - 1`
+(deck), `v < wDeck.length - 1` (写字) and `v < mRounds.length` (配对). Checked
+rather than "fixed": the deck saves the card he is LOOKING at and its last card
+is terminal — a dead Next button — so the `- 1` is the documented wrap-to-the-
+start; `mGo` is modular (`(mr + step + len) % len`), so a parked round is always
+a playable index and finishing the last one wraps to 0 by itself, which makes
+`v < len` exactly the valid range. Harmonising the board onto its siblings makes
+**round 30 silently unreachable on resume** — the mirror of the complaint that
+put the ⏮️ on that bar in the first place, and nothing would have gone red. Now
+pinned, with the index DERIVED so a 31st round inherits it; the mutation reports
+`parking on the LAST round must reopen there, not start over — saw 1 / 30`, and
+an equivalent rewrite (`v <= len - 1`) stays green so it is not pinning a
+spelling. **When siblings disagree, establish which of them is right before
+assuming any of them is wrong** — this file's "two adjacent lines disagreeing"
+tell finds real defects, and it also finds deliberate differences, and the only
+way to tell them apart is to read what each one saves.
+**METHOD, and it cost two gates: I edited `tests/e2e.test.js` under a running
+full gate TWICE in one session.** This file already records that doing so makes
+that file's verdict unattributable, and knowing the rule was not enough — the
+pull to "just add one more clause while it runs" is strong precisely because the
+gate is slow. The working discipline is: isolate the new test with
+`--test-name-pattern` BEFORE the path, mutate it, and only then gate, ONCE, with
+nothing else in flight. Killing a gate you have invalidated is cheaper than
+reading its number and cheaper still than trusting it.
 ---
 
 ## Repository Structure

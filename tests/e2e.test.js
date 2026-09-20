@@ -3944,6 +3944,196 @@ test("Word Cards: the matching board deals all 120, and no round is ambiguous", 
   }
 });
 
+test("Word Cards: no two states of a matching tile are told apart by COLOUR alone", async () => {
+  // The board has three tile states — plain, held, matched — and it is the
+  // first colour-coded state language on this page. Measured, the two that
+  // matter most are the SAME LIGHTNESS: held #FFC93C is L=0.634 and done
+  // #B7E4C7 is L=0.697, a contrast of 1.09:1, so a viewer who cannot separate
+  // gold from green has NOTHING left on the fill. They survive only because
+  // the held tile carries a 5px white ring and the matched tile has its drop
+  // shadow removed — two structural cues that nothing anywhere declared to be
+  // load-bearing, so a tidy-up could delete either and every shipped test
+  // would stay green. This is the fort roster's own finding (hue was never
+  // doing the separating work; shape was) landing on a UI state machine.
+  //
+  // The law is deliberately flat and carries NO luminance threshold: for every
+  // PAIR of states the box-shadow must differ too. A bar would sit next to the
+  // shipped 1.09 and be the invented threshold this project keeps refusing,
+  // and the claim it would be approximating is simply "colour is never the
+  // only channel" — which is checkable directly.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload();
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+
+    // Drive the three states into existence on ONE board: match a pair, then
+    // hold a second character. Reading them off the live DOM rather than from
+    // the stylesheet is what makes this see the cascade a player actually gets.
+    const st = await pg.evaluate(() => {
+      const chars = [...document.querySelectorAll("#mchars .mtile")];
+      const pics = [...document.querySelectorAll("#mpics .mtile")];
+      const a = chars[0], b = pics.find((p) => p.dataset.ch === a.dataset.ch);
+      a.click(); b.click();
+      chars[1].click();
+      const read = (el) => {
+        const cs = getComputedStyle(el);
+        return { fill: cs.backgroundColor, shadow: cs.boxShadow };
+      };
+      return {
+        plain: read(chars[2]),
+        held: read(chars[1]),
+        done: read(chars[0]),
+        cls: { plain: chars[2].className, held: chars[1].className, done: chars[0].className },
+      };
+    });
+
+    // The fixture has to have produced three DIFFERENT states, or every clause
+    // below passes on three readings of the same tile.
+    assert.ok(/\bheld\b/.test(st.cls.held), `fixture: the second tap did not hold (${st.cls.held})`);
+    assert.ok(/\bdone\b/.test(st.cls.done), `fixture: the pair did not match (${st.cls.done})`);
+    assert.ok(!/\b(held|done)\b/.test(st.cls.plain), `fixture: the control tile is not plain (${st.cls.plain})`);
+
+    const pairs = [["plain", "held"], ["plain", "done"], ["held", "done"]];
+    const hueOnly = pairs.filter(([x, y]) =>
+      st[x].fill !== st[y].fill && st[x].shadow === st[y].shadow);
+    assert.deepEqual(hueOnly.map((p) => p.join("/")), [],
+      "these tile states differ ONLY in fill colour, so hue is the only thing " +
+      "telling them apart: " +
+      hueOnly.map(([x, y]) => `${x} vs ${y} (both ${st[x].shadow})`).join(" | "));
+
+    // …and the states must genuinely be three, or "no pair differs by colour
+    // alone" is satisfied by a board where nothing changes at all.
+    assert.equal(new Set([st.plain.fill, st.held.fill, st.done.fill]).size, 3,
+      `the three tile states must LOOK like three states (saw fills ` +
+      `${[st.plain.fill, st.held.fill, st.done.fill].join(" ")})`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: the matching board says the CHARACTER and never the answer", async () => {
+  // Four branches, none of them driven until now, and the order below is the
+  // whole test: each clause has to be reached by an input that can actually
+  // get there. The sharpest is the FIRST — mPick speaks only `if (side ===
+  // "char")`, and without that guard tapping a picture would pronounce the
+  // character it matches, i.e. the board would read the answer aloud before he
+  // has chosen anything. That is this page's "the answer stays off the tree"
+  // law in the AUDIO channel.
+  //
+  // A picture tapped while a CHARACTER is held never reaches mPick at all (it
+  // is a guess, so it goes to mBump), so it cannot prove that guard — the
+  // input that reaches it is a picture tapped with NOTHING held, which the
+  // design explicitly allows as an opening move. Both silences are real and
+  // they are different branches, so both are asserted, separately.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload();
+    // speechSynthesis is a READ-ONLY accessor, so a plain assignment silently
+    // no-ops and the real (silent, headless) engine answers — which reads as a
+    // feature that never fired rather than a stub that never installed.
+    const ok = await pg.evaluate(() => {
+      window.__said = [];
+      Object.defineProperty(window, "speechSynthesis", {
+        configurable: true,
+        value: {
+          __stub: true, cancel() {}, getVoices() { return []; },
+          speak(u) { window.__said.push({ text: u.text, lang: u.lang }); },
+        },
+      });
+      return !!window.speechSynthesis.__stub;
+    });
+    assert.ok(ok, "fixture: the speech stub never installed, so nothing below measures anything");
+
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+    // Sound is OFF by default (RULE 5), so nothing below can speak until the
+    // board's own toggle is used — which also proves the toggle reaches it.
+    const wasMuted = await pg.evaluate(() =>
+      !document.getElementById("msound").classList.contains("on"));
+    assert.ok(wasMuted, "fixture: sound must start OFF, or the toggle proves nothing");
+    await pg.click("#msound");
+
+    // 1. PICTURE FIRST, nothing held — must be SILENT. This is the only input
+    //    that reaches mPick with a picture, and so the only one that can prove
+    //    the guard.
+    const first = await pg.evaluate(() => {
+      window.__said.length = 0;
+      const p = document.querySelector("#mpics .mtile");
+      p.click();
+      return {
+        said: window.__said.slice(),
+        held: p.classList.contains("held"),
+        ch: p.dataset.ch,
+      };
+    });
+    assert.ok(first.held, "fixture: the picture did not take the hold, so mPick was never reached");
+    assert.deepEqual(first.said, [],
+      `tapping a picture spoke the character it matches — the board read the answer ` +
+      `aloud before he chose: ${first.said.map((s) => s.text).join(", ")}`);
+
+    // 2. Its partner CHARACTER completes the pair, and a match confirms out
+    //    loud — the only audio a correct tap earns.
+    const pair = await pg.evaluate((ch) => {
+      window.__said.length = 0;
+      const a = [...document.querySelectorAll("#mchars .mtile")].find((c) => c.dataset.ch === ch);
+      a.click();
+      return { said: window.__said.slice(), done: a.classList.contains("done") };
+    }, first.ch);
+    assert.ok(pair.done, "fixture: the partner did not pair");
+    assert.equal(pair.said.length, 1,
+      `a match must confirm out loud — spoke ${pair.said.length} times`);
+    assert.equal(pair.said[0].lang, "zh-CN",
+      `the confirmation must keep its language (got ${pair.said[0].lang})`);
+
+    // 3. A CHARACTER tap speaks it — in zh-CN, through the ONE cardSpeech
+    //    owner, so the character carries its sentence and its language. The
+    //    pair above cleared the hold, so this reaches mPick.
+    const one = await pg.evaluate(() => {
+      window.__said.length = 0;
+      const a = [...document.querySelectorAll("#mchars .mtile")].find((c) => !c.classList.contains("done"));
+      a.click();
+      const c = mCard(a.dataset.ch);
+      return { said: window.__said.slice(), want: cardSpeech(c), ch: a.dataset.ch };
+    });
+    assert.equal(one.said.length, 1,
+      `tapping a character must say it out loud — spoke ${one.said.length} times`);
+    assert.equal(one.said[0].lang, "zh-CN",
+      `a Chinese character on the page's en-US voice is read as letter noise (got ${one.said[0].lang})`);
+    assert.equal(one.said[0].text, one.want[0],
+      `the board must speak what cardSpeech says, not a second spelling of it ` +
+      `(said "${one.said[0].text}", owner says "${one.want[0]}")`);
+    assert.ok(one.said[0].text.startsWith(one.ch),
+      `the character itself must lead the line (said "${one.said[0].text}")`);
+
+    // 4. …and a WRONG GUESS — a picture tapped while that character is held —
+    //    stays silent too. Different branch (mBump, not mPick), same law.
+    const miss = await pg.evaluate((ch) => {
+      window.__said.length = 0;
+      const wrong = [...document.querySelectorAll("#mpics .mtile")]
+        .find((p) => p.dataset.ch !== ch && !p.classList.contains("done"));
+      wrong.click();
+      return { said: window.__said.slice(), consumed: wrong.classList.contains("done") };
+    }, one.ch);
+    assert.deepEqual(miss.said, [],
+      `a wrong guess spoke — the board answered the guess out loud: ` +
+      `${miss.said.map((s) => s.text).join(", ")}`);
+    assert.equal(miss.consumed, false, "a wrong tap must not consume the tile (RULE 5: no failure state)");
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("Word Cards: matching is no-fail — a wrong tap costs nothing and three misses show him", async () => {
   // RULE 5 does not allow a failure state, and a matching game is where one
   // would naturally creep in. So a wrong tap bumps the tile he touched, keeps
@@ -4150,6 +4340,23 @@ test("Word Cards: matching can be sent back to round 1, but only by a grown-up",
     s = await at();
     assert.equal(s.round, "1 / 30", `Enter must work without a hold — saw ${s.round}`);
     assert.equal(s.stored, null, "the keyboard path must forget the place too");
+
+    // 5. …AND THE LAST ROUND MUST STILL BE RESUMABLE. The three place-memory
+    //    restores on this page disagree by one: the deck and the writer accept
+    //    `v < len - 1` and the board accepts `v < len`. Both are RIGHT for
+    //    their own semantics — the deck saves the card he is LOOKING at and its
+    //    last card is terminal (a dead Next button), while mGo is modular so a
+    //    parked round is always a playable index and finishing the last one
+    //    wraps to 0 by itself. Three siblings and two correct rules is exactly
+    //    the shape a later author "harmonises", and harmonising this one makes
+    //    the final board silently unreachable on resume — the mirror of the
+    //    complaint that put the ⏮️ on this bar. The index is DERIVED, so a
+    //    31st round inherits the clause.
+    const lastIdx = await pg.evaluate(() => mRounds.length - 1);
+    await park(lastIdx);
+    s = await at();
+    assert.equal(s.round, `${lastIdx + 1} / ${lastIdx + 1}`,
+      `parking on the LAST round must reopen there, not start over — saw ${s.round}`);
 
     assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
   } finally {
