@@ -3800,6 +3800,105 @@ test("Word Cards: the writing pad can SAY the character on demand", async () => 
   }
 });
 
+test("Word Cards: the writing pad keeps its place, INCLUDING the last character", async () => {
+  // `wc-write-at` was named by NO test in the whole suite while both of its
+  // siblings were driven, and the gap hid a real defect. The three place
+  // memories restore with TWO different bounds and BOTH are correct, which is
+  // exactly why the third had to be read rather than copied:
+  //
+  //   flash deck   go() is CLAMPED  -> the last card is terminal (a dead Next
+  //                                   button), so `< n - 1` is a deliberate
+  //                                   wrap-to-the-start
+  //   配对        mGo() is MODULAR -> every index is playable, so `< len`
+  //   写字        wGo() is MODULAR -> every index is playable... and it
+  //                                   shipped with the DECK's bound, so
+  //                                   parking on the last character and coming
+  //                                   back silently started him over at 一
+  //
+  // That is the defect the 配对 audit identified and refused to introduce
+  // ("harmonising the board onto its siblings makes round 30 silently
+  // unreachable"), live in the one sibling that audit never read. The LAST
+  // clause is the one that pins the difference — the first two pass on either
+  // bound, so a test that only drove the middle of the ladder would have
+  // shipped proving nothing about the end of it.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+
+    // Put a place in the ENGLISH deck first, so the separate-key clause has
+    // something it could actually collide with. A shared key looks exactly
+    // like this feature working, right up until it loses one of the two.
+    await pg.click("#allBtn");
+    await pg.waitForSelector(".card");
+    for (let k = 0; k < 2; k++) await pg.click("#next");
+    await pg.click("#back");
+
+    await pg.click("#writeBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    const opened = await pg.evaluate(() => ({ at: wi, n: wDeck.length }));
+    assert.equal(opened.n, 120, `fixture: the writing ladder is ${opened.n} characters, not the deck's 120`);
+    assert.equal(opened.at, 0,
+      `the pad opened at character ${opened.at + 1} of a ladder he has never seen — it is reading another screen's saved place`);
+
+    for (let k = 0; k < 5; k++) await pg.click("#wnext");
+    const walked = await pg.evaluate(() => ({
+      at: wi,
+      saved: localStorage.getItem("wc-write-at"),
+      deckKeys: Object.keys(localStorage).filter((k) => k.startsWith("wc-at-")).sort(),
+    }));
+    assert.equal(walked.at, 5, "fixture: the walk did not advance five characters");
+    assert.equal(walked.saved, "5",
+      `the pad must save where he stopped — wc-write-at reads ${JSON.stringify(walked.saved)}`);
+    assert.deepEqual(walked.deckKeys, ["wc-at-all"],
+      `writing must not move his place in a flash deck: ${walked.deckKeys.join(", ")}`);
+
+    await pg.reload({ waitUntil: "load" });
+    const back = await pg.evaluate(() => {
+      document.getElementById("writeBtn").click();
+      const at = wi;
+      document.getElementById("wback").click();
+      document.getElementById("allBtn").click();
+      return { at, en: i };
+    });
+    assert.equal(back.at, 5, `the pad reopened at character ${back.at + 1}, not where he stopped`);
+    assert.equal(back.en, 2, `working through 写字 moved his place in the English deck to ${back.en}`);
+
+    // THE CLAUSE THAT PINS THE BOUND. wGo() is modular, so ◀ from the first
+    // character is a real tap that parks him on the LAST one — and with the
+    // flash deck's `< len - 1` that is the one character in 120 he can never
+    // come back to.
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    await pg.click("#writeBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    const fresh = await pg.evaluate(() => wi);
+    assert.equal(fresh, 0, `fixture: a cleared pad must open at the first character, not ${fresh}`);
+    await pg.click("#wprev");
+    const parked = await pg.evaluate(() => ({ at: wi, n: wDeck.length, saved: localStorage.getItem("wc-write-at") }));
+    assert.equal(parked.at, parked.n - 1,
+      `fixture: the ladder must wrap, so one tap back from the first character is the last one — landed on ${parked.at}`);
+    assert.equal(parked.saved, String(parked.n - 1), "fixture: parking on the last character must have been saved");
+
+    await pg.reload({ waitUntil: "load" });
+    const reopened = await pg.evaluate(() => {
+      document.getElementById("writeBtn").click();
+      return { at: wi, n: wDeck.length };
+    });
+    assert.equal(reopened.at, reopened.n - 1,
+      `every index in a MODULAR ladder is a playable index, so parking on the last character must reopen there — it reopened at ${reopened.at + 1} of ${reopened.n}`);
+
+    assert.deepEqual(errs, [], "no uncaught page errors while keeping the pad's place");
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
+
 test("Word Cards: the Chinese deck keeps its OWN place in the deck", async () => {
   // A seeded order is only worth having if you can carry on from it, and a
   // 120-card deck is six sittings at a four-year-old's pace. The place is keyed

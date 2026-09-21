@@ -8550,6 +8550,55 @@ by the person who documented it: `#2c7a3f` → `#1f6b34` is the same LENGTH, so 
 mutation script asserting `len(new) != len(old)` reported SETUP FAILED and
 skipped the one mutation that mattered. Compare the STRINGS — `cp` the file
 first and `cmp -s` against the copy, which also gives you the restore.
+**THE THIRD PLACE-MEMORY HAD THE WRONG ONE OF TWO CORRECT ANSWERS, AND THE
+AUDIT THAT ESTABLISHED THEY WERE BOTH CORRECT IS WHAT MISSED IT.** A release
+earlier this file recorded that the flash deck restores `v < n - 1` while 配对
+restores `v < len`, checked which was right rather than harmonising them, and
+concluded *"when siblings disagree, establish which of them is right before
+assuming any of them is wrong"*. It read two of the three. 写字 restores with the
+**DECK's** bound — and `wGo()` is `(wi + step + len) % len`, **modular**, so
+every index in the writing ladder is a playable index and the last character is
+simply the last one he can be parked on. Parking on it and coming back silently
+started him over at the first. That is the defect the 配对 audit identified and
+explicitly refused to introduce (*"harmonising the board onto its siblings makes
+round 30 silently unreachable on resume"*), live in the sibling it never opened.
+**What decides the bound is the NAV, and it is readable in one line each:**
+`go()` is CLAMPED (`if (n >= deck.length) return`), so the flash deck's last card
+is terminal — a dead Next button — and its `- 1` is a deliberate
+wrap-to-the-start; `mGo()` and `wGo()` are modular, so they wrap by themselves
+and a `- 1` there implements no wrap at all, it just deletes the last item from
+the resume. The code's own comment was the tell in hindsight: it cites *"same
+reasoning as the flash deck"* for the CARRY-ON half and inherited the WRAP half
+with it. **A bound copied from a sibling is only correct if you copy its
+justification too, and the justification here is a property of a different
+function.**
+**And the gap was found by ENUMERATING the keys, not by reading the code:**
+`wc-write-at` is named by NO test in the whole suite, while `wc-at-*` and
+`wc-match-at` are both driven — the same method that found `isRevealed`,
+`setDamageNumbers`, the `ach` hook and the Sparkler's aura. The new test's first
+two clauses (it saves; it is its own key) **pass on either bound**, so a test
+that only drove the middle of the ladder would have shipped proving nothing
+about the end of it; the clause that separates them taps ◀ once from the first
+character, which is a real user action that parks him on the last.
+**And that clause's own precondition caught ME, which is the self-verifying
+fixture rule paying out rather than a footnote:** my first draft tapped ◀ from
+wherever the pad opened, and after the reload it opened at the place the clause
+ABOVE it had just saved — so it landed on 4, not on the last character. It
+failed loudly with `landed on 4` instead of quietly measuring the wrong index,
+because the precondition asserted the wrap rather than assuming it.
+**METHOD, and it is a correction to this file rather than an addition: a
+FILTERED GitHub run listing can be four weeks stale, so "no run exists" is not
+safe to conclude from one.** This file records the opposite shape — that the
+UNFILTERED listing returns a byte-identical ~428KB payload and "looks stale
+whether or not it is" — and prescribes filtered queries as the cure. Measured
+today on one workflow, minutes apart: `{branch: "main"}` returned
+`total_count 238` topping out at **run #360, 2026-08-23**, while
+`{event: "push", status: "completed"}` returned `total_count 477` and the real
+head, **run #481, 2026-09-20**. Had that been a deploy check it would have
+reported a month of missing runs. The zero-cost tell is that the listing's newest
+`head_sha` must equal `git ls-remote origin main` when you have not pushed since
+— compare the SHA, never the recency of the dates, and remember the already
+recorded rule that only the JOBS answer what actually happened.
 ---
 
 ## Repository Structure

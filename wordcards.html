@@ -1411,11 +1411,19 @@ $("writeBtn").querySelector("small").textContent = HANZI.length + " characters";
 $("writeBtn").addEventListener("click", () => {
   wDeck = writeDeck();
   // Same reasoning as the flash deck: a stable order is only worth having if
-  // you can carry on from where you stopped.
+  // you can carry on from where you stopped. The BOUND is not the deck's,
+  // though, and what decides it is the NAV. go() is CLAMPED, so the flash
+  // deck's last card is terminal — a dead Next button — and its `< n - 1` is a
+  // deliberate wrap-to-the-start. wGo() is MODULAR, so every index here is a
+  // playable index and the last character is simply the last one he can be
+  // parked on; with the deck's bound, coming back to it silently started him
+  // over at the first. This is the board's rule for the board's reason, and
+  // harmonising the three onto one number would break whichever two did not
+  // get it.
   wi = 0;
   try {
     const v = parseInt(localStorage.getItem("wc-write-at"), 10);
-    if (v >= 0 && v < wDeck.length - 1) wi = v;
+    if (v >= 0 && v < wDeck.length) wi = v;
   } catch (e) {}
   wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false;
   menu.classList.add("hidden");
