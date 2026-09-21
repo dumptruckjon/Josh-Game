@@ -8483,6 +8483,73 @@ gate is slow. The working discipline is: isolate the new test with
 `--test-name-pattern` BEFORE the path, mutate it, and only then gate, ONCE, with
 nothing else in flight. Killing a gate you have invalidated is cheaper than
 reading its number and cheaper still than trusting it.
+
+**THE HUE-ALONE LAW SHIPPED SCOPED TO ONE GAME, AND ASKING RULE 7'S OWN
+QUESTION FOUND THE SAME DEFECT IN FIVE MORE — plus a stale number inside the
+comment that shipped with it.** 配对's three tile states were separated by hue
+on the FILL and nothing else (held #FFC93C L=0.634 against done #B7E4C7 L=0.697
+— 1.09:1), and the browser test pinning that surface can only ever pin that
+surface. *When a fix is recorded in one world, the next question is which other
+world has the same surface* — so the law was DERIVED across every stylesheet
+this app ships, and it found `.memory-card.flipped` (#fff) against
+`.memory-card.matched` (#d7f8de): **1.14:1, with identical box-shadow, outline,
+opacity and ink**. A found pair and your live pick are BOTH face-up showing
+their emoji, so on the hue channel they were one state — in **five** games,
+through one shared class. Its two siblings already had it right, which is the
+usual tell: `.order__item--done` (outline + opacity) and 华丽's `.hl-card--done`
+(fill + border-colour + opacity) are the same "this pair is found" idea.
+Five things worth keeping, and three are about my own reasoning.
+(1) **The ring colour was chosen by MEASUREMENT and my first pick was
+rejected by it.** A state cue carried by fill IS a graphical object required to
+understand the content, so it owes WCAG 1.4.11's **3:1** — and the `#3fae61` I
+reached for reads **2.47:1** on that mint, i.e. it would have replaced a cue
+that fails with a cue that fails. `#2c7a3f` is 4.64:1, and it is 写字's own
+finished-stroke green, so it reuses a palette entry an audit already walked
+rather than minting a colour nobody has measured.
+(2) **`box-shadow`, never `outline`** — an outline only follows `border-radius`
+from a Safari well above Josh's iOS 14.2 floor, and both doc sources that could
+have pinned the exact version came back `EGRESS_BLOCKED` from this sandbox. A
+question you cannot answer is a reason to pick the construct that does not
+raise it, not a reason to guess: a box-shadow follows the radius on every
+engine we ship to, so the version never has to be known. No opacity dim, on
+purpose — a found pair is the reward you want to keep looking at, unlike a
+sequencing tray's spent items.
+(3) **STATE vs VARIANT is DERIVABLE, and that is the whole difference between a
+law and a fence.** A state is a class the app `classList.add/remove/toggle`s at
+runtime, so one element wears it and then does not; a variant is baked into the
+markup at creation — `.tile--surprise`, the three `.start-tile--*` world doors —
+and those are different OBJECTS with their own icon and label. Grep what the
+scripts actually toggle and the distinction needs no judgement call.
+(4) **MY OWN JUSTIFICATION FOR AN EXCLUSION WAS REFUTED BY MEASURING IT, and it
+had already shipped in the comment.** I wrote that a flat law with no world-theme
+exclusion "flags 7 pairs and SIX are exactly this"; run it, and dropping the
+theme exclusion flags **ZERO** — every pair it admits is stopped one clause later
+by the struct check. Same for the gradient guard, and for both together. So the
+comment now says plainly that NEITHER exclusion can fail on today's data, and why
+each is kept anyway: each is ONE declaration away from firing the law on correct
+code, on a number that means nothing. Drop the theme exclusion and
+`.hl-sudoku .sudoku__cell` joins its Josh-world twin at 1.02:1, held out only by
+a `border` — and the two worlds are never on screen together, so nobody ever has
+to tell them apart. Drop the gradient guard and `.memory-card` base, a
+`linear-gradient(135deg, #8a7bff, #5ec8ff)`, is scored on its FIRST HEX and
+reports 2.89:1, a ratio describing no pixel on the screen. **An exclusion and an
+assertion have opposite failure modes** — this file has deleted six assertion
+clauses for being unfalsifiable, and that reasoning does NOT transfer to a
+filter, whose job is to prevent a false positive rather than to catch a defect.
+Say which half is vacuous and keep it for the case it models.
+(5) **The comment's own population numbers were wrong when it shipped** — it
+said "37 fill-differing pairs and 17 judged" against a real **124 and 15**,
+found by raising the floor to an absurd value so the assertion message printed
+the truth. A comment cannot go red, so the only way to check one is to go and
+measure what it claims; the floors themselves were fine, because they are bounds
+rather than pins. The `pairs >= 25` floor is falsifiable and now proven: blind
+the rule-matching regex and it reports `saw 0`, which is the only reason this
+scan cannot pass by finding nothing.
+And the byte-count trap for the **second** recorded time, in the harness written
+by the person who documented it: `#2c7a3f` → `#1f6b34` is the same LENGTH, so a
+mutation script asserting `len(new) != len(old)` reported SETUP FAILED and
+skipped the one mutation that mattered. Compare the STRINGS — `cp` the file
+first and `cmp -s` against the copy, which also gives you the restore.
 ---
 
 ## Repository Structure

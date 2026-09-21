@@ -579,7 +579,21 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
   font-size: 2.8rem; line-height: 1;
 }
 .memory-card.flipped { background: #fff; }
-.memory-card.matched { background: #d7f8de; }
+/* A found pair and your live pick are BOTH face-up showing their emoji, and the
+   only thing that told them apart was the fill: white (L=1.000) against this
+   mint (L=0.869) is 1.14:1, the SAME lightness, so on the hue channel alone
+   they are one state. The ring is the channel that survives — and it is a
+   `box-shadow`, not an `outline`, because a box-shadow follows `border-radius`
+   on every engine we ship to. Two siblings already had this right and only
+   these five games did not: `.order__item--done` two rules up (outline +
+   opacity) and 华丽's `.hl-card--done` (fill + border-colour + opacity) are the
+   same "this pair is found" idea. No opacity dim here on purpose — the found
+   pairs are the reward you want to keep looking at, unlike a sequencing tray's
+   spent items. */
+.memory-card.matched {
+  background: #d7f8de;
+  box-shadow: inset 0 0 0 4px #2c7a3f, 0 6px 16px rgba(0, 0, 0, 0.15);
+}
 
 /* ---------- Science & sorting ---------- */
 .sort__item { font-size: clamp(4rem, 26vw, 7rem); line-height: 1; }

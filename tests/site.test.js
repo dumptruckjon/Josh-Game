@@ -1133,6 +1133,163 @@ test("guardrail: every aspect-ratio cell has a real height fallback (iOS 14.2 ha
 });
 
 // ---------- Syntax ----------
+test("guardrail: no two STATES of one element are told apart by COLOUR alone", () => {
+  // 配对's three tile states were separated by hue on the FILL and nothing else
+  // (held #FFC93C is L=0.634 and done #B7E4C7 is L=0.697 — 1.09:1, the same
+  // lightness), and the browser test that pins THAT surface can only ever pin
+  // that surface. This is the derived half: it walks every stylesheet this app
+  // ships and asks the same question of every state pair, so a sixth
+  // concentration game or a new game's state cue inherits it.
+  //
+  // It found the one other instance in the app: `.memory-card.flipped` (#fff)
+  // against `.memory-card.matched` (#d7f8de) is 1.14:1 with identical shadow,
+  // outline, opacity and ink — and a found pair and your live pick are BOTH
+  // face-up showing their emoji, so on the hue channel they were one state.
+  // Five games share that surface. Its two siblings already had it right:
+  // `.order__item--done` (outline + opacity) and 华丽's `.hl-card--done`
+  // (fill + border-colour + opacity).
+  //
+  // TWO EXCLUSIONS, both because the metric cannot model the case rather than
+  // because the case is awkward:
+  //  * a WORLD THEME is not a state. `.tile__label`, `.topbar` and `.screen
+  //    .game` are each restyled under `hl-mode`, and the two worlds are never
+  //    on screen together, so nobody ever has to tell them apart.
+  //  * a gradient or a translucent fill has no single lightness — it
+  //    composites against whatever is behind it — so there is no number to
+  //    compare. Declining to judge what the metric cannot model is the same
+  //    call the fort contrast audit makes for `positional` and text-shadow.
+  // NEITHER EXCLUSION CAN FAIL ON TODAY'S DATA, and saying so beats implying
+  // four protections where there are two: removing the theme exclusion, the
+  // gradient guard, or both leaves this test GREEN, because every pair they
+  // would admit is stopped one clause later by the struct check. They are kept
+  // because each is ONE declaration away from firing the law on correct code,
+  // and the number it would fire on is meaningless. Measured: drop the theme
+  // exclusion and `.hl-sudoku .sudoku__cell` (#fffdf7) joins its Josh-world
+  // twin at 1.02:1, held out only by a `border`; drop the gradient guard and
+  // `.memory-card` base — a `linear-gradient(135deg, #8a7bff, #5ec8ff)` — is
+  // scored on the FIRST hex and reports 2.89:1 against `.matched`, a number
+  // that describes no pixel on the screen, held out only by `border-radius`.
+  //
+  // THE BAR IS NOT INVENTED. A state cue carried by fill IS a graphical object
+  // required to understand the content, so it owes WCAG 1.4.11's 3:1 — the same
+  // bar the memory card's own new ring was measured against (#2c7a3f on the
+  // mint reads 4.64:1; the #3fae61 I reached for first measured 2.47 and was
+  // rejected by that measurement). Both endpoints sit clear of it: the defect
+  // is 1.14:1 and the nearest CORRECT pair — 写字's written stroke #21123F
+  // against its finished #2C7A3F — is 3.24:1, i.e. a character completing gets
+  // visibly LIGHTER rather than merely greener.
+  const FILL = /(?:^|;)\s*(background(?:-color)?|fill)\s*:\s*([^;]+)/gi;
+  const STRUCT =
+    /(?:^|;)\s*(box-shadow|border|border-[a-z-]+|outline|opacity|transform|filter|text-decoration|stroke|stroke-width|stroke-dasharray|font-weight|clip-path|background-image|color)\s*:\s*([^;]+)/gi;
+  const grab = (decls, re) => {
+    const out = {};
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(decls))) out[m[1].toLowerCase()] = m[2].trim();
+    return out;
+  };
+  // Relative luminance of an OPAQUE colour; null for anything that composites.
+  const lum = (css) => {
+    if (/gradient\(/i.test(css)) return null; // no single lightness to compare
+    const hex = css.match(/#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
+    const rgb = css.match(/rgba?\(([^)]+)\)/i);
+    let c;
+    if (hex) {
+      let h = hex[1];
+      if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+      c = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    } else if (rgb) {
+      const p = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+      if (p.length >= 4 && p[3] < 0.999) return null;
+      c = p.slice(0, 3);
+    } else return null;
+    if (c.some((v) => !Number.isFinite(v))) return null;
+    const f = (v) => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+  };
+
+  // A STATE is a class the app ADDS OR REMOVES at runtime, so one element wears
+  // it and then does not and the viewer has to tell those apart. A VARIANT is
+  // baked into the markup at creation and never moves — `.tile--surprise` and
+  // `.tile--stickers`, or the three `.start-tile--*` world doors, are different
+  // OBJECTS that happen to share a component, told apart by their own icon and
+  // label, and holding them to a state law is the fence this repo keeps
+  // refusing. The difference is derivable rather than a judgement: grep what
+  // the scripts actually toggle.
+  const RUNTIME = new Set();
+  for (const f of [...SCRIPTS, ...PAGES]) {
+    const src = read(f);
+    for (const m of src.matchAll(/classList\s*\.\s*(?:add|remove|toggle)\(([^)]*)\)/g))
+      for (const c of m[1].matchAll(/["'`]([A-Za-z][\w-]*)["'`]/g)) RUNTIME.add("." + c[1]);
+    for (const m of src.matchAll(/\bclassName\s*=\s*[^;]*\?\s*["'`]\s*([\w-]+)/g)) RUNTIME.add("." + m[1]);
+  }
+  assert.ok(RUNTIME.size >= 40, `the runtime-class scan must find classes (saw ${RUNTIME.size})`);
+
+  const groups = new Map();
+  for (const [file, css0] of SHEETS) {
+    const css = css0.replace(/\/\*[\s\S]*?\*\//g, "");
+    const re = /([^{}@][^{}]*)\{([^{}]*)\}/g;
+    let m;
+    while ((m = re.exec(css))) {
+      const sels = m[1].trim().replace(/\s+/g, " ");
+      if (!sels || sels.startsWith("@")) continue;
+      for (const sel of sels.split(",").map((x) => x.trim()).filter(Boolean)) {
+        const last = sel.split(/[\s>+~]+/).pop();
+        if (!last || last[0] !== ".") continue;
+        const t = last.match(/^(\.[A-Za-z][\w-]*)(.*)$/);
+        if (!t) continue;
+        const [, base, rest] = t;
+        if (rest && /^:(hover|focus|active|focus-visible|before|after|first|last|nth|not|root|is|where|any-link|visited)/.test(rest)) continue;
+        const bem = base.match(/^(\.[\w-]+?)--([\w-]+)$/);
+        const key = bem ? bem[1] : base;
+        const state = bem ? "--" + bem[2] + rest : rest || "(base)";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push({ file, sel, state, decls: m[2] });
+      }
+    }
+  }
+
+  const bad = [];
+  let pairs = 0, judged = 0;
+  for (const [base, rs] of groups) {
+    const states = rs
+      .map((r) => ({ ...r, fill: grab(r.decls, FILL), struct: grab(r.decls, STRUCT) }))
+      .filter((s) => s.fill.background || s.fill["background-color"] || s.fill.fill);
+    if (states.length < 2) continue;
+    for (let i = 0; i < states.length; i++) {
+      for (let j = i + 1; j < states.length; j++) {
+        const a = states[i], b = states[j];
+        const fa = a.fill.background || a.fill["background-color"] || a.fill.fill;
+        const fb = b.fill.background || b.fill["background-color"] || b.fill.fill;
+        if (fa === fb) continue;
+        pairs++;
+        if (/hl-|--hl/.test(a.sel) || /hl-|--hl/.test(b.sel)) continue; // a world, not a state
+        const isState = (x) => x.state === "(base)" || [...RUNTIME].some((c) => x.state.includes(c));
+        if (!isState(a) || !isState(b)) continue; // a variant, not a state
+        const la = lum(fa), lb = lum(fb);
+        if (la == null || lb == null) continue; // composites — no single lightness
+        judged++;
+        const keys = new Set([...Object.keys(a.struct), ...Object.keys(b.struct)]);
+        if ([...keys].some((k) => (a.struct[k] || "") !== (b.struct[k] || ""))) continue;
+        const cr = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+        if (cr < 3)
+          bad.push(`${base} ${a.state} vs ${b.state} — ${fa} / ${fb} is ${cr.toFixed(2)}:1 and nothing else differs [${a.file}]`);
+      }
+    }
+  }
+  // A derivation fails OPEN, and BOTH exclusions above shrink the population,
+  // so the floors guard the scan itself rather than the product: measured 124
+  // fill-differing pairs and 15 judged. Blind the rule-matching regex above and
+  // the first floor reports `saw 0` — which is the only reason this scan cannot
+  // pass by finding nothing.
+  assert.ok(pairs >= 25, `the state-pair scan must find pairs to judge (saw ${pairs})`);
+  assert.ok(judged >= 10, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
+  assert.deepEqual(bad, [], "a state told apart by colour alone:\n" + bad.join("\n"));
+});
+
 test("all scripts are valid JavaScript", () => {
   for (const f of SCRIPTS) execFileSync(process.execPath, ["--check", path.join(root, f)]);
 });
