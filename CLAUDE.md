@@ -8599,6 +8599,83 @@ reported a month of missing runs. The zero-cost tell is that the listing's newes
 `head_sha` must equal `git ls-remote origin main` when you have not pushed since
 — compare the SHA, never the recency of the dates, and remember the already
 recorded rule that only the JOBS answer what actually happened.
+
+**SIX STATE RINGS CARRIED TWO DEFECTS AT ONCE, AND THE IMPOSSIBILITY PROOF I
+WROTE FOR THE AWKWARD ONE WAS FALSE — caught by a mutation that passed.** The
+task was "audit state rings against the surface they ring", and the first thing
+to fix was my own note, which named THREE by hand: derived, the population is
+ten ring-only state rules, and it includes the buddy chooser — the single choice
+that drives the home companion and every win celebration — whose gold ring
+measures **1.30:1** on its card. Two independent defects then turned out to live
+in the same six rules, on axes nobody had measured together. (1) **`outline`
+does not follow `border-radius` until a Safari well above Josh's iOS 14.2
+floor**, so every one of the six coloured outlines drew a SQUARE ring across a
+rounded card on his iPad — a 5px band whose corners float free of the card —
+while Chromium rounds it correctly and shows nothing. The version is not
+answerable from this sandbox (both doc sources came back EGRESS_BLOCKED when the
+memory card's own ring raised it), which is precisely why the rule is the one
+that needs no version: `box-shadow` follows the radius on every engine we ship
+to. This is a decision this repo had already made and documented, applied to its
+siblings — the *what else has this?* question, for the third time in a row after
+the Sticker Book ghost and the tile-icon law. (2) **Contrast**: `#7be08a` is
+1.63:1 on a white card and 1.48:1 on a `.choice`; `#2c7a3f` (写字's
+finished-stroke green, already audited) is 5.30 / 4.80.
+**THE MUTATION THAT PASSED IS THE ENTRY.** `.cg__cell--win` rings a toggle cell
+that is either the pale card or the lit purple, so I exempted it and wrote what
+looked like an airtight proof: no colour can clear 3:1 against both. The
+mutation that repaints the lit cell pale — which should make a single colour
+possible and fire the clause — came back GREEN, twice. Two separate faults, and
+both are recorded classes. The clause **restated two hex literals** instead of
+reading them from the CSS, so it tracked nothing (M9, which renames the lit
+rule, now fires a "must be able to read BOTH surfaces" precondition). And the
+arithmetic was **DIRECTION-ASSUMING**: it asked for a ring lighter than the dark
+surface and darker than the light one, when a ring may instead be darker than
+BOTH — measured, a near-pure black clears the card at 18.7:1 and the lit cell at
+**3.03:1**, so the impossibility was simply false. The honest form of such a
+proof is to ask whether the feasible set is EMPTY (sweep the luminance and test
+every stop), not to assume which side the answer is on. What shipped is better
+than the exemption: a **self-contrasting two-tone ring** (dark band beside pale
+band — the fort's own dark-under-bright law written in CSS), so whichever
+surface it lands on one band contrasts with it, and **the law needs no exemption
+at all**. The neighbouring rule earns its place by mutation: two bands that
+neither self-contrast nor clear the surface go red, and deleting the
+self-contrast branch goes red too.
+**AND THE LAW'S FIRST RUN REPORTED A SURFACE THAT ELEMENT NEVER SITS ON.** It
+resolved `var()` against every stylesheet's `:root` combined, and
+`wordcards.html` defines its own `--card: #FFC93C` (it even rewrites it per card
+at runtime) — so that page's token overwrote `main.css`'s and the failure read
+`.more__panel--win — #7be08a on #FFC93C`. **A custom property and a class name
+are both DOCUMENT-scoped**, and the tell was that the number was about a colour
+from another document entirely. The scan is per document now (`PAGES`, each with
+the sheets and scripts it actually loads), and the comment says which half of
+that loop is doing the work: wordcards has no ring-only state of its own, so
+what the loop buys is the ISOLATION, not a second population.
+**Four smaller things worth keeping.** A `box-shadow` ring must RE-DECLARE the
+card's lift, because box-shadow REPLACES rather than adds — which would have
+written one value into five places that must agree, so `--card-shadow` takes
+ownership of all ten uses. **`.more__win` was renamed `.more__panel--win`**: it
+was the only one of the ten whose surface the resolver could not find, and the
+reason was that its name broke the `block__element--modifier` convention every
+other rule follows — *a naming convention a derivation relies on is
+load-bearing*, and fixing the name brought the ring that carries the most
+information inside the law. The `:focus-visible` carve-out was **measured before
+its comment was written**: I was about to call it vacuous and Word Cards has six
+real focus rings, which the law now asserts, so it cannot quietly become a
+false-positive machine. And `.coop__btn--active` was deliberately NOT recoloured
+— its state changes the FILL, so the ring is a second channel there rather than
+the cue, and recolouring it would be scope creep. Stated limit: five rings sit
+on a surface the CSS cannot know (set INLINE per round, inherited from the
+stage, or added by a script to an element it never names in a class string) and
+are SKIPPED, not excused — the judged-count floor is what stops the scan passing
+by resolving nothing.
+**And the same-document-navigation trap bit my own probe, for the second time in
+two days.** Two buddy-chooser screenshots came out **byte-identical**, which
+reads exactly like a CSS edit that did not apply; `page.goto(url + "#home")`
+from another hash is a SAME-DOCUMENT navigation, so the PREVIOUS case's injected
+"before" stylesheet was still on the page when the "after" shot was taken. A
+fresh context per arm fixes it, and the computed style then reported
+`rgb(178, 106, 0)` against `rgb(255, 210, 77)`. When two arms of an A/B are
+byte-identical, suspect the fixture before the product.
 ---
 
 ## Repository Structure

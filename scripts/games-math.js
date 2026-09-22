@@ -286,7 +286,7 @@
           if (picked) return;
           if (p.dataset.correct) {
             picked = true;
-            p.classList.add("more__win");
+            p.classList.add("more__panel--win");
             delete left.dataset.correct; delete right.dataset.correct;
             howMany(diff);
           } else api.tryAgain(p);

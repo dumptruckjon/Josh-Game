@@ -89,6 +89,47 @@ const SHEETS = [
   ...PAGES.map((f) => [f, [...read(f).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n")]),
 ];
 
+// Relative luminance of an OPAQUE colour; null for anything that composites.
+// Module scope because THREE laws below weigh a colour, and three copies of
+// this is how one of them goes blind to `rgba(...)` while the others catch it.
+const lum = (css) => {
+  if (/gradient\(/i.test(css)) return null; // no single lightness to compare
+  const hex = css.match(/#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
+  const rgb = css.match(/rgba?\(([^)]+)\)/i);
+  let c;
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+    c = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  } else if (rgb) {
+    const p = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+    if (p.length >= 4 && p[3] < 0.999) return null;
+    c = p.slice(0, 3);
+  } else return null;
+  if (c.some((v) => !Number.isFinite(v))) return null;
+  const f = (v) => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+// A STATE is a class the app ADDS OR REMOVES at runtime, so one element wears
+// it and then does not and the viewer has to tell those apart. A VARIANT is
+// baked into the markup at creation -- `.tile--surprise`, the three
+// `.start-tile--*` world doors -- and is a different OBJECT with its own icon
+// and label, which holding to a state law is the fence this repo keeps
+// refusing. The difference is derivable rather than a judgement: grep what the
+// scripts actually toggle. Entries carry the leading dot.
+const RUNTIME = new Set();
+for (const f of [...SCRIPTS, ...PAGES]) {
+  const src = read(f);
+  for (const m of src.matchAll(/classList\s*\.\s*(?:add|remove|toggle)\(([^)]*)\)/g))
+    for (const c of m[1].matchAll(/["'`]([A-Za-z][\w-]*)["'`]/g)) RUNTIME.add("." + c[1]);
+  for (const m of src.matchAll(/\bclassName\s*=\s*[^;]*\?\s*["'`]\s*([\w-]+)/g)) RUNTIME.add("." + m[1]);
+}
+
 // "Does this rule set a gap?" is asked by THREE separate iOS-14.2 laws below,
 // and all three asked it with a pattern that structurally cannot match the
 // LONGHANDS: `[^-a-z]gap:` excludes the `-` in `row-gap:`. Safari 14 drops
@@ -1146,7 +1187,7 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
   // outline, opacity and ink — and a found pair and your live pick are BOTH
   // face-up showing their emoji, so on the hue channel they were one state.
   // Five games share that surface. Its two siblings already had it right:
-  // `.order__item--done` (outline + opacity) and 华丽's `.hl-card--done`
+  // `.order__item--done` (ring + opacity) and 华丽's `.hl-card--done`
   // (fill + border-colour + opacity).
   //
   // TWO EXCLUSIONS, both because the metric cannot model the case rather than
@@ -1188,44 +1229,7 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
     while ((m = re.exec(decls))) out[m[1].toLowerCase()] = m[2].trim();
     return out;
   };
-  // Relative luminance of an OPAQUE colour; null for anything that composites.
-  const lum = (css) => {
-    if (/gradient\(/i.test(css)) return null; // no single lightness to compare
-    const hex = css.match(/#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
-    const rgb = css.match(/rgba?\(([^)]+)\)/i);
-    let c;
-    if (hex) {
-      let h = hex[1];
-      if (h.length === 3) h = h.split("").map((x) => x + x).join("");
-      c = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-    } else if (rgb) {
-      const p = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number);
-      if (p.length >= 4 && p[3] < 0.999) return null;
-      c = p.slice(0, 3);
-    } else return null;
-    if (c.some((v) => !Number.isFinite(v))) return null;
-    const f = (v) => {
-      v /= 255;
-      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
-  };
 
-  // A STATE is a class the app ADDS OR REMOVES at runtime, so one element wears
-  // it and then does not and the viewer has to tell those apart. A VARIANT is
-  // baked into the markup at creation and never moves — `.tile--surprise` and
-  // `.tile--stickers`, or the three `.start-tile--*` world doors, are different
-  // OBJECTS that happen to share a component, told apart by their own icon and
-  // label, and holding them to a state law is the fence this repo keeps
-  // refusing. The difference is derivable rather than a judgement: grep what
-  // the scripts actually toggle.
-  const RUNTIME = new Set();
-  for (const f of [...SCRIPTS, ...PAGES]) {
-    const src = read(f);
-    for (const m of src.matchAll(/classList\s*\.\s*(?:add|remove|toggle)\(([^)]*)\)/g))
-      for (const c of m[1].matchAll(/["'`]([A-Za-z][\w-]*)["'`]/g)) RUNTIME.add("." + c[1]);
-    for (const m of src.matchAll(/\bclassName\s*=\s*[^;]*\?\s*["'`]\s*([\w-]+)/g)) RUNTIME.add("." + m[1]);
-  }
   assert.ok(RUNTIME.size >= 40, `the runtime-class scan must find classes (saw ${RUNTIME.size})`);
 
   const groups = new Map();
@@ -1288,6 +1292,172 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
   assert.ok(pairs >= 25, `the state-pair scan must find pairs to judge (saw ${pairs})`);
   assert.ok(judged >= 10, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
   assert.deepEqual(bad, [], "a state told apart by colour alone:\n" + bad.join("\n"));
+});
+
+test("guardrail: a state RING is a box-shadow, never an `outline` (iOS 14.2 squares it)", () => {
+  // `outline` does NOT follow `border-radius` until a Safari well above Josh's
+  // iOS 14.2 floor, and the exact version is not answerable from this sandbox
+  // (both doc sources came back EGRESS_BLOCKED when the memory card's own ring
+  // raised it). So the rule is the one that needs no version: `box-shadow`
+  // follows the radius on every engine we ship to. It matters because on his
+  // iPad a 5px outline inset into a 22px-rounded card draws a SQUARE whose
+  // corners float free of the card — and nothing in this sandbox can show it,
+  // because Chromium rounds the outline correctly.
+  //
+  // The :focus-visible carve-out is NOT hypothetical and is load-bearing: the
+  // browser draws a focus ring itself and rounds it, and Word Cards uses six
+  // of them. Measured before this comment was written, because a comment that
+  // claims an exemption is vacuous cannot go red when it stops being true.
+  const offenders = [];
+  let focusRings = 0, scanned = 0;
+  for (const [file, css0] of SHEETS) {
+    const css = css0.replace(/\/\*[\s\S]*?\*\//g, "");
+    const re = /([^{}@][^{}]*)\{([^{}]*)\}/g;
+    let m;
+    while ((m = re.exec(css))) {
+      const sels = m[1].trim().replace(/\s+/g, " ");
+      if (!sels || sels.startsWith("@")) continue;
+      const decl = m[2].match(/(?:^|;)\s*outline\s*:\s*([^;]+)/i);
+      if (!decl) continue;
+      scanned++;
+      if (/^\s*(none|0)\b/i.test(decl[1])) continue;        // removing one is fine
+      if (/:focus(-visible)?\b/.test(sels)) { focusRings++; continue; }
+      offenders.push(`${sels} { outline: ${decl[1].trim()} } [${file}]`);
+    }
+  }
+  assert.ok(scanned >= 8, `the outline scan must find outline declarations (saw ${scanned})`);
+  assert.ok(focusRings >= 5, `the :focus carve-out must still be load-bearing (saw ${focusRings} focus rings)`);
+  assert.deepEqual(offenders, [], "a coloured `outline` draws a SQUARE ring on Josh's iPad — use box-shadow:\n" + offenders.join("\n"));
+});
+
+test("guardrail: a state RING must be visible against the surface it rings (WCAG 1.4.11)", () => {
+  // A ring that marks a state IS "visual information required to identify a
+  // state", so it owes 3:1 — the same published bar the memory card's fill was
+  // held to, not an invented threshold. Measured on the shipped defects:
+  // #7be08a is 1.63:1 on a white card and 1.48:1 on a .choice, i.e. a pale mint
+  // band that a screenshot shows reading as a tint rather than a marker;
+  // #2c7a3f (写字's finished-stroke green, already audited) is 5.30 / 4.80.
+  //
+  // PER DOCUMENT, never over SHEETS: a custom property and a class name are
+  // both document-scoped, and wordcards.html defines its own `--card: #FFC93C`
+  // (it even rewrites it per card at runtime). Resolving every sheet against
+  // one shared `:root` made that page's token overwrite main.css's, so the
+  // first run of this law reported `.more__panel--win — #7be08a on #FFC93C`,
+  // a surface that element never sits on. The tell was that the number was
+  // about a colour from another document entirely. What the PAGES loop buys is
+  // that ISOLATION, not a second population: wordcards.html has no ring-only
+  // state of its own today (its rings change the fill too, and the rest are
+  // :focus-visible, which the law above owns), so walking index.html alone
+  // measures the same result. Say which half is doing the work.
+  //
+  // COVERAGE LIMIT, stated rather than implied: the surface is resolved from
+  // the CSS, and five rings sit on one the CSS cannot know — set INLINE per
+  // round (.cbn__swatch), inherited from the stage (.word__slot, .ml__slot,
+  // .tenf__cell), or added by a script to an element it never names in a class
+  // string (.held). Those are SKIPPED, not excused; the floor below is what
+  // stops the scan passing by resolving nothing at all.
+  const RINGK = /^(box-shadow|border-color|outline|outline-color)$/;
+  const FILLK = /^(background|background-color|fill)$/;
+  const props = (decls, re) => {
+    const o = {};
+    for (const m of decls.matchAll(/(?:^|;)\s*([a-z-]+)\s*:\s*([^;]+)/gi)) { const k = m[1].toLowerCase(); if (re.test(k)) o[k] = m[2].trim(); }
+    return o;
+  };
+  const coloursIn = (v) => [...v.matchAll(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/gi)].map((x) => x[0]);
+  // A ring may be SELF-CONTRASTING: two bands, dark beside light — the fort's
+  // own dark-under-bright law written in CSS. That is the only honest answer
+  // for a cell whose surface VARIES (.cg__cell--win rings a toggle cell that is
+  // either the pale card or the lit purple), and it needs no exemption:
+  // whichever surface it lands on, one band contrasts with it. Measured, a
+  // single colour cannot do that job here with any margin — only a near-pure
+  // black clears both, at 3.03:1 against the lit cell.
+  const selfContrasting = (cols) => {
+    const ls = cols.map(lum).filter((x) => x != null);
+    return ls.some((a) => ls.some((b) => contrast(a, b) >= 3));
+  };
+
+  const faint = [];
+  let judged = 0;
+  for (const page of PAGES) {
+    // every CSS source THIS document loads, kept separate so a message can name
+    // the file, and every script it runs, for the co-class map below.
+    const src = read(page);
+    const sources = [[page, [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n")]];
+    for (const m of src.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"?]+)/g))
+      if (fs.existsSync(path.join(root, m[1]))) sources.push([m[1], read(m[1])]);
+    const js = [...src.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    for (const m of src.matchAll(/<script[^>]+src="([^"?]+)/g))
+      if (fs.existsSync(path.join(root, m[1]))) js.push(read(m[1]));
+
+    const vars = {}, rules = [];
+    for (const [file, css0] of sources) {
+      const css = css0.replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const rm of css.matchAll(/:root\s*\{([^{}]*)\}/g))
+        for (const m of rm[1].matchAll(/(--[\w-]+)\s*:\s*([^;]+)/g)) vars[m[1]] = m[2].trim();
+      const re = /([^{}@][^{}]*)\{([^{}]*)\}/g;
+      let m;
+      while ((m = re.exec(css))) {
+        const sels = m[1].trim().replace(/\s+/g, " ");
+        if (!sels || sels.startsWith("@")) continue;
+        for (const sel of sels.split(",").map((x) => x.trim()).filter(Boolean)) rules.push({ file, sel, decls: m[2] });
+      }
+    }
+    const deref = (v) => { let o = v, n = 0; while (/var\(/.test(o) && n++ < 5) o = o.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^)]*))?\)/g, (_, k, d) => vars[k] || d || ""); return o.trim(); };
+    // A simple class's own background, and the classes this document's scripts
+    // put beside it (`class: "choice order__item tap"` is how .order__item gets
+    // its surface).
+    const bg = new Map(), co = new Map();
+    for (const r of rules) {
+      const last = r.sel.split(/[\s>+~]+/).pop();
+      if (!last || last[0] !== "." || /[:\[]/.test(last)) continue;
+      const f = props(r.decls, FILLK);
+      const v = f.background || f["background-color"] || f.fill;
+      if (v && !bg.has(last)) bg.set(last, deref(v));
+    }
+    for (const source of js)
+      for (const m of source.matchAll(/class:\s*["'`]([^"'`]+)["'`]/g)) {
+        const cs = m[1].trim().split(/\s+/).filter((x) => /^[\w-]+$/.test(x));
+        for (const a of cs) { if (!co.has(a)) co.set(a, new Set()); for (const b of cs) if (b !== a) co.get(a).add(b); }
+      }
+    const surfaceOf = (cls) => {
+      if (bg.has("." + cls)) return bg.get("." + cls);
+      const bem = cls.match(/^([\w-]+?)--[\w-]+$/);
+      const base = bem ? bem[1] : cls;
+      if (bg.has("." + base)) return bg.get("." + base);
+      for (const c of co.get(base) || []) if (bg.has("." + c)) return bg.get("." + c);
+      return null;
+    };
+    // the WORST stop of a gradient, so a two-stop card is judged at its lighter end
+    const worst = (ring, surf) => {
+      const lr = lum(ring);
+      if (lr == null) return null;
+      const stops = /gradient\(/.test(surf) ? coloursIn(surf) : [surf];
+      const ls = stops.map(lum).filter((x) => x != null);
+      return ls.length ? Math.min(...ls.map((x) => contrast(lr, x))) : null;
+    };
+
+    for (const r of rules) {
+      const ring = props(r.decls, RINGK);
+      if (!Object.keys(ring).length) continue;
+      if (Object.keys(props(r.decls, FILLK)).length) continue;  // the fill is a second channel
+      const last = r.sel.split(/[\s>+~]+/).pop();
+      if (!last || last[0] !== "." || /:(hover|focus|active|focus-visible)/.test(last)) continue;
+      const cls = last.replace(/[:\[].*$/, "").split(".").filter(Boolean).pop();
+      if (!RUNTIME.has("." + cls)) continue;                    // a variant, not a state
+      const surf = surfaceOf(cls);
+      if (surf == null) continue;                               // see COVERAGE LIMIT
+      const colours = coloursIn(Object.values(ring).join(" "));
+      if (selfContrasting(colours)) { judged++; continue; }      // dark beside light reads on any surface
+      for (const c of colours) {
+        const cr = worst(c, deref(surf));
+        if (cr == null) continue;                               // translucent — composites
+        judged++;
+        if (cr < 3) faint.push(`${r.sel} — ${c} on ${surf} is ${cr.toFixed(2)}:1 [${r.file}]`);
+      }
+    }
+  }
+  assert.ok(judged >= 5, `the ring scan must resolve surfaces to judge (judged ${judged})`);
+  assert.deepEqual(faint, [], "a state ring the player cannot see:\n" + faint.join("\n"));
 });
 
 test("all scripts are valid JavaScript", () => {

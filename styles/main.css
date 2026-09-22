@@ -8,6 +8,10 @@
   /* Every tappable thing is at least this big — much bigger than the 44px adult
      minimum, because little fingers are imprecise. */
   --tap: 76px;
+  /* ONE owner for a card's resting lift: every STATE RING below has to
+     re-declare it (box-shadow REPLACES, it does not add), so a literal here
+     would be the same value written in two places that must agree. */
+  --card-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 * { box-sizing: border-box; }
@@ -119,7 +123,7 @@ body {
   background: rgba(255, 255, 255, 0.78);
   -webkit-backdrop-filter: blur(6px); /* Safari needs the prefix */
   backdrop-filter: blur(6px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--card-shadow);
 }
 .btn-big {
   min-height: var(--tap);
@@ -422,7 +426,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
      row of choices reads as tappable cards, not blank paper. */
   background: linear-gradient(180deg, #ffffff 0%, #eef4ff 100%);
   border: 2px solid rgba(120, 170, 255, 0.22);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--card-shadow);
   /* The MAX is what a tablet gets. 12vw only reaches the old 3.4rem cap above
      ~453px wide, so raising it is invisible at 320 and 390 (both still compute
      38.4px and 46.8px) and only ever grows the picture on a big screen — where
@@ -525,12 +529,22 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .more__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--pad); width: 100%; }
 .more__panel {
   min-height: 150px; border-radius: 22px; background: var(--card);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--card-shadow);
   display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
   gap: 4px; padding: 10px;
 }
 .more__dot { font-size: clamp(1.7rem, 6.9vw, 2.5rem); line-height: 1; }
-.more__win { outline: 5px solid #7be08a; outline-offset: -2px; }
+/* STATE RINGS. Two laws, both learned the hard way and both invisible in
+   this sandbox:
+   * NEVER `outline` -- it does not follow `border-radius` until a Safari
+     well above Josh's iOS 14.2 floor, so on his iPad a 5px outline cuts
+     square corners across a 22px-rounded card. `box-shadow` follows the
+     radius on every engine we ship to, which is why the version never has
+     to be known. (Same call the memory card's own ring was given.)
+   * The ring colour owes WCAG 1.4.11's 3:1 against the surface it rings,
+     because for these states it IS the cue. #7be08a measured 1.63:1 on a
+     white card and 1.48:1 on a .choice; #2c7a3f is 5.30 / 4.80. */
+.more__panel--win { box-shadow: inset 0 0 0 5px #2c7a3f, var(--card-shadow); }
 
 /* ---------- Coin Shop ---------- */
 .coin__shop { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -570,7 +584,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .shape--target svg { width: clamp(96px, 32vw, 150px); height: clamp(96px, 32vw, 150px); }
 .choice--shape svg { width: 64px; height: 64px; display: block; }
 .order__item { line-height: 1; }
-.order__item--done { outline: 5px solid #7be08a; outline-offset: -2px; opacity: 0.75; }
+.order__item--done { box-shadow: inset 0 0 0 5px #2c7a3f, var(--card-shadow); opacity: 0.75; }
 .memory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
 .memory-card {
   min-height: 100px; border-radius: 18px;
@@ -609,7 +623,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .sort__bin {
   position: relative; overflow: hidden;
   min-height: 120px; border-radius: 22px; background: var(--card);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--card-shadow);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
 }
 /* the lip. `position: relative` above is load-bearing: an absolutely-positioned
@@ -623,7 +637,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 }
 .sort__binIcon { font-size: clamp(2.6rem, 13vw, 4.6rem); line-height: 1; }
 .sort__binLabel { font-size: 0.9rem; font-weight: 800; color: #667; text-align: center; }
-.sort__bin--hit { outline: 5px solid #7be08a; outline-offset: -2px; animation: binPop 260ms ease; }
+.sort__bin--hit { box-shadow: inset 0 0 0 5px #2c7a3f, var(--card-shadow); animation: binPop 260ms ease; }
 @keyframes binPop { 0% { transform: scale(1); } 55% { transform: scale(1.06); } 100% { transform: scale(1); } }
 
 /* ---------- Breathing Star (calm) ---------- */
@@ -677,9 +691,9 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .coop__home { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); font-size: 1.8rem; }
 .coop__btn {
   min-height: var(--tap); border-radius: 18px; background: var(--card);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 1.4rem; font-weight: 800; color: #333;
+  box-shadow: var(--card-shadow); font-size: 1.4rem; font-weight: 800; color: #333;
 }
-.coop__btn--active { background: linear-gradient(180deg, #ffe08a, #ffd24d); outline: 4px solid #ffb703; }
+.coop__btn--active { background: linear-gradient(180deg, #ffe08a, #ffd24d); box-shadow: 0 0 0 4px #ffb703, var(--card-shadow); }
 
 /* ---------- Add It Up ---------- */
 .add__scene { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
@@ -694,7 +708,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
   display: inline-flex; flex-wrap: wrap; gap: 5px; justify-content: center; align-items: center;
   min-height: var(--tap); max-width: 240px; padding: 12px 16px;
   border-radius: 20px; background: linear-gradient(180deg, #ffffff, #eef4ff);
-  border: 2px solid rgba(120, 170, 255, 0.22); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border: 2px solid rgba(120, 170, 255, 0.22); box-shadow: var(--card-shadow);
 }
 /* Numberblocks-style friends as the addends / total */
 .add__group--friend { background: none; padding: 0; max-width: 96px; width: 84px; }
@@ -743,14 +757,14 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .bub {
   min-height: 96px; border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #dff6ff, #9fd8ff);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: clamp(2.4rem, 9.8vw, 3.6rem);
+  box-shadow: var(--card-shadow); font-size: clamp(2.4rem, 9.8vw, 3.6rem);
   transition: opacity 0.2s, transform 0.2s;
 }
 .bub--pop { opacity: 0.4; transform: scale(0.7); }
 
 /* ---------- Peekaboo ---------- */
 .peek__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
-.peek { min-height: 100px; border-radius: 18px; background: #ffe6a8; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: clamp(2.8rem, 11.4vw, 4.2rem); }
+.peek { min-height: 100px; border-radius: 18px; background: #ffe6a8; box-shadow: var(--card-shadow); font-size: clamp(2.8rem, 11.4vw, 4.2rem); }
 .peek--open { background: #d7f8de; }
 .peek__art { width: 58px; display: block; margin: 0 auto; }
 .peek__art svg { width: 100%; height: auto; display: block; }
@@ -830,9 +844,9 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .cbn__swatch {
   min-width: 76px; min-height: 76px; border-radius: 16px;
   font-size: 1.7rem; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-  border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 3px solid #fff; box-shadow: var(--card-shadow);
 }
-.cbn__swatch--sel { outline: 4px solid #333; outline-offset: 2px; }
+.cbn__swatch--sel { box-shadow: 0 0 0 4px #333, var(--card-shadow); }
 .cbn__grid { display: grid; grid-template-columns: repeat(var(--cbn-cols, 3), minmax(0, 1fr)); gap: var(--pad); width: 100%; max-width: 300px; margin: 0 auto; }
 .cbn__cell {
   aspect-ratio: 1 / 1; min-height: 76px; border-radius: 12px;
@@ -1164,7 +1178,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .villain {
   position: relative; min-height: 96px; border-radius: 20px; overflow: hidden;
   background: linear-gradient(180deg, #eef4ff, #d8e6ff); border: 2px solid rgba(120, 170, 255, 0.22);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 3rem; line-height: 1;
+  box-shadow: var(--card-shadow); font-size: 3rem; line-height: 1;
 }
 .villain:active { transform: scale(0.95); }
 .villain__guy { display: inline-block; animation: villainBob 1.6s ease-in-out infinite; }
@@ -1208,7 +1222,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1); padding: 8px; display: flex; align-items: center; justify-content: center;
 }
 .buddyc__opt:active { transform: scale(0.95); }
-.buddyc__opt--sel { border-color: #ffd24d; box-shadow: 0 0 0 3px #ffd24d; }
+.buddyc__opt--sel { border-color: #b26a00; box-shadow: 0 0 0 3px #b26a00; }
 .buddyc__art { display: block; width: 100%; height: 100%; }
 .buddyc__art svg { width: 100%; height: 100%; display: block; }
 
@@ -2235,7 +2249,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* Shared mechanic-A HELD state (set-table, match-all, and every future
    pick-and-place game) — a lift + glow so the picked item reads as "in hand". */
-.held { transform: translateY(-6px) scale(1.06); box-shadow: 0 10px 22px rgba(91, 63, 214, 0.4); outline: 3px solid #7a5cd6; z-index: 2; }
+.held { transform: translateY(-6px) scale(1.06); box-shadow: 0 0 0 3px #7a5cd6, 0 10px 22px rgba(91, 63, 214, 0.4); z-index: 2; }
 
 /* Match Them All — a face-up grid; matched pairs fade away. */
 .match__grid { max-width: 340px; margin: 8px auto; }
@@ -2330,7 +2344,13 @@ body.hl-mode .brand { color: #ffe9b0; }
 .cg__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 340px; margin: 0 auto; }
 .tg__cell { aspect-ratio: 1 / 1; min-height: var(--tap); border-radius: 16px; }
 .tg__cell--on { background: linear-gradient(180deg, #7a5cd6, #5a3fd6) !important; border-color: #5a3fd6 !important; }
-.cg__cell--win { box-shadow: 0 0 0 3px #7be08a inset; }
+/* A TWO-TONE ring, because this one cell can be either surface: a pale card or
+   the lit purple. No single colour clears 3:1 on both with any margin (only a
+   near-pure black does, at 3.03:1 against the lit cell -- a knife-edge, not a
+   design choice), so the mark is drawn dark-beside-light like the fort's own
+   body cues: whichever surface it lands on, one band contrasts with it and the
+   two contrast with each other. */
+.cg__cell--win { box-shadow: inset 0 0 0 3px #2c7a3f, inset 0 0 0 6px #eafbe8, var(--card-shadow); }
 .mh__fold { text-align: center; font-size: 1.8rem; border-top: 3px dashed #c9a0e0; margin: 6px auto 8px; width: 60%; line-height: 0.1; }
 
 /* Peek & Copy — the model hides under a cap you tap to peek. */
