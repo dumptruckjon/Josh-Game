@@ -484,17 +484,12 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
   justify-content: center;
   gap: 8px;
 }
-.pattern__cell {
-  font-size: 2.2rem;
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 12px;
-}
-.pattern__q { background: #fff3b0; }
+/* The cell is `.pattern__cell`, which BOTH pattern games share and which has
+   ONE owner — under "Fix the Pattern" below. A second copy used to sit here and
+   was dead for its whole life: Fix the Pattern re-declared every property it
+   set, later in the file at equal specificity, so What Comes Next always drew
+   the other game's cell. Its own `.pattern__q` highlight went down with it —
+   see the note beside that rule, which is why it lives down there now. */
 
 /* ---------- Numbers on choice tiles ---------- */
 .choice--num { font-weight: 900; color: #1d9d47; }
@@ -1537,10 +1532,9 @@ body.hl-mode .topbar { background: rgba(74, 12, 12, 0.58); }
 body.hl-mode .brand { color: #ffe9b0; }
 
 /* ---- Her nav screens (home / categories / sticker book) ---- */
-.hl-screen .game__title { color: #fff; text-shadow: 0 1px 3px rgba(80, 0, 0, 0.45); }
 .hl-hello {
   text-align: center; font-size: 1.2rem; font-weight: 800;
-  text-shadow: 0 1px 2px rgba(80, 0, 0, 0.4); margin: 2px 0 10px;
+  margin: 2px 0 10px;
 }
 .hl-tile {
   background: linear-gradient(180deg, #fff6e6 0%, #ffe3bd 100%);
@@ -1612,7 +1606,6 @@ body.hl-mode .brand { color: #ffe9b0; }
 /* ---- Her game screens: warm paper on festive red ---- */
 .game--hl .game__prompt { background: rgba(255, 248, 236, 0.92); border: 2px solid rgba(212, 164, 55, 0.5); }
 .game--hl .game__promptText { color: #5a2a12; font-size: 1.15rem; }
-.game--hl .game__title { color: #fff; text-shadow: 0 1px 3px rgba(80, 0, 0, 0.45); }
 .game--hl .choice {
   background: linear-gradient(180deg, #fffdf7 0%, #ffeed3 100%);
   border: 2px solid rgba(212, 164, 55, 0.55); color: #5a2a12;
@@ -1671,7 +1664,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   color: #fff8ec; text-shadow: 0 2px 4px rgba(80, 0, 0, 0.45); line-height: 1.4; margin: 4px 0 8px;
 }
 .hl-idiom, .hl-mathline { letter-spacing: 4px; }
-.hl-byline { width: 100%; text-align: center; font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
+.hl-byline { text-align: center; font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
 .hl-bigchar {
   width: 112px; height: 112px; margin: 0 auto 10px; border-radius: 18px;
   background: #fffdf7; border: 3px solid #d4a437; color: #b71c1c;
@@ -1832,7 +1825,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   font-size: clamp(2.2rem, 6.5vw, 3.6rem); line-height: 1;
 }
 .hl-diffrow--ref .hl-diffcell { background: rgba(255, 248, 236, 0.85); border: 2px dashed rgba(212, 164, 55, 0.6); }
-.hl-diffvs { width: 100%; text-align: center; font-size: 1.1rem; font-weight: 700; margin: 2px 0; }   /* 0.95rem = 15.2px, the size the nav pass called out as too small in the one
+.hl-diffvs { text-align: center; font-size: 1.1rem; font-weight: 700; margin: 2px 0; }   /* 0.95rem = 15.2px, the size the nav pass called out as too small in the one
       world whose user READS. This run and .music__hint below were the only two of
       her 40 games under 16px — both had been through the CONTRAST pass, which
       measured colour and never type. */
@@ -2051,6 +2044,11 @@ body.hl-mode .brand { color: #ffe9b0; }
   border-radius: 16px; background: #fff8ec; border: 2px solid rgba(120, 170, 255, 0.22);
 }
 .pattern__cell--blank { background: #fff2c9; border-style: dashed; border-color: #f0b860; }
+/* What Comes Next's ❓ slot. It MUST come after `.pattern__cell`: both are one
+   class at (0,1,0) on the same element, so SOURCE ORDER decides the background.
+   Declared above it — where it sat for its whole life — this never painted
+   once. */
+.pattern__q { background: #fff3b0; }
 
 /* Finish the Grid — 2×2 attribute matrix. */
 .mtx__grid {
@@ -2278,9 +2276,19 @@ body.hl-mode .brand { color: #ffe9b0; }
 /* ================= Road to 180 — Set 2, Wave 6 ================= */
 /* Coin Mix-Up — a small pile of coins. */
 .coinmix__pile { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; min-height: 90px; margin: 8px 0 14px; }
-.coin { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.95rem; box-shadow: 0 3px 8px rgba(0,0,0,0.18); }
-.coin--penny { background: radial-gradient(circle at 38% 32%, #e6a06a, #b3703a); color: #5a2f12; }
-.coin--nickel { width: 62px; height: 62px; background: radial-gradient(circle at 38% 32%, #d9dde2, #9aa2ab); color: #333; font-size: 1.15rem; }
+/* Its OWN block, not `.coin`: that is Piggy Bank's coin BUTTON, and while the
+   two shared a name each game drew a hybrid neither author designed. Piggy
+   Bank's buttons came out as 76px circles with this game's 0.95rem label, and
+   Piggy Bank's `min-width/min-height: var(--tap)` leaked in HERE — so the penny
+   and the nickel drew the SAME size, erasing the one cue that is true of real
+   coins (a nickel IS bigger). The sizes below are the ones this game has always
+   actually rendered at (76px, and the leaked rim), so nothing a player sees
+   gets smaller; the nickel keeps its designed ~1.35x. Its own 46/62px never
+   rendered once. Display only — aria-hidden spans, not tap targets — so 76 is
+   a SIZE here, not the tap floor. */
+.coinmix__coin { width: 76px; height: 76px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.95rem; box-shadow: 0 3px 8px rgba(0,0,0,0.18); border: 3px solid rgba(0,0,0,0.12); }
+.coinmix__coin--penny { background: radial-gradient(circle at 38% 32%, #e6a06a, #b3703a); color: #5a2f12; }
+.coinmix__coin--nickel { width: 102px; height: 102px; background: radial-gradient(circle at 38% 32%, #d9dde2, #9aa2ab); color: #333; font-size: 1.15rem; }
 
 /* First, Second, Third — a queue walking down to the ice-cream stand. */
 .ord__line { display: grid; gap: 16px; max-width: 340px; margin: 6px auto; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */

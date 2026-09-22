@@ -648,6 +648,61 @@ test("Piggy Bank: the worth display reaches the full price when a round is fille
   assert.ok(await screen.locator(".coin--nickel").evaluate((el) => el.classList.contains("coin--off")), "the nickel dims when the piggy is full");
 });
 
+test("one class, two games: What Comes Next, Coin Mix-Up and Piggy Bank each draw their OWN design", async () => {
+  // `.pattern__cell` and `.coin` were each declared twice, for two different
+  // games, so the later rule won every property they shared and each earlier
+  // game drew the other game's design. The CSS law in site.test.js stops a
+  // declaration being dead; this proves what the three games actually RENDER,
+  // because a stylesheet cannot see a leak — Piggy Bank's `min-width` was ALIVE,
+  // it was just alive in the wrong game.
+  //
+  // 1. What Comes Next: the ❓ slot is marked out. Its rule sat ABOVE
+  //    `.pattern__cell`, both one class on the same element, so it lost on
+  //    source order and never painted once.
+  await openGame("what-next");
+  const wn = await page.evaluate(() => {
+    const st = document.querySelector("#screen-what-next");
+    const q = st.querySelector(".pattern__q"), c = st.querySelector(".pattern__cell:not(.pattern__q)");
+    return { q: q && getComputedStyle(q).backgroundColor, c: c && getComputedStyle(c).backgroundColor };
+  });
+  assert.ok(wn.q && wn.c, `fixture: What Comes Next must show a ❓ slot and an ordinary cell (${JSON.stringify(wn)})`);
+  assert.notEqual(wn.q, wn.c, `the ❓ slot must stand out from the cells around it — both painted ${wn.c}`);
+
+  // 2. Coin Mix-Up: a nickel is drawn BIGGER than a penny — true of real coins,
+  //    and erased while Piggy Bank's `min-width` leaked in and drew them alike.
+  await openGame("coin-mix");
+  const cm = await page.evaluate(() => {
+    const st = document.querySelector("#screen-coin-mix");
+    const w = (sel) => { const el = st.querySelector(sel); return el ? el.getBoundingClientRect().width : 0; };
+    return { penny: w('.coinmix__pile [class*="--penny"]'), nickel: w('.coinmix__pile [class*="--nickel"]') };
+  });
+  assert.ok(cm.penny > 0 && cm.nickel > 0, `fixture: the pile must show a nickel and a penny (${JSON.stringify(cm)})`);
+  assert.ok(cm.nickel >= cm.penny * 1.2,
+    `a nickel must be drawn bigger than a penny — saw nickel ${Math.round(cm.nickel)}px, penny ${Math.round(cm.penny)}px`);
+
+  // 3. Piggy Bank: each coin BUTTON fills its half of the grid with a label a
+  //    four-year-old can read — not a 76px circle stranded at the left of its
+  //    track wearing Coin Mix-Up's 15px label.
+  await openGame("piggy-bank");
+  const pb = await page.evaluate(() => {
+    const grid = document.querySelector("#screen-piggy-bank .piggy__coins");
+    if (!grid) return null;
+    const g = grid.getBoundingClientRect(), gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+    return {
+      track: (g.width - gap) / 2,
+      coins: [...grid.querySelectorAll(".coin")].map((c) => ({
+        w: c.getBoundingClientRect().width, font: parseFloat(getComputedStyle(c).fontSize),
+      })),
+    };
+  });
+  assert.ok(pb && pb.coins.length === 2, `fixture: Piggy Bank offers a penny and a nickel (${JSON.stringify(pb)})`);
+  for (const c of pb.coins) {
+    assert.ok(c.w >= pb.track - 2,
+      `a Piggy Bank coin must fill its ${Math.round(pb.track)}px grid track — saw ${Math.round(c.w)}px`);
+    assert.ok(c.font >= 24, `a Piggy Bank coin's label must be big enough to read — saw ${c.font}px`);
+  }
+});
+
 test("Look From Above: the answer map is a diamond whose N/E/W/S cells match the scene orientation", async () => {
   // The fix re-laid the top-down map as a diamond matching the isometric scene
   // (back block = top of the map). Pin the rendered geometry so a CSS swap can't

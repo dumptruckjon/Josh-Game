@@ -69,15 +69,24 @@ const stringLiterals = (src) => {
   return out;
 };
 
-const pageCss = (f) => {
+// What CSS a page loads, as chunks in CASCADE (document) order, each keeping
+// its own file and line offset. It used to be two loops — every inline <style>
+// first, then every <link> — which is the right SET and the wrong ORDER, and
+// was correct only because no page happens to interleave the two. A law about
+// which of two rules WINS cannot rest on that coincidence.
+const pageSheets = (f) => {
   const src = fs.readFileSync(path.join(root, f), "utf8");
-  let css = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
-  for (const m of src.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"?]+)/g)) {
-    const abs = path.join(root, m[1]);
-    if (fs.existsSync(abs)) css += "\n" + fs.readFileSync(abs, "utf8");
+  const out = [];
+  for (const m of src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>|<link[^>]+rel="stylesheet"[^>]+href="([^"?]+)/g)) {
+    if (m[1] != null) {
+      out.push({ file: f, css: m[1], line0: src.slice(0, m.index + m[0].indexOf(">") + 1).split("\n").length - 1 });
+    } else if (fs.existsSync(path.join(root, m[2]))) {
+      out.push({ file: m[2], css: fs.readFileSync(path.join(root, m[2]), "utf8"), line0: 0 });
+    }
   }
-  return css;
+  return out;
 };
+const pageCss = (f) => pageSheets(f).map((c) => c.css).join("\n");
 // Every CSS source the app ships, kept PER FILE. Two laws below are per-file
 // properties ("nothing in THAT file turns this off"), so they must NOT use
 // pageCss(), which concatenates a page with the sheets it links and would let a
@@ -1371,17 +1380,22 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
   // var() was worth only 4 pairs, not the ~100 I guessed, because the colour
   // step was never the main filter. What WAS the main filter was a bug: of 124
   // fill-differing pairs, 64 scored as VARIANTS — every `--modifier` in the
-  // app — so this law had been judging 15. It now judges 42, and the 5 pairs
-  // still unreadable all have a TRANSLUCENT side, which genuinely composites
-  // over whatever is behind it; resolving those needs a browser, which is the
-  // fort contrast audit's job rather than a text scan's.
+  // app — so this law had been judging 15. Fixed, it judged 42 — and then 37,
+  // because six of those 42 were comparisons against DEAD duplicate rules:
+  // `.coin` was declared by two games, so the law was weighing Coin Mix-Up's
+  // penny against Piggy Bank's penny (1.01:1) as if they were two states of
+  // one coin. Deleting the dead copies (see "WHOLLY DEAD" below) removed them.
+  // The pairs still unreadable all have a TRANSLUCENT side, which genuinely
+  // composites over whatever is behind it; resolving those needs a browser.
   //
-  // The judged floor is what pins the widening: it was 15 before and is 42
-  // now, so 35 sits between the two states rather than beside either. Blind
+  // The judged floor is what pins the widening. MEASURED on this tree: the
+  // suffix bug judges 19 and the fixed law 37, so 28 is the midpoint — the old
+  // bar of 35 sat two pairs from healthy, where deleting one more dead rule
+  // would have failed it for a non-defect. Blind
   // the rule-matching regex above and the first floor reports `saw 0` — which
   // is the only reason this scan cannot pass by finding nothing.
   assert.ok(pairs >= 25, `the state-pair scan must find pairs to judge (saw ${pairs})`);
-  assert.ok(judged >= 35, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
+  assert.ok(judged >= 28, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
   assert.deepEqual(bad, [], "a state told apart by colour alone:\n" + bad.join("\n"));
 });
 
@@ -1549,6 +1563,128 @@ test("guardrail: a state RING must be visible against the surface it rings (WCAG
   }
   assert.ok(judged >= 5, `the ring scan must resolve surfaces to judge (judged ${judged})`);
   assert.deepEqual(faint, [], "a state ring the player cannot see:\n" + faint.join("\n"));
+});
+
+test("guardrail: no CSS declaration is WHOLLY DEAD — one selector, one owner", () => {
+  // A declaration is WHOLLY DEAD when every selector in its rule is declared
+  // again, for the same property, by a LATER rule in the same cascade context:
+  // the same selector text is the same specificity, so the later one wins on
+  // source order every time and the earlier can never paint. That is not
+  // tidiness. It is how `.pattern__cell` came to be two games' cell at once —
+  // What Comes Next's copy was dead for its whole life, and it took the ❓
+  // slot's highlight down with it — and how `.coin` drew Piggy Bank's buttons
+  // as Coin Mix-Up's 76px circles while Piggy Bank's `min-width` leaked the
+  // other way and drew a penny and a nickel the same size. Whoever edits the
+  // dead copy sees nothing change, which is the recorded ".td-abil at 52 vs
+  // 60" defect: a size declared twice has no owner.
+  //
+  // What this deliberately does NOT flag, because it is the ordinary cascade:
+  //  - a comma-LIST reset overridden for ONE member (`.tap, .choice { border:
+  //    none }` then `.choice { border: 2px … }`): the reset still paints the
+  //    other members, so it is alive;
+  //  - an override inside an at-rule: it is conditional, so the base still
+  //    paints whenever the condition fails. Each condition is its OWN context,
+  //    and the same condition written twice is ONE context;
+  //  - an earlier `!important` beaten only by a later plain declaration.
+  //
+  // The document is the PAGE in cascade order — main.css and td.css are one
+  // document, wordcards.html's inline block is another — so a duplicate that
+  // straddles two files is still caught.
+  const blank = (x) => x.replace(/[^\n]/g, " ");
+  const rulesOf = (chunk) => {
+    // Comments and string contents are blanked to spaces (newlines kept, so
+    // every offset — and so every line number — stays true): a brace inside
+    // `content: "}"` would otherwise desync the walk and fail OPEN.
+    const text = chunk.css.replace(/\/\*[\s\S]*?\*\//g, blank);
+    const css = text.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, (m) => m[0] + blank(m.slice(1, -1)) + m[0]);
+    const out = [];
+    (function walk(lo, hi, ctx) {
+      let i = lo, start = lo;
+      while (i < hi) {
+        if (css[i] === "{") {
+          const raw = css.slice(start, i), pre = raw.trim();
+          let j = i + 1, d = 1;
+          while (j < hi && d > 0) { if (css[j] === "{") d++; else if (css[j] === "}") d--; j++; }
+          if (pre.startsWith("@")) {
+            // @media/@supports hold RULES; @keyframes/@font-face do not.
+            if (/^@(media|supports|layer|container)\b/.test(pre)) walk(i + 1, j - 1, ctx + " " + pre.replace(/\s+/g, " "));
+          } else {
+            const lead = start + (raw.length - raw.trimStart().length);
+            out.push({
+              ctx: ctx.trim() || "(top level)", file: chunk.file,
+              line: chunk.line0 + css.slice(0, lead).split("\n").length,
+              sel: text.slice(start, i).trim().replace(/\s+/g, " "), body: text.slice(i + 1, j - 1),
+            });
+          }
+          i = j; start = j; continue;
+        }
+        if (css[i] === ";" || css[i] === "}") start = i + 1;
+        i++;
+      }
+    })(0, css.length, "");
+    return out;
+  };
+  // Split on commas and semicolons only at depth 0 and outside quotes, so
+  // `:is(.a, .b)`, `[data-x="a,b"]` and `url(x;y)` stay whole.
+  const splitTop = (x, sep) => {
+    const parts = []; let d = 0, q = "", cur = "";
+    for (const ch of x) {
+      if (q) { if (ch === q) q = ""; cur += ch; continue; }
+      if (ch === '"' || ch === "'") { q = ch; cur += ch; continue; }
+      if (ch === "(" || ch === "[") d++; else if (ch === ")" || ch === "]") d--;
+      if (ch === sep && d === 0) { parts.push(cur); cur = ""; } else cur += ch;
+    }
+    parts.push(cur);
+    return parts;
+  };
+  const declsOf = (body) => {
+    const m = new Map();
+    for (const d of splitTop(body, ";")) {
+      const k = d.indexOf(":");
+      if (k < 1) continue;
+      const prop = d.slice(0, k).trim().toLowerCase(), v = d.slice(k + 1).replace(/\s+/g, " ").trim();
+      if (prop && v) m.set(prop, { v, imp: /!\s*important$/i.test(v) });
+    }
+    return m;
+  };
+
+  const dead = [];
+  let idiom = 0, rules = 0, contexts = 0;
+  for (const page of PAGES) {
+    const chunks = pageSheets(page);
+    const all = chunks.flatMap(rulesOf).map((r) => ({
+      ...r, mem: splitTop(r.sel, ",").map((x) => x.trim()).filter(Boolean), d: declsOf(r.body),
+    }));
+    // A page that loads CSS must yield rules, or a broken walk passes on nothing.
+    if (chunks.some((c) => c.css.trim())) assert.ok(all.length > 0, `${page} loads CSS but the walk found no rules in it`);
+    rules += all.length;
+    const byCtx = new Map();
+    for (const r of all) { if (!byCtx.has(r.ctx)) byCtx.set(r.ctx, []); byCtx.get(r.ctx).push(r); }
+    contexts += byCtx.size;
+    for (const list of byCtx.values()) {
+      list.forEach((r, i) => {
+        for (const [prop, dv] of r.d) {
+          const killers = r.mem.map((sel) => list.slice(i + 1).find((q) =>
+            q.mem.includes(sel) && q.d.has(prop) && !(dv.imp && !q.d.get(prop).imp)));
+          const n = killers.filter(Boolean).length;
+          if (n === r.mem.length) {
+            dead.push(`${r.file}:${r.line} ${r.sel} { ${prop}: ${dv.v} } — declared again at ` +
+              [...new Set(killers.filter(Boolean).map((k) => `${k.file}:${k.line}`))].join(", "));
+          } else if (n) idiom++;
+        }
+      });
+    }
+  }
+  // Floors, each for a different way this can pass while seeing nothing: the
+  // walk finding no rules; never entering an at-rule (every media override
+  // would then be invisible, rather than correctly ignored); and never meeting
+  // the list-reset idiom at all, which would mean it never compared two rules.
+  assert.ok(rules >= 1000, `the rule walk must find the app's rules (saw ${rules})`);
+  assert.ok(contexts >= 8, `the walk must enter at-rule blocks as their own contexts (saw ${contexts})`);
+  assert.ok(idiom >= 5, `the scan must meet the ordinary list-reset override (saw ${idiom})`);
+  const brief = dead.length <= 12 ? dead : [...dead.slice(0, 12), `… and ${dead.length - 12} more`];
+  assert.deepEqual(dead, [], `CSS that can never paint (${dead.length}) — delete it, or merge it into ` +
+    `the rule that wins:\n  ${brief.join("\n  ")}`);
 });
 
 test("all scripts are valid JavaScript", () => {

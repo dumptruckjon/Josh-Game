@@ -302,7 +302,6 @@ body.td-mode #screens { padding: 0; }
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px; max-width: 300px; /* px, not vw — the JS caps to the real field width */
 }
-.td-buy[disabled] { opacity: 0.4; }
 .td-branch, .td-rally,
 .td-buy, .td-up, .td-sell, .td-target {
   min-height: 48px; min-width: 72px; padding: 8px 12px;

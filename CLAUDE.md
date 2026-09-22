@@ -8742,6 +8742,69 @@ pass. It cost one worthless "the hoist is neutral" check (the 930/930 gate is
 what actually proved that) and one worthless probe. The harness asserts
 `# tests` because of this exact trap — **put that assertion in every
 invocation, not only in the harness.**
+
+**TWO GAMES SHARED A CLASS NAME AND EACH DREW THE OTHER'S DESIGN — and a law
+that hunts DEAD declarations is what finds a collision, because a collision
+always leaves one.** It started as one note (`.pattern__cell` is declared twice)
+and the RULE 7 question — is that a one-off? — measured **25 wholly-dead
+declarations**: every selector in the rule declared again later, for the same
+property, at the same specificity, so the earlier one can never paint. Two were
+LIVE cross-game bugs. (1) **What Comes Next's own cell rule had been dead since
+Fix the Pattern shipped**, so it drew the other game's cell — and its `.pattern__q`
+highlight, a DIFFERENT selector (one class, same specificity, on the same element),
+lost on source order and never painted once: the ❓ slot measured `#fff8ec`,
+identical to every cell around it. (2) **`.coin` was Piggy Bank's coin BUTTON and
+Coin Mix-Up's display coin at once.** The later rule won every shared property,
+so Piggy Bank's designed full-track cards rendered as 76px circles stranded at the
+left of 171px tracks with a 15.2px label; and Piggy Bank's `min-width/min-height:
+var(--tap)` — declared by the EARLIER rule only, so not dead at all — leaked into
+Coin Mix-Up and drew the penny and the nickel the same 76px, erasing the one cue
+that is true of real coins. **A leak is invisible to a dead-code scan: it is
+alive, just in the wrong game.** So the law catches a collision by its dead half
+and a browser test pins what each game actually renders. The other 21 were dead
+leftovers — 华丽's plate rule still losing four rules' worth of per-rule colour,
+shadow and width that this file claimed were deleted (corrected in place), and
+td.css's `.td-buy[disabled] { opacity: 0.4 }` dead against a later 0.72.
+**The screenshot changed the Coin Mix-Up fix, which is the part worth keeping.**
+Restoring its designed 46/62px shrank the coins Josh COUNTS from the 76px they have
+always rendered at — and 46/62 had never rendered ONCE, because the leak was there
+from the day that game shipped. So the fix restores the designed RATIO at the size
+players have always seen (penny 76, nickel 102), and measured across 12 rounds at
+320/390/834 the pile wraps identically at every coin count. **Restore the
+relationship a collision erased, not a number that never shipped.** What Comes
+Next deliberately keeps the shared (responsive, already audited) cell — reviving
+its dead fixed 52px would regress the tablet — and only its ❓ rule moves, after
+its owner. Coin Mix-Up gets its own BEM block (`.coinmix__coin*`); Piggy Bank keeps
+`.coin`, which its tests already address.
+**The law** (`site.test.js`) reads each PAGE in cascade order — main.css and
+td.css are one document, and a duplicate straddling the two is caught — and each
+at-rule condition as its own context (the same condition written twice is one).
+It exempts the two things that are the ordinary cascade: a comma-LIST reset
+overridden for one member (`.tap, .choice { border: none }` then `.choice`), and an
+earlier `!important`. `pageCss` is rebuilt on a document-order `pageSheets`: it had
+put every inline `<style>` before every `<link>`, the right SET in the wrong ORDER,
+correct only because no page interleaves them. Seventeen mutations, and four
+method notes, each a recorded trap: **a mutation went RED on a TypeError in my own
+message builder**, not on an assertion — a crash is not a proof, so the builder now
+tolerates a partial kill and the mutation trips the idiom floor, with the dead
+assertion independently catching all 9 idiom overrides once that floor is
+neutered; **two law mutations fired the contexts floor first**, and with it
+neutered the dead assertion alone reports 181 media overrides misread as killers —
+two real protections, now proven rather than assumed; **a probe's row count was
+confounded by `align-items: center`** (a 102px nickel and a 76px penny on one row
+have tops 13px apart — "2 coins, 2 rows" at 834px was the tell), so rows are
+counted by CENTRE; and **my first probe's line numbers were off by one**, counting
+from the newline before the selector — a failure message that points at the wrong
+line is its own defect. **The cleanup also moved a number another law states**:
+six of the hue-alone law's 42 judged pairs were comparisons against the dead
+`.coin` copies — Coin Mix-Up's penny weighed against Piggy Bank's penny (1.01:1)
+as if they were two states of one coin — so it judges 37 now, two above its old
+floor of 35; the floor re-centres on the measured midpoint of the suffix bug (19)
+and the fixed law (37). Recorded, not changed: Coin Mix-Up's nickel "burst into 5
+pennies" is rebuilt away by `newRound()` in the same click on every non-final
+round — one more member of the recorded "`--hit` never paints before a synchronous
+rebuild" population, whose deferral is a pacing decision for all of them at once.
+
 ---
 
 ## Repository Structure
@@ -10785,7 +10848,11 @@ since L(#ffe9b0) is 0.827 and needs a background luminance ≤ 0.145 while her g
 end is 0.423 — so no bare cream can EVER pass there, with an exemption list that
 must NAME the ancestor providing the plate and that ancestor is then checked; and
 the plate rule is the single owner of those colours (the old per-rule cream
-declarations were deleted rather than left to lose the cascade). Two shell fixes
+declarations were deleted rather than left to lose the cascade). **CORRECTED
+(2026-09): they were not all deleted** — the two title rules kept a dead `color:
+#fff` and text-shadow, `.hl-hello` a dead text-shadow, and `.hl-byline`/`.hl-diffvs`
+a dead `width: 100%`, all losing to the plate on source order until the
+wholly-dead CSS law (below) found them. Two shell fixes
 with the same shape: her top bar said **"Josh's Games" in Josh's blue** in every
 world, now named by `route()` — the one place that knows which world is being
 entered — and her shell used the **same 🏠 for two destinations** (her home's

@@ -1310,8 +1310,8 @@
       function newRound() {
         const r = L.makeCoinMix(undefined, last); last = r.total;
         pile.innerHTML = "";
-        pile.appendChild(api.el("span", { class: "coin coin--nickel" }, ["5¢"]));
-        for (let i = 0; i < r.pennies; i++) pile.appendChild(api.el("span", { class: "coin coin--penny" }, ["1¢"]));
+        pile.appendChild(api.el("span", { class: "coinmix__coin coinmix__coin--nickel" }, ["5¢"]));
+        for (let i = 0; i < r.pennies; i++) pile.appendChild(api.el("span", { class: "coinmix__coin coinmix__coin--penny" }, ["1¢"]));
         api.setPrompt("How many cents in all?", ["🪙", "➕", "🔢"]);
         api.speak(); api.say("A nickel is 5 cents. How many cents in all?");
         chips.innerHTML = "";
@@ -1319,8 +1319,8 @@
           const b = api.el("button", { class: "choice choice--num tap", type: "button", text: ch.n + "¢", dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.n + " cents" } });
           b.addEventListener("click", () => {
             if (!ch.correct) { api.tryAgain(b); return; }
-            const nk = pile.querySelector(".coin--nickel");
-            if (nk) { nk.classList.remove("coin--nickel"); nk.classList.add("coin--penny", "pop"); nk.textContent = "1¢"; for (let i = 0; i < 4; i++) pile.insertBefore(api.el("span", { class: "coin coin--penny pop" }, ["1¢"]), nk.nextSibling); }
+            const nk = pile.querySelector(".coinmix__coin--nickel");
+            if (nk) { nk.classList.remove("coinmix__coin--nickel"); nk.classList.add("coinmix__coin--penny", "pop"); nk.textContent = "1¢"; for (let i = 0; i < 4; i++) pile.insertBefore(api.el("span", { class: "coinmix__coin coinmix__coin--penny pop" }, ["1¢"]), nk.nextSibling); }
             api.say(r.total + " cents!");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "You counted the money!" }); else { api.roundWin(); newRound(); }
