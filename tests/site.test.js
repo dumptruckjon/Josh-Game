@@ -1251,10 +1251,68 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
         const key = bem ? bem[1] : base;
         const state = bem ? "--" + bem[2] + rest : rest || "(base)";
         if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push({ file, sel, state, decls: m[2] });
+        groups.get(key).push({ file, sel, state, cls: base + rest, decls: m[2] });
       }
     }
   }
+
+  // A custom property is DOCUMENT-scoped: wordcards.html defines its own
+  // `--card: #FFC93C` (and rewrites it per card at runtime), so resolving every
+  // sheet against one shared :root makes that page's token overwrite main.css's
+  // and the number downstream describes a colour from another document — which
+  // is exactly what the ring law next door reported on its first run. Per file,
+  // falling back to main.css only for the sheets that share index.html with it.
+  const varsOf = new Map();
+  for (const [file, css0] of SHEETS) {
+    const v = {};
+    for (const rm of css0.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/:root\s*\{([^{}]*)\}/g))
+      for (const m of rm[1].matchAll(/(--[\w-]+)\s*:\s*([^;]+)/g)) v[m[1]] = m[2].trim();
+    varsOf.set(file, v);
+  }
+  const deref = (value, file) => {
+    const own = varsOf.get(file) || {};
+    const shared = /\.html$/.test(file) ? {} : varsOf.get("styles/main.css") || {};
+    let o = value, n = 0;
+    while (/var\(/.test(o) && n++ < 5)
+      o = o.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^)]*))?\)/g, (_, k, d) => own[k] || shared[k] || d || "");
+    return o.trim();
+  };
+  const stopsOf = (v) =>
+    (/gradient\(/.test(v) ? [...v.matchAll(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/gi)].map((x) => x[0]) : [v])
+      .map(lum).filter((x) => x != null);
+  // A viewer may use ANY part of the element, so two fills are distinguishable
+  // if SOME corresponding position differs — the BEST pair, not the worst.
+  // Same-length stop lists zip by position (a top against a top); otherwise
+  // every combination is allowed, which is the generous reading and can only
+  // ever flag LESS.
+  const bestPair = (x, y) => (x.length && y.length
+    ? Math.max(...(x.length === y.length ? x.map((v, i) => [v, y[i]]) : x.flatMap((v) => y.map((w) => [v, w])))
+        .map(([v, w]) => contrast(v, w)))
+    : null);
+
+  // A state may carry its second channel on a DESCENDANT rather than on the
+  // element itself. That IS visible in the CSS, so it is derived rather than
+  // excused: any rule that uses the state class as an ancestor and declares a
+  // structural property counts.
+  const descendantRules = [];
+  for (const [, rs] of groups) for (const r of rs) descendantRules.push(r);
+  const descendantCue = (cls) => {
+    if (!cls) return false;
+    return descendantRules.some((r) => {
+      const i = r.sel.indexOf(cls);
+      if (i < 0) return false;
+      const after = r.sel.slice(i + cls.length);
+      if (!/^[\s>+~]/.test(after)) return false;      // an ancestor, not the element itself
+      return Object.keys(grab(r.decls, STRUCT)).length > 0;
+    });
+  };
+  // The one channel a stylesheet CANNOT see is CONTENT. These two states
+  // replace what is INSIDE the element — Peekaboo swaps the closed door for the
+  // friend behind it, and a tic-tac-toe cell gets its X or O — so the colour is
+  // the backdrop to the cue, not the cue. Named, with the game, rather than
+  // guessed at from a line-window heuristic over the scripts; the clause below
+  // keeps each honest by requiring it to still exist.
+  const CONTENT_CUE = [".peek--open", ".ttt__cell--set"];
 
   const bad = [];
   let pairs = 0, judged = 0;
@@ -1271,26 +1329,59 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
         if (fa === fb) continue;
         pairs++;
         if (/hl-|--hl/.test(a.sel) || /hl-|--hl/.test(b.sel)) continue; // a world, not a state
-        const isState = (x) => x.state === "(base)" || [...RUNTIME].some((c) => x.state.includes(c));
+        // Test the FULL class, never the suffix. `.memory-card.matched` groups
+        // with state ".matched", which a runtime class matches — but a BEM
+        // modifier groups with state "--open", and no runtime entry can ever be
+        // a substring of that. So EVERY `--modifier` in the app read as a
+        // variant and was skipped, which is why this law only ever judged the
+        // compound-class handful: 19 pairs of 124. Reading `cls` takes it to 44.
+        const isState = (x) => x.state === "(base)" || [...RUNTIME].some((c) => (x.cls || x.state).includes(c));
         if (!isState(a) || !isState(b)) continue; // a variant, not a state
-        const la = lum(fa), lb = lum(fb);
-        if (la == null || lb == null) continue; // composites — no single lightness
+        if (CONTENT_CUE.includes(a.cls) || CONTENT_CUE.includes(b.cls)) continue;
+        const cr = bestPair(stopsOf(deref(fa, a.file)), stopsOf(deref(fb, b.file)));
+        if (cr == null) continue; // a TRANSLUCENT side genuinely composites — no lightness to compare
         judged++;
-        const keys = new Set([...Object.keys(a.struct), ...Object.keys(b.struct)]);
-        if ([...keys].some((k) => (a.struct[k] || "") !== (b.struct[k] || ""))) continue;
-        const cr = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+        // The base's declarations are INHERITED by a modifier on the same
+        // element, so a modifier that simply does not re-declare `box-shadow`
+        // is not structurally different from the base — comparing the two
+        // rules' own declarations treated it as if it were, and excused any
+        // state that merely adds a colour to a card that has a shadow.
+        const baseStruct = (states.find((x) => x.state === "(base)") || { struct: {} }).struct;
+        const ea = { ...baseStruct, ...a.struct }, eb = { ...baseStruct, ...b.struct };
+        const keys = new Set([...Object.keys(ea), ...Object.keys(eb)]);
+        if ([...keys].some((k) => (ea[k] || "") !== (eb[k] || ""))) continue;
+        // …and a cue may be scoped to a DESCENDANT: `.villain--webbed` carries
+        // grayscale, opacity and a scale on its inner guy plus a web overlay,
+        // none of which lives on the element this law groups by.
+        if (descendantCue(a.cls) || descendantCue(b.cls)) continue;
         if (cr < 3)
           bad.push(`${base} ${a.state} vs ${b.state} — ${fa} / ${fb} is ${cr.toFixed(2)}:1 and nothing else differs [${a.file}]`);
       }
     }
   }
-  // A derivation fails OPEN, and BOTH exclusions above shrink the population,
-  // so the floors guard the scan itself rather than the product: measured 124
-  // fill-differing pairs and 15 judged. Blind the rule-matching regex above and
-  // the first floor reports `saw 0` — which is the only reason this scan cannot
-  // pass by finding nothing.
+  // Each named CONTENT exemption must still EXIST, or a removed game leaves a
+  // dead carve-out that a future class of the same name slips through.
+  for (const c of CONTENT_CUE)
+    assert.ok([...groups.values()].some((rs) => rs.some((r) => r.cls === c)),
+      `${c} is exempted as a content-cued state but no longer exists — drop the exemption rather than leaving it open`);
+
+  // A derivation fails OPEN, and the exclusions above shrink the population, so
+  // the floors guard the scan itself rather than the product. MEASURED, and the
+  // breakdown overturned my own estimate twice over. Reading gradients and
+  // var() was worth only 4 pairs, not the ~100 I guessed, because the colour
+  // step was never the main filter. What WAS the main filter was a bug: of 124
+  // fill-differing pairs, 64 scored as VARIANTS — every `--modifier` in the
+  // app — so this law had been judging 15. It now judges 42, and the 5 pairs
+  // still unreadable all have a TRANSLUCENT side, which genuinely composites
+  // over whatever is behind it; resolving those needs a browser, which is the
+  // fort contrast audit's job rather than a text scan's.
+  //
+  // The judged floor is what pins the widening: it was 15 before and is 42
+  // now, so 35 sits between the two states rather than beside either. Blind
+  // the rule-matching regex above and the first floor reports `saw 0` — which
+  // is the only reason this scan cannot pass by finding nothing.
   assert.ok(pairs >= 25, `the state-pair scan must find pairs to judge (saw ${pairs})`);
-  assert.ok(judged >= 10, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
+  assert.ok(judged >= 35, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
   assert.deepEqual(bad, [], "a state told apart by colour alone:\n" + bad.join("\n"));
 });
 

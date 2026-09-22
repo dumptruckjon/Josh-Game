@@ -863,7 +863,11 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .tc__count { font-size: 3rem; font-weight: 900; color: #5a3ec7; line-height: 1; }
 .tc__dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .tc__dot { width: 20px; height: 20px; border-radius: 50%; background: #dfe6ee; }
-.tc__dot--on { background: #7be08a; }
+/* The gauge is a bare 20x20 dot with NO content, ever, so on-vs-off is the
+   whole cue — and #7be08a against the off dot is 1.30:1, the same lightness,
+   i.e. ten identical dots to a viewer who cannot separate the hues. The
+   audited dark green is 4.21:1, which dichromacy preserves. */
+.tc__dot--on { background: #2c7a3f; }
 .tc__num { font-size: 3rem; font-weight: 900; color: #e23636; line-height: 1; margin: 2px 0; text-align: center; } /* live visible countdown */
 .rocket-art { width: 110px; height: 130px; margin: 0 auto; transition: transform 0.8s ease-in; }
 .rocket-art svg { width: 100%; height: 100%; }

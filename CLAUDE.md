@@ -8676,6 +8676,72 @@ from another hash is a SAME-DOCUMENT navigation, so the PREVIOUS case's injected
 fresh context per arm fixes it, and the computed style then reported
 `rgb(178, 106, 0)` against `rgb(255, 210, 77)`. When two arms of an A/B are
 byte-identical, suspect the fixture before the product.
+
+**THE HUE-ALONE LAW HAD NEVER SEEN A `--MODIFIER`, WHICH IS HOW THIS APP WRITES
+ALMOST EVERY STATE — it was judging 15 of 124 pairs and I only found out because
+a planted defect refused to fire.** The task was the obvious follow-up to the
+ring pass: that law returns null for any fill that is a gradient or a `var()`,
+and 86 of 242 fill-declaring rules in main.css carry one, so widening it with
+the two resolvers I had just built next door looked like a large win. It is
+worth **4 pairs and zero defects** (15 → 19 judged). The real finding was
+underneath, and it came from the widening's own control: I planted a
+below-3:1 gradient state on `.peek--open`, the new law stayed GREEN, and chasing
+*why* rather than widening the assertion is what found it.
+**`isState` compared the STATE SUFFIX against full class names.** A compound
+state groups as `.memory-card` + `.matched`, and `".matched".includes(".matched")`
+is true — but a BEM modifier groups as `.peek` + `"--open"`, and no runtime
+entry can ever be a substring of `"--open"`. So **every `--modifier` in the app
+scored as a VARIANT and was skipped**, which is precisely why this law had ever
+found exactly one defect: it was looking at the compound-class handful and
+nothing else. Reading the full class takes judged from 19 to 44 and surfaces
+four pairs.
+**Three of the four are CORRECT CODE, and classifying them is the work.**
+`.peek--open` and `.ttt__cell--set` replace what is INSIDE the element (the
+closed door becomes the friend behind it; the cell gets its X) — **content is
+the one channel a stylesheet cannot see**, so they are a NAMED carve-out with
+the game beside each, rather than a line-window heuristic over the scripts that
+would be wrong on its first run. `.villain--webbed` carries grayscale, opacity,
+a scale and a web overlay — all real, all on DESCENDANT selectors the law groups
+elsewhere — so that one IS derivable and became a clause. The fourth is a
+defect: **`.tc__dot--on` is a bare 20×20 gauge dot with no content, ever, and
+`#dfe6ee` against `#7be08a` is 1.30:1**, the same lightness, so the row that
+tells a non-reader how many are left read as ten identical dots. It is two
+games' whole counting display (the dots FILL in Count by 2s and EMPTY in
+Countdown); the audited dark green is 4.21:1, which dichromacy preserves.
+**AND THE STRUCT CHECK WAS COMPARING DECLARATIONS WHERE IT MEANT VALUES.** A
+modifier that simply does not re-declare `box-shadow` INHERITS the base's, and
+the law scored that as a structural difference — so it excused any state that
+merely adds a colour to a card with a shadow. `.tc__dot` declares
+`border-radius` and `.tc__dot--on` does not, which is exactly why the defect
+above was invisible. The effective struct is now the base merged under the
+modifier.
+**THE MUTATION LESSON IS THE ENTRY: a fix to a PREDICATE cannot be proven by
+mutating it on data you have already fixed.** Reverting the merge alone comes
+back GREEN, which reads exactly like an unfalsifiable change — the class this
+repo has deleted six clauses for. It is not: reverting the merge **and** the
+`.tc__dot` colour together is ALSO green, while reverting the colour alone is
+red. That pair is the proof — the predicate fix is what makes the defect
+visible, and once the defect is fixed there is by construction nothing left for
+a single mutation to move. Ask whether the thing it FOUND is invisible without
+it, not whether today's numbers move.
+**Smaller, and each measured rather than assumed.** The gradient comparison
+takes the BEST corresponding pair, not the worst — a viewer may use any part of
+the element, so two fills are distinguishable if SOME position differs, and my
+first probe used the worst and would have over-flagged. `var()` is resolved PER
+FILE for the reason the ring law had already proven: wordcards.html defines its
+own `--card`. The 5 pairs still unreadable all have a TRANSLUCENT side, which
+genuinely composites — that needs a browser, which is the fort audit's job, not
+a text scan's. And the breakdown is written into the test because it overturned
+my own estimate twice: of 124 pairs, 64 were variants and 36 are 华丽's world
+theme, so the colour step was never the main filter at all.
+**And the `--test-name-pattern` trap fired twice in one session, in ad-hoc
+probes rather than in the mutation harness that guards against it.** The test is
+named `...told apart by COLOUR alone` and I typed `colour`; node then runs the
+FILE with zero subtests and prints `# tests 1 / # pass 1`, which reads as a
+pass. It cost one worthless "the hoist is neutral" check (the 930/930 gate is
+what actually proved that) and one worthless probe. The harness asserts
+`# tests` because of this exact trap — **put that assertion in every
+invocation, not only in the harness.**
 ---
 
 ## Repository Structure
