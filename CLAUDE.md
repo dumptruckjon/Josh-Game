@@ -8805,6 +8805,60 @@ pennies" is rebuilt away by `newRound()` in the same click on every non-final
 round — one more member of the recorded "`--hit` never paints before a synchronous
 rebuild" population, whose deferral is a pacing decision for all of them at once.
 
+**THE HUE-ALONE LAW EXCUSED FIFTEEN PAIRS FOR CHANGING NOTHING BUT COLOUR —
+because its list of "something other than colour" CONTAINED the colour
+properties.** The law's `STRUCT` list held `color`, `border-color`, `stroke` and
+`background-image` beside `box-shadow` and `opacity`, so a state whose fill, text
+AND border all changed colour — and nothing else — counted as structurally
+separated, which is the exact defect the law is named for. Measured, fifteen
+pairs were excused that way. They are two KINDS now. A SHAPE property (a ring's
+geometry, opacity, a transform, size, whether it is shown) separates two states
+whatever their colours; a COLOUR property separates them only when its two values
+differ in LUMINANCE by 3:1, because luminance is what survives when hue does not.
+Size was missing from the list altogether — Coin Mix-Up's nickel is 102px against
+the penny's 76, and that, not its text colour, is what tells them apart — and a
+`border`/`outline` shorthand is split into its shape and its colour, or a state's
+`border-color` is weighed against nothing instead of against the colour the
+base's shorthand actually paints. Restoring the old predicate passes, untouched,
+exactly the code the new one had to classify — which is the proof those pairs
+were being carried on hue.
+**It found no product defect, and naming WHAT carries each pair is the
+deliverable.** Every excused pair turned out to rest on something real, and the
+law now says which: two more CONTENT cues (This Goes With That's "?" becomes the
+answer's picture; the fort's ▶ CALL relabels itself ⏩ RUSH), a PHANTOM (a price
+button's bare `.td-afford` base never renders, because prices are painted before
+the button is shown — pinned by the first-paint test in td.test.js), and three
+TRANSLUCENT pairs with nothing but hue to go on, which a stylesheet genuinely
+cannot weigh: `rgba(…, 0.18)` has no lightness of its own. Those three live in
+`tests/state-cues.js`, the ONE owner of how such a pair is carried — `composite`
+(Drum the Word's dots), `transient` (a `--hit` flash every non-final round
+rebuilds away) and `attribute` (the fort's ⚙️ exchange, whose unbuyable state is
+`[aria-disabled]`) — and site.test.js requires that file to EQUAL what it derives,
+in both directions, so a new such pair is red until somebody classifies it and a
+stale entry is red before it can become a dead carve-out.
+**The `composite` pair is then measured as PIXELS, and the first cut is why.** It
+composited the computed styles up the ancestor chain, and the stage behind Drum
+the Word is a GRADIENT: scored against its best stop the dots read 3.68:1,
+against its worst 2.87:1 — the metric straddled the very bar it exists to judge.
+The painted pixel, off and on, reads 3.66-3.69:1 at 390×844, 320×568, 834×1112 and
+844×390, clearing WCAG 1.4.11's 3:1 — the dots are the game's sound-off channel,
+so this is the one that matters. The browser test is self-verifying rather than
+trusting its own decoder: wherever a side is OPAQUE its painted pixel must equal
+its declared colour, which proves both that the screenshot is read correctly and
+that the state class really took, and every sample must be the element itself
+(`elementFromPoint`), so a point landing on a neighbour cannot score it instead.
+`decodePng` lives in helpers.js and THROWS on any PNG it does not understand
+rather than returning numbers. Four smaller rules came with it, each
+mutation-proven: a real cue excuses a pair WHATEVER its fills (a ring does not
+stop being a ring over glass, so the cue is computed before the translucency
+skip); a descendant that changes only a colour is no cue, because there is no
+base value beside it to weigh; two BASE rules of one class are two SCOPES, not two
+states, unless the scope is itself a runtime class (`.scene__zone` is one class in
+two games); and the judged floor moved for the third time because what counts as
+JUDGED moved — the suffix bug judges 13 and the fixed law 30, so it sits at 21.
+**When a law names its exemption "structural", check that nothing in the list is
+the property the law is about.**
+
 ---
 
 ## Repository Structure
@@ -8925,7 +8979,11 @@ tooling.
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
-│   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live)
+│   ├── state-cues.js           # the ONE owner of how a TRANSLUCENT state pair is carried (composite / transient /
+│   │                           #   attribute): site.test.js's colour law requires it to EQUAL what it derives, both
+│   │                           #   ways, and e2e.test.js measures every `composite` entry as PAINTED PIXELS
+│   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live), plus
+│                               #   `decodePng`, for the tests that must read what was actually painted
 ├── tools/                      # NODE-ONLY dev tools (not loaded by the site) — the
 │   │                           #   balance work in CLAUDE.md was produced by these,
 │   │                           #   so they live in the repo instead of a scratchpad

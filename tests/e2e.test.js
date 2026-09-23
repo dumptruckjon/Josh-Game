@@ -703,6 +703,104 @@ test("one class, two games: What Comes Next, Coin Mix-Up and Piggy Bank each dra
   }
 });
 
+test("colour law, browser half: a state carried by a TRANSLUCENT fill is judged on the pixels it PAINTS", async () => {
+  // The colour law in site.test.js weighs a state pair from the stylesheet,
+  // and one kind of pair is out of its reach: a side whose fill is TRANSLUCENT
+  // has no lightness of its own — rgba(122,92,214,0.18) is whatever is behind
+  // it, tinted — so when nothing structural separates the two states, the
+  // stylesheet cannot say whether they can be told apart. tests/state-cues.js
+  // is the ONE owner of how each such pair is classified (site.test.js requires
+  // it to EQUAL what it derives), and every entry it marks `composite` is
+  // measured here, where a player sees it: the pixel the browser actually
+  // paints, off and on, on the backdrop the element really sits on, at the
+  // sizes a phone, a small phone, an iPad and a landscape phone give it.
+  //
+  // PIXELS, not a compositor, and the first cut is why. It composited the
+  // computed styles up the ancestor chain, and the stage behind Drum the Word
+  // is a GRADIENT, which has no single colour: scored against its best stop the
+  // dots read 3.68:1, against its worst 2.87:1 — so the metric straddled the
+  // very bar it exists to judge, and would have passed or failed on which stop
+  // it happened to prefer. The painted pixel is 3.66-3.69:1 at every size
+  // measured. When a computed metric disagrees with the pixels, the pixels are
+  // right; and a test that asserts X should measure X.
+  //
+  // The bar is WCAG 1.4.11's 3:1 for a graphical object that carries state —
+  // Drum the Word's lit dots ARE its sound-off channel, so a child with the
+  // sound off counts them.
+  const CUES = require("./state-cues.js");
+  const { decodePng } = require("./helpers.js");
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (p) => 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2]);
+  const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+  const rgba = (css) => { const m = String(css).match(/[\d.]+/g) || []; return { c: m.slice(0, 3).map(Number), a: m.length > 3 ? Number(m[3]) : 1 }; };
+
+  const composites = Object.entries(CUES).filter(([, c]) => c.cue === "composite");
+  // A derivation fails OPEN: with no entry this test would pass on nothing. If
+  // the last such pair is ever resolved structurally, delete this test as a
+  // conscious act rather than letting it go quietly vacuous.
+  assert.ok(composites.length >= 1, "state-cues.js lists no `composite` pair, so this test measures nothing");
+
+  const SIZES = [[390, 844], [320, 568], [834, 1112], [844, 390]];
+  const bad = [], rows = [];
+  let checked = 0;
+  for (const [pair, c] of composites) {
+    for (const k of ["game", "base", "state"]) {
+      assert.ok(c[k], `${pair}: a composite cue must name its ${k}, or there is nothing to open and measure`);
+    }
+    for (const [w, h] of SIZES) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce", deviceScaleFactor: 1 });
+      const pg = await ctx.newPage();
+      try {
+        await pg.goto(baseURL + "#" + c.game);
+        await pg.waitForSelector(`#screen-${c.game}:not([hidden])`);
+        const els = pg.locator(`#screen-${c.game} ${c.base}`);
+        const n = await els.count();
+        assert.ok(n >= 1, `${pair} at ${w}x${h}: #screen-${c.game} has no ${c.base} to measure`);
+        for (let i = 0; i < n; i++) {
+          const el = els.nth(i);
+          const set = (on) => el.evaluate((e, [cls, v]) => e.classList.toggle(cls, v), [c.state, on]);
+          await set(false);
+          await el.scrollIntoViewIfNeeded();
+          const bb = await el.boundingBox();
+          const x = Math.round(bb.x + bb.width / 2), y = Math.round(bb.y + bb.height / 2);
+          // The sample must BE the element: a point that lands on a neighbour,
+          // or on something painted over it, would score that thing instead.
+          const hit = await el.evaluate((e, [px, py]) => document.elementFromPoint(px, py) === e, [x, y]);
+          assert.ok(hit, `${pair} at ${w}x${h}: ${c.base} #${i}'s centre (${x},${y}) is not the element itself`);
+          const shot = async () => decodePng(await pg.screenshot({
+            clip: { x: x - 1, y: y - 1, width: 3, height: 3 }, animations: "disabled",
+          })).px(1, 1);
+          const fill = () => el.evaluate((e) => getComputedStyle(e).backgroundColor).then(rgba);
+          const off = await shot(), offStyle = await fill();
+          await set(true);
+          const on = await shot(), onStyle = await fill();
+          await set(false);
+          // Self-check, so the numbers mean something: wherever a side is
+          // OPAQUE its painted pixel must equal its declared colour. That proves
+          // the decoder reads the screenshot correctly and that the state class
+          // really took — without it a broken decoder or a no-op toggle would
+          // hand this test two arbitrary colours to compare.
+          for (const [side, px, st] of [["off", off, offStyle], ["on", on, onStyle]]) {
+            if (st.a !== 1) continue;
+            const drift = Math.max(...px.map((v, k) => Math.abs(v - st.c[k])));
+            assert.ok(drift <= 3, `${pair} at ${w}x${h}: the ${side} side painted rgb(${px}) but declares ` +
+              `rgb(${st.c}) — the screenshot is not being read correctly, or the state class did not apply`);
+            checked++;
+          }
+          const r = ratio(off, on);
+          rows.push({ pair, size: `${w}x${h}`, i, r });
+          if (r < 3) bad.push(`${pair} at ${w}x${h}, ${c.base} #${i}: off rgb(${off}) vs on rgb(${on}) = ${r.toFixed(2)}:1`);
+        }
+      } finally {
+        await ctx.close();
+      }
+    }
+  }
+  assert.ok(checked >= 1, "no sample could be checked against a declared opaque colour, so nothing proves the pixels were read correctly");
+  assert.ok(rows.length >= composites.length * SIZES.length, `only ${rows.length} samples were measured`);
+  assert.deepEqual(bad, [], "a state carried only by a translucent fill must still clear WCAG 1.4.11's 3:1 where it is PAINTED:\n  " + bad.join("\n  "));
+});
+
 test("Look From Above: the answer map is a diamond whose N/E/W/S cells match the scene orientation", async () => {
   // The fix re-laid the top-down map as a diamond matching the isometric scene
   // (back block = top of the map). Pin the rendered geometry so a CSS swap can't

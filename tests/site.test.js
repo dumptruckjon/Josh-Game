@@ -1199,26 +1199,27 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
   // `.order__item--done` (ring + opacity) and 华丽's `.hl-card--done`
   // (fill + border-colour + opacity).
   //
-  // TWO EXCLUSIONS, both because the metric cannot model the case rather than
-  // because the case is awkward:
-  //  * a WORLD THEME is not a state. `.tile__label`, `.topbar` and `.screen
-  //    .game` are each restyled under `hl-mode`, and the two worlds are never
-  //    on screen together, so nobody ever has to tell them apart.
-  //  * a gradient or a translucent fill has no single lightness — it
-  //    composites against whatever is behind it — so there is no number to
-  //    compare. Declining to judge what the metric cannot model is the same
-  //    call the fort contrast audit makes for `positional` and text-shadow.
-  // NEITHER EXCLUSION CAN FAIL ON TODAY'S DATA, and saying so beats implying
-  // four protections where there are two: removing the theme exclusion, the
-  // gradient guard, or both leaves this test GREEN, because every pair they
-  // would admit is stopped one clause later by the struct check. They are kept
-  // because each is ONE declaration away from firing the law on correct code,
-  // and the number it would fire on is meaningless. Measured: drop the theme
-  // exclusion and `.hl-sudoku .sudoku__cell` (#fffdf7) joins its Josh-world
-  // twin at 1.02:1, held out only by a `border`; drop the gradient guard and
-  // `.memory-card` base — a `linear-gradient(135deg, #8a7bff, #5ec8ff)` — is
-  // scored on the FIRST hex and reports 2.89:1 against `.matched`, a number
-  // that describes no pixel on the screen, held out only by `border-radius`.
+  // A WORLD THEME is not a state: `.tile__label`, `.topbar` and `.screen .game`
+  // are each restyled under `hl-mode`, and the two worlds are never on screen
+  // together, so nobody ever has to tell them apart. That exclusion cannot fail
+  // on today's data (`.hl-sudoku .sudoku__cell` would join its Josh-world twin
+  // at 1.02:1, held out by a `border`) and is kept because it is one declaration
+  // from firing on correct code. A GRADIENT is weighed at its stops (best pair);
+  // a TRANSLUCENT fill composites over whatever is behind it and has no
+  // lightness to read — those are the pairs tests/state-cues.js classifies.
+  //
+  // WHAT COUNTS AS "SOMETHING OTHER THAN COLOUR". The first version kept ONE
+  // list of "structural" properties, and it held `color`, `border-color`,
+  // `stroke` and `background-image` beside `box-shadow` and `opacity` — so a
+  // state that changed ONLY colours (fill + text colour + border colour) was
+  // excused as structural, which is the exact defect this law is named for.
+  // Measured, fifteen pairs were excused that way. They are two KINDS now. A
+  // SHAPE property (a ring's geometry, opacity, a transform, size, whether it is
+  // shown) separates two states whatever their colours. A COLOUR property
+  // separates them only when its two values differ in LUMINANCE by 3:1, because
+  // luminance is what survives when hue does not. Size was missing from the
+  // list altogether — Coin Mix-Up's nickel is 102px against the penny's 76, and
+  // that, not its text colour, is what tells them apart.
   //
   // THE BAR IS NOT INVENTED. A state cue carried by fill IS a graphical object
   // required to understand the content, so it owes WCAG 1.4.11's 3:1 — the same
@@ -1230,7 +1231,27 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
   // visibly LIGHTER rather than merely greener.
   const FILL = /(?:^|;)\s*(background(?:-color)?|fill)\s*:\s*([^;]+)/gi;
   const STRUCT =
-    /(?:^|;)\s*(box-shadow|border|border-[a-z-]+|outline|opacity|transform|filter|text-decoration|stroke|stroke-width|stroke-dasharray|font-weight|clip-path|background-image|color)\s*:\s*([^;]+)/gi;
+    /(?:^|;)\s*(box-shadow|border(?:-[a-z-]+)?|outline(?:-[a-z-]+)?|opacity|transform|filter|text-decoration(?:-[a-z]+)?|stroke(?:-width|-dasharray)?|font-weight|font-size|clip-path|background-image|color|width|height|min-width|min-height|max-width|max-height|display|visibility)\s*:\s*([^;]+)/gi;
+  // Every value splits into a SHAPE (its colours replaced by a token) and its
+  // COLOURS. `inherit`/`currentcolor`/`transparent` are colour tokens with no
+  // lightness of their own, so they can never BE a cue — the conservative way.
+  const COLOUR_TOKEN = /#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)|\b(?:transparent|currentcolor|inherit|initial|unset|white|black)\b/gi;
+  const NAMED = { white: "#ffffff", black: "#000000" };
+  const shapeOf = (v) => v.replace(COLOUR_TOKEN, "C").replace(/\s+/g, " ").trim();
+  // A `border`/`outline` shorthand carries a width, a style AND a colour, so it
+  // is split: otherwise a state's `border-color` is compared against nothing
+  // instead of against the colour the base's shorthand actually paints.
+  const expand = (struct) => {
+    const out = {};
+    for (const [prop, v] of Object.entries(struct)) {
+      const m = prop.match(/^(border|outline)(-(?:top|right|bottom|left))?$/);
+      if (!m) { out[prop] = v; continue; }
+      const colour = (v.match(COLOUR_TOKEN) || [])[0];
+      out[prop + "-width-style"] = shapeOf(v.replace(COLOUR_TOKEN, ""));
+      if (colour) out[m[1] + (m[2] || "") + "-color"] = colour;
+    }
+    return out;
+  };
   const grab = (decls, re) => {
     const out = {};
     re.lastIndex = 0;
@@ -1299,10 +1320,31 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
         .map(([v, w]) => contrast(v, w)))
     : null);
 
+  const coloursOf = (v, file) => [...deref(v, file).matchAll(COLOUR_TOKEN)]
+    .map((x) => lum(NAMED[x[0].toLowerCase()] || x[0])).filter((x) => x != null);
+  // Is anything BUT hue telling these two effective maps apart?
+  const cueBetween = (ea, eb, fileA, fileB) => {
+    for (const k of new Set([...Object.keys(ea), ...Object.keys(eb)])) {
+      const va = ea[k] || "", vb = eb[k] || "";
+      if (va === vb) continue;
+      const sa = shapeOf(deref(va, fileA)), sb = shapeOf(deref(vb, fileB));
+      if (sa !== sb) {
+        // A lone colour against NOTHING is a colour weighed against an unknown
+        // (inherited) value — not a cue, and not a shape either.
+        if ((sa === "" && sb === "C") || (sb === "" && sa === "C")) continue;
+        return true;                                   // the SHAPE differs
+      }
+      const cr = bestPair(coloursOf(va, fileA), coloursOf(vb, fileB));
+      if (cr != null && cr >= 3) return true;        // a LUMINANCE cue
+    }
+    return false;
+  };
+
   // A state may carry its second channel on a DESCENDANT rather than on the
   // element itself. That IS visible in the CSS, so it is derived rather than
   // excused: any rule that uses the state class as an ancestor and declares a
-  // structural property counts.
+  // SHAPE property counts. A descendant that only changes a colour does not —
+  // there is no base value beside it to weigh that colour against.
   const descendantRules = [];
   for (const [, rs] of groups) for (const r of rs) descendantRules.push(r);
   const descendantCue = (cls) => {
@@ -1312,22 +1354,31 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
       if (i < 0) return false;
       const after = r.sel.slice(i + cls.length);
       if (!/^[\s>+~]/.test(after)) return false;      // an ancestor, not the element itself
-      return Object.keys(grab(r.decls, STRUCT)).length > 0;
+      return Object.values(expand(grab(r.decls, STRUCT))).some((v) => shapeOf(deref(v, r.file)) !== "C");
     });
   };
-  // The one channel a stylesheet CANNOT see is CONTENT. These two states
-  // replace what is INSIDE the element — Peekaboo swaps the closed door for the
-  // friend behind it, and a tic-tac-toe cell gets its X or O — so the colour is
-  // the backdrop to the cue, not the cue. Named, with the game, rather than
-  // guessed at from a line-window heuristic over the scripts; the clause below
-  // keeps each honest by requiring it to still exist.
-  const CONTENT_CUE = [".peek--open", ".ttt__cell--set"];
+  // The one channel a stylesheet CANNOT see is CONTENT. These states replace
+  // what is INSIDE the element — Peekaboo swaps the closed door for the friend
+  // behind it, a tic-tac-toe cell gets its X or O, This Goes With That's "?"
+  // becomes the answer's picture, and the fort's ▶ CALL relabels itself ⏩ RUSH
+  // — so the colour is the backdrop to the cue, not the cue. Named, with the
+  // game, rather than guessed at from a line-window heuristic over the scripts;
+  // the clause below keeps each honest by requiring it to still exist.
+  const CONTENT_CUE = [".peek--open", ".ttt__cell--set", ".gw__cell--filled", ".td-call--rush"];
+  // A price button is painted affordable-or-not BEFORE it is shown — pinned by
+  // td.test.js's "UX: a price is the ENGINE's, and its colour is right on the
+  // FIRST paint" — so its bare base never renders, and a pair against it is a
+  // phantom. The pair that DOES render, `.td-afford` against `.td-afford--no`,
+  // is still weighed.
+  const PAINTED_BEFORE_SHOWN = [".td-afford", ".td-afford--no"];
+  const TRANSLUCENT = require("./state-cues.js");
 
   const bad = [];
+  const unreadable = [];
   let pairs = 0, judged = 0;
   for (const [base, rs] of groups) {
     const states = rs
-      .map((r) => ({ ...r, fill: grab(r.decls, FILL), struct: grab(r.decls, STRUCT) }))
+      .map((r) => ({ ...r, fill: grab(r.decls, FILL), struct: expand(grab(r.decls, STRUCT)) }))
       .filter((s) => s.fill.background || s.fill["background-color"] || s.fill.fill);
     if (states.length < 2) continue;
     for (let i = 0; i < states.length; i++) {
@@ -1347,9 +1398,17 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
         const isState = (x) => x.state === "(base)" || [...RUNTIME].some((c) => (x.cls || x.state).includes(c));
         if (!isState(a) || !isState(b)) continue; // a variant, not a state
         if (CONTENT_CUE.includes(a.cls) || CONTENT_CUE.includes(b.cls)) continue;
+        if ((a.state === "(base)" && PAINTED_BEFORE_SHOWN.includes(b.state)) ||
+            (b.state === "(base)" && PAINTED_BEFORE_SHOWN.includes(a.state))) continue;
+        // Two BASE rules of one class are two SCOPES, not two states, unless
+        // what separates them is itself a runtime class: `.scene__zone` and
+        // `.hide__wrap .scene__zone` are one class in two different games.
+        if (a.state === "(base)" && b.state === "(base)") {
+          const scopeIsState = (x) => (x.sel.split(/[\s>+~]+/).slice(0, -1).join(" ").match(/\.[\w-]+/g) || [])
+            .some((c) => RUNTIME.has(c));
+          if (!scopeIsState(a) && !scopeIsState(b)) continue;
+        }
         const cr = bestPair(stopsOf(deref(fa, a.file)), stopsOf(deref(fb, b.file)));
-        if (cr == null) continue; // a TRANSLUCENT side genuinely composites — no lightness to compare
-        judged++;
         // The base's declarations are INHERITED by a modifier on the same
         // element, so a modifier that simply does not re-declare `box-shadow`
         // is not structurally different from the base — comparing the two
@@ -1357,20 +1416,32 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
         // state that merely adds a colour to a card that has a shadow.
         const baseStruct = (states.find((x) => x.state === "(base)") || { struct: {} }).struct;
         const ea = { ...baseStruct, ...a.struct }, eb = { ...baseStruct, ...b.struct };
-        const keys = new Set([...Object.keys(ea), ...Object.keys(eb)]);
-        if ([...keys].some((k) => (ea[k] || "") !== (eb[k] || ""))) continue;
         // …and a cue may be scoped to a DESCENDANT: `.villain--webbed` carries
         // grayscale, opacity and a scale on its inner guy plus a web overlay,
-        // none of which lives on the element this law groups by.
-        if (descendantCue(a.cls) || descendantCue(b.cls)) continue;
+        // none of which lives on the element this law groups by. Computed
+        // BEFORE the translucency check, because a real cue excuses a pair
+        // whatever its fills are — a ring does not stop being a ring over glass.
+        const cue = cueBetween(ea, eb, a.file, b.file) || descendantCue(a.cls) || descendantCue(b.cls);
+        if (cr == null) {                // a TRANSLUCENT side: no lightness to read
+          if (!cue) unreadable.push(`${base} ${a.state} vs ${b.state}`);
+          continue;
+        }
+        judged++;
+        if (cue) continue;
         if (cr < 3)
-          bad.push(`${base} ${a.state} vs ${b.state} — ${fa} / ${fb} is ${cr.toFixed(2)}:1 and nothing else differs [${a.file}]`);
+          bad.push(`${base} ${a.state} vs ${b.state} — ${fa} / ${fb} is ${cr.toFixed(2)}:1 and nothing but hue differs [${a.file}]`);
       }
     }
   }
+  // The residue — translucent, and nothing else to go on — must be CLASSIFIED
+  // in tests/state-cues.js, both ways: a new pair is red until somebody says
+  // what carries it, and an entry whose pair has gone is red too, or it becomes
+  // a dead carve-out a future class of the same name slips through.
+  assert.deepEqual([...new Set(unreadable)].sort(), Object.keys(TRANSLUCENT).sort(),
+    "translucent state pairs with nothing but hue to go on must each be classified in tests/state-cues.js");
   // Each named CONTENT exemption must still EXIST, or a removed game leaves a
   // dead carve-out that a future class of the same name slips through.
-  for (const c of CONTENT_CUE)
+  for (const c of [...CONTENT_CUE, ...PAINTED_BEFORE_SHOWN])
     assert.ok([...groups.values()].some((rs) => rs.some((r) => r.cls === c)),
       `${c} is exempted as a content-cued state but no longer exists — drop the exemption rather than leaving it open`);
 
@@ -1388,14 +1459,19 @@ test("guardrail: no two STATES of one element are told apart by COLOUR alone", (
   // The pairs still unreadable all have a TRANSLUCENT side, which genuinely
   // composites over whatever is behind it; resolving those needs a browser.
   //
-  // The judged floor is what pins the widening. MEASURED on this tree: the
-  // suffix bug judges 19 and the fixed law 37, so 28 is the midpoint — the old
-  // bar of 35 sat two pairs from healthy, where deleting one more dead rule
-  // would have failed it for a non-defect. Blind
+  // The judged floor is what pins the widening, and it has had to move twice
+  // because what counts as JUDGED changed, not the product. The dead-code
+  // cleanup took 42 to 37; classifying the phantom price bases and the two
+  // new content cues took seven more pairs that were never real comparisons.
+  // MEASURED on this tree: the suffix bug judges 13 and the fixed law 30, so
+  // 21 is the midpoint — nine clear of healthy and eight clear of the defect,
+  // where the old bars each sat two pairs from healthy and would have failed
+  // for a non-defect. (The suffix bug ALSO trips the residue assertion above:
+  // with `--on` read as a variant, the drum pair drops out of it.) Blind
   // the rule-matching regex above and the first floor reports `saw 0` — which
   // is the only reason this scan cannot pass by finding nothing.
   assert.ok(pairs >= 25, `the state-pair scan must find pairs to judge (saw ${pairs})`);
-  assert.ok(judged >= 28, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
+  assert.ok(judged >= 21, `the exclusions must not swallow the scan (judged ${judged} of ${pairs})`);
   assert.deepEqual(bad, [], "a state told apart by colour alone:\n" + bad.join("\n"));
 });
 

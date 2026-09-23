@@ -235,8 +235,61 @@ async function launchMobileBrowser() {
   };
 }
 
+// Read the pixels of a Playwright screenshot. A test that asks "what does the
+// player SEE?" has to read the painted image, because a computed-style metric
+// cannot always answer it — a translucent fill over a gradient has no single
+// colour, and scoring it against the gradient's stops can straddle the very bar
+// being judged. Deliberately minimal: 8-bit RGB/RGBA, non-interlaced, which is
+// what every Chromium and WebKit screenshot is; anything else THROWS rather than
+// returning numbers, so an unsupported image can never read as a measurement.
+// Returns { w, h, px(x, y) -> [r, g, b] }.
+function decodePng(buf) {
+  const zlib = require("node:zlib");
+  const SIG = "89504e470d0a1a0a";
+  if (buf.toString("hex", 0, 8) !== SIG) throw new Error("decodePng: not a PNG");
+  let p = 8, w = 0, h = 0, ct = -1;
+  const idat = [];
+  while (p < buf.length) {
+    const len = buf.readUInt32BE(p);
+    const type = buf.toString("ascii", p + 4, p + 8);
+    const data = buf.subarray(p + 8, p + 8 + len);
+    if (type === "IHDR") {
+      w = data.readUInt32BE(0); h = data.readUInt32BE(4); ct = data[9];
+      if (data[8] !== 8 || data[12] !== 0) throw new Error("decodePng: only 8-bit, non-interlaced");
+    } else if (type === "IDAT") idat.push(data);
+    else if (type === "IEND") break;
+    p += 12 + len;
+  }
+  const bpp = ct === 6 ? 4 : ct === 2 ? 3 : 0;
+  if (!bpp) throw new Error("decodePng: unsupported colour type " + ct);
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = w * bpp, out = Buffer.alloc(h * stride);
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (stride + 1)], row = y * (stride + 1) + 1;
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? out[y * stride + x - bpp] : 0;
+      const b = y ? out[(y - 1) * stride + x] : 0;
+      const c = x >= bpp && y ? out[(y - 1) * stride + x - bpp] : 0;
+      let v = raw[row + x];
+      if (f === 1) v += a;
+      else if (f === 2) v += b;
+      else if (f === 3) v += (a + b) >> 1;
+      else if (f === 4) {
+        const pp = a + b - c, pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      } else if (f !== 0) throw new Error("decodePng: bad filter " + f);
+      out[y * stride + x] = v & 255;
+    }
+  }
+  return {
+    w, h,
+    px: (x, y) => { const i = (y * w + x) * bpp; return [out[i], out[i + 1], out[i + 2]]; },
+  };
+}
+
 module.exports = {
   findChromium, webkitAvailable, startServer, launchBrowser, launchMobileBrowser, ROOT,
   missingScripts,
   withNavRetries, NAV_ATTEMPTS, TRANSIENT,
+  decodePng,
 };
