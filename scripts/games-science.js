@@ -375,6 +375,7 @@
         bowl.classList.remove("mix__bowl--swirl");
         bowl.textContent = "";
         choices.hidden = true;
+        choices.innerHTML = ""; // last round's chips (the old answer still flagged) go with it
         bench.innerHTML = "";
         // Either pot may be poured first (order can't be "wrong" — no-fail law);
         // data-correct simply rides whichever pot hasn't been poured yet so the

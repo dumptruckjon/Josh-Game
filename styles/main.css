@@ -181,7 +181,16 @@ body {
     calc(env(safe-area-inset-bottom, 0px) + var(--pad))
     calc(env(safe-area-inset-left, 0px) + var(--pad));
 }
-.screen[hidden] { display: none !important; } /* must always beat the game-screen flex rule below */
+/* [hidden] MUST hide — ONE owner for the whole app. The UA's
+   [hidden]{display:none} is an author-overridable default, so ANY class that
+   sets `display` silently un-hides an element its game hid: `.choices` (grid)
+   kept Who Hid?'s and Mix It!'s previous-round chips on screen through the next
+   round, the old correct one still flagged; `.hl-grid3` showed 记菜单's dishes
+   while she was memorising the menu; `.truck__lever` showed a dead DUMP lever
+   from the start. Fourteen per-class `.x[hidden]` patches had covered the
+   classes somebody happened to notice. `!important` is what lets this one rule
+   beat every `display` in both stylesheets, so no class can re-open it. */
+[hidden] { display: none !important; }
 
 /* ---------- The front door (#screen-start): three big world tiles ----------
    The app opens here. One tile per world — Josh's games, 华丽's games, the
@@ -294,7 +303,6 @@ body {
   background: rgba(20, 30, 45, 0.42); padding: var(--pad);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
 }
-.gate[hidden] { display: none; }
 .gate__box { width: min(92vw, 340px); background: #fff; border-radius: 22px; padding: 22px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32); text-align: center; }
 .gate__msg { font-size: 1.05rem; color: #33445a; margin: 0 0 14px; line-height: 1.35; }
 .gate__input {
@@ -1207,7 +1215,6 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
   background: rgba(20, 30, 45, 0.42); padding: var(--pad);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
 }
-.buddyc[hidden] { display: none; }
 .buddyc__box {
   width: min(94vw, 360px); max-height: 86vh; max-height: 86dvh; overflow-y: auto; /* vh first: Safari 14 fallback */
   overscroll-behavior: contain; /* scrolling to this box's end must not slide the PAGE behind it */

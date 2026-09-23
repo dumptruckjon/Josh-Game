@@ -1034,6 +1034,38 @@ test("guardrail: every answer is a CLICK — the one event the hammer's echo gua
   assert.ok(warm >= 3, `the scan must recognise the audio warm-up listeners it exempts (saw ${warm}) — or it is matching nothing`);
 });
 
+test("guardrail: [hidden] has ONE owner, and it beats every display rule", () => {
+  // The UA's [hidden]{display:none} is an author-overridable DEFAULT, so any
+  // class that sets `display` silently UN-HIDES an element a game hid:
+  // `.choices` (grid) kept Who Hid?'s and Mix It!'s previous-round chips on
+  // screen — the old correct one still flagged, so a tap during the next
+  // round's line-up counted a round nobody had asked — `.hl-grid3` showed
+  // 记菜单's dishes while she was memorising the menu, and `.truck__lever`
+  // showed a dead DUMP lever from the start. Fourteen per-class `.x[hidden]`
+  // patches had covered the classes somebody noticed. This pins the ONE rule
+  // that makes [hidden] mean hidden; the browser half (e2e: every game at open
+  // and at its win, every nav screen, the fort) proves no hidden element has a
+  // box.
+  const strip = (c) => c.replace(/\/\*[\s\S]*?\*\//g, "");
+  const main = strip(read("styles/main.css"));
+  const m = main.match(/(^|[}\s])\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
+  assert.ok(m, "main.css must declare `[hidden] { display: none !important; }` — without !important, any later `display` rule beats it");
+  const upTo = main.slice(0, m.index + m[1].length);
+  assert.equal((upTo.match(/\{/g) || []).length - (upTo.match(/\}/g) || []).length, 0,
+    "the [hidden] rule must be TOP-LEVEL — inside a media query it would only hold at some sizes");
+  // …and it is the only one. A per-class `.x[hidden] { display: none }` is how
+  // the defect survived: it fixes the class somebody noticed and leaves every
+  // other class that sets `display` exactly as broken.
+  const patches = [];
+  for (const [sheet, raw] of SHEETS) {
+    for (const r of strip(raw).matchAll(/([^{}@;]+)\{([^{}]*)\}/g)) {
+      const sels = r[1].split(",").map((x) => x.trim());
+      if (sels.some((x) => /[^\s(,]\[hidden\]/.test(x)) && /display:\s*none/.test(r[2])) patches.push(sheet + ": " + r[1].trim());
+    }
+  }
+  assert.deepEqual(patches, [], "the global rule owns [hidden] — a per-class patch is redundant and is how this defect hid: " + patches.join(" | "));
+});
+
 test("guardrail: the every-game harness drives the contract with a DOM click", () => {
   // A coordinate (force) click misses under CPU load when a field reflows mid-tap
   // (big-red-one got stuck). The contract test must dispatch a DOM el.click().
@@ -1063,8 +1095,11 @@ test("guardrail: game screens fill the viewport and centre the play (no dead bot
     "body.in-game must become a flex column so the open game fills the viewport");
   assert.ok(/justify-content: safe center/.test(css),
     "the stage must centre its content with `safe center` (fills the dead space, never clips tall games)");
-  assert.ok(/\.screen\[hidden\] \{ display: none !important/.test(css),
-    "hidden screens must stay display:none !important so the game-screen flex rule can't reveal them");
+  // Hidden screens are covered by the ONE global [hidden] rule now (it used to
+  // be a `.screen[hidden]` patch — see the [hidden] guardrail): assert the
+  // property, not the class it was first patched on.
+  assert.ok(/(^|[\s}])\[hidden\] \{ display: none !important/.test(css),
+    "hidden screens must stay display:none !important so the game-screen flex rule can't reveal them — the global [hidden] rule owns this");
 });
 
 test("guardrail: the framework exposes the reactive mascot and wires its reactions", () => {

@@ -9090,6 +9090,71 @@ no person can aim at a thing that appeared 50ms ago.
   ever. Slow re-taps of an accepted step are the game's judgement, not an echo,
   so the guard deliberately stops at 350ms.
 
+**`hidden` DID NOT HIDE ON FIVE GAME SURFACES, because the browser's `[hidden]`
+rule is a DEFAULT that any class setting `display` overrides — and fourteen
+per-class patches show every author had met it, one class at a time.** Found
+while hardening the echo guard, whose rule 3 asks what was ON SCREEN: a
+`.choice` given `hidden` stays visible, because `.choice` sets `display: flex`,
+and an author rule beats the user agent's `[hidden]{display:none}` whatever its
+specificity. Checking every `hidden` toggle against the stylesheet found five
+live defects, each reproduced in a browser before the fix:
+- **Who Hid?** — `.choices` is a grid, so through the next round's 1.3s line-up
+  the previous round's chips stayed on screen, the old answer still flagged; a
+  real tap on it COUNTED A ROUND nobody had asked.
+- **Mix It!** — the same, through the next round's pouring.
+- **记菜单** — the dish grid (`.hl-grid3`) was on screen the whole time she was
+  meant to be memorising the menu, so the memory game asked for no memory.
+- **Dump Truck!** — the DUMP lever (`.truck__lever { display: block }`) showed
+  from the first frame and did nothing when tapped (its handler checks
+  `lever.hidden`): a dead control on the namesake game.
+- **Dino Dig** — the brushed patch grid never went away after the reveal.
+Nothing noticed, because nothing measured whether a hidden thing had a BOX. The
+mobile audit even skips `el.hidden` elements, trusting the attribute to mean
+invisible, so it audited a different screen from the one on the device. And the
+fort already knew: it carried eleven per-class `.x[hidden] { display: none }`
+patches, main.css three more (`.screen`, `.gate`, `.buddyc`) — each a fix
+applied where it was found, and the defects were exactly the classes nobody had
+patched. **One shipped guardrail even pinned the fix-where-found shape itself**:
+it asserted the literal `.screen[hidden] { display: none !important }`, so it
+went red the moment the patch was replaced by the rule that covers every class;
+it asserts the global rule now — the property, not the class it was first
+patched on.
+**ONE rule owns it now: `[hidden] { display: none !important; }` in main.css.**
+The `!important` is the point, not a flourish: `[hidden]` ties `.choices` on
+specificity and loses on source order, so a plain rule would fix nothing; the
+only other `!important` display in the app was one of the patches it replaces.
+The fourteen patches are deleted and banned (a per-class patch is how the defect
+hid), and the rule must be top-level (inside a media query it would hold at some
+sizes only). Three browser checks prove it: every game at open AND at its win
+(derived from the registry), every navigation screen plus the fort's play screen
+with a run on it (derived from the DOM's non-game screens), and an explicit test
+that drives Who Hid? and Mix It! into the window the walk cannot reach — its
+synthetic clicks win the next rounds through the still-visible chip before any
+line-up starts. **The walk also gained a law from the same measurement: a
+`[data-correct]` flag on something with no box is a lie the harness will click
+and a child never can.** Over all 240 games only Mix It! broke it (its hidden
+stale chips), and both games now clear last round's chips.
+**The fix fed straight back into the echo guard.** Once the DUMP lever truly
+hides until the last rock, the Dump Truck test that pressed it 60ms after that
+rock became — correctly — an echo: nobody can aim at a thing that appeared 60ms
+ago. So the test pauses the way a child who looked would.
+**A neighbouring class was measured before it was scheduled, which kept it from
+being overstated.** A game that DEFERS its next round and leaves the winning
+answer flagged through the gap is the recorded Partner Up! law; a probe found 14
+such games — and timed every gap at 500-910ms, inside the echo guard's 1500ms
+rule-2 window, so a real tap on the winning chip is already closed. What remains
+is a wrong chip saying "try again" after a right answer, and the harness
+counting extra rounds.
+**Eight mutations, each red exactly where it should be, and two of the "green"
+results are the design working rather than a gap.** Removing the rule, or only
+its `!important`, turns all three layers red. A per-class patch put back, or the
+rule moved into a media query, is caught only by the structural check — a
+`(min-width: 1px)` query behaves identically at every tested size, so only the
+text can see it. Dropping Mix It!'s chip-clear goes red on the explicit test and
+the walk; dropping Who Hid?'s goes red on the explicit test and stays green on
+the walk, which is exactly the window the explicit test exists for. And the Dump
+Truck test without its pause goes red, which is the echo guard doing its job.
+
 ---
 
 ## Repository Structure
@@ -9163,7 +9228,8 @@ tooling.
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
 ├── styles/
-│   ├── main.css                # Josh's + 华丽's styling (safe-area, static bg, ≥75px tap targets)
+│   ├── main.css                # Josh's + 华丽's styling (safe-area, static bg, ≥75px tap targets); the ONE owner of
+│   │                           #   `[hidden]` (!important — any class that sets `display` otherwise un-hides what a game hid)
 │   └── td.css                  # 🏰 Fort Josh styling (adult-sized controls, canvas field, overlays)
 ├── scripts/
 │   ├── content.js              # ALL editable content/data (dual-export: window.JoshContent + module.exports). Edit here.

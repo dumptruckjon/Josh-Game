@@ -664,6 +664,7 @@
         api.setPrompt("Who is hiding under the cloud?", ["👀", "☁️", "🤔"], "Look who's here: " + r.lineup.map((c) => c.name).join(", ") + "!");
         api.speak();
         chips.hidden = true;
+        chips.innerHTML = ""; // last round's chips must not linger, flagged, behind the line-up
         row.innerHTML = "";
         r.lineup.forEach((c, i) => {
           row.appendChild(api.el("span", { class: "wh__spot", text: c.emoji, dataset: { spot: String(i) } }));

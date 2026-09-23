@@ -96,6 +96,15 @@ async function gameIds() {
   return page.evaluate(() => (window.JoshGames || []).map((g) => g.id));
 }
 
+// Every element that carries [hidden] and still has a box — the whole document,
+// because an element under a hidden ancestor has none, so this only ever names
+// a class whose `display` beat [hidden] (see site.test.js's [hidden] guardrail).
+async function shownHidden(pg) {
+  return (pg || page).evaluate(() => [...document.querySelectorAll("[hidden]")]
+    .filter((n) => n.getClientRects().length)
+    .map((n) => n.tagName.toLowerCase() + (n.getAttribute("class") ? "." + n.getAttribute("class").trim().split(/\s+/).join(".") : "")));
+}
+
 async function openGame(id) {
   // RESILIENT to a dropped hashchange: walking 200+ games in one context, the
   // browser can coalesce/drop a hashchange under load so the router never
@@ -241,6 +250,8 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
       await page.evaluate(() => { window.__SAID = []; window.__SPOKEN = []; window.__LOST = []; window.__TURNS = {}; });
       await openGame(id);
       const screen = page.locator(`#screen-${id}`);
+      // [hidden] must HIDE (see site.test.js): at open, and again at the win.
+      assert.deepEqual(await shownHidden(), [], `game "${id}" at open: an element with [hidden] still has a box — a class set \`display\` and beat [hidden]`);
 
       // Drive the contract with a DOM-level el.click() rather than a coordinate
       // (force) click: on a slow runner a growing/rebuilding field reflows or
@@ -256,8 +267,18 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
       // between rounds; the echo games spend ~8s just demonstrating). Fast games
       // exit the loop the moment they win, so the cap only bounds the SLOWEST game.
       let won = false;
+      // A flag on something with no BOX is a lie the harness will happily
+      // click and a child never can — measured: Mix It! kept last round's
+      // chips, the old answer still flagged, hidden behind the next round.
+      const ghosts = new Set();
       for (let i = 0; i < 800 && !won; i++) {
-        won = await screen.evaluate((el) => el.dataset.won === "1");
+        const st = await screen.evaluate((el) => ({
+          won: el.dataset.won === "1",
+          ghosts: [...el.querySelectorAll('[data-correct="1"]')].filter((n) => !n.getClientRects().length)
+            .map((n) => (n.getAttribute("aria-label") || n.textContent || n.className || n.tagName).toString().trim().slice(0, 24)),
+        }));
+        won = st.won;
+        st.ghosts.forEach((g) => ghosts.add(g));
         if (won) break;
         let target = screen.locator('[data-correct="1"]').first();
         if ((await target.count()) === 0) target = screen.locator("[data-toy]").first();
@@ -267,6 +288,9 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
       }
       won = await screen.evaluate((el) => el.dataset.won === "1");
       assert.ok(won, `game "${id}" never reached a win — every game must be collectible (winnable)`);
+      assert.deepEqual(await shownHidden(), [], `game "${id}" at its win: an element with [hidden] still has a box — a class set \`display\` and beat [hidden]`);
+      assert.deepEqual([...ghosts], [],
+        `game "${id}" flags an element a child cannot see (no box) — [data-correct] must mark a tap he can actually make: ${[...ghosts].join(" | ")}`);
 
       // Nothing this game SAID may be a picture (see the note above the loop).
       const said = await page.evaluate(() => window.__SAID);
@@ -1927,10 +1951,84 @@ test("Dump Truck!: the rig is DRAWN, and it fills then TIPS (the namesake game)"
     assert.equal(await rocksIn(), i + 1, `rock ${i + 1} lands IN the bed`);
   }
   assert.equal(await tipOf(), 0, "the bed stays level while loading");
-  // …then the lever tips it.
+  // …then the lever tips it. It APPEARS with the last rock, so it is pressed the
+  // way a child who looked would press it: a thing that appeared 60ms ago can
+  // only be the hammer's echo (framework.js rule 3), never an aim.
+  await page.waitForTimeout(400);
   await page.locator(".truck__lever").click();
   await page.waitForTimeout(80);
   assert.ok(await tipOf() < -20, "pulling DUMP tips the bed right up");
+});
+
+test("[hidden] HIDES on every navigation screen and on the fort's", async () => {
+  // The game screens are checked at open and at their win by the every-game
+  // walk; this covers the rest of the app — the front door, Josh's home and
+  // categories, the Sticker Book, 华丽's screens, and the fort's home and play
+  // screens (which carried eleven per-class [hidden] patches of their own).
+  // The list is DERIVED from the DOM's non-game screens, so a new screen is
+  // walked the day it exists.
+  const ids = await page.evaluate(() => [...document.querySelectorAll(".screen:not(.game)")].map((s) => s.id.replace(/^screen-/, "")));
+  assert.ok(ids.length >= 15, `derived the navigation screens (saw ${ids.length}) — a broken query would make this vacuous`);
+  const bad = [], seen = new Set();
+  const visit = async () => {
+    const vis = await page.evaluate(() => [...document.querySelectorAll(".screen")].filter((s) => !s.hidden).map((s) => s.id));
+    vis.forEach((v) => seen.add(v));
+    for (const x of await shownHidden()) bad.push(vis.join("+") + ": " + x);
+  };
+  for (const id of ids) {
+    await page.evaluate((i) => { location.hash = "#__renav"; location.hash = i === "start" ? "" : "#" + i; }, id);
+    await page.waitForTimeout(80);
+    await visit();
+  }
+  // the fort's play screen, with a live run on it
+  await page.evaluate(() => { location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__TD.newGame(1, { seed: 3 }));
+  await page.evaluate(() => { location.hash = "#__renav"; location.hash = "#td-play"; });
+  await page.locator("#screen-td-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(200);
+  await visit();
+  assert.ok(seen.size >= 15, `actually SHOWED the screens it walked (saw ${seen.size}) — a route that bounced everywhere would check nothing`);
+  assert.ok(seen.has("screen-td-play"), "the fort's play screen was visited with a run on it");
+  assert.deepEqual(bad, [], "an element with [hidden] still has a box on screen — a class set `display` and beat [hidden]");
+  // leave no parked fort run behind for the tests after this one
+  await page.evaluate(() => { location.hash = "#__renav"; location.hash = "#home"; });
+  await page.evaluate(() => window.__TD && window.__TD.resetSave && window.__TD.resetSave());
+});
+
+test("last round's chips do not linger behind the next one (Who Hid?, Mix It!)", async () => {
+  // Both games HIDE their answer chips while the next round is set up — the
+  // line-up beat, the pouring — and `.choices` sets `display: grid`, so before
+  // [hidden] had one owner the previous round's chips stayed ON SCREEN, the old
+  // answer still flagged: a real tap on it during Who Hid?'s line-up counted a
+  // round nobody had asked (measured). The every-game walk cannot reach that
+  // window — its clicks win the next rounds through the still-visible chip
+  // before the line-up starts — so this drives each game to it.
+  const chipsAt = (sel) => page.evaluate((s) => {
+    const n = document.querySelector(s);
+    return { boxes: n.getClientRects().length, kids: n.children.length, flagged: n.querySelectorAll('[data-correct="1"]').length };
+  }, sel);
+  await openGame("who-hid");
+  const again = page.locator("#screen-who-hid .game__again");
+  if (await again.isVisible().catch(() => false)) { await page.waitForTimeout(400); await again.click(); }
+  await page.waitForFunction(() => document.querySelector('#screen-who-hid .choices [data-correct="1"]'), null, { timeout: 5000 });
+  await page.evaluate(() => document.querySelector('#screen-who-hid .choices [data-correct="1"]').click());
+  await page.waitForTimeout(1100); // past the 900ms deferred round: round 2's line-up
+  assert.ok(await page.evaluate(() => document.querySelector("#screen-who-hid .choices").hidden === true),
+    "fixture: this must be round 2's line-up (only newRound hides the chips), before the cloud drifts in");
+  assert.deepEqual(await chipsAt("#screen-who-hid .choices"), { boxes: 0, kids: 0, flagged: 0 },
+    "Who Hid?: during the next round's line-up, last round's chips must be GONE — not on screen, and not lingering flagged");
+  await openGame("color-mix");
+  for (let k = 0; k < 2; k++) {
+    await page.evaluate(() => document.querySelector('#screen-color-mix .mix__pot[data-correct="1"]').click());
+    await page.waitForTimeout(60);
+  }
+  await page.evaluate(() => document.querySelector('#screen-color-mix .mix__choices [data-correct="1"]').click());
+  await page.waitForTimeout(100);
+  assert.ok(await page.evaluate(() => !!document.querySelector('#screen-color-mix .mix__pot[data-correct="1"]')),
+    "fixture: this must be the next round's pouring");
+  assert.deepEqual(await chipsAt("#screen-color-mix .mix__choices"), { boxes: 0, kids: 0, flagged: 0 },
+    "Mix It!: while the next round pours, last round's chips must be GONE — not on screen, and not lingering flagged");
 });
 
 test("ONE LIGHT: the shared gradients paint from the upper left, and stay inside the body", async () => {
