@@ -615,8 +615,8 @@
       function newRound() {
         r = L.makePieceFit(C.SHAPES, undefined, lastName);
         lastName = r.shape.name;
-        api.setPrompt("Which piece fits the hole?", ["🧩", "👀", "👉"]);
-        api.speak(); api.say("The mouse nibbled a hole! Which piece fits?");
+        api.setPrompt("Which piece fits the hole?", ["🧩", "👀", "👉"], "The mouse nibbled a hole! Which piece fits?");
+        api.speak();
         hole.innerHTML = shapeSvg(r.shape, "pf__holeShape");
         hole.classList.remove("pf__hole--filled");
         chips.innerHTML = "";
@@ -660,8 +660,9 @@
 
       function newRound() {
         r = L.makeWhoHid(C.ANIMALS, undefined);
-        api.setPrompt("Who is hiding under the cloud?", ["👀", "☁️", "🤔"]);
-        api.speak(); api.say("Look who's here: " + r.lineup.map((c) => c.name).join(", ") + "!");
+        // Meet the line-up first; the question is asked once the cloud has moved.
+        api.setPrompt("Who is hiding under the cloud?", ["👀", "☁️", "🤔"], "Look who's here: " + r.lineup.map((c) => c.name).join(", ") + "!");
+        api.speak();
         chips.hidden = true;
         row.innerHTML = "";
         r.lineup.forEach((c, i) => {
@@ -672,7 +673,8 @@
           if (!row.isConnected) return;
           const spot = row.querySelector('[data-spot="' + r.hiddenIdx + '"]');
           if (spot) { spot.textContent = "☁️"; spot.classList.add("wh__spot--cloud"); }
-          api.say("Who is hiding?");
+          api.setPrompt("Who is hiding under the cloud?", ["👀", "☁️", "🤔"]);
+          api.speak();
           chips.hidden = false;
           chips.innerHTML = "";
           r.choices.forEach((ch) => {
@@ -798,8 +800,8 @@
       function newRound() {
         r = L.makePairPick(items, undefined, lastIdx);
         lastIdx = r.idx;
-        api.setPrompt("What's the opposite?", ["↔️", "🤔", "👉"]);
-        api.speak(); api.say("What is the opposite of " + r.item.word + "?");
+        api.setPrompt("What's the opposite?", ["↔️", "🤔", "👉"], "What is the opposite of " + r.item.word + "?");
+        api.speak();
         promptEl.textContent = r.item.q;
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -1308,8 +1310,8 @@
       function newRound() {
         const r = L.makeMissingPart(C.FIXABLE_SCENES, undefined, last); last = r.idx; cur = r;
         draw(r.missing.key);
-        api.setPrompt("Oh no — what's missing from the " + r.scene.label + "?", ["🧐", "🔍", "❓"]);
-        api.speak(); api.say("What is missing from the " + r.scene.label + "?");
+        api.setPrompt("Oh no — what's missing from the " + r.scene.label + "?", ["🧐", "🔍", "❓"], "What is missing from the " + r.scene.label + "?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.label } });
@@ -1372,8 +1374,8 @@
       }
       function newRound() {
         run = L.makeForkRun(C.FORK_BLOCKERS, undefined); forkI = 0;
-        api.setPrompt("Which road leads home? Watch for blocks!", ["🚗", "🛣️", "🏠"]);
-        api.speak(); api.say("Drive the car home! Pick the road that isn't blocked.");
+        api.setPrompt("Which road leads home? Watch for blocks!", ["🚗", "🛣️", "🏠"], "Drive the car home! Pick the road that isn't blocked.");
+        api.speak();
         showFork();
       }
       newRound();
@@ -1406,10 +1408,11 @@
         const r = L.makeAnalogy(C.ANALOGY_SETS, undefined, last); last = r.idx;
         mA.textContent = r.a.emoji; mB.textContent = r.b.emoji; qC.textContent = r.c.emoji;
         qMark.textContent = "?"; qMark.classList.remove("gw__cell--filled");
-        api.setPrompt(r.a.word + " goes with " + r.b.word + ". What goes with " + r.c.word + "?", ["👀", "🔗", "🤔"]);
         // Keep C the SUBJECT of the relation ("monkey eats what?"), never the
         // object ("what eats monkey?" would invert every directional relation).
-        api.speak(); api.say(r.a.word + " " + r.set.relation + " " + r.b.word + ". " + r.c.word + " " + r.set.relation + " what?");
+        api.setPrompt(r.a.word + " goes with " + r.b.word + ". What goes with " + r.c.word + "?", ["👀", "🔗", "🤔"],
+          r.a.word + " " + r.set.relation + " " + r.b.word + ". " + r.c.word + " " + r.set.relation + " what?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word } });

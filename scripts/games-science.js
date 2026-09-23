@@ -103,9 +103,12 @@
         const r = L.makeSolidMatch(C.SOLID_SETS);
         solid.innerHTML = '<svg viewBox="0 0 100 100">' + r.svg + "</svg>";
         label.textContent = r.name;
-        api.setPrompt("Which real thing is this shape?", ["👀", "🔺", "👆"]);
+        // ONE spoken question that carries the name. It used to be the generic
+        // prompt plus a bare "Ball" in the same breath, and since a line said in
+        // the same turn used to cancel the one before it, every round after the
+        // first said only "Ball" — the question was never heard.
+        api.setPrompt("Which real thing is shaped like " + L.article(r.name) + " " + r.name.toLowerCase() + "?", ["👀", "🔺", "👆"]);
         api.speak();
-        api.say(r.name);
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {
@@ -157,7 +160,7 @@
         const a = L.article(current.name); // "a Island" → "an Island"
         label.textContent = "Make " + a + " " + current.name + "!";
         api.setPrompt("Make " + a + " " + current.name + "! Tap the middle.", ["👆", "🏝️", "😊"]);
-        api.speak(); api.say("Make " + a + " " + current.name + ". Tap the middle.");
+        api.speak();
         grid.innerHTML = "";
         reveal.classList.remove("lf__reveal--on"); reveal.textContent = "";
         for (let i = 0; i < 9; i++) {
@@ -216,8 +219,9 @@
         const r = L.makeSolidMatch(C.PLANE_SHAPES);
         shapeEl.innerHTML = '<svg viewBox="0 0 100 100" style="fill:#5ec8ff;stroke:#2b6cff;stroke-width:2">' + r.svg + "</svg>";
         label.textContent = r.name;
-        api.setPrompt("Which real thing is this shape?", ["👀", "🔷", "👆"]);
-        api.speak(); api.say(r.name);
+        // One spoken question carrying the name (see Shape's Real Twin above).
+        api.setPrompt("Which real thing is shaped like " + L.article(r.name) + " " + r.name.toLowerCase() + "?", ["👀", "🔷", "👆"]);
+        api.speak();
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {
@@ -365,8 +369,8 @@
         r = L.makeColorMix(C.MIXES, undefined, lastIdx);
         lastIdx = r.idx;
         step = 0;
-        api.setPrompt("Pour the paints — what will they make?", ["🎨", "💧", "🌈"]);
-        api.speak(); api.say("Pour the " + r.mix.a.name + " paint!");
+        api.setPrompt("Pour the paints — what will they make?", ["🎨", "💧", "🌈"], "Pour the " + r.mix.a.name + " paint!");
+        api.speak();
         bowl.style.background = "#eceff4";
         bowl.classList.remove("mix__bowl--swirl");
         bowl.textContent = "";
@@ -490,8 +494,8 @@
       function newRound() {
         r = L.makeMamaBaby(C.MAMA_BABY, undefined, lastIdx);
         lastIdx = r.idx;
-        api.setPrompt("Who is the mama?", ["🐣", "👀", "💞"]);
-        api.speak(); api.say("I'm a " + r.pair.babyName + "! Where's my mama?");
+        api.setPrompt("Who is the mama?", ["🐣", "👀", "💞"], "I'm a " + r.pair.babyName + "! Where's my mama?");
+        api.speak();
         babyEl.textContent = r.pair.baby;
         babyEl.classList.remove("pop"); void babyEl.offsetWidth; babyEl.classList.add("pop");
         chips.innerHTML = "";
@@ -537,7 +541,7 @@
         r = L.makePairPick(items, undefined, lastIdx);
         lastIdx = r.idx;
         api.setPrompt("Who says " + r.item.q + "?", ["🔊", "🐾", "👉"]);
-        api.speak(); api.say("Who says " + r.item.q + "?");
+        api.speak();
         bubble.textContent = r.item.q;
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -579,7 +583,7 @@
         const r = L.makeWhoEats(C.FOOD_EATERS, undefined, last); last = r.idx;
         food.textContent = r.food.food;
         api.setPrompt("Who eats " + r.food.say + "?", ["🍽️", "🐾", "👉"]);
-        api.speak(); api.say("Who eats " + r.food.say + "?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {
@@ -630,7 +634,7 @@
       function newRound() {
         const r = L.makePartPick(parts, undefined, last); last = r.correctIdx;
         api.setPrompt("Simon says: touch the " + r.part.label + "!", [r.part.emoji, "🙋", "👆"]);
-        api.speak(); api.say("Simon says, touch the " + r.part.label + "!");
+        api.speak();
         zones.forEach((b) => {
           b.classList.remove("body__zone--hit");
           if (b.__key === r.part.key) b.dataset.correct = "1"; else delete b.dataset.correct;
@@ -666,7 +670,7 @@
           r = L.makePairPick(cfg.items, undefined, last); last = r.idx;
           big.textContent = cfg.big(r.item);
           api.setPrompt(cfg.prompt(r.item), cfg.icons(r.item));
-          api.speak(); api.say(cfg.prompt(r.item));
+          api.speak();
           chips.innerHTML = "";
           r.choices.forEach((ch) => {
             const b = api.el("button", {
@@ -738,8 +742,8 @@
       function newRound() {
         const r = L.makeHelperTool(C.HELPER_TOOLS, undefined, last); last = r.idx;
         tool.textContent = r.item.tool;
-        api.setPrompt("Who uses " + r.item.toolName + " at work?", [r.item.tool, "🧑‍💼", "👉"]);
-        api.speak(); api.say("Who uses " + r.item.toolName + "?");
+        api.setPrompt("Who uses " + r.item.toolName + " at work?", [r.item.tool, "🧑‍💼", "👉"], "Who uses " + r.item.toolName + "?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {
@@ -817,8 +821,8 @@
       function newRound() {
         const r = L.makeStoryOrder(C.LIFE_CYCLES);
         step = 0;
-        api.setPrompt("Put it in order — baby to big!", ["🥚", "➡️", "🦋"]);
-        api.speak(); api.say("Put the " + r.name + " in order, from baby to big!");
+        api.setPrompt("Put it in order — baby to big!", ["🥚", "➡️", "🦋"], "Put the " + r.name + " in order, from baby to big!");
+        api.speak();
         track.innerHTML = "";
         for (let i = 0; i < r.order.length; i++) track.appendChild(api.el("span", { class: "story__slot", aria: { hidden: "true" } }, [String(i + 1)]));
         choices.innerHTML = "";
@@ -862,7 +866,7 @@
         const r = L.makeHelperTool(C.FOOD_FROM, undefined, last); last = r.idx;
         foodEl.textContent = r.item.tool; foodEl.classList.remove("pop"); void foodEl.offsetWidth; foodEl.classList.add("pop");
         api.setPrompt("Where does " + r.item.toolName + " come from?", ["🤔", r.item.tool, "👉"]);
-        api.speak(); api.say("Where does " + r.item.toolName + " come from?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice tap", type: "button", text: ch.helper, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "source" } });

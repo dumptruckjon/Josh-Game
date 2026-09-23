@@ -202,55 +202,118 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
   // unconditionally; say() itself no-ops when muted). Generic on purpose: this
   // found one game in each world, and it is how the class stops coming back.
   const SPOKEN_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/u;
+  // …and HEAR it. A string handed to say() is not a line the child heard: say()
+  // used to cancel before every line, so 594 lines in 192 games were killed in
+  // the very turn that spoke them (a sorter's "why", "The opposite of happy is
+  // sad!", every restatement before newRound()) while this capture recorded all
+  // of them and stayed green. So for this walk sound is ON and the engine is a
+  // stub that knows which TURN each line came from: a line cancelled in its own
+  // turn was never heard, and every line a game says must reach the engine (or
+  // be the same words as one it already said that turn — JoshAudio.lineKey is
+  // the one owner of "same words"). A turn is one synchronous burst (a
+  // microtask checkpoint ends it), which is what makes this deterministic
+  // however fast the loop taps.
   await page.evaluate(() => {
     const A = window.JoshAudio, real = A.say.bind(A);
     window.__SAID = [];
     A.say = (t, o) => { window.__SAID.push(String(t)); return real(t, o); };
+    window.__speechWas = { desc: Object.getOwnPropertyDescriptor(window, "speechSynthesis"), muted: A.isMuted(), key: localStorage.getItem("josh-muted") };
+    let turn = 0, open = false, q = [];
+    const turnOf = () => { if (!open) { open = true; turn++; queueMicrotask(() => { open = false; }); } return turn; };
+    window.__SPOKEN = []; window.__LOST = []; window.__TURNS = {};
+    const synth = {
+      get speaking() { return q.length > 0; }, get pending() { return q.length > 1; }, paused: false,
+      getVoices() { return []; }, pause() {}, resume() {}, addEventListener() {}, removeEventListener() {},
+      speak(u) {
+        const t = turnOf(), text = String(u.text);
+        q.push({ text, turn: t }); window.__SPOKEN.push(text);
+        (window.__TURNS[t] = window.__TURNS[t] || []).push(text);
+      },
+      cancel() { const t = turnOf(); for (const u of q) if (u.turn === t) window.__LOST.push(u.text); q = []; },
+    };
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, get: () => synth });
+    A.setMuted(false);
   });
 
   const ids = await gameIds();
-  for (const id of ids) {
-    await page.evaluate(() => { window.__SAID = []; });
-    await openGame(id);
-    const screen = page.locator(`#screen-${id}`);
+  try {
+    for (const id of ids) {
+      await page.evaluate(() => { window.__SAID = []; window.__SPOKEN = []; window.__LOST = []; window.__TURNS = {}; });
+      await openGame(id);
+      const screen = page.locator(`#screen-${id}`);
 
-    // Drive the contract with a DOM-level el.click() rather than a coordinate
-    // (force) click: on a slow runner a growing/rebuilding field reflows or
-    // scrolls between box-computation and dispatch, so a coordinate click can
-    // repeatedly miss and the game gets "stuck" (observed on big-red-one's 16
-    // inline-SVG cells under CPU load). A DOM click always hits the intended
-    // element regardless of layout/scroll/overlay. Real touch realism (sizes, no
-    // overlap, tappable) is covered separately by mobile.test.js's actual .tap().
-    // Each iteration: tap the currently-correct target if there is one, else tap a
-    // live toy control — so the SAME loop wins both win-games and endless toys.
-    // 800 iterations ≈ taps + idle 20ms polls — headroom for games with
-    // presentation beats (a demo to watch, a cloud that drifts in, a splash
-    // between rounds; the echo games spend ~8s just demonstrating). Fast games
-    // exit the loop the moment they win, so the cap only bounds the SLOWEST game.
-    let won = false;
-    for (let i = 0; i < 800 && !won; i++) {
+      // Drive the contract with a DOM-level el.click() rather than a coordinate
+      // (force) click: on a slow runner a growing/rebuilding field reflows or
+      // scrolls between box-computation and dispatch, so a coordinate click can
+      // repeatedly miss and the game gets "stuck" (observed on big-red-one's 16
+      // inline-SVG cells under CPU load). A DOM click always hits the intended
+      // element regardless of layout/scroll/overlay. Real touch realism (sizes, no
+      // overlap, tappable) is covered separately by mobile.test.js's actual .tap().
+      // Each iteration: tap the currently-correct target if there is one, else tap a
+      // live toy control — so the SAME loop wins both win-games and endless toys.
+      // 800 iterations ≈ taps + idle 20ms polls — headroom for games with
+      // presentation beats (a demo to watch, a cloud that drifts in, a splash
+      // between rounds; the echo games spend ~8s just demonstrating). Fast games
+      // exit the loop the moment they win, so the cap only bounds the SLOWEST game.
+      let won = false;
+      for (let i = 0; i < 800 && !won; i++) {
+        won = await screen.evaluate((el) => el.dataset.won === "1");
+        if (won) break;
+        let target = screen.locator('[data-correct="1"]').first();
+        if ((await target.count()) === 0) target = screen.locator("[data-toy]").first();
+        if ((await target.count()) === 0) { await page.waitForTimeout(20); continue; }
+        try { await target.evaluate((el) => el.click()); }
+        catch (e) { await page.waitForTimeout(20); } // element detached mid-rebuild — re-query next loop
+      }
       won = await screen.evaluate((el) => el.dataset.won === "1");
-      if (won) break;
-      let target = screen.locator('[data-correct="1"]').first();
-      if ((await target.count()) === 0) target = screen.locator("[data-toy]").first();
-      if ((await target.count()) === 0) { await page.waitForTimeout(20); continue; }
-      try { await target.evaluate((el) => el.click()); }
-      catch (e) { await page.waitForTimeout(20); } // element detached mid-rebuild — re-query next loop
+      assert.ok(won, `game "${id}" never reached a win — every game must be collectible (winnable)`);
+
+      // Nothing this game SAID may be a picture (see the note above the loop).
+      const said = await page.evaluate(() => window.__SAID);
+      const mute = said.filter((line) => SPOKEN_EMOJI.test(line));
+      assert.deepEqual(mute, [],
+        `game "${id}" SPEAKS an emoji — a picture is silence on the audio channel. Give it a name (SEASON_ITEM_NAMES / SPOT_NAMES are the precedent): ${mute.join(" | ")}`);
+
+      // …and everything it said must have been HEARD (see the note above the loop).
+      // `missing` compares through JoshAudio.lineKey on purpose, so it cannot see
+      // lineKey itself merging too much — that is the unit guardrail's job (it
+      // fails the moment two different sentences are merged).
+      const heard = await page.evaluate(() => {
+        const key = window.JoshAudio.lineKey, spoken = new Set(window.__SPOKEN.map(key));
+        return {
+          lost: window.__LOST.slice(),
+          missing: [...new Set(window.__SAID.filter(Boolean))].filter((t) => !spoken.has(key(t))),
+          spoken: window.__SPOKEN.length,
+          // A turn that ASKS twice is the old setPrompt + speak + say idiom coming
+          // back in a shape the structural scan cannot see (a non-adjacent say).
+          twoQ: Object.values(window.__TURNS)
+            .filter((ls) => ls.filter((l) => /[?？]\s*$/.test(l)).length > 1)
+            .map((ls) => ls.join(" / ")),
+        };
+      });
+      assert.deepEqual(heard.lost, [],
+        `game "${id}" said a line and CANCELLED it in the same turn, so it was never heard — speak through JoshAudio.say, which queues a turn's lines: ${heard.lost.join(" | ")}`);
+      assert.deepEqual(heard.missing, [],
+        `game "${id}" said a line that never reached the speech engine: ${heard.missing.join(" | ")}`);
+      assert.ok(heard.spoken >= 1, `game "${id}" spoke nothing at all with sound ON — the stub or the unmute is not taking effect`);
+      assert.deepEqual(heard.twoQ, [],
+        `game "${id}" asks TWO questions in one turn — a round says ONE line: put it in setPrompt's 3rd argument (spoken), not a say() after speak(): ${heard.twoQ.join(" | ")}`);
+
+      // Winning reveals a working "Again" button that resets the won state.
+      const again = screen.locator(".game__again");
+      assert.ok(await again.isVisible(), `game "${id}" should show Again after winning`);
+      await again.click();
+      assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", `Again should reset "${id}"`);
     }
-    won = await screen.evaluate((el) => el.dataset.won === "1");
-    assert.ok(won, `game "${id}" never reached a win — every game must be collectible (winnable)`);
-
-    // Nothing this game SAID may be a picture (see the note above the loop).
-    const said = await page.evaluate(() => window.__SAID);
-    const mute = said.filter((line) => SPOKEN_EMOJI.test(line));
-    assert.deepEqual(mute, [],
-      `game "${id}" SPEAKS an emoji — a picture is silence on the audio channel. Give it a name (SEASON_ITEM_NAMES / SPOT_NAMES are the precedent): ${mute.join(" | ")}`);
-
-    // Winning reveals a working "Again" button that resets the won state.
-    const again = screen.locator(".game__again");
-    assert.ok(await again.isVisible(), `game "${id}" should show Again after winning`);
-    await again.click();
-    assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", `Again should reset "${id}"`);
+  } finally {
+    // Leave the page as the rest of the file expects it: muted, on the real engine.
+    await page.evaluate(() => {
+      const w = window.__speechWas, A = window.JoshAudio;
+      if (!w) return;
+      if (w.desc) Object.defineProperty(window, "speechSynthesis", w.desc); else delete window.speechSynthesis;
+      A.setMuted(w.muted);
+      try { if (w.key === null) localStorage.removeItem("josh-muted"); else localStorage.setItem("josh-muted", w.key); } catch (e) { /* ignore */ }
+    });
   }
 });
 

@@ -437,8 +437,8 @@
         const friend = api.friend();
         if (window.JoshArt && window.JoshArt.friend && friend.art) kid.innerHTML = window.JoshArt.friend(friend.art);
         else kid.textContent = friend.emoji;
-        api.setPrompt("What should " + friend.name + " wear?", ["👀", r.weather.sky, "🤔"]);
-        api.speak(); api.say(r.weather.say + " What should " + friend.name + " wear?");
+        api.setPrompt("What should " + friend.name + " wear?", ["👀", r.weather.sky, "🤔"], r.weather.say + " What should " + friend.name + " wear?");
+        api.speak();
         windowEl.textContent = r.weather.sky;
         gearSpot.textContent = "";
         gearSpot.className = "dm__gear";
@@ -504,8 +504,8 @@
       function newRound() {
         r = L.makeSeasonItem(C.SEASONS, undefined, lastItem);
         lastItem = r.item;
-        api.setPrompt("Which season does it belong to?", ["👀", "🌈", "👉"]);
-        api.speak(); api.say("Where does this belong? Which season?");
+        api.setPrompt("Which season does it belong to?", ["👀", "🌈", "👉"], "Where does this belong? Which season?");
+        api.speak();
         itemEl.textContent = r.item;
         itemEl.classList.remove("pop"); void itemEl.offsetWidth; itemEl.classList.add("pop");
         windows.forEach((w, i) => { if (i === r.seasonIdx) w.dataset.correct = "1"; else w.removeAttribute("data-correct"); });
@@ -659,7 +659,7 @@
           delete pile.dataset.correct; pile.disabled = true; pile.classList.add("choice--used");
           cake.dataset.correct = "1";
           api.setPrompt("Now blow them out!", ["🎂", "💨", "🎉"]);
-          api.speak(); api.say("Now blow them out!");
+          api.speak();
         }
       });
       cake.addEventListener("click", () => {
@@ -813,8 +813,8 @@
         drawRig(0, 0);
         lever.hidden = true; delete lever.dataset.correct;
         rocks.innerHTML = "";
-        api.setPrompt("Load the rocks, then pull the DUMP lever!", ["🪨", "🚚", "⬇️"]);
-        api.speak(); api.say("Load " + n + " rocks into the truck!");
+        api.setPrompt("Load the rocks, then pull the DUMP lever!", ["🪨", "🚚", "⬇️"], "Load " + n + " rocks into the truck!");
+        api.speak();
         for (let i = 0; i < n; i++) {
           const r = api.el("button", { class: "choice truck__rock tap", type: "button", dataset: { correct: "1" }, aria: { label: "rock" }, text: "🪨" });
           r.addEventListener("click", () => {

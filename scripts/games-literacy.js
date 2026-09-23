@@ -22,9 +22,8 @@
 
       function newRound() {
         const r = L.makeFirstSound(C.FIRST_SOUND_WORDS);
-        api.setPrompt("What sound does it start with?", ["👀", "🔊", "🔤"]);
+        api.setPrompt("What sound does it start with?", ["👀", "🔊", "🔤"], "What sound does it start with?" + " " + (r.word));
         api.speak();
-        api.say(r.word);
         pic.textContent = r.emoji;
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -60,9 +59,8 @@
 
       function newRound() {
         const r = L.makeRhyme(C.RHYME_GROUPS);
-        api.setPrompt("Which one rhymes?", ["👀", "👂", "❓"]);
+        api.setPrompt("Which one rhymes?", ["👀", "👂", "❓"], "Which one rhymes?" + " " + (r.target.word));
         api.speak();
-        api.say(r.target.word);
         target.textContent = r.target.emoji;
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -106,9 +104,8 @@
       function newRound() {
         const r = L.makeCVC(C.CVC_WORDS);
         word = r.word; filled = 0; slotEls = []; letterBtns = [];
-        api.setPrompt("Spell the word!", ["👀", "🔤", "🔊"]);
+        api.setPrompt("Spell the word!", ["👀", "🔤", "🔊"], "Spell the word!" + " " + (word));
         api.speak();
-        api.say(word);
         pic.textContent = r.emoji;
         slots.innerHTML = "";
         for (let i = 0; i < word.length; i++) { const s = api.el("span", { class: "word__slot" }); slots.appendChild(s); slotEls.push(s); }
@@ -157,9 +154,8 @@
 
       function newRound() {
         const r = L.makeSightWord(C.SIGHT_WORDS);
-        api.setPrompt("Which word did you hear? Read and find it!", ["👂", "🔤", "👆"]);
+        api.setPrompt("Which word did you hear? Read and find it!", ["👂", "🔤", "👆"], "Which word did you hear? Read and find it!" + " " + (r.target));
         api.speak();
-        api.say(r.target);
         // Show the target in UPPERCASE while the choices stay lowercase, so it
         // can't be solved by pixel-matching identical shapes — the child must
         // actually READ the word (audio-supported). His live sight-word edge.
@@ -197,9 +193,8 @@
 
       function newRound() {
         const r = L.makeSort(C.DIGRAPH_SETS[0]);
-        api.setPrompt("Does it start with sh or ch?", ["👀", "👂", "🔠"]);
+        api.setPrompt("Does it start with sh or ch?", ["👀", "👂", "🔠"], "Does it start with sh or ch?" + " " + ((C.DIGRAPH_WORDS || {})[r.item] || ""));
         api.speak();
-        api.say((C.DIGRAPH_WORDS || {})[r.item] || ""); // name the picture aloud
         itemEl.textContent = r.item;
         itemEl.classList.remove("pop"); void itemEl.offsetWidth; itemEl.classList.add("pop");
         bins.innerHTML = "";
@@ -234,9 +229,8 @@
 
       function newRound() {
         const r = L.makeLetterMatch();
-        api.setPrompt("Find the little letter that matches!", ["👀", "🔡", "👉"]);
+        api.setPrompt("Find the little letter that matches!", ["👀", "🔡", "👉"], "Find the little letter that matches!" + " " + ("Letter " + r.upper));
         api.speak();
-        api.say("Letter " + r.upper);
         target.textContent = r.upper;
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -272,9 +266,8 @@
 
       function newRound() {
         const r = L.makeMissingLetter(C.CVC_WORDS);
-        api.setPrompt("Which letter is missing?", ["👀", "🔤", "❓"]);
+        api.setPrompt("Which letter is missing?", ["👀", "🔤", "❓"], "Which letter is missing?" + " " + (r.word));
         api.speak();
-        api.say(r.word);
         pic.textContent = r.emoji;
         wordEl.innerHTML = "";
         r.word.split("").forEach((ltr, i) => {
@@ -321,9 +314,8 @@
 
       function newRound() {
         const r = L.makeDigraphFinish(C.DIGRAPH_FINISH);
-        api.setPrompt("Which sound starts the word?", ["👂", "🔡", "❓"]);
+        api.setPrompt("Which sound starts the word?", ["👂", "🔡", "❓"], "Which sound starts the word?" + " " + (r.word));
         api.speak();
-        api.say(r.word);
         pic.textContent = r.emoji;
         wordEl.innerHTML = "";
         wordEl.append(
@@ -370,9 +362,8 @@
         const lp = api.randItem(C.LETTER_PATHS);
         step = 0; dots = [];
         guide.textContent = lp.letter;
-        api.setPrompt("Trace the letter — tap the dots in order!", ["👆", "🔢", "✏️"]);
+        api.setPrompt("Trace the letter — tap the dots in order!", ["👆", "🔢", "✏️"], "Trace the letter " + lp.letter);
         api.speak();
-        api.say("Trace the letter " + lp.letter);
         [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
 
         const svgNS = "http://www.w3.org/2000/svg";
@@ -435,9 +426,8 @@
           api.el("span", { class: "find__targetEmoji", text: r.target.emoji }),
           api.el("span", { class: "find__targetLabel", text: "Rhymes with " + r.target.word })
         );
-        api.setPrompt("Find all that rhyme!", ["👂", "🚂", "👆"]);
+        api.setPrompt("Find all that rhyme!", ["👂", "🚂", "👆"], "Rhymes with " + r.target.word);
         api.speak();
-        api.say("Rhymes with " + r.target.word);
         field.innerHTML = "";
         r.cells.forEach((cell) => {
           const b = api.el("button", {
@@ -494,8 +484,8 @@
         const spec = (FRIENDS.find((f) => f.name === entry.name) || {}).art;
         face.innerHTML = (spec && window.JoshArt && window.JoshArt.friend) ? window.JoshArt.friend(spec) : "";
         nameLabel.textContent = entry.name;
-        api.setPrompt("Spell " + entry.name + "! Tap the letters in order.", ["👀", "🔤", "✍️"]);
-        api.speak(); api.say("Spell " + entry.name);
+        api.setPrompt("Spell " + entry.name + "! Tap the letters in order.", ["👀", "🔤", "✍️"], "Spell " + entry.name);
+        api.speak();
         slots.innerHTML = "";
         letters.forEach(() => slots.appendChild(api.el("span", { class: "ns__slot" }, ["_"])));
         tray.innerHTML = "";
@@ -541,9 +531,8 @@
 
       function newRound() {
         const r = L.makeWordPicture(api.C.CVC_WORDS);
-        api.setPrompt("Read the word — tap its picture!", ["👀", "🔤", "👆"]);
+        api.setPrompt("Read the word — tap its picture!", ["👀", "🔤", "👆"], "Read the word — tap its picture!" + " " + (r.word));
         api.speak();
-        api.say(r.word);
         word.textContent = r.word;
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -681,8 +670,8 @@
       function newRound() {
         r = L.makeAlphaTrain(undefined, lastStart);
         lastStart = r.start;
-        api.setPrompt("Which letter is missing?", ["🚂", "🔤", "🤔"]);
-        api.speak(); api.say("Which letter is missing from the train?");
+        api.setPrompt("Which letter is missing?", ["🚂", "🔤", "🤔"], "Which letter is missing from the train?");
+        api.speak();
         train.innerHTML = "";
         train.appendChild(api.el("span", { class: "at__engine", text: "🚂", aria: { hidden: "true" } }));
         r.letters.forEach((ch, i) => {
@@ -724,8 +713,8 @@
       api.stage.append(pic, chips);
       function newRound() {
         r = L.makeEndSound(C.END_WORDS, undefined, last); last = r.idx;
-        api.setPrompt("What sound does it END with?", ["👂", "🔚", "👉"]);
-        api.speak(); api.say("What sound does " + r.word.word + " end with?");
+        api.setPrompt("What sound does it END with?", ["👂", "🔚", "👉"], "What sound does " + r.word.word + " end with?");
+        api.speak();
         pic.textContent = r.word.emoji;
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -759,8 +748,8 @@
       api.stage.append(pic, wordEl, chips);
       function newRound() {
         r = L.makeVowelPick(C.VOWEL_WORDS, undefined, last); last = r.idx;
-        api.setPrompt("Which letter is missing?", ["🅰️", "🤔", "👉"]);
-        api.speak(); api.say("What sound is in the middle of " + r.word.word + "?");
+        api.setPrompt("Which letter is missing?", ["🅰️", "🤔", "👉"], "What sound is in the middle of " + r.word.word + "?");
+        api.speak();
         pic.textContent = r.word.emoji;
         wordEl.textContent = r.display;
         chips.innerHTML = "";
@@ -796,8 +785,8 @@
       api.stage.append(card, bins);
       function newRound() {
         r = L.makeFamilySort(C.WORD_FAMILIES);
-        api.setPrompt("Which house does it live in?", ["🏠", "👂", "👉"]);
-        api.speak(); api.say(r.item.word + ". Which family?");
+        api.setPrompt("Which house does it live in?", ["🏠", "👂", "👉"], r.item.word + ". Which family?");
+        api.speak();
         card.innerHTML = '<span class="wf__emoji">' + r.item.emoji + '</span><span class="wf__word">' + r.item.word + "</span>";
         bins.innerHTML = "";
         r.bins.forEach((bin, i) => {
@@ -893,9 +882,8 @@
         scene.textContent = r.emoji;
         line.innerHTML = "";
         r.words.forEach(() => line.appendChild(api.el("span", { class: "sb__slot" }, ["·"])));
-        api.setPrompt("Build the sentence — tap the words in order!", ["📖", "👉", "😊"]);
+        api.setPrompt("Build the sentence — tap the words in order!", ["📖", "👉", "😊"], "Build the sentence — tap the words in order!" + " " + (r.words.join(" ")));
         api.speak();
-        api.say(r.words.join(" "));
         tiles.innerHTML = "";
         r.tiles.forEach((t) => {
           const b = api.el("button", {
@@ -943,7 +931,6 @@
         const r = L.makeSilly(C.SILLY_SCENES, undefined, last); last = r.idx;
         api.setPrompt(r.scene.say, [r.scene.animal, r.scene.item, "👀"]);
         api.speak();
-        api.say(r.scene.say);
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", {
@@ -986,9 +973,8 @@
         const letters = L.alphaRun(undefined, path.length);
         const rv = api.randItem(C.REVEALS);
         step = 0; dots = [];
-        api.setPrompt("Tap the letters in order: A, B, C…", ["👆", "🔤", "✨"]);
+        api.setPrompt("Tap the letters in order: A, B, C…", ["👆", "🔤", "✨"], "Tap the letters in order: A, B, C…" + " " + (letters[0] + ", " + letters[1] + ", " + letters[2] + "…"));
         api.speak();
-        api.say(letters[0] + ", " + letters[1] + ", " + letters[2] + "…");
         [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
 
         const svgNS = "http://www.w3.org/2000/svg";
@@ -1056,8 +1042,8 @@
         const r = L.makeNameSpell(entry.word);
         letters = r.letters; step = 0;
         pic.textContent = entry.emoji;
-        api.setPrompt("Spell the word — tap the letters in order!", ["👀", "🔤", entry.emoji]);
-        api.speak(); api.say("Spell " + entry.word);
+        api.setPrompt("Spell the word — tap the letters in order!", ["👀", "🔤", entry.emoji], "Spell " + entry.word);
+        api.speak();
         slots.innerHTML = "";
         letters.forEach(() => slots.appendChild(api.el("span", { class: "ns__slot" }, ["_"])));
         tray.innerHTML = "";
@@ -1102,8 +1088,8 @@
         const lp = api.randItem(C.PATHS_LOWER);
         step = 0; dots = [];
         guide.textContent = lp.letter;
-        api.setPrompt("Trace the little letter — tap the dots in order!", ["👆", "🔡", "✍️"]);
-        api.speak(); api.say("Trace little " + lp.letter);
+        api.setPrompt("Trace the little letter — tap the dots in order!", ["👆", "🔡", "✍️"], "Trace little " + lp.letter);
+        api.speak();
         [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
@@ -1251,8 +1237,8 @@
         const r = L.makeNameHunt(entry.letters, LETTERS, undefined);
         need = r.targets.length;
         nameLabel.textContent = entry.name;
-        api.setPrompt("Pop the letters in " + entry.name + "!", ["🎈", "🔤", "🎉"]);
-        api.speak(); api.say("Pop every balloon in " + entry.name + "!");
+        api.setPrompt("Pop the letters in " + entry.name + "!", ["🎈", "🔤", "🎉"], "Pop every balloon in " + entry.name + "!");
+        api.speak();
         slots.innerHTML = "";
         r.targets.forEach(() => slots.appendChild(api.el("span", { class: "ns__slot" }, ["_"])));
         field.innerHTML = "";
@@ -1320,8 +1306,8 @@
         pic.textContent = r.word.emoji;
         dots.innerHTML = "";
         for (let i = 0; i < r.count; i++) dots.appendChild(api.el("span", { class: "drum__dot" }));
-        api.setPrompt("How many parts? Drum the word to hear!", ["🥁", "👂", "🔢"]);
-        api.speak(); api.say("How many parts are in this word? Tap the drum to hear!");
+        api.setPrompt("How many parts? Drum the word to hear!", ["🥁", "👂", "🔢"], "How many parts are in this word? Tap the drum to hear!");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
@@ -1375,8 +1361,8 @@
         const r = L.makeBlendPick(C.CVC_WORDS, undefined, last); last = r.idx; cur = r;
         tiles.innerHTML = "";
         r.word.word.split("").forEach((ch) => tiles.appendChild(api.el("span", { class: "robot__tile", text: ch.toUpperCase() })));
-        api.setPrompt("What word is the robot saying? Tap the picture!", ["🤖", "👂", "👉"]);
-        api.speak(); api.say("Listen to the robot and tap the picture!");
+        api.setPrompt("What word is the robot saying? Tap the picture!", ["🤖", "👂", "👉"], "Listen to the robot and tap the picture!");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word } });
@@ -1415,8 +1401,8 @@
         const r = L.makeCompound(C.COMPOUND_WORDS, undefined, last); last = r.idx;
         aEl.textContent = r.a.emoji; bEl.textContent = r.b.emoji;
         parts.classList.remove("glue__parts--join"); void parts.offsetWidth;
-        api.setPrompt(r.a.word + " and " + r.b.word + " — what word do they make?", ["👂", "🧩", "😊"]);
-        api.speak(); api.say(r.a.word + "... " + r.b.word + "... what word do they make?");
+        api.setPrompt(r.a.word + " and " + r.b.word + " — what word do they make?", ["👂", "🧩", "😊"], r.a.word + "... " + r.b.word + "... what word do they make?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice tap", type: "button", text: ch.result, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.word } });

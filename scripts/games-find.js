@@ -536,8 +536,8 @@
         const r = L.makeLetterHunt(C.HUNT_LETTERS, undefined, { lastTarget, mixCase: api.shouldRamp(2) });
         lastTarget = r.target;
         need = r.need;
-        api.setPrompt("Pop every " + r.target + " balloon!", ["🔎", "🎈", r.target]);
-        api.speak(); api.say("Pop every balloon with " + r.target + "!");
+        api.setPrompt("Pop every " + r.target + " balloon!", ["🔎", "🎈", r.target], "Pop every balloon with " + r.target + "!");
+        api.speak();
         targetEl.textContent = r.target;
         field.innerHTML = "";
         r.cells.forEach((cell) => {
@@ -583,8 +583,8 @@
         const pool = []; for (let n = lo; n <= hi; n++) pool.push(String(n));
         const r = L.makeLetterHunt(pool, undefined, { lastTarget, mixCase: false });
         lastTarget = r.target; need = r.need;
-        api.setPrompt("Pop every " + r.target + " balloon!", ["🔎", "🎈", r.target]);
-        api.speak(); api.say("Pop every balloon with the number " + r.target + "!");
+        api.setPrompt("Pop every " + r.target + " balloon!", ["🔎", "🎈", r.target], "Pop every balloon with the number " + r.target + "!");
+        api.speak();
         targetEl.textContent = r.target;
         field.innerHTML = "";
         r.cells.forEach((cell) => {
@@ -785,9 +785,8 @@
         bar.appendChild(api.el("span", { class: "clue__card" }, [KIND_ICON[kind]]));
         bar.appendChild(api.el("span", { class: "clue__plus" }, ["+"]));
         bar.appendChild(api.el("span", { class: "clue__card" }, [COLOR_DOT[color]]));
-        api.setPrompt("Find the one that matches BOTH clues!", [KIND_ICON[kind], COLOR_DOT[color], "🔍"]);
+        api.setPrompt("Find the one that matches BOTH clues!", [KIND_ICON[kind], COLOR_DOT[color], "🔍"], "Find the " + color + " " + KIND_WORD[kind] + "!");
         api.speak();
-        api.say("Find the " + color + " " + KIND_WORD[kind] + "!");
         grid.innerHTML = "";
         const btns = r.cards.map((card, i) => {
           const b = api.el("button", {
@@ -887,7 +886,7 @@
         scene.innerHTML = "";
         r.cells.forEach((c) => scene.appendChild(api.el("span", { class: "catcount__item" }, [c.e])));
         api.setPrompt("How many " + nm + "?", [r.cat.icon, "🔢", "👀"]);
-        api.speak(); api.say("How many " + nm + "?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--num tap", type: "button", text: String(ch.n), dataset: ch.correct ? { correct: "1" } : {}, aria: { label: String(ch.n) } });
@@ -915,8 +914,8 @@
       api.stage.append(sky);
       function newRound() {
         const r = L.makeSizePick(undefined, lastAsk); lastAsk = r.ask;
-        api.setPrompt(r.ask === "biggest" ? "Tap the BIGGEST star!" : "Tap the TINIEST star!", [r.ask === "biggest" ? "⭐" : "✨", "👀", "👉"]);
-        api.speak(); api.say(r.ask === "biggest" ? "Which star is the biggest?" : "Which star is the tiniest?");
+        api.setPrompt(r.ask === "biggest" ? "Tap the BIGGEST star!" : "Tap the TINIEST star!", [r.ask === "biggest" ? "⭐" : "✨", "👀", "👉"], r.ask === "biggest" ? "Which star is the biggest?" : "Which star is the tiniest?");
+        api.speak();
         sky.innerHTML = "";
         r.sizes.forEach((sz, i) => {
           const b = api.el("button", { class: "choice sizehunt__star tap", type: "button", dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: "star" } }, [
@@ -954,8 +953,8 @@
         const cells = api.shuffle(foods.map((e) => ({ e, food: true })).concat(sillies.map((e) => ({ e, food: false }))));
         let found = 0;
         tray.innerHTML = "";
-        api.setPrompt("Make " + set.name + " — find everything that goes in it!", ["🥪", "🔍", "😋"]);
-        api.speak(); api.say("Find everything that goes in " + set.name + "!");
+        api.setPrompt("Make " + set.name + " — find everything that goes in it!", ["🥪", "🔍", "😋"], "Find everything that goes in " + set.name + "!");
+        api.speak();
         grid.innerHTML = "";
         cells.forEach((c) => {
           const b = api.el("button", { class: "choice sandwich__cell tap", type: "button", text: c.e, dataset: c.food ? { correct: "1" } : {}, aria: { label: "food" } });
@@ -1004,7 +1003,7 @@
         cur = L.makeTreasureClue(SPOTS, PREP, undefined, used);
         btns.forEach((b, i) => { if (i === cur.correctIdx) b.dataset.correct = "1"; else delete b.dataset.correct; });
         api.setPrompt("Look " + cur.preposition.word + " " + cur.spot.name + "!", [cur.preposition.icon, cur.spot.emoji, "🔍"]);
-        api.speak(); api.say("Look " + cur.preposition.word + " " + cur.spot.name + "!");
+        api.speak();
       }
       nextClue();
     },
@@ -1091,8 +1090,8 @@
           api.el("span", { class: "spy__targetGlyph", text: exemplar }),
           api.el("span", { class: "spy__targetLabel", text: "find these" })
         );
-        api.setPrompt("Find all the " + nm + "!", ["🔎", exemplar, "👉"]);
-        api.speak(); api.say("Tap all the " + nm + "!");
+        api.setPrompt("Find all the " + nm + "!", ["🔎", exemplar, "👉"], "Tap all the " + nm + "!");
+        api.speak();
         const built = sceneZones(api, scene.box, r.zones, (z, b) => {
           if (b.dataset.done) return;
           if (z.shape !== r.shape) { api.tryAgain(b); return; }
@@ -1124,8 +1123,8 @@
       function newRound() {
         const r = L.makeHideSpots(scene.spots, FRIENDS.length ? FRIENDS : [null], undefined); found = 0; need = r.need;
         wrap.innerHTML = "";
-        api.setPrompt("Find all 4 hiding friends!", ["🙈", "👀", "🎉"]);
-        api.speak(); api.say("Someone is hiding at each peeking spot. Find all four friends!");
+        api.setPrompt("Find all 4 hiding friends!", ["🙈", "👀", "🎉"], "Someone is hiding at each peeking spot. Find all four friends!");
+        api.speak();
         const built = sceneZones(api, scene.box, r.spots, (z, b) => {
           if (b.dataset.done) return;
           if (!z.hiding) { api.tryAgain(b); api.say("Nobody here! Look for a peeking clue."); return; }
@@ -1169,8 +1168,8 @@
         let brushed = 0;
         finder.textContent = ""; finder.classList.remove("dig__found--up");
         grid.innerHTML = ""; chips.innerHTML = ""; grid.hidden = false;
-        api.setPrompt("Brush away the sand to dig it up!", ["🖌️", "🏖️", "👀"]);
-        api.speak(); api.say("Brush away all the sand to see what's buried!");
+        api.setPrompt("Brush away the sand to dig it up!", ["🖌️", "🏖️", "👀"], "Brush away all the sand to see what's buried!");
+        api.speak();
         for (let i = 0; i < 9; i++) {
           const p = api.el("button", { class: "dig__patch tap", type: "button", dataset: { correct: "1" }, aria: { label: "sand" }, text: "🟫" });
           p.addEventListener("click", () => {
@@ -1186,7 +1185,7 @@
         grid.hidden = true;
         finder.textContent = r.answer.emoji; finder.classList.add("dig__found--up", "pop");
         api.setPrompt("Who did we dig up?", ["🦴", "🤔", "👉"]);
-        api.speak(); api.say("Who did we dig up?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice tap", type: "button", text: ch.emoji, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name } });

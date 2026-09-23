@@ -8859,6 +8859,109 @@ JUDGED moved — the suffix bug judges 13 and the fixed law 30, so it sits at 21
 **When a law names its exemption "structural", check that nothing in the list is
 the property the law is about.**
 
+**THE APP'S TEACHING LINES WERE NEVER SPOKEN: `JoshAudio.say` CANCELLED BEFORE
+EVERY LINE, SO A LINE FOLLOWED BY ANOTHER IN THE SAME TAP DIED BEFORE IT MADE A
+SOUND — 594 of them, in 192 of the 240 games.** Found while tracing a different
+defect (why a sort bin's correct-answer pop never paints — the round rebuilds in
+the same click) and noticing that the same synchronous burst also SPEAKS twice:
+the sorter says its "why" ("It floats — it's light and traps air.", the whole
+point of the recorded B#1) and then `newRound()` speaks the next question, and
+because `say()` opened with `speechSynthesis.cancel()`, the second line killed
+the first before the engine had produced a sample. Measured by driving every
+game with a stub that models `cancel()` and records which TURN each line came
+from: the losses were exactly the lines that teach — "The opposite of happy is
+sad!", "3 and 3 is 6!", "Five pennies make a nickel!", "The whale is heavier!",
+every `roundWin({ say })` restatement followed by a synchronous `newRound()`,
+every line said just before `win()` (its praise replaced it), and in 华丽's world
+"找到了！是六条！" and "一条鱼，对啦！". A game's own round-advance TIMER then cut
+49 more mid-sentence ("That's an island — land with water all around!" heard for
+one second of three, by the stub's duration estimate). **And every speech test was green**, because the emoji
+guard and 华丽's behavioural pass both CAPTURE the strings handed to `say()` — a
+line passed to the speech API and a line heard are different things. That is the
+"a scan proves a call site exists; only driving it proves the call does
+anything" law one layer down, in the audio channel.
+**The fix is ONE owner with three rules** (audio.js "Speech TURNS"): (1) lines
+said in one synchronous turn are QUEUED in order — a reply is one message; (2)
+only a turn that starts from the child's INPUT interrupts what is still being
+said — a capture-phase listener marks tap/key dispatch, once per input event so
+two listeners on one tap never cut each other — while a turn from the game's own
+timer waits its place: *only the child interrupts; the game never talks over
+itself*; (3) the same WORDS twice in one turn are said once (`lineKey`, the one
+owner of "same words": "Simon says: touch the hand!" and "Simon says, touch the
+hand!" are one sentence). The turn ends at a microtask checkpoint; the input
+flag ends at a TASK, because a real click runs a microtask checkpoint after
+every listener and a microtask reset would expire before the game's handler ran.
+**THE REFINEMENT THAT LOOKED OBVIOUS WAS BUILT, MEASURED AND THROWN AWAY — and
+why is the most transferable part.** Because the later line always used to win,
+87 call sites in 87 games had been written as `setPrompt(q); speak(); say(q2)` — 73
+saying a specific line after a generic one, 14 saying the SAME words twice — so
+queueing everything made them say their question twice. The tempting fix was a
+rule in audio.js: hold the framework's prompt to the end of the turn and let it
+give way to a line the game says itself. Measured over all 240 games it fixed
+the restatements — and dropped the QUESTION from 16 games whose second line was
+not a restatement but the target: "What sound does it start with?" … "moon"
+became just "moon", on every round including the first. Which of two lines a
+game meant is a decision that belongs IN the game, so audio.js lost the
+heuristic and the framework gained a field: `setPrompt(caption, icons, spoken)`.
+The 73 now say ONE line per round — the specific question, or the caption
+plus the word it is about — folded mechanically (67 by a script that asserted
+each `speak()`/`say()` pair sat adjacent to its `setPrompt`, 5 by hand: Duck
+Pond's story had to move above the prompt that speaks it, This Goes With That
+speaks its whole analogy with C still the subject, Who Hid? introduces its
+line-up first and asks the question only once the cloud has moved, and Shape's
+Real Twin / Find the Shape carry the name inside the question). The 14 literal
+repeats were deleted outright: the dedupe was already merging them at runtime,
+but code that relies on a runtime merge to mean one thing cannot be read — and
+deleting them is what made the idiom itself bannable. The payoff
+beyond the redundancy: 👂 "hear it again" repeats `spoken`, so for the first
+time it replays the WORD a phonics game is about, the whole Duck Pond story and
+the specific question — before, it could only ever repeat the generic caption.
+One game deliberately keeps two lines: 华丽's 记菜单 (the menu must not be what
+👂 repeats during recall, or the memory game answers itself); and Team Sound
+Hunt's one-time co-op intro ("Take turns!") now plays before its first question
+instead of being cut by it. **Re-driven after the fix: 0 lines lost in their own
+turn and 0 cut by a game's own timer across all 240 games, 0 turns that ask two
+questions, and all 334 Chinese lines still in a zh-CN voice** — the per-turn
+shape is now 1288 one-line turns, 482 two-line (feedback, then the next question
+or the win), 17 three-line (the tapped letter, the finished word, the next
+word), and nothing longer.
+**Guardrails, four layers.** A vm unit test drives the real audio.js through
+eight scenarios, and every RULE has a mutation that fires its own clause —
+thirteen mutations of audio.js plus one planted `speechSynthesis.cancel()` in a
+game, all RED, and a control (a different input-event list) that stays GREEN;
+an early draft let "always cancel" fire the dedupe clause, and the scenarios
+were re-cut until each rule was isolated. The every-game
+walk now HEARS: sound ON, a stub engine that knows each line's turn, and two
+assertions per game — nothing said is cancelled in its own turn, and every line
+said reaches the engine — with the page restored to muted and the real engine in
+a `finally` — plus a third: no turn may ASK TWO questions. That second clause compares through `lineKey` on purpose and says
+so: it cannot see `lineKey` merging too much (its mutation stays green, recorded
+rather than hidden), which is the unit test's job — it fails the moment two
+different sentences are merged. A structural scan derived from the page's
+own scripts: nothing but audio.js (and the router's navigation cancel) may drive
+`speechSynthesis`. And the idiom itself is banned: `speak()` then `say()` —
+even across a comment line — with 记菜单 the one NAMED exception, which must
+still match code or the test fails, because an allowance nothing uses is how a
+carve-out rots into a hole. The ban and the one-question clause are
+complementary, and proven so rather than assumed: a `say()` moved one statement
+away from its `speak()` escapes the scan (GREEN — its documented limit) and the
+runtime clause catches it (RED); and with the runtime clause disabled, neither
+`lost` nor `missing` notices a double question (GREEN), so it is the only thing
+carrying that claim.
+**Three method notes.** A before/after diff of "lines no longer said" over a
+RANDOMISED surface reported 144 games — nearly all of it was different random
+rounds and random praise; the honest comparison is per-TURN (what a turn SAID
+versus what it HANDED to the engine), which is what the probe switched to. And
+the probe's own turn tracker had the same ordering subtlety as the product: a
+tracker whose reset microtask is queued before the code under test's own
+end-of-turn microtask assigns that flush to the NEXT turn — count turns where
+the product counts them, or the classification drifts. And the redundancy check I
+wrote DURING the rejected give-way design keyed on the `{ prompt: true }` flag
+that design passed to `say()` — so on the shipped code it read a clean **0** on
+all 240 games, because no call carries that flag any more. An analyzer written
+for one design measures nothing on the next; re-derive it from what reached the
+engine (per turn, from the stub's own record) before believing a zero.
+
 ---
 
 ## Repository Structure
@@ -8938,11 +9041,15 @@ tooling.
 │   ├── content.js              # ALL editable content/data (dual-export: window.JoshContent + module.exports). Edit here.
 │   ├── logic.js                # PURE, deterministic game logic (window.JoshLogic + module.exports) — unit-tested
 │   ├── effects.js              # Shared JoshEffects.confetti()/stars() (celebrations)
-│   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off) + iOS-safe tone() + win/good/bump CUES (mute-gated)
+│   ├── audio.js                # window.JoshAudio — voice (speechSynthesis) + mute state (off) + iOS-safe tone() + win/good/bump CUES (mute-gated).
+│                               #   The ONE owner of speech TURNS: a turn's lines are QUEUED, only the child's input interrupts
+│                               #   (once per input event), and the same words twice in a turn are said once — `lineKey` owns
+│                               #   "same words". Nothing else may call speechSynthesis.speak/cancel (the router's nav cancel excepted)
 │   ├── art.js                  # window.JoshArt — original homage SVG (hero/pup/numberFriend/friend/truck/rocket/fixable-scenes/…), lit from the upper LEFT (the fort's own LIGHT) via `lit()` + index.html's shared gradients; NO <defs>, NO <filter>, every ref carries a ` none` fallback
 │   ├── stickers.js             # window.JoshProgress (THE owner of josh-won-* flags) + window.JoshStickers.artFor (deterministic sticker per game)
 │   ├── buddy.js                # window.JoshBuddy (THE owner of josh-buddy) — pick-a-companion roster + home companion + themed win art
-│   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT
+│   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT;
+│                               #   `setPrompt(caption, icons, spoken)` — `spoken` is what the voice and 👂 say, so a game says ONE line
 │   ├── games-toys.js           # Self-registering games: gentle cause→effect toys
 │   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
 │   ├── games-literacy.js       # Self-registering games: first sound, rhyme, build-a-word, sight word
@@ -13665,7 +13772,11 @@ into `index.html`, `sw.js`, and `tests/site.test.js`'s `SCRIPTS` list):
 window.JoshFramework.register({
   id: "my-game", icon: "🎯", title: "My Game", skill: "… [W]",
   start(api) {
-    api.setPrompt("Tap the right one!", ["👀", "👉", "😊"]); // spoken + icon strip
+    api.setPrompt("Tap the right one!", ["👀", "👉", "😊"]); // caption + icon strip
+    // A round whose question names a thing passes ONE spoken line as the 3rd arg
+    // (setPrompt("Which sound?", icons, "What sound does moon start with?")) —
+    // never setPrompt + speak + say: a turn's lines are all queued now, so that
+    // says the question twice. `spoken` is also what 👂 "hear it again" replays.
     // Build UI into api.stage. Put pure logic in scripts/logic.js and unit-test it.
     // TEST CONTRACT (so the generic harness plays it automatically):
     //  • mark the correct next tap(s) with data-correct="1"; remove once consumed
@@ -13676,7 +13787,7 @@ window.JoshFramework.register({
 });
 ```
 
-The `api` gives you: `el`, `stage`, `setPrompt/speak/say`, `win/roundWin/tryAgain`,
+The `api` gives you: `el`, `stage`, `setPrompt(caption, icons, spoken)/speak/say`, `win/roundWin/tryAgain`,
 `shouldRamp(n)`/`streak()` (invisible difficulty adaptivity — true once Josh has
 won `n` rounds in a row with no miss; resets when he stumbles; a game reads it to
 pick a harder/easier round, never showing a number or a fail),

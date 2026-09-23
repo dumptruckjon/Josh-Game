@@ -18,21 +18,86 @@
     if (!muted) say("Yay!"); // doubles as the iOS "unlock audio" gesture
     return muted;
   }
+  // ---- Speech TURNS: only the child interrupts; the game never talks over itself ----
+  // MEASURED 2026-09, and it was the biggest silence in the app: say() used to
+  // CANCEL before every line, so any line followed by another in the same
+  // synchronous turn never made a sound. Driving all 240 games with a
+  // speechSynthesis stub that models cancel found 594 lines cancelled in the very
+  // turn that spoke them, in 192 games — and they were the TEACHING lines: a
+  // sorter's "It floats — it's light and traps air." died under the next round's
+  // prompt in the same tap, as did "The opposite of happy is sad!", "3 and 3 is
+  // 6!", "Five pennies make a nickel!" and every restatement handed to
+  // roundWin({say}) before newRound(). A game's own round-advance TIMER then cut
+  // another 49 lines short mid-sentence ("That's an island — land with water all
+  // around!" was heard for one second of three). Every capture-the-strings test
+  // stayed green, because a line that was PASSED to say() and a line that was
+  // HEARD are different things.
+  //   So a TURN is everything said in response to one event, and three rules hold:
+  //  1. Lines said in the same turn are QUEUED in order — a reply is one message.
+  //  2. Only a turn that starts from the child's INPUT (a tap, a key) interrupts
+  //     whatever is still being said; a turn from the game's own timer waits its
+  //     place behind it, so a round-advance can never cut its own restatement.
+  //  3. The same words twice in one turn are said once — a prompt is spoken on
+  //     start AND on show, and "Simon says: touch the hand!" / "Simon says,
+  //     touch the hand!" is one sentence however it is punctuated.
+  //   No line ever silently REPLACES another. The obvious refinement — let a
+  //   generic prompt give way to a more specific line said after it — was built
+  //   and measured, and it dropped the QUESTION from 16 games whose "specific"
+  //   line was only the target word ("What sound does it start with?" … "moon"
+  //   became just "moon"). Which of two lines a game meant is a decision that
+  //   belongs in the game, not in a heuristic here.
+  let turn = null;          // the open turn: the lines it has already said
+  let fromInput = false;    // true while a user INPUT event is being dispatched
+  let interrupted = false;  // …and whether that event has already interrupted once
+  // The input flag is reset by a TASK, not a microtask: a real click runs a
+  // microtask checkpoint after EVERY listener, so a microtask reset would expire
+  // before the game's own handler ever ran. Its only failure mode (an overdue
+  // timer running inside that window) degrades to the old always-interrupt.
+  function markInput() {
+    if (fromInput) return;
+    fromInput = true; interrupted = false;
+    setTimeout(() => { fromInput = false; interrupted = false; }, 0);
+  }
+  try {
+    if (global.addEventListener) {
+      for (const t of ["pointerdown", "pointerup", "touchstart", "touchend", "click", "keydown"]) {
+        global.addEventListener(t, markInput, true);
+      }
+    }
+  } catch (e) { /* ignore */ }
+  const endOfTurn = (fn) => {
+    if (typeof global.queueMicrotask === "function") global.queueMicrotask(fn);
+    else Promise.resolve().then(fn);
+  };
+  // ONE owner of "these are the same words": case, punctuation and spacing do not
+  // make a different sentence. Tests compare lines through this too.
+  function lineKey(text) {
+    return String(text).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  }
   // Speak a short phrase. Guarded so a missing/blocked speech API is harmless.
   // opts.lang switches the voice language (e.g. "zh-CN" for 华丽's games —
   // Mandarin at a calmer rate/pitch); omitted = the device default (English).
   function say(text, opts) {
     if (muted || !text) return;
     try {
-      if (global.speechSynthesis && global.SpeechSynthesisUtterance) {
-        const u = new global.SpeechSynthesisUtterance(String(text));
-        const zh = !!(opts && opts.lang && String(opts.lang).indexOf("zh") === 0);
-        if (opts && opts.lang) u.lang = opts.lang;
-        u.rate = zh ? 0.85 : 0.95;
-        u.pitch = zh ? 1.0 : 1.15;
-        global.speechSynthesis.cancel();
-        global.speechSynthesis.speak(u);
+      if (!global.speechSynthesis || !global.SpeechSynthesisUtterance) return;
+      if (!turn) {
+        const open = new Set();
+        turn = open;
+        endOfTurn(() => { if (turn === open) turn = null; });
+        // The CHILD acted: old speech gives way — once per input event, so two
+        // listeners answering the same tap (each its own turn) never cut each other.
+        if (fromInput && !interrupted) { interrupted = true; global.speechSynthesis.cancel(); }
       }
+      const key = lineKey(text);
+      if (turn.has(key)) return;
+      turn.add(key);
+      const u = new global.SpeechSynthesisUtterance(String(text));
+      const zh = !!(opts && opts.lang && String(opts.lang).indexOf("zh") === 0);
+      if (opts && opts.lang) u.lang = opts.lang;
+      u.rate = zh ? 0.85 : 0.95;
+      u.pitch = zh ? 1.0 : 1.15;
+      global.speechSynthesis.speak(u);
     } catch (e) { /* ignore */ }
   }
 
@@ -195,5 +260,5 @@
   // A soft, low, NON-punishing "hmm, try another" note (never a harsh buzzer).
   function bumpCue() { cue([{ freq: 246.94, opts: { type: "sine", duration: 0.22, gain: 0.16 } }]); }
 
-  global.JoshAudio = { isMuted, setMuted, toggle, say, tone, unlock, winCue, goodCue, bumpCue, KEY };
+  global.JoshAudio = { isMuted, setMuted, toggle, say, lineKey, tone, unlock, winCue, goodCue, bumpCue, KEY };
 })(typeof window !== "undefined" ? window : globalThis);

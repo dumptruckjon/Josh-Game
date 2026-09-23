@@ -145,9 +145,16 @@
       C, stage, el, shuffle, randItem, randInt, pickIndex,
       friend: nextFriend, hero: () => randItem(C.HEROES || [{ emoji: "⭐", name: "Star" }]),
       clear() { stage.innerHTML = ""; },
-      // Set the spoken prompt + the big icon instruction strip (pictures carry it).
-      setPrompt(text, icons) {
-        currentPrompt = text || "";
+      // Set the prompt + the big icon instruction strip (pictures carry it).
+      // `spoken` is what the voice says for it — at round start and on 👂 — when
+      // that differs from the caption: the SPECIFIC question ("What is the
+      // opposite of big?") under a short caption ("What's the opposite?"), or the
+      // question plus the word it is about ("What sound does it start with?
+      // moon"). It used to be a separate say() right after speak(), which 👂 could
+      // never repeat, and once every line in a turn became audible it meant the
+      // question twice in two wordings.
+      setPrompt(text, icons, spoken) {
+        currentPrompt = spoken || text || "";
         promptText.textContent = text || "";
         iconsEl.textContent = (icons || []).join(" ");
       },

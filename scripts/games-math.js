@@ -454,9 +454,8 @@
       function newRound() {
         const r = L.makeNumberMatch();
         numEl.textContent = String(r.n);
-        api.setPrompt("Tap the friend with this many blocks.", ["👀", "🔢", "👉"]);
+        api.setPrompt("Tap the friend with this many blocks.", ["👀", "🔢", "👉"], "Tap the friend with this many blocks." + " " + (String(r.n)));
         api.speak();
-        api.say(String(r.n));
         groups.innerHTML = "";
         r.groups.forEach((g) => {
           const b = api.el("button", { class: "choice nm__group nm__group--friend tap art-fill", type: "button", dataset: g.correct ? { correct: "1" } : {}, aria: { label: g.count + " blocks" }, html: nf(g.count) });
@@ -504,9 +503,8 @@
         // Adaptive: o'clock only until Josh masters it, then add half-past (:30).
         const r = L.makeClock(undefined, api.shouldRamp(2));
         draw(r.hour, r.min);
-        api.setPrompt("What time is it?", ["👀", "🕐", "🔢"]);
+        api.setPrompt("What time is it?", ["👀", "🕐", "🔢"], "What time is it?" + " " + (r.min === 30 ? ("half past " + r.hour) : (r.hour + " o'clock")));
         api.speak();
-        api.say(r.min === 30 ? ("half past " + r.hour) : (r.hour + " o'clock"));
         choices.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--time tap", type: "button", text: ch.label, dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.label } });
@@ -923,8 +921,8 @@
         r = L.makeFairShare(undefined, api.shouldRamp(2));
         dealt = 0;
         treat = api.randItem(C.SHARE_TREATS || ["🍪"]);
-        api.setPrompt("Share them out — one each!", ["🍪", "🤲", "😊"]);
-        api.speak(); api.say("Share the treats so everyone gets the same!");
+        api.setPrompt("Share them out — one each!", ["🍪", "🤲", "😊"], "Share the treats so everyone gets the same!");
+        api.speak();
         pile.textContent = treat.repeat(r.total);
         row.innerHTML = "";
         for (let i = 0; i < r.friends; i++) {
@@ -1122,8 +1120,8 @@
       api.stage.append(wings, chips);
       function newRound() {
         r = L.makeDouble(undefined, api.shouldRamp(2) ? 5 : 3);
-        api.setPrompt(r.n + " and " + r.n + " — how many in all?", ["🦋", "➕", "🤔"]);
-        api.speak(); api.say(r.n + " dots and " + r.n + " dots. How many in all?");
+        api.setPrompt(r.n + " and " + r.n + " — how many in all?", ["🦋", "➕", "🤔"], r.n + " dots and " + r.n + " dots. How many in all?");
+        api.speak();
         wings.innerHTML = '<div class="double__wing">' + dots(r.n) + '</div><div class="double__body">🦋</div><div class="double__wing">' + dots(r.n) + "</div>";
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -1312,8 +1310,8 @@
         pile.innerHTML = "";
         pile.appendChild(api.el("span", { class: "coinmix__coin coinmix__coin--nickel" }, ["5¢"]));
         for (let i = 0; i < r.pennies; i++) pile.appendChild(api.el("span", { class: "coinmix__coin coinmix__coin--penny" }, ["1¢"]));
-        api.setPrompt("How many cents in all?", ["🪙", "➕", "🔢"]);
-        api.speak(); api.say("A nickel is 5 cents. How many cents in all?");
+        api.setPrompt("How many cents in all?", ["🪙", "➕", "🔢"], "A nickel is 5 cents. How many cents in all?");
+        api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
           const b = api.el("button", { class: "choice choice--num tap", type: "button", text: ch.n + "¢", dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.n + " cents" } });
@@ -1347,7 +1345,7 @@
         last = r.ord;
         const animals = api.shuffle((POOL.length ? POOL : ["🐶", "🐱", "🐰", "🐸", "🐵"]).slice()).slice(0, r.len);
         api.setPrompt("Tap the " + ORD[r.ord - 1] + " one in line!", ["🍦", "🔢", "👉"]);
-        api.speak(); api.say("Tap the " + ORD[r.ord - 1] + " one in line!");
+        api.speak();
         line.innerHTML = "";
         line.appendChild(api.el("div", { class: "ord__stand", aria: { hidden: "true" } }, ["🍦"]));
         animals.forEach((em, i) => {
@@ -1420,8 +1418,8 @@
       api.stage.append(graph);
       function newRound() {
         const r = L.makeGraphPick(api.C.GRAPH_FRUITS || ["🍎", "🍌", "🍇"], undefined, lastAsk); lastAsk = r.ask;
-        api.setPrompt(r.ask === "most" ? "Which fruit is there the MOST of?" : "Which fruit is there the FEWEST of?", [r.ask === "most" ? "⬆️" : "⬇️", "📊", "👉"]);
-        api.speak(); api.say(r.ask === "most" ? "Which has the most?" : "Which has the fewest?");
+        api.setPrompt(r.ask === "most" ? "Which fruit is there the MOST of?" : "Which fruit is there the FEWEST of?", [r.ask === "most" ? "⬆️" : "⬇️", "📊", "👉"], r.ask === "most" ? "Which has the most?" : "Which has the fewest?");
+        api.speak();
         graph.innerHTML = "";
         r.cols.forEach((c, i) => {
           const stack = api.el("button", { class: "choice graph__col tap", type: "button", dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: c.n + " fruit" } });
@@ -1452,8 +1450,8 @@
       }
       function newRound() {
         const r = L.makeGlassPick(undefined, lastAsk); lastAsk = r.ask;
-        api.setPrompt(r.ask === "full" ? "Tap the FULLEST glass!" : "Tap the EMPTIEST glass!", ["🥛", "👀", "👉"]);
-        api.speak(); api.say(r.ask === "full" ? "Which glass is the fullest?" : "Which glass is the emptiest?");
+        api.setPrompt(r.ask === "full" ? "Tap the FULLEST glass!" : "Tap the EMPTIEST glass!", ["🥛", "👀", "👉"], r.ask === "full" ? "Which glass is the fullest?" : "Which glass is the emptiest?");
+        api.speak();
         row.innerHTML = "";
         r.fills.forEach((f, i) => {
           const b = api.el("button", { class: "choice glass__glass tap", type: "button", html: glassSVG(f), dataset: i === r.answerIdx ? { correct: "1" } : {}, aria: { label: "glass" } });
@@ -1539,8 +1537,8 @@
         const lp = api.randItem(C.PATHS_DIGITS);
         step = 0; dots = [];
         guide.textContent = lp.letter;
-        api.setPrompt("Trace the number — tap the dots in order!", ["👆", "🔢", "✍️"]);
-        api.speak(); api.say("Trace the number " + lp.letter);
+        api.setPrompt("Trace the number — tap the dots in order!", ["👆", "🔢", "✍️"], "Trace the number " + lp.letter);
+        api.speak();
         [...stage.querySelectorAll(".trace__dot, .trace__line")].forEach((n) => n.remove());
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
@@ -1588,11 +1586,11 @@
       function newRound() {
         const r = L.makeStoryAdd(C.STORY_ACTORS, undefined, last); last = r.total;
         pond.innerHTML = "";
-        api.setPrompt("Listen to the story — how many " + r.actor.name + "?", ["👂", r.actor.emoji, "🔢"]);
-        api.speak();
         const aPart = r.a === 1 ? "one " + (r.actor.one || r.actor.name) + " " + (r.actor.verbOne || r.actor.verb) : numberWord(r.a) + " " + r.actor.name + " " + r.actor.verb;
         const bPart = r.b === 1 ? "Then one more comes!" : "Then " + numberWord(r.b) + " more come!";
-        api.say(aPart + " in the pond. " + bPart + " How many " + r.actor.name + " now?");
+        // The story IS the question, so it is the spoken prompt — and 👂 retells it.
+        api.setPrompt("Listen to the story — how many " + r.actor.name + "?", ["👂", r.actor.emoji, "🔢"], aPart + " in the pond. " + bPart + " How many " + r.actor.name + " now?");
+        api.speak();
         // Act it out: a ducks glide in, then b more (a beat later), each counting.
         let shown = 0;
         function addDuck(extra) {
@@ -1643,8 +1641,8 @@
         thing.textContent = r.thing.emoji;
         thing.style.fontSize = (34 + n * 8) + "px";
         addBtn.dataset.correct = "1"; addBtn.disabled = false;
-        api.setPrompt("Stack blocks to measure the " + r.thing.name + "!", ["📏", "🧱", "👆"]);
-        api.speak(); api.say("How many blocks tall is the " + r.thing.name + "? Stack them up!");
+        api.setPrompt("Stack blocks to measure the " + r.thing.name + "!", ["📏", "🧱", "👆"], "How many blocks tall is the " + r.thing.name + "? Stack them up!");
+        api.speak();
       }
       addBtn.addEventListener("click", () => {
         if (stacked >= n) return;

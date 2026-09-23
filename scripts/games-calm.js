@@ -738,8 +738,8 @@
       function newRound() {
         r = L.makeFeeling(C.FEELINGS, C.FEELING_STORIES, undefined, lastIdx);
         lastIdx = r.idx;
-        api.setPrompt("How do they feel?", ["👂", "🤔", "💛"]);
-        api.speak(); api.say(r.story.say + " How does " + r.story.who + " feel?");
+        api.setPrompt("How do they feel?", ["👂", "🤔", "💛"], r.story.say + " How does " + r.story.who + " feel?");
+        api.speak();
         sceneIcons.textContent = r.story.icons.join(" ");
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -785,8 +785,8 @@
       function newRound() {
         r = L.makeKindness(C.KINDNESS, undefined, lastIdx);
         lastIdx = r.idx;
-        api.setPrompt("What's the KIND thing to do?", ["👂", "💛", "👉"]);
-        api.speak(); api.say(r.scenario.say + " What's the kind thing to do?");
+        api.setPrompt("What's the KIND thing to do?", ["👂", "💛", "👉"], r.scenario.say + " What's the kind thing to do?");
+        api.speak();
         sceneIcons.textContent = r.scenario.icons.join(" ");
         chips.innerHTML = "";
         r.options.forEach((opt) => {
@@ -830,8 +830,8 @@
       function newRound() {
         r = L.makeDayTrain(C.DAYS, undefined, lastBlank);
         lastBlank = r.blankIdx;
-        api.setPrompt("Which day is missing?", ["📅", "🚂", "🤔"]);
-        api.speak(); api.say("Which day is missing? It comes after " + C.DAYS[r.blankIdx - 1].name + "!");
+        api.setPrompt("Which day is missing?", ["📅", "🚂", "🤔"], "Which day is missing? It comes after " + C.DAYS[r.blankIdx - 1].name + "!");
+        api.speak();
         train.innerHTML = "";
         C.DAYS.forEach((d, i) => {
           train.appendChild(api.el("span", {
@@ -1136,7 +1136,7 @@
         r = L.makeOrderTrain(MONTHS, undefined, { window: 4, lastStart });
         lastStart = r.start;
         api.setPrompt("Which month is missing?", ["📅", "🚂", "🤔"]);
-        api.speak(); api.say("Which month is missing?");
+        api.speak();
         train.innerHTML = "";
         r.items.forEach((m, i) => {
           const blank = i === r.blankIdx;
@@ -1251,7 +1251,7 @@
       function newRound() {
         const r = L.makeDressOrder(api.C.DRESS_ORDER_PAIRS, undefined, last); last = r.idx;
         api.setPrompt("Which one goes on FIRST?", ["🧦", "1️⃣", "👉"]);
-        api.speak(); api.say("Which one goes on first?");
+        api.speak();
         two.innerHTML = "";
         r.items.forEach((it, i) => {
           const b = api.el("button", {
@@ -1419,8 +1419,8 @@
         const r = L.makeBalance(undefined, last); n = r.n; last = n; right = 0;
         leftPan.innerHTML = ""; rightPan.innerHTML = "";
         for (let i = 0; i < n; i++) leftPan.appendChild(api.el("span", { class: "bal__block" }, ["🟦"]));
-        api.setPrompt("Take turns! Add blocks until the scale is even.", ["⚖️", "🔁", "🟦"]);
-        api.speak(); api.say("The left side has " + n + ". Make them match!");
+        api.setPrompt("Take turns! Add blocks until the scale is even.", ["⚖️", "🔁", "🟦"], "The left side has " + n + ". Make them match!");
+        api.speak();
         addBtn.dataset.correct = "1";
         tilt();
         coopTurn(turnEl, players[turn], " — add a block!");
@@ -1489,8 +1489,8 @@
         });
         turnEl.innerHTML = "";
         turnEl.append(document.createTextNode(players[leader].name + " shows — " + players[follower].name + " copies!"));
-        api.setPrompt(players[leader].name + " shows, " + players[follower].name + " copies!", ["🪞", "👀", "👆"]);
-        api.speak(); api.say(PADS[target].name);
+        api.setPrompt(players[leader].name + " shows, " + players[follower].name + " copies!", ["🪞", "👀", "👆"], players[leader].name + " shows, " + players[follower].name + " copies!" + " " + (PADS[target].name));
+        api.speak();
       }
       newRound();
     },

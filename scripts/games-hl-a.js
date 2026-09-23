@@ -299,8 +299,8 @@
       function newRound() {
         r = L.makePoemNext(HL.POEMS, undefined, lastKey);
         lastKey = r.key;
-        api.setPrompt("下一句是什么？", ["📜", "🤔", "👉"]);
-        api.speak(); api.say(r.prompt + "。下一句是什么？");
+        api.setPrompt("下一句是什么？", ["📜", "🤔", "👉"], r.prompt + "。下一句是什么？");
+        api.speak();
         promptEl.textContent = r.prompt + "，";
         byline.textContent = "——《" + r.poem.title + "》 " + r.poem.author;
         chips.innerHTML = "";
@@ -375,8 +375,8 @@
       function newRound() {
         r = L.makePairPick(items, undefined, lastIdx);
         lastIdx = r.idx;
-        api.setPrompt("它的反义词是什么？", ["↔️", "🤔", "👉"]);
-        api.speak(); api.say(r.item.q + "的反义词是什么？");
+        api.setPrompt("它的反义词是什么？", ["↔️", "🤔", "👉"], r.item.q + "的反义词是什么？");
+        api.speak();
         promptEl.textContent = r.item.q;
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -411,8 +411,8 @@
       function newRound() {
         r = L.makeMeasureWord(HL.MEASURE_WORDS, undefined, lastIdx);
         lastIdx = r.idx;
-        api.setPrompt("一▢" + r.pair.noun + " — 填哪个量词？", ["🔡", "🤔", "👉"]);
-        api.speak(); api.say("一什么" + r.pair.noun + "？");
+        api.setPrompt("一▢" + r.pair.noun + " — 填哪个量词？", ["🔡", "🤔", "👉"], "一什么" + r.pair.noun + "？");
+        api.speak();
         promptEl.textContent = "一▢" + r.pair.noun + " " + r.pair.emoji;
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -682,8 +682,8 @@
       function newRound() {
         r = L.makeStoryOrder(HL.SEQUENCES, undefined);
         next = 0;
-        api.setPrompt("按先后顺序，一步一步点！", ["1️⃣", "2️⃣", "3️⃣"]);
-        api.speak(); api.say(r.name + "，先做什么？按顺序点一点。");
+        api.setPrompt("按先后顺序，一步一步点！", ["1️⃣", "2️⃣", "3️⃣"], r.name + "，先做什么？按顺序点一点。");
+        api.speak();
         nameEl.textContent = "《" + r.name + "》";
         row.innerHTML = "";
         r.tiles.forEach((t) => {
@@ -726,8 +726,8 @@
       api.stage.append(line, chips);
       function newRound() {
         r = L.makeMarket(HL.MARKET, undefined);
-        api.setPrompt("一共多少元？", ["🥬", "➕", "💰"]);
-        api.speak(); api.say(r.a.name + r.a.price + "元，" + r.b.name + r.b.price + "元，一共多少元？");
+        api.setPrompt("一共多少元？", ["🥬", "➕", "💰"], r.a.name + r.a.price + "元，" + r.b.name + r.b.price + "元，一共多少元？");
+        api.speak();
         line.textContent = r.a.emoji + r.a.name + r.a.price + "元 + " + r.b.emoji + r.b.name + r.b.price + "元 = ?";
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -762,8 +762,8 @@
       function newRound() {
         r = L.makeChange(undefined, lastCost);
         lastCost = r.cost;
-        api.setPrompt("该找回多少元？", ["💴", "➖", "🤔"]);
-        api.speak(); api.say("付了10元，东西" + r.cost + "元，该找回多少元？");
+        api.setPrompt("该找回多少元？", ["💴", "➖", "🤔"], "付了10元，东西" + r.cost + "元，该找回多少元？");
+        api.speak();
         line.textContent = "付 10元 − 花 " + r.cost + "元 = 找 ?元";
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -839,8 +839,8 @@
       api.stage.append(cards);
       function newRound() {
         const r = L.makeNumberCompare(11, 99, undefined);
-        api.setPrompt("哪个数大？", ["⚖️", "🤔", "👉"]);
-        api.speak(); api.say(r.a + "和" + r.b + "，哪个大？");
+        api.setPrompt("哪个数大？", ["⚖️", "🤔", "👉"], r.a + "和" + r.b + "，哪个大？");
+        api.speak();
         cards.innerHTML = "";
         [{ n: r.a, ok: r.answer === "a" }, { n: r.b, ok: r.answer === "b" }].forEach((c) => {
           const b = api.el("button", {

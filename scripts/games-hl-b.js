@@ -166,8 +166,8 @@
       api.stage.append(line, chips);
       function newRound() {
         r = L.makeBigAdd(undefined, api.shouldRamp(2));
-        api.setPrompt("心算一下等于几？", ["➕", "🧠", "👉"]);
-        api.speak(); api.say(r.a + "加" + r.b + "等于几？");
+        api.setPrompt("心算一下等于几？", ["➕", "🧠", "👉"], r.a + "加" + r.b + "等于几？");
+        api.speak();
         line.textContent = r.a + " + " + r.b + " = ？";
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -203,8 +203,8 @@
       api.stage.append(line, chips);
       function newRound() {
         r = L.makeMissingAddend(undefined, { max: api.shouldRamp(2) ? 20 : 9 });
-        api.setPrompt("空里该填几？", ["❓", "🧠", "👉"]);
-        api.speak(); api.say(r.a + "加几等于" + r.sum + "？");
+        api.setPrompt("空里该填几？", ["❓", "🧠", "👉"], r.a + "加几等于" + r.sum + "？");
+        api.speak();
         line.textContent = r.a + " + ？ = " + r.sum;
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -447,8 +447,8 @@
         let idx = api.pickIndex(HL.RIDDLES.length, lastIdx);
         lastIdx = idx;
         const r = HL.RIDDLES[idx];
-        api.setPrompt("猜一猜，是什么？", ["🏮", "🤔", "👉"]);
-        api.speak(); api.say(r.q + "猜一猜，是什么？");
+        api.setPrompt("猜一猜，是什么？", ["🏮", "🤔", "👉"], r.q + "猜一猜，是什么？");
+        api.speak();
         card.textContent = r.q;
         chips.innerHTML = "";
         const choices = api.shuffle([

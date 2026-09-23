@@ -847,6 +847,161 @@ test("guardrail: JoshAudio.tone resumes the context BEFORE scheduling (iOS-safe)
   assert.ok(/JoshAudio\s*=\s*\{[^}]*\btone\b/.test(a.replace(/\s+/g, " ")), "JoshAudio must export tone()");
 });
 
+test("guardrail: a TURN is one message — a reply is heard in full, and only the child interrupts", async () => {
+  // MEASURED 2026-09: say() cancelled before EVERY line, so a line followed by
+  // another in the same synchronous turn never made a sound. Driving all 240
+  // games with a speechSynthesis stub that models cancel found 594 lines killed
+  // in the very turn that spoke them, in 192 games — the sorter's "It floats —
+  // it's light and traps air." under the next round's prompt, "The opposite of
+  // happy is sad!", every roundWin({say}) restatement before newRound() — and 49
+  // more cut short mid-sentence by the game's OWN round-advance timer. Every
+  // capture-the-strings test stayed green: a line PASSED to say() and a line
+  // HEARD are different things. This drives the real audio.js against a stub
+  // that records what reaches the engine, so each rule is proven on its own.
+  const vm = require("node:vm");
+  const log = [];
+  const listeners = {};
+  const synth = {
+    cancel() { log.push("cancel"); },
+    speak(u) { log.push((u.lang ? "[" + u.lang + "] " : "") + u.text); },
+  };
+  function Utterance(t) { this.text = t; this.lang = ""; }
+  const box = {
+    localStorage: { getItem: () => "0", setItem() {} }, // sound ON
+    speechSynthesis: synth, SpeechSynthesisUtterance: Utterance,
+    addEventListener(type, fn, capture) { if (capture) listeners[type] = fn; },
+    setTimeout, clearTimeout, queueMicrotask, Promise,
+  };
+  vm.createContext(box);
+  vm.runInContext(read("scripts/audio.js"), box);
+  const A = box.JoshAudio;
+  const endOfTurn = () => new Promise((r) => setTimeout(r, 0)); // microtasks + the input flag's reset
+  const tap = () => listeners.click();                          // what a real click's capture phase does
+  const take = () => log.splice(0, log.length);
+
+  assert.equal(typeof listeners.click, "function", "audio.js must watch INPUT events (capture phase) to tell a tap from a timer");
+  for (const t of ["pointerdown", "keydown"]) assert.equal(typeof listeners[t], "function", `audio.js must also treat ${t} as the child acting`);
+
+  // 1. A reply is ONE message: feedback, then the next question, both heard.
+  tap();
+  A.say("It floats — it's light and traps air.");
+  A.say("Will it sink or float?");
+  await endOfTurn();
+  assert.deepEqual(take(), ["cancel", "It floats — it's light and traps air.", "Will it sink or float?"],
+    "a line said in the same turn as another must be QUEUED behind it, never cancel it");
+
+  // 1b. One tap can be answered by two listeners — two TURNS, because a real
+  //     click runs a microtask checkpoint after each — and the second must not
+  //     cut the first: a tap interrupts old speech once.
+  tap();
+  A.say("Hooray!");
+  await Promise.resolve(); await Promise.resolve(); // the first listener's turn ends; same input event
+  A.say("You found it!");
+  await endOfTurn();
+  assert.deepEqual(take(), ["cancel", "Hooray!", "You found it!"], "a tap must interrupt old speech ONCE, not once per listener");
+
+  // 2. No line silently replaces another: a question and its target word are
+  //    BOTH heard (the "give way" refinement dropped the question from 16 games).
+  tap();
+  A.say("What sound does it start with?");
+  A.say("moon");
+  await endOfTurn();
+  assert.deepEqual(take(), ["cancel", "What sound does it start with?", "moon"],
+    "no line may silently replace another said earlier in the same turn");
+
+  // 3. The same words twice in one turn are said once — however punctuated…
+  tap();
+  A.say("Simon says: touch the hand!");
+  A.say("Simon says, touch the hand!");
+  A.say("Which letter is missing?");
+  A.say("Which letter is missing from the train?");
+  await endOfTurn();
+  assert.deepEqual(take(), ["cancel", "Simon says: touch the hand!", "Which letter is missing?", "Which letter is missing from the train?"],
+    "the same words twice in one turn must be said once — and different words must not be merged");
+
+  // 4. The game's own TIMER never talks over what is still being said…
+  A.say("That's an island — land with water all around!");
+  await endOfTurn();
+  A.say("Make a Lake! Tap the middle.");
+  await endOfTurn();
+  assert.deepEqual(take(), ["That's an island — land with water all around!", "Make a Lake! Tap the middle."],
+    "a turn that did not start from INPUT must queue behind the speech still playing, not cancel it");
+
+  // 5. …but the CHILD always can: a new tap interrupts whatever is still playing —
+  //    and "the same words once" is per TURN, so a line may come back next tap.
+  tap();
+  A.say("Try again!");
+  await endOfTurn();
+  tap();
+  A.say("Try again!");
+  await endOfTurn();
+  assert.deepEqual(take(), ["cancel", "Try again!", "cancel", "Try again!"],
+    "a turn that starts from the child's input must interrupt old speech, and a line may be said again in a later turn");
+
+  // 6. Each line keeps its own language, queued or not — and Chinese is compared
+  //    as words too (its full-width punctuation is not a different sentence).
+  tap();
+  A.say("对！是兔！", { lang: "zh-CN" });
+  A.say("对，是兔。", { lang: "zh-CN" });
+  A.say("哪一个是生肖？", { lang: "zh-CN" });
+  await endOfTurn();
+  assert.deepEqual(take(), ["cancel", "[zh-CN] 对！是兔！", "[zh-CN] 哪一个是生肖？"],
+    "a queued line keeps its language, and Chinese is compared as WORDS (a key that strips it to nothing merges every line)");
+
+  // 7. Muted is silent, whatever the turn.
+  A.setMuted(true);
+  tap(); A.say("anything"); A.say("at all");
+  await endOfTurn();
+  assert.deepEqual(take(), [], "sound OFF must stay silent");
+
+  assert.equal(typeof A.lineKey, "function", "JoshAudio must export lineKey — the ONE owner of 'these are the same words', which the e2e walk compares through");
+  // …and nothing but audio.js (plus the router's navigation cancel) may drive
+  // the speech engine, or a script can cancel its own reply again.
+  for (const f of SCRIPTS) {
+    if (f === "scripts/audio.js") continue;
+    const src = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    const uses = src.match(/speechSynthesis\.(speak|cancel)\(/g) || [];
+    const allowed = f === "scripts/main.js" ? 1 : 0;
+    assert.ok(uses.length <= allowed,
+      `${f} calls speechSynthesis directly ${uses.length}x — speak through JoshAudio.say, the ONE owner of speech turns`);
+  }
+});
+
+test("guardrail: a round SPEAKS one line — setPrompt carries it, never speak() then say()", () => {
+  // Found with the speech-turn fix (2026-09). While say() cancelled before every
+  // line only the LAST line of a turn was ever heard, so 87 call sites in 87
+  // games had been written `setPrompt(q); speak(); say(q2)` — 73 of them saying
+  // a specific question after a generic one, 14 saying the SAME words twice.
+  // Once a turn's lines are queued, that says the question twice. The rule now:
+  // a round's one spoken line is setPrompt's 3rd argument (`spoken`), which is
+  // also exactly what 👂 "hear it again" replays. The dedupe in audio.js merges a
+  // literal repeat at runtime, but code that relies on it cannot be read, so the
+  // idiom itself is banned. ONE exception is named with its reason, and it must
+  // still exist — an allowance nothing uses is how a carve-out rots into a hole.
+  const ALLOW = {
+    "hl-menu": "记菜单 says the menu once, and the menu must NOT be what 👂 repeats during recall, or the memory game answers itself",
+  };
+  const games = SCRIPTS.filter((f) => /^scripts\/games-.*\.js$/.test(f));
+  assert.ok(games.length >= 10, `the scan must find the game scripts (saw ${games.length})`);
+  const hits = {};
+  for (const f of games) {
+    const src = read(f);
+    // speak() then say(), with only whitespace or // comment lines between.
+    for (const m of src.matchAll(/api\.speak\(\);(?:\s|\/\/[^\n]*\n)*api\.say\(/g)) {
+      const ids = [...src.slice(0, m.index).matchAll(/\bid:\s*"([^"]+)"/g)];
+      const id = ids.length ? ids[ids.length - 1][1] : "?";
+      const line = src.slice(0, m.index).split("\n").length;
+      (hits[id] = hits[id] || []).push(`${f}:${line}`);
+    }
+  }
+  const bad = Object.entries(hits).filter(([id]) => !ALLOW[id]);
+  assert.deepEqual(bad, [],
+    `a game says TWO lines where it means one — setPrompt(caption, icons, spoken) then speak(), never speak() then say(): ${bad.map(([id, at]) => id + " @ " + at.join(",")).join(" | ")}`);
+  for (const id of Object.keys(ALLOW)) {
+    assert.ok(hits[id], `the allowance for "${id}" no longer matches any code — delete it rather than leave a dead exception`);
+  }
+});
+
 test("guardrail: the every-game harness drives the contract with a DOM click", () => {
   // A coordinate (force) click misses under CPU load when a field reflows mid-tap
   // (big-red-one got stuck). The contract test must dispatch a DOM el.click().
