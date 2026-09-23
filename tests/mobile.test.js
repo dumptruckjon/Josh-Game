@@ -646,6 +646,11 @@ test("a game is playable by touch (Odd-One-Out to a win)", async () => {
     const correct = screen.locator('[data-correct="1"]').first();
     if ((await correct.count()) === 0) { await page.waitForTimeout(20); continue; }
     await correct.tap({ force: true });
+    // A real child looks at each new round before tapping it. Without the pause
+    // this loop is a hammer: framework.js swallows a real tap in the 350ms after
+    // a round is won (the ECHO of the winning tap), and each swallowed tap
+    // re-arms that window, so a bot tapping every few ms would never get in.
+    await page.waitForTimeout(400);
   }
   assert.ok(won, "should be winnable by touch");
 });

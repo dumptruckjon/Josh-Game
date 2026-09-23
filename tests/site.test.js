@@ -1002,6 +1002,38 @@ test("guardrail: a round SPEAKS one line — setPrompt carries it, never speak()
   }
 });
 
+test("guardrail: every answer is a CLICK — the one event the hammer's echo guard hears", () => {
+  // framework.js swallows a finger's ECHO (the second tap a four-year-old makes
+  // for every tap he means) in ONE capture-phase `click` listener on the game
+  // screen — see ECHO_MS. That protects every game only while every game
+  // ANSWERS on click: a game that answered on pointerdown or touchstart would
+  // take the echo straight past the guard, and the four rules would be dead
+  // code for it. The one pointer listener a game may carry is the one-shot audio
+  // WARM-UP (iOS will not play until a gesture has resumed the context), which
+  // answers nothing. Derived from the page's own game scripts, so a new games
+  // file is covered the day it is loaded.
+  const games = SCRIPTS.filter((f) => /^scripts\/games-.*\.js$/.test(f));
+  assert.ok(games.length >= 10, `the scan must find the game scripts (saw ${games.length})`);
+  const EVENT = /(?:pointer|touch|mouse)(?:down|up|start|end|move|over|out|enter|leave|cancel)/;
+  const WARM = /^addEventListener\("pointerdown", function warm\(\) \{ if \((?:A && )?A\.unlock\) A\.unlock\(\); \w+\.removeEventListener\("pointerdown", warm\); \}, \{ once: true \}\)/;
+  const bad = [];
+  let warm = 0;
+  for (const f of games) {
+    const src = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    for (const m of src.matchAll(new RegExp(`addEventListener\\(\\s*["'](${EVENT.source})["']`, "g"))) {
+      if (WARM.test(src.slice(m.index))) { warm += 1; continue; }
+      bad.push(`${f}:${src.slice(0, m.index).split("\n").length} listens for "${m[1]}"`);
+    }
+    // el()'s props turn `onpointerdown: fn` into a listener too
+    for (const m of src.matchAll(new RegExp(`\\bon(${EVENT.source})\\s*[:=]`, "g"))) {
+      bad.push(`${f}:${src.slice(0, m.index).split("\n").length} sets on${m[1]}`);
+    }
+  }
+  assert.deepEqual(bad, [],
+    "a game answers on an event the echo guard never sees — answer on `click` (framework.js catches the hammer's echo there):\n" + bad.join("\n"));
+  assert.ok(warm >= 3, `the scan must recognise the audio warm-up listeners it exempts (saw ${warm}) — or it is matching nothing`);
+});
+
 test("guardrail: the every-game harness drives the contract with a DOM click", () => {
   // A coordinate (force) click misses under CPU load when a field reflows mid-tap
   // (big-red-one got stuck). The contract test must dispatch a DOM el.click().

@@ -8962,6 +8962,134 @@ all 240 games, because no call carries that flag any more. An analyzer written
 for one design measures nothing on the next; re-derive it from what reached the
 engine (per turn, from the stub's own record) before believing a zero.
 
+**A DOUBLE-TAP IS A COORDINATE, NOT AN ELEMENT — and driving all 240 games that
+way found the hammer's echo misbehaving in 173 of them.** A four-year-old taps
+twice for every tap he means, ~100-300ms apart, with the finger still where it
+landed (a 70-year-old raised on a mouse double-clicks). So the second tap lands
+on whatever is under the finger THEN: the same button, a new round rebuilt in
+the same spot, or the Again button the win just revealed. Measured with that
+model (second tap 150ms later at the first tap's coordinates), classified by
+what the echo did (a game can show more than one):
+- **136 games answered a round the child had not seen**. Most games rebuild
+  under the finger the instant a round is won, so the echo is a "Try again" on a
+  question nobody asked him — or, one time in N, a free round he never looked
+  at. In the co-op games it answers the OTHER player's turn.
+- **27 re-answered the round he had just won.** Either the game reuses its
+  buttons (Simon Says, Season Windows: the zone under the finger now belongs to
+  the next question), or it shows the answer for a beat before rebuilding and
+  does not lock it (Fair Shares, Quick Peek, Who Hid? — whose finished answer
+  even kept its `data-correct` flag).
+- **21 called a correct step wrong** — a re-tapped done dot in every tracing
+  game, a used plate in Fair Shares ("X has one — someone else's turn!"), a
+  player's own lane in Team Bridge (the echo arrives after the turn has passed
+  to the other player). That also reset the invisible ramp streak, so a
+  double-tapper was quietly held at the easy tier.
+- **4 had a step's echo land on a DIFFERENT live control.** In Team Sound Hunt
+  and Team Treasure a turn passes with no roundWin, so the echo bumped on the
+  next player's field; in Number Builder it pressed the "Next ▶" the step had
+  just revealed, and in I Did It! the button that finishes the certificate.
+**Every test was green**, because every test drove the games with polite single
+taps. The one that double-tapped did it with `el.click(); el.click()` in one
+task, on a hand-written list of 12 games. That hits the same element OBJECT
+twice before anything can rebuild, so it can never see a rebuild under the
+finger. Nobody had modelled a double-tap as a place and a time.
+**The fix is ONE capture-phase `click` listener in `framework.js`**, because the
+framework is the one place that knows a round just ended. All 240 games inherit
+it and no game changed. Four rules, each bounded in time:
+1. **Round over:** a round was just WON, so the board is deaf for `ECHO_MS`
+   (350, the project's existing double-tap constant). Each swallowed tap re-arms
+   it, so a hammer streak ends only when the hand pauses.
+2. **Answer stays won:** the answer that won STAYS won until the next round's
+   prompt is set (at most `FINISHED_MS`, 1500).
+3. **Nothing unseen:** an echo cannot land on an element that was not ON SCREEN
+   when the first tap began — built afterwards, or hidden until then.
+4. **Same thing twice:** an echo of the same element is swallowed, unless that
+   element is still `[data-correct]` (a pump, a coin, a red-red drum — two taps
+   there are two answers).
+
+The rules apply only to a REAL tap (`isTrusted`): a synthetic click is code, a
+demo or a test harness, never a finger. So the every-game harness and the chaos
+test run exactly as before. Toys (`[data-toy]`) are exempt, because their play
+IS rapid tapping. The bar (🏠/👂) is exempt, because navigation is never an echo.
+A swallowed tap does nothing at all: no bump, no "try again", no cue, and —
+since nothing is said — it does not interrupt the new round's spoken question.
+**The first cut of rule 2 was a REGRESSION, and only a negative control on the
+real games found it.** It closed every element on the stage when the round was
+won. Number Builder, Coin Shop, Place Value, Ten Frame and Piggy Bank all reveal
+a hidden "Next ▶" when a round is won, and the stage snapshot included it, so
+Next ignored a deliberate tap for 1.5s. The fixtures could not see it: they were
+built by the person who wrote the rule. What caught it was the post-fix probe's
+DELIBERATE check (after a pause, the next thing to press must get through). Rule
+2 now closes only the answer that won, and only when a recent tap won it — a
+round won by a timer blames nobody. **A guard needs its negative control
+measured on the real population, not just its positive one on fixtures.**
+**Re-driven after the fix with REAL echoes — and the verification needed fixing
+too.** 1240 echoes across all 240 games: 317 landed on something that was not on
+screen when the first tap began (a rebuilt round, or a Next the win revealed),
+and all 317 were swallowed; 0 misbehaved. The 130 that got through were 78
+repeats of a control that was still correct (a pump, a coin) and 52 landings on
+an inert CONTAINER: the control the first tap hit had gone (a popped balloon,
+cleared sand) and the finger was over the field between controls, where nothing
+listens. After a pause, 423 deliberate taps on the next round's answer were made
+and 0 were swallowed.
+**The first version of that verification reported a clean bill that was not.**
+It counted an echo that reached any `[data-correct]` element as a legitimate
+repeat, and a DIFFERENT flagged element satisfies that. I Did It!'s last sticker
+reveals a hidden "I did it!" under the finger with no roundWin; the echo pressed
+it and finished the certificate, and the probe scored it clean. So did the
+guard: rule 3 snapshotted the DOM, and a hidden button is IN the DOM. Rule 3 now
+snapshots what was ON SCREEN (an element with a box), and the probe records
+whether an echo hit the SAME control. The fixture reveals its button through a
+hidden WRAPPER, so "has no box" is tested rather than "carries the attribute". A
+mutation that checks only the element's own `hidden` is red. **A verification is
+only as strict as its definition of legitimate — "reached something correct" was
+satisfied by the wrong thing.** The on-screen snapshot is not free
+(`getClientRects()` on every element, on every tap), so it was measured before
+it was kept: 0.025ms median and 0.57ms worst (Find the Heroes' 262 elements) per
+tap in Chromium.
+**Testing it honestly needed two instruments.**
+- **The first was blind by construction.** The pre-fix probe echoed with a DOM
+  `click()`. That is untrusted, so the guard would ignore it: re-running that
+  probe after the fix would have measured nothing and reported a clean bill. The
+  verification probe echoes with `page.mouse`.
+- **The gaps had to be made exact.** A 150ms echo on a loaded CI runner can
+  arrive after 350ms and pass for the wrong reason, so both new tests run on a
+  PAUSED `page.clock`, which fakes `performance.now()` too. "150ms later" then
+  means exactly that in the page.
+- **The fixture test** builds one toy game per rule, each constructed so that
+  ONLY that rule can catch its case: the same button correct twice, so rule 4
+  exempts it and only rule 1 stands; a stale flag re-tapped at 500ms, past the
+  window, so only rule 2 stands; an unsignaled rebuild; a naive done-dot. It
+  also has a fixture per exemption. Each of the **19 mutations** of the guard
+  turns exactly one check red. The on-screen rule 3 made one older check
+  redundant: win()'s window had been the only thing stopping a win's echo on the
+  Again button it reveals, and now rule 3 catches that too (Again was not on
+  screen). So a winning answer that STAYS flagged was added, where only win()'s
+  window can stop the echo.
+- **The population test** echoes the first won round and the first accepted step
+  of EVERY game in the registry. After a pause it taps the next round's answer
+  and asserts that tap got through.
+- **A structural law pins the other half:** every game must ANSWER on `click`,
+  the one event the guard hears. The only pointer listener a game may carry is
+  the one-shot audio warm-up.
+
+**Two tests hammered REAL taps and had to learn to pause.** Mobile's "playable
+by touch" tapped the next round's answer within milliseconds, and the re-arm
+kept it deaf. The every-game walk pressed Again within 350ms of a win. Both now
+pause the way a child who looked at the screen would. That is the rule working:
+no person can aim at a thing that appeared 50ms ago.
+**Method notes, all recorded traps.**
+- **`pkill -f` matched its own command line again** and killed the shell that
+  ran it (exit 144), which this file already warns about. Kill by PID from `ps
+  -eo pid,comm,args | awk '$2=="node" && /probe/'`.
+- **A probe that touches arbitrary DOM must survive SVG:** an `SVGElement` has
+  no `.click()`, and its `className` is an `SVGAnimatedString` with no
+  `.trim()`. Each crashed a full run.
+- **A 500ms re-tap probe stalled for minutes** on the echo games. A re-tap at
+  500ms is judged as the next step, wipes the echo, and the demo replays for
+  ever. Slow re-taps of an accepted step are the game's judgement, not an echo,
+  so the guard deliberately stops at 350ms.
+
 ---
 
 ## Repository Structure
@@ -9049,7 +9177,10 @@ tooling.
 │   ├── stickers.js             # window.JoshProgress (THE owner of josh-won-* flags) + window.JoshStickers.artFor (deterministic sticker per game)
 │   ├── buddy.js                # window.JoshBuddy (THE owner of josh-buddy) — pick-a-companion roster + home companion + themed win art
 │   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT;
-│                               #   `setPrompt(caption, icons, spoken)` — `spoken` is what the voice and 👂 say, so a game says ONE line
+│                               #   `setPrompt(caption, icons, spoken)` — `spoken` is what the voice and 👂 say, so a game says ONE line.
+│                               #   Also the ONE guard against THE HAMMER'S ECHO: a capture-phase `click` listener swallows the second
+│                               #   tap a child makes for every tap he means (four time-bounded rules, real taps only, toys exempt),
+│                               #   so every game must ANSWER on `click` — the one event that guard hears
 │   ├── games-toys.js           # Self-registering games: gentle cause→effect toys
 │   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
 │   ├── games-literacy.js       # Self-registering games: first sound, rhyme, build-a-word, sight word
@@ -13783,6 +13914,9 @@ window.JoshFramework.register({
     //  • call api.win() when finished (sets screen.dataset.won); api.roundWin() per round
     //  • api.tryAgain(el) for a gentle no-fail wrong tap
     //  • pure toys (no win): mark [data-toy] and call api.tickPlay() each interaction
+    // ANSWER ON `click` (never pointerdown/touchstart): framework.js swallows the
+    // hammer's echo — the second tap a child makes for every tap he means — in a
+    // click listener, and a guardrail fails a game that answers on anything else.
   },
 });
 ```

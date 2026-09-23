@@ -100,6 +100,75 @@
 
     screen.append(bar, prompt, stage, foot);
 
+    // THE HAMMER'S ECHO. MEASURED 2026-09 by driving all 240 games with a second
+    // tap ~150ms after each correct one, landing wherever the finger still was:
+    // 173 games answered a round the child had not seen yet (a "Try again" on a
+    // question nobody had asked him, or a free round he never looked at),
+    // re-answered the round he had just won, or said "try again" to a correct
+    // answer. A four-year-old taps twice for every tap he means — and a
+    // 70-year-old raised on a mouse double-clicks — and the framework is the ONE
+    // place that knows a round just ended, so the echo is caught here, for every
+    // game at once. Four rules, each bounded in time, each for a REAL tap only
+    // (`isTrusted`: a synthetic click is code — a demo, a test harness — never a
+    // finger) and never on a toy ([data-toy], whose play IS rapid tapping):
+    //   1. a round was just WON → the board is deaf for ECHO_MS, and each
+    //      swallowed tap re-arms it, so a hammer streak ends when the hand pauses;
+    //   2. the answer that won the round STAYS won → a tap on the very thing
+    //      that won it is ignored until the next round's prompt is set, at most
+    //      FINISHED_MS (a game that shows the answer for a beat before it
+    //      rebuilds cannot be answered twice). Only that answer: a control the
+    //      win REVEALS (a "Next ▶") is the next thing to press, not the old
+    //      round — the first cut closed the whole stage and made Number
+    //      Builder's Next deaf for 1.5s;
+    //   3. an echo cannot land on something NEW → nobody can aim at a thing
+    //      that was not ON SCREEN when the first tap began. On screen, not merely
+    //      in the DOM: "I Did It!"'s last sticker REVEALS a hidden "I did it!"
+    //      under the finger with no roundWin, and a DOM-presence snapshot let
+    //      the echo press it and finish the certificate unseen;
+    //   4. an echo of the SAME thing is not a second answer → it is swallowed,
+    //      unless that thing is still the correct next tap (a pump, a coin, a
+    //      red-red drum pattern), which the game flags with [data-correct].
+    // A swallowed tap does nothing at all: no bump, no "try again", no cue — and
+    // it does not interrupt the new round's question, because nothing is said.
+    const ECHO_MS = 350, FINISHED_MS = 1500;
+    const clock = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
+    const tapKey = (t) => (t.closest && t.closest("button, [role=button], a, [data-correct], [data-toy]")) || t;
+    let echoUntil = 0, finished = null, finishedUntil = 0, lastTap = null;
+    function roundOver() {
+      const at = clock();
+      echoUntil = at + ECHO_MS;
+      // the tap that won it — unless the win came from a timer long after any tap
+      finished = lastTap && at - lastTap.at < FINISHED_MS ? lastTap.key : null;
+      finishedUntil = at + FINISHED_MS;
+    }
+    screen.addEventListener("click", (e) => {
+      const t = e.target, at = clock();
+      if (!t || !t.closest) return;
+      const key = tapKey(t);
+      if (e.isTrusted && (stage.contains(t) || foot.contains(t)) && !t.closest("[data-toy]")) {
+        const echo = !!lastTap && at - lastTap.at < ECHO_MS;
+        const deaf = at < echoUntil                                          // rule 1
+          || (!!finished && at < finishedUntil && key === finished)         // rule 2
+          || (echo && !lastTap.known.has(key))                              // rule 3
+          || (echo && key === lastTap.key && !t.closest("[data-correct]")); // rule 4
+        if (deaf) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          if (at < echoUntil) echoUntil = at + ECHO_MS;
+          if (lastTap) lastTap.at = at; // the streak goes on; what it echoes does not change
+          return;
+        }
+      }
+      lastTap = { key, at, known: onScreen() };
+    }, true);
+    // what the child could SEE when he tapped (rule 3): an element with no box
+    // (hidden, or inside something hidden) is as new as one built afterwards
+    function onScreen() {
+      const seen = new WeakSet();
+      for (const el of screen.querySelectorAll("*")) if (el.getClientRects().length) seen.add(el);
+      return seen;
+    }
+
     let currentPrompt = "";
     // AUDIT: route() only HIDES screens, so a navigated-away game's timers kept
     // speaking over the new screen (isConnected guards never fire — the DOM
@@ -154,6 +223,7 @@
       // never repeat, and once every line in a turn became audible it meant the
       // question twice in two wordings.
       setPrompt(text, icons, spoken) {
+        finished = null; // a new round has begun, so the finished one is gone (echo rule 2)
         currentPrompt = spoken || text || "";
         promptText.textContent = text || "";
         iconsEl.textContent = (icons || []).join(" ");
@@ -188,6 +258,7 @@
       },
       // A correct round in a multi-round game (celebrate, keep going).
       roundWin(opts) {
+        roundOver(); // the echo of the tap that won it must not answer again
         cue(() => FX.confetti({ colors: C.CONFETTI_COLORS, count: 70 }));
         cue(() => A.goodCue && A.goodCue());
         reactMascot("cheer");
@@ -205,6 +276,7 @@
         // the DOM), which double-fired the celebration — two buddy pops, double
         // jingle, double confetti. Guard once HERE so every game inherits it.
         if (screen.dataset.won === "1") return;
+        roundOver(); // …nor land on the Again button it reveals
         screen.dataset.won = "1";
         screen.classList.add("is-won");
         // The win itself is EARNED and still recorded below even if the player
@@ -276,6 +348,7 @@
 
     function start() {
       clearTimers(); // stale api.later timers from the previous run die here
+      echoUntil = 0; finished = null; // a fresh game has no finished round to guard
       screen.classList.remove("is-won");
       delete screen.dataset.won;
       firstTryStreak = 0; missedSinceWin = false; // fresh game → fresh difficulty

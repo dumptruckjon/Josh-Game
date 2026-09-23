@@ -299,9 +299,13 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
       assert.deepEqual(heard.twoQ, [],
         `game "${id}" asks TWO questions in one turn — a round says ONE line: put it in setPrompt's 3rd argument (spoken), not a say() after speak(): ${heard.twoQ.join(" | ")}`);
 
-      // Winning reveals a working "Again" button that resets the won state.
+      // Winning reveals a working "Again" button that resets the won state. It
+      // is pressed like a person would: not inside the 350ms after the win, when
+      // framework.js treats a real tap on the board as the ECHO of the winning
+      // one (a win's echo must not throw the celebration away).
       const again = screen.locator(".game__again");
       assert.ok(await again.isVisible(), `game "${id}" should show Again after winning`);
+      await page.waitForTimeout(400);
       await again.click();
       assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", `Again should reset "${id}"`);
     }
@@ -1197,6 +1201,461 @@ test("toddler chaos guardrail: hammer double-taps can't double-celebrate, soft-l
     }
     assert.ok(won, `game "${id}" must still be winnable when every tap is a double-tap`);
     assert.ok(pops <= 1, `game "${id}" must celebrate ONCE on a doubled final tap, got ${pops} pops`);
+  }
+});
+
+test("the hammer's ECHO: each rule catches the case only it can see, and a deliberate tap always gets through", async () => {
+  // framework.js swallows a finger's ECHO — the second tap a four-year-old
+  // makes for every tap he means — with four rules (see the note beside
+  // ECHO_MS). Each rule gets a tiny fixture game built so that ONLY that rule
+  // can catch its case, and each exemption gets one that must get THROUGH, so
+  // deleting any one clause turns exactly one check red.
+  //
+  // The gaps are the claim, so they must be exact: a paused fake clock
+  // (performance.now is faked too) makes "150ms later" mean 150ms in the page,
+  // where a real clock on a loaded CI runner can stretch a 150ms echo past the
+  // 350ms window and pass for the wrong reason. The taps are REAL (page.mouse),
+  // because only a trusted tap can be an echo.
+  const ctx = await browser.newContext({ viewport: { width: 768, height: 1024 } });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on("pageerror", (e) => errs.push(String(e)));
+  try {
+    await p.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await p.goto(baseURL, { waitUntil: "load" });
+    await p.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await p.evaluate(() => {
+      const F = window.JoshFramework, A = window.JoshAudio;
+      window.__log = [];
+      for (const k of ["goodCue", "winCue", "bumpCue", "say"]) {
+        const real = A[k];
+        A[k] = function () { window.__log.push(k); return real && real.apply(this, arguments); };
+      }
+      const mk = (id, start) => document.getElementById("screens")
+        .appendChild(F.buildGameScreen({ id, icon: "🧪", title: id, skill: "echo fixture", start }));
+      const btn = (api, label, dataset) => {
+        const b = api.el("button", { class: "choice tap", type: "button", text: label, aria: { label }, dataset: dataset || {} });
+        api.stage.appendChild(b);
+        return b;
+      };
+      // RULE 1 — the SAME button is the answer round after round and the next
+      // prompt is set at once: rule 2 is already cleared, rule 3 knows the
+      // button, rule 4 exempts it (it IS the correct next tap). Only the
+      // round-over window stands between the echo and a second round.
+      mk("echo-r1", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => { window.__log.push("answer"); api.roundWin(); api.setPrompt("again", []); });
+        api.setPrompt("tap A", []);
+      });
+      // RULE 2 — a round that shows its answer for a beat: the flag stays on the
+      // finished button (the stale-flag shape) and the next round is presented
+      // 800ms later. A re-tap at 500ms is no echo (past the window) — only the
+      // finished-round rule can hold it.
+      mk("echo-r2", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => {
+          window.__log.push("answer");
+          api.roundWin();
+          api.later(() => api.setPrompt("next", []), 800);
+        });
+        api.setPrompt("tap A", []);
+      });
+      // RULE 2 is only the ANSWER that won — a control the win REVEALS (Number
+      // Builder's "Next ▶") is the next thing to press. The first cut closed the
+      // whole stage and made Next deaf for 1.5s; the real-game probe caught it.
+      mk("echo-next", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        const next = api.el("button", { class: "btn-big echo-next__go", type: "button", text: "Next", hidden: "" });
+        api.stage.appendChild(next);
+        a.addEventListener("click", () => { window.__log.push("answer"); api.roundWin(); next.hidden = false; next.dataset.correct = "1"; });
+        next.addEventListener("click", () => { window.__log.push("next"); api.setPrompt("round 2", []); });
+        api.setPrompt("tap A", []);
+      });
+      // RULE 2 needs a RECENT tap to blame: a round won by a timer long after any
+      // tap (a demo, a toy's auto-finish) must not deafen whatever was tapped last.
+      mk("echo-timer", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => window.__log.push("tap"));
+        api.later(() => api.roundWin(), 2000);
+        api.setPrompt("wait", []);
+      });
+      // RULE 2's CAP — a game that never sets its next prompt: the finished
+      // round must not stay deaf for ever.
+      mk("echo-cap", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => { window.__log.push("answer"); api.roundWin(); });
+        api.setPrompt("tap A", []);
+      });
+      // RULE 3 — a turn that rebuilds WITHOUT a roundWin (the Team Sound Hunt
+      // shape): a brand-new button lands under the finger. No window is open,
+      // and it is a different element, so only "an echo cannot land on
+      // something new" can catch it.
+      mk("echo-r3", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => {
+          window.__log.push("step");
+          a.remove();
+          const b = btn(api, "B");
+          b.addEventListener("click", () => api.tryAgain(b));
+        });
+        api.setPrompt("tap A", []);
+      });
+      // RULE 3 sees what was ON SCREEN, not merely in the DOM — a step that
+      // hides its button and REVEALS one that was waiting hidden, with no
+      // roundWin (the "I Did It!" shape: the last sticker reveals "I did it!"
+      // under the finger). The revealed button EXISTED when the first tap
+      // began, so a DOM-presence snapshot calls it known and the echo finishes
+      // the game. B is hidden through its WRAPPER, so "has no box" is what is
+      // tested, not "carries the hidden attribute" (and .choice sets display,
+      // so [hidden] on a .choice would not hide it at all).
+      mk("echo-reveal", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        const b = api.el("button", { class: "btn-big echo-reveal__b", type: "button", text: "B" });
+        const wrap = api.el("div", { class: "echo-reveal__wrap", hidden: "" }, [b]);
+        api.stage.appendChild(wrap);
+        a.addEventListener("click", () => {
+          window.__log.push("step");
+          a.style.display = "none"; delete a.dataset.correct;
+          wrap.hidden = false; b.dataset.correct = "1";
+        });
+        b.addEventListener("click", () => { window.__log.push("b"); api.win(); });
+        api.setPrompt("tap A", []);
+      });
+      // RULE 4 — a step that leaves its button in place, no longer correct, with
+      // a naive wrong branch (the Little Letter Maker shape: a re-tapped done
+      // dot said "try again").
+      mk("echo-r4", (api) => {
+        const a = btn(api, "A", { correct: "1" }), b = btn(api, "B");
+        let done = false;
+        a.addEventListener("click", () => {
+          if (done) { api.tryAgain(a); return; }
+          done = true; delete a.dataset.correct; b.dataset.correct = "1";
+          window.__log.push("step");
+        });
+        b.addEventListener("click", () => window.__log.push("b"));
+        api.setPrompt("tap A then B", []);
+      });
+      // EXEMPTION — a pump: the same button stays the correct next tap, so a
+      // fast second tap is a real second pump.
+      mk("echo-pump", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => window.__log.push("pump"));
+        api.setPrompt("pump", []);
+      });
+      // EXEMPTION — a toy: its play IS rapid tapping, even the instant it wins.
+      mk("echo-toy", (api) => {
+        const t = btn(api, "T", { toy: "1" });
+        let n = 0;
+        t.addEventListener("click", () => { n += 1; window.__log.push("toy"); if (n === 1) api.win(); });
+        api.setPrompt("play", []);
+      });
+      // WIN — the answer that wins the GAME keeps its flag (the stale-flag
+      // shape), so rule 4 exempts its echo and only the window win() opens can
+      // stop the handler running again. AGAIN — the one foot control: a win's
+      // echo must not restart the game.
+      mk("echo-win", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => { window.__log.push("answer"); api.win(); });
+        api.setPrompt("tap A", []);
+      });
+    });
+
+    const open = async (id) => {
+      await p.evaluate((i) => { location.hash = "#" + i; }, id);
+      await p.locator("#screen-" + id).waitFor({ state: "visible" });
+      await p.evaluate(() => window.__log.splice(0)); // opening speaks the prompt
+    };
+    const at = (sel) => p.evaluate((s) => {
+      const r = document.querySelector(s).getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    }, sel);
+    const tap = ([x, y]) => p.mouse.click(x, y);
+    const wait = (ms) => p.clock.runFor(ms);
+    const log = () => p.evaluate(() => window.__log.splice(0));
+    // the answer, then its echo 150ms later
+    const echo = async (xy) => { await tap(xy); const first = await log(); await wait(150); await tap(xy); return { first, echo: await log() }; };
+
+    // RULE 1
+    await open("echo-r1");
+    let A = await at("#screen-echo-r1 .choice");
+    let r = await echo(A);
+    assert.deepEqual(r.first, ["answer", "goodCue"], "fixture: the first tap answers the round");
+    assert.deepEqual(r.echo, [],
+      "rule 1: an echo 150ms after a round is WON must be swallowed — here the same button is the next round's answer, so only the round-over window can stop it being answered twice");
+    await wait(250); await tap(A); // 400ms after the answer: past its window, 250 after the swallowed echo
+    assert.deepEqual(await log(), [],
+      "rule 1: a swallowed echo RE-ARMS the window, so a hammer streak ends only when the hand pauses");
+    await wait(500); await tap(A);
+    assert.deepEqual(await log(), ["answer", "goodCue"], "a deliberate tap after the pause must get through");
+    // a synthetic click is code, never a finger
+    await wait(10);
+    await p.evaluate(() => document.querySelector("#screen-echo-r1 .choice").click());
+    assert.deepEqual(await log(), ["answer", "goodCue"],
+      "a SYNTHETIC click must never be swallowed (isTrusted) — it is a demo or a test harness, not an echo");
+    // the bar is never swallowed: 🏠 and 👂 always answer
+    await wait(400); await tap(A); await log(); await wait(100);
+    await tap(await at("#screen-echo-r1 .game__hear"));
+    assert.deepEqual(await log(), ["say"], "👂 must answer even inside the window — only the board can echo");
+
+    // RULE 2 (+ setPrompt reopens it)
+    await open("echo-r2");
+    A = await at("#screen-echo-r2 .choice");
+    await tap(A); assert.deepEqual(await log(), ["answer", "goodCue"], "fixture: the first tap answers the round");
+    await wait(500); await tap(A);
+    assert.deepEqual(await log(), [],
+      "rule 2: a re-tap of the FINISHED round (500ms: past the echo window, before the next prompt) must be swallowed, or a round that shows its answer for a beat is answered twice");
+    await wait(500); await tap(A); // 1000ms: the next round was presented at 800
+    assert.deepEqual(await log(), ["answer", "goodCue"],
+      "rule 2 ends when the next round's prompt is set — the reused button must answer again");
+
+    // RULE 2 does not close what the win reveals
+    await open("echo-next");
+    await tap(await at("#screen-echo-next .choice"));
+    assert.deepEqual(await log(), ["answer", "goodCue"], "fixture: the first tap answers the round");
+    await wait(500);
+    await tap(await at("#screen-echo-next .echo-next__go"));
+    assert.deepEqual(await log(), ["next"],
+      "rule 2 closes only the ANSWER that won: the Next button the win revealed must take a deliberate tap at once, not after FINISHED_MS");
+
+    // RULE 2 blames only a recent tap
+    await open("echo-timer");
+    A = await at("#screen-echo-timer .choice");
+    await tap(A); await log();
+    await wait(2000); // the timer wins the round, 2000ms after the last tap
+    assert.deepEqual(await log(), ["goodCue"], "fixture: the timer won the round");
+    await wait(400); await tap(A);
+    assert.deepEqual(await log(), ["tap"],
+      "rule 2 must not blame a tap made long before a TIMER won the round — that button was not the answer");
+
+    // RULE 2's cap
+    await open("echo-cap");
+    A = await at("#screen-echo-cap .choice");
+    await tap(A); await log();
+    await wait(700); await tap(A);
+    assert.deepEqual(await log(), [], "rule 2 holds a finished round with no next prompt (700ms)");
+    await wait(900); await tap(A); // 1600ms
+    assert.deepEqual(await log(), ["answer", "goodCue"],
+      "rule 2 is CAPPED (FINISHED_MS): a game that never sets its next prompt must not stay deaf for ever");
+
+    // RULE 3
+    await open("echo-r3");
+    A = await at("#screen-echo-r3 .choice");
+    await tap(A);
+    assert.deepEqual(await log(), ["step"], "fixture: the first tap is a step that rebuilds under the finger");
+    await wait(150);
+    assert.equal(await p.evaluate(([x, y]) => (document.elementFromPoint(x, y).closest(".choice") || {}).textContent, A), "B",
+      "fixture: the NEW button must be under the finger, or the echo lands on nothing and this passes vacuously");
+    await tap(A);
+    assert.deepEqual(await log(), [],
+      "rule 3: an echo landing on a button that did not EXIST when the first tap began must be swallowed — nobody can aim at it (here it would say 'try again' on a turn nobody saw)");
+
+    // RULE 3 — hidden then is as new as built since
+    await open("echo-reveal");
+    A = await at("#screen-echo-reveal .choice");
+    await tap(A);
+    assert.deepEqual(await log(), ["step"], "fixture: the first tap is a step that reveals a hidden button");
+    await wait(150);
+    assert.equal(await p.evaluate(([x, y]) => (document.elementFromPoint(x, y).closest("button") || {}).textContent, A), "B",
+      "fixture: the REVEALED button must be under the finger, or the echo lands on nothing and this passes vacuously");
+    assert.equal(await p.evaluate(() => document.querySelector("#screen-echo-reveal .echo-reveal__b").isConnected), true,
+      "fixture: the revealed button must have EXISTED all along — that is the case a DOM-presence snapshot calls known");
+    await tap(A);
+    assert.deepEqual(await log(), [],
+      "rule 3: an echo landing on a button that was HIDDEN when the first tap began must be swallowed — it was not on screen, so nobody aimed at it (here it would finish the game unseen)");
+    await wait(500); await tap(A);
+    assert.deepEqual((await log()).filter((x) => x === "b"), ["b"], "a deliberate tap on the revealed button after the pause must get through");
+
+    // RULE 4
+    await open("echo-r4");
+    r = await echo(await at("#screen-echo-r4 .choice"));
+    assert.deepEqual(r.first, ["step"], "fixture: the first tap is an accepted step");
+    assert.deepEqual(r.echo, [],
+      "rule 4: an echo of the SAME button that is no longer the correct tap must be swallowed — a hammered correct answer is not a wrong one");
+    await wait(250); await tap(await at("#screen-echo-r4 .choice"));
+    assert.deepEqual(await log(), [],
+      "rule 4: a hammer STREAK stays swallowed — each swallowed echo refreshes the last tap, so 400ms after the answer (250 after its echo) is still the same hand");
+
+    // EXEMPTION: the pump
+    await open("echo-pump");
+    r = await echo(await at("#screen-echo-pump .choice"));
+    assert.deepEqual([...r.first, ...r.echo], ["pump", "pump"],
+      "a button that is STILL the correct next tap ([data-correct]) must take a fast second tap — two pumps are two pumps");
+
+    // EXEMPTION: the toy, even the instant it wins
+    await open("echo-toy");
+    r = await echo(await at("#screen-echo-toy .choice"));
+    assert.deepEqual(r.first.filter((x) => x === "toy"), ["toy"], "fixture: the toy plays");
+    assert.deepEqual(r.echo.filter((x) => x === "toy"), ["toy"],
+      "a TOY ([data-toy]) is never deafened — its play is rapid tapping, even the instant it wins");
+
+    // WIN: the echo of the answer that won the game
+    await open("echo-win");
+    const W = await at("#screen-echo-win .choice");
+    await tap(W);
+    assert.equal(await p.evaluate(() => document.getElementById("screen-echo-win").dataset.won), "1", "fixture: the game is won");
+    await log();
+    await wait(150);
+    assert.deepEqual(await p.evaluate(([x, y]) => {
+      const c = document.elementFromPoint(x, y).closest(".choice");
+      return [!!c, !!(c && c.dataset.correct)];
+    }, W), [true, true],
+      "fixture: the winning answer must still be under the finger AND still flagged, or rule 4 would catch the echo and this would not test win()'s window");
+    await tap(W);
+    assert.deepEqual((await log()).filter((x) => x === "answer"), [],
+      "a win's ECHO on the very answer that won must be swallowed — it is still flagged, so rule 4 exempts it and only the window win() opens can stop the game's handler running again");
+    // AGAIN: nor may it land on the Again button the win revealed
+    const again = await at("#screen-echo-win .game__again");
+    await wait(150); await tap(again);
+    assert.equal(await p.evaluate(() => document.getElementById("screen-echo-win").dataset.won), "1",
+      "a win's ECHO must not press the Again button it just revealed — that throws the celebration away");
+    await wait(500); await tap(again);
+    assert.equal(await p.evaluate(() => document.getElementById("screen-echo-win").dataset.won || ""), "",
+      "a deliberate tap on Again after the pause must restart the game");
+
+    assert.deepEqual(errs, [], "no page errors while echoing");
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("EVERY game ignores the hammer's echo, and still takes a deliberate tap", async () => {
+  // The fixture test above proves each rule on a game built for it; this proves
+  // them on the REAL ones, derived from the registry so a new game is checked the
+  // day it lands. MEASURED 2026-09 before the guard: a second tap 150ms after a
+  // correct one misbehaved in 173 of 240 games. Per game:
+  //   • the first round WON by a tap is echoed 150ms later, exactly where the
+  //     finger was (page.mouse — only a trusted tap can be an echo). The echo
+  //     must be swallowed and do NOTHING: no second round, no "try again", no
+  //     restart;
+  //   • the first accepted STEP that does not win a round gets the same echo and
+  //     must not be called wrong (a repeat that is still the correct next tap —
+  //     a pump, a coin — may count, because two taps there are two answers);
+  //   • after the echo, the next round's answer, tapped after a pause like a
+  //     child who looked at it, must get THROUGH — the guard must never leave a
+  //     game deaf.
+  // A paused fake clock keeps every gap exact on a loaded runner (see the
+  // fixture test); the game is driven through the [data-correct] contract.
+  const ctx = await browser.newContext({ viewport: { width: 768, height: 1024 } });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on("pageerror", (e) => errs.push(String(e)));
+  try {
+    await p.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await p.goto(baseURL, { waitUntil: "load" });
+    await p.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await p.evaluate(() => {
+      const A = window.JoshAudio;
+      window.__n = { good: 0, win: 0, bump: 0, reach: 0 };
+      for (const [k, c] of [["goodCue", "good"], ["winCue", "win"], ["bumpCue", "bump"]]) {
+        const real = A[k];
+        A[k] = function () { window.__n[c]++; return real && real.apply(this, arguments); };
+      }
+    });
+    const ids = await p.evaluate(() => (window.JoshGames || []).map((g) => g.id));
+    assert.ok(ids.length >= 200, `the registry must be walked (saw ${ids.length})`);
+    const counts = () => p.evaluate(() => Object.assign({}, window.__n));
+    const bad = [];
+    let echoed = 0, stepped = 0, deliberate = 0;
+    for (const id of ids) {
+      await p.evaluate((i) => { location.hash = "#" + i; }, id);
+      const screen = p.locator(`#screen-${id}`);
+      await screen.waitFor({ state: "visible" });
+      await screen.evaluate((el) => {
+        window.__done = null;
+        if (el.__reachHook) return;
+        el.__reachHook = true;
+        // a capture listener INSIDE the screen runs after the screen's own
+        // capture guard, so it counts only a tap the guard let through
+        for (const s of [".game__stage", ".game__foot"]) {
+          el.querySelector(s).addEventListener("click", () => { window.__n.reach++; }, true);
+        }
+      });
+      await p.clock.runFor(500); // nothing below is an echo of the opening
+      let echo = false, step = false, delib = false, waited = 0;
+      for (let i = 0; i < 300 && !(echo && step && delib); i++) {
+        if (echo && !delib) {
+          // the NEXT round's answer, after a pause: never the answer that just won
+          await p.clock.runFor(450);
+          const t = await screen.evaluate((el) => {
+            if (el.dataset.won === "1") return { won: true };
+            const d = window.__done;
+            const n = [...el.querySelectorAll('[data-correct="1"]')]
+              .find((x) => !(d && (x === d || x.contains(d) || d.contains(x))));
+            if (!n) return { none: true };
+            n.scrollIntoView({ block: "center" });
+            const r = n.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+            const u = document.elementFromPoint(x, y);
+            return { x, y, ok: !!u && (u === n || n.contains(u)), label: String(n.getAttribute("aria-label") || n.textContent || "").trim().slice(0, 30) };
+          });
+          if (t.won) { delib = true; continue; } // the echoed round was the last one
+          if (t.none) {
+            waited += 450;
+            // a reused answer: the next round has had every chance to begin
+            if (waited > 1600) await screen.evaluate(() => { window.__done = null; });
+            continue;
+          }
+          delib = true;
+          if (!t.ok) continue;
+          const before = await counts();
+          await p.mouse.click(t.x, t.y);
+          const after = await counts();
+          deliberate += 1;
+          if (after.reach === before.reach) bad.push(`${id}: a deliberate tap on the next round's answer ("${t.label}") was SWALLOWED — the guard made the game deaf`);
+          await p.clock.runFor(450);
+          continue;
+        }
+        const r = await screen.evaluate((el) => {
+          if (el.dataset.won === "1") return { won: true };
+          let t = el.querySelector('[data-correct="1"]');
+          const toy = !t;
+          if (!t) t = el.querySelector("[data-toy]");
+          if (!t) return { none: true };
+          if (toy) { t.click(); return { toy: true }; }
+          t.scrollIntoView({ block: "center" });
+          const rc = t.getBoundingClientRect(), x = rc.left + rc.width / 2, y = rc.top + rc.height / 2;
+          const u = document.elementFromPoint(x, y);
+          const n = window.__n, before = n.good + n.win;
+          t.click();
+          const won1 = n.good + n.win > before;
+          if (won1) window.__done = t;
+          return { x, y, won1, ok: !!u && (u === t || t.contains(u)), label: String(t.getAttribute("aria-label") || t.textContent || "").trim().slice(0, 30) };
+        });
+        if (r.won) break;
+        if (r.none || r.toy) { await p.clock.runFor(50); continue; }
+        if (!r.ok || (r.won1 ? echo : step)) { await p.clock.runFor(r.won1 ? 450 : 50); continue; }
+        await p.clock.runFor(150);
+        const pre = await screen.evaluate((el, [x, y]) => {
+          const h = document.elementFromPoint(x, y);
+          const onBoard = !!h && el.contains(h) && !el.querySelector(".game__bar").contains(h) && !h.closest("[data-toy]");
+          return { onBoard, flagged: !!(h && h.closest('[data-correct="1"]')), n: Object.assign({}, window.__n) };
+        }, [r.x, r.y]);
+        if (!pre.onBoard) { await p.clock.runFor(450); continue; }
+        await p.mouse.click(r.x, r.y);
+        const post = await counts(), b = pre.n;
+        const through = post.reach > b.reach, again = post.good + post.win > b.good + b.win, called = post.bump > b.bump;
+        if (r.won1) {
+          echo = true; echoed += 1;
+          if (through || again || called) {
+            bad.push(`${id}: the echo of the tap that WON a round ("${r.label}") ${[through && "got through the guard", again && "answered again", called && "was called wrong"].filter(Boolean).join(", ")}`);
+          }
+        } else {
+          step = true; stepped += 1;
+          if (called || (again && !pre.flagged)) {
+            bad.push(`${id}: the echo of an accepted step ("${r.label}") ${called ? "was called wrong" : "answered something that was not the next tap"}`);
+          }
+        }
+        await p.clock.runFor(450);
+      }
+    }
+    assert.deepEqual(bad, [], "the hammer's echo must be harmless in every game, and a deliberate tap must always get through:\n" + bad.join("\n"));
+    // A walk that echoed nothing proves nothing: the floors sit well under what
+    // the shipped 240 measure, and fail if the driving stops reaching the board.
+    assert.ok(echoed >= 150, `only ${echoed} games had the echo of a WINNING tap checked — the walk is not reaching the board`);
+    assert.ok(deliberate >= 100, `only ${deliberate} deliberate taps were checked`);
+    assert.ok(stepped >= 20, `only ${stepped} games had the echo of an accepted STEP checked`);
+    assert.deepEqual(errs, [], "no page errors while echoing");
+  } finally {
+    await ctx.close();
   }
 });
 
