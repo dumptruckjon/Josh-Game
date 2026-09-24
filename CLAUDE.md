@@ -22,6 +22,33 @@ preschooler.
 > the *"what to build & how hard"* companion to this file's *"how to build & ship."* Keep it PII-clean —
 > first names only (see the privacy note inside).
 
+## 🎯 CURRENT FOCUS (owner, 2026-09-24) — read this before starting ANY work
+
+Until the owner says otherwise:
+- **Word Cards only** (`wordcards.html`: the English deck, 中文, 写字, 配对 and
+  👂 Hear it, find it). Leave Josh's other games, 华丽's world and Fort Josh
+  alone; the owner said to ignore them "for now".
+- **Work through the owner's picks, one at a time.** After each one, send a
+  short plain summary (what changed, and whether it is live), then STOP. Do
+  nothing they did not pick. While this focus stands it takes precedence over
+  RULE 0's "pick the next one and do it". Every other rule still applies in
+  full: ship to `main`, test, verify live, the link in every reply, the touch
+  laws and the guardrails.
+- **Plain, readable updates.** A few short lines, not a long report.
+- **Parked: two known bugs, found and NOT fixed. Do not start them unless the
+  owner asks.** Both are in Robot Talk (`scripts/games-literacy.js`, `play()`):
+  1. **Its replay can say the NEXT round's answer.** `play()` sounds a letter
+     every 520ms and says the word 260ms after the last one (1300ms for a
+     three-letter word), reading `cur.word.word` at THAT moment. A correct tap
+     calls `play()` and then `api.nextRound(newRound, 900)`, so by 1300ms
+     `cur` is the new round and the robot says the new round's word. Its
+     timers also call `A.say`/`A.tone` directly, so they can still sound after
+     he has left the screen. (Six other timer sites in the game files make
+     sound directly too; re-derive that list, because line numbers move.)
+  2. **It says letter NAMES ("see-ay-tee"), not letter SOUNDS ("c-a-t").**
+     `A.say(ch)` speaks a bare letter, and a voice reads a bare letter as its
+     name. That is wrong for an oral-blending game.
+
 ---
 
 ## ⚠️ PROJECT RULES — NON-NEGOTIABLE
