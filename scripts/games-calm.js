@@ -755,7 +755,7 @@
               : "Yes — " + r.story.who + " feels " + ch.name + ". Let's take a big breath together. Breathe in... and out. That helps!";
             round += 1;
             if (round >= ROUNDS) api.win({ say: helped + " You're so good at feelings!" });
-            else { api.roundWin({ say: helped }); setTimeout(() => { if (chips.isConnected) newRound(); }, 700); }
+            else { api.roundWin({ say: helped }); api.nextRound(newRound, 700); }
           });
           chips.appendChild(b);
         });
@@ -801,7 +801,7 @@
             setTimeout(() => heart.remove(), 1100);
             round += 1;
             if (round >= ROUNDS) api.win({ say: opt.name + " — that's so kind! You're a wonderful helper!" });
-            else { api.roundWin({ say: opt.name + " — that's so kind!" }); setTimeout(() => { if (chips.isConnected) newRound(); }, 700); }
+            else { api.roundWin({ say: opt.name + " — that's so kind!" }); api.nextRound(newRound, 700); }
           });
           chips.appendChild(b);
         });
@@ -1438,7 +1438,7 @@
           if (round >= ROUNDS) { api.win({ say: "You balanced the scale together! Even and fair!" }); return; }
           api.roundWin();
           turn = turn === 0 ? 1 : 0;
-          setTimeout(() => { if (scale.isConnected) newRound(); }, 700);
+          api.nextRound(newRound, 700);
           return;
         }
         turn = turn === 0 ? 1 : 0;
@@ -1474,7 +1474,7 @@
           round += 1;
           if (round >= ROUNDS) { api.win({ say: "Great copying, team! You did it together!" }); return; }
           leader = leader === 0 ? 1 : 0;
-          setTimeout(() => { if (padRow.isConnected) newRound(); }, 500);
+          api.nextRound(newRound, 500);
         });
         padRow.appendChild(b); return b;
       });

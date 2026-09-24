@@ -689,7 +689,7 @@
               if (s) { s.textContent = r.lineup[r.hiddenIdx].emoji; s.classList.remove("wh__spot--cloud"); s.classList.add("pop"); }
               round += 1;
               if (round >= ROUNDS) api.win({ say: "You found everyone hiding!" });
-              else { api.roundWin({ say: "The " + ch.name + " was hiding!" }); setTimeout(() => { if (row.isConnected) newRound(); }, 900); }
+              else { api.roundWin({ say: "The " + ch.name + " was hiding!" }); api.nextRound(newRound, 900); }
             });
             chips.appendChild(b);
           });
@@ -1114,7 +1114,7 @@
           [...grid.children].forEach((b) => b.classList.add("cg__cell--win"));
           api.say("You copied it!");
           round += 1;
-          if (round >= ROUNDS) api.win({ say: "You're a great copier!" }); else { api.roundWin(); setTimeout(newRound, 550); }
+          if (round >= ROUNDS) api.win({ say: "You're a great copier!" }); else { api.roundWin(); api.nextRound(newRound, 550); }
         });
       }
       newRound();
@@ -1139,7 +1139,7 @@
           [...grid.children].forEach((b) => b.classList.add("cg__cell--win"));
           api.say("A whole butterfly!");
           round += 1;
-          if (round >= ROUNDS) api.win({ say: "Beautiful butterflies!" }); else { api.roundWin(); setTimeout(newRound, 550); }
+          if (round >= ROUNDS) api.win({ say: "Beautiful butterflies!" }); else { api.roundWin(); api.nextRound(newRound, 550); }
         });
       }
       newRound();
@@ -1167,7 +1167,7 @@
           [...grid.children].forEach((b) => b.classList.add("cg__cell--win"));
           api.say("You remembered it!");
           round += 1;
-          if (round >= ROUNDS) api.win({ say: "Great memory!" }); else { api.roundWin(); setTimeout(newRound, 550); }
+          if (round >= ROUNDS) api.win({ say: "Great memory!" }); else { api.roundWin(); api.nextRound(newRound, 550); }
         });
       }
       newRound();
@@ -1284,7 +1284,7 @@
             theater.className = "curtain__stage curtain__stage--s3";
             api.say((step <= 1 ? "You knew from just a peek! It's " : "Yes! It's ") + r.answer.name + "!");
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "You're a great guesser!" }); else { api.roundWin(); setTimeout(newRound, 500); }
+            if (round >= ROUNDS) api.win({ say: "You're a great guesser!" }); else { api.roundWin(); api.nextRound(newRound, 500); }
           });
           chips.appendChild(b);
         });
@@ -1321,7 +1321,7 @@
             draw(null); pic.classList.remove("pop"); void pic.offsetWidth; pic.classList.add("pop");
             api.say("The " + r.missing.label + "! Now it's all better!");
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "You have sharp eyes!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 850); }
+            if (round >= ROUNDS) api.win({ say: "You have sharp eyes!" }); else { api.roundWin(); api.nextRound(newRound, 850); }
           });
           chips.appendChild(b);
         });
@@ -1365,9 +1365,9 @@
             if (forkI >= run.forks.length) {
               car.style.left = "82%"; home.classList.add("pop");
               round += 1;
-              if (round >= ROUNDS) { setTimeout(() => api.win({ say: "You drove all the way home! Beep beep!" }), 300); return; }
+              if (round >= ROUNDS) { api.win({ say: "You drove all the way home! Beep beep!", after: 300 }); return; }
               api.roundWin();
-              setTimeout(() => { busy = false; newRound(); }, 900);
+              api.nextRound(() => { busy = false; newRound(); }, 900);
             } else { setTimeout(() => { busy = false; showFork(); }, 350); }
           });
           forks.appendChild(b);
@@ -1422,7 +1422,7 @@
             qMark.textContent = ch.emoji; qMark.classList.add("gw__cell--filled", "pop");
             api.say(r.c.word + " " + r.set.relation + " " + r.d.word + "!");
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "You're a matching star!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+            if (round >= ROUNDS) api.win({ say: "You're a matching star!" }); else { api.roundWin(); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });

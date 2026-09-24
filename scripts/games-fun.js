@@ -321,8 +321,8 @@
         reveal.classList.remove("cbn__reveal--on"); void reveal.offsetWidth; reveal.classList.add("cbn__reveal--on");
         api.say("You made a " + (pic.name || "picture") + "!");
         round += 1;
-        if (round >= ROUNDS) { setTimeout(() => api.win({ say: "Beautiful!" }), 520); }
-        else { api.roundWin(); setTimeout(() => { reveal.classList.remove("cbn__reveal--on"); reveal.textContent = ""; newRound(); }, 660); }
+        if (round >= ROUNDS) { api.win({ say: "Beautiful!", after: 520 }); }
+        else { api.roundWin(); api.nextRound(() => { reveal.classList.remove("cbn__reveal--on"); reveal.textContent = ""; newRound(); }, 660); }
       }
       function newRound() {
         const pic = PICS[round % PICS.length];
@@ -455,7 +455,7 @@
             kid.classList.remove("pop"); void kid.offsetWidth; kid.classList.add("pop");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "All dressed for every weather!" });
-            else { api.roundWin({ say: L.article(ch.name) + " " + ch.name + " — perfect for " + r.weather.name + "!" }); setTimeout(() => { if (scene.isConnected) newRound(); }, 900); }
+            else { api.roundWin({ say: L.article(ch.name) + " " + ch.name + " — perfect for " + r.weather.name + "!" }); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });
@@ -618,7 +618,7 @@
             if (step >= N) {
               round += 1; dir = -dir;
               if (round >= ROUNDS) api.win({ say: "You swung across the whole city!" });
-              else { api.roundWin(); setTimeout(newRound, 350); }
+              else { api.roundWin(); api.nextRound(newRound, 350); }
             } else {
               const next = buildings.find((bb) => bb.__rank === step);
               if (next) next.dataset.correct = "1";
@@ -770,7 +770,7 @@
               try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(520, { duration: 0.14, type: "square" }); } catch (e) { /* ignore */ }
               round += 1;
               if (round >= ROUNDS) api.win({ say: "Sparkly clean! Beep beep — thank you!" });
-              else { api.roundWin({ say: "All clean! Here comes another one." }); setTimeout(() => { if (row.isConnected) newRound(); }, 700); }
+              else { api.roundWin({ say: "All clean! Here comes another one." }); api.nextRound(newRound, 700); }
               return;
             }
             flag();
@@ -840,11 +840,11 @@
         // than needing a prefers-reduced-motion opt-out.
         drawRig(1, loadedNow());
         api.say("Dump!");
-        setTimeout(() => {
-          round += 1;
-          if (round >= LOADS.length) api.win({ say: "You dumped them all! Beep beep!" });
-          else { api.roundWin(); delete lever.dataset.done; newRound(); }
-        }, 700);
+        // "Dump!" is the round's beat: the load is out, and the next one (or the
+        // win) follows it — on a closed board, so the rig cannot be re-dumped.
+        round += 1;
+        if (round >= LOADS.length) api.win({ say: "You dumped them all! Beep beep!", after: 700 });
+        else api.nextRound(() => { api.roundWin(); delete lever.dataset.done; newRound(); }, 700);
       });
       newRound();
     },

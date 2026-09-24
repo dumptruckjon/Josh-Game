@@ -1052,6 +1052,92 @@ test("guardrail: the app's two echo guards agree on what a finger is", () => {
   }
 });
 
+test("guardrail: a round ends through api.nextRound — never a game's own timer", () => {
+  // MEASURED 2026-09: 39 timers in the game files ended a round — they called
+  // newRound(), api.roundWin() or api.win() a beat after the answer — and
+  // through that beat the answered board stayed live: 23 games said "try
+  // again" to a deliberate tap on it, 15 left the winning answer flagged for
+  // the harness, and 🏠 inside the beat either ran the next round on a hidden
+  // screen (a raw setTimeout) or stranded him on the answered board when he came
+  // back (an api.later, which navigation cancels and nothing re-ran).
+  // framework.js now owns a round's end: api.nextRound(fn, ms) closes the board
+  // and survives navigation, and api.win({ after }) is a win after a beat,
+  // recorded at the tap. This pins the other half: no game's own timer —
+  // setTimeout or api.later, an inline callback or a named function it resolves
+  // to — may end a round. A handler the timer only REGISTERS (Who Hid?'s line-up
+  // builds chips whose clicks end the round) runs on the child's tap, not the
+  // timer's, so it is not the timer ending anything. Derived from the page's own
+  // game scripts; the browser half (e2e) proves the behaviour on every game.
+  const games = SCRIPTS.filter((f) => /^scripts\/games-.*\.js$/.test(f));
+  assert.ok(games.length >= 10, `the scan must find the game scripts (saw ${games.length})`);
+  const ENDS = /\bnewRound\s*\(|\bapi\.(?:roundWin|win)\s*\(/;
+  // comments and string contents blanked, every offset kept (so a brace or a
+  // "newRound(" inside a string or a comment can never count)
+  const mask = (src) => {
+    let out = "", i = 0;
+    while (i < src.length) {
+      const c = src[i], d = src[i + 1];
+      if (c === "/" && d === "/") { while (i < src.length && src[i] !== "\n") { out += " "; i++; } continue; }
+      if (c === "/" && d === "*") { while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) { out += src[i] === "\n" ? "\n" : " "; i++; } out += "  "; i += 2; continue; }
+      if (c === '"' || c === "'" || c === "`") {
+        out += c; i++;
+        while (i < src.length && src[i] !== c) { if (src[i] === "\\") { out += "  "; i += 2; continue; } out += src[i] === "\n" ? "\n" : "_"; i++; }
+        out += c; i++; continue;
+      }
+      out += c; i++;
+    }
+    return out;
+  };
+  const shut = (s, open) => { // index of the bracket that closes s[open]
+    let depth = 0;
+    for (let i = open; i < s.length; i++) {
+      if (s[i] === "(" || s[i] === "{") depth++;
+      else if (s[i] === ")" || s[i] === "}") { depth--; if (depth === 0) return i; }
+    }
+    return s.length;
+  };
+  const handlersOut = (s) => { // blank every handler the timer merely registers
+    let out = s;
+    for (const m of s.matchAll(/addEventListener\(/g)) {
+      const o = m.index + m[0].length - 1, c = shut(s, o);
+      out = out.slice(0, o) + " ".repeat(c - o + 1) + out.slice(c + 1);
+    }
+    return out;
+  };
+  const bad = [];
+  let timers = 0, named = 0, registers = 0;
+  for (const f of games) {
+    const raw = read(f), s = mask(raw);
+    const blocks = [...s.matchAll(/(?:\bF\.register|\breg)\(/g)].map((m) => { const o = m.index + m[0].length - 1; return [o, shut(s, o)]; });
+    for (const m of s.matchAll(/\b(setTimeout|api\.later)\(/g)) {
+      timers += 1;
+      const open = m.index + m[0].length - 1, args = s.slice(open + 1, shut(s, open));
+      const at = `${f}:${raw.slice(0, m.index).split("\n").length}`;
+      const id = /^\s*([A-Za-z_$][\w$]*)\s*,/.exec(args);
+      let body = args;
+      if (id) {
+        named += 1;
+        if (id[1] === "newRound") { bad.push(`${at} ${m[1]}(newRound, …)`); continue; }
+        // a named callback resolves inside its OWN game (many games share names)
+        const blk = blocks.find(([a, b]) => a < m.index && m.index < b);
+        const scope = blk ? s.slice(blk[0], blk[1]) : s;
+        const fm = new RegExp("\\bfunction\\s+" + id[1].replace(/\$/g, "\\$") + "\\s*\\(").exec(scope);
+        if (!fm) continue;
+        const fo = scope.indexOf("{", fm.index);
+        body = scope.slice(fo, shut(scope, fo) + 1);
+      }
+      if (ENDS.test(handlersOut(body))) bad.push(`${at} ${raw.slice(m.index, m.index + 80).replace(/\s+/g, " ")}`);
+      else if (ENDS.test(body)) registers += 1;
+    }
+  }
+  assert.deepEqual(bad, [],
+    "a game's own timer ends a round, so the answered board stays live through the beat — end it with api.nextRound(fn, ms), or a win after a beat with api.win({ after: ms }):\n" + bad.join("\n"));
+  assert.ok(timers >= 20, `the scan must find the games' timers (saw ${timers}) — or it is matching nothing`);
+  assert.ok(named >= 2, `the scan must resolve NAMED timer callbacks too (saw ${named})`);
+  // the carve-out must still match real code, or it is a hole nobody can see
+  assert.ok(registers >= 1, "the scan must still meet a timer that only REGISTERS a round-ending handler (Who Hid?'s line-up) — or the exemption guards nothing");
+});
+
 test("guardrail: [hidden] has ONE owner, and it beats every display rule", () => {
   // The UA's [hidden]{display:none} is an author-overridable DEFAULT, so any
   // class that sets `display` silently UN-HIDES an element a game hid:
@@ -2278,7 +2364,10 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
     assert.match(fw, new RegExp(`cue\\(\\(\\) => A\\.${c} && A\\.${c}\\(\\)\\)`), `${c} goes through cue()`);
   }
   assert.match(fw, /later\(fn, ms\)/, "api.later exists (auto-cleared timers)");
-  assert.match(fw, /screen\.__onHide = \(\) => \{ clearTimers\(\); \}/, "screens clear their timers on hide");
+  // the PROPERTY, not the line: __onHide also pauses a round's end now (see
+  // "THE ANSWERED ROUND IS OVER"), and a literal pin of its old one-call body
+  // turned a law about timers into a law about spelling
+  assert.match(fw, /screen\.__onHide = \(\) => \{[^}]*\bclearTimers\(\);[^}]*\}/, "screens clear their timers on hide");
   const mainjs = read("scripts/main.js");
   assert.match(mainjs, /s\.__onHide\) \{ try \{ s\.__onHide\(\); \}/, "route() fires __onHide on the screens it hides");
   assert.match(mainjs, /speechSynthesis\.cancel\(\)/, "route() cancels in-flight speech");

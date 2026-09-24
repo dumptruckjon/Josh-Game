@@ -388,7 +388,7 @@
       function advance() {
         round += 1;
         if (round >= ROUNDS) api.win();
-        else { api.roundWin(); setTimeout(newRound, 60); }
+        else { api.roundWin(); api.nextRound(newRound, 60); }
       }
       // A#4 + B#3: on the right answer the two friends slide together into ONE
       // friend, then the child taps it to COUNT (a second thought per round, and
@@ -692,19 +692,19 @@
       api.stage.append(frame, choices);
 
       let cells = [];
-      function advance() {
-        round += 1;
-        if (round >= ROUNDS) api.win({ say: "You made ten!" });
-        else { api.roundWin(); setTimeout(newRound, 80); }
-      }
       // A#4: on the right answer, the empty cells actually FILL up to ten (a quick
       // staggered pop), so the bond is something you SEE complete — not just a
-      // number that disappears.
+      // number that disappears. The fill is the round's BEAT: the round is over
+      // at the tap, and the celebration and the next round follow the fill.
       function fillToTen(have) {
         choices.innerHTML = "";
+        const beat = (10 - have) * 45 + 140;
+        round += 1;
+        if (round >= ROUNDS) api.win({ say: "You made ten!", after: beat });
+        else api.nextRound(() => { api.roundWin(); newRound(); }, beat);
         let i = have;
         (function step() {
-          if (i >= 10) { setTimeout(advance, 140); return; }
+          if (i >= 10) return;
           const c = cells[i];
           if (c) { c.classList.remove("maketen__cell--empty"); c.classList.add("tenf__cell--on", "pop"); c.textContent = "🔵"; }
           i += 1;
@@ -822,6 +822,9 @@
         });
       }
       function drop(val) {
+        // A FULL piggy is a round that is over — it waits on Next, so a coin tap
+        // is nothing (it said "try again" to a child who had just filled it).
+        if (worth >= price) return;
         if (val > price - worth) { api.tryAgain(val === 1 ? penny : nickel); return; }
         worth += val;
         // Always reflect the new total — including the coin that FILLS the piggy.
@@ -949,7 +952,7 @@
               api.say("Look — everyone has " + r.per + "! That's fair!");
               round += 1;
               if (round >= ROUNDS) api.win({ say: "You shared everything fairly! What a kind friend!" });
-              else { api.roundWin(); setTimeout(() => { if (row.isConnected) newRound(); }, 900); }
+              else { api.roundWin(); api.nextRound(newRound, 900); }
             } else {
               // The NEXT plate in the round-robin gets the turn.
               const ps = plates();
@@ -1014,7 +1017,7 @@
             stagebox.classList.add("qp__box--open"); // show the dots as the proof
             round += 1;
             if (round >= ROUNDS) api.win({ say: r.n + "! You saw it super fast!" });
-            else { api.roundWin({ say: r.n + "! Quick eyes!" }); setTimeout(() => { if (dots.isConnected) newRound(); }, 900); }
+            else { api.roundWin({ say: r.n + "! Quick eyes!" }); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });
@@ -1499,7 +1502,7 @@
           if (r.parity === "odd" && leftover) { leftover.textContent = "🦆☂️"; banner.textContent = "ODD — one duck is left over!"; api.say("Odd! One duck is left over."); }
           else { banner.textContent = "EVEN — everyone has a partner!"; api.say("Even! Everyone has a partner!"); }
           round += 1;
-          if (round >= ROUNDS) api.win({ say: "You know odd and even!" }); else { api.roundWin(); setTimeout(newRound, 950); }
+          if (round >= ROUNDS) api.win({ say: "You know odd and even!" }); else { api.roundWin(); api.nextRound(newRound, 950); }
         }
         for (let i = 0; i < r.n; i++) {
           const b = api.el("button", { class: "choice partner__duck tap", type: "button", aria: { label: "duck" } }, ["🦆"]);
@@ -1606,7 +1609,7 @@
             if (!ch.correct) { api.tryAgain(b); return; }
             [...pond.children].forEach((el, i) => api.later(() => { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); api.say(String(i + 1)); }, i * 200));
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "Yes! " + r.a + " and " + r.b + " make " + r.total + "!" }); else { api.roundWin({ say: r.a + " and " + r.b + " make " + r.total + "!" }); api.later(() => newRound(), 900); }
+            if (round >= ROUNDS) api.win({ say: "Yes! " + r.a + " and " + r.b + " make " + r.total + "!" }); else { api.roundWin({ say: r.a + " and " + r.b + " make " + r.total + "!" }); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });
@@ -1655,9 +1658,9 @@
           measure.classList.add("tall__measure--done");
           api.say("The " + THINGS.find((t) => t.emoji === thing.textContent).name + " is " + stacked + " blocks tall!");
           round += 1;
-          if (round >= ROUNDS) { setTimeout(() => api.win({ say: "You measured them all!" }), 300); return; }
+          if (round >= ROUNDS) { api.win({ say: "You measured them all!", after: 300 }); return; }
           api.roundWin();
-          setTimeout(() => { if (measure.isConnected) { measure.classList.remove("tall__measure--done"); newRound(); } }, 900);
+          api.nextRound(() => { measure.classList.remove("tall__measure--done"); newRound(); }, 900);
         }
       });
       newRound();

@@ -1315,7 +1315,7 @@
             if (!ch.correct) { api.tryAgain(b); return; }
             play();
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "You heard every part!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+            if (round >= ROUNDS) api.win({ say: "You heard every part!" }); else { api.roundWin(); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });
@@ -1371,7 +1371,7 @@
             play();
             api.say("Yes! " + cur.word.word + "!");
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "You blended the sounds! You're reading!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 900); }
+            if (round >= ROUNDS) api.win({ say: "You blended the sounds! You're reading!" }); else { api.roundWin(); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });
@@ -1411,7 +1411,7 @@
             parts.classList.add("glue__parts--join");
             api.say(r.a.word + " and " + r.b.word + " make " + r.word + "!");
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "You made big words!" }); else { api.roundWin(); setTimeout(() => { if (chips.isConnected) newRound(); }, 850); }
+            if (round >= ROUNDS) api.win({ say: "You made big words!" }); else { api.roundWin(); api.nextRound(newRound, 850); }
           });
           chips.appendChild(b);
         });

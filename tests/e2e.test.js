@@ -226,7 +226,9 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
     const A = window.JoshAudio, real = A.say.bind(A);
     window.__SAID = [];
     A.say = (t, o) => { window.__SAID.push(String(t)); return real(t, o); };
-    window.__speechWas = { desc: Object.getOwnPropertyDescriptor(window, "speechSynthesis"), muted: A.isMuted(), key: localStorage.getItem("josh-muted") };
+    window.__speechWas = { desc: Object.getOwnPropertyDescriptor(window, "speechSynthesis"), muted: A.isMuted(), key: localStorage.getItem("josh-muted"), bump: A.bumpCue };
+    window.__BUMP = 0;
+    A.bumpCue = function () { window.__BUMP++; return window.__speechWas.bump && window.__speechWas.bump.apply(this, arguments); };
     let turn = 0, open = false, q = [];
     const turnOf = () => { if (!open) { open = true; turn++; queueMicrotask(() => { open = false; }); } return turn; };
     window.__SPOKEN = []; window.__LOST = []; window.__TURNS = {};
@@ -245,6 +247,7 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
   });
 
   const ids = await gameIds();
+  let finished = 0;
   try {
     for (const id of ids) {
       await page.evaluate(() => { window.__SAID = []; window.__SPOKEN = []; window.__LOST = []; window.__TURNS = {}; });
@@ -323,6 +326,23 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
       assert.deepEqual(heard.twoQ, [],
         `game "${id}" asks TWO questions in one turn — a round says ONE line: put it in setPrompt's 3rd argument (spoken), not a say() after speak(): ${heard.twoQ.join(" | ")}`);
 
+      // …and the FINISHED board answers nothing (framework.js closes it on a
+      // win). MEASURED before it did: 159 of 240 games said "try again" to a tap
+      // on the finished board — to a child who had just won. A toy is exempt:
+      // it earns its sticker and keeps playing.
+      const after = await screen.evaluate((el) => {
+        const b = [...el.querySelectorAll(".game__stage button, .game__stage [role=button]")]
+          .filter((x) => x.getClientRects().length && !x.disabled && !x.closest("[data-toy]") && x.dataset.correct !== "1");
+        if (!b.length) return null;
+        const x = b[Math.floor(b.length / 2)], n0 = window.__BUMP;
+        x.click();
+        return { bumped: window.__BUMP > n0, label: String(x.getAttribute("aria-label") || x.textContent || "").trim().slice(0, 24) };
+      });
+      if (after) {
+        finished += 1;
+        assert.ok(!after.bumped, `game "${id}": a tap on its FINISHED board ("${after.label}") said "try again" to a child who has just won — the won board must answer nothing`);
+      }
+
       // Winning reveals a working "Again" button that resets the won state. It
       // is pressed like a person would: not inside the 350ms after the win, when
       // framework.js treats a real tap on the board as the ECHO of the winning
@@ -333,11 +353,15 @@ test("EVERY game plays end-to-end to a WIN — every game is collectible", async
       await again.click();
       assert.equal(await screen.evaluate((el) => el.dataset.won || ""), "", `Again should reset "${id}"`);
     }
+    // the finished-board check is only worth something if it reached boards
+    // (measured: 207 of 240 games leave a non-toy button on the finished board)
+    assert.ok(finished >= 150, `only ${finished} finished boards were tapped — the check is not reaching them`);
   } finally {
     // Leave the page as the rest of the file expects it: muted, on the real engine.
     await page.evaluate(() => {
       const w = window.__speechWas, A = window.JoshAudio;
       if (!w) return;
+      if (w.bump) A.bumpCue = w.bump;
       if (w.desc) Object.defineProperty(window, "speechSynthesis", w.desc); else delete window.speechSynthesis;
       A.setMuted(w.muted);
       try { if (w.key === null) localStorage.removeItem("josh-muted"); else localStorage.setItem("josh-muted", w.key); } catch (e) { /* ignore */ }
@@ -1373,13 +1397,22 @@ test("the hammer's ECHO: each rule catches the case only it can see, and a delib
         t.addEventListener("click", () => { n += 1; window.__log.push("toy"); if (n === 1) api.win(); });
         api.setPrompt("play", []);
       });
-      // WIN — the answer that wins the GAME keeps its flag (the stale-flag
-      // shape), so rule 4 exempts its echo and only the window win() opens can
-      // stop the handler running again. AGAIN — the one foot control: a win's
-      // echo must not restart the game.
+      // WIN — the answer that wins the GAME: win() CLOSES the board (see "THE
+      // ANSWERED ROUND IS OVER" in framework.js), so its flag comes down and
+      // nothing on the finished board answers again. AGAIN — the one foot
+      // control: a win's echo must not restart the game.
       mk("echo-win", (api) => {
         const a = btn(api, "A", { correct: "1" });
         a.addEventListener("click", () => { window.__log.push("answer"); api.win(); });
+        api.setPrompt("tap A", []);
+      });
+      // WIN AFTER A BEAT — the Again button appears 600ms after the last tap, so
+      // it is not an echo by rules 3 or 4 (no tap in the last 350ms). Only the
+      // window the deferred win() opens stands between a finger that is still
+      // tapping and an Again that throws the celebration away.
+      mk("echo-win-after", (api) => {
+        const a = btn(api, "A", { correct: "1" });
+        a.addEventListener("click", () => { window.__log.push("answer"); api.win({ after: 600 }); });
         api.setPrompt("tap A", []);
       });
     });
@@ -1530,11 +1563,14 @@ test("the hammer's ECHO: each rule catches the case only it can see, and a delib
     assert.deepEqual(await p.evaluate(([x, y]) => {
       const c = document.elementFromPoint(x, y).closest(".choice");
       return [!!c, !!(c && c.dataset.correct)];
-    }, W), [true, true],
-      "fixture: the winning answer must still be under the finger AND still flagged, or rule 4 would catch the echo and this would not test win()'s window");
+    }, W), [true, false],
+      "a won game takes its flags DOWN: the winning answer is still under the finger, and no longer the correct next tap");
     await tap(W);
     assert.deepEqual((await log()).filter((x) => x === "answer"), [],
-      "a win's ECHO on the very answer that won must be swallowed — it is still flagged, so rule 4 exempts it and only the window win() opens can stop the game's handler running again");
+      "a win's ECHO on the very answer that won must be swallowed (held twice over: the closed board, and the window win() opens)");
+    await wait(600); await tap(W);
+    assert.deepEqual(await log(), [],
+      "a DELIBERATE tap on the finished board (750ms after the win: no echo) must do nothing — no second answer, and never 'try again' to a child who has won");
     // AGAIN: nor may it land on the Again button the win revealed
     const again = await at("#screen-echo-win .game__again");
     await wait(150); await tap(again);
@@ -1544,7 +1580,308 @@ test("the hammer's ECHO: each rule catches the case only it can see, and a delib
     assert.equal(await p.evaluate(() => document.getElementById("screen-echo-win").dataset.won || ""), "",
       "a deliberate tap on Again after the pause must restart the game");
 
+    // WIN AFTER A BEAT: Again appears with no recent tap to echo
+    await open("echo-win-after");
+    await tap(await at("#screen-echo-win-after .choice"));
+    assert.deepEqual(await log(), ["answer"], "fixture: the last answer is in; the win waits for its beat");
+    await wait(650);
+    assert.equal(await p.evaluate(() => document.getElementById("screen-echo-win-after").dataset.won), "1", "fixture: the beat is over and the game is won");
+    await log();
+    const againAfter = await at("#screen-echo-win-after .game__again");
+    await tap(againAfter); // 50ms after Again appeared, 650ms after the last tap: not an echo by rules 3 or 4
+    assert.equal(await p.evaluate(() => document.getElementById("screen-echo-win-after").dataset.won), "1",
+      "a tap on Again 50ms after a DEFERRED win revealed it must be swallowed — nobody aimed at it, and only the window win() opens can see that (no tap in the last 350ms)");
+    await wait(500); await tap(againAfter);
+    assert.equal(await p.evaluate(() => document.getElementById("screen-echo-win-after").dataset.won || ""), "",
+      "a deliberate tap on Again after the pause must restart the game");
+
     assert.deepEqual(errs, [], "no page errors while echoing");
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("an ANSWERED round is over: api.nextRound closes its board, and the next round waits for the child", async () => {
+  // MEASURED 2026-09 before api.nextRound existed: 39 places answered a round
+  // and built the next one behind their own timer, and through that beat the
+  // answered board stayed LIVE — 23 games said "try again" to a deliberate tap
+  // on it (a child who had just got it right), 15 left the winning answer
+  // flagged for the harness, 23 ran the next round on a HIDDEN screen when the
+  // child pressed 🏠 inside the beat, and Duck Pond (an api.later) left him on
+  // the answered board when he came back. After a WIN it was worse: 159 of 240
+  // games said "try again" to a tap on the finished board. This fixture pins
+  // each property of the one owner on a paused clock (the gaps are the claim):
+  // a closed board answers nothing, whoever taps it; its flags come down; the
+  // beat pauses while the screen is hidden and ends the moment he is back; a
+  // win after a beat is RECORDED at the tap and celebrated after it; a won
+  // game's board answers nothing either.
+  const ctx = await browser.newContext({ viewport: { width: 768, height: 1024 } });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on("pageerror", (e) => errs.push(String(e)));
+  try {
+    await p.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await p.goto(baseURL, { waitUntil: "load" });
+    await p.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await p.evaluate(() => {
+      const F = window.JoshFramework, A = window.JoshAudio;
+      window.__log = [];
+      for (const k of ["goodCue", "winCue", "bumpCue"]) {
+        const real = A[k];
+        A[k] = function () { window.__log.push(k); return real && real.apply(this, arguments); };
+      }
+      // Three rounds of three chips, the answer always A. A round ends with a
+      // beat (nextRound, 800ms); the last with a win after a beat (after: 600).
+      document.getElementById("screens").appendChild(F.buildGameScreen({
+        id: "ro-game", icon: "🧪", title: "ro-game", skill: "round-over fixture",
+        start(api) {
+          let round = 0;
+          function newRound() {
+            api.clear();
+            window.__log.push("round " + (round + 1));
+            ["A", "B", "C"].forEach((label) => {
+              const b = api.el("button", { class: "choice tap", type: "button", text: label, aria: { label }, dataset: label === "A" ? { correct: "1" } : {} });
+              b.addEventListener("click", () => {
+                if (label !== "A") { api.tryAgain(b); return; }
+                round += 1;
+                window.__log.push("answer");
+                if (round >= 3) api.win({ say: "done", after: 600 });
+                else { api.roundWin(); api.nextRound(newRound, 800); }
+              });
+              api.stage.appendChild(b);
+            });
+            api.setPrompt("tap A", []);
+          }
+          newRound();
+        },
+      }));
+    });
+    const S = "#screen-ro-game";
+    const at = (label) => p.evaluate(([s, l]) => {
+      const r = document.querySelector(s + ' .choice[aria-label="' + l + '"]').getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    }, [S, label]);
+    const tap = ([x, y]) => p.mouse.click(x, y);
+    const wait = (ms) => p.clock.runFor(ms);
+    const log = () => p.evaluate(() => window.__log.splice(0));
+    const state = () => p.evaluate((s) => {
+      const el = document.querySelector(s);
+      return { closed: el.dataset.closed === "1", flags: el.querySelectorAll(".game__stage [data-correct]").length, won: el.dataset.won === "1" };
+    }, S);
+    const go = async (hash) => {
+      await p.evaluate((h) => { location.hash = h; }, hash);
+      if (hash === "#ro-game") await p.locator(S).waitFor({ state: "visible" });
+    };
+
+    await go("#ro-game");
+    assert.deepEqual(await log(), ["round 1"], "fixture: the game opens on round 1");
+
+    // ROUND 1 is answered: its board closes at once
+    const B1 = await at("B");
+    await tap(await at("A"));
+    assert.deepEqual(await log(), ["answer", "goodCue"], "fixture: A answers round 1");
+    assert.deepEqual(await state(), { closed: true, flags: 0, won: false },
+      "an answered round's board CLOSES at once, and every [data-correct] on it comes down — nothing on it is the next tap any more");
+    await wait(500); // past the echo window: a DELIBERATE second tap, inside the beat
+    await tap(B1);
+    assert.deepEqual(await log(), [],
+      "a deliberate tap on a WRONG chip of the answered board (500ms: no echo, inside the beat) must do nothing — never 'try again' for a round he has just won");
+    await p.evaluate((s) => document.querySelector(s + ' .choice[aria-label="A"]').click(), S);
+    assert.deepEqual(await log(), [],
+      "a SYNTHETIC click on the answer that won must do nothing either — the board is closed to everyone, so a harness cannot win the round twice");
+    await p.focus(S + ' .choice[aria-label="B"]');
+    await p.keyboard.press("Enter");
+    assert.deepEqual(await log(), [], "…and to a keyboard");
+    await wait(300); // 800ms: the beat is over
+    assert.deepEqual(await log(), ["round 2"], "the next round follows the beat");
+    assert.deepEqual(await state(), { closed: false, flags: 1, won: false }, "the new round's board is OPEN, with its answer flagged");
+    await wait(400);
+    await tap(await at("B"));
+    assert.deepEqual(await log(), ["bumpCue"], "a wrong tap on the NEW round is a gentle try-again — the closure ends when the next round begins");
+
+    // ROUND 2 is answered, and he leaves inside the beat
+    await wait(400);
+    await tap(await at("A"));
+    assert.deepEqual(await log(), ["answer", "goodCue"], "fixture: A answers round 2");
+    const answered = await p.evaluate((s) => document.querySelector(s + " .game__stage").innerHTML, S);
+    await wait(200);
+    await go("#home");
+    await wait(3000);
+    assert.equal(await p.evaluate((s) => document.querySelector(s + " .game__stage").innerHTML, S), answered,
+      "a round must not advance on a HIDDEN screen — the beat waits while he is away");
+    assert.deepEqual(await log(), [], "…and nothing at all happens while he is away");
+    await go("#ro-game");
+    assert.deepEqual(await log(), ["round 3"],
+      "coming back ends the answered round AT ONCE — its beat is long over, and he must never be stranded on the answered board");
+    assert.deepEqual(await state(), { closed: false, flags: 1, won: false }, "…and he is on an open board");
+
+    // ROUND 3 wins the game after a beat: recorded at the tap
+    await wait(400);
+    await tap(await at("A"));
+    assert.deepEqual(await log(), ["answer"], "fixture: the last answer is in, and the win waits for its beat");
+    assert.equal(await p.evaluate(() => localStorage.getItem("josh-won-ro-game")), "1",
+      "a win after a beat is RECORDED at the tap — he earned it, and keeps the sticker even if he never sees the party");
+    assert.deepEqual(await state(), { closed: true, flags: 0, won: false }, "…the board is closed through the beat, and the party has not started");
+    await wait(100);
+    await go("#home");
+    await wait(2000);
+    assert.deepEqual(await log(), [], "the party waits for him: no jingle for a screen he has left");
+    await go("#ro-game");
+    assert.deepEqual(await log(), ["winCue"], "…and it plays the moment he comes back");
+    assert.equal((await state()).won, true, "the game is won");
+
+    // a WON game's board answers nothing
+    await wait(600);
+    await tap(await at("B"));
+    assert.deepEqual(await log(), [], "a tap on the FINISHED board does nothing — never 'try again' to a child who has won");
+    await wait(400);
+    await tap(await p.evaluate((s) => {
+      const r = document.querySelector(s + " .game__again").getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    }, S));
+    assert.deepEqual(await log(), ["round 1"], "Again starts a fresh game");
+    assert.deepEqual(await state(), { closed: false, flags: 1, won: false }, "…on an OPEN board");
+
+    assert.deepEqual(errs, [], "no page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("EVERY game: an answered round answers nothing, and its next round waits for the child", async () => {
+  // The fixture above pins api.nextRound's contract; this proves every REAL
+  // game keeps it, derived from the registry so a new game is checked the day
+  // it lands. For each game the first round is won through the [data-correct]
+  // contract (synthetic clicks), and then — unless the next round began in the
+  // same task (its prompt was set) — the round is OVER and nothing has taken
+  // its place:
+  //   • 450ms later (past the echo window: a deliberate tap, not an echo), a
+  //     REAL tap on the answered board must do nothing — not "try again", not
+  //     a second round (measured before the fix: 23 games said "try again",
+  //     and Piggy Bank's full piggy did the same while it waited on Next);
+  //   • if nothing on the board is the next tap (no Next ▶ appeared), the
+  //     board must be CLOSED (screen.dataset.closed) with no flag still up
+  //     (measured: 15 games left the winning answer flagged);
+  //   • a closed round's end survives navigation: leaving inside the beat
+  //     must not advance the hidden screen (measured: 23 games did), and
+  //     coming back must end the round at once (Duck Pond stranded him).
+  // A paused fake clock keeps every gap exact on a loaded runner.
+  const ctx = await browser.newContext({ viewport: { width: 768, height: 1024 } });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on("pageerror", (e) => errs.push(String(e)));
+  try {
+    await p.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await p.goto(baseURL, { waitUntil: "load" });
+    await p.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await p.evaluate(() => {
+      const A = window.JoshAudio;
+      window.__n = { good: 0, win: 0, bump: 0 };
+      for (const [k, c] of [["goodCue", "good"], ["winCue", "win"], ["bumpCue", "bump"]]) {
+        const real = A[k];
+        A[k] = function () { window.__n[c]++; return real && real.apply(this, arguments); };
+      }
+    });
+    const ids = await p.evaluate(() => (window.JoshGames || []).map((g) => g.id));
+    assert.ok(ids.length >= 200, `the registry must be walked (saw ${ids.length})`);
+    const bad = [];
+    let over = 0, tapped = 0, left = 0;
+    for (const id of ids) {
+      await p.evaluate((i) => { location.hash = "#" + i; }, id);
+      const screen = p.locator(`#screen-${id}`);
+      await screen.waitFor({ state: "visible" });
+      for (let i = 0; i < 300; i++) {
+        const r = await screen.evaluate((el) => {
+          if (el.dataset.won === "1") return { won: true };
+          const t = el.querySelector('[data-correct="1"]');
+          if (!t) return { none: true };
+          const stage = el.querySelector(".game__stage");
+          const prompt = el.querySelector(".game__prompt-text") || el.querySelector(".game__prompt");
+          const board = [...stage.querySelectorAll("button, [role=button]")];
+          const mo = new MutationObserver(() => {});
+          if (prompt) mo.observe(prompt, { childList: true, characterData: true, subtree: true });
+          const n = window.__n, before = n.good;
+          t.click();
+          const prompted = mo.takeRecords().length > 0;
+          mo.disconnect();
+          if (!(n.good > before) || el.dataset.won === "1") return { step: true };
+          // this tap WON a round
+          window.__board = board.filter((x) => x !== t && !x.contains(t) && !t.contains(x) && !x.closest("[data-toy]"));
+          window.__winner = t;
+          window.__html = stage.innerHTML;
+          return {
+            over: !prompted,
+            next: [...stage.querySelectorAll('[data-correct="1"]')].some((x) => x !== t),
+            closed: el.dataset.closed === "1",
+            label: String(t.getAttribute("aria-label") || t.textContent || "").trim().slice(0, 24),
+          };
+        });
+        if (r.won) break;
+        // nothing flagged yet (a demo to watch, a line-up drifting in): wait in
+        // bigger steps; an accepted step flags its successor at once
+        if (r.none) { await p.clock.runFor(250); continue; }
+        if (r.step) { await p.clock.runFor(60); continue; }
+        // The next round began at once: this game has no beat to check. (A game
+        // ends every round the same way, so its first round is the claim.)
+        if (!r.over) break;
+        over += 1;
+        await p.clock.runFor(450);
+        const g = await screen.evaluate((el) => {
+          const stage = el.querySelector(".game__stage");
+          const up = (window.__board || []).filter((x) => x.isConnected && x.getClientRects().length && !x.disabled && x.dataset.correct !== "1");
+          const w = window.__winner, stale = !!(w && w.isConnected && w.getClientRects().length && w.dataset.correct === "1");
+          if (!up.length) return { gone: true, closed: el.dataset.closed === "1", stale };
+          const x = up[Math.floor(up.length / 2)];
+          x.scrollIntoView({ block: "center" });
+          const rc = x.getBoundingClientRect(), cx = rc.left + rc.width / 2, cy = rc.top + rc.height / 2;
+          const u = document.elementFromPoint(cx, cy);
+          return {
+            x: cx, y: cy, ok: !!u && (u === x || x.contains(u)), closed: el.dataset.closed === "1", stale,
+            label: String(x.getAttribute("aria-label") || x.textContent || "").trim().slice(0, 24), n: Object.assign({}, window.__n),
+          };
+        });
+        if (!r.next && !g.gone && !g.closed) bad.push(`${id}: after "${r.label}" won a round, its board is still OPEN with no next round — end the round with api.nextRound`);
+        if (g.stale) bad.push(`${id}: after "${r.label}" won a round, that answer is STILL flagged [data-correct] 450ms later — the harness can win the round again`);
+        if (!g.gone && g.ok) {
+          await p.mouse.click(g.x, g.y);
+          tapped += 1;
+          const a = await p.evaluate(() => Object.assign({}, window.__n));
+          if (a.bump > g.n.bump) bad.push(`${id}: after "${r.label}" won a round, a deliberate tap on "${g.label}" was called WRONG`);
+          if (a.good + a.win > g.n.good + g.n.win) bad.push(`${id}: after "${r.label}" won a round, a tap on "${g.label}" COUNTED another round`);
+        }
+        if (g.closed) {
+          // Leave inside the beat, and come back. "The round ended" is read off
+          // the closure lifting or the prompt being set — NOT off the stage
+          // changing, because a round's cosmetic timers (a 💞 that fades, tiles
+          // that light in turn) rightly keep running on a hidden screen.
+          await screen.evaluate((el) => {
+            const prompt = el.querySelector(".game__prompt-text") || el.querySelector(".game__prompt");
+            window.__prompted = false;
+            window.__pmo = new MutationObserver(() => { window.__prompted = true; });
+            if (prompt) window.__pmo.observe(prompt, { childList: true, characterData: true, subtree: true });
+          });
+          await p.evaluate(() => { location.hash = "#home"; });
+          await p.clock.runFor(1500); // longer than any beat (the longest is 1000ms)
+          const hidden = await screen.evaluate((el) => ({ ended: el.dataset.closed !== "1" || window.__prompted }));
+          await p.evaluate((i) => { location.hash = "#" + i; }, id);
+          await screen.waitFor({ state: "visible" });
+          const back = await screen.evaluate((el) => { window.__pmo.disconnect(); return { closed: el.dataset.closed === "1" }; });
+          left += 1;
+          if (hidden.ended) bad.push(`${id}: the answered round ENDED on a HIDDEN screen — a round's end must wait for the child`);
+          if (back.closed) bad.push(`${id}: coming back after leaving inside the beat left him on the ANSWERED board — the round must end the moment he returns`);
+        }
+        break; // one round per game is the claim
+      }
+    }
+    assert.deepEqual(bad, [], "a round that is over must answer nothing and wait for the child:\n" + bad.join("\n"));
+    // A walk that reached no round ends proves nothing. MEASURED on the shipped
+    // 240: 44 first rounds end without starting the next at once, 34 answered
+    // boards are tapped, 28 games are left and returned to inside a beat. The
+    // floors sit well under that, and fail if the driving stops reaching them.
+    assert.ok(over >= 30, `only ${over} games had a round end that did not start the next at once — the walk is not reaching them`);
+    assert.ok(tapped >= 20, `only ${tapped} answered boards were tapped`);
+    assert.ok(left >= 15, `only ${left} games were left and returned to inside a beat`);
+    assert.deepEqual(errs, [], "no page errors");
   } finally {
     await ctx.close();
   }

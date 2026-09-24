@@ -9190,6 +9190,109 @@ And the streak clause tapped 300ms after the first tap, inside the window with
 or without re-arming — it now taps at 400ms, 250 after the swallowed echo. All
 seven mutations of the page's guard are red.
 
+**A ROUND THAT WAS OVER KEPT ANSWERING — through a game's own beat, and after
+the whole game was won — and every test was green, because nothing had ever
+tapped an ANSWERED board.** Measured with real taps on a paused clock, before
+the fix:
+- **39 places** in the game files ended a round with their own timer (a beat
+  to show the answer: the reveal, the filled frame, "yes, it's a duck!"), and
+  through that beat the answered board stayed live. In **23 games** a
+  deliberate second tap on it — 450ms later, past the echo window, so a real
+  tap and not an echo — said "try again" to a child who had just got it right,
+  and broke his invisible ramp streak with it. **15** left the winning answer
+  flagged, so the harness could win the round twice.
+- Pressing 🏠 inside the beat ran the next round on a **HIDDEN screen in 23
+  games** (a raw setTimeout survives route(), which only hides), and **stranded
+  him on the answered board** in Duck Pond (an api.later, which navigation
+  cancels and nothing ever re-ran).
+- After a WIN it was worse: **159 of 240 games** said "try again" to a tap on
+  the finished board — to a child who had just won.
+
+The fix is ONE owner of a round's end, `api.nextRound(fn, ms)`. It CLOSES the
+board: every element on it at that moment answers nothing, whoever taps it (a
+finger, a keyboard, the harness), and every flag comes down. It runs `fn`
+after the beat, and it survives navigation: hiding the screen pauses the beat,
+and showing it ends the beat at once. A win after a beat is
+`api.win({ after })`, which is RECORDED at the tap and celebrated after it. A
+won game closes its board the same way, with toys exempt (a toy earns its
+sticker and keeps playing).
+
+All 39 sites are converted, and the dead `isConnected` guards went with them.
+So did two per-game copies of the rule: Sink or Float's manual flag strip and
+its `resolved` lock. Piggy Bank was the one board that judged taps while it
+waited on a Next ▶ rather than a timer, so it got its own one-line guard: a
+full piggy ignores coins.
+
+Five things worth keeping, and three are about the instrument.
+
+(1) **The obvious instruments measured the wrong thing twice.**
+- "Did the next round run while hidden?" was first read off the stage
+  CHANGING. Kind Helpers' fading 💞 and Robot Talk's lighting tiles are
+  cosmetic timers that rightly keep running on a hidden screen, so both were
+  flagged on correct code. The round's end is now read off the closure lifting
+  or the prompt being set.
+- The walk first played every SYNCHRONOUS game to its end, hunting a deferred
+  round that never comes. That took 264s. A game ends every round the same
+  way, so its first round is the whole claim, and that takes 88s.
+
+(2) **Closing the won board broke a fixture that pinned the OLD shape.**
+echo-win asserted the winning answer was STILL flagged after the win, so that
+rule 4 would exempt its echo and only win()'s window could hold it. With the
+flag down, that clause's premise is gone. Its replacement needed the input
+that separates the claims: a win after a BEAT. Its Again button appears with
+no tap in the last 350ms, so neither rule 3 nor rule 4 can see a finger that
+is still tapping. Only the window the deferred win() opens stops that tap
+throwing the celebration away, and the fixture now has that case.
+
+(3) **"Recorded at the tap" is a property, not a detail.** A pending win that
+recorded only when he came back would lose the sticker of a child who never
+does. The recorded law is that the win is EARNED even when the party is
+withheld.
+
+(4) **The structural scan's carve-out is kept honest by a liveness clause.**
+Who Hid?'s line-up timer builds chips whose clicks end the round. A timer that
+only REGISTERS a round-ending handler is not the timer ending anything, so it
+is exempt. The scan requires that such a timer still exists, because an
+exemption nothing uses is how a carve-out rots into a hole.
+
+(5) **The mutation run found a DEAD clause in the new walk, one I wrote an
+hour earlier.** The "winner still flagged" check returned `stale: stale.length`,
+left over from when `stale` was an array of elements. It had become a boolean,
+and `true.length` is `undefined`. So in the common path — the board still up,
+which is exactly when a flag can be stale — the clause could never fire. The
+tell was a NUMBER. With every game file put back to its pre-conversion self,
+the walk reported 22 "try again"s and 25 open boards, and ZERO stale flags,
+where the probe had measured 15. A clause that goes silent on the input built
+to trip it is not a pass. **When a value changes type, grep for everything
+that still reads it the old way.** The same accessor is a no-op on a boolean
+and a count on an array, and neither one throws.
+
+Mutations (18), each red on the clause it targets, none green and none that
+failed to apply:
+- **The scan** names the exact line for all four shapes of the old timer: an
+  inline arrow, an api.later, a bare `setTimeout(newRound)`, and a named
+  function in the same game. Removing its handler carve-out flags Who Hid?'s
+  line-up, so the carve-out is load-bearing.
+- **The fixture** catches, each on its own clause:
+  - a won board that still answers, twice over: the win's close dropped, and
+    the round's end run before the board reopens;
+  - a win that records only after its beat;
+  - a closed toy;
+  - a deferred win without its own window;
+  - an Again that leaves the board closed.
+- **The walk** catches, each on its own clause:
+  - the pre-change games: 23 "try again"s, 25 open boards, 15 stale flags;
+  - a hide that does not pause the beat, and a return that does not resume it;
+  - flags left up, and a board that does not close;
+  - Piggy Bank without its guard.
+- **The win walk** catches a won board that still answers.
+
+And the gate caught the recorded literal-pin trap once more. A shipped
+guardrail pinned `__onHide`'s old one-call body as an exact LINE, so pausing a
+round's end on hide turned it red on correct code. It was re-pointed at the
+property — `__onHide` still calls `clearTimers()` — and proven by deleting that
+call.
+
 ---
 
 ## Repository Structure
@@ -9286,7 +9389,12 @@ tooling.
 │                               #   Also the games' ONE guard against THE HAMMER'S ECHO: a capture-phase `click` listener swallows the
 │                               #   second tap a child makes for every tap he means (four time-bounded rules; finger taps only — never a
 │                               #   synthetic or keyboard click; toys exempt), so every game must ANSWER on `click` — the one event that
-│                               #   guard hears. Word Cards carries its twin, held to the same definition by site.test.js
+│                               #   guard hears. Word Cards carries its twin, held to the same definition by site.test.js.
+│                               #   And the ONE owner of a round's END: `api.nextRound(fn, ms)` CLOSES the answered board (nothing on it
+│                               #   answers, whoever taps; every flag comes down), runs fn after the beat, pauses the beat while the
+│                               #   screen is hidden and ends it the moment the child is back; `api.win({ after })` is a win after a
+│                               #   beat, RECORDED at the tap. A won game's board is closed too (toys keep playing). No game's own
+│                               #   timer may end a round — a guardrail scans for it
 │   ├── games-toys.js           # Self-registering games: gentle cause→effect toys
 │   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
 │   ├── games-literacy.js       # Self-registering games: first sound, rhyme, build-a-word, sight word
@@ -14018,6 +14126,10 @@ window.JoshFramework.register({
     // TEST CONTRACT (so the generic harness plays it automatically):
     //  • mark the correct next tap(s) with data-correct="1"; remove once consumed
     //  • call api.win() when finished (sets screen.dataset.won); api.roundWin() per round
+    //  • a round that shows its answer for a beat ENDS through api.nextRound(newRound, ms)
+    //    — never setTimeout/api.later(newRound): the framework closes the answered board
+    //    (no "try again" on it, no flag left up) and waits for the child if he leaves;
+    //    a win after a beat is api.win({ say, after: ms }), recorded at the tap
     //  • api.tryAgain(el) for a gentle no-fail wrong tap
     //  • pure toys (no win): mark [data-toy] and call api.tickPlay() each interaction
     // ANSWER ON `click` (never pointerdown/touchstart): framework.js swallows the
@@ -14028,6 +14140,8 @@ window.JoshFramework.register({
 ```
 
 The `api` gives you: `el`, `stage`, `setPrompt(caption, icons, spoken)/speak/say`, `win/roundWin/tryAgain`,
+`nextRound(fn, ms)` (the round is over: close its board, run `fn` after a beat — see the test contract),
+`later(fn, ms)` (a timer that dies on navigation — for staggers and animations, never a round's end),
 `shouldRamp(n)`/`streak()` (invisible difficulty adaptivity — true once Josh has
 won `n` rounds in a row with no miss; resets when he stumbles; a game reads it to
 pick a harder/easier round, never showing a number or a fail),

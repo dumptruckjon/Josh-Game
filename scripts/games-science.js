@@ -190,7 +190,7 @@
             if (round >= ROUNDS) { api.win({ say: "You made all the landforms!" }); return; }
             api.roundWin();
             // Let the reveal celebrate THIS landform, THEN build the next round.
-            setTimeout(() => { if (grid.isConnected) newRound(); }, 1000);
+            api.nextRound(newRound, 1000);
           });
           grid.appendChild(cell);
         }
@@ -459,17 +459,12 @@
           }, [opt.emoji]);
           b.addEventListener("click", () => {
             if (opt.key !== r.answer) { api.tryAgain(b); return; }
-            if (bins.dataset.resolved) return; // this round's experiment already ran
-            bins.dataset.resolved = "1";
-            // Consume the answer so no stale correct-target lingers through the
-            // splash animation (the harness must wait for the next round).
-            for (const g of bins.querySelectorAll(".tub__guess")) g.removeAttribute("data-correct");
             // The experiment: drop it in and let the water show the answer.
             floater.classList.add(r.answer === "sink" ? "tub__item--sink" : "tub__item--float");
             api.say(r.why);
             round += 1;
-            if (round >= ROUNDS) setTimeout(() => api.win({ say: "You tested them all, scientist!" }), 650);
-            else { api.roundWin(); setTimeout(() => { delete bins.dataset.resolved; newRound(); }, 950); }
+            if (round >= ROUNDS) api.win({ say: "You tested them all, scientist!", after: 650 });
+            else { api.roundWin(); api.nextRound(newRound, 950); }
           });
           bins.appendChild(b);
         });

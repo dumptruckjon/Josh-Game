@@ -645,7 +645,7 @@
               grid.classList.add("star__field--constellation");
               round += 1;
               if (round >= ROUNDS) api.win({ say: "You found every star! Look — a constellation!" });
-              else { api.roundWin(); setTimeout(() => { if (grid.isConnected) newRound(); }, 700); }
+              else { api.roundWin(); api.nextRound(newRound, 700); }
             }
           });
           grid.appendChild(b);

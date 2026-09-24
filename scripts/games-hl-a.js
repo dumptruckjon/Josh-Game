@@ -274,7 +274,7 @@
             api.say(r.n + "个！好记性！");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "看一眼就记住，真了不起！" });
-            else { api.roundWin(); setTimeout(() => { if (box.isConnected) newRound(); }, 900); }
+            else { api.roundWin(); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });

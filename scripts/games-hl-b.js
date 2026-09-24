@@ -70,7 +70,7 @@
             api.say("是" + ch.name + "！被您找出来了！");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "谁都藏不住，好记性！" });
-            else { api.roundWin(); setTimeout(() => { if (row.isConnected) newRound(); }, 800); }
+            else { api.roundWin(); api.nextRound(newRound, 800); }
           });
           chips.appendChild(b);
         });
@@ -467,7 +467,7 @@
             api.say("谜底是" + r.a + "！");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "灯谜大王就是您！" });
-            else { api.roundWin(); setTimeout(() => { if (card.isConnected) newRound(); }, 900); }
+            else { api.roundWin(); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });

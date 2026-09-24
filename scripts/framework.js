@@ -137,6 +137,64 @@
     const clock = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
     const tapKey = (t) => (t.closest && t.closest("button, [role=button], a, [data-correct], [data-toy]")) || t;
     let echoUntil = 0, finished = null, finishedUntil = 0, lastTap = null;
+
+    // THE ANSWERED ROUND IS OVER. MEASURED 2026-09 over all 240 games: 39 places
+    // answer a round and then build the next one behind a timer (a beat to show
+    // the answer — the reveal, the filled frame, the "yes, it's a duck!") — and
+    // through that beat the answered board stayed LIVE. So a child who got it
+    // right and tapped again a moment later (past the 350ms echo window: a
+    // deliberate second tap, not an echo) heard "Try again" for a round he had
+    // just WON, and lost his invisible ramp streak with it; the answer that won
+    // stayed flagged [data-correct] for the harness; and pressing 🏠 inside the
+    // beat either ran the next round on a HIDDEN screen (a raw setTimeout) or
+    // stranded him on the answered board when he came back (an api.later, which
+    // navigation cancels and nothing ever re-ran). So a round's end has ONE
+    // owner: api.nextRound(fn, ms). It CLOSES the board — nothing on it answers
+    // any more, not a wrong chip, not the winner, and no flag stays up — runs
+    // fn after the beat, and survives navigation: the beat pauses while the
+    // screen is hidden and fn runs the moment the child comes back. A win after
+    // a beat is api.win({ after: ms }): RECORDED at the tap (he earned it, even
+    // if he never comes back to see the party), celebrated after the beat.
+    // A won game closes the same way, so a tap on the finished board is never
+    // "try again" either — only a toy ([data-toy]) keeps playing, because a toy
+    // earns its sticker and then keeps going.
+    let closedBoard = null, pending = null, pendingTimer = 0, winDue = false, recorded = false;
+    function closeBoard() {
+      closedBoard = new WeakSet();
+      for (const n of stage.querySelectorAll("*")) closedBoard.add(n);
+      for (const n of stage.querySelectorAll("[data-correct]")) n.removeAttribute("data-correct");
+      screen.dataset.closed = "1";
+    }
+    function isClosed(t) {
+      if (!closedBoard || t.closest("[data-toy]")) return false;
+      for (let n = t; n && n !== stage; n = n.parentElement) if (closedBoard.has(n)) return true;
+      return false;
+    }
+    function reopen() {
+      closedBoard = null; pending = null; winDue = false;
+      clearTimeout(pendingTimer); pendingTimer = 0;
+      delete screen.dataset.closed;
+    }
+    function runPending() {
+      const fn = pending;
+      reopen(); // the new round is built on an OPEN board
+      if (fn) { try { fn(); } catch (e) { console.error("Josh: game '" + def.id + "' failed:", e); } }
+    }
+    function schedulePending(ms) {
+      clearTimeout(pendingTimer);
+      // a hidden screen keeps the round's end for when the child comes back
+      pendingTimer = live() ? setTimeout(runPending, ms) : 0;
+    }
+    function record() {
+      if (recorded) return;
+      recorded = true;
+      // Record the win in ONE place (JoshProgress) so the ⭐ badge, the Sticker
+      // Book, and the launcher all read the same source of truth. Fallback keeps
+      // it working if the progress module ever fails to load.
+      if (global.JoshProgress) { global.JoshProgress.markWon(def.id); return; }
+      try { localStorage.setItem("josh-won-" + def.id, "1"); } catch (e) { /* ignore */ }
+      try { window.dispatchEvent(new CustomEvent("josh-won", { detail: { id: def.id } })); } catch (e) { /* ignore */ }
+    }
     function roundOver() {
       const at = clock();
       echoUntil = at + ECHO_MS;
@@ -148,19 +206,25 @@
       const t = e.target, at = clock();
       if (!t || !t.closest) return;
       const key = tapKey(t);
-      if (e.isTrusted && e.detail !== 0 && (stage.contains(t) || foot.contains(t)) && !t.closest("[data-toy]")) {
+      const finger = e.isTrusted && e.detail !== 0;
+      // A closed board answers NOTHING, whoever taps it — a finger, a keyboard,
+      // a harness (see "THE ANSWERED ROUND IS OVER" above).
+      let deaf = isClosed(t);
+      if (!deaf && finger && (stage.contains(t) || foot.contains(t)) && !t.closest("[data-toy]")) {
         const echo = !!lastTap && at - lastTap.at < ECHO_MS;
-        const deaf = at < echoUntil                                          // rule 1
+        deaf = at < echoUntil                                                // rule 1
           || (!!finished && at < finishedUntil && key === finished)         // rule 2
           || (echo && !lastTap.known.has(key))                              // rule 3
           || (echo && key === lastTap.key && !t.closest("[data-correct]")); // rule 4
-        if (deaf) {
-          e.stopImmediatePropagation();
-          e.preventDefault();
+      }
+      if (deaf) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        if (finger) {
           if (at < echoUntil) echoUntil = at + ECHO_MS;
           if (lastTap) lastTap.at = at; // the streak goes on; what it echoes does not change
-          return;
         }
+        return;
       }
       lastTap = { key, at, known: onScreen() };
     }, true);
@@ -234,9 +298,23 @@
       say: (t) => sayLive(t),
       speak,
       // a setTimeout that is auto-cleared when the screen hides or restarts —
-      // use for round-advance/stagger timers so a hidden game can never mutate
-      // or voice itself (audit).
+      // use for stagger/animation timers so a hidden game can never mutate or
+      // voice itself (audit). NEVER for the end of a round: navigation cancels
+      // it and nothing ever re-runs it, so the child comes back to the answered
+      // board — that is what nextRound is for.
       later(fn, ms) { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; },
+      // The round has been ANSWERED: close its board and run `fn` (usually
+      // newRound) after a beat of `ms`. Nothing on the closed board answers any
+      // more — a wrong chip is not "try again", the winner cannot win twice, and
+      // every [data-correct] comes down — until `fn` runs; the beat waits while
+      // the screen is hidden and `fn` runs the moment the child comes back. See
+      // "THE ANSWERED ROUND IS OVER". A game's own timer must never call
+      // newRound/roundWin/win (a guardrail scans for it).
+      nextRound(fn, ms) {
+        closeBoard();
+        pending = fn;
+        schedulePending(ms == null ? 700 : ms);
+      },
       // Opt-in reactive buddy. Call each round (after building the round's UI) so
       // the friend sits at the bottom, "on the floor"; it persists across rounds.
       mascot(opts) {
@@ -279,7 +357,21 @@
         // the DOM), which double-fired the celebration — two buddy pops, double
         // jingle, double confetti. Guard once HERE so every game inherits it.
         if (screen.dataset.won === "1") return;
+        // A win after a BEAT (the finished picture, the car pulling in at home):
+        // RECORDED now — he earned it at the tap, and keeps the sticker even if
+        // he walks away inside the beat — celebrated when the beat is over (or
+        // the moment he comes back). The board is closed meanwhile.
+        if (opts && opts.after) {
+          if (winDue) return;
+          const rest = Object.assign({}, opts);
+          delete rest.after;
+          record();
+          api.nextRound(() => api.win(rest), opts.after);
+          winDue = true;
+          return;
+        }
         roundOver(); // …nor land on the Again button it reveals
+        closeBoard(); // the finished board answers nothing; a toy keeps playing
         screen.dataset.won = "1";
         screen.classList.add("is-won");
         // The win itself is EARNED and still recorded below even if the player
@@ -317,14 +409,7 @@
             setTimeout(() => cheer.remove(), 1700);
           }
         } catch (e) { /* ignore */ }
-        // Record the win in ONE place (JoshProgress) so the ⭐ badge, the Sticker
-        // Book, and the launcher all read the same source of truth. Fallback keeps
-        // it working if the progress module ever fails to load.
-        if (global.JoshProgress) { global.JoshProgress.markWon(def.id); }
-        else {
-          try { localStorage.setItem("josh-won-" + def.id, "1"); } catch (e) { /* ignore */ }
-          try { window.dispatchEvent(new CustomEvent("josh-won", { detail: { id: def.id } })); } catch (e) { /* ignore */ }
-        }
+        record(); // once per play, even when a win({ after }) recorded it at the tap
       },
       // Gentle "try again": a soft bump, a kind word, nothing punishing.
       tryAgain(node) {
@@ -352,6 +437,7 @@
     function start() {
       clearTimers(); // stale api.later timers from the previous run die here
       echoUntil = 0; finished = null; // a fresh game has no finished round to guard
+      reopen(); recorded = false; // …no closed board, no round waiting to end, nothing recorded
       screen.classList.remove("is-won");
       delete screen.dataset.won;
       firstTryStreak = 0; missedSinceWin = false; // fresh game → fresh difficulty
@@ -368,8 +454,12 @@
 
     screen.__start = start;
     screen.__started = false;
-    screen.__onShow = () => { speak(); };
-    screen.__onHide = () => { clearTimers(); }; // navigation kills the game's pending timers (audit)
+    // Back on the game with a round still waiting to end → end it now (its beat
+    // is long over); otherwise say the question again.
+    screen.__onShow = () => { if (pending) runPending(); else speak(); };
+    // Navigation kills the game's timers (audit) — and PAUSES a round's end: the
+    // answered board stays closed and the next round waits for the child.
+    screen.__onHide = () => { clearTimers(); clearTimeout(pendingTimer); pendingTimer = 0; };
     return screen;
   }
 
