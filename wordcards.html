@@ -896,7 +896,10 @@ function rimeOf(word){
 
    What may share a board:
      - never the word itself, and never a word that SOUNDS the same — the
-       question is spoken, so to/two or be/bee would be two right answers;
+       question is spoken, so to/two or be/bee would be two right answers.
+       HOMOPHONES is checked against a pronunciation dictionary
+       (tests/pronunciations.js): typed by hand it missed fairy/ferry, which
+       an American voice says identically;
      - never a word the voice reads out as letters or a guess (tv, ufo), and
        never a one-letter word (a, I), whose spoken form is ambiguous;
      - otherwise the two closest SPELLINGS, ties broken by a seed, so a word's
@@ -910,7 +913,7 @@ function rimeOf(word){
    No-fail (RULE 5): a wrong tap is a wiggle and the word again, three misses
    make the right word glow, and there is no score and no timer. */
 const HEAR_SKIP = ["tv", "ufo"];
-const HOMOPHONES = [["to","two"], ["for","four"], ["be","bee"], ["not","knot"], ["red","read"]];
+const HOMOPHONES = [["to","two"], ["for","four"], ["be","bee"], ["not","knot"], ["red","read"], ["fairy","ferry"]];
 const HOMOSET = {};
 for (const p of HOMOPHONES){ HOMOSET[p[0] + "|" + p[1]] = 1; HOMOSET[p[1] + "|" + p[0]] = 1; }
 function soundsAlike(a, b){ return a === b || !!HOMOSET[a + "|" + b]; }

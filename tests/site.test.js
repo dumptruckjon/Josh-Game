@@ -6098,10 +6098,48 @@ test("Word Cards: a listening round has exactly ONE right answer, and it takes r
         `${w}: the nearest wrong word is ${near} letters away (${ch.join(" / ")}), so it can be found without reading it`);
     }
   }
-  // POSITION must never answer the question. Measured 175 / 160 / 164.
+  // POSITION must never answer the question. Measured 174 / 160 / 165.
   for (let k = 0; k < pos.length; k++)
     assert.ok(pos[k] >= deck.length * 0.25,
       `the answer sits in slot ${k + 1} on only ${pos[k]} of ${deck.length} boards`);
+});
+
+test("Word Cards: every pair a dictionary says SOUNDS alike is on the page's homophone list", () => {
+  // The test above proves the HOMOPHONES list is OBEYED on every board, so it
+  // can never see a pair the list forgot — and typed by hand the list forgot
+  // one: fairy/ferry, which an American voice says identically, shared a
+  // board twice (fairy's and ferry's). The game says the word and he taps it,
+  // so both were right answers. So the list is checked against the CMU
+  // Pronouncing Dictionary (tests/pronunciations.js): every word the game can
+  // speak must have an entry, and every sound-alike pair in the pool must be
+  // listed. Together with the test above, no two sound-alikes share a board.
+  // Extra pairs are allowed: a merger the dictionary does not record (an
+  // accent's cot/caught) is a fair thing to keep apart on purpose.
+  const P = wcPure();
+  const PRON = require("./pronunciations.js");
+  const pool = P.hearPool().map((w) => w[0]);
+  // A word said ON ITS OWN carries a primary stress (the "1"). A stressless
+  // reading is a weak form of running speech ("are" -> "er") that the page
+  // never says, and it would pair "are" with "or" for no reason. The stress
+  // marks are then dropped: a spoken question cannot lean on them.
+  const said = (w) => new Set((PRON[w] || []).filter((p) => /1/.test(p)).map((p) => p.replace(/\d/g, "")));
+  const unchecked = pool.filter((w) => said(w).size === 0);
+  assert.deepEqual(unchecked, [],
+    `no dictionary entry for ${unchecked.slice(0, 8).join(", ")} — look each word up in the CMU Pronouncing ` +
+    `Dictionary and copy its line into tests/pronunciations.js, so nobody has to remember whether it is a homophone`);
+  const byPron = new Map();
+  for (const w of pool) for (const p of said(w)) byPron.set(p, [...(byPron.get(p) || []), w]);
+  const pairs = new Set();
+  for (const ws of byPron.values())
+    for (let a = 0; a < ws.length; a++) for (let b = a + 1; b < ws.length; b++) pairs.add([ws[a], ws[b]].sort().join("/"));
+  // The dictionary must be able to SEE a homophone, or the law passes on
+  // nothing. Measured, it finds 6 pairs in the pool (to/two, for/four, be/bee,
+  // not/knot, red/read, fairy/ferry); readings that cannot match find 0.
+  assert.ok(pairs.size >= 5, `the dictionary found only ${pairs.size} sound-alike pairs in the pool — it failed open`);
+  const listed = new Set(P.HOMOPHONES.map((p) => [...p].sort().join("/")));
+  const missed = [...pairs].filter((p) => !listed.has(p));
+  assert.deepEqual(missed, [],
+    `${missed.join(", ")} sound the same but are not in the page's HOMOPHONES, so they can share a listening board`);
 });
 
 test("Word Cards: the listening ladder opens on the words he already decodes", () => {

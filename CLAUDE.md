@@ -9303,6 +9303,25 @@ and deleting the rule now reports it (`ends at 474 of 480, inside the 26px
 bottom padding`). When a layout guardrail passes, delete the rule it guards and
 check that it goes red; and correct the comment rather than the test.
 
+**A HAND-TYPED HOMOPHONE LIST MISSED ONE, AND ONLY A DICTIONARY COULD SAY SO.**
+👂 Hear it, find it SAYS a word and he taps it, so two words on one board that
+sound the same are two right answers. The page keeps them apart with a
+HOMOPHONES list, and its test proved the list was OBEYED on all 499 boards, so
+it could never see a pair the list forgot. Checked against the CMU Pronouncing
+Dictionary, the pool holds six sound-alike pairs and the list had five:
+**fairy/ferry**, which an American voice says identically, shared a board twice.
+Fixed, and the dictionary's readings for the whole pool now live in
+`tests/pronunciations.js`, so the test derives the pairs instead of trusting
+the list. A new card fails until someone looks it up. Two things worth keeping.
+**Filter to the CITATION form:** the dictionary also lists weak forms from
+running speech ("are" and "or" can both be "er"), which the page never says,
+and without the filter the law flags are/or; that mutation is what proves the
+filter is needed. **Check the accents too, then stop:** re-running every board
+with the cot/caught, flapped-t and pin/pen mergers found nothing new, so no
+merger table ships. The list may still hold an extra pair on purpose (an accent the
+dictionary does not record); the law only requires that none is MISSING. When a
+test checks that a list is obeyed, ask what checks that the list is complete.
+
 ---
 
 ## Repository Structure
@@ -9457,6 +9476,10 @@ tooling.
 │   ├── state-cues.js           # the ONE owner of how a TRANSLUCENT state pair is carried (composite / transient /
 │   │                           #   attribute): site.test.js's colour law requires it to EQUAL what it derives, both
 │   │                           #   ways, and e2e.test.js measures every `composite` entry as PAINTED PIXELS
+│   ├── pronunciations.js       # test data, not loaded by the site: the CMU Pronouncing Dictionary's readings for
+│   │                           #   every word 👂 Hear it, find it can SAY (its licence is kept inline). site.test.js
+│   │                           #   requires every sound-alike pair it finds to be on Word Cards' HOMOPHONES list
+│   │                           #   (typed by hand, that list missed fairy/ferry). A new card needs its entry here
 │   └── helpers.js              # shared: locate a browser + serve the site (or JOSH_BASE_URL for live), plus
 │                               #   `decodePng`, for the tests that must read what was actually painted
 ├── tools/                      # NODE-ONLY dev tools (not loaded by the site) — the
