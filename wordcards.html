@@ -170,7 +170,7 @@
   /* the shared ending in the families deck. An underline rather than a colour:
      the card background cycles through eight hues and a second ink colour
      could not stay above AA contrast on all of them. */
-  .word .rime{border-bottom:.09em solid rgba(33,18,63,.45);padding-bottom:.02em;}
+  .word .rime,.hmark{border-bottom:.09em solid rgba(33,18,63,.45);padding-bottom:.02em;}
   /* In a letter-team deck the team is marked on the FRONT as well, on the same
      white plate the sound strip gives a team tile — so "bucket" shows him the
      ck before he flips, and the two surfaces mark the same letters the same
@@ -336,6 +336,40 @@
   .icon.hold.holding{background-size:100% 100%;}
   .mtile.miss{animation:mnudge .34s ease;}
   .mtile.hintme{animation:mhint .9s ease 2;}
+  /* ---------- 👂 Hear it, find it ----------
+     The page says a word and he taps it from three WRITTEN words. The choices
+     are the matching board's own tiles (.mtile), so a tile looks, presses,
+     wiggles and glows exactly as it does one screen over, and every colour law
+     that already holds for those tiles holds here without a second copy.
+     The prompt is one big tap zone that says the word again. While sound is on
+     it shows only 🗣️, because the question IS the sound. With sound off it shows
+     the picture (or the sight sentence with a blank), so the game still works
+     as "see it, find it" — and once he finds the word, the picture is the
+     reward either way. */
+  #hear{grid-template-rows:auto auto minmax(76px,1fr) auto;}
+  .hprompt{position:relative;min-height:76px;min-width:0;width:100%;border:0;border-radius:34px;
+           background:var(--card);color:var(--ink);font-family:inherit;cursor:pointer;
+           display:grid;place-items:center;padding:14px;overflow:hidden;
+           box-shadow:0 12px 0 rgba(0,0,0,.22);}
+  .hprompt:active{transform:scale(.98);}
+  .hprompt:focus-visible{outline:4px solid #fff;outline-offset:4px;}
+  /* The say-it glyph is 写字's own (.wear), for the same reason: 👂 is the
+     "ear" card's picture, and this tile SHOWS the card's picture as its reward,
+     so an ear would sit here twice. Big while it is the whole question, then a
+     corner mark once there is a picture to look at.
+     The picture and the big glyph are sized by hFit() from the tile's REAL box,
+     not by vmin: the tile is whatever height the screen has left over — 84px
+     at 320x480 and 400 at 390x844 — so a viewport unit either overflows the
+     short one or leaves the tall one nearly empty. These are the fallbacks. */
+  .hprompt .wear{font-size:48px;}
+  .hprompt.cued .wear{position:absolute;top:12px;right:16px;font-size:30px;}
+  .hcue{font-size:48px;line-height:1;}
+  .hcue.sentence{font-size:clamp(1.4rem,7vmin,3.4rem);font-weight:800;line-height:1.35;
+                 max-width:86%;text-align:center;}
+  .hblank{display:inline-block;min-width:2.2em;border-bottom:.1em solid var(--ink);}
+  /* Grid gap, never flex, for the reason the matching board gives. */
+  .hchoices{display:grid;grid-template-columns:minmax(0,100%);grid-auto-rows:minmax(76px,auto);gap:16px;}
+  .hword{font-size:clamp(1.9rem,9vmin,3.6rem);font-weight:800;line-height:1;white-space:nowrap;}
   /* Four rows at the 76px tap floor plus three 16px gaps is 352px of board, and
      BOTH of those numbers are laws — so on the shortest phone the page's own
      chrome is what yields, never the tile or the gap. Measured: 320x480 is the
@@ -352,7 +386,17 @@
      where it STARTS can move. bar-to-tile stays 40px, well clear of the 16px
      spacing law, because the meter sits between them. */
   @media (max-height:520px){
-    #match{display:grid;padding-top:calc(env(safe-area-inset-top, 0px) + 10px);gap:12px;}
+    #match,#hear{display:grid;padding-top:calc(env(safe-area-inset-top, 0px) + 10px);gap:12px;}
+    /* The listening board has one more row than the matching board — its
+       prompt, itself a 76px tap target — and three 76px words with two 16px
+       gaps below it. Both numbers are laws, so again the chrome yields, and the
+       meter is the one piece of chrome Josh never reads. Measured at 320x480:
+       with the meter the prompt is squeezed to its 76px floor and the last word
+       runs INTO the page's bottom padding (6px from the edge, where the notch
+       phones' home bar lives); without it the prompt gets 84px and the words
+       stop where the padding begins, 26px clear. */
+    #hear{grid-template-rows:auto minmax(76px,1fr) auto;}
+    #hear .meter{display:none;}
   }
   @keyframes mnudge{25%{transform:translateX(-7px);}75%{transform:translateX(7px);}}
   @keyframes mhint{50%{box-shadow:0 0 0 5px #FF6B57,0 8px 0 rgba(0,0,0,.22);}}
@@ -439,6 +483,23 @@
   </div>
 </div>
 
+<div class="wrap hidden" id="hear">
+  <div class="bar">
+    <button class="back" id="hback" aria-label="Back to all the decks">&lsaquo;&nbsp; Hear it</button>
+    <button class="icon snd" id="hsound" aria-pressed="false" aria-label="Say each word out loud">&#128263;</button>
+    <button class="icon hold" id="hreset" aria-label="For a grown-up: hold this down to go back to the first word">&#9198;&#65039;</button>
+  </div>
+  <div class="meter">
+    <div class="track"><div class="fill" id="hfill"></div></div>
+    <span class="count" id="hcount"></span>
+  </div>
+  <button class="hprompt" id="hsay" type="button" aria-label="Hear the word again">
+    <span class="hcue hidden" id="hcue" aria-hidden="true"></span>
+    <span class="wear" aria-hidden="true">&#128483;&#65039;</span>
+  </button>
+  <div class="hchoices" id="hchoices"></div>
+</div>
+
 <div class="wrap" id="menu">
   <div class="mhead">
     <a class="home" href="./#home" aria-label="Back to Josh's Games">&#127968;</a>
@@ -451,6 +512,10 @@
        that goes stale the moment a card is added or removed. -->
   <h2 class="sect">Learning to read</h2>
   <div class="grid" id="readGrid"></div>
+  <!-- `.mode`, like 写字 and 配对: it opens its own screen, not the card deck.
+       The ear is aria-hidden so the button is NAMED by its words; its count is
+       written by the script, like every other count on this page. -->
+  <button class="mode" id="hearBtn"><span><b aria-hidden="true">&#128066;</b> Hear&nbsp;it, find&nbsp;it</span> <small></small></button>
   <!-- One button, not a grid: a single chip in a two-column grid orphans its
        row, which is the same even-fill reasoning the fort's contents row is
        held to. The count is written by the script, like every other count on
@@ -822,6 +887,73 @@ function rimeOf(word){
   return "";
 }
 
+/* ---------- 👂 Hear it, find it ----------
+   The page says a word and he taps it from three WRITTEN words — the mechanic
+   his profile names for exactly this skill ("hear a word, tap the matching one
+   of 3"). The two wrong words are chosen to LOOK like the answer (cat / rat /
+   car), so the only way to find it is to read it: a wrong word that differed in
+   every letter could be found by its first letter, or its length, alone.
+
+   What may share a board:
+     - never the word itself, and never a word that SOUNDS the same — the
+       question is spoken, so to/two or be/bee would be two right answers;
+     - never a word the voice reads out as letters or a guess (tv, ufo), and
+       never a one-letter word (a, I), whose spoken form is ambiguous;
+     - otherwise the two closest SPELLINGS, ties broken by a seed, so a word's
+       board is the same board every time he meets it.
+
+   The ladder is easiest first, built from decks this page already owns: the
+   First Words (he decodes these — his profile's mastered skill), then the
+   Sight Words (his working edge), then everything else by how many SOUNDS it
+   has, so duck and ship come long before crocodile.
+
+   No-fail (RULE 5): a wrong tap is a wiggle and the word again, three misses
+   make the right word glow, and there is no score and no timer. */
+const HEAR_SKIP = ["tv", "ufo"];
+const HOMOPHONES = [["to","two"], ["for","four"], ["be","bee"], ["not","knot"], ["red","read"]];
+const HOMOSET = {};
+for (const p of HOMOPHONES){ HOMOSET[p[0] + "|" + p[1]] = 1; HOMOSET[p[1] + "|" + p[0]] = 1; }
+function soundsAlike(a, b){ return a === b || !!HOMOSET[a + "|" + b]; }
+function editDistance(a, b){
+  let prev = [];
+  for (let j = 0; j <= b.length; j++) prev.push(j);
+  for (let k = 1; k <= a.length; k++){
+    const cur = [k];
+    for (let j = 1; j <= b.length; j++)
+      cur.push(Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[k - 1] === b[j - 1] ? 0 : 1)));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+function hearPool(){ return WORDS.filter((w) => w[0].length >= 2 && HEAR_SKIP.indexOf(w[0]) < 0); }
+function hearDeck(){
+  const first = new Set(firstWords());
+  const tier = (w) => first.has(w) ? 0 : w[2] === "sight" ? 1 : 2;
+  const key = new Map();
+  for (const w of hearPool()){
+    const t = tier(w);
+    key.set(w, t * 1e6 + (t === 2 ? sounds(w[0]).length * 100 : 0) + (t ? w[0].length : 0));
+  }
+  // Ties keep the seeded order (sort is stable), so a tier is not alphabetical
+  // and the ladder reads the same every time.
+  return teachingOrder(hearPool(), "Hear").sort((a, b) => key.get(a) - key.get(b));
+}
+const HEAR_CHOICES = 3;
+function hearChoices(word){
+  const r = rngFrom(seedOf("hear " + word));
+  const ranked = hearPool().filter((w) => !soundsAlike(w[0], word))
+    .map((w) => ({ w: w[0], d: editDistance(w[0], word) + Math.abs(w[0].length - word.length) / 2, t: r() }))
+    .sort((a, b) => a.d - b.d || a.t - b.t);
+  const out = [];
+  for (const c of ranked){
+    if (out.length >= HEAR_CHOICES - 1) break;
+    if (!out.some((o) => soundsAlike(o, c.w))) out.push(c.w);
+  }
+  // Seeded, like the rest: position must never answer the question.
+  out.splice(Math.floor(r() * (out.length + 1)), 0, word);
+  return out;
+}
+
 /* ---------- say it out loud ----------
    He reads the front, flips, and HEARS the word confirm it — control of error
    with no grown-up needed. Off by default (RULE 5), one obvious toggle, and
@@ -893,7 +1025,9 @@ document.addEventListener("click", (e) => {
   if (!e.isTrusted || e.detail === 0 || !e.target || !e.target.closest) return;
   const t = e.target, at = performance.now();
   const control = t.closest("button, [role=button], a") || t;
-  const screen = t.closest("#menu, #deck, #write, #match");
+  // Every screen is a .wrap, so a new screen is covered without anyone
+  // editing a list here — this was "#menu, #deck, #write, #match".
+  const screen = t.closest(".wrap");
   const near = lastTap && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < ECHO_PX;
   if (lastTap && at - lastTap.at < ECHO_MS && (control === lastTap.control || (screen !== lastTap.screen && near))){
     e.stopImmediatePropagation();
@@ -1188,6 +1322,17 @@ function toggleSound(say){
   if (soundOn) say();
   else try { speechSynthesis.cancel(); } catch (e) {}
 }
+/* The ONE other writer of the sound state: a DELIBERATE request for audio —
+   tapping the word on the writing pad, or opening the listening game, whose
+   question IS a sound. Sound off means "do not speak at me automatically", and
+   neither of those is automatic. It turns sound on rather than speaking past
+   the toggle, so the toggle always matches what the device is really doing. */
+function unmute(){
+  if (soundOn) return;
+  soundOn = true;
+  try { localStorage.setItem("wc-sound", "1"); } catch (e) {}
+  paintSound();
+}
 soundBtn.addEventListener("click", () => toggleSound(
   () => speak.apply(null, deck.length ? cardSpeech(deck[i]) : ["hello", null])));
 // Every screen shows a sound toggle and there is ONE piece of state behind
@@ -1428,14 +1573,7 @@ $("wshow").addEventListener("click", wShow);
 // toggle in the bar always matches what the device is actually doing. It says
 // it through wSpeak/cardSpeech like every other speech on the page, so the
 // character, its sentence and its LANGUAGE cannot drift from the flash deck's.
-$("wsaybtn").addEventListener("click", () => {
-  if (!soundOn){
-    soundOn = true;
-    try { localStorage.setItem("wc-sound", "1"); } catch (e) {}
-    paintSound();
-  }
-  wSpeak();
-});
+$("wsaybtn").addEventListener("click", () => { unmute(); wSpeak(); });
 $("wnext").addEventListener("click", () => wGo(1));
 $("wprev").addEventListener("click", () => wGo(-1));
 $("wsound").addEventListener("click", () => toggleSound(wSpeak));
@@ -1565,15 +1703,24 @@ function mPair(a, b){
    Nothing is removed, nothing is scored, and the pick survives: the only thing
    a wrong tap costs is the tap. */
 function mBump(b){
-  b.classList.remove("miss"); void b.offsetWidth; b.classList.add("miss");
-  setTimeout(() => b.classList.remove("miss"), 420);
+  nudge(b);
   mMiss += 1;
   if (mMiss < 3 || !mHeld) return;
   const other = mHeld.dataset.side === "char" ? mpicsEl : mcharsEl;
   const t = other.querySelector('[data-ch="' + mHeld.dataset.ch + '"]');
-  if (!t) return;
-  t.classList.remove("hintme"); void t.offsetWidth; t.classList.add("hintme");
-  setTimeout(() => t.classList.remove("hintme"), 1900);
+  if (t) glow(t);
+}
+/* ONE owner for the two no-fail cues both boards use — a wrong tap WIGGLES the
+   tile it hit, and the rescue GLOWS the right one — so their timing and their
+   classes (which the reduced-motion block switches off) cannot drift apart
+   between the matching board and the listening one. */
+function nudge(el){
+  el.classList.remove("miss"); void el.offsetWidth; el.classList.add("miss");
+  setTimeout(() => el.classList.remove("miss"), 420);
+}
+function glow(el){
+  el.classList.remove("hintme"); void el.offsetWidth; el.classList.add("hintme");
+  setTimeout(() => el.classList.remove("hintme"), 1900);
 }
 function mTap(b){
   if (mLock || b.getAttribute("aria-disabled") === "true") return;
@@ -1604,17 +1751,26 @@ function mFinish(){
    A keyboard is not a four-year-old's finger, so Enter and Space act at once —
    a hold-only control would be operable by touch and mouse and by nothing
    else. */
-const M_HOLD = 800;
-let mHoldT = null;
-function mHoldStop(){
-  if (mHoldT) clearTimeout(mHoldT);
-  mHoldT = null;
-  $("mreset").classList.remove("holding");
-}
-function mHoldStart(){
-  if (mHoldT || !mRounds.length) return;
-  $("mreset").classList.add("holding");
-  mHoldT = setTimeout(() => { mHoldStop(); mRestart(); }, M_HOLD);
+const HOLD_MS = 800;
+/* ONE owner for the gate, because the listening game needs the same one and a
+   second copy of four listeners is how two gates come to disagree — one still
+   firing when the finger slides off, say. */
+function holdToAct(btn, act){
+  let t = null;
+  const stop = () => { if (t) clearTimeout(t); t = null; btn.classList.remove("holding"); };
+  btn.addEventListener("pointerdown", () => {
+    if (t) return;
+    btn.classList.add("holding");
+    t = setTimeout(() => { stop(); act(); }, HOLD_MS);
+  });
+  // pointerleave as well as up/cancel: holding and then sliding OFF the button
+  // is how a grown-up changes their mind, and it must not still fire.
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) btn.addEventListener(ev, stop);
+  btn.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    ev.preventDefault();
+    act();
+  });
 }
 function mRestart(){
   if (!mRounds.length) return;
@@ -1638,16 +1794,7 @@ for (const col of [mcharsEl, mpicsEl]){
   });
 }
 $("msound").addEventListener("click", () => toggleSound(mSayHeld));
-$("mreset").addEventListener("pointerdown", mHoldStart);
-// pointerleave as well as up/cancel: holding and then sliding OFF the button is
-// how a grown-up changes their mind, and it must not still fire.
-for (const ev of ["pointerup", "pointercancel", "pointerleave"])
-  $("mreset").addEventListener(ev, mHoldStop);
-$("mreset").addEventListener("keydown", (ev) => {
-  if (ev.key !== "Enter" && ev.key !== " ") return;
-  ev.preventDefault();
-  mRestart();
-});
+holdToAct($("mreset"), mRestart);
 $("mback").addEventListener("click", () => {
   matchEl.classList.add("hidden");
   menu.classList.remove("hidden");
@@ -1667,6 +1814,167 @@ $("matchBtn").addEventListener("click", () => {
   menu.classList.add("hidden");
   matchEl.classList.remove("hidden");
   mRender();
+});
+
+/* ---------- 👂 Hear it, find it: the screen ----------
+   The rules for what goes on a board live with the other deck derivations,
+   above — they read no DOM, so a test can deal every round in node. */
+const hearEl = $("hear"), hsay = $("hsay"), hcue = $("hcue"), hchoices = $("hchoices");
+const HEAR_BEAT = 1500;
+let hDeck = [], hi = 0, hMiss = 0, hSolved = false, hCued = false, hTimer = 0;
+
+function hDeckOnce(){ if (!hDeck.length) hDeck = hearDeck(); return hDeck; }
+function hCard(){ return hDeck[hi] || null; }
+function hSpeak(){ const c = hCard(); if (c) speak.apply(null, cardSpeech(c)); }
+function hSaveAt(n){ try { localStorage.setItem("wc-hear-at", String(n)); } catch (e) {} }
+
+/* The prompt tile. Unsolved and audible, it is only the say-it glyph — the
+   question is the sound. Silent (sound off, or no voice on the device), it
+   shows the picture, or for a sight word its sentence with a blank where the
+   word goes. Solved, it shows the answer: the picture, or the whole sentence
+   with the word marked the way the families deck marks an ending. */
+function hPaintCue(){
+  const c = hCard(); if (!c) return;
+  const show = hSolved || hCued;
+  hsay.classList.toggle("cued", show);
+  hcue.classList.toggle("hidden", !show);
+  hcue.classList.toggle("sentence", c[2] === "sight");
+  hcue.textContent = "";
+  if (c[2] === "sight"){
+    c[1].split(" ").forEach((p, k) => {
+      if (k) hcue.appendChild(document.createTextNode(" "));
+      if (p.toLowerCase() !== c[0].toLowerCase()){ hcue.appendChild(document.createTextNode(p)); return; }
+      const b = document.createElement("span");
+      b.className = hSolved ? "hmark" : "hblank";
+      b.textContent = hSolved ? p : " ";
+      hcue.appendChild(b);
+    });
+  } else {
+    hcue.textContent = c[1];
+  }
+  // The label never names the word before he has found it: a screen reader
+  // reading it out would answer the question for him.
+  hsay.setAttribute("aria-label", hSolved ? c[0] + ". Hear it again." : "Hear the word again");
+  hFit();
+}
+/* The tile's height is whatever the screen has left after the words, so the
+   picture and the big say-it glyph are sized from its REAL box. A sentence is
+   text and keeps its CSS size. */
+function hFit(){
+  if (hearEl.classList.contains("hidden")) return;
+  const box = Math.min(hsay.clientWidth, hsay.clientHeight) - 28;
+  if (box <= 0) return;
+  const glyph = hsay.querySelector(".wear");
+  glyph.style.fontSize = hsay.classList.contains("cued") ? "" : Math.round(Math.max(36, Math.min(box * 0.62, 160))) + "px";
+  hcue.style.fontSize = hcue.classList.contains("sentence") ? "" : Math.round(Math.max(40, Math.min(box * 0.72, 240))) + "px";
+}
+
+function hRender(){
+  const c = hCard(); if (!c) return;
+  clearTimeout(hTimer); hTimer = 0;
+  hMiss = 0; hSolved = false;
+  // Decided per ROUND, so turning sound on halfway through a word does not
+  // snatch away a picture he is already using.
+  hCued = !soundOn || !window.speechSynthesis;
+  document.documentElement.style.setProperty("--card", COLORS[hi % COLORS.length]);
+  hchoices.textContent = "";
+  for (const w of hearChoices(c[0])){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "mtile"; b.dataset.word = w;
+    if (w === c[0]) b.dataset.correct = "1";
+    const sp = document.createElement("span");
+    sp.className = "hword"; sp.textContent = w;
+    b.appendChild(sp);
+    hchoices.appendChild(b);
+  }
+  hPaintCue();
+  $("hcount").textContent = (hi + 1) + " / " + hDeck.length;
+  $("hfill").style.width = Math.max(1, Math.round(((hi + 1) / hDeck.length) * 100)) + "%";
+}
+
+function hSolve(b){
+  hSolved = true;
+  b.classList.add("done");
+  // An answered board answers nothing: no "try again" can follow a right
+  // answer, and no flag is left up for anything to find twice.
+  for (const x of hchoices.children){ x.setAttribute("aria-disabled", "true"); delete x.dataset.correct; }
+  hPaintCue();
+  hcue.classList.remove("pop"); void hcue.offsetWidth; hcue.classList.add("pop");
+  hSpeak();
+  // The NEXT word is saved now, not when the beat ends: leaving during the
+  // beat must not bring him back to a word he has already found.
+  hSaveAt((hi + 1) % hDeck.length);
+  hTimer = setTimeout(() => {
+    hTimer = 0;
+    // A screen here is only HIDDEN when he leaves, so a timer that fired after
+    // that would deal a word onto a screen nobody is looking at.
+    if (!hearEl.classList.contains("hidden")) hGo(1);
+  }, HEAR_BEAT);
+}
+function hTap(b){
+  if (hSolved || b.getAttribute("aria-disabled") === "true") return;
+  const c = hCard(); if (!c) return;
+  if (b.dataset.word === c[0]){ hSolve(b); return; }
+  nudge(b);
+  hSpeak();   // the word again, so he can compare what he heard with what he read
+  hMiss += 1;
+  if (hMiss >= 3){
+    const t = hchoices.querySelector('[data-word="' + c[0] + '"]');
+    if (t) glow(t);
+  }
+}
+/* Modular, like 写字 and 配对: every index is a real word, so finishing the
+   last one simply starts the ladder again. */
+function hGo(step){
+  if (!hDeck.length) return;
+  hi = (hi + step + hDeck.length) % hDeck.length;
+  hSaveAt(hi);
+  hRender();
+  hSpeak();
+}
+function hRestart(){
+  if (!hDeck.length) return;
+  hi = 0;
+  // REMOVED, not set to "0", exactly as 配对 does it.
+  try { localStorage.removeItem("wc-hear-at"); } catch (e) {}
+  hRender();
+  hSpeak();
+}
+
+hchoices.addEventListener("click", (ev) => {
+  const b = ev.target.closest(".mtile");
+  if (b) hTap(b);
+});
+hsay.addEventListener("click", () => { unmute(); hSpeak(); });
+$("hsound").addEventListener("click", () => {
+  toggleSound(hSpeak);
+  // Silenced halfway through a word: show him the picture instead.
+  if (!soundOn) hCued = true;
+  hPaintCue();
+});
+holdToAct($("hreset"), hRestart);
+$("hback").addEventListener("click", () => {
+  clearTimeout(hTimer); hTimer = 0;
+  hearEl.classList.add("hidden");
+  menu.classList.remove("hidden");
+  try { speechSynthesis.cancel(); } catch (e) {}
+});
+$("hearBtn").querySelector("small").textContent = hDeckOnce().length + " words";
+$("hearBtn").addEventListener("click", () => {
+  hDeckOnce();
+  // The bound is the modular one, as on the other two boards: the last word is
+  // a real place to stop, and coming back must land on it, not on the first.
+  hi = 0;
+  try {
+    const v = parseInt(localStorage.getItem("wc-hear-at"), 10);
+    if (v >= 0 && v < hDeck.length) hi = v;
+  } catch (e) {}
+  // A listening game IS a request for sound — see unmute().
+  unmute();
+  menu.classList.add("hidden");
+  hearEl.classList.remove("hidden");
+  hRender();
+  hSpeak();
 });
 
 document.addEventListener("keydown", e => {
@@ -1689,7 +1997,7 @@ deckEl.addEventListener("touchend", e => {
   startX = null;
 }, {passive:true});
 
-window.addEventListener("resize", () => { if (deck.length) render(false); });
+window.addEventListener("resize", () => { if (deck.length) render(false); hFit(); });
 </script>
 </body>
 </html>

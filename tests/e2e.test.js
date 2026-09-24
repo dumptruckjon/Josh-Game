@@ -3616,6 +3616,27 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     await noteTile();
     await sweep();                                   // matched
 
+    // …AND THE LISTENING BOARD. Its words sit on the matching board's own white
+    // tile and a found word turns the same green, but a SIGHT word's reward is
+    // a SENTENCE on the prompt tile, which takes the card's colour — so eight
+    // sight rounds in a row score it on all eight hues.
+    await pg.click("#mback");
+    await pg.waitForSelector("#grid .chip");
+    const hearHues = new Set();
+    const firstSight = await pg.evaluate(() => hDeckOnce().findIndex((w) => w[2] === "sight"));
+    assert.ok(firstSight > 0, "fixture: the listening ladder has no sight words");
+    for (let k = 0; k < 8; k++) {
+      await pg.evaluate((n) => localStorage.setItem("wc-hear-at", String(n)), firstSight + k);
+      await pg.click("#hearBtn");
+      await pg.waitForSelector("#hear:not(.hidden)");
+      if (k === 0) await sweep();                    // the three words, waiting
+      await pg.evaluate(() => document.querySelector("#hchoices [data-correct]").click());
+      hearHues.add(await pg.evaluate(() => getComputedStyle(document.getElementById("hsay")).backgroundColor));
+      await sweep();                                 // the found word + its sentence
+      await pg.click("#hback");
+      await pg.waitForSelector("#grid .chip");
+    }
+
     assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
 
     // FIXTURE FLOOR. A derived population fails OPEN — a walker that stopped
@@ -3640,6 +3661,10 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     for (const run of ["hz__key", "hz__zh", "hz__en"])
       assert.ok(saw(run), `fixture: the Chinese card's ${run} run was never audited`);
     assert.ok(saw("mchar"), "fixture: the matching board's character tile was never audited");
+    assert.ok(saw("hword"), "fixture: the listening board's words were never audited");
+    assert.ok(saw("hcue"), "fixture: a sight word's sentence on the prompt tile was never audited");
+    assert.equal(hearHues.size, 8,
+      `the prompt tile cycles eight hues and a sentence sits on each (saw ${hearHues.size})`);
     assert.equal(boardFills.size, 3,
       "a board tile takes three fills — waiting, held and matched — and each is a " +
       `different background the same run has to clear (saw ${boardFills.size}: ` +
@@ -5708,6 +5733,186 @@ test("Word Cards: matching can be sent back to round 1, but only by a grown-up",
     s = await at();
     assert.equal(s.round, `${lastIdx + 1} / ${lastIdx + 1}`,
       `parking on the LAST round must reopen there, not start over — saw ${s.round}`);
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
+
+test("Word Cards: Hear it, find it — he hears a word and finds it by READING it", async () => {
+  // The owner's pick (2026-09). The page says a word and he taps it from three
+  // written words, which is the mechanic his profile names for exactly this
+  // skill. Every claim below is a claim about what HE experiences: what he
+  // hears, what a wrong tap costs (nothing), what a right tap shows him, and
+  // that nothing can strand him on a word he has already found.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  // speechSynthesis is a READ-ONLY accessor, so the stub is installed with
+  // defineProperty and verifies itself — a plain assignment silently no-ops
+  // and the real (silent) engine answers, which reads as a feature that never
+  // fired. It is lost on every reload, so every reload re-installs it.
+  const stub = () => pg.evaluate(() => {
+    window.__said = [];
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: { __stub: true, cancel() {}, getVoices() { return []; },
+               speak(u) { window.__said.push(u.text); } },
+    });
+    return !!window.speechSynthesis.__stub;
+  });
+  const st = () => pg.evaluate(() => ({
+    said: window.__said.slice(),
+    word: hDeck[hi] && hDeck[hi][0], pic: hDeck[hi] && hDeck[hi][1], cat: hDeck[hi] && hDeck[hi][2],
+    choices: [...document.querySelectorAll("#hchoices .mtile")].map((b) => b.dataset.word),
+    done: [...document.querySelectorAll("#hchoices .done")].map((b) => b.dataset.word),
+    disabled: document.querySelectorAll('#hchoices [aria-disabled="true"]').length,
+    flagged: [...document.querySelectorAll("#hchoices [data-correct]")].map((b) => b.dataset.word),
+    glowing: [...document.querySelectorAll("#hchoices .hintme")].map((b) => b.dataset.word),
+    cueShown: !document.getElementById("hcue").classList.contains("hidden"),
+    cue: document.getElementById("hcue").textContent,
+    blank: !!document.querySelector("#hcue .hblank"),
+    mark: (document.querySelector("#hcue .hmark") || {}).textContent || null,
+    label: document.getElementById("hsay").getAttribute("aria-label"),
+    sound: document.getElementById("hsound").getAttribute("aria-pressed"),
+    count: document.getElementById("hcount").textContent,
+    stored: localStorage.getItem("wc-hear-at"),
+    total: hDeck.length,
+  }));
+  // Taps are DOM clicks — this suite's way to drive a tap, and never an echo.
+  // The wiggle class from an EARLIER miss lingers for 420ms, so it is cleared
+  // first: otherwise "did THIS tap wiggle?" reads the previous tap's answer.
+  const tap = (w) => pg.evaluate((x) => {
+    window.__said.length = 0;
+    const b = document.querySelector(`#hchoices [data-word="${x}"]`);
+    b.classList.remove("miss");
+    b.click();
+    return b.classList.contains("miss");
+  }, w);
+  const open = async () => {
+    await pg.click("#hearBtn");
+    await pg.waitForSelector("#hear:not(.hidden)");
+  };
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed, so nothing below measures anything");
+
+    // 0. RULE 5: sound starts OFF — and opening a LISTENING game is the request
+    //    for it, so the toggle turns on and the first word is SAID.
+    assert.equal(await pg.evaluate(() => soundOn), false, "fixture: sound must start off");
+    await open();
+    let s = await st();
+    const first = s.word;
+    assert.equal(s.sound, "true", "opening the listening game must turn sound on — its question IS a sound");
+    assert.equal(s.count, `1 / ${s.total}`, `a fresh start must open on the first word (${s.count})`);
+    assert.deepEqual(s.said, [s.word], `opening must SAY the first word, once (said ${JSON.stringify(s.said)})`);
+    assert.equal(s.choices.length, 3, "three written words to choose from");
+    assert.equal(s.choices.filter((w) => w === s.word).length, 1, "the word he hears must be on the board once");
+    // The question is the SOUND: no picture yet, and nothing on the tree names it.
+    assert.equal(s.cueShown, false, "with sound on the prompt must not show the picture — that answers it");
+    assert.ok(!s.label.includes(s.word), `the prompt's label "${s.label}" names the word before he has found it`);
+
+    // 1. A WRONG TAP COSTS NOTHING: a wiggle, the word again, the round goes on.
+    const wrong = s.choices.filter((w) => w !== s.word);
+    assert.equal(await tap(wrong[0]), true, "a wrong tap must wiggle the word he tapped");
+    s = await st();
+    assert.deepEqual(s.done, [], "a wrong tap must not end the round");
+    assert.deepEqual(s.said, [s.word], "a wrong tap must say the word again, so he can compare");
+    assert.deepEqual(s.glowing, [], "one miss is not yet a rescue");
+
+    // 2. THREE MISSES AND THE RIGHT WORD GLOWS — 写字's and 配对's rescue.
+    await tap(wrong[1]);
+    await tap(wrong[0]);
+    s = await st();
+    assert.deepEqual(s.glowing, [s.word], `after three misses the right word must glow (saw ${s.glowing})`);
+
+    // 3. THE RIGHT TAP: it goes green, the picture is the reward, the word is
+    //    said again, and the board CLOSES — an answered board answers nothing.
+    await tap(s.word);
+    s = await st();
+    assert.deepEqual(s.done, [first], "the word he found must be marked found");
+    assert.equal(s.disabled, 3, "an answered board must answer nothing");
+    assert.deepEqual(s.flagged, [], "no answer may stay flagged once it is found");
+    assert.equal(s.cueShown, true, "finding the word must show its picture");
+    assert.equal(s.cue, s.pic, `the reward must be the word's OWN picture (saw ${s.cue})`);
+    assert.ok(s.label.includes(first), "once found, the prompt may name the word");
+    assert.deepEqual(s.said, [first], "finding it must say it again");
+    assert.equal(s.stored, "1", "the NEXT word must be saved the moment this one is found");
+
+    // 4. …and a tap on the answered board does NOTHING — no wiggle, no voice.
+    assert.equal(await tap(wrong[0]), false, "a wrong word on an answered board must not wiggle");
+    assert.deepEqual((await st()).said, [], "a tap on an answered board must not speak");
+
+    // 5. After the beat, the next word — and it is SAID, not just shown.
+    await pg.waitForTimeout(1700);
+    s = await st();
+    assert.equal(s.count, `2 / ${s.total}`, `the next word must follow the beat (${s.count})`);
+    assert.notEqual(s.word, first, "the next round must be a different word");
+    assert.deepEqual(s.said, [s.word], `the next word must be said (said ${JSON.stringify(s.said)})`);
+
+    // 6. LEAVING DURING THE BEAT must not bring him back to a word he found.
+    await tap(s.word);
+    await pg.evaluate(() => { document.getElementById("hback").click(); document.getElementById("hearBtn").click(); });
+    s = await st();
+    assert.equal(s.count, `3 / ${s.total}`, `coming back mid-beat must land on the NEXT word (${s.count})`);
+    assert.deepEqual(s.done, [], "the word he comes back to must be a fresh board");
+
+    // 7. SOUND OFF: the picture becomes the clue, so it still works silently.
+    await pg.click("#hsound");
+    s = await st();
+    assert.equal(s.sound, "false", "fixture: the toggle did not turn sound off");
+    assert.equal(s.cueShown, true, "with sound off the prompt must show the picture instead");
+    assert.equal(s.cue, s.pic, "the silent clue must be the word's own picture");
+
+    // …and a SIGHT word has no picture, so its clue is its sentence with a
+    // BLANK where the word goes — never the word itself.
+    const sight = await pg.evaluate(() => hDeck.findIndex((w) => w[2] === "sight"));
+    assert.ok(sight > 0, "fixture: the ladder has no sight words");
+    await pg.evaluate((n) => localStorage.setItem("wc-hear-at", String(n)), sight);
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the stub did not survive the reload");
+    await open();
+    await pg.click("#hsound");                      // opening turned sound on again
+    s = await st();
+    assert.equal(s.cat, "sight", `fixture: the parked word "${s.word}" is not a sight word`);
+    assert.equal(s.blank, true, "a silent sight word must show its sentence with a blank");
+    assert.ok(!s.cue.split(/\s+/).includes(s.word),
+      `the silent clue "${s.cue}" contains the very word he is looking for`);
+    await tap(s.word);
+    s = await st();
+    assert.equal(s.mark, s.word, "once found, the sentence must show the word, marked");
+
+    // 8. PLACE MEMORY: the ladder is modular, so the LAST word is a real place
+    //    to stop and coming back must land on it — not on the first.
+    const last = s.total - 1;
+    await pg.evaluate((n) => localStorage.setItem("wc-hear-at", String(n)), last);
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the stub did not survive the reload");
+    await open();
+    s = await st();
+    assert.equal(s.count, `${s.total} / ${s.total}`, `parking on the LAST word must reopen there (${s.count})`);
+
+    // 9. A GROWN-UP's HOLD sends him back to the first word; a TAP does not.
+    const press = async (ms) => {
+      const box = await (await pg.$("#hreset")).boundingBox();
+      await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await pg.mouse.down();
+      await pg.waitForTimeout(ms);
+      await pg.mouse.up();
+    };
+    await press(150);
+    s = await st();
+    assert.equal(s.count, `${s.total} / ${s.total}`, "a tap on ⏮️ must not send him back — it is a HOLD");
+    await press(1000);
+    s = await st();
+    assert.equal(s.count, `1 / ${s.total}`, `holding ⏮️ must go back to the first word (${s.count})`);
+    assert.equal(s.stored, null, "going back to the first word must forget the saved place");
+    assert.equal(s.word, first, "the first word must be the ladder's own first word");
 
     assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
   } finally {

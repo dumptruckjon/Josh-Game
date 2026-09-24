@@ -1046,6 +1046,12 @@ test("guardrail: the app's two echo guards agree on what a finger is", () => {
   const ms = (src) => { const m = src.match(/ECHO_MS\s*=\s*(\d+)/); return m && +m[1]; };
   assert.ok(ms(fw) > 0 && ms(wc) > 0, "both guards declare ECHO_MS");
   assert.equal(ms(wc), ms(fw), "Word Cards and the framework must use the SAME echo window");
+  // …and the page's rule 2 ("an echo that lands on another SCREEN") must know
+  // every screen. It read "#menu, #deck, #write, #match", a list the listening
+  // game would have had to join; every screen is a .wrap, so it asks that.
+  assert.match(wc, /closest\("\.wrap"\)/,
+    "wordcards.html: the echo guard's screen must be DERIVED (every screen is a .wrap), never a list of ids");
+  assert.doesNotMatch(wc, /closest\("#menu, #deck/, "wordcards.html: the hand-written screen list is back");
   for (const [name, src] of [["framework.js", fw], ["wordcards.html", wc]]) {
     assert.match(src, /isTrusted/, `${name}: a synthetic click is code, never a finger — the guard must check isTrusted`);
     assert.match(src, /\.detail\s*(?:===|!==)\s*0/, `${name}: a keyboard activation (detail 0) is deliberate — the guard must exempt it`);
@@ -5165,8 +5171,8 @@ test("Word Cards states no card count it has to keep up to date", () => {
   const src = read("wordcards.html");
   const cut = src.indexOf("<script>");
   const markup = src.slice(0, cut).replace(/<!--[\s\S]*?-->/g, "");
-  assert.doesNotMatch(markup, /\d+\s*(cards|rounds)/,
-    "a literal card or round count is a claim that goes stale");
+  assert.doesNotMatch(markup, /\d+\s*(cards|rounds|words)/,
+    "a literal card, round or word count is a claim that goes stale");
   // NO floor on this half, deliberately, and the asymmetry with the script half
   // below is measured rather than assumed. All four HTML comments sit in the
   // last 8% of the markup, so the realistic regex bug — a GREEDY `<!--[\s\S]*-->`
@@ -5180,7 +5186,7 @@ test("Word Cards states no card count it has to keep up to date", () => {
   // nothing, which bans nothing and stays green.
 
   const lits = stringLiterals(src.slice(cut));
-  const typed = lits.filter((l) => /\d+\s*(cards?|rounds?)\b/.test(l.text))
+  const typed = lits.filter((l) => /\d+\s*(cards?|rounds?|words?)\b/.test(l.text))
     .map((l) => `line ${l.line}: ${JSON.stringify(l.text.slice(0, 60))}`);
   assert.deepEqual(typed, [],
     "a card count that reaches the screen must be COUNTED, never typed:\n  " + typed.join("\n  "));
@@ -5195,6 +5201,8 @@ test("Word Cards states no card count it has to keep up to date", () => {
   assert.doesNotMatch(src, /"n":\s*\d+/, "the per-category counts must not be stored, they must be counted");
   assert.match(src, /WORDS\.length \+ " cards"/, "the total must be read off WORDS");
   assert.match(src, /HANZI\.length \+ " cards"/, "the Chinese count must be read off HANZI too");
+  assert.match(src, /hDeckOnce\(\)\.length \+ " words"/,
+    "the listening game's word count must be read off the ladder it will deal");
   assert.match(src, /mDeck\(\)\.length \+ " rounds"/,
     "the matching button's round count must be read off the rounds it will deal");
   assert.match(src, /'<\/span><span class="ct">'\+count\+' cards/,
@@ -5373,6 +5381,8 @@ test("Word Cards: no card wears another card's picture with the gender swapped",
     COLORS: "the card palette",
     SOUND_RULES: "how a word splits into sounds",
     READING: "the derived decks' own definitions",
+    HEAR_SKIP: "words the listening game never SAYS (read aloud as letters)",
+    HOMOPHONES: "words that may not share a listening board (they sound the same)",
   };
   const declared = [...src.matchAll(/^\s*const ([A-Z][A-Z_0-9]*) = \[/gm)].map((m) => m[1]);
   assert.ok(declared.length >= 5, `only ${declared.length} arrays found — the scan failed open`);
@@ -6031,6 +6041,113 @@ test("Word Cards: a matching round cannot hold two answers for one picture", () 
     "a round must be dealt from the seeded order, so the board he comes back to is the one he left");
 });
 
+// The page's PURE section — the data and every deck derivation, everything
+// above its first DOM read — evaluated in node, so a rule about EVERY round can
+// be checked over every round rather than the handful a browser walk reaches.
+const wcPure = () => {
+  const src = read("wordcards.html");
+  const at = src.indexOf("const WORDS = "), end = src.indexOf("const $ = id =>");
+  assert.ok(at > 0 && end > at, "the page's pure section could not be found — the scan failed open");
+  return new Function(src.slice(at, end) +
+    "; return { WORDS, sounds, firstWords, hearDeck, hearChoices, hearPool, " +
+    "HOMOPHONES, HEAR_SKIP, HEAR_CHOICES, editDistance };")();
+};
+
+test("Word Cards: a listening round has exactly ONE right answer, and it takes reading to find", () => {
+  // Hear it, find it SAYS a word and he taps it from three written words, so a
+  // board is only fair if exactly one of them is what he heard: two words that
+  // SOUND the same (to/two, be/bee) would be two right answers to a spoken
+  // question, and the voice reads a word like "tv" as letters or a guess. It
+  // only teaches reading if the wrong words LOOK like the right one — a wrong
+  // word that differs in every letter can be found by its first letter alone.
+  // Dealt over every round, in node, from the page's own rules.
+  const P = wcPure();
+  const deck = P.hearDeck(), pool = P.hearPool();
+  const words = new Set(P.WORDS.map((w) => w[0]));
+  assert.ok(deck.length >= 400, `only ${deck.length} rounds dealt — the ladder is not the whole deck`);
+  assert.equal(new Set(deck).size, deck.length, "a word is dealt twice");
+  assert.equal(deck.length, pool.length, "the ladder must deal every word in the pool, once");
+  for (const [w] of deck) {
+    assert.ok(w.length >= 2, `"${w}" is one letter — its spoken form is a guess`);
+    assert.ok(!P.HEAR_SKIP.includes(w), `"${w}" is read aloud as letters, so it cannot be a spoken question`);
+  }
+  // Every exclusion must still name a real card, or it is a dead entry — and
+  // a dead entry is how a future card slips past the rule it was written for.
+  for (const x of P.HEAR_SKIP) assert.ok(words.has(x), `HEAR_SKIP names "${x}", which is no longer a card — delete the entry`);
+  for (const [a, b] of P.HOMOPHONES)
+    assert.ok(words.has(a) && words.has(b), `HOMOPHONES pairs ${a}/${b}, and one of them is no longer a card`);
+
+  const alike = new Set(P.HOMOPHONES.flatMap(([a, b]) => [a + "|" + b, b + "|" + a]));
+  const pos = new Array(P.HEAR_CHOICES).fill(0);
+  for (const [w] of deck) {
+    const ch = P.hearChoices(w);
+    assert.equal(ch.length, P.HEAR_CHOICES, `${w}: ${ch.length} words on the board`);
+    assert.equal(ch.filter((x) => x === w).length, 1, `${w}: the word he hears must be on its board exactly once`);
+    assert.equal(new Set(ch).size, ch.length, `${w}: a word appears twice on one board (${ch.join(" / ")})`);
+    for (const x of ch) assert.ok(words.has(x), `${w}: "${x}" is not a card`);
+    for (let a = 0; a < ch.length; a++) for (let b = a + 1; b < ch.length; b++)
+      assert.ok(!alike.has(ch[a] + "|" + ch[b]),
+        `${w}: ${ch[a]} and ${ch[b]} SOUND the same, so the spoken question has two right answers`);
+    assert.deepEqual(P.hearChoices(w), ch, `${w}: the board must be the same every time he meets the word`);
+    pos[ch.indexOf(w)] += 1;
+    // …and it takes READING: a short word always shares its board with a word
+    // at most two letters away. Measured: 159 of 227 are one letter away.
+    if (w.length <= 4) {
+      const near = Math.min(...ch.filter((x) => x !== w).map((x) => P.editDistance(x, w)));
+      assert.ok(near <= 2,
+        `${w}: the nearest wrong word is ${near} letters away (${ch.join(" / ")}), so it can be found without reading it`);
+    }
+  }
+  // POSITION must never answer the question. Measured 175 / 160 / 164.
+  for (let k = 0; k < pos.length; k++)
+    assert.ok(pos[k] >= deck.length * 0.25,
+      `the answer sits in slot ${k + 1} on only ${pos[k]} of ${deck.length} boards`);
+});
+
+test("Word Cards: the listening ladder opens on the words he already decodes", () => {
+  // His profile: decoding 3- and 4-letter words is MASTERED and sight words are
+  // his working edge. So the ladder opens on the First Words deck (confidence
+  // first), then the Sight Words, then everything else by how many SOUNDS it
+  // has — derived from decks this page already owns, never a hand-written list,
+  // so a card added tomorrow lands on its own rung.
+  const P = wcPure();
+  const deck = P.hearDeck(), first = new Set(P.firstWords());
+  const tier = (w) => (first.has(w) ? 0 : w[2] === "sight" ? 1 : 2);
+  assert.ok(first.size >= 30, `only ${first.size} First Words — the ladder has no opening`);
+  assert.ok(deck.slice(0, first.size).every((w) => first.has(w)),
+    `the ladder must open on the ${first.size} First Words, not ${deck.slice(0, 6).map((w) => w[0]).join(" ")}`);
+  assert.ok(deck.some((w) => tier(w) === 1) && deck.some((w) => tier(w) === 2), "fixture: a tier is empty");
+  for (let k = 1; k < deck.length; k++) {
+    const a = deck[k - 1], b = deck[k];
+    assert.ok(tier(b) >= tier(a), `${a[0]} → ${b[0]}: the ladder steps back down a tier`);
+    if (tier(a) === 2 && tier(b) === 2) {
+      const sa = P.sounds(a[0]).length, sb = P.sounds(b[0]).length;
+      assert.ok(sb > sa || (sb === sa && b[0].length >= a[0].length),
+        `${a[0]} (${sa} sounds) → ${b[0]} (${sb}): past the sight words the ladder must climb by sounds, then length`);
+    }
+  }
+  assert.deepEqual(P.hearDeck().map((w) => w[0]), deck.map((w) => w[0]),
+    "the ladder must be the same every time, or a saved place points at a different word");
+});
+
+test("Word Cards: every grown-up HOLD on the page is the same gate", () => {
+  // Going back to the first round throws away where he got to, so it sits
+  // behind a HOLD — the gate RULE 5 names — on both boards now. One owner,
+  // holdToAct(), because two copies of four listeners is how two gates come to
+  // disagree: one still firing when the finger slides off, say. Derived from
+  // the markup, so a third board's ⏮️ is covered the day it lands.
+  const bare = read("wordcards.html").replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const ids = [...bare.matchAll(/class="icon hold" id="(\w+)"/g)].map((m) => m[1]);
+  assert.ok(ids.length >= 2, `only ${ids.length} hold buttons found — the scan failed open`);
+  assert.equal((bare.match(/function holdToAct\(/g) || []).length, 1, "holdToAct must be declared exactly once");
+  for (const id of ids)
+    assert.match(bare, new RegExp(`holdToAct\\(\\$\\("${id}"\\)`),
+      `#${id} must be wired through holdToAct, the page's one owner of the grown-up gate`);
+  assert.equal((bare.match(/holdToAct\(\$\(/g) || []).length, ids.length,
+    "every holdToAct call must belong to a hold button in the markup");
+});
+
 test("Word Cards: the sound toggle is DERIVED, so a new screen cannot be forgotten", () => {
   // paintSound() looped a hand-written `[soundBtn, $("wsound")]`, which is the
   // population-by-hand class this repo pays for most often — and here the
@@ -6052,10 +6169,17 @@ test("Word Cards: the sound toggle is DERIVED, so a new screen cannot be forgott
   // is to SAY once sound is on, which is why that is the argument — a third
   // copy of the storage write and the repaint is exactly how two of them drift.
   assert.equal((bare.match(/localStorage\.setItem\("wc-sound"/g) || []).length, 2,
-    "the sound state has exactly two writers: toggleSound(), and the deliberate " +
-    "unmute when he taps the word on the writing pad");
-  assert.equal((bare.match(/toggleSound\(/g) || []).length, 4,
-    "toggleSound is declared once and called by each of the three screens' toggles");
+    "the sound state has exactly two writers: toggleSound(), and unmute() — the " +
+    "deliberate unmute when he ASKS for audio (the word on the writing pad, or " +
+    "opening the listening game, whose question is a sound)");
+  // DERIVED from the markup, so a fifth screen's toggle is counted without anyone
+  // editing a number here — this was the literal 4, which the listening game's
+  // own toggle would have turned into a wrong claim.
+  const toggles = (bare.match(/class="icon snd"/g) || []).length;
+  assert.ok(toggles >= 4, `only ${toggles} sound toggles in the markup — the scan failed open`);
+  assert.equal((bare.match(/toggleSound\(/g) || []).length, 1 + toggles,
+    `toggleSound is declared once and called by each screen's toggle (${toggles} of them) — ` +
+    "a screen that writes the sound state its own way is a second owner");
 });
 
 test("Word Cards: every character he WRITES has real stroke-order data", () => {
@@ -6118,30 +6242,41 @@ test("Word Cards: the say-it button's glyph is none of the deck's own pictures",
   // toggle's own ON state instead, so the screen's other controls are checked
   // too. The comparison is wcSkel, this page's ONE definition of "these two
   // pictures are the same thing", rather than a second spelling of it.
+  //
+  // It walks EVERY say-it glyph, not the first: the listening game carries one
+  // too, and its tile shows an ENGLISH card's picture as its reward — the "ear"
+  // card's is 👂 — so it is checked against both decks' pictures.
   const src = read("wordcards.html");
   const ent = (t) => t.replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).trim();
-  const m = src.match(/<span class="wear"[^>]*>([\s\S]*?)<\/span>/);
-  assert.ok(m, "the writing screen must carry a say-it glyph");
-  const say = wcSkel(ent(m[1]));
-  assert.ok(say.length, `the say-it glyph did not parse: ${JSON.stringify(m[1])}`);
+  const says = [...src.matchAll(/<span class="wear"[^>]*>([\s\S]*?)<\/span>/g)].map((m) => ent(m[1]));
+  assert.ok(says.length >= 2,
+    `the writing pad and the listening game each carry a say-it glyph (saw ${says.length})`);
 
-  const cards = wcHanzi();
-  assert.ok(cards.length > 100, `only ${cards.length} cards read — this clause would be vacuous`);
-  const clash = cards.filter((c) => wcSkel(c[1]) === say).map((c) => c[0] + " " + c[1]);
-  assert.deepEqual(clash, [],
-    `the say-it button wears ${ent(m[1])}, which is also the card picture for ${clash.join(", ")} — on that character it appears twice in one row, once as the answer and once as the control`);
+  const cards = [...wcHanzi(), ...wcWords()];
+  assert.ok(cards.length > 600, `only ${cards.length} cards read — this clause would be vacuous`);
 
-  // …and not either face of the sound toggle, or the show-stroke button, which
-  // sit on the same screen. The toggle's ON face lives in paintSound, not the
-  // markup, so a scan that read only the HTML would miss exactly the 🔊 case.
+  // …and not either face of the sound toggle, the show-stroke button or the
+  // grown-up's ⏮️, which sit on the same screens. The toggle's ON face lives in
+  // paintSound, not the markup, so a scan that read only the HTML would miss
+  // exactly the 🔊 case.
   const tog = src.match(/b\.innerHTML = soundOn \? "([^"]+)" : "([^"]+)";/);
   assert.ok(tog, "the sound toggle's two faces must be readable from paintSound");
   const show = src.match(/id="wshow"[^>]*>([\s\S]*?)<\/button>/);
   assert.ok(show, "the show-stroke button must be readable");
-  const others = [ent(tog[1]), ent(tog[2]), ent(show[1])];
-  const dup = others.filter((g) => wcSkel(g) === say);
-  assert.deepEqual(dup, [],
-    `the say-it button wears ${ent(m[1])}, which is already a control on the same screen (${dup.join(" ")})`);
+  const holds = [...src.matchAll(/class="icon hold"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => ent(m[1]));
+  assert.ok(holds.length >= 2, `both boards' grown-up ⏮️ must be readable (saw ${holds.length})`);
+  const others = [ent(tog[1]), ent(tog[2]), ent(show[1]), ...holds];
+
+  for (const g of says) {
+    const say = wcSkel(g);
+    assert.ok(say.length, `a say-it glyph did not parse: ${JSON.stringify(g)}`);
+    const clash = cards.filter((c) => wcSkel(c[1]) === say).map((c) => c[0] + " " + c[1]);
+    assert.deepEqual(clash, [],
+      `a say-it button wears ${g}, which is also the card picture for ${clash.join(", ")} — on that card it appears twice, once as the answer and once as the control`);
+    const dup = others.filter((o) => wcSkel(o) === say);
+    assert.deepEqual(dup, [],
+      `a say-it button wears ${g}, which is already a control on the same screen (${dup.join(" ")})`);
+  }
 });
 
 test("Word Cards: the stroke data ships with the licence it is used under", () => {

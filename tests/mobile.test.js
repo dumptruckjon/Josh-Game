@@ -1192,6 +1192,101 @@ test("Word Cards' MATCHING board on the real engine: eight taps, nothing small, 
   }
 });
 
+test("Word Cards' LISTENING board on the real engine: nothing small, no word cut off", async () => {
+  // Hear it, find it is three stacked word tiles under a prompt tile that is
+  // itself a tap target — so on the shortest phone the kid tap floor and the
+  // 16px spacing law bind together, exactly as they do on the matching board,
+  // and the page's chrome (the meter) is what yields. The words are WRITTEN,
+  // one line each, so a word wider than its tile would be cut off rather than
+  // wrap — and iOS's font is not this sandbox's. So EVERY word on the ladder is
+  // set into a live tile at every width and asked, not just the three a fresh
+  // board happens to show.
+  const WIDTHS = [
+    [390, 844],   // his phone
+    [320, 480],   // the shortest audited screen, where the tile floor binds
+    [320, 568],   // the narrowest
+    [834, 1112],  // the iPad
+  ];
+  for (const [w, h] of WIDTHS) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      // It REMEMBERS its place, so a key left by another test would open it on
+      // a different board.
+      await p2.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+      await p2.reload();
+      await p2.click("#hearBtn");
+      await p2.waitForSelector("#hear:not(.hidden)");
+
+      const r = await p2.evaluate((MIN) => {
+        const tiles = [...document.querySelectorAll("#hchoices .mtile")];
+        const box = tiles.map((t) => t.getBoundingClientRect());
+        let gap = Infinity;
+        for (let a = 0; a < box.length; a++) for (let b = a + 1; b < box.length; b++) {
+          const dx = Math.max(box[a].left, box[b].left) - Math.min(box[a].right, box[b].right);
+          const dy = Math.max(box[a].top, box[b].top) - Math.min(box[a].bottom, box[b].bottom);
+          if (dx > -1 || dy > -1) gap = Math.min(gap, Math.max(dx, dy));
+        }
+        // Every word, in a live tile: a word is one unbreakable line, so one
+        // wider than the tile's content box is a word he cannot fully see.
+        const tile = tiles[0], word = tile.querySelector(".hword"), keep = word.textContent;
+        const pad = parseFloat(getComputedStyle(tile).paddingLeft) + parseFloat(getComputedStyle(tile).paddingRight);
+        const room = tile.clientWidth - pad;
+        const clipped = [];
+        for (const c of hDeck) {
+          word.textContent = c[0];
+          if (word.getBoundingClientRect().width > room + 1) clipped.push(c[0]);
+        }
+        word.textContent = keep;
+        const all = [...document.querySelectorAll("#hear button")];
+        return {
+          tiles: tiles.length, words: hDeck.length, clipped,
+          gap: Math.round(gap),
+          taps: all.map((b) => { const q = b.getBoundingClientRect();
+                                 return { id: b.id || b.dataset.word, s: Math.round(Math.min(q.width, q.height)) }; })
+                   .filter((t) => t.s < MIN),
+          buttons: all.length,
+          ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          scrollY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+          bottom: Math.round(Math.max(...all.map((b) => b.getBoundingClientRect().bottom))),
+          vh: window.innerHeight,
+          // the page's own bottom padding (26px + the home-bar inset): content
+          // that runs into it sits where a notched phone's home bar lives
+          padBottom: parseFloat(getComputedStyle(document.getElementById("hear")).paddingBottom),
+        };
+      }, MIN_TAP);
+
+      // NON-VACUITY: a walk that opened nothing, or measured no words, passes
+      // every clause below.
+      assert.equal(r.tiles, 3, `${w}x${h}: a board is three words — saw ${r.tiles}`);
+      assert.ok(r.words >= 400, `${w}x${h}: only ${r.words} words on the ladder — the walk measured nothing`);
+      assert.ok(r.buttons >= 7, `${w}x${h}: only ${r.buttons} controls — the walk found the wrong screen`);
+
+      assert.deepEqual(r.taps, [],
+        `${w}x${h}: listening controls below the ${MIN_TAP}px floor: ` +
+        `${r.taps.map((t) => t.id + "=" + t.s).join(", ")}`);
+      assert.ok(r.gap >= 14, `${w}x${h}: the tightest gap between two words is ${r.gap}px — little hands need 16`);
+      assert.deepEqual(r.clipped, [], `${w}x${h}: these words do not fit their tile: ${r.clipped.join(", ")}`);
+      assert.ok(r.ovf <= 0, `${w}x${h}: the board scrolls sideways by ${r.ovf}px`);
+      // PORTRAIT is the mode: like its sibling boards, it fits the shortest
+      // phone with no scroll — and it stays OUT of the page's bottom padding,
+      // which is where a notched phone's home bar sits. That is the clause the
+      // short-height rule exists for: measured at 320x480, without it the last
+      // word stops 6px from the edge, 20px into the padding. (Plain "above the
+      // fold" cannot fail here — the padding silently absorbs the overflow.)
+      assert.ok(r.bottom <= r.vh - r.padBottom + 1,
+        `${w}x${h}: the last word ends at ${r.bottom} of ${r.vh}, inside the ${r.padBottom}px bottom padding`);
+      assert.equal(r.scrollY, 0, `${w}x${h}: the board makes the page scroll by ${r.scrollY}px`);
+      assert.deepEqual(errs, [], `${w}x${h}: page errors`);
+    } finally {
+      await ctx2.close();
+    }
+  }
+});
+
 test("Word Cards' WRITING pad on the real engine: nothing crushed, nothing small", async () => {
   // THE NEWEST SCREEN ON THE PAGE HAD NEVER BEEN RENDERED BY THIS FILE. The
   // test above it exists because "the page Josh actually reads on" was only

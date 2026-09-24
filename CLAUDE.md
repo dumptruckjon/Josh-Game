@@ -9292,6 +9292,16 @@ guardrail pinned `__onHide`'s old one-call body as an exact LINE, so pausing a
 round's end on hide turned it red on correct code. It was re-pointed at the
 property — `__onHide` still calls `clearTimers()` — and proven by deleting that
 call.
+**A FOLD CHECK THAT CANNOT SEE PADDING CANNOT FAIL.** 👂 Hear it, find it
+hides its meter on a short phone, and my own comment claimed that without that
+rule the last word sat 18px past the fold at 320x480. Measured, it sat 6px
+INSIDE the viewport: `.wrap` has a fixed height, so the grid's overflow runs
+silently into the page's bottom padding — the notched phones' home-bar inset —
+and nothing scrolls. So `bottom <= innerHeight` stayed green with the rule
+deleted. The honest clause is that the board stops where the padding begins,
+and deleting the rule now reports it (`ends at 474 of 480, inside the 26px
+bottom padding`). When a layout guardrail passes, delete the rule it guards and
+check that it goes red; and correct the comment rather than the test.
 
 ---
 
@@ -9351,12 +9361,25 @@ tooling.
 │                               #   answers for one picture is unrepresentable rather than
 │                               #   unlikely, and the picture column is a DERANGEMENT so position
 │                               #   never answers the question. 30 rounds cover all 120 and it
-│                               #   remembers which one he was on — with ⏮️, the page's ONE
-│                               #   parent-gated control, to go back to round 1. It takes a HOLD
+│                               #   remembers which one he was on — with ⏮️, a parent-gated
+│                               #   control, to go back to round 1. It takes a HOLD
 │                               #   (RULE 5's own gate) and fills while held: the board has no
 │                               #   room for a ◀ ▶ nav, so without it the only way off round 17
 │                               #   was to clear thirteen more boards, and on a plain tap he
 │                               #   would simply live on round 1 for ever.
+│                               #   Then 👂 Hear it, find it (the owner's pick, 2026-09) — the page
+│                               #   SAYS an English word and he taps it from three written words,
+│                               #   his profile's own "hear a word, tap the matching one of 3". The
+│                               #   wrong words are its closest SPELLINGS (cat / rat / car), so it
+│                               #   takes reading; never a homophone (to/two, red/read) and never a
+│                               #   word the voice reads as letters (tv). The ladder opens on First
+│                               #   Words, then Sight Words, then the rest by how many sounds, and
+│                               #   it remembers where he got to. Opening it turns sound on; with
+│                               #   sound off the picture (or the sight sentence with a blank) is
+│                               #   the clue. A wrong tap wiggles and says the word again, three
+│                               #   misses make the right word glow, a found word shows its picture
+│                               #   and closes the board, and ⏮️ — the same grown-up hold as 配对,
+│                               #   one owner (holdToAct) — goes back to the first word.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card
