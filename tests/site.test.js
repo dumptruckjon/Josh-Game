@@ -1034,6 +1034,24 @@ test("guardrail: every answer is a CLICK — the one event the hammer's echo gua
   assert.ok(warm >= 3, `the scan must recognise the audio warm-up listeners it exempts (saw ${warm}) — or it is matching nothing`);
 });
 
+test("guardrail: the app's two echo guards agree on what a finger is", () => {
+  // Josh's games are guarded by framework.js; Word Cards, which loads no
+  // framework, carries its own. Two copies of one definition drift — within a
+  // day of shipping, the page exempted keyboard activations and the framework
+  // did not. They are held to ONE window and the same two exemptions: a
+  // synthetic click (isTrusted) and a keyboard activation (detail 0) are never a
+  // finger's echo.
+  const fw = read("scripts/framework.js").replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+  const wc = read("wordcards.html").replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|<!--[\s\S]*?-->/g, "");
+  const ms = (src) => { const m = src.match(/ECHO_MS\s*=\s*(\d+)/); return m && +m[1]; };
+  assert.ok(ms(fw) > 0 && ms(wc) > 0, "both guards declare ECHO_MS");
+  assert.equal(ms(wc), ms(fw), "Word Cards and the framework must use the SAME echo window");
+  for (const [name, src] of [["framework.js", fw], ["wordcards.html", wc]]) {
+    assert.match(src, /isTrusted/, `${name}: a synthetic click is code, never a finger — the guard must check isTrusted`);
+    assert.match(src, /\.detail\s*(?:===|!==)\s*0/, `${name}: a keyboard activation (detail 0) is deliberate — the guard must exempt it`);
+  }
+});
+
 test("guardrail: [hidden] has ONE owner, and it beats every display rule", () => {
   // The UA's [hidden]{display:none} is an author-overridable DEFAULT, so any
   // class that sets `display` silently UN-HIDES an element a game hid:

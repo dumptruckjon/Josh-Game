@@ -9155,6 +9155,41 @@ the walk; dropping Who Hid?'s goes red on the explicit test and stays green on
 the walk, which is exactly the window the explicit test exists for. And the Dump
 Truck test without its pause goes red, which is the echo guard doing its job.
 
+**WORD CARDS NEEDED ITS OWN ECHO GUARD, AND WRITING IT FOUND THE APP'S TWO
+GUARDS ALREADY DISAGREEING ABOUT WHAT A FINGER IS.** The flash-card page loads
+no framework, so the games' echo guard never reached it — and the hammer's echo
+did real damage there. The card flip is a TOGGLE, so a double-tap flipped the
+card and flipped it straight back, and he never saw the answer. ▶ ran twice and
+skipped a card nobody saw. A double-tap on a deck chip opened the deck and
+landed the echo on the card beneath the finger. And a double-tap on ‹ back
+returned to the menu and pressed whatever was under the finger there — in that
+corner, the home link, which walks him out of Word Cards entirely. The page's
+guard has two rules: the same control again inside 350ms is the echo, and an
+echo that lands on a DIFFERENT SCREEN at the SAME PLACE cannot have been aimed.
+**The screen rule is a coordinate rule, and that is what kept it from breaking
+eight tests that were not wrong.** The first cut swallowed ANY tap on a new
+screen inside 350ms, and eight existing Word Cards tests went red — most of them
+clicking a control on the screen they had just opened, at a different place. A
+tap somewhere ELSE was aimed, however fast; only a tap where the finger already
+was is an echo. That left three tests, and each one was the hammer: five ▶
+presses in a burst (twice), and ‹ back followed at once by the home link in the
+same corner. Those now tap the way a child who looked would, 400ms apart. So do
+two 2-press loops that had been passing silently: their tests never checked the
+count, so their fixture had quietly advanced one card instead of two.
+**And the second guard exposed the first one's drift within a day.** The page
+exempted keyboard activations (a click with `detail` 0 — nobody hammers Enter by
+accident) and the framework did not, so the app had two definitions of "a
+finger" before either was a day old. The framework now exempts keyboard
+activations too, its fixture test gained a keyboard double-activation after a
+won round, and site.test.js holds the twins to ONE window and the same two
+exemptions. **Two mutations passed first, both the recorded trap of a clause
+that cannot separate its claims.** `el.click()` has `detail` 0, so the keyboard
+exemption also let synthetic clicks through, and removing `isTrusted` changed
+nothing the test could see — it now dispatches a synthetic click WITH a detail.
+And the streak clause tapped 300ms after the first tap, inside the window with
+or without re-arming — it now taps at 400ms, 250 after the swallowed echo. All
+seven mutations of the page's guard are red.
+
 ---
 
 ## Repository Structure
@@ -9224,6 +9259,10 @@ tooling.
 │                               #   SAYS what it is — the chips name their deck and its size, the card
 │                               #   names its word and its side, and the face turned away is aria-hidden
 │                               #   so the answer is not in the tree before the flip. Precached in sw.js.
+│                               #   It loads no framework, so it carries its OWN echo guard: the same
+│                               #   control twice inside 350ms, or a tap at the same PLACE on a screen
+│                               #   that just changed, is the hammer's echo — site.test.js holds it and
+│                               #   framework.js's guard to one definition of a finger.
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
@@ -9244,9 +9283,10 @@ tooling.
 │   ├── buddy.js                # window.JoshBuddy (THE owner of josh-buddy) — pick-a-companion roster + home companion + themed win art
 │   ├── framework.js            # Game registry + screen chrome + shared game API + the TEST CONTRACT;
 │                               #   `setPrompt(caption, icons, spoken)` — `spoken` is what the voice and 👂 say, so a game says ONE line.
-│                               #   Also the ONE guard against THE HAMMER'S ECHO: a capture-phase `click` listener swallows the second
-│                               #   tap a child makes for every tap he means (four time-bounded rules, real taps only, toys exempt),
-│                               #   so every game must ANSWER on `click` — the one event that guard hears
+│                               #   Also the games' ONE guard against THE HAMMER'S ECHO: a capture-phase `click` listener swallows the
+│                               #   second tap a child makes for every tap he means (four time-bounded rules; finger taps only — never a
+│                               #   synthetic or keyboard click; toys exempt), so every game must ANSWER on `click` — the one event that
+│                               #   guard hears. Word Cards carries its twin, held to the same definition by site.test.js
 │   ├── games-toys.js           # Self-registering games: gentle cause→effect toys
 │   ├── games-math.js           # Self-registering games: counting, build, skip-count, take-away, compare, coins
 │   ├── games-literacy.js       # Self-registering games: first sound, rhyme, build-a-word, sight word

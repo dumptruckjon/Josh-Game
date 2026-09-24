@@ -1416,6 +1416,14 @@ test("the hammer's ECHO: each rule catches the case only it can see, and a delib
     await p.evaluate(() => document.querySelector("#screen-echo-r1 .choice").click());
     assert.deepEqual(await log(), ["answer", "goodCue"],
       "a SYNTHETIC click must never be swallowed (isTrusted) — it is a demo or a test harness, not an echo");
+    // …and neither is a keyboard activation (click detail 0): deliberate, never a finger's echo
+    await wait(400);
+    await p.focus("#screen-echo-r1 .choice");
+    await p.keyboard.press("Enter");
+    assert.deepEqual(await log(), ["answer", "goodCue"], "fixture: Enter answers the round");
+    await wait(150); await p.keyboard.press("Enter");
+    assert.deepEqual(await log(), ["answer", "goodCue"],
+      "a KEYBOARD activation 150ms after a won round must still land (detail 0) — a keyboard user is deliberate, and the guard is for a finger");
     // the bar is never swallowed: 🏠 and 👂 always answer
     await wait(400); await tap(A); await log(); await wait(100);
     await tap(await at("#screen-echo-r1 .game__hear"));
@@ -2445,6 +2453,10 @@ test("Word Cards: the home button opens it, it plays, and it comes back", async 
 
       // …and the way OUT works, or the button is a trap on a kid's tablet.
       await pg.locator("#back").click();
+      // the menu's home button sits in the corner ‹ back just left, so it is
+      // pressed like a child who LOOKED would — a double-tap on back must not
+      // walk him out of Word Cards (see the page's echo guard)
+      await pg.waitForTimeout(400);
       await pg.locator(".home").click();
       await pg.waitForLoadState("load");
       const back = await pg.evaluate(() => ({
@@ -2457,6 +2469,133 @@ test("Word Cards: the home button opens it, it plays, and it comes back", async 
     } finally {
       await ctx.close();      // a test that opens a context owns closing it, even on failure
     }
+  }
+});
+
+test("Word Cards: a double-tap cannot flip the card back, skip a card, or reach through a screen change", async () => {
+  // MEASURED before the guard: the card flip is a TOGGLE, so a four-year-old's
+  // double-tap flipped the card and flipped it straight back — he never saw the
+  // answer; Next ran twice and skipped a card nobody saw; and a double-tap on a
+  // deck chip opened the deck and landed its echo on the card beneath the
+  // finger. The page loads no framework, so it carries its own two-rule guard
+  // (see ECHO_MS in wordcards.html), and its screen rule is a COORDINATE rule:
+  // the echo lands where the first tap did. Real taps (page.mouse) on a paused clock,
+  // so "150ms later" means exactly that however loaded the runner is.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    const center = (sel) => pg.evaluate((s) => {
+      const r = document.querySelector(s).getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    }, sel);
+    const tap = ([x, y]) => pg.mouse.click(x, y);
+    const wait = (ms) => pg.clock.runFor(ms);
+    const state = () => pg.evaluate(() => ({
+      deck: !document.getElementById("deck").classList.contains("hidden"),
+      menu: !document.getElementById("menu").classList.contains("hidden"),
+      flipped: document.getElementById("card").classList.contains("flipped"),
+      count: document.getElementById("count").textContent,
+    }));
+
+    // Find a deck chip whose spot, once the deck is open, is the CARD — so the
+    // chip's echo has something live to land on (or this would check nothing).
+    // Open and close a deck with SYNTHETIC clicks to measure it: code is never
+    // an echo, so the guard lets them straight through.
+    const card = await pg.evaluate(() => {
+      document.querySelector("#readGrid .chip").click();
+      const r = document.getElementById("card").getBoundingClientRect();
+      document.getElementById("back").click();
+      return { l: r.left, t: r.top, r: r.right, b: r.bottom };
+    });
+    const chipSel = await pg.evaluate((c) => {
+      const chips = [...document.querySelectorAll("#readGrid .chip")];
+      const i = chips.findIndex((b) => {
+        const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+        return x > c.l + 10 && x < c.r - 10 && y > c.t + 10 && y < c.b - 10;
+      });
+      return i < 0 ? null : `#readGrid .chip:nth-child(${i + 1})`;
+    }, card);
+    assert.ok(chipSel, "fixture: some deck chip must sit where the card will be");
+    const chip = await center(chipSel);
+
+    // 1. the chip's echo lands on the card of the deck it opened — and does nothing
+    await tap(chip);
+    let s = await state();
+    assert.ok(s.deck && !s.flipped, "fixture: the chip opens its deck, card face up");
+    await wait(150); await tap(chip);
+    s = await state();
+    assert.ok(s.deck && !s.flipped,
+      "a double-tap on a deck chip must not flip the card that appears under the finger — the echo cannot have been aimed at a screen that did not exist");
+
+    // 2. the card's echo does not flip it back
+    const cardXY = await center("#card");
+    await wait(400); await tap(cardXY);
+    assert.ok((await state()).flipped, "fixture: a deliberate tap flips the card");
+    await wait(150); await tap(cardXY);
+    assert.ok((await state()).flipped,
+      "a double-tap on the card must leave it FLIPPED — the flip is a toggle, and the echo undid it");
+    await wait(250); await tap(cardXY); // 400ms after the first tap — past its window — but 250 after the swallowed echo
+    assert.ok((await state()).flipped, "a hammer STREAK stays swallowed until the hand pauses — each swallowed echo re-arms the window");
+    await wait(400); await tap(cardXY);
+    assert.ok(!(await state()).flipped, "a deliberate tap after the pause flips it back");
+
+    // 3. Next's echo does not skip a card
+    const next = await center("#next");
+    const c0 = (await state()).count;
+    await wait(400); await tap(next);
+    const c1 = (await state()).count;
+    assert.notEqual(c1, c0, "fixture: Next moves on");
+    await wait(150); await tap(next);
+    assert.equal((await state()).count, c1, "a double-tap on Next must move ONE card — the echo skipped a card nobody saw");
+    await wait(400); await tap(next);
+    assert.notEqual((await state()).count, c1, "a deliberate Next after the pause moves on");
+
+    // 3b. an echo is a COORDINATE: a fast tap somewhere ELSE on a new screen
+    // was aimed, however fast, and must get through
+    await wait(400); await tap(await center("#back"));
+    assert.ok((await state()).menu, "fixture: back to the menu");
+    await wait(400); await tap(chip);
+    const k0 = (await state()).count;
+    await wait(120); await tap(next); // 120ms after the chip, on the new screen, far from it
+    assert.notEqual((await state()).count, k0,
+      "a fast tap somewhere ELSE on the new screen is aimed, not an echo — the screen rule is a coordinate rule");
+
+    // 3c. a keyboard activation is never an echo (click detail 0)
+    await wait(400);
+    const f0 = (await state()).flipped;
+    await pg.focus("#card");
+    await pg.keyboard.press("Enter"); await wait(100); await pg.keyboard.press("Enter");
+    assert.equal((await state()).flipped, f0,
+      "two quick keyboard activations must BOTH land — nobody hammers Enter by accident");
+
+    // 4. code is never an echo
+    await wait(400);
+    const flips = await pg.evaluate(() => {
+      const c = document.getElementById("card"), was = c.classList.contains("flipped");
+      c.click(); c.click();
+      // el.click() carries detail 0, which the keyboard exemption also lets
+      // through — so a synthetic click WITH a detail is what proves isTrusted
+      const mk = () => new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+      const was2 = c.classList.contains("flipped");
+      c.dispatchEvent(mk()); c.dispatchEvent(mk());
+      return was === was2 && was2 === c.classList.contains("flipped");
+    });
+    assert.ok(flips, "two SYNTHETIC clicks must both land (isTrusted) — a demo or a test is not a finger");
+
+    // 5. back to the menu: the echo must not open another deck
+    const back = await center("#back");
+    await wait(400); await tap(back);
+    assert.ok((await state()).menu, "fixture: back returns to the menu");
+    await wait(150); await tap(back);
+    assert.ok((await state()).menu, "a double-tap on back must stay on the menu — its echo lands on whatever chip is under the finger");
+    assert.deepEqual(errs, [], "no page errors");
+  } finally {
+    await ctx.close();
   }
 });
 
@@ -4608,7 +4747,7 @@ test("Word Cards: the writing pad keeps its place, INCLUDING the last character"
     // like this feature working, right up until it loses one of the two.
     await pg.click("#allBtn");
     await pg.waitForSelector(".card");
-    for (let k = 0; k < 2; k++) await pg.click("#next");
+    for (let k = 0; k < 2; k++) { await pg.waitForTimeout(400); await pg.click("#next"); } // a step at a time, not a burst
     await pg.click("#back");
 
     await pg.click("#writeBtn");
@@ -4618,7 +4757,9 @@ test("Word Cards: the writing pad keeps its place, INCLUDING the last character"
     assert.equal(opened.at, 0,
       `the pad opened at character ${opened.at + 1} of a ladder he has never seen — it is reading another screen's saved place`);
 
-    for (let k = 0; k < 5; k++) await pg.click("#wnext");
+    // one character at a time, the way a child steps — five presses in a burst
+    // are the hammer, and the page's echo guard rightly takes them as one
+    for (let k = 0; k < 5; k++) { await pg.waitForTimeout(400); await pg.click("#wnext"); }
     const walked = await pg.evaluate(() => ({
       at: wi,
       saved: localStorage.getItem("wc-write-at"),
@@ -4684,7 +4825,7 @@ test("Word Cards: the Chinese deck keeps its OWN place in the deck", async () =>
     await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
     await pg.click("#allBtn");
     await pg.waitForSelector(".card");
-    for (let k = 0; k < 2; k++) await pg.click("#next");
+    for (let k = 0; k < 2; k++) { await pg.waitForTimeout(400); await pg.click("#next"); } // a step at a time, not a burst
     await pg.click("#back");
     await pg.click("#hanziBtn");
     await pg.waitForSelector(".card");
@@ -4696,7 +4837,8 @@ test("Word Cards: the Chinese deck keeps its OWN place in the deck", async () =>
     const opened = await pg.evaluate(() => i);
     assert.equal(opened, 0,
       `the Chinese deck opened at card ${opened + 1} of a deck he has never seen — it is reading the English deck's saved place`);
-    for (let k = 0; k < 5; k++) await pg.click("#next");
+    // one card at a time (a burst of five is the hammer — see the echo guard)
+    for (let k = 0; k < 5; k++) { await pg.waitForTimeout(400); await pg.click("#next"); }
     const at = await pg.evaluate(() => ({ zh: i, keys: Object.keys(localStorage).filter((k) => k.startsWith("wc-at-")).sort() }));
     assert.equal(at.zh, 5, "fixture: the walk did not advance five cards");
     assert.deepEqual(at.keys, ["wc-at-all", "wc-at-hanzi"],

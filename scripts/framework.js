@@ -108,9 +108,12 @@
     // answer. A four-year-old taps twice for every tap he means — and a
     // 70-year-old raised on a mouse double-clicks — and the framework is the ONE
     // place that knows a round just ended, so the echo is caught here, for every
-    // game at once. Four rules, each bounded in time, each for a REAL tap only
-    // (`isTrusted`: a synthetic click is code — a demo, a test harness — never a
-    // finger) and never on a toy ([data-toy], whose play IS rapid tapping):
+    // game at once. Four rules, each bounded in time, each for a FINGER only —
+    // `isTrusted` (a synthetic click is code: a demo, a test harness) and a
+    // non-zero `detail` (a keyboard activation is deliberate; nobody hammers
+    // Enter by accident). Word Cards carries its own guard, and site.test.js
+    // holds the two to one definition — and never on a toy ([data-toy], whose
+    // play IS rapid tapping):
     //   1. a round was just WON → the board is deaf for ECHO_MS, and each
     //      swallowed tap re-arms it, so a hammer streak ends when the hand pauses;
     //   2. the answer that won the round STAYS won → a tap on the very thing
@@ -145,7 +148,7 @@
       const t = e.target, at = clock();
       if (!t || !t.closest) return;
       const key = tapKey(t);
-      if (e.isTrusted && (stage.contains(t) || foot.contains(t)) && !t.closest("[data-toy]")) {
+      if (e.isTrusted && e.detail !== 0 && (stage.contains(t) || foot.contains(t)) && !t.closest("[data-toy]")) {
         const echo = !!lastTap && at - lastTap.at < ECHO_MS;
         const deaf = at < echoUntil                                          // rule 1
           || (!!finished && at < finishedUntil && key === finished)         // rule 2

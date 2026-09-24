@@ -867,6 +867,43 @@ const menu=$("menu"), deckEl=$("deck"), card=$("card"), wordEl=$("word"), picEl=
       prevBtn=$("prev"), nextBtn=$("next"), backBtn=$("back"), soundBtn=$("sound"),
       frontFace=$("frontFace"), backFace=$("backFace");
 
+/* ---------- the hammer's echo ----------
+   A four-year-old taps twice for every tap he means, ~100-300ms apart, with the
+   finger still where it landed — so the second tap lands on whatever is under
+   it THEN. On this page that undid the very thing he asked for: the card flip
+   is a toggle, so a double-tap flipped it and flipped it straight back and he
+   never saw the answer; Next ran twice and skipped a card nobody saw; and a
+   double-tap on a deck chip opened the deck and landed the echo on the card
+   beneath the finger. Josh's games have the same guard in framework.js; this is
+   the page's own, because the page loads no framework. Two rules, for a REAL
+   tap only (a synthetic click is code, never a finger):
+     1. the same control again inside ECHO_MS is the echo, not a second tap;
+     2. an echo that lands on another SCREEN than the tap it echoes (the chip
+        opened the deck, the back button opened the menu) cannot have been
+        aimed — the screen under the finger did not exist a moment ago.
+   Rule 2 is a COORDINATE rule, because an echo is: the finger is still where it
+   landed, so a tap that lands somewhere else on the new screen was aimed, however
+   fast. Each swallowed tap re-arms the window, so a hammer streak ends only when
+   the hand pauses. A swallowed tap does nothing at all. A keyboard activation
+   (detail 0) is never an echo — nobody hammers Enter by accident. The writing
+   pad and the ⏮️ hold take pointer events, not clicks, so neither is touched. */
+const ECHO_MS = 350, ECHO_PX = 40;
+let lastTap = null;
+document.addEventListener("click", (e) => {
+  if (!e.isTrusted || e.detail === 0 || !e.target || !e.target.closest) return;
+  const t = e.target, at = performance.now();
+  const control = t.closest("button, [role=button], a") || t;
+  const screen = t.closest("#menu, #deck, #write, #match");
+  const near = lastTap && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < ECHO_PX;
+  if (lastTap && at - lastTap.at < ECHO_MS && (control === lastTap.control || (screen !== lastTap.screen && near))){
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    lastTap.at = at; // a hammer streak ends only when the hand pauses
+    return;
+  }
+  lastTap = { control, screen, at, x: e.clientX, y: e.clientY };
+}, true);
+
 let deck = [], i = 0, deckKind = "";
 
 /* ---------- remember where he got to ----------
