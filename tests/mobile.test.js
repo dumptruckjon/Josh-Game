@@ -1394,3 +1394,124 @@ test("Word Cards' WRITING pad on the real engine: nothing crushed, nothing small
     }
   }
 });
+
+test("Word Cards' LESSONS on the real engine: nothing small, nothing cut off, a drawing worth watching", async () => {
+  // 新字 is one stage and one row: the stage shows a new character, WRITES it
+  // stroke by stroke, and shows the sentence it lives in; the row is ▶ or the
+  // three tiles of a question. Walked on REAL WebKit because every piece of it
+  // is han text, an emoji or an SVG whose size the engine's fonts decide — and
+  // walked over EVERY character, because the longest note or sentence is the
+  // one that breaks. The stage clips (overflow: hidden), so anything that does
+  // not fit is silently cut off rather than scrolled: the check is that every
+  // box inside it stays inside it.
+  //
+  // The drawing bar is MEASURED, not picked: the smallest drawing anywhere is
+  // 167px (喜 at 320x480), and before the grown-up's line yielded on short
+  // phones it was 133px at 320x568 — 114px with text as wide as a wider engine
+  // font sets it — and 49px at 320x480. 150 sits between the two states.
+  const DRAWING_MIN = 150;
+  const WIDTHS = [
+    [390, 844],   // his phone
+    [320, 480],   // the shortest audited screen
+    [320, 568],   // the narrowest, where the grown-up's line used to squeeze the drawing
+    [834, 1112],  // the iPad
+  ];
+  for (const [w, h] of WIDTHS) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      // It REMEMBERS its place, so a key left by another test would open it on
+      // a different page.
+      await p2.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+      await p2.reload();
+      await p2.click("#learnBtn");
+      await p2.waitForSelector("#learn:not(.hidden)");
+
+      const r = await p2.evaluate((MIN) => {
+        const stage = document.getElementById("lstage");
+        // every box on the stage must stay inside it, or the stage clips it
+        const outside = (what) => {
+          const s = stage.getBoundingClientRect(), bad = [];
+          for (const el of document.querySelectorAll("#lview *")) {
+            if (el.closest("svg") && el.tagName.toLowerCase() !== "svg") continue;
+            const q = el.getBoundingClientRect();
+            if (!q.width || !q.height) continue;
+            if (q.left < s.left - 1 || q.right > s.right + 1 || q.top < s.top - 1 || q.bottom > s.bottom + 1)
+              bad.push(what + " ." + String(el.getAttribute("class") || el.tagName));
+          }
+          return bad;
+        };
+        const controls = () => [...document.querySelectorAll("#learn button")].filter((b) => b.getClientRects().length)
+          .map((b) => { const q = b.getBoundingClientRect();
+                        return { x: q.x, y: q.y, r: q.right, b: q.bottom, k: b.id || b.dataset.ch || b.className,
+                                 s: Math.round(Math.min(q.width, q.height)) }; });
+        const cut = [];
+        let drawn = Infinity, drawnCh = "", meets = 0;
+        for (let k = 0; k < lPages.length; k++) {
+          if (lPages[k].kind !== "meet") continue;
+          meets += 1;
+          lp = k; lRender();                               // MEET
+          const ch = lCard()[0];
+          cut.push(...outside(ch + " meet"));
+          lShow("see");                                   // SEE
+          const g = document.querySelector("#lview .lsvg").getBoundingClientRect();
+          if (g.height < drawn) { drawn = g.height; drawnCh = ch; }
+          cut.push(...outside(ch + " see"));
+          lShow("find");                                  // FIND
+          cut.push(...outside(ch + " find"));
+          lShow("read");                                  // READ
+          cut.push(...outside(ch + " read"));
+        }
+        // the question step shows the most controls: the bar, the stage and three tiles
+        lp = 0; lRender(); lShow("find");
+        const asking = controls();
+        lShow("look");
+        const meeting = controls();
+        // …and a four-character lesson's review and cheer, the widest rows
+        lp = lPages.findIndex((x) => x.kind === "review" && x.cards.length === 4); lRender();
+        cut.push(...outside("review ask"));
+        lShow("cheer");
+        cut.push(...outside("review cheer"));
+        return {
+          meets, cut: cut.slice(0, 10), nCut: cut.length,
+          drawn: Math.round(drawn), drawnCh, asking, meeting,
+          ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          scrollY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+          padBottom: parseFloat(getComputedStyle(document.getElementById("learn")).paddingBottom),
+          vh: window.innerHeight,
+        };
+      }, MIN_TAP);
+
+      // NON-VACUITY: a walk that opened nothing, or met no characters, passes
+      // every clause below.
+      assert.ok(r.meets >= 90, `${w}x${h}: only ${r.meets} characters walked — the walk measured nothing`);
+      assert.ok(r.asking.length >= 7, `${w}x${h}: the question step shows ${r.asking.length} controls — the walk found the wrong screen`);
+
+      for (const [step, list] of [["question", r.asking], ["meet", r.meeting]]) {
+        const small = list.filter((c) => c.s < MIN_TAP);
+        assert.deepEqual(small.map((c) => c.k + "=" + c.s), [],
+          `${w}x${h}: controls below the ${MIN_TAP}px floor in the ${step} step`);
+        // Every pair, not only tile against tile: the bar sits on the stage and
+        // the stage on the row, and all three are tap targets.
+        const { overlaps, worst, who } = tightestGap(list);
+        assert.equal(overlaps, 0, `${w}x${h}: ${overlaps} pairs of controls overlap in the ${step} step`);
+        assert.ok(worst >= MIN_GAP,
+          `${w}x${h}: controls ${worst.toFixed(1)}px apart in the ${step} step (${who}) — little hands need 16`);
+        const bottom = Math.max(...list.map((c) => c.b));
+        assert.ok(bottom <= r.vh - r.padBottom + 1,
+          `${w}x${h}: the ${step} step's last control ends at ${Math.round(bottom)} of ${r.vh}, inside the ${r.padBottom}px bottom padding`);
+      }
+      assert.deepEqual(r.cut, [], `${w}x${h}: ${r.nCut} boxes run off the stage, which clips them`);
+      assert.ok(r.drawn >= DRAWING_MIN,
+        `${w}x${h}: ${r.drawnCh} is written only ${r.drawn}px tall — the drawing is the lesson of that step`);
+      assert.ok(r.ovf <= 0, `${w}x${h}: the lesson scrolls sideways by ${r.ovf}px`);
+      assert.equal(r.scrollY, 0, `${w}x${h}: the lesson makes the page scroll by ${r.scrollY}px`);
+      assert.deepEqual(errs, [], `${w}x${h}: page errors`);
+    } finally {
+      await ctx2.close();
+    }
+  }
+});

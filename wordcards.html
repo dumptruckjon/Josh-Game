@@ -370,6 +370,60 @@
   /* Grid gap, never flex, for the reason the matching board gives. */
   .hchoices{display:grid;grid-template-columns:minmax(0,100%);grid-auto-rows:minmax(76px,auto);gap:16px;}
   .hword{font-size:clamp(1.9rem,9vmin,3.6rem);font-weight:800;line-height:1;white-space:nowrap;}
+  /* ---------- 新字: meet a new character ----------
+     One stage and one row. The stage is ONE big tap zone that says it again;
+     the row is either ▶ or the three tiles of a question — the matching
+     board's own .mtile, so a tile looks, wiggles and glows exactly as it does
+     two screens over. ▶ is ONE element for every step, so a double-tap on it
+     is the same control twice, which the page's echo guard swallows.
+     The big pieces are sized from the stage's REAL box (--lbox, set by
+     lFit()), for the reason the listening tile is: the stage is whatever the
+     screen has left over, and a viewport unit either overflows a short phone
+     or leaves a tall one nearly empty. */
+  #learn{grid-template-rows:auto auto minmax(0,1fr) auto;}
+  .lstage{position:relative;min-height:0;min-width:0;width:100%;border:0;border-radius:34px;
+          background:#fff;color:var(--ink);font-family:inherit;cursor:pointer;padding:14px;
+          display:grid;grid-template-columns:minmax(0,100%);overflow:hidden;
+          box-shadow:0 12px 0 rgba(0,0,0,.22);}
+  .lstage:active{transform:scale(.99);}
+  .lstage:focus-visible{outline:4px solid #fff;outline-offset:4px;}
+  .lstage .wear{position:absolute;top:12px;right:16px;font-size:30px;}
+  .lview{display:grid;grid-template-columns:minmax(0,100%);grid-template-rows:auto minmax(0,1fr) auto;
+         justify-items:center;align-items:center;gap:8px;min-height:0;}
+  .lview.l-find,.lview.l-ask{grid-template-rows:minmax(0,1fr);}
+  .lview.l-cheer{grid-template-rows:auto minmax(0,1fr);}
+  .lpic{font-size:calc(var(--lbox, 240px) * .2);line-height:1;}
+  .l-find .lpic,.l-ask .lpic{font-size:calc(var(--lbox, 240px) * .6);}
+  .l-cheer .lpic{font-size:calc(var(--lbox, 240px) * .3);}
+  .lchar,.lchars,.lpartg,.lword,.lzh,.hzr{font-family:var(--hz-face);}
+  .lchar,.lchars{font-weight:800;line-height:1;}
+  .lchar{font-size:calc(var(--lbox, 240px) * .5);}
+  /* One row, sized by lShow() for how many there are, so four fit as well as two. */
+  .lchars{display:grid;grid-auto-flow:column;gap:.15em;}
+  .lkey{font-size:max(20px, calc(var(--lbox, 240px) * .05));font-weight:800;}
+  /* The clue row. A part carries its colour twice — the glyph and a bar under
+     it — so which part is which is told by position and shape as well as hue. */
+  .lclue{display:grid;grid-auto-flow:column;align-items:center;gap:12px;
+         font-size:max(30px, calc(var(--lbox, 240px) * .13));line-height:1.1;}
+  .lpart{display:grid;grid-auto-flow:column;align-items:center;gap:4px;
+         border-bottom:6px solid;padding:0 .08em .06em;}
+  .lpartg,.lword,.lplus{font-weight:800;}
+  .lpartn{font-size:.8em;}
+  .lsvg{width:100%;height:100%;min-height:0;}
+  .lghost{fill:rgba(33,18,63,.10);}
+  .lbrush{fill:none;stroke-width:190;stroke-linecap:round;stroke-linejoin:round;}
+  .lnote{font-size:max(15px, calc(var(--lbox, 240px) * .036));font-weight:700;line-height:1.3;
+         text-align:center;max-width:94%;}
+  .lzh{font-size:max(22px, calc(var(--lbox, 240px) * .13));font-weight:800;line-height:1.35;text-align:center;}
+  .len{font-size:clamp(.95rem,4.2vmin,2rem);font-weight:700;line-height:1.3;text-align:center;}
+  /* The new character in a word or a sentence: colour AND an underline. */
+  .lmark{color:#9A3412;border-bottom:.08em solid #9A3412;}
+  .lrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:84px;gap:16px;}
+  .lgo{grid-column:1 / -1;border:0;border-radius:26px;background:var(--card);color:var(--ink);
+       font-family:inherit;font-size:34px;line-height:1;cursor:pointer;
+       box-shadow:0 8px 0 rgba(0,0,0,.22);}
+  .lgo:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
+  .lgo:focus-visible{outline:4px solid #fff;outline-offset:3px;}
   /* Four rows at the 76px tap floor plus three 16px gaps is 352px of board, and
      BOTH of those numbers are laws — so on the shortest phone the page's own
      chrome is what yields, never the tile or the gap. Measured: 320x480 is the
@@ -397,12 +451,29 @@
        stop where the padding begins, 26px clear. */
     #hear{grid-template-rows:auto minmax(76px,1fr) auto;}
     #hear .meter{display:none;}
+    /* The lesson screen yields the same chrome for a different reason: its
+       stage is where the character is WRITTEN. The meter goes here; the
+       grown-up's line has already gone (below). Its gap stays the full 16px:
+       with the meter gone the bar sits straight on the stage, and the stage is
+       itself a tap target, so the spacing law binds there. */
+    #learn{display:grid;padding-top:calc(env(safe-area-inset-top, 0px) + 10px);gap:16px;
+           grid-template-rows:auto minmax(0,1fr) auto;}
+    #learn .meter{display:none;}
   }
+  /* The grown-up's line is the one thing on the lesson stage he does not need —
+     the voice says the story in Chinese and the stage's own label carries the
+     English — and on a short phone it is what squeezes the drawing. Measured:
+     at 320x480 it took four lines and left the drawing 49px tall; at 320x568 it
+     still held the drawing to 133px, and to 114px once the text was set as wide
+     as a wider engine font draws it. So it yields before the meter does, and
+     the drawing keeps the space. */
+  @media (max-height:600px){ #learn .lnote{display:none;} }
   @keyframes mnudge{25%{transform:translateX(-7px);}75%{transform:translateX(7px);}}
   @keyframes mhint{50%{box-shadow:0 0 0 5px #FF6B57,0 8px 0 rgba(0,0,0,.22);}}
   @media (prefers-reduced-motion:reduce){ .card,.fill,.face{transition:none;} .pop{animation:none;}
     .wmed,.winkin,.wpad.nudge,.wpad.done{animation:none;}
-    .mtile{transition:none;} .mtile.miss,.mtile.hintme{animation:none;} }
+    .mtile{transition:none;} .mtile.miss,.mtile.hintme{animation:none;}
+    .lbrush{transition:none !important;} }
 </style>
 </head>
 <body>
@@ -500,6 +571,25 @@
   <div class="hchoices" id="hchoices"></div>
 </div>
 
+<div class="wrap hidden" id="learn">
+  <div class="bar">
+    <button class="back" id="lback" aria-label="Back to all the decks">&lsaquo;&nbsp; Lessons</button>
+    <button class="icon snd" id="lsound" aria-pressed="false" aria-label="Say each character out loud">&#128263;</button>
+    <button class="icon hold" id="lreset" aria-label="For a grown-up: hold this down to go back to the first lesson">&#9198;&#65039;</button>
+  </div>
+  <div class="meter">
+    <div class="track"><div class="fill" id="lfill"></div></div>
+    <span class="count" id="lcount"></span>
+  </div>
+  <button class="lstage" id="lstage" type="button" aria-label="Hear it again">
+    <span class="lview" id="lview"></span>
+    <span class="wear hidden" id="lwear" aria-hidden="true">&#128483;&#65039;</span>
+  </button>
+  <div class="lrow" id="lrow">
+    <button class="lgo" id="lgo" type="button" aria-label="Next">&#9654;</button>
+  </div>
+</div>
+
 <div class="wrap" id="menu">
   <div class="mhead">
     <a class="home" href="./#home" aria-label="Back to Josh's Games">&#127968;</a>
@@ -527,6 +617,10 @@
        same style and none of the meaning. -->
   <button class="mode hz" id="writeBtn"><span><b lang="zh-CN">&#20889;&#23383;</b> Write Characters</span> <small></small></button>
   <button class="mode hz" id="matchBtn"><span><b lang="zh-CN">&#37197;&#23545;</b> Match Characters</span> <small></small></button>
+  <!-- The 96 characters from the L1 list that the 中文 cards do not have. The
+       other three buttons ask him to RECALL a character; this one TEACHES one
+       he has never seen, so it gets its own screen and its own lessons. -->
+  <button class="mode hz" id="learnBtn"><span><b lang="zh-CN">&#26032;&#23383;</b> New Characters</span> <small></small></button>
   <h2 class="sect">Letter teams</h2>
   <div class="grid" id="teamGrid"></div>
   <h2 class="sect">Bossy R</h2>
@@ -957,6 +1051,238 @@ function hearChoices(word){
   return out;
 }
 
+/* ---------- 新字: the 96 NEW characters ----------
+   The owner's L1 认写字表 (units 1-8), taken against the 120 on the 中文 cards:
+   these are the 96 he has NEVER seen. A flash card or a matching board can only
+   ask him to RECALL a pairing, so neither can teach them. This mode
+   INTRODUCES them, two to four at a time, each in four steps:
+
+     meet — the character, its picture and its word, said out loud;
+     see  — its SECRET, while it is written stroke by stroke: the parts it is
+            built from, coloured to match (鸡 is 又 and a 鸟 he knows), or the
+            picture it grew out of (火), or the word it lives in (这个);
+     find — tap it beside two characters he already knows well, so the first
+            time he picks it out it is the only stranger on the board;
+     read — the sentence it lives in, with it marked;
+
+   and every lesson ends on a REVIEW, which asks for each new character among
+   its lesson-mates — the first time he tells it apart from the other new ones.
+
+   Row: [char, picture, "xin", pinyin, meaning, sentence, translation, unit,
+         word, story], where story is one of
+     ["pic",  zh, en]                          a pictograph: picture -> character
+     ["word", zh, en]                          it lives in the WORD, which is shown
+     ["parts", layout, [[glyph, [strokes], note], ...], zh, en]
+   A part's stroke numbers are the character's own strokes in
+   scripts/hanzi-strokes.js, and the parts PARTITION them; a part with no glyph
+   shows only its note; the layout says where the first part sits (lr / tb / rl /
+   in). All of it is checked against the stroke data by a test. zh is SPOKEN, so
+   it may use words he cannot read yet; en is the grown-up's line. Everything he
+   is shown to READ — the word, the sentence — uses only characters he has
+   already met, or the other half of his own word from the same lesson.
+
+   The row order IS the teaching order: the owner's units in turn, and inside a
+   unit the two halves of a word kept in one lesson (喜/欢, 因/为, 羽/毛, 写/字,
+   发/光). */
+const XINZI = [
+["岁","🎂","xin","suì","years old","小猫一岁了。","The kitten is one year old.",1,"几岁",["word","你几岁了？","几岁 means how old: 你几岁了? How old are you?"]],
+["喜","😊","xin","xǐ","happy; like (喜欢)","我喜欢小狗。","I like puppies.",1,"喜欢",["parts","tb",[["壴",[0,1,2,3,4,5,6,7,8],"🥁"],["口",[9,10,11],""]],"上面像一面鼓，下面是一张口。敲鼓唱歌，真欢喜！","喜 was drawn as a drum (壴) over a mouth (口): drumming and singing — happy!"]],
+["欢","🙌","xin","huān","glad (喜欢 = like)","我喜欢你。","I like you.",1,"喜欢",["parts","lr",[["又",[0,1],""],["欠",[2,3,4,5],"😮"]],"左边是又，右边的欠，像一个人张大了嘴——欢呼！","欢 = 又 + 欠, a person with a wide-open mouth: cheering!"]],
+["哥","👦","xin","gē","big brother","我爱哥哥。","I love my big brother.",2,"哥哥",["parts","tb",[["可",[0,1,2,3,4],""],["可",[5,6,7,8,9],""]],"上面一个可，下面一个可。两个可，就是哥哥！","哥 is 可 on top of 可 — two of them, and we say it twice: 哥哥."]],
+["画","🖼️","xin","huà","draw; a picture","我爱画画。","I love drawing.",2,"画画",["pic","画，像一幅画，放在画框里。","画 looks like a picture (田) sitting in its frame."]],
+["很","‼️","xin","hěn","very","我的哥哥很高。","My big brother is very tall.",2,"很大",["word","很大，很大！很小，很小！","很 means very: 很大 is very big."]],
+["这","👇","xin","zhè","this","这是我的画。","This is my drawing.",2,"这个",["word","这个，这个，就是这一个！","这 means this: 这个 is this one."]],
+["妹","🎀","xin","mèi","little sister","妹妹很小。","My little sister is small.",2,"妹妹",["parts","lr",[["女",[0,1,2],"👩"],["未",[3,4,5,6,7],""]],"左边有个女，妹妹是个小女孩。","妹 has 女 (girl) on the left: a little sister is a girl."]],
+["弟","👶","xin","dì","little brother","我有一个弟弟。","I have a little brother.",2,"弟弟",["word","哥哥大，弟弟小。","哥哥 is the big brother and 弟弟 the little one."]],
+["姐","👧","xin","jiě","big sister","姐姐很美。","My big sister is beautiful.",2,"姐姐",["parts","lr",[["女",[0,1,2],"👩"],["且",[3,4,5,6,7],""]],"左边也有个女，姐姐也是女孩。","姐 has 女 (girl) on the left too, just like 妹."]],
+["石","🪨","xin","shí","stone; rock","山上有石头。","There are rocks on the mountain.",3,"石头",["pic","石，像山崖下面的一块大石头。","石 was drawn as a rock (口) under a cliff."]],
+["也","➕","xin","yě","also; too","我也喜欢你。","I like you too.",3,"我也是",["word","你喜欢，我也喜欢！","也 means also, too: 我也是 — me too!"]],
+["空","🌤️","xin","kōng","sky (天空); empty","天空很蓝。","The sky is blue.",3,"天空",["word","抬头看，天空多大呀！","天空 is the sky."]],
+["因","💭","xin","yīn","because (因为)","因为下雨，我不出去。","Because it is raining, I am not going out.",3,"因为",["parts","in",[["口",[0,1,5],""],["大",[2,3,4],""]],"一个口，里面装着一个大。因为，因为……","因: a 大 inside a 口. 因为 means because."]],
+["为","🧐","xin","wèi","for; why (为什么)","为什么下雨？","Why does it rain?",3,"为什么",["word","为什么？为什么？我最爱问为什么！","为什么 means why?"]],
+["住","🏡","xin","zhù","live (somewhere)","爷爷住山里。","Grandpa lives in the mountains.",3,"住",["parts","lr",[["亻",[0,1],"🧍"],["主",[2,3,4,5,6],""]],"单人旁，就是一个人，人住在家里。","住 has 亻 (a person) on the left: where a person lives."]],
+["鸡","🐔","xin","jī","chicken","我家有一只鸡。","We have a chicken at home.",4,"小鸡",["parts","lr",[["又",[0,1],""],["鸟",[2,3,4,5,6],""]],"又，加上鸟，就是鸡。鸡也是一种鸟！","鸡 = 又 + 鸟: a chicken is a kind of bird (鸟)."]],
+["鸭","🦆","xin","yā","duck","小鸭爱玩水。","The duckling loves playing in water.",4,"小鸭",["parts","lr",[["甲",[0,1,2,3,4],""],["鸟",[5,6,7,8,9],""]],"右边也是鸟，鸭子是会游水的鸟！","鸭 has 鸟 (bird) on the right too: a duck is a bird that swims."]],
+["说","💬","xin","shuō","say; speak","我说你好。","I say hello.",4,"说话",["parts","lr",[["讠",[0,1],"💬"],["兑",[2,3,4,5,6,7,8],""]],"左边是言字旁，说话要用它。谢谢的谢，也有它！","说 has 讠 (words) on the left — so does 谢, which you know."]],
+["黑","⚫","xin","hēi","black","我家有一只黑猫。","We have a black cat at home.",4,"黑色",["parts","tb",[["",[0,1,2,3,4,5,6,7],""],["灬",[8,9,10,11],"🔥"]],"下面四个点，是火。火一烧，就变黑了！","黑: the four dots at the bottom are fire (灬), and fire turns things black."]],
+["色","🎨","xin","sè","colour","花是红色的。","The flower is red.",4,"红色",["word","红色、蓝色、绿色，好多颜色！","色 means colour: 红色 red, 蓝色 blue, 绿色 green."]],
+["会","🤹","xin","huì","can (know how to)","鸟会飞。","Birds can fly.",4,"会飞",["parts","tb",[["人",[0,1],""],["云",[2,3,4,5],""]],"上面是人，下面是云，这就是会！","会 = 人 on top of 云, both of which you know."]],
+["以","🆗","xin","yǐ","may; can (可以)","你可以坐。","You may sit down.",4,"可以",["word","可以吗？可以！","可以 means may, can."]],
+["黄","🟡","xin","huáng","yellow","小鸡是黄色的。","The chick is yellow.",4,"黄色",["word","香蕉是黄色的，小鸡也是黄色的！","黄色 is yellow."]],
+["彩","🌈","xin","cǎi","colourful (彩虹 = rainbow)","我爱彩色的花。","I love colourful flowers.",4,"彩虹",["parts","lr",[["采",[0,1,2,3,4,5,6,7],""],["彡",[8,9,10],"✨"]],"右边三撇，像五彩的光！","彩: the three strokes on the right (彡) shine like colours. 彩虹 is a rainbow."]],
+["羽","🪶","xin","yǔ","feather","小鸟有羽毛。","Little birds have feathers.",4,"羽毛",["pic","羽，像两根羽毛，并排站着。","羽 looks like two feathers side by side."]],
+["毛","🧶","xin","máo","fur; hair; wool","小猫的毛很白。","The kitten's fur is white.",4,"毛线",["pic","毛，像一撮软软的毛。","毛 looks like a soft tuft of fur."]],
+["吗","❔","xin","ma","(asks a question)","你好吗？","How are you?",4,"好吗",["parts","lr",[["口",[0,1,2],""],["马",[3,4,5],""]],"口加马，就是吗。问问题，要用它：好吗？","吗 = 口 (mouth) + 马 (mǎ): it sounds like 马 and asks a question."]],
+["在","📌","xin","zài","at; in","我在家里画画。","I am drawing at home.",4,"在家",["word","你在哪里？我在家！","在 means at, in: 在家 is at home."]],
+["尖","🔺","xin","jiān","pointy; sharp","小狗的牙很尖。","The puppy's teeth are sharp.",4,"很尖",["parts","tb",[["小",[0,1,2],""],["大",[3,4,5],""]],"上面小，下面大，尖尖的！","尖 = 小 (small) on top of 大 (big): small on top, big below — pointy!"]],
+["和","🤝","xin","hé","and; with","爸爸和妈妈。","Dad and Mom.",5,"我和你",["word","我和你，你和我，我们是好朋友！","和 means and: 我和你 is me and you."]],
+["动","🤸","xin","dòng","move","小狗动了。","The puppy moved.",5,"动一动",["parts","lr",[["云",[0,1,2,3],""],["力",[4,5],"💪"]],"左边是云，右边是力。用力，动一动！","动 = 云 + 力 (strength): use your strength and move!"]],
+["日","☀️","xin","rì","sun; day","日出很美。","The sunrise is beautiful.",5,"日出",["pic","日，就是太阳。很久以前，它画成圆圆的太阳。","日 is the sun — long ago it was drawn as a round sun."]],
+["见","👁️","xin","jiàn","see (看见)","我看见小鸭了。","I saw the little duck.",5,"看见",["parts","tb",[["",[0,1],"👁️"],["儿",[2,3],""]],"上面是一只大眼睛，下面是两条腿，看见了！","见: a big eye on top of two legs (儿): to see."]],
+["们","👥","xin","men","more than one (我们 = we)","我们爱妈妈。","We love Mom.",5,"我们",["parts","lr",[["亻",[0,1],"🧍"],["门",[2,3,4],""]],"单人旁加门，门和们，读起来很像。我们，你们，好多人！","们 = 亻 (a person) + 门 (mén): it sounds like 门 and means more than one."]],
+["半","🌓","xin","bàn","half","我吃一半。","I eat half.",5,"一半",["pic","中间一竖，把它切成两半！","半: one line straight down the middle — two halves."]],
+["要","🥺","xin","yào","want","我要喝水。","I want some water.",5,"我要",["word","我要，我要，我要吃饭！","要 means want: 我要 is I want."]],
+["打","🥁","xin","dǎ","hit; beat (打开 = open)","我打开门。","I open the door.",5,"打鼓",["parts","lr",[["扌",[0,1,2],"✋"],["丁",[3,4],""]],"提手旁，打，要用手！","打 has 扌 (hand) on the left: you hit with your hand."]],
+["还","⏳","xin","hái","still; more","我还要吃。","I want to eat more.",5,"还要",["word","吃完了，还要吃！","还 means still, more: 还要 — want more."]],
+["他","🧍‍♂️","xin","tā","he; him","他是我哥哥。","He is my big brother.",5,"他",["parts","lr",[["亻",[0,1],"🧍"],["也",[2,3,4],""]],"单人旁，加一个也。他，是一个人！","他 = 亻 (a person) + 也: he."]],
+["边","🏖️","xin","biān","side; edge (海边 = seaside)","我们在海边玩。","We play by the sea.",5,"海边",["word","我们去海边玩沙子！","海边 is the seaside."]],
+["穿","🧥","xin","chuān","wear; put on","我穿好了！","I am all dressed!",5,"穿衣服",["parts","tb",[["穴",[0,1,2,3,4],"🕳️"],["牙",[5,6,7,8],""]],"上面是个洞，下面是牙，穿过去！像手穿过袖子。","穿 = 穴 (a hole) + 牙: going through, like your arms going through your sleeves."]],
+["衣","👕","xin","yī","clothes","我爱我的毛衣。","I love my sweater.",5,"衣服",["pic","衣，像一件衣服：上面是领子，两边是袖子。","衣 looks like a jacket: a collar on top and sleeves at the sides."]],
+["今","📆","xin","jīn","today (今天)","今天我很高兴。","Today I am happy.",5,"今天",["word","今天，就是这一天！","今天 is today."]],
+["晚","🌆","xin","wǎn","evening; late","晚上好！","Good evening!",5,"晚上",["parts","lr",[["日",[0,1,2,3],"☀️"],["免",[4,5,6,7,8,9,10],""]],"左边是日。太阳下山了，就到晚上了！","晚 has 日 (the sun) on the left: when the sun goes down, it is evening."]],
+["都","👪","xin","dōu","all; both","我们都爱你。","We all love you.",6,"都来了",["word","爸爸妈妈都来了！","都 means all: 都来了 — everyone has come."]],
+["饿","🤤","xin","è","hungry","我饿了！","I am hungry!",6,"饿了",["parts","lr",[["饣",[0,1,2],"🍚"],["我",[3,4,5,6,7,8,9],""]],"左边是吃饭的饭字旁，右边是我。我要吃饭，我饿了！","饿 = 饣 (food, the left side of 饭) + 我 (me): I want food!"]],
+["香","🌺","xin","xiāng","smells good","花很香。","The flower smells nice.",6,"好香",["parts","tb",[["禾",[0,1,2,3,4],"🌾"],["日",[5,6,7,8],""]],"上面是禾苗，下面是日。米饭煮好了，好香！","香 = 禾 (grain) over 日: cooked grain smells good."]],
+["土","🟫","xin","tǔ","soil; earth","花在土里。","The flower is in the soil.",6,"土地",["pic","土，像地上的一个小土堆。","土 looks like a little mound of earth on the ground."]],
+["豆","🥔","xin","dòu","bean (土豆 = potato)","我爱吃土豆。","I love eating potatoes.",6,"土豆",["word","土里长出的豆豆，就是土豆！","土豆 is a potato: a bean from the soil."]],
+["瓜","🥒","xin","guā","melon (黄瓜 = cucumber)","黄瓜是绿色的！","Cucumbers are green!",6,"黄瓜",["pic","瓜，像藤上挂着的一个大瓜。","瓜 looks like a melon hanging from its vine."]],
+["米","🌾","xin","mǐ","rice (the grain)","小鸡吃米。","The chick eats rice.",6,"米饭",["pic","米，像撒了一地的米粒。","米 looks like grains of rice scattered all around."]],
+["果","🍎","xin","guǒ","fruit","树上有果子。","There is fruit on the tree.",6,"水果",["pic","果，像树上结了一个大果子。","果 looks like a tree (木) with a big fruit (田) on top."]],
+["种","🪴","xin","zhòng","plant (also zhǒng: seed)","我们种花。","We plant flowers.",6,"种花",["parts","lr",[["禾",[0,1,2,3,4],"🌾"],["中",[5,6,7,8],""]],"左边是禾苗，右边是中。把种子种下去！","种 = 禾 (a plant) + 中 (zhōng, the sound): to plant."]],
+["长","📏","xin","cháng","long (also zhǎng: grow)","小狗的毛很长。","The puppy's fur is long.",6,"很长",["pic","长，像一个老爷爷，头发长长的。","长 was drawn as an old man with long, long hair."]],
+["最","🏆","xin","zuì","most","我最爱妈妈。","I love Mom the most.",6,"最大",["word","大，更大，最大！","最 means most: 最大 is the biggest."]],
+["气","🎈","xin","qì","air (气球 = balloon)","天气很好。","The weather is nice.",6,"气球",["pic","气，像天上飘着的一丝丝云气。","气 looks like wisps of air and steam floating up."]],
+["没","🙅","xin","méi","not; don't have (没有)","我没有哭。","I did not cry.",6,"没有",["parts","lr",[["氵",[0,1,2],"💧"],["殳",[3,4,5,6],""]],"三点水。东西掉进水里，就没有了！","没 has 氵 (water): something sank into the water and now it is gone. 没有 means don't have."]],
+["早","🌄","xin","zǎo","early; morning","早上好！","Good morning!",6,"早上",["parts","tb",[["日",[0,1,2,3],"☀️"],["十",[4,5],""]],"太阳刚刚升起来，早上到了！","早 = 日 (the sun) just risen above 十: morning!"]],
+["午","🍱","xin","wǔ","noon (中午)","中午我吃饭。","At noon I eat lunch.",6,"中午",["word","中午到了，吃午饭啦！","中午 is noon: lunchtime!"]],
+["肉","🥩","xin","ròu","meat","小狗爱吃肉。","The puppy loves meat.",6,"吃肉",["pic","肉，像一块肉，上面有一道道纹。","肉 looks like a piece of meat with its lines showing."]],
+["学","🎓","xin","xué","learn; study","我去上学。","I am going to school.",7,"上学",["parts","tb",[["",[0,1,2,3,4],"🏠"],["子",[5,6,7],""]],"下面是个子，小孩子在屋子里学习！","学 has 子 (a child) at the bottom: a child learning under a roof."]],
+["生","🌱","xin","shēng","be born; grow (生日 = birthday)","我的生日到了！","My birthday is here!",7,"生日",["pic","生，像地上长出了一棵小苗。","生 looks like a little sprout growing out of the ground."]],
+["课","📝","xin","kè","lesson; class","我们上课了。","Our class has started.",7,"上课",["parts","lr",[["讠",[0,1],"💬"],["果",[2,3,4,5,6,7,8,9],""]],"言字旁加果。上课，要听老师说话。","课 = 讠 (words) + 果: a class is full of words."]],
+["校","🏫","xin","xiào","school (学校)","我爱我的学校。","I love my school.",7,"学校",["word","我的学校，有好多小朋友！","学校 is school."]],
+["点","🕗","xin","diǎn","dot; o'clock","八点上学。","School starts at eight o'clock.",7,"八点",["parts","tb",[["占",[0,1,2,3,4],""],["灬",[5,6,7,8],""]],"下面有四个小点点！八点，九点，几点了？","点: see the four little dots at the bottom? 点 is a dot, and o'clock: 八点 is eight o'clock."]],
+["分","🍕","xin","fēn","divide; share","我们分水果。","We share out the fruit.",7,"分开",["parts","tb",[["八",[0,1],""],["刀",[2,3],"🔪"]],"上面是八，下面是一把刀。用刀分开！","分 = 八 (split apart) over 刀 (a knife): cut it up and share."]],
+["文","📜","xin","wén","writing; language (中文 = Chinese)","我会说中文。","I can speak Chinese.",7,"中文",["word","我学中文，你也学中文！","中文 is Chinese, the language."]],
+["书","📖","xin","shū","book","我爱看书。","I love reading books.",7,"看书",["word","我爱看书，书里有好多故事！","看书 means read a book."]],
+["唱","🎤","xin","chàng","sing","鸟在树上唱。","The bird sings in the tree.",7,"唱歌",["parts","lr",[["口",[0,1,2],"👄"],["昌",[3,4,5,6,7,8,9,10],""]],"口字旁，唱歌要用口！吃、喝、听，也有口。","唱 has 口 (mouth) on the left, like 吃, 喝 and 听: you sing with your mouth."]],
+["同","👯","xin","tóng","same; together (同学 = classmate)","他是我的同学。","He is my classmate.",7,"同学",["word","我们一起上学，是同学！","同学 is a classmate."]],
+["本","📒","xin","běn","root; notebook (本子)","我有一本书。","I have a book.",7,"本子",["parts","tb",[["木",[0,1,2,3],"🌳"],["一",[4],""]],"木是一棵树，下面加一横，就是树根：本！","本 = 木 (a tree) with a mark at its root. It also counts books: 一本书."]],
+["第","🥇","xin","dì","(-th): 第一 = first","我是第一！","I came first!",7,"第一",["word","第一，第二，第三！","第一 is first, 第二 second."]],
+["带","🎒","xin","dài","bring; take","我带小狗出去。","I take the puppy out.",7,"带上",["word","上学，带上书包！","带 means bring, take: 带上 — take it with you."]],
+["给","🎁","xin","gěi","give","我给妈妈画画。","I draw a picture for Mom.",7,"给你",["word","给你！谢谢！","给 means give: 给你 — here you are!"]],
+["写","✍️","xin","xiě","write","我会写字。","I can write characters.",7,"写字",["word","拿起笔，写写字！","写字 means write characters."]],
+["字","🔤","xin","zì","character; word","这个字很大。","This character is big.",7,"写字",["parts","tb",[["宀",[0,1,2],"🏠"],["子",[3,4,5],""]],"上面是房顶，下面是个小宝宝。字宝宝住在家里！","字 = 宀 (a roof) over 子 (a child): a little one safe at home."]],
+["发","🌟","xin","fā","give off (发光 = glow)","星星在发光。","The stars are shining.",7,"发光",["word","星星一闪一闪，在发光！","发光 means give off light, glow."]],
+["灯","💡","xin","dēng","lamp; light","我开灯。","I turn on the light.",7,"开灯",["parts","lr",[["火",[0,1,2,3],"🔥"],["丁",[4,5],""]],"火字旁。灯会发光，像火一样亮！","灯 = 火 (fire) + 丁 (dīng, the sound): a lamp glows like fire."]],
+["光","🔦","xin","guāng","light","阳光很美。","The sunshine is lovely.",7,"阳光",["parts","tb",[["",[0,1,2,3],"🔥"],["儿",[4,5],""]],"上面是火光，下面是个人。人举着火，亮光光！","光: fire (on top) carried over a person (儿) — light!"]],
+["百","💯","xin","bǎi","hundred","一百只羊。","A hundred sheep.",7,"一百",["parts","tb",[["一",[0],""],["白",[1,2,3,4,5],""]],"一加白，就是百。白和百，读起来很像！","百 = 一 on top of 白 (bái): it even sounds like 白 — bǎi, a hundred."]],
+["甜","🍭","xin","tián","sweet","水果很甜。","The fruit is sweet.",8,"很甜",["parts","lr",[["舌",[0,1,2,3,4,5],"👅"],["甘",[6,7,8,9,10],""]],"左边是舌头，右边是甘。舌头尝到了甜！","甜 = 舌 (tongue) + 甘 (sweet): your tongue tastes something sweet."]],
+["冷","🥶","xin","lěng","cold","冬天很冷。","Winter is cold.",8,"好冷",["parts","lr",[["冫",[0,1],"🧊"],["令",[2,3,4,5,6],""]],"两点水，是冰。冰冰的，好冷！","冷 has 冫 (ice) on the left: icy — cold!"]],
+["热","🥵","xin","rè","hot","今天很热。","It is hot today.",8,"好热",["parts","tb",[["执",[0,1,2,3,4,5],""],["灬",[6,7,8,9],"🔥"]],"下面四个点，是火。有火，就热！","热: the four dots at the bottom are fire (灬) — fire makes it hot."]],
+["现","⌚","xin","xiàn","now (现在)","现在几点？","What time is it now?",8,"现在",["word","现在几点了？","现在 means now."]],
+["过","🚸","xin","guò","cross; pass (过来 = come over)","你过来！","Come over here!",8,"过来",["parts","rl",[["寸",[0,1,2],""],["辶",[3,4,5],"🚶"]],"走之旁，走过来，走过去！","过 has 辶 (walking): 过来 means come over."]],
+["节","🎊","xin","jié","festival; holiday (节日)","节日快乐！","Happy holidays!",8,"节日",["parts","tb",[["艹",[0,1,2],"🌿"],["卩",[3,4],""]],"草字头，花和草也有它。过节啦！","节 has 艹 (grass) on top, like 花 and 草. 节日 means a holiday."]],
+["做","🍳","xin","zuò","do; make","妈妈做饭。","Mom cooks dinner.",8,"做饭",["parts","lr",[["亻",[0,1],"🧍"],["故",[2,3,4,5,6,7,8,9,10],""]],"单人旁，人来做事！","做 has 亻 (a person): people do things."]],
+["火","🔥","xin","huǒ","fire","火很热。","Fire is hot.",8,"大火",["pic","火，像一团火苗往上跳！","火 looks like flames leaping up."]],
+["行","🛣️","xin","xíng","walk; OK!","行！我们去。","OK! Let's go.",8,"行吗",["pic","行，以前画的是一个十字路口，人在路上走。","行 was first drawn as a crossroads, where people walk."]],
+["西","🍉","xin","xī","west (西瓜 = watermelon)","西瓜很甜。","The watermelon is sweet.",8,"西瓜",["word","夏天吃西瓜，甜甜的！","西瓜 is a watermelon (西 also means west)."]],
+["房","🏘️","xin","fáng","house; room (房子)","这是我的房子。","This is my house.",8,"房子",["parts","tb",[["户",[0,1,2,3],"🚪"],["方",[4,5,6,7],""]],"上面是户，户就是一扇门。有门的房子！","房 = 户 (a door) + 方: a house with a door."]],
+["谁","🕵️","xin","shéi","who","你是谁？","Who are you?",8,"谁",["parts","lr",[["讠",[0,1],"💬"],["隹",[2,3,4,5,6,7,8,9],""]],"言字旁，问一问：你是谁？","谁 has 讠 (words): a question word. 你是谁? Who are you?"]],
+["朵","🌼","xin","duǒ","(counts flowers)","一朵红花。","A red flower.",8,"一朵花",["parts","tb",[["几",[0,1],""],["木",[2,3,4,5],"🌳"]],"上面像花骨朵，下面是木。树上开了一朵花！","朵: a flower bud (几) on a tree (木). We count flowers with it: 一朵花."]],
+["金","🪙","xin","jīn","gold","太阳是金色的。","The sun is golden.",8,"金色",["word","金色的太阳，亮亮的！","金 means gold: 金色 is golden."]],
+["叶","🍃","xin","yè","leaf","秋天树叶黄了。","In autumn the leaves turn yellow.",8,"树叶",["parts","lr",[["口",[0,1,2],""],["十",[3,4],""]],"口加十，就是叶，一片小树叶！","叶 = 口 + 十, both of which you know: a leaf."]]
+];
+
+/* A lesson is two to four characters, balanced INSIDE a unit — never across
+   one — in row order. Derived, so a character added to a unit re-balances it
+   rather than needing a hand-cut list. */
+const LESSON_MAX = 4;
+function xinLessons(){
+  const out = [];
+  for (const u of XINZI.map((c) => c[7]).filter((u, k, a) => a.indexOf(u) === k)){
+    const rows = XINZI.filter((c) => c[7] === u);
+    const k = Math.ceil(rows.length / LESSON_MAX), base = Math.floor(rows.length / k), extra = rows.length % k;
+    for (let j = 0, at = 0; j < k; j++){ const n = base + (j < extra ? 1 : 0); out.push(rows.slice(at, at + n)); at += n; }
+  }
+  return out;
+}
+/* Every character is a MEET page and every lesson ends on a REVIEW page. */
+function xinPages(){
+  const out = [];
+  xinLessons().forEach((l, n) => {
+    for (const c of l) out.push({ kind: "meet", lesson: n, card: c });
+    out.push({ kind: "review", lesson: n, cards: l });
+  });
+  return out;
+}
+
+/* The FIND step puts the new character beside two he already knows well —
+   twenty of the plainest shapes on the 中文 cards. */
+const XIN_ANCHORS = ["一","二","三","十","人","大","小","口","山","上","下","中",
+                     "门","马","牛","羊","鱼","虫","车","水"];
+/* …and a known character may NOT stand beside a new one that it could also
+   answer, or that it looks like. Two reasons, each a real case:
+     - the PICTURE could be answered by it: 🌄 (早) shows a 山, 🥩 and 🧶 come
+       from a 牛 and a 羊, a 🏠 has a 门, and a person (哥, 他, 们, 谁…) is a 人;
+     - it is WRITTEN INSIDE the new one, or looks like it: 午 and 牛, 土 and 十,
+       石 and 口, and the 鸟 in 鸡 and 鸭, which reads as a 马.
+   Two more are DERIVED rather than listed: a character in the new one's own
+   WORD, and a part its story names. */
+const XIN_AVOID = {
+  岁:"山", 喜:"十", 欢:"人", 哥:"人大口", 这:"下", 妹:"小十", 弟:"小人", 姐:"人大",
+  石:"山口", 也:"十", 空:"上", 住:"人门",
+  鸡:"马", 鸭:"马鱼中", 说:"口", 以:"人", 毛:"羊", 尖:"山上",
+  和:"口", 动:"二", 日:"口中", 们:"人", 半:"十二羊", 打:"十", 还:"下", 他:"人", 边:"水", 今:"人",
+  都:"人", 饿:"口", 土:"十上", 豆:"口", 米:"十", 没:"水", 早:"山", 午:"十牛", 肉:"人牛羊",
+  生:"牛", 校:"门", 点:"口", 分:"人", 文:"大", 同:"人门口", 给:"人口", 光:"小",
+  百:"十", 甜:"口", 冷:"人", 过:"人车", 做:"人口十", 火:"人", 行:"车", 西:"口", 房:"门",
+  谁:"人", 金:"人",
+};
+function xinParts(c){ return c[9][0] === "parts" ? c[9][2].map((p) => p[0]).filter(Boolean) : []; }
+function xinAnchorOK(c, a){
+  return c[8].indexOf(a) < 0 && xinParts(c).indexOf(a) < 0 && (XIN_AVOID[c[0]] || "").indexOf(a) < 0;
+}
+/* Two new characters that make ONE word never share a board: the one gives
+   the other away (the reason 太/阳 are a PAIR on the cards). */
+function xinWordMates(a, b){ return a[8].indexOf(b[0]) >= 0 || b[8].indexOf(a[0]) >= 0; }
+const XIN_CHOICES = 3;
+function xinDraw(r, pool, out){
+  while (out.length < XIN_CHOICES - 1 && pool.length) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
+  return out;
+}
+/* Seeded by the character, so its board is the same board every time and
+   position never answers the question. */
+function xinFindChoices(c){
+  const r = rngFrom(seedOf("xin find " + c[0]));
+  const out = xinDraw(r, XIN_ANCHORS.filter((a) => xinAnchorOK(c, a)), []);
+  out.splice(Math.floor(r() * (out.length + 1)), 0, c[0]);
+  return out;
+}
+function xinReviewChoices(c, lesson){
+  const r = rngFrom(seedOf("xin review " + c[0]));
+  const out = xinDraw(r, lesson.filter((m) => m !== c && !xinWordMates(m, c)).map((m) => m[0]), []);
+  // A lesson whose other characters are one word with this one (因 为 住:
+  // 因为) has too few mates to fill a board, so a familiar one fills it.
+  xinDraw(r, XIN_ANCHORS.filter((a) => xinAnchorOK(c, a)), out);
+  out.splice(Math.floor(r() * (out.length + 1)), 0, c[0]);
+  return out;
+}
+/* A review never asks in the order he met them — seeded, so position cannot
+   do the remembering. */
+function xinReviewOrder(lesson, n){
+  const r = rngFrom(seedOf("xin order " + n)), out = lesson.slice();
+  for (let k = out.length - 1; k > 0; k--){ const j = Math.floor(r() * (k + 1)); const t = out[k]; out[k] = out[j]; out[j] = t; }
+  if (out.length > 1 && out.every((c, k) => c === lesson[k])) out.push(out.shift());
+  return out;
+}
+
+/* What he HEARS. A bare character is one syllable, and a voice reads a
+   polyphone its commonest way — which for six of these is not the reading
+   they are taught in (为 alone is wéi; here it is wèi, of 为什么). So a bare
+   character is voiced through a homophone that has ONLY the right reading. The
+   text on the screen never changes, and a word or a sentence is always said as
+   itself, because there the voice has the context. */
+const XIN_SAY_AS = { 为:"位", 还:"孩", 种:"众", 都:"兜", 长:"常", 行:"形" };
+function xinBare(c){ return XIN_SAY_AS[c[0]] || c[0]; }
+function xinHello(c){ return c[8] === c[0] ? xinBare(c) : xinBare(c) + "，" + c[8] + "！"; }
+function xinAsk(c){ return "哪个是" + (c[8] === c[0] ? "" : c[8] + "的") + xinBare(c) + "？"; }
+/* A part's colour. Blue and orange rather than red and green: the one pair
+   every common colour-vision deficiency still tells apart. Both clear 4.5:1 on
+   the white stage (6.70 and 7.31), because the same colour prints the part's
+   glyph in the clue as TEXT. A pictograph or a word is drawn in ink. */
+const XIN_INK = ["#1D4ED8", "#9A3412"];
+const XIN_PLAIN = "#21123F";
+
 /* ---------- say it out loud ----------
    He reads the front, flips, and HEARS the word confirm it — control of error
    with no grown-up needed. Off by default (RULE 5), one obvious toggle, and
@@ -1013,32 +1339,45 @@ const menu=$("menu"), deckEl=$("deck"), card=$("card"), wordEl=$("word"), picEl=
    the page's own, because the page loads no framework. Two rules, for a REAL
    tap only (a synthetic click is code, never a finger):
      1. the same control again inside ECHO_MS is the echo, not a second tap;
-     2. an echo that lands on another SCREEN than the tap it echoes (the chip
-        opened the deck, the back button opened the menu) cannot have been
-        aimed — the screen under the finger did not exist a moment ago.
+     2. an echo that lands on a control that was not ON SCREEN when the tap it
+        echoes began (the chip opened the deck, the back button opened the
+        menu, a ▶ swapped in three answers) cannot have been aimed — the thing
+        under the finger did not exist a moment ago.
    Rule 2 is a COORDINATE rule, because an echo is: the finger is still where it
    landed, so a tap that lands somewhere else on the new screen was aimed, however
    fast. Each swallowed tap re-arms the window, so a hammer streak ends only when
    the hand pauses. A swallowed tap does nothing at all. A keyboard activation
    (detail 0) is never an echo — nobody hammers Enter by accident. The writing
-   pad and the ⏮️ hold take pointer events, not clicks, so neither is touched. */
+   pad and the ⏮️ hold take pointer events, not clicks, so neither is touched.
+
+   "Another screen" was the first way the page met rule 2, and it is one case of
+   a wider one: a control that was NOT ON SCREEN when the first tap began. The
+   新字 screen swaps its ▶ for three answer tiles in the same place, on the same
+   screen, so an echo of ▶ landed on a tile and answered a question nobody had
+   seen. So rule 2 asks what was on screen at the first tap — DERIVED from the
+   page every time, never a list of screens or ids. Nothing on this page acts on
+   a click that is not a control, so an echo landing between controls is
+   swallowed too, which keeps a hammer streak swallowed across a screen change. */
 const ECHO_MS = 350, ECHO_PX = 40;
+const CONTROLS = "button, [role=button], a";
 let lastTap = null;
+function onScreen(){
+  const seen = new Set();
+  for (const el of document.querySelectorAll(CONTROLS)) if (el.getClientRects().length) seen.add(el);
+  return seen;
+}
 document.addEventListener("click", (e) => {
   if (!e.isTrusted || e.detail === 0 || !e.target || !e.target.closest) return;
   const t = e.target, at = performance.now();
-  const control = t.closest("button, [role=button], a") || t;
-  // Every screen is a .wrap, so a new screen is covered without anyone
-  // editing a list here — this was "#menu, #deck, #write, #match".
-  const screen = t.closest(".wrap");
+  const control = t.closest(CONTROLS) || t;
   const near = lastTap && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < ECHO_PX;
-  if (lastTap && at - lastTap.at < ECHO_MS && (control === lastTap.control || (screen !== lastTap.screen && near))){
+  if (lastTap && at - lastTap.at < ECHO_MS && (control === lastTap.control || (near && !lastTap.seen.has(control)))){
     e.stopImmediatePropagation();
     e.preventDefault();
     lastTap.at = at; // a hammer streak ends only when the hand pauses
     return;
   }
-  lastTap = { control, screen, at, x: e.clientX, y: e.clientY };
+  lastTap = { control, seen: onScreen(), at, x: e.clientX, y: e.clientY };
 }, true);
 
 let deck = [], i = 0, deckKind = "";
@@ -1980,6 +2319,311 @@ $("hearBtn").addEventListener("click", () => {
   hSpeak();
 });
 
+/* ---------- 新字: the screen ----------
+   The rules — the lessons, what may share a board, what is said — live with the
+   other derivations above and read no DOM, so a test can deal every board in
+   node. This is only the drawing and the taps. */
+const learnEl = $("learn"), lstage = $("lstage"), lview = $("lview"), lwear = $("lwear"),
+      lrow = $("lrow"), lgo = $("lgo");
+const LEARN_BEAT = 1500, LBRUSH = 190;
+let lPages = [], lp = 0, lPhase = "", lRound = 0, lRounds = [], lMiss = 0, lTimer = 0, lAnim = 0;
+
+function lPagesOnce(){ if (!lPages.length) lPages = xinPages(); return lPages; }
+function lPage(){ return lPages[lp] || null; }
+function lCard(){ const p = lPage(); return !p ? null : p.kind === "meet" ? p.card : (lRounds[lRound] || null); }
+// route() only HIDES a screen, so every timer below asks this before it acts.
+function lLive(){ return !learnEl.classList.contains("hidden"); }
+function lSaveAt(n){ try { localStorage.setItem("wc-learn-at", String(n)); } catch (e) {} }
+function lSpan(cls, text, zh){
+  const e = document.createElement("span");
+  e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  if (zh) e.setAttribute("lang", "zh-CN");
+  return e;
+}
+/* Han text inside an English line is set run by run in the Simplified face and
+   marked zh-CN — this page's own font stack opens with a JAPANESE face. */
+const HAN = /[⺀-⿟㐀-䶿一-鿿]+/;
+function lMixed(el, text){
+  for (const part of String(text).split(new RegExp("(" + HAN.source + ")"))){
+    if (!part) continue;
+    el.appendChild(HAN.test(part) ? lSpan("hzr", part, true) : document.createTextNode(part));
+  }
+  return el;
+}
+/* The new character inside a word or a sentence is MARKED — colour and an
+   underline, so it is found by shape as well as by hue. Plain runs stay one
+   text node. */
+function lMark(el, text, ch){
+  let plain = "";
+  const flush = () => { if (plain){ el.appendChild(document.createTextNode(plain)); plain = ""; } };
+  for (const t of String(text)){
+    if (t === ch){ flush(); el.appendChild(lSpan("lmark", t)); } else plain += t;
+  }
+  flush();
+  return el;
+}
+
+/* ---------- watching it written ----------
+   Each stroke is a thick line drawn along its centre-line and CLIPPED to the
+   stroke's own outline, so the brush fills exactly the stroke and nothing
+   else, in stroke order and in the direction the brush goes. When a stroke is
+   finished its outline is filled, which covers any corner the brush missed.
+   Under prefers-reduced-motion the brush does not travel: each stroke simply
+   appears in turn, which keeps the ORDER, the one thing this is for. */
+function polyLen(m){
+  let n = 0;
+  for (let k = 1; k < m.length; k++) n += Math.hypot(m[k][0] - m[k - 1][0], m[k][1] - m[k - 1][1]);
+  return n;
+}
+function lColours(c){
+  const d = STROKES[c[0]], out = [];
+  for (let k = 0; k < d.s.length; k++) out.push(XIN_PLAIN);
+  // A part the clue does not show (no glyph and no note — the top of 黑) stays
+  // ink, so every colour on the character has a tile of that colour above it.
+  if (c[9][0] === "parts") c[9][2].forEach((p, n) => { if (p[0] || p[2]) for (const k of p[1]) out[k] = XIN_INK[n]; });
+  return out;
+}
+function lGlyph(c){
+  const d = STROKES[c[0]];
+  const svg = svgEl("svg", { class: "lsvg", viewBox: "0 0 1024 1024", "aria-hidden": "true" });
+  const guide = svgEl("g", { class: "wguide" });
+  guide.appendChild(svgEl("line", { x1: 512, y1: 44, x2: 512, y2: 980 }));
+  guide.appendChild(svgEl("line", { x1: 44, y1: 512, x2: 980, y2: 512 }));
+  svg.appendChild(guide);
+  const defs = svgEl("defs", {});
+  d.s.forEach((o, k) => {
+    const cp = svgEl("clipPath", { id: "lclip" + k });
+    cp.appendChild(svgEl("path", { d: o }));
+    defs.appendChild(cp);
+  });
+  svg.appendChild(defs);
+  const g = svgEl("g", { transform: "translate(0,900) scale(1,-1)" });
+  const ghost = svgEl("g", { class: "lghost" });
+  for (const o of d.s) ghost.appendChild(svgEl("path", { d: o }));
+  g.appendChild(ghost);
+  const pen = svgEl("g", { class: "lpen" });
+  g.appendChild(pen);
+  svg.appendChild(g);
+  return svg;
+}
+function lWrite(svg, c){
+  const tok = ++lAnim, d = STROKES[c[0]], col = lColours(c), pen = svg.querySelector(".lpen");
+  let t = 350;
+  d.s.forEach((outline, k) => {
+    const med = d.m[k], L = Math.max(1, polyLen(med));
+    const line = svgEl("polyline", {
+      class: "lbrush", stroke: col[k], "clip-path": "url(#lclip" + k + ")",
+      points: med.map((p) => p.join(",")).join(" "),
+    });
+    // Hidden by a dash pattern whose gap is longer than the stroke plus the
+    // brush's round cap, so not even the cap shows before its turn.
+    line.style.strokeDasharray = L + " " + (L + LBRUSH + 2);
+    line.style.strokeDashoffset = String(L + LBRUSH / 2 + 1);
+    pen.appendChild(line);
+    const dur = Math.round(Math.min(900, Math.max(280, L * 0.85)));
+    setTimeout(() => {
+      if (tok !== lAnim || !lLive()) return;
+      line.style.transition = "stroke-dashoffset " + dur + "ms linear";
+      line.style.strokeDashoffset = "0";
+    }, t);
+    t += dur;
+    setTimeout(() => {
+      if (tok !== lAnim || !lLive()) return;
+      pen.appendChild(svgEl("path", { d: outline, fill: col[k], class: "lstroke" }));
+    }, t);
+    t += 160;
+  });
+}
+
+/* ---------- the phases ---------- */
+function lFit(){
+  if (!lLive()) return;
+  const box = Math.min(lstage.clientWidth, lstage.clientHeight) - 28;
+  if (box > 0) lstage.style.setProperty("--lbox", box + "px");
+}
+// Each word once: 喜 and 欢 are both taught in 喜欢, and "喜欢，喜欢" is a stammer.
+function lWords(p){
+  const w = p.cards.map((c) => c[8] === c[0] ? xinBare(c) : c[8]);
+  return w.filter((x, k) => w.indexOf(x) === k).join("，") + "！";
+}
+function lLine(){
+  const c = lCard(), p = lPage();
+  if (!p) return "";
+  if (lPhase === "look") return xinHello(c);
+  if (lPhase === "see") return c[9][c[9][0] === "parts" ? 3 : 1];
+  if (lPhase === "find" || lPhase === "ask") return xinAsk(c);
+  if (lPhase === "read") return c[5];
+  return lWords(p);
+}
+function lSpeak(){ const t = lLine(); if (t) speak(t, "zh-CN"); }
+
+function lShow(phase){
+  const c = lCard(), p = lPage();
+  if (!p) return;
+  lPhase = phase; lAnim++; lMiss = 0;
+  clearTimeout(lTimer); lTimer = 0;
+  lview.textContent = "";
+  lview.className = "lview l-" + phase;
+  for (const b of [...lrow.querySelectorAll(".mtile")]) b.remove();
+  const asking = phase === "find" || phase === "ask";
+  lgo.classList.toggle("hidden", asking);
+  lwear.classList.toggle("hidden", !asking);
+
+  if (phase === "look"){
+    lview.appendChild(lSpan("lpic", c[1])).setAttribute("aria-hidden", "true");
+    lview.appendChild(lSpan("lchar", c[0], true));
+    lview.appendChild(lMixed(lSpan("lkey"), c[3] + " · " + c[4]));
+    lstage.setAttribute("aria-label", c[0] + ", " + c[3] + ", " + c[4] + ". Tap to hear it again.");
+  } else if (phase === "see"){
+    const s = c[9], clue = lSpan("lclue");
+    if (s[0] === "parts"){
+      s[2].forEach((part, n) => {
+        if (!part[0] && !part[2]) return;          // an unnamed part with nothing to show
+        if (clue.childNodes.length) clue.appendChild(lSpan("lplus", "+"));
+        const tile = lSpan("lpart");
+        tile.style.borderColor = XIN_INK[n];
+        if (part[0]){ const gl = lSpan("lpartg", part[0], true); gl.style.color = XIN_INK[n]; tile.appendChild(gl); }
+        if (part[2]) tile.appendChild(lSpan("lpartn", part[2])).setAttribute("aria-hidden", "true");
+        clue.appendChild(tile);
+      });
+    } else if (s[0] === "pic"){
+      clue.appendChild(lSpan("lpartn", c[1])).setAttribute("aria-hidden", "true");
+    } else {
+      clue.appendChild(lMark(lSpan("lword", undefined, true), c[8], c[0]));
+    }
+    lview.appendChild(clue);
+    const svg = lGlyph(c);
+    lview.appendChild(svg);
+    lview.appendChild(lMixed(lSpan("lnote"), s[s.length - 1]));
+    lstage.setAttribute("aria-label", "How " + c[0] + " is made: " + s[s.length - 1] + " Tap to watch it again.");
+    lWrite(svg, c);
+  } else if (asking){
+    lview.appendChild(lSpan("lpic", c[1])).setAttribute("aria-hidden", "true");
+    const choices = phase === "find" ? xinFindChoices(c) : xinReviewChoices(c, p.cards);
+    for (const ch of choices){
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "mtile"; b.dataset.ch = ch;
+      if (ch === c[0]) b.dataset.correct = "1";
+      // No label: the character IS the name, and lang="zh-CN" gives it a
+      // Chinese voice — exactly the matching board's character tiles.
+      b.appendChild(lSpan("mchar", ch, true));
+      lrow.appendChild(b);
+    }
+    // Never names the character: it is the answer to the question.
+    lstage.setAttribute("aria-label", "Which one is it? Tap to hear the question again.");
+  } else if (phase === "read"){
+    lview.appendChild(lSpan("lpic", c[1])).setAttribute("aria-hidden", "true");
+    lview.appendChild(lMark(lSpan("lzh", undefined, true), c[5], c[0]));
+    lview.appendChild(lSpan("len", c[6]));
+    lstage.setAttribute("aria-label", c[6] + " Tap to hear it again.");
+    // Met: coming back should not start this character again.
+    lSaveAt((lp + 1) % lPages.length);
+  } else {
+    lview.appendChild(lSpan("lpic", "\u{1F31F}")).setAttribute("aria-hidden", "true");
+    const row = lview.appendChild(lSpan("lchars", undefined, true));
+    for (const x of p.cards) row.appendChild(lSpan("lchar1", x[0]));
+    row.style.fontSize = "calc(var(--lbox, 240px) * " + Math.min(0.28, 0.8 / p.cards.length).toFixed(3) + ")";
+    lstage.setAttribute("aria-label", "Lesson done: " + p.cards.map((x) => x[0]).join(" ") + ". Tap to hear them again.");
+    lSaveAt((lp + 1) % lPages.length);
+  }
+  lFit();
+  lSpeak();
+}
+
+function lRender(){
+  const p = lPage();
+  if (!p) return;
+  document.documentElement.style.setProperty("--card", COLORS[p.lesson % COLORS.length]);
+  $("lcount").textContent = (lp + 1) + " / " + lPages.length;
+  $("lfill").style.width = Math.max(1, Math.round(((lp + 1) / lPages.length) * 100)) + "%";
+  if (p.kind === "review"){ lRounds = xinReviewOrder(p.cards, p.lesson); lRound = 0; lShow("ask"); }
+  else lShow("look");
+}
+/* Modular, like the other boards: every page is a real place to stop. */
+function lGo(step){
+  if (!lPages.length) return;
+  lp = (lp + step + lPages.length) % lPages.length;
+  lSaveAt(lp);
+  lRender();
+}
+function lRestart(){
+  if (!lPages.length) return;
+  lp = 0;
+  // REMOVED, not set to "0", exactly as 配对 does it.
+  try { localStorage.removeItem("wc-learn-at"); } catch (e) {}
+  lRender();
+}
+function lNext(){
+  if (lPhase === "look") lShow("see");
+  else if (lPhase === "see") lShow("find");
+  else if (lPhase === "read" || lPhase === "cheer") lGo(1);
+}
+function lSolve(b){
+  b.classList.add("done");
+  // An answered board answers nothing, and no flag is left up to find twice.
+  for (const x of lrow.querySelectorAll(".mtile")){ x.setAttribute("aria-disabled", "true"); delete x.dataset.correct; }
+  speak(xinHello(lCard()), "zh-CN");
+  const phase = lPhase;
+  lTimer = setTimeout(() => {
+    lTimer = 0;
+    if (!lLive() || lPhase !== phase) return;
+    if (phase === "find") lShow("read");
+    else if (lRound + 1 < lRounds.length){ lRound += 1; lShow("ask"); }
+    else lShow("cheer");
+  }, LEARN_BEAT);
+}
+/* No-fail, the matching board's way: a wrong tap wiggles and asks again, and
+   three misses make the right one glow. Nothing is removed or scored. */
+function lTap(b){
+  if (lPhase !== "find" && lPhase !== "ask") return;
+  if (lTimer || b.getAttribute("aria-disabled") === "true") return;
+  const c = lCard();
+  if (b.dataset.ch === c[0]){ lSolve(b); return; }
+  nudge(b);
+  lSpeak();
+  lMiss += 1;
+  if (lMiss >= 3){
+    const t = lrow.querySelector('[data-ch="' + c[0] + '"]');
+    if (t) glow(t);
+  }
+}
+lrow.addEventListener("click", (ev) => {
+  const b = ev.target.closest(".mtile");
+  if (b) lTap(b);
+});
+lgo.addEventListener("click", lNext);
+// The stage says it again (and in the SEE step, writes it again). A tap on it
+// is a deliberate request for sound — see unmute().
+lstage.addEventListener("click", () => {
+  unmute();
+  if (lPhase === "see") lShow("see"); else lSpeak();
+});
+$("lsound").addEventListener("click", () => toggleSound(lSpeak));
+holdToAct($("lreset"), lRestart);
+$("lback").addEventListener("click", () => {
+  lAnim++; clearTimeout(lTimer); lTimer = 0;
+  learnEl.classList.add("hidden");
+  menu.classList.remove("hidden");
+  try { speechSynthesis.cancel(); } catch (e) {}
+});
+$("learnBtn").querySelector("small").textContent = XINZI.length + " characters";
+$("learnBtn").addEventListener("click", () => {
+  lPagesOnce();
+  // The bound is the modular one, as on the other boards.
+  lp = 0;
+  try {
+    const v = parseInt(localStorage.getItem("wc-learn-at"), 10);
+    if (v >= 0 && v < lPages.length) lp = v;
+  } catch (e) {}
+  // Characters he cannot read yet have no other way in: their SOUND is the
+  // lesson. Opening this is a request for audio, as the listening game is.
+  unmute();
+  menu.classList.add("hidden");
+  learnEl.classList.remove("hidden");
+  lRender();
+});
+
 document.addEventListener("keydown", e => {
   if (!writeEl.classList.contains("hidden")){
     if (e.key === "ArrowRight") wGo(1);
@@ -2000,7 +2644,7 @@ deckEl.addEventListener("touchend", e => {
   startX = null;
 }, {passive:true});
 
-window.addEventListener("resize", () => { if (deck.length) render(false); hFit(); });
+window.addEventListener("resize", () => { if (deck.length) render(false); hFit(); lFit(); });
 </script>
 </body>
 </html>

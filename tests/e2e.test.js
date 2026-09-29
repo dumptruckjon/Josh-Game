@@ -3637,6 +3637,33 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
       await pg.waitForSelector("#grid .chip");
     }
 
+    // …AND THE 新字 SCREEN, which prints text nowhere else on this page does:
+    // the character's key line, its word with the new character MARKED, the
+    // part glyphs in their two part colours, the grown-up's note, the marked
+    // sentence and its translation, and the lesson's cheer. Every step is
+    // walked, because each one is a different set of runs on the stage.
+    await pg.evaluate(() => { localStorage.removeItem("wc-learn-at"); document.getElementById("learnBtn").click(); });
+    await pg.waitForSelector("#learn:not(.hidden)");
+    const lgo = () => pg.evaluate(() => document.getElementById("lgo").click());
+    await sweep();                                   // meet: the character and its key line
+    await lgo(); await sweep();                      // see: a WORD story (its word, marked)
+    await lgo(); await sweep();                      // find: three white tiles
+    await pg.evaluate(() => document.querySelector('#lrow [data-correct="1"]').click());
+    await sweep();                                   // …one of them answered
+    await pg.waitForTimeout(1700);
+    await sweep();                                   // read: the marked sentence + its translation
+    await lgo(); await lgo(); await sweep();         // the next character's see: a PARTS story
+    await pg.evaluate(() => {                        // straight to the lesson's review
+      lp = lPages.findIndex((p) => p.kind === "review"); lRender();
+    });
+    await sweep();                                   // ask: the review board
+    for (let k = 0; k < 4 && (await pg.evaluate(() => lPhase)) === "ask"; k++) {
+      await pg.evaluate(() => document.querySelector('#lrow [data-correct="1"]').click());
+      await pg.waitForTimeout(1700);
+    }
+    await sweep();                                   // cheer: the lesson's characters
+    await pg.evaluate(() => { document.getElementById("lback").click(); localStorage.removeItem("wc-learn-at"); });
+
     assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
 
     // FIXTURE FLOOR. A derived population fails OPEN — a walker that stopped
@@ -3665,6 +3692,8 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     assert.ok(saw("hcue"), "fixture: a sight word's sentence on the prompt tile was never audited");
     assert.equal(hearHues.size, 8,
       `the prompt tile cycles eight hues and a sentence sits on each (saw ${hearHues.size})`);
+    for (const run of ["lchar", "lkey", "lword", "lmark", "lnote", "lpartg", "lzh", "len", "lchar1"])
+      assert.ok(saw(run), `fixture: the 新字 screen's ${run} run was never audited`);
     assert.equal(boardFills.size, 3,
       "a board tile takes three fills — waiting, held and matched — and each is a " +
       `different background the same run has to clear (saw ${boardFills.size}: ` +
@@ -3904,8 +3933,10 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
       }
       // DERIVED over every deck button. This read `getElementById("allBtn")`,
       // and the moment a SECOND one landed (the 中文 deck) the law quietly
-      // narrowed to the one button it was written against.
-      const alls = [...document.querySelectorAll("#menu .all")].map((b) => {
+      // narrowed to the one button it was written against. It takes the `.mode`
+      // buttons too — 写字, 配对, 👂 and 新字 print a name and a count exactly
+      // as a deck button does, and walking `.all` alone left all four out.
+      const alls = [...document.querySelectorAll("#menu .all, #menu .mode")].map((b) => {
         const small = b.querySelector("small");
         const ct = small.textContent.trim();
         return {
@@ -3963,8 +3994,8 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
     //
     // Floor first: this is exactly how the law was lost. Narrow the walk back
     // to one button and the second deck is checked by nothing.
-    assert.ok(menu.alls.length >= 2,
-      `expected every deck button, saw ${menu.alls.length} — a narrowed walk checks nothing`);
+    assert.ok(menu.alls.length >= 6,
+      `expected every deck and mode button, saw ${menu.alls.length} — a narrowed walk checks nothing`);
     for (const a of menu.alls) {
       assert.ok(a.lbl, `a deck button announces no name at all (${a.id})`);
       assert.ok(/\d/.test(a.ct), `the "${a.lbl}" deck button prints no count (saw ${JSON.stringify(a.ct)})`);
@@ -4078,6 +4109,42 @@ test("Word Cards: every control SAYS what it is, and the answer stays off the tr
     s = await readCard();
     assert.ok(s.label.includes(s.back),
       `a flipped sight card must read its sentence (${JSON.stringify(s.back)} vs ${JSON.stringify(s.label)})`);
+
+    // ── 新字: every control on the screen names itself, in every step ─────
+    // DERIVED over the screen's buttons, so a control added to it later is
+    // held to the same bar: a name that is not just a picture, and never the
+    // answer while he is being asked for it.
+    await pg.click("#back");
+    await pg.waitForTimeout(200);
+    await pg.evaluate(() => document.getElementById("learnBtn").click());
+    const learnNames = () => pg.evaluate(() => {
+      const ch = lCard()[0];
+      return {
+        ch, phase: lPhase,
+        stage: document.getElementById("lstage").getAttribute("aria-label"),
+        buttons: [...document.querySelectorAll("#learn button")].filter((b) => b.getClientRects().length)
+          .map((b) => ({ id: b.id || b.className, name: (b.getAttribute("aria-label") || b.textContent).trim(),
+                         lang: (b.querySelector("[lang]") || b).getAttribute("lang") })),
+      };
+    });
+    const seenPhases = new Set();
+    for (let step = 0; step < 3; step++) {
+      const l = await learnNames();
+      seenPhases.add(l.phase);
+      assert.ok(l.buttons.length >= 5, `fixture: the 新字 screen shows only ${l.buttons.length} controls`);
+      for (const b of l.buttons)
+        assert.match(b.name, /\p{L}/u, `the 新字 control "${b.id}" in the ${l.phase} step is named only by a picture: ${JSON.stringify(b.name)}`);
+      if (l.phase === "find") {
+        assert.ok(!l.stage.includes(l.ch), `the stage names the answer while asking for it: "${l.stage}"`);
+        const tiles = l.buttons.filter((b) => b.id === "mtile");
+        assert.equal(tiles.length, 3, "fixture: the find board is three tiles");
+        for (const t of tiles) assert.equal(t.lang, "zh-CN", `a tile named ${t.name} is not marked Chinese`);
+      } else {
+        assert.ok(l.stage.includes(l.ch), `the ${l.phase} step must name its character: "${l.stage}"`);
+      }
+      await pg.evaluate(() => document.getElementById("lgo").click());
+    }
+    assert.deepEqual([...seenPhases], ["look", "see", "find"], "fixture: the walk must reach the question");
 
     assert.deepEqual(errs, [], "no page errors");
   } finally {
@@ -4923,19 +4990,28 @@ test("Word Cards: the writing ladder climbs from one stroke to fifteen", async (
     await pg.click("#writeBtn");
     await pg.waitForSelector("#write:not(.hidden)");
 
-    const walk = await pg.evaluate(() => {
+    // The walk is sized by the DECK — HANZI, the 120 characters he reads — and
+    // NOT by the stroke file. The two were the same set until 新字, whose
+    // lessons write 96 characters he has never seen, put them in the same
+    // file: sized by the file (216), the walk wrapped the 120-card deck and
+    // read every character twice. What the pad deals is also asserted as a
+    // SET, so a writing deck that started reading the stroke file's keys — the
+    // new characters, as a recall game — is caught here too.
+    const { walk, deck } = await pg.evaluate(() => {
       const out = [];
-      const total = Object.keys(window.HANZI_STROKES).length;
+      const total = HANZI.length;
       for (let k = 0; k < total; k++) {
         const ch = document.getElementById("wpad").getAttribute("aria-label").split(",")[0];
         out.push([ch, window.HANZI_STROKES[ch].s.length]);
         document.getElementById("wnext").click();
       }
-      return out;
+      return { walk: out, deck: HANZI.map((r) => r[0]) };
     });
     assert.ok(walk.length >= 100, `only ${walk.length} cards dealt — this walk would be vacuous`);
     assert.equal(new Set(walk.map((w) => w[0])).size, walk.length,
       "every character appears exactly once in the writing deck");
+    assert.deepEqual(walk.map((w) => w[0]).sort(), deck.slice().sort(),
+      "the writing pad deals exactly the 120 characters he reads — the 新字 characters are introduced by their lessons, never dealt as a recall card");
     const back = walk.findIndex((w, k) => k && w[1] < walk[k - 1][1]);
     assert.equal(back, -1, back < 0 ? "" :
       `the ladder goes backwards at card ${back + 1}: ${walk[back - 1][0]} has ${walk[back - 1][1]} strokes and ${walk[back][0]} has ${walk[back][1]}`);
@@ -5918,6 +5994,507 @@ test("Word Cards: Hear it, find it — he hears a word and finds it by READING i
   } finally {
     await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
     await ctx.close();
+  }
+});
+
+// ---------- 新字: the characters he has never seen ----------
+// speechSynthesis is a READ-ONLY accessor, so a plain assignment silently
+// no-ops and the real (silent, headless) engine answers — which reads as a
+// feature that never fired rather than a stub that never installed.
+const wcStubSpeech = (pg) => pg.evaluate(() => {
+  window.__said = [];
+  Object.defineProperty(window, "speechSynthesis", {
+    configurable: true,
+    value: {
+      __stub: true, cancel() {}, getVoices() { return []; },
+      speak(u) { window.__said.push({ text: u.text, lang: u.lang }); },
+    },
+  });
+  return !!window.speechSynthesis.__stub;
+});
+// One snapshot of the 新字 screen, read from the DOM and the page's own state.
+// It DRAINS the speech log, so each read reports what was said since the last.
+const wcLearnState = (pg) => pg.evaluate(() => {
+  const p = lPage(), c = lCard();
+  const vis = (id) => !document.getElementById(id).classList.contains("hidden");
+  return {
+    lp, phase: lPhase, kind: p && p.kind, ch: c && c[0], pages: lPages.length,
+    shown: vis("learn"), menu: vis("menu"), go: vis("lgo"), wear: vis("lwear"),
+    count: document.getElementById("lcount").textContent,
+    tiles: [...document.querySelectorAll("#lrow .mtile")].map((b) => ({
+      ch: b.dataset.ch, ok: b.dataset.correct === "1", done: b.classList.contains("done"),
+      off: b.getAttribute("aria-disabled") === "true", miss: b.classList.contains("miss"),
+      glow: b.classList.contains("hintme"), label: b.getAttribute("aria-label"),
+      lang: (b.querySelector(".mchar") || b).getAttribute("lang"),
+    })),
+    label: document.getElementById("lstage").getAttribute("aria-label"),
+    text: document.getElementById("lview").textContent,
+    strokes: [...document.querySelectorAll("#lview .lstroke")].map((x) => x.getAttribute("d")),
+    said: window.__said ? window.__said.splice(0) : [],
+    stored: localStorage.getItem("wc-learn-at"),
+    sound: soundOn,
+  };
+});
+
+test("Word Cards: 新字 introduces a character in four steps, and a lesson ends on a review", async () => {
+  // The owner's point: he has never seen these 96, so a flash card or a
+  // matching board — both of which ask him to RECALL a pairing — cannot teach
+  // them. Each one is MET (the character, its picture and its word, said), SEEN
+  // (written stroke by stroke while the parts it is built from are coloured to
+  // match), FOUND beside two characters he already knows, and READ in a
+  // sentence; each lesson then asks for them again among each other. Every
+  // clause below is one of those promises, driven through the real screen on a
+  // paused clock, so "after the beat" means exactly that.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    assert.ok(await wcStubSpeech(pg), "fixture: the speech stub never installed, so nothing below measures anything");
+    const S = () => wcLearnState(pg);
+    const run = (ms) => pg.clock.runFor(ms);
+    const tap = (sel) => pg.evaluate((s) => document.querySelector(s).click(), sel);
+    const tapTile = (which) => pg.evaluate((w) => {
+      const ts = [...document.querySelectorAll("#lrow .mtile")];
+      const t = w === "right" ? ts.find((b) => b.dataset.correct === "1") : ts.find((b) => b.dataset.correct !== "1");
+      t.click();
+      return t.dataset.ch;
+    }, which);
+    // what the page's OWN rules say should be heard, asked of the page
+    const expect = () => pg.evaluate(() => {
+      const c = lCard();
+      return { hello: xinHello(c), ask: xinAsk(c), sentence: c[5], word: c[8] };
+    });
+
+    // ── the button, and opening it ─────────────────────────────────────────
+    const btn = await pg.evaluate(() => ({ n: XINZI.length,
+      small: document.querySelector("#learnBtn small").textContent, sound: soundOn }));
+    assert.equal(btn.small, btn.n + " characters", `the button says "${btn.small}" and teaches ${btn.n}`);
+    assert.equal(btn.sound, false, "fixture: sound must start OFF (RULE 5), or opening it proves nothing");
+    await tap("#learnBtn");
+    let s = await S();
+    assert.ok(s.shown && !s.menu, "新字 must open its own screen");
+    assert.equal(s.sound, true,
+      "characters he cannot read have no other way in — opening the lessons must turn sound on, as the listening game does");
+    assert.equal(s.count, `1 / ${s.pages}`, `a fresh start must open on the first page (saw ${s.count})`);
+
+    // ── 1. MEET ────────────────────────────────────────────────────────────
+    let want = await expect();
+    assert.equal(s.phase, "look", `the first step is to MEET it (saw ${s.phase})`);
+    assert.ok(s.text.includes(s.ch), `the character ${s.ch} is not on the screen`);
+    assert.deepEqual(s.said, [{ text: want.hello, lang: "zh-CN" }],
+      `meeting a character must SAY it, with its word, in Chinese: ${JSON.stringify(s.said)}`);
+    assert.ok(s.go && !s.wear && s.tiles.length === 0, "the meet step offers ▶ and no answers");
+
+    // ── 2. SEE — the first character is a word story: its word, marked ─────
+    await tap("#lgo");
+    s = await S();
+    assert.equal(s.phase, "see");
+    const word = await pg.evaluate(() => {
+      const w = document.querySelector("#lview .lword");
+      return w && { text: w.textContent, marks: [...w.querySelectorAll(".lmark")].map((m) => m.textContent) };
+    });
+    assert.ok(word && word.text === want.word, `a word story must show its word ${want.word} (saw ${JSON.stringify(word)})`);
+    assert.ok(word.marks.length >= 1 && word.marks.every((m) => m === s.ch),
+      `the new character must be MARKED inside its word (saw ${JSON.stringify(word)})`);
+
+    // ── 3. FIND ────────────────────────────────────────────────────────────
+    await run(20000);
+    await tap("#lgo");
+    s = await S();
+    assert.equal(s.phase, "find");
+    assert.ok(!s.go && s.wear, "while he is asked, ▶ goes and the say-it mark shows");
+    assert.equal(s.tiles.length, 3, `the find board is three tiles (saw ${s.tiles.length})`);
+    assert.equal(s.tiles.filter((t) => t.ok).length, 1, "exactly ONE tile is right");
+    assert.equal(s.tiles.find((t) => t.ok).ch, s.ch, "the flagged tile must be the character itself");
+    for (const t of s.tiles) {
+      assert.equal(t.lang, "zh-CN", `the tile ${t.ch} is not marked Chinese, so it is read with an English voice`);
+      assert.equal(t.label, null, `the tile ${t.ch} carries a label — the character IS its name`);
+    }
+    assert.ok(!s.label.includes(s.ch), `the stage names the answer while asking for it: "${s.label}"`);
+    assert.deepEqual(s.said.map((x) => [x.text, x.lang]), [[want.ask, "zh-CN"]], "the find step must ASK, in Chinese");
+
+    // a wrong tap costs nothing: it wiggles, asks again, and removes nothing
+    const w1 = await tapTile("wrong");
+    s = await S();
+    assert.ok(s.tiles.find((t) => t.ch === w1).miss, "a wrong tap must wiggle the tile he touched");
+    assert.equal(s.tiles.length, 3, "a wrong tap must not remove anything (RULE 5)");
+    assert.ok(s.tiles.every((t) => !t.done && !t.off), "a wrong tap must not end or lock the board");
+    assert.deepEqual(s.said.map((x) => x.text), [want.ask], "a wrong tap must ask the question again");
+    assert.ok(!s.tiles.some((t) => t.glow), "one miss must not give the answer away");
+    await tapTile("wrong"); await tapTile("wrong");
+    s = await S();
+    assert.ok(s.tiles.find((t) => t.ok).glow, "three misses must make the right one glow");
+
+    // the right one: marked, the board closes, and after the beat it is READ
+    const right = await tapTile("right");
+    s = await S();
+    assert.equal(right, s.ch, "fixture: tapped the wrong tile as the right one");
+    assert.ok(s.tiles.find((t) => t.ch === right).done, "the right tile must show it is right");
+    assert.ok(s.tiles.every((t) => t.off && !t.ok), "an answered board must answer nothing and carry no flag");
+    assert.deepEqual(s.said.map((x) => x.text), [want.hello], "a right answer must say the character again");
+    await run(500);                        // the old wiggles wear off; still inside the beat
+    await pg.evaluate(() => [...document.querySelectorAll("#lrow .mtile")]
+      .find((b) => !b.classList.contains("done")).click());    // a WRONG tile, in the beat
+    s = await S();
+    assert.ok(!s.tiles.some((t) => t.miss), "a tap during the beat must do nothing at all — it was judged");
+    assert.deepEqual(s.said, [], "…and must say nothing");
+    await run(900);
+    s = await S();
+    assert.equal(s.phase, "find", "the board must stay up for the beat, so he sees he was right");
+    await run(200);
+
+    // ── 4. READ ────────────────────────────────────────────────────────────
+    s = await S();
+    assert.equal(s.phase, "read", `after the beat he READS it (saw ${s.phase})`);
+    const read = await pg.evaluate(() => ({
+      zh: document.querySelector("#lview .lzh").textContent,
+      marks: [...document.querySelectorAll("#lview .lzh .lmark")].map((m) => m.textContent),
+      en: document.querySelector("#lview .len").textContent,
+      row: lCard(),
+    }));
+    assert.equal(read.zh, want.sentence, "the READ step must show the character's own sentence");
+    assert.equal(read.marks.length, [...want.sentence].filter((x) => x === s.ch).length,
+      "every place the character appears in its sentence must be marked");
+    assert.equal(read.en, read.row[6], "the grown-up's translation must sit under it");
+    assert.deepEqual(s.said.map((x) => [x.text, x.lang]), [[want.sentence, "zh-CN"]], "the sentence must be said");
+    assert.equal(s.stored, String(s.lp + 1), "a character he has read is MET — coming back must not start it again");
+    assert.ok(s.go, "▶ comes back once he has answered");
+
+    // ── the second character is built from PARTS: colours that match ──────
+    await tap("#lgo");
+    s = await S();
+    assert.equal(s.lp, 1, "▶ after reading moves to the next character");
+    await tap("#lgo");                                        // see
+    const parts = await pg.evaluate(() => {
+      const c = lCard();
+      return {
+        ch: c[0], story: c[9], ink: XIN_INK, plain: XIN_PLAIN, strokes: STROKES[c[0]].s,
+        tiles: [...document.querySelectorAll("#lview .lpart")].map((t) => ({
+          border: getComputedStyle(t).borderBottomColor,
+          glyph: (t.querySelector(".lpartg") || {}).textContent || "",
+          colour: t.querySelector(".lpartg") ? getComputedStyle(t.querySelector(".lpartg")).color : null,
+        })),
+      };
+    });
+    assert.equal(parts.story[0], "parts", `fixture: the second character (${parts.ch}) must be a parts story`);
+    const rgb = (h) => `rgb(${parseInt(h.slice(1, 3), 16)}, ${parseInt(h.slice(3, 5), 16)}, ${parseInt(h.slice(5, 7), 16)})`;
+    const named = parts.story[2].filter((p) => p[0] || p[2]);
+    assert.equal(parts.tiles.length, named.length, `every part it names must be a tile (saw ${parts.tiles.length})`);
+    parts.story[2].forEach((p, n) => {
+      if (!p[0]) return;
+      const t = parts.tiles.find((x) => x.glyph === p[0]);
+      assert.ok(t, `the part ${p[0]} of ${parts.ch} has no tile`);
+      assert.equal(t.border, rgb(parts.ink[n]), `the ${p[0]} tile is not in its part's colour`);
+      assert.equal(t.colour, rgb(parts.ink[n]), `the ${p[0]} glyph is not in its part's colour`);
+    });
+    // …and the character is WRITTEN in stroke order, each stroke in the colour
+    // of the part it belongs to. Sampled as it goes, so order is checked, not
+    // just the end state.
+    const seen = [];
+    for (let k = 0; k < 40; k++) {
+      seen.push((await S()).strokes.length);
+      await run(500);
+    }
+    s = await S();
+    const n = parts.strokes.length;
+    assert.equal(seen[0], 0, "the character must not be drawn before the brush starts");
+    for (let k = 1; k < seen.length; k++)
+      assert.ok(seen[k] >= seen[k - 1], `strokes disappeared while it was being written: ${seen.join(",")}`);
+    assert.ok(new Set(seen).size >= 4, `the strokes must arrive ONE AT A TIME, not all at once (saw ${seen.join(",")})`);
+    assert.deepEqual(s.strokes, parts.strokes, `${parts.ch} must be written stroke by stroke, in stroke ORDER`);
+    const fills = await pg.evaluate(() => [...document.querySelectorAll("#lview .lstroke")].map((x) => x.getAttribute("fill")));
+    parts.story[2].forEach((p, pi) => {
+      for (const k of p[1]) {
+        const shown = p[0] || p[2];
+        assert.equal(fills[k], shown ? parts.ink[pi] : parts.plain,
+          `stroke ${k + 1} of ${parts.ch} belongs to ${p[0] || "an unnamed part"} and is painted ${fills[k]}`);
+      }
+    });
+    // a tap on the stage writes it again, from the first stroke
+    await tap("#lstage");
+    assert.equal((await S()).strokes.length, 0, "tapping the stage in the SEE step must write the character again");
+
+    // ── through to the lesson's review ────────────────────────────────────
+    const lessonLen = await pg.evaluate(() => lPage().lesson === 0 && xinLessons()[0].length);
+    // peek, not S(): S() drains the speech log, and the review's first question
+    // is asked the moment the last meet page ends.
+    const peek = () => pg.evaluate(() => ({ kind: lPage().kind, phase: lPhase }));
+    for (let guard = 0; (await peek()).kind === "meet" && guard < 20; guard++) {
+      if ((await peek()).phase === "find") { await tapTile("right"); await run(1600); }
+      else { await tap("#lgo"); await run(50); }
+    }
+    s = await S();
+    assert.equal(s.kind, "review", `after the lesson's ${lessonLen} characters comes its REVIEW (saw ${s.kind})`);
+    assert.equal(s.phase, "ask");
+    const order = await pg.evaluate(() => ({ asked: lRounds.map((c) => c[0]), met: lPage().cards.map((c) => c[0]),
+      words: lPage().cards.map((c) => (XIN_SAY_AS[c[0]] ? null : c[8] === c[0] ? c[0] : c[8])) }));
+    assert.deepEqual([...order.asked].sort(), [...order.met].sort(), "the review must ask for each character once");
+    assert.notDeepEqual(order.asked, order.met, "the review must not ask in the order he met them — position would do the remembering");
+    for (let r = 0; r < order.asked.length; r++) {
+      if (r > 0) s = await S();
+      const q = await expect();
+      assert.equal(s.phase, "ask", `round ${r + 1} of the review must be asking`);
+      assert.equal(s.ch, order.asked[r], `round ${r + 1} asks for ${s.ch}, the order says ${order.asked[r]}`);
+      assert.ok(s.said.some((x) => x.text === q.ask), `round ${r + 1} must ASK for ${s.ch} out loud`);
+      assert.ok(!s.label.includes(s.ch), `the stage names the answer while asking for it: "${s.label}"`);
+      await tapTile("right");
+      await run(1600);
+    }
+    s = await S();
+    assert.equal(s.phase, "cheer", `a finished review ends on the lesson's cheer (saw ${s.phase})`);
+    const cheer = await pg.evaluate(() => [...document.querySelectorAll("#lview .lchar1")].map((x) => x.textContent));
+    assert.deepEqual(cheer, order.met, "the cheer must show the lesson's characters");
+    // The cheer is the LAST line said: the one before it confirmed the last
+    // answer, and it names that character's word too.
+    const last = s.said[s.said.length - 1] || {};
+    assert.equal(last.lang, "zh-CN", "the cheer must be said in Chinese");
+    const said = last.text || "";
+    const words = order.words.filter(Boolean).filter((w, k, a) => a.indexOf(w) === k);
+    for (const w of words) assert.ok(said.includes(w), `the cheer must say ${w} (said "${said}")`);
+    for (const w of words) assert.equal(said.split(w).length - 1, 1, `the cheer says ${w} twice — a stammer (said "${said}")`);
+    assert.equal(s.stored, String(s.lp + 1), "a finished lesson is done — coming back must start the next one");
+    await tap("#lgo");
+    s = await S();
+    assert.equal(s.kind, "meet", "▶ after the cheer starts the next lesson");
+    assert.equal(s.phase, "look");
+
+    // ── fonts: every han run is asked for in a Simplified face ────────────
+    const SC = /PingFang|Hiragino Sans GB|Heiti|Source Han Sans SC|Noto Sans CJK SC|Microsoft YaHei/;
+    const fams = await pg.evaluate(() => {
+      const fam = (el) => getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim();
+      return [...document.querySelectorAll("#learn .lchar, #learnBtn b")].map((el) => [el.className || el.tagName, fam(el)]);
+    });
+    assert.ok(fams.length >= 2, "fixture: no character on the screen to check the face of");
+    for (const [what, f] of fams) assert.match(f, SC, `${what} renders in "${f}", not a Simplified Chinese face`);
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: 新字 keeps his place, including the last page, and only a grown-up starts it over", async () => {
+  // The sibling boards' law: the place is saved, a fresh open lands on it, the
+  // bound is the MODULAR one (the last page is a real place to stop — that is
+  // the defect 写字 once shipped), junk falls back to the start, and the ⏮️
+  // is a HOLD, because a four-year-old will press a bar button.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    const park = async (v) => {
+      await pg.evaluate((x) => { if (x === null) localStorage.removeItem("wc-learn-at"); else localStorage.setItem("wc-learn-at", x); }, v);
+      await pg.reload({ waitUntil: "load" });
+      await pg.evaluate(() => document.getElementById("learnBtn").click());
+      return wcLearnState(pg);
+    };
+    let s = await park(null);
+    const total = s.pages;
+    assert.equal(s.lp, 0, "fixture: a fresh open starts on page 1");
+
+    // Reading a character saves the NEXT one, and a fresh open lands there.
+    await pg.evaluate(async () => {
+      document.getElementById("lgo").click();                 // see
+      document.getElementById("lgo").click();                 // find
+      document.querySelector('#lrow [data-correct="1"]').click();
+    });
+    await pg.waitForTimeout(1700);
+    s = await wcLearnState(pg);
+    assert.equal(s.phase, "read", "fixture: the first character was not read");
+    assert.equal(s.stored, "1", "reading the first character must save the second as his place");
+    s = await park("1");
+    assert.equal(s.lp, 1, `a fresh open must land on his saved place (saw page ${s.lp + 1})`);
+    assert.equal(s.phase, "look", "a saved place opens on a fresh MEET, not half-way through a step");
+
+    // The LAST page is a real place to stop.
+    s = await park(String(total - 1));
+    assert.equal(s.lp, total - 1, `parking on the last page must reopen there, not start over — saw page ${s.lp + 1}`);
+    // …and junk falls back to the start rather than breaking the screen.
+    for (const junk of ["-1", String(total), "abc", ""]) {
+      s = await park(junk);
+      assert.equal(s.lp, 0, `a stored "${junk}" must open page 1 (saw page ${s.lp + 1})`);
+    }
+
+    // ⏮️ — a short tap does nothing; a hold starts over and forgets the place.
+    s = await park("5");
+    assert.equal(s.lp, 5, "fixture: the park did not take");
+    const box = await (await pg.$("#lreset")).boundingBox();
+    const press = async (ms) => {
+      await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await pg.mouse.down();
+      await pg.waitForTimeout(ms);
+      await pg.mouse.up();
+    };
+    await press(150);
+    s = await wcLearnState(pg);
+    assert.equal(s.lp, 5, "a TAP on ⏮️ must not send him back — it is a grown-up's hold");
+    assert.equal(s.stored, "5", "a tap must not touch his saved place");
+    await press(1000);
+    s = await wcLearnState(pg);
+    assert.equal(s.lp, 0, `holding ⏮️ must go back to the first page — saw page ${s.lp + 1}`);
+    assert.equal(s.stored, null, "going back to the start must forget the saved place");
+    assert.equal(s.phase, "look", "the first page must open on its MEET");
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} }).catch(() => {});
+    await ctx.close();
+  }
+});
+
+test("Word Cards: a double-tap on ▶ cannot answer the question that replaces it", async () => {
+  // The FIND step swaps ▶ for three answer tiles in the same place, on the
+  // same screen, so a four-year-old's double-tap on ▶ used to land its echo on
+  // a tile and answer a question nobody had seen. The page's echo guard asks
+  // what was ON SCREEN at the first tap, and the tiles were not. Real taps
+  // (page.mouse) on a paused clock.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await wcStubSpeech(pg);
+    await pg.evaluate(() => document.getElementById("learnBtn").click());
+    const go = await pg.evaluate(() => {
+      const r = document.getElementById("lgo").getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    });
+    const tap = () => pg.mouse.click(go[0], go[1]);
+    const wait = (ms) => pg.clock.runFor(ms);
+
+    // 1. ▶'s own echo does not skip a step
+    await wait(400); await tap();
+    let s = await wcLearnState(pg);
+    assert.equal(s.phase, "see", "fixture: a deliberate ▶ moves to the SEE step");
+    await wait(150); await tap();
+    s = await wcLearnState(pg);
+    assert.equal(s.phase, "see", "a double-tap on ▶ must move ONE step — the echo skipped the character being written");
+
+    // 2. ▶ into FIND: the echo lands on a tile that did not exist a moment ago
+    await wait(20000); await tap();
+    s = await wcLearnState(pg);
+    assert.equal(s.phase, "find", "fixture: a deliberate ▶ opens the FIND step");
+    const under = await pg.evaluate(([x, y]) => {
+      const t = document.elementFromPoint(x, y);
+      return t && t.closest(".mtile") ? t.closest(".mtile").dataset.ch : null;
+    }, go);
+    assert.ok(under, "fixture: a tile must sit where ▶ was, or the echo has nothing to land on");
+    await wait(150); await tap();
+    s = await wcLearnState(pg);
+    assert.ok(s.tiles.every((t) => !t.done && !t.miss && !t.off),
+      `the echo of ▶ answered the question it revealed (tile ${under}): ${JSON.stringify(s.tiles)}`);
+    assert.equal(s.phase, "find", "the echo must not have answered, or moved on");
+
+    // 3. …and a deliberate tap after the pause is his answer
+    await wait(400); await tap();
+    s = await wcLearnState(pg);
+    assert.ok(s.tiles.some((t) => t.done || t.miss), "a deliberate tap on a tile after the pause must be judged");
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: leaving 新字 mid-step leaves nothing running behind it", async () => {
+  // route-style hiding is how this page leaves a screen, so every timer on the
+  // 新字 screen — the brush writing a character, the beat after a right answer
+  // — must ask whether the screen is still up before it acts. Measured the way
+  // it fails: leave in the middle, run the clock long past, and look.
+  //
+  // Each half is an outcome TWO guards deliver, and that is measured rather
+  // than implied: the back button bumps the brush's token and clears the beat,
+  // AND every timer asks lLive() — so removing either one alone stays green,
+  // and only removing both turns this red. The second is the one that covers a
+  // way off the screen that is not the back button.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await wcStubSpeech(pg);
+    const click = (id) => pg.evaluate((x) => document.getElementById(x).click(), id);
+
+    // 1. mid-WRITING: leave with the brush half-way, and nothing more is drawn
+    await click("learnBtn");
+    await click("lgo");                                        // see
+    await pg.clock.runFor(1500);
+    const mid = (await wcLearnState(pg)).strokes.length;
+    assert.ok(mid >= 1, "fixture: the brush must have started before he leaves");
+    await click("lback");
+    await wcLearnState(pg);                                    // drain the log
+    await pg.clock.runFor(30000);
+    let s = await wcLearnState(pg);
+    assert.ok(s.menu && !s.shown, "fixture: back must return to the menu");
+    assert.equal(s.strokes.length, mid, "the brush kept writing on a screen nobody can see");
+    assert.deepEqual(s.said, [], "leaving must silence the lesson");
+
+    // 2. mid-BEAT: leave after a right answer, before the READ step
+    await click("learnBtn");
+    s = await wcLearnState(pg);
+    assert.equal(s.phase, "look", "coming back must open a fresh MEET");
+    await click("lgo"); await click("lgo");                    // see, find
+    await pg.evaluate(() => document.querySelector('#lrow [data-correct="1"]').click());
+    await click("lback");
+    await wcLearnState(pg);
+    await pg.clock.runFor(5000);
+    s = await wcLearnState(pg);
+    assert.equal(s.phase, "find", "the beat moved the hidden screen on to READ behind his back");
+    assert.equal(s.stored, null, "a step he never saw must not be saved as done");
+    assert.deepEqual(s.said, [], "a hidden screen must say nothing");
+
+    // …and reopening starts that character again, cleanly
+    await click("learnBtn");
+    s = await wcLearnState(pg);
+    assert.equal(s.lp, 0, "the character he left before reading must be the one he comes back to");
+    assert.equal(s.phase, "look");
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: the brush travels, and under reduced motion each stroke simply appears", async () => {
+  // Watching it written IS the lesson, so the brush draws each stroke in the
+  // direction it goes. Under prefers-reduced-motion it must not travel — each
+  // stroke appears in turn, which keeps the ORDER, the one thing this is for.
+  for (const reducedMotion of ["no-preference", "reduce"]) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion });
+    const pg = await ctx.newPage();
+    try {
+      await pg.clock.install({ time: new Date("2026-01-01T08:00:00") });
+      await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      await pg.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+      await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+      await wcStubSpeech(pg);
+      await pg.evaluate(() => { document.getElementById("learnBtn").click(); document.getElementById("lgo").click(); });
+      await pg.clock.runFor(400);
+      const r = await pg.evaluate(() => {
+        const b = document.querySelector("#lview .lbrush");
+        const cs = getComputedStyle(b);
+        return { n: document.querySelectorAll("#lview .lbrush").length, dur: cs.transitionDuration };
+      });
+      assert.ok(r.n >= 1, `fixture: no brush stroke was drawn (${reducedMotion})`);
+      const secs = parseFloat(r.dur) * (/ms$/.test(r.dur) ? 0.001 : 1);
+      if (reducedMotion === "reduce") assert.equal(secs, 0, `under reduced motion the brush must not travel (saw ${r.dur})`);
+      else assert.ok(secs > 0.1, `the brush must travel along the stroke (saw ${r.dur})`);
+    } finally {
+      await ctx.close();
+    }
   }
 });
 

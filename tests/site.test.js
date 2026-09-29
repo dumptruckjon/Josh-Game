@@ -1046,11 +1046,15 @@ test("guardrail: the app's two echo guards agree on what a finger is", () => {
   const ms = (src) => { const m = src.match(/ECHO_MS\s*=\s*(\d+)/); return m && +m[1]; };
   assert.ok(ms(fw) > 0 && ms(wc) > 0, "both guards declare ECHO_MS");
   assert.equal(ms(wc), ms(fw), "Word Cards and the framework must use the SAME echo window");
-  // …and the page's rule 2 ("an echo that lands on another SCREEN") must know
-  // every screen. It read "#menu, #deck, #write, #match", a list the listening
-  // game would have had to join; every screen is a .wrap, so it asks that.
-  assert.match(wc, /closest\("\.wrap"\)/,
-    "wordcards.html: the echo guard's screen must be DERIVED (every screen is a .wrap), never a list of ids");
+  // …and the page's rule 2 must know what was ON SCREEN when the tap it echoes
+  // began. It read "#menu, #deck, #write, #match" (a list), then "another
+  // .wrap" (screens only) — and 新字 swaps its ▶ for three answers on the SAME
+  // screen, where "another screen" cannot see the echo land. So it asks the
+  // page what was painted, every time: a control with no box was not there.
+  assert.match(wc, /getClientRects\(\)\.length/,
+    "wordcards.html: the echo guard must DERIVE what was on screen at the first tap, never a list");
+  assert.match(wc, /!lastTap\.seen\.has\(control\)/,
+    "wordcards.html: rule 2 must ask whether the control was on screen when the first tap began");
   assert.doesNotMatch(wc, /closest\("#menu, #deck/, "wordcards.html: the hand-written screen list is back");
   for (const [name, src] of [["framework.js", fw], ["wordcards.html", wc]]) {
     assert.match(src, /isTrusted/, `${name}: a synthetic click is code, never a finger — the guard must check isTrusted`);
@@ -5302,6 +5306,10 @@ test("the repo tree's counts are the data's counts, derived with no pairing list
 const wcWords = () => JSON.parse(read("wordcards.html").match(/const WORDS = (\[.*?\]);/s)[1]);
 const wcHanzi = () => JSON.parse(
   read("wordcards.html").match(/const HANZI = (\[[\s\S]*?\n\]);/)[1].replace(/,(\s*\])$/, "$1"));
+// 新字: the 96 characters he has never met. A third array, for the reason HANZI
+// is a second one — a different job, and every derivation that reads one must
+// not quietly read the other.
+const wcXinzi = () => JSON.parse(read("wordcards.html").match(/const XINZI = (\[[\s\S]*?\n\]);/)[1]);
 
 // The SKELETON is this page's ONE definition of "these two pictures are the
 // same thing": strip the presentation selector, skin tone, ZWJ and the
@@ -5366,6 +5374,15 @@ const WC_DECKS = [
     // versus may not differ only by gender.
     exempt: [["爸", "妈"], ["蝴", "蝶"]],
   },
+  {
+    // 新字's picture is a MEANING CUE too, and here it is also the question on
+    // the find and review boards, so a near-twin would be two right answers.
+    // 哥 and 姐 are big brother and big sister wearing 👦 and 👧 — the gender
+    // IS the answer, the same carve-out as 爸/妈 and mom/dad.
+    name: "New Chinese", array: "XINZI", floor: 90,
+    cards: () => wcXinzi(),
+    exempt: [["哥", "姐"]],
+  },
 ];
 
 test("Word Cards: no card wears another card's picture with the gender swapped", () => {
@@ -5383,6 +5400,8 @@ test("Word Cards: no card wears another card's picture with the gender swapped",
     READING: "the derived decks' own definitions",
     HEAR_SKIP: "words the listening game never SAYS (read aloud as letters)",
     HOMOPHONES: "words that may not share a listening board (they sound the same)",
+    XIN_ANCHORS: "the familiar characters a 新字 board deals its wrong answers from",
+    XIN_INK: "the two colours a 新字 card paints its parts in",
   };
   const declared = [...src.matchAll(/^\s*const ([A-Z][A-Z_0-9]*) = \[/gm)].map((m) => m[1]);
   assert.ok(declared.length >= 5, `only ${declared.length} arrays found — the scan failed open`);
@@ -5755,8 +5774,8 @@ test("Word Cards: a Chinese measure word agrees with the one 华丽's world teac
   // there is no other owner for them — the same truth-restatement the sentence
   // law next door uses.
   const DECK_ONLY = {
-    人: "个", 手指: "个", 家: "个",
-    猫: "只", 狗: "只", 羊: "只", 手: "只",
+    人: "个", 手指: "个", 家: "个", 弟弟: "个", 字: "个",
+    猫: "只", 狗: "只", 羊: "只", 手: "只", 鸡: "只",
     兔子: "只", 蝴蝶: "只", 蜜蜂: "只", 虫: "只",
   };
 
@@ -5764,14 +5783,18 @@ test("Word Cards: a Chinese measure word agrees with the one 华丽's world teac
   // number or 这/那/几. Without that clause 头 in 我的头很大 reads as the measure
   // word for cattle instead of the noun "head", which is exactly what the first
   // cut of this scan reported. A modifier (小鸟, 白羊) may sit in between.
-  const NUM = /[一二三四五六七八九十两几这那]/;
-  const MOD = /[小大白红老好]/;
+  // 百 counts too (一百只羊), and 黑 is a colour like 白 and 红 (一只黑猫).
+  const NUM = /[一二三四五六七八九十两几这那百]/;
+  const MOD = /[小大白红黑老好]/;
   const MWS = /[只个朵条头匹本把辆件双]/;
   const known = (n) => Object.prototype.hasOwnProperty.call(her, n) ||
                        Object.prototype.hasOwnProperty.call(DECK_ONLY, n);
 
   let uses = 0, shared = 0;
-  for (const card of wcHanzi()) {
+  // BOTH Chinese decks: 新字's sentences count chickens, a brother, sheep and a
+  // flower, and a law scoped to the first deck would quietly narrow its claim
+  // the day the second one landed.
+  for (const card of [...wcHanzi(), ...wcXinzi()]) {
     const sent = card[5];
     for (let i = 1; i < sent.length; i++) {
       if (!MWS.test(sent[i]) || !NUM.test(sent[i - 1])) continue;
@@ -5835,6 +5858,10 @@ test("Word Cards: a Chinese sentence's COUNT agrees with its English", () => {
 
   const WORD = ["one", "two", "three", "four", "five", "six", "seven", "eight",
                 "nine", "ten", "eleven", "twelve"];
+  const ORDINAL = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh",
+                   "eighth", "ninth", "tenth"];
+  // 一百 is the one hundreds 新字 teaches (百, a hundred).
+  const NAME = (v) => WORD[v - 1] || (v === 100 ? "hundred" : null);
   const MONTH = ["january", "february", "march", "april", "may", "june", "july",
                  "august", "september", "october", "november", "december"];
   const has = (tr, w) => new RegExp(`\\b${w}\\b`, "i").test(tr);
@@ -5843,6 +5870,8 @@ test("Word Cards: a Chinese sentence's COUNT agrees with its English", () => {
   // two, and reading it per character would report two spurious failures. A
   // run this does not understand fails LOUDLY rather than being skipped.
   const valueOf = (run) => {
+    if (run === "百") return 100;
+    if (run.length === 2 && run[1] === "百") return DIGIT[run[0]] * 100;
     const d = [...run].map((ch) => DIGIT[ch]);
     if (d.length === 1) return d[0];
     if (d.length === 2 && d[0] === 10) return 10 + d[1];
@@ -5850,11 +5879,11 @@ test("Word Cards: a Chinese sentence's COUNT agrees with its English", () => {
     return null;
   };
 
-  let counted = 0, article = 0, month = 0, liang = 0;
+  let counted = 0, article = 0, month = 0, liang = 0, ordinal = 0, half = 0;
   const seen = new Set();
-  for (const card of wcHanzi()) {
+  for (const card of [...wcHanzi(), ...wcXinzi()]) {
     const sent = card[5], tr = card[6];
-    for (const m of sent.matchAll(/[一二三四五六七八九十两]+/g)) {
+    for (const m of sent.matchAll(/[一二三四五六七八九十两百]+/g)) {
       const run = m[0], v = valueOf(run);
       assert.ok(v !== null,
         `${card[0]}: "${sent}" — this scan does not understand the numeral ${run}`);
@@ -5871,9 +5900,24 @@ test("Word Cards: a Chinese sentence's COUNT agrees with its English", () => {
         continue;
       }
 
+      // After 第 it is an ORDINAL (第一 is first) and before 半 a FRACTION
+      // (一半 is half) — both CHECKED, like the month, so neither exception can
+      // swallow a real disagreement.
+      if (sent[m.index - 1] === "第") {
+        ordinal += 1;
+        assert.ok(ORDINAL[v - 1] && has(tr, ORDINAL[v - 1]),
+          `${card[0]}: "${sent}" is the ${ORDINAL[v - 1] || v}, but "${tr}" does not say so`);
+        continue;
+      }
+      if (sent[m.index + run.length] === "半") {
+        half += 1;
+        assert.ok(v === 1 && has(tr, "half"), `${card[0]}: "${sent}" is a half, but "${tr}" does not say so`);
+        continue;
+      }
+
       counted += 1;
       seen.add(v);
-      if (WORD[v - 1] && (has(tr, WORD[v - 1]) || has(tr, String(v)))) continue;
+      if (NAME(v) && (has(tr, NAME(v)) || has(tr, String(v)))) continue;
       // 一 + a measure word is normally "a"/"an" in English (一只猫 is "a cat",
       // not "one cat"), which is grammar rather than a loophole — but only
       // where the translation names no OTHER number, so it cannot swallow a
@@ -5892,6 +5936,9 @@ test("Word Cards: a Chinese sentence's COUNT agrees with its English", () => {
   assert.ok(article >= 1, "no sentence rendered 一 as a/an — that exception is dead code");
   assert.ok(month >= 1, "no month name was checked — that exception is dead code");
   assert.ok(liang >= 1, "the deck never uses 两, so declaring it here guards nothing");
+  assert.ok(ordinal >= 1, "no ordinal (第一) was checked — that exception is dead code");
+  assert.ok(half >= 1, "no half (一半) was checked — that exception is dead code");
+  assert.ok(seen.has(100), "no hundred was checked, so the 百 rule guards nothing");
 });
 
 test("Word Cards: every 多音字 carries the reading its own card teaches", () => {
@@ -6050,7 +6097,10 @@ const wcPure = () => {
   assert.ok(at > 0 && end > at, "the page's pure section could not be found — the scan failed open");
   return new Function(src.slice(at, end) +
     "; return { WORDS, sounds, firstWords, hearDeck, hearChoices, hearPool, " +
-    "HOMOPHONES, HEAR_SKIP, HEAR_CHOICES, editDistance };")();
+    "HOMOPHONES, HEAR_SKIP, HEAR_CHOICES, editDistance, HANZI, XINZI, xinLessons, " +
+    "xinPages, xinFindChoices, xinReviewChoices, xinReviewOrder, xinHello, xinAsk, " +
+    "xinBare, xinParts, xinWordMates, XIN_ANCHORS, XIN_AVOID, XIN_SAY_AS, XIN_INK, " +
+    "LESSON_MAX, XIN_CHOICES };")();
 };
 
 test("Word Cards: a listening round has exactly ONE right answer, and it takes reading to find", () => {
@@ -6232,8 +6282,11 @@ test("Word Cards: every character he WRITES has real stroke-order data", () => {
   const S = win.HANZI_STROKES;
   assert.ok(S && typeof S === "object", "hanzi-strokes.js must set window.HANZI_STROKES");
 
-  const chars = wcHanzi().map((r) => r[0]);
-  assert.ok(chars.length >= 100, `only ${chars.length} characters parsed — this check would be vacuous`);
+  // Both Chinese decks: 写字 writes the 120, and 新字 draws the 96 new ones
+  // stroke by stroke. A character in either with no entry is a pad that can
+  // never finish or a lesson that draws nothing.
+  const chars = [...wcHanzi(), ...wcXinzi()].map((r) => r[0]);
+  assert.ok(chars.length >= 200, `only ${chars.length} characters parsed — this check would be vacuous`);
 
   const missing = chars.filter((c) => !S[c]);
   assert.deepEqual(missing, [],
@@ -6290,8 +6343,8 @@ test("Word Cards: the say-it button's glyph is none of the deck's own pictures",
   assert.ok(says.length >= 2,
     `the writing pad and the listening game each carry a say-it glyph (saw ${says.length})`);
 
-  const cards = [...wcHanzi(), ...wcWords()];
-  assert.ok(cards.length > 600, `only ${cards.length} cards read — this clause would be vacuous`);
+  const cards = [...wcHanzi(), ...wcXinzi(), ...wcWords()];
+  assert.ok(cards.length > 700, `only ${cards.length} cards read — this clause would be vacuous`);
 
   // …and not either face of the sound toggle, the show-stroke button or the
   // grown-up's ⏮️, which sit on the same screens. The toggle's ON face lives in
@@ -6403,6 +6456,390 @@ test("Word Cards: simplified Chinese is asked for BY NAME, never inherited", () 
     "nothing marks the character as Chinese, so the platform has to guess the script");
   assert.match(src, /u\.lang = lang \|\| "en-US"/,
     "speak() no longer takes a language, so a Chinese line is read with an English voice");
+});
+
+// ---------- 新字: the characters he has never seen ----------
+const hanOf = (s) => [...s].filter((x) => /[一-鿿]/.test(x));
+
+test("Word Cards: 新字 is the owner's L1 list, less the 120 he already reads", () => {
+  // The owner's photo — LingoAce 拓展版 认写字表, L1 units 1-8 — TRANSCRIBED
+  // rather than derived from the deck, for the reason the 第2级 table test
+  // gives: a character that drifts out of the data needs something to disagree
+  // with. Per unit, [会认 (recognise), 会写 (write)], in the order printed.
+  const L1 = [
+    ["一二三四五人六七八个我九十几岁你好喜欢是小兔虫", "一二三八人六十七小"],
+    ["爸妈哥了山水爷奶画鸟猫很大这家妹的喜有弟姐爱", "四五了山水大个"],
+    ["太阳月石也风雨雪因为出来星云天空里住白飞上下头两", "月风雨云出天白上下"],
+    ["只什么鸡鸭说蓝黑红色会可以马不黄彩羽毛吗在羊尖牙鱼", "只什么飞虫毛不羊在"],
+    ["玩和牛动为日看见们半要去打还他到海边穿衣今晚开心起", "牛也日半去衣开心"],
+    ["吃都饿香土豆瓜米果种树长多最气高种子没早中午喝肉", "今吃土米长子气早中"],
+    ["学生课校点分文书饭唱同狗本草第带给写字手发灯光", "点生分文本书百字手光"],
+    ["春听绿花甜冷热夏冬现过节做秋火走行动西房谁朵金叶", "听花冬火秋走朵叶"],
+  ];
+  // The transcription's own arithmetic, counted off the photo box by box, or a
+  // dropped character would quietly move the bar it is compared against.
+  const RECOGNISE = [23, 22, 24, 25, 25, 24, 23, 24], WRITE = [9, 7, 9, 9, 8, 9, 10, 8];
+  L1.forEach(([r, w], k) => {
+    assert.equal([...r].length, RECOGNISE[k], `unit ${k + 1}'s 会认 row is ${[...r].length} boxes; the photo shows ${RECOGNISE[k]}`);
+    assert.equal([...w].length, WRITE[k], `unit ${k + 1}'s 会写 row is ${[...w].length} boxes; the photo shows ${WRITE[k]}`);
+  });
+
+  // A character belongs to the unit that FIRST has it: 也 is recognised in
+  // unit 3 and written in unit 5, and 百 is only ever on a 会写 row.
+  const first = new Map();
+  L1.forEach(([r, w], k) => { for (const ch of r + w) if (!first.has(ch)) first.set(ch, k + 1); });
+  const known = new Set(wcHanzi().map((c) => c[0]));
+  assert.equal(known.size, 120, "the 中文 deck did not parse, so the dedupe would be vacuous");
+  const netNew = [...first.keys()].filter((ch) => !known.has(ch));
+  assert.equal(netNew.length, 96, `the list less the 中文 cards is ${netNew.length} characters, not 96`);
+
+  // Row by row FIRST, so each way of being wrong names itself: a character he
+  // already reads, one the list does not have, one filed under the wrong unit.
+  // The set comparison after them is then only what they cannot see — a
+  // character the list has and no row teaches.
+  const deck = wcXinzi();
+  const have = deck.map((c) => c[0]);
+  for (const c of deck) {
+    assert.ok(!known.has(c[0]), `${c[0]} is already on the 中文 cards — he has met it, so it is not NEW`);
+    assert.ok(first.has(c[0]), `${c[0]} is not on the owner's list at all`);
+    assert.equal(c[7], first.get(c[0]),
+      `${c[0]} is filed under unit ${c[7]}, but the list first has it in unit ${first.get(c[0])}`);
+  }
+  assert.equal(new Set(have).size, have.length, "a new character is on two rows");
+  assert.deepEqual([...have].sort(), [...netNew].sort(),
+    "新字 is not exactly the owner's list less the characters already on the 中文 cards");
+  // …taught in the owner's unit order: nothing from a later unit comes first.
+  for (let k = 1; k < deck.length; k++) {
+    if (deck[k][7] < deck[k - 1][7])
+      assert.fail(`${deck[k][0]} (unit ${deck[k][7]}) is taught after ${deck[k - 1][0]} (unit ${deck[k - 1][7]})`);
+  }
+});
+
+test("Word Cards: every 新字 row carries all ten of its parts, in the right script", () => {
+  const deck = wcXinzi();
+  assert.equal(deck.length, 96, `only ${deck.length} rows — the parse failed open`);
+  // A story's length by kind: [kind, zh, en], or [kind, layout, parts, zh, en].
+  const STORY = { pic: 3, word: 3, parts: 5 };
+  for (const c of deck) {
+    assert.ok(Array.isArray(c) && c.length === 10,
+      `not [character, picture, "xin", pinyin, meaning, sentence, translation, unit, word, story]: ${JSON.stringify(c)}`);
+    const [ch, pic, cat, py, gloss, sent, tr, unit, word, story] = c;
+    assert.ok(/^[一-鿿]$/.test(ch), `"${ch}" is not a single han character`);
+    assert.ok(typeof pic === "string" && pic && !/[一-鿿a-z]/i.test(pic), `${ch}: "${pic}" is not a picture`);
+    assert.equal(cat, "xin", `${ch} is not filed under xin`);
+    assert.match(py, /^[a-züĀ-ǿà-ü]+$/i, `${ch}: "${py}" is not pinyin`);
+    assert.match(gloss, /[a-z]/i, `${ch}: the meaning "${gloss}" has no English in it`);
+    assert.match(tr, /[a-z]/i, `${ch}: the translation "${tr}" has no English in it`);
+    assert.doesNotMatch(tr, /[一-鿿]/, `${ch}: the translation "${tr}" still has Chinese in it`);
+    assert.doesNotMatch(sent, /[a-z0-9]/i, `${ch}: the sentence "${sent}" is not all Chinese`);
+    assert.ok(sent.includes(ch), `${ch}: "${sent}" does not contain the character it is meant to show`);
+    const n = hanOf(sent).length;
+    assert.ok(n >= 2 && n <= 8, `${ch}: "${sent}" is ${n} characters — too long to read at four`);
+    assert.ok(Number.isInteger(unit) && unit >= 1 && unit <= 8, `${ch}: unit ${unit} is not one of the list's eight`);
+    assert.ok(/^[一-鿿]+$/.test(word) && word.includes(ch), `${ch}: its word "${word}" must be Chinese and contain it`);
+    assert.ok(Array.isArray(story) && STORY[story[0]] === story.length,
+      `${ch}: ${JSON.stringify(story)} is not a pic, word or parts story`);
+    const zh = story[story.length - 2], en = story[story.length - 1];
+    // zh is SPOKEN in a Chinese voice, and a latin letter or a digit in it is
+    // read as noise; en is the grown-up's line under the character.
+    assert.match(zh, /[一-鿿]/, `${ch}: the spoken story "${zh}" has no Chinese in it`);
+    assert.doesNotMatch(zh, /[a-z0-9]/i, `${ch}: the spoken story "${zh}" has latin or a digit in it`);
+    assert.match(en, /[a-z]/i, `${ch}: the grown-up's line "${en}" has no English in it`);
+  }
+});
+
+test("Word Cards: a 新字 part really IS that part of the character", () => {
+  // The SEE step colours each part of a character to match the piece it names
+  // — 鸡 is 又 and a 鸟 he knows — so a part that is not really there teaches
+  // something false about how the character is built. All of it is checked
+  // against the stroke data the screen draws from:
+  //   - the parts PARTITION the character's strokes;
+  //   - a named part has as many strokes as that component really has. The
+  //     counts are RESTATED here, because the data's own count is the thing
+  //     being checked;
+  //   - the layout is where those strokes actually are.
+  const STROKE_COUNT = {
+    一: 1, 丁: 2, 八: 2, 人: 2, 儿: 2, 力: 2, 刀: 2, 十: 2, 又: 2, 几: 2, 亻: 2,
+    讠: 2, 冫: 2, 卩: 2, 口: 3, 大: 3, 小: 3, 女: 3, 子: 3, 马: 3, 门: 3, 也: 3,
+    扌: 3, 氵: 3, 饣: 3, 宀: 3, 彡: 3, 寸: 3, 辶: 3, 艹: 3, 欠: 4, 云: 4, 日: 4,
+    中: 4, 木: 4, 火: 4, 牙: 4, 殳: 4, 户: 4, 方: 4, 灬: 4, 可: 5, 未: 5, 且: 5,
+    主: 5, 鸟: 5, 甲: 5, 穴: 5, 禾: 5, 占: 5, 白: 5, 甘: 5, 令: 5, 舌: 6, 执: 6,
+    兑: 7, 免: 7, 我: 7, 采: 8, 果: 8, 昌: 8, 隹: 8, 壴: 9, 故: 9,
+  };
+  const win = {};
+  new Function("window", read("scripts/hanzi-strokes.js"))(win);
+  const S = win.HANZI_STROKES;
+  const ink = wcPure().XIN_INK;
+  const rows = wcXinzi().filter((c) => c[9][0] === "parts");
+  assert.ok(rows.length >= 40, `only ${rows.length} parts stories parsed — this check would be vacuous`);
+  const box = (m, idx) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const k of idx) for (const [x, y] of m[k]) {
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+    return { x0, x1, y0, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+  };
+  const used = new Set();
+  for (const c of rows) {
+    const ch = c[0], [, layout, parts] = c[9], d = S[ch];
+    assert.ok(d, `${ch} has no stroke data to check its parts against`);
+    const n = d.s.length;
+    assert.ok(["lr", "rl", "tb", "in"].includes(layout), `${ch}: "${layout}" is not a layout`);
+    assert.ok(parts.length >= 2 && parts.length <= ink.length,
+      `${ch} has ${parts.length} parts, and there are ${ink.length} part colours`);
+    const all = parts.flatMap((p) => p[1]).sort((a, b) => a - b);
+    assert.deepEqual(all, [...Array(n).keys()],
+      `${ch}'s parts do not share out its ${n} strokes exactly once each: ${all.join(",")}`);
+    for (const [g, idx] of parts) {
+      // A part is written in one go — except inside an enclosure, where the
+      // box is closed last (因: 口 is strokes 1, 2 and 6).
+      if (layout !== "in")
+        for (let k = 1; k < idx.length; k++)
+          assert.equal(idx[k], idx[k - 1] + 1, `${ch}: the ${g || "unnamed"} part's strokes are not written in one go`);
+      if (!g) continue;
+      used.add(g);
+      assert.ok(g in STROKE_COUNT, `${ch} names the part ${g} — add its stroke count to this table`);
+      assert.equal(idx.length, STROKE_COUNT[g],
+        `${ch}: ${g} is ${STROKE_COUNT[g]} strokes, but the row gives it ${idx.length}`);
+    }
+    assert.ok(parts.some((p) => p[0] || p[2]), `${ch}: no part shows a glyph or a picture, so its SEE step says nothing`);
+    const [a, b] = parts.map((p) => box(d.m, p[1]));
+    // The data's y axis runs UPWARD, so the top part has the larger y.
+    if (layout === "lr") assert.ok(a.cx < b.cx, `${ch}: its first part is not on the LEFT`);
+    if (layout === "rl") assert.ok(a.cx > b.cx, `${ch}: its first part is not on the RIGHT`);
+    if (layout === "tb") assert.ok(a.cy > b.cy, `${ch}: its first part is not on TOP`);
+    if (layout === "in")
+      assert.ok(b.x0 >= a.x0 && b.x1 <= a.x1 && b.y0 >= a.y0 && b.y1 <= a.y1,
+        `${ch}: its second part is not INSIDE its first`);
+  }
+  // The table is checked as well as used: an entry nothing names is stale.
+  const stale = Object.keys(STROKE_COUNT).filter((g) => !used.has(g));
+  assert.deepEqual(stale, [], `stroke counts for parts no row names: ${stale.join(" ")}`);
+});
+
+test("Word Cards: everything 新字 SHOWS him to read uses characters he has met", () => {
+  // Two things on the screen are for him to READ: the sentence (the READ step)
+  // and, for a word story, the word itself (the SEE step). They may only use
+  // characters he already knows — the 120 on the 中文 cards and the new ones
+  // taught up to and including this one — or the other half of this
+  // character's own word when it is taught in the same lesson (喜欢, 因为, 羽毛,
+  // 写字, 发光 are each met whole). Everything else is SPOKEN — the story, and
+  // the word a character is greeted with — so it may use words he cannot read
+  // yet: 毛线 and 唱歌 are heard, never shown.
+  const P = wcPure();
+  const lessons = P.xinLessons();
+  const order = lessons.flat();
+  assert.deepEqual(order.map((c) => c[0]), P.XINZI.map((c) => c[0]),
+    "the lessons must teach the rows in row order — each row's readability is judged in that order");
+  const known = new Set(P.HANZI.map((c) => c[0]));
+  assert.equal(known.size, 120, "the 中文 deck did not parse — every row would look unreadable");
+  const bad = [];
+  let together = 0;
+  for (const c of order) {
+    known.add(c[0]);
+    const lesson = lessons.find((l) => l.includes(c));
+    const shown = [["sentence", c[5]]];
+    if (c[9][0] === "word") shown.push(["word", c[8]]);
+    for (const [what, s] of shown)
+      for (const h of hanOf(s)) {
+        if (known.has(h)) continue;
+        if (c[8].includes(h) && lesson.some((m) => m[0] === h)) { together += 1; continue; }
+        bad.push(`${c[0]}'s ${what} "${s}" uses ${h}, which he has not met`);
+      }
+  }
+  assert.deepEqual(bad, [], "a 新字 screen asks him to read a character nobody has taught him");
+  assert.ok(together > 0,
+    "no sentence leans on a word taught whole — the same-lesson allowance is dead; delete it rather than keep a hole");
+});
+
+test("Word Cards: a 新字 lesson is two to four characters, balanced, inside one unit", () => {
+  const P = wcPure();
+  const lessons = P.xinLessons();
+  assert.ok(lessons.length >= 20, `only ${lessons.length} lessons — the split failed open`);
+  // The bound is the DESIGN'S — two to four new characters at a time — and it
+  // is a literal on purpose: read back from LESSON_MAX it would move with the
+  // constant it is checking, and a lesson of eight would pass.
+  for (const l of lessons) {
+    const name = l.map((c) => c[0]).join("");
+    assert.ok(l.length >= 2 && l.length <= 4,
+      `the lesson ${name} is ${l.length} characters — one is not a lesson, and more than four is too many to meet at once`);
+    assert.equal(new Set(l.map((c) => c[7])).size, 1, `the lesson ${name} crosses a unit`);
+  }
+  for (const u of new Set(P.XINZI.map((c) => c[7]))) {
+    const sizes = lessons.filter((l) => l[0][7] === u).map((l) => l.length);
+    assert.ok(Math.max(...sizes) - Math.min(...sizes) <= 1,
+      `unit ${u} is split ${sizes.join("/")} — a lesson of two beside one of four is not balanced`);
+  }
+  // Every lesson is its characters, one page each, then its review.
+  const pages = P.xinPages();
+  let k = 0;
+  lessons.forEach((l, n) => {
+    for (const c of l) {
+      assert.ok(pages[k].kind === "meet" && pages[k].card === c && pages[k].lesson === n,
+        `page ${k + 1} should meet ${c[0]}`);
+      k += 1;
+    }
+    // xinPages() splits the lessons itself, so its arrays are not these ones:
+    // compare what they HOLD.
+    const name = l.map((c) => c[0]).join("");
+    assert.ok(pages[k].kind === "review" && pages[k].lesson === n &&
+      (pages[k].cards || []).map((c) => c[0]).join("") === name,
+      `page ${k + 1} should review the lesson ${name}`);
+    k += 1;
+  });
+  assert.equal(k, pages.length, "there are pages that belong to no lesson");
+});
+
+test("Word Cards: every 新字 board has exactly ONE right answer, and position never gives it away", () => {
+  // Dealt over EVERY board in node, from the page's own rules. The FIND step
+  // puts the new character beside two he knows well, so the first time he
+  // picks it out it is the only stranger there; a REVIEW asks for it among the
+  // other new ones. Either way a board is only fair if nothing else on it
+  // answers the question.
+  const P = wcPure();
+  const known = new Set(P.HANZI.map((c) => c[0]));
+  for (const a of P.XIN_ANCHORS)
+    assert.ok(known.has(a), `${a} is a familiar character on the find boards, but it is not on the 中文 cards`);
+  assert.equal(new Set(P.XIN_ANCHORS).size, P.XIN_ANCHORS.length, "an anchor is listed twice");
+  // The hand-written avoid table has no dead entries: each names a new
+  // character, keeps an ANCHOR away, and does work its word and parts do not.
+  for (const [ch, list] of Object.entries(P.XIN_AVOID)) {
+    const c = P.XINZI.find((r) => r[0] === ch);
+    assert.ok(c, `XIN_AVOID names ${ch}, which is not a new character`);
+    for (const a of list) {
+      assert.ok(P.XIN_ANCHORS.includes(a), `XIN_AVOID keeps ${a} off ${ch}'s board, but ${a} is not an anchor`);
+      assert.ok(!c[8].includes(a) && !P.xinParts(c).includes(a),
+        `XIN_AVOID keeps ${a} off ${ch}'s board, but its word or its parts already do — a dead entry`);
+    }
+  }
+
+  // Two new characters are ONE WORD when either one's word holds the other —
+  // 发 lives in 发光, and 学 in 学校. Restated here rather than asked of the
+  // page's xinWordMates(), which is the rule this checks: asking it would move
+  // with any change to it. The direction that matters on its own is the MATE's
+  // word holding this character — 光's own word is 阳光, so only 发's word 发光
+  // says the two belong together; the in-its-word check covers the other way.
+  const oneWord = (a, b) => a[8].includes(b[0]) || b[8].includes(a[0]);
+  const slots = { find: [0, 0, 0], review: [0, 0, 0] };
+  const check = (kind, c, b, lesson) => {
+    const where = `the ${kind} board for ${c[0]} (${b.join(" ")})`;
+    assert.equal(b.length, P.XIN_CHOICES, `${where} is not ${P.XIN_CHOICES} tiles`);
+    assert.equal(new Set(b).size, b.length, `${where} shows a character twice`);
+    assert.equal(b.filter((x) => x === c[0]).length, 1, `${where} does not hold its answer exactly once`);
+    slots[kind][b.indexOf(c[0])] += 1;
+    for (const f of b) {
+      if (f === c[0]) continue;
+      assert.ok(!c[8].includes(f), `${where}: ${f} is in its word ${c[8]}, so it answers the question too`);
+      assert.ok(!P.xinParts(c).includes(f), `${where}: ${f} is a part of ${c[0]}, so it answers the question too`);
+      const mate = lesson && lesson.find((m) => m[0] === f);
+      if (mate) {
+        assert.ok(!oneWord(mate, c), `${where}: ${f} and ${c[0]} are one word, so each gives the other away`);
+      } else {
+        assert.ok(P.XIN_ANCHORS.includes(f), `${where}: ${f} is neither a lesson-mate nor a familiar character`);
+        assert.ok(!(P.XIN_AVOID[c[0]] || "").includes(f), `${where}: ${f} is on its avoid list`);
+      }
+    }
+  };
+  for (const c of P.XINZI) {
+    const b = P.xinFindChoices(c);
+    assert.deepEqual(P.xinFindChoices(c), b, `the find board for ${c[0]} must be the same board every time`);
+    check("find", c, b, null);
+  }
+  const lessons = P.xinLessons();
+  lessons.forEach((l, n) => {
+    const name = l.map((c) => c[0]).join("");
+    const asked = P.xinReviewOrder(l, n);
+    assert.deepEqual(asked.map((c) => c[0]).sort(), l.map((c) => c[0]).sort(), `the review of ${name} does not ask each character once`);
+    assert.ok(asked.some((c, k) => c !== l[k]), `the review of ${name} asks in the order he met them, so position does the remembering`);
+    for (const c of l) {
+      const b = P.xinReviewChoices(c, l);
+      check("review", c, b, l);
+      // It tells him apart from the OTHER NEW ones whenever the lesson has any
+      // it may use; a familiar character only fills a gap.
+      const usable = l.filter((m) => m !== c && !oneWord(m, c)).length;
+      const mates = b.filter((f) => f !== c[0] && l.some((m) => m[0] === f)).length;
+      assert.equal(mates, Math.min(usable, P.XIN_CHOICES - 1),
+        `the review board for ${c[0]} uses ${mates} lesson-mates when ${usable} were there to use`);
+    }
+  });
+  for (const [kind, s] of Object.entries(slots)) {
+    const total = s.reduce((x, y) => x + y, 0);
+    assert.equal(total, P.XINZI.length, `${total} ${kind} boards dealt, not one per character`);
+    s.forEach((v, k) => assert.ok(v >= total * 0.2,
+      `the answer is in ${kind} slot ${k + 1} on only ${v} of ${total} boards — position would give it away`));
+  }
+});
+
+test("Word Cards: every 新字 多音字 is taught — and SAID — in the reading its row gives", () => {
+  // The 中文 deck's 多音字 law, for the 96. A character that has two readings
+  // must teach the one its word and sentence use.
+  const READING = {
+    为: "wèi", 还: "hái", 种: "zhòng", 长: "cháng", 发: "fā", 行: "xíng", 都: "dōu",
+    和: "hé", 空: "kōng", 分: "fēn", 要: "yào", 色: "sè", 会: "huì", 谁: "shéi",
+    石: "shí", 吗: "ma", 给: "gěi", 过: "guò", 打: "dǎ", 同: "tóng", 没: "méi",
+    校: "xiào", 节: "jié", 百: "bǎi", 叶: "yè", 见: "jiàn", 说: "shuō", 这: "zhè",
+  };
+  const P = wcPure();
+  const row = (ch) => P.XINZI.find((r) => r[0] === ch);
+  for (const [ch, py] of Object.entries(READING)) {
+    assert.ok(row(ch), `${ch} is pinned here but is not a new character — a dead pin`);
+    assert.equal(row(ch)[3], py, `${ch} must teach ${py}, the reading its word and sentence use — not ${row(ch)[3]}`);
+  }
+  // A BARE character is one syllable, and a voice reads a polyphone its
+  // commonest way, so six are voiced through a homophone that has ONLY the
+  // right reading. Each stand-in's reading is restated here, so a later edit
+  // cannot map one onto a character that says something else.
+  const STAND_IN = { 位: "wèi", 孩: "hái", 众: "zhòng", 兜: "dōu", 常: "cháng", 形: "xíng" };
+  const say = Object.entries(P.XIN_SAY_AS);
+  assert.ok(say.length >= 6, `only ${say.length} stand-ins — the table failed to parse`);
+  for (const [ch, stand] of say) {
+    const c = row(ch);
+    assert.ok(c, `${ch} is voiced through a stand-in but is not a new character`);
+    assert.ok(stand in STAND_IN, `${ch} is voiced as ${stand}, whose reading nobody has checked`);
+    assert.equal(STAND_IN[stand], c[3], `${ch} is voiced as ${stand} (${STAND_IN[stand]}), but teaches ${c[3]}`);
+    // …and ONLY the bare character: a word or a sentence is said as itself,
+    // because there the voice has the context to read it right.
+    assert.equal(P.xinBare(c), stand);
+    assert.equal(P.xinHello(c), c[8] === ch ? stand : stand + "，" + c[8] + "！");
+    assert.ok(c[8] === ch || P.xinAsk(c).includes(c[8]), `the question for ${ch} must name its word ${c[8]}`);
+  }
+  const plain = P.XINZI.find((r) => !P.XIN_SAY_AS[r[0]]);
+  assert.equal(P.xinBare(plain), plain[0], "a character with one reading must be said as itself");
+});
+
+test("Word Cards: the new characters stay OUT of the recall games", () => {
+  // The 中文 cards, 写字 and 配对 each ask him to RECALL a character, and the
+  // owner's point was that he cannot recall one he has never been taught. So
+  // the 96 live in their own array, which only the lessons read. The recall
+  // games are built from HANZI alone (pinned by "the Chinese characters stay
+  // OUT of every English derivation"), and the net-new test above proves the
+  // two arrays share no character — so the only way one reaches a recall game
+  // is new code reading XINZI there, which this count is the guard for.
+  const bare = read("wordcards.html").replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
+                  .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const uses = (bare.match(/\bXINZI\b/g) || []).length;
+  assert.equal(uses, 4,
+    `XINZI is referenced ${uses} times; it may only be declared, split into lessons by xinLessons() ` +
+    "(twice) and counted for its own button. Another reader is how a character he has never been " +
+    "taught ends up in a flash card, the writing pad or the matching board.");
+});
+
+test("Word Cards: 新字 is its own button, under the Chinese games", () => {
+  // The owner asked for it as a separate button under the existing Chinese
+  // games. It is `.mode` like 写字 and 配对 — it opens its own screen — never
+  // `.all`, which two derived test walks read as "opens a card deck".
+  const src = read("wordcards.html");
+  const at = src.indexOf('<h2 class="sect">Chinese</h2>');
+  assert.ok(at > 0, "the menu has no Chinese section");
+  const section = src.slice(at, src.indexOf('<h2 class="sect"', at + 1));
+  const buttons = [...section.matchAll(/<button class="([^"]*)" id="([^"]+)"/g)].map((m) => ({ cls: m[1], id: m[2] }));
+  const ids = buttons.map((b) => b.id);
+  assert.ok(ids.includes("learnBtn"), `the 新字 button is not in the Chinese section (${ids.join(" ")})`);
+  for (const other of ["hanziBtn", "writeBtn", "matchBtn"])
+    assert.ok(ids.indexOf(other) >= 0 && ids.indexOf(other) < ids.indexOf("learnBtn"),
+      `the 新字 button must come after ${other}, under the games he already plays`);
+  const cls = buttons.find((b) => b.id === "learnBtn").cls.split(/\s+/);
+  assert.ok(cls.includes("mode") && !cls.includes("all"), `the 新字 button is "${cls.join(" ")}", not a .mode button`);
 });
 
 test("no test may measure page overflow against window.innerWidth", () => {

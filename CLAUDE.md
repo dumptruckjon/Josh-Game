@@ -25,8 +25,8 @@ preschooler.
 ## 🎯 CURRENT FOCUS (owner, 2026-09-24) — read this before starting ANY work
 
 Until the owner says otherwise:
-- **Word Cards only** (`wordcards.html`: the English deck, 中文, 写字, 配对 and
-  👂 Hear it, find it). Leave Josh's other games, 华丽's world and Fort Josh
+- **Word Cards only** (`wordcards.html`: the English deck, 中文, 写字, 配对,
+  👂 Hear it, find it and 新字). Leave Josh's other games, 华丽's world and Fort Josh
   alone; the owner said to ignore them "for now".
 - **Work through the owner's picks, one at a time.** After each one, send a
   short plain summary (what changed, and whether it is live), then STOP. Do
@@ -9349,6 +9349,77 @@ merger table ships. The list may still hold an extra pair on purpose (an accent 
 dictionary does not record); the law only requires that none is MISSING. When a
 test checks that a list is obeyed, ask what checks that the list is complete.
 
+**新字: 96 CHARACTERS HE HAS NEVER SEEN, SO THE MODE HAD TO TEACH RATHER THAN
+TEST — and the mutations found three of my own clauses unable to fail.** The
+owner sent the L1 认写字表 (units 1-8) and asked for the characters the 中文 cards
+do not have, noting that flash cards and matching cannot teach what he has not
+learned. Deduped: 96, each filed under the unit that FIRST lists it (也 is
+recognised in unit 3 and written in unit 5; 百 is only ever on a 会写 row). A
+lesson is two to four of them inside one unit, each in four steps — MEET it,
+SEE it written stroke by stroke with its parts coloured to match (鸡 is 又 and
+a 鸟 he knows), FIND it beside two characters he knows well, READ it marked in
+a sentence — and every lesson ends on a REVIEW among its own new characters.
+Eight things worth keeping.
+(1) **A picture can answer a character's question through its PARTS or its
+WORD** — 🌄 for 早 shows a 山, 🥩 comes from a 牛 or a 羊 — so a find board's
+familiar foils are filtered three ways: not in its word, not a part it names,
+not on a hand-kept avoid list. That list is held to "no dead entries", and it
+had one: 第:"一", already excluded by its word 第一.
+(2) **Everything SHOWN to read uses characters he has met**, with one allowance:
+the other half of his own word taught in the same lesson (喜欢, 因为, 羽毛, 写字,
+发光). What is SPOKEN — the story, the word a character is greeted with — may
+use words he cannot read. Scoping the law to what is shown is what makes it
+true: a probe over every word flagged nine rows (说话, 彩虹, 打鼓…) whose words
+never appear on the screen at all.
+(3) **A bare 多音字 is voiced through a one-reading homophone** (为 as 位, 还 as
+孩, 种 as 众, 都 as 兜, 长 as 常, 行 as 形), while a word or a sentence is said as
+itself, because there the voice has the context. The stand-ins' readings are
+restated in the test, so a later edit cannot map one onto a character that
+says something else.
+(4) **The echo guard's rule 2 had to generalise.** It swallowed an echo that
+landed on a different SCREEN; the 新字 screen swaps ▶ for three answer tiles on
+the SAME screen, so a double-tap on ▶ answered a question nobody had seen. It
+now asks whether the control under the finger was ON SCREEN when the first
+tap began — derived from the page each time, never a list of screens.
+(5) **The grown-up's line yields before the drawing does.** Measured over all
+96 characters at six sizes: at 320x568 the note held the SEE step's drawing to
+133px (114px with text set as wide as a wider engine font draws it); letting it
+yield below 600px tall takes it to 211. And the short-screen rule I copied from
+the sibling boards used a 12px gap — fine where a meter sits between the bar
+and the board, a spacing breach on a screen that hides its meter, because the
+bar then sits straight on the stage, itself a tap target. The mobile test
+measures EVERY pair of controls, not tile against tile, which is what sees it.
+**The same shape is live on 👂 Hear it, find it at 520px and under (the bar
+sits 12px above the prompt tile) — found and NOT fixed, because it is outside
+this pick.**
+(6) **Three of my clauses could not fail, and the mutations are what said so.**
+The lesson-size bound compared against LESSON_MAX read from the page, so raising
+the constant raised the bar (it is a literal 4 now, the design's own claim);
+the board test checked "these two are one word" with the page's own
+xinWordMates, which is circular (restated in the test, and the one-direction
+mutation then goes red on 因/为); and the list test compared the whole set
+BEFORE the per-row checks, so "already on the 中文 cards" could never fire on
+its own (reordered). One pattern also matched two tests — "exactly ONE right
+answer" names the listening test too — and the harness refuses `# tests 2` as a
+verdict rather than reading its `ok`.
+(7) **A perturbation that changes no number did not reach its target.**
+Widening text with letter-spacing on body moved nothing at all, because a
+`<button>` resets letter-spacing in the UA sheet and the whole stage is a
+button. Identical numbers from a simulation are the tell, not a clean result.
+(8) **Leaving mid-step is guarded twice**: the back button cancels the brush
+and the beat, and every timer also asks whether the screen is up. Removing
+either alone stays green (measured) and only both goes red, so the test says
+so instead of implying one protection.
+(9) **A walk sized by a FILE instead of by the DECK it walks broke the day the
+file grew.** The writing ladder's browser test counted the stroke file's keys,
+which equalled the 120-card deck until 新字 put its 96 in the same file; the
+walk then wrapped the deck and read every character twice, and the only red was
+"every character appears exactly once" — true, and silent about the cause. The
+proxy law again: it wanted the deck's size and read a number that matched it
+only until now. It is sized by `HANZI`, and asserts the pad deals exactly that
+SET — the one clause that catches a writing deck dealing a new character as a
+recall card (that mutation keeps 120 unique cards and a rising ladder).
+
 ---
 
 ## Repository Structure
@@ -9426,15 +9497,35 @@ tooling.
 │                               #   misses make the right word glow, a found word shows its picture
 │                               #   and closes the board, and ⏮️ — the same grown-up hold as 配对,
 │                               #   one owner (holdToAct) — goes back to the first word.
+│                               #   Then 新字 (the owner's pick, 2026-09) — the 96 characters of his
+│                               #   L1 认写字表 (units 1-8, a photo) that the 中文 cards do not have.
+│                               #   He has never SEEN these, so a flash card or a matching board —
+│                               #   both ask him to RECALL a pairing — cannot teach them; this
+│                               #   INTRODUCES them, two to four at a time (a lesson never crosses
+│                               #   a unit), each in four steps: MEET it (character, picture, word,
+│                               #   said), SEE its secret while it is WRITTEN stroke by stroke (the
+│                               #   parts it is built from, coloured to match its strokes — 鸡 is 又
+│                               #   and a 鸟 he knows; or the picture it grew from; or the word it
+│                               #   lives in), FIND it beside two characters he already knows well,
+│                               #   and READ it marked in a sentence. Each lesson ends on a REVIEW
+│                               #   among its own new characters, asked in a seeded order that is
+│                               #   never the order he met them, then a cheer. XINZI is its own array
+│                               #   (a card is NOT a flash card, so the 623 count excludes it), read
+│                               #   only by the lessons; every board is dealt in node by the page's
+│                               #   own rules and proven to hold exactly one answer. Sentences and
+│                               #   shown words use only characters he has met. A bare 多音字 is
+│                               #   voiced through a one-reading homophone (为 as 位). Keeps his
+│                               #   place; ⏮️ is the same grown-up hold.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card
 │                               #   names its word and its side, and the face turned away is aria-hidden
 │                               #   so the answer is not in the tree before the flip. Precached in sw.js.
 │                               #   It loads no framework, so it carries its OWN echo guard: the same
-│                               #   control twice inside 350ms, or a tap at the same PLACE on a screen
-│                               #   that just changed, is the hammer's echo — site.test.js holds it and
-│                               #   framework.js's guard to one definition of a finger.
+│                               #   control twice inside 350ms, or a tap at the same PLACE on a control
+│                               #   that was not on screen when the first tap began, is the hammer's
+│                               #   echo — site.test.js holds it and framework.js's guard to one
+│                               #   definition of a finger.
 ├── manifest.webmanifest        # PWA manifest (installable, standalone, icons)
 ├── sw.js                       # Service worker (network-first; offline; precaches core)
 ├── assets/                     # PWA icons (192 / 512 / maskable-512 / apple-touch)
@@ -9481,7 +9572,7 @@ tooling.
 │   ├── td-render.js            # 🏰 canvas renderer (reads state, never mutates; lerps between ticks) — a struck body FLASHES (warm tint via the ctx.fill interception + a reduced-motion-gated scale pop, keyed on the hit event's `id`) and a killed one POPS (the real sprite, squashed and fading, in the character pass) + TD-6 screen-shake (reduced-motion-gated) + opt-in damage numbers + TD-7 multi-lane ribbons + lever button + PER-TIER tower art (T1/T2/T3 + all 6 tier-4 branch silhouettes) built on the shared `TOY` material kit (sheen/bolt/tape/plank/tube — one toybox language a 5th line inherits; every line its own SILHOUETTE, cross-line-distinctness guardrailed) and one draw branch per enemy (both pixel-hash guardrailed); `withInk(fn, lit, flash, pens)` splits the CHEAP dark pen from the DEAR `clip()`-based lit edge, so a many-shape sprite gets a full contour without buying a clip per bolt (`setTowerPens` proves the shipped budget SATURATES)
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
-│   ├── hanzi-strokes.js        # 写字: stroke-order data for the 120 characters Word Cards teaches — every stroke's OUTLINE and its CENTRE-LINE, so the pad can both draw a stroke and score his finger against it. GENERATED (a 120-character subset of hanzi-writer-data, from Make Me a Hanzi, under the Arphic Public License — see the file's own header and ARPHICPL.TXT); never hand-edit a path, re-derive it. Loaded with a <script src> deliberately: that is what puts it inside the precache scan, the offline boot test and the page-asset walk, every one of which reads the page's src attributes and is blind to a fetch()
+│   ├── hanzi-strokes.js        # 写字 + 新字: stroke-order data for the 216 characters Word Cards teaches (the 120 of the 中文 cards, then the 96 新字) — every stroke's OUTLINE and its CENTRE-LINE, so the pad can both draw a stroke and score his finger against it, and a lesson can write one in order. GENERATED (a 216-character subset of hanzi-writer-data, from Make Me a Hanzi, under the Arphic Public License — see the file's own header and ARPHICPL.TXT); never hand-edit a path, re-derive it. Loaded with a <script src> deliberately: that is what puts it inside the precache scan, the offline boot test and the page-asset walk, every one of which reads the page's src attributes and is blind to a fetch()
 │   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
