@@ -48,6 +48,10 @@ Until the owner says otherwise:
   2. **It says letter NAMES ("see-ay-tee"), not letter SOUNDS ("c-a-t").**
      `A.say(ch)` speaks a bare letter, and a voice reads a bare letter as its
      name. That is wrong for an oral-blending game.
+- **Declined for now (owner, 2026-09-29): a 🇺🇸 English button on 写字.** The
+  writing pad keeps its English meaning as text ("it's ok as is for now"). Do
+  not build it or re-offer it unless the owner raises it. The 新字 and 中文
+  English buttons are shipped and live.
 
 ---
 
@@ -9389,9 +9393,10 @@ the sibling boards used a 12px gap — fine where a meter sits between the bar
 and the board, a spacing breach on a screen that hides its meter, because the
 bar then sits straight on the stage, itself a tap target. The mobile test
 measures EVERY pair of controls, not tile against tile, which is what sees it.
-**The same shape is live on 👂 Hear it, find it at 520px and under (the bar
-sits 12px above the prompt tile) — found and NOT fixed, because it is outside
-this pick.**
+**The same shape was live on 👂 Hear it, find it at 520px and under (the bar
+sat 12px above the prompt tile). It was left because it was outside this pick,
+and is FIXED now (2026-09-29; see the menu-spacing entry at the end of this
+block).**
 (6) **Three of my clauses could not fail, and the mutations are what said so.**
 The lesson-size bound compared against LESSON_MAX read from the page, so raising
 the constant raised the bar (it is a literal 4 now, the design's own claim);
@@ -9506,6 +9511,35 @@ the one control that stays green. One went red on a NEIGHBOUR: putting `.nav`
 back on two tracks wraps ▶ under ◀, so the ORDER clause fires before the
 one-row clause can — that clause was then isolated by dropping the speaker 40px
 out of the row with the order kept (tops 742 / 782 / 742).
+
+**THE MENU'S CHIPS HAD BEEN 12PX APART SINCE THE PAGE SHIPPED, AND THE AUDIT
+THAT FIXED THEIR SIZE NEVER MEASURED THEIR SPACING.** Found by the check the
+owner asked for before a restart ("everything done and high quality?"), which
+measured EVERY pair of tap targets on every Word Cards screen and state, at
+seven sizes, rather than the pairs each test was written about. Two breaches of
+RULE 5's 16px spacing law, both invisible to a green suite. (1) The deck menu's
+`.grid` kept the 12px gap the page arrived with, at every width, on the page's
+most-tapped targets. The 76px size fix came with a comment saying nothing had
+audited the menu's taps, and it stopped at SIZE. (2) 👂 Hear it, find it on
+screens 520px tall or less (short phones, and every phone in landscape) put
+‹ back 12px above the prompt tile he taps to hear the word again, and the
+prompt 12px above the words: the short-height rule hides the meter that
+normally sits between them, and the test measured word against word only.
+Both are 16px now, and both tests in `mobile.test.js` (so CI runs them on
+WebKit) measure every pair of controls. Three things worth keeping.
+**A spacing fix takes width from somewhere.** 16px took 2px off each chip, and
+at 320px "Describing", the longest chip word, then ran 2.3px past its chip's
+text box. It was already 0.3px over at the old gap, too small for a 1px
+tolerance to see. On phones narrower than 360px the chip's side padding gives
+way instead (10px, leaving 5.7px to spare); every wider screen is unchanged. A
+clause now sets every word of every chip in its own font against the chip's
+text box. **The Hear-it fix costs the prompt 8px**: at 320x480 the prompt lands
+exactly on its 76px floor and the last word stops exactly where the bottom
+padding begins. Zero slack, and the prompt is the one row that can give.
+**Five mutations: three red on the right clause, two controls that stay
+green.** The old Hear-it test cannot see the 12px bar gap, and without the
+probe's font line the chip clause cannot see the 2.3px overflow. A text
+measurement taken in the wrong font measures nothing.
 
 ---
 

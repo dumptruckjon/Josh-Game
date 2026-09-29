@@ -1111,6 +1111,87 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
   }
 });
 
+test("Word Cards' MENU on the real engine: every control 16px apart, every label inside its chip", async () => {
+  // THE MENU'S TAPS WERE AUDITED FOR SIZE AND NEVER FOR SPACING. The 76px floor
+  // came in with a comment saying nothing had audited the menu's taps, and the
+  // fix stopped at size: the chip grid kept the 12px gap the page shipped with,
+  // under RULE 5's 16px, at every width, on the page's most-tapped targets.
+  // Every pair of controls is measured here, not chip against chip, so the
+  // full-width deck buttons and the home link are held to it too.
+  //
+  // A wider gap takes width off each chip, so the second clause is the one that
+  // change put at risk: a chip's words must fit inside it. A word cannot break,
+  // so one wider than the chip's text box runs past it. Measured at 320px,
+  // "Describing" is the longest word on any chip: 0.3px over its text box at the
+  // old 12px gap and 2.3px over at 16px until the chip's side padding gave way on
+  // narrow phones. 320 is the width that separates the two, which is why it is
+  // here.
+  const WIDTHS = [
+    [320, 568],   // the narrowest, where the label room binds
+    [390, 844],   // his phone size
+    [834, 1112],  // the iPad
+  ];
+  for (const [w, h] of WIDTHS) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      await p2.waitForSelector(".chip");
+      const r = await p2.evaluate(() => {
+        const ctl = [...document.querySelectorAll("#menu button, #menu a")].filter((b) => b.getClientRects().length);
+        const boxes = ctl.map((b) => { const q = b.getBoundingClientRect();
+          return { x: q.x, y: q.y, r: q.right, b: q.bottom,
+                   k: b.id || (b.querySelector(".nm") || b).textContent.trim().slice(0, 18) }; });
+        // Each word of each text run, set in that run's own font: the widest one
+        // against the chip's text box.
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;left:0;top:0;";
+        document.body.appendChild(probe);
+        const over = [];
+        const chips = [...document.querySelectorAll("#menu .chip")];
+        for (const c of chips) {
+          const cs = getComputedStyle(c);
+          const room = c.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+          for (const run of c.querySelectorAll(".ic, .nm, .ct")) {
+            const f = getComputedStyle(run);
+            probe.style.font = f.font;
+            probe.style.letterSpacing = f.letterSpacing;
+            for (const word of run.textContent.split(/\s+/).filter(Boolean)) {
+              probe.textContent = word;
+              const wd = probe.getBoundingClientRect().width;
+              if (wd > room + 1) over.push(`${word} ${wd.toFixed(1)} in ${room.toFixed(1)}`);
+            }
+          }
+        }
+        probe.remove();
+        return {
+          boxes, over, chips: chips.length,
+          grids: [...document.querySelectorAll("#menu .grid")].map((g) => g.querySelectorAll(".chip").length),
+          ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        };
+      });
+
+      // NON-VACUITY: a walk that found no chips passes every clause below.
+      assert.ok(r.chips >= 30, `${w}px: only ${r.chips} chips on the menu — the walk found the wrong screen`);
+      assert.ok(r.grids.length >= 4 && r.grids.every((n) => n > 0),
+        `${w}px: every chip grid on the menu must hold chips (saw ${JSON.stringify(r.grids)})`);
+      assert.ok(r.boxes.length > r.chips, `${w}px: the deck buttons and the home link were not measured`);
+
+      const { overlaps, worst, who } = tightestGap(r.boxes);
+      assert.equal(overlaps, 0, `${w}px: ${overlaps} pairs of menu controls overlap`);
+      assert.ok(worst >= MIN_GAP,
+        `${w}px: menu controls ${worst.toFixed(1)}px apart (${who}) — little hands need 16`);
+      assert.deepEqual(r.over, [], `${w}px: these words run past their chip's text box`);
+      assert.ok(r.ovf <= 0, `${w}px: the menu scrolls sideways by ${r.ovf}px`);
+      assert.deepEqual(errs, [], `${w}px: page errors`);
+    } finally {
+      await ctx2.close();
+    }
+  }
+});
+
 test("Word Cards' MATCHING board on the real engine: eight taps, nothing small, nothing cut off", async () => {
   // The board is the one screen on this page made ENTIRELY of tap targets —
   // eight of them, in a fixed grid — so it is where the kid tap floor and the
@@ -1233,13 +1314,14 @@ test("Word Cards' LISTENING board on the real engine: nothing small, no word cut
 
       const r = await p2.evaluate((MIN) => {
         const tiles = [...document.querySelectorAll("#hchoices .mtile")];
-        const box = tiles.map((t) => t.getBoundingClientRect());
-        let gap = Infinity;
-        for (let a = 0; a < box.length; a++) for (let b = a + 1; b < box.length; b++) {
-          const dx = Math.max(box[a].left, box[b].left) - Math.min(box[a].right, box[b].right);
-          const dy = Math.max(box[a].top, box[b].top) - Math.min(box[a].bottom, box[b].bottom);
-          if (dx > -1 || dy > -1) gap = Math.min(gap, Math.max(dx, dy));
-        }
+        // EVERY pair of controls, not word against word: this measured only the
+        // three words, so ‹ back sitting 12px above the prompt tile on a short
+        // screen (the short-height rule hides the meter that normally sits
+        // between them) was invisible to it, and so was the prompt 12px above
+        // the words. All three rows are tap targets.
+        const boxes = [...document.querySelectorAll("#hear button")].filter((b) => b.getClientRects().length)
+          .map((b) => { const q = b.getBoundingClientRect();
+                        return { x: q.x, y: q.y, r: q.right, b: q.bottom, k: b.id || b.dataset.word || b.className }; });
         // Every word, in a live tile: a word is one unbreakable line, so one
         // wider than the tile's content box is a word he cannot fully see.
         const tile = tiles[0], word = tile.querySelector(".hword"), keep = word.textContent;
@@ -1253,8 +1335,7 @@ test("Word Cards' LISTENING board on the real engine: nothing small, no word cut
         word.textContent = keep;
         const all = [...document.querySelectorAll("#hear button")];
         return {
-          tiles: tiles.length, words: hDeck.length, clipped,
-          gap: Math.round(gap),
+          tiles: tiles.length, words: hDeck.length, clipped, boxes,
           taps: all.map((b) => { const q = b.getBoundingClientRect();
                                  return { id: b.id || b.dataset.word, s: Math.round(Math.min(q.width, q.height)) }; })
                    .filter((t) => t.s < MIN),
@@ -1278,7 +1359,11 @@ test("Word Cards' LISTENING board on the real engine: nothing small, no word cut
       assert.deepEqual(r.taps, [],
         `${w}x${h}: listening controls below the ${MIN_TAP}px floor: ` +
         `${r.taps.map((t) => t.id + "=" + t.s).join(", ")}`);
-      assert.ok(r.gap >= 14, `${w}x${h}: the tightest gap between two words is ${r.gap}px — little hands need 16`);
+      assert.ok(r.boxes.length >= 7, `${w}x${h}: only ${r.boxes.length} shown controls were measured for spacing`);
+      const { overlaps, worst, who } = tightestGap(r.boxes);
+      assert.equal(overlaps, 0, `${w}x${h}: ${overlaps} pairs of listening controls overlap`);
+      assert.ok(worst >= MIN_GAP,
+        `${w}x${h}: listening controls ${worst.toFixed(1)}px apart (${who}) — little hands need 16`);
       assert.deepEqual(r.clipped, [], `${w}x${h}: these words do not fit their tile: ${r.clipped.join(", ")}`);
       assert.ok(r.ovf <= 0, `${w}x${h}: the board scrolls sideways by ${r.ovf}px`);
       // PORTRAIT is the mode: like its sibling boards, it fits the shortest

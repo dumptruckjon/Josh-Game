@@ -71,7 +71,11 @@
      Hierarchy comes from SIZE and WEIGHT instead, which it already did. */
   .all small,.mode small{font-size:16px;font-weight:700;}
   .all:active,.mode:active{transform:translateY(4px);box-shadow:0 6px 0 rgba(0,0,0,.22);}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:20px;}
+  /* 16px, not the 12px this shipped at: RULE 5's spacing law is >= 16px
+     between tap targets, and the menu's chips are the most-tapped targets on
+     the page. Its taps were audited for SIZE and never for SPACING — the same
+     hole the 76px comment above records for size. */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-bottom:20px;}
   .chip{
     border:0;border-radius:22px;padding:16px 14px;cursor:pointer;font-family:inherit;
     color:var(--ink);text-align:left;box-shadow:0 8px 0 rgba(0,0,0,.22);
@@ -88,6 +92,12 @@
   .chip.team .ic{font-size:34px;font-weight:900;letter-spacing:.03em;}
   .chip:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
   .chip:focus-visible,.all:focus-visible,.mode:focus-visible{outline:4px solid #fff;outline-offset:3px;}
+  /* The wider gap takes 2px off each chip, and at 320px "Describing" (the
+     longest word on any chip) then ran 2.3px past the chip's text box. It was
+     already 0.3px over at the old gap. On a phone narrower than 360px the
+     chip's side padding gives way instead of the word: 10px leaves it 5.7px to
+     spare. Every wider screen is unchanged. */
+  @media (max-width:359px){ .chip{padding-left:10px;padding-right:10px;} }
 
   .mhead{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;}
   .home{
@@ -477,9 +487,16 @@
        meter is the one piece of chrome Josh never reads. Measured at 320x480:
        with the meter the prompt is squeezed to its 76px floor and the last word
        runs INTO the page's bottom padding (6px from the edge, where the notch
-       phones' home bar lives); without it the prompt gets 84px and the words
-       stop where the padding begins, 26px clear. */
-    #hear{grid-template-rows:auto minmax(76px,1fr) auto;}
+       phones' home bar lives); without it the words stop where the padding
+       begins, 26px clear.
+       And with the meter gone the BAR sits straight on the prompt, and both are
+       tap targets, so the gap goes back to the full 16px here, as the lesson
+       screen's does below. It shipped sharing the matching board's 12px (fine
+       there, where the meter sits between), which put ‹ back 12px above the
+       prompt he taps to hear the word again, and the prompt 12px above the
+       words. The 8px it costs comes out of the prompt, which is the one row
+       that can give: at 320x480 it lands exactly on its 76px floor. */
+    #hear{grid-template-rows:auto minmax(76px,1fr) auto;gap:16px;}
     #hear .meter{display:none;}
     /* The lesson screen yields the same chrome for a different reason: its
        stage is where the character is WRITTEN. The meter goes here; the
