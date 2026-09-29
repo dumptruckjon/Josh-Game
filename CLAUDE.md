@@ -9420,6 +9420,51 @@ only until now. It is sized by `HANZI`, and asserts the pad deals exactly that
 SET — the one clause that catches a writing deck dealing a new character as a
 recall card (that mutation keeps 120 unique cards and a rising ladder).
 
+**新字's ENGLISH WAS TEXT, AND HE IS FOUR (owner, 2026-09: "he can't even read
+English yet by himself. He also needs to know the English translation of each
+word").** The meaning and the sentence's translation were the grown-up's lines,
+and every voice on the screen was Chinese. A 🇺🇸 button beside ▶ now SAYS the
+character's meaning and its sentence in English. Five things worth keeping.
+(1) **Derive the spoken line from the text the screen shows, never a second
+copy.** `xinEnglish(c)` reads the meaning with a small grammar — senses split by
+";", "(彩虹 = rainbow)" → 彩虹 "means rainbow", "(天空)" → 天空 "means sky",
+"(also …)" dropped as the grown-up's — and a law over all 96 rows checks BOTH
+directions: every English and Chinese word the meaning shows is said, and
+nothing is said that it does not show except "means". Five meanings were
+reworded to read aloud as well as they read (房's senses reversed, so 房子 means
+house and not room; 第's "(-th): 第一 = first" became "(第一 = first, 第二 =
+second)"; 以, 住 and 空; and 气 gained "天气 = weather", because its sentence is
+about the weather while its only bridge was 气球), and three British spellings
+(colour, colourful) now match the page's US English. The derivation also runs
+clean on all 120 中文 flash-card rows, which have the same meaning/translation
+fields.
+(2) **A line can change language part-way, so speech is a list of [text,
+lang] parts.** An English voice skips or garbles 西瓜, so the word is said in a
+Chinese voice between the English ones. `speakParts()` is the ONE owner (a law:
+exactly one `new SpeechSynthesisUtterance` in the page) and it cancels ONCE,
+before its parts: cancelling inside the loop would cut each part off so only the
+last is heard. A speech STUB cannot see that — its cancel is a no-op — so that
+clause is structural, mutation-proven by moving the cancel into the loop.
+(3) **The tap law decided where the button goes, not taste.** The bar is back +
+two 76px icons, and a third leaves the back button under the 75px floor at
+320px. So it shares ▶'s row (one column to ▶'s two, so the step he presses most
+stays the biggest) and gives way to the three tiles while he is being asked,
+where the picture already carries the meaning.
+(4) **Its glyph is 🇺🇸** (the usual language-switch icon, and the English
+voice is en-US), marked `.wear` so the say-it glyph law checks it against every
+card picture and every other control — the first flag anywhere in the app — with
+the word "English" under it for the grown-up.
+(5) **The contrast audit's fixture list matched run classes by SUBSTRING**, so
+`"lchar"` was satisfied by the cheer's `"lchar1"`: remove the meet step's big
+character and the old check stays GREEN (proven by a control mutation). It
+matches by class now. My first comment on it also claimed `"len"` sat inside the
+new button's class; its control mutation stayed red and showed it did not —
+renaming the class to `lsayn` had already closed that one. **When a control
+mutation disagrees with your comment, the comment is what is wrong.**
+Recorded, not built (not picked): the SEE step's English note — how a character
+is made — is still text only (the button says the meaning there, not the story),
+and the 中文 flash cards carry the same English-as-text gap.
+
 ---
 
 ## Repository Structure
@@ -9515,7 +9560,11 @@ tooling.
 │                               #   own rules and proven to hold exactly one answer. Sentences and
 │                               #   shown words use only characters he has met. A bare 多音字 is
 │                               #   voiced through a one-reading homophone (为 as 位). Keeps his
-│                               #   place; ⏮️ is the same grown-up hold.
+│                               #   place; ⏮️ is the same grown-up hold. He is four and cannot read
+│                               #   the English lines, so a 🇺🇸 button beside ▶ SAYS the character's
+│                               #   meaning and its sentence in English (xinEnglish, derived from the
+│                               #   meaning the screen shows; a Chinese word inside it — "西瓜 means
+│                               #   watermelon" — is said in a Chinese voice, via speakParts).
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card

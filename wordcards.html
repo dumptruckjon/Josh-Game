@@ -419,7 +419,18 @@
   /* The new character in a word or a sentence: colour AND an underline. */
   .lmark{color:#9A3412;border-bottom:.08em solid #9A3412;}
   .lrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:84px;gap:16px;}
-  .lgo{grid-column:1 / -1;border:0;border-radius:26px;background:var(--card);color:var(--ink);
+  /* The English speaker takes the row's first column and ▶ the other two, so
+     the step he will press most stays the biggest thing on the row. White, the
+     stage's own card, so it never reads as ▶. It shares ▶'s visibility: both
+     give way to the three tiles while he is being asked. */
+  .lsay{border:0;border-radius:26px;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer;
+        display:grid;justify-items:center;align-content:center;gap:2px;
+        box-shadow:0 8px 0 rgba(0,0,0,.22);}
+  .lsay .wear{font-size:34px;}
+  .lsayn{font-size:13px;font-weight:800;}
+  .lsay:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
+  .lsay:focus-visible{outline:4px solid #fff;outline-offset:3px;}
+  .lgo{grid-column:2 / -1;border:0;border-radius:26px;background:var(--card);color:var(--ink);
        font-family:inherit;font-size:34px;line-height:1;cursor:pointer;
        box-shadow:0 8px 0 rgba(0,0,0,.22);}
   .lgo:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
@@ -586,6 +597,7 @@
     <span class="wear hidden" id="lwear" aria-hidden="true">&#128483;&#65039;</span>
   </button>
   <div class="lrow" id="lrow">
+    <button class="lsay" id="lsay" type="button" aria-label="Say it in English"><span class="wear" aria-hidden="true">&#127482;&#127480;</span><span class="lsayn">English</span></button>
     <button class="lgo" id="lgo" type="button" aria-label="Next">&#9654;</button>
   </div>
 </div>
@@ -1081,6 +1093,12 @@ function hearChoices(word){
    is shown to READ — the word, the sentence — uses only characters he has
    already met, or the other half of his own word from the same lesson.
 
+   The meaning and the translation are English TEXT, and he is four: he cannot
+   read them. The 🇺🇸 button SAYS them (xinEnglish, below), so a meaning must
+   read aloud as well as it reads: senses split by ";", a word it lives in as
+   "(彩虹 = rainbow)" or "(天空)", and a second reading as "(also …)", which is
+   the grown-up's and is not said.
+
    The row order IS the teaching order: the owner's units in turn, and inside a
    unit the two halves of a word kept in one lesson (喜/欢, 因/为, 羽/毛, 写/字,
    发/光). */
@@ -1097,19 +1115,19 @@ const XINZI = [
 ["姐","👧","xin","jiě","big sister","姐姐很美。","My big sister is beautiful.",2,"姐姐",["parts","lr",[["女",[0,1,2],"👩"],["且",[3,4,5,6,7],""]],"左边也有个女，姐姐也是女孩。","姐 has 女 (girl) on the left too, just like 妹."]],
 ["石","🪨","xin","shí","stone; rock","山上有石头。","There are rocks on the mountain.",3,"石头",["pic","石，像山崖下面的一块大石头。","石 was drawn as a rock (口) under a cliff."]],
 ["也","➕","xin","yě","also; too","我也喜欢你。","I like you too.",3,"我也是",["word","你喜欢，我也喜欢！","也 means also, too: 我也是 — me too!"]],
-["空","🌤️","xin","kōng","sky (天空); empty","天空很蓝。","The sky is blue.",3,"天空",["word","抬头看，天空多大呀！","天空 is the sky."]],
+["空","🌤️","xin","kōng","empty; sky (天空)","天空很蓝。","The sky is blue.",3,"天空",["word","抬头看，天空多大呀！","天空 is the sky."]],
 ["因","💭","xin","yīn","because (因为)","因为下雨，我不出去。","Because it is raining, I am not going out.",3,"因为",["parts","in",[["口",[0,1,5],""],["大",[2,3,4],""]],"一个口，里面装着一个大。因为，因为……","因: a 大 inside a 口. 因为 means because."]],
 ["为","🧐","xin","wèi","for; why (为什么)","为什么下雨？","Why does it rain?",3,"为什么",["word","为什么？为什么？我最爱问为什么！","为什么 means why?"]],
-["住","🏡","xin","zhù","live (somewhere)","爷爷住山里。","Grandpa lives in the mountains.",3,"住",["parts","lr",[["亻",[0,1],"🧍"],["主",[2,3,4,5,6],""]],"单人旁，就是一个人，人住在家里。","住 has 亻 (a person) on the left: where a person lives."]],
+["住","🏡","xin","zhù","live (in a place)","爷爷住山里。","Grandpa lives in the mountains.",3,"住",["parts","lr",[["亻",[0,1],"🧍"],["主",[2,3,4,5,6],""]],"单人旁，就是一个人，人住在家里。","住 has 亻 (a person) on the left: where a person lives."]],
 ["鸡","🐔","xin","jī","chicken","我家有一只鸡。","We have a chicken at home.",4,"小鸡",["parts","lr",[["又",[0,1],""],["鸟",[2,3,4,5,6],""]],"又，加上鸟，就是鸡。鸡也是一种鸟！","鸡 = 又 + 鸟: a chicken is a kind of bird (鸟)."]],
 ["鸭","🦆","xin","yā","duck","小鸭爱玩水。","The duckling loves playing in water.",4,"小鸭",["parts","lr",[["甲",[0,1,2,3,4],""],["鸟",[5,6,7,8,9],""]],"右边也是鸟，鸭子是会游水的鸟！","鸭 has 鸟 (bird) on the right too: a duck is a bird that swims."]],
 ["说","💬","xin","shuō","say; speak","我说你好。","I say hello.",4,"说话",["parts","lr",[["讠",[0,1],"💬"],["兑",[2,3,4,5,6,7,8],""]],"左边是言字旁，说话要用它。谢谢的谢，也有它！","说 has 讠 (words) on the left — so does 谢, which you know."]],
 ["黑","⚫","xin","hēi","black","我家有一只黑猫。","We have a black cat at home.",4,"黑色",["parts","tb",[["",[0,1,2,3,4,5,6,7],""],["灬",[8,9,10,11],"🔥"]],"下面四个点，是火。火一烧，就变黑了！","黑: the four dots at the bottom are fire (灬), and fire turns things black."]],
-["色","🎨","xin","sè","colour","花是红色的。","The flower is red.",4,"红色",["word","红色、蓝色、绿色，好多颜色！","色 means colour: 红色 red, 蓝色 blue, 绿色 green."]],
+["色","🎨","xin","sè","color","花是红色的。","The flower is red.",4,"红色",["word","红色、蓝色、绿色，好多颜色！","色 means color: 红色 red, 蓝色 blue, 绿色 green."]],
 ["会","🤹","xin","huì","can (know how to)","鸟会飞。","Birds can fly.",4,"会飞",["parts","tb",[["人",[0,1],""],["云",[2,3,4,5],""]],"上面是人，下面是云，这就是会！","会 = 人 on top of 云, both of which you know."]],
-["以","🆗","xin","yǐ","may; can (可以)","你可以坐。","You may sit down.",4,"可以",["word","可以吗？可以！","可以 means may, can."]],
+["以","🆗","xin","yǐ","may, can (可以)","你可以坐。","You may sit down.",4,"可以",["word","可以吗？可以！","可以 means may, can."]],
 ["黄","🟡","xin","huáng","yellow","小鸡是黄色的。","The chick is yellow.",4,"黄色",["word","香蕉是黄色的，小鸡也是黄色的！","黄色 is yellow."]],
-["彩","🌈","xin","cǎi","colourful (彩虹 = rainbow)","我爱彩色的花。","I love colourful flowers.",4,"彩虹",["parts","lr",[["采",[0,1,2,3,4,5,6,7],""],["彡",[8,9,10],"✨"]],"右边三撇，像五彩的光！","彩: the three strokes on the right (彡) shine like colours. 彩虹 is a rainbow."]],
+["彩","🌈","xin","cǎi","colorful (彩虹 = rainbow)","我爱彩色的花。","I love colorful flowers.",4,"彩虹",["parts","lr",[["采",[0,1,2,3,4,5,6,7],""],["彡",[8,9,10],"✨"]],"右边三撇，像五彩的光！","彩: the three strokes on the right (彡) shine like colors. 彩虹 is a rainbow."]],
 ["羽","🪶","xin","yǔ","feather","小鸟有羽毛。","Little birds have feathers.",4,"羽毛",["pic","羽，像两根羽毛，并排站着。","羽 looks like two feathers side by side."]],
 ["毛","🧶","xin","máo","fur; hair; wool","小猫的毛很白。","The kitten's fur is white.",4,"毛线",["pic","毛，像一撮软软的毛。","毛 looks like a soft tuft of fur."]],
 ["吗","❔","xin","ma","(asks a question)","你好吗？","How are you?",4,"好吗",["parts","lr",[["口",[0,1,2],""],["马",[3,4,5],""]],"口加马，就是吗。问问题，要用它：好吗？","吗 = 口 (mouth) + 马 (mǎ): it sounds like 马 and asks a question."]],
@@ -1141,7 +1159,7 @@ const XINZI = [
 ["种","🪴","xin","zhòng","plant (also zhǒng: seed)","我们种花。","We plant flowers.",6,"种花",["parts","lr",[["禾",[0,1,2,3,4],"🌾"],["中",[5,6,7,8],""]],"左边是禾苗，右边是中。把种子种下去！","种 = 禾 (a plant) + 中 (zhōng, the sound): to plant."]],
 ["长","📏","xin","cháng","long (also zhǎng: grow)","小狗的毛很长。","The puppy's fur is long.",6,"很长",["pic","长，像一个老爷爷，头发长长的。","长 was drawn as an old man with long, long hair."]],
 ["最","🏆","xin","zuì","most","我最爱妈妈。","I love Mom the most.",6,"最大",["word","大，更大，最大！","最 means most: 最大 is the biggest."]],
-["气","🎈","xin","qì","air (气球 = balloon)","天气很好。","The weather is nice.",6,"气球",["pic","气，像天上飘着的一丝丝云气。","气 looks like wisps of air and steam floating up."]],
+["气","🎈","xin","qì","air (气球 = balloon, 天气 = weather)","天气很好。","The weather is nice.",6,"气球",["pic","气，像天上飘着的一丝丝云气。","气 looks like wisps of air and steam floating up."]],
 ["没","🙅","xin","méi","not; don't have (没有)","我没有哭。","I did not cry.",6,"没有",["parts","lr",[["氵",[0,1,2],"💧"],["殳",[3,4,5,6],""]],"三点水。东西掉进水里，就没有了！","没 has 氵 (water): something sank into the water and now it is gone. 没有 means don't have."]],
 ["早","🌄","xin","zǎo","early; morning","早上好！","Good morning!",6,"早上",["parts","tb",[["日",[0,1,2,3],"☀️"],["十",[4,5],""]],"太阳刚刚升起来，早上到了！","早 = 日 (the sun) just risen above 十: morning!"]],
 ["午","🍱","xin","wǔ","noon (中午)","中午我吃饭。","At noon I eat lunch.",6,"中午",["word","中午到了，吃午饭啦！","中午 is noon: lunchtime!"]],
@@ -1157,7 +1175,7 @@ const XINZI = [
 ["唱","🎤","xin","chàng","sing","鸟在树上唱。","The bird sings in the tree.",7,"唱歌",["parts","lr",[["口",[0,1,2],"👄"],["昌",[3,4,5,6,7,8,9,10],""]],"口字旁，唱歌要用口！吃、喝、听，也有口。","唱 has 口 (mouth) on the left, like 吃, 喝 and 听: you sing with your mouth."]],
 ["同","👯","xin","tóng","same; together (同学 = classmate)","他是我的同学。","He is my classmate.",7,"同学",["word","我们一起上学，是同学！","同学 is a classmate."]],
 ["本","📒","xin","běn","root; notebook (本子)","我有一本书。","I have a book.",7,"本子",["parts","tb",[["木",[0,1,2,3],"🌳"],["一",[4],""]],"木是一棵树，下面加一横，就是树根：本！","本 = 木 (a tree) with a mark at its root. It also counts books: 一本书."]],
-["第","🥇","xin","dì","(-th): 第一 = first","我是第一！","I came first!",7,"第一",["word","第一，第二，第三！","第一 is first, 第二 second."]],
+["第","🥇","xin","dì","(第一 = first, 第二 = second)","我是第一！","I came first!",7,"第一",["word","第一，第二，第三！","第一 is first, 第二 second."]],
 ["带","🎒","xin","dài","bring; take","我带小狗出去。","I take the puppy out.",7,"带上",["word","上学，带上书包！","带 means bring, take: 带上 — take it with you."]],
 ["给","🎁","xin","gěi","give","我给妈妈画画。","I draw a picture for Mom.",7,"给你",["word","给你！谢谢！","给 means give: 给你 — here you are!"]],
 ["写","✍️","xin","xiě","write","我会写字。","I can write characters.",7,"写字",["word","拿起笔，写写字！","写字 means write characters."]],
@@ -1176,7 +1194,7 @@ const XINZI = [
 ["火","🔥","xin","huǒ","fire","火很热。","Fire is hot.",8,"大火",["pic","火，像一团火苗往上跳！","火 looks like flames leaping up."]],
 ["行","🛣️","xin","xíng","walk; OK!","行！我们去。","OK! Let's go.",8,"行吗",["pic","行，以前画的是一个十字路口，人在路上走。","行 was first drawn as a crossroads, where people walk."]],
 ["西","🍉","xin","xī","west (西瓜 = watermelon)","西瓜很甜。","The watermelon is sweet.",8,"西瓜",["word","夏天吃西瓜，甜甜的！","西瓜 is a watermelon (西 also means west)."]],
-["房","🏘️","xin","fáng","house; room (房子)","这是我的房子。","This is my house.",8,"房子",["parts","tb",[["户",[0,1,2,3],"🚪"],["方",[4,5,6,7],""]],"上面是户，户就是一扇门。有门的房子！","房 = 户 (a door) + 方: a house with a door."]],
+["房","🏘️","xin","fáng","room; house (房子)","这是我的房子。","This is my house.",8,"房子",["parts","tb",[["户",[0,1,2,3],"🚪"],["方",[4,5,6,7],""]],"上面是户，户就是一扇门。有门的房子！","房 = 户 (a door) + 方: a house with a door."]],
 ["谁","🕵️","xin","shéi","who","你是谁？","Who are you?",8,"谁",["parts","lr",[["讠",[0,1],"💬"],["隹",[2,3,4,5,6,7,8,9],""]],"言字旁，问一问：你是谁？","谁 has 讠 (words): a question word. 你是谁? Who are you?"]],
 ["朵","🌼","xin","duǒ","(counts flowers)","一朵红花。","A red flower.",8,"一朵花",["parts","tb",[["几",[0,1],""],["木",[2,3,4,5],"🌳"]],"上面像花骨朵，下面是木。树上开了一朵花！","朵: a flower bud (几) on a tree (木). We count flowers with it: 一朵花."]],
 ["金","🪙","xin","jīn","gold","太阳是金色的。","The sun is golden.",8,"金色",["word","金色的太阳，亮亮的！","金 means gold: 金色 is golden."]],
@@ -1276,6 +1294,65 @@ const XIN_SAY_AS = { 为:"位", 还:"孩", 种:"众", 都:"兜", 长:"常", 行:
 function xinBare(c){ return XIN_SAY_AS[c[0]] || c[0]; }
 function xinHello(c){ return c[8] === c[0] ? xinBare(c) : xinBare(c) + "，" + c[8] + "！"; }
 function xinAsk(c){ return "哪个是" + (c[8] === c[0] ? "" : c[8] + "的") + xinBare(c) + "？"; }
+/* What he hears IN ENGLISH (the 🇺🇸 button). The meaning and the sentence's
+   translation are on the screen as English TEXT, and he is four: he cannot
+   read them, so the page says them. Derived from the meaning the screen shows,
+   not a second copy of it, so the two cannot come to disagree:
+     - "stone; rock"                  -> "stone, rock."
+     - "colorful (彩虹 = rainbow)"      -> "colorful." 彩虹 "means rainbow."
+     - "empty; sky (天空)"              -> "empty." 天空 "means sky."
+     - "live (in a place)"            -> "live, in a place."
+     - "plant (also zhǒng: seed)"     -> "plant." (a second reading is the grown-up's)
+   A Chinese word is said in a CHINESE voice between the English ones, because
+   an English voice cannot say it — so a line is a list of [text, lang] parts. */
+const HAN_ONLY = /^[⺀-⿟㐀-䶿一-鿿]+$/;
+function xinGloss(c){
+  const plain = [], bridge = [], senses = [];
+  let depth = 0, cur = "";
+  for (const t of c[4]){
+    if (t === "(") depth++; else if (t === ")") depth--;
+    if (t === ";" && !depth){ senses.push(cur.trim()); cur = ""; } else cur += t;
+  }
+  senses.push(cur.trim());
+  for (const s of senses){
+    const m = s.match(/^(.*?)\s*\((.*)\)$/);
+    if (!m){ plain.push(s); continue; }
+    const head = m[1].trim(), inner = m[2].trim();
+    if (/^also\b/.test(inner)){ if (head) plain.push(head); }
+    else if (HAN_ONLY.test(inner)) bridge.push([inner, head]);
+    else if (inner.includes("=")){
+      if (head) plain.push(head);
+      for (const item of inner.split(",")){
+        const kv = item.split("=").map((x) => x.trim());
+        bridge.push([kv[0], kv[1]]);
+      }
+    } else plain.push(head ? head + ", " + inner : inner);
+  }
+  return { plain, bridge };
+}
+function endStop(t){ return /[.!?]$/.test(t) ? t : t + "."; }
+// Neighbouring parts in one language are ONE utterance: a voice change costs a
+// pause, and "chicken." then the sentence needs none.
+function joinParts(parts){
+  const out = [];
+  for (const p of parts){
+    const last = out[out.length - 1];
+    if (last && last[1] === p[1]) last[0] += " " + p[0]; else out.push([p[0], p[1]]);
+  }
+  return out;
+}
+// `said` lets a lesson's recap say a shared word once: 喜 and 欢 are both 喜欢.
+function xinDefine(c, said){
+  const g = xinGloss(c), out = [];
+  if (g.plain.length) out.push([endStop(g.plain.join(", ")), "en-US"]);
+  for (const [w, e] of g.bridge){
+    if (said && said.has(w) && g.plain.length) continue;
+    if (said) said.add(w);
+    out.push([w, "zh-CN"], ["means " + endStop(e), "en-US"]);
+  }
+  return out;
+}
+function xinEnglish(c){ return joinParts([...xinDefine(c), [c[6], "en-US"]]); }
 /* A part's colour. Blue and orange rather than red and green: the one pair
    every common colour-vision deficiency still tells apart. Both clear 4.5:1 on
    the white stage (6.70 and 7.31), because the same colour prints the part's
@@ -1299,21 +1376,29 @@ function voiceFor(lang){
       (v) => (v.lang || "").slice(0, 2).toLowerCase() === want) || null;
   } catch (e) { return null; }
 }
-function speak(text, lang){
+/* A LINE may change language part-way ("西瓜 means watermelon"), so it is a
+   list of [text, lang] parts, queued in order after ONE cancel — cancelling
+   between them would cut each part off. speak() is the one-part case, so there
+   is one owner of how anything on this page is said. */
+function speakParts(parts){
   try {
     if (!soundOn || !window.speechSynthesis) return;
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    // A Chinese line left on the page's own en-US voice is read as letter
-    // noise, so the LANGUAGE travels with the text rather than being a
-    // property of the page.
-    u.lang = lang || "en-US";
-    const v = voiceFor(u.lang);
-    if (v) u.voice = v;
-    u.rate = 0.75; u.pitch = 1.05;
-    speechSynthesis.speak(u);
+    for (const [text, lang] of parts){
+      if (!text) continue;
+      const u = new SpeechSynthesisUtterance(text);
+      // A Chinese line left on the page's own en-US voice is read as letter
+      // noise, so the LANGUAGE travels with the text rather than being a
+      // property of the page.
+      u.lang = lang || "en-US";
+      const v = voiceFor(u.lang);
+      if (v) u.voice = v;
+      u.rate = 0.75; u.pitch = 1.05;
+      speechSynthesis.speak(u);
+    }
   } catch (e) {}
 }
+function speak(text, lang){ speakParts([[text, lang]]); }
 // ONE owner for "what does this card sound like, and in what language" — the
 // flip, the sound toggle's preview and anything later all ask it, so they
 // cannot come to disagree. A character is ONE syllable: the sentence is what
@@ -2324,7 +2409,7 @@ $("hearBtn").addEventListener("click", () => {
    other derivations above and read no DOM, so a test can deal every board in
    node. This is only the drawing and the taps. */
 const learnEl = $("learn"), lstage = $("lstage"), lview = $("lview"), lwear = $("lwear"),
-      lrow = $("lrow"), lgo = $("lgo");
+      lrow = $("lrow"), lgo = $("lgo"), lsay = $("lsay");
 const LEARN_BEAT = 1500, LBRUSH = 190;
 let lPages = [], lp = 0, lPhase = "", lRound = 0, lRounds = [], lMiss = 0, lTimer = 0, lAnim = 0;
 
@@ -2457,6 +2542,17 @@ function lLine(){
   return lWords(p);
 }
 function lSpeak(){ const t = lLine(); if (t) speak(t, "zh-CN"); }
+/* The 🇺🇸 button: what this character MEANS, and its sentence, in English. On
+   the lesson's cheer it goes round the lesson — each character, then what it
+   means — saying a word two of them share (喜欢) once. */
+function lEnglish(){
+  const p = lPage();
+  if (!p) return [];
+  if (lPhase !== "cheer") return xinEnglish(lCard());
+  const out = [], said = new Set();
+  for (const c of p.cards) out.push([xinBare(c), "zh-CN"], ...xinDefine(c, said));
+  return joinParts(out);
+}
 
 function lShow(phase){
   const c = lCard(), p = lPage();
@@ -2468,6 +2564,7 @@ function lShow(phase){
   for (const b of [...lrow.querySelectorAll(".mtile")]) b.remove();
   const asking = phase === "find" || phase === "ask";
   lgo.classList.toggle("hidden", asking);
+  lsay.classList.toggle("hidden", asking);
   lwear.classList.toggle("hidden", !asking);
 
   if (phase === "look"){
@@ -2593,6 +2690,8 @@ lrow.addEventListener("click", (ev) => {
   if (b) lTap(b);
 });
 lgo.addEventListener("click", lNext);
+// A tap on it is a deliberate request for sound — see unmute().
+lsay.addEventListener("click", () => { unmute(); speakParts(lEnglish()); });
 // The stage says it again (and in the SEE step, writes it again). A tap on it
 // is a deliberate request for sound — see unmute().
 lstage.addEventListener("click", () => {

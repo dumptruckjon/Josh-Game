@@ -3692,8 +3692,11 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     assert.ok(saw("hcue"), "fixture: a sight word's sentence on the prompt tile was never audited");
     assert.equal(hearHues.size, 8,
       `the prompt tile cycles eight hues and a sentence sits on each (saw ${hearHues.size})`);
-    for (const run of ["lchar", "lkey", "lword", "lmark", "lnote", "lpartg", "lzh", "len", "lchar1"])
-      assert.ok(saw(run), `fixture: the 新字 screen's ${run} run was never audited`);
+    // By CLASS, not substring: "lchar" is inside "lchar1", so a substring
+    // match let the cheer's characters stand in for the meet step's big one.
+    const sawClass = (k) => runs.some((r) => r.sel.split(/[.#]/).slice(1).includes(k));
+    for (const run of ["lchar", "lkey", "lword", "lmark", "lnote", "lpartg", "lzh", "len", "lchar1", "lsayn"])
+      assert.ok(sawClass(run), `fixture: the 新字 screen's ${run} run was never audited`);
     assert.equal(boardFills.size, 3,
       "a board tile takes three fills — waiting, held and matched — and each is a " +
       `different background the same run has to clear (saw ${boardFills.size}: ` +
@@ -6278,6 +6281,102 @@ test("Word Cards: 新字 introduces a character in four steps, and a lesson ends
   }
 });
 
+test("Word Cards: 新字's 🇺🇸 button SAYS what the character means, and its sentence, in English", async () => {
+  // The owner (2026-09): "Remember he's only 4 so he can't even read English
+  // yet by himself. He also needs to know the English translation of each
+  // word." The meaning and the translation were English TEXT — the grown-up's
+  // lines. This drives the real button through a lesson: it says the CURRENT
+  // character's meaning and sentence on every step that offers it (never the
+  // last character's), the sentence is the one the READ step shows, a Chinese
+  // word inside the meaning is said in a Chinese voice, it gives way to the
+  // tiles while he is being asked, the cheer goes round the lesson, and with
+  // sound off a tap on it is a request for sound rather than a dead button.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.clock.install({ time: new Date("2026-01-01T08:00:00") });
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.clock.pauseAt(new Date("2026-01-01T09:00:00"));
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    assert.ok(await wcStubSpeech(pg), "fixture: the speech stub never installed, so nothing below measures anything");
+    const S = () => wcLearnState(pg);
+    const run = (ms) => pg.clock.runFor(ms);
+    const tap = (sel) => pg.evaluate((q) => document.querySelector(q).click(), sel);
+    // Tap it and return what was said since — S() drains the log, so each
+    // call reports only this tap.
+    const say = async () => { await tap("#lsay"); return (await S()).said.map((x) => [x.text, x.lang]); };
+    const offered = () => pg.evaluate(() => !document.getElementById("lsay").classList.contains("hidden"));
+
+    await tap("#learnBtn");
+    let s = await S();                                        // drains the Chinese greeting
+    assert.equal(s.ch, "岁", `fixture: a fresh start meets 岁 first (saw ${s.ch})`);
+
+    // ── MEET and SEE: what it means, then its sentence ─────────────────────
+    const EN1 = [["years old. The kitten is one year old.", "en-US"]];
+    assert.ok(await offered(), "the meet step must offer the English button");
+    assert.deepEqual(await say(), EN1, "the English button must say what 岁 means, and its sentence, in English");
+    await tap("#lgo");
+    assert.equal((await S()).phase, "see");
+    assert.ok(await offered(), "the see step must offer the English button");
+    assert.deepEqual(await say(), EN1, "…and on the see step, the same character's line");
+
+    // ── FIND: the row is the three tiles, so it gives way ─────────────────
+    await run(20000);
+    await tap("#lgo");
+    s = await S();
+    assert.equal(s.phase, "find");
+    assert.equal(s.tiles.length, 3, "fixture: the find board is three tiles");
+    assert.ok(!(await offered()), "while he is asked, the row is the three tiles — the English button gives way");
+    await pg.evaluate(() => document.querySelector('#lrow [data-correct="1"]').click());
+    await run(1600);
+
+    // ── READ: the sentence it says is the one on the screen ────────────────
+    s = await S();
+    assert.equal(s.phase, "read", `fixture: after the beat he reads it (saw ${s.phase})`);
+    assert.ok(await offered(), "the read step must offer the English button");
+    const read = await say();
+    const shown = await pg.evaluate(() => document.querySelector("#lview .len").textContent);
+    assert.ok(read.length && read[read.length - 1][1] === "en-US" && read[read.length - 1][0].endsWith(shown),
+      `the English line must end on the translation the READ step shows ("${shown}"), said ${JSON.stringify(read)}`);
+
+    // ── the NEXT character: its own line, with its word in a Chinese voice ──
+    await tap("#lgo");
+    s = await S();
+    assert.equal(s.ch, "喜", `fixture: the second character is 喜 (saw ${s.ch})`);
+    assert.deepEqual(await say(),
+      [["happy.", "en-US"], ["喜欢", "zh-CN"], ["means like. I like puppies.", "en-US"]],
+      "the button must say the CURRENT character, and the word it lives in (喜欢) in a Chinese voice");
+
+    // ── the lesson's CHEER: each character, then what it means ─────────────
+    await pg.evaluate(() => { lp = lPages.findIndex((p) => p.kind === "review"); lRender(); lShow("cheer"); });
+    s = await S();
+    assert.equal(s.phase, "cheer", "fixture: the lesson's cheer");
+    assert.ok(await offered(), "the cheer must offer the English button");
+    assert.deepEqual(await say(), [
+      ["岁", "zh-CN"], ["years old.", "en-US"], ["喜", "zh-CN"], ["happy.", "en-US"],
+      ["喜欢", "zh-CN"], ["means like.", "en-US"], ["欢", "zh-CN"], ["glad.", "en-US"],
+    ], "the cheer's English goes round the lesson, and says the word 喜 and 欢 share once");
+
+    // ── SOUND OFF: a tap on it is a request for sound ─────────────────────
+    await tap("#lsound");
+    s = await S();
+    assert.equal(s.sound, false, "fixture: the grown-up's toggle must have turned sound off");
+    await tap("#lsay");
+    s = await S();
+    const pressed = await pg.evaluate(() => document.getElementById("lsound").getAttribute("aria-pressed"));
+    assert.equal(s.sound, true, "with sound off, a tap on the English button must turn sound on, not do nothing");
+    assert.equal(pressed, "true", "…and the sound toggle must show it is on, so it matches the device");
+    assert.ok(s.said.length > 0 && s.said.every((x) => x.lang === "en-US" || x.lang === "zh-CN"),
+      `…and say its line (said ${JSON.stringify(s.said)})`);
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("Word Cards: 新字 keeps his place, including the last page, and only a grown-up starts it over", async () => {
   // The sibling boards' law: the place is saved, a fresh open lands on it, the
   // bound is the MODULAR one (the last page is a real place to stop — that is
@@ -6366,10 +6465,16 @@ test("Word Cards: a double-tap on ▶ cannot answer the question that replaces i
     await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
     await wcStubSpeech(pg);
     await pg.evaluate(() => document.getElementById("learnBtn").click());
+    // ▶ spans the row's last two columns (the 🇺🇸 button has the first), so its
+    // CENTRE is the 16px gap between two tiles-to-be. Aim at the middle of the
+    // first column ▶ covers instead: a point ON ▶ where a tile will stand.
     const go = await pg.evaluate(() => {
-      const r = document.getElementById("lgo").getBoundingClientRect();
-      return [r.left + r.width / 2, r.top + r.height / 2];
+      const row = document.getElementById("lrow"), g = document.getElementById("lgo").getBoundingClientRect();
+      const cs = getComputedStyle(row), cols = cs.gridTemplateColumns.split(" ").map(parseFloat);
+      const x = row.getBoundingClientRect().left + cols[0] + (parseFloat(cs.columnGap) || 0) + cols[1] / 2;
+      return x > g.left && x < g.right ? [x, g.top + g.height / 2] : null;
     });
+    assert.ok(go, "fixture: the point aimed at must be ON ▶");
     const tap = () => pg.mouse.click(go[0], go[1]);
     const wait = (ms) => pg.clock.runFor(ms);
 

@@ -6100,7 +6100,7 @@ const wcPure = () => {
     "HOMOPHONES, HEAR_SKIP, HEAR_CHOICES, editDistance, HANZI, XINZI, xinLessons, " +
     "xinPages, xinFindChoices, xinReviewChoices, xinReviewOrder, xinHello, xinAsk, " +
     "xinBare, xinParts, xinWordMates, XIN_ANCHORS, XIN_AVOID, XIN_SAY_AS, XIN_INK, " +
-    "LESSON_MAX, XIN_CHOICES };")();
+    "xinGloss, xinDefine, xinEnglish, joinParts, LESSON_MAX, XIN_CHOICES };")();
 };
 
 test("Word Cards: a listening round has exactly ONE right answer, and it takes reading to find", () => {
@@ -6336,12 +6336,15 @@ test("Word Cards: the say-it button's glyph is none of the deck's own pictures",
   //
   // It walks EVERY say-it glyph, not the first: the listening game carries one
   // too, and its tile shows an ENGLISH card's picture as its reward — the "ear"
-  // card's is 👂 — so it is checked against both decks' pictures.
+  // card's is 👂 — so it is checked against both decks' pictures. So is
+  // 新字's 🇺🇸, the button that says a character's meaning in English: it sits
+  // under each lesson character's own picture, so it is checked against all
+  // three decks.
   const src = read("wordcards.html");
   const ent = (t) => t.replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).trim();
   const says = [...src.matchAll(/<span class="wear"[^>]*>([\s\S]*?)<\/span>/g)].map((m) => ent(m[1]));
-  assert.ok(says.length >= 2,
-    `the writing pad and the listening game each carry a say-it glyph (saw ${says.length})`);
+  assert.ok(says.length >= 3,
+    `the writing pad, the listening game and 新字's English button each carry a say-it glyph (saw ${says.length})`);
 
   const cards = [...wcHanzi(), ...wcXinzi(), ...wcWords()];
   assert.ok(cards.length > 700, `only ${cards.length} cards read — this clause would be vacuous`);
@@ -6805,6 +6808,83 @@ test("Word Cards: every 新字 多音字 is taught — and SAID — in the readi
   }
   const plain = P.XINZI.find((r) => !P.XIN_SAY_AS[r[0]]);
   assert.equal(P.xinBare(plain), plain[0], "a character with one reading must be said as itself");
+});
+
+test("Word Cards: 新字 SAYS each character's meaning and sentence in English, and an English voice never reads Chinese", () => {
+  // The owner (2026-09): "he's only 4 so he can't even read English yet by
+  // himself. He also needs to know the English translation of each word." The
+  // meaning and the sentence's translation were English TEXT — the grown-up's
+  // lines — so the 🇺🇸 button SAYS them. xinEnglish() derives the line from
+  // the meaning the screen shows rather than keeping a second copy, and this
+  // walks every row:
+  //  - an ENGLISH part is only what an English voice can say: no han (skipped
+  //    or read as noise), no tone-marked pinyin, none of the grown-up's
+  //    notation ( ) = : ; — a Chinese word goes in its own part, in a Chinese
+  //    voice ("西瓜" … "means watermelon");
+  //  - the line ends on the translation, exactly as the READ step shows it;
+  //  - the meaning is said WHOLE: every English and Chinese word it shows is
+  //    heard (a second reading, "(also …)", is the grown-up's and is not), and
+  //    nothing is added but "means", so the voice and the screen cannot drift.
+  const P = wcPure();
+  const EN = /^[A-Za-z0-9 ,.!?'-]+$/;
+  const HAN = /[一-鿿]+/g;
+  const words = (t) => t.toLowerCase().match(/[a-z']+/g) || [];
+  const bad = [];
+  let han = 0;
+  for (const c of P.XINZI) {
+    const parts = P.xinEnglish(c);
+    for (const [t, l] of parts) {
+      if (l === "en-US") { if (!EN.test(t)) bad.push(`${c[0]}: an English voice would be handed "${t}"`); }
+      else if (l === "zh-CN") { if (!/^[一-鿿]+$/.test(t)) bad.push(`${c[0]}: a Chinese voice would be handed "${t}"`); }
+      else bad.push(`${c[0]}: a part in "${l}"`);
+    }
+    const last = parts[parts.length - 1] || ["", ""];
+    if (last[1] !== "en-US" || !last[0].endsWith(c[6])) { bad.push(`${c[0]} does not end on its translation "${c[6]}"`); continue; }
+    const def = parts.slice(0, -1).concat([[last[0].slice(0, -c[6].length), "en-US"]]);
+    const saidEn = new Set(def.filter((p) => p[1] === "en-US").flatMap((p) => words(p[0])));
+    const saidZh = def.filter((p) => p[1] === "zh-CN").map((p) => p[0]);
+    const shown = c[4].replace(/\(also [^)]*\)/g, "");
+    const shownEn = new Set(words(shown)), shownZh = shown.match(HAN) || [];
+    han += shownZh.length;
+    if (!saidZh.length && !words(def.map((p) => p[0]).join(" ")).length)
+      bad.push(`${c[0]} says its sentence but never what it means`);
+    for (const w of shownEn) if (!saidEn.has(w)) bad.push(`${c[0]}'s meaning shows "${w}", which is never said`);
+    for (const w of shownZh) if (!saidZh.includes(w)) bad.push(`${c[0]}'s meaning shows ${w}, which is never said`);
+    for (const w of saidEn) if (w !== "means" && !shownEn.has(w)) bad.push(`${c[0]} says "${w}", which its meaning does not show`);
+    for (const w of saidZh) if (!shownZh.includes(w)) bad.push(`${c[0]} says ${w}, which its meaning does not show`);
+  }
+  assert.deepEqual(bad, [], "the 🇺🇸 line must say the meaning the screen shows, in a voice that can say it");
+  assert.ok(han >= 25, `only ${han} Chinese words in the meanings — the scan failed open`);
+  // The derivation's shapes, restated literally rather than read back from it.
+  const say = (ch) => P.xinEnglish(P.XINZI.find((r) => r[0] === ch));
+  assert.deepEqual(say("鸡"), [["chicken. We have a chicken at home.", "en-US"]]);
+  assert.deepEqual(say("西"), [["west.", "en-US"], ["西瓜", "zh-CN"], ["means watermelon. The watermelon is sweet.", "en-US"]]);
+  assert.deepEqual(say("空"), [["empty.", "en-US"], ["天空", "zh-CN"], ["means sky. The sky is blue.", "en-US"]]);
+  assert.deepEqual(say("种"), [["plant. We plant flowers.", "en-US"]], "a second reading is the grown-up's, never said");
+  assert.deepEqual(say("住"), [["live, in a place. Grandpa lives in the mountains.", "en-US"]]);
+  assert.deepEqual(say("第"), [["第一", "zh-CN"], ["means first.", "en-US"], ["第二", "zh-CN"], ["means second. I came first!", "en-US"]]);
+});
+
+test("Word Cards: everything the page says goes through ONE speaker", () => {
+  // A line can now change language part-way ("西瓜 means watermelon"), so
+  // speakParts() queues its parts after ONE cancel and speak() is its one-part
+  // case. A second place that builds an utterance is a second set of rules for
+  // voice, rate and language — and the copy that forgets the lang tag reads
+  // Chinese in an English voice. The cancel must come BEFORE the parts: inside
+  // the loop, each part would cut off the one before it and only the last
+  // would ever be heard, which a speech STUB cannot see (its cancel is a no-op).
+  const bare = read("wordcards.html").replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
+                  .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const n = (bare.match(/new SpeechSynthesisUtterance\(/g) || []).length;
+  assert.equal(n, 1, `the page builds an utterance in ${n} places — speakParts() is the one owner`);
+  const at = bare.indexOf("function speakParts(");
+  assert.ok(at > 0, "speakParts() is gone — the page says things some other way now");
+  const body = bare.slice(at, bare.indexOf("\nfunction ", at + 10));
+  assert.ok(body.length > 100, "fixture: speakParts' body was not sliced");
+  assert.match(body, /new SpeechSynthesisUtterance\(/, "the one utterance must be built inside speakParts()");
+  const cancel = body.indexOf("speechSynthesis.cancel()"), loop = body.indexOf("for (");
+  assert.ok(cancel > 0 && loop > 0, "speakParts() must cancel, then queue its parts");
+  assert.ok(cancel < loop, "speakParts() must cancel ONCE, before its parts — inside the loop each part cuts off the last");
 });
 
 test("Word Cards: the new characters stay OUT of the recall games", () => {

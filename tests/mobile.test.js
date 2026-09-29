@@ -1397,8 +1397,8 @@ test("Word Cards' WRITING pad on the real engine: nothing crushed, nothing small
 
 test("Word Cards' LESSONS on the real engine: nothing small, nothing cut off, a drawing worth watching", async () => {
   // 新字 is one stage and one row: the stage shows a new character, WRITES it
-  // stroke by stroke, and shows the sentence it lives in; the row is ▶ or the
-  // three tiles of a question. Walked on REAL WebKit because every piece of it
+  // stroke by stroke, and shows the sentence it lives in; the row is ▶ beside
+  // the 🇺🇸 button that says it in English, or the three tiles of a question. Walked on REAL WebKit because every piece of it
   // is han text, an emoji or an SVG whose size the engine's fonts decide — and
   // walked over EVERY character, because the longest note or sentence is the
   // one that breaks. The stage clips (overflow: hidden), so anything that does
@@ -1489,6 +1489,8 @@ test("Word Cards' LESSONS on the real engine: nothing small, nothing cut off, a 
       // every clause below.
       assert.ok(r.meets >= 90, `${w}x${h}: only ${r.meets} characters walked — the walk measured nothing`);
       assert.ok(r.asking.length >= 7, `${w}x${h}: the question step shows ${r.asking.length} controls — the walk found the wrong screen`);
+      assert.ok(r.meeting.some((c) => c.k === "lsay"),
+        `${w}x${h}: the meet step's English button was not among the controls measured, so nothing below audits it`);
 
       for (const [step, list] of [["question", r.asking], ["meet", r.meeting]]) {
         const small = list.filter((c) => c.s < MIN_TAP);
