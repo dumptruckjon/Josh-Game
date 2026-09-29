@@ -208,12 +208,31 @@
   .pop{animation:pop .32s cubic-bezier(.2,.9,.3,1);}
   @keyframes pop{from{transform:scale(.9) translateY(10px);opacity:.3}to{transform:none;opacity:1}}
 
-  .nav{display:grid;grid-template-columns:auto auto;justify-content:center;gap:22px;}
+  /* grid-auto-flow, not a two-track template: the 中文 cards put an English
+     speaker BETWEEN ◀ and ▶, and `auto auto` would wrap a third button onto a
+     row of its own. A hidden button makes no track at all, so every other
+     deck and 写字's nav lay out exactly as before. */
+  .nav{display:grid;grid-auto-flow:column;justify-content:center;gap:22px;}
   .nav button{width:76px;height:76px;border-radius:99px;border:3px solid rgba(255,255,255,.28);
     background:transparent;color:#fff;font-size:33px;line-height:1;padding-bottom:5px;cursor:pointer;
     transition:transform .12s ease,background .2s ease;}
   .nav button:active{transform:scale(.9);background:rgba(255,255,255,.12);}
   .nav button:disabled{opacity:.25;}
+  /* The 中文 cards' English speaker (owner, 2026-09: "he can't even read
+     English yet by himself"). It is 新字's own 🇺🇸 card, so it means the same
+     thing wherever he meets it, and white so it never reads as ◀ or ▶. It sits
+     between them rather than in the bar, because the bar is back + two 76px
+     icons and a third leaves the back button under the 75px floor at 320.
+     84 wide: 76 + 22 + 84 + 22 + 76 = 280 is what a 284px row holds at 320.
+     Everything that differs from a nav button is re-declared, or `.nav button`
+     would draw it as a 76px outlined circle — :active included, whose
+     translucent fill would otherwise turn the white card see-through. */
+  .nav .nsay{width:84px;height:76px;padding:0;border:0;border-radius:26px;background:#fff;
+             color:var(--ink);font-family:inherit;display:grid;justify-items:center;
+             align-content:center;gap:2px;box-shadow:0 8px 0 rgba(0,0,0,.22);}
+  .nav .nsay .wear{font-size:34px;}
+  .nsayn{font-size:13px;font-weight:800;}
+  .nav .nsay:active{background:#fff;transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
 
   /* ---------- 写字: the writing pad ----------
      A third screen rather than a third face of the card: writing is a
@@ -507,6 +526,7 @@
   </div>
   <div class="nav">
     <button id="prev" aria-label="Card before">&lsaquo;</button>
+    <button class="nsay hidden" id="nsay" type="button" aria-label="Say it in English"><span class="wear" aria-hidden="true">&#127482;&#127480;</span><span class="nsayn">English</span></button>
     <button id="next" aria-label="Next card">&rsaquo;</button>
   </div>
 </div>
@@ -738,7 +758,7 @@ const HANZI = [
 ["快","⚡","hanzi","kuài","fast (快乐 = happy)","小车很快。","The little car is fast."],
 ["乐","🎂","hanzi","lè","happy (快乐)","生日快乐！","Happy birthday!"],
 ["好","👍","hanzi","hǎo","good","你好！","Hello!"],
-["的","🔗","hanzi","de","'s; of","爸爸的车。","Dad's car."],
+["的","🔗","hanzi","de","of; belonging to","爸爸的车。","Dad's car."],
 ["爸","👨","hanzi","bà","dad","爸爸爱我。","Dad loves me."],
 ["妈","👩","hanzi","mā","mom","妈妈在家。","Mom is at home."],
 ["我","🙋","hanzi","wǒ","I; me","我爱妈妈。","I love Mom."],
@@ -1410,7 +1430,7 @@ function cardSpeech(c){
 const $ = id => document.getElementById(id);
 const menu=$("menu"), deckEl=$("deck"), card=$("card"), wordEl=$("word"), picEl=$("pic"),
       lettersEl=$("letters"), countEl=$("count"), fillEl=$("fill"),
-      prevBtn=$("prev"), nextBtn=$("next"), backBtn=$("back"), soundBtn=$("sound"),
+      prevBtn=$("prev"), nextBtn=$("next"), nsayBtn=$("nsay"), backBtn=$("back"), soundBtn=$("sound"),
       frontFace=$("frontFace"), backFace=$("backFace");
 
 /* ---------- the hammer's echo ----------
@@ -1663,6 +1683,10 @@ function render(animate){
   fillEl.style.width = ((i + 1) / deck.length * 100) + "%";
   prevBtn.disabled = i === 0;
   nextBtn.disabled = i === deck.length - 1;
+  // The English speaker follows the CARD, so it is never offered on one it
+  // cannot speak. A deck is one kind throughout, so it never appears or
+  // vanishes mid-deck and the row never reflows under his thumb.
+  nsayBtn.classList.toggle("hidden", !isHanzi);
 
   paintCardLabel();
 
@@ -1737,6 +1761,20 @@ card.addEventListener("click", () => {
 });
 nextBtn.addEventListener("click", () => go(1));
 prevBtn.addEventListener("click", () => go(-1));
+/* 🇺🇸 on the 中文 cards: what the character MEANS and its sentence, in English.
+   It is xinEnglish(), the one derivation 新字's button uses, so the two can
+   never say a character differently. Pressed on the FRONT it turns the card
+   over first, so what he hears is what he is looking at — the translation is
+   of the sentence on the BACK. It never turns the card back, and it is a
+   deliberate request for sound, so it turns sound on rather than doing
+   nothing (the same rule as 新字 and the writing pad). */
+nsayBtn.addEventListener("click", () => {
+  const c = deck[i];
+  if (!c || c[2] !== "hanzi") return;
+  unmute();
+  if (!card.classList.contains("flipped")){ card.classList.add("flipped"); paintCardLabel(); }
+  speakParts(xinEnglish(c));
+});
 
 /* ONE toggle behind three screens. The only thing that differs between them is
    what there is to SAY once it is on, so that is the argument — a third copy

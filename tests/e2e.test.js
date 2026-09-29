@@ -2773,7 +2773,12 @@ test("Word Cards: the home button opens it, it plays, and it comes back", async 
         g("#next").click();
         return {
           first, flipped, pic, second: g("#word").textContent, count: g("#count").textContent,
-          taps: [...document.querySelectorAll("#deck button")].map((b) => {
+          // Controls with a BOX: the 中文 cards' English speaker is display:none
+          // on an English deck, and a control that is not on the page is not a
+          // tap target — measured, it is 0x0 and would read as a 0px button.
+          // `getClientRects()` drops only a display:none subtree, so a control
+          // that is shown but squashed still has a rect and still fails.
+          taps: [...document.querySelectorAll("#deck button")].filter((b) => b.getClientRects().length).map((b) => {
             const r = b.getBoundingClientRect();
             return Math.round(Math.min(r.width, r.height));
           }),
@@ -3697,6 +3702,9 @@ test("Word Cards: every text run clears WCAG AA on all eight card colours", asyn
     const sawClass = (k) => runs.some((r) => r.sel.split(/[.#]/).slice(1).includes(k));
     for (const run of ["lchar", "lkey", "lword", "lmark", "lnote", "lpartg", "lzh", "len", "lchar1", "lsayn"])
       assert.ok(sawClass(run), `fixture: the 新字 screen's ${run} run was never audited`);
+    // …and the 中文 cards' own English speaker, a white card in the deck's nav
+    // that exists on no other deck — by CLASS, so 新字's "lsayn" cannot stand in.
+    assert.ok(sawClass("nsayn"), "fixture: the 中文 cards' English speaker label was never audited");
     assert.equal(boardFills.size, 3,
       "a board tile takes three fills — waiting, held and matched — and each is a " +
       `different background the same run has to clear (saw ${boardFills.size}: ` +
@@ -4756,6 +4764,136 @@ test("Word Cards: a Chinese card is SPOKEN in Chinese, character and sentence", 
     assert.equal(en.said[0].text, en.card[0],
       `an English card speaks "${en.said[0].text}" rather than just its word`);
     assert.deepEqual(errs, [], `page errors: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("Word Cards: the 中文 cards' 🇺🇸 button SAYS what a character means, and its sentence, in English", async () => {
+  // The owner (2026-09): "he's only 4 so he can't even read English yet by
+  // himself. He also needs to know the English translation of each word." 新字
+  // got a button that says it; the 中文 cards carried the same meaning and the
+  // same translation as TEXT only. This drives the real button:
+  //   - it is offered on the Chinese cards and NOWHERE else (an English card is
+  //     already English), and it fits between ◀ and ▶ at the tap floor, 16px
+  //     clear of both, on the narrowest phone;
+  //   - pressed on the FRONT it turns the card over, because the translation is
+  //     of the sentence on the BACK, and it never turns the card back;
+  //   - it says the CURRENT card, with a Chinese word in a Chinese voice;
+  //   - with sound off it is a request for sound, not a dead button;
+  //   - and the flip itself still says the CHINESE, and only the Chinese.
+  for (const [w, h] of [[390, 844], [320, 568]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce" });
+    const pg = await ctx.newPage();
+    const errs = [];
+    pg.on("pageerror", (e) => errs.push(e.message));
+    try {
+      await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      const offered = () => pg.evaluate(() => document.getElementById("nsay").getClientRects().length > 0);
+      await pg.evaluate(() => document.querySelector("#grid .chip").click());
+      assert.ok(!(await offered()), `${w}px: an ENGLISH card offers the English speaker — the card is already English`);
+      await pg.evaluate(() => document.getElementById("back").click());
+      await pg.evaluate(() => document.getElementById("hanziBtn").click());
+      assert.ok(await offered(), `${w}px: the Chinese cards must offer the English speaker`);
+      const row = await pg.evaluate(() => {
+        const b = (id) => {
+          const q = document.getElementById(id).getBoundingClientRect();
+          return { l: q.left, r: q.right, t: Math.round(q.top), w: q.width, h: q.height };
+        };
+        return { prev: b("prev"), say: b("nsay"), next: b("next"),
+                 vw: document.documentElement.clientWidth,
+                 ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      });
+      for (const k of ["prev", "say", "next"])
+        assert.ok(Math.min(row[k].w, row[k].h) >= 75,
+          `${w}px: the ${k} button is ${row[k].w}x${row[k].h} — RULE 5 wants >= 75px for little hands`);
+      assert.ok(row.prev.r <= row.say.l && row.say.r <= row.next.l, `${w}px: the row must read ◀ 🇺🇸 ▶`);
+      const gaps = [row.say.l - row.prev.r, row.next.l - row.say.r].map(Math.round);
+      assert.ok(gaps.every((g) => g >= 16), `${w}px: the English speaker sits ${gaps.join(" / ")}px from ◀ / ▶ — RULE 5 wants >= 16`);
+      assert.ok(row.say.t === row.prev.t && row.next.t === row.prev.t,
+        `${w}px: the three nav buttons must share ONE row (tops ${row.prev.t} / ${row.say.t} / ${row.next.t})`);
+      assert.ok(row.prev.l >= 0 && row.next.r <= row.vw, `${w}px: the nav row runs off the screen`);
+      assert.ok(row.ovf <= 0, `${w}px: the deck scrolls sideways by ${row.ovf}px`);
+      assert.deepEqual(errs, [], `${w}px: page errors: ${errs.join(" | ")}`);
+    } finally {
+      await ctx.close();
+    }
+  }
+
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await wcStubSpeech(pg), "fixture: the speech stub never installed, so nothing below measures anything");
+    await pg.evaluate(() => document.getElementById("hanziBtn").click());
+    // Put a named card in front of him, unturned — the same way the Chinese
+    // deck's own test reaches card 8 — and read everything a tap changes.
+    const show = (ch) => pg.evaluate((c) => {
+      i = deck.findIndex((r) => r[0] === c); unflipInstantly(); render(false);
+      return i;
+    }, ch);
+    const press = (sel) => pg.evaluate((q) => {
+      window.__said.length = 0;
+      document.querySelector(q).click();
+      const cd = document.getElementById("card");
+      return {
+        said: window.__said.map((x) => [x.text, x.lang]),
+        flipped: cd.classList.contains("flipped"),
+        sound: document.getElementById("sound").getAttribute("aria-pressed"),
+        label: cd.getAttribute("aria-label"),
+        name: document.getElementById("nsay").getAttribute("aria-label"),
+        card: deck[i],
+      };
+    }, sel);
+
+    // ── SOUND OFF, the card on its FRONT ─────────────────────────────────────
+    assert.ok((await show("的")) >= 0, "fixture: 的 is not in the Chinese deck");
+    let r = await press("#nsay");
+    assert.equal(r.sound, "true", "with sound off, the English button must turn sound on — a tap on it asks for sound");
+    assert.ok(r.flipped, "pressed on the front, the English button must turn the card over — the translation is of the sentence on the BACK");
+    assert.deepEqual(r.said, [["of, belonging to. Dad's car.", "en-US"]],
+      "the English button must say what 的 means, and its sentence, in English — never a bare 's");
+    assert.ok(r.label.includes(r.card[4]),
+      `turned over by the English button, the card must be announced as its back (saw ${JSON.stringify(r.label)})`);
+    assert.ok(!r.name.includes(r.card[0]) && !r.name.includes(r.card[4]),
+      `the English button's own name must not carry the answer (saw ${JSON.stringify(r.name)})`);
+
+    // ── pressed AGAIN on the back: it says it again and leaves the card alone ─
+    r = await press("#nsay");
+    assert.ok(r.flipped, "the English button must never turn the card back to the front");
+    assert.deepEqual(r.said, [["of, belonging to. Dad's car.", "en-US"]], "…and it says the same line again");
+
+    // ── another card, with its word in a Chinese voice ───────────────────────
+    await show("奶");
+    r = await press("#nsay");
+    assert.deepEqual(r.said,
+      [["grandma.", "en-US"], ["牛奶", "zh-CN"], ["means milk. Grandma loves me.", "en-US"]],
+      "the button must say the CURRENT card, and a Chinese word inside the meaning in a Chinese voice");
+
+    // ── the real ▶: the NEXT card's line, never the last one's ───────────────
+    const was = r.card;
+    await pg.evaluate(() => document.getElementById("next").click());
+    r = await press("#nsay");
+    assert.notEqual(r.card[0], was[0], "fixture: ▶ must reach a different card");
+    const tail = r.said[r.said.length - 1] || ["", ""];
+    assert.ok(tail[1] === "en-US" && tail[0].endsWith(r.card[6]) && !tail[0].endsWith(was[6]),
+      `after ▶ the English button must say ${r.card[0]}'s sentence ("${r.card[6]}"), said ${JSON.stringify(r.said)}`);
+    for (const [t, l] of r.said)
+      assert.ok(l === "zh-CN" ? /^[一-鿿]+$/.test(t) : !/[一-鿿]/.test(t),
+        `an English voice must never be handed Chinese, nor a Chinese voice English: ${JSON.stringify([t, l])}`);
+
+    // ── THE CONTROL: the flip itself still says the Chinese, and only that ────
+    await show("的");
+    r = await press("#card");
+    assert.ok(r.flipped, "fixture: the tap must flip the card");
+    assert.deepEqual(r.said, [["的。爸爸的车。", "zh-CN"]],
+      "the flip must still say the character and its sentence in Chinese — the English is on demand, not added to every flip");
+
+    assert.deepEqual(errs, [], `uncaught page errors: ${errs.join(" | ")}`);
   } finally {
     await ctx.close();
   }

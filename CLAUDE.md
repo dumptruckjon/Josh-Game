@@ -9435,9 +9435,10 @@ reworded to read aloud as well as they read (房's senses reversed, so 房子 me
 house and not room; 第's "(-th): 第一 = first" became "(第一 = first, 第二 =
 second)"; 以, 住 and 空; and 气 gained "天气 = weather", because its sentence is
 about the weather while its only bridge was 气球), and three British spellings
-(colour, colourful) now match the page's US English. The derivation also runs
-clean on all 120 中文 flash-card rows, which have the same meaning/translation
-fields.
+(colour, colourful) now match the page's US English. It also ran "clean" on all
+120 中文 flash-card rows — CORRECTED: clean by a law that allowed any
+apostrophe, so it could not see 的 handing an English voice a bare "'s" (next
+entry).
 (2) **A line can change language part-way, so speech is a list of [text,
 lang] parts.** An English voice skips or garbles 西瓜, so the word is said in a
 Chinese voice between the English ones. `speakParts()` is the ONE owner (a law:
@@ -9462,8 +9463,49 @@ new button's class; its control mutation stayed red and showed it did not —
 renaming the class to `lsayn` had already closed that one. **When a control
 mutation disagrees with your comment, the comment is what is wrong.**
 Recorded, not built (not picked): the SEE step's English note — how a character
-is made — is still text only (the button says the meaning there, not the story),
-and the 中文 flash cards carry the same English-as-text gap.
+is made — is still text only (the button says the meaning there, not the story).
+The 中文 flash cards' half of this gap is built now (next entry).
+
+**THE 中文 CARDS GOT THE SAME 🇺🇸 SPEAKER, AND READING ALL 120 LINES ALOUD
+FOUND ONE THE LAW HAD CALLED CLEAN** (the owner said "keep going" after being
+asked whether the flash cards should get it too). Five things worth keeping.
+(1) **One derivation, two buttons.** The deck's button calls the same
+`xinEnglish()` as 新字's, so a character can never be said two ways, and the
+law now walks BOTH decks — 96 and 120 rows — with a Chinese-word floor per deck
+(measured 31 and 14), because a derivation fails open.
+(2) **"Runs clean" was a claim about the LAW, not about the lines.** The
+English-part regex allows an apostrophe (it has to, for "Dad's"), so 的's gloss
+"'s; of" passed every clause while handing an English voice a bare "'s", which a
+voice reads as a letter rather than a meaning. Only printing all 120 spoken lines
+and READING them found it — the "listen to the sentence" lesson again. It says
+"of; belonging to" now, on the card and aloud, and still fits one line on the
+writing pad at 320 (measured). A new clause bans an apostrophe outside a word;
+proven on a row nothing pins, with a control: the same row with the clause
+removed goes green, so the clause is the only thing catching it.
+(3) **Placement was arithmetic.** The bar cannot take a third icon (the 新字
+entry's measurement), so the speaker sits BETWEEN ◀ and ▶, 84 wide:
+76 + 22 + 84 + 22 + 76 = 280 of the 284px row at 320. `.nav` flows into columns
+now, because `auto auto` wraps a third button onto its own row, and a hidden
+button makes no track. Measured A/B at five sizes: every English deck and 写字
+are byte-identical, and the 中文 deck only spreads ◀ ▶ apart — card box and page
+height unchanged, so it costs no picture and no scroll.
+(4) **Pressed on the FRONT it turns the card over**, because the translation is
+of the sentence on the BACK. It never turns the card back, it turns sound on
+rather than doing nothing, and the flip itself still says the Chinese only (a
+control clause), so the English stays on demand.
+(5) **Two tap audits measured a button that was not on the page.** Both walked
+`#deck button` (every button in the markup), so the speaker, which is
+display:none on an English deck, would have read as a 0px tap. They measure
+controls with a box now — `getClientRects()` drops only a display:none subtree,
+so a control that is shown but squashed still has a rect and still fails. And
+the WebKit audit only ever measured the FIRST whole deck (English), so the
+tightest row on the page, the 中文 nav, had never been measured on the engine
+that matters; it walks every whole deck now, with a floor that one of them
+showed three nav buttons. Twenty-two mutations, each red on its own clause, plus
+the one control that stays green. One went red on a NEIGHBOUR: putting `.nav`
+back on two tracks wraps ▶ under ◀, so the ORDER clause fires before the
+one-row clause can — that clause was then isolated by dropping the speaker 40px
+out of the row with the order kept (tops 742 / 782 / 742).
 
 ---
 
@@ -9502,7 +9544,11 @@ tooling.
 │                               #   face, asked for BY NAME because this page's own stack opens with a
 │                               #   JAPANESE one) and the back is a picture, the pinyin, the meaning,
 │                               #   a sentence and its translation — spoken in zh-CN, character AND
-│                               #   sentence. Then 写字 — the same 120 characters, to WRITE: a pad
+│                               #   sentence. A 🇺🇸 button between ◀ and ▶ says its meaning and the
+│                               #   sentence in ENGLISH (xinEnglish, the same derivation as 新字's), and
+│                               #   turns the card over first if pressed on the front, because the
+│                               #   translation is of the sentence on the back.
+│                               #   Then 写字 — the same 120 characters, to WRITE: a pad
 │                               #   that hints one stroke at a time (marching ants that travel the
 │                               #   way the brush goes, a dot where it goes down), scores his finger
 │                               #   against that stroke's centre-line with big tolerance, and inks it

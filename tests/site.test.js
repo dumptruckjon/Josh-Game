@@ -6339,12 +6339,13 @@ test("Word Cards: the say-it button's glyph is none of the deck's own pictures",
   // card's is 👂 — so it is checked against both decks' pictures. So is
   // 新字's 🇺🇸, the button that says a character's meaning in English: it sits
   // under each lesson character's own picture, so it is checked against all
-  // three decks.
+  // three decks — and so is its twin on the 中文 cards, which sits under the
+  // card that shows a character's picture.
   const src = read("wordcards.html");
   const ent = (t) => t.replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).trim();
   const says = [...src.matchAll(/<span class="wear"[^>]*>([\s\S]*?)<\/span>/g)].map((m) => ent(m[1]));
-  assert.ok(says.length >= 3,
-    `the writing pad, the listening game and 新字's English button each carry a say-it glyph (saw ${says.length})`);
+  assert.ok(says.length >= 4,
+    `the writing pad, the listening game and both English buttons each carry a say-it glyph (saw ${says.length})`);
 
   const cards = [...wcHanzi(), ...wcXinzi(), ...wcWords()];
   assert.ok(cards.length > 700, `only ${cards.length} cards read — this clause would be vacuous`);
@@ -6810,13 +6811,14 @@ test("Word Cards: every 新字 多音字 is taught — and SAID — in the readi
   assert.equal(P.xinBare(plain), plain[0], "a character with one reading must be said as itself");
 });
 
-test("Word Cards: 新字 SAYS each character's meaning and sentence in English, and an English voice never reads Chinese", () => {
+test("Word Cards: 新字 and the 中文 cards SAY each character's meaning and sentence in English, and an English voice never reads Chinese", () => {
   // The owner (2026-09): "he's only 4 so he can't even read English yet by
   // himself. He also needs to know the English translation of each word." The
   // meaning and the sentence's translation were English TEXT — the grown-up's
-  // lines — so the 🇺🇸 button SAYS them. xinEnglish() derives the line from
-  // the meaning the screen shows rather than keeping a second copy, and this
-  // walks every row:
+  // lines — so a 🇺🇸 button SAYS them, on 新字 and on the 中文 cards. Both
+  // buttons ask the ONE derivation, xinEnglish(), which builds the line from the
+  // meaning the screen shows rather than keeping a second copy — so this walks
+  // every row of BOTH decks, the 96 and the 120:
   //  - an ENGLISH part is only what an English voice can say: no han (skipped
   //    or read as noise), no tone-marked pinyin, none of the grown-up's
   //    notation ( ) = : ; — a Chinese word goes in its own part, in a Chinese
@@ -6824,22 +6826,32 @@ test("Word Cards: 新字 SAYS each character's meaning and sentence in English, 
   //  - the line ends on the translation, exactly as the READ step shows it;
   //  - the meaning is said WHOLE: every English and Chinese word it shows is
   //    heard (a second reading, "(also …)", is the grown-up's and is not), and
-  //    nothing is added but "means", so the voice and the screen cannot drift.
+  //    nothing is added but "means", so the voice and the screen cannot drift;
+  //  - an apostrophe only ever sits INSIDE a word ("Dad's"). The 中文 card for 的
+  //    was glossed "'s; of", which passes every clause above and hands an
+  //    English voice a bare "'s" — read as a letter, not a meaning. It says
+  //    "of; belonging to" now, on the screen and aloud alike.
   const P = wcPure();
   const EN = /^[A-Za-z0-9 ,.!?'-]+$/;
+  const LOOSE = /(^|[^A-Za-z])'|'(?![A-Za-z])/;
   const HAN = /[一-鿿]+/g;
   const words = (t) => t.toLowerCase().match(/[a-z']+/g) || [];
   const bad = [];
+  const hanIn = {};
+  for (const [deck, rows] of [["新字", P.XINZI], ["中文", P.HANZI]]) {
   let han = 0;
-  for (const c of P.XINZI) {
+  for (const c of rows) {
     const parts = P.xinEnglish(c);
     for (const [t, l] of parts) {
-      if (l === "en-US") { if (!EN.test(t)) bad.push(`${c[0]}: an English voice would be handed "${t}"`); }
-      else if (l === "zh-CN") { if (!/^[一-鿿]+$/.test(t)) bad.push(`${c[0]}: a Chinese voice would be handed "${t}"`); }
-      else bad.push(`${c[0]}: a part in "${l}"`);
+      if (l === "en-US") {
+        if (!EN.test(t)) bad.push(`${deck} ${c[0]}: an English voice would be handed "${t}"`);
+        else if (LOOSE.test(t)) bad.push(`${deck} ${c[0]}: an English voice would be handed a loose apostrophe in "${t}"`);
+      }
+      else if (l === "zh-CN") { if (!/^[一-鿿]+$/.test(t)) bad.push(`${deck} ${c[0]}: a Chinese voice would be handed "${t}"`); }
+      else bad.push(`${deck} ${c[0]}: a part in "${l}"`);
     }
     const last = parts[parts.length - 1] || ["", ""];
-    if (last[1] !== "en-US" || !last[0].endsWith(c[6])) { bad.push(`${c[0]} does not end on its translation "${c[6]}"`); continue; }
+    if (last[1] !== "en-US" || !last[0].endsWith(c[6])) { bad.push(`${deck} ${c[0]} does not end on its translation "${c[6]}"`); continue; }
     const def = parts.slice(0, -1).concat([[last[0].slice(0, -c[6].length), "en-US"]]);
     const saidEn = new Set(def.filter((p) => p[1] === "en-US").flatMap((p) => words(p[0])));
     const saidZh = def.filter((p) => p[1] === "zh-CN").map((p) => p[0]);
@@ -6847,14 +6859,20 @@ test("Word Cards: 新字 SAYS each character's meaning and sentence in English, 
     const shownEn = new Set(words(shown)), shownZh = shown.match(HAN) || [];
     han += shownZh.length;
     if (!saidZh.length && !words(def.map((p) => p[0]).join(" ")).length)
-      bad.push(`${c[0]} says its sentence but never what it means`);
-    for (const w of shownEn) if (!saidEn.has(w)) bad.push(`${c[0]}'s meaning shows "${w}", which is never said`);
-    for (const w of shownZh) if (!saidZh.includes(w)) bad.push(`${c[0]}'s meaning shows ${w}, which is never said`);
-    for (const w of saidEn) if (w !== "means" && !shownEn.has(w)) bad.push(`${c[0]} says "${w}", which its meaning does not show`);
-    for (const w of saidZh) if (!shownZh.includes(w)) bad.push(`${c[0]} says ${w}, which its meaning does not show`);
+      bad.push(`${deck} ${c[0]} says its sentence but never what it means`);
+    for (const w of shownEn) if (!saidEn.has(w)) bad.push(`${deck} ${c[0]}'s meaning shows "${w}", which is never said`);
+    for (const w of shownZh) if (!saidZh.includes(w)) bad.push(`${deck} ${c[0]}'s meaning shows ${w}, which is never said`);
+    for (const w of saidEn) if (w !== "means" && !shownEn.has(w)) bad.push(`${deck} ${c[0]} says "${w}", which its meaning does not show`);
+    for (const w of saidZh) if (!shownZh.includes(w)) bad.push(`${deck} ${c[0]} says ${w}, which its meaning does not show`);
+  }
+  hanIn[deck] = han;
   }
   assert.deepEqual(bad, [], "the 🇺🇸 line must say the meaning the screen shows, in a voice that can say it");
-  assert.ok(han >= 25, `only ${han} Chinese words in the meanings — the scan failed open`);
+  // Floors per deck, because a derivation fails OPEN: a gloss parser that
+  // stopped finding the Chinese words would pass every clause above. Measured
+  // at 31 and 14.
+  assert.ok(hanIn["新字"] >= 25, `only ${hanIn["新字"]} Chinese words in 新字's meanings — the scan failed open`);
+  assert.ok(hanIn["中文"] >= 10, `only ${hanIn["中文"]} Chinese words in the 中文 meanings — the scan failed open`);
   // The derivation's shapes, restated literally rather than read back from it.
   const say = (ch) => P.xinEnglish(P.XINZI.find((r) => r[0] === ch));
   assert.deepEqual(say("鸡"), [["chicken. We have a chicken at home.", "en-US"]]);
@@ -6863,6 +6881,12 @@ test("Word Cards: 新字 SAYS each character's meaning and sentence in English, 
   assert.deepEqual(say("种"), [["plant. We plant flowers.", "en-US"]], "a second reading is the grown-up's, never said");
   assert.deepEqual(say("住"), [["live, in a place. Grandpa lives in the mountains.", "en-US"]]);
   assert.deepEqual(say("第"), [["第一", "zh-CN"], ["means first.", "en-US"], ["第二", "zh-CN"], ["means second. I came first!", "en-US"]]);
+  // …and the 中文 cards, whose rows are a different array with the same fields.
+  const card = (ch) => P.xinEnglish(P.HANZI.find((r) => r[0] === ch));
+  assert.deepEqual(card("的"), [["of, belonging to. Dad's car.", "en-US"]],
+    "的 is said as a meaning, never as a bare 's");
+  assert.deepEqual(card("阳"), [["太阳", "zh-CN"], ["means sun. The sun is big.", "en-US"]]);
+  assert.deepEqual(card("奶"), [["grandma.", "en-US"], ["牛奶", "zh-CN"], ["means milk. Grandma loves me.", "en-US"]]);
 });
 
 test("Word Cards: everything the page says goes through ONE speaker", () => {

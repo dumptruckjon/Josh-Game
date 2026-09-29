@@ -1052,7 +1052,8 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
         const ltr = document.getElementById("letters");
         const over = (el, box) => el.scrollWidth > box.clientWidth + 1;
         const bad = { word: [], pic: [], strip: [] };
-        let cards = 0, decks = 0;
+        const taps = [];
+        let cards = 0, decks = 0, navMost = 0, ovf = 0, cardW = 0;
         for (const b of buttons) {
           b.click();
           decks += 1;
@@ -1063,17 +1064,24 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
             if (over(ltr, backF)) bad.strip.push(deck[k][0]);
           }
           cards += deck.length;
+          // The tap floor on EVERY whole deck, not just the first: the 中文
+          // cards put an English speaker between ◀ and ▶, so theirs is the
+          // tightest row on the page — and on an English deck that button is
+          // display:none and no tap target at all, which is what
+          // getClientRects() drops (a control shown but squashed keeps a rect).
+          const shown = [...document.querySelectorAll("#deck button")].filter((t) => t.getClientRects().length);
+          for (const t of shown) {
+            const q = t.getBoundingClientRect();
+            const s = Math.round(Math.min(q.width, q.height));
+            if (s < MIN) taps.push({ deck: b.id, id: t.id, s });
+          }
+          navMost = Math.max(navMost, shown.filter((t) => t.closest(".nav")).length);
+          ovf = Math.max(ovf, document.documentElement.scrollWidth - document.documentElement.clientWidth);
+          cardW = document.getElementById("card").clientWidth;   // read while the deck is up
           document.getElementById("back").click();
         }
-        buttons[0].click();                 // leave a deck open for the tap audit
         return {
-          bad, cards, decks, buttons: buttons.length,
-          cardW: document.getElementById("card").clientWidth,
-          ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-          taps: [...document.querySelectorAll("#deck button")]
-            .map((b) => { const q = b.getBoundingClientRect();
-                          return { id: b.id, s: Math.round(Math.min(q.width, q.height)) }; })
-            .filter((t) => t.s < MIN),
+          bad, cards, decks, buttons: buttons.length, taps, navMost, ovf, cardW,
         };
       }, MIN_TAP);
 
@@ -1093,6 +1101,8 @@ test("Word Cards on the real engine: no card is clipped, at any width", async ()
       // sideways are both asserted on Chromium already, and they are here for
       // the one reason this whole file exists — a different engine.
       assert.deepEqual(r.taps, [], `${w}px: deck controls below the 75px floor`);
+      assert.ok(r.navMost >= 3,
+        `${w}px: no deck showed three nav buttons (saw ${r.navMost}) — the 中文 cards' English speaker was never measured`);
       assert.ok(r.ovf <= 0, `${w}px: the deck scrolls sideways by ${r.ovf}px`);
       assert.deepEqual(errs, [], `${w}px: page errors`);
     } finally {
