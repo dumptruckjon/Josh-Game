@@ -63,6 +63,7 @@
   //          centre stands. They sit on the matching ground decal.
   //   trails: lines of one tier-1 bite leading out from the start.
   //   decals: the ground's features (drawn only; nothing stands "on" them).
+  //          Positions are normalized; a width `w` is in world units.
   // The first `starters` tier-1 bites are placed right beside Gobble so the
   // first gulp is instant.
   const SCENES = [
@@ -243,7 +244,7 @@
         { k: "nebula", x: 0.25, y: 0.3, r: 0.35, c: "rgba(255,122,192,0.22)" },
         { k: "nebula", x: 0.78, y: 0.62, r: 0.4, c: "rgba(94,200,255,0.16)" },
         { k: "nebula", x: 0.45, y: 0.9, r: 0.32, c: "rgba(199,125,255,0.22)" },
-        { k: "belt", w: 0.07, pts: [[-0.02, 0.56], [0.5, 0.47], [1.02, 0.58]] },
+        { k: "belt", w: 46, pts: [[-0.02, 0.56], [0.5, 0.47], [1.02, 0.58]] },
         { k: "station", x0: 0.6, y0: 0.7, x1: 0.92, y1: 0.88 },
       ],
       tiers: [
