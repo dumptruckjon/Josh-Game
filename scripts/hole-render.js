@@ -601,7 +601,7 @@
       },
       box: (d, W, H) => { const r = d.r * W; return [d.x * W - r, d.y * H - r, d.x * W + r, d.y * H + r]; },
       draw(c, d, W, H, p) {
-        const cx = d.x * W, cy = d.y * H, r = d.r * W, N = 9;
+        const cx = d.x * W, cy = d.y * H, r = d.r * W, N = 18;   // steps under 1.3% of alpha
         for (let k = 0; k < N; k++) {
           const ro = r * (1 - k / N), ri = r * (1 - (k + 1) / N);
           c.fillStyle = "rgba(" + p.rgb + "," + (p.a * (1 - (ro + ri) / (2 * r))).toFixed(3) + ")";

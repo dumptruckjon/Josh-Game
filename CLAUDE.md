@@ -9605,6 +9605,50 @@ screens are a hand-written list, so the new world's home had to be added to it
 by hand — note it for the next world. And the first probe reported a blank
 page because `baseURL` already ends in `/` (recorded twice before this).
 
+**GOBBLE PHASE 2 — BIG WORLDS (the owner, the same evening: "It's weird to have
+it on one single screen with no scroll").** Each place is now a fixed 300x420
+world of ~200 things, and the canvas is a camera. Seven lessons, and the first
+one nearly shipped a slow renderer as a fast one. (1) **Timing a bare `draw()`
+measures the RECORDING of commands, not the drawing.** It reported 0.3ms a
+frame; with a forced raster (a 1px `getImageData` readback after the draw) the
+same frame cost 95-130ms on an iPad-sized canvas, 4x the one-screen version.
+Measure a canvas with a readback, or by real frame intervals, never by
+wrapping the call. (2) **In a software rasteriser a bitmap PATTERN is the
+expensive way to draw a floor**: a full-screen pattern fill measured 70-115ms
+once it was scaled or sub-pixel (it is filtered per pixel), against ~2ms for a
+solid fill and ~5ms for a screenful of small vector marks, and a gradient is a
+per-pixel shader too (15ms). So the floor is a solid BASE plus vector MARKS
+drawn per 64-unit square (seeded by where the square is, each feature on its
+own seeded stream so skipping one at a far zoom never moves another), the
+light is flat diagonal BANDS, and a nebula is stepped RINGS, each pixel
+filled once. Normal play measured back at parity with the old version (iPad
+16-25ms against 21-27ms); the zoomed-out views stay about 2x, and a finished
+place stops redrawing once its picture is still, so the win's confetti does not
+compete with a picture that is not moving. (3) **A held finger must be re-read
+EVERY FRAME, not only when it moves**: the camera follows Gobble, so the spot
+under a still finger keeps moving ahead of him, which is what makes "hold to one
+side" steer. Without the per-frame read he stops at the spot the finger first
+touched (mutation M1: 13.9 units travelled against 14.0 expected). (4) **A
+snapped test view can hide a transition defect**: the camera zooms out on a
+grow while Gobble's radius eases up, and a camera faster than his growth
+shrinks him on screen at the moment the game says BIGGER. The test samples
+real frames through a grow (mutation: a 10x faster zoom reads 32.2px before
+and 28.9px at the lowest). (5) **The recorded "a live run rewrites a seeded
+save" trap, by a new door**: the reload landed on `#hole-play`, which reopens
+`save.last`, and leaving then saved that run over the seed. Seed from the front
+door. (6) **A helper that takes an optional 4th argument must not be handed
+something else there**: the decal boxes are mostly `circOf(d, W, H, k)`, whose
+4th argument is a size factor, and the prep object went in as it, so the gravel
+pile's box was NaN and it could never draw. One owner (`prepDecals`) now calls
+boxes with three arguments, and a node test proves every decal a place declares
+has a drawing and a finite box on the island. (7) **A clumped thing must grow
+INSIDE its district**, or tulips wander onto the road; overfull districts were
+then enlarged by measuring what failed to fit, not by eye. Two smaller ones: a
+flaky key test was the bot's last aim still moving Gobble when the key was
+read (stop him first), and a clause two guards both deliver (the win's wide
+eyes and its pending puffs keep the picture busy) is written down as such,
+because removing either alone stays green.
+
 ---
 
 ## Repository Structure
