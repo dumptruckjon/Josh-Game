@@ -1303,20 +1303,23 @@ test("guardrail: Look From Above's top-down map stays aligned with the isometric
 });
 
 // ---------- 华丽 (the hidden grandma world) guardrails ----------
-test("the front door: three world tiles open Josh's / 华丽's / the fort DIRECTLY (no gates)", () => {
+test("the front door: four world tiles open Josh's / 华丽's / the fort / Gobble Hole DIRECTLY (no gates)", () => {
   // By request (2026-07) the name gates are gone: the app opens on a start page
-  // whose three tiles navigate straight to each world. Lock both halves — the
-  // start page exists AND no gate machinery remains to re-lock a world.
+  // whose tiles navigate straight to each world. Lock both halves — the start
+  // page exists AND no gate machinery remains to re-lock a world. 🕳️ Gobble
+  // Hole joined as the fourth door (2026-09), placed right after the fort's.
   const html = read("index.html");
   assert.match(html, /id="screen-start"/, "index.html carries the front-door screen");
-  for (const tile of ["start-josh", "start-hl", "start-td"]) {
+  for (const tile of ["start-josh", "start-hl", "start-td", "start-hole"]) {
     assert.ok(html.includes('id="' + tile + '"'), "the front door has the " + tile + " tile");
   }
+  assert.ok(html.indexOf('id="start-hole"') > html.indexOf('id="start-td"'), "the Gobble Hole door comes after the fort's");
   assert.match(html, /id="home-door"/, "Josh's home carries the 🚪 back-to-front-door button");
   const mainjs = read("scripts/main.js");
   assert.match(mainjs, /wire\("start-josh", "#home"\)/, "the Josh tile opens his launcher");
   assert.match(mainjs, /wire\("start-hl", "#hl-home"\)/, "the 👵🏻 tile opens her world directly");
   assert.match(mainjs, /wire\("start-td", "#td-home"\)/, "the 🏰 tile opens the fort directly");
+  assert.match(mainjs, /wire\("start-hole", "#hole-home"\)/, "the 🕳️ tile opens Gobble Hole directly");
   const hm = read("scripts/hl-main.js");
   assert.ok(!/hl-ok/.test(hm) && !/sessionStorage/.test(hm), "no hl-ok session flag / gate remains in her shell");
   assert.ok(!/hl-gate/.test(hm) && !/hl-door/.test(hm), "her name gate + top-bar door are removed");

@@ -206,9 +206,16 @@ body {
   grid-template-columns: minmax(0, 100%);
   gap: var(--pad);
 }
+/* FOUR doors now (🕳️ Gobble Hole joined below 🏰, 2026-09). On a phone they
+   stay one column, so the new door is literally below the fort — which means
+   four tiles, not three, have to fit above the fold. Measured: at the old
+   150px (really 166 — the content outgrew the min-height) the fourth door
+   ended 36px past the fold at 390x780, so a phone's door is a little shorter
+   and its mark 84px. A tablet gets them 2x2 (portrait) or 4 across
+   (landscape) below — an even grid, never a 3+1 orphan. */
 .start-tile {
   position: relative;
-  min-height: 150px;
+  min-height: 136px;
   border: none;
   border-radius: 28px;
   background: var(--card);
@@ -217,8 +224,8 @@ body {
   grid-template-columns: minmax(0, 100%);
   justify-items: center;
   align-content: center;
-  gap: 8px;
-  padding: 16px 12px;
+  gap: 6px;
+  padding: 12px;
 }
 .start-tile:active { transform: scale(0.97); }
 /* ONE shared mark box for all three doors. Measured INK, not boxes: Josh's
@@ -229,7 +236,7 @@ body {
    doors read as peers. */
 .start-tile__icon, .start-tile__art {
   display: flex; align-items: center; justify-content: center;
-  width: 104px; height: 104px; font-size: 4.6rem; line-height: 1;
+  width: 84px; height: 84px; font-size: 3.8rem; line-height: 1;
 }
 .start-tile__art svg { width: 100%; height: 100%; display: block; }
 .start-tile__label { font-size: 1.15rem; font-weight: 800; color: #4a5568; text-align: center; }
@@ -239,6 +246,8 @@ body {
 .start-tile--hl .start-tile__label { color: #7c1f1f; }
 .start-tile--td { background: linear-gradient(135deg, #dfe7ff, #bccdf7); }
 .start-tile--td .start-tile__label { color: #2c3e6b; }
+.start-tile--hole { background: linear-gradient(135deg, #f1e6ff, #d6c2ff); }
+.start-tile--hole .start-tile__label { color: #4b2a86; }
 
 /* ---------- Home launcher ---------- */
 .home__title {
@@ -2673,7 +2682,7 @@ body.hl-mode .brand { color: #ffe9b0; }
      40-card grid could only ever be two stretched columns or four cards
      NARROWER than a phone's, which is the "a tablet must never be stingier"
      law it was caught breaking. */
-  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home) {
+  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-play) {
     /* `width: 100%` is load-bearing, not decoration: `#screens` becomes a
        COLUMN FLEX container in a game (main.css `body.in-game #screens`), and
        an auto cross-axis margin on a flex item cancels the stretch and
@@ -2694,10 +2703,15 @@ body.hl-mode .brand { color: #ffe9b0; }
   .tile--cat .tile__label { font-size: 1.25rem; }
   .tile__badge { font-size: 1.9rem; }
   .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-  .start-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .start-tile { min-height: 260px; }
+  /* Four doors: an even 2x2 in portrait (a 3+1 row would orphan the new one),
+     one row of four in landscape, where the height is what runs out. */
+  .start-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .start-tile { display: grid; min-height: 260px; padding: 16px 12px; gap: 8px; }
   .start-tile__icon, .start-tile__art { width: 148px; height: 148px; font-size: 6rem; }
   .start-tile__label { font-size: 1.4rem; }
+}
+@media (min-width: 600px) and (orientation: landscape) {
+  .start-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* ---------- Short screens: all three doors above the fold ----------
@@ -2709,7 +2723,182 @@ body.hl-mode .brand { color: #ffe9b0; }
    AFTER the tablet block so a short LANDSCAPE tablet gets it too. */
 @media (max-height: 700px) {
   .start__title { margin: 2px 0 8px; font-size: 1.1rem; }
-  .start-tile { min-height: 116px; padding: 10px 12px; }
-  .start-tile__icon, .start-tile__art { width: 74px; height: 74px; font-size: 3.5rem; }
+  .start-tile { display: grid; min-height: 100px; padding: 8px 12px; gap: 4px; }
+  .start-tile__icon, .start-tile__art { width: 60px; height: 60px; font-size: 2.8rem; }
   .start-tile__label { font-size: 1rem; }
+}
+/* …and the smallest phones (320x568) need one more step for FOUR doors. */
+@media (max-height: 600px) {
+  .start-tile { min-height: 88px; padding: 6px 12px; }
+  .start-tile__icon, .start-tile__art { width: 52px; height: 52px; font-size: 2.4rem; }
+}
+
+/* ---------- 🕳️ Gobble Hole (PLAN_GOBBLE.md) ----------
+   A hole-eating game for Josh: drag Gobble around a diorama, eat small things,
+   grow, eat bigger ones. Josh's kid laws are fully ON (every control >= 75px
+   and 16px apart; grid gap only, never flex gap — iOS 14.0 drops it). The
+   playfield is a canvas that sizes itself to the space it is given, so the
+   play screen is a column: the bar, then a field that takes the rest. */
+body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #fff4dc 100%); background-attachment: fixed; }
+.hole-bar { margin-bottom: 12px; }
+.hole-title { color: #4b2a86; }
+.hole-hero { width: 128px; height: 128px; margin: 0 auto 12px; }
+.hole-meter__me svg, .hole-win__gobble svg, .hole-win__buddy svg { width: 100%; height: 100%; display: block; }
+.hole-scenes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--pad);
+}
+.hole-door {
+  position: relative;
+  min-height: 132px;
+  border-radius: 24px;
+  border-bottom: 6px solid #d6c2ff;  /* the scene's own colour, set inline */
+  box-shadow: var(--card-shadow);
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+}
+.hole-door:active { transform: scale(0.97); }
+.hole-door__icon { font-size: 3.4rem; line-height: 1; }
+.hole-door__label { font-size: 1.05rem; font-weight: 800; color: #2e2a55; text-align: center; }
+.hole-door--dark .hole-door__label { color: #ffffff; }
+.hole-door__star { position: absolute; top: 8px; right: 10px; font-size: 1.6rem; line-height: 1; }
+
+body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.hole-meter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.hole-meter__me { width: 42px; height: 42px; }
+.hole-meter__track {
+  display: block;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(75, 42, 134, 0.16);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.hole-meter__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #9d7bff, #ff7ab0);
+  transition: width 0.25s ease;
+}
+.hole-meter__next { font-size: 2.2rem; line-height: 1; }
+.hole-meter--ready .hole-meter__next { animation: holeReady 0.9s ease-in-out infinite alternate; }
+.hole-meter--pop .hole-meter__next { animation: holePop 0.6s ease; }
+@keyframes holeReady { from { transform: scale(1); } to { transform: scale(1.18); } }
+@keyframes holePop { 0% { transform: scale(1); } 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+
+.hole-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 200px;
+  border-radius: 20px;
+  overflow: hidden;
+}
+/* The canvas is positioned, so its own pixel size can never feed back into the
+   field's size (a resize loop). touch-action: none — a drag is the whole game
+   and must never scroll or zoom the page. */
+.hole-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.hole-hand {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  margin: -4px 0 0 -18px;
+  font-size: 3rem;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
+}
+.hole-win {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgba(40, 20, 80, 0.45);
+}
+.hole-win__box {
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 28px;
+  background: #fffdf6;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+}
+.hole-win__cheer { display: grid; grid-template-columns: repeat(2, 96px); gap: var(--pad); }
+.hole-win__buddy, .hole-win__gobble { width: 96px; height: 96px; }
+.hole-win__buddy { display: flex; align-items: center; justify-content: center; font-size: 4rem; }
+.hole-win__count { margin: 0; font-size: 2rem; font-weight: 900; color: #4b2a86; }
+.hole-win__wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  width: 100%;
+  font-size: 1.6rem;
+  line-height: 1.35;
+  text-align: center;
+}
+.hole-win__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--pad);
+  width: 100%;
+}
+.hole-win__row .btn-big { min-width: 0; padding: 0 12px; font-size: 1.8rem; }
+
+@media (min-width: 600px) {
+  .hole-scenes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hole-door { min-height: 180px; }
+  .hole-door__icon { font-size: 4.6rem; }
+  .hole-door__label { font-size: 1.3rem; }
+  .hole-hero { width: 160px; height: 160px; }
+}
+/* Short LANDSCAPE (a phone on its side): the site's 96px top bar took a
+   quarter of the height, and the island measured 1.5 px per unit — a 12px
+   Gobble. Landscape is not a design target, but it must stay playable: while
+   PLAYING, the bar steps aside (the sound toggle is on every other screen). */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.hole-mode.in-game .topbar { display: none; }
+}
+@media (max-height: 700px) {
+  .hole-hero { width: 80px; height: 80px; margin-bottom: 8px; }
+  .hole-door { min-height: 116px; }
+  .hole-door__icon { font-size: 2.8rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hole-meter--ready .hole-meter__next, .hole-meter--pop .hole-meter__next { animation: none; }
+  .hole-meter__fill { transition: none; }
+  .hole-door:active { transform: none; }
 }

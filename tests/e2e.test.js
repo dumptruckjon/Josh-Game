@@ -3456,6 +3456,7 @@ test("CONTRAST: every ACTIVE text run in Josh's and 华丽's worlds clears AA", 
     await look("#stickers", "#screen-stickers", "sticker book");
     await look("#hl-home", "#screen-hl-home", "hl home");
     await look("#hl-stickers", "#screen-hl-stickers", "hl book");
+    await look("#hole-home", "#screen-hole-home", "gobble home");   // 🕳️ the fourth world's picker
     // DERIVED from the live registry, so a 241st game is audited the day it lands
     const ids = await pg.evaluate(() => (window.JoshGames || []).map((g) => g.id));
     assert.ok(ids.length >= 200, `only ${ids.length} games registered — the walk would be near-vacuous`);

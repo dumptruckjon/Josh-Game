@@ -137,7 +137,7 @@ test("the viewport meta opts into safe areas", async () => {
   assert.match(content, /viewport-fit=cover/);
 });
 
-test("the front door: three giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
+test("the front door: four giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
   // This test ran at a fixed 780px height, which is exactly why it never saw
   // the defect: measured on the shipped build, the THIRD door was 152px below
   // the fold at 320x568, 42px at 360x640, 15px at 375x667 and 63px in
@@ -147,7 +147,9 @@ test("the front door: three giant world tiles, all ABOVE THE FOLD, marks equally
   for (const [w, h] of [[390, 780], [320, 780], [320, 568], [375, 667], [844, 390], [810, 1080]]) {
     await page.setViewportSize({ width: w, height: h });
     await showScreen(page, "#start", "#screen-start");
-    assert.equal(await page.locator(".start-tile").count(), 3, "three world tiles");
+    // 🕳️ Gobble Hole joined as the fourth door (2026-09): four tiles, not
+    // three, must now fit above the fold at every size in this list.
+    assert.equal(await page.locator(".start-tile").count(), 4, "four world tiles");
     await noOverflow(page, `start@${w}x${h}`);
     await auditActiveScreen(page, `start@${w}x${h}`);
     const m = await page.evaluate(() => {
@@ -162,10 +164,67 @@ test("the front door: three giant world tiles, all ABOVE THE FOLD, marks equally
       };
     });
     assert.ok(m.last <= m.vh,
-      `all three doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
+      `all four doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
     assert.ok(Math.max(...m.offsets) - Math.min(...m.offsets) <= 4,
-      `the three doors must carry equally-weighted marks at ${w}x${h} — label offsets ${m.offsets.join("/")}`);
+      `the doors must carry equally-weighted marks at ${w}x${h} — label offsets ${m.offsets.join("/")}`);
   }
+});
+
+test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every tap is big and apart — phone AND iPad", async () => {
+  // Kid laws are fully ON in this world (unlike the fort). The play screen is a
+  // canvas that sizes itself to its field, so the page must never scroll in
+  // portrait — a drag is the whole game, and a page that moves under the
+  // finger is the one thing it must not do.
+  for (const [w, h] of [[390, 844], [320, 568], [834, 1112]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await showScreen(page, "#hole-home", "#screen-hole-home");
+    await noOverflow(page, `hole-home@${w}x${h}`);
+    await auditActiveScreen(page, `hole-home@${w}x${h}`);
+    await page.evaluate(() => window.__HOLE.start("party", {}));
+    await showScreen(page, "#hole-play", "#screen-hole-play");
+    await page.waitForTimeout(300);
+    await noOverflow(page, `hole-play@${w}x${h}`);
+    await auditActiveScreen(page, `hole-play@${w}x${h}`);
+    const fit = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, vh: innerHeight,
+      field: document.querySelector(".hole-field").getBoundingClientRect().height }));
+    assert.ok(fit.sh <= fit.vh + 1, `hole-play@${w}x${h}: the page must not scroll in portrait (${fit.sh} > ${fit.vh})`);
+    assert.ok(fit.field >= 200, `hole-play@${w}x${h}: the field gets a real share of the screen (${Math.round(fit.field)}px)`);
+    // a TOUCH drag moves Gobble (pointer events, as a finger sends them)
+    const moved = await page.evaluate(async () => {
+      const st = window.__HOLE.state(), h = st.hole, cv = document.querySelector(".hole-canvas");
+      const a = window.__HOLE.toScreen(h.x, h.y), b = window.__HOLE.toScreen(h.x, h.y - st.H * 0.3);
+      const ev = (type, p) => cv.dispatchEvent(new PointerEvent(type, { pointerId: 11, isPrimary: true, pointerType: "touch",
+        clientX: p.x, clientY: p.y, bubbles: true, cancelable: true }));
+      const y0 = h.y;
+      ev("pointerdown", a);
+      for (let i = 1; i <= 6; i++) ev("pointermove", { x: a.x, y: a.y + ((b.y - a.y) * i) / 6 });
+      await new Promise((r) => setTimeout(r, 700));
+      ev("pointerup", b);
+      return y0 - window.__HOLE.state().hole.y;
+    });
+    assert.ok(moved > 5, `hole-play@${w}x${h}: a touch drag moves Gobble (${moved.toFixed(1)} units)`);
+    // the win screen
+    await page.evaluate(() => window.__HOLE.autoplay(60 * 120));
+    await page.locator(".hole-win").waitFor({ state: "visible", timeout: 5000 });
+    await noOverflow(page, `hole-win@${w}x${h}`);
+    await auditActiveScreen(page, `hole-win@${w}x${h}`);
+    // The buttons must be ON SCREEN with no scrolling at all — not "the box
+    // overflows, so it can be scrolled to" (overflow is not reachability, a
+    // proxy this repo has paid for; and a four-year-old will not scroll a
+    // dialog to find what to tap next). Measured: with the wall first, the
+    // buttons sat below the fold at 320x568.
+    const btn = await page.evaluate(() => [".hole-again", ".hole-next"].map((q) => {
+      const b = document.querySelector(q).getBoundingClientRect();
+      const box = document.querySelector(".hole-win__box").getBoundingClientRect();
+      return { q, top: Math.round(b.top), bottom: Math.round(b.bottom), boxBottom: Math.round(box.bottom), vh: innerHeight };
+    }));
+    for (const b of btn) {
+      assert.ok(b.bottom <= b.boxBottom && b.bottom <= b.vh && b.top >= 0,
+        `hole-win@${w}x${h}: ${b.q} must be visible without scrolling (it spans ${b.top}..${b.bottom}, the box ends at ${b.boxBottom}, the screen at ${b.vh})`);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
 });
 
 test("home launcher: no overflow + big well-spaced tiles at phone AND tablet sizes", async () => {

@@ -96,9 +96,10 @@
     }
   });
 
-  // ---- The front door (#screen-start): three tiles, one per world ----
+  // ---- The front door (#screen-start): four tiles, one per world ----
   // The app opens here. Each tile navigates DIRECTLY to its world — no name
-  // gates (removed by request 2026-07): Josh's 200 games, 华丽's 40, the fort.
+  // gates (removed by request 2026-07): Josh's 200 games, 华丽's 40, the fort,
+  // and 🕳️ Gobble Hole (2026-09).
   function initStart() {
     const screen = document.getElementById("screen-start");
     if (!screen) return;
@@ -117,6 +118,7 @@
     wire("start-josh", "#home");
     wire("start-hl", "#hl-home");
     wire("start-td", "#td-home");
+    wire("start-hole", "#hole-home");
     wire("home-door", ""); // 🚪 on Josh's home returns to the front door
   }
 
@@ -455,6 +457,13 @@
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
     document.querySelectorAll(".screen").forEach((s) => { s.hidden = true; });
 
+    // Leaving 🕳️ Gobble Hole for anywhere else parks its run and drops its
+    // theme. This runs BEFORE the fort's branch returns, so walking from one
+    // delegated world straight into the other still leaves the first cleanly.
+    if (id.indexOf("hole-") !== 0) {
+      try { if (window.GobbleHole && window.GobbleHole.onLeave) window.GobbleHole.onLeave(); } catch (e) { /* ignore */ }
+    }
+
     // 🏰 the fort (Dad's TD world, opened from the front door — no gate).
     // JonTD.route handles every known td-* hash; an unknown one falls through
     // to the front door. Leaving the fort pauses its game loop and drops the
@@ -468,6 +477,17 @@
       return;
     }
     try { if (window.JonTD && window.JonTD.onLeave) window.JonTD.onLeave(); } catch (e) { /* ignore */ }
+
+    // 🕳️ Gobble Hole (a hole-eating game, PLAN_GOBBLE.md): GobbleHole.route
+    // handles every known hole-* hash; an unknown one falls through to the
+    // front door. Isolated like the fort: its failure can never break the site.
+    if (id.indexOf("hole-") === 0) {
+      try {
+        if (window.GobbleHole && window.GobbleHole.route && window.GobbleHole.route(id)) return;
+      } catch (e) { /* a Gobble failure must never break Josh's site */ }
+      location.hash = "";
+      return;
+    }
 
     // The front door: no hash (or #start) shows the three world tiles.
     const startScreen = document.getElementById("screen-start");

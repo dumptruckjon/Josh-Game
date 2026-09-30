@@ -64,7 +64,7 @@
   </header>
 
   <main id="screens">
-    <!-- The front door: the app opens here — three big tiles, one per world.
+    <!-- The front door: the app opens here — four big tiles, one per world.
          No name gates: each tile navigates straight to its world. -->
     <section id="screen-start" class="screen start">
       <h1 class="start__title">Who's playing? 👇</h1>
@@ -80,6 +80,12 @@
         <button id="start-td" class="start-tile start-tile--td tap" type="button" role="listitem" aria-label="Fort Josh: Toybox Defense">
           <span class="start-tile__icon" aria-hidden="true">🏰</span>
           <span class="start-tile__label">Fort Josh</span>
+        </button>
+        <!-- 🕳️ Gobble Hole: a hole-eating game (PLAN_GOBBLE.md), right below the
+             fort. hole-main.js swaps the emoji for its Gobble drawing. -->
+        <button id="start-hole" class="start-tile start-tile--hole tap" type="button" role="listitem" aria-label="Gobble Hole">
+          <span class="start-tile__art art-fill" aria-hidden="true">🕳️</span>
+          <span class="start-tile__label">Gobble Hole</span>
         </button>
       </div>
     </section>
@@ -126,6 +132,10 @@
   <script src="scripts/td-render.js?v=__BUILD__" defer></script>
   <script src="scripts/td-ui.js?v=__BUILD__" defer></script>
   <script src="scripts/td-main.js?v=__BUILD__" defer></script>
+  <script src="scripts/hole-data.js?v=__BUILD__" defer></script>
+  <script src="scripts/hole-logic.js?v=__BUILD__" defer></script>
+  <script src="scripts/hole-render.js?v=__BUILD__" defer></script>
+  <script src="scripts/hole-main.js?v=__BUILD__" defer></script>
   <script src="scripts/main.js?v=__BUILD__" defer></script>
 </body>
 </html>

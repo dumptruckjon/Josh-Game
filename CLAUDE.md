@@ -25,9 +25,12 @@ preschooler.
 ## 🎯 CURRENT FOCUS (owner, 2026-09-24) — read this before starting ANY work
 
 Until the owner says otherwise:
-- **Word Cards only** (`wordcards.html`: the English deck, 中文, 写字, 配对,
-  👂 Hear it, find it and 新字). Leave Josh's other games, 华丽's world and Fort Josh
-  alone; the owner said to ignore them "for now".
+- **Word Cards** (`wordcards.html`: the English deck, 中文, 写字, 配对,
+  👂 Hear it, find it and 新字) **and 🕳️ Gobble Hole** (the owner's pick of
+  2026-09-30: "a hole eating game like hole.io, Donut County or Hole em All",
+  as a new button below the fort — PLAN_GOBBLE.md, `scripts/hole-*.js`). Leave
+  Josh's other games, 华丽's world and Fort Josh alone; the owner said to ignore
+  them "for now".
 - **Work through the owner's picks, one at a time.** After each one, send a
   short plain summary (what changed, and whether it is live), then STOP. Do
   nothing they did not pick. While this focus stands it takes precedence over
@@ -9541,6 +9544,41 @@ green.** The old Hear-it test cannot see the 12px bar gap, and without the
 probe's font line the chip clause cannot see the 2.3px overflow. A text
 measurement taken in the wrong font measures nothing.
 
+**🕳️ GOBBLE HOLE (the owner's pick, 2026-09-30) — a fourth world, and six
+things the build taught that were each invisible until measured or looked at.**
+(1) **A scene's SIZES must not be tuned; derive them and write the law.** Every
+level radius comes from the scene's own biggest thing and every grow threshold
+from what is edible so far, and a TIER LAW requires the next tier to still be
+too big — so a new place cannot be unwinnable or skip its "too big, grow
+first!" moment. A greedy bot then finishes every scene at every aspect in node,
+which is the fort's test strategy applied to a toy. (2) **Hard dark shadow
+ellipses read as "circles after circles" again** — the defect the owner once
+reported in the fort — the moment the big things got theirs (a 140px blob under
+the castle). One pre-rendered soft sprite, drawn as its own ground pass before
+any object so no shadow darkens a thing behind it. Found by LOOKING at six
+scenes, not by any number. (3) **Landscape was a 12px Gobble**: the island's
+aspect was clamped to portrait shapes, so a wide field letterboxed it to scale
+1.5. The aspect range was widened to 1.7 — only after re-running the layout and
+the bot at every aspect in the new range, since a range is a claim the engine
+has to keep. (4) **The win screen's buttons sat below the fold on a 320x568
+phone** under the wall of eaten things, and my first assertion could not see
+it: it accepted "the box overflows, so it can be scrolled to" — the overflow-
+is-not-reachability proxy this file already records. The buttons come before
+the wall now, and the clause asserts they are visible with no scrolling
+(mutation-proven: the old order reports 640..716 against a 568 screen).
+(5) **A thing already falling into the hole counts as eaten in the save** —
+otherwise leaving mid-gulp brings it back standing on the rim. (6) **A
+mutation that stayed GREEN named the one job only one line does**: removing the
+leave hook changed nothing observable, because the loop, the sounds and the
+timers each also check that the screen is visible; what ONLY the hook does is
+save where Gobble stands, so that is what the resume test now pins. Two
+recorded traps bit on the way and are worth repeating: the canvas-floor scan
+matched my own comment explaining why the code does NOT use `roundRect` (a scan
+counting its own documentation), and the kid-world contrast audit's navigation
+screens are a hand-written list, so the new world's home had to be added to it
+by hand — note it for the next world. And the first probe reported a blank
+page because `baseURL` already ends in `/` (recorded twice before this).
+
 ---
 
 ## Repository Structure
@@ -9550,7 +9588,7 @@ tooling.
 
 ```
 .
-├── index.html                  # The whole site: front door (#screen-start, 3 world tiles) + Josh's launcher shell; all other screens injected. Also carries the ONE shared `.jart-defs` block — 3 ALPHA-ONLY shading gradients (jart-lit/dome/ground) that every JoshArt picture references by stable id (per-picture defs collapse — see the learnings)
+├── index.html                  # The whole site: front door (#screen-start, 4 world tiles) + Josh's launcher shell; all other screens injected. Also carries the ONE shared `.jart-defs` block — 3 ALPHA-ONLY shading gradients (jart-lit/dome/ground) that every JoshArt picture references by stable id (per-picture defs collapse — see the learnings)
 ├── wordcards.html              # 🃏 Word Cards — a 623-card flash-card deck and the
 │                               #   reading tool Josh actually practises on. Self-contained page,
 │                               #   opened from the 76px slot in Josh's home bar. Four DERIVED
@@ -9702,7 +9740,11 @@ tooling.
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   ├── hanzi-strokes.js        # 写字 + 新字: stroke-order data for the 216 characters Word Cards teaches (the 120 of the 中文 cards, then the 96 新字) — every stroke's OUTLINE and its CENTRE-LINE, so the pad can both draw a stroke and score his finger against it, and a lesson can write one in order. GENERATED (a 216-character subset of hanzi-writer-data, from Make Me a Hanzi, under the Arphic Public License — see the file's own header and ARPHICPL.TXT); never hand-edit a path, re-derive it. Loaded with a <script src> deliberately: that is what puts it inside the precache scan, the offline boot test and the page-asset walk, every one of which reads the page's src attributes and is blind to a fetch()
-│   └── main.js                 # Front door (#screen-start: 3 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD (try/catch-isolated)
+│   ├── hole-data.js            # 🕳️ Gobble Hole: ALL scene content + tuning (dual-export: window.HoleData + module.exports) — 6 scenes, each five size tiers + a finale (~41 things), the RULES the engine derives every size and grow from, and what Gobble SAYs. Nothing alive is ever eaten (a Unicode-range law, not a list)
+│   ├── hole-logic.js           # 🕳️ the PURE deterministic engine (60Hz fixed step, seeded rng, zero DOM, dual-export): layout by best-candidate sampling (finale top-centre, 3 starters beside Gobble), the 3/4-view ground metric, fit / fall / magnet / too-big bump, the DERIVED size ladder (R and C from the scene's own objects), the win + vortex, the hint, save/restore that stores only WHICH things were eaten
+│   ├── hole-render.js          # 🕳️ canvas renderer (reads state, never mutates): a baked diorama per scene and size, emoji sprites rendered once and cropped to their real ink (a coloured ball if the font has no glyph), soft shadow sprites as one ground pass, the hole with googly eyes, the falling clip, crumbs / rings / stars / burp
+│   ├── hole-main.js            # 🕳️ window.GobbleHole: #hole-home (six scene doors) + #hole-play (bar, growth meter ending in a PICTURE of the next thing, canvas field, demo hand, win screen), routing (main.js delegates hole-*), one-finger input, the loop ONLY while visible, mute-gated sound via JoshAudio, the `josh-gobble-v1` save (coerced field by field), an arrival echo guard, and the window.__HOLE test hooks
+│   └── main.js                 # Front door (#screen-start: 4 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD and hole-* through GobbleHole (both try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
 │   ├── art.test.js             # UNIT tests for scripts/art.js — every kind is a well-formed 100x100 svg, numberFriend is countable, hero is a figure not a blob, the 200 Sticker Book prizes are all distinct, and the shared-gradient contract (no per-picture <defs>, only ids index.html declares)
@@ -9720,6 +9762,8 @@ tooling.
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
+│   ├── hole-logic.test.js      # 🕳️ headless engine: layout at every aspect, the tier law, reachable grows, physics, a bot finishing EVERY scene, the vortex, save/restore, hostile saves, nothing alive
+│   ├── hole.test.js            # 🕳️ Playwright: the fourth door, the demo hand, a real drag that eats, tap-to-glide, too-big, the meter, the win screen, resume, sound gating, the loop pausing, the echo guard
 │   ├── state-cues.js           # the ONE owner of how a TRANSLUCENT state pair is carried (composite / transient /
 │   │                           #   attribute): site.test.js's colour law requires it to EQUAL what it derives, both
 │   │                           #   ways, and e2e.test.js measures every `composite` entry as PAINTED PIXELS
@@ -9784,6 +9828,7 @@ tooling.
 │                               #   boss to carry `hurry` — it does not hit you, it makes the party ARRIVE FASTER.
 ├── PLAN_WORLD_9.md             # 🏭 ✅ BUILT (this line said "DESIGNED, NOT BUILT" for a release AFTER the world shipped — the "a list that outlives its contents" class, caught 2026-08 by reading DATA.LEVELS instead of the doc): World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
+├── PLAN_GOBBLE.md              # 🕳️ ✅ BUILT: Gobble Hole — the design (character, controls, derived growth, six scenes, the "super fun" checklist, architecture, tests) and §9, what was deliberately NOT built (a 2-player mode; Sticker Book stickers)
 └── CLAUDE.md                   # This file
 ```
 
@@ -9796,12 +9841,15 @@ Update this tree whenever files are added or moved.
 ## Current Site Behavior
 
 The app opens on **the front door** (`#screen-start`, the empty-hash route): a
-start page with **three giant world tiles** — Josh's `JoshArt.friend` portrait →
-his 200 games (`#home`), 👵🏻 → 华丽's 40 Chinese games (`#hl-home`), and 🏰 →
-Fort Josh (`#td-home`). **Each tile navigates directly — the old name gates
-(华丽 / "Jon") were REMOVED by request (2026-07)**; the worlds are open, and
-each world's home has a way back to the front door (Josh's 🚪, her 🏠, the
-fort's exit). A junk/unknown hash clears to the front door.
+start page with **four giant world tiles** — Josh's `JoshArt.friend` portrait →
+his 200 games (`#home`), 👵🏻 → 华丽's 40 Chinese games (`#hl-home`), 🏰 →
+Fort Josh (`#td-home`), and Gobble → 🕳️ Gobble Hole (`#hole-home`, 2026-09).
+One column on a phone (so the new door is literally below the fort), 2x2 on a
+tablet in portrait and four across in landscape, all four above the fold at
+every size the mobile suite measures. **Each tile navigates directly — the old
+name gates (华丽 / "Jon") were REMOVED by request (2026-07)**; the worlds are
+open, and each world's home has a way back to the front door (Josh's 🚪, her
+🏠, the fort's exit, Gobble's 🚪). A junk/unknown hash clears to the front door.
 
 Inside Josh's world: a **launcher home screen** (`#screen-home`) on a
 **static** sky→meadow→sun gradient: a big grid of friendly game **tiles** (icon
@@ -9981,6 +10029,41 @@ How it works (keep these invariants):
 - Every screen (nav + game) is openly deep-linkable — her home 🏠 returns to
   the front door, and a junk `#hl-*` hash clears to the front door without
   leaving her red-gold theme painted.
+
+### 🕳️ Gobble Hole — a hole-eating world for Josh (PLAN_GOBBLE.md)
+
+The owner's pick (2026-09-30): "a hole eating game like hole.io, Donut County
+or Hole em All … eat more and more of it to get progressively larger … super
+fun for a 4 year old". Josh drags **Gobble** — a round mouth in the ground with
+two big googly eyes — around a toy-box diorama: small things fall in, Gobble
+grows, bigger things fit, and at the end he swallows the biggest thing in the
+place (a castle, a ferris wheel, the school, the Sun), burps, and a vortex
+slurps up whatever is left. Six places (Toy Room, Picnic Park, Building Site,
+Busy Town, Party Time, Outer Space — where Gobble is a black hole), each ~41
+things in five size tiers plus the finale. Kid laws are fully ON (unlike the
+fort): every control ≥75px and 16px apart, no timer, no failure (a too-big
+thing just wobbles and Gobble looks up at it), one finger (extra fingers
+ignored), sound off by default, playable muted. The first time, a ghost hand
+drags Gobble onto a sweet; 👂 shows it again. The growth meter ends in a
+PICTURE of the next thing he will be able to eat. A finished place wears a ⭐.
+
+Invariants (guardrail-locked in `tests/hole-logic.test.js`, `tests/hole.test.js`,
+`mobile.test.js` and `site.test.js`):
+- **The engine decides everything and is pure** (`hole-logic.js`: 60Hz fixed
+  step, seeded rng, zero DOM, dual export), so node plays whole scenes: every
+  scene lays out cleanly and is finished by a greedy bot at EVERY aspect.
+- **Sizes are DERIVED, never tuned**: level L eats tiers ≤ L+1; `R[L]` clears
+  tier L+1's biggest thing and the TIER LAW requires tier L+2 to still be too
+  big; a grow needs at most ~62% of what is edible so far.
+- **One ground metric** (`hypot(dx, dy / SQ)`) for physics and picture alike,
+  so a thing falls in exactly when it looks inside the hole.
+- **The save stores only which things were eaten** (a falling thing counts as
+  eaten); xp and size are re-derived, so a hostile save cannot inflate Gobble,
+  and the whole `josh-gobble-v1` save is coerced field by field.
+- **Never registered in `JoshFramework`** — a world, not a game: Josh's
+  Sticker Book stays exactly 200.
+- The loop runs **only while the play screen is visible**; every delayed thing
+  goes through a timer that dies with the screen.
 
 ### 🏰 Fort Josh: Toybox Defense — the world for JON (dad)
 
