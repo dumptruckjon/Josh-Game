@@ -9766,10 +9766,10 @@ tooling.
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   ├── hanzi-strokes.js        # 写字 + 新字: stroke-order data for the 216 characters Word Cards teaches (the 120 of the 中文 cards, then the 96 新字) — every stroke's OUTLINE and its CENTRE-LINE, so the pad can both draw a stroke and score his finger against it, and a lesson can write one in order. GENERATED (a 216-character subset of hanzi-writer-data, from Make Me a Hanzi, under the Arphic Public License — see the file's own header and ARPHICPL.TXT); never hand-edit a path, re-derive it. Loaded with a <script src> deliberately: that is what puts it inside the precache scan, the offline boot test and the page-asset walk, every one of which reads the page's src attributes and is blind to a fetch()
-│   ├── hole-data.js            # 🕳️ Gobble Hole: ALL scene content + tuning (dual-export: window.HoleData + module.exports) — 6 scenes, each five size tiers + a finale (~41 things), the RULES the engine derives every size and grow from, and what Gobble SAYs. Nothing alive is ever eaten (a Unicode-range law, not a list)
-│   ├── hole-logic.js           # 🕳️ the PURE deterministic engine (60Hz fixed step, seeded rng, zero DOM, dual-export): layout by best-candidate sampling (finale top-centre, 3 starters beside Gobble), the 3/4-view ground metric, fit / fall / magnet / too-big bump, the DERIVED size ladder (R and C from the scene's own objects), the win + vortex, the hint, save/restore that stores only WHICH things were eaten
-│   ├── hole-render.js          # 🕳️ canvas renderer (reads state, never mutates): a baked diorama per scene and size, emoji sprites rendered once and cropped to their real ink (a coloured ball if the font has no glyph), soft shadow sprites as one ground pass, the hole with googly eyes, the falling clip, crumbs / rings / stars / burp
-│   ├── hole-main.js            # 🕳️ window.GobbleHole: #hole-home (six scene doors) + #hole-play (bar, growth meter ending in a PICTURE of the next thing, canvas field, demo hand, win screen), routing (main.js delegates hole-*), one-finger input, the loop ONLY while visible, mute-gated sound via JoshAudio, the `josh-gobble-v1` save (coerced field by field), an arrival echo guard, and the window.__HOLE test hooks
+│   ├── hole-data.js            # 🕳️ Gobble Hole: ALL scene content + tuning (dual-export: window.HoleData + module.exports) — 6 places, each a BIG world (300x420 units, several screens across) of ~200 things in five size tiers + a finale, placed in DISTRICTS (zones) with CLUMPS and TRAILS, plus the ground's features (decals: rugs, roads, ponds, a dance floor…), the RULES the engine derives every size, grow, zoom and speed from, and what Gobble SAYs. Nothing alive is ever eaten (a Unicode-range law, not a list)
+│   ├── hole-logic.js           # 🕳️ the PURE deterministic engine (60Hz fixed step, seeded rng, zero DOM, dual-export): a FIXED world per place (the screen has no say in it) laid out by best-candidate sampling — the finale top-centre on its stage, 3 starters beside Gobble, trails of bites leading out, clumps grown INSIDE their district — the 3/4-view ground metric, fit / fall / magnet / too-big bump, the DERIVED size ladder (R from the place's own things, each grow GROW_BITES bites of the newest tier), `viewSpan`/`zoomScale` (the camera's zoom and Gobble's speed are ONE curve, so he crosses about a screen a second at every size), the win + vortex, the hint, save/restore (a layout version `v`; a run stores only WHICH things were eaten)
+│   ├── hole-render.js          # 🕳️ canvas renderer (reads state, never mutates) — a CAMERA onto the big world: it follows Gobble (a short lag, no look-ahead), zooms out as he grows (`HoleLogic.viewSpan`), never looks more than a rim past the island, opens a fresh place with a look at the whole island and pulls back to it for the win. The ground is drawn every frame (one repeating texture tile + vector decals culled by their box; `prepDecals` is the one owner), only on-screen things are drawn, every emoji's ink is measured ONCE and sprites come in half-octave steps (a coloured ball if the font has no glyph), soft shadow sprites as one ground pass, the hole with googly eyes, the falling clip, crumbs / rings / stars / burp, and the NEVER-LOST edge arrow
+│   ├── hole-main.js            # 🕳️ window.GobbleHole: #hole-home (six scene doors) + #hole-play (bar, growth meter ending in a PICTURE of the next thing, canvas field, demo hand, win screen), routing (main.js delegates hole-*), one-finger CHASE steering (hold anywhere and he heads for the spot under the finger, re-read every frame, so a finger held to one side keeps him going; a tap sends him there; a tap on the edge arrow sends him to the thing it shows; arrow keys step a quarter of the view), the loop ONLY while visible, mute-gated sound via JoshAudio, the `josh-gobble-v1` save (coerced field by field; a run from another layout is dropped, its ⭐ kept), an arrival echo guard, and the window.__HOLE test hooks
 │   └── main.js                 # Front door (#screen-start: 4 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD and hole-* through GobbleHole (both try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
@@ -9788,8 +9788,8 @@ tooling.
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
-│   ├── hole-logic.test.js      # 🕳️ headless engine: layout at every aspect, the tier law, reachable grows, physics, a bot finishing EVERY scene, the vortex, save/restore, hostile saves, nothing alive
-│   ├── hole.test.js            # 🕳️ Playwright: the fourth door, the demo hand, a real drag that eats, tap-to-glide, too-big, the meter, the win screen, resume, sound gating, the loop pausing, the echo guard
+│   ├── hole-logic.test.js      # 🕳️ headless engine: every BIG world lays out (districts, whole clumps, trails that lead out, a finale that is a real journey), the tier law, derived grows, zoom and speed as one curve, physics, a bot finishing EVERY place, the vortex, save/restore v2, hostile saves, nothing alive, and every ground feature a place declares has a drawing and a real box
+│   ├── hole.test.js            # 🕳️ Playwright: the fourth door, the demo hand, a real drag that eats, tap-to-glide, a held finger that keeps him going, arrow keys, too-big, the meter, the win screen, resume, sound gating, the loop pausing, the echo guard — and the camera: follows him and stays on the island, a grow zooms out without ever shrinking him (sampled over real frames), only on-screen things drawn, the edge arrow, the opening look, the win pull-back, a phase-1 run dropped with its ⭐ kept
 │   ├── state-cues.js           # the ONE owner of how a TRANSLUCENT state pair is carried (composite / transient /
 │   │                           #   attribute): site.test.js's colour law requires it to EQUAL what it derives, both
 │   │                           #   ways, and e2e.test.js measures every `composite` entry as PAINTED PIXELS
@@ -10065,27 +10065,46 @@ two big googly eyes — around a toy-box diorama: small things fall in, Gobble
 grows, bigger things fit, and at the end he swallows the biggest thing in the
 place (a castle, a ferris wheel, the school, the Sun), burps, and a vortex
 slurps up whatever is left. Six places (Toy Room, Picnic Park, Building Site,
-Busy Town, Party Time, Outer Space — where Gobble is a black hole), each ~41
-things in five size tiers plus the finale. Kid laws are fully ON (unlike the
-fort): every control ≥75px and 16px apart, no timer, no failure (a too-big
-thing just wobbles and Gobble looks up at it), one finger (extra fingers
-ignored), sound off by default, playable muted. The first time, a ghost hand
-drags Gobble onto a sweet; 👂 shows it again. The growth meter ends in a
-PICTURE of the next thing he will be able to eat. A finished place wears a ⭐.
+Busy Town, Party Time, Outer Space — where Gobble is a black hole). Since
+**phase 2 (the owner, the same evening: "It's weird to have it on one single
+screen with no scroll")** each place is a BIG world several screens across,
+with ~200 things in five size tiers plus the finale, arranged in districts,
+clumps and trails; the screen is a CAMERA that follows Gobble and pulls back as
+he grows, opens a fresh place with a look at the whole island, and pulls back
+to all of it for the win. Steering is hole.io's: hold anywhere and he heads for
+the spot under the finger — a finger held to one side keeps him going — and a
+tap sends him there. When nothing he can eat is in view, an arrow bubble at the
+screen's edge shows the nearest bite and points at it; tapping it sends him
+there. Kid laws are fully ON (unlike the fort): every control ≥75px and 16px
+apart, no timer, no failure (a too-big thing just wobbles and Gobble looks up
+at it), one finger (extra fingers ignored), sound off by default, playable
+muted. The first time, a ghost hand drags Gobble onto a sweet; 👂 shows it
+again. The growth meter ends in a PICTURE of the next thing he will be able to
+eat. A finished place wears a ⭐.
 
 Invariants (guardrail-locked in `tests/hole-logic.test.js`, `tests/hole.test.js`,
 `mobile.test.js` and `site.test.js`):
 - **The engine decides everything and is pure** (`hole-logic.js`: 60Hz fixed
-  step, seeded rng, zero DOM, dual export), so node plays whole scenes: every
-  scene lays out cleanly and is finished by a greedy bot at EVERY aspect.
+  step, seeded rng, zero DOM, dual export), so node plays whole places: every
+  place lays out cleanly and is finished by a greedy bot, with a first gulp
+  inside 1.5s and a first grow inside 3s.
+- **A place is a fixed world; the screen is only a camera** — so a save never
+  depends on the device, and a bigger screen shows MORE world rather than a
+  blow-up. The camera's zoom and Gobble's speed are ONE curve
+  (`HoleLogic.viewSpan`/`zoomScale`), so he crosses about a screen a second at
+  every size.
 - **Sizes are DERIVED, never tuned**: level L eats tiers ≤ L+1; `R[L]` clears
   tier L+1's biggest thing and the TIER LAW requires tier L+2 to still be too
-  big; a grow needs at most ~62% of what is edible so far.
+  big; a grow needs `GROW_BITES[L]` bites of the newest tier's xp, reachable
+  with most of the place still standing.
 - **One ground metric** (`hypot(dx, dy / SQ)`) for physics and picture alike,
   so a thing falls in exactly when it looks inside the hole.
 - **The save stores only which things were eaten** (a falling thing counts as
   eaten); xp and size are re-derived, so a hostile save cannot inflate Gobble,
-  and the whole `josh-gobble-v1` save is coerced field by field.
+  and the whole `josh-gobble-v1` save is coerced field by field. A run carries
+  the layout version it belongs to: a half-eaten place from the one-screen
+  version names ids that mean different things now, so it is dropped (its ⭐
+  is kept).
 - **Never registered in `JoshFramework`** — a world, not a game: Josh's
   Sticker Book stays exactly 200.
 - The loop runs **only while the play screen is visible**; every delayed thing

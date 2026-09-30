@@ -283,7 +283,7 @@
   // ---- A run -----------------------------------------------------------------
   let run = null;           // { st, def, ate: [emoji...], bigSaid }
   const counts = {};        // every engine event seen (the tests read it)
-  let raf = 0, lastT = 0, acc = 0;
+  let raf = 0, lastT = 0, acc = 0, redraw = true;
 
   function playVisible() { return !!play && !play.hidden && !doc.hidden; }
 
@@ -325,6 +325,7 @@
   function startLoop() {
     if (raf || !run || !playVisible()) return;
     lastT = 0; acc = 0;
+    redraw = true;          // coming back: the canvas may have been cleared
     raf = global.requestAnimationFrame(frame);
     // a win whose dialog timer was cleared by leaving still gets its dialog
     if (run.st.done && win.hidden) later(showWin, 300);
@@ -352,7 +353,8 @@
       n++;
     }
     if (n >= MAX_STEPS) acc = 0;
-    render.draw(t);
+    // a finished place whose picture has come to rest is not redrawn
+    if (redraw || !run.st.done || render.busy(t)) { render.draw(t); redraw = false; }
     placeHand();
     paintMeter();
     raf = global.requestAnimationFrame(frame);
@@ -669,6 +671,7 @@
     },
     info: () => (render ? render.info() : null),
     camera: () => (render ? render.camera() : null),
+    busy: () => (render ? render.busy(lastT || 0) : true),
     arrow: () => (render ? render.info().arrow : null),
     snap() { if (render && run) { render.snap(); render.draw(lastT || 0); } },
     // where a client (page) point lands in the world

@@ -582,6 +582,50 @@ test("the WIN pulls the camera all the way back: the whole island, and how much 
   await page.locator(".hole-win").waitFor({ state: "visible", timeout: 5000 });
 });
 
+test("a finished place STOPS redrawing once its picture is still — and is drawn again when he comes back", async () => {
+  // After the win the camera pulls back and the vortex empties the place;
+  // once the last puff is gone nothing moves, and redrawing a still picture
+  // behind the win dialog only takes time from its confetti.
+  await openScene("space");
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 120));
+  assert.ok((await state()).done, "fixture: the place is finished");
+  // the camera is already all the way back (autoplay snaps it), but the
+  // win's own moment — Gobble's wide eyes and the burp's puffs — is still to
+  // play, so the picture is NOT still yet. (Two guards deliver this: the
+  // eyes' timer and the pending puffs. Removing either alone stays green —
+  // measured — because the other covers the same moment.)
+  assert.ok(await page.evaluate(() => window.__HOLE.busy()), "the win's own moment keeps it busy until it has been drawn out");
+  await page.waitForFunction(() => { const i = window.__HOLE.info(); return i && !window.__HOLE.busy(); }, null, { timeout: 8000 });
+  const f0 = (await page.evaluate(() => window.__HOLE.info())).frames;
+  await page.waitForTimeout(600);
+  const f1 = (await page.evaluate(() => window.__HOLE.info())).frames;
+  assert.ok(await page.evaluate(() => window.__HOLE.running()), "fixture: the loop is still running");
+  assert.equal(f1, f0, "no redraw of a still picture (" + (f1 - f0) + " frames in 600ms)");
+  // leave, turn the device (a new size CLEARS the canvas when he comes
+  // back), and come back: the still picture must be painted again, or the
+  // win dialog would sit on a blank field
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.setViewportSize({ width: 414, height: 800 });
+  try {
+    await page.evaluate(() => { location.hash = "#hole-play"; });
+    await page.locator("#screen-hole-play").waitFor({ state: "visible" });
+    const drew = await page.waitForFunction((n) => window.__HOLE.info().frames > n, f1, { timeout: 4000 }).then(() => true, () => false);
+    assert.ok(drew, "coming back must paint the still picture again — no frame was drawn");
+    await page.waitForTimeout(100);
+    const paint = await page.evaluate(() => {
+    const cv = document.querySelector(".hole-canvas"), c = cv.getContext("2d");
+    const d = c.getImageData(0, 0, cv.width, cv.height).data;
+    let lit = 0;
+    for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) lit++;
+    return lit / Math.ceil(d.length / (4 * 97));
+  });
+    assert.ok(paint > 0.95, "coming back paints the whole field (" + (paint * 100).toFixed(0) + "% of the canvas)");
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
+  }
+});
+
 test("a half-eaten place from the ONE-SCREEN version is dropped, and its ⭐ is kept", async () => {
   // Off the play screen FIRST: a live run rewrites the save (on a gulp, and
   // on leaving), and the reload must boot the seed, not re-open a place.

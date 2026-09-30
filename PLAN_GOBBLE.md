@@ -177,6 +177,11 @@ Phase 2 replaces the one-screen island with that.
   - a bigger screen shows more world rather than blowing everything up.
   After the finale the camera pulls all the way back to show the whole island
   while the vortex slurps everything in — the "look how much you ate" moment.
+- **A fresh place opens with a look at the whole island** (1.6s, the castle or
+  the Sun on its stage at the top), then flies in to Gobble. A finger or a key
+  during it ends it at once, so the spot under the finger is always a spot he
+  can see. A place he comes back to starts right on Gobble, and under
+  `prefers-reduced-motion` there is no flight at all.
 - **Gobble's speed scales with the zoom** (the same exponent), so he always
   crosses about a screen a second, small or huge.
 
@@ -223,9 +228,11 @@ still the win; the vortex still finishes the rest.
 
 ### 9.5 Never lost
 
-When nothing Gobble can eat is on screen for a moment (or after six quiet
-seconds), a round **arrow bubble** appears at the screen edge, holding a
-picture of the nearest thing he can eat and pointing at it. On screen, the
+When nothing Gobble can eat has been on screen for a moment (1.2s), or the
+hint (after six quiet seconds) points at something off screen, a round
+**arrow bubble** appears at the screen edge, holding a picture of the nearest
+thing he can eat and pointing at it. **Tapping it sends him there**, all the
+way, however short the tap (92px across with a finger's slack). On screen, the
 existing sparkle trail does the job.
 
 ### 9.6 Drawing a world bigger than any canvas
@@ -238,8 +245,13 @@ impossible. So the ground is drawn every frame, cheaply and crisply:
 - the ground's FEATURES (rugs, blankets, roads, ponds…) are vector decals in
   world units, drawn only when on screen;
 - things are drawn only when on screen, and each emoji's ink box is measured
-  ONCE (a pixel scan) and reused at every size, with sizes in quarter-octave
-  steps, so a zoom never mints a new canvas per frame.
+  ONCE (a pixel scan) and reused at every size, with sprites in half-octave
+  size steps (always rounded UP, so a sprite is only ever drawn smaller), so a
+  zoom never mints a new canvas per frame; the sprite cache is capped, because
+  iOS caps canvas memory.
+- the backdrop past the island's edge (a wall, sky or stars) is drawn in SCREEN
+  space: it is far away, so it never scrolls. When the view is entirely inside
+  the island it is not drawn at all.
 
 ### 9.7 Saves
 
@@ -254,9 +266,15 @@ version is dropped (its ids point at a different layout); finished ⭐s are kept
   place standing; speed scales with the zoom; the bot finishes every place
   with a fast first gulp and grow; the vortex empties even a big world; save v2.
 - **Browser:** the camera follows Gobble and stays on the island; the world is
-  bigger than the screen; holding a finger to one side keeps him going; a grow
-  zooms out; only on-screen things are drawn; the edge arrow appears when
-  nothing edible is in view; the win pulls back to the whole island.
+  bigger than the screen; holding a finger to one side keeps him going; arrow
+  keys step a quarter of the view; a grow zooms out and he never looks smaller
+  on the way (sampled over real frames); only on-screen things are drawn; the
+  edge arrow appears when nothing edible is in view and tapping it sends him
+  there; a fresh place opens with the whole-island look (not on a resume, not
+  under reduced motion) and a finger ends it; the win pulls back to the whole
+  island; a half-eaten run from the one-screen version is dropped, its ⭐
+  kept. Every ground feature a place declares has a drawing and a real box
+  (node).
 - **Mobile (real WebKit in CI):** the play screen fits and a touch drag steers him.
 
 ## 10. Not in this pick (recorded, not built)

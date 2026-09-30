@@ -550,7 +550,8 @@ test("every ground feature, ground and hole a place declares has a DRAWING, with
       assert.ok(b[2] > 0 && b[0] < W && b[3] > 0 && b[1] < H, def.id + ": '" + x.d.k + "' lies on the island");
       n++;
     }
-    assert.ok(HR.TILES[def.ground], def.id + ": ground '" + def.ground + "' has a texture");
+    const G = HR.GROUND_ART[def.ground];
+    assert.ok(G && typeof G.base === "function" && typeof G.marks === "function", def.id + ": ground '" + def.ground + "' has a floor (a base and its marks)");
     assert.ok(HR.GROUNDS[def.ground] && HR.BACKDROPS[HR.GROUNDS[def.ground].backdrop], def.id + ": ground '" + def.ground + "' has an edge and a backdrop");
     assert.ok(HR.HOLES[def.hole], def.id + ": hole '" + def.hole + "' has its colours (else it silently draws as another)");
   }

@@ -7,8 +7,9 @@
 // look at the whole island, and pulls back to the whole island again for the
 // win. A baked picture of the whole world at play zoom would be tens of
 // megapixels, so the ground is drawn every frame instead, cheaply:
-//   - its TEXTURE is one small repeating tile, re-rendered only when the zoom
-//     has changed enough to blur it;
+//   - its TEXTURE is vector marks (plank seams, tufts, stars) drawn straight
+//     onto the canvas, square by square, fewer as the camera pulls back —
+//     never a bitmap pattern, which a software rasteriser filters per pixel;
 //   - its FEATURES (rugs, blankets, roads, ponds …) are vector decals in world
 //     units, drawn only when on screen;
 //   - things are drawn only when on screen; every emoji's ink box is measured
@@ -18,7 +19,7 @@
 // iOS 14.2 floor: no roundRect on the 2D context (Safari 16), no context
 // filter (Safari 17), no OffscreenCanvas — rounded rects are drawn by hand,
 // shadows are pre-rendered soft sprites, every emoji is rendered into a plain
-// <canvas>, and the texture pattern is placed by the context's transform.
+// <canvas>, and the floor is solid fills and small vector marks.
 
 (function (global) {
   "use strict";
@@ -32,7 +33,7 @@
   const THICK = 6;       // the island's front edge (world units)
   const CORNER = 12;     // the island's rounded corners
   const MARGIN = 8;      // the camera may look this far past the island's edge
-  const TILE = 64;       // the ground texture repeats every TILE world units
+  const TILE = 64;       // the floor's marks are drawn in squares this many world units wide
   const INK_REF = 128;   // every emoji's ink box is measured once, at this font size
   const INTRO_S = 1.6;   // the opening look at the whole island, then in to Gobble
   const ARROW_R = 30;    // the edge arrow's bubble (css px); it is tapped within ARROW_R + 16
@@ -82,113 +83,172 @@
   }
   function ellipse(c, x, y, rx, ry) { c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
 
-  // ---- The ground's TEXTURE: one seamless TILE x TILE tile per ground --------
-  // Drawn in world units; anything near an edge is drawn again one tile over,
-  // so the repeat has no seam.
-  function wrap(T, x, y, r, fn) {
-    for (let dx = -T; dx <= T; dx += T) {
-      for (let dy = -T; dy <= T; dy += T) {
-        const px = x + dx, py = y + dy;
-        if (px + r < 0 || px - r > T || py + r < 0 || py - r > T) continue;
-        fn(px, py);
-      }
-    }
-  }
+  // ---- The ground's TEXTURE: vector marks drawn straight onto the canvas ------
+  // NOT a bitmap pattern, and the reason is measured. In a software
+  // rasteriser (the floor to plan for: Josh's iPad may draw a canvas this
+  // way), a full-screen pattern fill cost 70-115ms a frame on an iPad-sized
+  // canvas once it was scaled or sub-pixel — it is sampled and filtered per
+  // pixel — against ~2ms for a solid fill and ~5ms for a screenful of small
+  // vector marks. So each ground is a BASE (solid fills, anchored to the
+  // world, drawn once for the visible part) and MARKS (plank seams, tufts,
+  // stars…) drawn per TILE-unit square, each square seeded by where it is,
+  // so the floor never shows a repeating grid. `d` is device pixels per world
+  // unit, and marks too fine to see at that zoom are skipped — a level of
+  // detail. Every feature draws from its OWN seeded stream, so skipping one
+  // never moves another (flowers do not jump when the camera zooms).
+  const LOD = { fine: 8, small: 6, dust: 2 };   // device px per world unit
   function blobs(c, T, R, n, cols, rMin, rMax) {
+    const paths = cols.map(() => []);
     for (let i = 0; i < n; i++) {
       const x = R() * T, y = R() * T, r = rMin + R() * (rMax - rMin);
-      c.fillStyle = cols[i % cols.length];
-      c.beginPath();
-      wrap(T, x, y, r, (px, py) => { c.moveTo(px + r, py); c.ellipse(px, py, r, r * SQ, 0, 0, Math.PI * 2); });
-      c.fill();
+      paths[i % cols.length].push([x, y, r]);
     }
+    cols.forEach((col, k) => {
+      c.fillStyle = col;
+      c.beginPath();
+      for (const [x, y, r] of paths[k]) { c.moveTo(x + r, y); c.ellipse(x, y, r, r * SQ, 0, 0, Math.PI * 2); }
+      c.fill();
+    });
   }
   function tufts(c, T, R, n, col, h) {
     c.strokeStyle = col; c.lineWidth = 0.3; c.lineCap = "round";
     c.beginPath();
     for (let i = 0; i < n; i++) {
       const x = R() * T, y = R() * T;
-      wrap(T, x, y, 1.5, (px, py) => { c.moveTo(px - 0.6 * h, py - 1.2 * h); c.lineTo(px, py); c.lineTo(px + 0.6 * h, py - 1.3 * h); });
+      c.moveTo(x - 0.6 * h, y - 1.2 * h); c.lineTo(x, y); c.lineTo(x + 0.6 * h, y - 1.3 * h);
     }
     c.stroke();
   }
-  function dots(c, T, R, n, rMin, rMax, colour) {
+  // Round dots, grouped into one path per colour (a fill per dot is the
+  // expensive way to draw 70 stars). `colour(R)` names a dot's colour from a
+  // small set; `rMin` keeps a dot at least that many world units wide.
+  function dots(c, T, R, n, rLo, rHi, colour, rMin) {
+    const by = new Map();
     for (let i = 0; i < n; i++) {
-      const x = R() * T, y = R() * T, r = rMin + R() * (rMax - rMin);
-      c.fillStyle = colour(i, R);
+      const x = R() * T, y = R() * T, r = Math.max(rMin || 0, rLo + R() * (rHi - rLo)), col = colour(i, R);
+      if (!by.has(col)) by.set(col, []);
+      by.get(col).push([x, y, r]);
+    }
+    for (const [col, list] of by) {
+      c.fillStyle = col;
       c.beginPath();
-      wrap(T, x, y, r, (px, py) => { c.moveTo(px + r, py); c.arc(px, py, r, 0, Math.PI * 2); });
+      for (const [x, y, r] of list) { c.moveTo(x + r, y); c.arc(x, y, r, 0, Math.PI * 2); }
       c.fill();
     }
   }
-  const TILES = {
-    wood(c, T) {
-      const tones = ["#e8bd7e", "#e0b16f", "#ecc68b"], rows = T / 8;
-      for (let i = 0; i < rows; i++) { c.fillStyle = tones[i % 3]; c.fillRect(0, i * 8, T, 8); }
-      c.strokeStyle = "rgba(160,110,60,0.55)"; c.lineWidth = 0.45;
-      c.beginPath();
-      for (let i = 0; i < rows; i++) {
-        const y = i * 8, p = 5 + ((i * 13) % 22);
-        c.moveTo(0, y); c.lineTo(T, y);
-        // two plank ends a row, staggered row to row, never on the seam
-        c.moveTo(p, y); c.lineTo(p, y + 8);
-        c.moveTo(p + T / 2, y); c.lineTo(p + T / 2, y + 8);
-      }
-      c.stroke();
-      // the grain: gentle waves that repeat exactly across the tile
-      c.strokeStyle = "rgba(170,120,70,0.22)"; c.lineWidth = 0.25;
-      c.beginPath();
-      for (let i = 0; i < rows; i++) {
-        for (let g = 0; g < 2; g++) {
-          const gy = i * 8 + 2.5 + g * 3, ph = i + g * 1.7;
-          c.moveTo(0, gy + Math.sin(ph) * 0.5);
-          for (let x = 2; x <= T; x += 2) c.lineTo(x, gy + Math.sin((x / T) * Math.PI * 4 + ph) * 0.5);
+  const WOOD = ["#e8bd7e", "#e0b16f", "#ecc68b"];
+  const CONFETTI = ["#ff5e7e", "#ffd24d", "#5ec8ff", "#7be08a", "#c77dff", "#ffa64d"];
+  const GROUND_ART = {
+    wood: {
+      // planks run across the room, 8 units wide, in three tones
+      base(c, x0, y0, x1, y1) {
+        for (let r = Math.floor(y0 / 8); r * 8 < y1; r++) {
+          c.fillStyle = WOOD[(((r % 3) + 3) % 3)];
+          c.fillRect(x0, r * 8, x1 - x0, 8);
         }
-      }
-      c.stroke();
+      },
+      marks(c, T, Rk, d, tx, ty) {
+        const R = Rk("planks");
+        c.strokeStyle = "rgba(160,110,60,0.55)"; c.lineWidth = 0.45;
+        c.beginPath();
+        for (let i = 0; i < T / 8; i++) {
+          // the seam, and two plank ends a row, staggered, never on the seam
+          const y = i * 8, p = 3 + R() * (T / 2 - 6);
+          c.moveTo(0, y); c.lineTo(T, y);
+          c.moveTo(p, y); c.lineTo(p, y + 8);
+          c.moveTo(p + T / 2, y); c.lineTo(p + T / 2, y + 8);
+        }
+        c.stroke();
+        if (d < LOD.fine) return;
+        // the grain: gentle waves whose phase belongs to the ROW of the world,
+        // so a wave runs on unbroken into the next square
+        c.strokeStyle = "rgba(170,120,70,0.22)"; c.lineWidth = 0.25;
+        c.beginPath();
+        for (let i = 0; i < T / 8; i++) {
+          for (let g = 0; g < 2; g++) {
+            const gy = i * 8 + 2.5 + g * 3, ph = (((ty * T) / 8 + i) * 1.7 + g * 2.3) % (Math.PI * 2);
+            c.moveTo(0, gy + Math.sin(ph) * 0.5);
+            for (let x = 4; x <= T; x += 4) c.lineTo(x, gy + Math.sin((x / T) * Math.PI * 4 + ph) * 0.5);
+          }
+        }
+        c.stroke();
+      },
     },
-    grass(c, T, R) {
-      c.fillStyle = "#8fd16a"; c.fillRect(0, 0, T, T);
-      blobs(c, T, R, 16, ["rgba(172,226,132,0.45)", "rgba(104,170,72,0.30)"], 2, 6);
-      tufts(c, T, R, 40, "rgba(80,150,55,0.6)", 1);
-      dots(c, T, R, 6, 0.5, 0.6, (i) => ["#ffffff", "#ffe066", "#ff9ecf"][i % 3]);
+    grass: {
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#8fd16a"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 16, ["rgba(172,226,132,0.45)", "rgba(104,170,72,0.30)"], 2, 6);
+        if (d >= LOD.small) tufts(c, T, Rk("tufts"), 40, "rgba(80,150,55,0.6)", 1);
+        if (d >= LOD.small) dots(c, T, Rk("flowers"), 6, 0.5, 0.6, (i) => ["#ffffff", "#ffe066", "#ff9ecf"][i % 3]);
+      },
     },
-    dirt(c, T, R) {
-      c.fillStyle = "#cb9a63"; c.fillRect(0, 0, T, T);
-      blobs(c, T, R, 16, ["rgba(176,124,70,0.40)", "rgba(226,186,130,0.40)"], 2, 7);
-      dots(c, T, R, 26, 0.3, 0.75, (i, Rr) => { const v = 140 + Math.floor(Rr() * 60); return "rgb(" + v + "," + (v - 12) + "," + (v - 30) + ")"; });
+    dirt: {
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#cb9a63"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 16, ["rgba(176,124,70,0.40)", "rgba(226,186,130,0.40)"], 2, 7);
+        if (d >= LOD.small) {
+          dots(c, T, Rk("pebbles"), 26, 0.3, 0.75, (i, R) => {
+            const v = 140 + 15 * Math.floor(R() * 4);    // four greys, one path each
+            return "rgb(" + v + "," + (v - 12) + "," + (v - 30) + ")";
+          });
+        }
+      },
     },
-    town(c, T, R) {
-      c.fillStyle = "#9bd46e"; c.fillRect(0, 0, T, T);
-      blobs(c, T, R, 14, ["rgba(170,225,130,0.45)", "rgba(110,175,78,0.28)"], 2, 5);
-      tufts(c, T, R, 30, "rgba(90,160,60,0.5)", 0.9);
+    town: {
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#9bd46e"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 14, ["rgba(170,225,130,0.45)", "rgba(110,175,78,0.28)"], 2, 5);
+        if (d >= LOD.small) tufts(c, T, Rk("tufts"), 30, "rgba(90,160,60,0.5)", 0.9);
+      },
     },
-    party(c, T, R) {
-      const n = T / 8;
-      for (let j = 0; j < n; j++) {
-        for (let i = 0; i < n; i++) { c.fillStyle = (i + j) % 2 ? "#ffe3ef" : "#fff5fa"; c.fillRect(i * 8, j * 8, 8, 8); }
-      }
-      const cols = ["#ff5e7e", "#ffd24d", "#5ec8ff", "#7be08a", "#c77dff", "#ffa64d"];
-      for (let i = 0; i < 22; i++) {
-        const x = R() * T, y = R() * T, a = R() * Math.PI;
-        c.fillStyle = cols[i % cols.length];
-        wrap(T, x, y, 1, (px, py) => {
-          c.save(); c.translate(px, py); c.rotate(a);
-          if (i % 3) c.fillRect(-0.6, -0.3, 1.2, 0.6); else { c.beginPath(); c.arc(0, 0, 0.45, 0, Math.PI * 2); c.fill(); }
-          c.restore();
+    party: {
+      // a pink check, 8 units a square, anchored to the world
+      base(c, x0, y0, x1, y1) {
+        c.fillStyle = "#fff5fa"; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.fillStyle = "#ffe3ef";
+        c.beginPath();
+        for (let j = Math.floor(y0 / 8); j * 8 < y1; j++) {
+          for (let i = Math.floor(x0 / 8); i * 8 < x1; i++) if ((((i + j) % 2) + 2) % 2) c.rect(i * 8, j * 8, 8, 8);
+        }
+        c.fill();
+      },
+      marks(c, T, Rk, d) {
+        if (d < LOD.dust) return;
+        // confetti: little strips at every angle, and a few dots — one path
+        // per colour, the corners worked out here (no save/rotate per piece)
+        const R = Rk("confetti"), paths = CONFETTI.map(() => []);
+        for (let i = 0; i < 22; i++) paths[i % CONFETTI.length].push([R() * T, R() * T, R() * Math.PI, i % 3 === 0]);
+        CONFETTI.forEach((col, k) => {
+          c.fillStyle = col;
+          c.beginPath();
+          for (const [x, y, a, round] of paths[k]) {
+            if (round) { c.moveTo(x + 0.45, y); c.arc(x, y, 0.45, 0, Math.PI * 2); continue; }
+            const ux = Math.cos(a), uy = Math.sin(a);
+            const hx = ux * 0.6, hy = uy * 0.6, vx = -uy * 0.3, vy = ux * 0.3;
+            c.moveTo(x - hx - vx, y - hy - vy); c.lineTo(x + hx - vx, y + hy - vy);
+            c.lineTo(x + hx + vx, y + hy + vy); c.lineTo(x - hx + vx, y - hy + vy); c.closePath();
+          }
+          c.fill();
         });
-      }
+      },
     },
-    space(c, T, R) {
-      c.fillStyle = "#141845"; c.fillRect(0, 0, T, T);
-      dots(c, T, R, 70, 0.12, 0.42, (i, Rr) => "rgba(255,255,255," + (0.35 + Rr() * 0.6).toFixed(2) + ")");
-      c.strokeStyle = "rgba(255,255,255,0.8)"; c.lineWidth = 0.18;
-      c.beginPath();
-      for (let i = 0; i < 5; i++) {
-        const x = R() * T, y = R() * T, s = 0.8 + R() * 0.9;
-        wrap(T, x, y, s, (px, py) => { c.moveTo(px - s, py); c.lineTo(px + s, py); c.moveTo(px, py - s); c.lineTo(px, py + s); });
-      }
-      c.stroke();
+    space: {
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#141845"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        // stars: space IS its stars, so a star never shrinks below about
+        // two thirds of a device pixel, however far the camera pulls back
+        const A = ["0.40", "0.55", "0.75", "0.95"];
+        dots(c, T, Rk("stars"), 70, 0.12, 0.42, (i, R) => "rgba(255,255,255," + A[Math.floor(R() * 4)] + ")", 0.65 / Math.max(d, 0.1));
+        if (d < LOD.small) return;
+        const R = Rk("sparkles");
+        c.strokeStyle = "rgba(255,255,255,0.8)"; c.lineWidth = 0.18;
+        c.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const x = R() * T, y = R() * T, s = 0.8 + R() * 0.9;
+          c.moveTo(x - s, y); c.lineTo(x + s, y); c.moveTo(x, y - s); c.lineTo(x, y + s);
+        }
+        c.stroke();
+      },
     },
   };
 
@@ -529,12 +589,27 @@
       },
     },
     nebula: {   // a glowing cloud of space dust
+      // Stepped rings, not a radial gradient: a nebula is wider than the
+      // screen, and a gradient that size is a per-pixel shader (it cost Outer
+      // Space ~35ms a frame on an iPad-sized canvas in a software rasteriser).
+      // Each ring is its own band (a hole cut by the next one in), so every
+      // pixel is filled ONCE, whatever the number of rings; the alpha falls
+      // off with the radius exactly as the gradient's did.
+      prep(d) {
+        const m = /^rgba\((\d+),(\d+),(\d+),([\d.]+)\)$/.exec(String(d.c).replace(/\s+/g, ""));
+        return m ? { rgb: m[1] + "," + m[2] + "," + m[3], a: +m[4] } : { rgb: "255,255,255", a: 0.15 };
+      },
       box: (d, W, H) => { const r = d.r * W; return [d.x * W - r, d.y * H - r, d.x * W + r, d.y * H + r]; },
-      draw(c, d, W, H) {
-        const cx = d.x * W, cy = d.y * H, r = d.r * W;
-        const g = c.createRadialGradient(cx, cy, 0, cx, cy, r);
-        g.addColorStop(0, d.c); g.addColorStop(1, "rgba(0,0,0,0)");
-        c.fillStyle = g; c.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+      draw(c, d, W, H, p) {
+        const cx = d.x * W, cy = d.y * H, r = d.r * W, N = 9;
+        for (let k = 0; k < N; k++) {
+          const ro = r * (1 - k / N), ri = r * (1 - (k + 1) / N);
+          c.fillStyle = "rgba(" + p.rgb + "," + (p.a * (1 - (ro + ri) / (2 * r))).toFixed(3) + ")";
+          c.beginPath();
+          c.arc(cx, cy, ro, 0, Math.PI * 2);
+          if (ri > 0) { c.moveTo(cx + ri, cy); c.arc(cx, cy, ri, 0, Math.PI * 2, true); }
+          c.fill();
+        }
       },
     },
     belt: {   // the asteroid belt: a dusty band, and rocks along it
@@ -616,7 +691,7 @@
       }
     },
   };
-  // Per ground: its tile, its backdrop, and the island's front edge.
+  // Per ground: its backdrop and the island's front edge (its floor is GROUND_ART).
   const GROUNDS = {
     wood: { backdrop: "wall", edge: ["#a4703d", "#8a5a2f"] },
     grass: { backdrop: "sky", edge: ["#8b5a2b", "#6e4420"] },
@@ -640,7 +715,6 @@
     // the camera, in world units: where it looks and how wide (short side)
     let cam = null, camT = 0, mode = "follow", intro = null;
     let backdrop = null, backdropKey = "";
-    let tile = null;
     let decals = [];
     const inks = new Map(), sprites = new Map();
     const fx = [];
@@ -650,6 +724,7 @@
     const hopUntil = new Map();
     let arrow = null, noBiteSince = -1;
     let lastDraw = { objects: 0, standing: 0, falling: 0, decals: 0, ground: false, ok: false };
+    let frames = 0;   // every draw() that painted (the tests read it)
 
     const shortSide = () => Math.min(cssW, cssH) || 1;
 
@@ -739,7 +814,7 @@
       fx.length = 0; hopUntil.clear(); shakeT = 0;
       arrow = null; noBiteSince = -1;
       if (sprites.size > 120) sprites.clear();
-      tile = null; backdrop = null;
+      backdrop = null;
       decals = prepDecals(def, st.W, st.H);
       intro = opts && opts.intro && !reduceMotion() ? { t0: -1, from: null } : null;
       camT = 0;
@@ -766,24 +841,55 @@
       backdrop = cv; backdropKey = key;
       return cv;
     }
-    function fillTexture(x0, y0, x1, y1) {
-      const want = clamp(view.s * dpr, 1, 1400 / TILE);
-      if (!tile || tile.ground !== def.ground || Math.abs(Math.log(want / tile.k)) > 0.17) {
-        const px = Math.max(8, Math.round(TILE * want));
-        const cv = document.createElement("canvas");
-        cv.width = px; cv.height = px;
-        const c = cv.getContext("2d");
-        c.scale(px / TILE, px / TILE);
-        (TILES[def.ground] || TILES.wood)(c, TILE, rng(hashStr(def.ground + ":tile")));
-        tile = { ground: def.ground, k: px / TILE, pat: ctx.createPattern(cv, "repeat") };
+    // The floor under the view: the ground's BASE once for the visible part,
+    // then its MARKS square by square (a mark may reach PAD units past its
+    // square, so squares just outside the view are drawn too).
+    function drawGround(x0, y0, x1, y1) {
+      const G = GROUND_ART[def.ground] || GROUND_ART.wood, PAD = 7, d = view.s * dpr;
+      G.base(ctx, x0, y0, x1, y1);
+      for (let ty = Math.floor((y0 - PAD) / TILE); ty * TILE < y1 + PAD; ty++) {
+        for (let tx = Math.floor((x0 - PAD) / TILE); tx * TILE < x1 + PAD; tx++) {
+          const seed = hashStr(def.ground + ":" + tx + "," + ty);
+          ctx.save();
+          ctx.translate(tx * TILE, ty * TILE);
+          G.marks(ctx, TILE, (k) => rng(seed ^ hashStr(k)), d, tx, ty);
+          ctx.restore();
+        }
       }
-      // one texel of the tile is 1/k world units, and the pattern repeats from
-      // the world's origin — so the texture is nailed to the ground
-      ctx.save();
-      ctx.scale(1 / tile.k, 1 / tile.k);
-      ctx.fillStyle = tile.pat;
-      ctx.fillRect(x0 * tile.k, y0 * tile.k, (x1 - x0) * tile.k, (y1 - y0) * tile.k);
-      ctx.restore();
+    }
+    // One light for the whole world, from the upper left: white at the top
+    // left, nothing in the middle, a little shade at the bottom right. Not a
+    // gradient: a gradient is a per-pixel shader (15ms a frame over an iPad
+    // screen in a software rasteriser). It is BANDS instead — strips across
+    // the world at right angles to the light, each one flat tint at its own
+    // strength — so every pixel is filled once, and 12 bands a half keep each
+    // step under 1.2% (invisible on a floor full of marks).
+    const LIGHT_BANDS = 12;
+    function lightTint(t) {
+      if (t < 0.5) return "rgba(255,255,255," + (0.14 * (1 - t / 0.5)).toFixed(4) + ")";
+      const u = (t - 0.5) / 0.5, v = Math.round(255 * (1 - u));
+      return "rgba(" + v + "," + v + "," + v + "," + (0.1 * u).toFixed(4) + ")";
+    }
+    function drawLight(x0, y0, x1, y1) {
+      const W = st.W, H = st.H, L2 = W * W + H * H;
+      // t along the light: t = (x*W + y*H) / L2, 0 at the top-left corner
+      const tOf = (x, y) => (x * W + y * H) / L2;
+      const tLo = clamp(Math.min(tOf(x0, y0), tOf(x1, y1)), 0, 1), tHi = clamp(Math.max(tOf(x0, y0), tOf(x1, y1)), 0, 1);
+      const n = LIGHT_BANDS * 2;
+      // A band is the strip between two lines of equal t, drawn as a long
+      // quadrilateral: t's axis runs corner to corner, (t*W, t*H), and each
+      // line runs along (-H, W) far enough to cross the whole island. No
+      // clip is needed: this runs inside the island's own clip (or, when the
+      // view is all island, the canvas edge does the cutting).
+      const ux = -H / Math.sqrt(L2), uy = W / Math.sqrt(L2), far = (W + H) * 1.5;
+      for (let k = Math.floor(tLo * n); k < n && k / n <= tHi; k++) {
+        const ta = k / n, tb = (k + 1) / n;
+        ctx.fillStyle = lightTint((ta + tb) / 2);
+        ctx.beginPath();
+        ctx.moveTo(ta * W + ux * far, ta * H + uy * far); ctx.lineTo(ta * W - ux * far, ta * H - uy * far);
+        ctx.lineTo(tb * W - ux * far, tb * H - uy * far); ctx.lineTo(tb * W + ux * far, tb * H + uy * far);
+        ctx.closePath(); ctx.fill();
+      }
     }
     // Does the view see only the island's top (no edge, no corner, no sky)?
     function viewInsideIsland() {
@@ -812,7 +918,7 @@
       const x0 = Math.max(0, v.x0), y0 = Math.max(0, v.y0), x1 = Math.min(W, v.x1), y1 = Math.min(H, v.y1);
       let nd = 0;
       if (x1 > x0 && y1 > y0) {
-        fillTexture(x0, y0, x1, y1);
+        drawGround(x0, y0, x1, y1);
         for (const dc of decals) {
           const b = dc.box;
           if (b[2] < v.x0 || b[0] > v.x1 || b[3] < v.y0 || b[1] > v.y1) continue;
@@ -821,10 +927,7 @@
           ctx.restore();
           nd++;
         }
-        // one light for the whole world: from the upper left
-        const lg = ctx.createLinearGradient(0, 0, W, H);
-        lg.addColorStop(0, "rgba(255,255,255,0.14)"); lg.addColorStop(0.5, "rgba(255,255,255,0)"); lg.addColorStop(1, "rgba(0,0,0,0.10)");
-        ctx.fillStyle = lg; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+        drawLight(x0, y0, x1, y1);
       }
       ctx.restore();
       if (!inside) {
@@ -1301,6 +1404,20 @@
       updateArrow(now);
       drawArrow();
       lastDraw = { objects: drawn, standing, falling: lastDraw.falling, decals: nd, ground: !inside, ok: true };
+      frames++;
+    }
+
+    // Is anything still moving on screen? After the win — once the camera has
+    // pulled all the way back and the last crumb and puff are gone — the
+    // picture is still, and the game stops redrawing it behind the win
+    // dialog (the confetti there needs the time more than a still picture
+    // does). A pending effect keeps it busy until it has been drawn out.
+    function busy(now) {
+      if (!st || !cam || !cssW) return true;
+      if (intro || fx.length || shakeT > now || happyUntil > now || wideUntil > now) return true;
+      for (const t of hopUntil.values()) if (t > now) return true;
+      const g = clampCam(mode === "whole" ? wholeTarget() : followTarget());
+      return Math.abs(Math.log(cam.span / g.span)) > 0.003 || Math.hypot(cam.x - g.x, cam.y - g.y) > 0.05;
     }
 
     function camera() {
@@ -1317,14 +1434,14 @@
       for (const k of inks.values()) if (!k.ok) inkless++;
       return {
         view: { ...view }, css: [cssW, cssH], dpr, sprites: sprites.size, inks: inks.size, fx: fx.length,
-        shaking: shakeT > clock, drawn: { ...lastDraw }, inkless, tile: tile ? tile.k : 0,
+        shaking: shakeT > clock, drawn: { ...lastDraw }, frames, inkless, detail: view.s * dpr,
         camera: camera(), arrow: arrow ? { ...arrow, hit: arrow.r + 16 } : null,
       };
     }
 
-    return { resize, setState, draw, event, toWorld, toScreen, snap, endIntro, camera, arrowAt, info };
+    return { resize, setState, draw, event, toWorld, toScreen, snap, endIntro, camera, arrowAt, busy, info };
   }
 
-  global.HoleRender = { create, prepDecals, DECALS, TILES, GROUNDS, BACKDROPS, HOLES, VIS, MARGIN, THICK };
+  global.HoleRender = { create, prepDecals, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, LOD, VIS, MARGIN, THICK };
   if (typeof module !== "undefined" && module.exports) module.exports = global.HoleRender;
 })(typeof window !== "undefined" ? window : globalThis);
