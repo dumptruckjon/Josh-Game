@@ -119,9 +119,11 @@ async function openGame(id) {
   await page.locator(`#screen-${id}`).waitFor({ state: "visible", timeout: 8000 });
 }
 
-test("the front door: boot lands on 3 world tiles; each opens its world DIRECTLY (no gates)", async () => {
+test("the front door: boot lands on the world tiles; each opens its world DIRECTLY (no gates)", async () => {
   // By request (2026-07): the app opens on a start page — Josh's portrait tile,
   // 华丽's 👵🏻 tile, and the 🏰 fort tile — and the old name gates are GONE.
+  // The fourth door, 🕳️ Gobble Hole (2026-09), is driven the same way in
+  // hole.test.js, which also asserts there are exactly four.
   await page.evaluate(() => { location.hash = ""; });
   await page.locator("#screen-start").waitFor({ state: "visible" });
   assert.equal(await page.locator("#start-josh .start-tile__art svg").count(), 1, "the Josh tile wears his JoshArt portrait");

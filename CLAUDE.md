@@ -9544,7 +9544,7 @@ green.** The old Hear-it test cannot see the 12px bar gap, and without the
 probe's font line the chip clause cannot see the 2.3px overflow. A text
 measurement taken in the wrong font measures nothing.
 
-**🕳️ GOBBLE HOLE (the owner's pick, 2026-09-30) — a fourth world, and six
+**🕳️ GOBBLE HOLE (the owner's pick, 2026-09-30) — a fourth world, and seven
 things the build taught that were each invisible until measured or looked at.**
 (1) **A scene's SIZES must not be tuned; derive them and write the law.** Every
 level radius comes from the scene's own biggest thing and every grow threshold
@@ -9571,7 +9571,15 @@ otherwise leaving mid-gulp brings it back standing on the rim. (6) **A
 mutation that stayed GREEN named the one job only one line does**: removing the
 leave hook changed nothing observable, because the loop, the sounds and the
 timers each also check that the screen is visible; what ONLY the hook does is
-save where Gobble stands, so that is what the resume test now pins. Two
+save where Gobble stands, so that is what the resume test now pins. (7) **An
+option the function never reads does nothing, and it broke RULE 5.** The win
+screen's ▶ called `startScene(next, { fresh: false })`, but `startScene` reads
+only `resume`, so ▶ always started the next place over and deleted what he had
+half-eaten there. The win test could not see it, because its helper resets the
+save first, so the next place never had a run to lose. Found by re-reading the
+code while the gate ran; the new test half-eats the picnic, wins the toy room,
+presses ▶ and must find the same things still gone (the old code reports `0
+gone, 13 were eaten`). Two
 recorded traps bit on the way and are worth repeating: the canvas-floor scan
 matched my own comment explaining why the code does NOT use `roundRect` (a scan
 counting its own documentation), and the kid-world contrast audit's navigation

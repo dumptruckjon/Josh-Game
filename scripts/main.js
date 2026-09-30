@@ -489,7 +489,7 @@
       return;
     }
 
-    // The front door: no hash (or #start) shows the three world tiles.
+    // The front door: no hash (or #start) shows the world tiles.
     const startScreen = document.getElementById("screen-start");
     if ((!id || id === "start") && startScreen) {
       startScreen.hidden = false;

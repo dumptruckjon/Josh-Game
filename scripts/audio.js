@@ -117,7 +117,7 @@
     if (!actx) { try { actx = new AC(); } catch (e) { return null; } }
     return actx;
   }
-  // THE MASTER BUS. Every voice in all three worlds goes through it, and it
+  // THE MASTER BUS. Every voice in every world goes through it, and it
   // exists because the old code connected each oscillator straight to
   // `destination`: with no headroom and no limiter, simultaneous cues simply
   // SUM. That is not hypothetical — a mortar splash kills a whole group at

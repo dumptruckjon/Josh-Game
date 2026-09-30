@@ -192,9 +192,10 @@ body {
    beat every `display` in both stylesheets, so no class can re-open it. */
 [hidden] { display: none !important; }
 
-/* ---------- The front door (#screen-start): three big world tiles ----------
+/* ---------- The front door (#screen-start): the big world tiles ----------
    The app opens here. One tile per world — Josh's games, 华丽's games, the
-   fort — each a giant kid-proof button that navigates directly (no gates). */
+   fort and 🕳️ Gobble Hole — each a giant kid-proof button that navigates
+   directly (no gates). */
 .start__title {
   margin: 10px 0 var(--pad);
   text-align: center;
@@ -228,7 +229,7 @@ body {
   padding: 12px;
 }
 .start-tile:active { transform: scale(0.97); }
-/* ONE shared mark box for all three doors. Measured INK, not boxes: Josh's
+/* ONE shared mark box for every door. Measured INK, not boxes: Josh's
    JoshArt.friend portrait inks 56x77 inside a 96x96 box while 👵🏻 inks 58x63
    and 🏰 inks 72x70 at their own font size — so the PRIMARY door carried the
    lightest mark, and because the mark boxes differed the three labels sat at
@@ -2714,7 +2715,7 @@ body.hl-mode .brand { color: #ffe9b0; }
   .start-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-/* ---------- Short screens: all three doors above the fold ----------
+/* ---------- Short screens: every door above the fold ----------
    The front door is the first thing anyone sees and the ONLY route into any
    world, and the third tile was BELOW THE FOLD on every small phone —
    measured 152px past the bottom at 320x568, 42px at 360x640, 15px at

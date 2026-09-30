@@ -202,6 +202,33 @@ test("the WIN: the vortex slurps everything, Josh's buddy cheers, ⭐ is saved, 
   assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isHidden(), "an unfinished place does not");
 });
 
+test("▶ after a win CARRIES ON a place he left half-eaten — winning one place never wipes another", async () => {
+  // Half-eat the picnic and leave it: it is the place ▶ leads to after the
+  // toy room. (openScene resets the save, so the toy room is opened by its
+  // door directly — a second openScene would wipe the picnic.)
+  await openScene("picnic");
+  await page.evaluate(() => window.__HOLE.autoplay(150));
+  await page.evaluate(() => { const st = window.__HOLE.state(); window.__HOLE.moveTo(st.W * 0.5, st.H * 0.6); });
+  await page.waitForTimeout(1500);
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  const saved = (await page.evaluate(() => window.__HOLE.save())).runs.picnic;
+  assert.ok(saved && saved.eaten.length >= 3, "fixture: the picnic was left half-eaten (" + (saved && saved.eaten.length) + " eaten)");
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="toyroom"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "toyroom");
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 120));
+  await page.locator(".hole-win").waitFor({ state: "visible", timeout: 4000 });
+  assert.match(await page.locator(".hole-next").textContent(), /🧺/, "fixture: ▶ leads to the picnic (its door is 🧺)");
+  await page.waitForTimeout(400);
+  await page.locator(".hole-next").click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  const gone = await page.evaluate(() => window.__HOLE.state().objects.filter((o) => o.st !== 0).map((o) => o.id).sort((a, b) => a - b));
+  assert.deepEqual(gone, [...saved.eaten].sort((a, b) => a - b),
+    "▶ must carry on the half-eaten picnic, not wipe it (" + gone.length + " gone, " + saved.eaten.length + " were eaten)");
+  assert.ok((await page.evaluate(() => window.__HOLE.save())).done.toyroom, "…and the toy room still wears its ⭐");
+});
+
 test("progress is KEPT: leaving and coming back — even a reload — resumes the half-eaten place", async () => {
   await openScene("party");
   await page.evaluate(() => window.__HOLE.autoplay(150));

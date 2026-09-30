@@ -185,8 +185,13 @@
       sayNow(SAY.start);
       startDemo();
     });
-    win.querySelector(".hole-again").addEventListener("click", () => { if (run) startScene(run.def.id, { fresh: true }); });
-    win.querySelector(".hole-next").addEventListener("click", () => { if (run) startScene(nextScene(run.def.id).id, { fresh: false }); });
+    // 🔁 is an explicit "again": this place from the start. ▶ goes to the
+    // NEXT place and CARRIES ON if he left it half-eaten, exactly as its door
+    // on the home screen would — the win must never wipe progress somewhere
+    // else (RULE 5). startScene reads only `resume`; an option it does not
+    // read is a silent no-op, which is how ▶ first shipped wiping it.
+    win.querySelector(".hole-again").addEventListener("click", () => { if (run) startScene(run.def.id); });
+    win.querySelector(".hole-next").addEventListener("click", () => { if (run) startScene(nextScene(run.def.id).id, { resume: true }); });
     guardEcho(play);
     // main.js calls __onHide on the visible screen before any navigation.
     play.__onHide = () => { leavePlay(); };
