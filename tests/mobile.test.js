@@ -190,20 +190,68 @@ test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every 
       field: document.querySelector(".hole-field").getBoundingClientRect().height }));
     assert.ok(fit.sh <= fit.vh + 1, `hole-play@${w}x${h}: the page must not scroll in portrait (${fit.sh} > ${fit.vh})`);
     assert.ok(fit.field >= 200, `hole-play@${w}x${h}: the field gets a real share of the screen (${Math.round(fit.field)}px)`);
-    // a TOUCH drag moves Gobble (pointer events, as a finger sends them)
-    const moved = await page.evaluate(async () => {
-      const st = window.__HOLE.state(), h = st.hole, cv = document.querySelector(".hole-canvas");
-      const a = window.__HOLE.toScreen(h.x, h.y), b = window.__HOLE.toScreen(h.x, h.y - st.H * 0.3);
+    // A TOUCH drag moves Gobble (pointer events, as a finger sends them). It is
+    // measured in THREE separable parts, because on real WebKit the one-number
+    // version failed with "0.0 units" and nothing else (CI run #500), which
+    // cannot tell a dead input path from a frame loop that never ticks:
+    //   1. INPUT  — the finger's pointer events re-aim Gobble. Synchronous: no
+    //               frame has to run for the engine's target to move.
+    //   2. LOOP   — the page's own frame loop steps the game on this engine.
+    //               Polled up to a few seconds, never a fixed sleep: a slow
+    //               headless frame rate is not the thing under test.
+    //   3. MOTION — so he glides to where the finger went.
+    // Each assertion carries the whole record, including whether this page
+    // runs animation frames AT ALL (an independent probe, not the game's own
+    // loop) and whether the document reports itself visible.
+    const d = await page.evaluate(async () => {
+      const H = window.__HOLE, st = H.state(), h = st.hole, cv = document.querySelector(".hole-canvas");
+      const a = H.toScreen(h.x, h.y), b = H.toScreen(h.x, h.y - st.H * 0.3);
       const ev = (type, p) => cv.dispatchEvent(new PointerEvent(type, { pointerId: 11, isPrimary: true, pointerType: "touch",
         clientX: p.x, clientY: p.y, bubbles: true, cancelable: true }));
-      const y0 = h.y;
+      const out = { vis: document.visibilityState, running: H.running(), y0: h.y, ty0: h.ty };
+      out.rafIn500ms = await new Promise((r) => {
+        let n = 0; const t0 = performance.now();
+        const f = () => { n++; if (performance.now() - t0 < 500) requestAnimationFrame(f); else r(n); };
+        requestAnimationFrame(f);
+        setTimeout(() => r(n), 2500);
+      });
       ev("pointerdown", a);
       for (let i = 1; i <= 6; i++) ev("pointermove", { x: a.x, y: a.y + ((b.y - a.y) * i) / 6 });
-      await new Promise((r) => setTimeout(r, 700));
+      out.ty1 = h.ty;
+      const tick0 = st.tick, t0 = performance.now();
+      while (st.tick - tick0 < 20 && performance.now() - t0 < 6000) await new Promise((r) => setTimeout(r, 50));
+      out.ticks = st.tick - tick0;
+      out.ms = Math.round(performance.now() - t0);
       ev("pointerup", b);
-      return y0 - window.__HOLE.state().hole.y;
+      out.y1 = h.y;
+      out.sameRun = H.state() === st;
+      out.runningEnd = H.running();
+      out.visEnd = document.visibilityState;
+      out.playHiddenEnd = document.getElementById("screen-hole-play").hidden;
+      out.hash = location.hash;
+      return out;
     });
-    assert.ok(moved > 5, `hole-play@${w}x${h}: a touch drag moves Gobble (${moved.toFixed(1)} units)`);
+    d.focus = await page.evaluate(() => document.hasFocus());
+    if (!(d.ty0 - d.ty1 > 5)) {
+      // Diagnostic ONLY (it runs just before the INPUT assertion fails): does
+      // a TRUSTED pointer — the browser's own input path, not a synthetic
+      // event — re-aim him? That separates "this engine does not deliver a
+      // constructed PointerEvent" from "the handler is broken".
+      const p = await page.evaluate(() => {
+        const H = window.__HOLE, st = H.state(), hh = st.hole;
+        return { a: H.toScreen(hh.x, hh.y), b: H.toScreen(hh.x, hh.y - st.H * 0.3), ty: hh.ty };
+      });
+      await page.mouse.move(p.a.x, p.a.y);
+      await page.mouse.down();
+      await page.mouse.move(p.b.x, p.b.y, { steps: 6 });
+      d.trustedRetarget = p.ty - (await page.evaluate(() => window.__HOLE.state().hole.ty));
+      await page.mouse.up();
+    }
+    const why = JSON.stringify(d);
+    assert.ok(d.sameRun, `hole-play@${w}x${h}: fixture — the run must not be replaced mid-drag: ${why}`);
+    assert.ok(d.ty0 - d.ty1 > 5, `hole-play@${w}x${h}: a touch drag must re-aim Gobble (INPUT): ${why}`);
+    assert.ok(d.ticks >= 20, `hole-play@${w}x${h}: the frame loop must step the game on this engine (LOOP): ${why}`);
+    assert.ok(d.y0 - d.y1 > 5, `hole-play@${w}x${h}: …so Gobble glides where the finger went (MOTION): ${why}`);
     // the win screen
     await page.evaluate(() => window.__HOLE.autoplay(60 * 120));
     await page.locator(".hole-win").waitFor({ state: "visible", timeout: 5000 });
