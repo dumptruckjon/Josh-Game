@@ -9544,7 +9544,7 @@ green.** The old Hear-it test cannot see the 12px bar gap, and without the
 probe's font line the chip clause cannot see the 2.3px overflow. A text
 measurement taken in the wrong font measures nothing.
 
-**🕳️ GOBBLE HOLE (the owner's pick, 2026-09-30) — a fourth world, and seven
+**🕳️ GOBBLE HOLE (the owner's pick, 2026-09-30) — a fourth world, and eight
 things the build taught that were each invisible until measured or looked at.**
 (1) **A scene's SIZES must not be tuned; derive them and write the law.** Every
 level radius comes from the scene's own biggest thing and every grow threshold
@@ -9579,7 +9579,25 @@ half-eaten there. The win test could not see it, because its helper resets the
 save first, so the next place never had a run to lose. Found by re-reading the
 code while the gate ran; the new test half-eats the picnic, wins the toy room,
 presses ▶ and must find the same things still gone (the old code reports `0
-gone, 13 were eaten`). Two
+gone, 13 were eaten`). (8) **Poll for a frame-driven effect, never sleep for
+it — and a failure that prints one number is a defect in the test.** The first
+CI run failed one check on real WebKit: a touch drag moved Gobble `0.0 units`
+after a fixed 700ms wait. There was no page error (so the renderer had not
+crashed) and nothing else to go on, and WebKit is not installed here. The check
+now measures three parts separately: INPUT (the pointer events re-aim him,
+synchronously), LOOP (the page's own frame loop steps the game, polled for up
+to 6s) and MOTION. On any failure it prints the whole record: an independent
+animation-frame probe, visibility, focus, whether the run was replaced, and
+(only when input fails) whether a trusted pointer re-aims him. Each part is
+mutation-proven. The next run passed on WebKit, taking 12.8s for the three
+sizes against 7.7s on local Chromium. The cause of the 0.0 is NOT confirmed.
+The explanation that fits is that a software-rendered WebKit, sharing the CI
+runner with test files running in parallel, drew no frame inside the old
+700ms window. If it recurs, the record will say which part broke. A tooling
+note from watching that run: the CI watcher printed nothing for 30 minutes
+because its inline `python3 -c` put a backslash inside an f-string, which is a
+SyntaxError on this box's Python 3.11, and stderr was discarded. Put a watcher
+in a script file and parse-check it before trusting its silence. Two
 recorded traps bit on the way and are worth repeating: the canvas-floor scan
 matched my own comment explaining why the code does NOT use `roundRect` (a scan
 counting its own documentation), and the kid-world contrast audit's navigation
