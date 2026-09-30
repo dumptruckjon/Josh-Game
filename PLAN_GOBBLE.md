@@ -151,7 +151,141 @@ fail):
 - **Mobile (real WebKit in CI):** all four doors above the fold; no overflow;
   every tap ≥75px and 16px apart on both new screens; a touch drag moves Gobble.
 
-## 9. Not in this pick (recorded, not built)
+## 9. Phase 2 — BIG worlds (owner, 2026-09-30, the same evening)
+
+> "Game works but how can we really expand the game. It's weird to have it on
+> one single screen with no scroll. Most of these games are way larger levels
+> where you actually have to move around."
+
+Right: in hole.io, Donut County and Hole em All the world is much bigger than
+the screen, the camera follows the hole, and it pulls back as the hole grows.
+Phase 2 replaces the one-screen island with that.
+
+### 9.1 The world and the camera
+
+- **A fixed world per place**, about 300 × 420 units (the old island was 12,600
+  units² — this is ten times that). It no longer changes shape with the
+  screen: the SCREEN is a camera onto it, so a save never depends on the device.
+- **The camera follows Gobble** (smoothly, a short lag) and never shows much
+  past the island's edge: at an edge you see the diorama's rim and the backdrop
+  beyond, which says "this is the end" without words.
+- **It zooms out as Gobble grows.** The width of world shown on the screen's
+  short side is `VIEW0 × (short px / 400)^0.5 × (R[level] / R[0])^0.72`. So:
+  - at the start a phone shows ~48 units and an iPad ~66;
+  - Gobble fills ~17% of the short side at the start and ~28% at the top size
+    — he visibly grows on screen AND the world opens up around him;
+  - a bigger screen shows more world rather than blowing everything up.
+  After the finale the camera pulls all the way back to show the whole island
+  while the vortex slurps everything in — the "look how much you ate" moment.
+- **A fresh place opens with a look at the whole island** (1.6s, the castle or
+  the Sun on its stage at the top), then flies in to Gobble. A finger or a key
+  during it ends it at once, so the spot under the finger is always a spot he
+  can see. A place he comes back to starts right on Gobble, and under
+  `prefers-reduced-motion` there is no flight at all.
+- **Gobble's speed scales with the zoom** (the same exponent), so he always
+  crosses about a screen a second, small or huge.
+
+### 9.2 Steering: Gobble goes where your finger is
+
+Hold anywhere and Gobble heads for the spot under your finger. Because the
+camera follows him, the spot under a finger held still keeps moving ahead, so
+**holding to one side keeps him going that way** — hole.io's steering, with no
+joystick to learn. A tap sends him to the tapped spot. Letting go lets him
+finish the trip. (There is no look-ahead in the camera: with a finger held at
+the centre, a look-ahead would make him drift forever.) One finger only, as
+before; arrow keys step a quarter of the view.
+
+### 9.3 A world worth moving around in
+
+About **200 things per place** (≈ 82 tiny, 52 small, 33 medium, 20 large, 9
+huge, 1 finale), arranged so that there is always somewhere to go:
+
+- **Districts** (zones) give each place its geography, and the ground carries
+  matching features ("decals"), so things sit where they belong:
+  - Toy Room: a block corner on a play mat, an art corner with paint splats, a
+    music corner on a striped rug, a bed corner, the big rainbow rug.
+  - Picnic Park: three checked blankets of food, ponds, flower beds, the woods.
+  - Building Site: a brick yard, gravel piles, a cement lot for the trucks.
+  - Busy Town: a grid of roads (every car, bus and scooter ON a road), a park,
+    a parking lot, the schoolyard.
+  - Party Time: two party tables of food, a dance floor, heart rugs, the cake stage.
+  - Outer Space: an asteroid belt, a space station, nebulae.
+- **Clumps**: many tiny and small things come in groups of 2–5, so one pass
+  hoovers up a whole bunch (hole.io's best feeling).
+- **Trails**: three trails of tiny bites lead out from the start toward the
+  districts — "follow the sweets".
+- **The finale** stands top-centre on its own stage, the landmark to head for.
+
+### 9.4 Growing (still derived, never tuned)
+
+The level radii are unchanged (`R[L]` from the tiers, and the tier law). The
+thresholds change, because "a fraction of everything edible" makes no sense
+when there are 80 sweets spread over six screens: a grow now needs
+`GROW_BITES[L]` bites' worth of the newest edible tier's xp —
+`[6, 8, 8, 8, 8]`. So the first "BIGGER!" comes after about six sweets, and
+every grow is reachable with most of the place still standing. The finale is
+still the win; the vortex still finishes the rest.
+
+### 9.5 Never lost
+
+When nothing Gobble can eat has been on screen for a moment (1.2s), or the
+hint (after six quiet seconds) points at something off screen, a round
+**arrow bubble** appears at the screen edge, holding a picture of the nearest
+thing he can eat and pointing at it. **Tapping it sends him there**, all the
+way, however short the tap (92px across with a finger's slack). On screen, the
+existing sparkle trail does the job.
+
+### 9.6 Drawing a world bigger than any canvas
+
+A baked picture of the whole world at play zoom would be ~67 MP on an iPad —
+impossible. So the ground is drawn every frame, cheaply and crisply:
+
+- the ground's TEXTURE (planks, grass tufts, stars…) is vector marks drawn
+  straight onto the canvas in 64-unit squares, each kind of mark from its own
+  seeded stream, with fewer marks as the camera pulls back. A repeating bitmap
+  PATTERN was tried first and measured: scaled or sub-pixel, a software
+  rasteriser (Josh's iPad; CI's WebKit) filters it per pixel, 70-115ms for one
+  iPad screen, where a flat fill plus small marks costs a few ms;
+- the lighting is 24 flat diagonal bands rather than a gradient, and a space
+  nebula is 18 stepped rings, so each pixel is filled once instead of shaded;
+- a finished place whose picture has stopped moving is not redrawn at all
+  (it is drawn once more whenever the screen is shown again);
+- the ground's FEATURES (rugs, blankets, roads, ponds…) are vector decals in
+  world units, drawn only when on screen;
+- things are drawn only when on screen, and each emoji's ink box is measured
+  ONCE (a pixel scan) and reused at every size, with sprites in half-octave
+  size steps (always rounded UP, so a sprite is only ever drawn smaller), so a
+  zoom never mints a new canvas per frame; the sprite cache is capped, because
+  iOS caps canvas memory.
+- the backdrop past the island's edge (a wall, sky or stars) is drawn in SCREEN
+  space: it is far away, so it never scrolls. When the view is entirely inside
+  the island it is not drawn at all.
+
+### 9.7 Saves
+
+A save now carries a layout version. A half-eaten place from the one-screen
+version is dropped (its ids point at a different layout); finished ⭐s are kept.
+
+### 9.8 Tests
+
+- **Engine:** every place lays out with nothing overlapping, everything inside,
+  zoned things in their zones, trails leading out, clumps together, a clear
+  start; the tier law; thresholds from GROW_BITES, reachable with most of the
+  place standing; speed scales with the zoom; the bot finishes every place
+  with a fast first gulp and grow; the vortex empties even a big world; save v2.
+- **Browser:** the camera follows Gobble and stays on the island; the world is
+  bigger than the screen; holding a finger to one side keeps him going; arrow
+  keys step a quarter of the view; a grow zooms out and he never looks smaller
+  on the way (sampled over real frames); only on-screen things are drawn; the
+  edge arrow appears when nothing edible is in view and tapping it sends him
+  there; a fresh place opens with the whole-island look (not on a resume, not
+  under reduced motion) and a finger ends it; the win pulls back to the whole
+  island; a half-eaten run from the one-screen version is dropped, its ⭐
+  kept. Every ground feature a place declares has a drawing and a real box
+  (node).
+- **Mobile (real WebKit in CI):** the play screen fits and a touch drag steers him.
+
+## 10. Not in this pick (recorded, not built)
 
 - A 2-player mode (two holes). Josh's profile names co-op as his top lever, but
   RULE 5 says to ignore extra fingers — it needs its own design.

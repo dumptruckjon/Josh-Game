@@ -36,41 +36,50 @@
   // same thing — an object can never fall in while it LOOKS outside the rim.
   function gdist(ax, ay, bx, by) { return Math.hypot(ax - bx, (ay - by) / SQ); }
 
-  // The scene keeps its AREA and adapts its ASPECT to the screen. Quantized so
-  // a saved run rebuilds exactly the same layout.
-  function sizeFor(aspect) {
-    const a = Number.isFinite(aspect) ? aspect : 0.75;
-    const q = Math.round(clamp(a, RULES.ASPECT[0], RULES.ASPECT[1]) * 100) / 100;
-    return { aspect: q, W: Math.sqrt(RULES.AREA * q), H: Math.sqrt(RULES.AREA / q) };
+  // A place is a fixed WORLD (PLAN_GOBBLE.md §9): it no longer bends to the
+  // screen — the screen is a camera onto it — so a saved run never depends on
+  // the device it was played on.
+  function worldOf(def) {
+    const w = (def && def.world) || RULES.WORLD;
+    return { W: w[0], H: w[1] };
   }
 
   function sceneById(id) { return DATA.SCENES.find((s) => s.id === id) || null; }
 
   // ---- Layout: where every object stands (deterministic) -------------------
-  // The FINALE stands at the top centre as the scene's landmark (the goal you
-  // can see from the start); the three STARTERS sit right beside Gobble so the
-  // first gulp is instant; then the rest go down biggest-first by best-
-  // candidate sampling (of 24 legal spots, keep the one with the most room),
-  // which spreads a scene evenly without a grid look.
-  function layout(def, aspect) {
-    const { aspect: q, W, H } = sizeFor(aspect);
-    const rr = rng(hashStr(def.id + ":radius"));      // sizes: the same on every screen
-    const rp = rng(hashStr(def.id + ":place:" + q));  // places: per aspect
-    const start = { x: W / 2, y: H - RULES.START_Y };
+  // In this order, because each step needs room the next one would take:
+  //   1. the FINALE on its stage (the landmark you head for),
+  //   2. three STARTERS right beside Gobble (the first gulp is instant),
+  //   3. the TRAILS — lines of tiny bites leading out from the start,
+  //   4. the big single things (a big thing needs the most room),
+  //   5. the CLUMPS — a group stands together, so one pass hoovers up the lot,
+  //   6. everything else, biggest first.
+  // Placement is best-candidate sampling (of up to 24 legal spots, keep the
+  // one with the most room), which spreads a world evenly without a grid look;
+  // a zoned thing stands with its centre in its zone.
+  function layout(def) {
+    const { W, H } = worldOf(def);
+    const rr = rng(hashStr(def.id + ":radius"));
+    const rp = rng(hashStr(def.id + ":place"));
+    const s0 = def.start || [0.5, 0.9];
+    const start = { x: W * s0[0], y: H * s0[1] };
     const want = [];
+    let clumpN = 0;
     def.tiers.forEach((t, i) => {
       for (const it of t.items) {
-        for (let k = 0; k < it[1]; k++) {
-          want.push({ e: it[0], tier: i + 1, r: t.r[0] + (t.r[1] - t.r[0]) * rr(), zone: it[2] || null });
+        const k = Math.max(1, it[3] | 0);
+        for (let n = 0; n < it[1]; n++) {
+          if (k > 1 && n % k === 0) clumpN++;
+          want.push({ e: it[0], tier: i + 1, r: t.r[0] + (t.r[1] - t.r[0]) * rr(), zone: it[2] || null, clump: k > 1 ? clumpN : 0 });
         }
       }
     });
     const placed = [];
     const topMin = (r) => Math.max(r * SQ + RULES.EDGE, RULES.SPRITE_H * r - RULES.TOP_SLACK);
-    const legal = (x, y, r, starter, sep) => {
+    const legal = (x, y, r, nearStart, sep) => {
       if (x < r + RULES.EDGE || x > W - r - RULES.EDGE) return false;
       if (y < topMin(r) || y > H - r * SQ - RULES.EDGE) return false;
-      if (!starter && gdist(x, y, start.x, start.y) < RULES.START_CLEAR + r) return false;
+      if (!nearStart && gdist(x, y, start.x, start.y) < RULES.START_CLEAR + r) return false;
       for (const p of placed) if (gdist(x, y, p.x, p.y) < sep * (r + p.r)) return false;
       return true;
     };
@@ -79,76 +88,137 @@
       for (const p of placed) m = Math.min(m, gdist(x, y, p.x, p.y) - (r + p.r));
       return m;
     };
-    const put = (o, x, y) => { o.x = x; o.y = y; placed.push(o); };
-
-    // 1. the finale: top centre, low enough for its tall sprite to fit
-    const fin = { e: def.finale.e, tier: def.tiers.length + 1, r: def.finale.r, zone: null, finale: true };
-    put(fin, W / 2, Math.max(0.3 * H, topMin(fin.r)));
-
-    // 2. the starters: a little arc just above Gobble
-    const n0 = Math.min(def.starters || 0, want.length);
-    const arc = [[-7, -6.5], [0, -9.5], [7, -6.5]];
-    const starters = [];
-    for (let i = 0; i < n0; i++) {
-      const o = want.find((w) => w.tier === 1 && !w.starter && !starters.includes(w));
-      if (!o) break;
-      o.starter = true; starters.push(o);
-      const a = arc[i % arc.length];
-      put(o, start.x + a[0], start.y + a[1]);
-    }
-
-    // 3. everything else, biggest first (a big thing needs the most room)
-    const rest = want.filter((w) => !w.starter).sort((a, b) => b.r - a.r);
-    let relaxed = 0, zoneMiss = 0;
+    const put = (o, x, y) => { o.x = x; o.y = y; o.done = true; placed.push(o); };
     const zoneRects = (z) => ((def.zones && def.zones[z]) || []).map((b) => [b[0] * W, b[1] * H, b[2] * W, b[3] * H]);
-    for (const o of rest) {
-      let sep = RULES.SEP, done = false;
-      const rects = o.zone ? zoneRects(o.zone) : [];
-      for (let pass = 0; pass < 6 && !done; pass++) {
+    let relaxed = 0, zoneMiss = 0, broken = 0;
+
+    // Best-candidate spot for a footprint of radius `r` (in its zone if any).
+    function spot(r, zone) {
+      const rects = zone ? zoneRects(zone) : [];
+      let sep = RULES.SEP;
+      for (let pass = 0; pass < 6; pass++) {
         const inZone = rects.length > 0 && pass < 3;
         let best = null, bestRoom = -Infinity, found = 0;
         for (let tries = 0; tries < 1500 && found < 24; tries++) {
           let x, y;
           if (inZone) {
             const b = rects[Math.floor(rp() * rects.length)];
-            // a zone is where the thing SITS: its centre in the zone (it may
-            // overhang the edge a little — a bus is wider than a lane)
             x = b[0] + (b[2] - b[0]) * rp();
             y = b[1] + (b[3] - b[1]) * rp();
           } else {
-            x = o.r + RULES.EDGE + (W - 2 * (o.r + RULES.EDGE)) * rp();
-            y = topMin(o.r) + (H - o.r * SQ - RULES.EDGE - topMin(o.r)) * rp();
+            x = r + RULES.EDGE + (W - 2 * (r + RULES.EDGE)) * rp();
+            y = topMin(r) + (H - r * SQ - RULES.EDGE - topMin(r)) * rp();
           }
-          if (!legal(x, y, o.r, false, sep)) continue;
+          if (!legal(x, y, r, false, sep)) continue;
           found++;
-          const m = room(x, y, o.r);
+          const m = room(x, y, r);
           if (m > bestRoom) { bestRoom = m; best = [x, y]; }
         }
         if (best) {
-          put(o, best[0], best[1]);
           if (rects.length && !inZone) zoneMiss++;
-          done = true;
-        } else if (pass >= 2) {
-          sep *= 0.9; relaxed++;
+          return best;
         }
+        if (pass >= 2) { sep *= 0.9; relaxed++; }
       }
-      if (!done) { relaxed++; put(o, W / 2, H / 2); } // never happens for a shipped scene (tested)
+      relaxed++;
+      return [W / 2, H / 2];   // never happens for a shipped place (tested)
     }
+
+    // 1. the finale, on its stage
+    const at = def.finale.at || [0.5, 0.16];
+    const fin = { e: def.finale.e, tier: def.tiers.length + 1, r: def.finale.r, zone: null, clump: 0, finale: true };
+    put(fin, W * at[0], Math.max(H * at[1], topMin(fin.r)));
+
+    // 2. the starters: a little arc just above Gobble — plain tiny bites (the
+    //    first trail's bite if it has one), never a zoned or clumped thing
+    const trails = def.trails || [];
+    const plain = (w) => !w.done && w.tier === 1 && !w.zone && !w.clump;
+    const pref = trails.length ? trails[0].e : null;
+    const arc = [[-7, -6.5], [0, -9.5], [7, -6.5]];
+    for (let i = 0; i < (def.starters || 0); i++) {
+      const o = want.find((w) => plain(w) && w.e === pref) || want.find(plain);
+      if (!o) break;
+      o.starter = true;
+      const a = arc[i % arc.length];
+      put(o, start.x + a[0], start.y + a[1]);
+    }
+
+    // 3. the trails: from just outside the start, a gently bending line of
+    //    bites toward `to`; a spot that is not free is simply skipped
+    trails.forEach((tr, ti) => {
+      const tx = W * tr.to[0], ty = H * tr.to[1];
+      const dx = tx - start.x, dy = ty - start.y, len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len, bend = (ti % 2 ? -1 : 1) * 7;
+      for (let i = 0; i < RULES.TRAIL_MAX; i++) {
+        const d = RULES.START_CLEAR + 6 + i * RULES.TRAIL_STEP;
+        if (d > len) break;
+        const o = want.find((w) => plain(w) && w.e === tr.e);
+        if (!o) break;
+        const wob = Math.sin((i / Math.max(1, RULES.TRAIL_MAX - 1)) * Math.PI) * bend;
+        const x = start.x + ux * d - uy * wob, y = start.y + uy * d + ux * wob;
+        if (!legal(x, y, o.r, false, RULES.SEP)) continue;
+        o.trail = ti + 1;
+        put(o, x, y);
+      }
+    });
+
+    // 4. big singles, biggest first
+    const singles = (min) => want.filter((w) => !w.done && !w.clump && w.tier >= min).sort((a, b) => b.r - a.r);
+    for (const o of singles(3)) { const p = spot(o.r, o.zone); put(o, p[0], p[1]); }
+
+    // 5. the clumps: find a centre with room for the whole group, then grow
+    //    the group outward from it, each member touching (almost) the last
+    const clumps = new Map();
+    for (const w of want) if (!w.done && w.clump) {
+      if (!clumps.has(w.clump)) clumps.set(w.clump, []);
+      clumps.get(w.clump).push(w);
+    }
+    const order = [...clumps.values()].sort((a, b) => b[0].r - a[0].r);
+    const inRects = (x, y, rects) => rects.some((b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3]);
+    for (const g of order) {
+      const rMax = Math.max(...g.map((m) => m.r));
+      const foot = rMax * (1 + 1.15 * Math.sqrt(g.length - 1));
+      const c = spot(foot, g[0].zone);
+      // a zoned clump grows INSIDE its zone: a tulip that wanders off the
+      // park onto the road is a tulip on the road
+      const rects = g[0].zone ? zoneRects(g[0].zone) : [];
+      const here = [];
+      for (const m of g) {
+        let ok = null;
+        const fits = (x, y) => legal(x, y, m.r, false, RULES.SEP) && (!rects.length || inRects(x, y, rects));
+        if (!here.length && fits(c[0], c[1])) ok = c;
+        for (let tries = 0; !ok && tries < 80; tries++) {
+          const nb = here.length ? here[Math.floor(rp() * here.length)] : { x: c[0], y: c[1], r: 0 };
+          const ang = rp() * Math.PI * 2, d = RULES.SEP * (m.r + nb.r) * (here.length ? 1.06 : 0.5) + 0.05;
+          const x = nb.x + Math.cos(ang) * d, y = nb.y + Math.sin(ang) * d * SQ;
+          if (fits(x, y)) ok = [x, y];
+        }
+        if (!ok) { ok = spot(m.r, m.zone); broken++; }
+        put(m, ok[0], ok[1]);
+        here.push(m);
+      }
+    }
+
+    // 6. everything else, biggest first
+    for (const o of singles(1)) { const p = spot(o.r, o.zone); put(o, p[0], p[1]); }
 
     const objects = placed.map((p, i) => ({
       id: i, e: p.e, tier: p.tier, r: round3(p.r), x: round3(p.x), y: round3(p.y),
       xp: Math.round(p.r * p.r * 10), finale: !!p.finale, starter: !!p.starter,
+      clump: p.clump || 0, trail: p.trail || 0,
       st: IDLE, f: 0, fx: 0, fy: 0, wob: 0, cd: 0, pull: 0,
     }));
-    return { W, H, aspect: q, start, objects, relaxed, zoneMiss };
+    return { W, H, start, objects, relaxed, zoneMiss, broken };
   }
   function round3(v) { return Math.round(v * 1000) / 1000; }
 
-  // ---- Levels: DERIVED from the scene's own objects, never hand-tuned ----
+  // ---- Levels: DERIVED from the place's own objects, never hand-tuned ----
   // Level L eats every tier <= L+1. R[L] clears tier L+1's biggest thing by
-  // HEAD; C[L] (cumulative xp to reach level L) is ALPHA of everything that
-  // was edible below it — so a grow is always reachable, never needs the last
-  // hidden crumb, and the first one comes fast.
+  // HEAD (and the tier law, tested, is that tier L+2 is still too big). A grow
+  // from level L-1 to L needs GROW_BITES[L-1] bites' worth of the NEWEST
+  // edible tier (tier L) — a fraction of "everything edible" makes no sense
+  // when there are 80 sweets over six screens, and this way the first
+  // "BIGGER!" comes after about six sweets and no grow ever needs a hunt.
   function levelsOf(objects) {
     const T = Math.max(...objects.map((o) => o.tier));
     const R = [], C = [0];
@@ -157,21 +227,39 @@
       R.push(round3(big / RULES.FIT * RULES.HEAD));
     }
     for (let L = 1; L < T; L++) {
-      const xp = objects.filter((o) => o.tier <= L).reduce((s, o) => s + o.xp, 0);
-      const a = RULES.ALPHA[Math.min(L - 1, RULES.ALPHA.length - 1)];
-      C.push(Math.round(a * xp));
+      const tier = objects.filter((o) => o.tier === L);
+      const mean = tier.reduce((s, o) => s + o.xp, 0) / Math.max(1, tier.length);
+      const bites = RULES.GROW_BITES[Math.min(L - 1, RULES.GROW_BITES.length - 1)];
+      C.push(Math.round(C[L - 1] + bites * mean));
     }
     return { R, C };
   }
 
+  // How far the camera pulls back at a level, relative to the start: ONE
+  // curve for the renderer's zoom and for Gobble's speed, so he always crosses
+  // about a screen a second whether he is a tiny mouth or a crater.
+  function zoomScale(st, level) {
+    const R = st.levels.R, lv = level == null ? st.hole.level : level;
+    return Math.pow(R[clamp(lv, 0, R.length - 1)] / R[0], RULES.ZOOM);
+  }
+
+  // How much world the camera shows across the screen's SHORT side, in world
+  // units: a bigger screen shows more world (it is not a blow-up), and the
+  // view widens as Gobble grows — by the same curve as his speed above, so he
+  // crosses about a screen a second at every size. The renderer draws with
+  // it; this is its one owner.
+  function viewSpan(st, shortPx, level) {
+    const px = Number.isFinite(shortPx) && shortPx > 0 ? shortPx : 400;
+    return RULES.VIEW0 * Math.pow(px / 400, RULES.VIEW_SCREEN) * zoomScale(st, level);
+  }
+
   // ---- A run --------------------------------------------------------------
-  function createGame(def, opts) {
+  function createGame(def) {
     if (typeof def === "string") def = sceneById(def);
-    opts = opts || {};
-    const lay = layout(def, opts.aspect);
+    const lay = layout(def);
     const lv = levelsOf(lay.objects);
     return {
-      id: def.id, W: lay.W, H: lay.H, aspect: lay.aspect, start: lay.start,
+      id: def.id, W: lay.W, H: lay.H, start: lay.start,
       objects: lay.objects, levels: lv,
       hole: { x: lay.start.x, y: lay.start.y, r: lv.R[0], R: lv.R[0], level: 0, xp: 0, tx: lay.start.x, ty: lay.start.y },
       t: 0, tick: 0, eaten: 0, total: lay.objects.length,
@@ -252,7 +340,7 @@
     // 1. glide toward the target: fast when far, gentle as it arrives
     const dx = h.tx - h.x, dy = h.ty - h.y, d = Math.hypot(dx, dy);
     if (d > 0.005) {
-      const move = Math.min(d, Math.min(d * RULES.GAIN, RULES.VMAX) * dt);
+      const move = Math.min(d, Math.min(d * RULES.GAIN, RULES.VMAX * zoomScale(st)) * dt);
       h.x += (dx / d) * move; h.y += (dy / d) * move;
     }
     const c = clampXY(st, h.x, h.y);
@@ -330,7 +418,7 @@
   // save can never hand Gobble a size it did not earn.
   function snapshot(st) {
     return {
-      scene: st.id, aspect: st.aspect,
+      v: RULES.LAYOUT, scene: st.id,
       // a thing already FALLING is as good as eaten: leaving mid-gulp must
       // not bring it back standing on the rim
       eaten: st.objects.filter((o) => o.st !== IDLE).map((o) => o.id),
@@ -338,10 +426,12 @@
     };
   }
   function restore(snap) {
-    if (!snap || typeof snap !== "object") return null;
+    // a run from another layout (the one-screen islands of phase 1) names
+    // ids that mean different things here: it is dropped, never guessed at
+    if (!snap || typeof snap !== "object" || snap.v !== RULES.LAYOUT) return null;
     const def = sceneById(snap.scene);
     if (!def) return null;
-    const st = createGame(def, { aspect: Number(snap.aspect) });
+    const st = createGame(def);
     const ids = Array.isArray(snap.eaten) ? snap.eaten : [];
     const h = st.hole;
     for (const raw of ids) {
@@ -369,7 +459,7 @@
 
   const HoleLogic = {
     DT, IDLE, FALL, GONE,
-    rng, hashStr, gdist, sizeFor, sceneById, layout, levelsOf,
+    rng, hashStr, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
     createGame, setTarget, step, nearestEdible, edible, botTarget,
     snapshot, restore, hashState,
   };
