@@ -69,7 +69,11 @@
     if (!isObj(raw)) return s;
     for (const sc of SCENES) {
       if (isObj(raw.done) && raw.done[sc.id] === true) s.done[sc.id] = true;
-      if (isObj(raw.runs) && isObj(raw.runs[sc.id]) && raw.runs[sc.id].scene === sc.id) s.runs[sc.id] = raw.runs[sc.id];
+      // a run must name its own slot AND this layout: a half-eaten place from
+      // the one-screen islands of phase 1 names ids that mean different
+      // things in a big world, so it is dropped (its ⭐ above is kept)
+      const r = isObj(raw.runs) ? raw.runs[sc.id] : null;
+      if (isObj(r) && r.scene === sc.id && r.v === DATA.RULES.LAYOUT) s.runs[sc.id] = r;
     }
     s.demo = raw.demo === true;
     if (typeof raw.last === "string" && L.sceneById(raw.last)) s.last = raw.last;
@@ -182,6 +186,7 @@
     render = HR.create(canvas);
     play.querySelector(".hole-back").addEventListener("click", () => { location.hash = "#hole-home"; });
     play.querySelector(".hole-hear").addEventListener("click", () => {
+      render.endIntro();
       sayNow(SAY.start);
       startDemo();
     });
@@ -282,10 +287,6 @@
 
   function playVisible() { return !!play && !play.hidden && !doc.hidden; }
 
-  function fieldSize() {
-    return { w: field ? field.clientWidth : 0, h: field ? field.clientHeight : 0 };
-  }
-
   // Open a place from its door: a saved half-eaten run resumes; otherwise a
   // fresh one. The run is created once the play screen is VISIBLE, because a
   // hidden field measures 0 wide (the fort's collapsed-canvas lesson).
@@ -301,22 +302,22 @@
     render.resize();
     let st = null, resumed = false;
     if (opts.resume && save.runs[def.id]) { st = L.restore(save.runs[def.id]); resumed = !!st; }
-    if (!st) {
-      const f = fieldSize();
-      st = L.createGame(def, { aspect: render.bestAspect(f.w, f.h) });
-      delete save.runs[def.id];
-    }
+    // the world is the same on every screen (PLAN §9.1): the screen is only
+    // a camera onto it, so a save never depends on the device
+    if (!st) { st = L.createGame(def); delete save.runs[def.id]; }
     run = {
       st, def, bigSaid: -1e9,
       ate: st.objects.filter((o) => o.st === L.GONE).map((o) => o.e),
     };
-    render.setState(st);
+    // a fresh place opens with a look at the whole island and then flies in
+    // to Gobble (skipped under reduced motion); a resumed one starts on him
+    render.setState(st, { intro: !resumed });
     save.last = def.id;
     persist();
     meterKey = "";
     paintMeter();
     if (!resumed) later(() => sayPlay(SAY.start), 400);
-    if (!save.demo) later(startDemo, 1000);   // the first time ever: show, don't tell
+    if (!save.demo) later(demoWhenReady, 1000);   // the first time ever: show, don't tell
     startLoop();
   }
 
@@ -341,6 +342,7 @@
     if (!lastT) lastT = t - L.DT;
     acc += clamp(t - lastT, 0, 0.1);
     lastT = t;
+    steer();
     let n = 0;
     while (acc >= L.DT && n < MAX_STEPS) {
       tickDemo(t);
@@ -428,34 +430,57 @@
     later(() => meter.classList.remove("hole-meter--pop"), 700);
   }
 
-  // ---- Input: one finger drags Gobble ---------------------------------------
-  // Grab Gobble and drag (the grab offset is kept, so he never jumps under the
-  // finger), or touch anywhere and he glides there. Extra fingers are ignored.
-  const drag = { id: null, ox: 0, oy: 0 };
-  function worldAt(e) {
+  // ---- Input: one finger steers Gobble (PLAN §9.2) --------------------------
+  // Hold anywhere and he heads for the spot under the finger. The camera
+  // follows him, so the spot under a finger held STILL keeps moving ahead of
+  // him: holding to one side keeps him going that way (hole.io's steering,
+  // with no joystick to learn). That only works if the finger is re-read every
+  // frame, not only when it moves — a still finger would otherwise stop
+  // steering the moment the camera caught up. A tap sends him to the tapped
+  // spot; letting go lets him finish the trip. Extra fingers are ignored.
+  const drag = { id: null, cx: 0, cy: 0 };
+  function canvasPt(cx, cy) {
     const r = canvas.getBoundingClientRect();
-    return render.toWorld(e.clientX - r.left, e.clientY - r.top);
+    return { x: cx - r.left, y: cy - r.top };
   }
-  function aim(p) { if (run) L.setTarget(run.st, p.x + drag.ox, p.y + drag.oy); }
+  function steer() {
+    if (!run || drag.id === null) return;
+    const c = canvasPt(drag.cx, drag.cy), p = render.toWorld(c.x, c.y);
+    L.setTarget(run.st, p.x, p.y);
+  }
+  // A finger (or a key) during the opening look: straight to Gobble, so the
+  // spot under the finger is a spot he can see.
+  function wake() {
+    const c = render.camera();
+    if (c && c.intro) render.snap();
+  }
   function wireInput() {
     canvas.addEventListener("pointerdown", (e) => {
       if (!run || drag.id !== null || !e.isPrimary) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
       e.preventDefault();
       endDemo();
+      wake();
       try { if (global.JoshAudio && !global.JoshAudio.isMuted()) global.JoshAudio.unlock(); } catch (err) { /* ignore */ }
+      // the edge arrow (NEVER LOST, §9.5): a tap on it sends him to the thing
+      // it points at, all the way, however short the tap — it is not a
+      // steering finger. (id 0 is a real thing, so the test is !== null.)
+      const c = canvasPt(e.clientX, e.clientY), hit = render.arrowAt(c.x, c.y);
+      if (hit !== null) {
+        const o = run.st.objects[hit];
+        if (o) L.setTarget(run.st, o.x, o.y);
+        return;
+      }
       drag.id = e.pointerId;
+      drag.cx = e.clientX; drag.cy = e.clientY;
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      const p = worldAt(e), h = run.st.hole;
-      const onGobble = L.gdist(p.x, p.y, h.x, h.y) <= h.r * 1.3 + 3;
-      drag.ox = onGobble ? h.x - p.x : 0;
-      drag.oy = onGobble ? h.y - p.y : 0;
-      aim(p);
+      steer();
     });
     canvas.addEventListener("pointermove", (e) => {
       if (e.pointerId !== drag.id) return;
       e.preventDefault();
-      aim(worldAt(e));
+      drag.cx = e.clientX; drag.cy = e.clientY;
+      steer();
     });
     const up = (e) => { if (e.pointerId === drag.id) drag.id = null; };
     canvas.addEventListener("pointerup", up);
@@ -468,8 +493,11 @@
       if (!d) return;
       e.preventDefault();
       endDemo();
-      const h = run.st.hole;
-      L.setTarget(run.st, h.x + d[0] * 14, h.y + d[1] * 10);
+      wake();
+      // a quarter of what the screen shows, so a key press means the same
+      // on a phone and an iPad, small or huge
+      const cam = render.camera(), q = cam ? cam.span / 4 : 12, h = run.st.hole;
+      L.setTarget(run.st, h.x + d[0] * q, h.y + d[1] * q);
     });
     global.addEventListener("resize", () => {
       if (!run || !playVisible()) return;
@@ -483,6 +511,11 @@
 
   // ---- Show, don't tell: a ghost hand drags Gobble onto the nearest bite ------
   let demo = null;
+  function demoWhenReady() {
+    const c = render.camera();
+    if (c && c.intro) { later(demoWhenReady, 250); return; }
+    startDemo();
+  }
   function startDemo() {
     if (!run || run.st.won || !playVisible()) return;
     const st = run.st, n = L.nearestEdible(st);
@@ -626,11 +659,20 @@
         L.step(st, L.DT);
         drain(lastT || 0);
       }
+      // the camera eases once per FRAME and this ran many steps in one go, so
+      // it jumps to where it was heading (else Gobble could be off screen) —
+      // unless a test wants the REAL frames to carry what happens next
+      if (!(opts && opts.snap === false)) render.snap();
       render.draw(lastT || 0);
       paintMeter();
       return { eaten: run.st.eaten, level: run.st.hole.level, won: run.st.won, done: run.st.done };
     },
     info: () => (render ? render.info() : null),
+    camera: () => (render ? render.camera() : null),
+    arrow: () => (render ? render.info().arrow : null),
+    snap() { if (render && run) { render.snap(); render.draw(lastT || 0); } },
+    // where a client (page) point lands in the world
+    worldAt(x, y) { const c = canvasPt(x, y); return render.toWorld(c.x, c.y); },
     demo: () => !!demo,
     running: () => !!raf,
     timers: () => timers.size,

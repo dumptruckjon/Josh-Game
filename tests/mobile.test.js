@@ -184,6 +184,9 @@ test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every 
     await page.evaluate(() => window.__HOLE.start("party", {}));
     await showScreen(page, "#hole-play", "#screen-hole-play");
     await page.waitForTimeout(300);
+    // a fresh place opens with a look at the whole island; end it, as a
+    // finger would, so every point below is worked out in the view he plays in
+    await page.evaluate(() => window.__HOLE.snap());
     await noOverflow(page, `hole-play@${w}x${h}`);
     await auditActiveScreen(page, `hole-play@${w}x${h}`);
     const fit = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, vh: innerHeight,
@@ -205,7 +208,9 @@ test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every 
     // loop) and whether the document reports itself visible.
     const d = await page.evaluate(async () => {
       const H = window.__HOLE, st = H.state(), h = st.hole, cv = document.querySelector(".hole-canvas");
-      const a = H.toScreen(h.x, h.y), b = H.toScreen(h.x, h.y - st.H * 0.3);
+      // drag from Gobble up by 30% of the view (the place is several screens
+      // tall now, so a fraction of the WORLD would be off the screen)
+      const a = H.toScreen(h.x, h.y), b = H.toScreen(h.x, h.y - H.camera().span * 0.3);
       const ev = (type, p) => cv.dispatchEvent(new PointerEvent(type, { pointerId: 11, isPrimary: true, pointerType: "touch",
         clientX: p.x, clientY: p.y, bubbles: true, cancelable: true }));
       const out = { vis: document.visibilityState, running: H.running(), y0: h.y, ty0: h.ty };
@@ -239,7 +244,7 @@ test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every 
       // constructed PointerEvent" from "the handler is broken".
       const p = await page.evaluate(() => {
         const H = window.__HOLE, st = H.state(), hh = st.hole;
-        return { a: H.toScreen(hh.x, hh.y), b: H.toScreen(hh.x, hh.y - st.H * 0.3), ty: hh.ty };
+        return { a: H.toScreen(hh.x, hh.y), b: H.toScreen(hh.x, hh.y - H.camera().span * 0.3), ty: hh.ty };
       });
       await page.mouse.move(p.a.x, p.a.y);
       await page.mouse.down();

@@ -2,9 +2,15 @@
 // front door's fourth door, a real pointer drag that eats, tap-to-glide, the
 // too-big bump, a grow and the meter's next picture, the win screen, the save
 // and resume, sound gating, the loop pausing off-screen, and the double-tap
-// echo guard. The engine itself is proven headless in hole-logic.test.js; the
-// shipped window.__HOLE hooks (the fort's __TD precedent) steer a greedy bot
-// through the same engine and event path a finger uses.
+// echo guard — and, since the places became BIG worlds (PLAN_GOBBLE.md §9),
+// the camera: it follows Gobble and stays on the island, the world is far
+// bigger than the screen, a finger held to one side keeps him going, a grow
+// zooms out, only what is on screen is drawn, the edge arrow finds the next
+// bite, a fresh place opens with a look at the whole island, and the win pulls
+// back to show all of it. The engine itself is proven headless in
+// hole-logic.test.js; the shipped window.__HOLE hooks (the fort's __TD
+// precedent) steer a greedy bot through the same engine and event path a
+// finger uses.
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
@@ -36,7 +42,9 @@ async function go(hash, sel) {
   await page.locator(sel).waitFor({ state: "visible", timeout: 8000 });
 }
 // A screen that has just appeared ignores a finger for 350ms (the echo guard),
-// so a test that TAPS waits the way a child who looked would.
+// so a test that TAPS waits the way a child who looked would. A fresh place
+// opens with a 1.6s look at the whole island; a test that works out where
+// things are ON SCREEN first ends that look (snap), exactly as a finger would.
 async function openScene(id, opts) {
   await page.evaluate((o) => window.__HOLE.reset(o), opts || { demoSeen: true });
   await go("#hole-home", "#screen-hole-home");
@@ -45,11 +53,19 @@ async function openScene(id, opts) {
   await page.locator("#screen-hole-play").waitFor({ state: "visible" });
   await page.waitForFunction((sid) => window.__HOLE.scene() === sid, id);
   await page.waitForTimeout(400);
+  await page.evaluate(() => window.__HOLE.snap());
 }
 const state = () => page.evaluate(() => {
   const s = window.__HOLE.state();
-  return { eaten: s.eaten, total: s.total, level: s.hole.level, x: s.hole.x, y: s.hole.y, r: s.hole.r, won: s.won, done: s.done, tick: s.tick };
+  return { eaten: s.eaten, total: s.total, level: s.hole.level, x: s.hole.x, y: s.hole.y, r: s.hole.r, tx: s.hole.tx, ty: s.hole.ty,
+    won: s.won, done: s.done, tick: s.tick, W: s.W, H: s.H };
 });
+const cam = () => page.evaluate(() => window.__HOLE.camera());
+// the canvas's box and its middle, in page coordinates
+async function field() {
+  const b = await page.locator(".hole-canvas").boundingBox();
+  return { ...b, cx: b.x + b.width / 2, cy: b.y + b.height / 2 };
+}
 
 test("the front door's FOURTH door opens Gobble Hole, and 🚪 comes back", async () => {
   await page.evaluate(() => { location.hash = ""; });
@@ -85,19 +101,20 @@ test("the first time, a ghost hand SHOWS him how — Gobble eats a bite with no 
   assert.ok(await page.evaluate(() => window.__HOLE.demo()), "👂 replays the demo");
 });
 
-test("a REAL drag: grab Gobble (he never jumps under the finger) and drag him onto a bite — it is eaten", async () => {
+test("a REAL drag: put a finger on Gobble and drag him onto a bite — it is eaten", async () => {
   await openScene("picnic");
   const s0 = await state();
-  // grab him a little off-centre: the grab offset is kept, so he must not jump
+  // a finger resting on his middle sends him nowhere: he heads for the spot
+  // under the finger, and that spot is where he already is
   const grab = await page.evaluate(() => {
     const h = window.__HOLE.state().hole;
-    return window.__HOLE.toScreen(h.x + h.r * 0.5, h.y);
+    return window.__HOLE.toScreen(h.x, h.y);
   });
   await page.mouse.move(grab.x, grab.y);
   await page.mouse.down();
   await page.waitForTimeout(250);
   const held = await state();
-  assert.ok(Math.hypot(held.x - s0.x, held.y - s0.y) < 0.5, "grabbing Gobble never makes him jump (" + Math.hypot(held.x - s0.x, held.y - s0.y).toFixed(2) + ")");
+  assert.ok(Math.hypot(held.x - s0.x, held.y - s0.y) < 0.5, "a finger resting on Gobble keeps him where he is (" + Math.hypot(held.x - s0.x, held.y - s0.y).toFixed(2) + ")");
   // drag toward the nearest bite, slowly, like a finger
   const to = await page.evaluate(() => {
     const st = window.__HOLE.state(), h = st.hole;
@@ -115,10 +132,10 @@ test("a REAL drag: grab Gobble (he never jumps under the finger) and drag him on
 test("tap anywhere and Gobble GLIDES there; a second finger is ignored", async () => {
   await openScene("build");
   const s0 = await state();
-  const spot = await page.evaluate(() => {
-    const st = window.__HOLE.state();
-    return { world: { x: st.W * 0.2, y: st.H * 0.7 }, screen: window.__HOLE.toScreen(st.W * 0.2, st.H * 0.7) };
-  });
+  // a spot he can SEE: up and to the left of him, on screen
+  const f = await field();
+  const spot = { screen: { x: f.cx - f.width * 0.3, y: f.cy - f.height * 0.3 } };
+  spot.world = await page.evaluate((p) => window.__HOLE.worldAt(p.x, p.y), spot.screen);
   await page.mouse.click(spot.screen.x, spot.screen.y);
   await page.waitForTimeout(1600);
   const s1 = await state();
@@ -138,16 +155,20 @@ test("tap anywhere and Gobble GLIDES there; a second finger is ignored", async (
 
 test("a thing that is TOO BIG wobbles and bumps — it is never eaten, and nothing fails", async () => {
   await openScene("toyroom");
+  // the NEAREST big thing: a place is several screens across now
   const big = await page.evaluate(() => {
-    const st = window.__HOLE.state();
-    const o = st.objects.find((ob) => ob.tier === 3);
+    const st = window.__HOLE.state(), h = st.hole;
+    const o = st.objects.filter((ob) => ob.tier === 3).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
     window.__HOLE.moveTo(o.x, o.y);
     return o.id;
   });
-  await page.waitForFunction(() => (window.__HOLE.counts().bump || 0) >= 1, null, { timeout: 6000 });
+  const before = await state();
+  await page.waitForFunction(() => (window.__HOLE.counts().bump || 0) >= 1, null, { timeout: 8000 });
   const o = await page.evaluate((id) => window.__HOLE.state().objects[id].st, big);
   assert.equal(o, 0, "the big thing is still standing");
-  assert.equal((await state()).level, 0, "Gobble is unchanged — a bump costs nothing");
+  const after = await state();
+  assert.ok(after.level >= before.level && after.eaten >= before.eaten && after.r >= before.r,
+    "a bump costs nothing — Gobble keeps his size and everything he ate");
 });
 
 test("growing: the meter ends in a PICTURE of the next thing he can eat, and it changes on a grow", async () => {
@@ -208,7 +229,8 @@ test("▶ after a win CARRIES ON a place he left half-eaten — winning one plac
   // door directly — a second openScene would wipe the picnic.)
   await openScene("picnic");
   await page.evaluate(() => window.__HOLE.autoplay(150));
-  await page.evaluate(() => { const st = window.__HOLE.state(); window.__HOLE.moveTo(st.W * 0.5, st.H * 0.6); });
+  // stop him where he is and let anything falling finish falling
+  await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
   await page.waitForTimeout(1500);
   await page.locator(".hole-back").click();
   await page.locator("#screen-hole-home").waitFor({ state: "visible" });
@@ -232,9 +254,9 @@ test("▶ after a win CARRIES ON a place he left half-eaten — winning one plac
 test("progress is KEPT: leaving and coming back — even a reload — resumes the half-eaten place", async () => {
   await openScene("party");
   await page.evaluate(() => window.__HOLE.autoplay(150));
-  // park him somewhere else and let everything settle, so nothing is still on
-  // its way in when he leaves
-  await page.evaluate(() => { const st = window.__HOLE.state(); window.__HOLE.moveTo(st.W * 0.5, st.H * 0.6); });
+  // stop him and let everything settle, so nothing is still on its way in
+  // when he leaves
+  await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
   await page.waitForTimeout(1500);
   const at = await state();
   await page.locator(".hole-back").click();
@@ -321,7 +343,8 @@ test("a DOUBLE-TAP cannot walk him somewhere he did not aim: a just-shown screen
 test("a HOSTILE save is coerced field by field and never breaks the boot", async () => {
   await page.evaluate(() => localStorage.setItem("josh-gobble-v1", JSON.stringify({
     v: 9, done: { toyroom: "yes", picnic: true, nowhere: true }, demo: 1, last: "nowhere",
-    runs: { toyroom: { scene: "toyroom", aspect: "wide", eaten: [1, 1, "x", -3, 1.5] }, space: "junk", party: { scene: "town" } },
+    runs: { toyroom: { v: window.HoleData.RULES.LAYOUT, scene: "toyroom", aspect: "wide", eaten: [1, 1, "x", -3, 1.5] },
+      space: "junk", party: { scene: "town" }, build: { v: "2", scene: "build", eaten: [1] } },
   })));
   const errs = pageErrors.length;
   await page.reload({ waitUntil: "load" });
@@ -330,13 +353,256 @@ test("a HOSTILE save is coerced field by field and never breaks the boot", async
   assert.deepEqual(sv.done, { picnic: true }, "only a real `true` for a real place counts");
   assert.equal(sv.demo, false, "a non-boolean demo flag is not trusted");
   assert.equal(sv.last, "toyroom", "an unknown place falls back to the first");
-  assert.deepEqual(Object.keys(sv.runs), ["toyroom"], "only a run whose scene matches its slot survives");
+  assert.deepEqual(Object.keys(sv.runs), ["toyroom"], "only a run whose scene matches its slot AND this layout survives");
   assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isVisible(), "the real ⭐ shows");
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="toyroom"]').click();
   await page.waitForFunction(() => window.__HOLE.scene() === "toyroom");
   assert.equal((await state()).eaten, 1, "the junk run resumes with only its one real bite");
   assert.equal(pageErrors.length, errs, "no page errors: " + pageErrors.slice(errs).join(" | "));
+});
+
+// ---- BIG worlds (PLAN_GOBBLE.md §9): the camera --------------------------------
+
+test("the world is BIGGER than the screen: the camera shows a small part of it, follows Gobble, and never looks past the island", async () => {
+  await openScene("town");
+  const s0 = await state(), c0 = await cam();
+  const MARGIN = await page.evaluate(() => window.HoleRender.MARGIN);
+  const RULES = await page.evaluate(() => window.HoleData.RULES);
+  const vw = (c) => c.view.x1 - c.view.x0, vh = (c) => c.view.y1 - c.view.y0;
+  assert.ok(vw(c0) < s0.W / 3 && vh(c0) < s0.H / 3,
+    "a phone shows a small part of the place (" + vw(c0).toFixed(0) + "x" + vh(c0).toFixed(0) + " of " + s0.W + "x" + s0.H + ")");
+  const inView = (c, x, y) => x >= c.view.x0 && x <= c.view.x1 && y >= c.view.y0 && y <= c.view.y1;
+  assert.ok(inView(c0, s0.x, s0.y), "Gobble is on screen");
+  // send him to the island's left edge and watch the camera all the way
+  await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(0, h.y); });
+  const EPS = 0.01;
+  let far = 0;
+  for (let i = 0; i < 14; i++) {
+    await page.waitForTimeout(250);
+    const s = await state(), c = await cam();
+    assert.ok(inView(c, s.x, s.y), "the camera keeps Gobble on screen (step " + i + ")");
+    assert.ok(c.view.x0 >= -MARGIN - EPS && c.view.x1 <= s.W + MARGIN + EPS &&
+      c.view.y0 >= -RULES.TOP_SLACK - MARGIN - EPS && c.view.y1 <= s.H + 6 + MARGIN + EPS,
+      "the camera never looks more than a rim past the island (" + JSON.stringify(c.view) + ")");
+    far = Math.max(far, Math.abs(c.x - c0.x));
+  }
+  assert.ok(far > vw(c0) * 0.8, "the camera travelled with him (" + far.toFixed(1) + " units)");
+  // at the edge the camera stops and HE carries on to the rim: the island's
+  // edge is on screen, which says "this is the end" without words
+  const end = await state(), ce = await cam();
+  assert.ok(end.x < 12, "fixture: he reached the left edge (x " + end.x.toFixed(1) + ")");
+  assert.ok(Math.abs(ce.view.x0 + MARGIN) < 0.5, "the view is pinned to the island's edge (x0 " + ce.view.x0.toFixed(2) + ")");
+});
+
+test("only what is ON SCREEN is drawn — the rest of a big place costs nothing", async () => {
+  await openScene("space");
+  const r = await page.evaluate(() => {
+    const H = window.__HOLE, st = H.state(), c = H.camera(), i = H.info();
+    const v = c.view;
+    const onScreen = st.objects.filter((o) => o.st === 0 && o.x >= v.x0 && o.x <= v.x1 && o.y >= v.y0 && o.y <= v.y1).length;
+    const decals = window.HoleData.SCENES.find((d) => d.id === "space").decals.length;
+    return { drawn: i.drawn.objects, standing: i.drawn.standing, onScreen, decalsDrawn: i.drawn.decals, decals };
+  });
+  assert.ok(r.drawn >= r.onScreen, "nothing on screen is skipped (" + r.drawn + " drawn, " + r.onScreen + " on screen)");
+  assert.ok(r.onScreen >= 3, "fixture: there are things on screen to draw (" + r.onScreen + ")");
+  assert.ok(r.drawn < r.standing / 3, "only a fraction of the place is drawn (" + r.drawn + " of " + r.standing + ")");
+  assert.ok(r.decalsDrawn < r.decals, "…and only the ground features in view (" + r.decalsDrawn + " of " + r.decals + ")");
+});
+
+test("hold a finger to one side and Gobble KEEPS GOING that way; let go and he stops", async () => {
+  await openScene("picnic");
+  const s0 = await state(), f = await field();
+  const px = f.cx + 110, py = f.cy;
+  const w0 = await page.evaluate((p) => window.__HOLE.worldAt(p.x, p.y), { x: px, y: py });
+  const offset = w0.x - s0.x;
+  assert.ok(offset > 5, "fixture: the finger is to his right (" + offset.toFixed(1) + " units)");
+  await page.mouse.move(px, py);
+  await page.mouse.down();
+  await page.waitForTimeout(2000);
+  const held = await state();
+  await page.mouse.up();
+  const went = held.x - s0.x;
+  // the finger never moved: the spot under it kept moving AHEAD of him,
+  // because the camera follows him — so he kept going
+  assert.ok(went > offset * 4, "a still finger kept him going right (" + went.toFixed(1) + " units, the finger started " + offset.toFixed(1) + " ahead)");
+  assert.ok(Math.abs(held.y - s0.y) < went * 0.2, "…in the finger's direction (dx " + went.toFixed(1) + ", dy " + (held.y - s0.y).toFixed(1) + ")");
+  await page.waitForTimeout(700);
+  const a = await state();
+  await page.waitForTimeout(500);
+  const b = await state();
+  assert.ok(Math.hypot(b.x - a.x, b.y - a.y) < 0.5, "letting go lets him finish the trip and stop (" + Math.hypot(b.x - a.x, b.y - a.y).toFixed(2) + ")");
+});
+
+test("arrow keys step a QUARTER of what the screen shows — the same feel on a phone and an iPad, small or huge", async () => {
+  await openScene("party");
+  const s0 = await state(), c0 = await cam();
+  await page.keyboard.press("ArrowRight");
+  const s1 = await state();
+  assert.ok(Math.abs(s1.tx - (s0.x + c0.span / 4)) < 0.01 && Math.abs(s1.ty - s0.y) < 0.01,
+    "→ aims a quarter of the view to his right (" + (s1.tx - s0.x).toFixed(2) + " vs " + (c0.span / 4).toFixed(2) + ")");
+  // bigger Gobble, wider view, bigger step
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 30, { until: { level: 2 } }));
+  // the bot's last aim is still pulling him: stop him first, so the key is
+  // measured from where he actually stands when it is pressed
+  await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
+  await page.waitForFunction(() => { const h = window.__HOLE.state().hole; return Math.hypot(h.tx - h.x, h.ty - h.y) < 0.01; }, null, { timeout: 3000 });
+  const c2 = await cam(), s2 = await state();
+  await page.keyboard.press("ArrowUp");
+  const s3 = await state();
+  assert.ok(Math.abs(s3.ty - (s2.y - c2.span / 4)) < 0.01, "↑ aims a quarter of the (wider) view up");
+  assert.ok(c2.span > c0.span * 1.5, "fixture: the view widened with him (" + c0.span.toFixed(1) + " -> " + c2.span.toFixed(1) + ")");
+});
+
+test("a grow ZOOMS OUT: the camera shows more of the world, and Gobble never looks smaller on the way", async () => {
+  await openScene("picnic");
+  const c0 = await cam(), s0 = await state();
+  const before = s0.r * c0.s;
+  // eat up to the grow in one go, then let the REAL frames carry it: the
+  // world pulls back while he swells, and at no frame may he look smaller
+  // than he did before it (a camera that zoomed out faster than he grew would
+  // shrink him on screen at the very moment the game shouts "BIGGER!")
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 30, { until: { level: 1 }, snap: false }));
+  assert.equal((await state()).level, 1, "fixture: Gobble grew");
+  const samples = await page.evaluate(async () => {
+    const out = [], t0 = performance.now();
+    while (performance.now() - t0 < 1500) {
+      await new Promise((r) => requestAnimationFrame(r));
+      const st = window.__HOLE.state(), c = window.__HOLE.camera();
+      out.push({ px: st.hole.r * c.s, span: c.span, follow: c.follow });
+    }
+    return out;
+  });
+  assert.ok(samples.length >= 20, "fixture: real frames ran (" + samples.length + ")");
+  const low = Math.min(...samples.map((x) => x.px)), last = samples[samples.length - 1];
+  assert.ok(low >= before * 0.98, "he never looks smaller through the grow (" + before.toFixed(1) + " px before, " + low.toFixed(1) + " at the lowest)");
+  assert.ok(last.px > before * 1.05, "…and ends up bigger on screen (" + before.toFixed(1) + " -> " + last.px.toFixed(1) + " px)");
+  assert.ok(last.span > c0.span * 1.2, "the view widened (" + c0.span.toFixed(1) + " -> " + last.span.toFixed(1) + " units)");
+  assert.ok(Math.abs(last.span - last.follow) < 0.3, "…to the engine's view span for his new size (" + last.span.toFixed(2) + " vs " + last.follow.toFixed(2) + ")");
+});
+
+test("NEVER LOST: with nothing to eat in view, an arrow bubble points at a bite — tap it and he goes there", async () => {
+  await openScene("picnic");
+  // Fixture: leave exactly ONE thing he can eat, well off screen, and clear
+  // every other edible thing — the moment the arrow exists for.
+  const far = await page.evaluate(() => {
+    const st = window.__HOLE.state(), h = st.hole, v = window.__HOLE.camera().view;
+    const FIT = window.HoleData.RULES.FIT;
+    const edible = st.objects.filter((o) => o.st === 0 && o.r <= h.r * FIT);
+    const off = edible.filter((o) => o.x < v.x0 - 10 || o.x > v.x1 + 10 || o.y < v.y0 - 10 || o.y > v.y1 + 10);
+    off.sort((a, b) => Math.abs(Math.hypot(a.x - h.x, a.y - h.y) - 110) - Math.abs(Math.hypot(b.x - h.x, b.y - h.y) - 110));
+    const keep = off[0];
+    for (const o of edible) if (o !== keep) o.st = 2;
+    return { id: keep.id, e: keep.e, d: Math.hypot(keep.x - h.x, keep.y - h.y) };
+  });
+  await page.waitForFunction(() => window.__HOLE.arrow(), null, { timeout: 4000 });
+  const a = await page.evaluate(() => window.__HOLE.arrow());
+  const f = await field();
+  assert.equal(a.id, far.id, "the arrow points at the one bite left");
+  assert.equal(a.e, far.e, "…and holds its picture");
+  assert.ok(a.x - a.r >= -1 && a.x + a.r <= f.width + 1 && a.y - a.r >= -1 && a.y + a.r <= f.height + 1,
+    "the bubble is on screen (" + a.x.toFixed(0) + "," + a.y.toFixed(0) + " in " + f.width.toFixed(0) + "x" + f.height.toFixed(0) + ")");
+  assert.ok(a.hit * 2 >= 75, "a kid-sized tap target (" + a.hit * 2 + "px across)");
+  await page.mouse.click(f.x + a.x, f.y + a.y);
+  const t = await state(), o = await page.evaluate((id) => { const ob = window.__HOLE.state().objects[id]; return { x: ob.x, y: ob.y }; }, far.id);
+  assert.ok(Math.hypot(t.tx - o.x, t.ty - o.y) < 0.5, "a tap on the bubble sends him to the thing itself, however short the tap");
+  await page.waitForFunction(() => !window.__HOLE.arrow(), null, { timeout: 6000 });
+  await page.waitForFunction((id) => window.__HOLE.state().objects[id].st !== 0, far.id, { timeout: 8000 });
+});
+
+test("a fresh place OPENS with a look at the whole island, then flies in to Gobble; a finger during it goes straight to him", async () => {
+  await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+  await go("#hole-home", "#screen-hole-home");
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="party"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "party");
+  await page.waitForTimeout(80);
+  const c0 = await cam();
+  assert.ok(c0.intro, "a fresh place starts with the opening look");
+  assert.ok(c0.span > c0.follow * 3, "…of (nearly) the whole island (" + c0.span.toFixed(0) + " vs " + c0.follow.toFixed(0) + " units)");
+  await page.waitForFunction(() => !window.__HOLE.camera().intro, null, { timeout: 4000 });
+  await page.waitForFunction(() => { const c = window.__HOLE.camera(); return Math.abs(c.span - c.follow) < 0.5; }, null, { timeout: 3000 });
+  // again, and this time a finger lands during the opening look
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+  await go("#hole-home", "#screen-hole-home");
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="party"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "party");
+  await page.waitForTimeout(80);
+  assert.ok((await cam()).intro, "fixture: the opening look is running");
+  const f = await field();
+  await page.mouse.move(f.cx + 60, f.cy - 60);
+  await page.mouse.down();
+  const c1 = await cam(), s1 = await state();
+  await page.mouse.up();
+  assert.ok(!c1.intro && Math.abs(c1.span - c1.follow) < 0.01, "a finger ends the look at once and the camera is on Gobble");
+  assert.ok(s1.tx >= c1.view.x0 && s1.tx <= c1.view.x1 && s1.ty >= c1.view.y0 && s1.ty <= c1.view.y1,
+    "…so the spot under the finger is a spot he can see");
+});
+
+test("a place he comes back to does NOT replay the opening look, and reduced motion never plays it", async () => {
+  await openScene("build");
+  await page.evaluate(() => window.__HOLE.autoplay(120));
+  await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
+  await page.waitForTimeout(800);
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  assert.ok((await page.evaluate(() => window.__HOLE.save())).runs.build, "fixture: the place was left half-eaten");
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="build"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "build");
+  await page.waitForTimeout(80);
+  assert.ok(!(await cam()).intro, "coming back starts right on Gobble");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  try {
+    await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await go("#hole-home", "#screen-hole-home");
+    await page.waitForTimeout(400);
+    await page.locator('.hole-door[data-scene="town"]').click();
+    await page.waitForFunction(() => window.__HOLE.scene() === "town");
+    await page.waitForTimeout(80);
+    assert.ok(!(await cam()).intro, "under reduced motion a fresh place starts on Gobble too");
+  } finally {
+    await page.emulateMedia({ reducedMotion: null });
+  }
+});
+
+test("the WIN pulls the camera all the way back: the whole island, and how much he ate", async () => {
+  await openScene("toyroom");
+  const c0 = await cam();
+  assert.equal(c0.mode, "follow", "fixture: the camera follows him while he plays");
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 120, { until: "win" }));
+  const s = await state(), c = await cam();
+  assert.ok(s.won, "fixture: the place was won");
+  assert.equal(c.mode, "whole", "the win switches the camera to the whole island");
+  assert.ok(c.view.x0 <= 0 && c.view.x1 >= s.W && c.view.y0 <= 0 && c.view.y1 >= s.H,
+    "…and every part of the island is in view (" + JSON.stringify(c.view) + ")");
+  await page.locator(".hole-win").waitFor({ state: "visible", timeout: 5000 });
+});
+
+test("a half-eaten place from the ONE-SCREEN version is dropped, and its ⭐ is kept", async () => {
+  // Off the play screen FIRST: a live run rewrites the save (on a gulp, and
+  // on leaving), and the reload must boot the seed, not re-open a place.
+  await go("", "#screen-start");
+  // a phase-1 save: no layout version on its run (its ids name a different,
+  // one-screen island)
+  await page.evaluate(() => localStorage.setItem("josh-gobble-v1", JSON.stringify({
+    v: 1, done: { space: true }, demo: true, last: "picnic",
+    runs: { picnic: { scene: "picnic", aspect: 1.2, eaten: [0, 1, 2, 3, 4], x: 60, y: 90 } },
+  })));
+  await page.reload({ waitUntil: "load" });
+  await go("#hole-home", "#screen-hole-home");
+  const sv = await page.evaluate(() => window.__HOLE.save());
+  assert.ok(!("picnic" in sv.runs), "the old run is dropped (" + JSON.stringify(sv.runs) + ")");
+  assert.deepEqual(sv.done, { space: true }, "the finished place is still finished");
+  assert.ok(await page.locator('.hole-door[data-scene="space"] .hole-door__star').isVisible(), "…and wears its ⭐");
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="picnic"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  assert.equal((await state()).eaten, 0, "the picnic starts fresh in the big world");
+  assert.ok((await cam()).intro, "…as a fresh place, with the opening look");
 });
 
 test("Gobble Hole never touches Josh's games: no registry entry, no sticker, its own storage", async () => {

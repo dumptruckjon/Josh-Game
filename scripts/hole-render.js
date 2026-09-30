@@ -579,6 +579,22 @@
     },
   };
 
+  // A place's ground features, worked out ONCE: each decal with its kind, its
+  // prep (anything random, seeded by the place and the decal's index, so a
+  // place always looks the same) and its bounding box in world units (for
+  // culling). Pure — the engine tests call it to prove every feature a place
+  // declares has a drawing and a real box.
+  function prepDecals(def, W, H) {
+    return (def.decals || []).map((d, i) => {
+      const K = DECALS[d.k];
+      if (!K) return null;
+      const p = K.prep ? K.prep(d, W, H, rng(hashStr(def.id + ":decal:" + i))) : null;
+      // a box takes (d, W, H) only: several are circOf, whose 4th argument
+      // is a size factor, so handing one the prep would make its box NaN
+      return { d, K, p, box: K.box(d, W, H) };
+    }).filter(Boolean);
+  }
+
   // The backdrop past the island's edge, drawn in SCREEN space (it is far away,
   // so it never scrolls): a wall for the indoor places, sky outside, and stars.
   const BACKDROPS = {
@@ -724,14 +740,7 @@
       arrow = null; noBiteSince = -1;
       if (sprites.size > 120) sprites.clear();
       tile = null; backdrop = null;
-      decals = (def.decals || []).map((d, i) => {
-        const K = DECALS[d.k];
-        if (!K) return null;
-        const p = K.prep ? K.prep(d, st.W, st.H, rng(hashStr(def.id + ":decal:" + i))) : null;
-        // a box takes (d, W, H) only: several are circOf, whose 4th argument
-        // is a size factor, so handing one the prep would make its box NaN
-        return { d, K, p, box: K.box(d, st.W, st.H) };
-      }).filter(Boolean);
+      decals = prepDecals(def, st.W, st.H);
       intro = opts && opts.intro && !reduceMotion() ? { t0: -1, from: null } : null;
       camT = 0;
       cam = null;
@@ -1316,6 +1325,6 @@
     return { resize, setState, draw, event, toWorld, toScreen, snap, endIntro, camera, arrowAt, info };
   }
 
-  global.HoleRender = { create, DECALS, TILES, GROUNDS, BACKDROPS, VIS, MARGIN, THICK };
+  global.HoleRender = { create, prepDecals, DECALS, TILES, GROUNDS, BACKDROPS, HOLES, VIS, MARGIN, THICK };
   if (typeof module !== "undefined" && module.exports) module.exports = global.HoleRender;
 })(typeof window !== "undefined" ? window : globalThis);

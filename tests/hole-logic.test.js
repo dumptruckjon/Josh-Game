@@ -530,6 +530,36 @@ test("a HOSTILE save can never inflate Gobble or crash the restore", () => {
   assert.equal(all.hole.level, all.levels.R.length - 1, "eating everything else earns exactly the top size");
 });
 
+test("every ground feature, ground and hole a place declares has a DRAWING, with a real box on the island", () => {
+  // A decal kind with no entry in the renderer draws NOTHING, silently — the
+  // "a data field with no implementation" class (the fort's bedroom declared
+  // a `carpet` floor with no branch and painted bare). And a decal's box is
+  // what the renderer culls by, so a NaN box is a feature that never draws:
+  // the gravel pile shipped that way in the first cut, because its box was
+  // handed its prep object as a size factor.
+  const HR = require("../scripts/hole-render.js");
+  let n = 0;
+  for (const def of SCENES) {
+    const { W, H } = L.worldOf(def);
+    for (const d of def.decals || []) assert.ok(HR.DECALS[d.k], def.id + ": decal kind '" + d.k + "' has no drawing");
+    const ds = HR.prepDecals(def, W, H);
+    assert.equal(ds.length, (def.decals || []).length, def.id + ": every decal was prepared");
+    for (const x of ds) {
+      const b = x.box;
+      assert.ok(b.length === 4 && b.every(Number.isFinite) && b[0] < b[2] && b[1] < b[3], def.id + ": '" + x.d.k + "' has a real box (" + b + ")");
+      assert.ok(b[2] > 0 && b[0] < W && b[3] > 0 && b[1] < H, def.id + ": '" + x.d.k + "' lies on the island");
+      n++;
+    }
+    assert.ok(HR.TILES[def.ground], def.id + ": ground '" + def.ground + "' has a texture");
+    assert.ok(HR.GROUNDS[def.ground] && HR.BACKDROPS[HR.GROUNDS[def.ground].backdrop], def.id + ": ground '" + def.ground + "' has an edge and a backdrop");
+    assert.ok(HR.HOLES[def.hole], def.id + ": hole '" + def.hole + "' has its colours (else it silently draws as another)");
+  }
+  assert.ok(n >= 40, "fixture: the places declare their features (" + n + ")");
+  // …and nothing the renderer can draw is dead
+  const used = new Set(SCENES.flatMap((d) => (d.decals || []).map((x) => x.k)));
+  for (const k of Object.keys(HR.DECALS)) assert.ok(used.has(k), "decal kind '" + k + "' is drawn by no place");
+});
+
 test("the engine is PURE: no Math.random, no DOM, dual export", () => {
   const src = fs.readFileSync(path.join(__dirname, "../scripts/hole-logic.js"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
