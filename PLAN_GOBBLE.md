@@ -240,8 +240,16 @@ existing sparkle trail does the job.
 A baked picture of the whole world at play zoom would be ~67 MP on an iPad —
 impossible. So the ground is drawn every frame, cheaply and crisply:
 
-- the ground's TEXTURE (planks, grass tufts, stars…) is one small repeating
-  pattern tile, re-rendered whenever the zoom changes enough to matter;
+- the ground's TEXTURE (planks, grass tufts, stars…) is vector marks drawn
+  straight onto the canvas in 64-unit squares, each kind of mark from its own
+  seeded stream, with fewer marks as the camera pulls back. A repeating bitmap
+  PATTERN was tried first and measured: scaled or sub-pixel, a software
+  rasteriser (Josh's iPad; CI's WebKit) filters it per pixel, 70-115ms for one
+  iPad screen, where a flat fill plus small marks costs a few ms;
+- the lighting is 24 flat diagonal bands rather than a gradient, and a space
+  nebula is 18 stepped rings, so each pixel is filled once instead of shaded;
+- a finished place whose picture has stopped moving is not redrawn at all
+  (it is drawn once more whenever the screen is shown again);
 - the ground's FEATURES (rugs, blankets, roads, ponds…) are vector decals in
   world units, drawn only when on screen;
 - things are drawn only when on screen, and each emoji's ink box is measured
