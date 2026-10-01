@@ -163,11 +163,14 @@
             '<div class="hole-win__cheer" aria-hidden="true">' +
               '<span class="hole-win__buddy art-fill"></span><span class="hole-win__gobble art-fill"></span>' +
             "</div>" +
-            '<p class="hole-win__count"><span aria-hidden="true">😋</span> <b class="hole-win__n">0</b></p>' +
-            // the treasures he FOUND (eaten before the finale, not by the
-            // slurp): only what he found, never a missed one — nothing here
-            // can read as a failure
-            '<div class="hole-win__gold" role="img" hidden></div>' +
+            // the score: how much he ate, then the treasures he FOUND (eaten
+            // before the finale, not by the slurp): only what he found, never
+            // a missed one — nothing here can read as a failure. One element,
+            // so a short screen can set the two side by side (main.css)
+            '<div class="hole-win__score">' +
+              '<p class="hole-win__count"><span aria-hidden="true">😋</span> <b class="hole-win__n">0</b></p>' +
+              '<div class="hole-win__gold" role="img" hidden></div>' +
+            "</div>" +
             // the buttons come BEFORE the wall of eaten things: on a small
             // phone the wall scrolls, and what he taps next must never be
             // the part that scrolled away

@@ -7105,7 +7105,8 @@ test("P4.3 tree: it costs more than a 32-level campaign can earn", () => {
 });
 
 test("tools: every research tool still RUNS against today's data", () => {
-  // Every balance claim in CLAUDE.md rests on these eight, and they were named
+  // Every balance claim in CLAUDE.md rests on these tools (eight for the fort,
+  // and Gobble Hole's wandering-child model since 2026-10), and they were named
   // only in COMMENTS — the tests point a future author at `tools/td-sim.js` and
   // nothing checks it still works. That is the standing pairing inverted: a
   // comment proves a tool was USED once, only running it proves it still loads
@@ -7114,7 +7115,7 @@ test("tools: every research tool still RUNS against today's data", () => {
   // natural reading is that the GAME changed rather than the instrument broke.
   //
   // Each entry is the smallest scope that still does real work — measured, all
-  // eight together run in about two seconds. The map is NAMED rather than
+  // of them together run in about two seconds. The map is NAMED rather than
   // derived because a tool's minimal invocation cannot be: they take different
   // knobs. What IS derived is the population, so a ninth tool fails here until
   // somebody gives it a smoke scope.
@@ -7135,6 +7136,10 @@ test("tools: every research tool still RUNS against today's data", () => {
     "td-miniboss.js": { args: ["1"], env: { SEEDS: "1", HP: "0", DIFFS: "normal" }, must: /median/ },
     "td-elite.js": { args: [], env: { LEVELS: "1", FRACS: "0", TAIL: "1" }, must: /wave-HP drift/ },
     "td-threat.js": { args: ["1"], env: { DOSES: "2" }, must: /safe \(wave,dose\)|PASS/ },
+    // 🕳️ Gobble Hole's wandering-child model (PLAN_GOBBLE.md §12.1) — the one
+    // non-fort tool. A model that never finishes prints 999s, so both arms must
+    // show a REAL win time, or a broken instrument would read as a slow child.
+    "hole-child.js": { args: ["toyroom"], env: { SEEDS: "1" }, must: /before: win (?!999s)\d+s.*\| shipped: win (?!999s)\d+s/ },
   };
   // …and the FLAG arms, which are separate code paths and are where most of the
   // findings in CLAUDE.md came from. Running only a tool's default arm is the
@@ -7151,6 +7156,7 @@ test("tools: every research tool still RUNS against today's data", () => {
       // catch. A count that accepts zero accepts nothing happening.
       must: /[1-9]\d* groups, budget drift/ },
     { f: "td-wave-gen.js", args: ["--emit", "1"], env: {}, must: /regenerated/ },
+    { f: "hole-child.js", args: ["toyroom", "--newest"], env: { SEEDS: "1" }, must: /shipped: win (?!999s)\d+s.*\| newest: win (?!999s)\d+s/ },
   ];
   const found = readdirSync("tools").filter((f) => f.endsWith(".js")).sort();
   assert.ok(found.length >= 8, `the tools must be found (${found.length})`);

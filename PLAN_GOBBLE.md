@@ -4,8 +4,9 @@
 hole.io, Donut County or Hole em All … a scene of really interesting stuff and
 you have to eat more and more of it to get progressively larger … super fun for
 a 4 year old").
-Phase 2 (big worlds you move around in, §9) and phase 3 (bigger worlds and
-twelve places, §11) are built too.
+Phase 2 (big worlds you move around in, §9), phase 3 (bigger worlds and
+twelve places, §11), the polish pass (§12) and a quality check (§13) are built
+too.
 
 A fourth world on the front door, right after 🏰 Fort Josh. Josh drags a
 friendly hole-monster, **Gobble**, around a toy-box diorama. Small things fall
@@ -412,7 +413,8 @@ it finds the finale at once and cannot show where a child gets stuck. So a
 **wandering-child model** was played instead: it goes for what it SEES (big
 shiny things too, which bump), pauses, wanders, and follows the hint or the
 edge arrow only half the time. It is a model, not a measurement of a real
-child; its numbers are for comparing designs. 12 places × 6 seeds:
+child; its numbers are for comparing designs. 12 places × 6 seeds (re-run
+with `node tools/hole-child.js`; `--newest` re-runs §12.6):
 
 - **Once he was big enough for the finale, nothing pointed at it.** The edge
   arrow only came when nothing edible was in view, and with ~390 things
@@ -515,3 +517,60 @@ measurement, so they cannot disagree.
   new run, so the hook cannot be fooled now. Two older tests had the same
   race; when it hit, their checks ran on the parked run, which passes them
   without testing anything.
+
+## 13. Quality check (owner, 2026-10-01)
+
+> "everything done, completed, tested, high quality? … ci green and clear? …
+> make sure EVERYTHING is pushed … am i ok to restart claude without losing
+> any important memory or context here for this project?"
+
+Measured, not assumed: every Gobble screen and state (the home fresh and
+half-eaten, the opening look, the demo hand, mid-play, the finale's call, the
+win) at 17 sizes from 320x480 to 1366x1024, for tap size, the spacing between
+EVERY pair of controls, overflow, controls on screen, accessible names and
+contrast; all twelve places played to a win at a phone, an iPad, landscape,
+320 wide and under reduced motion; offline with the server switched off.
+Clean on all of that except three things, all now fixed:
+
+- **The win box hid 🔁 and ▶ on a short screen.** It sits over the FIELD (so 🏠
+  and 👂 stay usable), so it only gets the field's height, and the full layout
+  is ~330px tall. In every phone landscape, at 320x480, and on a 320x568 phone
+  opened from its home screen (its status bar takes 20px), the buttons were
+  below the box's fold; at 568x320 the treasures were too. The shipped test ran
+  at the three sizes where it fits. Below 600px tall the box is now compact: a
+  64px cheer, the count beside the treasures, and in landscape a two-row banner
+  (the cheer and the score, then the buttons). Taller screens are
+  pixel-identical to before.
+- **The home lost its last row of doors on a real phone.** At 390x844 the
+  doors ended exactly at the fold — zero slack — and a notched iPhone opened
+  from its home screen adds a 47px status-bar inset above the topbar, so most
+  of the last row was below the fold; 375x667 and 360x640 hid the whole row.
+  The picture of Gobble above the doors is decoration, so it now shows only
+  where it fits WITH every door (an iPad in portrait), and a short phone's
+  doors are a little shorter (still 75px+, still 16px apart). Every portrait
+  phone from 360x640 up now shows all twelve, notch included. A 320-wide phone
+  keeps its last row below the fold: four rows of 75px doors 16px apart cannot
+  fit 568px. A phone on its side still scrolls the home (landscape is not a
+  design target). Hiding the picture then put the bar's 🚪 and 👂 straight on
+  the first row of doors, 12px away. The shipped spacing audit caught it in the
+  full test run, so the home's bar now keeps the doors' own 16px.
+- **The growth meter's bar was 14px wide at 320.** It is the flexible track
+  between fixed neighbours, so it shrinks instead of overflowing and no
+  overflow check can see it. Below 369px the meter's own Gobble face steps
+  aside and the bar gets 64px (104px at 360); 375 and up are unchanged.
+
+Tests (mobile.test.js, so CI runs them on real WebKit): the win box shows the
+cheer, the count, the treasures and both buttons with no scrolling at nine
+sizes, with real device insets added (no browser can emulate a notch), and the
+meter's bar is at least 48px; the home shows all twelve doors at seven phones
+and two iPads with their insets, with every tap big and 16px apart at each of
+those sizes (the shipped audit measured three), and keeps the picture on an
+iPad in portrait (a rule that hid it everywhere would pass every other clause).
+Ten mutations, each red for its own reason.
+
+**The wandering-child model is now `tools/hole-child.js`** (it was a scratch
+script, and a restart would have lost the instrument behind §12.1 and §12.6).
+Its `before` arm has to use the OLD hint, because the engine's hint now points
+at the finale once he is big enough; with that, it reproduces §12.1 exactly
+(16-93s, up to 122s, before; 2-9s with the call). The tools smoke test runs
+both of its arms.

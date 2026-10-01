@@ -280,6 +280,128 @@ test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every 
   await page.setViewportSize({ width: 390, height: 844 });
 });
 
+// A notched iPhone opened from its home screen (how Josh plays — no URL bar)
+// lays the page out under its status bar and home indicator: the topbar takes
+// the top inset (env(safe-area-inset-top)) and #screens the bottom one. No
+// browser here can emulate a notch, so a test that means "on the real phone"
+// adds the same padding the device would. A plain 390x844 viewport is not the
+// phone: Gobble's home measured ZERO slack there, which on a real iPhone 12-15
+// put most of its last row of doors below the fold.
+async function freshPage(w, h, inset) {
+  const ctx = await browser.newContext(engine === "webkit"
+    ? { viewport: { width: w, height: h }, hasTouch: true, isMobile: true }
+    : { ...IPHONE, viewport: { width: w, height: h } });
+  const p = await ctx.newPage();
+  p.on("pageerror", (e) => pageErrors.push(String(e)));
+  await p.goto(baseURL, { waitUntil: "load" });
+  if (inset && (inset[0] || inset[1])) {
+    await p.addStyleTag({ content: `.topbar{padding-top:calc(${inset[0]}px + 10px)!important}` +
+      `#screens{padding-bottom:calc(${inset[1]}px + 16px)!important}` });
+  }
+  return { ctx, p };
+}
+
+test("🕳️ Gobble's WIN box shows the cheer AND 🔁/▶ with no scrolling at EVERY size — a phone on its side, a small phone, a status bar — and the meter is a real bar", async () => {
+  // The box sits over the FIELD (so 🏠 and 👂 stay usable), so it only gets the
+  // field's height, and the full layout is ~330px tall. The shipped check ran
+  // at 390x844, 320x568 and 834x1112 only — the sizes where it fits — while at
+  // 844x390 the field is 270px and 🔁/▶ sat wholly below the box's fold, at
+  // 568x320 the treasures did too, and a 320x568 phone opened from its home
+  // screen lost 20px to its status bar and cut the buttons as well. A
+  // four-year-old will not scroll a dialog to find what to tap next (the law
+  // the check above states), so a short screen gets a compact box (main.css).
+  // A viewport list IS the test: these are the sizes where the two states differ.
+  // [w, h, [topInset, bottomInset]]
+  const SIZES = [[320, 480, [0, 0]], [320, 568, [20, 0]], [568, 320, [0, 0]], [667, 375, [0, 0]],
+    [844, 390, [0, 21]], [932, 430, [0, 21]], [390, 844, [47, 34]], [834, 1112, [24, 20]], [1024, 768, [24, 20]]];
+  for (const [w, h, inset] of SIZES) {
+    const { ctx, p } = await freshPage(w, h, inset);
+    try {
+      const at = `${w}x${h}${inset[0] || inset[1] ? " +inset " + inset.join("/") : ""}`;
+      await p.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+      await showScreen(p, "#hole-play", "#screen-hole-play");
+      await p.evaluate(() => window.__HOLE.start("party", {}));
+      // The growth meter: at 320 wide its bar was 14px — nothing to read
+      // progress off. Its own Gobble face steps aside on the narrowest phones.
+      const track = await p.evaluate(() => document.querySelector(".hole-meter__track").getBoundingClientRect().width);
+      assert.ok(track >= 48, `${at}: the growth meter's bar must be a real bar (${Math.round(track)}px)`);
+      const r = await p.evaluate(() => window.__HOLE.autoplay(60 * 400));
+      assert.ok(r && r.done, `${at}: fixture — the bot finishes the party`);
+      await p.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
+      await p.waitForTimeout(350);
+      const m = await p.evaluate(() => {
+        const box = document.querySelector(".hole-win__box").getBoundingClientRect();
+        const vh = document.documentElement.clientHeight;
+        const out = { box: [Math.round(box.top), Math.round(box.bottom)], vh, parts: [] };
+        for (const q of [".hole-win__cheer", ".hole-win__count", ".hole-win__gold", ".hole-again", ".hole-next"]) {
+          const e = document.querySelector(q);
+          if (!e || e.hidden) { out.parts.push({ q, absent: true }); continue; }
+          const b = e.getBoundingClientRect();
+          out.parts.push({ q, top: Math.round(b.top), bottom: Math.round(b.bottom),
+            ok: b.top >= box.top - 0.5 && b.bottom <= box.bottom + 0.5 && b.bottom <= vh + 0.5 && b.top >= -0.5 });
+        }
+        return out;
+      });
+      for (const part of m.parts) {
+        if (part.absent) {
+          // Treasures are optional (a win can find none); the rest never are.
+          assert.equal(part.q, ".hole-win__gold", `${at}: ${part.q} must be there`);
+          continue;
+        }
+        assert.ok(part.ok, `${at}: ${part.q} must be on screen with no scrolling — it spans ${part.top}..${part.bottom}, ` +
+          `the box ${m.box[0]}..${m.box[1]}, the screen ends at ${m.vh}`);
+      }
+      assert.ok(m.parts.filter((x) => !x.absent).length >= 4, `${at}: fixture — the cheer, the count and both buttons were measured`);
+    } finally { await ctx.close(); }
+  }
+});
+
+test("🕳️ Gobble's home: all twelve doors on the FIRST screen of every portrait phone from 360x640 up and of an iPad — on the real phone, notch included", async () => {
+  // Three across, four rows (main.css). The shipped test measured a plain
+  // 390x844, where the doors ended exactly at the fold — zero slack — so on a
+  // real notched iPhone (+47px of status bar above the topbar) most of the
+  // last row hid below it, and on 375x667 and 360x640 the whole last row did.
+  // A door a non-reader cannot see is a place he does not know exists. Now the
+  // decorative hero steps aside wherever it would push a door off, and a short
+  // phone's doors are a little shorter (still 75px+, still 16px apart).
+  // A 320-wide phone is NOT in the list: four rows of 75px doors 16px apart
+  // cannot fit 568px, so its last row stays below the fold (it scrolls).
+  // [w, h, [topInset, bottomInset]] — real device insets, portrait
+  const PHONES = [[360, 640, [0, 0]], [375, 667, [20, 0]], [375, 812, [50, 34]], [390, 844, [47, 34]],
+    [393, 852, [59, 34]], [414, 896, [48, 34]], [430, 932, [59, 34]]];
+  const TABLETS = [[768, 1024, [20, 0]], [834, 1112, [24, 20]]];
+  for (const [w, h, inset] of [...PHONES, ...TABLETS]) {
+    const { ctx, p } = await freshPage(w, h, inset);
+    try {
+      const at = `${w}x${h} +inset ${inset.join("/")}`;
+      await p.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+      await showScreen(p, "#hole-home", "#screen-hole-home");
+      const m = await p.evaluate((bottomInset) => {
+        const vh = document.documentElement.clientHeight;
+        const doors = [...document.querySelectorAll(".hole-door")].map((b) => b.getBoundingClientRect());
+        const hero = document.querySelector(".hole-hero").getBoundingClientRect();
+        return { n: doors.length, clear: vh - bottomInset, last: Math.round(Math.max(...doors.map((r) => r.bottom))),
+          hidden: doors.filter((r) => r.bottom > vh - bottomInset + 0.5).length,
+          minSide: Math.round(Math.min(...doors.map((r) => Math.min(r.width, r.height)))), hero: Math.round(hero.height) };
+      }, inset[1]);
+      assert.equal(m.n, 12, `${at}: fixture — twelve doors`);
+      // …and still big and 16px apart at every one of these sizes. Hiding the
+      // hero put the bar's 🚪/👂 straight on the first row of doors, 12px
+      // away, and only the audit above (three sizes) could have noticed.
+      await auditActiveScreen(p, `hole-home@${at}`);
+      assert.equal(m.hidden, 0, `${at}: every door must be on the first screen, clear of the home indicator — ` +
+        `${m.hidden} end below ${m.clear} (the last at ${m.last})`);
+      assert.ok(m.minSide >= 75, `${at}: still kid-sized doors (${m.minSide}px)`);
+      if (w >= 600) {
+        // The control: the hero steps aside only where it must. An iPad in
+        // portrait has room for it, so it stays (a rule that simply hid it
+        // everywhere would pass every clause above).
+        assert.ok(m.hero > 0, `${at}: an iPad in portrait keeps Gobble's picture on the home`);
+      }
+    } finally { await ctx.close(); }
+  }
+});
+
 test("home launcher: no overflow + big well-spaced tiles at phone AND tablet sizes", async () => {
   // 768x1024 and 1024x768 are here because a viewport list IS the test — the
   // lesson this repo has now learned three times (the pad-under-CALL audit ran
