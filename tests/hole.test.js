@@ -706,9 +706,16 @@ test("a half-eaten place's DOOR shows how far he got — a ring that fills — a
   await page.evaluate(() => window.__HOLE.autoplay(60 * 20));
   await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
   await page.waitForTimeout(1200);
-  const eaten = (await state()).eaten, total = (await state()).total;
+  const total = (await state()).total;
   await page.locator(".hole-back").click();
   await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  // What he ate is what LEAVING saved — a bite still falling, or one the
+  // magnet pulled in on the way out, counts — so read it there, not from the
+  // board a moment before (that race once made the two disagree).
+  const saved = (await page.evaluate(() => window.__HOLE.save())).runs.picnic;
+  const eaten = saved ? new Set(saved.eaten).size : 0;
+  assert.equal(await page.evaluate(() => window.__HOLE.scene()), null,
+    "on the home screen no place is being PLAYED — the parked run must not answer scene(), or a test waiting for a door reads the wrong run");
   const d = await page.evaluate(() => {
     const door = document.querySelector('.hole-door[data-scene="picnic"]'), ring = door.querySelector(".hole-door__prog");
     const dr = door.getBoundingClientRect(), rr = ring.getBoundingClientRect(), ir = door.querySelector(".hole-door__icon").getBoundingClientRect();
@@ -729,7 +736,9 @@ test("a half-eaten place's DOOR shows how far he got — a ring that fills — a
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="picnic"]').click();
   await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  assert.equal((await state()).eaten, eaten, "fixture: the door carried on the half-eaten picnic");
   await page.evaluate(() => window.__HOLE.autoplay(60 * 150));
+  assert.ok((await state()).done, "fixture: he finished it");
   await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
   await page.locator(".hole-back").click();
   await page.locator("#screen-hole-home").waitFor({ state: "visible" });

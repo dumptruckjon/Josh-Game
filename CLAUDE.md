@@ -9696,6 +9696,47 @@ runs were green while the whole-repo CSS laws were not: a tablet rule set the
 doors' `gap` without restating `display: grid`, and the flex-gap law (which
 cannot tell an inherited grid from an inherited flex) rightly asked for it.
 
+**GOBBLE POLISH (the owner, 2026-10-01: "Improve gobble hole in any way you can
+for playability and fun and quality") — five things worth keeping.**
+(1) **Measure the PLAYER, not the bot.** The greedy bot the tests use always
+heads for the nearest thing it can eat, so it finds the finale at once and the
+game looked fine. A wandering-child model (it goes for what it sees, pauses,
+wanders, and follows the arrow half the time) found the real gap: once he was
+big enough, nothing pointed at the finale. The edge arrow waited for nothing
+edible to be in view, which with ~390 things almost never happens, so the last
+stretch took 16-93s by place, and up to two minutes. Pointing the arrow at the
+finale takes it to 2-9s. The same model refuted a second idea (a hint pointing
+at the newest tier changed nothing), so that one was not built. It is a model,
+so its job is comparing designs, not predicting a child (PLAN_GOBBLE §12).
+(2) **A cue in a colour some floor already uses vanishes on that floor.** The
+first beacon was gold rings, and on the toy room's gold rug they disappeared.
+Dark under white shows on every floor, which is the fort's silhouette law
+again. Look at a new cue on EVERY floor before choosing its colour.
+(3) **Add to a fixed world without moving it.** The treasures are picked FROM
+the layout rather than placed into it, so nothing moved, the layout version
+stayed 3, and no child's half-eaten place was dropped (a new layout version
+drops them all). The picker's guards against starters and trail bites can never
+fire on today's layouts, because its distance rule never reaches them; the
+mutation that removes them stays green, so the code comment says so rather than
+a test pretending to check them.
+(4) **A test hook that names a place must not name a PARKED one.**
+`__HOLE.scene()` returned the run he LEFT (it stays parked so ▶ can carry it
+on), and a door starts its place on the next task. So clicking a door and then
+waiting for `scene() === id` could pass at once, on the parked run. The new
+door test once played that parked run to a win and then waited for a win screen
+that never came (1 failure in 12 runs). Two older tests had the same race; when
+it hit, they checked the parked run, which passes them without testing
+anything. Fixed at the hook rather than in each test: `scene()` answers only
+while the play screen is visible, and that turns true in the same task that
+starts the new run. The first failure's message was lost, because that run's
+output had been filtered down to its pass/fail lines; log a test run whole and
+filter the copy.
+(5) **A face must fit the CAMERA, not just the world.** At the back edge of the
+island his eyes stood above the world's top while the camera stopped at the
+island, so at the two biggest sizes they were cut off by up to 19px. The camera
+and the drawing now read one shared eye geometry, so a bigger eye or a taller
+crown moves both.
+
 ---
 
 ## Repository Structure
@@ -9857,10 +9898,10 @@ tooling.
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   ├── hanzi-strokes.js        # 写字 + 新字: stroke-order data for the 216 characters Word Cards teaches (the 120 of the 中文 cards, then the 96 新字) — every stroke's OUTLINE and its CENTRE-LINE, so the pad can both draw a stroke and score his finger against it, and a lesson can write one in order. GENERATED (a 216-character subset of hanzi-writer-data, from Make Me a Hanzi, under the Arphic Public License — see the file's own header and ARPHICPL.TXT); never hand-edit a path, re-derive it. Loaded with a <script src> deliberately: that is what puts it inside the precache scan, the offline boot test and the page-asset walk, every one of which reads the page's src attributes and is blind to a fetch()
-│   ├── hole-data.js            # 🕳️ Gobble Hole: ALL scene content + tuning (dual-export: window.HoleData + module.exports) — 12 places (phase 3 doubled the six, PLAN_GOBBLE §11), each a BIG world (420x588 units, several screens each way) of ~390 things in five size tiers + a finale, placed in DISTRICTS (zones) with CLUMPS and TRAILS; a district may be PRIVATE (only its own things stand in it: the beach's sea, the airport's runways) and an AVOID rect holds nothing (the volcano's lava); plus the ground's features (decals: rugs, roads, ponds, a dance floor, the sea, runways, lava…), the RULES the engine derives every size, grow, zoom and speed from, and what Gobble SAYs. Nothing alive is ever eaten (a Unicode-range law, not a list)
-│   ├── hole-logic.js           # 🕳️ the PURE deterministic engine (60Hz fixed step, seeded rng, zero DOM, dual-export): a FIXED world per place (the screen has no say in it) laid out by best-candidate sampling over a grid of placed things (24-unit cells; overlap checks exact, "room around it" capped at 90 units), with the keep-outs (private districts, avoid rects) judged by a thing's centre — the finale top-centre on its stage, 3 starters beside Gobble, trails of bites leading out, clumps grown INSIDE their district — the 3/4-view ground metric, fit / fall / magnet / too-big bump, the DERIVED size ladder (R from the place's own things, each grow GROW_BITES bites of the newest tier), `viewSpan`/`zoomScale` (the camera's zoom and Gobble's speed are ONE curve, so he crosses about a screen a second at every size), the win + vortex, the hint, save/restore (a layout version `v`; a run stores only WHICH things were eaten)
-│   ├── hole-render.js          # 🕳️ canvas renderer (reads state, never mutates) — a CAMERA onto the big world: it follows Gobble (a short lag, no look-ahead), zooms out as he grows (`HoleLogic.viewSpan`), never looks more than a rim past the island, opens a fresh place with a look at the whole island and pulls back to it for the win. The ground is drawn every frame (vector floor marks per 64-unit square, fewer as the camera pulls back, never a bitmap pattern; lighting as flat bands and a nebula as stepped rings; vector decals culled by their box, `prepDecals` the one owner), a finished place that has stopped moving is not redrawn, only on-screen things are drawn, every emoji's ink is measured ONCE and sprites come in half-octave steps (a coloured ball if the font has no glyph), soft shadow sprites as one ground pass, the hole with googly eyes, the falling clip, crumbs / rings / stars / burp, and the NEVER-LOST edge arrow
-│   ├── hole-main.js            # 🕳️ window.GobbleHole: #hole-home (twelve scene doors: 3 across on a phone, 4 from 600px) + #hole-play (bar, growth meter ending in a PICTURE of the next thing, canvas field, demo hand, win screen), routing (main.js delegates hole-*), one-finger CHASE steering (hold anywhere and he heads for the spot under the finger, re-read every frame, so a finger held to one side keeps him going; a tap sends him there; a tap on the edge arrow sends him to the thing it shows; arrow keys step a quarter of the view), the loop ONLY while visible, mute-gated sound via JoshAudio, the `josh-gobble-v1` save (coerced field by field; a run from another layout is dropped, its ⭐ kept), an arrival echo guard, and the window.__HOLE test hooks
+│   ├── hole-data.js            # 🕳️ Gobble Hole: ALL scene content + tuning (dual-export: window.HoleData + module.exports) — 12 places (phase 3 doubled the six, PLAN_GOBBLE §11), each a BIG world (420x588 units, several screens each way) of ~390 things in five size tiers + a finale, placed in DISTRICTS (zones) with CLUMPS and TRAILS; a district may be PRIVATE (only its own things stand in it: the beach's sea, the airport's runways) and an AVOID rect holds nothing (the volcano's lava); plus the ground's features (decals: rugs, roads, ponds, a dance floor, the sea, runways, lava…), the RULES the engine derives every size, grow, zoom and speed from, and what Gobble SAYs (every finale carries a spoken `say` name, so a line never reads a picture). Nothing alive is ever eaten (a Unicode-range law, not a list)
+│   ├── hole-logic.js           # 🕳️ the PURE deterministic engine (60Hz fixed step, seeded rng, zero DOM, dual-export): a FIXED world per place (the screen has no say in it) laid out by best-candidate sampling over a grid of placed things (24-unit cells; overlap checks exact, "room around it" capped at 90 units), with the keep-outs (private districts, avoid rects) judged by a thing's centre — the finale top-centre on its stage, 3 starters beside Gobble, trails of bites leading out, clumps grown INSIDE their district — the 3/4-view ground metric, fit / fall / magnet / too-big bump, the DERIVED size ladder (R from the place's own things, each grow GROW_BITES bites of the newest tier), `viewSpan`/`zoomScale` (the camera's zoom and Gobble's speed are ONE curve, so he crosses about a screen a second at every size), the win + vortex, the hint, `goalOf` (the finale once he is big enough: the hint, the arrow and the beacon all ask it), `goldOf` (the three TREASURES, picked from the layout so nothing moves), `countOf` (a place's size from its data, for the door ring), save/restore (a layout version `v`; a run stores only WHICH things were eaten)
+│   ├── hole-render.js          # 🕳️ canvas renderer (reads state, never mutates) — a CAMERA onto the big world: it follows Gobble (a short lag, no look-ahead), zooms out as he grows (`HoleLogic.viewSpan`), never looks more than a rim past the island, opens a fresh place with a look at the whole island and pulls back to it for the win. The ground is drawn every frame (vector floor marks per 64-unit square, fewer as the camera pulls back, never a bitmap pattern; lighting as flat bands and a nebula as stepped rings; vector decals culled by their box, `prepDecals` the one owner), a finished place that has stopped moving is not redrawn, only on-screen things are drawn, every emoji's ink is measured ONCE and sprites come in half-octave steps (a coloured ball if the font has no glyph), soft shadow sprites as one ground pass, the hole with googly eyes (one shared eye geometry, which the camera also reads so his face and 👑 stay on screen at the island's top edge), the falling clip, crumbs / rings / stars / burp, the NEVER-LOST edge arrow (which points at the finale from anywhere once he is big enough), the GOAL beacon (dark-under-white rings and a hop round the finale's foot), and the treasures' glow, twinkles and gold burst
+│   ├── hole-main.js            # 🕳️ window.GobbleHole: #hole-home (twelve scene doors: 3 across on a phone, 4 from 600px) + #hole-play (bar, growth meter ending in a PICTURE of the next thing, canvas field, demo hand, win screen), routing (main.js delegates hole-*), one-finger CHASE steering (hold anywhere and he heads for the spot under the finger, re-read every frame, so a finger held to one side keeps him going; a tap sends him there; a tap on the edge arrow sends him to the thing it shows; arrow keys step a quarter of the view), the loop ONLY while visible, mute-gated sound via JoshAudio, the `josh-gobble-v1` save (coerced field by field; a run from another layout is dropped, its ⭐ kept), the door ring (how much of a half-eaten place is gone), the ready fanfare and the treasure chime, the win's row of treasures he FOUND, an arrival echo guard, and the window.__HOLE test hooks (`scene()` names only the place on SCREEN — the run he left stays parked)
 │   └── main.js                 # Front door (#screen-start: 4 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD and hole-* through GobbleHole (both try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
@@ -9879,8 +9920,8 @@ tooling.
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
-│   ├── hole-logic.test.js      # 🕳️ headless engine: twelve places with their own doors and names; every BIG world lays out (districts, whole clumps, trails that lead out, a finale that is a real journey, private districts and avoid rects obeyed), the tier law, derived grows, zoom and speed as one curve, physics, a bot finishing EVERY place and taking a while to (≥20s each, ≥30s mean), the vortex, save/restore (layout v3), hostile saves, nothing alive, and every ground feature a place declares has a drawing and a real box
-│   ├── hole.test.js            # 🕳️ Playwright: the fourth door, the demo hand, a real drag that eats, tap-to-glide, a held finger that keeps him going, arrow keys, too-big, the meter, the win screen, resume, sound gating, the loop pausing, the echo guard — and the camera: follows him and stays on the island, a grow zooms out without ever shrinking him (sampled over real frames), only on-screen things drawn, the edge arrow, the opening look, the win pull-back, a run from an older layout dropped with its ⭐ kept — and every one of the twelve places opens and draws its floor, every ground feature and its things, with twelve doors on a phone's first screen in an even grid
+│   ├── hole-logic.test.js      # 🕳️ headless engine: twelve places with their own doors and names; every BIG world lays out (districts, whole clumps, trails that lead out, a finale that is a real journey, private districts and avoid rects obeyed), the tier law, derived grows, zoom and speed as one curve, physics, a bot finishing EVERY place and taking a while to (≥20s each, ≥30s mean), the vortex, save/restore (layout v3), hostile saves, nothing alive, every ground feature a place declares has a drawing and a real box — and the polish: the finale becomes the goal at the top size (the hint follows it), the grow that gets him there says so exactly once, three treasures per place (one per tier, in its band, far apart, never a starter, trail bite or finale, the layout unchanged), the slurp is not finding one, and every finale has a spoken name
+│   ├── hole.test.js            # 🕳️ Playwright: the fourth door, the demo hand, a real drag that eats, tap-to-glide, a held finger that keeps him going, arrow keys, too-big, the meter, the win screen, resume, sound gating, the loop pausing, the echo guard — and the camera: follows him and stays on the island, a grow zooms out without ever shrinking him (sampled over real frames), only on-screen things drawn, the edge arrow, the opening look, the win pull-back, a run from an older layout dropped with its ⭐ kept — and every one of the twelve places opens and draws its floor, every ground feature and its things, with twelve doors on a phone's first screen in an even grid — and the polish: the goal arrow from far away (and its tap), the crown and the beacon, the ready line naming the finale, treasures that glitter and burst, the win showing only treasures he found, the door ring and its percent, and his face on screen at the island's top edge
 │   ├── state-cues.js           # the ONE owner of how a TRANSLUCENT state pair is carried (composite / transient /
 │   │                           #   attribute): site.test.js's colour law requires it to EQUAL what it derives, both
 │   │                           #   ways, and e2e.test.js measures every `composite` entry as PAINTED PIXELS
@@ -9945,7 +9986,7 @@ tooling.
 │                               #   boss to carry `hurry` — it does not hit you, it makes the party ARRIVE FASTER.
 ├── PLAN_WORLD_9.md             # 🏭 ✅ BUILT (this line said "DESIGNED, NOT BUILT" for a release AFTER the world shipped — the "a list that outlives its contents" class, caught 2026-08 by reading DATA.LEVELS instead of the doc): World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
-├── PLAN_GOBBLE.md              # 🕳️ ✅ BUILT: Gobble Hole — the design (character, controls, derived growth, the first six scenes, the "super fun" checklist, architecture, tests), §9 phase 2 (BIG worlds and a camera), §11 phase 3 (worlds twice as big, twelve places, keep-outs) and §10, what was deliberately NOT built (a 2-player mode; Sticker Book stickers)
+├── PLAN_GOBBLE.md              # 🕳️ ✅ BUILT: Gobble Hole — the design (character, controls, derived growth, the first six scenes, the "super fun" checklist, architecture, tests), §9 phase 2 (BIG worlds and a camera), §11 phase 3 (worlds twice as big, twelve places, keep-outs), §12 the polish pass (what a wandering-child model measured, the finale's call, treasures, the door ring, the face at the top edge, and what was measured and not built) and §10, what was deliberately NOT built (a 2-player mode; Sticker Book stickers)
 └── CLAUDE.md                   # This file
 ```
 
@@ -10177,7 +10218,16 @@ apart, no timer, no failure (a too-big thing just wobbles and Gobble looks up
 at it), one finger (extra fingers ignored), sound off by default, playable
 muted. The first time, a ghost hand drags Gobble onto a sweet; 👂 shows it
 again. The growth meter ends in a PICTURE of the next thing he will be able to
-eat. A finished place wears a ⭐.
+eat. A finished place wears a ⭐, and a half-eaten one a little ring that fills
+as the place empties. Since **the polish pass (the owner, 2026-10-01: "Improve
+gobble hole in any way you can for playability and fun and quality")**, the
+moment he is big enough for the finale it CALLS him: the arrow points at it
+from anywhere (even with plenty to eat in view), it is ringed and hops on
+screen, Gobble wears a 👑, and a fanfare names it ("Wow, so big! Now eat the
+castle!"). Before that, a wandering child could spend up to two minutes
+looking for it. And three things in each place glitter — TREASURES: eating one
+is a burst of gold and star eyes, and the win shows the ones he FOUND (never a
+slot for one he missed).
 
 Invariants (guardrail-locked in `tests/hole-logic.test.js`, `tests/hole.test.js`,
 `mobile.test.js` and `site.test.js`):
@@ -10207,6 +10257,12 @@ Invariants (guardrail-locked in `tests/hole-logic.test.js`, `tests/hole.test.js`
   Sticker Book stays exactly 200.
 - The loop runs **only while the play screen is visible**; every delayed thing
   goes through a timer that dies with the screen.
+- **Treasures are picked FROM the layout** (`HoleLogic.goldOf`: one per band,
+  as far as possible from the start and each other), so adding them moved
+  nothing and needed no layout version — a new layout version drops every
+  half-eaten place.
+- **A line never reads a picture**: every finale carries a spoken name
+  (`finale.say`), and a law fails any line with an emoji in it.
 
 ### 🏰 Fort Josh: Toybox Defense — the world for JON (dad)
 

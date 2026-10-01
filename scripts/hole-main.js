@@ -679,7 +679,14 @@
   // scene through the same engine and the same event path a finger does.
   global.__HOLE = {
     state: () => (run ? run.st : null),
-    scene: () => (run ? run.def.id : null),
+    // The place he is PLAYING — null while the play screen is hidden. The run
+    // he left stays parked (▶ and a deep link carry it on), and a door starts
+    // its place on the NEXT task (the router runs on hashchange), so a test
+    // that waited for scene() === id after a door click passed on the PARKED
+    // run before the door had done anything — and once played that parked run
+    // to a win the screen never showed. The play screen turns visible in the
+    // same task that starts the new run, so this cannot be fooled.
+    scene: () => (run && play && !play.hidden ? run.def.id : null),
     save: () => JSON.parse(JSON.stringify(save)),
     reset(opts) {
       save = freshSave();
