@@ -76,20 +76,59 @@
     });
     const placed = [];
     const topMin = (r) => Math.max(r * SQ + RULES.EDGE, RULES.SPRITE_H * r - RULES.TOP_SLACK);
-    const legal = (x, y, r, nearStart, sep) => {
+    const zoneRects = (z) => ((def.zones && def.zones[z]) || []).map((b) => [b[0] * W, b[1] * H, b[2] * W, b[3] * H]);
+    const inRects = (x, y, rects) => rects.some((b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3]);
+    // KEEP-OUTS. A PRIVATE zone holds only its own things (the sea holds the
+    // boats, never an ice cream), and an AVOID rect holds nothing at all (the
+    // lava). Both are about where a thing's CENTRE stands, like a zone.
+    const priv = (def.private || []).map((z) => ({ z, rects: zoneRects(z) }));
+    const avoid = (def.avoid || []).map((b) => [b[0] * W, b[1] * H, b[2] * W, b[3] * H]);
+    const blocked = (x, y, zone) => {
+      if (inRects(x, y, avoid)) return true;
+      for (const p of priv) if (p.z !== zone && inRects(x, y, p.rects)) return true;
+      return false;
+    };
+    // A coarse grid of what is placed, so a test of "is this spot free?" looks
+    // only at its neighbours — a world of ~400 things measured in seconds
+    // without it, which is a frozen screen on an iPad when a door is tapped.
+    // It changes no answer: every neighbour that can matter is in the cells
+    // searched (the reach covers the biggest thing placed so far).
+    const G = 24, cols = Math.ceil(W / G) + 1, rows = Math.ceil(H / G) + 1;
+    const cells = new Array(cols * rows);
+    let rMax = 0;
+    const near = (x, y, reach, fn) => {
+      const cx0 = clamp(Math.floor((x - reach) / G), 0, cols - 1), cx1 = clamp(Math.floor((x + reach) / G), 0, cols - 1);
+      const cy0 = clamp(Math.floor((y - reach * SQ) / G), 0, rows - 1), cy1 = clamp(Math.floor((y + reach * SQ) / G), 0, rows - 1);
+      for (let cy = cy0; cy <= cy1; cy++) {
+        for (let cx = cx0; cx <= cx1; cx++) {
+          const c = cells[cy * cols + cx];
+          if (c) for (const p of c) if (fn(p) === false) return false;
+        }
+      }
+      return true;
+    };
+    const legal = (x, y, r, nearStart, sep, zone) => {
       if (x < r + RULES.EDGE || x > W - r - RULES.EDGE) return false;
       if (y < topMin(r) || y > H - r * SQ - RULES.EDGE) return false;
       if (!nearStart && gdist(x, y, start.x, start.y) < RULES.START_CLEAR + r) return false;
-      for (const p of placed) if (gdist(x, y, p.x, p.y) < sep * (r + p.r)) return false;
-      return true;
+      if (blocked(x, y, zone || null)) return false;
+      return near(x, y, sep * (r + rMax), (p) => gdist(x, y, p.x, p.y) >= sep * (r + p.r));
     };
+    // How much room a spot has: the gap to its nearest neighbour, capped at
+    // ROOM (any two spots with more room than that are equally good). The
+    // search reaches far enough that nothing outside it could come closer.
+    const ROOM = 90;
     const room = (x, y, r) => {
-      let m = Infinity;
-      for (const p of placed) m = Math.min(m, gdist(x, y, p.x, p.y) - (r + p.r));
+      let m = ROOM;
+      near(x, y, ROOM + r + rMax, (p) => { m = Math.min(m, gdist(x, y, p.x, p.y) - (r + p.r)); });
       return m;
     };
-    const put = (o, x, y) => { o.x = x; o.y = y; o.done = true; placed.push(o); };
-    const zoneRects = (z) => ((def.zones && def.zones[z]) || []).map((b) => [b[0] * W, b[1] * H, b[2] * W, b[3] * H]);
+    const put = (o, x, y) => {
+      o.x = x; o.y = y; o.done = true; placed.push(o);
+      rMax = Math.max(rMax, o.r);
+      const k = clamp(Math.floor(y / G), 0, rows - 1) * cols + clamp(Math.floor(x / G), 0, cols - 1);
+      (cells[k] || (cells[k] = [])).push(o);
+    };
     let relaxed = 0, zoneMiss = 0, broken = 0;
 
     // Best-candidate spot for a footprint of radius `r` (in its zone if any).
@@ -109,7 +148,7 @@
             x = r + RULES.EDGE + (W - 2 * (r + RULES.EDGE)) * rp();
             y = topMin(r) + (H - r * SQ - RULES.EDGE - topMin(r)) * rp();
           }
-          if (!legal(x, y, r, false, sep)) continue;
+          if (!legal(x, y, r, false, sep, zone)) continue;
           found++;
           const m = room(x, y, r);
           if (m > bestRoom) { bestRoom = m; best = [x, y]; }
@@ -156,7 +195,7 @@
         if (!o) break;
         const wob = Math.sin((i / Math.max(1, RULES.TRAIL_MAX - 1)) * Math.PI) * bend;
         const x = start.x + ux * d - uy * wob, y = start.y + uy * d + ux * wob;
-        if (!legal(x, y, o.r, false, RULES.SEP)) continue;
+        if (!legal(x, y, o.r, false, RULES.SEP, null)) continue;
         o.trail = ti + 1;
         put(o, x, y);
       }
@@ -174,7 +213,6 @@
       clumps.get(w.clump).push(w);
     }
     const order = [...clumps.values()].sort((a, b) => b[0].r - a[0].r);
-    const inRects = (x, y, rects) => rects.some((b) => x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3]);
     for (const g of order) {
       const rMax = Math.max(...g.map((m) => m.r));
       const foot = rMax * (1 + 1.15 * Math.sqrt(g.length - 1));
@@ -185,7 +223,7 @@
       const here = [];
       for (const m of g) {
         let ok = null;
-        const fits = (x, y) => legal(x, y, m.r, false, RULES.SEP) && (!rects.length || inRects(x, y, rects));
+        const fits = (x, y) => legal(x, y, m.r, false, RULES.SEP, m.zone) && (!rects.length || inRects(x, y, rects));
         if (!here.length && fits(c[0], c[1])) ok = c;
         for (let tries = 0; !ok && tries < 80; tries++) {
           const nb = here.length ? here[Math.floor(rp() * here.length)] : { x: c[0], y: c[1], r: 0 };

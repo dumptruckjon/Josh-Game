@@ -89,6 +89,61 @@ test("the front door's FOURTH door opens Gobble Hole, and 🚪 comes back", asyn
   assert.ok(!(await page.evaluate(() => document.body.classList.contains("hole-mode"))), "leaving drops the theme");
 });
 
+test("TWELVE places, and every door is on a phone's FIRST screen, in an even grid", async () => {
+  // The owner doubled the places (2026-10-01). Twelve doors two across ran
+  // six rows deep and left a third of the places below the fold of a
+  // 390x844 phone — a place a non-reader cannot see is a place he does not
+  // know exists. Three across fits all twelve on one portrait screen.
+  await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+  await go("#hole-home", "#screen-hole-home");
+  const m = await page.evaluate(() => {
+    const doors = [...document.querySelectorAll(".hole-door")].map((b) => b.getBoundingClientRect());
+    return {
+      n: doors.length, places: window.HoleData.SCENES.length,
+      cols: new Set(doors.map((r) => Math.round(r.left))).size,
+      bottom: Math.max(...doors.map((r) => r.bottom)), vh: innerHeight,
+      minW: Math.min(...doors.map((r) => r.width)), minH: Math.min(...doors.map((r) => r.height)),
+    };
+  });
+  assert.ok(m.places >= 12, "twelve places (" + m.places + ")");
+  assert.equal(m.n, m.places, "one door per place");
+  assert.equal(m.n % m.cols, 0, "the grid fills evenly: " + m.n + " doors in " + m.cols + " columns leaves no door on its own");
+  assert.ok(m.bottom <= m.vh, "every door is on the first screen of a 390x844 phone (the last ends at " + Math.round(m.bottom) + " of " + m.vh + ")");
+  assert.ok(m.minW >= 75 && m.minH >= 75, "every door is a kid-sized target (" + Math.round(m.minW) + "x" + Math.round(m.minH) + ")");
+});
+
+test("EVERY place opens and draws: its floor, ALL its ground features in the opening look, and its things", async () => {
+  // The engine tests prove each feature a place declares HAS a drawing; this
+  // draws them, on the real canvas. The opening look shows the whole island,
+  // so every feature must be in view and drawn — a feature that is culled by
+  // a wrong box, or throws, shows up here.
+  const errs = pageErrors.length;
+  const ids = await page.evaluate(() => window.HoleData.SCENES.map((d) => d.id));
+  for (const id of ids) {
+    await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await go("#hole-home", "#screen-hole-home");
+    await page.waitForTimeout(400);
+    const r = await page.evaluate(async (sid) => {
+      document.querySelector('.hole-door[data-scene="' + sid + '"]').click();
+      for (let i = 0; i < 50 && window.__HOLE.scene() !== sid; i++) await new Promise((res) => setTimeout(res, 20));
+      await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+      const i = window.__HOLE.info(), c = window.__HOLE.camera();
+      const def = window.HoleData.SCENES.find((d) => d.id === sid);
+      return { scene: window.__HOLE.scene(), intro: c.intro, drawn: i.drawn, decals: def.decals.length, inkless: i.inkless };
+    }, id);
+    assert.equal(r.scene, id, "fixture: " + id + " opened");
+    assert.ok(r.intro, id + ": a fresh place opens with the look at the whole island");
+    assert.ok(r.drawn.ok && r.drawn.ground, id + ": the island and its floor are drawn");
+    assert.equal(r.drawn.decals, r.decals, id + ": every ground feature is drawn in the look at the whole island (" + r.drawn.decals + " of " + r.decals + ")");
+    assert.ok(r.drawn.objects >= 300, id + ": the whole place is drawn in that look (" + r.drawn.objects + " things)");
+    assert.equal(r.inkless, 0, id + ": every picture has ink (none fell back to a coloured ball)");
+    // …and it plays: a few bites through the real event path
+    const p = await page.evaluate(() => window.__HOLE.autoplay(60 * 3));
+    assert.ok(p.eaten >= 3, id + ": Gobble eats in it (" + p.eaten + " in 3s)");
+  }
+  assert.deepEqual(pageErrors.slice(errs), [], "no page errors drawing any place");
+});
+
 test("the first time, a ghost hand SHOWS him how — Gobble eats a bite with no input at all", async () => {
   await openScene("toyroom", {});                       // a fresh save: demo not yet seen
   await page.locator(".hole-hand").waitFor({ state: "visible", timeout: 4000 });
@@ -378,7 +433,10 @@ test("the world is BIGGER than the screen: the camera shows a small part of it, 
   await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(0, h.y); });
   const EPS = 0.01;
   let far = 0;
-  for (let i = 0; i < 14; i++) {
+  // long enough for the trip at his top start speed, plus a second and a half
+  // to slow down at the rim (the world, not a constant, sets the distance)
+  const steps = Math.ceil((s0.x / RULES.VMAX + 1.5) / 0.25);
+  for (let i = 0; i < steps; i++) {
     await page.waitForTimeout(250);
     const s = await state(), c = await cam();
     assert.ok(inView(c, s.x, s.y), "the camera keeps Gobble on screen (step " + i + ")");

@@ -250,6 +250,83 @@
         c.stroke();
       },
     },
+    // ---- phase 3 (§11): the six new places' floors ----
+    farm: {
+      // sunny farm grass, yellower than the park's, with dry straw in it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#b5d86a"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 14, ["rgba(214,236,138,0.45)", "rgba(146,184,72,0.30)"], 2, 6);
+        if (d < LOD.small) return;
+        tufts(c, T, Rk("tufts"), 28, "rgba(112,152,52,0.55)", 1);
+        const R = Rk("straw");
+        c.strokeStyle = "rgba(226,186,92,0.75)"; c.lineWidth = 0.28; c.lineCap = "round";
+        c.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const x = R() * T, y = R() * T, a = R() * Math.PI, s = 0.8 + R() * 0.8;
+          c.moveTo(x - Math.cos(a) * s, y - Math.sin(a) * s * SQ); c.lineTo(x + Math.cos(a) * s, y + Math.sin(a) * s * SQ);
+        }
+        c.stroke();
+      },
+    },
+    pitch: {
+      // a mown pitch: wide stripes of two greens across the world, anchored
+      // to it (a stripe never slides as the camera moves)
+      base(c, x0, y0, x1, y1) {
+        for (let k = Math.floor(x0 / 14); k * 14 < x1; k++) {
+          c.fillStyle = (((k % 2) + 2) % 2) ? "#63c15a" : "#70cc66";
+          c.fillRect(k * 14, y0, 14, y1 - y0);
+        }
+      },
+      marks(c, T, Rk, d) {
+        if (d < LOD.small) return;
+        tufts(c, T, Rk("tufts"), 18, "rgba(60,140,50,0.45)", 0.8);
+      },
+    },
+    sand: {
+      // warm sand with little ripples and pale shell-coloured specks
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#f2d8a0"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 14, ["rgba(255,236,190,0.5)", "rgba(214,178,112,0.30)"], 2, 7);
+        if (d < LOD.small) return;
+        const R = Rk("ripples");
+        c.strokeStyle = "rgba(196,156,92,0.45)"; c.lineWidth = 0.3; c.lineCap = "round";
+        c.beginPath();
+        for (let i = 0; i < 9; i++) {
+          const x = R() * T, y = R() * T, s = 1.6 + R() * 1.6;
+          c.moveTo(x - s, y); c.quadraticCurveTo(x, y - s * 0.5, x + s, y);
+        }
+        c.stroke();
+        dots(c, T, Rk("specks"), 12, 0.25, 0.5, (i) => ["#ffffff", "#ffd1dc", "#e8c8ff"][i % 3]);
+      },
+    },
+    jungle: {
+      // a deep green jungle floor: leafy patches, ferns and tiny flowers
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#57a94b"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 16, ["rgba(120,196,92,0.45)", "rgba(40,110,40,0.35)"], 2, 7);
+        if (d < LOD.small) return;
+        tufts(c, T, Rk("ferns"), 30, "rgba(30,96,36,0.6)", 1.3);
+        dots(c, T, Rk("flowers"), 6, 0.45, 0.6, (i) => ["#ff5e7e", "#ffd24d", "#ffffff"][i % 3]);
+      },
+    },
+    snow: {
+      // fresh snow: soft blue shadows of the drifts, and a sparkle here and there
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#f2f6fc"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 12, ["rgba(196,214,240,0.40)", "rgba(255,255,255,0.75)"], 2, 7);
+        if (d < LOD.small) return;
+        dots(c, T, Rk("sparkles"), 10, 0.2, 0.35, (i) => (i % 2 ? "rgba(150,190,240,0.9)" : "rgba(255,255,255,1)"));
+      },
+    },
+    tarmac: {
+      // an airport's grey tarmac, speckled
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#8e959f"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 10, ["rgba(160,166,176,0.40)", "rgba(110,116,126,0.30)"], 3, 8);
+        if (d < LOD.small) return;
+        dots(c, T, Rk("specks"), 30, 0.15, 0.3, (i) => (i % 2 ? "rgba(70,74,82,0.6)" : "rgba(196,200,208,0.6)"));
+      },
+    },
   };
 
   // ---- The ground's FEATURES: vector decals in world units ------------------
@@ -412,11 +489,11 @@
         }
       },
     },
-    tracks: {   // tyre tracks in the dirt
+    tracks: {   // tyre tracks in the dirt (or ski tracks in the snow: `c` is their colour)
       box: (d, W, H) => ptsBox(ptsOf(d, W, H), 6),
       draw(c, d, W, H) {
         const pts = ptsOf(d, W, H);
-        c.strokeStyle = "rgba(125,82,42,0.5)"; c.lineWidth = 1.4; c.setLineDash([1.6, 1.1]);
+        c.strokeStyle = d.c || "rgba(125,82,42,0.5)"; c.lineWidth = 1.4; c.setLineDash([1.6, 1.1]);
         for (const off of [-2.3, 2.3]) {
           c.save(); c.translate(0, off); smoothPath(c, pts); c.stroke(); c.restore();
         }
@@ -652,6 +729,310 @@
         c.fill();
       },
     },
+    // ---- phase 3 (§11): the six new places' features ----
+    patch: {   // a soft patch of bare ground (a farmyard, the volcano's ash, a village)
+      box: (d, W, H) => grow(circOf(d, W, H), 1.4),
+      draw(c, d, W, H) {
+        const cx = d.x * W, cy = d.y * H, r = d.r * W;
+        c.fillStyle = "rgba(0,0,0,0.10)"; ellipse(c, cx, cy + 0.6, r + 1.2, (r + 1.2) * SQ); c.fill();
+        c.fillStyle = d.c; ellipse(c, cx, cy, r, r * SQ); c.fill();
+        c.fillStyle = "rgba(255,255,255,0.14)"; ellipse(c, cx - r * 0.25, cy - r * 0.2 * SQ, r * 0.5, r * 0.3 * SQ); c.fill();
+      },
+    },
+    crops: {   // a field of crops in rows
+      box: (d, W, H) => grow(rectOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H);
+        c.fillStyle = "#9a6b3f"; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.lineCap = "round";
+        c.strokeStyle = d.c; c.lineWidth = 2.6;
+        c.beginPath();
+        for (let y = y0 + 3; y < y1 - 1; y += 5.2) { c.moveTo(x0 + 2, y); c.lineTo(x1 - 2, y); }
+        c.stroke();
+        c.strokeStyle = "rgba(255,255,255,0.35)"; c.lineWidth = 0.6;
+        c.beginPath();
+        for (let y = y0 + 2.2; y < y1 - 1.8; y += 5.2) { c.moveTo(x0 + 2.4, y); c.lineTo(x1 - 2.4, y); }
+        c.stroke();
+      },
+    },
+    fence: {   // a wooden fence: posts and two rails
+      box: (d, W, H) => ptsBox(ptsOf(d, W, H), 6),
+      draw(c, d, W, H) {
+        const pts = ptsOf(d, W, H);
+        c.lineCap = "round";
+        for (const [dy, col] of [[-3.6, "#a8743f"], [-1.8, "#a8743f"]]) {
+          c.strokeStyle = col; c.lineWidth = 0.8;
+          c.beginPath();
+          pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1] + dy) : c.moveTo(p[0], p[1] + dy)));
+          c.stroke();
+        }
+        c.fillStyle = "#8a5a2b";
+        for (let i = 1; i < pts.length; i++) {
+          const [ax, ay] = pts[i - 1], [bx, by] = pts[i], len = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.round(len / 6));
+          for (let k = 0; k <= n; k++) {
+            const t = k / n, x = ax + (bx - ax) * t, y = ay + (by - ay) * t;
+            c.fillRect(x - 0.5, y - 4.6, 1, 4.6);
+          }
+        }
+      },
+    },
+    soil: {   // a vegetable patch: dark soil in furrows
+      box: rectOf,
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H);
+        c.fillStyle = "#7a4f2c"; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.strokeStyle = "rgba(160,110,70,0.6)"; c.lineWidth = 0.9;
+        c.beginPath();
+        for (let y = y0 + 3; y < y1 - 1; y += 4.4) { c.moveTo(x0 + 1, y); c.lineTo(x1 - 1, y); }
+        c.stroke();
+        c.strokeStyle = "rgba(0,0,0,0.25)"; c.lineWidth = 0.7; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      },
+    },
+    track: {   // a running track: a red oval with white lanes, foreshortened like the ground
+      box: (d, W, H) => { const rx = d.rx * W + 10, ry = d.ry * H + 10; return [d.x * W - rx, d.y * H - ry, d.x * W + rx, d.y * H + ry]; },
+      draw(c, d, W, H) {
+        c.translate(d.x * W, d.y * H); c.scale(1, SQ);
+        const rx = d.rx * W, ry = (d.ry * H) / SQ;
+        c.strokeStyle = "#d9643a"; c.lineWidth = 14;
+        c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); c.stroke();
+        c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 0.5;
+        for (const k of [-7, -2.4, 2.4, 7]) { c.beginPath(); c.ellipse(0, 0, rx + k, ry + k, 0, 0, Math.PI * 2); c.stroke(); }
+      },
+    },
+    pitch: {   // a football pitch's white lines
+      box: (d, W, H) => grow(rectOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H), w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        c.fillStyle = "rgba(255,255,255,0.08)"; c.fillRect(x0, y0, w, h);
+        c.strokeStyle = "rgba(255,255,255,0.9)"; c.lineWidth = 0.7;
+        c.strokeRect(x0, y0, w, h);
+        c.beginPath(); c.moveTo(cx, y0); c.lineTo(cx, y1); c.stroke();
+        ellipse(c, cx, cy, h * 0.3, h * 0.3 * SQ); c.stroke();
+        for (const [bx, dir] of [[x0, 1], [x1, -1]]) {
+          c.strokeRect(dir > 0 ? bx : bx - w * 0.14, cy - h * 0.3, w * 0.14, h * 0.6);
+          c.strokeRect(dir > 0 ? bx : bx - w * 0.05, cy - h * 0.14, w * 0.05, h * 0.28);
+        }
+      },
+    },
+    court: {   // a court: coloured, with white lines
+      box: (d, W, H) => grow(rectOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H), w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2;
+        c.fillStyle = "rgba(255,255,255,0.75)"; c.fillRect(x0 - 1.2, y0 - 1.2, w + 2.4, h + 2.4);
+        c.fillStyle = d.c; c.fillRect(x0, y0, w, h);
+        c.strokeStyle = "rgba(255,255,255,0.92)"; c.lineWidth = 0.6;
+        c.strokeRect(x0 + 2, y0 + 2, w - 4, h - 4);
+        c.beginPath(); c.moveTo(cx, y0 + 2); c.lineTo(cx, y1 - 2); c.stroke();
+        ellipse(c, cx, (y0 + y1) / 2, h * 0.22, h * 0.22 * SQ); c.stroke();
+      },
+    },
+    podium: {   // the winners' podium: silver, gold and bronze steps
+      box: (d, W, H) => { const b = rectOf(d, W, H); return [b[0], b[1] - 12, b[2], b[3] + 1]; },
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H), w = (x1 - x0) / 3, base = y1;
+        const steps = [[0, 7, "#cfd6de", "#a9b3bf"], [1, 11, "#ffd24d", "#d9a91c"], [2, 5, "#e6a46a", "#b9773f"]];
+        for (const [i, hgt, top, side] of steps) {
+          const x = x0 + i * w;
+          c.fillStyle = side; c.fillRect(x, base - hgt, w, hgt);
+          c.fillStyle = top; c.fillRect(x, base - hgt - w * 0.32 * SQ, w, w * 0.32 * SQ);
+        }
+      },
+    },
+    sea: {   // the sea along the far side, its waves, and a foamy shore
+      prep(d, W, H, R) {
+        const y1 = d.y1 * H, waves = [];
+        for (let i = 0; i < 46; i++) waves.push([R() * W, 4 + R() * (y1 - 14), 2 + R() * 3]);
+        return { y1, waves };
+      },
+      box: (d, W, H) => [-2, -10, W + 2, d.y1 * H + 6],
+      draw(c, d, W, H, p) {
+        const y1 = p.y1;
+        c.fillStyle = "#3fa8e0"; c.fillRect(-2, -10, W + 4, y1 * 0.55 + 10);
+        c.fillStyle = "#58bdee"; c.fillRect(-2, y1 * 0.55, W + 4, y1 * 0.45);
+        // the shore: wet sand, then the water's edge as a gentle wave
+        c.fillStyle = "rgba(160,120,60,0.22)";
+        c.beginPath(); c.moveTo(-2, y1 - 2);
+        for (let x = -2; x <= W + 2; x += 6) c.lineTo(x, y1 + 3 + Math.sin(x * 0.11) * 1.4);
+        c.lineTo(W + 2, y1 - 2); c.closePath(); c.fill();
+        c.fillStyle = "#84d3f4";
+        c.beginPath(); c.moveTo(-2, y1 - 8);
+        for (let x = -2; x <= W + 2; x += 6) c.lineTo(x, y1 + Math.sin(x * 0.11) * 1.4);
+        c.lineTo(W + 2, y1 - 8); c.closePath(); c.fill();
+        c.strokeStyle = "rgba(255,255,255,0.9)"; c.lineWidth = 0.9; c.lineCap = "round";
+        c.beginPath();
+        for (let x = -2; x <= W + 2; x += 6) (x === -2 ? c.moveTo(x, y1 + Math.sin(x * 0.11) * 1.4) : c.lineTo(x, y1 + Math.sin(x * 0.11) * 1.4));
+        c.stroke();
+        c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 0.6;
+        c.beginPath();
+        for (const [x, y, s] of p.waves) { c.moveTo(x - s, y); c.quadraticCurveTo(x, y - s * 0.6, x + s, y); }
+        c.stroke();
+      },
+    },
+    towel: {   // a striped beach towel with a fringe
+      box: (d, W, H) => grow(rectOf(d, W, H), 2),
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H), n = 6, w = (x1 - x0) / n;
+        for (let i = 0; i < n; i++) { c.fillStyle = i % 2 ? "#ffffff" : d.c; c.fillRect(x0 + i * w, y0, w, y1 - y0); }
+        c.strokeStyle = "rgba(255,255,255,0.9)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (let x = x0 + 0.8; x < x1; x += 1.6) { c.moveTo(x, y0); c.lineTo(x, y0 - 1.6); c.moveTo(x, y1); c.lineTo(x, y1 + 1.6); }
+        c.stroke();
+      },
+    },
+    rockpool: {   // a rock pool: a ring of rocks around a little pool of sea water
+      prep: (d, W, H, R) => {
+        const r = d.r * W, rocks = [];
+        for (let a = 0; a < Math.PI * 2; a += 0.42) rocks.push([Math.cos(a) * r, Math.sin(a) * r * SQ, 1.2 + R() * 1.4, 150 + Math.floor(R() * 50)]);
+        return { rocks };
+      },
+      box: (d, W, H) => grow(circOf(d, W, H), 3),
+      draw(c, d, W, H, p) {
+        const cx = d.x * W, cy = d.y * H, r = d.r * W;
+        c.fillStyle = "#4fb3e0"; ellipse(c, cx, cy, r, r * SQ); c.fill();
+        c.fillStyle = "rgba(255,255,255,0.4)"; c.beginPath(); c.ellipse(cx - r * 0.3, cy - r * 0.2 * SQ, r * 0.3, r * 0.08, -0.2, 0, Math.PI * 2); c.fill();
+        for (const [dx, dy, rr, v] of p.rocks) {
+          c.fillStyle = "rgb(" + v + "," + (v - 4) + "," + (v - 14) + ")";
+          c.beginPath(); c.ellipse(cx + dx, cy + dy, rr, rr * 0.8, 0, 0, Math.PI * 2); c.fill();
+        }
+      },
+    },
+    footprints: {   // little footprints across the sand
+      prep(d, W, H) {
+        const pts = ptsOf(d, W, H), prints = [];
+        let side = 1;
+        for (let i = 1; i < pts.length; i++) {
+          const [ax, ay] = pts[i - 1], [bx, by] = pts[i], len = Math.hypot(bx - ax, by - ay);
+          const ux = (bx - ax) / len, uy = (by - ay) / len;
+          for (let s = 0; s < len; s += 5) {
+            prints.push([ax + ux * s - uy * 1.2 * side, ay + uy * s + ux * 1.2 * side, Math.atan2(uy, ux)]);
+            side = -side;
+          }
+        }
+        return { prints };
+      },
+      box: (d, W, H) => ptsBox(ptsOf(d, W, H), 4),
+      draw(c, d, W, H, p) {
+        c.fillStyle = "rgba(170,128,72,0.35)";
+        c.beginPath();
+        for (const [x, y, a] of p.prints) { c.moveTo(x + 1.1, y); c.ellipse(x, y, 1.1, 0.55, a, 0, Math.PI * 2); }
+        c.fill();
+      },
+    },
+    lava: {   // a stream of glowing lava (nothing stands in it: the place's `avoid`)
+      box: (d, W, H) => ptsBox(ptsOf(d, W, H), d.w + 6),
+      draw(c, d, W, H) {
+        const pts = ptsOf(d, W, H);
+        groundStroke(c, pts, d.w + 8, "rgba(255,120,40,0.22)");
+        groundStroke(c, pts, d.w + 2.4, "#a8321f");
+        groundStroke(c, pts, d.w, "#ff6a1a");
+        groundStroke(c, pts, d.w * 0.35, "#ffd23f");
+      },
+    },
+    stones: {   // stepping stones along a path
+      prep(d, W, H) {
+        const pts = ptsOf(d, W, H), out = [];
+        for (let i = 1; i < pts.length; i++) {
+          const [ax, ay] = pts[i - 1], [bx, by] = pts[i], len = Math.hypot(bx - ax, by - ay);
+          for (let s = (i === 1 ? 0 : 9); s < len; s += 9) out.push([ax + (bx - ax) * (s / len) + ((out.length % 2) ? 1.6 : -1.6), ay + (by - ay) * (s / len)]);
+        }
+        return { stones: out };
+      },
+      box: (d, W, H) => ptsBox(ptsOf(d, W, H), 6),
+      draw(c, d, W, H, p) {
+        c.fillStyle = "#8f8a80";
+        c.beginPath();
+        for (const [x, y] of p.stones) { c.moveTo(x + 3, y); c.ellipse(x, y, 3, 3 * SQ, 0, 0, Math.PI * 2); }
+        c.fill();
+        c.fillStyle = "#b9b4aa";
+        c.beginPath();
+        for (const [x, y] of p.stones) { c.moveTo(x + 2.2, y - 0.5); c.ellipse(x, y - 0.5, 2.2, 2.2 * SQ, 0, 0, Math.PI * 2); }
+        c.fill();
+      },
+    },
+    drift: {   // a soft snow drift with a blue shadow
+      box: (d, W, H) => grow(circOf(d, W, H), 2),
+      draw(c, d, W, H) {
+        const cx = d.x * W, cy = d.y * H, r = d.r * W;
+        c.fillStyle = "rgba(160,184,222,0.45)"; ellipse(c, cx + r * 0.08, cy + r * 0.1 * SQ, r, r * SQ); c.fill();
+        c.fillStyle = "#ffffff"; ellipse(c, cx - r * 0.04, cy - r * 0.04 * SQ, r * 0.94, r * 0.9 * SQ); c.fill();
+        c.fillStyle = "rgba(220,234,252,0.9)"; ellipse(c, cx + r * 0.2, cy + r * 0.25 * SQ, r * 0.5, r * 0.3 * SQ); c.fill();
+      },
+    },
+    ice: {   // a frozen pond: pale blue ice with a shine and a few cracks
+      prep: (d, W, H, R) => {
+        const r = d.r * W, cracks = [];
+        for (let i = 0; i < 4; i++) {
+          const a = R() * Math.PI * 2, q = 0.3 + R() * 0.4;
+          cracks.push([Math.cos(a) * r * q, Math.sin(a) * r * q * SQ, a + (R() - 0.5), r * (0.18 + R() * 0.18)]);
+        }
+        return { cracks };
+      },
+      box: (d, W, H) => grow(circOf(d, W, H), 1.6),
+      draw(c, d, W, H, p) {
+        const cx = d.x * W, cy = d.y * H, r = d.r * W;
+        c.fillStyle = "#9ccbeb"; ellipse(c, cx, cy, r + 1.2, (r + 1.2) * SQ); c.fill();
+        c.fillStyle = "#cdeaf9"; ellipse(c, cx, cy, r, r * SQ); c.fill();
+        c.strokeStyle = "rgba(255,255,255,0.95)"; c.lineWidth = 1.2; c.lineCap = "round";
+        c.beginPath();
+        c.moveTo(cx - r * 0.5, cy - r * 0.15 * SQ); c.lineTo(cx - r * 0.1, cy - r * 0.35 * SQ);
+        c.moveTo(cx - r * 0.35, cy + r * 0.05 * SQ); c.lineTo(cx - r * 0.12, cy - r * 0.07 * SQ);
+        c.stroke();
+        c.strokeStyle = "rgba(110,160,205,0.6)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (const [dx, dy, a, l] of p.cracks) {
+          c.moveTo(cx + dx, cy + dy); c.lineTo(cx + dx + Math.cos(a) * l, cy + dy + Math.sin(a) * l * SQ);
+        }
+        c.stroke();
+      },
+    },
+    runway: {   // a runway: asphalt, edge lines, a dashed centre line and the "piano keys"
+      box: (d, W, H) => grow(rectOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H), h = y1 - y0, cy = (y0 + y1) / 2;
+        c.fillStyle = "#4b5059"; c.fillRect(x0, y0, x1 - x0, h);
+        c.fillStyle = "rgba(255,255,255,0.92)";
+        c.fillRect(x0 + 2, y0 + 1.2, x1 - x0 - 4, 0.6);
+        c.fillRect(x0 + 2, y1 - 1.8, x1 - x0 - 4, 0.6);
+        for (let x = x0 + 26; x < x1 - 30; x += 16) c.fillRect(x, cy - 0.4, 9, 0.8);
+        for (const ex of [x0 + 4, x1 - 16]) {
+          for (let k = 0; k < 6; k++) c.fillRect(ex, y0 + 3 + k * ((h - 6) / 6), 12, ((h - 6) / 6) * 0.55);
+        }
+      },
+    },
+    taxiway: {   // a taxiway: a paler lane with its yellow centre line
+      box: (d, W, H) => ptsBox(ptsOf(d, W, H), 8),
+      draw(c, d, W, H) {
+        const pts = ptsOf(d, W, H);
+        groundStroke(c, pts, 13, "#7c838d");
+        groundStroke(c, pts, 1.1, "#ffd24d");
+      },
+    },
+    helipad: {   // a helipad: a dark disc, a white ring and a big H
+      box: (d, W, H) => grow(circOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const r = d.r * W;
+        c.translate(d.x * W, d.y * H); c.scale(1, SQ);
+        c.fillStyle = "#3e434c"; c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = "#ffffff"; c.lineWidth = 1.1; c.beginPath(); c.arc(0, 0, r * 0.82, 0, Math.PI * 2); c.stroke();
+        c.fillStyle = "#ffffff";
+        const s = r * 0.42;
+        c.fillRect(-s * 0.6, -s, s * 0.28, s * 2); c.fillRect(s * 0.32, -s, s * 0.28, s * 2); c.fillRect(-s * 0.6, -s * 0.14, s * 1.2, s * 0.28);
+      },
+    },
+    terminal: {   // the terminal's tiled floor, with a carpet to the gates
+      box: (d, W, H) => grow(rectOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H);
+        c.fillStyle = "#e7e9ee"; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.strokeStyle = "rgba(120,128,140,0.35)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (let x = x0 + 8; x < x1 - 1; x += 8) { c.moveTo(x, y0); c.lineTo(x, y1); }
+        for (let y = y0 + 6; y < y1 - 1; y += 6) { c.moveTo(x0, y); c.lineTo(x1, y); }
+        c.stroke();
+        c.fillStyle = "#5b7fd6"; c.fillRect(x0 + (x1 - x0) * 0.44, y0, (x1 - x0) * 0.12, y1 - y0);
+        c.strokeStyle = "rgba(60,70,90,0.45)"; c.lineWidth = 0.9; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      },
+    },
   };
 
   // A place's ground features, worked out ONCE: each decal with its kind, its
@@ -690,6 +1071,22 @@
         c.beginPath(); c.arc(R() * w, R() * h, 0.5 + R() * 1.2, 0, Math.PI * 2); c.fill();
       }
     },
+    // the island floats on the sea: little white wave crests all around
+    sea(c, w, h, R) {
+      c.strokeStyle = "rgba(255,255,255,0.7)"; c.lineWidth = 2; c.lineCap = "round";
+      for (let i = 0; i < 46; i++) {
+        const x = R() * w, y = R() * h, s = 6 + R() * 8;
+        c.beginPath(); c.moveTo(x - s, y); c.quadraticCurveTo(x, y - s * 0.55, x + s, y); c.stroke();
+      }
+    },
+    // a winter sky, still: snowflakes hang in it (never animated — an
+    // animated full-page background flashes on iOS)
+    snowfall(c, w, h, R) {
+      for (let i = 0; i < 110; i++) {
+        c.fillStyle = "rgba(255,255,255," + (0.55 + R() * 0.4).toFixed(2) + ")";
+        c.beginPath(); c.arc(R() * w, R() * h, 1 + R() * 2.4, 0, Math.PI * 2); c.fill();
+      }
+    },
   };
   // Per ground: its backdrop and the island's front edge (its floor is GROUND_ART).
   const GROUNDS = {
@@ -699,6 +1096,12 @@
     town: { backdrop: "sky", edge: ["#7a5230", "#5f3f24"] },
     party: { backdrop: "wall", edge: ["#e59ac1", "#c8729f"] },
     space: { backdrop: "stars", edge: ["#2b2f6e", "#1a1d4a"] },
+    farm: { backdrop: "sky", edge: ["#8b5a2b", "#6e4420"] },
+    pitch: { backdrop: "sky", edge: ["#7a5230", "#5f3f24"] },
+    sand: { backdrop: "sea", edge: ["#d8b26c", "#b48c4a"] },
+    jungle: { backdrop: "sea", edge: ["#6e4a2b", "#523520"] },
+    snow: { backdrop: "snowfall", edge: ["#c3d4ea", "#9db3d0"] },
+    tarmac: { backdrop: "sky", edge: ["#6b7280", "#4b5563"] },
   };
 
   // The hole's colours: Gobble's purple, or a black hole's glowing ring.
