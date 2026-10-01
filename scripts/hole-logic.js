@@ -278,7 +278,10 @@
   // across the middle and a medium one up top (found late), each as far as it
   // can be from the start and from the others. They are picked FROM the
   // layout, never added to it, so a saved run keeps its meaning and the
-  // world is exactly what it was.
+  // world is exactly what it was. The starters and trail bites are left out
+  // on principle (they are the bites that TEACH, not ones to find); on every
+  // shipped place the distance rule never reaches them anyway, so that line
+  // is a guard for a future layout, not something a test can see today.
   const GOLD_BANDS = [[0.62, 1], [0.33, 0.62], [0, 0.33]];
   function goldOf(objects, start, H) {
     const out = [];
