@@ -115,8 +115,11 @@ test("TWELVE places, and every door is on a phone's FIRST screen, in an even gri
 test("EVERY place opens and draws: its floor, ALL its ground features in the opening look, and its things", async () => {
   // The engine tests prove each feature a place declares HAS a drawing; this
   // draws them, on the real canvas. The opening look shows the whole island,
-  // so every feature must be in view and drawn — a feature that is culled by
-  // a wrong box, or throws, shows up here.
+  // so every feature must be in view and drawn — a feature that throws, or
+  // whose box lands OFF the island (so the cull drops it), shows up here.
+  // A NaN box does NOT: every cull comparison against NaN is false, so it is
+  // never culled and still draws. The engine test's `b.every(Number.isFinite)`
+  // carries that case, and is the one that goes red on it.
   const errs = pageErrors.length;
   const ids = await page.evaluate(() => window.HoleData.SCENES.map((d) => d.id));
   for (const id of ids) {

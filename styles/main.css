@@ -2884,7 +2884,7 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 
 @media (min-width: 600px) {
   .hole-scenes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .hole-door { min-height: 172px; gap: 6px; padding: 12px 8px; }
+  .hole-door { display: grid; min-height: 172px; gap: 6px; padding: 12px 8px; }
   .hole-door__icon { font-size: 4.2rem; }
   .hole-door__label { font-size: 1.2rem; }
   .hole-hero { width: 160px; height: 160px; }

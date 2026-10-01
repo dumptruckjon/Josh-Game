@@ -4,6 +4,8 @@
 hole.io, Donut County or Hole em All … a scene of really interesting stuff and
 you have to eat more and more of it to get progressively larger … super fun for
 a 4 year old").
+Phase 2 (big worlds you move around in, §9) and phase 3 (bigger worlds and
+twelve places, §11) are built too.
 
 A fourth world on the front door, right after 🏰 Fort Josh. Josh drags a
 friendly hole-monster, **Gobble**, around a toy-box diorama. Small things fall
@@ -79,6 +81,9 @@ engine's test strategy (node sims drive whole scenes headless).
   from Gobble to the nearest thing it can eat, and a ring pulses around it.
 
 ## 5. Scenes — six dioramas
+
+> Phase 1's six. Phase 2 (§9) made each one a big world; phase 3 (§11) made
+> the worlds bigger again and added six more places.
 
 A diorama "island" floating on a themed backdrop, like Donut County. The island
 keeps a fixed AREA and adapts its ASPECT to the screen (clamped to 0.6..1.7),
@@ -290,3 +295,108 @@ version is dropped (its ids point at a different layout); finished ⭐s are kept
 - A 2-player mode (two holes). Josh's profile names co-op as his top lever, but
   RULE 5 says to ignore extra fingers — it needs its own design.
 - Stickers in his Sticker Book (that book is exactly 200 games by law).
+
+## 11. Phase 3 — bigger worlds, twelve places (owner, 2026-10-01)
+
+> "Expand Gobble hole. Make each level even larger so they take more time and
+> also double the amount of playable levels."
+
+### 11.1 Bigger, and longer to finish
+
+- **The world is 420 × 588 units**, twice phase 2's area (300 × 420). The
+  districts and the finale's stage are written as fractions of the world, so
+  they grew with it.
+- **About 390 things per place** (381–407): roughly 164 tiny, 101 small, 65
+  medium, 39 large, 17 huge and the finale. The first six places had every
+  tier count doubled; the six new ones were written at the same size.
+- **Growing asks for more, derived as before**: `GROW_BITES` is
+  `[6, 10, 12, 14, 16]` (it was `[6, 8, 8, 8, 8]`). The first "BIGGER!" still
+  comes after about six sweets; each later grow asks for more of the newest
+  tier, and is still reachable with most of the place standing. Trails carry
+  up to 12 bites.
+- **Measured, not guessed**: the greedy bot the tests use (it always heads for
+  the nearest thing it can eat) now takes about 37s on average to win a place
+  (25-45s), against about 21s in phase 2 (14-25s); the top size arrives at 22-27s
+  instead of 13-17s. A four-year-old wanders, so his times are several times
+  the bot's. Pinned as a law: every place takes the bot at least 20s, and the
+  mean is at least 30s.
+
+### 11.2 Twelve places
+
+Six new places join the first six. The doors run in this order, and ▶ on the
+win screen walks it; Outer Space stays last, so ▶ from it wraps to the Toy Room.
+
+| Door | Place | Ground and districts | Finale |
+|---|---|---|---|
+| 🧸 | Toy Room | (phase 2) | 🏰 toy castle |
+| 🧺 | Picnic Park | (phase 2) | 🎡 ferris wheel |
+| 🚜 | Sunny Farm | crop fields, a veg patch, an orchard, a tractor yard, fences, ponds | 🎃 a giant pumpkin |
+| 🚧 | Building Site | (phase 2) | 🏢 tower |
+| 🚦 | Busy Town | (phase 2) | 🏫 the school |
+| ⚽ | Sports Day | a striped pitch inside a running track, three courts, a podium | 🏟️ the stadium |
+| 🎂 | Party Time | (phase 2) | 🎂 giant cake |
+| 🏖️ | Beach Day | sand, the SEA along the top, towels, rockpools, footprints | 🚢 the ship |
+| 🌋 | Volcano Island | jungle, two lava streams, a village, a lagoon, a cave | 🌋 the volcano |
+| ⛄ | Snow Day | snow drifts, two frozen ponds, two forests, a village, ski tracks | 🏔️ the mountain |
+| 🛫 | Airport | tarmac, two runways, taxiways, a helipad, the terminal, a car park | ✈️ the jumbo jet |
+| 🚀 | Outer Space | (phase 2) | ☀️ the Sun |
+
+Every new place has its own ground texture (vector marks, §9.6), its own
+features, and its own backdrop past the island's edge: the SEA, with waves,
+around the beach and the volcano; falling SNOW around the snow island; the sky
+around the farm, the sports ground and the airport. Every new thing is ≤ Emoji
+13.0 and nothing alive is eaten — the same site-wide laws as before.
+
+### 11.3 Things stand where they belong
+
+Two new rules for where a thing may stand, both judged by its centre:
+
+- **A private district** holds only its own things. The beach's sea takes only
+  what belongs on the water — the boats and the little islands, so no bucket
+  floats on it — and the airport's runways take only the planes.
+- **An avoid rect** holds nothing at all: the volcano's two lava streams.
+
+### 11.4 Laying out twice as many things
+
+Layout tries candidate spots for each thing and keeps the one with the most
+room around it. With ~390 things, checking every candidate against every
+placed thing got slow, so placed things now go into a grid of 24-unit cells
+and a check only looks at the cells near the candidate. Overlap checks stay
+exact. "Room around it" is capped at 90 units (past that, more room changes
+nothing about where a thing should go), which keeps the search small. Measured,
+a place now lays out in about 34ms against phase 2's 48ms, with twice the
+things.
+
+### 11.5 The doors
+
+Twelve doors in an even grid: 3 across on a phone (four rows, all on the
+first screen of a 390 × 844 phone) and 4 across on a tablet or a phone on its
+side. On a shorter phone the page scrolls; every door stays ≥ 75px and 16px
+apart.
+
+### 11.6 Cost
+
+Following Gobble, a frame costs what it did, because only what is on screen is
+drawn (390 × 844: 3.4-6.0ms; 834 × 1112: 7.6-12.3ms). The look at the whole
+island, which only plays at the start and at the win, costs up to about 20%
+more for twice the things (390 × 844: up to 24ms; 834 × 1112: up to 40ms).
+
+### 11.7 Saves
+
+The layout version goes to 3. A half-eaten place from phase 2 is dropped (its
+ids now point at different things); finished ⭐s are kept.
+
+### 11.8 Tests
+
+- **Engine:** twelve places, each with its own door and name; at least 360
+  things each in a world of at least twice phase 2's area; private districts
+  and avoid rects obeyed (with a check that the keep-outs exist at all); the
+  bot finishes every place, each in at least 20s and 30s on average; layout v3
+  (a v2 run is refused).
+- **Browser:** every place opens, draws its floor, every ground feature in the
+  opening look and at least 300 things, with no picture falling back to a
+  coloured ball, and Gobble eats in it; twelve doors fit a phone's first screen
+  in an even grid.
+- **Mobile (real WebKit in CI):** the twelve-door home fits with no sideways
+  scroll, and every door is ≥ 75px and 16px apart, at 390 × 844, 320 × 568 and
+  834 × 1112.
