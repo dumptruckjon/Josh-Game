@@ -571,6 +571,200 @@ test("NEVER LOST: with nothing to eat in view, an arrow bubble points at a bite 
   await page.waitForFunction((id) => window.__HOLE.state().objects[id].st !== 0, far.id, { timeout: 8000 });
 });
 
+// Make Gobble the TOP size with the whole place still standing (what a grow
+// to the last level does, without playing there).
+const makeTop = () => page.evaluate(() => {
+  const st = window.__HOLE.state(), top = st.levels.R.length - 1;
+  st.hole.level = top; st.hole.R = st.hole.r = st.levels.R[top]; st.hole.xp = st.levels.C[top];
+  return top;
+});
+// A wait that fails by NAME: a bare waitForFunction timeout reads as a slow
+// page, when what it means is a feature that never showed up.
+async function until(fn, arg, ms, what) {
+  try { await page.waitForFunction(fn, arg, { timeout: ms }); }
+  catch (e) { assert.fail(what + " (waited " + ms + "ms)"); }
+}
+const frames = (n) => page.evaluate((k) => new Promise((res) => {
+  const go = (i) => (i <= 0 ? res() : requestAnimationFrame(() => go(i - 1)));
+  go(k);
+}), n || 2);
+
+test("BIG ENOUGH for the finale: the arrow points at it from anywhere, Gobble wears a crown, and the finale calls him", async () => {
+  // A wandering child, with nothing pointing at the finale, took 16-93s
+  // (median, by place; up to two minutes) to find it once he was big
+  // enough; with the arrow, 2-9s (PLAN_GOBBLE.md §12).
+  await openScene("toyroom");
+  await frames(2);
+  let i = await page.evaluate(() => window.__HOLE.info());
+  assert.equal(i.goal, null, "at the start there is no goal");
+  assert.ok(i.face && !i.face.crown, "…and no crown");
+  assert.ok(!i.arrow || !i.arrow.goal, "…and no goal arrow");
+  await makeTop();
+  // far from the finale, with plenty he can eat all round him — the arrow
+  // used to wait for NOTHING edible to be in view; the goal does not
+  const far = await page.evaluate(() => {
+    const st = window.__HOLE.state();
+    st.hole.x = st.hole.tx = st.W * 0.12; st.hole.y = st.hole.ty = st.H * 0.9;
+    window.__HOLE.snap();
+    const v = window.__HOLE.camera().view, FIT = window.HoleData.RULES.FIT, h = st.hole;
+    const fin = st.objects.find((o) => o.finale);
+    return {
+      edibleInView: st.objects.filter((o) => o.st === 0 && o.r <= h.r * FIT && o.x > v.x0 && o.x < v.x1 && o.y > v.y0 && o.y < v.y1).length,
+      fin: { id: fin.id, x: fin.x, y: fin.y, e: fin.e },
+      finInView: fin.x > v.x0 && fin.x < v.x1 && fin.y > v.y0 && fin.y < v.y1,
+    };
+  });
+  assert.ok(far.edibleInView >= 5, "fixture: plenty he can eat is in view (" + far.edibleInView + ")");
+  assert.ok(!far.finInView, "fixture: the finale is off screen");
+  await until(() => { const a = window.__HOLE.arrow(); return a && a.goal; }, null, 4000, "big enough and far away, the arrow points at the finale");
+  const a = await page.evaluate(() => window.__HOLE.arrow());
+  const f = await field();
+  assert.equal(a.id, far.fin.id, "the arrow points at the finale");
+  assert.equal(a.e, far.fin.e, "…and holds its picture");
+  assert.ok(a.x - a.r >= -1 && a.x + a.r <= f.width + 1 && a.y - a.r >= -1 && a.y + a.r <= f.height + 1, "the bubble is on screen");
+  assert.ok(a.hit * 2 >= 75, "a kid-sized tap target (" + a.hit * 2 + "px across)");
+  assert.ok((await page.evaluate(() => window.__HOLE.info().face)).crown, "big enough: Gobble wears his crown");
+  await page.waitForTimeout(400);
+  await page.mouse.click(f.x + a.x, f.y + a.y);
+  const t = await state();
+  assert.ok(Math.hypot(t.tx - far.fin.x, t.ty - far.fin.y) < 0.5, "a tap on the bubble sends him to the finale");
+  // beside it: the beacon is drawn round its foot, and it hops
+  await page.evaluate((p) => { const st = window.__HOLE.state(); st.hole.x = st.hole.tx = p.x + 55; st.hole.y = st.hole.ty = p.y + 60; window.__HOLE.snap(); }, far.fin);
+  await frames(3);
+  i = await page.evaluate(() => window.__HOLE.info());
+  assert.ok(i.goal && i.goal.id === far.fin.id, "on screen, the finale wears its beacon");
+  assert.ok(!i.arrow || !i.arrow.goal, "…and the arrow steps aside");
+});
+
+test("with sound on, Gobble NAMES the finale the moment he is big enough, and cheers a treasure", async () => {
+  await openScene("toyroom");
+  await page.evaluate(() => {
+    const A = window.JoshAudio;
+    window.__said = [];
+    A.__tone = A.__tone || A.tone; A.__say = A.__say || A.say;
+    A.tone = () => {};
+    A.say = (t) => { if (!A.isMuted()) window.__said.push(t); };
+    A.setMuted(false);
+  });
+  try {
+    // a treasure, found by him (the tiny one, on a fresh island)
+    const t = await page.evaluate(() => { const st = window.__HOLE.state(); const o = st.objects[st.gold[0]]; return { id: o.id, x: o.x, y: o.y }; });
+    await page.evaluate((p) => { const st = window.__HOLE.state(); st.hole.x = st.hole.tx = p.x; st.hole.y = st.hole.ty = p.y; }, t);
+    await page.evaluate(() => window.__HOLE.autoplay(90, { bot: false }));
+    assert.equal(await page.evaluate((id) => window.__HOLE.state().objects[id].st, t.id), 2, "fixture: the treasure was eaten");
+    assert.ok(await page.evaluate(() => window.__said.includes("Ooh, a treasure!")), "a treasure is cheered");
+    // the grow that makes him big enough for the finale
+    await page.evaluate(() => window.__HOLE.autoplay(60 * 120, { until: { level: 4 } }));
+    await page.evaluate(() => { window.__said = []; });
+    await page.evaluate(() => window.__HOLE.autoplay(60 * 60, { until: { level: 5 } }));
+    assert.equal((await state()).level, 5, "fixture: he reached the top size");
+    const said = await page.evaluate(() => window.__said);
+    assert.ok(said.includes("Wow, so big! Now eat the castle!"), "the ready line names the castle: " + JSON.stringify(said));
+    assert.ok(!said.some((l) => ["Bigger!", "Yum! Bigger!", "Wow, so big!", "Gobble gobble!"].includes(l)), "…instead of an ordinary grow line: " + JSON.stringify(said));
+  } finally {
+    await page.evaluate(() => {
+      const A = window.JoshAudio;
+      A.tone = A.__tone; A.say = A.__say; A.setMuted(true);
+    });
+  }
+});
+
+test("TREASURES glitter; eating one is a burst of gold and star eyes; the win shows what he FOUND — never what he missed", async () => {
+  await openScene("toyroom");
+  const t = await page.evaluate(() => { const st = window.__HOLE.state(); const o = st.objects[st.gold[0]]; return { id: o.id, x: o.x, y: o.y, e: o.e }; });
+  await page.evaluate((p) => { const st = window.__HOLE.state(); st.hole.x = st.hole.tx = p.x + 16; st.hole.y = st.hole.ty = p.y + 10; window.__HOLE.snap(); }, t);
+  await until(() => window.__HOLE.info().gold >= 1, null, 4000, "a treasure on screen glitters");
+  const fx0 = await page.evaluate(() => window.__HOLE.info().fx);
+  await page.evaluate((p) => window.__HOLE.moveTo(p.x, p.y), t);
+  await until((id) => window.__HOLE.state().objects[id].st === 2, t.id, 6000, "fixture: Gobble eats the treasure he was sent to");
+  const i = await page.evaluate(() => window.__HOLE.info());
+  assert.ok(i.starEyes, "his eyes turn to stars");
+  assert.ok(i.fx >= fx0 + 12, "a burst of gold stars (" + fx0 + " → " + i.fx + " effects)");
+  // the win: the row shows the one he found
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 150));
+  await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
+  const row = await page.evaluate(() => ({
+    hidden: document.querySelector(".hole-win__gold").hidden,
+    found: [...document.querySelectorAll(".hole-win__treasure")].map((s) => s.textContent),
+    label: document.querySelector(".hole-win__gold").getAttribute("aria-label"),
+  }));
+  assert.ok(!row.hidden && row.found.includes(t.e), "the win shows the treasure he found (" + JSON.stringify(row.found) + ")");
+  assert.equal(row.label, "Treasures found: " + row.found.length, "…and says how many");
+  // a place won straight away: the slurp eats all three, and that is not
+  // FINDING them — so the row is not there (no slot for a missed one)
+  await openScene("party");
+  await makeTop();
+  await page.evaluate(() => { const st = window.__HOLE.state(); const f = st.objects.find((o) => o.finale); st.hole.x = st.hole.tx = f.x; st.hole.y = st.hole.ty = f.y + 30; window.__HOLE.moveTo(f.x, f.y); });
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 30, { bot: false }));
+  assert.ok((await state()).done, "fixture: the party was won straight away and slurped up");
+  await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
+  assert.ok(await page.locator(".hole-win__gold").isHidden(), "no treasures found: no row at all");
+});
+
+test("a half-eaten place's DOOR shows how far he got — a ring that fills — and a finished one its ⭐", async () => {
+  await openScene("picnic");
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 20));
+  await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
+  await page.waitForTimeout(1200);
+  const total = (await state()).total;
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  // What he ate is what LEAVING saved — a bite still falling, or one the
+  // magnet pulled in on the way out, counts — so read it there, not from the
+  // board a moment before (that race once made the two disagree).
+  const saved = (await page.evaluate(() => window.__HOLE.save())).runs.picnic;
+  const eaten = saved ? new Set(saved.eaten).size : 0;
+  assert.equal(await page.evaluate(() => window.__HOLE.scene()), null,
+    "on the home screen no place is being PLAYED — the parked run must not answer scene(), or a test waiting for a door reads the wrong run");
+  const d = await page.evaluate(() => {
+    const door = document.querySelector('.hole-door[data-scene="picnic"]'), ring = door.querySelector(".hole-door__prog");
+    const dr = door.getBoundingClientRect(), rr = ring.getBoundingClientRect(), ir = door.querySelector(".hole-door__icon").getBoundingClientRect();
+    return {
+      hidden: ring.hidden, p: ring.style.getPropertyValue("--p"), label: door.getAttribute("aria-label"),
+      inside: rr.left >= dr.left && rr.right <= dr.right && rr.top >= dr.top && rr.bottom <= dr.bottom,
+      others: [...document.querySelectorAll(".hole-door")].filter((b) => b !== door && !b.querySelector(".hole-door__prog").hidden).length,
+    };
+  });
+  const pct = Math.max(1, Math.round((eaten / total) * 100));
+  assert.ok(eaten >= 10, "fixture: the picnic is half-eaten (" + eaten + " of " + total + ")");
+  assert.ok(!d.hidden, "its door shows the ring");
+  assert.equal(d.p, pct + "%", "the ring is " + pct + "% full — what he ate of the place");
+  assert.match(d.label, new RegExp(pct + " percent eaten"), "…and the door says so");
+  assert.ok(d.inside, "the ring sits inside its door");
+  assert.equal(d.others, 0, "no other door wears a ring");
+  // finish it: the ring goes and the ⭐ comes
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="picnic"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  assert.equal((await state()).eaten, eaten, "fixture: the door carried on the half-eaten picnic");
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 150));
+  assert.ok((await state()).done, "fixture: he finished it");
+  await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__prog').isHidden(), "finished: no ring");
+  assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isVisible(), "…the ⭐ instead");
+});
+
+test("Gobble's FACE stays on screen at the island's top edge — eyes and crown, even at his biggest", async () => {
+  // At the back edge a big Gobble's eyes stood above the world's top, and
+  // the camera stopped at the island: at the two biggest sizes his eyes were
+  // cut off by up to 19px. The camera now looks up just far enough.
+  await openScene("beach");
+  for (const lv of [0, 3, 5]) {
+    await page.evaluate((lvl) => {
+      const st = window.__HOLE.state();
+      st.hole.level = lvl; st.hole.R = st.hole.r = st.levels.R[lvl];
+      st.hole.x = st.hole.tx = st.W * 0.3; st.hole.y = st.hole.ty = 0;
+      window.__HOLE.snap();
+    }, lv);
+    await frames(3);
+    const f = await page.evaluate(() => window.__HOLE.info().face);
+    assert.ok(f.top >= 0, "level " + lv + ": his whole face is on screen (its top at " + f.top.toFixed(1) + "px)");
+    if (lv === 5) assert.ok(f.crown, "at the top size the crown is on, and it is on screen too");
+  }
+});
+
 test("a fresh place OPENS with a look at the whole island, then flies in to Gobble; a finger during it goes straight to him", async () => {
   await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
   await go("#hole-home", "#screen-hole-home");

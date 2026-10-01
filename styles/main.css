@@ -2771,6 +2771,29 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
 .hole-door__label { font-size: 0.95rem; line-height: 1.15; font-weight: 800; color: #2e2a55; text-align: center; }
 .hole-door--dark .hole-door__label { color: #ffffff; }
 .hole-door__star { position: absolute; top: 8px; right: 10px; font-size: 1.6rem; line-height: 1; }
+/* How far a half-eaten place got: a ring in the corner opposite the ⭐ fills
+   as the place empties (the fill is set inline as --p). Its centre is a
+   punched-out dot, so the ring reads on a light door and on space's dark one. */
+.hole-door__prog {
+  position: absolute;
+  top: 9px;
+  left: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: conic-gradient(#6a3df0 var(--p, 0%), rgba(46, 42, 85, 0.22) 0);
+}
+.hole-door__prog::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 50%;
+  background: #fffdf6;
+}
+.hole-door--dark .hole-door__prog { background: conic-gradient(#ffd24d var(--p, 0%), rgba(255, 255, 255, 0.32) 0); }
 
 body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 .hole-meter {
@@ -2866,6 +2889,19 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 .hole-win__buddy, .hole-win__gobble { width: 96px; height: 96px; }
 .hole-win__buddy { display: flex; align-items: center; justify-content: center; font-size: 4rem; }
 .hole-win__count { margin: 0; font-size: 2rem; font-weight: 900; color: #4b2a86; }
+/* the treasures he found, each on a gold coin */
+.hole-win__gold { display: grid; grid-auto-flow: column; grid-auto-columns: 56px; gap: 12px; justify-content: center; }
+.hole-win__treasure {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-size: 2rem;
+  line-height: 1;
+  background: radial-gradient(circle at 35% 30%, #fff6c2, #ffd24d 70%);
+  box-shadow: 0 0 0 3px #e0a100, 0 4px 10px rgba(160, 100, 0, 0.35);
+}
 .hole-win__wall {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));

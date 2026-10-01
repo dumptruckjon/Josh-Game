@@ -400,3 +400,118 @@ ids now point at different things); finished ⭐s are kept.
 - **Mobile (real WebKit in CI):** the twelve-door home fits with no sideways
   scroll, and every door is ≥ 75px and 16px apart, at 390 × 844, 320 × 568 and
   834 × 1112.
+
+## 12. Polish — playability, fun and quality (owner, 2026-10-01)
+
+> "Improve gobble hole in any way you can for playability and fun and quality"
+
+### 12.1 Measured first: where a child gets stuck
+
+The greedy bot the tests use always heads for the nearest thing it can eat, so
+it finds the finale at once and cannot show where a child gets stuck. So a
+**wandering-child model** was played instead: it goes for what it SEES (big
+shiny things too, which bump), pauses, wanders, and follows the hint or the
+edge arrow only half the time. It is a model, not a measurement of a real
+child; its numbers are for comparing designs. 12 places × 6 seeds:
+
+- **Once he was big enough for the finale, nothing pointed at it.** The edge
+  arrow only came when nothing edible was in view, and with ~390 things
+  something small almost always is. From the moment he could eat the finale to
+  the win took a median of **16-93s** by place, and up to **122s**. A whole
+  place took **149-221s**.
+- With the finale's arrow (§12.2) that wait is **2-9s** (up to 22s), and a
+  whole place **109-153s**.
+- A hint that pointed at the NEWEST tier (the things that make him grow) made
+  no difference, so it was not built.
+
+### 12.2 The finale calls him
+
+When he reaches the top size, the finale becomes his GOAL
+(`HoleLogic.goalOf`), and five things say so:
+
+- **The arrow points at it from anywhere**, even with plenty to eat in view:
+  a gold-rimmed bubble holding the finale's picture, 72px across against the
+  usual arrow's 60px, and tappable anywhere within 104px. Tap it and he goes
+  there. Once the finale is on screen the arrow
+  steps aside.
+- **On screen, the finale is ringed and hops.** Two rings pulse out round its
+  foot, drawn dark under white so they show on every floor (a gold ring
+  vanished on the toy room's gold rug), and it hops every 1.6s, except under
+  reduced motion.
+- **Gobble wears a 👑.**
+- **The grow that makes him big enough plays a fanfare and names the
+  finale**: "Wow, so big! Now eat the castle!" Every finale has a spoken name
+  (`finale.say`), because a line never reads a picture aloud.
+- **The idle hint points at the finale** too.
+
+### 12.3 Treasures
+
+Three things in each place glitter: one tiny thing in the front part of the
+island (near where he starts), one small thing in the middle, one medium thing
+at the back (near the finale). Within its band each is as far as possible from
+where he starts and from the other treasures (measured: at least 259 units
+from the start and 297 from each other). They are picked FROM the layout, so
+nothing moves, the layout version stays 3 and no save changes.
+
+- A treasure has a gold glow under it and three twinkles (gold, with a white
+  core and a dark rim, so they show on snow and in space).
+- Eating one is a burst of gold stars, star eyes for a moment, a chime and
+  "Ooh, a treasure!".
+- The win screen shows the treasures he FOUND, as gold coins. There is never
+  an empty slot for one he missed, because nothing here fails. A treasure the
+  win's slurp swallowed was not found by him, so if he found none the row is
+  not there at all.
+
+### 12.4 The doors show how far he got
+
+A half-eaten place's door has a small ring in its top corner that fills as the
+place empties (the ⭐ in the other corner still means finished), and its label
+says "N percent eaten". It reads the saved run only, and counts only whole
+numbers in range, so a hand-edited save cannot draw a ring past full.
+
+### 12.5 His face stays on screen
+
+At the back edge of the island a big Gobble's eyes stood above the world's
+top, and the camera stopped at the island, so at the two biggest sizes his
+eyes were cut off by up to 19px. The camera now looks up just far enough for
+his eyes, and for the crown. The drawing and the camera read one shared eye
+measurement, so they cannot disagree.
+
+### 12.6 Measured and not built
+
+- A hint pointing at the newest tier: no difference in the model (§12.1).
+- Clipping the look at the whole island to the island's frame: about 10%
+  faster, in a look that plays only at the start and the win, and only in a
+  headless browser that is not an iPad. Not worth a renderer change with no
+  guardrail.
+
+### 12.7 Tests
+
+- **Engine:**
+  - The goal: none below the top size; the finale at the top; none once it is
+    eaten; the hint points at it.
+  - The grow that makes him big enough says so (`ready`), exactly once, and it
+    is the last grow.
+  - Treasures: three per place, one per tier, each in its band; never a
+    starter, a trail bite or the finale; far from the start and from each
+    other; the layout unchanged; the same every time and after a restore.
+  - Eating a treasure says so; the win's slurp eating one does not.
+  - `countOf` matches what the layout places.
+  - Every finale has a spoken name, and no line Gobble says reads a picture.
+- **Browser:**
+  - The goal arrow from far away (with plenty to eat in view), its tap, the
+    crown, and the beacon round the finale's foot.
+  - With sound on, the ready line names the castle, and a treasure is cheered.
+  - Treasures glitter; eating one bursts gold and gives star eyes; the win
+    shows only the treasures he found.
+  - The door ring and its percent; a finished place shows its ⭐ instead.
+  - His face is on screen at the top edge at sizes 0, 3 and 5.
+- **The test hook `__HOLE.scene()` now names only the place on screen.** It
+  used to name the run he LEFT, which stays parked so ▶ can carry it on. A
+  door starts its place on the next task, so a test that clicked a door and
+  waited for `scene()` could pass at once, on the parked run. The door test
+  once played that parked run to a win and then waited for a win screen that
+  never came. The play screen turns visible in the same task that starts the
+  new run, so the hook cannot be fooled now. Two older tests had the same
+  race; when it hit, their checks ran on the parked run, which passes them
+  without testing anything.

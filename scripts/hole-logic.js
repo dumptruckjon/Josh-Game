@@ -273,6 +273,41 @@
     return { R, C };
   }
 
+  // TREASURES (PLAN_GOBBLE.md §12): three ordinary things in every place
+  // glitter gold — a tiny one low on the island (found early), a small one
+  // across the middle and a medium one up top (found late), each as far as it
+  // can be from the start and from the others. They are picked FROM the
+  // layout, never added to it, so a saved run keeps its meaning and the
+  // world is exactly what it was. The starters and trail bites are left out
+  // on principle (they are the bites that TEACH, not ones to find); on every
+  // shipped place the distance rule never reaches them anyway, so that line
+  // is a guard for a future layout, not something a test can see today.
+  const GOLD_BANDS = [[0.62, 1], [0.33, 0.62], [0, 0.33]];
+  function goldOf(objects, start, H) {
+    const out = [];
+    GOLD_BANDS.forEach((b, i) => {
+      let best = null, bd = -1;
+      for (const o of objects) {
+        if (o.tier !== i + 1 || o.starter || o.trail || o.finale) continue;
+        if (o.y < b[0] * H || o.y > b[1] * H) continue;
+        let d = gdist(o.x, o.y, start.x, start.y);
+        for (const t of out) d = Math.min(d, gdist(o.x, o.y, t.x, t.y));
+        if (d > bd) { bd = d; best = o; }
+      }
+      if (best) out.push(best);
+    });
+    return out.map((o) => o.id);
+  }
+
+  // How many things a place holds, from its DATA alone (every thing it asks
+  // for is placed, plus the finale) — cheap enough for the home screen, which
+  // shows how far a half-eaten place got without laying the world out.
+  function countOf(def) {
+    let n = 1;
+    for (const t of def.tiers) for (const it of t.items) n += it[1];
+    return n;
+  }
+
   // How far the camera pulls back at a level, relative to the start: ONE
   // curve for the renderer's zoom and for Gobble's speed, so he always crosses
   // about a screen a second whether he is a tiny mouth or a crater.
@@ -296,9 +331,11 @@
     if (typeof def === "string") def = sceneById(def);
     const lay = layout(def);
     const lv = levelsOf(lay.objects);
+    const gold = goldOf(lay.objects, lay.start, lay.H);
+    for (const id of gold) lay.objects[id].gold = true;
     return {
       id: def.id, W: lay.W, H: lay.H, start: lay.start,
-      objects: lay.objects, levels: lv,
+      objects: lay.objects, levels: lv, gold,
       hole: { x: lay.start.x, y: lay.start.y, r: lv.R[0], R: lv.R[0], level: 0, xp: 0, tx: lay.start.x, ty: lay.start.y },
       t: 0, tick: 0, eaten: 0, total: lay.objects.length,
       won: false, done: false, winT: 0,
@@ -339,6 +376,15 @@
     return best;
   }
 
+  // THE GOAL: once Gobble is big enough to eat the biggest thing in the
+  // place, that is what he is here for — the hint and the edge arrow point at
+  // it (PLAN_GOBBLE.md §12). Before that, and once it is eaten, there is none.
+  function goalOf(st) {
+    if (!st || st.won || st.hole.level < st.levels.R.length - 1) return null;
+    for (const o of st.objects) if (o.finale) return o.st === IDLE ? o : null;
+    return null;
+  }
+
   function startFall(st, o) {
     const h = st.hole;
     o.st = FALL; o.f = 0; o.fx = o.x - h.x; o.fy = o.y - h.y;
@@ -353,11 +399,14 @@
     st.combo = st.t - st.lastEatT < 0.6 ? Math.min(st.combo + 1, 10) : 0;
     st.lastEatT = st.t;
     if (!st.won) h.xp += o.xp;
-    emit(st, { type: "eat", id: o.id, e: o.e, r: o.r, tier: o.tier, combo: st.combo, finale: o.finale });
-    while (!st.won && h.level + 1 < st.levels.R.length && h.xp >= st.levels.C[h.level + 1]) {
+    // `vortex`: eaten by the win's slurp, not found by him
+    emit(st, { type: "eat", id: o.id, e: o.e, r: o.r, tier: o.tier, combo: st.combo, finale: o.finale, gold: !!o.gold, vortex: st.won });
+    const top = st.levels.R.length - 1;
+    while (!st.won && h.level < top && h.xp >= st.levels.C[h.level + 1]) {
       h.level++;
       h.R = st.levels.R[h.level];
-      emit(st, { type: "grow", level: h.level });
+      // `ready`: this grow makes him big enough for the finale
+      emit(st, { type: "grow", level: h.level, ready: h.level === top });
     }
     if (o.finale && !st.won) { st.won = true; st.winT = 0; emit(st, { type: "win" }); }
     if (st.won && st.eaten >= st.total && !st.done) { st.done = true; emit(st, { type: "allgone" }); }
@@ -433,11 +482,12 @@
       }
     }
 
-    // 4. the hint: nothing eaten for a while → point at the nearest bite
+    // 4. the hint: nothing eaten for a while → point at the goal if he is
+    //    big enough for it, else at the nearest bite
     if (!st.won) {
       st.sinceEat += dt;
       if (st.sinceEat >= RULES.HINT_AFTER) {
-        const n = nearestEdible(st);
+        const n = goalOf(st) || nearestEdible(st);
         st.hint = n ? n.id : -1;
       }
     }
@@ -498,7 +548,8 @@
   const HoleLogic = {
     DT, IDLE, FALL, GONE,
     rng, hashStr, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
-    createGame, setTarget, step, nearestEdible, edible, botTarget,
+    goldOf, countOf, GOLD_BANDS,
+    createGame, setTarget, step, nearestEdible, edible, goalOf, botTarget,
     snapshot, restore, hashState,
   };
   global.HoleLogic = HoleLogic;
