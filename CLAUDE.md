@@ -9649,6 +9649,53 @@ read (stop him first), and a clause two guards both deliver (the win's wide
 eyes and its pending puffs keep the picture busy) is written down as such,
 because removing either alone stays green.
 
+**GOBBLE PHASE 3 — BIGGER WORLDS, TWELVE PLACES (the owner, 2026-10-01: "make
+each level even larger so they take more time and also double the amount of
+playable levels").** Each world is now 420x588 units (twice phase 2's area) of
+~390 things, and six new places (Sunny Farm, Sports Day, Beach Day, Volcano
+Island, Snow Day, Airport) join the first six. Six things worth keeping.
+(1) **"Takes more time" was measured, then made a law.** The greedy bot the
+tests already use is deterministic, so the time to win a place is a number
+rather than an impression: a mean of 20.6s (14.4-24.7) in phase 2 and 37.3s
+(25.2-45.1) now, with the top size arriving at 22-27s instead of 13-17s. The
+test requires every place to take the bot at least 20s and the mean to be at
+least 30s, and putting the old `GROW_BITES` back turns it red (Outer Space wins
+in 19.5s). A request phrased as a feeling still has a number underneath it, and
+the number is what stops it quietly coming undone. (2) **A Unicode-range law is
+only as precise as its widest range.** "Nothing alive is eaten" banned
+`0x1F3C2-0x1F3CC` as people, and that block also holds 🏅 🏆 🏈 🏉, which Sports
+Day needs. It was right for six places only because none of them used a
+trophy. The range is split into the exact people code points now, and the test
+proves both directions (🏃 🏄 🏇 🏊 are people, 🏅 🏆 🏈 🏉 are not), so a
+narrowing cannot quietly let a person through and a widening cannot quietly ban
+a toy. (3) **A fixed wait in a test is a claim about the world's size.** The
+camera-follow test drove Gobble to the left edge for a fixed 3.5s; in a world
+twice the size he started at x=210 and was still at x=22.8 when it looked. The
+wait is now his distance over his top speed plus slack, derived from the world
+it runs in. (4) **Two tests, each for the case the other cannot see.** The
+browser test counts every ground feature drawn in the opening look and catches
+a feature that throws or whose box lands off the island (mutation: 7 of 9
+drawn). It cannot catch a NaN box: every comparison against NaN is false, so a
+NaN box is never culled and still draws (mutation: GREEN). The engine test's
+`b.every(Number.isFinite)` catches exactly that one (RED), and each test's
+comment now says which case it carries. (5) **Twice the things needed a grid.**
+Layout compares each candidate spot with the things already placed, which got
+slow at ~390; placed things now sit in 24-unit cells so a check only looks
+nearby, the overlap test stays exact, and "room around it" is capped at 90 units,
+past which more room no longer changes where a thing should go. A place now lays
+out in about 34ms against phase 2's 48ms, with twice the things. (6) **A place
+reads true only if its things stand where they belong.** Two keep-out rules,
+both judged by a thing's centre: a PRIVATE district holds only its own things
+(the sea takes only boats and islands; the runways only planes) and an AVOID
+rect holds nothing (the volcano's lava). Both are mutation-proven, with a floor
+asserting that the keep-outs exist at all, or the check could pass on a data
+file that declares none. Two smaller notes. A mutation must do what its name
+says: "a place is missing" was first written as adding a flag, which removes
+nothing; it has to drop one (`SCENES.slice(0, 11)`). And the targeted Gobble
+runs were green while the whole-repo CSS laws were not: a tablet rule set the
+doors' `gap` without restating `display: grid`, and the flex-gap law (which
+cannot tell an inherited grid from an inherited flex) rightly asked for it.
+
 ---
 
 ## Repository Structure
@@ -9810,10 +9857,10 @@ tooling.
 │   ├── td-ui.js                # 🏰 screens/HUD/overlays (opens directly from the front door's 🏰 tile — no gate; controls stay data-adult) + TD-5 star-tree/badges/endless overlays, P6's 🎒 Powers picker, TD-18's 🎖️ Challenges picker + 📅 Daily card, resume banner, achievement toast; the level grid + the power strip both DERIVE from data (grid = every shipped level; strip lives OFF the field)
 │   ├── td-main.js              # 🏰 glue: JonTD routing + jon-td-* save (meta/loadout/powers/ach/endlessBest/bests/midRun/chipsArmed/chipsWon/daily) + rAF loop + input + sfx + achievement tracking + endless/resume + window.__TD test hooks
 │   ├── hanzi-strokes.js        # 写字 + 新字: stroke-order data for the 216 characters Word Cards teaches (the 120 of the 中文 cards, then the 96 新字) — every stroke's OUTLINE and its CENTRE-LINE, so the pad can both draw a stroke and score his finger against it, and a lesson can write one in order. GENERATED (a 216-character subset of hanzi-writer-data, from Make Me a Hanzi, under the Arphic Public License — see the file's own header and ARPHICPL.TXT); never hand-edit a path, re-derive it. Loaded with a <script src> deliberately: that is what puts it inside the precache scan, the offline boot test and the page-asset walk, every one of which reads the page's src attributes and is blind to a fetch()
-│   ├── hole-data.js            # 🕳️ Gobble Hole: ALL scene content + tuning (dual-export: window.HoleData + module.exports) — 6 places, each a BIG world (300x420 units, several screens across) of ~200 things in five size tiers + a finale, placed in DISTRICTS (zones) with CLUMPS and TRAILS, plus the ground's features (decals: rugs, roads, ponds, a dance floor…), the RULES the engine derives every size, grow, zoom and speed from, and what Gobble SAYs. Nothing alive is ever eaten (a Unicode-range law, not a list)
-│   ├── hole-logic.js           # 🕳️ the PURE deterministic engine (60Hz fixed step, seeded rng, zero DOM, dual-export): a FIXED world per place (the screen has no say in it) laid out by best-candidate sampling — the finale top-centre on its stage, 3 starters beside Gobble, trails of bites leading out, clumps grown INSIDE their district — the 3/4-view ground metric, fit / fall / magnet / too-big bump, the DERIVED size ladder (R from the place's own things, each grow GROW_BITES bites of the newest tier), `viewSpan`/`zoomScale` (the camera's zoom and Gobble's speed are ONE curve, so he crosses about a screen a second at every size), the win + vortex, the hint, save/restore (a layout version `v`; a run stores only WHICH things were eaten)
+│   ├── hole-data.js            # 🕳️ Gobble Hole: ALL scene content + tuning (dual-export: window.HoleData + module.exports) — 12 places (phase 3 doubled the six, PLAN_GOBBLE §11), each a BIG world (420x588 units, several screens each way) of ~390 things in five size tiers + a finale, placed in DISTRICTS (zones) with CLUMPS and TRAILS; a district may be PRIVATE (only its own things stand in it: the beach's sea, the airport's runways) and an AVOID rect holds nothing (the volcano's lava); plus the ground's features (decals: rugs, roads, ponds, a dance floor, the sea, runways, lava…), the RULES the engine derives every size, grow, zoom and speed from, and what Gobble SAYs. Nothing alive is ever eaten (a Unicode-range law, not a list)
+│   ├── hole-logic.js           # 🕳️ the PURE deterministic engine (60Hz fixed step, seeded rng, zero DOM, dual-export): a FIXED world per place (the screen has no say in it) laid out by best-candidate sampling over a grid of placed things (24-unit cells; overlap checks exact, "room around it" capped at 90 units), with the keep-outs (private districts, avoid rects) judged by a thing's centre — the finale top-centre on its stage, 3 starters beside Gobble, trails of bites leading out, clumps grown INSIDE their district — the 3/4-view ground metric, fit / fall / magnet / too-big bump, the DERIVED size ladder (R from the place's own things, each grow GROW_BITES bites of the newest tier), `viewSpan`/`zoomScale` (the camera's zoom and Gobble's speed are ONE curve, so he crosses about a screen a second at every size), the win + vortex, the hint, save/restore (a layout version `v`; a run stores only WHICH things were eaten)
 │   ├── hole-render.js          # 🕳️ canvas renderer (reads state, never mutates) — a CAMERA onto the big world: it follows Gobble (a short lag, no look-ahead), zooms out as he grows (`HoleLogic.viewSpan`), never looks more than a rim past the island, opens a fresh place with a look at the whole island and pulls back to it for the win. The ground is drawn every frame (vector floor marks per 64-unit square, fewer as the camera pulls back, never a bitmap pattern; lighting as flat bands and a nebula as stepped rings; vector decals culled by their box, `prepDecals` the one owner), a finished place that has stopped moving is not redrawn, only on-screen things are drawn, every emoji's ink is measured ONCE and sprites come in half-octave steps (a coloured ball if the font has no glyph), soft shadow sprites as one ground pass, the hole with googly eyes, the falling clip, crumbs / rings / stars / burp, and the NEVER-LOST edge arrow
-│   ├── hole-main.js            # 🕳️ window.GobbleHole: #hole-home (six scene doors) + #hole-play (bar, growth meter ending in a PICTURE of the next thing, canvas field, demo hand, win screen), routing (main.js delegates hole-*), one-finger CHASE steering (hold anywhere and he heads for the spot under the finger, re-read every frame, so a finger held to one side keeps him going; a tap sends him there; a tap on the edge arrow sends him to the thing it shows; arrow keys step a quarter of the view), the loop ONLY while visible, mute-gated sound via JoshAudio, the `josh-gobble-v1` save (coerced field by field; a run from another layout is dropped, its ⭐ kept), an arrival echo guard, and the window.__HOLE test hooks
+│   ├── hole-main.js            # 🕳️ window.GobbleHole: #hole-home (twelve scene doors: 3 across on a phone, 4 from 600px) + #hole-play (bar, growth meter ending in a PICTURE of the next thing, canvas field, demo hand, win screen), routing (main.js delegates hole-*), one-finger CHASE steering (hold anywhere and he heads for the spot under the finger, re-read every frame, so a finger held to one side keeps him going; a tap sends him there; a tap on the edge arrow sends him to the thing it shows; arrow keys step a quarter of the view), the loop ONLY while visible, mute-gated sound via JoshAudio, the `josh-gobble-v1` save (coerced field by field; a run from another layout is dropped, its ⭐ kept), an arrival echo guard, and the window.__HOLE test hooks
 │   └── main.js                 # Front door (#screen-start: 4 world tiles) + launcher (category menu + Surprise tile + 📖 Sticker Book + ⭐ badges) + hash router ('' = start, #home = Josh) + sound + SW; routes td-* through JonTD and hole-* through GobbleHole (both try/catch-isolated)
 ├── tests/
 │   ├── site.test.js            # node:test structure/wiring/content/guardrail checks (no browser)
@@ -9832,8 +9879,8 @@ tooling.
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
-│   ├── hole-logic.test.js      # 🕳️ headless engine: every BIG world lays out (districts, whole clumps, trails that lead out, a finale that is a real journey), the tier law, derived grows, zoom and speed as one curve, physics, a bot finishing EVERY place, the vortex, save/restore v2, hostile saves, nothing alive, and every ground feature a place declares has a drawing and a real box
-│   ├── hole.test.js            # 🕳️ Playwright: the fourth door, the demo hand, a real drag that eats, tap-to-glide, a held finger that keeps him going, arrow keys, too-big, the meter, the win screen, resume, sound gating, the loop pausing, the echo guard — and the camera: follows him and stays on the island, a grow zooms out without ever shrinking him (sampled over real frames), only on-screen things drawn, the edge arrow, the opening look, the win pull-back, a phase-1 run dropped with its ⭐ kept
+│   ├── hole-logic.test.js      # 🕳️ headless engine: twelve places with their own doors and names; every BIG world lays out (districts, whole clumps, trails that lead out, a finale that is a real journey, private districts and avoid rects obeyed), the tier law, derived grows, zoom and speed as one curve, physics, a bot finishing EVERY place and taking a while to (≥20s each, ≥30s mean), the vortex, save/restore (layout v3), hostile saves, nothing alive, and every ground feature a place declares has a drawing and a real box
+│   ├── hole.test.js            # 🕳️ Playwright: the fourth door, the demo hand, a real drag that eats, tap-to-glide, a held finger that keeps him going, arrow keys, too-big, the meter, the win screen, resume, sound gating, the loop pausing, the echo guard — and the camera: follows him and stays on the island, a grow zooms out without ever shrinking him (sampled over real frames), only on-screen things drawn, the edge arrow, the opening look, the win pull-back, a run from an older layout dropped with its ⭐ kept — and every one of the twelve places opens and draws its floor, every ground feature and its things, with twelve doors on a phone's first screen in an even grid
 │   ├── state-cues.js           # the ONE owner of how a TRANSLUCENT state pair is carried (composite / transient /
 │   │                           #   attribute): site.test.js's colour law requires it to EQUAL what it derives, both
 │   │                           #   ways, and e2e.test.js measures every `composite` entry as PAINTED PIXELS
@@ -9898,7 +9945,7 @@ tooling.
 │                               #   boss to carry `hurry` — it does not hit you, it makes the party ARRIVE FASTER.
 ├── PLAN_WORLD_9.md             # 🏭 ✅ BUILT (this line said "DESIGNED, NOT BUILT" for a release AFTER the world shipped — the "a list that outlives its contents" class, caught 2026-08 by reading DATA.LEVELS instead of the doc): World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
-├── PLAN_GOBBLE.md              # 🕳️ ✅ BUILT: Gobble Hole — the design (character, controls, derived growth, six scenes, the "super fun" checklist, architecture, tests) and §9, what was deliberately NOT built (a 2-player mode; Sticker Book stickers)
+├── PLAN_GOBBLE.md              # 🕳️ ✅ BUILT: Gobble Hole — the design (character, controls, derived growth, the first six scenes, the "super fun" checklist, architecture, tests), §9 phase 2 (BIG worlds and a camera), §11 phase 3 (worlds twice as big, twelve places, keep-outs) and §10, what was deliberately NOT built (a 2-player mode; Sticker Book stickers)
 └── CLAUDE.md                   # This file
 ```
 
@@ -10108,12 +10155,18 @@ fun for a 4 year old". Josh drags **Gobble** — a round mouth in the ground wit
 two big googly eyes — around a toy-box diorama: small things fall in, Gobble
 grows, bigger things fit, and at the end he swallows the biggest thing in the
 place (a castle, a ferris wheel, the school, the Sun), burps, and a vortex
-slurps up whatever is left. Six places (Toy Room, Picnic Park, Building Site,
-Busy Town, Party Time, Outer Space — where Gobble is a black hole). Since
-**phase 2 (the owner, the same evening: "It's weird to have it on one single
-screen with no scroll")** each place is a BIG world several screens across,
-with ~200 things in five size tiers plus the finale, arranged in districts,
-clumps and trails; the screen is a CAMERA that follows Gobble and pulls back as
+slurps up whatever is left. Twelve places since **phase 3 (the owner,
+2026-10-01: "make each level even larger so they take more time and also double
+the amount of playable levels")**: Toy Room, Picnic Park, Sunny Farm, Building
+Site, Busy Town, Sports Day, Party Time, Beach Day, Volcano Island, Snow Day,
+Airport and Outer Space (where Gobble is a black hole), behind twelve doors —
+three across on a phone, four on a tablet. Since **phase 2 (the owner, the same
+evening as phase 1: "It's weird to have it on one single screen with no
+scroll")** each place is a BIG world several screens across — phase 3 made it
+420x588 units of ~390 things in five size tiers plus the finale (twice phase
+2's area and things), arranged in districts, clumps and trails, with things kept
+where they belong (only boats and islands in the sea, only planes on the runways,
+nothing on the lava); the screen is a CAMERA that follows Gobble and pulls back as
 he grows, opens a fresh place with a look at the whole island, and pulls back
 to all of it for the win. Steering is hole.io's: hold anywhere and he heads for
 the spot under the finger — a finger held to one side keeps him going — and a
@@ -10131,7 +10184,8 @@ Invariants (guardrail-locked in `tests/hole-logic.test.js`, `tests/hole.test.js`
 - **The engine decides everything and is pure** (`hole-logic.js`: 60Hz fixed
   step, seeded rng, zero DOM, dual export), so node plays whole places: every
   place lays out cleanly and is finished by a greedy bot, with a first gulp
-  inside 1.5s and a first grow inside 3s.
+  inside 1.5s, a first grow inside 3s, and a win that still takes it at least
+  20s (30s on average) — "takes more time" is a measured law, not a feeling.
 - **A place is a fixed world; the screen is only a camera** — so a save never
   depends on the device, and a bigger screen shows MORE world rather than a
   blow-up. The camera's zoom and Gobble's speed are ONE curve
@@ -10146,9 +10200,9 @@ Invariants (guardrail-locked in `tests/hole-logic.test.js`, `tests/hole.test.js`
 - **The save stores only which things were eaten** (a falling thing counts as
   eaten); xp and size are re-derived, so a hostile save cannot inflate Gobble,
   and the whole `josh-gobble-v1` save is coerced field by field. A run carries
-  the layout version it belongs to: a half-eaten place from the one-screen
-  version names ids that mean different things now, so it is dropped (its ⭐
-  is kept).
+  the layout version it belongs to (`RULES.LAYOUT`, now 3): a half-eaten place
+  from an older layout names ids that mean different things now, so it is
+  dropped (its ⭐ is kept).
 - **Never registered in `JoshFramework`** — a world, not a game: Josh's
   Sticker Book stays exactly 200.
 - The loop runs **only while the play screen is visible**; every delayed thing

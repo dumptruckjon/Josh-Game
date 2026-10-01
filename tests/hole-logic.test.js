@@ -33,8 +33,11 @@ function playOut(st, maxSeconds) {
   return log;
 }
 
-test("the data: six places, five tiers each plus a finale, every door, picture, district and trail present", () => {
-  assert.ok(SCENES.length >= 6, "six places to eat");
+test("the data: TWELVE places, five tiers each plus a finale, every door, picture, district and trail present", () => {
+  // The owner doubled the places (2026-10-01: "double the amount of playable
+  // levels") — six became twelve. A place quietly dropped from the data
+  // would leave a door-less hole in the journey ▶ walks through.
+  assert.ok(SCENES.length >= 12, "twelve places to eat (" + SCENES.length + ")");
   const ids = new Set();
   for (const def of SCENES) {
     assert.ok(!ids.has(def.id), "scene ids are unique: " + def.id);
@@ -80,7 +83,17 @@ test("the data: six places, five tiers each plus a finale, every door, picture, 
       assert.ok(items.some((it) => it.e === tr.e && it.tier === 1 && !it.zone && !it.clump), def.id + ": a trail is made of a plain tier-1 bite (" + tr.e + ")");
     }
     assert.ok(Array.isArray(def.decals) && def.decals.length >= 3, def.id + ": the ground has features to find your way by");
+    // KEEP-OUTS: a private zone is a real zone of this place, and an avoid
+    // rect is a real rectangle inside the world
+    for (const z of def.private || []) assert.ok(Array.isArray(zones[z]) && zones[z].length, def.id + ": private zone " + z + " exists");
+    for (const b of def.avoid || []) {
+      assert.ok(b.length === 4 && b.every((v) => v >= 0 && v <= 1) && b[2] > b[0] && b[3] > b[1], def.id + ": an avoid rect is a real rectangle (" + b.join(",") + ")");
+    }
   }
+  // every place has its own door picture (two doors wearing one picture is a
+  // home screen a non-reader cannot tell apart) and its own name
+  assert.equal(new Set(SCENES.map((d) => d.door)).size, SCENES.length, "every door wears its own picture");
+  assert.equal(new Set(SCENES.map((d) => d.name)).size, SCENES.length, "every place has its own name");
 });
 
 test("each picture belongs to ONE tier in its scene (so a grow's 'now you can eat us!' is true)", () => {
@@ -107,7 +120,13 @@ test("NOTHING ALIVE gets eaten: no animals, no people (checked by Unicode range,
     [0x1F400, 0x1F43F, "animals"], [0x1F980, 0x1F9AE, "animals"], [0x1F54A, 0x1F54A, "a dove"],
     [0x1F577, 0x1F578, "a spider"], [0x1F466, 0x1F487, "people"], [0x1F574, 0x1F575, "people"],
     [0x1F645, 0x1F64F, "people"], [0x1F6B4, 0x1F6B6, "people"], [0x1F6C0, 0x1F6C0, "a person"],
-    [0x1F3C2, 0x1F3CC, "people"], [0x1F926, 0x1F93E, "people"], [0x1F9CD, 0x1F9DF, "people"],
+    // The sports block is NOT all people: 1F3C5-1F3C6 are a medal and a
+    // trophy, 1F3C8-1F3C9 two footballs. One coarse range 1F3C2-1F3CC once
+    // counted 🏆 and 🏈 as alive (Sports Day caught it); the people in it are
+    // the snowboarder, runner and surfer, the rider on a horse, and the
+    // swimmer, lifter and golfer.
+    [0x1F3C2, 0x1F3C4, "people"], [0x1F3C7, 0x1F3C7, "a rider and a horse"], [0x1F3CA, 0x1F3CC, "people"],
+    [0x1F926, 0x1F93E, "people"], [0x1F9CD, 0x1F9DF, "people"],
     [0x1F9B8, 0x1F9B9, "people"], [0x1F385, 0x1F385, "a person"], [0x1F46A, 0x1F46F, "people"],
   ];
   const bad = [];
@@ -123,8 +142,12 @@ test("NOTHING ALIVE gets eaten: no animals, no people (checked by Unicode range,
     }
   }
   assert.deepEqual(bad, [], "Gobble must never eat anything alive:\n" + bad.join("\n"));
-  // …and the check is not vacuous: it really does catch an animal.
-  assert.ok(ALIVE.some(([a, b]) => 0x1F436 >= a && 0x1F436 <= b), "the scan must know a dog 🐶 is alive");
+  // …and the check is not vacuous: it really does catch an animal and a
+  // person — and it knows a trophy is a thing, not somebody.
+  const alive = (cp) => ALIVE.some(([a, b]) => cp >= a && cp <= b);
+  assert.ok(alive(0x1F436), "the scan must know a dog 🐶 is alive");
+  for (const cp of [0x1F3C3, 0x1F3C4, 0x1F3C7, 0x1F3CA]) assert.ok(alive(cp), "the scan must know " + String.fromCodePoint(cp) + " is a person");
+  for (const cp of [0x1F3C5, 0x1F3C6, 0x1F3C8, 0x1F3C9]) assert.ok(!alive(cp), String.fromCodePoint(cp) + " is a thing, not a person");
 });
 
 test("layout: every place fills its BIG world — no overlaps, a clear start, nothing squeezed, every thing in its district", () => {
@@ -132,12 +155,16 @@ test("layout: every place fills its BIG world — no overlaps, a clear start, no
     const lay = L.layout(def);
     const where = def.id;
     assert.deepEqual([lay.W, lay.H], RULES.WORLD, where + ": the world is its fixed size — the screen is only a camera onto it");
+    // "make each level even larger" (the owner, 2026-10-01): at least twice
+    // the ground of phase 2's 300 x 420 worlds
+    assert.ok(lay.W * lay.H >= 2 * 300 * 420 * 0.98, where + ": the world is twice phase 2's (" + lay.W + "x" + lay.H + ")");
     assert.equal(lay.relaxed, 0, where + ": every thing found a spot without squeezing");
     assert.equal(lay.zoneMiss, 0, where + ": every zoned thing found a spot in its zone");
     assert.equal(lay.broken, 0, where + ": every clump stood together");
     const want = def.tiers.reduce((n, t) => n + t.items.reduce((m, it) => m + it[1], 0), 0) + 1;
     assert.equal(lay.objects.length, want, where + ": every thing is placed");
-    assert.ok(lay.objects.length >= 180, where + ": a big world is FULL of things (" + lay.objects.length + ")");
+    // phase 2's worlds held ~200 things; the bigger ones about twice that
+    assert.ok(lay.objects.length >= 360, where + ": a big world is FULL of things (" + lay.objects.length + ")");
     for (const o of lay.objects) {
       assert.ok(o.x >= o.r + RULES.EDGE - 1e-3 && o.x <= lay.W - o.r - RULES.EDGE + 1e-3, where + ": " + o.e + " inside the world (x)");
       assert.ok(o.y >= topMin(o.r) - 1e-3 && o.y <= lay.H - o.r * RULES.SQ - RULES.EDGE + 1e-3, where + ": " + o.e + " inside the world (y)");
@@ -235,6 +262,41 @@ test("layout: a CLUMP stands together — one pass hoovers up the lot", () => {
       assert.ok(spread <= 1.1 * (k - 1), def.id + ": a clump of " + k + " " + g[0].e + " is one bunch (spread " + spread.toFixed(2) + ")");
     }
   }
+});
+
+test("layout: a PRIVATE zone holds only its own things, and nothing stands in an AVOID rect", () => {
+  // The beach's sea holds the boats and the ship — never an ice cream bobbing
+  // on the waves; the airport's runways hold only aeroplanes; nothing stands
+  // in the volcano's lava. Checked on the GEOMETRY of the laid-out world,
+  // not on the layout's own bookkeeping.
+  let privs = 0, avoids = 0;
+  for (const def of SCENES) {
+    const lay = L.layout(def);
+    const zoneOf = new Map(itemsOf(def).map((it) => [it.e, it.zone]));
+    const inR = (o, rects) => rects.some((b) => o.x >= b[0] * lay.W && o.x <= b[2] * lay.W && o.y >= b[1] * lay.H && o.y <= b[3] * lay.H);
+    for (const z of def.private || []) {
+      privs++;
+      const own = lay.objects.filter((o) => !o.finale && zoneOf.get(o.e) === z);
+      assert.ok(own.length > 0, def.id + ": the private " + z + " holds its own things");
+      const intruders = lay.objects.filter((o) => !o.finale && zoneOf.get(o.e) !== z && inR(o, def.zones[z]));
+      assert.deepEqual(intruders.map((o) => o.e + "@" + o.x.toFixed(0) + "," + o.y.toFixed(0)), [],
+        def.id + ": only " + z + " things stand in the " + z);
+    }
+    for (const b of def.avoid || []) {
+      avoids++;
+      const on = lay.objects.filter((o) => inR(o, [b]));
+      assert.deepEqual(on.map((o) => o.e), [], def.id + ": nothing stands in an avoid rect (" + b.join(",") + ")");
+    }
+    // the starters are placed without a check (a fixed arc beside Gobble),
+    // so the start itself must be clear of every keep-out
+    const st = L.createGame(def);
+    for (const o of st.objects.filter((ob) => ob.starter)) {
+      const blocked = (def.avoid || []).some((b) => inR(o, [b])) || (def.private || []).some((z) => inR(o, def.zones[z]));
+      assert.ok(!blocked, def.id + ": a starter " + o.e + " stands in a keep-out");
+    }
+  }
+  // not vacuous: the places that need keep-outs declare them
+  assert.ok(privs >= 2 && avoids >= 2, "fixture: keep-outs are declared (" + privs + " private, " + avoids + " avoid)");
 });
 
 test("layout is deterministic, and the screen has NO say in it", () => {
@@ -391,6 +453,7 @@ test("physics: the magnet pulls a thing that fits toward the rim (forgiving aim)
 });
 
 test("a greedy bot finishes EVERY place: an instant first gulp, a quick first grow, five grows in order, then the finale", () => {
+  const wins = [];
   for (const def of SCENES) {
     const st = L.createGame(def);
     const log = playOut(st, 120);
@@ -406,7 +469,14 @@ test("a greedy bot finishes EVERY place: an instant first gulp, a quick first gr
     assert.ok(win, where + ": eating the finale wins");
     const fin = st.objects.find((o) => o.finale);
     assert.ok(log.find((e) => e.type === "eat" && e.id === fin.id), where + ": the win is the finale going down");
+    wins.push(win.t);
+    // "so they take more time" (the owner, 2026-10-01): even this perfect,
+    // greedy eater — far quicker than a four-year-old — needs a while. Phase
+    // 2's smaller worlds took it 14-25 game-seconds; the bigger ones 25-45.
+    assert.ok(win.t >= 20, where + ": a place takes the bot at least 20s to win (" + win.t.toFixed(1) + "s)");
   }
+  const mean = wins.reduce((a, b) => a + b, 0) / wins.length;
+  assert.ok(mean >= 30, "on average a place takes the bot at least 30s (phase 2: about 20s) — " + mean.toFixed(1) + "s");
 });
 
 test("the win: the VORTEX empties even a big world by itself — no hunt for the last crumb", () => {
@@ -490,6 +560,10 @@ test("save → restore keeps what was eaten, the size and where Gobble stood —
   assert.equal(v, RULES.LAYOUT);
   assert.equal(L.restore(phase1), null, "a save with no layout version (phase 1) is dropped");
   assert.equal(L.restore({ ...snap, v: RULES.LAYOUT + 1 }), null, "…and so is one from any other layout");
+  // phase 2's smaller worlds were layout 2: a half-eaten run from them names
+  // ids laid out in a world half this size
+  assert.equal(RULES.LAYOUT, 3, "fixture: the bigger worlds are layout 3");
+  assert.equal(L.restore({ ...snap, v: 2 }), null, "…and so is one from the smaller worlds of phase 2");
   assert.equal(L.restore({ ...snap, v: String(RULES.LAYOUT) }), null, "…and a version must be the number itself");
 });
 
