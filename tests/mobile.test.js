@@ -385,6 +385,10 @@ test("🕳️ Gobble's home: all twelve doors on the FIRST screen of every portr
           minSide: Math.round(Math.min(...doors.map((r) => Math.min(r.width, r.height)))), hero: Math.round(hero.height) };
       }, inset[1]);
       assert.equal(m.n, 12, `${at}: fixture — twelve doors`);
+      // …and still big and 16px apart at every one of these sizes. Hiding the
+      // hero put the bar's 🚪/👂 straight on the first row of doors, 12px
+      // away, and only the audit above (three sizes) could have noticed.
+      await auditActiveScreen(p, `hole-home@${at}`);
       assert.equal(m.hidden, 0, `${at}: every door must be on the first screen, clear of the home indicator — ` +
         `${m.hidden} end below ${m.clear} (the last at ${m.last})`);
       assert.ok(m.minSide >= 75, `${at}: still kid-sized doors (${m.minSide}px)`);

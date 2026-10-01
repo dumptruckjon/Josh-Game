@@ -9739,7 +9739,7 @@ crown moves both.
 
 **GOBBLE QUALITY CHECK (the owner, 2026-10-01: "everything done, completed,
 tested, high quality?") — every screen and state measured at 17 sizes found
-three defects a green suite could not see, and five things worth keeping.**
+three defects a green suite could not see, and six things worth keeping.**
 (1) **A plain 390x844 viewport is not the phone.** At the size every Gobble
 test used, the home's twelve doors ended exactly at the fold, with zero slack.
 A notched iPhone opened from its home screen adds a 47px status bar above the
@@ -9777,6 +9777,14 @@ half of the change it is compared against. With it, the tool reproduces §12.1
 exactly. Recorded, not forced: a 320-wide phone keeps part of the last row of
 doors below the fold, and a phone on its side scrolls the home (landscape is
 not a design target).
+(6) **The fix broke a law, and the GATE caught it, not the fix's own tests.**
+Hiding the picture put the bar's 🚪 and 👂 straight on the first row of doors,
+12px away, under the 16px law. The new tests measured only what the fix was
+for (doors in view, the win box), so they passed; the shipped every-pair
+spacing audit failed in the full run. When a change removes something from a
+screen, its NEIGHBOURS move: re-run every audit of that screen before calling
+it done, not just the tests written for the change. The home test now runs that
+same audit at all nine of its sizes.
 
 ---
 
@@ -9960,8 +9968,9 @@ tooling.
 │   │                           #   emoji tracks and so VANISH rather than overflow when a glyph is wider than here.
 │   │                           #   And 🕳️ Gobble Hole on a REAL phone: the win box's cheer, count, treasures, 🔁 and ▶
 │   │                           #   with no scrolling at nine sizes (phones on their side included), the home's twelve
-│   │                           #   doors above the fold at seven phones and two iPads, each with its real notch and
-│   │                           #   home-bar insets added (no browser emulates a notch), and the meter's bar ≥48px
+│   │                           #   doors above the fold (and big and 16px apart) at seven phones and two iPads, each
+│   │                           #   with its real notch and home-bar insets added (no browser emulates a notch), and the
+│   │                           #   meter's bar ≥48px
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow

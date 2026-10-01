@@ -551,7 +551,9 @@ Clean on all of that except three things, all now fixed:
   phone from 360x640 up now shows all twelve, notch included. A 320-wide phone
   keeps its last row below the fold: four rows of 75px doors 16px apart cannot
   fit 568px. A phone on its side still scrolls the home (landscape is not a
-  design target).
+  design target). Hiding the picture then put the bar's 🚪 and 👂 straight on
+  the first row of doors, 12px away. The shipped spacing audit caught it in the
+  full test run, so the home's bar now keeps the doors' own 16px.
 - **The growth meter's bar was 14px wide at 320.** It is the flexible track
   between fixed neighbours, so it shrinks instead of overflowing and no
   overflow check can see it. Below 369px the meter's own Gobble face steps
@@ -561,9 +563,10 @@ Tests (mobile.test.js, so CI runs them on real WebKit): the win box shows the
 cheer, the count, the treasures and both buttons with no scrolling at nine
 sizes, with real device insets added (no browser can emulate a notch), and the
 meter's bar is at least 48px; the home shows all twelve doors at seven phones
-and two iPads with their insets, and keeps the picture on an iPad in portrait
-(a rule that hid it everywhere would pass every other clause). Nine mutations,
-each red for its own reason.
+and two iPads with their insets, with every tap big and 16px apart at each of
+those sizes (the shipped audit measured three), and keeps the picture on an
+iPad in portrait (a rule that hid it everywhere would pass every other clause).
+Ten mutations, each red for its own reason.
 
 **The wandering-child model is now `tools/hole-child.js`** (it was a scratch
 script, and a restart would have lost the instrument behind §12.1 and §12.6).
