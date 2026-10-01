@@ -519,6 +519,111 @@ test("the hint: after a few quiet seconds Gobble points at the nearest thing it 
   assert.ok(L.edible(st, st.objects[st.hint]), "…which Gobble really can eat");
 });
 
+// Put Gobble at the TOP size: big enough for the finale (what a grow to the
+// last level does, without playing there).
+function makeTop(st) {
+  const top = st.levels.R.length - 1;
+  st.hole.level = top; st.hole.R = st.hole.r = st.levels.R[top]; st.hole.xp = st.levels.C[top];
+  return top;
+}
+
+test("THE GOAL: once Gobble is big enough for the finale, it is what he is here for — the hint points at it from anywhere", () => {
+  for (const def of SCENES) {
+    const st = L.createGame(def);
+    const fin = st.objects.find((o) => o.finale);
+    assert.equal(fin.id, 0, def.id + ": the finale is placed first, so it is id 0 (the door's ring relies on it)");
+    for (let lv = 0; lv < st.levels.R.length - 1; lv++) {
+      st.hole.level = lv;
+      assert.equal(L.goalOf(st), null, def.id + ": no goal at level " + lv + " — he cannot eat the finale yet");
+    }
+    makeTop(st);
+    assert.equal(L.goalOf(st), fin, def.id + ": at the top size the finale IS the goal");
+    // the hint: stand at the start, where plenty is edible and far nearer
+    // than the finale, and wait — the hint points at the finale anyway
+    st.hole.x = st.hole.tx = st.start.x; st.hole.y = st.hole.ty = st.start.y;
+    const near = L.nearestEdible(st);
+    assert.notEqual(near.id, fin.id, def.id + ": fixture — something nearer than the finale is edible");
+    st.sinceEat = RULES.HINT_AFTER;
+    L.step(st); st.events.length = 0;
+    assert.equal(st.hint, fin.id, def.id + ": the hint points at the finale, not at the nearest crumb");
+    fin.st = L.GONE;
+    assert.equal(L.goalOf(st), null, def.id + ": once it is eaten there is no goal");
+  }
+});
+
+test("the grow that makes him big enough for the finale SAYS so (ready) — exactly one, the last", () => {
+  for (const def of SCENES) {
+    const log = playOut(L.createGame(def), 120);
+    const grows = log.filter((e) => e.type === "grow");
+    const ready = grows.filter((g) => g.ready);
+    assert.equal(ready.length, 1, def.id + ": exactly one grow is the ready one");
+    assert.equal(ready[0], grows[grows.length - 1], def.id + ": …and it is the last grow");
+  }
+});
+
+test("TREASURES: three things glitter in every place — a tiny one low down, a small one across the middle, a medium one up top", () => {
+  for (const def of SCENES) {
+    const st = L.createGame(def);
+    const where = def.id;
+    assert.equal(st.gold.length, 3, where + ": three treasures");
+    const g = st.gold.map((id) => st.objects[id]);
+    assert.deepEqual(g.map((o) => o.tier), [1, 2, 3], where + ": a tiny one, a small one and a medium one");
+    g.forEach((o, i) => {
+      const b = L.GOLD_BANDS[i];
+      assert.ok(o.y >= b[0] * st.H && o.y <= b[1] * st.H, where + ": treasure " + (i + 1) + " stands in its band (y " + (o.y / st.H).toFixed(2) + ")");
+      assert.ok(!o.starter && !o.trail && !o.finale, where + ": a treasure is never a starter, a trail bite or the finale");
+      assert.ok(L.gdist(o.x, o.y, st.start.x, st.start.y) >= 150, where + ": treasure " + (i + 1) + " is far from the start — a thing to FIND");
+      for (let j = 0; j < i; j++) assert.ok(L.gdist(o.x, o.y, g[j].x, g[j].y) >= 150, where + ": treasures " + (j + 1) + " and " + (i + 1) + " are far apart");
+    });
+    assert.equal(st.objects.filter((o) => o.gold).length, 3, where + ": exactly the three carry the gold mark");
+    // picked FROM the layout, never added to it: the world is exactly what
+    // it was, so a saved run keeps its meaning
+    const lay = L.layout(def);
+    assert.deepEqual(st.objects.map((o) => [o.e, o.x, o.y, o.r]), lay.objects.map((o) => [o.e, o.x, o.y, o.r]), where + ": the treasures change nothing about where things stand");
+    assert.deepEqual(L.createGame(def).gold, st.gold, where + ": the same three every time");
+    assert.deepEqual(L.restore(L.snapshot(st)).gold, st.gold, where + ": …and after a restore");
+  }
+});
+
+test("eating a treasure says so (gold); the win's slurp is not finding one (vortex)", () => {
+  const st = L.createGame("toyroom");
+  const t1 = st.objects[st.gold[0]];
+  st.hole.x = st.hole.tx = t1.x + 6; st.hole.y = st.hole.ty = t1.y;
+  const evs = [];
+  for (let i = 0; i < 240 && t1.st !== L.GONE; i++) { L.setTarget(st, t1.x, t1.y); L.step(st); evs.push(...st.events); st.events.length = 0; }
+  const eat = evs.find((e) => e.type === "eat" && e.id === t1.id);
+  assert.ok(eat, "the tiny treasure was eaten");
+  assert.equal(eat.gold, true, "its eat event carries gold");
+  assert.equal(eat.vortex, false, "…and he found it himself");
+  assert.ok(evs.filter((e) => e.type === "eat" && e.id !== t1.id).every((e) => e.gold === false), "an ordinary thing is not gold");
+  // the finale goes down with the other two treasures still standing: the
+  // slurp eats them, and that is not FINDING them
+  makeTop(st);
+  const fin = st.objects.find((o) => o.finale);
+  const all = [];
+  while (!st.done && st.t < 200) { if (!st.won) L.setTarget(st, fin.x, fin.y); L.step(st); all.push(...st.events); st.events.length = 0; }
+  const late = all.filter((e) => e.type === "eat" && e.gold);
+  assert.equal(late.length, 2, "the other two went down in the slurp");
+  assert.ok(late.every((e) => e.vortex === true), "…marked vortex, not found");
+});
+
+test("countOf: how many things a place holds comes from its DATA alone — exactly what the layout places", () => {
+  for (const def of SCENES) assert.equal(L.countOf(def), L.layout(def).objects.length, def.id);
+});
+
+test("every finale has a spoken NAME, and no line Gobble says reads a picture aloud", () => {
+  const pict = /\p{Extended_Pictographic}/u;
+  for (const def of SCENES) {
+    const n = def.finale.say;
+    assert.ok(typeof n === "string" && /^the [A-Za-z]/.test(n), def.id + ": the finale is named, like 'the castle' (" + n + ")");
+    assert.ok(!pict.test(n), def.id + ": its name is words, not a picture");
+  }
+  assert.ok(DATA.SAY.ready.includes("{finale}"), "the ready line names the finale");
+  for (const [k, v] of Object.entries(DATA.SAY)) {
+    for (const line of [].concat(v)) assert.ok(!pict.test(line), "SAY." + k + " speaks words, not a picture: " + line);
+  }
+});
+
 test("determinism: the same inputs replay to the identical state", () => {
   const run = () => {
     const st = L.createGame("party");

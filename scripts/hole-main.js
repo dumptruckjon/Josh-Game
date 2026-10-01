@@ -132,6 +132,7 @@
       b.innerHTML =
         '<span class="hole-door__icon" aria-hidden="true"></span>' +
         '<span class="hole-door__label"></span>' +
+        '<span class="hole-door__prog" aria-hidden="true" hidden></span>' +
         '<span class="hole-door__star" aria-hidden="true" hidden>⭐</span>';
       b.querySelector(".hole-door__icon").textContent = sc.door;
       b.querySelector(".hole-door__label").textContent = sc.name;
@@ -163,6 +164,10 @@
               '<span class="hole-win__buddy art-fill"></span><span class="hole-win__gobble art-fill"></span>' +
             "</div>" +
             '<p class="hole-win__count"><span aria-hidden="true">😋</span> <b class="hole-win__n">0</b></p>' +
+            // the treasures he FOUND (eaten before the finale, not by the
+            // slurp): only what he found, never a missed one — nothing here
+            // can read as a failure
+            '<div class="hole-win__gold" role="img" hidden></div>' +
             // the buttons come BEFORE the wall of eaten things: on a small
             // phone the wall scrolls, and what he taps next must never be
             // the part that scrolled away
@@ -231,13 +236,29 @@
     return SCENES[(i + 1) % SCENES.length];
   }
 
+  // A half-eaten place shows how far he got: a little ring in the door's top
+  // corner fills as the place empties (the ⭐ in the other corner means
+  // finished). It reads the saved ids alone — whole numbers in range, the
+  // finale (always id 0: it is placed first) never counted — so a hand-edited
+  // save cannot draw a ring past full.
+  function eatenFrac(sc) {
+    const r = save.runs[sc.id];
+    if (!r || !Array.isArray(r.eaten)) return 0;
+    const total = L.countOf(sc);
+    const ids = new Set(r.eaten.filter((i) => Number.isInteger(i) && i > 0 && i < total));
+    return Math.min(1, ids.size / total);
+  }
   function paintDoors() {
     if (!home) return;
     for (const b of home.querySelectorAll(".hole-door")) {
       const sc = L.sceneById(b.dataset.scene);
       const done = !!save.done[sc.id];
+      const frac = eatenFrac(sc), pct = frac > 0 ? Math.max(1, Math.round(frac * 100)) : 0;
       b.querySelector(".hole-door__star").hidden = !done;
-      b.setAttribute("aria-label", sc.name + (done ? ", all eaten" : ""));
+      const prog = b.querySelector(".hole-door__prog");
+      prog.hidden = !pct;
+      prog.style.setProperty("--p", pct + "%");
+      b.setAttribute("aria-label", sc.name + (done ? ", all eaten" : "") + (pct ? ", " + pct + " percent eaten" : ""));
     }
   }
 
@@ -278,7 +299,17 @@
     bump: () => notes([[330, 0, { type: "sine", duration: 0.12, gain: 0.13 }], [494, 90, { type: "sine", duration: 0.16, gain: 0.12 }]]),
     burp: () => notes([[98, 0, { type: "sawtooth", duration: 0.28, gain: 0.12, plain: true }],
       [78, 140, { type: "sawtooth", duration: 0.36, gain: 0.1, plain: true }]]),
+    // big enough for the finale: a longer fanfare than a grow
+    ready: () => notes([[523.25, 0, { gain: 0.22, duration: 0.13 }], [659.25, 100, { gain: 0.22, duration: 0.13 }],
+      [783.99, 200, { gain: 0.22, duration: 0.13 }], [1046.5, 300, { gain: 0.24, duration: 0.2 }],
+      [783.99, 460, { gain: 0.2, duration: 0.12 }], [1046.5, 560, { gain: 0.26, duration: 0.55 }]]),
+    // a treasure: a sparkle running up
+    treasure: () => notes([[1318.5, 0, { gain: 0.16, duration: 0.09 }], [1568, 70, { gain: 0.16, duration: 0.09 }],
+      [2093, 140, { gain: 0.16, duration: 0.1 }], [2637, 210, { gain: 0.15, duration: 0.3 }]]),
   };
+  // The line for the grow that makes him big enough for the finale, naming it
+  // ("Wow, so big! Now eat the castle!") — a picture is never spoken.
+  function readyLine(def) { return SAY.ready.replace("{finale}", (def.finale && def.finale.say) || "the biggest thing"); }
 
   // ---- A run -----------------------------------------------------------------
   let run = null;           // { st, def, ate: [emoji...], bigSaid }
@@ -308,6 +339,8 @@
     run = {
       st, def, bigSaid: -1e9,
       ate: st.objects.filter((o) => o.st === L.GONE).map((o) => o.e),
+      // treasures he has found (a resumed run found the ones already gone)
+      found: new Set(st.gold.filter((id) => st.objects[id].st === L.GONE)),
     };
     // a fresh place opens with a look at the whole island and then flies in
     // to Gobble (skipped under reduced motion); a resumed one starts on him
@@ -372,11 +405,14 @@
       if (ev.type === "eat") {
         gulp(ev);
         run.ate.push(ev.e);
+        if (ev.gold && !ev.vortex) { run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure); }
         if (!st.won) { save.runs[run.def.id] = L.snapshot(st); persist(); }
       } else if (ev.type === "grow") {
-        SFX.grow();
         bounceMeter();
-        sayPlay(SAY.grow[(ev.level - 1) % SAY.grow.length]);
+        // the grow that makes him big enough for the finale names it: from
+        // here on it is the goal (the edge arrow and a golden beacon show it)
+        if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def)); }
+        else { SFX.grow(); sayPlay(SAY.grow[(ev.level - 1) % SAY.grow.length]); }
       } else if (ev.type === "bump") {
         SFX.bump();
         if (t - run.bigSaid > BIG_SAY_GAP) { run.bigSaid = t; sayPlay(SAY.big); }
@@ -565,6 +601,17 @@
       s.textContent = e;
       wall.appendChild(s);
     }
+    const gold = box.querySelector(".hole-win__gold");
+    gold.textContent = "";
+    for (const id of run.st.gold) {
+      if (!run.found.has(id)) continue;
+      const s = doc.createElement("span");
+      s.className = "hole-win__treasure";
+      s.textContent = run.st.objects[id].e;
+      gold.appendChild(s);
+    }
+    gold.hidden = !run.found.size;
+    gold.setAttribute("aria-label", "Treasures found: " + run.found.size);
     const nx = nextScene(run.def.id);
     const next = win.querySelector(".hole-next");
     next.textContent = "▶ " + nx.door;

@@ -38,6 +38,26 @@
   const INTRO_S = 1.6;   // the opening look at the whole island, then in to Gobble
   const ARROW_R = 30;    // the edge arrow's bubble (css px); it is tapped within ARROW_R + 16
   const NO_BITE_AFTER = 1.2;   // seconds with nothing edible on screen before the arrow shows
+  const GOAL_R = 36;     // the GOAL's bubble is bigger: it is what he is here for (§12)
+  // Gold: the goal's beacon, its bubble, and the three treasures (§12). Each
+  // gold mark is drawn twice, a dark band under a bright one, so it reads on
+  // every floor from the snow to the night sky (the fort's dark-under-bright law).
+  const GOLD = { rim: "#e0a100", hi: "#ffd24d", dark: "rgba(110,60,0,", bright: "rgba(255,206,48," };
+  const GOAL_HOP = 1.6;  // the goal hops every GOAL_HOP seconds while it is on screen
+  // Gobble's googly eyes: their radius for a hole R css px across, and how far
+  // the top of his face stands above the hole's middle at its widest (the
+  // wide-eyed look of a grow). drawEyes and the camera share these, so the
+  // camera's headroom can never fall behind a bigger pair of eyes.
+  const EYE = { k: 0.27, min: 7, max: 70, wide: 1.22 };
+  const eyeR = (R) => clamp(R * EYE.k, EYE.min, EYE.max);
+  // Once he is big enough for the finale Gobble wears a CROWN, sitting on top
+  // of his eyes: its size and where its middle stands above the eyes' line.
+  const CROWN = { size: 2.0, lift: 1.1 * EYE.wide + 0.15 };
+  function faceUp(R, crowned) {
+    const e = eyeR(R), r = e * EYE.wide;
+    const eyes = R * SQ + e * 0.25 + r * 1.1 + Math.max(1.5, r * 0.14) / 2;
+    return crowned ? Math.max(eyes, R * SQ + e * 0.25 + e * CROWN.lift + e * CROWN.size * 0.5) : eyes;
+  }
 
   function hashStr(s) {
     let h = 2166136261 >>> 0;
@@ -82,6 +102,15 @@
     c.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
   }
   function ellipse(c, x, y, rx, ry) { c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
+  // An n-pointed star (a twinkle when n is 4).
+  function starPath(c, x, y, R, r, n, a0) {
+    c.beginPath();
+    for (let k = 0; k < n * 2; k++) {
+      const a = (a0 || -Math.PI / 2) + (k * Math.PI) / n, rr = k % 2 ? r : R;
+      c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    c.closePath();
+  }
 
   // ---- The ground's TEXTURE: vector marks drawn straight onto the canvas ------
   // NOT a bitmap pattern, and the reason is measured. In a software
@@ -1123,7 +1152,8 @@
     const fx = [];
     let clock = 0;
     let shakeT = 0;
-    let happyUntil = 0, wideUntil = 0, lookUp = 0, blinkAt = 3, blinkUntil = 0;
+    let happyUntil = 0, wideUntil = 0, lookUp = 0, blinkAt = 3, blinkUntil = 0, starUntil = 0;
+    let lastGoal = null, lastGold = 0, lastFace = null, goalHopAt = 0;
     const hopUntil = new Map();
     let arrow = null, noBiteSince = -1;
     let lastDraw = { objects: 0, standing: 0, falling: 0, decals: 0, ground: false, ok: false };
@@ -1157,7 +1187,14 @@
     // a view wider than the island is centred on it.
     function clampCam(c) {
       const s = shortSide() / c.span, hw = cssW / 2 / s, hh = cssH / 2 / s;
-      const x0 = -MARGIN, x1 = st.W + MARGIN, y0 = -RULES.TOP_SLACK - MARGIN, y1 = st.H + THICK + MARGIN;
+      // At the island's back edge a big Gobble's eyes stand ABOVE the world's
+      // top, so while the camera follows him it may look up just far enough to
+      // keep his whole face in view, 2px to spare (they were cut off by up to
+      // 19px at the biggest sizes). The win's look at the whole island is not
+      // following anyone, and keeps its frame.
+      let y0 = -RULES.TOP_SLACK - MARGIN;
+      if (mode !== "whole") y0 = Math.min(y0, st.hole.y - (faceUp(st.hole.r * s, !!L.goalOf(st)) + 2) / s);
+      const x0 = -MARGIN, x1 = st.W + MARGIN, y1 = st.H + THICK + MARGIN;
       c.x = x1 - x0 <= 2 * hw ? (x0 + x1) / 2 : clamp(c.x, x0 + hw, x1 - hw);
       c.y = y1 - y0 <= 2 * hh ? (y0 + y1) / 2 : clamp(c.y, y0 + hh, y1 - hh);
       return c;
@@ -1214,7 +1251,7 @@
       st = next;
       def = DATA.SCENES.find((d) => d.id === st.id) || DATA.SCENES[0];
       mode = "follow";
-      fx.length = 0; hopUntil.clear(); shakeT = 0;
+      fx.length = 0; hopUntil.clear(); shakeT = 0; starUntil = 0; goalHopAt = 0;
       arrow = null; noBiteSince = -1;
       if (sprites.size > 120) sprites.clear();
       backdrop = null;
@@ -1418,6 +1455,11 @@
     }
     // CSS-px size of an object's sprite: its larger ink side is VIS * r
     function drawSize(o) { return VIS * o.r * view.s; }
+    // An emoji centred on (x, y), its larger ink side `size` css px.
+    function glyph(e, x, y, size) {
+      const sp = sprite(e, size * dpr), f = size / sp.b;
+      ctx.drawImage(sp.cv, x - (sp.w * f) / 2, y - (sp.h * f) / 2, sp.w * f, sp.h * f);
+    }
 
     function drawObject(o, x, y, rot, scale, alpha) {
       // The sprite is always requested at the thing's FULL size and scaled at
@@ -1455,6 +1497,70 @@
       ctx.globalAlpha = (def.ground === "space" ? 0.16 : 0.24) * k;
       ctx.drawImage(shadowSprite(), x - rx + rx * 0.12, y - ry + ry * 0.2, rx * 2, ry * 2);
       ctx.globalAlpha = 1;
+    }
+
+    // ---- gold: the treasures and the goal (PLAN_GOBBLE.md §12) --------------
+    // A treasure is an ordinary thing that glitters: a soft gold glow on the
+    // ground under it, and three twinkles round it (still under reduced
+    // motion, and only once it is big enough on screen to carry them).
+    let glowCv = null;
+    function glowSprite() {
+      if (glowCv) return glowCv;
+      const S = 64;
+      glowCv = document.createElement("canvas");
+      glowCv.width = S; glowCv.height = S;
+      const c = glowCv.getContext("2d");
+      const g = c.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+      g.addColorStop(0, "rgba(255,214,64,1)"); g.addColorStop(0.55, "rgba(255,200,40,0.55)"); g.addColorStop(1, "rgba(255,190,30,0)");
+      c.fillStyle = g; c.fillRect(0, 0, S, S);
+      return glowCv;
+    }
+    function goldGlow(x, y, r) {
+      const rx = r * view.s * 1.7, ry = rx * SQ;
+      ctx.globalAlpha = 0.75;
+      ctx.drawImage(glowSprite(), x - rx, y - ry, rx * 2, ry * 2);
+      ctx.globalAlpha = 1;
+    }
+    function twinkles(now, o, x, y) {
+      const size = drawSize(o);
+      if (size < 14) return;
+      const rm = reduceMotion(), cy = y - size * 0.45, rr = size * 0.58;
+      const a0 = rm ? 0.4 : now * 0.9;
+      for (let k = 0; k < 3; k++) {
+        const a = a0 + k * 2.1, tw = rm ? 0.8 : 0.55 + 0.45 * Math.abs(Math.sin(now * 4 + k * 1.7));
+        const px = x + Math.cos(a) * rr, py = cy + Math.sin(a) * rr * 0.8, R = Math.max(4, size * 0.17) * tw;
+        ctx.fillStyle = GOLD.dark + "0.6)";
+        starPath(ctx, px, py, R * 1.25, R * 0.45, 4); ctx.fill();
+        ctx.fillStyle = GOLD.hi;
+        starPath(ctx, px, py, R, R * 0.32, 4); ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        starPath(ctx, px, py, R * 0.5, R * 0.18, 4); ctx.fill();
+      }
+    }
+    // THE GOAL'S BEACON: once Gobble is big enough, the finale calls him —
+    // rings pulse out on the ground round its foot (drawn UNDER it, like a
+    // spotlight on the floor), it hops every GOAL_HOP seconds ("eat me!") and
+    // it twinkles. The rings are white on a dark band, not gold: half the
+    // finales stand on a stage that is gold already. Off screen, the edge
+    // arrow points at it instead. Still rings and no hop under reduced motion.
+    function drawGoal(now) {
+      lastGoal = null;
+      const g = L.goalOf(st);
+      if (!g) return;
+      const x = sx(g.x), y = sy(g.y), R = g.r * view.s;
+      if (x < -R * 2 || x > cssW + R * 2 || y < -R * 2 || y > cssH + R * 2) return;
+      const rm = reduceMotion();
+      for (let k = 0; k < 2; k++) {
+        const p = rm ? 0.25 + k * 0.4 : (now * 0.8 + k * 0.5) % 1;
+        const r = R * (1.1 + 0.9 * p), a = rm ? 0.85 : 0.95 * (1 - p);
+        const w = Math.max(3, R * 0.11 * (1 - p * 0.4));
+        ctx.lineWidth = w + 4; ctx.strokeStyle = "rgba(60,25,90," + (a * 0.6).toFixed(3) + ")";
+        ellipse(ctx, x, y, r, r * SQ); ctx.stroke();
+        ctx.lineWidth = w; ctx.strokeStyle = "rgba(255,250,225," + a.toFixed(3) + ")";
+        ellipse(ctx, x, y, r, r * SQ); ctx.stroke();
+      }
+      if (!rm && now >= goalHopAt) { hopUntil.set(g.id, now + 0.55); goalHopAt = now + GOAL_HOP; }
+      lastGoal = { id: g.id, x, y };
     }
 
     // ---- the hole ---------------------------------------------------------------
@@ -1530,7 +1636,7 @@
 
     function drawEyes(now, cx, cy, R, ry) {
       const h = st.hole;
-      const eR = clamp(R * 0.27, 7, 70);
+      const eR = eyeR(R);
       const ey = cy - ry - eR * 0.25;
       // look where Gobble is going, else at the nearest bite (or the hint)
       let lx = h.tx - h.x, ly = h.ty - h.y;
@@ -1551,8 +1657,11 @@
       if (lookUp > now) { px *= 0.3; py = -1; }
       if (!reduceMotion() && now > blinkAt) { blinkUntil = now + 0.12; blinkAt = now + 2.5 + ((now * 997) % 3); }
       const blink = blinkUntil > now;
-      const happy = happyUntil > now, wide = wideUntil > now;
-      const k = wide ? 1.22 : 1;
+      const starry = starUntil > now;
+      const happy = happyUntil > now && !starry, wide = wideUntil > now || starry;
+      const k = wide ? EYE.wide : 1;
+      // the top of his face this frame (the camera keeps it on screen)
+      lastFace = { top: ey - eR * k * 1.1 - Math.max(1.5, eR * k * 0.14) / 2, bottom: cy + ry, crown: false };
       for (const side of [-1, 1]) {
         const ex = cx + side * R * 0.42;
         const r = eR * k;
@@ -1567,7 +1676,12 @@
           ctx.fillStyle = "#ffffff";
           ctx.strokeStyle = "#1d1233"; ctx.lineWidth = Math.max(1.5, r * 0.14);
           ctx.beginPath(); ctx.ellipse(0, 0, r, r * 1.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          if (!blink) {
+          if (!blink && starry) {
+            // a treasure: his eyes turn to gold stars
+            ctx.fillStyle = GOLD.hi; ctx.strokeStyle = "#1d1233"; ctx.lineWidth = Math.max(1.2, r * 0.08);
+            starPath(ctx, 0, 0, r * 0.78, r * 0.34, 5);
+            ctx.fill(); ctx.stroke();
+          } else if (!blink) {
             ctx.fillStyle = "#1d1233";
             ctx.beginPath(); ctx.arc(px * r * 0.36, py * r * 0.36, r * 0.5, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "#ffffff";
@@ -1575,6 +1689,13 @@
           }
         }
         ctx.restore();
+      }
+      // big enough for the finale: King Gobble
+      if (L.goalOf(st)) {
+        const size = eR * CROWN.size, my = ey - eR * CROWN.lift;
+        glyph("👑", cx, my, size);
+        lastFace.top = Math.min(lastFace.top, my - size / 2);
+        lastFace.crown = true;
       }
     }
 
@@ -1595,6 +1716,17 @@
             t0: now, life: 0.55 + rr() * 0.3, size: 0.5 + rr() * 0.6 + (ev.tier || 1) * 0.12, color });
         }
         if (ev.finale && !reduceMotion()) shakeT = now + 0.55;
+        if (ev.gold) {
+          // a TREASURE: a ring and a burst of gold stars, and his eyes turn
+          // to stars for a moment
+          starUntil = now + 1.4;
+          fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 0.9, r0: h.r * 1.05, gold: true });
+          const gr = rng(hashStr("gold" + ev.id));
+          for (let i = 0; i < 16; i++) {
+            const a = (i / 16) * Math.PI * 2 + gr() * 0.3, sp = 24 + gr() * 22;
+            fx.push({ k: "star", x: h.x, y: h.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * SQ - 14, t0: now, life: 0.9 + gr() * 0.4, size: 1.4 + gr() * 1.2, gold: true });
+          }
+        }
       } else if (ev.type === "grow") {
         wideUntil = now + 0.8;
         fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 0.7, r0: h.r });
@@ -1634,13 +1766,13 @@
           ctx.globalAlpha = 1;
         } else if (f.k === "ring") {
           const r = (f.r0 * (1 + p * 0.9)) * view.s;
-          ctx.strokeStyle = "rgba(255,215,90," + (1 - p).toFixed(3) + ")";
+          ctx.strokeStyle = (f.gold ? GOLD.bright : "rgba(255,215,90,") + (1 - p).toFixed(3) + ")";
           ctx.lineWidth = Math.max(2, 6 * (1 - p));
           ellipse(ctx, sx(f.x), sy(f.y), r, r * SQ); ctx.stroke();
         } else if (f.k === "star") {
           const x = sx(f.x + f.vx * t), y = sy(f.y + f.vy * t);
           const s = f.size * view.s * (1 - p * 0.5);
-          ctx.fillStyle = "rgba(255,230,120," + (1 - p).toFixed(3) + ")";
+          ctx.fillStyle = (f.gold ? GOLD.bright : "rgba(255,230,120,") + (1 - p).toFixed(3) + ")";
           ctx.beginPath();
           for (let k = 0; k < 8; k++) {
             const a = (k / 8) * Math.PI * 2, rr = k % 2 ? s * 0.4 : s * 1.3;
@@ -1701,30 +1833,44 @@
       }
       if (any) noBiteSince = -1; else if (noBiteSince < 0) noBiteSince = now;
       let t = null;
+      // Once he is big enough for the finale it is THE goal: whenever it is
+      // off screen the arrow points at it, at once, whatever else is in view
+      // (with nothing pointing at it, a wandering child took up to two
+      // minutes to find it — PLAN_GOBBLE.md §12).
+      const goal = L.goalOf(st);
       const hinted = st.hint >= 0 ? st.objects[st.hint] : null;
-      if (hinted && hinted.st === 0 && !onScreen(hinted, 12)) t = hinted;
+      if (goal && !onScreen(goal, 12)) t = goal;
+      else if (hinted && hinted.st === 0 && !onScreen(hinted, 12)) t = hinted;
       else if (!any && now - noBiteSince >= NO_BITE_AFTER) t = L.nearestEdible(st);
       if (!t) return;
+      const isGoal = !!goal && t === goal, ar = isGoal ? GOAL_R : ARROW_R;
       // on the screen's edge, on the line from Gobble toward it
       const gx = clamp(sx(h.x), 0, cssW), gy = clamp(sy(h.y), 0, cssH);
       let dx = sx(t.x) - gx, dy = sy(t.y) - gy;
       const len = Math.hypot(dx, dy) || 1;
       dx /= len; dy /= len;
-      const m = ARROW_R + 16;
+      const m = ar + 16;
       const kx = dx > 1e-6 ? (cssW - m - gx) / dx : dx < -1e-6 ? (m - gx) / dx : Infinity;
       const ky = dy > 1e-6 ? (cssH - m - gy) / dy : dy < -1e-6 ? (m - gy) / dy : Infinity;
       const k = Math.max(0, Math.min(kx, ky));
       const bob = reduceMotion() ? 0 : Math.sin(now * 5) * 4;
-      arrow = { id: t.id, e: t.e, x: gx + dx * (k - bob), y: gy + dy * (k - bob), dx, dy, r: ARROW_R };
+      arrow = { id: t.id, e: t.e, x: gx + dx * (k - bob), y: gy + dy * (k - bob), dx, dy, r: ar, goal: isGoal };
     }
-    function drawArrow() {
+    function drawArrow(now) {
       if (!arrow) return;
       const a = arrow, pal = HOLES[def.hole] || HOLES.gobble;
+      const rim = a.goal ? GOLD.rim : pal.rim;
       const nx = -a.dy, ny = a.dx, base = a.r - 2, tip = a.r + 13;
       ctx.save();
       ctx.lineJoin = "round";
+      if (a.goal) {
+        // the goal's bubble breathes a golden halo
+        const p = reduceMotion() ? 0.5 : 0.5 + 0.5 * Math.sin(now * 5);
+        ctx.fillStyle = GOLD.bright + (0.3 + 0.3 * p).toFixed(3) + ")";
+        ctx.beginPath(); ctx.arc(a.x, a.y, a.r + 5 + 5 * p, 0, Math.PI * 2); ctx.fill();
+      }
       // the pointer, on the side facing the thing
-      ctx.fillStyle = "#ffd24d"; ctx.strokeStyle = pal.rim; ctx.lineWidth = 3;
+      ctx.fillStyle = GOLD.hi; ctx.strokeStyle = rim; ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(a.x + a.dx * tip, a.y + a.dy * tip);
       ctx.lineTo(a.x + a.dx * base + nx * 12, a.y + a.dy * base + ny * 12);
@@ -1733,9 +1879,8 @@
       // the bubble, and the thing inside it
       ctx.fillStyle = "rgba(255,255,255,0.96)";
       ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2); ctx.fill();
-      ctx.lineWidth = 4; ctx.strokeStyle = pal.rim; ctx.stroke();
-      const size = a.r * 1.25, sp = sprite(a.e, size * dpr), f = size / sp.b;
-      ctx.drawImage(sp.cv, a.x - (sp.w * f) / 2, a.y - (sp.h * f) / 2, sp.w * f, sp.h * f);
+      ctx.lineWidth = a.goal ? 5 : 4; ctx.strokeStyle = rim; ctx.stroke();
+      glyph(a.e, a.x, a.y, a.r * 1.25);
       ctx.restore();
     }
     // A tap on the bubble (with a finger's slack): which thing it points at.
@@ -1793,19 +1938,25 @@
         if (it.hole) continue;
         const k = 1 - clamp(it.lift / (it.o.r * view.s * 3), 0, 0.35);
         shadow(sx(it.o.x), sy(it.o.y), it.o.r, k);
+        if (it.o.gold) goldGlow(sx(it.o.x), sy(it.o.y), it.o.r);
       }
+      // the goal's beacon, on the ground under everything
+      drawGoal(now);
       // Pass 2: the things and the hole, back to front.
-      let drawn = 0;
+      let drawn = 0, gold = 0;
       for (const it of items) {
         if (it.hole) { drawHole(now); continue; }
         drawObject(it.o, sx(it.o.x), sy(it.o.y) - it.lift, it.rot, 1, 1);
+        if (it.o.gold) { twinkles(now, it.o, sx(it.o.x), sy(it.o.y) - it.lift); gold++; }
+        else if (lastGoal && it.o.id === lastGoal.id) twinkles(now, it.o, sx(it.o.x), sy(it.o.y) - it.lift);
         drawn++;
       }
+      lastGold = gold;
       drawHint(now);
       drawFx(now);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       updateArrow(now);
-      drawArrow();
+      drawArrow(now);
       lastDraw = { objects: drawn, standing, falling: lastDraw.falling, decals: nd, ground: !inside, ok: true };
       frames++;
     }
@@ -1817,7 +1968,7 @@
     // does). A pending effect keeps it busy until it has been drawn out.
     function busy(now) {
       if (!st || !cam || !cssW) return true;
-      if (intro || fx.length || shakeT > now || happyUntil > now || wideUntil > now) return true;
+      if (intro || fx.length || shakeT > now || happyUntil > now || wideUntil > now || starUntil > now) return true;
       for (const t of hopUntil.values()) if (t > now) return true;
       const g = clampCam(mode === "whole" ? wholeTarget() : followTarget());
       return Math.abs(Math.log(cam.span / g.span)) > 0.003 || Math.hypot(cam.x - g.x, cam.y - g.y) > 0.05;
@@ -1839,6 +1990,8 @@
         view: { ...view }, css: [cssW, cssH], dpr, sprites: sprites.size, inks: inks.size, fx: fx.length,
         shaking: shakeT > clock, drawn: { ...lastDraw }, frames, inkless, detail: view.s * dpr,
         camera: camera(), arrow: arrow ? { ...arrow, hit: arrow.r + 16 } : null,
+        goal: lastGoal ? { ...lastGoal } : null, gold: lastGold, face: lastFace ? { ...lastFace } : null,
+        starEyes: starUntil > clock,
       };
     }
 

@@ -78,6 +78,8 @@
   //   trails: lines of one tier-1 bite leading out from the start.
   //   decals: the ground's features (drawn only; nothing stands "on" them).
   //          Positions are normalized; a width `w` is in world units.
+  //   finale: { e, r, at, say } — the biggest thing, on its stage at `at`;
+  //          `say` is its spoken name ("the castle").
   // The first `starters` tier-1 bites are placed right beside Gobble so the
   // first gulp is instant. The ORDER of the places is the order ▶ walks them
   // in after a win (the last wraps round to the first).
@@ -113,7 +115,7 @@
         { r: [10.0, 11.0], items: [["🪑", 12], ["🧺", 10], ["🚲", 8], ["🎹", 8]] },
         { r: [14.0, 15.0], items: [["🛏️", 8], ["📺", 8]] },
       ],
-      finale: { e: "🏰", r: 20, at: [0.5, 0.16] },
+      finale: { e: "🏰", r: 20, at: [0.5, 0.16], say: "the castle" },
     },
     {
       id: "picnic", name: "Picnic Park", door: "🧺", color: "#8fd16a",
@@ -147,7 +149,7 @@
         { r: [10.0, 11.0], items: [["⛺", 10], ["🌲", 16, "woods"], ["🪴", 8], ["🧺", 6]] },
         { r: [14.0, 15.0], items: [["🌳", 12, "woods"], ["⛲", 6]] },
       ],
-      finale: { e: "🎡", r: 20, at: [0.5, 0.15] },
+      finale: { e: "🎡", r: 20, at: [0.5, 0.15], say: "the big wheel" },
     },
     {
       // A farm with NOTHING alive on it: crops, fruit, tools and tractors —
@@ -183,7 +185,7 @@
         { r: [10.0, 11.0], items: [["🚜", 12, "yard"], ["🌳", 12, "orchard"], ["🛻", 8], ["🛖", 6]] },
         { r: [14.0, 15.0], items: [["🏡", 8], ["🚛", 8]] },
       ],
-      finale: { e: "🎃", r: 20, at: [0.5, 0.15] },
+      finale: { e: "🎃", r: 20, at: [0.5, 0.15], say: "the giant pumpkin" },
     },
     {
       id: "build", name: "Building Site", door: "🚧", color: "#ffc93c",
@@ -214,7 +216,7 @@
         { r: [10.0, 11.0], items: [["🚜", 12, "lot"], ["🛻", 12, "lot"], ["🚚", 14]] },
         { r: [14.0, 15.0], items: [["🚛", 10], ["🏗️", 8]] },
       ],
-      finale: { e: "🏢", r: 20, at: [0.5, 0.15] },
+      finale: { e: "🏢", r: 20, at: [0.5, 0.15], say: "the tower" },
     },
     {
       id: "town", name: "Busy Town", door: "🚦", color: "#5ec8ff",
@@ -250,7 +252,7 @@
         { r: [10.0, 11.0], items: [["🚌", 12, "road"], ["🚒", 8, "road"], ["🚑", 8, "road"], ["🚐", 6, "lot"]] },
         { r: [14.0, 15.0], items: [["🏠", 12], ["🏪", 6]] },
       ],
-      finale: { e: "🏫", r: 20, at: [0.5, 0.15] },   // the whole school! (🏙️ drew as a framed square picture, not a building)
+      finale: { e: "🏫", r: 20, at: [0.5, 0.15], say: "the school" },   // the whole school! (🏙️ drew as a framed square picture, not a building)
     },
     {
       id: "sports", name: "Sports Day", door: "⚽", color: "#4cc76a",
@@ -278,7 +280,7 @@
         { r: [10.0, 11.0], items: [["🚲", 12], ["🛴", 12], ["⛳", 8], ["🏁", 6]] },
         { r: [14.0, 15.0], items: [["🚌", 8], ["🎪", 8]] },
       ],
-      finale: { e: "🏟️", r: 20, at: [0.5, 0.15] },
+      finale: { e: "🏟️", r: 20, at: [0.5, 0.15], say: "the stadium" },
     },
     {
       id: "party", name: "Party Time", door: "🎂", color: "#ff7ac0",
@@ -307,7 +309,7 @@
         { r: [10.0, 11.0], items: [["🪅", 12], ["🎁", 16, "gifts"], ["🪑", 12], ["🪆", 8]] },
         { r: [14.0, 15.0], items: [["🎪", 8], ["🎠", 8]] },
       ],
-      finale: { e: "🎂", r: 20, at: [0.5, 0.15] },
+      finale: { e: "🎂", r: 20, at: [0.5, 0.15], say: "the giant cake" },
     },
     {
       // The sea runs along the far side: the boats float on it (it is a
@@ -340,7 +342,7 @@
         { r: [10.0, 11.0], items: [["⛵", 14, "sea"], ["🚤", 12, "sea"], ["🌴", 14]] },
         { r: [14.0, 15.0], items: [["🛥️", 8, "sea"], ["⛴️", 6, "sea"], ["🏝️", 4, "sea"]] },
       ],
-      finale: { e: "🚢", r: 20, at: [0.5, 0.14] },
+      finale: { e: "🚢", r: 20, at: [0.5, 0.14], say: "the ship" },
     },
     {
       // A jungle island with a friendly volcano at its far end. Its lava
@@ -376,7 +378,7 @@
         { r: [10.0, 11.0], items: [["🌴", 16, "jungle"], ["🛖", 10, "village"], ["🗿", 8], ["⛵", 6, "lagoon"]] },
         { r: [14.0, 15.0], items: [["🌳", 6], ["🗻", 6], ["⛰️", 6]] },
       ],
-      finale: { e: "🌋", r: 20, at: [0.5, 0.15] },
+      finale: { e: "🌋", r: 20, at: [0.5, 0.15], say: "the volcano" },
     },
     {
       id: "snow", name: "Snow Day", door: "⛄", color: "#9fd7ff",
@@ -406,7 +408,7 @@
         { r: [10.0, 11.0], items: [["🌲", 16, "forest"], ["🛖", 8, "village"], ["🚡", 6], ["🚠", 6], ["🚙", 4]] },
         { r: [14.0, 15.0], items: [["🏠", 8, "village"], ["🚂", 8]] },
       ],
-      finale: { e: "🏔️", r: 20, at: [0.5, 0.15] },
+      finale: { e: "🏔️", r: 20, at: [0.5, 0.15], say: "the mountain" },
     },
     {
       // Two runways (PRIVATE: only aeroplanes stand on them), the terminal,
@@ -441,7 +443,7 @@
         { r: [10.0, 11.0], items: [["🚁", 8, "heli"], ["🛩️", 8, "runway"], ["🚌", 10], ["🚒", 6], ["🚚", 8]] },
         { r: [14.0, 15.0], items: [["🛫", 6, "runway"], ["🛬", 6, "runway"], ["🚟", 6]] },
       ],
-      finale: { e: "✈️", r: 20, at: [0.5, 0.15] },
+      finale: { e: "✈️", r: 20, at: [0.5, 0.15], say: "the jumbo jet" },
     },
     {
       id: "space", name: "Outer Space", door: "🚀", color: "#8a7bff",
@@ -467,16 +469,22 @@
         { r: [10.0, 11.0], items: [["🌕", 16], ["🌍", 12], ["🌎", 12]] },
         { r: [14.0, 15.0], items: [["🪐", 16]] },
       ],
-      finale: { e: "☀️", r: 20, at: [0.5, 0.15] },
+      finale: { e: "☀️", r: 20, at: [0.5, 0.15], say: "the Sun" },
     },
   ];
 
   // What Gobble says (when sound is on — it is OFF by default, and the game
   // is fully playable without it).
+  // A line never names a PICTURE (speech must not read an emoji aloud — the
+  // app-wide law): each finale carries a spoken name of its own (`say`).
   const SAY = {
     start: "I'm hungry! Drag me to eat!",
     grow: ["Bigger!", "Yum! Bigger!", "Wow, so big!", "Gobble gobble!"],
+    // the grow that makes Gobble big enough for the finale ({finale} is its
+    // spoken name): from here on, it is what he is here for
+    ready: "Wow, so big! Now eat {finale}!",
     big: "Too big! Eat more first!",
+    treasure: "Ooh, a treasure!",
     win: "Burp! You ate it all!",
     pick: "Pick a place to eat!",
   };
