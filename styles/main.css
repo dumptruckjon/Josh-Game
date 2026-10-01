@@ -2743,11 +2743,23 @@ body.hl-mode .brand { color: #ffe9b0; }
 body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #fff4dc 100%); background-attachment: fixed; }
 .hole-bar { margin-bottom: 12px; }
 .hole-title { color: #4b2a86; }
-.hole-hero { width: 104px; height: 104px; margin: 0 auto 12px; }
+.hole-hero { width: 160px; height: 160px; margin: 0 auto 12px; }
+/* The hero is decoration; the twelve doors are the screen. It shows only
+   where it fits WITH every door (so only on a tablet in portrait, at the size
+   above): on a phone it never does on the real
+   device. Measured: at 390x844 the doors ended exactly at the fold (zero
+   slack) in a plain viewport, and a notched iPhone opened from the home screen
+   adds its 47px status-bar inset above the topbar, so the last row of three
+   was more than half below the fold (the test now simulates that inset). On a
+   tablet it fits in portrait and not in a short (landscape) screen. */
+@media (max-width: 599px), (max-height: 979px) { .hole-hero { display: none; } }
 .hole-meter__me svg, .hole-win__gobble svg, .hole-win__buddy svg { width: 100%; height: 100%; display: block; }
 /* Twelve places since the owner doubled them (2026-10-01): THREE across on a
    phone (four rows, so the whole set fits one portrait screen and none hides
-   below the fold) and four across from 600px. 12 fills both grids evenly. */
+   below the fold — from 360x640 up, the hero above stepping aside; a 320-wide
+   phone keeps its last row below the fold, since four rows of 75px doors 16px
+   apart cannot fit 568px) and four across from 600px. 12 fills both grids
+   evenly. */
 .hole-scenes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2804,6 +2816,13 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
   min-width: 0;
 }
 .hole-meter__me { width: 42px; height: 42px; }
+/* On the narrowest phones the meter's own Gobble face leaves the track 14px
+   wide at 320 — no room to show progress. The face steps aside there and the
+   track gets ~60px; the picture of the next thing stays. */
+@media (max-width: 368px) {
+  .hole-meter { grid-template-columns: minmax(0, 1fr) auto; }
+  .hole-meter__me { display: none; }
+}
 .hole-meter__track {
   display: block;
   height: 22px;
@@ -2889,6 +2908,7 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 .hole-win__buddy, .hole-win__gobble { width: 96px; height: 96px; }
 .hole-win__buddy { display: flex; align-items: center; justify-content: center; font-size: 4rem; }
 .hole-win__count { margin: 0; font-size: 2rem; font-weight: 900; color: #4b2a86; }
+.hole-win__score { display: grid; justify-items: center; gap: 12px; }
 /* the treasures he found, each on a gold coin */
 .hole-win__gold { display: grid; grid-auto-flow: column; grid-auto-columns: 56px; gap: 12px; justify-content: center; }
 .hole-win__treasure {
@@ -2917,13 +2937,37 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
   width: 100%;
 }
 .hole-win__row .btn-big { min-width: 0; padding: 0 12px; font-size: 1.8rem; }
+/* A SHORT screen (every phone on its side; a portrait phone under 600px):
+   the box sits over the FIELD, so it only gets the field's height (the bar
+   stays usable), and the full layout is ~330px tall. Measured: at 844x390 the
+   field is 270px and 🔁/▶ sat wholly below the box's fold; at 568x320 the
+   treasures did too; and a 320x568 phone opened from its home screen loses
+   20px to the status bar, which cut the buttons there as well. A four-year-old
+   will not scroll a dialog to find what to tap next, so here the box goes
+   compact: a 64px cheer, the count BESIDE the treasures, and in landscape a
+   two-row banner (cheer and score, then the buttons). Taller screens are
+   pixel-identical to before. */
+@media (max-height: 599px) {
+  .hole-win { padding: 8px; }
+  .hole-win__box { display: grid; gap: 8px; padding: 10px; }
+  .hole-win__cheer { grid-template-columns: repeat(2, 64px); }
+  .hole-win__buddy, .hole-win__gobble { width: 64px; height: 64px; }
+  .hole-win__buddy { font-size: 2.6rem; }
+  .hole-win__score { display: grid; grid-auto-flow: column; align-items: center; gap: 12px; }
+  .hole-win__count { font-size: 1.6rem; }
+  .hole-win__gold { display: grid; grid-auto-columns: 44px; gap: 8px; }
+  .hole-win__treasure { width: 44px; height: 44px; font-size: 1.5rem; }
+}
+@media (max-height: 599px) and (orientation: landscape) {
+  .hole-win__box { max-width: 560px; grid-template-columns: auto auto; justify-content: center; align-items: center; }
+  .hole-win__row, .hole-win__wall { grid-column: 1 / -1; }
+}
 
 @media (min-width: 600px) {
   .hole-scenes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .hole-door { display: grid; min-height: 172px; gap: 6px; padding: 12px 8px; }
   .hole-door__icon { font-size: 4.2rem; }
   .hole-door__label { font-size: 1.2rem; }
-  .hole-hero { width: 160px; height: 160px; }
 }
 /* Short LANDSCAPE (a phone on its side): the site's 96px top bar took a
    quarter of the height, and the island measured 1.5 px per unit — a 12px
@@ -2932,10 +2976,11 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 @media (max-height: 500px) and (orientation: landscape) {
   body.hole-mode.in-game .topbar { display: none; }
 }
+/* A short phone (iPhone SE/8, 360x640): four rows of doors fit only if each
+   is a little shorter — still a 75px+ target, 16px apart. */
 @media (max-height: 700px) {
-  .hole-hero { width: 80px; height: 80px; margin-bottom: 8px; }
-  .hole-door { min-height: 100px; }
-  .hole-door__icon { font-size: 2.5rem; }
+  .hole-door { min-height: 88px; padding: 6px 4px; }
+  .hole-door__icon { font-size: 2.2rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hole-meter--ready .hole-meter__next, .hole-meter--pop .hole-meter__next { animation: none; }

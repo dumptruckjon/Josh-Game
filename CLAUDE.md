@@ -9737,6 +9737,47 @@ island, so at the two biggest sizes they were cut off by up to 19px. The camera
 and the drawing now read one shared eye geometry, so a bigger eye or a taller
 crown moves both.
 
+**GOBBLE QUALITY CHECK (the owner, 2026-10-01: "everything done, completed,
+tested, high quality?") — every screen and state measured at 17 sizes found
+three defects a green suite could not see, and five things worth keeping.**
+(1) **A plain 390x844 viewport is not the phone.** At the size every Gobble
+test used, the home's twelve doors ended exactly at the fold, with zero slack.
+A notched iPhone opened from its home screen adds a 47px status bar above the
+topbar, so on the real device most of the last row was below the fold, and
+375x667 and 360x640 hid the whole row. No browser emulates a notch, so the
+tests add the real insets with an injected style (the topbar's top padding and
+`#screens`' bottom padding, exactly where `env(safe-area-inset-*)` lands). The
+picture of Gobble above the doors is decoration, so it now shows only where it
+fits WITH every door; the test keeps it on an iPad in portrait as a CONTROL,
+because a rule that hid it everywhere would pass every other clause.
+(2) **A dialog over PART of the screen gets that part's height.** The win box
+sits over the field so 🏠 and 👂 stay usable, and the full layout is ~330px
+tall: in every phone landscape, at 320x480, and on a 320x568 phone with its
+20px status bar, 🔁 and ▶ were below its fold. The shipped win test ran at the
+three sizes where it fits — a viewport list IS the test, again. Below 600px
+tall it is compact now (the count beside the treasures; in landscape a
+two-row banner), and the threshold is 599 rather than the 566 a bare 320x568
+suggests: the mutation that puts it back at 566 goes red at exactly that phone.
+(3) **A flexible track shrinks instead of overflowing, so no overflow check
+can see it squeezed.** The growth meter's bar is the `minmax(0, 1fr)` track
+between fixed neighbours, and at 320 wide it was 14px — a meter nobody can
+read, with zero overflow anywhere. The law asserts the bar's own width
+(≥48px); below 369px the meter's Gobble face steps aside, giving 64px.
+(4) **A unique anchor is not always the RIGHT one.** A mutation of Gobble's
+short-phone door rule came back GREEN: `@media (max-height: 700px) {` appears
+twice in main.css (the front door's block, then Gobble's), and the helper that
+found the block took the first, so it mutated the front door. Anchor on what
+only the target contains — its body — and check the change landed WHERE you
+meant, not just that the file changed.
+(5) **The wandering-child model is `tools/hole-child.js` now**, because a
+restart would have lost the instrument behind two decisions (§12.1, §12.6).
+Its `before` arm has to run the OLD hint: the engine's hint now points at the
+finale once he is big enough, so without it "before" would quietly include
+half of the change it is compared against. With it, the tool reproduces §12.1
+exactly. Recorded, not forced: a 320-wide phone keeps part of the last row of
+doors below the fold, and a phone on its side scrolls the home (landscape is
+not a design target).
+
 ---
 
 ## Repository Structure
@@ -9916,7 +9957,11 @@ tooling.
 │   │                           #   applied to the tap target it lands on (a cue may claim the gap, never the neighbour).
 │   │                           #   Also the one file that renders 🃏 Word Cards on a real engine — the whole 623-card
 │   │                           #   library for clipping, and 写字's row, whose words sit in a `minmax(0,1fr)` between two
-│   │                           #   emoji tracks and so VANISH rather than overflow when a glyph is wider than here
+│   │                           #   emoji tracks and so VANISH rather than overflow when a glyph is wider than here.
+│   │                           #   And 🕳️ Gobble Hole on a REAL phone: the win box's cheer, count, treasures, 🔁 and ▶
+│   │                           #   with no scrolling at nine sizes (phones on their side included), the home's twelve
+│   │                           #   doors above the fold at seven phones and two iPads, each with its real notch and
+│   │                           #   home-bar insets added (no browser emulates a notch), and the meter's bar ≥48px
 │   ├── offline.test.js         # Playwright — drops the network and proves the PWA fully boots from the SW cache (no dead shell), and that every shipped PAGE serves ITSELF rather than the index.html navigation fallback
 │   ├── td-logic.test.js        # 🏰 headless engine sims: determinism, combat math, wave-budget audit, L1 winnable-by-script AND losable-by-neglect
 │   ├── td.test.js              # 🏰 Playwright: front-door entry (no gate), routes, real build taps, scripted victory via __TD, defeat, pause/speed, kid-isolation, no-overflow
@@ -9941,7 +9986,8 @@ tooling.
 │   ├── td-map-search.js        # 🏰 search lanes + pads against every geometry law (≥0.99 from EVERY lane, ≥1.4 pairwise, ≥1.9 from a lever, ≤BAND from the lane it must COVER), all in cell-index space. Edit the literals, run, paste into td-data.js.
 │   ├── td-fork-search.js       # 🏰 which shipped maps admit a SECOND lane with no pad moved? Enumerates axis-aligned detours and keeps only those passing every shipped fork law (shared prefix, real divergence, ≥1.15× longer, every pad ≥0.99 from BOTH lanes, ≥1.9 from the lever). `node tools/td-fork-search.js 15,23`.
 │   ├── td-miniboss.js         # 🧪 is an ADDITIVE elite a real lever? Judges on the doser's four rules PLUS spread, because "the median moved" is exactly what a disguised constant does. Reproduces the two recorded nulls before measuring anything new. Six shapes measured, all constants — see PLAN_MINIBOSS.md; the tool is kept so the seventh idea is one command, not a re-derivation.
-│   └── td-threat.js            # 🏰 THREAT-SHAPE doser. `SPREAD=1 node tools/td-threat.js` DERIVES the target list (per-level min/median/max/spread over 8 seeds) — the flat-level list must never be a remembered one, and spread is the signal, not the value: a level reading 19 on all eight seeds is as much a disguised constant as one reading 20. `node tools/td-threat.js` audits which counter each level's late game never asks for; `node tools/td-threat.js 22,26` grid-searches (wave × dose) for a swap. Screens on 4 seeds, CONFIRMS on 8 (two doses looked clean on 4 and lost heroic on 8), and the confirm set is ranked by HEROIC HEADROOM — heroic is the binding axis, and ranking on normal movement twice confirmed the wrong candidates. SKIPS fork levels (a fork's difficulty IS its lever's value — L31 measured beautifully and broke `TD7 lever advantage`), never ADDS hp and never drains the flier group. In the repo for the reason the fork sweep sat open two releases: a scratch script gets thrown away and the item becomes unactionable.
+│   ├── td-threat.js            # 🏰 THREAT-SHAPE doser. `SPREAD=1 node tools/td-threat.js` DERIVES the target list (per-level min/median/max/spread over 8 seeds) — the flat-level list must never be a remembered one, and spread is the signal, not the value: a level reading 19 on all eight seeds is as much a disguised constant as one reading 20. `node tools/td-threat.js` audits which counter each level's late game never asks for; `node tools/td-threat.js 22,26` grid-searches (wave × dose) for a swap. Screens on 4 seeds, CONFIRMS on 8 (two doses looked clean on 4 and lost heroic on 8), and the confirm set is ranked by HEROIC HEADROOM — heroic is the binding axis, and ranking on normal movement twice confirmed the wrong candidates. SKIPS fork levels (a fork's difficulty IS its lever's value — L31 measured beautifully and broke `TD7 lever advantage`), never ADDS hp and never drains the flier group. In the repo for the reason the fork sweep sat open two releases: a scratch script gets thrown away and the item becomes unactionable.
+│   └── hole-child.js           # 🕳️ Gobble Hole's WANDERING-CHILD model (PLAN_GOBBLE §12.1): it goes for what it SEES (big things too, which bump), pauses, wanders, and follows the hint or the edge arrow only half the time — the tests' greedy bot heads straight for the nearest bite, so it can never show where a child gets stuck. `node tools/hole-child.js [places]` plays BEFORE the finale's call against the SHIPPED game (16-93s from "big enough" to the win, up to 122s, against 2-9s); `--newest` plays the shipped game against a hint at the newest tier (no difference, so §12.6 was not built). Its `before` arm uses the OLD hint, because the engine's hint now points at the finale. A model, for COMPARING designs, never for predicting a child. In the repo because a restart would have lost the instrument behind two decisions.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
 ├── .claude/
@@ -9986,7 +10032,7 @@ tooling.
 │                               #   boss to carry `hurry` — it does not hit you, it makes the party ARRIVE FASTER.
 ├── PLAN_WORLD_9.md             # 🏭 ✅ BUILT (this line said "DESIGNED, NOT BUILT" for a release AFTER the world shipped — the "a list that outlives its contents" class, caught 2026-08 by reading DATA.LEVELS instead of the doc): World 9 "The Toy Works" — L33-L36, the loop-closing world (the step after the sort line is the factory that melts you down into a new toy). §0 records the star-ceiling blocker as CLEARED (123⭐ tree vs a 108⭐ ceiling, margin 15). §3 carries lane+pad literals for all four levels AND the arena, all output by `tools/td-map-search.js` and passing every geometry law — nothing eyeballed. It must land as ONE commit: a half-built world breaks the per-world guardrails and puts unreachable content on the grid.
 ├── PLAN_WORLD_5.md             # 🔧 ✅ BUILT: World 5 "The Garage" — L17-L20, 2 new threat shapes (slow-immune Grease Racer, capped-load Bolt Bucket), the Toolbox Titan boss, a 5th endless arena. §11 records what shipped AND the four negative results (bypass shapes, air pressure, conveyor, boss hp) with their measurements.
-├── PLAN_GOBBLE.md              # 🕳️ ✅ BUILT: Gobble Hole — the design (character, controls, derived growth, the first six scenes, the "super fun" checklist, architecture, tests), §9 phase 2 (BIG worlds and a camera), §11 phase 3 (worlds twice as big, twelve places, keep-outs), §12 the polish pass (what a wandering-child model measured, the finale's call, treasures, the door ring, the face at the top edge, and what was measured and not built) and §10, what was deliberately NOT built (a 2-player mode; Sticker Book stickers)
+├── PLAN_GOBBLE.md              # 🕳️ ✅ BUILT: Gobble Hole — the design (character, controls, derived growth, the first six scenes, the "super fun" checklist, architecture, tests), §9 phase 2 (BIG worlds and a camera), §11 phase 3 (worlds twice as big, twelve places, keep-outs), §12 the polish pass (what a wandering-child model measured, the finale's call, treasures, the door ring, the face at the top edge, and what was measured and not built), §13 the quality check (the win box and the home on a real phone, the meter at 320 wide, and the model moved into `tools/`) and §10, what was deliberately NOT built (a 2-player mode; Sticker Book stickers)
 └── CLAUDE.md                   # This file
 ```
 
@@ -10227,7 +10273,12 @@ screen, Gobble wears a 👑, and a fanfare names it ("Wow, so big! Now eat the
 castle!"). Before that, a wandering child could spend up to two minutes
 looking for it. And three things in each place glitter — TREASURES: eating one
 is a burst of gold and star eyes, and the win shows the ones he FOUND (never a
-slot for one he missed).
+slot for one he missed). Since **the quality check (the owner, 2026-10-01)** it
+is measured on a REAL phone, notch included: the home shows all twelve doors on
+the first screen of every portrait phone from 360x640 up (Gobble's picture above
+them shows only on an iPad in portrait, where it fits WITH the doors), and on a
+short screen — any phone on its side, a small phone — the win box goes compact,
+so 🔁 and ▶ are always on screen without scrolling.
 
 Invariants (guardrail-locked in `tests/hole-logic.test.js`, `tests/hole.test.js`,
 `mobile.test.js` and `site.test.js`):
