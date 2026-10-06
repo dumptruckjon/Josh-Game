@@ -15027,6 +15027,26 @@ very tree that rolls back (and an uncommitted one is simply deleted), and
 tried and neither survives. Detection has to be a habit, not a script; the one
 thing that always works is that `git fetch` reaches the real remote.
 
+**After every ship, reset the session branch to `main` — keep things clean
+(owner, 2026-10-06).** The Claude app shows this session's branch,
+`claude/bootstrap-setup-rq5w09`, as a diff against `main`, counted from the last
+commit the two share, the way a pull request is. WIP backups go to that branch
+during a long gate in case the container rolls back, and the real work then
+reaches `main` as DIFFERENT commits — so the app went on showing 13 backup
+commits (12 files, about +4,500 lines) as pending while every line of them was
+already live and a direct file-by-file diff was empty. Once the work is on
+`main`, point the branch at it:
+
+```bash
+B=claude/bootstrap-setup-rq5w09; git fetch origin -q && git log -50 --format=%T origin/main | grep -qx "$(git rev-parse "origin/$B^{tree}")" && git branch -f --no-track "$B" origin/main && git push -u --force-with-lease="$B:$(git rev-parse "origin/$B")" origin "$B" && git ls-remote origin main "$B"
+```
+
+The `grep` is the safety: the reset only runs when the branch's exact files
+shipped as some commit on `main`, so a backup holding work `main` lacks stops
+the line instead of being overwritten (proven both ways). If it prints nothing,
+compare the two by hand before touching anything. It moves that branch only,
+never `main`, and the last line must show both at the same commit.
+
 ### Verifying locally
 It's a static site — serve the folder and open it:
 
