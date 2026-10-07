@@ -356,47 +356,68 @@ test("🕳️ Gobble's WIN box shows the cheer AND 🔁/▶ with no scrolling at
   }
 });
 
-test("🕳️ Gobble's home: all twelve doors on the FIRST screen of every portrait phone from 360x640 up and of an iPad — on the real phone, notch included", async () => {
-  // Three across, four rows (main.css). The shipped test measured a plain
-  // 390x844, where the doors ended exactly at the fold — zero slack — so on a
-  // real notched iPhone (+47px of status bar above the topbar) most of the
-  // last row hid below it, and on 375x667 and 360x640 the whole last row did.
-  // A door a non-reader cannot see is a place he does not know exists. Now the
-  // decorative hero steps aside wherever it would push a door off, and a short
-  // phone's doors are a little shorter (still 75px+, still 16px apart).
-  // A 320-wide phone is NOT in the list: four rows of 75px doors 16px apart
-  // cannot fit 568px, so its last row stays below the fold (it scrolls).
-  // [w, h, [topInset, bottomInset]] — real device insets, portrait
-  const PHONES = [[360, 640, [0, 0]], [375, 667, [20, 0]], [375, 812, [50, 34]], [390, 844, [47, 34]],
+test("🕳️ Gobble's home: all TWENTY-FOUR doors on the FIRST screen of an iPad either way up, notch included — and on a phone an even grid that scrolls (never sideways), every door reachable, every name inside its door", async () => {
+  // Twenty-four places since the owner doubled them again (2026-10-06). On
+  // an iPad — Josh's own device — six across fits all twenty-four on one
+  // screen, in portrait AND on its side. On a phone eight rows of doors big
+  // enough for a small finger (75px+, 16px apart) cannot fit one screen, so
+  // the home scrolls there (as Josh's own launcher does): it must never
+  // scroll sideways, its first screen must show at least three full rows
+  // with the next one waiting below, and the last door must be reachable.
+  // The insets are the real ones (no browser emulates a notch): a status bar
+  // above the topbar, a home indicator below.
+  // [w, h, [topInset, bottomInset]]
+  const PHONES = [[320, 568, [20, 0]], [360, 640, [0, 0]], [375, 667, [20, 0]], [375, 812, [50, 34]], [390, 844, [47, 34]],
     [393, 852, [59, 34]], [414, 896, [48, 34]], [430, 932, [59, 34]]];
-  const TABLETS = [[768, 1024, [20, 0]], [834, 1112, [24, 20]]];
+  const TABLETS = [[768, 1024, [20, 0]], [810, 1080, [24, 20]], [834, 1112, [24, 20]], [1024, 1366, [24, 20]],
+    [1024, 768, [24, 20]], [1194, 834, [24, 20]]];
   for (const [w, h, inset] of [...PHONES, ...TABLETS]) {
     const { ctx, p } = await freshPage(w, h, inset);
     try {
       const at = `${w}x${h} +inset ${inset.join("/")}`;
       await p.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
       await showScreen(p, "#hole-home", "#screen-hole-home");
+      await p.evaluate(() => scrollTo(0, 0));
       const m = await p.evaluate((bottomInset) => {
         const vh = document.documentElement.clientHeight;
         const doors = [...document.querySelectorAll(".hole-door")].map((b) => b.getBoundingClientRect());
         const hero = document.querySelector(".hole-hero").getBoundingClientRect();
-        return { n: doors.length, clear: vh - bottomInset, last: Math.round(Math.max(...doors.map((r) => r.bottom))),
+        return { n: doors.length, places: window.HoleData.SCENES.length, clear: vh - bottomInset,
+          cols: new Set(doors.map((r) => Math.round(r.left))).size,
+          last: Math.round(Math.max(...doors.map((r) => r.bottom))),
           hidden: doors.filter((r) => r.bottom > vh - bottomInset + 0.5).length,
-          minSide: Math.round(Math.min(...doors.map((r) => Math.min(r.width, r.height)))), hero: Math.round(hero.height) };
+          minSide: Math.round(Math.min(...doors.map((r) => Math.min(r.width, r.height)))), hero: Math.round(hero.height),
+          // a name wider than its door (one long word cannot wrap) spills out
+          // of it: "Supermarket" did on every phone and on a 768 iPad
+          spill: [...document.querySelectorAll(".hole-door__label")].filter((l) => {
+            const d = l.closest(".hole-door").getBoundingClientRect(), r = l.getBoundingClientRect();
+            return l.scrollWidth > l.clientWidth + 0.5 || r.left < d.left - 0.5 || r.right > d.right + 0.5;
+          }).map((l) => l.textContent) };
       }, inset[1]);
-      assert.equal(m.n, 12, `${at}: fixture — twelve doors`);
-      // …and still big and 16px apart at every one of these sizes. Hiding the
-      // hero put the bar's 🚪/👂 straight on the first row of doors, 12px
-      // away, and only the audit above (three sizes) could have noticed.
+      assert.equal(m.n, m.places, `${at}: one door per place`);
+      assert.equal(m.n % m.cols, 0, `${at}: the grid fills evenly (${m.n} doors in ${m.cols} columns)`);
+      // …and still big and 16px apart at every one of these sizes
       await auditActiveScreen(p, `hole-home@${at}`);
-      assert.equal(m.hidden, 0, `${at}: every door must be on the first screen, clear of the home indicator — ` +
-        `${m.hidden} end below ${m.clear} (the last at ${m.last})`);
-      assert.ok(m.minSide >= 75, `${at}: still kid-sized doors (${m.minSide}px)`);
+      await noOverflow(p, `hole-home@${at}`);
+      assert.ok(m.minSide >= 75, `${at}: kid-sized doors (${m.minSide}px)`);
+      assert.deepEqual(m.spill, [], `${at}: every place's name stays inside its door`);
       if (w >= 600) {
-        // The control: the hero steps aside only where it must. An iPad in
-        // portrait has room for it, so it stays (a rule that simply hid it
-        // everywhere would pass every clause above).
-        assert.ok(m.hero > 0, `${at}: an iPad in portrait keeps Gobble's picture on the home`);
+        assert.equal(m.hidden, 0, `${at}: on an iPad every door is on the first screen, clear of the home indicator — ` +
+          `${m.hidden} end below ${m.clear} (the last at ${m.last})`);
+        // The control both ways: Gobble's picture stays only where it fits
+        // WITH every door — a tall iPad in portrait — and steps aside on a
+        // 768x1024 iPad and on its side (a rule that hid it everywhere, or
+        // nowhere, fails one of these)
+        if (h >= 1040 && h > w) assert.ok(m.hero > 0, `${at}: a tall iPad in portrait keeps Gobble's picture on the home`);
+        else assert.equal(m.hero, 0, `${at}: Gobble's picture steps aside for the doors`);
+      } else {
+        assert.equal(m.hero, 0, `${at}: on a phone Gobble's picture steps aside for the doors`);
+        assert.ok(m.n - m.hidden >= 9 && m.hidden > 0, `${at}: a phone's first screen shows at least three full rows, and the rest wait below (${m.n - m.hidden} of ${m.n})`);
+        // the last door: the page scrolls to it
+        const last = p.locator(".hole-door").last();
+        await last.scrollIntoViewIfNeeded();
+        const r = await last.boundingBox();
+        assert.ok(r && r.y >= 0 && r.y + r.height <= h - inset[1] + 0.5, `${at}: scrolled to, the last door is all on screen (${r && Math.round(r.y)}..${r && Math.round(r.y + r.height)})`);
       }
     } finally { await ctx.close(); }
   }

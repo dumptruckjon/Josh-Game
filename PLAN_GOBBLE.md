@@ -5,7 +5,8 @@ hole.io, Donut County or Hole em All … a scene of really interesting stuff and
 you have to eat more and more of it to get progressively larger … super fun for
 a 4 year old").
 Phase 2 (big worlds you move around in, §9), phase 3 (bigger worlds and
-twelve places, §11), the polish pass (§12) and a quality check (§13) are built
+twelve places, §11), the polish pass (§12), a quality check (§13) and phase 4
+(twenty-four places, each with its own shape and challenge, §14) are built
 too.
 
 A fourth world on the front door, right after 🏰 Fort Josh. Josh drags a
@@ -356,6 +357,8 @@ Two new rules for where a thing may stand, both judged by its centre:
   what belongs on the water — the boats and the little islands, so no bucket
   floats on it — and the airport's runways take only the planes.
 - **An avoid rect** holds nothing at all: the volcano's two lava streams.
+  (Phase 4 made lava a BLOCK — ground that is not ground at all — so `avoid`
+  is gone; §14.2, §14.8.)
 
 ### 11.4 Laying out twice as many things
 
@@ -574,3 +577,214 @@ Its `before` arm has to use the OLD hint, because the engine's hint now points
 at the finale once he is big enough; with that, it reproduces §12.1 exactly
 (16-93s, up to 122s, before; 2-9s with the call). The tools smoke test runs
 both of its arms.
+
+## 14. Phase 4 — twenty-four places, each its own shape and challenge (owner, 2026-10-06)
+
+> "double the levels on gobble hole again. make sure the new ones are
+> interesting and unique and fun. add more sound effects too if possible.
+> also make sure the setup of objects varies per level significantly. i dont
+> want each level to just a copy with a different skin. the layout and shape
+> of the level and challenge should feel different. think smart"
+
+Before this, every place was the same rectangle of scattered things; only the
+pictures and the districts changed. Now there are twenty-four places, and
+every one of them — the first twelve too — has its own SHAPE of ground, its
+own PLAN (what Gobble walks round, what crosses it, where things stand) and
+its own CHALLENGE (a mechanic of its own). All of it is DATA in
+`hole-data.js`; the engine is the one place it becomes rules.
+
+### 14.1 The twenty-four
+
+| Door | Place | Shape | Challenge | Finale |
+|---|---|---|---|---|
+| 🧸 | Toy Room | a room | a toy train runs round the rugs: eat its cars | 🧸 the giant teddy |
+| 🧺 | Picnic Park | an oval park round a pond | round the pond, or over its bridge; bump a tree and its fruit falls | 🎡 the big wheel |
+| 🚜 | Sunny Farm | fenced fields | the log gate is locked: find the 🗝️ | 🎃 the giant pumpkin |
+| 🚧 | Building Site | an L-shaped site behind walls | a wall of barrels and a row of trucks block two gaps until he is big enough to eat through | 🏢 the tower |
+| 🚦 | Busy Town | a cross of four streets | cars, taxis and buses drive the streets and the roundabout | 🏫 the school |
+| ⚽ | Sports Day | a stadium | eat one ball of a row, or one skittle, and the rest roll in after it; a ball runs the track | 🏟️ the stadium |
+| 🎂 | Party Time | a heart | presents and piñatas burst with surprises | 🎂 the giant cake |
+| 🏖️ | Beach Day | four sandy islands, bridged | boats sail round two bays | 🚢 the ship |
+| 🌋 | Volcano Island | an island cut by lava | round the lava or over its bridges; stone heads stand on two of the bridges until he is big enough to eat them | 🌋 the volcano |
+| ⛄ | Snow Day | a snowman | the frozen lake is ICE: on it he slides | ⛄ the giant snowman |
+| 🛫 | Airport | a wide strip | moving walkways carry him; small planes taxi | ✈️ the jumbo jet |
+| 🚀 | Outer Space | six planets | wormholes jump him between them; moons, satellites and UFOs orbit | ☀️ the Sun |
+| 🛒 | Shopping Day | a shop of aisles | the shelves make aisles; trolleys roll up and down them | 🏬 the whole shop |
+| 🌿 | Hedge Maze | rings of hedges | find the gap in each ring, in to the middle | ⛲ the fountain |
+| 🔦 | Crystal Cave | chambers joined by tunnels | it is DARK: only the ground round Gobble is lit, and some things glow | 🔮 the crystal ball |
+| 🏰 | Castle | a keep in a moat | over the moat by its bridge; the castle door is locked: find the 🗝️ | 🏰 the castle |
+| 🏭 | Toy Factory | a factory floor | conveyor belts carry him; boxes pop open | 🤖 the giant robot |
+| 🎪 | Circus | rings joined by bridges | two springboards bounce him across; scooters ride round the ring | 🎪 the big top |
+| 🌴 | River Jungle | a tall jungle | the river carries him downstream, past round thickets | 🛕 the temple |
+| ☁️ | Cloud Land | clouds joined by bridges | two rainbow slides; balloons drift on the breeze | 🌈 the big rainbow |
+| 🏝️ | Treasure Island | a crescent round a bay | X marks the spot: eat an ❌ and treasure pops up; a ship sails the bay | 💰 the treasure |
+| 🎢 | Theme Park | a park round a lake | a roller coaster, teacups, a carousel and boats on the lake all ride | 🎢 the roller coaster |
+| 🍭 | Candy Land | a spiral road | the road winds in: small sweets first, the big ones at the end | 🍭 the giant lollipop |
+| 🎵 | Music Land | a music note | every gulp plays the next note of a tune; rows of notes topple | 🎹 the giant piano |
+
+The doors run in this order and ▶ on the win screen walks it; Music Land is
+last, so ▶ from it wraps to the Toy Room. Two finales changed so that every
+place builds to its own: the Toy Room's toy castle became the giant teddy (the
+Castle is a place now), and Snow Day's mountain became the giant snowman.
+
+### 14.2 The challenges (one rule each)
+
+- **Shapes.** An island is any union of shapes — a rect, circle, oval, ring,
+  a path (a road of a given width) or a polygon — each with an optional cut-out
+  (`not`: the crescent's bay). They are signed distance fields, sampled once
+  per place on a 2-unit grid, so a step or a placement is a lookup.
+- **Blocks** are shapes he walks ROUND: water and lava (they lie below the
+  ground) and hedges, fences, shelves, walls and rock (they stand up out of
+  it). Ground nothing may stand on is a block, so it needs no rule of its own.
+- **Bridges** cross a block or the gap between two islands.
+- **Tracks:** a loop, a there-and-back line, a train (its cars keep their row)
+  or an orbit. A rider the magnet catches leaves its track and is eaten.
+- **Solid** things are a wall while they are too big to eat; once he is big
+  enough he eats his way through.
+- **Lock and key:** a locked thing is a wall and cannot be eaten until its key
+  is. Bumping it says "It's locked! Find the key!" and the hint points at the
+  key at once.
+- **Pop and shake:** a box's surprises spill out when it is eaten; a tree's
+  fruit falls the first time he bumps it.
+- **Chain:** eat one of a row and the rest roll in after it, one by one, faster
+  and faster.
+- **Currents:** a river, a conveyor belt, a moving walkway or a rainbow slide
+  carries him; let go and he floats along.
+- **Ice:** on it his speed follows the finger slowly (over 0.6s), so he slides.
+- **Portals:** step on one and out of its partner you come; it sleeps until he
+  has walked away, so he is not bounced straight back.
+- **Dark:** only the ground round Gobble is lit; glowing things show from afar.
+- **Notes:** every gulp plays the next note of the place's tune.
+- **Bands:** a district measured along the WAY from the start (0 at the start,
+  1 at the far end), so on a spiral or a river the small things come first and
+  the big ones at the end of the journey.
+
+### 14.3 Where he can go
+
+- Gobble's centre stands on walkable ground, outside the core (0.9 × radius)
+  of every wall thing (a solid thing too big for him, a locked thing).
+- A finger across water or a wall sends him ROUND it, or over a bridge: a path
+  on a 5-unit walking grid, re-planned only when the finger moves to another
+  cell or a wall comes down, heading for the farthest point along it he can
+  see.
+- He plans from his OWN side of a hedge: the nearest cell he can walk to in a
+  straight line, not the nearest open cell, which can be across the hedge.
+- Steered at a wall he cannot pass, he leans on it, so it bumps and says why
+  (too big, or locked) instead of stopping short of it in silence.
+- He moves in 1.5-unit steps and slides along a wall; when both slides are
+  blocked (a notch where two cloud islands meet), he tries turning a little
+  either way before he stops.
+- Every gate shuts: with a wall of too-big things or a locked door standing,
+  the ground it guards is a different piece from the ground he comes from; with
+  it eaten or opened, one piece (tested on a 0.25-unit grid).
+
+### 14.4 Sounds
+
+- **Every place has its own tune** (4-8 notes), played as it opens, so no two
+  places sound alike either. In Music Land every gulp plays the next note.
+- **Every challenge has its own sound**, all through `JoshAudio.tone` and the
+  global mute: a soft low thud for a wall too big to eat (never a buzzer —
+  RULE 5), a rattle for a locked gate, a click and a rising chime when the key
+  opens it, a pop when a box bursts, a rustle when a tree shakes, a whoosh
+  through a portal, a "wheee" into a current, a glassy shimmer onto ice, and a
+  sparkle at five and at ten gulps in a row.
+- **The words are rationed:** "Surprise!" at most once in 8 seconds; "Whoosh!",
+  "Wheee!" and "Whoa, slippy!" once a visit; "It's locked! Find the key!" keeps
+  the "too big" line's spacing.
+- **A law** (hole-logic.test.js) derives every event the engine emits and every
+  event the page listens for: an event nothing plays is a challenge that
+  happens in silence, so it fails. The one stated exception is the fall (the
+  gulp sounds when the thing lands).
+
+### 14.5 The doors
+
+Twenty-four doors in an even grid: 6 across on a tablet, either way up (four
+rows, all on the first screen, notch included), and 3 across on a phone
+(eight rows). A phone cannot fit eight rows of doors big enough for a small
+finger (75px+, 16px apart), so the home scrolls there, as Josh's own launcher
+does: never sideways, the first screen shows at least three full rows with the
+rest waiting below, and the last door scrolls fully into view. Gobble's
+picture above the doors shows only on a tall iPad in portrait, where it fits
+with every door. "Supermarket" was one word too long for a door on every
+phone and on a 768 iPad, so that place is Shopping Day, and a test now fails
+any name that spills out of its door.
+
+### 14.6 The opening look rests first
+
+A fresh place opens on a look at the whole island and then flies in to
+Gobble. It used to start flying on the very first frame, so the whole island —
+now the first thing that tells one place from another — was never seen still.
+It rests 0.6s first.
+
+### 14.7 Measured
+
+- **Every place lays out cleanly** (nothing squeezed, every thing in its
+  district) and holds 286-432 things (336 on average). The floor is 280 (it was
+  360): a heart or a spiral has less ground than a full rectangle. "Takes a
+  while" is guarded by the bot law, which still holds: every place takes the
+  greedy bot at least 20s (the quickest is Beach Day at 22.1s; the longest
+  Shopping Day at 49.8s), and 33.2s on average, against phase 3's 37s.
+- **The progress law** holds at every size: at least twice the next grow's
+  worth he can reach and eat — round every wall still too big, behind no door
+  still locked — and the finale reachable. The tightest margin is 2.07 (Beach
+  Day's last grow).
+- **No place is a reskin:** no two share a set of challenges, and the ground
+  comes in 20 different shapes. The five places on a plain room rectangle (Toy
+  Room, Sunny Farm, Shopping Day, Toy Factory, Theme Park) each have a
+  different plan inside it: rugs and a train, fences and a gate, shelves and
+  trolleys, walls and belts, a lake and its rides.
+
+### 14.8 What broke on the way, and is now a law
+
+- **An outline traced from its middle split into scraps.** A lava river that
+  runs off the grid's edge left an open chain, and the volcano drew its lava as
+  a row of little bits. The tracer pads its grid with a ring of outside points,
+  so every outline closes; a test requires every edge the renderer draws to be
+  a closed ring on the island.
+- **A hedge maze took most of a second to build**, measuring every hedge
+  segment from every point. A segment index answers "how far to the nearest
+  line" exactly within reach and cheaply beyond it; a test checks it against
+  the slow answer.
+- **Pressed against a hedge, Gobble never moved:** he planned from the nearest
+  open cell, which could be on the far side of the hedge. He plans from his own
+  side now.
+- **In a notch where two cloud islands meet he stuck fast:** both slides were
+  blocked. He tries turning before he stops.
+- **A wall too big to eat sometimes never bumped:** steered beyond it, his path
+  ended short of the wall and he stood still in silence. He leans on the wall
+  now, so it bumps and says why.
+- **A toppling row took ages to finish.** The chain speeds up as it goes.
+- **Dead data, both ways.** Six ground features (the belt, fence, track, sea,
+  lava and taxiway decals) had drawings no place used once those became blocks,
+  currents and tracks; and the engine read two fields no place declared
+  (`avoid`, the volcano's old lava rects, and `holes`). All are gone, and a law
+  now fails a field a place declares that nothing reads (a typo) and a field
+  the code reads that no place declares (a feature nothing can reach).
+- **A test counted a thing as eaten whenever it was not standing** — but a
+  surprise still inside its box (HIDDEN) is not eaten. It counts GONE now.
+- **The sound test drives the page's REAL drain:** it pushes events into the
+  running game and lets the page play them, so it tests the dispatcher a child
+  hears, not a copy of it.
+
+### 14.9 Tests
+
+- **Engine (hole-logic.test.js):** twenty-four places, each with its own door,
+  name, finale and a tune of real notes; no place a reskin, with at least 15
+  different ground shapes; the progress law; every gate shuts; every outline a
+  closed ring on the island; the segment index exact within reach; riders,
+  solid walls, locks and keys, boxes and trees, chains, currents, ice, portals,
+  routes round water and a hedge pressed against, each played headless; every
+  event heard by the page; no dead field either way; and the bot law above.
+- **Browser (hole.test.js):** every place opens and draws its floor, every
+  ground feature and its things; twenty-four doors in an even grid, the last
+  reachable; each challenge makes its own sound, the lines are rationed, each
+  place opens with its own tune and Music Land's gulps play it note by note;
+  the opening look rests on the whole island before it flies in.
+- **Mobile (real WebKit in CI):** the 24-door home at eight phones and six
+  tablets with their real insets — doors 75px+ and 16px apart, no sideways
+  scroll, every name inside its door, all of it on one screen on an iPad
+  either way up, and on a phone at least three full rows with the last door
+  reachable.
+
+Each new law was mutation-checked: red on the defect it names, and its control
+green.

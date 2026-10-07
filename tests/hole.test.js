@@ -89,27 +89,42 @@ test("the front door's FOURTH door opens Gobble Hole, and 🚪 comes back", asyn
   assert.ok(!(await page.evaluate(() => document.body.classList.contains("hole-mode"))), "leaving drops the theme");
 });
 
-test("TWELVE places, and every door is on a phone's FIRST screen, in an even grid", async () => {
-  // The owner doubled the places (2026-10-01). Twelve doors two across ran
-  // six rows deep and left a third of the places below the fold of a
-  // 390x844 phone — a place a non-reader cannot see is a place he does not
-  // know exists. Three across fits all twelve on one portrait screen.
+test("TWENTY-FOUR places, one door each in an even grid — on a phone the home scrolls to the doors below the fold (never sideways), and the last door opens", async () => {
+  // The owner doubled the places again (2026-10-06). Twenty-four doors big
+  // enough for a small finger (75px+, 16px apart) cannot fit one phone
+  // screen — eight rows three across — so on a phone the home scrolls, as
+  // Josh's own launcher does, and the row cut by the fold shows there is
+  // more. On an iPad all twenty-four fit, six across (mobile.test.js measures
+  // that on the real engine, with the real insets).
   await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
   await go("#hole-home", "#screen-hole-home");
+  await page.evaluate(() => scrollTo(0, 0));
   const m = await page.evaluate(() => {
     const doors = [...document.querySelectorAll(".hole-door")].map((b) => b.getBoundingClientRect());
     return {
       n: doors.length, places: window.HoleData.SCENES.length,
       cols: new Set(doors.map((r) => Math.round(r.left))).size,
-      bottom: Math.max(...doors.map((r) => r.bottom)), vh: innerHeight,
+      firstScreen: doors.filter((r) => r.bottom <= innerHeight).length,
       minW: Math.min(...doors.map((r) => r.width)), minH: Math.min(...doors.map((r) => r.height)),
+      sw: document.documentElement.scrollWidth, vw: innerWidth,
     };
   });
-  assert.ok(m.places >= 12, "twelve places (" + m.places + ")");
+  assert.equal(m.places, 24, "twenty-four places");
   assert.equal(m.n, m.places, "one door per place");
   assert.equal(m.n % m.cols, 0, "the grid fills evenly: " + m.n + " doors in " + m.cols + " columns leaves no door on its own");
-  assert.ok(m.bottom <= m.vh, "every door is on the first screen of a 390x844 phone (the last ends at " + Math.round(m.bottom) + " of " + m.vh + ")");
   assert.ok(m.minW >= 75 && m.minH >= 75, "every door is a kid-sized target (" + Math.round(m.minW) + "x" + Math.round(m.minH) + ")");
+  assert.ok(m.firstScreen >= 9 && m.firstScreen < m.n, "a phone's first screen shows at least three full rows, and the rest wait below (" + m.firstScreen + " of " + m.n + ")");
+  assert.ok(m.sw <= m.vw, "the home never scrolls sideways (" + m.sw + " > " + m.vw + ")");
+  // the last door: the page scrolls to it, and a tap there opens its place
+  const last = page.locator(".hole-door").last();
+  await last.scrollIntoViewIfNeeded();
+  const r = await last.boundingBox();
+  assert.ok(r && r.y >= 0 && r.y + r.height <= 844, "scrolled to, the last door is all on screen (" + (r && Math.round(r.y)) + ")");
+  await page.waitForTimeout(400);
+  const id = await page.evaluate(() => window.HoleData.SCENES[window.HoleData.SCENES.length - 1].id);
+  await last.click();
+  await page.waitForFunction((sid) => window.__HOLE.scene() === sid, id, { timeout: 8000 });
+  await page.evaluate(() => scrollTo(0, 0));
 });
 
 test("EVERY place opens and draws: its floor, ALL its ground features in the opening look, and its things", async () => {
@@ -132,13 +147,17 @@ test("EVERY place opens and draws: its floor, ALL its ground features in the ope
       await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
       const i = window.__HOLE.info(), c = window.__HOLE.camera();
       const def = window.HoleData.SCENES.find((d) => d.id === sid);
-      return { scene: window.__HOLE.scene(), intro: c.intro, drawn: i.drawn, decals: def.decals.length, inkless: i.inkless };
+      const st = window.__HOLE.state();
+      return { scene: window.__HOLE.scene(), intro: c.intro, drawn: i.drawn, decals: def.decals.length, inkless: i.inkless,
+        standing: st.objects.filter((o) => o.st === window.HoleLogic.IDLE).length };
     }, id);
     assert.equal(r.scene, id, "fixture: " + id + " opened");
     assert.ok(r.intro, id + ": a fresh place opens with the look at the whole island");
     assert.ok(r.drawn.ok && r.drawn.ground, id + ": the island and its floor are drawn");
     assert.equal(r.drawn.decals, r.decals, id + ": every ground feature is drawn in the look at the whole island (" + r.drawn.decals + " of " + r.decals + ")");
-    assert.ok(r.drawn.objects >= 300, id + ": the whole place is drawn in that look (" + r.drawn.objects + " things)");
+    // everything standing is in that look (a surprise still in its box is not)
+    assert.ok(r.standing >= 250, "fixture: " + id + " is a big place (" + r.standing + " things standing)");
+    assert.equal(r.drawn.objects, r.standing, id + ": the whole place is drawn in that look (" + r.drawn.objects + " of " + r.standing + " things)");
     assert.equal(r.inkless, 0, id + ": every picture has ink (none fell back to a coloured ball)");
     // …and it plays: a few bites through the real event path
     const p = await page.evaluate(() => window.__HOLE.autoplay(60 * 3));
@@ -245,12 +264,14 @@ test("growing: the meter ends in a PICTURE of the next thing he can eat, and it 
 });
 
 test("the WIN: the vortex slurps everything, Josh's buddy cheers, ⭐ is saved, ▶ goes on and 🔁 replays", async () => {
-  await openScene("space");
+  // the LAST place, so ▶ wraps round to the first
+  const [lastId, firstId, firstDoor] = await page.evaluate(() => { const S = window.HoleData.SCENES; return [S[S.length - 1].id, S[0].id, S[0].door]; });
+  await openScene(lastId);
   const total = (await state()).total;
   await page.evaluate(() => window.__HOLE.autoplay(60 * 120));
   const s = await state();
   assert.ok(s.won && s.done, "the scene was finished");
-  assert.equal((await page.evaluate(() => window.__HOLE.save())).done.space, true, "the ⭐ is recorded");
+  assert.equal((await page.evaluate(() => window.__HOLE.save())).done[lastId], true, "the ⭐ is recorded");
   await page.locator(".hole-win").waitFor({ state: "visible", timeout: 4000 });
   assert.equal(await page.locator(".hole-win__n").textContent(), String(total), "the count says how much Gobble ate");
   assert.equal(await page.locator(".hole-win__wall span").count(), total, "a wall of everything he ate");
@@ -260,10 +281,10 @@ test("the WIN: the vortex slurps everything, Josh's buddy cheers, ⭐ is saved, 
   assert.equal(btns.length, 2);
   for (const b of btns) assert.ok(b.w >= 75 && b.h >= 75, "the win buttons are big (" + Math.round(b.w) + "x" + Math.round(b.h) + ")");
   assert.ok(btns[1].x - btns[0].r >= 14, "…and apart");
-  assert.match(await page.locator(".hole-next").textContent(), /🧸/, "▶ shows the next place's door (space wraps round to the toy room)");
+  assert.ok((await page.locator(".hole-next").textContent()).includes(firstDoor), "▶ shows the next place's door (the last place wraps round to the first)");
   await page.waitForTimeout(400);
   await page.locator(".hole-next").click();
-  await page.waitForFunction(() => window.__HOLE.scene() === "toyroom");
+  await page.waitForFunction((id) => window.__HOLE.scene() === id, firstId);
   assert.ok(await page.locator(".hole-win").isHidden(), "the win screen goes away");
   assert.equal((await state()).eaten, 0, "a fresh place");
   // 🔁 plays the same place again from the start
@@ -271,11 +292,11 @@ test("the WIN: the vortex slurps everything, Josh's buddy cheers, ⭐ is saved, 
   await page.locator(".hole-win").waitFor({ state: "visible", timeout: 4000 });
   await page.waitForTimeout(400);
   await page.locator(".hole-again").click();
-  await page.waitForFunction(() => window.__HOLE.scene() === "toyroom" && window.__HOLE.state().eaten === 0);
+  await page.waitForFunction((id) => window.__HOLE.scene() === id && window.__HOLE.state().eaten === 0, firstId);
   // back home, both finished places wear a ⭐
   await page.locator(".hole-back").click();
   await page.locator("#screen-hole-home").waitFor({ state: "visible" });
-  for (const id of ["space", "toyroom"]) {
+  for (const id of [lastId, firstId]) {
     assert.ok(await page.locator(`.hole-door[data-scene="${id}"] .hole-door__star`).isVisible(), id + " wears its ⭐");
   }
   assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isHidden(), "an unfinished place does not");
@@ -303,7 +324,9 @@ test("▶ after a win CARRIES ON a place he left half-eaten — winning one plac
   await page.waitForTimeout(400);
   await page.locator(".hole-next").click();
   await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
-  const gone = await page.evaluate(() => window.__HOLE.state().objects.filter((o) => o.st !== 0).map((o) => o.id).sort((a, b) => a - b));
+  // GONE, not "not standing": a surprise still inside its box (a picnic tree's
+  // fruit) is HIDDEN, and was never eaten
+  const gone = await page.evaluate(() => window.__HOLE.state().objects.filter((o) => o.st === window.HoleLogic.GONE).map((o) => o.id).sort((a, b) => a - b));
   assert.deepEqual(gone, [...saved.eaten].sort((a, b) => a - b),
     "▶ must carry on the half-eaten picnic, not wipe it (" + gone.length + " gone, " + saved.eaten.length + " were eaten)");
   assert.ok((await page.evaluate(() => window.__HOLE.save())).done.toyroom, "…and the toy room still wears its ⭐");
@@ -321,7 +344,9 @@ test("progress is KEPT: leaving and coming back — even a reload — resumes th
   await page.locator("#screen-hole-home").waitFor({ state: "visible" });
   const saved = (await page.evaluate(() => window.__HOLE.save())).runs.party;
   assert.ok(saved && saved.eaten.length >= 3, "leaving saved the half-eaten place (" + (saved && saved.eaten.length) + " eaten)");
-  const gone = () => page.evaluate(() => window.__HOLE.state().objects.filter((o) => o.st !== 0).map((o) => o.id).sort((a, b) => a - b));
+  // GONE, not "not standing": a sweet still inside its piñata is HIDDEN, and
+  // was never eaten
+  const gone = () => page.evaluate(() => window.__HOLE.state().objects.filter((o) => o.st === window.HoleLogic.GONE).map((o) => o.id).sort((a, b) => a - b));
   const want = [...saved.eaten].sort((a, b) => a - b);
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="party"]').click();
@@ -423,7 +448,23 @@ test("a HOSTILE save is coerced field by field and never breaks the boot", async
 // ---- BIG worlds (PLAN_GOBBLE.md §9): the camera --------------------------------
 
 test("the world is BIGGER than the screen: the camera shows a small part of it, follows Gobble, and never looks past the island", async () => {
-  await openScene("town");
+  // a place where a straight walk from the start reaches the island's left
+  // edge — no water, no wall of things on the way (derived, so a reshaped
+  // place cannot quietly make the trip impossible: Busy Town became a plus
+  // sign, and its start row now ends at the bar's side)
+  const id = await page.evaluate(() => {
+    const L = window.HoleLogic;
+    for (const d of window.HoleData.SCENES) {
+      const G = L.geomOf(d), sx = G.start.x, sy = G.start.y;
+      let ok = sx > 140;
+      for (let x = 4; ok && x <= sx; x += 2) if (G.walk(x, sy) > 0) ok = false;
+      if (ok && L.layout(d).objects.some((o) => (o.solid || o.lock) && Math.abs(o.y - sy) < o.r + 4 && o.x < sx)) ok = false;
+      if (ok) return d.id;
+    }
+    return null;
+  });
+  assert.ok(id, "fixture: some place has a clear walk from its start to the left edge");
+  await openScene(id);
   const s0 = await state(), c0 = await cam();
   const MARGIN = await page.evaluate(() => window.HoleRender.MARGIN);
   const RULES = await page.evaluate(() => window.HoleData.RULES);
@@ -636,6 +677,106 @@ test("BIG ENOUGH for the finale: the arrow points at it from anywhere, Gobble we
   assert.ok(!i.arrow || !i.arrow.goal, "…and the arrow steps aside");
 });
 
+test("SOUNDS: every challenge makes its own sound and the lines are said once in a while; every place opens with its OWN tune, and Music Land's gulps play it note by note", async () => {
+  // The engine tests prove each mechanic EMITS its event (LOCK/KEY, BOX,
+  // TREE, PORTALS, CURRENT, ICE) and a law there proves every event the
+  // engine can emit reaches this page's drain. This drives each one through
+  // the REAL drain and listens: every one sounds, the ones with a line say
+  // it, and a line that could come a hundred times (a portal, a current, the
+  // ice) is said once a run — a popping box at most once in 8 seconds.
+  await page.evaluate(() => {
+    const A = window.JoshAudio;
+    window.__tones = []; window.__said = [];
+    A.__tone = A.__tone || A.tone; A.__say = A.__say || A.say;
+    A.tone = (f) => { window.__tones.push(f); };
+    A.say = (t) => { if (!A.isMuted()) window.__said.push(t); };
+    A.setMuted(false);
+  });
+  // the notes of `tune`, in order, among what was played (a starter the
+  // magnet pulls in may gulp in between)
+  const inOrder = (played, tune) => { let i = 0; for (const f of played) if (f === tune[i]) i++; return i === tune.length; };
+  // wait for a place's opening tune — a failure names what was heard, never
+  // a bare timeout
+  const heardTune = async (id, tune) => {
+    try {
+      await page.waitForFunction((t) => { let i = 0; for (const f of window.__tones) if (f === t[i]) i++; return i === t.length; }, tune, { timeout: 6000 });
+    } catch (e) {
+      const heard = await page.evaluate(() => window.__tones.slice(0, 24));
+      assert.fail(id + " never played its opening tune " + JSON.stringify(tune) + " — heard " + JSON.stringify(heard));
+    }
+  };
+  try {
+    const SAY = await page.evaluate(() => window.HoleData.SAY);
+    const tuneOf = (id) => page.evaluate((sid) => window.HoleLogic.sceneById(sid).tune, id);
+    // 1. a fresh place opens with its own tune
+    await openScene("farm");
+    const farmTune = await tuneOf("farm");
+    await heardTune("farm", farmTune);
+    // 2. every challenge, through the real drain
+    const gate = await page.evaluate(() => window.__HOLE.state().objects.find((o) => o.lock).id);
+    const fire = async (ev) => {
+      await page.evaluate((e) => { window.__tones = []; window.__said = []; window.__HOLE.state().events.push(e); }, ev);
+      await page.waitForTimeout(450);
+      return page.evaluate(() => ({ tones: window.__tones.length, said: window.__said.slice() }));
+    };
+    const at = { x: 100, y: 100 };
+    const CASES = [
+      [{ type: "bump", id: gate, solid: true, locked: true }, SAY.locked],
+      [{ type: "unlock", key: "gate", ids: [gate] }, SAY.unlock],
+      [{ type: "pop", id: gate, kids: [], x: at.x, y: at.y }, SAY.pop],
+      [{ type: "shake", id: gate, kids: [], x: at.x, y: at.y }, null],
+      [{ type: "warp", from: [at.x, at.y], to: [at.x + 50, at.y] }, SAY.warp],
+      [{ type: "flow", look: "river" }, SAY.flow],
+      [{ type: "ice" }, SAY.ice],
+    ];
+    for (const [ev, line] of CASES) {
+      const r = await fire(ev);
+      assert.ok(r.tones > 0, ev.type + (ev.locked ? " (locked)" : "") + " makes a sound");
+      if (line) assert.deepEqual(r.said, [line], ev.type + " says its line: " + JSON.stringify(r.said));
+      else assert.deepEqual(r.said, [], ev.type + " has a sound and no words");
+    }
+    // …and again at once: the sound plays, the words do not (a portal, a
+    // current, the ice: once a run; a box: once in 8s; "too big": once in 9s)
+    for (const [ev] of CASES) {
+      const r = await fire(ev);
+      assert.ok(r.tones > 0, ev.type + " still sounds the second time");
+      if (ev.type !== "unlock") assert.deepEqual(r.said, [], ev.type + " is not said twice in a row: " + JSON.stringify(r.said));
+    }
+    // a wall of things too big (not locked) thuds, a different sound from
+    // the locked gate's rattle
+    const thud = await page.evaluate(async () => {
+      const out = {};
+      for (const [k, e] of [["locked", { type: "bump", id: 0, solid: true, locked: true }], ["solid", { type: "bump", id: 0, solid: true, locked: false }], ["big", { type: "bump", id: 0, solid: false, locked: false }]]) {
+        window.__tones = []; window.__HOLE.state().events.push(e);
+        await new Promise((r) => setTimeout(r, 450));
+        out[k] = window.__tones.join(",");
+      }
+      return out;
+    });
+    assert.ok(thud.locked && thud.solid && thud.big, "every bump sounds: " + JSON.stringify(thud));
+    assert.equal(new Set([thud.locked, thud.solid, thud.big]).size, 3, "a locked gate, a wall of things and a thing too big each sound different: " + JSON.stringify(thud));
+    // 3. Music Land: every gulp plays the NEXT note of its tune
+    await openScene("music");
+    const tune = await tuneOf("music");
+    await heardTune("music", tune);
+    await page.waitForTimeout(300);
+    const notes = await page.evaluate(async (n) => {
+      const st = window.__HOLE.state();
+      window.__tones = [];
+      for (let i = 0; i < n; i++) { st.events.push({ type: "eat", id: 1 + i, e: "🎵", r: 3, tier: 1, combo: 0 }); await new Promise((r) => setTimeout(r, 60)); }
+      await new Promise((r) => setTimeout(r, 300));
+      return window.__tones.slice();
+    }, tune.length + 2);
+    assert.deepEqual(notes, [...tune, tune[0], tune[1]], "each gulp plays the next note of the tune, and round again");
+    assert.ok(inOrder(notes, tune), "fixture: the scale is played in order");
+  } finally {
+    await page.evaluate(() => {
+      const A = window.JoshAudio;
+      A.tone = A.__tone; A.say = A.__say; A.setMuted(true);
+    });
+  }
+});
+
 test("with sound on, Gobble NAMES the finale the moment he is big enough, and cheers a treasure", async () => {
   await openScene("toyroom");
   await page.evaluate(() => {
@@ -659,7 +800,10 @@ test("with sound on, Gobble NAMES the finale the moment he is big enough, and ch
     await page.evaluate(() => window.__HOLE.autoplay(60 * 60, { until: { level: 5 } }));
     assert.equal((await state()).level, 5, "fixture: he reached the top size");
     const said = await page.evaluate(() => window.__said);
-    assert.ok(said.includes("Wow, so big! Now eat the castle!"), "the ready line names the castle: " + JSON.stringify(said));
+    // the toy room's finale, named the way it is spoken (never a picture)
+    const want = await page.evaluate(() => window.HoleData.SAY.ready.replace("{finale}", window.HoleLogic.sceneById("toyroom").finale.say));
+    assert.ok(/the [a-z]/.test(want) && !want.includes("{"), "fixture: the ready line is filled in (" + want + ")");
+    assert.ok(said.includes(want), "the ready line names the finale (" + want + "): " + JSON.stringify(said));
     assert.ok(!said.some((l) => ["Bigger!", "Yum! Bigger!", "Wow, so big!", "Gobble gobble!"].includes(l)), "…instead of an ordinary grow line: " + JSON.stringify(said));
   } finally {
     await page.evaluate(() => {
@@ -775,6 +919,9 @@ test("a fresh place OPENS with a look at the whole island, then flies in to Gobb
   const c0 = await cam();
   assert.ok(c0.intro, "a fresh place starts with the opening look");
   assert.ok(c0.span > c0.follow * 3, "…of (nearly) the whole island (" + c0.span.toFixed(0) + " vs " + c0.follow.toFixed(0) + " units)");
+  // it RESTS there first — the moment a child sees the place's shape and
+  // where its finale stands — rather than flying in from its first frame
+  assert.ok(Math.abs(c0.span - c0.whole) < 0.5, "the look rests on the WHOLE island at first (" + c0.span.toFixed(1) + " of " + c0.whole.toFixed(1) + ")");
   await page.waitForFunction(() => !window.__HOLE.camera().intro, null, { timeout: 4000 });
   await page.waitForFunction(() => { const c = window.__HOLE.camera(); return Math.abs(c.span - c.follow) < 0.5; }, null, { timeout: 3000 });
   // again, and this time a finger lands during the opening look

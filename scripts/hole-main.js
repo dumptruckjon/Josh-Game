@@ -293,8 +293,21 @@
         [110, 270, { type: "sine", duration: 0.5, gain: 0.32 }]]);
       return;
     }
+    // Music Land: every gulp plays the NEXT note of the place's tune (a
+    // scale up and round again) — a bell, not a gulp
+    if (run && run.def.notes && run.def.tune) {
+      const tn = run.def.tune, f = tn[run.noteI++ % tn.length];
+      notes([[f, 0, { type: "sine", duration: 0.32, gain: 0.2 }]]);
+      return;
+    }
     const f = (GULP[ev.tier] || 392) * Math.pow(2, Math.min(ev.combo || 0, 8) / 12);
     notes([[f, 0, { duration: 0.07, gain: 0.2 }], [f * 0.74, 55, { duration: 0.1, gain: 0.2 }]]);
+  }
+  // Every place has a TUNE of its own (PLAN §14.4): it plays as the place
+  // opens, so two places never sound alike either.
+  function playTune(def) {
+    const tn = def.tune || [];
+    notes(tn.map((f, i) => [f, i * 150, { type: "sine", duration: i === tn.length - 1 ? 0.4 : 0.16, gain: 0.16 }]));
   }
   const SFX = {
     grow: () => notes([[523.25, 0, { gain: 0.22, duration: 0.14 }], [659.25, 90, { gain: 0.22, duration: 0.14 }],
@@ -309,7 +322,41 @@
     // a treasure: a sparkle running up
     treasure: () => notes([[1318.5, 0, { gain: 0.16, duration: 0.09 }], [1568, 70, { gain: 0.16, duration: 0.09 }],
       [2093, 140, { gain: 0.16, duration: 0.1 }], [2637, 210, { gain: 0.15, duration: 0.3 }]]),
+    // a wall of things too big to eat: a soft, low thud (no buzzer — RULE 5)
+    wall: () => notes([[196, 0, { type: "sine", duration: 0.12, gain: 0.16 }], [147, 70, { type: "sine", duration: 0.18, gain: 0.14 }]]),
+    // a locked gate: its latch rattles
+    locked: () => notes([[392, 0, { type: "square", duration: 0.04, gain: 0.07, plain: true }],
+      [349.23, 70, { type: "square", duration: 0.04, gain: 0.07, plain: true }], [392, 140, { type: "square", duration: 0.05, gain: 0.07, plain: true }]]),
+    // the key turns — click — and the way opens
+    unlock: () => notes([[1318.5, 0, { type: "square", duration: 0.03, gain: 0.07, plain: true }],
+      [987.77, 50, { type: "square", duration: 0.03, gain: 0.07, plain: true }], [523.25, 160, { gain: 0.2, duration: 0.12 }],
+      [659.25, 250, { gain: 0.2, duration: 0.12 }], [783.99, 340, { gain: 0.22, duration: 0.35 }]]),
+    // a box bursts and its surprises tumble out
+    pop: () => notes([[880, 0, { type: "square", duration: 0.05, gain: 0.09, plain: true }],
+      [1174.66, 60, { gain: 0.16, duration: 0.08 }], [1567.98, 120, { gain: 0.16, duration: 0.16 }]]),
+    // a tree shakes its fruit down: a rustle
+    shake: () => notes([[740, 0, { duration: 0.06, gain: 0.1 }], [622.25, 60, { duration: 0.06, gain: 0.1 }],
+      [740, 120, { duration: 0.06, gain: 0.1 }], [622.25, 180, { duration: 0.1, gain: 0.1 }]]),
+    // a portal: whoosh, up and out
+    warp: () => notes([[392, 0, { type: "sine", duration: 0.07, gain: 0.14 }], [587.33, 45, { type: "sine", duration: 0.07, gain: 0.14 }],
+      [880, 90, { type: "sine", duration: 0.07, gain: 0.14 }], [1318.5, 135, { type: "sine", duration: 0.22, gain: 0.14 }]]),
+    // into a current (a river, a belt, a slide): wheee
+    flow: () => notes([[523.25, 0, { type: "sine", duration: 0.08, gain: 0.12 }], [659.25, 60, { type: "sine", duration: 0.08, gain: 0.12 }],
+      [783.99, 120, { type: "sine", duration: 0.2, gain: 0.12 }]]),
+    // onto the ice: a glassy shimmer
+    ice: () => notes([[1567.98, 0, { duration: 0.1, gain: 0.1 }], [2093, 60, { duration: 0.1, gain: 0.1 }], [1760, 120, { duration: 0.22, gain: 0.1 }]]),
+    // five gulps in a row (and ten): a little sparkle
+    combo: () => notes([[1046.5, 0, { gain: 0.14, duration: 0.07 }], [1318.5, 50, { gain: 0.14, duration: 0.07 }],
+      [1567.98, 100, { gain: 0.14, duration: 0.14 }]]),
   };
+  // A line said at most once in `gap` seconds (Infinity: once a run) — a pop,
+  // a portal or a current can happen a hundred times; the words must not.
+  function sayEvery(key, gap, text, t) {
+    const last = run.said[key];
+    if (last !== undefined && t - last <= gap) return;
+    run.said[key] = t;
+    sayPlay(text);
+  }
   // The line for the grow that makes him big enough for the finale, naming it
   // ("Wow, so big! Now eat the castle!") — a picture is never spoken.
   function readyLine(def) { return SAY.ready.replace("{finale}", (def.finale && def.finale.say) || "the biggest thing"); }
@@ -341,6 +388,7 @@
     if (!st) { st = L.createGame(def); delete save.runs[def.id]; }
     run = {
       st, def, bigSaid: -1e9,
+      noteI: 0, said: {}, combo: 0,
       ate: st.objects.filter((o) => o.st === L.GONE).map((o) => o.e),
       // treasures he has found (a resumed run found the ones already gone)
       found: new Set(st.gold.filter((id) => st.objects[id].st === L.GONE)),
@@ -352,7 +400,7 @@
     persist();
     meterKey = "";
     paintMeter();
-    if (!resumed) later(() => sayPlay(SAY.start), 400);
+    if (!resumed) { later(() => playTune(def), 120); later(() => sayPlay(SAY.start), 400); }
     if (!save.demo) later(demoWhenReady, 1000);   // the first time ever: show, don't tell
     startLoop();
   }
@@ -407,6 +455,9 @@
       render.event(ev);
       if (ev.type === "eat") {
         gulp(ev);
+        // a run of gulps sparkles at five and at ten in a row
+        if (!ev.vortex && ev.combo >= 5 && ev.combo % 5 === 0 && ev.combo !== run.combo) SFX.combo();
+        run.combo = ev.combo || 0;
         run.ate.push(ev.e);
         if (ev.gold && !ev.vortex) { run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure); }
         if (!st.won) { save.runs[run.def.id] = L.snapshot(st); persist(); }
@@ -417,8 +468,22 @@
         if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def)); }
         else { SFX.grow(); sayPlay(SAY.grow[(ev.level - 1) % SAY.grow.length]); }
       } else if (ev.type === "bump") {
-        SFX.bump();
-        if (t - run.bigSaid > BIG_SAY_GAP) { run.bigSaid = t; sayPlay(SAY.big); }
+        // a locked gate rattles and asks for its key; a wall of things too
+        // big thuds; anything else too big is the old "too big" boing
+        if (ev.locked) SFX.locked(); else if (ev.solid) SFX.wall(); else SFX.bump();
+        if (t - run.bigSaid > BIG_SAY_GAP) { run.bigSaid = t; sayPlay(ev.locked ? SAY.locked : SAY.big); }
+      } else if (ev.type === "unlock") {
+        SFX.unlock(); sayPlay(SAY.unlock);
+      } else if (ev.type === "pop") {
+        SFX.pop(); sayEvery("pop", 8, SAY.pop, t);
+      } else if (ev.type === "shake") {
+        SFX.shake();
+      } else if (ev.type === "warp") {
+        SFX.warp(); sayEvery("warp", Infinity, SAY.warp, t);
+      } else if (ev.type === "flow") {
+        SFX.flow(); sayEvery("flow", Infinity, SAY.flow, t);
+      } else if (ev.type === "ice") {
+        SFX.ice(); sayEvery("ice", Infinity, SAY.ice, t);
       } else if (ev.type === "win") {
         // The win is EARNED the moment the finale goes down, so the ⭐ is
         // recorded now — leaving during the slurp can never lose it.
