@@ -304,9 +304,11 @@
     const ends = [];
     (def.portals || []).forEach((p, pi) => {
       const ia = ends.length;
+      // a CANNON (§17) flies him over to the other end instead of popping him
+      // out of it — a one-way cannon's landing spot is only an exit
       for (const [q, live] of [[p.a, true], [p.b, !p.oneway]]) {
         const x = q[0] * W, y = q[1] * H;
-        ends.push({ x, y, cell: okNear(x, y), to: ends.length === ia ? ia + 1 : ia, pi, look: p.look || "wormhole", live });
+        ends.push({ x, y, cell: okNear(x, y), to: ends.length === ia ? ia + 1 : ia, pi, look: p.look || (p.fly ? "cannon" : "wormhole"), live, fly: !!p.fly });
       }
     });
     const jumps = new Map();
@@ -329,6 +331,12 @@
     for (const [id, t] of Object.entries(def.tracks || {})) tracks[id] = compileTrack(id, t, W, H);
     // FLOWS: currents that carry him (a river, a conveyor belt)
     const flows = (def.flows || []).map((f) => {
+      // a TURNTABLE (§17): a spinning ground circle — `spin` [x, y, r] (r a
+      // fraction of the width), `v` the speed at its rim
+      if (f.spin) {
+        const x = f.spin[0] * W, y = f.spin[1] * H, rg = f.spin[2] * W;
+        return { spin: { x, y, rg }, pts: [[x, y]], gp: [[x, y / SQ]], w: rg * 2, v: f.v || 20, look: f.look || "turntable", things: !!f.things };
+      }
       const pts = f.pts.map((p) => [p[0] * W, p[1] * H]);
       return { pts, gp: pts.map((p) => [p[0], p[1] / SQ]), w: f.w || 30, v: f.v || 20, look: f.look || "river", things: !!f.things };
     });
@@ -466,6 +474,15 @@
     if (!G.flows.length) return null;
     const gy = y / SQ;
     for (const f of G.flows) {
+      if (f.spin) {
+        // rigid rotation: still at the hub, fastest at the rim
+        const gx = x - f.spin.x, gz = gy - f.spin.y / SQ, d = Math.hypot(gx, gz), rg = f.spin.rg;
+        if (d < rg && d > 1e-6) {
+          const k = f.v / rg;
+          return { x: -gz * k, y: gx * k * SQ, look: f.look, spin: true };
+        }
+        continue;
+      }
       const s = nearSeg(f.gp, x, gy), half = f.w / 2;
       if (s.d < half) {
         const k = 1 - 0.6 * (s.d / half) * (s.d / half);
@@ -617,6 +634,16 @@
   //   shake: [[emoji, n, tier], …] — out when Gobble BUMPS it (a fruit tree)
   //   chain: a formation that topples: eat one and the rest roll in after it
   //   glow: it glows in the dark
+  // phase 5 (§17):
+  //   press: "k" — a BUTTON in the floor: roll onto it and it clicks down.
+  //          A lock "k" opens when EVERY key and button named "k" is done
+  //          (one key, three keys, a button, a button and a key…)
+  //   bounce: a BUMPER — while too big to eat it knocks him back, boing
+  //   run: a RUNAWAY — once he can eat it, it scoots away (and tires)
+  //   hits: n — a PIÑATA (a shake box): n bonks, each letting out a share
+  //   power: "magnet" | "zoom" — a POWER-UP: eat it for a super pull or speed
+  //   sprout: [[emoji, n, tier], …] — a SEEDLING: roll near it and what grows
+  //          from it pops up out of the ground
   function itemOf(it) {
     const o = it[2];
     if (o && typeof o === "object" && !Array.isArray(o)) return Object.assign({ e: it[0], n: it[1] }, o);
@@ -626,25 +653,36 @@
   // no-reskin law compares them: no two places may pose the same set, and two
   // places on the same ground must differ by at least two). The ONE owner:
   // a new mechanic adds its atom here, beside the rule that runs it.
-  const ITEM_TWISTS = ["ride", "at", "solid", "lock", "key", "pop", "shake", "chain"];
+  const ITEM_TWISTS = ["ride", "at", "solid", "lock", "key", "pop", "shake", "chain", "bounce", "run", "hits", "power", "sprout"];
   function twistsOf(def) {
     const t = new Set();
     for (const b of def.blocks || []) t.add("block:" + (b.look || "water"));
     if ((def.bridges || []).length) t.add("bridges");
-    if ((def.portals || []).length) t.add("portals");
-    for (const f of def.flows || []) t.add("flow:" + (f.look || "river"));
+    // a portal you walk through, and a CANNON that flies you (§17)
+    for (const p of def.portals || []) t.add(p.fly ? "launch" : "portals");
+    // a current, and a TURNTABLE (a spinning floor, §17: its own kind of
+    // movement, whatever it looks like)
+    for (const f of def.flows || []) t.add(f.spin ? "spin" : "flow:" + (f.look || "river"));
     if (def.slide) t.add("ice");
     if (def.dark) t.add("dark");
     if (def.notes) t.add("notes");
+    if (def.count) t.add("count");
+    if (def.tiers.length > 5) t.add("giant");
     for (const z of Object.values(def.zones || {})) {
       const parts = Array.isArray(z) && typeof z[0] !== "number" ? z : [z];
       if (parts.some((p) => p && p.band)) t.add("bands");
     }
     for (const tr of Object.values(def.tracks || {})) t.add("track:" + (tr.orbit ? "orbit" : tr.train ? "train" : tr.loop ? "loop" : "line"));
+    // a lock waiting for more than one thing (three keys; a key and a
+    // button) is a quest; a button is a button however many there are
+    const openers = {};
     for (const tier of def.tiers) for (const raw of tier.items) {
       const it = itemOf(raw);
       for (const k of ITEM_TWISTS) if (it[k]) t.add(k);
+      if (it.press) t.add("button");
+      for (const name of [it.key, it.press]) if (name) openers[name] = (openers[name] || 0) + it.n;
     }
+    if (Object.values(openers).some((n) => n > 1)) t.add("keys");
     return t;
   }
   function formation(at, n, W, H) {
@@ -714,6 +752,7 @@
             ride: it.ride || null, at: pts ? pts[m] : null, order: m, form: pts ? i * 100 + j + 1 : 0,
             solid: !!it.solid, lock: it.lock || null, key: it.key || null,
             pop: it.pop || null, shake: it.shake || null, chain: it.chain ? "c" + i + "_" + j : null, glow: !!it.glow,
+            press: it.press || null, bounce: !!it.bounce, run: !!it.run, hits: it.hits | 0, power: it.power || null, sprout: it.sprout || null,
           });
         }
       });
@@ -824,10 +863,11 @@
     // (they spray out, a little wiggle gobbles them); a tree's fruit at its foot.
     const kids = [];
     function placeKids(p) {
-      const spec = p.pop || p.shake;
+      const spec = p.pop || p.shake || p.sprout;
       if (!spec) return;
       const list = [];
-      for (const s of spec) for (let i = 0; i < s[1]; i++) list.push({ e: s[0], tier: s[2] || 1, r: rOf(s[2] || 1), zone: null, clump: 0, kid: true, par: p, how: p.pop ? "pop" : "shake" });
+      const how = p.pop ? "pop" : p.shake ? "shake" : "sprout";
+      for (const s of spec) for (let i = 0; i < s[1]; i++) list.push({ e: s[0], tier: s[2] || 1, r: rOf(s[2] || 1), zone: null, clump: 0, kid: true, par: p, how });
       const reach = p.pop ? (def.tiers[p.tier - 1].r[1] / RULES.FIT) * RULES.HEAD * 1.25 + 2 : 0;
       list.forEach((k, i) => {
         let ok = null;
@@ -852,7 +892,8 @@
     //    (the first trail's route) — plain tiny bites, never zoned or clumped
     const trails = def.trails || [];
     const routes = trails.map((tr) => routeLine(G, start, { x: W * tr.to[0], y: H * tr.to[1] }));
-    const plain = (w) => !w.done && w.tier === 1 && !w.zone && !w.clump && !w.ride && !w.at && !w.pop && !w.shake && !w.key && !w.lock && !w.solid;
+    const plain = (w) => !w.done && w.tier === 1 && !w.zone && !w.clump && !w.ride && !w.at && !w.pop && !w.shake && !w.key && !w.lock && !w.solid &&
+      !w.press && !w.bounce && !w.run && !w.hits && !w.power && !w.sprout;
     const pref = trails.length ? trails[0].e : null;
     let fx = 0, fy = -1;
     if (routes.length) { const p = lineAt(routes[0], 22); const l = Math.hypot(p.x - start.x, p.y - start.y); if (l > 1) { fx = (p.x - start.x) / l; fy = (p.y - start.y) / l; } }
@@ -970,8 +1011,14 @@
       if (p.chain) { o.chain = p.chain; o.order = p.order; }
       if (p.glow || p.key) o.glow = true;
       if (p.kid) { o.par = p.par.id; o.how = p.how; }
-      if (p.pop || p.shake) { o.kids = []; o.box = p.pop ? "pop" : "shake"; }
+      if (p.pop || p.shake || p.sprout) { o.kids = []; o.box = p.pop ? "pop" : p.shake ? "shake" : "sprout"; }
       if (p.at) o.form = true;
+      if (p.press) { o.press = p.press; o.pressed = false; }
+      if (p.bounce) o.bounce = true;
+      // a runaway remembers where it stood (it never strays far from home)
+      if (p.run) { o.run = true; o.hx = o.x; o.hy = o.y; o.rest = 0; o.ran = 0; }
+      if (p.hits) { o.hits = p.hits; o.hit = 0; }
+      if (p.power) o.power = p.power;
       return o;
     });
     for (const k of kids) objects[k.par.id].kids.push(k.id);
@@ -1016,7 +1063,8 @@
     GOLD_BANDS.forEach((b, i) => {
       let best = null, bd = -1;
       for (const o of objects) {
-        if (o.tier !== i + 1 || o.starter || o.trail || o.finale || o.ride || o.par != null || o.lock || o.key || o.solid || o.kids) continue;
+        if (o.tier !== i + 1 || o.starter || o.trail || o.finale || o.ride || o.par != null || o.lock || o.key || o.solid || o.kids ||
+          o.press || o.bounce || o.run || o.power) continue;
         const f = G.routeFrac(o.x, o.y);
         if (f < b[0] || f > b[1]) continue;
         let d = gdist(o.x, o.y, start.x, start.y);
@@ -1038,7 +1086,7 @@
       for (const raw of t.items) {
         const it = itemOf(raw);
         let per = 1;
-        for (const k of it.pop || it.shake || []) per += k[1];
+        for (const k of it.pop || it.shake || it.sprout || []) per += k[1];
         n += it.n * per;
       }
     }
@@ -1074,11 +1122,15 @@
     return {
       id: def.id, W: lay.W, H: lay.H, start: lay.start, print: printOf(lay.objects),
       objects: lay.objects, levels: lv, gold,
-      hole: { x: lay.start.x, y: lay.start.y, r: lv.R[0], R: lv.R[0], level: 0, xp: 0, tx: lay.start.x, ty: lay.start.y, vx: 0, vy: 0 },
+      hole: { x: lay.start.x, y: lay.start.y, r: lv.R[0], R: lv.R[0], level: 0, xp: 0, tx: lay.start.x, ty: lay.start.y, vx: 0, vy: 0,
+        kx: 0, ky: 0, zoomT: 0 },
       t: 0, tick: 0, eaten: 0, total: lay.objects.length,
       won: false, done: false, winT: 0,
       sinceEat: 0, hint: -1, combo: 0, lastEatT: -9, slurpT: 0,
       unlocked: {}, wantKey: null, warpLock: -1, navGen: 0, onIce: false, inFlow: false,
+      // §17: things counted so far, a cannon flight under way, the new
+      // things already introduced this visit
+      counted: 0, fly: null, met: {},
       events: [],
     };
   }
@@ -1091,14 +1143,19 @@
     let R = rts.get(st);
     if (R) return R;
     const def = sceneById(st.id);
-    R = { def, G: geomOf(def), sig: null, solids: [], block: null, path: null, bot: -1, botT: -9, nearC: null, riders: [], chains: {}, keys: {}, locks: {}, solidObjs: [] };
+    R = { def, G: geomOf(def), sig: null, solids: [], block: null, path: null, bot: -1, botT: -9, nearC: null, riders: [], chains: {}, openers: {}, locks: {}, solidObjs: [], runners: [] };
     for (const o of st.objects) {
       if (o.ride) R.riders.push(o);
       if (o.chain) (R.chains[o.chain] || (R.chains[o.chain] = [])).push(o);
-      if (o.key) R.keys[o.key] = o;
+      // what each lock waits for: every key AND every button with its name
+      // (one key used to be kept per name, and a second key of the same name
+      // was invisible to the goal and the hint)
+      for (const name of [o.key, o.press]) if (name) (R.openers[name] || (R.openers[name] = [])).push(o);
       if (o.lock) (R.locks[o.lock] || (R.locks[o.lock] = [])).push(o);
-      if (o.solid || o.lock) R.solidObjs.push(o);
+      if (o.solid || o.lock || o.bounce) R.solidObjs.push(o);
+      if (o.run) R.runners.push(o);
     }
+    R.counts = def.count ? st.objects.filter((o) => o.e === def.count.e).length : 0;
     rts.set(st, R);
     return R;
   }
@@ -1107,7 +1164,7 @@
   // not eaten, or a solid thing too big for him to eat yet. A wall's core
   // stops him; the cells it covers are closed to the paths.
   function activeSolid(st, o) {
-    return o.st === IDLE && ((!!o.lock && !st.unlocked[o.lock]) || (!!o.solid && o.r > st.hole.R * RULES.FIT));
+    return o.st === IDLE && ((!!o.lock && !st.unlocked[o.lock]) || ((!!o.solid || !!o.bounce) && o.r > st.hole.R * RULES.FIT));
   }
   const coreOf = (o) => o.r * RULES.CORE;
   function refreshSolids(st, R) {
@@ -1373,11 +1430,67 @@
       const e = G.ends[i];
       if (i === st.warpLock || !e.live || gdist(h.x, h.y, e.x, e.y) > RULES.PORTAL_R) continue;
       const to = G.ends[e.to];
-      emit(st, { type: "warp", from: [round3(e.x), round3(e.y)], to: [round3(to.x), round3(to.y)], look: e.look, portal: e.pi });
-      h.x = h.tx = to.x; h.y = h.ty = to.y; h.vx = h.vy = 0;
       st.warpLock = e.to;
       R.path = null; R.nearC = null;
+      h.vx = h.vy = h.kx = h.ky = 0;
+      if (e.fly) {
+        // A CANNON (§17): BOOM, and he flies to the far end in an arc — the
+        // flight takes a moment, and nothing falls in on the way
+        const d = gdist(h.x, h.y, to.x, to.y), F = RULES.FLY;
+        st.fly = { x0: round3(h.x), y0: round3(h.y), x1: to.x, y1: to.y, t: 0, d: round3(clamp(d / F.speed, F.min, F.max)) };
+        emit(st, { type: "launch", from: [round3(e.x), round3(e.y)], to: [round3(to.x), round3(to.y)], look: e.look, portal: e.pi });
+        return;
+      }
+      emit(st, { type: "warp", from: [round3(e.x), round3(e.y)], to: [round3(to.x), round3(to.y)], look: e.look, portal: e.pi });
+      h.x = h.tx = to.x; h.y = h.ty = to.y;
       return;
+    }
+  }
+
+  // A cannon flight: along the ground line from where he was to the far end
+  // (the renderer lifts him in an arc above it); he lands there.
+  function flyStep(st, R, dt) {
+    const F = st.fly, h = st.hole;
+    F.t = Math.min(F.d, F.t + dt);
+    const p = F.t / F.d;
+    h.x = h.tx = F.x0 + (F.x1 - F.x0) * p;
+    h.y = h.ty = F.y0 + (F.y1 - F.y0) * p;
+    if (F.t >= F.d) {
+      st.fly = null;
+      R.path = null; R.nearC = null;
+      if (!freeAt(st, R, h.x, h.y)) unstick(st, R);
+      emit(st, { type: "land", x: round3(h.x), y: round3(h.y) });
+    }
+  }
+
+  // RUNAWAYS (§17): a thing he can eat, near him, scoots away — off the
+  // ground's edge never, into a wall never, and never further than its leash
+  // from home. It tires and rests, and with no way left to run it is caught.
+  function moveRunners(st, R, dt) {
+    const h = st.hole, G = R.G, Z = zoomScale(st), U = RULES.RUN;
+    for (const o of R.runners) {
+      if (o.st !== IDLE || o.pull > 0 || !edible(st, o)) continue;
+      if (o.rest > 0) { o.rest = Math.max(0, o.rest - dt); continue; }
+      const d = gdist(o.x, o.y, h.x, h.y);
+      if (d > h.r + o.r + U.flee * Z) { o.ran = Math.max(0, o.ran - dt * 0.5); continue; }
+      const gx = o.x - h.x, gy = (o.y - h.y) / SQ, gl = Math.hypot(gx, gy) || 1;
+      const sp = U.speed * RULES.VMAX * Z * dt;
+      let moved = false;
+      for (const a of [0, 0.5, -0.5, 1, -1, 1.5, -1.5]) {
+        const c = Math.cos(a), sn = Math.sin(a);
+        const ux = (gx / gl) * c - (gy / gl) * sn, uy = (gx / gl) * sn + (gy / gl) * c;
+        const nx = o.x + ux * sp, ny = o.y + uy * sp * SQ;
+        if (!(G.walk(nx, ny) <= -(o.r + RULES.EDGE)) || gdist(nx, ny, o.hx, o.hy) > U.leash) continue;
+        let clash = false;
+        for (const w of R.solids) if (gdist(nx, ny, w.x, w.y) < coreOf(w) + o.r) { clash = true; break; }
+        if (clash) continue;
+        o.x = nx; o.y = ny; moved = true;
+        break;
+      }
+      if (moved && o.ran === 0) emit(st, { type: "flee", id: o.id });
+      if (moved) o.dir = gx < 0 ? -1 : 1;
+      o.ran += dt;
+      if (o.ran >= U.tire) { o.ran = 0; o.rest = U.rest; }
     }
   }
 
@@ -1405,7 +1518,22 @@
     st.hole.tx = clamp(x, 0, st.W); st.hole.ty = clamp(y, 0, st.H);
   }
 
-  const edible = (st, o) => o.st === IDLE && o.r <= st.hole.r * RULES.FIT && !(o.lock && !st.unlocked[o.lock]);
+  const edible = (st, o) => o.st === IDLE && !o.press && o.r <= st.hole.r * RULES.FIT && !(o.lock && !st.unlocked[o.lock]);
+  // A BUTTON (§17) is never food — it is something to roll onto
+  const wanted = (st, o) => edible(st, o) || (!!o.press && o.st === IDLE && !o.pressed && !st.unlocked[o.press]);
+  // a key is done once eaten (or falling in); a button once pressed
+  const openerDone = (o) => (o.press ? !!o.pressed : o.st === FALL || o.st === GONE);
+  // The opener of lock `name` to head for next: the nearest one not yet done
+  // that he can do now (a key he can eat, or any button).
+  function nextOpener(st, R, name) {
+    let best = null, bd = Infinity;
+    for (const o of R.openers[name] || []) {
+      if (openerDone(o) || !wanted(st, o)) continue;
+      const d = gdist(o.x, o.y, st.hole.x, st.hole.y);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
+  }
 
   // The nearest thing Gobble can eat — nearest to WALK to (the sweet across
   // the pond is not the nearest one when the bridge is far). Cached while he
@@ -1414,11 +1542,13 @@
     const R = rt(st), G = R.G, h = st.hole;
     refreshSolids(st, R);
     const from = cellHere(G, h.x, h.y);
-    const key = from + ":" + st.navGen + ":" + st.eaten + ":" + h.level + ":" + (R.riders.length ? Math.floor(st.t * 2) : 0) + ":" + st.objects.filter((o) => o.st === IDLE).length;
-    if (R.nearC && R.nearC.key === key && (!R.nearC.o || edible(st, R.nearC.o))) return R.nearC.o;
+    const key = from + ":" + st.navGen + ":" + st.eaten + ":" + h.level + ":" + (R.riders.length || R.runners.length ? Math.floor(st.t * 2) : 0) + ":" +
+      st.objects.filter((o) => o.st === IDLE && !o.pressed).length;
+    if (R.nearC && R.nearC.key === key && (!R.nearC.o || wanted(st, R.nearC.o))) return R.nearC.o;
+    // (an unpressed button of a lock still shut counts: it is a thing to go to)
     const at = new Map();
     for (const o of st.objects) {
-      if (!edible(st, o)) continue;
+      if (!wanted(st, o)) continue;
       const k = cellHere(G, o.x, o.y);
       if (!at.has(k)) at.set(k, []);
       at.get(k).push(o);
@@ -1453,8 +1583,8 @@
     const R = rt(st);
     for (const name of guardsOf(st, R)) {
       if (st.unlocked[name]) continue;
-      const key = R.keys[name];
-      if (key && edible(st, key)) return key;
+      const k = nextOpener(st, R, name);
+      if (k) return k;
     }
     return fin;
   }
@@ -1492,13 +1622,37 @@
   }
 
   // Surprises out: a box's goodies when it is eaten ("pop"), a tree's fruit
-  // when it is bumped ("shake").
+  // when it is bumped ("shake"), a seedling's flowers when he rolls by
+  // ("sprout").
   function reveal(st, o, how) {
     if (!o.kids || !o.kids.length) return;
-    if (how === "shake") o.shook = true;
+    if (how === "shake" || how === "sprout") o.shook = true;
     const ids = [];
     for (const id of o.kids) { const k = st.objects[id]; if (k && k.st === HIDDEN) { k.st = IDLE; ids.push(id); } }
     if (ids.length) emit(st, { type: how, id: o.id, kids: ids, x: round3(o.x), y: round3(o.y) });
+  }
+  // A PIÑATA (§17) bonked: a share of its treats tumbles out each time, and
+  // the last bonk bursts it open.
+  function bonk(st, o) {
+    o.hit++;
+    const left = o.kids.filter((id) => st.objects[id].st === HIDDEN);
+    const last = o.hit >= o.hits;
+    const share = last ? left.length : Math.max(1, Math.floor(o.kids.length / o.hits));
+    const ids = left.slice(0, share);
+    for (const id of ids) st.objects[id].st = IDLE;
+    if (last) o.shook = true;
+    emit(st, { type: "hit", id: o.id, n: o.hit, of: o.hits, kids: ids, last, x: round3(o.x), y: round3(o.y) });
+  }
+  // A key eaten, or a button pressed: one step nearer opening its lock. A
+  // lock waits for EVERY opener with its name. One key alone just opens it
+  // (as it always has); more than one, or a button, says how far it has got.
+  function opened(st, o) {
+    const name = o.key || o.press;
+    if (!name || st.unlocked[name]) return;
+    const all = rt(st).openers[name] || [o];
+    const n = all.filter(openerDone).length;
+    if (all.length > 1 || o.press) emit(st, { type: "opener", key: name, id: o.id, how: o.press ? "press" : "key", n, of: all.length });
+    if (n >= all.length) unlock(st, name);
   }
   function unlock(st, key) {
     st.unlocked[key] = true;
@@ -1534,8 +1688,23 @@
     if (!st.won && !o.finale && was < RULES.SLURP.at && st.combo >= RULES.SLURP.at) { st.slurpT = RULES.SLURP.secs; emit(st, { type: "slurp" }); }
     if (!st.won) {
       if (o.kids && o.kids.length) reveal(st, o, "pop");
-      if (o.key && !st.unlocked[o.key]) unlock(st, o.key);
+      if (o.key && !st.unlocked[o.key]) opened(st, o);
       if (o.chain) cascade(st, o);
+      // POWER-UPS (§17): a magnet pulls everything near in (the super
+      // slurp's own pull, for longer); a lightning bolt makes him zoom
+      if (o.power) {
+        if (o.power === "magnet") st.slurpT = Math.max(st.slurpT, RULES.POWER.magnet);
+        else if (o.power === "zoom") h.zoomT = RULES.POWER.zoom;
+        emit(st, { type: "power", kind: o.power, id: o.id });
+      }
+    }
+    // COUNTING (§17): in a counting place every counted thing says the next
+    // number — the win's slurp too, so the count always gets to the end
+    const C = rt(st).def.count;
+    if (C && o.e === C.e) {
+      st.counted++;
+      const by = C.by || 1, of = rt(st).counts;
+      emit(st, { type: "count", k: st.counted, n: st.counted * by, of, last: st.counted >= of });
     }
     const top = st.levels.R.length - 1;
     while (!st.won && h.level < top && h.xp >= st.levels.C[h.level + 1]) {
@@ -1565,47 +1734,22 @@
     const R = rt(st), G = R.G, h = st.hole;
     refreshSolids(st, R);
     if (R.riders.length) moveRiders(st, R);
+    if (R.runners.length && !st.won) moveRunners(st, R, dt);
     if (st.won) {
       st.winT += dt;
       // Gobble glides to the middle for the big slurp
       h.tx = G.mid.x; h.ty = G.mid.y;
     }
-
-    // 1. where to head, and how fast: fast when far, gentle as he arrives
-    const wp = waypoint(st, R);
-    const dx = wp.x - h.x, dy = wp.y - h.y, d = Math.hypot(dx, dy);
-    let vx = 0, vy = 0;
-    if (d > 0.005) {
-      const sp = Math.min((wp.final ? d : d + G.N * 8) * RULES.GAIN, RULES.VMAX * zoomScale(st));
-      vx = (dx / d) * sp; vy = (dy / d) * sp;
-    }
-    // 2. ICE: he keeps sliding, and turns slowly
-    const ice = G.slideAt(h.x, h.y);
-    if (ice) {
-      const k = 1 - Math.exp(-dt / RULES.ICE_TAU);
-      h.vx += (vx - h.vx) * k; h.vy += (vy - h.vy) * k;
-    } else { h.vx = vx; h.vy = vy; }
-    if (ice !== st.onIce) { st.onIce = ice; if (ice) emit(st, { type: "ice" }); }
-    let mx = h.vx * dt, my = h.vy * dt;
-    if (!ice) {
-      // never glide past the point he is heading for
-      const m = Math.hypot(mx, my);
-      if (m > d && m > 0) { mx *= d / m; my *= d / m; }
-    }
-    // 3. CURRENTS: the river (or the belt) carries him — and where he was
-    //    heading drifts with it, so let go and he floats along
-    const fl = G.flowAt(h.x, h.y);
-    if (fl) { mx += fl.x * dt; my += fl.y * dt; h.tx += fl.x * dt; h.ty += fl.y * dt; }
-    if (!!fl !== st.inFlow) { st.inFlow = !!fl; if (fl) emit(st, { type: "flow", look: fl.look }); }
-    // 4. move, never into water or through a wall
-    moveBy(st, R, mx, my);
-    // 5. portals
-    warp(st, R);
+    // in flight from a cannon he goes where the cannon sends him; otherwise
+    // he glides where the finger points
+    if (st.fly) flyStep(st, R, dt);
+    else glide(st, R, dt);
 
     // 6. grow toward this level's size (the picture eases; physics uses r)
     h.r += (h.R - h.r) * Math.min(1, dt * 7);
     if (Math.abs(h.R - h.r) < 0.01) h.r = h.R;
     if (st.slurpT > 0) st.slurpT = Math.max(0, st.slurpT - dt);
+    if (h.zoomT > 0) h.zoomT = Math.max(0, h.zoomT - dt);
 
     // 7. every object
     for (const o of st.objects) {
@@ -1617,6 +1761,8 @@
         if (o.f >= 1) { o.f = 1; eat(st, o); }
         continue;
       }
+      // flying over from a cannon, nothing falls in and nothing is touched
+      if (st.fly) continue;
       const dist = gdist(o.x, o.y, h.x, h.y);
       const locked = !!o.lock && !st.unlocked[o.lock];
       const fits = !locked && o.r <= h.r * RULES.FIT;
@@ -1632,6 +1778,14 @@
         o.pull = 1;
         continue;
       }
+      if (o.press) {
+        // A BUTTON in the floor (§17): roll onto it and it clicks down for
+        // good. It is never food, never pulled, never too big.
+        if (!o.pressed && dist < Math.max(o.r * RULES.PRESS[0], h.r * RULES.PRESS[1])) { o.pressed = true; opened(st, o); }
+        continue;
+      }
+      // A SEEDLING (§17): roll near it and its flowers pop up
+      if (o.box === "sprout" && !o.shook && dist < h.r + o.r + RULES.SPROUT_R) reveal(st, o, "sprout");
       if (fits && dist <= h.r - o.r * 0.35) { startFall(st, o); continue; }
       if (o.casc && st.t >= o.casc) {
         // a domino in a toppling line: it rolls all the way in by itself,
@@ -1674,29 +1828,126 @@
       // TOO BIG (or locked): it wobbles on the rim and Gobble looks up at it.
       // A wall he is pressed against counts as touching even when his mouth
       // is small beside it.
-      const wall = (o.solid || o.lock) && activeSolid(st, o);
+      const wall = (o.solid || o.lock || o.bounce) && activeSolid(st, o);
       if (!fits && (dist < h.r + o.r * 0.5 || (wall && dist < coreOf(o) + 1.5))) {
         if (o.wob <= 0) o.wob = 0.45;
         if (o.cd <= 0) {
           o.cd = 1.2;
-          emit(st, { type: "bump", id: o.id, solid: wall, locked });
+          emit(st, { type: "bump", id: o.id, solid: wall, locked, bounce: !!o.bounce });
           if (locked) st.wantKey = o.lock;
+          if (o.bounce) {
+            // BOING (§17): a bumper too big to eat knocks him back
+            const gx = h.x - o.x, gy = (h.y - o.y) / SQ, gl = Math.hypot(gx, gy) || 1, kv = RULES.KNOCK.v * zoomScale(st);
+            h.kx = (gx / gl) * kv; h.ky = (gy / gl) * kv * SQ;
+          }
+          // a PIÑATA (§17) counts its bonks, once a bump
+          if (o.hits && !o.shook) bonk(st, o);
         }
-        if (o.box === "shake" && !o.shook) reveal(st, o, "shake");
+        if (o.box === "shake" && !o.shook && !o.hits) reveal(st, o, "shake");
       }
     }
 
-    // 8. the hint: nothing eaten for a while → point at the goal if he is big
+    // 8. the first time something new is near, it is introduced (§17)
+    if (!st.won && st.tick % 10 === 0) meetTick(st, R);
+
+    // 9. the hint: nothing eaten for a while → point at the goal if he is big
     //    enough for it, else at the nearest bite. Bumped into a lock? Point
-    //    at its key straight away.
+    //    at its key (or its button) straight away.
     if (!st.won) {
       st.sinceEat += dt;
-      const key = st.wantKey ? R.keys[st.wantKey] : null;
-      if (key && edible(st, key)) st.hint = key.id;
+      const key = st.wantKey ? nextOpener(st, R, st.wantKey) : null;
+      if (key) st.hint = key.id;
       else if (st.sinceEat >= RULES.HINT_AFTER) {
         const n = goalOf(st) || nearestEdible(st);
         st.hint = n ? n.id : -1;
       }
+    }
+  }
+
+  // Where he heads and how he moves this step: the finger (or a path round
+  // what is in the way), ice, currents, a bumper's knock, then portals.
+  function glide(st, R, dt) {
+    const G = R.G, h = st.hole;
+    // 1. where to head, and how fast: fast when far, gentle as he arrives
+    const wp = waypoint(st, R);
+    const dx = wp.x - h.x, dy = wp.y - h.y, d = Math.hypot(dx, dy);
+    let vx = 0, vy = 0;
+    if (d > 0.005) {
+      // (a lightning bolt, §17: he zooms)
+      const sp = Math.min((wp.final ? d : d + G.N * 8) * RULES.GAIN, RULES.VMAX * zoomScale(st) * (h.zoomT > 0 ? RULES.POWER.zoomMul : 1));
+      vx = (dx / d) * sp; vy = (dy / d) * sp;
+    }
+    // 2. ICE: he keeps sliding, and turns slowly
+    const ice = G.slideAt(h.x, h.y);
+    if (ice) {
+      const k = 1 - Math.exp(-dt / RULES.ICE_TAU);
+      h.vx += (vx - h.vx) * k; h.vy += (vy - h.vy) * k;
+    } else { h.vx = vx; h.vy = vy; }
+    if (ice !== st.onIce) { st.onIce = ice; if (ice) emit(st, { type: "ice" }); }
+    let mx = h.vx * dt, my = h.vy * dt;
+    if (!ice) {
+      // never glide past the point he is heading for
+      const m = Math.hypot(mx, my);
+      if (m > d && m > 0) { mx *= d / m; my *= d / m; }
+    }
+    // 3. CURRENTS: the river (or the belt) carries him — and where he was
+    //    heading drifts with it, so let go and he floats along
+    const fl = G.flowAt(h.x, h.y);
+    if (fl) { mx += fl.x * dt; my += fl.y * dt; h.tx += fl.x * dt; h.ty += fl.y * dt; }
+    if (!!fl !== st.inFlow) { st.inFlow = !!fl; if (fl) emit(st, { type: "flow", look: fl.look }); }
+    // a BUMPER's knock (§17): it fades fast, and goes through moveBy like
+    // everything else — so it can never knock him into the water
+    if (h.kx || h.ky) {
+      mx += h.kx * dt; my += h.ky * dt;
+      const kd = Math.exp(-dt / RULES.KNOCK.tau);
+      h.kx *= kd; h.ky *= kd;
+      if (Math.hypot(h.kx, h.ky) < 1) h.kx = h.ky = 0;
+    }
+    // 4. move, never into water or through a wall
+    moveBy(st, R, mx, my);
+    // 5. portals
+    warp(st, R);
+  }
+
+  // THE FIRST TIME (§17): a new kind of thing is introduced the first time
+  // it is near — a word, and the thing hops — once a kind, once a visit. A
+  // place-wide one (counting) once the opening look is done.
+  function meetsOf(st, R) {
+    const out = [];
+    const objs = (fn) => st.objects.filter(fn).map((o) => ({ o }));
+    const add = (kind, at, n) => { if (at.length) out.push({ kind, at, n: n || 0 }); };
+    add("button", objs((o) => !!o.press));
+    for (const [name, all] of Object.entries(R.openers)) {
+      const keys = all.filter((o) => o.key);
+      if (all.length > 1 && keys.length) { add("keys", keys.map((o) => ({ o })), all.length); void name; break; }
+    }
+    add("bounce", objs((o) => !!o.bounce));
+    add("hits", objs((o) => !!o.hits));
+    add("power", objs((o) => !!o.power));
+    add("sprout", objs((o) => o.box === "sprout"));
+    add("launch", R.G.ends.filter((e) => e.fly && e.live).map((e) => ({ x: e.x, y: e.y })));
+    add("spin", R.G.flows.filter((f) => f.spin).map((f) => ({ x: f.spin.x, y: f.spin.y, r: f.spin.rg })));
+    if (R.def.count) out.push({ kind: "count", wide: true, n: R.counts });
+    return out;
+  }
+  function meetTick(st, R) {
+    if (!R.meet) R.meet = meetsOf(st, R);
+    const h = st.hole, reach = RULES.MEET_R * zoomScale(st);
+    for (const m of R.meet) {
+      if (st.met[m.kind]) continue;
+      let hit = null;
+      if (m.wide) { if (st.t >= RULES.MEET_T) hit = { id: -1, x: h.x, y: h.y }; }
+      else {
+        for (const q of m.at) {
+          if (q.o && (q.o.st !== IDLE || q.o.pressed || q.o.shook)) continue;
+          const x = q.o ? q.o.x : q.x, y = q.o ? q.o.y : q.y;
+          if (gdist(x, y, h.x, h.y) < reach + (q.r || 0)) { hit = { id: q.o ? q.o.id : -1, x, y }; break; }
+        }
+      }
+      if (!hit) continue;
+      st.met[m.kind] = true;
+      emit(st, { type: "meet", kind: m.kind, id: hit.id, x: round3(hit.x), y: round3(hit.y), n: m.n });
+      return;   // one at a time
     }
   }
 
@@ -1705,10 +1956,10 @@
   // place with it, and the browser's test hook uses the same one.
   function botTarget(st) {
     const R = rt(st);
-    const key = st.wantKey ? R.keys[st.wantKey] : null;
-    if (key && edible(st, key)) return { x: key.x, y: key.y };
+    const key = st.wantKey ? nextOpener(st, R, st.wantKey) : null;
+    if (key) return { x: key.x, y: key.y };
     let o = R.bot >= 0 ? st.objects[R.bot] : null;
-    if (!o || !edible(st, o) || st.t - R.botT > 0.5) {
+    if (!o || !wanted(st, o) || st.t - R.botT > 0.5) {
       o = nearestEdible(st);
       R.bot = o ? o.id : -1; R.botT = st.t;
     }
@@ -1737,7 +1988,10 @@
       // a thing already FALLING is as good as eaten: leaving mid-gulp must
       // not bring it back standing on the rim
       eaten: st.objects.filter((o) => o.st === FALL || o.st === GONE).map((o) => o.id),
-      x: round3(st.hole.x), y: round3(st.hole.y),
+      // the buttons he has pressed (§17)
+      pressed: st.objects.filter((o) => o.pressed).map((o) => o.id),
+      // in the middle of a cannon flight he is saved where he lands
+      x: round3(st.fly ? st.fly.x1 : st.hole.x), y: round3(st.fly ? st.fly.y1 : st.hole.y),
     };
   }
   function restore(snap) {
@@ -1757,18 +2011,29 @@
       if (!o || o.finale || o.st === GONE || !Number.isInteger(raw)) continue;
       o.st = GONE; st.eaten++; h.xp += o.xp;
     }
-    // what those gulps did: keys turned, boxes popped, trees shaken
+    // the buttons pressed (only real buttons: a hand-edited save cannot
+    // press a key or a tree)
+    for (const raw of Array.isArray(snap.pressed) ? snap.pressed : []) {
+      const o = Number.isInteger(raw) ? st.objects[raw] : null;
+      if (o && o.press) o.pressed = true;
+    }
+    // what those gulps did: boxes popped, trees shaken, seedlings sprouted,
+    // piñatas burst, things counted
+    const Rr = rt(st);
     for (const o of st.objects) {
       if (o.st !== GONE) continue;
-      if (o.key) st.unlocked[o.key] = true;
+      if (Rr.def.count && o.e === Rr.def.count.e) st.counted++;
       // a box or a tree eaten let everything in it out; a tree's fruit eaten
       // means it was shaken
-      const fam = o.kids ? o : o.par != null && st.objects[o.par].box === "shake" ? st.objects[o.par] : null;
+      const par = o.par != null ? st.objects[o.par] : null;
+      const fam = o.kids ? o : par && par.box !== "pop" ? par : null;
       if (fam) {
-        if (fam !== o) fam.shook = true;
+        if (fam !== o) { fam.shook = true; if (fam.hits) fam.hit = fam.hits; }
         for (const id of fam.kids) if (st.objects[id].st === HIDDEN) st.objects[id].st = IDLE;
       }
     }
+    // a lock is open once every key and button with its name is done
+    for (const [name, all] of Object.entries(Rr.openers)) if (all.every(openerDone)) st.unlocked[name] = true;
     while (h.level + 1 < st.levels.R.length && h.xp >= st.levels.C[h.level + 1]) h.level++;
     h.R = h.r = st.levels.R[h.level];
     const R = rt(st);
@@ -1783,9 +2048,12 @@
   // runs with it). Non-finite numbers are kept visible, never flattened.
   function hashState(st) {
     const n = (v) => (Number.isFinite(v) ? Math.round(v * 1000) : String(v));
-    const parts = [st.tick, st.eaten, st.won, st.hole.level, st.hole.xp, n(st.hole.x), n(st.hole.y), n(st.hole.r),
-      n(st.hole.vx || 0), n(st.hole.vy || 0), Object.keys(st.unlocked || {}).sort().join("|"), st.warpLock];
-    for (const o of st.objects) parts.push(o.st, n(o.x), n(o.y), n(o.f));
+    const h = st.hole, F = st.fly;
+    const parts = [st.tick, st.eaten, st.won, h.level, h.xp, n(h.x), n(h.y), n(h.r),
+      n(h.vx || 0), n(h.vy || 0), Object.keys(st.unlocked || {}).sort().join("|"), st.warpLock,
+      n(st.slurpT || 0), n(h.kx || 0), n(h.ky || 0), n(h.zoomT || 0), st.counted | 0,
+      F ? [n(F.t), n(F.d), n(F.x1), n(F.y1)].join("/") : "-", Object.keys(st.met || {}).sort().join("|")];
+    for (const o of st.objects) parts.push(o.st, n(o.x), n(o.y), n(o.f), o.pressed ? 1 : 0, o.hit | 0, n(o.rest || 0), n(o.ran || 0));
     return hashStr(parts.join(","));
   }
 
@@ -1821,26 +2089,38 @@
       let dist = null;
       for (let guard = 0; guard < 20; guard++) {
         const B = new Uint8Array(G.n);
-        for (const o of R.solidObjs) if ((o.lock && !unlocked[o.lock]) || (o.solid && o.r > rad * RULES.FIT)) markCore(G, B, o);
+        for (const o of R.solidObjs) if ((o.lock && !unlocked[o.lock]) || ((o.solid || o.bounce) && o.r > rad * RULES.FIT)) markCore(G, B, o);
         const res = search(G, G.startCell, -1, B, null, true);
         const S = G.scratch;
         dist = new Float64Array(G.n).fill(Infinity);
         for (let k = 0; k < G.n; k++) if (S.done[k] === res.stamp) dist[k] = S.dist[k];
+        // a lock opens when EVERY opener with its name can be done: each key
+        // reachable and small enough (and, hidden in a box, its box eaten),
+        // each button reachable (any size can roll onto a button)
         let more = false;
-        for (const o of st.objects) {
-          if (!o.key || unlocked[o.key] || o.r > rad * RULES.FIT) continue;
-          const host = o.par != null ? st.objects[o.par] : o;
-          if (host !== o && o.how === "pop" && (host.r > rad * RULES.FIT || (host.lock && !unlocked[host.lock]))) continue;
-          if (reachOf(dist, o, rad) && reachOf(dist, host, rad)) { unlocked[o.key] = true; more = true; }
+        for (const [name, all] of Object.entries(R.openers)) {
+          if (unlocked[name]) continue;
+          const can = all.every((o) => {
+            if (o.press) return reachOf(dist, o, rad);
+            if (o.r > rad * RULES.FIT) return false;
+            const host = o.par != null ? st.objects[o.par] : o;
+            if (host !== o && o.how === "pop" && (host.r > rad * RULES.FIT || (host.lock && !unlocked[host.lock]))) return false;
+            return reachOf(dist, o, rad) && reachOf(dist, host, rad);
+          });
+          if (can) { unlocked[name] = true; more = true; }
         }
         if (!more) break;
       }
       let avail = 0;
       for (const o of st.objects) {
         if (o.finale || o.r > rad * RULES.FIT || (o.lock && !unlocked[o.lock])) continue;
+        // a button is not food; a runaway may get away; a piñata's treats
+        // need bonks a child may never give — none of them counts (§17)
+        if (o.press || o.run) continue;
         if (!reachOf(dist, o, rad)) continue;
         if (o.par != null) {
           const p = st.objects[o.par];
+          if (p.hits) continue;
           if (!reachOf(dist, p, rad)) continue;
           if (o.how === "pop" && (p.r > rad * RULES.FIT || (p.lock && !unlocked[p.lock]))) continue;
         }

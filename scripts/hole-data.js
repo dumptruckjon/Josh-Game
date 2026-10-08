@@ -48,12 +48,12 @@
     FIT: 0.92,        // an object fits when r <= hole.r * FIT
     HEAD: 1.05,       // a level's radius clears its tier's biggest thing by 5%
     // A grow needs this many bites' worth of the NEWEST edible tier's xp
-    // (C[1..5]). Six sweets for the first "BIGGER!" (that one stays quick:
+    // (C[1..5], and C[6] for a GIANT place's sixth size, §17). Six sweets for the first "BIGGER!" (that one stays quick:
     // it is how a new player learns what eating DOES), then more of whatever
     // just became edible at each size — a bigger world to roam before the
     // next grow, and still never a hunt (a law: at most half of what is
     // edible so far, so a whole district he never visits cannot block one).
-    GROW_BITES: [6, 10, 12, 14, 16],
+    GROW_BITES: [6, 10, 12, 14, 16, 8],
     // THE CAMERA. The world shown across the screen's SHORT side is
     // VIEW0 * (short px / 400)^VIEW_SCREEN * (R[level] / R[0])^ZOOM: a bigger
     // screen shows more world (it is not a blow-up), and the view widens as
@@ -91,6 +91,32 @@
     PORTAL_COST: 6,   // what going through a portal costs a planned route…
     PORTAL_PEN: 30,   // …and what walking PAST one costs it (so a route goes round a portal unless it is the way)
     ICE_TAU: 0.6,     // on ice his speed takes this long to follow the finger (seconds): he slides
+    // ---- phase 5 (§17): new things a place can do ----
+    // BUMPERS: a bouncy thing still too big to eat knocks him back this fast
+    // (units/s, scaled with the zoom), the knock fading over TAU seconds.
+    KNOCK: { v: 70, tau: 0.25 },
+    // BUTTONS: his centre within max(button r * a, his r * b) of a button's
+    // centre presses it.
+    PRESS: [0.9, 0.6],
+    // RUNAWAYS: a thing he can eat scoots away once he is within FLEE of it
+    // (past both rims, scaled with the zoom), at SPEED times his top speed;
+    // after TIRE seconds of running it rests REST, and it never strays LEASH
+    // from where it stood. With nowhere to go it is cornered and caught.
+    RUN: { flee: 26, speed: 0.85, tire: 2.2, rest: 1.6, leash: 70 },
+    // POWER-UPS: a magnet's pull lasts MAGNET seconds (the super slurp's own
+    // rules); a lightning bolt makes him ZOOM_MUL times as fast for ZOOM seconds.
+    POWER: { magnet: 4, zoom: 5, zoomMul: 1.6 },
+    // CANNONS: he flies to the other end at SPEED (units/s), each flight
+    // lasting between MIN and MAX seconds.
+    FLY: { speed: 220, min: 0.7, max: 1.3 },
+    // SPROUTS: rolling within this of a seedling (past both rims) pops up
+    // what grows from it.
+    SPROUT_R: 10,
+    // THE FIRST TIME something new is near (within MEET_R, scaled with the
+    // zoom) it is introduced; a place-wide thing (counting) after MEET_T
+    // seconds, once the opening look is done.
+    MEET_R: 60,
+    MEET_T: 2.4,
   };
 
   // ---- Shape helpers (positions normalized to the world, [0,1] across and down)
@@ -140,6 +166,9 @@
   // The tier sizes every place shares (the derived ladder: tier L+2 is always
   // too big at level L — the tier law, tested).
   const T1 = [3.1, 3.6], T2 = [4.8, 5.4], T3 = [7.0, 7.8], T4 = [10.0, 11.0], T5 = [14.0, 15.0];
+  // a GIANT place's sixth size (§17): only a place with six tiers uses it,
+  // and its finale is bigger still
+  const T6 = [19.5, 21.0];
 
   // A place: 5 tiers (tiny → huge) + one FINALE, and — phase 4 (§14) — its
   // own SHAPE and CHALLENGE. Everything below is optional but `tiers` and
