@@ -1526,6 +1526,7 @@
   // The opener of lock `name` to head for next: the nearest one not yet done
   // that he can do now (a key he can eat, or any button).
   function nextOpener(st, R, name) {
+    if (typeof R === "string") { name = R; R = rt(st); }
     let best = null, bd = Infinity;
     for (const o of R.openers[name] || []) {
       if (openerDone(o) || !wanted(st, o)) continue;
@@ -2249,7 +2250,7 @@
     DT, IDLE, FALL, GONE, HIDDEN,
     rng, hashStr, printOf, twistsOf, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
     goldOf, countOf, GOLD_BANDS, itemOf, geomOf, outlineOf, progressOf, routeLine,
-    createGame, setTarget, step, nearestEdible, edible, goalOf, botTarget, activeSolid,
+    createGame, setTarget, step, nearestEdible, edible, wanted, nextOpener, openerDone, goalOf, botTarget, activeSolid,
     snapshot, restore, hashState,
     // the shape machinery, for the tests that hold it to brute force
     compileShape, segIndex, segsOf, contours, SHAPE_CAP,

@@ -1815,6 +1815,11 @@
     let darkCv = null, lightCv = null, lastDark = 0;
     const flyIn = new Map();   // a surprise popping out: id -> where from, and when
     let lastFeat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0 };
+    // §17: buttons' wires to their gates, a bumper's squash, the counting
+    // tally (how many of the counted thing there are), and what was drawn
+    let wires = [], countOf = 0, geoOpeners = {};
+    const squash = new Map();
+    let lastNew = {};
 
     const shortSide = () => Math.min(cssW, cssH) || 1;
 
@@ -1908,7 +1913,7 @@
       st = next;
       def = DATA.SCENES.find((d) => d.id === st.id) || DATA.SCENES[0];
       mode = "follow";
-      fx.length = 0; hopUntil.clear(); shakeT = 0; starUntil = 0; goalHopAt = 0;
+      fx.length = 0; hopUntil.clear(); squash.clear(); shakeT = 0; starUntil = 0; goalHopAt = 0;
       tasteFace = null; tasteUntil = 0; boingUntil = 0;
       air = null; fireworks = []; airBurst = null;
       arrow = null; noBiteSince = -1;
@@ -2035,7 +2040,7 @@
       const v = viewRect(2);
       const x0 = Math.max(0, v.x0), y0 = Math.max(0, v.y0), x1 = Math.min(W, v.x1), y1 = Math.min(H, v.y1);
       let nd = 0;
-      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0 };
+      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0, wires: 0, spin: 0, cannons: 0 };
       if (x1 > x0 && y1 > y0) {
         drawGround(x0, y0, x1, y1);
         for (const dc of decals) {
@@ -2049,6 +2054,7 @@
         // what lies IN the ground: water and lava, then the rivers and belts
         feat.blocks += drawBlocks(true, v, now);
         feat.flows += drawFlows(v, now);
+        feat.wires = drawWires(v, now);
         drawLight(x0, y0, x1, y1);
       }
       ctx.restore();
@@ -2063,6 +2069,8 @@
       feat.bridges += drawBridges(v);
       feat.flows += drawSlides(v, now);
       feat.portals += drawPortals(v, now);
+      feat.cannons = portals.filter((E) => E.fly).length;
+      feat.spin = flows.filter((F) => F.spin && boxIn(F.box, v)).length;
       ctx.restore();
       lastFeat = feat;
       return nd;
@@ -2086,12 +2094,23 @@
         a: offsetLine(t.pts, t.w * 0.3), b: offsetLine(t.pts, -t.w * 0.3),
         ea: offsetLine(t.pts, t.w * 0.47), eb: offsetLine(t.pts, -t.w * 0.47),
       }));
-      flows = geo.flows.map((f) => ({
-        f, box: ptsBox(f.pts, f.w),
-        a: offsetLine(f.pts, f.w * 0.26), b: offsetLine(f.pts, -f.w * 0.26),
-        ea: offsetLine(f.pts, f.w * 0.5), eb: offsetLine(f.pts, -f.w * 0.5),
-      }));
-      portals = geo.ends.map((e) => ({ x: e.x, y: e.y, look: e.look, live: e.live, pi: e.pi }));
+      flows = geo.flows.map((f) => (f.spin
+        ? { f, spin: f.spin, box: [f.spin.x - f.spin.rg, f.spin.y - f.spin.rg * SQ, f.spin.x + f.spin.rg, f.spin.y + f.spin.rg * SQ] }
+        : {
+          f, box: ptsBox(f.pts, f.w),
+          a: offsetLine(f.pts, f.w * 0.26), b: offsetLine(f.pts, -f.w * 0.26),
+          ea: offsetLine(f.pts, f.w * 0.5), eb: offsetLine(f.pts, -f.w * 0.5),
+        }));
+      portals = geo.ends.map((e) => ({ x: e.x, y: e.y, look: e.look, live: e.live, pi: e.pi, fly: e.fly, to: geo.ends[e.to] }));
+      // a button's WIRE runs along the ground to every gate it opens (§17)
+      geoOpeners = {};
+      for (const o of st.objects) for (const n of [o.key, o.press]) if (n) (geoOpeners[n] || (geoOpeners[n] = [])).push(o);
+      wires = [];
+      for (const b of st.objects) {
+        if (!b.press) continue;
+        for (const g of st.objects) if (g.lock === b.press) wires.push({ b, g, box: ptsBox([[b.x, b.y], [g.x, g.y]], 3) });
+      }
+      countOf = def.count ? st.objects.filter((o) => o.e === def.count.e).length : 0;
     }
 
     // A stroke along a line of WORLD points, laid on the ground (so it is
@@ -2283,6 +2302,7 @@
       for (const F of flows) {
         if (!boxIn(F.box, v)) continue;
         n++;
+        if (F.spin) { drawSpin(F); continue; }
         const f = F.f, off = rm ? 0 : -((now * f.v) % 240);
         if (f.look === "slide") { n--; continue; } // drawn ON its bridge, by drawSlides
         if (f.look === "belt") {
@@ -2304,6 +2324,47 @@
           gline(f.pts, 0.6, "rgba(255,255,255,0.45)", [5, 12], off * 0.9);
           gline(F.ea, 0.6, "rgba(255,255,255,0.55)"); gline(F.eb, 0.6, "rgba(255,255,255,0.55)");
         }
+      }
+      return n;
+    }
+
+    // A TURNTABLE (§17): a disc in the floor, its wedges turning at the
+    // rate it carries him (keyed to the RUN's clock, so a frame depends only
+    // on the state), round a hub that stands still. Still under reduced
+    // motion it is still drawn turned to where the run has got to.
+    const SPIN_COLS = { turntable: ["#ff5e7e", "#fff4e0"], record: ["#22222b", "#3a3a48"], pizza: ["#f2a541", "#f7d070"] };
+    function drawSpin(F) {
+      const c = F.spin, f = F.f, cols = f.cols || SPIN_COLS[f.look] || SPIN_COLS.turntable;
+      const a0 = (st.t * f.v) / c.rg, K = 8;
+      ctx.save();
+      ctx.translate(c.x, c.y); ctx.scale(1, SQ);
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.arc(0.6, 1.4, c.rg * 1.04, 0, TAU); ctx.fill();
+      ctx.fillStyle = shade(cols[0], -0.35); ctx.beginPath(); ctx.arc(0, 0, c.rg, 0, TAU); ctx.fill();
+      for (let k = 0; k < K; k++) {
+        ctx.fillStyle = cols[k % 2];
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, c.rg * 0.94, a0 + (k * TAU) / K, a0 + ((k + 1) * TAU) / K); ctx.closePath(); ctx.fill();
+      }
+      ctx.lineWidth = 0.7; ctx.strokeStyle = "rgba(255,255,255,0.7)";
+      for (let k = 1; k <= 2; k++) { ctx.beginPath(); ctx.arc(0, 0, c.rg * 0.94 * (k / 3), 0, TAU); ctx.stroke(); }
+      // the hub
+      ctx.fillStyle = "#ffd24d"; ctx.beginPath(); ctx.arc(0, 0, Math.max(2, c.rg * 0.12), 0, TAU); ctx.fill();
+      ctx.lineWidth = 0.6; ctx.strokeStyle = INK_DARK; ctx.stroke();
+      ctx.restore();
+    }
+    // A BUTTON's WIRE (§17): a dashed gold line on the ground from the button
+    // to the gate it opens, its dashes marching toward the gate ("this opens
+    // THAT") — green and solid once the button is pressed, gone once the
+    // gate is open.
+    function drawWires(v, now) {
+      let n = 0;
+      const rm = reduceMotion();
+      for (const W of wires) {
+        if (st.unlocked[W.b.press] || W.g.st !== 0 || !boxIn(W.box, v)) continue;
+        n++;
+        const pts = [[W.b.x, W.b.y], [W.g.x, W.g.y]];
+        gline(pts, 1.8, "rgba(40,20,80,0.35)");
+        if (W.b.pressed) gline(pts, 1.1, "#3fbf5a");
+        else gline(pts, 1.1, "#ffd24d", [2.2, 1.6], rm ? 0 : -now * 6);
       }
       return n;
     }
@@ -2441,6 +2502,7 @@
       for (const E of portals) {
         if (E.x + R < v.x0 || E.x - R > v.x1 || E.y + R < v.y0 || E.y - R > v.y1) continue;
         n++;
+        if (E.fly) { drawCannon(E, now); continue; }
         ctx.save();
         ctx.translate(E.x, E.y); ctx.scale(1, SQ);
         if (!E.live) ctx.globalAlpha = 0.6;
@@ -2479,6 +2541,45 @@
         ctx.restore();
       }
       return n;
+    }
+
+    // A CANNON (§17): a barrel on a stand, aimed at where it lands — a
+    // dotted arc shows the flight — and at the far end a target in the
+    // floor. (A one-way cannon's landing spot is only a target.)
+    function flyLift(d) { return Math.min(60, 0.3 * d); }
+    function drawCannon(E, now) {
+      const R = RULES.PORTAL_R * 1.3;
+      if (!E.live) {
+        ctx.save();
+        ctx.translate(E.x, E.y); ctx.scale(1, SQ);
+        ["#d62839", "#ffffff", "#d62839", "#ffffff"].forEach((col, k) => {
+          ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, R * (1 - k * 0.24), 0, TAU); ctx.fill();
+        });
+        ctx.restore();
+        return;
+      }
+      const T = E.to, d = L.gdist(E.x, E.y, T.x, T.y), lift = flyLift(d);
+      // the flight's arc, dotted (the dots drift along it, still under
+      // reduced motion)
+      const off = reduceMotion() ? 0 : (now * 0.6) % 1;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (let k = 0; k < 14; k++) {
+        const t = (k + off) / 14;
+        const x = E.x + (T.x - E.x) * t, y = E.y + (T.y - E.y) * t - Math.sin(Math.PI * t) * lift;
+        ctx.beginPath(); ctx.arc(x, y, 0.9, 0, TAU); ctx.fill();
+      }
+      // the stand and the barrel, pointing the way it flies
+      const ang = Math.atan2(T.y - E.y - lift * 0.6, T.x - E.x);
+      ctx.save();
+      ctx.translate(E.x, E.y);
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ellipse(ctx, 0.8, 1.2, R, R * SQ); ctx.fill();
+      ctx.fillStyle = "#5a3a22"; ellipse(ctx, 0, 0, R * 0.9, R * 0.9 * SQ); ctx.fill();
+      ctx.rotate(ang);
+      ctx.fillStyle = INK_DARK; rrect(ctx, -R * 0.3, -R * 0.42, R * 1.6, R * 0.84, R * 0.3); ctx.fill();
+      ctx.fillStyle = "#4a4f63"; rrect(ctx, -R * 0.22, -R * 0.32, R * 1.44, R * 0.64, R * 0.24); ctx.fill();
+      ctx.fillStyle = "#ffd24d"; ctx.fillRect(R * 1.0, -R * 0.36, R * 0.14, R * 0.72);
+      ctx.restore();
+      ctx.fillStyle = "#2b2b38"; ctx.beginPath(); ctx.arc(E.x, E.y - R * 0.1, R * 0.36, 0, TAU); ctx.fill();
     }
 
     // DARK places (a cave): the screen is dark but for the light round Gobble
@@ -2647,10 +2748,76 @@
     }
     function lockBadge(o, x, y) {
       const size = drawSize(o), s = Math.max(14, size * 0.36);
+      const bx = x + size * 0.3, by = y - size * 0.86;
       ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.beginPath(); ctx.arc(x + size * 0.3, y - size * 0.86, s * 0.62, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx, by, s * 0.62, 0, Math.PI * 2); ctx.fill();
       ctx.lineWidth = 2; ctx.strokeStyle = "#b8860b"; ctx.stroke();
-      glyph("🔒", x + size * 0.3, y - size * 0.86, s * 0.8);
+      glyph("🔒", bx, by, s * 0.8);
+      // a lock waiting for more than one thing (§17): a pip for each, filled
+      // as each is done — he can SEE how many keys are still to find
+      const all = (geoOpeners[o.lock] || []);
+      if (all.length < 2) return 0;
+      const pr = Math.max(3.5, s * 0.16), gap = pr * 2.7, x0 = bx - ((all.length - 1) * gap) / 2, py = by + s * 0.62 + pr * 1.8;
+      all.forEach((k, i) => {
+        const done = L.openerDone(k);
+        ctx.beginPath(); ctx.arc(x0 + i * gap, py, pr, 0, TAU);
+        ctx.fillStyle = done ? "#3fbf5a" : "rgba(255,255,255,0.95)"; ctx.fill();
+        ctx.lineWidth = 1.6; ctx.strokeStyle = INK_DARK; ctx.stroke();
+      });
+      return all.length;
+    }
+    // §17's own pictures for the things on the ground:
+    // a BUMPER's bouncy ring — dark under bright, so it shows on every floor
+    function bumperRing(x, y, r) {
+      const R = r * view.s * 1.02;
+      ctx.lineWidth = Math.max(3, R * 0.14) + 3; ctx.strokeStyle = "rgba(40,20,80,0.45)";
+      ellipse(ctx, x, y, R, R * SQ); ctx.stroke();
+      ctx.lineWidth = Math.max(3, R * 0.14); ctx.strokeStyle = "#ff7ac0";
+      ellipse(ctx, x, y, R, R * SQ); ctx.stroke();
+      ctx.lineWidth = Math.max(1.2, R * 0.05); ctx.strokeStyle = "#ffffff";
+      ellipse(ctx, x, y, R * 0.86, R * 0.86 * SQ); ctx.stroke();
+    }
+    // a POWER-UP's blue glow, pulsing out from under it
+    function powerGlow(now, x, y, r) {
+      const rm = reduceMotion(), R = r * view.s;
+      for (let k = 0; k < 2; k++) {
+        const p = rm ? 0.35 + k * 0.4 : (now * 1.2 + k * 0.5) % 1;
+        const rr = R * (1.1 + 0.9 * p), a = rm ? 0.8 : 0.95 * (1 - p);
+        ctx.lineWidth = Math.max(2.5, R * 0.12) + 3; ctx.strokeStyle = "rgba(20,30,90," + (a * 0.45).toFixed(3) + ")";
+        ellipse(ctx, x, y, rr, rr * SQ); ctx.stroke();
+        ctx.lineWidth = Math.max(2.5, R * 0.12); ctx.strokeStyle = "rgba(110,200,255," + a.toFixed(3) + ")";
+        ellipse(ctx, x, y, rr, rr * SQ); ctx.stroke();
+      }
+    }
+    // a BUTTON in the floor: a white rim and a big red cap that sinks and
+    // turns green once it is pressed
+    function drawButton(o, x, y) {
+      const R = o.r * view.s * 0.9, up = o.pressed ? 0.25 : 1, cap = o.pressed ? "#3fbf5a" : "#e63946";
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ellipse(ctx, x + R * 0.06, y + R * 0.1 * SQ, R * 1.05, R * 1.05 * SQ); ctx.fill();
+      ctx.fillStyle = "#f2f2f2"; ellipse(ctx, x, y, R, R * SQ); ctx.fill();
+      ctx.lineWidth = Math.max(1.5, R * 0.06); ctx.strokeStyle = INK_DARK; ctx.stroke();
+      const h = R * 0.32 * up, rc = R * 0.68;
+      ctx.fillStyle = shade(cap, -0.3);
+      ctx.fillRect(x - rc, y - h, rc * 2, h);
+      ellipse(ctx, x, y, rc, rc * SQ); ctx.fill();
+      ctx.fillStyle = cap; ellipse(ctx, x, y - h, rc, rc * SQ); ctx.fill();
+      ctx.lineWidth = Math.max(1.2, R * 0.05); ctx.strokeStyle = INK_DARK; ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.55)"; ellipse(ctx, x - rc * 0.3, y - h - rc * SQ * 0.25, rc * 0.35, rc * 0.18); ctx.fill();
+    }
+    // a PIÑATA's cracks: one more with every bonk (dark under bright)
+    function cracks(o, x, y) {
+      const size = drawSize(o), rr = rng(hashStr("crack" + o.id));
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      for (let k = 0; k < o.hit * 2; k++) {
+        const cx = x + (rr() - 0.5) * size * 0.5, cy = y - size * (0.35 + rr() * 0.35);
+        const pts = [[cx, cy]];
+        for (let j = 0; j < 3; j++) pts.push([pts[j][0] + (rr() - 0.5) * size * 0.22, pts[j][1] + size * 0.08]);
+        for (const [w, col] of [[Math.max(3, size * 0.05) + 2, "rgba(40,20,80,0.8)"], [Math.max(1.5, size * 0.025), "#fff6c2"]]) {
+          ctx.lineWidth = w; ctx.strokeStyle = col;
+          ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke();
+        }
+      }
+      ctx.lineCap = "butt"; ctx.lineJoin = "miter";
     }
 
     // A SOFT contact shadow, from one pre-rendered sprite. A flat filled
@@ -2797,7 +2964,30 @@
     // ---- the hole ---------------------------------------------------------------
     function drawHole(now) {
       const h = st.hole, pal = HOLES[def.hole] || HOLES.gobble;
-      const cx = sx(h.x), cy = sy(h.y), R = h.r * view.s, rx = R, ry = R * SQ;
+      const R = h.r * view.s, rx = R, ry = R * SQ;
+      // FLYING from a cannon (§17): he leaves the ground in an arc, his
+      // shadow staying on it and shrinking as he rises
+      let lift = 0;
+      if (st.fly) {
+        const F = st.fly, p = F.t / F.d;
+        lift = Math.sin(Math.PI * p) * flyLift(L.gdist(F.x0, F.y0, F.x1, F.y1)) * view.s;
+        const k = 1 - 0.45 * Math.sin(Math.PI * p);
+        ctx.fillStyle = "rgba(0,0,0,0.28)"; ellipse(ctx, sx(h.x), sy(h.y), rx * k, ry * k); ctx.fill();
+      }
+      const cx = sx(h.x), cy = sy(h.y) - lift;
+      // ZOOMING (§17): speed lines behind him
+      if (h.zoomT > 0 && (h.vx || h.vy)) {
+        const d = Math.hypot(h.vx, h.vy) || 1, ux = -h.vx / d, uy = -h.vy / d, ox = -uy, oy = ux;
+        ctx.lineCap = "round";
+        for (let k = -1; k <= 1; k++) {
+          const bx = cx + ux * rx * 1.05 + ox * k * rx * 0.45, by = cy + uy * ry * 1.05 + oy * k * ry * 0.45, len = rx * (k ? 0.9 : 1.3);
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + ux * len, by + uy * len);
+          ctx.lineWidth = Math.max(2.5, R * 0.12) + 3; ctx.strokeStyle = "rgba(20,30,90,0.4)"; ctx.stroke();
+          ctx.lineWidth = Math.max(2.5, R * 0.12); ctx.strokeStyle = "rgba(110,200,255,0.95)"; ctx.stroke();
+        }
+        ctx.lineCap = "butt";
+        lastNew.zoom = 1;
+      }
       const chomp = happyUntil > now ? 1 + 0.06 * Math.sin((happyUntil - now) * 26) : 1;
       // a boing (§15.3): squash, spring, settle — the eyes stay where they are
       const b = boingUntil > now && !reduceMotion() ? (boingUntil - now) / BOING_S : 0;
@@ -3011,6 +3201,69 @@
         fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 0.7, r0: h.r * 1.1, white: true });
       } else if (ev.type === "bump") {
         lookUp = now + 0.6;
+        if (ev.bounce) {
+          // BOING (§17): the bumper squashes and a ring bursts off it
+          const o = st.objects[ev.id];
+          boingUntil = now + BOING_S;
+          squash.set(ev.id, now + 0.25);
+          if (o) fx.push({ k: "ring", x: o.x, y: o.y, t0: now, life: 0.5, r0: o.r, white: true });
+        }
+      } else if (ev.type === "sprout") {
+        // a seedling's flowers grow up out of the ground (§17)
+        const par = st.objects[ev.id];
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.6, r0: par ? par.r : 4, white: true });
+        const rr = rng(hashStr("sprout" + ev.id));
+        for (let i = 0; i < 10; i++) {
+          const a = -Math.PI * (0.1 + 0.8 * rr()), sp = 10 + rr() * 16;
+          fx.push({ k: "leaf", x: ev.x, y: ev.y - 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t0: now, life: 0.8 + rr() * 0.3, size: 0.5 + rr() * 0.4, color: i % 2 ? "#6fbf4b" : "#ff9fcb", a: rr() * 6 });
+        }
+        for (const id of ev.kids || []) flyIn.set(id, { x: ev.x, y: ev.y, t0: now, dur: 0.6, h: 2, grow: true });
+      } else if (ev.type === "hit") {
+        // a PIÑATA bonked (§17): a share of its treats out — a burst, and
+        // its treats flying out; the last bonk is the big one
+        const par = st.objects[ev.id], top = par ? par.r * VIS * 0.75 : 6;
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.6, r0: par ? par.r * 0.8 : 4, white: true });
+        const rr = rng(hashStr("hit" + ev.id + ":" + ev.n));
+        for (let i = 0; i < (ev.last ? 18 : 6); i++) {
+          const a = -Math.PI * (0.1 + 0.8 * rr()), sp = 14 + rr() * 22;
+          fx.push({ k: "conf", x: ev.x, y: ev.y - top, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t0: now, life: 0.8 + rr() * 0.4, size: 0.6 + rr() * 0.5, color: CONFETTI[i % CONFETTI.length], a: rr() * 6 });
+        }
+        if (!reduceMotion()) for (const id of ev.kids || []) flyIn.set(id, { x: ev.x, y: ev.y - top, t0: now, dur: 0.55, h: 6 });
+      } else if (ev.type === "opener") {
+        // a key eaten or a button pressed, on the way to opening a lock
+        const o = st.objects[ev.id];
+        if (o) fx.push({ k: "ring", x: o.x, y: o.y, t0: now, life: 0.7, r0: o.r * 1.1, gold: true });
+      } else if (ev.type === "launch") {
+        // BOOM (§17): a puff of smoke at the cannon, and he goes
+        wideUntil = now + 1.2;
+        const rr = rng(hashStr("boom" + Math.round(now * 10)));
+        for (let i = 0; i < 12; i++) {
+          const a = -Math.PI * (0.1 + 0.8 * rr());
+          fx.push({ k: "crumb", x: ev.from[0], y: ev.from[1], vx: Math.cos(a) * (8 + rr() * 16), vy: Math.sin(a) * (10 + rr() * 16), t0: now, life: 0.7 + rr() * 0.3, size: 1 + rr() * 1.2, color: "#cfcfd8" });
+        }
+      } else if (ev.type === "land") {
+        // touchdown: a ring of dust, and a little shake
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.6, r0: h.r * 1.1, white: true });
+        if (!reduceMotion()) shakeT = Math.max(shakeT, now + 0.25);
+      } else if (ev.type === "flee") {
+        hopUntil.set(ev.id, now + 0.4);
+      } else if (ev.type === "power") {
+        // a POWER-UP: a blue ring and blue stars
+        wideUntil = now + 0.8;
+        fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 0.7, r0: h.r * 1.1, white: true });
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * TAU;
+          fx.push({ k: "star", x: h.x, y: h.y, vx: Math.cos(a) * 26, vy: Math.sin(a) * 26 * SQ - 8, t0: now, life: 0.8, size: 1.3, col: "#6ec8ff" });
+        }
+      } else if (ev.type === "count") {
+        // COUNTING (§17): the number pops up over him
+        fx.push({ k: "num", text: String(ev.n), x: h.x, y: h.y, t0: now, life: 1.2, big: !!ev.last });
+      } else if (ev.type === "meet") {
+        // THE FIRST TIME (§17): the new thing hops, a ring bursts round it
+        // and a hand points at it for a moment
+        if (ev.id >= 0) hopUntil.set(ev.id, now + 0.55);
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.9, r0: ev.id >= 0 && st.objects[ev.id] ? st.objects[ev.id].r * 1.2 : 8, white: true });
+        if (ev.kind !== "count") fx.push({ k: "point", x: ev.x, y: ev.y, t0: now, life: 2.2, h: ev.id >= 0 && st.objects[ev.id] ? st.objects[ev.id].r * VIS : 10 });
       } else if (ev.type === "pop" || ev.type === "shake") {
         // a box bursts (or a tree is shaken): the surprises fly out to their
         // spots, with confetti (or leaves)
@@ -3409,6 +3662,25 @@
             ctx.fillStyle = (f.gold ? GOLD.bright : "rgba(255,230,120,") + (1 - p).toFixed(3) + ")";
             ctx.fill();
           }
+        } else if (f.k === "num") {
+          // a number popping up over him and floating away (§17)
+          const k = p < 0.15 ? p / 0.15 : 1, size = (f.big ? 46 : 34) * (0.6 + 0.4 * k);
+          const x = sx(f.x), y = sy(f.y) - st.hole.r * view.s * 1.2 - t * 26;
+          ctx.globalAlpha = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25;
+          ctx.font = "900 " + size.toFixed(1) + "px system-ui, sans-serif";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.lineWidth = size * 0.18; ctx.strokeStyle = INK_DARK; ctx.lineJoin = "round"; ctx.strokeText(f.text, x, y);
+          ctx.fillStyle = f.big ? GOLD.hi : "#ffffff"; ctx.fillText(f.text, x, y);
+          ctx.textAlign = "start"; ctx.textBaseline = "alphabetic"; ctx.lineJoin = "miter";
+          ctx.globalAlpha = 1;
+          lastNew.nums = (lastNew.nums || 0) + 1;
+        } else if (f.k === "point") {
+          // a pointing hand bobbing over a new thing (§17)
+          const bob = reduceMotion() ? 0 : Math.abs(Math.sin(t * 5)) * 8;
+          ctx.globalAlpha = p < 0.8 ? 1 : 1 - (p - 0.8) / 0.2;
+          glyph("👇", sx(f.x), sy(f.y) - f.h * view.s - 18 - bob, 30);
+          ctx.globalAlpha = 1;
+          lastNew.points = (lastNew.points || 0) + 1;
         } else if (f.k === "burp") {
           // a burp: puffs rising from the hole
           const h = st.hole;
@@ -3421,6 +3693,31 @@
           }
         }
       }
+    }
+
+    // THE TALLY (§17): in a counting place, a ten-frame in the corner — a
+    // slot for every counted thing, filled with its picture as it is eaten
+    // and the number so far beside it — so the counting reads with the sound
+    // off.
+    function drawTally() {
+      if (!def.count || !countOf) return;
+      const per = 5, s = Math.max(18, Math.min(26, cssW / 16)), gap = 4, pad = 8;
+      const rows = Math.ceil(countOf / per), w = per * (s + gap) - gap, x0 = pad, y0 = pad;
+      ctx.fillStyle = "rgba(255,255,255,0.88)";
+      rrect(ctx, x0 - 5, y0 - 5, w + 10 + s * 1.8, rows * (s + gap) - gap + 10, 10); ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = INK_DARK; ctx.stroke();
+      for (let i = 0; i < countOf; i++) {
+        const x = x0 + (i % per) * (s + gap), y = y0 + Math.floor(i / per) * (s + gap);
+        ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(29,18,51,0.55)";
+        rrect(ctx, x, y, s, s, 4); ctx.stroke();
+        if (i < st.counted) glyph(def.count.e, x + s / 2, y + s / 2, s * 0.86);
+      }
+      const n = st.counted * (def.count.by || 1), fs = s * 1.1;
+      ctx.font = "900 " + fs.toFixed(1) + "px system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = INK_DARK; ctx.fillText(String(n), x0 + w + s * 0.95, y0 + s / 2);
+      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+      lastNew.tally = countOf;
     }
 
     // Is a thing on screen (its base point, inset by m css px)?
@@ -3553,7 +3850,7 @@
         if (o.st !== 0) continue;
         standing++;
         // a surprise popping out flies from its box (or its tree) to its spot
-        let ox = o.x, oy = o.y, fly = 0;
+        let ox = o.x, oy = o.y, fly = 0, sc = 1;
         const fi = flyIn.get(o.id);
         if (fi) {
           const p = (now - fi.t0) / fi.dur;
@@ -3562,13 +3859,15 @@
             const e = 1 - (1 - p) * (1 - p);
             ox = fi.x + (o.x - fi.x) * e; oy = fi.y + (o.y - fi.y) * e;
             fly = Math.sin(p * Math.PI) * fi.h * view.s;
+            // a flower sprouting (§17) grows up out of the ground
+            if (fi.grow) sc = 0.15 + 0.85 * e;
           }
         }
         const half = VIS * o.r * 0.5 + 2;
         if (ox + half < v.x0 || ox - half > v.x1 || oy - VIS * o.r * 1.3 > v.y1 || oy + o.r * SQ + 2 < v.y0) continue;
         const near = Math.hypot(o.x - h.x, (o.y - h.y) / SQ) < h.r + o.r;
         // a thing ON the rim (too big, or being pulled) draws over the hole
-        items.push({ y: near ? Math.max(oy, h.y + 0.01) : oy, o, ox, oy, fly });
+        items.push({ y: near ? Math.max(oy, h.y + 0.01) : oy, o, ox, oy, fly, sc });
       }
       items.push({ y: h.y, hole: true });
       items.sort((a, b) => a.y - b.y || (a.hole ? 1 : 0) - (b.hole ? 1 : 0));
@@ -3581,6 +3880,11 @@
         if (hop && hop > now && !rm) it.lift += Math.sin(((hop - now) / 0.55) * Math.PI) * o.r * 0.6 * view.s;
         if (o.wob > 0) it.rot = Math.sin(now * 38) * 0.16 * (o.wob / 0.45) * (rm ? 0.3 : 1);
         else if (o.pull > 0) it.rot = clamp((h.x - o.x) / (o.r + h.r), -1, 1) * 0.4 * o.pull;
+        // a runaway on the run bobs along (§17)
+        else if (o.run && o.ran > 0 && o.rest <= 0 && !rm) it.rot = Math.sin(now * 22) * 0.18;
+        // a bumper squashes as it knocks him back (§17)
+        const sq = squash.get(o.id);
+        if (sq && sq > now && !rm) it.sc *= 0.85 + 0.15 * (1 - (sq - now) / 0.25);
         // a vehicle on a track drives FORWARDS: mirrored when it goes right
         it.flip = !!o.ride && o.dir === 1 && FACES_LEFT.has(o.e);
         if (it.flip) flipped++;
@@ -3589,12 +3893,18 @@
       // thing standing behind it. A hopping thing's shadow stays on the ground
       // and shrinks a little: that is what makes the hop read as a jump.
       let keys = 0;
+      const nw = { buttons: 0, bumpers: 0, powers: 0, cracks: 0, runners: 0, pips: 0, tally: 0 };
       for (const it of items) {
         if (it.hole) continue;
+        if (it.o.press) continue;   // a button lies IN the floor: no shadow
         const k = 1 - clamp(it.lift / (it.o.r * view.s * 3), 0, 0.35);
         shadow(sx(it.ox), sy(it.oy), it.o.r, k);
         if (it.o.gold) goldGlow(sx(it.ox), sy(it.oy), it.o.r);
         if (it.o.key && !st.unlocked[it.o.key]) { keyGlow(now, sx(it.ox), sy(it.oy), it.o.r); keys++; }
+        // §17: a bumper still too big to eat wears a bouncy ring; a power-up
+        // glows blue
+        if (it.o.bounce && L.activeSolid(st, it.o)) { bumperRing(sx(it.ox), sy(it.oy), it.o.r); nw.bumpers++; }
+        if (it.o.power) { powerGlow(now, sx(it.ox), sy(it.oy), it.o.r); nw.powers++; }
       }
       // the goal's beacon, on the ground under everything
       drawGoal(now);
@@ -3609,13 +3919,19 @@
         const x = sx(it.ox), y = sy(it.oy) - it.lift;
         // a thing the super slurp has hold of from afar streaks in
         if (slurping && it.o.zoom) { streak(it.o, x, y); lastStreaks++; }
-        drawObject(it.o, x, y, it.rot, 1, 1, it.flip);
+        // a BUTTON is drawn into the floor, not stood up (§17)
+        if (it.o.press) { drawButton(it.o, x, y); nw.buttons++; drawn++; continue; }
+        // a runaway on the run streaks away from him
+        if (it.o.run && it.o.ran > 0 && it.o.rest <= 0) { streak(it.o, x, y); nw.runners++; }
+        drawObject(it.o, x, y, it.rot, it.sc, 1, it.flip);
+        if (it.o.hits && it.o.hit > 0 && !it.o.shook) { cracks(it.o, x, y); nw.cracks++; }
         if (it.o.gold) { twinkles(now, it.o, x, y); gold++; }
         else if (lastGoal && it.o.id === lastGoal.id) twinkles(now, it.o, x, y);
-        if (it.o.lock && !st.unlocked[it.o.lock]) { lockBadge(it.o, x, y); locks++; }
+        if (it.o.lock && !st.unlocked[it.o.lock]) { nw.pips += lockBadge(it.o, x, y); locks++; }
         drawn++;
       }
       lastGold = gold;
+      lastNew = nw;
       lastFeat.locks = locks; lastFeat.keys = keys; lastFeat.flipped = flipped;
       // a dark place: everything above is in the dark but for the lights
       drawDark();
@@ -3624,6 +3940,7 @@
       drawFx(now);
       drawFireworks(now);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawTally();
       updateArrow(now);
       drawArrow(now);
       lastDraw = { objects: drawn, standing, falling: lastDraw.falling, decals: nd, ground: !inside, ok: true, tastes: tasteMarks };
@@ -3676,6 +3993,8 @@
         slurp: { on: !!st && st.slurpT > 0, arms: lastSlurp, streaks: lastStreaks },
         // phase 4: what the place's own shape put on screen this frame
         feat: { ...lastFeat }, dark: lastDark, flying: flyIn.size,
+        // §17: what the new things painted this frame
+        drawnNew: { ...lastNew },
         rings: { land: landRings.length, blocks: blockSets.reduce((s, b) => s + b.rings.length, 0) },
       };
     }

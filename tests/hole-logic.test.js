@@ -2040,3 +2040,373 @@ test("a LINE that looks clear but grazes a wall: he still gets there (the straig
     assert.ok(there >= 0, fx.id + ": he got there (moved " + L.gdist(st.hole.x, st.hole.y, fx.A.x, fx.A.y).toFixed(1) + ", still " + L.gdist(st.hole.x, st.hole.y, fx.B.x, fx.B.y).toFixed(1) + " away)");
   }
 });
+
+// ---- phase 5 (§17): the new things a place can do --------------------------
+// A small test PLACE, put in the list for the length of one test (sceneById
+// reads the list), so each new rule is driven on its own, away from the
+// shipped places' crowds.
+const TR = [[3.1, 3.6], [4.8, 5.4], [7.0, 7.8], [10.0, 11.0], [14.0, 15.0], [19.5, 21.0]];
+function lab(id, extra, add) {
+  // about the crowd of a real place (the farm holds 155 / 96 / 69 / 34 / 16):
+  // every grow needs its bites to be there
+  const base = [[["🍬", 150]], [["🍪", 90]], [["🍩", 60]], [["🎁", 30]], [["🏠", 16]]];
+  const tiers = base.map((items, i) => ({ r: TR[i], items: items.concat((add && add[i]) || []) }));
+  return Object.assign({
+    id: "lab-" + id, name: "Lab", door: "🧪", color: "#888888", ground: "wood", hole: "gobble",
+    backdrop: ["#ffffff", "#eeeeee"], start: [0.5, 0.9], starters: 0, tiers,
+    finale: { e: "🏰", r: 20, at: [0.5, 0.12], say: "the castle" },
+  }, extra);
+}
+function withLab(def, fn) {
+  SCENES.push(def);
+  try { return fn(def); } finally { SCENES.splice(SCENES.indexOf(def), 1); }
+}
+// Steer onto a spot every step for `seconds`, collecting the events.
+function steerTo(st, x, y, seconds, each) {
+  const evs = [];
+  for (let i = 0, n = Math.round(seconds / L.DT); i < n; i++) {
+    L.setTarget(st, x, y); L.step(st);
+    evs.push(...st.events.map((e) => ({ t: st.t, ...e })));
+    st.events.length = 0;
+    if (each) each(i);
+  }
+  return evs;
+}
+// Eat one thing: park right on it and wait for the gulp.
+function eatOne(st, o) {
+  park(st, o.x, o.y);
+  const evs = run(st, 1.2, { x: o.x, y: o.y });
+  assert.equal(o.st, L.GONE, "fixture: " + o.e + " was eaten");
+  return evs;
+}
+
+test("OPENERS (§17): a lock waits for EVERY key and button with its name — each says how far it has got, the last opens it, once", () => {
+  withLab(lab("open", {}, [
+    [["🗝️", 3, { key: "gate", glow: true }]], [], [],
+    [["🔴", 1, { press: "gate", at: { pts: [[0.2, 0.6]] } }], ["🚧", 2, { lock: "gate", at: { line: [[0.45, 0.4], [0.55, 0.4]] } }]],
+  ]), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const keys = st.objects.filter((o) => o.key), button = st.objects.find((o) => o.press), gates = st.objects.filter((o) => o.lock);
+    assert.equal(keys.length, 3, "fixture: three keys");
+    assert.ok(button && gates.length === 2, "fixture: a button and two gates");
+    assert.ok(gates.every((g) => L.activeSolid(st, g)), "the gates start shut");
+    assert.ok(!L.edible(st, button) && L.wanted(st, button), "a button is never food — but it is somewhere to go");
+    // the hint, asked for a key, points at the NEAREST opener still to do
+    // (one key used to be kept per name; a second was invisible)
+    st.wantKey = "gate";
+    const firstHint = L.nextOpener(st, "gate");
+    assert.ok(firstHint && !firstHint.pressed, "the hint has an opener to point at");
+    const all = [];
+    let n = 0;
+    for (const k of keys) {
+      const evs = eatOne(st, k);
+      all.push(...evs);
+      n++;
+      const op = evs.find((e) => e.type === "opener");
+      assert.ok(op && op.how === "key" && op.n === n && op.of === 4 && op.key === "gate", "key " + n + " says " + n + " of 4 (" + JSON.stringify(op) + ")");
+      assert.ok(gates.every((g) => L.activeSolid(st, g)), "…and the gates stay shut");
+      assert.ok(!evs.some((e) => e.type === "unlock"), "…and nothing opens yet");
+    }
+    assert.equal(L.nextOpener(st, "gate"), button, "only the button is left: the hint points at it");
+    assert.deepEqual(L.botTarget(st), { x: button.x, y: button.y }, "…and so does the bot");
+    // roll onto the button from a little way off
+    park(st, button.x + 24, button.y);
+    const evs = steerTo(st, button.x, button.y, 2);
+    all.push(...evs);
+    const press = evs.find((e) => e.type === "opener" && e.how === "press");
+    assert.ok(button.pressed && press && press.n === 4 && press.of === 4, "rolling onto the button presses it: 4 of 4");
+    assert.equal(all.filter((e) => e.type === "unlock").length, 1, "the gate opens exactly once");
+    assert.ok(gates.every((g) => !L.activeSolid(st, g)), "…and the gates are open");
+    assert.equal(button.st, L.IDLE, "a pressed button stays in the floor (never eaten by rolling over it)");
+    assert.ok(G.walk(button.x, button.y) <= 0, "fixture: the button stands on the ground");
+  });
+});
+
+test("OPENERS: a save keeps the keys and the buttons — the lock opens on restore only if EVERY opener was done; a hostile save presses nothing else", () => {
+  withLab(lab("opensave", {}, [
+    [["🗝️", 2, { key: "gate" }]], [], [],
+    [["🔴", 1, { press: "gate", at: { pts: [[0.2, 0.6]] } }], ["🚧", 2, { lock: "gate", at: { line: [[0.45, 0.4], [0.55, 0.4]] } }]],
+  ]), (def) => {
+    const st = L.createGame(def.id);
+    const keys = st.objects.filter((o) => o.key), button = st.objects.find((o) => o.press);
+    eatOne(st, keys[0]);
+    button.pressed = true;
+    const half = L.restore(L.snapshot(st));
+    assert.ok(half && !half.unlocked.gate, "one key and the button: still locked after a restore");
+    assert.ok(half.objects[button.id].pressed, "…the button is still pressed");
+    eatOne(st, keys[1]);
+    const done = L.restore(L.snapshot(st));
+    assert.ok(done.unlocked.gate, "every opener done: open after a restore");
+    // hostile: a key id, junk and out-of-range values in `pressed`
+    const snap = L.snapshot(L.createGame(def.id));
+    snap.pressed = [keys[0].id, "x", 1e9, -1, 2.5, null, button.id];
+    const h = L.restore(snap);
+    assert.ok(h, "a hostile save still restores");
+    assert.ok(h.objects[button.id].pressed && !h.objects[keys[0].id].pressed, "only a real button can be pressed by a save");
+    assert.ok(!h.unlocked.gate, "…and the lock stays shut (its keys were never eaten)");
+  });
+  // a place with ONE key behaves exactly as before: it opens, and says only that
+  const st = L.createGame("farm");
+  const key = st.objects.find((o) => o.key);
+  const evs = eatOne(st, key);
+  assert.ok(evs.some((e) => e.type === "unlock"), "the farm's one key still opens its gate");
+  assert.ok(!evs.some((e) => e.type === "opener"), "…and a single key needs no 'one of one'");
+});
+
+test("BUMPERS (§17): a bouncy thing too big to eat knocks him back — boing — never into the water, and once he is big enough he eats it", () => {
+  withLab(lab("bump", { blocks: [{ circle: [0.5 + 52 / 420, 0.5, 0.03] }] }, [
+    [], [], [], [["🍄", 1, { bounce: true, at: { pts: [[0.5, 0.5]] } }]],
+  ]), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const b = st.objects.find((o) => o.bounce);
+    assert.ok(b && b.r > st.hole.r * RULES.FIT && L.activeSolid(st, b), "fixture: a bumper too big to eat is a wall");
+    // he comes at it from the side the pond is on: every knock throws him
+    // toward the water
+    park(st, b.x + b.r * RULES.CORE + 6, b.y);
+    let bad = null, knocks = 0, inside = 0;
+    const evs = steerTo(st, b.x, b.y, 5, () => {
+      if (!bad && !freeAt(st, G, st.hole.x, st.hole.y)) bad = [st.hole.x.toFixed(2), st.hole.y.toFixed(2)];
+      if (L.gdist(st.hole.x, st.hole.y, b.x, b.y) < b.r * RULES.CORE - 1e-6) inside++;
+    });
+    knocks = evs.filter((e) => e.type === "bump" && e.id === b.id && e.bounce).length;
+    assert.ok(knocks >= 3, "held against it he is knocked back again and again (" + knocks + " in 5s)");
+    assert.equal(bad, null, "a knock never puts his centre in the water or inside a wall");
+    assert.equal(inside, 0, "…and never inside the bumper");
+    assert.ok(evs.some((e) => e.type === "meet" && e.kind === "bounce"), "the first one is introduced");
+    // big enough: it is a thing to eat, with no knock
+    makeLevel(st, 3);
+    park(st, b.x + 30, b.y - 30);
+    const e2 = steerTo(st, b.x, b.y, 3);
+    assert.equal(b.st, L.GONE, "once he is big enough he eats it");
+    assert.ok(!e2.some((e) => e.type === "bump" && e.bounce), "…and it never knocks him again");
+  });
+});
+
+test("COUNTING (§17): every counted thing says the next number — by twos here — in order, to the end, the win's slurp included; a save keeps the count", () => {
+  withLab(lab("count", { count: { e: "🧦", by: 2, say: "socks" }, trails: [{ e: "🧦", to: [0.5, 0.4] }] }, [[["🧦", 10]]]), (def) => {
+    const st = L.createGame(def.id);
+    assert.ok(L.twistsOf(def).has("count"), "a counting place has the count twist");
+    const log = playOut(st, 400);
+    const counts = log.filter((e) => e.type === "count");
+    assert.ok(st.done, "fixture: the bot finished the place");
+    assert.equal(counts.length, 10, "every sock counted once");
+    counts.forEach((c, i) => {
+      assert.equal(c.k, i + 1, "the " + (i + 1) + "th sock is number " + (i + 1));
+      assert.equal(c.n, (i + 1) * 2, "…and says " + (i + 1) * 2);
+      assert.equal(c.last, i === 9, "…and only the tenth is the last");
+      assert.equal(c.of, 10, "…of ten");
+    });
+    const meet = log.filter((e) => e.type === "meet" && e.kind === "count");
+    assert.ok(meet.length === 1 && meet[0].t >= RULES.MEET_T, "counting is introduced once, after the opening look");
+    // a save keeps the count
+    const s2 = L.createGame(def.id);
+    const socks = s2.objects.filter((o) => o.e === "🧦").slice(0, 3);
+    for (const o of socks) eatOne(s2, o);
+    const back = L.restore(L.snapshot(s2));
+    assert.equal(back.counted, 3, "three socks eaten, three counted after a restore");
+  });
+});
+
+test("PIÑATA (§17): bonk it and a share of its treats tumbles out — once a bump, never faster — and the last bonk bursts it", () => {
+  withLab(lab("pinata", {}, [[], [], [], [["🪅", 1, { shake: [["🍬", 6, 1]], hits: 3, at: { pts: [[0.5, 0.5]] } }]]]), (def) => {
+    const st = L.createGame(def.id);
+    const p = st.objects.find((o) => o.hits);
+    assert.ok(p && p.kids.length === 6 && p.kids.every((id) => st.objects[id].st === L.HIDDEN), "fixture: a piñata with six treats inside");
+    park(st, p.x + st.hole.r + p.r * 0.3, p.y);
+    const evs = steerTo(st, p.x, p.y, 5);
+    const hits = evs.filter((e) => e.type === "hit" && e.id === p.id);
+    assert.equal(hits.length, 3, "three bonks and no more (" + hits.length + ")");
+    hits.forEach((h, i) => {
+      assert.equal(h.n, i + 1, "bonk " + (i + 1));
+      assert.equal(h.kids.length, 2, "…lets out two treats");
+      assert.equal(h.last, i === 2, "…and only the third bursts it");
+      if (i) assert.ok(h.t - hits[i - 1].t >= 1.2 - 1e-6, "…never sooner than 1.2s after the last");
+    });
+    assert.ok(!evs.some((e) => e.type === "shake"), "a piñata is bonked, not shaken");
+    assert.ok(p.kids.every((id) => st.objects[id].st !== L.HIDDEN), "every treat is out");
+    assert.ok(evs.some((e) => e.type === "meet" && e.kind === "hits"), "the first piñata is introduced");
+    // a save: one treat eaten means it was bonked; the restore lets them all out
+    const s2 = L.createGame(def.id), p2 = s2.objects.find((o) => o.hits);
+    park(s2, p2.x + s2.hole.r + p2.r * 0.3, p2.y);
+    steerTo(s2, p2.x, p2.y, 0.3);
+    const out = p2.kids.map((id) => s2.objects[id]).find((k) => k.st === L.IDLE);
+    eatOne(s2, out);
+    const back = L.restore(L.snapshot(s2));
+    assert.ok(back.objects[p2.id].shook && back.objects[p2.id].kids.every((id) => back.objects[id].st !== L.HIDDEN), "restored, every treat is out");
+  });
+});
+
+test("CANNONS (§17): roll in and BOOM — he flies to the far end over everything, in the time the rules say, eats nothing on the way, and is saved where he lands", () => {
+  withLab(lab("cannon", { portals: [{ a: [0.3, 0.75], b: [0.7, 0.3], oneway: true, fly: true }] }), (def) => {
+    const G = L.geomOf(def.id);
+    const go = () => {
+      const st = L.createGame(def.id);
+      const a = G.ends[0], b = G.ends[1];
+      park(st, a.x + 14, a.y);
+      let launch = null, land = null, during = [], snap = null;
+      for (let i = 0; i < 60 * 4 && !land; i++) {
+        if (!launch) L.setTarget(st, a.x, a.y);
+        L.step(st);
+        for (const e of st.events) {
+          if (e.type === "launch") launch = { t: st.t, ...e };
+          else if (e.type === "land") land = { t: st.t, x: st.hole.x, y: st.hole.y };
+          else if (launch && !land && (e.type === "eat" || e.type === "fall")) during.push(e);
+        }
+        st.events.length = 0;
+        if (launch && !snap && st.fly && st.fly.t > 0.2) snap = L.snapshot(st);
+      }
+      return { st, a, b, launch, land, during, snap };
+    };
+    const r = go();
+    assert.ok(r.launch && r.land, "he went in, flew and landed");
+    const d = L.gdist(r.a.x, r.a.y, r.b.x, r.b.y), want = Math.min(RULES.FLY.max, Math.max(RULES.FLY.min, d / RULES.FLY.speed));
+    assert.ok(Math.abs(r.land.t - r.launch.t - want) < 2 * L.DT, "the flight lasts " + want.toFixed(2) + "s (" + (r.land.t - r.launch.t).toFixed(2) + ")");
+    assert.ok(L.gdist(r.land.x, r.land.y, r.b.x, r.b.y) < 0.5, "…and lands on the far end");
+    assert.equal(r.during.length, 0, "nothing falls in while he flies");
+    assert.ok(r.snap && Math.abs(r.snap.x - r.b.x) < 0.01 && Math.abs(r.snap.y - r.b.y) < 0.01, "a save mid-flight saves where he lands");
+    assert.equal(L.hashState(go().st), L.hashState(r.st), "a flight replays identically");
+    assert.ok(L.twistsOf(def).has("launch") && !L.twistsOf(def).has("portals"), "a cannon is its own twist");
+  });
+});
+
+test("RUNAWAYS (§17): once he can eat one it scoots away — never off the ground, into a wall or past its leash — tires, and a finger on it catches it", () => {
+  withLab(lab("run", { zones: { pen: [[0.25, 0.35, 0.75, 0.7]] } }, [[], [["🍩", 6, { run: true, zone: "pen" }]]]), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const runners = st.objects.filter((o) => o.run);
+    assert.equal(runners.length, 6, "fixture: six runaways");
+    const o0 = runners[0], home0 = [o0.x, o0.y];
+    // too small to eat it: it sits still
+    park(st, o0.x + 12, o0.y);
+    steerTo(st, o0.x, o0.y, 1);
+    assert.ok(o0.st === L.IDLE && L.gdist(o0.x, o0.y, home0[0], home0[1]) < 1e-9, "while he cannot eat it, it does not run");
+    makeLevel(st, 1);
+    let leash = 0, off = 0, flee = 0, moved = 0;
+    for (const o of runners) {
+      if (o.st !== L.IDLE) continue;
+      park(st, o.x + 20, o.y);
+      const x0 = o.x, y0 = o.y;
+      // the finger follows it (re-aimed every step, as a child's would)
+      for (let i = 0; i < 60 * 4 && o.st === L.IDLE; i++) {
+        L.setTarget(st, o.x, o.y); L.step(st);
+        flee += st.events.filter((e) => e.type === "flee").length;
+        st.events.length = 0;
+        for (const q of runners) {
+          if (q.st !== L.IDLE) continue;
+          leash = Math.max(leash, L.gdist(q.x, q.y, q.hx, q.hy));
+          if (!(G.walk(q.x, q.y) <= -(q.r + RULES.EDGE) + 1e-6)) off++;
+        }
+        if (o.st === L.IDLE) moved = Math.max(moved, L.gdist(o.x, o.y, x0, y0));
+      }
+      assert.ok(o.st !== L.IDLE, "a finger kept on a runaway catches it within 4s (" + o.e + " " + o.id + ")");
+    }
+    assert.ok(moved > 3, "…but it really did run first (" + moved.toFixed(1) + " units)");
+    assert.ok(flee >= 1, "it said it was running");
+    assert.ok(leash <= RULES.RUN.leash + 1e-6, "no runaway strays past its leash (" + leash.toFixed(1) + ")");
+    assert.equal(off, 0, "no runaway ever runs off the ground");
+    assert.ok(L.twistsOf(def).has("run"), "runaways are their own twist");
+  });
+});
+
+test("TURNTABLE (§17): a spinning floor carries him round at its own turn rate — let go and round he goes — and he can always walk off it; nothing stands on it", () => {
+  withLab(lab("spin", { flows: [{ spin: [0.5, 0.55, 0.15], v: 24 }] }), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const F = G.flows[0], c = F.spin;
+    for (const o of st.objects) assert.ok(L.gdist(o.x, o.y, c.x, c.y) >= c.rg, "nothing stands on the turntable (" + o.e + ")");
+    const ang = () => Math.atan2((st.hole.y - c.y) / RULES.SQ, st.hole.x - c.x);
+    park(st, c.x + c.rg * 0.6, c.y);
+    const a0 = ang();
+    const evs = run(st, 2);
+    let turned = ang() - a0;
+    if (turned < 0) turned += Math.PI * 2;
+    const want = (F.v / c.rg) * 2;
+    assert.ok(Math.abs(turned - want) / want < 0.05, "standing still he turns " + want.toFixed(2) + " rad in 2s (" + turned.toFixed(2) + ")");
+    assert.ok(evs.some((e) => e.type === "flow"), "he hears it start");
+    // walking off
+    steerTo(st, c.x, c.y + c.rg * RULES.SQ + 40, 3);
+    assert.ok(L.gdist(st.hole.x, st.hole.y, c.x, c.y) > c.rg, "he can always walk off it");
+    assert.ok(F.v < RULES.VMAX, "the rim is slower than he can walk");
+    assert.ok(L.twistsOf(def).has("spin"), "a turntable is its own twist (whatever it looks like)");
+  });
+});
+
+test("POWER-UPS (§17): a magnet starts the super pull, for longer; a lightning bolt makes him zoom — 1.6 times as fast — for a while", () => {
+  withLab(lab("power", {}, [[["🧲", 1, { power: "magnet", at: { pts: [[0.5, 0.7]] } }], ["⚡", 1, { power: "zoom", at: { pts: [[0.3, 0.7]] } }]]]), (def) => {
+    const st = L.createGame(def.id);
+    const mag = st.objects.find((o) => o.power === "magnet"), zap = st.objects.find((o) => o.power === "zoom");
+    const e1 = eatOne(st, mag);
+    assert.ok(e1.some((e) => e.type === "power" && e.kind === "magnet"), "a magnet says so");
+    // (eatOne waits 1.2s after parking; the gulp itself takes a moment)
+    assert.ok(st.slurpT > RULES.POWER.magnet - 1.2 && st.slurpT < RULES.POWER.magnet, "…and starts the super pull for " + RULES.POWER.magnet + "s (" + st.slurpT.toFixed(2) + " left)");
+    const e2 = eatOne(st, zap);
+    assert.ok(e2.some((e) => e.type === "power" && e.kind === "zoom"), "a lightning bolt says so");
+    assert.ok(st.hole.zoomT > RULES.POWER.zoom - 1.2 && st.hole.zoomT < RULES.POWER.zoom, "…and makes him zoom for " + RULES.POWER.zoom + "s (" + st.hole.zoomT.toFixed(2) + " left)");
+    // measured on open ground, aimed far away: with the bolt, and without
+    const speed = (zoom) => {
+      const s = L.createGame(def.id);
+      park(s, 120, 300); s.hole.zoomT = zoom ? 3 : 0;
+      run(s, 0.3, { x: 400, y: 300 });
+      const x0 = s.hole.x;
+      run(s, 0.5, { x: 400, y: 300 });
+      return (s.hole.x - x0) / 0.5;
+    };
+    const k = speed(true) / speed(false);
+    assert.ok(Math.abs(k - RULES.POWER.zoomMul) < 0.05, "he goes " + RULES.POWER.zoomMul + " times as fast (" + k.toFixed(3) + ")");
+  });
+});
+
+test("SPROUTS (§17): roll near a seedling and its flowers pop up out of the ground — once — and a save remembers they are up", () => {
+  withLab(lab("sprout", {}, [[["🌱", 2, { sprout: [["🌷", 3, 1]], at: { pts: [[0.4, 0.5], [0.6, 0.5]] } }]]]), (def) => {
+    const st = L.createGame(def.id);
+    const s = st.objects.find((o) => o.box === "sprout");
+    assert.ok(s && s.kids.length === 3 && s.kids.every((id) => st.objects[id].st === L.HIDDEN), "fixture: a seedling with three flowers waiting");
+    park(st, s.x + 40, s.y);
+    const evs = steerTo(st, s.x + st.hole.r + s.r + RULES.SPROUT_R - 2, s.y, 1.5);
+    assert.equal(evs.filter((e) => e.type === "sprout" && e.id === s.id).length, 1, "it sprouts once");
+    assert.ok(s.kids.every((id) => st.objects[id].st !== L.HIDDEN), "…and every flower is up");
+    assert.ok(evs.some((e) => e.type === "meet" && e.kind === "sprout"), "the first seedling is introduced");
+    const kid = st.objects[s.kids[0]];
+    eatOne(st, kid);
+    const back = L.restore(L.snapshot(st));
+    assert.ok(back.objects[s.id].kids.every((id) => back.objects[id].st !== L.HIDDEN), "restored, the flowers are up");
+  });
+});
+
+test("THE FIRST TIME (§17): each new kind of thing is introduced once a visit, when it is first near — buttons, keys, bumpers, piñatas, power-ups, seedlings, cannons, turntables", () => {
+  withLab(lab("meet", {
+    portals: [{ a: [0.15, 0.5], b: [0.85, 0.2], oneway: true, fly: true }],
+    flows: [{ spin: [0.8, 0.6, 0.08], v: 20 }],
+  }, [
+    [["🗝️", 2, { key: "g" }], ["🧲", 1, { power: "magnet" }], ["🌱", 1, { sprout: [["🌷", 2, 1]] }]], [], [],
+    [["🍄", 1, { bounce: true }], ["🪅", 1, { shake: [["🍬", 3, 1]], hits: 3 }], ["🔴", 1, { press: "g" }], ["🚧", 1, { lock: "g", at: { pts: [[0.5, 0.3]] } }]],
+  ]), (def) => {
+    const tw = L.twistsOf(def);
+    for (const a of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin", "lock", "key"]) assert.ok(tw.has(a), "twist " + a);
+    const st = L.createGame(def.id);
+    const seen = {};
+    // tour the place: stand by everything in turn
+    const spots = st.objects.filter((o) => o.press || o.key || o.bounce || o.hits || o.power || o.box === "sprout").map((o) => [o.x, o.y]);
+    spots.push([L.geomOf(def.id).ends[0].x, L.geomOf(def.id).ends[0].y], [L.geomOf(def.id).flows[0].spin.x, L.geomOf(def.id).flows[0].spin.y]);
+    for (const [x, y] of spots) {
+      park(st, x, y + 30);
+      for (const e of run(st, 0.4, { x, y: y + 30 })) if (e.type === "meet") seen[e.kind] = (seen[e.kind] || 0) + 1;
+    }
+    for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin"]) assert.equal(seen[k], 1, "'" + k + "' is introduced exactly once (" + (seen[k] || 0) + ")");
+  });
+});
+
+test("A GIANT place (§17): a sixth size and a bigger finale — the tier law and the derived grows hold, and the bot gets there through six grows", () => {
+  const def = lab("giant", { world: [504, 706], finale: { e: "🏰", r: 28, at: [0.5, 0.12], say: "the castle" } });
+  def.tiers.push({ r: TR[5], items: [["🏯", 6]] });
+  withLab(def, () => {
+    const st = L.createGame(def.id);
+    assert.equal(st.levels.R.length, 7, "seven sizes: six tiers and the finale");
+    for (let L0 = 0; L0 + 2 <= 6; L0++) {
+      const R = st.levels.R[L0], next = st.objects.filter((o) => o.tier === L0 + 2);
+      assert.ok(next.every((o) => o.r > R * RULES.FIT), "the tier law at level " + L0);
+    }
+    assert.ok(L.twistsOf(def).has("giant"), "a giant place is its own twist");
+    const log = playOut(st, 900);
+    assert.ok(st.won, "the bot wins a giant place");
+    assert.deepEqual(log.filter((e) => e.type === "grow").map((e) => e.level), [1, 2, 3, 4, 5, 6], "six grows, in order");
+  });
+});
