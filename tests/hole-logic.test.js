@@ -1742,6 +1742,20 @@ function lineOf(st, G, x0, y0, x1, y1) {
 // stand, whose line to o is open air (want "open") or crosses water and
 // nothing else (want "water").
 function spotFor(st, G, o, d, want) {
+  // a line to o crosses water only if something within d of o is not
+  // ground: when a fine scan of that disc finds nothing, no spot can be
+  // across water from it (this skip only ever shortens the search)
+  if (want === "water") {
+    let wet = false;
+    for (let rr = 1.5; rr <= d + 1e-9 && !wet; rr += 1.5) {
+      const n = Math.max(8, Math.ceil((2 * Math.PI * rr) / 1.5));
+      for (let k = 0; k < n && !wet; k++) {
+        const ang = (k / n) * Math.PI * 2;
+        if (G.walk(o.x + Math.cos(ang) * rr, o.y + Math.sin(ang) * rr * RULES.SQ) > 0) wet = true;
+      }
+    }
+    if (!wet) return null;
+  }
   for (let a = 0; a < 64; a++) {
     const ang = (a / 64) * Math.PI * 2;
     const x = o.x + Math.cos(ang) * d, y = o.y + Math.sin(ang) * d * RULES.SQ;
@@ -1879,8 +1893,9 @@ test("SUPER SLURP: the pull never reaches ACROSS WATER, and never takes the FINA
   for (const def of SCENES) {
     const G = L.geomOf(def);
     let fx = null;
+    const st0 = L.createGame(def);   // the search changes nothing, so one game serves every size
     for (let lv = 0; lv <= 4 && !fx; lv++) {
-      const st0 = L.createGame(def); makeLevel(st0, lv);
+      makeLevel(st0, lv);
       const h0 = st0.hole;
       for (const o of st0.objects) {
         if (o.st !== L.IDLE || o.ride || o.finale || L.activeSolid(st0, o) || o.r > h0.r * RULES.FIT) continue;

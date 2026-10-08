@@ -584,6 +584,52 @@ test("progress is KEPT: leaving and coming back — even a reload — resumes th
   assert.deepEqual(await gone(), want, "a reload resumes too");
 });
 
+test("the save is written ONCE A FRAME, not once a gulp — a burst of gulps is one write, and a gulp in real play is saved within a frame or two", async () => {
+  // The whole save is re-serialised on every write, and a super slurp can
+  // swallow six things in a single 1/60s step: measured before this law, one
+  // bot play of Party Time wrote 310 times, up to 29 a second and six in one
+  // frame. Now a run is saved at the end of the frame in which he ate.
+  await openScene("party");
+  await page.evaluate(() => {
+    window.__writes = 0;
+    const set = Storage.prototype.setItem;
+    if (!window.__setSpy) {
+      window.__setSpy = true;
+      Storage.prototype.setItem = function (k, v) { if (k === "josh-gobble-v1") window.__writes++; return set.call(this, k, v); };
+    }
+  });
+  // many steps in ONE go (the test hook runs them inside a single frame)
+  const before = (await state()).eaten;
+  await page.evaluate(() => { window.__writes = 0; window.__HOLE.autoplay(600); });
+  const burst = await page.evaluate(() => window.__writes);
+  const after = (await state()).eaten;
+  assert.ok(after - before >= 15, "fixture: the burst ate a lot (" + (after - before) + ")");
+  assert.equal(burst, 1, "a burst of " + (after - before) + " gulps in one frame is ONE write, not one a gulp (" + burst + ")");
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")).runs.party);
+  assert.ok(saved && saved.eaten.length >= after, "…and that one write holds every gulp (" + (saved && saved.eaten.length) + " of " + after + ")");
+  // REAL frames: steer him onto the nearest thing he can eat and watch the
+  // save catch up within a frame or two of the gulp
+  const target = await page.evaluate(() => {
+    const s = window.__HOLE.state(), h = s.hole;
+    let best = null, bd = 1e9;
+    for (const o of s.objects) {
+      if (o.st !== window.HoleLogic.IDLE || o.lock || o.ride || o.r > h.r * window.HoleData.RULES.FIT) continue;
+      const d = Math.hypot(o.x - h.x, o.y - h.y);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best && { id: best.id, x: best.x, y: best.y };
+  });
+  assert.ok(target, "fixture: something he can eat");
+  await page.evaluate((t) => { window.__writes = 0; window.__HOLE.moveTo(t.x, t.y); }, target);
+  await page.waitForFunction((id) => window.__HOLE.state().objects[id].st === window.HoleLogic.GONE, target.id, { timeout: 8000 });
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const run = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")).runs.party);
+  assert.ok(run.eaten.includes(target.id), "a gulp in real play is in the save within two frames");
+  const frames = await page.evaluate(() => window.__writes);
+  assert.ok(frames >= 1, "real frames wrote the save (" + frames + ")");
+  await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
+});
+
 test("the loop only runs while he is PLAYING — leaving pauses it completely", async () => {
   await openScene("town");
   assert.ok(await page.evaluate(() => window.__HOLE.running()), "the loop runs on the play screen");
