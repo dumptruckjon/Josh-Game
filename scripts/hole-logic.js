@@ -1047,7 +1047,7 @@
     const gold = goldOf(lay.objects, G);
     for (const id of gold) lay.objects[id].gold = true;
     return {
-      id: def.id, W: lay.W, H: lay.H, start: lay.start,
+      id: def.id, W: lay.W, H: lay.H, start: lay.start, print: printOf(lay.objects),
       objects: lay.objects, levels: lv, gold,
       hole: { x: lay.start.x, y: lay.start.y, r: lv.R[0], R: lv.R[0], level: 0, xp: 0, tx: lay.start.x, ty: lay.start.y, vx: 0, vy: 0 },
       t: 0, tick: 0, eaten: 0, total: lay.objects.length,
@@ -1695,9 +1695,20 @@
   // xp, the level, the keys turned and the surprises out are re-derived from
   // them, so a corrupt or hand-edited save can never hand Gobble a size or a
   // door it did not earn.
+  //
+  // An id means "the n-th thing this layout placed", so a run is only good on
+  // the layout it was played on: add one sweet to a place and every id after
+  // it names a different thing (measured: a 64-bite run then re-pointed 24
+  // of its ids at other pictures and handed Gobble a level he never earned).
+  // So a run carries its layout's FINGERPRINT, and a run whose fingerprint is
+  // not this layout's is dropped — for that place alone.
+  function printOf(objects) {
+    const parts = objects.map((o) => o.e + "@" + Math.round(o.x * 10) + "," + Math.round(o.y * 10) + "," + Math.round(o.r * 100));
+    return hashStr(parts.join(";")).toString(36);
+  }
   function snapshot(st) {
     return {
-      v: RULES.LAYOUT, scene: st.id,
+      v: RULES.LAYOUT, scene: st.id, f: st.print,
       // a thing already FALLING is as good as eaten: leaving mid-gulp must
       // not bring it back standing on the rim
       eaten: st.objects.filter((o) => o.st === FALL || o.st === GONE).map((o) => o.id),
@@ -1711,6 +1722,9 @@
     const def = sceneById(snap.scene);
     if (!def) return null;
     const st = createGame(def);
+    // a run saved before fingerprints is trusted unless its place has been
+    // laid out again since (RULES.RELAID); a fingerprinted one must match
+    if (typeof snap.f === "string" ? snap.f !== st.print : "f" in snap || (RULES.RELAID || []).includes(def.id)) return null;
     const ids = Array.isArray(snap.eaten) ? snap.eaten : [];
     const h = st.hole;
     for (const raw of ids) {
@@ -1928,7 +1942,7 @@
 
   const HoleLogic = {
     DT, IDLE, FALL, GONE, HIDDEN,
-    rng, hashStr, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
+    rng, hashStr, printOf, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
     goldOf, countOf, GOLD_BANDS, itemOf, geomOf, outlineOf, progressOf, routeLine,
     createGame, setTarget, step, nearestEdible, edible, goalOf, botTarget, activeSolid,
     snapshot, restore, hashState,

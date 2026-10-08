@@ -28,6 +28,14 @@
     // (3) — names ids that mean different things here, so it is dropped; a
     // finished place's ⭐ lives elsewhere in the save and is kept.
     LAYOUT: 4,
+    // ...and each run also carries its place's layout FINGERPRINT (every
+    // thing's picture, spot and size, in id order: hole-logic.js printOf), so
+    // editing ONE place drops only that place's half-eaten run — the version
+    // above need never move again. A run saved before fingerprints (it has no
+    // `f`) is trusted for every place except these, which have been laid out
+    // again since (hole-logic.test.js holds the old fingerprints, and fails if
+    // a place's layout changes without being listed here).
+    RELAID: [],
     // The world, in world units. It no longer bends to the screen: the
     // screen is a camera onto it (so a saved run never depends on the device).
     // Phase 2's worlds were 300 x 420; these are 1.4 times as wide AND as

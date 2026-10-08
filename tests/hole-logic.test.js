@@ -817,6 +817,7 @@ test("save → restore keeps what was eaten, the size and where Gobble stood —
   for (let i = 0; i < 120 && st.objects.some((o) => o.st === L.FALL); i++) { L.step(st); st.events.length = 0; }
   const snap = JSON.parse(JSON.stringify(L.snapshot(st)));   // through JSON, like localStorage
   assert.equal(snap.v, RULES.LAYOUT, "a save names the layout its ids belong to");
+  assert.ok(typeof snap.f === "string" && snap.f === st.print, "…and carries its layout's fingerprint");
   const back = L.restore(snap);
   assert.equal(back.id, st.id);
   assert.equal(back.eaten, st.objects.filter((o) => o.st === L.GONE).length);
@@ -838,6 +839,66 @@ test("save → restore keeps what was eaten, the size and where Gobble stood —
   assert.equal(RULES.LAYOUT, 4, "fixture: the shaped places are layout 4");
   for (const old of [2, 3]) assert.equal(L.restore({ ...snap, v: old }), null, "…and so is one from layout " + old);
   assert.equal(L.restore({ ...snap, v: String(RULES.LAYOUT) }), null, "…and a version must be the number itself");
+});
+
+// Every place's layout FINGERPRINT at layout 4, when runs began to carry
+// one. A run saved before that has no `f`, and is trusted for a place whose
+// layout is still this one; a place laid out again since must be listed in
+// RULES.RELAID, or its old runs would name different things.
+const LAYOUT4 = {
+  toyroom: "1947k3a", picnic: "1g4vkq1", farm: "13blerv", build: "ywvw66", town: "17yvt8h", sports: "v53ml2",
+  party: "f6dnu", beach: "jt44zz", volcano: "1jc48z9", snow: "1envzaw", airport: "1491zr1", space: "n3kc7a",
+  market: "faztxz", maze: "n0qcoy", cave: "118mqfl", castle: "2bnkqq", factory: "1l7a1tb", circus: "17vc6ur",
+  jungle: "zlixaj", cloud: "1pd56ev", pirate: "uv2cyg", themepark: "1k92zh0", candy: "1oadlp4", music: "fcwsf7",
+};
+
+test("a run carries its layout's FINGERPRINT: edit ONE place and only that place's half-eaten run is dropped — never re-pointed at different things", () => {
+  // An id means "the n-th thing this layout placed". Measured before this
+  // law: one sweet added to the Toy Room re-pointed 24 of a 64-bite run's
+  // ids at other pictures and handed Gobble a level he never earned, while
+  // the save's version still matched. Bumping the version instead would
+  // have dropped the half-eaten runs of EVERY place.
+  const at = SCENES.findIndex((d) => d.id === "toyroom");
+  const orig = SCENES[at];
+  const st = L.createGame(orig);
+  playOut(st, 6);
+  assert.ok(st.eaten >= 6, "fixture: the run has eaten a few things (" + st.eaten + ")");
+  const snap = JSON.parse(JSON.stringify(L.snapshot(st)));
+  const other = JSON.parse(JSON.stringify(L.snapshot(L.createGame("picnic"))));
+  // the same place, edited: one more sweet among its tier-1 things
+  const edited = JSON.parse(JSON.stringify(orig));
+  edited.tiers[0].items[0][1] += 1;
+  SCENES[at] = edited;
+  try {
+    assert.notEqual(L.createGame(edited).print, st.print, "fixture: the edit really moved the layout");
+    assert.equal(L.restore(snap), null, "a run from before the edit is dropped, not re-pointed");
+    assert.ok(L.restore(other), "…while every OTHER place's run still restores");
+    const fresh = L.createGame(edited);
+    playOut(fresh, 4);
+    assert.ok(L.restore(JSON.parse(JSON.stringify(L.snapshot(fresh)))), "a run played on the edited layout restores");
+  } finally { SCENES[at] = orig; }
+  assert.ok(L.restore(snap), "back on its own layout, the run restores");
+  // a hostile fingerprint never passes
+  for (const f of [7, null, "", "nope", { x: 1 }]) assert.equal(L.restore({ ...snap, f }), null, "a fingerprint of " + JSON.stringify(f) + " is dropped");
+  // a run saved before fingerprints (no `f`) is trusted… unless its place
+  // has been laid out again since
+  const { f, ...legacy } = snap;
+  assert.ok(f, "fixture: the run had a fingerprint");
+  assert.ok(L.restore(legacy), "a run from before fingerprints restores on an unchanged place");
+  RULES.RELAID.push("toyroom");
+  try { assert.equal(L.restore(legacy), null, "…and is dropped once its place is listed as laid out again"); }
+  finally { RULES.RELAID.pop(); }
+});
+
+test("RELAID is exact: a place whose layout changed since layout 4 is listed (or its old runs would re-point), and no listed place is unchanged", () => {
+  assert.ok(Array.isArray(RULES.RELAID), "RULES.RELAID is a list");
+  for (const id of RULES.RELAID) assert.ok(LAYOUT4[id], id + " is listed as laid out again, but no such place existed at layout 4");
+  for (const [id, print] of Object.entries(LAYOUT4)) {
+    assert.ok(L.sceneById(id), id + " existed at layout 4 and must still exist (a removed place strands its runs)");
+    const now = L.createGame(id).print;
+    if (now !== print) assert.ok(RULES.RELAID.includes(id), id + "'s layout changed since layout 4 (" + print + " -> " + now + "): list it in RULES.RELAID, or a run saved before fingerprints re-points at different things");
+    else assert.ok(!RULES.RELAID.includes(id), id + " is listed in RULES.RELAID but its layout is unchanged — its players would lose a half-eaten run for nothing");
+  }
 });
 
 test("restore RE-DERIVES what the gulps did: keys turned, boxes popped, trees shaken — never stored, never trusted", () => {
