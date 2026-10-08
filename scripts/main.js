@@ -138,11 +138,85 @@
     });
   }
 
-  // ---- Grown-ups: reset the ⭐ badges (a text parent-gate) ----
+  // ---- Grown-ups: the ONE type-the-word parent gate (the kid worlds) ----
+  // A box that ONLY accepts the word "reset" (any case); nothing else does
+  // anything. Josh's ⭐ reset (below) and Gobble Hole's reset both ask through
+  // JoshGate.ask, so the two can never disagree on what unlocks them, how a
+  // wrong word is shown, or how the grown-up is told it worked (RULE 7: one
+  // owner — the fort's own reset is an adult dialog in its own overlay
+  // system). Its buttons are marked data-adult: exempt from the kid ≥75px
+  // audit, and deliberately small and quiet so a preschooler ignores them.
+  // A request is { label, msg, confirm } — `confirm` runs only on the word,
+  // and returns the line the toast shows.
+  let gate = null, gateReq = null;
+  function gateEl() {
+    if (gate) return gate;
+    const overlay = document.createElement("div");
+    overlay.className = "gate";
+    overlay.hidden = true;
+    overlay.dataset.adult = "1";
+    overlay.innerHTML =
+      '<div class="gate__box" role="dialog" aria-modal="true" aria-label="Reset">' +
+        '<p class="gate__msg"></p>' +
+        '<input class="gate__input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type the word reset" />' +
+        '<p class="gate__err" hidden>That’s not the word. Type <b>reset</b>.</p>' +
+        '<div class="gate__row">' +
+          '<button class="gate__cancel" type="button" data-adult="1">Cancel</button>' +
+          '<button class="gate__ok" type="button" data-adult="1">OK</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector(".gate__input");
+    const err = overlay.querySelector(".gate__err");
+    const box = overlay.querySelector(".gate__box");
+
+    function close() { overlay.hidden = true; gateReq = null; }
+    function toast(msg) {
+      const t = document.createElement("div");
+      t.className = "gate__done";
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 1600);
+    }
+    function submit() {
+      if (input.value.trim().toLowerCase() === "reset") {
+        const req = gateReq;
+        close();
+        let msg = "";
+        try { msg = req && req.confirm ? req.confirm() : ""; } catch (e) { console.error("Josh: reset failed:", e); }
+        if (msg) toast(msg);
+      } else {
+        err.hidden = false;
+        box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
+        try { input.select(); } catch (e) { /* ignore */ }
+      }
+    }
+
+    overlay.querySelector(".gate__ok").addEventListener("click", submit);
+    overlay.querySelector(".gate__cancel").addEventListener("click", close);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); }); // tap the dim area to cancel
+    gate = overlay;
+    return gate;
+  }
+  function askGate(req) {
+    const g = gateEl();
+    gateReq = req;
+    g.querySelector(".gate__box").setAttribute("aria-label", req.label);
+    g.querySelector(".gate__msg").innerHTML = req.msg;
+    g.querySelector(".gate__err").hidden = true;
+    const input = g.querySelector(".gate__input");
+    input.value = "";
+    g.hidden = false;
+    setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 30);
+  }
+  window.JoshGate = { ask: askGate };
+
+  // ---- Grown-ups: reset Josh's ⭐ badges (through the gate above) ----
   // A small, discreet button (marked data-adult so it is exempt from the kid
-  // ≥75px audit — it is deliberately small so a preschooler ignores it). It pops
-  // a text box that ONLY accepts the word "reset" (any case); nothing else clears
-  // anything. Clearing removes every josh-won-* flag and its ⭐ badge.
+  // ≥75px audit — it is deliberately small so a preschooler ignores it).
+  // Clearing removes every josh-won-* flag and its ⭐ badge.
   function clearStars() {
     // Clears JOSH's stars only. 华丽's progress (josh-won-hl-*) is deliberately
     // preserved — her collection is hers, not part of Josh's reset.
@@ -175,52 +249,12 @@
     btn.textContent = "⚙️ Grown-ups";
     home.appendChild(btn);
 
-    const overlay = document.createElement("div");
-    overlay.className = "gate";
-    overlay.hidden = true;
-    overlay.dataset.adult = "1";
-    overlay.innerHTML =
-      '<div class="gate__box" role="dialog" aria-modal="true" aria-label="Reset stars">' +
-        '<p class="gate__msg">Grown-ups: type <b>reset</b> to clear all&nbsp;⭐</p>' +
-        '<input class="gate__input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Type the word reset" />' +
-        '<p class="gate__err" hidden>That’s not the word. Type <b>reset</b>.</p>' +
-        '<div class="gate__row">' +
-          '<button class="gate__cancel" type="button" data-adult="1">Cancel</button>' +
-          '<button class="gate__ok" type="button" data-adult="1">OK</button>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(overlay);
-
-    const input = overlay.querySelector(".gate__input");
-    const err = overlay.querySelector(".gate__err");
-    const box = overlay.querySelector(".gate__box");
-
-    function open() { overlay.hidden = false; err.hidden = true; input.value = ""; setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 30); }
-    function close() { overlay.hidden = true; }
-    function toast(msg) {
-      const t = document.createElement("div");
-      t.className = "gate__done";
-      t.textContent = msg;
-      document.body.appendChild(t);
-      setTimeout(() => t.remove(), 1600);
-    }
-    function submit() {
-      if (input.value.trim().toLowerCase() === "reset") {
-        const n = clearStars();
-        close();
-        toast(n ? "Stars cleared! ✨" : "No stars to clear.");
-      } else {
-        err.hidden = false;
-        box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
-        try { input.select(); } catch (e) { /* ignore */ }
-      }
-    }
-
-    btn.addEventListener("click", open);
-    overlay.querySelector(".gate__ok").addEventListener("click", submit);
-    overlay.querySelector(".gate__cancel").addEventListener("click", close);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } });
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); }); // tap the dim area to cancel
+    gateEl(); // built now, so the page is the same at load as it always was
+    btn.addEventListener("click", () => askGate({
+      label: "Reset stars",
+      msg: "Grown-ups: type <b>reset</b> to clear all&nbsp;⭐",
+      confirm: () => (clearStars() ? "Stars cleared! ✨" : "No stars to clear."),
+    }));
   }
 
   // ---- Big sound on/off toggle (off by default) ----

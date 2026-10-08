@@ -7,7 +7,8 @@ a 4 year old").
 Phase 2 (big worlds you move around in, §9), phase 3 (bigger worlds and
 twelve places, §11), the polish pass (§12), a quality check (§13), phase 4
 (twenty-four places, each with its own shape and challenge, §14) and the pass
-that makes every place come alive (§15) are built too.
+that makes every place come alive (§15) are built too, and so is a grown-ups
+reset (§16).
 
 A fourth world on the front door, right after 🏰 Fort Josh. Josh drags a
 friendly hole-monster, **Gobble**, around a toy-box diorama. Small things fall
@@ -971,3 +972,37 @@ scale and the sparkle at five only, its words once, and a frame that does not
 depend on what the frame before left behind. Every new clause was
 mutation-checked: 12 engine mutations and 8 page mutations, each red on its own
 clause.
+
+## 16. A grown-ups reset (owner, 2026-10-08)
+
+> "Make sure gobble hole also has a way to reset progress to clear the stars
+> from all levels. Usable by parent only"
+
+A small, quiet **⚙️ Grown-ups** button sits under the last door of Gobble
+Hole's home — after the doors, never between them. It opens the same
+type-the-word gate as the ⚙️ on Josh's home: only the word **reset** (any
+case) clears anything, and a tap, OK with no word, a wrong word or Cancel does
+nothing. The word clears **every ⭐ and every half-eaten place** (every door's
+star and ring go) and says so in a toast. It keeps "he has seen how to play"
+(👂 shows the ghost hand again any time). It touches nothing outside Gobble
+Hole, and Josh's own ⭐ reset never touches Gobble Hole.
+
+- **One gate.** The gate moved out of Josh's launcher into one owner,
+  `JoshGate.ask` in `main.js`, which both buttons call, so the two can never
+  disagree on the word, a wrong guess or the confirmation. (The fort's reset
+  stays an adult dialog in its own overlay system.)
+- **One wipe.** `resetProgress()` in `hole-main.js` is called by the button
+  and by the `__HOLE.reset` test hook alike, and it drops the run parked in
+  memory: ▶, a door or a deep link carries that run on, and leaving the play
+  screen saves it, so a wipe that left it alive would put the old progress
+  straight back.
+
+**Tests.** `tests/hole.test.js` drives the real button and gate: nothing is
+cleared without the word; the word clears every ⭐ and ring; the half-eaten
+place cannot come back by a deep link, a reload or its door; Josh's ⭐ and the
+fort's save survive it, and Gobble Hole's save survives Josh's reset.
+`tests/site.test.js` holds both worlds to the one gate and Gobble Hole to the
+one wipe. `tests/mobile.test.js` checks the button is under the last door and
+reachable, clear of the home indicator, at all fourteen phone and iPad sizes.
+Nine product mutations, each red on at least one test, and one layout
+mutation.

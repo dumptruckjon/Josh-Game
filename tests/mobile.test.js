@@ -401,6 +401,26 @@ test("🕳️ Gobble's home: all TWENTY-FOUR doors on the FIRST screen of an iPa
       await noOverflow(p, `hole-home@${at}`);
       assert.ok(m.minSide >= 75, `${at}: kid-sized doors (${m.minSide}px)`);
       assert.deepEqual(m.spill, [], `${at}: every place's name stays inside its door`);
+      // The grown-ups ⚙️ (start Gobble Hole over): AFTER the last door, never
+      // between doors, and reachable at every size — a phone scrolls to it, an
+      // iPad shows it under the doors. It is adult-only (data-adult), so the
+      // kid audit above skips it; this is what checks it is there at all.
+      const g = await p.evaluate(() => {
+        const b = document.getElementById("hole-reset"), r = b.getBoundingClientRect();
+        const lastDoor = Math.max(...[...document.querySelectorAll(".hole-door")].map((d) => d.getBoundingClientRect().bottom));
+        return { below: Math.round(r.top - lastDoor), left: r.left, right: r.right, vw: document.documentElement.clientWidth };
+      });
+      assert.ok(g.below >= 16, `${at}: the grown-ups ⚙️ sits after the last door (${g.below}px below it)`);
+      assert.ok(g.left >= 0 && g.right <= g.vw, `${at}: the grown-ups ⚙️ is inside the screen`);
+      // A grown-up scrolls to the end of the page to reach it — not
+      // scrollIntoViewIfNeeded, which does nothing for a button already
+      // inside the viewport, even one sitting under the home indicator (an
+      // 810x1080 iPad left it 3px in that strip until scrolled)
+      await p.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+      const gb = await p.locator("#hole-reset").boundingBox();
+      assert.ok(gb && gb.y >= 0 && gb.y + gb.height <= h - inset[1] + 0.5,
+        `${at}: at the end of the page the grown-ups ⚙️ is all on screen, clear of the home indicator (${gb && Math.round(gb.y)}..${gb && Math.round(gb.y + gb.height)})`);
+      await p.evaluate(() => scrollTo(0, 0));
       if (w >= 600) {
         assert.equal(m.hidden, 0, `${at}: on an iPad every door is on the first screen, clear of the home indicator — ` +
           `${m.hidden} end below ${m.clear} (the last at ${m.last})`);

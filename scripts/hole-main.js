@@ -116,11 +116,26 @@
         '<button class="btn-round game__hear hole-homehear" type="button" aria-label="Hear it again">👂</button>' +
       "</div>" +
       '<div class="hole-hero art-fill" aria-hidden="true"></div>' +
-      '<div class="hole-scenes" role="list" aria-label="Pick a place to eat"></div>';
+      '<div class="hole-scenes" role="list" aria-label="Pick a place to eat"></div>' +
+      // Grown-ups only: start Gobble Hole over. Small and quiet on purpose,
+      // AFTER the last door (never between doors), and behind the app's ONE
+      // type-the-word gate (JoshGate, main.js) — a tap alone clears nothing.
+      // data-adult: exempt from the kid tap audit, like Josh's own ⚙️.
+      '<button class="reset-stars hole-reset" id="hole-reset" type="button" data-adult="1" ' +
+        'aria-label="Grown-ups: start Gobble Hole over">⚙️ Grown-ups</button>';
     screens.appendChild(home);
     home.querySelector(".hole-hero").innerHTML = art();
     home.querySelector(".hole-exit").addEventListener("click", () => { location.hash = ""; });
     home.querySelector(".hole-homehear").addEventListener("click", () => sayNow(SAY.pick));
+    home.querySelector(".hole-reset").addEventListener("click", () => {
+      const G = global.JoshGate;
+      if (!G) return;
+      G.ask({
+        label: "Start Gobble Hole over",
+        msg: "Grown-ups: type <b>reset</b> to clear every place’s&nbsp;⭐ and start Gobble Hole over",
+        confirm: () => (resetProgress({ keepDemo: true }) ? "Gobble Hole starts over! ✨" : "Nothing to clear yet."),
+      });
+    });
     const grid = home.querySelector(".hole-scenes");
     SCENES.forEach((sc) => {
       const b = doc.createElement("button");
@@ -265,6 +280,27 @@
       prog.style.setProperty("--p", pct + "%");
       b.setAttribute("aria-label", sc.name + (done ? ", all eaten" : "") + (pct ? ", " + pct + " percent eaten" : ""));
     }
+  }
+
+  // ---- Starting over: the ONE wipe ------------------------------------------
+  // The grown-ups ⚙️ and the __HOLE.reset test hook both go through here, so
+  // the two can never disagree on what a fresh start clears (the fort's reset
+  // once had two copies, and the field one of them missed crashed the next
+  // win). It clears every ⭐ and every half-eaten place — and DROPS the run
+  // parked in memory: ▶, a door or a deep link carries that run on, and
+  // leaving the play screen saves it, so a wipe that left it alive would put
+  // the old progress straight back (the fort's ✕-discard bug, in this world).
+  // keepDemo: a grown-up's reset keeps "he has seen how to play" (👂 shows it
+  // again any time); the tests' reset starts truly fresh. Returns whether
+  // there was anything to clear (a ⭐ or a ring on a door).
+  function resetProgress(opts) {
+    const had = Object.keys(save.done).length > 0 || SCENES.some((sc) => eatenFrac(sc) > 0);
+    const keepDemo = !!(opts && opts.keepDemo) && save.demo;
+    save = freshSave();
+    if (keepDemo) save.demo = true;
+    persist();
+    run = null; stopLoop(); endDemo(); paintDoors();
+    return had;
   }
 
   // ---- Sound: every note through JoshAudio (mute-gated, iOS-safe) ------------
@@ -813,9 +849,8 @@
     scene: () => (run && play && !play.hidden ? run.def.id : null),
     save: () => JSON.parse(JSON.stringify(save)),
     reset(opts) {
-      save = freshSave();
-      if (opts && opts.demoSeen) save.demo = true;
-      persist(); run = null; stopLoop(); endDemo(); paintDoors();
+      resetProgress();
+      if (opts && opts.demoSeen) { save.demo = true; persist(); }
       for (const k of Object.keys(counts)) delete counts[k];
     },
     counts: () => ({ ...counts }),

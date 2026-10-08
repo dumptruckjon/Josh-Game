@@ -1467,6 +1467,141 @@ test("a half-eaten place from the ONE-SCREEN version is dropped, and its ⭐ is 
   assert.ok((await cam()).intro, "…as a fresh place, with the opening look");
 });
 
+test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' does it; every ⭐ and every half-eaten place go, the place he left cannot come back, and nothing outside Gobble Hole is touched", async () => {
+  // The fixture: three finished places, seeded and booted from (a reload, or
+  // the page keeps its own copy of the save), plus Josh's own ⭐ and a fort
+  // save — neither of which this reset may touch.
+  const KEY = "josh-gobble-v1";
+  const FORT = JSON.stringify({ v: 1, stars: { casual: {}, normal: { 1: 3 }, heroic: {} }, settings: { sfx: true, music: false, dmgNumbers: false },
+    difficulty: "normal", meta: [], ach: [], endlessBest: {}, midRun: null });
+  await page.evaluate(({ k, fort }) => {
+    localStorage.setItem(k, JSON.stringify({ v: 1, done: { toyroom: true, beach: true, space: true }, runs: {}, demo: true, last: "toyroom" }));
+    localStorage.setItem("josh-won-count-feed", "1");
+    localStorage.setItem("jon-td-save-v1", fort);
+  }, { k: KEY, fort: FORT });
+  await page.reload({ waitUntil: "load" });
+  // …and one place he leaves HALF-eaten: it is saved, and it is also the run
+  // parked in memory — the one ▶, a door or a deep link would carry on
+  await page.evaluate(() => { location.hash = "#hole-home"; });
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="picnic"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  await page.evaluate(() => { window.__HOLE.snap(); window.__HOLE.autoplay(60 * 20); const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
+  await page.waitForTimeout(800);
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  const doors = () => page.evaluate(() => ({
+    stars: [...document.querySelectorAll(".hole-door__star")].filter((s) => !s.hidden).length,
+    rings: [...document.querySelectorAll(".hole-door__prog")].filter((r) => !r.hidden).length,
+    said: [...document.querySelectorAll(".hole-door")].filter((d) => /all eaten|percent eaten/.test(d.getAttribute("aria-label"))).length,
+  }));
+  const saved = await page.evaluate(() => window.__HOLE.save());
+  assert.deepEqual(Object.keys(saved.done).sort(), ["beach", "space", "toyroom"], "fixture: three finished places");
+  assert.ok(saved.runs.picnic && saved.runs.picnic.eaten.length >= 5, "fixture: the picnic is half-eaten and saved");
+  assert.deepEqual(await doors(), { stars: 3, rings: 1, said: 4 }, "fixture: the doors show three ⭐ and one ring");
+
+  // The button is a GROWN-UP's: small and quiet, after the LAST door (never
+  // between doors), marked data-adult like Josh's own ⚙️
+  const btn = await page.evaluate(() => {
+    const b = document.getElementById("hole-reset"), r = b.getBoundingClientRect();
+    const last = Math.max(...[...document.querySelectorAll(".hole-door")].map((d) => d.getBoundingClientRect().bottom));
+    return { adult: b.dataset.adult, below: r.top - last, h: r.height, inHome: !!b.closest("#screen-hole-home") };
+  });
+  assert.equal(btn.adult, "1", "the button is marked adult-only");
+  assert.ok(btn.inHome, "it lives on Gobble Hole's home");
+  assert.ok(btn.below >= 16, "it sits after the last door, clear of it (" + btn.below + "px)");
+  assert.ok(btn.h < 75, "it is small and quiet, not a kid-sized target (" + btn.h + "px)");
+
+  // A tap alone opens the gate and clears NOTHING; nor does OK with no word,
+  // a wrong word, or Cancel
+  const open = async () => {
+    await page.locator("#hole-reset").scrollIntoViewIfNeeded();
+    await page.locator("#hole-reset").click();
+    await page.locator(".gate").waitFor({ state: "visible" });
+  };
+  await open();
+  assert.match(await page.locator(".gate__msg").textContent(), /Gobble Hole/, "the gate says what it will clear");
+  assert.equal(await page.locator(".gate__box").getAttribute("aria-label"), "Start Gobble Hole over", "…and its dialog is named for it");
+  await page.locator(".gate__ok").click();
+  assert.ok(await page.locator(".gate__err").isVisible(), "OK with no word only shows the hint");
+  await page.locator(".gate__input").fill("banana");
+  await page.locator(".gate__ok").click();
+  assert.ok(await page.locator(".gate__err").isVisible(), "a wrong word only shows the hint");
+  await page.locator(".gate__cancel").click();
+  await page.locator(".gate").waitFor({ state: "hidden" });
+  assert.deepEqual(await doors(), { stars: 3, rings: 1, said: 4 }, "nothing is cleared without the word");
+  assert.deepEqual(await page.evaluate(() => window.__HOLE.save()), saved, "…and the save is untouched");
+
+  // The word — any case — starts Gobble Hole over
+  await page.waitForTimeout(400);
+  await open();
+  await page.locator(".gate__input").fill("Reset");
+  await page.locator(".gate__ok").click();
+  await page.locator(".gate").waitFor({ state: "hidden" });
+  assert.match(await page.locator(".gate__done").last().textContent(), /Gobble Hole starts over/, "the grown-up is told it worked");
+  assert.deepEqual(await doors(), { stars: 0, rings: 0, said: 0 }, "every ⭐ and every ring is gone from the doors");
+  const after = await page.evaluate(() => window.__HOLE.save());
+  assert.deepEqual(after.done, {}, "no place is finished any more");
+  assert.deepEqual(after.runs, {}, "no place is half-eaten any more");
+  assert.equal(after.demo, true, "how to play is not progress: he is not shown the ghost hand again (👂 still shows it)");
+
+  // The place he left cannot come back. A wipe that left the run PARKED in
+  // memory alive would put it straight back: a deep link carries the parked
+  // run on, and leaving the play screen saves it. (A freshly opened place may
+  // gulp a starter or two on its own — the magnet — so "fresh" means far
+  // short of the old progress, not zero.)
+  const old = saved.runs.picnic.eaten.length;
+  assert.ok(old >= 10, "fixture: enough was eaten to tell old from fresh (" + old + ")");
+  assert.equal(await page.evaluate(() => window.__HOLE.state()), null, "the run parked in memory is dropped too");
+  await page.evaluate(() => { location.hash = "#hole-play"; });
+  await page.waitForFunction(() => window.__HOLE.scene(), null, { timeout: 8000 });
+  assert.notEqual(await page.evaluate(() => window.__HOLE.scene()), "picnic", "a deep link does not carry the old picnic on");
+  await page.waitForTimeout(400); // a just-shown screen ignores a finger for 350ms (the echo guard)
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.reload({ waitUntil: "load" });
+  await go("#hole-home", "#screen-hole-home");
+  const kept = await page.evaluate(() => window.__HOLE.save());
+  assert.deepEqual(kept.done, {}, "after a reload no place is finished");
+  assert.ok(!kept.runs.picnic, "…and the old picnic was never saved back");
+  const d2 = await doors();
+  assert.equal(d2.stars, 0, "…and no door wears a ⭐");
+  assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__prog').isHidden(), "…nor the picnic its ring");
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="picnic"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  const fresh = (await state()).eaten;
+  assert.ok(fresh <= 2, "its door opens the picnic FRESH (" + fresh + " eaten, against " + old + " before)");
+  await page.waitForTimeout(400);
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+
+  // Nothing outside Gobble Hole was touched
+  const out = await page.evaluate(() => ({ josh: localStorage.getItem("josh-won-count-feed"), fort: localStorage.getItem("jon-td-save-v1") }));
+  assert.equal(out.josh, "1", "Josh's own ⭐ survives Gobble Hole's reset");
+  assert.equal(out.fort, FORT, "…and so does the fort");
+
+  // …and the other way round: Josh's ⭐ reset never touches Gobble Hole
+  await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ v: 1, done: { toyroom: true }, runs: {}, demo: true, last: "toyroom" })), KEY);
+  await page.reload({ waitUntil: "load" });
+  await go("#home", "#screen-home");
+  await page.waitForTimeout(400);
+  await page.locator("#reset-stars").scrollIntoViewIfNeeded();
+  await page.locator("#reset-stars").click();
+  await page.locator(".gate").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".gate__box").getAttribute("aria-label"), "Reset stars", "Josh's ⚙️ asks for its own reset");
+  await page.locator(".gate__input").fill("reset");
+  await page.locator(".gate__ok").click();
+  await page.locator(".gate").waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => localStorage.getItem("josh-won-count-feed")), null, "Josh's reset cleared his ⭐");
+  const gob = await page.evaluate((k) => localStorage.getItem(k), KEY);
+  assert.ok(gob, "…and left Gobble Hole's save alone");
+  assert.deepEqual(JSON.parse(gob).done, { toyroom: true }, "…its ⭐ and all");
+  await page.evaluate(() => { localStorage.removeItem("jon-td-save-v1"); window.__HOLE.reset({ demoSeen: true }); });
+});
+
 test("Gobble Hole never touches Josh's games: no registry entry, no sticker, its own storage", async () => {
   const r = await page.evaluate(() => ({
     reg: (window.JoshGames || []).some((g) => /hole|gobble/i.test(g.id)),

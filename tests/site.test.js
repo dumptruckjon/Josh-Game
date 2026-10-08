@@ -1263,6 +1263,35 @@ test("guardrail: the grown-ups reset gate exists and only 'reset' clears stars",
   assert.ok(/toLowerCase\(\)\s*===\s*["']reset["']/.test(m), "ONLY the word 'reset' (any case) may clear the stars");
 });
 
+test("guardrail: Gobble Hole's grown-ups reset asks the ONE parent gate, and wipes through the ONE owner", () => {
+  // What unlocks a reset (only the word "reset"), how a wrong word shows and
+  // how it confirms have ONE owner — JoshGate, in main.js. Josh's ⭐ reset and
+  // Gobble Hole's ask through it, so a second copy can never drift from the
+  // first (the fort's reset is an adult dialog in its own overlay system, and
+  // is not this). Gobble Hole's WIPE has one owner too, resetProgress: the
+  // grown-ups button and the test hook both call it, and it drops the run
+  // parked in memory — leaving the play screen saves that run, so a wipe
+  // that left it alive would put the old progress straight back.
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const m = strip(read("scripts/main.js")), h = strip(read("scripts/hole-main.js"));
+  assert.equal((m.match(/window\.JoshGate\s*=/g) || []).length, 1, "JoshGate is defined once, in main.js");
+  assert.equal((m.match(/toLowerCase\(\)\s*===\s*["']reset["']/g) || []).length, 1, "the word is checked in ONE place");
+  assert.equal((m.match(/className\s*=\s*["']gate["']/g) || []).length, 1, "ONE gate dialog is built");
+  assert.match(m, /askGate\(\{[\s\S]*?clearStars\(\)/, "Josh's ⭐ reset asks through it");
+  assert.match(h, /JoshGate[\s\S]{0,80}\.ask\(\{[\s\S]*?resetProgress\(\{\s*keepDemo:\s*true\s*\}\)/,
+    "Gobble Hole's ⚙️ asks the shared gate, and its confirm goes through the one wipe");
+  assert.ok(!/toLowerCase\(\)\s*===/.test(h), "Gobble Hole checks no word itself");
+  assert.ok(!/["']gate(__[a-z]+)?["']/.test(h) && !/class=\\?["']gate/.test(h), "Gobble Hole builds no gate dialog of its own");
+  assert.match(h, /id="hole-reset"[^>]*data-adult="1"/, "its button is marked adult-only");
+  const at = h.indexOf("function resetProgress(");
+  assert.ok(at > 0, "resetProgress exists");
+  const body = h.slice(at, h.indexOf("\n  }\n", at));
+  for (const want of ["save = freshSave()", "persist()", "run = null", "stopLoop()", "paintDoors()"])
+    assert.ok(body.includes(want), "resetProgress must do " + want);
+  assert.match(h, /reset\(opts\)\s*\{\s*resetProgress\(\)/, "__HOLE.reset goes through the one wipe");
+  assert.equal((h.match(/save = freshSave\(\)/g) || []).length, 1, "a fresh save is made in ONE place");
+});
+
 test("guardrail: the framework tracks a clean-win streak for gentle difficulty ramping", () => {
   // Wave-3 adaptivity: a game can raise difficulty once Josh masters it and ease
   // back when he stumbles — invisibly (no number, no fail). Keep the engine wired.
