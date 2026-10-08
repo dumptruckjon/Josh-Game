@@ -1950,7 +1950,10 @@
       G.base(ctx, x0, y0, x1, y1);
       for (let ty = Math.floor((y0 - PAD) / TILE); ty * TILE < y1 + PAD; ty++) {
         for (let tx = Math.floor((x0 - PAD) / TILE); tx * TILE < x1 + PAD; tx++) {
-          const seed = hashStr(def.ground + ":" + tx + "," + ty);
+          // seeded by the PLACE, not its ground: two places on the same
+          // ground (the picnic and the maze, the beach and the island) used
+          // to draw the very same floor marks, square for square
+          const seed = hashStr(def.id + ":" + tx + "," + ty);
           ctx.save();
           ctx.translate(tx * TILE, ty * TILE);
           G.marks(ctx, TILE, (k) => rng(seed ^ hashStr(k)), d, tx, ty);
