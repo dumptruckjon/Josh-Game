@@ -1184,6 +1184,70 @@ test("every field a place DECLARES is read by the code, and every field the code
   }
 });
 
+test("every ITEM OPTION a place uses is one the layout reads, and every option the layout reads is used by some place — no typo that silently does nothing, no mechanic nothing can reach", () => {
+  // The place-field law above, one level down: an item's options (`{ key:
+  // "gate" }`, `{ bounce: true }`) are copied into the layout by name, so a
+  // typo (`{ bouce: true }`) is simply ignored, and a mechanic whose option no
+  // place uses is code no child can reach (phase 5 built eleven of them before
+  // a single place used one — this law is what made the places due).
+  const src = fs.readFileSync(path.join(__dirname, "../scripts/hole-logic.js"), "utf8");
+  const i = src.indexOf("const it = itemOf(raw);"), j = src.indexOf("});", src.indexOf("want.push({", i));
+  assert.ok(i > 0 && j > i, "fixture: found the layout's list of what it reads off an item");
+  const read = new Set([...src.slice(i, j).matchAll(/\bit\.(\w+)/g)].map((m) => m[1]));
+  read.delete("e"); read.delete("n");
+  assert.ok(read.size >= 15, "fixture: the scan found the options (" + [...read].join(",") + ")");
+  const used = new Map();
+  for (const def of SCENES) {
+    for (const t of def.tiers) {
+      for (const raw of t.items) {
+        const o = raw[2];
+        if (o && typeof o === "object" && !Array.isArray(o)) { for (const k of Object.keys(o)) used.set(k, (used.get(k) || []).concat(def.id)); }
+        else { if (raw[2]) used.set("zone", (used.get("zone") || []).concat(def.id)); if (raw[3]) used.set("clump", (used.get("clump") || []).concat(def.id)); }
+      }
+    }
+  }
+  for (const [k, ids] of used) assert.ok(read.has(k), "`" + k + "` is an item option in " + [...new Set(ids)].join(", ") + " but the layout never reads it — it does nothing");
+  for (const k of read) assert.ok(used.has(k), "the layout reads the item option `" + k + "` but no place uses it — a mechanic nothing can reach (give a place one, or delete it)");
+});
+
+test("every LOOK a place gives a block, bridge, track, current, turntable or portal is one the renderer can draw — and every look it can draw, some place uses", () => {
+  // An unknown look draws the default (an unknown bridge is planks, an
+  // unknown track draws nothing at all), so a typo is silent; and a look no
+  // place uses is drawing code nothing can reach. Derived both ways: the
+  // tables the renderer exports, and the branches of its draw functions.
+  const R = require("../scripts/hole-render.js");
+  const rs = fs.readFileSync(path.join(__dirname, "../scripts/hole-render.js"), "utf8");
+  const fnBody = (name) => { const a = rs.indexOf("function " + name + "("); assert.ok(a > 0, "fixture: " + name); return rs.slice(a, rs.indexOf("\n    }\n", a)); };
+  const branch = (name, v) => new Set([...fnBody(name).matchAll(new RegExp("\\b" + v + "\\.look === \"(\\w+)\"", "g"))].map((m) => m[1]));
+  const spinCols = rs.match(/const SPIN_COLS = \{([^}]*)\}/);
+  assert.ok(spinCols, "fixture: the turntable colours");
+  const DRAW = {
+    block: new Set(Object.keys(R.BLOCK_LOOKS)),
+    bridge: new Set(Object.keys(R.BRIDGE_LOOKS)),
+    // a track that is part of a road decal is drawn by the decal: "none"
+    track: new Set([...branch("drawTracks", "t"), "none"]),
+    // the default branch is the river
+    flow: new Set([...branch("drawFlows", "f"), "river"]),
+    spin: new Set([...spinCols[1].matchAll(/(\w+):/g)].map((m) => m[1])),
+    // a cannon is drawn by its own function; the default branch is the wormhole
+    portal: new Set([...branch("drawPortals", "E"), "wormhole", "cannon"]),
+  };
+  for (const [k, set] of Object.entries(DRAW)) assert.ok(set.size >= 2, "fixture: " + k + " looks found (" + [...set].join(",") + ")");
+  const used = { block: new Map(), bridge: new Map(), track: new Map(), flow: new Map(), spin: new Map(), portal: new Map() };
+  const use = (k, look, id) => used[k].set(look, (used[k].get(look) || new Set()).add(id));
+  for (const def of SCENES) {
+    for (const b of def.blocks || []) use("block", b.look || "water", def.id);
+    for (const b of def.bridges || []) use("bridge", b.look || "planks", def.id);
+    for (const t of Object.values(def.tracks || {})) use("track", t.look || (t.orbit ? "orbit" : "lane"), def.id);
+    for (const f of def.flows || []) { if (f.spin) use("spin", f.look || "turntable", def.id); else use("flow", f.look || "river", def.id); }
+    for (const p of def.portals || []) use("portal", p.look || (p.fly ? "cannon" : "wormhole"), def.id);
+  }
+  for (const k of Object.keys(DRAW)) {
+    for (const [look, ids] of used[k]) assert.ok(DRAW[k].has(look), [...ids].join(", ") + ": a " + k + " looks \"" + look + "\", which the renderer cannot draw (it would draw the default)");
+    for (const look of DRAW[k]) assert.ok(used[k].has(look), "the renderer can draw a " + k + " that looks \"" + look + "\", but no place has one — dead drawing code");
+  }
+});
+
 test("the engine is PURE: no Math.random, no DOM, dual export", () => {
   const src = fs.readFileSync(path.join(__dirname, "../scripts/hole-logic.js"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
@@ -1293,6 +1357,9 @@ test("PROGRESS: at every size there is at least TWICE the next grow's worth he c
       assert.ok(lv.avail >= 2 * lv.need, def.id + ": at level " + lv.level + " there is " + lv.avail + " to reach and eat for a grow that needs " + lv.need);
     }
     assert.ok(p.finale, def.id + ": at the top size the finale can be reached");
+    // …and NEVER STRANDED: no portal or cannon he can reach drops him where
+    // he cannot get home from (§17 — a one-way cannon could)
+    assert.deepEqual(p.trapped, [], def.id + ": a one-way end lands him where he can never get back from " + JSON.stringify(p.trapped));
     const locks = [...new Set(itemsOf(def).filter((it) => it.lock).map((it) => it.lock))].sort();
     const keys = [...new Set(itemsOf(def).filter((it) => it.key).map((it) => it.key))].sort();
     assert.deepEqual(keys, locks, def.id + ": every lock has its key and every key its lock");
@@ -2304,6 +2371,24 @@ test("RUNAWAYS (§17): once he can eat one it scoots away — never off the grou
     assert.ok(leash <= RULES.RUN.leash + 1e-6, "no runaway strays past its leash (" + leash.toFixed(1) + ")");
     assert.equal(off, 0, "no runaway ever runs off the ground");
     assert.ok(L.twistsOf(def).has("run"), "runaways are their own twist");
+  });
+});
+
+test("NEVER STRANDED (§17): a one-way cannon over water with no way back is caught by the progress law; give it a way home and it is not", () => {
+  // the north side is across a moat with no bridge: a cannon flies him over…
+  const moat = { blocks: [{ rect: [0, 0.42, 1, 0.52] }] };
+  const fins = { finale: { e: "🏰", r: 20, at: [0.5, 0.85], say: "the castle" } };
+  withLab(lab("strand", { ...moat, ...fins, portals: [{ a: [0.3, 0.8], b: [0.5, 0.25], oneway: true, fly: true }] }), (def) => {
+    const p = L.progressOf(def);
+    assert.ok(p.trapped.length > 0, "a one-way cannon to an island with no way back strands him (" + JSON.stringify(p.trapped) + ")");
+    assert.ok(p.trapped.every((t) => t.y < 588 * 0.42), "fixture: the landing it names is on the far side (the world is 588 tall)");
+  });
+  // …and a second cannon home (or a bridge) makes the same place safe
+  withLab(lab("strand2", { ...moat, ...fins, portals: [{ a: [0.3, 0.8], b: [0.5, 0.25], oneway: true, fly: true }, { a: [0.7, 0.3], b: [0.6, 0.75], oneway: true, fly: true }] }), (def) => {
+    assert.deepEqual(L.progressOf(def).trapped, [], "a cannon home again: never stranded");
+  });
+  withLab(lab("strand3", { ...moat, ...fins, portals: [{ a: [0.3, 0.8], b: [0.5, 0.25], oneway: true, fly: true }], bridges: [{ path: [[0.8, 0.36], [0.8, 0.58]], w: 20 }] }), (def) => {
+    assert.deepEqual(L.progressOf(def).trapped, [], "a bridge home: never stranded");
   });
 });
 

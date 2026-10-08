@@ -4017,6 +4017,6 @@
     return Y < 0.18;
   }
 
-  global.HoleRender = { create, prepDecals, darkHex, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
+  global.HoleRender = { create, prepDecals, darkHex, BLOCK_LOOKS, BRIDGE_LOOKS, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
   if (typeof module !== "undefined" && module.exports) module.exports = global.HoleRender;
 })(typeof window !== "undefined" ? window : globalThis);

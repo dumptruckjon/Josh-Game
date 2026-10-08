@@ -2070,6 +2070,7 @@
     const G = geomOf(def), st = createGame(def), R = rt(st), lv = st.levels, top = lv.R.length - 1;
     const unlocked = {};
     const levels = [];
+    const trapped = [];
     let finale = false;
     const fin = st.objects.find((o) => o.finale);
     const reachOf = (dist, o, rad) => {
@@ -2129,8 +2130,19 @@
       }
       levels.push({ level: L, avail, need: L < top ? lv.C[L + 1] : null });
       if (L === top) finale = reachOf(dist, fin, rad);
+      // NEVER STRANDED: walking is two-way, so the only way to reach ground
+      // he cannot walk back from is a portal or a CANNON that goes one way.
+      // Every end he can get to must land him where he can get home from
+      // (and so, by walking back to that landing, every spot it led to can).
+      const B = new Uint8Array(G.n);
+      for (const o of R.solidObjs) if ((o.lock && !unlocked[o.lock]) || ((o.solid || o.bounce) && o.r > rad * RULES.FIT)) markCore(G, B, o);
+      G.ends.forEach((e, i) => {
+        if (!e.live || !Number.isFinite(dist[e.cell])) return;
+        const to = G.ends[e.to], res = search(G, to.cell, G.startCell, B, null, false);
+        if (res.found !== G.startCell) trapped.push({ level: L, end: i, x: Math.round(to.x), y: Math.round(to.y) });
+      });
     }
-    return { levels, finale, unlocked: Object.keys(unlocked) };
+    return { levels, finale, unlocked: Object.keys(unlocked), trapped };
   }
 
   // ---- OUTLINES (for the renderer): the island's edge, and each look of
