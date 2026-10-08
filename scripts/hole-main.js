@@ -145,7 +145,7 @@
       b.setAttribute("role", "listitem");
       b.style.background = "linear-gradient(160deg, " + sc.backdrop[0] + ", " + sc.backdrop[1] + ")";
       b.style.borderBottomColor = sc.color;
-      if (dark(sc.backdrop[1])) b.classList.add("hole-door--dark");
+      if (HR.darkHex(sc.backdrop[1])) b.classList.add("hole-door--dark");
       b.innerHTML =
         '<span class="hole-door__icon" aria-hidden="true"></span>' +
         '<span class="hole-door__label"></span>' +
@@ -226,16 +226,6 @@
     // main.js calls __onHide on the visible screen before any navigation.
     play.__onHide = () => { leavePlay(); };
     wireInput();
-  }
-
-  // Is this backdrop dark? (the space door takes a light label)
-  function dark(hex) {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
-    if (!m) return false;
-    const n = parseInt(m[1], 16);
-    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-    const Y = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
-    return Y < 0.18;
   }
 
   function guardEcho(el) {
@@ -514,6 +504,7 @@
       n++;
     }
     if (n >= MAX_STEPS) acc = 0;
+    saveRun();
     // a finished place whose picture has come to rest is not redrawn
     if (redraw || !run.st.done || render.busy(t)) { render.draw(t); redraw = false; }
     placeHand();
@@ -545,7 +536,7 @@
           run.tasted[fam] = true;
           sayPlay(SAY.taste[fam]);
         }
-        if (!st.won) { save.runs[run.def.id] = L.snapshot(st); persist(); }
+        if (!st.won) run.dirty = true;
       } else if (ev.type === "grow") {
         bounceMeter();
         // the grow that makes him big enough for the finale names it: from
@@ -781,7 +772,18 @@
   }
   function hideWin() { if (win) win.hidden = true; }
 
+  // A run is saved at the end of the frame in which he ate — once a FRAME,
+  // never once a gulp: the whole save is re-serialised on each write, and a
+  // super slurp is up to six gulps in one 1/60s step (measured before this:
+  // 29 writes a second, six in a single frame). The win and leaving the
+  // screen still write at once.
+  function saveRun() {
+    if (!run || !run.dirty) return;
+    run.dirty = false;
+    if (!run.st.won) { save.runs[run.def.id] = L.snapshot(run.st); persist(); }
+  }
   function leavePlay() {
+    if (run) run.dirty = false;
     if (run && !run.st.won) { save.runs[run.def.id] = L.snapshot(run.st); persist(); }
     stopLoop();
     endDemo();
@@ -875,6 +877,7 @@
         L.step(st, L.DT);
         drain(lastT || 0);
       }
+      saveRun();
       // the camera eases once per FRAME and this ran many steps in one go, so
       // it jumps to where it was heading (else Gobble could be off screen) —
       // unless a test wants the REAL frames to carry what happens next

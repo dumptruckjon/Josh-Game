@@ -3683,6 +3683,19 @@
     return { resize, setState, draw, event, toWorld, toScreen, snap, endIntro, camera, arrowAt, busy, info };
   }
 
-  global.HoleRender = { create, prepDecals, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
+  // Is a colour DARK? (WCAG relative luminance below 0.18.) The ONE owner of
+  // which ink a door's label wears: white on a dark backdrop, #2e2a55 on a
+  // light one. hole-logic.test.js holds every door's label to AA against
+  // BOTH ends of its backdrop through this very function.
+  function darkHex(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+    if (!m) return false;
+    const n = parseInt(m[1], 16);
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const Y = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    return Y < 0.18;
+  }
+
+  global.HoleRender = { create, prepDecals, darkHex, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
   if (typeof module !== "undefined" && module.exports) module.exports = global.HoleRender;
 })(typeof window !== "undefined" ? window : globalThis);

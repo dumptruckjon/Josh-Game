@@ -998,6 +998,37 @@ test("every ground feature, ground and hole a place declares has a DRAWING, with
   for (const k of Object.keys(HR.DECALS)) assert.ok(used.has(k), "decal kind '" + k + "' is drawn by no place");
 });
 
+test("every DOOR's label meets WCAG AA against BOTH ends of its backdrop, in the ink the page picks for it", () => {
+  // The page picks white or #2e2a55 from the backdrop's SECOND stop alone,
+  // and a backdrop with a luminance between 0.18 and 0.295 fails AA in
+  // either ink. The browser contrast audit sees only the doors on its first
+  // screen (twelve of them), so a new place's door is judged here instead,
+  // through the renderer's own darkHex — the ONE owner of the choice.
+  const HR = require("../scripts/hole-render.js");
+  const css = fs.readFileSync(path.join(__dirname, "../styles/main.css"), "utf8");
+  const inkOf = (sel) => {
+    const m = new RegExp(sel.replace(/[.]/g, "\\.") + "\\s*\\{[^}]*?[^-]color:\\s*(#[0-9a-f]{6})", "i").exec(css);
+    assert.ok(m, "fixture: main.css sets the colour of " + sel);
+    return m[1];
+  };
+  const light = inkOf(".hole-door__label"), dark = inkOf(".hole-door--dark .hole-door__label");
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (h) => { const n = parseInt(h.slice(1), 16); return 0.2126 * lin(n >> 16 & 255) + 0.7152 * lin(n >> 8 & 255) + 0.0722 * lin(n & 255); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  let darkDoors = 0;
+  for (const def of SCENES) {
+    const ink = HR.darkHex(def.backdrop[1]) ? dark : light;
+    if (ink === dark) darkDoors++;
+    for (const stop of def.backdrop) {
+      assert.ok(ratio(ink, stop) >= 4.5, def.id + ": its door label (" + ink + ") is only " + ratio(ink, stop).toFixed(2) + ":1 against its backdrop's " + stop + " — AA needs 4.5");
+    }
+  }
+  // not vacuous: both inks are in use, and the rule really does pick by
+  // the backdrop (a mid-luminance backdrop fails in both)
+  assert.ok(darkDoors >= 1 && darkDoors < SCENES.length, "fixture: some doors are dark and some light (" + darkDoors + " dark)");
+  assert.ok(ratio(light, "#8a8a8a") < 4.5 && ratio(dark, "#8a8a8a") < 4.5, "fixture: a mid-grey backdrop fails in either ink");
+});
+
 test("every place DRESSES Gobble (§15.2): what it wears is drawn, and every kind the renderer can draw is worn somewhere", () => {
   // A wear kind with no drawing would leave Gobble bare in that place with
   // nothing going red (the bedroom's `carpet` class); a drawing nobody wears
@@ -1170,23 +1201,8 @@ test("the engine is PURE: no Math.random, no DOM, dual export", () => {
 // ---- phase 4 (§14): SHAPES, CHALLENGES, and the rules of where he can go ----
 
 // The CHALLENGE of a place: the set of mechanics it uses, read off its data.
-function twistsOf(def) {
-  const t = new Set();
-  for (const b of def.blocks || []) t.add("block:" + (b.look || "water"));
-  if ((def.bridges || []).length) t.add("bridges");
-  if ((def.portals || []).length) t.add("portals");
-  for (const f of def.flows || []) t.add("flow:" + (f.look || "river"));
-  if (def.slide) t.add("ice");
-  if (def.dark) t.add("dark");
-  if (def.notes) t.add("notes");
-  for (const z of Object.values(def.zones || {})) {
-    const parts = Array.isArray(z) && typeof z[0] !== "number" ? z : [z];
-    if (parts.some((p) => p && p.band)) t.add("bands");
-  }
-  for (const tr of Object.values(def.tracks || {})) t.add("track:" + (tr.orbit ? "orbit" : tr.train ? "train" : tr.loop ? "loop" : "line"));
-  for (const it of itemsOf(def)) for (const k of ["ride", "at", "solid", "lock", "key", "pop", "shake", "chain"]) if (it[k]) t.add(k);
-  return t;
-}
+// A place's challenge set: the engine's own reader (one owner).
+const twistsOf = (def) => L.twistsOf(def);
 // The SHAPE of a place: where he can walk, on a 32 x 32 grid over its world.
 function maskOf(def) {
   const G = L.geomOf(def), M = 32, m = new Uint8Array(M * M);

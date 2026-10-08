@@ -622,6 +622,31 @@
     if (o && typeof o === "object" && !Array.isArray(o)) return Object.assign({ e: it[0], n: it[1] }, o);
     return { e: it[0], n: it[1], zone: it[2] || null, clump: it[3] | 0 };
   }
+  // A place's CHALLENGE: the set of mechanics it uses, one atom each (the
+  // no-reskin law compares them: no two places may pose the same set, and two
+  // places on the same ground must differ by at least two). The ONE owner:
+  // a new mechanic adds its atom here, beside the rule that runs it.
+  const ITEM_TWISTS = ["ride", "at", "solid", "lock", "key", "pop", "shake", "chain"];
+  function twistsOf(def) {
+    const t = new Set();
+    for (const b of def.blocks || []) t.add("block:" + (b.look || "water"));
+    if ((def.bridges || []).length) t.add("bridges");
+    if ((def.portals || []).length) t.add("portals");
+    for (const f of def.flows || []) t.add("flow:" + (f.look || "river"));
+    if (def.slide) t.add("ice");
+    if (def.dark) t.add("dark");
+    if (def.notes) t.add("notes");
+    for (const z of Object.values(def.zones || {})) {
+      const parts = Array.isArray(z) && typeof z[0] !== "number" ? z : [z];
+      if (parts.some((p) => p && p.band)) t.add("bands");
+    }
+    for (const tr of Object.values(def.tracks || {})) t.add("track:" + (tr.orbit ? "orbit" : tr.train ? "train" : tr.loop ? "loop" : "line"));
+    for (const tier of def.tiers) for (const raw of tier.items) {
+      const it = itemOf(raw);
+      for (const k of ITEM_TWISTS) if (it[k]) t.add(k);
+    }
+    return t;
+  }
   function formation(at, n, W, H) {
     const pts = [];
     if (at.line) {
@@ -1942,7 +1967,7 @@
 
   const HoleLogic = {
     DT, IDLE, FALL, GONE, HIDDEN,
-    rng, hashStr, printOf, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
+    rng, hashStr, printOf, twistsOf, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
     goldOf, countOf, GOLD_BANDS, itemOf, geomOf, outlineOf, progressOf, routeLine,
     createGame, setTarget, step, nearestEdible, edible, goalOf, botTarget, activeSolid,
     snapshot, restore, hashState,
