@@ -1648,6 +1648,193 @@ test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' d
   await page.evaluate(() => { localStorage.removeItem("jon-td-save-v1"); window.__HOLE.reset({ demoSeen: true }); });
 });
 
+test("§17: every NEW thing is DRAWN where he can see it — a button and its wire, a gate's pips, a bumper's ring, a power-up's glow, a piñata's cracks, a cannon, a turntable, the count tally — and HEARD through the real drain, each with its own sound and words", async () => {
+  // A test PLACE with one of everything, put in the list for this test only
+  // (the engine's lab precedent): each new thing is driven on its own, away
+  // from the shipped places' crowds.
+  await openScene("farm");
+  const id = await page.evaluate(() => {
+    const def = {
+      id: "lab-all", name: "Lab", door: "🧪", color: "#888888", ground: "wood", hole: "gobble",
+      backdrop: ["#ffffff", "#eeeeee"], start: [0.5, 0.9], starters: 0,
+      portals: [{ a: [0.15, 0.5], b: [0.85, 0.2], oneway: true, fly: true }],
+      flows: [{ spin: [0.8, 0.62, 0.08], v: 20 }],
+      count: { e: "🍬", by: 2, say: "sweets" },
+      tiers: [
+        { r: [3.1, 3.6], items: [["🍬", 150], ["🗝️", 2, { key: "g" }], ["🧲", 1, { power: "magnet" }], ["🌱", 1, { sprout: [["🌷", 2, 1]] }]] },
+        { r: [4.8, 5.4], items: [["🍪", 90]] },
+        { r: [7.0, 7.8], items: [["🍩", 60]] },
+        { r: [10.0, 11.0], items: [["🎁", 30], ["🍄", 1, { bounce: true }], ["🪅", 1, { shake: [["🍬", 3, 1]], hits: 3 }],
+          ["🔴", 1, { press: "g" }], ["🚧", 1, { lock: "g", at: { pts: [[0.5, 0.3]] } }]] },
+        { r: [14.0, 15.0], items: [["🏠", 16]] },
+      ],
+      finale: { e: "🏰", r: 20, at: [0.5, 0.12], say: "the castle" },
+    };
+    window.HoleData.SCENES.push(def);
+    return def.id;
+  });
+  try {
+    await page.evaluate((sid) => window.__HOLE.start(sid), id);
+    await page.waitForFunction((sid) => window.__HOLE.scene() === sid, id);
+    // stand him next to a thing and draw one frame: what did the picture hold?
+    const look = (pick) => page.evaluate((p) => {
+      const st = window.__HOLE.state(), L = window.HoleLogic, G = L.geomOf("lab-all");
+      let at = null;
+      if (p === "cannon") at = G.ends.find((e) => e.fly && e.live);
+      else if (p === "spin") at = G.flows.find((f) => f.spin).spin;
+      else at = st.objects.find((o) => o[p] || (p === "sprout" && o.box === "sprout"));
+      const h = st.hole;
+      h.x = h.tx = at.x; h.y = h.ty = at.y + 24; h.vx = h.vy = 0;
+      window.__HOLE.snap();
+      const i = window.__HOLE.info();
+      return { feat: i.feat, nw: i.drawnNew };
+    }, pick);
+    const b = await look("press");
+    assert.ok(b.nw.buttons >= 1, "a button is drawn into the floor (" + JSON.stringify(b.nw) + ")");
+    assert.ok(b.feat.wires >= 1, "…with a wire from the button to its gate (" + JSON.stringify(b.feat) + ")");
+    const g = await look("lock");
+    assert.ok(g.nw.pips >= 3, "a gate wanting three things wears a pip for each (" + g.nw.pips + ")");
+    const bu = await look("bounce");
+    assert.ok(bu.nw.bumpers >= 1, "a bumper too big to eat wears its bouncy ring (" + JSON.stringify(bu.nw) + ")");
+    const pw = await look("power");
+    assert.ok(pw.nw.powers >= 1, "a power-up glows (" + JSON.stringify(pw.nw) + ")");
+    const cn = await look("cannon");
+    assert.ok(cn.feat.cannons >= 1, "a cannon is drawn at its end (" + JSON.stringify(cn.feat) + ")");
+    const sp = await look("spin");
+    assert.ok(sp.feat.spin >= 1, "a turntable is drawn (" + JSON.stringify(sp.feat) + ")");
+    assert.ok(sp.nw.tally > 0, "count mode shows its tally on screen (" + sp.nw.tally + ")");
+    // a piñata bumped once wears a crack
+    const cr = await page.evaluate(() => {
+      const st = window.__HOLE.state(), p = st.objects.find((o) => o.hits);
+      p.hit = 1;
+      const h = st.hole;
+      h.x = h.tx = p.x; h.y = h.ty = p.y + 24;
+      window.__HOLE.snap();
+      return window.__HOLE.info().drawnNew;
+    });
+    assert.ok(cr.cracks >= 1, "a bumped piñata shows its cracks (" + JSON.stringify(cr) + ")");
+
+    // HEARD: every new event through the real drain — a sound, and the words.
+    // The real frames go on running, so first everything is "met" (else
+    // standing by the piñata above introduces it mid-check) and the place's
+    // own opening line has been said.
+    await page.waitForTimeout(700);
+    await page.evaluate(() => {
+      const st = window.__HOLE.state(), h = st.hole;
+      for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin", "count"]) st.met[k] = true;
+      // …and he goes back to where he started, away from anything too big
+      h.x = h.tx = st.start.x; h.y = h.ty = st.start.y; h.vx = h.vy = 0;
+    });
+    await page.evaluate(() => {
+      const A = window.JoshAudio;
+      window.__tones = []; window.__said = [];
+      A.__tone = A.__tone || A.tone; A.__say = A.__say || A.say;
+      A.tone = (f) => { window.__tones.push(f); };
+      A.say = (t) => { if (!A.isMuted()) window.__said.push(t); };
+      A.setMuted(false);
+    });
+    const SAY = await page.evaluate(() => window.HoleData.SAY);
+    const ids = await page.evaluate(() => {
+      const s = window.__HOLE.state();
+      return { lock: s.objects.find((o) => o.lock).id, bump: s.objects.find((o) => o.bounce).id, pin: s.objects.find((o) => o.hits).id };
+    });
+    const fire = async (ev, wait) => {
+      await page.evaluate((e) => { window.__tones = []; window.__said = []; window.__HOLE.state().events.push(e); }, ev);
+      await page.waitForTimeout(wait || 450);
+      return page.evaluate(() => ({ tones: window.__tones.slice(), said: window.__said.slice() }));
+    };
+    const CASES = [
+      [{ type: "opener", key: "g", id: 1, how: "key", n: 1, of: 3 }, "One of three!"],
+      [{ type: "opener", key: "g", id: 2, how: "key", n: 2, of: 3 }, "Two of three!"],
+      [{ type: "opener", key: "g", id: 3, how: "press", n: 3, of: 3 }, null],
+      [{ type: "unlock", key: "g", ids: [ids.lock] }, SAY.unlockPress],
+      // (a bumper's words share the "too big" gap with every bump, and he
+      // stood by it above, so its words are checked on a fresh run below)
+      [{ type: "bump", id: ids.bump, solid: true, locked: false, bounce: true }, undefined],
+      [{ type: "hit", id: ids.pin, n: 1, of: 3, kids: [], last: false, x: 100, y: 100 }, "One!"],
+      [{ type: "hit", id: ids.pin, n: 3, of: 3, kids: [], last: true, x: 100, y: 100 }, SAY.hitLast],
+      [{ type: "launch", from: [100, 100], to: [300, 300], portal: 0 }, SAY.launch],
+      [{ type: "land", x: 300, y: 300 }, null],
+      [{ type: "flee", id: 5 }, SAY.flee],
+      [{ type: "power", kind: "magnet", id: 6 }, SAY.power.magnet],
+      [{ type: "power", kind: "zoom", id: 6 }, SAY.power.zoom],
+      [{ type: "sprout", id: 7, kids: [], x: 100, y: 100 }, SAY.sprout],
+      [{ type: "meet", kind: "button", id: 8, x: 100, y: 100, n: 0 }, SAY.meet.button],
+      [{ type: "meet", kind: "keys", id: 8, x: 100, y: 100, n: 3 }, "This gate needs three things to open it! Find them all!"],
+      [{ type: "meet", kind: "count", id: -1, x: 100, y: 100, n: 150 }, "Let's count the sweets!"],
+    ];
+    const sounds = {};
+    for (const [ev, line] of CASES) {
+      const r = await fire(ev);
+      const name = ev.type + (ev.kind ? ":" + ev.kind : "") + (ev.how ? ":" + ev.how : "") + (ev.last ? ":last" : "");
+      assert.ok(r.tones.length > 0, name + " makes a sound");
+      sounds[name] = r.tones.join(",");
+      if (line) assert.deepEqual(r.said, [line], name + " says " + JSON.stringify(line) + ": " + JSON.stringify(r.said));
+      else if (line === null) assert.deepEqual(r.said, [], name + " has a sound and no words: " + JSON.stringify(r.said));
+    }
+    // a bumper's knock is not the "too big" bump: it never sounds like a mistake
+    // (nor like a wall of things too big: a bumper IS a solid, so the same
+    // event without `bounce` is the wall's thud — it must sound unlike both)
+    const plain = await fire({ type: "bump", id: ids.bump, solid: false, locked: false });
+    const wall = await fire({ type: "bump", id: ids.bump, solid: true, locked: false });
+    assert.notEqual(sounds["bump"], plain.tones.join(","), "a bumper boings, unlike a plain too-big bump");
+    assert.notEqual(sounds["bump"], wall.tones.join(","), "…and unlike a wall's thud");
+    // count mode: a number for each — rationed, so a slurp's three-at-once
+    // never builds a queue of numbers that falls behind — and always the last
+    const cnt = await page.evaluate(async () => {
+      const st = window.__HOLE.state(), out = [];
+      const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+      await pause(900);
+      window.__said = [];
+      st.events.push({ type: "count", k: 1, n: 2, of: 4, last: false }, { type: "count", k: 2, n: 4, of: 4, last: false });
+      await pause(450); out.push(window.__said.slice());
+      await pause(500); window.__said = [];
+      st.events.push({ type: "count", k: 3, n: 6, of: 4, last: false });
+      await pause(450); out.push(window.__said.slice());
+      window.__said = [];
+      st.events.push({ type: "count", k: 4, n: 8, of: 4, last: true });
+      await pause(450); out.push(window.__said.slice());
+      return out;
+    });
+    assert.deepEqual(cnt[0], ["2"], "two at once: the first number is said, the second waits for the tally (" + JSON.stringify(cnt) + ")");
+    assert.deepEqual(cnt[1], ["6"], "a moment later the next number is said again (by twos): " + JSON.stringify(cnt));
+    assert.deepEqual(cnt[2], ["8! That's all the sweets!"], "the last one is always said, with the total, however soon: " + JSON.stringify(cnt));
+    // a locked gate whose keys are all found asks for its BUTTON — it must
+    // never send him looking for a key it does not have (a fresh run, so the
+    // "too big" lines' shared gap is fresh too)
+    // (a fresh run each, so the "too big" lines' shared gap is fresh too)
+    const fresh = async () => {
+      await page.evaluate((sid) => window.__HOLE.start(sid), id);
+      await page.waitForTimeout(700);
+      await page.evaluate(() => {
+        const st = window.__HOLE.state();
+        for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin", "count"]) st.met[k] = true;
+      });
+    };
+    await fresh();
+    const boing = await fire({ type: "bump", id: ids.bump, solid: true, locked: false, bounce: true });
+    assert.deepEqual(boing.said, [SAY.boing], "a bumper too big to eat says boing, never 'locked': " + JSON.stringify(boing.said));
+    await fresh();
+    const asked = await page.evaluate(async () => {
+      const st = window.__HOLE.state(), L = window.HoleLogic;
+      for (const o of st.objects) if (o.key) o.st = L.GONE;
+      window.__said = [];
+      st.events.push({ type: "bump", id: st.objects.find((o) => o.lock).id, solid: true, locked: true });
+      await new Promise((r) => setTimeout(r, 450));
+      return window.__said.slice();
+    });
+    assert.deepEqual(asked, [SAY.lockedButton], "keys found, button left: the gate asks for the button (" + JSON.stringify(asked) + ")");
+  } finally {
+    await page.evaluate((sid) => {
+      const A = window.JoshAudio;
+      if (A.__tone) { A.tone = A.__tone; A.say = A.__say; }
+      A.setMuted(true);
+      const S = window.HoleData.SCENES, i = S.findIndex((d) => d.id === sid);
+      if (i >= 0) S.splice(i, 1);
+    }, id);
+  }
+});
+
 test("Gobble Hole never touches Josh's games: no registry entry, no sticker, its own storage", async () => {
   const r = await page.evaluate(() => ({
     reg: (window.JoshGames || []).some((g) => /hole|gobble/i.test(g.id)),

@@ -25,6 +25,7 @@
   const BIG_SAY_GAP = 9;       // seconds between two "too big!" lines
   const TASTE_QUIET_MS = 2500; // a first-taste word waits until nothing has been said for this long
   const SLURP_SAY_GAP = 20;    // "Super slurp!" at most once in this many seconds of play
+  const COUNT_GAP_MS = 700;    // count mode: a number is said once the last line has had this long
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (id) => doc.getElementById(id);
@@ -410,7 +411,44 @@
     // a firework bursting over the island (§15.5): a soft pop and a crackle
     firework: () => notes([[1661.22, 0, { type: "square", duration: 0.04, gain: 0.05, plain: true }],
       [2489.02, 40, { gain: 0.06, duration: 0.18 }], [3135.96, 110, { gain: 0.04, duration: 0.22 }]]),
+    // §17. A key or a button counted toward its gate: a latch click, then a
+    // note that climbs with how far the gate has got (1 of 3 low, 3 of 3 high)
+    clink: (n) => {
+      const f = 659.25 * Math.pow(2, Math.min(Math.max(1, n) - 1, 6) * 4 / 12);
+      notes([[1567.98, 0, sq(0.03, 0.06)], [f, 60, sn(0.18, 0.16)]]);
+    },
+    // a big button pressed into the floor: a deep clunk
+    clunk: () => notes([[147, 0, { type: "sine", duration: 0.14, gain: 0.2 }], [110, 90, { type: "sine", duration: 0.22, gain: 0.18 }],
+      [880, 180, sq(0.03, 0.05)]]),
+    // a bumper too big to eat knocks him back: a big rubbery boing (not the
+    // "too big" bump, so it never sounds like a mistake)
+    boing: () => notes([[261.63, 0, tr(0.06, 0.18)], [523.25, 50, tr(0.08, 0.18)], [392, 120, tr(0.1, 0.16)], [659.25, 200, tr(0.14, 0.14)]]),
+    // a piñata bumped: a hollow bonk, and on the last bump a pop of prizes
+    bonk: (last) => notes(last
+      ? [[220, 0, sn(0.1, 0.18)], [880, 80, sq(0.05, 0.09)], [1174.66, 140, sn(0.1, 0.15)], [1567.98, 200, sn(0.2, 0.15)]]
+      : [[220, 0, sn(0.1, 0.18)], [174.61, 70, sn(0.14, 0.16)]]),
+    // a cannon: a low boom and a whoosh up into the sky
+    boom: () => notes([[82.41, 0, { type: "sawtooth", duration: 0.22, gain: 0.12, plain: true }],
+      [261.63, 120, sn(0.06, 0.12)], [392, 170, sn(0.06, 0.12)], [587.33, 220, sn(0.06, 0.12)], [880, 270, sn(0.2, 0.12)]]),
+    // …and down again: a soft thump
+    land: () => notes([[196, 0, sn(0.08, 0.18)], [130.81, 60, sn(0.18, 0.16)]]),
+    // a runaway darts off: a quick giggle of notes (it is a game of tag)
+    giggle: () => notes([[1318.5, 0, sn(0.05, 0.11)], [1567.98, 55, sn(0.05, 0.11)], [1318.5, 110, sn(0.05, 0.11)],
+      [1760, 165, sn(0.1, 0.11)]]),
+    // a power-up: a bright run up
+    powerup: () => notes([[523.25, 0, sq(0.05, 0.06)], [659.25, 50, sq(0.05, 0.06)], [783.99, 100, sq(0.05, 0.06)],
+      [1046.5, 150, sq(0.05, 0.06)], [1318.5, 200, sn(0.3, 0.14)]]),
+    // a seedling sprouting: a bloop that grows
+    sprout: () => notes([[392, 0, sn(0.08, 0.14)], [523.25, 70, sn(0.08, 0.14)], [783.99, 140, sn(0.2, 0.14)]]),
+    // the first time he meets a new thing: a curious "ooh"
+    ooh: () => notes([[587.33, 0, sn(0.16, 0.13)], [880, 140, sn(0.3, 0.13)]]),
+    // count mode: a woodblock tock that climbs with the count
+    count: (k, last) => notes([[783.99 * Math.pow(2, Math.min(Math.max(0, k - 1), 12) / 12), 0, tr(0.06, 0.16)]]
+      .concat(last ? [[1567.98, 120, sn(0.3, 0.12)]] : [])),
   };
+  // "Two of three!" — a number as the word it is said as
+  const numWord = (n) => (SAY.num[n] !== undefined ? SAY.num[n] : String(n));
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   // A line said at most once in `gap` seconds (Infinity: once a run) — a pop,
   // a portal or a current can happen a hundred times; the words must not.
   function sayEvery(key, gap, text, t) {
@@ -424,8 +462,16 @@
   // While the finale is still shut away behind a gate the goal is its KEY
   // (§15.1), so the line says so — it must never send him at a locked gate.
   function readyLine(def, st) {
-    const g = st && L.goalOf(st), keyFirst = !!(g && g.key);
-    return (keyFirst ? SAY.readyKey : SAY.ready).replace("{finale}", (def.finale && def.finale.say) || "the biggest thing");
+    const g = st && L.goalOf(st);
+    const line = g && g.press ? SAY.readyButton : g && g.key ? SAY.readyKey : SAY.ready;
+    return line.replace("{finale}", (def.finale && def.finale.say) || "the biggest thing");
+  }
+
+  // A locked gate asks for what it wants next: a button if that is what is
+  // left, its key otherwise (it must never ask for a key it does not have).
+  function lockedLine(st, id) {
+    const o = st.objects[id], next = o && o.lock ? L.nextOpener(st, o.lock) : null;
+    return next && next.press ? SAY.lockedButton : SAY.locked;
   }
 
   // ---- A run -----------------------------------------------------------------
@@ -544,12 +590,49 @@
         if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def, run.st)); }
         else { SFX.grow(); sayPlay(SAY.grow[(ev.level - 1) % SAY.grow.length]); }
       } else if (ev.type === "bump") {
-        // a locked gate rattles and asks for its key; a wall of things too
-        // big thuds; anything else too big is the old "too big" boing
-        if (ev.locked) SFX.locked(); else if (ev.solid) SFX.wall(); else SFX.bump();
-        if (t - run.bigSaid > BIG_SAY_GAP) { run.bigSaid = t; sayPlay(ev.locked ? SAY.locked : SAY.big); }
+        // a locked gate rattles and asks for what it wants (its key, or its
+        // button); a bumper boings; a wall of things too big thuds; anything
+        // else too big is the old "too big" bump
+        if (ev.bounce) SFX.boing(); else if (ev.locked) SFX.locked(); else if (ev.solid) SFX.wall(); else SFX.bump();
+        if (t - run.bigSaid > BIG_SAY_GAP) { run.bigSaid = t; sayPlay(ev.bounce ? SAY.boing : ev.locked ? lockedLine(st, ev.id) : SAY.big); }
+      } else if (ev.type === "opener") {
+        // one more key or button for a gate that wants several: a click and
+        // how far it has got ("Two of three!"); the last one is the unlock's
+        if (ev.how === "press") SFX.clunk();
+        SFX.clink(ev.n);
+        run.lastOpener = ev.how;
+        if (ev.n < ev.of) sayPlay(cap(SAY.opener.replace("{n}", numWord(ev.n)).replace("{of}", numWord(ev.of))));
       } else if (ev.type === "unlock") {
-        SFX.unlock(); sayPlay(SAY.unlock);
+        SFX.unlock(); sayPlay(run.lastOpener === "press" ? SAY.unlockPress : SAY.unlock);
+        run.lastOpener = null;
+      } else if (ev.type === "hit") {
+        // a piñata: every bump counts out loud, and the last one bursts
+        SFX.bonk(ev.last);
+        sayPlay(ev.last ? SAY.hitLast : SAY.hit[Math.min(ev.n, SAY.hit.length) - 1]);
+      } else if (ev.type === "launch") {
+        SFX.boom(); sayEvery("launch", 12, SAY.launch, t);
+      } else if (ev.type === "land") {
+        SFX.land();
+      } else if (ev.type === "flee") {
+        SFX.giggle(); sayEvery("flee", 10, SAY.flee, t);
+      } else if (ev.type === "power") {
+        SFX.powerup(); sayPlay(SAY.power[ev.kind] || SAY.slurp);
+      } else if (ev.type === "sprout") {
+        SFX.sprout(); sayEvery("sprout", 10, SAY.sprout, t);
+      } else if (ev.type === "count") {
+        // count mode: every one of the counted things says the next number.
+        // The tally on screen shows every number; the VOICE says one when the
+        // last line has had time to finish (a slurp can gulp three at once,
+        // and a queue of numbers would fall behind), and always says the last.
+        SFX.count(ev.k, ev.last);
+        const what = (run.def.count && run.def.count.say) || "things";
+        if (ev.last) sayPlay(SAY.countLast.replace("{n}", String(ev.n)).replace("{what}", what));
+        else if (now() - run.lastSaid > COUNT_GAP_MS) sayPlay(String(ev.n));
+      } else if (ev.type === "meet") {
+        // the first time he comes near a new thing: what it is, once a run
+        SFX.ooh();
+        const line = SAY.meet[ev.kind];
+        if (line) sayPlay(line.replace("{n}", numWord(ev.n)).replace("{what}", (run.def.count && run.def.count.say) || "things"));
       } else if (ev.type === "pop") {
         SFX.pop(); sayEvery("pop", 8, SAY.pop, t);
       } else if (ev.type === "shake") {

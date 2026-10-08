@@ -3894,6 +3894,9 @@
       // and shrinks a little: that is what makes the hop read as a jump.
       let keys = 0;
       const nw = { buttons: 0, bumpers: 0, powers: 0, cracks: 0, runners: 0, pips: 0, tally: 0 };
+      // this frame's record, from its FIRST line: the hole (drawn inside the
+      // loop below), the fx and the tally all add to it
+      lastNew = nw;
       for (const it of items) {
         if (it.hole) continue;
         if (it.o.press) continue;   // a button lies IN the floor: no shadow
@@ -3931,7 +3934,6 @@
         drawn++;
       }
       lastGold = gold;
-      lastNew = nw;
       lastFeat.locks = locks; lastFeat.keys = keys; lastFeat.flipped = flipped;
       // a dark place: everything above is in the dark but for the lights
       drawDark();

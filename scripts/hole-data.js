@@ -1255,6 +1255,37 @@
     ice: "Whoa, slippy!",
     // ten gulps in a row (§15.6)
     slurp: "Super slurp!",
+    // §17: what the new things say. A gate that wants a BUTTON asks for the
+    // button, never for a key it does not have; a gate that wants several
+    // counts them as they are found ("Two of three!").
+    readyButton: "Wow, so big! Find the button for {finale}!",
+    lockedButton: "It's locked! Find the button!",
+    unlockPress: "Click! The way is open!",
+    opener: "{n} of {of}!",
+    boing: "Boing! Too bouncy! Eat more first!",
+    hit: ["One!", "Two!", "Three!", "Four!", "Five!"],
+    hitLast: "Surprise!",
+    launch: "Blast off!",
+    flee: "Catch it!",
+    power: { magnet: "Magnet! Super slurp!", zoom: "Zoom zoom!" },
+    sprout: "It grew!",
+    countLast: "{n}! That's all the {what}!",
+    // the FIRST time he comes near each new thing, Gobble says what it is
+    // (§17, the gentle walkthrough a new mechanic needs); a finger points at it
+    meet: {
+      keys: "This gate needs {n} things to open it! Find them all!",
+      button: "A big button! Roll onto it!",
+      bounce: "A bouncy one! Boing!",
+      hits: "Bump it! Bump it again!",
+      power: "Ooh, a power-up! Eat it!",
+      sprout: "A little seed! Go near it!",
+      launch: "A cannon! Roll in!",
+      spin: "A spinning floor! Wheee!",
+      count: "Let's count the {what}!",
+    },
+    // number words for the counting lines (a voice reads "2" fine, but the
+    // words keep every line written the way it is said)
+    num: ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"],
     // what Gobble says the FIRST time he tastes each family (§15.3) — once a
     // run, and never on top of another line
     taste: {
