@@ -551,6 +551,7 @@ test("physics: the magnet pulls a thing that fits toward the rim (forgiving aim)
 
 test("a greedy bot finishes EVERY place: an instant first gulp, a quick first grow, five grows in order, then the finale", () => {
   const wins = [];
+  let slurps = 0;
   for (const def of SCENES) {
     const st = L.createGame(def);
     // …and every step of the way his centre stands where it may (never
@@ -569,6 +570,13 @@ test("a greedy bot finishes EVERY place: an instant first gulp, a quick first gr
     const fin = st.objects.find((o) => o.finale);
     assert.ok(log.find((e) => e.type === "eat" && e.id === fin.id), where + ": the win is the finale going down");
     wins.push(win.t);
+    // the SUPER SLURP (§15.6) in real play: it goes off on the way, never
+    // after the win, and none is still running once the place is done
+    for (const s of log.filter((e) => e.type === "slurp")) {
+      assert.ok(s.t <= win.t, where + ": a super slurp went off after the win (" + s.t.toFixed(2) + "s, the win at " + win.t.toFixed(2) + "s)");
+      slurps++;
+    }
+    assert.equal(st.slurpT, 0, where + ": no super slurp is still running when the place is done");
     // "so they take more time" (the owner, 2026-10-01): even this perfect,
     // greedy eater — far quicker than a four-year-old — needs a while. Phase
     // 2's smaller worlds took it 14-25 game-seconds; the bigger ones 25-45.
@@ -576,6 +584,9 @@ test("a greedy bot finishes EVERY place: an instant first gulp, a quick first gr
   }
   const mean = wins.reduce((a, b) => a + b, 0) / wins.length;
   assert.ok(mean >= 30, "on average a place takes the bot at least 30s (phase 2: about 20s) — " + mean.toFixed(1) + "s");
+  // measured 61 across the 24 places: a real thing that happens in play,
+  // not a fixture-only one
+  assert.ok(slurps >= 24, "the bot sets off the super slurp in real play — about two a place (" + slurps + " in " + SCENES.length + " places)");
 });
 
 test("the win: the VORTEX empties even a big world by itself — no hunt for the last crumb", () => {
@@ -590,6 +601,9 @@ test("the win: the VORTEX empties even a big world by itself — no hunt for the
     const fin = st.objects.find((o) => o.finale);
     const evs = [];
     while (!st.won && st.t < 120) {
+      // no run of gulps builds on the way: a super slurp would hoover up a
+      // swathe of the place first, and this is about the vortex
+      st.combo = 0;
       L.setTarget(st, fin.x, fin.y);
       L.step(st); evs.push(...st.events); st.events.length = 0;
     }
@@ -630,6 +644,9 @@ test("THE GOAL: once Gobble is big enough for the finale, it is what he is here 
       assert.equal(L.goalOf(st), null, def.id + ": no goal at level " + lv + " — he cannot eat the finale yet");
     }
     makeTop(st);
+    // a finale shut away behind a gate makes its KEY the goal first — that
+    // has its own test below; here every gate is open
+    for (const k of st.objects) if (k.key) { st.unlocked[k.key] = true; k.st = L.GONE; }
     assert.equal(L.goalOf(st), fin, def.id + ": at the top size the finale IS the goal");
     // the hint: stand at the start, where plenty is edible and far nearer
     // than the finale, and wait — the hint points at the finale anyway
@@ -642,6 +659,51 @@ test("THE GOAL: once Gobble is big enough for the finale, it is what he is here 
     fin.st = L.GONE;
     assert.equal(L.goalOf(st), null, def.id + ": once it is eaten there is no goal");
   }
+});
+
+test("a finale BEHIND A GATE: while the gate is shut the goal is its KEY (the hint, the arrow and the beacon all ask goalOf); eat the key and the finale is the goal", () => {
+  // Found by the wandering-child model (§15.1): on the farm the goal pointed
+  // at the pumpkin through its locked fence, and from "big enough" to the win
+  // took a median 200s, against 3-12s everywhere else. Which gates guard a
+  // finale is DERIVED from the walking grid, so a new gated place inherits
+  // this without being named here.
+  const D = require("../scripts/hole-data.js");
+  let guarded = 0;
+  for (const def of SCENES) {
+    const st = L.createGame(def);
+    const fin = st.objects.find((o) => o.finale);
+    makeTop(st);
+    const keys = st.objects.filter((o) => o.key);
+    const g = L.goalOf(st);
+    if (!g || g === fin) {
+      // no gate in the way: the finale is the goal (and nothing is guarded)
+      assert.equal(g, fin, def.id + ": the finale is the goal");
+      continue;
+    }
+    guarded++;
+    assert.ok(g.key, def.id + ": a goal that is not the finale must be a key (" + g.e + ")");
+    // the hint (which the arrow follows) points at the key, not the finale
+    st.hole.x = st.hole.tx = st.start.x; st.hole.y = st.hole.ty = st.start.y;
+    st.sinceEat = RULES.HINT_AFTER;
+    L.step(st); st.events.length = 0;
+    assert.equal(st.hint, g.id, def.id + ": the hint points at the key " + g.e);
+    // the key it names must be reachable with every gate shut — a key behind
+    // its own gate would make the place unwinnable
+    const st2 = L.createGame(def);
+    makeTop(st2);
+    const key2 = st2.objects[g.id];
+    for (let i = 0; i < 2400 && key2.st !== L.GONE; i++) { L.setTarget(st2, key2.x, key2.y); L.step(st2); st2.events.length = 0; }
+    assert.equal(key2.st, L.GONE, def.id + ": Gobble can walk to the key " + g.e + " with the gate still shut, and eat it");
+    // …and once it is eaten, the finale is the goal again
+    assert.equal(L.goalOf(st2), st2.objects[fin.id], def.id + ": with the key eaten the finale is the goal");
+    // the line at the ready grow says "find the key", never "now eat" a
+    // finale he cannot reach
+    assert.ok(D.SAY.readyKey.includes("{finale}") && /key/i.test(D.SAY.readyKey), "the ready line for a gated finale names the key and the finale");
+    // a shut gate with its key already gone is open: no stale key goal
+    for (const k of keys) { st.unlocked[k.key] = true; k.st = L.GONE; }
+    assert.equal(L.goalOf(st), fin, def.id + ": every gate open, the finale is the goal");
+  }
+  assert.ok(guarded >= 2, "the farm's pumpkin and the castle sit behind locked gates, so at least those two goals must be a KEY first (saw " + guarded + ")");
 });
 
 test("the grow that makes him big enough for the finale SAYS so (ready) — exactly one, the last", () => {
@@ -717,9 +779,18 @@ test("every finale has a spoken NAME, and no line Gobble says reads a picture al
     assert.ok(!pict.test(n), def.id + ": its name is words, not a picture");
   }
   assert.ok(DATA.SAY.ready.includes("{finale}"), "the ready line names the finale");
-  for (const [k, v] of Object.entries(DATA.SAY)) {
-    for (const line of [].concat(v)) assert.ok(!pict.test(line), "SAY." + k + " speaks words, not a picture: " + line);
-  }
+  // every line, however deep it sits (SAY.taste is a table of lines) — a
+  // check that met the table itself would test the words "[object Object]"
+  let lines = 0;
+  const walk = (v, at) => {
+    if (typeof v === "string") { lines++; assert.ok(!pict.test(v), at + " speaks words, not a picture: " + v); }
+    else if (Array.isArray(v)) v.forEach((x, i) => walk(x, at + "[" + i + "]"));
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, at + "." + k);
+    else assert.fail(at + " is not a line: " + v);
+  };
+  walk(DATA.SAY, "SAY");
+  // 32 today; a walk that never went inside a table would reach 17
+  assert.ok(lines >= 25, "fixture: the walk reached the lines, nested ones too (" + lines + ")");
 });
 
 test("determinism: the same inputs replay to the identical state", () => {
@@ -864,6 +935,137 @@ test("every ground feature, ground and hole a place declares has a DRAWING, with
   // …and nothing the renderer can draw is dead
   const used = new Set(SCENES.flatMap((d) => (d.decals || []).map((x) => x.k)));
   for (const k of Object.keys(HR.DECALS)) assert.ok(used.has(k), "decal kind '" + k + "' is drawn by no place");
+});
+
+test("every place DRESSES Gobble (§15.2): what it wears is drawn, and every kind the renderer can draw is worn somewhere", () => {
+  // A wear kind with no drawing would leave Gobble bare in that place with
+  // nothing going red (the bedroom's `carpet` class); a drawing nobody wears
+  // is dead code a test still has to carry.
+  const HR = require("../scripts/hole-render.js");
+  const hex = /^#[0-9a-f]{6}$/i;
+  const worn = new Set();
+  for (const def of SCENES) {
+    assert.ok(Array.isArray(def.wear) && def.wear.length >= 2 && def.wear.length <= 3, def.id + ": wear is [kind, colour, colour2?]");
+    const W = HR.WEAR[def.wear[0]];
+    assert.ok(W && typeof W.draw === "function" && typeof W.up === "function", def.id + ": wear '" + def.wear[0] + "' has a drawing");
+    assert.ok(W.slot === "top" || W.slot === "side", def.id + ": '" + def.wear[0] + "' sits on his head or at his side");
+    for (const c of def.wear.slice(1)) assert.ok(hex.test(c), def.id + ": wear colour '" + c + "' is #rrggbb");
+    worn.add(def.wear[0]);
+  }
+  for (const k of Object.keys(HR.WEAR)) assert.ok(worn.has(k), "wear kind '" + k + "' is worn in no place");
+  assert.ok(worn.size >= 15, "the places dress him in many different things, not a few (" + worn.size + ")");
+  // the headroom the camera keeps covers whatever he wears, at every size
+  for (const def of SCENES) {
+    for (const R of [12, 40, 90, 160]) {
+      const e = HR.eyeR(R) * HR.EYE.wide, line = R * DATA.RULES.SQ + HR.eyeR(R) * 0.25;
+      const W = HR.WEAR[def.wear[0]];
+      assert.ok(HR.faceUp(R, false, def.wear) >= line + W.up(e, R * 0.42) - 1e-9, def.id + " R=" + R + ": the camera's headroom covers its " + def.wear[0]);
+    }
+  }
+});
+
+test("every place has WEATHER (§15.4): its air is drawn, every kind the renderer can draw blows somewhere, a dark place's is drawn after the dark, and the finale's fireworks all burst before the win box comes up", () => {
+  // The same both-ways law as what Gobble wears: a kind with no drawing would
+  // leave a place still; a drawing no place uses is dead code a test carries.
+  const HR = require("../scripts/hole-render.js");
+  const hex = /^#[0-9a-f]{6}$/i;
+  const used = new Set();
+  for (const def of SCENES) {
+    assert.ok(Array.isArray(def.air) && def.air.length >= 1 && def.air.length <= 2, def.id + ": air is [kind, colour?]");
+    const A = HR.AIR[def.air[0]];
+    assert.ok(A && typeof A.draw === "function", def.id + ": air '" + def.air[0] + "' has a drawing");
+    assert.ok(A.n > 0 && A.size > 0, def.id + ": its " + def.air[0] + " has specks and a size");
+    if (def.air[1]) {
+      assert.ok(hex.test(def.air[1]), def.id + ": air colour '" + def.air[1] + "' is #rrggbb");
+      // confetti and sprinkles bring their own colours: a colour given to them is never used
+      assert.ok(A.col !== null, def.id + ": '" + def.air[0] + "' brings its own colours, so the colour given to it is dead data");
+    }
+    used.add(def.air[0]);
+  }
+  for (const k of Object.keys(HR.AIR)) assert.ok(used.has(k), "air kind '" + k + "' blows in no place");
+  assert.ok(used.size >= 12, "the places have many different weathers, not a few (" + used.size + ")");
+  // a dark place's weather is drawn AFTER the dark, so fireflies glow in it
+  // rather than under it (read from the frame's own drawing order)
+  const src = fs.readFileSync(path.join(__dirname, "../scripts/hole-render.js"), "utf8");
+  const dark = src.indexOf("\n      drawDark();\n"), air = src.indexOf("\n      drawAir(now);\n");
+  assert.ok(dark > 0 && air > 0, "fixture: the frame draws the dark and the air");
+  assert.ok(air > dark, "the air is drawn after the dark");
+  assert.ok(SCENES.some((d) => d.dark), "fixture: there is a dark place");
+  for (const d of SCENES.filter((x) => x.dark)) assert.equal(d.air[0], "fireflies", d.id + ": a dark place's air glows (fireflies)");
+  // the finale's fireworks: six, and every one bursts within 2s of the win —
+  // the win box comes up soon after and covers the field
+  const F = HR.FIREWORKS;
+  assert.equal(F.at.length, 6, "six fireworks");
+  assert.ok(F.at.every((t, i) => i === 0 || t > F.at[i - 1]), "launched one after another");
+  assert.ok(Math.max(...F.at) + F.rise <= 2, "the last bursts within 2s of the win (" + (Math.max(...F.at) + F.rise) + "s)");
+});
+
+test("TASTES (§15.3): a thing with a taste SOUNDS, LOOKS and is NAMED like itself — every family has all three, every picture listed is one he can really eat, and none is listed twice", () => {
+  // A family with no sound would gulp like anything else; one with no look
+  // would vanish with the sound off (and Josh plays with it off); a picture
+  // listed that no place serves is dead data, and a picture written a hair
+  // differently from the place's own (a missing U+FE0F) would never taste of
+  // anything at all, silently. So all of it is derived, both ways.
+  const HR = require("../scripts/hole-render.js");
+  const T = DATA.TASTES, fams = Object.keys(T).sort();
+  assert.ok(fams.length >= 10, "fixture: the families were found (" + fams.length + ")");
+  // the page's sounds are a table in hole-main.js (a page script — the
+  // browser test drives them through the real drain)
+  const main = fs.readFileSync(path.join(__dirname, "../scripts/hole-main.js"), "utf8");
+  const at = main.indexOf("const TASTE_SFX = {");
+  assert.ok(at > 0, "fixture: the page has its taste sounds");
+  const sfx = [...main.slice(at, main.indexOf("\n  };", at)).matchAll(/^ {4}(\w+): \(k\) =>/gm)].map((m) => m[1]).sort();
+  assert.deepEqual(sfx, fams, "every family has its own SOUND, and every sound a family");
+  assert.deepEqual(Object.keys(HR.TASTE_LOOK).sort(), fams, "every family has its own LOOK, and every look a family");
+  assert.deepEqual(Object.keys(DATA.SAY.taste).sort(), fams, "every family has its first-time WORD, and every word a family");
+  for (const f of fams) {
+    const look = HR.TASTE_LOOK[f];
+    assert.ok(look.face || look.fx || look.boing, f + ": its look shows something (a face, a burst or a boing)");
+    if (look.col) assert.ok(/^#[0-9a-f]{6}$/i.test(look.col), f + ": its colour is #rrggbb");
+  }
+  // no two families sound alike (a sound is its table entry's text)
+  const bodies = new Map();
+  for (const m of main.slice(at, main.indexOf("\n  };", at)).matchAll(/^ {4}(\w+): \(k\) => (.*)$/gm)) {
+    const body = m[2].replace(/\s*\/\/.*$/, "");
+    assert.ok(!bodies.has(body), m[1] + " sounds exactly like " + bodies.get(body));
+    bodies.set(body, m[1]);
+  }
+  // every picture is in ONE family
+  const fam = new Map();
+  for (const [f, list] of Object.entries(T)) {
+    for (const e of list) { assert.ok(!fam.has(e), e + " tastes of both " + fam.get(e) + " and " + f); fam.set(e, f); }
+  }
+  // …and is something a place really serves (its own things, the surprises
+  // in its boxes and trees). Four are also some place's FINALE (🍭 🎂 🤖 🧸):
+  // there the finale's own gulp wins, which the browser test drives.
+  const served = new Set();
+  for (const def of SCENES) {
+    for (const it of itemsOf(def)) served.add(it.e);
+    for (const k of kidsOf(def)) served.add(k.e);
+  }
+  for (const [e, f] of fam) {
+    assert.ok(served.has(e), f + ": " + e + " is listed but no place serves it (dead data — or written differently from the place's own)");
+    assert.equal(DATA.tasteOf(e), f, "tasteOf(" + e + ") is its family");
+  }
+  // a thing a place serves that differs from a listed picture only by its
+  // emoji-presentation mark would never taste of anything — say so
+  const bare = (e) => e.replace(/️/g, "");
+  const byBare = new Map([...fam.keys()].map((e) => [bare(e), e]));
+  for (const e of served) {
+    const twin = byBare.get(bare(e));
+    if (twin) assert.equal(e, twin, "a place serves " + JSON.stringify(e) + " but TASTES lists " + JSON.stringify(twin) + " — it would never taste of " + fam.get(twin));
+  }
+  // tasteless things gulp as before
+  const plainOne = [...served].find((e) => !fam.has(e));
+  assert.ok(plainOne && DATA.tasteOf(plainOne) === null, "a thing with no taste has none (" + plainOne + ")");
+  // tastes are COMMON: most places serve several families, and every place at least one
+  let many = 0;
+  for (const def of SCENES) {
+    const here = new Set([...itemsOf(def), ...kidsOf(def)].map((it) => DATA.tasteOf(it.e)).filter(Boolean));
+    assert.ok(here.size >= 1, def.id + ": nothing here tastes of anything");
+    if (here.size >= 3) many++;
+  }
+  assert.ok(many >= SCENES.length / 2, "most places serve three families or more (" + many + " of " + SCENES.length + ")");
 });
 
 test("every field a place DECLARES is read by the code, and every field the code reads off a place is declared by one — no dead data, no dead feature", () => {
@@ -1436,5 +1638,313 @@ test("PRESSED AGAINST A HEDGE he still finds his way (he plans from his own side
     // three seconds; planning from across the hedge, he only eases 8-15
     // units along it (round the corner) and stops. So "set off" means far.
     assert.ok(L.gdist(st.hole.x, st.hole.y, s.x, s.y) > 60, "from (" + s.x + "," + s.y + ") he set off toward the middle (moved " + L.gdist(st.hole.x, st.hole.y, s.x, s.y).toFixed(1) + ")");
+  }
+});
+
+// ---- THE SUPER SLURP (§15.6) ---------------------------------------------
+// Where the magnet's own pull ends for a thing, and how much further the
+// super slurp reaches (the engine's two formulas, restated).
+const magnetReach = (h, o) => h.r + o.r + RULES.PULL[0] + h.r * RULES.PULL[1];
+const slurpReach = (h, o) => magnetReach(h, o) + RULES.SLURP.reach[0] + h.r * RULES.SLURP.reach[1];
+// The straight line from a to b, judged by brute force at a fine step:
+// does it cross water (or the edge of the world), a wall of things, or a
+// live portal end? (The engine traces it; this samples it every 0.1 unit.)
+function lineOf(st, G, x0, y0, x1, y1) {
+  const solids = st.objects.filter((o) => L.activeSolid(st, o));
+  const d = Math.hypot(x1 - x0, y1 - y0), out = { water: false, solid: false, portal: false };
+  for (let s = 0; s <= d; s += 0.1) {
+    const x = x0 + ((x1 - x0) * s) / d, y = y0 + ((y1 - y0) * s) / d;
+    if (G.walk(x, y) > 0) out.water = true;
+    if (solids.some((o) => L.gdist(x, y, o.x, o.y) < o.r * RULES.CORE)) out.solid = true;
+    if (G.ends.some((E) => E.live && L.gdist(x, y, E.x, E.y) < RULES.PORTAL_R * 1.2)) out.portal = true;
+  }
+  out.open = !out.water && !out.solid && !out.portal;
+  return out;
+}
+// A spot for Gobble at ground distance `d` from thing o where his centre may
+// stand, whose line to o is open air (want "open") or crosses water and
+// nothing else (want "water").
+function spotFor(st, G, o, d, want) {
+  for (let a = 0; a < 64; a++) {
+    const ang = (a / 64) * Math.PI * 2;
+    const x = o.x + Math.cos(ang) * d, y = o.y + Math.sin(ang) * d * RULES.SQ;
+    if (x < 1 || y < 1 || x > G.W - 1 || y > G.H - 1 || !freeAt(st, G, x, y) || G.walk(x, y) > -1) continue;
+    const ln = lineOf(st, G, x, y, o.x, o.y);
+    if (want === "open" ? ln.open : ln.water && !ln.solid && !ln.portal) return { x, y };
+  }
+  return null;
+}
+// Clear the ground round a spot of every other thing he could eat, so a
+// fixture measures ONE thing (a gulp of a neighbour would grow him, and a
+// bigger Gobble reaches further).
+function clearAround(st, P, keep, radius) {
+  for (const o of st.objects) {
+    if (o === keep || o.st !== L.IDLE || L.activeSolid(st, o)) continue;
+    if (L.gdist(o.x, o.y, P.x, P.y) < radius) o.st = L.GONE;
+  }
+}
+
+test("SUPER SLURP (§15.6): ten in a row sets it off — exactly once a run, for SLURP.secs, however long the run goes on; a run that breaks and builds again sets it off again", () => {
+  const S = RULES.SLURP;
+  const st = L.createGame("toyroom"), h = st.hole;
+  // things that fit, dropped onto him 0.2s apart (a run keeps going while
+  // each gulp comes within 0.6s of the last)
+  const bites = st.objects.filter((o) => o.tier === 1 && o.st === L.IDLE && !o.ride && !o.chain && !o.key && o.r <= h.r * RULES.FIT);
+  assert.ok(bites.length >= 30, "fixture: plenty of bites to drop (" + bites.length + ")");
+  const log = [], timer = [];
+  let n = 0, k = 0, maxT = 0;
+  const tick = () => {
+    L.setTarget(st, h.x, h.y); L.step(st);
+    for (const e of st.events) log.push({ n, slurpT: st.slurpT, ...e });
+    st.events.length = 0;
+    timer[n] = st.slurpT;
+    maxT = Math.max(maxT, st.slurpT);
+    n++;
+  };
+  const runOf = (gulps) => { for (let i = 0; i < gulps * 12; i++) { if (i % 12 === 0) { const o = bites[k++]; o.x = h.x; o.y = h.y; } tick(); } };
+  const rest = (secs) => { for (let i = 0; i < Math.round(secs / L.DT); i++) tick(); };
+  runOf(15);                     // 15 gulps: the combo tops out at 10 and stays there
+  const n1 = n;
+  rest(3);                       // the run breaks (>0.6s), and the slurp runs out
+  runOf(15);
+  rest(3);
+  const slurps = log.filter((e) => e.type === "slurp");
+  assert.equal(slurps.length, 2, "one super slurp for each run of gulps — it does not go off again while a run tops out at " + S.at);
+  assert.ok(slurps[0].n < n1 && slurps[1].n >= n1, "one in each run");
+  for (const s of slurps) {
+    // the gulp that set it off is in the same step: the combo is exactly AT
+    const set = log.filter((e) => e.type === "eat" && e.n === s.n);
+    assert.equal(set.length, 1, "fixture: one gulp in the step that set it off");
+    assert.equal(set[0].combo, S.at, "it goes off on the gulp whose combo reaches " + S.at + " (saw " + set[0].combo + ")");
+    assert.equal(s.slurpT, S.secs, "it starts at SLURP.secs");
+    // …and it lasts SLURP.secs (the run keeps gulping, which must not stretch it)
+    let end = s.n;
+    while (end < timer.length && timer[end] > 0) end++;
+    const lasted = (end - s.n) * L.DT;
+    assert.ok(Math.abs(lasted - S.secs) <= 2 * L.DT, "it lasts " + S.secs + "s (" + lasted.toFixed(3) + "s)");
+  }
+  // no gulp short of AT ever set one off
+  for (const e of log.filter((x) => x.type === "eat" && x.combo < S.at)) {
+    assert.ok(!log.some((s) => s.type === "slurp" && s.n === e.n), "a gulp with combo " + e.combo + " set off a slurp");
+  }
+  assert.equal(maxT, S.secs, "it never stacks past SLURP.secs");
+  assert.equal(st.slurpT, 0, "and it runs out");
+  // the combo really did top out and stay there in each run (or "once a run"
+  // would be untested)
+  const tens = log.filter((e) => e.type === "eat" && e.combo === S.at).length;
+  assert.ok(tens >= 6, "fixture: the runs kept gulping at the top of the combo (" + tens + " gulps at " + S.at + ")");
+});
+
+test("SUPER SLURP: while it lasts his pull reaches FURTHER — a thing past the magnet's own reach zooms in through open air — and pulls SLURP.speed times as FAST", () => {
+  const S = RULES.SLURP;
+  // THE SPEED: one step's pull on the same thing in the same spot, inside
+  // the magnet's own reach, without and with a slurp (neither step reaches
+  // the rim, so neither is cut short)
+  {
+    const pullOnce = (slurp) => {
+      const st = L.createGame("toyroom"), h = st.hole;
+      const o = st.objects.find((ob) => ob.tier === 1 && !ob.starter && !ob.ride);
+      const d = (h.r - o.r * 0.35 + magnetReach(h, o)) / 2;
+      clearAround(st, { x: o.x - d, y: o.y }, o, slurpReach(h, o) + 20);
+      park(st, o.x - d, o.y);
+      st.slurpT = slurp ? S.secs : 0;
+      const x0 = o.x, y0 = o.y;
+      L.step(st); st.events.length = 0;
+      assert.equal(o.st, L.IDLE, "fixture: one step does not reach the rim");
+      return L.gdist(o.x, o.y, x0, y0);
+    };
+    const plain = pullOnce(false), fast = pullOnce(true);
+    assert.ok(plain > 0, "fixture: the magnet pulls it");
+    assert.ok(Math.abs(fast / plain - S.speed) < 1e-6, "the pull is " + S.speed + " times as fast (" + (fast / plain).toFixed(4) + "x)");
+  }
+  // THE REACH: in every place, a thing halfway between the magnet's own
+  // reach and the slurp's, with open air between — without a slurp it does
+  // not stir; with one it zooms in and is eaten while the slurp lasts
+  let tested = 0;
+  for (const def of SCENES) {
+    const G = L.geomOf(def);
+    const st0 = L.createGame(def), h0 = st0.hole;
+    let o0 = null, P = null;
+    for (const o of st0.objects) {
+      if (o.st !== L.IDLE || o.ride || o.finale || o.starter || L.activeSolid(st0, o) || o.r > h0.r * RULES.FIT) continue;
+      P = spotFor(st0, G, o, (magnetReach(h0, o) + slurpReach(h0, o)) / 2, "open");
+      if (P) { o0 = o; break; }
+    }
+    if (!o0) continue;
+    tested++;
+    for (const slurp of [false, true]) {
+      const st = L.createGame(def), o = st.objects[o0.id];
+      clearAround(st, P, o, slurpReach(st.hole, o) + 20);
+      park(st, P.x, P.y);
+      const x0 = o.x, y0 = o.y;
+      let zoom = false;
+      for (let i = 0; i < Math.round(S.secs / L.DT) && o.st !== L.GONE; i++) {
+        if (slurp && i === 0) st.slurpT = S.secs;
+        L.setTarget(st, P.x, P.y); L.step(st); st.events.length = 0;
+        if (o.zoom) zoom = true;
+      }
+      if (!slurp) {
+        assert.ok(o.x === x0 && o.y === y0 && o.st === L.IDLE, def.id + ": without a slurp a thing past the magnet's reach does not stir");
+        assert.ok(!zoom, def.id + ": …and nothing zooms");
+      } else {
+        assert.equal(o.st, L.GONE, def.id + ": with a slurp it zooms in and is eaten while the slurp lasts (" + o.e + ", " + L.gdist(o.x, o.y, P.x, P.y).toFixed(1) + " away at the end)");
+        assert.ok(zoom, def.id + ": …drawn zooming (it came from past the magnet's own reach)");
+      }
+    }
+  }
+  assert.ok(tested >= 20, "fixture: most places have open air to slurp across (" + tested + " of " + SCENES.length + ")");
+});
+
+test("SUPER SLURP: the pull never reaches ACROSS WATER, and never takes the FINALE (which he goes to eat himself) — not even as the tenth gulp in a row", () => {
+  const S = RULES.SLURP;
+  // ACROSS WATER: a thing in the slurp's reach, but over water from him
+  let crossed = 0;
+  for (const def of SCENES) {
+    const G = L.geomOf(def);
+    let fx = null;
+    for (let lv = 0; lv <= 4 && !fx; lv++) {
+      const st0 = L.createGame(def); makeLevel(st0, lv);
+      const h0 = st0.hole;
+      for (const o of st0.objects) {
+        if (o.st !== L.IDLE || o.ride || o.finale || L.activeSolid(st0, o) || o.r > h0.r * RULES.FIT) continue;
+        const P = spotFor(st0, G, o, (magnetReach(h0, o) + slurpReach(h0, o)) / 2, "water");
+        if (P) { fx = { lv, id: o.id, P }; break; }
+      }
+    }
+    if (!fx) continue;
+    crossed++;
+    const st = L.createGame(def); makeLevel(st, fx.lv);
+    const o = st.objects[fx.id];
+    clearAround(st, fx.P, o, slurpReach(st.hole, o) + 20);
+    park(st, fx.P.x, fx.P.y);
+    st.slurpT = S.secs;
+    const x0 = o.x, y0 = o.y;
+    let zoom = false;
+    for (let i = 0; i < Math.round(S.secs / L.DT); i++) { L.setTarget(st, fx.P.x, fx.P.y); L.step(st); st.events.length = 0; if (o.zoom) zoom = true; }
+    assert.ok(o.x === x0 && o.y === y0 && o.st === L.IDLE && !zoom, def.id + ": a thing over the water from him stays put (" + o.e + ")");
+  }
+  assert.ok(crossed >= 6, "fixture: places with water (or a gap in the world) to slurp across (" + crossed + ")");
+  // THE FINALE: in reach of the slurp, through open air, at the top size —
+  // and it stays put
+  let finales = 0;
+  for (const def of SCENES) {
+    const G = L.geomOf(def);
+    const st = L.createGame(def);
+    makeTop(st);
+    for (const o of st.objects) if (o.key) st.unlocked[o.key] = true;
+    const fin = st.objects.find((o) => o.finale);
+    assert.ok(fin.r <= st.hole.r * RULES.FIT, "fixture: " + def.id + "'s finale fits at the top size");
+    const P = spotFor(st, G, fin, magnetReach(st.hole, fin) + (slurpReach(st.hole, fin) - magnetReach(st.hole, fin)) * 0.4, "open");
+    if (!P) continue;
+    finales++;
+    clearAround(st, P, fin, slurpReach(st.hole, fin) + 20);
+    park(st, P.x, P.y);
+    st.slurpT = S.secs;
+    const x0 = fin.x, y0 = fin.y;
+    for (let i = 0; i < 60; i++) { L.setTarget(st, P.x, P.y); L.step(st); st.events.length = 0; }
+    assert.ok(fin.x === x0 && fin.y === y0 && fin.st === L.IDLE && !fin.zoom, def.id + ": the slurp leaves the finale where it stands — he goes and eats it himself");
+  }
+  assert.ok(finales >= 20, "fixture: the finale has open ground round it in most places (" + finales + ")");
+  // THE FINALE AS THE TENTH IN A ROW: eating it never sets one off (the win
+  // takes the stage)
+  for (const id of ["toyroom", "party"]) {
+    const st = L.createGame(id);
+    makeTop(st);
+    const fin = st.objects.find((o) => o.finale);
+    for (const o of st.objects) if (o !== fin) o.st = L.GONE;
+    park(st, fin.x, fin.y);
+    const evs = [];
+    for (let i = 0; i < 180 && !st.won; i++) {
+      st.combo = S.at - 1; st.lastEatT = st.t;     // the run is one gulp short
+      L.setTarget(st, fin.x, fin.y); L.step(st); evs.push(...st.events); st.events.length = 0;
+    }
+    const ate = evs.find((e) => e.type === "eat" && e.finale);
+    assert.ok(ate && ate.combo === S.at, id + ": fixture: the finale went down as the tenth in a row (combo " + (ate && ate.combo) + ")");
+    assert.equal(evs.filter((e) => e.type === "slurp").length, 0, id + ": eating the finale never sets off a super slurp");
+    assert.equal(st.slurpT, 0, id + ": …and none is running");
+  }
+});
+
+test("PORTALS: standing on the end he came out of, with the way back through it, he walks off, it wakes, and back through he goes — never stood on it for ever", () => {
+  // Found in space once a super slurp sent the bot back for a crumb: the end
+  // he arrives at sleeps until he has walked away from it, and a way that
+  // went back through that same end headed him for the spot he was already
+  // standing on — so he stood there, and it never woke. Derived: every live
+  // end of every place with portals, small and big.
+  let cases = 0;
+  for (const def of SCENES) {
+    const G = L.geomOf(def);
+    G.ends.forEach((X, xi) => {
+      if (!X.live) return;
+      const to = G.ends[X.to];
+      // a spot just past the far end, on open ground and off every portal
+      let T = null;
+      for (const k of G.okCells) {
+        const x = G.cx(k), y = G.cy(k), d = L.gdist(x, y, to.x, to.y);
+        if (d < RULES.PORTAL_R * 2 + 6 || d > RULES.PORTAL_R * 2 + 16) continue;
+        if (G.ends.some((E) => L.gdist(x, y, E.x, E.y) < RULES.PORTAL_R * 2)) continue;
+        if (!T || d < T.d) T = { x, y, d };
+      }
+      assert.ok(T, def.id + ": fixture: open ground past end " + xi + "'s partner");
+      for (const lv of [0, 3]) {
+        const st = L.createGame(def); makeLevel(st, lv);
+        park(st, X.x, X.y);
+        st.warpLock = xi;                  // he has just come out of this end
+        let through = false, there = false;
+        for (let i = 0; i < 60 * 4 && !there; i++) {
+          L.setTarget(st, T.x, T.y); L.step(st);
+          for (const e of st.events) if (e.type === "warp" && e.from[0] === Math.round(X.x * 1000) / 1000 && e.from[1] === Math.round(X.y * 1000) / 1000) through = true;
+          st.events.length = 0;
+          there = L.gdist(st.hole.x, st.hole.y, T.x, T.y) < 3;
+        }
+        assert.ok(through && there, def.id + " level " + lv + ": from the sleeping end " + xi + " he went back through it and on (through " + through + ", there " + there + ", " + L.gdist(st.hole.x, st.hole.y, X.x, X.y).toFixed(1) + " from where he stood)");
+        cases++;
+      }
+    });
+  }
+  assert.ok(cases >= 24, "fixture: every live end of the portal places, twice (" + cases + ")");
+});
+
+test("a LINE that looks clear but grazes a wall: he still gets there (the straight-line check traces the line, it does not sample it every 2 units)", () => {
+  // Two spots the bot found stuck for good once a super slurp sent it past
+  // them: a cave wall that juts out by half a unit, and a beach shore that
+  // juts out by a tenth of one, each between the samples of the old
+  // every-2-units look. It called the way straight, he was pressed into the
+  // bulge, and he never moved again (0.0 units in 5s on both). Random lines
+  // that graze a wall do NOT reproduce it — 26 measured, and the old look
+  // got there on every one by sliding — so these two, found by play, are
+  // the fixtures that can tell the two looks apart. Each asserts the
+  // geometry that makes it one.
+  const looksClear2 = (G, a, b) => {
+    const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 2);
+    for (let i = 1; i <= n; i++) if (G.walk(a.x + ((b.x - a.x) * i) / n, a.y + ((b.y - a.y) * i) / n) > 0) return false;
+    return true;
+  };
+  const grazes = (G, a, b) => {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    let w = -Infinity;
+    for (let s = 0; s <= d; s += 0.05) w = Math.max(w, G.walk(a.x + ((b.x - a.x) * s) / d, a.y + ((b.y - a.y) * s) / d));
+    return w;
+  };
+  for (const fx of [
+    // the cave: the straight line itself grazes a jutting wall
+    { id: "cave", lv: 3, A: { x: 275.36, y: 387.23 }, B: { x: 273.5, y: 404.9 }, via: { x: 273.5, y: 404.9 } },
+    // the beach: the line to the first path cell on the way grazes the shore
+    { id: "beach", lv: 4, A: { x: 121.32, y: 456.8 }, B: { x: 118.6, y: 529.8 }, via: { x: 122.5, y: 522.5 } },
+  ]) {
+    const G = L.geomOf(fx.id);
+    const st = L.createGame(fx.id); makeLevel(st, fx.lv);
+    assert.ok(freeAt(st, G, fx.A.x, fx.A.y) && freeAt(st, G, fx.B.x, fx.B.y), "fixture: " + fx.id + ": both ends are ground he may stand on");
+    assert.ok(looksClear2(G, fx.A, fx.via), "fixture: " + fx.id + ": a look every 2 units sees no wall on the line");
+    assert.ok(grazes(G, fx.A, fx.via) > 0.05, "fixture: " + fx.id + ": …but the line does cross the ground's edge (" + grazes(G, fx.A, fx.via).toFixed(3) + ")");
+    park(st, fx.A.x, fx.A.y);
+    let there = -1, bad = null;
+    for (let i = 0; i < 60 * 3 && there < 0; i++) {
+      L.setTarget(st, fx.B.x, fx.B.y); L.step(st); st.events.length = 0;
+      if (!bad && !freeAt(st, G, st.hole.x, st.hole.y)) bad = [st.hole.x.toFixed(2), st.hole.y.toFixed(2)];
+      if (L.gdist(st.hole.x, st.hole.y, fx.B.x, fx.B.y) < 1) there = st.t;
+    }
+    assert.equal(bad, null, fx.id + ": his centre never stood where it may not");
+    assert.ok(there >= 0, fx.id + ": he got there (moved " + L.gdist(st.hole.x, st.hole.y, fx.A.x, fx.A.y).toFixed(1) + ", still " + L.gdist(st.hole.x, st.hole.y, fx.B.x, fx.B.y).toFixed(1) + " away)");
   }
 });

@@ -24,7 +24,8 @@
 //
 // Output per place and arm: the median win time [range], the median time from
 // "big enough for the finale" to the win [max], the median longest gap
-// between gulps, and the share of time with nothing he can eat on screen.
+// between gulps, the share of time with nothing he can eat on screen, and how
+// many SUPER SLURPS (§15.6) a play earns [range].
 "use strict";
 const path = require("path");
 const ROOT = path.join(__dirname, "..");
@@ -61,7 +62,7 @@ function play(def, seed, arm) {
   const cam = { x: st.hole.x, y: st.hole.y };
   const fin = st.objects.find((o) => o.finale);
   let goal = null, nextThink = 0.8, pauseUntil = 0, lastEat = 0, longestGap = 0;
-  let noEdibleT = 0, arrowSince = -1, readyAt = -1, winAt = -1;
+  let noEdibleT = 0, arrowSince = -1, readyAt = -1, winAt = -1, slurps = 0;
   while (!st.done && st.t < 900) {
     cam.x += (st.hole.x - cam.x) * 0.2; cam.y += (st.hole.y - cam.y) * 0.2;
     const v = viewOf(st, cam), h = st.hole;
@@ -84,7 +85,8 @@ function play(def, seed, arm) {
     // …and the edge arrow
     let arrow = null;
     if (!st.won) {
-      if (arm !== "before" && L.goalOf(st) && !inView(v, fin, 2)) arrow = fin;
+      const goal = arm !== "before" ? L.goalOf(st) : null;   // the finale, or its key first (§15.1)
+      if (goal && !inView(v, goal, 2)) arrow = goal;
       else if (hinted && hinted.st === L.IDLE && !inView(v, hinted, 2)) arrow = hinted;
       else if (!edibleOn && arrowSince >= 0 && st.t - arrowSince >= 1.2) arrow = L.nearestEdible(st);
     }
@@ -113,10 +115,11 @@ function play(def, seed, arm) {
     for (const ev of st.events) {
       if (ev.type === "eat") { longestGap = Math.max(longestGap, st.t - lastEat); lastEat = st.t; }
       if (ev.type === "win") winAt = st.t;
+      if (ev.type === "slurp") slurps++;
     }
     st.events.length = 0;
   }
-  return { winAt, readyAt, longestGap, noEdible: noEdibleT / Math.max(1, st.t) };
+  return { winAt, readyAt, longestGap, noEdible: noEdibleT / Math.max(1, st.t), slurps };
 }
 
 const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
@@ -132,7 +135,8 @@ for (const def of D.SCENES) {
     const r2w = rs.map((r) => (r.winAt < 0 || r.readyAt < 0 ? 999 : r.winAt - r.readyAt));
     line.push(`${arm}: win ${med(win).toFixed(0)}s [${Math.min(...win).toFixed(0)}-${Math.max(...win).toFixed(0)}] ` +
       `ready->win ${med(r2w).toFixed(0)}s [${Math.max(...r2w).toFixed(0)} max] ` +
-      `gap ${med(rs.map((r) => r.longestGap)).toFixed(1)}s noEdible ${(100 * med(rs.map((r) => r.noEdible))).toFixed(0)}%`);
+      `gap ${med(rs.map((r) => r.longestGap)).toFixed(1)}s noEdible ${(100 * med(rs.map((r) => r.noEdible))).toFixed(0)}% ` +
+      `slurps ${med(rs.map((r) => r.slurps))} [${Math.min(...rs.map((r) => r.slurps))}-${Math.max(...rs.map((r) => r.slurps))}]`);
   }
   console.log(line.join(" | "));
 }

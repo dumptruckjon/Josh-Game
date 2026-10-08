@@ -23,6 +23,8 @@
   const ECHO_MS = 350;
   const MAX_STEPS = 6;         // at most 6 engine steps per frame (a slow frame never spirals)
   const BIG_SAY_GAP = 9;       // seconds between two "too big!" lines
+  const TASTE_QUIET_MS = 2500; // a first-taste word waits until nothing has been said for this long
+  const SLURP_SAY_GAP = 20;    // "Super slurp!" at most once in this many seconds of play
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (id) => doc.getElementById(id);
@@ -281,7 +283,7 @@
   }
   function sayNow(text) {
     const a = global.JoshAudio;
-    if (a && text && !a.isMuted()) a.say(text);
+    if (a && text && !a.isMuted()) { a.say(text); if (run) run.lastSaid = now(); }
   }
   function sayPlay(text) { if (playVisible()) sayNow(text); }
   // A gulp is pitched by SIZE — a tiny sweet is a high blip, a bus a low gulp —
@@ -301,8 +303,34 @@
       return;
     }
     const f = (GULP[ev.tier] || 392) * Math.pow(2, Math.min(ev.combo || 0, 8) / 12);
+    // a thing with a TASTE sounds like itself (§15.3) — instead of the gulp,
+    // never on top of it — and still climbs with a run of gulps
+    const fam = ev.vortex ? null : DATA.tasteOf(ev.e);
+    if (fam && TASTE_SFX[fam]) { TASTE_SFX[fam](f / (GULP[ev.tier] || 392)); return; }
     notes([[f, 0, { duration: 0.07, gain: 0.2 }], [f * 0.74, 55, { duration: 0.1, gain: 0.2 }]]);
   }
+  // Each family's sound, at a pitch climb `k` (1 for a single gulp). Square
+  // and sawtooth are `plain` (no filter): a horn or a beep wants its edge.
+  const sq = (d, g) => ({ type: "square", duration: d, gain: g || 0.07, plain: true });
+  const sn = (d, g) => ({ type: "sine", duration: d, gain: g || 0.14 });
+  const tr = (d, g) => ({ type: "triangle", duration: d, gain: g || 0.15 });
+  const TASTE_SFX = {
+    sweet: (k) => notes([[659.25 * k, 0, sn(0.12, 0.15)], [830.61 * k, 110, sn(0.24, 0.15)]]),            // "mmm-MM"
+    cold: (k) => notes([[1567.98 * k, 0, sn(0.08, 0.11)], [1975.53 * k, 60, sn(0.08, 0.11)], [2349.32 * k, 120, sn(0.2, 0.1)]]),
+    honk: (k) => notes([[466.16 * k, 0, sq(0.08)], [466.16 * k, 140, sq(0.13)]]),                         // beep beep
+    siren: (k) => notes([[880 * k, 0, sn(0.14, 0.12)], [659.25 * k, 160, sn(0.14, 0.12)], [880 * k, 320, sn(0.14, 0.12)], [659.25 * k, 480, sn(0.18, 0.12)]]),
+    choo: (k) => notes([[987.77 * k, 0, sn(0.12, 0.13)], [783.99 * k, 150, sn(0.22, 0.13)]]),              // toot-toot of a little train
+    horn: (k) => notes([[196 * k, 0, { type: "sawtooth", duration: 0.28, gain: 0.07, plain: true }], [196 * k, 360, { type: "sawtooth", duration: 0.4, gain: 0.07, plain: true }]]),
+    zoom: (k) => notes([[392 * k, 0, sn(0.06, 0.12)], [587.33 * k, 40, sn(0.06, 0.12)], [880 * k, 80, sn(0.06, 0.12)], [1318.5 * k, 120, sn(0.16, 0.12)]]),
+    boing: (k) => notes([[392 * k, 0, tr(0.06)], [783.99 * k, 50, tr(0.1)], [523.25 * k, 120, tr(0.12, 0.12)]]),
+    ding: (k) => notes([[1318.5 * k, 0, sn(0.5, 0.14)], [1975.53 * k, 0, sn(0.32, 0.05)]]),
+    ching: (k) => notes([[2093 * k, 0, sq(0.04, 0.06)], [2637 * k, 60, sn(0.32, 0.12)]]),
+    clank: (k) => notes([[523.25 * k, 0, sq(0.05, 0.08)], [415.3 * k, 45, sq(0.07, 0.08)]]),
+    beep: (k) => notes([[1046.5 * k, 0, sq(0.05, 0.06)], [783.99 * k, 70, sq(0.05, 0.06)], [1318.5 * k, 140, sq(0.07, 0.06)]]),
+    squeak: (k) => notes([[1760 * k, 0, sn(0.06, 0.12)], [2093 * k, 50, sn(0.09, 0.12)]]),
+    music: (k) => notes([[523.25 * k, 0, tr(0.09, 0.14)], [659.25 * k, 70, tr(0.09, 0.14)], [783.99 * k, 140, tr(0.09, 0.14)], [1046.5 * k, 210, tr(0.2, 0.14)]]),
+    pop: (k) => notes([[1046.5 * k, 0, sq(0.03, 0.1)], [1479.98 * k, 30, sn(0.1, 0.12)]]),
+  };
   // Every place has a TUNE of its own (PLAN §14.4): it plays as the place
   // opens, so two places never sound alike either.
   function playTune(def) {
@@ -345,9 +373,17 @@
       [783.99, 120, { type: "sine", duration: 0.2, gain: 0.12 }]]),
     // onto the ice: a glassy shimmer
     ice: () => notes([[1567.98, 0, { duration: 0.1, gain: 0.1 }], [2093, 60, { duration: 0.1, gain: 0.1 }], [1760, 120, { duration: 0.22, gain: 0.1 }]]),
-    // five gulps in a row (and ten): a little sparkle
+    // five gulps in a row: a little sparkle (ten is the super slurp's)
     combo: () => notes([[1046.5, 0, { gain: 0.14, duration: 0.07 }], [1318.5, 50, { gain: 0.14, duration: 0.07 }],
       [1567.98, 100, { gain: 0.14, duration: 0.14 }]]),
+    // ten in a row, the SUPER SLURP (§15.6): a power-up run all the way up,
+    // and a sparkle on top
+    slurp: () => notes([[196, 0, tr(0.05, 0.16)], [261.63, 35, tr(0.05, 0.16)], [329.63, 70, tr(0.05, 0.16)],
+      [392, 105, tr(0.05, 0.16)], [523.25, 140, tr(0.05, 0.16)], [659.25, 175, tr(0.05, 0.16)],
+      [783.99, 210, tr(0.05, 0.16)], [1046.5, 245, tr(0.3, 0.16)], [2093, 300, sn(0.25, 0.08)]]),
+    // a firework bursting over the island (§15.5): a soft pop and a crackle
+    firework: () => notes([[1661.22, 0, { type: "square", duration: 0.04, gain: 0.05, plain: true }],
+      [2489.02, 40, { gain: 0.06, duration: 0.18 }], [3135.96, 110, { gain: 0.04, duration: 0.22 }]]),
   };
   // A line said at most once in `gap` seconds (Infinity: once a run) — a pop,
   // a portal or a current can happen a hundred times; the words must not.
@@ -359,7 +395,12 @@
   }
   // The line for the grow that makes him big enough for the finale, naming it
   // ("Wow, so big! Now eat the castle!") — a picture is never spoken.
-  function readyLine(def) { return SAY.ready.replace("{finale}", (def.finale && def.finale.say) || "the biggest thing"); }
+  // While the finale is still shut away behind a gate the goal is its KEY
+  // (§15.1), so the line says so — it must never send him at a locked gate.
+  function readyLine(def, st) {
+    const g = st && L.goalOf(st), keyFirst = !!(g && g.key);
+    return (keyFirst ? SAY.readyKey : SAY.ready).replace("{finale}", (def.finale && def.finale.say) || "the biggest thing");
+  }
 
   // ---- A run -----------------------------------------------------------------
   let run = null;           // { st, def, ate: [emoji...], bigSaid }
@@ -388,7 +429,7 @@
     if (!st) { st = L.createGame(def); delete save.runs[def.id]; }
     run = {
       st, def, bigSaid: -1e9,
-      noteI: 0, said: {}, combo: 0,
+      noteI: 0, said: {}, combo: 0, tasted: {}, lastSaid: -1e9,
       ate: st.objects.filter((o) => o.st === L.GONE).map((o) => o.e),
       // treasures he has found (a resumed run found the ones already gone)
       found: new Set(st.gold.filter((id) => st.objects[id].st === L.GONE)),
@@ -452,20 +493,28 @@
     const evs = st.events.splice(0, st.events.length);
     for (const ev of evs) {
       counts[ev.type] = (counts[ev.type] || 0) + 1;
-      render.event(ev);
+      const shown = render.event(ev);
       if (ev.type === "eat") {
         gulp(ev);
-        // a run of gulps sparkles at five and at ten in a row
-        if (!ev.vortex && ev.combo >= 5 && ev.combo % 5 === 0 && ev.combo !== run.combo) SFX.combo();
+        // a run of gulps sparkles at five in a row (at ten comes the super
+        // slurp, with its own sound)
+        if (!ev.vortex && ev.combo === 5 && run.combo !== 5) SFX.combo();
         run.combo = ev.combo || 0;
         run.ate.push(ev.e);
         if (ev.gold && !ev.vortex) { run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure); }
+        // the FIRST taste of a family is said once a run — and only when
+        // nothing has been said for a moment (a word never talks over another)
+        const fam = !ev.vortex && !ev.finale && DATA.tasteOf(ev.e);
+        if (fam && !run.tasted[fam] && now() - run.lastSaid > TASTE_QUIET_MS) {
+          run.tasted[fam] = true;
+          sayPlay(SAY.taste[fam]);
+        }
         if (!st.won) { save.runs[run.def.id] = L.snapshot(st); persist(); }
       } else if (ev.type === "grow") {
         bounceMeter();
         // the grow that makes him big enough for the finale names it: from
         // here on it is the goal (the edge arrow and a golden beacon show it)
-        if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def)); }
+        if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def, run.st)); }
         else { SFX.grow(); sayPlay(SAY.grow[(ev.level - 1) % SAY.grow.length]); }
       } else if (ev.type === "bump") {
         // a locked gate rattles and asks for its key; a wall of things too
@@ -484,6 +533,10 @@
         SFX.flow(); sayEvery("flow", Infinity, SAY.flow, t);
       } else if (ev.type === "ice") {
         SFX.ice(); sayEvery("ice", Infinity, SAY.ice, t);
+      } else if (ev.type === "slurp") {
+        // ten in a row (§15.6): a few seconds of super pull. Said now and
+        // then, not every time: a sweep through a big clump earns several.
+        SFX.slurp(); sayEvery("slurp", SLURP_SAY_GAP, SAY.slurp, t);
       } else if (ev.type === "win") {
         // The win is EARNED the moment the finale goes down, so the ⭐ is
         // recorded now — leaving during the slurp can never lose it.
@@ -491,6 +544,9 @@
         delete save.runs[run.def.id];
         persist();
         later(() => { SFX.burp(); sayPlay(SAY.win); }, 450);
+        // a pop for each firework, the moment it bursts (the renderer owns the
+        // timing; none under reduced motion, when it draws none)
+        for (const at of (shown && shown.fireworks) || []) later(() => { if (playVisible()) SFX.firework(); }, at * 1000);
       } else if (ev.type === "allgone") {
         if (playVisible()) {
           try { if (global.JoshAudio && !global.JoshAudio.isMuted()) global.JoshAudio.winCue(); } catch (e) { /* ignore */ }
@@ -778,6 +834,7 @@
         const st = run.st;
         if (st.done) break;
         if (until === "win" && st.won) break;
+        if (until === "slurp" && st.slurpT > 0) break;
         if (until && typeof until === "object" && until.level != null && st.hole.level >= until.level) break;
         if (bot && !st.won) { const tg = L.botTarget(st); if (tg) L.setTarget(st, tg.x, tg.y); }
         L.step(st, L.DT);

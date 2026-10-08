@@ -936,7 +936,7 @@
         id: p.id, e: p.e, tier: p.tier, r: round3(p.r), x: round3(p.x), y: round3(p.y),
         xp: Math.round(p.r * p.r * 10), finale: !!p.finale, starter: !!p.starter,
         clump: p.clump || 0, trail: p.trail || 0,
-        st: p.kid ? HIDDEN : IDLE, f: 0, fx: 0, fy: 0, wob: 0, cd: 0, pull: 0,
+        st: p.kid ? HIDDEN : IDLE, f: 0, fx: 0, fy: 0, wob: 0, cd: 0, pull: 0, zoom: 0,
       };
       if (p.ride) { o.ride = p.ride; o.s0 = round3(p.s0); o.dir = -1; }
       if (p.solid) o.solid = true;
@@ -1052,7 +1052,7 @@
       hole: { x: lay.start.x, y: lay.start.y, r: lv.R[0], R: lv.R[0], level: 0, xp: 0, tx: lay.start.x, ty: lay.start.y, vx: 0, vy: 0 },
       t: 0, tick: 0, eaten: 0, total: lay.objects.length,
       won: false, done: false, winT: 0,
-      sinceEat: 0, hint: -1, combo: 0, lastEatT: -9,
+      sinceEat: 0, hint: -1, combo: 0, lastEatT: -9, slurpT: 0,
       unlocked: {}, wantKey: null, warpLock: -1, navGen: 0, onIce: false, inFlow: false,
       events: [],
     };
@@ -1115,18 +1115,37 @@
   }
   // A straight glide from a to b that meets no wall, no water and no portal
   // (other than the one he is heading for, or the one he has just come out of).
+  // Traced, not sampled: from each point it steps on by the room it has (the
+  // ground's own distance to the nearest edge, a wall of things or a portal),
+  // so a narrow bulge in a wall's edge is never stepped over. Sampled every 2
+  // units it stepped over a bulge where a shore or a cave wall juts out by a
+  // unit, called the way straight, and pressed him into it for good (found
+  // once a super slurp sent the bot past one). The 0.7 allows for the field
+  // being bilinear (it can change a little faster than distance does).
+  const LINE_STEP = 0.25;
   function clearLine(st, R, x0, y0, x1, y1, okEnd) {
-    const G = R.G, d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / 2));
-    for (let i = 1; i <= n; i++) {
-      const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
-      if (!freeAt(st, R, x, y)) return false;
-      for (let e = 0; e < G.ends.length; e++) {
-        if (e === okEnd || e === st.warpLock) continue;
-        const E = G.ends[e];
-        if (E.live && gdist(x, y, E.x, E.y) < RULES.PORTAL_R * 1.2) return false;
+    const G = R.G, d = Math.hypot(x1 - x0, y1 - y0);
+    if (d < 1e-9) return true;
+    const ux = (x1 - x0) / d, uy = (y1 - y0) / d, gl = Math.hypot(ux, uy / SQ);
+    for (let s = 0; ;) {
+      const x = x0 + ux * s, y = y0 + uy * s;
+      let room = -G.walk(x, y);
+      if (s > 0 && !(room >= 0)) return false;
+      for (const o of R.solids) {
+        const v = gdist(x, y, o.x, o.y) - coreOf(o);
+        if (s > 0 && v < 0) return false;
+        if (v < room) room = v;
       }
+      for (let e = 0; e < G.ends.length; e++) {
+        const E = G.ends[e];
+        if (!E.live || e === okEnd || e === st.warpLock) continue;
+        const v = gdist(x, y, E.x, E.y) - RULES.PORTAL_R * 1.2;
+        if (s > 0 && v < 0) return false;
+        if (v < room) room = v;
+      }
+      if (s >= d) return true;
+      s = Math.min(d, s + Math.max(LINE_STEP, (Math.max(0, room) * 0.7) / gl));
     }
-    return true;
   }
   // The cell Gobble is IN, for planning a path. His centre may stand where
   // no cell's centre can (pressed against a hedge), and the nearest standing
@@ -1204,7 +1223,13 @@
     let iMax = Math.min(last, at + 48);
     for (let i = at; i < iMax; i++) {
       if (P.jump[i] >= 0) {
-        // the way goes through a portal: head straight for it
+        // the way goes through a portal: head straight for it — unless it is
+        // the one he has just come out of. That one sleeps until he has
+        // walked away (so he is not bounced straight back), and a way back
+        // through it stood him on it for ever (found in space, once a super
+        // slurp sent the bot back for a crumb): he walks away first, and then
+        // the way takes him back through.
+        if (P.jump[i] === st.warpLock) return wakeWalk(st, R, G.ends[st.warpLock]);
         const E = G.ends[P.jump[i]];
         if (clearLine(st, R, h.x, h.y, E.x, E.y, P.jump[i])) return { x: E.x, y: E.y, final: false };
         iMax = i;
@@ -1218,6 +1243,26 @@
     }
     const k = P.cells[Math.min(at + 1, last)];
     return { x: G.cx(k), y: G.cy(k), final: false };
+  }
+  // Away from a sleeping portal end, far enough for it to wake (warp() wakes
+  // it past 2 * PORTAL_R + 4): the nearest open cell he can glide to in a
+  // straight line, just past that.
+  function wakeWalk(st, R, E) {
+    const h = st.hole, G = R.G, wake = RULES.PORTAL_R * 2 + 4, far = wake + G.N * 3;
+    const span = Math.ceil(far / G.N), i0 = Math.floor(E.x / G.N), j0 = Math.floor(E.y / G.N);
+    let best = null, bd = Infinity;
+    for (let j = j0 - span; j <= j0 + span; j++) {
+      for (let i = i0 - span; i <= i0 + span; i++) {
+        if (i < 0 || j < 0 || i >= G.nc || j >= G.nr) continue;
+        const k = j * G.nc + i;
+        if (!G.ok[k]) continue;
+        const x = G.cx(k), y = G.cy(k), de = gdist(x, y, E.x, E.y);
+        if (de <= wake + 1 || de > far) continue;
+        const d = gdist(x, y, h.x, h.y);
+        if (d < bd && clearLine(st, R, h.x, h.y, x, y, -1)) { bd = d; best = { x, y }; }
+      }
+    }
+    return best ? { x: best.x, y: best.y, final: false } : { x: h.x, y: h.y, final: true };
   }
   // where along a planned path Gobble is (his cell, or one beside it)
   function onPath(G, P, from) {
@@ -1373,10 +1418,46 @@
   // THE GOAL: once Gobble is big enough to eat the biggest thing in the
   // place, that is what he is here for — the hint and the edge arrow point at
   // it (PLAN_GOBBLE.md §12). Before that, and once it is eaten, there is none.
+  // While the finale is still shut away behind a gate, the goal is that
+  // gate's KEY (§15.1): a goal he cannot reach strands a child.
   function goalOf(st) {
     if (!st || st.won || st.hole.level < st.levels.R.length - 1) return null;
-    for (const o of st.objects) if (o.finale) return o.st === IDLE ? o : null;
-    return null;
+    let fin = null;
+    for (const o of st.objects) if (o.finale) { fin = o; break; }
+    if (!fin || fin.st !== IDLE) return null;
+    const R = rt(st);
+    for (const name of guardsOf(st, R)) {
+      if (st.unlocked[name]) continue;
+      const key = R.keys[name];
+      if (key && edible(st, key)) return key;
+    }
+    return fin;
+  }
+  // A FINALE BEHIND A GATE. Which locks stand between where Gobble starts and
+  // the finale? Worked out once per place, on the walking grid: with every
+  // gate shut there is no way to the finale; with ONE gate open there is —
+  // that gate guards it. (Walls of things he can eat through do not count:
+  // by the time he is big enough for the finale he can eat them.) Found
+  // because the goal used to point at the farm's pumpkin through its locked
+  // fence, and a wandering child took a median 200s from "big enough" to
+  // the win there, against 3-12s everywhere else.
+  function guardsOf(st, R) {
+    if (R.guards) return R.guards;
+    R.guards = [];
+    const names = Object.keys(R.locks);
+    let fin = null;
+    for (const o of st.objects) if (o.finale) { fin = o; break; }
+    if (!fin || !names.length) return R.guards;
+    const G = R.G;
+    const from = cellHere(G, st.start.x, st.start.y), goal = cellHere(G, fin.x, fin.y);
+    const shut = (except) => {
+      const B = new Uint8Array(G.n);
+      for (const n of names) if (n !== except) for (const o of R.locks[n]) markCore(G, B, o);
+      return B;
+    };
+    if (search(G, from, goal, shut(null), null, false).found >= 0) return R.guards;
+    for (const n of names) if (search(G, from, goal, shut(n), null, false).found >= 0) R.guards.push(n);
+    return R.guards;
   }
 
   function startFall(st, o) {
@@ -1415,11 +1496,17 @@
     o.st = GONE;
     st.eaten++;
     st.sinceEat = 0; st.hint = -1;
+    const was = st.combo;
     st.combo = st.t - st.lastEatT < 0.6 ? Math.min(st.combo + 1, 10) : 0;
     st.lastEatT = st.t;
     if (!st.won) h.xp += o.xp;
     // `vortex`: eaten by the win's slurp, not found by him
     emit(st, { type: "eat", id: o.id, e: o.e, r: o.r, tier: o.tier, combo: st.combo, finale: o.finale, gold: !!o.gold, vortex: st.won });
+    // SUPER SLURP (§15.6): ten in a row (the combo counts the gulps after the
+    // first, as the run's sparkle does). The run has to break (a pause of
+    // 0.6s) and build again before the next one: once the combo tops out it
+    // stays there.
+    if (!st.won && !o.finale && was < RULES.SLURP.at && st.combo >= RULES.SLURP.at) { st.slurpT = RULES.SLURP.secs; emit(st, { type: "slurp" }); }
     if (!st.won) {
       if (o.kids && o.kids.length) reveal(st, o, "pop");
       if (o.key && !st.unlocked[o.key]) unlock(st, o.key);
@@ -1436,7 +1523,9 @@
       emit(st, { type: "grow", level: h.level, ready: h.level === top, gates });
     }
     if (o.finale && !st.won) {
-      st.won = true; st.winT = 0; st.wantKey = null;
+      // the win ends a super slurp at once (the finale can be the last thing
+      // left, and the place is done in this same step)
+      st.won = true; st.winT = 0; st.wantKey = null; st.slurpT = 0;
       // every surprise still inside comes out for the slurp
       for (const k of st.objects) if (k.st === HIDDEN) k.st = IDLE;
       emit(st, { type: "win" });
@@ -1491,6 +1580,7 @@
     // 6. grow toward this level's size (the picture eases; physics uses r)
     h.r += (h.R - h.r) * Math.min(1, dt * 7);
     if (Math.abs(h.R - h.r) < 0.01) h.r = h.R;
+    if (st.slurpT > 0) st.slurpT = Math.max(0, st.slurpT - dt);
 
     // 7. every object
     for (const o of st.objects) {
@@ -1534,18 +1624,27 @@
         }
       }
       const reach = h.r + o.r + RULES.PULL[0] + h.r * RULES.PULL[1];
-      if (fits && dist < reach) {
+      // SUPER SLURP (§15.6): while it lasts the pull reaches much further and
+      // works much faster — through open air only (a straight line that
+      // crosses no water, no wall of things, no locked gate and no portal),
+      // and never on the finale
+      const S = RULES.SLURP, slurp = st.slurpT > 0 && !o.finale;
+      const far = slurp && fits && dist >= reach && dist < reach + S.reach[0] + h.r * S.reach[1] && clearLine(st, R, o.x, o.y, h.x, h.y, -1);
+      if (fits && (dist < reach || far)) {
         // THE MAGNET: a thing near the rim slides in — forgiving, and it
         // grows with Gobble.
-        const sp = (RULES.PULL_SPEED[0] + h.r * RULES.PULL_SPEED[1]) * dt;
+        const sp = (RULES.PULL_SPEED[0] + h.r * RULES.PULL_SPEED[1]) * (slurp ? S.speed : 1) * dt;
         const gx = h.x - o.x, gy = (h.y - o.y) / SQ, gl = Math.hypot(gx, gy) || 1;
         const k = Math.min(sp, gl);
         o.x += (gx / gl) * k;
         o.y += (gy / gl) * k * SQ;
-        o.pull = clamp((reach - dist) / (reach - (h.r - o.r * 0.35)), 0, 1);
+        o.pull = far ? 1 : clamp((reach - dist) / (reach - (h.r - o.r * 0.35)), 0, 1);
+        // `zoom`: slurped from beyond the magnet's own reach (the renderer
+        // draws it streaking in)
+        o.zoom = far ? 1 : 0;
         if (o.ride) o.free = true;
       } else {
-        o.pull = 0;
+        o.pull = 0; o.zoom = 0;
       }
       // TOO BIG (or locked): it wobbles on the rim and Gobble looks up at it.
       // A wall he is pressed against counts as touching even when his mouth

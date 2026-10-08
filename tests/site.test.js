@@ -1431,10 +1431,18 @@ test("guardrail: a Safari-16+ canvas call is feature-checked (iOS 14.2 floor)", 
       // is the only way this class ever gets caught.
       //   The guard must be on the same line as the call — `if (ctx.x) ctx.x(…)`
       // or `ctx.x ? ctx.x(…) : …` — which is how all the shipped uses read.
+      //   And on ANY receiver, not only one named `ctx`: Gobble's drawing
+      // helpers take the context as `c`, and a `c.roundRect(` written there was
+      // invisible to a scan that only knew one name (a scan's own pattern is
+      // part of the scan). `reset` stays `ctx.`-only: `.reset()` is a common
+      // name on things that are not a canvas, and that would be a false alarm.
+      const recv = api === "reset" ? "ctx" : "[A-Za-z_$][\\w$]*";
       src.split("\n").forEach((line, i) => {
-        if (!new RegExp(`ctx\\.${api}\\s*\\(`).test(line)) return;
-        const guarded = new RegExp(`(if\\s*\\(\\s*ctx\\.${api}\\s*\\)|typeof\\s+ctx\\.${api}|ctx\\.${api}\\s*\\?)`).test(line);
-        if (!guarded) offenders.push(`${f}:${i + 1} ctx.${api}()`);
+        const m = new RegExp(`(${recv})\\.${api}\\s*\\(`).exec(line);
+        if (!m) return;
+        const r = m[1].replace(/\$/g, "\\$");
+        const guarded = new RegExp(`(if\\s*\\(\\s*${r}\\.${api}\\s*\\)|typeof\\s+${r}\\.${api}|${r}\\.${api}\\s*\\?)`).test(line);
+        if (!guarded) offenders.push(`${f}:${i + 1} ${m[1]}.${api}()`);
       });
     }
     if (/ctx\.filter\s*=/.test(src)) offenders.push(`${f}: ctx.filter is Safari 17 AND the documented WebKit rasterization cliff`);

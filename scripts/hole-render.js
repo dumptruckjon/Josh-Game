@@ -64,10 +64,15 @@
   // Once he is big enough for the finale Gobble wears a CROWN, sitting on top
   // of his eyes: its size and where its middle stands above the eyes' line.
   const CROWN = { size: 2.0, lift: 1.1 * EYE.wide + 0.15 };
-  function faceUp(R, crowned) {
-    const e = eyeR(R), r = e * EYE.wide;
-    const eyes = R * SQ + e * 0.25 + r * 1.1 + Math.max(1.5, r * 0.14) / 2;
-    return crowned ? Math.max(eyes, R * SQ + e * 0.25 + e * CROWN.lift + e * CROWN.size * 0.5) : eyes;
+  // …and whatever he WEARS in this place (§15.2): each kind says how far above
+  // the eyes' line it reaches, at its widest (a grow's wide eyes lift the hat
+  // with them). A hat gives way to the crown; a thing at his side stays.
+  function faceUp(R, crowned, wear) {
+    const e = eyeR(R), r = e * EYE.wide, line = R * SQ + e * 0.25;
+    let top = line + r * 1.1 + Math.max(1.5, r * 0.14) / 2;
+    const w = wear && WEAR[wear[0]];
+    if (w && !(crowned && w.slot === "top")) top = Math.max(top, line + w.up(r, R * 0.42));
+    return crowned ? Math.max(top, line + e * CROWN.lift + e * CROWN.size * 0.5) : top;
   }
 
   function hashStr(s) {
@@ -110,6 +115,321 @@
       c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
     }
     c.closePath();
+  }
+
+  // A heart on (x, y) at size s: its lobes reach y - 0.59s, its point
+  // y + 0.95s, and it is 1.59s wide (a sweet's heart eyes, §15.3).
+  function heartPath(c, x, y, s) {
+    c.beginPath();
+    c.moveTo(x, y + s * 0.95);
+    c.bezierCurveTo(x - s * 1.25, y + s * 0.1, x - s * 0.85, y - s * 1.05, x, y - s * 0.4);
+    c.bezierCurveTo(x + s * 0.85, y - s * 1.05, x + s * 1.25, y + s * 0.1, x, y + s * 0.95);
+    c.closePath();
+  }
+
+  // ---- What Gobble WEARS in each place (PLAN_GOBBLE.md §15.2) ----------------
+  // Drawn on the canvas in his own outline style — never an emoji, so a hat
+  // can never be mistaken for a thing to eat. Every kind is drawn round the
+  // eyes' line: x is the middle of his face, y the eyes' centres, e an eye's
+  // radius and sp half the distance between the eyes (all css px). A "top"
+  // thing sits on his head and gives way to the CROWN once he is big enough
+  // for the finale; a "side" thing stays. Each kind's `up` says how far above
+  // the eyes' line its ink reaches: the camera keeps that much headroom (so a
+  // tall wizard's hat is never cut off at the island's top edge), and a test
+  // draws every kind and checks its ink never goes higher than it says.
+  const OUTLINE = "#1d1233";
+  const wl = (e) => Math.max(1.2, e * 0.11);
+  const halfW = (e, sp) => (sp + e) * 0.92;   // a hat spans both eyes
+  function shade(hex, k) {
+    // lighten (k > 0) or darken (k < 0) a #rrggbb colour
+    const n = parseInt(String(hex).slice(1), 16);
+    const f = (v) => clamp(Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k)), 0, 255);
+    const r = f((n >> 16) & 255), g = f((n >> 8) & 255), b = f(n & 255);
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+  function fillLine(c, fill, e) {
+    c.fillStyle = fill; c.fill();
+    c.lineWidth = wl(e); c.strokeStyle = OUTLINE; c.stroke();
+  }
+  // a rounded rectangle traced with arcTo (ctx.roundRect is Safari 16)
+  function rrect(c, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    c.beginPath(); c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+  // the top half of an ellipse, closed along its base
+  function dome(c, x, y, rx, ry) { c.beginPath(); c.ellipse(x, y, rx, ry, 0, Math.PI, Math.PI * 2); c.closePath(); }
+  const base = (e) => e * 0.9;   // a hat's base sits just above the eyes' tops
+  const WEAR = {
+    cap: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.66 + e * 0.22,
+      draw(c, x, y, e, sp, col, col2) {
+        const hw = halfW(e, sp), by = y - base(e);
+        // the peak, sticking out to his right
+        ellipse(c, x + hw * 0.78, by, hw * 0.62, hw * 0.16); fillLine(c, shade(col, -0.25), e);
+        dome(c, x, by, hw, hw * 0.62); fillLine(c, col, e);
+        c.beginPath(); c.moveTo(x, by); c.lineTo(x, by - hw * 0.62); c.lineWidth = wl(e) * 0.8; c.strokeStyle = shade(col, -0.35); c.stroke();
+        ellipse(c, x, by - hw * 0.62, e * 0.2, e * 0.14); fillLine(c, shade(col, -0.2), e);
+        if (col2) { ellipse(c, x - hw * 0.42, by - hw * 0.3, hw * 0.2, hw * 0.16); fillLine(c, col2, e); }   // a badge (the pilot's)
+      },
+    },
+    straw: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.62,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e);
+        ellipse(c, x, by, hw * 1.32, hw * 0.3); fillLine(c, "#f2d07a", e);
+        dome(c, x, by - hw * 0.05, hw * 0.72, hw * 0.57); fillLine(c, "#f5d98a", e);
+        c.fillStyle = col; c.fillRect(x - hw * 0.71, by - hw * 0.22, hw * 1.42, hw * 0.17);
+        c.lineWidth = wl(e) * 0.6; c.strokeStyle = "rgba(150,110,40,0.55)";
+        for (const k of [-0.5, -0.15, 0.2, 0.55]) { c.beginPath(); c.moveTo(x + hw * k, by - hw * 0.25); c.lineTo(x + hw * k * 0.8, by - hw * 0.5); c.stroke(); }
+      },
+    },
+    hardhat: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.74,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e);
+        dome(c, x, by, hw * 0.98, hw * 0.74); fillLine(c, col, e);
+        c.fillStyle = shade(col, 0.35); c.fillRect(x - hw * 0.12, by - hw * 0.72, hw * 0.24, hw * 0.7);
+        ellipse(c, x, by, hw * 1.16, hw * 0.15); fillLine(c, shade(col, -0.12), e);
+      },
+    },
+    party: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 1.3 + halfW(e, sp) * 0.2,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e), ax = x + hw * 0.12, ay = by - hw * 1.3;
+        c.beginPath(); c.moveTo(x - hw * 0.62, by); c.lineTo(ax, ay); c.lineTo(x + hw * 0.62, by); c.closePath();
+        c.save(); c.clip();
+        c.fillStyle = col; c.fillRect(x - hw, ay - 2, hw * 2, by - ay + 4);
+        c.fillStyle = "#ffd24d";
+        for (const k of [0.25, 0.6]) { c.beginPath(); c.moveTo(x - hw, by - hw * 1.3 * k); c.lineTo(x + hw, by - hw * 1.3 * k - hw * 0.35); c.lineTo(x + hw, by - hw * 1.3 * k - hw * 0.12); c.lineTo(x - hw, by - hw * 1.3 * k + hw * 0.23); c.closePath(); c.fill(); }
+        c.restore();
+        c.beginPath(); c.moveTo(x - hw * 0.62, by); c.lineTo(ax, ay); c.lineTo(x + hw * 0.62, by); c.closePath();
+        c.lineWidth = wl(e); c.strokeStyle = OUTLINE; c.stroke();
+        c.beginPath(); c.arc(ax, ay, hw * 0.19, 0, Math.PI * 2); fillLine(c, "#ffffff", e);
+      },
+    },
+    propeller: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * (0.58 + 0.3 + 0.13),
+      draw(c, x, y, e, sp, col, col2, now) {
+        const hw = halfW(e, sp), by = y - base(e), ry = hw * 0.58;
+        dome(c, x, by, hw * 0.9, ry);
+        c.save(); c.clip();
+        const cols = [col, "#ffd24d", "#5ec8ff", "#7be08a"];
+        for (let k = 0; k < 4; k++) { c.fillStyle = cols[k]; c.fillRect(x - hw * 0.9 + k * hw * 0.45, by - ry - 1, hw * 0.45 + 1, ry + 2); }
+        c.restore();
+        dome(c, x, by, hw * 0.9, ry); c.lineWidth = wl(e); c.strokeStyle = OUTLINE; c.stroke();
+        const ty = by - ry - hw * 0.3;
+        c.beginPath(); c.moveTo(x, by - ry); c.lineTo(x, ty); c.lineWidth = Math.max(1.5, e * 0.14); c.strokeStyle = OUTLINE; c.stroke();
+        // the propeller turns (still under reduced motion)
+        const sw = Math.abs(Math.cos((now || 0) * 9));
+        ellipse(c, x, ty, Math.max(hw * 0.1, hw * 0.75 * sw), hw * 0.13); fillLine(c, col, e);
+        ellipse(c, x, ty, e * 0.16, e * 0.16); fillLine(c, "#ffd24d", e);
+      },
+    },
+    bobble: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * (0.82 + 0.24) + halfW(e, sp) * 0.25,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e), ry = hw * 0.82;
+        dome(c, x, by - hw * 0.12, hw * 0.92, ry);
+        c.save(); c.clip();
+        c.fillStyle = col; c.fillRect(x - hw, by - hw * 1.2, hw * 2, hw * 1.2);
+        c.fillStyle = "#ffffff";
+        for (const k of [0.45, 0.72]) c.fillRect(x - hw, by - hw * 0.12 - ry * k, hw * 2, hw * 0.1);
+        c.restore();
+        dome(c, x, by - hw * 0.12, hw * 0.92, ry); c.lineWidth = wl(e); c.strokeStyle = OUTLINE; c.stroke();
+        // the rolled band
+        rrect(c, x - hw, by - hw * 0.24, hw * 2, hw * 0.3, hw * 0.12);
+        fillLine(c, shade(col, 0.55), e);
+        // the bobble
+        const py = by - hw * 0.12 - ry - hw * 0.08;
+        c.beginPath(); c.arc(x, py, hw * 0.25, 0, Math.PI * 2); fillLine(c, "#ffffff", e);
+      },
+    },
+    bubble: {
+      // a space helmet: a glass dome over his eyes, an antenna with a light
+      slot: "top", up: (e, sp) => (sp + e * 1.45) - e * 0.95 + e * 0.6 + e * 0.2 + e * 0.12,
+      draw(c, x, y, e, sp, col, col2, now) {
+        const rb = sp + e * 1.45, cy = y + e * 0.95;
+        c.beginPath(); c.ellipse(x, cy, rb, rb, 0, Math.PI, Math.PI * 2); c.closePath();
+        c.fillStyle = "rgba(190,230,255,0.22)"; c.fill();
+        c.lineWidth = Math.max(2, e * 0.2); c.strokeStyle = "rgba(235,248,255,0.95)"; c.stroke();
+        c.beginPath(); c.ellipse(x, cy, rb * 0.82, rb * 0.82, 0, Math.PI * 1.15, Math.PI * 1.45);
+        c.lineWidth = Math.max(2, e * 0.22); c.strokeStyle = "rgba(255,255,255,0.75)"; c.stroke();
+        ellipse(c, x, cy, rb * 1.02, e * 0.32); fillLine(c, col, e);
+        const top = cy - rb;
+        c.beginPath(); c.moveTo(x, top); c.lineTo(x, top - e * 0.6); c.lineWidth = Math.max(1.5, e * 0.12); c.strokeStyle = OUTLINE; c.stroke();
+        const on = reduceMotion() || ((now || 0) % 1.2) < 0.7;
+        c.beginPath(); c.arc(x, top - e * 0.6, e * 0.2, 0, Math.PI * 2); fillLine(c, on ? "#ff5e7e" : "#a33a52", e);
+      },
+    },
+    chef: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * (0.3 + 0.42 + 0.48),
+      draw(c, x, y, e, sp) {
+        const hw = halfW(e, sp), by = y - base(e), bt = by - hw * 0.3;
+        const puffs = [[-0.42, 0.42], [0, 0.48], [0.42, 0.42]];
+        for (const [k, r] of puffs) { c.beginPath(); c.arc(x + hw * k, bt - hw * 0.42, hw * r, 0, Math.PI * 2); c.lineWidth = wl(e) * 2; c.strokeStyle = OUTLINE; c.stroke(); }
+        for (const [k, r] of puffs) { c.beginPath(); c.arc(x + hw * k, bt - hw * 0.42, hw * r, 0, Math.PI * 2); c.fillStyle = "#ffffff"; c.fill(); }
+        c.beginPath(); c.rect(x - hw * 0.72, bt, hw * 1.44, hw * 0.3); fillLine(c, "#f4f4f8", e);
+      },
+    },
+    wizard: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 1.42,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e);
+        ellipse(c, x, by, hw * 1.14, hw * 0.2); fillLine(c, shade(col, -0.2), e);
+        c.beginPath(); c.moveTo(x - hw * 0.56, by - hw * 0.05);
+        c.quadraticCurveTo(x - hw * 0.1, by - hw * 0.9, x + hw * 0.42, by - hw * 1.38);
+        c.quadraticCurveTo(x + hw * 0.18, by - hw * 0.7, x + hw * 0.56, by - hw * 0.05);
+        c.closePath(); fillLine(c, col, e);
+        c.fillStyle = "#ffd24d"; c.fillRect(x - hw * 0.55, by - hw * 0.2, hw * 1.1, hw * 0.13);
+        for (const [k, j, r] of [[-0.18, 0.55, 0.13], [0.16, 0.85, 0.1], [0.05, 0.35, 0.09]]) {
+          starPath(c, x + hw * k, by - hw * j, hw * r, hw * r * 0.42, 5); c.fillStyle = "#ffe36e"; c.fill();
+        }
+      },
+    },
+    knight: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * (0.8 + 0.58),
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e), ry = hw * 0.8;
+        // the plume, sweeping back, behind the helmet
+        c.beginPath();
+        c.moveTo(x + hw * 0.14, by - ry * 0.88);
+        c.quadraticCurveTo(x + hw * 0.08, by - ry - hw * 0.66, x - hw * 0.7, by - ry - hw * 0.22);
+        c.quadraticCurveTo(x - hw * 0.24, by - ry - hw * 0.06, x - hw * 0.1, by - ry * 0.84);
+        c.closePath(); fillLine(c, col, e);
+        c.lineWidth = Math.max(1, e * 0.08); c.strokeStyle = shade(col, 0.35);
+        for (const k of [0.3, 0.55]) {
+          c.beginPath(); c.moveTo(x + hw * 0.02, by - ry * 0.95);
+          c.quadraticCurveTo(x - hw * 0.1 * k, by - ry - hw * 0.4 * k, x - hw * 0.55 * k - hw * 0.1, by - ry - hw * 0.2); c.stroke();
+        }
+        dome(c, x, by, hw * 0.95, ry); fillLine(c, "#b8c2cc", e);
+        c.fillStyle = "#e3e9ef"; c.fillRect(x - hw * 0.1, by - ry * 0.95, hw * 0.2, ry * 0.92);
+        c.beginPath(); c.rect(x - hw * 0.95, by - hw * 0.16, hw * 1.9, hw * 0.16); fillLine(c, "#8d99a6", e);
+      },
+    },
+    tophat: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * (1.25 + 0.14),
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e), h = hw * 1.25;
+        ellipse(c, x, by, hw * 1.0, hw * 0.2); fillLine(c, shade(col, -0.3), e);
+        c.beginPath(); c.rect(x - hw * 0.6, by - h, hw * 1.2, h); fillLine(c, col, e);
+        ellipse(c, x, by - h, hw * 0.6, hw * 0.14); fillLine(c, shade(col, 0.2), e);
+        c.beginPath(); c.rect(x - hw * 0.6, by - hw * 0.36, hw * 1.2, hw * 0.2); fillLine(c, "#ffd24d", e);
+        c.fillStyle = "rgba(255,255,255,0.28)"; c.fillRect(x - hw * 0.42, by - h + hw * 0.12, hw * 0.12, h - hw * 0.55);
+      },
+    },
+    explorer: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.7 + e * 0.32,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e), ry = hw * 0.7;
+        ellipse(c, x, by + hw * 0.02, hw * 1.25, hw * 0.24); fillLine(c, shade(col, -0.1), e);
+        dome(c, x, by, hw * 0.86, ry); fillLine(c, col, e);
+        c.fillStyle = shade(col, -0.32); c.fillRect(x - hw * 0.84, by - hw * 0.2, hw * 1.68, hw * 0.14);
+        ellipse(c, x, by - ry, e * 0.2, e * 0.14); fillLine(c, shade(col, -0.2), e);
+      },
+    },
+    pirate: {
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.98,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e);
+        c.beginPath();
+        c.moveTo(x - hw * 1.2, by - hw * 0.05);
+        c.quadraticCurveTo(x - hw * 1.15, by - hw * 0.95, x - hw * 0.5, by - hw * 0.82);
+        c.quadraticCurveTo(x, by - hw * 1.05, x + hw * 0.5, by - hw * 0.82);
+        c.quadraticCurveTo(x + hw * 1.15, by - hw * 0.95, x + hw * 1.2, by - hw * 0.05);
+        c.quadraticCurveTo(x, by + hw * 0.18, x - hw * 1.2, by - hw * 0.05);
+        c.closePath(); fillLine(c, col, e);
+        c.lineWidth = Math.max(1.5, e * 0.14); c.strokeStyle = "#ffd24d";
+        c.beginPath(); c.moveTo(x - hw * 1.05, by - hw * 0.12); c.quadraticCurveTo(x, by + hw * 0.08, x + hw * 1.05, by - hw * 0.12); c.stroke();
+        // a skull and crossbones
+        const sx0 = x, sy0 = by - hw * 0.48, s = hw * 0.18;
+        c.lineWidth = Math.max(1.5, s * 0.45); c.strokeStyle = "#ffffff"; c.lineCap = "round";
+        c.beginPath(); c.moveTo(sx0 - s * 1.5, sy0 - s * 0.6); c.lineTo(sx0 + s * 1.5, sy0 + s * 1.6); c.moveTo(sx0 + s * 1.5, sy0 - s * 0.6); c.lineTo(sx0 - s * 1.5, sy0 + s * 1.6); c.stroke();
+        c.lineCap = "butt";
+        c.beginPath(); c.arc(sx0, sy0, s, 0, Math.PI * 2); c.fillStyle = "#ffffff"; c.fill();
+        c.fillStyle = col;
+        c.beginPath(); c.arc(sx0 - s * 0.38, sy0 - s * 0.05, s * 0.26, 0, Math.PI * 2); c.arc(sx0 + s * 0.38, sy0 - s * 0.05, s * 0.26, 0, Math.PI * 2); c.fill();
+      },
+    },
+    halo: {
+      slot: "top", up: (e, sp) => e * 2.1 + (sp * 0.8 + e * 0.7) * 0.28 + e * 0.25 + e * 0.15,
+      draw(c, x, y, e, sp, col, col2, now) {
+        const bob = reduceMotion() ? 0 : Math.sin((now || 0) * 2.2) * e * 0.12;
+        const rx = sp * 0.8 + e * 0.7, ry = rx * 0.28, hy = y - e * 2.1 + bob;
+        ellipse(c, x, hy, rx, ry); c.lineWidth = e * 0.5; c.strokeStyle = "rgba(255,226,120,0.35)"; c.stroke();
+        ellipse(c, x, hy, rx, ry); c.lineWidth = Math.max(2, e * 0.26); c.strokeStyle = col; c.stroke();
+      },
+    },
+    flower: {
+      slot: "side", up: (e) => e * 1.05 + e * 0.95 + e * 0.06,
+      draw(c, x, y, e, sp, col) {
+        const fx = x + sp + e * 0.8, fy = y - e * 1.05;
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2;
+          c.beginPath(); c.ellipse(fx + Math.cos(a) * e * 0.52, fy + Math.sin(a) * e * 0.52, e * 0.42, e * 0.25, a, 0, Math.PI * 2);
+          fillLine(c, col, e * 0.8);
+        }
+        c.beginPath(); c.arc(fx, fy, e * 0.32, 0, Math.PI * 2); fillLine(c, "#ffc93c", e * 0.8);
+      },
+    },
+    bow: {
+      slot: "side", up: (e) => e * 1.15 + e * 0.5 + e * 0.08,
+      draw(c, x, y, e, sp, col) {
+        const bx = x + sp + e * 0.75, by = y - e * 1.15;
+        for (const s of [-1, 1]) {
+          c.beginPath(); c.moveTo(bx, by);
+          c.quadraticCurveTo(bx + s * e * 1.15, by - e * 0.95, bx + s * e * 1.25, by);
+          c.quadraticCurveTo(bx + s * e * 1.15, by + e * 0.95, bx, by);
+          c.closePath(); fillLine(c, col, e);
+        }
+        c.beginPath(); c.arc(bx, by, e * 0.3, 0, Math.PI * 2); fillLine(c, shade(col, -0.2), e);
+      },
+    },
+    headphones: {
+      slot: "side", up: (e, sp) => (sp + e * 1.18) * 1.0 + e * 0.2,
+      draw(c, x, y, e, sp, col) {
+        const rh = sp + e * 1.18;
+        c.beginPath(); c.arc(x, y, rh, Math.PI * 1.08, Math.PI * 1.92);
+        c.lineWidth = Math.max(3, e * 0.34); c.strokeStyle = OUTLINE; c.stroke();
+        c.lineWidth = Math.max(1.5, e * 0.18); c.strokeStyle = shade(col, 0.15); c.stroke();
+        for (const s of [-1, 1]) {
+          const cx0 = x + s * rh * 0.98;
+          rrect(c, cx0 - e * 0.32, y - e * 0.55, e * 0.64, e * 1.1, e * 0.28);
+          fillLine(c, col, e);
+        }
+      },
+    },
+    balloon: {
+      slot: "side", up: (e) => e * 2.25 + e * 1.2 + e * 0.12 + e * 0.12,
+      draw(c, x, y, e, sp, col, col2, now) {
+        const bob = reduceMotion() ? 0 : Math.sin((now || 0) * 1.7) * e * 0.12;
+        const bx = x + sp + e * 1.6, by = y - e * 2.25 + bob;
+        c.beginPath(); c.moveTo(bx, by + e * 1.2);
+        c.quadraticCurveTo(bx - e * 0.6, by + e * 2.1, x + sp + e * 0.55, y + e * 0.5);
+        c.lineWidth = Math.max(1, e * 0.08); c.strokeStyle = "rgba(29,18,51,0.8)"; c.stroke();
+        c.beginPath(); c.moveTo(bx - e * 0.17, by + e * 1.3); c.lineTo(bx, by + e * 1.12); c.lineTo(bx + e * 0.17, by + e * 1.3); c.closePath();
+        c.fillStyle = shade(col, -0.2); c.fill();
+        ellipse(c, bx, by, e * 1.0, e * 1.2); fillLine(c, col, e);
+        ellipse(c, bx - e * 0.33, by - e * 0.43, e * 0.2, e * 0.33); c.fillStyle = "rgba(255,255,255,0.6)"; c.fill();
+      },
+    },
+  };
+
+  // Each kind above says where its SHAPE ends; its outline is drawn centred on
+  // that edge, so the ink reaches half a line further (a chef's puffs carry a
+  // doubled outline: a whole line), plus a pixel of antialiasing. That margin
+  // is added here, once, for every kind — the ink test found up to 9px of
+  // overshoot at the biggest sizes before it was. Outlines join ROUND: a
+  // mitred join on a wizard's or a party hat's sharp tip spikes far past it.
+  for (const k of Object.keys(WEAR)) {
+    const shapeUp = WEAR[k].up, drawIt = WEAR[k].draw;
+    WEAR[k].up = (e, sp) => shapeUp(e, sp) + wl(e) + 1;
+    WEAR[k].draw = function (c, x, y, e, sp, col, col2, now) {
+      c.save();
+      c.lineJoin = "round";
+      try { drawIt.call(this, c, x, y, e, sp, col, col2, now); } finally { c.restore(); }
+    };
   }
 
   // ---- The ground's TEXTURE: vector marks drawn straight onto the canvas ------
@@ -167,6 +487,176 @@
   }
   const WOOD = ["#e8bd7e", "#e0b16f", "#ecc68b"];
   const CONFETTI = ["#ff5e7e", "#ffd24d", "#5ec8ff", "#7be08a", "#c77dff", "#ffa64d"];
+  // ---- What a TASTE looks like (PLAN_GOBBLE.md §15.3) ----------------------
+  // A thing with a taste sounds like itself (hole-main.js) AND shows it, so it
+  // reads with the sound off: a sweet melts his eyes into hearts, a cold thing
+  // makes him shiver, and the noisy families send their noise up from his
+  // face — sound waves, steam, speed lines, robot blips, music notes,
+  // sparkles, clanking stars, confetti, a boing of the rim. One entry per
+  // family in HoleData.TASTES (a law checks both ways). `face` replaces his
+  // eyes for a moment, `fx` is a little burst round his face, and `boing`
+  // squashes and springs the rim (not under reduced motion).
+  const TASTE_LOOK = {
+    sweet: { face: "hearts", fx: "heart", col: "#ff4f7b" },
+    cold: { face: "shiver", fx: "twinkle", col: "#e6f6ff" },
+    honk: { fx: "wave", col: "#ffd24d" },
+    siren: { fx: "wave", col: "#ff4f5e", col2: "#4fa8ff" },
+    choo: { fx: "puff", col: "#ffffff" },
+    horn: { fx: "wave", col: "#9fdcff" },
+    zoom: { fx: "streak", col: "#ffffff" },
+    boing: { boing: true, fx: "bounce", col: "#ffffff" },
+    ding: { fx: "wave", col: "#ffe36e" },
+    ching: { fx: "twinkle", col: "#ffd24d" },
+    clank: { fx: "star", col: "#c9d3dd" },
+    beep: { fx: "blip", col: "#7be08a" },
+    squeak: { fx: "wave", col: "#ff9fd2" },
+    music: { fx: "note", col: "#c77dff" },
+    pop: { fx: "conf" },
+  };
+  const TASTE_S = 1.1;   // a taste face lasts this long (s)
+  const FX_CAP = 240;    // no taste burst is added while this many effects are in flight
+  const BOING_S = 0.5;   // …and a boing of the rim this long
+  const INK_DARK = "#1d1233";
+
+  // ---- The AIR of each place (PLAN_GOBBLE.md §15.4) ------------------------
+  // A little weather over the ground: snow on Snow Day, embers over the
+  // volcano, fireflies in the dark cave, petals in the park … It is drawn in
+  // SCREEN space — a fixed number of specks for the screen whatever the zoom,
+  // so it costs the same at every size — each speck at its own depth, so when
+  // the camera moves the near ones slide past faster than the far ones and the
+  // weather reads as IN the air, not painted on the ground. Not drawn at all
+  // under reduced motion: drifting is all it does.
+  //   n      specks per 100,000 css px² (a phone is about 330,000)
+  //   size   a speck's size at depth 1 (css px)
+  //   vx, vy its drift (css px a second); sway: how far it swings side to side
+  //   col    its colour (a place may give its own, air[1]); null: confetti colours
+  //   draw   one speck: (c, x, y, s, ph, t, col, i) — ph its own phase, 0..1
+  const TAU = Math.PI * 2;
+  const pulse = (t, ph, k) => 0.5 + 0.5 * Math.sin(t * k + ph * TAU);
+  const AIR = {
+    motes: { n: 6, size: 3, vx: 3, vy: -5, sway: 8, col: "#fff6cf",
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.4 + 0.4 * pulse(t, ph, 1.7);
+        c.fillStyle = col; c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill();
+      } },
+    petals: { n: 3.5, size: 8, vx: 14, vy: 22, sway: 22, col: "#ffc2d9",
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.9;
+        c.save(); c.translate(x, y); c.rotate(t * 1.6 + ph * TAU); c.scale(1, 0.45 + 0.55 * pulse(t, ph, 2.4));
+        c.fillStyle = col; c.strokeStyle = shade(col, -0.3); c.lineWidth = 1;
+        c.beginPath(); c.ellipse(0, 0, s, s * 0.62, 0, 0, TAU); c.fill(); c.stroke();
+        c.restore();
+      } },
+    fluff: { n: 3, size: 7, vx: 12, vy: -7, sway: 14, col: "#ffffff",
+      // a dandelion seed: a little ball of fluff on a stalk
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.85;
+        c.strokeStyle = "rgba(29,18,51,0.3)"; c.lineWidth = 2.2;
+        c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + s * 1.5); c.stroke();
+        c.strokeStyle = col; c.lineWidth = 1;
+        c.beginPath();
+        for (let k = 0; k < 7; k++) { const a = -Math.PI + (k / 6) * Math.PI; c.moveTo(x, y); c.lineTo(x + Math.cos(a) * s, y + Math.sin(a) * s); }
+        c.moveTo(x, y); c.lineTo(x, y + s * 1.5);
+        c.stroke();
+      } },
+    dust: { n: 5, size: 3, vx: 18, vy: -3, sway: 6, col: "#d6b27a",
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.35 + 0.3 * pulse(t, ph, 2.1);
+        c.fillStyle = col; c.beginPath(); c.arc(x, y, s * (0.6 + ph * 0.8), 0, TAU); c.fill();
+      } },
+    leaves: { n: 3, size: 10, vx: 16, vy: 20, sway: 26, col: "#7cc95a",
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.92;
+        c.save(); c.translate(x, y); c.rotate(Math.sin(t * 1.8 + ph * TAU) * 0.9 + ph * 3);
+        c.fillStyle = col; c.strokeStyle = shade(col, -0.35); c.lineWidth = 1;
+        c.beginPath(); c.ellipse(0, 0, s, s * 0.45, 0, 0, TAU); c.fill(); c.stroke();
+        c.beginPath(); c.moveTo(-s, 0); c.lineTo(s, 0); c.stroke();
+        c.restore();
+      } },
+    confetti: { n: 4, size: 6, vx: 6, vy: 26, sway: 16, col: null,
+      draw(c, x, y, s, ph, t, col, i) {
+        c.globalAlpha = 0.95;
+        c.save(); c.translate(x, y); c.rotate(t * 3 + ph * TAU); c.scale(1, 0.3 + 0.7 * pulse(t, ph, 5));
+        c.fillStyle = CONFETTI[i % CONFETTI.length]; c.fillRect(-s, -s * 0.45, s * 2, s * 0.9);
+        c.restore();
+      } },
+    sparkles: { n: 3.5, size: 7, vx: 0, vy: -2, sway: 0, col: "#fff6c8",
+      draw(c, x, y, s, ph, t, col) {
+        const k = pulse(t, ph, 2.6);
+        if (k < 0.25) return;
+        c.globalAlpha = k;
+        c.fillStyle = "rgba(29,18,51,0.35)"; starPath(c, x, y, s * k * 1.3, s * k * 0.45, 4); c.fill();
+        c.fillStyle = col; starPath(c, x, y, s * k, s * k * 0.3, 4); c.fill();
+      } },
+    embers: { n: 4, size: 3.4, vx: 6, vy: -26, sway: 10, col: "#ffb347",
+      draw(c, x, y, s, ph, t, col) {
+        const k = 0.55 + 0.45 * pulse(t, ph, 9);
+        c.globalAlpha = 0.35 * k; c.fillStyle = "#ff5a1f"; c.beginPath(); c.arc(x, y, s * 2.2, 0, TAU); c.fill();
+        c.globalAlpha = k; c.fillStyle = col; c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill();
+      } },
+    snow: { n: 7, size: 4.5, vx: 6, vy: 30, sway: 14, col: "#ffffff",
+      // a faint dark edge, so a flake still reads over the snow itself
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.95;
+        c.fillStyle = col; c.strokeStyle = "rgba(29,18,51,0.22)"; c.lineWidth = 1;
+        c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill(); c.stroke();
+      } },
+    clouds: { n: 0.5, size: 26, vx: 9, vy: 0, sway: 0, col: "#ffffff",
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.5;
+        c.fillStyle = col;
+        c.beginPath();
+        c.arc(x - s * 0.9, y + s * 0.15, s * 0.7, 0, TAU);
+        c.arc(x, y - s * 0.15, s, 0, TAU);
+        c.arc(x + s * 0.95, y + s * 0.1, s * 0.75, 0, TAU);
+        c.fill();
+      } },
+    stars: { n: 4, size: 4.5, vx: 0, vy: 0, sway: 0, col: "#fff9d9",
+      draw(c, x, y, s, ph, t, col) {
+        const k = 0.35 + 0.65 * pulse(t, ph, 3.1);
+        c.globalAlpha = k; c.fillStyle = col;
+        starPath(c, x, y, s * (0.7 + 0.5 * k), s * 0.3, 4); c.fill();
+      } },
+    fireflies: { n: 3, size: 3.6, vx: 0, vy: -3, sway: 26, col: "#eaff8f",
+      // drawn AFTER the dark, so they glow in it
+      draw(c, x, y, s, ph, t, col) {
+        const k = pulse(t, ph, 2.2);
+        if (k < 0.15) return;
+        c.globalAlpha = 0.3 * k; c.fillStyle = col; c.beginPath(); c.arc(x, y, s * 3.2, 0, TAU); c.fill();
+        c.globalAlpha = k; c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill();
+      } },
+    bubbles: { n: 3, size: 8, vx: 0, vy: -20, sway: 12, col: "#ffffff",
+      draw(c, x, y, s, ph, t, col) {
+        c.globalAlpha = 0.8;
+        c.strokeStyle = "rgba(29,18,51,0.25)"; c.lineWidth = 3; c.beginPath(); c.arc(x, y, s, 0, TAU); c.stroke();
+        c.strokeStyle = col; c.lineWidth = 1.4; c.beginPath(); c.arc(x, y, s, 0, TAU); c.stroke();
+        c.fillStyle = col; c.beginPath(); c.arc(x - s * 0.35, y - s * 0.35, s * 0.22, 0, TAU); c.fill();
+      } },
+    sprinkles: { n: 4.5, size: 5.5, vx: 4, vy: 24, sway: 10, col: null,
+      draw(c, x, y, s, ph, t, col, i) {
+        c.globalAlpha = 0.95;
+        const a = t * 2.2 + ph * TAU, dx = Math.cos(a) * s, dy = Math.sin(a) * s;
+        c.lineCap = "round";
+        c.strokeStyle = "rgba(29,18,51,0.3)"; c.lineWidth = s * 0.7 + 1.5;
+        c.beginPath(); c.moveTo(x - dx, y - dy); c.lineTo(x + dx, y + dy); c.stroke();
+        c.strokeStyle = CONFETTI[i % CONFETTI.length]; c.lineWidth = s * 0.7;
+        c.beginPath(); c.moveTo(x - dx, y - dy); c.lineTo(x + dx, y + dy); c.stroke();
+      } },
+    notes: { n: 2.5, size: 7, vx: 4, vy: -14, sway: 16, col: "#c77dff",
+      draw(c, x, y, s, ph, t, col, i) {
+        c.globalAlpha = 0.9;
+        c.fillStyle = [col, "#5ec8ff", "#ff5e7e"][i % 3]; c.strokeStyle = OUTLINE; c.lineWidth = 1.2;
+        c.beginPath(); c.ellipse(x, y, s, s * 0.74, -0.4, 0, TAU); c.fill(); c.stroke();
+        c.beginPath(); c.moveTo(x + s * 0.82, y - s * 0.2); c.lineTo(x + s * 0.82, y - s * 3);
+        c.quadraticCurveTo(x + s * 2.1, y - s * 2.3, x + s * 1.7, y - s * 1.4); c.stroke();
+      } },
+  };
+  const AIR_MAX = 48;    // never more specks than this, on the biggest screen
+  // The FINALE's fireworks (§15.5): when each one is launched (seconds after
+  // the finale goes down) and how long it takes to rise before it bursts — the
+  // page plays a pop at each burst from these same numbers. All six burst
+  // within two seconds: the win box comes up soon after and covers the field.
+  const FIREWORKS = { at: [0.2, 0.45, 0.7, 0.95, 1.2, 1.45], rise: 0.4, burst: 1.1 };
   const GROUND_ART = {
     wood: {
       // planks run across the room, 8 units wide, in three tones
@@ -1309,10 +1799,16 @@
     let clock = 0;
     let shakeT = 0;
     let happyUntil = 0, wideUntil = 0, lookUp = 0, blinkAt = 3, blinkUntil = 0, starUntil = 0;
+    let tasteFace = null, tasteUntil = 0, boingUntil = 0;   // §15.3
+    let lastSlurp = 0, lastStreaks = 0;                       // §15.6
     let lastGoal = null, lastGold = 0, lastFace = null, goalHopAt = 0;
     const hopUntil = new Map();
     let arrow = null, noBiteSince = -1;
-    let lastDraw = { objects: 0, standing: 0, falling: 0, decals: 0, ground: false, ok: false };
+    let lastDraw = { objects: 0, standing: 0, falling: 0, decals: 0, ground: false, ok: false, tastes: {} };
+    let tasteMarks = {};   // §15.3: the marks each kind of taste burst painted this frame (the tests read them)
+    // §15.4/§15.5: the place's air (its specks, and how far the camera has
+    // moved them), the finale's fireworks and the burst of air it blows out
+    let air = null, lastAir = 0, fireworks = [], airBurst = null, lastFw = 0, lastBurst = 0;
     let frames = 0;   // every draw() that painted (the tests read it)
     // phase 4: the place's shape and what is in it, worked out once per place
     let geo = null, landRings = [], blockSets = [], bridges = [], tracks = [], flows = [], portals = [];
@@ -1354,7 +1850,7 @@
       // 19px at the biggest sizes). The win's look at the whole island is not
       // following anyone, and keeps its frame.
       let y0 = -RULES.TOP_SLACK - MARGIN;
-      if (mode !== "whole") y0 = Math.min(y0, st.hole.y - (faceUp(st.hole.r * s, !!L.goalOf(st)) + 2) / s);
+      if (mode !== "whole") y0 = Math.min(y0, st.hole.y - (faceUp(st.hole.r * s, !!L.goalOf(st), def && def.wear) + 2) / s);
       const x0 = -MARGIN, x1 = st.W + MARGIN, y1 = st.H + THICK + MARGIN;
       c.x = x1 - x0 <= 2 * hw ? (x0 + x1) / 2 : clamp(c.x, x0 + hw, x1 - hw);
       c.y = y1 - y0 <= 2 * hh ? (y0 + y1) / 2 : clamp(c.y, y0 + hh, y1 - hh);
@@ -1413,6 +1909,8 @@
       def = DATA.SCENES.find((d) => d.id === st.id) || DATA.SCENES[0];
       mode = "follow";
       fx.length = 0; hopUntil.clear(); shakeT = 0; starUntil = 0; goalHopAt = 0;
+      tasteFace = null; tasteUntil = 0; boingUntil = 0;
+      air = null; fireworks = []; airBurst = null;
       arrow = null; noBiteSince = -1;
       if (sprites.size > 120) sprites.clear();
       backdrop = null;
@@ -2240,11 +2738,68 @@
       lastGoal = { id: g.id, x, y };
     }
 
+    // ---- the super slurp (§15.6) ---------------------------------------------------
+    // While it lasts, arms of a swirl reach out over the ground round him as
+    // far as the slurp pulls (for the smallest thing — a bigger thing's reach
+    // is a little longer), turning inward; and a thing it has hold of from
+    // afar streaks in. Dark under white, so it reads on every floor; the
+    // swirl stands still under reduced motion, and fades over its last 0.4s.
+    function drawSlurp(now) {
+      lastSlurp = 0;
+      if (!(st.slurpT > 0)) return;  // (the engine ends it at the win)
+      const h = st.hole, S = RULES.SLURP, P = RULES.PULL;
+      const cx = sx(h.x), cy = sy(h.y);
+      const r1 = h.r * 1.15 * view.s;
+      const r2 = (h.r * (1 + P[1] + S.reach[1]) + P[0] + S.reach[0]) * view.s;
+      const a = clamp(st.slurpT / 0.4, 0, 1);
+      const spin = reduceMotion() ? 0 : -now * 3.2;
+      const w = Math.max(2.5, r1 * 0.09);
+      const ARMS = 4;
+      for (let k = 0; k < ARMS; k++) {
+        ctx.beginPath();
+        for (let t = 0; t <= 1.0001; t += 0.05) {
+          const ang = spin + (k / ARMS) * TAU + t * 2.4, rr = r2 - (r2 - r1) * t;
+          const px = cx + Math.cos(ang) * rr, py = cy + Math.sin(ang) * rr * SQ;
+          if (t === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.lineCap = "round";
+        ctx.lineWidth = w + 4; ctx.strokeStyle = "rgba(40,20,80," + (0.42 * a).toFixed(3) + ")"; ctx.stroke();
+        ctx.lineWidth = w; ctx.strokeStyle = (k % 2 ? "rgba(255,226,110," : "rgba(255,255,255,") + (0.9 * a).toFixed(3) + ")"; ctx.stroke();
+        lastSlurp++;
+      }
+      // the edge of the pull: a faint ring
+      ctx.lineWidth = Math.max(1.5, w * 0.45); ctx.strokeStyle = "rgba(255,255,255," + (0.35 * a).toFixed(3) + ")";
+      ellipse(ctx, cx, cy, r2, r2 * SQ); ctx.stroke();
+      ctx.lineCap = "butt";
+    }
+    // Speed lines behind a thing streaking in: three, from its side away
+    // from Gobble, at its middle height.
+    function streak(o, x, y) {
+      const h = st.hole, R = o.r * view.s;
+      const my = y - VIS * R * 0.5;
+      let dx = x - sx(h.x), dy = my - sy(h.y);
+      const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+      const L = R * 1.7, ox = -dy, oy = dx;
+      ctx.lineCap = "round";
+      for (let k = -1; k <= 1; k++) {
+        const bx = x + dx * R * 0.7 + ox * k * R * 0.42, by = my + dy * R * 0.7 + oy * k * R * 0.42;
+        const len = L * (k ? 0.7 : 1);
+        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + dx * len, by + dy * len);
+        ctx.lineWidth = Math.max(2, R * 0.16) + 3; ctx.strokeStyle = "rgba(40,20,80,0.4)"; ctx.stroke();
+        ctx.lineWidth = Math.max(2, R * 0.16); ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.stroke();
+      }
+      ctx.lineCap = "butt";
+    }
+
     // ---- the hole ---------------------------------------------------------------
     function drawHole(now) {
       const h = st.hole, pal = HOLES[def.hole] || HOLES.gobble;
       const cx = sx(h.x), cy = sy(h.y), R = h.r * view.s, rx = R, ry = R * SQ;
       const chomp = happyUntil > now ? 1 + 0.06 * Math.sin((happyUntil - now) * 26) : 1;
+      // a boing (§15.3): squash, spring, settle — the eyes stay where they are
+      const b = boingUntil > now && !reduceMotion() ? (boingUntil - now) / BOING_S : 0;
+      const bs = b ? Math.sin((1 - b) * Math.PI * 3) * b : 0;
+      const cX = chomp * (1 + 0.14 * bs), cY = chomp * (1 - 0.2 * bs);
       const lw = Math.max(2.5, R * 0.13);
       if (pal.glow) {
         ctx.fillStyle = pal.glow;
@@ -2252,12 +2807,12 @@
       }
       // the dark ring the ground sinks into
       ctx.fillStyle = "rgba(0,0,0,0.22)";
-      ellipse(ctx, cx, cy + ry * 0.06, rx * 1.1 * chomp, ry * 1.12 * chomp); ctx.fill();
+      ellipse(ctx, cx, cy + ry * 0.06, rx * 1.1 * cX, ry * 1.12 * cY); ctx.fill();
       // the inside: dark at the bottom, the far wall catching a little light
       const g = ctx.createRadialGradient(cx, cy + ry * 0.35, 0, cx, cy + ry * 0.2, rx * 1.05);
       g.addColorStop(0, pal.deep); g.addColorStop(0.62, pal.deep); g.addColorStop(1, pal.wall);
       ctx.fillStyle = g;
-      ellipse(ctx, cx, cy, rx * chomp, ry * chomp); ctx.fill();
+      ellipse(ctx, cx, cy, rx * cX, ry * cY); ctx.fill();
       // a slow swirl inside (still under reduced motion)
       ctx.save();
       ellipse(ctx, cx, cy, rx * 0.92, ry * 0.92); ctx.clip();
@@ -2278,12 +2833,12 @@
       // far wall), then the front lip over the top of it
       ctx.lineWidth = lw;
       ctx.strokeStyle = pal.lo;
-      ctx.beginPath(); ctx.ellipse(cx, cy, rx * chomp, ry * chomp, 0, Math.PI, Math.PI * 2); ctx.stroke();
-      drawFalling(cx, cy, rx * chomp, ry * chomp);
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx * cX, ry * cY, 0, Math.PI, Math.PI * 2); ctx.stroke();
+      drawFalling(cx, cy, rx * cX, ry * cY);
       ctx.strokeStyle = pal.rim;
-      ctx.beginPath(); ctx.ellipse(cx, cy, rx * chomp, ry * chomp, 0, 0, Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx * cX, ry * cY, 0, 0, Math.PI); ctx.stroke();
       ctx.strokeStyle = pal.hi; ctx.lineWidth = Math.max(1, lw * 0.35);
-      ctx.beginPath(); ctx.ellipse(cx, cy - lw * 0.15, rx * chomp, ry * chomp, 0, 0.35, Math.PI - 0.35); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, cy - lw * 0.15, rx * cX, ry * cY, 0, 0.35, Math.PI - 0.35); ctx.stroke();
       drawEyes(now, cx, cy, R, ry);
     }
 
@@ -2335,22 +2890,39 @@
       if (!reduceMotion() && now > blinkAt) { blinkUntil = now + 0.12; blinkAt = now + 2.5 + ((now * 997) % 3); }
       const blink = blinkUntil > now;
       const starry = starUntil > now;
-      const happy = happyUntil > now && !starry, wide = wideUntil > now || starry;
+      // a taste face (§15.3) — a treasure's star eyes still win
+      const taste = !starry && tasteUntil > now ? tasteFace : null;
+      const happy = happyUntil > now && !starry && !taste, wide = wideUntil > now || starry;
       const k = wide ? EYE.wide : 1;
       // the top of his face this frame (the camera keeps it on screen)
-      lastFace = { top: ey - eR * k * 1.1 - Math.max(1.5, eR * k * 0.14) / 2, bottom: cy + ry, crown: false };
+      lastFace = { top: ey - eR * k * 1.1 - Math.max(1.5, eR * k * 0.14) / 2, bottom: cy + ry, crown: false, taste };
       for (const side of [-1, 1]) {
         const ex = cx + side * R * 0.42;
         const r = eR * k;
         ctx.save();
         ctx.translate(ex, ey);
-        if (happy) {
+        if (taste === "hearts") {
+          // a sweet: his eyes melt into hearts, beating (unless motion is
+          // reduced) — kept inside the eye's own outline, so the camera's
+          // headroom for his face still holds
+          const beat = reduceMotion() ? 1 : 1 + 0.07 * Math.max(0, Math.sin((tasteUntil - now) * 14));
+          // at its biggest beat the heart's top is 0.83r above the eye's
+          // middle, inside the eye's own 1.1r
+          const hs = r * 1.15 * beat;
+          ctx.fillStyle = "#ff4f7b"; ctx.strokeStyle = INK_DARK; ctx.lineWidth = Math.max(1.5, r * 0.14); ctx.lineJoin = "round";
+          heartPath(ctx, 0, -r * 0.1, hs); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "rgba(255,255,255,0.85)";
+          ctx.beginPath(); ctx.arc(-hs * 0.4, -r * 0.1 - hs * 0.2, hs * 0.15, 0, Math.PI * 2); ctx.fill();
+        } else if (happy) {
           // ^ ^ — a happy squint after every gulp
           ctx.strokeStyle = "#1d1233"; ctx.lineWidth = Math.max(2, r * 0.3); ctx.lineCap = "round";
           ctx.beginPath(); ctx.arc(0, r * 0.35, r * 0.7, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
         } else {
+          // a cold thing: icy whites, small pupils, and his eyes shiver
+          const cold = taste === "shiver";
+          if (cold && !reduceMotion()) ctx.translate(Math.sin(now * 55 + side) * r * 0.08, 0);
           ctx.scale(1, blink ? 0.12 : 1);
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = cold ? "#d8f1ff" : "#ffffff";
           ctx.strokeStyle = "#1d1233"; ctx.lineWidth = Math.max(1.5, r * 0.14);
           ctx.beginPath(); ctx.ellipse(0, 0, r, r * 1.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
           if (!blink && starry) {
@@ -2360,15 +2932,26 @@
             ctx.fill(); ctx.stroke();
           } else if (!blink) {
             ctx.fillStyle = "#1d1233";
-            ctx.beginPath(); ctx.arc(px * r * 0.36, py * r * 0.36, r * 0.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(px * r * 0.36, py * r * 0.36, r * (cold ? 0.32 : 0.5), 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "#ffffff";
             ctx.beginPath(); ctx.arc(px * r * 0.36 - r * 0.17, py * r * 0.36 - r * 0.2, r * 0.16, 0, Math.PI * 2); ctx.fill();
           }
         }
         ctx.restore();
       }
+      // what he wears in this place (§15.2) — a hat gives way to the crown
+      const crowned = !!L.goalOf(st);
+      lastFace.wear = null;
+      const w = def.wear && WEAR[def.wear[0]];
+      if (w && !(crowned && w.slot === "top")) {
+        ctx.save();
+        w.draw(ctx, cx, ey, eR * k, R * 0.42, def.wear[1] || "#ff5e7e", def.wear[2], now);
+        ctx.restore();
+        lastFace.top = Math.min(lastFace.top, ey - w.up(eR * k, R * 0.42));
+        lastFace.wear = def.wear[0];
+      }
       // big enough for the finale: King Gobble
-      if (L.goalOf(st)) {
+      if (crowned) {
         const size = eR * CROWN.size, my = ey - eR * CROWN.lift;
         glyph("👑", cx, my, size);
         lastFace.top = Math.min(lastFace.top, my - size / 2);
@@ -2392,6 +2975,9 @@
           fx.push({ k: "crumb", x: h.x, y: h.y, vx: Math.cos(a) * (10 + rr() * 18), vy: Math.sin(a) * (16 + rr() * 22),
             t0: now, life: 0.55 + rr() * 0.3, size: 0.5 + rr() * 0.6 + (ev.tier || 1) * 0.12, color });
         }
+        // a TASTE shows itself too (§15.3), so it reads with the sound off
+        const fam = ev.vortex || ev.finale ? null : DATA.tasteOf(ev.e);
+        if (fam && TASTE_LOOK[fam]) tasteFx(TASTE_LOOK[fam], ev, now);
         if (ev.finale && !reduceMotion()) shakeT = now + 0.55;
         if (ev.gold) {
           // a TREASURE: a ring and a burst of gold stars, and his eyes turn
@@ -2416,6 +3002,10 @@
         for (const o of st.objects) {
           if (o.st === 0 && o.tier === ev.level + 1) hopUntil.set(o.id, now + 0.55 + (o.id % 5) * 0.06);
         }
+      } else if (ev.type === "slurp") {
+        // ten in a row (§15.6): his eyes go wide and a ring bursts out
+        wideUntil = now + 0.8;
+        fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 0.7, r0: h.r * 1.1, white: true });
       } else if (ev.type === "bump") {
         lookUp = now + 0.6;
       } else if (ev.type === "pop" || ev.type === "shake") {
@@ -2469,15 +3059,296 @@
         intro = null;
         fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 1.1, r0: h.r * 1.1 });
         fx.push({ k: "burp", x: h.x, y: h.y, t0: now + 0.45, life: 1.2 });
+        // fireworks over the island, and a burst of the place's own air
+        return { fireworks: launchFinale(now) };
+      }
+      return null;
+    }
+
+    // ---- the air (§15.4) -------------------------------------------------------
+    function airOf() { return def && def.air ? AIR[def.air[0]] : null; }
+    function drawAir(now) {
+      lastAir = 0;
+      const A = airOf();
+      if (!A || reduceMotion() || !cam) return;
+      const n = clamp(Math.round(A.n * (cssW * cssH) / 100000), 2, AIR_MAX);
+      const key = def.id + ":" + n;
+      if (!air || air.key !== key) {
+        const rr = rng(hashStr("air" + def.id));
+        const specks = [];
+        for (let i = 0; i < n; i++) specks.push({ u: rr(), v: rr(), d: 0.6 + rr() * 0.8, ph: rr(), i });
+        air = { key, specks, ox: air ? air.ox : 0, oy: air ? air.oy : 0, last: null };
+      }
+      // the camera's move since the last frame, in screen px: a speck at depth
+      // d slides d times as far as the ground does
+      if (air.last) { air.ox += (cam.x - air.last.x) * view.s; air.oy += (cam.y - air.last.y) * view.s; }
+      air.last = { x: cam.x, y: cam.y };
+      const col = def.air[1] || A.col;
+      const big = clamp(Math.min(cssW, cssH) / 390, 1, 1.8);   // an iPad's specks are bigger, never smaller
+      const pad = A.size * big * 3 + 30, W = cssW + 2 * pad, H = cssH + 2 * pad;
+      ctx.save();
+      for (const p of air.specks) {
+        let x = p.u * W + A.vx * now * p.d - air.ox * p.d + Math.sin(now * 0.9 + p.ph * TAU) * A.sway;
+        let y = p.v * H + A.vy * now * p.d - air.oy * p.d;
+        x = ((x % W) + W) % W - pad; y = ((y % H) + H) % H - pad;
+        A.draw(ctx, x, y, A.size * big * (0.7 + p.d * 0.45), p.ph, now, col, p.i);
+        lastAir++;
+      }
+      ctx.restore();
+    }
+
+    // ---- the finale's fireworks and its burst of air (§15.5) --------------------
+    // Launched on the win, in screen space, in the place's own colours: its
+    // costume's, its air's, gold and white. Not under reduced motion. Returns
+    // when each one BURSTS (seconds from now), so the page can pop at the same
+    // moments — the timing has one owner.
+    function launchFinale(now) {
+      fireworks = []; airBurst = null;
+      if (reduceMotion()) return [];
+      const A = airOf();
+      const cols = [(def.wear && def.wear[1]) || "#ff5e7e", (def.air && def.air[1]) || (A && A.col) || "#5ec8ff", GOLD.hi, "#ffffff"];
+      const rr = rng(hashStr("fireworks" + def.id));
+      fireworks = FIREWORKS.at.map((d, i) => ({ t0: now + d, x: 0.14 + rr() * 0.72, y: 0.14 + rr() * 0.3,
+        col: cols[i % cols.length], col2: cols[(i + 1) % cols.length], n: 14 + Math.floor(rr() * 6), spin: rr() * TAU }));
+      if (A) {
+        const parts = [];
+        const up = A.vy < 0 ? -1 : 1;   // falling weather falls, rising weather rises
+        for (let i = 0; i < 26; i++) {
+          const a = -Math.PI * (0.05 + 0.9 * rr()), sp = 110 + rr() * 170;
+          parts.push({ vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, ph: rr(), i, g: up * (70 + rr() * 60) });
+        }
+        airBurst = { t0: now, life: 1.8, parts };
+      }
+      return FIREWORKS.at.map((d) => d + FIREWORKS.rise);
+    }
+    function drawFireworks(now) {
+      lastFw = 0; lastBurst = 0;
+      if (airBurst) {
+        const t = now - airBurst.t0;
+        const A = airOf();
+        if (t > airBurst.life || !A) airBurst = null;
+        else if (t >= 0) {
+          const h = st.hole, x0 = sx(h.x), y0 = sy(h.y) - h.r * view.s * SQ;
+          const col = def.air[1] || A.col;
+          ctx.save();
+          for (const p of airBurst.parts) {
+            const x = x0 + p.vx * t, y = y0 + p.vy * t + p.g * t * t;
+            A.draw(ctx, x, y, A.size * 1.25, p.ph, now, col, p.i);
+            lastBurst++;
+          }
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        }
+      }
+      if (!fireworks.length) return;
+      const R0 = Math.min(cssW, cssH) * 0.22;
+      ctx.save();
+      ctx.lineCap = "round";
+      for (let i = fireworks.length - 1; i >= 0; i--) {
+        const f = fireworks[i], t = now - f.t0;
+        if (t < 0) continue;
+        if (t > FIREWORKS.rise + FIREWORKS.burst) { fireworks.splice(i, 1); continue; }
+        const X = f.x * cssW, Y = f.y * cssH;
+        if (t < FIREWORKS.rise) {
+          // the rocket rising, with a short trail
+          const q = t / FIREWORKS.rise, e = 1 - (1 - q) * (1 - q);
+          const y = cssH + 10 + (Y - cssH - 10) * e;
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = "rgba(29,18,51,0.4)"; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.moveTo(X, y + 22); ctx.lineTo(X, y); ctx.stroke();
+          ctx.strokeStyle = f.col2; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.moveTo(X, y + 22); ctx.lineTo(X, y); ctx.stroke();
+          lastFw++;
+          continue;
+        }
+        // the burst: sparks streaking out from the middle, drooping and fading
+        const q = (t - FIREWORKS.rise) / FIREWORKS.burst, e = 1 - Math.pow(1 - q, 3);
+        ctx.globalAlpha = q < 0.55 ? 1 : 1 - (q - 0.55) / 0.45;
+        const drop = q * q * R0 * 0.55, trail = R0 * 0.4 * (1 - q);
+        for (let k = 0; k < f.n; k++) {
+          const a = f.spin + (k / f.n) * TAU, r = R0 * e, ca = Math.cos(a), sa = Math.sin(a);
+          const x = X + ca * r, y = Y + sa * r + drop;
+          const x0 = X + ca * Math.max(0, r - trail), y0 = Y + sa * Math.max(0, r - trail) + drop * 0.7;
+          const s = 3.2 * (1 - q * 0.5), col = k % 2 ? f.col2 : f.col;
+          ctx.strokeStyle = "rgba(29,18,51,0.45)"; ctx.lineWidth = s * 1.3 + 2.5;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x, y); ctx.stroke();
+          ctx.strokeStyle = col; ctx.lineWidth = s * 1.3;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x, y); ctx.stroke();
+          ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, s, 0, TAU); ctx.fill();
+        }
+        lastFw++;
+      }
+      ctx.restore();
+    }
+
+    // A taste's face and its little burst. A burst kind marked `face` is drawn
+    // round his face wherever he goes (faceGeo), in units of his eye, so it
+    // scales with him; "star" and "conf" are the world-anchored kinds the
+    // other events already use.
+    function tasteFx(look, ev, now) {
+      if (look.face) { tasteFace = look.face; tasteUntil = now + TASTE_S; }
+      if (look.boing) boingUntil = now + BOING_S;
+      const k = look.fx;
+      if (!k || fx.length > FX_CAP) return;   // a long run of gulps never floods the effects
+      const rr = rng(hashStr("taste" + ev.id));
+      const h = st.hole;
+      if (k === "star") {
+        for (let i = 0; i < 6; i++) {
+          const a = -Math.PI * (0.1 + 0.8 * (i / 5)) + (rr() - 0.5) * 0.3, sp = 20 + rr() * 12;
+          fx.push({ k: "star", taste: true, x: h.x, y: h.y - h.r * 0.5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t0: now, life: 0.8, size: Math.max(1.6, h.r * 0.12) + rr() * 0.8, col: look.col });
+        }
+      } else if (k === "conf") {
+        for (let i = 0; i < 14; i++) {
+          const a = -Math.PI * (0.1 + 0.8 * rr()), sp = 14 + rr() * 20;
+          fx.push({ k: "conf", taste: true, x: h.x, y: h.y - h.r * 0.5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+            t0: now, life: 0.8 + rr() * 0.4, size: 0.6 + rr() * 0.5, color: CONFETTI[i % CONFETTI.length], a: rr() * 6 });
+        }
+      } else {
+        const n = { heart: 3, twinkle: 5, wave: 3, puff: 3, streak: 5, bounce: 3, blip: 6, note: 3 }[k] || 3;
+        const bits = [];
+        for (let i = 0; i < n; i++) bits.push({ i, u: rr() * 2 - 1, v: rr(), d: rr() * 0.25 });
+        fx.push({ k, face: true, t0: now, life: k === "wave" ? 0.8 : k === "streak" ? 0.55 : 1.0, col: look.col, col2: look.col2, bits });
       }
     }
 
+    // Where his face is on screen this frame: the eyes' line, an eye's radius
+    // and half the gap between the eyes (drawEyes works these out the same way).
+    function faceGeo() {
+      const h = st.hole, R = h.r * view.s, ry = R * SQ, eR = eyeR(R);
+      return { cx: sx(h.x), ey: sy(h.y) - ry - eR * 0.25, eR, sp: R * 0.42, R };
+    }
+
+    // One taste burst round his face (§15.3). Every mark is drawn dark under
+    // bright (the fort's law), so a white puff still reads on the snow and a
+    // yellow wave on the sand.
+    function drawTaste(f, t, p) {
+      // in units of his eye — never smaller than a 12px eye, so a tiny
+      // Gobble's taste still reads
+      const g = faceGeo(), e = Math.max(g.eR, 12), still = reduceMotion();
+      const fade = p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4;
+      let marks = 0;
+      ctx.save();
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      if (f.k === "wave") {
+        // sound waves — (( )) either side of his face, rolling outward
+        for (const side of [-1, 1]) {
+          for (const b of f.bits) {
+            const q = clamp(p * 1.5 - b.i * 0.22, 0, 1);
+            if (q <= 0 || q >= 1) continue;
+            const x = g.cx + side * (g.sp + e * 1.15), r = e * (0.6 + q * 1.5);
+            const a0 = side > 0 ? -0.75 : Math.PI - 0.75, a1 = a0 + 1.5;
+            const w = Math.max(3, e * 0.22) * (1 - q * 0.4);
+            ctx.globalAlpha = 1 - q;
+            ctx.strokeStyle = "rgba(29,18,51,0.5)"; ctx.lineWidth = w + 2.5;
+            ctx.beginPath(); ctx.arc(x, g.ey, r, a0, a1); ctx.stroke();
+            ctx.strokeStyle = f.col2 && b.i % 2 ? f.col2 : f.col; ctx.lineWidth = w;
+            ctx.beginPath(); ctx.arc(x, g.ey, r, a0, a1); ctx.stroke(); marks++;
+          }
+        }
+      } else if (f.k === "heart") {
+        // a sweet: little hearts float up from his face
+        for (const b of f.bits) {
+          const q = clamp(p * 1.25 - b.d, 0, 1);
+          if (q <= 0) continue;
+          const x = g.cx + (b.i - 1) * g.sp * 0.75 + (still ? 0 : Math.sin(t * 6 + b.i * 2) * e * 0.25);
+          const y = g.ey - e * (1.2 + q * 2.6), s = e * (0.46 + b.v * 0.16);
+          ctx.globalAlpha = q < 0.75 ? 1 : 1 - (q - 0.75) / 0.25;
+          ctx.fillStyle = f.col; ctx.strokeStyle = INK_DARK; ctx.lineWidth = Math.max(1.2, s * 0.18);
+          heartPath(ctx, x, y, s); ctx.fill(); ctx.stroke(); marks++;
+        }
+      } else if (f.k === "twinkle") {
+        // four-point sparkles popping round his face (frost, or a shine)
+        for (const b of f.bits) {
+          const q = clamp(p * 1.3 - b.d, 0, 1);
+          if (q <= 0 || q >= 1) continue;
+          const x = g.cx + b.u * g.sp * 1.7, y = g.ey - e * (0.5 + b.v * 1.6);
+          const s = e * 0.72 * Math.sin(q * Math.PI);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = "rgba(29,18,51,0.45)";
+          starPath(ctx, x, y, s * 1.25, s * 0.42, 4); ctx.fill();
+          ctx.fillStyle = f.col;
+          starPath(ctx, x, y, s, s * 0.3, 4); ctx.fill(); marks++;
+        }
+      } else if (f.k === "puff") {
+        // a little train: puffs of steam rising
+        for (const b of f.bits) {
+          const q = clamp(p * 1.3 - b.i * 0.18, 0, 1);
+          if (q <= 0 || q >= 1) continue;
+          const x = g.cx + (b.i - 1) * e * 0.7 + (still ? 0 : q * e * 0.6 * b.u);
+          const y = g.ey - e * (1.0 + q * 2.8), r = e * (0.5 + q * 0.6);
+          ctx.globalAlpha = q < 0.6 ? 1 : 1 - (q - 0.6) / 0.4;
+          ctx.fillStyle = f.col; ctx.strokeStyle = "rgba(29,18,51,0.45)"; ctx.lineWidth = Math.max(1.5, e * 0.1);
+          ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); marks++;
+        }
+      } else if (f.k === "streak") {
+        // a rocket or a plane: speed lines shooting up past his face
+        for (const b of f.bits) {
+          const q = clamp(p * 1.2 - b.d * 0.6, 0, 1);
+          if (q <= 0 || q >= 1) continue;
+          const x = g.cx + b.u * (g.sp + e) * 1.2, y0 = g.ey - e * (0.4 + q * 3.2), len = e * (1.0 + q * 1.3);
+          ctx.globalAlpha = 1 - q;
+          ctx.strokeStyle = "rgba(29,18,51,0.5)"; ctx.lineWidth = Math.max(3, e * 0.2) + 2.5;
+          ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 - len); ctx.stroke();
+          ctx.strokeStyle = f.col; ctx.lineWidth = Math.max(3, e * 0.2);
+          ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 - len); ctx.stroke(); marks++;
+        }
+      } else if (f.k === "bounce") {
+        // a ball: little bounce marks curving up either side of his face
+        for (const side of [-1, 1]) {
+          ctx.save(); ctx.translate(g.cx, g.ey); ctx.scale(side, 1);
+          for (const b of f.bits) {
+            const q = still ? 0.5 : clamp(p * 1.4 - b.i * 0.15, 0, 1);
+            const x = g.sp + e * (0.9 + b.i * 0.45), y = e * (0.6 - b.i * 0.55) - q * e * 0.6;
+            ctx.globalAlpha = fade;
+            for (const [col, w] of [["rgba(29,18,51,0.5)", Math.max(3, e * 0.2) + 2.5], [f.col, Math.max(3, e * 0.2)]]) {
+              ctx.strokeStyle = col; ctx.lineWidth = w;
+              ctx.beginPath(); ctx.arc(x, y, e * 0.6, -1.9, -0.5); ctx.stroke();
+            }
+            marks++;
+          }
+          ctx.restore();
+        }
+      } else if (f.k === "blip") {
+        // a robot or a radio: little square blips that blink as they rise
+        for (const b of f.bits) {
+          const q = clamp(p * 1.2 - b.d, 0, 1);
+          if (q <= 0 || q >= 1) continue;
+          if (!still && Math.floor(t * 12 + b.i) % 3 === 0) continue;
+          const x = g.cx + b.u * (g.sp + e) * 1.2, y = g.ey - e * (0.5 + q * 2.4 + b.v * 0.6), s = e * 0.38;
+          ctx.globalAlpha = 1 - q * 0.6;
+          ctx.fillStyle = INK_DARK; ctx.fillRect(x - s / 2 - 1.5, y - s / 2 - 1.5, s + 3, s + 3);
+          ctx.fillStyle = f.col; ctx.fillRect(x - s / 2, y - s / 2, s, s); marks++;
+        }
+      } else if (f.k === "note") {
+        // music: notes float up, swaying
+        const cols = [f.col, "#5ec8ff", "#ff5e7e"];
+        for (const b of f.bits) {
+          const q = clamp(p * 1.25 - b.i * 0.15, 0, 1);
+          if (q <= 0 || q >= 1) continue;
+          const x = g.cx + (b.i - 1) * g.sp * 0.8 + (still ? 0 : Math.sin(t * 5 + b.i * 2.1) * e * 0.35);
+          const y = g.ey - e * (1.0 + q * 2.6), hr = e * 0.42;
+          ctx.globalAlpha = q < 0.7 ? 1 : 1 - (q - 0.7) / 0.3;
+          ctx.fillStyle = cols[b.i % 3]; ctx.strokeStyle = INK_DARK; ctx.lineWidth = Math.max(1.2, hr * 0.28);
+          ctx.beginPath(); ctx.ellipse(x, y, hr, hr * 0.74, -0.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          const sx0 = x + hr * 0.82;
+          ctx.beginPath(); ctx.moveTo(sx0, y - hr * 0.2); ctx.lineTo(sx0, y - hr * 3.1);
+          ctx.quadraticCurveTo(sx0 + hr * 1.3, y - hr * 2.4, sx0 + hr * 0.9, y - hr * 1.5);
+          ctx.stroke(); marks++;
+        }
+      }
+      ctx.restore();
+      tasteMarks[f.k] = (tasteMarks[f.k] || 0) + marks;
+    }
+
     function drawFx(now) {
+      tasteMarks = {};
       for (let i = fx.length - 1; i >= 0; i--) {
         const f = fx[i], t = now - f.t0;
         if (t > f.life) { fx.splice(i, 1); continue; }
         if (t < 0) continue;
         const p = t / f.life;
+        if (f.face) { drawTaste(f, t, p); continue; }
+        if (f.taste) tasteMarks[f.k] = (tasteMarks[f.k] || 0) + 1;
         if (f.k === "crumb") {
           const x = f.x + f.vx * t, y = f.y + f.vy * t + 40 * t * t;
           ctx.globalAlpha = 1 - p;
@@ -2519,13 +3390,22 @@
         } else if (f.k === "star") {
           const x = sx(f.x + f.vx * t), y = sy(f.y + f.vy * t);
           const s = f.size * view.s * (1 - p * 0.5);
-          ctx.fillStyle = (f.gold ? GOLD.bright : "rgba(255,230,120,") + (1 - p).toFixed(3) + ")";
           ctx.beginPath();
           for (let k = 0; k < 8; k++) {
             const a = (k / 8) * Math.PI * 2, rr = k % 2 ? s * 0.4 : s * 1.3;
             ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
           }
-          ctx.closePath(); ctx.fill();
+          ctx.closePath();
+          if (f.col) {
+            // a clank: a grey star with a dark edge, so it reads on any floor
+            ctx.globalAlpha = 1 - p;
+            ctx.strokeStyle = INK_DARK; ctx.lineWidth = Math.max(1, s * 0.3); ctx.lineJoin = "round";
+            ctx.stroke(); ctx.fillStyle = f.col; ctx.fill();
+            ctx.globalAlpha = 1;
+          } else {
+            ctx.fillStyle = (f.gold ? GOLD.bright : "rgba(255,230,120,") + (1 - p).toFixed(3) + ")";
+            ctx.fill();
+          }
         } else if (f.k === "burp") {
           // a burp: puffs rising from the hole
           const h = st.hole;
@@ -2644,6 +3524,14 @@
       const shaking = shakeT > now;
       const inside = !shaking && viewInsideIsland();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      // Every frame starts from the SAME canvas state. Several strokes leave
+      // round caps or joins behind (the cave ends every frame on a round
+      // join), and a frame drawn after round ones came out 200-1800 px
+      // different from one drawn after square ones: a frame was partly a
+      // picture of whatever the frame before happened to draw last.
+      ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over"; ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
       if (!inside) ctx.drawImage(backdropCanvas(), 0, 0);   // else the ground covers every pixel
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (shaking) {
@@ -2707,11 +3595,17 @@
       }
       // the goal's beacon, on the ground under everything
       drawGoal(now);
+      // a super slurp's swirl, on the ground round him (§15.6)
+      drawSlurp(now);
       // Pass 2: the things and the hole, back to front.
       let drawn = 0, gold = 0, locks = 0;
+      const slurping = st.slurpT > 0;
+      lastStreaks = 0;
       for (const it of items) {
         if (it.hole) { drawHole(now); continue; }
         const x = sx(it.ox), y = sy(it.oy) - it.lift;
+        // a thing the super slurp has hold of from afar streaks in
+        if (slurping && it.o.zoom) { streak(it.o, x, y); lastStreaks++; }
         drawObject(it.o, x, y, it.rot, 1, 1, it.flip);
         if (it.o.gold) { twinkles(now, it.o, x, y); gold++; }
         else if (lastGoal && it.o.id === lastGoal.id) twinkles(now, it.o, x, y);
@@ -2722,12 +3616,14 @@
       lastFeat.locks = locks; lastFeat.keys = keys; lastFeat.flipped = flipped;
       // a dark place: everything above is in the dark but for the lights
       drawDark();
+      drawAir(now);
       drawHint(now);
       drawFx(now);
+      drawFireworks(now);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       updateArrow(now);
       drawArrow(now);
-      lastDraw = { objects: drawn, standing, falling: lastDraw.falling, decals: nd, ground: !inside, ok: true };
+      lastDraw = { objects: drawn, standing, falling: lastDraw.falling, decals: nd, ground: !inside, ok: true, tastes: tasteMarks };
       frames++;
     }
 
@@ -2739,6 +3635,7 @@
     function busy(now) {
       if (!st || !cam || !cssW) return true;
       if (intro || fx.length || flyIn.size || shakeT > now || happyUntil > now || wideUntil > now || starUntil > now) return true;
+      if (tasteUntil > now || boingUntil > now || fireworks.length || airBurst) return true;
       if (def && def.dark && st.won && st.winT < 1.5) return true;
       for (const t of hopUntil.values()) if (t > now) return true;
       const g = clampCam(mode === "whole" ? wholeTarget() : followTarget());
@@ -2763,6 +3660,17 @@
         camera: camera(), arrow: arrow ? { ...arrow, hit: arrow.r + 16 } : null,
         goal: lastGoal ? { ...lastGoal } : null, gold: lastGold, face: lastFace ? { ...lastFace } : null,
         starEyes: starUntil > clock,
+        // §15.3: the taste face showing now, a boing of the rim, and how many
+        // of each kind of effect are in flight
+        tasteFace: tasteUntil > clock ? tasteFace : null, boing: boingUntil > clock,
+        fxKinds: fx.reduce((m, f) => { m[f.k] = (m[f.k] || 0) + 1; return m; }, {}),
+        // §15.4/§15.5: the place's air and how many specks were drawn this
+        // frame; the fireworks still to come or bursting, and what was drawn
+        air: { kind: def && def.air ? def.air[0] : null, drawn: lastAir },
+        fireworks: { left: fireworks.length, drawn: lastFw, burst: lastBurst },
+        // §15.6: the super slurp's swirl arms and the things streaking in,
+        // as drawn this frame
+        slurp: { on: !!st && st.slurpT > 0, arms: lastSlurp, streaks: lastStreaks },
         // phase 4: what the place's own shape put on screen this frame
         feat: { ...lastFeat }, dark: lastDark, flying: flyIn.size,
         rings: { land: landRings.length, blocks: blockSets.reduce((s, b) => s + b.rings.length, 0) },
@@ -2772,6 +3680,6 @@
     return { resize, setState, draw, event, toWorld, toScreen, snap, endIntro, camera, arrowAt, busy, info };
   }
 
-  global.HoleRender = { create, prepDecals, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, LOD, VIS, MARGIN, THICK };
+  global.HoleRender = { create, prepDecals, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
   if (typeof module !== "undefined" && module.exports) module.exports = global.HoleRender;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -5,9 +5,9 @@ hole.io, Donut County or Hole em All … a scene of really interesting stuff and
 you have to eat more and more of it to get progressively larger … super fun for
 a 4 year old").
 Phase 2 (big worlds you move around in, §9), phase 3 (bigger worlds and
-twelve places, §11), the polish pass (§12), a quality check (§13) and phase 4
-(twenty-four places, each with its own shape and challenge, §14) are built
-too.
+twelve places, §11), the polish pass (§12), a quality check (§13), phase 4
+(twenty-four places, each with its own shape and challenge, §14) and the pass
+that makes every place come alive (§15) are built too.
 
 A fourth world on the front door, right after 🏰 Fort Josh. Josh drags a
 friendly hole-monster, **Gobble**, around a toy-box diorama. Small things fall
@@ -788,3 +788,186 @@ It rests 0.6s first.
 
 Each new law was mutation-checked: red on the defect it names, and its control
 green.
+
+## 15. Making every place come alive (owner, 2026-10-07)
+
+> "Improve existing gobble hole levels as much as you can. Think creatively.
+> Make the game even more awesome to play"
+
+The twenty-four places already differ in shape, plan and challenge (§14).
+What they did not have was LIFE: away from a gulp, each one was a still
+diorama, Gobble wore the same face everywhere, a chocolate cake and a fire
+engine went down with the same blip, and the finale's moment was the same in
+every place. This pass changes nothing about where anything stands (no layout
+version bump, so no half-eaten place is lost); it is about what a place
+feels like to play.
+
+### 15.1 Measured first: a finale behind a gate pointed at the wrong thing
+
+The wandering-child model (`tools/hole-child.js`) was run on all 24 places.
+Everywhere but two, "big enough for the finale" to the win took a median of
+3-12s. On **Sunny Farm it took 200s** (the run 353s), and on the Castle one
+seed took 117s. Both finales stand behind a locked gate, and once Gobble was
+big enough the goal (the arrow, the gold beacon, the crown's "now eat it!")
+pointed at the finale through the gate while the key was somewhere else.
+
+Fix: the goal is the KEY while the gate in front of the finale is shut. Which
+gates guard a finale is worked out from the walking grid (no gate is named in
+the data): with every gate shut there is no way to the finale, with one open
+there is. The "big enough" line says "Find the key to the giant pumpkin!" in
+that case. Measured after: farm 200s → 9s, castle's worst 117s → 12s.
+
+### 15.2 Gobble dresses up for every place
+
+Each place gives Gobble something to wear (`wear: [kind, colour]`): a cap in
+the Toy Room, a hard hat on the Building Site, a party hat at the party, a
+woolly bobble hat in the snow, a space helmet in space, a wizard's hat in the
+crystal cave, a pirate hat on Treasure Island, headphones in Music Land… 18
+kinds, drawn on the canvas in Gobble's own outline style (not emoji, so a hat
+is never mistaken for something to eat). Hats sit on top of his eyes; a
+flower, a bow, headphones or a balloon sit at his side. When he is big enough
+for the finale his hat becomes the CROWN (the side things stay). Every kind
+declares how far above his eyes it reaches, and the camera keeps that much
+headroom, so a tall wizard's hat is never cut off at the island's top edge.
+
+### 15.3 Gobble tastes what he eats
+
+One table (`HoleData.TASTES`) sorts things into families, and each family has
+its own sound, look and (the first time in a run) word:
+
+- **sweet** (cakes, sweets, doughnuts): heart eyes. "Mmm, sweet!"
+- **cold** (ice cream, ice, snowflakes): he shivers, eyes frosty. "Brrr!"
+- **honk** (cars, buses, tractors): "beep beep", little sound waves.
+- **siren** (police car, fire engine, ambulance): "wee-woo".
+- **choo** (trains, cable cars): "choo choo" and puffs of steam.
+- **horn** (boats): a low "toot toot".
+- **zoom** (planes, rockets, UFOs): a rising whoosh and speed lines.
+- **boing** (balls): "boing", and Gobble bounces.
+- **ding** (bells, a wind chime): a bell.
+- **ching** (coins, jewels, medals): "cha-ching" and gold sparkles.
+- **clank** (tools, cogs, magnets, anchors): a clank.
+- **squeak** (teddies and soft toys): a squeak.
+- **music** (instruments): a little tune and notes floating up.
+- **beep** (robots, TVs, radios, batteries): "beep boop".
+- **pop** (balloons, popcorn, party poppers): a pop and confetti.
+
+A family's sound replaces the plain gulp (never on top of it), still climbs
+with a run of gulps, and Music Land's gulps still play its tune. Words are
+rationed: once per family per run, and never on top of another line.
+
+### 15.4 Every place has weather
+
+`air: kind` per place: snow falling on Snow Day, embers rising from the
+volcano, bubbles in the factory and at sea, petals in the park and the hedge
+maze, leaves in town, at the castle and in the jungle, confetti at the party,
+the stadium, the circus and the theme park, fireflies glowing in the dark of
+the crystal cave, stars twinkling in space, sprinkles in Candy Land, notes
+rising in Music Land, motes of dust in the sunbeams of the Toy Room… 15 kinds.
+It is drawn in screen space with a little parallax (so it reads as "in the
+air", in front of the ground), a fixed number of specks whatever the zoom (so
+it costs the same at every size), and not at all under reduced motion.
+
+### 15.5 A finale to remember
+
+When the finale goes down, fireworks burst over the island in the place's own
+colours, and a burst of the place's own weather blows out of Gobble (snow in
+the snow, confetti at the party, notes in Music Land), before the vortex.
+
+### 15.6 Super slurp
+
+Ten gulps in a row (a run through a clump, or a toppling row) and Gobble
+glows: for a few seconds his pull reaches much further and much faster, and
+everything nearby he can eat zooms in. It is a reward for the way a child
+already plays (sweeping through a clump), never a timer to beat. The pull
+only reaches through open air: nothing is slurped through a hedge, a wall or
+a locked gate. It must keep the bot law (§11.1): every place at least 20s,
+30s on average.
+
+As built (`RULES.SLURP`): the run is counted as the sparkle has always
+counted it, from the second gulp, so the super slurp goes off on the gulp
+whose combo reaches **10**, and the sparkle stays at five (it used to play at
+ten too). For **2s** his pull reaches **12 units + 1.2 × his size** further
+than the magnet's own and pulls **2.4×** as fast; a thing pulled from past the
+magnet's own reach is drawn streaking in. A run that tops out at ten does not
+set it off again — the run has to break (a pause of 0.6s) and build again. The
+pull goes only along a straight line through open air: no water, no edge of
+the world, no wall of things, no locked gate, no portal. It never takes the
+finale (he goes and eats that himself), eating the finale never sets one off,
+and the win ends one at once. On screen: a swirl of four arms, as wide as the
+pull now reaches, spinning round him (still, under reduced motion), and his
+eyes go wide; a whoosh runs up the scale; "Super slurp!" is said at most once
+in 20s of play.
+
+Measured:
+
+| | before §15.6 | with it |
+|---|---|---|
+| greedy bot, quickest place | 22.1s | 23.0s |
+| greedy bot, mean of 24 | 33.2s | 32.8s |
+| super slurps the bot sets off | — | 62 (every place 1-4) |
+| gulps during one slurp | — | median 19 (6-70) |
+| wandering child, slurps per play | — | median 1-4 in 23 places; 0 in the jungle |
+
+The first cut went off at nine (the combo's ninth step) and lasted 2.5s; the
+quickest place then took the bot 20.3s, 0.3s above the law. Ten and 2s keep it
+at 23.0s. The jungle gets none from the wandering child (the bot gets two):
+its things stand apart along long trails, so a run of ten is rare there. The
+slurp is a reward, not a promise, so that is left as it is.
+
+### 15.7 What broke on the way, and is now a law
+
+1. **The straight-line check SAMPLED the line every 2 units.** Sweeping the
+   slurp's settings changed the bot's paths, and two of them found spots where
+   it stood still for good: a cave wall that juts out by half a unit and a
+   beach shore that juts out by a tenth of one, each between two samples. The
+   check called the way straight, he pressed into the bulge and never moved.
+   It now TRACES the line: from each point it steps on by the room it has
+   (the ground's own distance to its edge, to a wall of things, to a portal).
+   Random lines that graze a wall do not reproduce it — 26 measured, and the
+   old check got there on every one by sliding — so the two spots the bot
+   found are the test's fixtures, each asserting the geometry that makes it
+   one.
+2. **The portal end he has just come out of sleeps until he walks away, and a
+   way that went back through it stood him on it for ever** (in space, once a
+   slurp sent the bot back for a crumb). He now walks off far enough for it to
+   wake, then back through. Tested on every live end of every place with
+   portals, at two sizes: before the fix all 32 cases stood still.
+3. **A teleported fixture is not a reachable place.** A search for walls the
+   old check missed reported the Building Site stuck twice as often under the
+   old engine — but those spots were pockets the fixture teleported him into,
+   which no walk can reach. Check that a fixture is reachable by walking.
+4. **A slurp could still be "running" when a place was done**: the finale can
+   be the last thing left, and then the place is done in the same step it is
+   won. The win ends a slurp at once; the renderer no longer checks the win
+   itself (one owner).
+5. **A frame was partly a picture of the frame before.** Several strokes leave
+   round caps or joins behind (the cave ends every frame on a round join), and
+   a frame drawn after round ones came out 200-1800 px different from one
+   drawn after square ones. Every frame now starts from the same canvas state,
+   and a test leaves the canvas messy and checks the picture does not change.
+6. **The rasteriser warms up.** Two identical draws in a row can differ for
+   the first draw or two after the picture changes (2919, 1746, 18, then 0 px
+   in the toy room), so a "with it vs without it" pixel check passed with the
+   weather drawing nothing at all. Each picture is now drawn until two frames
+   agree, with a control; after a big swirl a few pixels (1-12, along a thin
+   plank seam) settle differently, two orders of magnitude below the swirl.
+7. **"The swirl paints" passed with the swirl's arms invisible**, because the
+   faint ring at its edge and the streaks alone cleared the bar. Measured
+   separately (arms ~10,200 px, ring ~2,200), the check now measures the arms
+   with nothing streaking in, and the bar sits between.
+
+### 15.8 Tests
+
+`tests/hole-logic.test.js`: a finale behind a gate makes its key the goal;
+every place's wear, air and tastes drawn both ways; the super slurp goes off
+once a run, on the gulp that makes ten, for exactly 2s (a run that breaks and
+builds sets it off again); its reach and its speed (an exact 2.4×) in open
+air in 20+ places; never across water (6+ places), never the finale (20+
+places), never as the finale's gulp; the bot sets it off in real play (24+
+across the places; measured 62) and never after the win, and none is still running when a place is done; a line
+that grazes a wall; a sleeping portal end. `tests/hole.test.js`: the swirl and
+the streaks drawn and painted (with reduced motion too), the whoosh up the
+scale and the sparkle at five only, its words once, and a frame that does not
+depend on what the frame before left behind. Every new clause was
+mutation-checked: 12 engine mutations and 8 page mutations, each red on its own
+clause.

@@ -149,7 +149,7 @@ test("EVERY place opens and draws: its floor, ALL its ground features in the ope
       const def = window.HoleData.SCENES.find((d) => d.id === sid);
       const st = window.__HOLE.state();
       return { scene: window.__HOLE.scene(), intro: c.intro, drawn: i.drawn, decals: def.decals.length, inkless: i.inkless,
-        standing: st.objects.filter((o) => o.st === window.HoleLogic.IDLE).length };
+        standing: st.objects.filter((o) => o.st === window.HoleLogic.IDLE).length, air: i.air, wantAir: def.air[0] };
     }, id);
     assert.equal(r.scene, id, "fixture: " + id + " opened");
     assert.ok(r.intro, id + ": a fresh place opens with the look at the whole island");
@@ -159,11 +159,229 @@ test("EVERY place opens and draws: its floor, ALL its ground features in the ope
     assert.ok(r.standing >= 250, "fixture: " + id + " is a big place (" + r.standing + " things standing)");
     assert.equal(r.drawn.objects, r.standing, id + ": the whole place is drawn in that look (" + r.drawn.objects + " of " + r.standing + " things)");
     assert.equal(r.inkless, 0, id + ": every picture has ink (none fell back to a coloured ball)");
+    // its weather is in the air from the first frame (§15.4)
+    assert.equal(r.air.kind, r.wantAir, id + ": its air is its own (" + r.wantAir + ")");
+    assert.ok(r.air.drawn >= 2, id + ": its " + r.wantAir + " is drawn (" + r.air.drawn + " specks)");
+    // …and it PAINTS: the same frame drawn with its air and without it differ
+    // (a counter proves the loop ran, not that a speck reached the screen).
+    // Measured against a CONTROL, because a frame is not steady for a draw or
+    // two after the picture changes: in the toy room two identical draws in a
+    // row differed by 2919 px, then 1746, then 18, then 0, and the first frame
+    // without the air after one with it differed by 21. Every canvas call,
+    // with its whole state and its coordinates, was identical each time, so
+    // it is the browser's rasteriser warming up on the thin plank seams — and
+    // an unsteady frame passed this check with the air drawing nothing at all.
+    // So each picture is drawn until two frames in a row agree: without the
+    // air, then with it, then without it again. The two without it must be the
+    // same, and the one with it must not.
+    const painted = await page.evaluate(() => {
+      const def = window.HoleData.SCENES.find((d) => d.id === window.__HOLE.scene());
+      const cv = document.querySelector("#screen-hole-play .hole-canvas"), c = cv.getContext("2d");
+      const grab = () => c.getImageData(0, 0, cv.width, cv.height).data;
+      const diff = (a, b) => {
+        let n = 0;
+        for (let k = 0; k < a.length; k += 4) if (a[k] !== b[k] || a[k + 1] !== b[k + 1] || a[k + 2] !== b[k + 2]) n++;
+        return n;
+      };
+      const keep = def.air;
+      const settle = (air) => {
+        def.air = air ? keep : null;
+        let prev = null;
+        for (let i = 0; i < 12; i++) { window.__HOLE.snap(); const g = grab(); if (prev && diff(prev, g) === 0) return g; prev = g; }
+        return null;
+      };
+      const without = settle(false), withAir = settle(true), again = settle(false);
+      def.air = keep; window.__HOLE.snap();
+      if (!without || !withAir || !again) return { settled: false };
+      return { settled: true, control: diff(without, again), n: diff(withAir, without) };
+    });
+    assert.ok(painted.settled, id + ": fixture: each picture comes out the same twice in a row within 12 draws");
+    assert.equal(painted.control, 0, id + ": fixture: the frame without its air is the same before and after the one with it");
+    assert.ok(painted.n >= 30, id + ": its " + r.wantAir + " paints the screen (" + painted.n + " px change with it)");
     // …and it plays: a few bites through the real event path
     const p = await page.evaluate(() => window.__HOLE.autoplay(60 * 3));
     assert.ok(p.eaten >= 3, id + ": Gobble eats in it (" + p.eaten + " in 3s)");
   }
   assert.deepEqual(pageErrors.slice(errs), [], "no page errors drawing any place");
+});
+
+test("the FINALE (§15.5): fireworks burst over the island in the place's own colours, a burst of its own weather blows out of Gobble, and each firework pops — none of it under reduced motion, and no weather either", async () => {
+  // Won through the real event path; the renderer owns the fireworks' timing
+  // and hands the page the burst times, so the pops are counted against
+  // HoleRender.FIREWORKS rather than a second list.
+  const FW = await page.evaluate(() => window.HoleRender.FIREWORKS);
+  // the firework pop's first note (hole-main.js SFX.firework), matched on
+  // its whole signature: 1661.22Hz alone is also a cold thing's sound one
+  // gulp into a run (1567.98 a semitone up)
+  const POP = { f: 1661.22, type: "square", duration: 0.04 };
+  const winAndWatch = (ms) => page.evaluate(async (a) => {
+    const A = window.JoshAudio;
+    window.__pops = 0; let counting = false;
+    A.__tone = A.__tone || A.tone;
+    A.tone = (f, o) => { if (counting && Math.abs(f - a.pop.f) < 0.01 && o && o.type === a.pop.type && o.duration === a.pop.duration) window.__pops++; };
+    A.setMuted(false);
+    window.__HOLE.autoplay(60 * 200, { until: "win" });
+    counting = true;
+    const seen = { fw: 0, burst: 0, left: 0, air: 0 };
+    const t0 = performance.now();
+    while (performance.now() - t0 < a.ms) {
+      await new Promise((r) => requestAnimationFrame(r));
+      const f = window.__HOLE.info().fireworks;
+      seen.fw = Math.max(seen.fw, f.drawn); seen.burst = Math.max(seen.burst, f.burst); seen.left = Math.max(seen.left, f.left);
+      seen.air = Math.max(seen.air, window.__HOLE.info().air.drawn);
+    }
+    seen.pops = window.__pops;
+    seen.won = window.__HOLE.state().won;
+    return seen;
+  }, { ms, pop: POP });
+  const restore = () => page.evaluate(() => { const A = window.JoshAudio; if (A.__tone) A.tone = A.__tone; A.setMuted(true); });
+  const last = Math.max(...FW.at) + FW.rise;
+  assert.ok(last <= 2, "fixture: every firework bursts within 2s of the win (" + last + "s)");
+  try {
+    await openScene("party");
+    const r = await winAndWatch((last + 0.4) * 1000);
+    assert.ok(r.won, "fixture: the party was won");
+    assert.equal(r.left, FW.at.length, "all " + FW.at.length + " fireworks are launched: " + JSON.stringify(r));
+    assert.ok(r.fw >= 2, "fireworks are DRAWN, several at once at their height: " + JSON.stringify(r));
+    assert.ok(r.burst >= 10, "a burst of the place's own weather blows out of Gobble: " + JSON.stringify(r));
+    assert.equal(r.pops, FW.at.length, "one pop for each firework, as it bursts: " + JSON.stringify(r));
+  } finally { await restore(); }
+  // under reduced motion: no weather, no fireworks, no burst — and so no pops
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  try {
+    await openScene("party");
+    await frames(3);
+    assert.equal(await page.evaluate(() => window.__HOLE.info().air.drawn), 0, "no drifting weather under reduced motion");
+    const r = await winAndWatch((last + 0.4) * 1000);
+    assert.ok(r.won, "fixture: the party was won");
+    assert.deepEqual([r.left, r.fw, r.burst, r.air, r.pops], [0, 0, 0, 0, 0], "nothing launched, drawn or popped under reduced motion: " + JSON.stringify(r));
+  } finally {
+    await restore();
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+  }
+});
+
+test("SUPER SLURP (§15.6): ten in a row and a SWIRL spins round him, as wide as his pull now reaches, with things streaking in — still drawn under reduced motion — and it has its own whoosh, while the sparkle stays at five", async () => {
+  // The picture comes from a REAL run of gulps: the bot plays until one goes
+  // off. Each frame is drawn until two in a row agree (the rasteriser warms
+  // up for a draw or two after the picture changes), with the slurp and
+  // without it, and the two without it must be the same.
+  for (const reduce of [false, true]) {
+    if (reduce) await page.emulateMedia({ reducedMotion: "reduce" });
+    try {
+      await openScene("toyroom");
+      const r = await page.evaluate(() => {
+        const H = window.__HOLE;
+        H.autoplay(60 * 90, { until: "slurp" });
+        const st = H.state();
+        const on = st.slurpT, first = H.info().slurp;
+        // a few more steps: things past the magnet's own reach come streaking
+        let streaks = 0;
+        for (let i = 0; i < 30 && st.slurpT > 0.5 && !streaks; i++) { H.autoplay(1); streaks = H.info().slurp.streaks; }
+        const cv = document.querySelector("#screen-hole-play .hole-canvas"), c = cv.getContext("2d");
+        const grab = () => c.getImageData(0, 0, cv.width, cv.height).data;
+        const diff = (a, b) => {
+          let n = 0;
+          for (let k = 0; k < a.length; k += 4) if (a[k] !== b[k] || a[k + 1] !== b[k + 1] || a[k + 2] !== b[k + 2]) n++;
+          return n;
+        };
+        const keep = st.slurpT;
+        const settle = (t) => {
+          st.slurpT = t;
+          let prev = null;
+          for (let i = 0; i < 12; i++) { H.snap(); const g = grab(); if (prev && diff(prev, g) === 0) return g; prev = g; }
+          return null;
+        };
+        // the SWIRL's own pixels: with no thing streaking in (the streaks and
+        // the faint ring at the swirl's edge would clear any bar by themselves)
+        const zooming = st.objects.filter((q) => q.zoom);
+        for (const q of zooming) q.zoom = 0;
+        const off = settle(0), withIt = settle(1), again = settle(0);
+        const offInfo = H.info().slurp;
+        for (const q of zooming) q.zoom = 1;
+        st.slurpT = keep; H.snap();
+        const settled = !!(off && withIt && again);
+        return { on, first, streaks, offInfo, settled, control: settled ? diff(off, again) : -1, n: settled ? diff(withIt, off) : -1 };
+      });
+      const tag = reduce ? " (reduced motion)" : "";
+      assert.ok(r.on > 0, "fixture: a real run of gulps set off a super slurp" + tag);
+      assert.ok(r.first.on, "the frame knows it is on" + tag);
+      assert.equal(r.first.arms, 4, "a swirl of four arms spins round him" + tag + ": " + JSON.stringify(r.first));
+      assert.ok(r.streaks >= 1, "things past the magnet's own reach come streaking in" + tag + " (" + r.streaks + ")");
+      assert.deepEqual([r.offInfo.on, r.offInfo.arms, r.offInfo.streaks], [false, 0, 0], "with it over, no swirl and no streaks" + tag);
+      assert.ok(r.settled, "fixture: each picture comes out the same twice in a row within 12 draws" + tag);
+      // After a big swirl the rasteriser settles a few pixels differently on
+      // the floor's thin plank seams (measured 1-12 px, one row along a seam;
+      // a frame-to-frame state leak was ruled out by its own test below).
+      assert.ok(r.control <= 40, "fixture: the frame without it is the same before and after, but for seam warm-up" + tag + " (" + r.control + " px)");
+      // Measured at this size: the swirl changes ~10,200 px, and with its
+      // arms drawn invisible the faint ring at its edge still changes ~2,200.
+      // The bar sits between, so only the arms can clear it.
+      assert.ok(r.n >= 6000, "the swirl's arms PAINT the screen" + tag + " (" + r.n + " px change with it)");
+    } finally {
+      if (reduce) await page.emulateMedia({ reducedMotion: "no-preference" });
+    }
+  }
+  // THE SOUND: a run of gulps through the real drain sparkles once, at five
+  // (as it always has) — the tenth is the super slurp's, and its whoosh runs
+  // all the way up the scale
+  await openScene("toyroom");
+  try {
+    const heard = await page.evaluate(async () => {
+      const A = window.JoshAudio, D = window.HoleData, L = window.HoleLogic;
+      const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+      const st = window.__HOLE.state();
+      const e = st.objects.map((o) => o.e).find((x) => D.tasteOf(x) === null);
+      // a QUIET place: nothing left for the magnet to pull in, so the only
+      // sounds are the events driven here (a real gulp or grow would sound too)
+      for (const o of st.objects) if (o.st === L.IDLE) o.st = L.GONE;
+      await sleep(600);
+      A.__tone = A.__tone || A.tone;
+      window.__tones = [];
+      A.tone = (f) => { window.__tones.push(f); };
+      A.setMuted(false);
+      for (let c = 0; c <= 10; c++) { st.events.push({ type: "eat", id: 90000 + c, e, r: 2, tier: 1, combo: c }); await sleep(40); }
+      await sleep(400);
+      const gulps = window.__tones.slice();
+      window.__tones = [];
+      st.events.push({ type: "slurp" });
+      await sleep(450);
+      return { e, gulps, slurp: window.__tones.slice() };
+    });
+    assert.ok(heard.e, "fixture: a thing with no taste to gulp");
+    const sparkles = heard.gulps.filter((f) => Math.abs(f - 1318.5) < 0.01).length;
+    assert.equal(sparkles, 1, "the run sparkles once, at five — not again at ten (" + JSON.stringify(heard.gulps) + ")");
+    assert.ok(heard.slurp.length >= 8, "the super slurp's whoosh is a run of notes (" + heard.slurp.length + ")");
+    assert.ok(heard.slurp.every((f, i) => i === 0 || f > heard.slurp[i - 1]), "…all the way up the scale: " + JSON.stringify(heard.slurp));
+  } finally {
+    await page.evaluate(() => { const A = window.JoshAudio; if (A.__tone) A.tone = A.__tone; A.setMuted(true); });
+  }
+});
+
+test("a frame never depends on what the frame before LEFT BEHIND: whatever caps, joins, alpha or dashes the canvas was left with, the same state draws the same picture", async () => {
+  // Several strokes leave round caps or joins set (the cave ends every frame
+  // on a round join), so without a reset at the top of each frame a picture
+  // was partly a picture of whatever the frame before happened to draw last:
+  // measured 1794 px different in the toy room, 718 in the cave.
+  for (const id of ["toyroom", "cave", "party"]) {
+    await openScene(id);
+    const r = await page.evaluate(() => {
+      const H = window.__HOLE;
+      H.autoplay(60 * 4);
+      const cv = document.querySelector("#screen-hole-play .hole-canvas"), c = cv.getContext("2d");
+      const grab = () => c.getImageData(0, 0, cv.width, cv.height).data;
+      const diff = (a, b) => { let n = 0; for (let k = 0; k < a.length; k += 4) if (a[k] !== b[k] || a[k + 1] !== b[k + 1] || a[k + 2] !== b[k + 2]) n++; return n; };
+      const settle = (leave) => { let prev = null; for (let i = 0; i < 12; i++) { leave(); H.snap(); const g = grab(); if (prev && diff(prev, g) === 0) return g; prev = g; } return null; };
+      const tidy = () => { c.lineCap = "butt"; c.lineJoin = "miter"; c.globalAlpha = 1; c.setLineDash([]); c.globalCompositeOperation = "source-over"; };
+      const messy = () => { c.lineCap = "round"; c.lineJoin = "round"; c.globalAlpha = 0.6; c.setLineDash([5, 4]); c.lineDashOffset = 2; c.globalCompositeOperation = "multiply"; c.textAlign = "center"; c.textBaseline = "top"; };
+      const a = settle(tidy), b = settle(messy), a2 = settle(tidy);
+      tidy(); H.snap();
+      return { ok: !!(a && b && a2), control: a && a2 ? diff(a, a2) : -1, left: a && b ? diff(a, b) : -1 };
+    });
+    assert.ok(r.ok, id + ": fixture: each picture settles within 12 draws");
+    assert.ok(r.control <= 40, id + ": fixture: the same state draws the same picture (" + r.control + " px)");
+    assert.ok(r.left <= 40, id + ": a canvas left messy by the frame before draws the same picture (" + r.left + " px different)");
+  }
 });
 
 test("the first time, a ghost hand SHOWS him how — Gobble eats a bite with no input at all", async () => {
@@ -728,6 +946,7 @@ test("SOUNDS: every challenge makes its own sound and the lines are said once in
       [{ type: "warp", from: [at.x, at.y], to: [at.x + 50, at.y] }, SAY.warp],
       [{ type: "flow", look: "river" }, SAY.flow],
       [{ type: "ice" }, SAY.ice],
+      [{ type: "slurp" }, SAY.slurp],
     ];
     for (const [ev, line] of CASES) {
       const r = await fire(ev);
@@ -769,6 +988,122 @@ test("SOUNDS: every challenge makes its own sound and the lines are said once in
     }, tune.length + 2);
     assert.deepEqual(notes, [...tune, tune[0], tune[1]], "each gulp plays the next note of the tune, and round again");
     assert.ok(inOrder(notes, tune), "fixture: the scale is played in order");
+  } finally {
+    await page.evaluate(() => {
+      const A = window.JoshAudio;
+      A.tone = A.__tone; A.say = A.__say; A.setMuted(true);
+    });
+  }
+});
+
+test("TASTES (§15.3): a thing with a taste SOUNDS like itself instead of the gulp, SHOWS it on his face (hearts for a sweet, a shiver for a cold thing, a burst for the rest), and its word is said once — never over another line, never lost", async () => {
+  // Driven through the REAL drain, one family at a time: the engine tests
+  // prove the tables match; this proves what a child hears and sees.
+  await openScene("picnic");
+  await page.evaluate(() => {
+    const A = window.JoshAudio;
+    window.__tones = []; window.__said = [];
+    A.__tone = A.__tone || A.tone; A.__say = A.__say || A.say;
+    A.tone = (f, o) => { window.__tones.push(Math.round(f * 100) / 100 + ":" + ((o && o.type) || "sine")); };
+    A.say = (t) => { if (!A.isMuted()) window.__said.push(t); };
+    A.setMuted(false);
+  });
+  try {
+    const T = await page.evaluate(() => window.HoleData.TASTES);
+    const LOOK = await page.evaluate(() => window.HoleRender.TASTE_LOOK);
+    const SAY = await page.evaluate(() => window.HoleData.SAY);
+    await page.waitForTimeout(2800);   // the opening tune is over and nothing has been said lately
+    // How much of a colour is painted inside his two eyes right now (the
+    // canvas, read back): what a child SEES, not what a timer says.
+    await page.evaluate(() => {
+      window.__eyeInk = (rgb, tol) => {
+        const H = window.__HOLE, HR = window.HoleRender, inf = H.info(), h = H.state().hole, dpr = inf.dpr;
+        const cv = document.querySelector("#screen-hole-play .hole-canvas"), rc = cv.getBoundingClientRect();
+        const p = H.toScreen(h.x, h.y), cx = p.x - rc.left, cy = p.y - rc.top;
+        const R = h.r * inf.view.s, eR = HR.eyeR(R), ey = cy - R * window.HoleData.RULES.SQ - eR * 0.25;
+        const c = cv.getContext("2d");
+        let n = 0;
+        for (const side of [-1, 1]) {
+          const x0 = Math.round((cx + side * R * 0.42 - eR * 1.3) * dpr), y0 = Math.round((ey - eR * 1.3) * dpr);
+          const w = Math.round(eR * 2.6 * dpr), hgt = Math.round(eR * 2.6 * dpr);
+          const d = c.getImageData(x0, y0, w, hgt).data;
+          for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - rgb[0]) + Math.abs(d[i + 1] - rgb[1]) + Math.abs(d[i + 2] - rgb[2]) <= tol) n++;
+        }
+        return n;
+      };
+    });
+    // one gulp of `e`: what it sounded like, what was said, and — over the
+    // next ~700ms — every face DRAWN, the marks each kind of burst PAINTED,
+    // the bursts in flight and whether the rim boinged; plus, for a face, the
+    // canvas read back at the moment it was drawn
+    const taste = (e, extra, ink) => page.evaluate(async (a) => {
+      window.__tones = []; window.__said = [];
+      window.__HOLE.state().events.push({ type: "eat", id: 99990, e: a.e, tier: 2, combo: 0, ...(a.extra || {}) });
+      const seen = { faces: [], marks: {}, kinds: {}, boing: false, ink: 0 };
+      for (let i = 0; i < 28; i++) {
+        await new Promise((r) => setTimeout(r, 25));
+        const inf = window.__HOLE.info(), f = inf.face && inf.face.taste;
+        if (f && !seen.faces.includes(f)) seen.faces.push(f);
+        if (a.ink && f === a.ink.face) seen.ink = Math.max(seen.ink, window.__eyeInk(a.ink.rgb, a.ink.tol));
+        for (const [k, n] of Object.entries((inf.drawn && inf.drawn.tastes) || {})) seen.marks[k] = Math.max(seen.marks[k] || 0, n);
+        for (const [k, n] of Object.entries(inf.fxKinds || {})) seen.kinds[k] = Math.max(seen.kinds[k] || 0, n);
+        if (inf.boing) seen.boing = true;
+      }
+      return { tones: window.__tones.join(" "), said: window.__said.slice(), seen };
+    }, { e, extra, ink });
+    const HEART = [255, 79, 123], ICY = [216, 241, 255];
+    const baseHeart = await page.evaluate((c) => window.__eyeInk(c, 60), HEART);
+    // (a tight tolerance: the white frost twinkles round his face are a
+    // near colour, and must not count as icy eyes)
+    const baseIcy = await page.evaluate((c) => window.__eyeInk(c, 10), ICY);
+    // 0. FIRST, while nothing has been said yet: a FINALE that has a taste
+    //    (🍭 is Candy Land's) gulps as a finale — no taste look, no taste
+    //    word (a sweet's word would be said at once if it were let through)
+    assert.ok(T.sweet.includes("🍭"), "fixture: the finale used here is a sweet");
+    const fin = await taste("🍭", { finale: true, tier: 6 });
+    assert.ok(fin.tones, "fixture: the finale gulps");
+    assert.ok(!fin.seen.faces.includes("hearts") && !fin.seen.marks.heart, "no taste look for a finale: " + JSON.stringify(fin.seen));
+    assert.deepEqual(fin.said, [], "no taste word for a finale");
+    await page.waitForTimeout(1200);   // its sound and shake are over
+    // the plain gulp a tier-2 thing makes, for comparison
+    const plain = await taste("🧺");
+    assert.ok(plain.tones, "fixture: a tasteless thing gulps (" + JSON.stringify(plain) + ")");
+    assert.equal(await page.evaluate(() => window.HoleData.tasteOf("🧺")), null, "fixture: the comparison thing has no taste");
+    // 1. a sweet: its own sound, heart eyes, little hearts — and its word, at once (all was quiet)
+    const sweet = await taste(T.sweet[0], null, { face: "hearts", rgb: HEART, tol: 60 });
+    assert.notEqual(sweet.tones, plain.tones, "a sweet does not gulp like anything else");
+    assert.ok(sweet.tones, "a sweet makes a sound");
+    assert.ok(sweet.seen.faces.includes("hearts"), "a sweet melts his eyes into hearts: " + JSON.stringify(sweet.seen));
+    assert.ok(sweet.seen.ink >= 40 && sweet.seen.ink > baseHeart * 4, "…and the hearts are PAINTED in his eyes (" + sweet.seen.ink + " heart-red px, " + baseHeart + " before)");
+    assert.deepEqual(sweet.said, [SAY.taste.sweet], "the first sweet is named, once: " + JSON.stringify(sweet.said));
+    assert.notEqual(fin.tones, sweet.tones, "the finale's own gulp won over its taste (step 0)");
+    // 2. a cold thing straight after: it shivers and sounds, but its word WAITS (a word never talks over another)
+    const cold = await taste(T.cold[0], null, { face: "shiver", rgb: ICY, tol: 10 });
+    assert.ok(cold.seen.faces.includes("shiver"), "a cold thing makes him shiver: " + JSON.stringify(cold.seen));
+    assert.ok(cold.seen.ink >= 40 && cold.seen.ink > baseIcy * 4, "…and his eyes turn icy (" + cold.seen.ink + " icy px, " + baseIcy + " before)");
+    assert.deepEqual(cold.said, [], "its word waits for a quiet moment: " + JSON.stringify(cold.said));
+    // 3. a second sweet: the sound again, never the word again
+    const sweet2 = await taste(T.sweet[1]);
+    assert.equal(sweet2.tones, sweet.tones, "every sweet sounds the same (the family's sound)");
+    assert.deepEqual(sweet2.said, [], "a family's word is said once a run");
+    // 4. a quiet moment later the cold word is said after all — it waited, it was not lost
+    await page.waitForTimeout(2700);
+    const cold2 = await taste(T.cold[1]);
+    assert.deepEqual(cold2.said, [SAY.taste.cold], "the waiting word is said once it is quiet: " + JSON.stringify(cold2.said));
+    // 5. every family: its own sound (not the gulp, not another family's) and its own look
+    const heard = new Map(), gulpNotes = plain.tones.split(" ");
+    for (const [fam, list] of Object.entries(T)) {
+      const r = await taste(list[0]);
+      assert.ok(r.tones && r.tones !== plain.tones, fam + " (" + list[0] + ") sounds like itself, not the gulp: " + r.tones);
+      assert.ok(!gulpNotes.every((n) => r.tones.split(" ").includes(n)), fam + ": its sound plays INSTEAD of the gulp, never on top of it: " + r.tones);
+      assert.ok(!heard.has(r.tones), fam + " sounds exactly like " + heard.get(r.tones));
+      heard.set(r.tones, fam);
+      const L = LOOK[fam];
+      if (L.fx) assert.ok(r.seen.marks[L.fx] > 0, fam + " PAINTS its " + L.fx + " burst: " + JSON.stringify(r.seen));
+      if (L.face) assert.ok(r.seen.faces.includes(L.face), fam + " shows its " + L.face + " face");
+      if (L.boing) assert.ok(r.seen.boing, fam + " boings the rim");
+      for (const line of r.said) assert.ok(Object.values(SAY.taste).includes(line), fam + ": nothing but a taste word is said: " + line);
+    }
   } finally {
     await page.evaluate(() => {
       const A = window.JoshAudio;
@@ -890,23 +1225,104 @@ test("a half-eaten place's DOOR shows how far he got — a ring that fills — a
   assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isVisible(), "…the ⭐ instead");
 });
 
-test("Gobble's FACE stays on screen at the island's top edge — eyes and crown, even at his biggest", async () => {
+test("Gobble's FACE stays on screen at the island's top edge — eyes, hat and crown, even at his biggest", async () => {
   // At the back edge a big Gobble's eyes stood above the world's top, and
   // the camera stopped at the island: at the two biggest sizes his eyes were
-  // cut off by up to 19px. The camera now looks up just far enough.
-  await openScene("beach");
-  for (const lv of [0, 3, 5]) {
-    await page.evaluate((lvl) => {
-      const st = window.__HOLE.state();
-      st.hole.level = lvl; st.hole.R = st.hole.r = st.levels.R[lvl];
-      st.hole.x = st.hole.tx = st.W * 0.3; st.hole.y = st.hole.ty = 0;
-      window.__HOLE.snap();
-    }, lv);
-    await frames(3);
-    const f = await page.evaluate(() => window.__HOLE.info().face);
-    assert.ok(f.top >= 0, "level " + lv + ": his whole face is on screen (its top at " + f.top.toFixed(1) + "px)");
-    if (lv === 5) assert.ok(f.crown, "at the top size the crown is on, and it is on screen too");
+  // cut off by up to 19px. The camera now looks up just far enough — and
+  // since he wears something in every place (§15.2), far enough for THAT too.
+  //   This test used to stand him at the BEACH's top edge, and it went
+  // VACUOUS when phase 4 made the beach a ring of ovals: told to stand at
+  // y=0, the engine put him back on walkable ground at y=37.5, where the
+  // camera never needs headroom, and every assertion passed with nothing
+  // tested. So the places are now DERIVED (an island that really reaches
+  // the world's top edge), and the fixture asserts he really stands there.
+  //   Of those places it takes the tallest HAT (it matters at the middle
+  // sizes, before the crown takes its place) and the tallest thing at his
+  // SIDE (it stays on beside the crown, so it matters at the biggest size).
+  const pick = await page.evaluate(() => {
+    const W = window.HoleRender.WEAR, L = window.HoleLogic, out = [];
+    for (const d of window.HoleData.SCENES) {
+      const st = L.createGame(d);
+      st.hole.x = st.hole.tx = st.W * 0.3; st.hole.y = st.hole.ty = 0; L.step(st);
+      if (st.hole.y < 1) out.push({ id: d.id, slot: W[d.wear[0]].slot, up: W[d.wear[0]].up(20, 30) });
+    }
+    const best = (slot) => out.filter((o) => o.slot === slot).sort((a, b) => b.up - a.up)[0];
+    return { n: out.length, top: best("top"), side: best("side") };
+  });
+  assert.ok(pick.n >= 3 && pick.top && pick.side, "fixture: places whose island reaches the world's top edge, with a hat and with a thing at his side (" + JSON.stringify(pick) + ")");
+  for (const id of [pick.top.id, pick.side.id]) {
+    await openScene(id);
+    for (const lv of [0, 2, 3, 4, 5]) {
+      const y = await page.evaluate((lvl) => {
+        const st = window.__HOLE.state();
+        st.hole.level = lvl; st.hole.R = st.hole.r = st.levels.R[lvl];
+        st.hole.x = st.hole.tx = st.W * 0.3; st.hole.y = st.hole.ty = 0;
+        window.__HOLE.snap();
+        return st.hole.y;
+      }, lv);
+      await frames(3);
+      const f = await page.evaluate(() => window.__HOLE.info().face);
+      const at = await page.evaluate(() => window.__HOLE.state().hole.y);
+      assert.ok(y < 1 && at < 1, id + " level " + lv + ": fixture — Gobble really stands at the island's top edge (y " + at.toFixed(1) + ")");
+      assert.ok(f.top >= 0, id + " level " + lv + ": his whole face is on screen, " + (f.wear || "crown") + " and all (its top at " + f.top.toFixed(1) + "px)");
+      if (lv === 5) assert.ok(f.crown, id + ": at the top size the crown is on, and it is on screen too");
+    }
   }
+});
+
+test("every thing Gobble WEARS stays inside the headroom it declares — so the camera can never cut off a wizard's hat (ink checked at three sizes, plain and wide-eyed)", async () => {
+  // The camera keeps `up` px above his eyes for what he wears (faceUp); a
+  // drawing that pokes above its own `up` would be cut off at the island's
+  // top edge with every number saying it fits. So each kind is DRAWN, and
+  // its highest inked pixel is compared with what it declares.
+  const res = await page.evaluate(() => {
+    const HR = window.HoleRender, out = [];
+    const cv = document.createElement("canvas"); cv.width = 760; cv.height = 680;
+    const c = cv.getContext("2d");
+    for (const kind of Object.keys(HR.WEAR)) {
+      const W = HR.WEAR[kind];
+      for (const R of [18, 60, 160]) for (const k of [1, HR.EYE.wide]) for (const now of [0, 0.37, 1.1]) {
+        c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+        const e = HR.eyeR(R) * k, sp = R * 0.42, x = 360, y = 600;
+        c.save(); W.draw(c, x, y, e, sp, "#ff5e7e", "#ffd24d", now); c.restore();
+        const d = c.getImageData(0, 0, cv.width, cv.height).data;
+        let top = -1, n = 0;
+        for (let yy = 0; yy < cv.height && top < 0; yy++) {
+          for (let xx = 0; xx < cv.width; xx++) if (d[(yy * cv.width + xx) * 4 + 3] > 8) { top = yy; break; }
+        }
+        for (let i = 3; i < d.length; i += 4 * 3) if (d[i] > 8) n++;
+        out.push({ kind, R, k: +k.toFixed(2), now, top, n, limit: y - W.up(e, sp) });
+      }
+    }
+    return out;
+  });
+  assert.ok(res.length >= 18 * 18, "fixture: every kind was drawn (" + res.length + ")");
+  for (const r of res) {
+    assert.ok(r.n > 20, r.kind + " R=" + r.R + ": it actually draws something (" + r.n + " px)");
+    assert.ok(r.top >= r.limit - 1, r.kind + " R=" + r.R + " eyes x" + r.k + " t=" + r.now + ": its ink reaches " + (r.limit - r.top).toFixed(1) + "px above what it declares");
+  }
+});
+
+test("a HAT gives way to the crown once he is big enough for the finale; a thing at his SIDE stays on", async () => {
+  const kinds = await page.evaluate(() => {
+    const W = window.HoleRender.WEAR, S = window.HoleData.SCENES;
+    const top = S.find((d) => W[d.wear[0]].slot === "top"), side = S.find((d) => W[d.wear[0]].slot === "side");
+    return { top: top.id, topWear: top.wear[0], side: side.id, sideWear: side.wear[0] };
+  });
+  await openScene(kinds.top);
+  await frames(2);
+  let f = await page.evaluate(() => window.__HOLE.info().face);
+  assert.equal(f.wear, kinds.topWear, kinds.top + ": Gobble wears its " + kinds.topWear);
+  assert.ok(!f.crown, "…and no crown yet");
+  await makeTop();
+  await frames(2);
+  f = await page.evaluate(() => window.__HOLE.info().face);
+  assert.ok(f.crown && f.wear === null, kinds.top + ": big enough, the " + kinds.topWear + " gives way to the crown (" + JSON.stringify(f) + ")");
+  await openScene(kinds.side);
+  await makeTop();
+  await frames(2);
+  f = await page.evaluate(() => window.__HOLE.info().face);
+  assert.ok(f.crown && f.wear === kinds.sideWear, kinds.side + ": the " + kinds.sideWear + " stays on beside the crown (" + JSON.stringify(f) + ")");
 });
 
 test("a fresh place OPENS with a look at the whole island, then flies in to Gobble; a finger during it goes straight to him", async () => {

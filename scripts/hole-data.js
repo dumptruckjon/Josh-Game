@@ -58,6 +58,12 @@
                       // the zoom, so he always crosses about a screen a second
     PULL: [1.5, 0.15],        // magnet reach past the rim: a + b * hole.r
     PULL_SPEED: [30, 1.5],    // magnet speed: a + b * hole.r (units/s)
+    // SUPER SLURP (§15.6): AT in a row (each gulp within 0.6s of the last;
+    // counted as the run's sparkle counts them, from the second gulp) makes
+    // him glow for SECS: his pull reaches REACH further (a + b * hole.r past
+    // the magnet's own) and pulls SPEED times as fast. Through open air only,
+    // and never the finale (that one he goes to eat himself).
+    SLURP: { at: 10, secs: 2, reach: [12, 1.2], speed: 2.4 },
     START_CLEAR: 13,  // nothing but the three starters stands this close to the start
     SEP: 0.95,        // footprints keep SEP * (r1 + r2) apart (ground metric)
     EDGE: 1.5,        // footprints keep this far from the world's edge
@@ -161,6 +167,12 @@
   //   finale: { e, r, at, say } — the biggest thing, on its stage at `at`;
   //          `say` is its spoken name ("the castle").
   //   tune: the notes of its opening tune (Hz).   notes: gulps play a scale.
+  //   wear: [kind, colour, colour2?] — what Gobble wears there (§15.2): a hat
+  //          on his head (the crown takes its place once he is big enough for
+  //          the finale) or a thing at his side. The kinds are hole-render.js's
+  //          WEAR (a test keeps the two in step, both ways).
+  //   air: [kind, colour?] — its weather (§15.4): snow, embers, petals,
+  //          bubbles… — hole-render.js's AIR, kept in step the same way.
   // The first `starters` tier-1 bites are placed right beside Gobble so the
   // first gulp is instant. The ORDER of the places is the order ▶ walks them
   // in after a win (the last wraps round to the first).
@@ -170,6 +182,7 @@
       // gobble its carriages from the back once Gobble is big enough.
       id: "toyroom", name: "Toy Room", door: "🧸", color: "#ffb86b",
       ground: "wood", hole: "gobble",
+      wear: ["propeller", "#ff5e7e"], air: ["motes"],
       backdrop: ["#fff1dc", "#f6d9b0"],
       start: [0.5, 0.92], starters: 3,
       tune: [523.25, 659.25, 783.99, 1046.5],
@@ -208,6 +221,7 @@
       // apples and cherries.
       id: "picnic", name: "Picnic Park", door: "🧺", color: "#8fd16a",
       ground: "grass", hole: "gobble",
+      wear: ["flower", "#ffffff"], air: ["petals", "#ffc2d9"],
       backdrop: ["#dff4ff", "#bfe6ff"],
       start: [0.5, 0.92], starters: 3,
       tune: [587.33, 739.99, 880, 739.99, 987.77],
@@ -246,6 +260,7 @@
       // by a locked gate — find the glowing key to open it.
       id: "farm", name: "Sunny Farm", door: "🚜", color: "#ffd166",
       ground: "farm", hole: "gobble",
+      wear: ["straw", "#e63946"], air: ["fluff"],
       backdrop: ["#e8f7ff", "#c6e9ff"],
       start: [0.5, 0.92], starters: 3,
       tune: [392, 493.88, 587.33, 783.99],
@@ -295,6 +310,7 @@
       // lorries block the way between them — grow big enough to eat through.
       id: "build", name: "Building Site", door: "🚧", color: "#ffc93c",
       ground: "dirt", hole: "gobble",
+      wear: ["hardhat", "#ffc93c"], air: ["dust"],
       backdrop: ["#e9f4ff", "#cfe3f7"],
       start: [0.8, 0.9], starters: 3,
       tune: [329.63, 392, 329.63, 523.25],
@@ -338,6 +354,7 @@
       // its streets — eat them as they come past.
       id: "town", name: "Busy Town", door: "🚦", color: "#5ec8ff",
       ground: "town", hole: "gobble",
+      wear: ["cap", "#e63946"], air: ["leaves", "#f2a03d"],
       backdrop: ["#e3f6ff", "#bde7ff"],
       start: [0.37, 0.93], starters: 3,
       tune: [523.25, 523.25, 783.99, 659.25],
@@ -383,6 +400,7 @@
       // triangle rolls in after it; balls roll round the running track.
       id: "sports", name: "Sports Day", door: "⚽", color: "#4cc76a",
       ground: "pitch", hole: "gobble",
+      wear: ["cap", "#2f6fdb"], air: ["confetti"],
       backdrop: ["#e6f6ff", "#c3e4ff"],
       start: [0.5, 0.92], starters: 3,
       tune: [392, 523.25, 659.25, 783.99, 659.25, 783.99],
@@ -415,6 +433,7 @@
       // spill sweets.
       id: "party", name: "Party Time", door: "🎂", color: "#ff7ac0",
       ground: "party", hole: "gobble",
+      wear: ["party", "#ff5e7e"], air: ["confetti"],
       backdrop: ["#fff0f7", "#ffd6ea"],
       start: [0.5, 0.8], starters: 3,
       tune: [523.25, 523.25, 587.33, 523.25, 698.46, 659.25],
@@ -454,6 +473,7 @@
       // boats sail round between them — wait on the beach and gobble them.
       id: "beach", name: "Beach Day", door: "🏖️", color: "#ffd27a",
       ground: "sand", hole: "gobble",
+      wear: ["straw", "#2fa3d9"], air: ["sparkles", "#fff6c8"],
       backdrop: ["#7fd0f2", "#3fa8e0"],
       start: [0.5, 0.89], starters: 3,
       tune: [659.25, 783.99, 880, 783.99, 659.25],
@@ -501,6 +521,7 @@
       // only the far-side bridges cross.
       id: "volcano", name: "Volcano Island", door: "🌋", color: "#ff8a4c",
       ground: "jungle", hole: "gobble",
+      wear: ["hardhat", "#e63946"], air: ["embers"],
       backdrop: ["#d9f3ff", "#8fd3ee"],
       start: [0.5, 0.9], starters: 3,
       tune: [392, 466.16, 523.25, 622.25, 698.46],
@@ -548,6 +569,7 @@
       // THE TWIST: a frozen lake on its tummy — on the ice Gobble SLIDES.
       id: "snow", name: "Snow Day", door: "⛄", color: "#9fd7ff",
       ground: "snow", hole: "gobble",
+      wear: ["bobble", "#e63946"], air: ["snow"],
       backdrop: ["#eef6ff", "#cfe0f5"],
       start: [0.5, 0.86], starters: 3,
       tune: [659.25, 587.33, 523.25, 587.33, 659.25, 659.25, 659.25],
@@ -588,6 +610,7 @@
       // Gobble along — let go and he rides.
       id: "airport", name: "Airport", door: "🛫", color: "#7aa7ff",
       ground: "tarmac", hole: "gobble",
+      wear: ["cap", "#1d3557", "#ffd24d"], air: ["clouds"],
       backdrop: ["#e5f3ff", "#b9dcff"],
       world: [600, 440],
       start: [0.5, 0.8], starters: 3,
@@ -630,6 +653,7 @@
       // and satellites go round and round.
       id: "space", name: "Outer Space", door: "🚀", color: "#8a7bff",
       ground: "space", hole: "blackhole",
+      wear: ["bubble", "#c0c8d8"], air: ["stars"],
       backdrop: ["#0a0d26", "#151a45"],
       start: [0.5, 0.86], starters: 3,
       tune: [261.63, 392, 523.25, 783.99, 1046.5],
@@ -680,6 +704,7 @@
       // the trolleys, then the whole shop.
       id: "market", name: "Shopping Day", door: "🛒", color: "#4fd1c5",
       ground: "tiles", hole: "gobble",
+      wear: ["chef", "#ffffff"], air: ["motes"],
       backdrop: ["#f4f7fb", "#dde6f0"],
       start: [0.5, 0.92], starters: 3,
       tune: [523.25, 587.33, 659.25, 523.25, 783.99],
@@ -724,6 +749,7 @@
       // fountain at the very middle.
       id: "maze", name: "Hedge Maze", door: "🌿", color: "#5bbf6a",
       ground: "grass", hole: "gobble",
+      wear: ["flower", "#ff7ac0"], air: ["petals", "#ffffff"],
       backdrop: ["#e6f7e9", "#c3ebc9"],
       start: [0.5, 0.94], starters: 3,
       tune: [392, 440, 493.88, 523.25, 587.33, 523.25],
@@ -763,6 +789,7 @@
       // lights the way round him, and the gems, candles and torches glow.
       id: "cave", name: "Crystal Cave", door: "🔦", color: "#7b61ff",
       ground: "cave", hole: "gobble",
+      wear: ["wizard", "#7b4bd6"], air: ["fireflies"],
       backdrop: ["#1a1426", "#2a2138"],
       dark: true,
       start: [0.5, 0.88], starters: 3,
@@ -807,6 +834,7 @@
       // find the glowing key to open the castle door.
       id: "castle", name: "Castle", door: "🏰", color: "#a0a8c0",
       ground: "stone", hole: "gobble",
+      wear: ["knight", "#e63946"], air: ["leaves", "#7cc95a"],
       backdrop: ["#e4efff", "#bcd2f2"],
       start: [0.5, 0.92], starters: 3,
       tune: [392, 392, 523.25, 659.25, 783.99, 659.25],
@@ -843,6 +871,7 @@
       // go and he rides), and the brown boxes burst open with toys inside.
       id: "factory", name: "Toy Factory", door: "🏭", color: "#ffb347",
       ground: "metal", hole: "gobble",
+      wear: ["hardhat", "#ff9f1c"], air: ["bubbles"],
       backdrop: ["#eef1f6", "#d4dbe6"],
       start: [0.5, 0.91], starters: 3,
       tune: [523.25, 392, 523.25, 659.25, 783.99, 659.25],
@@ -880,6 +909,7 @@
       // Gobble from the bottom platforms right up to the top ones.
       id: "circus", name: "Circus", door: "🎪", color: "#ff5e7e",
       ground: "ring", hole: "gobble",
+      wear: ["tophat", "#e63946"], air: ["confetti"],
       backdrop: ["#7a1f3d", "#4a1028"],
       start: [0.5, 0.87], starters: 3,
       tune: [392, 523.25, 392, 523.25, 659.25, 587.33, 523.25],
@@ -932,6 +962,7 @@
       // downstream toward the old temple at the bottom.
       id: "jungle", name: "River Jungle", door: "🌴", color: "#3fbf7f",
       ground: "jungle", hole: "gobble",
+      wear: ["explorer", "#d9c08c"], air: ["leaves", "#5aa84a"],
       backdrop: ["#d4f5e2", "#a8e6c4"],
       world: [380, 760],
       start: [0.66, 0.05], starters: 3,
@@ -975,6 +1006,7 @@
       // the breeze.
       id: "cloud", name: "Cloud Land", door: "☁️", color: "#9ec5ff",
       ground: "cloud", hole: "gobble",
+      wear: ["halo", "#ffd24d"], air: ["sparkles", "#ffd6f2"],
       backdrop: ["#bfe3ff", "#8ccaff"],
       start: [0.5, 0.88], starters: 3,
       tune: [783.99, 880, 987.77, 1174.66, 987.77, 880],
@@ -1022,6 +1054,7 @@
       // treasure is on the far point — across the rope bridge over the bay.
       id: "pirate", name: "Treasure Island", door: "🏝️", color: "#e6b85c",
       ground: "sand", hole: "gobble",
+      wear: ["pirate", "#2b2b3a"], air: ["bubbles"],
       backdrop: ["#7fd0f2", "#3fa8e0"],
       start: [0.5, 0.9], starters: 3,
       tune: [293.66, 349.23, 440, 349.23, 293.66, 440],
@@ -1055,6 +1088,7 @@
       // the lake, the teacups spin and the carousel goes round and round.
       id: "themepark", name: "Theme Park", door: "🎢", color: "#ff6fb5",
       ground: "party", hole: "gobble",
+      wear: ["balloon", "#ff5e7e"], air: ["confetti"],
       backdrop: ["#fff0f7", "#ffd6ea"],
       start: [0.5, 0.94], starters: 3,
       tune: [523.25, 659.25, 783.99, 1046.5, 783.99, 659.25, 523.25],
@@ -1091,6 +1125,7 @@
       // the giant lollipop right in the middle.
       id: "candy", name: "Candy Land", door: "🍭", color: "#ff8ad8",
       ground: "candy", hole: "gobble",
+      wear: ["bow", "#ff7ac0"], air: ["sprinkles"],
       backdrop: ["#ffe9f6", "#ffcfee"],
       world: [520, 728],
       start: [0.5, 0.93], starters: 3,
@@ -1124,6 +1159,7 @@
       // every gulp plays the next note of a tune.
       id: "music", name: "Music Land", door: "🎵", color: "#b48cff",
       ground: "stage", hole: "gobble",
+      wear: ["headphones", "#7b4bd6"], air: ["notes"],
       backdrop: ["#efe6ff", "#d8c6ff"],
       world: [480, 672],
       start: [0.3, 0.86], starters: 3,
@@ -1164,6 +1200,9 @@
     // the grow that makes Gobble big enough for the finale ({finale} is its
     // spoken name): from here on, it is what he is here for
     ready: "Wow, so big! Now eat {finale}!",
+    // …and when that finale is still shut away behind a gate, the KEY comes
+    // first (§15.1): the arrow and the beacon point at it
+    readyKey: "Wow, so big! Find the key to {finale}!",
     big: "Too big! Eat more first!",
     treasure: "Ooh, a treasure!",
     win: "Burp! You ate it all!",
@@ -1177,9 +1216,46 @@
     warp: "Whoosh!",
     flow: "Wheee!",
     ice: "Whoa, slippy!",
+    // ten gulps in a row (§15.6)
+    slurp: "Super slurp!",
+    // what Gobble says the FIRST time he tastes each family (§15.3) — once a
+    // run, and never on top of another line
+    taste: {
+      sweet: "Mmm, sweet!", cold: "Brrr, cold!", honk: "Beep beep!", siren: "Wee-woo!",
+      choo: "Choo choo!", horn: "Toot toot!", zoom: "Zoom!", boing: "Boing!", ding: "Ding!",
+      ching: "Shiny!", clank: "Clank!", beep: "Beep boop!", squeak: "Squeak!", music: "La la la!", pop: "Pop!",
+    },
   };
 
-  const HoleData = { RULES, SCENES, SAY };
+  // WHAT GOBBLE TASTES (PLAN_GOBBLE.md §15.3): things sorted into families,
+  // and each family has its own sound (hole-main.js), look (hole-render.js)
+  // and first-time word (SAY.taste). A family's sound REPLACES the plain gulp,
+  // never plays on top of it. Every picture listed here must be something a
+  // place really holds (a test fails a dead entry), and no picture is in two.
+  // A finale is never here: it has its own gulp.
+  const TASTES = {
+    sweet: ["🍬", "🧁", "🍩", "🍪", "🥧", "🍯", "🍭", "🍫", "💝", "🍰", "🎂", "🍡", "🍮", "🥞", "🧇"],
+    cold: ["🍦", "🍨", "🧊", "❄️", "🥤"],
+    honk: ["🚗", "🚕", "🚙", "🚌", "🚐", "🛻", "🚛", "🚚", "🚜", "🛵", "🏍️", "🛺"],
+    siren: ["🚓", "🚒", "🚑"],
+    choo: ["🚃", "🚂", "🚟", "🚡", "🚠"],
+    horn: ["🚤", "⛵", "🛶", "🛥️", "⛴️"],
+    zoom: ["🛩️", "🛫", "🛬", "🚁", "🚀", "🛸", "🛰️", "☄️"],
+    boing: ["⚽", "🏀", "🎾", "⚾", "🏐", "🏈", "🥏", "🏓", "🏸", "🪀", "🎳"],
+    ding: ["🔔", "🎐", "🚲"],
+    ching: ["🪙", "💎", "💍", "🥇", "🏆", "⭐", "🌟", "👑"],
+    clank: ["🔩", "🔨", "🔧", "🪛", "⚙️", "🧲", "🪝", "⚓", "🛢️", "🪣", "🧰", "⛏️", "🛡️"],
+    beep: ["🤖", "📺", "📻", "🔋", "📡", "🏧"],
+    squeak: ["🧸", "🪆", "🩴", "👟"],
+    music: ["🥁", "🎸", "🎺", "🎷", "🪕", "🎻", "🪘", "🎤", "🎵", "🎶", "🎼", "🎧", "🎙️"],
+    pop: ["🎈", "🍿", "🎉", "🎊", "🪅"],
+  };
+  // a picture -> its family
+  const TASTE_OF = {};
+  for (const [fam, list] of Object.entries(TASTES)) for (const e of list) TASTE_OF[e] = fam;
+  const tasteOf = (e) => TASTE_OF[e] || null;
+
+  const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf };
   global.HoleData = HoleData;
   if (typeof module !== "undefined" && module.exports) module.exports = HoleData;
 })(typeof window !== "undefined" ? window : globalThis);
