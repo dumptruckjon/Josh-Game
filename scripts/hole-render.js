@@ -984,6 +984,265 @@
         c.stroke();
       },
     },
+    // ---- phase 5 (§17): the floors of the twenty-four new places ----------
+    bath: {
+      // white bathroom tiles, blue grout, and a few drips
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#f4fbff"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(140,185,220,0.6)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (let k = 0; k < T; k += 8) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("drips"), 7, 0.35, 0.7, (i) => (i % 2 ? "rgba(120,190,240,0.55)" : "rgba(255,255,255,0.95)"));
+      },
+    },
+    kitchen: {
+      // a cream-and-peach check, 10 units a square, with crumbs
+      base(c, x0, y0, x1, y1) {
+        c.fillStyle = "#fff3dc"; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.fillStyle = "#f6d9bd";
+        c.beginPath();
+        for (let j = Math.floor(y0 / 10); j * 10 < y1; j++) {
+          for (let i = Math.floor(x0 / 10); i * 10 < x1; i++) if ((((i + j) % 2) + 2) % 2) c.rect(i * 10, j * 10, 10, 10);
+        }
+        c.fill();
+      },
+      marks(c, T, Rk, d) {
+        if (d >= LOD.small) dots(c, T, Rk("crumbs"), 10, 0.2, 0.42, (i) => ["rgba(214,160,92,0.8)", "rgba(184,128,70,0.7)"][i % 2]);
+      },
+    },
+    brick: {
+      // red brick paving, the courses staggered
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#c9654b"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(246,226,206,0.7)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let r = 0; r * 4 < T; r++) {
+          const y = r * 4, off = r % 2 ? 4 : 0;
+          c.moveTo(0, y); c.lineTo(T, y);
+          for (let x = off; x < T; x += 8) { c.moveTo(x, y); c.lineTo(x, y + 4); }
+        }
+        c.stroke();
+        if (d >= LOD.fine) blobs(c, T, Rk("tone"), 8, ["rgba(150,60,40,0.25)", "rgba(240,140,110,0.25)"], 1.5, 3.5);
+      },
+    },
+    lawn: {
+      // a mown lawn: wide stripes, light and dark, and a few daisies
+      base(c, x0, y0, x1, y1) {
+        for (let r = Math.floor(y0 / 16); r * 16 < y1; r++) {
+          c.fillStyle = (((r % 2) + 2) % 2) ? "#8fd36a" : "#a2dd7c";
+          c.fillRect(x0, r * 16, x1 - x0, 16);
+        }
+      },
+      marks(c, T, Rk, d) {
+        if (d >= LOD.small) tufts(c, T, Rk("tufts"), 28, "rgba(80,150,55,0.5)", 0.9);
+        if (d >= LOD.small) dots(c, T, Rk("daisies"), 5, 0.45, 0.55, (i) => (i % 3 ? "#ffffff" : "#ffe066"));
+      },
+    },
+    rubber: {
+      // a playground's soft rubber floor: big coloured tiles and speckles
+      base(c, x0, y0, x1, y1) {
+        const C = ["#e86b54", "#4fae6d", "#4c8fd6", "#f2b33d"];
+        for (let j = Math.floor(y0 / 16); j * 16 < y1; j++) {
+          for (let i = Math.floor(x0 / 16); i * 16 < x1; i++) {
+            c.fillStyle = C[(((i * 3 + j * 5) % 4) + 4) % 4];
+            c.fillRect(i * 16, j * 16, 16, 16);
+          }
+        }
+      },
+      marks(c, T, Rk, d) {
+        if (d < LOD.small) return;
+        dots(c, T, Rk("speckle"), 60, 0.15, 0.3, (i) => ["rgba(30,30,30,0.35)", "rgba(255,255,255,0.45)"][i % 2]);
+      },
+    },
+    seabed: {
+      // the sandy sea floor, with the sunlight's ripples on it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#d9cf9c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 10, ["rgba(110,190,200,0.28)", "rgba(240,232,190,0.4)"], 3, 8);
+        if (d < LOD.small) return;
+        const R = Rk("ripples");
+        c.strokeStyle = "rgba(255,255,255,0.45)"; c.lineWidth = 0.3; c.lineCap = "round";
+        c.beginPath();
+        for (let i = 0; i < 9; i++) { const x = R() * T, y = R() * T, w = 2 + R() * 3; c.moveTo(x - w, y); c.quadraticCurveTo(x, y - 1.2, x + w, y); }
+        c.stroke();
+      },
+    },
+    pool: {
+      // a pool's side: small white tiles with blue grout, wet in places
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#eef8ff"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("wet"), 6, ["rgba(120,190,240,0.18)"], 3, 7);
+        if (d < LOD.small) return;
+        c.strokeStyle = "rgba(90,165,225,0.4)"; c.lineWidth = 0.25;
+        c.beginPath();
+        for (let k = 0; k < T; k += 4) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+      },
+    },
+    dock: {
+      // a harbour's grey boards, nailed down
+      base(c, x0, y0, x1, y1) {
+        const C = ["#a1968a", "#968b7e", "#aaa094"];
+        for (let r = Math.floor(y0 / 7); r * 7 < y1; r++) {
+          c.fillStyle = C[(((r % 3) + 3) % 3)];
+          c.fillRect(x0, r * 7, x1 - x0, 7);
+        }
+      },
+      marks(c, T, Rk, d) {
+        const R = Rk("boards");
+        c.strokeStyle = "rgba(90,80,70,0.55)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let i = 0; i < T / 7; i++) {
+          const y = i * 7, p = 4 + R() * (T - 8);
+          c.moveTo(0, y); c.lineTo(T, y); c.moveTo(p, y); c.lineTo(p, y + 7);
+        }
+        c.stroke();
+        if (d >= LOD.fine) dots(c, T, Rk("nails"), 14, 0.18, 0.22, () => "rgba(60,55,50,0.7)");
+      },
+    },
+    carpet: {
+      // a hotel's red carpet with a gold diamond pattern
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#b8343c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(255,206,110,0.42)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let k = -T; k < T; k += 12) { c.moveTo(k, 0); c.lineTo(k + T, T); c.moveTo(k + T, 0); c.lineTo(k, T); }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("pile"), 18, 0.25, 0.5, (i) => (i % 2 ? "rgba(150,30,40,0.35)" : "rgba(220,80,80,0.25)"));
+      },
+    },
+    desert: {
+      // hot orange sand, the wind's ripples in it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#f2c27c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 10, ["rgba(255,222,160,0.4)", "rgba(214,150,80,0.25)"], 3, 8);
+        if (d < LOD.small) return;
+        const R = Rk("ripples");
+        c.strokeStyle = "rgba(196,128,60,0.38)"; c.lineWidth = 0.32; c.lineCap = "round";
+        c.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const x = R() * T, y = R() * T, w = 3 + R() * 5;
+          c.moveTo(x - w, y); c.bezierCurveTo(x - w / 3, y - 1.5, x + w / 3, y + 1.5, x + w, y);
+        }
+        c.stroke();
+      },
+    },
+    dig: {
+      // a dinosaur dig: sandstone in layers, cracked, with pebbles
+      base(c, x0, y0, x1, y1) {
+        const C = ["#dca46a", "#d29a5f", "#e2ae78"];
+        for (let r = Math.floor(y0 / 12); r * 12 < y1; r++) {
+          c.fillStyle = C[(((r % 3) + 3) % 3)];
+          c.fillRect(x0, r * 12, x1 - x0, 12);
+        }
+      },
+      marks(c, T, Rk, d) {
+        if (d < LOD.small) return;
+        const R = Rk("cracks");
+        c.strokeStyle = "rgba(120,74,40,0.45)"; c.lineWidth = 0.3; c.lineCap = "round"; c.lineJoin = "round";
+        c.beginPath();
+        for (let i = 0; i < 4; i++) {
+          let x = R() * T, y = R() * T;
+          c.moveTo(x, y);
+          for (let k = 0; k < 3; k++) { x += (R() - 0.5) * 6; y += 1 + R() * 3; c.lineTo(x, y); }
+        }
+        c.stroke();
+        dots(c, T, Rk("pebbles"), 12, 0.3, 0.6, (i) => ["rgba(150,110,80,0.7)", "rgba(240,210,170,0.8)"][i % 2]);
+      },
+    },
+    mine: {
+      // a mine's dark rock, flecked with gold
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#6b5442"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 14, ["rgba(60,44,32,0.40)", "rgba(140,112,88,0.35)"], 2, 6);
+        if (d >= LOD.small) dots(c, T, Rk("gold"), 9, 0.2, 0.4, (i) => (i % 3 ? "#ffd24d" : "#fff1a8"), 0.6 / Math.max(d, 0.1));
+      },
+    },
+    forest: {
+      // a forest floor: moss, and leaves fallen on it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#5c9447"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("moss"), 14, ["rgba(120,180,80,0.40)", "rgba(60,110,45,0.35)"], 2, 6);
+        if (d >= LOD.small) dots(c, T, Rk("leaves"), 16, 0.4, 0.7, (i) => ["#e8913a", "#d9b23f", "#b5652f"][i % 3]);
+      },
+    },
+    temple: {
+      // big old flagstones, moss in the cracks
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#c2bc9c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(112,108,86,0.55)"; c.lineWidth = 0.45;
+        c.beginPath();
+        for (let r = 0; r * 12 < T; r++) {
+          const y = r * 12, off = r % 2 ? 8 : 0;
+          c.moveTo(0, y); c.lineTo(T, y);
+          for (let x = off; x < T; x += 16) { c.moveTo(x, y); c.lineTo(x, y + 12); }
+        }
+        c.stroke();
+        blobs(c, T, Rk("moss"), 8, ["rgba(110,160,70,0.40)", "rgba(150,145,115,0.35)"], 1.5, 4);
+      },
+    },
+    pinball: {
+      // a pinball table: deep purple, a faint grid, neon lights
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#2c1d63"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(140,110,255,0.22)"; c.lineWidth = 0.3;
+        c.beginPath();
+        for (let k = 0; k < T; k += 16) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        dots(c, T, Rk("lights"), 10, 0.3, 0.6, (i) => ["#ff5ec8", "#5ef0ff", "#ffe14d"][i % 3], 0.6 / Math.max(d, 0.1));
+      },
+    },
+    moon: {
+      // the moon's grey dust, pocked with little craters
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#c3c6cf"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        const R = Rk("craters"), list = [];
+        for (let i = 0; i < 6; i++) list.push([R() * T, R() * T, 1.2 + R() * 3]);
+        c.fillStyle = "rgba(120,124,138,0.45)";
+        c.beginPath();
+        for (const [x, y, r] of list) { c.moveTo(x + r, y); c.ellipse(x, y, r, r * SQ, 0, 0, Math.PI * 2); }
+        c.fill();
+        c.strokeStyle = "rgba(240,242,248,0.7)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (const [x, y, r] of list) { c.moveTo(x + r, y + 0.2); c.ellipse(x, y + 0.2, r, r * SQ, 0, 0, Math.PI); }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("dust"), 20, 0.15, 0.3, () => "rgba(150,152,165,0.6)");
+      },
+    },
+    felt: {
+      // a model railway's green felt
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#56a35c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 12, ["rgba(110,180,110,0.30)", "rgba(60,130,70,0.28)"], 2, 6);
+        if (d >= LOD.small) dots(c, T, Rk("fluff"), 40, 0.12, 0.22, (i) => (i % 2 ? "rgba(255,255,255,0.25)" : "rgba(30,80,40,0.3)"));
+      },
+    },
+    grid: {
+      // graph paper: pale blue lines, every fourth one darker
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#fbfcff"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        if (d >= LOD.small) {
+          c.strokeStyle = "rgba(120,170,230,0.35)"; c.lineWidth = 0.2;
+          c.beginPath();
+          for (let k = 0; k < T; k += 4) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+          c.stroke();
+        }
+        c.strokeStyle = "rgba(90,140,215,0.55)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let k = 0; k < T; k += 16) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+      },
+    },
+    biscuit: {
+      // a giant biscuit, golden, with chocolate chips and little holes
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#e9bb7c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("bake"), 10, ["rgba(214,150,80,0.35)", "rgba(250,214,160,0.40)"], 2, 6);
+        dots(c, T, Rk("chips"), 5, 0.8, 1.3, () => "#5b3418");
+        if (d >= LOD.small) dots(c, T, Rk("holes"), 12, 0.25, 0.32, () => "rgba(150,96,46,0.6)");
+      },
+    },
   };
 
   // ---- The ground's FEATURES: vector decals in world units ------------------
@@ -1689,6 +1948,26 @@
     cloud: { backdrop: "sky", edge: ["#e3e9f7", "#c9d3ea"] },
     candy: { backdrop: "sky", edge: ["#ee95c0", "#cf74a2"] },
     stage: { backdrop: "sky", edge: ["#c9a24a", "#9c7a2e"] },
+    // phase 5 (§17)
+    bath: { backdrop: "wall", edge: ["#b9d6ea", "#97bad3"] },
+    kitchen: { backdrop: "wall", edge: ["#c9a07a", "#a8805c"] },
+    brick: { backdrop: "sky", edge: ["#8e3f2c", "#6f2f21"] },
+    lawn: { backdrop: "sky", edge: ["#8b5a2b", "#6e4420"] },
+    rubber: { backdrop: "sky", edge: ["#7a5230", "#5f3f24"] },
+    seabed: { backdrop: "sea", edge: ["#b3a774", "#958a5c"] },
+    pool: { backdrop: "sky", edge: ["#9fc9e8", "#7aaed6"] },
+    dock: { backdrop: "sea", edge: ["#6f655a", "#574f46"] },
+    carpet: { backdrop: "wall", edge: ["#7c1f26", "#5f171d"] },
+    desert: { backdrop: "sky", edge: ["#c98f4a", "#a87336"] },
+    dig: { backdrop: "sky", edge: ["#9d6a3e", "#80542e"] },
+    mine: { backdrop: "rock", edge: ["#3f3026", "#2d221b"] },
+    forest: { backdrop: "sky", edge: ["#4a3420", "#362617"] },
+    temple: { backdrop: "sky", edge: ["#8a8468", "#6e6a52"] },
+    pinball: { backdrop: "stars", edge: ["#1a1040", "#100a2a"] },
+    moon: { backdrop: "stars", edge: ["#8a8e9a", "#6d717c"] },
+    felt: { backdrop: "wall", edge: ["#8a5a2b", "#6e4420"] },
+    grid: { backdrop: "wall", edge: ["#b9c9e0", "#9aaecb"] },
+    biscuit: { backdrop: "sky", edge: ["#b98447", "#99693a"] },
   };
 
   // ---- phase 4 (§14): the things Gobble walks ROUND, and what moves -------
@@ -1705,6 +1984,17 @@
     shelf: { h: 4.2, side: "#d7dce6", top: "#eef1f6", rim: "#9aa6ba", deco: "goods" },
     wall: { h: 3.6, side: "#8b8d97", top: "#b8bac4", rim: "#d8dae2", deco: "bricks" },
     rock: { h: 3.0, side: "#4e4058", top: "#73627f", rim: "#9a88a8", deco: null },
+    // phase 5 (§17): raised — a kitchen counter, harbour containers, a coral
+    // reef, fallen logs — and flat — quicksand, a tar pit, a moon crater, a
+    // puddle of melted chocolate
+    counter: { h: 4.0, side: "#b07a4a", top: "#f2efe8", rim: "#c9c3b6", deco: "goods" },
+    crates: { h: 4.4, side: "#2f6db0", top: "#4f8fd6", rim: "#9cc4f0", deco: "posts" },
+    coral: { h: 2.8, side: "#d9577a", top: "#ff8aa8", rim: "#ffc2d2", deco: "bumps" },
+    logs: { h: 2.6, side: "#7a4e2a", top: "#b5824f", rim: "#e0b07a", deco: "posts" },
+    quicksand: { flat: true, bank: "#a8743c", deep: "#c99052", top: "#dcab6c", shine: "rgba(255,236,190,0.6)", foam: "rgba(255,226,170,0.7)" },
+    tar: { flat: true, bank: "#5a4030", deep: "#1e1b22", top: "#33303a", shine: "rgba(150,150,170,0.55)", foam: "rgba(90,88,100,0.7)" },
+    crater: { flat: true, bank: "#e3e5ec", deep: "#6e7280", top: "#8a8e9b", shine: "rgba(220,222,232,0.45)", foam: "rgba(240,242,248,0.6)" },
+    choc: { flat: true, bank: "#c48a52", deep: "#5a3018", top: "#7a4424", shine: "rgba(255,214,170,0.55)", foam: "rgba(150,90,50,0.8)" },
   };
   // How each kind of bridge looks (it crosses water, lava or the void).
   const BRIDGE_LOOKS = {
@@ -2315,6 +2605,22 @@
           gline(f.pts, f.w, "#c6ccd6");
           gline(f.pts, f.w * 0.86, "#9aa3b1", [0.5, 1.4], off);
           gline(F.ea, 0.8, "#3d5a96"); gline(F.eb, 0.8, "#3d5a96");
+        } else if (f.look === "ski") {
+          // a ski piste: packed snow, blue edge markers, grooves running downhill
+          gline(f.pts, f.w + 1.4, "#c7d6ea");
+          gline(f.pts, f.w, "#f4f8ff");
+          gline(F.a, 0.4, "rgba(150,175,215,0.8)", [2.4, 3.2], off);
+          gline(F.b, 0.4, "rgba(150,175,215,0.8)", [2.4, 3.2], off * 1.1);
+          gline(F.ea, 0.9, "#2f6fdb", [0.9, 4.2]); gline(F.eb, 0.9, "#2f6fdb", [0.9, 4.2]);
+        } else if (f.look === "current" || f.look === "choc") {
+          // a sea current (blue-green, bubbles riding it) or a chocolate river
+          const C = f.look === "choc" ? ["#4a2614", "#7a4424", "#9a5a32", "rgba(255,224,190,0.55)"] : ["#2b8a8a", "#4cc2c0", "#7ad9d4", "rgba(255,255,255,0.6)"];
+          gline(f.pts, f.w + 2.6, C[0]);
+          gline(f.pts, f.w, C[1]);
+          gline(f.pts, f.w * 0.5, C[2]);
+          gline(F.a, 0.7, C[3], [0.7, 6.3], off);
+          gline(F.b, 0.7, C[3], [0.7, 8.3], off * 1.2);
+          gline(f.pts, 0.5, C[3], [4, 10], off * 0.9);
         } else {
           gline(f.pts, f.w + 2.8, "#2d7cb0");
           gline(f.pts, f.w, "#4daee5");
@@ -2332,7 +2638,7 @@
     // rate it carries him (keyed to the RUN's clock, so a frame depends only
     // on the state), round a hub that stands still. Still under reduced
     // motion it is still drawn turned to where the run has got to.
-    const SPIN_COLS = { turntable: ["#ff5e7e", "#fff4e0"], record: ["#22222b", "#3a3a48"], pizza: ["#f2a541", "#f7d070"] };
+    const SPIN_COLS = { turntable: ["#ff5e7e", "#fff4e0"], record: ["#22222b", "#3a3a48"], pizza: ["#f2a541", "#f7d070"], whirl: ["#3d95d1", "#8fd3f7"] };
     function drawSpin(F) {
       const c = F.spin, f = F.f, cols = f.cols || SPIN_COLS[f.look] || SPIN_COLS.turntable;
       const a0 = (st.t * f.v) / c.rg, K = 8;
@@ -2506,7 +2812,22 @@
         ctx.save();
         ctx.translate(E.x, E.y); ctx.scale(1, SQ);
         if (!E.live) ctx.globalAlpha = 0.6;
-        if (E.look === "spring") {
+        if (E.look === "lift") {
+          // a lift: two steel doors with an up-down arrow over them
+          ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(-R + 0.8, -R + 1.2, R * 2, R * 2);
+          ctx.fillStyle = "#8d96a6"; ctx.fillRect(-R, -R, R * 2, R * 2);
+          ctx.fillStyle = "#d4dae4"; ctx.fillRect(-R * 0.86, -R * 0.62, R * 0.84, R * 1.54); ctx.fillRect(R * 0.02, -R * 0.62, R * 0.84, R * 1.54);
+          ctx.fillStyle = "#ffd24d";
+          ctx.beginPath(); ctx.moveTo(-R * 0.3, -R * 0.72); ctx.lineTo(0, -R * 0.96); ctx.lineTo(R * 0.3, -R * 0.72); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = "#3a4250"; ctx.lineWidth = 0.4; ctx.strokeRect(-R, -R, R * 2, R * 2);
+        } else if (E.look === "tunnel") {
+          // a railway tunnel's mouth: a dark arch in a stone face
+          ctx.fillStyle = "#8f8a7f"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#b9b4a8"; ctx.beginPath(); ctx.arc(0, -R * 0.12, R * 0.86, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#1c1a22"; ctx.beginPath(); ctx.arc(0, R * 0.1, R * 0.58, Math.PI, 0); ctx.lineTo(R * 0.58, R * 0.6); ctx.lineTo(-R * 0.58, R * 0.6); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 0.4;
+          ctx.beginPath(); ctx.arc(0, R * 0.1, R * 0.7, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+        } else if (E.look === "spring") {
           ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.arc(0.8, 1.2, R, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = "#cf2c4b"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = "#2c43b0"; ctx.beginPath(); ctx.arc(0, 0, R * 0.78, 0, Math.PI * 2); ctx.fill();

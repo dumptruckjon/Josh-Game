@@ -1334,13 +1334,13 @@
   // land holds the same number (a law).
   const LANDS = [
     { id: "town", name: "Home Town", pic: "🏡", backdrop: ["#ffe9b8", "#ffc56b"], color: "#e8963a",
-      places: ["toyroom", "picnic", "farm", "build", "town", "sports"] },
-    { id: "shore", name: "Sunny Shore", pic: "🏖️", backdrop: ["#c9f0ff", "#7fd0f5"], color: "#2e94c8",
-      places: ["party", "beach", "volcano", "snow", "airport", "market"] },
+      places: ["toyroom", "picnic", "farm", "build", "town", "sports", "bath", "kitchen", "firestation", "garden", "playground", "racetrack"] },
+    { id: "shore", name: "Sunny Shore", pic: "⛱️", backdrop: ["#c9f0ff", "#7fd0f5"], color: "#2e94c8",
+      places: ["party", "beach", "volcano", "snow", "airport", "market", "sea", "waterpark", "harbour", "mountain", "hotel", "islands"] },
     { id: "wild", name: "Wild Places", pic: "🗺️", backdrop: ["#d6f5c6", "#8fd47a"], color: "#4f9a3a",
-      places: ["maze", "cave", "castle", "factory", "jungle", "pirate"] },
-    { id: "crazy", name: "Crazy Land", pic: "🎢", backdrop: ["#f3d7ff", "#c79bff"], color: "#8a52d6",
-      places: ["space", "circus", "cloud", "themepark", "candy", "music"] },
+      places: ["maze", "cave", "castle", "factory", "jungle", "pirate", "desert", "camp", "dino", "mine", "forest", "temple"] },
+    { id: "crazy", name: "Crazy Land", pic: "🤪", backdrop: ["#f3d7ff", "#c79bff"], color: "#8a52d6",
+      places: ["space", "circus", "cloud", "themepark", "candy", "music", "pinball", "moon", "trainland", "numbers", "chocolate", "beanstalk"] },
   ];
   // a place's land
   const landOf = (id) => LANDS.find((l) => l.places.includes(id)) || null;

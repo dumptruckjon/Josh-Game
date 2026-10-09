@@ -77,17 +77,24 @@ function makeTop(st) {
 // ...or any level.
 function makeLevel(st, lv) { st.hole.level = lv; st.hole.R = st.hole.r = st.levels.R[lv]; st.hole.xp = st.levels.C[lv]; }
 
-test("the data: TWENTY-FOUR places, five tiers each plus a finale, every door, picture, district, track and trail present", () => {
-  // The owner doubled the places twice (2026-10-01: six became twelve;
-  // 2026-10-06: twelve became twenty-four). A place quietly dropped from the
-  // data would leave a door-less hole in the journey ▶ walks through.
-  assert.ok(SCENES.length >= 24, "twenty-four places to eat (" + SCENES.length + ")");
+test("the data: FORTY-EIGHT places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
+  // The owner doubled the places three times (2026-10-01: six became twelve;
+  // 2026-10-06: twelve became twenty-four; 2026-10-08: twenty-four became
+  // forty-eight). A place quietly dropped from the data would leave a
+  // door-less hole in the journey ▶ walks through.
+  assert.ok(SCENES.length >= 48, "forty-eight places to eat (" + SCENES.length + ")");
   const ids = new Set();
   for (const def of SCENES) {
     const where = def.id;
     assert.ok(!ids.has(def.id), "scene ids are unique: " + def.id);
     ids.add(def.id);
-    assert.equal(def.tiers.length, 5, where + " has five size tiers");
+    // five size tiers — or six in a GIANT place (§17): its sixth tier is the
+    // shared T6 size, so the tier law still holds, and its finale is bigger
+    assert.ok(def.tiers.length === 5 || def.tiers.length === 6, where + " has five size tiers (six if it is a giant place)");
+    if (def.tiers.length === 6) {
+      assert.ok(def.tiers[5].r[0] >= 19.5 && def.tiers[5].r[1] <= 21, where + ": a giant place's sixth tier is the shared T6 size");
+      assert.ok(def.finale.r >= 26, where + ": a giant place builds to a GIANT finale (" + def.finale.r + ")");
+    }
     assert.ok(def.finale && def.finale.e && def.finale.r > 0, where + " has a finale");
     assert.ok(def.door && def.name && /^#[0-9a-f]{6}$/i.test(def.color), where + " has a door, a name and a colour");
     assert.ok(Array.isArray(def.backdrop) && def.backdrop.length === 2, where + " has a two-stop backdrop");
