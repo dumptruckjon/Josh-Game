@@ -1,0 +1,38 @@
+    {
+      // THE TWIST: a toy train goes round and round the rug — chase it, and
+      // gobble its carriages from the back once Gobble is big enough.
+      id: "toyroom", name: "Toy Room", door: "🧸", color: "#ffb86b",
+      ground: "wood", hole: "gobble",
+      wear: ["propeller", "#ff5e7e"], air: ["motes"],
+      backdrop: ["#fff1dc", "#f6d9b0"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [523.25, 659.25, 783.99, 1046.5],
+      tracks: { train: { pts: ovalPts(0.5, 0.52, 0.34, 0.13, 36), loop: true, speed: 11, look: "rails", train: true } },
+      zones: {
+        rug: [{ oval: [0.5, 0.52, 0.2, 0.075] }],
+        blocks: [[0.05, 0.71, 0.36, 0.86]],
+        art: [[0.64, 0.71, 0.95, 0.86]],
+        music: [[0.05, 0.2, 0.36, 0.34]],
+        bed: [[0.64, 0.2, 0.95, 0.34]],
+      },
+      trails: [{ e: "🍬", to: [0.2, 0.78] }, { e: "🍬", to: [0.8, 0.78] }],
+      decals: [
+        { k: "rug", x: 0.5, y: 0.52, r: 0.22, pal: 0 },
+        { k: "rug", x: 0.5, y: 0.14, r: 0.16, pal: 1 },
+        { k: "mat", x0: 0.04, y0: 0.7, x1: 0.37, y1: 0.87 },
+        { k: "splat", x: 0.72, y: 0.74, r: 0.05, c: "#ff6b6b" },
+        { k: "splat", x: 0.87, y: 0.82, r: 0.045, c: "#58c7ff" },
+        { k: "splat", x: 0.7, y: 0.84, r: 0.04, c: "#ffd93d" },
+        { k: "splat", x: 0.88, y: 0.72, r: 0.035, c: "#7be08a" },
+        { k: "stripes", x0: 0.04, y0: 0.19, x1: 0.37, y1: 0.35 },
+        { k: "rug", x: 0.79, y: 0.27, r: 0.13, pal: 2 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍬", 56], ["🎲", 24, "blocks", 3], ["🧩", 24, "blocks", 3], ["🖍️", 20, "art", 2], ["🪀", 16], ["🎀", 20, null, 2]] },
+        { r: T2, items: [["⚽", 14], ["🏀", 10], ["🪆", 16, "bed", 2], ["📚", 16, "music", 2], ["🚗", 14, "rug", 2], ["🎈", 12], ["🪁", 8], ["🎨", 12, "art"], ["🚃", 5, { ride: "train" }]] },
+        { r: T3, items: [["🤖", 10, "rug"], ["🥁", 10, "music"], ["🎸", 10, "music"], ["🛴", 10], ["🎁", 12], ["🚂", 1, { ride: "train" }]] },
+        { r: T4, items: [["🪑", 12], ["🧺", 10], ["🚲", 8], ["🛋️", 8]] },
+        { r: T5, items: [["🛏️", 8], ["📺", 8]] },
+      ],
+      finale: { e: "🧸", r: 20, at: [0.5, 0.15], say: "the giant teddy" },
+    },
