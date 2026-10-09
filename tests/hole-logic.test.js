@@ -49,7 +49,8 @@ function playOut(st, maxSeconds, check) {
     L.step(st, L.DT);
     for (const ev of st.events) log.push({ t: st.t, ...ev });
     st.events.length = 0;
-    if (G && !bad && !freeAt(st, G, st.hole.x, st.hole.y)) bad = { t: st.t, x: st.hole.x, y: st.hole.y, walk: G.walk(st.hole.x, st.hole.y) };
+    // (a CANNON's flight, §17, is in the air: he may cross water and lava)
+    if (G && !bad && !st.fly && !freeAt(st, G, st.hole.x, st.hole.y)) bad = { t: st.t, x: st.hole.x, y: st.hole.y, walk: G.walk(st.hole.x, st.hole.y) };
   }
   if (check) assert.equal(bad, null, st.id + ": Gobble's centre stood where it may not (in water, off the ground or inside a wall): " + JSON.stringify(bad));
   return log;
@@ -720,8 +721,9 @@ test("a finale BEHIND A GATE: while the gate is shut the goal is its KEY (the hi
     // the line at the ready grow says "find the key", never "now eat" a
     // finale he cannot reach
     assert.ok(D.SAY.readyKey.includes("{finale}") && /key/i.test(D.SAY.readyKey), "the ready line for a gated finale names the key and the finale");
-    // a shut gate with its key already gone is open: no stale key goal
+    // a shut gate with its openers already taken is open: no stale goal
     for (const k of keys) { st.unlocked[k.key] = true; k.st = L.GONE; }
+    for (const b of st.objects) if (b.press) { st.unlocked[b.press] = true; b.pressed = true; }
     assert.equal(L.goalOf(st), fin, def.id + ": every gate open, the finale is the goal");
   }
   assert.ok(guarded >= 2, "the farm's pumpkin and the castle sit behind locked gates, so at least those two goals must be a KEY first (saw " + guarded + ")");

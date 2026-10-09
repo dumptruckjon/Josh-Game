@@ -35,7 +35,10 @@
     // `f`) is trusted for every place except these, which have been laid out
     // again since (hole-logic.test.js holds the old fingerprints, and fails if
     // a place's layout changes without being listed here).
-    RELAID: [],
+    // §17 gave twelve of the first twenty-four places a new challenge, and
+    // that laid them out again (the Snow Day's curling stones only learned to
+    // run, so its layout, and its half-eaten runs, stand).
+    RELAID: ["toyroom", "picnic", "farm", "sports", "party", "volcano", "market", "maze", "cave", "castle", "circus", "candy"],
     // The world, in world units. It no longer bends to the screen: the
     // screen is a camera onto it (so a saved run never depends on the device).
     // Phase 2's worlds were 300 x 420; these are 1.4 times as wide AND as
@@ -230,13 +233,15 @@
   const SCENES = [
     {
       // THE TWIST: a toy train goes round and round the rug — chase it, and
-      // gobble its carriages from the back once Gobble is big enough.
+      // gobble its carriages from the back once Gobble is big enough — and a
+      // big RECORD on the record player by the door spins him round and round.
       id: "toyroom", name: "Toy Room", door: "🧸", color: "#ffb86b",
       ground: "wood", hole: "gobble",
       wear: ["propeller", "#ff5e7e"], air: ["motes"],
       backdrop: ["#fff1dc", "#f6d9b0"],
       start: [0.5, 0.92], starters: 3,
       tune: [523.25, 659.25, 783.99, 1046.5],
+      flows: [{ spin: [0.5, 0.78, 0.08], v: 24, look: "record" }],
       tracks: { train: { pts: ovalPts(0.5, 0.52, 0.34, 0.13, 36), loop: true, speed: 11, look: "rails", train: true } },
       zones: {
         rug: [{ oval: [0.5, 0.52, 0.2, 0.075] }],
@@ -299,7 +304,7 @@
       ],
       tiers: [
         { r: T1, items: [["🍓", 30, "blanket", 3], ["🍒", 16, null, 2], ["🍇", 12, "blanket", 2], ["🌸", 30, "flowers", 3], ["🍄", 21, "woods", 3], ["🌼", 50]] },
-        { r: T2, items: [["🧁", 12, "blanket"], ["🍩", 12, "blanket"], ["🥪", 12, "blanket"], ["🍐", 12, null, 2], ["🍌", 12], ["🍪", 12], ["🧃", 12]] },
+        { r: T2, items: [["🧁", 12, "blanket"], ["🍩", 12, "blanket"], ["🥪", 12, "blanket"], ["🍐", 12, null, 2], ["🍌", 12], ["🍪", 12], ["🧃", 12], ["⚽", 3, { run: true }]] },
         { r: T3, items: [["🍉", 14], ["🍍", 14], ["🥧", 12, "blanket"], ["🌻", 21, "flowers", 3]] },
         { r: T4, items: [["⛺", 10], ["🌲", 14, "woods"], ["🪴", 8], ["🧺", 6]] },
         { r: T5, items: [["🌳", 10, { shake: [["🍎", 2, 2], ["🍒", 2, 1]] }], ["🚐", 5]] },
@@ -348,7 +353,7 @@
         { k: "pond", x: 0.16, y: 0.86, r: 0.06 },
       ],
       tiers: [
-        { r: T1, items: [["🥕", 56], ["🌽", 24, "field", 3], ["🍅", 20, "veg", 4], ["🥔", 20, "veg", 4], ["🥚", 18, "barn", 3], ["🫑", 16, null, 2], ["🗝️", 1, { key: "gate", zone: "barn", glow: true }]] },
+        { r: T1, items: [["🥕", 56], ["🌽", 24, "field", 3], ["🍅", 20, "veg", 4], ["🥔", 20, "veg", 4], ["🥚", 18, "barn", 3], ["🫑", 16, null, 2], ["🌱", 8, { sprout: [["🥕", 3, 1]], zone: "veg" }], ["🗝️", 1, { key: "gate", zone: "barn", glow: true }]] },
         { r: T2, items: [["🍎", 20, "orchard", 2], ["🥦", 14, "veg", 2], ["🥬", 14, "patch", 2], ["🍐", 12, "orchard", 2], ["🌻", 16, "field", 4], ["🪣", 10], ["🥛", 10, "barn"]] },
         { r: T3, items: [["🍉", 12], ["🌾", 18, "field", 2], ["🧺", 10], ["🍯", 8, "barn"], ["🪵", 10, null, 2], ["🪵", 1, { at: { pts: [[0.5, 0.3]] }, lock: "gate" }]] },
         { r: T4, items: [["🚜", 10], ["🌳", 10, "orchard"], ["🛻", 8], ["🛖", 6]] },
@@ -471,7 +476,7 @@
         { k: "court", x0: 0.54, y0: 0.2, x1: 0.78, y1: 0.33, c: "#7b6be8" },
       ],
       tiers: [
-        { r: T1, items: [["🎾", 48], ["⚾", 21, null, 3], ["🥇", 15, "podium", 3], ["🏸", 14, "court", 2], ["🏓", 14, "top", 2], ["🥤", 24, null, 4], ["⚽", 8, { at: { line: [[0.3, 0.52], [0.7, 0.52]] }, chain: true }]] },
+        { r: T1, items: [["🎾", 48], ["⚾", 21, null, 3], ["🥇", 15, "podium", 3], ["🏸", 14, "court", 2], ["🏓", 14, "top", 2], ["🥤", 24, null, 4], ["⚡", 4, { power: "zoom" }], ["⚽", 8, { at: { line: [[0.3, 0.52], [0.7, 0.52]] }, chain: true }]] },
         { r: T2, items: [["🏐", 3, { ride: "lane" }], ["🏀", 14, "court"], ["🏈", 12], ["🥏", 12], ["🧢", 14, null, 2], ["👟", 12, null, 2], ["🎳", 10, { at: { tri: [0.5, 0.86, 7.5] }, chain: true }], ["🥅", 2, { at: { pts: [[0.25, 0.52], [0.75, 0.52]] } }]] },
         { r: T3, items: [["🛹", 12], ["🛼", 10], ["🏆", 4, { at: { line: [[0.64, 0.74], [0.84, 0.74]] } }], ["🏆", 6], ["🏏", 8], ["🏒", 8], ["🎯", 8, "top"]] },
         { r: T4, items: [["🚲", 12], ["🛴", 10], ["⛳", 8], ["🏁", 6]] },
@@ -480,8 +485,8 @@
       finale: { e: "🏟️", r: 20, at: [0.5, 0.11], say: "the stadium" },
     },
     {
-      // A HEART, and THE TWIST: presents and piñatas POP — eat one and out
-      // spill sweets.
+      // A HEART, and THE TWIST: presents POP — eat one and out spill sweets —
+      // and the PIÑATAS take three good bumps before they burst into treats.
       id: "party", name: "Party Time", door: "🎂", color: "#ff7ac0",
       ground: "party", hole: "gobble",
       wear: ["party", "#ff5e7e"], air: ["confetti"],
@@ -514,7 +519,7 @@
         { r: T1, items: [["🍬", 44], ["🍭", 12], ["🍫", 20, "table", 2], ["💝", 10], ["🍓", 21, "table", 3], ["🎀", 22, null, 2]] },
         { r: T2, items: [["🧁", 14, "table", 2], ["🍩", 12, "table"], ["🍪", 12, "table"], ["🎈", 21, null, 3], ["🎉", 12, "dance"], ["🎊", 10, "dance"]] },
         { r: T3, items: [["🎁", 14, { zone: "gifts", pop: [["🍬", 3, 1], ["🧁", 1, 2]] }], ["🍰", 12, "table"], ["🍕", 12], ["🍿", 10], ["🧸", 10]] },
-        { r: T4, items: [["🪅", 9, { pop: [["🍬", 4, 1], ["🍫", 2, 1], ["🧁", 1, 2]] }], ["🪑", 12], ["🪆", 9]] },
+        { r: T4, items: [["🪅", 9, { shake: [["🍬", 4, 1], ["🍫", 2, 1], ["🧁", 1, 2]], hits: 3 }], ["🪑", 12], ["🪆", 9]] },
         { r: T5, items: [["🎪", 7], ["🎠", 7]] },
       ],
       finale: { e: "🎂", r: 20, at: [0.5, 0.33], say: "the giant cake" },
@@ -569,7 +574,8 @@
       // An island cut by RIVERS OF LAVA, and THE TWIST: the only ways over
       // are plank bridges with big stone heads standing on them — grow big
       // enough to eat through — and the volcano sits in a ring of lava that
-      // only the far-side bridges cross.
+      // only the far-side bridges cross. And CANNONS: two blast Gobble from
+      // the beach over the lava to the far sides, and one blasts him home.
       id: "volcano", name: "Volcano Island", door: "🌋", color: "#ff8a4c",
       ground: "jungle", hole: "gobble",
       wear: ["hardhat", "#e63946"], air: ["embers"],
@@ -587,6 +593,11 @@
         { path: [[0.824, 0.491], [0.746, 0.509]], w: 16, look: "planks" },
         { path: [[0.305, 0.17], [0.405, 0.17]], w: 16, look: "planks" },
         { path: [[0.695, 0.17], [0.595, 0.17]], w: 16, look: "planks" },
+      ],
+      portals: [
+        { a: [0.3, 0.62], b: [0.2, 0.3], oneway: true, fly: true },
+        { a: [0.7, 0.62], b: [0.8, 0.3], oneway: true, fly: true },
+        { a: [0.75, 0.25], b: [0.5, 0.75], oneway: true, fly: true },
       ],
       zones: {
         crater: [{ circle: [0.5, 0.17, 0.1] }],
@@ -648,7 +659,7 @@
       ],
       tiers: [
         { r: T1, items: [["❄️", 56], ["🍪", 18, null, 3], ["☕", 14, null, 2], ["🧦", 16, null, 2], ["🔔", 12], ["🧊", 20, "lake", 4], ["🍭", 14]] },
-        { r: T2, items: [["🧤", 16, null, 2], ["🧣", 14], ["⛸️", 12, "lake"], ["🥌", 10, "lake"], ["🏒", 8, "lake"], ["🎒", 12], ["🎁", 14]] },
+        { r: T2, items: [["🧤", 16, null, 2], ["🧣", 14], ["⛸️", 12, "lake"], ["🥌", 10, { run: true, zone: "lake" }], ["🏒", 8, "lake"], ["🎒", 12], ["🎁", 14]] },
         { r: T3, items: [["🛷", 12], ["🎿", 10, "sledge"], ["🎄", 12, "forest"], ["🪵", 10, null, 2], ["🧸", 10], ["🔦", 8]] },
         { r: T4, items: [["🌲", 16, "forest"], ["🛖", 8, "village"], ["🚡", 6], ["🚠", 6], ["🚙", 6]] },
         { r: T5, items: [["🏠", 8], ["🏡", 4], ["🚂", 4]] },
@@ -784,8 +795,9 @@
         { k: "stripes", x0: 0.03, y0: 0.79, x1: 0.97, y1: 0.87 },
         { k: "zebra", x0: 0.43, y0: 0.68, x1: 0.57, y1: 0.72 },
       ],
+      count: { e: "🍎", by: 1, say: "apples" },
       tiers: [
-        { r: T1, items: [["🍬", 40], ["🍎", 16, "fruit", 2], ["🍌", 12, "fruit", 2], ["🍓", 16, "fruit", 4], ["🍪", 16, "sweets", 2], ["🍭", 12, "sweets"], ["🧃", 16, "drinks", 2], ["🥕", 12, "fruit", 3], ["🍇", 10, "fruit", 2]] },
+        { r: T1, items: [["🍬", 40], ["🍎", 20, "fruit", 2], ["🍌", 12, "fruit", 2], ["🍓", 16, "fruit", 4], ["🍪", 16, "sweets", 2], ["🍭", 12, "sweets"], ["🧃", 16, "drinks", 2], ["🥕", 12, "fruit", 3], ["🍇", 10, "fruit", 2]] },
         { r: T2, items: [["🥐", 12, "bakery", 2], ["🥖", 10, "bakery"], ["🍞", 12, "bakery", 2], ["🧁", 10, "bakery"], ["🍩", 10], ["🥤", 10, "drinks"], ["🧸", 8, "toys"], ["🎈", 8, "toys"], ["🍫", 10, "sweets"]] },
         { r: T3, items: [["🛒", 2, { ride: "left" }], ["🛒", 2, { ride: "right" }], ["🛒", 2, { ride: "tills" }], ["🛒", 6], ["🧺", 10], ["🍉", 10, "fruit"], ["🎂", 6, "bakery"], ["🍍", 10], ["🧀", 10], ["🥫", 10]] },
         { r: T4, items: [["📦", 12], ["🛍️", 12], ["🗑️", 8], ["🪜", 6]] },
@@ -797,7 +809,9 @@
       // A round HEDGE MAZE, and THE TWIST: the way in winds round and round —
       // in at the bottom, round to the top, round to the bottom again — the
       // little things on the outside, the big ones deeper in, and the
-      // fountain at the very middle.
+      // fountain at the very middle — behind a GATE that only the big BUTTON
+      // on the far side of the maze opens (a gold wire runs from one to the
+      // other).
       id: "maze", name: "Hedge Maze", door: "🌿", color: "#5bbf6a",
       ground: "grass", hole: "gobble",
       wear: ["flower", "#ff7ac0"], air: ["petals", "#ffffff"],
@@ -829,8 +843,8 @@
       tiers: [
         { r: T1, items: [["🌼", 50], ["🍓", 16, null, 2], ["🌸", 20, "outside", 4], ["🍄", 15, null, 3], ["🔔", 12], ["🫐", 15, null, 3], ["🎀", 12]] },
         { r: T2, items: [["🌷", 16, "lap1", 4], ["🍎", 12], ["🪀", 10], ["🎈", 12, "lap1"], ["🧁", 10], ["🍐", 10], ["🪁", 10, "lap1"]] },
-        { r: T3, items: [["🌻", 15, "lap1", 3], ["🪴", 12, "lap2"], ["🧺", 10], ["🎁", 10, "lap2"], ["🏮", 8, "lap2"]] },
-        { r: T4, items: [["🌳", 12, "lap2"], ["🌲", 10, "lap2"], ["⛺", 8, "lap1"]] },
+        { r: T3, items: [["🌻", 15, "lap1", 3], ["🪴", 12, "lap2"], ["🧺", 10], ["🎁", 10, "lap2"], ["🏮", 8, "lap2"], ["🚪", 1, { at: { pts: [[0.5, 0.65]] }, lock: "fountain" }]] },
+        { r: T4, items: [["🌳", 12, "lap2"], ["🌲", 10, "lap2"], ["⛺", 8, "lap1"], ["🔴", 1, { press: "fountain", at: { pts: [[0.5, 0.29]] } }]] },
         { r: T5, items: [["🏛️", 8, "lap2"], ["🎠", 8, "lap2"]] },
       ],
       finale: { e: "⛲", r: 20, at: [0.5, 0.5], say: "the fountain" },
@@ -875,14 +889,15 @@
         { r: T1, items: [["💎", 44, { glow: true }], ["🪙", 30, null, 3], ["🍄", 24, null, 4], ["🪨", 20, null, 4], ["🔑", 10], ["⭐", 16, null, 2]] },
         { r: T2, items: [["🔦", 12, { glow: true }], ["🪔", 10, { glow: true }], ["🏺", 12], ["🧪", 10], ["🪣", 10, "mine"], ["⛏️", 12, "mine"], ["🗝️", 8]] },
         { r: T3, items: [["🕯️", 14, { glow: true }], ["🪵", 12, null, 2], ["🧰", 10, "mine"], ["🗺️", 10], ["💰", 10, "grotto"]] },
-        { r: T4, items: [["🗿", 10], ["⚱️", 10], ["🛶", 6, "pool"], ["⛺", 6]] },
+        { r: T4, items: [["🗿", 10], ["⚱️", 10], ["🛶", 6, "pool"], ["⛺", 6], ["💠", 4, { shake: [["💎", 2, 1], ["🪙", 1, 1]], hits: 3, glow: true }]] },
         { r: T5, items: [["🚂", 6], ["⛰️", 6], ["🗻", 4]] },
       ],
       finale: { e: "🔮", r: 20, at: [0.72, 0.17], say: "the crystal ball" },
     },
     {
       // A CASTLE behind a moat, and THE TWIST: cross on the drawbridge, then
-      // find the glowing key to open the castle door.
+      // find all THREE glowing keys — one in each village and one down by the
+      // moat ("one of three!") — to open the castle door.
       id: "castle", name: "Castle", door: "🏰", color: "#a0a8c0",
       ground: "stone", hole: "gobble",
       wear: ["knight", "#e63946"], air: ["leaves", "#7cc95a"],
@@ -897,6 +912,9 @@
       zones: {
         court: [[0.33, 0.16, 0.67, 0.35]],
         village: [[0.04, 0.56, 0.3, 0.8], [0.7, 0.56, 0.96, 0.8]],
+        west: [[0.05, 0.6, 0.28, 0.78]],
+        east: [[0.72, 0.6, 0.95, 0.78]],
+        moat: [[0.04, 0.4, 0.14, 0.52]],
         market: [[0.38, 0.6, 0.62, 0.72]],
         fair: [[0.04, 0.82, 0.3, 0.96], [0.7, 0.82, 0.96, 0.96]],
       },
@@ -909,7 +927,7 @@
         { k: "patch", x: 0.81, y: 0.73, r: 0.12, c: "#b9a27a" },
       ],
       tiers: [
-        { r: T1, items: [["🪙", 50], ["💍", 10, "court"], ["🍎", 16, null, 2], ["🌼", 20, null, 4], ["🔔", 12], ["🍇", 16, null, 2], ["🗝️", 1, { key: "door", zone: "village", glow: true }]] },
+        { r: T1, items: [["🪙", 50], ["💍", 10, "court"], ["🍎", 16, null, 2], ["🌼", 20, null, 4], ["🔔", 12], ["🍇", 16, null, 2], ["🗝️", 1, { key: "door", zone: "west", glow: true }], ["🗝️", 1, { key: "door", zone: "east", glow: true }], ["🗝️", 1, { key: "door", zone: "moat", glow: true }]] },
         { r: T2, items: [["👑", 10, "court"], ["🥖", 12, "market"], ["🍞", 12, "market"], ["🏺", 10], ["🪣", 10], ["🎈", 10], ["🧀", 10, "market"]] },
         { r: T3, items: [["🛡️", 8, "court"], ["💰", 8, "court"], ["🛢️", 10], ["🪵", 12, null, 2], ["🧺", 10, "market"], ["🥁", 8], ["🚪", 1, { at: { pts: [[0.5, 0.38]] }, lock: "door" }]] },
         { r: T4, items: [["🎪", 6, "fair"], ["🛖", 10, "village"], ["🌳", 12], ["⛺", 6, "fair"]] },
@@ -957,7 +975,8 @@
     {
       // A CIRCUS high up under the tent: a ring, a centre stage and little
       // platforms, and THE TWIST: tightropes join them, and springs BOUNCE
-      // Gobble from the bottom platforms right up to the top ones.
+      // Gobble from the bottom platforms right up to the top ones. Big circus
+      // balls go BOING and bounce him back until he is big enough to gulp.
       id: "circus", name: "Circus", door: "🎪", color: "#ff5e7e",
       ground: "ring", hole: "gobble",
       wear: ["tophat", "#e63946"], air: ["confetti"],
@@ -1001,7 +1020,7 @@
       tiers: [
         { r: T1, items: [["🍿", 50], ["🎟️", 20, null, 2], ["🍭", 16], ["🍬", 16, null, 2], ["🥜", 14, null, 2], ["🪀", 12]] },
         { r: T2, items: [["🎈", 16, null, 2], ["🎩", 10], ["🪄", 10], ["🥁", 10], ["🎺", 10], ["🧁", 10]] },
-        { r: T3, items: [["🛴", 3, { ride: "ring" }], ["🎭", 10], ["🪅", 8], ["🎁", 8], ["🛹", 8], ["🧸", 10]] },
+        { r: T3, items: [["🛴", 3, { ride: "ring" }], ["🎭", 10], ["🪅", 8], ["🎁", 8], ["🛹", 8], ["🧸", 10], ["🏀", 6, { bounce: true }]] },
         { r: T4, items: [["🎠", 6, "top"], ["🚲", 8], ["🪑", 8], ["🚐", 6, "low"]] },
         { r: T5, items: [["🚂", 4], ["🚃", 9], ["🚌", 4]] },
       ],
@@ -1173,7 +1192,8 @@
     {
       // A SPIRAL of a land, and THE TWIST: the only way in is round and round
       // the spiral path — small sweets on the outside, cakes further in, and
-      // the giant lollipop right in the middle.
+      // the giant lollipop right in the middle — and giant GUMBALLS on the
+      // path go BOING until he is big enough to gulp them.
       id: "candy", name: "Candy Land", door: "🍭", color: "#ff8ad8",
       ground: "candy", hole: "gobble",
       wear: ["bow", "#ff7ac0"], air: ["sprinkles"],
@@ -1198,8 +1218,8 @@
       tiers: [
         { r: T1, items: [["🍬", 60], ["🍓", 20, "outer", 2], ["🍫", 16, null, 2], ["🍪", 16, null, 2], ["🍒", 14], ["🍡", 12]] },
         { r: T2, items: [["🧁", 14], ["🍩", 14], ["🍰", 12, "mid"], ["🥧", 10], ["🍮", 10], ["🍦", 10]] },
-        { r: T3, items: [["🎂", 10, "mid"], ["🍯", 10], ["🍉", 8], ["🥞", 10], ["🧇", 10], ["🍨", 8]] },
-        { r: T4, items: [["🎁", 10, "inner"], ["🧸", 10, "inner"], ["🪅", 8, "inner"], ["🍄", 6, "inner"]] },
+        { r: T3, items: [["🎂", 10, "mid"], ["🍯", 10], ["🍉", 8], ["🥞", 10], ["🧇", 10], ["🍨", 8], ["🟣", 5, { bounce: true, zone: "mid" }]] },
+        { r: T4, items: [["🎁", 10, "inner"], ["🧸", 10, "inner"], ["🪅", 8, "inner"], ["🍄", 6, "inner"], ["🔵", 4, { bounce: true, zone: "inner" }]] },
         { r: T5, items: [["🏰", 4, "inner"], ["🎪", 4, "inner"], ["🏠", 6, "inner"]] },
       ],
       finale: { e: "🍭", r: 20, at: [0.5, 0.5], say: "the giant lollipop" },
@@ -1238,6 +1258,1062 @@
         { r: T5, items: [["🎪", 7], ["🏟️", 5], ["🚌", 5]] },
       ],
       finale: { e: "🎹", r: 20, at: [0.76, 0.22], say: "the giant piano" },
+    },
+    {
+      // BATH TIME: the bath overflowed. Puddles all over the bathroom floor
+      // to walk round, wet tiles he SLIDES on, and the plughole in the middle
+      // is a WHIRLPOOL that spins him round and round.
+      id: "bath", name: "Bath Time", door: "🛁", color: "#6cc6f0",
+      ground: "bath", hole: "gobble",
+      wear: ["bobble", "#5ec8ff"], air: ["bubbles"],
+      backdrop: ["#eaf7ff", "#c5e7fa"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [523.25, 659.25, 783.99, 659.25, 1046.5],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 40 }],
+      blocks: [
+        { oval: [0.24, 0.42, 0.13, 0.05], look: "water" },
+        { oval: [0.76, 0.42, 0.13, 0.05], look: "water" },
+        { oval: [0.3, 0.72, 0.1, 0.04], look: "water" },
+        { oval: [0.7, 0.72, 0.1, 0.04], look: "water" },
+      ],
+      flows: [{ spin: [0.5, 0.56, 0.11], v: 22, look: "whirl" }],
+      slide: ["wet"],
+      zones: {
+        wet: [[0.08, 0.5, 0.3, 0.62], [0.7, 0.5, 0.92, 0.62]],
+        sink: [[0.05, 0.05, 0.3, 0.2]],
+        shelf: [[0.7, 0.05, 0.95, 0.2]],
+      },
+      trails: [{ e: "🧼", to: [0.2, 0.84] }, { e: "🧼", to: [0.8, 0.84] }],
+      decals: [
+        { k: "mat", x0: 0.37, y0: 0.79, x1: 0.63, y1: 0.89, c: "#7fd0f5" },
+        { k: "puddle", x: 0.16, y: 0.56, r: 0.07 },
+        { k: "puddle", x: 0.84, y: 0.56, r: 0.07 },
+        { k: "towel", x0: 0.06, y0: 0.24, x1: 0.18, y1: 0.3, c: "#ff8fb1" },
+        { k: "towel", x0: 0.82, y0: 0.24, x1: 0.94, y1: 0.3, c: "#ffd24d" },
+      ],
+      tiers: [
+        { r: T1, items: [["🧼", 54], ["🪥", 20, null, 2], ["🧽", 18], ["💧", 22, "wet", 2], ["🍬", 14], ["⭐", 14]] },
+        { r: T2, items: [["🧻", 14], ["🪣", 10], ["🩴", 12, null, 2], ["🧦", 14, null, 2], ["👕", 10], ["🧴", 12, "shelf"]] },
+        { r: T3, items: [["🧺", 10], ["🪴", 8], ["🪞", 6, "sink"], ["🚿", 6], ["⛵", 10], ["🧸", 8]] },
+        { r: T4, items: [["🚽", 6], ["🗑️", 6], ["🪑", 6], ["🪜", 6]] },
+        { r: T5, items: [["🗄️", 5], ["🚪", 5], ["🪟", 5]] },
+      ],
+      finale: { e: "🛁", r: 20, at: [0.5, 0.14], say: "the bathtub" },
+    },
+    {
+      // A GIANT KITCHEN (§17 giant: six sizes, a giant finale): Gobble is
+      // mouse-sized under the counters, and THE TWIST is counting — every
+      // cookie he gulps says the next number — round a kitchen island, with a
+      // spinning pizza plate on the floor that carries him round.
+      id: "kitchen", name: "Giant Kitchen", door: "🍳", color: "#ff9f43",
+      ground: "kitchen", hole: "gobble",
+      world: [504, 706],
+      wear: ["chef", "#ffffff"], air: ["motes"],
+      backdrop: ["#fff6e8", "#ffe2bf"],
+      start: [0.5, 0.94], starters: 3,
+      tune: [392, 523.25, 659.25, 783.99, 659.25, 523.25],
+      count: { e: "🍪", by: 1, say: "cookies" },
+      blocks: [
+        { rect: [0.03, 0.3, 0.09, 0.64], round: 2, look: "counter" },
+        { rect: [0.91, 0.3, 0.97, 0.64], round: 2, look: "counter" },
+        { rect: [0.3, 0.45, 0.7, 0.52], round: 3, look: "counter" },
+      ],
+      flows: [{ spin: [0.5, 0.75, 0.08], v: 20, look: "pizza" }],
+      zones: {
+        tray: [[0.13, 0.62, 0.33, 0.74]],
+        table: [[0.64, 0.6, 0.94, 0.86]],
+        pantry: [[0.12, 0.3, 0.27, 0.62], [0.73, 0.3, 0.88, 0.62]],
+      },
+      trails: [{ e: "🍓", to: [0.24, 0.86] }, { e: "🍓", to: [0.76, 0.86] }],
+      decals: [
+        { k: "rug", x: 0.79, y: 0.73, r: 0.13 },
+        { k: "mat", x0: 0.4, y0: 0.9, x1: 0.6, y1: 0.97, c: "#ff9f43" },
+        { k: "splat", x: 0.2, y: 0.36, r: 0.03 },
+        { k: "slab", x0: 0.12, y0: 0.61, x1: 0.34, y1: 0.75 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍓", 52], ["🍪", 12, { at: { grid: [0.15, 0.64, 0.31, 0.72], cols: 4 } }], ["🍪", 8], ["🫐", 28, null, 4], ["🍒", 18, null, 2], ["🧂", 14], ["🥄", 16, "pantry"], ["🧈", 14]] },
+        { r: T2, items: [["🥚", 14, null, 2], ["🍋", 14], ["🥕", 14], ["🧀", 14, "pantry"], ["🍌", 14], ["🥐", 12], ["🍅", 14, null, 2]] },
+        { r: T3, items: [["🥛", 12, "pantry"], ["🍞", 12], ["🧁", 12], ["☕", 10], ["🥗", 8], ["🍯", 10, "pantry"], ["🫖", 8]] },
+        { r: T4, items: [["🍉", 8], ["🎂", 6, "table"], ["🥘", 8], ["🍲", 8], ["🧺", 8]] },
+        { r: T5, items: [["🪑", 10, "table"], ["🗑️", 6], ["🛒", 4]] },
+        { r: T6, items: [["🗄️", 4], ["🚪", 3], ["🪟", 3]] },
+      ],
+      finale: { e: "🍕", r: 28, at: [0.5, 0.2], say: "the giant pizza" },
+    },
+    {
+      // A FIRE STATION, and THE TWIST: the fire engine waits behind the
+      // garage door, and only the big red BUTTON out in the yard opens it (a
+      // gold wire runs from the button to the door). Ambulances and police
+      // cars drive round the yard.
+      id: "firestation", name: "Fire Station", door: "🚒", color: "#e63946",
+      ground: "brick", hole: "gobble",
+      wear: ["hardhat", "#e63946"], air: ["dust"],
+      backdrop: ["#fff0ea", "#ffd5c8"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [659.25, 523.25, 659.25, 523.25, 783.99],
+      blocks: [
+        // the garage: walls round the top middle, shut but for its door
+        { path: [[0.48, 0.32], [0.26, 0.32], [0.26, -0.02]], w: 5, look: "wall" },
+        { path: [[0.52, 0.32], [0.74, 0.32], [0.74, -0.02]], w: 5, look: "wall" },
+      ],
+      tracks: { yard: { pts: ovalPts(0.5, 0.65, 0.38, 0.18, 28), loop: true, speed: 9, look: "road" } },
+      zones: {
+        garage: [[0.3, 0.04, 0.7, 0.28]],
+        lot: [[0.04, 0.04, 0.22, 0.4], [0.78, 0.04, 0.96, 0.4]],
+        street: [[0.3, 0.86, 0.7, 0.96]],
+      },
+      trails: [{ e: "🍩", to: [0.22, 0.86] }, { e: "🍩", to: [0.78, 0.86] }],
+      decals: [
+        { k: "slab", x0: 0.27, y0: 0.02, x1: 0.73, y1: 0.31 },
+        { k: "lot", x0: 0.03, y0: 0.04, x1: 0.23, y1: 0.4 },
+        { k: "lot", x0: 0.77, y0: 0.04, x1: 0.97, y1: 0.4 },
+        { k: "zebra", x0: 0.42, y0: 0.4, x1: 0.58, y1: 0.46 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍩", 48], ["⭐", 20], ["🔔", 16], ["🧤", 18, null, 2], ["🔑", 14], ["🍬", 16], ["🪙", 16]] },
+        { r: T2, items: [["🧯", 14], ["⛑️", 12, "garage"], ["🥾", 12, null, 2], ["🔦", 10], ["🪣", 12], ["🧢", 10], ["📻", 8]] },
+        { r: T3, items: [["🚨", 10], ["🪜", 8, "garage"], ["🛢️", 8, "lot"], ["🚧", 10], ["🚲", 6], ["🧺", 6], ["🚪", 1, { at: { pts: [[0.5, 0.32]] }, lock: "garage" }]] },
+        { r: T4, items: [["🚓", 3, { ride: "yard" }], ["🚑", 3, { ride: "yard" }], ["🚗", 8, "lot"], ["🛵", 6], ["🚐", 6], ["🔴", 1, { press: "garage", at: { pts: [[0.13, 0.66]] } }]] },
+        { r: T5, items: [["🏠", 4, "street"], ["🏪", 4], ["🚌", 4], ["🌳", 4]] },
+      ],
+      finale: { e: "🚒", r: 20, at: [0.5, 0.15], say: "the fire engine" },
+    },
+    {
+      // A VEGGIE PATCH, and THE TWIST: little seedlings SPROUT carrots as
+      // Gobble comes near, and the ripe tomatoes ROLL AWAY from him — corner
+      // them! A stream runs across the garden; stepping stones cross it.
+      id: "garden", name: "Veggie Patch", door: "🥕", color: "#ff9f1c",
+      ground: "lawn", hole: "gobble",
+      wear: ["straw", "#7cc95a"], air: ["petals"],
+      backdrop: ["#eefde8", "#cdf1c2"],
+      start: [0.5, 0.93], starters: 3,
+      tune: [523.25, 587.33, 659.25, 783.99, 880],
+      blocks: [
+        { path: [[-0.02, 0.5], [0.18, 0.46], [0.38, 0.53], [0.6, 0.46], [0.82, 0.53], [1.02, 0.49]], w: 20, look: "water" },
+      ],
+      bridges: [
+        { path: [[0.27, 0.6], [0.27, 0.4]], w: 13, look: "stones" },
+        { path: [[0.72, 0.6], [0.72, 0.39]], w: 13, look: "stones" },
+      ],
+      zones: {
+        veg: [[0.06, 0.6, 0.44, 0.76]],
+        tomatoes: [[0.56, 0.6, 0.94, 0.78]],
+        beds: [[0.06, 0.22, 0.36, 0.38], [0.64, 0.22, 0.94, 0.38]],
+        shed: [[0.04, 0.03, 0.26, 0.18], [0.74, 0.03, 0.96, 0.18]],
+      },
+      trails: [{ e: "🍓", to: [0.2, 0.86] }, { e: "🍓", to: [0.8, 0.86] }],
+      decals: [
+        { k: "soil", x0: 0.05, y0: 0.59, x1: 0.45, y1: 0.77 },
+        { k: "soil", x0: 0.55, y0: 0.59, x1: 0.95, y1: 0.79 },
+        { k: "crops", x0: 0.05, y0: 0.21, x1: 0.37, y1: 0.39, c: "#7cc95a" },
+        { k: "crops", x0: 0.63, y0: 0.21, x1: 0.95, y1: 0.39, c: "#e9c46a" },
+        { k: "flowers", x: 0.5, y: 0.15, r: 0.1 },
+        { k: "path", w: 10, pts: [[0.5, 1.02], [0.5, 0.82], [0.27, 0.66]] },
+      ],
+      tiers: [
+        { r: T1, items: [["🍓", 46], ["🫐", 24, null, 4], ["🌼", 20, null, 4], ["🍒", 16, null, 2], ["🌰", 14], ["🍀", 12], ["🌱", 8, { sprout: [["🥕", 3, 2]], zone: "veg" }]] },
+        { r: T2, items: [["🍅", 8, { run: true, zone: "tomatoes" }], ["🥒", 14, "beds"], ["🌶️", 10, "beds"], ["🧄", 12], ["🧅", 12], ["🥬", 12], ["🍋", 10]] },
+        { r: T3, items: [["🥦", 10, "beds"], ["🌽", 10, "beds"], ["🍆", 8], ["🪴", 8], ["🪣", 8, "shed"], ["🧺", 6]] },
+        { r: T4, items: [["🍉", 6], ["🎃", 4], ["🪑", 6], ["🌲", 8]] },
+        { r: T5, items: [["🌳", 6], ["🛖", 4, "shed"], ["🏡", 3]] },
+      ],
+      finale: { e: "🌻", r: 20, at: [0.5, 0.17], say: "the giant sunflower" },
+    },
+    {
+      // A PLAYGROUND, and THE TWIST: bouncy balls go BOING and knock Gobble
+      // back until he is big enough to gulp them, footballs ROLL AWAY from
+      // him, and the roundabout in the middle spins him round and round.
+      id: "playground", name: "Playground", door: "🪁", color: "#ff7a59",
+      ground: "rubber", hole: "gobble",
+      wear: ["cap", "#ff9f1c"], air: ["leaves", "#f2a03d"],
+      backdrop: ["#fff7e0", "#ffe2a8"],
+      start: [0.5, 0.9], starters: 3,
+      tune: [659.25, 783.99, 659.25, 523.25, 587.33, 659.25],
+      land: [{ oval: [0.5, 0.5, 0.48, 0.47] }],
+      flows: [{ spin: [0.5, 0.52, 0.1], v: 24, look: "turntable" }],
+      zones: {
+        field: [[0.1, 0.62, 0.42, 0.8]],
+        court: [[0.58, 0.62, 0.9, 0.8]],
+        sandpit: [[0.14, 0.24, 0.4, 0.4]],
+        swings: [[0.6, 0.24, 0.86, 0.4]],
+      },
+      trails: [{ e: "🍭", to: [0.26, 0.84] }, { e: "🍭", to: [0.74, 0.84] }],
+      decals: [
+        { k: "court", x0: 0.57, y0: 0.61, x1: 0.91, y1: 0.81 },
+        { k: "pitch", x0: 0.09, y0: 0.61, x1: 0.43, y1: 0.81 },
+        { k: "patch", x: 0.27, y: 0.32, r: 0.13, c: "#f2d28a" },
+        { k: "path", w: 9, pts: [[0.5, 0.98], [0.5, 0.66]] },
+      ],
+      tiers: [
+        { r: T1, items: [["🍭", 44], ["🪙", 20], ["🍬", 22], ["⭐", 16], ["🧃", 14], ["🪀", 14, "swings"], ["🍪", 14, null, 2]] },
+        { r: T2, items: [["⚽", 6, { run: true, zone: "field" }], ["🧸", 10], ["🪁", 10, "swings"], ["🎈", 12], ["🧢", 10], ["🥤", 10], ["🍿", 10], ["🛼", 8]] },
+        { r: T3, items: [["🏀", 8, { bounce: true, zone: "court" }], ["🛴", 8], ["🛹", 8], ["🪣", 8, "sandpit"], ["🧺", 6], ["🏖️", 4, "sandpit"]] },
+        { r: T4, items: [["🏐", 4, { bounce: true }], ["🚲", 6], ["🪑", 6], ["🌲", 8]] },
+        { r: T5, items: [["🌳", 9], ["🛖", 5], ["🎪", 2], ["🎡", 2]] },
+      ],
+      finale: { e: "🎠", r: 20, at: [0.5, 0.15], say: "the merry-go-round" },
+    },
+    {
+      // A RACE TRACK, wide, and THE TWIST: race cars zoom round and round,
+      // lightning ⚡ power-ups make Gobble ZOOM too, and the oil drums and
+      // petrol pumps by the pits are bumpers that go BOING until he is big
+      // enough. The trophy waits on the winners' podium.
+      id: "racetrack", name: "Race Track", door: "🏎️", color: "#e63946",
+      ground: "tarmac", hole: "gobble",
+      world: [560, 460],
+      wear: ["cap", "#e63946"], air: ["confetti"],
+      backdrop: ["#eef3f8", "#d6e0ea"],
+      start: [0.5, 0.94], starters: 3,
+      tune: [523.25, 659.25, 783.99, 1046.5, 783.99],
+      tracks: { race: { pts: ovalPts(0.5, 0.56, 0.38, 0.27, 32), loop: true, speed: 16, look: "road" } },
+      zones: {
+        infield: [{ oval: [0.5, 0.56, 0.24, 0.13] }],
+        pits: [[0.02, 0.3, 0.1, 0.82], [0.9, 0.3, 0.98, 0.82]],
+        stands: [[0.12, 0.04, 0.38, 0.2], [0.62, 0.04, 0.88, 0.2]],
+      },
+      trails: [{ e: "🏁", to: [0.3, 0.9] }, { e: "🏁", to: [0.7, 0.9] }],
+      decals: [
+        { k: "podium", x0: 0.43, y0: 0.08, x1: 0.57, y1: 0.18 },
+        { k: "zebra", x0: 0.47, y0: 0.78, x1: 0.53, y1: 0.88 },
+        { k: "lot", x0: 0.01, y0: 0.3, x1: 0.11, y1: 0.82 },
+        { k: "lot", x0: 0.89, y0: 0.3, x1: 0.99, y1: 0.82 },
+        { k: "pitch", x0: 0.3, y0: 0.47, x1: 0.7, y1: 0.65 },
+      ],
+      tiers: [
+        { r: T1, items: [["🏁", 34], ["⚡", 4, { power: "zoom" }], ["🪙", 28], ["⭐", 20], ["🔩", 20, "pits"], ["🍬", 16], ["🔑", 14], ["🧃", 14]] },
+        { r: T2, items: [["🧢", 12, "stands"], ["🔧", 12, "pits"], ["🪛", 10, "pits"], ["🥤", 12], ["🎟️", 10, "stands"], ["🔋", 12], ["🧤", 10, null, 2]] },
+        { r: T3, items: [["🛢️", 6, { bounce: true, zone: "pits" }], ["🚧", 10], ["🛴", 8], ["🚲", 8], ["🎈", 8, "infield"]] },
+        { r: T4, items: [["🏎️", 5, { ride: "race" }], ["🚗", 7], ["🚙", 7], ["⛽", 4, { bounce: true }]] },
+        { r: T5, items: [["🚚", 5], ["🚛", 4], ["🚌", 4], ["🏢", 3], ["🏟️", 2]] },
+      ],
+      finale: { e: "🏆", r: 20, at: [0.5, 0.12], say: "the giant trophy" },
+    },
+    {
+      // UNDER THE SEA, and THE TWIST: CURRENTS sweep Gobble along the sea
+      // floor, coral reefs stand in the way, and old treasure pots crack open
+      // after three bumps, spilling coins and jewels. A sunken ship waits at
+      // the top.
+      id: "sea", name: "Under the Sea", door: "🔱", color: "#2b8a8a",
+      ground: "seabed", hole: "gobble",
+      world: [420, 640],
+      wear: ["bubble", "#9fe3ff"], air: ["bubbles"],
+      backdrop: ["#bfe9ff", "#5fb6e8"],
+      start: [0.5, 0.93], starters: 3,
+      tune: [392, 440, 523.25, 440, 392, 329.63],
+      land: [{ circle: [0.5, 0.71, 0.47] }, { circle: [0.5, 0.31, 0.43] }, { oval: [0.5, 0.52, 0.45, 0.16] }],
+      blocks: [
+        { circle: [0.22, 0.52, 0.06], look: "coral" },
+        { circle: [0.78, 0.55, 0.065], look: "coral" },
+        { oval: [0.5, 0.4, 0.13, 0.035], look: "coral" },
+        { circle: [0.3, 0.2, 0.045], look: "coral" },
+        { circle: [0.7, 0.2, 0.045], look: "coral" },
+      ],
+      flows: [
+        { pts: [[0.12, 0.82], [0.5, 0.7], [0.88, 0.82]], w: 24, v: 18, look: "current" },
+        { pts: [[0.86, 0.46], [0.7, 0.3], [0.5, 0.25]], w: 22, v: 20, look: "current" },
+      ],
+      zones: {
+        wreck: [[0.36, 0.04, 0.64, 0.16]],
+        reef: [[0.08, 0.42, 0.34, 0.62], [0.66, 0.44, 0.92, 0.64]],
+        deep: [[0.2, 0.26, 0.8, 0.36]],
+      },
+      trails: [{ e: "🪙", to: [0.26, 0.86] }, { e: "🪙", to: [0.74, 0.86] }],
+      decals: [
+        { k: "rockpool", x: 0.16, y: 0.72, r: 0.05 },
+        { k: "rockpool", x: 0.84, y: 0.7, r: 0.05 },
+        { k: "shade", x: 0.5, y: 0.31, r: 0.16 },
+        { k: "stones", pts: [[0.5, 0.97], [0.47, 0.88], [0.53, 0.8], [0.5, 0.72]] },
+      ],
+      tiers: [
+        { r: T1, items: [["🪙", 46], ["⭐", 22], ["💍", 16], ["🌿", 28, null, 4], ["🔑", 14], ["🧿", 16], ["🍬", 18]] },
+        { r: T2, items: [["💎", 14], ["🧭", 12], ["🗝️", 12], ["⚓", 8], ["🪝", 10, "deep"], ["🥫", 10], ["🧴", 10], ["👑", 6, "wreck"]] },
+        { r: T3, items: [["🗿", 6], ["🪨", 10, "reef"], ["🏮", 8], ["🎺", 8], ["🧳", 8], ["🪵", 10]] },
+        { r: T4, items: [["🏺", 4, { shake: [["🪙", 4, 1], ["💎", 2, 2]], hits: 3 }], ["🛶", 8], ["🚤", 6], ["⛵", 8]] },
+        { r: T5, items: [["🛥️", 5], ["⛴️", 4], ["🚢", 4], ["🏛️", 4]] },
+      ],
+      finale: { e: "🛳️", r: 20, at: [0.5, 0.15], say: "the sunken ship" },
+    },
+    {
+      // A WATER PARK, and THE TWIST: rainbow water SLIDES whoosh Gobble down
+      // over the pools, and water CANNONS blast him from one side of the park
+      // to the other. The giant wave waits at the top.
+      id: "waterpark", name: "Water Park", door: "💦", color: "#2fa3d9",
+      ground: "pool", hole: "gobble",
+      wear: ["straw", "#2fa3d9"], air: ["sparkles", "#d8f4ff"],
+      backdrop: ["#e6f7ff", "#b9e6ff"],
+      start: [0.5, 0.93], starters: 3,
+      tune: [783.99, 659.25, 523.25, 659.25, 783.99, 1046.5],
+      blocks: [
+        { rect: [0.06, 0.34, 0.42, 0.5], round: 12, look: "water" },
+        { rect: [0.58, 0.34, 0.94, 0.5], round: 12, look: "water" },
+        { oval: [0.5, 0.22, 0.26, 0.05], look: "water" },
+      ],
+      bridges: [
+        { path: [[0.24, 0.28], [0.24, 0.56]], w: 14, look: "rainbow" },
+        { path: [[0.76, 0.28], [0.76, 0.56]], w: 14, look: "rainbow" },
+      ],
+      flows: [
+        { pts: [[0.24, 0.28], [0.24, 0.56]], w: 14, v: 34, look: "slide" },
+        { pts: [[0.76, 0.28], [0.76, 0.56]], w: 14, v: 34, look: "slide" },
+      ],
+      portals: [
+        { a: [0.12, 0.7], b: [0.86, 0.12], oneway: true, fly: true },
+        { a: [0.88, 0.7], b: [0.14, 0.12], oneway: true, fly: true },
+      ],
+      zones: {
+        snacks: [[0.36, 0.56, 0.64, 0.68]],
+        loungers: [[0.04, 0.76, 0.3, 0.9], [0.7, 0.76, 0.96, 0.9]],
+        top: [[0.04, 0.03, 0.3, 0.16], [0.7, 0.03, 0.96, 0.16]],
+      },
+      trails: [{ e: "🍦", to: [0.3, 0.86] }, { e: "🍦", to: [0.7, 0.86] }],
+      decals: [
+        { k: "towel", x0: 0.05, y0: 0.8, x1: 0.15, y1: 0.86, c: "#ff6b6b" },
+        { k: "towel", x0: 0.85, y0: 0.8, x1: 0.95, y1: 0.86, c: "#ffd24d" },
+        { k: "puddle", x: 0.5, y: 0.78, r: 0.06 },
+        { k: "mat", x0: 0.35, y0: 0.55, x1: 0.65, y1: 0.69, c: "#2fa3d9" },
+      ],
+      tiers: [
+        { r: T1, items: [["🍦", 46], ["🍬", 22], ["🪙", 18], ["⭐", 18], ["🧃", 16], ["🍭", 16], ["🩱", 12], ["🕶️", 12]] },
+        { r: T2, items: [["🩳", 12, null, 2], ["🩴", 12, null, 2], ["🧴", 12, "loungers"], ["🏐", 10], ["🥤", 10, "snacks"], ["🍔", 10, "snacks"], ["🍟", 10, "snacks"]] },
+        { r: T3, items: [["🛶", 8], ["⛱️", 8, "loungers"], ["🍉", 10], ["🧺", 8], ["🚿", 6], ["🪣", 8]] },
+        { r: T4, items: [["🚤", 5], ["🪑", 7, "loungers"], ["🌴", 9], ["⛵", 6]] },
+        { r: T5, items: [["🏖️", 5], ["🎡", 2], ["🏨", 4], ["🛖", 5], ["🎢", 2]] },
+      ],
+      finale: { e: "🌊", r: 20, at: [0.5, 0.08], say: "the giant wave" },
+    },
+    {
+      // A HARBOUR round a bay, and THE TWIST: the giant crane stands in the
+      // crane yard behind a gate that needs THREE keys — one hidden on each
+      // side of the harbour ("one of three!"). Boats sail round the bay and
+      // stacks of shipping containers stand on the quay.
+      id: "harbour", name: "Harbour", door: "⚓", color: "#1d3557",
+      ground: "dock", hole: "gobble",
+      wear: ["cap", "#1d3557", "#ffd24d"], air: ["clouds"],
+      backdrop: ["#dff3ff", "#9fd3f0"],
+      start: [0.5, 0.93], starters: 3,
+      tune: [392, 523.25, 659.25, 587.33, 523.25],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 30, not: { oval: [0.5, 0.46, 0.28, 0.17] } }],
+      blocks: [
+        // the crane yard, shut but for its gate
+        { path: [[0.48, 0.22], [0.3, 0.22], [0.3, -0.02]], w: 5, look: "crates" },
+        { path: [[0.52, 0.22], [0.7, 0.22], [0.7, -0.02]], w: 5, look: "crates" },
+        // container stacks on the quay
+        { rect: [0.06, 0.78, 0.2, 0.84], round: 2, look: "crates" },
+        { rect: [0.8, 0.78, 0.94, 0.84], round: 2, look: "crates" },
+        { rect: [0.06, 0.3, 0.14, 0.42], round: 2, look: "crates" },
+        { rect: [0.86, 0.5, 0.94, 0.62], round: 2, look: "crates" },
+      ],
+      tracks: { bay: { pts: ovalPts(0.5, 0.46, 0.245, 0.14, 24), loop: true, speed: 7, look: "none" } },
+      zones: {
+        west: [[0.04, 0.46, 0.18, 0.7]],
+        east: [[0.82, 0.24, 0.96, 0.46]],
+        south: [[0.3, 0.8, 0.7, 0.88]],
+        yard: [[0.33, 0.04, 0.67, 0.2]],
+        quay: [[0.04, 0.04, 0.27, 0.22], [0.73, 0.04, 0.96, 0.22]],
+      },
+      trails: [{ e: "🪙", to: [0.24, 0.9] }, { e: "🪙", to: [0.76, 0.9] }],
+      decals: [
+        { k: "slab", x0: 0.31, y0: 0.02, x1: 0.69, y1: 0.21 },
+        { k: "pallet", x0: 0.38, y0: 0.66, x1: 0.62, y1: 0.74 },
+        { k: "lot", x0: 0.03, y0: 0.03, x1: 0.28, y1: 0.23 },
+        { k: "lot", x0: 0.72, y0: 0.03, x1: 0.97, y1: 0.23 },
+      ],
+      tiers: [
+        { r: T1, items: [["🪙", 44], ["⭐", 18], ["🍬", 16], ["🍦", 16], ["🥨", 14], ["🪝", 16], ["🔩", 14],
+          ["🔑", 1, { key: "yard", zone: "west", glow: true }], ["🔑", 1, { key: "yard", zone: "east", glow: true }], ["🔑", 1, { key: "yard", zone: "south", glow: true }]] },
+        { r: T2, items: [["🧭", 10], ["🪢", 12], ["🪣", 12], ["🧤", 10, null, 2], ["📦", 12, "quay"], ["🥫", 10], ["🗞️", 10]] },
+        { r: T3, items: [["🛢️", 10, "quay"], ["🛶", 8], ["🧳", 8], ["🪵", 10, null, 2], ["🚲", 6], ["🚧", 1, { at: { pts: [[0.5, 0.22]] }, lock: "yard" }]] },
+        { r: T4, items: [["⛵", 3, { ride: "bay" }], ["🚤", 3, { ride: "bay" }], ["🚗", 7], ["🏮", 7], ["🚐", 7]] },
+        { r: T5, items: [["🚛", 5], ["🏭", 2, "yard"], ["🏠", 5], ["⛴️", 3], ["🛳️", 3]] },
+      ],
+      finale: { e: "🏗️", r: 20, at: [0.5, 0.1], say: "the big crane" },
+    },
+    {
+      // A tall SKI MOUNTAIN, wide at the foot and narrow at the peak, and THE
+      // TWIST: two ski SLOPES whoosh Gobble back down the mountain, a frozen
+      // pond is slippery, and cable cars ride their wire up and down the side.
+      // The snowman waits at the very top.
+      id: "mountain", name: "Ski Mountain", door: "🏔️", color: "#2fa3d9",
+      ground: "snow", hole: "gobble",
+      wear: ["bobble", "#2fa3d9", "#ffffff"], air: ["snow"],
+      backdrop: ["#eaf5ff", "#c6e0f7"],
+      world: [420, 700],
+      start: [0.5, 0.95], starters: 3,
+      tune: [523.25, 659.25, 783.99, 1046.5, 783.99, 659.25],
+      land: [{ poly: [[0.02, 0.985], [0.98, 0.985], [0.94, 0.62], [0.78, 0.24], [0.66, 0.02], [0.34, 0.02], [0.22, 0.24], [0.06, 0.62]] }],
+      blocks: [
+        { circle: [0.38, 0.17, 0.035], look: "rock" },
+        { circle: [0.64, 0.33, 0.04], look: "rock" },
+        { circle: [0.3, 0.72, 0.035], look: "rock" },
+      ],
+      flows: [
+        { pts: [[0.36, 0.2], [0.27, 0.36], [0.2, 0.56]], w: 22, v: 30, look: "ski" },
+        { pts: [[0.7, 0.42], [0.8, 0.6], [0.84, 0.78]], w: 22, v: 30, look: "ski" },
+      ],
+      tracks: { cable: { pts: [[0.6, 0.78], [0.56, 0.12]], speed: 7, look: "wire" } },
+      slide: ["pond"],
+      zones: {
+        pond: [{ circle: [0.48, 0.62, 0.13] }],
+        lodge: [[0.08, 0.84, 0.36, 0.95], [0.64, 0.84, 0.92, 0.95]],
+        forest: [[0.12, 0.42, 0.24, 0.6], [0.74, 0.22, 0.86, 0.4]],
+        peak: [[0.36, 0.06, 0.64, 0.13]],
+      },
+      trails: [{ e: "❄️", to: [0.3, 0.88] }, { e: "❄️", to: [0.7, 0.88] }],
+      decals: [
+        { k: "ice", x: 0.48, y: 0.62, r: 0.13 },
+        { k: "drift", x: 0.42, y: 0.4, r: 0.07 },
+        { k: "drift", x: 0.2, y: 0.8, r: 0.07 },
+        { k: "drift", x: 0.8, y: 0.12, r: 0.05 },
+        { k: "tracks", c: "rgba(110,140,190,0.45)", pts: [[0.5, 0.94], [0.44, 0.8], [0.42, 0.5], [0.48, 0.3]] },
+      ],
+      tiers: [
+        { r: T1, items: [["❄️", 50], ["🍪", 20, null, 3], ["☕", 16, null, 2], ["🧦", 16, null, 2], ["🔔", 14], ["🧊", 20, "pond", 4], ["🍫", 18], ["🥕", 12]] },
+        { r: T2, items: [["🧤", 16, null, 2], ["🧣", 14], ["⛸️", 12, "pond"], ["🥌", 10, "pond"], ["🎒", 12], ["🥾", 12, null, 2], ["🧢", 10]] },
+        { r: T3, items: [["🛷", 12], ["🎿", 12], ["🎄", 12, "forest"], ["🪵", 10, null, 2], ["🔦", 8], ["🏒", 8, "pond"]] },
+        { r: T4, items: [["🚡", 3, { ride: "cable" }], ["🌲", 14, "forest"], ["🛖", 7, "lodge"], ["🚙", 6], ["⛺", 6]] },
+        { r: T5, items: [["🏠", 6, "lodge"], ["🏡", 4], ["🏨", 3], ["🚌", 3], ["🚠", 3]] },
+      ],
+      finale: { e: "☃️", r: 20, at: [0.5, 0.09], say: "the snowman on the top" },
+    },
+    {
+      // A HOLIDAY HOTEL, and THE TWIST: a wall runs right across the middle,
+      // and only the two LIFTS go up a floor (step in at the bottom, step out
+      // at the top — and back). Upstairs, the pool deck and the giant bell
+      // sit behind a gate that only the big BUTTON in the lobby opens.
+      id: "hotel", name: "Holiday Hotel", door: "🏨", color: "#c0392b",
+      ground: "carpet", hole: "gobble",
+      wear: ["tophat", "#c0392b", "#ffd24d"], air: ["sparkles", "#ffe9a8"],
+      backdrop: ["#fff3e6", "#f7d9c0"],
+      start: [0.5, 0.93], starters: 3,
+      tune: [523.25, 659.25, 783.99, 659.25, 523.25, 392],
+      blocks: [
+        // the floor between the lobby and the rooms upstairs (the lifts are the only way up)
+        { path: [[-0.02, 0.56], [1.02, 0.56]], w: 5, look: "wall" },
+        // the pool deck upstairs, shut but for its gate
+        { path: [[0.485, 0.24], [0.16, 0.24], [0.16, -0.02]], w: 5, look: "wall" },
+        { path: [[0.515, 0.24], [0.84, 0.24], [0.84, -0.02]], w: 5, look: "wall" },
+        // the rooms off the corridor
+        { path: [[0.02, 0.38], [0.26, 0.38]], w: 4, look: "wall" },
+        { path: [[0.74, 0.38], [0.98, 0.38]], w: 4, look: "wall" },
+        // the reception desk in the lobby
+        { rect: [0.4, 0.7, 0.6, 0.73], round: 2, look: "wall" },
+        // the pool
+        { oval: [0.66, 0.11, 0.1, 0.05], look: "water" },
+      ],
+      portals: [
+        { a: [0.09, 0.88], b: [0.91, 0.49], look: "lift" },
+        { a: [0.91, 0.88], b: [0.09, 0.49], look: "lift" },
+      ],
+      zones: {
+        lobby: [[0.06, 0.62, 0.34, 0.8], [0.66, 0.62, 0.94, 0.8]],
+        rooms: [[0.04, 0.27, 0.24, 0.36], [0.76, 0.27, 0.96, 0.36], [0.04, 0.4, 0.22, 0.53], [0.78, 0.4, 0.96, 0.53]],
+        deck: [[0.2, 0.04, 0.5, 0.2]],
+      },
+      trails: [{ e: "🍬", to: [0.28, 0.9] }, { e: "🍬", to: [0.72, 0.9] }],
+      decals: [
+        { k: "rug", x: 0.5, y: 0.85, r: 0.14, pal: 2 },
+        { k: "mat", x0: 0.3, y0: 0.4, x1: 0.7, y1: 0.53, c: "#c0392b" },
+        { k: "towel", x0: 0.22, y0: 0.06, x1: 0.32, y1: 0.12, c: "#5ec8ff" },
+        { k: "towel", x0: 0.36, y0: 0.06, x1: 0.46, y1: 0.12, c: "#ffd24d" },
+      ],
+      tiers: [
+        { r: T1, items: [["🍬", 48], ["🍫", 21, null, 3], ["🧼", 16, null, 2], ["🪙", 18], ["🍪", 16], ["🔔", 14], ["🧦", 14, null, 2], ["🖊️", 12]] },
+        { r: T2, items: [["🧸", 12], ["🪥", 12, null, 2], ["🕶️", 12, "deck"], ["🎀", 10], ["🧴", 12, "deck"], ["🥐", 14, "lobby"], ["👟", 10, null, 2]] },
+        { r: T3, items: [["🧳", 12, "lobby"], ["🪴", 10], ["📺", 8, "rooms"], ["🖼️", 8, "rooms"], ["🧯", 6], ["🪑", 8], ["🚪", 1, { at: { pts: [[0.5, 0.24]] }, lock: "pool" }]] },
+        { r: T4, items: [["🛏️", 8, "rooms"], ["🛋️", 7], ["🛒", 6, "lobby"], ["🎹", 3], ["⛱️", 4, "deck"], ["🔴", 1, { press: "pool", at: { pts: [[0.24, 0.66]] } }]] },
+        { r: T5, items: [["🚕", 5], ["⛲", 3], ["🚌", 3], ["🎄", 3], ["🗿", 2]] },
+      ],
+      finale: { e: "🛎️", r: 20, at: [0.5, 0.1], say: "the giant hotel bell" },
+    },
+    {
+      // ISLAND HOP: seven little islands in a bright sea, and THE TWIST:
+      // CANNONS on the beaches blast Gobble over the water to the far
+      // islands, rope bridges link the near ones, and beach balls ROLL AWAY
+      // across the sand. A cannon on the palm-tree island blasts him home.
+      id: "islands", name: "Island Hop", door: "🌅", color: "#ff9f1c",
+      ground: "sand", hole: "gobble",
+      wear: ["straw", "#ff9f1c"], air: ["sparkles", "#fff4c2"],
+      backdrop: ["#c9f0ff", "#7fd0f5"],
+      world: [504, 600],
+      start: [0.5, 0.9], starters: 3,
+      tune: [523.25, 587.33, 659.25, 783.99, 659.25, 523.25],
+      land: [
+        { circle: [0.5, 0.83, 0.26] },
+        { circle: [0.14, 0.58, 0.13] },
+        { circle: [0.86, 0.58, 0.13] },
+        { circle: [0.5, 0.5, 0.14] },
+        { circle: [0.2, 0.27, 0.19] },
+        { circle: [0.8, 0.27, 0.19] },
+        { circle: [0.5, 0.11, 0.16] },
+      ],
+      bridges: [
+        { path: [[0.36, 0.74], [0.2, 0.62]], w: 12, look: "rope" },
+        { path: [[0.64, 0.74], [0.8, 0.62]], w: 12, look: "rope" },
+        { path: [[0.5, 0.7], [0.5, 0.55]], w: 12, look: "rope" },
+        { path: [[0.27, 0.24], [0.4, 0.15]], w: 12, look: "rope" },
+        { path: [[0.73, 0.24], [0.6, 0.15]], w: 12, look: "rope" },
+      ],
+      portals: [
+        { a: [0.12, 0.56], b: [0.2, 0.3], oneway: true, fly: true },
+        { a: [0.88, 0.56], b: [0.8, 0.3], oneway: true, fly: true },
+        { a: [0.4, 0.06], b: [0.42, 0.84], oneway: true, fly: true },
+      ],
+      zones: {
+        beach: [{ circle: [0.5, 0.83, 0.2] }],
+        grove: [{ circle: [0.2, 0.27, 0.13] }, { circle: [0.8, 0.27, 0.13] }],
+        huts: [{ circle: [0.5, 0.5, 0.1] }],
+      },
+      trails: [{ e: "🍦", to: [0.36, 0.86] }, { e: "🍦", to: [0.64, 0.86] }],
+      decals: [
+        { k: "towel", x0: 0.36, y0: 0.88, x1: 0.44, y1: 0.93, c: "#ff6b6b" },
+        { k: "towel", x0: 0.56, y0: 0.88, x1: 0.64, y1: 0.93, c: "#5ec8ff" },
+        { k: "rockpool", x: 0.14, y: 0.6, r: 0.04 },
+        { k: "rockpool", x: 0.86, y: 0.6, r: 0.04 },
+        { k: "footprints", pts: [[0.5, 0.96], [0.46, 0.86], [0.5, 0.76]] },
+      ],
+      tiers: [
+        { r: T1, items: [["🍦", 44], ["⭐", 20], ["🍬", 18, null, 2], ["🪙", 18, null, 3], ["🧃", 14], ["🍓", 14, null, 2], ["🥥", 14]] },
+        { r: T2, items: [["🏐", 6, { run: true, zone: "beach" }], ["🩴", 12, null, 2], ["🕶️", 12], ["🧴", 10], ["🍍", 12], ["🥭", 10], ["🪁", 10], ["🍹", 10]] },
+        { r: T3, items: [["⛱️", 10, "beach"], ["🪣", 8], ["🛶", 8], ["🧺", 8], ["🪵", 10, null, 2], ["🗿", 6]] },
+        { r: T4, items: [["🌳", 10, "grove"], ["⛵", 5], ["🚤", 5], ["🏰", 4, "beach"]] },
+        { r: T5, items: [["🛖", 7, "huts"], ["🏖️", 5], ["🏝️", 3], ["⛴️", 3]] },
+      ],
+      finale: { e: "🌴", r: 20, at: [0.5, 0.1], say: "the giant palm tree" },
+    },
+    {
+      // DESERT DUNES, a WIDE desert, and THE TWIST: QUICKSAND pools he must
+      // walk round, the dunes get bigger the further he goes (the things
+      // along the way grow with him), and tumbling rocks ROLL AWAY across
+      // the sand. The giant cactus stands at the far end.
+      id: "desert", name: "Desert Dunes", door: "🏜️", color: "#e0a24a",
+      ground: "desert", hole: "gobble",
+      wear: ["explorer", "#c98a3a"], air: ["dust"],
+      backdrop: ["#fff3d6", "#f7d9a0"],
+      world: [560, 460],
+      start: [0.07, 0.8], starters: 3,
+      tune: [440, 523.25, 587.33, 659.25, 587.33, 440],
+      land: [{ rect: [0.02, 0.03, 0.98, 0.97], round: 40 }],
+      blocks: [
+        { oval: [0.22, 0.42, 0.07, 0.12], look: "quicksand" },
+        { oval: [0.4, 0.72, 0.08, 0.1], look: "quicksand" },
+        { oval: [0.56, 0.32, 0.07, 0.14], look: "quicksand" },
+        { oval: [0.74, 0.68, 0.06, 0.11], look: "quicksand" },
+      ],
+      zones: {
+        near: [{ band: [0, 0.3] }],
+        mid: [{ band: [0.3, 0.65] }],
+        far: [{ band: [0.65, 1] }],
+        oasis: [[0.04, 0.1, 0.16, 0.34]],
+        camp: [[0.3, 0.08, 0.46, 0.24]],
+        rocks: [[0.6, 0.78, 0.84, 0.94]],
+      },
+      trails: [{ e: "🌰", to: [0.24, 0.84] }, { e: "🌰", to: [0.16, 0.6] }],
+      decals: [
+        { k: "drift", x: 0.32, y: 0.3, r: 0.07, c: "#f2c98a" },
+        { k: "drift", x: 0.66, y: 0.5, r: 0.08, c: "#f2c98a" },
+        { k: "pond", x: 0.1, y: 0.22, r: 0.05 },
+        { k: "footprints", pts: [[0.05, 0.86], [0.2, 0.9], [0.34, 0.86], [0.5, 0.88]] },
+        { k: "stones", pts: [[0.62, 0.86], [0.7, 0.88], [0.8, 0.86]] },
+      ],
+      tiers: [
+        { r: T1, items: [["🌰", 46], ["🪙", 22, "near"], ["🍬", 16], ["💎", 14, null, 2], ["🥜", 18, null, 3], ["🧃", 14], ["🍪", 16]] },
+        { r: T2, items: [["🧭", 12, "near"], ["🍉", 12, "oasis"], ["🥥", 10, "oasis"], ["🗝️", 10], ["🎒", 12], ["🕶️", 12], ["🧢", 10], ["🍯", 10]] },
+        { r: T3, items: [["🪨", 6, { run: true, zone: "rocks" }], ["🛢️", 8, "mid"], ["🏺", 10, "mid"], ["🪣", 8], ["⚱️", 8], ["🗿", 6, "mid"], ["🌿", 10, "oasis", 2]] },
+        { r: T4, items: [["⛺", 8, "camp"], ["🛻", 6, "far"], ["🚙", 6, "far"], ["🌳", 6, "oasis"], ["🌴", 4, "oasis"]] },
+        { r: T5, items: [["🏰", 3, "far"], ["🛖", 6, "far"], ["🚚", 4, "far"], ["🚌", 4]] },
+      ],
+      finale: { e: "🌵", r: 20, at: [0.9, 0.2], say: "the giant cactus" },
+    },
+    {
+      // CAMPING NIGHT, and THE TWIST: it is NIGHT — only the ground round
+      // Gobble is lit, and the lanterns, torches and stars glow so he can find
+      // his way. Canoes paddle round the lake in the middle. The campsite and
+      // its big fire wait at the top.
+      id: "camp", name: "Camping Night", door: "⛺", color: "#5a7a3a",
+      ground: "grass", hole: "gobble",
+      wear: ["explorer", "#5a7a3a"], air: ["fireflies"],
+      backdrop: ["#10182b", "#1d2b44"],
+      dark: true,
+      start: [0.5, 0.92], starters: 3,
+      tune: [392, 329.63, 392, 440, 392, 329.63],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 40 }],
+      blocks: [
+        { oval: [0.5, 0.47, 0.25, 0.11], look: "water" },
+        { circle: [0.16, 0.72, 0.05], look: "water" },
+      ],
+      tracks: { lake: { pts: ovalPts(0.5, 0.47, 0.2, 0.075, 28), loop: true, speed: 7, look: "none" } },
+      zones: {
+        tents: [[0.06, 0.08, 0.3, 0.26], [0.7, 0.08, 0.94, 0.26]],
+        woods: [[0.04, 0.3, 0.2, 0.62], [0.8, 0.3, 0.96, 0.62]],
+        fire: [[0.36, 0.62, 0.64, 0.74]],
+        cars: [[0.66, 0.78, 0.94, 0.92]],
+      },
+      trails: [{ e: "🌰", to: [0.3, 0.9] }, { e: "🌰", to: [0.7, 0.9] }],
+      decals: [
+        { k: "patch", x: 0.5, y: 0.68, r: 0.1, c: "#6b4a2a" },
+        { k: "path", w: 9, pts: [[0.5, 1.02], [0.5, 0.8], [0.5, 0.66]] },
+        { k: "path", w: 8, pts: [[0.24, 0.3], [0.24, 0.62], [0.5, 0.82]] },
+        { k: "lot", x0: 0.65, y0: 0.77, x1: 0.95, y1: 0.93 },
+        { k: "flowers", x: 0.12, y: 0.88, r: 0.07 },
+      ],
+      tiers: [
+        { r: T1, items: [["🌰", 46], ["⭐", 22, { glow: true }], ["🍫", 18, null, 3], ["🍪", 16, null, 2], ["🍄", 20, "woods", 4], ["🫐", 16, null, 4], ["🍂", 14]] },
+        { r: T2, items: [["🔦", 12, { glow: true }], ["🥾", 12, null, 2], ["🧭", 10], ["🎒", 12, "tents"], ["🥫", 12], ["🧢", 10], ["🍢", 10], ["🎣", 8]] },
+        { r: T3, items: [["🏮", 12, { glow: true }], ["🪵", 12, "fire", 2], ["🪣", 8], ["🧺", 8], ["🎸", 6, "fire"], ["🪑", 8, "fire"]] },
+        { r: T4, items: [["🛶", 3, { ride: "lake" }], ["⛺", 10, "tents"], ["🌲", 12, "woods"], ["🚙", 4, "cars"]] },
+        { r: T5, items: [["🌳", 6], ["🚐", 4, "cars"], ["🛖", 4], ["🚌", 3]] },
+      ],
+      finale: { e: "🏕️", r: 20, at: [0.5, 0.12], say: "the campsite" },
+    },
+    {
+      // DINO DIG, and THE TWIST: sticky TAR pits to walk round, big rocks
+      // that CRACK OPEN after three bumps and spill old bones and gems, and a
+      // wall of boulders round the nest that Gobble can only eat through once
+      // he is big enough. The giant dinosaur egg sits in the nest at the top.
+      id: "dino", name: "Dino Dig", door: "🦴", color: "#ff9f1c",
+      ground: "dig", hole: "gobble",
+      wear: ["hardhat", "#ff9f1c"], air: ["dust"],
+      backdrop: ["#fff0d6", "#f5d2a0"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [196, 261.63, 196, 293.66, 261.63, 196],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 30 }],
+      blocks: [
+        { oval: [0.24, 0.58, 0.1, 0.06], look: "tar" },
+        { oval: [0.76, 0.5, 0.11, 0.06], look: "tar" },
+        { oval: [0.5, 0.72, 0.08, 0.04], look: "tar" },
+        // the nest: a ring of rock with one gap, shut by boulders he eats through
+        { path: [[0.42, 0.28], [0.22, 0.28], [0.22, -0.02]], w: 6, look: "rock" },
+        { path: [[0.58, 0.28], [0.78, 0.28], [0.78, -0.02]], w: 6, look: "rock" },
+      ],
+      zones: {
+        pit: [[0.06, 0.32, 0.4, 0.48], [0.6, 0.6, 0.94, 0.76]],
+        camp: [[0.06, 0.8, 0.3, 0.94]],
+        nest: [[0.26, 0.04, 0.74, 0.24]],
+        trees: [[0.82, 0.06, 0.96, 0.4], [0.04, 0.06, 0.18, 0.28]],
+      },
+      trails: [{ e: "🦴", to: [0.3, 0.88] }, { e: "🦴", to: [0.7, 0.88] }],
+      decals: [
+        { k: "soil", x0: 0.06, y0: 0.32, x1: 0.4, y1: 0.48 },
+        { k: "soil", x0: 0.6, y0: 0.6, x1: 0.94, y1: 0.76 },
+        { k: "footprints", pts: [[0.5, 0.96], [0.56, 0.82], [0.5, 0.66], [0.56, 0.46], [0.5, 0.32]] },
+        { k: "gravel", x: 0.5, y: 0.14, r: 0.12 },
+        { k: "lot", x0: 0.05, y0: 0.79, x1: 0.31, y1: 0.95 },
+      ],
+      tiers: [
+        { r: T1, items: [["🦴", 44], ["🍃", 20, null, 4], ["🌰", 18], ["🪙", 18, null, 3], ["⭐", 14], ["🍬", 14], ["🥜", 14, null, 2]] },
+        { r: T2, items: [["🖌️", 12, "pit"], ["🧭", 10], ["🪣", 12, "pit"], ["⛏️", 12, "pit"], ["🔦", 10], ["🧢", 10], ["💎", 12], ["🥤", 10, "camp"]] },
+        { r: T3, items: [["🪨", 9, { shake: [["🦴", 3, 1], ["💎", 1, 2]], hits: 3 }], ["🗺️", 8], ["🧳", 8, "camp"], ["🪵", 10, null, 2], ["🏺", 8, "nest"], ["🌿", 10, "trees", 2]] },
+        { r: T4, items: [["⛰️", 5, { at: { line: [[0.43, 0.28], [0.57, 0.28]] }, solid: true }], ["🌴", 9, "trees"], ["⛺", 6, "camp"], ["🚜", 5], ["🛻", 5], ["🌳", 6]] },
+        { r: T5, items: [["🌋", 3], ["🚛", 4], ["🚚", 4], ["🛖", 6]] },
+      ],
+      finale: { e: "🥚", r: 20, at: [0.5, 0.12], say: "the giant dinosaur egg" },
+    },
+    {
+      // A GOLD MINE, and THE TWIST: mine carts rattle round a railway through
+      // the rock tunnels — eat the train car by car from the back — and red
+      // MAGNETS give Gobble a super slurp that pulls the gold in. The giant
+      // diamond glitters in the deepest cave at the top.
+      id: "mine", name: "Gold Mine", door: "⛏️", color: "#ffc93c",
+      ground: "mine", hole: "gobble",
+      wear: ["hardhat", "#ffc93c"], air: ["sparkles", "#ffe9a8"],
+      backdrop: ["#2a2118", "#3d3022"],
+      world: [420, 620],
+      start: [0.5, 0.93], starters: 3,
+      tune: [293.66, 349.23, 440, 349.23, 293.66, 220],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 30 }],
+      blocks: [
+        { rect: [0.28, 0.42, 0.72, 0.58], round: 10, look: "rock" },
+        { rect: [0.02, 0.2, 0.14, 0.34], round: 6, look: "rock" },
+        { rect: [0.86, 0.62, 0.98, 0.76], round: 6, look: "rock" },
+        { circle: [0.2, 0.8, 0.05], look: "rock" },
+        { circle: [0.8, 0.22, 0.05], look: "rock" },
+        // the deep cave at the top, open at both sides
+        { path: [[0.18, 0.2], [0.42, 0.2]], w: 6, look: "rock" },
+        { path: [[0.58, 0.2], [0.82, 0.2]], w: 6, look: "rock" },
+      ],
+      tracks: { rail: { pts: [[0.2, 0.34], [0.8, 0.34], [0.8, 0.68], [0.2, 0.68]], loop: true, speed: 10, look: "rails", train: true } },
+      zones: {
+        gold: [[0.36, 0.62, 0.64, 0.66], [0.06, 0.38, 0.22, 0.6]],
+        tools: [[0.06, 0.74, 0.3, 0.9]],
+        shed: [[0.7, 0.8, 0.94, 0.94]],
+        cave: [[0.22, 0.04, 0.78, 0.17]],
+      },
+      trails: [{ e: "🪙", to: [0.3, 0.9] }, { e: "🪙", to: [0.7, 0.9] }],
+      decals: [
+        { k: "gravel", x: 0.18, y: 0.5, r: 0.08 },
+        { k: "gravel", x: 0.84, y: 0.44, r: 0.07 },
+        { k: "puddle", x: 0.5, y: 0.78, r: 0.04 },
+        { k: "slab", x0: 0.69, y0: 0.79, x1: 0.95, y1: 0.95 },
+        { k: "patch", x: 0.5, y: 0.1, r: 0.12, c: "#5b4a3a" },
+      ],
+      tiers: [
+        { r: T1, items: [["🪙", 50], ["🧲", 3, { power: "magnet" }], ["💍", 14], ["🪨", 20, null, 4], ["⭐", 16, "gold", 2], ["🔩", 16, "tools", 2], ["🍪", 12], ["🔑", 10]] },
+        { r: T2, items: [["🚃", 5, { ride: "rail" }], ["⛏️", 12, "tools"], ["🔦", 10], ["🪣", 12], ["🥫", 10], ["🧭", 10], ["🗝️", 10], ["👑", 6, "cave"], ["🧤", 10, null, 2]] },
+        { r: T3, items: [["🚂", 1, { ride: "rail" }], ["🧰", 10, "tools"], ["💰", 10, "gold"], ["🛢️", 8, "shed"], ["🪵", 10, null, 2], ["🏮", 8], ["⚱️", 8]] },
+        { r: T4, items: [["⛰️", 8], ["🛖", 6, "shed"], ["🚜", 4], ["🛻", 5], ["🚙", 5], ["🗿", 4]] },
+        { r: T5, items: [["🚛", 4], ["🏭", 3], ["🗻", 3], ["🏚️", 4], ["🚚", 3]] },
+      ],
+      finale: { e: "💎", r: 20, at: [0.5, 0.1], say: "the giant diamond" },
+    },
+    {
+      // A MAGIC FOREST, and THE TWIST: giant spotty MUSHROOMS go BOING and
+      // bounce Gobble back until he is big enough to gulp them, magic seeds
+      // SPROUT flowers as he passes, and fallen LOGS lie across the paths.
+      // The giant tree waits in the glade at the top.
+      id: "forest", name: "Magic Forest", door: "🍄", color: "#2fae6b",
+      ground: "forest", hole: "gobble",
+      wear: ["wizard", "#2fae6b"], air: ["fireflies"],
+      backdrop: ["#e3f7e6", "#b5e3bf"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [659.25, 783.99, 880, 783.99, 659.25, 587.33],
+      land: [{ oval: [0.5, 0.5, 0.48, 0.48] }],
+      blocks: [
+        { path: [[0.12, 0.62], [0.36, 0.56]], w: 7, look: "logs" },
+        { path: [[0.64, 0.42], [0.88, 0.36]], w: 7, look: "logs" },
+        { path: [[0.3, 0.3], [0.46, 0.36]], w: 6, look: "logs" },
+        { path: [[0.58, 0.72], [0.76, 0.78]], w: 6, look: "logs" },
+      ],
+      zones: {
+        glade: [{ circle: [0.5, 0.52, 0.14] }],
+        rings: [[0.14, 0.7, 0.4, 0.84], [0.6, 0.2, 0.86, 0.32]],
+        woods: [[0.08, 0.32, 0.26, 0.5], [0.74, 0.5, 0.92, 0.68]],
+        cottage: [[0.62, 0.84, 0.82, 0.94]],
+      },
+      trails: [{ e: "🍓", to: [0.3, 0.88] }, { e: "🍓", to: [0.7, 0.88] }],
+      decals: [
+        { k: "flowers", x: 0.5, y: 0.52, r: 0.12 },
+        { k: "flowers", x: 0.22, y: 0.2, r: 0.07 },
+        { k: "path", w: 9, pts: [[0.5, 0.99], [0.44, 0.8], [0.52, 0.64], [0.46, 0.4], [0.5, 0.2]] },
+        { k: "shade", x: 0.17, y: 0.42, r: 0.12 },
+        { k: "shade", x: 0.83, y: 0.6, r: 0.12 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍓", 44], ["🫐", 20, null, 4], ["🌰", 18], ["🍀", 14, null, 2], ["⭐", 16], ["🍯", 12], ["🌱", 8, { sprout: [["🌷", 3, 1]], zone: "glade" }]] },
+        { r: T2, items: [["🪄", 10], ["🎀", 10], ["🧺", 10], ["🍎", 12, null, 2], ["🍐", 10], ["🌿", 12, null, 2], ["🔔", 10], ["🗝️", 10]] },
+        { r: T3, items: [["🍄", 8, { bounce: true, zone: "rings" }], ["🪵", 10, null, 2], ["🪨", 8], ["🏺", 6], ["🧸", 8], ["🪑", 8]] },
+        { r: T4, items: [["🌲", 14, "woods"], ["🛖", 6], ["⛲", 4], ["🗿", 4]] },
+        { r: T5, items: [["🏰", 3], ["🏡", 5, "cottage"], ["🗻", 3], ["🏯", 3], ["🚂", 3]] },
+      ],
+      finale: { e: "🌳", r: 20, at: [0.5, 0.12], say: "the giant tree" },
+    },
+    {
+      // A LOST TEMPLE in the jungle, ringed by a moat, and THE TWIST: the
+      // golden door of the inner temple needs ALL THREE stone buttons pressed
+      // — one hidden on each side of the moat and one in the courtyard ("one
+      // of three!"). Stone bridges cross the moat. The golden vase is inside.
+      id: "temple", name: "Lost Temple", door: "🏛️", color: "#c9a24a",
+      ground: "temple", hole: "gobble",
+      wear: ["explorer", "#c9a24a"], air: ["leaves", "#7cc95a"],
+      backdrop: ["#eef7df", "#cfe6b0"],
+      world: [440, 620],
+      start: [0.5, 0.93], starters: 3,
+      tune: [293.66, 392, 440, 523.25, 440, 293.66],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 36 }],
+      blocks: [
+        { ring: [0.5, 0.44, 0.34, 0.4], look: "water" },
+        // the inner temple, shut but for its golden door
+        { path: [[0.485, 0.38], [0.26, 0.38], [0.26, 0.22]], w: 5, look: "wall" },
+        { path: [[0.515, 0.38], [0.74, 0.38], [0.74, 0.22]], w: 5, look: "wall" },
+      ],
+      bridges: [
+        { path: [[0.5, 0.67], [0.5, 0.59]], w: 16, look: "stone" },
+        { path: [[0.05, 0.44], [0.2, 0.44]], w: 14, look: "stone" },
+        { path: [[0.95, 0.44], [0.8, 0.44]], w: 14, look: "stone" },
+      ],
+      zones: {
+        court: [[0.32, 0.44, 0.68, 0.58]],
+        jungle: [[0.04, 0.62, 0.3, 0.86], [0.7, 0.62, 0.96, 0.86]],
+        ruins: [[0.04, 0.04, 0.2, 0.2], [0.8, 0.04, 0.96, 0.2]],
+      },
+      trails: [{ e: "🪙", to: [0.3, 0.9] }, { e: "🪙", to: [0.7, 0.9] }],
+      decals: [
+        { k: "slab", x0: 0.34, y0: 0.42, x1: 0.66, y1: 0.58 },
+        { k: "stones", pts: [[0.5, 0.96], [0.5, 0.8], [0.5, 0.66]] },
+        { k: "shade", x: 0.15, y: 0.74, r: 0.12 },
+        { k: "shade", x: 0.85, y: 0.74, r: 0.12 },
+        { k: "gravel", x: 0.12, y: 0.12, r: 0.07 },
+      ],
+      tiers: [
+        { r: T1, items: [["🪙", 48], ["💍", 14], ["🍃", 18, null, 4], ["🍌", 14, null, 2], ["⭐", 14], ["🍬", 14], ["🌰", 16]] },
+        { r: T2, items: [["🗝️", 10], ["🧭", 10], ["🔦", 10], ["📜", 12], ["👑", 8, "court"], ["🍍", 10, "jungle"], ["🥥", 10, "jungle"], ["💎", 10, "court"]] },
+        { r: T3, items: [["⚱️", 10, "ruins"], ["🗺️", 8], ["🪵", 8, null, 2], ["🏮", 8], ["🧳", 6], ["🪨", 8], ["🚪", 1, { at: { pts: [[0.5, 0.38]] }, lock: "door" }]] },
+        { r: T4, items: [["🌴", 12, "jungle"], ["🗿", 6], ["🛶", 4], ["⛩️", 4], ["🌳", 4], ["🔴", 3, { press: "door", at: { pts: [[0.08, 0.74], [0.92, 0.74], [0.5, 0.52]] } }]] },
+        { r: T5, items: [["🏯", 3], ["🛕", 3], ["🗻", 3], ["🌋", 2], ["⛲", 3, "court"], ["⛰️", 3]] },
+      ],
+      finale: { e: "🏺", r: 20, at: [0.5, 0.33], say: "the golden vase" },
+    },
+    {
+      // PINBALL PARTY: Gobble is the ball in a giant pinball table, and THE
+      // TWIST: BUMPERS everywhere go BOING and knock him back until he is big
+      // enough to gulp them, the PLUNGER cannon in the corner shoots him to
+      // the top of the table, and a spinner disc whirls him round.
+      id: "pinball", name: "Pinball Party", door: "🕹️", color: "#ff3fa4",
+      ground: "pinball", hole: "gobble",
+      wear: ["propeller", "#ff3fa4"], air: ["stars"],
+      backdrop: ["#1b1035", "#2e1a55"],
+      world: [420, 620],
+      start: [0.4, 0.92], starters: 3,
+      tune: [523.25, 783.99, 659.25, 1046.5, 783.99, 1318.51],
+      land: [{ poly: [[0.04, 0.98], [0.96, 0.98], [0.96, 0.2], [0.8, 0.03], [0.2, 0.03], [0.04, 0.2]] }],
+      blocks: [
+        // the two flipper lanes at the bottom
+        { path: [[0.06, 0.74], [0.3, 0.84]], w: 6, look: "wall" },
+        { path: [[0.82, 0.74], [0.58, 0.84]], w: 6, look: "wall" },
+        // the plunger lane up the right side
+        { path: [[0.86, 0.98], [0.86, 0.36]], w: 5, look: "wall" },
+      ],
+      portals: [{ a: [0.92, 0.92], b: [0.5, 0.2], oneway: true, fly: true }],
+      flows: [{ spin: [0.42, 0.58, 0.09], v: 26, look: "record" }],
+      zones: {
+        bumpers: [[0.12, 0.26, 0.76, 0.42]],
+        lanes: [[0.08, 0.46, 0.2, 0.7], [0.66, 0.46, 0.8, 0.7]],
+        drain: [[0.34, 0.86, 0.5, 0.95]],
+        lane: [[0.88, 0.4, 0.96, 0.88]],
+      },
+      trails: [{ e: "🪙", to: [0.2, 0.92] }, { e: "🪙", to: [0.66, 0.92] }],
+      decals: [
+        { k: "stripes", x0: 0.08, y0: 0.46, x1: 0.2, y1: 0.7 },
+        { k: "stripes", x0: 0.66, y0: 0.46, x1: 0.8, y1: 0.7 },
+        { k: "splat", x: 0.3, y: 0.66, r: 0.04, c: "#ffd24d" },
+        { k: "splat", x: 0.6, y: 0.3, r: 0.04, c: "#5ec8ff" },
+        { k: "heart", x: 0.42, y: 0.12, r: 0.06 },
+      ],
+      tiers: [
+        { r: T1, items: [["🪙", 48], ["⭐", 20, null, 2], ["🍬", 18], ["🍭", 14], ["🎟️", 16, null, 2], ["🔔", 12], ["🧩", 14, null, 2]] },
+        { r: T2, items: [["🎲", 12, null, 2], ["🍿", 12], ["🎈", 12], ["🪀", 10, "lane"], ["🎮", 10], ["🎳", 10], ["🧸", 10], ["🥤", 8]] },
+        { r: T3, items: [["🔵", 8, { bounce: true, zone: "bumpers" }], ["🎯", 8], ["🎰", 6, "lanes"], ["🥁", 6], ["🎸", 6], ["🛴", 8], ["🪁", 8]] },
+        { r: T4, items: [["🟡", 4, { bounce: true, zone: "bumpers" }], ["🚀", 6], ["🤖", 6], ["🎪", 4], ["🚗", 6, "lanes"], ["🛸", 4]] },
+        { r: T5, items: [["🎡", 3], ["🎢", 3], ["🏟️", 3], ["🚌", 4], ["🚂", 4]] },
+      ],
+      finale: { e: "🎱", r: 20, at: [0.5, 0.12], say: "the giant pinball" },
+    },
+    {
+      // A GIANT MOON BASE (§17 giant: six sizes, a giant finale), and THE
+      // TWIST: great CRATERS to walk round — a huge one cuts the moon nearly
+      // in half — and CANNONS that blast Gobble right over them in a low-
+      // gravity jump. Moon boots make him ZOOM. The flying saucer waits on the
+      // far side.
+      id: "moon", name: "Moon Base", door: "🌙", color: "#8a8fa8",
+      ground: "moon", hole: "gobble",
+      world: [504, 706],
+      wear: ["bubble", "#ffffff"], air: ["stars"],
+      backdrop: ["#05061a", "#161a3a"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [261.63, 392, 523.25, 392, 659.25, 523.25],
+      land: [{ oval: [0.5, 0.5, 0.48, 0.48] }],
+      blocks: [
+        { oval: [0.5, 0.36, 0.34, 0.06], look: "crater" },
+        { circle: [0.24, 0.66, 0.08], look: "crater" },
+        { circle: [0.76, 0.62, 0.09], look: "crater" },
+        { circle: [0.5, 0.78, 0.05], look: "crater" },
+        { circle: [0.3, 0.16, 0.05], look: "crater" },
+      ],
+      portals: [
+        { a: [0.5, 0.48], b: [0.5, 0.24], oneway: true, fly: true },
+        { a: [0.22, 0.48], b: [0.3, 0.26], oneway: true, fly: true },
+        { a: [0.78, 0.48], b: [0.7, 0.26], oneway: true, fly: true },
+      ],
+      zones: {
+        base: [[0.34, 0.84, 0.66, 0.94]],
+        dome: [[0.06, 0.4, 0.2, 0.56], [0.8, 0.4, 0.94, 0.56]],
+        far: [[0.2, 0.06, 0.8, 0.22]],
+        rocks: [{ circle: [0.24, 0.66, 0.13] }, { circle: [0.76, 0.62, 0.14] }],
+      },
+      trails: [{ e: "⭐", to: [0.32, 0.88] }, { e: "⭐", to: [0.68, 0.88] }],
+      decals: [
+        { k: "nebula", x: 0.2, y: 0.25, r: 0.3, c: "rgba(94,200,255,0.12)" },
+        { k: "footprints", pts: [[0.5, 0.96], [0.44, 0.86], [0.5, 0.74], [0.44, 0.6], [0.5, 0.5]] },
+        { k: "helipad", x: 0.5, y: 0.48, r: 0.04 },
+        { k: "station", x0: 0.36, y0: 0.84, x1: 0.64, y1: 0.93 },
+        { k: "gravel", x: 0.8, y: 0.84, r: 0.06 },
+      ],
+      tiers: [
+        { r: T1, items: [["⭐", 52], ["🪨", 24, "rocks", 4], ["🧀", 18, null, 3], ["🔩", 16], ["🔋", 14], ["💎", 16, null, 2], ["🍬", 14], ["🪙", 14]] },
+        { r: T2, items: [["🥾", 3, { power: "zoom" }], ["📡", 12, "dome"], ["🔭", 10], ["🧪", 12, "base"], ["🔦", 10], ["🛰️", 12], ["🎒", 10], ["☄️", 14, null, 2], ["🧃", 10]] },
+        { r: T3, items: [["🚀", 8], ["🤖", 10, "base"], ["🧰", 8], ["🛢️", 8], ["📦", 10, null, 2], ["🔬", 8]] },
+        { r: T4, items: [["🚙", 8], ["🚁", 6], ["⛺", 6, "dome"], ["🚜", 4], ["🛻", 4]] },
+        { r: T5, items: [["🏭", 4], ["🛖", 5], ["🚛", 4], ["🚌", 3], ["🏗️", 3]] },
+        { r: T6, items: [["🪐", 4, "far"], ["🌍", 2], ["🗻", 3], ["🌋", 3]] },
+      ],
+      finale: { e: "🛸", r: 28, at: [0.5, 0.12], say: "the flying saucer" },
+    },
+    {
+      // TRAIN TOWN, a model railway town, and THE TWIST: trains everywhere —
+      // a goods train to gobble car by car from the back, little trams going
+      // round and round the town, a river with railway bridges, and TUNNELS
+      // that pop Gobble out on the other side. The big steam train is in the
+      // station at the top.
+      id: "trainland", name: "Train Town", door: "🚂", color: "#1d3557",
+      ground: "felt", hole: "gobble",
+      wear: ["cap", "#1d3557", "#e63946"], air: ["clouds"],
+      backdrop: ["#e8f4ff", "#c8e0f5"],
+      world: [480, 640],
+      start: [0.5, 0.94], starters: 3,
+      tune: [392, 392, 523.25, 523.25, 659.25, 783.99],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 30 }],
+      blocks: [{ rect: [-0.02, 0.48, 1.02, 0.54], look: "water" }],
+      bridges: [
+        { path: [[0.3, 0.45], [0.3, 0.57]], w: 16, look: "planks" },
+        { path: [[0.7, 0.45], [0.7, 0.57]], w: 16, look: "planks" },
+      ],
+      portals: [
+        { a: [0.07, 0.62], b: [0.07, 0.4], look: "tunnel" },
+        { a: [0.93, 0.62], b: [0.93, 0.4], look: "tunnel" },
+      ],
+      tracks: {
+        goods: { pts: ovalPts(0.5, 0.75, 0.36, 0.11, 32), loop: true, speed: 10, look: "rails", train: true },
+        tram: { pts: ovalPts(0.5, 0.29, 0.32, 0.1, 30), loop: true, speed: 8, look: "rails" },
+      },
+      zones: {
+        town: [[0.08, 0.06, 0.3, 0.18], [0.7, 0.06, 0.92, 0.18]],
+        yard: [[0.38, 0.69, 0.62, 0.81]],
+        park: [[0.4, 0.24, 0.6, 0.34]],
+        farm: [[0.08, 0.84, 0.3, 0.95], [0.7, 0.84, 0.92, 0.95]],
+      },
+      trails: [{ e: "🎫", to: [0.3, 0.92] }, { e: "🎫", to: [0.7, 0.92] }],
+      decals: [
+        { k: "road", x0: 0.46, y0: 0.56, x1: 0.54, y1: 0.98 },
+        { k: "park", x: 0.5, y: 0.29, r: 0.07 },
+        { k: "lot", x0: 0.37, y0: 0.68, x1: 0.63, y1: 0.82 },
+        { k: "slab", x0: 0.3, y0: 0.03, x1: 0.7, y1: 0.17 },
+        { k: "crops", x0: 0.07, y0: 0.83, x1: 0.31, y1: 0.96, c: "#e9c46a" },
+      ],
+      tiers: [
+        { r: T1, items: [["🎫", 50], ["🪙", 18, null, 3], ["🍬", 18], ["⭐", 14], ["🧃", 14], ["🍪", 14, null, 2], ["🔩", 14, "yard"], ["🥨", 14]] },
+        { r: T2, items: [["🚃", 5, { ride: "goods" }], ["🧳", 12], ["🎒", 10], ["🗞️", 10], ["🧸", 10], ["⏰", 10], ["🎈", 10, "park"], ["🧢", 10]] },
+        { r: T3, items: [["🚆", 1, { ride: "goods" }], ["🚦", 10], ["🚏", 8], ["🛤️", 8, "yard"], ["🧺", 6, "farm"], ["🚲", 8], ["🛴", 8], ["🪵", 8, "farm", 2]] },
+        { r: T4, items: [["🚋", 4, { ride: "tram" }], ["🚗", 8], ["🚌", 5, "town"], ["🚕", 6], ["🌳", 6, "park"]] },
+        { r: T5, items: [["🏠", 5, "farm"], ["🏢", 3, "town"], ["🏭", 3], ["🏪", 3, "town"], ["🚉", 3]] },
+      ],
+      finale: { e: "🚂", r: 20, at: [0.5, 0.1], say: "the big steam train" },
+    },
+    {
+      // NUMBER LAND, shaped like a giant number 8, and THE TWIST: COUNTING —
+      // every sock Gobble gulps counts on by TWOS ("two, four, six!"), the
+      // socks and the chairs stand in neat rows, and big dice crack open after
+      // three bumps. The giant abacus waits at the top of the 8.
+      id: "numbers", name: "Number Land", door: "🔢", color: "#5ec8ff",
+      ground: "grid", hole: "gobble",
+      wear: ["propeller", "#5ec8ff"], air: ["stars"],
+      backdrop: ["#eaf6ff", "#c4e4fb"],
+      start: [0.5, 0.9], starters: 3,
+      tune: [523.25, 587.33, 659.25, 698.46, 783.99, 880],
+      count: { e: "🧦", by: 2, say: "socks" },
+      land: [
+        { ring: [0.5, 0.7, 0.12, 0.44] },
+        { ring: [0.5, 0.29, 0.1, 0.38] },
+        { oval: [0.5, 0.48, 0.22, 0.05] },
+      ],
+      zones: {
+        toys: [[0.08, 0.6, 0.26, 0.78], [0.74, 0.6, 0.92, 0.78]],
+        desk: [[0.12, 0.22, 0.3, 0.38], [0.7, 0.22, 0.88, 0.38]],
+        town: [[0.2, 0.46, 0.36, 0.52], [0.64, 0.46, 0.8, 0.52]],
+      },
+      trails: [{ e: "⭐", to: [0.28, 0.86] }, { e: "⭐", to: [0.72, 0.86] }],
+      decals: [
+        { k: "mat", x0: 0.28, y0: 0.79, x1: 0.72, y1: 0.87, c: "#5ec8ff" },
+        { k: "stripes", x0: 0.3, y0: 0.18, x1: 0.7, y1: 0.26 },
+        { k: "splat", x: 0.16, y: 0.7, r: 0.04, c: "#ffd24d" },
+        { k: "splat", x: 0.84, y: 0.68, r: 0.04, c: "#ff6b6b" },
+      ],
+      tiers: [
+        { r: T1, items: [["🧦", 20, { at: { grid: [0.3, 0.8, 0.7, 0.86], cols: 10 } }], ["🧦", 14], ["⭐", 18], ["🍪", 16, null, 2], ["🍬", 16], ["🪙", 18, null, 3], ["🟢", 16], ["🧩", 14, "toys"]] },
+        { r: T2, items: [["✏️", 12, "desk"], ["📏", 10, "desk"], ["🖍️", 12, null, 2], ["📐", 10], ["🧸", 10, "toys"], ["🎈", 10], ["⏰", 10], ["🧃", 10]] },
+        { r: T3, items: [["🎲", 8, { shake: [["⭐", 3, 1], ["🍬", 2, 1]], hits: 3 }], ["📚", 10, "desk"], ["🎨", 8], ["🪁", 8], ["🥁", 6, "toys"], ["🧱", 8]] },
+        { r: T4, items: [["🪑", 8, { at: { grid: [0.32, 0.2, 0.68, 0.24], cols: 4 } }], ["🎹", 4], ["📺", 6], ["🚲", 6], ["🧺", 6]] },
+        { r: T5, items: [["🏫", 3], ["🏠", 5], ["🚌", 4, "town"], ["🎪", 3], ["🏢", 3, "town"]] },
+      ],
+      finale: { e: "🧮", r: 20, at: [0.5, 0.13], say: "the giant abacus" },
+    },
+    {
+      // CHOCOLATE RIVER, and THE TWIST: a chocolate river winds right across
+      // the land and carries Gobble along, gooey chocolate puddles and a
+      // chocolate lake to walk round (a bridge crosses the lake), and magic
+      // seeds SPROUT lollipops as he passes. The giant doughnut is on the far
+      // side of the lake.
+      id: "chocolate", name: "Chocolate River", door: "🍫", color: "#7a4424",
+      ground: "biscuit", hole: "gobble",
+      wear: ["chef", "#ffffff"], air: ["sprinkles"],
+      backdrop: ["#fff0e0", "#f5d2a8"],
+      world: [420, 620],
+      start: [0.5, 0.93], starters: 3,
+      tune: [523.25, 659.25, 587.33, 698.46, 659.25, 783.99],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 36 }],
+      blocks: [
+        { oval: [0.5, 0.25, 0.24, 0.05], look: "choc" },
+        { circle: [0.2, 0.78, 0.05], look: "choc" },
+        { circle: [0.82, 0.36, 0.05], look: "choc" },
+      ],
+      bridges: [{ path: [[0.5, 0.19], [0.5, 0.31]], w: 16, look: "planks" }],
+      flows: [{ pts: [[0.04, 0.38], [0.34, 0.46], [0.6, 0.58], [0.96, 0.66]], w: 24, v: 22, look: "choc" }],
+      zones: {
+        garden: [[0.06, 0.6, 0.34, 0.72], [0.64, 0.76, 0.92, 0.9]],
+        shop: [[0.62, 0.42, 0.94, 0.52]],
+        top: [[0.06, 0.04, 0.3, 0.18], [0.7, 0.04, 0.94, 0.18]],
+      },
+      trails: [{ e: "🍬", to: [0.3, 0.9] }, { e: "🍬", to: [0.7, 0.9] }],
+      decals: [
+        { k: "splat", x: 0.36, y: 0.82, r: 0.04, c: "#7a4424" },
+        { k: "splat", x: 0.7, y: 0.28, r: 0.035, c: "#ff7ac0" },
+        { k: "stripes", x0: 0.62, y0: 0.41, x1: 0.94, y1: 0.53 },
+        { k: "flowers", x: 0.2, y: 0.66, r: 0.08 },
+        { k: "path", w: 9, pts: [[0.5, 0.99], [0.46, 0.8], [0.5, 0.66]] },
+      ],
+      tiers: [
+        { r: T1, items: [["🍬", 46], ["🍫", 21, null, 3], ["🍪", 18], ["🍭", 14], ["🍒", 16, null, 2], ["🌰", 14], ["⭐", 14], ["🌱", 8, { sprout: [["🍭", 3, 1]], zone: "garden" }]] },
+        { r: T2, items: [["🧁", 14], ["🍦", 12], ["🥤", 10], ["🍯", 10], ["🍮", 10], ["🥨", 10], ["🍿", 10, "shop"], ["🎀", 10]] },
+        { r: T3, items: [["🍰", 10], ["☕", 8, "shop"], ["🥧", 8], ["🍧", 8], ["🍨", 8], ["🎁", 8]] },
+        { r: T4, items: [["🎂", 6], ["🛶", 4], ["🧸", 6], ["🎪", 4], ["🍉", 8]] },
+        { r: T5, items: [["🏰", 3, "top"], ["🏠", 5], ["🏭", 3], ["🎡", 3], ["🚂", 3]] },
+      ],
+      finale: { e: "🍩", r: 20, at: [0.5, 0.1], say: "the giant doughnut" },
+    },
+    {
+      // THE GIANT BEANSTALK (§17 giant: six sizes, a giant finale), a very
+      // TALL world: a garden at the bottom, a beanstalk winding up past
+      // clouds, and the giant's castle in the clouds at the top. THE TWIST:
+      // everything gets BIGGER the higher he climbs, and magic seeds SPROUT
+      // leaves and clover as he passes. The giant's boot waits at the top.
+      id: "beanstalk", name: "Giant Beanstalk", door: "🌱", color: "#3fbf5f",
+      ground: "cloud", hole: "gobble",
+      world: [420, 840],
+      wear: ["propeller", "#3fbf5f"], air: ["clouds"],
+      backdrop: ["#e9f6ff", "#bfe1ff"],
+      start: [0.5, 0.93], starters: 3,
+      tune: [392, 440, 493.88, 523.25, 587.33, 659.25, 783.99],
+      land: [
+        { rect: [0.02, 0.8, 0.98, 0.99], round: 30 },
+        { path: [[0.5, 0.84], [0.32, 0.72], [0.62, 0.6], [0.38, 0.48], [0.6, 0.36], [0.5, 0.22]], w: 84 },
+        { oval: [0.2, 0.72, 0.18, 0.055] },
+        { oval: [0.78, 0.6, 0.18, 0.055] },
+        { oval: [0.22, 0.48, 0.18, 0.055] },
+        { oval: [0.78, 0.36, 0.18, 0.05] },
+        { oval: [0.5, 0.13, 0.48, 0.11] },
+      ],
+      zones: {
+        low: [{ band: [0, 0.3] }],
+        mid: [{ band: [0.3, 0.65] }],
+        high: [{ band: [0.65, 1] }],
+        garden: [[0.06, 0.82, 0.34, 0.96], [0.66, 0.82, 0.94, 0.96]],
+        castle: [[0.1, 0.06, 0.32, 0.2], [0.68, 0.06, 0.9, 0.2]],
+      },
+      trails: [{ e: "🍃", to: [0.28, 0.92] }, { e: "🍃", to: [0.72, 0.92] }],
+      decals: [
+        { k: "crops", x0: 0.05, y0: 0.82, x1: 0.33, y1: 0.97, c: "#7cc95a" },
+        { k: "path", w: 10, pts: [[0.5, 0.99], [0.5, 0.86]] },
+        { k: "flowers", x: 0.8, y: 0.89, r: 0.07 },
+        { k: "rug", x: 0.5, y: 0.13, r: 0.16, pal: 1 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍃", 44], ["🪙", 24, null, 3], ["⭐", 20], ["🍬", 16], ["🌼", 16, "garden", 4], ["🔔", 14], ["🍀", 12], ["🌱", 10, { sprout: [["🍀", 2, 1], ["🌿", 2, 2]], zone: "low" }]] },
+        { r: T2, items: [["🌿", 12], ["🥚", 10, "mid"], ["🎻", 8], ["🧺", 10, "garden"], ["🥕", 12, "garden"], ["🍎", 12], ["🔑", 10], ["🧦", 10]] },
+        { r: T3, items: [["🍄", 10, "mid"], ["🪣", 8], ["🌻", 8, "garden"], ["🥁", 6], ["🎺", 6], ["🧸", 8], ["🍞", 8, "mid"]] },
+        { r: T4, items: [["🌲", 10, "high"], ["🛖", 5], ["🥄", 6, "high"], ["☕", 6, "high"], ["🧀", 6]] },
+        { r: T5, items: [["🛏️", 3, "high"], ["🪑", 4, "high"], ["🕰️", 3, "high"], ["🫖", 4, "high"], ["👑", 3, "castle"]] },
+        { r: T6, items: [["🏰", 3, "castle"], ["🌳", 3, "high"], ["🏡", 3, "high"], ["🗻", 2, "high"]] },
+      ],
+      finale: { e: "👢", r: 28, at: [0.5, 0.08], say: "the giant's boot" },
     },
   ];
 

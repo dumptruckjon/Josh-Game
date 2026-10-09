@@ -1255,6 +1255,56 @@ test("with sound on, Gobble NAMES the finale the moment he is big enough, and ch
   }
 });
 
+test("a finale behind a BUTTON (§17, a real place: the Fire Station): the ready line sends him to the button, never at the shut door; rolling onto it opens the door and the finale is the goal", async () => {
+  await openScene("firestation");
+  await page.evaluate(() => {
+    const A = window.JoshAudio;
+    window.__said = [];
+    A.__tone = A.__tone || A.tone; A.__say = A.__say || A.say;
+    A.tone = () => {};
+    A.say = (t) => { if (!A.isMuted()) window.__said.push(t); };
+    A.setMuted(false);
+  });
+  try {
+    // one bite short of the top size, standing on a crumb: the next gulp is
+    // the grow that makes him big enough for the fire engine
+    const pre = await page.evaluate(() => {
+      const st = window.__HOLE.state(), lv = st.levels, top = lv.R.length - 1, h = st.hole;
+      h.level = top - 1; h.R = h.r = lv.R[top - 1]; h.xp = lv.C[top] - 1;
+      const crumb = st.objects.find((o) => o.tier === 1 && o.st === 0 && !o.press && !o.key && !o.box);
+      h.x = h.tx = crumb.x; h.y = h.ty = crumb.y;
+      return { top, shut: !st.unlocked.garage };
+    });
+    assert.ok(pre.shut, "fixture: the garage door is still shut");
+    await page.evaluate(() => window.__HOLE.autoplay(90, { bot: false }));
+    assert.equal((await state()).level, pre.top, "fixture: he grew to the top size");
+    const said = await page.evaluate(() => window.__said);
+    const want = await page.evaluate(() => window.HoleData.SAY.readyButton.replace("{finale}", window.HoleLogic.sceneById("firestation").finale.say));
+    assert.ok(said.includes(want), "the ready line sends him to the BUTTON (" + want + "): " + JSON.stringify(said));
+    const nowEat = await page.evaluate(() => window.HoleData.SAY.ready.replace("{finale}", window.HoleLogic.sceneById("firestation").finale.say));
+    assert.ok(!said.includes(nowEat), "…and never tells him to eat a fire engine behind a shut door");
+    // the goal (the arrow and the beacon follow it) is the button
+    const b = await page.evaluate(() => { const g = window.HoleLogic.goalOf(window.__HOLE.state()); return g && { press: g.press, x: g.x, y: g.y, id: g.id }; });
+    assert.ok(b && b.press === "garage", "the goal is the garage button (" + JSON.stringify(b) + ")");
+    // roll onto it: the door opens, and the fire engine is the goal
+    await page.evaluate((p) => window.__HOLE.moveTo(p.x, p.y), b);
+    for (let i = 0; i < 40 && !(await page.evaluate(() => !!window.__HOLE.state().unlocked.garage)); i++) {
+      await page.evaluate((p) => { window.__HOLE.moveTo(p.x, p.y); window.__HOLE.autoplay(60, { bot: false }); }, b);
+    }
+    const after = await page.evaluate(() => {
+      const st = window.__HOLE.state(), g = window.HoleLogic.goalOf(st);
+      return { open: !!st.unlocked.garage, finale: !!(g && g.finale), pressed: !!st.objects.find((o) => o.press).pressed };
+    });
+    assert.ok(after.pressed && after.open, "rolling onto the button presses it and opens the garage (" + JSON.stringify(after) + ")");
+    assert.ok(after.finale, "with the door open the fire engine is the goal");
+  } finally {
+    await page.evaluate(() => {
+      const A = window.JoshAudio;
+      A.tone = A.__tone; A.say = A.__say; A.setMuted(true);
+    });
+  }
+});
+
 test("TREASURES glitter; eating one is a burst of gold and star eyes; the win shows what he FOUND — never what he missed", async () => {
   await openScene("toyroom");
   const t = await page.evaluate(() => { const st = window.__HOLE.state(); const o = st.objects[st.gold[0]]; return { id: o.id, x: o.x, y: o.y, e: o.e }; });
