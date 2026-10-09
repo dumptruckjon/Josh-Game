@@ -7106,7 +7106,7 @@ test("P4.3 tree: it costs more than a 32-level campaign can earn", () => {
 
 test("tools: every research tool still RUNS against today's data", () => {
   // Every balance claim in CLAUDE.md rests on these tools (eight for the fort,
-  // and Gobble Hole's wandering-child model since 2026-10), and they were named
+  // and Gobble Hole's wandering-child model and place checker since 2026-10), and they were named
   // only in COMMENTS — the tests point a future author at `tools/td-sim.js` and
   // nothing checks it still works. That is the standing pairing inverted: a
   // comment proves a tool was USED once, only running it proves it still loads
@@ -7140,6 +7140,11 @@ test("tools: every research tool still RUNS against today's data", () => {
     // non-fort tool. A model that never finishes prints 999s, so both arms must
     // show a REAL win time, or a broken instrument would read as a slow child.
     "hole-child.js": { args: ["toyroom"], env: { SEEDS: "1" }, must: /before: win (?!999s)\d+s.*\| shipped: win (?!999s)\d+s/ },
+    // 🕳️ Gobble Hole's authoring check (PLAN_GOBBLE.md §17): a place's things,
+    // its bot win time, its progress margins and its challenge set. A place
+    // the bot never finishes prints no win time, so a real "bot NN.Ns" and a
+    // real margin are what a working run shows — and no FAIL line.
+    "hole-check.js": { args: ["toyroom"], env: {}, must: /^(?![\s\S]*FAIL)[\s\S]*bot \d+\.\ds  progress x\d/ },
   };
   // …and the FLAG arms, which are separate code paths and are where most of the
   // findings in CLAUDE.md came from. Running only a tool's default arm is the

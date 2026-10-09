@@ -642,8 +642,10 @@ test("the save is written ONCE A FRAME, not once a gulp — a burst of gulps is 
   });
   // many steps in ONE go (the test hook runs them inside a single frame)
   const before = (await state()).eaten;
-  await page.evaluate(() => { window.__writes = 0; window.__HOLE.autoplay(600); });
-  const burst = await page.evaluate(() => window.__writes);
+  // read the count in the SAME evaluate: between two evaluates a real frame
+  // can run, and if he is still eating (Party Time's piñatas spray treats
+  // round him) that frame writes once more — correctly, it is another frame
+  const burst = await page.evaluate(() => { window.__writes = 0; window.__HOLE.autoplay(600); return window.__writes; });
   const after = (await state()).eaten;
   assert.ok(after - before >= 15, "fixture: the burst ate a lot (" + (after - before) + ")");
   assert.equal(burst, 1, "a burst of " + (after - before) + " gulps in one frame is ONE write, not one a gulp (" + burst + ")");
@@ -745,9 +747,14 @@ test("a DOUBLE-TAP cannot walk him somewhere he did not aim: a just-shown screen
 });
 
 test("a HOSTILE save is coerced field by field and never breaks the boot", async () => {
+  // Off the play screen FIRST: a live run rewrites the save as the page
+  // unloads, and the reload must boot the seed, not the run it replaced.
+  await go("", "#screen-start");
+  // The good run is the Busy Town's: a run with no fingerprint is trusted
+  // only on a place NOT laid out again since (RULES.RELAID, §17).
   await page.evaluate(() => localStorage.setItem("josh-gobble-v1", JSON.stringify({
     v: 9, done: { toyroom: "yes", picnic: true, nowhere: true }, demo: 1, last: "nowhere",
-    runs: { toyroom: { v: window.HoleData.RULES.LAYOUT, scene: "toyroom", aspect: "wide", eaten: [1, 1, "x", -3, 1.5] },
+    runs: { town: { v: window.HoleData.RULES.LAYOUT, scene: "town", aspect: "wide", eaten: [1, 1, "x", -3, 1.5] },
       space: "junk", party: { scene: "town" }, build: { v: "2", scene: "build", eaten: [1] } },
     gold: { toyroom: "3", picnic: 2.5, farm: 99, nowhere: 2, sports: 2, town: -1 },
     seen: { farm: "yes", sports: true, nowhere: true },
@@ -761,11 +768,11 @@ test("a HOSTILE save is coerced field by field and never breaks the boot", async
   assert.deepEqual(sv.seen, { sports: true }, "seen: only a real `true` for a real place");
   assert.equal(sv.demo, false, "a non-boolean demo flag is not trusted");
   assert.equal(sv.last, "toyroom", "an unknown place falls back to the first");
-  assert.deepEqual(Object.keys(sv.runs), ["toyroom"], "only a run whose scene matches its slot AND this layout survives");
+  assert.deepEqual(Object.keys(sv.runs), ["town"], "only a run whose scene matches its slot AND this layout survives");
   assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isVisible(), "the real ⭐ shows");
   await page.waitForTimeout(400);
-  await page.locator('.hole-door[data-scene="toyroom"]').click();
-  await page.waitForFunction(() => window.__HOLE.scene() === "toyroom");
+  await page.locator('.hole-door[data-scene="town"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "town");
   assert.equal((await state()).eaten, 1, "the junk run resumes with only its one real bite");
   assert.equal(pageErrors.length, errs, "no page errors: " + pageErrors.slice(errs).join(" | "));
 });
@@ -1805,6 +1812,10 @@ test("two places on the SAME ground draw their OWN floor marks (seeded by the pl
   // the same camera: the pictures must differ — and the same place drawn
   // again must not (the control: nothing else in the frame moves).
   await openScene("farm");
+  // Gobble BLINKS every 2.5-5.5s, so two draws of one place can catch an eye
+  // shut (measured: 411-760 px, all on his face at the screen's middle) —
+  // the floor is what is compared here, so reduced motion holds his eyes open
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const ids = await page.evaluate(() => {
     const mk = (id) => ({
       id, name: "Floor " + id, door: "🧪", color: "#888888", ground: "grass", hole: "gobble",
@@ -1843,6 +1854,7 @@ test("two places on the SAME ground draw their OWN floor marks (seeded by the pl
     assert.ok(diff(a1, b1) >= 500, "two places on one ground draw their own floor marks (" + diff(a1, b1) + " px differ)");
   } finally {
     await page.evaluate((x) => { const S = window.HoleData.SCENES; for (const id of x) S.splice(S.findIndex((d) => d.id === id), 1); }, ids);
+    await page.emulateMedia({ reducedMotion: null });
   }
 });
 

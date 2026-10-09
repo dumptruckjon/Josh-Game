@@ -1006,3 +1006,204 @@ one wipe. `tests/mobile.test.js` checks the button is under the last door and
 reachable, clear of the home indicator, at all fourteen phone and iPad sizes.
 Nine product mutations, each red on at least one test, and one layout
 mutation.
+
+## 17. Phase 5 — forty-eight places in four lands (owner, 2026-10-08)
+
+> "1) think deeply and creatively on how to make gobble hole overall even
+> higher quality, more fun, more interesting, and even more challenging on
+> some levels 2) double the amount of levels again. We need more fun and
+> crazy levels and they can even be bigger when necessary."
+
+Twenty-four new places, ten new kinds of thing to meet, a sixth size for the
+biggest places, a new challenge for thirteen of the first twenty-four, and a
+home that is four big LAND doors instead of forty-eight small ones. The
+owner's rule of 2026-10-06 still decides everything: no place is a copy of
+another with a different skin — a law now, over all forty-eight.
+
+### 17.1 The lands
+
+The home is four big doors, one per land, each showing how many of its
+places are finished. A land opens a page of its twelve places (three across
+on a phone, six on a tablet), the way Josh's own launcher opens a category of
+games. A land is ONE picture for a non-reader, and the lands run from the
+gentlest places to the craziest. `HoleData.LANDS` is the one owner of which
+place is in which land and of the order ▶ walks: every place is in exactly
+one land, every land holds twelve, and in each land the six older places
+come first, then its six new ones (familiar before new).
+
+| Land | Picture | Places |
+|---|---|---|
+| Home Town | 🏡 | Toy Room · Picnic Park · Sunny Farm · Building Site · Busy Town · Sports Day · **Bath Time · Giant Kitchen · Fire Station · Veggie Patch · Playground · Race Track** |
+| Sunny Shore | ⛱️ | Party Time · Beach Day · Volcano Island · Snow Day · Airport · Shopping Day · **Under the Sea · Water Park · Harbour · Ski Mountain · Holiday Hotel · Island Hop** |
+| Wild Places | 🗺️ | Hedge Maze · Crystal Cave · Castle · Toy Factory · River Jungle · Treasure Island · **Desert Dunes · Camping Night · Dino Dig · Gold Mine · Magic Forest · Lost Temple** |
+| Crazy Land | 🤪 | Outer Space · Circus · Cloud Land · Theme Park · Candy Land · Music Land · **Pinball Party · Moon Base · Train Town · Number Land · Chocolate River · Giant Beanstalk** |
+
+### 17.2 Ten new kinds of thing (one rule each)
+
+Every one is DATA (an item option or a place field), read by the engine and
+drawn by the renderer, and every one is INTRODUCED the first time he comes
+near it in a visit: a voice line, a pointing finger and a ring (`meet`).
+
+- **Buttons** (`press`): a big floor button he rolls ONTO (never eats) opens
+  its gate; a gold dashed wire runs from the button to the gate.
+- **Several openers for one gate** (`keys`): a gate may need three keys or
+  three buttons; each says how far it has got ("two of three!"), the last
+  opens it, once. This also fixed a latent defect: two keys of one name used
+  to count as one.
+- **Bumpers** (`bounce`): too big to eat, a bumper knocks him back — boing —
+  never into water; big enough, it is food.
+- **Piñatas** (`hits`): bonk one and a share of its treats tumbles out, once
+  a bump; the last bonk bursts it.
+- **Cannons** (`fly` portals): roll in and BOOM — he flies over walls and
+  water to the far end. A one-way cannon must leave him a way home (a law).
+- **Runaways** (`run`): once he can eat it, a ball or a doughnut scoots away,
+  tires, rests and stays inside its patch; he corners it.
+- **Turntables** (`spin` flows): a spinning floor carries him round (a
+  plughole, a record, a pizza); he can always walk off it.
+- **Power-ups** (`power`): a 🧲 magnet starts the super pull for 4s; a ⚡ bolt
+  makes him zoom 1.6 times as fast for 5s.
+- **Seedlings** (`sprout`): roll near one and its flowers pop up.
+- **Counting** (`count`): every counted thing says the next number — by
+  ones, twos, fives or tens — and a tally shows on screen. Number Land counts
+  socks by twos; the Giant Kitchen counts cookies; Shopping Day counts apples.
+
+And a **GIANT place** has a SIXTH size and a bigger finale (radius 28): the
+Giant Kitchen, Moon Base and Giant Beanstalk. Its world is bigger (up to
+504 x 706), and the tier law and the derived grows hold for six sizes.
+
+### 17.3 The twenty-four new places
+
+Each has its own shape of ground, its own plan and its own set of challenges
+(no two of the forty-eight share a set):
+
+| Door | Place | The big idea | Finale |
+|---|---|---|---|
+| 🛁 | Bath Time | the plughole spins him round; the wet floor is slippery | the bathtub |
+| 🍳 | Giant Kitchen | GIANT; counters to walk round; count the cookies; a pizza turntable | the giant pizza |
+| 🚒 | Fire Station | press the big red button, the garage opens, the fire engine is inside | the fire engine |
+| 🥕 | Veggie Patch | seeds sprout veggies; tomatoes roll away; stepping stones over the stream | the giant sunflower |
+| 🪁 | Playground | bouncy balls go boing; the roundabout spins; runaway balls | the merry-go-round |
+| 🏎️ | Race Track | a wide figure-8; race cars; ⚡ zoom power-ups; tyre bumpers | the giant trophy |
+| 🔱 | Under the Sea | currents carry him; coral to swim round; treasure pots crack after bumps | the sunken ship |
+| 💦 | Water Park | rainbow slides; water cannons fly him pool to pool | the giant wave |
+| ⚓ | Harbour | three keys open the crane yard; boats sail the bay | the big crane |
+| 🏔️ | Ski Mountain | a tall mountain; ski slopes slide him down; the cable car carries him up | the snowman on the top |
+| 🏨 | Holiday Hotel | lifts whisk him floor to floor; a button opens the pool deck | the giant hotel bell |
+| 🌅 | Island Hop | little islands; cannons blast him across the sea; runaway beach balls | the giant palm tree |
+| 🏜️ | Desert Dunes | a wide desert; quicksand to walk round; rolling rocks; bigger dunes further out | the giant cactus |
+| ⛺ | Camping Night | it is NIGHT: his light shows the way; canoes on the lake | the campsite |
+| 🦴 | Dino Dig | tar pits; rocks crack open into bones; a boulder wall he eats through | the giant dinosaur egg |
+| ⛏️ | Gold Mine | a mine train to eat car by car; rock tunnels; 🧲 magnets | the giant diamond |
+| 🍄 | Magic Forest | giant mushrooms go boing; magic seeds sprout flowers; fallen logs | the giant tree |
+| 🏛️ | Lost Temple | three stone buttons open the golden door; the way in goes round the moat | the golden vase |
+| 🕹️ | Pinball Party | bumpers everywhere; the plunger cannon shoots him up; a spinner | the giant pinball |
+| 🌙 | Moon Base | GIANT; craters to walk round; cannons jump the big ones; ⚡ moon boots | the flying saucer |
+| 🚂 | Train Town | two trains to eat car by car, a loop line, tunnels and bridges | the big steam train |
+| 🔢 | Number Land | count the socks by twos; dice crack open; things in rows | the giant abacus |
+| 🍫 | Chocolate River | a chocolate river carries him; lollipop seeds sprout | the giant doughnut |
+| 🌱 | Giant Beanstalk | GIANT and tall; climb the stalk to the giant's castle in the clouds | the giant's boot |
+
+Nineteen new grounds (bath, biscuit, brick, carpet, desert, dig, dock, felt,
+forest, grid, kitchen, lawn, mine, moon, pinball, pool, rubber, seabed,
+temple — 39 in all),
+eight new block looks (counter, crates, coral, logs raised; quicksand, tar,
+crater, choc flat), three new current looks (current, ski, choc), four
+turntable looks (turntable, record, pizza, the plughole's whirl) and two
+portal looks (lift, tunnel) besides the cannon. Two looks that existed
+with nothing using them now have a place (the temple's `stone` bridges and
+the mountain's `wire`), and a law fails any look nothing uses.
+
+### 17.4 Thirteen older places got a new challenge
+
+| Place | What is new |
+|---|---|
+| Castle | the castle door needs THREE keys, hidden round the grounds |
+| Hedge Maze | the fountain sits behind a gate; a big button in the maze opens it |
+| Volcano Island | cannons blast him over the lava river, and back |
+| Party Time | piñatas take three bonks and burst into sweets |
+| Toy Room | a record player: a spinning record carries him round |
+| Circus | bouncy balls go boing until he is big enough |
+| Candy Land | gumball bumpers go boing |
+| Crystal Cave | big crystals crack after bumps and drop gems |
+| Snow Day | the curling stones slide away from him on the lake |
+| Shopping Day | count the apples |
+| Sports Day | ⚡ zoom power-ups on the running track |
+| Picnic Park | a runaway football rolls away across the park |
+| Sunny Farm | seeds in the veggie patch sprout carrots |
+
+Twelve of the thirteen were laid out again by the change (Snow Day's stones
+only learned to run). A run saved on the old layout names ids that mean
+different things now, so it must be dropped — but only for that place.
+
+### 17.5 A run carries its place's fingerprint
+
+Before this, a run only carried the layout VERSION, and bumping it drops the
+half-eaten runs of EVERY place. Now each run also carries its place's layout
+fingerprint (every thing's picture, spot and size), so editing one place
+drops only that place's runs, and the version need never move again. A run
+saved before fingerprints carries none: it is trusted, except on a place
+listed in `RULES.RELAID` (the twelve above). A test holds every place's old
+fingerprint and fails if a place's layout changes without being listed — and
+if a listed place turns out unchanged, since that would throw his runs away
+for nothing.
+
+The loader asks the same question restore does (`runCouldRestore`, every
+check except comparing the print, which needs the place laid out), so a
+door never wears a ring for progress that opening it would throw away. It did
+before: on every device, a twelve-place-wide promise the game then broke.
+
+### 17.6 Measured
+
+- 48 places; every bot win 20s or more, mean ~36s (the law: ≥ 20s each,
+  ≥ 30s on average). Every progress margin at least 2.0 at every grow.
+- No two places share a set of challenges, and no pair shares both its ground
+  and nearly its challenge.
+- 4 lands x 12 places, all on one tablet screen either way up, three across
+  on a phone.
+
+### 17.7 What broke on the way, and is now a law
+
+- **A loop that stops at the first failure hid nine more.** The engine suite
+  walks the places in order and asserts, so a failing place hides every one
+  after it; it reported one problem at a time over five runs. A one-pass
+  health scan (every place: squeezed, missed zones, broken formations and
+  clumps, unused zones, uneven clumps, the finale's place on the journey)
+  found all of them at once. Run it after any data change.
+- **A lock door has a WINDOW, not a limit.** The door stands in its gap as a
+  formation, so its spot must be clear ground (the gap half-width at least
+  0.6 of its radius), and it must SEAL the gap (under 0.9). The first fix for
+  a leaking hotel gate narrowed the gap below the window and broke the
+  other law; the gap now sits in the middle of it.
+- **Tests written before buttons assumed keys.** The goal, progress and
+  gated-finale tests all asked for `o.key`; a finale behind a button made
+  them fail on correct code. They ask for an OPENER now (a key or a button).
+  A cannon says `launch`, not `warp`, for the same reason.
+- **A test fixture that needs a thing to stay put must not pick a runaway**:
+  the across-water slurp test picked the picnic's football, which ran.
+- **A zone nothing uses is dead data**, and five places shipped one (a tray,
+  a pool top, a mountain peak, a pinball drain); a clump must be whole (21
+  cookies in threes, not 20).
+- **A start on the island's very edge** put a starter bite off the ground
+  (Under the Sea): the start moved in.
+- **A short cut can make the finale the NEAR end**: the temple's south bridge
+  led straight to the door, so the vase sat at 58% of the journey; with only
+  the two side bridges the way in goes round the moat (82%).
+- **Unreachable clouds**: the beanstalk's clouds first floated off the stalk;
+  they sit at its bends now, and the progress law is what found it.
+- **A tally shows every counted thing**: Number Land's first draft counted 34
+  socks, too many boxes for the tally; it counts 12.
+
+### 17.8 Tests
+
+`tests/hole-logic.test.js`: the 48-place data law; a bot finishes every place
+through every grow (six in a giant place); the fingerprint and RELAID laws
+and the cheap restore check; one test per new kind of thing (openers and
+their save, bumpers, counting, piñatas, cannons, runaways, never stranded,
+turntables, power-ups, sprouts, first-time introductions, giant places); every
+item option and every look used both ways; every door label meets AA.
+`tests/hole.test.js`: the lands home and its pages; the land door's echo
+never opens the place under it; a finale behind a real button; every new
+thing drawn where he can see it; floor marks seeded by the place; a dropped
+run shows no ring. `tests/mobile.test.js`: every land door on the first
+screen at every phone and tablet size, notch included, and every land page an
+even grid of kid-sized doors.

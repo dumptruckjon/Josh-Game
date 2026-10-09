@@ -2276,7 +2276,9 @@
       id: "beanstalk", name: "Giant Beanstalk", door: "🌱", color: "#3fbf5f",
       ground: "cloud", hole: "gobble",
       world: [420, 840],
-      wear: ["propeller", "#3fbf5f"], air: ["clouds"],
+      // leaves blow off the beanstalk (white clouds at half strength over
+      // its white cloud ground painted NOTHING — the weather-paints test)
+      wear: ["propeller", "#3fbf5f"], air: ["leaves", "#3fbf5f"],
       backdrop: ["#e9f6ff", "#bfe1ff"],
       start: [0.5, 0.93], starters: 3,
       tune: [392, 440, 493.88, 523.25, 587.33, 659.25, 783.99],
