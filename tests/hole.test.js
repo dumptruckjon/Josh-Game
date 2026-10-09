@@ -1712,6 +1712,56 @@ test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' d
   await page.evaluate(() => { localStorage.removeItem("jon-td-save-v1"); window.__HOLE.reset({ demoSeen: true }); });
 });
 
+test("two places on the SAME ground draw their OWN floor marks (seeded by the place, not the ground) — and one place draws its floor the same way every time", async () => {
+  // Phase 5 puts many places on a shared ground (two on grass, three on sand,
+  // the cloud twice…). The floor marks were seeded by the GROUND, so two
+  // places on grass drew the very same marks, square for square. Now each
+  // place seeds its own. Two lab places identical but for their id, every
+  // thing in them gone (so only the floor, the island and Gobble are drawn),
+  // the same camera: the pictures must differ — and the same place drawn
+  // again must not (the control: nothing else in the frame moves).
+  await openScene("farm");
+  const ids = await page.evaluate(() => {
+    const mk = (id) => ({
+      id, name: "Floor " + id, door: "🧪", color: "#888888", ground: "grass", hole: "gobble",
+      backdrop: ["#ffffff", "#eeeeee"], start: [0.5, 0.9], starters: 0,
+      tiers: [
+        { r: [3.1, 3.6], items: [["🍬", 150]] }, { r: [4.8, 5.4], items: [["🍪", 90]] },
+        { r: [7.0, 7.8], items: [["🍩", 60]] }, { r: [10.0, 11.0], items: [["🎁", 30]] }, { r: [14.0, 15.0], items: [["🏠", 16]] },
+      ],
+      finale: { e: "🏰", r: 20, at: [0.5, 0.12], say: "the castle" },
+    });
+    const a = mk("lab-floor-a"), b = mk("lab-floor-b");
+    window.HoleData.SCENES.push(a, b);
+    return [a.id, b.id];
+  });
+  try {
+    const draw = async (sid) => {
+      await page.evaluate((x) => window.__HOLE.start(x), sid);
+      await page.waitForFunction((x) => window.__HOLE.scene() === x, sid);
+      return page.evaluate(() => {
+        const st = window.__HOLE.state(), L = window.HoleLogic;
+        for (const o of st.objects) o.st = L.GONE;
+        const h = st.hole; h.x = h.tx = st.W * 0.5; h.y = h.ty = st.H * 0.6; h.vx = h.vy = 0;
+        const cv = document.querySelector("#screen-hole-play .hole-canvas"), c = cv.getContext("2d");
+        const grab = () => c.getImageData(0, 0, cv.width, cv.height).data;
+        const same = (a, b) => { let n = 0; for (let k = 0; k < a.length; k += 4) if (a[k] !== b[k] || a[k + 1] !== b[k + 1] || a[k + 2] !== b[k + 2]) n++; return n; };
+        // the camera settles on him, then two frames in a row must agree
+        let prev = null;
+        for (let i = 0; i < 60; i++) { window.__HOLE.snap(); const g = grab(); if (prev && i > 20 && same(prev, g) === 0) return Array.from(g); prev = g; }
+        return null;
+      });
+    };
+    const a1 = await draw(ids[0]), b1 = await draw(ids[1]), a2 = await draw(ids[0]);
+    assert.ok(a1 && b1 && a2, "fixture: each floor comes out the same twice in a row");
+    const diff = (a, b) => { let n = 0; for (let k = 0; k < a.length; k += 4) if (a[k] !== b[k] || a[k + 1] !== b[k + 1] || a[k + 2] !== b[k + 2]) n++; return n; };
+    assert.ok(diff(a1, a2) <= 12, "the same place draws its floor the same way every time (" + diff(a1, a2) + " px differ)");
+    assert.ok(diff(a1, b1) >= 500, "two places on one ground draw their own floor marks (" + diff(a1, b1) + " px differ)");
+  } finally {
+    await page.evaluate((x) => { const S = window.HoleData.SCENES; for (const id of x) S.splice(S.findIndex((d) => d.id === id), 1); }, ids);
+  }
+});
+
 test("§17: every NEW thing is DRAWN where he can see it — a button and its wire, a gate's pips, a bumper's ring, a power-up's glow, a piñata's cracks, a cannon, a turntable, the count tally — and HEARD through the real drain, each with its own sound and words", async () => {
   // A test PLACE with one of everything, put in the list for this test only
   // (the engine's lab precedent): each new thing is driven on its own, away

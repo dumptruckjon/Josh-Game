@@ -170,9 +170,10 @@
   // and its finale is bigger still
   const T6 = [19.5, 21.0];
 
-  // A place: 5 tiers (tiny → huge) + one FINALE, and — phase 4 (§14) — its
-  // own SHAPE and CHALLENGE. Everything below is optional but `tiers` and
-  // `finale`:
+  // A place: 5 tiers (tiny → huge) — 6 in a GIANT place (§17: its sixth tier
+  // is T6 and its finale bigger still) — plus one FINALE, and — phase 4
+  // (§14) — its own SHAPE and CHALLENGE. Everything below is optional but
+  // `tiers` and `finale`:
   //   world: [W, H] in world units (default RULES.WORLD); start: [x, y].
   //   land: the island's shapes (default: the whole world, round corners);
   //   a void inside one is that shape's own `not` (the crescent bay).
@@ -181,20 +182,33 @@
   //   (as seen), {ring: [x, y, r0, r1]}, {path: [[x, y]…], w} or {poly:
   //   [[x, y]…]}, each with an optional {not: shape} cut out of it. A path's w
   //   and a rect's round are world units on the ground.
-  //   blocks: shapes he walks ROUND, each with a look (water, lava, hedge,
-  //          fence, shelf, wall, rock, snow).
+  //   blocks: shapes he walks ROUND, each with a look — lying in the ground
+  //          (water, lava, quicksand, tar, crater, choc) or standing up out
+  //          of it (hedge, fence, shelf, wall, rock, counter, crates, coral,
+  //          logs). The looks are hole-render.js's BLOCK_LOOKS.
   //   bridges: [{path, w, look}] over water, lava or the void (planks, rope,
   //          stones, sandbar, rainbow, stone).
   //   tracks: {id: {pts | orbit: [x, y, r], loop, speed, look, train}} —
   //          lines things RIDE (an item with {ride: id}).
-  //   flows: [{pts, w, v, look}] — a river, a belt or a walkway that carries him.
-  //   portals: [{a: [x, y], b: [x, y], look}] — step on one end, out of the other.
+  //   flows: [{pts, w, v, look}] — a river, a belt, a walkway, a sea current,
+  //          a ski slope or a chocolate river that carries him; or {spin: [x,
+  //          y, r], v, look} — a TURNTABLE that carries him round (§17).
+  //   portals: [{a: [x, y], b: [x, y], look}] — step on one end, out of the
+  //          other; {oneway: true, fly: true} — a CANNON that flies him over
+  //          walls and water to its far end (§17; never one that strands him).
+  //   count: {e, by, say} — COUNT MODE (§17): each gulp of e says the next
+  //          number, by 1s, 2s, 5s or 10s ("Let's count the socks!").
   //   slide: true | [zone…] — ice: he slides.   dark: true — a cave, lit round him.
   //   items: [emoji, count, zone?, clump?] — or [emoji, count, {options}]:
   //          zone, clump, ride, at (a formation: line/grid/ring/arc/tri/pts),
   //          solid (a wall while too big), lock / key, pop / shake
   //          ([[emoji, n, tier]…] — surprises inside), chain (a toppling
-  //          line), glow (it glows in the dark).
+  //          line), glow (it glows in the dark); and (§17) press (a floor
+  //          BUTTON that opens its lock — never food), bounce (a bumper: too
+  //          big, it knocks him back), hits (a piñata that takes that many
+  //          bumps, dropping its shake surprises), run (it rolls away from
+  //          him), power ("magnet" or "zoom"), sprout ([[emoji, n, tier]…] —
+  //          a seedling that grows them as he comes near).
   //   zones: named lists of rects [x0, y0, x1, y1], shapes, or {band: [f0, f1]}
   //          (a stretch of the WAY from the start: 0 at the start, 1 at the end).
   //   private: zones that hold ONLY their own things. (Ground nothing may

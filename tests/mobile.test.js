@@ -374,7 +374,7 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
     [393, 852, [59, 34]], [414, 896, [48, 34]], [430, 932, [59, 34]]];
   const TABLETS = [[768, 1024, [20, 0]], [810, 1080, [24, 20]], [834, 1112, [24, 20]], [1024, 1366, [24, 20]],
     [1024, 768, [24, 20]], [1194, 834, [24, 20]]];
-  const doorsOn = (bottomInset, sel) => {
+  const doorsOn = ({ bottomInset, sel }) => {
     const vh = document.documentElement.clientHeight;
     const els = [...document.querySelectorAll(sel)].filter((b) => b.getClientRects().length > 0);
     const R = els.map((b) => b.getBoundingClientRect());
@@ -399,7 +399,7 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
       // THE HOME: the lands
       await showScreen(p, "#hole-home", "#screen-hole-home");
       await p.evaluate(() => scrollTo(0, 0));
-      const m = await p.evaluate(doorsOn, inset[1], ".hole-land");
+      const m = await p.evaluate(doorsOn, { bottomInset: inset[1], sel: ".hole-land" });
       const hero = await p.evaluate(() => Math.round(document.querySelector(".hole-hero").getBoundingClientRect().height));
       assert.equal(m.n, LANDS.length, `${at}: one door per land`);
       assert.equal(m.n % m.cols, 0, `${at}: the lands fill their grid evenly (${m.n} in ${m.cols} columns)`);
@@ -435,7 +435,7 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
       for (const ld of LANDS) {
         await showScreen(p, "#hole-land-" + ld.id, "#screen-hole-land");
         await p.evaluate(() => scrollTo(0, 0));
-        const d = await p.evaluate(doorsOn, inset[1], "#screen-hole-land .hole-door");
+        const d = await p.evaluate(doorsOn, { bottomInset: inset[1], sel: "#screen-hole-land .hole-door" });
         const lat = `${at} ${ld.id}`;
         assert.equal(d.n, ld.places.length, `${lat}: one door per place in the land`);
         assert.equal(d.n % d.cols, 0, `${lat}: the grid fills evenly (${d.n} doors in ${d.cols} columns)`);
