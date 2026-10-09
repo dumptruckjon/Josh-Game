@@ -1995,16 +1995,27 @@
       x: round3(st.fly ? st.fly.x1 : st.hole.x), y: round3(st.fly ? st.fly.y1 : st.hole.y),
     };
   }
-  function restore(snap) {
+  // Every check restore makes EXCEPT comparing the fingerprint, which needs
+  // the place laid out (tens of ms each). The page's loader asks this too,
+  // so a door never wears a ring for a run that opening it would drop — the
+  // twelve places laid out again in phase 5 left exactly such runs behind on
+  // every device (a run from before fingerprints carries no `f`).
+  function runCouldRestore(snap) {
     // a run from another layout names ids that mean different things here:
     // it is dropped, never guessed at
-    if (!snap || typeof snap !== "object" || snap.v !== RULES.LAYOUT) return null;
+    if (!snap || typeof snap !== "object" || snap.v !== RULES.LAYOUT) return false;
     const def = sceneById(snap.scene);
-    if (!def) return null;
-    const st = createGame(def);
+    if (!def) return false;
     // a run saved before fingerprints is trusted unless its place has been
     // laid out again since (RULES.RELAID); a fingerprinted one must match
-    if (typeof snap.f === "string" ? snap.f !== st.print : "f" in snap || (RULES.RELAID || []).includes(def.id)) return null;
+    if (typeof snap.f === "string") return true;
+    return !("f" in snap) && !(RULES.RELAID || []).includes(def.id);
+  }
+  function restore(snap) {
+    if (!runCouldRestore(snap)) return null;
+    const def = sceneById(snap.scene);
+    const st = createGame(def);
+    if (typeof snap.f === "string" && snap.f !== st.print) return null;
     const ids = Array.isArray(snap.eaten) ? snap.eaten : [];
     const h = st.hole;
     for (const raw of ids) {
@@ -2263,7 +2274,7 @@
     rng, hashStr, printOf, twistsOf, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
     goldOf, countOf, GOLD_BANDS, itemOf, geomOf, outlineOf, progressOf, routeLine,
     createGame, setTarget, step, nearestEdible, edible, wanted, nextOpener, openerDone, goalOf, botTarget, activeSolid,
-    snapshot, restore, hashState,
+    snapshot, restore, runCouldRestore, hashState,
     // the shape machinery, for the tests that hold it to brute force
     compileShape, segIndex, segsOf, contours, SHAPE_CAP,
   };

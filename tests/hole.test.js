@@ -1625,6 +1625,40 @@ test("a half-eaten place from the ONE-SCREEN version is dropped, and its ⭐ is 
   assert.ok((await cam()).intro, "…as a fresh place, with the opening look");
 });
 
+test("a half-eaten place from BEFORE it was laid out again is dropped on load — its door shows no ring for progress opening it would throw away, while an unchanged place keeps its ring", async () => {
+  // Every run saved before fingerprints carries no `f`; restore trusts one
+  // only on a place NOT in RULES.RELAID. The loader used to keep such runs,
+  // so the door showed (say) a 15% ring and opening it started over — on
+  // every device, for the twelve places phase 5 laid out again.
+  const relaid = await page.evaluate(() => window.HoleData.RULES.RELAID.slice());
+  assert.ok(relaid.includes("picnic") && !relaid.includes("build"), "fixture: the picnic was laid out again and the building site was not");
+  await go("", "#screen-start");
+  const ids = Array.from({ length: 40 }, (_, i) => i + 1);
+  const v = await page.evaluate(() => window.HoleData.RULES.LAYOUT);
+  await page.evaluate((o) => localStorage.setItem("josh-gobble-v1", JSON.stringify({
+    v: 1, done: {}, demo: true, seen: { picnic: true, build: true },
+    runs: {
+      picnic: { v: o.v, scene: "picnic", eaten: o.ids, x: 100, y: 100 },
+      build: { v: o.v, scene: "build", eaten: o.ids, x: 100, y: 100 },
+    },
+  })), { v, ids });
+  await page.reload({ waitUntil: "load" });
+  await go("#hole-home", "#screen-hole-home");
+  const sv = await page.evaluate(() => window.__HOLE.save());
+  assert.ok(!("picnic" in sv.runs), "the laid-out-again place's run is dropped on load (" + Object.keys(sv.runs) + ")");
+  assert.ok("build" in sv.runs, "…while an unchanged place's run from before fingerprints is kept");
+  await goLand("picnic");
+  assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__prog').isHidden(), "the picnic's door shows no ring");
+  await goLand("build");
+  assert.ok(await page.locator('.hole-door[data-scene="build"] .hole-door__prog').isVisible(), "the building site's door shows its ring");
+  // and the ring tells the truth: opening the kept run resumes it
+  await page.waitForTimeout(400);
+  await page.locator('.hole-door[data-scene="build"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "build");
+  assert.equal((await state()).eaten, ids.length, "the building site resumes with what he ate");
+  await go("", "#screen-start");
+});
+
 test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' does it; every ⭐ and every half-eaten place go, the place he left cannot come back, and nothing outside Gobble Hole is touched", async () => {
   // The fixture: three finished places, seeded and booted from (a reload, or
   // the page keeps its own copy of the save), plus Josh's own ⭐ and a fort

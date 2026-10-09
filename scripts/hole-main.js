@@ -75,11 +75,13 @@
     if (!isObj(raw)) return s;
     for (const sc of SCENES) {
       if (isObj(raw.done) && raw.done[sc.id] === true) s.done[sc.id] = true;
-      // a run must name its own slot AND this layout: a half-eaten place from
-      // the one-screen islands of phase 1 names ids that mean different
-      // things in a big world, so it is dropped (its ⭐ above is kept)
+      // a run must name its own slot AND be one restore could take: a
+      // half-eaten place from the one-screen islands of phase 1, or one from
+      // before a place was laid out again, names ids that mean different
+      // things now, so it is dropped (its ⭐ above is kept) — and its door
+      // never shows a ring for progress that opening it would throw away
       const r = isObj(raw.runs) ? raw.runs[sc.id] : null;
-      if (isObj(r) && r.scene === sc.id && r.v === DATA.RULES.LAYOUT) s.runs[sc.id] = r;
+      if (isObj(r) && r.scene === sc.id && L.runCouldRestore(r)) s.runs[sc.id] = r;
       const g = isObj(raw.gold) ? raw.gold[sc.id] : 0;
       if (Number.isInteger(g) && g > 0) s.gold[sc.id] = Math.min(g, L.GOLD_BANDS.length);
       // a save from before `seen` existed: a place he finished or left

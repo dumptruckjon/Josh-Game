@@ -881,13 +881,16 @@ test("a run carries its layout's FINGERPRINT: edit ONE place and only that place
   // ids at other pictures and handed Gobble a level he never earned, while
   // the save's version still matched. Bumping the version instead would
   // have dropped the half-eaten runs of EVERY place.
-  const at = SCENES.findIndex((d) => d.id === "toyroom");
+  // (a place NOT in RULES.RELAID — the legacy half below needs one whose
+  // layout is unchanged since layout 4)
+  const at = SCENES.findIndex((d) => d.id === "build");
+  assert.ok(at >= 0 && !RULES.RELAID.includes("build"), "fixture: the Building Site exists and was never laid out again");
   const orig = SCENES[at];
   const st = L.createGame(orig);
   playOut(st, 6);
   assert.ok(st.eaten >= 6, "fixture: the run has eaten a few things (" + st.eaten + ")");
   const snap = JSON.parse(JSON.stringify(L.snapshot(st)));
-  const other = JSON.parse(JSON.stringify(L.snapshot(L.createGame("picnic"))));
+  const other = JSON.parse(JSON.stringify(L.snapshot(L.createGame("town"))));
   // the same place, edited: one more sweet among its tier-1 things
   const edited = JSON.parse(JSON.stringify(orig));
   edited.tiers[0].items[0][1] += 1;
@@ -908,9 +911,17 @@ test("a run carries its layout's FINGERPRINT: edit ONE place and only that place
   const { f, ...legacy } = snap;
   assert.ok(f, "fixture: the run had a fingerprint");
   assert.ok(L.restore(legacy), "a run from before fingerprints restores on an unchanged place");
-  RULES.RELAID.push("toyroom");
-  try { assert.equal(L.restore(legacy), null, "…and is dropped once its place is listed as laid out again"); }
-  finally { RULES.RELAID.pop(); }
+  // runCouldRestore is restore's CHEAP half (everything but the print), and
+  // the page's loader asks it so a door never wears a ring for a run opening
+  // it would drop: it must agree with restore on every legacy shape
+  assert.equal(L.runCouldRestore(legacy), true, "the cheap check keeps it too");
+  RULES.RELAID.push("build");
+  try {
+    assert.equal(L.restore(legacy), null, "…and is dropped once its place is listed as laid out again");
+    assert.equal(L.runCouldRestore(legacy), false, "…and the cheap check drops it as well (the door ring must agree with opening the door)");
+  } finally { RULES.RELAID.pop(); }
+  for (const f of [7, null, { x: 1 }]) assert.equal(L.runCouldRestore({ ...snap, f }), false, "a fingerprint of " + JSON.stringify(f) + " fails the cheap check too");
+  for (const bad of [null, "x", { ...snap, v: RULES.LAYOUT + 1 }, { ...snap, scene: "no-such-place" }]) assert.equal(L.runCouldRestore(bad), false, "the cheap check drops " + JSON.stringify(bad && bad.scene));
 });
 
 test("RELAID is exact: a place whose layout changed since layout 4 is listed (or its old runs would re-point), and no listed place is unchanged", () => {
@@ -930,25 +941,25 @@ test("restore RE-DERIVES what the gulps did: keys turned, boxes popped, trees sh
   // stay out after a restore — and a hand-edited save cannot open a door.
   const farm = L.createGame("farm");
   const key = farm.objects.find((o) => o.key);
-  const back = L.restore({ v: RULES.LAYOUT, scene: "farm", eaten: [key.id] });
+  const back = L.restore({ v: RULES.LAYOUT, scene: "farm", f: farm.print, eaten: [key.id] });
   assert.ok(back.unlocked[key.key], "the key was eaten, so its door is open");
   const gate = back.objects.find((o) => o.lock === key.key);
   assert.ok(!L.activeSolid(back, gate), "…and the gate is no longer a wall");
-  assert.ok(!L.restore({ v: RULES.LAYOUT, scene: "farm", eaten: [] }).unlocked[key.key], "an untouched farm's gate is locked");
+  assert.ok(!L.restore({ v: RULES.LAYOUT, scene: "farm", f: farm.print, eaten: [] }).unlocked[key.key], "an untouched farm's gate is locked");
   // a box (party piñatas, factory parcels): eaten → its surprises are out
   for (const id of ["party", "factory", "pirate"]) {
     const fresh = L.createGame(id);
     const box = fresh.objects.find((o) => o.box === "pop");
     assert.ok(box, "fixture: " + id + " has a box");
     assert.ok(box.kids.every((k) => fresh.objects[k].st === L.HIDDEN), id + ": the surprises start hidden");
-    const b2 = L.restore({ v: RULES.LAYOUT, scene: id, eaten: [box.id] });
+    const b2 = L.restore({ v: RULES.LAYOUT, scene: id, f: fresh.print, eaten: [box.id] });
     assert.ok(box.kids.every((k) => b2.objects[k].st === L.IDLE), id + ": after a restore with the box eaten, its surprises are out");
   }
   // a tree (the picnic's): one of its fruit eaten means it WAS shaken
   const pic = L.createGame("picnic");
   const tree = pic.objects.find((o) => o.box === "shake");
   assert.ok(tree, "fixture: the picnic has a fruit tree");
-  const b3 = L.restore({ v: RULES.LAYOUT, scene: "picnic", eaten: [tree.kids[0]] });
+  const b3 = L.restore({ v: RULES.LAYOUT, scene: "picnic", f: pic.print, eaten: [tree.kids[0]] });
   assert.ok(b3.objects[tree.id].shook, "a fruit eaten means its tree was shaken");
   assert.ok(tree.kids.slice(1).every((k) => b3.objects[k].st === L.IDLE), "…so the rest of its fruit is out");
 });
@@ -975,7 +986,7 @@ test("a HOSTILE save can never inflate Gobble or crash the restore", () => {
   const fin = fresh.objects.find((o) => o.finale).id;
   const [a, b] = fresh.objects.filter((o) => !o.finale).map((o) => o.id);   // two real bites
   const junk = L.restore({
-    v: RULES.LAYOUT, scene: def.id,
+    v: RULES.LAYOUT, scene: def.id, f: fresh.print,
     eaten: [a, a, b, b + 0.5, -1, 9999, String(b + 1), null, fin, { id: b + 2 }],
     x: "left", y: Infinity,
   });
@@ -986,7 +997,7 @@ test("a HOSTILE save can never inflate Gobble or crash the restore", () => {
   assert.ok(!junk.won && junk.objects.find((o) => o.finale).st === L.IDLE, "the finale can never be pre-eaten");
   assert.ok(Number.isFinite(junk.hole.x) && Number.isFinite(junk.hole.y), "a junk position falls back to the start");
   // eaten everything-but-the-finale: the level is derived, capped, and sane
-  const all = L.restore({ v: RULES.LAYOUT, scene: def.id, eaten: fresh.objects.filter((o) => !o.finale).map((o) => o.id) });
+  const all = L.restore({ v: RULES.LAYOUT, scene: def.id, f: fresh.print, eaten: fresh.objects.filter((o) => !o.finale).map((o) => o.id) });
   assert.equal(all.hole.level, all.levels.R.length - 1, "eating everything else earns exactly the top size");
 });
 
@@ -1989,7 +2000,8 @@ test("SUPER SLURP: the pull never reaches ACROSS WATER, and never takes the FINA
       makeLevel(st0, lv);
       const h0 = st0.hole;
       for (const o of st0.objects) {
-        if (o.st !== L.IDLE || o.ride || o.finale || L.activeSolid(st0, o) || o.r > h0.r * RULES.FIT) continue;
+        // (a RUNAWAY moves on its own, so "it stays put" cannot be its question)
+        if (o.st !== L.IDLE || o.ride || o.run || o.finale || L.activeSolid(st0, o) || o.r > h0.r * RULES.FIT) continue;
         const P = spotFor(st0, G, o, (magnetReach(h0, o) + slurpReach(h0, o)) / 2, "water");
         if (P) { fx = { lv, id: o.id, P }; break; }
       }
