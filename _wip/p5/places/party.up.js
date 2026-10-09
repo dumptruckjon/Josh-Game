@@ -1,6 +1,6 @@
     {
-      // A HEART, and THE TWIST: presents and piñatas POP — eat one and out
-      // spill sweets.
+      // A HEART, and THE TWIST: presents POP — eat one and out spill sweets —
+      // and the PIÑATAS take three good bumps before they burst into treats.
       id: "party", name: "Party Time", door: "🎂", color: "#ff7ac0",
       ground: "party", hole: "gobble",
       wear: ["party", "#ff5e7e"], air: ["confetti"],
@@ -33,7 +33,7 @@
         { r: T1, items: [["🍬", 44], ["🍭", 12], ["🍫", 20, "table", 2], ["💝", 10], ["🍓", 21, "table", 3], ["🎀", 22, null, 2]] },
         { r: T2, items: [["🧁", 14, "table", 2], ["🍩", 12, "table"], ["🍪", 12, "table"], ["🎈", 21, null, 3], ["🎉", 12, "dance"], ["🎊", 10, "dance"]] },
         { r: T3, items: [["🎁", 14, { zone: "gifts", pop: [["🍬", 3, 1], ["🧁", 1, 2]] }], ["🍰", 12, "table"], ["🍕", 12], ["🍿", 10], ["🧸", 10]] },
-        { r: T4, items: [["🪅", 9, { pop: [["🍬", 4, 1], ["🍫", 2, 1], ["🧁", 1, 2]] }], ["🪑", 12], ["🪆", 9]] },
+        { r: T4, items: [["🪅", 9, { shake: [["🍬", 4, 1], ["🍫", 2, 1], ["🧁", 1, 2]], hits: 3 }], ["🪑", 12], ["🪆", 9]] },
         { r: T5, items: [["🎪", 7], ["🎠", 7]] },
       ],
       finale: { e: "🎂", r: 20, at: [0.5, 0.33], say: "the giant cake" },

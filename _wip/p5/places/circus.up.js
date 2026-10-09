@@ -1,7 +1,8 @@
     {
       // A CIRCUS high up under the tent: a ring, a centre stage and little
       // platforms, and THE TWIST: tightropes join them, and springs BOUNCE
-      // Gobble from the bottom platforms right up to the top ones.
+      // Gobble from the bottom platforms right up to the top ones. Big circus
+      // balls go BOING and bounce him back until he is big enough to gulp.
       id: "circus", name: "Circus", door: "🎪", color: "#ff5e7e",
       ground: "ring", hole: "gobble",
       wear: ["tophat", "#e63946"], air: ["confetti"],
@@ -45,7 +46,7 @@
       tiers: [
         { r: T1, items: [["🍿", 50], ["🎟️", 20, null, 2], ["🍭", 16], ["🍬", 16, null, 2], ["🥜", 14, null, 2], ["🪀", 12]] },
         { r: T2, items: [["🎈", 16, null, 2], ["🎩", 10], ["🪄", 10], ["🥁", 10], ["🎺", 10], ["🧁", 10]] },
-        { r: T3, items: [["🛴", 3, { ride: "ring" }], ["🎭", 10], ["🪅", 8], ["🎁", 8], ["🛹", 8], ["🧸", 10]] },
+        { r: T3, items: [["🛴", 3, { ride: "ring" }], ["🎭", 10], ["🪅", 8], ["🎁", 8], ["🛹", 8], ["🧸", 10], ["🏀", 6, { bounce: true }]] },
         { r: T4, items: [["🎠", 6, "top"], ["🚲", 8], ["🪑", 8], ["🚐", 6, "low"]] },
         { r: T5, items: [["🚂", 4], ["🚃", 9], ["🚌", 4]] },
       ],

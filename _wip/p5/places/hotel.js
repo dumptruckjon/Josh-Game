@@ -13,8 +13,8 @@
         // the floor between the lobby and the rooms upstairs (the lifts are the only way up)
         { path: [[-0.02, 0.56], [1.02, 0.56]], w: 5, look: "wall" },
         // the pool deck upstairs, shut but for its gate
-        { path: [[0.47, 0.24], [0.16, 0.24], [0.16, -0.02]], w: 5, look: "wall" },
-        { path: [[0.53, 0.24], [0.84, 0.24], [0.84, -0.02]], w: 5, look: "wall" },
+        { path: [[0.485, 0.24], [0.16, 0.24], [0.16, -0.02]], w: 5, look: "wall" },
+        { path: [[0.515, 0.24], [0.84, 0.24], [0.84, -0.02]], w: 5, look: "wall" },
         // the rooms off the corridor
         { path: [[0.02, 0.38], [0.26, 0.38]], w: 4, look: "wall" },
         { path: [[0.74, 0.38], [0.98, 0.38]], w: 4, look: "wall" },

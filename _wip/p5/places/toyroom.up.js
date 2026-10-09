@@ -1,12 +1,14 @@
     {
       // THE TWIST: a toy train goes round and round the rug — chase it, and
-      // gobble its carriages from the back once Gobble is big enough.
+      // gobble its carriages from the back once Gobble is big enough — and a
+      // big RECORD on the record player by the door spins him round and round.
       id: "toyroom", name: "Toy Room", door: "🧸", color: "#ffb86b",
       ground: "wood", hole: "gobble",
       wear: ["propeller", "#ff5e7e"], air: ["motes"],
       backdrop: ["#fff1dc", "#f6d9b0"],
       start: [0.5, 0.92], starters: 3,
       tune: [523.25, 659.25, 783.99, 1046.5],
+      flows: [{ spin: [0.5, 0.78, 0.08], v: 24, look: "record" }],
       tracks: { train: { pts: ovalPts(0.5, 0.52, 0.34, 0.13, 36), loop: true, speed: 11, look: "rails", train: true } },
       zones: {
         rug: [{ oval: [0.5, 0.52, 0.2, 0.075] }],

@@ -20,7 +20,7 @@
         { pts: [[0.36, 0.2], [0.27, 0.36], [0.2, 0.56]], w: 22, v: 30, look: "ski" },
         { pts: [[0.7, 0.42], [0.8, 0.6], [0.84, 0.78]], w: 22, v: 30, look: "ski" },
       ],
-      tracks: { cable: { pts: [[0.62, 0.9], [0.58, 0.12]], speed: 7, look: "wire" } },
+      tracks: { cable: { pts: [[0.6, 0.78], [0.56, 0.12]], speed: 7, look: "wire" } },
       slide: ["pond"],
       zones: {
         pond: [{ circle: [0.48, 0.62, 0.13] }],

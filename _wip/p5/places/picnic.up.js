@@ -1,0 +1,41 @@
+    {
+      // A ROUND park with a pond in the middle (stepping stones across it), and
+      // THE TWIST: the big trees are full of fruit — bump one and it rains
+      // apples and cherries.
+      id: "picnic", name: "Picnic Park", door: "🧺", color: "#8fd16a",
+      ground: "grass", hole: "gobble",
+      wear: ["flower", "#ffffff"], air: ["petals", "#ffc2d9"],
+      backdrop: ["#dff4ff", "#bfe6ff"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [587.33, 739.99, 880, 739.99, 987.77],
+      land: [{ oval: [0.5, 0.5, 0.49, 0.49] }],
+      blocks: [{ oval: [0.5, 0.5, 0.2, 0.09], look: "water" }],
+      bridges: [{ path: [[0.5, 0.385], [0.5, 0.615]], w: 20, look: "stones" }],
+      zones: {
+        blanket: [[0.13, 0.63, 0.34, 0.72], [0.66, 0.66, 0.87, 0.75], [0.14, 0.27, 0.35, 0.35]],
+        flowers: [{ circle: [0.28, 0.84, 0.1] }, { circle: [0.72, 0.3, 0.09] }, { circle: [0.74, 0.84, 0.085] }],
+        woods: [{ oval: [0.17, 0.47, 0.11, 0.12] }, { oval: [0.84, 0.48, 0.1, 0.12] }],
+        meadow: [[0.34, 0.7, 0.66, 0.86]],
+      },
+      trails: [{ e: "🌼", to: [0.22, 0.7] }, { e: "🌼", to: [0.78, 0.74] }],
+      decals: [
+        { k: "shade", x: 0.17, y: 0.47, r: 0.15 },
+        { k: "shade", x: 0.84, y: 0.48, r: 0.13 },
+        { k: "path", w: 10, pts: [[0.5, 1.02], [0.5, 0.84], [0.42, 0.7], [0.5, 0.6]] },
+        { k: "path", w: 8, pts: [[0.5, 0.4], [0.58, 0.3], [0.5, 0.2]] },
+        { k: "blanket", x0: 0.12, y0: 0.62, x1: 0.35, y1: 0.73, c: "#ef4b5c" },
+        { k: "blanket", x0: 0.65, y0: 0.65, x1: 0.88, y1: 0.76, c: "#4b8def" },
+        { k: "blanket", x0: 0.13, y0: 0.26, x1: 0.36, y1: 0.36, c: "#f2a93b" },
+        { k: "flowers", x: 0.28, y: 0.84, r: 0.11 },
+        { k: "flowers", x: 0.72, y: 0.3, r: 0.1 },
+        { k: "flowers", x: 0.74, y: 0.84, r: 0.095 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍓", 30, "blanket", 3], ["🍒", 16, null, 2], ["🍇", 12, "blanket", 2], ["🌸", 30, "flowers", 3], ["🍄", 21, "woods", 3], ["🌼", 50]] },
+        { r: T2, items: [["🧁", 12, "blanket"], ["🍩", 12, "blanket"], ["🥪", 12, "blanket"], ["🍐", 12, null, 2], ["🍌", 12], ["🍪", 12], ["🧃", 12], ["⚽", 3, { run: true, zone: "meadow" }]] },
+        { r: T3, items: [["🍉", 14], ["🍍", 14], ["🥧", 12, "blanket"], ["🌻", 21, "flowers", 3]] },
+        { r: T4, items: [["⛺", 10], ["🌲", 14, "woods"], ["🪴", 8], ["🧺", 6]] },
+        { r: T5, items: [["🌳", 10, { shake: [["🍎", 2, 2], ["🍒", 2, 1]] }], ["🚐", 5]] },
+      ],
+      finale: { e: "🎡", r: 20, at: [0.5, 0.13], say: "the big wheel" },
+    },

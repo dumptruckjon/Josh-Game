@@ -556,7 +556,7 @@ test("physics: the magnet pulls a thing that fits toward the rim (forgiving aim)
   assert.ok(o.pull > 0, "it leans in (the renderer tilts it)");
 });
 
-test("a greedy bot finishes EVERY place: an instant first gulp, a quick first grow, five grows in order, then the finale", () => {
+test("a greedy bot finishes EVERY place: an instant first gulp, a quick first grow, every grow in order (five, six in a GIANT place), then the finale", () => {
   const wins = [];
   let slurps = 0;
   for (const def of SCENES) {
@@ -568,7 +568,9 @@ test("a greedy bot finishes EVERY place: an instant first gulp, a quick first gr
     assert.ok(st.done, where + ": the bot finished the place");
     assert.equal(st.eaten, st.total, where + ": everything was eaten");
     const grows = log.filter((e) => e.type === "grow");
-    assert.deepEqual(grows.map((g) => g.level), [1, 2, 3, 4, 5], where + ": grows 1..5 in order");
+    // one grow per tier: 1..5, and 1..6 in a GIANT place (§17)
+    const want = def.tiers.map((_, i) => i + 1);
+    assert.deepEqual(grows.map((g) => g.level), want, where + ": grows 1.." + want.length + " in order");
     assert.ok(grows[0].t < 3, where + ": the first grow comes fast (" + grows[0].t.toFixed(1) + "s for the bot)");
     const first = log.find((e) => e.type === "eat");
     assert.ok(first.t < 1.5, where + ": the first gulp is almost instant");
@@ -600,11 +602,12 @@ test("the win: the VORTEX empties even a big world by itself — no hunt for the
   for (const def of SCENES) {
     const st = L.createGame(def);
     const top = makeTop(st);
-    // Start Gobble at the TOP size with every key turned (a lock is a wall
-    // until its key is eaten) and send him for the finale — round water and
-    // walls, through portals — so most of the world is still standing when
-    // it goes down: a vortex with nothing left to slurp would prove nothing.
-    for (const o of st.objects) if (o.key) st.unlocked[o.key] = true;
+    // Start Gobble at the TOP size with every gate open (a lock is a wall
+    // until its keys are eaten and its buttons pressed) and send him for the
+    // finale — round water and walls, through portals — so most of the world
+    // is still standing when it goes down: a vortex with nothing left to
+    // slurp would prove nothing.
+    for (const o of st.objects) if (o.key || o.press) st.unlocked[o.key || o.press] = true;
     const fin = st.objects.find((o) => o.finale);
     const evs = [];
     while (!st.won && st.t < 120) {
@@ -651,9 +654,12 @@ test("THE GOAL: once Gobble is big enough for the finale, it is what he is here 
       assert.equal(L.goalOf(st), null, def.id + ": no goal at level " + lv + " — he cannot eat the finale yet");
     }
     makeTop(st);
-    // a finale shut away behind a gate makes its KEY the goal first — that
-    // has its own test below; here every gate is open
-    for (const k of st.objects) if (k.key) { st.unlocked[k.key] = true; k.st = L.GONE; }
+    // a finale shut away behind a gate makes its KEY (or BUTTON) the goal
+    // first — that has its own test below; here every gate is open
+    for (const k of st.objects) {
+      if (k.key) { st.unlocked[k.key] = true; k.st = L.GONE; }
+      if (k.press) st.unlocked[k.press] = true;
+    }
     assert.equal(L.goalOf(st), fin, def.id + ": at the top size the finale IS the goal");
     // the hint: stand at the start, where plenty is edible and far nearer
     // than the finale, and wait — the hint points at the finale anyway
@@ -688,21 +694,29 @@ test("a finale BEHIND A GATE: while the gate is shut the goal is its KEY (the hi
       continue;
     }
     guarded++;
-    assert.ok(g.key, def.id + ": a goal that is not the finale must be a key (" + g.e + ")");
-    // the hint (which the arrow follows) points at the key, not the finale
+    // an OPENER: a key to eat or (§17) a button to roll onto
+    assert.ok(g.key || g.press, def.id + ": a goal that is not the finale must be a key or a button (" + g.e + ")");
+    // the hint (which the arrow follows) points at the opener, not the finale
     st.hole.x = st.hole.tx = st.start.x; st.hole.y = st.hole.ty = st.start.y;
     st.sinceEat = RULES.HINT_AFTER;
     L.step(st); st.events.length = 0;
-    assert.equal(st.hint, g.id, def.id + ": the hint points at the key " + g.e);
-    // the key it names must be reachable with every gate shut — a key behind
-    // its own gate would make the place unwinnable
+    assert.equal(st.hint, g.id, def.id + ": the hint points at the opener " + g.e);
+    // each opener it names must be reachable with every gate shut — a key
+    // behind its own gate would make the place unwinnable. A gate may want
+    // SEVERAL (§17: three keys, three buttons): the goal walks him from one
+    // to the next, and only the last opens the gate.
     const st2 = L.createGame(def);
     makeTop(st2);
-    const key2 = st2.objects[g.id];
-    for (let i = 0; i < 2400 && key2.st !== L.GONE; i++) { L.setTarget(st2, key2.x, key2.y); L.step(st2); st2.events.length = 0; }
-    assert.equal(key2.st, L.GONE, def.id + ": Gobble can walk to the key " + g.e + " with the gate still shut, and eat it");
-    // …and once it is eaten, the finale is the goal again
-    assert.equal(L.goalOf(st2), st2.objects[fin.id], def.id + ": with the key eaten the finale is the goal");
+    const done = (o) => (o.key ? o.st === L.GONE : !!o.pressed);
+    let taken = 0;
+    for (let g2 = L.goalOf(st2); g2 && g2 !== st2.objects[fin.id]; g2 = L.goalOf(st2)) {
+      assert.ok(g2.key || g2.press, def.id + ": every goal before the finale is an opener (" + g2.e + ")");
+      for (let i = 0; i < 2400 && !done(g2); i++) { L.setTarget(st2, g2.x, g2.y); L.step(st2); st2.events.length = 0; }
+      assert.ok(done(g2), def.id + ": Gobble can get to the opener " + g2.e + " with the gate still shut, and take it");
+      assert.ok(++taken <= 12, def.id + ": the goal walks him through the openers and ends");
+    }
+    // …and once they are all taken, the finale is the goal again
+    assert.equal(L.goalOf(st2), st2.objects[fin.id], def.id + ": with every opener taken the finale is the goal (" + taken + " taken)");
     // the line at the ready grow says "find the key", never "now eat" a
     // finale he cannot reach
     assert.ok(D.SAY.readyKey.includes("{finale}") && /key/i.test(D.SAY.readyKey), "the ready line for a gated finale names the key and the finale");
@@ -1367,10 +1381,11 @@ test("PROGRESS: at every size there is at least TWICE the next grow's worth he c
     // …and NEVER STRANDED: no portal or cannon he can reach drops him where
     // he cannot get home from (§17 — a one-way cannon could)
     assert.deepEqual(p.trapped, [], def.id + ": a one-way end lands him where he can never get back from " + JSON.stringify(p.trapped));
+    // an OPENER is a key to eat or (§17) a button to roll onto
     const locks = [...new Set(itemsOf(def).filter((it) => it.lock).map((it) => it.lock))].sort();
-    const keys = [...new Set(itemsOf(def).filter((it) => it.key).map((it) => it.key))].sort();
-    assert.deepEqual(keys, locks, def.id + ": every lock has its key and every key its lock");
-    for (const k of locks) assert.ok(p.unlocked.includes(k), def.id + ": the key to " + k + " can be reached and eaten");
+    const keys = [...new Set(itemsOf(def).filter((it) => it.key || it.press).map((it) => it.key || it.press))].sort();
+    assert.deepEqual(keys, locks, def.id + ": every lock has its opener and every key or button its lock");
+    for (const k of locks) assert.ok(p.unlocked.includes(k), def.id + ": the openers of " + k + " can all be reached and taken");
   }
 });
 
@@ -2059,7 +2074,8 @@ test("PORTALS: standing on the end he came out of, with the way back through it,
         let through = false, there = false;
         for (let i = 0; i < 60 * 4 && !there; i++) {
           L.setTarget(st, T.x, T.y); L.step(st);
-          for (const e of st.events) if (e.type === "warp" && e.from[0] === Math.round(X.x * 1000) / 1000 && e.from[1] === Math.round(X.y * 1000) / 1000) through = true;
+          // a portal says "warp"; a CANNON (§17) says "launch" and flies him
+          for (const e of st.events) if ((e.type === "warp" || e.type === "launch") && e.from[0] === Math.round(X.x * 1000) / 1000 && e.from[1] === Math.round(X.y * 1000) / 1000) through = true;
           st.events.length = 0;
           there = L.gdist(st.hole.x, st.hole.y, T.x, T.y) < 3;
         }

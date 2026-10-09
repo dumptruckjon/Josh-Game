@@ -1,7 +1,8 @@
     {
       // A SPIRAL of a land, and THE TWIST: the only way in is round and round
       // the spiral path — small sweets on the outside, cakes further in, and
-      // the giant lollipop right in the middle.
+      // the giant lollipop right in the middle — and giant GUMBALLS on the
+      // path go BOING until he is big enough to gulp them.
       id: "candy", name: "Candy Land", door: "🍭", color: "#ff8ad8",
       ground: "candy", hole: "gobble",
       wear: ["bow", "#ff7ac0"], air: ["sprinkles"],
@@ -26,8 +27,8 @@
       tiers: [
         { r: T1, items: [["🍬", 60], ["🍓", 20, "outer", 2], ["🍫", 16, null, 2], ["🍪", 16, null, 2], ["🍒", 14], ["🍡", 12]] },
         { r: T2, items: [["🧁", 14], ["🍩", 14], ["🍰", 12, "mid"], ["🥧", 10], ["🍮", 10], ["🍦", 10]] },
-        { r: T3, items: [["🎂", 10, "mid"], ["🍯", 10], ["🍉", 8], ["🥞", 10], ["🧇", 10], ["🍨", 8]] },
-        { r: T4, items: [["🎁", 10, "inner"], ["🧸", 10, "inner"], ["🪅", 8, "inner"], ["🍄", 6, "inner"]] },
+        { r: T3, items: [["🎂", 10, "mid"], ["🍯", 10], ["🍉", 8], ["🥞", 10], ["🧇", 10], ["🍨", 8], ["🟣", 5, { bounce: true, zone: "mid" }]] },
+        { r: T4, items: [["🎁", 10, "inner"], ["🧸", 10, "inner"], ["🪅", 8, "inner"], ["🍄", 6, "inner"], ["🔵", 4, { bounce: true, zone: "inner" }]] },
         { r: T5, items: [["🏰", 4, "inner"], ["🎪", 4, "inner"], ["🏠", 6, "inner"]] },
       ],
       finale: { e: "🍭", r: 20, at: [0.5, 0.5], say: "the giant lollipop" },

@@ -1,0 +1,40 @@
+    {
+      // A SNOWMAN of an island (a round tummy, a round head, coal eyes), and
+      // THE TWIST: a frozen lake on its tummy — on the ice Gobble SLIDES.
+      id: "snow", name: "Snow Day", door: "⛄", color: "#9fd7ff",
+      ground: "snow", hole: "gobble",
+      wear: ["bobble", "#e63946"], air: ["snow"],
+      backdrop: ["#eef6ff", "#cfe0f5"],
+      start: [0.5, 0.86], starters: 3,
+      tune: [659.25, 587.33, 523.25, 587.33, 659.25, 659.25, 659.25],
+      land: [{ circle: [0.5, 0.665, 0.46] }, { circle: [0.5, 0.285, 0.34] }],
+      blocks: [
+        { circle: [0.38, 0.25, 0.04], look: "rock" },
+        { circle: [0.62, 0.25, 0.04], look: "rock" },
+      ],
+      slide: ["lake"],
+      zones: {
+        lake: [{ circle: [0.5, 0.68, 0.2] }],
+        forest: [[0.2, 0.17, 0.33, 0.4], [0.67, 0.17, 0.8, 0.4]],
+        village: [[0.08, 0.6, 0.28, 0.76]],
+        sledge: [[0.72, 0.6, 0.92, 0.76]],
+      },
+      trails: [{ e: "❄️", to: [0.22, 0.8] }, { e: "❄️", to: [0.78, 0.8] }],
+      decals: [
+        { k: "ice", x: 0.5, y: 0.68, r: 0.2 },
+        { k: "drift", x: 0.26, y: 0.33, r: 0.08 },
+        { k: "drift", x: 0.74, y: 0.33, r: 0.08 },
+        { k: "drift", x: 0.17, y: 0.83, r: 0.07 },
+        { k: "drift", x: 0.83, y: 0.83, r: 0.07 },
+        { k: "tracks", c: "rgba(110,140,190,0.45)", pts: [[0.3, 0.89], [0.2, 0.7], [0.32, 0.52], [0.44, 0.42]] },
+        { k: "tracks", c: "rgba(110,140,190,0.45)", pts: [[0.7, 0.89], [0.8, 0.7], [0.68, 0.52], [0.56, 0.42]] },
+      ],
+      tiers: [
+        { r: T1, items: [["❄️", 56], ["🍪", 18, null, 3], ["☕", 14, null, 2], ["🧦", 16, null, 2], ["🔔", 12], ["🧊", 20, "lake", 4], ["🍭", 14]] },
+        { r: T2, items: [["🧤", 16, null, 2], ["🧣", 14], ["⛸️", 12, "lake"], ["🥌", 10, { run: true, zone: "lake" }], ["🏒", 8, "lake"], ["🎒", 12], ["🎁", 14]] },
+        { r: T3, items: [["🛷", 12], ["🎿", 10, "sledge"], ["🎄", 12, "forest"], ["🪵", 10, null, 2], ["🧸", 10], ["🔦", 8]] },
+        { r: T4, items: [["🌲", 16, "forest"], ["🛖", 8, "village"], ["🚡", 6], ["🚠", 6], ["🚙", 6]] },
+        { r: T5, items: [["🏠", 8], ["🏡", 4], ["🚂", 4]] },
+      ],
+      finale: { e: "⛄", r: 20, at: [0.5, 0.16], say: "the giant snowman" },
+    },
