@@ -45,9 +45,14 @@ async function go(hash, sel) {
 // so a test that TAPS waits the way a child who looked would. A fresh place
 // opens with a 1.6s look at the whole island; a test that works out where
 // things are ON SCREEN first ends that look (snap), exactly as a finger would.
+// A place's door is on its LAND's page (§17: the home is four lands).
+async function goLand(id) {
+  const ld = await page.evaluate((sid) => window.HoleData.landOf(sid).id, id);
+  await go("#hole-land-" + ld, "#screen-hole-land");
+}
 async function openScene(id, opts) {
   await page.evaluate((o) => window.__HOLE.reset(o), opts || { demoSeen: true });
-  await go("#hole-home", "#screen-hole-home");
+  await goLand(id);
   await page.waitForTimeout(400);
   await page.locator(`.hole-door[data-scene="${id}"]`).click();
   await page.locator("#screen-hole-play").waitFor({ state: "visible" });
@@ -81,49 +86,78 @@ test("the front door's FOURTH door opens Gobble Hole, and 🚪 comes back", asyn
   await tile.click();
   await page.locator("#screen-hole-home").waitFor({ state: "visible", timeout: 8000 });
   assert.ok(await page.evaluate(() => document.body.classList.contains("hole-mode")), "the Gobble theme is on");
-  const doors = await page.locator(".hole-door").count();
-  assert.equal(doors, await page.evaluate(() => window.HoleData.SCENES.length), "one door per place");
+  assert.equal(await page.locator(".hole-land").count(), await page.evaluate(() => window.HoleData.LANDS.length), "one big door per LAND");
+  assert.equal(await page.locator(".hole-door").count(), await page.evaluate(() => window.HoleData.SCENES.length), "…and, on the lands' pages, one door per place");
   await page.waitForTimeout(400);
   await page.locator("#screen-hole-home .hole-exit").click();
   await page.locator("#screen-start").waitFor({ state: "visible", timeout: 8000 });
   assert.ok(!(await page.evaluate(() => document.body.classList.contains("hole-mode"))), "leaving drops the theme");
 });
 
-test("TWENTY-FOUR places, one door each in an even grid — on a phone the home scrolls to the doors below the fold (never sideways), and the last door opens", async () => {
-  // The owner doubled the places again (2026-10-06). Twenty-four doors big
-  // enough for a small finger (75px+, 16px apart) cannot fit one phone
-  // screen — eight rows three across — so on a phone the home scrolls, as
-  // Josh's own launcher does, and the row cut by the fold shows there is
-  // more. On an iPad all twenty-four fit, six across (mobile.test.js measures
-  // that on the real engine, with the real insets).
+test("THE LANDS (§17): the home is one big door per land in an even grid, each saying how many of its places are finished; a land's page shows exactly its own places, kid-sized, in an even grid — every place in exactly one land — and 🏠 goes back up a level each time", async () => {
+  // The owner doubled the places again (2026-10-08: 48). Forty-eight doors
+  // cannot be one screen of kid-sized targets, so the home is FOUR lands (the
+  // model Josh knows from his launcher: a category, then its games), each a
+  // picture for a non-reader. mobile.test.js measures every size, with the
+  // real insets, on the real engine.
   await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
   await go("#hole-home", "#screen-hole-home");
   await page.evaluate(() => scrollTo(0, 0));
-  const m = await page.evaluate(() => {
-    const doors = [...document.querySelectorAll(".hole-door")].map((b) => b.getBoundingClientRect());
-    return {
-      n: doors.length, places: window.HoleData.SCENES.length,
-      cols: new Set(doors.map((r) => Math.round(r.left))).size,
-      firstScreen: doors.filter((r) => r.bottom <= innerHeight).length,
-      minW: Math.min(...doors.map((r) => r.width)), minH: Math.min(...doors.map((r) => r.height)),
-      sw: document.documentElement.scrollWidth, vw: innerWidth,
-    };
+  const D = await page.evaluate(() => ({ lands: window.HoleData.LANDS, n: window.HoleData.SCENES.length }));
+  const h = await page.evaluate(() => {
+    const L = [...document.querySelectorAll(".hole-land")].map((b) => ({ id: b.dataset.land, r: b.getBoundingClientRect().toJSON(), stars: b.querySelector(".hole-land__stars").textContent }));
+    return { L, cols: new Set(L.map((x) => Math.round(x.r.left))).size, total: document.querySelector(".hole-total").textContent, sw: document.documentElement.scrollWidth, vw: innerWidth };
   });
-  assert.equal(m.places, 24, "twenty-four places");
-  assert.equal(m.n, m.places, "one door per place");
-  assert.equal(m.n % m.cols, 0, "the grid fills evenly: " + m.n + " doors in " + m.cols + " columns leaves no door on its own");
-  assert.ok(m.minW >= 75 && m.minH >= 75, "every door is a kid-sized target (" + Math.round(m.minW) + "x" + Math.round(m.minH) + ")");
-  assert.ok(m.firstScreen >= 9 && m.firstScreen < m.n, "a phone's first screen shows at least three full rows, and the rest wait below (" + m.firstScreen + " of " + m.n + ")");
-  assert.ok(m.sw <= m.vw, "the home never scrolls sideways (" + m.sw + " > " + m.vw + ")");
-  // the last door: the page scrolls to it, and a tap there opens its place
-  const last = page.locator(".hole-door").last();
+  assert.deepEqual(h.L.map((x) => x.id), D.lands.map((l) => l.id), "one door per land, in the lands' order");
+  assert.equal(h.L.length % h.cols, 0, "the lands fill their grid evenly (" + h.L.length + " in " + h.cols + " columns)");
+  assert.ok(h.L.every((x) => x.r.width >= 75 && x.r.height >= 75 && x.r.bottom <= 844), "every land door is a big target, all on the first screen");
+  for (const x of h.L) assert.match(x.stars, /^⭐ 0 \/ \d+$/, x.id + " says how many of its places are finished (" + x.stars + ")");
+  assert.match(h.total, new RegExp("⭐ 0 / " + D.n + "$"), "…and the home how many of ALL of them (" + h.total + ")");
+  assert.ok(h.sw <= h.vw, "the home never scrolls sideways");
+  // every place is in exactly ONE land, and every land holds the same number
+  const all = D.lands.flatMap((l) => l.places);
+  assert.equal(new Set(all).size, all.length, "no place is in two lands");
+  assert.equal(all.length, D.n, "every place is in a land");
+  assert.equal(new Set(D.lands.map((l) => l.places.length)).size, 1, "every land holds the same number of places");
+  // each land's page: exactly its places
+  for (const ld of D.lands) {
+    await page.waitForTimeout(400);
+    await page.locator('.hole-land[data-land="' + ld.id + '"]').click();
+    await page.locator("#screen-hole-land").waitFor({ state: "visible" });
+    const m = await page.evaluate(() => {
+      const doors = [...document.querySelectorAll("#screen-hole-land .hole-door")].filter((b) => !b.hidden);
+      const R = doors.map((b) => b.getBoundingClientRect());
+      return {
+        ids: doors.map((b) => b.dataset.scene), title: document.querySelector(".hole-landtitle").textContent,
+        cols: new Set(R.map((r) => Math.round(r.left))).size,
+        minW: Math.min(...R.map((r) => r.width)), minH: Math.min(...R.map((r) => r.height)),
+        sw: document.documentElement.scrollWidth, vw: innerWidth,
+        boxed: doors.every((b) => b.getClientRects().length > 0),
+      };
+    });
+    assert.deepEqual(m.ids, ld.places, ld.id + ": its page shows exactly its own places, in order");
+    assert.equal(m.title, ld.name, ld.id + ": the page is titled with the land's name");
+    assert.equal(m.ids.length % m.cols, 0, ld.id + ": its doors fill the grid evenly (" + m.ids.length + " in " + m.cols + " columns)");
+    assert.ok(m.minW >= 75 && m.minH >= 75, ld.id + ": every door is a kid-sized target (" + Math.round(m.minW) + "x" + Math.round(m.minH) + ")");
+    assert.ok(m.sw <= m.vw, ld.id + ": the page never scrolls sideways");
+    // 🏠 goes back to the lands
+    await page.waitForTimeout(400);
+    await page.locator("#screen-hole-land .hole-landback").click();
+    await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  }
+  // a place's 🏠 goes back to ITS land (not all the way home), and the last
+  // place of the last land opens from its door
+  const lastLand = D.lands[D.lands.length - 1], lastId = lastLand.places[lastLand.places.length - 1];
+  await goLand(lastId);
+  const last = page.locator('.hole-door[data-scene="' + lastId + '"]');
   await last.scrollIntoViewIfNeeded();
-  const r = await last.boundingBox();
-  assert.ok(r && r.y >= 0 && r.y + r.height <= 844, "scrolled to, the last door is all on screen (" + (r && Math.round(r.y)) + ")");
   await page.waitForTimeout(400);
-  const id = await page.evaluate(() => window.HoleData.SCENES[window.HoleData.SCENES.length - 1].id);
   await last.click();
-  await page.waitForFunction((sid) => window.__HOLE.scene() === sid, id, { timeout: 8000 });
+  await page.waitForFunction((sid) => window.__HOLE.scene() === sid, lastId, { timeout: 8000 });
+  await page.waitForTimeout(400);
+  await page.locator(".hole-back").click();
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".hole-landtitle").textContent(), lastLand.name, "🏠 from a place returns to its own land");
   await page.evaluate(() => scrollTo(0, 0));
 });
 
@@ -139,7 +173,7 @@ test("EVERY place opens and draws: its floor, ALL its ground features in the ope
   const ids = await page.evaluate(() => window.HoleData.SCENES.map((d) => d.id));
   for (const id of ids) {
     await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
-    await go("#hole-home", "#screen-hole-home");
+    await goLand(id);
     await page.waitForTimeout(400);
     const r = await page.evaluate(async (sid) => {
       document.querySelector('.hole-door[data-scene="' + sid + '"]').click();
@@ -513,7 +547,7 @@ test("the WIN: the vortex slurps everything, Josh's buddy cheers, ⭐ is saved, 
   await page.waitForFunction((id) => window.__HOLE.scene() === id && window.__HOLE.state().eaten === 0, firstId);
   // back home, both finished places wear a ⭐
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   for (const id of [lastId, firstId]) {
     assert.ok(await page.locator(`.hole-door[data-scene="${id}"] .hole-door__star`).isVisible(), id + " wears its ⭐");
   }
@@ -530,7 +564,7 @@ test("▶ after a win CARRIES ON a place he left half-eaten — winning one plac
   await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
   await page.waitForTimeout(1500);
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   const saved = (await page.evaluate(() => window.__HOLE.save())).runs.picnic;
   assert.ok(saved && saved.eaten.length >= 3, "fixture: the picnic was left half-eaten (" + (saved && saved.eaten.length) + " eaten)");
   await page.waitForTimeout(400);
@@ -559,7 +593,7 @@ test("progress is KEPT: leaving and coming back — even a reload — resumes th
   await page.waitForTimeout(1500);
   const at = await state();
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   const saved = (await page.evaluate(() => window.__HOLE.save())).runs.party;
   assert.ok(saved && saved.eaten.length >= 3, "leaving saved the half-eaten place (" + (saved && saved.eaten.length) + " eaten)");
   // GONE, not "not standing": a sweet still inside its piñata is HIDDEN, and
@@ -634,8 +668,8 @@ test("the loop only runs while he is PLAYING — leaving pauses it completely", 
   await openScene("town");
   assert.ok(await page.evaluate(() => window.__HOLE.running()), "the loop runs on the play screen");
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
-  assert.ok(!(await page.evaluate(() => window.__HOLE.running())), "…and stops on the home screen");
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
+  assert.ok(!(await page.evaluate(() => window.__HOLE.running())), "…and stops on the land page");
   const t0 = (await state()).tick;
   await page.waitForTimeout(400);
   assert.equal((await state()).tick, t0, "no hidden simulation keeps ticking");
@@ -669,22 +703,29 @@ test("sound is OFF by default and every note is mute-gated; with sound on, a gul
   }
 });
 
-test("a DOUBLE-TAP cannot walk him somewhere he did not aim: a just-shown screen ignores a finger for 350ms", async () => {
+test("a DOUBLE-TAP cannot walk him somewhere he did not aim: a just-shown screen ignores a finger for 350ms — the echo of a LAND door never opens the place under it", async () => {
+  // The lands (§17) put a place door right where a land door was: the second
+  // tap of a double-tap on a land would open whatever place sits under the
+  // finger, a place he never chose.
   await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
   await go("#hole-home", "#screen-hole-home");
   await page.waitForTimeout(400);
-  const door = await page.locator('.hole-door[data-scene="picnic"]').boundingBox();
-  // leave, come back, and tap the SAME spot at once — the echo of a tap
-  await go("#start", "#screen-start");
-  await page.evaluate(() => { location.hash = "#hole-home"; });
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
-  await page.mouse.click(door.x + door.width / 2, door.y + door.height / 2);
-  await page.waitForTimeout(200);
-  assert.ok(await page.locator("#screen-hole-home").isVisible(), "the echo was swallowed — still on the home screen");
+  const ld = await page.locator('.hole-land[data-land="town"]').boundingBox();
+  const pt = { x: ld.x + ld.width / 2, y: ld.y + ld.height / 2 };
+  // a real double-tap: the second tap 120ms after the first, on the same spot
+  await page.mouse.click(pt.x, pt.y);
+  await page.locator("#screen-hole-land").waitFor({ state: "visible", timeout: 4000 });
+  const under = await page.evaluate((p) => { const e = document.elementFromPoint(p.x, p.y); const d = e && e.closest(".hole-door"); return d ? d.dataset.scene : null; }, pt);
+  assert.ok(under, "fixture: a place door sits where the land door was");
+  await page.waitForTimeout(120);
+  await page.mouse.click(pt.x, pt.y);
+  await page.waitForTimeout(250);
+  assert.ok(await page.locator("#screen-hole-land").isVisible(), "the echo was swallowed — still on the land page, " + under + " not opened");
+  // …and a deliberate tap a moment later opens it
   await page.waitForTimeout(300);
-  await page.mouse.click(door.x + door.width / 2, door.y + door.height / 2);
+  await page.mouse.click(pt.x, pt.y);
   await page.locator("#screen-hole-play").waitFor({ state: "visible", timeout: 4000 });
-  await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  await page.waitForFunction((sid) => window.__HOLE.scene() === sid, under);
 });
 
 test("a HOSTILE save is coerced field by field and never breaks the boot", async () => {
@@ -692,12 +733,16 @@ test("a HOSTILE save is coerced field by field and never breaks the boot", async
     v: 9, done: { toyroom: "yes", picnic: true, nowhere: true }, demo: 1, last: "nowhere",
     runs: { toyroom: { v: window.HoleData.RULES.LAYOUT, scene: "toyroom", aspect: "wide", eaten: [1, 1, "x", -3, 1.5] },
       space: "junk", party: { scene: "town" }, build: { v: "2", scene: "build", eaten: [1] } },
+    gold: { toyroom: "3", picnic: 2.5, farm: 99, nowhere: 2, sports: 2, town: -1 },
+    seen: { farm: "yes", sports: true, nowhere: true },
   })));
   const errs = pageErrors.length;
   await page.reload({ waitUntil: "load" });
-  await go("#hole-home", "#screen-hole-home");
+  await go("#hole-land-town", "#screen-hole-land");
   const sv = await page.evaluate(() => window.__HOLE.save());
   assert.deepEqual(sv.done, { picnic: true }, "only a real `true` for a real place counts");
+  assert.deepEqual(sv.gold, { farm: 3, sports: 2 }, "treasures: whole numbers for real places, never more than a place holds");
+  assert.deepEqual(sv.seen, { sports: true }, "seen: only a real `true` for a real place");
   assert.equal(sv.demo, false, "a non-boolean demo flag is not trusted");
   assert.equal(sv.last, "toyroom", "an unknown place falls back to the first");
   assert.deepEqual(Object.keys(sv.runs), ["toyroom"], "only a run whose scene matches its slot AND this layout survives");
@@ -1233,7 +1278,7 @@ test("a half-eaten place's DOOR shows how far he got — a ring that fills — a
   await page.waitForTimeout(1200);
   const total = (await state()).total;
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   // What he ate is what LEAVING saved — a bite still falling, or one the
   // magnet pulled in on the way out, counts — so read it there, not from the
   // board a moment before (that race once made the two disagree).
@@ -1266,7 +1311,7 @@ test("a half-eaten place's DOOR shows how far he got — a ring that fills — a
   assert.ok((await state()).done, "fixture: he finished it");
   await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__prog').isHidden(), "finished: no ring");
   assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isVisible(), "…the ⭐ instead");
 });
@@ -1373,7 +1418,7 @@ test("a HAT gives way to the crown once he is big enough for the finale; a thing
 
 test("a fresh place OPENS with a look at the whole island, then flies in to Gobble; a finger during it goes straight to him", async () => {
   await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
-  await go("#hole-home", "#screen-hole-home");
+  await goLand("party");
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="party"]').click();
   await page.waitForFunction(() => window.__HOLE.scene() === "party");
@@ -1388,9 +1433,9 @@ test("a fresh place OPENS with a look at the whole island, then flies in to Gobb
   await page.waitForFunction(() => { const c = window.__HOLE.camera(); return Math.abs(c.span - c.follow) < 0.5; }, null, { timeout: 3000 });
   // again, and this time a finger lands during the opening look
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
-  await go("#hole-home", "#screen-hole-home");
+  await goLand("party");
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="party"]').click();
   await page.waitForFunction(() => window.__HOLE.scene() === "party");
@@ -1412,7 +1457,7 @@ test("a place he comes back to does NOT replay the opening look, and reduced mot
   await page.evaluate(() => { const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
   await page.waitForTimeout(800);
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   assert.ok((await page.evaluate(() => window.__HOLE.save())).runs.build, "fixture: the place was left half-eaten");
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="build"]').click();
@@ -1422,7 +1467,7 @@ test("a place he comes back to does NOT replay the opening look, and reduced mot
   await page.emulateMedia({ reducedMotion: "reduce" });
   try {
     await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
-    await go("#hole-home", "#screen-hole-home");
+    await goLand("town");
     await page.waitForTimeout(400);
     await page.locator('.hole-door[data-scene="town"]').click();
     await page.waitForFunction(() => window.__HOLE.scene() === "town");
@@ -1469,7 +1514,7 @@ test("a finished place STOPS redrawing once its picture is still — and is draw
   // back), and come back: the still picture must be painted again, or the
   // win dialog would sit on a blank field
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   await page.setViewportSize({ width: 414, height: 800 });
   try {
     await page.evaluate(() => { location.hash = "#hole-play"; });
@@ -1501,11 +1546,12 @@ test("a half-eaten place from the ONE-SCREEN version is dropped, and its ⭐ is 
     runs: { picnic: { scene: "picnic", aspect: 1.2, eaten: [0, 1, 2, 3, 4], x: 60, y: 90 } },
   })));
   await page.reload({ waitUntil: "load" });
-  await go("#hole-home", "#screen-hole-home");
+  await goLand("space");
   const sv = await page.evaluate(() => window.__HOLE.save());
   assert.ok(!("picnic" in sv.runs), "the old run is dropped (" + JSON.stringify(sv.runs) + ")");
   assert.deepEqual(sv.done, { space: true }, "the finished place is still finished");
   assert.ok(await page.locator('.hole-door[data-scene="space"] .hole-door__star').isVisible(), "…and wears its ⭐");
+  await goLand("picnic");
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="picnic"]').click();
   await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
@@ -1528,15 +1574,14 @@ test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' d
   await page.reload({ waitUntil: "load" });
   // …and one place he leaves HALF-eaten: it is saved, and it is also the run
   // parked in memory — the one ▶, a door or a deep link would carry on
-  await page.evaluate(() => { location.hash = "#hole-home"; });
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await goLand("picnic");
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="picnic"]').click();
   await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
   await page.evaluate(() => { window.__HOLE.snap(); window.__HOLE.autoplay(60 * 20); const h = window.__HOLE.state().hole; window.__HOLE.moveTo(h.x, h.y); });
   await page.waitForTimeout(800);
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   await page.waitForTimeout(400);
   const doors = () => page.evaluate(() => ({
     stars: [...document.querySelectorAll(".hole-door__star")].filter((s) => !s.hidden).length,
@@ -1548,16 +1593,17 @@ test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' d
   assert.ok(saved.runs.picnic && saved.runs.picnic.eaten.length >= 5, "fixture: the picnic is half-eaten and saved");
   assert.deepEqual(await doors(), { stars: 3, rings: 1, said: 4 }, "fixture: the doors show three ⭐ and one ring");
 
-  // The button is a GROWN-UP's: small and quiet, after the LAST door (never
-  // between doors), marked data-adult like Josh's own ⚙️
+  // The button is a GROWN-UP's: small and quiet, on the home after the LAST
+  // land door (never between doors), marked data-adult like Josh's own ⚙️
+  await go("#hole-home", "#screen-hole-home");
   const btn = await page.evaluate(() => {
     const b = document.getElementById("hole-reset"), r = b.getBoundingClientRect();
-    const last = Math.max(...[...document.querySelectorAll(".hole-door")].map((d) => d.getBoundingClientRect().bottom));
+    const last = Math.max(...[...document.querySelectorAll(".hole-land")].map((d) => d.getBoundingClientRect().bottom));
     return { adult: b.dataset.adult, below: r.top - last, h: r.height, inHome: !!b.closest("#screen-hole-home") };
   });
   assert.equal(btn.adult, "1", "the button is marked adult-only");
   assert.ok(btn.inHome, "it lives on Gobble Hole's home");
-  assert.ok(btn.below >= 16, "it sits after the last door, clear of it (" + btn.below + "px)");
+  assert.ok(btn.below >= 16, "it sits after the last land door, clear of it (" + btn.below + "px)");
   assert.ok(btn.h < 75, "it is small and quiet, not a kid-sized target (" + btn.h + "px)");
 
   // A tap alone opens the gate and clears NOTHING; nor does OK with no word,
@@ -1606,9 +1652,9 @@ test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' d
   assert.notEqual(await page.evaluate(() => window.__HOLE.scene()), "picnic", "a deep link does not carry the old picnic on");
   await page.waitForTimeout(400); // a just-shown screen ignores a finger for 350ms (the echo guard)
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
   await page.reload({ waitUntil: "load" });
-  await go("#hole-home", "#screen-hole-home");
+  await goLand("picnic");
   const kept = await page.evaluate(() => window.__HOLE.save());
   assert.deepEqual(kept.done, {}, "after a reload no place is finished");
   assert.ok(!kept.runs.picnic, "…and the old picnic was never saved back");
@@ -1622,7 +1668,7 @@ test("GROWN-UPS ONLY: ⚙️ starts Gobble Hole over — only the word 'reset' d
   assert.ok(fresh <= 2, "its door opens the picnic FRESH (" + fresh + " eaten, against " + old + " before)");
   await page.waitForTimeout(400);
   await page.locator(".hole-back").click();
-  await page.locator("#screen-hole-home").waitFor({ state: "visible" });
+  await page.locator("#screen-hole-land").waitFor({ state: "visible" });
 
   // Nothing outside Gobble Hole was touched
   const out = await page.evaluate(() => ({ josh: localStorage.getItem("josh-won-count-feed"), fort: localStorage.getItem("jon-td-save-v1") }));

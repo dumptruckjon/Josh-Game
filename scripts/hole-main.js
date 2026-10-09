@@ -14,7 +14,7 @@
   const doc = global.document;
   const DATA = global.HoleData, L = global.HoleLogic, HR = global.HoleRender;
   if (!doc || !DATA || !L || !HR) return;
-  const SCENES = DATA.SCENES, SAY = DATA.SAY;
+  const SCENES = DATA.SCENES, SAY = DATA.SAY, LANDS = DATA.LANDS;
   const KEY = "josh-gobble-v1";
   // A double-tap is a PLACE and a TIME (the framework's echo guard): the second
   // tap lands on whatever appeared under the finger. Nobody can aim at a thing
@@ -63,7 +63,10 @@
   // piece and can never crash the boot (the fort crashed three times on a
   // field one short). A saved run stores only WHICH things were eaten; the
   // engine re-derives the size from them, so a save cannot inflate Gobble.
-  function freshSave() { return { v: 1, done: {}, runs: {}, demo: false, last: SCENES[0].id }; }
+  // gold: the most TREASURES he has found in each place (0..3, the best ever:
+  // the door shows them); seen: the places he has opened (a door he has never
+  // opened sparkles, so a new place is easy to find among 48)
+  function freshSave() { return { v: 1, done: {}, runs: {}, gold: {}, seen: {}, demo: false, last: SCENES[0].id }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function loadSave() {
     const s = freshSave();
@@ -77,6 +80,11 @@
       // things in a big world, so it is dropped (its ⭐ above is kept)
       const r = isObj(raw.runs) ? raw.runs[sc.id] : null;
       if (isObj(r) && r.scene === sc.id && r.v === DATA.RULES.LAYOUT) s.runs[sc.id] = r;
+      const g = isObj(raw.gold) ? raw.gold[sc.id] : 0;
+      if (Number.isInteger(g) && g > 0) s.gold[sc.id] = Math.min(g, L.GOLD_BANDS.length);
+      // a save from before `seen` existed: a place he finished or left
+      // half-eaten is one he has opened
+      if ((isObj(raw.seen) && raw.seen[sc.id] === true) || (!isObj(raw.seen) && (s.done[sc.id] || s.runs[sc.id]))) s.seen[sc.id] = true;
     }
     s.demo = raw.demo === true;
     if (typeof raw.last === "string" && L.sceneById(raw.last)) s.last = raw.last;
@@ -99,7 +107,8 @@
   function clearLater() { for (const id of timers) global.clearTimeout(id); timers.clear(); }
 
   // ---- Screens --------------------------------------------------------------
-  let home = null, play = null, field = null, canvas = null, render = null, hand = null;
+  let home = null, land = null, play = null, field = null, canvas = null, render = null, hand = null;
+  let landNow = null;       // the land whose page is showing (or was last)
   let meter = null, meterFill = null, meterNext = null, win = null;
 
   function build() {
@@ -117,7 +126,11 @@
         '<button class="btn-round game__hear hole-homehear" type="button" aria-label="Hear it again">👂</button>' +
       "</div>" +
       '<div class="hole-hero art-fill" aria-hidden="true"></div>' +
-      '<div class="hole-scenes" role="list" aria-label="Pick a place to eat"></div>' +
+      // every ⭐ he has won, of all of them (for the grown-up; the lands show
+      // their own)
+      '<p class="hole-total"><span aria-hidden="true">⭐</span> <b class="hole-total__n">0</b> / <span class="hole-total__of">0</span></p>' +
+      // §17: four big LAND doors; each opens its own page of places
+      '<div class="hole-lands" role="list" aria-label="Pick a land"></div>' +
       // Grown-ups only: start Gobble Hole over. Small and quiet on purpose,
       // AFTER the last door (never between doors), and behind the app's ONE
       // type-the-word gate (JoshGate, main.js) — a tap alone clears nothing.
@@ -127,7 +140,7 @@
     screens.appendChild(home);
     home.querySelector(".hole-hero").innerHTML = art();
     home.querySelector(".hole-exit").addEventListener("click", () => { location.hash = ""; });
-    home.querySelector(".hole-homehear").addEventListener("click", () => sayNow(SAY.pick));
+    home.querySelector(".hole-homehear").addEventListener("click", () => sayNow(SAY.pickLand));
     home.querySelector(".hole-reset").addEventListener("click", () => {
       const G = global.JoshGate;
       if (!G) return;
@@ -137,12 +150,51 @@
         confirm: () => (resetProgress({ keepDemo: true }) ? "Gobble Hole starts over! ✨" : "Nothing to clear yet."),
       });
     });
-    const grid = home.querySelector(".hole-scenes");
-    SCENES.forEach((sc) => {
+    const lands = home.querySelector(".hole-lands");
+    LANDS.forEach((ld) => {
+      const b = doc.createElement("button");
+      b.type = "button";
+      b.className = "hole-land tap";
+      b.dataset.land = ld.id;
+      b.setAttribute("role", "listitem");
+      b.style.background = "linear-gradient(160deg, " + ld.backdrop[0] + ", " + ld.backdrop[1] + ")";
+      b.style.borderBottomColor = ld.color;
+      if (HR.darkHex(ld.backdrop[1])) b.classList.add("hole-land--dark");
+      b.innerHTML =
+        '<span class="hole-land__pic" aria-hidden="true"></span>' +
+        '<span class="hole-land__label"></span>' +
+        '<span class="hole-land__stars" aria-hidden="true"></span>';
+      b.querySelector(".hole-land__pic").textContent = ld.pic;
+      b.querySelector(".hole-land__label").textContent = ld.name;
+      b.addEventListener("click", () => { location.hash = "#hole-land-" + ld.id; });
+      lands.appendChild(b);
+    });
+    guardEcho(home);
+
+    // A LAND's page: its places, one door each (every door is built once,
+    // here; a land shows its own and hides the rest)
+    land = doc.createElement("section");
+    land.id = "screen-hole-land";
+    land.className = "screen hole-screen hole-landpage";
+    land.hidden = true;
+    land.innerHTML =
+      '<div class="game__bar hole-bar">' +
+        '<button class="btn-round game__home hole-landback" type="button" aria-label="Back to the lands">🏠</button>' +
+        '<h1 class="game__title hole-title hole-landtitle"></h1>' +
+        '<button class="btn-round game__hear hole-landhear" type="button" aria-label="Hear it again">👂</button>' +
+      "</div>" +
+      '<div class="hole-scenes" role="list" aria-label="Pick a place to eat"></div>';
+    screens.appendChild(land);
+    land.querySelector(".hole-landback").addEventListener("click", () => { location.hash = "#hole-home"; });
+    land.querySelector(".hole-landhear").addEventListener("click", () => sayNow(SAY.pick));
+    const grid = land.querySelector(".hole-scenes");
+    // in the lands' order (the order ▶ walks)
+    LANDS.flatMap((ld) => ld.places.map((id) => L.sceneById(id))).forEach((sc) => {
       const b = doc.createElement("button");
       b.type = "button";
       b.className = "hole-door tap";
       b.dataset.scene = sc.id;
+      b.dataset.land = DATA.landOf(sc.id).id;
       b.setAttribute("role", "listitem");
       b.style.background = "linear-gradient(160deg, " + sc.backdrop[0] + ", " + sc.backdrop[1] + ")";
       b.style.borderBottomColor = sc.color;
@@ -151,13 +203,19 @@
         '<span class="hole-door__icon" aria-hidden="true"></span>' +
         '<span class="hole-door__label"></span>' +
         '<span class="hole-door__prog" aria-hidden="true" hidden></span>' +
-        '<span class="hole-door__star" aria-hidden="true" hidden>⭐</span>';
+        '<span class="hole-door__star" aria-hidden="true" hidden>⭐</span>' +
+        // a place he has never opened sparkles (in the ⭐'s corner: a new
+        // place has no ⭐ yet)
+        '<span class="hole-door__new" aria-hidden="true" hidden>✨</span>' +
+        // the treasures he has found here, best ever — only what he FOUND,
+        // never an empty slot for one he missed
+        '<span class="hole-door__gold" aria-hidden="true" hidden></span>';
       b.querySelector(".hole-door__icon").textContent = sc.door;
       b.querySelector(".hole-door__label").textContent = sc.name;
       b.addEventListener("click", () => openScene(sc.id));
       grid.appendChild(b);
     });
-    guardEcho(home);
+    guardEcho(land);
 
     play = doc.createElement("section");
     play.id = "screen-hole-play";
@@ -210,7 +268,10 @@
     win = play.querySelector(".hole-win");
     play.querySelector(".hole-meter__me").innerHTML = art();
     render = HR.create(canvas);
-    play.querySelector(".hole-back").addEventListener("click", () => { location.hash = "#hole-home"; });
+    play.querySelector(".hole-back").addEventListener("click", () => {
+      const ld = (run && DATA.landOf(run.def.id)) || landNow || LANDS[0];
+      location.hash = "#hole-land-" + ld.id;
+    });
     play.querySelector(".hole-hear").addEventListener("click", () => {
       render.endIntro();
       sayNow(SAY.start);
@@ -242,9 +303,16 @@
     }, true);
   }
 
+  // ▶ after a win: the next place in the lands' order that has no ⭐ yet (he
+  // came to eat, not to replay), else simply the next one
+  const ORDER = LANDS.flatMap((ld) => ld.places);
   function nextScene(id) {
-    const i = SCENES.findIndex((s) => s.id === id);
-    return SCENES[(i + 1) % SCENES.length];
+    const i = ORDER.indexOf(id);
+    for (let k = 1; k <= ORDER.length; k++) {
+      const nx = ORDER[(i + k) % ORDER.length];
+      if (!save.done[nx]) return L.sceneById(nx);
+    }
+    return L.sceneById(ORDER[(i + 1) % ORDER.length]);
   }
 
   // A half-eaten place shows how far he got: a little ring in the door's top
@@ -260,17 +328,35 @@
     return Math.min(1, ids.size / total);
   }
   function paintDoors() {
-    if (!home) return;
-    for (const b of home.querySelectorAll(".hole-door")) {
+    if (!home || !land) return;
+    for (const b of land.querySelectorAll(".hole-door")) {
       const sc = L.sceneById(b.dataset.scene);
       const done = !!save.done[sc.id];
       const frac = eatenFrac(sc), pct = frac > 0 ? Math.max(1, Math.round(frac * 100)) : 0;
+      const fresh = !save.seen[sc.id] && !done && !pct;
+      const gold = save.gold[sc.id] || 0;
       b.querySelector(".hole-door__star").hidden = !done;
+      b.querySelector(".hole-door__new").hidden = !fresh;
+      b.classList.toggle("hole-door--new", fresh);
+      const g = b.querySelector(".hole-door__gold");
+      g.textContent = "🪙".repeat(gold);
+      g.hidden = !gold;
       const prog = b.querySelector(".hole-door__prog");
       prog.hidden = !pct;
       prog.style.setProperty("--p", pct + "%");
-      b.setAttribute("aria-label", sc.name + (done ? ", all eaten" : "") + (pct ? ", " + pct + " percent eaten" : ""));
+      b.setAttribute("aria-label", sc.name + (fresh ? ", new" : "") + (done ? ", all eaten" : "") + (pct ? ", " + pct + " percent eaten" : "") +
+        (gold ? ", " + gold + (gold === 1 ? " treasure" : " treasures") + " found" : ""));
     }
+    let all = 0;
+    for (const b of home.querySelectorAll(".hole-land")) {
+      const ld = LANDS.find((x) => x.id === b.dataset.land);
+      const n = ld.places.filter((id) => save.done[id]).length;
+      all += n;
+      b.querySelector(".hole-land__stars").textContent = "⭐ " + n + " / " + ld.places.length;
+      b.setAttribute("aria-label", ld.name + ", " + n + " of " + ld.places.length + " places eaten");
+    }
+    home.querySelector(".hole-total__n").textContent = String(all);
+    home.querySelector(".hole-total__of").textContent = String(ORDER.length);
   }
 
   // ---- Starting over: the ONE wipe ------------------------------------------
@@ -510,6 +596,7 @@
     // to Gobble (skipped under reduced motion); a resumed one starts on him
     render.setState(st, { intro: !resumed });
     save.last = def.id;
+    save.seen[def.id] = true;
     persist();
     meterKey = "";
     paintMeter();
@@ -574,7 +661,11 @@
         if (!ev.vortex && ev.combo === 5 && run.combo !== 5) SFX.combo();
         run.combo = ev.combo || 0;
         run.ate.push(ev.e);
-        if (ev.gold && !ev.vortex) { run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure); }
+        if (ev.gold && !ev.vortex) {
+          run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure);
+          // the best ever, kept for the door (written with this frame's save)
+          if (run.found.size > (save.gold[run.def.id] || 0)) { save.gold[run.def.id] = run.found.size; run.dirty = true; }
+        }
         // the FIRST taste of a family is said once a run — and only when
         // nothing has been said for a moment (a word never talks over another)
         const fam = !ev.vortex && !ev.finale && DATA.tasteOf(ev.e);
@@ -879,17 +970,41 @@
       if (id === "hole-home") {
         if (!play.hidden) leavePlay();
         play.hidden = true;
+        land.hidden = true;
         doc.body.classList.add("hole-mode");
         doc.body.classList.remove("in-game");
         paintDoors();
         home.hidden = false;
         home.__shownAt = now();
         global.scrollTo(0, 0);
-        later(() => { if (!home.hidden) sayNow(SAY.pick); }, 300);
+        later(() => { if (!home.hidden) sayNow(SAY.pickLand); }, 300);
+        return true;
+      }
+      const lm = /^hole-land-([a-z0-9]+)$/.exec(id);
+      if (lm) {
+        const ld = LANDS.find((x) => x.id === lm[1]);
+        if (!ld) return false;
+        if (!play.hidden) leavePlay();
+        play.hidden = true;
+        home.hidden = true;
+        doc.body.classList.add("hole-mode");
+        doc.body.classList.remove("in-game");
+        landNow = ld;
+        land.querySelector(".hole-landtitle").textContent = ld.name;
+        for (const b of land.querySelectorAll(".hole-door")) b.hidden = b.dataset.land !== ld.id;
+        paintDoors();
+        land.hidden = false;
+        land.__shownAt = now();
+        global.scrollTo(0, 0);
+        // back from a place: its door is on screen (a phone shows 9 of 12)
+        const last = land.querySelector('.hole-door[data-scene="' + save.last + '"]');
+        if (last && !last.hidden && last.scrollIntoView) last.scrollIntoView({ block: "nearest" });
+        later(() => { if (!land.hidden) sayNow(SAY.pick); }, 300);
         return true;
       }
       if (id === "hole-play") {
         home.hidden = true;
+        land.hidden = true;
         doc.body.classList.add("hole-mode");
         doc.body.classList.add("in-game");
         play.hidden = false;

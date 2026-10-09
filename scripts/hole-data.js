@@ -1244,6 +1244,8 @@
     treasure: "Ooh, a treasure!",
     win: "Burp! You ate it all!",
     pick: "Pick a place to eat!",
+    // the home (§17): four lands, each with its own places
+    pickLand: "Pick a land to visit!",
     // the challenges (PLAN §14): a gate that wants its key, the key, a box
     // that pops, a portal, a current, the ice — each said once in a while,
     // never every time
@@ -1323,7 +1325,27 @@
   for (const [fam, list] of Object.entries(TASTES)) for (const e of list) TASTE_OF[e] = fam;
   const tasteOf = (e) => TASTE_OF[e] || null;
 
-  const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf };
+  // THE LANDS (PLAN_GOBBLE.md §17): the home is four big land doors, and
+  // each land holds its own places — the model Josh already knows from his
+  // launcher (a category, then its games). A land is one picture for a
+  // non-reader, and the lands run from the gentlest places to the craziest.
+  // This table is the ONE owner of which place is in which land and of the
+  // order ▶ walks through them: every place is in exactly one land, and every
+  // land holds the same number (a law).
+  const LANDS = [
+    { id: "town", name: "Home Town", pic: "🏡", backdrop: ["#ffe9b8", "#ffc56b"], color: "#e8963a",
+      places: ["toyroom", "picnic", "farm", "build", "town", "sports"] },
+    { id: "shore", name: "Sunny Shore", pic: "🏖️", backdrop: ["#c9f0ff", "#7fd0f5"], color: "#2e94c8",
+      places: ["party", "beach", "volcano", "snow", "airport", "market"] },
+    { id: "wild", name: "Wild Places", pic: "🗺️", backdrop: ["#d6f5c6", "#8fd47a"], color: "#4f9a3a",
+      places: ["maze", "cave", "castle", "factory", "jungle", "pirate"] },
+    { id: "crazy", name: "Crazy Land", pic: "🎢", backdrop: ["#f3d7ff", "#c79bff"], color: "#8a52d6",
+      places: ["space", "circus", "cloud", "themepark", "candy", "music"] },
+  ];
+  // a place's land
+  const landOf = (id) => LANDS.find((l) => l.places.includes(id)) || null;
+
+  const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf, LANDS, landOf };
   global.HoleData = HoleData;
   if (typeof module !== "undefined" && module.exports) module.exports = HoleData;
 })(typeof window !== "undefined" ? window : globalThis);

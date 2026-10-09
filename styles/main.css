@@ -2683,7 +2683,7 @@ body.hl-mode .brand { color: #ffe9b0; }
      40-card grid could only ever be two stretched columns or four cards
      NARROWER than a phone's, which is the "a tablet must never be stingier"
      law it was caught breaking. */
-  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-play) {
+  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-landpage):not(.hole-play) {
     /* `width: 100%` is load-bearing, not decoration: `#screens` becomes a
        COLUMN FLEX container in a game (main.css `body.in-game #screens`), and
        an auto cross-axis margin on a flex item cancels the stretch and
@@ -2747,7 +2747,7 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
    tap targets and need the doors' own 16px apart — at 12px they were a
    fumbled tap from opening a place. The play screen keeps 12px: its field is
    not a button. */
-.hole-home .hole-bar { margin-bottom: var(--pad); }
+.hole-home .hole-bar, .hole-landpage .hole-bar { margin-bottom: var(--pad); }
 .hole-title { color: #4b2a86; }
 .hole-hero { width: 160px; height: 160px; margin: 0 auto 12px; }
 /* The hero is decoration; the doors are the screen. It shows only where it
@@ -2769,6 +2769,34 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--pad);
 }
+/* §17: the HOME is four big LAND doors (two by two: 4 fills it evenly), each
+   a picture for a non-reader, with how many of its places he has finished;
+   a land's own page holds its twelve places (three by four on a phone, four
+   by three from 600px — 12 fills both evenly). */
+.hole-total { margin: 0 0 12px; text-align: center; font-size: 1.15rem; font-weight: 800; color: #4b2a86; }
+.hole-lands {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--pad);
+}
+.hole-land {
+  position: relative;
+  min-height: 176px;
+  border-radius: 28px;
+  border-bottom: 8px solid #d6c2ff;  /* the land's own colour, set inline */
+  box-shadow: var(--card-shadow);
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  padding: 12px 6px;
+}
+.hole-land:active { transform: scale(0.97); }
+.hole-land__pic { font-size: 4.2rem; line-height: 1; }
+.hole-land__label { font-size: 1.15rem; line-height: 1.15; font-weight: 800; color: #2e2a55; text-align: center; }
+.hole-land__stars { font-size: 1rem; line-height: 1; font-weight: 800; color: #2e2a55; }
+.hole-land--dark .hole-land__label, .hole-land--dark .hole-land__stars { color: #ffffff; }
 .hole-door {
   position: relative;
   min-height: 116px;
@@ -2787,6 +2815,18 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
 .hole-door__label { font-size: 0.95rem; line-height: 1.15; font-weight: 800; color: #2e2a55; text-align: center; }
 .hole-door--dark .hole-door__label { color: #ffffff; }
 .hole-door__star { position: absolute; top: 8px; right: 10px; font-size: 1.6rem; line-height: 1; }
+/* a place he has never opened: a sparkle in the ⭐'s corner (a new place has
+   no ⭐ yet), and its picture gives a little wiggle now and then */
+.hole-door__new { position: absolute; top: 7px; right: 9px; font-size: 1.5rem; line-height: 1; }
+.hole-door--new .hole-door__icon { animation: holeNewWiggle 2.6s ease-in-out infinite; }
+@keyframes holeNewWiggle {
+  0%, 78%, 100% { transform: rotate(0deg); }
+  84% { transform: rotate(-9deg); }
+  90% { transform: rotate(8deg); }
+  95% { transform: rotate(-4deg); }
+}
+/* the treasures he has found here: a little row of coins under the name */
+.hole-door__gold { font-size: 0.9rem; line-height: 1; letter-spacing: 1px; }
 /* How far a half-eaten place got: a ring in the corner opposite the ⭐ fills
    as the place empties (the fill is set inline as --p). Its centre is a
    punched-out dot, so the ring reads on a light door and on space's dark one. */
@@ -2968,7 +3008,11 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 }
 
 @media (min-width: 600px) {
-  .hole-scenes { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .hole-scenes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .hole-land { min-height: 250px; }
+  .hole-land__pic { font-size: 5.8rem; }
+  .hole-land__label { font-size: 1.4rem; }
+  .hole-land__stars { font-size: 1.15rem; }
   .hole-door { display: grid; min-height: 140px; gap: 6px; padding: 12px 4px; }
   .hole-door__icon { font-size: 3.4rem; }
   .hole-door__label { font-size: 1rem; }
@@ -2978,6 +3022,8 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 @media (min-width: 600px) and (max-height: 900px) {
   .hole-door { min-height: 108px; padding: 8px 4px; }
   .hole-door__icon { font-size: 2.8rem; }
+  .hole-land { min-height: 200px; }
+  .hole-land__pic { font-size: 4.8rem; }
 }
 /* Short LANDSCAPE (a phone on its side): the site's 96px top bar took a
    quarter of the height, and the island measured 1.5 px per unit — a 12px
@@ -2991,9 +3037,14 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 @media (max-height: 700px) {
   .hole-door { min-height: 88px; padding: 6px 4px; }
   .hole-door__icon { font-size: 2.2rem; }
+  /* …and the four land doors stay on one short screen */
+  .hole-land { min-height: 132px; padding: 8px 6px; }
+  .hole-land__pic { font-size: 3.2rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hole-meter--ready .hole-meter__next, .hole-meter--pop .hole-meter__next { animation: none; }
   .hole-meter__fill { transition: none; }
   .hole-door:active { transform: none; }
+  .hole-land:active { transform: none; }
+  .hole-door--new .hole-door__icon { animation: none; }
 }

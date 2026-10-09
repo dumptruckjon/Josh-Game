@@ -181,6 +181,10 @@ test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every 
     await showScreen(page, "#hole-home", "#screen-hole-home");
     await noOverflow(page, `hole-home@${w}x${h}`);
     await auditActiveScreen(page, `hole-home@${w}x${h}`);
+    // a land's page (§17): its doors, the same laws
+    await showScreen(page, "#hole-land-town", "#screen-hole-land");
+    await noOverflow(page, `hole-land@${w}x${h}`);
+    await auditActiveScreen(page, `hole-land@${w}x${h}`);
     await page.evaluate(() => window.__HOLE.start("party", {}));
     await showScreen(page, "#hole-play", "#screen-hole-play");
     await page.waitForTimeout(300);
@@ -356,61 +360,68 @@ test("🕳️ Gobble's WIN box shows the cheer AND 🔁/▶ with no scrolling at
   }
 });
 
-test("🕳️ Gobble's home: all TWENTY-FOUR doors on the FIRST screen of an iPad either way up, notch included — and on a phone an even grid that scrolls (never sideways), every door reachable, every name inside its door", async () => {
-  // Twenty-four places since the owner doubled them again (2026-10-06). On
-  // an iPad — Josh's own device — six across fits all twenty-four on one
-  // screen, in portrait AND on its side. On a phone eight rows of doors big
-  // enough for a small finger (75px+, 16px apart) cannot fit one screen, so
-  // the home scrolls there (as Josh's own launcher does): it must never
-  // scroll sideways, its first screen must show at least three full rows
-  // with the next one waiting below, and the last door must be reachable.
-  // The insets are the real ones (no browser emulates a notch): a status bar
-  // above the topbar, a home indicator below.
+test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, notch included; and every land's page an even grid of kid-sized doors — all on one iPad screen either way up, three full rows on a phone that scrolls (never sideways) to the last — every name inside its door", async () => {
+  // Since the owner doubled the places again (2026-10-08: 48) the home is the
+  // LANDS (§17), each a big picture door; a land's page holds its places. On
+  // an iPad — Josh's own device — every door of a land is on one screen, in
+  // portrait AND on its side; on a phone a land's page may scroll (as Josh's
+  // own launcher does), but never sideways, its first screen shows at least
+  // three full rows, and the last door is reachable. The insets are the real
+  // ones (no browser emulates a notch): a status bar above the topbar, a home
+  // indicator below.
   // [w, h, [topInset, bottomInset]]
   const PHONES = [[320, 568, [20, 0]], [360, 640, [0, 0]], [375, 667, [20, 0]], [375, 812, [50, 34]], [390, 844, [47, 34]],
     [393, 852, [59, 34]], [414, 896, [48, 34]], [430, 932, [59, 34]]];
   const TABLETS = [[768, 1024, [20, 0]], [810, 1080, [24, 20]], [834, 1112, [24, 20]], [1024, 1366, [24, 20]],
     [1024, 768, [24, 20]], [1194, 834, [24, 20]]];
+  const doorsOn = (bottomInset, sel) => {
+    const vh = document.documentElement.clientHeight;
+    const els = [...document.querySelectorAll(sel)].filter((b) => b.getClientRects().length > 0);
+    const R = els.map((b) => b.getBoundingClientRect());
+    return { n: R.length, clear: vh - bottomInset,
+      cols: new Set(R.map((r) => Math.round(r.left))).size,
+      last: Math.round(Math.max(...R.map((r) => r.bottom))),
+      hidden: R.filter((r) => r.bottom > vh - bottomInset + 0.5).length,
+      minSide: Math.round(Math.min(...R.map((r) => Math.min(r.width, r.height)))),
+      // a name wider than its door (one long word cannot wrap) spills out of
+      // it: "Supermarket" did on every phone and on a 768 iPad
+      spill: els.map((d) => d.querySelector(".hole-door__label, .hole-land__label")).filter((l) => {
+        const d = l.parentElement.getBoundingClientRect(), r = l.getBoundingClientRect();
+        return l.scrollWidth > l.clientWidth + 0.5 || r.left < d.left - 0.5 || r.right > d.right + 0.5;
+      }).map((l) => l.textContent) };
+  };
+  const LANDS = await page.evaluate(() => window.HoleData.LANDS);
   for (const [w, h, inset] of [...PHONES, ...TABLETS]) {
     const { ctx, p } = await freshPage(w, h, inset);
     try {
       const at = `${w}x${h} +inset ${inset.join("/")}`;
       await p.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+      // THE HOME: the lands
       await showScreen(p, "#hole-home", "#screen-hole-home");
       await p.evaluate(() => scrollTo(0, 0));
-      const m = await p.evaluate((bottomInset) => {
-        const vh = document.documentElement.clientHeight;
-        const doors = [...document.querySelectorAll(".hole-door")].map((b) => b.getBoundingClientRect());
-        const hero = document.querySelector(".hole-hero").getBoundingClientRect();
-        return { n: doors.length, places: window.HoleData.SCENES.length, clear: vh - bottomInset,
-          cols: new Set(doors.map((r) => Math.round(r.left))).size,
-          last: Math.round(Math.max(...doors.map((r) => r.bottom))),
-          hidden: doors.filter((r) => r.bottom > vh - bottomInset + 0.5).length,
-          minSide: Math.round(Math.min(...doors.map((r) => Math.min(r.width, r.height)))), hero: Math.round(hero.height),
-          // a name wider than its door (one long word cannot wrap) spills out
-          // of it: "Supermarket" did on every phone and on a 768 iPad
-          spill: [...document.querySelectorAll(".hole-door__label")].filter((l) => {
-            const d = l.closest(".hole-door").getBoundingClientRect(), r = l.getBoundingClientRect();
-            return l.scrollWidth > l.clientWidth + 0.5 || r.left < d.left - 0.5 || r.right > d.right + 0.5;
-          }).map((l) => l.textContent) };
-      }, inset[1]);
-      assert.equal(m.n, m.places, `${at}: one door per place`);
-      assert.equal(m.n % m.cols, 0, `${at}: the grid fills evenly (${m.n} doors in ${m.cols} columns)`);
-      // …and still big and 16px apart at every one of these sizes
+      const m = await p.evaluate(doorsOn, inset[1], ".hole-land");
+      const hero = await p.evaluate(() => Math.round(document.querySelector(".hole-hero").getBoundingClientRect().height));
+      assert.equal(m.n, LANDS.length, `${at}: one door per land`);
+      assert.equal(m.n % m.cols, 0, `${at}: the lands fill their grid evenly (${m.n} in ${m.cols} columns)`);
       await auditActiveScreen(p, `hole-home@${at}`);
       await noOverflow(p, `hole-home@${at}`);
-      assert.ok(m.minSide >= 75, `${at}: kid-sized doors (${m.minSide}px)`);
-      assert.deepEqual(m.spill, [], `${at}: every place's name stays inside its door`);
-      // The grown-ups ⚙️ (start Gobble Hole over): AFTER the last door, never
-      // between doors, and reachable at every size — a phone scrolls to it, an
-      // iPad shows it under the doors. It is adult-only (data-adult), so the
-      // kid audit above skips it; this is what checks it is there at all.
+      assert.ok(m.minSide >= 75, `${at}: big land doors (${m.minSide}px)`);
+      assert.deepEqual(m.spill, [], `${at}: every land's name stays inside its door`);
+      assert.equal(m.hidden, 0, `${at}: every land door is on the first screen, clear of the home indicator — ${m.hidden} end below ${m.clear} (the last at ${m.last})`);
+      // The control both ways: Gobble's picture stays only where it fits WITH
+      // every door — a tall iPad in portrait — and steps aside elsewhere
+      if (w >= 600 && h >= 1040 && h > w) assert.ok(hero > 0, `${at}: a tall iPad in portrait keeps Gobble's picture on the home`);
+      else assert.equal(hero, 0, `${at}: Gobble's picture steps aside for the doors`);
+      // The grown-ups ⚙️ (start Gobble Hole over): on the home AFTER the last
+      // land door, never between doors, and reachable at every size. It is
+      // adult-only (data-adult), so the kid audit above skips it; this is what
+      // checks it is there at all.
       const g = await p.evaluate(() => {
         const b = document.getElementById("hole-reset"), r = b.getBoundingClientRect();
-        const lastDoor = Math.max(...[...document.querySelectorAll(".hole-door")].map((d) => d.getBoundingClientRect().bottom));
+        const lastDoor = Math.max(...[...document.querySelectorAll(".hole-land")].map((d) => d.getBoundingClientRect().bottom));
         return { below: Math.round(r.top - lastDoor), left: r.left, right: r.right, vw: document.documentElement.clientWidth };
       });
-      assert.ok(g.below >= 16, `${at}: the grown-ups ⚙️ sits after the last door (${g.below}px below it)`);
+      assert.ok(g.below >= 16, `${at}: the grown-ups ⚙️ sits after the last land door (${g.below}px below it)`);
       assert.ok(g.left >= 0 && g.right <= g.vw, `${at}: the grown-ups ⚙️ is inside the screen`);
       // A grown-up scrolls to the end of the page to reach it — not
       // scrollIntoViewIfNeeded, which does nothing for a button already
@@ -420,24 +431,28 @@ test("🕳️ Gobble's home: all TWENTY-FOUR doors on the FIRST screen of an iPa
       const gb = await p.locator("#hole-reset").boundingBox();
       assert.ok(gb && gb.y >= 0 && gb.y + gb.height <= h - inset[1] + 0.5,
         `${at}: at the end of the page the grown-ups ⚙️ is all on screen, clear of the home indicator (${gb && Math.round(gb.y)}..${gb && Math.round(gb.y + gb.height)})`);
-      await p.evaluate(() => scrollTo(0, 0));
-      if (w >= 600) {
-        assert.equal(m.hidden, 0, `${at}: on an iPad every door is on the first screen, clear of the home indicator — ` +
-          `${m.hidden} end below ${m.clear} (the last at ${m.last})`);
-        // The control both ways: Gobble's picture stays only where it fits
-        // WITH every door — a tall iPad in portrait — and steps aside on a
-        // 768x1024 iPad and on its side (a rule that hid it everywhere, or
-        // nowhere, fails one of these)
-        if (h >= 1040 && h > w) assert.ok(m.hero > 0, `${at}: a tall iPad in portrait keeps Gobble's picture on the home`);
-        else assert.equal(m.hero, 0, `${at}: Gobble's picture steps aside for the doors`);
-      } else {
-        assert.equal(m.hero, 0, `${at}: on a phone Gobble's picture steps aside for the doors`);
-        assert.ok(m.n - m.hidden >= 9 && m.hidden > 0, `${at}: a phone's first screen shows at least three full rows, and the rest wait below (${m.n - m.hidden} of ${m.n})`);
-        // the last door: the page scrolls to it
-        const last = p.locator(".hole-door").last();
-        await last.scrollIntoViewIfNeeded();
-        const r = await last.boundingBox();
-        assert.ok(r && r.y >= 0 && r.y + r.height <= h - inset[1] + 0.5, `${at}: scrolled to, the last door is all on screen (${r && Math.round(r.y)}..${r && Math.round(r.y + r.height)})`);
+      // EVERY LAND's page
+      for (const ld of LANDS) {
+        await showScreen(p, "#hole-land-" + ld.id, "#screen-hole-land");
+        await p.evaluate(() => scrollTo(0, 0));
+        const d = await p.evaluate(doorsOn, inset[1], "#screen-hole-land .hole-door");
+        const lat = `${at} ${ld.id}`;
+        assert.equal(d.n, ld.places.length, `${lat}: one door per place in the land`);
+        assert.equal(d.n % d.cols, 0, `${lat}: the grid fills evenly (${d.n} doors in ${d.cols} columns)`);
+        await auditActiveScreen(p, `hole-land@${lat}`);
+        await noOverflow(p, `hole-land@${lat}`);
+        assert.ok(d.minSide >= 75, `${lat}: kid-sized doors (${d.minSide}px)`);
+        assert.deepEqual(d.spill, [], `${lat}: every place's name stays inside its door`);
+        if (w >= 600) {
+          assert.equal(d.hidden, 0, `${lat}: on an iPad every door of a land is on the first screen, clear of the home indicator — ${d.hidden} end below ${d.clear} (the last at ${d.last})`);
+        } else {
+          assert.ok(d.n - d.hidden >= Math.min(9, d.n), `${lat}: a phone's first screen shows at least three full rows (${d.n - d.hidden} of ${d.n})`);
+          // the last door: the page scrolls to it
+          const last = p.locator("#screen-hole-land .hole-door:not([hidden])").last();
+          await last.scrollIntoViewIfNeeded();
+          const r = await last.boundingBox();
+          assert.ok(r && r.y >= 0 && r.y + r.height <= h - inset[1] + 0.5, `${lat}: scrolled to, the last door is all on screen (${r && Math.round(r.y)}..${r && Math.round(r.y + r.height)})`);
+        }
       }
     } finally { await ctx.close(); }
   }
