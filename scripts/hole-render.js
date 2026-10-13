@@ -984,6 +984,265 @@
         c.stroke();
       },
     },
+    // ---- phase 5 (§17): the floors of the twenty-four new places ----------
+    bath: {
+      // white bathroom tiles, blue grout, and a few drips
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#f4fbff"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(140,185,220,0.6)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (let k = 0; k < T; k += 8) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("drips"), 7, 0.35, 0.7, (i) => (i % 2 ? "rgba(120,190,240,0.55)" : "rgba(255,255,255,0.95)"));
+      },
+    },
+    kitchen: {
+      // a cream-and-peach check, 10 units a square, with crumbs
+      base(c, x0, y0, x1, y1) {
+        c.fillStyle = "#fff3dc"; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.fillStyle = "#f6d9bd";
+        c.beginPath();
+        for (let j = Math.floor(y0 / 10); j * 10 < y1; j++) {
+          for (let i = Math.floor(x0 / 10); i * 10 < x1; i++) if ((((i + j) % 2) + 2) % 2) c.rect(i * 10, j * 10, 10, 10);
+        }
+        c.fill();
+      },
+      marks(c, T, Rk, d) {
+        if (d >= LOD.small) dots(c, T, Rk("crumbs"), 10, 0.2, 0.42, (i) => ["rgba(214,160,92,0.8)", "rgba(184,128,70,0.7)"][i % 2]);
+      },
+    },
+    brick: {
+      // red brick paving, the courses staggered
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#c9654b"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(246,226,206,0.7)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let r = 0; r * 4 < T; r++) {
+          const y = r * 4, off = r % 2 ? 4 : 0;
+          c.moveTo(0, y); c.lineTo(T, y);
+          for (let x = off; x < T; x += 8) { c.moveTo(x, y); c.lineTo(x, y + 4); }
+        }
+        c.stroke();
+        if (d >= LOD.fine) blobs(c, T, Rk("tone"), 8, ["rgba(150,60,40,0.25)", "rgba(240,140,110,0.25)"], 1.5, 3.5);
+      },
+    },
+    lawn: {
+      // a mown lawn: wide stripes, light and dark, and a few daisies
+      base(c, x0, y0, x1, y1) {
+        for (let r = Math.floor(y0 / 16); r * 16 < y1; r++) {
+          c.fillStyle = (((r % 2) + 2) % 2) ? "#8fd36a" : "#a2dd7c";
+          c.fillRect(x0, r * 16, x1 - x0, 16);
+        }
+      },
+      marks(c, T, Rk, d) {
+        if (d >= LOD.small) tufts(c, T, Rk("tufts"), 28, "rgba(80,150,55,0.5)", 0.9);
+        if (d >= LOD.small) dots(c, T, Rk("daisies"), 5, 0.45, 0.55, (i) => (i % 3 ? "#ffffff" : "#ffe066"));
+      },
+    },
+    rubber: {
+      // a playground's soft rubber floor: big coloured tiles and speckles
+      base(c, x0, y0, x1, y1) {
+        const C = ["#e86b54", "#4fae6d", "#4c8fd6", "#f2b33d"];
+        for (let j = Math.floor(y0 / 16); j * 16 < y1; j++) {
+          for (let i = Math.floor(x0 / 16); i * 16 < x1; i++) {
+            c.fillStyle = C[(((i * 3 + j * 5) % 4) + 4) % 4];
+            c.fillRect(i * 16, j * 16, 16, 16);
+          }
+        }
+      },
+      marks(c, T, Rk, d) {
+        if (d < LOD.small) return;
+        dots(c, T, Rk("speckle"), 60, 0.15, 0.3, (i) => ["rgba(30,30,30,0.35)", "rgba(255,255,255,0.45)"][i % 2]);
+      },
+    },
+    seabed: {
+      // the sandy sea floor, with the sunlight's ripples on it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#d9cf9c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 10, ["rgba(110,190,200,0.28)", "rgba(240,232,190,0.4)"], 3, 8);
+        if (d < LOD.small) return;
+        const R = Rk("ripples");
+        c.strokeStyle = "rgba(255,255,255,0.45)"; c.lineWidth = 0.3; c.lineCap = "round";
+        c.beginPath();
+        for (let i = 0; i < 9; i++) { const x = R() * T, y = R() * T, w = 2 + R() * 3; c.moveTo(x - w, y); c.quadraticCurveTo(x, y - 1.2, x + w, y); }
+        c.stroke();
+      },
+    },
+    pool: {
+      // a pool's side: small white tiles with blue grout, wet in places
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#eef8ff"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("wet"), 6, ["rgba(120,190,240,0.18)"], 3, 7);
+        if (d < LOD.small) return;
+        c.strokeStyle = "rgba(90,165,225,0.4)"; c.lineWidth = 0.25;
+        c.beginPath();
+        for (let k = 0; k < T; k += 4) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+      },
+    },
+    dock: {
+      // a harbour's grey boards, nailed down
+      base(c, x0, y0, x1, y1) {
+        const C = ["#a1968a", "#968b7e", "#aaa094"];
+        for (let r = Math.floor(y0 / 7); r * 7 < y1; r++) {
+          c.fillStyle = C[(((r % 3) + 3) % 3)];
+          c.fillRect(x0, r * 7, x1 - x0, 7);
+        }
+      },
+      marks(c, T, Rk, d) {
+        const R = Rk("boards");
+        c.strokeStyle = "rgba(90,80,70,0.55)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let i = 0; i < T / 7; i++) {
+          const y = i * 7, p = 4 + R() * (T - 8);
+          c.moveTo(0, y); c.lineTo(T, y); c.moveTo(p, y); c.lineTo(p, y + 7);
+        }
+        c.stroke();
+        if (d >= LOD.fine) dots(c, T, Rk("nails"), 14, 0.18, 0.22, () => "rgba(60,55,50,0.7)");
+      },
+    },
+    carpet: {
+      // a hotel's red carpet with a gold diamond pattern
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#b8343c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(255,206,110,0.42)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let k = -T; k < T; k += 12) { c.moveTo(k, 0); c.lineTo(k + T, T); c.moveTo(k + T, 0); c.lineTo(k, T); }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("pile"), 18, 0.25, 0.5, (i) => (i % 2 ? "rgba(150,30,40,0.35)" : "rgba(220,80,80,0.25)"));
+      },
+    },
+    desert: {
+      // hot orange sand, the wind's ripples in it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#f2c27c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 10, ["rgba(255,222,160,0.4)", "rgba(214,150,80,0.25)"], 3, 8);
+        if (d < LOD.small) return;
+        const R = Rk("ripples");
+        c.strokeStyle = "rgba(196,128,60,0.38)"; c.lineWidth = 0.32; c.lineCap = "round";
+        c.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const x = R() * T, y = R() * T, w = 3 + R() * 5;
+          c.moveTo(x - w, y); c.bezierCurveTo(x - w / 3, y - 1.5, x + w / 3, y + 1.5, x + w, y);
+        }
+        c.stroke();
+      },
+    },
+    dig: {
+      // a dinosaur dig: sandstone in layers, cracked, with pebbles
+      base(c, x0, y0, x1, y1) {
+        const C = ["#dca46a", "#d29a5f", "#e2ae78"];
+        for (let r = Math.floor(y0 / 12); r * 12 < y1; r++) {
+          c.fillStyle = C[(((r % 3) + 3) % 3)];
+          c.fillRect(x0, r * 12, x1 - x0, 12);
+        }
+      },
+      marks(c, T, Rk, d) {
+        if (d < LOD.small) return;
+        const R = Rk("cracks");
+        c.strokeStyle = "rgba(120,74,40,0.45)"; c.lineWidth = 0.3; c.lineCap = "round"; c.lineJoin = "round";
+        c.beginPath();
+        for (let i = 0; i < 4; i++) {
+          let x = R() * T, y = R() * T;
+          c.moveTo(x, y);
+          for (let k = 0; k < 3; k++) { x += (R() - 0.5) * 6; y += 1 + R() * 3; c.lineTo(x, y); }
+        }
+        c.stroke();
+        dots(c, T, Rk("pebbles"), 12, 0.3, 0.6, (i) => ["rgba(150,110,80,0.7)", "rgba(240,210,170,0.8)"][i % 2]);
+      },
+    },
+    mine: {
+      // a mine's dark rock, flecked with gold
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#6b5442"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 14, ["rgba(60,44,32,0.40)", "rgba(140,112,88,0.35)"], 2, 6);
+        if (d >= LOD.small) dots(c, T, Rk("gold"), 9, 0.2, 0.4, (i) => (i % 3 ? "#ffd24d" : "#fff1a8"), 0.6 / Math.max(d, 0.1));
+      },
+    },
+    forest: {
+      // a forest floor: moss, and leaves fallen on it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#5c9447"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("moss"), 14, ["rgba(120,180,80,0.40)", "rgba(60,110,45,0.35)"], 2, 6);
+        if (d >= LOD.small) dots(c, T, Rk("leaves"), 16, 0.4, 0.7, (i) => ["#e8913a", "#d9b23f", "#b5652f"][i % 3]);
+      },
+    },
+    temple: {
+      // big old flagstones, moss in the cracks
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#c2bc9c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(112,108,86,0.55)"; c.lineWidth = 0.45;
+        c.beginPath();
+        for (let r = 0; r * 12 < T; r++) {
+          const y = r * 12, off = r % 2 ? 8 : 0;
+          c.moveTo(0, y); c.lineTo(T, y);
+          for (let x = off; x < T; x += 16) { c.moveTo(x, y); c.lineTo(x, y + 12); }
+        }
+        c.stroke();
+        blobs(c, T, Rk("moss"), 8, ["rgba(110,160,70,0.40)", "rgba(150,145,115,0.35)"], 1.5, 4);
+      },
+    },
+    pinball: {
+      // a pinball table: deep purple, a faint grid, neon lights
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#2c1d63"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(140,110,255,0.22)"; c.lineWidth = 0.3;
+        c.beginPath();
+        for (let k = 0; k < T; k += 16) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        dots(c, T, Rk("lights"), 10, 0.3, 0.6, (i) => ["#ff5ec8", "#5ef0ff", "#ffe14d"][i % 3], 0.6 / Math.max(d, 0.1));
+      },
+    },
+    moon: {
+      // the moon's grey dust, pocked with little craters
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#c3c6cf"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        const R = Rk("craters"), list = [];
+        for (let i = 0; i < 6; i++) list.push([R() * T, R() * T, 1.2 + R() * 3]);
+        c.fillStyle = "rgba(120,124,138,0.45)";
+        c.beginPath();
+        for (const [x, y, r] of list) { c.moveTo(x + r, y); c.ellipse(x, y, r, r * SQ, 0, 0, Math.PI * 2); }
+        c.fill();
+        c.strokeStyle = "rgba(240,242,248,0.7)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (const [x, y, r] of list) { c.moveTo(x + r, y + 0.2); c.ellipse(x, y + 0.2, r, r * SQ, 0, 0, Math.PI); }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("dust"), 20, 0.15, 0.3, () => "rgba(150,152,165,0.6)");
+      },
+    },
+    felt: {
+      // a model railway's green felt
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#56a35c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 12, ["rgba(110,180,110,0.30)", "rgba(60,130,70,0.28)"], 2, 6);
+        if (d >= LOD.small) dots(c, T, Rk("fluff"), 40, 0.12, 0.22, (i) => (i % 2 ? "rgba(255,255,255,0.25)" : "rgba(30,80,40,0.3)"));
+      },
+    },
+    grid: {
+      // graph paper: pale blue lines, every fourth one darker
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#fbfcff"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        if (d >= LOD.small) {
+          c.strokeStyle = "rgba(120,170,230,0.35)"; c.lineWidth = 0.2;
+          c.beginPath();
+          for (let k = 0; k < T; k += 4) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+          c.stroke();
+        }
+        c.strokeStyle = "rgba(90,140,215,0.55)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let k = 0; k < T; k += 16) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+      },
+    },
+    biscuit: {
+      // a giant biscuit, golden, with chocolate chips and little holes
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#e9bb7c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("bake"), 10, ["rgba(214,150,80,0.35)", "rgba(250,214,160,0.40)"], 2, 6);
+        dots(c, T, Rk("chips"), 5, 0.8, 1.3, () => "#5b3418");
+        if (d >= LOD.small) dots(c, T, Rk("holes"), 12, 0.25, 0.32, () => "rgba(150,96,46,0.6)");
+      },
+    },
   };
 
   // ---- The ground's FEATURES: vector decals in world units ------------------
@@ -1689,6 +1948,26 @@
     cloud: { backdrop: "sky", edge: ["#e3e9f7", "#c9d3ea"] },
     candy: { backdrop: "sky", edge: ["#ee95c0", "#cf74a2"] },
     stage: { backdrop: "sky", edge: ["#c9a24a", "#9c7a2e"] },
+    // phase 5 (§17)
+    bath: { backdrop: "wall", edge: ["#b9d6ea", "#97bad3"] },
+    kitchen: { backdrop: "wall", edge: ["#c9a07a", "#a8805c"] },
+    brick: { backdrop: "sky", edge: ["#8e3f2c", "#6f2f21"] },
+    lawn: { backdrop: "sky", edge: ["#8b5a2b", "#6e4420"] },
+    rubber: { backdrop: "sky", edge: ["#7a5230", "#5f3f24"] },
+    seabed: { backdrop: "sea", edge: ["#b3a774", "#958a5c"] },
+    pool: { backdrop: "sky", edge: ["#9fc9e8", "#7aaed6"] },
+    dock: { backdrop: "sea", edge: ["#6f655a", "#574f46"] },
+    carpet: { backdrop: "wall", edge: ["#7c1f26", "#5f171d"] },
+    desert: { backdrop: "sky", edge: ["#c98f4a", "#a87336"] },
+    dig: { backdrop: "sky", edge: ["#9d6a3e", "#80542e"] },
+    mine: { backdrop: "rock", edge: ["#3f3026", "#2d221b"] },
+    forest: { backdrop: "sky", edge: ["#4a3420", "#362617"] },
+    temple: { backdrop: "sky", edge: ["#8a8468", "#6e6a52"] },
+    pinball: { backdrop: "stars", edge: ["#1a1040", "#100a2a"] },
+    moon: { backdrop: "stars", edge: ["#8a8e9a", "#6d717c"] },
+    felt: { backdrop: "wall", edge: ["#8a5a2b", "#6e4420"] },
+    grid: { backdrop: "wall", edge: ["#b9c9e0", "#9aaecb"] },
+    biscuit: { backdrop: "sky", edge: ["#b98447", "#99693a"] },
   };
 
   // ---- phase 4 (§14): the things Gobble walks ROUND, and what moves -------
@@ -1705,6 +1984,17 @@
     shelf: { h: 4.2, side: "#d7dce6", top: "#eef1f6", rim: "#9aa6ba", deco: "goods" },
     wall: { h: 3.6, side: "#8b8d97", top: "#b8bac4", rim: "#d8dae2", deco: "bricks" },
     rock: { h: 3.0, side: "#4e4058", top: "#73627f", rim: "#9a88a8", deco: null },
+    // phase 5 (§17): raised — a kitchen counter, harbour containers, a coral
+    // reef, fallen logs — and flat — quicksand, a tar pit, a moon crater, a
+    // puddle of melted chocolate
+    counter: { h: 4.0, side: "#b07a4a", top: "#f2efe8", rim: "#c9c3b6", deco: "goods" },
+    crates: { h: 4.4, side: "#2f6db0", top: "#4f8fd6", rim: "#9cc4f0", deco: "posts" },
+    coral: { h: 2.8, side: "#d9577a", top: "#ff8aa8", rim: "#ffc2d2", deco: "bumps" },
+    logs: { h: 2.6, side: "#7a4e2a", top: "#b5824f", rim: "#e0b07a", deco: "posts" },
+    quicksand: { flat: true, bank: "#a8743c", deep: "#c99052", top: "#dcab6c", shine: "rgba(255,236,190,0.6)", foam: "rgba(255,226,170,0.7)" },
+    tar: { flat: true, bank: "#5a4030", deep: "#1e1b22", top: "#33303a", shine: "rgba(150,150,170,0.55)", foam: "rgba(90,88,100,0.7)" },
+    crater: { flat: true, bank: "#e3e5ec", deep: "#6e7280", top: "#8a8e9b", shine: "rgba(220,222,232,0.45)", foam: "rgba(240,242,248,0.6)" },
+    choc: { flat: true, bank: "#c48a52", deep: "#5a3018", top: "#7a4424", shine: "rgba(255,214,170,0.55)", foam: "rgba(150,90,50,0.8)" },
   };
   // How each kind of bridge looks (it crosses water, lava or the void).
   const BRIDGE_LOOKS = {
@@ -1815,6 +2105,11 @@
     let darkCv = null, lightCv = null, lastDark = 0;
     const flyIn = new Map();   // a surprise popping out: id -> where from, and when
     let lastFeat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0 };
+    // §17: buttons' wires to their gates, a bumper's squash, the counting
+    // tally (how many of the counted thing there are), and what was drawn
+    let wires = [], countOf = 0, geoOpeners = {};
+    const squash = new Map();
+    let lastNew = {};
 
     const shortSide = () => Math.min(cssW, cssH) || 1;
 
@@ -1908,7 +2203,7 @@
       st = next;
       def = DATA.SCENES.find((d) => d.id === st.id) || DATA.SCENES[0];
       mode = "follow";
-      fx.length = 0; hopUntil.clear(); shakeT = 0; starUntil = 0; goalHopAt = 0;
+      fx.length = 0; hopUntil.clear(); squash.clear(); shakeT = 0; starUntil = 0; goalHopAt = 0;
       tasteFace = null; tasteUntil = 0; boingUntil = 0;
       air = null; fireworks = []; airBurst = null;
       arrow = null; noBiteSince = -1;
@@ -1950,7 +2245,10 @@
       G.base(ctx, x0, y0, x1, y1);
       for (let ty = Math.floor((y0 - PAD) / TILE); ty * TILE < y1 + PAD; ty++) {
         for (let tx = Math.floor((x0 - PAD) / TILE); tx * TILE < x1 + PAD; tx++) {
-          const seed = hashStr(def.ground + ":" + tx + "," + ty);
+          // seeded by the PLACE, not its ground: two places on the same
+          // ground (the picnic and the maze, the beach and the island) used
+          // to draw the very same floor marks, square for square
+          const seed = hashStr(def.id + ":" + tx + "," + ty);
           ctx.save();
           ctx.translate(tx * TILE, ty * TILE);
           G.marks(ctx, TILE, (k) => rng(seed ^ hashStr(k)), d, tx, ty);
@@ -2032,7 +2330,7 @@
       const v = viewRect(2);
       const x0 = Math.max(0, v.x0), y0 = Math.max(0, v.y0), x1 = Math.min(W, v.x1), y1 = Math.min(H, v.y1);
       let nd = 0;
-      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0 };
+      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0, wires: 0, spin: 0, cannons: 0 };
       if (x1 > x0 && y1 > y0) {
         drawGround(x0, y0, x1, y1);
         for (const dc of decals) {
@@ -2046,6 +2344,7 @@
         // what lies IN the ground: water and lava, then the rivers and belts
         feat.blocks += drawBlocks(true, v, now);
         feat.flows += drawFlows(v, now);
+        feat.wires = drawWires(v, now);
         drawLight(x0, y0, x1, y1);
       }
       ctx.restore();
@@ -2060,6 +2359,8 @@
       feat.bridges += drawBridges(v);
       feat.flows += drawSlides(v, now);
       feat.portals += drawPortals(v, now);
+      feat.cannons = portals.filter((E) => E.fly).length;
+      feat.spin = flows.filter((F) => F.spin && boxIn(F.box, v)).length;
       ctx.restore();
       lastFeat = feat;
       return nd;
@@ -2083,12 +2384,23 @@
         a: offsetLine(t.pts, t.w * 0.3), b: offsetLine(t.pts, -t.w * 0.3),
         ea: offsetLine(t.pts, t.w * 0.47), eb: offsetLine(t.pts, -t.w * 0.47),
       }));
-      flows = geo.flows.map((f) => ({
-        f, box: ptsBox(f.pts, f.w),
-        a: offsetLine(f.pts, f.w * 0.26), b: offsetLine(f.pts, -f.w * 0.26),
-        ea: offsetLine(f.pts, f.w * 0.5), eb: offsetLine(f.pts, -f.w * 0.5),
-      }));
-      portals = geo.ends.map((e) => ({ x: e.x, y: e.y, look: e.look, live: e.live, pi: e.pi }));
+      flows = geo.flows.map((f) => (f.spin
+        ? { f, spin: f.spin, box: [f.spin.x - f.spin.rg, f.spin.y - f.spin.rg * SQ, f.spin.x + f.spin.rg, f.spin.y + f.spin.rg * SQ] }
+        : {
+          f, box: ptsBox(f.pts, f.w),
+          a: offsetLine(f.pts, f.w * 0.26), b: offsetLine(f.pts, -f.w * 0.26),
+          ea: offsetLine(f.pts, f.w * 0.5), eb: offsetLine(f.pts, -f.w * 0.5),
+        }));
+      portals = geo.ends.map((e) => ({ x: e.x, y: e.y, look: e.look, live: e.live, pi: e.pi, fly: e.fly, to: geo.ends[e.to] }));
+      // a button's WIRE runs along the ground to every gate it opens (§17)
+      geoOpeners = {};
+      for (const o of st.objects) for (const n of [o.key, o.press]) if (n) (geoOpeners[n] || (geoOpeners[n] = [])).push(o);
+      wires = [];
+      for (const b of st.objects) {
+        if (!b.press) continue;
+        for (const g of st.objects) if (g.lock === b.press) wires.push({ b, g, box: ptsBox([[b.x, b.y], [g.x, g.y]], 3) });
+      }
+      countOf = def.count ? st.objects.filter((o) => o.e === def.count.e).length : 0;
     }
 
     // A stroke along a line of WORLD points, laid on the ground (so it is
@@ -2280,6 +2592,7 @@
       for (const F of flows) {
         if (!boxIn(F.box, v)) continue;
         n++;
+        if (F.spin) { drawSpin(F); continue; }
         const f = F.f, off = rm ? 0 : -((now * f.v) % 240);
         if (f.look === "slide") { n--; continue; } // drawn ON its bridge, by drawSlides
         if (f.look === "belt") {
@@ -2292,6 +2605,22 @@
           gline(f.pts, f.w, "#c6ccd6");
           gline(f.pts, f.w * 0.86, "#9aa3b1", [0.5, 1.4], off);
           gline(F.ea, 0.8, "#3d5a96"); gline(F.eb, 0.8, "#3d5a96");
+        } else if (f.look === "ski") {
+          // a ski piste: packed snow, blue edge markers, grooves running downhill
+          gline(f.pts, f.w + 1.4, "#c7d6ea");
+          gline(f.pts, f.w, "#f4f8ff");
+          gline(F.a, 0.4, "rgba(150,175,215,0.8)", [2.4, 3.2], off);
+          gline(F.b, 0.4, "rgba(150,175,215,0.8)", [2.4, 3.2], off * 1.1);
+          gline(F.ea, 0.9, "#2f6fdb", [0.9, 4.2]); gline(F.eb, 0.9, "#2f6fdb", [0.9, 4.2]);
+        } else if (f.look === "current" || f.look === "choc") {
+          // a sea current (blue-green, bubbles riding it) or a chocolate river
+          const C = f.look === "choc" ? ["#4a2614", "#7a4424", "#9a5a32", "rgba(255,224,190,0.55)"] : ["#2b8a8a", "#4cc2c0", "#7ad9d4", "rgba(255,255,255,0.6)"];
+          gline(f.pts, f.w + 2.6, C[0]);
+          gline(f.pts, f.w, C[1]);
+          gline(f.pts, f.w * 0.5, C[2]);
+          gline(F.a, 0.7, C[3], [0.7, 6.3], off);
+          gline(F.b, 0.7, C[3], [0.7, 8.3], off * 1.2);
+          gline(f.pts, 0.5, C[3], [4, 10], off * 0.9);
         } else {
           gline(f.pts, f.w + 2.8, "#2d7cb0");
           gline(f.pts, f.w, "#4daee5");
@@ -2301,6 +2630,47 @@
           gline(f.pts, 0.6, "rgba(255,255,255,0.45)", [5, 12], off * 0.9);
           gline(F.ea, 0.6, "rgba(255,255,255,0.55)"); gline(F.eb, 0.6, "rgba(255,255,255,0.55)");
         }
+      }
+      return n;
+    }
+
+    // A TURNTABLE (§17): a disc in the floor, its wedges turning at the
+    // rate it carries him (keyed to the RUN's clock, so a frame depends only
+    // on the state), round a hub that stands still. Still under reduced
+    // motion it is still drawn turned to where the run has got to.
+    const SPIN_COLS = { turntable: ["#ff5e7e", "#fff4e0"], record: ["#22222b", "#3a3a48"], pizza: ["#f2a541", "#f7d070"], whirl: ["#3d95d1", "#8fd3f7"] };
+    function drawSpin(F) {
+      const c = F.spin, f = F.f, cols = f.cols || SPIN_COLS[f.look] || SPIN_COLS.turntable;
+      const a0 = (st.t * f.v) / c.rg, K = 8;
+      ctx.save();
+      ctx.translate(c.x, c.y); ctx.scale(1, SQ);
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.arc(0.6, 1.4, c.rg * 1.04, 0, TAU); ctx.fill();
+      ctx.fillStyle = shade(cols[0], -0.35); ctx.beginPath(); ctx.arc(0, 0, c.rg, 0, TAU); ctx.fill();
+      for (let k = 0; k < K; k++) {
+        ctx.fillStyle = cols[k % 2];
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, c.rg * 0.94, a0 + (k * TAU) / K, a0 + ((k + 1) * TAU) / K); ctx.closePath(); ctx.fill();
+      }
+      ctx.lineWidth = 0.7; ctx.strokeStyle = "rgba(255,255,255,0.7)";
+      for (let k = 1; k <= 2; k++) { ctx.beginPath(); ctx.arc(0, 0, c.rg * 0.94 * (k / 3), 0, TAU); ctx.stroke(); }
+      // the hub
+      ctx.fillStyle = "#ffd24d"; ctx.beginPath(); ctx.arc(0, 0, Math.max(2, c.rg * 0.12), 0, TAU); ctx.fill();
+      ctx.lineWidth = 0.6; ctx.strokeStyle = INK_DARK; ctx.stroke();
+      ctx.restore();
+    }
+    // A BUTTON's WIRE (§17): a dashed gold line on the ground from the button
+    // to the gate it opens, its dashes marching toward the gate ("this opens
+    // THAT") — green and solid once the button is pressed, gone once the
+    // gate is open.
+    function drawWires(v, now) {
+      let n = 0;
+      const rm = reduceMotion();
+      for (const W of wires) {
+        if (st.unlocked[W.b.press] || W.g.st !== 0 || !boxIn(W.box, v)) continue;
+        n++;
+        const pts = [[W.b.x, W.b.y], [W.g.x, W.g.y]];
+        gline(pts, 1.8, "rgba(40,20,80,0.35)");
+        if (W.b.pressed) gline(pts, 1.1, "#3fbf5a");
+        else gline(pts, 1.1, "#ffd24d", [2.2, 1.6], rm ? 0 : -now * 6);
       }
       return n;
     }
@@ -2438,10 +2808,26 @@
       for (const E of portals) {
         if (E.x + R < v.x0 || E.x - R > v.x1 || E.y + R < v.y0 || E.y - R > v.y1) continue;
         n++;
+        if (E.fly) { drawCannon(E, now); continue; }
         ctx.save();
         ctx.translate(E.x, E.y); ctx.scale(1, SQ);
         if (!E.live) ctx.globalAlpha = 0.6;
-        if (E.look === "spring") {
+        if (E.look === "lift") {
+          // a lift: two steel doors with an up-down arrow over them
+          ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(-R + 0.8, -R + 1.2, R * 2, R * 2);
+          ctx.fillStyle = "#8d96a6"; ctx.fillRect(-R, -R, R * 2, R * 2);
+          ctx.fillStyle = "#d4dae4"; ctx.fillRect(-R * 0.86, -R * 0.62, R * 0.84, R * 1.54); ctx.fillRect(R * 0.02, -R * 0.62, R * 0.84, R * 1.54);
+          ctx.fillStyle = "#ffd24d";
+          ctx.beginPath(); ctx.moveTo(-R * 0.3, -R * 0.72); ctx.lineTo(0, -R * 0.96); ctx.lineTo(R * 0.3, -R * 0.72); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = "#3a4250"; ctx.lineWidth = 0.4; ctx.strokeRect(-R, -R, R * 2, R * 2);
+        } else if (E.look === "tunnel") {
+          // a railway tunnel's mouth: a dark arch in a stone face
+          ctx.fillStyle = "#8f8a7f"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#b9b4a8"; ctx.beginPath(); ctx.arc(0, -R * 0.12, R * 0.86, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#1c1a22"; ctx.beginPath(); ctx.arc(0, R * 0.1, R * 0.58, Math.PI, 0); ctx.lineTo(R * 0.58, R * 0.6); ctx.lineTo(-R * 0.58, R * 0.6); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 0.4;
+          ctx.beginPath(); ctx.arc(0, R * 0.1, R * 0.7, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+        } else if (E.look === "spring") {
           ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.arc(0.8, 1.2, R, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = "#cf2c4b"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = "#2c43b0"; ctx.beginPath(); ctx.arc(0, 0, R * 0.78, 0, Math.PI * 2); ctx.fill();
@@ -2476,6 +2862,45 @@
         ctx.restore();
       }
       return n;
+    }
+
+    // A CANNON (§17): a barrel on a stand, aimed at where it lands — a
+    // dotted arc shows the flight — and at the far end a target in the
+    // floor. (A one-way cannon's landing spot is only a target.)
+    function flyLift(d) { return Math.min(60, 0.3 * d); }
+    function drawCannon(E, now) {
+      const R = RULES.PORTAL_R * 1.3;
+      if (!E.live) {
+        ctx.save();
+        ctx.translate(E.x, E.y); ctx.scale(1, SQ);
+        ["#d62839", "#ffffff", "#d62839", "#ffffff"].forEach((col, k) => {
+          ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, R * (1 - k * 0.24), 0, TAU); ctx.fill();
+        });
+        ctx.restore();
+        return;
+      }
+      const T = E.to, d = L.gdist(E.x, E.y, T.x, T.y), lift = flyLift(d);
+      // the flight's arc, dotted (the dots drift along it, still under
+      // reduced motion)
+      const off = reduceMotion() ? 0 : (now * 0.6) % 1;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (let k = 0; k < 14; k++) {
+        const t = (k + off) / 14;
+        const x = E.x + (T.x - E.x) * t, y = E.y + (T.y - E.y) * t - Math.sin(Math.PI * t) * lift;
+        ctx.beginPath(); ctx.arc(x, y, 0.9, 0, TAU); ctx.fill();
+      }
+      // the stand and the barrel, pointing the way it flies
+      const ang = Math.atan2(T.y - E.y - lift * 0.6, T.x - E.x);
+      ctx.save();
+      ctx.translate(E.x, E.y);
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ellipse(ctx, 0.8, 1.2, R, R * SQ); ctx.fill();
+      ctx.fillStyle = "#5a3a22"; ellipse(ctx, 0, 0, R * 0.9, R * 0.9 * SQ); ctx.fill();
+      ctx.rotate(ang);
+      ctx.fillStyle = INK_DARK; rrect(ctx, -R * 0.3, -R * 0.42, R * 1.6, R * 0.84, R * 0.3); ctx.fill();
+      ctx.fillStyle = "#4a4f63"; rrect(ctx, -R * 0.22, -R * 0.32, R * 1.44, R * 0.64, R * 0.24); ctx.fill();
+      ctx.fillStyle = "#ffd24d"; ctx.fillRect(R * 1.0, -R * 0.36, R * 0.14, R * 0.72);
+      ctx.restore();
+      ctx.fillStyle = "#2b2b38"; ctx.beginPath(); ctx.arc(E.x, E.y - R * 0.1, R * 0.36, 0, TAU); ctx.fill();
     }
 
     // DARK places (a cave): the screen is dark but for the light round Gobble
@@ -2644,10 +3069,76 @@
     }
     function lockBadge(o, x, y) {
       const size = drawSize(o), s = Math.max(14, size * 0.36);
+      const bx = x + size * 0.3, by = y - size * 0.86;
       ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.beginPath(); ctx.arc(x + size * 0.3, y - size * 0.86, s * 0.62, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx, by, s * 0.62, 0, Math.PI * 2); ctx.fill();
       ctx.lineWidth = 2; ctx.strokeStyle = "#b8860b"; ctx.stroke();
-      glyph("🔒", x + size * 0.3, y - size * 0.86, s * 0.8);
+      glyph("🔒", bx, by, s * 0.8);
+      // a lock waiting for more than one thing (§17): a pip for each, filled
+      // as each is done — he can SEE how many keys are still to find
+      const all = (geoOpeners[o.lock] || []);
+      if (all.length < 2) return 0;
+      const pr = Math.max(3.5, s * 0.16), gap = pr * 2.7, x0 = bx - ((all.length - 1) * gap) / 2, py = by + s * 0.62 + pr * 1.8;
+      all.forEach((k, i) => {
+        const done = L.openerDone(k);
+        ctx.beginPath(); ctx.arc(x0 + i * gap, py, pr, 0, TAU);
+        ctx.fillStyle = done ? "#3fbf5a" : "rgba(255,255,255,0.95)"; ctx.fill();
+        ctx.lineWidth = 1.6; ctx.strokeStyle = INK_DARK; ctx.stroke();
+      });
+      return all.length;
+    }
+    // §17's own pictures for the things on the ground:
+    // a BUMPER's bouncy ring — dark under bright, so it shows on every floor
+    function bumperRing(x, y, r) {
+      const R = r * view.s * 1.02;
+      ctx.lineWidth = Math.max(3, R * 0.14) + 3; ctx.strokeStyle = "rgba(40,20,80,0.45)";
+      ellipse(ctx, x, y, R, R * SQ); ctx.stroke();
+      ctx.lineWidth = Math.max(3, R * 0.14); ctx.strokeStyle = "#ff7ac0";
+      ellipse(ctx, x, y, R, R * SQ); ctx.stroke();
+      ctx.lineWidth = Math.max(1.2, R * 0.05); ctx.strokeStyle = "#ffffff";
+      ellipse(ctx, x, y, R * 0.86, R * 0.86 * SQ); ctx.stroke();
+    }
+    // a POWER-UP's blue glow, pulsing out from under it
+    function powerGlow(now, x, y, r) {
+      const rm = reduceMotion(), R = r * view.s;
+      for (let k = 0; k < 2; k++) {
+        const p = rm ? 0.35 + k * 0.4 : (now * 1.2 + k * 0.5) % 1;
+        const rr = R * (1.1 + 0.9 * p), a = rm ? 0.8 : 0.95 * (1 - p);
+        ctx.lineWidth = Math.max(2.5, R * 0.12) + 3; ctx.strokeStyle = "rgba(20,30,90," + (a * 0.45).toFixed(3) + ")";
+        ellipse(ctx, x, y, rr, rr * SQ); ctx.stroke();
+        ctx.lineWidth = Math.max(2.5, R * 0.12); ctx.strokeStyle = "rgba(110,200,255," + a.toFixed(3) + ")";
+        ellipse(ctx, x, y, rr, rr * SQ); ctx.stroke();
+      }
+    }
+    // a BUTTON in the floor: a white rim and a big red cap that sinks and
+    // turns green once it is pressed
+    function drawButton(o, x, y) {
+      const R = o.r * view.s * 0.9, up = o.pressed ? 0.25 : 1, cap = o.pressed ? "#3fbf5a" : "#e63946";
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ellipse(ctx, x + R * 0.06, y + R * 0.1 * SQ, R * 1.05, R * 1.05 * SQ); ctx.fill();
+      ctx.fillStyle = "#f2f2f2"; ellipse(ctx, x, y, R, R * SQ); ctx.fill();
+      ctx.lineWidth = Math.max(1.5, R * 0.06); ctx.strokeStyle = INK_DARK; ctx.stroke();
+      const h = R * 0.32 * up, rc = R * 0.68;
+      ctx.fillStyle = shade(cap, -0.3);
+      ctx.fillRect(x - rc, y - h, rc * 2, h);
+      ellipse(ctx, x, y, rc, rc * SQ); ctx.fill();
+      ctx.fillStyle = cap; ellipse(ctx, x, y - h, rc, rc * SQ); ctx.fill();
+      ctx.lineWidth = Math.max(1.2, R * 0.05); ctx.strokeStyle = INK_DARK; ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.55)"; ellipse(ctx, x - rc * 0.3, y - h - rc * SQ * 0.25, rc * 0.35, rc * 0.18); ctx.fill();
+    }
+    // a PIÑATA's cracks: one more with every bonk (dark under bright)
+    function cracks(o, x, y) {
+      const size = drawSize(o), rr = rng(hashStr("crack" + o.id));
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      for (let k = 0; k < o.hit * 2; k++) {
+        const cx = x + (rr() - 0.5) * size * 0.5, cy = y - size * (0.35 + rr() * 0.35);
+        const pts = [[cx, cy]];
+        for (let j = 0; j < 3; j++) pts.push([pts[j][0] + (rr() - 0.5) * size * 0.22, pts[j][1] + size * 0.08]);
+        for (const [w, col] of [[Math.max(3, size * 0.05) + 2, "rgba(40,20,80,0.8)"], [Math.max(1.5, size * 0.025), "#fff6c2"]]) {
+          ctx.lineWidth = w; ctx.strokeStyle = col;
+          ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke();
+        }
+      }
+      ctx.lineCap = "butt"; ctx.lineJoin = "miter";
     }
 
     // A SOFT contact shadow, from one pre-rendered sprite. A flat filled
@@ -2794,7 +3285,30 @@
     // ---- the hole ---------------------------------------------------------------
     function drawHole(now) {
       const h = st.hole, pal = HOLES[def.hole] || HOLES.gobble;
-      const cx = sx(h.x), cy = sy(h.y), R = h.r * view.s, rx = R, ry = R * SQ;
+      const R = h.r * view.s, rx = R, ry = R * SQ;
+      // FLYING from a cannon (§17): he leaves the ground in an arc, his
+      // shadow staying on it and shrinking as he rises
+      let lift = 0;
+      if (st.fly) {
+        const F = st.fly, p = F.t / F.d;
+        lift = Math.sin(Math.PI * p) * flyLift(L.gdist(F.x0, F.y0, F.x1, F.y1)) * view.s;
+        const k = 1 - 0.45 * Math.sin(Math.PI * p);
+        ctx.fillStyle = "rgba(0,0,0,0.28)"; ellipse(ctx, sx(h.x), sy(h.y), rx * k, ry * k); ctx.fill();
+      }
+      const cx = sx(h.x), cy = sy(h.y) - lift;
+      // ZOOMING (§17): speed lines behind him
+      if (h.zoomT > 0 && (h.vx || h.vy)) {
+        const d = Math.hypot(h.vx, h.vy) || 1, ux = -h.vx / d, uy = -h.vy / d, ox = -uy, oy = ux;
+        ctx.lineCap = "round";
+        for (let k = -1; k <= 1; k++) {
+          const bx = cx + ux * rx * 1.05 + ox * k * rx * 0.45, by = cy + uy * ry * 1.05 + oy * k * ry * 0.45, len = rx * (k ? 0.9 : 1.3);
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + ux * len, by + uy * len);
+          ctx.lineWidth = Math.max(2.5, R * 0.12) + 3; ctx.strokeStyle = "rgba(20,30,90,0.4)"; ctx.stroke();
+          ctx.lineWidth = Math.max(2.5, R * 0.12); ctx.strokeStyle = "rgba(110,200,255,0.95)"; ctx.stroke();
+        }
+        ctx.lineCap = "butt";
+        lastNew.zoom = 1;
+      }
       const chomp = happyUntil > now ? 1 + 0.06 * Math.sin((happyUntil - now) * 26) : 1;
       // a boing (§15.3): squash, spring, settle — the eyes stay where they are
       const b = boingUntil > now && !reduceMotion() ? (boingUntil - now) / BOING_S : 0;
@@ -3008,6 +3522,69 @@
         fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 0.7, r0: h.r * 1.1, white: true });
       } else if (ev.type === "bump") {
         lookUp = now + 0.6;
+        if (ev.bounce) {
+          // BOING (§17): the bumper squashes and a ring bursts off it
+          const o = st.objects[ev.id];
+          boingUntil = now + BOING_S;
+          squash.set(ev.id, now + 0.25);
+          if (o) fx.push({ k: "ring", x: o.x, y: o.y, t0: now, life: 0.5, r0: o.r, white: true });
+        }
+      } else if (ev.type === "sprout") {
+        // a seedling's flowers grow up out of the ground (§17)
+        const par = st.objects[ev.id];
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.6, r0: par ? par.r : 4, white: true });
+        const rr = rng(hashStr("sprout" + ev.id));
+        for (let i = 0; i < 10; i++) {
+          const a = -Math.PI * (0.1 + 0.8 * rr()), sp = 10 + rr() * 16;
+          fx.push({ k: "leaf", x: ev.x, y: ev.y - 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t0: now, life: 0.8 + rr() * 0.3, size: 0.5 + rr() * 0.4, color: i % 2 ? "#6fbf4b" : "#ff9fcb", a: rr() * 6 });
+        }
+        for (const id of ev.kids || []) flyIn.set(id, { x: ev.x, y: ev.y, t0: now, dur: 0.6, h: 2, grow: true });
+      } else if (ev.type === "hit") {
+        // a PIÑATA bonked (§17): a share of its treats out — a burst, and
+        // its treats flying out; the last bonk is the big one
+        const par = st.objects[ev.id], top = par ? par.r * VIS * 0.75 : 6;
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.6, r0: par ? par.r * 0.8 : 4, white: true });
+        const rr = rng(hashStr("hit" + ev.id + ":" + ev.n));
+        for (let i = 0; i < (ev.last ? 18 : 6); i++) {
+          const a = -Math.PI * (0.1 + 0.8 * rr()), sp = 14 + rr() * 22;
+          fx.push({ k: "conf", x: ev.x, y: ev.y - top, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t0: now, life: 0.8 + rr() * 0.4, size: 0.6 + rr() * 0.5, color: CONFETTI[i % CONFETTI.length], a: rr() * 6 });
+        }
+        if (!reduceMotion()) for (const id of ev.kids || []) flyIn.set(id, { x: ev.x, y: ev.y - top, t0: now, dur: 0.55, h: 6 });
+      } else if (ev.type === "opener") {
+        // a key eaten or a button pressed, on the way to opening a lock
+        const o = st.objects[ev.id];
+        if (o) fx.push({ k: "ring", x: o.x, y: o.y, t0: now, life: 0.7, r0: o.r * 1.1, gold: true });
+      } else if (ev.type === "launch") {
+        // BOOM (§17): a puff of smoke at the cannon, and he goes
+        wideUntil = now + 1.2;
+        const rr = rng(hashStr("boom" + Math.round(now * 10)));
+        for (let i = 0; i < 12; i++) {
+          const a = -Math.PI * (0.1 + 0.8 * rr());
+          fx.push({ k: "crumb", x: ev.from[0], y: ev.from[1], vx: Math.cos(a) * (8 + rr() * 16), vy: Math.sin(a) * (10 + rr() * 16), t0: now, life: 0.7 + rr() * 0.3, size: 1 + rr() * 1.2, color: "#cfcfd8" });
+        }
+      } else if (ev.type === "land") {
+        // touchdown: a ring of dust, and a little shake
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.6, r0: h.r * 1.1, white: true });
+        if (!reduceMotion()) shakeT = Math.max(shakeT, now + 0.25);
+      } else if (ev.type === "flee") {
+        hopUntil.set(ev.id, now + 0.4);
+      } else if (ev.type === "power") {
+        // a POWER-UP: a blue ring and blue stars
+        wideUntil = now + 0.8;
+        fx.push({ k: "ring", x: h.x, y: h.y, t0: now, life: 0.7, r0: h.r * 1.1, white: true });
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * TAU;
+          fx.push({ k: "star", x: h.x, y: h.y, vx: Math.cos(a) * 26, vy: Math.sin(a) * 26 * SQ - 8, t0: now, life: 0.8, size: 1.3, col: "#6ec8ff" });
+        }
+      } else if (ev.type === "count") {
+        // COUNTING (§17): the number pops up over him
+        fx.push({ k: "num", text: String(ev.n), x: h.x, y: h.y, t0: now, life: 1.2, big: !!ev.last });
+      } else if (ev.type === "meet") {
+        // THE FIRST TIME (§17): the new thing hops, a ring bursts round it
+        // and a hand points at it for a moment
+        if (ev.id >= 0) hopUntil.set(ev.id, now + 0.55);
+        fx.push({ k: "ring", x: ev.x, y: ev.y, t0: now, life: 0.9, r0: ev.id >= 0 && st.objects[ev.id] ? st.objects[ev.id].r * 1.2 : 8, white: true });
+        if (ev.kind !== "count") fx.push({ k: "point", x: ev.x, y: ev.y, t0: now, life: 2.2, h: ev.id >= 0 && st.objects[ev.id] ? st.objects[ev.id].r * VIS : 10 });
       } else if (ev.type === "pop" || ev.type === "shake") {
         // a box bursts (or a tree is shaken): the surprises fly out to their
         // spots, with confetti (or leaves)
@@ -3406,6 +3983,25 @@
             ctx.fillStyle = (f.gold ? GOLD.bright : "rgba(255,230,120,") + (1 - p).toFixed(3) + ")";
             ctx.fill();
           }
+        } else if (f.k === "num") {
+          // a number popping up over him and floating away (§17)
+          const k = p < 0.15 ? p / 0.15 : 1, size = (f.big ? 46 : 34) * (0.6 + 0.4 * k);
+          const x = sx(f.x), y = sy(f.y) - st.hole.r * view.s * 1.2 - t * 26;
+          ctx.globalAlpha = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25;
+          ctx.font = "900 " + size.toFixed(1) + "px system-ui, sans-serif";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.lineWidth = size * 0.18; ctx.strokeStyle = INK_DARK; ctx.lineJoin = "round"; ctx.strokeText(f.text, x, y);
+          ctx.fillStyle = f.big ? GOLD.hi : "#ffffff"; ctx.fillText(f.text, x, y);
+          ctx.textAlign = "start"; ctx.textBaseline = "alphabetic"; ctx.lineJoin = "miter";
+          ctx.globalAlpha = 1;
+          lastNew.nums = (lastNew.nums || 0) + 1;
+        } else if (f.k === "point") {
+          // a pointing hand bobbing over a new thing (§17)
+          const bob = reduceMotion() ? 0 : Math.abs(Math.sin(t * 5)) * 8;
+          ctx.globalAlpha = p < 0.8 ? 1 : 1 - (p - 0.8) / 0.2;
+          glyph("👇", sx(f.x), sy(f.y) - f.h * view.s - 18 - bob, 30);
+          ctx.globalAlpha = 1;
+          lastNew.points = (lastNew.points || 0) + 1;
         } else if (f.k === "burp") {
           // a burp: puffs rising from the hole
           const h = st.hole;
@@ -3418,6 +4014,31 @@
           }
         }
       }
+    }
+
+    // THE TALLY (§17): in a counting place, a ten-frame in the corner — a
+    // slot for every counted thing, filled with its picture as it is eaten
+    // and the number so far beside it — so the counting reads with the sound
+    // off.
+    function drawTally() {
+      if (!def.count || !countOf) return;
+      const per = 5, s = Math.max(18, Math.min(26, cssW / 16)), gap = 4, pad = 8;
+      const rows = Math.ceil(countOf / per), w = per * (s + gap) - gap, x0 = pad, y0 = pad;
+      ctx.fillStyle = "rgba(255,255,255,0.88)";
+      rrect(ctx, x0 - 5, y0 - 5, w + 10 + s * 1.8, rows * (s + gap) - gap + 10, 10); ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = INK_DARK; ctx.stroke();
+      for (let i = 0; i < countOf; i++) {
+        const x = x0 + (i % per) * (s + gap), y = y0 + Math.floor(i / per) * (s + gap);
+        ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(29,18,51,0.55)";
+        rrect(ctx, x, y, s, s, 4); ctx.stroke();
+        if (i < st.counted) glyph(def.count.e, x + s / 2, y + s / 2, s * 0.86);
+      }
+      const n = st.counted * (def.count.by || 1), fs = s * 1.1;
+      ctx.font = "900 " + fs.toFixed(1) + "px system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = INK_DARK; ctx.fillText(String(n), x0 + w + s * 0.95, y0 + s / 2);
+      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+      lastNew.tally = countOf;
     }
 
     // Is a thing on screen (its base point, inset by m css px)?
@@ -3550,7 +4171,7 @@
         if (o.st !== 0) continue;
         standing++;
         // a surprise popping out flies from its box (or its tree) to its spot
-        let ox = o.x, oy = o.y, fly = 0;
+        let ox = o.x, oy = o.y, fly = 0, sc = 1;
         const fi = flyIn.get(o.id);
         if (fi) {
           const p = (now - fi.t0) / fi.dur;
@@ -3559,13 +4180,15 @@
             const e = 1 - (1 - p) * (1 - p);
             ox = fi.x + (o.x - fi.x) * e; oy = fi.y + (o.y - fi.y) * e;
             fly = Math.sin(p * Math.PI) * fi.h * view.s;
+            // a flower sprouting (§17) grows up out of the ground
+            if (fi.grow) sc = 0.15 + 0.85 * e;
           }
         }
         const half = VIS * o.r * 0.5 + 2;
         if (ox + half < v.x0 || ox - half > v.x1 || oy - VIS * o.r * 1.3 > v.y1 || oy + o.r * SQ + 2 < v.y0) continue;
         const near = Math.hypot(o.x - h.x, (o.y - h.y) / SQ) < h.r + o.r;
         // a thing ON the rim (too big, or being pulled) draws over the hole
-        items.push({ y: near ? Math.max(oy, h.y + 0.01) : oy, o, ox, oy, fly });
+        items.push({ y: near ? Math.max(oy, h.y + 0.01) : oy, o, ox, oy, fly, sc });
       }
       items.push({ y: h.y, hole: true });
       items.sort((a, b) => a.y - b.y || (a.hole ? 1 : 0) - (b.hole ? 1 : 0));
@@ -3578,6 +4201,11 @@
         if (hop && hop > now && !rm) it.lift += Math.sin(((hop - now) / 0.55) * Math.PI) * o.r * 0.6 * view.s;
         if (o.wob > 0) it.rot = Math.sin(now * 38) * 0.16 * (o.wob / 0.45) * (rm ? 0.3 : 1);
         else if (o.pull > 0) it.rot = clamp((h.x - o.x) / (o.r + h.r), -1, 1) * 0.4 * o.pull;
+        // a runaway on the run bobs along (§17)
+        else if (o.run && o.ran > 0 && o.rest <= 0 && !rm) it.rot = Math.sin(now * 22) * 0.18;
+        // a bumper squashes as it knocks him back (§17)
+        const sq = squash.get(o.id);
+        if (sq && sq > now && !rm) it.sc *= 0.85 + 0.15 * (1 - (sq - now) / 0.25);
         // a vehicle on a track drives FORWARDS: mirrored when it goes right
         it.flip = !!o.ride && o.dir === 1 && FACES_LEFT.has(o.e);
         if (it.flip) flipped++;
@@ -3586,12 +4214,21 @@
       // thing standing behind it. A hopping thing's shadow stays on the ground
       // and shrinks a little: that is what makes the hop read as a jump.
       let keys = 0;
+      const nw = { buttons: 0, bumpers: 0, powers: 0, cracks: 0, runners: 0, pips: 0, tally: 0 };
+      // this frame's record, from its FIRST line: the hole (drawn inside the
+      // loop below), the fx and the tally all add to it
+      lastNew = nw;
       for (const it of items) {
         if (it.hole) continue;
+        if (it.o.press) continue;   // a button lies IN the floor: no shadow
         const k = 1 - clamp(it.lift / (it.o.r * view.s * 3), 0, 0.35);
         shadow(sx(it.ox), sy(it.oy), it.o.r, k);
         if (it.o.gold) goldGlow(sx(it.ox), sy(it.oy), it.o.r);
         if (it.o.key && !st.unlocked[it.o.key]) { keyGlow(now, sx(it.ox), sy(it.oy), it.o.r); keys++; }
+        // §17: a bumper still too big to eat wears a bouncy ring; a power-up
+        // glows blue
+        if (it.o.bounce && L.activeSolid(st, it.o)) { bumperRing(sx(it.ox), sy(it.oy), it.o.r); nw.bumpers++; }
+        if (it.o.power) { powerGlow(now, sx(it.ox), sy(it.oy), it.o.r); nw.powers++; }
       }
       // the goal's beacon, on the ground under everything
       drawGoal(now);
@@ -3606,10 +4243,15 @@
         const x = sx(it.ox), y = sy(it.oy) - it.lift;
         // a thing the super slurp has hold of from afar streaks in
         if (slurping && it.o.zoom) { streak(it.o, x, y); lastStreaks++; }
-        drawObject(it.o, x, y, it.rot, 1, 1, it.flip);
+        // a BUTTON is drawn into the floor, not stood up (§17)
+        if (it.o.press) { drawButton(it.o, x, y); nw.buttons++; drawn++; continue; }
+        // a runaway on the run streaks away from him
+        if (it.o.run && it.o.ran > 0 && it.o.rest <= 0) { streak(it.o, x, y); nw.runners++; }
+        drawObject(it.o, x, y, it.rot, it.sc, 1, it.flip);
+        if (it.o.hits && it.o.hit > 0 && !it.o.shook) { cracks(it.o, x, y); nw.cracks++; }
         if (it.o.gold) { twinkles(now, it.o, x, y); gold++; }
         else if (lastGoal && it.o.id === lastGoal.id) twinkles(now, it.o, x, y);
-        if (it.o.lock && !st.unlocked[it.o.lock]) { lockBadge(it.o, x, y); locks++; }
+        if (it.o.lock && !st.unlocked[it.o.lock]) { nw.pips += lockBadge(it.o, x, y); locks++; }
         drawn++;
       }
       lastGold = gold;
@@ -3621,6 +4263,7 @@
       drawFx(now);
       drawFireworks(now);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawTally();
       updateArrow(now);
       drawArrow(now);
       lastDraw = { objects: drawn, standing, falling: lastDraw.falling, decals: nd, ground: !inside, ok: true, tastes: tasteMarks };
@@ -3673,6 +4316,8 @@
         slurp: { on: !!st && st.slurpT > 0, arms: lastSlurp, streaks: lastStreaks },
         // phase 4: what the place's own shape put on screen this frame
         feat: { ...lastFeat }, dark: lastDark, flying: flyIn.size,
+        // §17: what the new things painted this frame
+        drawnNew: { ...lastNew },
         rings: { land: landRings.length, blocks: blockSets.reduce((s, b) => s + b.rings.length, 0) },
       };
     }
@@ -3680,6 +4325,19 @@
     return { resize, setState, draw, event, toWorld, toScreen, snap, endIntro, camera, arrowAt, busy, info };
   }
 
-  global.HoleRender = { create, prepDecals, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
+  // Is a colour DARK? (WCAG relative luminance below 0.18.) The ONE owner of
+  // which ink a door's label wears: white on a dark backdrop, #2e2a55 on a
+  // light one. hole-logic.test.js holds every door's label to AA against
+  // BOTH ends of its backdrop through this very function.
+  function darkHex(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+    if (!m) return false;
+    const n = parseInt(m[1], 16);
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const Y = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    return Y < 0.18;
+  }
+
+  global.HoleRender = { create, prepDecals, darkHex, BLOCK_LOOKS, BRIDGE_LOOKS, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
   if (typeof module !== "undefined" && module.exports) module.exports = global.HoleRender;
 })(typeof window !== "undefined" ? window : globalThis);

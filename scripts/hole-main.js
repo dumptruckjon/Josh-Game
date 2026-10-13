@@ -14,7 +14,7 @@
   const doc = global.document;
   const DATA = global.HoleData, L = global.HoleLogic, HR = global.HoleRender;
   if (!doc || !DATA || !L || !HR) return;
-  const SCENES = DATA.SCENES, SAY = DATA.SAY;
+  const SCENES = DATA.SCENES, SAY = DATA.SAY, LANDS = DATA.LANDS;
   const KEY = "josh-gobble-v1";
   // A double-tap is a PLACE and a TIME (the framework's echo guard): the second
   // tap lands on whatever appeared under the finger. Nobody can aim at a thing
@@ -25,6 +25,7 @@
   const BIG_SAY_GAP = 9;       // seconds between two "too big!" lines
   const TASTE_QUIET_MS = 2500; // a first-taste word waits until nothing has been said for this long
   const SLURP_SAY_GAP = 20;    // "Super slurp!" at most once in this many seconds of play
+  const COUNT_GAP_MS = 700;    // count mode: a number is said once the last line has had this long
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (id) => doc.getElementById(id);
@@ -62,7 +63,10 @@
   // piece and can never crash the boot (the fort crashed three times on a
   // field one short). A saved run stores only WHICH things were eaten; the
   // engine re-derives the size from them, so a save cannot inflate Gobble.
-  function freshSave() { return { v: 1, done: {}, runs: {}, demo: false, last: SCENES[0].id }; }
+  // gold: the most TREASURES he has found in each place (0..3, the best ever:
+  // the door shows them); seen: the places he has opened (a door he has never
+  // opened sparkles, so a new place is easy to find among 48)
+  function freshSave() { return { v: 1, done: {}, runs: {}, gold: {}, seen: {}, demo: false, last: SCENES[0].id }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function loadSave() {
     const s = freshSave();
@@ -71,11 +75,18 @@
     if (!isObj(raw)) return s;
     for (const sc of SCENES) {
       if (isObj(raw.done) && raw.done[sc.id] === true) s.done[sc.id] = true;
-      // a run must name its own slot AND this layout: a half-eaten place from
-      // the one-screen islands of phase 1 names ids that mean different
-      // things in a big world, so it is dropped (its ⭐ above is kept)
+      // a run must name its own slot AND be one restore could take: a
+      // half-eaten place from the one-screen islands of phase 1, or one from
+      // before a place was laid out again, names ids that mean different
+      // things now, so it is dropped (its ⭐ above is kept) — and its door
+      // never shows a ring for progress that opening it would throw away
       const r = isObj(raw.runs) ? raw.runs[sc.id] : null;
-      if (isObj(r) && r.scene === sc.id && r.v === DATA.RULES.LAYOUT) s.runs[sc.id] = r;
+      if (isObj(r) && r.scene === sc.id && L.runCouldRestore(r)) s.runs[sc.id] = r;
+      const g = isObj(raw.gold) ? raw.gold[sc.id] : 0;
+      if (Number.isInteger(g) && g > 0) s.gold[sc.id] = Math.min(g, L.GOLD_BANDS.length);
+      // a save from before `seen` existed: a place he finished or left
+      // half-eaten is one he has opened
+      if ((isObj(raw.seen) && raw.seen[sc.id] === true) || (!isObj(raw.seen) && (s.done[sc.id] || s.runs[sc.id]))) s.seen[sc.id] = true;
     }
     s.demo = raw.demo === true;
     if (typeof raw.last === "string" && L.sceneById(raw.last)) s.last = raw.last;
@@ -98,7 +109,8 @@
   function clearLater() { for (const id of timers) global.clearTimeout(id); timers.clear(); }
 
   // ---- Screens --------------------------------------------------------------
-  let home = null, play = null, field = null, canvas = null, render = null, hand = null;
+  let home = null, land = null, play = null, field = null, canvas = null, render = null, hand = null;
+  let landNow = null;       // the land whose page is showing (or was last)
   let meter = null, meterFill = null, meterNext = null, win = null;
 
   function build() {
@@ -116,7 +128,11 @@
         '<button class="btn-round game__hear hole-homehear" type="button" aria-label="Hear it again">👂</button>' +
       "</div>" +
       '<div class="hole-hero art-fill" aria-hidden="true"></div>' +
-      '<div class="hole-scenes" role="list" aria-label="Pick a place to eat"></div>' +
+      // every ⭐ he has won, of all of them (for the grown-up; the lands show
+      // their own)
+      '<p class="hole-total"><span aria-hidden="true">⭐</span> <b class="hole-total__n">0</b> / <span class="hole-total__of">0</span></p>' +
+      // §17: four big LAND doors; each opens its own page of places
+      '<div class="hole-lands" role="list" aria-label="Pick a land"></div>' +
       // Grown-ups only: start Gobble Hole over. Small and quiet on purpose,
       // AFTER the last door (never between doors), and behind the app's ONE
       // type-the-word gate (JoshGate, main.js) — a tap alone clears nothing.
@@ -126,7 +142,7 @@
     screens.appendChild(home);
     home.querySelector(".hole-hero").innerHTML = art();
     home.querySelector(".hole-exit").addEventListener("click", () => { location.hash = ""; });
-    home.querySelector(".hole-homehear").addEventListener("click", () => sayNow(SAY.pick));
+    home.querySelector(".hole-homehear").addEventListener("click", () => sayNow(SAY.pickLand));
     home.querySelector(".hole-reset").addEventListener("click", () => {
       const G = global.JoshGate;
       if (!G) return;
@@ -136,27 +152,72 @@
         confirm: () => (resetProgress({ keepDemo: true }) ? "Gobble Hole starts over! ✨" : "Nothing to clear yet."),
       });
     });
-    const grid = home.querySelector(".hole-scenes");
-    SCENES.forEach((sc) => {
+    const lands = home.querySelector(".hole-lands");
+    LANDS.forEach((ld) => {
+      const b = doc.createElement("button");
+      b.type = "button";
+      b.className = "hole-land tap";
+      b.dataset.land = ld.id;
+      b.setAttribute("role", "listitem");
+      b.style.background = "linear-gradient(160deg, " + ld.backdrop[0] + ", " + ld.backdrop[1] + ")";
+      b.style.borderBottomColor = ld.color;
+      if (HR.darkHex(ld.backdrop[1])) b.classList.add("hole-land--dark");
+      b.innerHTML =
+        '<span class="hole-land__pic" aria-hidden="true"></span>' +
+        '<span class="hole-land__label"></span>' +
+        '<span class="hole-land__stars" aria-hidden="true"></span>';
+      b.querySelector(".hole-land__pic").textContent = ld.pic;
+      b.querySelector(".hole-land__label").textContent = ld.name;
+      b.addEventListener("click", () => { location.hash = "#hole-land-" + ld.id; });
+      lands.appendChild(b);
+    });
+    guardEcho(home);
+
+    // A LAND's page: its places, one door each (every door is built once,
+    // here; a land shows its own and hides the rest)
+    land = doc.createElement("section");
+    land.id = "screen-hole-land";
+    land.className = "screen hole-screen hole-landpage";
+    land.hidden = true;
+    land.innerHTML =
+      '<div class="game__bar hole-bar">' +
+        '<button class="btn-round game__home hole-landback" type="button" aria-label="Back to the lands">🏠</button>' +
+        '<h1 class="game__title hole-title hole-landtitle"></h1>' +
+        '<button class="btn-round game__hear hole-landhear" type="button" aria-label="Hear it again">👂</button>' +
+      "</div>" +
+      '<div class="hole-scenes" role="list" aria-label="Pick a place to eat"></div>';
+    screens.appendChild(land);
+    land.querySelector(".hole-landback").addEventListener("click", () => { location.hash = "#hole-home"; });
+    land.querySelector(".hole-landhear").addEventListener("click", () => sayNow(SAY.pick));
+    const grid = land.querySelector(".hole-scenes");
+    // in the lands' order (the order ▶ walks)
+    LANDS.flatMap((ld) => ld.places.map((id) => L.sceneById(id))).forEach((sc) => {
       const b = doc.createElement("button");
       b.type = "button";
       b.className = "hole-door tap";
       b.dataset.scene = sc.id;
+      b.dataset.land = DATA.landOf(sc.id).id;
       b.setAttribute("role", "listitem");
       b.style.background = "linear-gradient(160deg, " + sc.backdrop[0] + ", " + sc.backdrop[1] + ")";
       b.style.borderBottomColor = sc.color;
-      if (dark(sc.backdrop[1])) b.classList.add("hole-door--dark");
+      if (HR.darkHex(sc.backdrop[1])) b.classList.add("hole-door--dark");
       b.innerHTML =
         '<span class="hole-door__icon" aria-hidden="true"></span>' +
         '<span class="hole-door__label"></span>' +
         '<span class="hole-door__prog" aria-hidden="true" hidden></span>' +
-        '<span class="hole-door__star" aria-hidden="true" hidden>⭐</span>';
+        '<span class="hole-door__star" aria-hidden="true" hidden>⭐</span>' +
+        // a place he has never opened sparkles (in the ⭐'s corner: a new
+        // place has no ⭐ yet)
+        '<span class="hole-door__new" aria-hidden="true" hidden>✨</span>' +
+        // the treasures he has found here, best ever — only what he FOUND,
+        // never an empty slot for one he missed
+        '<span class="hole-door__gold" aria-hidden="true" hidden></span>';
       b.querySelector(".hole-door__icon").textContent = sc.door;
       b.querySelector(".hole-door__label").textContent = sc.name;
       b.addEventListener("click", () => openScene(sc.id));
       grid.appendChild(b);
     });
-    guardEcho(home);
+    guardEcho(land);
 
     play = doc.createElement("section");
     play.id = "screen-hole-play";
@@ -209,7 +270,10 @@
     win = play.querySelector(".hole-win");
     play.querySelector(".hole-meter__me").innerHTML = art();
     render = HR.create(canvas);
-    play.querySelector(".hole-back").addEventListener("click", () => { location.hash = "#hole-home"; });
+    play.querySelector(".hole-back").addEventListener("click", () => {
+      const ld = (run && DATA.landOf(run.def.id)) || landNow || LANDS[0];
+      location.hash = "#hole-land-" + ld.id;
+    });
     play.querySelector(".hole-hear").addEventListener("click", () => {
       render.endIntro();
       sayNow(SAY.start);
@@ -228,16 +292,6 @@
     wireInput();
   }
 
-  // Is this backdrop dark? (the space door takes a light label)
-  function dark(hex) {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
-    if (!m) return false;
-    const n = parseInt(m[1], 16);
-    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-    const Y = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
-    return Y < 0.18;
-  }
-
   function guardEcho(el) {
     el.addEventListener("click", (e) => {
       const finger = e.isTrusted && e.detail !== 0;
@@ -251,9 +305,16 @@
     }, true);
   }
 
+  // ▶ after a win: the next place in the lands' order that has no ⭐ yet (he
+  // came to eat, not to replay), else simply the next one
+  const ORDER = LANDS.flatMap((ld) => ld.places);
   function nextScene(id) {
-    const i = SCENES.findIndex((s) => s.id === id);
-    return SCENES[(i + 1) % SCENES.length];
+    const i = ORDER.indexOf(id);
+    for (let k = 1; k <= ORDER.length; k++) {
+      const nx = ORDER[(i + k) % ORDER.length];
+      if (!save.done[nx]) return L.sceneById(nx);
+    }
+    return L.sceneById(ORDER[(i + 1) % ORDER.length]);
   }
 
   // A half-eaten place shows how far he got: a little ring in the door's top
@@ -269,17 +330,35 @@
     return Math.min(1, ids.size / total);
   }
   function paintDoors() {
-    if (!home) return;
-    for (const b of home.querySelectorAll(".hole-door")) {
+    if (!home || !land) return;
+    for (const b of land.querySelectorAll(".hole-door")) {
       const sc = L.sceneById(b.dataset.scene);
       const done = !!save.done[sc.id];
       const frac = eatenFrac(sc), pct = frac > 0 ? Math.max(1, Math.round(frac * 100)) : 0;
+      const fresh = !save.seen[sc.id] && !done && !pct;
+      const gold = save.gold[sc.id] || 0;
       b.querySelector(".hole-door__star").hidden = !done;
+      b.querySelector(".hole-door__new").hidden = !fresh;
+      b.classList.toggle("hole-door--new", fresh);
+      const g = b.querySelector(".hole-door__gold");
+      g.textContent = "🪙".repeat(gold);
+      g.hidden = !gold;
       const prog = b.querySelector(".hole-door__prog");
       prog.hidden = !pct;
       prog.style.setProperty("--p", pct + "%");
-      b.setAttribute("aria-label", sc.name + (done ? ", all eaten" : "") + (pct ? ", " + pct + " percent eaten" : ""));
+      b.setAttribute("aria-label", sc.name + (fresh ? ", new" : "") + (done ? ", all eaten" : "") + (pct ? ", " + pct + " percent eaten" : "") +
+        (gold ? ", " + gold + (gold === 1 ? " treasure" : " treasures") + " found" : ""));
     }
+    let all = 0;
+    for (const b of home.querySelectorAll(".hole-land")) {
+      const ld = LANDS.find((x) => x.id === b.dataset.land);
+      const n = ld.places.filter((id) => save.done[id]).length;
+      all += n;
+      b.querySelector(".hole-land__stars").textContent = "⭐ " + n + " / " + ld.places.length;
+      b.setAttribute("aria-label", ld.name + ", " + n + " of " + ld.places.length + " places eaten");
+    }
+    home.querySelector(".hole-total__n").textContent = String(all);
+    home.querySelector(".hole-total__of").textContent = String(ORDER.length);
   }
 
   // ---- Starting over: the ONE wipe ------------------------------------------
@@ -420,7 +499,44 @@
     // a firework bursting over the island (§15.5): a soft pop and a crackle
     firework: () => notes([[1661.22, 0, { type: "square", duration: 0.04, gain: 0.05, plain: true }],
       [2489.02, 40, { gain: 0.06, duration: 0.18 }], [3135.96, 110, { gain: 0.04, duration: 0.22 }]]),
+    // §17. A key or a button counted toward its gate: a latch click, then a
+    // note that climbs with how far the gate has got (1 of 3 low, 3 of 3 high)
+    clink: (n) => {
+      const f = 659.25 * Math.pow(2, Math.min(Math.max(1, n) - 1, 6) * 4 / 12);
+      notes([[1567.98, 0, sq(0.03, 0.06)], [f, 60, sn(0.18, 0.16)]]);
+    },
+    // a big button pressed into the floor: a deep clunk
+    clunk: () => notes([[147, 0, { type: "sine", duration: 0.14, gain: 0.2 }], [110, 90, { type: "sine", duration: 0.22, gain: 0.18 }],
+      [880, 180, sq(0.03, 0.05)]]),
+    // a bumper too big to eat knocks him back: a big rubbery boing (not the
+    // "too big" bump, so it never sounds like a mistake)
+    boing: () => notes([[261.63, 0, tr(0.06, 0.18)], [523.25, 50, tr(0.08, 0.18)], [392, 120, tr(0.1, 0.16)], [659.25, 200, tr(0.14, 0.14)]]),
+    // a piñata bumped: a hollow bonk, and on the last bump a pop of prizes
+    bonk: (last) => notes(last
+      ? [[220, 0, sn(0.1, 0.18)], [880, 80, sq(0.05, 0.09)], [1174.66, 140, sn(0.1, 0.15)], [1567.98, 200, sn(0.2, 0.15)]]
+      : [[220, 0, sn(0.1, 0.18)], [174.61, 70, sn(0.14, 0.16)]]),
+    // a cannon: a low boom and a whoosh up into the sky
+    boom: () => notes([[82.41, 0, { type: "sawtooth", duration: 0.22, gain: 0.12, plain: true }],
+      [261.63, 120, sn(0.06, 0.12)], [392, 170, sn(0.06, 0.12)], [587.33, 220, sn(0.06, 0.12)], [880, 270, sn(0.2, 0.12)]]),
+    // …and down again: a soft thump
+    land: () => notes([[196, 0, sn(0.08, 0.18)], [130.81, 60, sn(0.18, 0.16)]]),
+    // a runaway darts off: a quick giggle of notes (it is a game of tag)
+    giggle: () => notes([[1318.5, 0, sn(0.05, 0.11)], [1567.98, 55, sn(0.05, 0.11)], [1318.5, 110, sn(0.05, 0.11)],
+      [1760, 165, sn(0.1, 0.11)]]),
+    // a power-up: a bright run up
+    powerup: () => notes([[523.25, 0, sq(0.05, 0.06)], [659.25, 50, sq(0.05, 0.06)], [783.99, 100, sq(0.05, 0.06)],
+      [1046.5, 150, sq(0.05, 0.06)], [1318.5, 200, sn(0.3, 0.14)]]),
+    // a seedling sprouting: a bloop that grows
+    sprout: () => notes([[392, 0, sn(0.08, 0.14)], [523.25, 70, sn(0.08, 0.14)], [783.99, 140, sn(0.2, 0.14)]]),
+    // the first time he meets a new thing: a curious "ooh"
+    ooh: () => notes([[587.33, 0, sn(0.16, 0.13)], [880, 140, sn(0.3, 0.13)]]),
+    // count mode: a woodblock tock that climbs with the count
+    count: (k, last) => notes([[783.99 * Math.pow(2, Math.min(Math.max(0, k - 1), 12) / 12), 0, tr(0.06, 0.16)]]
+      .concat(last ? [[1567.98, 120, sn(0.3, 0.12)]] : [])),
   };
+  // "Two of three!" — a number as the word it is said as
+  const numWord = (n) => (SAY.num[n] !== undefined ? SAY.num[n] : String(n));
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   // A line said at most once in `gap` seconds (Infinity: once a run) — a pop,
   // a portal or a current can happen a hundred times; the words must not.
   function sayEvery(key, gap, text, t) {
@@ -434,8 +550,16 @@
   // While the finale is still shut away behind a gate the goal is its KEY
   // (§15.1), so the line says so — it must never send him at a locked gate.
   function readyLine(def, st) {
-    const g = st && L.goalOf(st), keyFirst = !!(g && g.key);
-    return (keyFirst ? SAY.readyKey : SAY.ready).replace("{finale}", (def.finale && def.finale.say) || "the biggest thing");
+    const g = st && L.goalOf(st);
+    const line = g && g.press ? SAY.readyButton : g && g.key ? SAY.readyKey : SAY.ready;
+    return line.replace("{finale}", (def.finale && def.finale.say) || "the biggest thing");
+  }
+
+  // A locked gate asks for what it wants next: a button if that is what is
+  // left, its key otherwise (it must never ask for a key it does not have).
+  function lockedLine(st, id) {
+    const o = st.objects[id], next = o && o.lock ? L.nextOpener(st, o.lock) : null;
+    return next && next.press ? SAY.lockedButton : SAY.locked;
   }
 
   // ---- A run -----------------------------------------------------------------
@@ -474,6 +598,7 @@
     // to Gobble (skipped under reduced motion); a resumed one starts on him
     render.setState(st, { intro: !resumed });
     save.last = def.id;
+    save.seen[def.id] = true;
     persist();
     meterKey = "";
     paintMeter();
@@ -514,6 +639,7 @@
       n++;
     }
     if (n >= MAX_STEPS) acc = 0;
+    saveRun();
     // a finished place whose picture has come to rest is not redrawn
     if (redraw || !run.st.done || render.busy(t)) { render.draw(t); redraw = false; }
     placeHand();
@@ -537,7 +663,11 @@
         if (!ev.vortex && ev.combo === 5 && run.combo !== 5) SFX.combo();
         run.combo = ev.combo || 0;
         run.ate.push(ev.e);
-        if (ev.gold && !ev.vortex) { run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure); }
+        if (ev.gold && !ev.vortex) {
+          run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure);
+          // the best ever, kept for the door (written with this frame's save)
+          if (run.found.size > (save.gold[run.def.id] || 0)) { save.gold[run.def.id] = run.found.size; run.dirty = true; }
+        }
         // the FIRST taste of a family is said once a run — and only when
         // nothing has been said for a moment (a word never talks over another)
         const fam = !ev.vortex && !ev.finale && DATA.tasteOf(ev.e);
@@ -545,7 +675,7 @@
           run.tasted[fam] = true;
           sayPlay(SAY.taste[fam]);
         }
-        if (!st.won) { save.runs[run.def.id] = L.snapshot(st); persist(); }
+        if (!st.won) run.dirty = true;
       } else if (ev.type === "grow") {
         bounceMeter();
         // the grow that makes him big enough for the finale names it: from
@@ -553,12 +683,49 @@
         if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def, run.st)); }
         else { SFX.grow(); sayPlay(SAY.grow[(ev.level - 1) % SAY.grow.length]); }
       } else if (ev.type === "bump") {
-        // a locked gate rattles and asks for its key; a wall of things too
-        // big thuds; anything else too big is the old "too big" boing
-        if (ev.locked) SFX.locked(); else if (ev.solid) SFX.wall(); else SFX.bump();
-        if (t - run.bigSaid > BIG_SAY_GAP) { run.bigSaid = t; sayPlay(ev.locked ? SAY.locked : SAY.big); }
+        // a locked gate rattles and asks for what it wants (its key, or its
+        // button); a bumper boings; a wall of things too big thuds; anything
+        // else too big is the old "too big" bump
+        if (ev.bounce) SFX.boing(); else if (ev.locked) SFX.locked(); else if (ev.solid) SFX.wall(); else SFX.bump();
+        if (t - run.bigSaid > BIG_SAY_GAP) { run.bigSaid = t; sayPlay(ev.bounce ? SAY.boing : ev.locked ? lockedLine(st, ev.id) : SAY.big); }
+      } else if (ev.type === "opener") {
+        // one more key or button for a gate that wants several: a click and
+        // how far it has got ("Two of three!"); the last one is the unlock's
+        if (ev.how === "press") SFX.clunk();
+        SFX.clink(ev.n);
+        run.lastOpener = ev.how;
+        if (ev.n < ev.of) sayPlay(cap(SAY.opener.replace("{n}", numWord(ev.n)).replace("{of}", numWord(ev.of))));
       } else if (ev.type === "unlock") {
-        SFX.unlock(); sayPlay(SAY.unlock);
+        SFX.unlock(); sayPlay(run.lastOpener === "press" ? SAY.unlockPress : SAY.unlock);
+        run.lastOpener = null;
+      } else if (ev.type === "hit") {
+        // a piñata: every bump counts out loud, and the last one bursts
+        SFX.bonk(ev.last);
+        sayPlay(ev.last ? SAY.hitLast : SAY.hit[Math.min(ev.n, SAY.hit.length) - 1]);
+      } else if (ev.type === "launch") {
+        SFX.boom(); sayEvery("launch", 12, SAY.launch, t);
+      } else if (ev.type === "land") {
+        SFX.land();
+      } else if (ev.type === "flee") {
+        SFX.giggle(); sayEvery("flee", 10, SAY.flee, t);
+      } else if (ev.type === "power") {
+        SFX.powerup(); sayPlay(SAY.power[ev.kind] || SAY.slurp);
+      } else if (ev.type === "sprout") {
+        SFX.sprout(); sayEvery("sprout", 10, SAY.sprout, t);
+      } else if (ev.type === "count") {
+        // count mode: every one of the counted things says the next number.
+        // The tally on screen shows every number; the VOICE says one when the
+        // last line has had time to finish (a slurp can gulp three at once,
+        // and a queue of numbers would fall behind), and always says the last.
+        SFX.count(ev.k, ev.last);
+        const what = (run.def.count && run.def.count.say) || "things";
+        if (ev.last) sayPlay(SAY.countLast.replace("{n}", String(ev.n)).replace("{what}", what));
+        else if (now() - run.lastSaid > COUNT_GAP_MS) sayPlay(String(ev.n));
+      } else if (ev.type === "meet") {
+        // the first time he comes near a new thing: what it is, once a run
+        SFX.ooh();
+        const line = SAY.meet[ev.kind];
+        if (line) sayPlay(line.replace("{n}", numWord(ev.n)).replace("{what}", (run.def.count && run.def.count.say) || "things"));
       } else if (ev.type === "pop") {
         SFX.pop(); sayEvery("pop", 8, SAY.pop, t);
       } else if (ev.type === "shake") {
@@ -781,7 +948,18 @@
   }
   function hideWin() { if (win) win.hidden = true; }
 
+  // A run is saved at the end of the frame in which he ate — once a FRAME,
+  // never once a gulp: the whole save is re-serialised on each write, and a
+  // super slurp is up to six gulps in one 1/60s step (measured before this:
+  // 29 writes a second, six in a single frame). The win and leaving the
+  // screen still write at once.
+  function saveRun() {
+    if (!run || !run.dirty) return;
+    run.dirty = false;
+    if (!run.st.won) { save.runs[run.def.id] = L.snapshot(run.st); persist(); }
+  }
   function leavePlay() {
+    if (run) run.dirty = false;
     if (run && !run.st.won) { save.runs[run.def.id] = L.snapshot(run.st); persist(); }
     stopLoop();
     endDemo();
@@ -794,17 +972,41 @@
       if (id === "hole-home") {
         if (!play.hidden) leavePlay();
         play.hidden = true;
+        land.hidden = true;
         doc.body.classList.add("hole-mode");
         doc.body.classList.remove("in-game");
         paintDoors();
         home.hidden = false;
         home.__shownAt = now();
         global.scrollTo(0, 0);
-        later(() => { if (!home.hidden) sayNow(SAY.pick); }, 300);
+        later(() => { if (!home.hidden) sayNow(SAY.pickLand); }, 300);
+        return true;
+      }
+      const lm = /^hole-land-([a-z0-9]+)$/.exec(id);
+      if (lm) {
+        const ld = LANDS.find((x) => x.id === lm[1]);
+        if (!ld) return false;
+        if (!play.hidden) leavePlay();
+        play.hidden = true;
+        home.hidden = true;
+        doc.body.classList.add("hole-mode");
+        doc.body.classList.remove("in-game");
+        landNow = ld;
+        land.querySelector(".hole-landtitle").textContent = ld.name;
+        for (const b of land.querySelectorAll(".hole-door")) b.hidden = b.dataset.land !== ld.id;
+        paintDoors();
+        land.hidden = false;
+        land.__shownAt = now();
+        global.scrollTo(0, 0);
+        // back from a place: its door is on screen (a phone shows 9 of 12)
+        const last = land.querySelector('.hole-door[data-scene="' + save.last + '"]');
+        if (last && !last.hidden && last.scrollIntoView) last.scrollIntoView({ block: "nearest" });
+        later(() => { if (!land.hidden) sayNow(SAY.pick); }, 300);
         return true;
       }
       if (id === "hole-play") {
         home.hidden = true;
+        land.hidden = true;
         doc.body.classList.add("hole-mode");
         doc.body.classList.add("in-game");
         play.hidden = false;
@@ -875,6 +1077,7 @@
         L.step(st, L.DT);
         drain(lastT || 0);
       }
+      saveRun();
       // the camera eases once per FRAME and this ran many steps in one go, so
       // it jumps to where it was heading (else Gobble could be off screen) —
       // unless a test wants the REAL frames to carry what happens next

@@ -49,7 +49,8 @@ function playOut(st, maxSeconds, check) {
     L.step(st, L.DT);
     for (const ev of st.events) log.push({ t: st.t, ...ev });
     st.events.length = 0;
-    if (G && !bad && !freeAt(st, G, st.hole.x, st.hole.y)) bad = { t: st.t, x: st.hole.x, y: st.hole.y, walk: G.walk(st.hole.x, st.hole.y) };
+    // (a CANNON's flight, §17, is in the air: he may cross water and lava)
+    if (G && !bad && !st.fly && !freeAt(st, G, st.hole.x, st.hole.y)) bad = { t: st.t, x: st.hole.x, y: st.hole.y, walk: G.walk(st.hole.x, st.hole.y) };
   }
   if (check) assert.equal(bad, null, st.id + ": Gobble's centre stood where it may not (in water, off the ground or inside a wall): " + JSON.stringify(bad));
   return log;
@@ -77,17 +78,24 @@ function makeTop(st) {
 // ...or any level.
 function makeLevel(st, lv) { st.hole.level = lv; st.hole.R = st.hole.r = st.levels.R[lv]; st.hole.xp = st.levels.C[lv]; }
 
-test("the data: TWENTY-FOUR places, five tiers each plus a finale, every door, picture, district, track and trail present", () => {
-  // The owner doubled the places twice (2026-10-01: six became twelve;
-  // 2026-10-06: twelve became twenty-four). A place quietly dropped from the
-  // data would leave a door-less hole in the journey ▶ walks through.
-  assert.ok(SCENES.length >= 24, "twenty-four places to eat (" + SCENES.length + ")");
+test("the data: FORTY-EIGHT places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
+  // The owner doubled the places three times (2026-10-01: six became twelve;
+  // 2026-10-06: twelve became twenty-four; 2026-10-08: twenty-four became
+  // forty-eight). A place quietly dropped from the data would leave a
+  // door-less hole in the journey ▶ walks through.
+  assert.ok(SCENES.length >= 48, "forty-eight places to eat (" + SCENES.length + ")");
   const ids = new Set();
   for (const def of SCENES) {
     const where = def.id;
     assert.ok(!ids.has(def.id), "scene ids are unique: " + def.id);
     ids.add(def.id);
-    assert.equal(def.tiers.length, 5, where + " has five size tiers");
+    // five size tiers — or six in a GIANT place (§17): its sixth tier is the
+    // shared T6 size, so the tier law still holds, and its finale is bigger
+    assert.ok(def.tiers.length === 5 || def.tiers.length === 6, where + " has five size tiers (six if it is a giant place)");
+    if (def.tiers.length === 6) {
+      assert.ok(def.tiers[5].r[0] >= 19.5 && def.tiers[5].r[1] <= 21, where + ": a giant place's sixth tier is the shared T6 size");
+      assert.ok(def.finale.r >= 26, where + ": a giant place builds to a GIANT finale (" + def.finale.r + ")");
+    }
     assert.ok(def.finale && def.finale.e && def.finale.r > 0, where + " has a finale");
     assert.ok(def.door && def.name && /^#[0-9a-f]{6}$/i.test(def.color), where + " has a door, a name and a colour");
     assert.ok(Array.isArray(def.backdrop) && def.backdrop.length === 2, where + " has a two-stop backdrop");
@@ -549,7 +557,7 @@ test("physics: the magnet pulls a thing that fits toward the rim (forgiving aim)
   assert.ok(o.pull > 0, "it leans in (the renderer tilts it)");
 });
 
-test("a greedy bot finishes EVERY place: an instant first gulp, a quick first grow, five grows in order, then the finale", () => {
+test("a greedy bot finishes EVERY place: an instant first gulp, a quick first grow, every grow in order (five, six in a GIANT place), then the finale", () => {
   const wins = [];
   let slurps = 0;
   for (const def of SCENES) {
@@ -561,7 +569,9 @@ test("a greedy bot finishes EVERY place: an instant first gulp, a quick first gr
     assert.ok(st.done, where + ": the bot finished the place");
     assert.equal(st.eaten, st.total, where + ": everything was eaten");
     const grows = log.filter((e) => e.type === "grow");
-    assert.deepEqual(grows.map((g) => g.level), [1, 2, 3, 4, 5], where + ": grows 1..5 in order");
+    // one grow per tier: 1..5, and 1..6 in a GIANT place (§17)
+    const want = def.tiers.map((_, i) => i + 1);
+    assert.deepEqual(grows.map((g) => g.level), want, where + ": grows 1.." + want.length + " in order");
     assert.ok(grows[0].t < 3, where + ": the first grow comes fast (" + grows[0].t.toFixed(1) + "s for the bot)");
     const first = log.find((e) => e.type === "eat");
     assert.ok(first.t < 1.5, where + ": the first gulp is almost instant");
@@ -593,11 +603,12 @@ test("the win: the VORTEX empties even a big world by itself — no hunt for the
   for (const def of SCENES) {
     const st = L.createGame(def);
     const top = makeTop(st);
-    // Start Gobble at the TOP size with every key turned (a lock is a wall
-    // until its key is eaten) and send him for the finale — round water and
-    // walls, through portals — so most of the world is still standing when
-    // it goes down: a vortex with nothing left to slurp would prove nothing.
-    for (const o of st.objects) if (o.key) st.unlocked[o.key] = true;
+    // Start Gobble at the TOP size with every gate open (a lock is a wall
+    // until its keys are eaten and its buttons pressed) and send him for the
+    // finale — round water and walls, through portals — so most of the world
+    // is still standing when it goes down: a vortex with nothing left to
+    // slurp would prove nothing.
+    for (const o of st.objects) if (o.key || o.press) st.unlocked[o.key || o.press] = true;
     const fin = st.objects.find((o) => o.finale);
     const evs = [];
     while (!st.won && st.t < 120) {
@@ -644,9 +655,12 @@ test("THE GOAL: once Gobble is big enough for the finale, it is what he is here 
       assert.equal(L.goalOf(st), null, def.id + ": no goal at level " + lv + " — he cannot eat the finale yet");
     }
     makeTop(st);
-    // a finale shut away behind a gate makes its KEY the goal first — that
-    // has its own test below; here every gate is open
-    for (const k of st.objects) if (k.key) { st.unlocked[k.key] = true; k.st = L.GONE; }
+    // a finale shut away behind a gate makes its KEY (or BUTTON) the goal
+    // first — that has its own test below; here every gate is open
+    for (const k of st.objects) {
+      if (k.key) { st.unlocked[k.key] = true; k.st = L.GONE; }
+      if (k.press) st.unlocked[k.press] = true;
+    }
     assert.equal(L.goalOf(st), fin, def.id + ": at the top size the finale IS the goal");
     // the hint: stand at the start, where plenty is edible and far nearer
     // than the finale, and wait — the hint points at the finale anyway
@@ -681,26 +695,35 @@ test("a finale BEHIND A GATE: while the gate is shut the goal is its KEY (the hi
       continue;
     }
     guarded++;
-    assert.ok(g.key, def.id + ": a goal that is not the finale must be a key (" + g.e + ")");
-    // the hint (which the arrow follows) points at the key, not the finale
+    // an OPENER: a key to eat or (§17) a button to roll onto
+    assert.ok(g.key || g.press, def.id + ": a goal that is not the finale must be a key or a button (" + g.e + ")");
+    // the hint (which the arrow follows) points at the opener, not the finale
     st.hole.x = st.hole.tx = st.start.x; st.hole.y = st.hole.ty = st.start.y;
     st.sinceEat = RULES.HINT_AFTER;
     L.step(st); st.events.length = 0;
-    assert.equal(st.hint, g.id, def.id + ": the hint points at the key " + g.e);
-    // the key it names must be reachable with every gate shut — a key behind
-    // its own gate would make the place unwinnable
+    assert.equal(st.hint, g.id, def.id + ": the hint points at the opener " + g.e);
+    // each opener it names must be reachable with every gate shut — a key
+    // behind its own gate would make the place unwinnable. A gate may want
+    // SEVERAL (§17: three keys, three buttons): the goal walks him from one
+    // to the next, and only the last opens the gate.
     const st2 = L.createGame(def);
     makeTop(st2);
-    const key2 = st2.objects[g.id];
-    for (let i = 0; i < 2400 && key2.st !== L.GONE; i++) { L.setTarget(st2, key2.x, key2.y); L.step(st2); st2.events.length = 0; }
-    assert.equal(key2.st, L.GONE, def.id + ": Gobble can walk to the key " + g.e + " with the gate still shut, and eat it");
-    // …and once it is eaten, the finale is the goal again
-    assert.equal(L.goalOf(st2), st2.objects[fin.id], def.id + ": with the key eaten the finale is the goal");
+    const done = (o) => (o.key ? o.st === L.GONE : !!o.pressed);
+    let taken = 0;
+    for (let g2 = L.goalOf(st2); g2 && g2 !== st2.objects[fin.id]; g2 = L.goalOf(st2)) {
+      assert.ok(g2.key || g2.press, def.id + ": every goal before the finale is an opener (" + g2.e + ")");
+      for (let i = 0; i < 2400 && !done(g2); i++) { L.setTarget(st2, g2.x, g2.y); L.step(st2); st2.events.length = 0; }
+      assert.ok(done(g2), def.id + ": Gobble can get to the opener " + g2.e + " with the gate still shut, and take it");
+      assert.ok(++taken <= 12, def.id + ": the goal walks him through the openers and ends");
+    }
+    // …and once they are all taken, the finale is the goal again
+    assert.equal(L.goalOf(st2), st2.objects[fin.id], def.id + ": with every opener taken the finale is the goal (" + taken + " taken)");
     // the line at the ready grow says "find the key", never "now eat" a
     // finale he cannot reach
     assert.ok(D.SAY.readyKey.includes("{finale}") && /key/i.test(D.SAY.readyKey), "the ready line for a gated finale names the key and the finale");
-    // a shut gate with its key already gone is open: no stale key goal
+    // a shut gate with its openers already taken is open: no stale goal
     for (const k of keys) { st.unlocked[k.key] = true; k.st = L.GONE; }
+    for (const b of st.objects) if (b.press) { st.unlocked[b.press] = true; b.pressed = true; }
     assert.equal(L.goalOf(st), fin, def.id + ": every gate open, the finale is the goal");
   }
   assert.ok(guarded >= 2, "the farm's pumpkin and the castle sit behind locked gates, so at least those two goals must be a KEY first (saw " + guarded + ")");
@@ -817,6 +840,7 @@ test("save → restore keeps what was eaten, the size and where Gobble stood —
   for (let i = 0; i < 120 && st.objects.some((o) => o.st === L.FALL); i++) { L.step(st); st.events.length = 0; }
   const snap = JSON.parse(JSON.stringify(L.snapshot(st)));   // through JSON, like localStorage
   assert.equal(snap.v, RULES.LAYOUT, "a save names the layout its ids belong to");
+  assert.ok(typeof snap.f === "string" && snap.f === st.print, "…and carries its layout's fingerprint");
   const back = L.restore(snap);
   assert.equal(back.id, st.id);
   assert.equal(back.eaten, st.objects.filter((o) => o.st === L.GONE).length);
@@ -840,31 +864,102 @@ test("save → restore keeps what was eaten, the size and where Gobble stood —
   assert.equal(L.restore({ ...snap, v: String(RULES.LAYOUT) }), null, "…and a version must be the number itself");
 });
 
+// Every place's layout FINGERPRINT at layout 4, when runs began to carry
+// one. A run saved before that has no `f`, and is trusted for a place whose
+// layout is still this one; a place laid out again since must be listed in
+// RULES.RELAID, or its old runs would name different things.
+const LAYOUT4 = {
+  toyroom: "1947k3a", picnic: "1g4vkq1", farm: "13blerv", build: "ywvw66", town: "17yvt8h", sports: "v53ml2",
+  party: "f6dnu", beach: "jt44zz", volcano: "1jc48z9", snow: "1envzaw", airport: "1491zr1", space: "n3kc7a",
+  market: "faztxz", maze: "n0qcoy", cave: "118mqfl", castle: "2bnkqq", factory: "1l7a1tb", circus: "17vc6ur",
+  jungle: "zlixaj", cloud: "1pd56ev", pirate: "uv2cyg", themepark: "1k92zh0", candy: "1oadlp4", music: "fcwsf7",
+};
+
+test("a run carries its layout's FINGERPRINT: edit ONE place and only that place's half-eaten run is dropped — never re-pointed at different things", () => {
+  // An id means "the n-th thing this layout placed". Measured before this
+  // law: one sweet added to the Toy Room re-pointed 24 of a 64-bite run's
+  // ids at other pictures and handed Gobble a level he never earned, while
+  // the save's version still matched. Bumping the version instead would
+  // have dropped the half-eaten runs of EVERY place.
+  // (a place NOT in RULES.RELAID — the legacy half below needs one whose
+  // layout is unchanged since layout 4)
+  const at = SCENES.findIndex((d) => d.id === "build");
+  assert.ok(at >= 0 && !RULES.RELAID.includes("build"), "fixture: the Building Site exists and was never laid out again");
+  const orig = SCENES[at];
+  const st = L.createGame(orig);
+  playOut(st, 6);
+  assert.ok(st.eaten >= 6, "fixture: the run has eaten a few things (" + st.eaten + ")");
+  const snap = JSON.parse(JSON.stringify(L.snapshot(st)));
+  const other = JSON.parse(JSON.stringify(L.snapshot(L.createGame("town"))));
+  // the same place, edited: one more sweet among its tier-1 things
+  const edited = JSON.parse(JSON.stringify(orig));
+  edited.tiers[0].items[0][1] += 1;
+  SCENES[at] = edited;
+  try {
+    assert.notEqual(L.createGame(edited).print, st.print, "fixture: the edit really moved the layout");
+    assert.equal(L.restore(snap), null, "a run from before the edit is dropped, not re-pointed");
+    assert.ok(L.restore(other), "…while every OTHER place's run still restores");
+    const fresh = L.createGame(edited);
+    playOut(fresh, 4);
+    assert.ok(L.restore(JSON.parse(JSON.stringify(L.snapshot(fresh)))), "a run played on the edited layout restores");
+  } finally { SCENES[at] = orig; }
+  assert.ok(L.restore(snap), "back on its own layout, the run restores");
+  // a hostile fingerprint never passes
+  for (const f of [7, null, "", "nope", { x: 1 }]) assert.equal(L.restore({ ...snap, f }), null, "a fingerprint of " + JSON.stringify(f) + " is dropped");
+  // a run saved before fingerprints (no `f`) is trusted… unless its place
+  // has been laid out again since
+  const { f, ...legacy } = snap;
+  assert.ok(f, "fixture: the run had a fingerprint");
+  assert.ok(L.restore(legacy), "a run from before fingerprints restores on an unchanged place");
+  // runCouldRestore is restore's CHEAP half (everything but the print), and
+  // the page's loader asks it so a door never wears a ring for a run opening
+  // it would drop: it must agree with restore on every legacy shape
+  assert.equal(L.runCouldRestore(legacy), true, "the cheap check keeps it too");
+  RULES.RELAID.push("build");
+  try {
+    assert.equal(L.restore(legacy), null, "…and is dropped once its place is listed as laid out again");
+    assert.equal(L.runCouldRestore(legacy), false, "…and the cheap check drops it as well (the door ring must agree with opening the door)");
+  } finally { RULES.RELAID.pop(); }
+  for (const f of [7, null, { x: 1 }]) assert.equal(L.runCouldRestore({ ...snap, f }), false, "a fingerprint of " + JSON.stringify(f) + " fails the cheap check too");
+  for (const bad of [null, "x", { ...snap, v: RULES.LAYOUT + 1 }, { ...snap, scene: "no-such-place" }]) assert.equal(L.runCouldRestore(bad), false, "the cheap check drops " + JSON.stringify(bad && bad.scene));
+});
+
+test("RELAID is exact: a place whose layout changed since layout 4 is listed (or its old runs would re-point), and no listed place is unchanged", () => {
+  assert.ok(Array.isArray(RULES.RELAID), "RULES.RELAID is a list");
+  for (const id of RULES.RELAID) assert.ok(LAYOUT4[id], id + " is listed as laid out again, but no such place existed at layout 4");
+  for (const [id, print] of Object.entries(LAYOUT4)) {
+    assert.ok(L.sceneById(id), id + " existed at layout 4 and must still exist (a removed place strands its runs)");
+    const now = L.createGame(id).print;
+    if (now !== print) assert.ok(RULES.RELAID.includes(id), id + "'s layout changed since layout 4 (" + print + " -> " + now + "): list it in RULES.RELAID, or a run saved before fingerprints re-points at different things");
+    else assert.ok(!RULES.RELAID.includes(id), id + " is listed in RULES.RELAID but its layout is unchanged — its players would lose a half-eaten run for nothing");
+  }
+});
+
 test("restore RE-DERIVES what the gulps did: keys turned, boxes popped, trees shaken — never stored, never trusted", () => {
   // A save stores only WHICH things were eaten; what eating them DID is
   // worked out again, so a door eaten-open stays open and a box's sweets
   // stay out after a restore — and a hand-edited save cannot open a door.
   const farm = L.createGame("farm");
   const key = farm.objects.find((o) => o.key);
-  const back = L.restore({ v: RULES.LAYOUT, scene: "farm", eaten: [key.id] });
+  const back = L.restore({ v: RULES.LAYOUT, scene: "farm", f: farm.print, eaten: [key.id] });
   assert.ok(back.unlocked[key.key], "the key was eaten, so its door is open");
   const gate = back.objects.find((o) => o.lock === key.key);
   assert.ok(!L.activeSolid(back, gate), "…and the gate is no longer a wall");
-  assert.ok(!L.restore({ v: RULES.LAYOUT, scene: "farm", eaten: [] }).unlocked[key.key], "an untouched farm's gate is locked");
+  assert.ok(!L.restore({ v: RULES.LAYOUT, scene: "farm", f: farm.print, eaten: [] }).unlocked[key.key], "an untouched farm's gate is locked");
   // a box (party piñatas, factory parcels): eaten → its surprises are out
   for (const id of ["party", "factory", "pirate"]) {
     const fresh = L.createGame(id);
     const box = fresh.objects.find((o) => o.box === "pop");
     assert.ok(box, "fixture: " + id + " has a box");
     assert.ok(box.kids.every((k) => fresh.objects[k].st === L.HIDDEN), id + ": the surprises start hidden");
-    const b2 = L.restore({ v: RULES.LAYOUT, scene: id, eaten: [box.id] });
+    const b2 = L.restore({ v: RULES.LAYOUT, scene: id, f: fresh.print, eaten: [box.id] });
     assert.ok(box.kids.every((k) => b2.objects[k].st === L.IDLE), id + ": after a restore with the box eaten, its surprises are out");
   }
   // a tree (the picnic's): one of its fruit eaten means it WAS shaken
   const pic = L.createGame("picnic");
   const tree = pic.objects.find((o) => o.box === "shake");
   assert.ok(tree, "fixture: the picnic has a fruit tree");
-  const b3 = L.restore({ v: RULES.LAYOUT, scene: "picnic", eaten: [tree.kids[0]] });
+  const b3 = L.restore({ v: RULES.LAYOUT, scene: "picnic", f: pic.print, eaten: [tree.kids[0]] });
   assert.ok(b3.objects[tree.id].shook, "a fruit eaten means its tree was shaken");
   assert.ok(tree.kids.slice(1).every((k) => b3.objects[k].st === L.IDLE), "…so the rest of its fruit is out");
 });
@@ -891,7 +986,7 @@ test("a HOSTILE save can never inflate Gobble or crash the restore", () => {
   const fin = fresh.objects.find((o) => o.finale).id;
   const [a, b] = fresh.objects.filter((o) => !o.finale).map((o) => o.id);   // two real bites
   const junk = L.restore({
-    v: RULES.LAYOUT, scene: def.id,
+    v: RULES.LAYOUT, scene: def.id, f: fresh.print,
     eaten: [a, a, b, b + 0.5, -1, 9999, String(b + 1), null, fin, { id: b + 2 }],
     x: "left", y: Infinity,
   });
@@ -902,7 +997,7 @@ test("a HOSTILE save can never inflate Gobble or crash the restore", () => {
   assert.ok(!junk.won && junk.objects.find((o) => o.finale).st === L.IDLE, "the finale can never be pre-eaten");
   assert.ok(Number.isFinite(junk.hole.x) && Number.isFinite(junk.hole.y), "a junk position falls back to the start");
   // eaten everything-but-the-finale: the level is derived, capped, and sane
-  const all = L.restore({ v: RULES.LAYOUT, scene: def.id, eaten: fresh.objects.filter((o) => !o.finale).map((o) => o.id) });
+  const all = L.restore({ v: RULES.LAYOUT, scene: def.id, f: fresh.print, eaten: fresh.objects.filter((o) => !o.finale).map((o) => o.id) });
   assert.equal(all.hole.level, all.levels.R.length - 1, "eating everything else earns exactly the top size");
 });
 
@@ -935,6 +1030,37 @@ test("every ground feature, ground and hole a place declares has a DRAWING, with
   // …and nothing the renderer can draw is dead
   const used = new Set(SCENES.flatMap((d) => (d.decals || []).map((x) => x.k)));
   for (const k of Object.keys(HR.DECALS)) assert.ok(used.has(k), "decal kind '" + k + "' is drawn by no place");
+});
+
+test("every DOOR's label meets WCAG AA against BOTH ends of its backdrop, in the ink the page picks for it", () => {
+  // The page picks white or #2e2a55 from the backdrop's SECOND stop alone,
+  // and a backdrop with a luminance between 0.18 and 0.295 fails AA in
+  // either ink. The browser contrast audit sees only the doors on its first
+  // screen (twelve of them), so a new place's door is judged here instead,
+  // through the renderer's own darkHex — the ONE owner of the choice.
+  const HR = require("../scripts/hole-render.js");
+  const css = fs.readFileSync(path.join(__dirname, "../styles/main.css"), "utf8");
+  const inkOf = (sel) => {
+    const m = new RegExp(sel.replace(/[.]/g, "\\.") + "\\s*\\{[^}]*?[^-]color:\\s*(#[0-9a-f]{6})", "i").exec(css);
+    assert.ok(m, "fixture: main.css sets the colour of " + sel);
+    return m[1];
+  };
+  const light = inkOf(".hole-door__label"), dark = inkOf(".hole-door--dark .hole-door__label");
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (h) => { const n = parseInt(h.slice(1), 16); return 0.2126 * lin(n >> 16 & 255) + 0.7152 * lin(n >> 8 & 255) + 0.0722 * lin(n & 255); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  let darkDoors = 0;
+  for (const def of SCENES) {
+    const ink = HR.darkHex(def.backdrop[1]) ? dark : light;
+    if (ink === dark) darkDoors++;
+    for (const stop of def.backdrop) {
+      assert.ok(ratio(ink, stop) >= 4.5, def.id + ": its door label (" + ink + ") is only " + ratio(ink, stop).toFixed(2) + ":1 against its backdrop's " + stop + " — AA needs 4.5");
+    }
+  }
+  // not vacuous: both inks are in use, and the rule really does pick by
+  // the backdrop (a mid-luminance backdrop fails in both)
+  assert.ok(darkDoors >= 1 && darkDoors < SCENES.length, "fixture: some doors are dark and some light (" + darkDoors + " dark)");
+  assert.ok(ratio(light, "#8a8a8a") < 4.5 && ratio(dark, "#8a8a8a") < 4.5, "fixture: a mid-grey backdrop fails in either ink");
 });
 
 test("every place DRESSES Gobble (§15.2): what it wears is drawn, and every kind the renderer can draw is worn somewhere", () => {
@@ -1092,6 +1218,70 @@ test("every field a place DECLARES is read by the code, and every field the code
   }
 });
 
+test("every ITEM OPTION a place uses is one the layout reads, and every option the layout reads is used by some place — no typo that silently does nothing, no mechanic nothing can reach", () => {
+  // The place-field law above, one level down: an item's options (`{ key:
+  // "gate" }`, `{ bounce: true }`) are copied into the layout by name, so a
+  // typo (`{ bouce: true }`) is simply ignored, and a mechanic whose option no
+  // place uses is code no child can reach (phase 5 built eleven of them before
+  // a single place used one — this law is what made the places due).
+  const src = fs.readFileSync(path.join(__dirname, "../scripts/hole-logic.js"), "utf8");
+  const i = src.indexOf("const it = itemOf(raw);"), j = src.indexOf("});", src.indexOf("want.push({", i));
+  assert.ok(i > 0 && j > i, "fixture: found the layout's list of what it reads off an item");
+  const read = new Set([...src.slice(i, j).matchAll(/\bit\.(\w+)/g)].map((m) => m[1]));
+  read.delete("e"); read.delete("n");
+  assert.ok(read.size >= 15, "fixture: the scan found the options (" + [...read].join(",") + ")");
+  const used = new Map();
+  for (const def of SCENES) {
+    for (const t of def.tiers) {
+      for (const raw of t.items) {
+        const o = raw[2];
+        if (o && typeof o === "object" && !Array.isArray(o)) { for (const k of Object.keys(o)) used.set(k, (used.get(k) || []).concat(def.id)); }
+        else { if (raw[2]) used.set("zone", (used.get("zone") || []).concat(def.id)); if (raw[3]) used.set("clump", (used.get("clump") || []).concat(def.id)); }
+      }
+    }
+  }
+  for (const [k, ids] of used) assert.ok(read.has(k), "`" + k + "` is an item option in " + [...new Set(ids)].join(", ") + " but the layout never reads it — it does nothing");
+  for (const k of read) assert.ok(used.has(k), "the layout reads the item option `" + k + "` but no place uses it — a mechanic nothing can reach (give a place one, or delete it)");
+});
+
+test("every LOOK a place gives a block, bridge, track, current, turntable or portal is one the renderer can draw — and every look it can draw, some place uses", () => {
+  // An unknown look draws the default (an unknown bridge is planks, an
+  // unknown track draws nothing at all), so a typo is silent; and a look no
+  // place uses is drawing code nothing can reach. Derived both ways: the
+  // tables the renderer exports, and the branches of its draw functions.
+  const R = require("../scripts/hole-render.js");
+  const rs = fs.readFileSync(path.join(__dirname, "../scripts/hole-render.js"), "utf8");
+  const fnBody = (name) => { const a = rs.indexOf("function " + name + "("); assert.ok(a > 0, "fixture: " + name); return rs.slice(a, rs.indexOf("\n    }\n", a)); };
+  const branch = (name, v) => new Set([...fnBody(name).matchAll(new RegExp("\\b" + v + "\\.look === \"(\\w+)\"", "g"))].map((m) => m[1]));
+  const spinCols = rs.match(/const SPIN_COLS = \{([^}]*)\}/);
+  assert.ok(spinCols, "fixture: the turntable colours");
+  const DRAW = {
+    block: new Set(Object.keys(R.BLOCK_LOOKS)),
+    bridge: new Set(Object.keys(R.BRIDGE_LOOKS)),
+    // a track that is part of a road decal is drawn by the decal: "none"
+    track: new Set([...branch("drawTracks", "t"), "none"]),
+    // the default branch is the river
+    flow: new Set([...branch("drawFlows", "f"), "river"]),
+    spin: new Set([...spinCols[1].matchAll(/(\w+):/g)].map((m) => m[1])),
+    // a cannon is drawn by its own function; the default branch is the wormhole
+    portal: new Set([...branch("drawPortals", "E"), "wormhole", "cannon"]),
+  };
+  for (const [k, set] of Object.entries(DRAW)) assert.ok(set.size >= 2, "fixture: " + k + " looks found (" + [...set].join(",") + ")");
+  const used = { block: new Map(), bridge: new Map(), track: new Map(), flow: new Map(), spin: new Map(), portal: new Map() };
+  const use = (k, look, id) => used[k].set(look, (used[k].get(look) || new Set()).add(id));
+  for (const def of SCENES) {
+    for (const b of def.blocks || []) use("block", b.look || "water", def.id);
+    for (const b of def.bridges || []) use("bridge", b.look || "planks", def.id);
+    for (const t of Object.values(def.tracks || {})) use("track", t.look || (t.orbit ? "orbit" : "lane"), def.id);
+    for (const f of def.flows || []) { if (f.spin) use("spin", f.look || "turntable", def.id); else use("flow", f.look || "river", def.id); }
+    for (const p of def.portals || []) use("portal", p.look || (p.fly ? "cannon" : "wormhole"), def.id);
+  }
+  for (const k of Object.keys(DRAW)) {
+    for (const [look, ids] of used[k]) assert.ok(DRAW[k].has(look), [...ids].join(", ") + ": a " + k + " looks \"" + look + "\", which the renderer cannot draw (it would draw the default)");
+    for (const look of DRAW[k]) assert.ok(used[k].has(look), "the renderer can draw a " + k + " that looks \"" + look + "\", but no place has one — dead drawing code");
+  }
+});
+
 test("the engine is PURE: no Math.random, no DOM, dual export", () => {
   const src = fs.readFileSync(path.join(__dirname, "../scripts/hole-logic.js"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
@@ -1109,23 +1299,8 @@ test("the engine is PURE: no Math.random, no DOM, dual export", () => {
 // ---- phase 4 (§14): SHAPES, CHALLENGES, and the rules of where he can go ----
 
 // The CHALLENGE of a place: the set of mechanics it uses, read off its data.
-function twistsOf(def) {
-  const t = new Set();
-  for (const b of def.blocks || []) t.add("block:" + (b.look || "water"));
-  if ((def.bridges || []).length) t.add("bridges");
-  if ((def.portals || []).length) t.add("portals");
-  for (const f of def.flows || []) t.add("flow:" + (f.look || "river"));
-  if (def.slide) t.add("ice");
-  if (def.dark) t.add("dark");
-  if (def.notes) t.add("notes");
-  for (const z of Object.values(def.zones || {})) {
-    const parts = Array.isArray(z) && typeof z[0] !== "number" ? z : [z];
-    if (parts.some((p) => p && p.band)) t.add("bands");
-  }
-  for (const tr of Object.values(def.tracks || {})) t.add("track:" + (tr.orbit ? "orbit" : tr.train ? "train" : tr.loop ? "loop" : "line"));
-  for (const it of itemsOf(def)) for (const k of ["ride", "at", "solid", "lock", "key", "pop", "shake", "chain"]) if (it[k]) t.add(k);
-  return t;
-}
+// A place's challenge set: the engine's own reader (one owner).
+const twistsOf = (def) => L.twistsOf(def);
 // The SHAPE of a place: where he can walk, on a 32 x 32 grid over its world.
 function maskOf(def) {
   const G = L.geomOf(def), M = 32, m = new Uint8Array(M * M);
@@ -1216,10 +1391,14 @@ test("PROGRESS: at every size there is at least TWICE the next grow's worth he c
       assert.ok(lv.avail >= 2 * lv.need, def.id + ": at level " + lv.level + " there is " + lv.avail + " to reach and eat for a grow that needs " + lv.need);
     }
     assert.ok(p.finale, def.id + ": at the top size the finale can be reached");
+    // …and NEVER STRANDED: no portal or cannon he can reach drops him where
+    // he cannot get home from (§17 — a one-way cannon could)
+    assert.deepEqual(p.trapped, [], def.id + ": a one-way end lands him where he can never get back from " + JSON.stringify(p.trapped));
+    // an OPENER is a key to eat or (§17) a button to roll onto
     const locks = [...new Set(itemsOf(def).filter((it) => it.lock).map((it) => it.lock))].sort();
-    const keys = [...new Set(itemsOf(def).filter((it) => it.key).map((it) => it.key))].sort();
-    assert.deepEqual(keys, locks, def.id + ": every lock has its key and every key its lock");
-    for (const k of locks) assert.ok(p.unlocked.includes(k), def.id + ": the key to " + k + " can be reached and eaten");
+    const keys = [...new Set(itemsOf(def).filter((it) => it.key || it.press).map((it) => it.key || it.press))].sort();
+    assert.deepEqual(keys, locks, def.id + ": every lock has its opener and every key or button its lock");
+    for (const k of locks) assert.ok(p.unlocked.includes(k), def.id + ": the openers of " + k + " can all be reached and taken");
   }
 });
 
@@ -1665,6 +1844,20 @@ function lineOf(st, G, x0, y0, x1, y1) {
 // stand, whose line to o is open air (want "open") or crosses water and
 // nothing else (want "water").
 function spotFor(st, G, o, d, want) {
+  // a line to o crosses water only if something within d of o is not
+  // ground: when a fine scan of that disc finds nothing, no spot can be
+  // across water from it (this skip only ever shortens the search)
+  if (want === "water") {
+    let wet = false;
+    for (let rr = 1.5; rr <= d + 1e-9 && !wet; rr += 1.5) {
+      const n = Math.max(8, Math.ceil((2 * Math.PI * rr) / 1.5));
+      for (let k = 0; k < n && !wet; k++) {
+        const ang = (k / n) * Math.PI * 2;
+        if (G.walk(o.x + Math.cos(ang) * rr, o.y + Math.sin(ang) * rr * RULES.SQ) > 0) wet = true;
+      }
+    }
+    if (!wet) return null;
+  }
   for (let a = 0; a < 64; a++) {
     const ang = (a / 64) * Math.PI * 2;
     const x = o.x + Math.cos(ang) * d, y = o.y + Math.sin(ang) * d * RULES.SQ;
@@ -1802,11 +1995,13 @@ test("SUPER SLURP: the pull never reaches ACROSS WATER, and never takes the FINA
   for (const def of SCENES) {
     const G = L.geomOf(def);
     let fx = null;
+    const st0 = L.createGame(def);   // the search changes nothing, so one game serves every size
     for (let lv = 0; lv <= 4 && !fx; lv++) {
-      const st0 = L.createGame(def); makeLevel(st0, lv);
+      makeLevel(st0, lv);
       const h0 = st0.hole;
       for (const o of st0.objects) {
-        if (o.st !== L.IDLE || o.ride || o.finale || L.activeSolid(st0, o) || o.r > h0.r * RULES.FIT) continue;
+        // (a RUNAWAY moves on its own, so "it stays put" cannot be its question)
+        if (o.st !== L.IDLE || o.ride || o.run || o.finale || L.activeSolid(st0, o) || o.r > h0.r * RULES.FIT) continue;
         const P = spotFor(st0, G, o, (magnetReach(h0, o) + slurpReach(h0, o)) / 2, "water");
         if (P) { fx = { lv, id: o.id, P }; break; }
       }
@@ -1893,7 +2088,8 @@ test("PORTALS: standing on the end he came out of, with the way back through it,
         let through = false, there = false;
         for (let i = 0; i < 60 * 4 && !there; i++) {
           L.setTarget(st, T.x, T.y); L.step(st);
-          for (const e of st.events) if (e.type === "warp" && e.from[0] === Math.round(X.x * 1000) / 1000 && e.from[1] === Math.round(X.y * 1000) / 1000) through = true;
+          // a portal says "warp"; a CANNON (§17) says "launch" and flies him
+          for (const e of st.events) if ((e.type === "warp" || e.type === "launch") && e.from[0] === Math.round(X.x * 1000) / 1000 && e.from[1] === Math.round(X.y * 1000) / 1000) through = true;
           st.events.length = 0;
           there = L.gdist(st.hole.x, st.hole.y, T.x, T.y) < 3;
         }
@@ -1947,4 +2143,424 @@ test("a LINE that looks clear but grazes a wall: he still gets there (the straig
     assert.equal(bad, null, fx.id + ": his centre never stood where it may not");
     assert.ok(there >= 0, fx.id + ": he got there (moved " + L.gdist(st.hole.x, st.hole.y, fx.A.x, fx.A.y).toFixed(1) + ", still " + L.gdist(st.hole.x, st.hole.y, fx.B.x, fx.B.y).toFixed(1) + " away)");
   }
+});
+
+// ---- phase 5 (§17): the new things a place can do --------------------------
+// A small test PLACE, put in the list for the length of one test (sceneById
+// reads the list), so each new rule is driven on its own, away from the
+// shipped places' crowds.
+const TR = [[3.1, 3.6], [4.8, 5.4], [7.0, 7.8], [10.0, 11.0], [14.0, 15.0], [19.5, 21.0]];
+function lab(id, extra, add) {
+  // about the crowd of a real place (the farm holds 155 / 96 / 69 / 34 / 16):
+  // every grow needs its bites to be there
+  const base = [[["🍬", 150]], [["🍪", 90]], [["🍩", 60]], [["🎁", 30]], [["🏠", 16]]];
+  const tiers = base.map((items, i) => ({ r: TR[i], items: items.concat((add && add[i]) || []) }));
+  return Object.assign({
+    id: "lab-" + id, name: "Lab", door: "🧪", color: "#888888", ground: "wood", hole: "gobble",
+    backdrop: ["#ffffff", "#eeeeee"], start: [0.5, 0.9], starters: 0, tiers,
+    finale: { e: "🏰", r: 20, at: [0.5, 0.12], say: "the castle" },
+  }, extra);
+}
+function withLab(def, fn) {
+  SCENES.push(def);
+  try { return fn(def); } finally { SCENES.splice(SCENES.indexOf(def), 1); }
+}
+// Steer onto a spot every step for `seconds`, collecting the events.
+function steerTo(st, x, y, seconds, each) {
+  const evs = [];
+  for (let i = 0, n = Math.round(seconds / L.DT); i < n; i++) {
+    L.setTarget(st, x, y); L.step(st);
+    evs.push(...st.events.map((e) => ({ t: st.t, ...e })));
+    st.events.length = 0;
+    if (each) each(i);
+  }
+  return evs;
+}
+// Eat one thing: park right on it and wait for the gulp.
+function eatOne(st, o) {
+  park(st, o.x, o.y);
+  const evs = run(st, 1.2, { x: o.x, y: o.y });
+  assert.equal(o.st, L.GONE, "fixture: " + o.e + " was eaten");
+  return evs;
+}
+
+test("OPENERS (§17): a lock waits for EVERY key and button with its name — each says how far it has got, the last opens it, once", () => {
+  withLab(lab("open", {}, [
+    [["🗝️", 3, { key: "gate", glow: true }]], [], [],
+    [["🔴", 1, { press: "gate", at: { pts: [[0.2, 0.6]] } }], ["🚧", 2, { lock: "gate", at: { line: [[0.45, 0.4], [0.55, 0.4]] } }]],
+  ]), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const keys = st.objects.filter((o) => o.key), button = st.objects.find((o) => o.press), gates = st.objects.filter((o) => o.lock);
+    assert.equal(keys.length, 3, "fixture: three keys");
+    assert.ok(button && gates.length === 2, "fixture: a button and two gates");
+    assert.ok(gates.every((g) => L.activeSolid(st, g)), "the gates start shut");
+    assert.ok(!L.edible(st, button) && L.wanted(st, button), "a button is never food — but it is somewhere to go");
+    // the hint, asked for a key, points at the NEAREST opener still to do
+    // (one key used to be kept per name; a second was invisible)
+    st.wantKey = "gate";
+    const firstHint = L.nextOpener(st, "gate");
+    assert.ok(firstHint && !firstHint.pressed, "the hint has an opener to point at");
+    const all = [];
+    let n = 0;
+    for (const k of keys) {
+      const evs = eatOne(st, k);
+      all.push(...evs);
+      n++;
+      const op = evs.find((e) => e.type === "opener");
+      assert.ok(op && op.how === "key" && op.n === n && op.of === 4 && op.key === "gate", "key " + n + " says " + n + " of 4 (" + JSON.stringify(op) + ")");
+      assert.ok(gates.every((g) => L.activeSolid(st, g)), "…and the gates stay shut");
+      assert.ok(!evs.some((e) => e.type === "unlock"), "…and nothing opens yet");
+    }
+    assert.equal(L.nextOpener(st, "gate"), button, "only the button is left: the hint points at it");
+    assert.deepEqual(L.botTarget(st), { x: button.x, y: button.y }, "…and so does the bot");
+    // roll onto the button from a little way off
+    park(st, button.x + 24, button.y);
+    const evs = steerTo(st, button.x, button.y, 2);
+    all.push(...evs);
+    const press = evs.find((e) => e.type === "opener" && e.how === "press");
+    assert.ok(button.pressed && press && press.n === 4 && press.of === 4, "rolling onto the button presses it: 4 of 4");
+    assert.equal(all.filter((e) => e.type === "unlock").length, 1, "the gate opens exactly once");
+    assert.ok(gates.every((g) => !L.activeSolid(st, g)), "…and the gates are open");
+    assert.equal(button.st, L.IDLE, "a pressed button stays in the floor (never eaten by rolling over it)");
+    assert.ok(G.walk(button.x, button.y) <= 0, "fixture: the button stands on the ground");
+  });
+});
+
+test("OPENERS: a save keeps the keys and the buttons — the lock opens on restore only if EVERY opener was done; a hostile save presses nothing else", () => {
+  withLab(lab("opensave", {}, [
+    [["🗝️", 2, { key: "gate" }]], [], [],
+    [["🔴", 1, { press: "gate", at: { pts: [[0.2, 0.6]] } }], ["🚧", 2, { lock: "gate", at: { line: [[0.45, 0.4], [0.55, 0.4]] } }]],
+  ]), (def) => {
+    const st = L.createGame(def.id);
+    const keys = st.objects.filter((o) => o.key), button = st.objects.find((o) => o.press);
+    eatOne(st, keys[0]);
+    button.pressed = true;
+    const half = L.restore(L.snapshot(st));
+    assert.ok(half && !half.unlocked.gate, "one key and the button: still locked after a restore");
+    assert.ok(half.objects[button.id].pressed, "…the button is still pressed");
+    eatOne(st, keys[1]);
+    const done = L.restore(L.snapshot(st));
+    assert.ok(done.unlocked.gate, "every opener done: open after a restore");
+    // hostile: a key id, junk and out-of-range values in `pressed`
+    const snap = L.snapshot(L.createGame(def.id));
+    snap.pressed = [keys[0].id, "x", 1e9, -1, 2.5, null, button.id];
+    const h = L.restore(snap);
+    assert.ok(h, "a hostile save still restores");
+    assert.ok(h.objects[button.id].pressed && !h.objects[keys[0].id].pressed, "only a real button can be pressed by a save");
+    assert.ok(!h.unlocked.gate, "…and the lock stays shut (its keys were never eaten)");
+  });
+  // a place with ONE key behaves exactly as before: it opens, and says only that
+  const st = L.createGame("farm");
+  const key = st.objects.find((o) => o.key);
+  const evs = eatOne(st, key);
+  assert.ok(evs.some((e) => e.type === "unlock"), "the farm's one key still opens its gate");
+  assert.ok(!evs.some((e) => e.type === "opener"), "…and a single key needs no 'one of one'");
+});
+
+test("BUMPERS (§17): a bouncy thing too big to eat knocks him back — boing — never into the water, and once he is big enough he eats it", () => {
+  withLab(lab("bump", { blocks: [{ circle: [0.5 + 52 / 420, 0.5, 0.03] }] }, [
+    [], [], [], [["🍄", 1, { bounce: true, at: { pts: [[0.5, 0.5]] } }]],
+  ]), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const b = st.objects.find((o) => o.bounce);
+    assert.ok(b && b.r > st.hole.r * RULES.FIT && L.activeSolid(st, b), "fixture: a bumper too big to eat is a wall");
+    // he comes at it from the side the pond is on: every knock throws him
+    // toward the water
+    park(st, b.x + b.r * RULES.CORE + 6, b.y);
+    // how far from the bumper he gets once he has touched it: held against a
+    // plain wall he stays pressed on it; a knock throws him back out
+    const touch = b.r * RULES.CORE + 1;
+    let bad = null, knocks = 0, inside = 0, touched = false, thrown = 0;
+    const evs = steerTo(st, b.x, b.y, 5, () => {
+      if (!bad && !freeAt(st, G, st.hole.x, st.hole.y)) bad = [st.hole.x.toFixed(2), st.hole.y.toFixed(2)];
+      const d = L.gdist(st.hole.x, st.hole.y, b.x, b.y);
+      if (d < b.r * RULES.CORE - 1e-6) inside++;
+      if (d < touch) touched = true;
+      else if (touched) thrown = Math.max(thrown, d - touch);
+    });
+    knocks = evs.filter((e) => e.type === "bump" && e.id === b.id && e.bounce).length;
+    assert.ok(knocks >= 3, "held against it he is knocked back again and again (" + knocks + " in 5s)");
+    // the events above are emitted whether or not the knock moves him: it
+    // must really throw him back off the bumper, far enough to SEE. Held on
+    // it, the glide used to pull him straight back in (0.3-0.5 units of a
+    // 48-unit view); a tenth of the view sits between that and the 9 now.
+    const span = L.viewSpan(st);
+    assert.ok(touched && thrown >= 0.1 * span, "a knock really throws him back, held on it (" + thrown.toFixed(1) + " units off the bumper, of a " + Math.round(span) + "-unit view)");
+    assert.equal(bad, null, "a knock never puts his centre in the water or inside a wall");
+    assert.equal(inside, 0, "…and never inside the bumper");
+    assert.ok(evs.some((e) => e.type === "meet" && e.kind === "bounce"), "the first one is introduced");
+    // big enough: it is a thing to eat, with no knock
+    makeLevel(st, 3);
+    park(st, b.x + 30, b.y - 30);
+    const e2 = steerTo(st, b.x, b.y, 3);
+    assert.equal(b.st, L.GONE, "once he is big enough he eats it");
+    assert.ok(!e2.some((e) => e.type === "bump" && e.bounce), "…and it never knocks him again");
+  });
+});
+
+test("COUNTING (§17): every counted thing says the next number — by twos here — in order, to the end, the win's slurp included; a save keeps the count", () => {
+  withLab(lab("count", { count: { e: "🧦", by: 2, say: "socks" }, trails: [{ e: "🧦", to: [0.5, 0.4] }] }, [[["🧦", 10]]]), (def) => {
+    const st = L.createGame(def.id);
+    assert.ok(L.twistsOf(def).has("count"), "a counting place has the count twist");
+    const log = playOut(st, 400);
+    const counts = log.filter((e) => e.type === "count");
+    assert.ok(st.done, "fixture: the bot finished the place");
+    assert.equal(counts.length, 10, "every sock counted once");
+    counts.forEach((c, i) => {
+      assert.equal(c.k, i + 1, "the " + (i + 1) + "th sock is number " + (i + 1));
+      assert.equal(c.n, (i + 1) * 2, "…and says " + (i + 1) * 2);
+      assert.equal(c.last, i === 9, "…and only the tenth is the last");
+      assert.equal(c.of, 10, "…of ten");
+    });
+    const meet = log.filter((e) => e.type === "meet" && e.kind === "count");
+    assert.ok(meet.length === 1 && meet[0].t >= RULES.MEET_T, "counting is introduced once, after the opening look");
+    // a save keeps the count
+    const s2 = L.createGame(def.id);
+    const socks = s2.objects.filter((o) => o.e === "🧦").slice(0, 3);
+    for (const o of socks) eatOne(s2, o);
+    const back = L.restore(L.snapshot(s2));
+    assert.equal(back.counted, 3, "three socks eaten, three counted after a restore");
+  });
+});
+
+test("PIÑATA (§17): bonk it and a share of its treats tumbles out — once a bump, never faster — and the last bonk bursts it", () => {
+  withLab(lab("pinata", {}, [[], [], [], [["🪅", 1, { shake: [["🍬", 6, 1]], hits: 3, at: { pts: [[0.5, 0.5]] } }]]]), (def) => {
+    const st = L.createGame(def.id);
+    const p = st.objects.find((o) => o.hits);
+    assert.ok(p && p.kids.length === 6 && p.kids.every((id) => st.objects[id].st === L.HIDDEN), "fixture: a piñata with six treats inside");
+    park(st, p.x + st.hole.r + p.r * 0.3, p.y);
+    const evs = steerTo(st, p.x, p.y, 5);
+    const hits = evs.filter((e) => e.type === "hit" && e.id === p.id);
+    assert.equal(hits.length, 3, "three bonks and no more (" + hits.length + ")");
+    hits.forEach((h, i) => {
+      assert.equal(h.n, i + 1, "bonk " + (i + 1));
+      assert.equal(h.kids.length, 2, "…lets out two treats");
+      assert.equal(h.last, i === 2, "…and only the third bursts it");
+      if (i) assert.ok(h.t - hits[i - 1].t >= 1.2 - 1e-6, "…never sooner than 1.2s after the last");
+    });
+    assert.ok(!evs.some((e) => e.type === "shake"), "a piñata is bonked, not shaken");
+    assert.ok(p.kids.every((id) => st.objects[id].st !== L.HIDDEN), "every treat is out");
+    assert.ok(evs.some((e) => e.type === "meet" && e.kind === "hits"), "the first piñata is introduced");
+    // a save: one treat eaten means it was bonked; the restore lets them all out
+    const s2 = L.createGame(def.id), p2 = s2.objects.find((o) => o.hits);
+    park(s2, p2.x + s2.hole.r + p2.r * 0.3, p2.y);
+    steerTo(s2, p2.x, p2.y, 0.3);
+    const out = p2.kids.map((id) => s2.objects[id]).find((k) => k.st === L.IDLE);
+    eatOne(s2, out);
+    const back = L.restore(L.snapshot(s2));
+    assert.ok(back.objects[p2.id].shook && back.objects[p2.id].kids.every((id) => back.objects[id].st !== L.HIDDEN), "restored, every treat is out");
+  });
+});
+
+test("CANNONS (§17): roll in and BOOM — he flies to the far end over everything, in the time the rules say, eats nothing on the way, and is saved where he lands", () => {
+  withLab(lab("cannon", { portals: [{ a: [0.3, 0.75], b: [0.7, 0.3], oneway: true, fly: true }] }), (def) => {
+    const G = L.geomOf(def.id);
+    const go = () => {
+      const st = L.createGame(def.id);
+      const a = G.ends[0], b = G.ends[1];
+      park(st, a.x + 14, a.y);
+      let launch = null, land = null, during = [], snap = null;
+      for (let i = 0; i < 60 * 4 && !land; i++) {
+        if (!launch) L.setTarget(st, a.x, a.y);
+        L.step(st);
+        for (const e of st.events) {
+          if (e.type === "launch") launch = { t: st.t, ...e };
+          else if (e.type === "land") land = { t: st.t, x: st.hole.x, y: st.hole.y };
+          else if (launch && !land && (e.type === "eat" || e.type === "fall")) during.push(e);
+        }
+        st.events.length = 0;
+        if (launch && !snap && st.fly && st.fly.t > 0.2) snap = L.snapshot(st);
+      }
+      return { st, a, b, launch, land, during, snap };
+    };
+    const r = go();
+    assert.ok(r.launch && r.land, "he went in, flew and landed");
+    const d = L.gdist(r.a.x, r.a.y, r.b.x, r.b.y), want = Math.min(RULES.FLY.max, Math.max(RULES.FLY.min, d / RULES.FLY.speed));
+    assert.ok(Math.abs(r.land.t - r.launch.t - want) < 2 * L.DT, "the flight lasts " + want.toFixed(2) + "s (" + (r.land.t - r.launch.t).toFixed(2) + ")");
+    assert.ok(L.gdist(r.land.x, r.land.y, r.b.x, r.b.y) < 0.5, "…and lands on the far end");
+    assert.equal(r.during.length, 0, "nothing falls in while he flies");
+    assert.ok(r.snap && Math.abs(r.snap.x - r.b.x) < 0.01 && Math.abs(r.snap.y - r.b.y) < 0.01, "a save mid-flight saves where he lands");
+    assert.equal(L.hashState(go().st), L.hashState(r.st), "a flight replays identically");
+    assert.ok(L.twistsOf(def).has("launch") && !L.twistsOf(def).has("portals"), "a cannon is its own twist");
+  });
+});
+
+test("RUNAWAYS (§17): once he can eat one it scoots away — never off the ground, into a wall or past its leash — tires, and a finger on it catches it", () => {
+  withLab(lab("run", { zones: { pen: [[0.25, 0.35, 0.75, 0.7]] } }, [[], [["🍩", 6, { run: true, zone: "pen" }]]]), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const runners = st.objects.filter((o) => o.run);
+    assert.equal(runners.length, 6, "fixture: six runaways");
+    const o0 = runners[0], home0 = [o0.x, o0.y];
+    // too small to eat it: it sits still
+    park(st, o0.x + 12, o0.y);
+    steerTo(st, o0.x, o0.y, 1);
+    assert.ok(o0.st === L.IDLE && L.gdist(o0.x, o0.y, home0[0], home0[1]) < 1e-9, "while he cannot eat it, it does not run");
+    makeLevel(st, 1);
+    let leash = 0, off = 0, flee = 0, moved = 0;
+    for (const o of runners) {
+      if (o.st !== L.IDLE) continue;
+      park(st, o.x + 20, o.y);
+      const x0 = o.x, y0 = o.y;
+      // the finger follows it (re-aimed every step, as a child's would)
+      for (let i = 0; i < 60 * 4 && o.st === L.IDLE; i++) {
+        L.setTarget(st, o.x, o.y); L.step(st);
+        flee += st.events.filter((e) => e.type === "flee").length;
+        st.events.length = 0;
+        for (const q of runners) {
+          if (q.st !== L.IDLE) continue;
+          leash = Math.max(leash, L.gdist(q.x, q.y, q.hx, q.hy));
+          if (!(G.walk(q.x, q.y) <= -(q.r + RULES.EDGE) + 1e-6)) off++;
+        }
+        if (o.st === L.IDLE) moved = Math.max(moved, L.gdist(o.x, o.y, x0, y0));
+      }
+      assert.ok(o.st !== L.IDLE, "a finger kept on a runaway catches it within 4s (" + o.e + " " + o.id + ")");
+    }
+    assert.ok(moved > 3, "…but it really did run first (" + moved.toFixed(1) + " units)");
+    assert.ok(flee >= 1, "it said it was running");
+    assert.ok(leash <= RULES.RUN.leash + 1e-6, "no runaway strays past its leash (" + leash.toFixed(1) + ")");
+    // …but in the chases above no runaway gets near its leash (one burst runs
+    // about 40 units of its 70), so that clause cannot fail. Here the leash is
+    // what stops it: a runaway already 60 units from home, chased AWAY from
+    // home, must stop at its leash — and must really get there.
+    {
+      const s2 = L.createGame(def.id), q = s2.objects.find((o) => o.run);
+      makeLevel(s2, 1);
+      q.hx = q.x - 60; q.hy = q.y;
+      park(s2, q.x - 20, q.y);
+      let far = 0;
+      for (let i = 0; i < 60 * 4 && q.st === L.IDLE; i++) {
+        L.setTarget(s2, q.x, q.y); L.step(s2); s2.events.length = 0;
+        if (q.st === L.IDLE) far = Math.max(far, L.gdist(q.x, q.y, q.hx, q.hy));
+      }
+      assert.ok(far <= RULES.RUN.leash + 1e-6, "chased away from home, it stops at its leash (" + far.toFixed(1) + " of " + RULES.RUN.leash + ")");
+      assert.ok(far >= RULES.RUN.leash - 8, "fixture: it really ran out to its leash (" + far.toFixed(1) + ")");
+    }
+    assert.equal(off, 0, "no runaway ever runs off the ground");
+    assert.ok(L.twistsOf(def).has("run"), "runaways are their own twist");
+  });
+});
+
+test("NEVER STRANDED (§17): a one-way cannon over water with no way back is caught by the progress law; give it a way home and it is not", () => {
+  // the north side is across a moat with no bridge: a cannon flies him over…
+  const moat = { blocks: [{ rect: [0, 0.42, 1, 0.52] }] };
+  const fins = { finale: { e: "🏰", r: 20, at: [0.5, 0.85], say: "the castle" } };
+  withLab(lab("strand", { ...moat, ...fins, portals: [{ a: [0.3, 0.8], b: [0.5, 0.25], oneway: true, fly: true }] }), (def) => {
+    const p = L.progressOf(def);
+    assert.ok(p.trapped.length > 0, "a one-way cannon to an island with no way back strands him (" + JSON.stringify(p.trapped) + ")");
+    assert.ok(p.trapped.every((t) => t.y < 588 * 0.42), "fixture: the landing it names is on the far side (the world is 588 tall)");
+  });
+  // …and a second cannon home (or a bridge) makes the same place safe
+  withLab(lab("strand2", { ...moat, ...fins, portals: [{ a: [0.3, 0.8], b: [0.5, 0.25], oneway: true, fly: true }, { a: [0.7, 0.3], b: [0.6, 0.75], oneway: true, fly: true }] }), (def) => {
+    assert.deepEqual(L.progressOf(def).trapped, [], "a cannon home again: never stranded");
+  });
+  withLab(lab("strand3", { ...moat, ...fins, portals: [{ a: [0.3, 0.8], b: [0.5, 0.25], oneway: true, fly: true }], bridges: [{ path: [[0.8, 0.36], [0.8, 0.58]], w: 20 }] }), (def) => {
+    assert.deepEqual(L.progressOf(def).trapped, [], "a bridge home: never stranded");
+  });
+});
+
+test("TURNTABLE (§17): a spinning floor carries him round at its own turn rate — let go and round he goes — and he can always walk off it; nothing stands on it", () => {
+  withLab(lab("spin", { flows: [{ spin: [0.5, 0.55, 0.15], v: 24 }] }), (def) => {
+    const st = L.createGame(def.id), G = L.geomOf(def.id);
+    const F = G.flows[0], c = F.spin;
+    for (const o of st.objects) assert.ok(L.gdist(o.x, o.y, c.x, c.y) >= c.rg, "nothing stands on the turntable (" + o.e + ")");
+    const ang = () => Math.atan2((st.hole.y - c.y) / RULES.SQ, st.hole.x - c.x);
+    park(st, c.x + c.rg * 0.6, c.y);
+    const a0 = ang();
+    const evs = run(st, 2);
+    let turned = ang() - a0;
+    if (turned < 0) turned += Math.PI * 2;
+    const want = (F.v / c.rg) * 2;
+    assert.ok(Math.abs(turned - want) / want < 0.05, "standing still he turns " + want.toFixed(2) + " rad in 2s (" + turned.toFixed(2) + ")");
+    assert.ok(evs.some((e) => e.type === "flow"), "he hears it start");
+    // walking off
+    steerTo(st, c.x, c.y + c.rg * RULES.SQ + 40, 3);
+    assert.ok(L.gdist(st.hole.x, st.hole.y, c.x, c.y) > c.rg, "he can always walk off it");
+    assert.ok(F.v < RULES.VMAX, "the rim is slower than he can walk");
+    assert.ok(L.twistsOf(def).has("spin"), "a turntable is its own twist (whatever it looks like)");
+  });
+});
+
+test("POWER-UPS (§17): a magnet starts the super pull, for longer; a lightning bolt makes him zoom — 1.6 times as fast — for a while", () => {
+  withLab(lab("power", {}, [[["🧲", 1, { power: "magnet", at: { pts: [[0.5, 0.7]] } }], ["⚡", 1, { power: "zoom", at: { pts: [[0.3, 0.7]] } }]]]), (def) => {
+    const st = L.createGame(def.id);
+    const mag = st.objects.find((o) => o.power === "magnet"), zap = st.objects.find((o) => o.power === "zoom");
+    const e1 = eatOne(st, mag);
+    assert.ok(e1.some((e) => e.type === "power" && e.kind === "magnet"), "a magnet says so");
+    // (eatOne waits 1.2s after parking; the gulp itself takes a moment)
+    assert.ok(st.slurpT > RULES.POWER.magnet - 1.2 && st.slurpT < RULES.POWER.magnet, "…and starts the super pull for " + RULES.POWER.magnet + "s (" + st.slurpT.toFixed(2) + " left)");
+    const e2 = eatOne(st, zap);
+    assert.ok(e2.some((e) => e.type === "power" && e.kind === "zoom"), "a lightning bolt says so");
+    assert.ok(st.hole.zoomT > RULES.POWER.zoom - 1.2 && st.hole.zoomT < RULES.POWER.zoom, "…and makes him zoom for " + RULES.POWER.zoom + "s (" + st.hole.zoomT.toFixed(2) + " left)");
+    // measured on open ground, aimed far away: with the bolt, and without
+    const speed = (zoom) => {
+      const s = L.createGame(def.id);
+      park(s, 120, 300); s.hole.zoomT = zoom ? 3 : 0;
+      run(s, 0.3, { x: 400, y: 300 });
+      const x0 = s.hole.x;
+      run(s, 0.5, { x: 400, y: 300 });
+      return (s.hole.x - x0) / 0.5;
+    };
+    const k = speed(true) / speed(false);
+    assert.ok(Math.abs(k - RULES.POWER.zoomMul) < 0.05, "he goes " + RULES.POWER.zoomMul + " times as fast (" + k.toFixed(3) + ")");
+    // the clause above reads the rule it checks, so a bolt that does nothing
+    // (zoomMul 1) satisfies it: the bolt must GENUINELY make him faster
+    assert.ok(k > 1.4, "a lightning bolt really makes him faster (" + k.toFixed(3) + " times)");
+  });
+});
+
+test("SPROUTS (§17): roll near a seedling and its flowers pop up out of the ground — once — and a save remembers they are up", () => {
+  withLab(lab("sprout", {}, [[["🌱", 2, { sprout: [["🌷", 3, 1]], at: { pts: [[0.4, 0.5], [0.6, 0.5]] } }]]]), (def) => {
+    const st = L.createGame(def.id);
+    const s = st.objects.find((o) => o.box === "sprout");
+    assert.ok(s && s.kids.length === 3 && s.kids.every((id) => st.objects[id].st === L.HIDDEN), "fixture: a seedling with three flowers waiting");
+    park(st, s.x + 40, s.y);
+    const evs = steerTo(st, s.x + st.hole.r + s.r + RULES.SPROUT_R - 2, s.y, 1.5);
+    assert.equal(evs.filter((e) => e.type === "sprout" && e.id === s.id).length, 1, "it sprouts once");
+    assert.ok(s.kids.every((id) => st.objects[id].st !== L.HIDDEN), "…and every flower is up");
+    assert.ok(evs.some((e) => e.type === "meet" && e.kind === "sprout"), "the first seedling is introduced");
+    const kid = st.objects[s.kids[0]];
+    eatOne(st, kid);
+    const back = L.restore(L.snapshot(st));
+    assert.ok(back.objects[s.id].kids.every((id) => back.objects[id].st !== L.HIDDEN), "restored, the flowers are up");
+  });
+});
+
+test("THE FIRST TIME (§17): each new kind of thing is introduced once a visit, when it is first near — buttons, keys, bumpers, piñatas, power-ups, seedlings, cannons, turntables", () => {
+  withLab(lab("meet", {
+    portals: [{ a: [0.15, 0.5], b: [0.85, 0.2], oneway: true, fly: true }],
+    flows: [{ spin: [0.8, 0.6, 0.08], v: 20 }],
+  }, [
+    [["🗝️", 2, { key: "g" }], ["🧲", 1, { power: "magnet" }], ["🌱", 1, { sprout: [["🌷", 2, 1]] }]], [], [],
+    [["🍄", 1, { bounce: true }], ["🪅", 1, { shake: [["🍬", 3, 1]], hits: 3 }], ["🔴", 1, { press: "g" }], ["🚧", 1, { lock: "g", at: { pts: [[0.5, 0.3]] } }]],
+  ]), (def) => {
+    const tw = L.twistsOf(def);
+    for (const a of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin", "lock", "key"]) assert.ok(tw.has(a), "twist " + a);
+    const st = L.createGame(def.id);
+    const seen = {};
+    // tour the place: stand by everything in turn
+    const spots = st.objects.filter((o) => o.press || o.key || o.bounce || o.hits || o.power || o.box === "sprout").map((o) => [o.x, o.y]);
+    spots.push([L.geomOf(def.id).ends[0].x, L.geomOf(def.id).ends[0].y], [L.geomOf(def.id).flows[0].spin.x, L.geomOf(def.id).flows[0].spin.y]);
+    for (const [x, y] of spots) {
+      park(st, x, y + 30);
+      for (const e of run(st, 0.4, { x, y: y + 30 })) if (e.type === "meet") seen[e.kind] = (seen[e.kind] || 0) + 1;
+    }
+    for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin"]) assert.equal(seen[k], 1, "'" + k + "' is introduced exactly once (" + (seen[k] || 0) + ")");
+  });
+});
+
+test("A GIANT place (§17): a sixth size and a bigger finale — the tier law and the derived grows hold, and the bot gets there through six grows", () => {
+  const def = lab("giant", { world: [504, 706], finale: { e: "🏰", r: 28, at: [0.5, 0.12], say: "the castle" } });
+  def.tiers.push({ r: TR[5], items: [["🏯", 6]] });
+  withLab(def, () => {
+    const st = L.createGame(def.id);
+    assert.equal(st.levels.R.length, 7, "seven sizes: six tiers and the finale");
+    for (let L0 = 0; L0 + 2 <= 6; L0++) {
+      const R = st.levels.R[L0], next = st.objects.filter((o) => o.tier === L0 + 2);
+      assert.ok(next.every((o) => o.r > R * RULES.FIT), "the tier law at level " + L0);
+    }
+    assert.ok(L.twistsOf(def).has("giant"), "a giant place is its own twist");
+    const log = playOut(st, 900);
+    assert.ok(st.won, "the bot wins a giant place");
+    assert.deepEqual(log.filter((e) => e.type === "grow").map((e) => e.level), [1, 2, 3, 4, 5, 6], "six grows, in order");
+  });
 });
