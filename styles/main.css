@@ -2813,13 +2813,17 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
 .hole-door:active { transform: scale(0.97); }
 .hole-door__icon { font-size: 2.9rem; line-height: 1; }
 .hole-door__label { font-size: 0.95rem; line-height: 1.15; font-weight: 800; color: #2e2a55; text-align: center; }
-/* Three doors across a 320px phone leave a place's longest word ~78px:
+/* Three doors across a 320px phone leave a place's longest word ~77px:
    "Chocolate" fit by half a pixel and "Playground" not at all (it is "Play
    Park" now), and a device font a little wider than the test's breaks a
    word that only just fits. The label steps down on the narrowest phones so
-   every name has room to spare (mobile.test.js holds the margin). */
+   every name has room to spare (mobile.test.js holds the margin). It was
+   0.86rem until CI's real WebKit measured "Chocolate" with 0.5px to spare:
+   its system-ui is DejaVu Sans, about 10% wider than the sandbox's Inter.
+   At 0.8rem the widest word keeps 5.9px in DejaVu Sans Bold, the same
+   room the 360px phones have at full size. */
 @media (max-width: 359px) {
-  .hole-door__label { font-size: 0.86rem; }
+  .hole-door__label { font-size: 0.8rem; }
 }
 .hole-door--dark .hole-door__label { color: #ffffff; }
 .hole-door__star { position: absolute; top: 8px; right: 10px; font-size: 1.6rem; line-height: 1; }

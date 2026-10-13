@@ -223,7 +223,15 @@ test("EVERY place opens and draws: its floor, ALL its ground features in the ope
     // So each picture is drawn until two frames in a row agree: without the
     // air, then with it, then without it again. The two without it must be the
     // same, and the one with it must not.
-    const painted = await page.evaluate(() => {
+    // Over its own CYCLE, not one frozen frame. Sparkles are sparse — a phone
+    // gets 8, a third of them in the off-screen margin, each dark for a third
+    // of its 2.4s twinkle — so at a single moment the Water Park's one or two
+    // on-screen sparkles were sometimes all dark: 2 of 150 measurements
+    // painted 0 px and 12 under the 30 px bar, and CI caught one. So it is
+    // measured up to 8 times, 320ms apart (one twinkle and a bit), stopping at
+    // the first that paints: 0 of 60 runs needed more than 2, and a weather
+    // that draws nothing still fails all 8.
+    const paintOnce = () => page.evaluate(() => {
       const def = window.HoleData.SCENES.find((d) => d.id === window.__HOLE.scene());
       const cv = document.querySelector("#screen-hole-play .hole-canvas"), c = cv.getContext("2d");
       const grab = () => c.getImageData(0, 0, cv.width, cv.height).data;
@@ -244,12 +252,18 @@ test("EVERY place opens and draws: its floor, ALL its ground features in the ope
       if (!without || !withAir || !again) return { settled: false };
       return { settled: true, control: diff(without, again), n: diff(withAir, without) };
     });
-    assert.ok(painted.settled, id + ": fixture: each picture comes out the same twice in a row within 12 draws");
-    // the control is usually 0; in a full run Music Land once came back with
-    // 3 px that settled differently (the same 1-12 px class the swirl test
-    // measures), so it gets that measured bar — far below the air's own 30
-    assert.ok(painted.control <= 12, id + ": fixture: the frame without its air is the same before and after the one with it (" + painted.control + " px differ)");
-    assert.ok(painted.n >= 30, id + ": its " + r.wantAir + " paints the screen (" + painted.n + " px change with it)");
+    let best = -1, tries = 0;
+    for (; tries < 8 && best < 30; tries++) {
+      if (tries) await page.waitForTimeout(320);
+      const painted = await paintOnce();
+      assert.ok(painted.settled, id + ": fixture: each picture comes out the same twice in a row within 12 draws");
+      // the control is usually 0; in a full run Music Land once came back with
+      // 3 px that settled differently (the same 1-12 px class the swirl test
+      // measures), so it gets that measured bar — far below the air's own 30
+      assert.ok(painted.control <= 12, id + ": fixture: the frame without its air is the same before and after the one with it (" + painted.control + " px differ)");
+      best = Math.max(best, painted.n);
+    }
+    assert.ok(best >= 30, id + ": its " + r.wantAir + " paints the screen (at most " + best + " px change with it, over " + tries + " moments of its cycle)");
     // …and it plays: a few bites through the real event path
     const p = await page.evaluate(() => window.__HOLE.autoplay(60 * 3));
     assert.ok(p.eaten >= 3, id + ": Gobble eats in it (" + p.eaten + " in 3s)");

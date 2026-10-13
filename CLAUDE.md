@@ -10010,6 +10010,31 @@ the face at once. One limit is recorded rather than hidden: "every new thing is
 DRAWN" reads per-kind counters bumped beside each draw call, so it proves the
 draw branch RAN, not what it painted.
 
+**The first CI run of phase 5 went red on two checks the local gate had passed,
+and both were the test measuring something narrower than its claim.** (1) **A
+"room to spare" law measured in the SANDBOX's font.** The door labels are
+`system-ui`, which is Inter here and DejaVu Sans on CI's runner, about 10%
+wider: "Chocolate" kept 7.8px locally and 0.5px on real WebKit, against a 3px
+bar. That is exactly what the law exists to catch; it just could not see it
+locally. Forcing DejaVu Sans onto the labels in local Chromium reproduced CI's
+0.5px to the decimal, which is what made the model trustworthy. The label on
+phones under 360px is 0.8rem now (5.8px of room in DejaVu, the same as a 360px
+phone at full size), and the measurement takes the wider of the page's font
+and DejaVu Sans, so a local run now reports CI's number. A control proves the
+gap was real: the old size with the old measurement passes locally. (2) **A
+twinkling weather sampled at ONE frozen moment.** Sparkles are sparse: a phone
+gets 8, a third of them in the off-screen margin, each dark for a third of its
+2.4s cycle. In 150 runs of the test's exact measurement, the Water Park painted
+0px twice and under the 30px bar 12 times, while the Mine and the Hotel never
+dipped under 112px: the Water Park's camera simply leaves one or two sparkles
+on screen. Phase 5 doubled the sparkles places, so the chance of a red run
+doubled with it. The weather is fine; the claim "it paints at this instant"
+was wrong. It is measured up to 8 times, 320ms apart, now. In 60 runs no run
+needed more than 2 samples, and blank sparkles still fail all 8. The general
+rule for both: **when a check passes locally and fails in CI, find the input
+that differs between the two (a font, a moment) and make the local run use
+CI's, rather than widening the bar.**
+
 ---
 
 ## Repository Structure

@@ -392,14 +392,21 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
       // …and ROOM: a name that only JUST fits here spills on a device whose
       // font is a little wider ("Chocolate" fit a 320px door by half a pixel).
       // The tightest name: its widest word against its door's own content box.
+      // Measured in the page's font AND in DejaVu Sans, keeping the WIDER: the
+      // label is system-ui, which is Inter in the dev sandbox and DejaVu Sans
+      // on CI's runner, about 10% wider — so "Chocolate" passed here with 7.8px
+      // and failed on CI's real WebKit with 0.5. Where DejaVu Sans is not
+      // installed the second measure falls back to the page's own font, so
+      // this can only ever be stricter than measuring the page font alone.
       room: (() => {
         const c = document.createElement("canvas").getContext("2d");
         let best = { px: Infinity, name: "" };
         for (const b of els) {
           const l = b.querySelector(".hole-door__label, .hole-land__label");
           const cs = getComputedStyle(l), bs = getComputedStyle(b);
-          c.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
-          const widest = Math.max(...l.textContent.split(/\s+/).map((w2) => c.measureText(w2).width));
+          const measure = (fam) => { c.font = cs.fontWeight + " " + cs.fontSize + " " + fam;
+            return Math.max(...l.textContent.split(/\s+/).map((w2) => c.measureText(w2).width)); };
+          const widest = Math.max(measure(cs.fontFamily), measure('"DejaVu Sans", ' + cs.fontFamily));
           const box = b.getBoundingClientRect().width - parseFloat(bs.paddingLeft) - parseFloat(bs.paddingRight) -
             parseFloat(bs.borderLeftWidth) - parseFloat(bs.borderRightWidth);
           if (box - widest < best.px) best = { px: Math.round((box - widest) * 10) / 10, name: l.textContent };
