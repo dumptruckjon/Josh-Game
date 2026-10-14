@@ -2540,12 +2540,141 @@ test("THE FIRST TIME (§17): each new kind of thing is introduced once a visit, 
     // tour the place: stand by everything in turn
     const spots = st.objects.filter((o) => o.press || o.key || o.bounce || o.hits || o.power || o.box === "sprout").map((o) => [o.x, o.y]);
     spots.push([L.geomOf(def.id).ends[0].x, L.geomOf(def.id).ends[0].y], [L.geomOf(def.id).flows[0].spin.x, L.geomOf(def.id).flows[0].spin.y]);
+    // stand right by each (an introduction waits until the thing is ON a
+    // phone's screen — RULES.MEET_PX)
     for (const [x, y] of spots) {
-      park(st, x, y + 30);
-      for (const e of run(st, 0.4, { x, y: y + 30 })) if (e.type === "meet") seen[e.kind] = (seen[e.kind] || 0) + 1;
+      park(st, x, y + 10);
+      for (const e of run(st, 0.4, { x, y: y + 10 })) if (e.type === "meet") seen[e.kind] = (seen[e.kind] || 0) + 1;
     }
     for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin"]) assert.equal(seen[k], 1, "'" + k + "' is introduced exactly once (" + (seen[k] || 0) + ")");
   });
+});
+
+// The two SMALLEST screens the game is played on, as their play CANVAS
+// measures (568x320 on its side gives 536x200; 320x480 upright gives 288x264).
+// The camera shows viewSpan(short side) world units across the short side.
+const SMALL_CANVAS = [[536, 200], [288, 264]];
+// What each new kind of thing DOING looks like, from the events (the first time
+// it acts on him, its introduction must already have been said).
+function actsOf(e) {
+  if (e.type === "opener") return [e.how === "press" ? "button" : null, e.of > 1 ? "keys" : null];
+  if (e.type === "bump" && e.bounce) return ["bounce"];
+  if (e.type === "flow" && /turntable|record|whirl/.test(e.look || "")) return ["spin"];
+  return { hit: ["hits"], power: ["power"], sprout: ["sprout"], launch: ["launch"] }[e.type] || [];
+}
+
+test("INTRODUCTIONS (§18): in every place's play each new kind of thing is introduced ON the screen — on the two smallest screens — and never AFTER it has already acted on him", () => {
+  // (It was a 60-unit circle: 32 of 36 introductions in a bot's play pointed
+  // at something off a phone's screen. Then the on-screen box was too small
+  // for a seedling — it sprouts before it is in the box — so seedlings were
+  // never introduced; and a gate of three BUTTONS never said "find them all".)
+  const kinds = new Set(), late = [], off = [];
+  let said = 0;
+  for (const def of SCENES) {
+    const st = L.createGame(def);
+    const met = {}, first = {};
+    for (let i = 0; i < 60 * 240 && !st.won; i++) {
+      const tg = L.botTarget(st); if (tg) L.setTarget(st, tg.x, tg.y);
+      L.step(st, L.DT);
+      for (const e of st.events) {
+        if (e.type === "meet") {
+          met[e.kind] = i; kinds.add(e.kind);
+          if (e.kind === "count") continue;
+          said++;
+          for (const [w, h] of SMALL_CANVAS) {
+            const span = L.viewSpan(st, Math.min(w, h)), sh = Math.min(w, h);
+            const fx = Math.abs(e.x - st.hole.x) / (span * w / sh / 2), fy = Math.abs(e.y - st.hole.y) / (span * h / sh / 2);
+            // 0.9: the camera follows him with a short lag
+            if (fx > 0.9 || fy > 0.9) off.push(def.id + " " + e.kind + " on " + w + "x" + h + " (" + fx.toFixed(2) + ", " + fy.toFixed(2) + " of the half-view)");
+          }
+        }
+        for (const k of actsOf(e)) if (k && first[k] === undefined) first[k] = i;
+      }
+      st.events.length = 0;
+    }
+    for (const k in first) if (!(met[k] <= first[k])) late.push(def.id + " " + k + " acted at step " + first[k] + ", introduced " + (met[k] === undefined ? "never" : "at " + met[k]));
+  }
+  assert.deepEqual(off, [], "an introduction points at something off the screen");
+  assert.deepEqual(late, [], "an introduction came after the thing had already acted on him");
+  assert.ok(said >= 30, "the bot's play is introduced to at least 30 things across the places (saw " + said + ")");
+  for (const k of ["button", "keys", "bounce", "hits", "power", "sprout", "launch", "spin", "count"]) assert.ok(kinds.has(k), "'" + k + "' is introduced somewhere in a bot's play");
+});
+
+test("A CRACK is not a wall (§18): every hairline seam a search found pinning him now lets him across, at the size it pinned him", () => {
+  // Found by a fuzzer on the Giant Beanstalk, then by a brute-force search of
+  // every seam node in every place (head-on, from just before it): with the
+  // pre-fix engine these ten pinned him for good, with ground on both sides.
+  const PINS = [
+    ["snow", [276, 260], 0, [0, 1], 2.5], ["snow", [276, 260], 2, [0, 1], 2.75],
+    ["cave", [266, 314], 0, [0, 1], 1.75], ["circus", [310, 130], 0, [0, -1], 1.75],
+    ["cloud", [156, 280], 0, [0, -1], 1.75], ["cloud", [264, 280], 0, [0, -1], 1.75],
+    ["beanstalk", [206, 502], 0, [0, 1], 1.75], ["beanstalk", [206, 502], 1, [0, -1], 2.25],
+    ["beanstalk", [276, 538], 0, [1, 0], 1.75], ["beanstalk", [126, 566], 0, [1, 0], 1.75],
+  ];
+  for (const [id, [sx, sy], lv, [ux, uy], back] of PINS) {
+    const G = L.geomOf(id);
+    const where = id + " seam " + sx + "," + sy + " at size " + lv;
+    // the fixture is still a crack: above the walking line by a hairline, with
+    // ground just before it and well past it
+    const w = G.walk(sx, sy);
+    assert.ok(w > 0 && w <= RULES.CRACK_DEEP, where + ": still a crack (" + w.toFixed(2) + ")");
+    assert.ok(G.walk(sx - ux * back, sy - uy * back) <= 0 && G.walk(sx + ux * 3, sy + uy * 3) <= -0.5, where + ": ground on both sides");
+    const st = L.createGame(id);
+    st.hole.level = lv; st.hole.R = st.hole.r = st.levels.R[lv]; st.hole.xp = st.levels.C[lv];
+    park(st, sx - ux * back, sy - uy * back);
+    let across = -1e9;
+    for (let i = 0; i < 120; i++) {
+      L.setTarget(st, sx + ux * 40, sy + uy * 40); L.step(st, L.DT); st.events.length = 0;
+      across = Math.max(across, (st.hole.x - sx) * ux + (st.hole.y - sy) * uy);
+    }
+    assert.ok(across > 1.5, where + ": he gets across within 2s (got " + across.toFixed(2) + " past it)");
+  }
+  // and the thinnest real wall is never a crack: the field inside every block
+  // reaches past CRACK_DEEP (a 3.5-unit fence is +1.75 at its middle)
+  assert.ok(RULES.CRACK_DEEP < 1.75 / 2, "a crack is a hairline, far thinner than any wall");
+});
+
+test("A SAVE on a portal end (§18): resumed where he came out of a two-way portal, he is not bounced straight back through", () => {
+  let ends = 0;
+  for (const def of SCENES) {
+    const G = L.geomOf(def);
+    G.ends.forEach((E, e) => {
+      const O = G.ends[E.to];
+      if (!E.live || E.fly || !O || !O.live) return;
+      const st = L.createGame(def);
+      park(st, E.x, E.y + 0.5);
+      let warped = false;
+      for (let i = 0; i < 120 && !warped; i++) {
+        L.setTarget(st, E.x, E.y); L.step(st, L.DT);
+        warped = st.events.some((v) => v.type === "warp"); st.events.length = 0;
+      }
+      if (!warped) return;
+      ends++;
+      const back = L.restore(JSON.parse(JSON.stringify(L.snapshot(st))));
+      assert.ok(back, def.id + " end " + e + ": the save restores");
+      let again = false;
+      for (let i = 0; i < 30; i++) { L.step(back, L.DT); again = again || back.events.some((v) => v.type === "warp"); back.events.length = 0; }
+      assert.ok(!again, def.id + " end " + e + ": resumed on the end he came out of, he stays (it sleeps until he walks away)");
+    });
+  }
+  assert.ok(ends >= 20, "at least 20 two-way portal ends were driven (saw " + ends + ")");
+});
+
+test("NO TWO PLACES ARE THE SAME THINGS (§18): any two places share at most 60% of their pictures", () => {
+  // (Volcano Island was Jungle Trip's things again — 82% the same pictures —
+  // and Mountain Peak much of Snow Day's. The no-reskin law compares
+  // CHALLENGES and GROUND; this compares what there is to eat.)
+  const pics = (d) => new Set(d.tiers.flatMap((t) => t.items.map((r) => L.itemOf(r).e)));
+  const all = SCENES.map((d) => [d.id, pics(d)]);
+  let worst = [0];
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+    const [a, A] = all[i], [b, B] = all[j];
+    let n = 0; for (const x of A) if (B.has(x)) n++;
+    const J = n / (A.size + B.size - n);
+    if (J > worst[0]) worst = [J, a, b];
+    assert.ok(J <= 0.6, a + " and " + b + " share " + Math.round(J * 100) + "% of their pictures");
+  }
+  assert.ok(worst[0] > 0.2, "the comparison is not vacuous: some places DO share pictures (worst " + worst.join(" ") + ")");
 });
 
 test("A GIANT place (§17): a sixth size and a bigger finale — the tier law and the derived grows hold, and the bot gets there through six grows", () => {

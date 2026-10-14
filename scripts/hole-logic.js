@@ -1195,6 +1195,13 @@
     for (const o of R.solids) if (gdist(x, y, o.x, o.y) < coreOf(o)) return false;
     return true;
   }
+  // Shut only by a hairline of the ground's own field — never by a thing.
+  function crackAt(st, R, x, y) {
+    const w = R.G.walk(x, y);
+    if (!(w > 0 && w <= RULES.CRACK_DEEP)) return false;
+    for (const o of R.solids) if (gdist(x, y, o.x, o.y) < coreOf(o)) return false;
+    return true;
+  }
   // A straight glide from a to b that meets no wall, no water and no portal
   // (other than the one he is heading for, or the one he has just come out of).
   // Traced, not sampled: from each point it steps on by the room it has (the
@@ -1370,6 +1377,22 @@
     for (let i = 0; i < n; i++) {
       const nx = h.x + sx, ny = h.y + sy;
       if (freeAt(st, R, nx, ny)) { h.x = nx; h.y = ny; continue; }
+      // A CRACK (RULES.CRACK_DEEP): where two of the island's shapes meet the
+      // field can rise just over zero along a hairline with walkable ground
+      // either side. A step landing in it was refused, his speed restarted
+      // from nothing, the next step landed in it again, and he stood pressed
+      // against nothing for good (found on the Giant Beanstalk by a fuzzer;
+      // a sweep found the same seams in Snow Day, the Crystal Cave, the
+      // Circus and Cloud Land). So it hops the crack, on to standing ground.
+      if (crackAt(st, R, nx, ny)) {
+        const l = Math.hypot(sx, sy), ux = sx / l, uy = sy / l;
+        let hop = false;
+        for (const f of RULES.CRACK_HOP) {
+          const qx = nx + ux * f, qy = ny + uy * f;
+          if (freeAt(st, R, qx, qy)) { h.x = qx; h.y = qy; hop = true; break; }
+        }
+        if (hop) continue;
+      }
       let moved = false;
       if (sx && freeAt(st, R, nx, h.y)) { h.x = nx; moved = true; } else h.vx = 0;
       if (sy && freeAt(st, R, h.x, ny)) { h.y = ny; moved = true; } else h.vy = 0;
@@ -1652,6 +1675,9 @@
     if (!name || st.unlocked[name]) return;
     const all = rt(st).openers[name] || [o];
     const n = all.filter(openerDone).length;
+    // the first of several is where the gate says how many it wants, if the
+    // box has not said it yet (a button is pressed the moment he is on it)
+    if (all.length > 1) meetNow(st, "keys", o, all.length);
     if (all.length > 1 || o.press) emit(st, { type: "opener", key: name, id: o.id, how: o.press ? "press" : "key", n, of: all.length });
     if (n >= all.length) unlock(st, name);
   }
@@ -1786,7 +1812,10 @@
         continue;
       }
       // A SEEDLING (§17): roll near it and its flowers pop up
-      if (o.box === "sprout" && !o.shook && dist < h.r + o.r + RULES.SPROUT_R) reveal(st, o, "sprout");
+      // (it can sprout before it is ever in the on-screen box an introduction
+      // waits for — RULES.SPROUT_R reaches further than that box on a phone
+      // side-on — so the first one is introduced as it sprouts, never missed)
+      if (o.box === "sprout" && !o.shook && dist < h.r + o.r + RULES.SPROUT_R) { meetNow(st, "sprout", o); reveal(st, o, "sprout"); }
       if (fits && dist <= h.r - o.r * 0.35) { startFall(st, o); continue; }
       if (o.casc && st.t >= o.casc) {
         // a domino in a toppling line: it rolls all the way in by itself,
@@ -1925,9 +1954,11 @@
     const objs = (fn) => st.objects.filter(fn).map((o) => ({ o }));
     const add = (kind, at, n) => { if (at.length) out.push({ kind, at, n: n || 0 }); };
     add("button", objs((o) => !!o.press));
-    for (const [name, all] of Object.entries(R.openers)) {
-      const keys = all.filter((o) => o.key);
-      if (all.length > 1 && keys.length) { add("keys", keys.map((o) => ({ o })), all.length); void name; break; }
+    // a gate that wants SEVERAL things says how many, at whichever of them he
+    // is near first — keys or buttons (the Temple's door wants three buttons
+    // and no key, and never said it)
+    for (const all of Object.values(R.openers)) {
+      if (all.length > 1) { add("keys", all.map((o) => ({ o })), all.length); break; }
     }
     add("bounce", objs((o) => !!o.bounce));
     add("hits", objs((o) => !!o.hits));
@@ -1938,9 +1969,18 @@
     if (R.def.count) out.push({ kind: "count", wide: true, n: R.counts });
     return out;
   }
+  // How far round Gobble a thing is on EVERY screen (world units, each way):
+  // MEET_IN of the smallest view, at his size (see RULES.MEET_PX).
+  function meetBox(st) { return (RULES.MEET_IN * viewSpan(st, RULES.MEET_PX)) / 2; }
+  // Introduce a kind NOW (a thing that acts on him before the box sees it).
+  function meetNow(st, kind, o, n) {
+    if (st.met[kind]) return;
+    st.met[kind] = true;
+    emit(st, { type: "meet", kind, id: o.id, x: round3(o.x), y: round3(o.y), n: n || 0 });
+  }
   function meetTick(st, R) {
     if (!R.meet) R.meet = meetsOf(st, R);
-    const h = st.hole, reach = RULES.MEET_R * zoomScale(st);
+    const h = st.hole, box = meetBox(st);
     for (const m of R.meet) {
       if (st.met[m.kind]) continue;
       let hit = null;
@@ -1948,8 +1988,14 @@
       else {
         for (const q of m.at) {
           if (q.o && (q.o.st !== IDLE || q.o.pressed || q.o.shook)) continue;
-          const x = q.o ? q.o.x : q.x, y = q.o ? q.o.y : q.y;
-          if (gdist(x, y, h.x, h.y) < reach + (q.r || 0)) { hit = { id: q.o ? q.o.id : -1, x, y }; break; }
+          let x = q.o ? q.o.x : q.x, y = q.o ? q.o.y : q.y;
+          // a turntable is a disc: the ring and the hand go to the part of it
+          // nearest him (its centre can be off the screen while he stands on it)
+          if (q.r) {
+            const d = gdist(h.x, h.y, x, y), t = d > q.r ? (q.r * 0.9) / d : 1;
+            x += (h.x - x) * t; y += (h.y - y) * t;
+          }
+          if (Math.abs(x - h.x) < box && Math.abs(y - h.y) < box) { hit = { id: q.o ? q.o.id : -1, x, y }; break; }
         }
       }
       if (!hit) continue;
@@ -2059,6 +2105,15 @@
     refreshSolids(st, R);
     if (Number.isFinite(snap.x) && Number.isFinite(snap.y) && freeAt(st, R, clamp(snap.x, 0, st.W), clamp(snap.y, 0, st.H))) {
       h.x = h.tx = clamp(snap.x, 0, st.W); h.y = h.ty = clamp(snap.y, 0, st.H);
+    }
+    // Saved standing ON a portal end: stepping onto one sends him through at
+    // once, so this is the end he has just come out of, and it sleeps until
+    // he walks away — as it did before he left. Not saved, it woke at once
+    // and a resumed run bounced him straight back through (every two-way
+    // portal end in Outer Space, the Circus, the Hotel and Train Town).
+    for (let i = 0; i < R.G.ends.length; i++) {
+      const e = R.G.ends[i];
+      if (e.live && gdist(h.x, h.y, e.x, e.y) <= RULES.PORTAL_R) { st.warpLock = i; break; }
     }
     return st;
   }

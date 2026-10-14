@@ -115,10 +115,25 @@
     // SPROUTS: rolling within this of a seedling (past both rims) pops up
     // what grows from it.
     SPROUT_R: 10,
-    // THE FIRST TIME something new is near (within MEET_R, scaled with the
-    // zoom) it is introduced; a place-wide thing (counting) after MEET_T
+    // THE FIRST TIME something new is near it is introduced: a voice, a ring
+    // and a hand pointing at it, so it must be ON THE SCREEN. "Near" is a box
+    // round Gobble MEET_IN of the view of the SMALLEST screen the game is
+    // played on (MEET_PX: the canvas's short side on a phone on its side,
+    // 568x320, measured), both ways, at his size: inside it on every screen.
+    // (It was a 60-unit circle, and 32 of 36 introductions in a bot's play
+    // fired for something off a phone's screen: "a button!" and a hand
+    // pointing at nothing.) A place-wide thing (counting) after MEET_T
     // seconds, once the opening look is done.
-    MEET_R: 60,
+    // A CRACK is not a wall: where two of an island's shapes meet, the field
+    // read between its sample points can rise just over zero along a hairline
+    // while the ground either side is walkable. A step that lands in one
+    // (above zero by no more than CRACK_DEEP) hops on by up to CRACK_HOP to
+    // ground he can stand on. The thinnest real wall is a 3.5-unit fence
+    // (+1.75 inside), so no wall is ever a crack.
+    CRACK_DEEP: 0.4,
+    CRACK_HOP: [0.25, 0.5],
+    MEET_PX: 200,
+    MEET_IN: 0.8,
     MEET_T: 2.4,
   };
 
@@ -607,7 +622,7 @@
         lagoon: [[0.12, 0.72, 0.38, 0.88]],
         flowers: [[0.36, 0.52, 0.64, 0.66]],
       },
-      trails: [{ e: "🍌", to: [0.27, 0.74] }, { e: "🍌", to: [0.73, 0.74] }],
+      trails: [{ e: "🌶️", to: [0.27, 0.74] }, { e: "🌶️", to: [0.73, 0.74] }],
       decals: [
         { k: "patch", x: 0.5, y: 0.17, r: 0.1, c: "#6b5446" },
         { k: "shade", x: 0.2, y: 0.3, r: 0.13 },
@@ -618,10 +633,10 @@
         { k: "flowers", x: 0.5, y: 0.59, r: 0.1 },
       ],
       tiers: [
-        { r: T1, items: [["🍌", 56], ["🥭", 16, null, 2], ["🫐", 18, null, 3], ["🌺", 24, "flowers", 4], ["🍄", 20, "wedge", 4], ["💎", 10, "crater"]] },
-        { r: T2, items: [["🥥", 16, null, 2], ["🍍", 14], ["🥝", 12, null, 2], ["🌿", 16, "wedge", 4], ["🪨", 14, null, 2], ["🏺", 12, "village"], ["🔦", 10]] },
-        { r: T3, items: [["🛶", 10, "lagoon"], ["🪵", 12, null, 2], ["🥁", 10, "village"], ["🎋", 12], ["⛺", 10], ["🗺️", 10]] },
-        { r: T4, items: [["🗿", 2, { at: { pts: [[0.215, 0.5], [0.785, 0.5]] }, solid: true }], ["🌴", 16, "wedge"], ["🛖", 10, "village"], ["🗿", 6], ["⛵", 6, "lagoon"]] },
+        { r: T1, items: [["🌶️", 56], ["🍓", 16, null, 2], ["🪙", 18, null, 3], ["🌺", 24, "flowers", 4], ["🥜", 20, "wedge", 4], ["💎", 10, "crater"]] },
+        { r: T2, items: [["🥾", 16, null, 2], ["🍍", 14], ["🥝", 12, null, 2], ["⛏️", 16, "wedge", 4], ["🪨", 14, null, 2], ["🧯", 12, "village"], ["🪣", 10]] },
+        { r: T3, items: [["🛶", 10, "lagoon"], ["🪵", 12, null, 2], ["🧰", 10, "village"], ["🔭", 12], ["⛺", 10], ["📷", 10]] },
+        { r: T4, items: [["🗿", 2, { at: { pts: [[0.215, 0.5], [0.785, 0.5]] }, solid: true }], ["🌴", 16, "wedge"], ["🚁", 10, "village"], ["🗿", 6], ["⛵", 6, "lagoon"]] },
         { r: T5, items: [["🌳", 6], ["🗻", 6], ["⛰️", 6]] },
       ],
       finale: { e: "🌋", r: 20, at: [0.5, 0.17], say: "the volcano" },
@@ -1633,7 +1648,9 @@
       // A tall SKI MOUNTAIN, wide at the foot and narrow at the peak, and THE
       // TWIST: two ski SLOPES whoosh Gobble back down the mountain, a frozen
       // pond is slippery, and cable cars ride their wire up and down the side.
-      // The snowman waits at the very top.
+      // An alpine resort of its own (cheese and pretzels, goggles and ski
+      // passes, slalom flags, the lodge, the rescue helicopter), with the snowy
+      // peak itself at the very top — Snow Day keeps the snowman.
       id: "mountain", name: "Ski Mountain", door: "🏔️", color: "#2fa3d9",
       ground: "snow", hole: "gobble",
       wear: ["bobble", "#2fa3d9", "#ffffff"], air: ["snow"],
@@ -1667,13 +1684,13 @@
         { k: "tracks", c: "rgba(110,140,190,0.45)", pts: [[0.5, 0.94], [0.44, 0.8], [0.42, 0.5], [0.48, 0.3]] },
       ],
       tiers: [
-        { r: T1, items: [["❄️", 50], ["🍪", 21, null, 3], ["☕", 16, null, 2], ["🧦", 16, null, 2], ["🔔", 14], ["🧊", 20, "pond", 4], ["🍫", 18], ["🥕", 12]] },
-        { r: T2, items: [["🧤", 16, null, 2], ["🧣", 14], ["⛸️", 12, "pond"], ["🥌", 10, "pond"], ["🎒", 12], ["🥾", 12, null, 2], ["🧢", 10]] },
-        { r: T3, items: [["🛷", 12], ["🎿", 12], ["🎄", 12, "forest"], ["🪵", 10, null, 2], ["🔦", 8], ["🏒", 8, "pond"]] },
-        { r: T4, items: [["🚡", 3, { ride: "cable" }], ["🌲", 14, "forest"], ["🛖", 7, "lodge"], ["🚙", 6], ["⛺", 6]] },
-        { r: T5, items: [["🏠", 6, "lodge"], ["🏡", 4], ["🏨", 3], ["🚌", 3], ["🚠", 3]] },
+        { r: T1, items: [["❄️", 50], ["🧀", 21, null, 3], ["🥨", 16, null, 2], ["🎫", 16, null, 2], ["🍎", 14], ["🧊", 20, "pond", 4], ["🍫", 18], ["🥕", 12]] },
+        { r: T2, items: [["🥽", 16, null, 2], ["🕶️", 14], ["⛸️", 12, "pond"], ["🥌", 10, "pond"], ["🗺️", 12], ["🥾", 12, null, 2], ["🧢", 10]] },
+        { r: T3, items: [["🚩", 12], ["🎿", 12], ["🎄", 12, "forest"], ["🪵", 10, null, 2], ["🪑", 8], ["🛷", 8, "pond"]] },
+        { r: T4, items: [["🚡", 3, { ride: "cable" }], ["🌲", 14, "forest"], ["🚁", 7, "lodge"], ["🚙", 6], ["⛺", 6]] },
+        { r: T5, items: [["🏨", 6, "lodge"], ["🛖", 4], ["🏰", 3], ["🚌", 3], ["🚠", 3]] },
       ],
-      finale: { e: "☃️", r: 20, at: [0.5, 0.09], say: "the snowman on the top" },
+      finale: { e: "🏔️", r: 20, at: [0.5, 0.09], say: "the snowy mountain top" },
     },
     {
       // A HOLIDAY HOTEL, and THE TWIST: a wall runs right across the middle,
@@ -2080,7 +2097,7 @@
       tiers: [
         { r: T1, items: [["🪙", 48], ["⭐", 20, null, 2], ["🍬", 18], ["🍭", 14], ["🎟️", 16, null, 2], ["🔔", 12], ["🧩", 14, null, 2]] },
         { r: T2, items: [["🎲", 12, null, 2], ["🍿", 12], ["🎈", 12], ["🪀", 10, "lane"], ["🎮", 10], ["🎳", 10], ["🧸", 10], ["🥤", 8]] },
-        { r: T3, items: [["🔵", 8, { bounce: true, zone: "bumpers" }], ["🎯", 8], ["🎰", 6, "lanes"], ["🥁", 6], ["🎸", 6], ["🛴", 8], ["🪁", 8]] },
+        { r: T3, items: [["🔵", 8, { bounce: true, zone: "bumpers" }], ["🎯", 8], ["🏆", 6, "lanes"], ["🥁", 6], ["🎸", 6], ["🛴", 8], ["🪁", 8]] },
         { r: T4, items: [["🟡", 4, { bounce: true, zone: "bumpers" }], ["🚀", 6], ["🤖", 6], ["🎪", 4], ["🚗", 6, "lanes"], ["🛸", 4]] },
         { r: T5, items: [["🎡", 3], ["🎢", 3], ["🏟️", 3], ["🚌", 4], ["🚂", 4]] },
       ],
@@ -2370,7 +2387,7 @@
       bounce: "A bouncy one! Boing!",
       hits: "Bump it! Bump it again!",
       power: "Ooh, a power-up! Eat it!",
-      sprout: "A little seed! Go near it!",
+      sprout: "A little seed! Things grow when you come near!",
       launch: "A cannon! Roll in!",
       spin: "A spinning floor! Wheee!",
       count: "Let's count the {what}!",
@@ -2398,8 +2415,8 @@
     cold: ["🍦", "🍨", "🧊", "❄️", "🥤"],
     honk: ["🚗", "🚕", "🚙", "🚌", "🚐", "🛻", "🚛", "🚚", "🚜", "🛵", "🏍️", "🛺"],
     siren: ["🚓", "🚒", "🚑"],
-    choo: ["🚃", "🚂", "🚟", "🚡", "🚠"],
-    horn: ["🚤", "⛵", "🛶", "🛥️", "⛴️"],
+    choo: ["🚃", "🚂", "🚟"],
+    horn: ["🚤", "⛵", "🛥️", "⛴️"],
     zoom: ["🛩️", "🛫", "🛬", "🚁", "🚀", "🛸", "🛰️", "☄️"],
     boing: ["⚽", "🏀", "🎾", "⚾", "🏐", "🏈", "🥏", "🏓", "🏸", "🪀", "🎳"],
     ding: ["🔔", "🎐", "🚲"],

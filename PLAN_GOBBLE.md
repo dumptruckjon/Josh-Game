@@ -1154,8 +1154,8 @@ before: on every device, a twelve-place-wide promise the game then broke.
 
 ### 17.6 Measured
 
-- 48 places; every bot win 20s or more, mean ~36s (the law: ≥ 20s each,
-  ≥ 30s on average). Every progress margin at least 2.0 at every grow.
+- 48 places; every bot win 20s or more (21.9s Candy Land to 48.3s the
+  Temple), mean 34.7s (the law: ≥ 20s each, ≥ 30s on average). Every progress margin at least 2.0 at every grow.
 - No two places share a set of challenges, and no pair shares both its ground
   and nearly its challenge.
 - 4 lands x 12 places, all on one tablet screen either way up, three across
@@ -1228,3 +1228,62 @@ thing drawn where he can see it; floor marks seeded by the place; a dropped
 run shows no ring. `tests/mobile.test.js`: every land door on the first
 screen at every phone and tablet size, notch included, and every land page an
 even grid of kid-sized doors.
+
+## 18. Quality check after phase 5 (owner, 2026-10-14)
+
+The owner asked whether Gobble Hole, old and new, was done, tested and high
+quality. All 48 places were played, drawn and measured. Four things were wrong.
+
+### 18.1 What was wrong, and is fixed
+
+1. **Introductions pointed at things off the screen.** A new kind of thing was
+   introduced inside a 60-unit circle, and a phone shows about 34-45 units
+   across, so 32 of 36 introductions in a bot's play pointed at something the
+   child could not see. A thing is now introduced only once it is inside 0.8 of
+   the view of the SMALLEST screen (`RULES.MEET_PX` 200: the canvas's short
+   side on a 568x320 phone, measured). Two things act before that box can see
+   them, so they are introduced AS they act: a seedling (it sprouts at
+   `SPROUT_R`, further out than the box) and a gate's first opener (a button
+   is pressed the moment he is on it). A gate of buttons only (the Temple's
+   door wants three) now says how many it wants too; before, only a gate with
+   a key said it.
+2. **A hairline crack could pin him for good.** Where two pieces of ground
+   meet, the walking field can rise a tiny bit above the walking line. Head-on,
+   he stopped there with ground on both sides and never moved (the Giant
+   Beanstalk, found by a fuzzer; a search of every seam in every place found
+   ten such spots in five places). He now hops a crack — above the line by no
+   more than `RULES.CRACK_DEEP` (0.4) — onto standing ground. The thinnest real
+   wall is a 3.5-unit fence, +1.75 at its middle, so no wall is ever a crack.
+3. **A save made on a portal end bounced him straight back.** The end he comes
+   out of sleeps until he walks away, but that was not saved, so a resumed run
+   warped him back through (all 24 two-way ends: Outer Space, the Circus, the
+   Hotel, Train Town). Restoring a save on an end now puts it to sleep.
+4. **Content.** Volcano Island was mostly Jungle Trip's things (82% the same
+   pictures); it is a volcanic island of its own now (chillies, lava rocks,
+   climbing gear, a crater's gems). Mountain Peak shared much of Snow Day, and
+   both ended on a snowman; it is an alpine resort now, topped by the snowy
+   peak itself. The Pinball's slot machine is a trophy. Cable cars no longer
+   say "choo-choo" and a canoe no longer honks.
+
+### 18.2 Measured, not changed
+
+- Two treasures sit partly behind bigger things (the Circus's balloon, about
+  15% visible; Outer Space's star, about 34%). They still glitter, and a
+  treasure is a thing to FIND.
+- The Pinball's cannon is never introduced in a bot's play, because the bot
+  never goes near it. That is right: an introduction is for something on the
+  screen.
+
+### 18.3 Tests
+
+`tests/hole-logic.test.js`, each proven by breaking the game on purpose:
+- every introduction in every place's play is on the two smallest screens
+  (536x200 and 288x264, measured) and never after the thing has already acted
+  on him; every kind is introduced somewhere (four mutations, each red on
+  its own clause);
+- the ten crack spots a search found now let him across, at the size they
+  pinned him;
+- resumed on any two-way portal end, he is not bounced back;
+- no two places share more than 60% of their pictures (the worst is now 47%,
+  the Beach and the Islands).
+
