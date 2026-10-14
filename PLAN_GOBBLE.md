@@ -1287,3 +1287,102 @@ quality. All 48 places were played, drawn and measured. Four things were wrong.
 - no two places share more than 60% of their pictures (the worst is now 47%,
   the Beach and the Islands).
 
+
+## 19. Hero Night — six web-hero and Halloween places (owner, 2026-10-14)
+
+The owner: "Ok. Now he wanted some new levels. Let's aim for 6 more. All
+should be as close to Spiderman theme as you can go without copyright issues
+and also can do Halloween levels."
+
+**Status: BUILT.** Six places in a FIFTH land, 🕸️ **Hero Night**: fifty-four
+places in all. No character, name, logo or costume design from anyone's show
+is used: what makes them a web hero's is the things a web hero has — a mask,
+webs, swinging between rooftops, a city at night, a villain's lab — and the
+other three are Halloween.
+
+### 19.1 The places (each its own shape, plan and challenge)
+
+| Place | Door | What makes it different |
+|---|---|---|
+| Web City | 🏙️ | No ground but ROOFTOPS (seven, the streets far below). Web bridges cross the narrow gaps, and WEB SWINGS (a cannon's flight, on a web) swing him over the wide ones up to the top roof; a helicopter circles the helipad. Finale: the giant statue 🗽. |
+| Giant Web | 🎈 | Above the garden, the ground IS a web: three rings of silk joined by a few spokes, so the way to the middle winds round and round. Bundles of web pop open; the trees it is tied to shake things down. Finale: the giant kite 🪁. |
+| Robot Lab | 🧪 | A villain's lab: TELEPORTERS beam him into the two walled-off side labs, conveyor belts carry him across the hall, ⚡ bolts make him zoom, and the vault opens only once the big button in the far lab is pressed. Finale: the giant robot arm 🦾. |
+| Trick or Treat | 🍬 | A street winding up the hill between three rows of picket fences; every front DOOR is a knock-knock (bump it while it is too big and out tumble the treats), and he COUNTS the jack-o'-lanterns on the way. Finale: the giant chocolate bar 🍫. |
+| Pumpkin Patch | 🎃 | A patch shaped like a pumpkin; a corn maze fills the top (rows with one gap each, so the way up zigzags); seeds sprout pumpkins as he passes, apples roll away, and a tractor gives a hayride. Finale: the giant pumpkin pie 🥧. |
+| Haunted House | 🏚️ | DARK (only the ground round him lit, candles and jack-o'-lanterns glowing), SECRET PASSAGES behind the bookcases lead into the rooms the doors do not reach, and the clock room wants all three old keys. Friendly ghosts drift through. Finale: the big old clock 🕰️. |
+
+Every place passes every law the other forty-eight do: the tier law, the
+progress margin (at least 2x the next grow reachable at every size), the
+greedy bot wins in 27.8-54.1s, no reskin, no two places sharing more than 60%
+of their pictures, every introduction on the smallest screens and never late.
+
+### 19.2 What was new
+
+- **The MASK** (`WEAR.mask`, a new `face` slot): a band across his face with
+  webbing spreading out from each eye, drawn BEHIND the eyes (`behind: true`)
+  so his googly eyes are its eye-holes. A hat gives way to the crown; a mask
+  stays on beside it, like a thing at his side. Three colourings: red with
+  dark webbing, white with pink, black with red.
+- **The WEB SWING**: a fly portal with `look: "web"`. The engine is the
+  cannon's (same flight, same save), but it is drawn as a web pad with a line
+  hanging from where it is tied and a silk arc to a smaller web where he lands;
+  while he flies a web line holds him from high above the middle of the swing.
+  It THWIPS (not the cannon's boom), says "Thwip! Swing!", and is introduced as
+  "A web swing! Roll onto the web!" — a new meet kind, `swing`, because "a
+  cannon!" pointing at a web would be a lie. The flight records its `look`.
+- **Friendly GHOSTS** (`AIR.ghosts`): round eyes and an "oo" mouth, never a
+  scary face, with a soft glow. The law that a dark place's weather must be
+  FIREFLIES became the law it always meant: a dark place's weather must GLOW
+  (`glows: true`, which only a kind that draws a halo may claim — and not
+  every kind, or the law could not fail).
+- Six floors (rooftop, silk, lab tiles, an autumn lawn, a pumpkin patch's
+  furrows, old floorboards), two backdrops (the city's lit streets far below
+  the rooftops; a big friendly moon), five block looks (vents, machines,
+  picket fences, corn, wood panels), a web bridge of crossing threads (the city
+  shows through), two portal looks (a teleporter pad, a bookcase standing a
+  little open), and five ground features (a web on the ground, hazard stripes,
+  a leaf pile, a cobweb, and a patch of lawn — the Giant Web's garden is lawn,
+  though the place's ground is silk).
+
+### 19.3 The home: five lands, three over two
+
+Five lands cannot be two by two. The land doors are TWO rows on every screen
+(the home's whole budget: every land door on the first screen of a phone, with
+its notch): the first row holds the extra one, and every row spans the whole
+width, so the grid has as many columns as both rows divide (six for three over
+two) and each door spans its share — derived from `LANDS.length`, never
+written as 3 and 2. Measured with the real insets, the last row still clears
+the home indicator by 16px on a 320x568 phone (it was 30) and by 70-250px
+elsewhere. Hero Night's door is a hero's red-to-blue, and a picture on a DARK
+door gets a pale glow round its ink (the web is thin grey lines; grey on a
+night sky is a picture nobody sees). A land of six is three across on an iPad
+too: four across would leave a ragged row of two.
+
+### 19.4 Found on the way
+
+- **The path planner walked him into a thin fence for good.** `onPath` took
+  any NEIGHBOUR of his cell that lay on the old path, including the cell on the
+  far side of a 4-unit picket fence, so pressed against it with the path
+  running along its far side he headed through it and stood still (the bot,
+  at Trick or Treat). A neighbour counts now only if he can STEP to it (the
+  grid's own edge bits). A test reproduces it, and reverting the fix stops him
+  dead (moved 0.0 units in 3s).
+- Two laws were narrower than their reasons: "every land holds the same number
+  of places" (a land of six fills its page as evenly as a land of twelve; the
+  law is that no row is ragged), and "the lands fill their grid evenly" (five
+  lands three over two have no single column count; the law is again that
+  every row spans the grid). The home's narrower doors also gained the
+  label-room check the land pages already had.
+
+### 19.5 Tests
+
+`tests/hole-logic.test.js`: fifty-four places; Hero Night's six places in
+their land, each in the mask; the mask drawn before the eyes (read from the
+drawing's own order) and kept with the crown; a web swing flown for real (the
+flight knows it is a web, the launch event says so, it is introduced as a
+swing and never as a cannon); a dark place's weather glows; the fence fixture.
+`tests/hole.test.js`: the swing's word and its THWIP through the real
+dispatcher (unlike the cannon's boom); the mask on from the start and still on
+when crowned; a web line drawn on every frame of a real swing. `mobile.test.js`
+and `hole.test.js`: no row of doors is ragged, at every size. Every new clause
+was broken on purpose and went red.

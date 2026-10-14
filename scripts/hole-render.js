@@ -400,6 +400,47 @@
         }
       },
     },
+    mask: {
+      // a web hero's mask (§19): a band across his face with his googly eyes
+      // as its eye-holes, so it is drawn BEHIND them (`behind`), and webbing
+      // spreading out from each eye. It is on his face, not his head: it stays
+      // on beside the crown, like a thing at his side.
+      slot: "face", behind: true, up: (e) => e * 1.75,
+      draw(c, x, y, e, sp, col, col2) {
+        const hw = sp + e * 2.1, top = y - e * 1.75, bot = y + e * 1.6, mid = y - e * 0.2;
+        const outline = () => {
+          c.beginPath();
+          c.moveTo(x - hw, mid);
+          c.quadraticCurveTo(x - hw * 0.86, top, x - sp * 0.45, top + e * 0.12);
+          c.quadraticCurveTo(x, top + e * 0.6, x + sp * 0.45, top + e * 0.12);
+          c.quadraticCurveTo(x + hw * 0.86, top, x + hw, mid);
+          c.quadraticCurveTo(x + hw * 0.9, bot, x + sp * 0.4, bot - e * 0.1);
+          c.quadraticCurveTo(x, bot - e * 0.75, x - sp * 0.4, bot - e * 0.1);
+          c.quadraticCurveTo(x - hw * 0.9, bot, x - hw, mid);
+          c.closePath();
+        };
+        outline(); c.fillStyle = col; c.fill();
+        if (col2) {
+          // the webbing: spokes out from each eye and rings round it, kept
+          // inside the mask
+          c.save(); outline(); c.clip();
+          c.strokeStyle = col2; c.lineWidth = Math.max(1, e * 0.08); c.lineCap = "round";
+          for (const s of [-1, 1]) {
+            const ex = x + s * sp;
+            c.beginPath();
+            for (let k = 0; k < 8; k++) {
+              const a = (k / 8) * Math.PI * 2 + 0.2;
+              c.moveTo(ex + Math.cos(a) * e * 0.9, y + Math.sin(a) * e * 0.9);
+              c.lineTo(ex + Math.cos(a) * e * 3, y + Math.sin(a) * e * 3);
+            }
+            c.stroke();
+            for (const rr of [1.4, 1.95]) { c.beginPath(); c.ellipse(ex, y, e * rr, e * rr * 1.05, 0, 0, Math.PI * 2); c.stroke(); }
+          }
+          c.restore();
+        }
+        outline(); c.lineWidth = wl(e); c.strokeStyle = OUTLINE; c.stroke();
+      },
+    },
     balloon: {
       slot: "side", up: (e) => e * 2.25 + e * 1.2 + e * 0.12 + e * 0.12,
       draw(c, x, y, e, sp, col, col2, now) {
@@ -617,13 +658,39 @@
         c.globalAlpha = k; c.fillStyle = col;
         starPath(c, x, y, s * (0.7 + 0.5 * k), s * 0.3, 4); c.fill();
       } },
-    fireflies: { n: 3, size: 3.6, vx: 0, vy: -3, sway: 26, col: "#eaff8f",
+    // `glows`: it shows in a DARK place (it is drawn after the dark, and it
+    // shines) — a dark place's air must glow, or its weather is invisible
+    fireflies: { n: 3, size: 3.6, vx: 0, vy: -3, sway: 26, col: "#eaff8f", glows: true,
       // drawn AFTER the dark, so they glow in it
       draw(c, x, y, s, ph, t, col) {
         const k = pulse(t, ph, 2.2);
         if (k < 0.15) return;
         c.globalAlpha = 0.3 * k; c.fillStyle = col; c.beginPath(); c.arc(x, y, s * 3.2, 0, TAU); c.fill();
         c.globalAlpha = k; c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill();
+      } },
+    ghosts: { n: 1.2, size: 11, vx: 5, vy: -7, sway: 24, col: "#f4f1ff", glows: true,
+      // a FRIENDLY little ghost (§19), drifting up through the haunted house
+      // with a soft glow round it: round eyes and an "oo" mouth, never a
+      // scary face (a four-year-old plays this)
+      draw(c, x, y, s, ph, t, col) {
+        const k = 0.75 + 0.25 * pulse(t, ph, 1.3);
+        c.globalAlpha = 0.22 * k; c.fillStyle = "#cfc4ff"; c.beginPath(); c.arc(x, y, s * 1.9, 0, TAU); c.fill();
+        c.globalAlpha = 0.92 * k;
+        const w = (s * 2) / 3, hem = y + s * 0.85;
+        c.beginPath();
+        c.arc(x, y - s * 0.1, s, Math.PI, 0);
+        c.lineTo(x + s, hem);
+        for (let i = 0; i < 3; i++) {
+          const x1 = x + s - (i + 1) * w;
+          c.quadraticCurveTo(x1 + w * 0.5, hem + (i % 2 ? -s * 0.2 : s * 0.45), x1, hem);
+        }
+        c.closePath();
+        c.fillStyle = col; c.fill();
+        c.strokeStyle = "rgba(29,18,51,0.45)"; c.lineWidth = 1.2; c.stroke();
+        c.fillStyle = OUTLINE;
+        c.beginPath(); c.ellipse(x - s * 0.35, y - s * 0.15, s * 0.15, s * 0.2, 0, 0, TAU); c.fill();
+        c.beginPath(); c.ellipse(x + s * 0.35, y - s * 0.15, s * 0.15, s * 0.2, 0, 0, TAU); c.fill();
+        c.beginPath(); c.ellipse(x, y + s * 0.28, s * 0.12, s * 0.16, 0, 0, TAU); c.fill();
       } },
     bubbles: { n: 3, size: 8, vx: 0, vy: -20, sway: 12, col: "#ffffff",
       draw(c, x, y, s, ph, t, col) {
@@ -1243,6 +1310,102 @@
         if (d >= LOD.small) dots(c, T, Rk("holes"), 12, 0.25, 0.32, () => "rgba(150,96,46,0.6)");
       },
     },
+    // ---- §19, Hero Night ----
+    roof: {
+      // a flat rooftop at night: tar paper in squares, and gravel on it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#6a7086"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(40,44,62,0.45)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let k = 0; k < T; k += 16) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        blobs(c, T, Rk("stains"), 8, ["rgba(90,96,120,0.35)", "rgba(140,146,168,0.30)"], 2, 5);
+        if (d >= LOD.small) dots(c, T, Rk("gravel"), 30, 0.2, 0.4, (i) => ["rgba(190,196,214,0.7)", "rgba(52,56,74,0.6)"][i % 2]);
+      },
+    },
+    silk: {
+      // a giant web at night: silver silk, its threads criss-crossing, and dew
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#8f88c4"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("sheen"), 8, ["rgba(190,184,236,0.35)", "rgba(110,102,168,0.30)"], 3, 7);
+        c.strokeStyle = "rgba(240,240,255,0.42)"; c.lineWidth = 0.3;
+        c.beginPath();
+        for (let k = -T; k < T; k += 11) { c.moveTo(k, 0); c.lineTo(k + T, T); c.moveTo(k + T, 0); c.lineTo(k, T); }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("dew"), 12, 0.25, 0.45, () => "rgba(255,255,255,0.8)");
+      },
+    },
+    lab: {
+      // a lab's floor: pale tiles in a grid, with a rivet at each corner
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#dfeae6"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(104,150,140,0.45)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (let k = 0; k < T; k += 8) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        if (d < LOD.small) return;
+        c.fillStyle = "rgba(90,120,116,0.55)";
+        c.beginPath();
+        for (let y = 0; y < T; y += 8) for (let x = 0; x < T; x += 8) { c.moveTo(x + 0.45, y); c.arc(x, y, 0.45, 0, Math.PI * 2); }
+        c.fill();
+      },
+    },
+    autumn: {
+      // a front lawn on Halloween night: dark grass, leaves fallen on it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#5e7d3c"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("blobs"), 12, ["rgba(110,148,70,0.40)", "rgba(52,80,34,0.35)"], 2, 6);
+        if (d >= LOD.small) tufts(c, T, Rk("tufts"), 22, "rgba(40,70,30,0.55)", 0.9);
+        if (d >= LOD.small) dots(c, T, Rk("leaves"), 14, 0.45, 0.75, (i) => ["#f07a26", "#e8b43a", "#c4482c"][i % 3]);
+      },
+    },
+    patch: {
+      // a pumpkin patch: dark earth in furrows, straw strewn over it
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#8f6236"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(92,58,30,0.5)"; c.lineWidth = 0.5;
+        c.beginPath();
+        for (let k = 2; k < T; k += 6) { c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        if (d < LOD.small) return;
+        const R = Rk("straw");
+        c.strokeStyle = "rgba(240,206,110,0.75)"; c.lineWidth = 0.28; c.lineCap = "round";
+        c.beginPath();
+        for (let i = 0; i < 26; i++) {
+          const x = R() * T, y = R() * T, a = R() * Math.PI, l = 0.8 + R() * 1.2;
+          c.moveTo(x - Math.cos(a) * l, y - Math.sin(a) * l); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+        }
+        c.stroke();
+      },
+    },
+    oldwood: {
+      // a haunted house's old floorboards: dark, worn, with nails and cracks
+      base(c, x0, y0, x1, y1) {
+        const C = ["#6e5040", "#634738", "#765746"];
+        for (let r = Math.floor(y0 / 9); r * 9 < y1; r++) {
+          c.fillStyle = C[(((r % 3) + 3) % 3)];
+          c.fillRect(x0, r * 9, x1 - x0, 9);
+        }
+      },
+      marks(c, T, Rk, d) {
+        const R = Rk("boards");
+        c.strokeStyle = "rgba(40,26,20,0.55)"; c.lineWidth = 0.45;
+        c.beginPath();
+        for (let i = 0; i < T / 9; i++) {
+          const y = i * 9, p = 4 + R() * (T - 8);
+          c.moveTo(0, y); c.lineTo(T, y);
+          c.moveTo(p, y); c.lineTo(p, y + 9);
+        }
+        c.stroke();
+        if (d < LOD.small) return;
+        dots(c, T, Rk("nails"), 10, 0.25, 0.3, () => "rgba(200,190,170,0.6)");
+        const K = Rk("cracks");
+        c.strokeStyle = "rgba(36,22,18,0.45)"; c.lineWidth = 0.25;
+        c.beginPath();
+        for (let i = 0; i < 3; i++) { const x = K() * T, y = K() * T; c.moveTo(x, y); c.lineTo(x + 2 + K() * 3, y + (K() - 0.5) * 1.5); }
+        c.stroke();
+      },
+    },
   };
 
   // ---- The ground's FEATURES: vector decals in world units ------------------
@@ -1846,6 +2009,98 @@
         c.strokeStyle = "rgba(60,70,90,0.45)"; c.lineWidth = 0.9; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
       },
     },
+    // ---- §19, Hero Night ----
+    turf: {   // a patch of lawn on a ground that is not grass (the garden the giant web is strung over)
+      prep: (d, W, H, R) => {
+        const [x0, y0, x1, y1] = rectOf(d, W, H), n = Math.round(((x1 - x0) * (y1 - y0)) / 30), t = [];
+        for (let i = 0; i < n; i++) t.push([x0 + R() * (x1 - x0), y0 + R() * (y1 - y0)]);
+        return { tufts: t };
+      },
+      box: rectOf,
+      draw(c, d, W, H, p) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H);
+        rrect(c, x0, y0, x1 - x0, y1 - y0, d.r || 0); c.fillStyle = "#4f7a3a"; c.fill();
+        c.save(); c.clip();
+        c.strokeStyle = "rgba(120,170,80,0.55)"; c.lineWidth = 0.35; c.lineCap = "round";
+        c.beginPath();
+        for (const [x, y] of p.tufts) { c.moveTo(x - 0.6, y - 1.2); c.lineTo(x, y); c.lineTo(x + 0.6, y - 1.3); }
+        c.stroke();
+        c.restore();
+      },
+    },
+    web: {   // a web spun flat on the ground: silver spokes and rings
+      box: (d, W, H) => grow(circOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const r = d.r * W;
+        c.translate(d.x * W, d.y * H); c.scale(1, SQ);
+        c.lineCap = "round";
+        for (const [col, lw] of [["rgba(29,18,51,0.35)", 0.9], ["rgba(255,255,255,0.92)", 0.45]]) {
+          c.strokeStyle = col; c.lineWidth = lw;
+          c.beginPath();
+          for (let k = 0; k < 10; k++) { const a = (k / 10) * TAU; c.moveTo(0, 0); c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+          for (const f of [0.3, 0.55, 0.8, 1]) {
+            for (let k = 0; k <= 10; k++) {
+              const a = (k / 10) * TAU, x = Math.cos(a) * r * f, y = Math.sin(a) * r * f;
+              if (k === 0) { c.moveTo(x, y); continue; }
+              const am = ((k - 0.5) / 10) * TAU;
+              c.quadraticCurveTo(Math.cos(am) * r * f * 0.86, Math.sin(am) * r * f * 0.86, x, y);
+            }
+          }
+          c.stroke();
+        }
+      },
+    },
+    hazard: {   // a lab's hazard stripes: yellow and black, on the diagonal
+      box: rectOf,
+      draw(c, d, W, H) {
+        const [x0, y0, x1, y1] = rectOf(d, W, H);
+        c.save();
+        c.beginPath(); c.rect(x0, y0, x1 - x0, y1 - y0); c.clip();
+        c.fillStyle = "#ffd23a"; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.fillStyle = "#2a2733";
+        c.beginPath();
+        for (let x = x0 - (y1 - y0); x < x1; x += 6) { c.moveTo(x, y1); c.lineTo(x + 3, y1); c.lineTo(x + 3 + (y1 - y0), y0); c.lineTo(x + (y1 - y0), y0); c.closePath(); }
+        c.fill();
+        c.restore();
+      },
+    },
+    leafpile: {   // a heap of autumn leaves, raked up
+      prep: (d, W, H, R) => ({ leaves: spots(R, 34, d.r * W, (i, Rr) => [i % 4, Rr() * Math.PI]) }),
+      box: (d, W, H) => grow(circOf(d, W, H), 2),
+      draw(c, d, W, H, p) {
+        const cx = d.x * W, cy = d.y * H, r = d.r * W, cols = ["#f07a26", "#e8b43a", "#c4482c", "#9a5a2a"];
+        c.fillStyle = "rgba(60,30,10,0.25)"; ellipse(c, cx + 0.6, cy + 0.8, r * 1.05, r * 1.05 * SQ); c.fill();
+        for (let k = 0; k < 4; k++) {
+          c.fillStyle = cols[k];
+          c.beginPath();
+          for (const [dx, dy, [kk, a]] of p.leaves) {
+            if (kk !== k) continue;
+            const lx = cx + dx, ly = cy + dy - (1 - Math.hypot(dx, dy / SQ) / r) * 1.2;
+            c.moveTo(lx + 1.3, ly); c.ellipse(lx, ly, 1.3, 0.6, a, 0, TAU);
+          }
+          c.fill();
+        }
+      },
+    },
+    cobweb: {   // an old dusty cobweb in a corner: grey threads that sag
+      box: (d, W, H) => grow(circOf(d, W, H), 1),
+      draw(c, d, W, H) {
+        const r = d.r * W;
+        c.translate(d.x * W, d.y * H); c.scale(1, SQ);
+        c.strokeStyle = "rgba(214,208,226,0.7)"; c.lineWidth = 0.35; c.lineCap = "round";
+        c.beginPath();
+        for (let k = 0; k < 7; k++) { const a = (k / 7) * TAU + 0.3; c.moveTo(0, 0); c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+        for (const f of [0.35, 0.65, 0.95]) {
+          for (let k = 0; k < 7; k++) {
+            const a0 = (k / 7) * TAU + 0.3, a1 = ((k + 1) / 7) * TAU + 0.3, am = (a0 + a1) / 2;
+            c.moveTo(Math.cos(a0) * r * f, Math.sin(a0) * r * f);
+            // each thread SAGS toward the middle: an old web, not a new one
+            c.quadraticCurveTo(Math.cos(am) * r * f * 0.7, Math.sin(am) * r * f * 0.7, Math.cos(a1) * r * f, Math.sin(a1) * r * f);
+          }
+        }
+        c.stroke();
+      },
+    },
   };
 
   // A place's ground features, worked out ONCE: each decal with its kind, its
@@ -1914,6 +2169,33 @@
       }
       c.globalAlpha = 1;
     },
+    // §19: the city far BELOW the rooftops at night — streets of lights and
+    // the lit windows of the buildings between them (still: never animated)
+    city(c, w, h, R) {
+      c.strokeStyle = "rgba(255,214,120,0.35)"; c.lineWidth = 2;
+      c.beginPath();
+      for (let x = 30 + R() * 40; x < w; x += 90 + R() * 50) { c.moveTo(x, 0); c.lineTo(x, h); }
+      for (let y = 30 + R() * 40; y < h; y += 80 + R() * 40) { c.moveTo(0, y); c.lineTo(w, y); }
+      c.stroke();
+      for (let i = 0; i < 70; i++) {
+        const x = R() * w, y = R() * h, bw = 14 + R() * 26, bh = 12 + R() * 22;
+        c.fillStyle = "rgba(10,12,40,0.45)"; c.fillRect(x, y, bw, bh);
+        c.fillStyle = "rgba(255,226,140," + (0.35 + R() * 0.4).toFixed(2) + ")";
+        for (let wy = y + 3; wy < y + bh - 3; wy += 6) for (let wx = x + 3; wx < x + bw - 3; wx += 6) if (R() < 0.5) c.fillRect(wx, wy, 2.4, 2.4);
+      }
+    },
+    // §19: a Halloween night — a big friendly moon, and stars round it
+    moon(c, w, h, R) {
+      for (let i = 0; i < 70; i++) {
+        c.fillStyle = "rgba(255,255,255," + (0.3 + R() * 0.55).toFixed(2) + ")";
+        c.beginPath(); c.arc(R() * w, R() * h, 0.5 + R() * 1.2, 0, Math.PI * 2); c.fill();
+      }
+      const mr = Math.max(26, Math.min(w, h) * 0.09), mx = w - mr * 2.2, my = mr * 2.2;
+      c.fillStyle = "rgba(255,240,180,0.18)"; c.beginPath(); c.arc(mx, my, mr * 1.6, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#fff3c4"; c.beginPath(); c.arc(mx, my, mr, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "rgba(220,200,140,0.5)";
+      for (const [dx, dy, r] of [[-0.3, -0.2, 0.18], [0.25, 0.15, 0.14], [-0.05, 0.4, 0.1]]) { c.beginPath(); c.arc(mx + dx * mr, my + dy * mr, r * mr, 0, Math.PI * 2); c.fill(); }
+    },
     // under a circus tent: red and cream stripes, and the safety net far below
     tent(c, w, h) {
       const n = Math.max(6, Math.round(w / 70)), sw = w / n;
@@ -1968,6 +2250,13 @@
     felt: { backdrop: "wall", edge: ["#8a5a2b", "#6e4420"] },
     grid: { backdrop: "wall", edge: ["#b9c9e0", "#9aaecb"] },
     biscuit: { backdrop: "sky", edge: ["#b98447", "#99693a"] },
+    // §19, Hero Night: over the city's streets, under the moon, inside a house
+    roof: { backdrop: "city", edge: ["#3f4458", "#2c3040"] },
+    silk: { backdrop: "moon", edge: ["#5c5590", "#433d70"] },
+    lab: { backdrop: "wall", edge: ["#7b8f8a", "#5f716c"] },
+    autumn: { backdrop: "moon", edge: ["#5a3f28", "#43301f"] },
+    patch: { backdrop: "moon", edge: ["#5e3d22", "#472d19"] },
+    oldwood: { backdrop: "wall", edge: ["#3f2b22", "#2e1f18"] },
   };
 
   // ---- phase 4 (§14): the things Gobble walks ROUND, and what moves -------
@@ -1995,6 +2284,13 @@
     tar: { flat: true, bank: "#5a4030", deep: "#1e1b22", top: "#33303a", shine: "rgba(150,150,170,0.55)", foam: "rgba(90,88,100,0.7)" },
     crater: { flat: true, bank: "#e3e5ec", deep: "#6e7280", top: "#8a8e9b", shine: "rgba(220,222,232,0.45)", foam: "rgba(240,242,248,0.6)" },
     choc: { flat: true, bank: "#c48a52", deep: "#5a3018", top: "#7a4424", shine: "rgba(255,214,170,0.55)", foam: "rgba(150,90,50,0.8)" },
+    // §19, Hero Night: rooftop air vents, a villain's lab machines, white
+    // picket fences, a corn maze, a haunted house's wooden panelling
+    vents: { h: 3.0, side: "#6f7785", top: "#a9b0bc", rim: "#dde1e8", deco: "slats" },
+    machine: { h: 3.6, side: "#2e5f7c", top: "#4f8fb4", rim: "#9fe6ff", deco: "goods" },
+    picket: { h: 2.6, side: "#e9e4d6", top: "#ffffff", rim: "#c9c2ae", deco: "posts", post: "#b9b19a" },
+    corn: { h: 4.4, side: "#6f8c2e", top: "#a7c24a", rim: "#f0d75a", deco: "bumps" },
+    panels: { h: 3.8, side: "#4f3656", top: "#6f5276", rim: "#a283a8", deco: "bricks" },
   };
   // How each kind of bridge looks (it crosses water, lava or the void).
   const BRIDGE_LOOKS = {
@@ -2004,6 +2300,9 @@
     sandbar: { side: "#c9a160", deck: "#f0d59c", edge: "#e3c486", slat: null },
     rainbow: { side: "rgba(150,160,210,0.55)", rainbow: ["#ff6b6b", "#ffb443", "#ffe066", "#7be08a", "#5ec8ff", "#a98bff"] },
     stone: { side: "#77736a", deck: "#b9b4a8", edge: "#8f8a7f", slat: "rgba(110,104,92,0.5)", gap: 4 },
+    // §19: a web strung across the gap between two rooftops — silver silk,
+    // its threads close together
+    web: { side: "rgba(150,160,210,0.4)", deck: "rgba(226,232,250,0.55)", edge: "#ffffff", weave: "rgba(255,255,255,0.95)", gap: 3.2, ropes: true },
   };
   // Vehicles drawn facing LEFT (on Apple's art and Noto's): one that rides a
   // track to the right is drawn mirrored, so it drives forwards.
@@ -2481,7 +2780,7 @@
       ctx.fillStyle = K.side; ctx.fill();
       // decoration on the faces
       if (K.deco === "posts") {
-        ctx.fillStyle = "#6b4220";
+        ctx.fillStyle = K.post || "#6b4220";
         ctx.beginPath();
         for (const [l, r] of fronts) {
           const len = r[0] - l[0];
@@ -2521,6 +2820,12 @@
             ctx.moveTo(x, y - (h * band) / 3); ctx.lineTo(x, y - (h * (band + 1)) / 3);
           }
         }
+        ctx.stroke();
+      } else if (K.deco === "slats") {
+        // an air vent's louvres: dark slots across its front
+        ctx.strokeStyle = "rgba(40,44,54,0.55)"; ctx.lineWidth = 0.35;
+        ctx.beginPath();
+        for (const [l, r] of fronts) for (const f of [0.25, 0.45, 0.65, 0.85]) { ctx.moveTo(l[0] + 0.4, l[1] - h * f); ctx.lineTo(r[0] - 0.4, r[1] - h * f); }
         ctx.stroke();
       } else if (K.deco === "bumps") {
         ctx.fillStyle = "rgba(30,80,20,0.35)";
@@ -2784,6 +3089,20 @@
           }
           ctx.stroke();
         }
+        if (K.weave) {
+          // a web's threads: crossing on the diagonal, both ways, so the
+          // city still shows through between them
+          const ln = B.line, half = B.w * 0.46;
+          ctx.strokeStyle = K.weave; ctx.lineWidth = 0.34;
+          ctx.beginPath();
+          for (let s = -B.w; s < ln.len + B.w; s += K.gap) {
+            for (const d of [1, -1]) {
+              const a = ln.at(clamp(s, 0, ln.len)), b = ln.at(clamp(s + d * B.w * 0.9, 0, ln.len));
+              ctx.moveTo(a.x - a.uy * half, a.y + a.ux * half * SQ); ctx.lineTo(b.x + b.uy * half, b.y - b.ux * half * SQ);
+            }
+          }
+          ctx.stroke();
+        }
         if (K.ropes) {
           // rope rails a little above the deck, on posts
           gline(B.l.map((p) => [p[0], p[1] - 1.4]), 0.4, K.edge);
@@ -2808,7 +3127,12 @@
       for (const E of portals) {
         if (E.x + R < v.x0 || E.x - R > v.x1 || E.y + R < v.y0 || E.y - R > v.y1) continue;
         n++;
-        if (E.fly) { drawCannon(E, now); continue; }
+        if (E.fly) {
+          // a web swing (§19) is a cannon's flight on a web
+          if (E.look === "web") drawWebSwing(E, now);
+          else drawCannon(E, now);
+          continue;
+        }
         ctx.save();
         ctx.translate(E.x, E.y); ctx.scale(1, SQ);
         if (!E.live) ctx.globalAlpha = 0.6;
@@ -2827,6 +3151,32 @@
           ctx.fillStyle = "#1c1a22"; ctx.beginPath(); ctx.arc(0, R * 0.1, R * 0.58, Math.PI, 0); ctx.lineTo(R * 0.58, R * 0.6); ctx.lineTo(-R * 0.58, R * 0.6); ctx.closePath(); ctx.fill();
           ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 0.4;
           ctx.beginPath(); ctx.arc(0, R * 0.1, R * 0.7, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+        } else if (E.look === "teleport") {
+          // §19: a lab's TELEPORTER pad — a metal ring, a glowing blue disc,
+          // and rings of light pulsing up out of it (still under reduced motion)
+          ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(0.8, 1.2, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#5c6672"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#9fe6ff"; ctx.beginPath(); ctx.arc(0, 0, R * 0.78, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#e8fbff"; ctx.beginPath(); ctx.arc(0, 0, R * 0.42, 0, Math.PI * 2); ctx.fill();
+          const ph = rm ? 0.5 : (now * 0.9 + E.pi * 0.37) % 1;
+          ctx.strokeStyle = "rgba(255,255,255," + (0.9 * (1 - ph)).toFixed(2) + ")"; ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.arc(0, 0, R * (0.4 + 0.6 * ph), 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = "#ffd24d";
+          for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + 0.785; ctx.beginPath(); ctx.arc(Math.cos(a) * R * 0.89, Math.sin(a) * R * 0.89, R * 0.07, 0, Math.PI * 2); ctx.fill(); }
+        } else if (E.look === "secret") {
+          // §19: a haunted house's SECRET PASSAGE — a bookcase standing a
+          // little open, a dark gap at its side, a candle-yellow glow in it
+          ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(-R + 0.8, -R + 1.2, R * 2, R * 2);
+          ctx.fillStyle = "#1b1116"; ctx.fillRect(-R, -R, R * 2, R * 2);
+          ctx.fillStyle = "rgba(255,200,90,0.35)"; ctx.fillRect(R * 0.35, -R * 0.9, R * 0.6, R * 1.8);
+          ctx.fillStyle = "#6b4227"; ctx.fillRect(-R, -R, R * 1.35, R * 2);
+          const BOOKS = ["#c0392b", "#2e86de", "#27ae60", "#f1c40f", "#8e44ad"];
+          for (let row = 0; row < 3; row++) {
+            const y0 = -R + R * 0.1 + row * R * 0.64;
+            ctx.fillStyle = "#4a2c18"; ctx.fillRect(-R, y0 + R * 0.5, R * 1.35, R * 0.08);
+            for (let k = 0; k < 5; k++) { ctx.fillStyle = BOOKS[(k + row * 2) % BOOKS.length]; ctx.fillRect(-R + R * 0.08 + k * R * 0.24, y0 + R * 0.08, R * 0.18, R * 0.42); }
+          }
+          ctx.strokeStyle = "#2a1a10"; ctx.lineWidth = 0.4; ctx.strokeRect(-R, -R, R * 2, R * 2);
         } else if (E.look === "spring") {
           ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.arc(0.8, 1.2, R, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = "#cf2c4b"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
@@ -2901,6 +3251,54 @@
       ctx.fillStyle = "#ffd24d"; ctx.fillRect(R * 1.0, -R * 0.36, R * 0.14, R * 0.72);
       ctx.restore();
       ctx.fillStyle = "#2b2b38"; ctx.beginPath(); ctx.arc(E.x, E.y - R * 0.1, R * 0.36, 0, TAU); ctx.fill();
+    }
+
+    // A WEB SWING (§19): a web on the roof where he grabs on, a silk line up
+    // to where it is tied, and the swing's arc (dashed silk) to the roof he
+    // lands on, where a smaller web marks the spot.
+    function webPad(x, y, r, a) {
+      ctx.save();
+      ctx.translate(x, y); ctx.scale(1, SQ);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = "rgba(29,18,51,0.22)"; ctx.beginPath(); ctx.arc(0.6, 1, r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 0.55; ctx.lineCap = "round";
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) { const t = (k / 8) * TAU; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(t) * r, Math.sin(t) * r); }
+      for (const f of [0.38, 0.68, 0.96]) {
+        for (let k = 0; k <= 8; k++) {
+          const t = (k / 8) * TAU, x1 = Math.cos(t) * r * f, y1 = Math.sin(t) * r * f;
+          if (k === 0) ctx.moveTo(x1, y1);
+          else { const tm = ((k - 0.5) / 8) * TAU; ctx.quadraticCurveTo(Math.cos(tm) * r * f * 0.82, Math.sin(tm) * r * f * 0.82, x1, y1); }
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    function drawWebSwing(E, now) {
+      const R = RULES.PORTAL_R * 1.3;
+      if (!E.live) { webPad(E.x, E.y, R * 0.8, 0.85); return; }
+      const T = E.to, d = L.gdist(E.x, E.y, T.x, T.y), lift = flyLift(d);
+      // the swing's arc: dashes of silk drifting along it (still under
+      // reduced motion)
+      const off = reduceMotion() ? 0 : (now * 0.6) % 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.7; ctx.lineCap = "round";
+      ctx.beginPath();
+      for (let k = 0; k < 16; k++) {
+        const t0 = (k + off) / 16, t1 = Math.min(1, t0 + 0.035);
+        const p = (t) => [E.x + (T.x - E.x) * t, E.y + (T.y - E.y) * t - Math.sin(Math.PI * t) * lift];
+        const a = p(t0), b = p(t1);
+        ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+      }
+      ctx.stroke();
+      webPad(E.x, E.y, R, 1);
+      // the line he grabs, hanging from where the web is tied, with a loop
+      const ay = E.y - R * 3.2, sway = reduceMotion() ? 0 : Math.sin(now * 1.6 + E.pi) * R * 0.25;
+      ctx.strokeStyle = "rgba(29,18,51,0.45)"; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(E.x, ay); ctx.lineTo(E.x + sway, E.y - R * 0.55); ctx.stroke();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 0.55;
+      ctx.beginPath(); ctx.moveTo(E.x, ay); ctx.lineTo(E.x + sway, E.y - R * 0.55); ctx.stroke();
+      ctx.beginPath(); ctx.arc(E.x + sway, E.y - R * 0.38, R * 0.18, 0, TAU); ctx.stroke();
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(E.x, ay, R * 0.14, 0, TAU); ctx.fill();
     }
 
     // DARK places (a cave): the screen is dark but for the light round Gobble
@@ -3296,6 +3694,18 @@
         ctx.fillStyle = "rgba(0,0,0,0.28)"; ellipse(ctx, sx(h.x), sy(h.y), rx * k, ry * k); ctx.fill();
       }
       const cx = sx(h.x), cy = sy(h.y) - lift;
+      // a WEB SWING (§19): he hangs from a web line tied high above the
+      // middle of the swing
+      if (st.fly && st.fly.look === "web") {
+        const F = st.fly, top = flyLift(L.gdist(F.x0, F.y0, F.x1, F.y1)) * view.s * 1.9;
+        const ax = sx((F.x0 + F.x1) / 2), ay = sy((F.y0 + F.y1) / 2) - top;
+        ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(cx, cy - ry);
+        ctx.lineWidth = Math.max(2, R * 0.08) + 2.5; ctx.strokeStyle = "rgba(29,18,51,0.5)"; ctx.stroke();
+        ctx.lineWidth = Math.max(2, R * 0.08); ctx.strokeStyle = "#ffffff"; ctx.stroke();
+        ctx.lineCap = "butt";
+        lastNew.webline = 1;
+      }
       // ZOOMING (§17): speed lines behind him
       if (h.zoomT > 0 && (h.vx || h.vy)) {
         const d = Math.hypot(h.vx, h.vy) || 1, ux = -h.vx / d, uy = -h.vy / d, ox = -uy, oy = ux;
@@ -3410,6 +3820,20 @@
       const k = wide ? EYE.wide : 1;
       // the top of his face this frame (the camera keeps it on screen)
       lastFace = { top: ey - eR * k * 1.1 - Math.max(1.5, eR * k * 0.14) / 2, bottom: cy + ry, crown: false, taste };
+      // what he wears in this place (§15.2) — a hat gives way to the crown;
+      // a mask (§19) goes on BEHIND his eyes, which are its eye-holes
+      const crowned = !!L.goalOf(st);
+      lastFace.wear = null;
+      const w = def.wear && WEAR[def.wear[0]];
+      const wearIt = () => {
+        ctx.save();
+        w.draw(ctx, cx, ey, eR * k, R * 0.42, def.wear[1] || "#ff5e7e", def.wear[2], now);
+        ctx.restore();
+        lastFace.top = Math.min(lastFace.top, ey - w.up(eR * k, R * 0.42));
+        lastFace.wear = def.wear[0];
+      };
+      const wearing = w && !(crowned && w.slot === "top");
+      if (wearing && w.behind) wearIt();
       for (const side of [-1, 1]) {
         const ex = cx + side * R * 0.42;
         const r = eR * k;
@@ -3453,17 +3877,7 @@
         }
         ctx.restore();
       }
-      // what he wears in this place (§15.2) — a hat gives way to the crown
-      const crowned = !!L.goalOf(st);
-      lastFace.wear = null;
-      const w = def.wear && WEAR[def.wear[0]];
-      if (w && !(crowned && w.slot === "top")) {
-        ctx.save();
-        w.draw(ctx, cx, ey, eR * k, R * 0.42, def.wear[1] || "#ff5e7e", def.wear[2], now);
-        ctx.restore();
-        lastFace.top = Math.min(lastFace.top, ey - w.up(eR * k, R * 0.42));
-        lastFace.wear = def.wear[0];
-      }
+      if (wearing && !w.behind) wearIt();
       // big enough for the finale: King Gobble
       if (crowned) {
         const size = eR * CROWN.size, my = ey - eR * CROWN.lift;

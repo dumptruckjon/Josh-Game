@@ -2332,6 +2332,337 @@
       ],
       finale: { e: "👢", r: 28, at: [0.5, 0.08], say: "the giant's boot" },
     },
+    // ---- §19: HERO NIGHT (owner, 2026-10-14: "he wanted some new levels …
+    // 6 more. All should be as close to Spiderman theme as you can go without
+    // copyright issues and also can do Halloween levels"). A web hero's night:
+    // Gobble wears a hero's MASK in every one of them (its colours vary, the
+    // way a team of web heroes does), webs are everywhere, and three of them
+    // are Halloween. No character, name or logo from anyone's show: a mask,
+    // webs, a city at night, a villain's lab — the things a web hero has.
+    {
+      // WEB CITY: rooftops at night, and THE TWIST: there is no ground — only
+      // ROOFTOPS, with the streets far below between them. WEB BRIDGES cross
+      // the narrow gaps; WEB SWINGS (a cannon's flight, on a web) swing
+      // Gobble over the wide ones, up to the tallest roof, where the giant
+      // statue stands. A helicopter circles the helipad, and a swing on the
+      // top roof takes him home again.
+      id: "webcity", name: "Web City", door: "🏙️", color: "#e23636",
+      ground: "roof", hole: "gobble",
+      wear: ["mask", "#e23636", "#1d1233"], air: ["stars"],
+      backdrop: ["#3a3f86", "#1b1d4a"],
+      world: [480, 700],
+      start: [0.5, 0.93], starters: 3,
+      tune: [392, 523.25, 659.25, 783.99, 659.25, 1046.5],
+      land: [
+        { rect: [0.22, 0.79, 0.78, 0.98], round: 8 },
+        { rect: [0.02, 0.52, 0.3, 0.73], round: 8 },
+        { rect: [0.7, 0.52, 0.98, 0.73], round: 8 },
+        { rect: [0.36, 0.42, 0.64, 0.7], round: 8 },
+        { rect: [0.02, 0.19, 0.32, 0.44], round: 8 },
+        { rect: [0.68, 0.19, 0.98, 0.44], round: 8 },
+        { rect: [0.28, 0.02, 0.72, 0.15], round: 8 },
+      ],
+      blocks: [
+        { rect: [0.28, 0.85, 0.34, 0.88], round: 2, look: "vents" },
+        { rect: [0.66, 0.85, 0.72, 0.88], round: 2, look: "vents" },
+        { rect: [0.06, 0.6, 0.12, 0.63], round: 2, look: "vents" },
+        { rect: [0.88, 0.6, 0.94, 0.63], round: 2, look: "vents" },
+      ],
+      bridges: [
+        { path: [[0.5, 0.81], [0.5, 0.68]], w: 14, look: "web" },
+        { path: [[0.26, 0.81], [0.24, 0.71]], w: 14, look: "web" },
+        { path: [[0.74, 0.81], [0.76, 0.71]], w: 14, look: "web" },
+        { path: [[0.14, 0.54], [0.14, 0.42]], w: 14, look: "web" },
+        { path: [[0.86, 0.54], [0.86, 0.42]], w: 14, look: "web" },
+      ],
+      portals: [
+        { a: [0.2, 0.24], b: [0.37, 0.09], oneway: true, fly: true, look: "web" },
+        { a: [0.8, 0.24], b: [0.63, 0.09], oneway: true, fly: true, look: "web" },
+        { a: [0.32, 0.05], b: [0.5, 0.48], oneway: true, fly: true, look: "web" },
+      ],
+      tracks: { heli: { orbit: [0.5, 0.57, 0.07], speed: 9, look: "none" } },
+      zones: {
+        stands: [[0.24, 0.81, 0.42, 0.97], [0.58, 0.81, 0.76, 0.97]],
+        garden: [[0.04, 0.21, 0.3, 0.42]],
+        parking: [[0.7, 0.21, 0.96, 0.42]],
+        roofs: [[0.04, 0.54, 0.28, 0.71], [0.72, 0.54, 0.96, 0.71]],
+      },
+      trails: [{ e: "🌭", to: [0.3, 0.9] }, { e: "🌭", to: [0.7, 0.9] }],
+      decals: [
+        { k: "helipad", x: 0.5, y: 0.57, r: 0.045 },
+        { k: "lot", x0: 0.69, y0: 0.2, x1: 0.97, y1: 0.43 },
+        { k: "park", x: 0.17, y: 0.31, r: 0.09 },
+        { k: "web", x: 0.4, y: 0.89, r: 0.05 },
+        { k: "web", x: 0.15, y: 0.67, r: 0.045 },
+        { k: "web", x: 0.6, y: 0.06, r: 0.04 },
+      ],
+      tiers: [
+        { r: T1, items: [["🌭", 44], ["📰", 18], ["🪙", 18, null, 3], ["⭐", 16], ["🥨", 14, "stands", 2], ["🍕", 14], ["🥤", 12]] },
+        { r: T2, items: [["📷", 12], ["🎒", 12], ["🛹", 10], ["🧢", 10], ["🎧", 10], ["📱", 10], ["☕", 10, "stands"], ["🌷", 10, "garden", 2]] },
+        { r: T3, items: [["📡", 10, "roofs"], ["🪴", 10, "garden", 2], ["🗑️", 8], ["🚲", 8], ["🧯", 6], ["🎸", 6], ["🪑", 6]] },
+        { r: T4, items: [["🚁", 2, { ride: "heli" }], ["🌳", 8, "garden"], ["🚕", 6, "parking"], ["🚓", 4], ["⛲", 2, "garden"], ["🚧", 6]] },
+        { r: T5, items: [["🚌", 3, "parking"], ["🚚", 3], ["🗼", 3], ["🚛", 3], ["🛸", 3]] },
+      ],
+      finale: { e: "🗽", r: 20, at: [0.5, 0.085], say: "the giant statue" },
+    },
+    {
+      // A GIANT WEB strung across the garden at night, and THE TWIST: above
+      // the lawn the ground IS the web — three rings of silk joined by just a
+      // few spokes, so the way to the middle winds round and round (up to the
+      // top of the outer ring, round to the sides of the next, round to the
+      // bottom of the last). Wrapped-up bundles of web POP open, and the big
+      // trees it is tied to SHAKE things down. Caught in the very middle: the
+      // giant kite.
+      id: "web", name: "Giant Web", door: "🎈", color: "#ec4e9c",
+      ground: "silk", hole: "gobble",
+      wear: ["mask", "#f4f4fa", "#ec4e9c"], air: ["motes", "#e8f0ff"],
+      backdrop: ["#2a2350", "#15112e"],
+      world: [520, 700],
+      start: [0.5, 0.92], starters: 3,
+      tune: [440, 554.37, 659.25, 554.37, 440, 659.25],
+      land: [
+        { rect: [0.02, 0.7, 0.98, 0.98], round: 30 },
+        { ring: [0.5, 0.37, 0.39, 0.45] },
+        { ring: [0.5, 0.37, 0.25, 0.31] },
+        { ring: [0.5, 0.37, 0.12, 0.18] },
+        { circle: [0.5, 0.37, 0.07] },
+        { circle: [0.1, 0.09, 0.075] },
+        { circle: [0.9, 0.09, 0.075] },
+        // the few spokes that join one ring to the next
+        { path: [[0.24, 0.76], [0.29, 0.555]], w: 26 },
+        { path: [[0.76, 0.76], [0.71, 0.555]], w: 26 },
+        { path: [[0.5, 0.125], [0.5, 0.235]], w: 26 },
+        { path: [[0.2, 0.37], [0.37, 0.37]], w: 26 },
+        { path: [[0.63, 0.37], [0.8, 0.37]], w: 26 },
+        { path: [[0.5, 0.465], [0.5, 0.39]], w: 26 },
+        { path: [[0.13, 0.12], [0.215, 0.205]], w: 26 },
+        { path: [[0.87, 0.12], [0.785, 0.205]], w: 26 },
+      ],
+      zones: {
+        lawn: { band: [0, 0.3] },
+        outer: { band: [0.28, 0.62] },
+        inner: { band: [0.6, 1] },
+        ties: [{ circle: [0.1, 0.09, 0.06] }, { circle: [0.9, 0.09, 0.06] }],
+        beds: [[0.04, 0.72, 0.3, 0.96], [0.7, 0.72, 0.96, 0.96]],
+      },
+      trails: [{ e: "🍂", to: [0.3, 0.9] }, { e: "🍂", to: [0.7, 0.9] }],
+      decals: [
+        // the garden the web is strung over is lawn (the place's ground is silk)
+        { k: "turf", x0: 0.02, y0: 0.7, x1: 0.98, y1: 0.98, r: 30 },
+        { k: "flowers", x: 0.14, y: 0.86, r: 0.07 },
+        { k: "flowers", x: 0.86, y: 0.86, r: 0.07 },
+        { k: "path", w: 10, pts: [[0.5, 1.02], [0.5, 0.86], [0.3, 0.78]] },
+        { k: "web", x: 0.5, y: 0.37, r: 0.06 },
+        { k: "web", x: 0.1, y: 0.09, r: 0.05 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍂", 44], ["💧", 18, "outer"], ["⭐", 16], ["🪶", 14, null, 2], ["🍬", 14], ["🌰", 14, null, 2], ["🍓", 12, "beds", 2]] },
+        { r: T2, items: [["🎈", 12, "outer"], ["🧦", 10], ["🎀", 10], ["🧢", 10], ["🪀", 10, "inner"], ["🎐", 8, "inner"], ["🍎", 10, "lawn"]] },
+        { r: T3, items: [["🧶", 8, { pop: [["🍬", 2, 1], ["⭐", 1, 1]] }], ["🎏", 8], ["👒", 8], ["🏮", 6, "inner"], ["🪣", 6, "lawn"], ["🧺", 6, "lawn"]] },
+        { r: T4, items: [["🌳", 4, { shake: [["🍂", 2, 1], ["🌰", 2, 1]], zone: "lawn" }], ["🌲", 6, "ties"], ["⛱️", 7, "lawn"], ["🪂", 6], ["🎪", 3, "lawn"]] },
+        { r: T5, items: [["🏡", 3, "lawn"], ["⛺", 3, "lawn"], ["🛖", 3, "lawn"], ["🪵", 3], ["🚐", 3, "lawn"]] },
+      ],
+      finale: { e: "🪁", r: 20, at: [0.5, 0.37], say: "the giant kite" },
+    },
+    {
+      // A ROBOT LAB, a villain's (a web hero's lab is a mess of gadgets), and
+      // THE TWIST: TELEPORTERS in the corners of the hall beam Gobble into
+      // the two side labs, conveyor belts carry him across the hall, ⚡ bolts
+      // make him zoom, and the vault at the top stays shut until the big
+      // button in the far lab is pressed. The giant robot arm is in the vault.
+      id: "lab", name: "Robot Lab", door: "🧪", color: "#2fbf71",
+      ground: "lab", hole: "gobble",
+      wear: ["mask", "#23232f", "#e23636"], air: ["sparkles", "#9ff3ff"],
+      backdrop: ["#eef4f7", "#cfdde6"],
+      world: [440, 640],
+      start: [0.5, 0.93], starters: 3,
+      tune: [523.25, 783.99, 523.25, 830.61, 523.25, 698.46],
+      blocks: [
+        // the vault: shut but for its door
+        { path: [[0.4809, 0.26], [0.26, 0.26]], w: 5, look: "wall" },
+        { path: [[0.5191, 0.26], [0.74, 0.26]], w: 5, look: "wall" },
+        // the side labs: walled off from the workshop and the hall (the
+        // teleporters are the only way in)
+        { path: [[0.26, -0.02], [0.26, 0.6], [-0.02, 0.6]], w: 5, look: "wall" },
+        { path: [[0.74, -0.02], [0.74, 0.6], [1.02, 0.6]], w: 5, look: "wall" },
+        // between the workshop and the hall, a wide doorway
+        { path: [[0.26, 0.6], [0.42, 0.6]], w: 5, look: "wall" },
+        { path: [[0.58, 0.6], [0.74, 0.6]], w: 5, look: "wall" },
+        // machines in the workshop
+        { rect: [0.32, 0.34, 0.42, 0.38], round: 2, look: "machine" },
+        { rect: [0.58, 0.46, 0.68, 0.5], round: 2, look: "machine" },
+      ],
+      flows: [
+        { pts: [[0.08, 0.72], [0.92, 0.72]], w: 22, v: 22, look: "belt" },
+        { pts: [[0.92, 0.84], [0.42, 0.84]], w: 22, v: 22, look: "belt" },
+      ],
+      portals: [
+        { a: [0.07, 0.94], b: [0.13, 0.52], look: "teleport" },
+        { a: [0.93, 0.94], b: [0.87, 0.52], look: "teleport" },
+      ],
+      zones: {
+        hall: [[0.04, 0.62, 0.96, 0.97]],
+        shop: [[0.28, 0.28, 0.72, 0.58]],
+        labs: [[0.04, 0.04, 0.24, 0.58], [0.76, 0.04, 0.96, 0.58]],
+        vault: [[0.28, 0.04, 0.72, 0.24]],
+      },
+      trails: [{ e: "🔩", to: [0.3, 0.9] }, { e: "🔩", to: [0.7, 0.9] }],
+      decals: [
+        { k: "hazard", x0: 0.42, y0: 0.58, x1: 0.58, y1: 0.62 },
+        { k: "hazard", x0: 0.4, y0: 0.24, x1: 0.6, y1: 0.28 },
+        { k: "slab", x0: 0.28, y0: 0.03, x1: 0.72, y1: 0.24 },
+        { k: "puddle", x: 0.86, y: 0.3, r: 0.04 },
+      ],
+      tiers: [
+        { r: T1, items: [["🔩", 44], ["🔋", 18], ["💡", 16, "hall"], ["⭐", 14], ["📎", 12, null, 2], ["🧷", 12], ["⚙️", 14, null, 2], ["⚡", 3, { power: "zoom" }]] },
+        { r: T2, items: [["🧪", 12], ["⚗️", 10, "labs"], ["🔬", 8, "labs"], ["💾", 10], ["🔧", 10], ["🔌", 10], ["🥽", 8], ["🪛", 8]] },
+        { r: T3, items: [["💻", 8, "shop"], ["🖨️", 6], ["🧰", 8], ["🛢️", 8], ["📡", 6, "labs"], ["🖥️", 6], ["🚪", 1, { at: { pts: [[0.5, 0.26]] }, lock: "vault" }]] },
+        { r: T4, items: [["🤖", 6, "shop"], ["🗄️", 6], ["🦿", 4], ["🔭", 4, "labs"], ["🏍️", 4], ["🛵", 3], ["🔴", 1, { press: "vault", at: { pts: [[0.13, 0.12]] } }]] },
+        { r: T5, items: [["🛸", 3], ["🛰️", 3], ["🚀", 3, "vault"], ["🚚", 3], ["🚛", 3]] },
+      ],
+      finale: { e: "🦾", r: 20, at: [0.5, 0.12], say: "the giant robot arm" },
+    },
+    {
+      // TRICK OR TREAT: Halloween night, and Gobble's in his web-hero costume.
+      // THE TWIST: the street winds up the hill between picket fences, there
+      // and back and there again, and every front DOOR is a knock-knock:
+      // bump one while it is too big to eat and out tumble the treats. Count
+      // the jack-o'-lanterns on the way up. At the top: the giant chocolate bar.
+      id: "treats", name: "Trick or Treat", door: "🍬", color: "#ff8a2a",
+      ground: "autumn", hole: "gobble",
+      wear: ["mask", "#e23636", "#1d1233"], air: ["leaves", "#ff8a2a"],
+      backdrop: ["#3b2a5e", "#1d1338"],
+      world: [440, 700],
+      start: [0.5, 0.93], starters: 3,
+      tune: [392, 466.16, 392, 349.23, 392, 587.33],
+      blocks: [
+        // three rows of front gardens; the street zigzags between them
+        { path: [[-0.02, 0.75], [0.72, 0.75]], w: 4, look: "picket" },
+        { path: [[0.28, 0.5], [1.02, 0.5]], w: 4, look: "picket" },
+        { path: [[-0.02, 0.25], [0.72, 0.25]], w: 4, look: "picket" },
+      ],
+      zones: {
+        low: { band: [0, 0.32] },
+        mid: { band: [0.3, 0.68] },
+        high: { band: [0.66, 1] },
+        porches: [[0.04, 0.53, 0.26, 0.72], [0.74, 0.28, 0.96, 0.47], [0.04, 0.03, 0.26, 0.22]],
+      },
+      trails: [{ e: "🍬", to: [0.3, 0.9] }, { e: "🍬", to: [0.72, 0.86] }],
+      decals: [
+        { k: "path", w: 12, pts: [[0.5, 1.02], [0.82, 0.86], [0.86, 0.66], [0.2, 0.62], [0.14, 0.4], [0.84, 0.36], [0.86, 0.14], [0.5, 0.1]] },
+        { k: "leafpile", x: 0.12, y: 0.88, r: 0.06 },
+        { k: "leafpile", x: 0.9, y: 0.6, r: 0.05 },
+        { k: "leafpile", x: 0.1, y: 0.36, r: 0.05 },
+        { k: "web", x: 0.9, y: 0.92, r: 0.04 },
+      ],
+      count: { e: "🎃", by: 1, say: "pumpkins" },
+      tiers: [
+        { r: T1, items: [["🍬", 44], ["🍭", 18, null, 3], ["🍪", 14, null, 2], ["🍂", 16], ["🍁", 12], ["🌰", 12]] },
+        { r: T2, items: [["🎃", 12, "porches"], ["🕯️", 10], ["🧺", 10], ["🎭", 10], ["🔦", 10], ["🧹", 8], ["🍎", 10], ["🧁", 8]] },
+        { r: T3, items: [["🪣", 8], ["🛴", 6], ["📮", 6], ["🧸", 8], ["🚲", 6], ["🏮", 6, "high"]] },
+        { r: T4, items: [["🚪", 8, { shake: [["🍬", 2, 1], ["🍭", 1, 1], ["🍪", 1, 1]] }], ["🌳", 10], ["🚗", 4, "low"], ["🛻", 4, "mid"], ["🚐", 2]] },
+        { r: T5, items: [["🏠", 5], ["🏡", 4, "high"], ["🚌", 2, "low"], ["🌲", 3], ["🏫", 2]] },
+      ],
+      finale: { e: "🍫", r: 20, at: [0.5, 0.11], say: "the giant chocolate bar" },
+    },
+    {
+      // A PUMPKIN PATCH, shaped like a pumpkin, and THE TWIST: a CORN MAZE
+      // fills the top of it — rows of corn with one gap each, so the way up
+      // zigzags — little seeds SPROUT pumpkins as Gobble passes, apples ROLL
+      // AWAY, and a tractor gives a hayride round the bottom of the patch.
+      // At the farm stand on the stem: the giant pumpkin pie.
+      id: "pumpkins", name: "Pumpkin Patch", door: "🎃", color: "#ff7a1a",
+      ground: "patch", hole: "gobble",
+      wear: ["mask", "#23232f", "#e23636"], air: ["leaves", "#e8742e"],
+      backdrop: ["#3f2f5f", "#221a3d"],
+      world: [520, 640],
+      start: [0.5, 0.92], starters: 3,
+      tune: [261.63, 311.13, 392, 311.13, 261.63, 196],
+      land: [
+        { oval: [0.27, 0.56, 0.25, 0.4] },
+        { oval: [0.73, 0.56, 0.25, 0.4] },
+        { oval: [0.5, 0.55, 0.3, 0.43] },
+        { rect: [0.42, 0.03, 0.58, 0.2], round: 14 },
+      ],
+      blocks: [
+        { path: [[-0.02, 0.5], [0.78, 0.5]], w: 8, look: "corn" },
+        { path: [[0.22, 0.38], [1.02, 0.38]], w: 8, look: "corn" },
+        { path: [[-0.02, 0.26], [0.78, 0.26]], w: 8, look: "corn" },
+      ],
+      tracks: { hay: { pts: ovalPts(0.5, 0.76, 0.28, 0.1, 28), loop: true, speed: 8, look: "road" } },
+      zones: {
+        low: { band: [0, 0.32] },
+        maze: { band: [0.32, 0.72] },
+        top: { band: [0.7, 1] },
+      },
+      trails: [{ e: "🌰", to: [0.24, 0.84] }, { e: "🌰", to: [0.76, 0.84] }],
+      decals: [
+        { k: "soil", x0: 0.08, y0: 0.56, x1: 0.34, y1: 0.68 },
+        { k: "soil", x0: 0.66, y0: 0.56, x1: 0.92, y1: 0.68 },
+        { k: "leafpile", x: 0.5, y: 0.92, r: 0.05 },
+        { k: "patch", x: 0.5, y: 0.1, r: 0.07, c: "#8a6a3a" },
+      ],
+      tiers: [
+        { r: T1, items: [["🌰", 44], ["🍂", 18], ["🫐", 14, null, 2], ["🍬", 14], ["⭐", 14], ["🍁", 12], ["🌱", 8, { sprout: [["🎃", 2, 2]], zone: "low" }]] },
+        { r: T2, items: [["🎃", 14], ["🌽", 12, "maze"], ["🍎", 6, { run: true, zone: "low" }], ["🧺", 10], ["🥕", 10], ["🧤", 8], ["🍐", 8]] },
+        { r: T3, items: [["🪣", 8], ["🌻", 8, "maze"], ["🪵", 8, null, 2], ["🛒", 6], ["🌾", 8, "maze"], ["🪑", 6]] },
+        { r: T4, items: [["🚜", 2, { ride: "hay" }], ["🌳", 9], ["🛖", 4, "top"], ["🚙", 4, "low"], ["🎪", 3], ["🎡", 2]] },
+        { r: T5, items: [["🚚", 3, "low"], ["🛻", 3], ["🏡", 3, "top"], ["🌲", 4], ["🏠", 3]] },
+      ],
+      finale: { e: "🥧", r: 20, at: [0.5, 0.1], say: "the giant pumpkin pie" },
+    },
+    {
+      // A HAUNTED HOUSE, and THE TWIST: it is DARK — Gobble's light shows the
+      // way, and candles and jack-o'-lanterns glow — and SECRET PASSAGES
+      // behind the bookcases take him into the rooms the doors do not reach.
+      // The clock room at the top is locked: find all three old keys. A
+      // friendly ghost or two drifts by. The big old clock is in there.
+      id: "haunted", name: "Haunted House", door: "🏚️", color: "#8a6bd1",
+      ground: "oldwood", hole: "gobble",
+      wear: ["mask", "#f4f4fa", "#ec4e9c"], air: ["ghosts"],
+      backdrop: ["#2b2238", "#18121f"],
+      dark: true,
+      world: [440, 640],
+      start: [0.5, 0.93], starters: 3,
+      tune: [329.63, 392, 329.63, 311.13, 293.66, 246.94],
+      blocks: [
+        // the clock room, shut but for its door
+        { path: [[-0.02, 0.26], [0.6609, 0.26]], w: 5, look: "panels" },
+        { path: [[0.6991, 0.26], [1.02, 0.26]], w: 5, look: "panels" },
+        // the hall: its only doorway is on the right, into the parlour
+        { path: [[-0.02, 0.6], [0.7, 0.6]], w: 5, look: "panels" },
+        { path: [[0.86, 0.6], [1.02, 0.6]], w: 5, look: "panels" },
+        // the library is walled off from the parlour (a secret passage is the way in)
+        { path: [[0.36, 0.26], [0.36, 0.6]], w: 5, look: "panels" },
+      ],
+      portals: [
+        { a: [0.08, 0.93], b: [0.1, 0.5], look: "secret" },
+        { a: [0.3, 0.32], b: [0.92, 0.66], look: "secret" },
+      ],
+      zones: {
+        hall: [[0.04, 0.64, 0.96, 0.97]],
+        library: [[0.04, 0.29, 0.33, 0.57]],
+        parlour: [[0.4, 0.29, 0.96, 0.57]],
+        clock: [[0.04, 0.03, 0.96, 0.23]],
+        nook: [[0.2, 0.66, 0.3, 0.74]],
+      },
+      trails: [{ e: "🍬", to: [0.3, 0.9] }, { e: "🍬", to: [0.7, 0.9] }],
+      decals: [
+        { k: "rug", x: 0.5, y: 0.82, r: 0.14, pal: 1 },
+        { k: "rug", x: 0.66, y: 0.42, r: 0.1, pal: 3 },
+        { k: "cobweb", x: 0.04, y: 0.64, r: 0.06 },
+        { k: "cobweb", x: 0.96, y: 0.3, r: 0.06 },
+        { k: "cobweb", x: 0.04, y: 0.04, r: 0.06 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍬", 44], ["⭐", 14, { glow: true }], ["🍪", 14, null, 2], ["🧦", 12, "hall", 2], ["🎀", 12], ["🔔", 10], ["🪙", 16, null, 2], ["🍭", 12], ["🗝️", 1, { key: "clock", zone: "library", glow: true }], ["🗝️", 1, { key: "clock", zone: "parlour", glow: true }], ["🗝️", 1, { key: "clock", zone: "nook", glow: true }]] },
+        { r: T2, items: [["🕯️", 12, { glow: true }], ["📚", 10, "library"], ["🧸", 10], ["🪆", 8], ["🎩", 8], ["🧹", 8], ["🔦", 8, { glow: true }], ["🎻", 8]] },
+        { r: T3, items: [["🖼️", 8, "parlour"], ["🪞", 6], ["🪑", 8], ["🏺", 6], ["🎃", 8, { glow: true }], ["🧳", 6], ["🏮", 6, { glow: true }], ["🚪", 1, { at: { pts: [[0.68, 0.26]] }, lock: "clock" }]] },
+        { r: T4, items: [["🛋️", 5, "parlour"], ["🛏️", 4], ["🗄️", 4, "library"], ["📺", 4], ["🪟", 4], ["🗿", 3]] },
+        { r: T5, items: [["🎹", 4], ["🛁", 4], ["🚂", 2, "clock"], ["🎠", 3], ["⛲", 3]] },
+      ],
+      finale: { e: "🕰️", r: 20, at: [0.5, 0.12], say: "the big old clock" },
+    },
   ];
 
   // What Gobble says (when sound is on — it is OFF by default, and the game
@@ -2375,6 +2706,8 @@
     hit: ["One!", "Two!", "Three!", "Four!", "Five!"],
     hitLast: "Surprise!",
     launch: "Blast off!",
+    // a web swing (§19)
+    swing: "Thwip! Swing!",
     flee: "Catch it!",
     power: { magnet: "Magnet! Super slurp!", zoom: "Zoom zoom!" },
     sprout: "It grew!",
@@ -2389,6 +2722,7 @@
       power: "Ooh, a power-up! Eat it!",
       sprout: "A little seed! Things grow when you come near!",
       launch: "A cannon! Roll in!",
+      swing: "A web swing! Roll onto the web!",
       spin: "A spinning floor! Wheee!",
       count: "Let's count the {what}!",
     },
@@ -2437,8 +2771,9 @@
   // launcher (a category, then its games). A land is one picture for a
   // non-reader, and the lands run from the gentlest places to the craziest.
   // This table is the ONE owner of which place is in which land and of the
-  // order ▶ walks through them: every place is in exactly one land, and every
-  // land holds the same number (a law).
+  // order ▶ walks through them: every place is in exactly one land, and a land
+  // holds six places or twelve (each fills its page evenly — a law; Hero
+  // Night, §19, is six).
   const LANDS = [
     { id: "town", name: "Home Town", pic: "🏡", backdrop: ["#ffe9b8", "#ffc56b"], color: "#e8963a",
       places: ["toyroom", "picnic", "farm", "build", "town", "sports", "bath", "kitchen", "firestation", "garden", "playground", "racetrack"] },
@@ -2448,6 +2783,9 @@
       places: ["maze", "cave", "castle", "factory", "jungle", "pirate", "desert", "camp", "dino", "mine", "forest", "temple"] },
     { id: "crazy", name: "Crazy Land", pic: "🤪", backdrop: ["#f3d7ff", "#c79bff"], color: "#8a52d6",
       places: ["space", "circus", "cloud", "themepark", "candy", "music", "pinball", "moon", "trainland", "numbers", "chocolate", "beanstalk"] },
+    // §19: a web hero's night — rooftops and webs, a villain's lab, and Halloween
+    { id: "hero", name: "Hero Night", pic: "🕸️", backdrop: ["#c4202e", "#24318f"], color: "#151a52",
+      places: ["webcity", "web", "lab", "treats", "pumpkins", "haunted"] },
   ];
   // a place's land
   const landOf = (id) => LANDS.find((l) => l.places.includes(id)) || null;

@@ -2769,10 +2769,13 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--pad);
 }
-/* §17: the HOME is four big LAND doors (two by two: 4 fills it evenly), each
-   a picture for a non-reader, with how many of its places he has finished;
-   a land's own page holds its twelve places (three by four on a phone, four
-   by three from 600px — 12 fills both evenly). */
+/* §17: the HOME is the big LAND doors, each a picture for a non-reader, with
+   how many of its places he has finished — two rows on every screen, and since
+   Hero Night (§19) five of them, three over two: hole-main.js sets the columns
+   and each door's span from the number of lands, so no row is ragged (this
+   two-column rule is only the fallback). A land's own page holds its places:
+   twelve are three by four on a phone and four by three from 600px; six are
+   three by two everywhere. */
 .hole-total { margin: 0 0 12px; text-align: center; font-size: 1.15rem; font-weight: 800; color: #4b2a86; }
 .hole-lands {
   display: grid;
@@ -2797,6 +2800,10 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
 .hole-land__label { font-size: 1.15rem; line-height: 1.15; font-weight: 800; color: #2e2a55; text-align: center; }
 .hole-land__stars { font-size: 1rem; line-height: 1; font-weight: 800; color: #2e2a55; }
 .hole-land--dark .hole-land__label, .hole-land--dark .hole-land__stars { color: #ffffff; }
+/* a picture on a DARK door gets a pale glow round its ink: Hero Night's web
+   is thin grey lines, and grey on a red-blue night is a picture nobody sees
+   (a text-shadow, not a filter: a filter on art is a WebKit cliff) */
+.hole-land--dark .hole-land__pic { text-shadow: 0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.85), 0 0 12px rgba(255, 255, 255, 0.5); }
 .hole-door {
   position: relative;
   min-height: 116px;
@@ -3021,6 +3028,9 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
 
 @media (min-width: 600px) {
   .hole-scenes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* §19: a land of SIX (Hero Night) is three across here too — four across
+     would leave a ragged row of two */
+  .hole-scenes[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .hole-land { min-height: 250px; }
   .hole-land__pic { font-size: 5.8rem; }
   .hole-land__label { font-size: 1.4rem; }

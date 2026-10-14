@@ -78,12 +78,13 @@ function makeTop(st) {
 // ...or any level.
 function makeLevel(st, lv) { st.hole.level = lv; st.hole.R = st.hole.r = st.levels.R[lv]; st.hole.xp = st.levels.C[lv]; }
 
-test("the data: FORTY-EIGHT places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
+test("the data: FIFTY-FOUR places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
   // The owner doubled the places three times (2026-10-01: six became twelve;
   // 2026-10-06: twelve became twenty-four; 2026-10-08: twenty-four became
-  // forty-eight). A place quietly dropped from the data would leave a
-  // door-less hole in the journey ▶ walks through.
-  assert.ok(SCENES.length >= 48, "forty-eight places to eat (" + SCENES.length + ")");
+  // forty-eight), then asked for six more, a web hero's and Halloween's
+  // (2026-10-14, §19: fifty-four). A place quietly dropped from the data
+  // would leave a door-less hole in the journey ▶ walks through.
+  assert.ok(SCENES.length >= 54, "fifty-four places to eat (" + SCENES.length + ")");
   const ids = new Set();
   for (const def of SCENES) {
     const where = def.id;
@@ -1074,7 +1075,10 @@ test("every place DRESSES Gobble (§15.2): what it wears is drawn, and every kin
     assert.ok(Array.isArray(def.wear) && def.wear.length >= 2 && def.wear.length <= 3, def.id + ": wear is [kind, colour, colour2?]");
     const W = HR.WEAR[def.wear[0]];
     assert.ok(W && typeof W.draw === "function" && typeof W.up === "function", def.id + ": wear '" + def.wear[0] + "' has a drawing");
-    assert.ok(W.slot === "top" || W.slot === "side", def.id + ": '" + def.wear[0] + "' sits on his head or at his side");
+    assert.ok(W.slot === "top" || W.slot === "side" || W.slot === "face", def.id + ": '" + def.wear[0] + "' sits on his head, at his side or on his face");
+    // a thing on his FACE (a hero's mask, §19) goes on behind his eyes — they
+    // are its eye-holes — or it would paint over them and he would be blind
+    if (W.slot === "face") assert.ok(W.behind === true, def.id + ": a '" + def.wear[0] + "' on his face is drawn behind his eyes");
     for (const c of def.wear.slice(1)) assert.ok(hex.test(c), def.id + ": wear colour '" + c + "' is #rrggbb");
     worn.add(def.wear[0]);
   }
@@ -1117,7 +1121,13 @@ test("every place has WEATHER (§15.4): its air is drawn, every kind the rendere
   assert.ok(dark > 0 && air > 0, "fixture: the frame draws the dark and the air");
   assert.ok(air > dark, "the air is drawn after the dark");
   assert.ok(SCENES.some((d) => d.dark), "fixture: there is a dark place");
-  for (const d of SCENES.filter((x) => x.dark)) assert.equal(d.air[0], "fireflies", d.id + ": a dark place's air glows (fireflies)");
+  // …and it must be weather that GLOWS (fireflies, the haunted house's
+  // friendly ghosts): rain or dust in the dark is weather nobody can see.
+  // `glows` is a claim the renderer makes, so it is only ever given to a kind
+  // that draws a halo — and not to every kind, or the law could not fail.
+  for (const d of SCENES.filter((x) => x.dark)) assert.ok(HR.AIR[d.air[0]].glows === true, d.id + ": a dark place's air glows (" + d.air[0] + ")");
+  const glowing = Object.keys(HR.AIR).filter((k) => HR.AIR[k].glows);
+  assert.ok(glowing.length >= 1 && glowing.length < Object.keys(HR.AIR).length / 2, "fixture: a few kinds glow, not every kind (" + glowing + ")");
   // the finale's fireworks: six, and every one bursts within 2s of the win —
   // the win box comes up soon after and covers the field
   const F = HR.FIREWORKS;
@@ -2560,7 +2570,9 @@ function actsOf(e) {
   if (e.type === "opener") return [e.how === "press" ? "button" : null, e.of > 1 ? "keys" : null];
   if (e.type === "bump" && e.bounce) return ["bounce"];
   if (e.type === "flow" && /turntable|record|whirl/.test(e.look || "")) return ["spin"];
-  return { hit: ["hits"], power: ["power"], sprout: ["sprout"], launch: ["launch"] }[e.type] || [];
+  // a web swing (§19) is a cannon's flight on a web, introduced as itself
+  if (e.type === "launch") return [e.look === "web" ? "swing" : "launch"];
+  return { hit: ["hits"], power: ["power"], sprout: ["sprout"] }[e.type] || [];
 }
 
 test("INTRODUCTIONS (§18): in every place's play each new kind of thing is introduced ON the screen — on the two smallest screens — and never AFTER it has already acted on him", () => {
@@ -2597,7 +2609,7 @@ test("INTRODUCTIONS (§18): in every place's play each new kind of thing is intr
   assert.deepEqual(off, [], "an introduction points at something off the screen");
   assert.deepEqual(late, [], "an introduction came after the thing had already acted on him");
   assert.ok(said >= 30, "the bot's play is introduced to at least 30 things across the places (saw " + said + ")");
-  for (const k of ["button", "keys", "bounce", "hits", "power", "sprout", "launch", "spin", "count"]) assert.ok(kinds.has(k), "'" + k + "' is introduced somewhere in a bot's play");
+  for (const k of ["button", "keys", "bounce", "hits", "power", "sprout", "launch", "swing", "spin", "count"]) assert.ok(kinds.has(k), "'" + k + "' is introduced somewhere in a bot's play");
 });
 
 test("A CRACK is not a wall (§18): every hairline seam a search found pinning him now lets him across, at the size it pinned him", () => {
@@ -2692,4 +2704,79 @@ test("A GIANT place (§17): a sixth size and a bigger finale — the tier law an
     assert.ok(st.won, "the bot wins a giant place");
     assert.deepEqual(log.filter((e) => e.type === "grow").map((e) => e.level), [1, 2, 3, 4, 5, 6], "six grows, in order");
   });
+});
+
+test("HERO NIGHT (§19): six places in their own land — a web hero's night and Halloween — Gobble in a hero's MASK in every one, and a WEB SWING that flies like a cannon but is a web, said and introduced as one", () => {
+  // The owner (2026-10-14): "6 more … as close to Spiderman theme as you can
+  // go without copyright issues and also can do Halloween levels". No
+  // character, name or logo: a mask, webs, a city at night, a villain's lab.
+  const HR = require("../scripts/hole-render.js");
+  const hero = DATA.LANDS.find((l) => l.id === "hero");
+  assert.ok(hero, "there is a Hero Night land");
+  assert.deepEqual(hero.places, ["webcity", "web", "lab", "treats", "pumpkins", "haunted"], "its six places, in order");
+  for (const id of hero.places) {
+    const def = L.sceneById(id);
+    assert.equal(def.wear[0], "mask", id + ": Gobble wears a hero's mask");
+    assert.equal(HR.WEAR.mask.slot, "face", "a mask is on his face");
+  }
+  // a mask is drawn BEHIND the eyes and stays on beside the crown: the
+  // camera's headroom is the same crowned or not
+  assert.ok(HR.WEAR.mask.behind, "a mask goes on behind his eyes");
+  // …and the frame honours it: in drawEyes a `behind` thing is put on BEFORE
+  // the eyes are drawn (read from the drawing's own order, like the dark and
+  // the air), so his eyes are its eye-holes and never painted over
+  const rs = fs.readFileSync(path.join(__dirname, "../scripts/hole-render.js"), "utf8");
+  const de = rs.slice(rs.indexOf("function drawEyes("), rs.indexOf("// ---- effects", rs.indexOf("function drawEyes(")));
+  const before = de.indexOf("if (wearing && w.behind) wearIt();"), eyes = de.indexOf("for (const side of [-1, 1])"), after = de.indexOf("if (wearing && !w.behind) wearIt();");
+  assert.ok(de.length > 500 && before > 0 && eyes > 0 && after > 0, "fixture: drawEyes puts things on before and after the eyes");
+  assert.ok(before < eyes && eyes < after, "a thing worn behind the eyes is drawn before them, anything else after");
+  for (const R of [10, 40, 120]) assert.equal(HR.faceUp(R, true, ["mask", "#e23636"]) >= HR.faceUp(R, false, ["mask", "#e23636"]) - 1e-9, true, "the crown never takes the mask's headroom away");
+  // THE WEB SWING: Web City's swings are fly portals that look like webs
+  const sw = (L.sceneById("webcity").portals || []).filter((p) => p.look === "web");
+  assert.ok(sw.length >= 2 && sw.every((p) => p.fly && p.oneway), "Web City swings him from roof to roof (" + sw.length + ")");
+  const st = L.createGame("webcity"), G = L.geomOf("webcity");
+  const E = G.ends.find((e) => e.fly && e.live && e.look === "web");
+  assert.ok(E, "fixture: a live web swing");
+  // stand just beside it, then roll on: introduced as a SWING (never "a
+  // cannon!"), and the flight knows it is on a web
+  park(st, E.x, E.y + 14);
+  const evs = [];
+  for (let i = 0; i < 60 * 3 && !st.fly; i++) {
+    L.setTarget(st, E.x, E.y); L.step(st, L.DT);
+    evs.push(...st.events); st.events.length = 0;
+  }
+  assert.ok(st.fly, "rolling onto the web swings him");
+  assert.equal(st.fly.look, "web", "the flight knows it is a web swing (the renderer hangs him from a web line)");
+  const launch = evs.find((e) => e.type === "launch");
+  assert.ok(launch && launch.look === "web", "the launch event says it is a web (its sound and word are the swing's)");
+  const meet = evs.filter((e) => e.type === "meet").map((e) => e.kind);
+  assert.ok(meet.includes("swing") && !meet.includes("launch"), "it is introduced as a swing, never as a cannon (" + meet + ")");
+  assert.ok(DATA.SAY.meet.swing && DATA.SAY.swing, "a swing has its own words");
+});
+
+test("a PATH is followed only from a cell he can STEP to (§19): pressed against a thin picket fence with the old path running along its far side, he goes round it — never into it for good", () => {
+  // Found by the bot in Trick or Treat: onPath took any NEIGHBOUR of his cell
+  // that lay on the path — including the cell on the far side of a 4-unit
+  // fence — so he headed through the fence and stood there for ever.
+  const def = L.sceneById("treats"), G = L.geomOf(def), W = G.W, H = G.H;
+  const fy = 0.5 * H, x = 187.5;
+  // the fixture: a thin fence between two cells he can stand in
+  const below = G.cellOf(x, fy + 2.5), above = G.cellOf(x, fy - 2.5);
+  assert.ok(G.ok[below] && G.ok[above], "fixture: standing room on both sides of the fence");
+  assert.ok(G.walk(x, fy) > 0, "fixture: the fence itself is not ground");
+  const st = L.createGame(def);
+  st.hole.level = 5; st.hole.R = st.hole.r = st.levels.R[5]; st.hole.xp = st.levels.C[5];
+  const goal = { x: 245.7, y: 336.4 };
+  // plan from the far end of the fence, so the path runs along its top
+  park(st, 100, 380);
+  run(st, 0.3, goal);
+  // then he finds himself pressed against the fence, below the path
+  park(st, x, fy + 1.7);
+  let moved = 0, px = st.hole.x, py = st.hole.y;
+  for (let i = 0; i < 60 * 3; i++) {
+    L.setTarget(st, goal.x, goal.y); L.step(st, L.DT); st.events.length = 0;
+    moved += Math.hypot(st.hole.x - px, st.hole.y - py); px = st.hole.x; py = st.hole.y;
+  }
+  assert.ok(moved > 40, "he goes round the fence (moved " + moved.toFixed(1) + " units in 3s)");
+  assert.ok(st.hole.y < fy || st.hole.x < 0.28 * W, "…and gets past it (at " + st.hole.x.toFixed(0) + "," + st.hole.y.toFixed(0) + ")");
 });

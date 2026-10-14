@@ -362,7 +362,9 @@ test("🕳️ Gobble's WIN box shows the cheer AND 🔁/▶ with no scrolling at
 
 test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, notch included; and every land's page an even grid of kid-sized doors — all on one iPad screen either way up, three full rows on a phone that scrolls (never sideways) to the last — every name inside its door", async () => {
   // Since the owner doubled the places again (2026-10-08: 48) the home is the
-  // LANDS (§17), each a big picture door; a land's page holds its places. On
+  // LANDS (§17), each a big picture door; a land's page holds its places —
+  // and since Hero Night (2026-10-14, §19) a fifth land of six, so the home
+  // is three doors over two and Hero Night's page is three across. On
   // an iPad — Josh's own device — every door of a land is on one screen, in
   // portrait AND on its side; on a phone a land's page may scroll (as Josh's
   // own launcher does), but never sideways, its first screen shows at least
@@ -378,7 +380,19 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
     const vh = document.documentElement.clientHeight;
     const els = [...document.querySelectorAll(sel)].filter((b) => b.getClientRects().length > 0);
     const R = els.map((b) => b.getBoundingClientRect());
-    return { n: R.length, clear: vh - bottomInset,
+    // ROWS: each row of doors, and whether it spans the whole grid. Five
+    // lands are three over two (§19), so "the count divides the columns" is
+    // no law for the home; the law is that no row is ragged — every row
+    // runs from the grid's left edge to its right, its doors all one width.
+    const grid = els.length ? els[0].parentElement.getBoundingClientRect() : null;
+    const byRow = new Map();
+    for (const r of R) { const k = Math.round(r.top); if (!byRow.has(k)) byRow.set(k, []); byRow.get(k).push(r); }
+    const ragged = [...byRow.values()].filter((row) => {
+      const l = Math.min(...row.map((r) => r.left)), rt = Math.max(...row.map((r) => r.right));
+      const ws = row.map((r) => r.width);
+      return Math.abs(l - grid.left) > 1.5 || Math.abs(rt - grid.right) > 1.5 || Math.max(...ws) - Math.min(...ws) > 1.5;
+    }).map((row) => row.length + " doors");
+    return { n: R.length, clear: vh - bottomInset, rows: byRow.size, ragged,
       cols: new Set(R.map((r) => Math.round(r.left))).size,
       last: Math.round(Math.max(...R.map((r) => r.bottom))),
       hidden: R.filter((r) => r.bottom > vh - bottomInset + 0.5).length,
@@ -426,7 +440,11 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
       const m = await p.evaluate(doorsOn, { bottomInset: inset[1], sel: ".hole-land" });
       const hero = await p.evaluate(() => Math.round(document.querySelector(".hole-hero").getBoundingClientRect().height));
       assert.equal(m.n, LANDS.length, `${at}: one door per land`);
-      assert.equal(m.n % m.cols, 0, `${at}: the lands fill their grid evenly (${m.n} in ${m.cols} columns)`);
+      assert.deepEqual(m.ragged, [], `${at}: every row of land doors spans the whole grid, its doors one width (${m.n} doors in ${m.rows} rows)`);
+      assert.ok(m.rows <= 2, `${at}: the land doors are at most two rows (${m.rows})`);
+      // the home's doors are narrower three to a row (§19): every land's name
+      // still has room in its door, in a device's wider font too
+      assert.ok(m.room.px >= 3, `${at}: every land's longest word has room to spare in its door — "${m.room.name}" has ${m.room.px}px (a wider device font would break it)`);
       await auditActiveScreen(p, `hole-home@${at}`);
       await noOverflow(p, `hole-home@${at}`);
       assert.ok(m.minSide >= 75, `${at}: big land doors (${m.minSide}px)`);
@@ -463,6 +481,7 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
         const lat = `${at} ${ld.id}`;
         assert.equal(d.n, ld.places.length, `${lat}: one door per place in the land`);
         assert.equal(d.n % d.cols, 0, `${lat}: the grid fills evenly (${d.n} doors in ${d.cols} columns)`);
+        assert.deepEqual(d.ragged, [], `${lat}: no row of doors is ragged`);
         await auditActiveScreen(p, `hole-land@${lat}`);
         await noOverflow(p, `hole-land@${lat}`);
         assert.ok(d.minSide >= 75, `${lat}: kid-sized doors (${d.minSide}px)`);

@@ -153,12 +153,23 @@
       });
     });
     const lands = home.querySelector(".hole-lands");
-    LANDS.forEach((ld) => {
+    // The land doors are TWO rows on every screen (the home's whole budget:
+    // every door on the first screen of a phone): the first row holds the
+    // extra one when there is an odd number — five lands are three over two —
+    // and every row spans the whole width, so no row is ragged. The grid has
+    // as many columns as both rows divide (6 for 3 over 2).
+    const top = Math.ceil(LANDS.length / 2), bottom = LANDS.length - top;
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    const cols = bottom ? (top * bottom) / gcd(top, bottom) : top;
+    lands.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
+    lands.dataset.top = String(top);
+    LANDS.forEach((ld, i) => {
       const b = doc.createElement("button");
       b.type = "button";
       b.className = "hole-land tap";
       b.dataset.land = ld.id;
       b.setAttribute("role", "listitem");
+      b.style.gridColumn = "span " + cols / (i < top ? top : bottom);
       b.style.background = "linear-gradient(160deg, " + ld.backdrop[0] + ", " + ld.backdrop[1] + ")";
       b.style.borderBottomColor = ld.color;
       if (HR.darkHex(ld.backdrop[1])) b.classList.add("hole-land--dark");
@@ -518,6 +529,9 @@
     // a cannon: a low boom and a whoosh up into the sky
     boom: () => notes([[82.41, 0, { type: "sawtooth", duration: 0.22, gain: 0.12, plain: true }],
       [261.63, 120, sn(0.06, 0.12)], [392, 170, sn(0.06, 0.12)], [587.33, 220, sn(0.06, 0.12)], [880, 270, sn(0.2, 0.12)]]),
+    // a web swing (§19): THWIP — a quick zip of a web shot, then a swoosh
+    thwip: () => notes([[2093, 0, sq(0.025, 0.05)], [1568, 30, sq(0.025, 0.05)], [523.25, 90, sn(0.06, 0.12)],
+      [698.46, 140, sn(0.06, 0.12)], [987.77, 190, sn(0.2, 0.12)]]),
     // …and down again: a soft thump
     land: () => notes([[196, 0, sn(0.08, 0.18)], [130.81, 60, sn(0.18, 0.16)]]),
     // a runaway darts off: a quick giggle of notes (it is a game of tag)
@@ -703,7 +717,9 @@
         SFX.bonk(ev.last);
         sayPlay(ev.last ? SAY.hitLast : SAY.hit[Math.min(ev.n, SAY.hit.length) - 1]);
       } else if (ev.type === "launch") {
-        SFX.boom(); sayEvery("launch", 12, SAY.launch, t);
+        // a web swing (§19) is a cannon's flight on a web, and sounds like one
+        if (ev.look === "web") { SFX.thwip(); sayEvery("swing", 12, SAY.swing, t); }
+        else { SFX.boom(); sayEvery("launch", 12, SAY.launch, t); }
       } else if (ev.type === "land") {
         SFX.land();
       } else if (ev.type === "flee") {
@@ -993,6 +1009,10 @@
         doc.body.classList.remove("in-game");
         landNow = ld;
         land.querySelector(".hole-landtitle").textContent = ld.name;
+        // how many doors this land has: the page lays them out in rows it
+        // fills evenly (a land of six is three across even on an iPad, where
+        // a land of twelve is four across)
+        land.querySelector(".hole-scenes").dataset.n = String(ld.places.length);
         for (const b of land.querySelectorAll(".hole-door")) b.hidden = b.dataset.land !== ld.id;
         paintDoors();
         land.hidden = false;

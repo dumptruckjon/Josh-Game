@@ -1357,9 +1357,14 @@
   function onPath(G, P, from) {
     let at = P.idx.has(from) ? P.idx.get(from) : -1;
     if (at >= 0) return at;
+    // a neighbouring cell counts only if he can STEP to it: a cell across a
+    // thin wall is next to him and no use (pressed against a picket fence
+    // with the path running along its far side, he headed for the cell
+    // through the fence and stood there for ever — found in Trick or Treat)
     const i = from % G.nc, j = Math.floor(from / G.nc);
-    for (const [dx, dy] of DIRS) {
-      const ii = i + dx, jj = j + dy;
+    for (let d = 0; d < 8; d++) {
+      if (!(G.edge[from] & (1 << d))) continue;
+      const ii = i + DIRS[d][0], jj = j + DIRS[d][1];
       if (ii < 0 || jj < 0 || ii >= G.nc || jj >= G.nr) continue;
       const v = P.idx.get(jj * G.nc + ii);
       if (v !== undefined && v > at) at = v;
@@ -1460,7 +1465,7 @@
         // A CANNON (§17): BOOM, and he flies to the far end in an arc — the
         // flight takes a moment, and nothing falls in on the way
         const d = gdist(h.x, h.y, to.x, to.y), F = RULES.FLY;
-        st.fly = { x0: round3(h.x), y0: round3(h.y), x1: to.x, y1: to.y, t: 0, d: round3(clamp(d / F.speed, F.min, F.max)) };
+        st.fly = { x0: round3(h.x), y0: round3(h.y), x1: to.x, y1: to.y, t: 0, d: round3(clamp(d / F.speed, F.min, F.max)), look: e.look };
         emit(st, { type: "launch", from: [round3(e.x), round3(e.y)], to: [round3(to.x), round3(to.y)], look: e.look, portal: e.pi });
         return;
       }
@@ -1964,7 +1969,11 @@
     add("hits", objs((o) => !!o.hits));
     add("power", objs((o) => !!o.power));
     add("sprout", objs((o) => o.box === "sprout"));
-    add("launch", R.G.ends.filter((e) => e.fly && e.live).map((e) => ({ x: e.x, y: e.y })));
+    // a WEB SWING (§19) flies him just like a cannon, but it is a web, and
+    // says so: "a cannon!" pointing at a web would be a lie
+    const flies = (web) => R.G.ends.filter((e) => e.fly && e.live && (e.look === "web") === web).map((e) => ({ x: e.x, y: e.y }));
+    add("launch", flies(false));
+    add("swing", flies(true));
     add("spin", R.G.flows.filter((f) => f.spin).map((f) => ({ x: f.spin.x, y: f.spin.y, r: f.spin.rg })));
     if (R.def.count) out.push({ kind: "count", wide: true, n: R.counts });
     return out;

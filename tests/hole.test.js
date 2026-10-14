@@ -95,8 +95,9 @@ test("the front door's FOURTH door opens Gobble Hole, and 🚪 comes back", asyn
 });
 
 test("THE LANDS (§17): the home is one big door per land in an even grid, each saying how many of its places are finished; a land's page shows exactly its own places, kid-sized, in an even grid — every place in exactly one land — and 🏠 goes back up a level each time", async () => {
-  // The owner doubled the places again (2026-10-08: 48). Forty-eight doors
-  // cannot be one screen of kid-sized targets, so the home is FOUR lands (the
+  // The owner doubled the places again (2026-10-08: 48), then added six for
+  // Hero Night (2026-10-14: 54). That many doors
+  // cannot be one screen of kid-sized targets, so the home is the LANDS (the
   // model Josh knows from his launcher: a category, then its games), each a
   // picture for a non-reader. mobile.test.js measures every size, with the
   // real insets, on the real engine.
@@ -106,10 +107,17 @@ test("THE LANDS (§17): the home is one big door per land in an even grid, each 
   const D = await page.evaluate(() => ({ lands: window.HoleData.LANDS, n: window.HoleData.SCENES.length }));
   const h = await page.evaluate(() => {
     const L = [...document.querySelectorAll(".hole-land")].map((b) => ({ id: b.dataset.land, r: b.getBoundingClientRect().toJSON(), stars: b.querySelector(".hole-land__stars").textContent }));
-    return { L, cols: new Set(L.map((x) => Math.round(x.r.left))).size, total: document.querySelector(".hole-total").textContent, sw: document.documentElement.scrollWidth, vw: innerWidth };
+    const g = document.querySelector(".hole-lands").getBoundingClientRect();
+    // rows: no row is ragged (five lands are three over two, §19)
+    const rows = new Map();
+    for (const x of L) { const k = Math.round(x.r.top); rows.set(k, (rows.get(k) || []).concat([x.r])); }
+    const ragged = [...rows.values()].filter((row) => Math.abs(Math.min(...row.map((r) => r.left)) - g.left) > 1.5 ||
+      Math.abs(Math.max(...row.map((r) => r.right)) - g.right) > 1.5 || Math.max(...row.map((r) => r.width)) - Math.min(...row.map((r) => r.width)) > 1.5).length;
+    return { L, rows: rows.size, ragged, total: document.querySelector(".hole-total").textContent, sw: document.documentElement.scrollWidth, vw: innerWidth };
   });
   assert.deepEqual(h.L.map((x) => x.id), D.lands.map((l) => l.id), "one door per land, in the lands' order");
-  assert.equal(h.L.length % h.cols, 0, "the lands fill their grid evenly (" + h.L.length + " in " + h.cols + " columns)");
+  assert.equal(h.ragged, 0, "every row of land doors spans the whole grid, its doors one width (" + h.L.length + " in " + h.rows + " rows)");
+  assert.ok(h.rows <= 2, "the land doors are two rows at most (" + h.rows + ")");
   assert.ok(h.L.every((x) => x.r.width >= 75 && x.r.height >= 75 && x.r.bottom <= 844), "every land door is a big target, all on the first screen");
   for (const x of h.L) assert.match(x.stars, /^⭐ 0 \/ \d+$/, x.id + " says how many of its places are finished (" + x.stars + ")");
   assert.match(h.total, new RegExp("⭐ 0 / " + D.n + "$"), "…and the home how many of ALL of them (" + h.total + ")");
@@ -118,7 +126,9 @@ test("THE LANDS (§17): the home is one big door per land in an even grid, each 
   const all = D.lands.flatMap((l) => l.places);
   assert.equal(new Set(all).size, all.length, "no place is in two lands");
   assert.equal(all.length, D.n, "every place is in a land");
-  assert.equal(new Set(D.lands.map((l) => l.places.length)).size, 1, "every land holds the same number of places");
+  // a land holds six places or twelve (Hero Night, §19, is six): each fills
+  // its page evenly, which the page check below measures
+  for (const ld of D.lands) assert.ok(ld.places.length === 6 || ld.places.length === 12, ld.id + " holds six places or twelve (" + ld.places.length + ")");
   // each land's page: exactly its places
   for (const ld of D.lands) {
     await page.waitForTimeout(400);
@@ -1518,6 +1528,38 @@ test("a HAT gives way to the crown once he is big enough for the finale; a thing
   assert.ok(f.crown && f.wear === kinds.sideWear, kinds.side + ": the " + kinds.sideWear + " stays on beside the crown (" + JSON.stringify(f) + ")");
 });
 
+test("HERO NIGHT (§19): Gobble wears a hero's MASK behind his eyes (it stays on beside the crown), and a WEB SWING hangs him from a web line all the way across", async () => {
+  // a mask on his FACE: on from the start, and still on once crowned
+  await openScene("webcity");
+  await frames(2);
+  let f = await page.evaluate(() => window.__HOLE.info().face);
+  assert.equal(f.wear, "mask", "Web City: Gobble wears his hero's mask (" + JSON.stringify(f) + ")");
+  await makeTop();
+  await frames(2);
+  f = await page.evaluate(() => window.__HOLE.info().face);
+  assert.ok(f.crown && f.wear === "mask", "big enough: the mask stays on beside the crown (" + JSON.stringify(f) + ")");
+  // THE WEB SWING: stand him by a swing and roll him on — while he flies,
+  // a web line holds him (the frame's own record says so)
+  await openScene("webcity");
+  const flew = await page.evaluate(async () => {
+    const st = window.__HOLE.state(), G = window.HoleLogic.geomOf("webcity");
+    const E = G.ends.find((e) => e.fly && e.live && e.look === "web");
+    const h = st.hole;
+    h.x = h.tx = E.x; h.y = h.ty = E.y + 14; h.vx = h.vy = 0;
+    window.HoleLogic.setTarget(st, E.x, E.y);
+    let line = 0, flying = 0;
+    for (let i = 0; i < 240 && !(flying && !st.fly); i++) {
+      await new Promise((r) => requestAnimationFrame(r));
+      if (!st.fly) { window.HoleLogic.setTarget(st, E.x, E.y); continue; }
+      flying++;
+      if (window.__HOLE.info().drawnNew.webline) line++;
+    }
+    return { flying, line };
+  });
+  assert.ok(flew.flying > 3, "fixture: he flew on the web swing (" + flew.flying + " frames)");
+  assert.ok(flew.line >= flew.flying - 1, "a web line holds him all the way across (" + flew.line + " of " + flew.flying + " frames)");
+});
+
 test("a fresh place OPENS with a look at the whole island, then flies in to Gobble; a finger during it goes straight to him", async () => {
   await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
   await goLand("party");
@@ -1964,7 +2006,7 @@ test("§17: every NEW thing is DRAWN where he can see it — a button and its wi
     await page.waitForTimeout(700);
     await page.evaluate(() => {
       const st = window.__HOLE.state(), h = st.hole;
-      for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin", "count"]) st.met[k] = true;
+      for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "swing", "spin", "count"]) st.met[k] = true;
       // …and he goes back to where he started, away from anything too big
       h.x = h.tx = st.start.x; h.y = h.ty = st.start.y; h.vx = h.vy = 0;
     });
@@ -1998,6 +2040,9 @@ test("§17: every NEW thing is DRAWN where he can see it — a button and its wi
       [{ type: "hit", id: ids.pin, n: 3, of: 3, kids: [], last: true, x: 100, y: 100 }, SAY.hitLast],
       [{ type: "launch", from: [100, 100], to: [300, 300], portal: 0 }, SAY.launch],
       [{ type: "land", x: 300, y: 300 }, null],
+      // a web swing (§19): a cannon's flight on a web — its own THWIP and word
+      [{ type: "launch", from: [100, 100], to: [300, 300], portal: 1, look: "web" }, SAY.swing],
+      [{ type: "meet", kind: "swing", id: -1, x: 100, y: 100, n: 0 }, SAY.meet.swing],
       [{ type: "flee", id: 5 }, SAY.flee],
       [{ type: "power", kind: "magnet", id: 6 }, SAY.power.magnet],
       [{ type: "power", kind: "zoom", id: 6 }, SAY.power.zoom],
@@ -2009,7 +2054,7 @@ test("§17: every NEW thing is DRAWN where he can see it — a button and its wi
     const sounds = {};
     for (const [ev, line] of CASES) {
       const r = await fire(ev);
-      const name = ev.type + (ev.kind ? ":" + ev.kind : "") + (ev.how ? ":" + ev.how : "") + (ev.last ? ":last" : "");
+      const name = ev.type + (ev.kind ? ":" + ev.kind : "") + (ev.how ? ":" + ev.how : "") + (ev.look ? ":" + ev.look : "") + (ev.last ? ":last" : "");
       assert.ok(r.tones.length > 0, name + " makes a sound");
       sounds[name] = r.tones.join(",");
       if (line) assert.deepEqual(r.said, [line], name + " says " + JSON.stringify(line) + ": " + JSON.stringify(r.said));
@@ -2022,6 +2067,8 @@ test("§17: every NEW thing is DRAWN where he can see it — a button and its wi
     const wall = await fire({ type: "bump", id: ids.bump, solid: true, locked: false });
     assert.notEqual(sounds["bump"], plain.tones.join(","), "a bumper boings, unlike a plain too-big bump");
     assert.notEqual(sounds["bump"], wall.tones.join(","), "…and unlike a wall's thud");
+    // a web swing THWIPS: it never sounds like a cannon's boom
+    assert.notEqual(sounds["launch:web"], sounds["launch"], "a web swing sounds unlike a cannon");
     // count mode: a number for each — rationed, so a slurp's three-at-once
     // never builds a queue of numbers that falls behind — and always the last
     const cnt = await page.evaluate(async () => {
@@ -2051,7 +2098,7 @@ test("§17: every NEW thing is DRAWN where he can see it — a button and its wi
       await page.waitForTimeout(700);
       await page.evaluate(() => {
         const st = window.__HOLE.state();
-        for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "spin", "count"]) st.met[k] = true;
+        for (const k of ["keys", "button", "bounce", "hits", "power", "sprout", "launch", "swing", "spin", "count"]) st.met[k] = true;
       });
     };
     await fresh();
