@@ -1271,7 +1271,9 @@ test("guardrail: Gobble Hole's grown-ups reset asks the ONE parent gate, and wip
   // is not this). Gobble Hole's WIPE has one owner too, resetProgress: the
   // grown-ups button and the test hook both call it, and it drops the run
   // parked in memory — leaving the play screen saves that run, so a wipe
-  // that left it alive would put the old progress straight back.
+  // that left it alive would put the old progress straight back. And it must
+  // write FORCED: an ordinary write folds in what another tab stored since
+  // (§20), so an unforced reset would fold every wiped ⭐ straight back in.
   const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   const m = strip(read("scripts/main.js")), h = strip(read("scripts/hole-main.js"));
   assert.equal((m.match(/window\.JoshGate\s*=/g) || []).length, 1, "JoshGate is defined once, in main.js");
@@ -1286,7 +1288,7 @@ test("guardrail: Gobble Hole's grown-ups reset asks the ONE parent gate, and wip
   const at = h.indexOf("function resetProgress(");
   assert.ok(at > 0, "resetProgress exists");
   const body = h.slice(at, h.indexOf("\n  }\n", at));
-  for (const want of ["save = freshSave()", "persist()", "run = null", "stopLoop()", "paintDoors()"])
+  for (const want of ["save = freshSave()", "persist({ force: true })", "run = null", "stopLoop()", "paintDoors()"])
     assert.ok(body.includes(want), "resetProgress must do " + want);
   assert.match(h, /reset\(opts\)\s*\{\s*resetProgress\(\)/, "__HOLE.reset goes through the one wipe");
   assert.equal((h.match(/save = freshSave\(\)/g) || []).length, 1, "a fresh save is made in ONE place");

@@ -2790,7 +2790,34 @@
   // a place's land
   const landOf = (id) => LANDS.find((l) => l.places.includes(id)) || null;
 
-  const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf, LANDS, landOf };
+  // Each place's layout FINGERPRINT (HoleLogic.printOf of its laid-out
+  // things), so the page can tell at a glance whether a saved half-eaten run
+  // still fits its place without laying all of them out (tens of ms each, too
+  // dear for a door ring). A run from before its place was laid out again
+  // names ids that mean other things now: restore drops it, and the door must
+  // not wear a ring promising its progress. hole-logic.test.js holds every
+  // entry to the real layout, so re-laying a place is a conscious act: the
+  // test says the new value, and every half-eaten run of that place is
+  // dropped on the next visit (its ⭐ is kept).
+  const PRINTS = {
+    toyroom: "4qf9mv", picnic: "c5hetg", farm: "1by7i4", build: "ywvw66",
+    town: "17yvt8h", sports: "1s5a5n7", party: "t7kcs3", beach: "jt44zz",
+    volcano: "1wo87q", snow: "1envzaw", airport: "1491zr1", space: "n3kc7a",
+    market: "hyt1vb", maze: "1q3kpc4", cave: "1kxk9qw", castle: "1ccqpva",
+    factory: "1l7a1tb", circus: "1j6d9rq", jungle: "zlixaj", cloud: "1pd56ev",
+    pirate: "uv2cyg", themepark: "1k92zh0", candy: "6s1a94", music: "fcwsf7",
+    bath: "ktjpkb", kitchen: "1v99924", firestation: "taz05c", garden: "ez3rop",
+    playground: "1q027bp", racetrack: "s3lczc", sea: "12yx3s3",
+    waterpark: "kan4hy", harbour: "1ly2oko", mountain: "1xew79k",
+    hotel: "1ji4i6b", islands: "3blz9", desert: "1jpsovg", camp: "yyvz9t",
+    dino: "127bfzl", mine: "10q4kuz", forest: "1y1xwuw", temple: "12d774d",
+    pinball: "o3l774", moon: "1qk8e5m", trainland: "swv4bm", numbers: "gx0v68",
+    chocolate: "1joeaz8", beanstalk: "zmmh2b", webcity: "v8vc5m",
+    web: "19i8lez", lab: "1j0zqtu", treats: "gpi9te", pumpkins: "1k18zw",
+    haunted: "m3fiyk",
+  };
+
+  const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf, LANDS, landOf, PRINTS };
   global.HoleData = HoleData;
   if (typeof module !== "undefined" && module.exports) module.exports = HoleData;
 })(typeof window !== "undefined" ? window : globalThis);

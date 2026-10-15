@@ -1386,3 +1386,89 @@ dispatcher (unlike the cannon's boom); the mask on from the start and still on
 when crowned; a web line drawn on every frame of a real swing. `mobile.test.js`
 and `hole.test.js`: no row of doors is ragged, at every size. Every new clause
 was broken on purpose and went red.
+
+## 20. Quality check after Hero Night (owner, 2026-10-14: "I don't want bugs my kid will hit")
+
+**Status: BUILT.** The owner asked whether Gobble Hole, old and new, was
+done and free of bugs a four-year-old would hit. Two independent probes did
+the hunting: an ENGINE FUZZER (a finger anywhere, held on water and walls,
+yanked about, plus the greedy bot and the wandering child; 12 play-throughs of
+every one of the 54 places, with a "can it still be won from here?" probe at
+random moments that snapshots, restores and hands the run to the bot) and a
+BROWSER pass (every place entered by its doors, dragged and won at three sizes;
+leaving mid-anything; double taps; two tabs; storage blocked or corrupt; sound
+on). It found six real defects. All are fixed and each has a test that fails
+on the old code.
+
+### 20.1 Stuck for good (the engine)
+
+- **Beside the path at the END of a fence or wall.** When Gobble stood next
+  to his planned path rather than on it, the planner's last resort sent him
+  straight at the next cell along. Round the end of a picket fence (Trick or
+  Treat) or a lab wall (Robot Lab) that line cut across the fence's end, and
+  he pressed into it for 70-100 s with the way round in plain sight. Now,
+  beside the path, he heads for the next cell only if he can glide to it,
+  else the path cell beside him, else the cell he plans from.
+- **Squeezed between two drums too big to eat.** A wall's cells are closed to
+  the paths a little wider than its core. Little Gobble could stand between
+  two oil drums (Building Site) where every cell round him was closed, so the
+  path search could not leave his cell and he leaned on a drum for ever (free
+  only straight back the way he came). A path now starts from the nearest
+  open cell he can glide to.
+
+Re-run on the fixed engine, the fuzzer's 648 play-throughs found no stuck spot,
+no state that could no longer be won, no crash and no broken number. Its one
+remaining flag is deliberate: a saved run never counts the finale as eaten, so
+a restored run can always be finished.
+
+### 20.2 The page
+
+- **A double tap on a place's door (or on ▶ / 🔁) steered him.** The field
+  steers on pointerdown, which the click-only echo guard never saw, so the
+  second tap of a double tap landed on the field just under the door. It ended
+  the opening look at the whole island and sent Gobble off. A finger that
+  lands within 350 ms of a place opening is now treated as the echo, judged
+  by when the finger LANDED (the event's own time), not by when the page got
+  to it: opening a place is heavy work, and the echo can wait in the queue
+  past 350 ms (measured: handled 278-357 ms after ▶ at full speed, about a
+  second on a CPU slowed 4x). The field keeps its own clock for this, so a
+  🏠 pressed just after 🔁 is never swallowed.
+- **The first-time ghost hand fought his finger.** The hand waits out the
+  opening look, and his first touch ends that look, so the hand started while
+  his finger was down and took Gobble away for 1.5 s. It no longer starts
+  once he has steered (it shows next time), and 👂 still shows it on request.
+- **A door ring promised progress that opening the place dropped.** The
+  loader checked a saved run's shape but not its layout fingerprint, so after
+  Volcano Island, Ski Mountain and Pinball Party were laid out again their
+  doors showed "17 percent eaten" and opened fresh. Laying a place out to
+  compare costs tens of ms (too much for a door), so every place's fingerprint
+  is now pinned in `HoleData.PRINTS`. A test holds that table to the real
+  layouts both ways, so laying a place out again is a conscious act.
+- **Two tabs wiped each other's ⭐.** Each tab holds its own copy of the save,
+  and a tab opened earlier wrote its stale copy over a star the other had just
+  won; merely opening a door was enough. A write now folds in what another tab
+  stored since: stars, places seen, the demo and treasure counts only ever
+  grow, and a half-eaten run belongs to this tab only for places this tab has
+  played. The grown-ups reset is the one write that does not fold.
+
+### 20.3 Checked and clean
+
+Kid-safety of the six new places (nothing alive is eaten, nothing frightening,
+no franchise name), every spoken line during real play (no emoji, no
+"undefined"), leaving mid-flight on a web swing (resumes where he lands), a
+corrupted or blocked save, the grown-ups reset, and every place won through
+its doors at 390 x 844, 320 x 568 and 844 x 390 with no page error.
+
+### 20.4 Tests
+
+`tests/hole-logic.test.js`: the six saved stuck spots, each restored and played
+to a win with no standstill (on the old engine every one stood still for
+71-120 s); `HoleData.PRINTS` equal to the real layouts, both ways, and
+`runMatches` agreeing with `restore`. `tests/hole.test.js`: a double tap on a
+door and on ▶ neither ends the opening look nor steers; the ghost hand never
+starts under a held finger, while 👂 still shows it; a run with a stale
+fingerprint is dropped with no ring; two tabs keep each other's ⭐, and the
+reset still clears them even when the other tab wrote last. The double-tap
+test sends each touch at its real moment with its real time (a phone's
+timestamps), on a CPU slowed 4x, and first proves the echo reached the field.
+Every new clause was broken on purpose and went red.

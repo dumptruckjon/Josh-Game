@@ -2780,3 +2780,60 @@ test("a PATH is followed only from a cell he can STEP to (§19): pressed against
   assert.ok(moved > 40, "he goes round the fence (moved " + moved.toFixed(1) + " units in 3s)");
   assert.ok(st.hole.y < fy || st.hole.x < 0.28 * W, "…and gets past it (at " + st.hole.x.toFixed(0) + "," + st.hole.y.toFixed(0) + ")");
 });
+
+test("NEVER STUCK where a fuzzer found him stuck (§20): beside his path at the END of a fence or wall, and squeezed between two drums too big to eat — from each saved spot the bot plays on with no standstill and wins", () => {
+  // A fuzzer steering the way a four-year-old does (a finger anywhere, held
+  // on water and walls, yanked about) found two more ways to stand still for
+  // good, each saved the moment it began. (1) BESIDE the path, not on it: the
+  // next cell along was round the end of a picket fence (Trick or Treat) or a
+  // lab wall, the straight line to it cut across the end, and he pressed into
+  // it for 70-100s while the way round was in plain sight. (2) Little Gobble
+  // squeezed between two oil drums (Building Site): a wall's cells are closed
+  // a little wider than its core, every cell round him was closed, the path
+  // search could not leave his cell, and he leaned on a drum for ever. On the
+  // engine before the fix every one of these stood still 71-120s and none
+  // won; each is a whole run, so the bot must also finish the place.
+  const SPOTS = [
+    { v: 4, scene: "treats", f: "gpi9te", eaten: [50, 51, 52, 53, 160, 164, 165, 205, 212, 221, 239, 261, 264, 288, 294, 297, 307, 309], pressed: [], x: 255.96, y: 230.867 },
+    { v: 4, scene: "treats", f: "gpi9te", eaten: [1, 2, 4, 5, 6, 7, 8, 9, 168, 176, 182, 217, 231, 233, 240, 243, 253, 295], pressed: [], x: 30.571, y: 613.862 },
+    { v: 4, scene: "lab", f: "1j0zqtu", eaten: [2, 6, 7, 8, 9, 19, 67, 72, 83, 98, 122, 123, 134, 138, 139, 149, 156, 162, 163, 179, 186, 198, 199, 201, 205, 207, 222, 224, 243, 246, 249, 255, 257, 263, 268, 270, 280, 283, 285, 288, 294], pressed: [], x: 114.401, y: 549.599 },
+    { v: 4, scene: "treats", f: "gpi9te", eaten: [50, 51, 52, 53, 160, 164, 165, 205, 221, 239, 264, 294, 297, 307, 309], pressed: [], x: 122.5, y: 348.868 },
+    { v: 4, scene: "treats", f: "gpi9te", eaten: [1, 2, 4, 5, 6, 7, 9, 10, 17, 19, 50, 52, 53, 119, 129, 143, 144, 158, 159, 160, 164, 165, 176, 190, 191, 199, 201, 203, 211, 221, 223, 238, 243, 249, 254, 261, 265, 273, 278, 279, 286, 299, 304, 307, 309], pressed: [], x: 122.5, y: 348.503 },
+    { v: 4, scene: "build", f: "ywvw66", eaten: [3, 273], pressed: [], x: 211.947, y: 458.448 },
+  ];
+  for (const snap of SPOTS) {
+    const st = L.restore(snap);
+    // a place laid out again since makes its spot meaningless: say so, never
+    // pass on a fixture that no longer exists
+    assert.ok(st, snap.scene + ": the saved spot no longer restores (the place was laid out again) — re-capture it with a fuzzer");
+    assert.ok(Math.abs(st.hole.x - snap.x) < 0.01 && Math.abs(st.hole.y - snap.y) < 0.01, snap.scene + ": he starts on the saved spot");
+    let lx = st.hole.x, ly = st.hole.y, still = 0, maxStill = 0;
+    while (!st.won && st.t < 120) {
+      const tg = L.botTarget(st);
+      if (tg) L.setTarget(st, tg.x, tg.y);
+      L.step(st, L.DT); st.events.length = 0;
+      if (Math.hypot(st.hole.x - lx, st.hole.y - ly) > 1) { lx = st.hole.x; ly = st.hole.y; still = 0; } else still += L.DT;
+      maxStill = Math.max(maxStill, still);
+    }
+    assert.ok(maxStill < 5, snap.scene + " from (" + snap.x + "," + snap.y + "): he stood still " + maxStill.toFixed(1) + "s at " + st.hole.x.toFixed(1) + "," + st.hole.y.toFixed(1));
+    assert.ok(st.won, snap.scene + " from (" + snap.x + "," + snap.y + "): the bot finishes the place (ate " + st.eaten + " of " + st.total + " in 120s)");
+  }
+  // the crevice really is one: between two solid drums too big for little
+  // Gobble, where straight back the way he came is the only free direction
+  const st = L.restore(SPOTS[5]);
+  const drums = st.objects.filter((o) => L.activeSolid(st, o) && Math.hypot(o.x - st.hole.x, o.y - st.hole.y) < 8);
+  assert.equal(drums.length, 2, "fixture: little Gobble stands between two walls too big to eat");
+});
+
+test("§20: HoleData.PRINTS pins every place's layout fingerprint, exactly and both ways — so the page can tell a saved run still fits its place without laying it out, and laying a place out again is a conscious act", () => {
+  const P = DATA.PRINTS;
+  assert.deepEqual(Object.keys(P).sort(), SCENES.map((d) => d.id).sort(), "one pinned fingerprint per place, and none for a place that does not exist");
+  for (const def of SCENES) {
+    const st = L.createGame(def);
+    assert.equal(P[def.id], st.print, def.id + ": its layout changed, so every half-eaten run of it will be dropped — if that is meant, pin the new fingerprint: " + def.id + ': "' + st.print + '"');
+    const snap = L.snapshot(st);
+    assert.equal(L.runMatches(snap), true, def.id + ": a run of the place as it is matches");
+    assert.equal(L.runMatches({ ...snap, f: snap.f + "x" }), false, def.id + ": a run from another layout of it does not");
+    assert.equal(L.runMatches({ ...snap, f: snap.f + "x" }), !!L.restore({ ...snap, f: snap.f + "x" }), def.id + ": runMatches agrees with restore");
+  }
+});

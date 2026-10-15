@@ -1284,7 +1284,16 @@
       tx = G.cx(k); ty = G.cy(k);
     }
     if (Math.hypot(tx - h.x, ty - h.y) < 0.01 || clearLine(st, R, h.x, h.y, tx, ty, goalEnd)) return { x: tx, y: ty, final: true };
-    const from = cellHere(G, h.x, h.y), goal = cellHere(G, tx, ty);
+    let from = cellHere(G, h.x, h.y);
+    const goal = cellHere(G, tx, ty);
+    // His cell can be closed to the paths although his centre stands free:
+    // a wall's cells are closed a little wider than its core, and squeezed
+    // between two big things he can stand where every cell round him is
+    // closed — the search could not leave his cell, and he leaned on a drum
+    // for good (found on the Building Site by a fuzzer: little Gobble between
+    // two oil drums too big to eat, free only straight back the way he came).
+    // So a path starts from the nearest open cell he can glide to.
+    if (R.block && R.block[from]) { const k = openCellNear(st, R, h.x, h.y); if (k >= 0) from = k; }
     let P = R.path;
     let at = P && P.goal === goal && P.gen === st.navGen ? onPath(G, P, from) : -1;
     if (at < 0) {
@@ -1331,7 +1340,36 @@
       if (clearLine(st, R, h.x, h.y, x, y, -1)) return { x, y, final: i === last };
     }
     const k = P.cells[Math.min(at + 1, last)];
+    // Standing IN the cell he is at, he heads for the next one. BESIDE the
+    // path (at is a cell next to his, or the open cell he must reach first),
+    // the line to the next cell can cut across the very wall the path goes
+    // round: he stood at the end of a picket fence, the way round it in plain
+    // sight, for good (found in Trick or Treat and the Robot Lab by a
+    // fuzzer). So, beside it: the next cell if he can glide to it, else the
+    // path cell beside him, else the cell he plans from.
+    if (P.cells[at] !== G.cellOf(h.x, h.y)) {
+      for (const c of [k, P.cells[at]]) {
+        if (clearLine(st, R, h.x, h.y, G.cx(c), G.cy(c), -1)) return { x: G.cx(c), y: G.cy(c), final: false };
+      }
+      return { x: G.cx(from), y: G.cy(from), final: false };
+    }
     return { x: G.cx(k), y: G.cy(k), final: false };
+  }
+  // The nearest cell open to the paths (on the ground, not closed by a wall)
+  // that he can glide to in a straight line from where he stands, or -1.
+  function openCellNear(st, R, x, y) {
+    const G = R.G, k0 = G.cellOf(x, y), i0 = k0 % G.nc, j0 = Math.floor(k0 / G.nc);
+    let best = -1, bd = Infinity;
+    for (let j = j0 - 3; j <= j0 + 3; j++) {
+      for (let i = i0 - 3; i <= i0 + 3; i++) {
+        if (i < 0 || j < 0 || i >= G.nc || j >= G.nr) continue;
+        const k = j * G.nc + i;
+        if (!G.ok[k] || R.block[k]) continue;
+        const d = gdist(G.cx(k), G.cy(k), x, y);
+        if (d < bd && clearLine(st, R, x, y, G.cx(k), G.cy(k), -1)) { bd = d; best = k; }
+      }
+    }
+    return best;
   }
   // Away from a sleeping portal end, far enough for it to wake (warp() wakes
   // it past 2 * PORTAL_R + 4): the nearest open cell he can glide to in a
@@ -2073,6 +2111,24 @@
     if (typeof snap.f === "string") return true;
     return !("f" in snap) && !(RULES.RELAID || []).includes(def.id);
   }
+  // Could restore take this run, ALL of it — the fingerprint too? The page
+  // asks before it shows a door ring: runCouldRestore alone let a run from
+  // before its place was laid out again wear "17 percent eaten" on its door,
+  // and opening it started the place over (found after Volcano Island, Ski
+  // Mountain and Pinball Party were re-laid; a ring must never promise
+  // progress that opening the place drops). The fingerprint is read from
+  // HoleData.PRINTS (laying a place out is tens of ms, too dear for a door);
+  // a place missing from it is laid out once and remembered.
+  const prints = new Map();
+  function runMatches(snap) {
+    if (!runCouldRestore(snap)) return false;
+    if (typeof snap.f !== "string") return true;
+    const def = sceneById(snap.scene);
+    const pinned = DATA.PRINTS && DATA.PRINTS[def.id];
+    if (typeof pinned === "string") return pinned === snap.f;
+    if (!prints.has(def.id)) prints.set(def.id, printOf(layout(def).objects));
+    return prints.get(def.id) === snap.f;
+  }
   function restore(snap) {
     if (!runCouldRestore(snap)) return null;
     const def = sceneById(snap.scene);
@@ -2345,7 +2401,7 @@
     rng, hashStr, printOf, twistsOf, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
     goldOf, countOf, GOLD_BANDS, itemOf, geomOf, outlineOf, progressOf, routeLine,
     createGame, setTarget, step, nearestEdible, edible, wanted, nextOpener, openerDone, goalOf, botTarget, activeSolid,
-    snapshot, restore, runCouldRestore, hashState,
+    snapshot, restore, runCouldRestore, runMatches, hashState,
     // the shape machinery, for the tests that hold it to brute force
     compileShape, segIndex, segsOf, contours, SHAPE_CAP,
   };

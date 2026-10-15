@@ -1583,7 +1583,9 @@ test("a fresh place OPENS with a look at the whole island, then flies in to Gobb
   await page.waitForTimeout(400);
   await page.locator('.hole-door[data-scene="party"]').click();
   await page.waitForFunction(() => window.__HOLE.scene() === "party");
-  await page.waitForTimeout(80);
+  // past the echo window (§20: a finger THAT soon after the door was the
+  // door's echo, and rightly steers nothing) yet still inside the look
+  await page.waitForTimeout(400);
   assert.ok((await cam()).intro, "fixture: the opening look is running");
   const f = await field();
   await page.mouse.move(f.cx + 60, f.cy - 60);
@@ -2122,6 +2124,199 @@ test("§17: every NEW thing is DRAWN where he can see it — a button and its wi
       const S = window.HoleData.SCENES, i = S.findIndex((d) => d.id === sid);
       if (i >= 0) S.splice(i, 1);
     }, id);
+  }
+});
+
+test("§20: a DOUBLE-TAP on a place's door is ONE tap — its echo lands on the field just under the door and must neither end the opening look nor steer him; a tap he aims a moment later does", async () => {
+  // Found by an audit: the field steers on pointerdown, which the click-only
+  // echo guard never saw, so the second tap of a double tap on a place's door
+  // ended the look at the whole island and sent Gobble toward the spot under
+  // the door. A four-year-old double-taps every door.
+  const read = () => page.evaluate(() => {
+    const st = window.__HOLE.state(), h = st.hole;
+    return { scene: window.__HOLE.scene(), intro: window.__HOLE.camera().intro, off: Math.hypot(h.tx - h.x, h.ty - h.y) };
+  });
+  // A FINGER's taps: a phone stamps each touch with the moment the finger
+  // landed, however busy the page is, and opening a place is heavy work — so
+  // the echo's event waits in the queue and is HANDLED long after it
+  // happened. page.touchscreen.tap waits for each tap to be handled, which
+  // stretches a 140ms double tap to ~480ms and makes it not a double tap at
+  // all; here each touch goes out at its real moment, carrying its real time.
+  // The CPU is slowed 4x (a slower iPad) so "handled late" is certain: judged
+  // by when it was HANDLED the echo is ~1s late and gets through, judged by
+  // when the finger LANDED it is the door's own echo.
+  const cdp = await context.newCDPSession(page);
+  const fingerTaps = async (x, y, gaps) => {
+    const t0 = Date.now();
+    for (const g of gaps) {
+      const wait = t0 + g - Date.now(); if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }], timestamp: (t0 + g) / 1000 });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [], timestamp: (t0 + g + 50) / 1000 });
+    }
+  };
+  // the echo must really REACH the field, or "it changed nothing" is vacuous
+  const countField = () => page.evaluate(() => {
+    window.__fieldDowns = 0;
+    const cv = document.querySelector("#screen-hole-play canvas");
+    if (!cv.__counting) { cv.__counting = true; cv.addEventListener("pointerdown", () => { window.__fieldDowns++; }, true); }
+  });
+  const echoLanded = () => page.waitForFunction(() => window.__fieldDowns >= 1, null, { timeout: 15000 });
+  await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+  await goLand("castle");
+  await page.waitForTimeout(450);
+  await countField();
+  const b = await page.locator('.hole-door[data-scene="castle"]').boundingBox();
+  const c = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  try { await fingerTaps(c.x, c.y, [0, 140]); await echoLanded(); }
+  finally { await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 }); }
+  const s = await read();
+  assert.equal(s.scene, "castle", "the door opened its place");
+  assert.equal(s.intro, true, "the echo did not end the opening look of the whole island");
+  assert.ok(s.off < 0.01, "…nor steer him (his target is " + s.off.toFixed(1) + " units off)");
+  // the control: a tap he aims once the place is up is a real tap
+  await page.waitForTimeout(400);
+  await page.touchscreen.tap(c.x, c.y + 40);
+  await page.waitForTimeout(100);
+  const t = await read();
+  assert.equal(t.intro, false, "a tap a moment later goes straight to him");
+  assert.ok(t.off > 1, "…and steers him (target " + t.off.toFixed(1) + " units off)");
+  // ▶ opens the next place in this same spot, so its echo is the same trap
+  await page.evaluate(() => window.__HOLE.autoplay(60 * 120));
+  await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
+  await page.waitForTimeout(450);
+  const nb = await page.locator(".hole-next").boundingBox();
+  const n = { x: nb.x + nb.width / 2, y: nb.y + nb.height / 2 };
+  await countField();
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  try { await fingerTaps(n.x, n.y, [0, 140]); await echoLanded(); }
+  finally { await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 }); }
+  const u = await read();
+  assert.notEqual(u.scene, "castle", "fixture: ▶ opened the next place");
+  assert.equal(u.intro, true, "the echo of ▶ did not end the next place's opening look");
+  assert.ok(u.off < 0.01, "…nor steer him (" + u.off.toFixed(1) + " units off)");
+  await cdp.detach();
+  await go("", "#screen-start");
+});
+
+test("§20: the FIRST-time ghost hand never fights his finger — a child who starts dragging at once keeps Gobble, and 👂 still shows the hand on request", async () => {
+  // Found by an audit: the hand waits out the opening look, which his first
+  // touch ends, so it started while his finger was down and took Gobble away
+  // from it for a second and a half.
+  await page.evaluate(() => { localStorage.removeItem("josh-gobble-v1"); window.__HOLE.reset(); });
+  assert.equal(await page.evaluate(() => window.__HOLE.save().demo), false, "fixture: he has never been shown");
+  await goLand("picnic");
+  await page.waitForTimeout(450);
+  await page.locator('.hole-door[data-scene="picnic"]').click();
+  await page.waitForFunction(() => window.__HOLE.scene() === "picnic");
+  await page.waitForTimeout(400);
+  const cdp = await context.newCDPSession(page);
+  const cv = await page.evaluate(() => document.querySelector(".hole-canvas").getBoundingClientRect().toJSON());
+  const f = { x: cv.left + cv.width * 0.2, y: cv.top + cv.height * 0.25 };
+  const samples = [];
+  try {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: f.x, y: f.y, id: 1 }] });
+    for (let i = 0; i < 25; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: f.x + (i % 2), y: f.y, id: 1 }] });
+      await page.waitForTimeout(100);
+      samples.push(await page.evaluate((p) => {
+        const h = window.__HOLE.state().hole, w = window.__HOLE.worldAt(p.x, p.y);
+        return { demo: window.__HOLE.demo(), off: Math.hypot(h.tx - w.x, h.ty - w.y) };
+      }, f));
+    }
+  } finally {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await cdp.detach();
+  }
+  assert.equal(samples.filter((x) => x.demo).length, 0, "the hand never started under his finger (" + samples.map((x) => (x.demo ? "D" : "-") + x.off.toFixed(0)).join(" ") + ")");
+  assert.ok(samples.slice(2).every((x) => x.off < 3), "Gobble heads for his finger the whole time");
+  // 👂 is an ASK: it shows the hand even though he has steered
+  await page.waitForTimeout(400);
+  await page.locator("#screen-hole-play .hole-hear").click();
+  assert.ok(await page.evaluate(() => window.__HOLE.demo()), "👂 still shows the ghost hand");
+  await go("", "#screen-start");
+  await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+});
+
+test("§20: a half-eaten run from before its place was laid out AGAIN (a fingerprint that no longer matches) is dropped on load — no door ring promises progress that opening it would drop", async () => {
+  // Found by an audit after Volcano Island was laid out again: the loader
+  // checked a fingerprinted run's shape but not its fingerprint, so the door
+  // wore "17 percent eaten" and opening it started over.
+  const P = await page.evaluate(() => window.HoleData.PRINTS);
+  assert.equal(typeof P.volcano, "string", "fixture: the volcano has a pinned fingerprint");
+  await go("", "#screen-start");
+  const v = await page.evaluate(() => window.HoleData.RULES.LAYOUT);
+  const ids = Array.from({ length: 40 }, (_, i) => i + 1);
+  await page.evaluate((o) => localStorage.setItem("josh-gobble-v1", JSON.stringify({
+    v: 1, done: {}, demo: true, seen: { volcano: true, build: true },
+    runs: {
+      volcano: { v: o.v, scene: "volcano", f: o.P.volcano + "-old", eaten: o.ids, pressed: [], x: 100, y: 100 },
+      build: { v: o.v, scene: "build", f: o.P.build, eaten: o.ids, pressed: [], x: 100, y: 100 },
+    },
+  })), { v, ids, P });
+  await page.reload({ waitUntil: "load" });
+  await go("#hole-home", "#screen-hole-home");
+  const sv = await page.evaluate(() => window.__HOLE.save());
+  assert.ok(!("volcano" in sv.runs), "the run with a stale fingerprint is dropped on load (" + Object.keys(sv.runs) + ")");
+  assert.ok("build" in sv.runs, "…while a run whose fingerprint matches is kept");
+  await goLand("volcano");
+  assert.ok(await page.locator('.hole-door[data-scene="volcano"] .hole-door__prog').isHidden(), "the volcano's door shows no ring");
+  await goLand("build");
+  assert.ok(await page.locator('.hole-door[data-scene="build"] .hole-door__prog').isVisible(), "the building site's door keeps its ring");
+  await go("", "#screen-start");
+  await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+});
+
+test("§20: TWO TABS of the app never wipe each other's ⭐ — a tab left open from before folds in what the other stored; only the grown-ups reset writes without folding", async () => {
+  // Found by an audit: each tab holds its own copy of the save, so a tab
+  // opened earlier wrote its stale copy over a ⭐ the other tab had just won —
+  // merely opening a door was enough.
+  await page.evaluate(() => { localStorage.removeItem("josh-gobble-v1"); window.__HOLE.reset({ demoSeen: true }); });
+  // tab A half-eats the picnic first, so tab B opens knowing that run
+  await go("#hole-home", "#screen-hole-home");
+  await page.evaluate(() => window.__HOLE.start("picnic"));
+  await go("#hole-play", "#screen-hole-play");
+  await page.evaluate(() => window.__HOLE.autoplay(300));
+  assert.ok(await page.evaluate(() => !!JSON.parse(localStorage.getItem("josh-gobble-v1")).runs.picnic), "fixture: the half-eaten picnic is stored");
+  const B = await context.newPage();
+  B.on("pageerror", (e) => pageErrors.push("tab B: " + e));
+  try {
+    await B.goto(baseURL + "#hole-home", { waitUntil: "load" });
+    await B.locator("#screen-hole-home").waitFor({ state: "visible" });
+    assert.ok(await B.evaluate(() => !!window.__HOLE.save().runs.picnic), "fixture: tab B opened knowing the half-eaten picnic");
+    // tab A now wins the picnic
+    await page.bringToFront();
+    await page.evaluate(() => { for (let i = 0; i < 5; i++) { if (window.__HOLE.autoplay(20000, { until: "win" }).won) break; } });
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem("josh-gobble-v1")).done.picnic === true);
+    // tab B, open from before, opens the farm and eats a little
+    await B.bringToFront();
+    await B.evaluate(() => { location.hash = "#hole-land-town"; });
+    await B.locator("#screen-hole-land").waitFor({ state: "visible" });
+    await B.waitForTimeout(450);
+    await B.locator('.hole-door[data-scene="farm"]').click();
+    await B.waitForFunction(() => window.__HOLE.scene() === "farm");
+    await B.evaluate(() => window.__HOLE.autoplay(600));
+    const stored = await B.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")));
+    assert.equal(stored.done.picnic, true, "the picnic's ⭐ won in tab A survives tab B's writes");
+    assert.ok(!stored.runs.picnic, "…and the half-eaten picnic tab B knew of is gone, not written back over the win");
+    assert.ok(stored.runs.farm && stored.runs.farm.eaten.length > 0, "…and tab B's own farm run is stored");
+    assert.equal((await B.evaluate(() => window.__HOLE.save())).done.picnic, true, "tab B now knows about the picnic's ⭐ too");
+    // the one write that must not fold: a grown-up's reset. Tab A writes
+    // LAST first, or B's reset has nothing to fold and the clause below
+    // passes whether or not the reset folds.
+    await page.bringToFront();
+    const before = await page.evaluate(() => localStorage.getItem("josh-gobble-v1"));
+    await page.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(300); });
+    assert.notEqual(await page.evaluate(() => localStorage.getItem("josh-gobble-v1")), before, "fixture: tab A wrote after tab B");
+    await B.bringToFront();
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    const wiped = await B.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")));
+    assert.deepEqual(wiped.done, {}, "the grown-ups reset clears every ⭐ (it does not fold them back in)");
+  } finally {
+    await B.close();
+    await page.bringToFront();
+    await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await go("", "#screen-start");
   }
 });
 

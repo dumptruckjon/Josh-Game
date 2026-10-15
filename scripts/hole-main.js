@@ -21,6 +21,7 @@
   // that appeared 50ms ago, so a screen or a dialog that has just appeared
   // ignores a finger tap for this long.
   const ECHO_MS = 350;
+  let fieldAt = -1e9; // when a place last opened on the field (startScene)
   const MAX_STEPS = 6;         // at most 6 engine steps per frame (a slow frame never spirals)
   const BIG_SAY_GAP = 9;       // seconds between two "too big!" lines
   const TASTE_QUIET_MS = 2500; // a first-taste word waits until nothing has been said for this long
@@ -68,10 +69,20 @@
   // opened sparkles, so a new place is easy to find among 48)
   function freshSave() { return { v: 1, done: {}, runs: {}, gold: {}, seen: {}, demo: false, last: SCENES[0].id }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  // What this tab last read from or wrote to storage (persist folds in what
+  // another tab wrote since).
+  let lastStored = null;
+  function readStored() {
+    try { return global.localStorage.getItem(KEY); } catch (e) { return null; }
+  }
   function loadSave() {
+    lastStored = readStored();
+    return coerceSave(lastStored);
+  }
+  function coerceSave(text) {
     const s = freshSave();
     let raw = null;
-    try { raw = JSON.parse(global.localStorage.getItem(KEY) || "null"); } catch (e) { raw = null; }
+    try { raw = JSON.parse(text || "null"); } catch (e) { raw = null; }
     if (!isObj(raw)) return s;
     for (const sc of SCENES) {
       if (isObj(raw.done) && raw.done[sc.id] === true) s.done[sc.id] = true;
@@ -81,7 +92,7 @@
       // things now, so it is dropped (its ⭐ above is kept) — and its door
       // never shows a ring for progress that opening it would throw away
       const r = isObj(raw.runs) ? raw.runs[sc.id] : null;
-      if (isObj(r) && r.scene === sc.id && L.runCouldRestore(r)) s.runs[sc.id] = r;
+      if (isObj(r) && r.scene === sc.id && L.runMatches(r)) s.runs[sc.id] = r;
       const g = isObj(raw.gold) ? raw.gold[sc.id] : 0;
       if (Number.isInteger(g) && g > 0) s.gold[sc.id] = Math.min(g, L.GOLD_BANDS.length);
       // a save from before `seen` existed: a place he finished or left
@@ -93,8 +104,36 @@
     return s;
   }
   let save = loadSave();
-  function persist() {
-    try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* private mode: play on */ }
+  // Two tabs of the app share one save and each holds its own copy, so a tab
+  // left open from before wrote its stale copy over the other's progress: one
+  // tab won the picnic, an older tab opened the farm, and the picnic's ⭐ was
+  // gone (found by an audit; the fort's two-tab lesson). So a write first
+  // folds in whatever another tab stored since: a ⭐, a place seen, the demo
+  // seen and a treasure count only ever grow, and a half-eaten run is this
+  // tab's to change only for a place this tab has played. The grown-ups
+  // reset is the one write that must not fold ({ force: true }), or the
+  // stars it wipes would come straight back.
+  const touched = new Set();
+  function persist(opts) {
+    if (!(opts && opts.force)) {
+      const text = readStored();
+      if (text !== null && text !== lastStored) {
+        const disk = coerceSave(text);
+        for (const id of Object.keys(disk.done)) save.done[id] = true;
+        for (const id of Object.keys(disk.seen)) save.seen[id] = true;
+        for (const id of Object.keys(disk.gold)) save.gold[id] = Math.max(save.gold[id] || 0, disk.gold[id]);
+        if (disk.demo) save.demo = true;
+        // a place this tab has not played is the other tab's: its run as
+        // stored, or none (a run the other tab finished is gone)
+        for (const sc of SCENES) {
+          if (touched.has(sc.id)) continue;
+          if (disk.runs[sc.id]) save.runs[sc.id] = disk.runs[sc.id];
+          else delete save.runs[sc.id];
+        }
+      }
+    }
+    const out = JSON.stringify(save);
+    try { global.localStorage.setItem(KEY, out); lastStored = out; } catch (e) { /* private mode: play on */ }
   }
 
   // ---- Timers that die with the screen (the api.later lesson) ---------------
@@ -288,7 +327,7 @@
     play.querySelector(".hole-hear").addEventListener("click", () => {
       render.endIntro();
       sayNow(SAY.start);
-      startDemo();
+      startDemo(true);
     });
     // 🔁 is an explicit "again": this place from the start. ▶ goes to the
     // NEXT place and CARRIES ON if he left it half-eaten, exactly as its door
@@ -388,7 +427,8 @@
     const keepDemo = !!(opts && opts.keepDemo) && save.demo;
     save = freshSave();
     if (keepDemo) save.demo = true;
-    persist();
+    touched.clear();
+    persist({ force: true });
     run = null; stopLoop(); endDemo(); paintDoors();
     return had;
   }
@@ -592,10 +632,16 @@
   function startScene(id, opts) {
     opts = opts || {};
     const def = L.sceneById(id) || SCENES[0];
+    touched.add(def.id);
     stopLoop();
     endDemo();
     hideWin();
     render.resize();
+    // a place opened in this same spot (a door, ▶, 🔁): the echo of the tap
+    // that opened it must not steer (ECHO_MS). Its OWN clock, not the
+    // screen's __shownAt: that one also guards the bar, and a 🏠 pressed
+    // just after 🔁 was aimed at the bar, not echoed onto it.
+    fieldAt = now();
     let st = null, resumed = false;
     if (opts.resume && save.runs[def.id]) { st = L.restore(save.runs[def.id]); resumed = !!st; }
     // the world is the same on every screen (PLAN §9.1): the screen is only
@@ -840,6 +886,21 @@
       if (!run || drag.id !== null || !e.isPrimary) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
       e.preventDefault();
+      // The hammer's echo (ECHO_MS): the field steers on pointerdown, which
+      // the click-only echo guard never sees, so the second tap of a double
+      // tap on a place's door (or on ▶ / 🔁, which open a place in this same
+      // spot) landed on the field just under it — ending the opening look
+      // of the whole island and sending Gobble off toward the door's spot
+      // (found by an audit). A finger that lands that soon after the place
+      // opened was aimed at the door.
+      // Judged by when the finger LANDED (the event's own time), not by
+      // when it was handled: opening a place is heavy work, and the echo's
+      // pointerdown can wait in the queue past ECHO_MS while the finger came
+      // down far sooner. An engine whose timeStamp is on another clock (0,
+      // or epoch milliseconds) falls back to now().
+      const t = now(), at = (e.timeStamp > 0 && e.timeStamp <= t + 1000) ? e.timeStamp : t;
+      if (e.isTrusted && at - Math.max(fieldAt, play.__shownAt || -1e9) < ECHO_MS) return;
+      run.steered = true;
       endDemo();
       wake();
       try { if (global.JoshAudio && !global.JoshAudio.isMuted()) global.JoshAudio.unlock(); } catch (err) { /* ignore */ }
@@ -873,6 +934,7 @@
       const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
       if (!d) return;
       e.preventDefault();
+      run.steered = true;
       endDemo();
       wake();
       // a quarter of what the screen shows, so a key press means the same
@@ -897,8 +959,14 @@
     if (c && c.intro) { later(demoWhenReady, 250); return; }
     startDemo();
   }
-  function startDemo() {
+  function startDemo(asked) {
     if (!run || run.st.won || !playVisible()) return;
+    // He is already steering: a ghost hand that took Gobble away from his
+    // finger for a second and a half (it waits out the opening look, which
+    // his first touch ends) was fighting him, not showing him (found by an
+    // audit). It shows next time instead (and 👂 shows it any time).
+    // 👂 is an ASK, so it always shows.
+    if (!asked && (run.steered || drag.id !== null)) return;
     const st = run.st, n = L.nearestEdible(st);
     if (!n) return;
     demo = { t0: -1, from: { x: st.hole.x, y: st.hole.y }, to: { x: n.x, y: n.y }, id: n.id, dur: 1.5, pt: null };
