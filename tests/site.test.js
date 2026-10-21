@@ -3820,6 +3820,8 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
   // unambiguous: whether the world key the doc names has levels in DATA.LEVELS.
   const DATA = require("../scripts/td-data.js");
   const worlds = new Set(DATA.LEVELS.map((l) => l.world));
+  const gobbleLands = new Set(require("../scripts/hole-data.js").LANDS.map((l) => l.id));
+  assert.ok(gobbleLands.size >= 5, "fixture: the Gobble lands were read");
   const liars = [];
   let verdictsRead = 0;   // NOT `read` — that is this file's own file-reading helper
   // EVERY plan doc, not just PLAN_WORLD_*: the file list is part of the scan, and
@@ -3873,6 +3875,18 @@ test("DOCS: the repo tree names every file, and no plan claims to be unbuilt whi
       ? [shipped.world]
       : [...new Set([...txt.matchAll(/`(\w+)`/g)].map((m) => m[1]))].filter((w) => worlds.has(w));
     if (named.length) liars.push(`${f} says "${verdict}" but world(s) ${named.join(", ")} are in DATA.LEVELS`);
+    // …and a GOBBLE land: the fort's worlds were the only thing this law
+    // could see, so a Gobble plan could say NOT BUILT with its whole land
+    // live. A land plan names its land (`land id \`lantern\``); if that land
+    // is in HoleData.LANDS, the plan has at least partly shipped.
+    for (const m of txt.matchAll(/land id `(\w+)`/g)) {
+      if (gobbleLands.has(m[1])) liars.push(`${f} says "${verdict}" but Gobble land ${m[1]} is in HoleData.LANDS`);
+    }
+  }
+  // the Gobble half must not be vacuous: every Gobble LAND plan declares the
+  // land it builds, or the scan above has nothing to compare
+  for (const f of fsx.readdirSync(root).filter((x) => /^PLAN_GOBBLE_.+\.md$/.test(x))) {
+    assert.match(fsx.readFileSync(path.join(root, f), "utf8"), /land id `\w+`/, `${f} must name its land ("land id \`…\`") so the plan-status law can check it`);
   }
   assert.deepEqual(liars, [], `plan docs that outlived their contents:\n  ${liars.join("\n  ")}`);
   // …and the scan must actually have READ them. A derivation fails OPEN: if the

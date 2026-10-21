@@ -7145,6 +7145,11 @@ test("tools: every research tool still RUNS against today's data", () => {
     // the bot never finishes prints no win time, so a real "bot NN.Ns" and a
     // real margin are what a working run shows — and no FAIL line.
     "hole-check.js": { args: ["toyroom"], env: {}, must: /^(?![\s\S]*FAIL)[\s\S]*bot \d+\.\ds  progress x\d/ },
+    // 🕳️ Gobble Hole's STUCK-SPOT fuzzer (PLAN_GOBBLE_LANTERN.md §7): plays a
+    // place the way a child steers and probes the bot from every few seconds.
+    // A run that checked NO spot proves nothing, so the count must be
+    // non-zero — and a working run on a shipped place finds nothing stuck.
+    "hole-fuzz.js": { args: ["toyroom"], env: { SEEDS: "1", SECS: "10" }, must: /toyroom: [1-9]\d* spots checked, 0 stuck/ },
   };
   // …and the FLAG arms, which are separate code paths and are where most of the
   // findings in CLAUDE.md came from. Running only a tool's default arm is the

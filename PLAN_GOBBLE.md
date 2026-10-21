@@ -9,6 +9,9 @@ twelve places, §11), the polish pass (§12), a quality check (§13), phase 4
 (twenty-four places, each with its own shape and challenge, §14) and the pass
 that makes every place come alive (§15) are built too, and so is a grown-ups
 reset (§16).
+Phase 5's forty-eight places in four lands (§17), Hero Night (§19) and the
+first six places of Lantern Land, a sixth land of Chinese places (§21, designed
+in PLAN_GOBBLE_LANTERN.md), are built too.
 
 A fourth world on the front door, right after 🏰 Fort Josh. Josh drags a
 friendly hole-monster, **Gobble**, around a toy-box diorama. Small things fall
@@ -1472,3 +1475,51 @@ reset still clears them even when the other tab wrote last. The double-tap
 test sends each touch at its real moment with its real time (a phone's
 timestamps), on a CPU slowed 4x, and first proves the echo reached the field.
 Every new clause was broken on purpose and went red.
+
+## 21. Lantern Land, batch A — six Chinese places (owner, 2026-10-21)
+
+The design is `PLAN_GOBBLE_LANTERN.md` (twelve places in two batches of six;
+every choice in it was the owner's to defer, "I defer to your highest quality
+recommendations"). Batch A is the sixth land and its first six places, which
+brings Gobble to sixty: 🧨 New Year Street, 🥟 Dumpling House, 🀄 Hutong House, 🎋
+Panda Forest, 🍃 Tea Hills and 🛶 Water Town. The home is six land doors, three
+over three.
+
+**Gobble speaks a little Chinese.** A finale has a Chinese name said after the
+ready line (大红包), a place has one WORD said the first time he eats its picture
+(鞭炮, 毛线), a festival greets him on arrival (新年快乐), and three character
+SIGNS stand in each place, drawn on red plaques in a Simplified Chinese face
+named first (`SC_FONT`). A sign is said the way a speaker names a character,
+"红色的红", never bare, then its English; each sign is a character from Josh's
+own Word Cards (a test reads `wordcards.html`), none twice. One Chinese line
+every few seconds at most; muted means silent.
+
+**What the build taught** (each now a law or a test):
+- **A trail must be a PLAIN bite, and a clump count must divide.** Two places'
+  trails were clumped things, so the layout laid 0 bites of them.
+- **The word before 的 does not fix the reading after it.** 快乐的乐 can still be
+  said yuè, so a sign may not be one of his two-reading cards unless Word Cards
+  voices it through a one-reading stand-in (长 → 常); New Year Street's third
+  sign is 笑 instead of 乐, and batch B's Writing Desk loses 大 the same way.
+- **Weather with no vertical drift was laid in the margin for good.** Tea
+  Hills' two clouds sat off screen 17-29% of the time on a phone. Clouds are
+  laid across the screen's own height now, at least four of them, and every
+  place's weather must be on screen 95% of the time at four sizes.
+- **Bot times are layout-sensitive here.** One sign moved two cells took Panda
+  Forest's bot from 21 to 34 seconds, so every edit was re-checked
+  (`tools/hole-check.js`): the six win in 25-43 seconds.
+- **Screenshots decided the art.** The market stall's cream roof read as a blank
+  box (it is a striped awning now) and the first dragon boat read as a green worm
+  (it has a red head, an open jaw, teeth, a mane and horns).
+- **A new fuzzer** (`tools/hole-fuzz.js`) plays a place the way a child steers
+  and asks the bot to get going from every few seconds: 382 spots in the six, 0
+  stuck.
+
+**Tests.** `tests/hole-logic.test.js`: the land and its six places; the Chinese
+lines (every word's pinyin restated, signs on walkable ground, none bare or
+two-reading, all on his cards, none twice); the festivals agreeing with 华丽's
+festival table; the pandas on ground he cannot walk and the canvas's Chinese face
+SIMPLIFIED; the weather-on-screen law. `tests/hole.test.js`: the speech through
+the real drain (greeting, word, sign, finale name, the ration, muted, an
+English-only greeting), the plaques drawn, and the dragon boat's head and tail. Every new clause was broken on purpose and went
+red.

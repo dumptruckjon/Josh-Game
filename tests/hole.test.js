@@ -2332,3 +2332,120 @@ test("Gobble Hole never touches Josh's games: no registry entry, no sticker, its
 test("no uncaught page errors anywhere in the Gobble run", () => {
   assert.deepEqual(pageErrors, [], "page errors: " + pageErrors.join(" | "));
 });
+
+test("LANTERN LAND speaks a little Chinese, through the real drain: the greeting on arrival, the word of the place, a SIGN said '<word>的<字>' then its English — once a visit, never two Chinese lines on top of each other — and the finale's Chinese name after the ready line", async () => {
+  // Every line is captured WITH its voice, because a Chinese string read by an
+  // English voice is noise, which reads exactly like a feature that never fired.
+  await page.evaluate(() => {
+    const A = window.JoshAudio;
+    window.__said = [];
+    A.__say = A.__say || A.say; A.__tone = A.__tone || A.tone;
+    A.tone = () => {};
+    A.say = (t, o) => { if (!A.isMuted()) window.__said.push([t, (o && o.lang) || "en"]); };
+    A.setMuted(false);
+  });
+  try {
+    await openScene("newyear");
+    const def = await page.evaluate(() => window.HoleLogic.sceneById("newyear"));
+    // 1. on arrival: "Happy New Year!" then 新年快乐, in a Chinese voice
+    await until((g) => window.__said.some(([t, l]) => t === g && l === "zh-CN"), def.greet.zh, 4000, "the greeting " + def.greet.zh + " was never said in a Chinese voice");
+    let said = await page.evaluate(() => window.__said.slice());
+    const ie = said.findIndex(([t]) => t === def.greet.en), iz = said.findIndex(([t]) => t === def.greet.zh);
+    assert.ok(ie >= 0 && ie < iz, "the greeting is said in English, then in Chinese (" + JSON.stringify(said) + ")");
+    const fire = async (ev, wait) => {
+      await page.evaluate((e) => { window.__said = []; window.__HOLE.state().events.push(e); }, ev);
+      await page.waitForTimeout(wait || 300);
+      return page.evaluate(() => window.__said.slice());
+    };
+    // a Chinese line waits its turn (no two within ZH_GAP_MS) — so wait it out
+    const quiet = () => page.waitForTimeout(3300);
+    // 2. the word of the place, the first time he eats its picture
+    await quiet();
+    said = await fire({ type: "eat", id: 99901, e: def.word.e, r: 3, tier: 2, combo: 0 });
+    assert.deepEqual(said, [[def.word.en, "en"], [def.word.zh, "zh-CN"]], "eating " + def.word.e + " the first time says its word, English then Chinese");
+    await quiet();
+    said = await fire({ type: "eat", id: 99902, e: def.word.e, r: 3, tier: 2, combo: 0 });
+    assert.ok(!said.some(([t]) => t === def.word.zh), "…and only the first time (" + JSON.stringify(said) + ")");
+    // 3. a SIGN: "红色的红" in a Chinese voice, then "red"
+    await quiet();
+    said = await fire({ type: "sign", i: 0, ch: def.signs[0].ch });
+    assert.deepEqual(said, [[def.signs[0].word + "的" + def.signs[0].ch, "zh-CN"], [def.signs[0].en, "en"]], "a sign is said the way a Chinese speaker names a character, then its English — never bare");
+    // a second sign straight after waits (one Chinese line every few seconds)
+    said = await fire({ type: "sign", i: 1, ch: def.signs[1].ch });
+    assert.deepEqual(said, [], "a sign right after another waits its turn (" + JSON.stringify(said) + ")");
+    await quiet();
+    said = await fire({ type: "sign", i: 1, ch: def.signs[1].ch });
+    assert.equal(said.length, 2, "…and is said when he comes by again (" + JSON.stringify(said) + ")");
+    // a sign is said once a visit
+    await quiet();
+    said = await fire({ type: "sign", i: 0, ch: def.signs[0].ch });
+    assert.deepEqual(said, [], "a sign already said this visit is not said again");
+    // 4. big enough: the ready line, then the finale's Chinese name
+    said = await fire({ type: "grow", level: 4, ready: true }, 400);
+    const iz2 = said.findIndex(([t, l]) => t === def.finale.zh && l === "zh-CN");
+    assert.ok(iz2 > 0 && said[iz2 - 1][1] === "en", "the ready line is followed by " + def.finale.zh + " (" + JSON.stringify(said) + ")");
+    // muted means silent: nothing Chinese is said
+    await page.evaluate(() => window.JoshAudio.setMuted(true));
+    await quiet();
+    said = await fire({ type: "sign", i: 2, ch: def.signs[2].ch });
+    assert.deepEqual(said, [], "with the sound off nothing is said");
+    // 5. a greeting may be English ONLY (Hutong House has no festival to
+    // greet him with in Chinese): it replaces "I'm hungry!" and no Chinese
+    // line rides with it — an undefined zh must be skipped, not said
+    await page.evaluate(() => { window.JoshAudio.setMuted(false); window.__said = []; });
+    await openScene("courtyard");
+    const cy = await page.evaluate(() => window.HoleLogic.sceneById("courtyard"));
+    assert.ok(cy.greet && cy.greet.en && !cy.greet.zh, "fixture: Hutong House's greeting is English only");
+    await until((g) => window.__said.some(([t]) => t === g), cy.greet.en, 4000, "Hutong House never said " + cy.greet.en);
+    said = await page.evaluate(() => window.__said.slice());
+    const start = await page.evaluate(() => window.HoleData.SAY.start);
+    assert.ok(!said.some(([t]) => t === start), "an English-only greeting still replaces '" + start + "' (" + JSON.stringify(said) + ")");
+    assert.ok(!said.some(([t, l]) => l === "zh-CN" && !t), "no empty Chinese line rides with it (" + JSON.stringify(said) + ")");
+    assert.ok(said.every(([t]) => typeof t === "string" && t.length), "nothing undefined is said (" + JSON.stringify(said) + ")");
+  } finally {
+    await page.evaluate(() => { const A = window.JoshAudio; A.say = A.__say; A.tone = A.__tone; A.setMuted(true); });
+  }
+});
+
+test("LANTERN LAND pictures: a sign's plaque is DRAWN where he can see it, and Water Town's finale is a DRAGON boat — a head and a tail drawn on, in the boat's own transform", async () => {
+  // 1. a sign on screen is drawn (the frame's own record) — park him by one
+  await openScene("dumplings");
+  const n = await page.evaluate(() => {
+    const st = window.__HOLE.state(), g = window.HoleLogic.sceneById("dumplings").signs[0];
+    const h = st.hole; h.x = h.tx = g.x * st.W; h.y = h.ty = g.y * st.H + 20; h.vx = h.vy = 0;
+    window.__HOLE.snap();
+    return window.__HOLE.info().feat.signs;
+  });
+  assert.ok(n >= 1, "a sign beside him is drawn (" + n + ")");
+  // 2. the dragon boat: the same frame drawn with its head and tail and
+  // without them must differ, round the finale and nowhere else
+  await openScene("watertown");
+  await makeTop();   // so the camera shows the whole boat
+  const r = await page.evaluate(() => {
+    const st = window.__HOLE.state(), def = window.HoleLogic.sceneById("watertown");
+    const fin = st.objects.find((o) => o.finale), h = st.hole;
+    h.x = h.tx = fin.x; h.y = h.ty = fin.y + fin.r * 2.6; h.vx = h.vy = 0;
+    const cv = document.querySelector(".hole-canvas"), c = cv.getContext("2d"), k = cv.width / cv.clientWidth;
+    const shot = () => { for (let i = 0; i < 4; i++) window.__HOLE.snap(); return c.getImageData(0, 0, cv.width, cv.height).data; };
+    const diff = (a, b) => { let d = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 40) d++; return d; };
+    const keep = def.finale.deco;
+    const on1 = shot(), on2 = shot();
+    def.finale.deco = undefined;
+    const off = shot();
+    def.finale.deco = keep;
+    const s = window.__HOLE.toScreen(fin.x, fin.y), b = cv.getBoundingClientRect();
+    return { control: diff(on1, on2), deco: diff(on1, off), k, sx: s.x - b.left, sy: s.y - b.top, w: cv.clientWidth, hgt: cv.clientHeight };
+  });
+  assert.ok(r.sx > 0 && r.sx < r.w && r.sy > 0 && r.sy < r.hgt, "fixture: the finale is on screen (" + JSON.stringify(r) + ")");
+  assert.ok(r.control < 50, "fixture: the same frame drawn twice is the same picture (" + r.control + " px differ)");
+  assert.ok(r.deco > 400, "the dragon's head and tail are drawn on the boat (" + r.deco + " px)");
+  // …and they ride the boat's own transform, so its wobble and its fall take
+  // them along: they are drawn inside drawObject, between the sprite and the
+  // restore (the falling clip draws through drawObject too)
+  const rs = require("fs").readFileSync(require("path").join(__dirname, "../scripts/hole-render.js"), "utf8");
+  const dob = rs.slice(rs.indexOf("function drawObject("), rs.indexOf("function dragonDeco("));
+  const img = dob.indexOf("ctx.drawImage(sp.cv"), deco = dob.indexOf("dragonDeco(w, h)"), rest = dob.indexOf("ctx.restore();");
+  assert.ok(img > 0 && deco > img && rest > deco, "the dragon is drawn after the boat's sprite and before its transform is undone");
+  assert.ok(/function drawFalling[\s\S]*?drawObject\(o,/.test(rs), "a falling finale is drawn through drawObject too");
+  assert.deepEqual(pageErrors, [], "no page errors");
+});

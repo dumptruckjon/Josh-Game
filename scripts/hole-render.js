@@ -441,6 +441,61 @@
         outline(); c.lineWidth = wl(e); c.strokeStyle = OUTLINE; c.stroke();
       },
     },
+    // ---- Lantern Land (PLAN_GOBBLE_LANTERN.md §5) ----
+    tiger: {
+      // a 虎头帽, the tiger-head hat Chinese toddlers wear at New Year: an
+      // orange dome with black stripes, two round ears, the 王 on its brow
+      // (drawn as strokes, never as text) and a red band
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * (0.72 + 0.12) + halfW(e, sp) * 0.2,
+      draw(c, x, y, e, sp, col, col2) {
+        const hw = halfW(e, sp), by = y - base(e), ry = hw * 0.72;
+        for (const k of [-1, 1]) {
+          c.beginPath(); c.arc(x + k * hw * 0.68, by - ry * 0.86, hw * 0.24, 0, Math.PI * 2); fillLine(c, col, e);
+          c.beginPath(); c.arc(x + k * hw * 0.68, by - ry * 0.86, hw * 0.12, 0, Math.PI * 2); c.fillStyle = "#ffe3b8"; c.fill();
+        }
+        dome(c, x, by, hw * 0.94, ry);
+        c.save(); c.clip();
+        c.fillStyle = col; c.fillRect(x - hw, by - ry - 1, hw * 2, ry + 2);
+        c.strokeStyle = "#2a1a0e"; c.lineWidth = Math.max(1.2, hw * 0.07); c.lineCap = "round";
+        for (const k of [-0.72, 0.72]) { c.beginPath(); c.moveTo(x + hw * k, by - ry * 0.15); c.lineTo(x + hw * k * 0.7, by - ry * 0.55); c.stroke(); }
+        c.restore();
+        dome(c, x, by, hw * 0.94, ry); c.lineWidth = wl(e); c.strokeStyle = OUTLINE; c.stroke();
+        // 王 on the brow: three bars and the stroke down through them
+        const wx = x, wy = by - ry * 0.55, ww = hw * 0.26;
+        c.strokeStyle = "#2a1a0e"; c.lineWidth = Math.max(1.2, hw * 0.07); c.lineCap = "round";
+        c.beginPath();
+        for (const j of [-1, 0, 1]) { const k = j === 1 ? 1.15 : 1; c.moveTo(wx - ww * k, wy + j * ww * 0.7); c.lineTo(wx + ww * k, wy + j * ww * 0.7); }
+        c.moveTo(wx, wy - ww * 0.7); c.lineTo(wx, wy + ww * 0.7);
+        c.stroke(); c.lineCap = "butt";
+        rrect(c, x - hw * 0.96, by - hw * 0.2, hw * 1.92, hw * 0.24, hw * 0.1); fillLine(c, col2 || "#d62828", e);
+      },
+    },
+    pandaears: {
+      // two round black ears: Gobble dressed up as a panda
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * (0.08 + 0.44),
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e);
+        for (const k of [-1, 1]) {
+          c.beginPath(); c.arc(x + k * hw * 0.78, by - hw * 0.08, hw * 0.4, 0, Math.PI * 2); fillLine(c, col || "#26262e", e);
+          c.beginPath(); c.arc(x + k * hw * 0.78, by - hw * 0.04, hw * 0.2, 0, Math.PI * 2); c.fillStyle = "#4a4a56"; c.fill();
+        }
+      },
+    },
+    douli: {
+      // a 斗笠, the wide conical straw hat of the canal towns
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.62,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e) + hw * 0.08, ay = by - hw * 0.62;
+        c.beginPath(); c.moveTo(x - hw * 1.45, by); c.quadraticCurveTo(x, by + hw * 0.16, x + hw * 1.45, by); c.lineTo(x, ay); c.closePath();
+        fillLine(c, col || "#d9b26a", e);
+        c.lineWidth = Math.max(0.8, hw * 0.035); c.strokeStyle = "rgba(120,80,30,0.55)";
+        c.beginPath();
+        for (const k of [-1.05, -0.62, -0.2, 0.2, 0.62, 1.05]) { c.moveTo(x, ay + hw * 0.04); c.lineTo(x + hw * k, by + hw * 0.04); }
+        c.stroke();
+        c.beginPath(); c.moveTo(x - hw * 0.72, by - hw * 0.3); c.quadraticCurveTo(x, by - hw * 0.22, x + hw * 0.72, by - hw * 0.3);
+        c.lineWidth = Math.max(1, hw * 0.06); c.strokeStyle = shade(col || "#d9b26a", -0.35); c.stroke();
+      },
+    },
     balloon: {
       slot: "side", up: (e) => e * 2.25 + e * 1.2 + e * 0.12 + e * 0.12,
       draw(c, x, y, e, sp, col, col2, now) {
@@ -553,6 +608,7 @@
     squeak: { fx: "wave", col: "#ff9fd2" },
     music: { fx: "note", col: "#c77dff" },
     pop: { fx: "conf" },
+    slurp: { fx: "puff", col: "#fff1d6" },
   };
   const TASTE_S = 1.1;   // a taste face lasts this long (s)
   const FX_CAP = 240;    // no taste burst is added while this many effects are in flight
@@ -621,6 +677,26 @@
         c.fillStyle = CONFETTI[i % CONFETTI.length]; c.fillRect(-s, -s * 0.45, s * 2, s * 0.9);
         c.restore();
       } },
+    // ---- Lantern Land ----
+    // the red-and-gold scraps a string of firecrackers leaves (鞭炮屑): the
+    // existing confetti brings its own rainbow, so New Year has its own
+    paper: { n: 4, size: 5.5, vx: 8, vy: 24, sway: 18, col: null,
+      draw(c, x, y, s, ph, t, col, i) {
+        c.globalAlpha = 0.95;
+        c.save(); c.translate(x, y); c.rotate(t * 2.6 + ph * TAU); c.scale(1, 0.35 + 0.65 * pulse(t, ph, 4));
+        c.fillStyle = i % 4 === 3 ? "#ffd24d" : i % 2 ? "#e0262d" : "#c41620";
+        c.fillRect(-s * 0.7, -s * 0.45, s * 1.4, s * 0.9);
+        c.restore();
+      } },
+    // steam rising off the dumpling baskets: soft wisps that swell and fade
+    steam: { n: 3, size: 9, vx: 2, vy: -16, sway: 14, col: "#ffffff",
+      draw(c, x, y, s, ph, t, col) {
+        const k = pulse(t, ph, 1.3);
+        c.globalAlpha = 0.18 + 0.3 * k;
+        c.fillStyle = "rgba(120,100,90,0.35)"; c.beginPath(); c.arc(x + 1, y + 1, s * (0.7 + 0.4 * k), 0, TAU); c.fill();
+        c.fillStyle = col; c.beginPath(); c.arc(x, y, s * (0.7 + 0.4 * k), 0, TAU); c.fill();
+        c.beginPath(); c.arc(x + s * 0.55, y - s * 0.4, s * 0.45, 0, TAU); c.fill();
+      } },
     sparkles: { n: 3.5, size: 7, vx: 0, vy: -2, sway: 0, col: "#fff6c8",
       draw(c, x, y, s, ph, t, col) {
         const k = pulse(t, ph, 2.6);
@@ -642,7 +718,13 @@
         c.fillStyle = col; c.strokeStyle = "rgba(29,18,51,0.22)"; c.lineWidth = 1;
         c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill(); c.stroke();
       } },
-    clouds: { n: 0.5, size: 26, vx: 9, vy: 0, sway: 0, col: "#ffffff",
+    // `band`: it never drifts up or down, so a speck laid out in the screen's
+    // top or bottom margin would never be seen at all; a band kind lays its
+    // specks across the screen's own height and spreads them across its
+    // width, and `min` keeps a few of them even on a small phone (§21: two
+    // random clouds left Tea Hills and Train Town with an empty sky 17-29% of
+    // the time on a phone)
+    clouds: { n: 0.5, size: 26, vx: 9, vy: 0, sway: 0, col: "#ffffff", band: true, min: 4,
       draw(c, x, y, s, ph, t, col) {
         c.globalAlpha = 0.5;
         c.fillStyle = col;
@@ -719,6 +801,36 @@
       } },
   };
   const AIR_MAX = 48;    // never more specks than this, on the biggest screen
+  // The weather's LAYOUT, in screen px, one owner for the drawing and the
+  // tests: how many specks a screen gets and where each starts (seeded by the
+  // place, so a place always has the same sky), and where a speck is at a
+  // moment, given how far the camera has moved (a speck at depth d slides d
+  // times as far as the ground does). `pad` is the margin a speck wraps
+  // through out of sight, so it never pops in.
+  function airGeom(A, cssW, cssH) {
+    const big = clamp(Math.min(cssW, cssH) / 390, 1, 1.8);   // an iPad's specks are bigger, never smaller
+    const pad = A.size * big * 3 + 30;
+    return { big, pad, W: cssW + 2 * pad, H: cssH + 2 * pad };
+  }
+  function airSpecks(id, A, cssW, cssH) {
+    const n = clamp(Math.round(A.n * (cssW * cssH) / 100000), A.min || 2, AIR_MAX);
+    const rr = rng(hashStr("air" + id));
+    const specks = [];
+    for (let i = 0; i < n; i++) {
+      const p = { u: rr(), v: rr(), d: 0.6 + rr() * 0.8, ph: rr(), i };
+      if (A.band) p.u = (i + p.u) / n;   // spread across the width
+      specks.push(p);
+    }
+    return specks;
+  }
+  function airPos(p, A, now, ox, oy, cssW, cssH) {
+    const g = airGeom(A, cssW, cssH);
+    let x = p.u * g.W + A.vx * now * p.d - ox * p.d + Math.sin(now * 0.9 + p.ph * TAU) * A.sway;
+    // a band speck starts inside the screen's own height
+    let y = (A.band ? g.pad + p.v * cssH : p.v * g.H) + A.vy * now * p.d - oy * p.d;
+    x = ((x % g.W) + g.W) % g.W - g.pad; y = ((y % g.H) + g.H) % g.H - g.pad;
+    return { x, y, s: A.size * g.big * (0.7 + p.d * 0.45) };
+  }
   // The FINALE's fireworks (§15.5): when each one is launched (seconds after
   // the finale goes down) and how long it takes to rise before it bursts — the
   // page plays a pop at each burst from these same numbers. All six burst
@@ -1378,6 +1490,64 @@
         c.stroke();
       },
     },
+    // ---- Lantern Land ----
+    street: {
+      // a New Year street: big grey flagstones, and the red paper a string of
+      // firecrackers leaves behind
+      base(c, x0, y0, x1, y1) {
+        const S = ["#d3cdc2", "#cbc4b8", "#d8d2c8"];
+        for (let r = Math.floor(y0 / 16); r * 16 < y1; r++) {
+          c.fillStyle = S[(((r % 3) + 3) % 3)];
+          c.fillRect(x0, r * 16, x1 - x0, 16);
+        }
+      },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(120,110,96,0.55)"; c.lineWidth = 0.45;
+        c.beginPath();
+        for (let i = 0; i < T / 16; i++) {
+          const y = i * 16, off = (i % 2) * 10;
+          c.moveTo(0, y); c.lineTo(T, y);
+          for (let x = off; x < T; x += 20) { c.moveTo(x, y); c.lineTo(x, y + 16); }
+        }
+        c.stroke();
+        if (d >= LOD.small) dots(c, T, Rk("paper"), 12, 0.35, 0.7, (i) => (i % 5 === 4 ? "rgba(255,210,77,0.85)" : "rgba(214,40,40,0.8)"));
+      },
+    },
+    bamboo: {
+      // a bamboo forest's floor: dappled leaf litter, light through the canes
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#b9c98a"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        blobs(c, T, Rk("dapple"), 6, ["rgba(240,248,200,0.45)", "rgba(120,150,70,0.3)"], 4, 9);
+        if (d < LOD.small) return;
+        const R = Rk("leaves");
+        c.lineCap = "round";
+        for (const [col, w] of [["rgba(96,140,60,0.75)", 0.9], ["rgba(170,150,80,0.7)", 0.8]]) {
+          c.strokeStyle = col; c.lineWidth = w;
+          c.beginPath();
+          for (let i = 0; i < 14; i++) {
+            const x = R() * T, y = R() * T, a = R() * Math.PI, l = 1.6 + R() * 1.6;
+            c.moveTo(x - Math.cos(a) * l, y - Math.sin(a) * l * SQ); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * SQ);
+          }
+          c.stroke();
+        }
+        c.lineCap = "butt";
+      },
+    },
+    greybrick: {
+      // a Beijing courtyard's grey brick (青砖), laid in staggered courses
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#a7acb2"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(232,234,236,0.75)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let r = 0; r * 4 < T; r++) {
+          const y = r * 4, off = r % 2 ? 4 : 0;
+          c.moveTo(0, y); c.lineTo(T, y);
+          for (let x = off; x < T; x += 8) { c.moveTo(x, y); c.lineTo(x, y + 4); }
+        }
+        c.stroke();
+        if (d >= LOD.fine) blobs(c, T, Rk("tone"), 8, ["rgba(80,86,96,0.22)", "rgba(220,224,228,0.25)"], 1.5, 3.5);
+      },
+    },
     oldwood: {
       // a haunted house's old floorboards: dark, worn, with nails and cracks
       base(c, x0, y0, x1, y1) {
@@ -1419,6 +1589,28 @@
     ["#ff5e9c", "#ffd24d", "#ff8fbf", "#ffffff"],                         // a party stage rug
   ];
   const rectOf = (d, W, H) => [d.x0 * W, d.y0 * H, d.x1 * W, d.y1 * H];
+  // Every Chinese character the canvas draws (Lantern Land's signs and its 福)
+  // is in ONE face, Simplified Chinese asked for BY NAME and FIRST: an unnamed
+  // stack falls to a Japanese face on Apple devices, which draws different
+  // forms (Word Cards' lesson; a test pins the order).
+  const SC_FONT = '"PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif';
+  // a red 福 diamond (a New Year blessing). The MAIN door wears it UPRIGHT: it
+  // is the face of the home, and upside down there it reads as luck tipping
+  // out. The water vat wears it UPSIDE DOWN (倒福, where 倒 "upside down"
+  // sounds like 到 "arrived"): a vat's water is poured out, and turning the 福
+  // over keeps the luck from being poured away with it.
+  function fuDiamond(c, x, y, s, upside) {
+    c.save();
+    c.translate(x, y);
+    c.fillStyle = "#c8161f";
+    c.beginPath(); c.moveTo(0, -s); c.lineTo(s, 0); c.lineTo(0, s); c.lineTo(-s, 0); c.closePath(); c.fill();
+    c.strokeStyle = "#ffd24d"; c.lineWidth = Math.max(0.3, s * 0.12); c.stroke();
+    if (upside) c.rotate(Math.PI);
+    c.font = "bold " + (s * 1.05).toFixed(2) + "px " + SC_FONT;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillStyle = "#ffd24d"; c.fillText("福", 0, s * 0.06);
+    c.restore();
+  }
   const circOf = (d, W, H, k) => {
     const r = d.r * W * (k || 1);
     return [d.x * W - r, d.y * H - r * SQ, d.x * W + r, d.y * H + r * SQ];
@@ -1712,6 +1904,77 @@
         };
         c.fillStyle = "#ff8fbf"; heart(1); c.fill();
         c.fillStyle = "#ffc2dd"; heart(0.84); c.fill();
+      },
+    },
+    tablecloth: {   // a round red tablecloth with a gold hem, under each turning table (Dumpling House)
+      box: (d, W, H) => circOf(d, W, H, 1.2),
+      draw(c, d, W, H) {
+        const cx = d.x * W, cy = d.y * H, r = d.r * W;
+        c.fillStyle = "#e8b23a";
+        c.beginPath();
+        for (let a = 0; a < Math.PI * 2 - 0.01; a += Math.PI / 10) {
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * SQ;
+          c.moveTo(x + 2.4, y); c.ellipse(x, y, 2.4, 2.4 * SQ, 0, 0, Math.PI * 2);
+        }
+        c.fill();
+        c.fillStyle = "#c8262c"; ellipse(c, cx, cy, r, r * SQ); c.fill();
+        c.strokeStyle = "#f2c94c"; c.lineWidth = 0.8; ellipse(c, cx, cy, r * 0.84, r * 0.84 * SQ); c.stroke();
+      },
+    },
+    couplets: {   // a doorway in its New Year couplets (春联): red strips down both sides and across the top, an upright 福 on the door — or, with `vat`, the water vat with its 福 upside down
+      box: (d, W, H) => {
+        const s = d.r * W;
+        return d.vat ? circOf(d, W, H, 1.3) : [d.x * W - s * 1.3, d.y * H - s * 2.2, d.x * W + s * 1.3, d.y * H + s * 0.3];
+      },
+      draw(c, d, W, H) {
+        const cx = d.x * W, cy = d.y * H, s = d.r * W;
+        if (d.vat) {
+          // a round stone vat seen from above, full of water, its 福 on the near side
+          c.fillStyle = "#6c645a"; ellipse(c, cx, cy, s, s * SQ); c.fill();
+          c.fillStyle = "#4f86b5"; ellipse(c, cx, cy - s * 0.08, s * 0.78, s * 0.78 * SQ); c.fill();
+          c.strokeStyle = "rgba(255,255,255,0.55)"; c.lineWidth = 0.5; ellipse(c, cx - s * 0.18, cy - s * 0.18, s * 0.3, s * 0.3 * SQ); c.stroke();
+          fuDiamond(c, cx, cy + s * SQ * 0.82, s * 0.36, true);
+          return;
+        }
+        // the door, standing up from where it meets the ground
+        const w = s * 1.1, h = s * 2, top = cy - h;
+        c.fillStyle = "#7a2a1c"; c.fillRect(cx - w / 2, top, w, h);
+        c.strokeStyle = "#3d140c"; c.lineWidth = 0.4; c.beginPath(); c.moveTo(cx, top); c.lineTo(cx, cy); c.stroke();
+        // the couplets: two long strips and one across the top, gold dots for writing
+        const sw = s * 0.28;
+        c.fillStyle = "#d8222b";
+        c.fillRect(cx - w / 2 - sw - 0.3, top + s * 0.15, sw, h - s * 0.2);
+        c.fillRect(cx + w / 2 + 0.3, top + s * 0.15, sw, h - s * 0.2);
+        c.fillRect(cx - w / 2 - 0.2, top - sw - 0.3, w + 0.4, sw);
+        c.fillStyle = "#ffd24d";
+        c.beginPath();
+        for (let k = 0; k < 4; k++) {
+          for (const x of [cx - w / 2 - sw / 2 - 0.3, cx + w / 2 + sw / 2 + 0.3]) {
+            const y = top + s * 0.45 + k * (h - s * 0.6) / 3.2;
+            c.moveTo(x + sw * 0.22, y); c.arc(x, y, sw * 0.22, 0, Math.PI * 2);
+          }
+        }
+        c.fill();
+        fuDiamond(c, cx, top + h * 0.45, s * 0.34, false);
+      },
+    },
+    lanternstring: {   // a string of red lanterns hung between two posts (pts: where the posts stand)
+      box: (d, W, H) => { const b = ptsBox(ptsOf(d, W, H), 6); return [b[0], b[1] - 14, b[2], b[3]]; },
+      draw(c, d, W, H) {
+        const [[ax, ay], [bx, by]] = ptsOf(d, W, H), n = d.n || 5, up = 11;
+        // the posts, and the string sagging between their tops
+        c.strokeStyle = "#5a3418"; c.lineWidth = 0.9; c.lineCap = "round";
+        c.beginPath(); c.moveTo(ax, ay); c.lineTo(ax, ay - up); c.moveTo(bx, by); c.lineTo(bx, by - up); c.stroke();
+        const mx = (ax + bx) / 2, my = (ay + by) / 2 - up + 4;
+        c.lineWidth = 0.4;
+        c.beginPath(); c.moveTo(ax, ay - up); c.quadraticCurveTo(mx, my + 4, bx, by - up); c.stroke();
+        for (let i = 1; i <= n; i++) {
+          const t = i / (n + 1), u = 1 - t;
+          const x = u * u * ax + 2 * u * t * mx + t * t * bx, y = u * u * (ay - up) + 2 * u * t * (my + 4) + t * t * (by - up);
+          c.fillStyle = "#e23a2e"; ellipse(c, x, y + 2.4, 1.8, 2.1); c.fill();
+          c.fillStyle = "#ffd24d"; c.fillRect(x - 1, y + 0.1, 2, 0.6); c.fillRect(x - 1, y + 4.2, 2, 0.6);
+          c.strokeStyle = "#ffd24d"; c.lineWidth = 0.3; c.beginPath(); c.moveTo(x, y + 4.8); c.lineTo(x, y + 6.1); c.stroke();
+        }
       },
     },
     cloth: {   // a party table's cloth, scalloped
@@ -2257,6 +2520,10 @@
     autumn: { backdrop: "moon", edge: ["#5a3f28", "#43301f"] },
     patch: { backdrop: "moon", edge: ["#5e3d22", "#472d19"] },
     oldwood: { backdrop: "wall", edge: ["#3f2b22", "#2e1f18"] },
+    // Lantern Land
+    street: { backdrop: "sky", edge: ["#8e877b", "#706a60"] },
+    bamboo: { backdrop: "sky", edge: ["#6e5a34", "#544426"] },
+    greybrick: { backdrop: "sky", edge: ["#6d7279", "#555a60"] },
   };
 
   // ---- phase 4 (§14): the things Gobble walks ROUND, and what moves -------
@@ -2291,6 +2558,12 @@
     picket: { h: 2.6, side: "#e9e4d6", top: "#ffffff", rim: "#c9c2ae", deco: "posts", post: "#b9b19a" },
     corn: { h: 4.4, side: "#6f8c2e", top: "#a7c24a", rim: "#f0d75a", deco: "bumps" },
     panels: { h: 3.8, side: "#4f3656", top: "#6f5276", rim: "#a283a8", deco: "bricks" },
+    // Lantern Land: a red New Year market stall (a striped front, goods on
+    // its counter), a lacquered folding screen, and a bamboo grove — with a
+    // panda sitting in each big grove, munching (scenery: never eaten)
+    stall: { h: 3.4, side: "#c41f2a", top: "#f6e7c6", rim: "#ffd24d", deco: "awning", stripe: "#fff3df" },
+    screen: { h: 4.8, side: "#7a1f22", top: "#c9993a", rim: "#f0cf72", deco: "folds" },
+    bamboo: { h: 5.2, side: "#5a9a3a", top: "#7fc257", rim: "#a9dd72", deco: "stalks", pandas: true },
   };
   // How each kind of bridge looks (it crosses water, lava or the void).
   const BRIDGE_LOOKS = {
@@ -2338,8 +2611,21 @@
         // outward normal (dy, -dx) * sign: it faces the viewer when its y > 0
         front[i] = -dx * sign > 1e-6 ? 1 : 0;
       }
-      return { pts: P, box: [x0, y0, x1, y1], front };
+      return { pts: P, box: [x0, y0, x1, y1], front, hole: depth % 2 === 1 };
     });
+  }
+  // Where the PANDAS sit (Lantern Land): the middle of each big solid grove,
+  // never in a hole cut out of one (that is ground he walks). Scenery, drawn
+  // in the block: a law checks every spot is ground he can never stand on.
+  const PANDA_MIN = 14;
+  function pandaSpots(info) {
+    const out = [];
+    for (const R of info) {
+      const b = R.box, w = b[2] - b[0];
+      if (w < PANDA_MIN || R.hole) continue;
+      out.push({ x: (b[0] + b[2]) / 2, y: (b[1] + b[3]) / 2, s: Math.min(5.2, w * 0.22) });
+    }
+    return out;
   }
   // The same line moved sideways by d on the GROUND (a rail beside its twin,
   // a river's streaks), as world points.
@@ -2629,7 +2915,7 @@
       const v = viewRect(2);
       const x0 = Math.max(0, v.x0), y0 = Math.max(0, v.y0), x1 = Math.min(W, v.x1), y1 = Math.min(H, v.y1);
       let nd = 0;
-      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0, wires: 0, spin: 0, cannons: 0 };
+      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0, wires: 0, spin: 0, cannons: 0, signs: 0 };
       if (x1 > x0 && y1 > y0) {
         drawGround(x0, y0, x1, y1);
         for (const dc of decals) {
@@ -2654,6 +2940,7 @@
       // what stands on it or spans the gaps: tracks, then hedges, fences,
       // shelves and walls, then the bridges, then the portals
       feat.tracks += drawTracks(v);
+      feat.signs = drawSigns(v);
       feat.blocks += drawBlocks(false, v, now);
       feat.bridges += drawBridges(v);
       feat.flows += drawSlides(v, now);
@@ -2663,6 +2950,27 @@
       ctx.restore();
       lastFeat = feat;
       return nd;
+    }
+
+    // ---- Lantern Land: the character SIGNS ----------------------------------
+    // A round red plaque on a short post, with one of Josh's characters on it
+    // in gold, in the one Simplified Chinese face (SC_FONT).
+    function drawSigns(v) {
+      let n = 0;
+      for (const g of def.signs || []) {
+        const x = g.x * st.W, y = g.y * st.H, r = 5.4, py = y - 7.5;
+        if (x < v.x0 - 8 || x > v.x1 + 8 || py < v.y0 - 8 || y > v.y1 + 8) continue;
+        n++;
+        ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.ellipse(x + 0.8, y + 0.4, 3.2, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#5a3418"; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, py + r * 0.6); ctx.stroke();
+        ctx.fillStyle = "#b5161f"; ctx.beginPath(); ctx.arc(x, py, r + 0.9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#e0262d"; ctx.beginPath(); ctx.arc(x, py, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#ffd24d"; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(x, py, r - 0.6, 0, Math.PI * 2); ctx.stroke();
+        ctx.font = "bold 6.4px " + SC_FONT;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle = "#ffe48a"; ctx.fillText(g.ch, x, py + 0.3);
+      }
+      return n;
     }
 
     // ---- phase 4 (§14): the place's SHAPE, its blocks and what moves ---------
@@ -2821,6 +3129,45 @@
           }
         }
         ctx.stroke();
+      } else if (K.deco === "awning") {
+        // a market stall's striped front
+        ctx.fillStyle = K.stripe;
+        ctx.beginPath();
+        for (const [l, r] of fronts) {
+          const len = r[0] - l[0];
+          for (let s = 0.6; s + 1 <= len; s += 2.2) {
+            const x = l[0] + s, y = l[1] + ((r[1] - l[1]) * s) / (len || 1);
+            ctx.rect(x, y - h, 1, h * 0.55);
+          }
+        }
+        ctx.fill();
+      } else if (K.deco === "folds") {
+        // a folding screen: gold-edged panels, a hinge between each
+        ctx.strokeStyle = K.rim; ctx.lineWidth = 0.35;
+        ctx.beginPath();
+        for (const [l, r] of fronts) {
+          ctx.moveTo(l[0], l[1] - h * 0.12); ctx.lineTo(r[0], r[1] - h * 0.12);
+          ctx.moveTo(l[0], l[1] - h * 0.9); ctx.lineTo(r[0], r[1] - h * 0.9);
+          const len = r[0] - l[0];
+          for (let s = 2.6; s < len; s += 2.6) {
+            const x = l[0] + s, y = l[1] + ((r[1] - l[1]) * s) / (len || 1);
+            ctx.moveTo(x, y); ctx.lineTo(x, y - h);
+          }
+        }
+        ctx.stroke();
+      } else if (K.deco === "stalks") {
+        // bamboo canes, close together, each with its joints
+        ctx.strokeStyle = "rgba(40,90,30,0.6)"; ctx.lineWidth = 0.35;
+        ctx.beginPath();
+        for (const [l, r] of fronts) {
+          const len = r[0] - l[0];
+          for (let s = 0.7; s < len; s += 1.4) {
+            const x = l[0] + s, y = l[1] + ((r[1] - l[1]) * s) / (len || 1);
+            ctx.moveTo(x, y); ctx.lineTo(x, y - h);
+            for (const f of [0.3, 0.62, 0.9]) { ctx.moveTo(x - 0.45, y - h * f); ctx.lineTo(x + 0.45, y - h * f); }
+          }
+        }
+        ctx.stroke();
       } else if (K.deco === "slats") {
         // an air vent's louvres: dark slots across its front
         ctx.strokeStyle = "rgba(40,44,54,0.55)"; ctx.lineWidth = 0.35;
@@ -2843,8 +3190,9 @@
       ctx.fillStyle = K.top; ringsPath(rings, 0, -h); ctx.fill("evenodd");
       ctx.strokeStyle = K.rim; ctx.lineWidth = 0.5; ctx.lineJoin = "round";
       ringsPath(rings, 0, -h); ctx.stroke();
-      if (K.deco === "bumps") {
-        // a hedge's leafy top: soft round bumps all along its rim
+      if (K.deco === "bumps" || K.deco === "stalks") {
+        // a hedge's leafy top (and a bamboo grove's): soft round bumps all
+        // along its rim
         ctx.fillStyle = K.rim;
         ctx.beginPath();
         for (const R of rings) {
@@ -2861,6 +3209,21 @@
           }
         }
         ctx.fill();
+      }
+      if (K.deco === "awning") {
+        // a stall's roof IS its awning: red and white stripes seen from above,
+        // so it reads as a market stall and not a blank cream box
+        ctx.save();
+        ringsPath(rings, 0, -h); ctx.clip("evenodd");
+        ctx.fillStyle = K.side;
+        ctx.beginPath();
+        for (const R of rings) {
+          const b = R.box;
+          for (let x = Math.floor(b[0] / 2.4) * 2.4; x < b[2]; x += 2.4) ctx.rect(x, b[1] - h - 1, 1.2, b[3] - b[1] + 2);
+        }
+        ctx.fill();
+        ctx.restore();
+        ctx.strokeStyle = K.rim; ctx.lineWidth = 0.5; ringsPath(rings, 0, -h); ctx.stroke();
       }
       if (K.deco === "goods") {
         // a shelf seen from above is FULL: rows of little packets on its top,
@@ -2887,6 +3250,32 @@
         ctx.restore();
         ctx.strokeStyle = K.rim; ctx.lineWidth = 0.5; ringsPath(rings, 0, -h); ctx.stroke();
       }
+      // a panda sitting in the middle of each big bamboo grove, munching
+      // (Lantern Land): scenery, drawn in the block, so it stands where he can
+      // never walk and is never something to eat (the alive law)
+      if (K.pandas) for (const p of pandaSpots(rings)) drawPanda(p.x, p.y - h, p.s);
+    }
+    // A sitting panda, s units across the head: white body, black arms and
+    // legs, black ears and eye patches, a stalk of bamboo in its paws.
+    function drawPanda(x, y, s) {
+      const ink = "#26262e";
+      ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(x, y + s * 1.05, s * 1.05, s * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#fbfbf6"; ctx.beginPath(); ctx.ellipse(x, y + s * 0.35, s * 0.95, s * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = ink;
+      ctx.beginPath(); ctx.ellipse(x - s * 0.62, y + s * 0.95, s * 0.36, s * 0.24, 0, 0, Math.PI * 2); ctx.ellipse(x + s * 0.62, y + s * 0.95, s * 0.36, s * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x - s * 0.55, y + s * 0.3, s * 0.26, s * 0.42, -0.5, 0, Math.PI * 2); ctx.ellipse(x + s * 0.55, y + s * 0.3, s * 0.26, s * 0.42, 0.5, 0, Math.PI * 2); ctx.fill();
+      // the bamboo stalk it is munching
+      ctx.strokeStyle = "#5a9a3a"; ctx.lineWidth = s * 0.16; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x + s * 0.2, y + s * 0.6); ctx.lineTo(x + s * 0.55, y - s * 0.75); ctx.stroke(); ctx.lineCap = "butt";
+      ctx.fillStyle = "#7fc257"; ctx.beginPath(); ctx.ellipse(x + s * 0.7, y - s * 0.8, s * 0.3, s * 0.12, -0.6, 0, Math.PI * 2); ctx.fill();
+      // head
+      ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(x - s * 0.42, y - s * 0.62, s * 0.22, 0, Math.PI * 2); ctx.arc(x + s * 0.42, y - s * 0.62, s * 0.22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#fbfbf6"; ctx.strokeStyle = "rgba(38,38,46,0.5)"; ctx.lineWidth = 0.25;
+      ctx.beginPath(); ctx.ellipse(x, y - s * 0.3, s * 0.58, s * 0.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = ink;
+      ctx.beginPath(); ctx.ellipse(x - s * 0.22, y - s * 0.34, s * 0.14, s * 0.18, 0.5, 0, Math.PI * 2); ctx.ellipse(x + s * 0.22, y - s * 0.34, s * 0.14, s * 0.18, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x, y - s * 0.12, s * 0.09, s * 0.06, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(x - s * 0.2, y - s * 0.37, s * 0.04, 0, Math.PI * 2); ctx.arc(x + s * 0.24, y - s * 0.37, s * 0.04, 0, Math.PI * 2); ctx.fill();
     }
 
     // Rivers, conveyor belts and moving walkways: they carry Gobble, and their
@@ -2943,7 +3332,7 @@
     // rate it carries him (keyed to the RUN's clock, so a frame depends only
     // on the state), round a hub that stands still. Still under reduced
     // motion it is still drawn turned to where the run has got to.
-    const SPIN_COLS = { turntable: ["#ff5e7e", "#fff4e0"], record: ["#22222b", "#3a3a48"], pizza: ["#f2a541", "#f7d070"], whirl: ["#3d95d1", "#8fd3f7"] };
+    const SPIN_COLS = { turntable: ["#ff5e7e", "#fff4e0"], record: ["#22222b", "#3a3a48"], pizza: ["#f2a541", "#f7d070"], whirl: ["#3d95d1", "#8fd3f7"], lazysusan: ["#9b5a2e", "#d9a066"] };
     function drawSpin(F) {
       const c = F.spin, f = F.f, cols = f.cols || SPIN_COLS[f.look] || SPIN_COLS.turntable;
       const a0 = (st.t * f.v) / c.rg, K = 8;
@@ -3450,7 +3839,59 @@
       if (flip) ctx.scale(-1, 1);
       if (alpha < 1) ctx.globalAlpha = alpha;
       ctx.drawImage(sp.cv, -w / 2, -(h - pad), w, h);
+      // Water Town's finale is a DRAGON boat: its head and tail are drawn in
+      // the boat's own transform, so they wobble with it and go down with it
+      if (o.finale && def.finale.deco === "dragon") dragonDeco(w, h);
       ctx.restore();
+    }
+    // A dragon's head rising from the bow (the left end) and a curled tail at
+    // the stern: a red neck with a gold mane, an open jaw with white teeth, a
+    // gold nose, a big eye and whiskers — dark under bright, so they read on
+    // any water or stone.
+    function dragonDeco(w, h) {
+      const u = w / 10, by = -h * 0.3, RED = "#d8342b", GOLD = "#ffd24d", INK = INK_DARK;
+      const hx = -w * 0.5, hy = by - u * 2.5;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      const neck = () => { ctx.beginPath(); ctx.moveTo(-w * 0.33, by); ctx.quadraticCurveTo(-w * 0.5, by - u * 0.1, hx + u * 0.15, hy + u * 0.4); };
+      const tail = () => { ctx.beginPath(); ctx.moveTo(w * 0.33, by); ctx.quadraticCurveTo(w * 0.55, by - u * 0.2, w * 0.5, by - u * 1.9); };
+      for (const [col, lw] of [[INK, 1.2], [RED, 0.8]]) { ctx.strokeStyle = col; ctx.lineWidth = u * lw; neck(); ctx.stroke(); tail(); ctx.stroke(); }
+      const shape = (pts, fill) => {
+        ctx.beginPath(); ctx.moveTo(hx + pts[0][0] * u, hy + pts[0][1] * u);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(hx + pts[i][0] * u, hy + pts[i][1] * u);
+        ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.stroke();
+      };
+      ctx.strokeStyle = INK; ctx.lineWidth = u * 0.14;
+      // the tail's gold fin
+      ctx.beginPath();
+      ctx.moveTo(w * 0.47, by - u * 1.7); ctx.lineTo(w * 0.62, by - u * 2.9); ctx.lineTo(w * 0.53, by - u * 2.5);
+      ctx.lineTo(w * 0.5, by - u * 3.2); ctx.lineTo(w * 0.44, by - u * 2.4); ctx.lineTo(w * 0.36, by - u * 2.8); ctx.closePath();
+      ctx.fillStyle = GOLD; ctx.fill(); ctx.stroke();
+      // the gold mane behind the head, and two gold horns
+      shape([[0.5, -0.6], [1.7, -0.9], [0.8, -0.2], [1.8, 0.1], [0.8, 0.35], [1.5, 0.9], [0.4, 0.6]], GOLD);
+      shape([[0.1, -0.75], [0.7, -1.9], [0.5, -0.65]], GOLD);
+      shape([[-0.3, -0.8], [0.1, -1.95], [0.15, -0.75]], GOLD);
+      // the head
+      ctx.fillStyle = RED; ellipse(ctx, hx + u * 0.15, hy - u * 0.05, u * 0.9, u * 0.82); ctx.fill(); ctx.stroke();
+      // the open jaw: the lower jaw, the mouth, the upper jaw with its teeth
+      shape([[0.2, 0.25], [-1.6, 0.75], [-1.7, 1.05], [-1.3, 1.1], [0.35, 0.75]], RED);
+      shape([[0.0, 0.25], [-1.5, 0.45], [-1.45, 0.75], [0.1, 0.62]], "#5a0f12");
+      shape([[0.3, -0.55], [-1.0, -0.6], [-2.0, -0.05], [-1.75, 0.35], [0.2, 0.25]], RED);
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      for (let k = 0; k < 4; k++) { const x = hx - u * (1.55 - k * 0.38), y = hy + u * (0.31 - k * 0.02); ctx.moveTo(x, y); ctx.lineTo(x + u * 0.28, y); ctx.lineTo(x + u * 0.14, y + u * 0.3); ctx.closePath(); }
+      ctx.fill();
+      // a gold nose, a big eye under a gold brow
+      ctx.fillStyle = GOLD; ctx.beginPath(); ctx.arc(hx - u * 1.85, hy - u * 0.12, u * 0.26, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(hx - u * 0.05, hy - u * 0.25, u * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(hx - u * 0.18, hy - u * 0.22, u * 0.18, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = GOLD; ctx.lineWidth = u * 0.18;
+      ctx.beginPath(); ctx.moveTo(hx - u * 0.55, hy - u * 0.62); ctx.quadraticCurveTo(hx - u * 0.05, hy - u * 0.95, hx + u * 0.45, hy - u * 0.6); ctx.stroke();
+      // whiskers curling back from the nose
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = u * 0.12;
+      ctx.beginPath();
+      ctx.moveTo(hx - u * 1.9, hy + u * 0.05); ctx.quadraticCurveTo(hx - u * 2.5, hy + u * 0.9, hx - u * 1.9, hy + u * 1.5);
+      ctx.moveTo(hx - u * 1.75, hy - u * 0.35); ctx.quadraticCurveTo(hx - u * 2.6, hy - u * 1.0, hx - u * 2.2, hy - u * 1.6);
+      ctx.stroke();
     }
     // A KEY glows with a soft pulsing ring on the ground ("find me!"), and a
     // locked thing wears a little padlock until its key is eaten.
@@ -4062,27 +4503,18 @@
       lastAir = 0;
       const A = airOf();
       if (!A || reduceMotion() || !cam) return;
-      const n = clamp(Math.round(A.n * (cssW * cssH) / 100000), 2, AIR_MAX);
-      const key = def.id + ":" + n;
-      if (!air || air.key !== key) {
-        const rr = rng(hashStr("air" + def.id));
-        const specks = [];
-        for (let i = 0; i < n; i++) specks.push({ u: rr(), v: rr(), d: 0.6 + rr() * 0.8, ph: rr(), i });
-        air = { key, specks, ox: air ? air.ox : 0, oy: air ? air.oy : 0, last: null };
-      }
+      const specks = airSpecks(def.id, A, cssW, cssH);
+      const key = def.id + ":" + specks.length;
+      if (!air || air.key !== key) air = { key, specks, ox: air ? air.ox : 0, oy: air ? air.oy : 0, last: null };
       // the camera's move since the last frame, in screen px: a speck at depth
       // d slides d times as far as the ground does
       if (air.last) { air.ox += (cam.x - air.last.x) * view.s; air.oy += (cam.y - air.last.y) * view.s; }
       air.last = { x: cam.x, y: cam.y };
       const col = def.air[1] || A.col;
-      const big = clamp(Math.min(cssW, cssH) / 390, 1, 1.8);   // an iPad's specks are bigger, never smaller
-      const pad = A.size * big * 3 + 30, W = cssW + 2 * pad, H = cssH + 2 * pad;
       ctx.save();
       for (const p of air.specks) {
-        let x = p.u * W + A.vx * now * p.d - air.ox * p.d + Math.sin(now * 0.9 + p.ph * TAU) * A.sway;
-        let y = p.v * H + A.vy * now * p.d - air.oy * p.d;
-        x = ((x % W) + W) % W - pad; y = ((y % H) + H) % H - pad;
-        A.draw(ctx, x, y, A.size * big * (0.7 + p.d * 0.45), p.ph, now, col, p.i);
+        const q = airPos(p, A, now, air.ox, air.oy, cssW, cssH);
+        A.draw(ctx, q.x, q.y, q.s, p.ph, now, col, p.i);
         lastAir++;
       }
       ctx.restore();
@@ -4752,6 +5184,6 @@
     return Y < 0.18;
   }
 
-  global.HoleRender = { create, prepDecals, darkHex, BLOCK_LOOKS, BRIDGE_LOOKS, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
+  global.HoleRender = { create, prepDecals, ringsInfo, pandaSpots, SC_FONT, airSpecks, airPos, airGeom, darkHex, BLOCK_LOOKS, BRIDGE_LOOKS, DECALS, GROUND_ART, GROUNDS, BACKDROPS, HOLES, WEAR, TASTE_LOOK, AIR, FIREWORKS, EYE, eyeR, faceUp, LOD, VIS, MARGIN, THICK };
   if (typeof module !== "undefined" && module.exports) module.exports = global.HoleRender;
 })(typeof window !== "undefined" ? window : globalThis);

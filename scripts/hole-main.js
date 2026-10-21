@@ -27,6 +27,10 @@
   const TASTE_QUIET_MS = 2500; // a first-taste word waits until nothing has been said for this long
   const SLURP_SAY_GAP = 20;    // "Super slurp!" at most once in this many seconds of play
   const COUNT_GAP_MS = 700;    // count mode: a number is said once the last line has had this long
+  // Lantern Land (PLAN_GOBBLE_LANTERN.md §4): no more than one Chinese line
+  // this often — a sign or a word waits for the next chance — apart from the
+  // finale's name (said with its English line) and a greeting on arrival
+  const ZH_GAP_MS = 3000;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (id) => doc.getElementById(id);
@@ -452,6 +456,23 @@
     if (a && text && !a.isMuted()) { a.say(text); if (run) run.lastSaid = now(); }
   }
   function sayPlay(text) { if (playVisible()) sayNow(text); }
+  // A Chinese line, in a Chinese voice (the path 华丽's world uses)
+  function sayZh(text) {
+    const a = global.JoshAudio;
+    if (!playVisible() || !a || !text || a.isMuted()) return;
+    a.say(text, { lang: "zh-CN" });
+    if (run) { run.lastSaid = now(); run.zhAt = now(); }
+  }
+  // Is it a moment for a Chinese word or sign? Nothing said for a little
+  // while, and no Chinese line for ZH_GAP_MS.
+  const zhQuiet = () => now() - run.lastSaid > TASTE_QUIET_MS && now() - run.zhAt > ZH_GAP_MS;
+  // A character SIGN is said the way a Chinese speaker names a character —
+  // "奶奶的奶" — never bare: a bare 奶 is heard as "milk". The word in front
+  // does NOT fix the reading of the character after 的, which is said on its
+  // own, so a sign is never one of his two-reading cards (乐 lè/yuè) unless
+  // Word Cards voices it through a one-reading stand-in, which this uses too
+  // (长 → 常: `as`, held to wordcards.html's XIN_SAY_AS by a test).
+  const signLine = (g) => g.word + "的" + (g.as || g.ch);
   // A gulp is pitched by SIZE — a tiny sweet is a high blip, a bus a low gulp —
   // and gulps in quick succession climb like popping bubble wrap.
   const GULP = [0, 988, 784, 622, 494, 392];
@@ -496,6 +517,7 @@
     squeak: (k) => notes([[1760 * k, 0, sn(0.06, 0.12)], [2093 * k, 50, sn(0.09, 0.12)]]),
     music: (k) => notes([[523.25 * k, 0, tr(0.09, 0.14)], [659.25 * k, 70, tr(0.09, 0.14)], [783.99 * k, 140, tr(0.09, 0.14)], [1046.5 * k, 210, tr(0.2, 0.14)]]),
     pop: (k) => notes([[1046.5 * k, 0, sq(0.03, 0.1)], [1479.98 * k, 30, sn(0.1, 0.12)]]),
+    slurp: (k) => notes([[587.33 * k, 0, tr(0.05, 0.12)], [523.25 * k, 45, tr(0.05, 0.12)], [698.46 * k, 90, tr(0.05, 0.12)], [880 * k, 135, tr(0.18, 0.12)]]), // slu-urp
   };
   // Every place has a TUNE of its own (PLAN §14.4): it plays as the place
   // opens, so two places never sound alike either.
@@ -650,6 +672,9 @@
     run = {
       st, def, bigSaid: -1e9,
       noteI: 0, said: {}, combo: 0, tasted: {}, lastSaid: -1e9,
+      // Lantern Land: the last Chinese line, the word of the place said, the
+      // signs said this visit
+      zhAt: -1e9, worded: false, signSaid: {},
       ate: st.objects.filter((o) => o.st === L.GONE).map((o) => o.e),
       // treasures he has found (a resumed run found the ones already gone)
       found: new Set(st.gold.filter((id) => st.objects[id].st === L.GONE)),
@@ -662,7 +687,13 @@
     persist();
     meterKey = "";
     paintMeter();
-    if (!resumed) { later(() => playTune(def), 120); later(() => sayPlay(SAY.start), 400); }
+    if (!resumed) {
+      later(() => playTune(def), 120);
+      // a festival place greets him (English, then Chinese) instead of the
+      // usual "I'm hungry!" (§4.3)
+      if (def.greet) later(() => { sayPlay(def.greet.en); sayZh(def.greet.zh); }, 400);
+      else later(() => sayPlay(SAY.start), 400);
+    }
     if (!save.demo) later(demoWhenReady, 1000);   // the first time ever: show, don't tell
     startLoop();
   }
@@ -728,9 +759,18 @@
           // the best ever, kept for the door (written with this frame's save)
           if (run.found.size > (save.gold[run.def.id] || 0)) { save.gold[run.def.id] = run.found.size; run.dirty = true; }
         }
+        // the WORD of the place (Lantern Land, §4.2): the first time he eats
+        // its picture, said in English and then Chinese — and a taste word for
+        // the same gulp gives way to it
+        const word = run.def.word;
+        let worded = false;
+        if (word && !run.worded && !ev.vortex && ev.e === word.e && zhQuiet()) {
+          run.worded = worded = true;
+          sayPlay(word.en); sayZh(word.zh);
+        }
         // the FIRST taste of a family is said once a run — and only when
         // nothing has been said for a moment (a word never talks over another)
-        const fam = !ev.vortex && !ev.finale && DATA.tasteOf(ev.e);
+        const fam = !worded && !ev.vortex && !ev.finale && DATA.tasteOf(ev.e);
         if (fam && !run.tasted[fam] && now() - run.lastSaid > TASTE_QUIET_MS) {
           run.tasted[fam] = true;
           sayPlay(SAY.taste[fam]);
@@ -740,7 +780,7 @@
         bounceMeter();
         // the grow that makes him big enough for the finale names it: from
         // here on it is the goal (the edge arrow and a golden beacon show it)
-        if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def, run.st)); }
+        if (ev.ready) { SFX.ready(); sayPlay(readyLine(run.def, run.st)); if (run.def.finale.zh) sayZh(run.def.finale.zh); }
         else { SFX.grow(); sayPlay(SAY.grow[(ev.level - 1) % SAY.grow.length]); }
       } else if (ev.type === "bump") {
         // a locked gate rattles and asks for what it wants (its key, or its
@@ -788,6 +828,15 @@
         SFX.ooh();
         const line = SAY.meet[ev.kind];
         if (line) sayPlay(line.replace("{n}", numWord(ev.n)).replace("{what}", (run.def.count && run.def.count.say) || "things"));
+      } else if (ev.type === "sign") {
+        // a character SIGN (Lantern Land, §4.5): once a visit, when it is a
+        // moment for it (a sign he rolls past while Gobble is talking speaks
+        // the next time he comes by)
+        const g = run.def.signs[ev.i];
+        if (g && !run.signSaid[ev.i] && zhQuiet()) {
+          run.signSaid[ev.i] = true;
+          SFX.ooh(); sayZh(signLine(g)); sayPlay(g.en);
+        }
       } else if (ev.type === "pop") {
         SFX.pop(); sayEvery("pop", 8, SAY.pop, t);
       } else if (ev.type === "shake") {

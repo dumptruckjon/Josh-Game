@@ -91,6 +91,10 @@
     CORE: 0.9,        // a wall thing stops Gobble's centre this far out (x its radius)
     KEEP_LANE: 1.5,   // nothing stands within the biggest rider's radius + this of a track
     PORTAL_R: 7,      // step this close to a portal's centre and through it you go
+    // Lantern Land's character SIGNS: he is "at" one this close (or within his
+    // own radius, once he is bigger), and nothing is laid out this close to it
+    SIGN_R: 14,
+    SIGN_KEEP: 11,
     PORTAL_COST: 6,   // what going through a portal costs a planned route…
     PORTAL_PEN: 30,   // …and what walking PAST one costs it (so a route goes round a portal unless it is the way)
     ICE_TAU: 0.6,     // on ice his speed takes this long to follow the finger (seconds): he slides
@@ -2663,6 +2667,349 @@
       ],
       finale: { e: "🕰️", r: 20, at: [0.5, 0.12], say: "the big old clock" },
     },
+    // ---- 🏮 Lantern Land (PLAN_GOBBLE_LANTERN.md, batch A): six sides of
+    // China. Gobble speaks a little Chinese here — the finale's name (zh), a
+    // WORD of the place the first time he eats it, a festival greeting, and
+    // three character SIGNS per place, every one a character from Josh's own
+    // Word Cards (a test reads wordcards.html), said "<word>的<字>", never bare.
+    {
+      // NEW YEAR STREET (春节): a FISHBONE street — one long street up the
+      // middle with red market stalls down it, six alleys off both sides, and
+      // the temple-fair plaza at the top. Strings of FIRECRACKERS hang across
+      // two alleys (gulp one end and the rest roll in after it, pop-pop-pop),
+      // red gift boxes POP open, and tangerine trees SHAKE down their luck.
+      id: "newyear", name: "New Year Street", door: "🧨", color: "#d62828",
+      ground: "street", hole: "gobble",
+      wear: ["tiger", "#ff9f1c", "#d62828"], air: ["paper"],
+      backdrop: ["#ffe6c2", "#ffbf7a"],
+      start: [0.5, 0.94], starters: 3,
+      tune: [523.25, 659.25, 783.99, 659.25, 880, 783.99, 659.25, 523.25],
+      greet: { en: "Happy New Year!", zh: "新年快乐" },
+      word: { e: "🧨", en: "Firecrackers!", zh: "鞭炮" },
+      land: [
+        { rect: [0.34, 0.14, 0.66, 0.98], round: 12 },
+        { rect: [0.1, 0.02, 0.9, 0.2], round: 16 },
+        { rect: [0.03, 0.72, 0.36, 0.83], round: 10 },
+        { rect: [0.64, 0.72, 0.97, 0.83], round: 10 },
+        { rect: [0.03, 0.5, 0.36, 0.61], round: 10 },
+        { rect: [0.64, 0.5, 0.97, 0.61], round: 10 },
+        { rect: [0.03, 0.28, 0.36, 0.39], round: 10 },
+        { rect: [0.64, 0.28, 0.97, 0.39], round: 10 },
+      ],
+      // the market stalls down the middle of the street, so it runs as two lanes
+      blocks: [
+        { rect: [0.45, 0.85, 0.55, 0.9], round: 2, look: "stall" },
+        { rect: [0.45, 0.63, 0.55, 0.68], round: 2, look: "stall" },
+        { rect: [0.45, 0.41, 0.55, 0.46], round: 2, look: "stall" },
+        { rect: [0.45, 0.24, 0.55, 0.28], round: 2, look: "stall" },
+      ],
+      zones: {
+        plaza: [[0.12, 0.03, 0.88, 0.19]],
+        street: [[0.35, 0.2, 0.65, 0.96]],
+        alleys: [[0.04, 0.73, 0.33, 0.82], [0.67, 0.73, 0.96, 0.82], [0.04, 0.51, 0.33, 0.6], [0.67, 0.51, 0.96, 0.6], [0.04, 0.29, 0.33, 0.38], [0.67, 0.29, 0.96, 0.38]],
+      },
+      trails: [{ e: "🍊", to: [0.38, 0.92] }, { e: "🍊", to: [0.62, 0.92] }],
+      decals: [
+        { k: "rug", x: 0.5, y: 0.11, r: 0.13, pal: 1 },
+        // couplets on the doors at the ends of the alleys, and the vat by the plaza
+        { k: "couplets", x: 0.07, y: 0.6, r: 0.022 },
+        { k: "couplets", x: 0.93, y: 0.6, r: 0.022 },
+        { k: "couplets", x: 0.07, y: 0.38, r: 0.022 },
+        { k: "couplets", x: 0.93, y: 0.82, r: 0.022 },
+        { k: "couplets", vat: true, x: 0.18, y: 0.15, r: 0.03 },
+        // lanterns hung across the street
+        { k: "lanternstring", pts: [[0.36, 0.76], [0.64, 0.76]] },
+        { k: "lanternstring", pts: [[0.36, 0.55], [0.64, 0.55]] },
+        { k: "lanternstring", pts: [[0.36, 0.33], [0.64, 0.33]] },
+      ],
+      signs: [
+        { ch: "红", word: "红色", en: "red", x: 0.5, y: 0.5 },
+        { ch: "春", word: "春天", en: "spring", x: 0.15, y: 0.555 },
+        { ch: "笑", word: "笑脸", en: "laugh", x: 0.85, y: 0.335 },
+      ],
+      tiers: [
+        { r: T1, items: [["🪙", 60, null, 3], ["🍊", 30], ["🍬", 24], ["🥜", 18], ["🌰", 18]] },
+        { r: T2, items: [["🧨", 7, { at: { line: [[0.07, 0.775], [0.32, 0.775]] }, chain: true }], ["🧨", 7, { at: { line: [[0.68, 0.335], [0.93, 0.335]] }, chain: true }],
+          ["🏮", 16, "street"], ["🥟", 14], ["🎁", 10, { pop: [["🪙", 3, 1], ["🍬", 2, 1]] }], ["🌸", 14, "plaza"]] },
+        { r: T3, items: [["🥁", 8, "plaza"], ["🪁", 8, "plaza"], ["🧺", 10, "alleys"], ["🪑", 10, "alleys"], ["🛍️", 8]] },
+        { r: T4, items: [["🌳", 10, { shake: [["🍊", 2, 1]], zone: "alleys" }], ["🚲", 6, "alleys"], ["🛵", 6], ["🪴", 8]] },
+        { r: T5, items: [["🏠", 5, "alleys"], ["🏪", 4, "street"], ["🏡", 3, "alleys"], ["🚌", 2, "street"]] },
+      ],
+      finale: { e: "🧧", r: 20, at: [0.5, 0.09], say: "the giant red envelope", zh: "大红包" },
+    },
+    {
+      // DUMPLING HOUSE (茶楼, a dim sum house): the floor is SHAPED LIKE A
+      // DUMPLING — a half-moon with a flat bottom and its pleats along the top.
+      // The lazy Susans on four round tables TURN and carry him round, dim sum
+      // carts RIDE a loop round the hall (eat them car by car once he is big
+      // enough), folding SCREENS close off the kitchen, and steamer pots POP
+      // into dumplings. The kitchen at the back holds the giant teapot.
+      id: "dumplings", name: "Dumpling House", door: "🥟", color: "#e8a33a",
+      ground: "wood", hole: "gobble",
+      wear: ["chef", "#ffffff"], air: ["steam"],
+      backdrop: ["#ffe9c7", "#f3c98a"],
+      start: [0.5, 0.92], starters: 3,
+      // 两只老虎 (Frère Jacques), which Chinese children sing to it
+      tune: [523.25, 587.33, 659.25, 523.25, 523.25, 587.33, 659.25, 523.25],
+      word: { e: "🥟", en: "Dumplings!", zh: "饺子" },
+      land: [
+        { oval: [0.5, 0.96, 0.47, 0.86], not: { rect: [-0.1, 0.96, 1.1, 1.5] } },
+        { circle: [0.198, 0.3, 0.05] }, { circle: [0.339, 0.15, 0.05] }, { circle: [0.5, 0.1, 0.05] },
+        { circle: [0.661, 0.15, 0.05] }, { circle: [0.802, 0.3, 0.05] },
+      ],
+      blocks: [
+        { rect: [0.2, 0.31, 0.41, 0.33], round: 2, look: "screen" },
+        { rect: [0.59, 0.31, 0.8, 0.33], round: 2, look: "screen" },
+        { rect: [0.49, 0.5, 0.51, 0.72], round: 2, look: "screen" },
+      ],
+      flows: [
+        { spin: [0.29, 0.5, 0.085], v: 20, look: "lazysusan" },
+        { spin: [0.71, 0.5, 0.085], v: -20, look: "lazysusan" },
+        { spin: [0.29, 0.73, 0.085], v: -20, look: "lazysusan" },
+        { spin: [0.71, 0.73, 0.085], v: 20, look: "lazysusan" },
+      ],
+      tracks: { carts: { pts: ovalPts(0.5, 0.615, 0.4, 0.26, 32), loop: true, speed: 7, look: "none" } },
+      zones: {
+        kitchen: [[0.24, 0.13, 0.76, 0.3]],
+        tables: [{ ring: [0.29, 0.5, 0.09, 0.15] }, { ring: [0.71, 0.5, 0.09, 0.15] }, { ring: [0.29, 0.73, 0.09, 0.15] }, { ring: [0.71, 0.73, 0.09, 0.15] }],
+      },
+      trails: [{ e: "🥚", to: [0.36, 0.9] }, { e: "🥚", to: [0.64, 0.9] }],
+      // a red tablecloth under each turning table
+      decals: [
+        { k: "tablecloth", x: 0.29, y: 0.5, r: 0.1 },
+        { k: "tablecloth", x: 0.71, y: 0.5, r: 0.1 },
+        { k: "tablecloth", x: 0.29, y: 0.73, r: 0.1 },
+        { k: "tablecloth", x: 0.71, y: 0.73, r: 0.1 },
+        { k: "lanternstring", pts: [[0.3, 0.86], [0.7, 0.86]], n: 6 },
+      ],
+      signs: [
+        { ch: "吃", word: "吃饭", en: "eat", x: 0.5, y: 0.83 },
+        { ch: "饿", word: "饿了", en: "hungry", x: 0.12, y: 0.62 },
+        { ch: "香", word: "好香", en: "smells good", x: 0.5, y: 0.25 },
+      ],
+      tiers: [
+        { r: T1, items: [["🥟", 72, null, 3], ["🥚", 20], ["🧄", 18, "kitchen"], ["🌶️", 18, "kitchen"], ["🥜", 16]] },
+        { r: T2, items: [["🥢", 20, "tables"], ["🍵", 18, "tables"], ["🥣", 16], ["🥬", 14, "kitchen"], ["🍜", 14], ["🍚", 14]] },
+        { r: T3, items: [["🍲", 10, { pop: [["🥟", 3, 1]] }], ["🫓", 10], ["🧺", 10], ["🏮", 8]] },
+        { r: T4, items: [["🪑", 14], ["🛒", 6, { ride: "carts" }], ["🪴", 6]] },
+        { r: T5, items: [["🚪", 6], ["🛵", 4], ["🗄️", 3, "kitchen"]] },
+      ],
+      finale: { e: "🫖", r: 20, at: [0.5, 0.19], say: "the giant teapot", zh: "茶壶" },
+    },
+    {
+      // HUTONG HOUSE (四合院): a Beijing courtyard house, a grandmother's home.
+      // Four wings stand round a yard (walls he walks round, with doorways), the
+      // main hall to the north holds the finale, balls of YARN roll away from
+      // him across the yard, the vegetable bed SPROUTS bok choy, and the side
+      // room has dumplings laid out in neat ROWS on the table.
+      id: "courtyard", name: "Hutong House", door: "🀄", color: "#b5443a",
+      ground: "greybrick", hole: "gobble",
+      wear: ["bobble", "#d62828"], air: ["leaves", "#e8742e"],
+      backdrop: ["#f8e4c4", "#e7c08a"],
+      world: [460, 560],
+      start: [0.5, 0.91], starters: 3,
+      tune: [392, 440, 523.25, 440, 392, 329.63, 392, 293.66],
+      word: { e: "🧶", en: "Yarn!", zh: "毛线" },
+      // an arrival line in English only: "Grandma" is any grandmother, and
+      // there is no festival here to greet him in Chinese (§2.3)
+      greet: { en: "Grandma's house!" },
+      land: [{ rect: [0.04, 0.04, 0.96, 0.96], round: 10 }],
+      blocks: [
+        { rect: [0.04, 0.3, 0.4, 0.325], round: 2, look: "wall" },
+        { rect: [0.6, 0.3, 0.96, 0.325], round: 2, look: "wall" },
+        { rect: [0.27, 0.325, 0.295, 0.47], round: 2, look: "wall" },
+        { rect: [0.27, 0.6, 0.295, 0.74], round: 2, look: "wall" },
+        { rect: [0.705, 0.325, 0.73, 0.47], round: 2, look: "wall" },
+        { rect: [0.705, 0.6, 0.73, 0.74], round: 2, look: "wall" },
+        { rect: [0.04, 0.74, 0.4, 0.765], round: 2, look: "wall" },
+        { rect: [0.6, 0.74, 0.96, 0.765], round: 2, look: "wall" },
+      ],
+      zones: {
+        hall: [[0.06, 0.06, 0.94, 0.28]],
+        east: [[0.75, 0.34, 0.94, 0.72]],
+        yard: [[0.31, 0.34, 0.69, 0.72]],
+        veg: [[0.31, 0.6, 0.46, 0.72]],
+        south: [[0.06, 0.78, 0.94, 0.94]],
+      },
+      trails: [{ e: "🌰", to: [0.3, 0.88] }, { e: "🌰", to: [0.7, 0.88] }],
+      decals: [
+        { k: "soil", x0: 0.31, y0: 0.6, x1: 0.46, y1: 0.72 },
+        // the gate in its couplets, the yard's water vat (its 福 upside down),
+        // and lanterns across the front of the main hall
+        { k: "couplets", x: 0.5, y: 0.955, r: 0.03 },
+        { k: "couplets", vat: true, x: 0.62, y: 0.66, r: 0.035 },
+        { k: "lanternstring", pts: [[0.33, 0.37], [0.67, 0.37]] },
+      ],
+      signs: [
+        { ch: "家", word: "回家", en: "home", x: 0.5, y: 0.8 },
+        { ch: "奶", word: "奶奶", en: "grandma", x: 0.84, y: 0.4 },
+        { ch: "玩", word: "玩具", en: "play", x: 0.6, y: 0.4 },
+      ],
+      tiers: [
+        { r: T1, items: [["🌱", 12, { sprout: [["🥬", 1, 2]], zone: "veg" }], ["🌰", 40], ["🍬", 34], ["🥜", 28]] },
+        { r: T2, items: [["🧶", 8, { run: true, zone: "yard" }], ["🥬", 16, "veg"], ["🍵", 18, "hall"], ["🧧", 16], ["🍊", 18], ["🥟", 20, { at: { grid: [0.09, 0.4, 0.22, 0.66], cols: 4 } }]] },
+        { r: T3, items: [["🪑", 10], ["🧺", 10], ["🏮", 12], ["📻", 6, "east"], ["🧸", 8, "east"]] },
+        { r: T4, items: [["🚲", 8, "south"], ["🛵", 4, "south"], ["🪴", 10, "yard"]] },
+        { r: T5, items: [["🌳", 5, "yard"], ["🚪", 7], ["🛏️", 3, "east"]] },
+      ],
+      finale: { e: "🀄", r: 20, at: [0.5, 0.16], say: "the giant mahjong tile", zh: "麻将牌" },
+    },
+    {
+      // PANDA FOREST (熊猫): an S-shaped mountain valley that widens into three
+      // glades, low, middle and high. Bamboo GROVES are thickets he walks round
+      // — with pandas sitting inside them, munching (scenery: never eaten).
+      // Bamboo shoots SPROUT as he comes near, and trees SHAKE down apples.
+      id: "pandas", name: "Panda Forest", door: "🎋", color: "#3f9a4a",
+      ground: "bamboo", hole: "gobble",
+      wear: ["pandaears", "#26262e"], air: ["leaves"],
+      backdrop: ["#dff3d0", "#a8d98c"],
+      world: [480, 720],
+      start: [0.5, 0.93], starters: 3,
+      tune: [293.66, 329.63, 440, 392, 329.63, 293.66, 261.63, 293.66],
+      word: { e: "🍃", en: "Bamboo leaves!", zh: "竹叶" },
+      land: [
+        { path: [[0.5, 0.97], [0.32, 0.84], [0.25, 0.68], [0.42, 0.55], [0.62, 0.45], [0.75, 0.3], [0.62, 0.15], [0.5, 0.06]], w: 120 },
+        { circle: [0.27, 0.7, 0.2] }, { circle: [0.73, 0.34, 0.2] }, { circle: [0.5, 0.11, 0.17] },
+        // the clearing he starts in, at the foot of the path
+        { circle: [0.5, 0.91, 0.12] },
+      ],
+      blocks: [
+        { circle: [0.15, 0.64, 0.06], look: "bamboo" },
+        { circle: [0.38, 0.78, 0.05], look: "bamboo" },
+        { circle: [0.56, 0.5, 0.05], look: "bamboo" },
+        { circle: [0.86, 0.38, 0.06], look: "bamboo" },
+        { circle: [0.64, 0.24, 0.05], look: "bamboo" },
+        { circle: [0.36, 0.13, 0.05], look: "bamboo" },
+      ],
+      zones: {
+        low: { band: [0, 0.34] },
+        mid: { band: [0.32, 0.68] },
+        high: { band: [0.66, 1] },
+      },
+      trails: [{ e: "🍃", to: [0.38, 0.88] }, { e: "🍃", to: [0.62, 0.92] }],
+      // a sandy path winding up through the forest, and the glades' leaf piles
+      decals: [
+        { k: "path", w: 8, pts: [[0.5, 1.02], [0.34, 0.84], [0.28, 0.7], [0.42, 0.56], [0.62, 0.46], [0.72, 0.32], [0.6, 0.17], [0.5, 0.1]] },
+        { k: "leafpile", x: 0.2, y: 0.76, r: 0.05 },
+        { k: "leafpile", x: 0.82, y: 0.28, r: 0.05 },
+      ],
+      signs: [
+        { ch: "黑", word: "黑色", en: "black", x: 0.24, y: 0.62 },
+        { ch: "白", word: "白色", en: "white", x: 0.75, y: 0.42 },
+        { ch: "叶", word: "树叶", en: "leaf", x: 0.5, y: 0.17 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍃", 64], ["🌱", 14, { sprout: [["🌿", 1, 2]], zone: "low" }], ["🍄", 26], ["🌰", 22], ["🫐", 20, null, 2]] },
+        { r: T2, items: [["🌿", 20], ["🌸", 18, "mid"], ["🍎", 20]] },
+        { r: T3, items: [["🪵", 14], ["🧺", 10], ["🍯", 10, "high"]] },
+        { r: T4, items: [["🌳", 12, { shake: [["🍎", 2, 2]] }], ["🪨", 14]] },
+        { r: T5, items: [["🌲", 11], ["🛖", 4, "high"]] },
+      ],
+      finale: { e: "🎋", r: 20, at: [0.5, 0.1], say: "the giant bamboo", zh: "竹子" },
+    },
+    {
+      // TEA HILLS (茶山): a broad hill seen from the front, its tea growing in
+      // long wavy ROWS across the slope (hedges he walks round), three terraces
+      // high. The gaps in the rows swap sides, so the way up is a gentle
+      // zigzag. A cable car RIDES straight up one side, tea shoots SPROUT into
+      // leaves, and the tea house at the top holds the giant teacup.
+      id: "teahills", name: "Tea Hills", door: "🍃", color: "#5aa43a",
+      ground: "farm", hole: "gobble",
+      wear: ["straw", "#e9c46a"], air: ["clouds"],
+      backdrop: ["#e6f6ff", "#b7e2f7"],
+      world: [440, 620],
+      start: [0.5, 0.93], starters: 3,
+      tune: [392, 523.25, 587.33, 659.25, 587.33, 523.25, 440, 392],
+      word: { e: "🌿", en: "Tea leaves!", zh: "茶叶" },
+      land: [
+        { oval: [0.5, 0.56, 0.47, 0.43] },
+        { circle: [0.5, 0.13, 0.13] },
+      ],
+      blocks: [
+        { path: [[0.02, 0.8], [0.18, 0.785], [0.34, 0.8], [0.5, 0.785], [0.64, 0.8], [0.72, 0.79]], w: 9, look: "hedge" },
+        { path: [[0.28, 0.68], [0.42, 0.665], [0.56, 0.68], [0.7, 0.665], [0.84, 0.68], [0.98, 0.67]], w: 9, look: "hedge" },
+        { path: [[0.02, 0.56], [0.16, 0.545], [0.3, 0.56], [0.44, 0.545], [0.58, 0.56], [0.72, 0.55]], w: 9, look: "hedge" },
+        { path: [[0.28, 0.44], [0.42, 0.425], [0.56, 0.44], [0.7, 0.425], [0.84, 0.44], [0.98, 0.43]], w: 9, look: "hedge" },
+        { path: [[0.02, 0.32], [0.16, 0.305], [0.3, 0.32], [0.44, 0.305], [0.58, 0.32], [0.7, 0.31]], w: 9, look: "hedge" },
+      ],
+      tracks: { cable: { pts: [[0.88, 0.62], [0.8, 0.36], [0.68, 0.2]], speed: 6, look: "wire" } },
+      zones: {
+        low: { band: [0, 0.34] },
+        mid: { band: [0.32, 0.68] },
+        high: { band: [0.66, 1] },
+        house: [{ circle: [0.5, 0.13, 0.12] }],
+      },
+      trails: [{ e: "🌿", to: [0.38, 0.88] }, { e: "🌿", to: [0.62, 0.88] }],
+      // the path zigzagging up through the gaps in the rows to the tea house
+      decals: [
+        { k: "path", w: 7, pts: [[0.5, 1.02], [0.82, 0.86], [0.86, 0.74], [0.2, 0.62], [0.16, 0.5], [0.84, 0.38], [0.8, 0.26], [0.5, 0.2]] },
+      ],
+      signs: [
+        { ch: "绿", word: "绿色", en: "green", x: 0.2, y: 0.88 },
+        { ch: "山", word: "高山", en: "mountain", x: 0.84, y: 0.5 },
+        { ch: "喝", word: "喝水", en: "drink", x: 0.36, y: 0.2 },
+      ],
+      tiers: [
+        { r: T1, items: [["🌱", 18, { sprout: [["🌿", 1, 1]] }], ["🌿", 66], ["🌼", 52, null, 2]] },
+        { r: T2, items: [["🧺", 22, "low"], ["🍐", 22, "mid"], ["🍯", 14, "high"]] },
+        { r: T3, items: [["🫖", 12, "house"], ["🪣", 10], ["🏮", 10], ["🪑", 10]] },
+        { r: T4, items: [["🚡", 5, { ride: "cable" }], ["🌲", 12], ["🪨", 10]] },
+        { r: T5, items: [["🛖", 4], ["🏡", 5], ["🌳", 8]] },
+      ],
+      finale: { e: "🍵", r: 20, at: [0.5, 0.12], say: "the giant teacup", zh: "大茶杯" },
+    },
+    {
+      // WATER TOWN (水乡): a canal town cut into four islands by a cross of
+      // CANALS, whose currents carry him like a boat, inside a MOAT he crosses
+      // by three arched bridges. Sailboats RIDE round the waterfront, and the
+      // dragon boat (its head and tail drawn on) waits at its pier.
+      id: "watertown", name: "Water Town", door: "🛶", color: "#3b8fbf",
+      ground: "stone", hole: "gobble",
+      wear: ["douli", "#d9b26a"], air: ["petals"],
+      backdrop: ["#dff1fb", "#a9d6ef"],
+      world: [440, 600],
+      start: [0.5, 0.92], starters: 3,
+      tune: [329.63, 392, 440, 523.25, 440, 392, 329.63, 293.66],
+      word: { e: "⛵", en: "A boat!", zh: "船" },
+      land: [{ rect: [0.03, 0.03, 0.97, 0.97], round: 12 }],
+      blocks: [{ rect: [0.03, 0.03, 0.97, 0.84], round: 12, not: { rect: [0.1, 0.09, 0.9, 0.78], round: 8 } }],
+      bridges: [
+        { path: [[0.25, 0.87], [0.25, 0.75]], w: 18, look: "stone" },
+        { path: [[0.5, 0.87], [0.5, 0.75]], w: 18, look: "stone" },
+        { path: [[0.75, 0.87], [0.75, 0.75]], w: 18, look: "stone" },
+      ],
+      flows: [
+        { pts: [[0.5, 0.775], [0.5, 0.1]], w: 26, v: 16, look: "river" },
+        { pts: [[0.1, 0.43], [0.9, 0.43]], w: 26, v: 16, look: "river" },
+      ],
+      tracks: { boats: { pts: [[0.15, 0.14], [0.42, 0.14], [0.42, 0.37], [0.15, 0.37]], loop: true, speed: 6, look: "none" } },
+      zones: {
+        nw: [[0.11, 0.1, 0.46, 0.4]],
+        ne: [[0.54, 0.1, 0.89, 0.4]],
+        sw: [[0.11, 0.46, 0.46, 0.77]],
+        se: [[0.54, 0.46, 0.89, 0.77]],
+        bank: [[0.04, 0.86, 0.96, 0.96]],
+      },
+      trails: [{ e: "🍃", to: [0.36, 0.9] }, { e: "🍃", to: [0.64, 0.9] }],
+      // lanterns strung along the island streets
+      decals: [
+        { k: "lanternstring", pts: [[0.12, 0.6], [0.44, 0.6]], n: 6 },
+        { k: "lanternstring", pts: [[0.56, 0.6], [0.88, 0.6]], n: 6 },
+      ],
+      signs: [
+        { ch: "河", word: "小河", en: "river", x: 0.62, y: 0.5 },
+        { ch: "上", word: "上面", en: "up", x: 0.25, y: 0.8 },
+        { ch: "下", word: "下面", en: "down", x: 0.18, y: 0.9 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍃", 50], ["🌸", 36, null, 2], ["🌰", 28], ["🥚", 20]] },
+        { r: T2, items: [["🌂", 18, "nw"], ["🧵", 18, "ne"], ["🍵", 16], ["🧺", 14], ["🍑", 14]] },
+        { r: T3, items: [["🏮", 12], ["☂️", 10], ["🪑", 10, "sw"], ["🪴", 8, "se"]] },
+        { r: T4, items: [["⛵", 6, { ride: "boats" }], ["🌳", 10], ["🚲", 6, "bank"], ["🪨", 6]] },
+        { r: T5, items: [["🏠", 7], ["🏡", 5], ["🛖", 3]] },
+      ],
+      finale: { e: "🛶", r: 20, at: [0.72, 0.22], say: "the dragon boat", zh: "龙舟", deco: "dragon" },
+    },
   ];
 
   // What Gobble says (when sound is on — it is OFF by default, and the game
@@ -2735,6 +3082,7 @@
       sweet: "Mmm, sweet!", cold: "Brrr, cold!", honk: "Beep beep!", siren: "Wee-woo!",
       choo: "Choo choo!", horn: "Toot toot!", zoom: "Zoom!", boing: "Boing!", ding: "Ding!",
       ching: "Shiny!", clank: "Clank!", beep: "Beep boop!", squeak: "Squeak!", music: "La la la!", pop: "Pop!",
+      slurp: "Slurp!",
     },
   };
 
@@ -2759,7 +3107,9 @@
     beep: ["🤖", "📺", "📻", "🔋", "📡", "🏧"],
     squeak: ["🧸", "🪆", "🩴", "👟"],
     music: ["🥁", "🎸", "🎺", "🎷", "🪕", "🎻", "🪘", "🎤", "🎵", "🎶", "🎼", "🎧", "🎙️"],
-    pop: ["🎈", "🍿", "🎉", "🎊", "🪅"],
+    pop: ["🎈", "🍿", "🎉", "🎊", "🪅", "🧨"],
+    // a bowl of noodles, a cup of tea, a bowl of soup (Lantern Land, §5)
+    slurp: ["🍜", "🍵", "🥣"],
   };
   // a picture -> its family
   const TASTE_OF = {};
@@ -2786,6 +3136,9 @@
     // §19: a web hero's night — rooftops and webs, a villain's lab, and Halloween
     { id: "hero", name: "Hero Night", pic: "🕸️", backdrop: ["#c4202e", "#24318f"], color: "#151a52",
       places: ["webcity", "web", "lab", "treats", "pumpkins", "haunted"] },
+    // PLAN_GOBBLE_LANTERN.md: six sides of China (batch A; six more to come)
+    { id: "lantern", name: "Lantern Land", pic: "🏮", backdrop: ["#fff0c2", "#ffc94d"], color: "#d62828",
+      places: ["newyear", "dumplings", "courtyard", "pandas", "teahills", "watertown"] },
   ];
   // a place's land
   const landOf = (id) => LANDS.find((l) => l.places.includes(id)) || null;
@@ -2815,6 +3168,7 @@
     chocolate: "1joeaz8", beanstalk: "zmmh2b", webcity: "v8vc5m",
     web: "19i8lez", lab: "1j0zqtu", treats: "gpi9te", pumpkins: "1k18zw",
     haunted: "m3fiyk",
+    newyear: "1nsadmw", dumplings: "1qae29m", courtyard: "1qbcvyu", pandas: "jl9hx0", teahills: "hommkc", watertown: "1ypgtvk",
   };
 
   const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf, LANDS, landOf, PRINTS };

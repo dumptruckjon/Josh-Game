@@ -2837,3 +2837,210 @@ test("§20: HoleData.PRINTS pins every place's layout fingerprint, exactly and b
     assert.equal(L.runMatches({ ...snap, f: snap.f + "x" }), !!L.restore({ ...snap, f: snap.f + "x" }), def.id + ": runMatches agrees with restore");
   }
 });
+
+// ---- 🏮 LANTERN LAND (PLAN_GOBBLE_LANTERN.md): Gobble speaks a little Chinese ----
+// Every Chinese string he can say is RESTATED here with its pinyin and its
+// meaning (the hl-content.test.js precedent), so no line can silently become
+// wrong; the signs are read against Josh's own Word Cards, so the two worlds
+// cannot disagree; and the festival places are read against 华丽's festival
+// table, so the two Chinese worlds agree too.
+const LANTERN = ["newyear", "dumplings", "courtyard", "pandas", "teahills", "watertown"];
+// what each Chinese string IS: [pinyin, meaning]. Both ways: a string no place
+// says is a stale row, and a string said with no row is unchecked.
+const ZH_TRUTH = {
+  // the festival greeting, said on arrival
+  新年快乐: ["xīn nián kuài lè", "Happy New Year"],
+  // the finales, said after the ready line
+  大红包: ["dà hóng bāo", "a big red envelope"], 茶壶: ["chá hú", "teapot"], 麻将牌: ["má jiàng pái", "mahjong tile"],
+  竹子: ["zhú zi", "bamboo"], 大茶杯: ["dà chá bēi", "a big teacup"], 龙舟: ["lóng zhōu", "dragon boat"],
+  // the word of each place, said the first time he eats it
+  鞭炮: ["biān pào", "firecrackers"], 饺子: ["jiǎo zi", "dumplings"], 毛线: ["máo xiàn", "yarn"],
+  竹叶: ["zhú yè", "bamboo leaves"], 茶叶: ["chá yè", "tea leaves"], 船: ["chuán", "boat"],
+  // the words that name each sign's character ("<word>的<ch>")
+  红色: ["hóng sè", "red"], 春天: ["chūn tiān", "spring"], 笑脸: ["xiào liǎn", "smiling face"],
+  吃饭: ["chī fàn", "eat a meal"], 饿了: ["è le", "hungry"], 好香: ["hǎo xiāng", "smells good"],
+  回家: ["huí jiā", "go home"], 奶奶: ["nǎi nai", "grandma"], 玩具: ["wán jù", "toy"],
+  黑色: ["hēi sè", "black"], 白色: ["bái sè", "white"], 树叶: ["shù yè", "leaf"],
+  绿色: ["lǜ sè", "green"], 高山: ["gāo shān", "a high mountain"], 喝水: ["hē shuǐ", "drink water"],
+  小河: ["xiǎo hé", "a little river"], 上面: ["shàng mian", "on top"], 下面: ["xià mian", "underneath"],
+};
+// the Chinese strings a place makes Gobble say, and the sign lines as the page
+// builds them (its own builder, read out of hole-main.js and run)
+const mainSrc = fs.readFileSync(path.join(__dirname, "../scripts/hole-main.js"), "utf8");
+const signLineSrc = mainSrc.match(/const signLine = (\(g\) => [^;\n]+);/);
+const signLine = signLineSrc ? new Function("return " + signLineSrc[1])() : null;
+function zhSaid(def) {
+  const out = [];
+  if (def.finale.zh) out.push({ s: def.finale.zh, why: "finale" });
+  if (def.word && def.word.zh) out.push({ s: def.word.zh, why: "word" });
+  if (def.greet && def.greet.zh) out.push({ s: def.greet.zh, why: "greet" });
+  for (const g of def.signs || []) out.push({ s: g.word, why: "sign word" }, { s: signLine(g), why: "sign line" });
+  return out;
+}
+// Josh's Word Cards, read out of the page itself (a balanced-bracket read, so
+// a later array in the same file is never swallowed)
+const wcSrc = fs.readFileSync(path.join(__dirname, "../wordcards.html"), "utf8");
+function wcConst(name, open) {
+  const m = wcSrc.match(new RegExp("^const " + name + "\\s*=\\s*\\" + open, "m"));
+  assert.ok(m, "fixture: wordcards.html declares " + name);
+  const close = open === "[" ? "]" : "}";
+  let d = 0, q = null;
+  for (let j = m.index + m[0].length - 1; j < wcSrc.length; j++) {
+    const c = wcSrc[j];
+    if (q) { if (c === "\\") j++; else if (c === q) q = null; continue; }
+    if (c === '"' || c === "'" || c === "`") { q = c; continue; }
+    if (c === "/" && wcSrc[j + 1] === "/") { j = wcSrc.indexOf("\n", j); continue; }
+    if (c === "/" && wcSrc[j + 1] === "*") { j = wcSrc.indexOf("*/", j) + 1; continue; }
+    if (c === open) d++;
+    if (c === close && --d === 0) return new Function("return " + wcSrc.slice(m.index + m[0].length - 1, j + 1))();
+  }
+  throw new Error("fixture: " + name + " never closes");
+}
+
+test("LANTERN LAND (PLAN_GOBBLE_LANTERN): its places, and EVERY Chinese string Gobble says there is restated with its pinyin and meaning — both ways — and none is a string that must never be said", () => {
+  const land = DATA.LANDS.find((l) => l.id === "lantern");
+  assert.ok(land, "there is a Lantern Land");
+  assert.deepEqual(land.places, LANTERN, "its places, in order (batch A: the first six never move — §7)");
+  assert.ok(signLine, "fixture: the page builds a sign's line with signLine");
+  const said = new Set();
+  for (const id of LANTERN) {
+    const def = L.sceneById(id);
+    assert.ok(def.finale.zh && def.word && def.word.zh && def.word.en, id + ": says its finale's Chinese name and a word of the place");
+    for (const { s, why } of zhSaid(def)) {
+      if (why === "sign line") continue;
+      assert.ok(/^[一-鿿]+$/.test(s), id + ": its " + why + " " + JSON.stringify(s) + " is Chinese characters and nothing else");
+      assert.ok(ZH_TRUTH[s], id + ": its " + why + " " + s + " is not in the truth table — restate it (pinyin and meaning) before Gobble says it");
+      said.add(s);
+    }
+  }
+  for (const s of Object.keys(ZH_TRUTH)) assert.ok(said.has(s), s + " is in the truth table but no place says it — a stale row");
+  for (const [s, [py, en]] of Object.entries(ZH_TRUTH)) {
+    assert.equal(py.split(" ").length, s.length, s + ": one syllable of pinyin per character (" + py + ")");
+    assert.ok(en.length > 2, s + ": has a meaning");
+  }
+  // nothing Gobble says may contain a string that must never be said: 大麻 is
+  // cannabis (so no "big 麻…" finale), and 大茶壶 is old Beijing slang for a
+  // brothel's tea boy (which is why the teapot is said 茶壶)
+  const BANNED = ["大麻", "大茶壶"];
+  for (const def of SCENES) {
+    for (const { s, why } of zhSaid(def)) for (const b of BANNED) assert.ok(!s.includes(b), def.id + ": its " + why + " " + s + " contains " + b);
+  }
+});
+
+test("LANTERN LAND signs: every character on a sign is one of JOSH's OWN cards, said with its card's first meaning, never bare (\"<word>的<字>\"), never on two places, and on ground he can walk to", () => {
+  const HANZI = wcConst("HANZI", "["), XINZI = wcConst("XINZI", "["), SAY_AS = wcConst("XIN_SAY_AS", "{");
+  assert.ok(HANZI.length >= 100 && XINZI.length >= 90 && Object.keys(SAY_AS).length >= 4, "fixture: read his cards (" + HANZI.length + " + " + XINZI.length + ")");
+  const card = new Map([...HANZI, ...XINZI].map((r) => [r[0], r]));
+  // his 中文 cards with TWO everyday readings, read from the list that pins
+  // them in site.test.js (乐 lè "happy" / yuè "music"), so the two cannot drift
+  const siteSrc = fs.readFileSync(path.join(__dirname, "site.test.js"), "utf8");
+  const polyBlock = siteSrc.match(/const POLYPHONIC = \[([\s\S]*?)\n  \];/);
+  const POLY = new Set(polyBlock ? [...polyBlock[1].matchAll(/^\s*\["(.)",/gm)].map((m) => m[1]) : []);
+  assert.ok(POLY.size >= 10 && POLY.has("乐"), "fixture: read the polyphones his cards pin (" + POLY.size + ")");
+  // a card's FIRST sense, as the card shows it: "grandma; milk (牛奶)" -> "grandma"
+  const first = (meaning) => meaning.split(";")[0].replace(/\s*\([^)]*\)/g, "").trim();
+  const seen = new Map();
+  let n = 0;
+  for (const def of SCENES) {
+    const G = L.geomOf(def), st = L.createGame(def);
+    for (const g of def.signs || []) {
+      n++;
+      assert.ok(LANTERN.includes(def.id), def.id + ": signs are Lantern Land's");
+      const c = card.get(g.ch);
+      assert.ok(c, def.id + ": the sign " + g.ch + " is not one of his cards");
+      assert.equal(g.en, first(c[4]), def.id + ": the sign " + g.ch + " says " + JSON.stringify(g.en) + " in English, but its card's first meaning is " + JSON.stringify(first(c[4])));
+      assert.ok(g.word.includes(g.ch) && g.word.length >= 2, def.id + ": " + g.ch + " is named by a word that contains it (" + g.word + ")");
+      // a bare syllable is never said; and the character AFTER 的 is said on
+      // its own, so the word in front cannot fix its reading: where his
+      // cards voice a polyphone through a stand-in (长 as 常), the sign uses
+      // the very same one, and a two-reading card with no stand-in is never a
+      // sign at all (快乐的乐 could come out yuè, "music")
+      assert.equal(g.as, SAY_AS[g.ch], def.id + ": " + g.ch + " is voiced through the same stand-in as his cards (" + (SAY_AS[g.ch] || "none") + ")");
+      assert.ok(!POLY.has(g.ch) || SAY_AS[g.ch], def.id + ": the sign " + g.ch + " has two everyday readings and no one-reading stand-in, so a voice may say it wrong");
+      assert.equal(signLine(g), g.word + "的" + (SAY_AS[g.ch] || g.ch), def.id + ": the sign is said " + g.word + "的" + g.ch);
+      assert.ok(!seen.has(g.ch), g.ch + " is a sign in both " + seen.get(g.ch) + " and " + def.id);
+      seen.set(g.ch, def.id);
+      const x = g.x * st.W, y = g.y * st.H;
+      assert.ok(G.walk(x, y) <= 0, def.id + ": the sign " + g.ch + " stands where he cannot walk (" + G.walk(x, y).toFixed(1) + ")");
+    }
+  }
+  assert.equal(n, LANTERN.length * 3, "three signs a place");
+  // the page says it once a visit, in a Chinese voice, then its English
+  const sb = mainSrc.slice(mainSrc.indexOf('ev.type === "sign"'), mainSrc.indexOf('ev.type === "sign"') + 400);
+  assert.ok(/sayZh\(signLine\(g\)\)/.test(sb) && /sayPlay\(g\.en\)/.test(sb), "the sign event says the Chinese line, then its English");
+});
+
+test("LANTERN LAND festivals agree with 华丽's festival table: the same emoji, and a custom from her own bin", () => {
+  // the festival each place is (her table's own label), restated
+  const FEST = { newyear: "春节", watertown: "端午节" };
+  const H = require("../scripts/hl-content.js");
+  const bins = H.FESTIVAL_SETS.flatMap((s) => s.bins);
+  for (const [id, label] of Object.entries(FEST)) {
+    const def = L.sceneById(id), bin = bins.find((b) => b.label === label);
+    assert.ok(bin, "fixture: her table has " + label);
+    assert.equal(def.finale.e, bin.emoji, id + ": its finale is " + label + "'s own picture in her world");
+    const zh = [def.finale.zh, def.word.zh];
+    assert.ok(bin.items.some((it) => zh.some((s) => s.includes(it))), id + ": says one of her " + label + " customs (" + bin.items.join("/") + "), not " + zh.join("/"));
+  }
+});
+
+test("LANTERN LAND scenery: the pandas sit where he can never walk, and the Chinese face the canvas asks for is SIMPLIFIED, named first", () => {
+  const HR = require("../scripts/hole-render.js");
+  let spots = 0;
+  for (const id of LANTERN) {
+    const def = L.sceneById(id), G = L.geomOf(def), O = L.outlineOf(def);
+    for (const [look, rings] of Object.entries(O.blocks)) {
+      if (!(HR.BLOCK_LOOKS[look] || {}).pandas) continue;
+      for (const p of HR.pandaSpots(HR.ringsInfo(rings))) {
+        spots++;
+        assert.ok(G.walk(p.x, p.y) > 0, id + ": a panda sits at " + p.x.toFixed(1) + "," + p.y.toFixed(1) + ", ground he could walk onto");
+      }
+    }
+  }
+  assert.ok(spots >= 4, "fixture: the pandas were found (" + spots + ")");
+  // Word Cards' lesson: an unnamed stack falls to a JAPANESE face on Apple
+  // devices, which draws different forms. One owner, an SC face first, and
+  // every font the renderer sets for a character goes through it.
+  // (PingFang SC on Apple, Hiragino Sans GB — GB is the Simplified standard)
+  assert.ok(/^"PingFang SC", "Hiragino Sans GB"/.test(HR.SC_FONT), "the first faces are Simplified Chinese (" + HR.SC_FONT + ")");
+  const rs = fs.readFileSync(path.join(__dirname, "../scripts/hole-render.js"), "utf8").replace(/\/\/[^\n]*/g, "");
+  const cjk = [...rs.matchAll(/fillText\(([^,]+),/g)].map((m) => m[1]).filter((a) => /g\.ch|"福"/.test(a));
+  assert.ok(cjk.length >= 2, "fixture: the canvas draws a sign's character and 福");
+  const fonts = [...rs.matchAll(/\.font = ([^;]+);/g)].map((m) => m[1]);
+  assert.ok(fonts.filter((f) => f.includes("SC_FONT")).length >= 2, "the signs and the 福 both set SC_FONT");
+  assert.ok(!/Hiragino Maru|Japanese|"Noto Sans JP"/.test(rs), "no Japanese face is named anywhere in the renderer");
+});
+
+test("a place's WEATHER is on the screen: at every phone and tablet size some of it is in view at least 95% of the time — two random clouds left Tea Hills and Train Town with an empty sky for 17-29% of every minute", () => {
+  // The browser check that a weather PAINTS samples one moment; this is the
+  // other half, over time and every place, through the renderer's own layout
+  // (`airSpecks` + `airPos`, the code `drawAir` draws with). A still camera,
+  // so it measures the layout and not a play. Landscape is left out: it is
+  // not a design target, and the haunted house's three ghosts sit at 94% there.
+  const R = require("../scripts/hole-render.js");
+  const SIZES = [[390, 700], [375, 560], [320, 500], [834, 1000]];
+  const bad = [];
+  let checked = 0;
+  for (const def of SCENES) {
+    if (!def.air) continue;
+    const A = R.AIR[def.air[0]];
+    assert.ok(A, def.id + ": its air " + def.air[0] + " has a drawing");
+    for (const [w, h] of SIZES) {
+      const specks = R.airSpecks(def.id, A, w, h);
+      let empty = 0, moments = 0;
+      for (let t = 0; t < 120; t += 0.25) {
+        let seen = 0;
+        for (const p of specks) {
+          const q = R.airPos(p, A, t, 0, 0, w, h), r = q.s * 1.5;
+          if (q.x > -r && q.x < w + r && q.y > -r && q.y < h + r) seen++;
+        }
+        if (!seen) empty++;
+        moments++;
+      }
+      if (empty / moments > 0.05) bad.push(def.id + " (" + def.air[0] + ", " + specks.length + " specks) at " + w + "x" + h + ": nothing in view " + Math.round((empty / moments) * 100) + "% of the time");
+      checked++;
+    }
+  }
+  assert.ok(checked >= 200, "the law looked at every place's weather at every size (" + checked + ")");
+  assert.deepEqual(bad, [], "a weather that is off the screen this often is a sky with nothing in it");
+});

@@ -2831,6 +2831,9 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
    room the 360px phones have at full size. */
 @media (max-width: 359px) {
   .hole-door__label { font-size: 0.8rem; }
+  /* a LAND door too: six lands are three over three, and at 1.15rem
+     "Lantern" ran 7.3px past its door at 320 wide (PLAN_GOBBLE_LANTERN §3) */
+  .hole-land__label { font-size: 0.95rem; }
 }
 .hole-door--dark .hole-door__label { color: #ffffff; }
 .hole-door__star { position: absolute; top: 8px; right: 10px; font-size: 1.6rem; line-height: 1; }

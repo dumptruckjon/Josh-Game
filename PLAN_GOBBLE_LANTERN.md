@@ -1,6 +1,10 @@
 # 🏮 Gobble Hole — Lantern Land: twelve Chinese places
 
-**Status: DESIGNED, NOT BUILT.** Planned 2026-10-15 as six places and grown to
+**Status: PARTLY BUILT (batch A).** Batch A — Lantern Land and its first six
+places (New Year Street, Dumpling House, Hutong House, Panda Forest, Tea Hills,
+Water Town) with all the speech plumbing — shipped 2026-10-21; §12 says what it
+built and where it differs from this plan. Batch B (places 7-12) is designed
+here and not built. Planned 2026-10-15 as six places and grown to
 twelve on 2026-10-20. The owner asked for a new Gobble Hole world of six places,
 "all varying Chinese themed", as a plan only, because there were not yet enough
 tokens to build it. They then said it could go beyond six ("perhaps to 10 or
@@ -8,10 +12,9 @@ tokens to build it. They then said it could go beyond six ("perhaps to 10 or
 So every choice in §9 is made, not left open. This doc is meant to be built from
 as it stands. Every claim it makes about the engine, the laws, the emoji and
 the names was checked against the code (see §8), and the whole plan was then
-reviewed against the code and the culture (§11). When batch A ships this line
-becomes PARTLY BUILT, and when batch B ships, BUILT. Today the plan-status law in
-`site.test.js` cannot see a Gobble land at all (it only knows the fort's worlds),
-so batch A step 6 extends it to read `HoleData.LANDS` (§7).
+reviewed against the code and the culture (§11). When batch B ships this line
+becomes BUILT. The plan-status law in `site.test.js` reads `HoleData.LANDS`
+since batch A, so this doc may not say NOT BUILT while its land ships.
 
 Read with `PLAN_GOBBLE.md`. Its §14 (shape, plan and challenge), §17 (lands of
 twelve), §19 (Hero Night, the last new land) and §20 (stuck spots and echo taps)
@@ -106,7 +109,10 @@ block look `stall`). Three **alleys** (hutong) branch off left and right, and th
 
 **On arrival:** "Happy New Year!" then 新年快乐 in a Chinese voice.
 **Word of the place:** 🧨, "Firecrackers!" then 鞭炮.
-**Signs:** 红 red · 春 spring (春节 is the Spring Festival) · 乐 happy (快乐).
+**Signs:** 红 red · 春 spring (春节 is the Spring Festival) · 笑 laugh (笑脸).
+(The plan had 乐 happy; batch A swapped it, because 乐 has two everyday
+readings, lè and yuè, and the word in front does not fix the one after 的 —
+§4.)
 **Decor:**
 - couplets (春联) and an UPRIGHT 福 diamond on each door (a main door's 福 is
   pasted upright; the upside-down 倒福, "福到", belongs on a water vat, so one vat
@@ -191,8 +197,9 @@ category, but nothing claims to be her house: "Grandma" is any grandmother.
 **Word of the place:** 🧶, "Yarn!" then 毛线 (毛 is on his 新字 cards).
 **Signs:** 家 home · 奶 grandma · 玩 play.
 **Wear:** a red knitted `bobble` hat (existing), as if grandma had knitted it.
-**Air:** orange `leaves` (an autumn courtyard). **Ground:** `brick` (existing:
-grey brick paving, which is what a 四合院 yard is).
+**Air:** orange `leaves` (an autumn courtyard). **Ground:** new `greybrick`
+(grey brick paving, which is what a 四合院 yard is; the existing `brick` is RED,
+which batch A found when it drew it).
 
 **Things:**
 - T1: 🌱 12 (sprout: 🥬), 🌰 40, 🍬 34, 🥜 28
@@ -411,8 +418,10 @@ The challenges:
 - **Run:** ✏️ pencils roll away from him, the way pencils roll off a desk.
 
 **Word of the place:** 📚, "Books!" then 书 (on his 新字 cards).
-**Signs:** 写 write · 字 character · 大 big. The 大 sign stands beside the giant
-大, so the sign names the wall he is walking round.
+**Signs:** 写 write · 字 character · 画 draw (画画). The plan had 大 big beside
+the giant 大, and batch A's sign law forbids it: 大 has two readings (dà, and
+dài in 大夫), and nothing on his cards voices it through a one-reading stand-in.
+画 is a 新字 card with one reading (§12).
 **Wear:** `cap` (existing) in ink-black and red. **Air:** `motes` (existing).
 **Ground:** new `ricepaper`: cream, with a faint red 田字格 grid, the practice
 squares he writes in on the 写字 pad.
@@ -589,7 +598,10 @@ in one turn are queued, not cut off.
    in a visit, English then Chinese. It counts as a tastes-style first-time line,
    so a taste word for the same gulp gives way to it.
 3. **`greet: { en, zh }`** for the two festivals that have a happy greeting (New
-   Year, Moon Garden). It is said once on arrival, after the tune.
+   Year, Moon Garden). It is said once on arrival, after the tune, in place of
+   "I'm hungry!". A greeting may be English ONLY (`{ en }`): Hutong House says
+   "Grandma's house!" and nothing Chinese, because there is no festival there
+   to greet him with.
 4. **`count.lang: "zh"`**: the count says 一 … 十 instead of English numbers. Law:
    a Chinese count counts at most ten. (Batch B, with the Moon Garden.)
 5. **`signs: [{ ch, word, x, y }]`**, a top-level field drawn in its own pass
@@ -600,10 +612,12 @@ in one turn are queued, not cut off.
      unnamed stack falls to a JAPANESE face, which draws different forms.
    - **Event:** the engine emits `sign` the first time his centre comes within
      reach. The page says it the way a Chinese speaker names a character,
-     "<word>的<ch>" (长城的长, 快乐的乐, 奶奶的奶), then its English meaning. A
-     bare syllable is never said: a voice reads a polyphone its commonest way,
-     so bare 长 can come out zhǎng and bare 乐 yuè, and bare 奶 is heard as
-     "milk". Where Word Cards voices a character through a one-reading stand-in
+     "<word>的<ch>" (长城的长, 笑脸的笑, 奶奶的奶), then its English meaning. A
+     bare syllable is never said: bare 奶 is heard as "milk". **The word in
+     front does NOT fix the reading of the character after 的** — it is said on
+     its own, so a voice reads a polyphone its commonest way — and so a sign is
+     never one of his two-reading cards (the POLYPHONIC list in
+     `tests/site.test.js`: 乐 lè/yuè, 大 dà/dài …) unless it has a stand-in. Where Word Cards voices a character through a one-reading stand-in
      (`XIN_SAY_AS` in `wordcards.html`: 长 → 常), the trailing character uses
      the same stand-in, read from that file, so the two worlds cannot disagree.
    - **Saving:** a sign is said once a visit. It never blocks movement, is never
@@ -621,7 +635,7 @@ and 奶 is "grandma", not "milk".
 
 | Place | Signs, as said |
 |---|---|
-| New Year Street | 红色的红 · 春天的春 · 快乐的乐 |
+| New Year Street | 红色的红 · 春天的春 · 笑脸的笑 |
 | Dumpling House | 吃饭的吃 · 饿了的饿 · 好香的香 |
 | Hutong House | 回家的家 · 奶奶的奶 · 玩具的玩 |
 | Panda Forest | 黑色的黑 · 白色的白 · 树叶的叶 |
@@ -629,7 +643,7 @@ and 奶 is "grandma", not "milk".
 | Water Town | 小河的河 · 上面的上 · 下面的下 |
 | Moon Garden | 月亮的月 · 星星的星 · 金鱼的鱼 |
 | Monkey Mountain | 花朵的花 · 水果的果 · 飞机的飞 |
-| Writing Desk | 写字的写 · 汉字的字 · 大小的大 |
+| Writing Desk | 写字的写 · 汉字的字 · 画画的画 |
 | Ice City | 下雪的雪 · 冬天的冬 · 好冷的冷 |
 | Kung Fu School | 小手的手 · 跳舞的跳 · 快慢的快 |
 | The Great Wall | 长城的长 (said 长城的常) · 大火的火 · 大门的门 |
@@ -644,7 +658,7 @@ Reuse is preferred everywhere. The new pieces:
 
 | Kind | Batch A (places 1-6) | Batch B (places 7-12) | Reused |
 |---|---|---|---|
-| Grounds | `street`, `bamboo` | `ricepaper`, `wallbrick` | `wood`, `brick`, `farm`, `stone`, `lawn`, `grass`, `snow` |
+| Grounds | `street`, `bamboo`, `greybrick` | `ricepaper`, `wallbrick` | `wood`, `farm`, `stone`, `lawn`, `grass`, `snow` |
 | Block looks | `stall`, `screen`, `bamboo` (+ sitting pandas) | `ink`, + monkeys sitting on `rock` | `wall`, `hedge`, `water`, `rock` |
 | Portal / fly looks | | `moongate`, `waterfall`, `cloud` (a fly look) | |
 | Wear | `tiger` (虎头帽), `pandaears`, `douli` (斗笠) | `rabbit`, `circlet`, `earflap`, `headband`, `general` | `chef`, `bobble`, `straw`, `cap` |
@@ -855,9 +869,12 @@ Run 2026-10-15 for the first six and 2026-10-20 for all twelve.
   until batch A steps the land label down below 360px.
 - **His characters:** read from `wordcards.html`. All 36 signs are on his cards,
   none twice:
-  - **中文 (26):** 红 春 乐 吃 家 奶 玩 白 绿 山 喝 河 上 下 月 星 鱼 花 飞 大 雪 冬
+  - **中文 (25):** 红 春 笑 吃 家 奶 玩 白 绿 山 喝 河 上 下 月 星 鱼 花 飞 雪 冬
     手 跳 快 门;
-  - **新字 (10):** 饿 香 黑 叶 果 写 字 冷 长 火.
+  - **新字 (11):** 饿 香 黑 叶 果 写 字 冷 长 火 画.
+
+  (As planned it was 中文 26 with 乐 and 大; batch A's sign law swapped 乐 for
+  笑 and batch B's Writing Desk must swap 大 for 画, §12.)
 
   Each spoken English meaning is the card's first sense (e.g. 奶 "grandma",
   长 "long", 香 "smells good").
@@ -968,7 +985,8 @@ plan was changed, and all of them were fixed above:
   - The `general` helmet must not out-top today's tallest hat (§5).
 - **Chinese and culture:**
   - 大茶壶 is old Beijing slang for a brothel's tea boy: said 茶壶 now, and banned.
-  - Signs must never be spoken bare (长 zhǎng, 乐 yuè, 奶 "milk") (§4).
+  - Signs must never be spoken bare (长 zhǎng, 奶 "milk") (§4), and 的 does
+    not fix the reading after it, so 乐 and 大 cannot be signs at all (§12).
   - 🎋 is a Japanese Tanabata tree and 🥋 a karate gi: named exceptions, with the
     kung fu word moved to 砖 (§10, §2.11).
   - A 饺子馆 is not a 茶楼 (§2.2); the 桔/吉 pun is Cantonese (§2.1); 端午 was not
@@ -977,4 +995,57 @@ plan was changed, and all of them were fixed above:
     is a 1957 arrangement (§10); lanterns appear in ten places, not nine (§9).
   - 上 and 下 at the two ends of a bridge taught the pair backwards half the time;
     they are placed by height now (§2.6).
+
+## 12. What batch A built (2026-10-21)
+
+Places 1-6 and the land, as designed, with these differences (each found by a
+law, the fuzzer or a screenshot, and each now pinned):
+
+- **Hutong House's ground is a new `greybrick`.** §2.3 said `brick`, which is red.
+- **A trail must be made of a PLAIN bite.** New Year Street's trails were 🪙 and
+  the Dumpling House's 🥟, both clumped, so the layout could not use them (0
+  bites laid). They are 🍊 and 🥚. 🥟 is 72, not 70: a clump count must divide.
+- **Panda Forest starts in a clearing** (a circle added at the foot of the path):
+  the S-path left room for only one trail. Its 叶 and 白 signs moved onto ground
+  he can walk (the sign law found them off it).
+- **A zone nothing uses is deleted, or used:** Hutong House's `west` went (the
+  dumpling grid already stands there), Tea Hills' bands carry 🧺/🍐/🍯 up the
+  climb, and Water Town's four islands each have their own things.
+- **Bot times are layout-sensitive here.** Moving one sign two cells took Panda
+  Forest's bot win from 21 to 34 seconds, so every move was re-checked with
+  `tools/hole-check.js`; all six are 25-43s.
+- **The art bill as built:** grounds `street`, `bamboo`, `greybrick`; looks
+  `stall` (its roof a red-and-white striped awning — a cream top read as a blank
+  box), `screen`, `bamboo` with pandas (placed by one owner, `pandaSpots`, which a
+  law holds to ground he cannot walk); wears `tiger`, `pandaears`, `douli`; airs
+  `paper`, `steam`; decals `tablecloth`, `couplets` (an upright 福, and with `vat`
+  the 倒福), `lanternstring`; the `slurp` taste (🍜 🍵 🥣) and 🧨 in `pop`; the
+  signs' plaques; and the dragon's head and tail on the 🛶, drawn in the boat's
+  own transform. The first dragon read as a green worm in a screenshot; it is a
+  red head with an open jaw, teeth, a gold mane and horns, and whiskers.
+- **One Chinese face:** `SC_FONT` in hole-render.js is the only font the canvas
+  uses for a character (signs and 福), PingFang SC first.
+- **The fuzzer** (`tools/hole-fuzz.js`) checked all six: 382 spots, 0 stuck.
+- **乐 is not a sign; 笑 is.** A Chinese read-through found the plan's 快乐的乐
+  wrong: the word in front does not fix the reading of the character after 的,
+  which a voice says on its own, so 乐 can come out yuè ("music"). The sign law
+  now reads Word Cards' POLYPHONIC list (`tests/site.test.js`) and forbids any
+  two-reading sign without a one-reading stand-in. New Year Street's third sign
+  is 笑脸的笑, "laugh". **The same law rules out the Writing Desk's 大 in batch
+  B** (大 dà/dài): it becomes 画画的画, "draw", a 新字 card (§2.9).
+- **Hutong House greets him in English only** ("Grandma's house!"), as §2.3
+  says; a `greet` may leave out `zh`, and a browser test holds that nothing
+  empty or undefined is then said in a Chinese voice.
+- **Weather that never moves up or down must be laid across the screen.** A
+  speck is laid out in the screen plus a margin; a kind with no vertical drift
+  (`clouds`) can sit in the margin for good, and Tea Hills drew 0 px of cloud in
+  a browser test. Measured on phones, two random clouds left the sky empty 17-29%
+  of the time. Clouds are a `band` kind now (laid within the screen's height and
+  spread across its width) with a `min` of 4, and a node law asks every place's
+  weather to be on screen at least 95% of the time at four phone and tablet
+  sizes (the worst is 3.3% empty, in portrait). The speck maths has one owner,
+  `airSpecks`/`airPos` in hole-render.js, so the law measures what is drawn.
+- **One review lens ran.** The seven-lens review died at the session limit with
+  only its Chinese lens done; its findings are the three above and the
+  neutral-tone pinyin of 上面/下面 (shàng mian, xià mian).
 

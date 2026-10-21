@@ -782,6 +782,9 @@
     for (const f of G.flows) if (!f.things) keeps.push({ gp: f.gp, half: f.w / 2 });
     for (const b of G.bridges) keeps.push({ gp: b.gp, half: b.w / 2 + 1 });
     for (const e of G.ends) keeps.push({ gp: [[e.x, e.y / SQ]], half: RULES.PORTAL_R + 4 });
+    // …and a character SIGN's plaque (Lantern Land): nothing stands on it, or
+    // the one character he is meant to see is under a sweet
+    for (const g of def.signs || []) keeps.push({ gp: [[g.x * W, (g.y * H) / SQ]], half: RULES.SIGN_KEEP });
     // how far a spot is from every keep-out (an index: a spot only measures
     // the lanes near it)
     const keepIdx = segIndex([].concat(...keeps.map((kp) => segsOf(kp.gp, kp.half))), SHAPE_CAP);
@@ -1131,6 +1134,9 @@
       // §17: things counted so far, a cannon flight under way, the new
       // things already introduced this visit
       counted: 0, fly: null, met: {},
+      // Lantern Land: the character signs he is beside right now (a sign
+      // speaks as he rolls up to it; the page says it once a visit)
+      atSign: {},
       events: [],
     };
   }
@@ -1798,6 +1804,19 @@
   }
 
   // One fixed step.
+  // A character SIGN (Lantern Land) speaks as he rolls up to it: `sign` is
+  // emitted each time his centre comes within reach (never while he is still
+  // beside it), and the page says it once a visit. A sign is never eaten,
+  // never in the way and never saved.
+  function signsStep(st, R) {
+    const h = st.hole, sg = R.def.signs, reach = Math.max(RULES.SIGN_R, h.r);
+    for (let i = 0; i < sg.length; i++) {
+      const at = gdist(sg[i].x * st.W, sg[i].y * st.H, h.x, h.y) <= reach;
+      if (at && !st.atSign[i]) emit(st, { type: "sign", i, ch: sg[i].ch });
+      if (at) st.atSign[i] = true; else delete st.atSign[i];
+    }
+  }
+
   function step(st, dt) {
     dt = dt || DT;
     st.t += dt; st.tick++;
@@ -1814,6 +1833,7 @@
     // he glides where the finger points
     if (st.fly) flyStep(st, R, dt);
     else glide(st, R, dt);
+    if (R.def.signs) signsStep(st, R);
 
     // 6. grow toward this level's size (the picture eases; physics uses r)
     h.r += (h.R - h.r) * Math.min(1, dt * 7);
