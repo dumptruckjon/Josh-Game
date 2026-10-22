@@ -10187,6 +10187,17 @@ DejaVu onto the page locally reproduced CI's 582 to the pixel, which is what mad
 the fix checkable here. **When a layout law measures text, measure EVERY run of
 text in the box, at its widest possible value, not just the one that broke
 last time.**
+**Its verify-live run then failed the same test for an unrelated reason — a
+RACE in the test.** Walking from one land's page to the next, the screen is
+already visible, so `showScreen` returned at once and, against the live site,
+the walk counted Crazy Land's 12 doors as Hero Night's 6. It was always
+there (12 → 6 is the step since §19) and the live latency exposed it. The walk
+now waits until the page names THIS land (`showLand`), which the router sets
+in the same synchronous step as the doors, so the door count stays a real
+check. Proven with a control rather than a mutation: delaying every
+hashchange listener 300ms makes the old walk fail with the live message and
+the new one pass. **"Wait until visible" is no wait at all when the screen
+is already visible — wait for something that names the NEW state.**
 
 ---
 

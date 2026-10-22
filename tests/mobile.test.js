@@ -57,6 +57,25 @@ async function gameIds() {
 // fine, the event was lost). Re-firing the hash (dummy → target) forces a fresh
 // hashchange. This never weakens the audit — the screen still MUST become
 // visible; it just makes the trigger reliable so load can't redden CI.
+// A LAND's page: the screen is already visible when the test moves from one
+// land to the next, so showScreen returns at once, and if the hashchange has
+// not run yet the walk counts the PREVIOUS land's doors. verify-live caught it
+// (Crazy Land's 12 counted as Hero Night's 6, at 768x1024 against the live
+// site). Wait until the page names THIS land — the router sets the title in
+// the same synchronous step that shows the land's doors, so the door count
+// the walk then asserts is still a real check, never one this wait made true.
+async function showLand(p, ld) {
+  await showScreen(p, "#hole-land-" + ld.id, "#screen-hole-land");
+  try {
+    await p.waitForFunction((name) => {
+      const t = document.querySelector("#screen-hole-land .hole-landtitle");
+      return !!t && t.textContent === name;
+    }, ld.name, { timeout: 8000 });
+  } catch (e) {
+    const t = await p.evaluate(() => { const x = document.querySelector("#screen-hole-land .hole-landtitle"); return x && x.textContent; });
+    assert.fail(`the land page never named ${ld.name} after #hole-land-${ld.id} (it says "${t}")`);
+  }
+}
 async function showScreen(p, hash, sel) {
   for (let attempt = 0; attempt < 4; attempt++) {
     await p.evaluate((h) => { if (location.hash === h) location.hash = "#__renav"; location.hash = h; }, hash);
@@ -500,7 +519,7 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
         `${at}: at the end of the page the grown-ups ⚙️ is all on screen, clear of the home indicator (${gb && Math.round(gb.y)}..${gb && Math.round(gb.y + gb.height)})`);
       // EVERY LAND's page
       for (const ld of LANDS) {
-        await showScreen(p, "#hole-land-" + ld.id, "#screen-hole-land");
+        await showLand(p, ld);
         await p.evaluate(() => scrollTo(0, 0));
         const d = await p.evaluate(doorsOn, { bottomInset: inset[1], sel: "#screen-hole-land .hole-door" });
         const lat = `${at} ${ld.id}`;
