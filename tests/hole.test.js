@@ -2362,6 +2362,15 @@ test("§22: a reset in one tab holds against a tab left open from before — eve
   await page.reload();
   const disk = (pg) => pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), KEY);
   const winHere = (pg) => pg.evaluate(() => { for (let i = 0; i < 5; i++) { if (window.__HOLE.autoplay(20000, { until: "win" }).won) return true; } return false; });
+  // a tab WRITES mid-play only when he eats something, and how far the next
+  // bite is depends on how many real frames ran first (the live run ate
+  // nothing in a fixed 240 steps, so its tab never wrote) — so play until he
+  // does, and return the count
+  const eatMore = (pg) => pg.evaluate(() => {
+    const was = window.__HOLE.state().eaten;
+    for (let i = 0; i < 40 && window.__HOLE.state().eaten === was; i++) window.__HOLE.autoplay(60);
+    return window.__HOLE.state().eaten;
+  });
   await page.evaluate((k) => { localStorage.removeItem(k); window.__HOLE.reset({ demoSeen: true }); }, KEY);
   // tab A: wins the picnic, half-eats the farm, and goes back to the land
   // page, so the farm is PARKED in its memory with a ring on its door
@@ -2409,7 +2418,7 @@ test("§22: a reset in one tab holds against a tab left open from before — eve
     await B.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(240); });
     const mine = await page.evaluate(() => window.__HOLE.state().eaten);
     await page.bringToFront();
-    const mine2 = await page.evaluate(() => { window.__HOLE.autoplay(240); return window.__HOLE.state().eaten; });
+    const mine2 = await eatMore(page);
     assert.ok(mine2 > mine, "fixture: tab A ate more after tab B wrote (" + mine + " then " + mine2 + ")");
     d = await disk(page);
     assert.ok(d.runs.farm && d.runs.farm.eaten.length >= mine2, "tab A's farm keeps its latest gulps through tab B's writes (" + (d.runs.farm ? d.runs.farm.eaten.length : "none") + " stored, " + mine2 + " eaten)");
@@ -2538,10 +2547,10 @@ test("§22: a reset in one tab holds against a tab left open from before — eve
     await page.evaluate(() => window.__HOLE.autoplay(240));
     await deafen();
     const gB = await B.evaluate(() => { window.__HOLE.reset({ demoSeen: true }); return window.__HOLE.save().gen; });
-    await page.evaluate(() => window.__HOLE.autoplay(240));
+    await eatMore(page);
     assert.equal(await page.evaluate(() => window.__HOLE.save().gen), gB, "fixture: tab A took the reset inside its own write");
     await B.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(240); });
-    const mine3 = await page.evaluate(() => { window.__HOLE.autoplay(240); return window.__HOLE.state().eaten; });
+    const mine3 = await eatMore(page);
     const d3 = await disk(page);
     assert.ok(d3.runs.farm && d3.runs.farm.eaten.length >= mine3 && mine3 > 0, "the place he was eating when the reset came is still his after the other tab writes (" + (d3.runs.farm ? d3.runs.farm.eaten.length : "none") + " stored, " + mine3 + " eaten)");
   } finally {
