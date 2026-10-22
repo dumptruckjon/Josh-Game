@@ -78,13 +78,16 @@ function makeTop(st) {
 // ...or any level.
 function makeLevel(st, lv) { st.hole.level = lv; st.hole.R = st.hole.r = st.levels.R[lv]; st.hole.xp = st.levels.C[lv]; }
 
-test("the data: FIFTY-FOUR places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
+test("the data: SIXTY places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
   // The owner doubled the places three times (2026-10-01: six became twelve;
   // 2026-10-06: twelve became twenty-four; 2026-10-08: twenty-four became
   // forty-eight), then asked for six more, a web hero's and Halloween's
-  // (2026-10-14, §19: fifty-four). A place quietly dropped from the data
-  // would leave a door-less hole in the journey ▶ walks through.
-  assert.ok(SCENES.length >= 54, "fifty-four places to eat (" + SCENES.length + ")");
+  // (2026-10-14, §19: fifty-four), then Lantern Land's first six (2026-10-21,
+  // §21: sixty). A place quietly dropped from the data would leave a
+  // door-less hole in the journey ▶ walks through. (This floor and the test's
+  // name stayed at fifty-four for a release after §21 shipped: a floor that is
+  // not raised with the data tolerates exactly the drop it is here to catch.)
+  assert.ok(SCENES.length >= 60, "sixty places to eat (" + SCENES.length + ")");
   const ids = new Set();
   for (const def of SCENES) {
     const where = def.id;
