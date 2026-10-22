@@ -71,8 +71,19 @@
   // gold: the most TREASURES he has found in each place (0..3, the best ever:
   // the door shows them); seen: the places he has opened (a door he has never
   // opened sparkles, so a new place is easy to find among 48)
-  function freshSave() { return { v: 1, done: {}, runs: {}, gold: {}, seen: {}, demo: false, last: SCENES[0].id }; }
+  // gen: WHEN a grown-up last reset this save (a time, not a count). A tab
+  // that finds a newer gen in storage than its own knows another tab reset
+  // since it last read, and takes that reset instead of folding its old ⭐
+  // back in (syncSave). A time, because a count can repeat: a tab still
+  // running older code writes a save with no gen at all, and a second reset
+  // counted from that would reuse the number a live tab already holds.
+  function freshSave() { return { v: 1, gen: 0, done: {}, runs: {}, gold: {}, seen: {}, demo: false, last: SCENES[0].id }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  // A gen from the future is not a real one (a hand-edited save, or the clock
+  // put back): it reads as never reset, or no reset could ever beat it. And it
+  // is checked when it is COMPARED too, not only when it is read, so a gen this
+  // tab loaded before the clock went back cannot outrank a real reset.
+  const genOf = (g) => (Number.isSafeInteger(g) && g > 0 && g <= Date.now() + 864e5 ? g : 0);
   // What this tab last read from or wrote to storage (persist folds in what
   // another tab wrote since).
   let lastStored = null;
@@ -105,6 +116,7 @@
     }
     s.demo = raw.demo === true;
     if (typeof raw.last === "string" && L.sceneById(raw.last)) s.last = raw.last;
+    s.gen = genOf(raw.gen);
     return s;
   }
   let save = loadSave();
@@ -117,26 +129,85 @@
   // tab's to change only for a place this tab has played. The grown-ups
   // reset is the one write that must not fold ({ force: true }), or the
   // stars it wipes would come straight back.
+  // And a reset in ANOTHER tab must not be undone by this one: a tab still
+  // open from before held the old ⭐ in memory, so its next gulp folded them
+  // all back in and the reset only held if that tab never wrote again (a
+  // gate run caught it). A reset stamps `gen`, and a tab that finds a newer
+  // gen in storage takes the reset (adoptReset).
   const touched = new Set();
-  function persist(opts) {
-    if (!(opts && opts.force)) {
-      const text = readStored();
-      if (text !== null && text !== lastStored) {
-        const disk = coerceSave(text);
-        for (const id of Object.keys(disk.done)) save.done[id] = true;
-        for (const id of Object.keys(disk.seen)) save.seen[id] = true;
-        for (const id of Object.keys(disk.gold)) save.gold[id] = Math.max(save.gold[id] || 0, disk.gold[id]);
-        if (disk.demo) save.demo = true;
-        // a place this tab has not played is the other tab's: its run as
-        // stored, or none (a run the other tab finished is gone)
-        for (const sc of SCENES) {
-          if (touched.has(sc.id)) continue;
-          if (disk.runs[sc.id]) save.runs[sc.id] = disk.runs[sc.id];
-          else delete save.runs[sc.id];
-        }
+  // What this tab has changed and not yet written: a reset taken from another
+  // tab keeps exactly these and nothing older. Recorded where each change is
+  // made (own.*), never worked out afterwards from a diff: a diff cannot see a
+  // ⭐ won again on a place that had one before the reset (the new value equals
+  // the old one), so that ⭐ was lost (a review found it). Cleared on every
+  // write, kept or not: a change a failed write never stored is from before
+  // the reset that follows, and must not come back after it.
+  const pend = { done: new Set(), seen: new Set(), gold: new Set(), demo: false, last: false };
+  function clearPend() { pend.done.clear(); pend.seen.clear(); pend.gold.clear(); pend.demo = false; pend.last = false; }
+  // Every change this tab makes to the save goes through here, so a reset
+  // taken from another tab can keep it (a guardrail fails any other write).
+  const own = {
+    done(id) { save.done[id] = true; pend.done.add(id); },
+    seen(id) { save.seen[id] = true; pend.seen.add(id); },
+    gold(id, n) { if (n <= (save.gold[id] || 0)) return false; save.gold[id] = n; pend.gold.add(id); return true; },
+    demo() { save.demo = true; pend.demo = true; },
+    last(id) { save.last = id; pend.last = true; },
+  };
+  // Take in what another tab stored since this tab last read or wrote — the
+  // ONE place that happens. persist() calls it before every write, and so does
+  // everything that READS the save to decide something: a door, ▶, a deep
+  // link, the pages' ⭐ and rings. A tab left open on a land page from before a
+  // reset still held the old runs, so tapping a ringed door there carried the
+  // cleared place on, and its first gulp stored it again (a review found it).
+  // The storage event calls it too, so an open page repaints the moment the
+  // other tab writes. Returns whether anything came in.
+  function syncSave() {
+    const text = readStored();
+    if (text === null || text === lastStored) return false;
+    const disk = coerceSave(text);
+    if (disk.gen > genOf(save.gen)) adoptReset(disk);
+    else {
+      for (const id of Object.keys(disk.done)) save.done[id] = true;
+      for (const id of Object.keys(disk.seen)) save.seen[id] = true;
+      for (const id of Object.keys(disk.gold)) save.gold[id] = Math.max(save.gold[id] || 0, disk.gold[id]);
+      if (disk.demo) save.demo = true;
+      // a place this tab has not played is the other tab's: its run as
+      // stored, or none (a run the other tab finished is gone)
+      for (const sc of SCENES) {
+        if (touched.has(sc.id)) continue;
+        if (disk.runs[sc.id]) save.runs[sc.id] = disk.runs[sc.id];
+        else delete save.runs[sc.id];
       }
     }
+    lastStored = text;
+    return true;
+  }
+  // Another tab's reset, taken: its save, plus what this tab changed and has
+  // not yet written. The one run kept is the place ON SCREEN, if the play
+  // screen is up (even in a background tab): the reset must not snatch a
+  // place out from under him while he is eating it. A run that is only
+  // PARKED is dropped, or a door, ▶ or a deep link would carry the cleared
+  // progress straight back on.
+  function adoptReset(disk) {
+    const next = disk;
+    for (const id of pend.done) next.done[id] = true;
+    for (const id of pend.seen) next.seen[id] = true;
+    for (const id of pend.gold) next.gold[id] = Math.max(next.gold[id] || 0, save.gold[id] || 0);
+    if (pend.demo) next.demo = true;
+    if (pend.last) next.last = save.last;
+    touched.clear();
+    if (run && play && !play.hidden) {
+      const id = run.def.id;
+      if (save.runs[id]) next.runs[id] = save.runs[id];
+      else delete next.runs[id];
+      touched.add(id);
+    } else run = null;
+    save = next;
+  }
+  function persist(opts) {
+    if (!(opts && opts.force)) syncSave();
     const out = JSON.stringify(save);
+    clearPend();
     try { global.localStorage.setItem(KEY, out); lastStored = out; } catch (e) { /* private mode: play on */ }
   }
 
@@ -363,6 +434,7 @@
   // came to eat, not to replay), else simply the next one
   const ORDER = LANDS.flatMap((ld) => ld.places);
   function nextScene(id) {
+    syncSave();                       // which places are done, as STORED
     const i = ORDER.indexOf(id);
     for (let k = 1; k <= ORDER.length; k++) {
       const nx = ORDER[(i + k) % ORDER.length];
@@ -429,9 +501,13 @@
   function resetProgress(opts) {
     const had = Object.keys(save.done).length > 0 || SCENES.some((sc) => eatenFrac(sc) > 0);
     const keepDemo = !!(opts && opts.keepDemo) && save.demo;
+    // a time, and past both this tab's gen and the stored one
+    const gen = Math.max(Date.now(), genOf(save.gen) + 1, coerceSave(readStored()).gen + 1);
     save = freshSave();
+    save.gen = gen;
     if (keepDemo) save.demo = true;
     touched.clear();
+    clearPend();
     persist({ force: true });
     run = null; stopLoop(); endDemo(); paintDoors();
     return had;
@@ -653,6 +729,8 @@
 
   function startScene(id, opts) {
     opts = opts || {};
+    // (every way in has already taken in what another tab stored: a door, a
+    // deep link and Back come through route(), ▶ through nextScene())
     const def = L.sceneById(id) || SCENES[0];
     touched.add(def.id);
     stopLoop();
@@ -682,8 +760,8 @@
     // a fresh place opens with a look at the whole island and then flies in
     // to Gobble (skipped under reduced motion); a resumed one starts on him
     render.setState(st, { intro: !resumed });
-    save.last = def.id;
-    save.seen[def.id] = true;
+    own.last(def.id);
+    own.seen(def.id);
     persist();
     meterKey = "";
     paintMeter();
@@ -757,7 +835,7 @@
         if (ev.gold && !ev.vortex) {
           run.found.add(ev.id); SFX.treasure(); sayPlay(SAY.treasure);
           // the best ever, kept for the door (written with this frame's save)
-          if (run.found.size > (save.gold[run.def.id] || 0)) { save.gold[run.def.id] = run.found.size; run.dirty = true; }
+          if (own.gold(run.def.id, run.found.size)) run.dirty = true;
         }
         // the WORD of the place (Lantern Land, §4.2): the first time he eats
         // its picture, said in English and then Chinese — and a taste word for
@@ -854,7 +932,7 @@
       } else if (ev.type === "win") {
         // The win is EARNED the moment the finale goes down, so the ⭐ is
         // recorded now — leaving during the slurp can never lose it.
-        save.done[run.def.id] = true;
+        own.done(run.def.id);
         delete save.runs[run.def.id];
         persist();
         later(() => { SFX.burp(); sayPlay(SAY.win); }, 450);
@@ -999,6 +1077,12 @@
       if (doc.hidden) stopLoop();
       else if (playVisible()) startLoop();
     });
+    // another tab wrote the save: take it in now, so an open page's ⭐ and
+    // rings are the stored ones (a reset there clears them here at once)
+    global.addEventListener("storage", (e) => {
+      if (e.key !== KEY && e.key !== null) return;
+      if (syncSave()) paintDoors();
+    });
   }
 
   // ---- Show, don't tell: a ghost hand drags Gobble onto the nearest bite ------
@@ -1041,7 +1125,7 @@
     if (!demo) return;
     demo = null;
     if (hand) hand.hidden = true;
-    if (!save.demo) { save.demo = true; persist(); }
+    if (!save.demo) { own.demo(); persist(); }
   }
 
   // ---- The win: Josh's buddy cheers, and a wall of everything Gobble ate ----
@@ -1102,6 +1186,10 @@
   const GobbleHole = {
     route(id) {
       if (!home || !play) return false;
+      // what another tab stored since, BEFORE this screen reads the save —
+      // and before the play screen shows, so a run parked here is still
+      // parked if a reset in another tab is what came in
+      syncSave();
       if (id === "hole-home") {
         if (!play.hidden) leavePlay();
         play.hidden = true;
@@ -1189,7 +1277,7 @@
     save: () => JSON.parse(JSON.stringify(save)),
     reset(opts) {
       resetProgress();
-      if (opts && opts.demoSeen) { save.demo = true; persist(); }
+      if (opts && opts.demoSeen) { own.demo(); persist(); }
       for (const k of Object.keys(counts)) delete counts[k];
     },
     counts: () => ({ ...counts }),

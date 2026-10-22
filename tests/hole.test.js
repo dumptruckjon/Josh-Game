@@ -2308,15 +2308,293 @@ test("§20: TWO TABS of the app never wipe each other's ⭐ — a tab left open 
     const before = await page.evaluate(() => localStorage.getItem("josh-gobble-v1"));
     await page.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(300); });
     assert.notEqual(await page.evaluate(() => localStorage.getItem("josh-gobble-v1")), before, "fixture: tab A wrote after tab B");
+    // Tab A's own frames are stopped from here, so every write it makes
+    // below is one this test chose: without that, A's frame loop wrote
+    // between B's reset and B's read on a busy gate and the clause above
+    // could see the old ⭐ come back (which is what found the bug next).
+    await page.evaluate(() => { window.__rafReal = window.requestAnimationFrame; window.requestAnimationFrame = () => 0; });
+    await page.waitForTimeout(120);
     await B.bringToFront();
     await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
     const wiped = await B.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")));
     assert.deepEqual(wiped.done, {}, "the grown-ups reset clears every ⭐ (it does not fold them back in)");
+    // ...and tab A, open from before and still holding the picnic's ⭐ in
+    // memory, must not put it back the next time it writes: its next gulp
+    // folded every old ⭐ straight back in, so a reset in one tab only held
+    // until the other tab ate something.
+    await page.bringToFront();
+    await page.evaluate(() => window.__HOLE.autoplay(300));
+    const after = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")));
+    assert.deepEqual(after.done, {}, "a tab open from before does not undo another tab's reset (its old ⭐ stay gone)");
+    assert.ok(!after.runs.picnic && !after.runs.farm, "…nor bring back a half-eaten place it held from before");
+    assert.ok(after.runs.toyroom && after.runs.toyroom.eaten.length > 0, "…but the place on its own screen, which he is still eating, is kept");
+    assert.deepEqual(await page.evaluate(() => window.__HOLE.save().done), {}, "tab A has taken the reset itself");
+    // a ⭐ won in that tab AFTER the reset is new progress and must land, even
+    // when the win is the very write that finds the reset
+    await B.bringToFront();
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await page.bringToFront();
+    const won = await page.evaluate(() => { for (let i = 0; i < 5; i++) { if (window.__HOLE.autoplay(20000, { until: "win" }).won) return true; } return false; });
+    assert.ok(won, "fixture: tab A wins the toy room");
+    const final = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")));
+    assert.deepEqual(final.done, { toyroom: true }, "the ⭐ won after the reset lands, and nothing from before comes with it");
   } finally {
+    await page.evaluate(() => { if (window.__rafReal) { window.requestAnimationFrame = window.__rafReal; delete window.__rafReal; } });
     await B.close();
     await page.bringToFront();
     await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
     await go("", "#screen-start");
+  }
+});
+
+test("§22: a reset in one tab holds against a tab left open from before — even one that never HEARD about it: no parked place comes back, no ⭐ won since is lost, and a count can never collide", async () => {
+  // A review of the §22 fix found what it still let through. Tab A here
+  // can be made DEAF to the storage event, so a clause proves the save is
+  // re-read where it is READ — a door, a write — not only when the other
+  // tab's write is heard. Listeners on the window run in the order they were
+  // added (measured in this Chromium: a blocker added after the page's own
+  // listener cannot stop it), so the blocker is an init script that runs
+  // before any page script, and does nothing until __deafOn is set.
+  const KEY = "josh-gobble-v1";
+  await page.addInitScript(() => {
+    window.addEventListener("storage", (e) => { if (window.__deafOn) e.stopImmediatePropagation(); }, true);
+  });
+  await page.reload();
+  const disk = (pg) => pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), KEY);
+  const winHere = (pg) => pg.evaluate(() => { for (let i = 0; i < 5; i++) { if (window.__HOLE.autoplay(20000, { until: "win" }).won) return true; } return false; });
+  await page.evaluate((k) => { localStorage.removeItem(k); window.__HOLE.reset({ demoSeen: true }); }, KEY);
+  // tab A: wins the picnic, half-eats the farm, and goes back to the land
+  // page, so the farm is PARKED in its memory with a ring on its door
+  await go("#hole-home", "#screen-hole-home");
+  await page.evaluate(() => window.__HOLE.start("picnic"));
+  await go("#hole-play", "#screen-hole-play");
+  assert.ok(await winHere(page), "fixture: tab A wins the picnic");
+  await page.evaluate(() => window.__HOLE.start("farm"));
+  await page.evaluate(() => window.__HOLE.autoplay(300));
+  await go("#hole-land-town", "#screen-hole-land");
+  const pre = await disk(page);
+  assert.ok(pre.done.picnic && pre.runs.farm && pre.runs.farm.eaten.length > 0, "fixture: the picnic's ⭐ and a half-eaten farm are stored");
+  const deafen = () => page.evaluate(() => { window.__deafOn = true; });
+  await deafen();
+  const B = await context.newPage();
+  B.on("pageerror", (e) => pageErrors.push("tab B: " + e));
+  try {
+    await B.goto(baseURL + "#hole-home", { waitUntil: "load" });
+    await B.locator("#screen-hole-home").waitFor({ state: "visible" });
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    assert.deepEqual((await disk(B)).done, {}, "fixture: tab B's reset cleared every ⭐");
+    await page.waitForTimeout(200);
+    assert.ok((await page.evaluate(() => window.__HOLE.save())).done.picnic, "fixture: tab A never heard (its memory still holds the old ⭐)");
+    // 1. tapping the ringed door in the tab that never heard opens the farm
+    //    FRESH: it used to carry the cleared place on from its stale memory,
+    //    and the first gulp stored it again
+    await page.bringToFront();
+    await page.waitForTimeout(450);
+    await page.locator('.hole-door[data-scene="farm"]').click();
+    await page.waitForFunction(() => window.__HOLE.scene() === "farm");
+    assert.equal(await page.evaluate(() => window.__HOLE.state().eaten), 0, "a place the reset cleared opens fresh, not carried on from the stale tab's memory");
+    let d = await disk(page);
+    assert.deepEqual(d.done, {}, "…and opening it brings back no ⭐ from before the reset");
+    // 2. opening it is still THIS tab's news: the place is seen and is the
+    //    last one played (the door's route took the reset in first, so this
+    //    is the tab's own write on top of it; clause 12 is the way in that
+    //    does NOT pass through a route)
+    assert.ok(d.seen.farm === true && d.last === "farm", "the place he just opened is stored as seen and as the last one played (" + JSON.stringify({ seen: d.seen, last: d.last }) + ")");
+    // 3. the place he opened stays HIS while the other tab writes too: it
+    //    used to drop out of this tab's places, so every write of the other
+    //    tab replaced its run with the stored one (or none)
+    await page.evaluate(() => window.__HOLE.autoplay(240));
+    await B.evaluate(() => { location.hash = "#hole-play"; });
+    await B.locator("#screen-hole-play").waitFor({ state: "visible" });
+    await B.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(240); });
+    const mine = await page.evaluate(() => window.__HOLE.state().eaten);
+    await page.bringToFront();
+    const mine2 = await page.evaluate(() => { window.__HOLE.autoplay(240); return window.__HOLE.state().eaten; });
+    assert.ok(mine2 > mine, "fixture: tab A ate more after tab B wrote (" + mine + " then " + mine2 + ")");
+    d = await disk(page);
+    assert.ok(d.runs.farm && d.runs.farm.eaten.length >= mine2, "tab A's farm keeps its latest gulps through tab B's writes (" + (d.runs.farm ? d.runs.farm.eaten.length : "none") + " stored, " + mine2 + " eaten)");
+    assert.ok(d.runs.toyroom, "…and tab B's toy room is kept too");
+    // 4. a ⭐ won AGAIN after a reset — on a place that had its ⭐ before it,
+    //    with the win as the very write that finds the reset — lands. A diff
+    //    against what the tab last stored cannot see it (true equals true).
+    await page.evaluate(() => window.__HOLE.start("picnic"));
+    assert.ok(await winHere(page), "fixture: tab A wins the picnic");
+    assert.ok((await disk(page)).done.picnic, "fixture: the picnic's ⭐ is stored, so the tab last stored it");
+    await page.evaluate(() => { window.__HOLE.start("picnic"); window.__rafReal = window.requestAnimationFrame; window.requestAnimationFrame = () => 0; });
+    await page.waitForTimeout(120);
+    await B.bringToFront();
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    assert.deepEqual((await disk(B)).done, {}, "fixture: the second reset cleared the ⭐ again");
+    await page.bringToFront();
+    assert.ok(await winHere(page), "fixture: tab A wins the picnic again, after the reset");
+    assert.deepEqual((await disk(page)).done, { picnic: true }, "a ⭐ won after the reset lands, even on a place that had one before it");
+    await page.evaluate(() => { window.requestAnimationFrame = window.__rafReal; delete window.__rafReal; });
+    // 5. a reset's gen can never collide with one a live tab holds: a tab
+    //    running OLDER code writes a save with no gen at all, and a reset
+    //    counted up from that reused the number tab A held, so A folded its
+    //    ⭐ straight back over the reset
+    const genA = await page.evaluate(() => window.__HOLE.save().gen);
+    assert.ok(genA > 0, "fixture: tab A has taken a reset (gen " + genA + ")");
+    await page.evaluate((k) => { const v = JSON.parse(localStorage.getItem(k)); delete v.gen; localStorage.setItem(k, JSON.stringify(v)); }, KEY);
+    await B.bringToFront();
+    await B.reload();
+    await B.locator("#screen-hole-play").waitFor({ state: "visible" });
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await page.bringToFront();
+    await page.evaluate(() => window.__HOLE.start("farm"));
+    await page.evaluate(() => window.__HOLE.autoplay(120));
+    assert.deepEqual((await disk(page)).done, {}, "a reset made after an old tab dropped the gen still beats the gen tab A holds (its ⭐ stay gone)");
+    // 6. a gen from the future (a hand-edited save) is not a real one: it
+    //    reads as never reset, so a reset still holds against it. Both tabs
+    //    are on a home screen first, so no game loop writes behind the test.
+    for (const pg of [page, B]) {
+      await pg.evaluate(() => { location.hash = "#hole-home"; });
+      await pg.locator("#screen-hole-home").waitFor({ state: "visible" });
+    }
+    await page.evaluate((k) => { localStorage.setItem(k, JSON.stringify({ v: 1, gen: 9007199254740991, done: { picnic: true, farm: true }, runs: {}, gold: {}, seen: {}, demo: true })); }, KEY);
+    for (const pg of [page, B]) {
+      await pg.reload();
+      await pg.locator("#screen-hole-home").waitFor({ state: "visible" });
+      assert.equal(await pg.evaluate(() => window.__HOLE.save().gen), 0, "a gen from the future reads as never reset");
+    }
+    await deafen();
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await page.bringToFront();
+    await page.evaluate(() => { window.__HOLE.start("farm"); window.__HOLE.autoplay(120); });
+    assert.deepEqual((await disk(page)).done, {}, "a reset holds against a save whose gen came from the future");
+    // 8. a PARKED place is not carried on either: Back (or a deep link) to the
+    //    play screen resumes the run parked in memory with no door at all
+    await go("#hole-land-town", "#screen-hole-land");
+    await page.waitForTimeout(450);
+    await page.locator('.hole-door[data-scene="farm"]').click();
+    await page.waitForFunction(() => window.__HOLE.scene() === "farm");
+    await page.evaluate(() => window.__HOLE.autoplay(240));
+    await go("#hole-land-town", "#screen-hole-land");
+    assert.ok((await disk(page)).runs.farm, "fixture: a half-eaten farm is parked and stored");
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await go("#hole-play", "#screen-hole-play");
+    assert.equal(await page.evaluate(() => window.__HOLE.state().eaten), 0, "Back to the play screen after another tab's reset does not carry on the place it cleared");
+    await page.evaluate(() => window.__HOLE.autoplay(60));
+    assert.ok(!(await disk(page)).runs.farm, "…and nothing brings the cleared farm back to storage");
+    // 9. ▶ after a win decides from what is STORED, not from the stale copy:
+    //    the next place it opens is not carried on from before the reset
+    await page.evaluate(() => { window.__HOLE.start("farm"); window.__HOLE.autoplay(240); });
+    await page.evaluate(() => window.__HOLE.start("picnic"));
+    await page.evaluate(() => { for (let i = 0; i < 6; i++) if (window.__HOLE.autoplay(60 * 120).done) break; });
+    await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
+    assert.ok((await disk(page)).runs.farm, "fixture: the farm is half-eaten and stored, so ▶ would carry it on");
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await page.waitForTimeout(450);
+    await page.locator(".hole-next").click();
+    await page.waitForFunction(() => window.__HOLE.scene() === "farm");
+    assert.equal(await page.evaluate(() => window.__HOLE.state().eaten), 0, "▶ after another tab's reset opens the next place fresh, not carried on from the stale copy");
+    // 12. 🔁 opens its place with no route at all, so the reset is found by
+    //     the very write that records the place as seen and last played: those
+    //     are this tab's own news, recorded where they are made (own.*), and
+    //     carried into the reset — not lost with everything from before it
+    await page.evaluate(() => window.__HOLE.start("picnic"));
+    await page.evaluate(() => { for (let i = 0; i < 6; i++) if (window.__HOLE.autoplay(60 * 120).done) break; });
+    await page.locator(".hole-win").waitFor({ state: "visible", timeout: 6000 });
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await page.waitForTimeout(450);
+    await page.locator(".hole-again").click();
+    await page.waitForFunction(() => window.__HOLE.scene() === "picnic" && window.__HOLE.state().eaten === 0);
+    d = await disk(page);
+    assert.deepEqual(d.done, {}, "fixture: 🔁 took the reset (no ⭐ from before it)");
+    assert.ok(d.seen.picnic === true && d.last === "picnic", "🔁 after another tab's reset stores the place as seen and as the last one played (" + JSON.stringify({ seen: d.seen, last: d.last }) + ")");
+    // 11. a change whose write FAILED (storage full) is from before the reset
+    //     that follows, and must not come back after it: what a tab carries
+    //     into a reset is cleared on every write, kept or not
+    await page.evaluate(() => window.__HOLE.start("picnic"));
+    await page.evaluate((k) => {
+      const real = Storage.prototype.setItem;
+      window.__realSet = real;
+      Storage.prototype.setItem = function (key, v) { if (key === k) throw new Error("QuotaExceededError"); return real.call(this, key, v); };
+    }, KEY);
+    assert.ok(await winHere(page), "fixture: tab A wins the picnic while its writes fail");
+    await page.evaluate(() => { Storage.prototype.setItem = window.__realSet; delete window.__realSet; });
+    assert.ok(!(await disk(page)).done.picnic, "fixture: the picnic's ⭐ never reached storage");
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await page.evaluate(() => { window.__HOLE.start("farm"); window.__HOLE.autoplay(60); });
+    assert.deepEqual((await disk(page)).done, {}, "a ⭐ a failed write never stored does not come back after a later reset");
+    // 7. and a tab that DOES hear the other tab's write repaints at once: a
+    //    land page left open shows no ⭐ the moment the reset lands
+    await page.evaluate(() => window.__HOLE.start("picnic"));
+    assert.ok(await winHere(page), "fixture: tab A wins the picnic");
+    await go("#hole-land-town", "#screen-hole-land");
+    assert.ok(await page.locator('.hole-door[data-scene="picnic"] .hole-door__star').isVisible(), "fixture: the land page shows the picnic's ⭐");
+    await page.evaluate(() => { window.__deafOn = false; });
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await page.waitForFunction(() => document.querySelector('.hole-door[data-scene="picnic"] .hole-door__star').hidden, null, { timeout: 5000 })
+      .catch(() => assert.fail("a land page left open still shows a ⭐ another tab's reset cleared"));
+    // 10. a tab that takes the reset WHILE he is eating keeps that place, and
+    //     keeps it HIS: the other tab's later writes must not replace its run.
+    //     Deaf again, so the reset is taken inside a write: a tab that HEARS
+    //     each write re-snapshots its place before its next one, which hid
+    //     this (a mutation that dropped the place stayed green that way)
+    await page.waitForTimeout(450);
+    await page.locator('.hole-door[data-scene="farm"]').click();
+    await page.waitForFunction(() => window.__HOLE.scene() === "farm");
+    await page.evaluate(() => window.__HOLE.autoplay(240));
+    await deafen();
+    const gB = await B.evaluate(() => { window.__HOLE.reset({ demoSeen: true }); return window.__HOLE.save().gen; });
+    await page.evaluate(() => window.__HOLE.autoplay(240));
+    assert.equal(await page.evaluate(() => window.__HOLE.save().gen), gB, "fixture: tab A took the reset inside its own write");
+    await B.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(240); });
+    const mine3 = await page.evaluate(() => { window.__HOLE.autoplay(240); return window.__HOLE.state().eaten; });
+    const d3 = await disk(page);
+    assert.ok(d3.runs.farm && d3.runs.farm.eaten.length >= mine3 && mine3 > 0, "the place he was eating when the reset came is still his after the other tab writes (" + (d3.runs.farm ? d3.runs.farm.eaten.length : "none") + " stored, " + mine3 + " eaten)");
+  } finally {
+    await page.evaluate(() => {
+      if (window.__rafReal) { window.requestAnimationFrame = window.__rafReal; delete window.__rafReal; }
+      delete window.__deafOn;
+      if (window.__realSet) { Storage.prototype.setItem = window.__realSet; delete window.__realSet; }
+    });
+    await B.close();
+    await page.bringToFront();
+    await page.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    await go("", "#screen-start");
+  }
+});
+
+test("§22: a reset still holds after the device's clock goes BACK — a gen loaded before it cannot outrank the reset made after", async () => {
+  // A gen is the time of a reset, and a gen from the future reads as never
+  // reset (a hand-edited save). So when the clock is put back, a tab that
+  // loaded a real gen before must not keep comparing with it: a reset made
+  // after reads a smaller time, and would lose to the old gen — the tab would
+  // fold its old ⭐ back over the reset. Its own clock, in its own context, so
+  // the shared page's time is never touched.
+  const KEY = "josh-gobble-v1";
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const errs = [];
+  try {
+    const T0 = Date.now();
+    await ctx.clock.setFixedTime(T0);
+    const A = await ctx.newPage(), B = await ctx.newPage();
+    for (const [pg, n] of [[A, "A"], [B, "B"]]) pg.on("pageerror", (e) => errs.push(n + ": " + e));
+    await A.goto(baseURL + "#hole-home", { waitUntil: "load" });
+    await A.locator("#screen-hole-home").waitFor({ state: "visible" });
+    await A.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    const g0 = await A.evaluate(() => window.__HOLE.save().gen);
+    assert.ok(g0 >= T0, "fixture: tab A's reset is stamped with the time (" + g0 + ")");
+    await A.evaluate(() => window.__HOLE.start("picnic"));
+    const won = await A.evaluate(() => { for (let i = 0; i < 5; i++) { if (window.__HOLE.autoplay(20000, { until: "win" }).won) return true; } return false; });
+    assert.ok(won, "fixture: tab A wins the picnic");
+    assert.ok(await A.evaluate((k) => JSON.parse(localStorage.getItem(k)).done.picnic, KEY), "fixture: the picnic's ⭐ is stored");
+    // the clock goes back three days; tab B opens now, and resets
+    await ctx.clock.setFixedTime(T0 - 3 * 864e5);
+    await B.goto(baseURL + "#hole-home", { waitUntil: "load" });
+    await B.locator("#screen-hole-home").waitFor({ state: "visible" });
+    assert.equal(await B.evaluate(() => window.__HOLE.save().gen), 0, "fixture: to tab B, the stored gen is now from the future");
+    await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    const gB = await B.evaluate(() => window.__HOLE.save().gen);
+    assert.ok(gB < g0, "fixture: the reset made after the clock went back reads an EARLIER time (" + gB + " < " + g0 + ")");
+    // tab A, still holding the gen it loaded before, takes the reset anyway
+    await A.evaluate(() => { window.__HOLE.start("farm"); window.__HOLE.autoplay(120); });
+    assert.deepEqual(await A.evaluate((k) => JSON.parse(localStorage.getItem(k)).done, KEY), {}, "a reset made after the clock went back still holds (tab A's old ⭐ stay gone)");
+    assert.deepEqual(errs, [], "no page errors: " + errs.join(" | "));
+  } finally {
+    await ctx.close();
   }
 });
 

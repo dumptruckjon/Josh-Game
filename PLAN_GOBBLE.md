@@ -1528,3 +1528,52 @@ SIMPLIFIED; the weather-on-screen law. `tests/hole.test.js`: the speech through
 the real drain (greeting, word, sign, finale name, the ration, muted, an
 English-only greeting), the plaques drawn, and the dragon boat's head and tail. Every new clause was broken on purpose and went
 red.
+
+## 22. Quality check after Lantern Land batch A (owner, 2026-10-22)
+
+The owner asked whether everything was done, tested and high quality. The six
+Chinese places came back clean: every Chinese word, sign and greeting re-read;
+the stuck-spot fuzzer at 6 seeds × 150s (2177 spots, 0 stuck); the bot wins all
+six in 25-43s with every grow at x2.0 or better; the wandering-child model
+reaches the win a median 3-8s after he is big enough; screenshots at phone and
+iPad sizes with no page errors.
+
+One real bug was found, by a test that failed once in a full run:
+
+- **A reset in one tab was undone by another.** A tab still open from before a
+  grown-up reset held the old ⭐ in memory, and its next gulp folded them all
+  back in (a write folds in what another tab stored, and ⭐ only ever grow), so
+  the reset only held if the other tab never ate again. The save now carries a
+  reset `gen`. A reset bumps it past both its own and the stored one, and a tab
+  that finds a newer gen takes the reset: everything from before is gone, and
+  only what that tab itself has changed since lands on top, so the place on its
+  screen goes on being saved and a ⭐ won there after the reset still counts.
+
+A review of that fix found it half-done, and five more cases are fixed:
+
+- **A tab left open on a land page** still held the old runs. Tapping a ringed
+  door there carried the cleared place on, and Back to the play screen, or ▶
+  after a win, did the same. The save is now re-read before anything reads it
+  to decide (`syncSave`: every route, ▶, every write, and the storage event,
+  so an open land page loses a cleared ⭐ at once), and a place only parked when
+  the reset comes in is dropped.
+- **A ⭐ won again** after a reset, on a place that had one before it, was lost:
+  "what this tab changed" was worked out from a diff, and true equals true.
+  Every change now goes through `own.*`, which records it.
+- **A reset could reuse a number** another tab held (after a tab running older
+  code wrote a save with no `gen`), so that tab folded its ⭐ back. `gen` is now
+  the time of the reset.
+- **A gen from the future** (a hand-edited save, or the clock put back) reads as
+  never reset, and is re-checked when compared, so a reset always holds.
+- **A ⭐ whose write failed** is not carried into a later reset, and the place a
+  tab opens right after taking a reset stays its own while the other tab writes.
+
+**Tests.** The §20 two-tabs test stops the first tab's own frames, so every
+write it makes is one the test chose. A new §22 test makes a tab DEAF to the
+storage event (an init script, inert until switched on) and drives each case
+above: a door, Back and ▶ after a reset it never heard, a ⭐ won again, a gen
+dropped by older code, a gen from the future, a failed write, and a tab that
+hears it repainting at once and keeping the place it is playing. A second test
+puts the clock back three days in its own browser context. A guardrail fails any
+write to the save that skips `own.*`. Fourteen deliberate breaks, each red on
+its own clause.

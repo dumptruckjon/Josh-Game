@@ -1294,6 +1294,39 @@ test("guardrail: Gobble Hole's grown-ups reset asks the ONE parent gate, and wip
   assert.equal((h.match(/save = freshSave\(\)/g) || []).length, 1, "a fresh save is made in ONE place");
 });
 
+test("guardrail: every change Gobble Hole makes to its save goes through own.*, so a reset taken from another tab keeps it", () => {
+  // §22: a tab that finds another tab's reset in storage takes it, keeping
+  // exactly what IT has changed and not yet written (pend). A change written
+  // straight to the save skips that record, so a reset found by that very
+  // write loses it — a ⭐ won after the reset, gone. (The first version worked
+  // the change out from a diff instead, and a review found it blind to a ⭐
+  // won again on a place that had one before the reset.) The only other
+  // writers are taking in what another tab stored, and the one wipe.
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const h = strip(read("scripts/hole-main.js"));
+  const span = (start, end) => {
+    const a = h.indexOf(start);
+    assert.ok(a > 0, "fixture: hole-main.js has " + start);
+    const b = h.indexOf(end, a);
+    assert.ok(b > a, "fixture: " + start + " ends");
+    return [a, b];
+  };
+  const own = span("const own = {", "\n  };\n");
+  const allowed = [own, span("function syncSave(", "\n  }\n"), span("function resetProgress(", "\n  }\n")];
+  const re = /save\.(?:done|seen|gold)\[[^\]]+\]\s*=(?!=)|save\.(?:demo|last)\s*=(?!=)/g;
+  const stray = [];
+  let m, n = 0;
+  while ((m = re.exec(h))) {
+    n++;
+    if (!allowed.some(([a, b]) => m.index > a && m.index < b)) stray.push(h.slice(m.index, m.index + 48).replace(/\s+/g, " "));
+  }
+  assert.ok(n >= 8, "fixture: the scan finds the save's writes (" + n + ")");
+  assert.deepEqual(stray, [], "a change to the save that skips own.* — a reset taken from another tab would lose it: " + stray.join(" | "));
+  const ownBody = h.slice(own[0], own[1]);
+  for (const k of ["done", "seen", "gold"]) assert.match(ownBody, new RegExp("pend\\." + k + "\\.add\\("), "own." + k + " records what it changes");
+  for (const k of ["demo", "last"]) assert.match(ownBody, new RegExp("pend\\." + k + " = true"), "own." + k + " records what it changes");
+});
+
 test("guardrail: the framework tracks a clean-win streak for gentle difficulty ramping", () => {
   // Wave-3 adaptivity: a game can raise difficulty once Josh masters it and ease
   // back when he stumbles — invisibly (no number, no fail). Keep the engine wired.
