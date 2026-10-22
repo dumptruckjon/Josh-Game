@@ -426,6 +426,29 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
           if (box - widest < best.px) best = { px: Math.round((box - widest) * 10) / 10, name: l.textContent };
         }
         return best;
+      })(),
+      // …and a LAND door's ⭐ count, which must stay on ONE line: in CI's
+      // DejaVu Sans "⭐ 0 / 12" wrapped in an 85px door at 320 wide, every
+      // door grew 16px, and the second row of lands fell below the fold of a
+      // 320x568 phone (CI's real WebKit caught it; the sandbox's Inter fit).
+      // Measured at its WORST — a finished land, "⭐ 12 / 12" — in both fonts.
+      countRoom: (() => {
+        const c = document.createElement("canvas").getContext("2d");
+        let best = { px: Infinity, text: "", lines: 0 };
+        for (const b of els) {
+          const s = b.querySelector(".hole-land__stars");
+          if (!s) continue;
+          const cs = getComputedStyle(s), bs = getComputedStyle(b);
+          const m = s.textContent.match(/(\d+)\s*\/\s*(\d+)/);
+          const worst = m ? s.textContent.replace(m[1], m[2]) : s.textContent;
+          const measure = (fam) => { c.font = cs.fontWeight + " " + cs.fontSize + " " + fam; return c.measureText(worst).width; };
+          const wide = Math.max(measure(cs.fontFamily), measure('"DejaVu Sans", ' + cs.fontFamily));
+          const box = b.getBoundingClientRect().width - parseFloat(bs.paddingLeft) - parseFloat(bs.paddingRight) -
+            parseFloat(bs.borderLeftWidth) - parseFloat(bs.borderRightWidth);
+          best.lines = Math.max(best.lines, Math.round(s.getBoundingClientRect().height / parseFloat(cs.fontSize)));
+          if (box - wide < best.px) Object.assign(best, { px: Math.round((box - wide) * 10) / 10, text: worst });
+        }
+        return best;
       })() };
   };
   const LANDS = await page.evaluate(() => window.HoleData.LANDS);
@@ -445,6 +468,8 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
       // the home's doors are narrower three to a row (§19): every land's name
       // still has room in its door, in a device's wider font too
       assert.ok(m.room.px >= 3, `${at}: every land's longest word has room to spare in its door — "${m.room.name}" has ${m.room.px}px (a wider device font would break it)`);
+      assert.equal(m.countRoom.lines, 1, `${at}: every land's ⭐ count is on ONE line (the tallest took ${m.countRoom.lines})`);
+      assert.ok(m.countRoom.px >= 3, `${at}: a land's ⭐ count fits its door on one line even when the land is finished — "${m.countRoom.text}" has ${m.countRoom.px}px (in CI's DejaVu Sans it wrapped, and the doors fell below the fold)`);
       await auditActiveScreen(p, `hole-home@${at}`);
       await noOverflow(p, `hole-home@${at}`);
       assert.ok(m.minSide >= 75, `${at}: big land doors (${m.minSide}px)`);

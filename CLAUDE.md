@@ -10175,6 +10175,18 @@ blank box, and the first dragon boat read as a green worm. And a method note:
 **the seven-lens review fan-out died at the session limit again**, with one lens
 done. Its scripts and the one lens's findings were the deliverable; probing the
 rest directly beats re-running a fan-out that loads this file into every agent.
+**And CI's real WebKit then caught what the green local gate could not — the
+"Chocolate" lesson again, on a COUNT rather than a name.** Six lands three over
+three put the doors at 85px on a 320 phone; in CI's DejaVu Sans (about 10% wider
+than the sandbox's Inter) the star count "⭐ 0 / 12" wrapped to two lines, every
+door grew 16px, and the second row ended at 582 on a 320x568 screen. The room law
+measured only each door's NAME. It now also measures the count at its WORST (a
+finished land, "⭐ 12 / 12") in both fonts and requires it on one line; the count
+is `nowrap` and steps down with the screen (`clamp(0.78rem, 4vw, 1rem)`). Forcing
+DejaVu onto the page locally reproduced CI's 582 to the pixel, which is what made
+the fix checkable here. **When a layout law measures text, measure EVERY run of
+text in the box, at its widest possible value, not just the one that broke
+last time.**
 
 ---
 

@@ -2798,7 +2798,12 @@ body.hole-mode { background: linear-gradient(165deg, #efe4ff 0%, #fbefff 50%, #f
 .hole-land:active { transform: scale(0.97); }
 .hole-land__pic { font-size: 4.2rem; line-height: 1; }
 .hole-land__label { font-size: 1.15rem; line-height: 1.15; font-weight: 800; color: #2e2a55; text-align: center; }
-.hole-land__stars { font-size: 1rem; line-height: 1; font-weight: 800; color: #2e2a55; }
+/* the count never wraps: in CI's wider font (DejaVu Sans) "⭐ 0 / 12" took two
+   lines in an 85px door at 320 wide, every door grew 16px, and the second row
+   of lands fell below the fold of a 320x568 phone. It steps down with the
+   screen instead, so even a finished land ("⭐ 12 / 12") fits on one line at
+   320 (mobile.test.js measures that worst case, in DejaVu Sans too) */
+.hole-land__stars { font-size: clamp(0.78rem, 4vw, 1rem); white-space: nowrap; line-height: 1; font-weight: 800; color: #2e2a55; }
 .hole-land--dark .hole-land__label, .hole-land--dark .hole-land__stars { color: #ffffff; }
 /* a picture on a DARK door gets a pale glow round its ink: Hero Night's web
    is thin grey lines, and grey on a red-blue night is a picture nobody sees

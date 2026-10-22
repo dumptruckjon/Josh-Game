@@ -1511,6 +1511,11 @@ every few seconds at most; muted means silent.
 - **Screenshots decided the art.** The market stall's cream roof read as a blank
   box (it is a striped awning now) and the first dragon boat read as a green worm
   (it has a red head, an open jaw, teeth, a mane and horns).
+- **CI's wider font wrapped the land count.** Six lands three over three make
+  85px doors on a 320 phone, and in CI's DejaVu Sans "⭐ 0 / 12" took two lines,
+  so the doors grew and the second row fell below a 320x568 screen. The count is
+  on one line now and steps down with the screen; the mobile test measures it at
+  its worst ("⭐ 12 / 12") in both fonts.
 - **A new fuzzer** (`tools/hole-fuzz.js`) plays a place the way a child steers
   and asks the bot to get going from every few seconds: 382 spots in the six, 0
   stuck.
